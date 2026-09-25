@@ -99,9 +99,13 @@ def remember_edges(edges: dict[str, str], path: str | Path | None = None) -> Non
     changed = False
     for col, text in edges.items():
         e = mem["columns"].get(col)
-        if e is not None and e.get("edges") != text:
+        if e is None or e.get("edges") == text:
+            continue
+        if text:
             e["edges"] = text
-            changed = True
+        else:
+            e.pop("edges", None)            # cleared on a confirmed Columns tab: forget the edges too
+        changed = True
     if changed:
         save(mem, path)
 

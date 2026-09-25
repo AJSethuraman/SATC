@@ -94,28 +94,23 @@ def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
     assert book.run(b).ok
     ws = load_workbook(b)["Losses vs revenue"]
     rows = [[ws.cell(row=r, column=c).value for c in range(2, 12)] for r in range(5, ws.max_row + 1)]
-    rows = [x for x in rows if x[7] in book.BOXES]
+    rows = [x for x in rows if x[7] and x[7].split(" (")[0] in book.BOXES]
     assert rows
     sub = ws["B2"].value
     hi = float(sub.split("counts as more at ")[2].split("x")[0])
     lo = float(sub.split("and less at ")[2].split("x")[0])
     for band, seg, loans, gco, gflag, ranr, rflag, box, _, _ in rows:
-        # GCO's side is its flag: past the Control line and not luck
-        g = {"worse": "more", "better": "less"}.get(gflag, "same")
-        assert box.startswith(book.box_of(g, "same").split(",")[0]) or (g == "same" and box.startswith(
-            ("About the same", "Losing the same"))), (band, seg, gco, gflag, box)
-        # revenue moves off "the same" only past its own line
-        if "earning more" in box:
-            assert ranr >= hi
-        if "earning less" in box:
-            assert ranr <= lo
+        # the lines on Control decide the box (the firm, 25 Sep 2026); luck is marked, not gated
+        g = "more" if gco >= 1.25 else "less" if gco <= 0.8 else "same"
+        rv = "more" if ranr >= hi else "less" if ranr <= lo else "same"
+        assert box.split(" (")[0] == book.box_of(g, rv), (band, seg, gco, ranr, box)
         assert loans >= 30
     # the first grid is FICO x CHANNEL, largest GCO excess first: the planted pocket, which
     # loses far more and earns about the same, is not read as a trade-off
     assert ws["B4"].value == "FICO x CHANNEL"
     band, seg, box = ws["B7"].value, ws["C7"].value, ws["I7"].value
     assert band.startswith("under") and seg == "Broker"
-    assert box in ("Losing more, earning the same", "Losing more, earning less")
+    assert box.startswith("Losing more") and "earning more" not in box.split(" (")[0] or "could be luck" in box
     grids = [c.value for c in ws["B"] if isinstance(c.value, str) and " x " in c.value]
     assert len(grids) == 6 and len(ws._charts) == len(grids)     # one chart per grid
 
@@ -375,7 +370,7 @@ def test_suggested_answers_are_worked_out_from_the_book(tmp_path):
     check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
     said = check["Worked out from this book"]
     loans = int(said.split("fewest loans ")[1].split(" ")[0].replace(",", ""))
-    assert 100 < loans < 200                                   # 10 / 7.1% bad = about 141
+    assert 60 < loans < 90                                     # 5 / 7.1% bad = about 71 (the firm, 25 Sep 2026)
     assert "worse at" in said and "better at" in said
     import yaml
     ran_with = yaml.safe_load(b.with_name(f"{b.stem} - what ran.yaml").read_text())["benchmark"]
@@ -395,7 +390,7 @@ def test_losses_vs_revenue_dollars_agree_with_the_box_and_untested_pockets_get_n
     assert book.run(b).ok
     ws = load_workbook(b)["Losses vs revenue"]
     rows = [[ws.cell(row=r, column=c).value for c in range(2, 12)] for r in range(5, ws.max_row + 1)]
-    boxed = [x for x in rows if x[7] in book.BOXES]
+    boxed = [x for x in rows if x[7] and x[7].split(" (")[0] in book.BOXES]
     assert boxed
     for x in boxed:
         if x[7].startswith("Losing more"):
@@ -413,11 +408,13 @@ def test_three_way_rows_say_what_their_grid_holds_fixed(tmp_path):
     _set(b, "REV_DEBT", book.C_SPLIT, "Yes")
     assert book.run(b).ok
     ws = load_workbook(b)["Three-way"]
-    assert ws.cell(row=4, column=19).value == "What this grid holds fixed"
+    assert ws.cell(row=4, column=19).value == "Holds FICO fixed?"
     rows = [(ws.cell(row=r, column=3).value, ws.cell(row=r, column=19).value) for r in range(5, ws.max_row + 1)
             if ws.cell(row=r, column=2).value == "Outcome, share of loans"]
-    assert rows[0][0] == "FICO" and "holds FICO fixed" in rows[0][1]
-    assert any(band == "ORIG_BAL" and "doesn't hold FICO fixed" in words for band, words in rows)
+    assert rows[0][0] == "FICO" and rows[0][1] == "yes"
+    assert any(band == "ORIG_BAL" and words.startswith("no: part of this may be FICO") for band, words in rows)
+    firsts = [i for i, (band, _) in enumerate(rows) if band == "ORIG_BAL"]
+    assert all(rows[i][0] == "FICO" for i in range(min(firsts)))           # held-fixed grids first
     split = load_workbook(b)["Split"]
     texts = [c.value for row in split.iter_rows() for c in row if isinstance(c.value, str)]
     assert sum(1 for x in texts if "holds FICO fixed" in x) == 2        # once per FICO grid, not per measure
@@ -455,7 +452,10 @@ def test_the_planted_pocket_is_not_read_as_earning_more_on_noise(tmp_path):
     assert book.run(b).ok
     ws = load_workbook(b)["Losses vs revenue"]
     assert ws["B7"].value == "under 620" and ws["C7"].value == "Broker"
-    assert ws["I7"].value == "Losing more, earning the same"
+    box = ws["I7"].value
+    # the lines decide: 1.17x against a 1.16x line reads "earning more", and its own test marks it as luck
+    assert box.startswith("Losing more")
+    assert box.split(" (")[0] == "Losing more, earning the same" or "revenue gap could be luck" in box
 
 
 def test_boxes_follow_the_lines_exactly():
@@ -468,3 +468,51 @@ def test_boxes_follow_the_lines_exactly():
     assert book._side(1.25, 0.80, 1.25) == "more"
     assert book._side(0.80, 0.80, 1.25) == "less"
     assert book.box_of("more", "same") == "Losing more, earning the same"
+
+
+def test_a_luck_gap_keeps_its_box_and_says_so(tmp_path):
+    """The firm, 25 Sep 2026, after the fifth walk: the lines decide, luck is marked."""
+    b = _ready(tmp_path, n=8000)
+    _set(b, "FICO", book.C_EDGES, "620; 680; 740")
+    assert book.run(b).ok
+    ws = load_workbook(b)["Losses vs revenue"]
+    boxes = [ws.cell(row=r, column=9).value for r in range(5, ws.max_row + 1)]
+    assert any(isinstance(x, str) and x.endswith("could be luck)") for x in boxes)
+
+
+def test_remembered_edges_only_fill_a_column_the_workbook_has_not_seen(tmp_path):
+    """The fifth walk: another copy's edges came into this workbook, and clearing didn't undo it."""
+    from origination_cube import memory
+    b = _ready(tmp_path, n=3000)
+    _set(b, "FICO", book.C_EDGES, "every 20")
+    assert book.run(b).ok
+    _set(b, "FICO", book.C_EDGES, None)                       # cleared on this workbook
+    assert book.run(b).ok
+    assert "edges" not in memory.load()["columns"]["FICO"]     # and forgotten with it
+    book.set_up(tmp_path / "loans.csv")
+    assert load_workbook(b)["Columns"]["F7"].value is None
+    # a remembered edge fills only a workbook that hasn't seen the column, and says so
+    _set(b, "FICO", book.C_EDGES, "every 25")
+    assert book.run(b).ok
+    other = book.set_up(synth.write_extract(tmp_path / "q4", n=1000, seed=5))
+    ws = load_workbook(other.book)["Columns"]
+    assert ws["F7"].value == "every 25" and "remembered from before" in ws["I7"].value
+
+
+def test_control_shows_what_the_last_run_used(tmp_path):
+    """The fifth walk: a suggested option showed no number anywhere on Control."""
+    from origination_cube import control
+    b = _ready(tmp_path, n=3000)
+    wb = load_workbook(b)
+    for r in wb["Control"].iter_rows(min_row=control.FIRST_ROW):
+        if r[control.KEY_COL - 1].value == "min_loans":
+            r[control.CHOOSE_COL - 1].value = "Enough for 5 expected losses (suggested)"
+    wb.save(b)
+    ran = book.run(b)
+    assert ran.ok and any(x.startswith("Worked out from this book: fewest loans") for x in ran.lines)
+    ws = load_workbook(b)["Control"]
+    col = control.KEY_COL + 1
+    assert ws.cell(row=control.FIRST_ROW - 1, column=col).value == "Last Run used"
+    used = {r[control.KEY_COL - 1].value: ws.cell(row=r[0].row, column=col).value
+            for r in ws.iter_rows(min_row=control.FIRST_ROW) if r[control.KEY_COL - 1].value}
+    assert "worked out from this book" in used["min_loans"] and "x and" in used["revenue_line"]

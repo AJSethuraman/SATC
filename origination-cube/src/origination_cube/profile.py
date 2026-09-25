@@ -180,7 +180,8 @@ def _q(v: Any) -> str:
 
 
 def _confirm(setting: control.Setting) -> str:
-    opts = " / ".join(str(o.value) for o in setting.options)
+    # a suggestion is worked out by the workbook's Run; a cube file needs a number (the fifth walk)
+    opts = " / ".join(str(o.value) for o in setting.options if o.value not in ("calc", "luck"))
     return _q(f"[CONFIRM: {setting.question.lower()}? Pick {opts}, or enter your own]")
 
 

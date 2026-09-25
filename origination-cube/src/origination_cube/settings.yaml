@@ -132,10 +132,10 @@ groups:
         valid: {min: 2, max: 100000, whole: true}
         options:
           - value: calc
-            label: Enough for 10 expected losses (suggested)
+            label: Enough for 5 expected losses (suggested)
             explains: >-
-              Worked out from this book: the loans a pocket needs to expect 10 with
-              the outcome at the book's rate. Ten is the usual floor for a rate test.
+              Worked out from this book: the loans a pocket needs to expect 5 with the
+              outcome at the book's rate, the textbook floor for testing a rate.
           - value: 30
             label: "30 loans"
             explains: >-
