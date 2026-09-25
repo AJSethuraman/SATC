@@ -1451,6 +1451,9 @@ back.
     i assume all banding is adjustable to a degree"*. So: a band width ("every
     20") as well as edges, remembered per column, and more bands on offer.
   - **Next:** go ahead (the fourth walk).
+  - Built the same evening: band widths ("every 20"), remembered edges, 20 bands
+    on offer, and suggested values for fewest loans and worse/better. 174 tests;
+    42 re-inserted bugs.
 - [ ] **Next:** a fourth walkthrough; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).

@@ -266,6 +266,8 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
     lines.append("benchmark:")
     for skey, fkey in JUDGMENT_TO_FILE.items():
         val = use.get(skey)
+        if val in ("calc", "luck"):
+            val = None          # a suggestion is worked out by the workbook's Run; a cube file needs the number
         lines.append(f"  {fkey}: {_q(val) if val is not None else _confirm(settings[skey])}")
     lines.append(f"  power: {_q(method('power'))}")
     lines.append(f"  many_tests: {_q(method('many_tests'))}")

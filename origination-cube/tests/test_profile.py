@@ -113,7 +113,8 @@ def test_a_filled_control_tab_fills_the_judgment(tmp_path):
         key = r[control.KEY_COL - 1].value
         s = next((x for x in control.load_settings() if x.key == key), None)
         if s and s.judgment:
-            r[control.CHOOSE_COL - 1].value = s.options[1].shown
+            plain = [o for o in s.options if o.value not in ("calc", "luck")]      # suggestions aside
+            r[control.CHOOSE_COL - 1].value = plain[1].shown
     wb.save(book)
     path, _, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml", control.read_control(book))
     text = path.read_text()
