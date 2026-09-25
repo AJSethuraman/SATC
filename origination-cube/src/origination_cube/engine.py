@@ -286,6 +286,9 @@ class Cell:
 
 
 ALL = "All"
+HIGH = "above its pocket's median"
+LOW = "at or below its pocket's median"
+NO_SPLIT_VALUE = "(no value to split on)"
 
 
 @dataclass
@@ -296,6 +299,11 @@ class Grid:
     dim_labels: list[str]
     cells: dict[tuple[str, str], Cell]          # (band label, dim label); margins use ALL
     benchmarks: dict[str, float | None]         # per rate measure: median of in-scope cell rates
+    # the third layer, when the file asks for one: every pocket split by another column
+    split_labels: list[str] = field(default_factory=list)
+    split_cells: dict[tuple[str, str, str], Cell] = field(default_factory=dict)
+    split_compare: dict[tuple[str, str], dict[str, tuple]] = field(default_factory=dict)  # high vs low
+    split_pooled: dict[str, dict] = field(default_factory=dict)
 
     def cell(self, band_label: str, dim_label: str) -> Cell:
         return self.cells[(band_label, dim_label)]
@@ -519,12 +527,23 @@ def run(config: Config, table: Table) -> Result:
             min_units[m.name] = bench.min_units
 
     materiality_line = _materiality_lines(bench, measures, total, warnings)
+    split_vals = None
+    if config.split:
+        sfield, how = config.split
+        if sfield not in table.columns:
+            raise ColumnsMissing([(sfield, "the split")], table.columns)
+        if how == "each_value":
+            split_vals = [classify_text(raw, rules.get(sfield)) for raw in col(sfield)]
+        else:
+            split_vals = [classify_number(raw, rules.get(sfield))[0] for raw in col(sfield)]
     grids = []
     tie_outs = 0
     for b in config.bands:
         for d in config.dimensions:
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
                                topline, min_units, total, needed, materiality_line)
+            if split_vals is not None:
+                _split(grid, config, bands[b.name], dims[d.name], split_vals, measures, per_row)
             tie_outs += tie_out(grid, total, measures, n)
             grids.append(grid)
 
@@ -727,6 +746,74 @@ def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topli
 
 
 # --------------------------------------------------------------------------
+# The third layer
+
+
+def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) -> None:
+    """Split every pocket of the grid by a third column. `each_value`: one
+    layer per value (asset class 1, 2, 3, 4). `own_median`: two halves per
+    pocket, at that pocket's own median, so the split says what the column adds
+    beyond the band and segment already fixed (revolving debt moves with the
+    score; one cut for everyone would mostly re-sort the score)."""
+    field_, how = config.split
+    if how == "each_value":
+        labels = split_vals
+        order = _order(labels)
+    else:
+        groups: dict[tuple, list[float]] = {}
+        for b, d, v in zip(bl, dl, split_vals):
+            if v is not None:
+                groups.setdefault((b, d), []).append(v)
+        med = {k: statistics.median(v) for k, v in groups.items()}
+        labels = [NO_SPLIT_VALUE if v is None else (HIGH if v > med[(b, d)] else LOW)
+                  for b, d, v in zip(bl, dl, split_vals)]
+        order = [x for x in (HIGH, LOW, NO_SPLIT_VALUE) if x in set(labels)]
+    cells3 = _accumulate(measures, per_row, list(zip(bl, dl, labels)))
+    for c in cells3.values():
+        _finish_cell(c, measures)
+    grid.split_labels = order
+    grid.split_cells = cells3
+    if how != "own_median":
+        return
+    for m in measures:
+        if not m.is_rate:
+            continue
+        strata, o_sum, e_sum, v_sum, pockets, high_worse = [], 0.0, 0.0, 0.0, 0, 0
+        for (b, d), _ in grid.inner():
+            h, lo = cells3.get((b, d, HIGH)), cells3.get((b, d, LOW))
+            if h is None or lo is None:
+                continue
+            sh, sl = h.rates[m.name], lo.rates[m.name]
+            idx, p = stats.compare(sh.sums(), sl.sums())
+            grid.split_compare.setdefault((b, d), {})[m.name] = (idx, p, sh.units, sl.units)
+            if sl.rate is None or sh.units < 2 or sl.units < 2:
+                continue
+            pockets += 1
+            if idx is not None and ((idx > 1) if m.higher_is == "worse" else (idx < 1)):
+                high_worse += 1
+            if m.mode == "flagwt":
+                strata.append((sh.events, sh.units - sh.events, sl.events, sl.units - sl.events))
+            # observed high-half total against what it would be at the low half's rate
+            r = sl.rate
+            o_sum += sh.num
+            e_sum += r * sh.den
+            n = sh.units
+            s_dd = max(sh.syy - 2 * r * sh.sxy + r * r * sh.sxx, 0.0) * n / max(n - 1, 1)
+            se_l = stats.ratio_se(*sl.sums()) or 0.0
+            v_sum += s_dd + (sh.den * se_l) ** 2
+        out = {"pockets": pockets, "high_worse": high_worse, "measure": m.name}
+        if e_sum > 0:
+            out["ratio"] = o_sum / e_sum
+            out["ratio_p"] = math.erfc(abs(o_sum - e_sum) / math.sqrt(v_sum) / math.sqrt(2)) if v_sum > 0 else None
+        if strata:
+            z = stats.norm_s_inv(1 - (1 - (config.benchmark.confidence if config.benchmark else 0.95)) / 2)
+            orr, lo_ci, hi_ci = stats.mantel_haenszel(strata, z)
+            out.update({"odds": orr, "odds_lo": lo_ci, "odds_hi": hi_ci, "odds_p": stats.cmh_p(strata)})
+            out["steady_p"], out["steady_pockets"] = stats.steadiness_p(strata, orr)
+        grid.split_pooled[m.name] = out
+
+
+# --------------------------------------------------------------------------
 
 
 def _close(a: float, b: float, scale: float) -> bool:
@@ -749,6 +836,15 @@ def tie_out(grid: Grid, total: Cell, measures, n_rows: int) -> int:
 
     rows = sum(c.rows for c in inner)
     check("rows", rows, n_rows, n_rows)
+    # the third layer: every pocket's parts add back up to the pocket
+    if grid.split_cells:
+        for (b, d), c in grid.inner():
+            parts = [p for (bb, dd, _), p in grid.split_cells.items() if (bb, dd) == (b, d)]
+            check(f"split rows in {b} / {d}", sum(p.rows for p in parts), c.rows, c.rows)
+            for m in measures:
+                if m.is_rate:
+                    check(f"split {m.name} numerator in {b} / {d}", math.fsum(p.rates[m.name].num for p in parts),
+                          c.rates[m.name].num, c.rates[m.name].num)
     for m in measures:
         if not m.reconciles:
             continue

@@ -2,10 +2,16 @@
 bank data. Nothing here is real and nothing here reaches the engine: the
 cube file written beside the extract is the only thing that names columns.
 
-The plant: loans with a score under 620 that came through the broker channel
-charge off at several times the book's rate. That one pocket should be the
-worst cell by excess dollars in the score x channel grid, and nothing else
-should come close.
+The plants:
+- loans with a score under 620 that came through the broker channel charge
+  off at several times the book's rate. That pocket should be the worst cell
+  by excess dollars in the score x channel grid, and nothing else close.
+- revolving debt at origination (REV_DEBT) runs higher as the score falls,
+  and within any score, a borrower carrying more than is usual for that score
+  goes bad 1.8 times as often. So cut into fixed bands, revolving debt mostly
+  re-sorts the score; split within each pocket at its own median, the high
+  half should be worse than the low half, pocket after pocket.
+- asset class 4 of 1-4 goes bad 1.4 times as often as the others.
 
 The dirt, on purpose, one of each kind the engine must count and not zero:
 a bureau score of -9999 (missing by rule) on every 50th loan, a blank score,
@@ -20,7 +26,7 @@ import csv
 import random
 from pathlib import Path
 
-COLUMNS = ["LOAN_NBR", "FICO", "CHANNEL", "ORIG_BAL", "BAD_FLAG", "GCO_AMT", "RANR_AMT"]
+COLUMNS = ["LOAN_NBR", "FICO", "CHANNEL", "ORIG_BAL", "BAD_FLAG", "GCO_AMT", "RANR_AMT", "ASSET_CLASS", "REV_DEBT"]
 CHANNELS = ["Branch", "Broker", "Online"]
 
 CONFIG = """\
@@ -64,14 +70,22 @@ def make_rows(n: int = 20000, seed: int = 7) -> list[dict]:
         fico = int(rng.gauss(700, 55))
         channel = rng.choice(CHANNELS)
         bal = round(rng.uniform(5000, 60000), 2)
+        asset = rng.choice((1, 2, 3, 4))
+        usual = max(1000.0, 12000.0 - (fico - 700) * 60)       # usual revolving debt for this score
+        rev = round(max(0.0, rng.gauss(usual, 0.45 * usual)), 2)
         p = 0.03 if fico >= 680 else 0.06
         if fico < 620 and channel == "Broker":
             p = 0.30
+        if rev > usual:
+            p *= 1.8
+        if asset == 4:
+            p *= 1.4
+        p = min(p, 0.95)
         bad = 1 if rng.random() < p else 0
         gco = round(bal * rng.uniform(0.3, 0.8), 2) if bad else 0.0
         ranr = round(rng.uniform(-200, 400), 2)          # signed (D47)
         rows.append({"LOAN_NBR": f"L{i:07d}", "FICO": fico, "CHANNEL": channel, "ORIG_BAL": bal,
-                     "BAD_FLAG": bad, "GCO_AMT": gco, "RANR_AMT": ranr})
+                     "BAD_FLAG": bad, "GCO_AMT": gco, "RANR_AMT": ranr, "ASSET_CLASS": asset, "REV_DEBT": rev})
     # a bureau missing-score code on 2% of loans, as a real extract carries it
     for i in range(0, n, 50):
         rows[i]["FICO"] = -9999

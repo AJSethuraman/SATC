@@ -34,11 +34,12 @@ MODE_KEYS = {
     "flagwt": {"required": ("flag", "per", "higher_is"), "allowed": ("optional",)},
     "sumnum": {"required": ("value", "per", "higher_is"), "allowed": ("optional",)},
     "count": {"required": (), "allowed": ()},
-    "median": {"required": ("value",), "allowed": ("optional",)},
+    "median": {"required": ("value",), "allowed": ("optional", "show")},
 }
 TOP_KEYS = {"name", "schema_version", "key", "booked", "outcome", "gco", "ranr", "columns", "columns_confirmed",
             "missing", "bands", "dimensions", "measures", "benchmark", "questions", "min_age_months",
-            "origination_date", "as_of"}
+            "origination_date", "as_of", "split"}
+SPLIT_HOW = ("own_median", "each_value")
 #: The firm, 25 Sep 2026: "this analysis only works if we have, at a minimum, an
 #: output binary ... the GCO amount and RANR amount ... the booked amount ... and a
 #: loan number or app number or some other Key or we cannot perform the remapping
@@ -122,6 +123,7 @@ class Measure:
     flag_is: Any = None           # flagwt: the value that means yes, when the flag is not 0/1 already
     core: bool = False            # built from the required lines, never optional
     higher_is: str = "worse"      # worse for a loss (GCO, a bad-loan rate); better for revenue (RANR)
+    show: str = "median"          # median: which figure a median-mode measure shows, median or average
 
     @property
     def is_rate(self) -> bool:
@@ -225,6 +227,7 @@ class Config:
     min_age_months: int = 0
     origination_date: str | None = None
     as_of: Any = None                                 # a date, or the name of a column holding it
+    split: tuple | None = None                        # (column, own_median | each_value): the third layer
     columns: dict = field(default_factory=dict)       # column -> (meaning, is-value); from `columns:`
     not_cut: dict = field(default_factory=dict)       # column -> meaning, for meanings never cut by
     source_path: str = ""
@@ -323,6 +326,14 @@ def parse(raw: Any, source_path: str = "") -> Config:
                 Measure(name="ranr_rate", mode="sumnum", value=cols["ranr"], per=cols["booked"], core=True,
                         higher_is="better"))
     age, orig_col, as_of = _parse_age(raw, columns, problems)
+    split = None
+    if raw.get("split") is not None:
+        sp = raw["split"]
+        if not isinstance(sp, dict) or not isinstance(sp.get("field"), str) or sp.get("how") not in SPLIT_HOW:
+            problems.append("`split:` must be {field: COLUMN, how: own_median} for a number column, or "
+                            "{field: COLUMN, how: each_value} for a category")
+        else:
+            split = (sp["field"], sp["how"])
     measures = core + extras
     bench = _parse_benchmark(raw.get("benchmark"), problems) if "benchmark" in raw else None
     questions = _parse_questions(raw.get("questions") or [], problems)
@@ -342,7 +353,7 @@ def parse(raw: Any, source_path: str = "") -> Config:
         raise ConfigError(problems)
     return Config(name=str(raw["name"]), key=key, missing=missing, bands=bands, dimensions=dims,
                   measures=measures, benchmark=bench, questions=questions, booked=cols["booked"], outcome=out_field,
-                  min_age_months=age, origination_date=orig_col, as_of=as_of,
+                  min_age_months=age, origination_date=orig_col, as_of=as_of, split=split,
                   columns=columns, not_cut=not_cut, source_path=source_path, raw=raw)
 
 
@@ -551,12 +562,16 @@ def _parse_measures(node: Any, problems: list[str]) -> tuple[Measure, ...]:
                 problems.append(f"{where} ({name}): mode {mode} needs `{k}:`, a column name")
             else:
                 cols[k] = v.strip()
+        show = e.get("show", "median")
+        if show not in ("median", "average"):
+            problems.append(f"{where}.show must be median or average; got {show!r}")
         optional = e.get("optional", False)
         if not isinstance(optional, bool):
             problems.append(f"{where}.optional must be true or false")
             optional = False
         if len(cols) == len(spec["required"]):
-            out.append(Measure(name=name.strip(), mode=mode, optional=optional, **cols))
+            out.append(Measure(name=name.strip(), mode=mode, optional=optional,
+                               show=show if mode == "median" else "median", **cols))
     return tuple(out)
 
 

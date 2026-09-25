@@ -285,3 +285,111 @@ def smallest_gap(n: int, rate: float | None, s_d: float, x_bar: float, confidenc
         else:
             hi = mid
     return hi
+
+
+# --------------------------------------------------------------------------
+# Splitting every pocket in two (the within-pocket split): is the high half
+# worse than the low half, pocket for pocket, once FICO and segment are held
+# fixed? Each pocket is one stratum. mantel_haenszel is copied from
+# portfolio-analysis-pack/src/analysis_pack/stats.py (25 Sep 2026); keep the
+# two in step by hand.
+
+def mantel_haenszel(strata: list[tuple[int, int, int, int]], z: float) -> tuple[float | None, float | None, float | None]:
+    """(OR_MH, lo, hi) over strata of (a, b, c, d). Mantel & Haenszel 1959;
+    variance of ln OR_MH per Robins, Breslow & Greenland 1986, written the
+    way the sheet's SUMPRODUCT helpers write it. None when a sum is zero."""
+    P = Q = R = S = 0.0
+    PR = PS = QR = QS = 0.0
+    for a, b, c, d in strata:
+        n = a + b + c + d
+        if n == 0:
+            continue
+        p = (a + d) / n
+        q = (b + c) / n
+        r = a * d / n
+        s = b * c / n
+        R += r; S += s
+        PR += p * r; PS += p * s; QR += q * r; QS += q * s
+    if R == 0.0 or S == 0.0:
+        return None, None, None
+    o = R / S
+    var = PR / (2 * R * R) + (PS + QR) / (2 * R * S) + QS / (2 * S * S)
+    se = math.sqrt(var)
+    return o, math.exp(math.log(o) - z * se), math.exp(math.log(o) + z * se)
+
+
+def cmh_p(strata: list[tuple[int, int, int, int]]) -> float | None:
+    """Two-sided p of the Cochran-Mantel-Haenszel test that the common odds
+    ratio is 1 (Mantel & Haenszel 1959, with the 0.5 continuity correction).
+    Strata are (a, b, c, d): high-half events, high-half non-events, low-half
+    events, low-half non-events."""
+    num = var = 0.0
+    for a, b, c, d in strata:
+        n = a + b + c + d
+        if n < 2:
+            continue
+        num += a - (a + b) * (a + c) / n
+        var += (a + b) * (c + d) * (a + c) * (b + d) / (n * n * (n - 1))
+    if var <= 0:
+        return None
+    chi = (max(abs(num) - 0.5, 0.0)) ** 2 / var
+    return math.erfc(math.sqrt(chi / 2))
+
+
+def chi2_sf(x: float, k: int) -> float:
+    """P(chi-square with k degrees of freedom > x): the regularised upper
+    incomplete gamma Q(k/2, x/2), by series or continued fraction
+    (Numerical Recipes, 6.2)."""
+    if x <= 0:
+        return 1.0
+    a, z = k / 2.0, x / 2.0
+    gln = math.lgamma(a)
+    if z < a + 1:
+        term = total = 1.0 / a
+        ap = a
+        for _ in range(500):
+            ap += 1
+            term *= z / ap
+            total += term
+            if abs(term) < abs(total) * 1e-15:
+                break
+        return max(0.0, 1.0 - total * math.exp(-z + a * math.log(z) - gln))
+    b = z + 1 - a
+    c = 1 / 1e-300
+    d = 1 / b
+    h = d
+    for i in range(1, 500):
+        an = -i * (i - a)
+        b += 2
+        d = an * d + b
+        d = 1e-300 if abs(d) < 1e-300 else d
+        c = b + an / c
+        c = 1e-300 if abs(c) < 1e-300 else c
+        d = 1 / d
+        delta = d * c
+        h *= delta
+        if abs(delta - 1) < 1e-15:
+            break
+    return math.exp(-z + a * math.log(z) - gln) * h
+
+
+def steadiness_p(strata: list[tuple[int, int, int, int]], pooled_or: float | None) -> tuple[float | None, int]:
+    """Is the high-vs-low effect the same in every pocket? Cochran's Q on the
+    pockets' log odds ratios (Woolf weights, 0.5 added to every cell of a
+    pocket with a zero), against the pooled ratio. A small p means the effect
+    differs between pockets: look at the heat map for which. Returns (p, the
+    number of pockets it rests on)."""
+    if not pooled_or or pooled_or <= 0:
+        return None, 0
+    q, k = 0.0, 0
+    for a, b, c, d in strata:
+        if a + c == 0 or b + d == 0 or a + b == 0 or c + d == 0:
+            continue
+        if min(a, b, c, d) == 0:
+            a, b, c, d = a + 0.5, b + 0.5, c + 0.5, d + 0.5
+        w = 1 / (1 / a + 1 / b + 1 / c + 1 / d)
+        q += w * (math.log(a * d / (b * c)) - math.log(pooled_or)) ** 2
+        k += 1
+    if k < 2:
+        return None, k
+    return chi2_sf(q, k - 1), k

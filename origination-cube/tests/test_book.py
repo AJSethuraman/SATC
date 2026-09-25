@@ -96,7 +96,8 @@ def test_taking_away_every_category_is_said_in_words(tmp_path):
     out = book.set_up(synth.write_extract(tmp_path, n=3000))
     _answer(out.book)
     wb = load_workbook(out.book)
-    wb["Columns"]["C8"] = "servicing"            # CHANNEL, the only category
+    wb["Columns"]["C8"] = "servicing"            # CHANNEL
+    wb["Columns"]["C13"] = "servicing"           # ASSET_CLASS: now no category is left
     wb.save(out.book)
     ran = book.run(out.book)
     assert not ran.ok and any("Nothing is left to cut across" in line for line in ran.lines)

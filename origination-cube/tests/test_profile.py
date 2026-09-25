@@ -21,7 +21,8 @@ def test_the_synthetic_extract_is_read_the_way_a_person_would(tmp_path):
     _, data = synth.write(tmp_path, n=5000)
     cols = profile.classify(read_table(data), few_values=12, many_values=50)
     assert roles(cols) == {"LOAN_NBR": "key", "FICO": "band", "CHANNEL": "dimension", "ORIG_BAL": "band",
-                           "BAD_FLAG": "dimension", "GCO_AMT": "band", "RANR_AMT": "band"}
+                           "BAD_FLAG": "dimension", "GCO_AMT": "band", "RANR_AMT": "band",
+                           "ASSET_CLASS": "dimension", "REV_DEBT": "band"}
     gco = next(c for c in cols if c.name == "GCO_AMT")
     assert "not a number" in gco.why          # the one "#N/A" is noted, not a reason to doubt the column
 
@@ -53,7 +54,7 @@ def test_every_column_gets_a_meaning_and_a_reason(tmp_path):
     sug = meanings.suggest(read_table(data))
     assert {c: sg.means for c, sg in sug.items()} == {
         "LOAN_NBR": "key", "FICO": "fico", "CHANNEL": "category", "ORIG_BAL": "booked", "BAD_FLAG": "outcome",
-        "GCO_AMT": "gco", "RANR_AMT": "ranr"}
+        "GCO_AMT": "gco", "RANR_AMT": "ranr", "ASSET_CLASS": "category", "REV_DEBT": "amount"}
     assert all(sg.why for sg in sug.values())
 
 
@@ -82,7 +83,7 @@ def test_once_confirmed_it_runs_and_the_outcome_is_not_cut_by(tmp_path):
     _answer(path, **ANSWERS)
     res = engine.run(cfgmod.load(path), read_table(data))
     cut_by = {g.band for g in res.grids} | {g.dimension for g in res.grids}
-    assert cut_by == {"fico", "orig_bal", "channel"}
+    assert cut_by == {"fico", "orig_bal", "channel", "asset_class", "rev_debt"}
     assert any("open data question" in w for w in res.warnings)
 
 
@@ -96,6 +97,8 @@ def test_a_wrong_meaning_is_fixed_in_one_word_and_the_run_follows_it(tmp_path):
     assert any("`FICO` is not cut by: `columns:` says it means servicing" in w for w in res.warnings)
     # and taking out the only dimension is refused, saying what is missing
     path.write_text(re.sub(r"CHANNEL:\s+\{means: category\}", "CHANNEL: {means: servicing}", path.read_text()))
+    path.write_text(re.sub(r"ASSET_CLASS:\s+\{means: category\}", "ASSET_CLASS: {means: servicing}",
+                           path.read_text()))
     with pytest.raises(engine.NothingToCut, match="no dimension is left to cut by"):
         engine.run(cfgmod.load(path), read_table(data))
 

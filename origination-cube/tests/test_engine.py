@@ -93,10 +93,11 @@ def test_the_plant_is_the_worst_pocket(tmp_path):
         assert (band, chan) == ("under 620", "Broker")
         assert top.rates[m].vs_topline > 4
         assert top.rates[m].reading_topline == engine.WORSE
-    # RANR has no plant: nothing in a populated cell reads worse
+    # RANR has no plant: no populated pocket may read as a real difference (a gap
+    # past the threshold that the test calls luck is allowed; that is the test working)
     for (b, d), c in g.inner():
         if c.rates["ranr_rate"].units >= 30:
-            assert c.rates["ranr_rate"].reading_topline == engine.IN_LINE
+            assert c.rates["ranr_rate"].reading_topline not in (engine.WORSE, engine.BETTER)
 
 
 def test_same_input_same_output(tmp_path):
