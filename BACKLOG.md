@@ -1501,9 +1501,25 @@ back.
 - [x] **The firm's two calls from walk 7** (OC-32, OC-33): the revenue setting
       decides revenue on every tab, and Three-way rows whose grid doesn't hold the
       score fixed aren't red. 197 tests; 66 re-inserted bugs.
-- [ ] **Next:** an eighth walk on the new layout, then hand the workbook to Claude Design for a design spec; the firm's answer on RANR
-      netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
-      the tab); learning a column's usual band edges (walkthrough defect 9).
+- [ ] **Next (set by the firm, 25 Sep 2026):** *"RANR is profit after losses —
+      interest income + fees − cost of funds − losses — and the cube's outputs, tests
+      and synthetic book should treat it that way; and the cube should be ready to test
+      a derived column (income ÷ sales) against a dated outcome, on a holdout, from a
+      committed pre-spec."* Every item is listed, with a box to tick, in
+      `origination-cube/docs/NEXT-GOAL.md`:
+      - an audit (1a–k), reported before any source changes
+      - 18 fixes (3.1–3.18)
+      - 5 capabilities, scoped but not built (4a–e)
+      - an adversarial pass on the statistics module
+      - the questions handed back
+
+      Two of its references were not in the repository when it was set:
+      `docs/statistics.md`, and the other agent's tree-based scouting code (no
+      branch of 131 has either). The eighth walk (stopped on the firm's word: *"there
+      will be a large change to code incoming"*) and the Claude Design hand-off wait
+      until this is done.
+- [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
+      `cube drill` and `cube prove` (and put their settings back on the tab).
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 

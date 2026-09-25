@@ -1,0 +1,178 @@
+# Next goal: profit after losses, and a pre-specified test of a derived column
+
+**Set by the firm, 25 Sep 2026.** It replaces the eighth walk and the Claude Design
+hand-off as what this project works on next (both wait until this is done).
+
+This is the in-repo docket. Each item is ticked here when it lands, with the commit
+and the test that holds it, so the next session reads its job from the repository
+and not from a conversation. The running log is `BACKLOG.md` §6d.
+
+## The goal, in the firm's words
+
+> "RANR is profit after losses — interest income + fees − cost of funds − losses —
+> and the cube's outputs, tests and synthetic book should treat it that way; and the
+> cube should be ready to test a derived column (income ÷ sales) against a dated
+> outcome, on a holdout, from a committed pre-spec."
+
+**What would end it:** every item in steps 1 to 6 below is ticked, or is handed back
+as a question with a recommendation. The suite and the mutation check must be green,
+and the final check must be done by an agent that has not seen the work: facts
+checked against sources, arithmetic checked by running it, and the workbook checked
+by opening it.
+
+**Reference for every test:** `docs/statistics.md`. Control's explanations and
+Check's wording must match it. *Not in the repository as of 25 Sep 2026*: no branch
+of the 131 on the remote has it. Asked for in the audit report.
+
+**How the work is done:** subagents, one per fix, in parallel where they touch
+different files.
+
+## 1. Audit: what the code does now (file:line) and whether it fits the goal
+
+- [ ] **a.** Every place RANR is a multiple (pocket ÷ rest): Where it bleeds, Losses vs
+      revenue, Control lines, suggested lines, smallest gap. Confirm the two-negatives
+      flaw.
+- [ ] **b.** Which test the OC-31 per-pocket RANR test actually runs, and which tests
+      GCO per dollar and share of booked dollars run.
+- [ ] **c.** How `synth.py` generates RANR. If it is independent of GCO or of balance,
+      the fixture contradicts OC-29.
+- [ ] **d.** What "losses" inside RANR is assumed to be: GCO, net charge-offs, or
+      unspecified.
+- [ ] **e.** Every label, reading and colour rule that calls RANR "revenue" or
+      "earning".
+- [ ] **f.** Whether the cube shows any column's distribution before edges are chosen.
+- [ ] **g.** What the existing loan-age Control setting does, and whether the outcome
+      is a flag as of the extract or is dated.
+- [ ] **h.** What happens to a pocket below the fewest-loans floor (walk 6 defect 8:
+      50 loans, 29 bad, "too few loans to test").
+- [ ] **i.** Which formula sits under the Split tab's actual-vs-expected: expected from
+      the pocket's pooled rate, or from the low half's rate (`docs/statistics.md` A7).
+- [ ] **j.** Whether the CMH test subtracts ½ (a continuity correction), and whether
+      p-values are one- or two-sided.
+- [ ] **k.** What the other agent's tree code does today: what it trains on, what it
+      outputs, and whether it can touch a holdout range. *Not found on any branch as of
+      25 Sep 2026.*
+
+## 2. Report the audit before changing source
+
+- [ ] Plain English, with each technical term shown and then explained, and every
+      count given with its denominator.
+
+## 3. Fixes: what the tool gets wrong or cannot do today that the next run needs
+
+Each is built with a test. The full suite and the mutation check run after each.
+
+- [ ] **3.1 p-value, not "Luck alone".** Rename it on every tab, Control and Check.
+      Readings become "worse, not significant" and "(not significant)". Every
+      explanation that says "wobble" says "standard error" instead, and defines it once,
+      as `docs/statistics.md` does.
+- [ ] **3.2 RANR as a difference.** Replace every RANR multiple with the difference in
+      percentage points of booked dollars (pocket − rest). Fixed Control lines for RANR
+      become ± points or a dollar amount, and "borrow the loss lines" is dropped. The
+      OC-31 per-pocket test stays as the suggested option.
+- [ ] **3.3 Profit wording.** Rename to "Profit after losses: RANR per booked dollar",
+      with readings "keeps more / about the same / keeps less".
+- [ ] **3.4 Contribution before losses.** Add "Contribution before losses per booked
+      dollar" = RANR + losses as defined in RANR. That is GCO unless the audit finds
+      otherwise; flag it if it should be net charge-offs. Losses vs revenue reads: what
+      they paid us / what they cost us / what we kept. Paired readings:
+      - losing more + keeps more = "priced for it"
+      - losing more + keeps less = "net drain"
+      - losing less + keeps less = "safe but idle"
+- [ ] **3.5 Synthetic RANR.** RANR = contribution − GCO, where contribution = interest
+      on balance over months on book + fees − cost of funds on balance over the same
+      months. Plant one pocket priced high enough to be losing more and keeping more.
+      Make Tests 2 and 4 from `origination-cube-for-test-design.md` into fixtures (that
+      file was sent to the firm, not committed; the fixtures are rebuilt from it).
+- [ ] **3.6 Permutation test for dollar rates.** Replace any t-test or proportion test
+      on a dollar rate (GCO per $, RANR per $, share of booked dollars) with a
+      within-pocket permutation test, with a fixed seed, reported as "N of 10,000
+      shuffles" (`docs/statistics.md` B2).
+- [ ] **3.7 Exact test below the floor.** Below the fewest-loans floor, run Fisher's
+      exact test on the yes/no outcome instead of refusing, and label the row "exact
+      test". Refuse only below fewest-losses. A test proves the 50-loan, 29-bad pocket
+      now gets a verdict.
+- [ ] **3.8 Look before you cut.** At Set up, a Look tab showing, for each number
+      column:
+      - a histogram
+      - the share missing, and the share at sentinel values
+      - the five most-repeated exact values, with counts
+      - min, median and max
+
+      Plus a scatter of any split column against each band column. Today, edges are
+      chosen blind.
+- [ ] **3.9 Derived column.** A ratio of two existing columns, defined on Control
+      (numerator, denominator, name). It is recorded in what-ran, usable as a band or
+      split column, and gets a Look like any number column.
+- [ ] **3.10 Period attribute.** Amount columns get a period: per year, per month or
+      one-time, recorded in what-ran. If a derived ratio's inputs disagree, warn on
+      Check; never stop.
+- [ ] **3.11 Definitions on Control.** Free text for what each amount column means
+      (household vs guarantor income; trailing-twelve actual vs a month × 12), carried
+      into what-ran.
+- [ ] **3.12 Prevalence table.** For any split or derived column: loans and dollars per
+      group per pocket, with no test attached. A count of the book, not a finding.
+- [ ] **3.13 Date roles on Columns.** Origination date and outcome date. The engine
+      derives months on book and months to bad.
+- [ ] **3.14 Outcome window.** Extend loan age to a true window of N months:
+      - It requires the outcome date. Bad means bad within N months.
+      - Loans under N months on book are excluded.
+      - Check reports the origination range tested and the count excluded.
+      - Without an outcome date, the window is refused, with the reason.
+      - Where seasoned vintages exist, report the share of eventual losses that had
+        landed by month N.
+- [ ] **3.15 Pre-spec.** The confirmatory run reads a pre-spec file: bins, strata,
+      window, confidence, reference group and holdout origination range.
+      - Check echoes the file and the git commit it was read from.
+      - If Control disagrees with the pre-spec, warn on Check and label the run
+        "deviates from pre-spec" in the Log.
+      - Any run whose extract falls inside the holdout range is flagged in the Log, so
+        the count of holdout runs is visible.
+- [ ] **3.16 Pocket budget and coverage on Check.**
+      - Max testable pockets = expected bad loans ÷ 5 (at the suggested floor), printed
+        beside the pocket count Control asks for, with a warning when Control exceeds
+        it.
+      - The share of loans and of dollars sitting in testable pockets.
+- [ ] **3.17 Family count on Check.** How many grid × rate × comparison families the run
+      contains, with one line saying that a single red across many families is weak
+      evidence.
+- [ ] **3.18 Product mix warning.** If a credit-product column is present with more than
+      one value and is not a cut column, warn on Check that profit per dollar is being
+      compared across products. Warn only; the firm decides.
+
+## 4. Capabilities: scope each, do not build
+
+For each: the data it needs, what it adds to the outputs, and roughly how much work.
+
+- [ ] **4a Scouting step.** Reuse the other agent's tree code where it fits. A random
+      forest trained on development vintages only, never the holdout. Permutation
+      importance for the shortlist and partial dependence for the shape
+      (`docs/statistics.md` B7). Candidate columns include derived ratios, fed in
+      explicitly. Say what of the existing code was kept, changed or dropped, and why.
+- [ ] **4b Split with its own edges / K groups.** Instead of the per-pocket median, with
+      the K-group Mantel–Haenszel general-association and trend statistics (B3, B4),
+      cross-checked against a stratified logistic regression (B5) to nine digits.
+      Holdout: develop on one origination range, confirm on a later one, and report
+      both. The pooled test answers "does this column matter"; the per-pocket floors
+      only govern the per-pocket readings.
+- [ ] **4c Loss typing.** For bad loans: contribution ÷ GCO, and months to bad.
+      Fraud-shaped vs failure-shaped, reported per pocket as two outcomes.
+- [ ] **4d Hold-constant check.** When an affordability-at-approval column is present,
+      run the split with and without it as a cut, and report whether the split's pooled
+      effect survives.
+- [ ] **4e Concentration.** For a group on a split or derived column: flag rate,
+      capture of bad loans and of bad dollars, and lift, on the holdout (B6). No cost or
+      benefit inputs.
+
+## 5. Adversarial pass
+
+- [ ] When the suite and the mutation check are green, hand the statistics module to
+      the adversarial brief (`canon:adversarial`). Another agent writes only tests and
+      never touches source, with one job: break the arithmetic. Take the findings back
+      with the intake and record them in the log.
+
+## 6. Hand back
+
+- [ ] Every decision that couldn't be made goes back as a question with both outcomes,
+      a recommendation, and a box to answer in.
+- [ ] Log what ran.
