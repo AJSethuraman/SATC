@@ -74,7 +74,7 @@ muts = [
   '                x = stats.smallest_gap(s.units, ln.rate, ln.s_d, ln.x_bar, b.confidence, b.power)', "luck_alone"),
  ("luck not marked", B, '            if maybe and box != NOT_TESTED:', '            if False:', "luck_gap_keeps"),
  ("edges leak between workbooks", B, '.get("edges") if c not in kept["columns"] else None', '.get("edges")',
-  "only_fill_a_column"),
+  "edges_stay_out"),
  ("last run not shown", B, '        _last_run_used(wb[control.SHEET], res)', '        pass', "last_run_used"),
  ("split luck without the allowance", E, '        if bench is not None:\n            keys = [k for k, got in grid.split_compare.items()',
   '        if False:\n            keys = [k for k, got in grid.split_compare.items()', "carry_the_allowance"),

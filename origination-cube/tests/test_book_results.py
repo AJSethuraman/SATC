@@ -516,3 +516,17 @@ def test_control_shows_what_the_last_run_used(tmp_path):
     used = {r[control.KEY_COL - 1].value: ws.cell(row=r[0].row, column=col).value
             for r in ws.iter_rows(min_row=control.FIRST_ROW) if r[control.KEY_COL - 1].value}
     assert "worked out from this book" in used["min_loans"] and "x and" in used["revenue_line"]
+
+
+def test_another_workbooks_edges_stay_out_of_this_one(tmp_path):
+    """The fifth walk's scenario: edges typed on another copy must not come into a
+    workbook that already has the column, not even as a note."""
+    a = _ready(tmp_path / "a", n=2000)
+    assert book.run(a).ok                                    # FICO confirmed here with no edges
+    b = _ready(tmp_path / "b", n=2000)
+    _set(b, "FICO", book.C_EDGES, "every 25")
+    assert book.run(b).ok                                    # remembered from the other copy
+    book.set_up(tmp_path / "a" / "loans.csv")
+    ws = load_workbook(a)["Columns"]
+    assert ws["F7"].value is None
+    assert "remembered from before" not in str(ws["I7"].value or "")
