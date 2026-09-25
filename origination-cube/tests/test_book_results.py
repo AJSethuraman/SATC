@@ -464,7 +464,14 @@ def test_three_way_rows_say_what_their_grid_holds_fixed(tmp_path):
     rows = [(ws.cell(row=r, column=3).value, ws.cell(row=r, column=19).value) for r in range(5, ws.max_row + 1)
             if ws.cell(row=r, column=2).value == "Outcome, share of loans"]
     assert rows[0][0] == "FICO" and rows[0][1] == "yes"
-    assert any(band == "ORIG_BAL" and words.startswith("no: part of this may be FICO") for band, words in rows)
+    assert any(band == "ORIG_BAL" and words.startswith("no: may be mostly FICO") for band, words in rows)
+    # no red on those rows (the firm, 25 Sep 2026, after the seventh walk); red stays for the rest
+    rules = [r.formula[0] for rng in ws.conditional_formatting for r in rng.rules
+             if r.dxf.fill.fgColor.rgb.endswith(book.WORSE_FILL)]
+    assert rules == ['AND($Q5="worse",LEFT($S5,3)<>"no:")']
+    where = load_workbook(b)["Where it bleeds"]
+    assert [r.formula[0] for rng in where.conditional_formatting for r in rng.rules
+            if r.dxf.fill.fgColor.rgb.endswith(book.WORSE_FILL)] == ['$Q5="worse"']
     firsts = [i for i, (band, _) in enumerate(rows) if band == "ORIG_BAL"]
     assert all(rows[i][0] == "FICO" for i in range(min(firsts)))           # held-fixed grids first
     split = load_workbook(b)["Split"]
@@ -715,3 +722,33 @@ def test_the_category_limits_on_control_apply_at_set_up(tmp_path):
     used = {r[control.KEY_COL - 1].value: r[control.KEY_COL].value
             for r in load_workbook(b)["Control"].iter_rows(min_row=control.FIRST_ROW)}
     assert used["band_count"] and used["band_cut"] and used["few_values"].startswith("3 values")
+
+
+def test_revenue_reads_the_same_on_both_tabs(tmp_path):
+    """The seventh walk, defect 3, and the firm's call (25 Sep 2026): the revenue
+    setting on Control decides revenue on Where it bleeds too, so a pocket can't
+    read "earning less" on one tab and "in line" on the other."""
+    word = {"worse": "earning less", "worse, but could be luck": "earning less (could be luck)",
+            "in line": "about the same", "better": "earning more",
+            "better, but could be luck": "earning more (could be luck)"}
+    for option in ("What luck alone can move it (suggested)", "5 percent either way"):
+        b = _ready(tmp_path / option[:4], n=8000)
+        wb = load_workbook(b)
+        for r in wb["Control"].iter_rows(min_row=4):
+            if r[6].value == "revenue_line":
+                r[2].value = option
+        wb.save(b)
+        assert book.run(b).ok
+        wb = load_workbook(b)
+        lvr = {(x["band"], x["seg"]): x["r_read"] for x in _lvr(wb["Losses vs revenue"])}
+        ws = wb["Where it bleeds"]
+        seen = 0
+        for r in range(5, ws.max_row + 1):
+            if ws.cell(row=r, column=2).value != "RANR per booked dollar":
+                continue
+            flag = ws.cell(row=r, column=17).value
+            key = (ws.cell(row=r, column=4).value, ws.cell(row=r, column=6).value)
+            if flag in word and key in lvr:
+                assert lvr[key] == word[flag], (option, key, flag, lvr[key])
+                seen += 1
+        assert seen, option

@@ -463,6 +463,21 @@ enough.
   - A luck-marked box isn't shaded or counted with the findings.
   - The RANR column reads against the same line as the box.
   - The Split heat maps show a could-be-luck multiple in brackets, unshaded.
+- **OC-32: the revenue setting decides revenue on every tab** (the firm, 25 Sep
+  2026, after the seventh walk). Before this, Where it bleeds judged RANR by the
+  loss lines while Losses vs revenue used the revenue setting, so one pocket
+  could read "earning less" on one tab and "in line" on the other. The engine now
+  reads RANR by the revenue setting (`engine.revenue_bench`), and Losses vs
+  revenue takes its revenue reading from the engine, so the two can't disagree.
+  Consequence the firm accepted: under the suggested setting, any revenue gap a
+  pocket's own test calls real is flagged, so more revenue rows reach Where it
+  bleeds; the materiality line still drops the small-dollar ones.
+- **OC-33: no red on a Three-way row whose grid doesn't hold the split's
+  partner fixed** (the firm, 25 Sep 2026, after the seventh walk). Its gap may be
+  mostly that column (the score, usually). The row keeps its reading and says "no:
+  may be mostly FICO, so not red". A real effect of the split column still shows
+  red in the grids that hold the partner fixed. Testing those rows within score
+  bands is the fuller answer, and is left for later.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so

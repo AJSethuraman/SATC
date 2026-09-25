@@ -202,7 +202,7 @@ class Benchmark:
     compare_to: str                  # peers | topline: which comparison decides the flag
     many_tests: str                  # none | bh | bonferroni
     materiality: tuple               # ("share", 0.01) | ("dollars", 250000.0) | ("none", 0.0)
-    revenue_line: Any = None         # None | "luck" | "losses" | a share such as 0.1 (Losses vs revenue only)
+    revenue_line: Any = None         # None | "luck" | "losses" | a share such as 0.1 (RANR on every tab)
 
 
 @dataclass(frozen=True)

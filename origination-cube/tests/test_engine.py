@@ -239,3 +239,55 @@ def test_bands_read_as_ranges():
     """The firm, 25 Sep 2026: "i want bands to be written in '0 - 660' form"."""
     assert engine.band_labels((620, 680, 740), 519, 850) == ["519 - 619", "620 - 679", "680 - 739", "740 - 850"]
     assert engine.band_labels((0.35, 0.42), 0.1, 0.9) == ["0.10 - 0.34", "0.35 - 0.41", "0.42 - 0.90"]
+
+
+def test_revenue_is_judged_by_the_revenue_setting():
+    """The firm, 25 Sep 2026, after the seventh walk: one revenue yardstick on every tab."""
+    from origination_cube.config import Benchmark
+    import dataclasses
+    fields = {f.name for f in dataclasses.fields(Benchmark)}
+    base = dict(min_units=30, min_events=0, worse_at=1.25, better_at=0.8, confidence=0.95, power=0.8,
+                compare_to="peers", many_tests="none", materiality=("none", 0))
+    b = Benchmark(**{k: v for k, v in base.items() if k in fields}, revenue_line=0.05)
+    judge, luck = engine.revenue_bench(b)
+    assert not luck and engine.reading_of(0.94, 400, judge, 30, 0.001, higher_is="better") == engine.WORSE
+    assert engine.reading_of(0.96, 400, judge, 30, 0.001, higher_is="better") == engine.IN_LINE
+    judge, luck = engine.revenue_bench(dataclasses.replace(b, revenue_line="luck"))
+    assert luck
+    assert engine.reading_of(0.97, 400, judge, 30, 0.001, higher_is="better", luck_only=True) == engine.WORSE
+    assert engine.reading_of(0.80, 400, judge, 30, 0.3, higher_is="better", luck_only=True) == engine.IN_LINE
+    judge, luck = engine.revenue_bench(dataclasses.replace(b, revenue_line="losses"))
+    assert not luck and judge.worse_at == 1.25
+
+
+def test_every_ranr_reading_follows_the_revenue_setting(tmp_path):
+    """The wiring, not just the rule: under each revenue setting, every tested
+    RANR pocket reads what that setting says (both tabs agreeing proved nothing
+    when both used the wrong line)."""
+    import dataclasses
+    cfg, data = synth.write(tmp_path, n=8000)
+    base, tbl = cfgmod.load(cfg), read_table(data)
+    for rl in (0.05, "luck", "losses"):
+        c = dataclasses.replace(base, benchmark=dataclasses.replace(base.benchmark, revenue_line=rl))
+        b, n = c.benchmark, 0
+        for g in engine.run(c, tbl).grids:
+            for _, cell in g.inner():
+                s = cell.rates["ranr_rate"]
+                if s.reading_band in (engine.THIN, engine.FEW, None) or not s.vs_band or s.vs_band <= 0:
+                    continue
+                real = s.p_band is not None and s.p_band < 1 - b.confidence
+                if rl == "luck":
+                    want = engine.IN_LINE if not real else engine.WORSE if s.vs_band < 1 else engine.BETTER
+                else:
+                    lo, hi = (1 / b.worse_at, 1 / b.better_at) if rl == "losses" else (1 - rl, 1 + rl)
+                    if abs(s.vs_band - lo) < 1e-9 or abs(s.vs_band - hi) < 1e-9:
+                        continue                                  # on a line: either reading is fair
+                    if lo < s.vs_band < hi:
+                        want = engine.IN_LINE
+                    elif s.vs_band < lo:
+                        want = engine.WORSE if real else engine.UNSURE_WORSE
+                    else:
+                        want = engine.BETTER if real else engine.UNSURE_BETTER
+                assert s.reading_band == want, (rl, s.vs_band, s.p_band, s.reading_band, want)
+                n += 1
+        assert n, rl

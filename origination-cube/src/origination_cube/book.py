@@ -984,7 +984,7 @@ def _write_results(book: Path, res, memory_path, src: Path, forgotten: set[str] 
         pt = _partner(res)
         sf = res.config.split[0]
         after = (f" {sf} moves with {pt[0]} (correlation {pt[1]:+.2f}). Rows whose grid doesn't hold {pt[0]} fixed "
-                 f"(the last column says no) come after the rest, and part of their gap may be {pt[0]}."
+                 f"(the last column says no) come after the rest, and aren't shaded red: part of their gap may be {pt[0]}."
                  if note and pt else "")
         _bleeds(wb.create_sheet("Three-way"), res, res.three_way, "Three-way",
                 f"Pockets split by {sf}, each tested like any other pocket,", note, after)
@@ -1087,7 +1087,8 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
     judged = "the rest of its band" if b and b.compare_to == "peers" else "the rest of the book"
     names = _names(res)
     _title(ws, title, f"{lead} losing more than their share (RANR: earning less), largest first. The "
-                      f"flag compares each pocket with {judged}. Red: worse. Amber: worse, but could be "
+                      f"flag compares each pocket with {judged}; RANR is judged by the revenue setting on "
+                      f"Control. Red: worse. Amber: worse, but could be "
                       f"luck. Blue: material, but too few loans or losses to test, so worth a look by hand. "
                       f"\"Luck alone\" is how often a gap this big turns up with no real "
                       f"difference behind it, after the allowance for testing many pockets within each grid "
@@ -1131,7 +1132,11 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
     if r == 5:
         ws.cell(row=5, column=2, value="Nothing is losing more than its share at these settings.")
     # material but too small to test: shown, not hidden (the firm, 25 Sep 2026: "this is a materiality thing")
-    for formula, fill in (('$Q5="worse"', WORSE_FILL), ('$Q5="worse, but could be luck"', LUCK_FILL),
+    # on Three-way, no red on a row whose grid doesn't hold the split's partner fixed: its gap may be
+    # mostly that column (the firm, 25 Sep 2026, after the seventh walk). A real effect of the split
+    # column still shows red in the grids that do hold it fixed
+    red = 'AND($Q5="worse",LEFT($S5,3)<>"no:")' if note_of else '$Q5="worse"'
+    for formula, fill in ((red, WORSE_FILL), ('$Q5="worse, but could be luck"', LUCK_FILL),
                           ('AND($L5="yes",LEFT($Q5,7)="too few")', SMALL_FILL)):
         ws.conditional_formatting.add(f"B5:R{max(r, 6)}", FormulaRule(formula=[formula], fill=PatternFill(
             "solid", fgColor=fill, bgColor=fill)))
@@ -1292,17 +1297,22 @@ def _losses_vs_revenue(ws, res) -> None:
             real = lambda p: p is not None and p < 1 - b.confidence      # noqa: E731
             gp, rp = (gs.p_band, rs.p_band) if peers else (gs.p_book, rs.p_book)
             gside = _side(gidx, b.better_at, b.worse_at)
-            # the suggested revenue option is each pocket's own luck range: a side only moves when its test
-            # says so, and there's nothing left to mark
-            rside = (_side(ridx, rlo, rhi) if real(rp) else "same") if own else _side(ridx, rlo, rhi)
-            maybe = [w for w, side, p in (("loss", gside, gp), ("revenue", rside, rp))
-                     if side != "same" and not real(p)]
             gflag = gs.reading_band if peers else gs.reading_topline
             rflag = rs.reading_band if peers else rs.reading_topline
+            # revenue reads as the engine read it, by the revenue setting, so this tab and Where it bleeds
+            # can't disagree (the firm, 25 Sep 2026, after the seventh walk: the revenue setting decides
+            # on both tabs). Under each pocket's own luck range a side only moves when its test says so
+            rside = {engine.WORSE: "less", engine.UNSURE_WORSE: "less", engine.BETTER: "more",
+                     engine.UNSURE_BETTER: "more"}.get(rflag, "same")
+            maybe = [w for w, side, p in (("loss", gside, gp), ("revenue", rside, rp))
+                     if side != "same" and not real(p)]
             # untested on either side: no box and no colour (the fourth walk, defect 3)
             untested = {gflag, rflag} & {engine.THIN, engine.FEW}
             box = NOT_TESTED if untested else box_of(gside, rside)
-            luck = {w: w in maybe and box != NOT_TESTED for w in ("loss", "revenue")}
+            # a side's own mark doesn't depend on the other side being tested (a pocket with too few losses
+            # can still have a revenue gap that could be luck)
+            luck = {"loss": "loss" in maybe and gflag not in (engine.THIN, engine.FEW),
+                    "revenue": rflag in (engine.UNSURE_WORSE, engine.UNSURE_BETTER)}
 
             def words(flag, side, w, more, less):
                 if flag in (engine.THIN, engine.FEW):
@@ -1587,7 +1597,7 @@ def _three_way_note(res, g) -> tuple[str, float]:
     held = _holds_partner(res, g)
     if p is None or held is None:
         return "", 0.0
-    return ("yes" if held else f"no: part of this may be {p[0]}"), (0.0 if held else 1.0)
+    return ("yes" if held else f"no: may be mostly {p[0]}, so not red"), (0.0 if held else 1.0)
 
 
 def _holds_fixed(res, g) -> tuple[str, float]:

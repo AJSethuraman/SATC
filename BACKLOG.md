@@ -1498,7 +1498,10 @@ back.
       region; the workbook finds it and carries nothing from the first book. That
       test found Control's explanations using the test book's pocket as their
       example; they're generic now. 194 tests.
-- [ ] **Next:** the firm's two calls from walk 7, then an eighth walk on the new layout; the firm's answer on RANR
+- [x] **The firm's two calls from walk 7** (OC-32, OC-33): the revenue setting
+      decides revenue on every tab, and Three-way rows whose grid doesn't hold the
+      score fixed aren't red. 197 tests; 66 re-inserted bugs.
+- [ ] **Next:** an eighth walk on the new layout, then hand the workbook to Claude Design for a design spec; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).
 - **Not checked:** real Excel, a real extract, and the bank machine

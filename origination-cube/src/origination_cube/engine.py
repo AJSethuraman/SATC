@@ -25,6 +25,7 @@ from __future__ import annotations
 import math
 import statistics
 from collections import Counter
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -203,9 +204,23 @@ def index_of(rate: float | None, base: float | None) -> float | None:
     return stats.multiple(rate, base)
 
 
+def revenue_bench(bench):
+    """The lines revenue is judged by, and whether it's each pocket's own luck
+    range. The firm, 25 Sep 2026, after the seventh walk: the revenue setting
+    on Control decides revenue on every tab (Where it bleeds judged it by the
+    loss lines while Losses vs revenue used the revenue setting, so one pocket
+    read two ways in one file)."""
+    rl = getattr(bench, "revenue_line", None)
+    if rl is None or rl == "losses":
+        return bench, False
+    if rl == "luck":
+        return bench, True
+    return dataclasses.replace(bench, worse_at=1 / (1 - rl), better_at=1 / (1 + rl)), False
+
+
 def reading_of(idx: float | None, units: int, bench, min_units: float, p: float | None = None,
                tested: bool = True, higher_is: str = "worse", events: int | None = None,
-               min_events: int = 0) -> str | None:
+               min_events: int = 0, luck_only: bool = False) -> str | None:
     """The word for a cell. A gap past a threshold counts only when the test
     says it is unlikely to be luck at the file's confidence (after any
     allowance for testing many pockets); the floors only stop a test being run
@@ -219,6 +234,11 @@ def reading_of(idx: float | None, units: int, bench, min_units: float, p: float 
     if events is not None and higher_is == "worse" and events < min_events:
         return FEW
     bad = idx if higher_is == "worse" else (1 / idx if idx > 0 else math.inf)
+    if luck_only and tested:
+        # each pocket's own luck range: any gap its test calls real counts; the rest is about the same
+        if p is None or p >= 1 - bench.confidence or bad == 1:
+            return IN_LINE
+        return WORSE if bad > 1 else BETTER
     if bench.better_at < bad < bench.worse_at:
         return IN_LINE
     worse = bad >= bench.worse_at
@@ -792,12 +812,15 @@ def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topli
         for (b, d), c in cells.items():
             s = c.rates[m.name]
             kw = dict(higher_is=hi, events=s.events, min_events=bench.min_events)
+            judge = bench
+            if hi == "better":
+                judge, kw["luck_only"] = revenue_bench(bench)
             # the reading and its test describe the same comparison: the pocket against the rest without it
-            s.reading_topline = reading_of(s.vs_rest, s.units, bench, floor, s.p_book, **kw)
+            s.reading_topline = reading_of(s.vs_rest, s.units, judge, floor, s.p_book, **kw)
             s.flag = s.reading_topline
             if b != ALL and d != ALL:
-                s.reading_median = reading_of(s.vs_median, s.units, bench, floor, tested=False, **kw)
-                s.reading_band = reading_of(s.vs_band, s.units, bench, floor, s.p_band, **kw)
+                s.reading_median = reading_of(s.vs_median, s.units, judge, floor, tested=False, **kw)
+                s.reading_band = reading_of(s.vs_band, s.units, judge, floor, s.p_band, **kw)
                 if bench.compare_to == "peers":
                     s.flag = s.reading_band
             if mat is not None and s.excess is not None:
