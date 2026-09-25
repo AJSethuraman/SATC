@@ -457,7 +457,7 @@ CHANGED = [
  ("18 of 43", "top hits sharing one word or fewer with the question", "the pick is made on a single generic token"),
  ("0", "passages of \u00a71.263(a)-1(f) returned for \u201cwhat is the capitalisation threshold?\u201d", "38 are on file; you spell it with an s and the corpus spells it with a z 147 times"),
  ("5\u00d7", "more text to buy four of the five misses", "and the two worst cannot be bought at any brief size"),
- ("1,359", "desk tests passing", "ten more than this morning \u2014 the refusal store\u2019s own durability guard"),
+ ("1,372", "desk tests passing", "the refusal store’s durability guard, and the skills’ own"),
 ]
 
 LANDED = [
