@@ -65,3 +65,34 @@ def test_a_remembered_meaning_that_no_longer_fits_says_check(tmp_path):
     memory.remember(cfg, mpath)
     got = meanings.suggest(table(_rows()), memory.load(mpath)["columns"])
     assert got["BANK_SCR"].means == "fico" and "CHECK" in got["BANK_SCR"].why
+
+
+def test_what_to_look_at_first_is_ranked_and_says_why():
+    rows = _rows()
+    for i, r in enumerate(rows):
+        if i % 5 == 0:
+            r["DEBT_RATIO"] = ""                     # 20% blank: left on purpose, or by accident?
+    t = table(rows)
+    looks = meanings.review(t, meanings.suggest(t))
+    kinds = [rv.kind for rv in looks]
+    assert kinds == sorted(kinds, key=meanings.REVIEW_ORDER.index)      # most urgent first
+    assert kinds[0] == "cannot run"                  # no booked, outcome, gco, ranr in this extract
+    blank = next(rv for rv in looks if rv.kind == "blanks")
+    assert blank.column == "DEBT_RATIO" and "20% blank" in blank.says and "fix the extract" in blank.says
+    assert any(rv.kind == "shape only" and rv.column == "R_2" for rv in looks)
+    assert any(rv.kind == "values only" and rv.column == "MODEL_7" for rv in looks)
+
+
+def test_a_misfire_shows_up_near_the_top(tmp_path):
+    """A remembered meaning the values no longer fit is ranked second only to
+    what stops the run: it is how a wrong lesson, or a misfiring rule, shows."""
+    mpath = tmp_path / "mem.yaml"
+    from origination_cube import config as cfgmod
+    cfg = cfgmod.Config(name="x", key="k", missing={}, bands=(), dimensions=(), measures=(), benchmark=None,
+                        columns={"BANK_SCR": ("fico", None)})
+    memory.remember(cfg, mpath)
+    t = table(_rows())
+    looks = meanings.review(t, meanings.suggest(t, memory.load(mpath)["columns"]))
+    first_non_blocking = next(rv for rv in looks if rv.kind != "cannot run")
+    assert first_non_blocking.kind == "memory disagrees" and first_non_blocking.column == "BANK_SCR"
+    assert "cube memory --forget BANK_SCR" in first_non_blocking.says

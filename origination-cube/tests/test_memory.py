@@ -11,7 +11,7 @@ from origination_cube.ingest import read_table
 
 def _confirmed_file(tmp_path, n=2000):
     _, data = synth.write(tmp_path, n=n)
-    path, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
+    path, _, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
     s = path.read_text().replace("columns_confirmed: no", "columns_confirmed: yes")
     for k, v in dict(min_units=30, worse_at=1.25, better_at=0.8, confidence=0.95).items():
         s = re.sub(rf'{k}: "\[CONFIRM[^"]*"', f"{k}: {v}", s)
@@ -36,7 +36,7 @@ def test_a_confirmed_run_is_remembered_and_an_unconfirmed_one_is_not(tmp_path, c
 def test_the_next_init_uses_what_was_learned(tmp_path):
     path, data = _confirmed_file(tmp_path)
     cli.main(["validate", str(path), "--data", str(data)])
-    again, _ = profile.write_cube_file(read_table(data), tmp_path / "again.yaml")
+    again, _, _ = profile.write_cube_file(read_table(data), tmp_path / "again.yaml")
     text = again.read_text()
     assert "REMEMBERED - you confirmed this as a FICO score" in text
     assert "answer: missing}   # REMEMBERED - you answered missing" in text

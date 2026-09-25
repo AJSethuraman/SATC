@@ -182,9 +182,11 @@ def _confirm(setting: control.Setting) -> str:
 
 
 def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, Any] | None = None,
-                    today: date | None = None, memory_path: str | Path | None = None) -> tuple[Path, list[Column]]:
-    """Write a cube file for this extract. `settings_in_use` comes from a
-    filled-in Control tab; without one, method settings take their
+                    today: date | None = None, memory_path: str | Path | None = None
+                    ) -> tuple[Path, list[Column], list[meanings.Review]]:
+    """Write a cube file for this extract, and return it with the column
+    classification and the look-at-these-first list. `settings_in_use` comes
+    from a filled-in Control tab; without one, method settings take their
     recommended option and judgment settings are left as [CONFIRM: ...]."""
     settings = {s.key: s for s in control.load_settings()}
     use = dict(settings_in_use or {})
@@ -205,6 +207,15 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
     mem = memory.load(memory_path)
     sugg = meanings.suggest(table, mem["columns"])
     cat = meanings.catalog()
+    qs_all = [q for c in cols for q in c.questions]
+    open_qs = [q for q in qs_all if not memory.answer_for(mem, q["column"], q["pattern"], q["value"])]
+    looks = meanings.review(table, sugg, open_qs, cat)
+    lines += ["", "# LOOK AT THESE FIRST, most important first. Each says why it's worth a look."]
+    if looks:
+        for i, rv in enumerate(looks, 1):
+            lines.append(f"#  {i:>2}. {rv.column}: {rv.says}")
+    else:
+        lines.append("#   Nothing stands out. Still check each line under `columns:` before confirming.")
     lines += ["", "# WHAT EACH COLUMN IS. Suggested by cube init, or remembered from a file you confirmed before.",
               "# Check each line; if one is wrong, change its `means`. Then set columns_confirmed to yes:",
               "# nothing runs until you do, and what you confirm is remembered for next time.",
@@ -271,4 +282,4 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
         lines.append("questions: []")
     p = Path(out)
     p.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return p, cols
+    return p, cols, looks

@@ -57,7 +57,7 @@ def test_every_column_gets_a_meaning_and_a_reason(tmp_path):
 
 def test_nothing_is_used_until_a_person_confirms_it(tmp_path):
     _, data = synth.write(tmp_path, n=2000)
-    path, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
+    path, _, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
     with pytest.raises(cfgmod.ConfigError) as exc:
         cfgmod.load(path)
     text = str(exc.value)
@@ -76,7 +76,7 @@ def _answer(path, **judgment):
 
 def test_once_confirmed_it_runs_and_the_outcome_is_not_cut_by(tmp_path):
     _, data = synth.write(tmp_path, n=4000)
-    path, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
+    path, _, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
     _answer(path, min_units=30, worse_at=1.25, better_at=0.8, confidence=0.95)
     res = engine.run(cfgmod.load(path), read_table(data))
     cut_by = {g.band for g in res.grids} | {g.dimension for g in res.grids}
@@ -86,7 +86,7 @@ def test_once_confirmed_it_runs_and_the_outcome_is_not_cut_by(tmp_path):
 
 def test_a_wrong_meaning_is_fixed_in_one_word_and_the_run_follows_it(tmp_path):
     _, data = synth.write(tmp_path, n=2000)
-    path, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
+    path, _, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
     _answer(path, min_units=30, worse_at=1.25, better_at=0.8, confidence=0.95)
     path.write_text(re.sub(r"FICO:\s+\{means: fico\}", "FICO: {means: servicing}", path.read_text()))
     res = engine.run(cfgmod.load(path), read_table(data))
@@ -110,7 +110,7 @@ def test_a_filled_control_tab_fills_the_judgment(tmp_path):
         if s and s.judgment:
             r[control.CHOOSE_COL - 1].value = s.options[1].shown
     wb.save(book)
-    path, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml", control.read_control(book))
+    path, _, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml", control.read_control(book))
     text = path.read_text()
     assert "min_units: 100" in text and "worse_at: 1.5" in text and "confidence: 0.95" in text
     assert "[CONFIRM: fewest loans" not in text

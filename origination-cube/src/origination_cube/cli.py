@@ -205,8 +205,12 @@ def main(argv: list[str] | None = None) -> int:
                 for prob in exc.problems:
                     print(f"  - {prob}", file=sys.stderr)
                 return 2
-        path, cols = profile.write_cube_file(read_table(a.extract, a.sheet), a.out, use, memory_path=a.memory)
+        path, cols, looks = profile.write_cube_file(read_table(a.extract, a.sheet), a.out, use, memory_path=a.memory)
         print(f"wrote {path}")
+        if looks:
+            print("Look at these first:")
+            for i, rv in enumerate(looks, 1):
+                print(f"  {i:>2}. {rv.column}: {rv.says}")
         qs = sum(len(c.questions) for c in cols)
         print(f"  {qs} odd value pattern(s) raised as questions; each is used as recorded until answered")
         print("  Next: check what each column means, set columns_confirmed: yes, answer any [CONFIRM: ...],"

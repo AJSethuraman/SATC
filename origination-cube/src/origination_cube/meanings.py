@@ -256,3 +256,70 @@ def suggest(table: Table, remembered: dict[str, dict] | None = None,
                                   "structure")
         out[c] = best
     return {c: out[c] for c in table.columns}
+
+
+# --------------------------------------------------------------------------
+# What to look at first
+#
+# The firm, 25 Sep 2026: "review rules that indicate why we should look first -
+# for instance, blanks means we either left them on accident or wanted to and
+# might want to go back and fix them. it also helps us determine when the
+# script misfired because it identified something incorrectly and is in need
+# of patching." So every reason to doubt a suggestion is listed, most urgent
+# first, each saying why it matters. Nothing here changes a suggestion.
+
+#: A column this share blank or more is worth a look.
+BLANK_REVIEW = 0.05
+
+REVIEW_ORDER = ("cannot run", "memory disagrees", "name and values disagree", "blanks", "shape only",
+                "values only", "odd values")
+
+
+@dataclass
+class Review:
+    kind: str
+    column: str
+    says: str
+
+    @property
+    def rank(self) -> int:
+        return REVIEW_ORDER.index(self.kind)
+
+
+def review(table: Table, sugg: dict[str, Suggestion], open_questions: list[dict] | None = None,
+           cat: dict[str, Meaning] | None = None) -> list[Review]:
+    cat = cat or catalog()
+    out: list[Review] = []
+    for m in REQUIRED:
+        hits = [c for c, sg in sugg.items() if sg.means == m]
+        if not hits:
+            out.append(Review("cannot run", "(none)", f"no column was found for {m} ({cat[m].says}). "
+                                                      f"Set `means: {m}` on the right column."))
+        elif len(hits) > 1:
+            out.append(Review("cannot run", ", ".join(hits), f"more than one column is marked {m}; keep one."))
+    for c, sg in sugg.items():
+        if sg.source == "remembered" and "CHECK" in sg.why:
+            out.append(Review("memory disagrees", c, f"you confirmed it as {sg.means} before, but these values "
+                              f"don't fit. Either this extract changed, or that was the wrong thing to remember "
+                              f"(cube memory --forget {c})."))
+        elif sg.source == "name" and "aren't on the FICO scale" in sg.why:
+            out.append(Review("name and values disagree", c, f"the name reads like a FICO score but the values "
+                              f"aren't on that scale, so it's suggested as `score`. If it really is FICO, the "
+                              f"values need a look; if the suggestion is wrong, the rule needs patching."))
+    for c in table.columns:
+        f = facts(table, c)
+        if f.rows and f.nonblank and (f.rows - f.nonblank) / f.rows >= BLANK_REVIEW:
+            share = (f.rows - f.nonblank) / f.rows
+            out.append(Review("blanks", c, f"{share:.0%} blank. Blanks are left out of every rate and get their "
+                              f"own row in a grid. If they weren't meant to be blank, fix the extract."))
+    for c, sg in sugg.items():
+        if sg.source == "structure" and sg.means not in ("unused",):
+            out.append(Review("shape only", c, f"suggested as {sg.means} from its shape alone ({sg.why}). "
+                              f"If it's something more specific, say so and it will be remembered."))
+        elif sg.source == "values":
+            out.append(Review("values only", c, f"suggested as {sg.means} from its values alone, with nothing in "
+                              f"the name to back it up."))
+    for q in open_questions or []:
+        out.append(Review("odd values", q["column"], f"{q['rows']:,} rows look odd ({q['pattern'].replace('_', ' ')})."
+                          f" Used as recorded until you answer it at the bottom."))
+    return sorted(out, key=lambda r: (r.rank, r.column))
