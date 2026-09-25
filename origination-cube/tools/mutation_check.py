@@ -60,6 +60,10 @@ muts = [
  ("heat maps colour untested", B, 's.vs_topline if s.reading_topline not in untested', 's.vs_topline if True',
   "leave_out_pockets"),
  ("RANR gap reads or more", B, """else '0.00"x or less"')""", """else '0.00"x or more"')""", "ranr_is_marked"),
+ ("band width ignored",  B, '    far = _band_widths(raw, about.get("_widths") or {}, cfg, table)', '    far = []', "every_20"),
+ ("suggestion not worked out", B, '        if about.get("_suggest"):', '        if False:', "suggested_answers"),
+ ("edges not remembered", "src/origination_cube/memory.py", '        if e is not None and e.get("edges") != text:',
+  '        if False:', "every_20"),
  ("start here left stale", B, 'else f"{stamp}: {lines[0]}")', 'else stamp)', "start_here"),
 ]
 bad = 0

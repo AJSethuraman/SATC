@@ -231,7 +231,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     ws["D3"].alignment = Alignment(wrap_text=True, vertical="top")
     ws.merge_cells("D3:L3")
     ws.row_dimensions[3].height = 30 if notes else 16
-    _head(ws, 5, ["Column", "What it is", "Cut by it?", "Yes means (outcome only)", "Band edges (use ; between)",
+    _head(ws, 5, ["Column", "What it is", "Cut by it?", "Yes means (outcome only)",
+                  "Band edges (620; 680 or every 20)",
                   "Show per pocket", "Split pockets by it?", "Look first", "Why this was suggested", "Blank",
                   "Samples"])
     ws.row_dimensions[5].height = 44
@@ -272,7 +273,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         ws.cell(row=r, column=C_CUT, value=(prior.get("cut") or "Yes") if cuttable else None)
         dv_cut.add(ws.cell(row=r, column=C_CUT))
         ws.cell(row=r, column=C_IS, value=prior.get("is") if prior else sg.is_value)
-        edges = ws.cell(row=r, column=C_EDGES, value=prior.get("edges"))
+        remembered_edges = (mem["columns"].get(c) or {}).get("edges")
+        edges = ws.cell(row=r, column=C_EDGES, value=prior.get("edges") or remembered_edges)
         edges.number_format = "@"            # kept as typed: Excel would read 620,680,740 as one number
         ws.cell(row=r, column=C_SHOW, value=prior.get("show"))
         dv_show.add(ws.cell(row=r, column=C_SHOW))
@@ -455,6 +457,8 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
         problems.append(f"Columns!{CONFIRM_CELL}: set Checked every column to Yes once you've checked each "
                         f"column's meaning.")
     columns, edges, skip, show, split = {}, {}, set(), {}, []
+    widths: dict[str, float] = {}
+    typed: dict[str, str] = {}
     for r in ws.iter_rows(min_row=COL_FIRST):
         name = r[C_NAME - 1].value
         if not name:
@@ -472,10 +476,22 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
         e = r[C_EDGES - 1].value
         if e not in (None, ""):
             where = f"Columns!{_col(C_EDGES)}{row}"
+            typed[name] = str(e).strip()
             if isinstance(e, (int, float)) and not isinstance(e, bool) and abs(e) >= 100000 and float(e).is_integer():
                 # the second walk, defect 2: Excel read 620,680,740 as the number 620680740
                 problems.append(f'{where}: the band edges for "{name}" read as the single number {e:,.0f}. '
                                 f'Excel dropped the commas. Type them with semicolons: 620; 680; 740.')
+            elif str(e).strip().lower().startswith("every"):
+                # a band width: "every 20" cuts at every 20 points across the column's values
+                # (the firm, 25 Sep 2026: "20 point bands look very different")
+                try:
+                    w = float(str(e).strip().lower().removeprefix("every").split()[0].replace(",", ""))
+                    if w <= 0:
+                        raise ValueError
+                    widths[name] = w
+                except (ValueError, IndexError):
+                    problems.append(f'{where}: "{e}" should read like every 20: the word every, then how wide '
+                                    f'each band is.')
             else:
                 try:
                     pts = [float(x) for x in str(e).replace(";", ",").split(",") if x.strip()]
@@ -549,8 +565,9 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
         "dimensions": raw_dims,
         "measures": measures,
         "min_age_months": int(use["min_age_months"]),
-        "benchmark": {"min_units": int(use["min_loans"]), "min_events": int(use["min_events"]),
-                      "worse_at": float(use["worse_at"]), "better_at": float(use["better_at"]),
+        "benchmark": {"min_units": _num_or(use["min_loans"], 30, int), "min_events": int(use["min_events"]),
+                      "worse_at": _num_or(use["worse_at"], 1.25, float),
+                      "better_at": _num_or(use["better_at"], 0.8, float),
                       "confidence": float(use["confidence"]), "power": float(use["power"]),
                       "compare_to": use["compare_to"], "many_tests": use["many_tests"],
                       "materiality": use["materiality"], "revenue_line": use["revenue_line"]},
@@ -559,7 +576,69 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
     if split:
         name, code, _ = split[0]
         raw["split"] = {"field": name, "how": "each_value" if cat[code].cut == "dimension" else "own_median"}
+    about = dict(about)
+    about["_widths"] = {c: w for c, w in widths.items() if c not in skip}
+    about["_typed_edges"] = typed
+    about["_suggest"] = {k for k in ("min_loans", "worse_at", "better_at") if use.get(k) in ("calc", "luck")}
     return raw, [], about
+
+
+def _num_or(v, provisional, kind):
+    """A Control answer as a number; a suggestion ("calc", "luck") runs first on a
+    provisional number and is then worked out from the book (see _suggested)."""
+    return provisional if v in ("calc", "luck") else kind(v)
+
+
+def _band_widths(raw: dict, widths: dict[str, float], cfg, table) -> list[str]:
+    """Turn "every 20" into edges over the column's own values (missing codes
+    left out). Refuses a width that would make more than 50 bands."""
+    out = []
+    for b in raw["bands"]:
+        w = widths.get(b["field"])
+        if not w:
+            continue
+        rule = cfg.missing.get(b["field"])
+        vals = [v for v in (engine.classify_number(r.get(b["field"]), rule)[0] for r in table.rows) if v is not None]
+        if not vals:
+            continue
+        lo, hi = min(vals), max(vals)
+        first = math.floor(lo / w) * w + w
+        pts = []
+        x = first
+        while x <= hi and len(pts) < 60:
+            pts.append(round(x, 10))
+            x += w
+        if len(pts) + 1 > 50:
+            out.append(f'Columns: every {engine._fmt(w)} on "{b["field"]}" would make {len(pts) + 1} bands '
+                       f'({engine._fmt(lo)} to {engine._fmt(hi)}). Use a wider band, 50 at most.')
+            continue
+        b.pop("count", None)
+        b.pop("cut", None)
+        b["edges"] = pts or [round(first, 10)]
+    return out
+
+
+def _suggested(res, which: set[str]) -> dict[str, float]:
+    """The suggested Control answers, worked out from a first pass over the book
+    (the firm, 25 Sep 2026: suggestions "where there's a calculation").
+    min_loans: enough loans to expect 10 with the outcome at the book's rate.
+    worse_at / better_at: the smallest outcome gap a typical pocket can tell from
+    luck (the median over pockets big enough to test), and one over it."""
+    out: dict[str, float] = {}
+    rate = res.total.rates["outcome_loans"].rate if "outcome_loans" in res.total.rates else None
+    if "min_loans" in which:
+        out["min_loans"] = max(2, math.ceil(10 / rate)) if rate else 30
+    if which & {"worse_at", "better_at"}:
+        floor = out.get("min_loans", res.config.benchmark.min_units)
+        gaps = sorted(c.rates["outcome_loans"].smallest_gap for g in res.grids for _, c in g.inner()
+                      if c.rates["outcome_loans"].units >= floor and c.rates["outcome_loans"].smallest_gap)
+        g = round(statistics.median(gaps), 2) if gaps else 1.25
+        g = max(g, 1.05)
+        if "worse_at" in which:
+            out["worse_at"] = g
+        if "better_at" in which:
+            out["better_at"] = round(1 / g, 2)
+    return out
 
 
 def _writable(book: Path) -> bool:
@@ -608,13 +687,29 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if about.get("sha256") and hashlib.sha256(src.read_bytes()).hexdigest() != about["sha256"]:
         notes.append(f"{src.name} has changed since Set up. If columns were added or renamed, press Set up first.")
     table = read_table(src)
-    far = _edges_outside(book, raw, cfg, table)
+    far = _band_widths(raw, about.get("_widths") or {}, cfg, table)
+    if about.get("_widths") and not far:
+        cfg = cfgmod.parse(raw)
+    far += _edges_outside(book, raw, cfg, table)
     if far:
         _log(book, ["Couldn't run. Fix these, save, close, and press Run again:"] + far)
         return Outcome(False, book, ["Couldn't run yet. Fix these in the workbook, save, close, and press Run "
                                      "again:"] + [f"  - {p}" for p in far])
+    suggested: dict[str, float] = {}
     try:
         res = engine.run(cfg, table)
+        if about.get("_suggest"):
+            # a suggested answer is worked out from a first pass, then the run is done again with it
+            suggested = _suggested(res, about["_suggest"])
+            bm = raw["benchmark"]
+            bm["min_units"] = int(suggested.get("min_loans", bm["min_units"]))
+            bm["worse_at"] = float(suggested.get("worse_at", bm["worse_at"]))
+            bm["better_at"] = float(suggested.get("better_at", bm["better_at"]))
+            if bm["better_at"] >= bm["worse_at"]:
+                bm["better_at"] = round(1 / bm["worse_at"], 2)
+            cfg = cfgmod.parse(raw)
+            res = engine.run(cfg, table)
+        res.suggested = suggested
     except (engine.ColumnsMissing, engine.NothingToCut) as exc:
         msg = re.sub(r"used by dimension \w+", "a segment", re.sub(r"used by band \w+", "a band", str(exc)))
         msg = msg.replace("`", '"')
@@ -629,6 +724,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         # a Forget means "don't carry this over"; this run does not re-teach it (second walk, defect 5)
         cfg = cfgmod.Config(**{**cfg.__dict__, "columns": {k: v for k, v in cfg.columns.items() if k not in dropped}})
     memory.remember(cfg, memory_path)
+    memory.remember_edges({c: t for c, t in (about.get("_typed_edges") or {}).items() if c not in dropped},
+                          memory_path)
     try:
         _write_results(book, res, memory_path, src, dropped)
     except PermissionError:
@@ -1398,6 +1495,24 @@ def _check(ws, res, src: Path, record: str = "") -> None:
         for f, r in sorted(res.split_moves_with.items(), key=lambda t: -abs(t[1])):
             if f != sf:
                 rows.append((f"How closely {sf} moves with {f}", f"correlation {r:+.2f}"))
+    sug = getattr(res, "suggested", None) or {}
+    if sug:
+        rate = res.total.rates["outcome_loans"].rate
+        words = []
+        if "min_loans" in sug:
+            words.append(f"fewest loans {sug['min_loans']:,} (enough to expect 10 with the outcome at the book's "
+                         f"rate of {rate:.2%})")
+        if "worse_at" in sug:
+            words.append(f"worse at {sug['worse_at']:.2f}x")
+        if "better_at" in sug:
+            words.append(f"better at {sug['better_at']:.2f}x")
+        if "worse_at" in sug or "better_at" in sug:
+            words[-1] += " (the smallest outcome gap a typical pocket can tell from luck)"
+        rows.append(("Worked out from this book", "; ".join(words)))
+    b = res.config.benchmark
+    if b is not None and b.many_tests != "none":
+        rows.append(("The allowance for many tests covers",
+                     "each grid and measure on its own, one comparison at a time (the firm's call, 25 Sep 2026)"))
     rl = revenue_lines(res)
     if rl:
         rows.append(("Revenue counts as more or less at", f"{rl[1]:.2f}x and {rl[0]:.2f}x: {rl[2]}"))

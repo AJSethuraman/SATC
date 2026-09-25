@@ -1437,8 +1437,20 @@ back.
   - 170 tests; 39 of 39 re-inserted bugs caught.
 - **Docket, 25 Sep 2026:** https://claude.ai/artifact/SCjJwU3YSBZskGLztNjBP7. It asks six decisions: the
   many-tests reach, suggestions for other calls, a real-Excel check at work, RANR
-  netting, the pull request, and remembering band edges. Answers are recorded here
-  when given.
+  netting, the pull request, and remembering band edges. The firm answered at 18:27 UTC:
+  - **Many tests:** keep the allowance per grid. Check will say what it covers.
+  - **Suggestions:** yes, "where there's a calculation". Suggested options come
+    from the book, are labelled, and are never pre-chosen (OC-13 holds).
+  - **Excel check:** *"you keep working and such on it and debugging, i will tell
+    you when i think it's in a position to be used at work"*. No Excel check
+    until the firm says so.
+  - **RANR netting:** still asking. It stays out.
+  - **Pull request:** keep it a draft until the Excel check.
+  - **Band edges:** yes, remember them, and *"it must have more bands than this for
+    sure - like i can tell you from experience 20 point bands look very different.
+    i assume all banding is adjustable to a degree"*. So: a band width ("every
+    20") as well as edges, remembered per column, and more bands on offer.
+  - **Next:** go ahead (the fourth walk).
 - [ ] **Next:** a fourth walkthrough; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).

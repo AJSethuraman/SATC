@@ -103,6 +103,11 @@ groups:
           - value: 10
             label: "10 bands"
             explains: Shows where a rate turns, but each band is a tenth of the book.
+          - value: 20
+            label: "20 bands"
+            explains: >-
+              Close to 20-point FICO bands on a typical book. Needs a big book, or
+              most pockets will be too small to test.
 
       - key: band_cut
         question: Where the band edges fall
@@ -126,6 +131,11 @@ groups:
         override: whole number of loans
         valid: {min: 2, max: 100000, whole: true}
         options:
+          - value: calc
+            label: Enough for 10 expected losses (suggested)
+            explains: >-
+              Worked out from this book: the loans a pocket needs to expect 10 with
+              the outcome at the book's rate. Ten is the usual floor for a rate test.
           - value: 30
             label: "30 loans"
             explains: >-
@@ -213,6 +223,11 @@ groups:
         override: a multiple above 1, such as 1.4
         valid: {min: 1.01, max: 100}
         options:
+          - value: luck
+            label: What luck alone can move it (suggested)
+            explains: >-
+              Worked out from this book: the smallest gap a typical pocket can tell
+              apart from luck. Smaller gaps can't be told from noise anyway.
           - value: 1.25
             label: 1.25 times
             explains: The old workbook's value. Moderate gaps; more pockets flagged.
@@ -230,6 +245,11 @@ groups:
         override: a multiple below 1, such as 0.7
         valid: {min: 0.01, max: 0.99}
         options:
+          - value: luck
+            label: What luck alone can move it (suggested)
+            explains: >-
+              The same as above, the other way: one over the smallest gap a typical
+              pocket can tell apart from luck.
           - value: 0.8
             label: 0.8 times
             explains: The old workbook's value.

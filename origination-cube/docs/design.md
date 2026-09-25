@@ -398,6 +398,26 @@ enough.
     p-value is called "luck alone": how often a gap this big turns up with no
     real difference.
   - **Only a score, ratio, amount or category can split.**
+- **OC-28: the docket's answers (25 Sep 2026, 18:27 UTC).**
+  - **The allowance for many tests stays per grid** and per comparison. Check says
+    so.
+  - **Suggestions where there's a calculation.** Each is a labelled Control option,
+    never pre-chosen:
+    - *Fewest loans*: enough to expect 10 with the outcome at the book's rate. Ten
+      is the usual floor for a rate test.
+    - *How much worse / better*: the smallest outcome gap a typical pocket can tell
+      from luck (the median over pockets big enough to test), and one over it.
+    - *Revenue line*: as in OC-26.
+
+    A run with a suggestion does a first pass to work the number out, then runs
+    with it. Check says what was worked out.
+  - **Band edges are remembered** with a column's meaning. **A band width** ("every
+    20") cuts at every 20 points across the column's values. The firm: *"20 point
+    bands look very different. i assume all banding is adjustable to a degree"*. It
+    is: a count (now up to 20 on offer), the placement, own edges, or a width.
+  - **Not ready for work use until the firm says so**: *"you keep working and such
+    on it and debugging, i will tell you when i think it's in a position to be
+    used at work"*. The pull request stays a draft until then.
 - **Materiality in dollars is a GCO amount.** Control asks for the smallest
   excess *loss*, so a dollar line applies to GCO only and every other rate says
   it has no line (the third walk, defect 8).

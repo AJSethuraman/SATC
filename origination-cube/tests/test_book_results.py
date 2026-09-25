@@ -323,3 +323,58 @@ def test_the_heat_maps_leave_out_pockets_under_the_minimum(tmp_path):
     assert blank_rows
     r = blank_rows[0]
     assert all(ws.cell(row=r, column=start.column + k).value is None for k in range(1, 4))
+
+
+def test_band_width_every_20_cuts_and_is_remembered(tmp_path):
+    """The firm, 25 Sep 2026: "20 point bands look very different", and yes to
+    remembering a column's edges."""
+    from origination_cube import memory
+    b = _ready(tmp_path, n=6000)
+    _set(b, "FICO", book.C_EDGES, "every 20")
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    edges = check["Band edges used: FICO"]
+    pts = [float(x) for x in edges.split("(")[0].replace(",", "").split(";")]
+    assert all(p % 20 == 0 for p in pts) and len(pts) > 10
+    assert memory.load()["columns"]["FICO"]["edges"] == "every 20"
+    other = tmp_path / "next"
+    x2 = synth.write_extract(other, n=2000, seed=3)
+    again = book.set_up(x2)
+    assert load_workbook(again.book)["Columns"]["F7"].value == "every 20"
+
+
+def test_a_band_width_too_narrow_is_refused(tmp_path):
+    b = _ready(tmp_path, n=2000)
+    _set(b, "FICO", book.C_EDGES, "every 1")
+    ran = book.run(b)
+    assert not ran.ok and any("50 at most" in x for x in ran.lines)
+
+
+def test_suggested_answers_are_worked_out_from_the_book(tmp_path):
+    """The firm, 25 Sep 2026: suggestions "where there's a calculation", never pre-chosen."""
+    b = _ready(tmp_path, n=6000)
+    wb = load_workbook(b)
+    for r in wb["Control"].iter_rows(min_row=4):
+        if r[6].value == "min_loans":
+            r[2].value = "Enough for 10 expected losses (suggested)"
+        if r[6].value in ("worse_at", "better_at"):
+            r[2].value = "What luck alone can move it (suggested)"
+    wb.save(b)
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    said = check["Worked out from this book"]
+    loans = int(said.split("fewest loans ")[1].split(" ")[0].replace(",", ""))
+    assert 100 < loans < 200                                   # 10 / 7.1% bad = about 141
+    assert "worse at" in said and "better at" in said
+    import yaml
+    ran_with = yaml.safe_load(b.with_name(f"{b.stem} - what ran.yaml").read_text())["benchmark"]
+    assert ran_with["min_units"] == loans and ran_with["worse_at"] > 1
+
+
+def test_check_says_what_the_allowance_covers(tmp_path):
+    b = _ready(tmp_path, n=2000)
+    assert book.run(b).ok
+    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    assert "each grid and measure on its own" in check["The allowance for many tests covers"]

@@ -90,6 +90,22 @@ def remember(config, path: str | Path | None = None, today: date | None = None) 
     return save(mem, path), n
 
 
+def remember_edges(edges: dict[str, str], path: str | Path | None = None) -> None:
+    """Band edges a person typed for a column ("620; 680; 740" or "every 20"),
+    kept with that column's meaning so the next set-up fills them in (the
+    firm, 25 Sep 2026: "yes, remember them"). Only for columns already
+    remembered: an edge without a confirmed meaning has nothing to hang on."""
+    mem = load(path)
+    changed = False
+    for col, text in edges.items():
+        e = mem["columns"].get(col)
+        if e is not None and e.get("edges") != text:
+            e["edges"] = text
+            changed = True
+    if changed:
+        save(mem, path)
+
+
 def answer_for(mem: dict[str, Any], column: str, pattern: str, value: Any) -> dict | None:
     key = f"{column}|{pattern}|{value if value is not None else ''}"
     return mem["answers"].get(key)
@@ -111,7 +127,8 @@ def forget(names: list[str], path: str | Path | None = None) -> tuple[Path, list
 def rows(mem: dict[str, Any]) -> list[dict]:
     out = []
     for col, e in sorted(mem["columns"].items()):
-        what = e["means"] + (f" (yes when {e['is']!r})" if "is" in e else "")
+        what = e["means"] + (f" (yes when {e['is']!r})" if "is" in e else "") + \
+            (f"; band edges {e['edges']}" if e.get("edges") else "")
         out.append({"kind": "column", "id": col, "column": col, "learned": what, "first": e.get("first"),
                     "last": e.get("last"), "times": e.get("times", 1)})
     for key, e in sorted(mem["answers"].items()):
