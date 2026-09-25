@@ -259,3 +259,30 @@ The tab shows what 0.5%, 1%, 2%, 5% and 10% would keep (`step-15-materiality.png
 | 14 | RANR grids look like loss grids | **Held.** "(more is better)", colours reversed, and the arithmetic in words ("Total RANR_AMT over total ORIG_BAL") (`step-14b-grids-ranr.png`). |
 | 15 | Window wording | **Held, except the one already marked open.** No "(s)", no backticks, the range said once with "For 95%, type 0.95", the Next line changes ("Everything is answered"), the changed column named. The message box still scrolls (`step-08b-scrolled.png`). New wording problems are in defect 15. |
 | 16 | Layout and print | **Held** in LibreOffice: Check wide and wrapped, Log headed and on one page width, Blank and Samples apart, Learned titled, the record file named on Check. New clipping on Grids (defect 12). Fonts in Excel not seen. |
+
+---
+
+## Where each defect stands (25 Sep 2026, after the fixes)
+
+The firm chose the fixes for 1 to 3 (rulings OC-26 and OC-27 in `docs/design.md`). Every fix below is held by a test, and `tools/mutation_check.py` puts the bug back to prove the test goes red. Seen through LibreOffice, not Excel.
+
+| # | Defect | Now | Test |
+|---|---|---|---|
+| 1 | Worst bleeders read "earning more" on noise | **Fixed.** Nine boxes: each side reads more, the same, or less by lines on Control. Revenue has its own Control call, and the suggested option is worked out from the book: what luck alone can move revenue in a typical pocket. The planted pocket reads "Losing more, earning the same". Rows sort by GCO excess | `test_losses_vs_revenue_boxes_follow_*`, `test_the_suggested_revenue_line_*` |
+| 2 | A split finds debt where the score isn't held fixed | **Fixed the way the firm chose.** Every grid stays. Each says what it holds fixed and gives the split column's correlation with the band column it doesn't. Grids that hold the score fixed come first | `test_split_by_a_number_*`, `test_the_split_says_how_closely_*` |
+| 3 | A category split gives pictures only | **Fixed.** Every three-way pocket is tested, flagged, given dollars and tied out, and ranked on a Three-way tab. Check and the window record the split, and say the column isn't cut on its own | `test_three_way_pockets_*` |
+| 4 | Split and heat maps ignore the minimums | **Fixed.** A half under the minimum loans or losses isn't compared or counted. Untested cells are blank on the heat maps, with a note saying why | `test_halves_under_the_minimum_*`, `test_the_heat_maps_leave_out_*` |
+| 5 | Box and flag compare different things | **Fixed.** Both use the comparison Control names, and the subtitle says which | `test_losses_vs_revenue_boxes_follow_*` |
+| 6 | "Chance it's luck"; odds lead | **Fixed.** Headed "Luck alone" and explained as how often a gap this big turns up with no real difference. The rate ratio leads (1.85x on the planted 1.8x), odds follow | `test_split_by_a_number_*` |
+| 7 | Split takes any column; "1 of 14" | **Fixed.** Only a score, ratio, amount or category can split; anything else is refused naming the cell. A high half with losses against a low half with none counts as worse | `test_a_split_on_a_column_that_cant_split_*` |
+| 8 | A dollar line applies to RANR | **Fixed.** A dollar line is GCO only. Check says so in words for each other rate, and prints "$100,000 of GCO" | `test_a_dollar_materiality_line_is_gco_only` |
+| 9 | Forget lasts one Run | **Fixed.** A Forget clears C3 and marks the column, so it can't be learned again until a person says Yes | `test_a_forget_holds_*` |
+| 10 | The workbook taken as the extract | **Fixed.** Refused, naming the extract to pick | `test_the_workbook_is_refused_as_its_own_extract` |
+| 11 | The chart | **Fixed in part.** One chart per grid, GCO on a scale of tens with 1.00x on a tick, the four Control lines drawn, the three biggest bleeders named, and the helper numbers on a hidden sheet. The box names aren't on the chart; the count per box is above each table | seen on render |
+| 12 | Labels cut off | **Fixed.** Band and segment columns widened on every tab | seen on render |
+| 13 | Excess in whole loans | **Fixed.** One decimal, like the line | — |
+| 14 | Show per pocket | **Fixed.** A note says it isn't tested and doesn't add up; whole numbers for amounts, two places for small figures | — |
+| 15 | Window and status wording | **Fixed except the scrolling.** The split is named in the window; two splits name both cells; a split that empties the segments says so; a renamed column says "a segment" and to press Set up; the Extract box shows the file name; Start here recounts what to look at and gives the last run's loans; Set up counts columns, new ones included. **Open:** the message box can still scroll | `test_a_renamed_column_says_to_press_set_up` |
+| 16 | Materiality levels Control can't pick | **Fixed.** Control offers 0.5%, 1%, 2%, 5% and 10%, the levels the tab shows. Each heading says what it's a share of | `test_materiality_tab_*` |
+
+**Still open from "What I couldn't check":** a RANR pocket flagged worse on a book with no RANR effect. The allowance for many tests runs per grid and per comparison, not across every grid and measure at once. Whether it should span them all is a method question for the firm.

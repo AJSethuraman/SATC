@@ -123,13 +123,17 @@ def build(root) -> dict:
 
     ttk.Label(frame, text="Extract:").grid(row=2, column=0, sticky="w")
     extract = tk.StringVar(value=_prefs().get("extract", ""))
-    ttk.Entry(frame, textvariable=extract, width=60).grid(row=2, column=1, sticky="ew", padx=6)
+    box = ttk.Entry(frame, textvariable=extract, width=60)
+    box.grid(row=2, column=1, sticky="ew", padx=6)
+    box.xview_moveto(1)          # the file name, not the front of a long folder path, is what shows
 
     def browse():
         p = filedialog.askopenfilename(title="Pick the loan extract",
                                        filetypes=[("Extracts", "*.csv *.xlsx"), ("All files", "*.*")])
         if p:
             extract.set(p)
+            box.icursor("end")
+            box.xview_moveto(1)
             _save_prefs({"extract": p})
 
     ttk.Button(frame, text="Browse...", command=browse).grid(row=2, column=2)

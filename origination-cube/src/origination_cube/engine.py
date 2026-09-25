@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import stats
-from .config import EACH_LOAN, Band, Config, Measure, MissingRule
+from .config import EACH_LOAN, Band, Config, Dimension, Measure, MissingRule
 from .ingest import BLANK, Bad, Table, cell_text, is_blank, parse_number
 
 BLANK_LABEL = "(blank)"
@@ -330,6 +330,10 @@ class Result:
     aged_out: int = 0                                                       # loans younger than min_age_months
     loans_needed: dict[str, stats.LoansNeeded] = field(default_factory=dict)  # per rate, from the book
     min_units: dict[str, float] = field(default_factory=dict)               # per rate, the floor in use
+    # the third layer (OC-23, OC-27): three-way pockets, tested like any other, and how
+    # closely the split column moves with each number column that is cut into bands
+    three_way: list["Grid"] = field(default_factory=list)
+    split_moves_with: dict[str, float] = field(default_factory=dict)        # band column -> correlation
 
 
 # --------------------------------------------------------------------------
@@ -337,8 +341,10 @@ class Result:
 
 def _materiality_lines(bench, measures, total, warnings) -> dict[str, float]:
     """Each rate's materiality line in its own units. A share of the book's
-    total applies to every rate; a dollar amount only to rates counted in
-    dollars, and a rate counted in loans says so rather than borrow it."""
+    total applies to every rate. A dollar amount is a GCO amount (the Control
+    question is the smallest excess loss): it applies to GCO alone, and every
+    other rate says it has no line rather than borrow GCO's dollars (the third
+    walk, defect 8: $100,000 of GCO made every RANR shortfall immaterial)."""
     out: dict[str, float] = {}
     if bench is None:
         return out
@@ -350,11 +356,11 @@ def _materiality_lines(bench, measures, total, warnings) -> dict[str, float]:
             out[m.name] = 0.0
         elif kind == "share":
             out[m.name] = v * abs(total.rates[m.name].num)
-        elif m.per == EACH_LOAN and m.mode == "flagwt":
-            warnings.append(f"{m.name} counts loans, not dollars, so the dollar materiality line is not applied "
-                            f"to it")
-        else:
+        elif m.name == "gco_rate":
             out[m.name] = v
+        else:
+            warnings.append(f"{m.title}: no materiality line. The dollar line is a GCO amount, so it is only "
+                            f"applied to GCO")
     return out
 
 
@@ -536,21 +542,53 @@ def run(config: Config, table: Table) -> Result:
             split_vals = [classify_text(raw, rules.get(sfield)) for raw in col(sfield)]
         else:
             split_vals = [classify_number(raw, rules.get(sfield))[0] for raw in col(sfield)]
-    grids = []
+    grids, three_way = [], []
     tie_outs = 0
     for b in config.bands:
         for d in config.dimensions:
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
                                topline, min_units, total, needed, materiality_line)
             if split_vals is not None:
-                _split(grid, config, bands[b.name], dims[d.name], split_vals, measures, per_row)
+                labels = _split(grid, config, bands[b.name], dims[d.name], split_vals, measures, per_row)
+                # the three-way pockets go through the same machinery as any pocket: tested, flagged,
+                # given dollars and tied out (OC-27; the third walk, defect 3: they were pictures only)
+                sfield = config.split[0]
+                word = {HIGH: f"{sfield} high half", LOW: f"{sfield} low half",
+                        NO_SPLIT_VALUE: f"no {sfield}"}
+                composite = [f"{dd} / {word.get(lab, f'{sfield} {lab}')}" for dd, lab in zip(dims[d.name], labels)]
+                three = _build_grid(config, b, Dimension(name=f"{d.name} / {sfield}", field=d.field),
+                                    band_edges[b.name], bands[b.name], composite, measures, per_row, topline,
+                                    min_units, total, needed, materiality_line)
+                tie_outs += tie_out(three, total, measures, n)
+                three_way.append(three)
             tie_outs += tie_out(grid, total, measures, n)
             grids.append(grid)
+    moves_with: dict[str, float] = {}
+    if config.split and config.split[1] == "own_median":
+        for b in config.bands:
+            r = _correlation(split_vals, [classify_number(raw, rules.get(b.field))[0] for raw in col(b.field)])
+            if r is not None:
+                moves_with[b.field] = r
 
     return Result(config=config, source=table.path, rows=n, measures=measures, total=total,
                   left_out=left_out, grids=grids, warnings=warnings, tie_outs=tie_outs,
                   band_edges=band_edges, loans_needed=needed, min_units=min_units,
-                  materiality_line=materiality_line, aged_out=aged_out)
+                  materiality_line=materiality_line, aged_out=aged_out, three_way=three_way,
+                  split_moves_with=moves_with)
+
+
+def _correlation(xs, ys) -> float | None:
+    """Pearson's r over the loans where both are readable numbers."""
+    pairs = [(x, y) for x, y in zip(xs, ys) if x is not None and y is not None]
+    if len(pairs) < 3:
+        return None
+    n = len(pairs)
+    mx = math.fsum(x for x, _ in pairs) / n
+    my = math.fsum(y for _, y in pairs) / n
+    sxy = math.fsum((x - mx) * (y - my) for x, y in pairs)
+    sxx = math.fsum((x - mx) ** 2 for x, _ in pairs)
+    syy = math.fsum((y - my) ** 2 for _, y in pairs)
+    return sxy / math.sqrt(sxx * syy) if sxx > 0 and syy > 0 else None
 
 
 def _resolve_columns(config: Config, table: Table, warnings: list[str]) -> tuple[Measure, ...]:
@@ -750,7 +788,7 @@ def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topli
 # The third layer
 
 
-def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) -> None:
+def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) -> list[str]:
     """Split every pocket of the grid by a third column. `each_value`: one
     layer per value (asset class 1, 2, 3, 4). `own_median`: two halves per
     pocket, at that pocket's own median, so the split says what the column adds
@@ -775,7 +813,10 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
     grid.split_labels = order
     grid.split_cells = cells3
     if how != "own_median":
-        return
+        return labels
+    bench = config.benchmark
+    floor = bench.min_units if bench else 2
+    min_events = bench.min_events if bench else 0
     for m in measures:
         if not m.is_rate:
             continue
@@ -785,13 +826,22 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             if h is None or lo is None:
                 continue
             sh, sl = h.rates[m.name], lo.rates[m.name]
+            # the same floors as every other test (the third walk, defect 4: two halves of 27 loans
+            # were compared, painted deep red and counted, under a 30-loan minimum)
+            thin = sh.units < floor or sl.units < floor or sl.rate is None or sh.rate is None
+            few = m.higher_is == "worse" and sh.events + sl.events < min_events
+            if thin or few:
+                grid.split_compare.setdefault((b, d), {})[m.name] = (None, None, sh.units, sl.units)
+                continue
             idx, p = stats.compare(sh.sums(), sl.sums())
             grid.split_compare.setdefault((b, d), {})[m.name] = (idx, p, sh.units, sl.units)
-            if sl.rate is None or sh.units < 2 or sl.units < 2:
-                continue
             pockets += 1
-            if idx is not None and ((idx > 1) if m.higher_is == "worse" else (idx < 1)):
-                high_worse += 1
+            # a high half with losses against a low half with none has no multiple, and is worse
+            if idx is not None:
+                worse = idx > 1 if m.higher_is == "worse" else idx < 1
+            else:
+                worse = sh.rate > sl.rate if m.higher_is == "worse" else sh.rate < sl.rate
+            high_worse += worse
             if m.mode == "flagwt" and m.per == EACH_LOAN:
                 # odds count loans; a dollar-weighted rate gets observed against expected below
                 strata.append((sh.events, sh.units - sh.events, sl.events, sl.units - sl.events))
@@ -804,15 +854,18 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             se_l = stats.ratio_se(*sl.sums()) or 0.0
             v_sum += s_dd + (sh.den * se_l) ** 2
         out = {"pockets": pockets, "high_worse": high_worse, "measure": m.name}
+        z = stats.norm_s_inv(1 - (1 - (bench.confidence if bench else 0.95)) / 2)
         if e_sum > 0:
             out["ratio"] = o_sum / e_sum
             out["ratio_p"] = math.erfc(abs(o_sum - e_sum) / math.sqrt(v_sum) / math.sqrt(2)) if v_sum > 0 else None
+            half = z * math.sqrt(v_sum) / e_sum
+            out["ratio_lo"], out["ratio_hi"] = max(out["ratio"] - half, 0.0), out["ratio"] + half
         if strata:
-            z = stats.norm_s_inv(1 - (1 - (config.benchmark.confidence if config.benchmark else 0.95)) / 2)
             orr, lo_ci, hi_ci = stats.mantel_haenszel(strata, z)
             out.update({"odds": orr, "odds_lo": lo_ci, "odds_hi": hi_ci, "odds_p": stats.cmh_p(strata)})
             out["steady_p"], out["steady_pockets"] = stats.steadiness_p(strata, orr)
         grid.split_pooled[m.name] = out
+    return labels
 
 
 # --------------------------------------------------------------------------

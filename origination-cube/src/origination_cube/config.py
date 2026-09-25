@@ -57,6 +57,11 @@ CORE_NAMES = ("outcome_loans", "outcome_booked", "gco_rate", "ranr_rate")
 MISSING_KEYS = {"below", "above", "values"}
 BENCHMARK_KEYS = ("min_units", "min_events", "worse_at", "better_at", "confidence", "power", "compare_to",
                   "many_tests", "materiality")
+# Optional: only the Losses vs revenue tab reads it, to say when revenue counts as
+# more or less than its comparison (ruling OC-26). Absent, that tab uses worse_at
+# and better_at, and says so.
+BENCHMARK_OPTIONAL = ("revenue_line",)
+REVENUE_LINES = ("luck", "losses")
 COMPARE_TO = ("peers", "topline")
 MANY_TESTS = ("none", "bh", "bonferroni")
 HIGHER_IS = ("worse", "better")
@@ -197,6 +202,7 @@ class Benchmark:
     compare_to: str                  # peers | topline: which comparison decides the flag
     many_tests: str                  # none | bh | bonferroni
     materiality: tuple               # ("share", 0.01) | ("dollars", 250000.0) | ("none", 0.0)
+    revenue_line: Any = None         # None | "luck" | "losses" | a share such as 0.1 (Losses vs revenue only)
 
 
 @dataclass(frozen=True)
@@ -597,7 +603,7 @@ def _parse_benchmark(node: Any, problems: list[str]) -> Benchmark | None:
     if not isinstance(node, dict):
         problems.append(_missing_line("benchmark"))
         return None
-    _unknown(node, set(BENCHMARK_KEYS), "benchmark", problems)
+    _unknown(node, set(BENCHMARK_KEYS) | set(BENCHMARK_OPTIONAL), "benchmark", problems)
     if any(isinstance(v, str) and CONFIRM in v for v in node.values()):
         return None            # each unanswered line is already reported, once
     absent = [k for k in BENCHMARK_KEYS if k not in node]
@@ -631,6 +637,10 @@ def _parse_benchmark(node: Any, problems: list[str]) -> Benchmark | None:
         problems.append(f"benchmark.materiality must be like \"1% of losses\", none, or a dollar amount; "
                         f"got {node['materiality']!r}")
         ok = False
+    rl = node.get("revenue_line")
+    if rl is not None and rl not in REVENUE_LINES and not (_num(rl) and 0 < rl < 1):
+        problems.append(f"benchmark.revenue_line must be luck, losses, or a share such as 0.1; got {rl!r}")
+        ok = False
     if ok and better >= worse:
         problems.append(f"benchmark.better_at ({better}) must be below worse_at ({worse})")
         ok = False
@@ -639,7 +649,8 @@ def _parse_benchmark(node: Any, problems: list[str]) -> Benchmark | None:
         ok = False
     return (Benchmark(min_units=mu, min_events=me, worse_at=float(worse), better_at=float(better),
                       confidence=float(conf), power=float(power), compare_to=node["compare_to"],
-                      many_tests=node["many_tests"], materiality=mat) if ok else None)
+                      many_tests=node["many_tests"], materiality=mat,
+                      revenue_line=float(rl) if _num(rl) else rl) if ok else None)
 
 
 def _parse_materiality(v: Any):

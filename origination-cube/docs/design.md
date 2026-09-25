@@ -363,6 +363,45 @@ enough.
   *Show per pocket*). It's evidence beside the rates. It is never tested and
   never adds up across pockets, and the grid says so.
 
+- **OC-26: the boxes on Losses vs revenue follow the lines on Control.** The
+  third walk found the three worst bleeders in "Losing more, earning more" on
+  revenue 2 to 5% above the book, which their own flags called luck. Asked to
+  choose, the firm took "your own Control lines" over a luck test or no boxes,
+  and asked for *"some mathematically defensible norm that the tool can
+  suggest. Like yeah I'm definitely not counting your example as a pass simply
+  because the revenue is on par"*. So:
+  - Each side reads more, about the same, or less, and the box is the pair: nine
+    boxes, worst first.
+  - GCO uses "how much worse" and "how much better" from Control.
+  - Revenue has its own Control call, *How far revenue must move before it
+    counts*. The suggested option is **what luck alone can move it**, worked out
+    from the book: the median, over pockets big enough to test, of the smallest
+    RANR gap each pocket can tell from luck at the confidence and catch rate on
+    Control. It is suggested in its label and never pre-chosen (OC-13 holds).
+  - Box and flags use the same comparison, the one Control names.
+  - One chart per grid, GCO on a doubling scale, the Control lines drawn, the
+    three biggest bleeders named.
+- **OC-27: the third layer is tested, and says what it holds fixed.** The firm
+  chose, on 25 Sep 2026:
+  - **Every grid stays, labelled.** In a grid that doesn't hold the score fixed,
+    the high-debt half is also the low-score half, and a book with no debt
+    effect read 1.7x. Each grid now says what it holds fixed, and gives the
+    split column's correlation with the band column it doesn't. Grids that hold
+    fixed what the split moves with come first. The reader decides; nothing is
+    dropped.
+  - **Three-way pockets on their own tab.** Every band / segment / split value
+    pocket goes through the same test, flags, dollars and tie-out as any other,
+    and is ranked on the Three-way tab. Where it bleeds stays two-way.
+  - **The same floors apply.** A half under the minimum loans or losses isn't
+    compared or counted.
+  - **The rate ratio leads.** The odds follow as the test's own number. The
+    p-value is called "luck alone": how often a gap this big turns up with no
+    real difference.
+  - **Only a score, ratio, amount or category can split.**
+- **Materiality in dollars is a GCO amount.** Control asks for the smallest
+  excess *loss*, so a dollar line applies to GCO only and every other rate says
+  it has no line (the third walk, defect 8).
+
 ## Open
 
 - **(a) Real Excel.** Every tab has been seen through LibreOffice only. Still to

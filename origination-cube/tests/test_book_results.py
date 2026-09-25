@@ -53,11 +53,17 @@ def test_split_by_a_number_finds_the_planted_revolving_debt_effect(tmp_path):
     assert "REV_DEBT" not in {x["field"] for x in raw["bands"]}      # it splits; it isn't also cut
     assert book.run(b).ok
     ws = load_workbook(b)["Split"]
-    said = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str) and "Pooled" in c.value]
+    said = [c.value for row in ws.iter_rows() for c in row
+            if isinstance(c.value, str) and "has the outcome" in c.value]
     assert said, "the pooled sentence is missing"
-    odds = float(said[0].split("are ")[1].split("x")[0])
-    assert odds > 1.3                                          # planted: 1.8x the chance of the outcome
+    ratio = float(said[0].split("has the outcome ")[1].split(" times")[0])
+    assert 1.3 < ratio < 2.6                                   # planted: 1.8x the bad rate
     assert "High half vs low" in {c.value for row in ws.iter_rows() for c in row}
+    # the grids that hold the score fixed come first, and the others say what they don't hold fixed
+    heads = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str) and " x " in c.value
+             and ":" in c.value]
+    assert heads[0].startswith("FICO x")
+    assert any("doesn't hold FICO fixed" in x for x in said)
 
 
 def test_split_by_a_category_repeats_the_grid_once_per_value(tmp_path):
@@ -78,18 +84,41 @@ def test_only_one_column_can_split(tmp_path):
     assert not ran.ok and any("only one column can split" in x for x in ran.lines)
 
 
-def test_losses_vs_revenue_puts_every_pocket_in_a_box_and_charts_it(tmp_path):
+def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
+    """Ruling OC-26; the third walk, defects 1 and 5. Each side reads more, the
+    same or less by the Control lines, against the same comparison as its flag."""
     b = _ready(tmp_path)
     assert book.run(b).ok
     ws = load_workbook(b)["Losses vs revenue"]
-    boxes = [ws.cell(row=r, column=9).value for r in range(5, ws.max_row + 1) if ws.cell(row=r, column=2).value]
-    assert boxes and set(boxes) <= set(book.QUADRANTS)
-    for r in range(5, 5 + len(boxes)):
-        gco, ranr, box = (ws.cell(row=r, column=c).value for c in (7, 8, 9))
-        assert box == book.QUADRANTS[(0 if gco > 1 else 2) + (0 if ranr < 1 else 1)]
-    assert sum(ws.cell(row=r, column=16).value for r in range(5, 9)) == len(boxes)
-    assert ws.cell(row=4, column=13).value == "RANR flag"
-    assert ws._charts                                        # the scatter survives the Log's save
+    rows = [[ws.cell(row=r, column=c).value for c in range(2, 12)] for r in range(5, ws.max_row + 1)]
+    rows = [x for x in rows if x[7] in book.BOXES]
+    assert rows
+    sub = ws["B2"].value
+    hi = float(sub.split("counts as more at ")[2].split("x")[0])
+    lo = float(sub.split("and less at ")[2].split("x")[0])
+    for band, seg, loans, gco, gflag, ranr, rflag, box, _, _ in rows:
+        g = "more" if gco >= 1.25 else "less" if gco <= 0.8 else "same"
+        rv = "more" if ranr >= hi else "less" if ranr <= lo else "same"
+        assert box == book.box_of(g, rv), (band, seg, gco, ranr, box)
+        assert loans >= 30
+    # the first grid is FICO x CHANNEL, largest GCO excess first: the planted pocket, which
+    # loses far more and earns about the same, is not read as a trade-off
+    assert ws["B4"].value == "FICO x CHANNEL"
+    band, seg, box = ws["B6"].value, ws["C6"].value, ws["I6"].value
+    assert band.startswith("under") and seg == "Broker"
+    assert box in ("Losing more, earning the same", "Losing more, earning less")
+    grids = [c.value for c in ws["B"] if isinstance(c.value, str) and " x " in c.value]
+    assert len(grids) == 6 and len(ws._charts) == len(grids)     # one chart per grid
+
+
+def test_the_suggested_revenue_line_is_worked_out_from_the_book(tmp_path):
+    b = _ready(tmp_path)
+    assert book.run(b).ok
+    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    said = check["Revenue counts as more or less at"]
+    assert "what luck alone can move it" in said
+    hi = float(said.split("x")[0])
+    assert 1.05 < hi < 3
 
 
 def test_materiality_tab_shows_what_each_level_keeps(tmp_path):
@@ -97,7 +126,7 @@ def test_materiality_tab_shows_what_each_level_keeps(tmp_path):
     assert book.run(b).ok
     ws = load_workbook(b)["Materiality"]
     heads = {c.value for row in ws.iter_rows() for c in row}
-    assert "Share of the book's total" in heads and "Pockets kept" in heads
+    assert "Share of the book's loans with the outcome" in heads and "Pockets kept" in heads
     assert any(isinstance(v, str) and v.startswith("In use:") for v in (c.value for row in ws.iter_rows()
                                                                          for c in row))
 
@@ -206,3 +235,91 @@ def test_an_edge_outside_the_columns_values_is_refused_by_cell(tmp_path):
     said = next(x for x in ran.lines if "Columns!F7" in x)
     assert "9,000" in said or "9000" in said
     assert "-9,999" not in said and "-9999" not in said          # the answered missing code is not the range
+
+
+def test_three_way_pockets_are_tested_and_ranked(tmp_path):
+    """Ruling OC-27; the third walk, defect 3: a category split drew pictures only."""
+    b = _ready(tmp_path)
+    _set(b, "ASSET_CLASS", book.C_SPLIT, "Yes")
+    ran = book.run(b)
+    assert ran.ok and any("Split by ASSET_CLASS" in x for x in ran.lines)
+    wb = load_workbook(b)
+    ws = wb["Three-way"]
+    first = [c.value for c in ws[5]]
+    assert first[4] == "CHANNEL / ASSET_CLASS" and " / ASSET_CLASS " in first[5]
+    assert first[16]                                          # every row carries a flag
+    check = {r[1].value: r[2].value for r in wb["Check"].iter_rows(min_row=4)}
+    assert "ASSET_CLASS" in check["Split"] and "isn't cut on its own" in check["Split"]
+
+
+def test_a_split_on_a_column_that_cant_split_is_refused_by_cell(tmp_path):
+    """The third walk, defect 7: GCO split by itself read 93.83x."""
+    b = _ready(tmp_path, n=2000)
+    _set(b, "GCO_AMT", book.C_SPLIT, "Yes")
+    ran = book.run(b)
+    assert not ran.ok and any("Columns!H11" in x and "can't split the pockets" in x for x in ran.lines)
+
+
+def test_a_dollar_materiality_line_is_gco_only(tmp_path):
+    """The third walk, defect 8: $100,000 of GCO made every RANR shortfall immaterial."""
+    from test_book import PICK
+    b = _ready(tmp_path, n=3000)
+    wb = load_workbook(b)
+    for r in wb["Control"].iter_rows(min_row=4):
+        if r[6].value == "materiality":
+            r[2].value, r[3].value = None, 100000
+    wb.save(b)
+    assert book.run(b).ok, PICK
+    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    assert check["Materiality line: GCO per booked dollar"] == "100,000 GCO_AMT dollars"
+    assert "GCO amount" in check["Materiality line: RANR per booked dollar"]
+    assert check["Smallest excess loss worth reporting"] == "$100,000 of GCO"
+
+
+def test_a_forget_holds_until_a_person_confirms_again(tmp_path):
+    """The third walk, defect 9: the next Run re-learned the column silently."""
+    from origination_cube import memory
+    b = _ready(tmp_path, n=3000)
+    assert book.run(b).ok
+    wb = load_workbook(b)
+    for r in wb["Learned"].iter_rows(min_row=4):
+        if r[2].value == "CHANNEL":
+            r[0].value = memory.FORGET
+    wb.save(b)
+    assert book.run(b).ok
+    ws = load_workbook(b)["Columns"]
+    assert ws[book.CONFIRM_CELL].value is None and "CHANNEL" in ws["D3"].value
+    ran = book.run(b)
+    assert not ran.ok and any("Columns!C3" in x for x in ran.lines)
+    assert "CHANNEL" not in memory.load()["columns"]
+
+
+def test_the_workbook_is_refused_as_its_own_extract(tmp_path):
+    """The third walk, defect 10."""
+    b = _ready(tmp_path, n=500)
+    out = book.set_up(b)
+    assert not out.ok and "is the workbook, not the loan file" in out.lines[0]
+    assert not b.with_name(f"{b.stem} - Origination Cube.xlsx").exists()
+
+
+def test_a_renamed_column_says_to_press_set_up(tmp_path):
+    b = _ready(tmp_path, n=1000)
+    x = tmp_path / "loans.csv"
+    text = x.read_text().splitlines()
+    x.write_text("\n".join([text[0].replace("CHANNEL", "CHNL")] + text[1:]) + "\n")
+    ran = book.run(b)
+    said = " ".join(ran.lines)
+    assert not ran.ok and "a segment" in said and "press Set up again" in said and "dimension" not in said
+
+
+def test_the_heat_maps_leave_out_pockets_under_the_minimum(tmp_path):
+    """The third walk, defect 4: a 1-loan row was among the strongest colours."""
+    b = _ready(tmp_path, n=4000)
+    assert book.run(b).ok
+    ws = load_workbook(b)["Grids"]
+    start = next(c for row in ws.iter_rows() for c in row if c.value == "Vs the book")
+    blank_rows = [r for r in range(start.row + 1, start.row + 12)
+                  if ws.cell(row=r, column=start.column).value == "(blank)"]
+    assert blank_rows
+    r = blank_rows[0]
+    assert all(ws.cell(row=r, column=start.column + k).value is None for k in range(1, 4))

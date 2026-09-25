@@ -62,6 +62,7 @@ NUMERIC_SHARE = 0.99
 JUDGMENT_TO_FILE = {"min_loans": "min_units", "min_events": "min_events", "worse_at": "worse_at",
                     "better_at": "better_at", "confidence": "confidence", "compare_to": "compare_to",
                     "materiality": "materiality"}
+# revenue_line is left out: only the workbook's Losses vs revenue tab reads it
 
 
 @dataclass

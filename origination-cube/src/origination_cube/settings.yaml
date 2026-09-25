@@ -163,15 +163,24 @@ groups:
         question: Smallest excess loss worth reporting
         takes_effect: live
         judgment: true
-        override: a dollar amount
+        override: a dollar amount of GCO
         valid: {min: 0, max: 1000000000000}
         options:
+          - value: 0.5% of losses
+            label: 0.5% of the book's total losses
+            explains: Catches small pockets as well as big ones.
           - value: 1% of losses
             label: 1% of the book's total losses
             explains: Scales with the book, so the same setting works on any population.
+          - value: 2% of losses
+            label: 2% of the book's total losses
+            explains: Between the two.
           - value: 5% of losses
             label: 5% of the book's total losses
             explains: Only pockets that move the total.
+          - value: 10% of losses
+            label: 10% of the book's total losses
+            explains: Only the few pockets that carry the book.
           - value: none
             label: No floor
             explains: >-
@@ -230,6 +239,30 @@ groups:
           - value: 0.5
             label: 0.5 times
             explains: Half the rate or less. Few, and obvious.
+
+      - key: revenue_line
+        question: How far revenue must move before it counts as more or less
+        takes_effect: re-run
+        judgment: true
+        override: a share, such as 0.1 for 10%
+        valid: {min: 0.01, max: 0.9}
+        options:
+          - value: luck
+            label: What luck alone can move it (suggested)
+            explains: >-
+              Worked out from this book: the smallest revenue gap a typical pocket
+              can tell apart from luck. Inside it, revenue reads as about the same.
+          - value: 0.05
+            label: "5 percent either way"
+            explains: Small moves count. Expect many pockets to read as earning more or less.
+          - value: 0.10
+            label: "10 percent either way"
+            explains: Only moves of a tenth or more count.
+          - value: losses
+            label: The same lines as for losses
+            explains: >-
+              Uses the two answers above for revenue too. Revenue rarely moves
+              that far, so most pockets will read as about the same.
 
   - title: Is it real
     settings:

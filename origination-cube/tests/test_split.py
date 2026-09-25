@@ -96,3 +96,26 @@ def test_the_statistics_against_known_values():
     assert 0 < stats.cmh_p(strata) < 0.01
     steady, k = stats.steadiness_p(strata, o)
     assert k == 2 and steady > 0.5                         # both strata near OR 2
+
+
+def test_halves_under_the_minimum_are_not_compared_or_counted(planted):
+    """The third walk, defect 4: two halves of 27 loans were tested under a 30-loan floor."""
+    raw, table = planted
+    r = copy.deepcopy(raw)
+    r["benchmark"]["min_units"] = 400
+    r["dimensions"] = [{"name": "asset", "field": "ASSET_CLASS"}]
+    r["split"] = {"field": "REV_DEBT", "how": "own_median"}
+    res = engine.run(cfgmod.parse(r), table)
+    g = res.grids[0]
+    for got in g.split_compare.values():
+        idx, p, nh, nl = got["outcome_loans"]
+        if nh < 400 or nl < 400:
+            assert idx is None and p is None
+    tested = sum(1 for got in g.split_compare.values() if got["outcome_loans"][0] is not None)
+    assert g.split_pooled["outcome_loans"]["pockets"] == tested
+
+
+def test_the_split_says_how_closely_it_moves_with_each_band(planted):
+    res = _run(*planted, "REV_DEBT", "own_median")
+    assert res.split_moves_with["FICO"] < -0.3                 # debt runs higher as the score falls
+    assert res.three_way and all(" / " in g.dimension for g in res.three_way)

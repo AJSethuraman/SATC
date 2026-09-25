@@ -8,7 +8,8 @@ from origination_cube import book, control, memory, synth
 
 PICK = {"min_age_months": "Every loan", "min_loans": "30", "min_events": "10",
         "materiality": "1% of the book's total losses", "compare_to": "The rest of its band",
-        "worse_at": "1.25 times", "better_at": "0.8 times", "confidence": "95%"}
+        "worse_at": "1.25 times", "better_at": "0.8 times", "confidence": "95%",
+        "revenue_line": "What luck alone can move it (suggested)"}
 
 
 def _answer(path, confirm=True, odd=True):
@@ -89,6 +90,10 @@ def test_the_learned_tab_prunes_on_the_next_run(tmp_path):
     wb.save(out.book)
     assert book.run(out.book).ok
     assert "FICO" not in memory.load()["columns"]          # a Forget is not learned straight back
+    assert not book.run(out.book).ok                        # ... nor on the next Run, until a person says yes
+    wb = load_workbook(out.book)
+    wb["Columns"][book.CONFIRM_CELL] = "Yes"
+    wb.save(out.book)
     assert book.run(out.book).ok
     assert memory.load()["columns"]["FICO"]["means"] == "score"
     assert "changed_from" not in memory.load()["columns"]["FICO"]      # forgotten first, so learned fresh

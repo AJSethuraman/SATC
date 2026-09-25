@@ -20,7 +20,7 @@ def _row(ws, key):
 
 
 JUDGMENT = {"min_age_months", "min_loans", "min_events", "materiality", "compare_to", "worse_at", "better_at",
-            "confidence"}
+            "confidence", "revenue_line"}
 
 
 def test_judgment_settings_recommend_nothing_and_method_settings_recommend_one():

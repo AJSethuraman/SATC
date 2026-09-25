@@ -91,8 +91,9 @@ def test_materiality_as_a_share_and_in_dollars(book):
     res = engine.run(cube(benchmark=bench(materiality=40)), table(book))
     assert res.materiality_line["gco_rate"] == 40.0
     assert res.grids[0].cell("under 650", "A").rates["gco_rate"].material is False
-    assert "outcome_loans" not in res.materiality_line                       # counts loans, not dollars
-    assert any("outcome_loans counts loans, not dollars" in w for w in res.warnings)
+    # a dollar line is a GCO amount: nothing else borrows it (the third walk, defect 8)
+    assert set(res.materiality_line) == {"gco_rate"}
+    assert any("RANR per booked dollar: no materiality line" in w for w in res.warnings)
 
 
 def test_loan_age_keeps_only_loans_old_enough(book):

@@ -51,9 +51,11 @@ After that, the whole routine is:
 4. Save, close the workbook, and press **2. Run the cube**. The results land in
    the workbook:
    - **Where it bleeds:** every pocket losing more than its share, largest first.
-   - **Losses vs revenue:** GCO and RANR together, four boxes and a chart.
+   - **Losses vs revenue:** GCO and RANR together. Each side reads more, about
+     the same, or less by the lines you set on Control, so every pocket lands
+     in one of nine boxes. There's one chart per grid.
    - **Grids:** heat maps against the book and against the rest of the band.
-   - **Split:** only when a column splits the pockets (below).
+   - **Split** and **Three-way:** only when a column splits the pockets (below).
    - **Materiality:** what each materiality level would keep.
    - **Check:** settings, tie-outs, and what was left out.
    - **Log:** every run and refusal.
@@ -61,8 +63,11 @@ After that, the whole routine is:
 **Going a layer deeper.** On Columns, set one column's *Split pockets by it?*
 to Yes. A number (revolving debt, say) splits every FICO-by-asset-class pocket
 at that pocket's own median, and the Split tab compares the high half with the
-low half, pocket by pocket and pooled. A category repeats each grid once per
-value. *Show per pocket* puts a column's median or average in every pocket.
+low half, pocket by pocket and pooled. Each grid says what it holds fixed:
+revolving debt moves with FICO, so a loan-size grid can't tell debt from score,
+and it says so with the number. A category repeats each grid once per value.
+Either way, every three-way pocket is tested and ranked on the **Three-way**
+tab. *Show per pocket* puts a column's median or average in every pocket.
 
 ![The Split tab: high revolving debt against low, inside each pocket](docs/split.png)
 
