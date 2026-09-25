@@ -1427,7 +1427,7 @@ back.
     `docs/walkthrough/walk-2026-09-25-b/WALKTHROUGH-DEFECTS.md`.
   - 160 tests; 32 of 32 re-inserted bugs caught.
 - [ ] **Next:** a third walkthrough on the new tabs; the firm's answer on RANR
-      netting; `cube drill` and `cube prove` (and put their settings back on
+      netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).

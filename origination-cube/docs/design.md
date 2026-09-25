@@ -371,5 +371,7 @@ enough.
 - **(b) Proof stage** (OC-10, OC-16): from a pocket to its loans. Proposed, not built.
 - **(c) Does RANR already have credit losses taken out?** If it doesn't, a
   pocket's RANR less its GCO is a fair "net" figure to show beside the four
-  boxes. If it does, netting would count the losses twice. Asked of the firm
-  on 25 Sep 2026.
+  boxes. If it does, netting would count the losses twice. The firm, 25 Sep
+  2026: *"i am unsure about the RANR question - i will ask this when i can at
+  work but for now let's just leave it out"*. So no net figure is shown until
+  the answer comes back.
