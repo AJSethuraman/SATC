@@ -183,4 +183,32 @@ every one of them was unreadable.
 ## Git workflow
 
 - Develop on a feature branch; commit with clear messages.
-- Push and open a **draft PR** — don't push to `main` without explicit approval.
+- Push and open a **draft PR**. Never push straight to `main`.
+- **Then merge it yourself once it is green. Do not stop and wait to be told.**
+  The firm, 25 September 2026: *"stop leaving me to merge - i have basically
+  never not come back and told you to do it."* That is standing approval, and
+  it exists because the approval kept being given in a conversation that then
+  ended, so every new session stopped at the PR again. Mark it ready, merge
+  with a merge commit (the repo's convention) pinned to the head that went
+  green, and confirm `main` carries it — for a plugin, that the marketplace
+  version on `main` is the one you shipped.
+- **Marking it ready starts a Codex review — wait for it.** This repo runs
+  `chatgpt-codex-connector`, and "draft marked ready" is one of its triggers.
+  Its summary comment reads *Running*, then *Completed*; findings arrive as
+  review threads. Merge only after it reads *Completed*, and treat any thread
+  it opens as a bug report to verify and fix first. #395 was merged twenty
+  seconds after being marked ready, while this review was still running — it
+  came back clean, which was luck, not process.
+- **Green must be green against the `main` you are merging into.** `test.yml`
+  runs on `pull_request`, which tests the PR merged into whatever `main` was
+  *at that moment* — and a later push to `main` does not re-run it. So if
+  another PR landed after your CI finished, the merge you are about to make has
+  never been tested, and `pages.yml` deploys `main` the instant it moves. Pinning
+  the head stops one race and not this one. Before merging, check the branch
+  already contains current `main`:
+  `git fetch origin main && git merge-base --is-ancestor origin/main HEAD`.
+  If it does not, merge `main` into the branch, push, and wait for green again.
+  Found by Codex on #396, the PR that added this rule.
+- **Still hold a merge** when the firm has said to, when CI is red, or when the
+  PR carries a decision they have not answered yet. "Green" means green on the
+  head you are merging, not on an earlier one.
