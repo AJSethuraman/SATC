@@ -225,3 +225,15 @@ def test_the_range_is_said_once_and_95_gets_a_hint(book):
         control.read_control(book)
     said = next(p for p in exc.value.problems if "95" in p)
     assert said.count("0.999") == 1 and "For 95%, type 0.95." in said
+
+
+def test_in_use_takes_a_number_the_run_takes(book):
+    """Found on the render, 25 Sep 2026: Excel stores a pick of "95%" as 0.95, the
+    run reads that as the 95% option, and In use said "not an option". The
+    formula now also looks the number up by value, as Excel joins it to text."""
+    wb = load_workbook(book)
+    by_value = {r[7] for r in wb[control.OPTIONS_SHEET].iter_rows(min_row=2, values_only=True) if r[7]}
+    assert {"confidence|0.95", "worse_at|1.25", "better_at|0.8"} <= by_value
+    for r in wb[control.SHEET].iter_rows(min_row=control.FIRST_ROW):
+        if r[control.KEY_COL - 1].value == "confidence":
+            assert "$H:$H" in r[4].value and "VALUE(" in r[4].value and "$H:$H" in r[5].value

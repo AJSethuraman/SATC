@@ -1479,6 +1479,11 @@ back.
 - [x] **Bands read as ranges** ("496 - 619", "620 - 679"), not "under 620" and
       "620 to under 680". The firm asked for this because words make the page look
       cluttered. 189 tests; 56 re-inserted bugs.
+- [x] **Losses vs revenue shows its numbers** (the firm: *"find a clean way to
+      display the comparable metrics"*). For losses and for revenue: this pocket,
+      the rest, the multiple, a reading and the dollars. Red and green are on the
+      cells, and the "Which box" column is gone. Control's In use now agrees with
+      the run on a number such as 0.95. 190 tests; 59 re-inserted bugs.
 - [ ] **Next:** a seventh walkthrough; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).

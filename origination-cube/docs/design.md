@@ -480,6 +480,20 @@ enough.
   so every band has two ends. Scores and dollars read as whole numbers; a ratio
   keeps the decimals its edges need.
 
+- **Losses vs revenue shows the numbers behind each reading, and no box.** The
+  firm, 25 Sep 2026: *"i don't think that which box is a relevant thing to need,
+  i can just visually see that. conditional formatting is fine to draw attention
+  to stuff. also i want to see the underlying - instead of just listing GCO vs
+  Comparison, find a clean way to display the comparable metrics"*. Each side
+  (losses, revenue) has its own five columns: this pocket's rate, the rest's
+  rate, the multiple, the reading and the dollars over the rest. Red and green
+  sit on each side's multiple and reading; a side that could be luck is marked
+  and left plain. The box is still worked out, to order the rows and name the
+  chart's worst pockets, but it is not printed.
+- **Control's In use takes a number the run takes.** Excel stores a pick of
+  "95%" as 0.95. The run already read that as the 95% option, but In use said
+  "not an option". Found on the render, 25 Sep 2026.
+
 ## Open
 
 - **(a) Real Excel.** Every tab has been seen through LibreOffice only. Still to

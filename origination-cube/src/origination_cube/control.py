@@ -100,15 +100,25 @@ def load_settings(path: str | Path | None = None) -> list[Setting]:
 # --------------------------------------------------------------------------
 
 
+def _by_value(key: str, v: Any) -> str:
+    """An option's value as Excel writes a number joined to text: 0.95, 30, 1.25."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return ""
+    t = f"{float(v):.10f}".rstrip("0").rstrip(".")
+    return f"{key}|{t}"
+
+
 def write_control(wb: Workbook, settings: list[Setting]) -> None:
     ws = wb.create_sheet(SHEET, 0) if SHEET not in wb.sheetnames else wb[SHEET]
     opt = wb.create_sheet(OPTIONS_SHEET)
-    opt.append(["lookup", "setting", "option", "value", "what it means", "your own value accepts", "plain"])
+    opt.append(["lookup", "setting", "option", "value", "what it means", "your own value accepts", "plain",
+                "lookup by value"])
     ranges: dict[str, tuple[int, int]] = {}
     for s in settings:
         first = opt.max_row + 1
         for o in s.options:
-            opt.append([f"{s.key}|{o.shown}", s.key, o.shown, o.value, o.explains, s.override or "", o.label])
+            opt.append([f"{s.key}|{o.shown}", s.key, o.shown, o.value, o.explains, s.override or "", o.label,
+                        _by_value(s.key, o.value)])
         ranges[s.key] = (first, opt.max_row)
     opt.sheet_state = "hidden"
 
@@ -180,7 +190,11 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
             FormulaRule(formula=[f'AND($C{r}="",OR($D{r}="",$D{r}="n/a"))'],
                         fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
         own_set = f'AND({D}<>"",{D}<>"n/a")'
-        lookup = f"MATCH({H}&\"|\"&{C},{OPTIONS_SHEET}!$A:$A,0)"
+        # the label, or a number equal to an option's value, as the reader takes it: Excel turns "95%"
+        # into 0.95 (the second walk, defect 3), and the tab mustn't say "not an option" to a value
+        # the run then uses (found on the render, 25 Sep 2026)
+        lookup = (f"IFERROR(MATCH({H}&\"|\"&{C},{OPTIONS_SHEET}!$A:$A,0),"
+                  f"MATCH({H}&\"|\"&IFERROR(VALUE({C}),{C}),{OPTIONS_SHEET}!$H:$H,0))")
         ws.cell(row=r, column=5, value=(f'=IF({own_set},{D},IF({C}="","",'
                                         f'IFERROR(INDEX({OPTIONS_SHEET}!$G:$G,{lookup}),"not an option")))'))
         note = f"Your own value, in place of the options ({s.override})." if s.override else ""

@@ -30,7 +30,7 @@ import yaml
 from openpyxl import Workbook, load_workbook
 from openpyxl.chart import Reference, ScatterChart, Series
 from openpyxl.formatting.rule import ColorScaleRule, FormulaRule
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
@@ -1131,14 +1131,14 @@ LUCK = "How often luck alone gives a gap this big"
 # Nine boxes, worst first. Each side reads more, about the same, or less, by the
 # lines on Control (ruling OC-26; the third walk, defect 1: by 1.00x alone, the
 # three worst bleeders read "earning more" on revenue their own flags called noise).
+# The tab no longer prints the box (the firm: "i can just visually see that"); it
+# still orders the rows and picks the pockets the chart names.
 BOXES = ("Losing more, earning less", "Losing more, earning the same", "Losing the same, earning less",
          "Losing more, earning more", "Losing less, earning less", "About the same on both",
          "Losing the same, earning more", "Losing less, earning the same", "Losing less, earning more")
 NOT_TESTED = "Not tested: too few loans or losses"
 SMALL_FILL = "DDEBF7"      # material, but too few loans or losses to test: look at it by hand
 WARN_TEXT = "960019"
-BOX_FILL = {0: WORSE_FILL, 1: WORSE_FILL, 2: WORSE_FILL, 3: LUCK_FILL, 4: LUCK_FILL,
-            6: "E2F0D9", 7: "E2F0D9", 8: "E2F0D9"}
 
 
 def box_of(gco: str, ranr: str) -> str:
@@ -1205,33 +1205,48 @@ def _side(idx, lo: float, hi: float) -> str | None:
     return "more" if idx >= hi else "less" if idx <= lo else "same"
 
 
+RED_CELL, GREEN_CELL = "F2C4C4", "CFE8C4"
+# the tab's columns, one side after the other (the firm, 25 Sep 2026: "instead of just listing GCO vs
+# Comparison, find a clean way to display the comparable metrics")
+LVR_G, LVR_R = 5, 10                 # first column of the GCO side and of the RANR side
+LVR_SIDE = ("This pocket", "{rest}", "Multiple", "Reading", "Over the rest ($)")
+
+
+def _rest_rate(s, parent) -> float | None:
+    den = parent.den - s.den
+    return (parent.num - s.num) / den if den else None
+
+
 def _losses_vs_revenue(ws, res) -> None:
     """GCO and RANR side by side, per pocket. The firm: 'GCO is high but profit
-    is high - do we care? maybe.' Each side reads more, about the same, or less
-    than its comparison, by lines the person set on Control; the box is the pair.
-    Nothing is netted: whether RANR already has losses taken out is still to be
-    asked (Open, (c)). The flags use the same comparison as the box, so a row
-    can't contradict itself (the third walk, defect 5)."""
+    is high - do we care? maybe.' Each side shows the pocket's rate, the rate of
+    the rest it's compared with, the multiple, a reading and the dollars, so the
+    numbers behind a reading are on the row. A reading says more, about the same
+    or less by the lines on Control; red and green show which side is worse or
+    better, and the pair shows the trade-off without naming it (the firm, 25 Sep
+    2026: "i don't think that which box is a relevant thing to need, i can just
+    visually see that"). Nothing is netted: RANR already includes credit losses
+    (OC-29). The dollars use the same comparison as the reading (the third walk,
+    defect 5)."""
     names = _names(res)
     b = res.config.benchmark
     if b is None or "gco_rate" not in {m.name for m in res.measures}:
-        _title(ws, "Losses vs revenue", "Needs the Control settings.", "B:M")
+        _title(ws, "Losses vs revenue", "Needs the Control settings.", "B:N")
         return
     peers = b.compare_to == "peers"
+    rest = "Rest of band" if peers else "Rest of book"
     judged = "the rest of its band" if peers else "the rest of the book"
     rlo, rhi, rwhy = revenue_lines(res)
     own = per_pocket(res)
     rev_words = (f"Revenue counts as more or less only when it's {rwhy}." if own else
                  f"Revenue counts as more at {rhi:.2f}x or above and less at {rlo:.2f}x or below ({rwhy}).")
-    _title(ws, "Losses vs revenue", f"Each pocket's GCO and RANR against {judged}; the dollars are against it too. "
+    _title(ws, "Losses vs revenue", f"Each pocket's losses (GCO) and revenue (RANR) beside {judged}. "
                                     f"GCO counts as more at {b.worse_at:.2f}x or above and less at "
-                                    f"{b.better_at:.2f}x or below. {rev_words} Both are set on Control. A side past "
-                                    f"its line that its own test says could be luck is marked, and the row isn't "
-                                    f"shaded. RANR already includes credit losses, so a pocket earning more is "
-                                    f"earning more after its losses, and nothing is netted.", "B:L")
+                                    f"{b.better_at:.2f}x or below. {rev_words} Both are set on Control. Red is "
+                                    f"worse, green is better; a gap its own test says could be luck is marked and "
+                                    f"left plain. RANR already includes credit losses, so nothing is netted.", "B:N")
     ws.row_dimensions[2].height = 44
-    heads = ["Band", "Segment", "Loans", "GCO vs comparison", "GCO flag", "RANR vs comparison", "RANR reading",
-             "Which box", "GCO over its comparison ($)", "RANR short of its comparison ($)"]
+    side_heads = [h.format(rest=rest) for h in LVR_SIDE]
     floor = b.min_units
     # the charts' own numbers (the Control lines, the named pockets) live on a hidden sheet:
     # hidden cells on this tab aren't drawn by every spreadsheet program
@@ -1248,8 +1263,8 @@ def _losses_vs_revenue(ws, res) -> None:
             gidx, ridx = (gs.vs_band, rs.vs_band) if peers else (gs.vs_rest, rs.vs_rest)
             if gs.units < floor or gidx is None or ridx is None:
                 continue
-            # the lines on Control put the pocket in its box; a side whose own test says the gap could be
-            # luck keeps its box and says so (the firm, 25 Sep 2026, after the fifth walk found a luck
+            # the lines on Control decide each side; a side whose own test says the gap could be luck
+            # keeps its reading and says so (the firm, 25 Sep 2026, after the fifth walk found a luck
             # gate made the lines decide nothing)
             real = lambda p: p is not None and p < 1 - b.confidence      # noqa: E731
             gp, rp = (gs.p_band, rs.p_band) if peers else (gs.p_book, rs.p_book)
@@ -1261,53 +1276,67 @@ def _losses_vs_revenue(ws, res) -> None:
                      if side != "same" and not real(p)]
             gflag = gs.reading_band if peers else gs.reading_topline
             rflag = rs.reading_band if peers else rs.reading_topline
-            # the RANR column reads against the same line as the box (the sixth walk, defect 4)
-            rread = rflag if rflag in (engine.THIN, engine.FEW) else (
-                {"more": "earning more", "less": "earning less", "same": "about the same"}[rside]
-                + (" (could be luck)" if "revenue" in maybe else ""))
             # untested on either side: no box and no colour (the fourth walk, defect 3)
-            box = NOT_TESTED if {gflag, rflag} & {engine.THIN, engine.FEW} else box_of(gside, rside)
-            if maybe and box != NOT_TESTED:
-                box += (" (both gaps could be luck)" if len(maybe) == 2 else f" ({maybe[0]} gap could be luck)")
-            # dollars against the same comparison as the box and the flags (the fourth walk, defect 2)
+            untested = {gflag, rflag} & {engine.THIN, engine.FEW}
+            box = NOT_TESTED if untested else box_of(gside, rside)
+            luck = {w: w in maybe and box != NOT_TESTED for w in ("loss", "revenue")}
+
+            def words(flag, side, w, more, less):
+                if flag in (engine.THIN, engine.FEW):
+                    return flag
+                return {"more": more, "less": less, "same": "about the same"}[side] + (
+                    " (could be luck)" if luck[w] else "")
+
+            # dollars against the same comparison as the reading (the fourth walk, defect 2)
             parent = g.cells[(bl, engine.ALL)] if peers else res.total
-            rows.append([bl, dl, gs.units, gidx, gflag or "", ridx, rread or "", box,
-                         _over(gs, parent.rates["gco_rate"]), -_over(rs, parent.rates["ranr_rate"])])
-        rows.sort(key=lambda x: (x[7] == NOT_TESTED, -(x[8] or 0)))
+            pg, pr = parent.rates["gco_rate"], parent.rates["ranr_rate"]
+            rows.append({"band": bl, "seg": dl, "loans": gs.units, "box": box, "gidx": gidx, "ridx": ridx,
+                         "gside": None if untested or luck["loss"] else gside,
+                         "rside": None if untested or luck["revenue"] else rside,
+                         "cells": [bl, dl, gs.units,
+                                   gs.rate, _rest_rate(gs, pg), gidx,
+                                   words(gflag, gside, "loss", "losing more", "losing less"), _over(gs, pg),
+                                   rs.rate, _rest_rate(rs, pr), ridx,
+                                   words(rflag, rside, "revenue", "earning more", "earning less"), _over(rs, pr)]})
+        rows.sort(key=lambda x: (x["box"] == NOT_TESTED, -(x["cells"][7] or 0)))
         ws.cell(row=top, column=2, value=f"{names[g.band]} x {names[g.dimension]}").font = Font(
             name="Calibri", bold=True, size=12)
-        counts = {q: sum(1 for x in rows if x[7] == q) for q in BOXES + (NOT_TESTED,)}
-        luck = sum(1 for x in rows if x[7].endswith("could be luck)"))
-        cnt = ws.cell(row=top + 1, column=2, value="Pockets per box: " + "; ".join(
-            f"{q}: {k}" for q, k in counts.items() if k) + (f". Marked could be luck, not counted above: {luck}"
-                                                            if luck else ""))
-        cnt.font = Font(name="Calibri", size=9, color=SLATE)
-        cnt.alignment = Alignment(wrap_text=True, vertical="top")
-        ws.merge_cells(start_row=top + 1, start_column=2, end_row=top + 1, end_column=11)
-        ws.row_dimensions[top + 1].height = 26
-        top += 1
-        _head(ws, top + 1, heads)
-        r = top + 2
+        # two header rows: which side, then what each column holds
+        _head(ws, top + 1, ["", "", "", "Losses: GCO per booked dollar", "", "", "", "",
+                            "Revenue: RANR per booked dollar", "", "", "", ""])
+        for a, z in ((LVR_G, LVR_G + 4), (LVR_R, LVR_R + 4)):
+            ws.merge_cells(start_row=top + 1, start_column=a, end_row=top + 1, end_column=z)
+            ws.cell(row=top + 1, column=a).alignment = Alignment(horizontal="center")
+        ws.row_dimensions[top + 1].height = 16
+        _head(ws, top + 2, ["Band", "Segment", "Loans"] + side_heads + side_heads)
+        r = top + 3
+        first = r
         for row in rows:
-            for i, v in enumerate(row, start=2):
+            for i, v in enumerate(row["cells"], start=2):
                 ws.cell(row=r, column=i, value=v)
-            for col, fmt in ((5, '0.00"x"'), (7, '0.00"x"'), (10, "#,##0"), (11, "#,##0")):
-                ws.cell(row=r, column=col).number_format = fmt
-            # a luck-marked box isn't shaded like a finding (the sixth walk, defect 2)
-            fill = BOX_FILL.get(BOXES.index(row[7])) if row[7] in BOXES else None
-            ws.cell(row=r, column=9).alignment = Alignment(wrap_text=True, vertical="top")
-            if fill:
-                for col in range(2, 12):
-                    ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=fill)
+            for a in (LVR_G, LVR_R):
+                ws.cell(row=r, column=a).number_format = ws.cell(row=r, column=a + 1).number_format = "0.00%"
+                ws.cell(row=r, column=a + 2).number_format = '0.00"x"'
+                ws.cell(row=r, column=a + 4).number_format = "#,##0"
+                ws.cell(row=r, column=a + 3).alignment = Alignment(indent=1)     # clear of the multiple
+            # red and green by side, worse and better; a luck-marked side isn't shaded like a finding
+            # (the sixth walk, defect 2)
+            for a, side, bad in ((LVR_G, row["gside"], "more"), (LVR_R, row["rside"], "less")):
+                if side in ("more", "less"):
+                    fill = PatternFill("solid", fgColor=RED_CELL if side == bad else GREEN_CELL)
+                    for col in (a + 2, a + 3):
+                        ws.cell(row=r, column=col).fill = fill
+            ws.cell(row=r, column=LVR_R).border = Border(left=Side(style="thin", color=SLATE))
             r += 1
+        ws.cell(row=top + 2, column=LVR_R).border = Border(left=Side(style="thin", color=PAPER))
         if not rows:
             ws.cell(row=r, column=2, value="No pocket has enough loans to place.")
             r += 1
-        if any(x[7] != NOT_TESTED for x in rows):
-            _revenue_chart(ws, hs, rows, top + 2, r - 1, f"{names[g.band]} x {names[g.dimension]}", b,
+        if any(x["box"] != NOT_TESTED for x in rows):
+            _revenue_chart(ws, hs, rows, first, r - 1, f"{names[g.band]} x {names[g.dimension]}", b,
                            None if own else rlo, None if own else rhi, 1 + gi * 3, top)
         top = max(r, top + 24) + 2
-    for col, w in zip("ABCDEFGHIJKL", (2, 22, 26, 8, 11, 22, 11, 22, 44, 16, 16, 2)):
+    for col, w in zip("ABCDEFGHIJKLMNO", (2, 16, 16, 7, 10, 11, 9, 20, 13, 10, 11, 9, 20, 13, 2)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "B4"
     _fit(ws)
@@ -1322,19 +1351,19 @@ def _revenue_chart(ws, hs, rows, first: int, last: int, title: str, b, rlo: floa
     chart = ScatterChart()
     chart.title = title
     chart.style = 13
-    chart.x_axis.title = "GCO vs comparison (right: losing more)"
-    chart.y_axis.title = "RANR vs comparison"
-    last = first + sum(1 for x in rows if x[7] != NOT_TESTED) - 1      # untested pockets sort last and stay off
-    pts = Series(Reference(ws, min_col=7, min_row=first, max_row=last),
-                 Reference(ws, min_col=5, min_row=first, max_row=last), title="Pockets")
+    chart.x_axis.title = "GCO multiple (right: losing more)"
+    chart.y_axis.title = "RANR multiple (up: earning more)"
+    last = first + sum(1 for x in rows if x["box"] != NOT_TESTED) - 1      # untested pockets sort last and stay off
+    pts = Series(Reference(ws, min_col=LVR_R + 2, min_row=first, max_row=last),
+                 Reference(ws, min_col=LVR_G + 2, min_row=first, max_row=last), title="Pockets")
     pts.marker.symbol = "circle"
     pts.marker.size = 6
     pts.marker.graphicalProperties.solidFill = "2F5597"
     pts.marker.graphicalProperties.line.solidFill = "2F5597"
     pts.graphicalProperties.line.noFill = True
     chart.series.append(pts)
-    boxed = [x for x in rows if x[7] != NOT_TESTED]
-    xs, ys = [x[3] for x in boxed if x[3] > 0], [x[5] for x in boxed]
+    boxed = [x for x in rows if x["box"] != NOT_TESTED]
+    xs, ys = [x["gidx"] for x in boxed if x["gidx"] > 0], [x["ridx"] for x in boxed]
     x_lo = 10 ** math.floor(math.log10(min(xs + [b.better_at])))
     x_hi = 10 ** math.ceil(math.log10(max(xs + [b.worse_at])))
     # whole tenths, so 1.00x is a tick (the fourth walk, defect 7)
@@ -1358,13 +1387,13 @@ def _revenue_chart(ws, hs, rows, first: int, last: int, title: str, b, rlo: floa
         r += 2
     # the three biggest bleeders, named on the chart
     from openpyxl.chart.label import DataLabelList
-    named = [k for k, x in enumerate(rows) if x[7].startswith("Losing more")][:3]
+    named = [k for k, x in enumerate(rows) if x["box"].startswith("Losing more")][:3]
     for n_, k in enumerate(named):
         row = rows[k]
         rr = first + k
-        name = f"{row[0]} / {row[1]}"
-        one = Series(Reference(ws, min_col=7, min_row=rr, max_row=rr),
-                     Reference(ws, min_col=5, min_row=rr, max_row=rr), title=name)
+        name = f"{row['band']} / {row['seg']}"
+        one = Series(Reference(ws, min_col=LVR_R + 2, min_row=rr, max_row=rr),
+                     Reference(ws, min_col=LVR_G + 2, min_row=rr, max_row=rr), title=name)
         one.marker.symbol = "circle"
         one.marker.size = 8
         one.marker.graphicalProperties.solidFill = "C00000"
@@ -1385,7 +1414,7 @@ def _revenue_chart(ws, hs, rows, first: int, last: int, title: str, b, rlo: floa
     chart.x_axis.number_format = chart.y_axis.number_format = '0.00"x"'
     chart.x_axis.delete = chart.y_axis.delete = False
     chart.width, chart.height = 15, 10
-    ws.add_chart(chart, f"M{anchor_row}")
+    ws.add_chart(chart, f"P{anchor_row}")
 
 
 def _heat(ws, rng: str, m) -> None:
