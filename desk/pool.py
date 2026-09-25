@@ -144,6 +144,34 @@ class Found:
 #: survive tokenising whole. Nothing is a full stop at its end.
 _TRAILING = "./-"
 
+#: `dec-hyphen`, 25 September 2026 — the firm: **"Split on a letter hyphen."**
+#:
+#: WHAT FORGE-OCCAM HIT IN THE SARCIA PILOT. `cash-back` returned NOTHING;
+#: `cash back` returned twenty passages. `_WORD` keeps `-` inside a word on
+#: purpose — that is `dec-fullstop`, and it is why `1099-K` and `1.162-3`
+#: survive tokenising at all. It does that job and it also swallows every
+#: ordinary English compound, and a question that returns zero is the worst
+#: shape the desk has: indistinguishable from an honest hole.
+#:
+#: I FIRST TOLD THE FIRM THIS WAS TOO DANGEROUS TO TOUCH, on the ground that
+#: splitting risked every citation we hold. Measured, that was wrong. The corpus
+#: holds 205 distinct hyphenated tokens: **113 contain a digit and 92 do not,
+#: and nothing is in both sets.** So "no digit on either side" is a rule with a
+#: measurable blast radius rather than the all-or-nothing I described, and
+#: `test_a_hyphen_between_two_words_is_two_words.py` pins every one of the 113.
+#:
+#: THE COST IS REAL AND IS NOT ON THE CITATIONS. The 92 that do split —
+#: `built-in`, `first-in`, `half-year`, `employer-provided` — change how every
+#: passage carrying them scores, so rankings move a little everywhere. That is a
+#: re-measurement, recorded with the change, not a risk to the record.
+#:
+#: BOTH SIDES GO THROUGH THIS FUNCTION, which is what makes splitting safe: a
+#: question asking `cash-back` and a passage containing it are tokenised by the
+#: same rule, so they still meet. The parts replace the compound rather than
+#: joining it — keeping both would count one word twice and quietly distort the
+#: document frequency every score is divided by.
+_COMPOUND = re.compile(r"(?<![0-9])-(?![0-9])")
+
 
 #: A passage that SCOPES ITSELF in its own opening words: "For purposes of this
 #: section", "For purposes of applying paragraph (h)(3)(i) of this section".
@@ -216,7 +244,9 @@ def terms(text: str) -> tuple[str, ...]:
     changed which passages came back. One commissioned pairing was lost
     outright: Q18 reached § 1.162-3(h) Example 6 at rank six, and Pub. 583's
     "Supporting Documents" now enters at the top and pushes it past the shipped
-    depth of eight. `test_close_questions` is 14 of 16 rather than 15.
+    depth of eight. `test_close_questions` read 14 of 16 rather than 15 —
+    until `dec-hyphen` split `hardware-store` on 25 September and gave it
+    back. The cost was real and it was temporary; both halves are recorded.
     `tests/test_a_word_at_the_end_of_a_sentence_is_a_different_word.py` holds
     the whole measurement and re-runs it every suite.
 
@@ -233,8 +263,10 @@ def terms(text: str) -> tuple[str, ...]:
         word = word.rstrip(_TRAILING)
         # AFTER STRIPPING TOO. `no.` is only a stopword once its dot is gone,
         # and a token that was nothing but punctuation is not a word.
-        if word and word not in STOPWORDS:
-            out.append(word)
+        for part in _COMPOUND.split(word) if "-" in word else (word,):
+            part = part.rstrip(_TRAILING)
+            if part and part not in STOPWORDS:
+                out.append(part)
     return tuple(out)
 
 

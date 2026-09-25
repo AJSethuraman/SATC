@@ -269,16 +269,18 @@ def _reaches() -> tuple[list[int], list[int]]:
 #:
 #: SAME DISCIPLINE AS Q31: Pub. 583 is arguably a fair hit for a question whose
 #: own words end *"a bank feed has none"*, and deciding that would be this
-#: session marking its own paper. So it is 14 of 16, and the price is named in
+#: session marking its own paper. So it is 15 of 16 — Q18's loss was repaid by
+#: `dec-hyphen` on 25 September, which split `hardware-store` and was not made
+#: for that. The one remaining miss is named in
 #: `test_a_word_keeps_its_meaning_at_the_end_of_a_sentence.py` beside what was
 #: bought with it rather than written off here.
-UNREACHED = [18, 31]
+UNREACHED = [31]
 
 
 def test_every_commissioned_question_reaches_the_authority_built_for_it():
-    """14 of 16, on the close's own words. Authority nothing reaches is
-    authority nobody asks — and the two it does not reach are each named above
-    with why, rather than counted away."""
+    """15 of 16, on the close's own words. Authority nothing reaches is
+    authority nobody asks — and the one it does not reach is named above with
+    why, rather than counted away."""
     reached, missed = _reaches()
     assert missed == UNREACHED, (
         f"Q{missed} no longer reach the authority commissioned for them; "

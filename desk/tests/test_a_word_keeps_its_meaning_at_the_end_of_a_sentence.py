@@ -179,16 +179,26 @@ def test_it_reordered_most_real_questions(both):
         f"much smaller number means the fix cost less than the record says.")
 
 
-def test_the_price_was_one_commissioned_pairing_and_it_is_named(both):
-    """THE COST, PAID AND RECORDED. Q18 — *"Does a hardware-store purchase ever
-    become an asset?"* — is commissioned against the capitalization rule and
-    reached § 1.162-3(h) Example 6 at rank six. Pub. 583's "Supporting
-    Documents" now enters at the top and pushes it past the shipped depth of
-    eight, so `test_close_questions` reads 14 of 16 rather than 15.
+def test_the_price_dec_fullstop_paid_has_since_been_repaid(both):
+    """THE COST, PAID 11 SEPTEMBER AND RECOVERED 25 SEPTEMBER.
 
-    NOT ARGUED AWAY. Pub. 583 is arguably a fair hit for a question whose own
-    words end *"a bank feed has none"* — and deciding that would be this session
-    marking its own paper, which is the rule that file already applies to Q31.
+    `dec-fullstop` cost exactly one commissioned pairing. Q18 — *"Does a
+    hardware-store purchase ever become an asset?"* — is commissioned against
+    the capitalization rule and reached § 1.162-3(h) Example 6 at rank six;
+    stripping trailing punctuation let Pub. 583's "Supporting Documents" in at
+    the top and pushed it past the shipped depth of eight. `test_close_questions`
+    read 14 of 16 rather than 15, and this test named the loss rather than
+    counting it away.
+
+    `dec-hyphen` gave it back. Splitting `hardware-store` into two words is what
+    did it, and nobody predicted that — the decision was made to fix `cash-back`
+    returning nothing, and this fell out. So the assertion inverts: Q18 reaches
+    its authority under BOTH tokenisers now, and the debt this test was opened
+    to record is closed.
+
+    THE OLD ASSERTION IS KEPT AS THE FIRST LINE, not deleted. `was` is the
+    pre-`dec-fullstop` pool, and if Q18 ever stops reaching there the comparison
+    this file makes has lost its baseline.
     """
     import test_close_questions as close
     shipped, was = both
@@ -200,7 +210,9 @@ def test_the_price_was_one_commissioned_pairing_and_it_is_named(both):
                    for f in built.look(question, limit=8) for p in wanted)
 
     assert reaches(was), "Q18 did not reach it before either"
-    assert not reaches(shipped), (
-        "Q18 reaches its commissioned authority again — good news, and "
-        "`test_close_questions.UNREACHED` has to lose 18 with it")
-    assert 18 in close.UNREACHED
+    assert reaches(shipped), (
+        "Q18 has stopped reaching its commissioned authority again. It was lost "
+        "to `dec-fullstop` on 11 September and recovered by `dec-hyphen` on "
+        "25 September; losing it a third time is a regression, not a cost.")
+    assert 18 not in close.UNREACHED, (
+        "Q18 reaches its authority but is still listed as a known miss")
