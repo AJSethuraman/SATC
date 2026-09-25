@@ -196,3 +196,44 @@ def test_a_ref_answered_twice_is_not_read_as_either_answer(batch):
     got = relay.read_batch(body, r[:1])
     assert r[0] in got.unreadable and r[0] not in got.answers
     assert not got.complete
+
+
+# --- text no marker claims ---------------------------------------------------------
+
+SERVED = ["deducted", "",
+          "    26 CFR 1.162-3(c)(1)(iv)",
+          "    primary | the firm treats as binding | confirmed 2026-09-05", ""]
+
+
+def test_an_answer_whose_marker_was_dropped_is_not_reported_as_silence(batch):
+    """Found by Codex on #397. Text before the first marker was never looked
+    at, so an unmarked first answer came back as "missing" — the desk said
+    nothing — when the desk had in fact answered. With unmarked text in the
+    reply, nobody can say which ref it belongs to: a person reads it."""
+    r = [a.ref for a in batch.asks]
+    body = "\n".join(SERVED + [
+        f"DESK ANSWER {r[1]}",
+        "THE DESK DID NOT ANSWER: authority_permits_choice  |  corpus", ""])
+    got = relay.read_batch(body, r[:2])
+    assert r[0] not in got.missing
+    assert r[0] in got.unreadable
+    assert "deducted" in got.stray
+    assert not got.complete
+
+
+def test_a_preamble_does_not_spoil_a_reply_that_answered_everything(batch):
+    """The envelope asks for reasoning too. Words before the first answer are
+    harmless when every ref is accounted for, and are still kept."""
+    r = [a.ref for a in batch.asks]
+    body = "\n".join(["Two answers below.", "", f"DESK ANSWER {r[0]}"] + SERVED)
+    got = relay.read_batch(body, r[:1])
+    assert got.complete and got.answers[r[0]].answered
+    assert got.stray == "Two answers below."
+
+
+def test_the_skill_does_not_say_to_discard_a_second_answer():
+    """Found by Codex on #397: the skill said "read one and discard the other",
+    which is the guess `read_batch` refuses to make."""
+    from pathlib import Path
+    text = (Path(relay.__file__).parent / "skills/ask-desk/SKILL.md").read_text(encoding="utf-8")
+    assert "read one and discard the other" not in text

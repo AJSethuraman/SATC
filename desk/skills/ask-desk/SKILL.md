@@ -256,8 +256,10 @@ missing.
 **4 · One ref per question — many questions per envelope.** This read "one
 question per envelope" until 25 September 2026, and that is what made each
 question cost a full envelope. Every question in a batch still carries its own
-`ref`. If two answers arrive with the same one, the second is a duplicate
-delivery and not a second opinion — read one and discard the other.
+`ref`. If the same reply arrives twice, word for word, that is a duplicate
+delivery: read it once. If two answers carry the same ref and say different
+things, do not pick one — `read_batch` puts that ref in `got.unreadable`, and a
+person reads both.
 
 ## What comes back, and what you must pass on
 
@@ -273,6 +275,8 @@ got.answers      # ref -> what the desk said, one per answered question
 got.unreadable   # ref -> why that block could not be read: a person reads it
 got.missing      # refs the desk sent nothing for: UNANSWERED, never a no
 got.unexpected   # refs you never sent (a mistyped ref): a person reads it
+got.stray        # text before the first answer. If any ref is unreadable
+                 # because of it, the answer may be in here: a person reads it
 got.complete     # True only when every ref was answered and read
 
 said = relay.read(reply_body)          # a single-question reply: the WHOLE thing

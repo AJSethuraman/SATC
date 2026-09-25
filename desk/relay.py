@@ -341,6 +341,7 @@ class BatchReply:
     unreadable: dict
     missing: tuple
     unexpected: tuple = ()
+    stray: str = ""
 
     @property
     def complete(self) -> bool:
@@ -355,6 +356,12 @@ def read_batch(body: str, refs) -> BatchReply:
     run on into the answer above it, and a good answer was lost as unreadable.
     A ref nobody asked for is reported in `unexpected`, never silently dropped;
     a ref answered twice is unreadable, because picking one would be a guess.
+
+    TEXT BEFORE THE FIRST MARKER IS KEPT, as `stray`. Codex again: it used to be
+    thrown away, so an answer whose marker was dropped came back "missing" --
+    the desk said nothing -- when it had answered. With stray text in the
+    reply, an unmarked ref is unreadable, not missing. A preamble on a reply
+    that accounts for every ref harms nothing and is still kept.
     """
     refs = list(refs)
     if not body or not body.strip():
@@ -366,9 +373,14 @@ def read_batch(body: str, refs) -> BatchReply:
     for i, (at, r) in enumerate(starts):
         end = starts[i + 1][0] if i + 1 < len(starts) else len(body)
         blocks.setdefault(r, []).append(body[at:end])
+    stray = body[:starts[0][0] if starts else len(body)].strip()
     answers, unreadable = {}, {}
     for r in refs:
         if r not in blocks:
+            if stray:
+                unreadable[r] = ("no answer opened with this ref, and the reply "
+                                 "holds text no ref claims (`stray`). That text "
+                                 "may be this answer: a person reads it.")
             continue
         if len(blocks[r]) > 1:
             unreadable[r] = (f"answered {len(blocks[r])} times. Which one the "
@@ -380,9 +392,10 @@ def read_batch(body: str, refs) -> BatchReply:
             unreadable[r] = str(e)
     return BatchReply(
         answers=answers, unreadable=unreadable,
-        missing=tuple(r for r in refs if r not in blocks),
+        missing=tuple(r for r in refs if r not in blocks and not stray),
         unexpected=tuple(r for r in dict.fromkeys(r for _, r in starts)
-                         if r not in refs))
+                         if r not in refs),
+        stray=stray)
 
 
 def reply_opens(body: str, ref: str) -> bool:
