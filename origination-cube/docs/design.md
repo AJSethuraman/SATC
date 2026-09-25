@@ -333,9 +333,43 @@ enough.
   IT commonly blocks macros that start programs (and the repo's macro contract
   forbids it). It can be added later if the bank allows it.
 
+- **OC-23: a third layer, by splitting every pocket.** The firm: *"we have FICO
+  band, we have asset classes (1, 2, 3, 4) and then we want to add something
+  based on the average or median revolving debt at origination"*, and on the
+  two-at-a-time limit, *"kind of specifically want this option"*. One column can
+  split the pockets (Columns, *Split pockets by it?*):
+  - **A number is split at each pocket's own median.** Revolving debt moves with
+    the score, so one cut for the whole book would mostly re-sort the score.
+    Inside each pocket the high half is compared with the low half, and the
+    pockets are pooled: Mantel-Haenszel odds for the yes/no outcome (with the
+    CMH test and a check that the effect is steady from pocket to pocket), and
+    observed against expected for the dollar rates.
+  - **A category repeats the grid once per value**, side by side on Grids.
+  - **The split column isn't also cut.** Its own band split by itself says nothing.
+  - **The halves tie out:** every pocket is the sum of its halves, rows and
+    numerators, and the tie-out can fail (`test_every_pocket_is_the_sum_of_its_halves`).
+  - Checked on a planted book: `synth.py` makes a borrower above the usual debt
+    for their score go bad 1.8x as often. The split finds 1.84x (1.67 to 2.01),
+    worse in 20 of 20 pockets, steady (p 0.21). Loan size, which carries no
+    plant, comes out between 0.8 and 1.2.
+- **OC-24: GCO and RANR are read together, and neither is netted against the
+  other.** The firm: *"we need a way to look at both together as well and gleam
+  results. like GCO is high but profit is high - do we care? maybe"*. The
+  **Losses vs revenue** tab puts every pocket in one of four boxes (losing
+  more/less than the book, earning more/less), with each side's own flag and a
+  scatter chart. Nothing is netted, because whether RANR already has credit
+  losses taken out isn't known yet (Open, (c)).
+- **OC-25: a median or average per pocket, for any number column** (Columns,
+  *Show per pocket*). It's evidence beside the rates. It is never tested and
+  never adds up across pockets, and the grid says so.
+
 ## Open
 
-- **(a) The workbook's other tabs:** Where to look, Data questions, the
-  grids, and the check tab. Next to build.
-- **(b) Loan age.** The origination-date and as-of meanings are suggested now;
-  the engine doesn't yet apply the loan-age setting.
+- **(a) Real Excel.** Every tab has been seen through LibreOffice only. Still to
+  check in Excel: how dropdown picks are stored, the validation pop-ups, and the
+  chart.
+- **(b) Proof stage** (OC-10, OC-16): from a pocket to its loans. Proposed, not built.
+- **(c) Does RANR already have credit losses taken out?** If it doesn't, a
+  pocket's RANR less its GCO is a fair "net" figure to show beside the four
+  boxes. If it does, netting would count the losses twice. Asked of the firm
+  on 25 Sep 2026.

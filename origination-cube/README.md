@@ -49,7 +49,24 @@ After that, the whole routine is:
      every column" to Yes.
    - **Odd values:** answer real or missing where you can.
 4. Save, close the workbook, and press **2. Run the cube**. The results land in
-   the workbook: **Where it bleeds**, **Grids**, **Check** and **Log**.
+   the workbook:
+   - **Where it bleeds:** every pocket losing more than its share, largest first.
+   - **Losses vs revenue:** GCO and RANR together, four boxes and a chart.
+   - **Grids:** heat maps against the book and against the rest of the band.
+   - **Split:** only when a column splits the pockets (below).
+   - **Materiality:** what each materiality level would keep.
+   - **Check:** settings, tie-outs, and what was left out.
+   - **Log:** every run and refusal.
+
+**Going a layer deeper.** On Columns, set one column's *Split pockets by it?*
+to Yes. A number (revolving debt, say) splits every FICO-by-asset-class pocket
+at that pocket's own median, and the Split tab compares the high half with the
+low half, pocket by pocket and pooled. A category repeats each grid once per
+value. *Show per pocket* puts a column's median or average in every pocket.
+
+![The Split tab: high revolving debt against low, inside each pocket](docs/split.png)
+
+![Losses vs revenue: four boxes and the chart](docs/losses-vs-revenue.png)
 
 If something needs fixing, the window and the Log tab say what and where, in
 words, e.g. *Control!C16: "Smallest excess loss worth reporting" needs an
@@ -92,8 +109,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 126 tests: one per finding, every Control answer applied, the workbook route, the launcher
-python tools/mutation_check.py     # puts 19 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 160 tests: one per finding, every Control answer applied, the workbook route, the split, the launcher
+python tools/mutation_check.py     # puts 32 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

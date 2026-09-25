@@ -5,7 +5,10 @@ them all off the bat - but some are obvious."""
 import pytest
 
 from conftest import table
-from origination_cube import meanings, memory
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+
+from origination_cube import meanings, memory, synth
 
 
 def _rows(n=400):
@@ -105,3 +108,15 @@ def test_stray_values_are_on_the_list(tmp_path):
     looks = meanings.review(t, meanings.suggest(t))
     stray = {rv.column for rv in looks if rv.kind == "stray values"}
     assert stray == {"BAD_FLAG", "GCO_AMT"}        # the planted 2 in the outcome, the planted #N/A in GCO
+
+
+def test_odd_values_are_answered_where_the_workbook_asks(tmp_path):
+    """The second walk, defect 10: Columns said "answer it at the bottom"."""
+    from origination_cube import book as bookmod
+    out = bookmod.set_up(synth.write_extract(tmp_path, n=2000))
+    ws = load_workbook(out.book)["Columns"]
+    looks = [str(c.value) for c in ws[get_column_letter(bookmod.C_LOOK)] if c.value]
+    assert any("on the Odd values tab" in x for x in looks)
+    assert not any("at the bottom" in x for x in looks)
+    labels = [c.value for c in load_workbook(out.book)["_meanings"]["A"]]
+    assert "FICO score" in labels and "fico" not in labels          # the dropdown shows words, not codes

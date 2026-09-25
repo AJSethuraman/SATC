@@ -31,3 +31,16 @@ def test_an_unexpected_failure_is_a_sentence_not_a_traceback(tmp_path, monkeypat
     lines = launcher.do_set_up(str(x))
     assert len(lines) == 1 and "send that file over" in lines[0] and "Traceback" not in lines[0]
     assert "ZeroDivisionError" in (tmp_path / ".origination-cube" / "last-error.txt").read_text()
+
+
+def test_run_hands_the_picked_extract_to_the_workbook(tmp_path, monkeypatch):
+    """Second walk, defect 1: the window's extract wins over the path stored at Set up."""
+    x = synth.write_extract(tmp_path, n=100)
+    launcher.book_for(x).write_bytes(b"")
+    seen = {}
+
+    def fake(target, extract=None):
+        seen["extract"] = extract
+        return book.Outcome(True, target, ["ok"])
+    monkeypatch.setattr(book, "run", fake)
+    assert launcher.do_run(str(x)) == ["ok"] and seen["extract"] == str(x)

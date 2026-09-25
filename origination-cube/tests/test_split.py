@@ -35,6 +35,9 @@ def test_the_planted_revolving_debt_effect_is_found(planted):
     assert pooled["high_worse"] >= pooled["pockets"] - 1
     assert pooled["steady_p"] > 0.01                       # the plant is the same in every pocket
     assert res.grids[0].split_pooled["gco_rate"]["ratio"] > 1.4
+    # found by rendering: the booked-dollar outcome printed the loan-count odds as its own
+    booked = res.grids[0].split_pooled["outcome_booked"]
+    assert "odds" not in booked and booked["ratio"] > 1.3
 
 
 def test_a_column_with_no_effect_comes_out_near_one(planted):
@@ -47,6 +50,17 @@ def test_a_column_with_no_effect_comes_out_near_one(planted):
     assert 0.8 < pooled["odds"] < 1.2
     planted_odds = _run(*planted, "REV_DEBT", "own_median").grids[0].split_pooled["outcome_loans"]["odds"]
     assert planted_odds > 1.5
+
+
+def test_each_pocket_is_halved_at_its_own_median(planted):
+    """Not the book's median: revolving debt moves with the score, so one cut
+    for everyone would put nearly all of a low band in one half."""
+    res = _run(*planted, "REV_DEBT", "own_median")
+    g = res.grids[0]
+    for (b, d), c in g.inner():
+        hi, lo = g.split_cells.get((b, d, engine.HIGH)), g.split_cells.get((b, d, engine.LOW))
+        if hi and lo:
+            assert abs(hi.rows - lo.rows) <= 1, (b, d, hi.rows, lo.rows)
 
 
 def test_every_pocket_is_the_sum_of_its_halves(planted):

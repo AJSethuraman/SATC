@@ -167,6 +167,22 @@ class Measure:
             return "Loans (rows)"
         return f"MEDIAN({self.value}) per cell - positional, does not add up"
 
+    def words(self) -> str:
+        """The same arithmetic, said the way the workbook says things (second
+        walk, defect 14: the grid headings read as formulas)."""
+        if self.mode == "flagwt":
+            yes = f"{self.flag} is {_fmt_num(self.flag_is)}" if self.flag_is is not None else f"{self.flag} is 1"
+            if self.per == EACH_LOAN:
+                return f"Loans where {yes}, as a share of all loans."
+            return f"{self.per} on loans where {yes}, as a share of all {self.per}."
+        if self.mode == "sumnum":
+            if self.per == EACH_LOAN:
+                return f"Total {self.value} over the number of loans."
+            return f"Total {self.value} over total {self.per}."
+        if self.mode == "count":
+            return "Loans."
+        return f"The {self.show} {self.value} in each pocket. Medians and averages don't add up across pockets."
+
 
 @dataclass(frozen=True)
 class Benchmark:

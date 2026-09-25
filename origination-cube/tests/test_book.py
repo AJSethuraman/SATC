@@ -41,7 +41,7 @@ def test_run_refuses_until_answered_naming_each_cell(tmp_path):
     assert "Control!C" in text and "Columns!C3" in text
     assert "Traceback" not in text and "`" not in text          # words, not code
     log = load_workbook(out.book)["Log"]
-    assert "Couldn't run" in str(log["B1"].value)
+    assert log["A1"].value == "Log" and "Couldn't run" in str(log.cell(row=book.LOG_FIRST, column=2).value)
 
 
 def test_answers_survive_a_second_set_up(tmp_path):
@@ -54,7 +54,7 @@ def test_answers_survive_a_second_set_up(tmp_path):
     book.set_up(x)
     wb = load_workbook(out.book)
     assert wb["Columns"][book.CONFIRM_CELL].value == "Yes"
-    assert wb["Columns"]["C8"].value == "servicing"
+    assert wb["Columns"]["C8"].value == "Servicing data"         # shown as its label
     picked = {r[control.KEY_COL - 1].value: r[control.CHOOSE_COL - 1].value
               for r in wb["Control"].iter_rows(min_row=control.FIRST_ROW)}
     assert picked["confidence"] == "95%" and picked["materiality"] == PICK["materiality"]
@@ -66,7 +66,7 @@ def test_a_full_run_writes_results_into_the_workbook(tmp_path):
     ran = book.run(out.book)
     assert ran.ok, ran.lines
     assert any("tie-out checks agree" in line for line in ran.lines)
-    assert any("Worst for GCO per booked dollar: fico under" in line and "Broker" in line for line in ran.lines)
+    assert any("Worst for GCO per booked dollar: FICO under" in line and "Broker" in line for line in ran.lines)
     wb = load_workbook(out.book)
     for t in ("Where it bleeds", "Grids", "Check", "Log"):
         assert t in wb.sheetnames
@@ -88,6 +88,8 @@ def test_the_learned_tab_prunes_on_the_next_run(tmp_path):
     wb["Columns"]["C7"] = "score"                # it was a custom score all along
     wb.save(out.book)
     assert book.run(out.book).ok
+    assert "FICO" not in memory.load()["columns"]          # a Forget is not learned straight back
+    assert book.run(out.book).ok
     assert memory.load()["columns"]["FICO"]["means"] == "score"
     assert "changed_from" not in memory.load()["columns"]["FICO"]      # forgotten first, so learned fresh
 
@@ -101,6 +103,8 @@ def test_taking_away_every_category_is_said_in_words(tmp_path):
     wb.save(out.book)
     ran = book.run(out.book)
     assert not ran.ok and any("Nothing is left to cut across" in line for line in ran.lines)
+    said = next(line for line in ran.lines if "Nothing is left" in line)
+    assert "CHANNEL (Columns!C8, now Servicing data)" in said and "ASSET_CLASS (Columns!C13" in said
 
 
 def test_a_bad_band_edge_is_named_by_cell(tmp_path):
@@ -121,7 +125,7 @@ def test_own_band_edges_are_used(tmp_path):
     wb.save(out.book)
     assert book.run(out.book).ok
     check = {r[1].value: r[2].value for r in load_workbook(out.book)["Check"].iter_rows(min_row=4)}
-    assert check["Band edges used: fico"] == "620, 680, 740"
+    assert check["Band edges used: FICO"] == "620; 680; 740  (4 bands)"
 
 
 def test_cut_by_it_chooses_what_goes_into_the_grids(tmp_path):
@@ -134,7 +138,7 @@ def test_cut_by_it_chooses_what_goes_into_the_grids(tmp_path):
     wb.save(out.book)
     assert book.run(out.book).ok
     check = {r[1].value for r in load_workbook(out.book)["Check"].iter_rows(min_row=4)}
-    assert "Band edges used: fico" in check and "Band edges used: orig_bal" not in check
+    assert "Band edges used: FICO" in check and "Band edges used: ORIG_BAL" not in check
     book.set_up(synth.write_extract(tmp_path, n=4000))       # and the No survives a second set-up
     assert load_workbook(out.book)["Columns"]["D9"].value == "No"
 

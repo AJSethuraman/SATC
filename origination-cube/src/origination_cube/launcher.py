@@ -65,7 +65,7 @@ def do_run(extract: str) -> list[str]:
     if not target.exists():
         return [f"There's no workbook for {Path(extract).name} yet. Press 1. Set up from this extract first."]
     try:
-        return book.run(target).lines
+        return book.run(target, extract).lines
     except Exception:
         return _crash("running")
 

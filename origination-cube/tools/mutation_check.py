@@ -3,7 +3,7 @@
 Run from origination-cube/: python tools/mutation_check.py. Exits non-zero
 if any mutation survives."""
 import subprocess, shutil, sys
-E="src/origination_cube/engine.py"; C="src/origination_cube/config.py"
+E="src/origination_cube/engine.py"; C="src/origination_cube/config.py"; B="src/origination_cube/book.py"
 muts = [
  ("1 blank->zero",       E, 'if p is BLANK:\n        return None, "blank"', 'if p is BLANK:\n        return 0.0, None', "test_finding_1"),
  ("2 empty->index 0",    E, 'if rate is None or base is None or base == 0:', 'if base is None or base == 0:\n        return None\n    if rate is None:\n        rate = 0.0\n    if False:', "test_finding_2"),
@@ -34,6 +34,22 @@ muts = [
  ("key optional again",  E, '    if config.key not in have:', '    if False:', "missing_key"),
  ("reading on whole-book multiple", E, '            s.reading_topline = reading_of(s.vs_rest, s.units, bench, floor, s.p_book, **kw)',
   '            s.reading_topline = reading_of(s.vs_topline, s.units, bench, floor, s.p_book, **kw)', "big_pocket"),
+ # 25 Sep 2026: the third layer, losses against revenue, and the second walk's defects
+ ("split not pooled",    E, '        if strata:', '        if False:', "planted_revolving"),
+ ("dollar outcome pooled as loan odds", E, '            if m.mode == "flagwt" and m.per == EACH_LOAN:',
+  '            if m.mode == "flagwt":', "planted_revolving"),
+ ("halves at the book's median", E, '        med = {k: statistics.median(v) for k, v in groups.items()}',
+  '        med = {k: statistics.median([x for g in groups.values() for x in g]) for k in groups}', "own_median"),
+ ("copied book runs old extract", B, '    if extract is not None:', '    if False:', "copied_workbook"),
+ ("forget re-learned",   B, '    if dropped:\n        # a Forget', '    if False:\n        # a Forget', "learned_tab_prunes"),
+ ("yes kept over new columns", B, 'and not new_cols else None', ' else None', "new_column_takes"),
+ ("set up deletes results", B, '            if t in INPUT_TABS or t in HELPERS:', '            if True:', "keeps_the_last_results"),
+ ("open workbook not checked", B, '    if not _writable(book):', '    if False:', "open_in_excel"),
+ ("edges read as one number", B, 'abs(e) >= 100000', 'abs(e) >= 1e30', "one_number"),
+ ("edge range unchecked", B, '        if bad:', '        if False:', "outside_the_columns"),
+ ("revenue box flipped", B, '(0 if rs.vs_topline < 1 else 1)', '(0 if rs.vs_topline > 1 else 1)', "losses_vs_revenue"),
+ ("RANR gap reads or more", B, """else '0.00"x or less"')""", """else '0.00"x or more"')""", "ranr_is_marked"),
+ ("start here left stale", B, 'else f"{stamp}: {lines[0]}")', 'else stamp)', "start_here"),
 ]
 bad = 0
 for name, f, old, new, sel in muts:

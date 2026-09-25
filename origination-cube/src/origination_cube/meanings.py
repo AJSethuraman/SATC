@@ -38,6 +38,7 @@ REQUIRED = ("key", "booked", "outcome", "gco", "ranr")
 class Meaning:
     means: str
     says: str
+    label: str
     cut: str                      # band | dimension | none
     required: bool
     hints: tuple[str, ...]
@@ -49,7 +50,8 @@ def catalog(path: str | Path | None = None) -> dict[str, Meaning]:
             else resources.files("origination_cube").joinpath("settings.yaml").read_text(encoding="utf-8"))
     out = {}
     for m in yaml.safe_load(text)["meanings"]:
-        out[m["means"]] = Meaning(means=m["means"], says=str(m["says"]), cut=m["cut"],
+        out[m["means"]] = Meaning(means=m["means"], says=str(m["says"]), label=str(m.get("label", m["means"])),
+                                  cut=m["cut"],
                                   required=bool(m.get("required", False)),
                                   hints=tuple(str(h) for h in m.get("hints", [])), test=m.get("test", "any"))
     return out
@@ -206,7 +208,7 @@ def suggest(table: Table, remembered: dict[str, dict] | None = None,
         named = [(cat[m].hints.index(h), c, h) for c in fits if (h := hint_in(c, cat[m].hints))]
         if named:
             _, c, h = sorted(named)[0]
-            out[c] = Suggestion(c, m, f"name contains '{h}'; {fits[c]}", "name")
+            out[c] = Suggestion(c, m, _named(h, fits[c]), "name")
         elif len(fits) == 1:
             c = next(iter(fits))
             out[c] = Suggestion(c, m, f"the only column that fits: {fits[c]}", "values")
@@ -225,7 +227,7 @@ def suggest(table: Table, remembered: dict[str, dict] | None = None,
             h = hint_in(c, m.hints)
             ok, seen = passes(m.test, f)
             if h and ok:
-                best = Suggestion(c, m.means, f"name contains '{h}'; {seen}", "name")
+                best = Suggestion(c, m.means, _named(h, seen), "name")
                 break
         if best is None:
             h = hint_in(c, cat["fico"].hints) or hint_in(c, cat["score"].hints)
@@ -287,16 +289,16 @@ class Review:
 
 
 def review(table: Table, sugg: dict[str, Suggestion], open_questions: list[dict] | None = None,
-           cat: dict[str, Meaning] | None = None) -> list[Review]:
+           cat: dict[str, Meaning] | None = None, answer_where: str = "at the bottom") -> list[Review]:
     cat = cat or catalog()
     out: list[Review] = []
     for m in REQUIRED:
         hits = [c for c, sg in sugg.items() if sg.means == m]
         if not hits:
-            out.append(Review("cannot run", "(none)", f"no column was found for {m} ({cat[m].says}). "
-                                                      f"Set `means: {m}` on the right column."))
+            out.append(Review("cannot run", "(none)", f"No column was found for {cat[m].label} ({cat[m].says}). "
+                                                      f"Pick {cat[m].label} for the right column."))
         elif len(hits) > 1:
-            out.append(Review("cannot run", ", ".join(hits), f"more than one column is marked {m}; keep one."))
+            out.append(Review("cannot run", ", ".join(hits), f"More than one column is marked {cat[m].label}; keep one."))
     for c, sg in sugg.items():
         if sg.source == "remembered" and "CHECK" in sg.why:
             out.append(Review("memory disagrees", c, f"you confirmed it as {sg.means} before, but these values "
@@ -318,19 +320,32 @@ def review(table: Table, sugg: dict[str, Suggestion], open_questions: list[dict]
         if sg.means == "outcome" and sg.is_value is None and f.numbers:
             other = sum(1 for x in f.numbers if x not in (0.0, 1.0)) + text
             if other:
-                out.append(Review("stray values", c, f"{other:,} value(s) are neither 0 nor 1. They're left out of "
+                out.append(Review("stray values", c, f"{_count(other)} neither 0 nor 1. They're left out of "
                                   f"the outcome rates and counted; if they mean something, fix the extract."))
         elif f.numeric and 0 < text:
-            out.append(Review("stray values", c, f"{text:,} value(s) aren't numbers among {len(f.numbers):,} that "
-                              f"are. They're left out of any rate using this column and counted."))
+            odd = _count(text, "isn't a number", "aren't numbers")
+            out.append(Review("stray values", c, f"{odd} among {len(f.numbers):,} that are. They're left out of "
+                              f"any rate using this column and counted."))
     for c, sg in sugg.items():
         if sg.source == "structure" and sg.means not in ("unused",):
-            out.append(Review("shape only", c, f"suggested as {sg.means} from its shape alone ({sg.why}). "
+            what = cat[sg.means].label if sg.means in cat else sg.means
+            out.append(Review("shape only", c, f"suggested as {what} from its shape alone ({sg.why}). "
                               f"If it's something more specific, say so and it will be remembered."))
         elif sg.source == "values":
             out.append(Review("values only", c, f"suggested as {sg.means} from its values alone, with nothing in "
                               f"the name to back it up."))
     for q in open_questions or []:
         out.append(Review("odd values", q["column"], f"{q['rows']:,} rows look odd ({q['pattern'].replace('_', ' ')})."
-                          f" Used as recorded until you answer it at the bottom."))
+                          f" Used as it is until you answer it {answer_where}."))
     return sorted(out, key=lambda r: (r.rank, r.column))
+
+
+def _named(hint: str, seen: str) -> str:
+    """Why a name fits, with what the values showed when there is anything to
+    say (second walk, defect 15: "name contains 'status'; " ended there)."""
+    return f"name contains '{hint}'; {seen}" if seen else f"name contains '{hint}'"
+
+
+def _count(k: int, one: str = "is", many: str = "are") -> str:
+    """'1 value is' / '3 values are': no '(s)' (second walk, defect 15)."""
+    return f"{k:,} value {one}" if k == 1 else f"{k:,} values {many}"

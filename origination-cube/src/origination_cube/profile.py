@@ -124,7 +124,8 @@ def classify(table: Table, few_values: int, many_values: int) -> list[Column]:
             coded = any(isinstance(v, str) and len(v.strip()) > 1 and v.strip()[0] == "0" and v.strip().isdigit()
                         for v in nonblank)
             text = len(nonblank) - len(numeric)
-            note = f"; {text:,} value(s) not a number, counted when read" if text else ""
+            note = (f"; {text:,} {'value' if text == 1 else 'values'} not a number, counted when read"
+                    if text else "")
             n_distinct = len(set(numeric))
             if coded:
                 make("dimension", f"a code written with leading zeros{note}")

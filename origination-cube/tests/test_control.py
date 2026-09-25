@@ -177,3 +177,51 @@ def test_the_lookups_read_the_key_column_wherever_it_is(book):
     r = _row(ws, "confidence")
     key = f"${get_column_letter(control.KEY_COL)}{r}"
     assert key in ws.cell(row=r, column=5).value and key in ws.cell(row=r, column=6).value
+
+
+@pytest.mark.parametrize("stored,want", [("95% sure", 0.95), (0.95, 0.95), ("95%", 0.95), (99, None)])
+def test_a_pick_is_read_however_excel_stored_it(book, stored, want):
+    """The second walk, defect 3: Excel can store a picked "95%" as 0.95."""
+    _answer_judgment(book)
+    wb = load_workbook(book)
+    ws = wb[control.SHEET]
+    ws.cell(row=_row(ws, "confidence"), column=control.CHOOSE_COL).value = stored
+    wb.save(book)
+    if want is None:
+        with pytest.raises(control.ControlError, match="is not an option"):
+            control.read_control(book)
+    else:
+        assert control.read_control(book)["confidence"] == want
+
+
+def test_no_option_label_looks_like_a_number():
+    import re
+    for s in control.load_settings():
+        for o in s.options:
+            assert not re.fullmatch(r"[\d.,]+%?", o.label), (s.key, o.label)
+
+
+def test_a_row_without_its_own_value_cell_doesnt_point_at_one(book):
+    """The second walk, defect 11: "enter your own in column D" on a grey n/a row."""
+    with pytest.raises(control.ControlError) as exc:
+        control.read_control(book)
+    by_row = {p.split(":")[0]: p for p in exc.value.problems}
+    ws = load_workbook(book)[control.SHEET]
+    compare = by_row[f"Control!C{_row(ws, 'compare_to')}"]
+    assert "Pick one from the list." in compare and "column D" not in compare
+    assert "column D" in by_row[f"Control!C{_row(ws, 'min_loans')}"]
+    r = _row(ws, "compare_to")
+    assert "column" not in ws.cell(row=r, column=6).value.split('"That isn')[1]
+
+
+def test_the_range_is_said_once_and_95_gets_a_hint(book):
+    """The second walk, defect 15: "between 0.5 and 0.999, from 0.5 to 0.999; got 95"."""
+    _answer_judgment(book)
+    wb = load_workbook(book)
+    ws = wb[control.SHEET]
+    ws.cell(row=_row(ws, "confidence"), column=control.OWN_COL).value = 95
+    wb.save(book)
+    with pytest.raises(control.ControlError) as exc:
+        control.read_control(book)
+    said = next(p for p in exc.value.problems if "95" in p)
+    assert said.count("0.999") == 1 and "For 95%, type 0.95." in said

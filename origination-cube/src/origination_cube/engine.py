@@ -34,7 +34,7 @@ from .ingest import BLANK, Bad, Table, cell_text, is_blank, parse_number
 
 BLANK_LABEL = "(blank)"
 NOT_NUMBER_LABEL = "(not a number)"
-MISSING_RULE_LABEL = "(missing by rule)"
+MISSING_RULE_LABEL = "(marked missing)"
 REASON_LABEL = {"blank": BLANK_LABEL, "not a number": NOT_NUMBER_LABEL, "missing by rule": MISSING_RULE_LABEL}
 
 # The words a pocket can get. Each says which way (walkthrough defect 11: "gap
@@ -567,7 +567,8 @@ def _resolve_columns(config: Config, table: Table, warnings: list[str]) -> tuple
             warnings.append(f"`{config.key}` is blank on {blanks:,} rows: those loans cannot be mapped back")
         dupes.pop(BLANK_LABEL, None)
         if dupes:
-            warnings.append(f"`{config.key}` repeats: {len(dupes):,} value(s) appear on more than one row "
+            some = "1 value appears" if len(dupes) == 1 else f"{len(dupes):,} values appear"
+            warnings.append(f"`{config.key}` repeats: {some} on more than one row "
                             f"({sum(dupes.values()):,} rows), so a pocket's loan list will hold them more than once")
     for b in config.bands:
         if b.field not in have:
@@ -791,7 +792,8 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             pockets += 1
             if idx is not None and ((idx > 1) if m.higher_is == "worse" else (idx < 1)):
                 high_worse += 1
-            if m.mode == "flagwt":
+            if m.mode == "flagwt" and m.per == EACH_LOAN:
+                # odds count loans; a dollar-weighted rate gets observed against expected below
                 strata.append((sh.events, sh.units - sh.events, sl.events, sl.units - sl.events))
             # observed high-half total against what it would be at the low half's rate
             r = sl.rate

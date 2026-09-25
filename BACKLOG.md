@@ -1409,12 +1409,28 @@ back.
     judged-against, the allowance for many tests).
   - RANR is revenue, so less of it is the bleed.
   - 126 tests; 19 of 19 re-inserted bugs caught.
-- [ ] **Next:** a second walkthrough of the workbook-and-launcher route; then
-      `cube drill` and `cube prove` (and put their settings back on the tab);
-      learning a column's usual band edges (walkthrough defect 9).
+- [x] **A third layer, GCO against RANR, and the second walkthrough's 16 defects**
+      (rulings OC-23 to OC-25):
+  - One column can split every pocket. A number is split at each pocket's own
+    median, and the Split tab compares high with low, pooled across pockets
+    (Mantel-Haenszel odds, a steadiness check, and observed against expected
+    for the dollar rates). A category repeats each grid once per value.
+  - On a planted book (revolving debt above the usual for the score: 1.8x the
+    bad rate) the split finds 1.84x, worse in 20 of 20 pockets.
+  - **Losses vs revenue:** each pocket in one of four boxes, with both flags
+    and a chart. Nothing is netted until the firm says whether RANR already
+    has losses taken out.
+  - **Show per pocket:** the median or average of any number column.
+  - **Materiality tab:** what each level would keep.
+  - The second walk's defects: 15 fixed, 1 in part (a long problem list can
+    scroll out of sight in the window). The status table is in
+    `docs/walkthrough/walk-2026-09-25-b/WALKTHROUGH-DEFECTS.md`.
+  - 160 tests; 32 of 32 re-inserted bugs caught.
+- [ ] **Next:** a third walkthrough on the new tabs; the firm's answer on RANR
+      netting; `cube drill` and `cube prove` (and put their settings back on
+      the tab); learning a column's usual band edges (walkthrough defect 9).
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
-- **Not checked:** a real extract, and the bank machine.
 
 ## 7 · Standing rules for new items
 

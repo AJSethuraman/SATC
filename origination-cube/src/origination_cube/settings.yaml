@@ -56,16 +56,16 @@ groups:
         valid: {min: 2, max: 100, whole: true}
         options:
           - value: 12
-            label: "12"
+            label: "12 values"
             recommended: true
             explains: >-
               Term (36, 48, 60) or a grade from 1 to 10 is read as categories, not
               cut into bands.
           - value: 6
-            label: "6"
+            label: "6 values"
             explains: Only very short lists are categories; more columns are cut into bands.
           - value: 24
-            label: "24"
+            label: "24 values"
             explains: Longer lists stay categories, such as a month or a 1-20 score.
 
       - key: many_values
@@ -75,16 +75,16 @@ groups:
         valid: {min: 2, max: 1000, whole: true}
         options:
           - value: 50
-            label: "50"
+            label: "50 values"
             recommended: true
             explains: >-
               State (50 or so) is still a dimension; a city or a dealer name is
               raised as a question instead.
           - value: 25
-            label: "25"
+            label: "25 values"
             explains: Keeps grids small. Longer lists are raised as questions.
           - value: 100
-            label: "100"
+            label: "100 values"
             explains: Allows long lists as dimensions; many of their pockets will be tiny.
 
       - key: band_count
@@ -94,14 +94,14 @@ groups:
         valid: {min: 2, max: 50, whole: true}
         options:
           - value: 5
-            label: "5"
+            label: "5 bands"
             recommended: true
             explains: Fine enough to see a trend, with each band holding a fifth of the loans.
           - value: 3
-            label: "3"
+            label: "3 bands"
             explains: Low, middle, high. Big pockets; a problem at the edge may be diluted.
           - value: 10
-            label: "10"
+            label: "10 bands"
             explains: Shows where a rate turns, but each band is a tenth of the book.
 
       - key: band_cut
@@ -127,15 +127,15 @@ groups:
         valid: {min: 2, max: 100000, whole: true}
         options:
           - value: 30
-            label: "30"
+            label: "30 loans"
             explains: >-
               The old workbook's value. Stops a test on a handful of loans; the test
               itself decides whether a gap is luck.
           - value: 100
-            label: "100"
+            label: "100 loans"
             explains: Small pockets are shown but not tested, even when their gap is large.
           - value: 300
-            label: "300"
+            label: "300 loans"
             explains: Only large pockets are tested. Suits a first pass on a big book.
 
       - key: min_events
@@ -146,15 +146,15 @@ groups:
         valid: {min: 1, max: 100000, whole: true}
         options:
           - value: 5
-            label: "5"
+            label: "5 losses"
             explains: The least the test can work with. Ranges will be wide.
           - value: 10
-            label: "10"
+            label: "10 losses"
             explains: >-
               A loss rate rests on how many loans lost money, not how many a pocket
               holds. Ten is a common floor.
           - value: 20
-            label: "20"
+            label: "20 losses"
             explains: Ranges narrow enough to rank pockets against each other.
 
   - title: Is it material
@@ -237,36 +237,36 @@ groups:
         question: How sure a difference must be before it counts
         takes_effect: live
         judgment: true
-        override: a share between 0.5 and 0.999
+        override: a share, such as 0.95 for 95%
         valid: {min: 0.5, max: 0.999}
         options:
           - value: 0.90
-            label: 90%
+            label: "90% sure"
             explains: Finds more. About 1 in 10 pockets with no real difference will still pass.
           - value: 0.95
-            label: 95%
+            label: "95% sure"
             explains: The usual standard. About 1 pocket in 20 with no real difference will still pass.
           - value: 0.99
-            label: 99%
+            label: "99% sure"
             explains: Strict. About 1 in 100, and smaller real gaps will be missed.
 
       - key: power
         question: How often a real gap should be caught
         takes_effect: live
-        override: a share between 0.5 and 0.99
+        override: a share, such as 0.8 for 80%
         valid: {min: 0.5, max: 0.99}
         options:
           - value: 0.8
-            label: 80%
+            label: "80% of the time"
             recommended: true
             explains: >-
               The usual standard. Used only to say how big a gap each pocket's size
               could show; it never flags anything.
           - value: 0.9
-            label: 90%
+            label: "90% of the time"
             explains: Each pocket can vouch for larger gaps only.
           - value: 0.5
-            label: 50%
+            label: "50% of the time"
             explains: A coin toss. The smallest gap a pocket could possibly show.
 
       - key: many_tests
@@ -310,35 +310,60 @@ groups:
 # Add a bank's own column names to `hints` as they turn up, or just confirm
 # them once: the memory does the rest.
 meanings:
-  - {means: key, says: loan or application number, cut: none, required: true,
-     hints: [loan, app, acct, account, nbr, number, id], test: unique}
-  - {means: booked, says: "booked or loan amount, which weights the reporting-level rates", cut: band,
-     required: true, hints: [booked, book, origamt, loanamt, amount, principal, bal], test: positive}
-  - {means: outcome, says: "the yes/no outcome: charged off, ever delinquent, decided by the system",
-     cut: none, required: true, hints: [chargedoff, chargeoff, co, bad, default, delinq, flag], test: binary}
-  - {means: gco, says: gross charge-off dollars, cut: none, required: true,
-     hints: [gco, grosschargeoff, chargeoffamt, coamt], test: mostly_zero}
-  - {means: ranr, says: RANR dollars, cut: none, required: true, hints: [ranr], test: numbers}
-  - {means: origination_date, says: when the loan was made, cut: none,
-     hints: [orig, open, book, fund, disb, note], test: dates}
-  - {means: as_of_date, says: the date the data was taken, cut: none,
-     hints: [asof, snapshot, report, perf, monthend, data], test: one_date}
-  - {means: fico, says: a FICO score, cut: band, hints: [fico, bureau, cb, credit],
-     test: {range: [300, 850]}}
-  - {means: score, says: a score not on the FICO scale (a custom or bank score), cut: band,
-     hints: [score, scr, grade, pd, risk], test: numbers}
-  - {means: dti, says: a debt-to-income style ratio, cut: band, hints: [dti, pti, debt, dsr, dbr],
-     test: {ratio_median: [0.05, 0.6]}}
-  - {means: ltv, says: a loan-to-value style ratio, cut: band, hints: [ltv, cltv, advance],
-     test: {ratio_median: [0.6, 1.6]}}
-  - {means: rate, says: interest rate or APR, cut: band, hints: [rate, apr, coupon, yield],
-     test: {ratio_median: [0.01, 0.35]}}
-  - {means: term, says: loan term in months, cut: dimension, hints: [term, tenor, months], test: term}
-  - {means: servicing, says: "servicing data: recorded after booking (a new line limit, a status, days past due), so never cut by",
-     cut: none, hints: [servicing, svc, status, dpd, pastdue, current, curbal, newlimit, newline, cli, lineincrease,
-                        limitchange, mob], test: any}
-  - {means: amount, says: a number to cut into bands, cut: band, test: numbers}
-  - {means: category, says: a category to cut by (channel, state, product), cut: dimension, test: category}
-  - {means: id, says: an identifier that is not the key, cut: none, test: unique}
-  - {means: unused, says: empty or one value only, cut: none, test: any}
-  - {means: unknown, says: not known yet, so not cut by until you say what it is, cut: none, test: any}
+  - {means: key, label: "Loan number (key)",
+     says: "loan or application number", cut: none,
+     required: true, hints: [loan, app, acct, account, nbr, number, id], test: "unique"}
+  - {means: booked, label: "Booked amount",
+     says: "booked or loan amount, which weights the reporting-level rates", cut: band,
+     required: true, hints: [booked, book, origamt, loanamt, amount, principal, bal], test: "positive"}
+  - {means: outcome, label: "Outcome (yes/no)",
+     says: "the yes/no outcome: charged off, ever delinquent, decided by the system", cut: none,
+     required: true, hints: [chargedoff, chargeoff, co, bad, default, delinq, flag], test: "binary"}
+  - {means: gco, label: "GCO dollars",
+     says: "gross charge-off dollars", cut: none,
+     required: true, hints: [gco, grosschargeoff, chargeoffamt, coamt], test: "mostly_zero"}
+  - {means: ranr, label: "RANR dollars",
+     says: "RANR dollars", cut: none,
+     required: true, hints: [ranr], test: "numbers"}
+  - {means: origination_date, label: "Origination date",
+     says: "when the loan was made", cut: none,
+     hints: [orig, open, book, fund, disb, note], test: "dates"}
+  - {means: as_of_date, label: "As-of date",
+     says: "the date the data was taken", cut: none,
+     hints: [asof, snapshot, report, perf, monthend, data], test: "one_date"}
+  - {means: fico, label: "FICO score",
+     says: "a FICO score", cut: band,
+     hints: [fico, bureau, cb, credit], test: {"range": [300, 850]}}
+  - {means: score, label: "Other score",
+     says: "a score not on the FICO scale (a custom or bank score)", cut: band,
+     hints: [score, scr, grade, pd, risk], test: "numbers"}
+  - {means: dti, label: "DTI-style ratio",
+     says: "a debt-to-income style ratio", cut: band,
+     hints: [dti, pti, debt, dsr, dbr], test: {"ratio_median": [0.05, 0.6]}}
+  - {means: ltv, label: "LTV-style ratio",
+     says: "a loan-to-value style ratio", cut: band,
+     hints: [ltv, cltv, advance], test: {"ratio_median": [0.6, 1.6]}}
+  - {means: rate, label: "Rate or APR",
+     says: "interest rate or APR", cut: band,
+     hints: [rate, apr, coupon, yield], test: {"ratio_median": [0.01, 0.35]}}
+  - {means: term, label: "Term",
+     says: "loan term in months", cut: dimension,
+     hints: [term, tenor, months], test: "term"}
+  - {means: servicing, label: "Servicing data",
+     says: "servicing data: recorded after booking, like a new line limit, a status or days past due, so never cut by", cut: none,
+     hints: [servicing, svc, status, dpd, pastdue, current, curbal, newlimit, newline, cli, lineincrease, limitchange, mob], test: "any"}
+  - {means: amount, label: "Amount or number",
+     says: "a number to cut into bands", cut: band,
+     test: "numbers"}
+  - {means: category, label: "Category",
+     says: "a category to cut by: channel, state, product", cut: dimension,
+     test: "category"}
+  - {means: id, label: "Other ID",
+     says: "an identifier that is not the key", cut: none,
+     test: "unique"}
+  - {means: unused, label: "Not used",
+     says: "empty or one value only", cut: none,
+     test: "any"}
+  - {means: unknown, label: "Not sure yet",
+     says: "not known yet, so not cut by until you say what it is", cut: none,
+     test: "any"}

@@ -164,7 +164,7 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
                                  formula1=str(v["min"]), formula2=str(v["max"]), allow_blank=True,
                                  showErrorMessage=True)
             dvo.errorTitle = "Out of range"
-            dvo.error = f"Enter {s.override}, from {v['min']:g} to {v['max']:g}."
+            dvo.error = f"Enter {_range_words(s)}."
             ws.add_data_validation(dvo)
             dvo.add(own)
         if s.override is None:
@@ -184,10 +184,13 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         ws.cell(row=r, column=5, value=(f'=IF({own_set},{D},IF({C}="","",'
                                         f'IFERROR(INDEX({OPTIONS_SHEET}!$G:$G,{lookup}),"not an option")))'))
         note = f"Your own value, in place of the options ({s.override})." if s.override else ""
+        pick = "Pick one, or enter your own." if s.override is not None else "Pick one from the list."
+        instead = (" Pick from the list, or put your number in the next column." if s.override is not None
+                   else " Pick from the list.")
         ws.cell(row=r, column=6, value=(f'=IF({own_set},"{note}",IF({C}="","Needs an answer before we run. '
-                                        f'Pick one, or enter your own.",'
+                                        f'{pick}",'
                                         f'IFERROR(INDEX({OPTIONS_SHEET}!$E:$E,{lookup}),"That isn\'t one of the '
-                                        f'options. Pick from the list, or put your number in the next column.")))'))
+                                        f'options.{instead}")))'))
         k = ws.cell(row=r, column=KEY_COL, value=s.key)
         k.font = Font(name="Consolas", size=8, color=SLATE)
         for col in range(2, 8):
@@ -243,16 +246,16 @@ def read_control(path: str | Path, settings: list[Setting] | None = None) -> dic
                 problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {s.override}; got {own!r}.')
             elif s.valid and not (s.valid["min"] <= own <= s.valid["max"]) or \
                     (s.valid and s.valid.get("whole") and not float(own).is_integer()):
-                v = s.valid
-                problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {s.override}, from {v["min"]:g} to '
-                                f'{v["max"]:g}; got {own!r}.')
+                problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {_range_words(s)}; got {own!r}.'
+                                + _percent_hint(s, own))
             else:
                 found[key] = int(own) if (s.valid or {}).get("whole") else own
             continue
         if chosen in (None, ""):
-            problems.append(f'{where}: "{s.question}" needs an answer. Pick one, or enter your own in column D.')
+            how = "Pick one from the list." if s.override is None else "Pick one, or enter your own in column D."
+            problems.append(f'{where}: "{s.question}" needs an answer. {how}')
             continue
-        match = [o for o in s.options if o.shown == str(chosen).strip()]
+        match = _matching(s, chosen)
         if not match:
             problems.append(f'{where}: {chosen!r} is not an option for "{s.question}".')
             continue
@@ -276,3 +279,48 @@ def describe(found: dict[str, Any], settings: list[Setting] | None = None) -> li
         o = next((o for o in s.options if o.value == v), None)
         out.append((s.question, o.label if o else f"{v:g}" if isinstance(v, float) else str(v)))
     return out
+
+
+def _as_number(v: Any) -> float | None:
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    t = str(v).strip().replace(",", "")
+    try:
+        return float(t[:-1]) / 100 if t.endswith("%") else float(t)
+    except ValueError:
+        return None
+
+
+def _matching(s: Setting, chosen: Any) -> list[Option]:
+    """The option a Choose cell means, however Excel stored it. A pick from the
+    list is its label; but Excel can turn a label that looks like a number into
+    that number ("95%" becomes 0.95), so a number that equals an option's value
+    means that option too (the second walkthrough, defect 3)."""
+    text = str(chosen).strip()
+    hit = [o for o in s.options if text in (o.shown, o.label)]
+    if hit:
+        return hit
+    n = _as_number(chosen)
+    if n is None:
+        return []
+    return [o for o in s.options if isinstance(o.value, (int, float)) and not isinstance(o.value, bool)
+            and abs(float(o.value) - n) < 1e-9]
+
+
+def _range_words(s: Setting) -> str:
+    """What the own-value cell takes, with its range said once (second walk,
+    defect 15: "a share between 0.5 and 0.999, from 0.5 to 0.999")."""
+    v = s.valid or {}
+    if "min" not in v:
+        return s.override
+    return f"{s.override}, from {v['min']:g} to {v['max']:g}"
+
+
+def _percent_hint(s: Setting, own: Any) -> str:
+    """95 typed where 0.95 is meant: say so."""
+    v = s.valid or {}
+    if v.get("max", 2) < 1 and isinstance(own, (int, float)) and 1 < own <= 100:
+        return f" For {own:g}%, type {own / 100:g}."
+    return ""

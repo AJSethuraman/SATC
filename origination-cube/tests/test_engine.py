@@ -225,7 +225,7 @@ def test_a_missing_key_is_refused_and_repeats_are_reported(book):
         engine.run(cube(key="LOAN"), table(book))
     book.append(dict(book[0]))
     res = engine.run(cube(), table(book))
-    assert any("`ID` repeats: 1 value(s)" in w for w in res.warnings)
+    assert any("`ID` repeats: 1 value appears" in w for w in res.warnings)
 
 
 def test_edges_that_would_print_alike_keep_their_precision():

@@ -243,3 +243,29 @@ The RANR blocks look like the loss blocks. In `step-13b-grids-ranr.png`, *under 
 | 13 | Read-back in machine names | **Fixed** for settings: Check lists each question with its words (labels clipped: defect 16). Machine names remain for measures (`outcome_loans`, `gco_rate`) on Check. |
 | 14 | `cube synth` pre-makes the calls | **Fixed.** It writes only `loans.csv`. |
 | 15 | Small: "1 rows", README count | **Fixed.** The README says 126 and the suite gives 126. New generic plurals: "thing(s)", "value(s)" (defect 15). |
+
+---
+
+## Where each defect stands (25 Sep 2026, after the fixes)
+
+Each fix is held by a test, and `tools/mutation_check.py` puts the bug back to
+prove that test goes red. Seen through LibreOffice. Not seen in Excel yet.
+
+| # | Defect | Now | Test |
+|---|---|---|---|
+| 1 | A copied workbook runs the old folder's extract | **Fixed.** The window hands its extract to Run. Without one, a missing stored path falls back to the same file name beside the workbook | `test_a_copied_workbook_runs_*`, `test_a_moved_pair_*`, `test_run_hands_the_picked_extract_*` |
+| 2 | 620,680,740 read as one edge | **Fixed.** The edges cell is text. A whole number of 100,000 or more is refused ("Excel dropped the commas; type them with semicolons"). Any edge outside the column's values is refused, naming the cell and the range. Check says how many bands were made | `test_edges_excel_read_*`, `test_an_edge_outside_*` |
+| 3 | 95% stored as 0.95 | **Fixed.** Option labels can't be read as numbers ("95% sure"), and a number in the cell is matched to its option by value | `test_a_pick_is_read_however_excel_stored_it` |
+| 4 | Yes carries over to new columns | **Fixed.** A new column clears C3, is shaded "New since the last check", and is named in the window | `test_a_new_column_takes_the_yes_back` |
+| 5 | Forget re-learned in the same run | **Fixed.** A forgotten column isn't learned back from that run. The window says what was forgotten | `test_the_learned_tab_prunes_on_the_next_run` |
+| 6 | Set up again deletes results and the Log | **Fixed.** Set up rebuilds only the input tabs | `test_set_up_again_keeps_the_last_results` |
+| 7 | No materiality evidence, no units | **Fixed.** A Materiality tab shows what each level keeps, per grid. Every line has its unit, and the loans line has one decimal | `test_materiality_tab_*` |
+| 8 | A refused run still changes memory and the record | **Fixed.** Checked before anything is touched | `test_a_workbook_open_in_excel_*` |
+| 9 | Start here counts go stale | **Fixed.** Run recounts, and Last run gives the time and what ran | `test_start_here_says_when_it_last_ran` |
+| 10 | "Answer it at the bottom" | **Fixed.** Now "answer it on the Odd values tab" | `test_odd_values_are_answered_where_the_workbook_asks` |
+| 11 | "Enter your own in column D" on a row with no column D | **Fixed.** Those rows say "Pick one from the list", in the window and on the tab | `test_a_row_without_its_own_value_cell_*` |
+| 12 | Meaning text cut at commas; dropdown shows codes | **Fixed.** The text is quoted. The dropdown, Columns and Learned show labels ("FICO score", "Servicing data") | `test_odd_values_are_answered_*` |
+| 13 | Machine names, two Pocket headers, no unit, p on untested pockets, RANR gap | **Fixed.** Column names as in the extract. Headers are Band column / Band / Segment column / Segment. Excess has an "Excess is in" column. p is blank when untested and reads "under 0.0001". The flag heading names its comparison. RANR's gap reads "or less". The -9999 row reads "(marked missing)" | `test_ranr_is_marked_*` |
+| 14 | RANR grids look like loss grids; headings are formulas | **Fixed.** "(more is better)", colours reversed for RANR, and each grid's arithmetic in words | `test_ranr_is_marked_*` |
+| 15 | Window wording | **Fixed.** No "(s)", no backticks, the range said once (with "type 0.95" when 95 was typed), a Next line that changes with what's left, the changed column named when nothing is left to cut, no dangling "; ". **Open:** a long problem list can still scroll out of sight in the window | `test_taking_away_every_category_*`, `test_the_range_is_said_once_*` |
+| 16 | Layout and print | **Fixed.** Check is wide and wraps. Log has a heading and prints on one page width. Blank and Samples no longer run together. Learned has a title bar. Every font is named. The record file is named on Check | — (seen on render) |

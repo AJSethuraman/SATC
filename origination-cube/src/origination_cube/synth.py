@@ -14,7 +14,7 @@ The plants:
 - asset class 4 of 1-4 goes bad 1.4 times as often as the others.
 
 The dirt, on purpose, one of each kind the engine must count and not zero:
-a bureau score of -9999 (missing by rule) on every 50th loan, a blank score,
+a bureau score of -9999 (a missing code) on every 50th loan, a blank score,
 a charge-off amount written as text, a blank balance, and a flag that is
 neither 0 nor 1. RANR is negative on about a third of loans, and that is real:
 `cube init` should ask about it, not decide.
