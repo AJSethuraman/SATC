@@ -100,6 +100,28 @@ class Source:
     citation_prefix: str
     url: str = ""
     note: str = ""
+    #: `dec-reach`, 25 September 2026 -- the firm: **"Add plain words."**
+    #:
+    #: THE WORDS A PREPARER WOULD ASK THIS SOURCE IN, semicolon-separated, in
+    #: the firm's own phrasing. They WIDEN what the pool returns and can never
+    #: narrow it: `pool.look` adds a bonus and admits a passage the question's
+    #: own words missed, and it subtracts nothing from anything.
+    #:
+    #: WHY THIS IS NOT `fires_on` WEARING A HAT, and the difference is the whole
+    #: reason the firm said yes. `fires_on` decided WHICH DESK a question
+    #: reached, exclusively -- a wrong word sent the question elsewhere and the
+    #: right authority became unreachable, which is the measurement `dec-kill`
+    #: was decided on. This cannot exclude anything, by construction, and
+    #: `test_a_question_reaches_authority_that_does_not_use_its_words.py`
+    #: proves it over every one of the firm's 43 close questions rather than
+    #: asserting it here.
+    #:
+    #: NOR IS IT A SYNONYM TABLE. `pool.unseen` warns against one in as many
+    #: words -- "a hand-written list of what a word means would be the same
+    #: mechanism under a kinder name" -- and it is right. This maps no word to
+    #: any other word and rewrites no question. A SOURCE says what it answers;
+    #: nothing says what a word means.
+    asked_as: tuple[str, ...] = ()
 
     @property
     def binding(self) -> bool:
@@ -1018,7 +1040,7 @@ def _prose(block: str, label: str, where: str, *, fields: tuple,
 
 #: The labels a SOURCE entry carries, so `_prose` knows where one ends.
 SOURCE_FIELDS = ("Tier", "Access", "May store", "Checked", "Citation prefix",
-                 "Url", "Why")
+                 "Url", "Asked as", "Why")
 
 
 def _inline(block: str, label: str, where: str) -> str:
@@ -1084,6 +1106,21 @@ def _date(value: str, label: str, where: str) -> str:
     return value
 
 
+def _asked_as(block: str, where: str) -> tuple[str, ...]:
+    """The firm's own phrasings for this source, or nothing.
+
+    OPTIONAL BY DESIGN. A source that declares none behaves exactly as it did
+    before `dec-reach`, which is what makes the change additive at the level of
+    the record as well as of the score: adding the field to one source cannot
+    affect any other.
+
+    SEMICOLONS, NOT COMMAS. "tool, fixed asset or supply" is one phrasing with a
+    comma in it, and splitting on commas would silently turn it into three.
+    """
+    raw = _field(block, "Asked as", where, required=False)
+    return tuple(p.strip() for p in raw.split(";") if p.strip())
+
+
 def parse_sources(text: str) -> list[Source]:
     out = []
     for head, block in _blocks(text, _HEAD):
@@ -1099,6 +1136,7 @@ def parse_sources(text: str) -> list[Source]:
             checked=_date(_inline(block, "Checked", where), "checked", where),
             citation_prefix=_field(block, "Citation prefix", where),
             url=_field(block, "Url", where, required=False),
+            asked_as=_asked_as(block, where),
             note=_prose(block, "Why", where, fields=SOURCE_FIELDS),
         ))
     if not out:

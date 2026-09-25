@@ -826,7 +826,7 @@ def brief_for_grading(question: str, desk: record.Desk,
 def answer(question: str, *, position: str = "",
            citation: str = "", escalate: str = "", model: str = "",
            working: str = "", ask: str = "", corpus: Path = CORPUS,
-           keep: bool = True,
+           keep: bool = True, queue: Path | None = None,
            context: record.Context | None = None, prove=None, judged=None,
            found_at: str = "", found_text: str = ""):
     """Put a proposed answer through the production path. Served, or refused.
@@ -1065,7 +1065,19 @@ def answer(question: str, *, position: str = "",
     # is complete. Filing it would put a work item in a queue nobody can act on
     # and would inflate the one count that is supposed to mean something.
     if isinstance(out, engine.Refusal) and keep and out.reason != "not_judged":
-        path = corpus / "unsupported" / "asked.md"
+        # NOT `corpus / "unsupported"`. That is inside the package, and
+        # installed the package is inside a VERSIONED plugin cache -- so every
+        # refusal the desk filed died at the next upgrade. Measured: 22 of them
+        # are stranded in `0.27.0` on this machine while `0.34.0` runs. The
+        # parked-question queue was moved out for this exact reason on
+        # 8 September and the refusal store was not; `unsupported.default_store`
+        # carries the whole account.
+        #
+        # `queue` is how a test (or a one-off run against a copied record) says
+        # where it wants them instead. It is a real argument rather than an
+        # environment variable at the call site because the destination of a
+        # finding should be readable where the finding is made.
+        path = Path(queue) if queue else unsupported.default_store()
         existing = (unsupported.parse(path.read_text(encoding="utf-8"))
                     if path.exists() else [])
         # THE REFUSAL ITSELF, NOT A `Result` BUILT FROM THREE OF ITS FIELDS.

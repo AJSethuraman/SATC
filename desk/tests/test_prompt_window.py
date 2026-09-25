@@ -345,6 +345,18 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #:
 #: The four questions are real: two of Forge-Occam's from their field report,
 #: and two from the working vernacular of a close.
+#: AND AGAIN on 25 September 2026, at 0.36.0 — the brewery row, +13 characters,
+#: when `dec-reach` let § 1.274-11 declare *"is a brewery a meal"* and the
+#: brief pulled a slightly longer passage. The smallest move this roster has
+#: recorded since the version stamp.
+#: AND on 25 September 2026, at 0.35.0 — ONE question, +491 characters,
+#: and it is the only row `dec-hyphen` moved. *"hand tools bought for the trade -
+#: deducted or capitalized?"* carries a spaced hyphen, and splitting letter
+#: compounds changed which passages its words reach, so the brief pulled longer
+#: ones. The other four rows did not move at all, which is the useful half: a
+#: tokeniser change that reordered fifteen of the firm's 43 close questions
+#: changed the SIZE of one brief in five. Still 3,493 of the roster's room, so
+#: nothing came near the window.
 NARROWED = {
     # Each up 125 tokens on 10 September 2026, and deliberately: `dec-coverage`
     # added the paragraph telling an answerer that these passages were chosen by
@@ -375,9 +387,9 @@ NARROWED = {
     # says this is a label on examples and not a paragraph added to every brief.
     # The graded figures below are likewise untouched: `brief_for_grading`
     # prints no example, so there is nothing there to label.
-    "is a brewery tab a business meal?": 2_737,
+    "is a brewery tab a business meal?": 2_750,
     "what supporting documents does the client have to keep?": 7_122,
-    "hand tools bought for the trade - deducted or capitalized?": 3_002,
+    "hand tools bought for the trade - deducted or capitalized?": 3_493,
     "mileage or actual expenses for the van?": 2_420,
 }
 

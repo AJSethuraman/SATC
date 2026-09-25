@@ -108,10 +108,11 @@ import os, sys
 sys.path.insert(0, os.environ.get("CLAUDE_PLUGIN_ROOT", "."))
 import relay
 
+my_session_id = ...   # YOUR id: call get_session with session_id omitted
 desk = relay.desk_session()                    # refuses if SATC_DESK_SESSION is unset
 a = relay.ask("the bank statement shows a $10 service charge and nothing for "
               "it is in the books — what do I do with it?",
-              reply_to=<this session's own id>)   # get_session, omit session_id
+              reply_to=my_session_id)   # get_session, omit session_id
 print(a.ref)                # note it — the answer opens with it
 print(desk)
 print(relay.as_prompt(a))   # the message to send
@@ -241,7 +242,7 @@ what it sent you, whole, either way.
 reply exactly as it arrived:
 
 ```python
-said = relay.read(<the whole reply body>)
+said = relay.read(reply_body)          # the WHOLE reply, not an extract
 
 said.answered     # True or False. Not a judgement — read off the reply
 said.reason       # on a refusal: which of the closed set
@@ -317,10 +318,10 @@ firm, 8 September 2026: *"the skill also has to direct questions to this
 container when they need research, obviously."*
 
 ```python
-gap = relay.research(question, reply_to=<your session id>,
+gap = relay.research(question, reply_to=my_session_id,
                      refused_by=(("corpus", "authority_absent"),))
 print(gap.ref)
-print(relay.research_prompt(gap, reply_to=<your session id>))
+print(relay.research_prompt(gap, reply_to=my_session_id))
 ```
 
 Send that to the same desk session, **poke-only**, exactly as you sent the

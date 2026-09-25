@@ -45,6 +45,23 @@ def no_network(monkeypatch):
     return refuse
 
 
+@pytest.fixture(autouse=True)
+def never_the_real_store(monkeypatch, tmp_path):
+    """No test writes into the firm's own `~/.satc` store.
+
+    `ask.answer` files a refusal by default, and its default destination is now
+    an absolute path in the user's home. Without this, running the suite would
+    append test rubbish to the real queue of findings somebody is meant to read
+    -- and `holes.py` would report it.
+
+    It is autouse for the same reason `no_network` is: a rule that each test
+    has to remember is a rule that holds until somebody forgets.
+    """
+    import unsupported
+    monkeypatch.setenv(unsupported.STORE_ENV, str(tmp_path / "store" / "asked.md"))
+    monkeypatch.setenv(unsupported.QUEUE_ENV, str(tmp_path / "store" / "CLOSE.md"))
+
+
 @pytest.fixture
 def fixed_assets():
     import record
@@ -118,5 +135,13 @@ def answer_judged(question, *, citation="", corpus=None, **kw):
             text = (getattr(backing[1], "text", "")
                     or getattr(desk.passage(citation), "text", "")
                     or getattr(backing[1], "position", ""))
+    # THE REFUSAL GOES BESIDE THE RECORD IT WAS REFUSED AGAINST. A test that
+    # copies the corpus to a tmp directory is asking about THAT corpus, and
+    # before `queue` existed the destination was derived from `corpus` so it
+    # already worked that way. `ask.answer` now defaults to the durable store
+    # outside the plugin (`unsupported.default_store`), which is right for
+    # production and wrong for a test -- so the default is restored here, in one
+    # place, rather than added to forty call sites.
+    kw.setdefault("queue", Path(corpus) / "unsupported" / "asked.md")
     return ask.answer(question, citation=citation, corpus=corpus,
                       judged=a_judgment(text) if text.strip() else None, **kw)
