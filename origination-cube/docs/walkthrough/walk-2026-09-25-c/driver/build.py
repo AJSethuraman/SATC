@@ -9,11 +9,11 @@ SRC = HERE / "PROCEDURE-origination-workbook.md"
 HTML = HERE / "PROCEDURE-origination-workbook.html"
 PDF = HERE / "PROCEDURE-origination-workbook.pdf"
 
-ROUTE = """<figure class="route"><svg viewBox="0 0 1000 330" xmlns="http://www.w3.org/2000/svg" font-family="DejaVu Sans, sans-serif">
+ROUTE = """<figure class="route"><svg viewBox="0 0 1000 350" xmlns="http://www.w3.org/2000/svg" font-family="DejaVu Sans, sans-serif">
 <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
 <g font-size="13">
 <rect x="10" y="20" width="200" height="90" rx="8" fill="#eef1f5" stroke="#667"/>
-<text x="110" y="45" text-anchor="middle" font-weight="bold">Steps 1-3 · Window</text><text x="110" y="66" text-anchor="middle">double-click, Browse...</text><text x="110" y="86" text-anchor="middle">1. Set up from this extract</text>
+<text x="110" y="45" text-anchor="middle" font-weight="bold">Steps 1-3 · Window</text><text x="110" y="66" text-anchor="middle">Browse... the extract</text><text x="110" y="86" text-anchor="middle">1. Set up from this extract</text>
 <rect x="270" y="20" width="440" height="90" rx="8" fill="#fce4c4" stroke="#a86"/>
 <text x="490" y="45" text-anchor="middle" font-weight="bold">Steps 4-10 · Workbook in Excel</text>
 <text x="490" y="66" text-anchor="middle">Start here → Control (8 shaded calls)</text><text x="490" y="86" text-anchor="middle">→ Columns (C3 = Yes) → Odd values (real / missing)</text>
@@ -21,17 +21,17 @@ ROUTE = """<figure class="route"><svg viewBox="0 0 1000 330" xmlns="http://www.w
 <text x="880" y="45" text-anchor="middle" font-weight="bold">Step 11 · Window</text><text x="880" y="66" text-anchor="middle">save, close Excel,</text><text x="880" y="86" text-anchor="middle">2. Run the cube</text>
 <line x1="210" y1="65" x2="268" y2="65" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <line x1="710" y1="65" x2="768" y2="65" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<rect x="520" y="200" width="470" height="90" rx="8" fill="#e6f2e6" stroke="#686"/>
-<text x="755" y="225" text-anchor="middle" font-weight="bold">Steps 12-15 · Results in the same workbook</text>
-<text x="755" y="246" text-anchor="middle">Where it bleeds → Grids → Check → Log</text><text x="755" y="266" text-anchor="middle" font-size="11">planted pocket: fico under 653 (or 620) / Broker, first</text>
-<line x1="880" y1="110" x2="880" y2="198" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<rect x="10" y="200" width="440" height="90" rx="8" fill="#eef1f5" stroke="#667"/>
-<text x="230" y="225" text-anchor="middle" font-weight="bold">Steps 16-18 · Change and go again</text>
-<text x="230" y="246" text-anchor="middle">own band edges on Columns · Set up again</text><text x="230" y="266" text-anchor="middle">(answers kept, results cleared) · Forget on Learned</text>
+<rect x="520" y="190" width="470" height="110" rx="8" fill="#e6f2e6" stroke="#686"/>
+<text x="755" y="215" text-anchor="middle" font-weight="bold">Steps 12-17 · Results in the same workbook</text>
+<text x="755" y="236" text-anchor="middle">Where it bleeds → Losses vs revenue → Grids</text><text x="755" y="256" text-anchor="middle">→ Materiality → Check → Log</text><text x="755" y="280" text-anchor="middle" font-size="11">planted pocket: FICO under 654 (or 620) / Broker, first</text>
+<line x1="880" y1="110" x2="880" y2="188" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<rect x="10" y="190" width="440" height="110" rx="8" fill="#eef1f5" stroke="#667"/>
+<text x="230" y="215" text-anchor="middle" font-weight="bold">Steps 18-23 · Change and go again</text>
+<text x="230" y="236" text-anchor="middle">Split (REV_DEBT, then ASSET_CLASS) · Show per pocket</text><text x="230" y="256" text-anchor="middle">own band edges · Set up again (all kept)</text><text x="230" y="276" text-anchor="middle">Forget on Learned</text>
 <line x1="518" y1="245" x2="452" y2="245" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<path d="M230,200 C230,150 150,140 110,112" fill="none" stroke="#999" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#a)"/>
-<text x="120" y="160" font-size="11" fill="#666">next extract</text>
-<text x="10" y="318" font-size="11" fill="#666">Peach = where you answer (Excel). Grey = the window. Green = where you read the results. Nothing is typed at a command line.</text>
+<path d="M230,190 C230,150 150,140 110,112" fill="none" stroke="#999" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#a)"/>
+<text x="120" y="160" font-size="11" fill="#666">Columns, then Run again</text>
+<text x="10" y="335" font-size="11" fill="#666">Peach = where you answer (Excel). Grey = the window. Green = where you read the results. Nothing is typed at a command line.</text>
 </g></svg><figcaption>The route: two buttons in the window, one workbook in Excel.</figcaption></figure>"""
 
 CSS = """@page { size: A4; margin: 16mm 14mm; @bottom-right { content: "page " counter(page) " of " counter(pages); font-size: 9pt; color: #777; } }
