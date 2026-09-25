@@ -1400,9 +1400,20 @@ back.
   - Data recorded after booking is called servicing.
   - The Control tab shades what needs an answer instead of labelling it.
   - 95 tests; 13 of 13 re-inserted bugs caught.
-- [ ] **Next:** the workbook's other tabs (Where to look, Data questions,
-      grids, check tab), then `cube drill` and `cube prove`, and apply the
-      loan-age setting now that its dates are recognised.
+- [x] **No commands for users (ruling OC-22), plus the walkthrough's 15 defects fixed:**
+  - `Origination Cube.pyw` opens a two-button window: Set up, then Run.
+  - One workbook holds every decision: Start here, Control, Columns, Odd
+    values, Learned. Results land in the same workbook: Where it bleeds,
+    Grids, Check, Log.
+  - Every Control answer is applied (loan age, fewest losses, materiality,
+    judged-against, the allowance for many tests).
+  - RANR is revenue, so less of it is the bleed.
+  - 126 tests; 19 of 19 re-inserted bugs caught.
+- [ ] **Next:** a second walkthrough of the workbook-and-launcher route; then
+      `cube drill` and `cube prove` (and put their settings back on the tab);
+      learning a column's usual band edges (walkthrough defect 9).
+- **Not checked:** real Excel, a real extract, and the bank machine
+  (Python and the add-ons installed, and .pyw files opening with Python).
 - **Not checked:** a real extract, and the bank machine.
 
 ## 7 · Standing rules for new items

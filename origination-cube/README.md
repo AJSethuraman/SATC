@@ -31,57 +31,68 @@ run:
 - GCO per booked dollar
 - RANR per booked dollar
 
-## Using it
+## Using it (no commands)
 
-Python 3.10 or later with `openpyxl` and `PyYAML`.
+One-time setup: install Python 3.10 or later from python.org, then double-click
+**`Install add-ons.bat`** in this folder (it adds openpyxl and PyYAML).
 
-```
-pip install -e .
-cube control --out control.xlsx                 # the Control tab: make your calls in Excel
-cube init extract.csv -o cube.yaml --control control.xlsx
-cube validate cube.yaml --data extract.csv
-cube run cube.yaml --data extract.csv
-```
+After that, the whole routine is:
 
-**What `cube init` does:**
-- It **suggests what every column means**: key, booked, outcome, GCO, RANR,
-  FICO, score, DTI, LTV, dates, servicing data and so on. Each suggestion comes
-  with its reason, and the file starts with `columns_confirmed: no`. Change the
-  `means:` of any that is wrong, then set it to `yes`. Nothing runs on a
-  suggestion you haven't confirmed.
-- **What you confirm is remembered**, and suggested first next time.
-  `cube memory` lists everything learned; `cube memory --out learned.xlsx`
-  lets you prune it with a Keep / Forget dropdown.
-- It raises odd values (a -9999 code, negatives in a mostly positive column)
-  as questions. The run carries on using the values as recorded, and says so.
+1. Double-click **`Origination Cube.pyw`**. A small window opens.
+2. Pick the extract (the loan file from the bank, .csv or .xlsx) and press
+   **1. Set up from this extract**. A workbook appears beside the extract.
+3. Open the workbook and follow its **Start here** tab:
+   - **Control:** fill in the shaded cells. Those are our calls: what's
+     material, how many loans is enough, how much worse counts.
+   - **Columns:** check what each column is. Anything shaded has its reason
+     beside it. Fix any that's wrong from the dropdown, then set "Checked
+     every column" to Yes.
+   - **Odd values:** answer real or missing where you can.
+4. Save, close the workbook, and press **2. Run the cube**. The results land in
+   the workbook: **Where it bleeds**, **Grids**, **Check** and **Log**.
 
-**Your calls.** What is material, how many loans are enough, how much worse
-counts as worse, and how sure is sure are never filled in for you. They come
-from the Control tab, or they are `[CONFIRM: ...]` in the file.
+If something needs fixing, the window and the Log tab say what and where, in
+words, e.g. *Control!C16: "Smallest excess loss worth reporting" needs an
+answer.* Press Set up again at any time: answers already given are kept.
+What you confirm is remembered for next time; the **Learned** tab lets you set
+anything wrongly learned to Forget.
+
+![The launcher after set up](docs/launcher/launcher-02-after-set-up-screen.png)
+
+**What an extract must carry:** a loan or application number, the booked
+amount, a yes/no outcome, GCO dollars and RANR dollars. From those, every run
+builds:
+- the outcome as a share of loans (straight)
+- the outcome as a share of booked dollars (weighted)
+- GCO per booked dollar
+- RANR per booked dollar (RANR is revenue, so less of it is the bleed)
 
 **What each pocket carries:**
 - its rate
-- share of losses over share of volume (the bleed measure)
-- excess dollars over the topline rate (adds to zero across a grid)
-- a multiple and a significance test against the rest of the book, the rest of
-  its band, and the rest of its dimension level
+- its rate over the book's rate
+- the excess (or, for RANR, the shortfall) in dollars
+- a test against the rest of the book and the rest of its band, after the
+  allowance for testing many pockets at once
+- whether it clears the materiality line
 - the smallest gap its size could show
 
-Every run also prints how many loans a gap of your size needs in this book,
-and what each materiality level would keep. That is evidence for your
-settings; it is never a setting.
+### Underneath (for whoever maintains it)
 
-A synthetic extract to try it on: `cube synth --out demo`, then `cube init`
-on it as if it were real. Loans with a score under 620 that came through the
-broker channel charge off at about six times the book's rate.
+The same engine is behind a command line, which the tests use:
+- `cube synth`
+- `cube init`
+- `cube validate`
+- `cube run`
+- `cube control`
+- `cube memory`
 
-**Coming next (ruling OC-22):** nobody will need these commands. One workbook
-will hold every decision, and a double-click launcher will do the running.
+`tools/shoot_launcher.py` photographs the window in each state on a virtual
+display.
 
 ## Checking it
 
 ```
-pytest -q                          # 112 tests: one per finding, every Control answer applied, the arithmetic by hand, init, memory
+pytest -q                          # 126 tests: one per finding, every Control answer applied, the workbook route, the launcher
 python tools/mutation_check.py     # puts 19 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
