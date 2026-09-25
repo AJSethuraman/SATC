@@ -199,6 +199,16 @@ every one of them was unreadable.
   it opens as a bug report to verify and fix first. #395 was merged twenty
   seconds after being marked ready, while this review was still running — it
   came back clean, which was luck, not process.
+- **Green must be green against the `main` you are merging into.** `test.yml`
+  runs on `pull_request`, which tests the PR merged into whatever `main` was
+  *at that moment* — and a later push to `main` does not re-run it. So if
+  another PR landed after your CI finished, the merge you are about to make has
+  never been tested, and `pages.yml` deploys `main` the instant it moves. Pinning
+  the head stops one race and not this one. Before merging, check the branch
+  already contains current `main`:
+  `git fetch origin main && git merge-base --is-ancestor origin/main HEAD`.
+  If it does not, merge `main` into the branch, push, and wait for green again.
+  Found by Codex on #396, the PR that added this rule.
 - **Still hold a merge** when the firm has said to, when CI is red, or when the
   PR carries a decision they have not answered yet. "Green" means green on the
   head you are merging, not on an earlier one.
