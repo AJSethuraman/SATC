@@ -175,113 +175,89 @@ def as_prompt(a: Ask) -> str:
     running, the Skill tool served a stale `ask-desk` and an agent following it
     correctly produced the wrong output. A desk reading this message has what it
     needs to answer even if its own skill is months old.
+
+    RULES ONLY — THE REASONS LIVE HERE AND IN THE TESTS, NOT IN THE MESSAGE.
+    Until 25 September 2026 this carried the incident behind every rule, and it
+    was 6,082 characters to deliver an 87-character question, 45 per cent of it
+    history. The cost fell on the ASKER: the platform echoes a trigger's prompt
+    back several times on every create and fire, so each question spent roughly
+    20,000 characters of the asking session's context. In Sarcia pilot 2 Occam
+    stopped sending after three questions, and cost was one of its two stated
+    reasons. Every rule the long version stated is still stated; what went is
+    the story of how each one was learned, which the answerer does not act on.
+    The incidents are in this module's docstrings and in
+    `test_asking_a_desk_that_is_somewhere_else.py`, where they are pinned.
     """
-    out = [f"DESK REQUEST {a.ref} — you are the desk. Somebody is doing the "
-           f"work and has hit something they cannot settle.", "",
-           _stamp(), "",
-           "## The question", "", a.question, "",
-           "**That is the whole of what you were told, and it is deliberate.** "
-           "No context came with it. Read the facts off the record itself "
-           "through `consult`, where the ones we do NOT hold are named as such "
-           "— and escalate on a missing one rather than infer it. Nobody has "
-           "framed this question for you, which is the point of your being "
-           "asked rather than guessed at.", "",
-    ]
-    out += [
+    return "\n".join(
+        [f"DESK REQUEST {a.ref} - you are the desk. Somebody doing the work "
+         f"has hit something they cannot settle.", "",
+         _stamp(), "",
+         "## The question", "", a.question, "",
+         "No context came with it, deliberately. Read the facts off the record "
+         "through `consult`, where the ones not held are named as such, and "
+         "escalate on a missing one rather than infer it.", ""]
+        + _how_to_answer()
+        + _how_to_reply(a.reply_to, [a.ref]))
+
+
+def _how_to_answer() -> list[str]:
+    """The rules an answerer must follow, shared by every question envelope."""
+    return [
         "## How to answer", "",
-        "Use the `be-the-desk` skill — NOT `ask-desk`, which is the skill for "
-        "whoever sent you this: `ask.consult` for what the corpus will let you "
-        "answer from, then `ask.answer(...)` with your conclusion and citation. "
-        "`keep=False` unless you are told otherwise. Do not write to the record, do "
-        "not commit, do not push.", "",
-        "**A SECOND PARTY MUST READ THE PASSAGE BEFORE IT CAN BE SERVED, AND "
-        "THIS ENVELOPE USED TO OMIT IT.** The corpus declares `Judged: "
-        "required`, so `ask.answer` REFUSES `not_judged` without one — however "
-        "right your conclusion and however good your citation. Have somebody "
-        "other than whoever answered read the cited passage and quote the words "
-        "they rest it on:", "",
+        "Use the `be-the-desk` skill - NOT `ask-desk`, which is the asker's. "
+        "`ask.consult` for what the corpus will let you answer from, then "
+        "`ask.answer(...)` with your conclusion and citation. `keep=False` "
+        "unless told otherwise. Do not write to the record, do not commit, do "
+        "not push.", "",
+        "**A second reader is required.** The corpus declares `Judged: "
+        "required`, so `ask.answer` refuses `not_judged` without one, however "
+        "right the answer. Someone other than whoever answered reads the cited "
+        "passage and quotes the words it rests on:", "",
         "```",
         "out = ask.answer(question, position=..., citation=...,",
         "                 judged=judging.Judgment(by=\"who read it\",",
         "                                         supports=True,",
         "                                         because=\"the words, QUOTED\"))",
         "```", "",
-        "`because` is quoted and not summarised — the engine checks those words "
-        "are really in the passage, which is the whole point of the reader. "
-        "`[...]` marks an omission and is read the way a stored passage's is. "
-        "`by` may not be the party that answered: one model wearing both hats "
-        "is a model marking its own work.", "",
-        "**AND A `not_judged` REFUSAL LEAVES NO TRACE.** It is the one refusal "
-        "that is deliberately NOT filed, because it says the caller was wired "
-        "wrong rather than that the record is missing something. So an answer "
-        "that dies here does not even become a finding: the round trip is spent "
-        "and nothing anywhere records that it happened. This paragraph exists "
-        "because the envelope did not mention the judge at all until "
-        "25 September 2026, while claiming above to carry everything a desk "
-        "needs even if its own skill is months old.", "",
-        "## How to reply — THIS IS NOT OPTIONAL", "",
-        f"Send `print(out)` in full, and your reasoning, back to "
-        f"`{a.reply_to}`:", "",
+        "`because` is quoted, not summarised. `by` may not be the party that "
+        "answered. A `not_judged` refusal is NOT filed anywhere, so an answer "
+        "that dies there leaves no trace.", "",
+        "## Say what the phrasing reached", "",
+        "Name the citations it came back with (`ask.looked(question)`). If an "
+        "obvious rephrasing reaches authority this one did not, say so and name "
+        "what it missed. THE ASKER CANNOT SEE THIS AND YOU CAN: a natural "
+        "phrasing can miss the whole record, and nothing on their side says "
+        "so.", "",
+    ]
+
+
+def _how_to_reply(reply_to: str, refs: list[str]) -> list[str]:
+    """How the answer gets back, shared by every question envelope."""
+    opens = " / ".join(f"`DESK ANSWER {r}`" for r in refs)
+    return [
+        "## How to reply - THIS IS NOT OPTIONAL", "",
+        f"Send `print(out)` in full, and your reasoning, back to `{reply_to}`:", "",
         "```",
-        "create_trigger(name=\"Desk answer " + a.ref + "\",",
-        f"               persistent_session_id=\"{a.reply_to}\",",
+        f"create_trigger(name=\"Desk answer {refs[0]}\",",
+        f"               persistent_session_id=\"{reply_to}\",",
         "               initiation=\"human_schedule\",",
         "               prompt=<your answer>)      # NO run_once_at, NO cron",
         "fire_trigger(<the id it returns>)",
         "```", "",
-        "**Omit `run_once_at` and `cron_expression` entirely.** A trigger that "
-        "has one and is then poked DELIVERS TWICE — measured 8 September 2026. "
-        "Poke-only delivers once, in about eight seconds.", "",
-        f"**Open your reply with `DESK ANSWER {a.ref}`** so a duplicate can be "
-        f"told from a second question.", "",
-        "**IF `create_trigger` AND `fire_trigger` ARE NOT IN YOUR TOOLSET, YOU "
-        "ARE NOT STUCK.** Return the whole reply as your final output to "
-        "whoever invoked you -- same opening line, same content -- and say in "
-        "one sentence that the relay tools were unavailable so the asker knows "
-        "why it arrived by hand. Do NOT stay silent, do NOT invent another "
-        "transport, and do NOT treat the missing tools as a reason to skip "
-        "answering.", "",
-        "WHY THIS PARAGRAPH EXISTS. On 9 September 2026 Forge-Occam ran a real "
-        "year-end close against the installed plugin and had neither tool. They "
-        "improvised correctly -- each desk run as a subagent, its answer handed "
-        "back as a report -- and then said what that meant: the reply protocol "
-        "is not self-sufficient, and *\"an answerer that follows it literally, "
-        "in an environment without those tools, is stuck with no path and no "
-        "diagnosis.\"* The firm, on the docket: **\"Name the fallback.\"** An "
-        "answer that reaches the asker by hand is worth more than a protocol "
-        "obeyed into silence.", "",
+        f"**Open each answer with {opens}.** **NO run_once_at and NO "
+        "cron_expression**: a trigger that has one and is then fired DELIVERS "
+        "TWICE.", "",
+        "**If `create_trigger` and `fire_trigger` are not in your toolset**, "
+        "return the whole reply as your final output with the same opening "
+        "line, and say the relay tools were unavailable. Do not stay silent "
+        "and do not invent another transport.", "",
         "**NOTHING YOU CAN SEE TELLS YOU WHETHER IT LANDED.** A 200 from "
-        "`fire_trigger` is not delivery — measured. AND the durable record is "
-        "not the fallback: on a `persist_session` trigger a fire that DID "
-        "deliver left no `last_fired_at`, no run row and an untouched "
-        "`updated_at` — measured 8 September 2026, on the reply to this very "
-        "envelope. **An absent `last_fired_at` is not evidence of "
-        "non-delivery.** Only the recipient knows. So do not chase, do not "
-        "resend on the strength of the record, and do not report a delivery "
-        "failure you have not been told about: say what you sent, and stop.", "",
+        "`fire_trigger` is not delivery, and an absent `last_fired_at` is not "
+        "evidence of non-delivery. Only the recipient knows. Say what you "
+        "sent, and stop.", "",
         "No client name, TIN or figure in the reply. If you cannot answer, say "
-        "so and say what authority is missing — a refusal is a finding.", "",
-        "## Say what the phrasing reached", "",
-        "Name the citations it came back with — `ask.looked(question)` gives "
-        "you them without rendering a brief. **And if an obvious rephrasing of "
-        "the same question reaches authority this one did not, say so and name "
-        "what it missed.**", "",
-        "THE ASKER CANNOT SEE THIS AND YOU CAN, AND IT GOT WORSE, NOT BETTER. "
-        "On 8 September a doer asked *\"what do I do with it\"* about a forklift "
-        "and reached ONE desk; the same transaction as *\"is the invoice price "
-        "deducted or capitalized?\"* reached TWO, and the one dropped held the "
-        "most on-point paragraph. Their words: *\"My phrasing was the natural "
-        "working one and it got strictly less authority. I did not know that "
-        "when I wrote it, and a doer has no way to tell.\"* `dec-kill` deleted "
-        "the desks and did NOT settle this. Measured on one corpus, "
-        "11 September 2026: the same forklift, asked the natural way, now "
-        "reaches **NOTHING AT ALL** — 0 passages against 8 for the explicit "
-        "phrasing. Two other pairs both returned 8 and 8, sharing five "
-        "citations and none. So a working phrasing can still cost the asker "
-        "the whole record, and nothing they can see says so. You are the only "
-        "party that can tell them.",
+        "so and say what authority is missing: a refusal is a finding.",
     ]
-    return "\n".join(out)
 
 
 def reply_opens(body: str, ref: str) -> bool:
