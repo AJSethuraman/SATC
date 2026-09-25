@@ -1432,9 +1432,13 @@ back.
     alone can move revenue in a typical pocket.
   - Each split grid says what it holds fixed, with the correlation.
   - Three-way pockets are tested and ranked on their own tab.
-  - 15 fixed, 1 in part (the window can still scroll). Status table in
+  - 14 fixed, 2 in part (the window can still scroll; the charts don't name their boxes). Status table in
     `docs/walkthrough/walk-2026-09-25-c/WALKTHROUGH-DEFECTS.md`.
   - 170 tests; 39 of 39 re-inserted bugs caught.
+- **Docket, 25 Sep 2026:** https://claude.ai/artifact/SCjJwU3YSBZskGLztNjBP7. It asks six decisions: the
+  many-tests reach, suggestions for other calls, a real-Excel check at work, RANR
+  netting, the pull request, and remembering band edges. Answers are recorded here
+  when given.
 - [ ] **Next:** a fourth walkthrough; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).
