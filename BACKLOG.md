@@ -1465,7 +1465,12 @@ back.
       is marked; the suggested fewest loans is 5 expected losses. Status table in
       `docs/walkthrough/walk-2026-09-25-e/WALKTHROUGH-DEFECTS.md`. 184 tests; 50
       re-inserted bugs.
-- [ ] **Next:** a sixth walkthrough; the firm's answer on RANR
+- [x] **The sixth walkthrough's 11 defects:** 8 fixed, 2 fixed in part, 1 open (an
+      exact test for small pockets, proposed). The firm's call (OC-31): the
+      suggested revenue line is each pocket's own luck range. 187 tests; 53
+      re-inserted bugs. The walk's read on convergence: the edges are getting
+      smaller, but the top defect kept changing shape until OC-31.
+- [ ] **Next:** a seventh walkthrough; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).
 - **Not checked:** real Excel, a real extract, and the bank machine

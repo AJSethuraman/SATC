@@ -231,3 +231,23 @@ Seen in `step-18c-split-how-it-works.png` and `step-18d-split-fico-grid.png`:
 | 9 | `cube init` offered calc and luck | **Held.** The [CONFIRM] lists 30 / 100 / 300 and 1.25 / 1.5 / 2.0. It gives no worked-out number as a comment, and the revenue line isn't in the cube file (command line only, OC-22). |
 | 10 | Remembered edges in codes and unmarked | **Held in part.** Marked under Look first and shaded. Learned still reads "amount; band edges every 2000"; the window count leaves the note out (defect 7); the empty -0.02 caveat repeats on every FICO grid (defect 9). |
 | 11 | Chart gaps | **Open, as the walk-5 table said.** Three GCO ticks, unlabelled lines, no box names; labels now overprint (defect 11). |
+
+---
+
+## Where each defect stands (25 Sep 2026, after the fixes)
+
+The firm decided 1 (OC-31 in `docs/design.md`). Every fix is held by a test, with a planted bug to prove the test catches it. Seen through LibreOffice.
+
+| # | Defect | Now | Test |
+|---|---|---|---|
+| 1 | Under the LOB's bands, the worst pocket reads "earning more" | **Fixed the way the firm chose.** The suggested revenue option is each pocket's own luck range; the planted pocket reads "Losing more, earning the same" | `test_the_planted_pocket_is_not_read_*` |
+| 2 | The luck mark cut off, shaded and counted like a finding | **Fixed.** The box column is wide and wraps; a marked box isn't shaded; the count line gives marked boxes on their own | `test_a_luck_gap_keeps_its_box_*` |
+| 3 | A fallback called "worked out"; "Nothing is worse" when nothing was tested | **Fixed.** The fallback reaches the final result: the window, Check and Control say "the usual value". A run with nothing big enough to test says so for each measure | `test_a_suggestion_with_nothing_to_work_from_*` |
+| 4 | RANR flag and box on different lines | **Fixed.** The column is now "RANR reading", against the box's own line | `test_the_suggested_revenue_line_*` |
+| 5 | A no-effect book can still read as an effect | **Fixed in part.** Split heat maps bracket and don't shade a could-be-luck multiple; the warning heading and Three-way column stay. The pooled numbers for grids that don't hold FICO fixed are what the data says, under the warning | `test_split_gaps_that_could_be_luck_*` |
+| 6 | Last Run used off the page; Set up empties it | **Fixed.** In the print area, and kept through Set up | `test_control_shows_what_the_last_run_used` |
+| 7 | Edge memory: category edges, the count | **Fixed.** Only band columns' edges are remembered or filled in, and Set up's count includes remembered edges. The memory is still "the last Run of any workbook", by design | — |
+| 8 | A 50-loan pocket with 29 bad is "too few loans" | **Open, proposed.** An exact test for small pockets (see the message to the firm) | — |
+| 9 | Split tab points | **Fixed.** The block says which figures carry the allowance and glosses Mantel-Haenszel and Cochran's Q. The correlation's meaning is said once. "Same size" reads "yes/no outcome only" where it doesn't apply | `test_split_by_a_number_*` |
+| 10 | Three-way lead and print | **Fixed.** One plain sentence; the page is wide enough for the column | — |
+| 11 | Smaller things | **Fixed except the charts.** `every 1` names its cell and says "50 bands or fewer"; 0.95 on the revenue row gets "The most it takes is 0.9"; no double colon. The charts are still open | `test_a_band_width_too_narrow_*` |

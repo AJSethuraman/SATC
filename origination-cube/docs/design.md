@@ -453,6 +453,16 @@ enough.
     - Control shows what the last Run used.
     - The Split and Three-way tabs mark the grids that don't hold the split's
       partner column fixed.
+- **OC-31: the suggested revenue line is each pocket's own luck range** (the firm,
+  25 Sep 2026, after the sixth walk). Picked on Control, revenue counts as more
+  or less only when its own test says the gap isn't luck. A small pocket needs a
+  bigger move than a large one. The fixed options (5%, 10%, the loss lines, your
+  own number) stay plain lines, the same for every pocket, with the luck mark.
+  The sixth walk showed why one number couldn't work: 1.16x was right for a
+  typical pocket, and the 176-loan planted pocket crossed it on noise.
+  - A luck-marked box isn't shaded or counted with the findings.
+  - The RANR column reads against the same line as the box.
+  - The Split heat maps show a could-be-luck multiple in brackets, unshaded.
 - **Every "Luck alone" figure is after the allowance for many tests**, the Split
   tab's included (they were the only raw ones until 25 Sep 2026). **The Split tab
   says its method once**, at the top: what it does, the numbers, the tests and what
