@@ -91,6 +91,11 @@ def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
     """Ruling OC-26; the third walk, defects 1 and 5. Each side reads more, the
     same or less by the Control lines, against the same comparison as its flag."""
     b = _ready(tmp_path)
+    wb = load_workbook(b)
+    for r in wb["Control"].iter_rows(min_row=4):
+        if r[6].value == "revenue_line":
+            r[2].value = "10 percent either way"
+    wb.save(b)
     assert book.run(b).ok
     ws = load_workbook(b)["Losses vs revenue"]
     rows = [[ws.cell(row=r, column=c).value for c in range(2, 12)] for r in range(5, ws.max_row + 1)]
@@ -99,6 +104,7 @@ def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
     sub = ws["B2"].value
     hi = float(sub.split("counts as more at ")[2].split("x")[0])
     lo = float(sub.split("and less at ")[2].split("x")[0])
+    assert (hi, lo) == (1.10, 0.90)
     for band, seg, loans, gco, gflag, ranr, rflag, box, _, _ in rows:
         # the lines on Control decide the box (the firm, 25 Sep 2026); luck is marked, not gated
         g = "more" if gco >= 1.25 else "less" if gco <= 0.8 else "same"
@@ -111,6 +117,7 @@ def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
     band, seg, box = ws["B7"].value, ws["C7"].value, ws["I7"].value
     assert band.startswith("under") and seg == "Broker"
     assert box.startswith("Losing more") and "earning more" not in box.split(" (")[0] or "could be luck" in box
+    assert len(ws._charts) == 6
     grids = [c.value for c in ws["B"] if isinstance(c.value, str) and " x " in c.value]
     assert len(grids) == 6 and len(ws._charts) == len(grids)     # one chart per grid
 
@@ -119,10 +126,10 @@ def test_the_suggested_revenue_line_is_worked_out_from_the_book(tmp_path):
     b = _ready(tmp_path)
     assert book.run(b).ok
     check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
-    said = check["Revenue counts as more or less at"]
-    assert "what luck alone can move it" in said
-    hi = float(said.split("x")[0])
-    assert 1.05 < hi < 3
+    assert "past what luck alone can move that pocket" in check["Revenue counts as more or less"]
+    ws = load_workbook(b)["Losses vs revenue"]
+    reads = [ws.cell(row=r, column=8).value for r in range(5, ws.max_row + 1)]
+    assert not any(isinstance(x, str) and "could be luck" in x for x in reads)   # nothing left to mark
 
 
 def test_materiality_tab_shows_what_each_level_keeps(tmp_path):
@@ -424,10 +431,15 @@ def test_the_luck_line_is_luck_alone_not_the_catch_rate(tmp_path):
     """The fourth walk, defect 4: at 80% caught it was the gap a pocket can find."""
     b = _ready(tmp_path)
     assert book.run(b).ok
+    wb = load_workbook(b)
+    for r in wb["Control"].iter_rows(min_row=4):
+        if r[6].value == "worse_at":
+            r[2].value = "What luck alone can move it (suggested)"
+    wb.save(b)
+    assert book.run(b).ok
     check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
-    hi = float(check["Revenue counts as more or less at"].split("x")[0])
-    assert 1.05 < hi < 1.22                                    # luck alone: about 1.17x on this book, not 1.25x
-    assert "luck alone moves revenue up to" in check["Revenue counts as more or less at"]
+    worse = float(check["Worked out from this book"].split("worse at ")[1].split("x")[0])
+    assert 1.1 < worse < 1.45                                  # luck alone; the catch-rate gap is bigger
 
 
 def test_a_revenue_share_of_95_gets_advice_that_is_allowed(tmp_path):
@@ -452,10 +464,9 @@ def test_the_planted_pocket_is_not_read_as_earning_more_on_noise(tmp_path):
     assert book.run(b).ok
     ws = load_workbook(b)["Losses vs revenue"]
     assert ws["B7"].value == "under 620" and ws["C7"].value == "Broker"
-    box = ws["I7"].value
-    # the lines decide: 1.17x against a 1.16x line reads "earning more", and its own test marks it as luck
-    assert box.startswith("Losing more")
-    assert box.split(" (")[0] == "Losing more, earning the same" or "revenue gap could be luck" in box
+    # the suggested revenue option is each pocket's own luck range (the firm, 25 Sep 2026, after the
+    # sixth walk): 1.17x on 176 loans is inside it, so the worst pocket isn't read as a trade-off
+    assert ws["I7"].value == "Losing more, earning the same"
 
 
 def test_boxes_follow_the_lines_exactly():
@@ -515,7 +526,10 @@ def test_control_shows_what_the_last_run_used(tmp_path):
     assert ws.cell(row=control.FIRST_ROW - 1, column=col).value == "Last Run used"
     used = {r[control.KEY_COL - 1].value: ws.cell(row=r[0].row, column=col).value
             for r in ws.iter_rows(min_row=control.FIRST_ROW) if r[control.KEY_COL - 1].value}
-    assert "worked out from this book" in used["min_loans"] and "x and" in used["revenue_line"]
+    assert "worked out from this book" in used["min_loans"] and used["revenue_line"] == "each pocket's own luck range"
+    book.set_up(tmp_path / "loans.csv")                        # and it stays through Set up again
+    ws = load_workbook(b)["Control"]
+    assert ws.cell(row=control.FIRST_ROW - 1, column=col).value == "Last Run used"
 
 
 def test_another_workbooks_edges_stay_out_of_this_one(tmp_path):
@@ -530,3 +544,36 @@ def test_another_workbooks_edges_stay_out_of_this_one(tmp_path):
     ws = load_workbook(a)["Columns"]
     assert ws["F7"].value is None
     assert "remembered from before" not in str(ws["I7"].value or "")
+
+
+def test_a_suggestion_with_nothing_to_work_from_says_so(tmp_path):
+    """The sixth walk, defect 3: a default was reported as "worked out from this book",
+    and a book where nothing could be tested read "Nothing is worse"."""
+    from origination_cube import control
+    b = _ready(tmp_path, n=2000)
+    wb = load_workbook(b)
+    for r in wb["Control"].iter_rows(min_row=control.FIRST_ROW):
+        key = r[control.KEY_COL - 1].value
+        if key == "min_loans":
+            r[control.CHOOSE_COL - 1].value, r[control.OWN_COL - 1].value = None, 100000
+        if key in ("worse_at", "better_at"):
+            r[control.CHOOSE_COL - 1].value = "What luck alone can move it (suggested)"
+    wb.save(b)
+    ran = book.run(b)
+    assert ran.ok
+    said = " ".join(ran.lines)
+    assert "Nothing in this book to work these out from" in said and "Worked out from this book" not in said
+    assert "No pocket had enough loans or losses to test" in said and "Nothing is worse" not in said
+    ws = load_workbook(b)["Control"]
+    used = [ws.cell(row=r, column=control.KEY_COL + 1).value for r in range(control.FIRST_ROW, ws.max_row + 1)]
+    assert any(isinstance(x, str) and "the usual value" in x for x in used)
+
+
+def test_split_gaps_that_could_be_luck_are_bracketed(tmp_path):
+    """The sixth walk, defect 9: a 2.33x at 61% luck was deep red."""
+    b = _ready(tmp_path)
+    _set(b, "REV_DEBT", book.C_SPLIT, "Yes")
+    assert book.run(b).ok
+    ws = load_workbook(b)["Split"]
+    vals = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
+    assert any(v.startswith("(") and v.endswith("x)") for v in vals)

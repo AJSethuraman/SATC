@@ -322,6 +322,8 @@ def _range_words(s: Setting) -> str:
 def _percent_hint(s: Setting, own: Any) -> str:
     """95 typed where 0.95 is meant: say so."""
     v = s.valid or {}
+    if v.get("max", 2) < 1 and isinstance(own, (int, float)) and v["max"] < own <= 1:
+        return f" The most it takes is {v['max']:g}."
     if v.get("max", 2) < 1 and isinstance(own, (int, float)) and 1 < own <= 100:
         if v.get("min", 0) <= own / 100 <= v["max"]:
             return f" For {own:g}%, type {own / 100:g}."

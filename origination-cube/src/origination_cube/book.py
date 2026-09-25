@@ -117,7 +117,7 @@ def _order(wb) -> None:
 
 
 def _answers(book: Path) -> dict[str, Any]:
-    out: dict[str, Any] = {"control": {}, "columns": {}, "confirmed": None, "odd": {}}
+    out: dict[str, Any] = {"control": {}, "columns": {}, "confirmed": None, "odd": {}, "last_used": {}}
     if not book.exists():
         return out
     wb = load_workbook(book)
@@ -126,6 +126,8 @@ def _answers(book: Path) -> dict[str, Any]:
             key = r[control.KEY_COL - 1].value
             if key:
                 out["control"][key] = (r[control.CHOOSE_COL - 1].value, r[control.OWN_COL - 1].value)
+                if len(r) > control.KEY_COL and r[control.KEY_COL].value:
+                    out["last_used"][key] = r[control.KEY_COL].value
     if "Columns" in wb.sheetnames:
         ws = wb["Columns"]
         out["confirmed"] = ws[CONFIRM_CELL].value
@@ -206,6 +208,21 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
             r[control.CHOOSE_COL - 1].value = choose
             if own not in (None, "n/a"):
                 r[control.OWN_COL - 1].value = own
+    if kept["last_used"]:
+        # what the last Run used stays through Set up again (the sixth walk, defect 6)
+        cws = wb[control.SHEET]
+        col = control.KEY_COL + 1
+        h = cws.cell(row=control.FIRST_ROW - 1, column=col, value="Last Run used")
+        h.font = Font(name="Calibri", bold=True, color=PAPER)
+        h.fill = PatternFill("solid", fgColor=INK)
+        cws.column_dimensions[_col(col)].width = 26
+        for r in cws.iter_rows(min_row=control.FIRST_ROW):
+            v = kept["last_used"].get(r[control.KEY_COL - 1].value)
+            if v:
+                c = cws.cell(row=r[0].row, column=col, value=v)
+                c.font = Font(name="Calibri", color=SLATE)
+                c.alignment = Alignment(wrap_text=True, vertical="top")
+        cws.print_area = f"B1:{_col(col)}{cws.max_row}"
 
     # ---- Columns
     ws = wb.create_sheet("Columns")
@@ -258,6 +275,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     for c in new_cols:
         by_col.setdefault(c, []).insert(0, "New since the last check.")
     classified = {c.name: c for c in cols}
+    edge_noted: set[str] = set()
     r = COL_FIRST
     for c in table.columns:
         sg = sugg[c]
@@ -276,10 +294,12 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         # remembered edges only fill a column this workbook hasn't seen: what's on this workbook's
         # Columns tab, a cleared cell included, wins (the fifth walk: another copy's "every 2000"
         # came in, and clearing the cell didn't undo it)
-        remembered_edges = (mem["columns"].get(c) or {}).get("edges") if c not in kept["columns"] else None
+        remembered_edges = (mem["columns"].get(c) or {}).get("edges") \
+            if c not in kept["columns"] and cat[code].cut == "band" else None
         edges = ws.cell(row=r, column=C_EDGES, value=prior.get("edges") if prior else remembered_edges)
         if remembered_edges:
             by_col.setdefault(c, []).append(f"Band edges remembered from before: {remembered_edges}.")
+            edge_noted.add(c)
         edges.number_format = "@"            # kept as typed: Excel would read 620,680,740 as one number
         ws.cell(row=r, column=C_SHOW, value=prior.get("show"))
         dv_show.add(ws.cell(row=r, column=C_SHOW))
@@ -363,7 +383,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     lines = [f"Set up {book.name} from {extract.name}: {len(table.rows):,} loans, {_n(len(table.columns), 'column')}."]
     if new_cols:
         lines.append(f"New columns since the last check: {', '.join(new_cols)}. Columns!C3 needs a Yes again.")
-    nlook = len({rv.column for rv in looks if rv.kind != "cannot run"} | set(new_cols))
+    nlook = len({rv.column for rv in looks if rv.kind != "cannot run"} | set(new_cols) | edge_noted)
     if nlook:
         lines.append(f"{_n(nlook, 'column')} to look at first, on the Columns tab.")
     left = []
@@ -470,6 +490,7 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
     columns, edges, skip, show, split = {}, {}, set(), {}, []
     widths: dict[str, float] = {}
     typed: dict[str, str] = {}
+    edge_cells: dict[str, str] = {}
     for r in ws.iter_rows(min_row=COL_FIRST):
         name = r[C_NAME - 1].value
         if not name:
@@ -488,6 +509,7 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
         if e not in (None, ""):
             where = f"Columns!{_col(C_EDGES)}{row}"
             typed[name] = str(e).strip()
+            edge_cells[name] = where
             if isinstance(e, (int, float)) and not isinstance(e, bool) and abs(e) >= 100000 and float(e).is_integer():
                 # the second walk, defect 2: Excel read 620,680,740 as the number 620680740
                 problems.append(f'{where}: the band edges for "{name}" read as the single number {e:,.0f}. '
@@ -591,6 +613,7 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
     about = dict(about)
     about["_widths"] = {c: w for c, w in widths.items() if c not in skip}
     about["_typed_edges"] = typed
+    about["_edge_cells"] = edge_cells
     about["_suggest"] = {k for k in ("min_loans", "worse_at", "better_at") if use.get(k) in ("calc", "luck")}
     return raw, [], about
 
@@ -601,10 +624,11 @@ def _num_or(v, provisional, kind):
     return provisional if v in ("calc", "luck") else kind(v)
 
 
-def _band_widths(raw: dict, widths: dict[str, float], cfg, table) -> list[str]:
+def _band_widths(raw: dict, widths: dict[str, float], cfg, table, cells: dict[str, str] | None = None) -> list[str]:
     """Turn "every 20" into edges over the column's own values (missing codes
     left out). Refuses a width that would make more than 50 bands."""
     out = []
+    cells = cells or {}
     for b in raw["bands"]:
         w = widths.get(b["field"])
         if not w:
@@ -622,8 +646,9 @@ def _band_widths(raw: dict, widths: dict[str, float], cfg, table) -> list[str]:
             x += w
         if len(pts) + 1 > 50:
             total = int((hi - first) // w) + 2
-            out.append(f'Columns: every {engine._fmt(w)} on "{b["field"]}" would make {total:,} bands '
-                       f'({engine._fmt(lo)} to {engine._fmt(hi)}). Use a wider band, 50 at most.')
+            out.append(f'{cells.get(b["field"], "Columns")}: every {engine._fmt(w)} on "{b["field"]}" would make '
+                       f'{total:,} bands ({engine._fmt(lo)} to {engine._fmt(hi)}). Use a wider band, so there '
+                       f'are 50 bands or fewer.')
             continue
         b.pop("count", None)
         b.pop("cut", None)
@@ -706,7 +731,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if about.get("sha256") and hashlib.sha256(src.read_bytes()).hexdigest() != about["sha256"]:
         notes.append(f"{src.name} has changed since Set up. If columns were added or renamed, press Set up first.")
     table = read_table(src)
-    far = _band_widths(raw, about.get("_widths") or {}, cfg, table)
+    far = _band_widths(raw, about.get("_widths") or {}, cfg, table, about.get("_edge_cells"))
     if about.get("_widths") and not far:
         cfg = cfgmod.parse(raw)
     far += _edges_outside(book, raw, cfg, table)
@@ -726,8 +751,10 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
             bm["better_at"] = float(suggested.get("better_at", bm["better_at"]))
             if bm["better_at"] >= bm["worse_at"]:
                 bm["better_at"] = round(1 / bm["worse_at"], 2)
+            fallback = getattr(res, "suggest_fallback", set())
             cfg = cfgmod.parse(raw)
             res = engine.run(cfg, table)
+            res.suggest_fallback = fallback
         res.suggested = suggested
     except (engine.ColumnsMissing, engine.NothingToCut) as exc:
         msg = re.sub(r"used by dimension \w+", "a segment", re.sub(r"used by band \w+", "a band", str(exc)))
@@ -744,23 +771,31 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         cfg = cfgmod.Config(**{**cfg.__dict__, "columns": {k: v for k, v in cfg.columns.items() if k not in dropped}})
     memory.remember(cfg, memory_path)
     typed = about.get("_typed_edges") or {}
-    memory.remember_edges({c: typed.get(c) for c in (cfg.columns or {}) if c not in dropped}, memory_path)
+    cat = meanings.catalog()
+    bands_only = {c for c, v in (cfg.columns or {}).items() if cat.get(v[0]) and cat[v[0]].cut == "band"}
+    memory.remember_edges({c: typed.get(c) for c in bands_only if c not in dropped}, memory_path)
     try:
         _write_results(book, res, memory_path, src, dropped)
     except PermissionError:
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
     audit = book.with_name(f"{book.stem} - what ran.yaml")
     head = "# Exactly what the last Run used.\n"
-    rl = revenue_lines(res)
-    if rl and cfg.benchmark and cfg.benchmark.revenue_line == "luck":
-        head += f"# revenue_line worked out from this book: {rl[1]:.2f}x and {rl[0]:.2f}x\n"
+    if per_pocket(res):
+        head += "# revenue_line: each pocket's own luck range (its own test)\n"
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     lines = notes + [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."]
     lines += _top_lines(res)
     sug = getattr(res, "suggested", None) or {}
     if sug:
         said = {"min_loans": "fewest loans {:,}", "worse_at": "worse at {:.2f}x", "better_at": "better at {:.2f}x"}
-        lines.append("Worked out from this book: " + "; ".join(said[k].format(v) for k, v in sug.items()) + ".")
+        fb = getattr(res, "suggest_fallback", set())
+        worked = [said[k].format(v) for k, v in sug.items() if k not in fb]
+        usual = [said[k].format(v) for k, v in sug.items() if k in fb]
+        if worked:
+            lines.append("Worked out from this book: " + "; ".join(worked) + ".")
+        if usual:
+            lines.append("Nothing in this book to work these out from, so the usual values were used: "
+                         + "; ".join(usual) + ".")
     if cfg.split:
         sf, how = cfg.split
         lines.append(f"Split by {sf}: " + ("each pocket halved at its own median. See the Split and Three-way tabs."
@@ -866,8 +901,13 @@ def _top_lines(res) -> list[str]:
                 if s.excess and s.excess > 0 and s.flag == engine.WORSE and s.material is not False:
                     if best is None or s.excess > best[0]:
                         best = (s.excess, f"{names[g.band]} {b} / {names[g.dimension]} {d}")
+        tested = any(c.rates[m.name].reading_topline not in (engine.THIN, engine.FEW, None)
+                     for g in res.grids for _, c in g.inner())
         if best:
             out.append(f"Worst for {m.title}: {best[1]}.")
+        elif not tested:
+            floor = res.config.benchmark.min_units if res.config.benchmark else 0
+            out.append(f"No pocket had enough loans or losses to test {m.title} (fewest loans: {floor:,}).")
         else:
             out.append(f"Nothing is worse for {m.title} at these settings.")
     return out
@@ -919,13 +959,12 @@ def _write_results(book: Path, res, memory_path, src: Path, forgotten: set[str] 
         _split_tab(wb.create_sheet("Split"), res)
         note = (lambda g: _three_way_note(res, g)) if res.config.split[1] == "own_median" else None
         pt = _partner(res)
-        lead = f"Pockets split by {res.config.split[0]}, each tested like any other pocket"
-        if note and pt:
-            lead = (f"{lead}. {res.config.split[0]} moves with {pt[0]} (correlation {pt[1]:+.2f}), so pockets from "
-                    f"grids that don't hold {pt[0]} fixed (the last column says no) may show {pt[0]} rather than "
-                    f"{res.config.split[0]}; they come after the rest. Each list,")
-        _bleeds(wb.create_sheet("Three-way"), res, res.three_way, "Three-way", lead + ("" if note and pt else ","),
-                note)
+        sf = res.config.split[0]
+        after = (f" {sf} moves with {pt[0]} (correlation {pt[1]:+.2f}). Rows whose grid doesn't hold {pt[0]} fixed "
+                 f"(the last column says no) come after the rest, and part of their gap may be {pt[0]}."
+                 if note and pt else "")
+        _bleeds(wb.create_sheet("Three-way"), res, res.three_way, "Three-way",
+                f"Pockets split by {sf}, each tested like any other pocket,", note, after)
     _materiality_tab(wb.create_sheet("Materiality"), res)
     _check(wb.create_sheet("Check"), res, src, f"{book.stem} - what ran.yaml")
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -967,6 +1006,7 @@ def _last_run_used(ws, res) -> None:
     h.fill = PatternFill("solid", fgColor=INK)
     h.alignment = Alignment(wrap_text=True, vertical="top")
     ws.column_dimensions[_col(col)].width = 26
+    ws.print_area = f"B1:{_col(col)}{ws.max_row}"          # on the page (the sixth walk, defect 6)
     by_q = dict(control.describe(_settings_of(res.config)))
     sug = getattr(res, "suggested", None) or {}
     rl = revenue_lines(res)
@@ -976,8 +1016,11 @@ def _last_run_used(ws, res) -> None:
         if s is None:
             continue
         words = by_q.get(s.question)
+        fb = getattr(res, "suggest_fallback", set())
         if key == "revenue_line" and rl:
-            words = f"{rl[1]:.2f}x and {rl[0]:.2f}x"
+            words = "each pocket's own luck range" if per_pocket(res) else f"{rl[1]:.2f}x and {rl[0]:.2f}x"
+        elif key in fb:
+            words = f"{words} (the usual value: nothing in this book to work it out from)"
         elif key in sug:
             words = f"{words} (worked out from this book)"
         c = ws.cell(row=row[0].row, column=col, value=words)
@@ -1005,7 +1048,8 @@ def _plain_warning(w: str) -> str:
             .replace("`", '"'))
 
 
-def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Pockets", note_of=None) -> None:
+def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Pockets", note_of=None,
+            after: str = "") -> None:
     """Every pocket losing more than its share, largest first. The Three-way tab
     is the same list over the three-way pockets, with what each grid holds fixed
     beside every row, and the grids that hold it fixed first (`note_of` gives the
@@ -1018,7 +1062,7 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
                       f"flag compares each pocket with {judged}. Red: worse. Amber: worse, but could be "
                       f"luck. \"Luck alone\" is how often a gap this big turns up with no real "
                       f"difference behind it, after the allowance for testing many pockets within each grid "
-                      f"(see Check).", "B:R")
+                      f"(see Check).{after}", "B:S" if note_of else "B:R")
     heads = ["Measure", "Band column", "Band", "Segment column", "Segment", "Loans", "Rate", "Book rate", "Excess",
              "Excess is in", "Material", "Vs rest of book", "Luck alone", "Vs rest of band", "Luck alone",
              f"Flag (vs {judged})", "Smallest gap it could show"] + (
@@ -1066,6 +1110,7 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
         ws.column_dimensions[col].width = w
     if note_of:
         ws.column_dimensions["S"].width = 30
+        ws.row_dimensions[2].height = 58
         for row in ws.iter_rows(min_row=5, min_col=19, max_col=19):
             row[0].alignment = Alignment(wrap_text=True, vertical="top")
     ws.freeze_panes = "B5"
@@ -1104,14 +1149,15 @@ def revenue_lines(res) -> tuple[float, float, str] | None:
     if rl is None or rl == "losses":
         return 1 / b.worse_at, 1 / b.better_at, "the same lines as for losses"
     if rl == "luck":
-        g = luck_gap(res, "ranr_rate", b.min_units)
-        if g is None:
-            return 1 / b.worse_at, 1 / b.better_at, "the same lines as for losses (no pocket was big enough to " \
-                                                    "work out what luck can do)"
-        return 1 / g, g, (f"what luck alone can move it: in a pocket of typical size, luck alone moves revenue "
-                          f"up to {g:.2f}x at {b.confidence:.0%} sure. It's worked out from this run's pockets, so "
-                          f"it moves a little when the bands or segments change")
+        # each pocket's own: past what luck alone can move THAT pocket, by its own test (the firm, 25 Sep
+        # 2026, after the sixth walk: one number for every pocket let a 176-loan pocket cross on noise)
+        return 1.0, 1.0, f"past what luck alone can move that pocket (its own test, at {b.confidence:.0%} sure)"
     return 1 - rl, 1 + rl, f"{rl:.0%} either way"
+
+
+def per_pocket(res) -> bool:
+    b = res.config.benchmark
+    return bool(b and b.revenue_line == "luck")
 
 
 def luck_gap(res, mname: str, floor: float) -> float | None:
@@ -1165,15 +1211,17 @@ def _losses_vs_revenue(ws, res) -> None:
     peers = b.compare_to == "peers"
     judged = "the rest of its band" if peers else "the rest of the book"
     rlo, rhi, rwhy = revenue_lines(res)
+    own = per_pocket(res)
+    rev_words = (f"Revenue counts as more or less only when it's {rwhy}." if own else
+                 f"Revenue counts as more at {rhi:.2f}x or above and less at {rlo:.2f}x or below ({rwhy}).")
     _title(ws, "Losses vs revenue", f"Each pocket's GCO and RANR against {judged}; the dollars are against it too. "
                                     f"GCO counts as more at {b.worse_at:.2f}x or above and less at "
-                                    f"{b.better_at:.2f}x or below. Revenue counts as more at {rhi:.2f}x or above and "
-                                    f"less at {rlo:.2f}x or below: {rwhy}. Both are set on Control. When a pocket's own test "
-                                    f"says a gap could be luck, its box says so. RANR already "
-                                    f"includes credit losses, so a pocket earning more is earning more after its "
-                                    f"losses, and nothing is netted.", "B:L")
+                                    f"{b.better_at:.2f}x or below. {rev_words} Both are set on Control. A side past "
+                                    f"its line that its own test says could be luck is marked, and the row isn't "
+                                    f"shaded. RANR already includes credit losses, so a pocket earning more is "
+                                    f"earning more after its losses, and nothing is netted.", "B:L")
     ws.row_dimensions[2].height = 44
-    heads = ["Band", "Segment", "Loans", "GCO vs comparison", "GCO flag", "RANR vs comparison", "RANR flag",
+    heads = ["Band", "Segment", "Loans", "GCO vs comparison", "GCO flag", "RANR vs comparison", "RANR reading",
              "Which box", "GCO over its comparison ($)", "RANR short of its comparison ($)"]
     floor = b.min_units
     # the charts' own numbers (the Control lines, the named pockets) live on a hidden sheet:
@@ -1195,27 +1243,35 @@ def _losses_vs_revenue(ws, res) -> None:
             # luck keeps its box and says so (the firm, 25 Sep 2026, after the fifth walk found a luck
             # gate made the lines decide nothing)
             real = lambda p: p is not None and p < 1 - b.confidence      # noqa: E731
+            gp, rp = (gs.p_band, rs.p_band) if peers else (gs.p_book, rs.p_book)
             gside = _side(gidx, b.better_at, b.worse_at)
-            rside = _side(ridx, rlo, rhi)
-            maybe = [w for w, side, p in (("loss", gside, gs.p_band if peers else gs.p_book),
-                                          ("revenue", rside, rs.p_band if peers else rs.p_book))
+            # the suggested revenue option is each pocket's own luck range: a side only moves when its test
+            # says so, and there's nothing left to mark
+            rside = (_side(ridx, rlo, rhi) if real(rp) else "same") if own else _side(ridx, rlo, rhi)
+            maybe = [w for w, side, p in (("loss", gside, gp), ("revenue", rside, rp))
                      if side != "same" and not real(p)]
             gflag = gs.reading_band if peers else gs.reading_topline
             rflag = rs.reading_band if peers else rs.reading_topline
+            # the RANR column reads against the same line as the box (the sixth walk, defect 4)
+            rread = rflag if rflag in (engine.THIN, engine.FEW) else (
+                {"more": "earning more", "less": "earning less", "same": "about the same"}[rside]
+                + (" (could be luck)" if "revenue" in maybe else ""))
             # untested on either side: no box and no colour (the fourth walk, defect 3)
             box = NOT_TESTED if {gflag, rflag} & {engine.THIN, engine.FEW} else box_of(gside, rside)
             if maybe and box != NOT_TESTED:
                 box += (" (both gaps could be luck)" if len(maybe) == 2 else f" ({maybe[0]} gap could be luck)")
             # dollars against the same comparison as the box and the flags (the fourth walk, defect 2)
             parent = g.cells[(bl, engine.ALL)] if peers else res.total
-            rows.append([bl, dl, gs.units, gidx, gflag or "", ridx, rflag or "", box,
+            rows.append([bl, dl, gs.units, gidx, gflag or "", ridx, rread or "", box,
                          _over(gs, parent.rates["gco_rate"]), -_over(rs, parent.rates["ranr_rate"])])
         rows.sort(key=lambda x: (x[7] == NOT_TESTED, -(x[8] or 0)))
         ws.cell(row=top, column=2, value=f"{names[g.band]} x {names[g.dimension]}").font = Font(
             name="Calibri", bold=True, size=12)
-        counts = {q: sum(1 for x in rows if x[7].split(" (")[0] == q) for q in BOXES + (NOT_TESTED,)}
+        counts = {q: sum(1 for x in rows if x[7] == q) for q in BOXES + (NOT_TESTED,)}
+        luck = sum(1 for x in rows if x[7].endswith("could be luck)"))
         cnt = ws.cell(row=top + 1, column=2, value="Pockets per box: " + "; ".join(
-            f"{q}: {k}" for q, k in counts.items() if k))
+            f"{q}: {k}" for q, k in counts.items() if k) + (f". Marked could be luck, not counted above: {luck}"
+                                                            if luck else ""))
         cnt.font = Font(name="Calibri", size=9, color=SLATE)
         cnt.alignment = Alignment(wrap_text=True, vertical="top")
         ws.merge_cells(start_row=top + 1, start_column=2, end_row=top + 1, end_column=11)
@@ -1228,8 +1284,9 @@ def _losses_vs_revenue(ws, res) -> None:
                 ws.cell(row=r, column=i, value=v)
             for col, fmt in ((5, '0.00"x"'), (7, '0.00"x"'), (10, "#,##0"), (11, "#,##0")):
                 ws.cell(row=r, column=col).number_format = fmt
-            base = row[7].split(" (")[0]
-            fill = BOX_FILL.get(BOXES.index(base)) if base in BOXES else None
+            # a luck-marked box isn't shaded like a finding (the sixth walk, defect 2)
+            fill = BOX_FILL.get(BOXES.index(row[7])) if row[7] in BOXES else None
+            ws.cell(row=r, column=9).alignment = Alignment(wrap_text=True, vertical="top")
             if fill:
                 for col in range(2, 12):
                     ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=fill)
@@ -1238,17 +1295,17 @@ def _losses_vs_revenue(ws, res) -> None:
             ws.cell(row=r, column=2, value="No pocket has enough loans to place.")
             r += 1
         if any(x[7] != NOT_TESTED for x in rows):
-            _revenue_chart(ws, hs, rows, top + 2, r - 1, f"{names[g.band]} x {names[g.dimension]}", b, rlo, rhi,
-                           1 + gi * 3, top)
+            _revenue_chart(ws, hs, rows, top + 2, r - 1, f"{names[g.band]} x {names[g.dimension]}", b,
+                           None if own else rlo, None if own else rhi, 1 + gi * 3, top)
         top = max(r, top + 24) + 2
-    for col, w in zip("ABCDEFGHIJKL", (2, 22, 26, 8, 11, 22, 11, 22, 30, 16, 16, 2)):
+    for col, w in zip("ABCDEFGHIJKL", (2, 22, 26, 8, 11, 22, 11, 22, 44, 16, 16, 2)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "B4"
     _fit(ws)
 
 
-def _revenue_chart(ws, hs, rows, first: int, last: int, title: str, b, rlo: float, rhi: float, hcol: int,
-                   anchor_row: int) -> None:
+def _revenue_chart(ws, hs, rows, first: int, last: int, title: str, b, rlo: float | None, rhi: float | None,
+                   hcol: int, anchor_row: int) -> None:
     """One chart per grid (the third walk, defect 11: one chart for every grid
     counted the same loans six times). GCO on a scale of tens, so one pocket at
     8x doesn't squash the rest and 1.00x sits on a tick; the four lines from
@@ -1272,12 +1329,13 @@ def _revenue_chart(ws, hs, rows, first: int, last: int, title: str, b, rlo: floa
     x_lo = 10 ** math.floor(math.log10(min(xs + [b.better_at])))
     x_hi = 10 ** math.ceil(math.log10(max(xs + [b.worse_at])))
     # whole tenths, so 1.00x is a tick (the fourth walk, defect 7)
-    y_lo = math.floor((min(ys + [rlo]) - 0.02) * 10) / 10
-    y_hi = math.ceil((max(ys + [rhi]) + 0.02) * 10) / 10
+    y_lo = math.floor((min(ys + ([rlo] if rlo else [1.0])) - 0.02) * 10) / 10
+    y_hi = math.ceil((max(ys + ([rhi] if rhi else [1.0])) + 0.02) * 10) / 10
     # the four lines, in hidden helper columns: x, y pairs
     r = 1
-    lines = [((b.worse_at, y_lo), (b.worse_at, y_hi)), ((b.better_at, y_lo), (b.better_at, y_hi)),
-             ((x_lo, rhi), (x_hi, rhi)), ((x_lo, rlo), (x_hi, rlo))]
+    lines = [((b.worse_at, y_lo), (b.worse_at, y_hi)), ((b.better_at, y_lo), (b.better_at, y_hi))]
+    if rlo and rhi:
+        lines += [((x_lo, rhi), (x_hi, rhi)), ((x_lo, rlo), (x_hi, rlo))]
     for (x1, y1), (x2, y2) in lines:
         for k, (xv, yv) in enumerate(((x1, y1), (x2, y2))):
             hs.cell(row=r + k, column=hcol, value=xv)
@@ -1486,8 +1544,7 @@ def _holds_fixed(res, g) -> tuple[str, float]:
         words.append(f"This grid holds {f} fixed ({field_}'s correlation with it: {r:+.2f}).")
     if loose:
         f, r = max(loose.items(), key=lambda t: abs(t[1]))
-        words.append(f"It doesn't hold {f} fixed. {field_}'s correlation with {f} is {r:+.2f}: 0 means "
-                     f"unrelated, and the further from 0, the more of this gap may be {f}.")
+        words.append(f"It doesn't hold {f} fixed ({field_}'s correlation with it: {r:+.2f}).")
         return " ".join(words), abs(r)
     return " ".join(words) or "", 0.0
 
@@ -1520,17 +1577,22 @@ def _split_tab(ws, res) -> None:
         ("High half vs low", "The high half's rate divided by the low half's. 2.00x means the high half goes bad, "
                              "or loses, twice as often. For RANR, above 1.00x means the high half earns more."),
         ("Luck alone", f"How often a gap this big turns up by chance when there's no real difference. The test "
-                       f"weighs the gap against how much each half's rate wobbles at its size. The figures are "
-                       f"after the allowance for many tests ({allowance}), taken across the pockets of one grid "
-                       f"and one measure. Blank: a half has fewer loans or losses than the minimums on Control "
+                       f"weighs the gap against how much each half's rate wobbles at its size. The pocket figures "
+                       f"(the heat maps) are after the allowance for many tests ({allowance}), across the pockets "
+                       f"of one grid and one measure; a pocket whose gap could be luck shows its multiple in "
+                       f"brackets, unshaded. The summary's figure is one pooled test per grid and measure, with "
+                       f"no allowance. Blank: a half has fewer loans or losses than the minimums on Control "
                        f"({b.min_units if b else 0:,} loans, {b.min_events if b else 0:,} losses)."),
         ("Pooled across pockets", f"The high halves' actual total against what it would be at their low halves' "
                                   f"rates, added over every pocket, with its range at {conf:.0%} sure. For the "
-                                  f"yes/no outcome the odds are pooled too (Mantel-Haenszel), and Cochran's Q checks "
-                                  f"whether the gap is about the same size in every pocket."),
+                                  f"yes/no outcome only, the odds are pooled too (Mantel-Haenszel: a standard way to "
+                                  f"combine pockets without mixing their loans), and Cochran's Q checks whether the "
+                                  f"gap is about the same size in every pocket."),
         ("What it assumes", f"A grid holds fixed only its band and segment. Anything {field_} moves with that the "
                             f"grid doesn't hold fixed can show up here as a {field_} effect, so each grid gives the "
                             f"correlation, and grids that hold fixed what {field_} moves with most come first. "
+                            f"A correlation runs from -1 to 1: 0 means unrelated, and the further from 0, the "
+                            f"more of a gap may belong to the other column. "
                             f"Inside a band the score still varies a little, so a little can remain even there. "
                             f"Loans are treated as independent of each other."),
     ]
@@ -1577,7 +1639,8 @@ def _split_tab(ws, res) -> None:
                     f"{p['high_worse']} of {p['pockets']}" if p.get("pockets") else "none big enough",
                     p.get("ratio"), (f"{p['ratio_lo']:.2f}x to {p['ratio_hi']:.2f}x" if p.get("ratio_hi") else ""),
                     p.get("ratio_p"), p.get("odds"),
-                    "" if steady is None else ("yes" if steady >= 1 - conf else "no: bigger in some pockets")]
+                    ("yes/no outcome only" if steady is None else
+                     "yes" if steady >= 1 - conf else "no: bigger in some pockets")]
             for i, v in enumerate(vals, start=2):
                 ws.cell(row=rr, column=i, value=v).alignment = Alignment(horizontal="left" if i == 2 else "center")
             ws.cell(row=rr, column=5).number_format = '0.00"x"'
@@ -1590,7 +1653,14 @@ def _split_tab(ws, res) -> None:
                 got = g.split_compare.get((bl, d), {}).get(m.name)
                 return got[k] if got else None
 
-            _block(ws, r, 2, m.title, g.band_labels, g.dim_labels, lambda bl, d: cmp_(bl, d, 0),
+            def shown(bl, d, m=m, g=g):
+                # a gap that could be luck: in brackets and unshaded (the sixth walk, defect 9)
+                got = g.split_compare.get((bl, d), {}).get(m.name)
+                if not got or got[0] is None:
+                    return None
+                return got[0] if got[1] is not None and got[1] < 1 - conf else f"({got[0]:.2f}x)"
+
+            _block(ws, r, 2, m.title, g.band_labels, g.dim_labels, shown,
                    '0.00"x"', m)
             _block(ws, r, 2 + width, "Luck alone", g.band_labels, g.dim_labels, lambda bl, d: cmp_(bl, d, 1),
                    P_FMT)
@@ -1735,14 +1805,16 @@ def _check(ws, res, src: Path, record: str = "") -> None:
         if fb:
             words.append("where nothing could be worked out (no rate, or no pocket big enough), the usual value "
                          "was used instead: " + ", ".join(sorted(fb)))
-        rows.append(("Worked out from this book" if len(fb) < len(sug) else "Suggested values", "; ".join(words)))
+        rows.append(("Worked out from this book" if not fb else "Suggested values", "; ".join(words)))
     b = res.config.benchmark
     if b is not None and b.many_tests != "none":
         rows.append(("The allowance for many tests covers",
                      "each grid and measure on its own, one comparison at a time (the firm's call, 25 Sep 2026)"))
     rl = revenue_lines(res)
-    if rl:
-        rows.append(("Revenue counts as more or less at", f"{rl[1]:.2f}x and {rl[0]:.2f}x: {rl[2]}"))
+    if rl and per_pocket(res):
+        rows.append(("Revenue counts as more or less", f"when it's {rl[2]}"))
+    elif rl:
+        rows.append(("Revenue counts as more or less at", f"{rl[1]:.2f}x and {rl[0]:.2f}x ({rl[2]})"))
     for q, words in control.describe(_settings_of(res.config)):
         rows.append((q, words))
     for w in res.warnings:
