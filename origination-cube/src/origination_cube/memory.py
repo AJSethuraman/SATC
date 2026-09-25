@@ -115,9 +115,14 @@ def rows(mem: dict[str, Any]) -> list[dict]:
         out.append({"kind": "column", "id": col, "column": col, "learned": what, "first": e.get("first"),
                     "last": e.get("last"), "times": e.get("times", 1)})
     for key, e in sorted(mem["answers"].items()):
-        v = "" if e.get("value") is None else f" {e['value']:g}" if isinstance(e["value"], float) else f" {e['value']}"
+        v = e.get("value")
+        v = f"{v:g}" if isinstance(v, float) else str(v)
+        if e.get("pattern") == "negatives":
+            said = "negative values are real" if e.get("answer") == "real" else "negative values mean missing"
+        else:
+            said = f"{v} is a real value" if e.get("answer") == "real" else f"{v} means missing"
         out.append({"kind": "answer", "id": key, "column": e.get("column"),
-                    "learned": f"{e.get('pattern')}{v} is {e.get('answer')}", "first": e.get("first"),
+                    "learned": said, "first": e.get("first"),
                     "last": e.get("last"), "times": e.get("times", 1)})
     return out
 

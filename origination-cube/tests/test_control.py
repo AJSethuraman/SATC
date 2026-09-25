@@ -70,6 +70,7 @@ def test_unanswered_cells_are_shaded_by_a_rule_not_labelled(book):
     r = _row(ws, "materiality")
     ranges = [str(rng.sqref) for rng in ws.conditional_formatting]
     assert f"C{r}:D{r}" in ranges
+    assert "re-run" not in text and "live" not in text.split()   # results are worked out on Run, not live
 
 
 def test_method_settings_open_on_their_recommendation(book):
@@ -124,7 +125,7 @@ def test_a_setting_missing_from_the_tab_is_refused(book):
     ws = wb[control.SHEET]
     ws.cell(row=_row(ws, "many_tests"), column=control.KEY_COL).value = None
     wb.save(book)
-    with pytest.raises(control.ControlError, match="`many_tests` is not on the Control tab"):
+    with pytest.raises(control.ControlError, match="missing the setting \"Allowing for testing many pockets"):
         control.read_control(book)
 
 
@@ -156,7 +157,7 @@ def test_the_tab_checks_typed_values_itself(book):
     dvs = [dv for dv in ws.data_validations.dataValidation if f"D{r}" in str(dv.sqref)]
     assert dvs and dvs[0].type == "decimal" and dvs[0].showErrorMessage
     assert "IFERROR" in ws.cell(row=r, column=5).value and "IFERROR" in ws.cell(row=r, column=6).value
-    assert ws.column_dimensions["H"].hidden
+    assert ws.column_dimensions["G"].hidden
 
 
 def test_read_back_is_in_words(book):
@@ -164,3 +165,15 @@ def test_read_back_is_in_words(book):
     words = dict(control.describe(control.read_control(book)))
     assert words["Allowing for testing many pockets at once"].startswith("Hold down the share")
     assert "bh" not in words.values()
+
+
+def test_the_lookups_read_the_key_column_wherever_it_is(book):
+    """Found by rendering, 25 Sep 2026: after a column was removed, the key
+    column moved from H to G and every lookup still read H, so every "In use"
+    cell said "not an option". The tests never evaluate formulas, so this
+    checks the reference instead."""
+    from openpyxl.utils import get_column_letter
+    ws = load_workbook(book)[control.SHEET]
+    r = _row(ws, "confidence")
+    key = f"${get_column_letter(control.KEY_COL)}{r}"
+    assert key in ws.cell(row=r, column=5).value and key in ws.cell(row=r, column=6).value

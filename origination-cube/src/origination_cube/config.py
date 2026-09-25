@@ -133,6 +133,12 @@ class Measure:
         median, so it is labelled rather than put through the tie-out."""
         return self.mode != "median"
 
+    @property
+    def title(self) -> str:
+        """The measure as a person names it, on every screen a person reads."""
+        return {"outcome_loans": "Outcome, share of loans", "outcome_booked": "Outcome, share of booked dollars",
+                "gco_rate": "GCO per booked dollar", "ranr_rate": "RANR per booked dollar"}.get(self.name, self.name)
+
     def columns(self) -> tuple[str, ...]:
         return tuple(c for c in (self.value, self.flag, self.per) if c and c != EACH_LOAN)
 

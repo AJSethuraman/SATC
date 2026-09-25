@@ -225,3 +225,10 @@ def test_a_missing_key_is_refused_and_repeats_are_reported(book):
     book.append(dict(book[0]))
     res = engine.run(cube(), table(book))
     assert any("`ID` repeats: 1 value(s)" in w for w in res.warnings)
+
+
+def test_edges_that_would_print_alike_keep_their_precision():
+    """Rounded labels must never merge two bands into one pocket."""
+    labels = engine.band_labels((99.95, 100.2))
+    assert len(set(labels)) == 3
+    assert engine.band_labels((26803.1, 38548.6)) == ["under 26,803", "26,803 to under 38,549", "38,549 and over"]

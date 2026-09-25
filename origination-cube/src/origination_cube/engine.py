@@ -106,6 +106,9 @@ def classify_text(raw: Any, rule: MissingRule | None) -> str:
 
 def band_labels(edges: tuple[float, ...]) -> list[str]:
     e = [_fmt(x) for x in edges]
+    if len(set(e)) < len(e):
+        # two edges would print alike and their bands would merge under one label: keep the precision
+        e = [f"{float(x):,.6g}" for x in edges]
     out = [f"under {e[0]}"]
     out += [f"{a} to under {b}" for a, b in zip(e, e[1:])]
     out.append(f"{e[-1]} and over")
@@ -120,7 +123,15 @@ def band_of(v: float, edges: tuple[float, ...], labels: list[str]) -> str:
 
 
 def _fmt(x: float) -> str:
-    return str(int(x)) if float(x).is_integer() else f"{x:g}"
+    """A band edge as a person reads it: 26,803 not 26803.1; 0.35 stays 0.35.
+    Edges are cut points, so rounding the label never moves a loan: the edge
+    itself is kept at full precision and printed on the Check tab."""
+    x = float(x)
+    if abs(x) >= 1000:
+        return f"{x:,.0f}"
+    if abs(x) >= 100 or x.is_integer():
+        return f"{x:.0f}" if abs(x - round(x)) < 0.05 or abs(x) >= 100 else f"{x:g}"
+    return f"{x:.3g}"
 
 
 def _quantile(sorted_vals: list[float], q: float) -> float:

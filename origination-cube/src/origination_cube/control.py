@@ -40,14 +40,14 @@ SHEET = "Control"
 OPTIONS_SHEET = "_options"
 RECOMMENDED = " (recommended)"
 FIRST_ROW = 5
-KEY_COL, CHOOSE_COL, OWN_COL = 8, 3, 4            # H, C, D
+KEY_COL, CHOOSE_COL, OWN_COL = 7, 3, 4            # G, C, D
 NEEDS = "FCE4C4"          # the shade on a cell that still needs an answer
 INSTRUCTIONS = (
     "Fill in the shaded cells before running. Those are the calls we make on every job: "
     "what's material, how many loans is enough to matter, and how much worse than its peers a pocket has to be. "
     "Everything else starts on a reasonable setting, so change it only if the population calls for it. "
     "Pick from the list, or type your own number in the next column and that wins. "
-    "If a row says re-run, run the script again after changing it."
+    "Change anything here and press Run again: the results are worked out when you run, not in the cells."
 )
 
 INK, CANVAS, MIST, SLATE, PAPER, KEY_RED = "16130F", "F4F1EC", "E4DFD5", "57534B", "FFFFFF", "CC0000"
@@ -117,16 +117,16 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
 
     thin = Side(style="thin", color=MIST)
     ws.sheet_view.showGridLines = False
-    widths = {"A": 2, "B": 34, "C": 44, "D": 19, "E": 22, "F": 62, "G": 13, "H": 12}
+    widths = {"A": 2, "B": 34, "C": 44, "D": 19, "E": 22, "F": 70, "G": 12}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
-    ws.merge_cells("B1:G1")
+    ws.merge_cells("B1:F1")
     ws["B1"] = "Control center"
     ws["B1"].font = Font(name="Arial", bold=True, size=16, color=PAPER)
-    for c in "BCDEFG":
+    for c in "BCDEF":
         ws[f"{c}1"].fill = PatternFill("solid", fgColor=INK)
     ws.row_dimensions[1].height = 28
-    ws.merge_cells("B2:G2")
+    ws.merge_cells("B2:F2")
     ws["B2"] = INSTRUCTIONS
     ws["B2"].alignment = Alignment(wrap_text=True, vertical="top")
     ws["B2"].font = Font(name="Calibri", size=10, color=SLATE)
@@ -134,7 +134,7 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
     ws["B3"] = "Shaded = still needs an answer"
     ws["B3"].fill = PatternFill("solid", fgColor=NEEDS)
     ws["B3"].font = Font(name="Calibri", size=9, color=INK)
-    heads = ["Setting", "Choose", "Or enter your own", "In use", "What it means", "Takes effect", "key"]
+    heads = ["Setting", "Choose", "Or enter your own", "In use", "What it means", "key"]
     for i, h in enumerate(heads):
         c = ws.cell(row=4, column=2 + i, value=h)
         c.font = Font(name="Calibri", bold=True, color=PAPER)
@@ -147,7 +147,7 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         if s.group != group:
             group = s.group
             ws.cell(row=r, column=2, value=group).font = Font(name="Calibri", bold=True, color=INK)
-            for col in range(2, 9):
+            for col in range(2, 7):
                 ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=CANVAS)
             r += 1
         first, last = ranges[s.key]
@@ -174,7 +174,8 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
             own.value = "n/a"
             own.font = Font(name="Calibri", italic=True, color=SLATE)
             own.fill = PatternFill("solid", fgColor=MIST)
-        C, D, H = f"C{r}", f"D{r}", f"$H{r}"
+        from openpyxl.utils import get_column_letter
+        C, D, H = f"C{r}", f"D{r}", f"${get_column_letter(KEY_COL)}{r}"   # H: the key column, wherever it is
         # shaded while unanswered, on any row: a method setting someone clears needs an answer too.
         # A row with no own-value cell shades only its dropdown (the grey n/a cell is not an answer).
         ws.conditional_formatting.add(
@@ -190,10 +191,9 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
                                         f'Pick one, or enter your own.",'
                                         f'IFERROR(INDEX({OPTIONS_SHEET}!$E:$E,{lookup}),"That isn\'t one of the '
                                         f'options. Pick from the list, or put your number in the next column.")))'))
-        ws.cell(row=r, column=7, value=s.takes_effect)
         k = ws.cell(row=r, column=KEY_COL, value=s.key)
         k.font = Font(name="Consolas", size=8, color=SLATE)
-        for col in range(2, 9):
+        for col in range(2, 8):
             cell = ws.cell(row=r, column=col)
             cell.border = Border(bottom=thin)
             cell.alignment = Alignment(wrap_text=True, vertical="top")
@@ -201,8 +201,8 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
                 cell.font = Font(name="Calibri", size=10, color=INK)
         ws.cell(row=r, column=5).font = Font(name="Calibri", bold=True, color=INK)
         r += 1
-    ws.column_dimensions["H"].hidden = True
-    ws.print_area = f"B1:G{r - 1}"
+    ws.column_dimensions["G"].hidden = True
+    ws.print_area = f"B1:F{r - 1}"
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
@@ -241,28 +241,28 @@ def read_control(path: str | Path, settings: list[Setting] | None = None) -> dic
         where = f"{SHEET}!C{row[0].row}"
         if own not in (None, "", "n/a"):
             if s.override is None:
-                problems.append(f"{where}: `{s.question}` takes one of the listed options only")
+                problems.append(f'{where}: "{s.question}" takes one of the listed options only.')
             elif not isinstance(own, (int, float)) or isinstance(own, bool):
-                problems.append(f"{SHEET}!D{row[0].row}: `{s.question}` needs {s.override}; got {own!r}")
+                problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {s.override}; got {own!r}.')
             elif s.valid and not (s.valid["min"] <= own <= s.valid["max"]) or \
                     (s.valid and s.valid.get("whole") and not float(own).is_integer()):
                 v = s.valid
-                problems.append(f"{SHEET}!D{row[0].row}: `{s.question}` needs {s.override}, from {v['min']:g} to "
-                                f"{v['max']:g}; got {own!r}")
+                problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {s.override}, from {v["min"]:g} to '
+                                f'{v["max"]:g}; got {own!r}.')
             else:
                 found[key] = int(own) if (s.valid or {}).get("whole") else own
             continue
         if chosen in (None, ""):
-            problems.append(f"{where}: `{s.question}` needs an answer. Pick one, or enter your own in column D")
+            problems.append(f'{where}: "{s.question}" needs an answer. Pick one, or enter your own in column D.')
             continue
         match = [o for o in s.options if o.shown == str(chosen).strip()]
         if not match:
-            problems.append(f"{where}: {chosen!r} is not an option for `{s.question}`")
+            problems.append(f'{where}: {chosen!r} is not an option for "{s.question}".')
             continue
         found[key] = match[0].value
     for k in by_key:
         if k not in seen:
-            problems.append(f"setting `{k}` is not on the {SHEET} tab")
+            problems.append(f'The {SHEET} tab is missing the setting "{by_key[k].question}". Press Set up again.')
     if problems:
         raise ControlError(problems)
     return found
