@@ -106,8 +106,8 @@ groups:
           - value: 20
             label: "20 bands"
             explains: >-
-              Close to 20-point FICO bands on a typical book. Needs a big book, or
-              most pockets will be too small to test.
+              Narrow bands, each a twentieth of the book. Needs a big book, or most
+              pockets will be too small to test.
 
       - key: band_cut
         question: Where the band edges fall
@@ -117,10 +117,10 @@ groups:
           - value: equal_loans
             label: Each band holds about the same number of loans
             recommended: true
-            explains: Every band can be tested equally well. Edges land on odd numbers like 663.
+            explains: Every band can be tested equally well. Edges land on uneven numbers.
           - value: round
             label: The same, snapped to round numbers
-            explains: Edges like 650 and 700 that the LOB already uses. Bands hold uneven counts.
+            explains: Edges on round numbers, easier to quote. Bands hold uneven counts.
 
   - title: Is it enough loans to matter
     settings:
@@ -208,8 +208,8 @@ groups:
           - value: peers
             label: The rest of its band
             explains: >-
-              Broker under 620 against the rest of under 620. Both comparisons are
-              printed; this one decides the flag.
+              A pocket against the other segments in the same band. Both
+              comparisons are printed; this one decides the flag.
           - value: topline
             label: The rest of the book
             explains: >-

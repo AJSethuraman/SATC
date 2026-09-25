@@ -496,6 +496,20 @@ enough.
   "95%" as 0.95. The run already read that as the 95% option, but In use said
   "not an option". Found on the render, 25 Sep 2026.
 
+- **The engine knows no column, value or number by name.** The firm, 25 Sep
+  2026: *"it's confusing to me that you talk in terms of specific datapoints
+  because it worries me we are not working with a generic engine"*. It works from
+  a column's *meaning* (outcome, booked amount, GCO, RANR, a score, a category),
+  confirmed on Columns; everything else comes from the book or from Control.
+  That covers the bands and their edges, the segments, the split column and the
+  column it moves with, the lines and the floors. Every number quoted from a walk
+  comes from the one synthetic book. `tests/test_generic.py` runs the whole route
+  on another book (an auto book with other column names and a problem planted in
+  a dealer and a region) and checks that the workbook finds that problem and
+  carries nothing from the synthetic book. Writing that test found the one place
+  that did: Control's explanations used the synthetic book's pocket as their
+  example.
+
 ## Open
 
 - **(a) Real Excel.** Every tab has been seen through LibreOffice only. Still to

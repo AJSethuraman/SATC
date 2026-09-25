@@ -1492,6 +1492,12 @@ back.
       tests found that a negative RANR comparison flipped a pocket's reading; the
       multiple now keeps its direction. 193 tests; 64 re-inserted bugs. Status
       table in `docs/walkthrough/walk-2026-09-25-g/WALKTHROUGH-DEFECTS.md`.
+- [x] **Proof that the engine is generic** (the firm asked, worried by walk numbers
+      that all came from one test book). The whole route now runs on a second book
+      with other names, another product and a problem planted in a dealer and a
+      region; the workbook finds it and carries nothing from the first book. That
+      test found Control's explanations using the test book's pocket as their
+      example; they're generic now. 194 tests.
 - [ ] **Next:** the firm's two calls from walk 7, then an eighth walk on the new layout; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).

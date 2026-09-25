@@ -114,7 +114,7 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 193 tests: one per finding, every Control answer applied, the workbook route, the split, the launcher
+pytest -q                          # 194 tests: one per finding, every Control answer applied, the workbook route, the split, the launcher
 python tools/mutation_check.py     # puts 64 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
