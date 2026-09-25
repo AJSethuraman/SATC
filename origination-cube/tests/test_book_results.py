@@ -453,3 +453,15 @@ def test_the_planted_pocket_is_not_read_as_earning_more_on_noise(tmp_path):
     ws = load_workbook(b)["Losses vs revenue"]
     assert ws["B7"].value == "under 620" and ws["C7"].value == "Broker"
     assert ws["I7"].value == "Losing more, earning the same"
+
+
+def test_boxes_follow_the_lines_exactly():
+    """A side reads more or less only past its line; between the lines it's the
+    same. (The book-level test can pass by chance when no pocket sits between
+    1.00x and a line, which let 'boxes by 1.00x again' slip past the mutation
+    check in CI on 25 Sep 2026.)"""
+    assert book._side(1.10, 0.80, 1.25) == "same"
+    assert book._side(0.90, 0.80, 1.25) == "same"
+    assert book._side(1.25, 0.80, 1.25) == "more"
+    assert book._side(0.80, 0.80, 1.25) == "less"
+    assert book.box_of("more", "same") == "Losing more, earning the same"
