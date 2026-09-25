@@ -147,25 +147,27 @@ Each is built with a test. The full suite and the mutation check run after each.
 
 ## 4. Capabilities: scope each, do not build
 
+**Scoped 25 Sep 2026:** `docs/capabilities-scope.md`.
+
 For each: the data it needs, what it adds to the outputs, and roughly how much work.
 
-- [ ] **4a Scouting step.** Reuse the other agent's tree code where it fits. A random
+- [x] **4a Scouting step.** Reuse the other agent's tree code where it fits. A random
       forest trained on development vintages only, never the holdout. Permutation
       importance for the shortlist and partial dependence for the shape
       (`docs/statistics.md` B7). Candidate columns include derived ratios, fed in
       explicitly. Say what of the existing code was kept, changed or dropped, and why.
-- [ ] **4b Split with its own edges / K groups.** Instead of the per-pocket median, with
+- [x] **4b Split with its own edges / K groups.** Instead of the per-pocket median, with
       the K-group Mantel–Haenszel general-association and trend statistics (B3, B4),
       cross-checked against a stratified logistic regression (B5) to nine digits.
       Holdout: develop on one origination range, confirm on a later one, and report
       both. The pooled test answers "does this column matter"; the per-pocket floors
       only govern the per-pocket readings.
-- [ ] **4c Loss typing.** For bad loans: contribution ÷ GCO, and months to bad.
+- [x] **4c Loss typing.** For bad loans: contribution ÷ GCO, and months to bad.
       Fraud-shaped vs failure-shaped, reported per pocket as two outcomes.
-- [ ] **4d Hold-constant check.** When an affordability-at-approval column is present,
+- [x] **4d Hold-constant check.** When an affordability-at-approval column is present,
       run the split with and without it as a cut, and report whether the split's pooled
       effect survives.
-- [ ] **4e Concentration.** For a group on a split or derived column: flag rate,
+- [x] **4e Concentration.** For a group on a split or derived column: flag rate,
       capture of bad loans and of bad dollars, and lift, on the holdout (B6). No cost or
       benefit inputs.
 
