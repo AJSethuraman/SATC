@@ -16,18 +16,18 @@ ROUTE = """<figure class="route"><svg viewBox="0 0 1000 350" xmlns="http://www.w
 <text x="110" y="45" text-anchor="middle" font-weight="bold">Steps 1-3 · Window</text><text x="110" y="66" text-anchor="middle">Browse... the extract</text><text x="110" y="86" text-anchor="middle">1. Set up from this extract</text>
 <rect x="270" y="20" width="440" height="90" rx="8" fill="#fce4c4" stroke="#a86"/>
 <text x="490" y="45" text-anchor="middle" font-weight="bold">Steps 4-10 · Workbook in Excel</text>
-<text x="490" y="66" text-anchor="middle">Start here → Control (8 shaded calls)</text><text x="490" y="86" text-anchor="middle">→ Columns (C3 = Yes) → Odd values (real / missing)</text>
+<text x="490" y="66" text-anchor="middle">Start here → Control (9 shaded calls, revenue line new)</text><text x="490" y="86" text-anchor="middle">→ Columns (C3 = Yes) → Odd values (real / missing)</text>
 <rect x="770" y="20" width="220" height="90" rx="8" fill="#eef1f5" stroke="#667"/>
 <text x="880" y="45" text-anchor="middle" font-weight="bold">Step 11 · Window</text><text x="880" y="66" text-anchor="middle">save, close Excel,</text><text x="880" y="86" text-anchor="middle">2. Run the cube</text>
 <line x1="210" y1="65" x2="268" y2="65" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <line x1="710" y1="65" x2="768" y2="65" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <rect x="520" y="190" width="470" height="110" rx="8" fill="#e6f2e6" stroke="#686"/>
 <text x="755" y="215" text-anchor="middle" font-weight="bold">Steps 12-17 · Results in the same workbook</text>
-<text x="755" y="236" text-anchor="middle">Where it bleeds → Losses vs revenue → Grids</text><text x="755" y="256" text-anchor="middle">→ Materiality → Check → Log</text><text x="755" y="280" text-anchor="middle" font-size="11">planted pocket: FICO under 654 (or 620) / Broker, first</text>
+<text x="755" y="236" text-anchor="middle">Where it bleeds → Losses vs revenue (9 boxes) → Grids</text><text x="755" y="256" text-anchor="middle">→ Materiality → Check → Log</text><text x="755" y="280" text-anchor="middle" font-size="11">planted pocket: FICO under 654 / Broker, first; "Losing more, earning the same"</text>
 <line x1="880" y1="110" x2="880" y2="188" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <rect x="10" y="190" width="440" height="110" rx="8" fill="#eef1f5" stroke="#667"/>
 <text x="230" y="215" text-anchor="middle" font-weight="bold">Steps 18-23 · Change and go again</text>
-<text x="230" y="236" text-anchor="middle">Split (REV_DEBT, then ASSET_CLASS) · Show per pocket</text><text x="230" y="256" text-anchor="middle">own band edges · Set up again (all kept)</text><text x="230" y="276" text-anchor="middle">Forget on Learned</text>
+<text x="230" y="236" text-anchor="middle">Split + Three-way (REV_DEBT, then ASSET_CLASS)</text><text x="230" y="256" text-anchor="middle">Show per pocket · own band edges · Set up again</text><text x="230" y="276" text-anchor="middle">Forget on Learned (holds until C3 is Yes)</text>
 <line x1="518" y1="245" x2="452" y2="245" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M230,190 C230,150 150,140 110,112" fill="none" stroke="#999" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#a)"/>
 <text x="120" y="160" font-size="11" fill="#666">Columns, then Run again</text>
