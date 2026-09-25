@@ -359,7 +359,7 @@ def test_a_band_width_too_narrow_is_refused(tmp_path):
     b = _ready(tmp_path, n=2000)
     _set(b, "FICO", book.C_EDGES, "every 1")
     ran = book.run(b)
-    assert not ran.ok and any("50 at most" in x for x in ran.lines)
+    assert not ran.ok and any("Columns!F7" in x and "50 bands or fewer" in x for x in ran.lines)
 
 
 def test_suggested_answers_are_worked_out_from_the_book(tmp_path):
