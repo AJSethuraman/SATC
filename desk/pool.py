@@ -118,6 +118,10 @@ class Held:
     #: never an input to matching -- see `scope_of` for why the firm chose
     #: marking over demoting.
     scoped: str = ""
+    #: `dec-reach`. The phrasings this passage's SOURCE declares it answers to,
+    #: carried across from `record.Source.asked_as`. Read by `look` to ADD a
+    #: passage and a bonus, never to remove or demote one.
+    asked_as: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -137,6 +141,12 @@ class Found:
     #: caller reads as having scored, and its score is right there next to it
     #: looking like the reason it is in the list. This says it is not.
     paired_with: str = ""
+    #: `dec-reach`: the SOURCE'S declared phrasings this question satisfied,
+    #: or `()` when the hit rests on the passage's own words alone. Kept for the
+    #: same reason `matched` is -- a reader who wants to argue with a hit needs
+    #: to see WHY it is here, and "the source says it answers to these words" is
+    #: a different claim from "these words are in the text".
+    reached_by: tuple[str, ...] = ()
 
 
 #: Punctuation a word may legitimately carry INSIDE it and never at its close.
@@ -318,6 +328,7 @@ def assemble(corpus: Path) -> tuple[Held, ...]:
                 read_from=folder.name,
                 positions=tuple(by_citation.get(passage.citation, ())),
                 scoped=scope_of(passage.text),
+                asked_as=tuple(getattr(source, "asked_as", ())) if source else (),
             ))
             seen.add(passage.citation)
         # A citation the firm took a position on but whose text is not stored --
@@ -404,6 +415,22 @@ def unseen(question: str, known: _Stats) -> tuple[str, ...]:
                  if w not in known.idf)
 
 
+def _reached_by(question_terms: set, entry: Held) -> tuple[str, ...]:
+    """The declared phrasings this question satisfies, in full.
+
+    EVERY WORD OF THE PHRASE MUST BE IN THE QUESTION. A phrase matching on one
+    of its words would fire `capitalisation threshold` on any question saying
+    `threshold`, which is the 1099 hit `dec-reach` exists to stop rather than to
+    reproduce from the other side.
+    """
+    out = []
+    for phrase in entry.asked_as:
+        need = set(terms(phrase))
+        if need and need <= question_terms:
+            out.append(phrase)
+    return tuple(out)
+
+
 def look(question: str, pool: tuple[Held, ...], *, limit: int = 8,
          known: "_Stats | None" = None) -> tuple[Found, ...]:
     """What in the pool speaks to this question. Possibly nothing.
@@ -427,17 +454,37 @@ def look(question: str, pool: tuple[Held, ...], *, limit: int = 8,
         if not words:
             continue
         present = asked & set(words)
-        if not present:
+        # `dec-reach`: a passage whose SOURCE declares this phrasing is admitted
+        # even where the question's own words reach none of its text. That is
+        # the whole point -- 1.263(a)-1(f) never says "capitalisation", and the
+        # firm asks for it by that word.
+        reached = _reached_by(asked, entry)
+        if not present and not reached:
             continue
         norm = K1 * (1 - B + B * len(words) / corpus.avg_len)
         score = 0.0
         for word in present:
             tf = words.count(word)
             score += corpus.idf.get(word, 0.0) * tf * (K1 + 1) / (tf + norm)
+        # THE BONUS IS ADDED AND NOTHING IS EVER SUBTRACTED. That is what makes
+        # "widen, never narrow" a property of the arithmetic rather than a
+        # promise: every passage scores at least what it scored before, so a
+        # passage the pool returned before `dec-reach` is still returned after.
+        #
+        # ITS SIZE IS NOT CHOSEN BY TASTE. Each phrase term is scored exactly as
+        # a word occurring ONCE in this passage would be -- same idf, same K1,
+        # same length normalisation. So a declared phrasing is worth what its
+        # own words are worth in this corpus, and a phrase of common words earns
+        # little while a phrase of rare ones earns more. The alternative, a flat
+        # constant, would be a number somebody picked.
+        for phrase in reached:
+            for word in dict.fromkeys(terms(phrase)):
+                score += corpus.idf.get(word, 0.0) * (K1 + 1) / (1 + norm)
         if score <= 0:
             continue
         out.append(Found(held=entry, score=score,
-                         matched=tuple(sorted(present))))
+                         matched=tuple(sorted(present)),
+                         reached_by=reached))
     out.sort(key=lambda f: (-f.score, f.held.citation))
     return _paired(out)[:limit]
 

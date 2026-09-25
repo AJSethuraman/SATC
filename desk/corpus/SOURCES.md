@@ -12,6 +12,8 @@ named seven different publications and the id said nothing on its own.
 
 **Url:** https://www.ecfr.gov/current/title-26/section-1.263(a)-1
 
+**Asked as:** capitalisation threshold; capitalization threshold; line between a tool and a fixed asset; hardware-store purchase; become an asset; write-off limit
+
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. It is the section that creates the de minimis safe harbour election at (f), states its two ceilings, its exceptions, its anti-abuse rule and the manner of making it, and it carries eleven worked examples at (f)(7) that state their own conclusions — which is what makes this desk scoreable against answers nobody here wrote. Fetched as XML from the eCFR versioner API at the 2026-01-01 issue and sliced paragraph by paragraph, never retyped. NOTE WHAT IT DOES NOT SAY: (f)(1)(ii)(D) still reads "$500 per invoice (or per item as substantiated by the invoice) or other amount as identified in published guidance". The $2,500 figure is not in this text and must not be attributed to it.
 
 ---
@@ -24,6 +26,8 @@ named seven different publications and the id said nothing on its own.
 
 **Url:** https://www.ecfr.gov/current/title-26/section-1.162-3
 
+**Asked as:** hardware-store purchase; hold materials at year end
+
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. It is here because it is the other half of the question a trade-supplier purchase actually raises: an item that is not caught by the safe harbour is not automatically an asset, and (c)(1) is where the regulation says what counts as a material or supply — a component acquired to repair, a consumable, a twelve-month item, or a unit of property costing $200 or less. (f) is the seam back to S1: elect the safe harbour and it governs these amounts instead. Fourteen worked examples at (h) state their own conclusions.
 
 ---
@@ -35,6 +39,8 @@ named seven different publications and the id said nothing on its own.
 **Citation prefix:** IRS Tangible Property Final Regulations
 
 **Url:** https://www.irs.gov/businesses/small-businesses-self-employed/tangible-property-final-regulations
+
+**Asked as:** capitalisation threshold; capitalization threshold; write-off limit
 
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. SECONDARY, and deliberately kept so. It is the Service's own plain-language explanation of the final tangibles regulations — not authority a taxpayer may rely on — but it is the only source reachable from here that states the CURRENT de minimis ceiling: "If you don't have an AFS, you may use the safe harbor to deduct amounts up to $2,500 ($500 prior to Jan. 1, 2016) per invoice or item". The regulation itself defers that figure to published guidance and the guidance is Notice 2015-82, which this page cites and links but which was not itself fetched. The revision date recorded above is the one printed on the page as fetched — "Page Last Reviewed or Updated: 04-Aug-2026" — read off the page, not assumed. Because this source does not bind, every problem keyed to it escalates rather than answers, which is the record telling the firm where its decision is required. ONE THING IN THE S3 CITATIONS IS NOT VERBATIM AND IT IS SAID HERE RATHER THAN LEFT TO BE NOTICED: the quoted TEXT of every S3 passage is the page's own sentence, sliced out of the fetched HTML, but two of the citation LABELS shorten the page's heading, which runs to fifty words. `"If you use the de minimis safe harbor, do you have to capitalize all expenses that exceed the limitations?"` drops `the $2,500 ($500 prior to Jan. 1, 2016) or $5,000`, and `"What if your book policy exceeds the de minimis safe harbor ceiling?"` stands for a heading beginning `What if you don't have an AFS but have had a policy for your books and records ...`. The label is a locator this session wrote; the passage under it is not.
 
@@ -119,6 +125,8 @@ proposed are stored, as with S2: admitting a section is not importing it.
 
 **Url:** https://www.ecfr.gov/current/title-26/section-1.274-11
 
+**Asked as:** is a brewery a meal; brewery
+
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. This is the 2017 Act disallowance as the regulation actually writes it, and the reason a "meals and entertainment" account cannot answer anything: (b)(1)(ii) says food or beverages are NOT entertainment unless provided at or during an entertainment activity, and that if they are, the separate statement of their cost on the bill is what decides between 50 percent and nothing.
 
 ---
@@ -178,6 +186,8 @@ proposed are stored, as with S2: admitting a section is not importing it.
 **Citation prefix:** 26 CFR 1.262-1
 
 **Url:** https://www.ecfr.gov/current/title-26/section-1.262-1
+
+**Asked as:** is streaming television ever a business subscription; streaming television; personal spending on a business card
 
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Fetched from the eCFR versioner API at the 2026-01-01 point-in-time on 5 September 2026; the section's own credit line ends "T.D. 9696, 79 FR 59114, Oct. 1, 2014". IT IS HERE BECAUSE IT DECIDES AND SHOWS ITS WORKING: paragraph (b) is nine worked examples that state their own conclusions, so the answers on this desk are the regulation's and not ours. And it is the source that settles what the J.Crew case actually turns on — (b)(8) states a test about the ITEM and the PROFESSION, and there is no vendor anywhere in it.
 
