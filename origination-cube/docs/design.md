@@ -436,6 +436,12 @@ enough.
   - **What each grid holds fixed comes first** on the Split tab. It's on every
     row of the Three-way tab, where grids that hold it fixed come first.
   - **The booked amount can split.** It's an amount, like any other.
+- **Every "Luck alone" figure is after the allowance for many tests**, the Split
+  tab's included (they were the only raw ones until 25 Sep 2026). **The Split tab
+  says its method once**, at the top: what it does, the numbers, the tests and what
+  it assumes. Each grid then gets one line on what it holds fixed and a summary
+  table. The firm: *"i would want it to outline what it is doing, what tests it
+  used, assumptions and such"*, rather than the same paragraph four times.
 - **Materiality in dollars is a GCO amount.** Control asks for the smallest
   excess *loss*, so a dollar line applies to GCO only and every other rate says
   it has no line (the third walk, defect 8).

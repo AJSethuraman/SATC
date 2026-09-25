@@ -853,6 +853,14 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             s_dd = max(sh.syy - 2 * r * sh.sxy + r * r * sh.sxx, 0.0) * n / max(n - 1, 1)
             se_l = stats.ratio_se(*sl.sums()) or 0.0
             v_sum += s_dd + (sh.den * se_l) ** 2
+        # the same allowance for many tests as every other pocket test, within this grid and measure
+        # (asked on 25 Sep 2026: the split's "Luck alone" figures were the only ones shown without it)
+        if bench is not None:
+            keys = [k for k, got in grid.split_compare.items() if m.name in got and got[m.name][1] is not None]
+            adj = adjust([grid.split_compare[k][m.name][1] for k in keys], bench.many_tests)
+            for k, p in zip(keys, adj):
+                idx, _, nh, nl = grid.split_compare[k][m.name]
+                grid.split_compare[k][m.name] = (idx, p, nh, nl)
         out = {"pockets": pockets, "high_worse": high_worse, "measure": m.name}
         z = stats.norm_s_inv(1 - (1 - (bench.confidence if bench else 0.95)) / 2)
         if e_sum > 0:

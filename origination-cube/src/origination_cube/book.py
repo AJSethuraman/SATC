@@ -960,7 +960,8 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
     _title(ws, title, f"{lead} losing more than their share (RANR: earning less), largest first. The "
                       f"flag compares each pocket with {judged}. Red: worse. Amber: worse, but could be "
                       f"luck. \"Luck alone\" is how often a gap this big turns up with no real "
-                      f"difference behind it.", "B:R")
+                      f"difference behind it, after the allowance for testing many pockets within each grid "
+                      f"(see Check).", "B:R")
     heads = ["Measure", "Band column", "Band", "Segment column", "Segment", "Loans", "Rate", "Book rate", "Excess",
              "Excess is in", "Material", "Vs rest of book", "Luck alone", "Vs rest of band", "Luck alone",
              f"Flag (vs {judged})", "Smallest gap it could show"] + (["What this grid holds fixed"] if note_of else [])
@@ -1411,45 +1412,90 @@ def _split_tab(ws, res) -> None:
                             f"per value, and every three-way pocket is tested and ranked on the Three-way tab. "
                             f"{field_} isn't a segment of its own while it splits.", "B:H")
         return
-    _title(ws, "Split", f"Every pocket split in two at its own median {field_}: the high half against the low "
-                        f"half, holding the band and segment fixed. Above 1.00x means the high half does worse "
-                        f"(for RANR, earns more). Grids that hold fixed what {field_} moves with come first. "
-                        f"{field_} isn't cut into bands of its own while it splits.", "B:P")
+    _title(ws, "Split", f"Every pocket split in two at its own median {field_}. How the tab works comes first; "
+                        f"then each grid: what it holds fixed, a summary, and the pockets as heat maps.", "B:P")
     width = max((len(x.dim_labels) + 3 for x in res.grids), default=6)
     b = res.config.benchmark
     conf = b.confidence if b else 0.95
-    r = 4
+    allowance = {"bh": "Benjamini-Hochberg", "bonferroni": "Bonferroni", "none": "none"}.get(
+        b.many_tests if b else "none", "none")
+    # said once, here, instead of repeated under every grid (asked for on 25 Sep 2026)
+    how_rows = [
+        ("What it does", f"Inside each pocket (one band, one segment) the loans are sorted by {field_} and cut at "
+                         f"that pocket's own median. The high half is compared with the low half, so the band and "
+                         f"segment are the same on both sides. {field_} isn't cut into bands of its own while it "
+                         f"splits."),
+        ("High half vs low", "The high half's rate divided by the low half's. 2.00x means the high half goes bad, "
+                             "or loses, twice as often. For RANR, above 1.00x means the high half earns more."),
+        ("Luck alone", f"How often a gap this big turns up by chance when there's no real difference. The test "
+                       f"weighs the gap against how much each half's rate wobbles at its size. The figures are "
+                       f"after the allowance for many tests ({allowance}), taken across the pockets of one grid "
+                       f"and one measure. Blank: a half has fewer loans or losses than the minimums on Control "
+                       f"({b.min_units if b else 0:,} loans, {b.min_events if b else 0:,} losses)."),
+        ("Pooled across pockets", f"The high halves' actual total against what it would be at their low halves' "
+                                  f"rates, added over every pocket, with its range at {conf:.0%} sure. For the "
+                                  f"yes/no outcome the odds are pooled too (Mantel-Haenszel), and Cochran's Q checks "
+                                  f"whether the gap is about the same size in every pocket."),
+        ("What it assumes", f"A grid holds fixed only its band and segment. Anything {field_} moves with that the "
+                            f"grid doesn't hold fixed can show up here as a {field_} effect, so each grid gives the "
+                            f"correlation, and grids that hold fixed what {field_} moves with most come first. "
+                            f"Inside a band the score still varies a little, so a little can remain even there. "
+                            f"Loans are treated as independent of each other."),
+    ]
+    ws.cell(row=4, column=2, value="How this tab works").font = Font(name="Calibri", bold=True, size=12)
+    r = 5
+    for k, v in how_rows:
+        ws.cell(row=r, column=2, value=k).font = Font(name="Calibri", bold=True)
+        ws.cell(row=r, column=2).alignment = Alignment(vertical="top")
+        c = ws.cell(row=r, column=3, value=v)
+        c.alignment = Alignment(wrap_text=True, vertical="top")
+        ws.merge_cells(start_row=r, start_column=3, end_row=r, end_column=2 + 2 * width - 1)
+        ws.row_dimensions[r].height = 44
+        r += 1
+    r += 1
+    heads = ["Measure", "Pockets tested", "High half worse in", "High vs low, pooled", f"Range ({conf:.0%})",
+             "Luck alone", "As odds", "Same size in every pocket?"]
     for g in sorted(res.grids, key=lambda x: _holds_fixed(res, x)[1]):
-        fixed_words = _holds_fixed(res, g)[0]
-        for m in res.measures:
-            if not m.is_rate:
-                continue
-            pooled = g.split_pooled.get(m.name, {})
-            ws.cell(row=r, column=2, value=f"{names[g.band]} x {names[g.dimension]}: {m.title}").font = Font(
-                name="Calibri", bold=True, size=12)
-            # what the grid holds fixed comes before the number (the fourth walk, defect 1)
-            text = " ".join(x for x in (fixed_words, _pooled_sentence(pooled, field_, m, conf)) if x)
-            ws.cell(row=r + 1, column=2, value=text).alignment = Alignment(wrap_text=True, vertical="top")
-            ws.merge_cells(start_row=r + 1, start_column=2, end_row=r + 1, end_column=2 + 2 * width - 1)
-            ws.row_dimensions[r + 1].height = 58
-            top = r + 2
-
+        ws.cell(row=r, column=2, value=f"{names[g.band]} x {names[g.dimension]}").font = Font(
+            name="Calibri", bold=True, size=12)
+        fw = ws.cell(row=r + 1, column=2, value=_holds_fixed(res, g)[0])
+        fw.alignment = Alignment(wrap_text=True, vertical="top")
+        ws.merge_cells(start_row=r + 1, start_column=2, end_row=r + 1, end_column=2 + 2 * width - 1)
+        ws.row_dimensions[r + 1].height = 30
+        _head(ws, r + 2, heads)
+        rr = r + 3
+        rates = [m for m in res.measures if m.is_rate]
+        for m in rates:
+            p = g.split_pooled.get(m.name, {})
+            steady = p.get("steady_p")
+            vals = [m.title, p.get("pockets", 0),
+                    f"{p['high_worse']} of {p['pockets']}" if p.get("pockets") else "none big enough",
+                    p.get("ratio"), (f"{p['ratio_lo']:.2f}x to {p['ratio_hi']:.2f}x" if p.get("ratio_hi") else ""),
+                    p.get("ratio_p"), p.get("odds"),
+                    "" if steady is None else ("yes" if steady >= 1 - conf else "no: bigger in some pockets")]
+            for i, v in enumerate(vals, start=2):
+                ws.cell(row=rr, column=i, value=v).alignment = Alignment(horizontal="left" if i == 2 else "center")
+            ws.cell(row=rr, column=5).number_format = '0.00"x"'
+            ws.cell(row=rr, column=7).number_format = P_FMT
+            ws.cell(row=rr, column=8).number_format = '0.00"x"'
+            rr += 1
+        r = rr + 1
+        for m in rates:
             def cmp_(bl, d, k, m=m, g=g):
                 got = g.split_compare.get((bl, d), {}).get(m.name)
                 return got[k] if got else None
 
-            _block(ws, top, 2, "High half vs low", g.band_labels, g.dim_labels, lambda bl, d: cmp_(bl, d, 0),
+            _block(ws, r, 2, m.title, g.band_labels, g.dim_labels, lambda bl, d: cmp_(bl, d, 0),
                    '0.00"x"', m)
-            _block(ws, top, 2 + width, "Luck alone", g.band_labels, g.dim_labels,
-                   lambda bl, d: cmp_(bl, d, 1), P_FMT)
-            r = top + len(g.band_labels) + 2
-    ws.cell(row=r, column=2, value="Blank cells: a half under the minimum loans or losses set on Control, so not "
-                                   "tested.").font = Font(name="Calibri", italic=True, size=9, color=SLATE)
+            _block(ws, r, 2 + width, "Luck alone", g.band_labels, g.dim_labels, lambda bl, d: cmp_(bl, d, 1),
+                   P_FMT)
+            r += len(g.band_labels) + 2
+        r += 1
     ws.column_dimensions["A"].width = 2
     for j in range(2, 2 + 3 * width):
-        ws.column_dimensions[_col(j)].width = 11
+        ws.column_dimensions[_col(j)].width = 12
     for k in range(3):
-        ws.column_dimensions[_col(2 + k * width)].width = 22
+        ws.column_dimensions[_col(2 + k * width)].width = 30
     _fit(ws)
 
 

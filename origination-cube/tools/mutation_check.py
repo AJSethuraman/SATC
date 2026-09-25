@@ -74,6 +74,8 @@ muts = [
   '                x = stats.smallest_gap(s.units, ln.rate, ln.s_d, ln.x_bar, b.confidence, b.power)', "luck_alone"),
  ("boxes move on luck", B, '            rside = _side(ridx, rlo, rhi) if real(rs.p_band if peers else rs.p_book) else "same"',
   '            rside = _side(ridx, rlo, rhi)', "planted_pocket_is_not"),
+ ("split luck without the allowance", E, '        if bench is not None:\n            keys = [k for k, got in grid.split_compare.items()',
+  '        if False:\n            keys = [k for k, got in grid.split_compare.items()', "carry_the_allowance"),
  ("start here left stale", B, 'else f"{stamp}: {lines[0]}")', 'else stamp)', "start_here"),
 ]
 bad = 0

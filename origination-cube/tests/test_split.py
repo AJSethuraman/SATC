@@ -119,3 +119,20 @@ def test_the_split_says_how_closely_it_moves_with_each_band(planted):
     res = _run(*planted, "REV_DEBT", "own_median")
     assert res.split_moves_with["FICO"] < -0.3                 # debt runs higher as the score falls
     assert res.three_way and all(" / " in g.dimension for g in res.three_way)
+
+
+def test_the_split_luck_figures_carry_the_allowance(planted):
+    """Asked on 25 Sep 2026: every "Luck alone" figure is after the allowance for
+    many tests, the split's included."""
+    raw, table = planted
+    r = copy.deepcopy(raw)
+    r["dimensions"] = [{"name": "asset", "field": "ASSET_CLASS"}]
+    r["split"] = {"field": "REV_DEBT", "how": "own_median"}
+    r["benchmark"]["many_tests"] = "none"
+    plain = engine.run(cfgmod.parse(r), table).grids[0].split_compare
+    r["benchmark"]["many_tests"] = "bonferroni"
+    held = engine.run(cfgmod.parse(r), table).grids[0].split_compare
+    tested = [k for k in plain if plain[k]["outcome_loans"][1] is not None]
+    assert tested
+    for k in tested:
+        assert held[k]["outcome_loans"][1] == pytest.approx(min(1.0, plain[k]["outcome_loans"][1] * len(tested)))

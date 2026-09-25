@@ -53,17 +53,20 @@ def test_split_by_a_number_finds_the_planted_revolving_debt_effect(tmp_path):
     assert "REV_DEBT" not in {x["field"] for x in raw["bands"]}      # it splits; it isn't also cut
     assert book.run(b).ok
     ws = load_workbook(b)["Split"]
-    said = [c.value for row in ws.iter_rows() for c in row
-            if isinstance(c.value, str) and "has the outcome" in c.value]
-    assert said, "the pooled sentence is missing"
-    ratio = float(said[0].split("has the outcome ")[1].split(" times")[0])
+    # the method is said once, at the top (asked for on 25 Sep 2026), not under every grid
+    labels = [ws.cell(row=r, column=2).value for r in range(4, 11)]
+    assert labels[:6] == ["How this tab works", "What it does", "High half vs low", "Luck alone",
+                          "Pooled across pockets", "What it assumes"]
+    grids = [(r, ws.cell(row=r, column=2).value) for r in range(11, ws.max_row + 1)
+             if isinstance(ws.cell(row=r, column=2).value, str) and " x " in ws.cell(row=r, column=2).value]
+    assert grids[0][1].startswith("FICO x")                   # grids that hold the score fixed come first
+    r0 = grids[0][0]
+    assert "holds FICO fixed" in ws.cell(row=r0 + 1, column=2).value
+    assert ws.cell(row=r0 + 3, column=2).value == "Outcome, share of loans"
+    ratio = ws.cell(row=r0 + 3, column=5).value
     assert 1.3 < ratio < 2.6                                   # planted: 1.8x the bad rate
-    assert "High half vs low" in {c.value for row in ws.iter_rows() for c in row}
-    # the grids that hold the score fixed come first, and the others say what they don't hold fixed
-    heads = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str) and " x " in c.value
-             and ":" in c.value]
-    assert heads[0].startswith("FICO x")
-    assert any("doesn't hold FICO fixed" in x for x in said)
+    lines = [ws.cell(row=r + 1, column=2).value for r, _ in grids]
+    assert any("doesn't hold FICO fixed" in x for x in lines)
 
 
 def test_split_by_a_category_repeats_the_grid_once_per_value(tmp_path):
@@ -416,8 +419,8 @@ def test_three_way_rows_say_what_their_grid_holds_fixed(tmp_path):
     assert rows[0][0] == "FICO" and "holds FICO fixed" in rows[0][1]
     assert any(band == "ORIG_BAL" and "doesn't hold FICO fixed" in words for band, words in rows)
     split = load_workbook(b)["Split"]
-    said = [c.value for row in split.iter_rows() for c in row if isinstance(c.value, str) and "has the outcome" in c.value]
-    assert all(x.index("fixed") < x.index("has the outcome") for x in said)
+    texts = [c.value for row in split.iter_rows() for c in row if isinstance(c.value, str)]
+    assert sum(1 for x in texts if "holds FICO fixed" in x) == 2        # once per FICO grid, not per measure
 
 
 def test_the_luck_line_is_luck_alone_not_the_catch_rate(tmp_path):
