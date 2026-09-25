@@ -56,7 +56,20 @@ def test_a_fresh_tab_waits_for_every_judgment_and_names_each(book):
     with pytest.raises(control.ControlError) as exc:
         control.read_control(book)
     assert len(exc.value.problems) == len(JUDGMENT)
-    assert all("your judgment" in p for p in exc.value.problems)
+    assert all("needs an answer" in p for p in exc.value.problems)
+    assert not any("judgment" in p.lower() for p in exc.value.problems)
+
+
+def test_unanswered_cells_are_shaded_by_a_rule_not_labelled(book):
+    """The firm: no "your judgment" labels; shade what still needs entering."""
+    ws = load_workbook(book)[control.SHEET]
+    text = " ".join(str(c.value) for row in ws.iter_rows() for c in row if c.value is not None)
+    assert "judgment" not in text.lower() and "whose call" not in text.lower()
+    rules = [r for rng in ws.conditional_formatting for r in rng.rules]
+    assert len(rules) == len(control.load_settings())
+    r = _row(ws, "materiality")
+    ranges = [str(rng.sqref) for rng in ws.conditional_formatting]
+    assert f"C{r}:D{r}" in ranges
 
 
 def test_method_settings_open_on_their_recommendation(book):

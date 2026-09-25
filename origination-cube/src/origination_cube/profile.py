@@ -263,7 +263,7 @@ def _q(v: Any) -> str:
 
 def _confirm(setting: control.Setting) -> str:
     opts = " / ".join(str(o.value) for o in setting.options)
-    return _q(f"[CONFIRM: {setting.question.lower()}? Your judgment - options {opts}, or your own value]")
+    return _q(f"[CONFIRM: {setting.question.lower()}? Pick {opts}, or enter your own]")
 
 
 def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, Any] | None = None,

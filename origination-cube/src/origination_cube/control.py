@@ -9,11 +9,18 @@ Reading back does not depend on Excel having recalculated. Python reads the
 dropdown and the override cells directly: your own value wins when it is
 filled in. A setting with neither is refused and named.
 
-Two kinds of setting (settings.yaml says which). A JUDGMENT setting - is it
+Two kinds of setting (settings.yaml says which). A judgment setting - is it
 material, is it enough loans, how much worse counts - opens blank and the
-run refuses until the professional chooses: the tool never decides what
-matters. A METHOD setting - how bands are cut, which multiple-test allowance
-- opens on its recommended option, which is printed on every output.
+run refuses until someone answers it: the tool never decides what matters.
+A method setting - how bands are cut, which multiple-test allowance - opens
+on its recommended option, which is printed on every output.
+
+The tab does not label which is which. The firm, 25 Sep 2026: "i don't want
+things to be labeled 'your judgment' that is very AI coded ... conditionally
+format the workbook to indicate where we must enter things and provide
+instructions that don't sound robotic." So a cell that still needs an answer
+is shaded by conditional formatting, and the shading goes away once it is
+answered; the instructions at the top are written the way the firm talks.
 """
 
 from __future__ import annotations
@@ -25,6 +32,7 @@ from typing import Any
 
 import yaml
 from openpyxl import Workbook, load_workbook
+from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.datavalidation import DataValidation
 
@@ -32,9 +40,15 @@ SHEET = "Control"
 OPTIONS_SHEET = "_options"
 RECOMMENDED = " (recommended)"
 FIRST_ROW = 5
-KEY_COL, CHOOSE_COL, OWN_COL, WHOSE_COL = 9, 3, 4, 8     # I, C, D, H
-YOUR_CALL = "Your judgment"
-METHOD = "Method"
+KEY_COL, CHOOSE_COL, OWN_COL = 8, 3, 4            # H, C, D
+NEEDS = "FCE4C4"          # the shade on a cell that still needs an answer
+INSTRUCTIONS = (
+    "Fill in the shaded cells before running. Those are the calls we make on every job: "
+    "what's material, how many loans is enough to matter, and how much worse than its peers a pocket has to be. "
+    "Everything else starts on a reasonable setting, so change it only if the population calls for it. "
+    "Pick from the list, or type your own number in the next column and that wins. "
+    "If a row says re-run, run the script again after changing it."
+)
 
 INK, CANVAS, MIST, SLATE, PAPER, KEY_RED = "16130F", "F4F1EC", "E4DFD5", "57534B", "FFFFFF", "CC0000"
 
@@ -110,23 +124,24 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
 
     thin = Side(style="thin", color=MIST)
     ws.sheet_view.showGridLines = False
-    widths = {"A": 2, "B": 34, "C": 44, "D": 16, "E": 14, "F": 62, "G": 13, "H": 15, "I": 12}
+    widths = {"A": 2, "B": 34, "C": 44, "D": 16, "E": 14, "F": 62, "G": 13, "H": 12}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
-    ws.merge_cells("B1:H1")
+    ws.merge_cells("B1:G1")
     ws["B1"] = "Control center"
     ws["B1"].font = Font(name="Arial", bold=True, size=16, color=PAPER)
-    for c in "BCDEFGH":
+    for c in "BCDEFG":
         ws[f"{c}1"].fill = PatternFill("solid", fgColor=INK)
     ws.row_dimensions[1].height = 28
-    ws.merge_cells("B2:H2")
-    ws["B2"] = ("Pick an option in column C, or type your own value in column D. Settings marked "
-                "\"Your judgment\" start blank: the tool will not decide what matters, and the run waits "
-                "until you choose. Live settings recalculate at once; re-run settings need the script run again.")
+    ws.merge_cells("B2:G2")
+    ws["B2"] = INSTRUCTIONS
     ws["B2"].alignment = Alignment(wrap_text=True, vertical="top")
     ws["B2"].font = Font(name="Calibri", size=10, color=SLATE)
-    ws.row_dimensions[2].height = 30
-    heads = ["Setting", "Choose", "Your own value", "In use", "What it means", "Takes effect", "Whose call", "key"]
+    ws.row_dimensions[2].height = 44
+    ws["B3"] = "Shaded = still needs an answer"
+    ws["B3"].fill = PatternFill("solid", fgColor=NEEDS)
+    ws["B3"].font = Font(name="Calibri", size=9, color=INK)
+    heads = ["Setting", "Choose", "Or enter your own", "In use", "What it means", "Takes effect", "key"]
     for i, h in enumerate(heads):
         c = ws.cell(row=4, column=2 + i, value=h)
         c.font = Font(name="Calibri", bold=True, color=PAPER)
@@ -139,15 +154,13 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         if s.group != group:
             group = s.group
             ws.cell(row=r, column=2, value=group).font = Font(name="Calibri", bold=True, color=INK)
-            for col in range(2, 10):
+            for col in range(2, 9):
                 ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=CANVAS)
             r += 1
         first, last = ranges[s.key]
         ws.cell(row=r, column=2, value=s.question)
         rec = s.recommended()
         choose = ws.cell(row=r, column=CHOOSE_COL, value=None if s.judgment or rec is None else rec.shown)
-        if s.judgment:
-            choose.fill = PatternFill("solid", fgColor="FFF8E1")
         dv = DataValidation(type="list", formula1=f"='{OPTIONS_SHEET}'!$C${first}:$C${last}", allow_blank=True,
                             showDropDown=False)
         dv.error = "Pick one of the listed options, or type your own value in column D."
@@ -158,32 +171,31 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
             own.value = "n/a"
             own.font = Font(name="Calibri", italic=True, color=SLATE)
             own.fill = PatternFill("solid", fgColor=MIST)
-        else:
-            own.fill = PatternFill("solid", fgColor="FFF8E1")
-        C, D, H = f"C{r}", f"D{r}", f"$I{r}"
+        C, D, H = f"C{r}", f"D{r}", f"$H{r}"
+        # shaded while unanswered, on any row: a method setting someone clears needs an answer too
+        ws.conditional_formatting.add(
+            f"C{r}:D{r}", FormulaRule(formula=[f'AND($C{r}="",OR($D{r}="",$D{r}="n/a"))'],
+                                      fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
         own_set = f'AND({D}<>"",{D}<>"n/a")'
         lookup = f"MATCH({H}&\"|\"&{C},{OPTIONS_SHEET}!$A:$A,0)"
-        ws.cell(row=r, column=5, value=(f'=IF({own_set},{D},IF({C}="","YOUR CALL",'
+        ws.cell(row=r, column=5, value=(f'=IF({own_set},{D},IF({C}="","",'
                                         f'INDEX({OPTIONS_SHEET}!$D:$D,{lookup})))'))
         note = f"Your own value, in place of the options ({s.override})." if s.override else ""
-        ws.cell(row=r, column=6, value=(f'=IF({own_set},"{note}",IF({C}="","Nothing chosen yet. Pick an option or '
-                                        f'type your own value; the run waits for this one.",'
+        ws.cell(row=r, column=6, value=(f'=IF({own_set},"{note}",IF({C}="","Needs an answer before we run. '
+                                        f'Pick one, or enter your own.",'
                                         f'INDEX({OPTIONS_SHEET}!$E:$E,{lookup})))'))
         ws.cell(row=r, column=7, value=s.takes_effect)
-        ws.cell(row=r, column=WHOSE_COL, value=YOUR_CALL if s.judgment else METHOD)
         k = ws.cell(row=r, column=KEY_COL, value=s.key)
         k.font = Font(name="Consolas", size=8, color=SLATE)
-        for col in range(2, 10):
+        for col in range(2, 9):
             cell = ws.cell(row=r, column=col)
             cell.border = Border(bottom=thin)
             cell.alignment = Alignment(wrap_text=True, vertical="top")
             if col != OWN_COL and col != KEY_COL and cell.font.color is None:
                 cell.font = Font(name="Calibri", size=10, color=INK)
         ws.cell(row=r, column=5).font = Font(name="Calibri", bold=True, color=INK)
-        if s.judgment:
-            ws.cell(row=r, column=WHOSE_COL).font = Font(name="Calibri", bold=True, color=KEY_RED)
         r += 1
-    ws.print_area = f"B1:H{r - 1}"
+    ws.print_area = f"B1:G{r - 1}"
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
@@ -229,8 +241,7 @@ def read_control(path: str | Path, settings: list[Setting] | None = None) -> dic
                 found[key] = own
             continue
         if chosen in (None, ""):
-            who = "your judgment, and the tool will not make it" if s.judgment else "a method setting"
-            problems.append(f"{where}: `{s.question}` has nothing chosen and no value of your own ({who})")
+            problems.append(f"{where}: `{s.question}` needs an answer. Pick one, or enter your own in column D")
             continue
         match = [o for o in s.options if o.shown == str(chosen).strip()]
         if not match:
