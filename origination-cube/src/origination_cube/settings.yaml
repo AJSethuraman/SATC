@@ -270,8 +270,8 @@ groups:
           - value: luck
             label: What luck alone can move it (suggested)
             explains: >-
-              Worked out from this book: the revenue gap luck alone can make in a
-              pocket of typical size. Revenue inside that gap reads as about the same.
+              Each pocket's own test: revenue counts as more or less only when luck
+              alone is unlikely to explain the gap. A small pocket needs a bigger gap.
           - value: 0.05
             label: "5 percent either way"
             explains: Small moves count. Expect many pockets to read as earning more or less.

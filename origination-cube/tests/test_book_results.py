@@ -7,7 +7,8 @@ import pytest
 
 from openpyxl import load_workbook
 
-from origination_cube import book, engine, synth
+from origination_cube import book, engine, meanings, synth
+from origination_cube.ingest import read_table
 from test_book import _answer
 
 
@@ -614,6 +615,11 @@ def test_a_suggestion_with_nothing_to_work_from_says_so(tmp_path):
     ws = load_workbook(b)["Control"]
     used = [ws.cell(row=r, column=control.KEY_COL + 1).value for r in range(control.FIRST_ROW, ws.max_row + 1)]
     assert any(isinstance(x, str) and "the usual value" in x for x in used)
+    # Check names the fallback as Control does and never calls it worked out (the seventh walk, defect 6)
+    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    fell = check["Suggested values"]
+    assert "luck alone can make" not in fell and "how much better (0.80x) and how much worse (1.25x)" in fell
+    assert "_at" not in fell and check["Pockets tested"].startswith("none of")
 
 
 def test_split_gaps_that_could_be_luck_are_bracketed(tmp_path):
@@ -638,5 +644,74 @@ def test_material_pockets_too_small_to_test_are_pointed_out(tmp_path):
     ran = book.run(b)
     assert ran.ok and any("material but too small to test" in x for x in ran.lines)
     ws = load_workbook(b)["Where it bleeds"]
+    # the window counts pockets, once each, and the rows the tab shades (the seventh walk, defect 7)
+    said = next(x for x in ran.lines if "material but too small to test" in x)
+    blue = [ws.cell(row=r, column=c).value for r in range(5, ws.max_row + 1)
+            for c in (17,) if ws.cell(row=r, column=12).value == "yes"
+            and str(ws.cell(row=r, column=17).value or "").startswith("too few")]
+    pockets = {(ws.cell(row=r, column=3).value, ws.cell(row=r, column=4).value, ws.cell(row=r, column=5).value,
+                ws.cell(row=r, column=6).value) for r in range(5, ws.max_row + 1)
+               if ws.cell(row=r, column=12).value == "yes"
+               and str(ws.cell(row=r, column=17).value or "").startswith("too few")}
+    assert said.startswith(f"{len(pockets)} pocket")
+    if len(blue) != len(pockets):
+        assert f"({len(blue)} rows" in said
     rules = [r for rng in ws.conditional_formatting for r in rng.rules]
     assert any('LEFT($Q5,7)="too few"' in (r.formula or [""])[0] for r in rules)
+
+
+def test_a_real_loss_keeps_its_red_when_revenue_could_be_luck(tmp_path):
+    """The seventh walk, defect 1: under 5 percent either way, under 620 / Broker
+    (GCO 5.35x, a finding) lost its shading because its revenue side could be
+    luck. Each side is now coloured on its own."""
+    b = _ready(tmp_path, n=8000)
+    _set(b, "FICO", book.C_EDGES, "620; 680; 740")
+    wb = load_workbook(b)
+    for r in wb["Control"].iter_rows(min_row=4):
+        if r[6].value == "revenue_line":
+            r[2].value = "5 percent either way"
+    wb.save(b)
+    assert book.run(b).ok
+    ws = load_workbook(b)["Losses vs revenue"]
+    assert ws["C7"].value == "Broker" and ws["H7"].value == "losing more"
+    assert ws["G7"].fill.fgColor.rgb.endswith(book.RED_CELL)
+    if "could be luck" in ws["M7"].value:
+        assert ws["L7"].fill.fill_type is None
+    rows = _lvr(ws)
+    assert any("could be luck" in x["r_read"] for x in rows)             # the fixed option does mark some
+    real_worse = [x for x in rows if x["g_read"] == "losing more"]
+    assert real_worse and all(x["g_fill"] == book.RED_CELL for x in real_worse)
+    # Control explains the suggested option as it works now: each pocket's own test (defect 2)
+    opts = [r[4] for r in load_workbook(b)["_options"].iter_rows(min_row=2, values_only=True)
+            if r[1] == "revenue_line" and r[3] == "luck"]
+    assert opts and "own test" in opts[0] and "typical size" not in opts[0]
+
+
+def test_the_category_limits_on_control_apply_at_set_up(tmp_path):
+    """Found checking the seventh walk's blank "Last Run used" rows: Set up
+    always used the recommended 12 and 50, whatever Control said."""
+    from origination_cube import control
+    b = _ready(tmp_path)
+    assert book.run(b).ok
+    wb = load_workbook(b)
+    for r in wb["Control"].iter_rows(min_row=control.FIRST_ROW):
+        if r[control.KEY_COL - 1].value == "few_values":
+            r[control.CHOOSE_COL - 1].value, r[control.OWN_COL - 1].value = None, 3
+    wb.save(b)
+    extract = next(tmp_path.rglob("*.csv"))
+    assert book.set_up(extract, b).ok
+    ws = load_workbook(b)["Control"]
+    used = {r[control.KEY_COL - 1].value: r[control.KEY_COL].value for r in ws.iter_rows(min_row=control.FIRST_ROW)}
+    assert used["few_values"] == "3 values (applied at Set up)"
+    # at 3, a column of four numbers is an amount, not a category (Set up's guess; a confirmed meaning wins)
+    table = read_table(extract)
+    four = next(c for c in table.columns if c == "ASSET_CLASS")
+    assert meanings.suggest(table, few_values=3)[four].means != "category"
+    assert meanings.suggest(table)[four].means == "category"
+    wb = load_workbook(b)
+    wb["Columns"][book.CONFIRM_CELL] = "Yes"
+    wb.save(b)
+    assert book.run(b).ok
+    used = {r[control.KEY_COL - 1].value: r[control.KEY_COL].value
+            for r in load_workbook(b)["Control"].iter_rows(min_row=control.FIRST_ROW)}
+    assert used["band_count"] and used["band_cut"] and used["few_values"].startswith("3 values")

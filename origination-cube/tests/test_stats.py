@@ -66,3 +66,25 @@ def test_the_pareto_cut():
     assert stats.threshold_explaining(ex, 0.8) == 300      # 500 + 300 = 80%
     assert stats.threshold_explaining(ex, 0.5) == 500
     assert stats.threshold_explaining([-1, -2], 0.8) is None
+
+
+def test_a_negative_comparison_keeps_the_direction():
+    """Found writing up the tests for the firm, 25 Sep 2026: with the rest of a
+    band earning -1.8% RANR, a pocket earning -3.8% read 2.11x, "better"."""
+    from origination_cube import engine
+    assert stats.multiple(-0.038, -0.018) < 1 < stats.multiple(0.01, -0.018)
+    assert stats.multiple(0.06, 0.03) == pytest.approx(2.0)             # a positive comparison is unchanged
+    assert stats.multiple(0.02, 0) is None
+
+    def sums(rate, n=400, bal=10_000.0):                   # n loans, each earning `rate` of its balance, +/- 1%
+        ys = [bal * (rate + (0.01 if i % 2 else -0.01)) for i in range(n)]
+        return (n, sum(ys), bal * n, sum(y * y for y in ys), bal * bal * n, sum(y * bal for y in ys))
+
+    idx, p = stats.compare(sums(-0.038), sums(-0.018))
+    assert idx < 1 and p < 0.05
+
+    class Bench:
+        worse_at, better_at, confidence = 1.25, 0.8, 0.95
+    assert engine.reading_of(idx, 400, Bench, 30, p, higher_is="better") == engine.WORSE
+    idx, p = stats.compare(sums(0.005), sums(-0.018))
+    assert engine.reading_of(idx, 400, Bench, 30, p, higher_is="better") == engine.BETTER

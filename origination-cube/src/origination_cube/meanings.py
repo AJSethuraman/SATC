@@ -181,7 +181,11 @@ BY_VALUES_ALONE = ("fico", "as_of_date")
 
 
 def suggest(table: Table, remembered: dict[str, dict] | None = None,
-            cat: dict[str, Meaning] | None = None) -> dict[str, Suggestion]:
+            cat: dict[str, Meaning] | None = None, few_values: int = 12,
+            many_values: int = 50) -> dict[str, Suggestion]:
+    """few_values and many_values are Control's category limits: a number column
+    with more values than few_values is an amount, and a list with at most
+    many_values values is a category."""
     cat = cat or catalog()
     remembered = remembered or {}
     fs = {c: facts(table, c) for c in table.columns}
@@ -249,9 +253,9 @@ def suggest(table: Table, remembered: dict[str, dict] | None = None,
                                                "loan was made", "structure")
             elif passes("unique", f)[0]:
                 best = Suggestion(c, "id", "a different value on every row", "structure")
-            elif f.numeric and len(set(f.numbers)) > 12:
+            elif f.numeric and len(set(f.numbers)) > few_values:
                 best = Suggestion(c, "amount", f"numbers with {len(set(f.numbers)):,} values", "structure")
-            elif f.distinct <= 50:
+            elif f.distinct <= many_values:
                 best = Suggestion(c, "category", f"{f.distinct} different values", "structure")
             else:
                 best = Suggestion(c, "unknown", f"{f.distinct:,} different values and nothing to go on",

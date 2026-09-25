@@ -1484,7 +1484,15 @@ back.
       the rest, the multiple, a reading and the dollars. Red and green are on the
       cells, and the "Which box" column is gone. Control's In use now agrees with
       the run on a number such as 0.95. 190 tests; 59 re-inserted bugs.
-- [ ] **Next:** a seventh walkthrough; the firm's answer on RANR
+- [x] **The seventh walkthrough's 8 defects:** 5 fixed, 1 gone with the box column
+      (the wrapped box text), and 2 are the firm's call: which line RANR uses on
+      Where it bleeds, and red on Three-way rows that don't hold FICO fixed.
+      Checking its blank *Last Run used* rows found that Control's category limits
+      were never used. They now apply at Set up. The write-up for the firm's own
+      tests found that a negative RANR comparison flipped a pocket's reading; the
+      multiple now keeps its direction. 193 tests; 64 re-inserted bugs. Status
+      table in `docs/walkthrough/walk-2026-09-25-g/WALKTHROUGH-DEFECTS.md`.
+- [ ] **Next:** the firm's two calls from walk 7, then an eighth walk on the new layout; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).
 - **Not checked:** real Excel, a real extract, and the bank machine

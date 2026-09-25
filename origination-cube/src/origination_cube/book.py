@@ -171,10 +171,17 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         return Outcome(False, book, [f"Couldn't read {extract.name}: {exc}"])
     kept = _answers(book)
     mem = memory.load(memory_path)
-    sugg = meanings.suggest(table, mem["columns"])
     cat = meanings.catalog()
     method = {s.key: s.recommended().value for s in control.load_settings() if s.recommended()}
+    # the category limits as answered on Control: Set up is where they apply (found checking the seventh
+    # walk's blank "Last Run used" rows: Set up always used the recommended 12 and 50)
+    for key in ("few_values", "many_values"):
+        got = control.answer_of(key, *kept["control"].get(key, (None, None)))
+        if isinstance(got, (int, float)) and not isinstance(got, bool):
+            method[key] = int(got)
     cols = profile.classify(table, int(method["few_values"]), int(method["many_values"]))
+    sugg = meanings.suggest(table, mem["columns"], few_values=int(method["few_values"]),
+                            many_values=int(method["many_values"]))
     qs = [q for c in cols for q in c.questions]
     open_qs = [q for q in qs if not memory.answer_for(mem, q["column"], q["pattern"], q["value"])]
     looks = meanings.review(table, sugg, open_qs, cat, answer_where="on the Odd values tab")
@@ -223,6 +230,11 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
                 c.font = Font(name="Calibri", color=SLATE)
                 c.alignment = Alignment(wrap_text=True, vertical="top")
         cws.print_area = f"B1:{_col(col)}{cws.max_row}"
+        for r in cws.iter_rows(min_row=control.FIRST_ROW):
+            key = r[control.KEY_COL - 1].value
+            if key in ("few_values", "many_values"):
+                c = cws.cell(row=r[0].row, column=col, value=f"{method[key]} values (applied at Set up)")
+                c.font = Font(name="Calibri", color=SLATE)
 
     # ---- Columns
     ws = wb.create_sheet("Columns")
@@ -418,7 +430,7 @@ def _learned_tab(wb, memory_path) -> None:
     for rw in rows:
         learned = rw["learned"]
         if rw["kind"] == "column":
-            code = learned.split(" ")[0]
+            code = re.split(r"[ ;]", learned)[0]          # "fico; band edges every 20" (the seventh walk)
             learned = learned.replace(code, cat[code].label, 1) if code in cat else learned
         ws.append([memory.KEEP, rw["kind"], rw["column"], learned, rw["first"], rw["last"], rw["times"], rw["id"]])
         dv.add(ws.cell(row=ws.max_row, column=1))
@@ -615,6 +627,7 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
     about["_typed_edges"] = typed
     about["_edge_cells"] = edge_cells
     about["_suggest"] = {k for k in ("min_loans", "worse_at", "better_at") if use.get(k) in ("calc", "luck")}
+    about["_use"] = dict(use)
     return raw, [], about
 
 
@@ -756,6 +769,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
             res = engine.run(cfg, table)
             res.suggest_fallback = fallback
         res.suggested = suggested
+        res.control_used = about.get("_use") or {}
     except (engine.ColumnsMissing, engine.NothingToCut) as exc:
         msg = re.sub(r"used by dimension \w+", "a segment", re.sub(r"used by band \w+", "a band", str(exc)))
         msg = msg.replace("`", '"')
@@ -785,11 +799,15 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     lines = notes + [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."]
     lines += _top_lines(res)
-    small = sum(1 for g in res.grids for _, c in g.inner() for m in res.measures if m.is_rate
-                and c.rates[m.name].material and c.rates[m.name].reading_topline in (engine.THIN, engine.FEW))
+    # the same rows the tab shades blue (its flag), and pockets counted once (the seventh walk, defect 7:
+    # "58 pockets" was 58 rows from 23 pockets)
+    blue = [(gi, key) for gi, g in enumerate(res.grids) for key, c in g.inner() for m in res.measures
+            if m.is_rate and c.rates[m.name].material and c.rates[m.name].flag in (engine.THIN, engine.FEW)]
+    small = len(set(blue))
     if small:
+        rows_said = "" if len(blue) == small else f" ({len(blue)} rows: a pocket has a row for each measure)"
         lines.append(f"{_n(small, 'pocket')} {'is' if small == 1 else 'are'} material but too small to test: "
-                     f"shaded blue on Where it bleeds, to look at by hand.")
+                     f"shaded blue on Where it bleeds{rows_said}, to look at by hand.")
     sug = getattr(res, "suggested", None) or {}
     if sug:
         said = {"min_loans": "fewest loans {:,}", "worse_at": "worse at {:.2f}x", "better_at": "better at {:.2f}x"}
@@ -1014,6 +1032,7 @@ def _last_run_used(ws, res) -> None:
     ws.print_area = f"B1:{_col(col)}{ws.max_row}"          # on the page (the sixth walk, defect 6)
     by_q = dict(control.describe(_settings_of(res.config)))
     sug = getattr(res, "suggested", None) or {}
+    used = getattr(res, "control_used", None) or {}
     rl = revenue_lines(res)
     for row in ws.iter_rows(min_row=control.FIRST_ROW):
         key = row[control.KEY_COL - 1].value
@@ -1022,6 +1041,10 @@ def _last_run_used(ws, res) -> None:
             continue
         words = by_q.get(s.question)
         fb = getattr(res, "suggest_fallback", set())
+        if words is None and key in ("band_count", "band_cut") and key in used:
+            words = dict(control.describe({key: used[key]})).get(s.question)
+        if key in ("few_values", "many_values"):
+            continue                        # applied at Set up, and said there
         if key == "revenue_line" and rl:
             words = "each pocket's own luck range" if per_pocket(res) else f"{rl[1]:.2f}x and {rl[0]:.2f}x"
         elif key in fb:
@@ -1336,7 +1359,8 @@ def _losses_vs_revenue(ws, res) -> None:
             _revenue_chart(ws, hs, rows, first, r - 1, f"{names[g.band]} x {names[g.dimension]}", b,
                            None if own else rlo, None if own else rhi, 1 + gi * 3, top)
         top = max(r, top + 24) + 2
-    for col, w in zip("ABCDEFGHIJKLMNO", (2, 16, 16, 7, 10, 11, 9, 20, 13, 10, 11, 9, 20, 13, 2)):
+    # the readings fit "earning more (could be luck)" on one line (the seventh walk, defects 4 and 5)
+    for col, w in zip("ABCDEFGHIJKLMNO", (2, 16, 16, 7, 10, 11, 9, 27, 13, 10, 11, 9, 27, 13, 2)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "B4"
     _fit(ws)
@@ -1387,7 +1411,8 @@ def _revenue_chart(ws, hs, rows, first: int, last: int, title: str, b, rlo: floa
         r += 2
     # the three biggest bleeders, named on the chart
     from openpyxl.chart.label import DataLabelList
-    named = [k for k, x in enumerate(rows) if x["box"].startswith("Losing more")][:3]
+    # only pockets whose loss side is a finding: not one its own test says could be luck (the seventh walk)
+    named = [k for k, x in enumerate(rows) if x["gside"] == "more"][:3]
     for n_, k in enumerate(named):
         row = rows[k]
         rr = first + k
@@ -1830,20 +1855,33 @@ def _check(ws, res, src: Path, record: str = "") -> None:
     if sug:
         rate = res.total.rates["outcome_loans"].rate
         words = []
-        if "min_loans" in sug:
+        fb = getattr(res, "suggest_fallback", set())
+        if "min_loans" in sug and "min_loans" not in fb:
             words.append(f"fewest loans {sug['min_loans']:,} (enough to expect 5 with the outcome at the book's "
                          f"rate of {rate:.2%})" if rate else f"fewest loans {sug['min_loans']:,}")
-        if "worse_at" in sug:
-            words.append(f"worse at {sug['worse_at']:.2f}x")
-        if "better_at" in sug:
-            words.append(f"better at {sug['better_at']:.2f}x")
-        if "worse_at" in sug or "better_at" in sug:
+        # a value that fell back is named as Control names it and never called worked out (the seventh
+        # walk, defect 6: "1.25x (the outcome gap luck alone can make ...)" beside "the usual value was used")
+        lines_ = [k for k in ("worse_at", "better_at") if k in sug and k not in fb]
+        for k in lines_:
+            words.append(f"{'worse' if k == 'worse_at' else 'better'} at {sug[k]:.2f}x")
+        if lines_:
             words[-1] += " (the outcome gap luck alone can make in a pocket of typical size)"
-        fb = getattr(res, "suggest_fallback", set())
         if fb:
-            words.append("where nothing could be worked out (no rate, or no pocket big enough), the usual value "
-                         "was used instead: " + ", ".join(sorted(fb)))
+            named = {"min_loans": "fewest loans", "worse_at": "how much worse", "better_at": "how much better"}
+            words.append("nothing could be worked out (no rate, or no pocket big enough), so the usual value "
+                         "was used for " + " and ".join(
+                             f"{named.get(k, k)} ({sug[k]:.2f}x)" if isinstance(sug.get(k), float)
+                             else f"{named.get(k, k)} ({sug[k]:,})" for k in sorted(fb) if k in sug))
         rows.append(("Worked out from this book" if not fb else "Suggested values", "; ".join(words)))
+    # how many pockets were tested at all, so a reviewer reading Check alone sees an empty run for what it is
+    # (the seventh walk, defect 6)
+    if "outcome_loans" in res.total.rates and res.config.benchmark is not None:
+        cells = [c for g in res.grids for _, c in g.inner()]
+        tested = sum(1 for c in cells if c.rates["outcome_loans"].reading_topline not in (engine.THIN, engine.FEW))
+        biggest = max((c.rates["outcome_loans"].units for c in cells), default=0)
+        rows.append(("Pockets tested", f"{tested:,} of {len(cells):,}" if tested else
+                     f"none of {len(cells):,}: none had enough loans or losses (fewest loans "
+                     f"{res.config.benchmark.min_units:,}; the largest pocket has {biggest:,})"))
     b = res.config.benchmark
     if b is not None and b.many_tests != "none":
         rows.append(("The allowance for many tests covers",

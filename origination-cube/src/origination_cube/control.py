@@ -28,6 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
+import math
 from typing import Any
 
 import yaml
@@ -322,6 +323,21 @@ def _matching(s: Setting, chosen: Any) -> list[Option]:
         return []
     return [o for o in s.options if isinstance(o.value, (int, float)) and not isinstance(o.value, bool)
             and abs(float(o.value) - n) < 1e-9]
+
+
+def answer_of(key: str, choose: Any, own: Any) -> Any:
+    """One setting's answer from its two cells, or None when there isn't a usable
+    one: a valid own value first, then the option picked. For Set up, which reads
+    Control before the Run's full check does."""
+    s = next((x for x in load_settings() if x.key == key), None)
+    if s is None:
+        return None
+    n = _as_number(own) if own not in (None, "", "n/a") else None
+    v = s.valid or {}
+    if n is not None and v.get("min", -math.inf) <= n <= v.get("max", math.inf):
+        return int(n) if v.get("integer") or float(n).is_integer() else n
+    hit = _matching(s, choose) if choose not in (None, "") else []
+    return hit[0].value if hit else None
 
 
 def _range_words(s: Setting) -> str:

@@ -195,11 +195,12 @@ def cut_edges(values: list[float], count: int, cut: str) -> tuple[float, ...]:
 
 
 def index_of(rate: float | None, base: float | None) -> float | None:
-    """rate / base, or None. None and zero are refused explicitly: the VBA's
-    IsNumeric(Empty) = True turned an empty cell into 0.00x (finding 2)."""
+    """rate / base (stats.multiple: a negative base keeps the direction), or
+    None. None and zero are refused explicitly: the VBA's IsNumeric(Empty) =
+    True turned an empty cell into 0.00x (finding 2)."""
     if rate is None or base is None or base == 0:
         return None
-    return rate / base
+    return stats.multiple(rate, base)
 
 
 def reading_of(idx: float | None, units: int, bench, min_units: float, p: float | None = None,

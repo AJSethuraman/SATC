@@ -209,7 +209,8 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
              "# Anything still reading [CONFIRM: ...] is a call for us to make; the run waits until it's answered.",
              f"name: {_slug(Path(table.path).stem)}", "schema_version: 1"]
     mem = memory.load(memory_path)
-    sugg = meanings.suggest(table, mem["columns"])
+    sugg = meanings.suggest(table, mem["columns"], few_values=int(method("few_values")),
+                            many_values=int(method("many_values")))
     cat = meanings.catalog()
     qs_all = [q for c in cols for q in c.questions]
     open_qs = [q for q in qs_all if not memory.answer_for(mem, q["column"], q["pattern"], q["value"])]

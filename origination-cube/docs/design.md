@@ -463,8 +463,10 @@ enough.
   - A luck-marked box isn't shaded or counted with the findings.
   - The RANR column reads against the same line as the box.
   - The Split heat maps show a could-be-luck multiple in brackets, unshaded.
-- **Every "Luck alone" figure is after the allowance for many tests**, the Split
-  tab's included (they were the only raw ones until 25 Sep 2026). **The Split tab
+- **Every pocket's "Luck alone" figure is after the allowance for many tests**,
+  the Split tab's heat maps included (they were the only raw ones until 25 Sep
+  2026). The Split summary's pooled figure is one test per grid and measure, so
+  there is nothing to allow for. **The Split tab
   says its method once**, at the top: what it does, the numbers, the tests and what
   it assumes. Each grid then gets one line on what it holds fixed and a summary
   table. The firm: *"i would want it to outline what it is doing, what tests it

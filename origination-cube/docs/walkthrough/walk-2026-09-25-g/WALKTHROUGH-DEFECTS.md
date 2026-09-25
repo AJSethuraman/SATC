@@ -222,3 +222,27 @@ On the low-default book the other 4 are pockets with a missing FICO ("(marked mi
 | 9 | Split tab points | **Held.** Which figures carry the allowance, glosses, the correlation once, "yes/no outcome only". The tab now contradicts `design.md` on the summary's allowance (smaller things). |
 | 10 | Three-way lead and print | **Held.** One sentence; the column is on the page. Its text abuts the column before it (smaller things). |
 | 11 | Smaller things | **Held except the charts.** `every 1` names Columns!F7 and says "50 bands or fewer"; 0.95 gets "The most it takes is 0.9"; no double colon. Charts still name luck-marked pockets. |
+
+---
+
+## Where each defect stands (25 Sep 2026, after the fixes)
+
+This walk ran on `a5a8aa2`. Since then, the firm has redone Losses vs revenue (*"i don't think that which box is a relevant thing to need, i can just visually see that ... find a clean way to display the comparable metrics"*). Each side now has its own columns: this pocket, the rest, the multiple, a reading and the dollars. Red and green are on the cells, and the box isn't printed. That settles 1, 4 and 5. Every fix is held by a test, with a planted bug to prove the test catches it. All of it was seen through LibreOffice.
+
+| # | Defect | Now | Test |
+|---|---|---|---|
+| 1 | Under a fixed revenue option, a real loss finding lost its colour | **Fixed by the new layout.** Each side is coloured on its own, so a loss finding stays red whatever its revenue side reads | `test_a_real_loss_keeps_its_red_*` |
+| 2 | Control explained the suggested revenue option as the old single line | **Fixed.** "Each pocket's own test: revenue counts as more or less only when luck alone is unlikely to explain the gap." | same |
+| 3 | RANR reads *earning less* on Losses vs revenue and *in line* on Where it bleeds | **Open: the firm's call.** Where it bleeds judges RANR by the loss lines; Losses vs revenue by the revenue option | — |
+| 4 | Wrapped box text above its row | **Gone.** No box column | — |
+| 5 | "(could be luck)" cut off | **Fixed.** The reading columns fit "earning more (could be luck)" | — |
+| 6 | Check called a fallback worked out, in code names | **Fixed.** Only worked-out values get the bracket; a fallback reads "the usual value was used for how much better (0.80x) and how much worse (1.25x)". New row: *Pockets tested*, "none of N ... the largest pocket has M" | `test_a_suggestion_with_nothing_to_work_from_*` |
+| 7 | The blue count counted rows | **Fixed.** It counts pockets once each, by the same flag the tab shades, and gives the rows beside it | `test_material_pockets_too_small_*` |
+| 8 | No-effect book: 1.62x and a red Three-way row | **Open: the firm's call** (red on rows that don't hold FICO fixed) | — |
+| — | Last Run used blank on four rows | **Fixed, and it found a bug.** Control's category limits were never used: Set up always used 12 and 50. They now apply at Set up, which the row says. Band count and placement show what the Run used | `test_the_category_limits_on_control_apply_*` |
+| — | Learned read "fico; band edges" | **Fixed.** Reads "FICO score; band edges ..." | — |
+| — | Charts named luck-marked pockets | **Fixed.** Only pockets whose loss side is a finding are named. The charts are otherwise still open | — |
+| — | design.md vs the Split tab on the allowance | **Fixed.** design.md says the pooled figure is one test, so there is nothing to allow for | — |
+| — | "Same lines as for losses": revenue at 1.33x beside GCO at 1.34x | **Stays.** It is 1 / 0.75 against 1 / 0.746, from rounding the suggested better-at line to two places | — |
+
+**Found in the write-up for the firm's own tests (not by this walk):** when the rest of a band has a negative RANR, two negative rates divided into a positive multiple, so the pocket earning less read *better*. The multiple is now 1 + (pocket − rest) ÷ |rest| when the comparison is negative. Nothing changes when the comparison is positive. `test_a_negative_comparison_keeps_the_direction`.

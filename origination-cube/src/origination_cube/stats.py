@@ -243,13 +243,25 @@ def ratio_se(n: int, sy: float, sx: float, syy: float, sxx: float, sxy: float) -
     return math.sqrt(s_dd / n) / (sx / n)
 
 
+def multiple(ra: float, rb: float) -> float | None:
+    """How many times its comparison a rate is: ra / rb, and, when the comparison
+    is negative, 1 + (ra - rb) / |rb|, so a lower rate always gives a lower
+    multiple. Two negative RANRs divided the plain way put the pocket earning
+    less above 1.00x: -3.8% against -1.8% read 2.11x, "better" (found writing up
+    the tests for the firm, 25 Sep 2026). With a positive comparison the two
+    are the same number."""
+    if not rb:
+        return None
+    return ra / rb if rb > 0 else 1 + (ra - rb) / abs(rb)
+
+
 def compare(a: tuple, b: tuple) -> tuple[float | None, float | None]:
     """(a's rate over b's, two-sided p that the rates differ by luck).
     a and b are (n, sy, sx, syy, sxx, sxy). None where it cannot be worked out."""
     if a[2] == 0 or b[2] == 0:
         return None, None
     ra, rb = a[1] / a[2], b[1] / b[2]
-    idx = ra / rb if rb else None
+    idx = multiple(ra, rb)
     sea, seb = ratio_se(*a), ratio_se(*b)
     if sea is None or seb is None:
         return idx, None
