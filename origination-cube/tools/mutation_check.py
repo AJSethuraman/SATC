@@ -68,7 +68,7 @@ muts = [
   '            parent = res.total', "dollars_agree"),
  ("untested pockets boxed", B, '            box = NOT_TESTED if {gflag, rflag} & {engine.THIN, engine.FEW} else box_of(gside, rside)',
   '            box = box_of(gside, rside)', "dollars_agree"),
- ("three-way without its caveat", B, '        note = (lambda g: _holds_fixed(res, g)) if res.config.split[1] == "own_median" else None',
+ ("three-way without its caveat", B, '        note = (lambda g: _three_way_note(res, g)) if res.config.split[1] == "own_median" else None',
   '        note = None', "holds_fixed"),
  ("luck line at the catch rate", B, '                x = stats.smallest_gap(s.units, ln.rate, ln.s_d, ln.x_bar, b.confidence, 0.5)',
   '                x = stats.smallest_gap(s.units, ln.rate, ln.s_d, ln.x_bar, b.confidence, b.power)', "luck_alone"),
