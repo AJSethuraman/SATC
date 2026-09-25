@@ -18,6 +18,7 @@ Everything else here is about keeping that honest — the judge is not the
 answerer, a judgment cannot rescue a refusal, a quote is a quote.
 """
 import pytest
+import unsupported
 
 import ask
 import engine
@@ -249,7 +250,7 @@ def test_the_unjudged_refusal_is_not_filed_in_the_record_s_queue(tmp_path):
     import shutil
     desks = tmp_path / "corpus"
     shutil.copytree(CORPUS, desks)
-    queue = desks / "unsupported" / "asked.md"
+    queue = unsupported.default_store()
     before = queue.read_text(encoding="utf-8") if queue.exists() else ""
 
     out = ask.answer(Q,  position="capitalized", citation=CIT,

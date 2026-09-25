@@ -32,6 +32,7 @@ one that claims somebody checked.
 from __future__ import annotations
 
 import pathlib
+import unsupported
 import sys
 
 import pytest
@@ -314,7 +315,7 @@ def test_the_follow_up_reaches_the_queue_and_not_only_the_caller(tmp_path):
     # it. The queue is what carries it either way.
     assert out.reason == "context_not_on_file"
 
-    filed = (desks / "unsupported" / "asked.md").read_text(encoding="utf-8")
+    filed = unsupported.default_store().read_text(encoding="utf-8")
     assert "**Asked:**" in filed, "the follow-up never reached the queue"
     assert "capitalization_rule" in filed
     assert out.ask.split("?")[0] in filed

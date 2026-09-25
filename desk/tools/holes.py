@@ -28,9 +28,17 @@ and nothing else. It therefore printed **Gaps (0), None recorded** on an evening
 when five `context_not_on_file` refusals stood in the latest run, and the
 document pointing the firm at it quoted that zero as a finding. The three:
 
-    unfiled/*.md                  filed by hand at close. Durable
-    corpus/unsupported/*.md       filed by `ask.answer` as it refuses. Durable
-    runs/<latest>/served.json     the last measured run. LIVE, and it moves
+    ~/.satc/desk/unfiled/CLOSE.md     parked by hand at close. Durable
+    ~/.satc/desk/unsupported/asked.md filed by `ask.answer` as it refuses. Durable
+    unfiled/*.md                      the same, written before the queue moved out
+    corpus/unsupported/*.md           the same, written before the store moved out
+    runs/<latest>/served.json         the last measured run. LIVE, and it moves
+
+BOTH DURABLE STORES LIVE OUTSIDE THE PLUGIN, and both got there the hard way.
+The queue moved on 8 September; the refusal store was left behind and moved on
+25 September, after 22 refusals were found stranded in `0.27.0` while `0.34.0`
+was the installed release. The in-tree paths are still read, because anything
+filed before either move is exactly what somebody is still waiting on.
 
 THE DURABLE QUEUES AND THE LIVE RUN ARE NOT SUMMED, and the separation is the
 same one `run-down-a-question` already draws: the queue is every hole ever
@@ -144,6 +152,12 @@ def stores(root: pathlib.Path | None = None) -> list[tuple[str, str, object]]:
     # The loop shape is kept rather than collapsed to one path because what
     # this function promises is EVERY place a refusal can land, and a glob
     # says that where a hardcoded filename asserts it.
+    # THE DURABLE REFUSAL STORE, outside the plugin for the same reason the
+    # parked queue is. Read before the in-tree path because it is where refusals
+    # land now; the in-tree glob below stays for the ones filed before the move.
+    store = _stable_store()
+    if store is not None and store.is_file():
+        found.append((DURABLE, _outside(store), store))
     for p in sorted((root / "corpus" / "unsupported").glob("*.md")):
         found.append((DURABLE, _where(p, root), p))
     runs = sorted(p for p in (root / "runs").glob("*asked-*")
@@ -152,6 +166,23 @@ def stores(root: pathlib.Path | None = None) -> list[tuple[str, str, object]]:
         p = runs[-1] / "served.json"
         found.append((LIVE, _where(p, root), p))
     return found
+
+
+def _stable_store():
+    """The refusal store `unsupported` owns, or None if it cannot be asked.
+
+    Asked rather than re-derived: two opinions about one location is how the
+    refusal store came to be read from a path nothing wrote to.
+    """
+    try:
+        import unsupported
+    except ImportError:
+        try:
+            sys.path.insert(0, str(HERE))
+            import unsupported
+        except ImportError:
+            return None
+    return unsupported.default_store()
 
 
 def _stable_queue():

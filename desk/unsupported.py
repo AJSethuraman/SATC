@@ -411,6 +411,41 @@ def default_queue() -> Path:
     return Path.home() / ".satc" / "desk" / "unfiled" / "CLOSE.md"
 
 
+#: THE SAME BUG, IN THE STORE NEXT DOOR, AND IT OUTLIVED THE FIX BY TWO WEEKS.
+#: `default_queue` above moved the PARKED-QUESTION queue out of the plugin tree
+#: on 8 September, for reasons its docstring sets out in full. The REFUSAL store
+#: -- what `ask.answer` files every time the engine declines to serve -- was left
+#: where it was: `ask.CORPUS / "unsupported" / "asked.md"`, and `ask.CORPUS` is
+#: `HERE / "corpus"` where HERE is the package directory. Installed, that is
+#: `~/.claude/plugins/cache/satc/desk/<version>/corpus/unsupported/`.
+#:
+#: MEASURED ON THIS MACHINE, 25 September 2026, rather than reasoned about:
+#: `0.27.0/corpus/unsupported/` holds forge.md and frontier.md -- 22 refusals,
+#: 70KB, recorded 4 September. `0.28.0` and `0.34.0` have no such directory.
+#: Those 22 findings are stranded in a release nobody runs, and the desk that is
+#: installed cannot see one of them. Every upgrade since has done this silently.
+#:
+#: The second reason is the one `default_queue` gives and it applies here word
+#: for word: a refusal carries the question that was asked, which mid-close can
+#: name anything about a client, and `CLAUDE.md` is clear that a client's affairs
+#: inside a checkout are one `git add` from being published.
+STORE_ENV = "SATC_DESK_UNSUPPORTED"
+
+
+def default_store() -> Path:
+    """Where a refusal is filed, and it is OUTSIDE the plugin.
+
+    Same shape as `default_queue`, deliberately: two stores that answer "where
+    do I live" by different rules are two rules to get wrong, and this one was
+    already wrong for two weeks because only its sibling got fixed.
+    """
+    import os
+    override = os.environ.get(STORE_ENV, "").strip()
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".satc" / "desk" / "unsupported" / "asked.md"
+
+
 def _appended(text: str, entry: Unsupported) -> str:
     """One entry onto the end of the queue's text, with the queue's own spacing.
 
