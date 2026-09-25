@@ -155,3 +155,44 @@ def test_a_ref_the_desk_never_answered_is_reported_missing(batch):
 def test_an_empty_reply_is_not_a_set_of_refusals(batch):
     with pytest.raises(relay.RelayError):
         relay.read_batch("   ", [a.ref for a in batch.asks])
+
+
+# --- a marker the asker did not send -------------------------------------------
+
+def test_a_mistyped_ref_does_not_swallow_the_answer_before_it(batch):
+    """Found by Codex on #397. The reader split only on the refs it asked for,
+    so a block opening with a mistyped ref ran on into the answer above it. A
+    served answer followed by a refusal under a bad ref then carried both a
+    grade line and a refusal banner, and the good answer was lost as
+    unreadable while the mistyped one was reported missing."""
+    r = [a.ref for a in batch.asks]
+    body = "\n".join([
+        f"DESK ANSWER {r[0]}",
+        "deducted",
+        "",
+        "    26 CFR 1.162-3(c)(1)(iv)",
+        "    primary | the firm treats as binding | confirmed 2026-09-05", "",
+        "DESK ANSWER 0123456789ab",
+        "THE DESK DID NOT ANSWER: authority_permits_choice  |  corpus",
+        "    the detail", "",
+    ])
+    got = relay.read_batch(body, r[:2])
+    assert got.answers[r[0]].answered
+    assert r[0] not in got.unreadable
+    assert got.missing == (r[1],)
+    assert got.unexpected == ("0123456789ab",)
+    assert not got.complete
+
+
+def test_a_ref_answered_twice_is_not_read_as_either_answer(batch):
+    """Picking one would be guessing which the desk meant."""
+    r = [a.ref for a in batch.asks]
+    body = "\n".join([
+        f"DESK ANSWER {r[0]}",
+        "THE DESK DID NOT ANSWER: authority_permits_choice  |  corpus", "",
+        f"DESK ANSWER {r[0]}",
+        "THE DESK DID NOT ANSWER: context_not_on_file  |  corpus", "",
+    ])
+    got = relay.read_batch(body, r[:1])
+    assert r[0] in got.unreadable and r[0] not in got.answers
+    assert not got.complete

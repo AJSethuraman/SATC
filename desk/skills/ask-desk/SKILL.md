@@ -272,6 +272,7 @@ got = relay.read_batch(reply_body, [a.ref for a in b.asks])   # a batch reply
 got.answers      # ref -> what the desk said, one per answered question
 got.unreadable   # ref -> why that block could not be read: a person reads it
 got.missing      # refs the desk sent nothing for: UNANSWERED, never a no
+got.unexpected   # refs you never sent (a mistyped ref): a person reads it
 got.complete     # True only when every ref was answered and read
 
 said = relay.read(reply_body)          # a single-question reply: the WHOLE thing

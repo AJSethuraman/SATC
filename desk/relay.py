@@ -340,34 +340,49 @@ class BatchReply:
     answers: dict
     unreadable: dict
     missing: tuple
+    unexpected: tuple = ()
 
     @property
     def complete(self) -> bool:
-        return not self.unreadable and not self.missing
+        return not self.unreadable and not self.missing and not self.unexpected
 
 
 def read_batch(body: str, refs) -> BatchReply:
-    """Split a batch reply on its `DESK ANSWER <ref>` lines and read each block."""
+    """Split a batch reply on its `DESK ANSWER <ref>` lines and read each block.
+
+    SPLIT ON EVERY MARKER, THEN KEEP THE ONES ASKED FOR. Found by Codex on #397:
+    splitting only on the refs that were sent let a block under a mistyped ref
+    run on into the answer above it, and a good answer was lost as unreadable.
+    A ref nobody asked for is reported in `unexpected`, never silently dropped;
+    a ref answered twice is unreadable, because picking one would be a guess.
+    """
     refs = list(refs)
     if not body or not body.strip():
         raise RelayError("nothing came back for the batch. An empty reply is a "
                          "delivery that did not happen, not a set of refusals.")
-    starts = []
-    for r in refs:
-        m = re.search(rf"^DESK ANSWER {re.escape(r)}\b", body, re.M)
-        if m:
-            starts.append((m.start(), r))
-    starts.sort()
-    answers, unreadable = {}, {}
+    starts = [(m.start(), m.group(1)) for m in
+              re.finditer(r"^DESK ANSWER ([0-9A-Za-z]+)\b", body, re.M)]
+    blocks = {}
     for i, (at, r) in enumerate(starts):
         end = starts[i + 1][0] if i + 1 < len(starts) else len(body)
+        blocks.setdefault(r, []).append(body[at:end])
+    answers, unreadable = {}, {}
+    for r in refs:
+        if r not in blocks:
+            continue
+        if len(blocks[r]) > 1:
+            unreadable[r] = (f"answered {len(blocks[r])} times. Which one the "
+                             f"desk meant is not something to guess.")
+            continue
         try:
-            answers[r] = read(body[at:end])
+            answers[r] = read(blocks[r][0])
         except RelayError as e:
             unreadable[r] = str(e)
-    found = {r for _, r in starts}
-    return BatchReply(answers=answers, unreadable=unreadable,
-                      missing=tuple(r for r in refs if r not in found))
+    return BatchReply(
+        answers=answers, unreadable=unreadable,
+        missing=tuple(r for r in refs if r not in blocks),
+        unexpected=tuple(r for r in dict.fromkeys(r for _, r in starts)
+                         if r not in refs))
 
 
 def reply_opens(body: str, ref: str) -> bool:
