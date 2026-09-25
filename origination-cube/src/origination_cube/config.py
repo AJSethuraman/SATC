@@ -34,10 +34,23 @@ MODE_KEYS = {
     "count": {"required": (), "allowed": ()},
     "median": {"required": ("value",), "allowed": ("optional",)},
 }
-TOP_KEYS = {"name", "schema_version", "key", "missing", "bands", "dimensions", "measures", "benchmark"}
-REQUIRED_TOP = ("name", "schema_version", "bands", "dimensions", "measures", "benchmark")
+TOP_KEYS = {"name", "schema_version", "key", "booked", "outcome", "gco", "ranr", "columns_confirmed", "missing",
+            "bands", "dimensions", "measures", "benchmark", "questions"}
+#: The firm, 25 Sep 2026: "this analysis only works if we have, at a minimum, an
+#: output binary ... the GCO amount and RANR amount ... the booked amount ... and a
+#: loan number or app number or some other Key or we cannot perform the remapping
+#: exercise." So each of those is a required line, and the core rates are built
+#: from them on every run; `measures:` holds only extras.
+CORE = ("key", "booked", "outcome", "gco", "ranr")
+REQUIRED_TOP = ("name", "schema_version", *CORE, "bands", "dimensions", "benchmark")
+#: `per: each_loan` divides by the number of loans rather than a column: a
+#: straight share or average, beside the booked-weighted one reporting uses.
+EACH_LOAN = "each_loan"
+CORE_NAMES = ("outcome_loans", "outcome_booked", "gco_rate", "ranr_rate")
 MISSING_KEYS = {"below", "above", "values"}
-BENCHMARK_KEYS = ("min_units", "worse_at", "better_at")
+BENCHMARK_KEYS = ("min_units", "worse_at", "better_at", "confidence", "power")
+CUTS = ("equal_loans", "round")
+ANSWERS = ("real", "missing")
 
 
 class ConfigError(Exception):
@@ -60,9 +73,15 @@ class MissingRule:
 
 @dataclass(frozen=True)
 class Band:
+    """A number column cut into ranges. Either the cut points are given
+    (`edges`), or how many bands and how to place them (`count` and `cut`),
+    in which case the engine works the edges out from the data and reports
+    them, so more or fewer bands is one number in the file."""
     name: str
     field: str
-    edges: tuple[float, ...]
+    edges: tuple[float, ...] = ()
+    count: int | None = None
+    cut: str | None = None           # equal_loans | round
 
 
 @dataclass(frozen=True)
@@ -88,8 +107,10 @@ class Measure:
     mode: str
     value: str | None = None      # sumnum, median
     flag: str | None = None       # flagwt
-    per: str | None = None        # flagwt, sumnum
+    per: str | None = None        # flagwt, sumnum: a column, or each_loan
     optional: bool = False        # absent column -> skipped with a warning (D55)
+    flag_is: Any = None           # flagwt: the value that means yes, when the flag is not 0/1 already
+    core: bool = False            # built from the required lines, never optional
 
     @property
     def is_rate(self) -> bool:
@@ -102,19 +123,26 @@ class Measure:
         return self.mode != "median"
 
     def columns(self) -> tuple[str, ...]:
-        return tuple(c for c in (self.value, self.flag, self.per) if c)
+        return tuple(c for c in (self.value, self.flag, self.per) if c and c != EACH_LOAN)
+
+    def _yes(self) -> str:
+        return f"{self.flag} = {self.flag_is!r}" if self.flag_is is not None else f"{self.flag} = 1"
 
     def numerator(self) -> str:
         """What the excess is counted in, in the file's own column names."""
         if self.mode == "flagwt":
-            return f"{self.per} on loans where {self.flag} = 1"
+            return f"loans where {self._yes()}" if self.per == EACH_LOAN else f"{self.per} on loans where {self._yes()}"
         return self.value or ""
 
     def label(self) -> str:
         """The grid states its own arithmetic."""
         if self.mode == "flagwt":
-            return f"SUM({self.per} where {self.flag} = 1) / SUM({self.per})"
+            if self.per == EACH_LOAN:
+                return f"COUNT(loans where {self._yes()}) / COUNT(loans)"
+            return f"SUM({self.per} where {self._yes()}) / SUM({self.per})"
         if self.mode == "sumnum":
+            if self.per == EACH_LOAN:
+                return f"SUM({self.value}) / COUNT(loans)"
             return f"SUM({self.value}) / SUM({self.per})"
         if self.mode == "count":
             return "Loans (rows)"
@@ -123,20 +151,54 @@ class Measure:
 
 @dataclass(frozen=True)
 class Benchmark:
-    min_units: int
+    min_units: int                   # below this a pocket is shown but not tested
     worse_at: float
     better_at: float
+    confidence: float
+    power: float
+
+
+@dataclass(frozen=True)
+class Question:
+    """Something odd in a column that the engine will not decide about
+    (ruling OC-7). Unanswered, the values are used as recorded and every
+    output says the question is open. `missing` turns it into a rule;
+    `real` closes it."""
+    column: str
+    pattern: str                      # "repeated_value" | "negatives"
+    value: float | None
+    rows: int
+    answer: str | None                # None | "real" | "missing"
+
+    def as_rule(self) -> "MissingRule | None":
+        if self.answer != "missing":
+            return None
+        if self.pattern == "negatives":
+            return MissingRule(below=0.0)
+        return MissingRule(values=(self.value,))
+
+    def text(self) -> str:
+        what = ("negative values in a column that is mostly positive" if self.pattern == "negatives"
+                else f"the value {_fmt_num(self.value)} repeated far more than any other")
+        return f"`{self.column}`: {what} ({self.rows:,} rows)"
+
+
+def _fmt_num(x) -> str:
+    return str(int(x)) if isinstance(x, float) and x.is_integer() else str(x)
 
 
 @dataclass(frozen=True)
 class Config:
     name: str
-    key: str | None
+    key: str
     missing: dict[str, MissingRule]
     bands: tuple[Band, ...]
     dimensions: tuple[Dimension, ...]
     measures: tuple[Measure, ...]
     benchmark: Benchmark | None      # None only when the file says `benchmark: none`
+    questions: tuple[Question, ...] = ()
+    booked: str = ""
+    outcome: str = ""
     source_path: str = ""
     raw: dict[str, Any] = field(repr=False, default_factory=dict)
 
@@ -181,16 +243,43 @@ def parse(raw: Any, source_path: str = "") -> Config:
     if "schema_version" in raw and raw["schema_version"] != SCHEMA_VERSION:
         problems.append(f"schema_version is {raw['schema_version']!r}; this engine reads {SCHEMA_VERSION}")
 
-    key = raw.get("key")
-    if key is not None and (not isinstance(key, str) or not key.strip()):
-        problems.append("`key:` must name the loan number column, or be left out")
-    key = key.strip() if isinstance(key, str) and key.strip() else None
+    cols = {}
+    for k in ("key", "booked", "gco", "ranr"):
+        v = raw.get(k)
+        if k in raw and (not isinstance(v, str) or not v.strip()):
+            problems.append(f"`{k}:` must name a column")
+        cols[k] = v.strip() if isinstance(v, str) else ""
+    out_field, out_is, out_label = _parse_outcome(raw.get("outcome"), problems) if "outcome" in raw else ("", None, "")
+    if "columns_confirmed" in raw and raw["columns_confirmed"] is not True:
+        named = ", ".join(f"{k}: {raw.get(k)}" for k in ("key", "booked", "outcome", "gco", "ranr"))
+        problems.append(f"the required columns were suggested by `cube init` and are not confirmed yet ({named}). "
+                        f"Check each; type the right column name over any that is wrong; then set "
+                        f"`columns_confirmed: yes`")
+    key = cols["key"]
 
     missing = _parse_missing(raw.get("missing") or {}, problems)
     bands = _parse_bands(raw.get("bands"), problems) if "bands" in raw else ()
     dims = _parse_dims(raw.get("dimensions"), problems) if "dimensions" in raw else ()
-    measures = _parse_measures(raw.get("measures"), problems) if "measures" in raw else ()
+    extras = _parse_measures(raw.get("measures"), problems) if raw.get("measures") else ()
+    for m in extras:
+        if m.name in CORE_NAMES:
+            problems.append(f"measure name `{m.name}` is taken by a core rate; call it something else")
+    core = ()
+    if out_field and cols["booked"] and cols["gco"] and cols["ranr"]:
+        core = (Measure(name="outcome_loans", mode="flagwt", flag=out_field, per=EACH_LOAN, flag_is=out_is, core=True),
+                Measure(name="outcome_booked", mode="flagwt", flag=out_field, per=cols["booked"], flag_is=out_is,
+                        core=True),
+                Measure(name="gco_rate", mode="sumnum", value=cols["gco"], per=cols["booked"], core=True),
+                Measure(name="ranr_rate", mode="sumnum", value=cols["ranr"], per=cols["booked"], core=True))
+    measures = core + extras
     bench = _parse_benchmark(raw.get("benchmark"), problems) if "benchmark" in raw else None
+    questions = _parse_questions(raw.get("questions") or [], problems)
+    for q in questions:
+        rule = q.as_rule()
+        if rule is not None:
+            old = missing.get(q.column, MissingRule())
+            missing[q.column] = MissingRule(below=rule.below if rule.below is not None else old.below,
+                                            above=old.above, values=old.values + rule.values)
 
     names = [b.name for b in bands] + [d.name for d in dims] + [m.name for m in measures]
     dupes = sorted({n for n in names if names.count(n) > 1})
@@ -200,7 +289,8 @@ def parse(raw: Any, source_path: str = "") -> Config:
     if problems:
         raise ConfigError(problems)
     return Config(name=str(raw["name"]), key=key, missing=missing, bands=bands, dimensions=dims,
-                  measures=measures, benchmark=bench, source_path=source_path, raw=raw)
+                  measures=measures, benchmark=bench, questions=questions, booked=cols["booked"], outcome=out_field,
+                  source_path=source_path, raw=raw)
 
 
 # --------------------------------------------------------------------------
@@ -216,16 +306,37 @@ def _confirm_markers(node: Any, where: str = ""):
         yield where, node
 
 
+def _parse_outcome(node: Any, problems: list[str]) -> tuple[str, Any, str]:
+    """`outcome: COLUMN` for a 0/1 column, or `outcome: {field: COLUMN, is: VALUE}`
+    to make any column yes/no: charged off, ever delinquent, decided by the system."""
+    if isinstance(node, str) and node.strip():
+        return node.strip(), None, ""
+    if isinstance(node, dict):
+        _unknown(node, {"field", "is", "label"}, "outcome", problems)
+        f = node.get("field")
+        if isinstance(f, str) and f.strip():
+            return f.strip(), node.get("is"), str(node.get("label") or "")
+    problems.append("`outcome:` must name a yes/no column (0 or 1), or be {field: COLUMN, is: VALUE}")
+    return "", None, ""
+
+
 def _missing_line(k: str) -> str:
     lines = {
+        "key": "key: LOAN_NUMBER_COLUMN        # loan or application number: needed to map results back to loans",
+        "booked": "booked: BOOKED_AMOUNT_COLUMN   # the loan amount that weights the reporting-level rates",
+        "outcome": ("outcome: OUTCOME_COLUMN        # any yes/no (0/1): charged off, ever delinquent, ...\n"
+                    "# or:  outcome: {field: DECISION_COLUMN, is: AUTO}"),
+        "gco": "gco: GCO_AMOUNT_COLUMN          # gross charge-off dollars",
+        "ranr": "ranr: RANR_AMOUNT_COLUMN        # RANR dollars (signed values are kept as they are)",
         "name": "name: my_cube",
         "schema_version": f"schema_version: {SCHEMA_VERSION}",
         "bands": "bands:\n  - {name: score_band, field: SCORE_COLUMN, edges: [620, 680, 740]}",
         "dimensions": "dimensions:\n  - {name: channel, field: CHANNEL_COLUMN}",
-        "measures": "measures:\n  - {name: gco_rate, mode: sumnum, value: GCO_COLUMN, per: BALANCE_COLUMN}",
-        "benchmark": ("benchmark:\n  min_units: 30      # cells with fewer loans are not read\n"
-                      "  worse_at: 1.25     # index at or above this reads WORSE\n"
-                      "  better_at: 0.8     # index at or below this reads BETTER\n"
+        "benchmark": ("benchmark:\n  min_units: 30          # below this a pocket is shown but not tested\n"
+                      "  worse_at: 1.25         # index at or above this reads WORSE\n"
+                      "  better_at: 0.8         # index at or below this reads BETTER\n"
+                      "  confidence: 0.95       # how sure a difference must be\n"
+                      "  power: 0.8             # how often a real gap should be caught\n"
                       "# or, to build without comparisons:  benchmark: none"),
     }
     return f"missing line `{k}:`. Add:\n{lines[k]}"
@@ -294,11 +405,24 @@ def _parse_bands(node: Any, problems: list[str]) -> tuple[Band, ...]:
     out = []
     for i, e in enumerate(_entries(node, "bands", problems)):
         where = f"bands[{i}]"
-        _unknown(e, {"name", "field", "edges"}, where, problems)
+        _unknown(e, {"name", "field", "edges", "count", "cut"}, where, problems)
         name, fld = _name_field(e, where, problems)
-        edges = e.get("edges")
+        edges, count, cut = e.get("edges"), e.get("count"), e.get("cut")
+        if edges is not None and (count is not None or cut is not None):
+            problems.append(f"{where}: give `edges:` or `count:` with `cut:`, not both")
+            continue
+        if edges is None:
+            if not isinstance(count, int) or isinstance(count, bool) or count < 2:
+                problems.append(f"{where}: needs `edges:` (cut points, e.g. [620, 680, 740]) or `count:` "
+                                f"(how many bands, 2 or more) with `cut:` ({' or '.join(CUTS)})")
+                continue
+            if cut not in CUTS:
+                problems.append(f"{where}: `cut:` must be one of {', '.join(CUTS)}; got {cut!r}")
+                continue
+            out.append(Band(name=name, field=fld, count=count, cut=cut))
+            continue
         if not isinstance(edges, list) or not edges or not all(_num(x) for x in edges):
-            problems.append(f"{where}: needs `edges:`, a list of cut points, e.g. [620, 680, 740]")
+            problems.append(f"{where}: `edges:` must be a list of cut points, e.g. [620, 680, 740]")
             continue
         if any(b <= a for a, b in zip(edges, edges[1:])):
             problems.append(f"{where}.edges must rise strictly: {edges}")
@@ -354,21 +478,56 @@ def _parse_benchmark(node: Any, problems: list[str]) -> Benchmark | None:
         problems.append(_missing_line("benchmark"))
         return None
     _unknown(node, set(BENCHMARK_KEYS), "benchmark", problems)
+    if any(isinstance(v, str) and CONFIRM in v for v in node.values()):
+        return None            # each unanswered line is already reported, once
     absent = [k for k in BENCHMARK_KEYS if k not in node]
     if absent:
-        problems.append(f"benchmark is missing {', '.join(absent)}; none of the three has a default. "
+        problems.append(f"benchmark is missing {', '.join(absent)}; none of these has a default. "
                         + _missing_line("benchmark").split("\n", 1)[1])
         return None
     mu, worse, better = node["min_units"], node["worse_at"], node["better_at"]
+    conf, power = node["confidence"], node["power"]
     ok = True
-    if not isinstance(mu, int) or isinstance(mu, bool) or mu < 1:
-        problems.append(f"benchmark.min_units must be a whole number of loans, 1 or more; got {mu!r}")
+    if not isinstance(mu, int) or isinstance(mu, bool) or mu < 2:
+        problems.append(f"benchmark.min_units must be a whole number of loans, 2 or more; got {mu!r}")
         ok = False
     for k, v in (("worse_at", worse), ("better_at", better)):
         if not _num(v) or v <= 0:
             problems.append(f"benchmark.{k} must be a positive number; got {v!r}")
             ok = False
+    for k, v in (("confidence", conf), ("power", power)):
+        if not _num(v) or not 0.5 <= v < 1:
+            problems.append(f"benchmark.{k} must be a share between 0.5 and 1, such as 0.95; got {v!r}")
+            ok = False
     if ok and better >= worse:
         problems.append(f"benchmark.better_at ({better}) must be below worse_at ({worse})")
         ok = False
-    return Benchmark(min_units=mu, worse_at=float(worse), better_at=float(better)) if ok else None
+    if ok and worse <= 1:
+        problems.append(f"benchmark.worse_at ({worse}) must be above 1: it is how many times worse counts as worse")
+        ok = False
+    return (Benchmark(min_units=mu, worse_at=float(worse), better_at=float(better), confidence=float(conf),
+                      power=float(power)) if ok else None)
+
+
+def _parse_questions(node: Any, problems: list[str]) -> tuple[Question, ...]:
+    if not isinstance(node, list):
+        problems.append("`questions:` must be a list (cube init writes it)")
+        return ()
+    out = []
+    for i, e in enumerate(node):
+        where = f"questions[{i}]"
+        if not isinstance(e, dict):
+            problems.append(f"{where} must be a mapping")
+            continue
+        _unknown(e, {"column", "pattern", "value", "rows", "answer"}, where, problems)
+        ans = e.get("answer")
+        if ans not in (None, *ANSWERS):
+            problems.append(f"{where}.answer must be left blank, or be one of {', '.join(ANSWERS)}; got {ans!r}")
+            continue
+        if e.get("pattern") not in ("repeated_value", "negatives") or not isinstance(e.get("column"), str):
+            problems.append(f"{where}: needs `column:` and a `pattern:` of repeated_value or negatives")
+            continue
+        val = e.get("value")
+        out.append(Question(column=e["column"], pattern=e["pattern"], value=float(val) if _num(val) else None,
+                            rows=int(e.get("rows") or 0), answer=ans))
+    return tuple(out)

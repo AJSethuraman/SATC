@@ -1373,11 +1373,26 @@ back.
 - [x] **Control tab built** (`cube control`): 12 settings from
       `settings.yaml`, each with options, explanations and your own value;
       rendered through LibreOffice with no error cells.
-- [ ] **Open:**
-  - (a) Does the proof stage live in the cube (recommended) or hand off to
-        the Pack?
-  - (b) The origination date and as-of date columns, for the loan-age setting.
-  - (c) The LOB's own dollar materiality, if it has one.
+- [x] **Built later on 25 Sep, rulings OC-11 to OC-16 in `origination-cube/docs/design.md`:**
+  - **Required lines:** key, booked, yes/no outcome, GCO and RANR, from which
+    four core rates are built.
+  - **`cube init`:** suggests the required columns with reasons, and refuses
+    until `columns_confirmed: yes`; sorts every column into band, dimension
+    or neither; raises odd values as questions.
+  - **Bands** are set by a count or by cut points.
+  - **Each pocket is tested** against the rest of the book, its band and its
+    dimension (the ratio-estimator test).
+  - **Evidence printed with every run:** loans needed for a gap, the smallest
+    gap each pocket could show, and what each materiality level keeps.
+  - **Judgment settings** (materiality, enough loans, worse at, confidence)
+    open blank on the Control tab and are never pre-chosen.
+  - **The size floor is not a gate.** A version that used the suggested
+    3,500 loans as a minimum hid the planted 6.6x pocket of 531 loans; each
+    pocket's own test decides.
+  - 86 tests; 11 of 11 re-inserted bugs caught.
+- [ ] **Next:** the workbook's other tabs (Where to look, Data questions,
+      grids, check tab), then `cube drill` and `cube prove`. Loan age needs
+      the origination-date and as-of columns suggested like the required ones.
 - **Not checked:** a real extract, and the bank machine.
 
 ## 7 · Standing rules for new items

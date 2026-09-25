@@ -1,19 +1,24 @@
-# The control center's settings: every choice the firm can make about a run,
-# the options offered for each, and what each option does in plain words.
+# The control center's settings: every choice about a run, the options offered
+# for each, and what each option does in plain words.
 #
-# This file is the one source. The Control tab of the workbook is generated
-# from it, and the run reads the answers back from that tab. An option's
-# explanation says what the math does, so the reader can choose without
-# knowing the statistic's name.
+# This file is the one source. The Control tab is generated from it and the
+# run reads the answers back from that tab. An option's explanation says what
+# the math does, so the reader can choose without knowing the statistic's name.
+#
+# judgment: true   The professional's call, not the tool's. The firm, 25 Sep 2026:
+#                  "i don't want the engine to decide a charge-off amount or
+#                  something is or is not important, that is the professional's
+#                  judgment to apply." Nothing is pre-selected and the run refuses
+#                  until one is chosen. The tool's job is evidence: the output shows
+#                  what each choice would keep and lose. Where the old workbook had
+#                  a value, the option says so, and it is still not chosen for you.
+# recommended      Only on method settings: how the arithmetic is done, not what
+#                  matters. Pre-selected, and printed on every output.
 #
 # takes_effect:  live    - an Excel formula reads it; change it and the book recalculates
 #                re-run  - Python reads it; change it and run the script again
 # override:      what the "Your own value" cell accepts, or null when only the
 #                listed options make sense
-# recommended:   marked in the dropdown and pre-selected; always visible, never
-#                silent. Where the old workbook had a setting, its value is the
-#                recommendation, so this file does not overrule a choice the
-#                firm already made.
 
 groups:
   - title: What the cube looks at
@@ -57,12 +62,13 @@ groups:
           - value: 2
             label: Two levels
             explains: >-
-              Can find narrow groups, but most will be too small to read and some
+              Can find narrow groups, but most will be too small to test and some
               will be luck. Pair it with a strict proof setting.
 
       - key: min_age_months
         question: How old a loan must be to count
         takes_effect: re-run
+        judgment: true
         override: whole number of months
         options:
           - value: 0
@@ -75,87 +81,166 @@ groups:
             explains: Removes the newest loans. Early losses show; late ones may not yet.
           - value: 24
             label: 24 months on book or more
-            recommended: true
             explains: >-
               Gives losses about two years to show. Fewer loans qualify, and the
               book you read is older.
 
-  - title: When a pocket can be read
+  - title: How columns are recognised
+    settings:
+      - key: few_values
+        question: A number column with this many values or fewer is a category
+        takes_effect: re-run
+        override: whole number of values
+        options:
+          - value: 12
+            label: "12"
+            recommended: true
+            explains: >-
+              Term (36, 48, 60) or a grade from 1 to 10 is read as categories, not
+              cut into bands.
+          - value: 6
+            label: "6"
+            explains: Only very short lists are categories; more columns are cut into bands.
+          - value: 24
+            label: "24"
+            explains: Longer lists stay categories, such as a month or a 1-20 score.
+
+      - key: many_values
+        question: A text column with more values than this is too fine to cut by
+        takes_effect: re-run
+        override: whole number of values
+        options:
+          - value: 50
+            label: "50"
+            recommended: true
+            explains: >-
+              State (50 or so) is still a dimension; a city or a dealer name is
+              raised as a question instead.
+          - value: 25
+            label: "25"
+            explains: Keeps grids small. Longer lists are raised as questions.
+          - value: 100
+            label: "100"
+            explains: Allows long lists as dimensions; many of their pockets will be tiny.
+
+      - key: band_count
+        question: How many bands a number column is cut into
+        takes_effect: re-run
+        override: whole number of bands
+        options:
+          - value: 5
+            label: "5"
+            recommended: true
+            explains: Fine enough to see a trend, with each band holding a fifth of the loans.
+          - value: 3
+            label: "3"
+            explains: Low, middle, high. Big pockets; a problem at the edge may be diluted.
+          - value: 10
+            label: "10"
+            explains: Shows where a rate turns, but each band is a tenth of the book.
+
+      - key: band_cut
+        question: Where the band edges fall
+        takes_effect: re-run
+        override: null
+        options:
+          - value: equal_loans
+            label: Each band holds about the same number of loans
+            recommended: true
+            explains: Every band can be tested equally well. Edges land on odd numbers like 663.
+          - value: round
+            label: The same, snapped to round numbers
+            explains: Edges like 650 and 700 that the LOB already uses. Bands hold uneven counts.
+
+  - title: Is it enough loans to matter
     settings:
       - key: min_loans
-        question: Fewest loans in a pocket before its rate is read
+        question: Fewest loans in a pocket before it is tested
         takes_effect: live
+        judgment: true
         override: whole number of loans
         options:
           - value: 30
             label: "30"
-            recommended: true
             explains: >-
-              The old workbook's setting. Reads most pockets; one bad loan can still
-              swing a small pocket's rate.
+              The old workbook's value. Stops a test on a handful of loans; the test
+              itself decides whether a gap is luck.
           - value: 100
             label: "100"
-            explains: Steadier rates. Small pockets are shown but not read.
+            explains: Small pockets are shown but not tested, even when their gap is large.
           - value: 300
             label: "300"
-            explains: Only large pockets are read. Suits a first pass on a big book.
+            explains: Only large pockets are tested. Suits a first pass on a big book.
 
       - key: min_events
-        question: Fewest loans with a loss before a loss rate is read
+        question: Fewest loans with a loss before a loss rate is tested
         takes_effect: live
+        judgment: true
         override: whole number of loans
         options:
           - value: 5
             label: "5"
-            explains: >-
-              The floor for the tests to hold at all. Ranges will be wide.
+            explains: The least the test can work with. Ranges will be wide.
           - value: 10
             label: "10"
-            recommended: true
             explains: >-
-              A pocket's loss rate rests on how many loans lost money, not how many
-              it holds. Ten is the common floor for comparing two rates.
+              A loss rate rests on how many loans lost money, not how many a pocket
+              holds. Ten is a common floor.
           - value: 20
             label: "20"
-            explains: >-
-              Ranges narrow enough to rank pockets against each other. Fewer pockets
-              qualify.
+            explains: Ranges narrow enough to rank pockets against each other.
 
-  - title: When a pocket matters
+  - title: Is it material
     settings:
       - key: materiality
         question: Smallest excess loss worth reporting
         takes_effect: live
-        override: a dollar amount, to use the LOB's own materiality
+        judgment: true
+        override: a dollar amount
         options:
           - value: 1% of losses
             label: 1% of the book's total losses
-            recommended: true
-            explains: >-
-              Scales with the book, so the same setting works on any population.
+            explains: Scales with the book, so the same setting works on any population.
           - value: 5% of losses
             label: 5% of the book's total losses
-            explains: Only pockets that move the total. Suits a summary for the LOB.
+            explains: Only pockets that move the total.
           - value: none
             label: No floor
             explains: >-
-              Every pocket that reads worse is listed, however small. For spotting
+              Every pocket that tests worse is listed, however small. For spotting
               patterns rather than dollars.
+
+  - title: Does it underperform
+    settings:
+      - key: compare_to
+        question: What a pocket is judged against
+        takes_effect: live
+        judgment: true
+        override: null
+        options:
+          - value: peers
+            label: The rest of its band
+            explains: >-
+              Broker under 620 against the rest of under 620. A pocket is never
+              compared with itself.
+          - value: topline
+            label: The rest of the book
+            explains: >-
+              The simplest story: does this pocket stand out overall? Every
+              comparison is always shown; this picks the one that flags.
 
       - key: worse_at
         question: How much worse than its comparison a pocket must be
         takes_effect: live
-        override: a multiple, such as 1.4
+        judgment: true
+        override: a multiple above 1, such as 1.4
         options:
           - value: 1.25
             label: 1.25 times
-            recommended: true
-            explains: >-
-              The old workbook's setting. Catches moderate gaps; more pockets
-              flagged, and more of them noise.
+            explains: The old workbook's value. Moderate gaps; more pockets flagged.
           - value: 1.5
             label: 1.5 times
-            explains: A middle setting.
+            explains: Half as bad again.
           - value: 2.0
             label: 2 times
             explains: Only pockets at double the rate or more. Few, and obvious.
@@ -163,12 +248,12 @@ groups:
       - key: better_at
         question: How much better than its comparison a pocket must be
         takes_effect: live
-        override: a multiple, such as 0.7
+        judgment: true
+        override: a multiple below 1, such as 0.7
         options:
           - value: 0.8
             label: 0.8 times
-            recommended: true
-            explains: The old workbook's setting.
+            explains: The old workbook's value.
           - value: 0.67
             label: 0.67 times
             explains: A third better or more.
@@ -178,46 +263,39 @@ groups:
 
   - title: Is it real
     settings:
-      - key: compare_to
-        question: What a pocket is judged against
-        takes_effect: live
-        override: null
-        options:
-          - value: peers
-            label: The rest of its peer group
-            recommended: true
-            explains: >-
-              Its parent without it: Broker under 620 against the rest of under 620.
-              The fair test, since a pocket is never compared with itself.
-          - value: parent
-            label: Its parent
-            explains: >-
-              All of under 620, the pocket included. Easy to explain, but a big
-              pocket pulls its parent toward itself and hides part of the gap.
-          - value: topline
-            label: The whole book
-            explains: >-
-              The simplest story: does this pocket stand out overall? All three
-              comparisons are always shown; this picks the one that flags.
-
       - key: confidence
         question: How sure a difference must be before it counts
         takes_effect: live
+        judgment: true
         override: a share between 0.5 and 0.999
         options:
           - value: 0.90
             label: 90%
-            explains: >-
-              Finds more. About 1 in 10 pockets with no real difference will still
-              pass.
+            explains: Finds more. About 1 in 10 pockets with no real difference will still pass.
           - value: 0.95
             label: 95%
-            recommended: true
             explains: The usual standard. About 1 in 20.
           - value: 0.99
             label: 99%
+            explains: Strict. About 1 in 100, and smaller real gaps will be missed.
+
+      - key: power
+        question: How often a real gap should be caught
+        takes_effect: live
+        override: a share between 0.5 and 0.99
+        options:
+          - value: 0.8
+            label: 80%
+            recommended: true
             explains: >-
-              Strict. About 1 in 100, and smaller real gaps will be missed.
+              The usual standard. Used only to say how big a gap each pocket's size
+              could show; it never flags anything.
+          - value: 0.9
+            label: 90%
+            explains: Each pocket can vouch for larger gaps only.
+          - value: 0.5
+            label: 50%
+            explains: A coin toss. The smallest gap a pocket could possibly show.
 
       - key: many_tests
         question: Allowing for testing many pockets at once
@@ -264,3 +342,17 @@ groups:
             explains: >-
               Keeps the mix of years the same on both sides, but each side has half
               the loans, so small pockets drop out.
+
+# How `cube init` suggests which column fills each required line. The firm,
+# 25 Sep 2026: "it is much easier to make assumptions for suggestions but
+# ultimately ask for confirmation on whether the right column is being used and
+# be able to fix it easily if it isn't right." A hint is a piece of a column
+# name, matched ignoring case, spaces and underscores; the values must fit too.
+# Every suggestion is written with its reason, and the file will not run until
+# `columns_confirmed: yes`. Add a bank's own column names here as they turn up.
+role_hints:
+  key: [loan, app, acct, account, nbr, number, id]
+  booked: [booked, book, origamt, loanamt, amount, principal, bal]
+  outcome: [chargedoff, chargeoff, co, bad, default, delinq, flag]
+  gco: [gco, grosschargeoff, chargeoffamt, coamt]
+  ranr: [ranr]

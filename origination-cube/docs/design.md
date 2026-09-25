@@ -6,9 +6,27 @@ The cube finds the pockets, and the proof stage shows each one is a real group
 that can be told apart from its peers, not luck and not something else in
 disguise.
 
-Written 25 Sep 2026 from the firm's answers the same day. Slice 1 (the engine)
-is built. Everything below it is proposed, and the firm reacts before it is
-built.
+**Who decides what.** The firm, 25 Sep 2026:
+
+> i don't want the engine to decide a charge-off amount or something is or is
+> not important, that is the professional's judgment to apply. this is meant to
+> be a very efficient tool for helping perform such analysis.
+
+So the tool does the arithmetic, runs the tests, and lays out the evidence for
+each judgment. The professional makes every call about what matters. Where the
+tool can reasonably guess (which column is GCO, which is the key), it suggests,
+says why, and waits for a yes.
+
+Written 25 Sep 2026. **Built:**
+- the engine
+- the per-pocket test
+- `cube init`
+- the Control tab
+
+**Proposed, and the firm reacts before it's built:**
+- the workbook's other tabs
+- drill-down
+- the proof stage
 
 ## The three stages
 
@@ -21,201 +39,262 @@ built.
                                                                looks like without it
 ```
 
-All three read the same extract and the same Control tab. Changing a live
-setting recalculates the workbook at once. Changing a re-run setting means
-running the script again, and every output page prints the settings it was
-built with.
+All three are commands of the one tool (`cube run`, `cube drill`, `cube
+prove`), reading the same extract, the same cube file and the same Control tab.
+Each writes what it checked beside what it found.
 
-## What "every band crossed with every dimension" means (question 1)
+## Step 0: what an extract must carry, and how the tool finds it (built)
 
-- **A band** is a number column cut into ranges: score, DTI, LTV, loan
-  amount.
-- **A dimension** is a category column: channel, asset class, state, product.
-- **A grid** is one band crossed with one dimension. For example, score bands
-  down the side and asset class across the top gives score-under-620 × auto,
-  score-under-620 × marine, and so on. Each crossing is a **pocket**.
+The firm's minimum, 25 Sep 2026. The run refuses if any of these is missing.
 
-Why cross them all: a problem that only exists in a combination is invisible
-on either column alone. For example:
-
-- Under-620 loans run at 1.3x the book's rate. That's worrying but expected.
-- Marine loans run at 1.1x. That's fine.
-- Under-620 marine loans run at 4x. That's the finding, and neither column
-  alone shows it.
-
-The cost is volume. An 80-column extract might hold 10 bands and 10
-dimensions: 100 grids and a couple of thousand pockets. So nobody reads the
-grids. The **Where to look** tab ranks every pocket from every grid by excess
-dollars, shows only the material and significant ones, and links each to its
-grid.
-
-It also groups the ones that are the same loans seen twice: "under 620 ×
-Broker" and "under 620 × high DTI" may be largely the same loans. The firm
-designs the population so every column is there for a reason, so crossing
-everything is the recommended setting.
-
-## What a pocket is compared with (question 2: "both, right?")
-
-All three comparisons are shown. The Control tab picks which one raises the
-flag.
-
-| Compared with | Example | What it shows |
+| Line | What it is | Why it's required |
 |---|---|---|
-| The whole book (topline) | under-620 marine against everything | Does it stand out overall? The simplest story for the LOB |
-| Its parent | under-620 marine against all of under-620 | Does it stand out *within* its band? A band you expected to be bad is only a finding where it's worse than its own peers |
-| The rest of its peer group | under-620 marine against under-620 not-marine | The fair test. The parent includes the pocket, so a big pocket pulls its parent toward itself and hides part of the gap. This is the default flag |
+| `key:` | loan or application number | "or we cannot perform the remapping exercise": every pocket must map back to its loans |
+| `booked:` | booked or loan amount | "averages and stuff in consumer tends to be weighted on a reporting level" |
+| `outcome:` | any yes/no: charged off, ever delinquent, decided by the system | the binary the rates are built on. `{field: X, is: AUTO}` makes any column yes/no |
+| `gco:` | gross charge-off dollars | the ratio comparisons |
+| `ranr:` | RANR dollars (negatives kept) | the ratio comparisons |
 
-Drilling repeats this one level down. Inside a flagged pocket, every other
-column is cut. The pocket is now the parent, and each new pocket is compared
-with the rest of it. That's the firm's "further categorize it to see if we can
-figure out where it's bleeding", done for every column instead of the one
-someone thinks of.
+Every run builds four core rates from these:
+- the outcome as a share of loans (straight)
+- the outcome as a share of booked dollars (weighted)
+- GCO per booked dollar
+- RANR per booked dollar
 
-## Odd values are raised as questions and never stop the run (question 4)
+Extras go under `measures:`, and `per: each_loan` gives a straight average of
+any column.
 
-The firm, on RANR: negative values *look* like a missing-value code but are
-real. The engine cannot tell which is which, and it must not guess.
+The key used to be warn-not-stop in the VBA (D55). It is now required,
+because remapping is part of the job.
 
-- **The profile pass looks for these patterns:**
-  - one value repeated far more than its neighbours at an extreme (-9999, 999,
-    all nines)
-  - negatives in a column that is almost always positive
-  - a spike at exactly zero
-  - values outside what the rest of the column suggests
-- **Each one becomes a row on a Data questions tab.** The row shows the
-  column, the pattern, how many loans it touches, how much of the book's
-  losses sit on them, and a sample. Beside it is a dropdown: *real* or
-  *treat as missing*.
-- **The run does not stop.** Until a question is answered, the values are used
-  **as recorded**. That isn't a guess, because it's what the data says. The
-  cover says in red: "3 data questions open: results use the values as
-  recorded."
-- **An answer is kept against the column name and the pattern.** RANR's
-  negatives, once marked *real*, are never asked about again. *Treat as
-  missing* becomes a rule like the ones in slice 1 (`missing: {FICO: {below:
-  -1000}}`), counted wherever it applies.
+**`cube init EXTRACT -o cube.yaml`** reads the extract and writes the cube
+file with everything filled in that can reasonably be filled in:
 
-This reverses the VBA's rule that an undecided REVIEW row stops the run. The
-firm asked for that on 25 Sep: surface it "but not by breaking the process and
-stopping/restarting". The difference is honest because it's visible: an open
-question is on the cover, not buried.
+- **The five required columns are suggested**, each with its reason, for
+  example `gco: GCO_AMT  # SUGGESTED - name contains 'gco'; zero on 95% of
+  loans, never negative`. A suggestion needs both the name and the values to
+  fit. The name hints are in `settings.yaml`, so a bank's own column names can
+  be added there. The file carries `columns_confirmed: no`, and the run refuses
+  until a person sets it to `yes`. A wrong suggestion is fixed by typing the
+  right column name over it. Where nothing fits, the line asks the question and
+  lists the candidates.
+- **Every other column is classified**:
+  - **band:** numbers with many values
+  - **dimension:** text with few values, numbers with few values (term,
+    grade), or codes written with leading zeros
+  - **key:** a different value on every row
+  - **date:** dates
+  - **skipped:** empty, or one value only
+  - **question:** too many categories to cut by, a mix of numbers and text, or
+    a number that differs on every row (an ID or an amount?)
 
-## Materiality applies when the cube is read, never when it's built (question 5)
+  Only the clear cases are decided. The limits (12 values, 50 values) are
+  settings on the Control tab.
+- **Odd values are raised as questions and never stop the run**: a -9999
+  repeated far outside the rest, or negatives in a mostly positive column
+  (RANR's are real, and the tool asks rather than decides). Until you answer,
+  the values are used as recorded and every output says so. `missing` turns
+  the answer into a rule and `real` closes the question.
+- **Nothing is cut by its own outcome.** Once GCO, RANR and the outcome are
+  named, they are left out of the bands and dimensions, with a warning saying
+  why. A column recorded after the loan was made (a status, days past due) is
+  also an outcome. The tool can't tell when a column was recorded, so the file
+  says to take such columns out.
 
-The firm: *"there should be materiality thresholds within the cube and its
-uses, but i don't think for making it... why would we want to totally ignore
-them?"*
+## What "every band crossed with every dimension" means
 
-- **Every pocket is built and kept**, however small. The tie-out needs every
-  loan in some pocket, and a small pocket is still information.
-- **Thresholds decide what is read, flagged and reported:**
-  - fewest loans
-  - fewest loans with a loss
-  - smallest excess worth reporting
-  - how much worse counts as worse
-  - how sure
-- **Pockets set aside by a threshold get their own list**, "Below the line",
-  with the reason and the dollars they hold together. Many small pockets can
-  add up to a material amount, and that total is itself a finding.
+- **A band** is a number column cut into ranges: score, DTI, LTV, loan amount.
+- **A dimension** is a category column: channel, asset class, state.
+- **A grid** is one band crossed with one dimension. Each crossing is a
+  **pocket**.
 
-## The Control tab
+A problem that only exists in a combination hides on each column alone. For
+example, under-620 at 1.3x the book and marine at 1.1x can hide under-620
+marine at 4x.
 
-Built (this commit): `cube control --out control.xlsx`. Every setting has a
-dropdown of options, each with a one-line explanation of what the math does,
-plus a cell for your own value. The options and explanations live in
-`src/origination_cube/settings.yaml`. The settings:
+**Bands are yours to set** (the firm: "we could make more or less bands"). Each
+band is either:
+- **cut points you give**: `edges: [620, 680, 740]`
+- **a count**: `count: 5, cut: equal_loans` (equal numbers of loans per band)
+  or `cut: round` (the same, snapped to round numbers like 650 and 700)
 
-| Group | Setting | Options | Takes effect |
+The edges actually used are printed with every run.
+
+A synthetic run showed why band count matters. The planted pocket sits below
+620, but five equal bands put the first edge at 653, which diluted the
+pocket's gap from 6.6x to 3.3x. Ten bands, or your own edges, sharpen it.
+
+## Does a pocket underperform, and is it real (built)
+
+Every pocket is compared three ways. Each comparison has its own multiple and
+its own test.
+
+| Compared with | What it shows |
+|---|---|
+| The rest of the book (without the pocket) | Does it stand out overall? |
+| The rest of its band (without the pocket) | Does it stand out *within* its band? For example, under-653 Broker against under-653 Branch and Online |
+| The rest of its dimension level | The same, the other way |
+
+A fourth figure, **share of losses / share of volume**, is the pocket's rate
+over the whole book's rate. It's the bleed measure, and the excess dollars
+behind it add to zero across a grid, which the tie-out checks.
+
+**The word for a pocket needs two things:**
+- its multiple is past your threshold, and
+- the test says the gap is unlikely to be luck at your confidence.
+
+Past the threshold but not significant reads **"gap could be luck"**. Under
+your minimum loan count reads **"too few loans to test"**. The word always
+comes from the comparison its test made. A test proves this: a pocket holding
+60% of the book at 1.4x the rest of it would pass as "in line" if it were
+compared with itself included.
+
+The synthetic run shows the within-band view doing its job. Under-653 is worse
+than the book, but under-653 Online and Branch are 0.6x the *rest of their
+band*. The band's problem is Broker, and Broker alone.
+
+**How the test works.** Each pocket keeps six sums: loans, Σ top, Σ bottom,
+Σ top², Σ bottom², and Σ top×bottom. The standard error of a ratio of two sums
+comes from those sums (Cochran's ratio estimator). A pocket's peers are its
+parent's sums minus its own, so Excel can repeat the arithmetic from the same
+six columns. With every loan weighted 1, the test is the textbook
+two-proportion z-test, and a test checks that to nine digits.
+
+## How many loans is enough (the firm: "30 sounds low")
+
+The suggestion used to be a fixed 30. It is now worked out from the book:
+- **how many loans a pocket needs** before a gap of your size reliably shows
+- **the smallest gap each pocket's size could show**
+
+That depends on the book's loss rate, how much loss sizes vary, your
+confidence, and how often a real gap should be caught (power). On the
+synthetic book, a 1.25x gap needs about 2,800 loans in the bad-loan share,
+3,500 in the booked-weighted bad rate, 3,700 in the GCO rate and 450 in the
+RANR rate. It shows beside every run.
+
+**It is evidence, not a gate.** The first version used it as the minimum, and
+that hid the planted pocket: 531 loans at 6.6x, obviously real. A big gap
+shows in a small pocket. So the minimum loan count stays yours (the old
+workbook used 30), and only stops a test from running on a handful of loans.
+Each pocket's own test decides whether its gap is real.
+
+The calculation agrees with the textbook two-proportion answer within 6% (for
+a 4.65% rate: about 2,750 loans for a 1.25x gap and about 200 for 2x). A
+dollar rate needs more loans than a count rate, because loss sizes vary; a test
+proves that too.
+
+## Is it material (evidence built; the call is yours)
+
+The tool never sets materiality. For every grid it shows what each level
+would keep. This is the synthetic book's score × channel grid, GCO rate, as
+`cube run` printed it on 25 Sep 2026:
+
+```
+Materiality evidence: what each level would keep (the level is your call)
+   0.5% of book losses (83,185): 6 pocket(s), 98% of this grid's excess
+   1.0% of book losses (166,370): 6 pocket(s), 98% of this grid's excess
+   2.0% of book losses (332,741): 3 pocket(s), 82% of this grid's excess
+   5.0% of book losses (831,852): 1 pocket(s), 56% of this grid's excess
+  10.0% of book losses (1,663,703): 1 pocket(s), 56% of this grid's excess
+```
+
+Read it as a trade-off: going from 1% to 2% drops three pockets and 16 points
+of the bleed.
+
+You choose on the Control tab: 1% of losses, 5% of losses, no floor, or your
+own dollar amount. Pockets under the level are listed below the line with their
+combined total, never hidden (ruling OC-8).
+
+## The Control tab (built: `cube control --out control.xlsx`)
+
+Each setting is either **your judgment** or **method**:
+
+- **Your judgment**: opens blank, and the run waits until you choose. Where the
+  old workbook had a value, the option says so, but it isn't chosen for you.
+- **Method**: opens on the recommended option, which is printed on every
+  output.
+
+| Group | Setting | Whose call | Takes effect |
 |---|---|---|---|
-| What the cube looks at | Which cuts | every pair (rec.) / singles / named pairs | re-run |
-| | Drill depth | none / one level (rec.) / two | re-run |
-| | Loan age | all / 12 months / 24 months (rec.) | re-run |
-| When a pocket can be read | Fewest loans | 30 (old workbook, rec.) / 100 / 300 | live |
-| | Fewest loans with a loss | 5 / 10 (rec.) / 20 | live |
-| When a pocket matters | Smallest excess | 1% of losses (rec.) / 5% / none / your $ amount | live |
-| | Worse at | 1.25x (old workbook, rec.) / 1.5x / 2x | live |
-| | Better at | 0.8x (old workbook, rec.) / 0.67x / 0.5x | live |
-| Is it real | Judged against | rest of peer group (rec.) / parent / whole book | live |
-| | Confidence | 90% / 95% (rec.) / 99% | live |
-| | Many pockets at once | none / Benjamini-Hochberg (rec.) / Bonferroni | live |
-| Proving it | Where it's tested | same loans / earlier vs later originations (rec.) / random halves | re-run |
+| What the cube looks at | Which cuts / drill depth | method | re-run |
+| | Loan age | **judgment** | re-run |
+| How columns are recognised | Few values = category (12) / too many categories (50) | method | re-run |
+| | How many bands (5) / where edges fall (equal loans) | method | re-run |
+| Is it enough loans to matter | Fewest loans to test / fewest losses | **judgment** | live |
+| Is it material | Smallest excess worth reporting | **judgment** | live |
+| Does it underperform | Judged against / worse at / better at | **judgment** | live |
+| Is it real | Confidence | **judgment** | live |
+| | Power, multiple-test allowance | method | live |
+| Proving it | Where it's tested (later originations) | method | re-run |
 
-Two of these deserve a sentence each, because they are what separates a lead
-from a finding:
+`cube init --control control.xlsx` writes your answers into the cube file.
+Without a Control tab, every judgment line stays `[CONFIRM: ...]`.
 
-- **Many pockets at once.** Scan 2,000 pockets at 95% confidence and about 100
-  will look significant by chance alone. The recommended allowance keeps the
-  share of lucky finds among the flagged pockets to about 5%.
-- **Where it's tested.** A pocket found by searching always looks worse than it
-  is, because the search picked it for looking bad. The strongest evidence
-  for the LOB is that the pocket, defined on earlier originations, is still
-  worse on later ones it was never shown.
+**Not wired yet:** loan age, fewest losses, materiality, judged-against, and
+the multiple-test allowance are on the Control tab, but the engine doesn't
+apply them yet. They arrive with the workbook.
 
-### How the tests work
+## Prove: from the pocket to the loans (proposed)
 
-Excel can recalculate these, so confidence and the other live settings can
-change on the spot:
+The firm asked for this to be "integrated into that script ... as a separate
+function ... and checks should be built in yes. this has to be auditable".
+So `cube prove` runs in the same tool, on the same cube file, and takes a
+pocket written as a rule, for example `FICO < 620 AND CHANNEL = Broker`. It
+shows:
 
-- **A loan-count rate** (the share of loans that went bad) is tested as two
-  proportions, with the Wilson interval (copied from the Portfolio Analysis
-  Pack).
-- **A dollar rate** (GCO per balance) is a ratio of two sums, and big loans
-  count for more. It is tested with the standard error of a ratio. Python
-  writes five sums per pocket (Σy, Σx, Σy², Σx², Σxy) and the count, and Excel
-  computes the rest.
+1. **The group against the rest of its peers:** rate, multiple, test, and the
+   allowance for many tests.
+2. **That it held on loans it wasn't found in:** later originations, or the
+   other half.
+3. **That it isn't something else in disguise:** the gap within each level of
+   every other column. The Portfolio Analysis Pack's step 4 is copied for
+   this, extended from yes/no outcomes to dollar rates.
+4. **The buy box with and without it:** the loss rate without the group,
+   losses avoided, and volume given up.
+5. **The loans:** every key in the group, so the LOB can check them. This is
+   why the key is required.
 
-## Prove: from the pocket to the loans
-
-Once the Where to look tab has named a pocket, it is written as a rule on the
-loans, for example `FICO < 620 AND ASSET_CLASS = Marine`. The rule can be
-edited or narrowed, and it produces the evidence the LOB needs:
-
-1. **The group against the rest of its peers.** Rate, gap, interval, and
-   significance, after the allowance for many tests.
-2. **It held on loans it wasn't found in.** The same rule on later
-   originations, or on the other half.
-3. **It isn't something else in disguise.** The gap within each level of every
-   other column. If under-620 marine is really just "large loans", the gap
-   disappears within each loan-size band. The Portfolio Analysis Pack already
-   runs this check (its step 4).
-4. **The buy box with and without it.** The book's loss rate with the group
-   removed, the losses avoided, and the volume given up, as loss avoided per
-   dollar of volume. That's the trade-off the LOB will weigh.
-5. **The loans themselves.** The key column of every loan in the group, so the
-   LOB can check them in their own systems. This is why `key:` matters.
+**Auditable means each of these:**
+- every figure sits beside the arithmetic that produced it
+- every tab ties out to the book
+- the output records the extract's hash, row counts and settings
+- the list of loans reproduces every number from the loans alone
 
 ## Size
 
-The firm's example population: 17,000 rows by about 80 columns. At that size
-pure Python is fast enough: 100 grids over 17,000 synthetic loans took 3.7
-seconds, with 1,700 tie-out checks (measured 25 Sep 2026). numpy isn't
-needed unless populations grow past a few hundred thousand rows.
+The firm's example population is 17,000 rows by about 80 columns. 100 grids
+over 17,000 synthetic loans took 3.7 seconds with 1,700 tie-out checks
+(measured 25 Sep 2026, before the per-pocket test was added). Pure Python is
+enough.
 
-## Rulings recorded 25 Sep 2026 (continuing OC-1 to OC-4 in `vba-findings.md`)
+## Rulings, 25 Sep 2026 (OC-1 to OC-4 are in `vba-findings.md`)
 
-- **OC-5:** cross everything and rank it, rather than read every grid. (*"ideally
-  this is very fluid and provides as much as possible"*)
-- **OC-6:** every pocket is compared with the whole book, its parent and the rest
-  of its peers, and drilling repeats that a level down. (*"both, right?"*)
-- **OC-7:** odd values become questions that never stop the run; they are used as
-  recorded until answered, and the cover says so. (*"surface for the user to
-  determine before going forward somehow? but not by breaking the process"*)
-- **OC-8:** materiality applies when the cube is read, never when it's built.
-  Pockets under a threshold are listed with their total. (*"why would we want to
-  totally ignore them?"*)
-- **OC-9:** a control center with a few options per setting, each explained, and
-  your own value allowed.
-- **OC-10:** a proof stage on the loans themselves: *"if our overall buybox appears
-  okay, we should identify the places it isn't and prove it out."*
+- **OC-5:** cross everything and rank it.
+- **OC-6:** compare each pocket with the book and with its peers, a level down
+  as well.
+- **OC-7:** odd values are raised as questions and never stop the run.
+- **OC-8:** materiality applies when reading, never when building.
+- **OC-9:** a control center with explained options, and your own value
+  allowed.
+- **OC-10:** a proof stage on the loans themselves.
+- **OC-11:** band count and cut points are the professional's to set (*"we could
+  make more or less bands"*).
+- **OC-12:** columns are recognised as band, dimension or neither by the tool,
+  and only the clear cases are decided (*"hopefully we are self-identifying"*).
+- **OC-13:** judgment settings are never pre-chosen; the tool gives evidence
+  (*"that is the professional's judgment to apply"*).
+- **OC-14:** the minimum an extract must carry is a yes/no outcome, GCO, RANR,
+  the booked amount and a key. The key becomes required, reversing D55's
+  warn-not-stop for this tool.
+- **OC-15:** the required columns are suggested with reasons and confirmed by one
+  line (*"make assumptions for suggestions but ultimately ask for confirmation
+  ... and be able to fix it easily"*).
+- **OC-16:** proof is a separate command of the same tool, with its checks built
+  in and auditable.
 
 ## Open
 
-- **(a) Where the proof stage lives.** The recommendation is to build it inside
-  the cube, on the same extract and Control tab, copying the Portfolio Analysis
-  Pack's statistics and its "something else in disguise" check. The alternative
-  is to hand the rule to the Pack, whose six steps already do most of it, but
-  for one yes-or-no outcome per loan, not dollar rates.
-- **(b) The loan-age setting needs two columns the cube doesn't ask for yet:**
-  the origination date and an as-of date.
-- **(c) Dollar materiality:** does the LOB have a number of its own? If so, it
-  goes in as "your own value".
+- **(a) The workbook's other tabs:** Where to look, Data questions, the
+  grids, and the check tab. Next to build.
+- **(b) The origination date and as-of date columns for loan age.** They can
+  be suggested the same way the required columns are.

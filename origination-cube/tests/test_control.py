@@ -19,10 +19,22 @@ def _row(ws, key):
     raise KeyError(key)
 
 
-def test_every_setting_has_options_one_recommended_and_short_explanations():
+JUDGMENT = {"min_age_months", "min_loans", "min_events", "materiality", "compare_to", "worse_at", "better_at",
+            "confidence"}
+
+
+def test_judgment_settings_recommend_nothing_and_method_settings_recommend_one():
+    """The firm: what is material, what is enough loans, what counts as worse
+    is the professional's judgment, never the tool's."""
+    settings = control.load_settings()
+    assert {s.key for s in settings if s.judgment} == JUDGMENT
+    for s in settings:
+        assert sum(o.recommended for o in s.options) == (0 if s.judgment else 1), s.key
+
+
+def test_every_setting_has_options_and_short_explanations():
     for s in control.load_settings():
         assert len(s.options) >= 2, s.key
-        assert sum(o.recommended for o in s.options) == 1, s.key
         assert len({o.label for o in s.options}) == len(s.options), s.key
         assert s.takes_effect in ("live", "re-run"), s.key
         for o in s.options:
@@ -30,24 +42,45 @@ def test_every_setting_has_options_one_recommended_and_short_explanations():
             assert len(o.explains.split()) <= 30, (s.key, o.label)
 
 
-def test_the_tab_opens_on_the_recommended_options(book):
+def _answer_judgment(book, choices=None):
+    wb = load_workbook(book)
+    ws = wb[control.SHEET]
+    for s in control.load_settings():
+        if s.judgment:
+            pick = (choices or {}).get(s.key, s.options[0].shown)
+            ws.cell(row=_row(ws, s.key), column=control.CHOOSE_COL).value = pick
+    wb.save(book)
+
+
+def test_a_fresh_tab_waits_for_every_judgment_and_names_each(book):
+    with pytest.raises(control.ControlError) as exc:
+        control.read_control(book)
+    assert len(exc.value.problems) == len(JUDGMENT)
+    assert all("your judgment" in p for p in exc.value.problems)
+
+
+def test_method_settings_open_on_their_recommendation(book):
+    _answer_judgment(book)
     got = control.read_control(book)
-    want = {s.key: s.recommended().value for s in control.load_settings()}
-    assert got == want
+    for s in control.load_settings():
+        if not s.judgment:
+            assert got[s.key] == s.recommended().value
 
 
 def test_your_own_value_wins(book):
+    _answer_judgment(book)
     wb = load_workbook(book)
     ws = wb[control.SHEET]
-    ws.cell(row=_row(ws, "worse_at"), column=control.OWN_COL, value=1.4)
+    ws.cell(row=_row(ws, "worse_at"), column=control.OWN_COL).value = 1.4
     wb.save(book)
     assert control.read_control(book)["worse_at"] == 1.4
 
 
 def test_picking_another_option(book):
+    _answer_judgment(book)
     wb = load_workbook(book)
     ws = wb[control.SHEET]
-    ws.cell(row=_row(ws, "confidence"), column=control.CHOOSE_COL, value="99%")
+    ws.cell(row=_row(ws, "confidence"), column=control.CHOOSE_COL).value = "99%"
     wb.save(book)
     assert control.read_control(book)["confidence"] == 0.99
 
@@ -55,22 +88,25 @@ def test_picking_another_option(book):
 def test_nothing_chosen_is_refused_by_name(book):
     wb = load_workbook(book)
     ws = wb[control.SHEET]
-    ws.cell(row=_row(ws, "min_loans"), column=control.CHOOSE_COL).value = None
+    ws.cell(row=_row(ws, "band_count"), column=control.CHOOSE_COL).value = None
     wb.save(book)
-    with pytest.raises(control.ControlError, match="Fewest loans in a pocket"):
+    _answer_judgment(book)
+    with pytest.raises(control.ControlError, match="How many bands"):
         control.read_control(book)
 
 
 def test_text_where_a_number_is_needed_is_refused(book):
+    _answer_judgment(book)
     wb = load_workbook(book)
     ws = wb[control.SHEET]
-    ws.cell(row=_row(ws, "materiality"), column=control.OWN_COL, value="lots")
+    ws.cell(row=_row(ws, "materiality"), column=control.OWN_COL).value = "lots"
     wb.save(book)
     with pytest.raises(control.ControlError, match="dollar amount"):
         control.read_control(book)
 
 
 def test_a_setting_missing_from_the_tab_is_refused(book):
+    _answer_judgment(book)
     wb = load_workbook(book)
     ws = wb[control.SHEET]
     ws.cell(row=_row(ws, "proof"), column=control.KEY_COL).value = None

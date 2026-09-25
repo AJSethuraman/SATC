@@ -8,9 +8,19 @@ muts = [
  ("1 blank->zero",       E, 'if p is BLANK:\n        return None, "blank"', 'if p is BLANK:\n        return 0.0, None', "test_finding_1"),
  ("2 empty->index 0",    E, 'if rate is None or base is None or base == 0:', 'if base is None or base == 0:\n        return None\n    if rate is None:\n        rate = 0.0\n    if False:', "test_finding_2"),
  ("4 text->0 on top",    E, '                if why_t or why_d:', '                if why_t and not why_d and m.mode == "sumnum":\n                    vals.append((0.0, d)); continue\n                if why_t or why_d:', "test_finding_4"),
- ("8 threshold default", C, '    absent = [k for k in BENCHMARK_KEYS if k not in node]', '    node = {"min_units": 30, "worse_at": 1.25, "better_at": 0.8, **node}\n    absent = [k for k in BENCHMARK_KEYS if k not in node]', "test_finding_8"),
+ ("8 threshold default", C, '    absent = [k for k in BENCHMARK_KEYS if k not in node]', '    node = {"min_units": 30, "worse_at": 1.25, "better_at": 0.8, "confidence": 0.95, "power": 0.8, **node}\n    absent = [k for k in BENCHMARK_KEYS if k not in node]', "test_finding_8"),
  ("tie-out disabled",    E, '        if not _close(got, want, scale):', '        if False:', "test_the_tie_out"),
  ("unknown keys ignored",C, '        if k not in allowed:', '        if False:', "misspelled"),
+ ("judgment pre-chosen", "src/origination_cube/control.py",
+  'value=None if s.judgment or rec is None else rec.shown)',
+  'value=(rec or s.options[0]).shown)', "waits_for_every_judgment"),
+ ("outcome cut by",      E, '    tops = {m.value if m.mode == "sumnum" else m.flag for m in measures if m.is_rate}',
+  '    tops = set()', "outcome"),
+ ("unconfirmed columns run", C, 'if "columns_confirmed" in raw and raw["columns_confirmed"] is not True:',
+  'if False:', "confirms_it"),
+ ("key optional again",  E, '    if config.key not in have:', '    if False:', "missing_key"),
+ ("reading on whole-book multiple", E, '            s.reading_topline = reading_of(s.vs_rest, s.units, bench, floor, s.p_book)',
+  '            s.reading_topline = reading_of(s.vs_topline, s.units, bench, floor, s.p_book)', "big_pocket"),
 ]
 bad = 0
 for name, f, old, new, sel in muts:

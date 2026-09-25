@@ -8,10 +8,13 @@ from origination_cube import config as cfgmod
 
 def test_the_base_file_is_accepted():
     c = cube()
-    assert [m.mode for m in c.measures] == ["flagwt", "sumnum", "count", "median"]
+    assert [m.name for m in c.measures] == ["outcome_loans", "outcome_booked", "gco_rate", "ranr_rate", "loans",
+                                            "score_median"]
+    assert [m.mode for m in c.measures] == ["flagwt", "flagwt", "sumnum", "sumnum", "count", "median"]
 
 
-@pytest.mark.parametrize("line", ["bands", "dimensions", "measures", "benchmark", "name"])
+@pytest.mark.parametrize("line", ["bands", "dimensions", "benchmark", "name", "key", "booked", "outcome", "gco",
+                                  "ranr"])
 def test_each_required_line_is_refused_with_the_line_to_add(line):
     with pytest.raises(cfgmod.ConfigError) as exc:
         cube(**{line: None})
@@ -26,6 +29,27 @@ def test_unknown_top_line_is_refused():
 def test_edges_must_rise():
     with pytest.raises(cfgmod.ConfigError, match="must rise"):
         cube(bands=[{"name": "score", "field": "SCORE", "edges": [700, 650]}])
+
+
+def test_the_core_rates_are_built_from_the_required_lines():
+    """The firm's minimum: a yes/no outcome, GCO, RANR, the booked amount and a key."""
+    c = cube()
+    by = {m.name: m for m in c.measures}
+    assert by["outcome_loans"].label() == "COUNT(loans where BAD = 1) / COUNT(loans)"
+    assert by["outcome_booked"].label() == "SUM(BAL where BAD = 1) / SUM(BAL)"
+    assert by["gco_rate"].label() == "SUM(GCO) / SUM(BAL)"
+    assert by["ranr_rate"].label() == "SUM(RANR) / SUM(BAL)"
+    assert all(m.core and not m.optional for m in c.measures[:4])
+
+
+def test_an_outcome_can_be_any_value_made_yes_or_no():
+    c = cube(outcome={"field": "DECISION", "is": "AUTO"})
+    assert c.measures[0].label() == "COUNT(loans where DECISION = 'AUTO') / COUNT(loans)"
+
+
+def test_a_core_name_cannot_be_reused():
+    with pytest.raises(cfgmod.ConfigError, match="taken by a core rate"):
+        cube(measures=[{"name": "gco_rate", "mode": "count"}])
 
 
 def test_a_rate_names_its_own_denominator():

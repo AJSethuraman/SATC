@@ -2,21 +2,24 @@
 # extract's; for a real extract, `cube inspect` lists the real ones.
 name: synthetic_origination_cube
 schema_version: 1
-key: LOAN_NBR
+key: LOAN_NBR              # loan number: needed to map results back to loans
+booked: ORIG_BAL           # weights the reporting-level rates
+outcome: BAD_FLAG          # any yes/no column; or {field: COLUMN, is: VALUE}
+gco: GCO_AMT
+ranr: RANR_AMT
 missing:
   FICO: {below: -1000}        # the bureau writes -9999 when it has no score
 bands:
-  - {name: fico, field: FICO, edges: [620, 680, 740]}
+  - {name: fico, field: FICO, edges: [620, 680, 740]}      # or: count: 5, cut: equal_loans
 dimensions:
   - {name: channel, field: CHANNEL}
-measures:
-  - {name: bad_rate, mode: flagwt, flag: BAD_FLAG, per: ORIG_BAL}
-  - {name: gco_rate, mode: sumnum, value: GCO_AMT, per: ORIG_BAL}
-  - {name: ranr_rate, mode: sumnum, value: RANR_AMT, per: ORIG_BAL}
+measures:                  # extras; the core rates are built from the lines above
   - {name: loans, mode: count}
+  - {name: gco_per_loan, mode: sumnum, value: GCO_AMT, per: each_loan}   # a straight average
   - {name: fico_median, mode: median, value: FICO}
 benchmark:
-  min_units: 30
+  min_units: 30            # below this a pocket is shown but not tested
   worse_at: 1.25
   better_at: 0.8
-
+  confidence: 0.95
+  power: 0.8

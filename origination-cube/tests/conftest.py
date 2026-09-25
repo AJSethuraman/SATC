@@ -14,15 +14,17 @@ BASE = {
     "name": "t",
     "schema_version": 1,
     "key": "ID",
+    "booked": "BAL",
+    "outcome": "BAD",
+    "gco": "GCO",
+    "ranr": "RANR",
     "bands": [{"name": "score", "field": "SCORE", "edges": [650]}],
     "dimensions": [{"name": "chan", "field": "CHAN"}],
     "measures": [
-        {"name": "bad", "mode": "flagwt", "flag": "BAD", "per": "BAL"},
-        {"name": "gco", "mode": "sumnum", "value": "GCO", "per": "BAL"},
         {"name": "loans", "mode": "count"},
         {"name": "score_median", "mode": "median", "value": "SCORE"},
     ],
-    "benchmark": {"min_units": 1, "worse_at": 1.25, "better_at": 0.8},
+    "benchmark": {"min_units": 2, "worse_at": 1.25, "better_at": 0.8, "confidence": 0.95, "power": 0.8},
 }
 
 
@@ -41,8 +43,8 @@ def table(rows, columns=None):
     return Table(path="(test)", sha256="", columns=columns, rows=rows, kind="csv")
 
 
-def row(i, score, chan, bal, bad, gco):
-    return {"ID": f"L{i}", "SCORE": score, "CHAN": chan, "BAL": bal, "BAD": bad, "GCO": gco}
+def row(i, score, chan, bal, bad, gco, ranr=0):
+    return {"ID": f"L{i}", "SCORE": score, "CHAN": chan, "BAL": bal, "BAD": bad, "GCO": gco, "RANR": ranr}
 
 
 @pytest.fixture

@@ -15,69 +15,21 @@ this is not a port and the workbook will be designed from scratch.
 prove), the Control tab, and the firm's rulings of 25 Sep. The Control tab is
 built (`cube control --out control.xlsx`); the rest of the workbook is not.
 
-**Status (25 Sep 2026): slice 1, the engine.** It reads the extract, applies
-the cube file, builds every grid, checks each grid against the book's totals,
-and prints the result. The workbook is slice 2 and isn't built yet. Nothing
-here has met a real extract. Log: `../BACKLOG.md` §6d.
+**Status (25 Sep 2026):** the engine, the per-pocket test, `cube init` and the
+Control tab are built. The workbook's other tabs, drill-down and `cube prove`
+are designed, not built. Nothing here has met a real extract. Log:
+`../BACKLOG.md` §6d.
 
-## What one rate cell carries
+## What an extract must carry
 
-| Figure | What it is |
-|---|---|
-| rate | the measure's top divided by its bottom, e.g. `SUM(GCO_AMT) / SUM(ORIG_BAL)` |
-| vs topline | the cell's rate divided by the book's rate. The same number is its share of the losses divided by its share of the volume. 2.0x means the pocket loses at twice the book's rate |
-| excess | the cell's losses minus what it would have lost at the book's rate. This ranks the pockets, and it adds to zero across a grid |
-| vs median | the cell's rate divided by the median rate of the grid's cells, leaving out cells with too few loans |
-| reading | worse than benchmark / in line / better than benchmark / too few loans to read, using the thresholds in the file |
-
-Each grid also has an `All` row and an `All` column, so the result for a whole
-band or a whole channel sits beside its pockets.
-
-## The cube file
-
-```yaml
-name: my_cube
-schema_version: 1
-key: LOAN_NBR                    # optional; without it the cube runs, with a warning
-missing:                         # values that mean "missing", per column
-  FICO: {below: -1000}           # the bureau writes -9999 for no score
-  CHANNEL: {values: ["UNK"]}
-bands:
-  - {name: fico, field: FICO, edges: [620, 680, 740]}
-dimensions:
-  - {name: channel, field: CHANNEL}
-measures:
-  - {name: bad_rate,  mode: flagwt, flag: BAD_FLAG, per: ORIG_BAL}
-  - {name: gco_rate,  mode: sumnum, value: GCO_AMT, per: ORIG_BAL}
-  - {name: ranr_rate, mode: sumnum, value: RANR_AMT, per: ORIG_BAL, optional: true}
-  - {name: loans,     mode: count}
-  - {name: fico_median, mode: median, value: FICO}
-benchmark:
-  min_units: 30                  # cells with fewer loans are not read
-  worse_at: 1.25
-  better_at: 0.8
-```
-
-- **Every rate names its own bottom with `per:`**, so a ratio of any two columns
-  is one line in the file: GCO per balance, RANR per balance, or GCO per RANR.
-- **Every band is crossed with every dimension.**
-- **Nothing has a default.** A missing line is refused and the error message
-  prints the line to add. A misspelled key is refused, not ignored.
-
-## What happens to a value that won't read
-
-It is **never read as zero**. Any of these:
-
-- a blank
-- text in a number column
-- a flag that isn't 0 or 1
-- a value caught by a `missing:` rule
-
-is left out of the top *and* the bottom of the rate it affects, and counted
-under "Left out" in the output. The same row still counts in every other
-figure it can be read for. In a band or dimension column, the row gets its own
-visible row in the grid, such as `(blank)` or `(missing by rule)`, so no loan
-disappears from the tie-out.
+A loan or application number (`key:`), the booked amount (`booked:`), a yes/no
+outcome (`outcome:`), GCO dollars (`gco:`) and RANR dollars (`ranr:`). The run
+refuses without any of them. From those it builds four core rates on every
+run:
+- the outcome as a share of loans (straight)
+- the outcome as a share of booked dollars (weighted)
+- GCO per booked dollar
+- RANR per booked dollar
 
 ## Using it
 
@@ -85,23 +37,47 @@ Python 3.10 or later with `openpyxl` and `PyYAML`.
 
 ```
 pip install -e .
-cube synth --out demo                                   # a book with a known answer
-cube validate demo/cube.yaml --data demo/loans.csv
-cube run demo/cube.yaml --data demo/loans.csv
-cube inspect extract.csv                                # every column: kind, blanks, samples
+cube control --out control.xlsx                 # the Control tab: make your calls in Excel
+cube init extract.csv -o cube.yaml --control control.xlsx
+cube validate cube.yaml --data extract.csv
+cube run cube.yaml --data extract.csv
 ```
 
-In the synthetic book, loans with a score under 620 that came through the
-broker channel charge off at about six times the book's rate. `cube run` puts
-that pocket first on the bleed list for both the bad-loan rate and the GCO
-rate. The RANR grid, which has no planted effect, reads in line everywhere it
-has loans.
+**What `cube init` does:**
+- It **suggests** which column is the key, the booked amount, the outcome,
+  GCO and RANR, each with its reason, and writes `columns_confirmed: no`.
+  Check each one, type the right name over any that is wrong, and set it to
+  `yes`. Nothing runs on a suggestion you haven't confirmed.
+- It sorts every other column into band, dimension or not cut by, with the
+  reason beside it.
+- It raises odd values (a -9999 code, negatives in a mostly positive column)
+  as questions. The run carries on using the values as recorded, and says so.
+
+**Your calls.** What is material, how many loans are enough, how much worse
+counts as worse, and how sure is sure are never filled in for you. They come
+from the Control tab, or they are `[CONFIRM: ...]` in the file.
+
+**What each pocket carries:**
+- its rate
+- share of losses over share of volume (the bleed measure)
+- excess dollars over the topline rate (adds to zero across a grid)
+- a multiple and a significance test against the rest of the book, the rest of
+  its band, and the rest of its dimension level
+- the smallest gap its size could show
+
+Every run also prints how many loans a gap of your size needs in this book,
+and what each materiality level would keep. That is evidence for your
+settings; it is never a setting.
+
+A synthetic book to try it on: `cube synth --out demo`. Loans with a score
+under 620 that came through the broker channel charge off at about six times
+the book's rate.
 
 ## Checking it
 
 ```
-pytest -q                          # 47 tests: one per finding, the arithmetic by hand, the Control tab
-python tools/mutation_check.py     # puts each VBA bug back; every one must be caught
+pytest -q                          # 86 tests: one per finding, the arithmetic by hand, the Control tab, init
+python tools/mutation_check.py     # puts 11 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

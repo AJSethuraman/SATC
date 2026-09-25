@@ -8,8 +8,10 @@ worst cell by excess dollars in the score x channel grid, and nothing else
 should come close.
 
 The dirt, on purpose, one of each kind the engine must count and not zero:
-a bureau score of -9999 (missing by rule), a blank score, a charge-off
-amount written as text, a blank balance, and a flag that is neither 0 nor 1.
+a bureau score of -9999 (missing by rule) on every 50th loan, a blank score,
+a charge-off amount written as text, a blank balance, and a flag that is
+neither 0 nor 1. RANR is negative on about a third of loans, and that is real:
+`cube init` should ask about it, not decide.
 """
 
 from __future__ import annotations
@@ -26,23 +28,27 @@ CONFIG = """\
 # extract's; for a real extract, `cube inspect` lists the real ones.
 name: synthetic_origination_cube
 schema_version: 1
-key: LOAN_NBR
+key: LOAN_NBR              # loan number: needed to map results back to loans
+booked: ORIG_BAL           # weights the reporting-level rates
+outcome: BAD_FLAG          # any yes/no column; or {field: COLUMN, is: VALUE}
+gco: GCO_AMT
+ranr: RANR_AMT
 missing:
   FICO: {below: -1000}        # the bureau writes -9999 when it has no score
 bands:
-  - {name: fico, field: FICO, edges: [620, 680, 740]}
+  - {name: fico, field: FICO, edges: [620, 680, 740]}      # or: count: 5, cut: equal_loans
 dimensions:
   - {name: channel, field: CHANNEL}
-measures:
-  - {name: bad_rate, mode: flagwt, flag: BAD_FLAG, per: ORIG_BAL}
-  - {name: gco_rate, mode: sumnum, value: GCO_AMT, per: ORIG_BAL}
-  - {name: ranr_rate, mode: sumnum, value: RANR_AMT, per: ORIG_BAL}
+measures:                  # extras; the core rates are built from the lines above
   - {name: loans, mode: count}
+  - {name: gco_per_loan, mode: sumnum, value: GCO_AMT, per: each_loan}   # a straight average
   - {name: fico_median, mode: median, value: FICO}
 benchmark:
-  min_units: 30
+  min_units: 30            # below this a pocket is shown but not tested
   worse_at: 1.25
   better_at: 0.8
+  confidence: 0.95
+  power: 0.8
 """
 
 
@@ -61,6 +67,9 @@ def make_rows(n: int = 20000, seed: int = 7) -> list[dict]:
         ranr = round(rng.uniform(-200, 400), 2)          # signed (D47)
         rows.append({"LOAN_NBR": f"L{i:07d}", "FICO": fico, "CHANNEL": channel, "ORIG_BAL": bal,
                      "BAD_FLAG": bad, "GCO_AMT": gco, "RANR_AMT": ranr})
+    # a bureau missing-score code on 2% of loans, as a real extract carries it
+    for i in range(0, n, 50):
+        rows[i]["FICO"] = -9999
     # the dirt, one of each
     rows[0]["FICO"] = -9999
     rows[1]["FICO"] = ""
