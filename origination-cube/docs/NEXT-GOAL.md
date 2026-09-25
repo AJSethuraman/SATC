@@ -24,8 +24,9 @@ by opening it.
 Check's wording must match it. The firm supplied it on 25 Sep 2026, and it is
 committed unchanged. It cites two scripts kept beside it: `statistics-examples.py`,
 which computes every worked example, and `scout-vs-measure.py`, which does the
-random-forest scouting and the holdout example in B5 and B7. Neither came with it,
-and neither is on any branch.
+random-forest scouting and the holdout example in B5 and B7. The firm supplied both
+the same evening, and both are committed unchanged beside it. They need numpy,
+scipy and scikit-learn, which the cube itself does not use.
 
 **How the work is done:** subagents, one per fix, in parallel where they touch
 different files.
@@ -53,8 +54,8 @@ different files.
 - [ ] **j.** Whether the CMH test subtracts ½ (a continuity correction), and whether
       p-values are one- or two-sided.
 - [ ] **k.** What the other agent's tree code does today: what it trains on, what it
-      outputs, and whether it can touch a holdout range. *It is `scout-vs-measure.py`
-      (cited in `docs/statistics.md` B5 and B7), which is not in the repository.*
+      outputs, and whether it can touch a holdout range. *It is `docs/scout-vs-measure.py`,
+      which the firm supplied on 25 Sep 2026.*
 
 ## 2. Report the audit before changing source
 
