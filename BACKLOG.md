@@ -1460,7 +1460,12 @@ back.
       is one number per run; chart box names; Control's question wrap). The
       booked amount can split, by design. Status table in
       `docs/walkthrough/walk-2026-09-25-d/WALKTHROUGH-DEFECTS.md`.
-- [ ] **Next:** a fifth walkthrough; the firm's answer on RANR
+- [x] **The fifth walkthrough's 11 defects:** 7 fixed, 3 fixed in part, 1 open
+      (the chart). The firm's calls (OC-30): the lines decide the boxes and luck
+      is marked; the suggested fewest loans is 5 expected losses. Status table in
+      `docs/walkthrough/walk-2026-09-25-e/WALKTHROUGH-DEFECTS.md`. 184 tests; 50
+      re-inserted bugs.
+- [ ] **Next:** a sixth walkthrough; the firm's answer on RANR
       netting (they will ask at work; no net figure until then); `cube drill` and `cube prove` (and put their settings back on
       the tab); learning a column's usual band edges (walkthrough defect 9).
 - **Not checked:** real Excel, a real extract, and the bank machine

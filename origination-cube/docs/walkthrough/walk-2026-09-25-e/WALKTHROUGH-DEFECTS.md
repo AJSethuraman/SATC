@@ -238,3 +238,23 @@ Held since walk 4: 1.00x on both axes, names only for *Losing more* pockets, the
 | 9 | Start here after a Run; the message box | **Held.** Start here reads 0 after the Run (`step-17b`). The whole ten-line refusal fits in the box (`step-08`). |
 | 10 | Control layout and wording | **Held in part.** "inside that gap" is there, and Check drops "(suggested)". The revenue question still wraps tight against *Is it real* (not changed, as the fix table said). Control's *In use* still shows "(suggested)", and no number (defect 8). |
 | 11 | Other wording | **Held.** "an average"; after a Forget the row says "Forgotten on Learned; it was remembered before", and the second Run names CHANNEL; the Learned subtitle; the 2% option; Run with the workbook picked; the full stop after a renamed column; Odd values in the Next line; "Nothing is worse for ..." (`step-20`, `step-23b` to `step-23d`, `wrong-picked-workbook-run.png`). |
+
+---
+
+## Where each defect stands (25 Sep 2026, after the fixes)
+
+The firm decided 1 and 3 (OC-30 in `docs/design.md`). Every fix is held by a test, with a planted bug to prove the test catches it. Seen through LibreOffice.
+
+| # | Defect | Now | Test |
+|---|---|---|---|
+| 1 | The suggested fewest loans hid the planted pocket | **Fixed.** Suggested at 5 expected losses (about 71 here), the textbook floor. The 99-loan pocket with 50 bad loans is tested | `test_suggested_answers_*` |
+| 2 | Other workbooks' band edges written in; clearing didn't undo | **Fixed.** A remembered edge only fills a column the workbook hasn't seen, and says so under Look first. Clearing a cell on a confirmed run forgets the edge | `test_remembered_edges_only_fill_*` |
+| 3 | The Control lines didn't decide the boxes | **Fixed the way the firm chose.** The lines decide; a side whose own test calls it luck is marked "(… gap could be luck)" | `test_losses_vs_revenue_boxes_follow_*`, `test_a_luck_gap_keeps_its_box_*` |
+| 4 | A no-effect book can read as having a debt effect | **Fixed in part.** The Split tab puts grids that don't hold FICO fixed under their own warning heading. The Three-way tab has a short "Holds FICO fixed?" column and lists those rows last. The numbers themselves are unchanged, since they're what the data says | `test_three_way_rows_say_*` |
+| 5 | "About the same" hid a could-be-luck gap | **Fixed** by 3: a 1.76x gap reads "Losing more (loss gap could be luck)" | `test_a_luck_gap_keeps_its_box_*` |
+| 6 | Check said "worked out" when a fallback was used | **Fixed.** It names what fell back | — |
+| 7 | "every 1" said 61 bands | **Fixed.** It says the real count | `test_a_band_width_too_narrow_*` |
+| 8 | Suggested numbers not on Control, in the window or in the record | **Fixed.** A "Last Run used" column on Control, a line in the window, and the revenue line in the record's header | `test_control_shows_what_the_last_run_used` |
+| 9 | `cube init` offered calc and luck | **Fixed.** The cube file's [CONFIRM] lists numbers only | — |
+| 10 | Remembered edges shown in codes and unmarked | **Fixed in part.** Marked under Look first on Columns. Learned lists them after the meaning | — |
+| 11 | Chart gaps | **Open.** The GCO axis still has three ticks, and the lines and boxes aren't labelled on the chart | — |

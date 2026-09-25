@@ -20,7 +20,7 @@ def _row(ws, name):
 def _set(path, name, col, value):
     wb = load_workbook(path)
     ws = wb["Columns"]
-    ws.cell(row=_row(ws, name), column=col, value=value)
+    ws.cell(row=_row(ws, name), column=col).value = value     # value=None in ws.cell() doesn't clear a cell
     wb.save(path)
 
 
@@ -361,7 +361,7 @@ def test_suggested_answers_are_worked_out_from_the_book(tmp_path):
     wb = load_workbook(b)
     for r in wb["Control"].iter_rows(min_row=4):
         if r[6].value == "min_loans":
-            r[2].value = "Enough for 10 expected losses (suggested)"
+            r[2].value = "Enough for 5 expected losses (suggested)"
         if r[6].value in ("worse_at", "better_at"):
             r[2].value = "What luck alone can move it (suggested)"
     wb.save(b)

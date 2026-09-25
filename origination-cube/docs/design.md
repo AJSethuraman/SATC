@@ -436,6 +436,23 @@ enough.
   - **What each grid holds fixed comes first** on the Split tab. It's on every
     row of the Three-way tab, where grids that hold it fixed come first.
   - **The booked amount can split.** It's an amount, like any other.
+- **OC-30: the firm's calls on the fifth walk (25 Sep 2026).**
+  - **The lines on Control decide the boxes, and luck is marked.** A side whose own
+    test says the gap could be luck keeps its box, which then reads e.g. "Losing
+    more, earning more (revenue gap could be luck)". The luck gate added after
+    walk 4 is gone: with the test's bar near 1.5x, above every line, it had made
+    the lines decide nothing.
+  - **The suggested fewest loans is 5 expected losses at the book's rate** (n x p
+    of 5 or more, the textbook floor), not 10. At 10 it hid a 99-loan pocket with
+    50 bad loans. The firm: *"prior to now i had never considered having the
+    floor be 5 of the output as opposed to X amount of the inputs"*. The loss
+    floor (fewest losses) still checks the pocket's own count.
+  - Also from the walk:
+    - Remembered band edges only fill a column the workbook hasn't seen.
+    - Clearing an edge cell forgets it.
+    - Control shows what the last Run used.
+    - The Split and Three-way tabs mark the grids that don't hold the split's
+      partner column fixed.
 - **Every "Luck alone" figure is after the allowance for many tests**, the Split
   tab's included (they were the only raw ones until 25 Sep 2026). **The Split tab
   says its method once**, at the top: what it does, the numbers, the tests and what
