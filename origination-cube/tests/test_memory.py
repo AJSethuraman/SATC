@@ -8,12 +8,14 @@ from openpyxl import load_workbook
 from origination_cube import cli, config as cfgmod, memory, profile, synth
 from origination_cube.ingest import read_table
 
+ANSWERS = dict(min_units=30, min_events=10, worse_at=1.25, better_at=0.8, confidence=0.95, compare_to='peers', materiality='"1% of losses"', min_age_months=0)
+
 
 def _confirmed_file(tmp_path, n=2000):
     _, data = synth.write(tmp_path, n=n)
     path, _, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
     s = path.read_text().replace("columns_confirmed: no", "columns_confirmed: yes")
-    for k, v in dict(min_units=30, worse_at=1.25, better_at=0.8, confidence=0.95).items():
+    for k, v in ANSWERS.items():
         s = re.sub(rf'{k}: "\[CONFIRM[^"]*"', f"{k}: {v}", s)
     s = s.replace("{column: FICO, pattern: repeated_value, value: -9999, rows: 40, answer: }",
                   "{column: FICO, pattern: repeated_value, value: -9999, rows: 40, answer: missing}")

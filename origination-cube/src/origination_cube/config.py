@@ -15,6 +15,8 @@ quietly ignored would be exactly the silent fallback this file exists to stop.
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -29,13 +31,14 @@ CONFIRM = "[CONFIRM:"
 RATE_MODES = ("flagwt", "sumnum")
 MODES = RATE_MODES + ("count", "median")
 MODE_KEYS = {
-    "flagwt": {"required": ("flag", "per"), "allowed": ("optional",)},
-    "sumnum": {"required": ("value", "per"), "allowed": ("optional",)},
+    "flagwt": {"required": ("flag", "per", "higher_is"), "allowed": ("optional",)},
+    "sumnum": {"required": ("value", "per", "higher_is"), "allowed": ("optional",)},
     "count": {"required": (), "allowed": ()},
     "median": {"required": ("value",), "allowed": ("optional",)},
 }
 TOP_KEYS = {"name", "schema_version", "key", "booked", "outcome", "gco", "ranr", "columns", "columns_confirmed",
-            "missing", "bands", "dimensions", "measures", "benchmark", "questions"}
+            "missing", "bands", "dimensions", "measures", "benchmark", "questions", "min_age_months",
+            "origination_date", "as_of"}
 #: The firm, 25 Sep 2026: "this analysis only works if we have, at a minimum, an
 #: output binary ... the GCO amount and RANR amount ... the booked amount ... and a
 #: loan number or app number or some other Key or we cannot perform the remapping
@@ -45,13 +48,17 @@ CORE = ("key", "booked", "outcome", "gco", "ranr")
 #: The required columns are said either as five top-level lines (a file written
 #: by hand) or as meanings in `columns:` (a file written by `cube init`, which
 #: lists every column). Never both: one place to say it.
-REQUIRED_TOP = ("name", "schema_version", "bands", "dimensions", "benchmark")
+REQUIRED_TOP = ("name", "schema_version", "bands", "dimensions", "benchmark", "min_age_months")
 #: `per: each_loan` divides by the number of loans rather than a column: a
 #: straight share or average, beside the booked-weighted one reporting uses.
 EACH_LOAN = "each_loan"
 CORE_NAMES = ("outcome_loans", "outcome_booked", "gco_rate", "ranr_rate")
 MISSING_KEYS = {"below", "above", "values"}
-BENCHMARK_KEYS = ("min_units", "worse_at", "better_at", "confidence", "power")
+BENCHMARK_KEYS = ("min_units", "min_events", "worse_at", "better_at", "confidence", "power", "compare_to",
+                  "many_tests", "materiality")
+COMPARE_TO = ("peers", "topline")
+MANY_TESTS = ("none", "bh", "bonferroni")
+HIGHER_IS = ("worse", "better")
 CUTS = ("equal_loans", "round")
 ANSWERS = ("real", "missing")
 
@@ -114,6 +121,7 @@ class Measure:
     optional: bool = False        # absent column -> skipped with a warning (D55)
     flag_is: Any = None           # flagwt: the value that means yes, when the flag is not 0/1 already
     core: bool = False            # built from the required lines, never optional
+    higher_is: str = "worse"      # worse for a loss (GCO, a bad-loan rate); better for revenue (RANR)
 
     @property
     def is_rate(self) -> bool:
@@ -154,11 +162,17 @@ class Measure:
 
 @dataclass(frozen=True)
 class Benchmark:
+    """Every call that decides what a pocket's word is. All required, none
+    defaulted: the Control tab or the person writes each one."""
     min_units: int                   # below this a pocket is shown but not tested
+    min_events: int                  # a loss rate resting on fewer losses than this is not tested
     worse_at: float
     better_at: float
     confidence: float
     power: float
+    compare_to: str                  # peers | topline: which comparison decides the flag
+    many_tests: str                  # none | bh | bonferroni
+    materiality: tuple               # ("share", 0.01) | ("dollars", 250000.0) | ("none", 0.0)
 
 
 @dataclass(frozen=True)
@@ -202,6 +216,9 @@ class Config:
     questions: tuple[Question, ...] = ()
     booked: str = ""
     outcome: str = ""
+    min_age_months: int = 0
+    origination_date: str | None = None
+    as_of: Any = None                                 # a date, or the name of a column holding it
     columns: dict = field(default_factory=dict)       # column -> (meaning, is-value); from `columns:`
     not_cut: dict = field(default_factory=dict)       # column -> meaning, for meanings never cut by
     source_path: str = ""
@@ -292,11 +309,14 @@ def parse(raw: Any, source_path: str = "") -> Config:
             problems.append(f"measure name `{m.name}` is taken by a core rate; call it something else")
     core = ()
     if out_field and cols["booked"] and cols["gco"] and cols["ranr"]:
+        # RANR is revenue: bigger is better (the firm, 25 Sep 2026). Its bleed is a shortfall.
         core = (Measure(name="outcome_loans", mode="flagwt", flag=out_field, per=EACH_LOAN, flag_is=out_is, core=True),
                 Measure(name="outcome_booked", mode="flagwt", flag=out_field, per=cols["booked"], flag_is=out_is,
                         core=True),
                 Measure(name="gco_rate", mode="sumnum", value=cols["gco"], per=cols["booked"], core=True),
-                Measure(name="ranr_rate", mode="sumnum", value=cols["ranr"], per=cols["booked"], core=True))
+                Measure(name="ranr_rate", mode="sumnum", value=cols["ranr"], per=cols["booked"], core=True,
+                        higher_is="better"))
+    age, orig_col, as_of = _parse_age(raw, columns, problems)
     measures = core + extras
     bench = _parse_benchmark(raw.get("benchmark"), problems) if "benchmark" in raw else None
     questions = _parse_questions(raw.get("questions") or [], problems)
@@ -316,6 +336,7 @@ def parse(raw: Any, source_path: str = "") -> Config:
         raise ConfigError(problems)
     return Config(name=str(raw["name"]), key=key, missing=missing, bands=bands, dimensions=dims,
                   measures=measures, benchmark=bench, questions=questions, booked=cols["booked"], outcome=out_field,
+                  min_age_months=age, origination_date=orig_col, as_of=as_of,
                   columns=columns, not_cut=not_cut, source_path=source_path, raw=raw)
 
 
@@ -384,11 +405,16 @@ def _missing_line(k: str) -> str:
         "bands": "bands:\n  - {name: score_band, field: SCORE_COLUMN, edges: [620, 680, 740]}",
         "dimensions": "dimensions:\n  - {name: channel, field: CHANNEL_COLUMN}",
         "benchmark": ("benchmark:\n  min_units: 30          # below this a pocket is shown but not tested\n"
-                      "  worse_at: 1.25         # index at or above this reads WORSE\n"
-                      "  better_at: 0.8         # index at or below this reads BETTER\n"
+                      "  min_events: 10         # a loss rate on fewer losses than this is not tested\n"
+                      "  worse_at: 1.25         # this many times worse counts as worse\n"
+                      "  better_at: 0.8         # this many times better counts as better\n"
                       "  confidence: 0.95       # how sure a difference must be\n"
                       "  power: 0.8             # how often a real gap should be caught\n"
+                      "  compare_to: peers      # peers (the rest of its band) or topline (the rest of the book)\n"
+                      "  many_tests: bh         # none, bh or bonferroni\n"
+                      "  materiality: 1% of losses   # or 5% of losses, none, or a dollar amount\n"
                       "# or, to build without comparisons:  benchmark: none"),
+        "min_age_months": "min_age_months: 0    # 0 keeps every loan; 24 keeps loans two years on book or more",
     }
     return f"missing line `{k}:`. Add:\n{lines[k]}"
 
@@ -509,7 +535,13 @@ def _parse_measures(node: Any, problems: list[str]) -> tuple[Measure, ...]:
         cols = {}
         for k in spec["required"]:
             v = e.get(k)
-            if not isinstance(v, str) or not v.strip():
+            if k == "higher_is":
+                if v not in HIGHER_IS:
+                    problems.append(f"{where} ({name}): needs `higher_is: worse` (a loss) or `higher_is: better` "
+                                    f"(revenue); got {v!r}")
+                else:
+                    cols[k] = v
+            elif not isinstance(v, str) or not v.strip():
                 problems.append(f"{where} ({name}): mode {mode} needs `{k}:`, a column name")
             else:
                 cols[k] = v.strip()
@@ -537,11 +569,12 @@ def _parse_benchmark(node: Any, problems: list[str]) -> Benchmark | None:
                         + _missing_line("benchmark").split("\n", 1)[1])
         return None
     mu, worse, better = node["min_units"], node["worse_at"], node["better_at"]
-    conf, power = node["confidence"], node["power"]
+    conf, power, me = node["confidence"], node["power"], node["min_events"]
     ok = True
-    if not isinstance(mu, int) or isinstance(mu, bool) or mu < 2:
-        problems.append(f"benchmark.min_units must be a whole number of loans, 2 or more; got {mu!r}")
-        ok = False
+    for k, v, least in (("min_units", mu, 2), ("min_events", me, 1)):
+        if not isinstance(v, int) or isinstance(v, bool) or v < least:
+            problems.append(f"benchmark.{k} must be a whole number of loans, {least} or more; got {v!r}")
+            ok = False
     for k, v in (("worse_at", worse), ("better_at", better)):
         if not _num(v) or v <= 0:
             problems.append(f"benchmark.{k} must be a positive number; got {v!r}")
@@ -550,14 +583,63 @@ def _parse_benchmark(node: Any, problems: list[str]) -> Benchmark | None:
         if not _num(v) or not 0.5 <= v < 1:
             problems.append(f"benchmark.{k} must be a share between 0.5 and 1, such as 0.95; got {v!r}")
             ok = False
+    if node["compare_to"] not in COMPARE_TO:
+        problems.append(f"benchmark.compare_to must be one of {', '.join(COMPARE_TO)}; got {node['compare_to']!r}")
+        ok = False
+    if node["many_tests"] not in MANY_TESTS:
+        problems.append(f"benchmark.many_tests must be one of {', '.join(MANY_TESTS)}; got {node['many_tests']!r}")
+        ok = False
+    mat = _parse_materiality(node["materiality"])
+    if mat is None:
+        problems.append(f"benchmark.materiality must be like \"1% of losses\", none, or a dollar amount; "
+                        f"got {node['materiality']!r}")
+        ok = False
     if ok and better >= worse:
         problems.append(f"benchmark.better_at ({better}) must be below worse_at ({worse})")
         ok = False
     if ok and worse <= 1:
         problems.append(f"benchmark.worse_at ({worse}) must be above 1: it is how many times worse counts as worse")
         ok = False
-    return (Benchmark(min_units=mu, worse_at=float(worse), better_at=float(better), confidence=float(conf),
-                      power=float(power)) if ok else None)
+    return (Benchmark(min_units=mu, min_events=me, worse_at=float(worse), better_at=float(better),
+                      confidence=float(conf), power=float(power), compare_to=node["compare_to"],
+                      many_tests=node["many_tests"], materiality=mat) if ok else None)
+
+
+def _parse_materiality(v: Any):
+    if isinstance(v, str):
+        t = v.strip().lower()
+        if t == "none":
+            return ("none", 0.0)
+        m = re.fullmatch(r"(\d+(?:\.\d+)?)\s*% of losses", t)
+        if m:
+            return ("share", float(m.group(1)) / 100)
+        return None
+    if _num(v) and v >= 0:
+        return ("dollars", float(v))
+    return None
+
+
+def _parse_age(raw: dict, columns: dict, problems: list[str]):
+    """Loan age (the Control tab's first call). 0 keeps every loan. Above 0
+    needs to know when each loan was made and when the data was taken: from
+    `columns:` (origination_date, as_of_date) or from `origination_date:` and
+    `as_of:` lines. Nothing is assumed."""
+    age = raw.get("min_age_months")
+    if "min_age_months" not in raw:
+        return 0, None, None
+    if not isinstance(age, int) or isinstance(age, bool) or age < 0:
+        if not (isinstance(age, str) and CONFIRM in age):
+            problems.append(f"`min_age_months:` must be a whole number of months, 0 for every loan; got {age!r}")
+        return 0, None, None
+    orig = raw.get("origination_date") or next((c for c, (m, _) in columns.items() if m == "origination_date"), None)
+    as_of = raw.get("as_of") or next((c for c, (m, _) in columns.items() if m == "as_of_date"), None)
+    if age > 0 and not orig:
+        problems.append(f"loan age of {age} months needs to know when each loan was made: mark a column "
+                        f"`means: origination_date`, or add `origination_date: COLUMN`")
+    if age > 0 and not as_of:
+        problems.append(f"loan age of {age} months needs the as-of date: mark a column `means: as_of_date`, "
+                        f"or add `as_of: 2026-06-30`")
+    return age, orig, as_of
 
 
 def _parse_questions(node: Any, problems: list[str]) -> tuple[Question, ...]:

@@ -10,6 +10,8 @@ from origination_cube import config as cfgmod
 from origination_cube import control, engine, meanings, profile, synth
 from origination_cube.ingest import read_table
 
+ANSWERS = dict(min_units=30, min_events=10, worse_at=1.25, better_at=0.8, confidence=0.95, compare_to='peers', materiality='"1% of losses"', min_age_months=0)
+
 
 def roles(cols):
     return {c.name: c.role for c in cols}
@@ -77,7 +79,7 @@ def _answer(path, **judgment):
 def test_once_confirmed_it_runs_and_the_outcome_is_not_cut_by(tmp_path):
     _, data = synth.write(tmp_path, n=4000)
     path, _, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
-    _answer(path, min_units=30, worse_at=1.25, better_at=0.8, confidence=0.95)
+    _answer(path, **ANSWERS)
     res = engine.run(cfgmod.load(path), read_table(data))
     cut_by = {g.band for g in res.grids} | {g.dimension for g in res.grids}
     assert cut_by == {"fico", "orig_bal", "channel"}
@@ -87,7 +89,7 @@ def test_once_confirmed_it_runs_and_the_outcome_is_not_cut_by(tmp_path):
 def test_a_wrong_meaning_is_fixed_in_one_word_and_the_run_follows_it(tmp_path):
     _, data = synth.write(tmp_path, n=2000)
     path, _, _ = profile.write_cube_file(read_table(data), tmp_path / "cube.yaml")
-    _answer(path, min_units=30, worse_at=1.25, better_at=0.8, confidence=0.95)
+    _answer(path, **ANSWERS)
     path.write_text(re.sub(r"FICO:\s+\{means: fico\}", "FICO: {means: servicing}", path.read_text()))
     res = engine.run(cfgmod.load(path), read_table(data))
     assert "fico" not in {g.band for g in res.grids}

@@ -29,7 +29,8 @@ def test_finding_2_an_empty_cell_is_never_an_index_or_a_reading():
     assert engine.index_of(None, 0.02) is None
     assert engine.index_of(0.03, None) is None
     assert engine.index_of(0.03, 0.0) is None
-    bench = cfgmod.Benchmark(min_units=1, worse_at=1.25, better_at=0.8, confidence=0.95, power=0.8)
+    bench = cfgmod.Benchmark(min_units=1, min_events=1, worse_at=1.25, better_at=0.8, confidence=0.95, power=0.8,
+                             compare_to="topline", many_tests="none", materiality=("none", 0.0))
     assert engine.reading_of(None, 100, bench, 1, p=0.0) is None
 
 
@@ -51,7 +52,7 @@ def test_finding_3_an_unanswered_question_stops_the_run():
 
 def test_finding_3_a_broken_setting_stops_the_run_rather_than_passing():
     # the VBA read a #REF! gate as 0 and passed; here a malformed benchmark refuses
-    ok = {"confidence": 0.95, "power": 0.8}
+    ok = {"confidence": 0.95, "power": 0.8, "min_events": 1, "compare_to": "topline", "many_tests": "none", "materiality": "none"}
     for bad in ({"min_units": "#REF!", "worse_at": 1.25, "better_at": 0.8, **ok},
                 {"min_units": 30, "worse_at": None, "better_at": 0.8, **ok},
                 {"min_units": 30, "worse_at": 0.8, "better_at": 1.25, **ok},
@@ -96,14 +97,15 @@ def test_finding_5_a_column_that_is_not_there_is_refused_by_name(book):
 
 def test_finding_6_an_optional_measure_that_is_absent_is_skipped_visibly(book):
     measures = cube().raw["measures"] + [{"name": "recovery", "mode": "sumnum", "value": "RECOVERY", "per": "BAL",
-                                          "optional": True}]
+                                          "higher_is": "worse", "optional": True}]
     res = engine.run(cube(measures=measures), table(book))
     assert "recovery" not in [m.name for m in res.measures]
     assert any("measure recovery skipped" in w for w in res.warnings)
 
 
 def test_finding_6_a_required_measure_that_is_absent_is_refused(book):
-    measures = cube().raw["measures"] + [{"name": "recovery", "mode": "sumnum", "value": "RECOVERY", "per": "BAL"}]
+    measures = cube().raw["measures"] + [{"name": "recovery", "mode": "sumnum", "value": "RECOVERY", "per": "BAL",
+                                          "higher_is": "worse"}]
     with pytest.raises(engine.ColumnsMissing):
         engine.run(cube(measures=measures), table(book))
 
@@ -112,7 +114,7 @@ def test_finding_7_warnings_reach_the_screen(tmp_path, capsys):
     from origination_cube import cli, synth
     cfg, data = synth.write(tmp_path, n=300)
     text = cfg.read_text().replace("measures:", "measures:\n  - {name: recovery, mode: sumnum, value: RECOVERY, "
-                                               "per: ORIG_BAL, optional: true}", 1)
+                                               "per: ORIG_BAL, higher_is: worse, optional: true}", 1)
     cfg.write_text(text)
     assert cli.main(["run", str(cfg), "--data", str(data)]) == 0
     out = capsys.readouterr().out
@@ -122,7 +124,8 @@ def test_finding_7_warnings_reach_the_screen(tmp_path, capsys):
 def test_finding_8_thresholds_have_no_default():
     with pytest.raises(cfgmod.ConfigError) as exc:
         cube(benchmark={"min_units": 30, "worse_at": 1.25})
-    assert "benchmark is missing better_at, confidence, power" in str(exc.value)
+    assert "benchmark is missing min_events, better_at, confidence, power, compare_to, many_tests, materiality" \
+        in str(exc.value)
     with pytest.raises(cfgmod.ConfigError) as exc:
         cube(benchmark=None)
     assert "missing line `benchmark:`" in str(exc.value)

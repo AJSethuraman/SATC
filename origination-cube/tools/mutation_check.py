@@ -22,9 +22,18 @@ muts = [
   '        if hit and hit.get("means") in cat:', '        if False:', "remembered_and_outranks"),
  ("forget forgets nothing", "src/origination_cube/memory.py",
   '        if mem["columns"].pop(n, None) is not None:', '        if mem["columns"].get(n) is None:', "forget_by_name"),
+ ("RANR read as a loss", E, '                s.excess = (s.num - top * s.den) if hi == "worse" else (top * s.den - s.num)',
+  '                s.excess = s.num - top * s.den', "ranr_is_revenue"),
+ ("loss floor ignored",  E, '    if events is not None and higher_is == "worse" and events < min_events:',
+  '    if False:', "too_few_losses"),
+ ("no allowance for many tests", E, '    if how == "none" or m == 0:', '    if True:', "allowance"),
+ ("judged-against ignored", E, '                if bench.compare_to == "peers":', '                if False:', "judged_against"),
+ ("materiality ignored", E, '                s.material = s.excess > 0 and s.excess >= mat', '                s.material = s.excess > 0',
+  "materiality_as"),
+ ("loan age ignored",    E, '    if not config.min_age_months:', '    if True:', "loan_age_keeps"),
  ("key optional again",  E, '    if config.key not in have:', '    if False:', "missing_key"),
- ("reading on whole-book multiple", E, '            s.reading_topline = reading_of(s.vs_rest, s.units, bench, floor, s.p_book)',
-  '            s.reading_topline = reading_of(s.vs_topline, s.units, bench, floor, s.p_book)', "big_pocket"),
+ ("reading on whole-book multiple", E, '            s.reading_topline = reading_of(s.vs_rest, s.units, bench, floor, s.p_book, **kw)',
+  '            s.reading_topline = reading_of(s.vs_topline, s.units, bench, floor, s.p_book, **kw)', "big_pocket"),
 ]
 bad = 0
 for name, f, old, new, sel in muts:

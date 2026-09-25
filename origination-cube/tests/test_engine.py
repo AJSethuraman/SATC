@@ -35,7 +35,8 @@ def test_vs_topline_is_share_of_losses_over_share_of_volume(book):
 
 def test_median_benchmark_leaves_out_thin_cells(book):
     res = engine.run(cube(benchmark={"min_units": 2, "worse_at": 1.25, "better_at": 0.8, "confidence": 0.95,
-                                         "power": 0.8}), table(book))
+                                         "power": 0.8, "min_events": 1, "compare_to": "topline",
+                                         "many_tests": "none", "materiality": "none"}), table(book))
     g = res.grids[0]
     # cells with 2+ loans: under650/A (0.25), 650+/B (0/1200 = 0). Thin: 650+/A, under650/B.
     assert g.benchmarks["gco_rate"] == pytest.approx(0.125)

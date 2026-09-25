@@ -59,8 +59,9 @@ NEGATIVE_SHARE = 0.5
 #: "#N/A" among 20,000 amounts must not turn GCO into a question.
 NUMERIC_SHARE = 0.99
 
-JUDGMENT_TO_FILE = {"min_loans": "min_units", "worse_at": "worse_at", "better_at": "better_at",
-                    "confidence": "confidence"}
+JUDGMENT_TO_FILE = {"min_loans": "min_units", "min_events": "min_events", "worse_at": "worse_at",
+                    "better_at": "better_at", "confidence": "confidence", "compare_to": "compare_to",
+                    "materiality": "materiality"}
 
 
 @dataclass
@@ -265,6 +266,9 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
         val = use.get(skey)
         lines.append(f"  {fkey}: {_q(val) if val is not None else _confirm(settings[skey])}")
     lines.append(f"  power: {_q(method('power'))}")
+    lines.append(f"  many_tests: {_q(method('many_tests'))}")
+    age = use.get("min_age_months")
+    lines.append(f"min_age_months: {_q(age) if age is not None else _confirm(settings['min_age_months'])}")
 
     qs = [q for c in cols for q in c.questions]
     lines += ["", "# Odd values. Each is used AS RECORDED until you answer: real, or missing.",

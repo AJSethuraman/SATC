@@ -37,8 +37,12 @@ NOT_NUMBER_LABEL = "(not a number)"
 MISSING_RULE_LABEL = "(missing by rule)"
 REASON_LABEL = {"blank": BLANK_LABEL, "not a number": NOT_NUMBER_LABEL, "missing by rule": MISSING_RULE_LABEL}
 
-WORSE, BETTER, IN_LINE, THIN, UNSURE = ("worse than benchmark", "better than benchmark", "in line",
-                                        "too few loans to test", "gap could be luck")
+# The words a pocket can get. Each says which way (walkthrough defect 11: "gap
+# could be luck" on a pocket that was better did not say so).
+WORSE, BETTER, IN_LINE = "worse", "better", "in line"
+UNSURE_WORSE, UNSURE_BETTER = "worse, but could be luck", "better, but could be luck"
+THIN, FEW = "too few loans to test", "too few losses to test"
+UNSURE = UNSURE_WORSE
 
 
 class ColumnsMissing(Exception):
@@ -170,20 +174,50 @@ def index_of(rate: float | None, base: float | None) -> float | None:
 
 
 def reading_of(idx: float | None, units: int, bench, min_units: float, p: float | None = None,
-               tested: bool = True) -> str | None:
+               tested: bool = True, higher_is: str = "worse", events: int | None = None,
+               min_events: int = 0) -> str | None:
     """The word for a cell. A gap past a threshold counts only when the test
-    says it is unlikely to be luck at the file's confidence; the size floor
-    only stops a test being run on a handful of loans. `tested=False` is the
-    median comparison, which has no peer group to test against."""
+    says it is unlikely to be luck at the file's confidence (after any
+    allowance for testing many pockets); the floors only stop a test being run
+    on a handful of loans or losses. For a measure where higher is better
+    (RANR), a rate below its comparison is the bad direction. `tested=False` is
+    the median comparison, which has no peer group to test against."""
     if idx is None or bench is None:
         return None
     if units < min_units:
         return THIN
-    if idx < bench.worse_at and idx > bench.better_at:
+    if events is not None and higher_is == "worse" and events < min_events:
+        return FEW
+    bad = idx if higher_is == "worse" else (1 / idx if idx > 0 else math.inf)
+    if bench.better_at < bad < bench.worse_at:
         return IN_LINE
+    worse = bad >= bench.worse_at
     if tested and (p is None or p >= 1 - bench.confidence):
-        return UNSURE
-    return WORSE if idx >= bench.worse_at else BETTER
+        return UNSURE_WORSE if worse else UNSURE_BETTER
+    return WORSE if worse else BETTER
+
+
+def adjust(ps: list[float | None], how: str) -> list[float | None]:
+    """p-values after allowing for testing many pockets at once.
+    bonferroni: p times the number of tests, capped at 1.
+    bh (Benjamini-Hochberg 1995, J. R. Stat. Soc. B 57:289-300): the step-up
+    adjusted p, p_(i) * m / i made monotone from the top."""
+    idx = [i for i, p in enumerate(ps) if p is not None]
+    m = len(idx)
+    out = list(ps)
+    if how == "none" or m == 0:
+        return out
+    if how == "bonferroni":
+        for i in idx:
+            out[i] = min(1.0, ps[i] * m)
+        return out
+    order = sorted(idx, key=lambda i: ps[i])
+    running = 1.0
+    for rank in range(m, 0, -1):
+        i = order[rank - 1]
+        running = min(running, ps[i] * m / rank)
+        out[i] = min(1.0, running)
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -213,6 +247,9 @@ class RateStat:
     p_dim: float | None = None
     reading_band: str | None = None
     smallest_gap: float | None = None   # the smallest multiple of the book's rate this pocket could show
+    events: int = 0                     # loans whose top is not zero: losses, for a loss rate
+    flag: str | None = None             # the reading that decides, per `compare_to`
+    material: bool | None = None        # excess at or over the materiality line (None: not applied)
 
     def sums(self) -> tuple:
         return (self.units, self.num, self.den, self.syy, self.sxx, self.sxy)
@@ -270,11 +307,77 @@ class Result:
     warnings: list[str]
     tie_outs: int                               # checks that passed
     band_edges: dict[str, tuple[float, ...]] = field(default_factory=dict)   # the edges actually used
+    materiality_line: dict[str, float] = field(default_factory=dict)       # per rate, in its own units
+    aged_out: int = 0                                                       # loans younger than min_age_months
     loans_needed: dict[str, stats.LoansNeeded] = field(default_factory=dict)  # per rate, from the book
     min_units: dict[str, float] = field(default_factory=dict)               # per rate, the floor in use
 
 
 # --------------------------------------------------------------------------
+
+
+def _materiality_lines(bench, measures, total, warnings) -> dict[str, float]:
+    """Each rate's materiality line in its own units. A share of the book's
+    total applies to every rate; a dollar amount only to rates counted in
+    dollars, and a rate counted in loans says so rather than borrow it."""
+    out: dict[str, float] = {}
+    if bench is None:
+        return out
+    kind, v = bench.materiality
+    for m in measures:
+        if not m.is_rate:
+            continue
+        if kind == "none":
+            out[m.name] = 0.0
+        elif kind == "share":
+            out[m.name] = v * abs(total.rates[m.name].num)
+        elif m.per == EACH_LOAN and m.mode == "flagwt":
+            warnings.append(f"{m.name} counts loans, not dollars, so the dollar materiality line is not applied "
+                            f"to it")
+        else:
+            out[m.name] = v
+    return out
+
+
+def age_filter(config: Config, table: Table, warnings: list[str]) -> tuple[list[dict], int]:
+    """Keep loans at least `min_age_months` on book at the as-of date. Months on
+    book are whole calendar months, one fewer when the as-of day of the month
+    is earlier than the origination day (as the Portfolio Analysis Pack
+    counts). A loan with no readable origination date is left out and counted,
+    never assumed old enough."""
+    if not config.min_age_months:
+        return table.rows, 0
+    from datetime import date as _date
+    from .ingest import best_pattern, detect_date_format, parse_date
+    orig = config.origination_date
+    if orig not in table.columns:
+        raise ColumnsMissing([(orig, "origination date, for loan age")], table.columns)
+    det = detect_date_format(orig, [r.get(orig) for r in table.rows])
+    fmt = det.resolved or best_pattern(det)
+    as_of = config.as_of
+    if isinstance(as_of, str) and as_of in table.columns:
+        adet = detect_date_format(as_of, [r.get(as_of) for r in table.rows])
+        vals = {parse_date(r.get(as_of), adet.resolved or best_pattern(adet)) for r in table.rows}
+        vals = {v for v in vals if isinstance(v, _date)}
+        if len(vals) != 1:
+            raise NothingToCut(f"the as-of column `{as_of}` holds {len(vals)} different dates; loan age needs one")
+        as_of = vals.pop()
+    elif isinstance(as_of, str):
+        as_of = _date.fromisoformat(as_of)
+    kept, young, unreadable = [], 0, 0
+    for r in table.rows:
+        d = parse_date(r.get(orig), fmt)
+        if not isinstance(d, _date):
+            unreadable += 1
+            continue
+        months = (as_of.year - d.year) * 12 + (as_of.month - d.month) - (1 if as_of.day < d.day else 0)
+        if months >= config.min_age_months:
+            kept.append(r)
+        else:
+            young += 1
+    warnings.append(f"loan age: {young:,} loans under {config.min_age_months} months on book at {as_of} were left "
+                    f"out" + (f", and {unreadable:,} with no readable origination date" if unreadable else ""))
+    return kept, young + unreadable
 
 
 def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
@@ -305,7 +408,7 @@ def run(config: Config, table: Table) -> Result:
     warnings: list[str] = []
     measures = _resolve_columns(config, table, warnings)
     config = _drop_outcome_cuts(config, measures, warnings)
-    rows = table.rows
+    rows, aged_out = age_filter(config, table, warnings)
     n = len(rows)
     rules = config.missing
 
@@ -404,18 +507,20 @@ def run(config: Config, table: Table) -> Result:
             needed[m.name] = ln
             min_units[m.name] = bench.min_units
 
+    materiality_line = _materiality_lines(bench, measures, total, warnings)
     grids = []
     tie_outs = 0
     for b in config.bands:
         for d in config.dimensions:
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
-                               topline, min_units, total, needed)
+                               topline, min_units, total, needed, materiality_line)
             tie_outs += tie_out(grid, total, measures, n)
             grids.append(grid)
 
     return Result(config=config, source=table.path, rows=n, measures=measures, total=total,
                   left_out=left_out, grids=grids, warnings=warnings, tie_outs=tie_outs,
-                  band_edges=band_edges, loans_needed=needed, min_units=min_units)
+                  band_edges=band_edges, loans_needed=needed, min_units=min_units,
+                  materiality_line=materiality_line, aged_out=aged_out)
 
 
 def _resolve_columns(config: Config, table: Table, warnings: list[str]) -> tuple[Measure, ...]:
@@ -488,6 +593,8 @@ def _accumulate(measures, per_row, keys) -> dict[Any, Cell]:
                     s.sxx += x * x
                     s.sxy += x * y
                     s.units += 1
+                    if y != 0:
+                        s.events += 1
     return cells
 
 
@@ -517,6 +624,7 @@ def _merge(parts: list[Cell], measures) -> Cell:
             o.syy += s.syy
             o.sxx += s.sxx
             o.sxy += s.sxy
+            o.events += s.events
         for k, s in p.medians.items():
             o = out.medians[k]
             o.values.extend(s.values)
@@ -536,7 +644,7 @@ def _minus(a: tuple, b: tuple) -> tuple:
 
 
 def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topline, min_units, total,
-                needed) -> Grid:
+                needed, materiality_line) -> Grid:
     inner = _accumulate(measures, per_row, list(zip(bl, dl)))
     for c in inner.values():
         _finish_cell(c, measures)
@@ -564,25 +672,45 @@ def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topli
         benchmarks[m.name] = med
         book = total.rates[m.name].sums()
         ln = needed.get(m.name)
+        hi = m.higher_is
         for (b, d), c in cells.items():
             s = c.rates[m.name]
             if top is not None:
-                s.excess = s.num - top * s.den
+                # the bleed: losses over the topline, or for revenue a shortfall under it
+                s.excess = (s.num - top * s.den) if hi == "worse" else (top * s.den - s.num)
             s.vs_topline = index_of(s.rate, top)
             if bench is None:
                 continue
             if (b, d) != (ALL, ALL):
                 s.vs_rest, s.p_book = stats.compare(s.sums(), _minus(book, s.sums()))
-            # the reading and its test describe the same comparison: the pocket against the book without it
-            s.reading_topline = reading_of(s.vs_rest, s.units, bench, floor, s.p_book)
             if ln is not None:
                 s.smallest_gap = stats.smallest_gap(s.units, ln.rate, ln.s_d, ln.x_bar, bench.confidence, bench.power)
             if b != ALL and d != ALL:
                 s.vs_median = index_of(s.rate, med)
-                s.reading_median = reading_of(s.vs_median, s.units, bench, floor, tested=False)
                 s.vs_band, s.p_band = stats.compare(s.sums(), _minus(cells[(b, ALL)].rates[m.name].sums(), s.sums()))
                 s.vs_dim, s.p_dim = stats.compare(s.sums(), _minus(cells[(ALL, d)].rates[m.name].sums(), s.sums()))
-                s.reading_band = reading_of(s.vs_band, s.units, bench, floor, s.p_band)
+        if bench is None:
+            continue
+        # allow for testing many pockets at once: across this grid's pockets, per comparison
+        keys = [k for k in cells if k != (ALL, ALL)]
+        for attr in ("p_book", "p_band", "p_dim"):
+            adj = adjust([getattr(cells[k].rates[m.name], attr) for k in keys], bench.many_tests)
+            for k, p in zip(keys, adj):
+                setattr(cells[k].rates[m.name], attr, p)
+        mat = materiality_line.get(m.name)
+        for (b, d), c in cells.items():
+            s = c.rates[m.name]
+            kw = dict(higher_is=hi, events=s.events, min_events=bench.min_events)
+            # the reading and its test describe the same comparison: the pocket against the rest without it
+            s.reading_topline = reading_of(s.vs_rest, s.units, bench, floor, s.p_book, **kw)
+            s.flag = s.reading_topline
+            if b != ALL and d != ALL:
+                s.reading_median = reading_of(s.vs_median, s.units, bench, floor, tested=False, **kw)
+                s.reading_band = reading_of(s.vs_band, s.units, bench, floor, s.p_band, **kw)
+                if bench.compare_to == "peers":
+                    s.flag = s.reading_band
+            if mat is not None and s.excess is not None:
+                s.material = s.excess > 0 and s.excess >= mat
     return Grid(band=band.name, dimension=dim.name, band_labels=band_order, dim_labels=dim_order,
                 cells=cells, benchmarks=benchmarks)
 
