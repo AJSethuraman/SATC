@@ -27,6 +27,8 @@ is just the map.
 
 **Same consulting line, not a template:** `portfolio-analysis-pack/` — a loan extract plus a question file in, one workbook out, laying the evidence for a flag in a fixed six-step order; v1 built 18–19 Sep 2026, log in `BACKLOG.md` §6c, spec in its `docs/`.
 
+**Same consulting line, not a template:** `origination-cube/`: a loan extract plus a cube file in; every band crossed with every dimension, and each pocket's rate compared with the topline to find where the book bleeds. Replaces the firm's origination VBA. Slice 1 (the engine) was built 25 Sep 2026; the log is in `BACKLOG.md` §6d.
+
 ## Candidate pipeline (researched, not yet picked)
 
 | Candidate | Angle | Join key | Why | Notes |

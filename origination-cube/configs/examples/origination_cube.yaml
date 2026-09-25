@@ -1,0 +1,22 @@
+# A cube over the synthetic book. Column names here are the synthetic
+# extract's; for a real extract, `cube inspect` lists the real ones.
+name: synthetic_origination_cube
+schema_version: 1
+key: LOAN_NBR
+missing:
+  FICO: {below: -1000}        # the bureau writes -9999 when it has no score
+bands:
+  - {name: fico, field: FICO, edges: [620, 680, 740]}
+dimensions:
+  - {name: channel, field: CHANNEL}
+measures:
+  - {name: bad_rate, mode: flagwt, flag: BAD_FLAG, per: ORIG_BAL}
+  - {name: gco_rate, mode: sumnum, value: GCO_AMT, per: ORIG_BAL}
+  - {name: ranr_rate, mode: sumnum, value: RANR_AMT, per: ORIG_BAL}
+  - {name: loans, mode: count}
+  - {name: fico_median, mode: median, value: FICO}
+benchmark:
+  min_units: 30
+  worse_at: 1.25
+  better_at: 0.8
+

@@ -24,9 +24,11 @@ collects/retains client info, and provides small services around Drake.
 | `desk/` | **⚠ UNDER ACTIVE DESIGN BY ANOTHER SESSION as of 4 Sep 2026 — read it before relying on it, and expect it to have moved.** Expert desks: what an agent consults so a question does not reach the firm. A desk answers only from authority it can cite, says how binding that authority is, and escalates rather than guesses; the citation rule is enforced in `engine.py` rather than asked for in a prompt, because the same policy written as skill prose was obeyed *"100%, 4%, 0% of runs"*. One desk exists so far: `fixed-assets`. Depends on `canon`; canon uses nothing from it. **This row is a pointer, not a specification** — it was written from the README by a session that does not own the design | Python, stdlib only | `cd desk && pytest -q` (174 at the time of writing). Offline by construction — `conftest.py` replaces the socket layer, and a test proves that guard can fail |
 | `docs/` | Specs and research that govern the above — including `prd-interview-and-field-registry.md`, which the interview is built to | Markdown | — |
 
-**The repo also holds ten credit and macro analytics projects** —
+**The repo also holds eleven credit and macro analytics projects** —
 `credit-review-os/`, `portfolio-analysis-pack/` *(v1 built 18–19 Sep 2026; its
-PRD is the spec and `BACKLOG.md` §6c the log)*, `stock-helper/`, `fdic-peer-monitor/`,
+PRD is the spec and `BACKLOG.md` §6c the log)*, `origination-cube/` *(where the
+book bleeds: pockets against the topline; slice 1 built 25 Sep 2026, log in
+`BACKLOG.md` §6d)*, `stock-helper/`, `fdic-peer-monitor/`,
 `cfpb-mortgage-monitor/`, `edgar-crit-class-tracker/`,
 `fred-credit-risk-dashboard/`, `bureau-credit-risk-dashboard/`,
 `macro-early-warning-dashboard/`, `bls-laus-county-monitor/`. They belong to a

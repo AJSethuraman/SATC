@@ -1329,6 +1329,51 @@ sales on the small-business book; built domain-free so a consumer question
       could be re-read on a timer, so saving in Excel builds without a
       second command — a watcher, which is a process, which is a different
       kind of tool.
+## 6d · Origination Cube (`origination-cube/` — started 2026-09-25)
+
+A loan extract and a cube file go in. Every band is crossed with every
+dimension, and each pocket's rate is compared with the topline to find where
+the book bleeds. It replaces the firm's Excel macros
+(M08_Modes/M09_Roles/M10_ConfigEvents/M11_Median), which were reviewed on 25
+Sep. Each place the VBA broke its own rules is tracked one at a time in
+`origination-cube/docs/vba-findings.md`, with the test that stops it coming
+back.
+
+- [x] **Slice 1, the engine: built 25 Sep 2026.**
+  - 39 tests.
+  - 6 of 6 mutations caught (`python tools/mutation_check.py`).
+  - Every grid is tied out against separately accumulated totals, and the
+    excess figures must add to zero.
+  - The planted pocket (score under 620, broker channel) is first on the
+    bleed list.
+  - Speed, pure Python: 1,000,000 loans take 6.7 s to read plus 19.6 s for
+    one grid.
+  - Rulings OC-1 to OC-4 are recorded in `vba-findings.md`:
+    - OC-1: count and show a value that won't read.
+    - OC-2: missing-value codes are rules in the file.
+    - OC-3: thresholds are required.
+    - OC-4: pockets are compared with the topline.
+- [ ] **Slice 2: the workbook.** Python writes a small table of per-cell sums.
+      Rates, the vs-topline index and readings are Excel formulas over it, so
+      the thresholds can be changed in Excel, as in the Portfolio Analysis
+      Pack. It includes a check tab with Python's value beside every formula.
+      Its layout is for the firm to decide.
+- [ ] **Slice 3: `cube init`.** It profiles every column and writes a cube file
+      with `[CONFIRM: ...]` on each band and dimension it proposes. This
+      replaces the candidacy table (READY / REVIEW / BLOCKED).
+- [ ] **Open questions for the firm:**
+  - (a) Should every band be crossed with every dimension, or only the pairs
+        the file names?
+  - (b) Should a pocket be compared with the whole book only, or also with its
+        own band's total?
+  - (c) Is numpy or pandas allowed on the bank machine, and roughly how many
+        rows is a population?
+  - (d) The missing-value codes the firm already knows (bureau sentinels and
+        the like), to put in the example file.
+  - (e) Should a thin cell stay on the bleed list, marked "too few loans to
+        read", or come off it?
+- **Not checked:** a real extract, and the bank machine.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -1340,6 +1385,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-25 -- **Origination Cube slice 1: the engine** (`origination-cube/`). It replaces the firm's origination-analysis VBA. 39 tests, 6 of 6 mutations caught, and every place the macros broke their own rules is tracked in `docs/vba-findings.md`. The workbook is slice 2. Open questions are in §6d.
 - 2026-09-19 -- **Portfolio Analysis Pack v1 built** (`portfolio-analysis-pack/`, nine slices #364–#372, one PR each). The ladder plus door one, the bundle, the render harness and the mutation tool. 94 tests, 9 of 9 mutations caught, 100,000 loans in 12.7 s to a 164 KB workbook. Then the adversarial pass: 35 hypotheses, 16 red, 15 fixed and 1 restated, all in the suite. Not checked: Excel itself and the desk run — §6c has the list.
 - 2026-09-18 -- **Portfolio Analysis Pack grilled and PRD'd** (`portfolio-analysis-pack/docs/prd-portfolio-analysis-pack.md`). Fourteen decisions put to the firm as questions; two touched the record and are ruled in `canon/CONVICTIONS.md` (C11 struck for the project, C9 upheld on placement). Open items above in §6c.
 - 2026-09-05 -- **Tie-out of every data point in both credit monitors:

@@ -80,6 +80,10 @@ jobs:
           # every PR. The render harness (LibreOffice) is desk-run, not CI.
           - project: portfolio-analysis-pack
             install: pip install -e ".[test]"
+          # Origination Cube: pockets against the topline, replacing the firm's
+          # origination VBA. Each finding from the VBA review has a test here.
+          - project: origination-cube
+            install: pip install -e ".[test]"
     defaults:
       run:
         working-directory: ${{ matrix.project }}
@@ -111,6 +115,28 @@ jobs:
     defaults:
       run:
         working-directory: portfolio-analysis-pack
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install project + test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+      - name: Every mutation is caught
+        run: python tools/mutation_check.py
+
+  # The same check for the Origination Cube: each VBA bug is put back in turn
+  # and the test named for it must go red. Seconds, not minutes.
+  mutation-origination-cube:
+    name: mutation check (origination-cube)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: origination-cube
     steps:
       - name: Checkout
         uses: actions/checkout@v4
