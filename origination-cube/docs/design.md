@@ -582,6 +582,36 @@ enough.
   - **Timing**, `perm.run` on the realistic 17,000-loan bleed run (160 statistics), 10,000
     shuffles, under a 4 GB memory limit on a 4-core machine: 53.6 s before; 57.9 s on one
     worker, 27.4 s on 2, 20.5 s on 3, 20.9 s on 4. Each worker peaks at about 70 MB.
+- **OC-42: a test of a new variable builds no bleed analysis** (the firm, 26 Sep 2026, on
+  `BACKLOG.md` §6d: *"Yes. Seems obvious I think. They have entirely different outputs
+  generally"*).
+  - **What it runs:** the confirmatory test and only what that needs. The pre-spec's strata
+    are cut into the bands they get on Columns (the engine still works out every band's
+    edges). The loans are split into development and holdout, and 4e's concentration is
+    worked out. Check and the Log are written as usual. `engine.run` builds no pocket grid,
+    no three-way or split grid, and no shuffle test when `run_kind` is `new_variable`
+    (`Result.bleed` is False).
+  - **What it writes:** the Confirmatory test, Check and the Log. The bleed's tabs (Where
+    it bleeds, Losses vs revenue, Grids, Split, Three-way, Prevalence) are **taken off**
+    if an earlier bleed Run left them. Keeping them would put another Run's pockets beside
+    this one's test, and their Start here tiles would read verdicts that no longer match
+    anything. Check says so in one line ("Bleed tabs") where the tie-outs were, and leaves
+    off the bleed's own lines: pockets, budget, families, the loans needed, and the
+    materiality line. Prevalence goes with the bleed because it counts the grids' own
+    pockets and is tied out to them.
+  - **What it shows:** Start here's *What the last Run found* and the launcher's last step
+    read the confirmation instead of nought pockets of nought. They show the groups that
+    go bad significantly more often than the reference on the holdout, those groups'
+    share of the holdout's bad loans, the loans tested, and whether the run followed the
+    pre-spec. Start here's count follows the confidence on Control (`significance_bar`).
+  - **The bleed Run is unchanged:** on the synthetic book (4,000 loans, split by REV_DEBT),
+    all 136,762 cell values are the same before and after, and so are the launcher's lines
+    and the record of what ran. The one exception is the extract's path.
+  - **Timing:** a pre-spec Run on 17,000 loans × 80 columns, under a 4 GB limit, went from
+    23.4 s (12 grids, one shuffle test) to 4.5 s (none).
+  - **Not settled:** Control still asks the fewest loans and the loss lines for a new
+    variable, and still suggests them. Those suggestions were worked out from the bleed's
+    grids, so on such a Run the loss lines fall back to the usual values.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so

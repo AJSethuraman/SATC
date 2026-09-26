@@ -568,6 +568,24 @@ class Flow:
 # The window
 
 
+def confirm_tiles(h: dict) -> tuple:
+    """The Run-finished tiles for a test of a new variable (OC-42), from confirmatory.headline: it builds no
+    pocket, so the tiles are the confirmation's, on the holdout. (head, value, under it, rule colour, value colour)"""
+    if h.get("problem"):
+        return (("Confirmatory test", "Not run", h["problem"], "KEY_RED", "INK"),)
+    dev = h.get("deviations")
+    if dev is None:
+        follows = ("Couldn't compare", "see Check")
+    elif not dev:
+        follows = ("Yes", "differs nowhere")
+    else:
+        follows = ("No", f"differs in {_s(dev, 'place')}")
+    return ((f"Groups worse than {h['reference']}", f"{h['worse']:,} of {h['groups']:,}",
+             f"on the holdout, {h['confidence']:.0%} sure", "KEY_RED", "INK"),
+            ("Their share of bad loans", f"{h['capture']:.0%}", "on the holdout", "KEY_RED", "INK"),
+            ("Follows the pre-spec", follows[0], follows[1], "INK", "POSITIVE" if dev == 0 else "INK"))
+
+
 def _money(v: float) -> str:
     a = abs(v)
     if a >= 1e9:
@@ -985,13 +1003,14 @@ def build(root) -> dict:
         worse = h.get("worse", 0)
         what = "charge-offs" if gco else (h.get("measure") or "the outcome").lower()
         n = h.get("tie_outs", 0)
-        for i, (head, value, sub, rule, fg) in enumerate((
+        shown = confirm_tiles(h) if h.get("kind") == "confirm" else (
                 ("Pockets worse and material", f"{worse:,}", f"{what}, of {h.get('pockets', 0):,}", "KEY_RED",
                  "INK"),
                 ("Charge-offs above their share" if gco else "Losses above their share",
                  _money(h.get("dollars", 0)) if gco else f"{h.get('dollars', 0):,.1f}",
                  f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"),
-                ("Tie-out checks", f"{n:,} / {n:,}", "every grid adds up to the book", "INK", "POSITIVE"))):
+                ("Tie-out checks", f"{n:,} / {n:,}", "every grid adds up to the book", "INK", "POSITIVE"))
+        for i, (head, value, sub, rule, fg) in enumerate(shown):
             t = tk.Frame(tiles, bg=C["CANVAS"], width=150, height=96)
             t.pack(side="left", padx=(0 if i == 0 else 10, 0))
             t.pack_propagate(False)

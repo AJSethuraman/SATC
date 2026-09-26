@@ -510,6 +510,7 @@ class Result:
     dates: "OriginationDates | None" = None
     derived: list["DerivedReport"] = field(default_factory=list)
     table: Table | None = None                  # the extract as the run read it, new columns included
+    bleed: bool = True                          # False: a test of a new variable, which builds no grid (OC-42)
 
 
 # --------------------------------------------------------------------------
@@ -867,7 +868,11 @@ def run(config: Config, table: Table) -> Result:
     built: list[tuple[Grid, str, list]] = []           # every grid, its band, and each row's pocket
     halved: list[tuple[Grid, list, list]] = []         # grids split at each pocket's own median, and the labels
     tie_outs = 0
-    for b in config.bands:
+    # a test of a new variable builds no bleed analysis (OC-42; the firm, 26 Sep 2026: "They have entirely
+    # different outputs generally"): no grid, no three-way or split grid, no shuffle test. The bands are still
+    # cut above, since the pre-spec's strata are read in them (confirmatory._stratum_labels)
+    bleed = config.run_kind != "new_variable"
+    for b in config.bands if bleed else ():
         for d in config.dimensions:
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
                                topline, min_units, total, needed, materiality_line, band_label_sets[b.name])
@@ -892,13 +897,14 @@ def run(config: Config, table: Table) -> Result:
             grids.append(grid)
     # the dollar rates' shuffle test (B2), one random order per shuffle for every grid at once; then the
     # allowance for many tests and the words, which need every p-value in
-    _shuffle_tests(config, measures, per_row, n, built, halved)
+    if bleed:
+        _shuffle_tests(config, measures, per_row, n, built, halved)
     for g, _, _ in built:
         _judge(g, config, measures, min_units, materiality_line)
     for g, _, _ in halved:
         _finish_split(g, config, measures)
     moves_with: dict[str, float] = {}
-    if config.split and config.split[1] == "own_median":
+    if bleed and config.split and config.split[1] == "own_median":
         for b in config.bands:
             r = _correlation(split_vals, [classify_number(raw, rules.get(b.field))[0] for raw in col(b.field)])
             if r is not None:
@@ -908,7 +914,7 @@ def run(config: Config, table: Table) -> Result:
                   left_out=left_out, grids=grids, warnings=warnings, tie_outs=tie_outs,
                   band_edges=band_edges, loans_needed=needed, min_units=min_units,
                   materiality_line=materiality_line, three_way=three_way,
-                  split_moves_with=moves_with, dates=dates, derived=derived, table=table)
+                  split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed)
 
 
 def _correlation(xs, ys) -> float | None:

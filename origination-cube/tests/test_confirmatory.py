@@ -9,16 +9,12 @@ import shutil
 import subprocess
 from datetime import date, timedelta
 
-from pathlib import Path
-
 import pytest
-
-from recalc import recalc
 import yaml
 from openpyxl import load_workbook
 
 from conftest import cube, table
-from origination_cube import book, confirmatory, control, engine, prespec, prevalence, synth, results
+from origination_cube import book, confirmatory, control, engine, prespec, synth
 from test_book import _answer
 from test_book_dates import _check, _choose, _columns, _control
 
@@ -239,23 +235,12 @@ def _prespec_rows(b) -> list[tuple[str, str]]:
     return out
 
 
-def _prevalence_groups(b, column) -> list[str]:
-    """The groups Grids' count shows for a new column (it absorbed the Prevalence tab), lowest first, for the
-    first grid not cut by the column itself, picked on the Grid dropdown."""
-    from openpyxl import load_workbook
-    import tabs
-    grid = next(g for g in tabs.options(load_workbook(b), results.GRIDS, "Grid") if not g.startswith(f"{column} x"))
-    ws = recalc(tabs.choose(b, Path(b).parent / "groups.xlsx", results.GRIDS, grid=grid),
-                Path(b).parent / "groups")[results.GRIDS]
-    top = next(r for r in range(1, ws.max_row + 1)
-               if str(ws.cell(row=r, column=2).value or "").startswith(f"{column} = "))
-    row = next(r for r in range(top + 1, ws.max_row + 1) if ws.cell(row=r, column=prevalence.GROUP_COL).value)
-    out = []
-    for c in range(prevalence.GROUP_COL, ws.max_column + 1, 2):         # the groups, to the block's end
-        if not ws.cell(row=row, column=c).value:
-            break
-        out.append(ws.cell(row=row, column=c).value)
-    return out
+def _confirm_groups(b) -> list[str]:
+    """The groups the Confirmatory test tab shows, lowest first: its "The column" line lists them."""
+    ws = load_workbook(b)["Confirmatory test"]
+    line = next(ws.cell(row=r, column=3).value for r in range(1, ws.max_row + 1)
+                if ws.cell(row=r, column=2).value == "The column")
+    return line.split(" groups: ", 1)[1].split(". The groups are")[0].split("; ")
 
 
 @needs_git
@@ -268,7 +253,8 @@ def test_check_names_the_pre_specs_groups_as_the_tabs_name_them(tmp_path, monkey
     _spec(x.parent, reference="up to 0.09")
     _held(b, "prespec.yaml")
     assert book.run(b).ok
-    shown = [g for g in _prevalence_groups(b, "INCOME_TO_SALES") if g not in engine.REASON_LABEL.values()]
+    # the groups as the Confirmatory test tab names them (Prevalence, which named them too, is the bleed's: OC-42)
+    shown = [g for g in _confirm_groups(b) if g not in engine.REASON_LABEL.values()]
     lowest, highest = shown[0], shown[-1]
     assert lowest.endswith(" - 0.09") and highest.startswith("2.00 - ")
 

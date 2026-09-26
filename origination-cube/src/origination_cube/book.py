@@ -802,7 +802,10 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
         ("Where things stand", "What is left before Run, counted live from Control and Columns as you fill them "
                                "in."),
         ("What the last Run found", "Pockets that read worse and are material, and the five largest. Worse? and "
-                                    "Material? follow Control; the order and the rest are as of the last Run."),
+                                    "Material? follow Control; the order and the rest are as of the last Run."
+         if _found_value(wb, "kind") != confirm_tab.FOUND_KIND else
+         "Each group of the tested column on the holdout, against the reference group. Significant? follows the "
+         "confidence on Control; the rest is as of the last Run."),
         ("The tabs", "Red tabs you fill in; black tabs hold results; grey tabs are the record."),
     ])
     _heading(ws, r, "Where things stand")
@@ -873,6 +876,8 @@ def _found_block(ws, wb, r: int) -> int:
     Run's; Worse?, Material?, the dollars and the counts are formulas over _pockets, so they follow Control."""
     from . import house
     _heading(ws, r, "What the last Run found")
+    if _found_value(wb, "kind") == confirm_tab.FOUND_KIND:
+        return confirm_tab.found_block(ws, wb, r, lambda k: _found_value(wb, k))
     if FOUND not in wb.sheetnames or not _found_value(wb, "measure"):
         c = ws.cell(row=r + 1, column=2, value="Nothing yet: answer Control and Columns, then press Run in the "
                                                "launcher.")
@@ -1595,7 +1600,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     look.refresh(wb, res.table or table, res.config.split and res.config.split[0],
                  [b.field for b in res.config.bands])
     summary = _headline(res, wb)
-    _log(wb, [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree." + _ran_words(res)]
+    _log(wb, [_ran_on(res, src) + _ran_words(res)]
          + confirmatory.log_lines(res)          # fix 3.15: held to a pre-spec, and whether it touched the holdout
          + [f"Warning: {_plain_warning(w)}" for w in res.warnings])
     _order(wb)
@@ -1612,8 +1617,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if isinstance(raw.get("benchmark"), dict) and cfg.benchmark is not None:
         raw["benchmark"].setdefault("shuffles", cfg.benchmark.shuffles)
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
-    lines = notes + [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."
-                     + _ran_words(res)]
+    lines = notes + [_ran_on(res, src) + _ran_words(res)]
     lines += _top_lines(res)
     lines += confirmatory.launcher_lines(res)
     # the same rows the tab shades blue (its flag), and pockets counted once (the seventh walk, defect 7:
@@ -1636,7 +1640,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         if usual:
             lines.append("Nothing in this book to work these out from, so the usual values were used: "
                          + "; ".join(usual) + ".")
-    if cfg.split:
+    if cfg.split and bleed_tabs(res):
         sf, how = cfg.split
         lines.append(f"Split by {sf}: " + ("each pocket halved at its own median. See the Split tab, and Pockets "
                                            f"split by {sf}." if how == "own_median" else
@@ -1647,7 +1651,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                      f"{'it' if len(dropped) == 1 else 'them'} and set C3 to Yes before the next Run.")
     tested = getattr(getattr(res, "prespec", None), "test", None)
     lines.append(f"Open {book.name}: start with "
-                 + ("Confirmatory test." if tested is not None and tested.problem is None else "Pockets."))
+                 + ("Confirmatory test." if tested is not None and tested.problem is None
+                    else "Pockets." if bleed_tabs(res) else "Check."))
     return Outcome(True, book, lines, summary=summary)
 
 
@@ -1686,6 +1691,8 @@ def _headline(res, wb) -> dict:
                                 "says": f"{key.split('|')[0]}: {r[C_ODD - 1].value}, used as recorded. Answer it "
                                         f"on Columns, row {r[0].row} (Treat as), and press Run again if they mean "
                                         f"missing."})
+    if not bleed_tabs(res):
+        return {**confirmatory.headline(res), "open": open_qs}      # the confirmation's tiles (OC-42)
     return {"measure": m.title if m is not None else None, "gco": m is not None and m.name == "gco_rate",
             "worse": len(worse), "pockets": pockets, "dollars": sum(worse), "tie_outs": res.tie_outs,
             "open": open_qs}
@@ -1775,9 +1782,19 @@ def _names(res) -> dict[str, str]:
     return out
 
 
+def _ran_on(res, src: Path) -> str:
+    """The first line of a Run's Log entry and the launcher's: the tie-outs are the grids', so a test of a new
+    variable, which builds none (OC-42), doesn't count them."""
+    if not bleed_tabs(res):
+        return f"Ran on {res.rows:,} loans from {src.name}."
+    return f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."
+
+
 def _top_lines(res) -> list[str]:
     names = _names(res)
     out = []
+    if not bleed_tabs(res):
+        return out                              # no pocket was built to be worst (OC-42)
     for m in res.measures:
         if not m.is_rate:
             continue
@@ -1831,12 +1848,31 @@ def _write_results(wb, book: Path, res, memory_path, src: Path, forgotten: set[s
     for t in RESULT_TABS[:-1] + ("Materiality", "Learned"):
         if t in wb.sheetnames:
             del wb[t]
+    for t in results.OLD_TABS + results.HIDDEN + (results.CHART,):     # tabs and helpers the redesign replaced
+        if t in wb.sheetnames:
+            del wb[t]
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    # Pockets, Paid cost kept, Grids (with how common each group is, fix 3.12) and Split: the redesign's phase 3
-    results.write(wb, res, stamp)
+    if bleed_tabs(res):
+        _write_bleed(wb, res, stamp)
     confirm_tab.write(wb, res)                  # 4b and 4e: only when testing from a pre-spec
     live.ensure(wb, res)                        # the names Control's materiality panel reads, with no tab of its own
     _check(wb.create_sheet("Check"), res, src, f"{book.stem} - what ran.yaml")
+    _write_rest(wb, book, res, memory_path, src, forgotten, ncols, stamp)
+
+
+def bleed_tabs(res) -> bool:
+    """Whether this Run writes the bleed analysis's tabs. A test of a new variable builds none (OC-42), and the
+    ones an earlier bleed Run left are taken off at the top of _write_results with every other result tab."""
+    return getattr(res, "bleed", True)
+
+
+def _write_bleed(wb, res, stamp: str) -> None:
+    """The bleed analysis's tabs, the redesign's phase 3: Pockets, Paid cost kept, Grids (with how common each
+    group is, fix 3.12) and Split (results.py)."""
+    results.write(wb, res, stamp)
+
+
+def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, stamp: str) -> None:
     if control.SHEET in wb.sheetnames:
         _last_run_used(wb, res)
         if getattr(res, "suggest_all", None):
@@ -1893,6 +1929,8 @@ def _write_found(wb, res, stamp: str) -> None:
     ws.sheet_state = "hidden"
     ws.append(["stamp", stamp])
     ws.append(["tie_outs", f"{res.tie_outs:,} of {res.tie_outs:,} agree"])
+    if not bleed_tabs(res):
+        return confirm_tab.write_found(ws, res)     # no pocket was built: what the confirmation found (OC-42)
     rates = [m for m in res.measures if m.is_rate]
     m = next((x for x in rates if x.name == "gco_rate"), rates[0] if rates else None)
     if m is None or res.config.benchmark is None:
@@ -2382,6 +2420,8 @@ def _check(ws, res, src: Path, record: str = "") -> None:
         rows.append((q, words))
     for w in res.warnings:
         rows.append(("Warning", _plain_warning(w)))
+    if not bleed_tabs(res):
+        rows = _without_bleed(rows, (last_live - 3) if first_live else None)
     rows += checks.rows(res)                    # fixes 3.15 to 3.18: pre-spec, pocket budget, families, products
     for i, (k, v, *d) in enumerate(rows, start=4):
         ws.cell(row=i, column=2, value=k).alignment = Alignment(wrap_text=True, vertical="top")
@@ -2399,6 +2439,23 @@ def _check(ws, res, src: Path, record: str = "") -> None:
     ws.column_dimensions["C"].width = 100
     ws.column_dimensions["D"].width = 40
     _fit(ws)
+
+
+#: Check's one line on a test of a new variable, in place of the tie-outs (OC-42)
+NO_BLEED = ("Bleed tabs", "None: testing a new variable runs only the confirmatory test. Any left by an earlier "
+                          "Run were taken off.")
+#: Check's lines about the bleed analysis's pockets, grids and tests, left off when it wasn't built
+BLEED_ROWS = ("Worse now: ", "Loans needed for ", "Smallest gap ", "Materiality line: ", "Split", "How closely ",
+              "Pockets tested", "Tests", "The allowance for many tests", "Decides each pocket")
+
+
+def _without_bleed(rows: list, live_end: int | None) -> list:
+    """Check's rows for a test of a new variable (OC-42): the tie-outs row becomes NO_BLEED, and the bleed's own
+    lines after the live block (whose rows are counted by position, so it is kept as it is) are left off."""
+    at = next(i for i, r in enumerate(rows) if r[0] == "Tie-out checks")
+    rows = rows[:at] + [NO_BLEED] + rows[at + 1:]
+    keep = live_end if live_end is not None else at + 1
+    return rows[:keep] + [r for r in rows[keep:] if not str(r[0]).startswith(BLEED_ROWS)]
 
 
 def _origination_rows(res) -> list[tuple[str, str]]:

@@ -1916,6 +1916,24 @@ back.
   12 planted bugs in `tools/mutation_check.py`.
 - **A new-variable run skips the bleed grids** (the firm, 26 Sep 2026: *"Yes. Seems obvious I think.
   They have entirely different outputs generally"*). Queued behind redesign phase 2 (same Run code).
+- **A new-variable run skips the bleed, built (26 Sep 2026; `origination-cube/docs/design.md` OC-42).**
+  A "Test from a pre-spec" Run builds no grid, no three-way or split grid, and no shuffle test. It writes
+  the Confirmatory test, Check and the Log. The bleed's six tabs are taken off if an earlier bleed Run left
+  them, and Check's "Bleed tabs" line says so where the tie-outs were. Start here's *What the last Run
+  found* and the launcher's last step show the confirmation: the groups worse than the reference on the
+  holdout, their share of its bad loans, and whether the run followed the pre-spec. Start here's count
+  follows the confidence on Control.
+  - Pre-spec Run at 17,000 × 80 under a 4 GB limit: 23.4 s → 4.5 s (12 grids and 1 shuffle test → 0
+    and 0).
+  - The bleed Run is unchanged: 136,762 of 136,762 cell values match before and after on the synthetic
+    book, except the extract's path.
+  - `tests/test_new_variable_run.py` (7 tests). 9 planted bugs, each run alone, all caught. Two older
+    planted bugs were retired because their lines are now reachable only by a bleed Run, which always
+    has the dollar columns.
+  - Two existing tests read Prevalence on a new-variable Run. They now read the Confirmatory test tab.
+  - **Open:** Control still asks, and suggests, the fewest loans and the loss lines for a new variable.
+    Those suggestions came from the bleed's grids, so on such a Run the loss lines fall back to the usual
+    values.
 - **Shuffle test across cores: approved** (the firm, 26 Sep 2026: *"I'm good with plan"*); built (below). Proposed: each shuffle seeded from its own
   number, so the result is the same on any number of cores and every run; the p-values move once,
   within the shuffle count's own error (about ±0.002 near 0.03 at 10,000 shuffles).

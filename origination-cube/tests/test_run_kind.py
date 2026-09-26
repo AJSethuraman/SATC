@@ -347,11 +347,8 @@ def test_a_new_variable_run_needs_no_booked_amount_gco_or_ranr(tmp_path, monkeyp
 
     # no tab with nothing to show, and no dollars on the tabs a new variable's run does write
     wb = load_workbook(b)
-    assert results.PCK not in wb.sheetnames
-    # how common each group is (Grids, which absorbed Prevalence) counts loans alone
-    heads = [v for row in wb[results.VIEWS].iter_rows(values_only=True) if str(row[0]).endswith("|head")
-             for v in row[1:]]
-    assert heads and "Booked dollars" not in heads
+    # the bleed's tabs aren't built by a test of a new variable (OC-42), nor the ones the redesign replaced
+    assert not {*results.TABS, *results.OLD_TABS} & set(wb.sheetnames)
     calc = recalc(b, tmp_path / "calc")
     for tab in ("Confirmatory test", results.POCKETS, results.GRIDS, results.SPLIT):
         if tab not in calc.sheetnames:
