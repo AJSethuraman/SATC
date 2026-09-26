@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #F4F1EC; }
+a { color: #CC0000; text-decoration: none; }
+a:hover { color: #960019; text-decoration: underline; }
+</style>
+</helmet>
+
+<div style="background:#F4F1EC;font-family:'Hanken Grotesk',sans-serif;color:#16130F;padding:56px 64px 96px;width:2400px;">
+
+<div style="display:flex;align-items:flex-end;gap:48px;border-bottom:1px solid #DAD4CA;padding-bottom:28px;">
+  <div style="flex:none;">
+    <div style="font:700 12px 'Hanken Grotesk';letter-spacing:.16em;text-transform:uppercase;color:#CC0000;">Redesign · launcher + workbook</div>
+    <h1 style="font:900 64px/0.95 Archivo;letter-spacing:-0.03em;margin:14px 0 0;">Origination Cube</h1>
+  </div>
+  <p style="font-size:17px;line-height:1.55;color:#57534B;max-width:720px;margin:0;text-wrap:pretty;">The launcher decides <b style="color:#16130F;">what</b> gets run: the extract, what you're running, and which tests. The workbook holds the professional calls and the results. In the workbook, every setting sits in one of two blocks: <b style="color:#16130F;">Changes now</b> or <b style="color:#16130F;">Needs a Run</b>. Fifteen tabs become eleven. Each tab explains its method once, in a note you can fold away. Each pocket gets two separate verdicts: <b style="color:#16130F;">Worse?</b> and <b style="color:#16130F;">Material?</b></p>
+</div>
+
+<div style="margin-top:32px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;">
+  <div style="background:#fff;border:1px solid #E4DFD5;border-radius:12px;padding:18px 20px;"><div style="font:800 15px Archivo;">Launcher: one place to choose tests</div><p style="font-size:13.5px;line-height:1.5;color:#4A463F;margin:8px 0 0;">Choose tests handles both modes. For the bleed, you tick which columns to cut into bands, segment by and split by. For new variables, you pick the outcome, a shortlist of inputs, and columns to hold fixed. A launcher can show radio buttons and checkboxes properly; a sheet can't. What you're running, the saved-shortlist file and the column-recognition rules moved here too, because they're needed before the workbook exists.</p></div>
+  <div style="background:#fff;border:1px solid #E4DFD5;border-radius:12px;padding:18px 20px;"><div style="font:800 15px Archivo;">Control: Changes now / Needs a Run</div><p style="font-size:13.5px;line-height:1.5;color:#4A463F;margin:8px 0 0;">Two blocks with different header bands and different cell fills. You can tell which is which from the look of the cell before you read the label. Any Needs-a-Run change that differs from the last Run is marked "Waiting for a Run" and counted on Start here. The Materiality tab is folded in as a live preview beside its setting, because that's the only place it's used.</p></div>
+  <div style="background:#fff;border:1px solid #E4DFD5;border-radius:12px;padding:18px 20px;"><div style="font:800 15px Archivo;">Merged tabs</div><p style="font-size:13.5px;line-height:1.5;color:#4A463F;margin:8px 0 0;"><b>Columns</b> now includes Odd values and Learned, so you answer and forget on the column's own row. <b>Pockets</b> is Where it bleeds plus Three-way: they had the same columns, so slicers now switch the measure and the kind of pocket. <b>Grids</b> now includes Prevalence: counts beside the heat maps, one grid at a time. <b>Record</b> is Check plus Log.</p></div>
+  <div style="background:#fff;border:1px solid #E4DFD5;border-radius:12px;padding:18px 20px;"><div style="font:800 15px Archivo;">New: New variables · Start here findings</div><p style="font-size:13.5px;line-height:1.5;color:#4A463F;margin:8px 0 0;"><b>New variables</b> shows the second mode's results. Each input is shown found and then confirmed on held-back loans, with and without the held-fixed columns. <b>Start here</b> now also shows the headline finding, so you can see what the last Run found without opening a results tab. Tab colours: red for tabs you fill in, black for results, grey for the record.</p></div>
+</div>
+
+<div style="display:flex;align-items:baseline;gap:18px;margin-top:72px;margin-bottom:24px;">
+  <span style="font:800 14px Archivo;color:#CC0000;">01</span>
+  <h2 style="font:800 34px Archivo;letter-spacing:-0.02em;margin:0;">Launcher</h2>
+  <div style="flex:1;height:1px;background:#DAD4CA;"></div>
+  <span style="font-size:14px;color:#6E6A62;">720 × 560 desktop window · steps on the left, one job per screen</span>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:40px 40px;">
+
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div style="font:700 13px Archivo;color:#57534B;">L1 · Opened</div>
+    <div style="width:720px;height:560px;background:#fff;border:1px solid #B9B4AC;border-radius:8px;overflow:hidden;box-shadow:0 24px 60px -34px rgba(0,0,0,.4);display:flex;flex-direction:column;font-family:Arial,sans-serif;">
+      <div style="height:30px;flex:none;background:#E4DFD5;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:12px;color:#57534B;"><span>Origination Cube</span><span style="letter-spacing:10px;">–▢✕</span></div>
+      <div style="flex:1;display:flex;min-height:0;">
+        <div style="width:196px;flex:none;background:#F4F1EC;padding:20px 16px;display:flex;flex-direction:column;gap:16px;border-right:1px solid #E4DFD5;">
+          <div style="font:700 15px Arial;padding-bottom:10px;border-bottom:3px solid #CC0000;">Origination Cube</div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#CC0000;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">1</div><div><div style="font:700 13px Arial;">Extract</div><div style="font-size:11.5px;color:#57534B;">Pick the loan file</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">2</div><div><div style="font:700 13px Arial;color:#9A958C;">Set up</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">3</div><div><div style="font:700 13px Arial;color:#9A958C;">Choose tests</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">4</div><div><div style="font:700 13px Arial;color:#9A958C;">Answer in workbook</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">5</div><div><div style="font:700 13px Arial;color:#9A958C;">Run</div></div></div>
+        </div>
+        <div style="flex:1;padding:22px 24px;display:flex;flex-direction:column;gap:16px;min-width:0;">
+          <div style="font:700 18px Arial;">Pick the loan extract</div>
+          <div style="font-size:13px;line-height:1.5;color:#4A463F;">One row per loan, as a .csv or .xlsx. Set up reads it, guesses what each column means, and writes a workbook beside it. The extract itself is never changed.</div>
+          <div style="display:flex;gap:8px;"><div style="flex:1;border:1px solid #B9B4AC;border-radius:4px;padding:8px 10px;font-size:13px;color:#9A958C;">No file picked</div><div style="border:1px solid #B9B4AC;border-radius:4px;padding:8px 14px;font:700 13px Arial;">Browse…</div></div>
+          <div style="border:1px solid #E4DFD5;border-radius:6px;">
+            <div style="padding:9px 12px;font:700 12.5px Arial;border-bottom:1px solid #E4DFD5;background:#F4F1EC;">▾ How Set up recognises columns</div>
+            <div style="padding:10px 12px;display:grid;grid-template-columns:1fr 110px;gap:8px 12px;align-items:center;font-size:12.5px;">
+              <span>A number column with this many values or fewer is a category</span><div style="border:1px solid #B9B4AC;border-radius:4px;padding:5px 8px;">12 values ▾</div>
+              <span>A text column with more values than this is too fine to cut by</span><div style="border:1px solid #B9B4AC;border-radius:4px;padding:5px 8px;">50 values ▾</div>
+            </div>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;">
+            <div style="background:#E4DFD5;color:#9A958C;border-radius:6px;padding:10px 18px;font:700 13px Arial;">Set up from this extract</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div style="font:700 13px Archivo;color:#57534B;">L2 · Choose tests (live: switch modes, tick boxes)</div>
+    <div style="width:720px;height:560px;background:#fff;border:1px solid #B9B4AC;border-radius:8px;overflow:hidden;box-shadow:0 24px 60px -34px rgba(0,0,0,.4);display:flex;flex-direction:column;font-family:Arial,sans-serif;">
+      <div style="height:30px;flex:none;background:#E4DFD5;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:12px;color:#57534B;"><span>Origination Cube</span><span style="letter-spacing:10px;">–▢✕</span></div>
+      <div style="flex:1;display:flex;min-height:0;">
+        <div style="width:196px;flex:none;background:#F4F1EC;padding:20px 16px;display:flex;flex-direction:column;gap:16px;border-right:1px solid #E4DFD5;">
+          <div style="font:700 15px Arial;padding-bottom:10px;border-bottom:3px solid #CC0000;">Origination Cube</div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">✓</div><div><div style="font:700 13px Arial;">Extract</div><div style="font-size:11.5px;color:#57534B;">loans.csv · 8,000 loans</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">✓</div><div><div style="font:700 13px Arial;">Set up</div><div style="font-size:11.5px;color:#57534B;">10 columns read</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#CC0000;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">3</div><div><div style="font:700 13px Arial;">Choose tests</div><div style="font-size:11.5px;color:#57534B;">{{ modeLabel }}</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">4</div><div><div style="font:700 13px Arial;color:#9A958C;">Answer in workbook</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">5</div><div><div style="font:700 13px Arial;color:#9A958C;">Run</div></div></div>
+        </div>
+        <div style="flex:1;padding:14px 20px;display:flex;flex-direction:column;gap:9px;min-width:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="font:700 17px Arial;">What are you running?</div>
+            <div style="display:flex;border:1px solid #16130F;border-radius:6px;overflow:hidden;font:700 12px Arial;">
+              <div onClick="{{ setModeBleed }}" style="padding:7px 12px;cursor:pointer;background:{{ bleedBg }};color:{{ bleedFg }};">Where the book bleeds</div>
+              <div onClick="{{ setModeNew }}" style="padding:7px 12px;cursor:pointer;background:{{ newBg }};color:{{ newFg }};">Test new variables</div>
+            </div>
+          </div>
+          <div style="border:1px solid #E4DFD5;border-radius:6px;overflow:hidden;flex:none;">
+            <div style="display:grid;grid-template-columns:110px 1fr 84px 84px 84px;background:#0A0908;color:#fff;font:700 11px Arial;padding:7px 10px;gap:6px;align-items:end;">
+              <span>Column</span><span>What it is</span><span style="text-align:center;">{{ colA }}</span><span style="text-align:center;">{{ colB }}</span><span style="text-align:center;">{{ colC }}</span>
+            </div>
+            <sc-for list="{{ pickRows }}" as="r" hint-placeholder-count="10">
+              <div style="display:grid;grid-template-columns:110px 1fr 84px 84px 84px;padding:2px 10px;gap:6px;align-items:center;border-top:1px solid #F0ECE4;font-size:12px;opacity:{{ r.op }};">
+                <span style="font-weight:700;">{{ r.c }}</span><span style="color:#57534B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.k }}</span>
+                <div style="display:flex;justify-content:center;"><sc-if value="{{ r.a.show }}" hint-placeholder-val="{{ false }}"><div onClick="{{ r.a.click }}" style="width:16px;height:16px;border:1.5px solid {{ r.a.bd }};background:{{ r.a.bg }};border-radius:{{ r.a.rad }};color:#fff;font:700 10px Arial;display:flex;align-items:center;justify-content:center;cursor:pointer;">{{ r.a.mark }}</div></sc-if></div>
+                <div style="display:flex;justify-content:center;"><sc-if value="{{ r.b.show }}" hint-placeholder-val="{{ false }}"><div onClick="{{ r.b.click }}" style="width:16px;height:16px;border:1.5px solid {{ r.b.bd }};background:{{ r.b.bg }};border-radius:{{ r.b.rad }};color:#fff;font:700 10px Arial;display:flex;align-items:center;justify-content:center;cursor:pointer;">{{ r.b.mark }}</div></sc-if></div>
+                <div style="display:flex;justify-content:center;"><sc-if value="{{ r.cc.show }}" hint-placeholder-val="{{ false }}"><div onClick="{{ r.cc.click }}" style="width:16px;height:16px;border:1.5px solid {{ r.cc.bd }};background:{{ r.cc.bg }};border-radius:{{ r.cc.rad }};color:#fff;font:700 10px Arial;display:flex;align-items:center;justify-content:center;cursor:pointer;">{{ r.cc.mark }}</div></sc-if></div>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ isNewMode }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;align-items:center;flex:none;">
+              <div style="display:flex;align-items:center;gap:6px;"><span>Find on</span><div style="border:1px solid #B9B4AC;border-radius:4px;padding:2px 6px;font-weight:700;">70% ▾</div><span style="color:#57534B;">confirm on the rest</span></div>
+              <div style="display:flex;align-items:center;gap:6px;"><span>Or confirm a saved shortlist</span><div style="border:1px solid #B9B4AC;border-radius:4px;padding:2px 6px;">Browse…</div></div>
+            </div>
+          </sc-if>
+          <div style="flex:1;"></div>
+          <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:6px 10px;font-size:12px;line-height:1.4;flex:none;"><b>This will run:</b> {{ pickSummary }}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex:none;">
+            <span style="font-size:11px;color:#57534B;white-space:nowrap;">Saved to Control, read-only.</span>
+            <div style="background:#CC0000;color:#fff;border-radius:6px;padding:10px 18px;font:700 13px Arial;">Next: answer in the workbook →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div style="font:700 13px Archivo;color:#57534B;">L3 · Run pressed before everything is answered</div>
+    <div style="width:720px;height:560px;background:#fff;border:1px solid #B9B4AC;border-radius:8px;overflow:hidden;box-shadow:0 24px 60px -34px rgba(0,0,0,.4);display:flex;flex-direction:column;font-family:Arial,sans-serif;">
+      <div style="height:30px;flex:none;background:#E4DFD5;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:12px;color:#57534B;"><span>Origination Cube</span><span style="letter-spacing:10px;">–▢✕</span></div>
+      <div style="flex:1;display:flex;min-height:0;">
+        <div style="width:196px;flex:none;background:#F4F1EC;padding:20px 16px;display:flex;flex-direction:column;gap:16px;border-right:1px solid #E4DFD5;">
+          <div style="font:700 15px Arial;padding-bottom:10px;border-bottom:3px solid #CC0000;">Origination Cube</div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">✓</div><div><div style="font:700 13px Arial;">Extract</div><div style="font-size:11.5px;color:#57534B;">loans.csv · 8,000 loans</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">✓</div><div><div style="font:700 13px Arial;">Set up</div><div style="font-size:11.5px;color:#57534B;">10 columns read</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">✓</div><div><div style="font:700 13px Arial;">Choose tests</div><div style="font-size:11.5px;color:#57534B;">Where the book bleeds</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#CC0000;color:#fff;font:700 12px Arial;display:flex;align-items:center;justify-content:center;flex:none;">!</div><div><div style="font:700 13px Arial;">Answer in workbook</div><div style="font-size:11.5px;color:#960019;font-weight:700;">4 left</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">5</div><div><div style="font:700 13px Arial;color:#9A958C;">Run</div></div></div>
+        </div>
+        <div style="flex:1;padding:20px 22px;display:flex;flex-direction:column;gap:12px;min-width:0;">
+          <div style="font:700 17px Arial;">4 answers needed before Run</div>
+          <div style="font-size:12.5px;color:#4A463F;">Each one opens the workbook at its cell. Nothing ran; your answers so far are kept.</div>
+          <div style="background:#F7DEDE;border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12.5px;"><span><b style="color:#960019;">The workbook is open in Excel.</b> Save and close it first, so Run reads your latest answers.</span></div>
+          <div style="display:flex;flex-direction:column;border:1px solid #E4DFD5;border-radius:6px;">
+            <div style="display:grid;grid-template-columns:86px 1fr 104px;gap:10px;align-items:center;padding:9px 12px;font-size:12.5px;border-bottom:1px solid #F0ECE4;"><span style="font:700 11px Arial;color:#CC0000;">CONTROL C14</span><span>Fewest loans in a pocket for the usual test</span><div style="border:1px solid #B9B4AC;border-radius:4px;padding:5px 8px;font:700 12px Arial;text-align:center;">Open at C14</div></div>
+            <div style="display:grid;grid-template-columns:86px 1fr 104px;gap:10px;align-items:center;padding:9px 12px;font-size:12.5px;border-bottom:1px solid #F0ECE4;"><span style="font:700 11px Arial;color:#CC0000;">CONTROL C9</span><span>Materiality: smallest excess worth reporting</span><div style="border:1px solid #B9B4AC;border-radius:4px;padding:5px 8px;font:700 12px Arial;text-align:center;">Open at C9</div></div>
+            <div style="display:grid;grid-template-columns:86px 1fr 104px;gap:10px;align-items:center;padding:9px 12px;font-size:12.5px;border-bottom:1px solid #F0ECE4;"><span style="font:700 11px Arial;color:#CC0000;">COLUMNS G9</span><span>RANR_AMT: 595 negative values. Real, or missing?</span><div style="border:1px solid #B9B4AC;border-radius:4px;padding:5px 8px;font:700 12px Arial;text-align:center;">Open at G9</div></div>
+            <div style="display:grid;grid-template-columns:86px 1fr 104px;gap:10px;align-items:center;padding:9px 12px;font-size:12.5px;"><span style="font:700 11px Arial;color:#CC0000;">COLUMNS C3</span><span>Checked every column? Set it to Yes once you have</span><div style="border:1px solid #B9B4AC;border-radius:4px;padding:5px 8px;font:700 12px Arial;text-align:center;">Open at C3</div></div>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;">
+            <div style="border:1px solid #B9B4AC;border-radius:6px;padding:10px 16px;font:700 13px Arial;">Open the workbook</div>
+            <div style="background:#E4DFD5;color:#9A958C;border-radius:6px;padding:10px 18px;font:700 13px Arial;">Run the cube</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div style="font:700 13px Archivo;color:#57534B;">L4 · An add-on is missing</div>
+    <div style="width:720px;height:560px;background:#fff;border:1px solid #B9B4AC;border-radius:8px;overflow:hidden;box-shadow:0 24px 60px -34px rgba(0,0,0,.4);display:flex;flex-direction:column;font-family:Arial,sans-serif;">
+      <div style="height:30px;flex:none;background:#E4DFD5;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:12px;color:#57534B;"><span>Origination Cube</span><span style="letter-spacing:10px;">–▢✕</span></div>
+      <div style="background:#0A0908;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:16px;border-bottom:3px solid #CC0000;">
+        <div style="flex:1;"><div style="font:700 14px Arial;">One add-on is missing: numpy, which does the statistics.</div><div style="font-size:12px;color:#B9B4AC;margin-top:3px;">Install downloads it from the internet, about two minutes. Set up and Run switch on once it's in.</div></div>
+        <div style="background:#CC0000;color:#fff;border-radius:6px;padding:9px 16px;font:700 13px Arial;">Install now</div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0;">
+        <div style="width:196px;flex:none;background:#F4F1EC;padding:20px 16px;display:flex;flex-direction:column;gap:16px;border-right:1px solid #E4DFD5;opacity:.5;">
+          <div style="font:700 15px Arial;padding-bottom:10px;border-bottom:3px solid #B9B4AC;">Origination Cube</div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">1</div><div style="font:700 13px Arial;color:#57534B;">Extract</div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">2</div><div style="font:700 13px Arial;color:#57534B;">Set up</div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">3</div><div style="font:700 13px Arial;color:#57534B;">Choose tests</div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">4</div><div style="font:700 13px Arial;color:#57534B;">Answer in workbook</div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #B9B4AC;color:#9A958C;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">5</div><div style="font:700 13px Arial;color:#57534B;">Run</div></div>
+        </div>
+        <div style="flex:1;padding:22px 24px;display:flex;flex-direction:column;gap:14px;min-width:0;">
+          <div style="font:700 18px Arial;color:#57534B;">Pick the loan extract</div>
+          <div style="display:flex;gap:8px;"><div style="flex:1;border:1px solid #B9B4AC;border-radius:4px;padding:8px 10px;font-size:13px;">C:\Risk\extracts\loans.csv</div><div style="border:1px solid #B9B4AC;border-radius:4px;padding:8px 14px;font:700 13px Arial;">Browse…</div></div>
+          <div style="font-size:12.5px;color:#57534B;">You can still pick the extract and open an existing workbook while the add-on installs.</div>
+          <div style="flex:1;"></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;">
+            <div style="border:1px solid #B9B4AC;border-radius:6px;padding:10px 16px;font:700 13px Arial;">Open the workbook</div>
+            <div style="background:#E4DFD5;color:#9A958C;border-radius:6px;padding:10px 18px;font:700 13px Arial;">Set up from this extract</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div style="font:700 13px Archivo;color:#57534B;">L5 · Run finished</div>
+    <div style="width:720px;height:560px;background:#fff;border:1px solid #B9B4AC;border-radius:8px;overflow:hidden;box-shadow:0 24px 60px -34px rgba(0,0,0,.4);display:flex;flex-direction:column;font-family:Arial,sans-serif;">
+      <div style="height:30px;flex:none;background:#E4DFD5;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:12px;color:#57534B;"><span>Origination Cube</span><span style="letter-spacing:10px;">–▢✕</span></div>
+      <div style="flex:1;display:flex;min-height:0;">
+        <div style="width:196px;flex:none;background:#F4F1EC;padding:20px 16px;display:flex;flex-direction:column;gap:16px;border-right:1px solid #E4DFD5;">
+          <div style="font:700 15px Arial;padding-bottom:10px;border-bottom:3px solid #CC0000;">Origination Cube</div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">✓</div><div><div style="font:700 13px Arial;">Extract</div><div style="font-size:11.5px;color:#57534B;">loans.csv · 8,000 loans</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">✓</div><div><div style="font:700 13px Arial;">Set up</div><div style="font-size:11.5px;color:#57534B;">10 columns read</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">✓</div><div><div style="font:700 13px Arial;">Choose tests</div><div style="font-size:11.5px;color:#57534B;">Where the book bleeds</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">✓</div><div><div style="font:700 13px Arial;">Answer in workbook</div><div style="font-size:11.5px;color:#57534B;">All answered</div></div></div>
+          <div style="display:flex;gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Arial;display:flex;align-items:center;justify-content:center;flex:none;">✓</div><div><div style="font:700 13px Arial;">Run</div><div style="font-size:11.5px;color:#57534B;">17:19 · 42 seconds</div></div></div>
+        </div>
+        <div style="flex:1;padding:20px 22px;display:flex;flex-direction:column;gap:14px;min-width:0;">
+          <div style="font:700 17px Arial;">Run finished. Results are in the workbook.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:10px 12px;"><div style="font-size:11.5px;color:#57534B;">Pockets worse and material</div><div style="font:700 24px Arial;margin-top:2px;">5</div><div style="font-size:11px;color:#57534B;">charge-offs, of 74</div></div>
+            <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:10px 12px;"><div style="font-size:11.5px;color:#57534B;">Charge-offs above their share</div><div style="font:700 24px Arial;margin-top:2px;">$3.83M</div><div style="font-size:11px;color:#57534B;">in those 5 pockets</div></div>
+            <div style="background:#F4F1EC;border-top:3px solid #0A0908;padding:10px 12px;"><div style="font-size:11.5px;color:#57534B;">Tie-out checks</div><div style="font:700 24px Arial;margin-top:2px;color:#1E7A47;">660 / 660</div><div style="font-size:11px;color:#57534B;">every grid adds up to the book</div></div>
+          </div>
+          <div style="border:1px solid #E4DFD5;border-radius:6px;padding:10px 12px;font-size:12.5px;line-height:1.5;"><b>One open question.</b> RANR_AMT has 595 negative values, used as recorded. Answer it on Columns (row 9) and press Run again if they mean missing.</div>
+          <div style="flex:1;"></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;">
+            <div style="border:1px solid #B9B4AC;border-radius:6px;padding:10px 16px;font:700 13px Arial;">Run again</div>
+            <div style="background:#CC0000;color:#fff;border-radius:6px;padding:10px 18px;font:700 13px Arial;">Open at Start here</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="display:flex;align-items:baseline;gap:18px;margin-top:80px;margin-bottom:24px;">
+  <span style="font:800 14px Archivo;color:#CC0000;">02</span>
+  <h2 style="font:800 34px Archivo;letter-spacing:-0.02em;margin:0;">Workbook</h2>
+  <div style="flex:1;height:1px;background:#DAD4CA;"></div>
+  <span style="font-size:14px;color:#6E6A62;">Microsoft 365 · click the sheet tabs · slicers on Pockets are live</span>
+</div>
+
+<div style="display:flex;gap:28px;align-items:flex-start;">
+<div style="width:1760px;flex:none;background:#fff;border:1px solid #B9B4AC;border-radius:8px;overflow:hidden;box-shadow:0 30px 80px -40px rgba(0,0,0,.4);font-family:Calibri,Carlito,Arial,sans-serif;">
+  <div style="height:34px;background:#E4DFD5;display:flex;align-items:center;justify-content:center;font:12.5px Arial;color:#57534B;position:relative;">loans - Origination Cube.xlsx<span style="position:absolute;right:14px;letter-spacing:10px;">–▢✕</span></div>
+  <div style="display:flex;align-items:center;border-bottom:1px solid #E4DFD5;font:12.5px Arial;">
+    <div style="width:80px;padding:6px 10px;border-right:1px solid #E4DFD5;color:#57534B;">{{ fxCell }}</div>
+    <div style="padding:6px 12px;color:#9A958C;font-style:italic;border-right:1px solid #E4DFD5;">fx</div>
+    <div style="padding:6px 12px;color:#16130F;font-family:Consolas,monospace;font-size:12px;">{{ fxText }}</div>
+  </div>
+  <div style="height:900px;overflow:auto;background:#fff;">
+
+    <sc-if value="{{ isStart }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#0A0908;color:#fff;padding:12px 16px 10px;border-bottom:3px solid #CC0000;display:flex;align-items:baseline;gap:16px;"><span style="font:700 20px Arial;">Origination Cube</span><span style="font:12.5px Arial;color:#B9B4AC;">loans.csv · 8,000 loans · last Run 26 Sep 2026 17:19 · Where the book bleeds</span></div>
+      <div style="padding:18px 16px 0;font:700 12px Arial;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">Where things stand</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:10px 16px;">
+        <div style="background:#F4F1EC;border-top:3px solid #0A0908;padding:10px 14px;"><div style="font-size:13px;color:#57534B;">Answers still needed</div><div style="font:700 26px Arial;">0</div><div style="font-size:12px;color:#57534B;">Control</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #0A0908;padding:10px 14px;"><div style="font-size:13px;color:#57534B;">Columns to confirm</div><div style="font:700 26px Arial;">0</div><div style="font-size:12px;color:#57534B;">Columns</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:10px 14px;"><div style="font-size:13px;color:#57534B;">Odd values to answer</div><div style="font:700 26px Arial;color:#960019;">1</div><div style="font-size:12px;color:#57534B;">Columns · RANR_AMT, row 9</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid {{ pendTop }};padding:10px 14px;"><div style="font-size:13px;color:#57534B;">Changes waiting for a Run</div><div style="font:700 26px Arial;color:{{ pendFg }};">{{ pendCount }}</div><div style="font-size:12px;color:#57534B;">Control · Needs a Run block</div></div>
+      </div>
+      <sc-if value="{{ pending }}" hint-placeholder-val="{{ true }}">
+        <div style="margin:4px 16px 0;background:#F7DEDE;padding:10px 14px;font-size:14px;line-height:1.45;"><b style="color:#960019;">↻ 1 change is waiting for a Run.</b> Fewest losses before a loss rate is tested: 10 → 15 (Control C17). The result tabs still show the last Run. Save, close, and press Run in the launcher.</div>
+      </sc-if>
+      <div style="padding:22px 16px 0;font:700 12px Arial;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">What the last Run found</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:10px 16px;">
+        <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:10px 14px;"><div style="font-size:13px;color:#57534B;">Pockets worse and material, charge-offs</div><div style="font:700 26px Arial;">5 <span style="font-size:14px;color:#57534B;font-weight:400;">of 74</span></div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:10px 14px;"><div style="font-size:13px;color:#57534B;">Charge-offs above their share, in those</div><div style="font:700 26px Arial;">$3,834,977</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:10px 14px;"><div style="font-size:13px;color:#57534B;">Pockets keeping less, worse and material</div><div style="font:700 26px Arial;">4 <span style="font-size:14px;color:#57534B;font-weight:400;">short $3,400,391</span></div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #0A0908;padding:10px 14px;"><div style="font-size:13px;color:#57534B;">Tie-out checks</div><div style="font:700 26px Arial;color:#1E7A47;">660 of 660 agree</div></div>
+      </div>
+      <div style="padding:10px 16px 0;">
+        <div style="display:grid;grid-template-columns:240px 150px 80px 150px 190px 110px 110px;background:#0A0908;color:#fff;font:700 12px Arial;padding:7px 8px;gap:0 10px;white-space:nowrap;"><span>Largest, worse and material</span><span>Segment</span><span style="text-align:center;">Loans</span><span style="text-align:center;">× rest of band</span><span style="text-align:center;">Charge-offs above share</span><span style="text-align:center;">Worse?</span><span style="text-align:center;">Material?</span></div>
+        <sc-for list="{{ topRows }}" as="r" hint-placeholder-count="5">
+          <div style="display:grid;grid-template-columns:240px 150px 80px 150px 190px 110px 110px;padding:5px 8px;gap:0 10px;font-size:14px;border-bottom:1px solid #EFEBE4;font-variant-numeric:tabular-nums;white-space:nowrap;"><span>{{ r.band }}</span><span>{{ r.seg }}</span><span style="text-align:center;">{{ r.loans }}</span><span style="text-align:center;">{{ r.gap }}</span><span style="text-align:center;">{{ r.excess }}</span><span style="background:#F7DEDE;color:#960019;font-weight:700;padding:0 6px;text-align:center;">Yes</span><span style="background:#E4DFD5;font-weight:700;padding:0 6px;text-align:center;">Yes</span></div>
+        </sc-for>
+        <div style="font-size:12.5px;color:#57534B;padding:6px 8px;">All 74 pockets, all five measures: Pockets tab.</div>
+      </div>
+      <div style="padding:22px 16px 0;font:700 12px Arial;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">The tabs</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:10px 16px 28px;font-size:14px;line-height:1.5;">
+        <div style="border-top:4px solid #CC0000;padding-top:8px;"><b style="font-family:Arial;">You answer</b><div><b>Control</b>: the professional calls</div><div><b>Columns</b>: what each column means, odd values, memory</div><div><b>Look</b>: each number column before you pick edges</div></div>
+        <div style="border-top:4px solid #0A0908;padding-top:8px;"><b style="font-family:Arial;">Results</b><div><b>Pockets</b>: every pocket, ranked, Worse? and Material?</div><div><b>Paid, cost, kept</b>: revenue against losses per pocket</div><div><b>Grids</b> · <b>Split</b> · <b>New variables</b></div></div>
+        <div style="border-top:4px solid #B9B4AC;padding-top:8px;"><b style="font-family:Arial;">Record</b><div><b>Record</b>: what ran, tie-outs, what was left out, every Run</div></div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isControl }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#0A0908;color:#fff;padding:12px 16px 10px;border-bottom:3px solid #CC0000;display:flex;align-items:baseline;gap:16px;"><span style="font:700 20px Arial;">Control</span><span style="font:12.5px Arial;color:#B9B4AC;">The professional calls. Top block changes results now; bottom block waits for a Run.</span></div>
+      <div style="display:flex;border-bottom:1px solid #E4DFD5;">
+        <div style="width:22px;flex:none;display:flex;flex-direction:column;align-items:center;padding-top:10px;"><div style="width:12px;height:12px;border:1px solid #57534B;font:9px/10px Arial;text-align:center;color:#57534B;">−</div><div style="flex:1;width:1px;background:#57534B;margin:2px 0 8px;"></div></div>
+        <div style="flex:1;background:#F4F1EC;padding:10px 16px 12px;display:grid;grid-template-columns:180px 1fr;gap:5px 20px;font-size:13.5px;line-height:1.45;">
+          <div style="grid-column:1/-1;font:700 11.5px Arial;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">How this tab works · rows 3–8 fold away with −</div>
+          <b>Changes now</b><span>The result tabs read these cells with formulas. Change one and every reading, dollar figure, colour and verdict updates at once. The order of rows stays as the last Run left it.</span>
+          <b>Needs a Run</b><span>These decide which pockets exist and which test each one gets, so they only take effect when you press Run again. A cell that differs from what the last Run used says "Waiting for a Run".</span>
+          <b>Chosen in the launcher</b><span>What you're running and which columns are tested are set in the launcher's Choose tests. They're shown at the foot of this tab so a reviewer sees them, but can't be edited here.</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:20px;padding:12px 16px;font-size:13px;align-items:center;">
+        <span style="display:flex;align-items:center;gap:6px;"><span style="width:26px;height:14px;background:#F4F1EC;border:1px solid #16130F;"></span>Changes now</span>
+        <span style="display:flex;align-items:center;gap:6px;"><span style="width:26px;height:14px;background:#fff;border:1px dashed #57534B;"></span>Needs a Run</span>
+        <span style="display:flex;align-items:center;gap:6px;"><span style="width:26px;height:14px;background:#F7DEDE;"></span>Still needs an answer</span>
+      </div>
+      <div style="display:flex;gap:24px;padding:0 16px;align-items:flex-start;">
+        <div style="width:1080px;flex:none;">
+          <div style="background:#0A0908;color:#fff;padding:8px 10px;border-bottom:3px solid #CC0000;font:700 14px Arial;">Changes now · result tabs update as you type</div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:6px 10px;font:700 12px Arial;color:#57534B;border-bottom:1px solid #E4DFD5;gap:10px;white-space:nowrap;"><span>Setting</span><span style="text-align:center;">Your answer</span><span style="text-align:center;">Comes to</span><span style="text-align:center;">Last Run used</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>A pocket reads worse at (times its comparison)</span><span style="background:#F4F1EC;border:1px solid #16130F;padding:3px 8px;font-weight:700;text-align:center;">1.25× ▾</span><span></span><span style="color:#57534B;text-align:center;">1.25×</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>A pocket reads better at</span><span style="background:#F4F1EC;border:1px solid #16130F;padding:3px 8px;font-weight:700;text-align:center;">0.80× ▾</span><span></span><span style="color:#57534B;text-align:center;">0.80×</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>Profit counts as more or less when</span><span style="background:#F4F1EC;border:1px solid #16130F;padding:3px 8px;font-weight:700;text-align:center;">Its own test says so ▾</span><span></span><span style="color:#57534B;text-align:center;">Its own test says so</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>How sure a gap must be</span><span style="background:#F4F1EC;border:1px solid #16130F;padding:3px 8px;font-weight:700;text-align:center;">95% ▾</span><span></span><span style="color:#57534B;text-align:center;">95%</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>Materiality: smallest excess worth reporting</span><span style="background:#F4F1EC;border:1px solid #16130F;padding:3px 8px;font-weight:700;text-align:center;">1% of the book's charge-offs ▾</span><span style="text-align:center;font-weight:700;font-variant-numeric:tabular-nums;">$107,354</span><span style="color:#57534B;text-align:center;">1%</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>Each pocket is judged against</span><span style="background:#F4F1EC;border:1px solid #16130F;padding:3px 8px;font-weight:700;text-align:center;">The rest of its band ▾</span><span></span><span style="color:#57534B;text-align:center;">The rest of its band</span></div>
+
+          <div style="margin-top:22px;background:#57534B;color:#fff;padding:8px 10px;border-bottom:3px solid #B9B4AC;font:700 14px Arial;">↻ Needs a Run · takes effect when you press Run again</div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:6px 10px;font:700 12px Arial;color:#57534B;border-bottom:1px solid #E4DFD5;gap:10px;white-space:nowrap;"><span>Setting</span><span style="text-align:center;">Your answer</span><span style="text-align:center;">Last Run used</span><span style="text-align:center;">Status</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>Fewest loans in a pocket for the usual test</span><span style="border:1px dashed #57534B;padding:3px 8px;font-weight:700;text-align:center;">30 loans ▾</span><span style="color:#57534B;text-align:center;">30 loans</span><span style="color:#57534B;text-align:center;">Same as last Run</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>Fewest losses before a loss rate is tested</span><span style="border:1px dashed #57534B;padding:3px 8px;font-weight:700;text-align:center;">{{ minLoss }} ▾</span><span style="color:#57534B;text-align:center;">10 losses</span><span style="color:{{ pendFg }};font-weight:{{ pendW }};background:{{ pendBg }};padding:2px 6px;text-align:center;">{{ pendStatus }}</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>Bands per number column</span><span style="border:1px dashed #57534B;padding:3px 8px;font-weight:700;text-align:center;">5 bands ▾</span><span style="color:#57534B;text-align:center;">5 bands</span><span style="color:#57534B;text-align:center;">Same as last Run</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>Where band edges fall, unless set on Columns</span><span style="border:1px dashed #57534B;padding:3px 8px;font-weight:700;text-align:center;">Same number of loans each ▾</span><span style="color:#57534B;text-align:center;">Same number each</span><span style="color:#57534B;text-align:center;">Same as last Run</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>How often a real gap should be caught</span><span style="border:1px dashed #57534B;padding:3px 8px;font-weight:700;text-align:center;">80% of the time ▾</span><span style="color:#57534B;text-align:center;">80%</span><span style="color:#57534B;text-align:center;">Same as last Run</span></div>
+          <div style="display:grid;grid-template-columns:360px 290px 160px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;align-items:center;white-space:nowrap;"><span>Allowing for testing many pockets at once</span><span style="border:1px dashed #57534B;padding:3px 8px;font-weight:700;text-align:center;">Hold down false finds ▾</span><span style="color:#57534B;text-align:center;">Hold down false finds</span><span style="color:#57534B;text-align:center;">Same as last Run</span></div>
+
+          <div style="margin-top:22px;background:#E4DFD5;padding:8px 10px;font:700 14px Arial;">Chosen in the launcher · read-only here</div>
+          <div style="display:grid;grid-template-columns:360px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;color:#57534B;white-space:nowrap;"><span>What you're running</span><span style="color:#16130F;">Where the book bleeds</span></div>
+          <div style="display:grid;grid-template-columns:360px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;color:#57534B;white-space:nowrap;"><span>Cut into bands</span><span style="color:#16130F;">FICO, ORIG_BAL</span></div>
+          <div style="display:grid;grid-template-columns:360px 1fr;padding:5px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:10px;color:#57534B;white-space:nowrap;"><span>Segment by</span><span style="color:#16130F;">CHANNEL, ASSET_CLASS</span></div>
+          <div style="display:grid;grid-template-columns:360px 1fr;padding:5px 10px 28px;font-size:14px;gap:10px;color:#57534B;"><span>Split every pocket by</span><span style="color:#16130F;">REV_DEBT, at each pocket's own median</span></div>
+        </div>
+        <div style="flex:1;border:1px solid #E4DFD5;">
+          <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:8px 10px;font:700 13px Arial;">What each materiality level keeps</div>
+          <div style="padding:4px 10px 8px;font-size:12.5px;color:#57534B;">Charge-offs, all grids, against the rest of the band. Live.</div>
+          <div style="display:grid;grid-template-columns:70px 1fr 70px 80px;padding:5px 10px;font:700 12px Arial;background:#0A0908;color:#fff;gap:8px;"><span>Level</span><span style="text-align:center;">Dollars</span><span style="text-align:center;">Pockets</span><span style="text-align:center;">Of excess</span></div>
+          <div style="display:grid;grid-template-columns:70px 1fr 70px 80px;padding:4px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:8px;font-variant-numeric:tabular-nums;white-space:nowrap;"><span>0.5%</span><span style="text-align:center;">$53,677</span><span style="text-align:center;">18</span><span style="text-align:center;">100%</span></div>
+          <div style="display:grid;grid-template-columns:70px 1fr 70px 80px;padding:4px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:8px;font-variant-numeric:tabular-nums;background:#F4F1EC;font-weight:700;white-space:nowrap;"><span>1% ◂</span><span style="text-align:center;">$107,354</span><span style="text-align:center;">13</span><span style="text-align:center;">95%</span></div>
+          <div style="display:grid;grid-template-columns:70px 1fr 70px 80px;padding:4px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:8px;font-variant-numeric:tabular-nums;white-space:nowrap;"><span>2%</span><span style="text-align:center;">$214,707</span><span style="text-align:center;">9</span><span style="text-align:center;">87%</span></div>
+          <div style="display:grid;grid-template-columns:70px 1fr 70px 80px;padding:4px 10px;font-size:14px;border-bottom:1px solid #EFEBE4;gap:8px;font-variant-numeric:tabular-nums;white-space:nowrap;"><span>5%</span><span style="text-align:center;">$536,768</span><span style="text-align:center;">5</span><span style="text-align:center;">64%</span></div>
+          <div style="display:grid;grid-template-columns:70px 1fr 70px 80px;padding:4px 10px;font-size:14px;gap:8px;font-variant-numeric:tabular-nums;"><span>10%</span><span style="text-align:center;">$1,073,536</span><span style="text-align:center;">1</span><span style="text-align:center;">31%</span></div>
+          <div style="padding:10px;font-size:12.5px;line-height:1.45;color:#57534B;border-top:1px solid #E4DFD5;">The same level in other units: 6.2 bad loans · $193,082 booked on bad loans. A profit shortfall is held to the charge-off dollar line.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isColumns }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#0A0908;color:#fff;padding:12px 16px 10px;border-bottom:3px solid #CC0000;display:flex;align-items:baseline;gap:16px;"><span style="font:700 20px Arial;">Columns</span><span style="font:12.5px Arial;color:#B9B4AC;">What each column means, what looks odd in it, and what the tool remembers about it.</span></div>
+      <div style="display:flex;border-bottom:1px solid #E4DFD5;">
+        <div style="width:22px;flex:none;display:flex;flex-direction:column;align-items:center;padding-top:10px;"><div style="width:12px;height:12px;border:1px solid #57534B;font:9px/10px Arial;text-align:center;color:#57534B;">−</div><div style="flex:1;width:1px;background:#57534B;margin:2px 0 8px;"></div></div>
+        <div style="flex:1;background:#F4F1EC;padding:10px 16px 12px;display:grid;grid-template-columns:180px 1fr;gap:5px 20px;font-size:13.5px;line-height:1.45;">
+          <div style="grid-column:1/-1;font:700 11.5px Arial;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">How this tab works · fold away with −</div>
+          <b>What it is</b><span>Set up guesses each column's meaning from its name and its values; the reason is beside it. Fix any that's wrong. Confirmed meanings are remembered for the next extract with the same column names.</span>
+          <b>Odd values</b><span>Values that may be codes rather than real numbers, such as one value repeated far more than any other, or negatives in a column that's mostly positive. Answer Real or Missing. Missing is treated as blank and counted on Record. Unanswered ones are used as recorded.</span>
+          <b>Band edges</b><span>Blank means the Control setting (5 bands, same number of loans each). Type edges as 620; 680; 740, or "every 20". Look shows what each choice would cut.</span>
+          <b>Remembered</b><span>Set Forget to drop a memory at the next Run; the column then waits here for you to confirm it again. All four answer columns take effect at the next Run.</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;font-size:14px;"><b>Checked every column?</b><span style="border:1px dashed #57534B;padding:3px 12px;font-weight:700;">Yes ▾</span><span style="color:#57534B;font-size:13px;">Run won't start until this is Yes.</span></div>
+      <div style="padding:0 16px 24px;">
+        <div style="display:grid;grid-template-columns:120px 190px 180px 1fr 60px 200px 150px 140px 190px;background:#0A0908;color:#fff;font:700 12px Arial;padding:7px 8px;gap:10px;align-items:end;white-space:nowrap;"><span>Column</span><span>Samples</span><span style="text-align:center;">What it is ↻</span><span>Why we think so</span><span style="text-align:center;">Blank</span><span>Odd values</span><span style="text-align:center;">Treat as ↻</span><span style="text-align:center;">Band edges ↻</span><span style="text-align:center;">Remembered ↻</span></div>
+        <sc-for list="{{ colRows }}" as="r" hint-placeholder-count="10">
+          <div style="display:grid;grid-template-columns:120px 190px 180px 1fr 60px 200px 150px 140px 190px;padding:5px 8px;gap:10px;font-size:13.5px;border-bottom:1px solid #EFEBE4;align-items:center;white-space:nowrap;">
+            <b>{{ r.c }}</b><span style="color:#57534B;">{{ r.s }}</span><span style="border:1px dashed #B9B4AC;padding:2px 6px;text-align:center;">{{ r.k }}</span><span style="color:#57534B;">{{ r.why }}</span><span style="text-align:center;">{{ r.blank }}</span><span>{{ r.odd }}</span><span style="background:{{ r.tBg }};border:1px dashed {{ r.tBd }};padding:2px 6px;font-weight:700;min-height:22px;text-align:center;">{{ r.treat }}</span><span style="border:1px dashed {{ r.eBd }};padding:2px 6px;min-height:22px;text-align:center;">{{ r.edges }}</span><span style="color:#57534B;text-align:center;">{{ r.mem }}</span>
+          </div>
+        </sc-for>
+        <div style="margin-top:24px;font:700 14px Arial;">Add a column: one divided by another</div>
+        <div style="font-size:13px;color:#57534B;margin:3px 0 8px;">Shows on Look, in the grids and in Choose tests after the next Run. Blank where the bottom is zero or blank.</div>
+        <div style="display:grid;grid-template-columns:200px 200px 200px;background:#0A0908;color:#fff;font:700 12px Arial;padding:6px 8px;gap:10px;width:640px;white-space:nowrap;"><span>New column name ↻</span><span>Top (divided)</span><span>Bottom (divided by)</span></div>
+        <div style="display:grid;grid-template-columns:200px 200px 200px;padding:5px 8px;gap:10px;width:640px;border-bottom:1px solid #EFEBE4;white-space:nowrap;"><span style="border:1px dashed #B9B4AC;height:22px;"></span><span style="border:1px dashed #B9B4AC;height:22px;"></span><span style="border:1px dashed #B9B4AC;height:22px;"></span></div>
+        <div style="display:grid;grid-template-columns:200px 200px 200px;padding:5px 8px;gap:10px;width:640px;border-bottom:1px solid #EFEBE4;white-space:nowrap;"><span style="border:1px dashed #B9B4AC;height:22px;"></span><span style="border:1px dashed #B9B4AC;height:22px;"></span><span style="border:1px dashed #B9B4AC;height:22px;"></span></div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isLook }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#0A0908;color:#fff;padding:12px 16px 10px;border-bottom:3px solid #CC0000;display:flex;align-items:baseline;gap:16px;"><span style="font:700 20px Arial;">Look</span><span style="font:12.5px Arial;color:#B9B4AC;">Each number column before you choose its band edges.</span></div>
+      <div style="display:flex;border-bottom:1px solid #E4DFD5;">
+        <div style="width:22px;flex:none;display:flex;flex-direction:column;align-items:center;padding-top:10px;"><div style="width:12px;height:12px;border:1px solid #57534B;font:9px/10px Arial;text-align:center;color:#57534B;">−</div><div style="flex:1;width:1px;background:#57534B;margin:2px 0 8px;"></div></div>
+        <div style="flex:1;background:#F4F1EC;padding:10px 16px 12px;display:grid;grid-template-columns:180px 1fr;gap:5px 20px;font-size:13.5px;line-height:1.45;">
+          <div style="grid-column:1/-1;font:700 11.5px Arial;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">How this tab works · fold away with −</div>
+          <b>The bars</b><span>How many loans fall in each step. Grey bars at each end hold the last 1% or less. A value that looks like a code (FICO −9999) gets its own red bar, left of the chart, so it doesn't flatten the rest.</span>
+          <b>Red dashed lines</b><span>The band edges now set on Columns. They follow that tab live, so you can try edges here before the next Run.</span>
+          <b>The dots</b><span>A random 2,000 loans, the same ones every Run. If the dots slope, the split column moves with that band column, and part of its gap on Split may belong to it.</span>
+        </div>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:22px;">
+        <div style="display:flex;gap:24px;">
+          <div style="width:280px;flex:none;font-size:14px;">
+            <div style="background:#0A0908;color:#fff;font:700 13px Arial;padding:5px 8px;">FICO</div>
+            <div style="display:grid;grid-template-columns:1fr 70px 60px;padding:3px 8px;gap:6px;font-variant-numeric:tabular-nums;"><span>Loans</span><span style="text-align:center;">8,000</span><span></span><span>Blank</span><span style="text-align:center;">1</span><span style="text-align:center;color:#57534B;">0.0%</span><span style="color:#960019;font-weight:700;">At −9999</span><span style="text-align:center;color:#960019;font-weight:700;">160</span><span style="text-align:center;color:#57534B;">2.0%</span><span>Smallest</span><span style="text-align:center;">496</span><span></span><span>Median</span><span style="text-align:center;">699</span><span></span><span>Largest</span><span style="text-align:center;">921</span><span></span></div>
+            <div style="margin-top:8px;font-size:13px;color:#57534B;padding:0 8px;">Answered on Columns: −9999 means missing.</div>
+          </div>
+          <div style="flex:1;border:1px solid #E4DFD5;padding:12px 16px 10px;">
+            <div style="font:700 14px Arial;margin-bottom:10px;">FICO in steps of 20 <span style="font-weight:400;color:#57534B;font-size:12.5px;">· edges now 620 / 680 / 740</span></div>
+            <div style="display:flex;gap:14px;align-items:flex-end;height:200px;">
+              <div style="width:36px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:3px;"><div style="width:26px;height:14%;background:#CC0000;"></div></div>
+              <div style="flex:1;height:100%;position:relative;display:flex;align-items:flex-end;gap:3px;border-bottom:1px solid #57534B;">
+                <sc-for list="{{ ficoBars }}" as="b" hint-placeholder-count="16"><div style="flex:1;height:{{ b.h }};background:{{ b.c }};"></div></sc-for>
+                <sc-for list="{{ ficoEdges }}" as="e" hint-placeholder-count="3"><div style="position:absolute;top:-4px;bottom:0;left:{{ e.left }};border-left:2px dashed #CC0000;"></div></sc-for>
+              </div>
+            </div>
+            <div style="display:flex;gap:14px;margin-top:4px;font-size:11px;color:#57534B;"><div style="width:36px;text-align:center;color:#960019;">−9999</div><div style="flex:1;display:flex;gap:3px;"><sc-for list="{{ ficoBars }}" as="b" hint-placeholder-count="16"><span style="flex:1;text-align:center;">{{ b.l }}</span></sc-for></div></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:24px;">
+          <div style="width:280px;flex:none;font-size:14px;">
+            <div style="background:#0A0908;color:#fff;font:700 13px Arial;padding:5px 8px;">REV_DEBT</div>
+            <div style="display:grid;grid-template-columns:1fr 70px 60px;padding:3px 8px;gap:6px;font-variant-numeric:tabular-nums;"><span>Loans</span><span style="text-align:center;">8,000</span><span></span><span>Blank</span><span style="text-align:center;">0</span><span style="text-align:center;color:#57534B;">0.0%</span><span>At 0.00</span><span style="text-align:center;">99</span><span style="text-align:center;color:#57534B;">1.2%</span><span>Smallest</span><span style="text-align:center;">0</span><span></span><span>Median</span><span style="text-align:center;">11,393</span><span></span><span>Largest</span><span style="text-align:center;">48,522</span><span></span></div>
+            <div style="margin-top:8px;font-size:13px;color:#57534B;padding:0 8px;">Split column: cut at each pocket's own median, so no edges.</div>
+          </div>
+          <div style="flex:1;border:1px solid #E4DFD5;padding:12px 16px 10px;">
+            <div style="font:700 14px Arial;margin-bottom:10px;">REV_DEBT in steps of 2,000</div>
+            <div style="display:flex;align-items:flex-end;gap:3px;height:160px;border-bottom:1px solid #57534B;margin-left:50px;">
+              <sc-for list="{{ revBars }}" as="b" hint-placeholder-count="16"><div style="flex:1;height:{{ b.h }};background:{{ b.c }};"></div></sc-for>
+            </div>
+            <div style="display:flex;gap:3px;margin:4px 0 0 50px;font-size:11px;color:#57534B;"><sc-for list="{{ revBars }}" as="b" hint-placeholder-count="16"><span style="flex:1;text-align:center;">{{ b.l }}</span></sc-for></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:24px;">
+          <div style="width:280px;flex:none;font-size:14px;">
+            <div style="background:#0A0908;color:#fff;font:700 13px Arial;padding:5px 8px;">REV_DEBT against FICO</div>
+            <div style="display:grid;grid-template-columns:1fr 70px;padding:3px 8px;gap:6px;font-variant-numeric:tabular-nums;"><span>Loans with both</span><span style="text-align:center;">7,839</span><span>Dots shown</span><span style="text-align:center;">2,000</span><span style="font-weight:700;">Moves together</span><span style="text-align:center;font-weight:700;">−0.53</span></div>
+            <div style="margin-top:8px;font-size:13px;color:#57534B;padding:0 8px;line-height:1.45;">Higher FICO, less revolving debt. Split grids that hold FICO fixed are the ones to trust.</div>
+          </div>
+          <div style="flex:1;border:1px solid #E4DFD5;padding:12px 16px 26px;">
+            <div style="font:700 14px Arial;margin-bottom:10px;">REV_DEBT against FICO</div>
+            <div style="position:relative;height:240px;margin-left:50px;border-left:1px solid #57534B;border-bottom:1px solid #57534B;">
+              <sc-for list="{{ dots }}" as="d" hint-placeholder-count="0"><div style="position:absolute;width:4px;height:4px;border-radius:50%;background:#0A0908;opacity:.45;left:{{ d.x }};top:{{ d.y }};"></div></sc-for>
+              <div style="position:absolute;left:-46px;top:-6px;font-size:11px;color:#57534B;">50,000</div>
+              <div style="position:absolute;left:-18px;bottom:-6px;font-size:11px;color:#57534B;">0</div>
+              <div style="position:absolute;left:0;bottom:-20px;font-size:11px;color:#57534B;">500</div>
+              <div style="position:absolute;right:0;bottom:-20px;font-size:11px;color:#57534B;">900 FICO</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isPockets }}" hint-placeholder-val="{{ true }}">
+      <div style="background:#0A0908;color:#fff;padding:12px 16px 10px;border-bottom:3px solid #CC0000;display:flex;align-items:baseline;gap:16px;"><span style="font:700 20px Arial;">Pockets</span><span style="font:12.5px Arial;color:#B9B4AC;">Which pockets lose more than their share, how much, and whether it's real and big enough to matter.</span></div>
+      <div style="display:flex;border-bottom:1px solid #E4DFD5;">
+        <div style="width:22px;flex:none;display:flex;flex-direction:column;align-items:center;padding-top:10px;"><div style="width:12px;height:12px;border:1px solid #57534B;font:9px/10px Arial;text-align:center;color:#57534B;">−</div><div style="flex:1;width:1px;background:#57534B;margin:2px 0 8px;"></div></div>
+        <div style="flex:1;background:#F4F1EC;padding:10px 16px 12px;display:grid;grid-template-columns:180px 1fr 180px 1fr;gap:5px 20px;font-size:13.5px;line-height:1.45;">
+          <div style="grid-column:1/-1;font:700 11.5px Arial;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">How this tab works · rows 3–10 fold away with −</div>
+          <b>A pocket</b><span>One band of one column (FICO 496–619) crossed with one segment (Broker). With Split, each pocket is halved at its own median REV_DEBT.</span>
+          <b>Rest of band</b><span>Every other loan in the same band. It decides the gap, the excess and both verdicts. The pocket against the whole book is on Grids.</span>
+          <b>Excess</b><span>What the pocket lost above what it would have lost at the rest of its band's rate: in loans, or in dollars. For profit, the dollars it kept short of its band.</span>
+          <b>Worse?</b><span>Yes: at least 1.25× the rest of its band, and at most a 5% chance the gap is luck. Not sure: the gap is there, but it could be luck. Too few losses: under 10 losses, so no test.</span>
+          <b>Chance it's luck</b><span>How often a gap this big would show if the pocket were no different, after allowing for testing many pockets at once. Bad loans: a standard two-sided test (the exact test under 30 loans). Dollar measures: loans shuffled 10,000 times within the band.</span>
+          <b>Material?</b><span>Yes when the excess reaches Control's materiality line. It's judged separately from Worse?: a pocket can be one without the other.</span>
+          <b>Could have caught</b><span>The smallest gap this pocket's size would catch 80% of the time. A "No" on a small pocket means little.</span>
+          <b>Holds FICO fixed?</b><span>Split only. REV_DEBT moves with FICO, so a split pocket in an ORIG_BAL grid may be showing FICO. Those sort last and aren't shaded.</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;padding:12px 16px;align-items:stretch;flex-wrap:wrap;border-bottom:1px solid #E4DFD5;">
+        <div style="width:130px;font:700 11.5px Arial;color:#57534B;text-transform:uppercase;letter-spacing:.04em;">Lines in use now<div style="font-weight:400;text-transform:none;letter-spacing:0;margin-top:2px;">live from Control</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:5px 12px;min-width:110px;"><div style="font-size:12px;color:#57534B;">Worse at</div><div style="font:700 15px Arial;">1.25×</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:5px 12px;min-width:110px;"><div style="font-size:12px;color:#57534B;">Better at</div><div style="font:700 15px Arial;">0.80×</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:5px 12px;min-width:110px;"><div style="font-size:12px;color:#57534B;">How sure</div><div style="font:700 15px Arial;">95%</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:5px 12px;min-width:150px;"><div style="font-size:12px;color:#57534B;">Material at</div><div style="font:700 15px Arial;">{{ mLine }}</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:5px 12px;min-width:150px;"><div style="font-size:12px;color:#57534B;">Judged against</div><div style="font:700 15px Arial;">Rest of its band</div></div>
+        <div style="flex:1;min-width:260px;align-self:center;font-size:13px;line-height:1.45;color:#57534B;padding-left:10px;">Order and "Could have caught" are from the last Run, 26 Sep 17:19.<sc-if value="{{ pending }}" hint-placeholder-val="{{ true }}"><div style="color:#960019;font-weight:700;">↻ 1 Control change waits for a Run.</div></sc-if></div>
+      </div>
+      <div style="display:flex;gap:18px;padding:12px 16px;align-items:flex-start;">
+        <div style="border:1px solid #B9B4AC;background:#fff;">
+          <div style="font:700 12px Arial;padding:5px 8px;border-bottom:1px solid #E4DFD5;">Measure</div>
+          <div style="display:flex;gap:4px;padding:6px;"><sc-for list="{{ measureItems }}" as="m" hint-placeholder-count="5"><div onClick="{{ m.click }}" style="padding:5px 10px;font-size:13px;cursor:pointer;background:{{ m.bg }};color:{{ m.fg }};border:1px solid {{ m.bd }};">{{ m.name }}</div></sc-for></div>
+        </div>
+        <div style="border:1px solid #B9B4AC;background:#fff;">
+          <div style="font:700 12px Arial;padding:5px 8px;border-bottom:1px solid #E4DFD5;">Pockets</div>
+          <div style="display:flex;gap:4px;padding:6px;"><sc-for list="{{ kindItems }}" as="m" hint-placeholder-count="2"><div onClick="{{ m.click }}" style="padding:5px 10px;font-size:13px;cursor:pointer;background:{{ m.bg }};color:{{ m.fg }};border:1px solid {{ m.bd }};">{{ m.name }}</div></sc-for></div>
+        </div>
+        <div style="border:1px solid #B9B4AC;background:#fff;">
+          <div style="font:700 12px Arial;padding:5px 8px;border-bottom:1px solid #E4DFD5;">Show</div>
+          <div style="display:flex;gap:4px;padding:6px;"><sc-for list="{{ showItems }}" as="m" hint-placeholder-count="3"><div onClick="{{ m.click }}" style="padding:5px 10px;font-size:13px;cursor:pointer;background:{{ m.bg }};color:{{ m.fg }};border:1px solid {{ m.bd }};">{{ m.name }}</div></sc-for></div>
+        </div>
+        <div style="align-self:center;font-size:13.5px;"><b>{{ nBoth }}</b> worse and material · <b>{{ nWorse }}</b> worse · {{ nAll }} shown</div>
+      </div>
+      <div style="padding:0 16px 28px;">
+        <div style="display:grid;grid-template-columns:{{ pCols }};background:#0A0908;color:#fff;font:700 12px Arial;padding:7px 8px;gap:10px;align-items:end;white-space:nowrap;">
+          <span style="text-align:center;">#</span><span>Band</span><span>Segment</span><sc-if value="{{ isSplitKind }}" hint-placeholder-val="{{ false }}"><span style="text-align:center;">REV_DEBT half</span></sc-if><span style="text-align:center;">Loans</span><span style="text-align:center;">This pocket</span><span style="text-align:center;">Rest of band</span><span style="text-align:center;">{{ gapHead }}</span><span style="text-align:center;">{{ excessHead }}</span><span style="text-align:center;">Worse?</span><span style="text-align:center;">Chance it's luck</span><span style="text-align:center;">Material?</span><span style="text-align:center;">Could have caught</span><sc-if value="{{ isSplitKind }}" hint-placeholder-val="{{ false }}"><span style="text-align:center;">Holds FICO fixed?</span></sc-if>
+        </div>
+        <sc-for list="{{ pocketRows }}" as="r" hint-placeholder-count="12">
+          <div style="display:grid;grid-template-columns:{{ pCols }};padding:4px 8px;gap:10px;font-size:14px;border-bottom:1px solid #EFEBE4;align-items:center;font-variant-numeric:tabular-nums;color:{{ r.fg }};white-space:nowrap;">
+            <span style="color:#9A958C;text-align:center;">{{ r.n }}</span><span>{{ r.band }}</span><span>{{ r.seg }}</span><sc-if value="{{ isSplitKind }}" hint-placeholder-val="{{ false }}"><span style="text-align:center;">{{ r.half }}</span></sc-if><span style="text-align:center;">{{ r.loans }}</span><span style="text-align:center;">{{ r.thisv }}</span><span style="text-align:center;color:#57534B;">{{ r.rest }}</span><span style="text-align:center;font-weight:700;">{{ r.gap }}</span><span style="text-align:center;">{{ r.excess }}</span><span style="background:{{ r.wBg }};color:{{ r.wFg }};font-weight:{{ r.wW }};padding:1px 6px;text-align:center;">{{ r.worse }}</span><span style="text-align:center;">{{ r.luck }}</span><span style="background:{{ r.mBg }};font-weight:{{ r.mW }};padding:1px 6px;text-align:center;">{{ r.mat }}</span><span style="text-align:center;color:#57534B;">{{ r.caught }}</span><sc-if value="{{ isSplitKind }}" hint-placeholder-val="{{ false }}"><span style="color:{{ r.hFg }};text-align:center;">{{ r.holds }}</span></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isPaid }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#0A0908;color:#fff;padding:12px 16px 10px;border-bottom:3px solid #CC0000;display:flex;align-items:baseline;gap:16px;"><span style="font:700 20px Arial;">Paid, cost, kept</span><span style="font:12.5px Arial;color:#B9B4AC;">What each pocket paid us, what it cost us in charge-offs, and what we kept.</span></div>
+      <div style="display:flex;border-bottom:1px solid #E4DFD5;">
+        <div style="width:22px;flex:none;display:flex;flex-direction:column;align-items:center;padding-top:10px;"><div style="width:12px;height:12px;border:1px solid #57534B;font:9px/10px Arial;text-align:center;color:#57534B;">−</div><div style="flex:1;width:1px;background:#57534B;margin:2px 0 8px;"></div></div>
+        <div style="flex:1;background:#F4F1EC;padding:10px 16px 12px;display:grid;grid-template-columns:180px 1fr 180px 1fr;gap:5px 20px;font-size:13.5px;line-height:1.45;">
+          <div style="grid-column:1/-1;font:700 11.5px Arial;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">How this tab works · fold away with −</div>
+          <b>Paid us</b><span>Earnings before losses per booked dollar: revenue after losses (RANR) plus charge-offs (GCO) added back. This assumes RANR has gross charge-offs taken out.</span>
+          <b>Cost us</b><span>Charge-offs per booked dollar, as a multiple of the rest of its band.</span>
+          <b>Kept</b><span>Revenue after losses per booked dollar. Paid and kept are shown as a gap in points against the rest of the band, with the dollars that gap comes to.</span>
+          <b>Shading</b><span>Red: worse, and its own test says it's real. Green: better, and real. No shading: the gap could be luck. Dollars follow Control's lines live.</span>
+          <b>Together</b><span>Losing more but keeping more: priced for it. Losing more and keeping less: net drain. Losing less and keeping more: strong. Losing less but keeping less: safe but idle.</span>
+          <b>The chart</b><span>One dot per pocket. Right means losing more; up means keeping more. The top-right and bottom-left corners are where losses and profit disagree. It's drawn as of the last Run.</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;font-size:14px;"><b>Grid</b><span style="border:1px solid #16130F;background:#F4F1EC;padding:3px 10px;font-weight:700;">FICO × CHANNEL ▾</span><span style="color:#57534B;font-size:13px;">One grid at a time; the list holds all four.</span></div>
+      <div style="display:flex;gap:20px;padding:0 16px 28px;align-items:flex-start;">
+        <div style="flex:none;width:1240px;">
+          <div style="display:grid;grid-template-columns:150px 60px 250px 250px 250px;gap:0 10px;padding:0 8px;font:700 12px Arial;"><span></span><span></span><span style="border-bottom:2px solid #0A0908;padding:2px 0;text-align:center;">Paid us · gap vs band</span><span style="border-bottom:2px solid #0A0908;padding:2px 0;text-align:center;">Cost us · charge-offs</span><span style="border-bottom:2px solid #0A0908;padding:2px 0;text-align:center;">Kept · gap vs band</span></div>
+          <div style="display:grid;grid-template-columns:150px 60px 100px 140px 100px 140px 100px 140px 1fr;background:#0A0908;color:#fff;font:700 12px Arial;padding:7px 8px;gap:0 10px;margin-top:4px;white-space:nowrap;"><span>Pocket</span><span style="text-align:center;">Loans</span><span style="text-align:center;">Gap</span><span style="text-align:center;">Dollars</span><span style="text-align:center;">× band</span><span style="text-align:center;">Dollars</span><span style="text-align:center;">Gap</span><span style="text-align:center;">Dollars</span><span>Together</span></div>
+          <sc-for list="{{ paidRows }}" as="r" hint-placeholder-count="11">
+            <div style="display:grid;grid-template-columns:150px 60px 100px 140px 100px 140px 100px 140px 1fr;padding:0 8px;gap:0 10px;font-size:14px;border-bottom:1px solid #EFEBE4;font-variant-numeric:tabular-nums;align-items:stretch;white-space:nowrap;">
+              <span style="padding:4px 0;">{{ r.p }}</span><span style="text-align:center;padding:4px 0;">{{ r.loans }}</span><span style="text-align:center;padding:4px 6px;background:{{ r.aBg }};">{{ r.a }}</span><span style="text-align:center;padding:4px 6px;background:{{ r.aBg }};">{{ r.ad }}</span><span style="text-align:center;padding:4px 6px;background:{{ r.bBg }};">{{ r.b }}</span><span style="text-align:center;padding:4px 6px;background:{{ r.bBg }};">{{ r.bd }}</span><span style="text-align:center;padding:4px 6px;background:{{ r.cBg }};">{{ r.c }}</span><span style="text-align:center;padding:4px 6px;background:{{ r.cBg }};">{{ r.cd }}</span><span style="padding:4px 0;font-weight:700;color:{{ r.tFg }};">{{ r.t }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="flex:1;border:1px solid #E4DFD5;padding:12px 14px 30px;">
+          <div style="font:700 14px Arial;">FICO × CHANNEL <span style="font-weight:400;font-size:12.5px;color:#57534B;">· as of the last Run</span></div>
+          <div style="position:relative;height:300px;margin:14px 0 0 44px;border-left:1px solid #57534B;border-bottom:1px solid #57534B;">
+            <div style="position:absolute;left:0;right:0;top:40%;border-top:1px dashed #B9B4AC;"></div>
+            <div style="position:absolute;top:0;bottom:0;left:50%;border-left:1px dashed #B9B4AC;"></div>
+            <div style="position:absolute;right:6px;top:4px;font-size:11px;color:#1E7A47;font-weight:700;">Priced for it</div>
+            <div style="position:absolute;right:6px;bottom:4px;font-size:11px;color:#960019;font-weight:700;">Net drain</div>
+            <div style="position:absolute;left:6px;top:4px;font-size:11px;color:#1E7A47;font-weight:700;">Strong</div>
+            <div style="position:absolute;left:6px;bottom:4px;font-size:11px;color:#57534B;font-weight:700;">Safe but idle</div>
+            <sc-for list="{{ paidDots }}" as="d" hint-placeholder-count="0">
+              <div style="position:absolute;left:{{ d.x }};top:{{ d.y }};transform:translate(-50%,-50%);display:flex;align-items:center;gap:4px;white-space:nowrap;"><div style="width:9px;height:9px;border-radius:50%;background:{{ d.c }};flex:none;"></div><span style="font-size:10.5px;color:#16130F;">{{ d.l }}</span></div>
+            </sc-for>
+            <div style="position:absolute;left:-40px;top:-6px;font-size:11px;color:#57534B;">+20 pts</div>
+            <div style="position:absolute;left:-40px;bottom:-6px;font-size:11px;color:#57534B;">−30 pts</div>
+            <div style="position:absolute;left:0;bottom:-18px;font-size:11px;color:#57534B;">0.1×</div>
+            <div style="position:absolute;left:50%;bottom:-18px;font-size:11px;color:#57534B;transform:translateX(-50%);">1×</div>
+            <div style="position:absolute;right:0;bottom:-18px;font-size:11px;color:#57534B;">10× losing more</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isGrids }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#0A0908;color:#fff;padding:12px 16px 10px;border-bottom:3px solid #CC0000;display:flex;align-items:baseline;gap:16px;"><span style="font:700 20px Arial;">Grids</span><span style="font:12.5px Arial;color:#B9B4AC;">One grid, four ways: the rate, against the book, against the rest of its band, and how many loans.</span></div>
+      <div style="display:flex;border-bottom:1px solid #E4DFD5;">
+        <div style="width:22px;flex:none;display:flex;flex-direction:column;align-items:center;padding-top:10px;"><div style="width:12px;height:12px;border:1px solid #57534B;font:9px/10px Arial;text-align:center;color:#57534B;">−</div><div style="flex:1;width:1px;background:#57534B;margin:2px 0 8px;"></div></div>
+        <div style="flex:1;background:#F4F1EC;padding:10px 16px 12px;display:grid;grid-template-columns:180px 1fr 180px 1fr;gap:5px 20px;font-size:13.5px;line-height:1.45;">
+          <div style="grid-column:1/-1;font:700 11.5px Arial;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">How this tab works · fold away with −</div>
+          <b>Pick a grid</b><span>The two dropdowns choose the grid and the measure; formulas fill the four blocks. This replaces 20 grids on one long sheet.</span>
+          <b>Colours</b><span>Red is worse, green is better. The deeper the shade, the bigger the gap, reaching full at 2× or 0.5×. Colours show the gap only; Pockets says whether it's real.</span>
+          <b>Blank cell</b><span>Fewer losses than Control's minimum, so it isn't compared.</span>
+          <b>Loans</b><span>How many loans sit in each cell and their share of the grid. It's a count, not a test, so it has no red or green.</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;font-size:14px;"><b>Grid</b><span style="border:1px solid #16130F;background:#F4F1EC;padding:3px 10px;font-weight:700;">FICO × CHANNEL ▾</span><b style="margin-left:14px;">Measure</b><span style="border:1px solid #16130F;background:#F4F1EC;padding:3px 10px;font-weight:700;">Bad loans ▾</span><span style="color:#57534B;font-size:13px;">Loans where BAD_FLAG is 1, as a share of all loans.</span></div>
+      <div style="display:flex;gap:28px;padding:4px 16px 28px;flex-wrap:wrap;">
+        <div>
+          <div style="display:grid;grid-template-columns:130px repeat(4,72px);background:#0A0908;color:#fff;font:700 12px Arial;padding:6px 8px;white-space:nowrap;"><span>Rate</span><span style="text-align:center;">Branch</span><span style="text-align:center;">Broker</span><span style="text-align:center;">Online</span><span style="text-align:center;">All</span></div>
+          <sc-for list="{{ gRate }}" as="r" hint-placeholder-count="6"><div style="display:grid;grid-template-columns:130px repeat(4,72px);padding:0 8px;font-size:14px;border-bottom:1px solid #EFEBE4;font-variant-numeric:tabular-nums;font-weight:{{ r.w }};white-space:nowrap;"><span style="padding:4px 0;">{{ r.l }}</span><sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="4"><span style="text-align:center;padding:4px 6px;">{{ c.t }}</span></sc-for></div></sc-for>
+        </div>
+        <div>
+          <div style="display:grid;grid-template-columns:130px repeat(4,72px);background:#0A0908;color:#fff;font:700 12px Arial;padding:6px 8px;white-space:nowrap;"><span>vs the book</span><span style="text-align:center;">Branch</span><span style="text-align:center;">Broker</span><span style="text-align:center;">Online</span><span style="text-align:center;">All</span></div>
+          <sc-for list="{{ gBook }}" as="r" hint-placeholder-count="6"><div style="display:grid;grid-template-columns:130px repeat(4,72px);padding:0 8px;font-size:14px;border-bottom:1px solid #EFEBE4;font-variant-numeric:tabular-nums;font-weight:{{ r.w }};white-space:nowrap;"><span style="padding:4px 0;">{{ r.l }}</span><sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="4"><span style="text-align:center;padding:4px 6px;background:{{ c.bg }};">{{ c.t }}</span></sc-for></div></sc-for>
+        </div>
+        <div>
+          <div style="display:grid;grid-template-columns:130px repeat(3,72px);background:#0A0908;color:#fff;font:700 12px Arial;padding:6px 8px;white-space:nowrap;"><span>vs rest of band</span><span style="text-align:center;">Branch</span><span style="text-align:center;">Broker</span><span style="text-align:center;">Online</span></div>
+          <sc-for list="{{ gBand }}" as="r" hint-placeholder-count="5"><div style="display:grid;grid-template-columns:130px repeat(3,72px);padding:0 8px;font-size:14px;border-bottom:1px solid #EFEBE4;font-variant-numeric:tabular-nums;white-space:nowrap;"><span style="padding:4px 0;">{{ r.l }}</span><sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="3"><span style="text-align:center;padding:4px 6px;background:{{ c.bg }};">{{ c.t }}</span></sc-for></div></sc-for>
+        </div>
+        <div>
+          <div style="display:grid;grid-template-columns:130px repeat(4,84px);background:#0A0908;color:#fff;font:700 12px Arial;padding:6px 8px;white-space:nowrap;"><span>Loans</span><span style="text-align:center;">Branch</span><span style="text-align:center;">Broker</span><span style="text-align:center;">Online</span><span style="text-align:center;">All</span></div>
+          <sc-for list="{{ gLoans }}" as="r" hint-placeholder-count="6"><div style="display:grid;grid-template-columns:130px repeat(4,84px);padding:0 8px;font-size:14px;border-bottom:1px solid #EFEBE4;font-variant-numeric:tabular-nums;font-weight:{{ r.w }};white-space:nowrap;"><span style="padding:4px 0;">{{ r.l }}</span><sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="4"><span style="text-align:center;padding:4px 6px;background:{{ c.bg }};">{{ c.t }}</span></sc-for></div></sc-for>
+          <div style="font-size:12.5px;color:#57534B;padding:6px 8px;">Share of the grid shaded grey. 1 loan with a blank FICO sits outside these rows.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isSplit }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#0A0908;color:#fff;padding:12px 16px 10px;border-bottom:3px solid #CC0000;display:flex;align-items:baseline;gap:16px;"><span style="font:700 20px Arial;">Split</span><span style="font:12.5px Arial;color:#B9B4AC;">Inside every pocket, does the high-REV_DEBT half do worse than the low half?</span></div>
+      <div style="display:flex;border-bottom:1px solid #E4DFD5;">
+        <div style="width:22px;flex:none;display:flex;flex-direction:column;align-items:center;padding-top:10px;"><div style="width:12px;height:12px;border:1px solid #57534B;font:9px/10px Arial;text-align:center;color:#57534B;">−</div><div style="flex:1;width:1px;background:#57534B;margin:2px 0 8px;"></div></div>
+        <div style="flex:1;background:#F4F1EC;padding:10px 16px 12px;display:grid;grid-template-columns:180px 1fr 180px 1fr;gap:5px 20px;font-size:13.5px;line-height:1.45;">
+          <div style="grid-column:1/-1;font:700 11.5px Arial;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">How this tab works · fold away with −</div>
+          <b>The split</b><span>Inside each pocket the loans are sorted by REV_DEBT and cut at that pocket's own median. Band and segment are the same on both sides, so the grid holds them fixed.</span>
+          <b>High vs low</b><span>The high half's rate divided by the low half's: 2.00× means twice as often. Profit and earnings are shown as a gap in points instead.</span>
+          <b>Across pockets</b><span>The high halves' actual total against what they'd show at their low halves' rates, added over every pocket, with its range at 95% sure. For bad loans, the pockets are combined without mixing their loans (Mantel-Haenszel).</span>
+          <b>Chance it's luck</b><span>Per pocket, allowing for every pocket in one grid and measure. Brackets and no shading mean it could be luck. The summary is one test per grid and measure.</span>
+          <b>What it assumes</b><span>A grid holds fixed only its own band and segment. REV_DEBT moves with FICO (−0.53), so grids that hold FICO fixed come first. It barely moves with ORIG_BAL (−0.02).</span>
+          <b>Same in every pocket?</b><span>For bad loans, a check of whether the high half's gap differs from pocket to pocket (Cochran's Q). It's reported under the summary.</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;font-size:14px;"><b>Grid</b><span style="border:1px solid #16130F;background:#F4F1EC;padding:3px 10px;font-weight:700;">FICO × CHANNEL ▾</span><span style="background:#EAF6EE;color:#1E7A47;font-weight:700;padding:3px 10px;">Holds FICO fixed</span></div>
+      <div style="padding:0 16px;">
+        <div style="display:grid;grid-template-columns:260px 110px 130px 150px 190px 130px;background:#0A0908;color:#fff;font:700 12px Arial;padding:7px 8px;gap:10px;width:1060px;white-space:nowrap;"><span>Measure</span><span style="text-align:center;">Pockets</span><span style="text-align:center;">High half worse in</span><span style="text-align:center;">High vs low, all</span><span style="text-align:center;">Range (95% sure)</span><span style="text-align:center;">Chance it's luck</span></div>
+        <sc-for list="{{ splitSum }}" as="r" hint-placeholder-count="5">
+          <div style="display:grid;grid-template-columns:260px 110px 130px 150px 190px 130px;padding:4px 8px;gap:10px;font-size:14px;border-bottom:1px solid #EFEBE4;width:1060px;font-variant-numeric:tabular-nums;white-space:nowrap;"><span>{{ r.m }}</span><span style="text-align:center;">{{ r.p }}</span><span style="text-align:center;">{{ r.w }}</span><span style="text-align:center;font-weight:700;background:{{ r.bg }};padding:0 6px;">{{ r.g }}</span><span style="text-align:center;">{{ r.r }}</span><span style="text-align:center;">{{ r.l }}</span></div>
+        </sc-for>
+        <div style="font-size:13.5px;padding:8px 8px 0;"><b>Same in every pocket?</b> Bad loans: no sign the gap differs between pockets.</div>
+      </div>
+      <div style="display:flex;gap:40px;padding:22px 16px 28px;">
+        <div>
+          <div style="display:grid;grid-template-columns:170px repeat(3,100px);background:#0A0908;color:#fff;font:700 12px Arial;padding:6px 8px;white-space:nowrap;"><span>Bad loans, high vs low</span><span style="text-align:center;">Branch</span><span style="text-align:center;">Broker</span><span style="text-align:center;">Online</span></div>
+          <sc-for list="{{ splitHeat }}" as="r" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:170px repeat(3,100px);padding:0 8px;font-size:14px;border-bottom:1px solid #EFEBE4;font-variant-numeric:tabular-nums;white-space:nowrap;"><span style="padding:4px 0;">{{ r.l }}</span><sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="3"><span style="text-align:center;padding:4px 6px;background:{{ c.bg }};color:{{ c.fg }};">{{ c.t }}</span></sc-for></div></sc-for>
+        </div>
+        <div>
+          <div style="display:grid;grid-template-columns:170px repeat(3,100px);background:#0A0908;color:#fff;font:700 12px Arial;padding:6px 8px;white-space:nowrap;"><span>Chance it's luck</span><span style="text-align:center;">Branch</span><span style="text-align:center;">Broker</span><span style="text-align:center;">Online</span></div>
+          <sc-for list="{{ splitLuck }}" as="r" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:170px repeat(3,100px);padding:0 8px;font-size:14px;border-bottom:1px solid #EFEBE4;font-variant-numeric:tabular-nums;white-space:nowrap;"><span style="padding:4px 0;">{{ r.l }}</span><sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="3"><span style="text-align:center;padding:4px 6px;font-weight:{{ c.w }};">{{ c.t }}</span></sc-for></div></sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isNew }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#0A0908;color:#fff;padding:12px 16px 10px;border-bottom:3px solid #CC0000;display:flex;align-items:baseline;gap:16px;"><span style="font:700 20px Arial;">New variables</span><span style="font:12.5px Arial;color:#B9B4AC;">Does each candidate still predict bad loans on loans it was never found on, and once FICO is held fixed?</span></div>
+      <div style="display:flex;border-bottom:1px solid #E4DFD5;">
+        <div style="width:22px;flex:none;display:flex;flex-direction:column;align-items:center;padding-top:10px;"><div style="width:12px;height:12px;border:1px solid #57534B;font:9px/10px Arial;text-align:center;color:#57534B;">−</div><div style="flex:1;width:1px;background:#57534B;margin:2px 0 8px;"></div></div>
+        <div style="flex:1;background:#F4F1EC;padding:10px 16px 12px;display:grid;grid-template-columns:180px 1fr 180px 1fr;gap:5px 20px;font-size:13.5px;line-height:1.45;">
+          <div style="grid-column:1/-1;font:700 11.5px Arial;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">How this tab works · fold away with −</div>
+          <b>Found, then confirmed</b><span>The loans are dealt at random, the same way every Run: 70% to find on and 30% held back. A candidate is compared on the found loans, then the same comparison is repeated once on the held-back loans.</span>
+          <b>The comparison</b><span>Number columns: high half against low half. Categories: the worst value on the found loans (Broker) against the rest. That choice is fixed before the held-back loans are looked at.</span>
+          <b>Holds up?</b><span>Yes when the held-back loans show the gap in the same direction at 95% sure. Only the held-back result counts: the found result is where the idea came from.</span>
+          <b>FICO held fixed</b><span>The held-back comparison is repeated inside each FICO band and combined. If the gap disappears, the candidate was mostly telling you FICO.</span>
+          <b>Material?</b><span>Charge-offs above their share in the high half (or the worst value), scaled to the whole book, against Control's line.</span>
+          <b>Written shortlist</b><span>When the run confirms a shortlist saved in a file, the Found columns are left out and the file's name appears on Record.</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;padding:12px 16px;align-items:stretch;flex-wrap:wrap;border-bottom:1px solid #E4DFD5;">
+        <div style="width:130px;font:700 11.5px Arial;color:#57534B;text-transform:uppercase;letter-spacing:.04em;">What was tested<div style="font-weight:400;text-transform:none;letter-spacing:0;margin-top:2px;">from Choose tests</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #0A0908;padding:5px 12px;"><div style="font-size:12px;color:#57534B;">Outcome</div><div style="font:700 15px Arial;">BAD_FLAG</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #0A0908;padding:5px 12px;"><div style="font-size:12px;color:#57534B;">Candidates</div><div style="font:700 15px Arial;">REV_DEBT · CHANNEL · ASSET_CLASS · ORIG_BAL</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #0A0908;padding:5px 12px;"><div style="font-size:12px;color:#57534B;">Held fixed</div><div style="font:700 15px Arial;">FICO</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #0A0908;padding:5px 12px;"><div style="font-size:12px;color:#57534B;">Loans</div><div style="font:700 15px Arial;">5,600 found · 2,400 held back</div></div>
+        <div style="background:#F4F1EC;border-top:3px solid #CC0000;padding:5px 12px;"><div style="font-size:12px;color:#57534B;">Material at · live</div><div style="font:700 15px Arial;">$107,354</div></div>
+      </div>
+      <div style="padding:14px 16px 0;">
+        <div style="display:grid;grid-template-columns:130px 170px 210px 210px 100px 210px 1fr;gap:0 10px;padding:0 8px;font:700 12px Arial;"><span></span><span></span><span style="border-bottom:2px solid #B9B4AC;padding:2px 0;text-align:center;color:#57534B;">Found · 5,600 loans</span><span style="border-bottom:2px solid #0A0908;padding:2px 0;text-align:center;">Confirmed · 2,400 held back</span><span></span><span style="border-bottom:2px solid #0A0908;padding:2px 0;text-align:center;">Confirmed, FICO held fixed</span><span></span></div>
+        <div style="display:grid;grid-template-columns:130px 170px 100px 100px 100px 100px 100px 100px 100px 120px 120px 90px 1fr;background:#0A0908;color:#fff;font:700 12px Arial;padding:7px 8px;gap:0 10px;margin-top:4px;align-items:end;white-space:nowrap;"><span>Candidate</span><span style="text-align:center;">Compared</span><span style="text-align:center;">Gap</span><span style="text-align:center;">Luck</span><span style="text-align:center;">Gap</span><span style="text-align:center;">Luck</span><span style="text-align:center;">Holds up?</span><span style="text-align:center;">Gap</span><span style="text-align:center;">Luck</span><span style="text-align:center;">Still holds?</span><span style="text-align:center;">Excess $</span><span style="text-align:center;">Material?</span><span>In words</span></div>
+        <sc-for list="{{ newRows }}" as="r" hint-placeholder-count="4">
+          <div style="display:grid;grid-template-columns:130px 170px 100px 100px 100px 100px 100px 100px 100px 120px 120px 90px 1fr;padding:0 8px;gap:0 10px;font-size:14px;border-bottom:1px solid #EFEBE4;font-variant-numeric:tabular-nums;align-items:stretch;white-space:nowrap;">
+            <b style="padding:5px 0;">{{ r.c }}</b><span style="padding:5px 0;color:#57534B;text-align:center;">{{ r.how }}</span><span style="text-align:center;padding:5px 0;color:#57534B;">{{ r.fg }}</span><span style="text-align:center;padding:5px 0;color:#57534B;">{{ r.fl }}</span><span style="text-align:center;padding:5px 0;font-weight:700;">{{ r.cg }}</span><span style="text-align:center;padding:5px 0;">{{ r.cl }}</span><span style="padding:5px 6px;background:{{ r.h1Bg }};color:{{ r.h1Fg }};font-weight:700;text-align:center;">{{ r.h1 }}</span><span style="text-align:center;padding:5px 0;font-weight:700;">{{ r.hg }}</span><span style="text-align:center;padding:5px 0;">{{ r.hl }}</span><span style="padding:5px 6px;background:{{ r.h2Bg }};color:{{ r.h2Fg }};font-weight:700;text-align:center;">{{ r.h2 }}</span><span style="text-align:center;padding:5px 0;">{{ r.ex }}</span><span style="padding:5px 6px;background:{{ r.mBg }};font-weight:{{ r.mW }};text-align:center;">{{ r.mat }}</span><span style="padding:5px 0;">{{ r.words }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:28px;padding:22px 16px 28px;align-items:flex-start;">
+        <div style="width:760px;border:1px solid #E4DFD5;padding:12px 16px 16px;">
+          <div style="font:700 14px Arial;">High vs low (or worst vs rest), three ways</div>
+          <div style="display:flex;gap:16px;font-size:12px;color:#57534B;margin:6px 0 10px;"><span style="display:flex;gap:5px;align-items:center;"><span style="width:14px;height:8px;background:#B9B4AC;"></span>Found</span><span style="display:flex;gap:5px;align-items:center;"><span style="width:14px;height:8px;background:#0A0908;"></span>Confirmed</span><span style="display:flex;gap:5px;align-items:center;"><span style="width:14px;height:8px;background:#CC0000;"></span>Confirmed, FICO held fixed</span><span>· line at 1.25×, the worse line</span></div>
+          <div style="position:relative;">
+            <div style="position:absolute;top:0;bottom:0;left:calc(120px + (100% - 120px) * 0.25);border-left:1px dashed #CC0000;"></div>
+            <sc-for list="{{ newBars }}" as="b" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:120px 1fr;align-items:center;padding:6px 0;border-bottom:1px solid #F0ECE4;">
+                <b style="font-size:13px;">{{ b.c }}</b>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                  <div style="display:flex;align-items:center;gap:6px;"><div style="height:8px;width:{{ b.f }};background:#B9B4AC;"></div><span style="font-size:11px;color:#57534B;">{{ b.ft }}</span></div>
+                  <div style="display:flex;align-items:center;gap:6px;"><div style="height:8px;width:{{ b.cw }};background:#0A0908;"></div><span style="font-size:11px;">{{ b.ct }}</span></div>
+                  <div style="display:flex;align-items:center;gap:6px;"><div style="height:8px;width:{{ b.h }};background:#CC0000;"></div><span style="font-size:11px;">{{ b.ht }}</span></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-left:120px;font-size:11px;color:#57534B;margin-top:4px;"><span>1.00×</span><span>2.00×</span></div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isRecord }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#57534B;color:#fff;padding:12px 16px 10px;border-bottom:3px solid #B9B4AC;display:flex;align-items:baseline;gap:16px;"><span style="font:700 20px Arial;">Record</span><span style="font:12.5px Arial;color:#E4DFD5;">What ran, whether it adds up, what was left out, and every Run. For the reviewer.</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px 32px;padding:22px 16px 32px;font-size:14px;align-items:stretch;">
+        <div style="display:flex;flex-direction:column;border-bottom:2px solid #16130F;"><div style="background:#16130F;color:#fff;font:700 13px Arial;height:32px;display:flex;align-items:center;padding:0 10px;">This Run</div><div style="display:grid;grid-template-columns:230px 1fr;background:#F4F1EC;font:700 12px Arial;color:#57534B;border-bottom:1px solid #E4DFD5;"><span style="padding:5px 10px;">Item</span><span style="padding:5px 10px;">Detail</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Extract</span><span style="padding:5px 10px;">loans.csv · 8,000 loans · 10 columns</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Origination dates</span><span style="padding:5px 10px;">30 Jun 2021 to 30 Mar 2026, all readable</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">What was run</span><span style="padding:5px 10px;">Where the book bleeds</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Grids</span><span style="padding:5px 10px;">FICO, ORIG_BAL × CHANNEL, ASSET_CLASS; split by REV_DEBT</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Band edges used</span><span style="padding:5px 10px;">FICO 620; 680; 740 · ORIG_BAL 15,449; 26,324; 37,951; 49,152</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Settings file</span><span style="padding:5px 10px;">loans - Origination Cube - what ran.yaml</span></div></div>
+        <div style="display:flex;flex-direction:column;border-bottom:2px solid #16130F;"><div style="background:#16130F;color:#fff;font:700 13px Arial;height:32px;display:flex;align-items:center;padding:0 10px;">Settings</div><div style="display:grid;grid-template-columns:230px 1fr 1fr;background:#F4F1EC;font:700 12px Arial;color:#57534B;border-bottom:1px solid #E4DFD5;"><span style="padding:5px 10px;">Setting</span><span style="padding:5px 10px;text-align:center;">In use now</span><span style="padding:5px 10px;text-align:center;">Last Run used</span></div><div style="display:grid;grid-template-columns:230px 1fr 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Worse at / better at</span><span style="padding:5px 10px;text-align:center;">1.25× / 0.80×</span><span style="padding:5px 10px;text-align:center;">1.25× / 0.80×</span></div><div style="display:grid;grid-template-columns:230px 1fr 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">How sure</span><span style="padding:5px 10px;text-align:center;">95%</span><span style="padding:5px 10px;text-align:center;">95%</span></div><div style="display:grid;grid-template-columns:230px 1fr 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Materiality</span><span style="padding:5px 10px;text-align:center;">1% · $107,354</span><span style="padding:5px 10px;text-align:center;">1% · $107,354</span></div><div style="display:grid;grid-template-columns:230px 1fr 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Judged against</span><span style="padding:5px 10px;text-align:center;">Rest of its band</span><span style="padding:5px 10px;text-align:center;">Rest of its band</span></div><div style="display:grid;grid-template-columns:230px 1fr 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Fewest loans / fewest losses</span><span style="padding:5px 10px;text-align:center;background:{{ pendBg }};font-weight:{{ pendW }};align-self:stretch;display:flex;align-items:center;justify-content:center;">30 / {{ minLossShort }}</span><span style="padding:5px 10px;text-align:center;">30 / 10</span></div><div style="display:grid;grid-template-columns:230px 1fr 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Many tests at once</span><span style="padding:5px 10px;text-align:center;">Hold down false finds</span><span style="padding:5px 10px;text-align:center;">Hold down false finds</span></div></div>
+        <div style="display:flex;flex-direction:column;border-bottom:2px solid #16130F;"><div style="background:#16130F;color:#fff;font:700 13px Arial;height:32px;display:flex;align-items:center;padding:0 10px;">Does it add up</div><div style="display:grid;grid-template-columns:230px 1fr;background:#F4F1EC;font:700 12px Arial;color:#57534B;border-bottom:1px solid #E4DFD5;"><span style="padding:5px 10px;">Check</span><span style="padding:5px 10px;">Result</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Tie-out checks</span><span style="padding:5px 10px;color:#1E7A47;font-weight:700;">660 of 660 agree: every grid adds up to the book</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Pockets tested</span><span style="padding:5px 10px;">63 of 74 two-way · 218 in all, across 8 grids</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Most pockets one grid can test</span><span style="padding:5px 10px;">123: 619 bad loans, about 5 needed per pocket</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Reading a single red</span><span style="padding:5px 10px;">Each grid and measure has its own allowance: weak alone</span></div></div>
+        <div style="display:flex;flex-direction:column;border-bottom:2px solid #16130F;"><div style="background:#16130F;color:#fff;font:700 13px Arial;height:32px;display:flex;align-items:center;padding:0 10px;">Tests used</div><div style="display:grid;grid-template-columns:230px 1fr;background:#F4F1EC;font:700 12px Arial;color:#57534B;border-bottom:1px solid #E4DFD5;"><span style="padding:5px 10px;">Where</span><span style="padding:5px 10px;">Test</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Bad loans, 30+ loans</span><span style="padding:5px 10px;">Two-proportion z test, pooled, two-sided</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Bad loans, under 30</span><span style="padding:5px 10px;">Fisher's exact test</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Dollar measures</span><span style="padding:5px 10px;">Loans shuffled 10,000 times within the band</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Split, combined</span><span style="padding:5px 10px;">Mantel-Haenszel · Cochran-Mantel-Haenszel · Cochran's Q</span></div></div>
+        <div style="display:flex;flex-direction:column;border-bottom:2px solid #16130F;"><div style="background:#16130F;color:#fff;font:700 13px Arial;height:32px;display:flex;align-items:center;padding:0 10px;">Left out</div><div style="display:grid;grid-template-columns:230px 1fr;background:#F4F1EC;font:700 12px Arial;color:#57534B;border-bottom:1px solid #E4DFD5;"><span style="padding:5px 10px;">Where</span><span style="padding:5px 10px;">What and how many</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Bad loans</span><span style="padding:5px 10px;">1 loan: BAD_FLAG not 0 or 1</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Charge-off measures</span><span style="padding:5px 10px;">1 loan: GCO_AMT not a number · 1 loan: ORIG_BAL blank</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">FICO −9999</span><span style="padding:5px 10px;">160 loans, treated as missing: "(marked missing)"</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">Open question</span><span style="padding:5px 10px;color:#960019;font-weight:700;">RANR_AMT: 595 negative values, used as recorded</span></div></div>
+        <div style="display:flex;flex-direction:column;border-bottom:2px solid #16130F;"><div style="background:#16130F;color:#fff;font:700 13px Arial;height:32px;display:flex;align-items:center;padding:0 10px;">Every Run, newest first</div><div style="display:grid;grid-template-columns:230px 1fr;background:#F4F1EC;font:700 12px Arial;color:#57534B;border-bottom:1px solid #E4DFD5;"><span style="padding:5px 10px;">When</span><span style="padding:5px 10px;">What happened</span></div><sc-if value="{{ pending }}" hint-placeholder-val="{{ true }}"><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">26 Sep 17:31</span><span style="padding:5px 10px;">Control changed: fewest losses 10 → 15. Waiting for a Run.</span></div></sc-if><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">26 Sep 17:19</span><span style="padding:5px 10px;">Ran on 8,000 loans. 660 tie-outs agree. One open question.</span></div><div style="display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #EFEBE4;min-height:31px;align-items:center;"><span style="padding:5px 10px;color:#57534B;">26 Sep 17:12</span><span style="padding:5px 10px;">Refused: 4 answers needed (Control C9, C14; Columns C3, G9).</span></div></div>
+      </div>
+    </sc-if>
+  </div>
+  <div style="display:flex;align-items:flex-end;gap:2px;background:#E4DFD5;padding:0 10px;border-top:1px solid #B9B4AC;">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="11">
+      <div onClick="{{ t.click }}" style="padding:7px 14px 6px;background:{{ t.bg }};border-bottom:3px solid {{ t.bar }};font:{{ t.w }} 12.5px Arial;color:#16130F;cursor:pointer;">{{ t.name }}</div>
+    </sc-for>
+  </div>
+</div>
+
+<div style="width:480px;flex:none;display:flex;flex-direction:column;gap:14px;">
+  <div style="background:#fff;border:1px solid #E4DFD5;border-radius:12px;padding:20px 22px;">
+    <div style="font:800 17px Archivo;">Tab colours and cells</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;font-size:14px;line-height:1.45;">
+      <div style="display:flex;gap:10px;align-items:center;"><span style="width:34px;height:8px;background:#CC0000;flex:none;"></span><span><b>Red tab:</b> you answer here (Control, Columns, Look)</span></div>
+      <div style="display:flex;gap:10px;align-items:center;"><span style="width:34px;height:8px;background:#0A0908;flex:none;"></span><span><b>Black tab:</b> results, no inputs</span></div>
+      <div style="display:flex;gap:10px;align-items:center;"><span style="width:34px;height:8px;background:#B9B4AC;flex:none;"></span><span><b>Grey tab:</b> the record</span></div>
+      <div style="display:flex;gap:10px;align-items:center;"><span style="width:34px;height:18px;background:#F4F1EC;border:1px solid #16130F;flex:none;"></span><span><b>Solid cell:</b> changes results now</span></div>
+      <div style="display:flex;gap:10px;align-items:center;"><span style="width:34px;height:18px;border:1px dashed #57534B;flex:none;"></span><span><b>Dashed cell, ↻ in header:</b> takes effect at the next Run</span></div>
+      <div style="display:flex;gap:10px;align-items:center;"><span style="width:34px;height:18px;background:#F7DEDE;flex:none;"></span><span><b>Pink cell:</b> still needs an answer</span></div>
+    </div>
+  </div>
+  <div style="background:#fff;border:1px solid #E4DFD5;border-radius:12px;padding:20px 22px;">
+    <div style="font:800 17px Archivo;">Every result tab, same order</div>
+    <ol style="margin:10px 0 0;padding-left:20px;font-size:14px;line-height:1.6;color:#2C2924;">
+      <li>Black title band, one line on what the tab answers</li>
+      <li>How this tab works: the only method note, in grouped rows that fold away</li>
+      <li>Lines in use now: live copies of Control's lines, plus the last Run time and anything waiting</li>
+      <li>Slicers or dropdowns, then rows carrying results only</li>
+    </ol>
+  </div>
+  <div style="background:#fff;border:1px solid #E4DFD5;border-radius:12px;padding:20px 22px;">
+    <div style="font:800 17px Archivo;">Plain words</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-top:10px;font-size:13.5px;">
+      <span style="color:#57534B;">p-value</span><span>Chance it's luck</span>
+      <span style="color:#57534B;">worse, not significant</span><span>Worse? Not sure</span>
+      <span style="color:#57534B;">below the line</span><span>Material? No</span>
+      <span style="color:#57534B;">Smallest gap it could show</span><span>Could have caught</span>
+      <span style="color:#57534B;">Contribution before losses</span><span>Paid us / Earned before losses</span>
+      <span style="color:#57534B;">Outcome, share of loans</span><span>Bad loans</span>
+      <span style="color:#57534B;">GCO per booked dollar</span><span>Charge-offs</span>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showPending&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;State&quot;},&quot;startTab&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Pockets&quot;,&quot;options&quot;:[&quot;Start here&quot;,&quot;Control&quot;,&quot;Columns&quot;,&quot;Look&quot;,&quot;Pockets&quot;,&quot;Paid, cost, kept&quot;,&quot;Grids&quot;,&quot;Split&quot;,&quot;New variables&quot;,&quot;Record&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;State&quot;}}">
+class Component extends DCLogic {
+  state = { tab: null, measure: 0, kind: 'two', show: 'all', mode: 'new', outcome: 'BAD_FLAG',
+    test: { CHANNEL: 1, ORIG_BAL: 1, ASSET_CLASS: 1, REV_DEBT: 1 }, hold: { FICO: 1 },
+    cut: { FICO: 1, ORIG_BAL: 1 }, seg: { CHANNEL: 1, ASSET_CLASS: 1 }, split: 'REV_DEBT' };
+
+  mix(a, b, t) {
+    const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+    const A = p(a), B = p(b);
+    return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join('');
+  }
+  heat(v) {
+    if (v == null) return '#FFFFFF';
+    const t = Math.log2(v);
+    if (t >= 0) return t <= 1 ? this.mix('#F4F1EC', '#E0A6A6', t) : this.mix('#E0A6A6', '#CF7777', Math.min(1, (t - 1) / 1.5));
+    return this.mix('#F4F1EC', '#BBD3BD', Math.min(1, -t));
+  }
+  fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+
+  measures() {
+    return [
+      { name: 'Bad loans', unit: 'loans', line: 6.2, lineTxt: '6.2 bad loans', pts: false, rows: [
+        ['FICO 496–619','Broker',176,53.41,4.97,75.1,'Y','under 0.01%','1.81×'],
+        ['FICO 680–739','Online',1137,8.71,1.88,46.5,'Y','under 0.01%','1.33×'],
+        ['FICO 680–739','ASSET_CLASS 4',866,8.89,1.77,33.5,'Y','0.09%','1.37×'],
+        ['FICO 620–679','ASSET_CLASS 4',565,12.92,1.60,27.3,'Y','0.43%','1.45×'],
+        ['ORIG_BAL 37,951–49,151','ASSET_CLASS 4',414,12.32,1.76,22.0,'Y','1.5%','1.52×'],
+        ['ORIG_BAL 15,449–26,323','Broker',537,11.73,1.45,19.6,'?','11.0%','1.46×'],
+        ['ORIG_BAL 26,324–37,950','ASSET_CLASS 4',412,9.95,1.71,17.0,'Y','4.3%','1.52×'],
+        ['ORIG_BAL 49,152–59,984','Broker',520,8.46,1.55,15.6,'?','11.0%','1.47×'],
+        ['FICO 496–619','ASSET_CLASS 4',144,30.56,1.40,12.7,'?','10.9%','1.90×'],
+        ['ORIG_BAL 15,449–26,323','ASSET_CLASS 4',413,11.38,1.32,11.5,'?','23.3%','1.52×'],
+        ['ORIG_BAL 37,951–49,151','Broker',531,9.23,1.16,6.8,'N','86.7%','1.46×'],
+        ['FICO (marked missing)','Broker',54,12.96,4.58,5.5,'F','','2.52×'],
+        ['ORIG_BAL 5,005–15,448','Broker',514,8.37,1.14,5.1,'N','86.7%','1.47×'],
+        ['FICO 740–921','Branch',595,4.37,1.21,4.5,'N','64.8%','1.44×']],
+        split: [
+        ['FICO 496–619','Broker','High half',88,67.05,4.17,44.9,'Y','under 0.01%','2.16×','Yes'],
+        ['FICO 680–739','Online','High half',568,11.09,2.22,34.7,'Y','under 0.01%','1.45×','Yes'],
+        ['FICO 620–679','ASSET_CLASS 4','High half',282,18.44,2.31,29.5,'Y','under 0.01%','1.63×','Yes'],
+        ['FICO 680–739','ASSET_CLASS 4','High half',433,11.09,2.10,25.1,'Y','under 0.01%','1.51×','Yes'],
+        ['FICO 620–679','Broker','High half',389,14.14,1.71,22.7,'Y','0.19%','1.54×','Yes'],
+        ['FICO 496–619','Broker','Low half',88,39.77,1.89,16.4,'Y','0.12%','2.16×','Yes'],
+        ['FICO 620–679','ASSET_CLASS 1','High half',296,12.84,1.46,12.0,'?','11.0%','1.62×','Yes'],
+        ['FICO 680–739','ASSET_CLASS 3','High half',399,8.52,1.49,11.2,'?','11.0%','1.53×','Yes'],
+        ['FICO (marked missing)','Broker','High half',27,22.22,7.39,5.2,'F','','3.21×','Yes'],
+        ['ORIG_BAL 15,449–26,323','Broker','High half',268,17.16,2.22,25.3,'Y','under 0.01%','1.65×','No'],
+        ['ORIG_BAL 37,951–49,151','ASSET_CLASS 4','High half',207,17.87,2.57,22.6,'Y','under 0.01%','1.74×','No'],
+        ['ORIG_BAL 49,152–59,984','Broker','High half',260,13.08,2.54,20.6,'Y','0.03%','1.66×','No']] },
+      { name: 'Bad dollars', unit: '$', line: 193082, lineTxt: '$193,082', pts: false, rows: [
+        ['FICO 496–619','Broker',176,53.76,4.77,2378999,'Y','0.05%','1.91×'],
+        ['FICO 680–739','Online',1137,8.40,1.91,1463750,'Y','0.05%','1.34×'],
+        ['FICO 680–739','ASSET_CLASS 4',866,8.49,1.76,1009252,'Y','1.00%','1.39×'],
+        ['ORIG_BAL 37,951–49,151','ASSET_CLASS 4',414,12.24,1.77,959521,'Y','2.0%','1.58×'],
+        ['FICO 620–679','ASSET_CLASS 4',565,12.76,1.68,943365,'Y','1.00%','1.49×'],
+        ['ORIG_BAL 49,152–59,984','Broker',520,8.54,1.56,873846,'?','10.5%','1.51×'],
+        ['ORIG_BAL 49,152–59,984','ASSET_CLASS 4',384,8.69,1.51,613568,'?','15.0%','1.60×'],
+        ['FICO 496–619','ASSET_CLASS 4',144,33.43,1.60,589450,'Y','3.6%','2.02×'],
+        ['ORIG_BAL 15,449–26,323','Broker',537,11.66,1.42,387808,'?','10.5%','1.50×'],
+        ['ORIG_BAL 37,951–49,151','Broker',531,9.12,1.15,278691,'N','92.7%','1.50×'],
+        ['FICO 740–921','ASSET_CLASS 2',460,4.59,1.36,183142,'?','61.2%','1.54×'],
+        ['FICO (marked missing)','Broker',54,10.32,4.53,134166,'F','','2.78×']],
+        split: [
+        ['FICO 496–619','Broker','High half',88,66.85,3.90,1285140,'Y','0.10%','2.34×','Yes'],
+        ['FICO 620–679','ASSET_CLASS 4','High half',282,20.03,2.72,1107091,'Y','0.40%','1.71×','Yes'],
+        ['FICO 680–739','Online','High half',568,10.42,2.16,1013146,'Y','0.10%','1.49×','Yes'],
+        ['FICO 620–679','Broker','High half',389,14.20,1.83,821644,'Y','0.42%','1.59×','Yes'],
+        ['FICO 680–739','ASSET_CLASS 4','High half',433,11.14,2.22,818326,'Y','0.40%','1.56×','Yes'],
+        ['FICO 496–619','Broker','Low half',88,42.53,2.07,663449,'Y','0.15%','2.34×','Yes'],
+        ['FICO 620–679','ASSET_CLASS 1','High half',296,11.65,1.37,299048,'?','33.7%','1.69×','Yes'],
+        ['ORIG_BAL 49,152–59,984','Broker','High half',260,13.24,2.57,1150670,'Y','0.10%','1.74×','No'],
+        ['ORIG_BAL 37,951–49,151','ASSET_CLASS 4','High half',207,17.97,2.62,1002032,'Y','0.13%','1.84×','No']] },
+      { name: 'Charge-offs', unit: '$', line: 107354, lineTxt: '$107,354', pts: false, rows: [
+        ['FICO 496–619','Broker',176,31.27,5.35,1423274,'Y','0.04%','1.95×'],
+        ['FICO 680–739','Online',1137,4.61,1.86,779111,'Y','0.04%','1.35×'],
+        ['FICO 680–739','ASSET_CLASS 4',866,4.76,1.78,576490,'Y','0.80%','1.40×'],
+        ['ORIG_BAL 49,152–59,984','Broker',520,4.91,1.70,574966,'?','7.0%','1.53×'],
+        ['ORIG_BAL 37,951–49,151','ASSET_CLASS 4',414,6.85,1.75,529198,'Y','3.2%','1.60×'],
+        ['FICO 620–679','ASSET_CLASS 4',565,7.12,1.68,526904,'Y','0.80%','1.51×'],
+        ['ORIG_BAL 49,152–59,984','ASSET_CLASS 4',384,4.84,1.54,355991,'?','16.4%','1.62×'],
+        ['FICO 496–619','ASSET_CLASS 4',144,18.29,1.54,301372,'?','9.4%','2.06×'],
+        ['ORIG_BAL 26,324–37,950','ASSET_CLASS 4',412,5.39,1.70,292108,'?','7.6%','1.60×'],
+        ['ORIG_BAL 15,449–26,323','Broker',537,6.80,1.49,251360,'?','7.0%','1.52×'],
+        ['ORIG_BAL 37,951–49,151','Broker',531,5.13,1.15,157022,'N','83.6%','1.52×'],
+        ['FICO 740–921','ASSET_CLASS 2',460,2.47,1.35,96332,'?','60.5%','1.56×'],
+        ['FICO 740–921','Branch',595,2.28,1.23,79994,'N','76.9%','1.49×'],
+        ['FICO (marked missing)','Broker',54,5.21,3.93,64811,'F','','2.85×']] },
+      { name: 'Kept after losses', unit: '$', line: 107354, lineTxt: '$107,354 short', pts: true, rows: [
+        ['FICO 496–619','Broker',176,0.99,-23.90,1338239,'Y','0.05%','−4.34 pts'],
+        ['ORIG_BAL 49,152–59,984','Broker',520,10.95,-3.11,886001,'Y','0.82%','−2.58 pts'],
+        ['FICO 680–739','Branch',1069,11.31,-2.24,759395,'Y','0.30%','−1.87 pts'],
+        ['FICO 620–679','ASSET_CLASS 4',565,15.43,-3.16,576557,'?','6.4%','−2.49 pts'],
+        ['ORIG_BAL 37,951–49,151','ASSET_CLASS 4',414,10.32,-2.60,469348,'?','37.8%','−2.87 pts'],
+        ['ORIG_BAL 15,449–26,323','Broker',537,9.45,-3.71,416756,'Y','0.60%','−2.54 pts'],
+        ['FICO 680–739','Broker',1029,12.01,-1.19,396733,'?','17.0%','−1.90 pts'],
+        ['ORIG_BAL 26,324–37,950','Broker',553,11.88,-1.92,343824,'?','7.9%','−2.51 pts']] },
+      { name: 'Earned before losses', unit: '$', line: 107354, lineTxt: '$107,354 short', pts: true, rows: [
+        ['FICO 680–739','Branch',1068,13.89,-3.20,1081619,'Y','0.2%','−1.84 pts'],
+        ['FICO 680–739','Broker',1029,14.38,-2.46,821830,'Y','0.9%','−1.90 pts'],
+        ['ORIG_BAL 37,951–49,151','Branch',525,15.34,-2.35,538943,'Y','1.1%','−2.40 pts'],
+        ['ORIG_BAL 26,324–37,950','Broker',553,15.93,-1.44,257831,'Y','2.8%','−2.30 pts'],
+        ['FICO 620–679','Branch',727,22.19,-0.83,194073,'?','41%','−1.95 pts'],
+        ['ORIG_BAL 15,449–26,323','Broker',537,16.25,-1.47,165396,'Y','3.4%','−2.35 pts'],
+        ['FICO 496–619','Online',207,29.83,-2.16,149334,'?','38%','−3.60 pts'],
+        ['ORIG_BAL 5,005–15,448','Branch',542,17.73,-1.62,88787,'Y','4.1%','−2.30 pts']] }
+    ];
+  }
+
+  renderVals() {
+    const S = this.state, P = this.props;
+    const pending = P.showPending ?? true;
+    const tab = S.tab || P.startTab || 'Pockets';
+    const INK = '#0A0908', STONE = '#B9B4AC';
+    const set = o => () => this.setState(o);
+
+    const tabDefs = [['Start here','in'],['Control','in'],['Columns','in'],['Look','in'],['Pockets','out'],['Paid, cost, kept','out'],['Grids','out'],['Split','out'],['New variables','out'],['Record','rec']];
+    const tabs = tabDefs.map(([name, k]) => ({ name, click: set({ tab: name }),
+      bg: name === tab ? '#FFFFFF' : '#F4F1EC', w: name === tab ? 700 : 400,
+      bar: k === 'in' ? '#CC0000' : k === 'out' ? INK : STONE }));
+
+    const fx = { 'Start here': ['E6', '=COUNTIFS(Control!F:F,"Waiting for a Run")'], 'Control': ['C11', '1%'], 'Columns': ['G9', ''],
+      'Look': ['B4', '=COUNTIF(Loans[FICO],-9999)'], 'Pockets': ['L12', '=IF([@Excess]>=Control!$D$11,"Yes","No")'],
+      'Paid, cost, kept': ['D12', '=[@Gap]/100*[@Booked]'], 'Grids': ['C8', '=INDEX(GridData,MATCH($B8,…),MATCH(C$7,…))/Book_Rate'],
+      'Split': ['E9', '=IF([@Luck]<=1-Control!$C$10,[@Ratio],"("&TEXT([@Ratio],"0.00x")&")")'], 'New variables': ['H9', '=IF(AND([@CGap]>1,[@CLuck]<=1-Control!$C$10),"Yes","No")'], 'Record': ['B4', 'loans.csv'] }[tab];
+
+    // Launcher picker
+    const pcols = [['LOAN_NBR','Loan number','key'],['FICO','Score','num'],['CHANNEL','Category · 3 values','cat'],['ORIG_BAL','Booked amount','num'],['BAD_FLAG','Outcome (yes/no)','out'],['GCO_AMT','Charge-off dollars','outd'],['RANR_AMT','Revenue after losses','outd'],['ASSET_CLASS','Category · 4 values','cat'],['REV_DEBT','Amount','num'],['ORIG_DATE','Date','date']];
+    const box = (show, on, radio, click) => ({ show, click, bg: on ? INK : '#fff', bd: on ? INK : STONE, mark: on ? (radio ? '●' : '✓') : '', rad: radio ? '50%' : '3px' });
+    const isNewMode = S.mode === 'new';
+    const pickRows = pcols.map(([c, k, t]) => {
+      const tv = t === 'num' || t === 'cat';
+      let a, b, cc, kk = k;
+      if (isNewMode) {
+        a = box(t === 'out' || t === 'outd', S.outcome === c, true, set({ outcome: c }));
+        b = box(tv, !!S.test[c], false, () => this.setState(s => ({ test: { ...s.test, [c]: !s.test[c] }, hold: { ...s.hold, [c]: 0 } })));
+        cc = box(tv, !!S.hold[c], false, () => this.setState(s => ({ hold: { ...s.hold, [c]: !s.hold[c] }, test: { ...s.test, [c]: 0 } })));
+      } else {
+        a = box(t === 'num', !!S.cut[c] && S.split !== c, false, () => this.setState(s => ({ cut: { ...s.cut, [c]: !s.cut[c] }, split: s.split === c ? null : s.split })));
+        b = box(t === 'cat', !!S.seg[c], false, () => this.setState(s => ({ seg: { ...s.seg, [c]: !s.seg[c] } })));
+        cc = box(t === 'num', S.split === c, true, () => this.setState(s => ({ split: s.split === c ? null : c, cut: { ...s.cut, [c]: 0 } })));
+        if (t === 'out' || t === 'outd') kk = k + ' · every measure';
+      }
+      return { c, k: kk, a, b, cc, op: t === 'key' || t === 'date' ? 0.45 : 1 };
+    });
+    const tested = Object.keys(S.test).filter(k => S.test[k]);
+    const held = Object.keys(S.hold).filter(k => S.hold[k]);
+    const cuts = Object.keys(S.cut).filter(k => S.cut[k] && k !== S.split);
+    const segs = Object.keys(S.seg).filter(k => S.seg[k]);
+    let pickSummary;
+    if (isNewMode) {
+      pickSummary = tested.length ? `${tested.length} input${tested.length > 1 ? 's' : ''} (${tested.join(', ')}) against ${S.outcome}` + (held.length ? `, each with and without ${held.join(' and ')} held fixed: ${tested.length * 2} tests, found on 70% and confirmed on 30%.` : `: ${tested.length} tests, found on 70% and confirmed on 30%.`) : 'Tick at least one input to test.';
+    } else {
+      const g = cuts.length * segs.length;
+      pickSummary = g ? `${cuts.length} band column${cuts.length > 1 ? 's' : ''} × ${segs.length} segment column${segs.length > 1 ? 's' : ''} = ${g} grid${g > 1 ? 's' : ''}, five measures each` + (S.split ? `; split by ${S.split} adds ${g} more.` : '.') : 'Tick at least one band column and one segment column.';
+    }
+
+    // Pockets
+    const Ms = this.measures();
+    const m = Ms[S.measure];
+    const isSplitKind = S.kind === 'split';
+    let src;
+    if (!isSplitKind) src = m.rows.map(r => [r[0], r[1], '', r[2], r[3], r[4], r[5], r[6], r[7], r[8], '']);
+    else if (m.split) src = m.split;
+    else src = m.rows.slice(0, 8).map(r => [r[0], r[1], 'High half', Math.round(r[2] / 2), m.pts ? r[3] + r[4] * 0.3 : r[3] * 1.15, m.pts ? r[4] * 1.3 : 1 + (r[5] - 1) * 1.15, r[5] * 0.7, r[6], r[7], r[8], r[0].startsWith('ORIG_BAL') ? 'No' : 'Yes']);
+    if (isSplitKind) src = [...src].sort((a, b) => (a[10] === 'No') - (b[10] === 'No') || b[6] - a[6]);
+    let rows = src.map(r => {
+      const [band, seg, half, loans, rate, g, e, w, luck, caught, holds] = r;
+      const rest = m.pts ? rate - g : rate / g;
+      const mat = e >= m.line;
+      const noHold = holds === 'No';
+      const wTxt = { Y: 'Yes', '?': 'Not sure', N: 'No', F: 'Too few losses' }[w];
+      return { band, seg, half, w, matB: mat, loans: this.fmt(loans), thisv: rate.toFixed(2) + '%', rest: rest.toFixed(2) + '%',
+        gap: m.pts ? (g > 0 ? '+' : '−') + Math.abs(g).toFixed(2) + ' pts' : g.toFixed(2) + '×',
+        excess: m.unit === 'loans' ? e.toFixed(1) : '$' + this.fmt(e),
+        worse: wTxt, wBg: noHold ? 'transparent' : w === 'Y' ? '#F7DEDE' : w === '?' ? '#F4F1EC' : 'transparent',
+        wFg: noHold ? '#57534B' : w === 'Y' ? '#960019' : w === 'F' || w === 'N' ? '#57534B' : '#16130F', wW: w === 'Y' && !noHold ? 700 : 400,
+        luck: luck || '', mat: mat ? 'Yes' : 'No', mBg: mat && !noHold ? '#E4DFD5' : 'transparent', mW: mat ? 700 : 400,
+        caught, holds: noHold ? 'No: may be mostly FICO' : 'Yes', hFg: noHold ? '#960019' : '#57534B', fg: noHold ? '#57534B' : '#16130F' };
+    });
+    const nBoth = rows.filter(r => r.w === 'Y' && r.matB).length;
+    const nWorse = rows.filter(r => r.w === 'Y').length;
+    if (S.show === 'both') rows = rows.filter(r => r.w === 'Y' && r.matB);
+    if (S.show === 'worse') rows = rows.filter(r => r.w === 'Y' || r.w === '?');
+    rows = rows.map((r, i) => ({ ...r, n: i + 1 }));
+    const slic = (on) => ({ bg: on ? INK : '#fff', fg: on ? '#fff' : '#16130F', bd: on ? INK : '#E4DFD5' });
+    const measureItems = Ms.map((x, i) => ({ name: x.name, click: set({ measure: i }), ...slic(i === S.measure) }));
+    const kindItems = [['two', 'Two-way'], ['split', 'Split by REV_DEBT']].map(([k, n]) => ({ name: n, click: set({ kind: k }), ...slic(S.kind === k) }));
+    const showItems = [['all', 'All'], ['both', 'Worse and material'], ['worse', 'Worse or not sure']].map(([k, n]) => ({ name: n, click: set({ show: k }), ...slic(S.show === k) }));
+    const pCols = isSplitKind ? '30px 190px 120px 105px 64px 92px 92px 105px 150px 115px 120px 85px 120px 1fr' : '34px 220px 140px 80px 110px 110px 120px 170px 130px 140px 100px 140px';
+
+    const topRows = Ms[2].rows.filter(r => r[6] === 'Y' && r[5] >= 107354).slice(0, 5).map(r => ({ band: r[0], seg: r[1], loans: this.fmt(r[2]), gap: r[4].toFixed(2) + '×', excess: '$' + this.fmt(r[5]) }));
+
+    // Columns tab
+    const colRows = [
+      { c: 'LOAN_NBR', s: 'L0000000, L0000001', k: 'Loan number (key)', why: "name has 'loan'; different on every row", blank: '0%', odd: '', treat: '', mem: 'Yes · 1 Run · Forget? No' },
+      { c: 'FICO', s: '−9999, 713, 716', k: 'Score', why: "name has 'fico'; 98% between 300 and 850", blank: '0%', odd: '−9999 on 160 rows', treat: 'Missing', edges: '620; 680; 740', mem: 'Yes · 1 Run · Forget? No' },
+      { c: 'CHANNEL', s: 'Online, Broker, Branch', k: 'Category', why: '3 different values', blank: '0%', odd: '', treat: '', mem: 'Yes · 1 Run · Forget? No' },
+      { c: 'ORIG_BAL', s: '7,655.75, 27,999.47', k: 'Booked amount', why: "name has 'bal'; positive on every loan", blank: '1 loan', odd: '', treat: '', edges: '', mem: 'Yes · 1 Run · Forget? No' },
+      { c: 'BAD_FLAG', s: '0, 2, 1', k: 'Outcome (yes/no)', why: "name has 'bad'; 0 and 1 (7.7% are 1)", blank: '0%', odd: '1 value is 2: left out', treat: '', mem: 'Yes · 1 Run · Forget? No' },
+      { c: 'GCO_AMT', s: '0.0, #N/A, 27,620.62', k: 'Charge-off dollars', why: "name has 'gco'; zero on 92%, never negative", blank: '0%', odd: '1 not a number: left out', treat: '', mem: 'Yes · 1 Run · Forget? No' },
+      { c: 'RANR_AMT', s: '3,017.35, 3,928.24', k: 'Revenue after losses', why: "name has 'ranr'; numbers", blank: '0%', odd: 'Negative on 595 rows', treat: '', need: 1, mem: 'Yes · 1 Run · Forget? No' },
+      { c: 'ASSET_CLASS', s: '1, 2, 4', k: 'Category', why: '4 different values', blank: '0%', odd: '', treat: '', mem: 'Yes · 1 Run · Forget? No' },
+      { c: 'REV_DEBT', s: '15,868.86, 12,884.70', k: 'Amount', why: 'numbers with 7,889 values', blank: '0%', odd: '99 at exactly 0', treat: 'Real', edges: '', mem: 'Yes · 1 Run · Forget? No' },
+      { c: 'ORIG_DATE', s: '2021-11-18, 2024-06-24', k: 'Origination date', why: "name has 'orig'; dates", blank: '0%', odd: '', treat: '', mem: 'Yes · 1 Run · Forget? No' }
+    ].map(r => ({ ...r, edges: r.edges ?? '', tBg: r.need ? '#F7DEDE' : 'transparent', tBd: r.odd && !r.odd.includes('left out') ? '#57534B' : 'transparent', eBd: r.edges !== undefined ? '#57534B' : 'transparent', treat: r.need ? 'Real or missing? ▾' : r.treat }));
+
+    // Look
+    const fb = [45, 70, 150, 320, 510, 750, 970, 1140, 1160, 950, 710, 500, 310, 170, 70, 60];
+    const fl = ['≤559', '560', '580', '600', '620', '640', '660', '680', '700', '720', '740', '760', '780', '800', '820', '840+'];
+    const ficoBars = fb.map((v, i) => ({ h: (v / 1200 * 100) + '%', c: i === 0 || i === 15 ? STONE : INK, l: fl[i] }));
+    const ficoEdges = [4, 7, 10].map(i => ({ left: `calc(${i / 16 * 100}% - 1px)` }));
+    const rb = [300, 420, 660, 930, 1000, 1020, 960, 780, 600, 470, 330, 240, 170, 100, 60, 80];
+    const revBars = rb.map((v, i) => ({ h: (v / 1050 * 100) + '%', c: i === 15 ? STONE : INK, l: i === 15 ? '30k+' : (i * 2) + 'k' }));
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const gauss = () => { let u = 0; for (let i = 0; i < 6; i++) u += rnd(); return u - 3; };
+    const dots = [];
+    for (let i = 0; i < 320; i++) {
+      const f = 700 + gauss() * 55; const r = Math.max(0, 11500 - 110 * (f - 700) + gauss() * 5500);
+      if (f < 500 || f > 900 || r > 50000) continue;
+      dots.push({ x: ((f - 500) / 400 * 100) + '%', y: (100 - r / 50000 * 100) + '%' });
+    }
+
+    // Paid
+    const Y = '#F7DEDE', G = '#EAF6EE';
+    const paidData = [
+      ['496–619 · Broker',176,1.52,0,85034,5.35,1,1423274,-23.90,1,-1338239,'Net drain'],
+      ['680–739 · Online',1137,5.43,1,1983352,1.86,1,779111,3.30,1,1203595,'Priced for it'],
+      ['740–921 · Branch',595,0.27,0,52038,1.23,0,79994,-0.15,0,-27956,''],
+      ['620–679 · Broker',779,-0.26,0,-66593,1.05,0,58936,-0.49,0,-125529,''],
+      ['620–679 · Branch',727,-0.83,0,-194073,0.99,0,-6984,-0.80,0,-187088,''],
+      ['620–679 · Online',717,1.11,0,255390,0.96,0,-48888,1.33,0,304278,''],
+      ['740–921 · Online',602,-0.27,0,-53667,0.85,0,-60826,0.04,0,7160,''],
+      ['680–739 · Branch',1068,-3.20,1,-1081619,0.73,0,-321784,-2.24,1,-759395,'Earns less, not from losses'],
+      ['680–739 · Broker',1029,-2.46,1,-821830,0.65,0,-425373,-1.19,0,-396733,''],
+      ['496–619 · Branch',184,0.84,0,51217,0.37,1,-655247,11.62,1,706465,'Strong'],
+      ['496–619 · Online',207,-2.16,0,-149334,0.30,1,-880706,10.60,1,731371,'Strong']];
+    const sg = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2) + ' pts';
+    const sd = v => (v < 0 ? '−$' : '$') + this.fmt(Math.abs(v));
+    const paidRows = paidData.map(r => ({ p: r[0], loans: this.fmt(r[1]), a: sg(r[2]), ad: sd(r[4]), aBg: r[3] ? (r[2] > 0 ? G : Y) : 'transparent',
+      b: r[5].toFixed(2) + '×', bd: sd(r[7]), bBg: r[6] ? (r[5] > 1 ? Y : G) : 'transparent',
+      c: sg(r[8]), cd: sd(r[10]), cBg: r[9] ? (r[8] > 0 ? G : Y) : 'transparent', t: r[11],
+      tFg: r[11] === 'Net drain' ? '#960019' : r[11] === 'Strong' || r[11] === 'Priced for it' ? '#1E7A47' : '#57534B' }));
+    const paidDots = paidData.map(r => ({ x: ((Math.log10(r[5]) + 1) / 2 * 100) + '%', y: ((20 - r[8]) / 50 * 100) + '%',
+      c: r[11] === 'Net drain' ? '#CC0000' : r[11] ? '#1E7A47' : INK, l: r[11] ? r[0] : '' }));
+
+    // Grids
+    const gl = ['496–619', '620–679', '680–739', '740–921', '(marked missing)', 'All'];
+    const rate = [[11.41,53.41,10.14,23.99],[9.37,9.37,9.21,9.32],[5.05,4.18,8.71,6.06],[4.37,3.73,3.49,3.86],[1.96,12.96,3.64,6.25],[6.47,9.04,7.69,7.74]];
+    const book = [[1.47,6.90,1.31,3.10],[1.21,1.21,1.19,1.20],[0.65,0.54,1.13,0.78],[0.56,0.48,0.45,0.50],[null,null,null,0.81],[0.84,1.17,0.99,1.00]];
+    const band = [[0.38,4.97,0.32],[1.01,1.01,0.98],[0.77,0.60,1.88],[1.21,0.95,0.86],[null,null,null]];
+    const ln = [[184,176,207],[727,779,717],[1070,1029,1137],[595,616,602],[51,54,55]];
+    const lnAll = ln.map(r => [...r, r[0] + r[1] + r[2]]);
+    const colT = [0, 1, 2, 3].map(j => lnAll.reduce((s, r) => s + r[j], 0));
+    lnAll.push(colT);
+    const tot = colT[3];
+    const gRate = rate.map((r, i) => ({ l: gl[i], w: i === 5 ? 700 : 400, cells: r.map(v => ({ t: v.toFixed(2) + '%' })) }));
+    const gBook = book.map((r, i) => ({ l: gl[i], w: i === 5 ? 700 : 400, cells: r.map(v => ({ t: v == null ? '' : v.toFixed(2) + '×', bg: this.heat(v) })) }));
+    const gBand = band.map((r, i) => ({ l: gl[i], cells: r.map(v => ({ t: v == null ? '' : v.toFixed(2) + '×', bg: this.heat(v) })) }));
+    const gLoans = lnAll.map((r, i) => ({ l: gl[i], w: i === 5 ? 700 : 400, cells: r.map((v, j) => ({ t: this.fmt(v), bg: j < 3 && i < 5 ? this.mix('#FFFFFF', '#B9B4AC', Math.min(1, v / tot * 7)) : 'transparent' })) }));
+
+    // Split
+    const splitSum = [
+      ['Bad loans','12','11 of 12','1.89×','1.68× to 2.10×','under 0.01%',1.89],
+      ['Bad dollars','12','12 of 12','1.95×','1.70× to 2.19×','under 0.01%',1.95],
+      ['Charge-offs','12','12 of 12','1.96×','1.71× to 2.22×','under 0.01%',1.96],
+      ['Kept after losses','12','11 of 12','−2.31 pts','−3.17 to −1.45 pts','under 0.01%',2],
+      ['Earned before losses','12','4 of 12','+0.40 pts','−0.07 to +0.87 pts','9.9%',null]
+    ].map(r => ({ m: r[0], p: r[1], w: r[2], g: r[3], r: r[4], l: r[5], bg: r[6] ? this.heat(r[6]) : 'transparent' }));
+    const sh = [[[0.91,0],[1.69,1],[2.02,0]],[[2.24,1],[3.06,1],[2.15,1]],[[2.18,1],[1.39,0],[1.75,1]],[[1.37,0],[2.29,0],[1.33,0]]];
+    const splitHeat = sh.map((r, i) => ({ l: gl[i], cells: r.map(([v, s]) => ({ t: s ? v.toFixed(2) + '×' : '(' + v.toFixed(2) + '×)', bg: s ? this.heat(v) : 'transparent', fg: s ? '#16130F' : '#57534B' })) }));
+    const slk = [['81.7%','0.17%','15.3%'],['0.37%','under 0.01%','0.56%'],['1.0%','36.4%','1.0%'],['50.1%','9.6%','55.1%']];
+    const splitLuck = slk.map((r, i) => ({ l: gl[i], cells: r.map(t => ({ t, w: parseFloat(t) <= 5 || t.startsWith('under') ? 700 : 400 })) }));
+
+    // New variables
+    const nv = [
+      ['REV_DEBT','High half vs low',1.92,'under 0.01%',1.81,'under 0.01%',1,1.38,'0.4%',1,612400,'Holds up, and not just FICO'],
+      ['CHANNEL','Broker vs the rest',1.46,'0.2%',1.39,'1.8%',1,1.08,'34%',0,301500,'Holds up, but it was mostly FICO'],
+      ['ASSET_CLASS','Class 4 vs the rest',1.33,'0.9%',1.29,'4.1%',1,1.27,'4.6%',1,288000,'Holds up, and not just FICO'],
+      ['ORIG_BAL','High half vs low',1.21,'3.1%',1.04,'61%',0,1.02,'88%',0,41200,"Didn't hold up on held-back loans"]];
+    const yn = v => ({ t: v ? 'Yes' : 'No', bg: v ? '#EAF6EE' : 'transparent', fg: v ? '#1E7A47' : '#57534B' });
+    const newRows = nv.map(r => { const a = yn(r[6]), b = yn(r[9]); const mat = r[10] >= 107354;
+      return { c: r[0], how: r[1], fg: r[2].toFixed(2) + '×', fl: r[3], cg: r[4].toFixed(2) + '×', cl: r[5], h1: a.t, h1Bg: a.bg, h1Fg: a.fg,
+        hg: r[7].toFixed(2) + '×', hl: r[8], h2: b.t, h2Bg: b.bg, h2Fg: b.fg, ex: '$' + this.fmt(r[10]), mat: mat ? 'Yes' : 'No', mBg: mat ? '#E4DFD5' : 'transparent', mW: mat ? 700 : 400, words: r[11] }; });
+    const wpct = v => Math.max(1, (v - 1) * 100) + '%';
+    const newBars = nv.map(r => ({ c: r[0], f: wpct(r[2]), ft: r[2].toFixed(2) + '×', cw: wpct(r[4]), ct: r[4].toFixed(2) + '×', h: wpct(r[7]), ht: r[7].toFixed(2) + '×' }));
+
+    return {
+      tabs, fxCell: fx[0], fxText: fx[1],
+      isStart: tab === 'Start here', isControl: tab === 'Control', isColumns: tab === 'Columns', isLook: tab === 'Look',
+      isPockets: tab === 'Pockets', isPaid: tab === 'Paid, cost, kept', isGrids: tab === 'Grids', isSplit: tab === 'Split',
+      isNew: tab === 'New variables', isRecord: tab === 'Record',
+      pending, pendCount: pending ? '1' : '0', pendTop: pending ? '#CC0000' : INK, pendFg: pending ? '#960019' : '#57534B',
+      pendW: pending ? 700 : 400, pendBg: pending ? '#F7DEDE' : 'transparent', pendStatus: pending ? '↻ Waiting for a Run' : 'Same as last Run',
+      minLoss: pending ? '15 losses' : '10 losses', minLossShort: pending ? '15' : '10',
+      isNewMode, modeLabel: isNewMode ? 'Test new variables' : 'Where the book bleeds',
+      setModeNew: set({ mode: 'new' }), setModeBleed: set({ mode: 'bleed' }),
+      newBg: isNewMode ? INK : '#fff', newFg: isNewMode ? '#fff' : INK, bleedBg: isNewMode ? '#fff' : INK, bleedFg: isNewMode ? INK : '#fff',
+      colA: isNewMode ? 'Outcome' : 'Cut into bands', colB: isNewMode ? 'Test it' : 'Segment by', colC: isNewMode ? 'Hold fixed' : 'Split pockets by',
+      pickRows, pickSummary,
+      measureItems, kindItems, showItems, pocketRows: rows, pCols, isSplitKind, nBoth, nWorse, nAll: rows.length,
+      mLine: m.lineTxt, gapHead: m.pts ? 'Gap' : '× rest of band',
+      excessHead: m.unit === 'loans' ? 'Bad loans above share' : m.pts ? 'Dollars short of band' : 'Dollars above share',
+      topRows, colRows, ficoBars, ficoEdges, revBars, dots, paidRows, paidDots, gRate, gBook, gBand, gLoans,
+      splitSum, splitHeat, splitLuck, newRows, newBars
+    };
+  }
+}
+</script>
+</body>
+</html>

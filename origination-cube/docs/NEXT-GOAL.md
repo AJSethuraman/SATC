@@ -263,3 +263,27 @@ question; Goal 2's own end condition above is what counts now.
   Log records when the pre-spec was written, with its fingerprint, and each held-back run after it,
   in order; a pre-spec changed after a held-back run labels that run as a change. Nothing is refused.
   Git is still recorded where it exists. This is built into item 3.
+
+## The redesign arrived (26 Sep 2026), and what it changes
+
+The firm's Claude Design pass is committed unchanged in `docs/redesign-2026-09-26/` (its README is the
+spec; `rendered.png` is the reference as rendered here). The firm, the same day, on why suggestions
+could not be made: *"just select the workbook first, configure what you can, and then do the workbook
+config items so that there are suggestions to be made … it's just a re-order of screens more or
+less"*. The redesign's launcher steps are that order: **Extract → Set up → Choose tests → Answer in
+workbook → Run.** The cuts are chosen in the launcher before the workbook is written, so the pockets
+exist when Control is written, and every suggested setting shows its value there (from the default
+edges), refreshed at each Run ("Last Run used").
+
+- **Item 10 is no longer held; it is now the main build,** done in phases, one agent at a time,
+  because `book.py` is one file: (a) the launcher's five steps and suggestions at Set up; (b) Start
+  here, Control (Changes now / Needs a Run / chosen in the launcher / materiality panel), Columns
+  (with Odd values and Learned), Look; (c) Pockets (with Three-way), Paid cost kept, Grids (with
+  Prevalence), Split; (d) New variables and Record (Check with Log). House style: `keybank_style.py`,
+  the same file the sibling dashboards ship.
+- **Items 4, 6 and 7 are folded into it:** the "How this tab works" note on every tab, Worse? and
+  Material? as separate columns, and the Control-options clean-up.
+- **Item 8 is replaced by the design's rule:** verdicts, dollars, colours and Material? are live;
+  row order is as of the last Run, and the tab says so. No SORT or FILTER is needed.
+- **Slicers become dropdown cells** (the design allows "slicers or dropdown cells"). openpyxl cannot
+  write slicers and drops them when it re-saves a workbook, and Run re-saves it every time.

@@ -1842,6 +1842,12 @@ back.
     what this is for?"* Answered yes, the trap is an honest one (the held-back loans helping pick the
     test), and proposed the lighter form: record, don't block. Built that way unless the firm says
     otherwise.
+- **The redesign arrived (26 Sep 2026).** Committed unchanged in
+  `origination-cube/docs/redesign-2026-09-26/`. The firm, on why Control could not suggest values:
+  *"just select the workbook first, configure what you can, and then do the workbook config items so
+  that there are suggestions to be made"*. The design's launcher order does exactly that. It becomes
+  the main build; items 4, 6 and 7 fold into it; item 8 (live ordering) is replaced by the design's
+  "order as of the last Run, verdicts live"; slicers become dropdowns. `NEXT-GOAL.md` has the phases.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
