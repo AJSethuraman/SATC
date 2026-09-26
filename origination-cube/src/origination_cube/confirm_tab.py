@@ -111,7 +111,7 @@ def write(wb, res) -> None:
     r = _line(ws, r, "Compared with", f"{ref}, the pre-spec's reference group. Every other group is compared "
                                       f"with it.")
     pk = max(len(dev.pockets), len(hold.pockets))
-    r = _line(ws, r, "Pockets", f"Cut by {strata}, as the grids cut them. A loan is only ever compared with loans "
+    r = _line(ws, r, "Pockets", f"Cut by {strata}, at the band edges on Check. A loan is only ever compared with loans "
                                 f"in its own pocket, so a difference in the pocket mix can't pass for a difference "
                                 f"in {t.column}. Up to {pk:,} pockets hold a loan.")
     for side, what in ((dev, "where the groups were chosen"), (hold, "kept back: the test that counts")):
@@ -121,7 +121,7 @@ def write(wb, res) -> None:
                   + (f" ({rate:.2%})" if rate is not None else "") + f"; {what}.")
     if t.left_out:
         words = "; ".join(f"{v:,} {k}" if k.startswith("made") else f"{v:,} with {k}" for k, v in t.left_out.items())
-        r = _line(ws, r, "Left out of this test", f"{words}. Every other tab uses every loan.")
+        r = _line(ws, r, "Left out of this test", f"{words}. Check counts every loan.")
     r += 1
 
     # ---------------------------------------------------------------- 1. does the column matter (B3, B4, B5 block)
@@ -395,3 +395,84 @@ def _finish(ws, bk, last_row: int, helper_rows=()) -> None:
     ws.column_dimensions[_c(HELPER)].hidden = True
     ws.print_area = f"B1:{_c(LAST)}{last_row}"
     bk._fit(ws)
+
+
+# --------------------------------------------------------------------------
+# Start here's "What the last Run found" for a test of a new variable (OC-42): it builds no pocket, so the block
+# reads the confirmation. The Run's numbers go on the hidden _found sheet, one row per group; the tiles count them
+# against significance_bar, so "significant" follows the confidence on Control as the tab's own words do.
+
+FOUND_KIND = "confirm"
+G_NAME, G_LOANS, G_BAD, G_RATE, G_ODDS, G_P, G_CAPTURE, G_REF = range(2, 10)     # _found's columns B to I
+
+
+def write_found(ws, res) -> None:
+    """What this test found, on _found (ws), under the stamp."""
+    from . import confirmatory
+    h = confirmatory.headline(res)
+    ws.append(["kind", FOUND_KIND])
+    if h.get("problem"):
+        ws.append(["problem", h["problem"]])
+        return
+    ws.append(["column", h["column"]])
+    ws.append(["reference", h["reference"]])
+    ws.append(["loans", f"{h['development']:,} on development, {h['holdout']:,} on the holdout"])
+    dev = h["deviations"]
+    ws.append(["follows", "Couldn't be compared" if dev is None else "Yes" if not dev
+               else f"No: differs in {dev} place{'s' if dev != 1 else ''}"])
+    for g in confirmatory.groups_found(res):
+        ws.append(["group", g["group"], g["loans"], g["bad"], g["bad_rate"], g["odds"], g["p"], g["capture"],
+                   "yes" if g["ref"] else None])
+
+
+def found_block(ws, wb, r: int, value_of) -> int:
+    """Four tiles and one row per group, on the holdout. value_of(key) reads _found. Returns the next free row."""
+    from . import house
+    from .book import FOUND
+    note = Font(name="Calibri", size=10, color=SLATE)
+    problem = value_of("problem")
+    if problem:
+        ws.cell(row=r + 1, column=2, value=f"The confirmatory test couldn't be run: {problem}. Check says why.").font \
+            = note
+        return r + 3
+    ref = value_of("reference")
+    F = lambda c: f"'{FOUND}'!${_c(c)}:${_c(c)}"                           # noqa: E731
+    worse = f'COUNTIFS({F(1)},"group",{F(G_ODDS)},">1",{F(G_P)},"<"&{live.BAR})'
+    groups = sum(1 for row in wb[FOUND].iter_rows(min_row=1, max_col=1, values_only=True) if row[0] == "group")
+    tiles = [(f"Groups worse than {ref}, on the holdout", f'=IFERROR({worse}&" of {groups - 1}","")', None),
+             ("Their share of the holdout's bad loans",
+              f'=IFERROR(SUMIFS({F(G_CAPTURE)},{F(1)},"group",{F(G_ODDS)},">1",{F(G_P)},"<"&{live.BAR}),"")',
+              "0%"),
+             ("Loans tested", value_of("loans"), None),
+             ("Follows the pre-spec", value_of("follows"), None)]
+    for i, (label, f, fmt) in enumerate(tiles):
+        house.tile(ws, r + 1, 2 + 2 * i, 3 + 2 * i, label, f, fmt)
+    t = r + 4
+    house.header(ws, t, 2, [f"Group of {value_of('column')}", "Loans", "Bad rate", f"× {ref}'s odds", "p-value",
+                            "Significant?", "Share of bad loans", None], centre_from=2)
+    rows = [row for row in wb[FOUND].iter_rows(min_row=1) if row[0].value == "group"]
+    for i, row in enumerate(rows, start=1):
+        rr, src = t + i, row[0].row
+        P = lambda c: f"'{FOUND}'!${_c(c)}${src}"                          # noqa: E731
+        ref_row = row[G_REF - 1].value == "yes"
+        vals = [f"={P(G_NAME)}" + ('&" (reference)"' if ref_row else ""), f"={P(G_LOANS)}",
+                f'=IF({P(G_RATE)}="","",{P(G_RATE)})', f'=IF({P(G_ODDS)}="","none",{P(G_ODDS)})',
+                f'=IF({P(G_P)}="","",{P(G_P)})',
+                None if ref_row else f'=IF({live.sig(P(G_P))},IF({P(G_ODDS)}>1,"Yes, worse","Yes, better"),"No")',
+                f"={P(G_CAPTURE)}"]
+        for j, v in enumerate(vals):
+            c = ws.cell(row=rr, column=2 + j, value=v)
+            c.font = Font(name="Calibri", size=10, color=house.INK_TEXT)
+            c.alignment = Alignment(horizontal="left" if j == 0 else "center", vertical="center")
+        for j, fmt in ((3, "#,##0"), (4, "0.00%"), (5, '0.00"×"'), (6, P_FMT), (8, "0%")):
+            ws.cell(row=rr, column=j).number_format = fmt
+        ws.row_dimensions[rr].height = 18
+    last = t + max(1, len(rows))
+    ws.conditional_formatting.add(f"G{t + 1}:G{last}", FormulaRule(
+        formula=[f'G{t + 1}="Yes, worse"'], font=Font(bold=True, color=house.CRIMSON),
+        fill=PatternFill("solid", fgColor=house.ALERT_FG, bgColor=house.ALERT_FG)))
+    link = ws.cell(row=last + 1, column=2, value="Development beside the holdout, and how it's worked out: the "
+                                                 "Confirmatory test tab.")
+    link.hyperlink = f"#'{SHEET}'!A1"
+    link.font = Font(name="Calibri", size=10, color=house.KEY_RED, underline="single")
+    return last + 3

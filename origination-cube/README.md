@@ -243,6 +243,16 @@ from the pre-spec. A run that did what its pre-spec says differs nowhere: the
 reference group is the pre-spec's, and the holdout is the range the test held
 itself to, not the first and last loan in the extract.
 
+A test of a new variable builds none of the bleed analysis: no pocket grid, no
+shuffle test, and none of its tabs (Where it bleeds, Losses vs revenue, Grids,
+Split, Three-way, Prevalence). It writes the Confirmatory test, Check and the
+Log. If the workbook still has those tabs from an earlier bleed Run, they are
+taken off, and Check says so on one line. Start here and the launcher's last
+step show the confirmation: how many groups go bad significantly more often than
+the reference group on the holdout, their share of its bad loans, and whether
+the run followed its pre-spec. On 17,000 loans × 80 columns the Run takes
+4.5 s. It took 23.4 s when it also built the grids (design decision OC-42).
+
 On the dated synthetic book (`synth.write_extract(..., ratio=True)`, 20,000
 loans) with `docs/prespec-example.yaml`, the run finds both planted cliffs on
 development (below 0.10: 2.32x, 1.52x to 3.56x; 2.00 and up: 3.25x, 2.42x to
