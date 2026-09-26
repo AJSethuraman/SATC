@@ -279,8 +279,9 @@ edges), refreshed at each Run ("Last Run used").
   because `book.py` is one file: (a) the launcher's five steps and suggestions at Set up; (b) Start
   here, Control (Changes now / Needs a Run / chosen in the launcher / materiality panel), Columns
   (with Odd values and Learned), Look; (c) Pockets (with Three-way), Paid cost kept, Grids (with
-  Prevalence), Split; (d) New variables and Record (Check with Log). House style: `keybank_style.py`,
-  the same file the sibling dashboards ship.
+  Prevalence), Split; (d) New variables and Record (Check with Log). House style: the tokens in the design's
+  README (the hand-off's `keybank_style.py` is byte-identical to `credit-suite`'s `engine/style.py`,
+  and the repo keeps that file in one place, so it is not copied here).
 - **Items 4, 6 and 7 are folded into it:** the "How this tab works" note on every tab, Worse? and
   Material? as separate columns, and the Control-options clean-up.
 - **Item 8 is replaced by the design's rule:** verdicts, dollars, colours and Material? are live;
