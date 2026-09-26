@@ -100,20 +100,17 @@ def test_a_run_held_to_a_committed_pre_spec_echoes_it_says_where_it_differs_and_
     assert "reference: 0.25 - 0.49" in says and "strata: FICO, CHANNEL" in says
     assert not any("window" in s for s in says)
 
-    # what the run could follow, it did: the column, its bins (typed on Columns), the strata and the
-    # confidence. What it couldn't: its reference is each pocket's low half, and its loans, every one in the
-    # extract, run from 2021, not only the holdout's
+    # the confirmatory test (4b) used what the pre-spec says: its column, bins, reference group and strata, and
+    # it held itself to the pre-spec's holdout range. Every loan in the extract still runs on the other tabs,
+    # from 2021 on, and that is not a deviation: the test's range is the one compared (final check, F5)
     with open(x, newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
     kept = sorted(r["ORIG_DATE"] for r in rows)
     assert chk["Loans run"] == "3,000"
     assert chk["Origination dates"] == f"{kept[0]} to {kept[-1]} (3,000 loans; 0 without a readable date)"
     devs = [w for w in _warnings(chk) if w.startswith(confirmatory.DEVIATES)]
-    assert devs == [
-        'Deviates from pre-spec: The reference group is "the low half of each pocket", which is not one of its '
-        'bins\' groups in this run; the pre-spec says "0.25 - 0.49".',
-        f"Deviates from pre-spec: The pre-spec's holdout is 2024-01-01 to 2024-12-31; this run used loans made "
-        f"{kept[0]} to {kept[-1]}, not only the holdout."]
+    assert devs == []
+    assert chk["Differs from the pre-spec"] == "nowhere: this run used what it says"
 
     # the holdout, counted by hand: every loan in the extract made in 2024, both ends included
     held = sorted(r["ORIG_DATE"] for r in rows if "2024-01-01" <= r["ORIG_DATE"] <= "2024-12-31")
@@ -123,7 +120,7 @@ def test_a_run_held_to_a_committed_pre_spec_echoes_it_says_where_it_differs_and_
                               f"the holdout.")
     assert chk["Runs that touched the holdout"] == "1 in this workbook's Log, this one included"
     log = _log(b)
-    assert log[1] == f"Deviates from pre-spec prespec.yaml (commit {head[:12]}): 2 places, listed on Check."
+    assert log[1] == f"Follows pre-spec prespec.yaml (commit {head[:12]})."
     assert log[2] == f"Touched the holdout: {len(held):,} loans made {held[0]} to {held[-1]}."
     assert log[1] in ran.lines and "Runs that touched the holdout, in this workbook's Log: 1." in ran.lines
     ran_yaml = b.with_name(f"{b.stem} - what ran.yaml").read_text(encoding="utf-8")
@@ -135,9 +132,9 @@ def test_a_run_held_to_a_committed_pre_spec_echoes_it_says_where_it_differs_and_
     assert book.run(b).ok
     chk = _check(b)
     devs = [w for w in _warnings(chk) if w.startswith(confirmatory.DEVIATES)]
-    assert "Deviates from pre-spec: Confidence is 90% in this run; the pre-spec says 95%." in devs and len(devs) == 3
+    assert devs == ["Deviates from pre-spec: Confidence is 90% in this run; the pre-spec says 95%."]
     assert chk["Runs that touched the holdout"] == "2 in this workbook's Log, this one included"
-    assert _log(b)[1] == f"Deviates from pre-spec prespec.yaml (commit {head[:12]}): 3 places, listed on Check."
+    assert _log(b)[1] == f"Deviates from pre-spec prespec.yaml (commit {head[:12]}): 1 place, listed on Check."
 
     # the pre-spec edited after its commit: said on Check and in the Log, and the run doesn't count
     f.write_text(f.read_text(encoding="utf-8") + "# an afterthought\n", encoding="utf-8")
@@ -275,8 +272,12 @@ def test_check_names_the_pre_specs_groups_as_the_tabs_name_them(tmp_path, monkey
     assert f"reference: {lowest}" in says
     groups = next(s for s in says if s.startswith("bins: ")).split("(groups: ")[1].rstrip(")").split("; ")
     assert [g for g in groups if g in shown] == shown and (groups[0], groups[-1]) == (lowest, highest)
-    assert (f'Deviates from pre-spec: The reference group is "the low half of each pocket", which is not one of its '
-            f'bins\' groups in this run; the pre-spec says "{lowest}".') in [v for k, v in got if k == "Warning"]
+    # the confirmatory test compares with the group the pre-spec names, under the tabs' name for it (4b)
+    assert not [v for k, v in got if k == "Warning" and v.startswith(confirmatory.DEVIATES)]
+    ws = load_workbook(b)["Confirmatory test"]
+    said = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
+    assert f"{lowest}, the pre-spec's reference group. Every other group is compared with it." in said
+    assert f"{lowest} (reference)" in said
     assert not any("up to" in str(v) for _, v in got)
 
 
