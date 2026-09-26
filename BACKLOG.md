@@ -1807,6 +1807,16 @@ back.
       pre-spec columns"*). The strata default to the workbook's own band and segment columns,
       and are listed only when different. Several columns can be confirmed in one pre-spec, with
       the allowance for many tests across them.
+- [ ] **Then: the tests are picked from one easy place** (the firm, 26 Sep 2026: *"all of these
+      sorts of tests should be available in some sort of easy to pick way. at this point i
+      think i am expecting a GUI of some sort"*). Waits on the redesign.
+- [x] **Screens for the redesign** (the firm, 26 Sep 2026): every tab and every launcher state,
+      rendered from the synthetic book: https://claude.ai/artifact/8duWJxayMTBtMe1GCPrvAX
+      (the builder is `make_shots.py`, kept in the session's scratchpad).
+- [ ] **The pre-spec design** (the firm, 26 Sep 2026): an outcome and a shortlist of inputs (never
+      one: *"one column makes no sense - it can't be used in a tree"*), each with its cut points
+      and reference; optionally the columns to hold fixed. Each input is reported on its own and
+      with them held fixed, which folds in 4d.
 - [ ] **Then: scouting (4a).** Wide, on development loans: rank every candidate column and
       suggest bins. It feeds the confirmation, which is narrow: a shortlist, on the holdout.
 - [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
