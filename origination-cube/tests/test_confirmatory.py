@@ -187,6 +187,14 @@ def test_a_pre_spec_the_run_cannot_use_is_refused_by_its_cell(tmp_path, monkeypa
 def test_without_an_origination_date_the_holdout_is_said_unchecked(tmp_path, monkeypatch):
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     x = synth.write_extract(tmp_path / "x", n=1500)
+    # the synthetic book carries ORIG_DATE since fix 3.5; take it out, which is this test's premise
+    import csv
+    with open(x, newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    with open(x, "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=[k for k in rows[0] if k != "ORIG_DATE"])
+        w.writeheader()
+        w.writerows({k: v for k, v in r.items() if k != "ORIG_DATE"} for r in rows)
     b = book.set_up(x).book
     _answer(b)
     f = _spec(x.parent, commit=False)

@@ -66,16 +66,16 @@ def test_the_families_are_grids_by_rates_by_comparisons():
     two_grids = [{"name": "score", "field": "SCORE", "edges": [650]}, {"name": "bal", "field": "BAL", "edges": [200]}]
     res = engine.run(cube(benchmark=BENCH, bands=two_grids), table(_test1()))
     got = dict(checks.family_rows(res))
-    # 2 grids x 4 rates x 2 comparisons. Tests per rate: the score grid's 4 pockets, each against the book and
-    # its band (8); the balance grid's 3 pockets against the book, but only 2 against their band, since Broker
-    # 600 is alone in the 300 band (5). 13 x 4 rates = 52
-    assert got["Families of tests"].startswith("16, holding 52 tests: 2 grids x 4 rates x 2 comparisons.")
+    # 2 grids x 5 rates x 2 comparisons (contribution before losses is the fifth rate, NEXT-GOAL 3.4). Tests per
+    # rate: the score grid's 4 pockets, each against the book and its band (8); the balance grid's 3 pockets
+    # against the book, but only 2 against their band, since Broker 600 is alone in the 300 band (5). 13 x 5 = 65
+    assert got["Families of tests"].startswith("20, holding 65 tests: 2 grids x 5 rates x 2 comparisons.")
     assert got["Reading a single red"] == ("Each family gets its own allowance for many tests, not one for the whole "
-                                           "run. So a single red across 16 families is weak evidence.")
+                                           "run. So a single red across 20 families is weak evidence.")
     # with no allowance, every test stands alone
     res = engine.run(cube(benchmark={**BENCH, "many_tests": "none"}, bands=two_grids), table(_test1()))
     assert dict(checks.family_rows(res))["Reading a single red"] == (
-        "No allowance for many tests is in use, so each of the 52 tests stands alone: a single red among them is "
+        "No allowance for many tests is in use, so each of the 65 tests stands alone: a single red among them is "
         "weak evidence.")
 
 
@@ -96,13 +96,13 @@ def test_the_split_adds_its_three_way_grid_and_its_halves_as_families():
     assert kinds == [("grids", "the rest of its band"), ("grids", "the rest of the book"),
                      ("split halves", "the other half"), ("three-way grids", "the rest of its band"),
                      ("three-way grids", "the rest of the book")]
-    # 8 on the grid, 8 on the three-way grid, 4 on the split's halves (one per rate)
+    # 10 on the grid, 10 on the three-way grid, 5 on the split's halves (one per rate; five rates)
     assert dict(checks.family_rows(res))["Families of tests"].startswith(
-        "20, holding ")
-    assert "1 grid x 4 rates x 2 comparisons; 1 three-way grid x 4 rates x 2 comparisons; 1 grid x 4 rates for " \
+        "25, holding ")
+    assert "1 grid x 5 rates x 2 comparisons; 1 three-way grid x 5 rates x 2 comparisons; 1 grid x 5 rates for " \
            "the split's halves" in dict(checks.family_rows(res))["Families of tests"]
     # the split's halves: every pocket's halves compared, once per rate
-    assert sum(f[4] for f in fam if f[0] == "split halves") == 4 * 4
+    assert sum(f[4] for f in fam if f[0] == "split halves") == 4 * 5
 
 
 # --------------------------------------------------------------------------
@@ -187,8 +187,8 @@ def test_check_carries_the_budget_the_families_and_the_product_mix(tmp_path):
     assert f"the book has {bad:,} ({bad:,} ÷ 5 = {bad // 5:,})" in check["Pocket budget"][0]
     grids = [k for k in check if k.startswith("Pockets: ")]
     assert "Pockets: FICO x CHANNEL" in grids and "Pockets: ORIG_BAL x ASSET_CLASS" in grids
-    assert check["Families of tests"][0].startswith(f"{len(grids) * 8}, holding ")
-    assert check["Reading a single red"][0].endswith(f"a single red across {len(grids) * 8} families is weak "
+    assert check["Families of tests"][0].startswith(f"{len(grids) * 10}, holding ")   # 5 rates x 2 comparisons
+    assert check["Reading a single red"][0].endswith(f"a single red across {len(grids) * 10} families is weak "
                                                      f"evidence.")
     assert any(w.startswith("LOAN_TYPE holds 2 credit products (Auto, Card) and isn't a band or segment")
                for w in check["Warning"])
