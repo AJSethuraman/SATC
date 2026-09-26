@@ -654,3 +654,53 @@ def test_a_short_quote_is_refused_for_what_it_is(corpus, queue, reply):
     rid, answer = notifying.reply_in(reply, sent=line)
     with pytest.raises(ValueError, match="too short to be a position"):
         rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+
+
+# ------------------------------------------ fourth independent review of #401
+
+
+@pytest.mark.parametrize("reply", ["‘subscription’; ‘twelve months’",
+                                   "'subscription'; 'twelve months'",
+                                   "“subscription”; 'twelve months'"])
+def test_single_and_curly_quotes_leave_no_stray_marks(corpus, queue, reply):
+    """Fourth independent review: only double quotes were split into phrases,
+    and a phone's curly single quotes were written into the record."""
+    f = _found(corpus, "reach", TWELVE)
+    entry, line = rulings.ask(f, "subscription", queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(f"R1 {reply}", sent=line)
+    r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+    assert r.reaches_on == ("subscription", "twelve months")
+
+
+def test_an_apostrophe_inside_a_quoted_phrase_is_not_a_quote():
+    assert rulings._segments("‘don’t net them’") == ["don’t net them"]
+    assert rulings._segments("'don't net them'; 'gross them up'") == [
+        "don't net them", "gross them up"]
+
+
+def test_a_quoted_word_inside_one_wording_does_not_split_it():
+    """Fourth independent review: '"the word "and" matters here"' became two
+    phrases."""
+    assert rulings._segments('"the word "and" matters here"') == []
+    assert rulings._unquote('"the word "and" matters here"') == \
+        'the word "and" matters here'
+
+
+@pytest.mark.parametrize("reply", ["R1 yes, as is", "R1 Yes, same wording",
+                                   "R1 ok, same", "R1 yes, the same"])
+def test_keep_it_words_are_not_filler_after_a_yes(corpus, queue, reply):
+    """Fourth independent review: "yes, same wording" rewrote POS7, though
+    "same wording" is how one says keep it."""
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(reply, sent=line)
+    with pytest.raises(ValueError, match="Ask the firm which they meant"):
+        rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+
+
+def test_no_as_is_is_still_a_no(corpus, queue):
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in("R1 no, same wording as is", sent=line)
+    r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+    assert r.outcome == "upheld"

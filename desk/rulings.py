@@ -447,8 +447,12 @@ _NO_WORDS = {"no", "nope", "n", "keep", "leave", "decline", "declined"}
 #: Words that may ride along with a yes or a no without changing it. NO
 #: DECISION WORD IS FILLER: Codex on #401 found "yes, keep it" read as yes,
 #: because "keep" was on this list -- and "keep it" is the no.
-_FILLER = {"it", "is", "as", "the", "that", "this", "one", "please", "thanks",
-           "thank", "you", "same", "wording"}
+_FILLER = {"it", "the", "that", "this", "one", "please", "thanks", "thank",
+           "you"}
+#: Words that keep. They may follow a no; after a yes they are the other
+#: decision. Fourth independent review of #401: "yes, same wording" and "yes,
+#: as is" rewrote POS7, though the line says "no to keep it".
+_KEEPING = {"same", "wording", "as", "is"}
 #: Words that agree. They may follow a yes; after a no they are the other
 #: decision. Second independent review of #401: "No, go ahead" was recorded as
 #: the firm keeping its wording, because these sat in `_FILLER` -- and "no, go
@@ -471,20 +475,30 @@ def _unquote(body: str) -> str | None:
     return m.group(2).strip() if m and m.group(2).strip() else None
 
 
-#: One double-quoted segment. Single quotes are left out on purpose: an
-#: apostrophe inside a phrase ("don't") would end it.
-_SEGMENT = re.compile(r'["\u201c\u201d]([^"\u201c\u201d]+)["\u201c\u201d]')
+_QUOTE = "\"\u201c\u201d'\u2018\u2019"
+#: One quoted phrase, double or single, straight or curly. A quote only
+#: counts where it is not wedged between letters, so the apostrophe in
+#: "don't" / "don\u2019t" is never taken for one. Fourth independent review
+#: of #401: single and curly single quotes were not split, and left stray
+#: marks in the record.
+_SEGMENT = re.compile(rf"(?<!\w)[{_QUOTE}](.+?)[{_QUOTE}](?!\w)")
 
 
 def _segments(body: str) -> list[str]:
     """Each quoted phrase, when the reply is NOTHING BUT quoted phrases joined
     by commas, semicolons, "and" or "or"; else []. Third independent review of
     #401: '"subscription"; "twelve months"' was one phrase running from the
-    first quote to the last, stray quote marks and all."""
+    first quote to the last, stray quote marks and all.
+
+    A phrase that still holds a quote mark means the quotes nest ('"the word
+    "and" matters"') and cannot be split safely: [] then, and the reply is
+    read as one quoted wording or not at all (fourth independent review)."""
     parts = [m.strip() for m in _SEGMENT.findall(body)]
     rest = _SEGMENT.sub(" ", body)
-    if parts and all(parts) and re.fullmatch(
-            r"[\s;,.!]*(?:(?:and|or)[\s;,.!]*)*", rest, re.I):
+    if (parts and all(parts)
+            and not any(re.search(rf"(?<!\w)[{_QUOTE}]|[{_QUOTE}](?!\w)", x)
+                        for x in parts)
+            and re.fullmatch(r"[\s;,.!]*(?:(?:and|or)[\s;,.!]*)*", rest, re.I)):
         return parts
     return []
 
@@ -513,7 +527,7 @@ def _verdict(body: str) -> str:
         return "unclear"
     verdict = said.pop()
     allowed = _FILLER | _YES_WORDS | _NO_WORDS | (
-        _AGREEING if verdict == "yes" else set())
+        _AGREEING if verdict == "yes" else _KEEPING)
     if all(w in allowed for w in words):
         return verdict
     return "unclear"

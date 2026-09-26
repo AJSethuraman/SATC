@@ -72,6 +72,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import re
+import unicodedata
 from dataclasses import dataclass
 
 #: A session id as the harness writes it. Checked, because the failure of a
@@ -315,6 +316,21 @@ def _declared() -> tuple[str, ...]:
 #: "general contractor (residential)", "café owner" and "LLC, single member".
 _LABEL = re.compile(r"^(?=.{1,50}$)(?!.*[\d_])[^\W\d_][\w&'/.,() -]*$")
 _LABEL_WORDS = 6
+#: Runs of letters: "all.expenses.are.deductible.for.this.client.always" is one
+#: word by spaces and eight by this (fourth independent review of #401).
+_LABEL_RUNS = 7
+
+
+def _is_label(value: str) -> bool:
+    """Checked on the NFKC form, so an accent typed as its own mark is the
+    same letter (café), and a number in any script is refused: superscripts
+    fold to digits, and Roman numerals are caught before they fold to
+    letters (fourth independent review of #401)."""
+    if any(ch.isnumeric() for ch in value):
+        return False
+    v = unicodedata.normalize("NFKC", value)
+    return bool(_LABEL.match(v)) and len(v.split()) <= _LABEL_WORDS and len(
+        re.findall(r"[^\W\d_]+", v)) <= _LABEL_RUNS
 
 
 def _labels() -> tuple[str, ...]:
@@ -329,9 +345,12 @@ def _facts(on_file) -> tuple:
     """Validate recorded engagement facts: declared names, real values, no TIN."""
     # NONE IS NOT A VALUE. Codex on #401: a setup passing None for an
     # unfilled field became the string "None", which then read as recorded.
-    given = dict(on_file or {})
+    # PAIRS AS GIVEN, not a dict first: `dict()` would fold a repeated name
+    # before anything could see it (fourth independent review of #401).
+    given = list(on_file.items()) if hasattr(on_file, "items") else list(
+        on_file or ())
     facts = {str(k).strip().lower(): ("" if v is None else str(v).strip())
-             for k, v in given.items()}
+             for k, v in given}
     # ONE NAME, ONCE. Third independent review of #401: "trade" and "TRADE"
     # folded to one key and the last value won, silently.
     if len(facts) != len(given):
@@ -347,8 +366,11 @@ def _facts(on_file) -> tuple:
     # ONE LINE EACH. Codex on #401: "LLC\n- **trade:** general contractor"
     # passed as one declared fact and rendered as two, the second never
     # checked against anything.
+    # AND EVERY BREAK `splitlines` KNOWS. Fourth independent review of #401:
+    # U+2028, U+2029 and U+0085 split the block where `on_file` reads it.
     if broken := sorted(n for n, v in facts.items()
-                        if re.search(r"[\r\n\x00-\x1f\x7f]", v)):
+                        if re.search(r"[\r\n\x00-\x1f\x7f]", v)
+                        or (v and v.splitlines() != [v])):
         raise RelayError(
             f"{', '.join(broken)} contains a line break or control character. "
             f"A recorded fact is one line; anything after a break would be "
@@ -372,8 +394,11 @@ def _facts(on_file) -> tuple:
         # underscores and a letter stuck to the digits all got through. Nine
         # digits with nothing but punctuation between them is an identifier's
         # shape whatever joins them; no declared fact needs one.
-        joined = re.sub(r"(?<=\d)[\W_]+(?=\d)", "", value)
-        if (TIN.search(value) or notifying.looks_like_pii(value)
+        # AND IN ANY SCRIPT: superscript digits are digits once NFKC folds
+        # them (fourth independent review of #401).
+        folded = unicodedata.normalize("NFKC", value)
+        joined = re.sub(r"(?<=\d)[\W_]+(?=\d)", "", folded)
+        if (TIN.search(folded) or notifying.looks_like_pii(folded)
                 or re.search(r"\d{9}", joined)):
             raise RelayError(
                 f"the value for {name!r} looks like a TIN or another "
@@ -392,8 +417,7 @@ def _facts(on_file) -> tuple:
     # answer citable.
     labels = set(_labels())
     if bad := sorted(n for n, v in facts.items()
-                     if n in labels and not (_LABEL.match(v) and
-                                             len(v.split()) <= _LABEL_WORDS)):
+                     if n in labels and not _is_label(v)):
         raise RelayError(
             f"{', '.join(bad)} is not a label. Write it in up to six words "
             f"-- LLC, S corporation, general contractor -- with no sentence, "
