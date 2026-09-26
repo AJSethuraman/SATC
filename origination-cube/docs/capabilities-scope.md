@@ -232,6 +232,11 @@ benefit figures. B6's worked example (4.3%, 9.1%, 2.13x; 6.7%, 13.2%, 1.95x) is
 reproduced by `tests/test_kgroups.py`. The dated outcome and window above were removed
 by OC-39.*
 
+*GCO became optional on 26 Sep 2026 (OC-14 as amended, Goal 2 item 2): a test of a new
+variable needs no dollar column. With a GCO column the tab shows the GCO figures as above;
+without one it shows loans and bad loans, their shares, the bad rate and the lift, and
+says nothing about dollars.*
+
 ---
 
 ## In order

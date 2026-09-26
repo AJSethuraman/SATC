@@ -41,7 +41,7 @@ MODE_KEYS = {
 }
 TOP_KEYS = {"name", "schema_version", "key", "booked", "outcome", "gco", "ranr", "columns", "columns_confirmed",
             "missing", "bands", "dimensions", "measures", "benchmark", "questions",
-            "origination_date", "split", "derived"}
+            "origination_date", "split", "derived", "run_kind"}
 #: The dates a run can be told about, as meanings in `columns:`: each names at most one column. Only the
 #: origination date is left: it splits development loans from the holdout, and Check gives its range.
 DATE_ROLES = ("origination_date",)
@@ -70,6 +70,16 @@ SPLIT_HOW = ("own_median", "each_value")
 #: exercise." So each of those is a required line, and the core rates are built
 #: from them on every run; `measures:` holds only extras.
 CORE = ("key", "booked", "outcome", "gco", "ranr")
+#: What the run is for (Control's "What are you running?"). Absent, a run is the bleed analysis and needs all of
+#: CORE. A test of a new variable needs only what it uses (the firm, 26 Sep 2026, on the booked amount, GCO and
+#: RANR: "what's the point in that if you are searching for possibly important variables to the outcome?"): the
+#: key and the outcome here, and the origination date, the tested column and the strata where the workbook
+#: checks them. The dollar columns are optional for it; any that is given still has to be one column.
+RUN_KINDS = ("bleed", "new_variable")
+DOLLARS = ("booked", "gco", "ranr")
+TESTING_CORE = ("key", "outcome")
+#: OC-14, amended 26 Sep 2026: that is the bleed analysis's minimum; RUN_KINDS below says what a test of a new
+#: variable needs.
 #: The required columns are said either as five top-level lines (a file written
 #: by hand) or as meanings in `columns:` (a file written by `cube init`, which
 #: lists every column). Never both: one place to say it.
@@ -304,8 +314,10 @@ class Config:
     measures: tuple[Measure, ...]
     benchmark: Benchmark | None      # None only when the file says `benchmark: none`
     questions: tuple[Question, ...] = ()
-    booked: str = ""
+    booked: str = ""                                  # blank only on a test of a new variable (RUN_KINDS)
     outcome: str = ""
+    gco: str = ""                                     # blank only on a test of a new variable
+    run_kind: str = "bleed"
     origination_date: str | None = None               # the column holding when each loan was made
     split: tuple | None = None                        # (column, own_median | each_value): the third layer
     columns: dict = field(default_factory=dict)       # column -> (meaning, is-value); from `columns:`
@@ -377,6 +389,10 @@ def parse(raw: Any, source_path: str = "") -> Config:
     if "schema_version" in raw and raw["schema_version"] != SCHEMA_VERSION:
         problems.append(f"schema_version is {raw['schema_version']!r}; this engine reads {SCHEMA_VERSION}")
 
+    run_kind = raw.get("run_kind", "bleed")
+    if run_kind not in RUN_KINDS:
+        problems.append(f"`run_kind:` is {run_kind!r}; it takes {' or '.join(RUN_KINDS)}")
+    needs = TESTING_CORE if run_kind == "new_variable" else CORE
     columns, not_cut, periods, definitions = {}, {}, {}, {}
     if "columns" in raw:
         columns, not_cut, periods, definitions = _parse_columns(raw.get("columns"), problems)
@@ -393,6 +409,8 @@ def parse(raw: Any, source_path: str = "") -> Config:
         raw = dict(raw)
         for m in CORE:
             hits = [c for c, (mm, _) in columns.items() if mm == m]
+            if not hits and m not in needs:
+                continue
             if len(hits) != 1:
                 problems.append(f"`columns:` needs exactly one column that means {m}; found "
                                 f"{len(hits)}{': ' + ', '.join(hits) if hits else ''}")
@@ -400,7 +418,7 @@ def parse(raw: Any, source_path: str = "") -> Config:
             raw[m] = hits[0] if m != "outcome" or columns[hits[0]][1] is None else \
                 {"field": hits[0], "is": columns[hits[0]][1]}
     else:
-        for k in CORE:
+        for k in needs:
             if k not in raw:
                 problems.append(_missing_line(k))
     cols = {}
@@ -431,6 +449,18 @@ def parse(raw: Any, source_path: str = "") -> Config:
                         higher_is="better"),
                 Measure(name="contribution_rate", mode="sumnum", value=cols["ranr"], plus=cols["gco"],
                         per=cols["booked"], core=True, higher_is="better"))
+    elif out_field and run_kind == "new_variable":
+        # a test of a new variable without every dollar column: the rates it has the columns for, and no other
+        core = (Measure(name="outcome_loans", mode="flagwt", flag=out_field, per=EACH_LOAN, flag_is=out_is,
+                        core=True),)
+        if cols["booked"]:
+            core += (Measure(name="outcome_booked", mode="flagwt", flag=out_field, per=cols["booked"],
+                             flag_is=out_is, core=True),)
+            if cols["gco"]:
+                core += (Measure(name="gco_rate", mode="sumnum", value=cols["gco"], per=cols["booked"], core=True),)
+            if cols["ranr"]:
+                core += (Measure(name="ranr_rate", mode="sumnum", value=cols["ranr"], per=cols["booked"], core=True,
+                                 higher_is="better"),)
     orig_col = raw.get("origination_date") or next((c for c, (m, _) in columns.items() if m == "origination_date"),
                                                    None)
     if orig_col is not None and (not isinstance(orig_col, str) or not orig_col.strip()):
@@ -463,6 +493,7 @@ def parse(raw: Any, source_path: str = "") -> Config:
         raise ConfigError(problems)
     return Config(name=str(raw["name"]), key=key, missing=missing, bands=bands, dimensions=dims,
                   measures=measures, benchmark=bench, questions=questions, booked=cols["booked"], outcome=out_field,
+                  gco=cols["gco"], run_kind=run_kind if run_kind in RUN_KINDS else "bleed",
                   origination_date=orig_col, split=split,
                   columns=columns, not_cut=not_cut, derived=derived,
                   periods=periods, definitions=definitions, source_path=source_path, raw=raw)

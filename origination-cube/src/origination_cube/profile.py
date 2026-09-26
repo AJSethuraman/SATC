@@ -17,7 +17,9 @@ until answered, which the file and every output say. Nothing stops the run.
     question    text with too many values to cut by, a mix of numbers and text,
                 or any other number that differs on every row (an ID or an amount?)
 
-The five required lines - key, booked, outcome, gco, ranr - are SUGGESTED from
+The five required lines - key, booked, outcome, gco, ranr - (for a file that
+tests a new variable, `run_kind: new_variable`, only key and outcome; OC-14 as
+amended 26 Sep 2026) are SUGGESTED from
 column names (the hints in settings.yaml) and values, each with its reason,
 and the file carries `columns_confirmed: no`: it refuses to run until a person
 has checked them and set it to yes. The firm: "make assumptions for
@@ -229,7 +231,8 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
     lines += ["", "# WHAT EACH COLUMN IS. Suggested by cube init, or remembered from a file you confirmed before.",
               "# Check each line; if one is wrong, change its `means`. Then set columns_confirmed to yes:",
               "# nothing runs until you do, and what you confirm is remembered for next time.",
-              "# The five marked * are required. Meanings: " + ", ".join(
+              "# The five marked * are required (key and outcome alone for `run_kind: new_variable`, a test"
+              " of a new variable). Meanings: " + ", ".join(
                   m + ("*" if cat[m].required else "") for m in cat),
               "columns_confirmed: no", "columns:"]
     width = max(len(_q(c)) for c in table.columns) + 1
