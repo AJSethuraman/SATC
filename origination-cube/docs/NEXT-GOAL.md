@@ -182,6 +182,9 @@ For each: the data it needs, what it adds to the outputs, and roughly how much w
 
 ## 6. Hand back
 
-- [ ] Every decision that couldn't be made goes back as a question with both outcomes,
-      a recommendation, and a box to answer in.
-- [ ] Log what ran.
+- [x] Every decision that couldn't be made goes back as a question with both outcomes,
+      a recommendation, and a box to answer in. *(Done 26 Sep 2026: 12 decisions and Next,
+      on the docket at https://claude.ai/artifact/Dm54ZNHGJWaT9jooucgW4R. The answers are
+      read back and logged in `BACKLOG.md` §6d.)*
+- [x] Log what ran. *(Done 26 Sep 2026: `BACKLOG.md` §6d, the adversarial pass and the
+      final check, whose report is `docs/final-check-2026-09-26.md`.)*

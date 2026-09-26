@@ -1501,7 +1501,9 @@ back.
 - [x] **The firm's two calls from walk 7** (OC-32, OC-33): the revenue setting
       decides revenue on every tab, and Three-way rows whose grid doesn't hold the
       score fixed aren't red. 197 tests; 66 re-inserted bugs.
-- [ ] **Next (set by the firm, 25 Sep 2026):** *"RANR is profit after losses —
+- [x] **Next (set by the firm, 25 Sep 2026):** *(Done 26 Sep 2026: all six steps. The
+      cube has what the confirmatory test needs; the test itself is 4b, the new Next.)*
+      *"RANR is profit after losses —
       interest income + fees − cost of funds − losses — and the cube's outputs, tests
       and synthetic book should treat it that way; and the cube should be ready to test
       a derived column (income ÷ sales) against a dated outcome, on a holdout, from a
@@ -1670,6 +1672,36 @@ back.
     range it filtered to.
   - **For the next walk:** the wording seen but not fixed is listed at the end of
     the final check's file.
+- [x] **The hand-back (NEXT-GOAL 6, 26 Sep 2026).** Docket:
+  https://claude.ai/artifact/Dm54ZNHGJWaT9jooucgW4R. It is a separate page from the
+  25 Sep docket, whose seven answers are logged above and are not asked again.
+  - **Next, which silence approves:** build 4e, then 4b, so a pre-spec'd test of a
+    new column runs from start to finish on held-back loans.
+  - **The 12 decisions, each with both outcomes and a recommendation:**
+    1. correct `statistics.md`'s three slips;
+    2. window the dollars, or not;
+    3. keep "latest" as the as-of date;
+    4. keep refusing the age filter with a window;
+    5. definitions on Columns;
+    6. Test 4's "about the same";
+    7. the pre-spec's "deviates" until 4b;
+    8. a pocket alone in its band;
+    9. scikit-learn for 4a;
+    10. 4c's lines;
+    11. 4d's bands and "survives";
+    12. the tenet "compare against a bar computed once".
+  - **What ran, for the whole goal:**
+    - the audit;
+    - 18 fixes in four waves of agents;
+    - the scope for 4a–4e;
+    - the adversarial pass: 33 ideas, 4 bugs;
+    - the final check: 206 claims, 25 wrong, all fixed.
+
+    The goal started at 197 tests and 66 planted bugs, and ends at 454 and 177.
+- [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
+      (`origination-cube/docs/capabilities-scope.md`). It ends when the planted income ÷
+      sales cliffs are found on development loans and confirmed on the holdout from a
+      committed pre-spec, and Check no longer says "deviates" on the reference group.
 - [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
       `cube drill` and `cube prove` (and put their settings back on the tab).
 - **Not checked:** real Excel, a real extract, and the bank machine
