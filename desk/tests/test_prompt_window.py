@@ -115,9 +115,11 @@ def test_neither_shape_fits_the_window_any_more_and_the_size_is_pinned():
     # Up 30 on 10 September 2026: `dec-pos2` added the firm's own standing
     # policy as a source row, and the index a graded prompt shows lists every
     # source the record holds.
-    assert biggest == {"index": 25652, "text": 91096}, (
+    # Up to 38,234 / 132,100 on 26 September 2026: five sections admitted after
+    # Sarcia pilot 3 add 382 rule paragraphs, and the graded prompt lists them.
+    assert biggest == {"index": 38234, "text": 132100}, (
         f"the graded prompt changed size: {biggest}, and this file says "
-        f"{{'index': 25652, 'text': 91096}}. That is allowed — it is what "
+        f"{{'index': 38234, 'text': 132100}}. That is allowed — it is what "
         f"storing authority does — but it is quoted in docs/CONTEXT-ON-FILE.md "
         f"and must move deliberately.")
     assert biggest["index"] > room, (
@@ -395,7 +397,10 @@ NARROWED = {
     # the words it rests on (`Rests on:`), so the van brief gains POS16's one
     # line and nothing else (+43). The hand-tools brief gains POS7's one line
     # (+57), checked by diffing the brief. Nothing else in either brief moved.
-    "hand tools bought for the trade - deducted or capitalized?": 3_550,
+    # AND AGAIN THE SAME DAY (+18): the admitted § 1.461-1 put its (c)(3)(ii)(f)
+    # into this brief in place of a § 1.263(a)-3(k)(1)(i) passage, with S37 in
+    # the sources list. Retrieval moving, checked by diffing the brief.
+    "hand tools bought for the trade - deducted or capitalized?": 3_568,
     "mileage or actual expenses for the van?": 2_463,
 }
 
@@ -418,7 +423,10 @@ NARROWED = {
 # is all position text and no example: sixteen `Rests on:` quotations, the
 # notes on POS7 and POS8, and three positions unpinned to firm policy with the
 # note saying why (Sarcia pilot 3).
-WHOLE = (93_178, 207_484)
+# +41,201 on both sides the same day: 382 rule paragraphs of §§ 1.6001-1,
+# 1.164-1, 1.461-1, 1.263(a)-4 and 1.163-8T, and no example -- theirs are not
+# stored (S37-S39 say why), which is why the two sides moved equally.
+WHOLE = (134_379, 248_684)
 
 
 def _answering_sizes():

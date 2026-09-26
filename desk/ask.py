@@ -150,8 +150,8 @@ def nothing_on_file(question: str, corpus: Path = CORPUS, *, looked=None) -> str
     do with it? we bought a forklift" reaches nothing, while the same
     transaction as "is the invoice price deducted or capitalized?" reaches eight
     passages including the firm's own $2,500 threshold. The cause is two words —
-    `bought` and `forklift` appear in none of the 785 stored passages, while
-    `purchase` appears in 85. Told only that nothing was found, a doer concludes
+    `bought` and `forklift` appear in none of the 1167 stored passages, while
+    `purchase` appears in 93. Told only that nothing was found, a doer concludes
     the firm holds no authority on forklifts. They hold it under other words.
 
     THE LIST IS EXHAUSTIVE AND THAT IS NOT A COINCIDENCE — it is every

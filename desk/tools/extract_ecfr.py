@@ -337,6 +337,21 @@ class Paragraph:
 #: an edit -- and the label comes out PLAIN, which is what (f)(1) is.
 _MISFENCED = re.compile(rf"—\({_I1}([a-zA-Z0-9]{{1,4}}){_I0}\)")
 
+#: AND A HEADING WHOSE ITALICS CLOSE ONE WORD-END EARLY. § 1.263(a)-4 writes
+#: `<I>Capitalization with respect to intangible</I>s—(1)`: the plural's `s`
+#: is outside the italics, so the run-in was not seen, (b)(1) was never
+#: opened, and the whole section had no reading -- which is how the
+#: 12-month prepaid rule the firm needed for a subscription stayed out of the
+#: corpus. Found admitting it, 26 September 2026. Moves the fence past the
+#: letters to the dash; strip the fences and the string is unchanged.
+_CLOSED_EARLY = re.compile(rf"{_I1}([a-z]{{1,3}})—(?=\()")
+
+#: AND ONE WHOSE ITALICS SWALLOW THE LABEL WHOLE. The same section's (d) writes
+#: `<I>Created intangibles—(1) In general.</I>` -- dash, label and child
+#: heading all inside one run. Closed before the dash and reopened after the
+#: label; strip the fences and the string is unchanged.
+_SWALLOWED = re.compile(rf"({_I0}[^{_I1}]*?)—\(([a-zA-Z0-9]{{1,4}})\)\s+([^{_I1}]*{_I1})")
+
 
 def _marked(elem) -> str:
     """The element's text with its italic runs fenced, so a label keeps its face."""
@@ -346,6 +361,8 @@ def _marked(elem) -> str:
         out.append(f"{_I0}{inner}{_I1}" if kid.tag == "I" else inner)
         out.append(kid.tail or "")
     text = " ".join("".join(out).split())
+    text = _CLOSED_EARLY.sub(rf"\1{_I1}—", text)
+    text = _SWALLOWED.sub(rf"\1{_I1}—(\2) {_I0}\3", text)
     return _MISFENCED.sub(rf"{_I1}—(\1){_I0}", text)
 
 
@@ -539,7 +556,7 @@ def outline(xml_path: Path) -> tuple[list[Paragraph], list[str]]:
     understands, and a silent skip would shrink the corpus without a trace.
     """
     root = ET.parse(xml_path).getroot()
-    elements = [c for c in root if c.tag in ("P", "PSPACE")]
+    elements = [c for c in root if c.tag in ("P", "PSPACE", "FP")]
     chains: list[list[tuple[str, bool, str]]] = []
     #: `{index into chains: the unlabelled elements that follow it}`.
     #:
@@ -553,7 +570,25 @@ def outline(xml_path: Path) -> tuple[list[Paragraph], list[str]]:
     #: It stays an error BEFORE the first label, because then there is no
     #: paragraph for it to continue and attaching it anywhere would be a guess.
     continuations: dict[int, list[str]] = {}
+    #: `{index into chains: flush text that follows it}`.
+    #:
+    #: A FLUSH PARAGRAPH (`<FP>`) BELONGS TO THE PARENT OF WHAT PRECEDES IT, and
+    #: it was DROPPED until 26 September 2026 -- this read only `<P>`, so seven
+    #: flush paragraphs across five stored sections never reached the corpus,
+    #: among them § 1.274-5T's corroborating-evidence rule and § 1.280F-6's
+    #: related-party limit. Found admitting § 1.164-1, whose business-taxes rule
+    #: is a flush paragraph after (a)(1)-(5): "In addition, there shall be
+    #: allowed ... taxes not described in subparagraphs (1) through (5) of this
+    #: paragraph". The regulation says whose it is: (a)'s, not (a)(5)'s.
+    flush: dict[int, list[str]] = {}
     for n, elem in enumerate(elements, 1):
+        if elem.tag == "FP":
+            if not chains:
+                raise ValueError(
+                    f"element {n} is a flush paragraph with nothing above it to "
+                    f"belong to: {_plain(_marked(elem))[:60]!r}")
+            flush.setdefault(len(chains) - 1, []).append(_plain(_marked(elem)))
+            continue
         opened = chains_of(elem)
         if not opened:
             if not chains:
@@ -583,6 +618,8 @@ def outline(xml_path: Path) -> tuple[list[Paragraph], list[str]]:
             paragraphs.append(Paragraph(path=path[:base + k + 1], text=text))
         for text in continuations.get(i, ()):
             paragraphs.append(Paragraph(path=path, text=text))
+        for text in flush.get(i, ()):
+            paragraphs.append(Paragraph(path=path[:-1] or path, text=text))
     return paragraphs, underdetermined
 
 

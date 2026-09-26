@@ -81,6 +81,16 @@ it answers the opposite way.
 
 **Answered from S33:** accountable plan, accountable plans, nonaccountable plan, nonaccountable plans, reimbursement, reimbursements, reimburse, reimburses, reimbursed, allowance, allowances, advance, advances, mileage allowance, car allowance, per diem, business connection, returning amounts in excess of expenses, 62(c), 1.62-2
 
+**Answered from S35:** records, recordkeeping, record keeping, books of account, books and records, keep records, retain records, retention, commingled, commingling, substantiate, substantiation
+
+**Answered from S36:** tax, taxes, property tax, property taxes, personal property tax, real property tax, real estate tax, sales tax, state tax, local tax, excise, registration fee, registration fees
+
+**Answered from S37:** taxable year of deduction, year of deduction, cash method, cash basis, accrual method, accrual basis, all events, economic performance, prepaid, prepayment, prepayments, paid in advance
+
+**Answered from S38:** intangible, intangibles, prepaid expense, prepaid expenses, 12-month rule, twelve-month rule, twelve months, subscription, subscriptions, annual subscription, membership, memberships, dues, license, licenses, prepaid insurance, prepaid rent
+
+**Answered from S39:** interest, interest expense, finance charge, finance charges, credit card interest, allocation of interest, interest allocation, debt proceeds, tracing, mixed use, mixed-use, business and personal
+
 
 
 **Records:** capitalization_rule, trade, taxpayer, unit_cost

@@ -10336,3 +10336,3705 @@ any other year. Do not read a rate off this file for a year it does not name.
 **Source:** S13 · **Checked:** 2026-09-05 · **Kind:** rule
 
 > If you received a reimbursement or an allowance for travel, or gift expenses that you incurred on behalf of a client, you should provide an adequate accounting of these expenses to your client. If you don’t account to your client for these expenses, you must include any reimbursements or allowances in income. You must keep adequate records of these expenses whether or not you account to your client for these expenses. If you don’t separately account for and seek reimbursement for meal and entertainment expenses in connection with providing services for a client, you are subject to the 50% limit on those expenses. See 50% Limit in chapter 2.
+
+## 26 CFR 1.6001-1(a)
+
+**Source:** S35 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Except as provided in paragraph (b) of this section, any person
+> subject to tax under subtitle A of the Code (including a qualified State
+> individual income tax which is treated pursuant to section 6361(a) as if it
+> were imposed by chapter 1 of subtitle A), or any person required to file a
+> return of information with respect to income, shall keep such permanent
+> books of account or records, including inventories, as are sufficient to
+> establish the amount of gross income, deductions, credits, or other matters
+> required to be shown by such person in any return of such tax or
+> information.
+
+## 26 CFR 1.6001-1(b)
+
+**Source:** S35 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Farmers and wage-earners. Individuals deriving gross income from the
+> business of farming, and individuals whose gross income includes salaries,
+> wages, or similar compensation for personal services rendered, are required
+> with respect to such income to keep such records as will enable the district
+> director to determine the correct amount of income subject to the tax. It is
+> not necessary, however, that with respect to such income individuals keep
+> the books of account or records required by paragraph (a) of this section.
+> For rules with respect to the records to be kept in substantiation of
+> traveling and other business expenses of employees, see § 1.162-17.
+
+## 26 CFR 1.6001-1(c)
+
+**Source:** S35 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Exempt organizations. In addition to such permanent books and records as are
+> required by paragraph (a) of this section with respect to the tax imposed by
+> section 511 on unrelated business income of certain exempt organizations,
+> every organization exempt from tax under section 501(a) shall keep such
+> permanent books of account or records, including inventories, as are
+> sufficient to show specifically the items of gross income, receipts and
+> disbursements. Such organizations shall also keep such books and records as
+> are required to substantiate the information required by section 6033. See
+> section 6033 and §§ 1.6033-1 through 1.6033-3.
+
+## 26 CFR 1.6001-1(d)
+
+**Source:** S35 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Notice by district director requiring returns statements, or the keeping of
+> records. The district director may require any person, by notice served upon
+> him, to make such returns, render such statements, or keep such specific
+> records as will enable the district director to determine whether or not
+> such person is liable for tax under subtitle A of the Code, including
+> qualified State individual income taxes, which are treated pursuant to
+> section 6361(a) as if they were imposed by chapter 1 of subtitle A.
+
+## 26 CFR 1.6001-1(e)
+
+**Source:** S35 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Retention of records. The books or records required by this section shall be
+> kept at all times available for inspection by authorized internal revenue
+> officers or employees, and shall be retained so long as the contents thereof
+> may become material in the administration of any internal revenue law.
+
+## 26 CFR 1.164-1(a)
+
+**Source:** S36 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Only the following taxes shall be allowed as a deduction under
+> this section for the taxable year within which paid or accrued, according to
+> the method of accounting used in computing taxable income: In addition,
+> there shall be allowed as a deduction under this section State and local and
+> foreign taxes not described in subparagraphs (1) through (5) of this
+> paragraph which are paid or accrued within the taxable year in carrying on a
+> trade or business or an activity described in section 212 (relating to
+> expenses for production of income). For example, dealers or investors in
+> securities and dealers or investors in real estate may deduct State stock
+> transfer and real estate transfer taxes, respectively, under section 164, to
+> the extent they are expenses incurred in carrying on a trade or business or
+> an activity for the production of income. In general, taxes are deductible
+> only by the person upon whom they are imposed. However, see § 1.164-5 in the
+> case of certain taxes paid by the consumer. Also, in the case of a qualified
+> State individual income tax (as defined in section 6362 and the regulations
+> thereunder) which is determined by reference to a percentage of the Federal
+> income tax (pursuant to section 6362 (c)), an accrual method taxpayer shall
+> use the cash receipts and disbursements method to compute the amount of his
+> deduction therefor. Thus, the deduction under section 164 is in the amount
+> actually paid with respect to the qualified tax, rather than the amount
+> accrued with respect thereto, during the taxable year even though the
+> taxpayer uses the accrual method of accounting for other purposes. In
+> addition, see paragraph (f)(1) of § 301.6361-1 of this chapter (Regulations
+> on Procedure and Administration) with respect to rules relating to
+> allocation and reallocation of amounts collected on account of the Federal
+> income tax and qualified taxes.
+
+## 26 CFR 1.164-1(a)(1)
+
+**Source:** S36 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> State and local, and foreign, real property taxes.
+
+## 26 CFR 1.164-1(a)(2)
+
+**Source:** S36 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> State and local personal property taxes.
+
+## 26 CFR 1.164-1(a)(3)
+
+**Source:** S36 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> State and local, and foreign, income, war profits, and excess profits taxes.
+
+## 26 CFR 1.164-1(a)(4)
+
+**Source:** S36 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> State and local general sales taxes.
+
+## 26 CFR 1.164-1(a)(5)
+
+**Source:** S36 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> State and local taxes on the sale of gasoline, diesel fuel, and other motor
+> fuels.
+
+## 26 CFR 1.164-1(b)
+
+**Source:** S36 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Taxable years beginning before January 1, 1964. For taxable years beginning
+> before January 1, 1964, except as otherwise provided in §§ 1.164-2 through
+> 1.164-8, inclusive, taxes imposed by the United States, any State,
+> territory, possession of the United States, or a political subdivision of
+> any of the foregoing, or by any foreign country, are deductible from gross
+> income for the taxable year in which paid or accrued, according to the
+> method of accounting used in computing taxable income. For this purpose,
+> postage is not a tax and automobile license or registration fees are
+> ordinarily taxes.
+
+## 26 CFR 1.164-1(c)
+
+**Source:** S36 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Cross references. For the definition of the term “real property taxes”, see
+> paragraph (d) of § 1.164-3. For the definition of the term “foreign taxes”,
+> see paragraph (d) of § 1.164-3. For the definition of the term “general
+> sales taxes”, see paragraph (f) of § 1.164-3. For the treatment of gasoline,
+> diesel fuel, and other motor fuel taxes, see § 1.164-5. For apportionment of
+> taxes on real property between seller and purchaser, see section 164(d) and
+> § 1.164-6. For the general rule for taxable year of deduction, see section
+> 461. For provisions disallowing any deduction for the tax paid at the source
+> on interest from tax-free covenant bonds, see section 1451(f).
+
+## 26 CFR 1.461-1(a)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> General rule
+
+## 26 CFR 1.461-1(a)(1)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Taxpayer using cash receipts and disbursements method. Under the cash
+> receipts and disbursements method of accounting, amounts representing
+> allowable deductions shall, as a general rule, be taken into account for the
+> taxable year in which paid. Further, a taxpayer using this method may also
+> be entitled to certain deductions in the computation of taxable income which
+> do not involve cash disbursements during the taxable year, such as the
+> deductions for depreciation, depletion, and losses under sections 167, 611,
+> and 165, respectively. If an expenditure results in the creation of an asset
+> having a useful life which extends substantially beyond the close of the
+> taxable year, such an expenditure may not be deductible, or may be
+> deductible only in part, for the taxable year in which made. An example is
+> an expenditure for the construction of improvements by the lessee on leased
+> property where the estimated life of the improvements is in excess of the
+> remaining period of the lease. In such a case, in lieu of the allowance for
+> depreciation provided by section 167, the basis shall be amortized ratably
+> over the remaining period of the lease. See section 178 and the regulations
+> thereunder for rules governing the effect to be given renewal options in
+> determining whether the useful life of the improvements exceeds the
+> remaining term of the lease where a lessee begins improvements on leased
+> property after July 28, 1958, other than improvements which on such date and
+> at all times thereafter, the lessee was under a binding legal obligation to
+> make. See section 263 and the regulations thereunder for rules relating to
+> capital expenditures. See section 467 and the regulations thereunder for
+> rules under which a liability arising out of the use of property pursuant to
+> a section 467 rental agreement is taken into account.
+
+## 26 CFR 1.461-1(a)(2)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Taxpayer using an accrual method
+
+## 26 CFR 1.461-1(a)(2)(i)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Under an accrual method of accounting, a liability (as defined
+> in § 1.446-1(c)(1)(ii)(B)) is incurred, and generally is taken into account
+> for Federal income tax purposes, in the taxable year in which all the events
+> have occurred that establish the fact of the liability, the amount of the
+> liability can be determined with reasonable accuracy, and economic
+> performance has occurred with respect to the liability. (See paragraph
+> (a)(2)(iii)(A) of this section for examples of liabilities that may not be
+> taken into account until a taxable year subsequent to the taxable year
+> incurred, and see §§ 1.461-4 through 1.461-6 for rules relating to economic
+> performance.) Applicable provisions of the Code, the Income Tax Regulations,
+> and other guidance published by the Secretary prescribe the manner in which
+> a liability that has been incurred is taken into account. For example,
+> section 162 provides that the deductible liability generally is taken into
+> account in the taxable year incurred through a deduction from gross income.
+> As a further example, under section 263 or 263A, a liability that relates to
+> the creation of an asset having a useful life extending substantially beyond
+> the close of the taxable year is taken into account in the taxable year
+> incurred through capitalization (within the meaning of § 1.263A-1(c)(3)),
+> and may later affect the computation of taxable income through depreciation
+> or otherwise over a period including subsequent taxable years, in accordance
+> with applicable Internal Revenue Code sections and guidance published by the
+> Secretary. The principles of this paragraph (a)(2) also apply in the
+> calculation of earnings and profits and accumulated earnings and profits.
+
+## 26 CFR 1.461-1(a)(2)(ii)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Uncertainty as to the amount of a liability. While no liability shall be
+> taken into account before economic performance and all of the events that
+> fix the liability have occurred, the fact that the exact amount of the
+> liability cannot be determined does not prevent a taxpayer from taking into
+> account that portion of the amount of the liability which can be computed
+> with reasonable accuracy within the taxable year. For example, A renders
+> services to B during the taxable year for which A charges $10,000. B admits
+> a liability to A for $6,000 but contests the remainder. B may take into
+> account only $6,000 as an expense for the taxable year in which the services
+> were rendered.
+
+## 26 CFR 1.461-1(a)(2)(iii)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Alternative timing rules.
+
+## 26 CFR 1.461-1(a)(2)(iii)(A)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> If any provision of the Code requires a liability to be taken into account
+> in a taxable year later than the taxable year provided in paragraph
+> (a)(2)(i) of this section, the liability is taken into account as prescribed
+> in that Code provision. See, for example, section 267 (transactions between
+> related parties) and section 464 (farming syndicates).
+
+## 26 CFR 1.461-1(a)(2)(iii)(B)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> If the liability of a taxpayer is subject to section 170 (charitable
+> contributions), section 192 (black lung benefit trusts), section 194A
+> (employer liability trusts), section 468 (mining and solid waste disposal
+> reclamation and closing costs), or section 468A (certain nuclear
+> decommissioning costs), the liability is taken into account as determined
+> under that section and not under section 461 or the regulations thereunder.
+> For special rules relating to certain loss deductions, see sections 165(e),
+> 165(i), and 165(l), relating to theft losses, disaster losses, and losses
+> from certain deposits in qualified financial institutions.
+
+## 26 CFR 1.461-1(a)(2)(iii)(C)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Section 461 and the regulations thereunder do not apply to any amount
+> allowable under a provision of the Code as a deduction for a reserve for
+> estimated expenses.
+
+## 26 CFR 1.461-1(a)(2)(iii)(D)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Except as otherwise provided in any Internal Revenue regulations, revenue
+> procedure, or revenue ruling, the economic performance requirement of
+> section 461(h) and the regulations thereunder is satisfied to the extent
+> that any amount is otherwise deductible under section 404 (employer
+> contributions to a plan of deferred compensation), section 404A (certain
+> foreign deferred compensation plans), or section 419 (welfare benefit
+> funds). See § 1.461-4(d)(2)(iii).
+
+## 26 CFR 1.461-1(a)(2)(iii)(E)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Except as otherwise provided by regulations or other published guidance
+> issued by the Commissioner (See § 601.601(b)(2) of this chapter), in the
+> case of a liability arising out of the use of property pursuant to a section
+> 467 rental agreement, the all events test (including economic performance)
+> is considered met in the taxable year in which the liability is to be taken
+> into account under section 467 and the regulations thereunder.
+
+## 26 CFR 1.461-1(a)(3)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Effect in current taxable year of improperly accounting for a liability in a
+> prior taxable year. Each year's return should be complete in itself, and
+> taxpayers shall ascertain the facts necessary to make a correct return. The
+> expenses, liabilities, or loss of one year generally cannot be used to
+> reduce the income of a subsequent year. A taxpayer may not take into account
+> in a return for a subsequent taxable year liabilities that, under the
+> taxpayer's method of accounting, should have been taken into account in a
+> prior taxable year. If a taxpayer ascertains that a liability should have
+> been taken into account in a prior taxable year, the taxpayer should, if
+> within the period of limitation, file a claim for credit or refund of any
+> overpayment of tax arising therefrom. Similarly, if a taxpayer ascertains
+> that a liability was improperly taken into account in a prior taxable year,
+> the taxpayer should, if within the period of limitation, file an amended
+> return and pay any additional tax due. However, except as provided in
+> section 905(c) and the regulations thereunder, if a liability is properly
+> taken into account in an amount based on a computation made with reasonable
+> accuracy and the exact amount of the liability is subsequently determined in
+> a later taxable year, the difference, if any, between such amounts shall be
+> taken into account for the later taxable year.
+
+## 26 CFR 1.461-1(a)(4)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Deductions attributable to certain foreign income. In any case in which,
+> owing to monetary, exchange, or other restrictions imposed by a foreign
+> country, an amount otherwise constituting gross income for the taxable year
+> from sources without the United States is not includible in gross income of
+> the taxpayer for that year, the deductions and credits properly chargeable
+> against the amount so restricted shall not be deductible in such year but
+> shall be deductible proportionately in any subsequent taxable year in which
+> such amount or portion thereof is includible in gross income. See paragraph
+> (g) of § 1.905-1 for rules relating to credit for foreign income taxes when
+> foreign income is subject to exchange controls.
+
+## 26 CFR 1.461-1(b)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Special rule in case of death. A taxpayer's taxable year ends on the date of
+> his death. See section 443(a)(2) and paragraph (a)(2) of § 1.443-1. In
+> computing taxable income for such year, there shall be deducted only amounts
+> properly deductible under the method of accounting used by the taxpayer.
+> However, if the taxpayer used an accrual method of accounting, no deduction
+> shall be allowed for amounts accrued only by reason of his death. For rules
+> relating to the inclusion of items of partnership deduction, loss, or credit
+> in the return of a decedent partner, see subchapter K, chapter 1 of the
+> Code, and the regulations thereunder.
+
+## 26 CFR 1.461-1(c)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Accrual of real property taxes
+
+## 26 CFR 1.461-1(c)(1)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. If the accrual of real property taxes is proper in connection
+> with one of the methods of accounting described in section 446(c), any
+> taxpayer using such a method of accounting may elect to accrue any real
+> property tax, which is related to a definite period of time, ratably over
+> that period in the manner described in this paragraph. For example, assume
+> that such an election is made by a calendar-year taxpayer whose real
+> property taxes, applicable to the period from July 1, 1955, to June 30,
+> 1956, amount to $1,200. Under section 461(c), $600 of such taxes accrue in
+> the calendar year 1955, and the balance accrues in 1956. For special rule in
+> the case of certain contested real property taxes in respect of which the
+> taxpayer transfers money or other property to provide for the satisfaction
+> of the contested tax, see § 1.461-2. For general rules relating to
+> deductions for taxes, see section 164 and the regulations thereunder.
+
+## 26 CFR 1.461-1(c)(2)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Special rules
+
+## 26 CFR 1.461-1(c)(2)(i)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Effective date. Section 461(c) and this paragraph do not apply to any real
+> property tax allowable as a deduction under the Internal Revenue Code of
+> 1939 for any taxable year beginning before January 1, 1954.
+
+## 26 CFR 1.461-1(c)(2)(ii)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> If real property taxes which relate to a period prior to the taxpayer's
+> first taxable year beginning on or after January 1, 1954, would, but for
+> section 461(c), be deductible in such first taxable year, the portion of
+> such taxes which applies to the prior period is deductible in such first
+> taxable year (in addition to the amount allowable under section 461(c)(1)).
+
+## 26 CFR 1.461-1(c)(3)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> When election may be made
+
+## 26 CFR 1.461-1(c)(3)(i)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Without consent. A taxpayer may elect to accrue real property taxes ratably
+> in accordance with section 461(c) and this paragraph without the consent of
+> the Commissioner for his first taxable year beginning after December 31,
+> 1953, and ending after August 16, 1954, in which the taxpayer incurs real
+> property taxes. Such election must be made not later than the time
+> prescribed by law for filing the return for such year (including extensions
+> thereof). An election may be made by the taxpayer for each separate trade or
+> business (and for nonbusiness activities, if accounted for separately). Such
+> an election shall apply to all real property taxes of the trade, business,
+> or nonbusiness activity for which the election is made. The election shall
+> be made in a statement submitted with the taxpayer's return for the first
+> taxable year to which the election is applicable. The statement should set
+> forth:
+
+## 26 CFR 1.461-1(c)(3)(i)(a)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The trades or businesses, or nonbusiness activity, to which the election is
+> to apply, and the method of accounting used therein;
+
+## 26 CFR 1.461-1(c)(3)(i)(b)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The period of time to which the taxes are related; and
+
+## 26 CFR 1.461-1(c)(3)(i)(c)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The computation of the deduction for real property taxes for the first year
+> of the election (or a summary of such computation).
+
+## 26 CFR 1.461-1(c)(3)(ii)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> With consent. A taxpayer may elect with the consent of the Commissioner to
+> accrue real property taxes ratably in accordance with section 461 (c) and
+> this paragraph. A written request for permission to make such an election
+> shall be submitted to the Commissioner of Internal Revenue, Washington, D.C.
+> 20224, within 90 days after the beginning of the taxable year to which the
+> election is first applicable, or before March 26, 1958, whichever date is
+> later. The request for permission shall state:
+
+## 26 CFR 1.461-1(c)(3)(ii)(a)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The name and address of the taxpayer;
+
+## 26 CFR 1.461-1(c)(3)(ii)(b)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The trades or businesses, or nonbusiness activity, to which the election is
+> to apply, and the method of accounting used therein;
+
+## 26 CFR 1.461-1(c)(3)(ii)(c)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The taxable year to which the election first applies;
+
+## 26 CFR 1.461-1(c)(3)(ii)(d)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The period to which the real property tax relate;
+
+## 26 CFR 1.461-1(c)(3)(ii)(e)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The computation of the deduction for real property taxes for the first year
+> of election (or a summary of such computation); and
+
+## 26 CFR 1.461-1(c)(3)(ii)(f)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An adequate description of the manner in which all real property taxes were
+> deducted in the year prior to the year of election.
+
+## 26 CFR 1.461-1(c)(4)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Binding effect of election. An election to accrue real property taxes
+> ratably under section 461(c) is binding upon the taxpayer unless the consent
+> of the Commissioner is obtained under section 446(e) and paragraph (e) of §
+> 1.446-1 to change such method of deducting real property taxes. If the last
+> day prescribed by law for filing a return for any taxable year (including
+> extensions thereof) to which section 461(c) is applicable falls before March
+> 25, 1958, consent is hereby given for the taxpayer to revoke an election
+> previously made to accrue real property taxes in the manner prescribed by
+> section 461(c). If the taxpayer revokes his election under the preceding
+> sentence, he must, on or before March 25, 1958, notify the district director
+> for the district in which the return was filed of such revocation. For any
+> taxable year for which such revocation is applicable, an amended return
+> reflecting such revocation shall be filed on or before March 25, 1958.
+
+## 26 CFR 1.461-1(c)(5)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Apportionment of taxes on real property between seller and purchaser. For
+> apportionment of taxes on real property between seller and purchaser, see
+> section 164(d) and the regulations thereunder.
+
+## 26 CFR 1.461-1(c)(6)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The provisions of this paragraph are illustrated by the following
+> examples:
+
+## 26 CFR 1.461-1(d)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Limitation on acceleration of accrual of taxes.
+
+## 26 CFR 1.461-1(d)(1)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Section 461(d)(1) provides that, in the case of a taxpayer whose taxable
+> income is computed under an accrual method of accounting, to the extent that
+> the time for accruing taxes is earlier than it would be but for any action
+> of any taxing jurisdiction taken after December 31, 1960, such taxes are to
+> be treated as accruing at the time they would have accrued but for such
+> action. Any such action which, but for the provisions of section 461(d) and
+> this paragraph, would accelerate the time for accruing a tax is to be
+> disregarded in determining the time for accruing such tax for purposes of
+> the deduction allowed for such tax. Such action is to be disregarded not
+> only with respect to a taxpayer (whose taxable income is computed under an
+> accrual method of accounting) upon whom the tax is imposed at the time of
+> the action, but also with respect to such a taxpayer upon whom the tax is
+> imposed at any time subsequent to such action. Thus, in the case of a tax
+> imposed on property, the acceleration of the time for accruing taxes is to
+> be disregarded not only with respect to the taxpayer who owned the property
+> at the time of such acceleration, but also with respect to any subsequent
+> owner of the property whose taxable income is computed under an accrual
+> method of accounting. Similarly, such action is to be disregarded with
+> respect to all property subject to such tax, even if such property is
+> acquired after the action. Whenever the time for accruing taxes is to be
+> disregarded in accordance with the provisions of this paragraph, the
+> taxpayer shall accrue the tax at the time (original accrual date) the tax
+> would have accrued but for such action, and shall, in the absence of any
+> action of the taxing jurisdiction placing the time for accruing such tax at
+> a time subsequent to the original accrual date, continue to accrue the tax
+> as of the original accrual date for all future taxable years.
+
+## 26 CFR 1.461-1(d)(2)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> For purposes of this paragraph—
+
+## 26 CFR 1.461-1(d)(2)(i)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The term “a taxpayer whose taxable income is computed under an accrual
+> method of accounting” means a taxpayer who, for Federal income tax purposes,
+> accounts for any tax which is the subject of “any action” (as defined in
+> subdivision (iii) of this subparagraph) under an accrual method of
+> accounting. See section 446 and the regulations thereunder. If a taxpayer
+> uses an accrual method as his overall method of accounting, it shall be
+> presumed that he is “a taxpayer whose taxable income is computed under an
+> accrual method of accounting.” However, if the taxpayer establishes to the
+> satisfaction of the district director that he has, for Federal income tax
+> purposes, consistently accounted for such tax under the cash method of
+> accounting, he shall be considered not to be “a taxpayer whose taxable
+> income is computed under an accrual method of accounting.”
+
+## 26 CFR 1.461-1(d)(2)(ii)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The time for accruing taxes shall be determined under section 461 and the
+> regulations in this section.
+
+## 26 CFR 1.461-1(d)(2)(iii)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The term “any action” includes the enactment or reenactment of legislation,
+> the adoption of an ordinance, the exercise of any taxing or administrative
+> authority, or the taking of any other step, the result of which is an
+> acceleration of the accrual event of any tax. The term also applies to the
+> substitution of a substantially similar tax by either the original taxing
+> jurisdiction or a substitute jurisdiction. However, the term does not
+> include either a judicial interpretation, or an administrative determination
+> by the Internal Revenue Service, as to the event which fixes the accrual
+> date for the tax.
+
+## 26 CFR 1.461-1(d)(2)(iv)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The term “any taxing jurisdiction” includes the District of Columbia, any
+> State, possession of the United States, city, county, municipality, school
+> district, or other political subdivision or authority, other than the United
+> States, which imposes, assesses, or collects a tax.
+
+## 26 CFR 1.461-1(d)(3)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The provisions of this paragraph may be illustrated by the following
+> examples:
+
+## 26 CFR 1.461-1(d)(4)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Section 461(d)(1) shall not be applicable to the extent that it would
+> prevent the taxpayer and all other persons, including successors in
+> interest, from ever taking into account, for Federal income tax purposes,
+> any tax to which that section would otherwise apply. For example, assume
+> that State Y imposes a personal property tax on tangible personal property
+> used in a trade or business conducted in the State during a calendar year.
+> The tax is assessed as of February 1 of the year following the personal
+> property tax year, and becomes a lien as of that date. As a result of
+> administrative and judicial decisions, February 1 of the following year is
+> recognized as the proper date on which accrual method taxpayers may accrue
+> the personal property tax for Federal income tax purposes. In 1962 State Y,
+> by legislative action, changes the assessment and lien dates for the
+> personal property tax year 1962 from February 1, 1963, to December 1, 1962,
+> and to December 1 of the personal property tax year for all subsequent
+> years. Corporation A, an accrual method taxpayer which uses the calendar
+> year as its taxable year, pays the tax for 1962 on December 10, 1962. On
+> December 15, 1962, the property which was taxed is completely destroyed and,
+> on December 20, 1962, corporation A transfers all of its remaining assets to
+> its shareholders, and is dissolved. Since corporation A is not in existence
+> in 1963, and therefore could not take the personal property tax into account
+> in computing its 1963 Federal income tax if February 1, 1963, is considered
+> to be the time for accruing the tax, and no other person could ever take
+> such tax into account in computing his Federal income tax, such tax shall be
+> treated as accruing as of December 1, 1962. To the extent that any person
+> other than the taxpayer may at any time take such tax into account in
+> computing his taxable income, the provisions of section 461(d)(1) shall
+> apply. Thus, upon the dissolution of a corporation or the termination of a
+> partnership between the time which, but for the provisions of section
+> 461(d)(1) and this paragraph, would be the time for accruing any tax which
+> was the subject of “any action” (as defined in subdivision (iii) of
+> subparagraph (2)), and the original accrual date, the corporation or the
+> partnership would be entitled to a deduction for only that portion, if any,
+> of such tax with respect to which it can establish, to the satisfaction of
+> the district director, that no other taxpayer can properly take into account
+> in computing his taxable income. However, to the extent that the corporation
+> or partnership cannot establish, at the time of its dissolution or
+> termination, as the case may be, that no other taxpayer would be entitled to
+> take such tax into account in computing his taxable income, and it is
+> subsequently determined that no other taxpayer is entitled to take such tax
+> into account in computing his taxable income, the corporation or partnership
+> may file a claim for refund for the year of its dissolution or termination
+> (subject to the limitations prescribed in section 6511) and claim as a
+> deduction therein the portion of such tax determined to be not deductible by
+> any other taxpayer.
+
+## 26 CFR 1.461-1(d)(5)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Section 461(d) and this paragraph shall apply to taxable years ending after
+> December 31, 1960.
+
+## 26 CFR 1.461-1(e)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Dividends or interest paid by certain savings institutions on certain
+> deposits or withdrawable accounts
+
+## 26 CFR 1.461-1(e)(1)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Deduction not allowable
+
+## 26 CFR 1.461-1(e)(1)(i)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Except as otherwise provided in this paragraph, pursuant to
+> section 461(e) amounts paid to, or credited to the accounts of, depositors
+> or holders of accounts as dividends or interest on their deposits or
+> withdrawable accounts (if such amounts paid or credited are withdrawable on
+> demand subject only to customary notice to withdraw) by a mutual savings
+> bank not having capital stock represented by shares, a domestic building and
+> loan association, or a cooperative bank shall not be allowed as a deduction
+> for the taxable year to the extent such amounts are paid or credited for
+> periods representing more than 12 months. The provisions of section 461(e)
+> are applicable with respect to taxable years ending after December 31, 1962.
+> Whether amounts are paid or credited for periods representing more than 12
+> months depends upon all the facts and circumstances in each case. For
+> example, payments or credits which under all the facts and circumstances are
+> in the nature of bona fide bonus interest or dividends paid or credited
+> because a shareholder or depositor maintained a certain balance for more
+> than 12 months, will not be considered made for more than 12 months,
+> providing the regular payments or credits represent a period of 12 months or
+> less. The nonallowance of a deduction to the taxpayer under section 461(e)
+> and this subparagraph has no effect either on the proper time for reporting
+> dividends or interest by a depositor or holder of a withdrawable account, or
+> on the obligation of the taxpayer to make a return setting forth, among
+> other things, the aggregate amounts paid to a depositor or shareholder under
+> section 6049 (relating to returns regarding payments of interest) and the
+> regulations thereunder. With respect to a short period (a taxable year
+> consisting of a period of less than 12 months), amounts of dividends or
+> interest paid or credited shall not be allowed as a deduction to the extent
+> that such amounts are paid or credited for a period representing more than
+> the number of months in such short period. In such a case, the rules
+> contained in section 461(e) and this paragraph apply to the short period in
+> a manner consistent with the application of such rules to a 12-month taxable
+> year. Subparagraph (2) of this paragraph provides rules for computing
+> amounts not allowed in the taxable year and subparagraph (3) provides rules
+> for determining when such amounts are allowed. See section 7701(a) (19) and
+> (32) and the regulations thereunder for the definitions of domestic building
+> and loan association and cooperative bank.
+
+## 26 CFR 1.461-1(e)(1)(ii)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Exceptions. The rule of nonallowance set forth in subdivision (i) of this
+> subparagraph is not applicable to a taxpayer in the year in which it
+> liquidates (other than following, or as part of, an acquisition of its
+> assets in which the acquiring corporation, pursuant to section 381(a), takes
+> into account certain items of the taxpayer, which for purposes of this
+> paragraph shall be referred to as an acquisition described in section
+> 381(a)). In addition, such rule of nonallowance is not applicable to a
+> taxpayer which pays or credits grace interest or dividends to terminating
+> depositors or shareholders, provided the total amount of the grace interest
+> or dividends paid or credited during the payment or crediting period (for
+> example, a quarterly or semiannual period) does not exceed 10 percent of the
+> total amount of the interest or dividends paid or credited during such
+> period, computed without regard to the grace interest or dividends. For
+> example, providing the 10 percent limitation is met, the rule of
+> nonallowance does not apply in a case in which a calendar year taxpayer,
+> with regular interest payment dates of January 1, April 1, July 1, and
+> October 1, pays grace interest for the period beginning October 1 to a
+> depositor who terminates his account on December 10.
+
+## 26 CFR 1.461-1(e)(2)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Computation of amounts not allowed as a deduction
+
+## 26 CFR 1.461-1(e)(2)(i)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Method of computation. The amount of the dividends or interest to which
+> subparagraph (1) of this paragraph applies, which is not allowed as a
+> deduction, shall be computed under the rules of this subparagraph. The
+> amount which is not allowed as a deduction is the difference between the
+> total amount of dividends or interest paid or credited to that class of
+> accounts with respect to which a deduction is not allowed under subparagraph
+> (1) of this paragraph during the taxable year (or short period, if
+> applicable) and an amount which bears the same ratio to such total as the
+> number 12 (or number of months in the short period) bears to the number of
+> months with respect to which such amounts of dividends or interest are paid
+> or credited.
+
+## 26 CFR 1.461-1(e)(2)(ii)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The provisions of subdivision (i) of this subparagraph may be
+> illustrated by the following examples:
+
+## 26 CFR 1.461-1(e)(3)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> When amounts allowable. The amount of dividends or interest not allowed as a
+> deduction under subparagraph (1) of this paragraph shall be allowed as
+> follows (subject to the limitation that the total of the amounts so allowed
+> shall not exceed the amount not allowed under subparagraph (1)):
+
+## 26 CFR 1.461-1(e)(3)(i)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Such amount shall be allowed as a deduction in a later taxable year or years
+> subject to the limitation that, when taken together with the deductions
+> otherwise allowable in the later taxable year or years, it does not bring
+> the deductions for any later taxable year to a total representing a period
+> of more than 12 months (or number of months in the short period, if
+> applicable). However, in any event, an amount otherwise allowable under
+> subdivision (ii) of this subparagraph shall be allowed notwithstanding the
+> fact that it may bring the deductions allowable to a total representing a
+> period of more than 12 months (or number of months in the short period, if
+> applicable).
+
+## 26 CFR 1.461-1(e)(3)(ii)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In any case in which it is established to the satisfaction of the
+> Commissioner that the taxpayer does not intend to avoid taxes, one-tenth of
+> such amount shall be allowed as a deduction in each of the 10 succeeding
+> taxable years— Normally, if the deduction not allowed under subparagraph (1)
+> is a result of a change, not requested by the taxpayer, in the taxpayer's
+> annual accounting period or dividend or interest payment or crediting dates
+> solely as a consequence of a requirement of a Federal or State regulatory
+> authority, or if the deduction is not allowed solely as a result of the
+> taxpayer being a party to an acquisition to which section 381(a) applies,
+> the Commissioner will permit the allowance of the amount not allowed in the
+> manner provided in this subdivision. Nothing set forth in this subdivision
+> shall be construed as permitting the allowance of a credit or refund for any
+> year which is barred by the limitations on credit or refund provided by
+> section 6511.
+
+## 26 CFR 1.461-1(e)(3)(ii)(a)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Commencing with the taxable year for which such amount is not allowed as a
+> deduction under subparagraph (1), or
+
+## 26 CFR 1.461-1(e)(3)(ii)(b)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In the case of such amount not allowed for a taxable year ending before July
+> 1, 1964, commencing with either the first or second taxable year after the
+> taxable year for which such amount is not allowed as a deduction under
+> subparagraph (1) if the taxpayer has not taken a deduction on his return, or
+> filed a claim for credit or refund, in respect of such amount under (a).
+
+## 26 CFR 1.461-1(e)(3)(iii)
+
+**Source:** S37 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> If the total of the amounts, if any, allowed under subdivisions (i) and (ii)
+> of this subparagraph before the taxable year in which the taxpayer
+> liquidates or otherwise ceases to engage in trade or business is less than
+> the amount not allowed under subparagraph (1), there shall be allowed a
+> deduction in such taxable year for the difference between the amount not
+> allowed under subparagraph (1) and the amounts allowed, if any, as
+> deductions under subdivisions (i) and (ii) unless the circumstances under
+> which the taxpayer ceased to do business constitute an acquisition described
+> in section 381(a) (relating to carryovers in certain corporate
+> acquisitions). If the circumstances under which the taxpayer ceased to do
+> business constitute an acquisition described in section 381(a), the
+> acquiring corporation shall succeed to and take into account the balance of
+> the amounts not allowed on the same basis as the taxpayer, had it not ceased
+> to engage in business.
+
+## 26 CFR 1.263(a)-4(a)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Overview. This section provides rules for applying section 263(a) to amounts
+> paid to acquire or create intangibles. Except to the extent provided in
+> paragraph (d)(8) of this section, the rules provided by this section do not
+> apply to amounts paid to acquire or create tangible assets. Paragraph (b) of
+> this section provides a general principle of capitalization. Paragraphs (c)
+> and (d) of this section identify intangibles for which capitalization is
+> specifically required under the general principle. Paragraph (e) of this
+> section provides rules for determining the extent to which taxpayers must
+> capitalize transaction costs. Paragraph (f) of this section provides a
+> 12-month rule intended to simplify the application of the general principle
+> to certain payments that create benefits of a brief duration. Additional
+> rules and examples relating to these provisions are provided in paragraphs
+> (g) through (n) of this section. The applicability date of the rules in this
+> section is provided in paragraph (o) of this section. Paragraph (p) of this
+> section provides rules applicable to changes in methods of accounting made
+> to comply with this section.
+
+## 26 CFR 1.263(a)-4(b)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Capitalization with respect to intangibles
+
+## 26 CFR 1.263(a)-4(b)(1)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Except as otherwise provided in this section, a taxpayer must
+> capitalize—
+
+## 26 CFR 1.263(a)-4(b)(1)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An amount paid to acquire an intangible (see paragraph (c) of this section);
+
+## 26 CFR 1.263(a)-4(b)(1)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An amount paid to create an intangible described in paragraph (d) of this
+> section;
+
+## 26 CFR 1.263(a)-4(b)(1)(iii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An amount paid to create or enhance a separate and distinct intangible asset
+> within the meaning of paragraph (b)(3) of this section;
+
+## 26 CFR 1.263(a)-4(b)(1)(iv)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An amount paid to create or enhance a future benefit identified in published
+> guidance in the Federal Register or in the Internal Revenue Bulletin (see §
+> 601.601(d)(2)(ii) of this chapter) as an intangible for which capitalization
+> is required under this section; and
+
+## 26 CFR 1.263(a)-4(b)(1)(v)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An amount paid to facilitate (within the meaning of paragraph (e)(1) of this
+> section) an acquisition or creation of an intangible described in paragraph
+> (b)(1)(i), (ii), (iii) or (iv) of this section.
+
+## 26 CFR 1.263(a)-4(b)(2)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Published guidance. Any published guidance identifying a future benefit as
+> an intangible for which capitalization is required under paragraph
+> (b)(1)(iv) of this section applies only to amounts paid on or after the date
+> of publication of the guidance.
+
+## 26 CFR 1.263(a)-4(b)(3)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Separate and distinct intangible asset
+
+## 26 CFR 1.263(a)-4(b)(3)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Definition. The term separate and distinct intangible asset means a property
+> interest of ascertainable and measurable value in money's worth that is
+> subject to protection under applicable State, Federal or foreign law and the
+> possession and control of which is intrinsically capable of being sold,
+> transferred or pledged (ignoring any restrictions imposed on assignability)
+> separate and apart from a trade or business. In addition, for purposes of
+> this section, a fund (or similar account) is treated as a separate and
+> distinct intangible asset of the taxpayer if amounts in the fund (or
+> account) may revert to the taxpayer. The determination of whether a payment
+> creates a separate and distinct intangible asset is made based on all of the
+> facts and circumstances existing during the taxable year in which the
+> payment is made.
+
+## 26 CFR 1.263(a)-4(b)(3)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Creation or termination of contract rights. Amounts paid to another party to
+> create, originate, enter into, renew or renegotiate an agreement with that
+> party that produces rights or benefits for the taxpayer (and amounts paid to
+> facilitate the creation, origination, enhancement, renewal or renegotiation
+> of such an agreement) are treated as amounts that do not create (or
+> facilitate the creation of) a separate and distinct intangible asset within
+> the meaning of this paragraph (b)(3). Further, amounts paid to another party
+> to terminate (or facilitate the termination of) an agreement with that party
+> are treated as amounts that do not create a separate and distinct intangible
+> asset within the meaning of this paragraph (b)(3). See paragraphs (d)(2),
+> (d)(6), and (d)(7) of this section for rules that specifically require
+> capitalization of amounts paid to create or terminate certain agreements.
+
+## 26 CFR 1.263(a)-4(b)(3)(iii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Amounts paid in performing services. Amounts paid in performing services
+> under an agreement are treated as amounts that do not create a separate and
+> distinct intangible asset within the meaning of this paragraph (b)(3),
+> regardless of whether the amounts result in the creation of an income stream
+> under the agreement.
+
+## 26 CFR 1.263(a)-4(b)(3)(iv)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Creation of computer software. Except as otherwise provided in the Internal
+> Revenue Code, the regulations thereunder, or other published guidance in the
+> Federal Register or in the Internal Revenue Bulletin (see §
+> 601.601(d)(2)(ii) of this chapter), amounts paid to develop computer
+> software are treated as amounts that do not create a separate and distinct
+> intangible asset within the meaning of this paragraph (b)(3).
+
+## 26 CFR 1.263(a)-4(b)(3)(v)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Creation of package design. Amounts paid to develop a package design are
+> treated as amounts that do not create a separate and distinct intangible
+> asset within the meaning of this paragraph (b)(3). For purposes of this
+> section, the term package design means the specific graphic arrangement or
+> design of shapes, colors, words, pictures, lettering, and other elements on
+> a given product package, or the design of a container with respect to its
+> shape or function.
+
+## 26 CFR 1.263(a)-4(b)(4)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Coordination with other provisions of the Internal Revenue Code
+
+## 26 CFR 1.263(a)-4(b)(4)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Nothing in this section changes the treatment of an amount that
+> is specifically provided for under any other provision of the Internal
+> Revenue Code (other than section 162(a) or 212) or the regulations
+> thereunder.
+
+## 26 CFR 1.263(a)-4(b)(4)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Example. The following example illustrates the rule of this paragraph
+> (b)(4):
+
+## 26 CFR 1.263(a)-4(c)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Acquired intangibles
+
+## 26 CFR 1.263(a)-4(c)(1)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. A taxpayer must capitalize amounts paid to another party to
+> acquire any intangible from that party in a purchase or similar transaction.
+> Examples of intangibles within the scope of this paragraph (c) include, but
+> are not limited to, the following (if acquired from another party in a
+> purchase or similar transaction):
+
+## 26 CFR 1.263(a)-4(c)(1)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An ownership interest in a corporation, partnership, trust, estate, limited
+> liability company, or other entity.
+
+## 26 CFR 1.263(a)-4(c)(1)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A debt instrument, deposit, stripped bond, stripped coupon (including a
+> servicing right treated for federal income tax purposes as a stripped
+> coupon), regular interest in a REMIC or FASIT, or any other intangible
+> treated as debt for federal income tax purposes.
+
+## 26 CFR 1.263(a)-4(c)(1)(iii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A financial instrument, such as—
+
+## 26 CFR 1.263(a)-4(c)(1)(iii)(A)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A notional principal contract;
+
+## 26 CFR 1.263(a)-4(c)(1)(iii)(B)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A foreign currency contract;
+
+## 26 CFR 1.263(a)-4(c)(1)(iii)(C)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A futures contract;
+
+## 26 CFR 1.263(a)-4(c)(1)(iii)(D)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A forward contract (including an agreement under which the taxpayer has the
+> right and obligation to provide or to acquire property (or to be compensated
+> for such property, regardless of whether the taxpayer provides or acquires
+> the property));
+
+## 26 CFR 1.263(a)-4(c)(1)(iii)(E)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An option (including an agreement under which the taxpayer has the right to
+> provide or to acquire property (or to be compensated for such property,
+> regardless of whether the taxpayer provides or acquires the property)); and
+
+## 26 CFR 1.263(a)-4(c)(1)(iii)(F)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Any other financial derivative.
+
+## 26 CFR 1.263(a)-4(c)(1)(iv)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An endowment contract, annuity contract, or insurance contract.
+
+## 26 CFR 1.263(a)-4(c)(1)(v)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Non-functional currency.
+
+## 26 CFR 1.263(a)-4(c)(1)(vi)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A lease.
+
+## 26 CFR 1.263(a)-4(c)(1)(vii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A patent or copyright.
+
+## 26 CFR 1.263(a)-4(c)(1)(viii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A franchise, trademark or tradename (as defined in § 1.197-2(b)(10)).
+
+## 26 CFR 1.263(a)-4(c)(1)(ix)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An assembled workforce (as defined in § 1.197-2(b)(3)).
+
+## 26 CFR 1.263(a)-4(c)(1)(x)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Goodwill (as defined in § 1.197-2(b)(1)) or going concern value (as defined
+> in § 1.197-2(b)(2)).
+
+## 26 CFR 1.263(a)-4(c)(1)(xi)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A customer list.
+
+## 26 CFR 1.263(a)-4(c)(1)(xii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A servicing right (for example, a mortgage servicing right that is not
+> treated for Federal income tax purposes as a stripped coupon).
+
+## 26 CFR 1.263(a)-4(c)(1)(xiii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A customer-based intangible (as defined in § 1.197-2(b)(6)) or
+> supplier-based intangible (as defined in § 1.197-2(b)(7)).
+
+## 26 CFR 1.263(a)-4(c)(1)(xiv)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Computer software.
+
+## 26 CFR 1.263(a)-4(c)(1)(xv)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An agreement providing either party the right to use, possess or sell an
+> intangible described in paragraphs (c)(1)(i) through (v) of this section.
+
+## 26 CFR 1.263(a)-4(c)(2)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Readily available software. An amount paid to obtain a nonexclusive license
+> for software that is (or has been) readily available to the general public
+> on similar terms and has not been substantially modified (within the meaning
+> of § 1.197-2(c)(4)) is treated for purposes of this paragraph (c) as an
+> amount paid to another party to acquire an intangible from that party in a
+> purchase or similar transaction.
+
+## 26 CFR 1.263(a)-4(c)(3)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Intangibles acquired from an employee. Amounts paid to an employee to
+> acquire an intangible from that employee are not required to be capitalized
+> under this section if the amounts are includible in the employee's income in
+> connection with the performance of services under section 61 or 83. For
+> purposes of this section, whether an individual is an employee is determined
+> in accordance with the rules contained in section 3401(c) and the
+> regulations thereunder.
+
+## 26 CFR 1.263(a)-4(c)(4)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the rules of this paragraph (c):
+
+## 26 CFR 1.263(a)-4(d)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Created intangibles
+
+## 26 CFR 1.263(a)-4(d)(1)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Except as provided in paragraph (f) of this section (relating to
+> the 12-month rule), a taxpayer must capitalize amounts paid to create an
+> intangible described in this paragraph (d). The determination of whether an
+> amount is paid to create an intangible described in this paragraph (d) is to
+> be made based on all of the facts and circumstances, disregarding
+> distinctions between the labels used in this paragraph (d) to describe the
+> intangible and the labels used by the taxpayer and other parties to the
+> transaction.
+
+## 26 CFR 1.263(a)-4(d)(2)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Financial interests
+
+## 26 CFR 1.263(a)-4(d)(2)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. A taxpayer must capitalize amounts paid to another party to
+> create, originate, enter into, renew or renegotiate with that party any of
+> the following financial interests, whether or not the interest is regularly
+> traded on an established market:
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(A)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An ownership interest in a corporation, partnership, trust, estate, limited
+> liability company, or other entity.
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(B)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A debt instrument, deposit, stripped bond, stripped coupon (including a
+> servicing right treated for federal income tax purposes as a stripped
+> coupon), regular interest in a REMIC or FASIT, or any other intangible
+> treated as debt for Federal income tax purposes.
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(C)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A financial instrument, such as—
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(C)(1)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A letter of credit;
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(C)(2)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A credit card agreement;
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(C)(3)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A notional principal contract;
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(C)(4)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A foreign currency contract;
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(C)(5)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A futures contract;
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(C)(6)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A forward contract (including an agreement under which the taxpayer has the
+> right and obligation to provide or to acquire property (or to be compensated
+> for such property, regardless of whether the taxpayer provides or acquires
+> the property));
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(C)(7)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An option (including an agreement under which the taxpayer has the right to
+> provide or to acquire property (or to be compensated for such property,
+> regardless of whether the taxpayer provides or acquires the property)); and
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(C)(8)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Any other financial derivative.
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(D)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An endowment contract, annuity contract, or insurance contract that has or
+> may have cash value.
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(E)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Non-functional currency.
+
+## 26 CFR 1.263(a)-4(d)(2)(i)(F)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An agreement providing either party the right to use, possess or sell a
+> financial interest described in this paragraph (d)(2).
+
+## 26 CFR 1.263(a)-4(d)(2)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Amounts paid to create, originate, enter into, renew or renegotiate. An
+> amount paid to another party is not paid to create, originate, enter into,
+> renew or renegotiate a financial interest with that party if the payment is
+> made with the mere hope or expectation of developing or maintaining a
+> business relationship with that party and is not contingent on the
+> origination, renewal or renegotiation of a financial interest with that
+> party.
+
+## 26 CFR 1.263(a)-4(d)(2)(iii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Renegotiate. A taxpayer is treated as renegotiating a financial interest if
+> the terms of the financial interest are modified. A taxpayer also is treated
+> as renegotiating a financial interest if the taxpayer enters into a new
+> financial interest with the same party (or substantially the same parties)
+> to a terminated financial interest, the taxpayer could not cancel the
+> terminated financial interest without the consent of the other party (or
+> parties), and the other party (or parties) would not have consented to the
+> cancellation unless the taxpayer entered into the new financial interest. A
+> taxpayer is treated as unable to cancel a financial interest without the
+> consent of the other party (or parties) if, under the terms of the financial
+> interest, the taxpayer is subject to a termination penalty and the other
+> party (or parties) to the financial interest modifies the terms of the
+> penalty.
+
+## 26 CFR 1.263(a)-4(d)(2)(iv)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Coordination with other provisions of this paragraph (d). An amount
+> described in this paragraph (d)(2) that is also described elsewhere in
+> paragraph (d) of this section is treated as described only in this paragraph
+> (d)(2).
+
+## 26 CFR 1.263(a)-4(d)(2)(v)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Coordination with § 1.263(a)-5. See § 1.263(a)-5 for the treatment of
+> borrowing costs and the treatment of amounts paid by an option writer.
+
+## 26 CFR 1.263(a)-4(d)(2)(vi)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the rules of this paragraph
+> (d)(2):
+
+## 26 CFR 1.263(a)-4(d)(3)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Prepaid expenses
+
+## 26 CFR 1.263(a)-4(d)(3)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. A taxpayer must capitalize prepaid expenses.
+
+## 26 CFR 1.263(a)-4(d)(3)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the rules of this paragraph
+> (d)(3):
+
+## 26 CFR 1.263(a)-4(d)(4)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Certain memberships and privileges
+
+## 26 CFR 1.263(a)-4(d)(4)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. A taxpayer must capitalize amounts paid to an organization to
+> obtain, renew, renegotiate, or upgrade a membership or privilege from that
+> organization. A taxpayer is not required to capitalize under this paragraph
+> (d)(4) an amount paid to obtain, renew, renegotiate or upgrade certification
+> of the taxpayer's products, services, or business processes.
+
+## 26 CFR 1.263(a)-4(d)(4)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the rules of this paragraph
+> (d)(4):
+
+## 26 CFR 1.263(a)-4(d)(5)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Certain rights obtained from a governmental agency
+
+## 26 CFR 1.263(a)-4(d)(5)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. A taxpayer must capitalize amounts paid to a governmental agency
+> to obtain, renew, renegotiate, or upgrade its rights under a trademark,
+> trade name, copyright, license, permit, franchise, or other similar right
+> granted by that governmental agency.
+
+## 26 CFR 1.263(a)-4(d)(5)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the rules of this paragraph
+> (d)(5):
+
+## 26 CFR 1.263(a)-4(d)(6)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Certain contract rights
+
+## 26 CFR 1.263(a)-4(d)(6)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Except as otherwise provided in this paragraph (d)(6), a
+> taxpayer must capitalize amounts paid to another party to create, originate,
+> enter into, renew or renegotiate with that party—
+
+## 26 CFR 1.263(a)-4(d)(6)(i)(A)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An agreement providing the taxpayer the right to use tangible or intangible
+> property or the right to be compensated for the use of tangible or
+> intangible property;
+
+## 26 CFR 1.263(a)-4(d)(6)(i)(B)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An agreement providing the taxpayer the right to provide or to receive
+> services (or the right to be compensated for services regardless of whether
+> the taxpayer provides such services);
+
+## 26 CFR 1.263(a)-4(d)(6)(i)(C)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A covenant not to compete or an agreement having substantially the same
+> effect as a covenant not to compete (except, in the case of an agreement
+> that requires the performance of services, to the extent that the amount
+> represents reasonable compensation for services actually rendered);
+
+## 26 CFR 1.263(a)-4(d)(6)(i)(D)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An agreement not to acquire additional ownership interests in the taxpayer;
+> or
+
+## 26 CFR 1.263(a)-4(d)(6)(i)(E)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An agreement providing the taxpayer (as the covered party) with an annuity,
+> an endowment, or insurance coverage.
+
+## 26 CFR 1.263(a)-4(d)(6)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Amounts paid to create, originate, enter into, renew or renegotiate. An
+> amount paid to another party is not paid to create, originate, enter into,
+> renew or renegotiate an agreement with that party if the payment is made
+> with the mere hope or expectation of developing or maintaining a business
+> relationship with that party and is not contingent on the origination,
+> renewal or renegotiation of an agreement with that party.
+
+## 26 CFR 1.263(a)-4(d)(6)(iii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Renegotiate. A taxpayer is treated as renegotiating an agreement if the
+> terms of the agreement are modified. A taxpayer also is treated as
+> renegotiating an agreement if the taxpayer enters into a new agreement with
+> the same party (or substantially the same parties) to a terminated
+> agreement, the taxpayer could not cancel the terminated agreement without
+> the consent of the other party (or parties), and the other party (or
+> parties) would not have consented to the cancellation unless the taxpayer
+> entered into the new agreement. A taxpayer is treated as unable to cancel an
+> agreement without the consent of the other party (or parties) if, under the
+> terms of the agreement, the taxpayer is subject to a termination penalty and
+> the other party (or parties) to the agreement modifies the terms of the
+> penalty.
+
+## 26 CFR 1.263(a)-4(d)(6)(iv)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Right. An agreement does not provide the taxpayer a right to use property or
+> to provide or receive services if the agreement may be terminated at will by
+> the other party (or parties) to the agreement before the end of the period
+> prescribed by paragraph (f)(1) of this section. An agreement is not
+> terminable at will if the other party (or parties) to the agreement is
+> economically compelled not to terminate the agreement until the end of the
+> period prescribed by paragraph (f)(1) of this section. All of the facts and
+> circumstances will be considered in determining whether the other party (or
+> parties) to an agreement is economically compelled not to terminate the
+> agreement. An agreement also does not provide the taxpayer the right to
+> provide services if the agreement merely provides that the taxpayer will
+> stand ready to provide services if requested, but places no obligation on
+> another person to request or pay for the taxpayer's services.
+
+## 26 CFR 1.263(a)-4(d)(6)(v)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> De minimis amounts. A taxpayer is not required to capitalize amounts paid to
+> another party (or parties) to create, originate, enter into, renew or
+> renegotiate with that party (or those parties) an agreement described in
+> paragraph (d)(6)(i) of this section if the aggregate of all amounts paid to
+> that party (or those parties) with respect to the agreement does not exceed
+> $5,000. If the aggregate of all amounts paid to the other party (or parties)
+> with respect to that agreement exceeds $5,000, then all amounts must be
+> capitalized. For purposes of this paragraph (d)(6), an amount paid in the
+> form of property is valued at its fair market value at the time of the
+> payment. In general, a taxpayer must determine whether the rules of this
+> paragraph (d)(6)(v) apply by accounting for the specific amounts paid with
+> respect to each agreement. However, a taxpayer that reasonably expects to
+> create, originate, enter into, renew or renegotiate at least 25 similar
+> agreements during the taxable year may establish a pool of agreements for
+> purposes of determining the amounts paid with respect to the agreements in
+> the pool. Under this pooling method, the amount paid with respect to each
+> agreement included in the pool is equal to the average amount paid with
+> respect to all agreements included in the pool. A taxpayer computes the
+> average amount paid with respect to all agreements included in the pool by
+> dividing the sum of all amounts paid with respect to all agreements included
+> in the pool by the number of agreements included in the pool. See paragraph
+> (h) of this section for additional rules relating to pooling.
+
+## 26 CFR 1.263(a)-4(d)(6)(vi)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Exception for lessee construction allowances. Paragraph (d)(6)(i) of this
+> section does not apply to amounts paid by a lessor to a lessee as a
+> construction allowance to the extent the lessee expends the amount for the
+> tangible property that is owned by the lessor for Federal income tax
+> purposes (see, for example, section 110).
+
+## 26 CFR 1.263(a)-4(d)(6)(vii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the rules of this paragraph
+> (d)(6):
+
+## 26 CFR 1.263(a)-4(d)(7)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Certain contract terminations
+
+## 26 CFR 1.263(a)-4(d)(7)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. A taxpayer must capitalize amounts paid to another party to
+> terminate—
+
+## 26 CFR 1.263(a)-4(d)(7)(i)(A)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A lease of real or tangible personal property between the taxpayer (as
+> lessor) and that party (as lessee);
+
+## 26 CFR 1.263(a)-4(d)(7)(i)(B)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An agreement that grants that party the exclusive right to acquire or use
+> the taxpayer's property or services or to conduct the taxpayer's business
+> (other than an intangible described in paragraph (c)(1)(i) through (iv) of
+> this section or a financial interest described in paragraph (d)(2) of this
+> section); or
+
+## 26 CFR 1.263(a)-4(d)(7)(i)(C)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> An agreement that prohibits the taxpayer from competing with that party or
+> from acquiring property or services from a competitor of that party.
+
+## 26 CFR 1.263(a)-4(d)(7)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Certain break-up fees. Paragraph (d)(7)(i) of this section does not apply to
+> the termination of a transaction described in § 1.263(a)-5(a) (relating to
+> an acquisition of a trade or business, a change in the capital structure of
+> a business entity, and certain other transactions). See § 1.263(a)-5(c)(8)
+> for rules governing the treatment of amounts paid to terminate a transaction
+> to which that section applies.
+
+## 26 CFR 1.263(a)-4(d)(7)(iii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the rules of this paragraph
+> (d)(7):
+
+## 26 CFR 1.263(a)-4(d)(8)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Certain benefits arising from the provision, production, or improvement of
+> real property
+
+## 26 CFR 1.263(a)-4(d)(8)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. A taxpayer must capitalize amounts paid for real property if the
+> taxpayer transfers ownership of the real property to another person (except
+> to the extent the real property is sold for fair market value) and if the
+> real property can reasonably be expected to produce significant economic
+> benefits to the taxpayer after the transfer. A taxpayer also must capitalize
+> amounts paid to produce or improve real property owned by another (except to
+> the extent the taxpayer is selling services at fair market value to produce
+> or improve the real property) if the real property can reasonably be
+> expected to produce significant economic benefits for the taxpayer.
+
+## 26 CFR 1.263(a)-4(d)(8)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Exclusions. A taxpayer is not required to capitalize an amount under
+> paragraph (d)(8)(i) of this section if the taxpayer transfers real property
+> or pays an amount to produce or improve real property owned by another in
+> exchange for services, the purchase or use of property, or the creation of
+> an intangible described in paragraph (d) of this section (other than in this
+> paragraph (d)(8)). The preceding sentence does not apply to the extent the
+> taxpayer does not receive fair market value consideration for the real
+> property that is relinquished or for the amounts that are paid by the
+> taxpayer to produce or improve real property owned by another.
+
+## 26 CFR 1.263(a)-4(d)(8)(iii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Real property. For purposes of this paragraph (d)(8), real property includes
+> property that is affixed to real property and that will ordinarily remain
+> affixed for an indefinite period of time, such as roads, bridges, tunnels,
+> pavements, wharves and docks, breakwaters and sea walls, elevators, power
+> generation and transmission facilities, and pollution control facilities.
+
+## 26 CFR 1.263(a)-4(d)(8)(iv)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Impact fees and dedicated improvements. Paragraph (d)(8)(i) of this section
+> does not apply to amounts paid to satisfy one-time charges imposed by a
+> State or local government against new development (or expansion of existing
+> development) to finance specific offsite capital improvements for general
+> public use that are necessitated by the new or expanded development. In
+> addition, paragraph (d)(8)(i) of this section does not apply to amounts paid
+> for real property or improvements to real property constructed by the
+> taxpayer where the real property or improvements benefit new development or
+> expansion of existing development, are immediately transferred to a State or
+> local government for dedication to the general public use, and are
+> maintained by the State or local government. See section 263A and the
+> regulations thereunder for capitalization rules that apply to amounts
+> referred to in this paragraph (d)(8)(iv).
+
+## 26 CFR 1.263(a)-4(d)(8)(v)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the rules of this paragraph
+> (d)(8):
+
+## 26 CFR 1.263(a)-4(d)(9)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Defense or perfection of title to intangible property
+
+## 26 CFR 1.263(a)-4(d)(9)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. A taxpayer must capitalize amounts paid to another party to
+> defend or perfect title to intangible property if that other party
+> challenges the taxpayer's title to the intangible property.
+
+## 26 CFR 1.263(a)-4(d)(9)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Certain break-up fees. Paragraph (d)(9)(i) of this section does not apply to
+> the termination of a transaction described in § 1.263(a)-5(a) (relating to
+> an acquisition of a trade or business, a change in the capital structure of
+> a business entity, and certain other transactions). See § 1.263(a)-5 for
+> rules governing the treatment of amounts paid to terminate a transaction to
+> which that section applies. Paragraph (d)(9)(i) of this section also does
+> not apply to an amount paid to another party to terminate an agreement that
+> grants that party the right to purchase the taxpayer's intangible property.
+
+## 26 CFR 1.263(a)-4(d)(9)(iii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Example. The following example illustrates the rules of this paragraph
+> (d)(9):
+
+## 26 CFR 1.263(a)-4(e)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Transaction costs
+
+## 26 CFR 1.263(a)-4(e)(1)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Scope of facilitate
+
+## 26 CFR 1.263(a)-4(e)(1)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Except as otherwise provided in this section, an amount is paid
+> to facilitate the acquisition or creation of an intangible (the transaction)
+> if the amount is paid in the process of investigating or otherwise pursuing
+> the transaction. Whether an amount is paid in the process of investigating
+> or otherwise pursuing the transaction is determined based on all of the
+> facts and circumstances. In determining whether an amount is paid to
+> facilitate a transaction, the fact that the amount would (or would not) have
+> been paid but for the transaction is relevant, but is not determinative. An
+> amount paid to determine the value or price of an intangible is an amount
+> paid in the process of investigating or otherwise pursuing the transaction.
+
+## 26 CFR 1.263(a)-4(e)(1)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Treatment of termination payments. An amount paid to terminate (or acilitate
+> the termination of) an existing agreement does not facilitate the
+> acquisition or creation of another agreement under this section. See
+> paragraph (d)(6)(iii) of this section for the treatment of termination fees
+> paid to the other party (or parties) of a renegotiated agreement.
+
+## 26 CFR 1.263(a)-4(e)(1)(iii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Special rule for contracts. An amount is treated as not paid in the process
+> of investigating or otherwise pursuing the creation of an agreement
+> described in paragraph (d)(2) or (d)(6) of this section if the amount
+> relates to activities performed before the earlier of the date the taxpayer
+> begins preparing its bid for the agreement or the date the taxpayer begins
+> discussing or negotiating the agreement with another party to the agreement.
+
+## 26 CFR 1.263(a)-4(e)(1)(iv)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Borrowing costs. An amount paid to facilitate a borrowing does not
+> facilitate an acquisition or creation of an intangible described in
+> paragraphs (b)(1)(i) through (iv) of this section. See §§ 1.263(a)-5 and
+> 1.446-5 for the treatment of an amount paid to facilitate a borrowing.
+
+## 26 CFR 1.263(a)-4(e)(1)(v)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Special rule for stock redemption costs of open-end regulated investment
+> companies. An amount paid by an open-end regulated investment company
+> (within the meaning of section 851) to facilitate a redemption of its stock
+> is treated as an amount that does not facilitate the acquisition of an
+> intangible under this section.
+
+## 26 CFR 1.263(a)-4(e)(2)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Coordination with paragraph (d) of this section. In the case of an amount
+> paid to facilitate the creation of an intangible described in paragraph (d)
+> of this section, the provisions of this paragraph (e) apply regardless of
+> whether a payment described in paragraph (d) is made.
+
+## 26 CFR 1.263(a)-4(e)(3)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Transaction. For purposes of this section, the term transaction means all of
+> the factual elements comprising an acquisition or creation of an intangible
+> and includes a series of steps carried out as part of a single plan. Thus, a
+> transaction can involve more than one invoice and more than one intangible.
+> For example, a purchase of intangibles under one purchase agreement
+> constitutes a single transaction, notwithstanding the fact that the
+> acquisition involves multiple intangibles and the amounts paid to facilitate
+> the acquisition are capable of being allocated among the various intangibles
+> acquired.
+
+## 26 CFR 1.263(a)-4(e)(4)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Simplifying conventions
+
+## 26 CFR 1.263(a)-4(e)(4)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. For purposes of this section, employee compensation (within the
+> meaning of paragraph (e)(4)(ii) of this section), overhead, and de minimis
+> costs (within the meaning of paragraph (e)(4)(iii) of this section) are
+> treated as amounts that do not facilitate the acquisition or creation of an
+> intangible.
+
+## 26 CFR 1.263(a)-4(e)(4)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Employee compensation
+
+## 26 CFR 1.263(a)-4(e)(4)(ii)(A)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. The term employee compensation means compensation (including
+> salary, bonuses and commissions) paid to an employee of the taxpayer. For
+> purposes of this section, whether an individual is an employee is determined
+> in accordance with the rules contained in section 3401(c) and the
+> regulations thereunder.
+
+## 26 CFR 1.263(a)-4(e)(4)(ii)(B)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Certain amounts treated as employee compensation. For purposes of this
+> section, a guaranteed payment to a partner in a partnership is treated as
+> employee compensation. For purposes of this section, annual compensation
+> paid to a director of a corporation is treated as employee compensation. For
+> example, an amount paid to a director of a corporation for attendance at a
+> regular meeting of the board of directors (or committee thereof) is treated
+> as employee compensation for purposes of this section. However, an amount
+> paid to a director for attendance at a special meeting of the board of
+> directors (or committee thereof) is not treated as employee compensation. An
+> amount paid to a person that is not an employee of the taxpayer (including
+> the employer of the individual who performs the services) is treated as
+> employee compensation for purposes of this section only if the amount is
+> paid for secretarial, clerical, or similar administrative support services.
+> In the case of an affiliated group of corporations filing a consolidated
+> Federal income tax return, a payment by one member of the group to a second
+> member of the group for services performed by an employee of the second
+> member is treated as employee compensation if the services provided by the
+> employee are provided at a time during which both members are affiliated.
+
+## 26 CFR 1.263(a)-4(e)(4)(iii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> De minimis costs
+
+## 26 CFR 1.263(a)-4(e)(4)(iii)(A)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Except as provided in paragraph (e)(4)(iii)(B) of this section,
+> the term de minimis costs means amounts (other than employee compensation
+> and overhead) paid in the process of investigating or otherwise pursuing a
+> transaction if, in the aggregate, the amounts do not exceed $5,000 (or such
+> greater amount as may be set forth in published guidance). If the amounts
+> exceed $5,000 (or such greater amount as may be set forth in published
+> guidance), none of the amounts are de minimis costs within the meaning of
+> this paragraph (e)(4)(iii)(A). For purposes of this paragraph (e)(4)(iii),
+> an amount paid in the form of property is valued at its fair market value at
+> the time of the payment. In determining the amount of transaction costs paid
+> in the process of investigating or otherwise pursuing a transaction, a
+> taxpayer generally must account for the specific costs paid with respect to
+> each transaction. However, a taxpayer that reasonably expects to enter into
+> at least 25 similar transactions during the taxable year may establish a
+> pool of similar transactions for purposes of determining the amount of
+> transaction costs paid in the process of investigating or otherwise pursuing
+> the transactions in the pool. Under this pooling method, the amount of
+> transaction costs paid in the process of investigating or otherwise pursuing
+> each transaction included in the pool is equal to the average transaction
+> costs paid in the process of investigating or otherwise pursuing all
+> transactions included in the pool. A taxpayer computes the average
+> transaction costs paid in the process of investigating or otherwise pursuing
+> all transactions included in the pool by dividing the sum of all transaction
+> costs paid in the process of investigating or otherwise pursuing all
+> transactions included in the pool by the number of transactions included in
+> the pool. See paragraph (h) of this section for additional rules relating to
+> pooling.
+
+## 26 CFR 1.263(a)-4(e)(4)(iii)(B)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Treatment of commissions. The term de minimis costs does not include
+> commissions paid to facilitate the acquisition of an intangible described in
+> paragraphs (c)(1)(i) through (v) of this section or to facilitate the
+> creation, origination, entrance into, renewal or renegotiation of an
+> intangible described in paragraph (d)(2)(i) of this section.
+
+## 26 CFR 1.263(a)-4(e)(4)(iv)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Election to capitalize. A taxpayer may elect to treat employee compensation,
+> overhead, or de minimis costs paid in the process of investigating or
+> otherwise pursuing a transaction as amounts that facilitate the transaction.
+> The election is made separately for each transaction and applies to employee
+> compensation, overhead, or de minimis costs, or to any combination thereof.
+> For example, a taxpayer may elect to treat overhead and de minimis costs,
+> but not employee compensation, as amounts that facilitate the transaction. A
+> taxpayer makes the election by treating the amounts to which the election
+> applies as amounts that facilitate the transaction in the taxpayer's timely
+> filed original Federal income tax return (including extensions) for the
+> taxable year during which the amounts are paid. In the case of an affiliated
+> group of corporations filing a consolidated return, the election is made
+> separately with respect to each member of the group, and not with respect to
+> the group as a whole. In the case of an S corporation or partnership, the
+> election is made by the S corporation or by the partnership, and not by the
+> shareholders or partners. An election made under this paragraph (e)(4)(iv)
+> is revocable with respect to each taxable year for which made only with the
+> consent of the Commissioner.
+
+## 26 CFR 1.263(a)-4(e)(5)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the rules of this paragraph (e):
+
+## 26 CFR 1.263(a)-4(f)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> 12-month rule
+
+## 26 CFR 1.263(a)-4(f)(1)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Except as otherwise provided in this paragraph (f), a taxpayer
+> is not required to capitalize under this section amounts paid to create (or
+> to facilitate the creation of) any right or benefit for the taxpayer that
+> does not extend beyond the earlier of—
+
+## 26 CFR 1.263(a)-4(f)(1)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> 12 months after the first date on which the taxpayer realizes the right or
+> benefit; or
+
+## 26 CFR 1.263(a)-4(f)(1)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The end of the taxable year following the taxable year in which the payment
+> is made.
+
+## 26 CFR 1.263(a)-4(f)(2)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Duration of benefit for contract terminations. For purposes of this
+> paragraph (f), amounts paid to terminate a contract or other agreement
+> described in paragraph (d)(7)(i) of this section prior to its expiration
+> date (or amounts paid to facilitate such termination) create a benefit for
+> the taxpayer that lasts for the unexpired term of the agreement immediately
+> before the date of the termination. If the terms of a contract or other
+> agreement described in paragraph (d)(7)(i) of this section permit the
+> taxpayer to terminate the contract or agreement after a notice period,
+> amounts paid by the taxpayer to terminate the contract or agreement before
+> the end of the notice period create a benefit for the taxpayer that lasts
+> for the amount of time by which the notice period is shortened.
+
+## 26 CFR 1.263(a)-4(f)(3)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Inapplicability to created financial interests and self-created amortizable
+> section 197 intangibles. Paragraph (f)(1) of this section does not apply to
+> amounts paid to create (or facilitate the creation of) an intangible
+> described in paragraph (d)(2) of this section (relating to amounts paid to
+> create financial interests) or to amounts paid to create (or facilitate the
+> creation of) an intangible that constitutes an amortizable section 197
+> intangible within the meaning of section 197(c).
+
+## 26 CFR 1.263(a)-4(f)(4)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Inapplicability to rights of indefinite duration. Paragraph (f)(1) of this
+> section does not apply to amounts paid to create (or facilitate the creation
+> of) an intangible of indefinite duration. A right has an indefinite duration
+> if it has no period of duration fixed by agreement or by law, or if it is
+> not based on a period of time, such as a right attributable to an agreement
+> to provide or receive a fixed amount of goods or services. For example, a
+> license granted by a governmental agency that permits the taxpayer to
+> operate a business conveys a right of indefinite duration if the license may
+> be revoked only upon the taxpayer's violation of the terms of the license.
+
+## 26 CFR 1.263(a)-4(f)(5)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Rights subject to renewal
+
+## 26 CFR 1.263(a)-4(f)(5)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. For purposes of paragraph (f)(1) of this section, the duration
+> of a right includes any renewal period if all of the facts and circumstances
+> in existence during the taxable year in which the right is created indicate
+> a reasonable expectancy of renewal.
+
+## 26 CFR 1.263(a)-4(f)(5)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Reasonable expectancy of renewal. The following factors are significant in
+> determining whether there exists a reasonable expectancy of renewal:
+
+## 26 CFR 1.263(a)-4(f)(5)(ii)(A)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Renewal history. The fact that similar rights are historically renewed is
+> evidence of a reasonable expectancy of renewal. On the other hand, the fact
+> that similar rights are rarely renewed is evidence of a lack of a reasonable
+> expectancy of renewal. Where the taxpayer has no experience with similar
+> rights, or where the taxpayer holds similar rights only occasionally, this
+> factor is less indicative of a reasonable expectancy of renewal.
+
+## 26 CFR 1.263(a)-4(f)(5)(ii)(B)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Economics of the transaction. The fact that renewal is necessary for the
+> taxpayer to earn back its investment in the right is evidence of a
+> reasonable expectancy of renewal. For example, if a taxpayer pays $14,000 to
+> enter into a renewable contract with an initial 9-month term that is
+> expected to generate income to the taxpayer of $1,000 per month, the fact
+> that renewal is necessary for the taxpayer to earn back its $14,000 payment
+> is evidence of a reasonable expectancy of renewal.
+
+## 26 CFR 1.263(a)-4(f)(5)(ii)(C)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Likelihood of renewal by other party. Evidence that indicates a likelihood
+> of renewal by the other party to a right, such as a bargain renewal option
+> or similar arrangement, is evidence of a reasonable expectancy of renewal.
+> However, the mere fact that the other party will have the opportunity to
+> renew on the same terms as are available to others is not evidence of a
+> reasonable expectancy of renewal.
+
+## 26 CFR 1.263(a)-4(f)(5)(ii)(D)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Terms of renewal. The fact that material terms of the right are subject to
+> renegotiation at the end of the initial term is evidence of a lack of a
+> reasonable expectancy of renewal. For example, if the parties to an
+> agreement must renegotiate price or amount, the renegotiation requirement is
+> evidence of a lack of a reasonable expectancy of renewal.
+
+## 26 CFR 1.263(a)-4(f)(5)(ii)(E)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Terminations. The fact that similar rights are typically terminated prior to
+> renewal is evidence of a lack of a reasonably expectancy of renewal.
+
+## 26 CFR 1.263(a)-4(f)(5)(iii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Safe harbor pooling method. In lieu of applying the reasonable expectancy of
+> renewal test described in paragraph (f)(5)(ii) of this section to each
+> separate right created during a taxable year, a taxpayer that reasonably
+> expects to enter into at least 25 similar rights during the taxable year may
+> establish a pool of similar rights for which the initial term does not
+> extend beyond the period prescribed in paragraph (f)(1) of this section and
+> may elect to apply the reasonable expectancy of renewal test to that pool.
+> See paragraph (h) of this section for additional rules relating to pooling.
+> The application of paragraph (f)(1) of this section to each pool is
+> determined in the following manner:
+
+## 26 CFR 1.263(a)-4(f)(5)(iii)(A)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> All amounts (except de minimis costs described in paragraph (d)(6)(v) of
+> this section) paid to create the rights included in the pool and all amounts
+> paid to facilitate the creation of the rights included in the pool are
+> aggregated.
+
+## 26 CFR 1.263(a)-4(f)(5)(iii)(B)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> If less than 20 percent of the rights in the pool are reasonably expected to
+> be renewed beyond the period prescribed in paragraph (f)(1) of this section,
+> all rights in the pool are treated as having a duration that does not extend
+> beyond the period prescribed in paragraph (f)(1) of this section, and the
+> taxpayer is not required to capitalize under this section any portion of the
+> aggregate amount described in paragraph (f)(5)(iii)(A) of this section.
+
+## 26 CFR 1.263(a)-4(f)(5)(iii)(C)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> If more than 80 percent of the rights in the pool are reasonably expected to
+> be renewed beyond the period prescribed in paragraph (f)(1) of this section,
+> all rights in the pool are treated as having a duration that extends beyond
+> the period prescribed in paragraph (f)(1) of this section, and the taxpayer
+> is required to capitalize under this section the aggregate amount described
+> in paragraph (f)(5)(iii)(A) of this section.
+
+## 26 CFR 1.263(a)-4(f)(5)(iii)(D)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> If 20 percent or more, but 80 percent or less, of the rights in the pool are
+> reasonably expected to be renewed beyond the period prescribed in paragraph
+> (f)(1) of this section, the aggregate amount described in paragraph
+> (f)(5)(iii)(A) of this section is multiplied by the percentage of the rights
+> in the pool that are reasonably expected to be renewed beyond the period
+> prescribed in paragraph (f)(1) of this section and the taxpayer must
+> capitalize the resulting amount under this section by treating such amount
+> as creating a separate intangible. The amount determined by multiplying the
+> aggregate amount described in paragraph (f)(5)(iii)(A) of this section by
+> the percentage of rights in the pool that are not reasonably expected to be
+> renewed beyond the period prescribed in paragraph (f)(1) of this section is
+> not required to be capitalized under this section.
+
+## 26 CFR 1.263(a)-4(f)(6)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Coordination with section 461. In the case of a taxpayer using an accrual
+> method of accounting, the rules of this paragraph (f) do not affect the
+> determination of whether a liability is incurred during the taxable year,
+> including the determination of whether economic performance has occurred
+> with respect to the liability. See § 1.461-4 for rules relating to economic
+> performance.
+
+## 26 CFR 1.263(a)-4(f)(7)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Election to capitalize. A taxpayer may elect not to apply the rule contained
+> in paragraph (f)(1) of this section. An election made under this paragraph
+> (f)(7) applies to all similar transactions during the taxable year to which
+> paragraph (f)(1) of this section would apply (but for the election under
+> this paragraph (f)(7)). For example, a taxpayer may elect under this
+> paragraph (f)(7) to capitalize its costs of prepaying insurance contracts
+> for 12 months, but may continue to apply the rule in paragraph (f)(1) to its
+> costs of entering into non-renewable, 12-month service contracts. A taxpayer
+> makes the election by treating the amounts as capital expenditures in its
+> timely filed original federal income tax return (including extensions) for
+> the taxable year during which the amounts are paid. In the case of an
+> affiliated group of corporations filing a consolidated return, the election
+> is made separately with respect to each member of the group, and not with
+> respect to the group as a whole. In the case of an S corporation or
+> partnership, the election is made by the S corporation or by the
+> partnership, and not by the shareholders or partners. An election made under
+> this paragraph (f)(7) is revocable with respect to each taxable year for
+> which made only with the consent of the Commissioner.
+
+## 26 CFR 1.263(a)-4(f)(8)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The rules of this paragraph (f) are illustrated by the following
+> examples, in which it is assumed (unless otherwise stated) that the taxpayer
+> is a calendar year, accrual method taxpayer that does not have a short
+> taxable year in any taxable year and has not made an election under
+> paragraph (f)(7) of this section:
+
+## 26 CFR 1.263(a)-4(g)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Treatment of capitalized costs
+
+## 26 CFR 1.263(a)-4(g)(1)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. An amount required to be capitalized by this section is not
+> currently deductible under section 162. Instead, the amount generally is
+> added to the basis of the intangible acquired or created. See section 1012.
+
+## 26 CFR 1.263(a)-4(g)(2)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Financial instruments. In the case of a financial instrument described in
+> paragraph (c)(1)(iii) or (d)(2)(i)(C) of this section, notwithstanding
+> paragraph (g)(1) of this section, if under other provisions of law the
+> amount required to be capitalized is not required to be added to the basis
+> of the intangible acquired or created, then the other provisions of law will
+> govern the tax treatment of the amount.
+
+## 26 CFR 1.263(a)-4(h)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Special rules applicable to pooling
+
+## 26 CFR 1.263(a)-4(h)(1)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Except as otherwise provided, the rules of this paragraph (h)
+> apply to the pooling methods described in paragraph (d)(6)(v) of this
+> section (relating to de minimis rules applicable to certain contract
+> rights), paragraph (e)(4)(iii)(A) of this section (relating to de minimis
+> rules applicable to transaction costs), and paragraph (f)(5)(iii) of this
+> section (relating to the application of the 12-month rule to renewable
+> rights).
+
+## 26 CFR 1.263(a)-4(h)(2)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Method of accounting. A pooling method authorized by this section
+> constitutes a method of accounting for purposes of section 446. A taxpayer
+> that adopts or changes to a pooling method authorized by this section must
+> use the method for the year of adoption and for all subsequent taxable years
+> during which the taxpayer qualifies to use the pooling method unless a
+> change to another method is required by the Commissioner in order to clearly
+> reflect income, or unless permission to change to another method is granted
+> by the Commissioner as provided in § 1.446-1(e).
+
+## 26 CFR 1.263(a)-4(h)(3)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Adopting or changing to a pooling method. A taxpayer adopts (or changes to)
+> a pooling method authorized by this section for any taxable year by
+> establishing one or more pools for the taxable year in accordance with the
+> rules governing the particular pooling method and the rules prescribed by
+> this paragraph (h), and by using the pooling method to compute its taxable
+> income for the year of adoption (or change).
+
+## 26 CFR 1.263(a)-4(h)(4)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Definition of pool. A taxpayer may use any reasonable method of defining a
+> pool of similar transactions, agreements or rights, including a method based
+> on the type of customer or the type of product or service provided under a
+> contract. However, a taxpayer that pools similar transactions, agreements or
+> rights must include in the pool all similar transactions, agreements or
+> rights created during the taxable year. For purposes of the pooling methods
+> described in paragraph (d)(6)(v) of this section (relating to de minimis
+> rules applicable to certain contract rights) and paragraph (e)(4)(iii)(A) of
+> this section (relating to de minimis rules applicable to transaction costs),
+> an agreement (or a transaction) is treated as not similar to other
+> agreements (or transactions) included in the pool if the amount at issue
+> with respect to that agreement (or transaction) is reasonably expected to
+> differ significantly from the average amount at issue with respect to the
+> other agreements (or transactions) properly included in the pool.
+
+## 26 CFR 1.263(a)-4(h)(5)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Consistency requirement. A taxpayer that uses the pooling method described
+> in paragraph (f)(5)(iii) of this section for purposes of applying the
+> 12-month rule to a right or benefit—
+
+## 26 CFR 1.263(a)-4(h)(5)(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Must use the pooling methods described in paragraph (d)(6)(v) of this
+> section (relating to de minimis rules applicable to certain contract rights)
+> and paragraph (e)(4)(iii)(A) of this section (relating to de minimis rules
+> applicable to transaction costs) for purposes of determining the amount paid
+> to create, or facilitate the creation of, the right or benefit; and
+
+## 26 CFR 1.263(a)-4(h)(5)(ii)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Must use the same pool for purposes of paragraph (d)(6)(v) of this section
+> and paragraph (e)(4)(iii)(A) of this section as is used for purposes of
+> paragraph (f)(5)(iii) of this section.
+
+## 26 CFR 1.263(a)-4(h)(6)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Additional guidance pertaining to pooling. The Internal Revenue Service may
+> publish guidance in the Internal Revenue Bulletin (see § 601.601(d)(2) of
+> this chapter) prescribing additional rules for applying the pooling methods
+> authorized by this section to specific industries or to specific types of
+> transactions.
+
+## 26 CFR 1.263(a)-4(h)(7)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Example. The following example illustrates the rules of this paragraph (h):
+
+## 26 CFR 1.263(a)-4(i)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> [Reserved]
+
+## 26 CFR 1.263(a)-4(j)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Application to accrual method taxpayers. For purposes of this section, the
+> terms amount paid and payment mean, in the case of a taxpayer using an
+> accrual method of accounting, a liability incurred (within the meaning of §
+> 1.446-1(c)(1)(ii)). A liability may not be taken into account under this
+> section prior to the taxable year during which the liability is incurred.
+
+## 26 CFR 1.263(a)-4(k)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Treatment of related parties and indirect payments. For purposes of this
+> section, references to a party other than the taxpayer include persons
+> related to that party and persons acting for or on behalf of that party
+> (including persons to whom the taxpayer becomes obligated as a result of
+> assuming a liability of that party). For this purpose, persons are related
+> only if their relationship is described in section 267(b) or 707(b) or they
+> are engaged in trades or businesses under common control within the meaning
+> of section 41(f)(1). References to an amount paid to or by a party include
+> an amount paid on behalf of that party.
+
+## 26 CFR 1.263(a)-4(l)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The rules of this section are illustrated by the following
+> examples in which it is assumed that the Internal Revenue Service has not
+> published guidance that requires capitalization under paragraph (b)(1)(iv)
+> of this section (relating to amounts paid to create or enhance a future
+> benefit that is identified in published guidance as an intangible for which
+> capitalization is required):
+
+## 26 CFR 1.263(a)-4(m)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Amortization. For rules relating to amortization of certain intangibles, see
+> § 1.167(a)-3.
+
+## 26 CFR 1.263(a)-4(n)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Intangible interests in land. [Reserved].
+
+## 26 CFR 1.263(a)-4(o)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Effective date. This section applies to amounts paid or incurred on or after
+> December 31, 2003.
+
+## 26 CFR 1.263(a)-4(p)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Accounting method changes
+
+## 26 CFR 1.263(a)-4(p)(1)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. A taxpayer seeking to change a method of accounting to comply
+> with this section must secure the consent of the Commissioner in accordance
+> with the requirements of § 1.446-1(e). For the taxpayer's first taxable year
+> ending on or after December 31, 2003, the taxpayer is granted the consent of
+> the Commissioner to change its method of accounting to comply with this
+> section, provided the taxpayer follows the administrative procedures issued
+> under § 1.446-1(e)(3)(ii) for obtaining the Commissioner's automatic consent
+> to a change in accounting method (for further guidance, for example, see
+> Rev. Proc. 2002-9 (2002-1 C.B. 327) and § 601.601(d)(2)(ii)(b) of this
+> chapter).
+
+## 26 CFR 1.263(a)-4(p)(2)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Scope limitations. Any limitations on obtaining the automatic consent of the
+> Commissioner do not apply to a taxpayer seeking to change to a method of
+> accounting to comply with this section for its first taxable year ending on
+> or after December 31, 2003.
+
+## 26 CFR 1.263(a)-4(p)(3)
+
+**Source:** S38 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Section 481(a) adjustment. With the exception of a change to a pooling
+> method authorized by this section, the section 481(a) adjustment for a
+> change in method of accounting to comply with this section for a taxpayer's
+> first taxable year ending on or after December 31, 2003 is determined by
+> taking into account only amounts paid or incurred in taxable years ending on
+> or after January 24, 2002. A taxpayer seeking to change to a pooling method
+> authorized by this section on or after the effective date of these
+> regulations must change to the method using a cut-off method.
+
+## 26 CFR 1.163-8T(a)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general
+
+## 26 CFR 1.163-8T(a)(1)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Application. This section prescribes rules for allocating interest expense
+> for purposes of applying sections 469 (the “passive loss limitation”) and
+> 163 (d) and (h) (the “nonbusiness interest limitations”).
+
+## 26 CFR 1.163-8T(a)(2)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Cross-references. This paragraph provides an overview of the manner in which
+> interest expense is allocated for the purposes of applying the passive loss
+> limitation and nonbusiness interest limitations and the manner in which
+> interest expense allocated under this section is treated. See paragraph (b)
+> of this section for definitions of certain terms, paragraph (c) for the
+> rules for allocating debt and interest expense among expenditures,
+> paragraphs (d) and (e) for the treatment of debt repayments and
+> refinancings, paragraph (j) for the rules for reallocating debt upon the
+> occurrence of certain events, paragraph (m) for the coordination of the
+> rules in this section with other limitations on the deductibility of
+> interest expense, and paragraph (n) of this section for effective date and
+> transitional rules.
+
+## 26 CFR 1.163-8T(a)(3)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Manner of allocation. In general, interest expense on a debt is allocated in
+> the same manner as the debt to which such interest expense relates is
+> allocated. Debt is allocated by tracing disbursements of the debt proceeds
+> to specific expenditures. This section prescribes rules for tracing debt
+> proceeds to specific expenditures.
+
+## 26 CFR 1.163-8T(a)(4)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Treatment of interest expenses
+
+## 26 CFR 1.163-8T(a)(4)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> General rule. Except as otherwise provided in paragraph (m) of this section
+> (relating to limitations on interest expense other than the passive loss and
+> nonbusiness interest limitations), interest expense allocated under the
+> rules of this section is treated in the following manner:
+
+## 26 CFR 1.163-8T(a)(4)(i)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Interest expense allocated to a trade or business expenditure (as defined in
+> paragraph (b)(7) of this section) is taken into account under section 163
+> (h)(2)(A);
+
+## 26 CFR 1.163-8T(a)(4)(i)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Interest expense allocated to a passive activity expenditure (as defined in
+> paragraph (b)(4) of this section) or a former passive activity expenditure
+> (as defined in paragraph (b)(2) of this section) is taken into account for
+> purposes of section 469 in determining the income or loss from the activity
+> to which such expenditure relates;
+
+## 26 CFR 1.163-8T(a)(4)(i)(C)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Interest expense allocated to an investment expenditure (as defined in
+> paragraph (b)(3) of this section) is treated for purposes of section 163(d)
+> as investment interest;
+
+## 26 CFR 1.163-8T(a)(4)(i)(D)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Interest expense allocated to a personal expenditure (as defined in
+> paragraph (b)(5) of this section) is treated for purposes of section 163(h)
+> as personal interest; and
+
+## 26 CFR 1.163-8T(a)(4)(i)(E)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Interest expense allocated to a portfolio expenditure (as defined in
+> paragraph (b)(6) of this section) is treated for purposes of section
+> 469(e)(2)(B)(ii) as interest expense described in section
+> 469(e)(1)(A)(i)(III).
+
+## 26 CFR 1.163-8T(a)(4)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the application of this
+> paragraph (a)(4):
+
+## 26 CFR 1.163-8T(b)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Definitions. For purposes of this section—
+
+## 26 CFR 1.163-8T(b)(1)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> “Former passive activity” means an activity described in section 469(f)(3),
+> but only if an unused deduction or credit (within the meaning of section
+> 469(f)(1) (A) or (B)) is allocable to the activity under section 469(b) for
+> the taxable year.
+
+## 26 CFR 1.163-8T(b)(2)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> “Former passive activity expenditure” means an expenditure that is taken
+> into account under section 469 in computing the income or loss from a former
+> passive activity of the taxpayer or an expenditure (including an expenditure
+> properly chargeable to capital account) that would be so taken into account
+> if such expenditure were otherwise deductible.
+
+## 26 CFR 1.163-8T(b)(3)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> “Investment expenditure” means an expenditure (other than a passive activity
+> expenditure) properly chargeable to capital account with respect to property
+> held for investment (within the meaning of section 163(d)(5)(A)) or an
+> expenditure in connection with the holding of such property.
+
+## 26 CFR 1.163-8T(b)(4)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> “Passive activity expenditure” means an expenditure that is taken into
+> account under section 469 in computing income or loss from a passive
+> activity of the taxpayer or an expenditure (including an expenditure
+> properly chargeable to capital account) that would be so taken into account
+> if such expenditure were otherwise deductible. For purposes of this section,
+> the term “passive activity expenditure” does not include any expenditure
+> with respect to any low-income housing project in any taxable year in which
+> any benefit is allowed with respect to such project under section 502 of the
+> Tax Reform Act of 1986.
+
+## 26 CFR 1.163-8T(b)(5)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> “Personal expenditure” means an expenditure that is not a trade or business
+> expenditure, a passive activity expenditure, or an investment expenditure.
+
+## 26 CFR 1.163-8T(b)(6)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> “Portfolio expenditure” means an investment expenditure properly chargeable
+> to capital account with respect to property producing income of a type
+> described in section 469(e)(1)(A) or an investment expenditure for an
+> expense clearly and directly allocable to such income.
+
+## 26 CFR 1.163-8T(b)(7)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> “Trade or business expenditure” means an expenditure (other than a passive
+> activity expenditure or an investment expenditure) in connection with the
+> conduct of any trade or business other than the trade or business of
+> performing services as an employee.
+
+## 26 CFR 1.163-8T(c)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Allocation of debt and interest expense
+
+## 26 CFR 1.163-8T(c)(1)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Allocation in accordance with use of proceeds. Debt is allocated to
+> expenditures in accordance with the use of the debt proceeds and, except as
+> provided in paragraph (m) of this section, interest expense accruing on a
+> debt during any period is allocated to expenditures in the same manner as
+> the debt is allocated from time to time during such period. Except as
+> provided in paragraph (m) of this section, debt proceeds and related
+> interest expense are allocated solely by reference to the use of such
+> proceeds, and the allocation is not affected by the use of an interest in
+> any property to secure the repayment of such debt or interest. The following
+> example illustrates the principles of this paragraph (c)(1):
+
+## 26 CFR 1.163-8T(c)(2)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Allocation period
+
+## 26 CFR 1.163-8T(c)(2)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Allocation of debt. Debt is allocated to an expenditure for the period
+> beginning on the date the proceeds of the debt are used or treated as used
+> under the rules of this section to make the expenditure and ending on the
+> earlier of—
+
+## 26 CFR 1.163-8T(c)(2)(i)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The date the debt is repaid; or
+
+## 26 CFR 1.163-8T(c)(2)(i)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The date the debt is reallocated in accordance with the rules in paragraphs
+> (c)(4) and (j) of this section.
+
+## 26 CFR 1.163-8T(c)(2)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Allocation of interest expense
+
+## 26 CFR 1.163-8T(c)(2)(ii)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Except as otherwise provided in paragraph (m) of this section,
+> interest expense accruing on a debt for any period is allocated in the same
+> manner as the debt is allocated from time to time, regardless of when the
+> interest is paid.
+
+## 26 CFR 1.163-8T(c)(2)(ii)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Effect of compounding. Accrued interest is treated as a debt until it is
+> paid and any interest accruing on unpaid interest is allocated in the same
+> manner as the unpaid interest is allocated. For the taxable year in which a
+> debt is reallocated under the rules in paragraphs (c)(4) and (j) of this
+> section, however, compound interest accruing on such debt (other than
+> compound interest accruing on interest that accrued before the beginning of
+> the year) may be allocated between the original expenditure and the new
+> expenditure on a straight-line basis (i.e., by allocating an equal amount of
+> such interest expense to each day during the taxable year). In addition, a
+> taxpayer may treat a year as consisting of 12 30-day months for purposes of
+> allocating interest on a straight-line basis.
+
+## 26 CFR 1.163-8T(c)(2)(ii)(C)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Accrual of interest expense. For purposes of this paragraph (c)(2)(ii), the
+> amount of interest expense that accrues during any period is determined by
+> taking into account relevant provisions of the loan agreement and any
+> applicable law such as sections 163(e), 483, and 1271 through 1275.
+
+## 26 CFR 1.163-8T(c)(2)(iii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the principles of this paragraph
+> (c)(2):
+
+## 26 CFR 1.163-8T(c)(3)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Allocation of debt; proceeds not disbursed to borrower
+
+## 26 CFR 1.163-8T(c)(3)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Third-party financing. If a lender disburses debt proceeds to a person other
+> than the borrower in consideration for the sale or use of property, for
+> services, or for any other purpose, the debt is treated for purposes of this
+> section as if the borrower used an amount of the debt proceeds equal to such
+> disbursement to make an expenditure for such property, services, or other
+> purpose.
+
+## 26 CFR 1.163-8T(c)(3)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Debt assumptions not involving cash disbursements. If a taxpayer incurs or
+> assumes a debt in consideration for the sale or use of property, for
+> services, or for any other purpose, or takes property subject to a debt, and
+> no debt proceeds are disbursed to the taxpayer, the debt is treated for
+> purposes of this section as if the taxpayer used an amount of the debt
+> proceeds equal to the balance of the debt outstanding at such time to make
+> an expenditure for such property, services, or other purpose.
+
+## 26 CFR 1.163-8T(c)(4)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Allocation of debt; proceeds deposited in borrower's account
+
+## 26 CFR 1.163-8T(c)(4)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Treatment of deposit. For purposes of this section, a deposit of debt
+> proceeds in an account is treated as an investment expenditure, and amounts
+> held in an account (whether or not interest bearing) are treated as property
+> held for investment. Debt allocated to an account under this paragraph
+> (c)(4)(i) must be reallocated as required by paragraph (j) of this section
+> whenever debt proceeds held in the account are used for another expenditure.
+> This paragraph (c)(4) provides rules for determining when debt proceeds are
+> expended from the account. The following example illustrates the principles
+> of this paragraph (c)(4)(i):
+
+## 26 CFR 1.163-8T(c)(4)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Expenditures from account; general ordering rule. Except as provided in
+> paragraph (c)(4)(iii) (B) or (C) of this section, debt proceeds deposited in
+> an account are treated as expended before—
+
+## 26 CFR 1.163-8T(c)(4)(ii)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Any unborrowed amounts held in the account at the time such debt proceeds
+> are deposited; and
+
+## 26 CFR 1.163-8T(c)(4)(ii)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Any amounts (borrowed or unborrowed) that are deposited in the account after
+> such debt proceeds are deposited. The following example illustrates the
+> application of this paragraph (c)(4)(ii):
+
+## 26 CFR 1.163-8T(c)(4)(iii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Expenditures from account; supplemental ordering rules
+
+## 26 CFR 1.163-8T(c)(4)(iii)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Checking or similar accounts. Except as otherwise provided in this paragraph
+> (c)(4)(iii), an expenditure from a checking or similar account is treated as
+> made at the time the check is written on the account, provided the check is
+> delivered or mailed to the payee within a reasonable period after the
+> writing of the check. For this purpose, the taxpayer may treat checks
+> written on the same day as written in any order. In the absence of evidence
+> to the contrary, a check is presumed to be written on the date appearing on
+> the check and to be delivered or mailed to the payee within a reasonable
+> period thereafter. Evidence to the contrary may include the fact that a
+> check does not clear within a reasonable period after the date appearing on
+> the check.
+
+## 26 CFR 1.163-8T(c)(4)(iii)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Expenditures within 15 days after deposit of borrowed funds. The taxpayer
+> may treat any expenditure made from an account within 15 days after debt
+> proceeds are deposited in such account as made from such proceeds to the
+> extent thereof even if under paragraph (c)(4)(ii) of this section the debt
+> proceeds would be treated as used to make one or more other expenditures.
+> Any such expenditures and the debt proceeds from which such expenditures are
+> treated as made are disregarded in applying paragraph (c)(4)(ii) of this
+> section. The following examples illustrate the application of this paragraph
+> (c)(4)(iii)(B):
+
+## 26 CFR 1.163-8T(c)(4)(iii)(C)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Interest on segregated account. In the case of an account consisting solely
+> of the proceeds of a debt and interest earned on such account, the taxpayer
+> may treat any expenditure from such account as made first from amounts
+> constituting interest (rather than debt proceeds) to the extent of the
+> balance of such interest in the account at the time of the expenditure,
+> determined by applying the rules in this paragraph (c)(4). To the extent any
+> expenditure is treated as made from interest under this paragraph
+> (c)(4)(iii)(C), the expenditure is disregarded in applying paragraph
+> (c)(4)(ii) of this section.
+
+## 26 CFR 1.163-8T(c)(4)(iv)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Optional method for determining date of reallocation. Solely for the purpose
+> of determining the date on which debt allocated to an account under
+> paragraph (c)(4)(i) of this section is reallocated, the taxpayer may treat
+> all expenditures made during any calendar month from debt proceeds in the
+> account as occurring on the later of the first day of such month or the date
+> on which such debt proceeds are deposited in the account. This paragraph
+> (c)(4)(iv) applies only if all expenditures from an account during the same
+> calendar month are similarly treated. The following example illustrates the
+> application of this paragraph (c)(4)(iv):
+
+## 26 CFR 1.163-8T(c)(4)(v)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Simultaneous deposits
+
+## 26 CFR 1.163-8T(c)(4)(v)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. If the proceeds of two or more debts are deposited in an account
+> simultaneously, such proceeds are treated for purposes of this paragraph
+> (c)(4) as deposited in the order in which the debts were incurred.
+
+## 26 CFR 1.163-8T(c)(4)(v)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Order in which debts incurred. If two or more debts are incurred
+> simultaneously or are treated under applicable law as incurred
+> simultaneously, the debts are treated for purposes of this paragraph
+> (c)(4)(v) as incurred in any order the taxpayer selects.
+
+## 26 CFR 1.163-8T(c)(4)(v)(C)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Borrowings on which interest accrues at different rates. If interest does
+> not accrue at the same fixed or variable rate on the entire amount of a
+> borrowing, each portion of the borrowing on which interest accrues at a
+> different fixed or variable rate is treated as a separate debt for purposes
+> of this paragraph (c)(4)(v).
+
+## 26 CFR 1.163-8T(c)(4)(vi)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Multiple accounts. The rules in this paragraph (c)(4) apply separately to
+> each account of a taxpayer.
+
+## 26 CFR 1.163-8T(c)(5)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Allocation of debt; proceeds received in cash
+
+## 26 CFR 1.163-8T(c)(5)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Expenditure within 15 days of receiving debt proceeds. If a taxpayer
+> receives the proceeds of a debt in cash, the taxpayer may treat any cash
+> expenditure made within 15 days after receiving the cash as made from such
+> debt proceeds to the extent thereof and may treat such expenditure as made
+> on the date the taxpayer received the cash. The following example
+> illustrates the rule in this paragraph (c)(5)(i):
+
+## 26 CFR 1.163-8T(c)(5)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Other expenditures. Except as provided in paragraphs (c)(5) (i) and (iii) of
+> this section, any debt proceeds a taxpayer (other than a corporation)
+> receives in cash are treated as used to make personal expenditures. For
+> purposes of this paragraph (c)(5), debt proceeds are received in cash if,
+> for example, a withdrawal of cash from an account is treated under the rules
+> of this section as an expenditure of debt proceeds.
+
+## 26 CFR 1.163-8T(c)(5)(iii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Special rules for certain taxpayers. [Reserved]
+
+## 26 CFR 1.163-8T(c)(6)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Special rules
+
+## 26 CFR 1.163-8T(c)(6)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Qualified residence debt. [Reserved]
+
+## 26 CFR 1.163-8T(c)(6)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Debt used to pay interest. To the extent proceeds of a debt are used to pay
+> interest, such debt is allocated in the same manner as the debt on which
+> such interest accrued is allocated from time to time. The following example
+> illustrates the application of this paragraph (c)(6)(ii):
+
+## 26 CFR 1.163-8T(c)(6)(iii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Debt used to pay borrowing costs
+
+## 26 CFR 1.163-8T(c)(6)(iii)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Borrowing costs with respect to different debt. To the extent the proceeds
+> of a debt (the “ancillary debt”) are used to pay borrowing costs (other than
+> interest) with respect to another debt (the “primary debt”), the ancillary
+> debt is allocated in the same manner as the primary debt is allocated from
+> time to time. To the extent the primary debt is repaid, the ancillary debt
+> will continue to be allocated in the same manner as the primary debt was
+> allocated immediately before its repayment. The following example
+> illustrates the rule in this paragraph (c)(6)(iii)(A):
+
+## 26 CFR 1.163-8T(c)(6)(iii)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Borrowing costs with respect to same debt. To the extent the proceeds of a
+> debt are used to pay borrowing costs (other than interest) with respect to
+> such debt, such debt is allocated in the same manner as the remaining debt
+> is allocated from time to time. The remaining debt for this purpose is the
+> portion of the debt that is not used to pay borrowing costs (other than
+> interst) with respect to such debt. Any repayment of the debt is treated as
+> a repayment of the debt allocated under this paragraph (c)(6)(iii)(B) and
+> the remaining debt is the same proportion as such amount bear to each other.
+> The following example illustrates the application of this paragraph
+> (c)(6)(iii)(B):
+
+## 26 CFR 1.163-8T(c)(6)(iv)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Allocation of debt before actual receipt of debt proceeds. If interest
+> properly accrues on a debt during any period before the debt proceeds are
+> actually received or used to make an expenditure, the debt is allocated to
+> an investment expenditure for such period.
+
+## 26 CFR 1.163-8T(c)(7)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Antiabuse rules. [Reserved]
+
+## 26 CFR 1.163-8T(d)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Debt repayments
+
+## 26 CFR 1.163-8T(d)(1)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> General ordering rule. If, at the time any portion of a debt is repaid, such
+> debt is allocated to more than one expenditure, the debt is treated for
+> purposes of this section as repaid in the following order:
+
+## 26 CFR 1.163-8T(d)(1)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Amounts allocated to personal expenditures;
+
+## 26 CFR 1.163-8T(d)(1)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Amounts allocated to investment expenditures and passive activity
+> expenditures (other than passive activity expenditures described in
+> paragraph (d)(1)(iii) of this section);
+
+## 26 CFR 1.163-8T(d)(1)(iii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Amounts allocated to passive activity expenditures in connection with a
+> rental real estate activity with respect to which the taxpayer actively
+> participates (within the meaning of section 469(i));
+
+## 26 CFR 1.163-8T(d)(1)(iv)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Amounts allocated to former passive activity expenditures; and
+
+## 26 CFR 1.163-8T(d)(1)(v)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Amounts allocated to trade or business expenditures and to expenditures
+> described in the last sentence of paragraph (b)(4) of this section.
+
+## 26 CFR 1.163-8T(d)(2)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Supplemental ordering rules for expenditures in same class. Amounts
+> allocated to two or more expenditures that are described in the subdivision
+> of paragraph (d)(1) of this section (e.g., amounts allocated to different
+> personal expenditures) are treated as repaid in the order in which the
+> amounts were allocated (or reallocated) to such expenditures. For purposes
+> of this paragraph (d)(2), the taxpayer may treat allocations and
+> reallocations that occur on the same day as occurring in any order (without
+> regard to the order in which expenditures are treated as made under
+> paragraph (c)(4)(iii)(A) of this section).
+
+## 26 CFR 1.163-8T(d)(3)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Continuous borrowings. In the case of borrowings pursuant to a line of
+> credit or similar account or arrangement that allows a taxpayer to borrow
+> funds periodically under a single loan agreement—
+
+## 26 CFR 1.163-8T(d)(3)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> All borrowings on which interest accrues at the same fixed or variable rate
+> are treated as a single debt; and
+
+## 26 CFR 1.163-8T(d)(3)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Borrowings or portions of borrowings on which interest accrues at different
+> fixed or variable rates are treated as different debts, and such debts are
+> treated as repaid for purposes of this paragraph (d) in the order in which
+> such borrowings are treated as repaid under the loan agreement.
+
+## 26 CFR 1.163-8T(d)(4)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the application of this
+> paragraph (d):
+
+## 26 CFR 1.163-8T(e)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Debt refinancings
+
+## 26 CFR 1.163-8T(e)(1)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. To the extent proceeds of any debt (the “replacement debt”) are
+> used to repay any portion of a debt, the replacement debt is allocated to
+> the expenditures to which the repaid debt was allocated. The amount of
+> replacement debt allocated to any such expenditure is equal to the amount of
+> debt allocated to such expenditure that was repaid with proceeds of the
+> replacement debt. To the extent proceeds of the replacement debt are used
+> for expenditures other than repayment of a debt, the replacement debt is
+> allocated to expenditures in accordance with the rules of this section.
+
+## 26 CFR 1.163-8T(e)(2)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Example. The following example illustrates the application of this paragraph
+> (e):
+
+## 26 CFR 1.163-8T(f)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Debt allocated to distributions by passthrough entities. [Reserved]
+
+## 26 CFR 1.163-8T(g)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Repayment of passthrough entity debt. [Reserved]
+
+## 26 CFR 1.163-8T(h)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Debt allocated to expenditures for interests in passthrough entities.
+> [Reserved]
+
+## 26 CFR 1.163-8T(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Allocation of debt to loans between passthrough entities and interest
+> holders. [Reserved]
+
+## 26 CFR 1.163-8T(j)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Reallocation of debt
+
+## 26 CFR 1.163-8T(j)(1)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Debt allocated to capital expenditures
+
+## 26 CFR 1.163-8T(j)(1)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Time of reallocation. Except as provided in paragraph (j)(2) of this
+> section, debt allocated to an expenditure properly chargeable to capital
+> account with respect to an asset (the “first expenditure”) is reallocated to
+> another expenditure on the earlier of—
+
+## 26 CFR 1.163-8T(j)(1)(i)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The date on which proceeds from a disposition of such asset are used for
+> another expenditure; or
+
+## 26 CFR 1.163-8T(j)(1)(i)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The date on which the character of the first expenditure changes (e.g., from
+> a passive activity expenditure to an expenditure that is not a passive
+> activity expenditure) by reason of a change in the use of the asset with
+> respect to which the first expenditure was capitalized.
+
+## 26 CFR 1.163-8T(j)(1)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Limitation on amount reallocated. The amount of debt reallocated under
+> paragraph (j)(1)(i)(A) of this section may not exceed the proceeds from the
+> disposition of the asset. The amount of debt reallocated under paragraph
+> (j)(1)(i)(B) of this section may not exceed the fair market value of the
+> asset on the date of the change in use. In applying this paragraph
+> (j)(1)(ii) with respect to a debt in any case in which two or more debts are
+> allocable to expenditures properly chargeable to capital account with
+> respect to the same asset, only a ratable portion (determined with respect
+> to any such debt by dividing the amount of such debt by the aggregate amount
+> of all such debts) of the fair market value or proceeds from the disposition
+> of such asset shall be taken into account.
+
+## 26 CFR 1.163-8T(j)(1)(iii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Treatment of loans made by the taxpayer. Except as provided in paragraph
+> (j)(1)(iv) of this section, an expenditure to make a loan is treated as an
+> expenditure properly chargeable to capital account with respect to an asset,
+> and for purposes of paragraph (j)(1)(i)(A) of this section any repayment of
+> the loan is treated as a disposition of the asset. Paragraph (j)(3) of this
+> section applies to any repayment of a loan in installments.
+
+## 26 CFR 1.163-8T(j)(1)(iv)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Treatment of accounts. Debt allocated to an account under paragraph
+> (c)(4)(i) of this section is treated as allocated to an expenditure properly
+> chargeable to capital account with respect to an asset, and any expenditure
+> from the account is treated as a disposition of the asset. See paragraph
+> (c)(4) of this section for rules under which debt proceeds allocated to an
+> account are treated as used for another expenditure.
+
+## 26 CFR 1.163-8T(j)(2)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Disposition proceeds in excess of debt. If the proceeds from the disposition
+> of an asset exceed the amount of debt reallocated by reason of such
+> disposition, or two or more debts are reallocated by reason of the
+> disposition of an asset, the proceeds of the disposition are treated as an
+> account to which the rules in paragraph (c)(4) of this section apply.
+
+## 26 CFR 1.163-8T(j)(3)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Special rule for deferred payment sales. If any portion of the proceeds of a
+> disposition of an asset are received subsequent to the disposition—
+
+## 26 CFR 1.163-8T(j)(3)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The portion of the proceeds to be received subsequent to the disposition is
+> treated for periods prior to the receipt as used to make an investment
+> expenditure; and
+
+## 26 CFR 1.163-8T(j)(3)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Debt reallocated by reason of the disposition is allocated to such
+> investment expenditure to the extent such debt exceeds the proceeds of the
+> disposition previously received (other than proceeds used to repay such
+> debt).
+
+## 26 CFR 1.163-8T(j)(4)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the application of this
+> paragraph (j):
+
+## 26 CFR 1.163-8T(k)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Modification of rules in the case of interest expense allocated to foreign
+> source income. [Reserved]
+
+## 26 CFR 1.163-8T(l)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> [Reserved]
+
+## 26 CFR 1.163-8T(m)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Coordination with other provisions
+
+## 26 CFR 1.163-8T(m)(1)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Effect of other limitations
+
+## 26 CFR 1.163-8T(m)(1)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. All debt is allocated among expenditures pursuant to the rules
+> in this section, without regard to any limitations on the deductibility of
+> interest expense on such debt. The applicability of the passive loss and
+> nonbusiness interest limitations to interest on such debt, however, may be
+> affected by other limitations on the deductibility of interest expense.
+
+## 26 CFR 1.163-8T(m)(1)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Disallowance provisions.
+
+## 26 CFR 1.163-8T(m)(1)(iii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Deferral provisions. Interest expense that is not allowable as a deduction
+> for the taxable year in which paid or accrued by reason of a deferral
+> provision (within the meaning of paragraph (m)(7)(iii) of this section) is
+> allocated in the same manner as the debt giving rise to the interest expense
+> is allocated for such taxable year. Such interest expense is taken into
+> account for purposes of applying the passive loss and nonbusiness interest
+> limitations for the taxable year in which such interest expense is allowable
+> under such deferral provision.
+
+## 26 CFR 1.163-8T(m)(1)(iv)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Capitalization provisions. Interest expense that is capitalized pursuant to
+> a capitalization provision (within the meaning of paragraph (m)(7)(i) of
+> this section) is not taken into account as interest for any taxable year for
+> purposes of applying the passive loss and nonbusiness interest limitations.
+
+## 26 CFR 1.163-8T(m)(2)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Effect on other limitations
+
+## 26 CFR 1.163-8T(m)(2)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> General rule. Except as provided in paragraph (m)(2)(ii) of this section,
+> any limitation on the deductibility of an item (other than the passive loss
+> and nonbusiness interest limitations) applies without regard to the manner
+> in which debt is allocated under this section. Thus, for example, interest
+> expense treated under section 265(a)(2) as interest on indebtedness incurred
+> or continued to purchase or carry obligations the interest on which is
+> wholly exempt from Federal income tax is not deductible regardless of the
+> expenditure to which the underlying debt is allocated under this section.
+
+## 26 CFR 1.163-8T(m)(2)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Exception. Capitalization provisions (within the meaning of paragraph
+> (m)(7)(i) of this section) do not apply to interest expense allocated to any
+> personal expenditure under the rules of this section.
+
+## 26 CFR 1.163-8T(m)(3)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Qualified residence interest. Qualified residence interest (within the
+> meaning of section 163(h)(3)) is allowable as a deduction without regard to
+> the manner in which such interest expense is allocated under the rules of
+> this section. In addition, qualified residence interest is not taken into
+> account in determining the income or loss from any activity for purposes of
+> section 469 or in determining the amount of investment interest for purposes
+> of section 163(d). The following example illustrates the rule in this
+> paragraph (m)(3):
+
+## 26 CFR 1.163-8T(m)(4)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Interest described in section 163(h)(2)(E). Interest described in section
+> 163(h)(2)(E) is allowable as a deduction without regard to the rules of this
+> section.
+
+## 26 CFR 1.163-8T(m)(5)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Interest on deemed distributee debt. [Reserved]
+
+## 26 CFR 1.163-8T(m)(6)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Examples. The following examples illustrate the relationship between the
+> passive loss and nonbusiness interest limitations and other limitations on
+> the deductibility of interest expense:
+
+## 26 CFR 1.163-8T(m)(7)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Other limitations on interest expense
+
+## 26 CFR 1.163-8T(m)(7)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Capitalization provisions. A capitalization provision is any provision that
+> requires or allows interest expense to be capitalized. Capitalization
+> provisions include sections 263(g), 263A(f), and 266.
+
+## 26 CFR 1.163-8T(m)(7)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Disallowance provisions. A disallowance provision is any provision (other
+> than the passive loss and nonbusiness interest limitations) that disallows a
+> deduction for interest expense for all taxable years and is not a
+> capitalization provision. Disallowance provisions include sections
+> 163(f)(2), 264(a)(2), 264(a)(4), 265(a)(2), 265(b)(2), 279(a),
+> 291(e)(1)(B)(ii), 805(b)(1), and 834(c)(5).
+
+## 26 CFR 1.163-8T(m)(7)(iii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Deferral provisions. A deferral provision is any provision (other than the
+> passive loss and nonbusiness interest limitations) that disallows a
+> deduction for interest expense for any taxable year and is not a
+> capitalization or disallowance provision. Deferral provisions include
+> sections 267(a)(2), 465, 1277, and 1282.
+
+## 26 CFR 1.163-8T(n)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Effective date
+
+## 26 CFR 1.163-8T(n)(1)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. This section applies to interest expense paid or accrued in
+> taxable years beginning after December 31, 1986.
+
+## 26 CFR 1.163-8T(n)(2)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Transitional rule for certain expenditures. For purposes of determining
+> whether debt is allocated to expenditures made on or before August 3, 1987,
+> paragraphs (c)(4)(iii)(B) and (c)(5)(i) of this section are applied by
+> substituting “90 days” for “15 days.”
+
+## 26 CFR 1.163-8T(n)(3)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Transitional rule for certain debt
+
+## 26 CFR 1.163-8T(n)(3)(i)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> General rule. Except as provided in paragraph (n)(3)(ii) of this section,
+> any debt outstanding on December 31, 1986, that is properly attributable to
+> a business or rental activity is treated for purposes of this section as
+> debt allocated to expenditures properly chargeable to capital account with
+> respect to the assets held for use or for sale to customers in such business
+> or rental activity. Debt is properly attributable to a business or rental
+> activity for purposes of this section (regardless of whether such debt
+> otherwise would be allocable under this section to expenditures in
+> connection with such activity) if the taxpayer has properly and consistently
+> deducted interest expense (including interest subject to limitation under
+> section 163(d) as in effect prior to the Tax Reform Act of 1986) on such
+> debt on Schedule C, E, or F of Form 1040 in computing income or loss from
+> such business or rental activity for taxable years beginning before January
+> 1, 1987. For purposes of this paragraph (n)(3), amended returns filed after
+> July 2, 1987 are disregarded in determining whether a taxpayer has
+> consistently deducted interest expense on Schedule C, E, or F of Form 1040
+> in computing income or loss from a business or rental activity.
+
+## 26 CFR 1.163-8T(n)(3)(ii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Exceptions
+
+## 26 CFR 1.163-8T(n)(3)(ii)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Debt financed distributions by passthrough entities. [Reserved]
+
+## 26 CFR 1.163-8T(n)(3)(ii)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Election out. This paragraph (n)(3) does not apply with respect to debt of a
+> taxpayer who elects under paragraph (n)(3) (viii) of this section to
+> allocate debt outstanding on December 31, 1986, in accordance with the
+> provisions of this section other than this paragraph (n)(3) (i.e., in
+> accordance with the use of the debt proceeds).
+
+## 26 CFR 1.163-8T(n)(3)(iii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Business or rental activity. For purposes of this paragraph (n)(3), a
+> business or rental activity is any trade or business or rental activity of
+> the taxpayer. For this purpose—
+
+## 26 CFR 1.163-8T(n)(3)(iii)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A trade or business includes a business or profession the income and
+> deductions of which (or, in the case of a partner or S corporation
+> shareholder, the taxpayer's share thereof) are properly reported on Schedule
+> C, E, or F of Form 1040; and
+
+## 26 CFR 1.163-8T(n)(3)(iii)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A rental activity includes an activity of renting property the income and
+> deductions of which (or, in the case of a partner or S corporation
+> shareholder, the taxpayer's share thereof) are properly reported on Schedule
+> E of Form 1040.
+
+## 26 CFR 1.163-8T(n)(3)(iv)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Example. The following example illustrates the circumstances in which debt
+> is properly attributable to a business or rental activity:
+
+## 26 CFR 1.163-8T(n)(3)(v)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Allocation requirement
+
+## 26 CFR 1.163-8T(n)(3)(v)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> In general. Debt outstanding on December 31, 1986, that is properly
+> attributable (within the meaning of paragraph (n)(3)(i) of this section) to
+> a business or rental activity must be allocated in a reasonable and
+> consistent manner among the assets held for use or for sale to customers in
+> such activity on the last day of the taxable year that includes December 31,
+> 1986. The taxpayer shall specify the manner in which such debt is allocated
+> by filing a statement in accordance with paragraph (n)(3)(vii) of this
+> section. If the taxpayer does not file such a statement or fails to allocate
+> such debt in a reasonable and consistent manner, the Commissioner shall
+> allocate the debt.
+
+## 26 CFR 1.163-8T(n)(3)(v)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Reasonable and consistent manner—examples of improper allocation. For
+> purposes of this paragraph (n)(3)(v), debt is not treated as allocated in a
+> reasonable and consistent manner if—
+
+## 26 CFR 1.163-8T(n)(3)(v)(B)(1)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The amount of debt allocated to goodwill exceeds the basis of the goodwill;
+> or
+
+## 26 CFR 1.163-8T(n)(3)(v)(B)(2)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The amount of debt allocated to an asset exceeds the fair market value of
+> the asset, and the amount of debt allocated to any other asset is less than
+> the fair market value (lesser of basis or fair market value in the case of
+> goodwill) of such other asset.
+
+## 26 CFR 1.163-8T(n)(3)(vi)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Coordination with other provisions. The effect of any events occurring after
+> the last day of the taxable year that includes December 31, 1986, shall be
+> determined under the rules of this section, applied by treating the debt
+> allocated to an asset under paragraph (n)(3)(v) of this section as if
+> proceeds of such debt were used to make an expenditure properly chargeable
+> to capital account with respect to such asset on the last day of the taxable
+> year that includes December 31, 1986. Thus, debt that is allocated to an
+> asset in accordance with this paragraph (n)(3) must be reallocated in
+> accordance with paragraph (j) of this section upon the occurrence with
+> respect to such asset of any event described in such paragraph (j).
+> Similarly, such debt is treated as repaid in the order prescribed in
+> paragraph (d) of this section. In addition, a replacement debt (within the
+> meaning of paragraph (e) of this section) is allocated to an expenditure
+> properly chargeable to capital account with respect to an asset to the
+> extent the proceeds of such debt are used to repay the portion of a debt
+> allocated to such asset under this paragraph (n)(3).
+
+## 26 CFR 1.163-8T(n)(3)(vii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Form for allocation of debt. A taxpayer shall allocate debt for purposes of
+> this paragraph (n)(3) by attaching to the taxpayer's return for the first
+> taxable year beginning after December 31, 1986, a statement that is
+> prominently identified as a transitional allocation statement under §
+> 1.163-8T(n)(3) and includes the following information:
+
+## 26 CFR 1.163-8T(n)(3)(vii)(A)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> A description of the business or rental activity to which the debt is
+> properly attributable;
+
+## 26 CFR 1.163-8T(n)(3)(vii)(B)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The amount of debt allocated;
+
+## 26 CFR 1.163-8T(n)(3)(vii)(C)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The assets among which the debt is allocated;
+
+## 26 CFR 1.163-8T(n)(3)(vii)(D)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The manner in which the debt is allocated;
+
+## 26 CFR 1.163-8T(n)(3)(vii)(E)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> The amount of debt allocated to each asset; and
+
+## 26 CFR 1.163-8T(n)(3)(vii)(F)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Such other information as the Commissioner may require.
+
+## 26 CFR 1.163-8T(n)(3)(viii)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Form for election out. A taxpayer shall elect to allocate debt outstanding
+> on December 31, 1986, in accordance with the provisions of this section
+> other than this paragraph (n)(3) by attaching to the taxpayer's return (or
+> amended return) for the first taxable year beginning after December 31,
+> 1986, a statement to that effect, prominently identified as as election out
+> under § 1.163-8T(n)(3).
+
+## 26 CFR 1.163-8T(n)(3)(ix)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Special rule for partnerships and S corporations. For purposes of paragraph
+> (n)(3)(ii)(B), (v), (vii) and (viii) of this section (relating to the
+> allocation of debt and election out), a partnership or S corporation shall
+> be treated as the taxpayer with respect to the debt of the partnership or S
+> corporation.
+
+## 26 CFR 1.163-8T(n)(3)(x)
+
+**Source:** S39 · **Checked:** 2026-09-26 · **Kind:** rule
+
+> Irrevocability. An allocation or election filed in accordance with paragraph
+> (n)(3) (vii) or (viii) of this section may not be revoked or modified except
+> with the consent of the Commissioner.
+

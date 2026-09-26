@@ -401,8 +401,8 @@ def unseen(question: str, known: _Stats) -> tuple[str, ...]:
     -- is the invoice price deducted or capitalized?" reaches eight passages,
     the firm's own $2,500 threshold among them. The cause is exact and it is
     this: the first phrasing's only substantive words are `bought` and
-    `forklift`, and NEITHER appears in any of 785 passages (`purchase` is in 85,
-    `buy` in 11, `acquire` in 55). Without this the doer is told the record
+    `forklift`, and NEITHER appears in any of 1167 passages (`purchase` is in 93,
+    `buy` in 11, `acquire` in 71 -- re-measured 26 September 2026). Without this the doer is told the record
     holds nothing and the firm is filed a hole in authority they do not have.
     With it, both are told which two words the record has never seen, and that
     is a specific thing to say differently.
