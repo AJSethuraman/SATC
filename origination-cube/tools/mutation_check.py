@@ -124,6 +124,10 @@ muts = [
   '    return not still, out', '    return rc == 0, out', "only_ok_when_the_check_after"),
  ("first install unseen until restart", "src/origination_cube/deps.py",
   '            site.addsitedir(user)', '            pass', "seen_without_a_restart"),
+ # NEXT-GOAL 3.8: the Look tab
+ # fix 3.8: the Look tab
+ ("look spreads over the code", "src/origination_cube/look.py", '    values = sorted(x for x in nums if x != code)',
+  '    values = sorted(nums)', "test_look"),
 ]
 bad = 0
 for name, f, old, new, sel in muts:

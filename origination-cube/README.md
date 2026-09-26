@@ -62,6 +62,9 @@ After that, the whole routine is:
    - **Columns:** check what each column is. Anything shaded has its reason
      beside it. Fix any that's wrong from the dropdown, then set "Checked
      every column" to Yes.
+   - **Look:** each number column's smallest, median and largest value, its
+     most-repeated values, its blanks and codes, and a histogram. Read it
+     before typing band edges on Columns.
    - **Odd values:** answer real or missing where you can.
 4. Save, close the workbook, and press **2. Run the cube**. The results land in
    the workbook:
@@ -83,6 +86,8 @@ revolving debt moves with FICO, so a loan-size grid can't tell debt from score,
 and it says so with the number. A category repeats each grid once per value.
 Either way, every three-way pocket is tested and ranked on the **Three-way**
 tab. *Show per pocket* puts a column's median or average in every pocket.
+After a Run, the Look tab plots a split number against each band column, so
+you can see whether it only re-sorts the band.
 
 ![The Split tab: high revolving debt against low, inside each pocket](docs/split.png)
 
@@ -129,8 +134,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 314 tests: one per finding, every Control answer applied, the workbook route, the split, the launcher, the pre-spec, the add-on check (the one that opens the window skips without a display)
-python tools/mutation_check.py     # puts 71 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 320 tests: one per finding, every Control answer applied, the workbook route, the split, the launcher, the pre-spec, the add-on check, the Look tab (the one that opens the window skips without a display)
+python tools/mutation_check.py     # puts 72 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

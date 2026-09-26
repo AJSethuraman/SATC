@@ -31,7 +31,7 @@ def test_set_up_writes_every_tab_a_person_needs(tmp_path):
     out = book.set_up(synth.write_extract(tmp_path, n=3000))
     assert out.ok and out.book.exists()
     names = load_workbook(out.book).sheetnames
-    assert names[:5] == ["Start here", "Control", "Columns", "Odd values", "Learned"]
+    assert names[:6] == ["Start here", "Control", "Columns", "Look", "Odd values", "Learned"]
 
 
 def test_run_refuses_until_answered_naming_each_cell(tmp_path):

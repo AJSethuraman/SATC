@@ -41,7 +41,7 @@ from .ingest import read_table
 INK, CANVAS, SLATE, PAPER, NEEDS = "16130F", "F4F1EC", "57534B", "FFFFFF", "FCE4C4"
 WORSE_FILL, LUCK_FILL = "F7DEDE", "FFF1D6"
 GREEN, RED = "63BE7B", "F8696B"
-INPUT_TABS = ("Start here", "Control", "Columns", "Odd values", "Learned")
+INPUT_TABS = ("Start here", "Control", "Columns", "Look", "Odd values", "Learned")
 RESULT_TABS = ("Where it bleeds", "Losses vs revenue", "Grids", "Split", "Three-way", "Materiality", "Check", "Log")
 LOG_FIRST = 4            # the newest line on the Log tab
 HELPERS = ("_options", "_meanings", "_about")
@@ -370,6 +370,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     wo.column_dimensions["G"].hidden = True
     _fit(wo)
 
+    from . import look                      # fix 3.8: each number column's shape, before its edges are chosen
+    look.write_look(wb, table, look.number_columns(table, cols, int(method["few_values"])))
     _learned_tab(wb, memory_path)
 
     about = wb.create_sheet(ABOUT)
@@ -790,6 +792,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     memory.remember_edges({c: typed.get(c) for c in bands_only if c not in dropped}, memory_path)
     try:
         _write_results(book, res, memory_path, src, dropped)
+        from . import look                  # fix 3.8: the Look tab again, with the split's scatters
+        look.refresh(book, table, res.config.split and res.config.split[0], [b.field for b in res.config.bands])
     except PermissionError:
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
     audit = book.with_name(f"{book.stem} - what ran.yaml")
