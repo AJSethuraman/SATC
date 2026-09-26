@@ -21,8 +21,9 @@ checked against sources, arithmetic checked by running it, and the workbook chec
 by opening it.
 
 **Reference for every test:** `docs/statistics.md`. Control's explanations and
-Check's wording must match it. The firm supplied it on 25 Sep 2026, and it is
-committed unchanged. It cites two scripts kept beside it: `statistics-examples.py`,
+Check's wording must match it. The firm supplied it on 25 Sep 2026, and it was
+committed unchanged. On 26 Sep, with the firm's yes, its three slips (B1, B3/B4, B7) were
+corrected in place, each marked. It cites two scripts kept beside it: `statistics-examples.py`,
 which computes every worked example, and `scout-vs-measure.py`, which does the
 random-forest scouting and the holdout example in B5 and B7. The firm supplied both
 the same evening, and both are committed unchanged beside it. They need numpy,

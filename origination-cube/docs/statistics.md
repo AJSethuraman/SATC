@@ -277,10 +277,12 @@ safe direction.
 Also a cross-check on A1 anywhere.
 
 **Worked example.** Pocket 4 bad of 12; rest 14 bad of 200; so `N = 212`, `K = 18`, `n1 = 12`, expected
-bad in the pocket 0.84. Hypergeometric probabilities for `k = 0 … 5` are 0.335, 0.395, 0.201, 0.058,
+bad in the pocket 1.02 (12 × 18 / 212, the rate this test assumes both share).
+*(Corrected 26 Sep 2026, with the firm's yes: this said 0.84, which is 12 × 14 / 200, the rest's rate
+alone. Either way it is far below 5.)* Hypergeometric probabilities for `k = 0 … 5` are 0.335, 0.395, 0.201, 0.058,
 0.0105, 0.0013. `P(4 or more) = 0.0119`; two-sided also 0.0119 (no lower outcome is as unlikely). The
 two-proportion z on the same counts says `z = 3.18`, p = 0.0015 — eight times too confident, because
-expected bad was 0.84, not 5.
+expected bad was about 1, not 5.
 
 ### B2. Permutation test — dollar rates, and a cross-check for everything
 
@@ -345,9 +347,13 @@ This is the Cochran–Armitage trend test pooled across pockets (Mantel's extens
 **Reading B3 and B4 together.** General says yes and trend says no → the groups differ but not in one
 direction: a U or a hump, which a straight-line test would call "nothing."
 
-**Worked example.** Five ratio groups, bad rates 16%, 3.8%, 4.0%, 3.8%, 16% in one pocket and 10%, 3%,
-4%, 3%, 10% in another: general `Q = 66.4` on 4 df, p-value < 0.0001; trend `Q = 0.000`, p-value
-1.00. A monotone climb (8%, 6%, 7%, 10%, 18%) lights both: general 0.0014, trend 0.0011.
+**Worked example.** Five ratio groups of 100, 400, 500, 400 and 100 loans, bad rates 16%, 3.8%, 4.0%,
+3.8%, 16% in one pocket and 10%, 3%, 4%, 3%, 10% in another: general `Q = 66.5` on 4 df, p-value
+< 0.0001; trend `Q = 0.000`, p-value 1.00. A monotone climb (8%, 6%, 7%, 10%, 18%) lights both: general
+0.0014, trend 0.0011. *(Corrected 26 Sep 2026, with the firm's yes: the group sizes were not given,
+and the numbers only come out with these; and 66.47 was printed as 66.4. `statistics-examples.py`
+does not compute this example; its own "U-shape planted" example, in section 7, has a trend p of
+0.0069, since its U is lopsided.)*
 
 ### B5. Logistic regression with bins and strata — per-group sizes with intervals
 
@@ -437,8 +443,8 @@ from.
 tests above then measure them.
 
 **Worked example** (`scout-vs-measure.py`). Importance: FICO 0.236, income/sales 0.015, loan size and
-both noise columns ≈ 0. Partial dependence on the ratio: 11.0% at 0.05, flat at 7.1–7.4% from 0.1 to
-1.0, 8.0% at 1.5, 11.9% at 2.0, 18.8% at 2.5 — two cliffs, at about 0.1 and about 2. The plain logistic
+both noise columns ≈ 0. Partial dependence on the ratio: 11.0% at 0.05, flat at 7.1–7.6% from 0.1 to
+1.0 *(corrected 26 Sep 2026, with the firm's yes: this said 7.1–7.4%; the script prints 7.64% at 0.10)*, 8.0% at 1.5, 11.9% at 2.0, 18.8% at 2.5 — two cliffs, at about 0.1 and about 2. The plain logistic
 regression on the same data fitted the ratio as a gentle slope (`z = 5.6`), which spreads a 3× cliff
 across the whole range and calls the low tail *safer* when it is worse.
 

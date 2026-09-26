@@ -52,7 +52,7 @@ where each one bends. It nominates; it never confirms (B7).
 | The plain logistic regression with the ratio as a number | **Dropped from the cube, kept in the doc** | It is the worked example of why a straight line misses a cliff (B7), not a step the analyst runs |
 | The binned regression with edges typed by hand | **Moved to 4b** | That is the confirmatory test, run from the pre-spec |
 
-**New add-on:** scikit-learn, which brings scipy. It is heavier than numpy. It would
+**New add-on (the firm, 26 Sep 2026: "Optional add-on"):** scikit-learn, which brings scipy. It is heavier than numpy. It would
 be optional: only the Scout tab needs it, and the launcher would offer to install it
 the way it does numpy (OC-34). Writing a forest by hand in numpy is possible but
 would be a week, and a second implementation to trust.
@@ -115,6 +115,10 @@ machine). The two-range report and the tab take half a day.
 
 ## 4c. Loss typing: fraud-shaped against failure-shaped
 
+> **Out of the cube (the firm, 26 Sep 2026):** *"This is not something the engine is meant
+> to catch. This is non generic. This is meant to be something we may do on a specific study
+> or something."* Kept below as the method for such a study; the cube will not build it.
+
 **What it answers:** are the bad loans in a pocket the kind that never paid, or the
 kind that paid for a while and then failed? The two call for different fixes.
 
@@ -156,8 +160,8 @@ in disguise.
 - The same correlation warning the Split tab gives today (A9), for the affordability
   column.
 
-**The firm's call:** how many affordability bands (proposed: 5, equal loans), and what
-"survives" means (proposed: the second interval still excludes 1).
+**The firm's call, made 26 Sep 2026 ("As proposed"):** 5 affordability bands with equal loans,
+set on Control; "survives" means the second interval still excludes 1.
 
 **Work:** about 1 day. The engine already cuts by extra columns; this runs the split
 twice and adds one table.
@@ -189,7 +193,7 @@ of all losses.
 |---|---|---|---|
 | 4e | 3.13, 3.14, 3.15 | ½ day | none |
 | 4d | the split (exists) | 1 day | none |
-| 4c | 3.4, 3.13 | 1 day | none |
+| ~~4c~~ | out of the cube: a study, case by case (the firm, 26 Sep) | — | — |
 | 4a | 3.9, 3.13, 3.14, 3.15 | 2 days | scikit-learn (optional) |
 | 4b | 3.9, 3.13, 3.14, 3.15; 4a to nominate the bins | 3 days | none (numpy) |
 

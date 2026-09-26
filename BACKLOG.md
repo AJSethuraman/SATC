@@ -1698,6 +1698,43 @@ back.
     - the final check: 206 claims, 25 wrong, all fixed.
 
     The goal started at 197 tests and 66 planted bugs, and ends at 454 and 177.
+- [x] **The firm's answers to the 26 Sep docket** (read back 26 Sep 2026, 10:15 UTC; their
+  words verbatim):
+  1. **statistics.md's three slips:** "Correct them, marked", with *"Confused about why they
+     seemed wrong in the first place. Ensure you are correct too."* All three were recomputed
+     before editing, and each correction is marked in the file:
+     - B1: 1.0189 is 12 × 18 / 212, the rate the test assumes both share. 0.84 used the
+       rest's rate alone.
+     - B3/B4: the example reproduces only with groups of 100/400/500/400/100 loans, and
+       66.4714 rounds to 66.5.
+     - B7: the script prints 7.64% at 0.10.
+  2. **Window the dollars:** *"I need this issue simplified when explained to me."* Asked
+     again in plain words.
+  3. **"Latest" as the as-of date:** *"The as of date is not of concern generally. And we would
+     never use the as of date in place of a date. Either the gross charge off or original date
+     is there or it isn't."*
+  4. **Age filter and window together:** *"The person running it is in charge of whether
+     something has been in the books long enough. This should not be a concern of the engine.
+     If we have the age and can run that particular analysis great. Until this point we didn't
+     include the date and it turns them into additional factors such as charged off in x
+     months."*
+
+     Answers 3 and 4 read together as: the engine stops policing seasoning, and dates only
+     make factors. That reading was put back to the firm to confirm before anything changes.
+  5. **Definitions:** "Keep on Columns". No change.
+  6. **Test 4:** *"Not sure what is being said here. Is this configurable?"* Explained again.
+  7. **Pre-spec "deviates" until 4b:** *"This is not a problem if we are fixing it."* Kept
+     until 4b, which is Next.
+  8. **A pocket alone in its band:** "Compare with the book", with *"It's hard to believe this
+     will even happen unless a specific circumstance."* Being built: compared with the book, and
+     the row says so.
+  9. **scikit-learn for 4a:** "Optional add-on".
+  10. **4c's lines:** *"This is not something the engine is meant to catch. This is non
+      generic. This is meant to be something we may do on a specific study or something."*
+      4c is out of the cube (`docs/capabilities-scope.md`).
+  11. **4d:** "As proposed": 5 equal-loan bands; "survives" means the interval still excludes 1.
+  12. **The tenet:** "Yes, add it". Being added to canon as S36.
+  - **Next:** the box was left blank, so build 4e, then 4b.
 - [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
       (`origination-cube/docs/capabilities-scope.md`). It ends when the planted income ÷
       sales cliffs are found on development loans and confirmed on the holdout from a
