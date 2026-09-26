@@ -649,6 +649,10 @@ def test_a_luck_gap_keeps_its_box_and_says_so(tmp_path):
     marked = [x for x in rows if x["g_read"].endswith("(not significant)")]
     assert marked and all(x["g_fill"] is None for x in marked)              # marked and left plain
     assert any(x["g_fill"] == book.RED_CELL for x in rows)
+    # and the other way round: a gap past a line on Control that isn't coloured is marked, either side
+    past = [x for x in rows if not x["g_read"].startswith("too few") and (x["g_x"] >= 1.25 or x["g_x"] <= 0.8)]
+    plain = [x for x in past if x["g_fill"] is None]
+    assert any(x["g_x"] >= 1.25 for x in plain) and all(x["g_read"].endswith("(not significant)") for x in plain)
 
 
 def test_remembered_edges_only_fill_a_column_the_workbook_has_not_seen(tmp_path):

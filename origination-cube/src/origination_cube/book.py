@@ -1654,16 +1654,6 @@ def luck_gap(res, mname: str, floor: float) -> float | None:
     return round(statistics.median(gaps), 2) if gaps else None
 
 
-def _dollars(s, m, peers: bool) -> tuple:
-    """A pocket's excess over the rest of its band and over the book, in dollars
-    over (a profit surplus is positive, a shortfall negative), the comparison
-    Control's "judged against" picks first and the other beside it for reference
-    (the firm, 26 Sep 2026). Over its band is blank for a pocket alone in it."""
-    sign = 1 if m.higher_is == "worse" else -1
-    band, whole = (None if x is None else sign * x for x in (s.excess_band, s.excess))
-    return (band, whole) if peers else (whole, band)
-
-
 def _side(idx, lo: float, hi: float) -> str | None:
     if idx is None:
         return None
