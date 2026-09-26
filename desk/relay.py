@@ -532,7 +532,9 @@ def on_file(body: str):
             if facts:
                 break
             continue
-        m = re.match(r"^- \*\*([a-z_]+):\*\* (.+)$", line)
+        # THE RECORD'S OWN NAME GRAMMAR. Codex on #401: `[a-z_]+` ended the
+        # block at a declared name like `form_1099` and dropped it silently.
+        m = re.match(r"^- \*\*([a-z][a-z0-9_]*):\*\* (.+)$", line)
         if not m:
             break
         # ONCE EACH. Second independent review of #401: a second `trade` line

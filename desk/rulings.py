@@ -64,10 +64,13 @@ KINDS = ("reach", "position")
 #: A HYPHEN IS A SPACE HERE. Codex on #401: "36-month lease" and "50-percent
 #: limit" slipped past, so a proposal could state an unsupported duration and
 #: be recorded as ruled.
+#: THE WHOLE NUMBER. Codex on #401: `\b\d+` began after the decimal point, so
+#: "2.5 years" and "1.5 years" both read "5 years" and an unsupported duration
+#: passed as grounded.
 FIGURE = re.compile(
     r"\$\s?\d[\d,]*(?:\.\d+)?"
     r"|\b\d[\d,]*(?:\.\d+)?[\s-]*(?:percent\b|%)"
-    r"|\b\d+[\s-]*(?:months?|days?|years?)\b", re.I)
+    r"|(?<![\d.])\d+(?:\.\d+)?[\s-]*(?:months?|days?|years?)\b", re.I)
 
 
 def _figure(text: str) -> str:

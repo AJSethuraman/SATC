@@ -261,3 +261,15 @@ def test_an_accent_typed_as_its_own_mark_is_still_a_label():
 def test_the_same_fact_twice_as_pairs_is_refused():
     with pytest.raises(relay.RelayError, match="more than once"):
         relay.ask_many(["q?"], OCCAM, on_file=[("trade", "a"), ("trade", "b")])
+
+
+def test_a_declared_name_with_a_digit_is_read_back(monkeypatch):
+    """Codex on #401: `on_file` read names as `[a-z_]+`, the record parser
+    accepts `[a-z][a-z0-9_]*`, and a fact like `form_1099` ended the block
+    and was silently dropped."""
+    monkeypatch.setattr(relay, "_declared",
+                        lambda: ("taxpayer", "trade", "form_1099"))
+    facts = {"trade": "general contractor", "form_1099": "received"}
+    got = relay.on_file(relay.batch_prompt(relay.ask_many(["q?"], OCCAM,
+                                                          on_file=facts)))
+    assert got.facts == facts

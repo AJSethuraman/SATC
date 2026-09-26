@@ -704,3 +704,13 @@ def test_no_as_is_is_still_a_no(corpus, queue):
     rid, answer = notifying.reply_in("R1 no, same wording as is", sent=line)
     r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
     assert r.outcome == "upheld"
+
+
+@pytest.mark.parametrize("text, figure", [("over 2.5 years", "2.5year"),
+                                          ("over 1.5-years", "1.5year"),
+                                          ("within 0.5 months", "0.5month")])
+def test_a_fractional_period_is_read_whole(text, figure):
+    """Codex on #401, after the fourth review: `\\b\\d+` started after the
+    decimal point, so "2.5 years" and "1.5 years" were both "5 years", and an
+    unsupported duration read as grounded."""
+    assert [rulings._figure(m) for m in rulings.FIGURE.findall(text)] == [figure]
