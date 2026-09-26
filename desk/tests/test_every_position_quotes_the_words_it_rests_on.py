@@ -243,3 +243,40 @@ def test_a_position_can_rest_on_a_citation_that_carries_a_quoted_title(tmp_path)
     q = next(p for p in _load(c).positions if p.id == "POS19")
     assert q.rests_at == ('IRS Pub. 463 (2025), "Actual Car Expenses"',
                           "26 CFR 1.280F-6(e)(2)")
+
+
+# --- a policy still governs where it applies (Codex on #398) ---------------------
+
+def _cite_where(pid, position):
+    d = record.load(CORPUS)
+    q = next(p for p in d.positions if p.id == pid)
+    return q, engine.serve(engine.Answer(citation=q.applies_at[0],
+                                         position=position),
+                           d, question="a test question")
+
+
+@pytest.mark.parametrize("pid", ["POS15", "POS17", "POS20"])
+def test_citing_the_paragraph_a_policy_applies_at_cannot_answer_the_opposite(pid):
+    """While POS15 sat on § 1.6050W-1(c)(3), any answer citing that paragraph
+    had to be the firm's position or be refused. Unpinned, an answer could cite
+    (c)(3), say the opposite, and be served as primary authority -- the firm's
+    decision bypassed by citing the paragraph under it."""
+    q, out = _cite_where(pid, "the opposite of what the firm decided")
+    assert isinstance(out, engine.Refusal)
+    assert out.reason == "contradicts_ratified_position"
+    assert q.citation in out.detail
+
+
+@pytest.mark.parametrize("pid", ["POS15", "POS17", "POS20"])
+def test_the_firms_words_on_that_paragraph_are_sent_to_the_policy_not_served(pid):
+    """Agreeing is not enough either: served on the paragraph, the firm's
+    policy would read as that paragraph's rule -- the mis-pin undone. The
+    refusal names the reference to cite instead."""
+    q, out = _cite_where(pid, q_position(pid))
+    assert isinstance(out, engine.Refusal)
+    assert out.reason == "citation_does_not_support"
+    assert q.citation in out.detail
+
+
+def q_position(pid):
+    return next(p for p in record.load(CORPUS).positions if p.id == pid).position

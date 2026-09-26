@@ -1260,6 +1260,33 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
     # is the line `guards.py` draws. Left public, tested and unused until the
     # firm picks a shape.
 
+    # A FIRM POLICY STILL GOVERNS THE PARAGRAPH IT APPLIES AT. Codex on #398.
+    # While POS15 sat on § 1.6050W-1(c)(3), an answer citing that paragraph had
+    # to be the firm's position or be refused. Unpinned to firm policy, the
+    # paragraph became ordinary authority again, and an answer could cite it,
+    # say the opposite, and be served. So an answer on an `Applies at:`
+    # paragraph is held to the policy -- and one that agrees is sent to cite
+    # the policy's own reference, because served on the paragraph it would
+    # read as the paragraph's rule: the mis-pin, undone.
+    if kind == "passage":
+        for pol in (q for q in desk.positions
+                    if not q.proposed and answer.citation in
+                    getattr(q, "applies_at", ())):
+            if not _same(answer.position, pol.position):
+                return Refusal(
+                    "contradicts_ratified_position",
+                    f"cited {answer.citation!r}, where the firm's standing "
+                    f"policy {pol.citation!r} applies: {pol.position!r}; "
+                    f"answered {answer.position!r}. A position is the firm's "
+                    f"word and a desk does not revise it",
+                ), passage, source, verdict
+            return Refusal(
+                "citation_does_not_support",
+                f"that is the firm's standing policy, and it rests on the firm, "
+                f"not on {answer.citation!r}. Cite {pol.citation!r} so it is "
+                f"served as the firm's and marked as such.",
+            ), passage, source, verdict
+
     # A ratified position IS the firm's answer, so tier does not gate it: the
     # firm already made the choice that a secondary source would only have
     # invited. This is the whole point of `human_only` — a source the engine
