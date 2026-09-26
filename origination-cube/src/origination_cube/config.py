@@ -66,17 +66,25 @@ REQUIRED_TOP = ("name", "schema_version", "bands", "dimensions", "benchmark", "m
 #: `per: each_loan` divides by the number of loans rather than a column: a
 #: straight share or average, beside the booked-weighted one reporting uses.
 EACH_LOAN = "each_loan"
-CORE_NAMES = ("outcome_loans", "outcome_booked", "gco_rate", "ranr_rate")
+CORE_NAMES = ("outcome_loans", "outcome_booked", "gco_rate", "ranr_rate", "contribution_rate")
+#: The two core rates that are profit, not loss: compared as a difference in points, judged by the
+#: profit line on Control, and material at the loss side's dollar line (NEXT-GOAL 3.2 to 3.4).
+PROFIT = ("ranr_rate", "contribution_rate")
 MISSING_KEYS = {"below", "above", "values"}
 BENCHMARK_KEYS = ("min_units", "min_events", "worse_at", "better_at", "confidence", "power", "compare_to",
                   "many_tests", "materiality")
-# Optional. revenue_line: when revenue counts as more or less than its comparison
-# (ruling OC-26), on every tab; absent, the loss lines are used, and the tabs say so.
+# Optional. revenue_line: when profit (RANR, and contribution before losses) counts as more
+# or less than its comparison, on every tab (rulings OC-26, OC-31, OC-32): luck (each
+# pocket's own test), a number of points either way, or materiality (the pocket's shortfall
+# or surplus must reach the materiality line in dollars). Absent, each pocket's own test,
+# and Check says so. The loss lines no longer lend profit a multiple (NEXT-GOAL 3.2).
 # shuffles: how many times the shuffle test deals out the pocket labels for a dollar
 # rate (docs/statistics.md B2); absent, perm.SHUFFLES (10,000). It changes no reading
 # a person chooses, only how finely a p-value can print (1 in B + 1 at the smallest).
 BENCHMARK_OPTIONAL = ("revenue_line", "shuffles")
-REVENUE_LINES = ("luck", "losses")
+REVENUE_LINES = ("luck", "materiality")
+#: the most points a profit line can be: a gap that big is past any real book
+MAX_POINTS = 20
 COMPARE_TO = ("peers", "topline")
 MANY_TESTS = ("none", "bh", "bonferroni")
 HIGHER_IS = ("worse", "better")
@@ -142,8 +150,9 @@ class Measure:
     optional: bool = False        # absent column -> skipped with a warning (D55)
     flag_is: Any = None           # flagwt: the value that means yes, when the flag is not 0/1 already
     core: bool = False            # built from the required lines, never optional
-    higher_is: str = "worse"      # worse for a loss (GCO, a bad-loan rate); better for revenue (RANR)
+    higher_is: str = "worse"      # worse for a loss (GCO, a bad-loan rate); better for profit (RANR)
     show: str = "median"          # median: which figure a median-mode measure shows, median or average
+    plus: str | None = None       # sumnum: a second column added to `value` per loan (contribution = RANR + GCO)
 
     @property
     def is_rate(self) -> bool:
@@ -156,13 +165,22 @@ class Measure:
         return self.mode != "median"
 
     @property
+    def in_points(self) -> bool:
+        """Compared as a difference in points of its bottom (pocket - comparison),
+        never a multiple. A rate where more is better is profit, which can be zero
+        or negative: a multiple of it has no stable meaning (near zero it explodes,
+        and two negatives divide into a positive; the audit, item a)."""
+        return self.higher_is == "better"
+
+    @property
     def title(self) -> str:
         """The measure as a person names it, on every screen a person reads."""
         return {"outcome_loans": "Outcome, share of loans", "outcome_booked": "Outcome, share of booked dollars",
-                "gco_rate": "GCO per booked dollar", "ranr_rate": "RANR per booked dollar"}.get(self.name, self.name)
+                "gco_rate": "GCO per booked dollar", "ranr_rate": "Profit after losses: RANR per booked dollar",
+                "contribution_rate": "Contribution before losses per booked dollar"}.get(self.name, self.name)
 
     def columns(self) -> tuple[str, ...]:
-        return tuple(c for c in (self.value, self.flag, self.per) if c and c != EACH_LOAN)
+        return tuple(c for c in (self.value, self.plus, self.flag, self.per) if c and c != EACH_LOAN)
 
     def _yes(self) -> str:
         return f"{self.flag} = {self.flag_is!r}" if self.flag_is is not None else f"{self.flag} = 1"
@@ -171,7 +189,7 @@ class Measure:
         """What the excess is counted in, in the file's own column names."""
         if self.mode == "flagwt":
             return f"loans where {self._yes()}" if self.per == EACH_LOAN else f"{self.per} on loans where {self._yes()}"
-        return self.value or ""
+        return f"{self.value} + {self.plus}" if self.plus else (self.value or "")
 
     def label(self) -> str:
         """The grid states its own arithmetic."""
@@ -180,9 +198,10 @@ class Measure:
                 return f"COUNT(loans where {self._yes()}) / COUNT(loans)"
             return f"SUM({self.per} where {self._yes()}) / SUM({self.per})"
         if self.mode == "sumnum":
+            top = f"{self.value} + {self.plus}" if self.plus else self.value
             if self.per == EACH_LOAN:
-                return f"SUM({self.value}) / COUNT(loans)"
-            return f"SUM({self.value}) / SUM({self.per})"
+                return f"SUM({top}) / COUNT(loans)"
+            return f"SUM({top}) / SUM({self.per})"
         if self.mode == "count":
             return "Loans (rows)"
         return f"MEDIAN({self.value}) per cell - positional, does not add up"
@@ -196,9 +215,10 @@ class Measure:
                 return f"Loans where {yes}, as a share of all loans."
             return f"{self.per} on loans where {yes}, as a share of all {self.per}."
         if self.mode == "sumnum":
+            top = f"{self.value} plus total {self.plus}" if self.plus else self.value
             if self.per == EACH_LOAN:
-                return f"Total {self.value} over the number of loans."
-            return f"Total {self.value} over total {self.per}."
+                return f"Total {top} over the number of loans."
+            return f"Total {top} over total {self.per}."
         if self.mode == "count":
             return "Loans."
         return f"The {self.show} {self.value} in each pocket. Medians and averages don't add up across pockets."
@@ -217,7 +237,7 @@ class Benchmark:
     compare_to: str                  # peers | topline: which comparison decides the flag
     many_tests: str                  # none | bh | bonferroni
     materiality: tuple               # ("share", 0.01) | ("dollars", 250000.0) | ("none", 0.0)
-    revenue_line: Any = None         # None | "luck" | "losses" | a share such as 0.1 (RANR on every tab)
+    revenue_line: Any = None         # None or "luck" (each pocket's own test) | "materiality" | points, e.g. 0.25
     shuffles: int = SHUFFLES         # the shuffle test's B (docs/statistics.md B2); 0 runs no shuffle test
 
 
@@ -392,13 +412,16 @@ def parse(raw: Any, source_path: str = "") -> Config:
             problems.append(f"measure name `{m.name}` is taken by a core rate; call it something else")
     core = ()
     if out_field and cols["booked"] and cols["gco"] and cols["ranr"]:
-        # RANR is revenue: bigger is better (the firm, 25 Sep 2026). Its bleed is a shortfall.
+        # RANR is profit after losses: bigger is better (the firm, 25 Sep 2026, OC-21, OC-29). Its bleed is a
+        # shortfall. Contribution before losses adds back the losses inside RANR, which are GCO (OC-35)
         core = (Measure(name="outcome_loans", mode="flagwt", flag=out_field, per=EACH_LOAN, flag_is=out_is, core=True),
                 Measure(name="outcome_booked", mode="flagwt", flag=out_field, per=cols["booked"], flag_is=out_is,
                         core=True),
                 Measure(name="gco_rate", mode="sumnum", value=cols["gco"], per=cols["booked"], core=True),
                 Measure(name="ranr_rate", mode="sumnum", value=cols["ranr"], per=cols["booked"], core=True,
-                        higher_is="better"))
+                        higher_is="better"),
+                Measure(name="contribution_rate", mode="sumnum", value=cols["ranr"], plus=cols["gco"],
+                        per=cols["booked"], core=True, higher_is="better"))
     age, orig_col, as_of = _parse_age(raw, columns, problems)
     window, out_date = _parse_window(raw, columns, age, orig_col, as_of, problems)
     derived = _parse_derived(raw.get("derived"), problems) if raw.get("derived") is not None else ()
@@ -655,7 +678,7 @@ def _parse_measures(node: Any, problems: list[str]) -> tuple[Measure, ...]:
             if k == "higher_is":
                 if v not in HIGHER_IS:
                     problems.append(f"{where} ({name}): needs `higher_is: worse` (a loss) or `higher_is: better` "
-                                    f"(revenue); got {v!r}")
+                                    f"(profit); got {v!r}")
                 else:
                     cols[k] = v
             elif not isinstance(v, str) or not v.strip():
@@ -716,8 +739,15 @@ def _parse_benchmark(node: Any, problems: list[str]) -> Benchmark | None:
                         f"got {node['materiality']!r}")
         ok = False
     rl = node.get("revenue_line")
-    if rl is not None and rl not in REVENUE_LINES and not (_num(rl) and 0 < rl < 1):
-        problems.append(f"benchmark.revenue_line must be luck, losses, or a share such as 0.1; got {rl!r}")
+    if rl == "losses":
+        # the loss lines lent profit a multiple, which a rate near zero or below it can't carry (NEXT-GOAL 3.2)
+        problems.append("benchmark.revenue_line: losses is no longer an option. Profit is a difference in points, "
+                        "not a multiple: use luck (each pocket's own test), a number of points such as 0.25, or "
+                        "materiality (a shortfall as big as the materiality line)")
+        ok = False
+    elif rl is not None and rl not in REVENUE_LINES and not (_num(rl) and 0 < rl <= MAX_POINTS):
+        problems.append(f"benchmark.revenue_line must be luck, materiality, or a number of points from above 0 to "
+                        f"{MAX_POINTS}, such as 0.25; got {rl!r}")
         ok = False
     sh = node.get("shuffles", perm.SHUFFLES)
     if not isinstance(sh, int) or isinstance(sh, bool) or not 100 <= sh <= 1_000_000:

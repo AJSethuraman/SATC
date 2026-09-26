@@ -9,9 +9,11 @@ quantile below is copied from portfolio-analysis-pack/src/analysis_pack/stats.py
 step by hand.
 
 For the share of loans (a yes/no per loan) the smallest gap and the loans
-needed are A3's power formula, exactly (ruling OC-37). For the dollar rates
-they are still the approximation below, until the later wave that reads RANR
-as a difference in points.
+needed are A3's power formula, exactly (ruling OC-37). For the loss dollar
+rates they are the approximation below, as a multiple. Profit (RANR, and
+contribution before losses) is a difference in points, never a multiple
+(NEXT-GOAL 3.2): its smallest gap is `smallest_difference`, the same ratio
+estimator's standard error for the pocket and for the rest of the book.
 
 WHY THE SUGGESTIONS ARE COMPUTED, NOT FIXED. How many loans a pocket needs
 before its rate means anything depends on the book: on its loss rate, on how
@@ -122,16 +124,29 @@ class LoansNeeded:
     confidence: float
     power: float
     book_loans: int
-    method: str = "ratio"       # "ratio": the approximation above; "two_prop": A3, for a yes/no per loan
+    # "ratio": the approximation above; "two_prop": A3, for a yes/no per loan; "difference": profit, where
+    # gap is a difference in the rate's units (0.0025 for 0.25 points), or None when no line is in points
+    method: str = "ratio"
 
     def sentence(self) -> str:
+        if self.method == "difference":
+            if not self.gap:
+                return (f"{self.measure}: compared as a difference in points; each pocket says the smallest gap "
+                        f"its size could show")
+            pts = f"{self.gap * 100:g}-point"
+            if self.loans is None:
+                return (f"{self.measure}: no pocket of this book could show a {pts} gap {self.power:.0%} of the "
+                        f"time at {self.confidence:.0%} confidence")
+            share = self.loans / self.book_loans if self.book_loans else 0
+            return (f"{self.measure}: about {self.loans:,} loans before a {pts} gap shows {self.power:.0%} of "
+                    f"the time at {self.confidence:.0%} confidence ({share:.1%} of this book's loans)")
         if self.loans is None and self.rate:
-            return (f"{self.measure}: no pocket of this book could tell a {self.gap:g}x gap from luck "
+            return (f"{self.measure}: no pocket of this book could show a {self.gap:g}x gap as significant "
                     f"{self.power:.0%} of the time at {self.confidence:.0%} confidence")
         if self.loans is None:
             return f"{self.measure}: the book's rate is zero, so no gap can be sized"
         share = self.loans / self.book_loans if self.book_loans else 0
-        return (f"{self.measure}: about {self.loans:,} loans before a {self.gap:g}x gap can be told from luck "
+        return (f"{self.measure}: about {self.loans:,} loans before a {self.gap:g}x gap shows as significant "
                 f"{self.power:.0%} of the time at {self.confidence:.0%} confidence "
                 f"({share:.1%} of this book's loans)")
 
@@ -152,6 +167,59 @@ def loans_needed(measure: str, pairs: list[tuple[float, float]], gap: float, con
     z = norm_s_inv(1 - (1 - confidence) / 2) + norm_s_inv(power) * math.sqrt(gap)
     need = (z * s_d / (x_bar * (gap - 1) * rate)) ** 2
     return LoansNeeded(measure, math.ceil(need), rate, s_d, x_bar, gap, confidence, power, n)
+
+
+def _spread(pairs: list[tuple[float, float]]) -> tuple[float | None, float, float]:
+    """(the book's rate, S_d, x_bar) for (top, bottom) pairs: S_d is the
+    standard deviation of top - rate * bottom across the loans."""
+    n = len(pairs)
+    sy = math.fsum(p[0] for p in pairs)
+    sx = math.fsum(p[1] for p in pairs)
+    rate = sy / sx if sx else None
+    x_bar = sx / n if n else 0.0
+    if rate is None or n < 2:
+        return rate, 0.0, x_bar
+    d = [y - rate * x for y, x in pairs]
+    mean_d = math.fsum(d) / n
+    return rate, math.sqrt(math.fsum((v - mean_d) ** 2 for v in d) / (n - 1)), x_bar
+
+
+def smallest_difference(n: int, s_d: float, x_bar: float, book_loans: int, confidence: float,
+                        power: float) -> float | None:
+    """The smallest gap in a profit rate (pocket - rest, in the rate's units)
+    a pocket of n loans could show `power` of the time at `confidence`:
+
+        gap = (z_conf + z_power) * (S_d / x_bar) * sqrt(1/n + 1/(N - n))
+
+    S_d / (x_bar * sqrt(n)) is the ratio estimator's standard error, for the
+    pocket and for the rest of the book (N - n loans) alike. The rate itself
+    never enters, so a book earning next to nothing gets no blow-up (the
+    audit, item a: 10,401x as a multiple)."""
+    rest = book_loans - n
+    if n < 2 or rest < 1 or x_bar == 0 or s_d == 0:
+        return None
+    z = norm_s_inv(1 - (1 - confidence) / 2) + norm_s_inv(power)
+    return z * s_d / abs(x_bar) * math.sqrt(1 / n + 1 / rest)
+
+
+def loans_needed_difference(measure: str, pairs: list[tuple[float, float]], gap: float | None,
+                            confidence: float, power: float) -> LoansNeeded:
+    """The fewest loans a pocket of this book needs to show a profit gap of
+    `gap` (the rate's units) `power` of the time: smallest_difference turned
+    round, n (N - n) >= K N with K = ((z_conf + z_power) S_d / (x_bar gap))^2.
+    None when no gap is given (the line isn't in points) or half the book
+    couldn't show it."""
+    n = len(pairs)
+    rate, s_d, x_bar = _spread(pairs)
+    out = LoansNeeded(measure, None, rate, s_d, x_bar, gap or 0.0, confidence, power, n, method="difference")
+    if not gap or n < 4 or s_d == 0 or x_bar == 0:
+        return out
+    z = norm_s_inv(1 - (1 - confidence) / 2) + norm_s_inv(power)
+    k = (z * s_d / (abs(x_bar) * gap)) ** 2
+    if n < 4 * k:
+        return out
+    need = math.ceil((n - math.sqrt(n * n - 4 * k * n)) / 2)
+    return LoansNeeded(measure, max(need, 2), rate, s_d, x_bar, gap, confidence, power, n, method="difference")
 
 
 # --------------------------------------------------------------------------
@@ -394,9 +462,12 @@ def smallest_gap(n: int, rate: float | None, s_d: float, x_bar: float, confidenc
 def smallest_gap_for(ln: LoansNeeded, n: int, confidence: float, power: float) -> float | None:
     """The smallest gap a pocket of n loans could show, by the method its rate
     was sized with: A3 for a yes/no per loan (a pocket of n against the rest of
-    the book at the book's rate), the approximation above for a dollar rate."""
+    the book at the book's rate), a difference for profit, and the
+    approximation above for a loss dollar rate."""
     if ln.method == "two_prop":
         return mde_two_prop(n, ln.rate, ln.book_loans - n, confidence, power)
+    if ln.method == "difference":
+        return smallest_difference(n, ln.s_d, ln.x_bar, ln.book_loans, confidence, power)
     return smallest_gap(n, ln.rate, ln.s_d, ln.x_bar, confidence, power)
 
 

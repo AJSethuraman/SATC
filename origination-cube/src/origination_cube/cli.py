@@ -39,6 +39,13 @@ def _x(v):
     return "" if v is None else f"{v:.2f}x"
 
 
+def _gap(v, m):
+    """A comparison: a multiple, or for profit a difference in points (NEXT-GOAL 3.2)."""
+    if v is None:
+        return ""
+    return f"{v * 100:+.2f} pts" if m.in_points else f"{v:.2f}x"
+
+
 def _n(v):
     return "" if v is None else f"{v:,.0f}"
 
@@ -114,7 +121,8 @@ def report(res: engine.Result, top: int = 5) -> str:
                     head += f", median of cells {_pct(g.benchmarks[m.name])}"
             out.append(head)
             if m.is_rate:
-                out.append("  each cell: rate, then rate over topline")
+                out.append("  each cell: rate, then " + ("rate less topline, in points" if m.in_points
+                                                          else "rate over topline"))
             cols = g.dim_labels + [engine.ALL]
             width = max(12, *(len(c) + 2 for c in cols))
             first = max(len(b) for b in g.band_labels + [engine.ALL]) + 2
@@ -127,7 +135,7 @@ def report(res: engine.Result, top: int = 5) -> str:
                         line += " " * (width * (2 if m.is_rate else 1))
                     elif m.is_rate:
                         s = c.rates[m.name]
-                        line += f"{_pct(s.rate):>{width}}{_x(s.vs_topline):>{width}}"
+                        line += f"{_pct(s.rate):>{width}}{_gap(s.vs_topline, m):>{width}}"
                     elif m.mode == "median":
                         s = c.medians[m.name]
                         line += f"{'' if s.median is None else f'{s.median:g}':>{width}}"
@@ -154,13 +162,17 @@ def report(res: engine.Result, top: int = 5) -> str:
                         continue
                     out.append(f"    {b} / {d}: {_n(ex)}, {_plural(s.units, 'loan')}")
                     if bench is not None:
-                        out.append(f"      rate over the book's rate {_x(s.vs_topline)}")
-                        out.append(f"      vs rest of book {_x(s.vs_rest)} (p {_p(s.p_book)}): {_word(s.reading_topline)}")
-                        out.append(f"      vs rest of band {_x(s.vs_band)} (p {_p(s.p_band)}): {_word(s.reading_band)}")
+                        out.append(f"      against the book's rate {_gap(s.vs_topline, m)}")
+                        out.append(f"      vs rest of book {_gap(s.vs_rest, m)} (p {_p(s.p_book)}): "
+                                   f"{_word(s.reading_topline)}")
+                        out.append(f"      vs rest of band {_gap(s.vs_band, m)} (p {_p(s.p_band)}): "
+                                   f"{_word(s.reading_band)}")
                         judged = "the rest of its band" if bench.compare_to == "peers" else "the rest of the book"
                         out.append(f"      flag (judged against {judged}): {_word(s.flag)}")
                         if s.smallest_gap:
-                            out.append(f"      this many loans can show a gap of {s.smallest_gap:.2f}x or more")
+                            out.append(f"      this many loans can show a gap of {_gap(s.smallest_gap, m)} or more"
+                                       if m.in_points else
+                                       f"      this many loans can show a gap of {s.smallest_gap:.2f}x or more")
                 if below:
                     out.append(f"    below the materiality line: {_plural(len(below), 'pocket')}, {_n(sum(below))} "
                                f"together")

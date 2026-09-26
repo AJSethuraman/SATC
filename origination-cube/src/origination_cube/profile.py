@@ -62,7 +62,7 @@ NUMERIC_SHARE = 0.99
 JUDGMENT_TO_FILE = {"min_loans": "min_units", "min_events": "min_events", "worse_at": "worse_at",
                     "better_at": "better_at", "confidence": "confidence", "compare_to": "compare_to",
                     "materiality": "materiality"}
-# revenue_line is left out: only the workbook's Losses vs revenue tab reads it
+# revenue_line is left out: absent, profit is read by each pocket's own test, the suggested option
 
 
 @dataclass
@@ -260,9 +260,9 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
     lines += ["", "# Not cut by: " + (", ".join(f"{c} ({sugg[c].means})" for c in table.columns
                                                  if cat[sugg[c].means].cut == "none") or "none")]
 
-    lines += ["", "# The core rates (outcome by loans and by booked dollars, GCO and RANR per booked dollar)",
-              "# are built from the required columns on every run. Extras go here; per: each_loan",
-              "# divides by the number of loans instead of a column (a straight average).",
+    lines += ["", "# The core rates (the outcome by loans and by booked dollars; GCO, RANR and RANR + GCO",
+              "# per booked dollar) are built from the required columns on every run. Extras go here;",
+              "# per: each_loan divides by the number of loans instead of a column (a straight average).",
               "measures:", "  - {name: loans, mode: count}", ""]
 
     lines.append("benchmark:")

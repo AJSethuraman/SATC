@@ -122,7 +122,7 @@ def test_the_split_says_how_closely_it_moves_with_each_band(planted):
 
 
 def test_the_split_luck_figures_carry_the_allowance(planted):
-    """Asked on 25 Sep 2026: every "Luck alone" figure is after the allowance for
+    """Asked on 25 Sep 2026: every p-value ("Luck alone" until NEXT-GOAL 3.1) is after the allowance for
     many tests, the split's included."""
     raw, table = planted
     r = copy.deepcopy(raw)

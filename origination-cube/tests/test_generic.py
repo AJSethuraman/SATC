@@ -30,8 +30,10 @@ REGIONS = ["Coast", "Valley", "Hills"]
 
 def _auto_book(d: Path, n: int = 7000, seed: int = 11) -> Path:
     """The planted problem: Fleet Direct in the Hills defaults about four times as
-    often as the rest, at every score. Revenue runs lower at low scores, and is
-    negative for the lowest, so a comparison below zero is exercised too."""
+    often as the rest, at every score. The revenue column is profit after losses,
+    as RANR is (OC-29, OC-35): what the loan paid, less the whole loss. It runs
+    lower at low scores and is negative for most loans that charged off, so a
+    comparison below zero is exercised too."""
     rnd = random.Random(seed)
     rows = []
     for i in range(n):
@@ -43,7 +45,8 @@ def _auto_book(d: Path, n: int = 7000, seed: int = 11) -> Path:
             p *= 4
         bad = rnd.random() < min(p, 0.9)
         loss = round(amt * rnd.uniform(0.3, 0.7), 2) if bad else 0.0
-        rev = round(amt * (0.04 + (score - 640) / 4000) - loss * 0.5, 2)
+        paid = amt * (0.04 + (score - 640) / 4000)          # contribution before losses
+        rev = round(paid - loss, 2)                          # the whole loss comes out; it took out half until 26 Sep 2026
         rows.append({"AcctId": f"A{i:06d}", "BureauScore": score, "Dealer": dealer, "FinancedAmt": amt,
                      "ChargedOff": "Y" if bad else "N", "NetLossDollars": loss, "NetRevenueDollars": rev,
                      "Region": region, "PTI": round(rnd.uniform(0.04, 0.2), 3)})

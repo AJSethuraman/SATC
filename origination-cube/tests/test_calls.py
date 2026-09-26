@@ -17,7 +17,8 @@ def bench(**kw):
 
 
 def test_ranr_is_revenue_so_less_of_it_is_the_bleed(book):
-    """The firm: 'RANR is a revenue metric ... bigger is better.'"""
+    """The firm: 'RANR is a revenue metric ... bigger is better.' It is profit
+    after losses (NEXT-GOAL 3.3), and still: less of it is the bleed."""
     for r, v in zip(book, (1, 1, 20, 20, 1, 20)):         # the under-650 loans earn little
         r["RANR"] = v
     res = engine.run(cube(), table(book))
@@ -39,8 +40,9 @@ def test_ranr_reads_worse_when_it_earns_less(book):
         rows.append(row(i, 600 if a else 700, "A", 100, 0, 0, ranr=(1.0 if i % 2 else 2.0) if a else 5.0))
     res = engine.run(cube(), table(rows))
     s = res.grids[0].cell("600 - 649", "A").rates["ranr_rate"]
-    assert s.vs_rest == pytest.approx(0.3)
-    assert s.reading_topline == engine.WORSE                   # 0.3x of revenue is worse, not better
+    # 1.5% of booked dollars against 5%: 3.5 points less, a difference and never a multiple (NEXT-GOAL 3.2)
+    assert s.vs_rest == pytest.approx(0.015 - 0.05)
+    assert s.reading_topline == engine.WORSE                   # keeps less is worse, not better
 
 
 def test_too_few_losses_to_test(book):
@@ -91,9 +93,11 @@ def test_materiality_as_a_share_and_in_dollars(book):
     res = engine.run(cube(benchmark=bench(materiality=40)), table(book))
     assert res.materiality_line["gco_rate"] == 40.0
     assert res.grids[0].cell("600 - 649", "A").rates["gco_rate"].material is False
-    # a dollar line is a GCO amount: nothing else borrows it (the third walk, defect 8)
-    assert set(res.materiality_line) == {"gco_rate"}
-    assert any("RANR per booked dollar: no materiality line" in w for w in res.warnings)
+    # a dollar line is a GCO amount: the outcome rates don't borrow it (the third walk, defect 8); a profit
+    # shortfall is dollars too, and is held to the same line (NEXT-GOAL 3.2)
+    assert res.materiality_line == {"gco_rate": 40.0, "ranr_rate": 40.0, "contribution_rate": 40.0}
+    assert any("Outcome, share of loans: no materiality line" in w for w in res.warnings)
+    assert not any("RANR" in w and "no materiality line" in w for w in res.warnings)
 
 
 def test_loan_age_keeps_only_loans_old_enough(book):

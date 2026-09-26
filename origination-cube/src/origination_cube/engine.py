@@ -5,7 +5,9 @@ lose more than their share. So every rate cell carries three comparisons.
 
   vs topline   the cell's rate over the whole book's rate. The same number is
                the cell's share of the losses over its share of the volume,
-               which is why it is the bleed measure.
+               which is why it is the bleed measure. For profit (RANR, and
+               contribution before losses) every comparison is the difference
+               in points instead, never a multiple (NEXT-GOAL 3.2).
   excess       the cell's losses minus what it would have lost at the topline
                rate. In dollars, and it adds to zero across a grid, so it
                reconciles as the rates do.
@@ -25,12 +27,11 @@ from __future__ import annotations
 import math
 import statistics
 from collections import Counter
-import dataclasses
 from dataclasses import dataclass, field
 from typing import Any
 
 from . import perm, stats
-from .config import EACH_LOAN, PERIOD_WORDS, Band, Config, Dimension, Measure, MissingRule
+from .config import EACH_LOAN, PERIOD_WORDS, PROFIT, Band, Config, Dimension, Measure, MissingRule
 from .ingest import BLANK, Bad, Table, cell_text, is_blank, parse_number
 
 BLANK_LABEL = "(blank)"
@@ -39,9 +40,11 @@ MISSING_RULE_LABEL = "(marked missing)"
 REASON_LABEL = {"blank": BLANK_LABEL, "not a number": NOT_NUMBER_LABEL, "missing by rule": MISSING_RULE_LABEL}
 
 # The words a pocket can get. Each says which way (walkthrough defect 11: "gap
-# could be luck" on a pocket that was better did not say so).
+# could be luck" on a pocket that was better did not say so). A gap past the line
+# whose p-value is not below the bar is "not significant" (NEXT-GOAL 3.1, as
+# docs/statistics.md's conventions say it).
 WORSE, BETTER, IN_LINE = "worse", "better", "in line"
-UNSURE_WORSE, UNSURE_BETTER = "worse, but could be luck", "better, but could be luck"
+UNSURE_WORSE, UNSURE_BETTER = "worse, not significant", "better, not significant"
 THIN, FEW = "too few loans to test", "too few losses to test"
 UNSURE = UNSURE_WORSE
 # the test behind a pocket's p-value (RateStat.test), in the words the workbook uses
@@ -220,32 +223,84 @@ def index_of(rate: float | None, base: float | None) -> float | None:
     return stats.multiple(rate, base)
 
 
-def revenue_bench(bench):
-    """The lines revenue is judged by, and whether it's each pocket's own luck
-    range. The firm, 25 Sep 2026, after the seventh walk: the revenue setting
-    on Control decides revenue on every tab (Where it bleeds judged it by the
-    loss lines while Losses vs revenue used the revenue setting, so one pocket
-    read two ways in one file)."""
+def gap_of(rate: float | None, base: float | None, points: bool) -> float | None:
+    """A pocket against its comparison: rate - base for a measure in points
+    (profit; the rate's own units, so 0.0035 is +0.35 points), else the
+    multiple (index_of)."""
+    if not points:
+        return index_of(rate, base)
+    return None if rate is None or base is None else rate - base
+
+
+@dataclass(frozen=True)
+class ProfitLine:
+    """How far profit must move before it counts as more or less (the profit
+    line on Control; the firm, 25 Sep 2026, after the seventh walk: one setting
+    decides profit on every tab).
+    test     each pocket's own test: any gap it calls significant (ruling OC-31)
+    points   a gap of `value` or more either way, in the rate's units (0.0025 = 0.25 points)
+    dollars  a shortfall or surplus of `value` dollars or more (the materiality line)"""
+    kind: str
+    value: float = 0.0
+
+
+def profit_line(bench, dollar_line: float | None = None) -> ProfitLine | None:
+    """The profit line in use. `dollar_line` is the materiality line in
+    dollars (GCO's), used when the setting is materiality. Absent, each
+    pocket's own test, the suggested option: the loss lines no longer lend
+    profit a multiple (NEXT-GOAL 3.2)."""
+    if bench is None:
+        return None
     rl = getattr(bench, "revenue_line", None)
-    if rl is None or rl == "losses":
-        return bench, False
-    if rl == "luck":
-        return bench, True
-    return dataclasses.replace(bench, worse_at=1 / (1 - rl), better_at=1 / (1 + rl)), False
+    if rl is None or rl == "luck":
+        return ProfitLine("test")
+    if rl == "materiality":
+        return ProfitLine("dollars", float(dollar_line or 0.0))
+    return ProfitLine("points", float(rl) / 100)
+
+
+def reading_gap(gap: float | None, den: float, line: ProfitLine | None, p: float | None, confidence: float,
+                tested: bool = True, units: int = 0, min_units: float = 0) -> str | None:
+    """The word for a measure where more is better (profit), from its gap in
+    points against its comparison (pocket - comparison; below zero keeps less).
+    Each pocket's own test: a gap counts only when significant. A line in points
+    or dollars: a gap past it counts, and one that isn't significant says so.
+    `den` is the pocket's bottom (booked dollars), which turns the gap into
+    dollars for a dollar line. `tested=False` is the median comparison, which
+    has no test."""
+    if gap is None or line is None:
+        return None
+    if not tested and units < min_units:
+        return THIN
+    real = tested and p is not None and p < 1 - confidence
+    if line.kind == "test":
+        if not tested:
+            return None                     # no test, so nothing to read by it
+        if not real or gap == 0:
+            return IN_LINE
+        return WORSE if gap < 0 else BETTER
+    size = abs(gap) if line.kind == "points" else abs(gap * den)
+    if gap == 0 or size < line.value * (1 - 1e-9):
+        return IN_LINE
+    worse = gap < 0
+    if tested and not real:
+        return UNSURE_WORSE if worse else UNSURE_BETTER
+    return WORSE if worse else BETTER
 
 
 def reading_of(idx: float | None, units: int, bench, min_units: float, p: float | None = None,
                tested: bool = True, higher_is: str = "worse", events: int | None = None,
-               min_events: int = 0, luck_only: bool = False) -> str | None:
-    """The word for a cell. A gap past a threshold counts only when the test
-    says it is unlikely to be luck at the file's confidence (after any
+               min_events: int = 0) -> str | None:
+    """The word for a cell, from its multiple. A gap past a threshold counts
+    only when its p-value is below the bar at the file's confidence (after any
     allowance for testing many pockets). Only fewest losses stops a test: below
     fewest loans the share of loans gets the exact test and a dollar rate is
     shuffled, neither of which needs a minimum (docs/statistics.md A4, B1, B2;
-    walk 6 defect 8: 29 bad of 50 read "too few loans to test"). For a measure
-    where higher is better (RANR), a rate below its comparison is the bad
-    direction. `tested=False` is the median comparison, which has no test at
-    all, so the fewest-loans floor still keeps it off a handful of loans."""
+    walk 6 defect 8: 29 bad of 50 read "too few loans to test"). A measure
+    where higher is better is profit, read from its gap in points by
+    reading_gap, never here. `tested=False` is the median comparison, which
+    has no test at all, so the fewest-loans floor still keeps it off a handful
+    of loans."""
     if idx is None or bench is None:
         return None
     if not tested and units < min_units:
@@ -253,11 +308,6 @@ def reading_of(idx: float | None, units: int, bench, min_units: float, p: float 
     if events is not None and higher_is == "worse" and events < min_events:
         return FEW
     bad = idx if higher_is == "worse" else (1 / idx if idx > 0 else math.inf)
-    if luck_only and tested:
-        # each pocket's own luck range: any gap its test calls real counts; the rest is about the same
-        if p is None or p >= 1 - bench.confidence or bad == 1:
-            return IN_LINE
-        return WORSE if bad > 1 else BETTER
     if bench.better_at < bad < bench.worse_at:
         return IN_LINE
     worse = bad >= bench.worse_at
@@ -308,12 +358,13 @@ class RateStat:
     syy: float = 0.0          # the sums the test needs; they add up like num and den
     sxx: float = 0.0
     sxy: float = 0.0
+    # vs_*: a multiple of the comparison, or for a measure in points (profit) pocket - comparison
     vs_rest: float | None = None    # against the rest of the book (the book without this pocket)
     p_book: float | None = None     # the test of vs_rest, after the allowance for many tests
     vs_band: float | None = None    # against the rest of its band (its row, without it)
     p_band: float | None = None
     reading_band: str | None = None
-    smallest_gap: float | None = None   # the smallest multiple of the book's rate this pocket could show
+    smallest_gap: float | None = None   # the smallest gap this pocket could show: a multiple, or a difference
     events: int = 0                     # loans whose top is not zero: losses, for a loss rate
     flag: str | None = None             # the reading that decides, per `compare_to`
     material: bool | None = None        # excess at or over the materiality line (None: not applied)
@@ -407,21 +458,36 @@ class Result:
 # --------------------------------------------------------------------------
 
 
+def gco_dollar_line(bench, total) -> float | None:
+    """The materiality answer on Control as GCO dollars: a share of the book's
+    total GCO, or the dollar amount itself. None without GCO or a benchmark."""
+    if bench is None or "gco_rate" not in total.rates:
+        return None
+    kind, v = bench.materiality
+    return 0.0 if kind == "none" else v * abs(total.rates["gco_rate"].num) if kind == "share" else v
+
+
 def _materiality_lines(bench, measures, total, warnings) -> dict[str, float]:
     """Each rate's materiality line in its own units. A share of the book's
-    total applies to every rate. A dollar amount is a GCO amount (the Control
-    question is the smallest excess loss): it applies to GCO alone, and every
-    other rate says it has no line rather than borrow GCO's dollars (the third
-    walk, defect 8: $100,000 of GCO made every RANR shortfall immaterial)."""
+    total applies to every loss rate. A dollar amount is a GCO amount (the
+    Control question is the smallest excess loss): it applies to GCO, and the
+    outcome rates say they have no line rather than borrow GCO's dollars (the
+    third walk, defect 8). Profit and contribution are dollars like GCO, so a
+    shortfall is material at the same dollar line as the loss side: a share of
+    |total RANR| collapsed when the book's profit was near zero (the audit,
+    item a)."""
     out: dict[str, float] = {}
     if bench is None:
         return out
     kind, v = bench.materiality
+    gco_line = gco_dollar_line(bench, total)
     for m in measures:
         if not m.is_rate:
             continue
         if kind == "none":
             out[m.name] = 0.0
+        elif m.name in PROFIT and gco_line is not None:
+            out[m.name] = gco_line
         elif kind == "share":
             out[m.name] = v * abs(total.rates[m.name].num)
         elif m.name == "gco_rate":
@@ -838,7 +904,8 @@ def run(config: Config, table: Table) -> Result:
         else:
             top_col = m.flag if m.mode == "flagwt" else m.value
             per_vals = [1.0] * n if m.per == EACH_LOAN else col(m.per)
-            for raw_top, raw_per in zip(col(top_col), per_vals):
+            plus_vals = col(m.plus) if m.plus else [None] * n
+            for raw_top, raw_per, raw_plus in zip(col(top_col), per_vals, plus_vals):
                 if m.per == EACH_LOAN:
                     d, why_d = 1.0, None
                 else:
@@ -853,10 +920,15 @@ def run(config: Config, table: Table) -> Result:
                         t, why_t = (1.0 if cell_text(raw_top) == cell_text(m.flag_is) else 0.0), None
                 else:
                     t, why_t = classify_number(raw_top, rules.get(top_col))
+                where_t = top_col
+                if m.plus and why_t is None:
+                    # contribution before losses = RANR + GCO, per loan (OC-35); either unreadable leaves it out
+                    q, why_q = classify_number(raw_plus, rules.get(m.plus))
+                    t, why_t, where_t = (t + q, None, top_col) if why_q is None else (None, why_q, m.plus)
                 if why_t is None and m.mode == "flagwt" and t not in (0.0, 1.0):
                     t, why_t = None, "flag not 0 or 1"
                 if why_t or why_d:
-                    lo[(top_col, why_t) if why_t else (m.per, why_d)] += 1
+                    lo[(where_t, why_t) if why_t else (m.per, why_d)] += 1
                     vals.append(None)
                 else:
                     num = (d if t == 1.0 else 0.0) if m.mode == "flagwt" else t
@@ -884,6 +956,12 @@ def run(config: Config, table: Table) -> Result:
                 t = total.rates[m.name]
                 ln = stats.loans_needed_two_prop(m.name, t.rate, t.units, bench.worse_at, bench.confidence,
                                                  bench.power)
+            elif m.in_points:
+                # profit: a gap in points, never a multiple of a rate that can sit at zero (NEXT-GOAL 3.2)
+                pl = profit_line(bench)
+                ln = stats.loans_needed_difference(m.name, [v for v in per_row[m.name] if v is not None],
+                                                   pl.value if pl.kind == "points" else None, bench.confidence,
+                                                   bench.power)
             else:
                 ln = stats.loans_needed(m.name, [v for v in per_row[m.name] if v is not None],
                                         bench.worse_at, bench.confidence, bench.power)
@@ -1134,12 +1212,13 @@ def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topli
         book = total.rates[m.name].sums()
         ln = needed.get(m.name)
         hi = m.higher_is
+        pts = m.in_points
         for (b, d), c in cells.items():
             s = c.rates[m.name]
             if top is not None:
-                # the bleed: losses over the topline, or for revenue a shortfall under it
+                # the bleed: losses over the topline, or for profit a shortfall under it
                 s.excess = (s.num - top * s.den) if hi == "worse" else (top * s.den - s.num)
-            s.vs_topline = index_of(s.rate, top)
+            s.vs_topline = gap_of(s.rate, top, pts)
             if bench is None:
                 continue
             if ln is not None:
@@ -1147,11 +1226,11 @@ def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topli
             if (b, d) == (ALL, ALL):
                 continue
             rest_book, rest_band = _minus(book, s.sums()), None
-            s.vs_rest = index_of(s.rate, _rate(rest_book))
+            s.vs_rest = gap_of(s.rate, _rate(rest_book), pts)
             if b != ALL and d != ALL:
-                s.vs_median = index_of(s.rate, med)
+                s.vs_median = gap_of(s.rate, med, pts)
                 rest_band = _minus(cells[(b, ALL)].rates[m.name].sums(), s.sums())
-                s.vs_band = index_of(s.rate, _rate(rest_band))
+                s.vs_band = gap_of(s.rate, _rate(rest_band), pts)
             if (b, d) not in pockets:
                 continue
             if yes_no(m):
@@ -1185,18 +1264,25 @@ def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
             for k, p in zip(keys, adj):
                 setattr(cells[k].rates[m.name], attr, p)
         mat = materiality_line.get(m.name)
+        # profit is read in points by the profit line on Control, on every tab (OC-32; NEXT-GOAL 3.2)
+        line = profit_line(bench, materiality_line.get("gco_rate")) if m.in_points else None
         for (b, d), c in cells.items():
             s = c.rates[m.name]
             kw = dict(higher_is=hi, events=s.events, min_events=bench.min_events)
-            judge = bench
-            if hi == "better":
-                judge, kw["luck_only"] = revenue_bench(bench)
             # the reading and its test describe the same comparison: the pocket against the rest without it
-            s.reading_topline = reading_of(s.vs_rest, s.units, judge, floor, s.p_book, **kw)
+            if line is not None:
+                s.reading_topline = reading_gap(s.vs_rest, s.den, line, s.p_book, bench.confidence)
+            else:
+                s.reading_topline = reading_of(s.vs_rest, s.units, bench, floor, s.p_book, **kw)
             s.flag = s.reading_topline
             if b != ALL and d != ALL:
-                s.reading_median = reading_of(s.vs_median, s.units, judge, floor, tested=False, **kw)
-                s.reading_band = reading_of(s.vs_band, s.units, judge, floor, s.p_band, **kw)
+                if line is not None:
+                    s.reading_median = reading_gap(s.vs_median, s.den, line, None, bench.confidence, tested=False,
+                                                   units=s.units, min_units=floor)
+                    s.reading_band = reading_gap(s.vs_band, s.den, line, s.p_band, bench.confidence)
+                else:
+                    s.reading_median = reading_of(s.vs_median, s.units, bench, floor, tested=False, **kw)
+                    s.reading_band = reading_of(s.vs_band, s.units, bench, floor, s.p_band, **kw)
                 if bench.compare_to == "peers":
                     s.flag = s.reading_band
             if mat is not None and s.excess is not None:
@@ -1261,7 +1347,7 @@ def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
                 idx, _, nh, nl = grid.split_compare[k][m.name]
                 grid.split_compare[k][m.name] = (idx, got.p if got else None, nh, nl)
             pooled = grid.split_pooled.get(m.name)
-            if pooled is not None and "ratio" in pooled and st.pooled is not None:
+            if pooled is not None and ("ratio" in pooled or "gap" in pooled) and st.pooled is not None:
                 pooled["ratio_p"], pooled["ratio_hits"], pooled["shuffles"] = (st.pooled.p, st.pooled.hits,
                                                                               st.pooled.shuffles)
 
@@ -1308,7 +1394,7 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
     for m in measures:
         if not m.is_rate:
             continue
-        strata, o_sum, e_sum, v_sum, pockets, high_worse = [], 0.0, 0.0, 0.0, 0, 0
+        strata, o_sum, e_sum, v_sum, pockets, high_worse, high_den = [], 0.0, 0.0, 0.0, 0, 0, 0.0
         tested = grid.split_tested.setdefault(m.name, [])
         for (b, d), _ in grid.inner():
             h, lo = cells3.get((b, d, HIGH)), cells3.get((b, d, LOW))
@@ -1322,14 +1408,17 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             if thin or few:
                 grid.split_compare.setdefault((b, d), {})[m.name] = (None, None, sh.units, sl.units)
                 continue
-            idx = stats.multiple(sh.rate, sl.rate)
+            # profit: the high half's rate less the low half's, in points, never a multiple (NEXT-GOAL 3.2)
+            idx = sh.rate - sl.rate if m.in_points else stats.multiple(sh.rate, sl.rate)
             # a yes/no per loan: A1, pooled; a dollar rate's p comes from the shuffle test
             p = stats.two_prop_z(sh.num, sh.units, sl.num, sl.units)[1] if yes_no(m) else None
             grid.split_compare.setdefault((b, d), {})[m.name] = (idx, p, sh.units, sl.units)
             tested.append((b, d))
             pockets += 1
             # a high half with losses against a low half with none has no multiple, and is worse
-            if idx is not None:
+            if m.in_points:
+                worse = idx < 0
+            elif idx is not None:
                 worse = idx > 1 if m.higher_is == "worse" else idx < 1
             else:
                 worse = sh.rate > sl.rate if m.higher_is == "worse" else sh.rate < sl.rate
@@ -1341,13 +1430,22 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             r = sl.rate
             o_sum += sh.num
             e_sum += r * sh.den
+            high_den += sh.den
             n = sh.units
             s_dd = max(sh.syy - 2 * r * sh.sxy + r * r * sh.sxx, 0.0) * n / max(n - 1, 1)
             se_l = stats.ratio_se(*sl.sums()) or 0.0
             v_sum += s_dd + (sh.den * se_l) ** 2
         out = {"pockets": pockets, "high_worse": high_worse, "measure": m.name}
         z = stats.norm_s_inv(1 - (1 - (bench.confidence if bench else 0.95)) / 2)
-        if e_sum > 0:
+        if m.in_points:
+            # (O - E) over the high halves' booked dollars: how many points more (or less) the high halves
+            # keep than they would at their own low halves' rates. No ratio, so no hole when E is at or
+            # below zero (the audit, item a: -2.15, range 0.00 to -1.85)
+            if high_den > 0:
+                out["gap"] = (o_sum - e_sum) / high_den
+                half = z * math.sqrt(v_sum) / high_den
+                out["gap_lo"], out["gap_hi"] = out["gap"] - half, out["gap"] + half
+        elif e_sum > 0:
             out["ratio"] = o_sum / e_sum
             if yes_no(m):
                 out["ratio_p"] = (math.erfc(abs(o_sum - e_sum) / math.sqrt(v_sum) / math.sqrt(2))
@@ -1433,4 +1531,6 @@ def materiality(grid: Grid, m: Measure, total: Cell) -> list[stats.MaterialityRo
     each candidate threshold, how many pockets it keeps and how much of the
     grid's bleed they hold."""
     ex = [c.rates[m.name].excess for _, c in grid.inner() if c.rates[m.name].excess is not None]
-    return stats.materiality_ladder(ex, abs(total.rates[m.name].num))
+    # profit is laddered on the book's GCO, the same dollars its materiality line is drawn from
+    base = total.rates["gco_rate"] if m.name in PROFIT and "gco_rate" in total.rates else total.rates[m.name]
+    return stats.materiality_ladder(ex, abs(base.num))

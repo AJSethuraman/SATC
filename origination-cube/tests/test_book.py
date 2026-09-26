@@ -9,7 +9,7 @@ from origination_cube import book, control, memory, synth
 PICK = {"min_age_months": "Every loan", "min_loans": "30", "min_events": "10",
         "materiality": "1% of the book's total losses", "compare_to": "The rest of its band",
         "worse_at": "1.25 times", "better_at": "0.8 times", "confidence": "95%",
-        "revenue_line": "What luck alone can move it (suggested)"}
+        "revenue_line": "Each pocket's own test (suggested)"}
 
 
 def _answer(path, confirm=True, odd=True):
@@ -156,4 +156,12 @@ def test_grids_are_heat_maps_against_the_book_and_against_peers(tmp_path):
     heads = {c.value for row in ws.iter_rows(max_row=12) for c in row if c.value}
     assert {"Rate", "Vs the book", "Vs the rest of its band"} <= heads
     scales = [r for rng in ws.conditional_formatting for r in rng.rules if r.type == "colorScale"]
-    assert scales and all(r.colorScale.cfvo[1].val in ("1", 1) for r in scales)    # white at 1.00x
+    # white at 1.00x for a multiple; for profit, a gap in points, white at 0, even either way, red below
+    # (NEXT-GOAL 3.2)
+    mids = [float(r.colorScale.cfvo[1].val) for r in scales]
+    assert scales and set(mids) == {1.0, 0.0}
+    for r in scales:
+        if float(r.colorScale.cfvo[1].val) == 0.0:
+            lo, hi = float(r.colorScale.cfvo[0].val), float(r.colorScale.cfvo[2].val)
+            assert lo == -hi < 0 and r.colorScale.color[0].rgb.endswith(book.RED)
+            assert r.colorScale.color[2].rgb.endswith(book.GREEN)
