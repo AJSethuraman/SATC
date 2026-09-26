@@ -224,7 +224,8 @@ stop the work: anything a client or the bank reads that changes meaning, and any
       are there. OC-14 and the run-kind entry are amended where they sit (S13).
 - [ ] **3. Lean pre-spec.** An outcome plus a shortlist of inputs, each with bins and a reference;
       optional columns to hold fixed, each input reported with and without them (this is 4d); the
-      allowance for many tests spread across the shortlist. Strata: see the open question.
+      allowance for many tests spread across the shortlist. Strata are suggested and left blank
+      (OC-13). Lock first: no held-back results until a pre-spec is locked, and the Log keeps the order.
 - [ ] **4. T1 sweep.** One method note per tab, near the top, that an outsider can follow. The
       per-row lone-pocket note and the Test column move into it. Every other tab swept against T1's
       check: a column predictable from the settings and the pocket's size is method.
@@ -252,13 +253,10 @@ the lean pre-spec come straight after 4b, because both reshape what 4b confirms.
 the goal's first wording ("a dated outcome", "a committed pre-spec") predates OC-39 and the git
 question; Goal 2's own end condition above is what counts now.
 
-**Open with the firm** (on the docket, https://claude.ai/artifact/U5pHCYek9H7hqehzUvqs8M):
-- **What the redesign hold covers.** Recommended: the launcher, the test picker and layout only. The
-  rulings that decide what a tab says (items 4, 6, 7, 8) go ahead, because the design brief already
-  assumes them.
-- **Strata in the pre-spec.** OC-13 says judgment settings are never pre-chosen. Recommended: the band
-  and segment are suggested in the label and left blank, as the other judgment settings are.
-- **Proof the pre-spec came first, without git.** A fingerprint and date written by the workbook prove
-  the file did not change afterwards, not that it came first (C8, S31). Recommended: the workbook will
-  not work out held-back results until a pre-spec is locked, and the Log records the lock and then
-  each run, in order, so the order is enforced rather than claimed.
+**Answered by the firm, 26 Sep 2026** (docket https://claude.ai/artifact/U5pHCYek9H7hqehzUvqs8M):
+- **The redesign hold covers the launcher, the test picker and the layout only.** Items 4, 6, 7 and 8
+  go ahead.
+- **Strata are suggested in the label and left blank**, like every other judgment setting (OC-13).
+- **Lock first.** The workbook will not work out held-back results until a pre-spec is locked, and
+  the Log records the lock and then each run, in order. Git is still recorded where it exists. This is
+  built into item 3.

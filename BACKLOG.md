@@ -1825,6 +1825,18 @@ back.
       committed pre-spec, and Check no longer says "deviates" on the reference group.
 - [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
       `cube drill` and `cube prove` (and put their settings back on the tab).
+- **Goal 2 agreed, Count Bassy's pass, and the firm's three answers (26 Sep 2026).** The firm:
+  *"we are now on the same page - make sure you docket all of this so we know what the goal
+  is"*. Goal 2 is in `origination-cube/docs/NEXT-GOAL.md`, ten items in order. Count Bassy read 50
+  entries (12 held convictions, 36 tenets, T1) and raised nine points. The run's minimum and the lean
+  pre-spec moved up behind 4b (C11), and each item now names its proof (S2, S3, S13, S14, S18, S32).
+  Answered on the docket (https://claude.ai/artifact/U5pHCYek9H7hqehzUvqs8M):
+  - **Redesign hold:** the launcher, the test picker and the layout only. What a tab says goes ahead.
+  - **Strata:** suggested, left blank. OC-13 holds with no exception.
+  - **Pre-spec proof without git:** lock first. The workbook will not work out held-back results until
+    a pre-spec is locked, and the Log records the lock and then each run, in order; git is recorded
+    where it exists. The firm: *"actually i don't really know what this means - explain but probably
+    take recommendation"*, explained in the reply the same day.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
