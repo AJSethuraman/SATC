@@ -115,7 +115,7 @@ Each is built with a test. The full suite and the mutation check run after each.
 - [x] **3.11 Definitions on Control.** *(Done 26 Sep 2026, merge 3dcb3da, but on the Columns tab beside each column, not on Control: the firm to confirm.)* Free text for what each amount column means
       (household vs guarantor income; trailing-twelve actual vs a month × 12), carried
       into what-ran.
-- [ ] **3.12 Prevalence table.** For any split or derived column: loans and dollars per
+- [x] **3.12 Prevalence table.** *(Done 26 Sep 2026, merge 60ba9bc.)* For any split or derived column: loans and dollars per
       group per pocket, with no test attached. A count of the book, not a finding.
 - [x] **3.13 Date roles on Columns.** *(Done 26 Sep 2026, merge 3dcb3da.)* Origination date and outcome date. The engine
       derives months on book and months to bad.
@@ -126,22 +126,22 @@ Each is built with a test. The full suite and the mutation check run after each.
       - Without an outcome date, the window is refused, with the reason.
       - Where seasoned vintages exist, report the share of eventual losses that had
         landed by month N.
-- [ ] **3.15 Pre-spec.** *(Reader built 26 Sep 2026, merge 6001797: `prespec.py`; still to wire into Check and the Log.)* The confirmatory run reads a pre-spec file: bins, strata,
+- [x] **3.15 Pre-spec.** *(Done 26 Sep 2026: the reader `prespec.py` in merge 6001797, wired into Check and the Log in merge 60ba9bc. Until 4b is built, every pre-spec run reads "deviates from pre-spec" on the reference group, because the cube compares halves, not groups against a reference.)* The confirmatory run reads a pre-spec file: bins, strata,
       window, confidence, reference group and holdout origination range.
       - Check echoes the file and the git commit it was read from.
       - If Control disagrees with the pre-spec, warn on Check and label the run
         "deviates from pre-spec" in the Log.
       - Any run whose extract falls inside the holdout range is flagged in the Log, so
         the count of holdout runs is visible.
-- [ ] **3.16 Pocket budget and coverage on Check.**
+- [x] **3.16 Pocket budget and coverage on Check.** *(Done 26 Sep 2026, merge 60ba9bc.)*
       - Max testable pockets = expected bad loans ÷ 5 (at the suggested floor), printed
         beside the pocket count Control asks for, with a warning when Control exceeds
         it.
       - The share of loans and of dollars sitting in testable pockets.
-- [ ] **3.17 Family count on Check.** How many grid × rate × comparison families the run
+- [x] **3.17 Family count on Check.** *(Done 26 Sep 2026, merge 60ba9bc.)* How many grid × rate × comparison families the run
       contains, with one line saying that a single red across many families is weak
       evidence.
-- [ ] **3.18 Product mix warning.** If a credit-product column is present with more than
+- [x] **3.18 Product mix warning.** *(Done 26 Sep 2026, merge 60ba9bc.)* If a credit-product column is present with more than
       one value and is not a cut column, warn on Check that profit per dollar is being
       compared across products. Warn only; the firm decides.
 

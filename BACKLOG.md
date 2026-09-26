@@ -1585,6 +1585,22 @@ back.
     synthetic book's AS_OF, one as a date and one as text (01d70ff).
 
   410 tests; 133 re-inserted bugs.
+- [x] **Wave 4 (26 Sep 2026): Check lines, prevalence and the pre-spec** (NEXT-GOAL
+  3.12, 3.15–3.18; merge 60ba9bc, tests brought up to Wave 2 in 7d886de).
+  - **The pre-spec, named on Control:**
+    - Check echoes it, with its commit;
+    - one warning for each place the run deviates, and the Log says "Deviates from
+      pre-spec";
+    - a run whose extract holds holdout loans is logged "Touched the holdout", and
+      Check counts those runs.
+  - **The pocket budget** (bad loans ÷ 5) against each grid's pockets, with
+    coverage in loans and dollars.
+  - **The family count**, with the line that a single red across many families is
+    weak evidence.
+  - **A product-mix warning**, using a new "Credit product" meaning.
+  - **A Prevalence tab** ("a count, not a test").
+
+  430 tests; 164 re-inserted bugs. Every fix, 3.1 to 3.18, is now on the branch.
 - [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
       `cube drill` and `cube prove` (and put their settings back on the tab).
 - **Not checked:** real Excel, a real extract, and the bank machine
