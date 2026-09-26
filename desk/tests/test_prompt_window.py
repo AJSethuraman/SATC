@@ -391,8 +391,8 @@ NARROWED = {
     # says this is a label on examples and not a paragraph added to every brief.
     # The graded figures below are likewise untouched: `brief_for_grading`
     # prints no example, so there is nothing there to label.
-    "is a brewery tab a business meal?": 2_750,
-    "what supporting documents does the client have to keep?": 7_122,
+    "is a brewery tab a business meal?": 2_932,
+    "what supporting documents does the client have to keep?": 7_417,
     #
     # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
     # are both visible in the diff. Every position a brief carries now prints
@@ -406,8 +406,19 @@ NARROWED = {
     # each kept position rests on, so POS7 brings § 1.274-11(b)(1)(ii) with it.
     # That is the fix working -- without it the second reader was handed the
     # wrong paragraph.
-    "hand tools bought for the trade - deducted or capitalized?": 4_013,
-    "mileage or actual expenses for the van?": 2_463,
+    #
+    # ALL FOUR MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 4, and it is one
+    # change priced two ways. The brief's first sentence said a citation to
+    # anything not printed is refused; the engine checks the whole corpus, so
+    # three of nine served answers in pilot 4 cited paragraphs retrieval never
+    # surfaced. The sentence now says what is true, and every brief ends with
+    # every section on file (`ask.on_file_index`) -- replacing the list of the
+    # shown sources rather than sitting beside it. Net +171 to +364: a brief
+    # showing more sources lost more of the old list. The index is citations
+    # only because headings did not fit the supporting-documents brief under
+    # 7,616 tokens; its docstring has the measurement.
+    "hand tools bought for the trade - deducted or capitalized?": 4_184,
+    "mileage or actual expenses for the van?": 2_827,
 }
 
 #: The whole corpus, unnarrowed, in tokens: `(rules only, with examples)`.
@@ -435,7 +446,10 @@ NARROWED = {
 # And +3 / +4 after Codex on #398: two passages joined across a gap now mark it.
 # And +355 on both sides: the four flush paragraphs the old reader dropped from
 # § 1.274-5T, § 1.280F-6 and § 1.62-2, now on their parents.
-WHOLE = (134_737, 249_043)
+# And +75 on both sides for the same pilot-4 sentence: what is refused is a
+# citation to anything NOT ON FILE, not anything not printed. The unnarrowed
+# brief carries no on-file index -- it already prints everything.
+WHOLE = (134_812, 249_118)
 
 
 def _answering_sizes():

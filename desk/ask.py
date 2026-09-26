@@ -322,10 +322,20 @@ def consult(question: str, corpus: Path = CORPUS,
     # `dec-examples`, second half: a brief is never worked examples alone.
     widened = with_a_rule(question, found, corpus)
     added = widened[-1].held.citation if len(widened) > len(found) else ""
-    return brief(question,
-                 _corpus(corpus)[0].narrowed_to(
-                     [f.held.citation for f in widened]),
-                 context, rule_added=added)
+    whole = _corpus(corpus)[0]
+    # THE FIRM'S RULINGS ON WHAT A QUESTION REACHES. Added, never subtracted:
+    # a paragraph the firm ruled this question's words should bring up is in
+    # the brief whatever it scored, and nothing else moves. See `rulings`.
+    import rulings as _rulings
+    cited = [f.held.citation for f in widened]
+    ruled = {}
+    for r, cit in _rulings.brought_by(question, _rulings.load(corpus)):
+        if cit not in cited and whole.passage(cit):
+            cited.append(cit)
+            ruled[cit] = r
+    return brief(question, whole.narrowed_to(cited),
+                 context, rule_added=added, on_file=tuple(whole.sources),
+                 ruled=ruled)
 
 
 def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
@@ -531,7 +541,8 @@ def review_brief(position, corpus: Path = CORPUS, *, limit: int = 8) -> str:
 
 def brief(question: str, desk: record.Desk,
           context: record.Context | None = None, *,
-          rule_added: str = "") -> str:
+          rule_added: str = "", on_file: tuple = (),
+          ruled: dict | None = None) -> str:
     """Everything the desk will let an answerer see, and nothing else."""
     ratified = [q for q in desk.positions if not q.proposed]
     context = context or record.NOTHING_ON_FILE
@@ -549,9 +560,21 @@ def brief(question: str, desk: record.Desk,
     # a FETCH, not the answerer's word, so the instruction has to be exact about
     # what is being asked for. Quoting from memory is the failure this engine
     # exists to stop and it must not read as newly permitted.
+    # THE FIRST SENTENCE WAS FALSE FOR A MONTH, and an answerer proved it.
+    # It said a citation to anything not printed here is refused. It is not:
+    # `answer` checks the whole corpus, not this brief. Sarcia pilot 4, 26
+    # September 2026 -- three of nine served answers cited a paragraph retrieval
+    # never surfaced, because the desk already knew where it was. So the
+    # authority was usable only by somebody who already knew where to look, and
+    # the brief told everybody else not to. What is refused is anything NOT ON
+    # FILE; `read` is how an answerer looks at the rest of what is.
     out = [f"# {desk.name}{stamp}", "", f"**Asked:** {question}", "",
-           "Answer ONLY from what follows. A citation to anything not printed",
-           "here is refused by the engine, however real it is.", "",
+           "Answer ONLY from authority on file. The paragraphs below are the",
+           "closest by word overlap; EVERY section on file is listed at the end,",
+           "and you may cite any paragraph of one. Read it first:",
+           '`ask.read("<citation or section>")` prints the stored words, or a',
+           "section's paragraphs. A citation to anything NOT on file is refused",
+           "by the engine, however real it is.", "",
            "If the rule you need is NOT printed here, do not cite it from",
            "memory — escalate `authority_absent`. If you have been given a way",
            "to fetch, you may instead hand in the URL you found it at and the",
@@ -670,8 +693,14 @@ def brief(question: str, desk: record.Desk,
                 "escalate `no_field_for_this_fact` and name it — that is a "
                 "hole the firm has to decide about, and a preparer who had to "
                 "hand it over has just found it by doing the work.", ""]
-    out += ["## Sources this desk may rely on", ""]
-    out += [f"- **{s.id}** · {s.title} · tier **{s.tier}**" for s in desk.sources]
+    # ONE LIST OF SOURCES, NOT TWO. This printed the sources behind the shown
+    # passages with their tier, and `on_file_index` now prints every source on
+    # file; two lists cost the tokens twice on an 8,192-token window
+    # (LOCAL-LLM-PATTERN rule 1). The tier moves onto the index.
+    if not on_file:
+        out += ["## Sources this desk may rely on", ""]
+        out += [f"- **{s.id}** · {s.title} · tier **{s.tier}**"
+                for s in desk.sources]
     if ratified:
         out += ["", "## The firm's own positions — binding, and quoted exactly", ""]
         # COPY THE POSITION, DO NOT RESTATE IT -- and the brief has to say so.
@@ -792,6 +821,12 @@ def brief(question: str, desk: record.Desk,
                     "question, the record may simply not hold a rule that "
                     "does, and that is worth saying rather than working "
                     "around.", ""]
+        if ruled and p.citation in ruled:
+            r = ruled[p.citation]
+            out += [f"**Here because the firm ruled it ({r.id}, {r.ruled}): "
+                    f"a question saying \"{'; '.join(r.reaches_on)}\" reaches "
+                    f"this paragraph.** The firm ruled what it is FOUND by, "
+                    f"not what it says; read it as you would any other.", ""]
         if p.kind == record.EXAMPLE:
             out += ["**A worked example — another taxpayer's facts, not this "
                     "client's.** It shows how the rule was applied to the "
@@ -799,7 +834,76 @@ def brief(question: str, desk: record.Desk,
                     "example only where the facts in front of you match the "
                     "ones in it, and say which.", ""]
         out += [f"> {p.text}", ""]
+    if on_file:
+        out += on_file_index(on_file)
     return "\n".join(out)
+
+
+def on_file_index(sources) -> list:
+    """Every section on file, in one line: what an answerer may go and read.
+
+    THE SHELF, NOT THE BOOKS. Sarcia pilot 4 measured the gap this closes: of
+    five sections admitted because a question named them, the paragraph
+    carrying the rule reached the eight passages a brief prints ONCE. Two were
+    not in the top 300 of 1,171. Word overlap cannot bridge "recordkeeping" to
+    "books of account or records", and a bigger window only moves the cliff.
+
+    So the answerer is shown what is on file and reads what it needs with
+    `read`, which lists a section's paragraphs by their own run-in headings.
+    The model proposes where to look; the engine still decides whether what it
+    cites is there and what it is quoted as saying.
+
+    CITATIONS ONLY, AND THAT WAS MEASURED, NOT PREFERRED. The publisher's
+    headings cost 530 tokens at six words and 328 at two; the supporting-
+    documents brief had 273 left of the 7,616 an 8,192 window leaves
+    (LOCAL-LLM-PATTERN rule 1). Bare citations cost 186. The headings are one
+    `read` away.
+    """
+    out = ["## Everything on file — any paragraph of these may be cited", "",
+           'Read before citing: `ask.read("26 CFR 1.461-1")` lists a '
+           "section's paragraphs; a full citation prints its words.", ""]
+    out.append("; ".join(f"`{s.citation_prefix}`"
+                         + ("" if s.tier == "primary" else f" ({s.tier})")
+                         for s in sources) + ".")
+    return out + [""]
+
+
+def read(citation: str, corpus: Path = CORPUS) -> str:
+    """The stored words of a paragraph, or the paragraphs of a section.
+
+    The other half of `on_file_index`. A brief lists every section on file;
+    this is how an answerer reads one without being handed the whole corpus.
+    EXACT OR PREFIX, NEVER NEAREST: a lookup that returned the closest
+    citation would let an answer rest on a paragraph next to the one it named,
+    which is the failure the citation check exists to catch.
+    """
+    desk = _corpus(corpus)[0]
+    citation = " ".join(citation.split())
+    exact = desk.passage(citation)
+    # UNDER MEANS UNDER. A bare prefix test put § 1.61-10 under § 1.61-1 and
+    # § 1.274-5T under § 1.274-5; what follows the citation has to open a
+    # sub-paragraph or name an example of it.
+    under = [p for p in desk.passages
+             if p.citation.startswith(citation)
+             and p.citation[len(citation):][:1] in ("(", " ")]
+    if exact:
+        out = [f"### {exact.citation}", "", f"> {exact.text}", ""]
+        # A LEAD-IN IS HALF A SENTENCE. § 1.263(a)-4(f)(1) ends "does not
+        # extend beyond the earlier of--" and its two limits are (f)(1)(i) and
+        # (ii). Printed alone it states no rule at all.
+        for p in under:
+            if p.citation[len(citation):].startswith("("):
+                out += [f"### {p.citation}", "", f"> {p.text}", ""]
+        return "\n".join(out)
+    if under:
+        out = [f"## On file under {citation}", ""]
+        for p in under:
+            words = p.text.split()
+            head = " ".join(words[:14]) + (" …" if len(words) > 14 else "")
+            out.append(f"- `{p.citation}` — {head}")
+        return "\n".join(out + [""])
+    return (f"Nothing on file under {citation}. A citation to it is refused. "
+            f"If the rule exists, escalate `authority_absent` and say where it is.")
 
 
 def brief_for_grading(question: str, desk: record.Desk,
