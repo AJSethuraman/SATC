@@ -67,29 +67,29 @@ different files.
 
 Each is built with a test. The full suite and the mutation check run after each.
 
-- [ ] **3.1 p-value, not "Luck alone".** Rename it on every tab, Control and Check.
+- [x] **3.1 p-value, not "Luck alone".** *(Done 26 Sep 2026, merge 89e1798.)* Rename it on every tab, Control and Check.
       Readings become "worse, not significant" and "(not significant)". Every
       explanation that says "wobble" says "standard error" instead, and defines it once,
       as `docs/statistics.md` does.
-- [ ] **3.2 RANR as a difference.** Replace every RANR multiple with the difference in
+- [x] **3.2 RANR as a difference.** *(Done 26 Sep 2026, merge 89e1798.)* Replace every RANR multiple with the difference in
       percentage points of booked dollars (pocket − rest). Fixed Control lines for RANR
       become ± points or a dollar amount, and "borrow the loss lines" is dropped. The
       OC-31 per-pocket test stays as the suggested option.
-- [ ] **3.3 Profit wording.** Rename to "Profit after losses: RANR per booked dollar",
+- [x] **3.3 Profit wording.** *(Done 26 Sep 2026, merge 89e1798.)* Rename to "Profit after losses: RANR per booked dollar",
       with readings "keeps more / about the same / keeps less".
-- [ ] **3.4 Contribution before losses.** Add "Contribution before losses per booked
+- [x] **3.4 Contribution before losses.** *(Done 26 Sep 2026, merge 89e1798.)* Add "Contribution before losses per booked
       dollar" = RANR + losses as defined in RANR. That is GCO unless the audit finds
       otherwise; flag it if it should be net charge-offs. Losses vs revenue reads: what
       they paid us / what they cost us / what we kept. Paired readings:
       - losing more + keeps more = "priced for it"
       - losing more + keeps less = "net drain"
       - losing less + keeps less = "safe but idle"
-- [ ] **3.5 Synthetic RANR.** RANR = contribution − GCO, where contribution = interest
+- [x] **3.5 Synthetic RANR.** *(Done 26 Sep 2026, merge 89e1798. Test 4 as written, with 3% of balance added, reads profit "about the same": −0.79 points, not significant. The test holds that result, and an 8% variant reads "priced for it".)* RANR = contribution − GCO, where contribution = interest
       on balance over months on book + fees − cost of funds on balance over the same
       months. Plant one pocket priced high enough to be losing more and keeping more.
       Make Tests 2 and 4 from `origination-cube-for-test-design.md` into fixtures (that
       file was sent to the firm, not committed; the fixtures are rebuilt from it).
-- [ ] **3.6 Permutation test for dollar rates.** *(Test built 26 Sep 2026, merge cfe045b: `perm.py`, 10,000 shuffles within the comparison group, fixed seed, numpy. Still to do: show it as "N of 10,000 shuffles" on the tabs.)* Replace any t-test or proportion test
+- [x] **3.6 Permutation test for dollar rates.** *(Done 26 Sep 2026: `perm.py` in merge cfe045b; the Test column reads "shuffled: N of 10,000" from merge 89e1798.)* Replace any t-test or proportion test
       on a dollar rate (GCO per $, RANR per $, share of booked dollars) with a
       within-pocket permutation test, with a fixed seed, reported as "N of 10,000
       shuffles" (`docs/statistics.md` B2).

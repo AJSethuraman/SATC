@@ -1565,6 +1565,26 @@ back.
     extracted;
   - the age filter and the window can't both be on;
   - definitions sit on Columns, not Control.
+- [x] **Wave 2 (26 Sep 2026): RANR is profit after losses** (NEXT-GOAL 3.1–3.6;
+  merge 89e1798).
+  - **Points, not multiples:** RANR and a new "Contribution before losses" (RANR +
+    GCO, OC-35) are compared in points of booked dollars (pocket − rest) on every
+    tab. The two-negatives flaw and the near-zero blow-up are gone.
+  - **The profit line on Control:** each pocket's own test (suggested), ± points, or
+    the materiality line. "The same lines as for losses" is refused.
+  - **Words:**
+    - "p-value" and "not significant" replace "Luck alone" and "could be luck";
+    - profit reads "keeps more / about the same / keeps less";
+    - Losses vs revenue reads what they paid us / what they cost us / what we kept,
+      with a Together column ("priced for it", "net drain", "safe but idle");
+    - the dollar rates' Test column reads "shuffled: N of 10,000".
+  - **Synthetic book:** RANR = contribution − GCO, and a priced-for-it pocket is
+    planted. The firm's Tests 2 and 4 are tests; Test 4 as written reads profit
+    "about the same", and an 8% variant reads "priced for it".
+  - **A merge bug, caught by the suite before the push:** both waves had defined the
+    synthetic book's AS_OF, one as a date and one as text (01d70ff).
+
+  410 tests; 133 re-inserted bugs.
 - [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
       `cube drill` and `cube prove` (and put their settings back on the tab).
 - **Not checked:** real Excel, a real extract, and the bank machine
