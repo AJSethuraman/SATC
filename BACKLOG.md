@@ -1751,6 +1751,17 @@ back.
         column, then asks: scout first, or test from a pre-spec already written. The trees
         stay optional.
       - Each choice checks and refuses only on its own minimum.
+- [ ] **Then: literal row wording** (the firm, 26 Sep 2026: *"yes I prefer it to be
+      literal"*). The profit reading says the gap, e.g. "short of its band by 0.8 points
+      ($16,000)" or "ahead of its band by 4 points", instead of "keeps less" or "keeps more".
+- [ ] **Then: one comparison decides the verdict, the dollars and materiality** (the firm, 26
+      Sep 2026: *"That works"*).
+      - Show both dollar figures, "over the book" and "over its band".
+      - The reading and materiality follow Control's judged-against setting, so they can't
+        disagree. The other figure stays visible for reference.
+      - Why: materiality applied to the book-relative dollars while the reading used the band.
+        A pocket in a high-loss band could clear materiality against the book while being in
+        line with its neighbours.
 - [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
       (`origination-cube/docs/capabilities-scope.md`). It ends when the planted income ÷
       sales cliffs are found on development loans and confirmed on the holdout from a
