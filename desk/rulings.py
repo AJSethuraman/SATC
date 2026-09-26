@@ -527,7 +527,16 @@ def _forget(corpus: Path) -> None:
 
 
 def record_ruling(corpus: Path, entry: Asked) -> Ruling:
-    """See `_record_ruling`; the cache is dropped whatever it wrote."""
+    """See `_record_ruling`; the cache is dropped whatever it wrote.
+
+    IDEMPOTENT. Codex on #401: a retry after a restart appended the same R<n>
+    again, and the next `load` refused the file -- which every consultation
+    reads. A ruling already on record is returned as it stands, and nothing
+    is written twice.
+    """
+    already = {r.id: r for r in load(corpus)}
+    if entry.id in already:
+        return already[entry.id]
     try:
         return _record_ruling(corpus, entry)
     finally:

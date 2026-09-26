@@ -130,3 +130,10 @@ def test_different_facts_make_different_refs():
     assert a.ref != b.ref and a.asks[0].ref != b.asks[0].ref
     assert none.asks[0].ref == relay.ref_for("Is a cash back reward income?",
                                              OCCAM)
+
+
+def test_an_unfilled_fact_is_not_the_word_none():
+    """Codex on #401: a setup passing None for an unfilled field became the
+    string "None", which the blank check accepted as a recorded fact."""
+    with pytest.raises(relay.RelayError, match="no value"):
+        relay.ask_many(["q?"], OCCAM, on_file={"taxpayer": None, "trade": "x"})

@@ -383,3 +383,17 @@ def test_a_ruling_for_one_question_does_not_silence_another(corpus, queue):
     assert RECORDS not in {f.held.citation for f in ask.looked(other, corpus)}
     left = [f.asked_by for f in rulings.findings(corpus) if f.subject == RECORDS]
     assert left == [other]
+
+
+def test_recording_a_ruling_twice_changes_nothing(corpus, queue):
+    """Codex on #401: a retry appended the same R<n> again, and the next load
+    of the rulings raised -- taking every consultation down with it."""
+    f = _found(corpus, "reach", RECORDS)
+    entry, _ = rulings.ask(f, "commingling", queue=queue, corpus=corpus)
+    done = rulings.settle(queue, entry.id, "yes")
+    first = rulings.record_ruling(corpus, done)
+    text = (corpus / rulings.RULINGS_FILE).read_text(encoding="utf-8")
+    again = rulings.record_ruling(corpus, done)
+    assert again == first
+    assert (corpus / rulings.RULINGS_FILE).read_text(encoding="utf-8") == text
+    assert len(rulings.load(corpus)) == 1

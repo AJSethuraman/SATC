@@ -311,7 +311,9 @@ def _declared() -> tuple[str, ...]:
 
 def _facts(on_file) -> tuple:
     """Validate recorded engagement facts: declared names, real values, no TIN."""
-    facts = {str(k).strip().lower(): str(v).strip()
+    # NONE IS NOT A VALUE. Codex on #401: a setup passing None for an
+    # unfilled field became the string "None", which then read as recorded.
+    facts = {str(k).strip().lower(): ("" if v is None else str(v).strip())
              for k, v in dict(on_file or {}).items()}
     declared = set(_declared())
     if extra := sorted(n for n in facts if n not in declared):
