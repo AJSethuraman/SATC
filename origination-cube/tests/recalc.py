@@ -13,6 +13,7 @@ About a second a workbook, so a few end-to-end tests use it rather than every te
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -35,6 +36,9 @@ _profile: Path | None = None
 
 
 def need_soffice():
+    if SOFFICE is None and os.environ.get("CI"):
+        # a skipped check is not a passed one: CI installs LibreOffice, so its absence there is a fault
+        pytest.fail("LibreOffice (soffice) isn't installed in CI, so the workbook's formulas can't be calculated")
     if SOFFICE is None:
         pytest.skip("LibreOffice (soffice) isn't installed, so the workbook's formulas can't be calculated here")
 

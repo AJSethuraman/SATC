@@ -1775,7 +1775,12 @@ back.
       - Why: materiality applied to the book-relative dollars while the reading used the band.
         A pocket in a high-loss band could clear materiality against the book while being in
         line with its neighbours.
-- [ ] **Then: the judging settings live in the workbook (OC-40).** The loss line, the profit
+- [x] **Then: the judging settings live in the workbook (OC-40).** *(Done 26 Sep, merge of
+      `live-settings`: the five settings drive formulas on every result tab, through two hidden
+      sheets; one rounded significance bar (S36); a LibreOffice recalculation test proves every
+      live reading equals the engine's after each setting is changed. Order, charts and some
+      Check counts stay as of the Run and say so. CI now installs LibreOffice, and the helper
+      fails rather than skips there. 503 tests, 198 planted bugs.)* The loss line, the profit
       line, materiality, confidence, and judged against, all adjustable after the run. Scope
       first: which cells become formulas on each tab, and the recalculation step the tests
       need (openpyxl doesn't calculate formulas). Open question for the firm: is the bank's
