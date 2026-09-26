@@ -9,12 +9,16 @@ import shutil
 import subprocess
 from datetime import date, timedelta
 
+from pathlib import Path
+
 import pytest
+
+from recalc import recalc
 import yaml
 from openpyxl import load_workbook
 
 from conftest import cube, table
-from origination_cube import book, confirmatory, control, engine, prespec, prevalence, synth
+from origination_cube import book, confirmatory, control, engine, prespec, prevalence, synth, results
 from test_book import _answer
 from test_book_dates import _check, _choose, _columns, _control
 
@@ -236,13 +240,22 @@ def _prespec_rows(b) -> list[tuple[str, str]]:
 
 
 def _prevalence_groups(b, column) -> list[str]:
-    """The groups the Prevalence tab shows for a new column, lowest first, from its first grid."""
-    ws = load_workbook(b)[prevalence.SHEET]
+    """The groups Grids' count shows for a new column (it absorbed the Prevalence tab), lowest first, for the
+    first grid not cut by the column itself, picked on the Grid dropdown."""
+    from openpyxl import load_workbook
+    import tabs
+    grid = next(g for g in tabs.options(load_workbook(b), results.GRIDS, "Grid") if not g.startswith(f"{column} x"))
+    ws = recalc(tabs.choose(b, Path(b).parent / "groups.xlsx", results.GRIDS, grid=grid),
+                Path(b).parent / "groups")[results.GRIDS]
     top = next(r for r in range(1, ws.max_row + 1)
                if str(ws.cell(row=r, column=2).value or "").startswith(f"{column} = "))
     row = next(r for r in range(top + 1, ws.max_row + 1) if ws.cell(row=r, column=prevalence.GROUP_COL).value)
-    return [ws.cell(row=row, column=c).value for c in range(prevalence.GROUP_COL, ws.max_column + 1, 2)
-            if ws.cell(row=row, column=c).value]
+    out = []
+    for c in range(prevalence.GROUP_COL, ws.max_column + 1, 2):         # the groups, to the block's end
+        if not ws.cell(row=row, column=c).value:
+            break
+        out.append(ws.cell(row=row, column=c).value)
+    return out
 
 
 @needs_git

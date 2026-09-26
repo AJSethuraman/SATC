@@ -20,7 +20,7 @@ from openpyxl import load_workbook
 
 from conftest import PRODUCTION_SHUFFLES, cube, row, table
 from recalc import calculated_book
-from origination_cube import book, engine, perm, synth
+from origination_cube import book, engine, perm, synth, live, results
 from origination_cube import config as cfgmod
 from origination_cube.ingest import read_table
 
@@ -389,22 +389,24 @@ def test_the_production_default_runs_end_to_end(tmp_path, monkeypatch):
     ran = book.run(out.book)
     took = time.perf_counter() - start
     assert ran.ok, ran.lines
-    wb = calculated_book(out.book)          # the flag and the Test column are formulas (OC-40)
+    wb = calculated_book(out.book)          # the verdicts are formulas (OC-40)
     check = {r[1].value: r[2].value for r in wb["Check"].iter_rows(min_row=4)}
     assert "shuffled 10,000 times" in check["Tests"] and "no continuity correction" in check["Tests"]
     ran_with = yaml.safe_load(out.book.with_name(f"{out.book.stem} - what ran.yaml").read_text())
     assert ran_with["benchmark"]["shuffles"] == 10_000
-    ws = wb["Where it bleeds"]
-    assert ws.cell(row=4, column=20).value == "Test"
-    gco = [r for r in range(5, ws.max_row + 1) if ws.cell(row=r, column=2).value == "GCO per booked dollar"]
-    first = gco[0]                                       # the largest GCO excess: the planted pocket
-    assert ws.cell(row=first, column=6).value == "Broker" and ws.cell(row=first, column=18).value == "worse"
+    # the largest charge-off excess among the worse pockets: the planted pocket (Pockets, Charge-offs)
+    lst = [r for r in wb[results.LIST].iter_rows(min_row=2, values_only=True)
+           if r[results.L_KKEY - 1] == "grids" and r[results.L_MKEY - 1] == "gco_rate"]
+    first = lst[0]
+    assert first[results.L_SEG - 1] == "Broker" and first[results.L_WORSE - 1] == "Yes"
     # the shuffle count made literal (NEXT-GOAL 3.6): how many of the 10,000 made a gap as big, against the
-    # rest of its band (the comparison that decides the flag)
-    tests = [ws.cell(row=r, column=20).value or None for r in gco]          # a formula's "" is nothing
+    # rest of its band (the comparison that decides the flag), pocket by pocket on _pockets (tenet T1)
+    pk = wb[live.POCKETS]
+    tests = [pk.cell(row=r[results.L_ROW - 1], column=live.P_TEST).value or None for r in lst]
     assert all(t is None or re.fullmatch(r"shuffled: [\d,]+ of 10,000", t) for t in tests)     # None: untested
-    assert ws.cell(row=first, column=20).value == "shuffled: 0 of 10,000"
-    outcome = [ws.cell(row=r, column=20).value or None for r in range(5, ws.max_row + 1)
-               if ws.cell(row=r, column=2).value == "Outcome, share of loans"]
+    assert tests[0] == "shuffled: 0 of 10,000"
+    outcome = [pk.cell(row=r[results.L_ROW - 1], column=live.P_TEST).value or None
+               for r in wb[results.LIST].iter_rows(min_row=2, values_only=True)
+               if r[results.L_KKEY - 1] == "grids" and r[results.L_MKEY - 1] == "outcome_loans"]
     assert set(outcome) <= {"z test", "exact test", None} and "z test" in outcome
     print(f"\n8,000 loans, 6 grids, 10,000 shuffles: {took:.1f} s for the whole Run")

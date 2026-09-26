@@ -23,7 +23,7 @@ import pytest
 from openpyxl import load_workbook
 
 from conftest import cube, table
-from origination_cube import book, confirm_tab, confirmatory, control, engine, prespec, synth
+from origination_cube import book, confirm_tab, confirmatory, control, engine, prespec, synth, results
 from origination_cube import config as cfgmod
 from recalc import recalc
 from test_book import _answer
@@ -347,14 +347,17 @@ def test_a_new_variable_run_needs_no_booked_amount_gco_or_ranr(tmp_path, monkeyp
 
     # no tab with nothing to show, and no dollars on the tabs a new variable's run does write
     wb = load_workbook(b)
-    assert "Losses vs revenue" not in wb.sheetnames
-    assert "Booked dollars" not in [c.value for row in wb["Prevalence"].iter_rows() for c in row]
+    assert results.PCK not in wb.sheetnames
+    # how common each group is (Grids, which absorbed Prevalence) counts loans alone
+    heads = [v for row in wb[results.VIEWS].iter_rows(values_only=True) if str(row[0]).endswith("|head")
+             for v in row[1:]]
+    assert heads and "Booked dollars" not in heads
     calc = recalc(b, tmp_path / "calc")
-    for tab in ("Confirmatory test", "Where it bleeds", "Grids", "Split", "Three-way", "Prevalence"):
+    for tab in ("Confirmatory test", results.POCKETS, results.GRIDS, results.SPLIT):
         if tab not in calc.sheetnames:
             continue
         said = [str(c.value) for row in calc[tab].iter_rows() for c in row if isinstance(c.value, str)]
-        assert not [s for s in said if s.startswith("#") or "Err:" in s], tab
+        assert not [s for s in said if s.startswith(("#N/A", "#VALUE", "#NAME", "#REF", "#DIV", "#NUM")) or "Err:" in s], tab
         assert not [s for s in said if any(w in s for w in DOLLAR_WORDS + ("$",))], \
             (tab, [s for s in said if any(w in s for w in DOLLAR_WORDS + ("$",))])
     check = [str(c.value) for row in calc["Check"].iter_rows(min_col=3, max_col=4) for c in row

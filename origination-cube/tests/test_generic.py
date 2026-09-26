@@ -22,9 +22,10 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
+import tabs
 from recalc import calculated_book, recalc
 
-from origination_cube import book, confirm_tab, confirmatory, control, kgroups, meanings, synth
+from origination_cube import book, confirm_tab, confirmatory, control, kgroups, live, meanings, synth, results
 from test_book import PICK, treat_all
 from test_book_results import _set
 from test_book_dates import _check, _choose, _columns, _control
@@ -154,16 +155,19 @@ def test_another_book_with_other_names_finds_its_own_problem(tmp_path):
     wb = calculated_book(out.book)            # the flags are formulas over Control's lines (OC-40)
 
     # the grids are this book's columns
-    grids = [c.value for c in wb["Grids"]["B"] if isinstance(c.value, str) and " x " in c.value]
+    grids = tabs.options(load_workbook(out.book), results.GRIDS, "Grid")
     assert grids and all(re.match(r"(BureauScore|FinancedAmt|PTI) x (Dealer|Region)", g) for g in grids), grids
 
     # the planted pocket is found: Fleet Direct is the worst Dealer pocket for the outcome, in every
-    # BureauScore band that was tested
-    ws = wb["Where it bleeds"]
-    rows = [[ws.cell(row=r, column=c).value for c in range(2, 20)] for r in range(5, ws.max_row + 1)]
-    flagged = [x for x in rows if x[0] == "Outcome, share of loans" and x[3] == "Dealer" and x[16] == "worse"]
-    assert flagged and {x[4] for x in flagged} == {"Fleet Direct"}, [(x[2], x[4], x[16]) for x in flagged]
-    assert any(x[3] == "Region" and x[4] == "Hills" and x[16] == "worse" for x in rows)
+    # BureauScore band that was tested (Pockets: Bad loans, two-way, every grid)
+    ws = wb[results.POCKETS]
+    rows = tabs.pockets(ws)
+    for x in rows:                            # each row's grid, off the pocket's row on _pockets
+        prow = ws.cell(row=x["row"], column=results.K_ROW).value
+        x["grid"] = wb[live.POCKETS].cell(row=prow, column=live.P_GRID).value
+    flagged = [x for x in rows if x["grid"].endswith(" x Dealer") and x["worse"] == "Yes"]
+    assert flagged and {x["seg"] for x in flagged} == {"Fleet Direct"}, [(x["band"], x["seg"]) for x in flagged]
+    assert any(x["grid"].endswith(" x Region") and x["seg"] == "Hills" and x["worse"] == "Yes" for x in rows)
 
     # nothing from the other book leaks in: no column, value, or pocket of the synthetic extract
     text = " ".join(str(c.value) for t in wb.sheetnames for row in wb[t].iter_rows() for c in row
@@ -348,4 +352,4 @@ def test_the_second_books_cliffs_are_confirmed_from_an_extract_with_no_dollar_co
         assert lean.holdout.fit.p[k] < 0.05 and lean.holdout.fit.odds[k] > 1
     assert [c.lift for c in lean.concentration()] == [c.lift for c in full.concentration()]
     assert all(c.gco == 0.0 for c in lean.concentration())
-    assert "Losses vs revenue" not in load_workbook(auto_routes["lean"]["b"]).sheetnames
+    assert results.PCK not in load_workbook(auto_routes["lean"]["b"]).sheetnames

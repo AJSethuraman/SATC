@@ -105,7 +105,7 @@ def budget_rows(res) -> list[tuple[str, str]]:
                              f"{PER_POCKET} = {most:,}). Fewer in practice, since loans never spread evenly. Each "
                              f"grid cuts the whole book again, so each grid is held to this on its own.")]
     over = []
-    grids = [(g, "") for g in res.grids] + [(g, "Three-way: ") for g in res.three_way]
+    grids = [(g, "") for g in res.grids] + [(g, "Split: ") for g in res.three_way]
     total = 0
     for g, kind in grids:
         n, ok, loans, dollars = coverage(res, g)
@@ -220,7 +220,7 @@ def product_rows(res) -> list[tuple[str, str]]:
         if len(seen) < 2:
             continue
         some = ", ".join(seen[:4]) + (f" and {len(seen) - 4:,} more" if len(seen) > 4 else "")
-        split = (f" It splits the pockets, so only the Three-way tab keeps products apart."
+        split = (f" It splits the pockets, so only Pockets' split view keeps products apart."
                  if cfg.split and cfg.split[0] == col else "")
         out.append(("Warning", f"{col} holds {len(seen):,} credit products ({some}) and isn't a band or segment, "
                                f"so profit per booked dollar is compared across products. A pocket can read "

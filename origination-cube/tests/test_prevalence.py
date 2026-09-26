@@ -1,5 +1,5 @@
-"""The Prevalence tab (NEXT-GOAL 3.12): loans and booked dollars per group per
-pocket, with no test attached. docs/statistics.md B8: "A count of the book, not
+"""How common each group is (NEXT-GOAL 3.12; the Prevalence tab until the redesign put it under the Grids
+tab's blocks): loans and booked dollars per group per pocket, with no test attached. docs/statistics.md B8: "A count of the book, not
 a finding." The groups are the split column's halves (or values) and each new
 column's bands; every count here is made by hand from the rows."""
 
@@ -9,7 +9,8 @@ from bisect import bisect_right
 from openpyxl import load_workbook
 
 from conftest import cube, table
-from origination_cube import book, engine, prevalence, synth
+from origination_cube import book, engine, prevalence, results, synth
+from recalc import recalc
 from test_book import _answer
 from test_book_dates import _choose, _columns, _control
 
@@ -94,7 +95,7 @@ def test_a_count_that_does_not_add_up_to_the_grid_is_not_shown():
 # On the workbook
 
 
-def test_the_prevalence_tab_counts_the_book_by_the_new_columns_bands(tmp_path):
+def test_grids_count_the_book_by_the_new_columns_bands(tmp_path):
     x = synth.write_extract(tmp_path, n=3000, ratio=True)
     b = book.set_up(x).book
     _answer(b)
@@ -107,13 +108,15 @@ def test_the_prevalence_tab_counts_the_book_by_the_new_columns_bands(tmp_path):
     wb.save(b)
     ran = book.run(b)
     assert ran.ok, ran.lines
-    wb = load_workbook(b)
-    names = wb.sheetnames
-    assert names.index("Split") + 1 == names.index("Prevalence") == names.index("Three-way") - 1
-    ws = wb["Prevalence"]
-    assert ws["B1"].value == "Prevalence: a count, not a test"
-    assert "Nothing here is tested" in ws["B2"].value
+    # the Prevalence tab is absorbed into Grids (the redesign, section 7): under the four blocks, for the grid
+    # picked, how common each group is
+    names = load_workbook(b).sheetnames
+    assert "Prevalence" not in names and names.index(results.GRIDS) + 1 == names.index(results.SPLIT)
+    ws = recalc(b, tmp_path / "rc")[results.GRIDS]
     text = [ws.cell(row=r, column=2).value for r in range(1, ws.max_row + 1)]
+    assert "How common each group is: a count, not a test" in text
+    note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 12)}
+    assert "how many loans, and booked dollars, fall in each group" in note["Groups"]
     assert "INCOME_TO_SALES, each pocket cut at its own median" in text
     assert "INCOME_TO_SALES = INCOME ÷ SALES, by its bands (0.1; 0.25; 0.5; 1; 2: the band edges on Columns)" in text
     totals = [r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=2).value == "Every pocket"]

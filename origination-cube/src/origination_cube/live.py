@@ -56,13 +56,18 @@ IN_USE = "in_use_words"
 # ... and the formulas that read them
 (P_BY_BAND, P_READ_BOOK, P_READ_BAND, P_FLAG, P_DOLLARS, P_MATERIAL, P_GAP, P_P, P_SAID, P_TEST, P_REST,
  P_OTHER) = range(22, 34)
+# the redesign's phase 3: the pocket's own rate (a value), and its two verdicts as the result tabs print them,
+# Worse? and Material?, separate columns (the firm, 26 Sep 2026)
+P_RATE, P_WORSE, P_MAT = 34, 35, 36
+#: Worse? in words: the flag that decides, as Yes / Not sure / No / Too few losses
+YES, NOT_SURE, NO, TOO_FEW = "Yes", "Not sure", "No", "Too few losses"
 POCKET_HEADS = {
     P_KIND: "Grids or three-way", P_GRID: "Grid", P_BAND: "Band", P_SEG: "Segment", P_MEASURE: "Rate (key)",
     P_TITLE: "Rate", P_LOANS: "Loans", P_BOOKED: "Booked dollars (the rate's bottom)",
     P_FEW: "Too few losses to test (fewest losses is a Run setting)", P_ALONE: "Alone in its band",
     P_VS_BOOK: "Vs rest of book (a multiple; profit: the gap, 0.01 = 1 point)",
     P_P_BOOK: "p-value vs book, after the allowance", P_VS_BAND: "Vs rest of band",
-    P_P_BAND: "p-value vs band, after the allowance", P_EX_BOOK: "Excess over the book ($)",
+    P_P_BAND: "p-value vs band, after the allowance", P_EX_BOOK: "Excess over the rest of the book ($)",
     P_EX_BAND: "Excess over its band ($)", P_LINE: "Materiality line in use (from _live)",
     P_TEST_BOOK: "Test vs book", P_TEST_BAND: "Test vs band", P_REST_BOOK: "Rest of book's rate",
     P_REST_BAND: "Rest of band's rate",
@@ -70,6 +75,7 @@ POCKET_HEADS = {
     P_FLAG: "Flag", P_DOLLARS: "Dollars that decide", P_MATERIAL: "Material", P_GAP: "Gap that decides",
     P_P: "p-value that decides", P_SAID: "Flag as the tabs print it", P_TEST: "Test, as printed",
     P_REST: "Rest's rate that decides", P_OTHER: "The other dollars, for reference",
+    P_RATE: "This pocket's rate", P_WORSE: "Worse?", P_MAT: "Material?",
 }
 P_FIRST = 4               # the first pocket row on _pockets
 
@@ -339,8 +345,13 @@ def _write_live(wb, res, lv: Live) -> None:
             f = f'=IF(C{L_MKIND}="share",C{L_MSHARE}*E{r},IF(C{L_MKIND}="none",0,""))'
         ws.cell(row=r, column=3, value=f)
         ws.cell(row=r, column=4, value=res.materiality_line.get(m.name))
+        ws.cell(row=r, column=7, value=m.name)          # the key, for a tab that looks a rate's line up
         lv.line_cell[m.name] = f"'{LIVE_SHEET}'!$C${r}"
         r += 1
+    # each rate's line in use, looked up by its key (Pockets' "Material at" tile follows its Measure dropdown)
+    ws.cell(row=L_LINES - 1, column=7, value="Rate (key)").font = Font(bold=True)
+    wb.defined_names["line_keys"] = DefinedName("line_keys", attr_text=f"'{LIVE_SHEET}'!$G${L_LINES}:$G${r + 5}")
+    wb.defined_names["line_values"] = DefinedName("line_values", attr_text=f"'{LIVE_SHEET}'!$C${L_LINES}:$C${r + 5}")
     ws.column_dimensions["B"].width = 60
     ws.column_dimensions["C"].width = 22
     ws.column_dimensions["D"].width = 22
@@ -446,6 +457,20 @@ def literal(word: str, gap: str, p: str, dollars: str, by_band: str) -> str:
     return f'IF({word}="","",IF({word}={q(engine.IN_LINE)},{inside},{past}))'
 
 
+def worse_words(f: str) -> str:
+    """Worse? as the result tabs print it, from the flag that decides: Yes (worse, and significant), Not sure
+    (worse, not significant), Too few losses (not tested), No (anything else), blank for no reading."""
+    return (f'IF({f}={q(engine.WORSE)},{q(YES)},IF({f}={q(engine.UNSURE_WORSE)},{q(NOT_SURE)},'
+            f'IF(OR({f}={q(engine.FEW)},{f}={q(engine.THIN)}),{q(TOO_FEW)},IF({f}="","",{q(NO)}))))')
+
+
+def worse_of(flag: str | None) -> str:
+    """worse_words in Python, for the tests and the engine's side of a comparison."""
+    if flag in (None, ""):
+        return ""
+    return {engine.WORSE: YES, engine.UNSURE_WORSE: NOT_SURE, engine.FEW: TOO_FEW, engine.THIN: TOO_FEW}.get(flag, NO)
+
+
 def _write_pockets(wb, res, lv: Live) -> None:
     ws = wb.create_sheet(POCKETS)
     ws.sheet_state = "hidden"
@@ -487,7 +512,7 @@ def _write_pockets(wb, res, lv: Live) -> None:
                     vals = {P_KIND: kind, P_GRID: gname, P_BAND: bl, P_SEG: dl, P_MEASURE: m.name, P_TITLE: m.title,
                             P_LOANS: s.units, P_BOOKED: s.den, P_FEW: few, P_ALONE: mates[bl] == 1,
                             P_VS_BOOK: s.vs_rest, P_P_BOOK: s.p_book, P_VS_BAND: s.vs_band, P_P_BAND: s.p_band,
-                            P_EX_BOOK: s.excess, P_EX_BAND: s.excess_band,
+                            P_EX_BOOK: s.excess_rest, P_EX_BAND: s.excess_band, P_RATE: s.rate,
                             P_TEST_BOOK: test_words(s, s.hits_book) if tested else None,
                             P_TEST_BAND: test_words(s, s.hits_band) if tested else None,
                             P_REST_BOOK: _rest(s, res.total.rates[m.name]),
@@ -520,13 +545,16 @@ def _write_pockets(wb, res, lv: Live) -> None:
                     ws.cell(row=r, column=P_SAID, value=(
                         f"={literal(R(P_FLAG), R(P_GAP), R(P_P), R(P_DOLLARS), R(P_BY_BAND))}" if m.in_points
                         else f"={R(P_FLAG)}"))
-                    t = pick(P_TEST_BAND, P_TEST_BOOK)
-                    ws.cell(row=r, column=P_TEST, value=(
-                        f'={t}&IF(AND(judged_band,{R(P_ALONE)}),IF({t}="","","; ")&{q(ALONE)},"")'))
+                    # which test gave the p-value that decides: kept here, pocket by pocket, and said once in
+                    # each tab's method note (tenet T1: no Test column, no lone-pocket note on a row)
+                    ws.cell(row=r, column=P_TEST, value=f"={pick(P_TEST_BAND, P_TEST_BOOK)}")
                     ws.cell(row=r, column=P_REST, value=f"={pick(P_REST_BAND, P_REST_BOOK)}")
                     ws.cell(row=r, column=P_OTHER, value=(
                         f'=IF({R(P_BY_BAND)},IF({R(P_EX_BOOK)}="","",{R(P_EX_BOOK)}),'
                         f'IF({R(P_EX_BAND)}="","",{R(P_EX_BAND)}))'))
+                    ws.cell(row=r, column=P_WORSE, value=f"={worse_words(R(P_FLAG))}")
+                    ws.cell(row=r, column=P_MAT, value=(
+                        f'=IF({R(P_MATERIAL)}="yes",{q(YES)},IF({R(P_MATERIAL)}="","",{q(NO)}))'))
                     lv.rows[(kind, id(g), bl, dl, m.name)] = r
                     r += 1
     ws.freeze_panes = f"A{P_FIRST}"
@@ -542,7 +570,7 @@ def count_formula(measure: str, criteria: list[tuple[int, str]], kind: str = "gr
 
 #: the whole-column names over _pockets, for formulas on other tabs
 PK_NAMES = {"pk_kind": P_KIND, "pk_measure": P_MEASURE, "pk_dollars": P_DOLLARS, "pk_flag": P_FLAG,
-            "pk_material": P_MATERIAL}
+            "pk_material": P_MATERIAL, "pk_worse": P_WORSE, "pk_mat": P_MAT}
 
 
 def pockets_range(c: int) -> str:

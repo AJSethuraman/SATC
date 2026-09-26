@@ -71,26 +71,20 @@ def test_no_ruling_number_or_dated_call_on_any_tab(split_book):
 
 
 def test_same_size_is_not_tested_for_a_dollar_rate(split_book):
+    """Under Split's summary, one line (the redesign, section 8): the outcome's answer, and the dollar measures
+    said not tested, never an answer."""
     ws = split_book["Split"]
-    heads = [c for row in ws.iter_rows() for c in row if c.value == "Same size in every pocket?"]
-    assert heads
-    seen = set()
-    for h in heads:
-        r = h.row + 1
-        while ws.cell(row=r, column=2).value:
-            name, said = ws.cell(row=r, column=2).value, ws.cell(row=r, column=h.column).value
-            if name == "Outcome, share of loans":
-                assert said in ("no sign they differ", "no: bigger in some pockets"), said        # tested: an answer
-            else:
-                assert said == "not tested: dollar rate", (name, said)
-            # wider than its column: it wraps there, or the p-value beside it cuts it off on the page
-            assert ws.formulas.cell(row=r, column=h.column).alignment.wrap_text, name
-            seen.add(name)
-            r += 1
-    assert "Outcome, share of loans" in seen and len(seen) > 1
-    # the tab still says what the question is for the row that is tested
-    how = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(5, 11)}
-    assert "Cochran's Q checks whether the gap is about the same size in every pocket" in how["Pooled across pockets"]
+    said = [c.value for row in ws.iter_rows() for c in row
+            if isinstance(c.value, str) and c.value.startswith("Same in every pocket? ")]
+    assert len(said) == 1
+    line = said[0]
+    assert re.match(r"Same in every pocket\? Bad loans: (no sign the gap differs between pockets|bigger in some "
+                    r"pockets than others); ", line), line
+    assert line.endswith("Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar "
+                         "rate."), line
+    # the tab still says what the question is, once, in its note
+    how = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(4, 11)}
+    assert "Cochran's Q asks whether the gap is the same size in every pocket" in how["High vs low, all"]
 
 
 def test_same_size_says_why_the_outcome_was_not_tested(tmp_path):
