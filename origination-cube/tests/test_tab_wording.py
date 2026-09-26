@@ -17,6 +17,8 @@ import re
 import pytest
 from openpyxl import load_workbook
 
+from recalc import calculated_book, values_of
+
 from conftest import TEST_SHUFFLES
 from origination_cube import book, config as cfgmod, engine, perm, synth
 from test_book import _answer
@@ -38,7 +40,7 @@ def split_book(tmp_path_factory):
         wb.save(out.book)
         ran = book.run(out.book)
         assert ran.ok, ran.lines
-    return load_workbook(out.book)
+    return calculated_book(out.book)          # some words are formulas over Control's lines (OC-40)
 
 
 def _check(wb) -> dict:
@@ -85,7 +87,7 @@ def test_same_size_is_not_tested_for_a_dollar_rate(split_book):
             else:
                 assert said == "not tested: dollar rate", (name, said)
             # wider than its column: it wraps there, or the p-value beside it cuts it off on the page
-            assert ws.cell(row=r, column=h.column).alignment.wrap_text, name
+            assert ws.formulas.cell(row=r, column=h.column).alignment.wrap_text, name
             seen.add(name)
             r += 1
     assert "Outcome, share of loans" in seen and len(seen) > 1
@@ -94,7 +96,7 @@ def test_same_size_is_not_tested_for_a_dollar_rate(split_book):
     assert "Cochran's Q checks whether the gap is about the same size in every pocket" in how["Pooled across pockets"]
 
 
-def test_same_size_says_why_the_outcome_was_not_tested():
+def test_same_size_says_why_the_outcome_was_not_tested(tmp_path):
     outcome = cfgmod.Measure(name="outcome_loans", mode="flagwt", flag="BAD", per=engine.EACH_LOAN)
     gco = cfgmod.Measure(name="gco_rate", mode="sumnum", value="GCO", per="BAL")
     assert book._same_size(outcome, {"pockets": 1}, 0.95) == "not tested: too few pockets"
@@ -102,8 +104,19 @@ def test_same_size_says_why_the_outcome_was_not_tested():
     assert book._same_size(outcome, {"pockets": 4, "odds": 0.0}, 0.95) == "not tested: couldn't be worked out"
     assert book._same_size(gco, {"pockets": 6}, 0.95) == "not tested: dollar rate"
     # A8: not significant is "no evidence the pockets disagree", never "proof they agree", so never a plain yes
-    assert book._same_size(outcome, {"steady_p": 0.5}, 0.95) == "no sign they differ"
-    assert book._same_size(outcome, {"steady_p": 0.001}, 0.95) == "no: bigger in some pockets"
+    # tested, it is a formula over the bar on Control (OC-40): calculated here against a bar of 5%
+    from openpyxl import Workbook
+    from openpyxl.workbook.defined_name import DefinedName
+    wb = Workbook()
+    ws = wb.active
+    ws["A1"] = 0.05
+    wb.defined_names["significance_bar"] = DefinedName("significance_bar", attr_text=f"'{ws.title}'!$A$1")
+    ws["B1"] = book._same_size(outcome, {"steady_p": 0.5}, 0.95)
+    ws["B2"] = book._same_size(outcome, {"steady_p": 0.001}, 0.95)
+    ws["B3"] = book._same_size(outcome, {"steady_p": 0.05}, 0.95)          # at the bar: no evidence they differ
+    got = values_of(wb, tmp_path).active
+    assert [got[c].value for c in ("B1", "B2", "B3")] == ["no sign they differ", "no: bigger in some pockets",
+                                                         "no sign they differ"]
 
 
 def _add_column(x, name, values):

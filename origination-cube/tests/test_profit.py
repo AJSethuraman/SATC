@@ -26,6 +26,7 @@ from origination_cube import config as cfgmod
 from origination_cube.ingest import read_table
 from test_book import PICK, _answer
 from test_book_results import _lvr
+from recalc import calculated_book
 
 # --------------------------------------------------------------------------
 # Test 1's book (docs/for-test-design.md): 4,000 loans at $10,000, two score bands
@@ -126,7 +127,7 @@ def _workbook(tmp_path, rows, columns, meaning, answers, edges=None, cut_off=())
     wb.save(out.book)
     ran = book.run(out.book)
     assert ran.ok, ran.lines
-    return load_workbook(out.book)
+    return calculated_book(out.book)          # the readings are formulas over Control's lines (OC-40)
 
 
 TEST1_ANSWERS = {**PICK, "min_loans": "30 loans", "materiality": "No floor"}
@@ -153,7 +154,14 @@ def test_test_2_on_the_workbook(tmp_path, option):
     assert (broker["g_read"], broker["together"]) == ("losing more", "net drain")
     assert broker["c_read"] == "ahead of its band by 3.00 points ($300,000)" and broker["c_x"] == pytest.approx(3.0)
     ws = wb["Where it bleeds"]
-    ranr = [[ws.cell(row=r, column=c).value for c in range(2, 21)] for r in range(5, ws.max_row + 1)
+    # the main list: after its heading come the pockets losing more only against the other comparison (OC-40)
+    end = next((r for r in range(5, ws.max_row + 1)
+                if str(ws.cell(row=r, column=2).value).startswith("Losing more than their share against")),
+               ws.max_row + 1)
+    below = {(ws.cell(row=r, column=4).value, ws.cell(row=r, column=6).value) for r in range(end, ws.max_row + 1)
+             if ws.cell(row=r, column=2).value == "Profit after losses: RANR per booked dollar"}
+    assert (LOW, "Branch") in below                    # short of the book, ahead of its band: listed, below
+    ranr = [[ws.cell(row=r, column=c).value for c in range(2, 21)] for r in range(5, end)
             if ws.cell(row=r, column=2).value == "Profit after losses: RANR per booked dollar"]
     got = {(x[2], x[4]): x for x in ranr}
     assert got[(LOW, "Broker")][8] == pytest.approx(200_000)                     # a positive shortfall, its band's
@@ -242,7 +250,7 @@ def test_test_4_on_the_workbook(tmp_path, uplift, together, reading):
             r[book.C_EDGES - 1].value = "620; 680; 740"
     wb.save(out.book)
     assert book.run(out.book).ok
-    got = {(x["band"], x["seg"]): x for x in _lvr(load_workbook(out.book)["Losses vs revenue"])}
+    got = {(x["band"], x["seg"]): x for x in _lvr(calculated_book(out.book)["Losses vs revenue"])}
     p = got[("620 - 679", "Online")]
     assert p["g_read"] == "losing more" and p["g_fill"] == book.RED_CELL and p["g_over"] > 0
     assert re.fullmatch(reading, p["r_read"]), p["r_read"]
@@ -273,7 +281,7 @@ def walk_book(tmp_path_factory):
         wb.save(out.book)
         ran = book.run(out.book)
         assert ran.ok, ran.lines
-    return load_workbook(out.book)
+    return calculated_book(out.book)          # the readings are formulas over Control's lines (OC-40)
 
 
 def test_the_priced_pocket_reads_priced_for_it(walk_book):
@@ -307,9 +315,9 @@ def test_profit_is_a_gap_in_points_on_every_tab(walk_book):
     assert profit
     for r in profit:
         for col in (14, 16):
-            assert ws.cell(row=r, column=col).number_format == book.PTS_FMT
-        assert ws.cell(row=r, column=19).number_format == '0.00" pts or less"'
-    lvr = walk_book["Losses vs revenue"]
+            assert ws.formulas.cell(row=r, column=col).number_format == book.PTS_FMT
+        assert ws.formulas.cell(row=r, column=19).number_format == '0.00" pts or less"'
+    lvr = walk_book["Losses vs revenue"].formulas
     assert lvr.cell(row=7, column=book.LVR_R + 2).number_format == book.PTS_FMT
     assert lvr.cell(row=7, column=book.LVR_G + 2).number_format == '0.00"x"'
     split = walk_book["Split"]
@@ -317,7 +325,7 @@ def test_profit_is_a_gap_in_points_on_every_tab(walk_book):
     for r in range(10, 40):                      # the first grid's summary, before its heat maps
         rows.setdefault(split.cell(row=r, column=2).value, r)
     r = rows["Profit after losses: RANR per booked dollar"]
-    assert split.cell(row=r, column=5).number_format == book.PTS_FMT
+    assert split.formulas.cell(row=r, column=5).number_format == book.PTS_FMT
     assert split.cell(row=r, column=6).value.endswith(" pts") and "x" not in split.cell(row=r, column=6).value
     assert split.cell(row=r, column=5).value < 0          # the high-debt half loses more, at the same price
     texts = [c.value for row in split.iter_rows() for c in row if isinstance(c.value, str)]

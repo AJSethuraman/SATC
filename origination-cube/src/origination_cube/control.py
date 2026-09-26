@@ -42,10 +42,16 @@ OPTIONS_SHEET = "_options"
 RECOMMENDED = " (recommended)"
 FIRST_ROW = 5
 KEY_COL, CHOOSE_COL, OWN_COL = 7, 3, 4            # G, C, D
+#: when a change to the setting shows (OC-40): I, after "Last Run used" in H
+WHEN_COL = 9
+WHEN = {"live": "Now, on the result tabs", "re-run": "At the next Run"}
+AT_SET_UP = ("few_values", "many_values")         # applied when the extract's columns are read, at Set up
 NEEDS = "FCE4C4"          # the shade on a cell that still needs an answer
 INSTRUCTIONS = (
     "Fill in the shaded cells. The rest have starting values; change them if the population calls for it. "
-    "Pick from the list, or type a number in the next column to override it. Changes apply on the next Run."
+    "Pick from the list, or type a number in the next column to override it. The lines, confidence, materiality "
+    "and what a pocket is judged against change the result tabs at once; the rest apply on the next Run. The "
+    "last column says which."
 )
 
 INK, CANVAS, MIST, SLATE, PAPER, KEY_RED = "16130F", "F4F1EC", "E4DFD5", "57534B", "FFFFFF", "CC0000"
@@ -226,6 +232,10 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
                                         f'options.{instead}"))))'))
         k = ws.cell(row=r, column=KEY_COL, value=s.key)
         k.font = Font(name="Consolas", size=8, color=SLATE)
+        w = ws.cell(row=r, column=WHEN_COL, value="At the next Set up" if s.key in AT_SET_UP else WHEN[s.takes_effect])
+        w.font = Font(name="Calibri", size=10, bold=s.takes_effect == "live", color=INK if s.takes_effect == "live"
+                      else SLATE)
+        w.alignment = Alignment(wrap_text=True, vertical="top")
         for col in range(2, 8):
             cell = ws.cell(row=r, column=col)
             cell.border = Border(bottom=thin)
@@ -235,7 +245,11 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         ws.cell(row=r, column=5).font = Font(name="Calibri", bold=True, color=INK)
         r += 1
     ws.column_dimensions["G"].hidden = True
-    ws.print_area = f"B1:F{r - 1}"
+    h = ws.cell(row=4, column=WHEN_COL, value="When a change shows")
+    h.font = Font(name="Calibri", bold=True, color=PAPER)
+    h.fill = PatternFill("solid", fgColor=INK)
+    ws.column_dimensions["I"].width = 22
+    ws.print_area = f"B1:I{r - 1}"
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0

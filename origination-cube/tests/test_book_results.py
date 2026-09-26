@@ -8,6 +8,8 @@ import pytest
 
 from openpyxl import load_workbook
 
+from recalc import recalc
+
 from origination_cube import book, engine, meanings, synth
 from origination_cube.ingest import read_table
 from test_book import _answer
@@ -21,18 +23,53 @@ LVR_KEYS = ("band", "seg", "loans", "c_rate", "c_rest", "c_x", "c_read", "c_over
             "r_other", "together", "compared")
 
 
+
+def _tab(path, name):
+    """A result tab as LibreOffice calculates it (tests/recalc.py): its readings, dollars and headings are
+    formulas over Control's lines (OC-40). The tab as written, formulas and rules, rides along as .formulas."""
+    ws = recalc(path)[name]
+    ws.formulas = load_workbook(path)[name]
+    return ws
+
+
+RULE = re.compile(r'^AND\(NOT\(\$([A-Z]+)(\d+)\),\$([A-Z]+)(\d+)="([^"]+)"\)$')
+
+
+def _cf_fill(ws, r: int, col: int) -> str | None:
+    """The fill a conditional-formatting rule gives a cell, worked out from the rules on the tab as written
+    (ws.formulas) and the calculated values: red and green on Losses vs revenue are rules since OC-40. Only
+    the one shape of rule that tab writes is read; anything else fails the test rather than guess."""
+    from openpyxl.utils import column_index_from_string, range_boundaries
+    for rng in ws.formulas.conditional_formatting:
+        for bounds in str(rng.sqref).split():
+            c0, r0, c1, r1 = range_boundaries(bounds)
+            if not (c0 <= col <= c1 and r0 <= r <= r1):
+                continue
+            for rule in rng.rules:
+                m = RULE.match(rule.formula[0])
+                assert m, rule.formula[0]
+                ucol, urow, fcol, frow, word = m.groups()
+                dr = r - r0
+                untested = ws.cell(row=int(urow) + dr, column=column_index_from_string(ucol)).value
+                flag = ws.cell(row=int(frow) + dr, column=column_index_from_string(fcol)).value
+                if not untested and flag == word:
+                    return rule.dxf.fill.fgColor.rgb[-6:]
+    return None
+
+
 def _lvr(ws) -> list[dict]:
-    """The Losses vs revenue rows, by name, with the fill on each side's gap."""
+    """The Losses vs revenue rows, by name, with the fill on each side's gap. `ws` is the calculated tab
+    (_tab): the fill comes from its conditional formatting, over the flags the lines on Control give."""
     out = []
     for r in range(5, ws.max_row + 1):
         if not isinstance(ws.cell(row=r, column=4).value, int):
             continue
         x = dict(zip(LVR_KEYS, (ws.cell(row=r, column=c).value for c in range(2, 2 + len(LVR_KEYS)))))
+        x = {k: (None if v == "" else v) for k, v in x.items()}          # a formula's "" reads as nothing
         x["row"] = r
         x["against"] = "the book" if x["compared"] else "its band"          # a pocket alone in its band: the book
         for k, col in (("c_fill", book.LVR_C + 2), ("g_fill", book.LVR_G + 2), ("r_fill", book.LVR_R + 2)):
-            f = ws.cell(row=r, column=col).fill
-            x[k] = f.fgColor.rgb[-6:] if f and f.fill_type == "solid" else None
+            x[k] = _cf_fill(ws, r, col)
         out.append(x)
     return out
 
@@ -137,7 +174,7 @@ def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
             r[2].value = "0.5 points either way"
     wb.save(b)
     assert book.run(b).ok
-    ws = load_workbook(b)["Losses vs revenue"]
+    ws = _tab(b, "Losses vs revenue")
     rows = [x for x in _lvr(ws) if not {x["c_read"], x["g_read"], x["r_read"]} & set(untested)]
     assert rows
     sub = ws["B2"].value
@@ -189,9 +226,9 @@ def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
 def test_the_suggested_profit_line_is_each_pockets_own_test(tmp_path):
     b = _ready(tmp_path)
     assert book.run(b).ok
-    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    check = {r[1].value: r[2].value for r in _tab(b, "Check").iter_rows(min_row=4)}
     assert check["Profit counts as more or less"] == "each pocket's own test: only a gap that is significant at 95%"
-    ws = load_workbook(b)["Losses vs revenue"]
+    ws = _tab(b, "Losses vs revenue")
     reads = [x["r_read"] for x in _lvr(ws)] + [x["c_read"] for x in _lvr(ws)]
     # nothing past a line is left to mark: a gap its own test doesn't call significant says so in words
     assert reads and not any(x.endswith("(not significant)") for x in reads)
@@ -204,7 +241,7 @@ def test_the_suggested_profit_line_is_each_pockets_own_test(tmp_path):
 def test_materiality_tab_shows_what_each_level_keeps(tmp_path):
     b = _ready(tmp_path, n=4000)
     assert book.run(b).ok
-    ws = load_workbook(b)["Materiality"]
+    ws = _tab(b, "Materiality")
     heads = {c.value for row in ws.iter_rows() for c in row}
     assert "Share of the book's loans with the outcome" in heads and "Pockets kept" in heads
     assert any(isinstance(v, str) and v.startswith("In use:") for v in (c.value for row in ws.iter_rows()
@@ -356,7 +393,7 @@ def test_a_dollar_materiality_line_is_gco_and_profit_is_held_to_it(tmp_path):
             r[2].value, r[3].value = None, 100000
     wb.save(b)
     assert book.run(b).ok, PICK
-    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    check = {r[1].value: r[2].value for r in _tab(b, "Check").iter_rows(min_row=4)}
     assert check["Materiality line: GCO per booked dollar"] == "100,000 GCO_AMT dollars"
     assert check["Materiality line: Profit after losses: RANR per booked dollar"] == (
         "a shortfall of 100,000 RANR_AMT dollars: the same dollar line as GCO (Control's materiality answer)")
@@ -472,7 +509,7 @@ def test_losses_vs_revenue_dollars_agree_with_the_box_and_untested_pockets_get_n
     """The fourth walk, defects 2 and 3."""
     b = _ready(tmp_path)
     assert book.run(b).ok
-    ws = load_workbook(b)["Losses vs revenue"]
+    ws = _tab(b, "Losses vs revenue")
     rows = _lvr(ws)
     untested = [x for x in rows if {x["g_read"], x["r_read"]} & {engine.THIN, engine.FEW}]
     for x in rows:
@@ -573,16 +610,16 @@ def test_the_planted_pocket_is_a_net_drain(tmp_path):
     b = _ready(tmp_path, n=8000)
     _set(b, "FICO", book.C_EDGES, "620; 680; 740")
     assert book.run(b).ok
-    ws = load_workbook(b)["Losses vs revenue"]
+    ws = _tab(b, "Losses vs revenue")
     assert ws["B7"].value.endswith(" - 619") and ws["C7"].value == "Broker"
     paid, cost, kept, together = (ws.cell(row=7, column=c).value for c in (
         book.LVR_C + 3, book.LVR_G + 3, book.LVR_R + 3, book.LVR_T))
     assert re.fullmatch(r"[+-]?\d+\.\d\d points against its band, not significant|"
                         r"-?0\.00 points against its band, not significant", paid), paid
     assert (cost, together) == ("losing more", "net drain") and kept.startswith("short of its band by ")
-    assert (ws.cell(row=7, column=book.LVR_G + 2).fill.fgColor.rgb.endswith(book.RED_CELL)
-            and ws.cell(row=7, column=book.LVR_R + 2).fill.fgColor.rgb.endswith(book.RED_CELL))
-    assert ws.cell(row=7, column=book.LVR_C + 2).fill.fill_type is None
+    # red and green are conditional formatting over the flags since OC-40: the rules, worked out on the values
+    assert _cf_fill(ws, 7, book.LVR_G + 2) == book.RED_CELL and _cf_fill(ws, 7, book.LVR_R + 2) == book.RED_CELL
+    assert _cf_fill(ws, 7, book.LVR_C + 2) is None
 
 
 def test_boxes_follow_the_lines_exactly():
@@ -607,11 +644,15 @@ def test_a_luck_gap_keeps_its_box_and_says_so(tmp_path):
     b = _ready(tmp_path, n=8000)
     _set(b, "FICO", book.C_EDGES, "620; 680; 740")
     assert book.run(b).ok
-    ws = load_workbook(b)["Losses vs revenue"]
+    ws = _tab(b, "Losses vs revenue")
     rows = _lvr(ws)
     marked = [x for x in rows if x["g_read"].endswith("(not significant)")]
     assert marked and all(x["g_fill"] is None for x in marked)              # marked and left plain
     assert any(x["g_fill"] == book.RED_CELL for x in rows)
+    # and the other way round: a gap past a line on Control that isn't coloured is marked, either side
+    past = [x for x in rows if not x["g_read"].startswith("too few") and (x["g_x"] >= 1.25 or x["g_x"] <= 0.8)]
+    plain = [x for x in past if x["g_fill"] is None]
+    assert any(x["g_x"] >= 1.25 for x in plain) and all(x["g_read"].endswith("(not significant)") for x in plain)
 
 
 def test_remembered_edges_only_fill_a_column_the_workbook_has_not_seen(tmp_path):
@@ -708,7 +749,7 @@ def test_split_gaps_that_could_be_luck_are_bracketed(tmp_path):
     b = _ready(tmp_path)
     _set(b, "REV_DEBT", book.C_SPLIT, "Yes")
     assert book.run(b).ok
-    ws = load_workbook(b)["Split"]
+    ws = _tab(b, "Split")
     vals = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
     assert any(v.startswith("(") and v.endswith("x)") for v in vals)
 
@@ -726,7 +767,7 @@ def test_material_pockets_too_small_to_test_are_pointed_out(tmp_path):
     wb.save(b)
     ran = book.run(b)
     assert ran.ok and any("material but too small to test" in x for x in ran.lines)
-    ws = load_workbook(b)["Where it bleeds"]
+    ws = _tab(b, "Where it bleeds")
     # the window counts pockets, once each, and the rows the tab shades (the seventh walk, defect 7)
     said = next(x for x in ran.lines if "material but too small to test" in x)
     blue = [ws.cell(row=r, column=c).value for r in range(5, ws.max_row + 1)
@@ -755,7 +796,7 @@ def test_a_pocket_under_fewest_loans_is_tested_and_says_how(tmp_path):
             r[control.CHOOSE_COL - 1].value, r[control.OWN_COL - 1].value = None, 230
     wb.save(b)
     assert book.run(b).ok
-    ws = load_workbook(b)["Where it bleeds"]
+    ws = _tab(b, "Where it bleeds")
     assert ws.cell(row=4, column=20).value == "Test"
     rows = [r for r in range(5, ws.max_row + 1) if ws.cell(row=r, column=2).value == "Outcome, share of loans"]
     flag, test, luck = (lambda r: ws.cell(row=r, column=18).value), (lambda r: ws.cell(row=r, column=20).value), \
@@ -779,9 +820,9 @@ def test_a_real_loss_keeps_its_red_when_profit_is_not_significant(tmp_path):
             r[2].value = "0.25 points either way"
     wb.save(b)
     assert book.run(b).ok
-    ws = load_workbook(b)["Losses vs revenue"]
+    ws = _tab(b, "Losses vs revenue")
     assert ws["C7"].value == "Broker" and ws.cell(row=7, column=book.LVR_G + 3).value == "losing more"
-    assert ws.cell(row=7, column=book.LVR_G + 2).fill.fgColor.rgb.endswith(book.RED_CELL)
+    assert _cf_fill(ws, 7, book.LVR_G + 2) == book.RED_CELL
     rows = _lvr(ws)
     marked = [x for x in rows if "not significant" in x["r_read"]]
     assert marked and all(x["r_fill"] is None and not x["together"] for x in marked)   # the fixed line marks some
@@ -837,9 +878,8 @@ def test_revenue_reads_the_same_on_both_tabs(tmp_path):
                 r[2].value = option
         wb.save(b)
         assert book.run(b).ok
-        wb = load_workbook(b)
-        lvr = {(x["band"], x["seg"]): x["r_read"] for x in _lvr(wb["Losses vs revenue"])}
-        ws = wb["Where it bleeds"]
+        lvr = {(x["band"], x["seg"]): x["r_read"] for x in _lvr(_tab(b, "Losses vs revenue"))}
+        ws = _tab(b, "Where it bleeds")
         seen = 0
         for r in range(5, ws.max_row + 1):
             if ws.cell(row=r, column=2).value != "Profit after losses: RANR per booked dollar":
@@ -858,7 +898,7 @@ def test_words_after_a_number_start_clear_of_it(tmp_path):
     beside a right-aligned number needs its own indent on Where it bleeds."""
     b = _ready(tmp_path, n=3000)
     assert book.run(b).ok
-    ws = load_workbook(b)["Where it bleeds"]
+    ws = _tab(b, "Where it bleeds")
     heads = {ws.cell(row=4, column=c).value: c for c in range(2, 22)}
     # and aligned left: LibreOffice draws no indent on a cell left to the default (the render, 26 Sep 2026)
     for name in ("Excess is in", "Test"):
@@ -867,7 +907,7 @@ def test_words_after_a_number_start_clear_of_it(tmp_path):
     flag = next(c for h, c in heads.items() if h and h.startswith("Flag"))
     got = ws.cell(row=5, column=flag).alignment
     assert got.indent >= 1 and got.horizontal == "left"
-    lvr = load_workbook(b)["Losses vs revenue"]
+    lvr = _tab(b, "Losses vs revenue")
     for col in (book.LVR_C + 3, book.LVR_G + 3, book.LVR_R + 3, book.LVR_T):
         got = lvr.cell(row=7, column=col).alignment
         assert got.indent >= 1 and got.horizontal == "left", col
