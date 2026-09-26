@@ -104,6 +104,19 @@ def norm_s_inv(p: float) -> float:
     return x
 
 
+def bar(confidence: float) -> float:
+    """The p-value a result must be BELOW to count as significant (statistics.md,
+    conventions: "significant (p-value below the bar)"). Rounded once, because
+    1 - 0.95 is 0.050000000000000044 in floating point: a p of exactly 0.05 sat
+    below it and read significant at 95%, while 0.1 at 90% did not (the
+    adversarial pass, 26 Sep 2026)."""
+    return round(1.0 - confidence, 12)
+
+
+def significant(p: float | None, confidence: float) -> bool:
+    return p is not None and p < bar(confidence)
+
+
 def z_for_confidence(confidence: float) -> float:
     """z such that the central interval covers `confidence`: NORM.S.INV(1-(1-c)/2)."""
     return norm_s_inv(1.0 - (1.0 - confidence) / 2.0)
@@ -143,6 +156,10 @@ class LoansNeeded:
         if self.loans is None and self.rate:
             return (f"{self.measure}: no pocket of this book could show a {self.gap:g}x gap as significant "
                     f"{self.power:.0%} of the time at {self.confidence:.0%} confidence")
+        if self.loans is None and self.rate is None:
+            # no rate at all (nothing read, or no dollars to divide by) is not a rate of zero: unknown is its
+            # own answer (the adversarial pass, 26 Sep 2026)
+            return f"{self.measure}: no rate could be worked out from this book, so no gap can be sized"
         if self.loans is None:
             return f"{self.measure}: the book's rate is zero, so no gap can be sized"
         share = self.loans / self.book_loans if self.book_loans else 0
@@ -564,21 +581,26 @@ def chi2_sf(x: float, k: int) -> float:
 
 def cochran_q(strata: list[tuple[int, int, int, int]], pooled_or: float | None) -> tuple[float | None, int]:
     """A8's Q: the pockets' log odds ratios (Woolf weights, 0.5 added to every
-    cell of a pocket with a zero) spread about the pooled ratio. Centred on
-    ln OR_MH rather than A8's weighted mean: on A8's example that moves p from
-    0.80511 to 0.80510 (the audit, item j). Returns (Q, the pockets it rests on)."""
+    cell of a pocket with a zero) spread about their weighted mean, as A8
+    writes it. It used to be centred on ln OR_MH; the weighted mean is the
+    centre that makes Q smallest, so that version could only ever lean toward
+    "the pockets disagree", and on some books it flipped the verdict (the
+    adversarial pass, 26 Sep 2026). `pooled_or` only says whether there is a
+    pooled effect to speak of. Returns (Q, the pockets it rests on)."""
     if not pooled_or or pooled_or <= 0:
         return None, 0
-    q, k = 0.0, 0
+    thetas, weights = [], []
     for a, b, c, d in strata:
         if a + c == 0 or b + d == 0 or a + b == 0 or c + d == 0:
             continue
         if min(a, b, c, d) == 0:
             a, b, c, d = a + 0.5, b + 0.5, c + 0.5, d + 0.5
-        w = 1 / (1 / a + 1 / b + 1 / c + 1 / d)
-        q += w * (math.log(a * d / (b * c)) - math.log(pooled_or)) ** 2
-        k += 1
-    return q, k
+        thetas.append(math.log(a * d / (b * c)))
+        weights.append(1 / (1 / a + 1 / b + 1 / c + 1 / d))
+    if not weights:
+        return None, 0
+    centre = math.fsum(w * t for w, t in zip(weights, thetas)) / math.fsum(weights)
+    return math.fsum(w * (t - centre) ** 2 for w, t in zip(weights, thetas)), len(weights)
 
 
 def steadiness_p(strata: list[tuple[int, int, int, int]], pooled_or: float | None) -> tuple[float | None, int]:

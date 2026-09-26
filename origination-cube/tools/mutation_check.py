@@ -321,6 +321,15 @@ muts = [
  ("prevalence tab not written", B, '    prevalence.write(wb, res)', '    pass', "prevalence_tab_counts"),
  ("words run into numbers", B, '            for col in (11, 17, 19):\n                ws.cell(row=r, column=col).alignment = Alignment(indent=1)',
   '            for col in ():\n                pass', "words_after_a_number"),
+ # 26 Sep 2026: the adversarial pass's four findings, fixed (tests/test_adversarial_2026_09_26.py)
+ ("the bar not rounded", S, '    return round(1.0 - confidence, 12)', '    return 1.0 - confidence', "at_the_bar"),
+ ("Q about the pooled ratio again", S,
+  '    centre = math.fsum(w * t for w, t in zip(weights, thetas)) / math.fsum(weights)',
+  '    centre = math.log(pooled_or)', "weighted_mean_log_odds"),
+ ("no rate read as a zero rate", S, '        if self.loans is None and self.rate is None:', '        if False:',
+  "absent_rate"),
+ ("unanswered shuffle still named", E, '                if s.p_book is None and s.p_band is None:\n                    s.test = None',
+  '                if False:\n                    s.test = None', "could_not_answer"),
 ]
 bad = 0
 for name, f, old, new, sel in muts:

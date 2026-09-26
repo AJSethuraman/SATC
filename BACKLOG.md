@@ -1601,6 +1601,22 @@ back.
   - **A Prevalence tab** ("a count, not a test").
 
   430 tests; 164 re-inserted bugs. Every fix, 3.1 to 3.18, is now on the branch.
+- [x] **The adversarial pass (NEXT-GOAL 5, 26 Sep 2026).**
+  - **The pass:** another model, given only the job of breaking the arithmetic
+    with tests, formed 33 hypotheses, ran them, and delivered 8 failing tests (4
+    findings) on branch `adversarial/origination-cube-stats`.
+  - **The intake, done by hand** the way `canon`'s intake works: only its findings
+    file crossed over, and the branch touched nothing else.
+  - **The four findings, all fixed** and moved into
+    `tests/test_adversarial_2026_09_26.py`:
+    - a p-value exactly at the bar;
+    - Cochran's Q off A8's centre;
+    - an absent rate read as zero;
+    - an unanswered shuffle named as a test.
+
+    Each has a planted bug, all caught; 169 in total.
+  - **Proposed tenet for canon** (the firm's yes needed): *compare against a bar
+    computed once and rounded, never against `1 − confidence` inline*.
 - [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
       `cube drill` and `cube prove` (and put their settings back on the tab).
 - **Not checked:** real Excel, a real extract, and the bank machine

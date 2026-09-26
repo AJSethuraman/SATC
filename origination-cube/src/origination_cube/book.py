@@ -1581,7 +1581,7 @@ def _losses_vs_revenue(ws, res) -> None:
         del wb[CHART_DATA]
     hs = wb.create_sheet(CHART_DATA)
     hs.sheet_state = "hidden"
-    real = lambda p: p is not None and p < 1 - b.confidence      # noqa: E731
+    real = lambda p: stats.significant(p, b.confidence)      # noqa: E731
     untested_words = (engine.THIN, engine.FEW)
     top = 4
     ms = {m.name: m for m in res.measures}
@@ -2042,7 +2042,7 @@ def _split_tab(ws, res) -> None:
                     f"{p['high_worse']} of {p['pockets']}" if p.get("pockets") else "none big enough",
                     pooled, rng, p.get("ratio_p"), p.get("odds"), p.get("odds_p"),
                     ("yes/no outcome only" if steady is None else
-                     "yes" if steady >= 1 - conf else "no: bigger in some pockets")]
+                     "yes" if not stats.significant(steady, conf) else "no: bigger in some pockets")]
             for i, v in enumerate(vals, start=2):
                 ws.cell(row=rr, column=i, value=v).alignment = Alignment(horizontal="left" if i == 2 else "center")
             ws.cell(row=rr, column=5).number_format = _gap_fmt(m)
@@ -2062,7 +2062,7 @@ def _split_tab(ws, res) -> None:
                 if not got or got[0] is None:
                     return None
                 v = _shown(got[0], m)
-                if got[1] is not None and got[1] < 1 - conf:
+                if stats.significant(got[1], conf):
                     return v
                 return f"({v:+.2f} pts)" if m.in_points else f"({v:.2f}x)"
 

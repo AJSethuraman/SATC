@@ -272,7 +272,7 @@ def reading_gap(gap: float | None, den: float, line: ProfitLine | None, p: float
         return None
     if not tested and units < min_units:
         return THIN
-    real = tested and p is not None and p < 1 - confidence
+    real = tested and stats.significant(p, confidence)
     if line.kind == "test":
         if not tested:
             return None                     # no test, so nothing to read by it
@@ -311,7 +311,7 @@ def reading_of(idx: float | None, units: int, bench, min_units: float, p: float 
     if bench.better_at < bad < bench.worse_at:
         return IN_LINE
     worse = bad >= bench.worse_at
-    if tested and (p is None or p >= 1 - bench.confidence):
+    if tested and not stats.significant(p, bench.confidence):
         return UNSURE_WORSE if worse else UNSURE_BETTER
     return WORSE if worse else BETTER
 
@@ -1339,6 +1339,8 @@ def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
                     s.p_book, s.hits_book = got_book[i].p, got_book[i].hits
                 if i in got_band:
                     s.p_band, s.hits_band = got_band[i].p, got_band[i].hits
+                if s.p_book is None and s.p_band is None:
+                    s.test = None           # nothing could be shuffled for this pocket (the adversarial pass)
     for grid, s, ids in halves:
         for m in dollar:
             st = s.stats[(0, m.name)]

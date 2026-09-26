@@ -539,6 +539,25 @@ enough.
   that did: Control's explanations used the synthetic book's pocket as their
   example.
 
+- **The adversarial pass (26 Sep 2026).** Another model was given the arithmetic
+  (`stats.py`, `perm.py`, the engine's use of them, `checks.py`) with one job:
+  break it, writing tests only.
+  - **The count:** it formed 33 hypotheses and ran them; 4 produced a failing test
+    (8 tests) and 27 came out clean. It cross-checked against scipy and statsmodels:
+    Fisher, the chi-square and normal tails, Mantel–Haenszel, CMH, BH, the power
+    search, the family count and seed determinism.
+  - **The four findings, all fixed** and held by `tests/test_adversarial_2026_09_26.py`:
+    - **A p-value exactly at the bar** read significant at 95% but not at 90%,
+      because 1 − 0.95 is not 0.05 in floating point. There is now one rounded
+      bar, `stats.bar`.
+    - **Cochran's Q** was centred on ln OR_MH instead of A8's weighted mean, which
+      could only lean toward "the pockets disagree".
+    - **A rate that couldn't be worked out** read as "the book's rate is zero".
+      Unknown is its own answer now.
+    - **A pocket the shuffle test couldn't answer** still named the shuffle test.
+  - **Two assertions were corrected in triage:** the Q cases asserted the flip
+    itself, and one family count was wrong about a pocket with no band neighbour.
+
 ## Open
 
 - **(a) Real Excel.** Every tab has been seen through LibreOffice only. Still to

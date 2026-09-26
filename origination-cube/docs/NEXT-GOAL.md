@@ -173,7 +173,7 @@ For each: the data it needs, what it adds to the outputs, and roughly how much w
 
 ## 5. Adversarial pass
 
-- [ ] When the suite and the mutation check are green, hand the statistics module to
+- [x] *(Done 26 Sep 2026; findings fixed in the commit after 121d3f9, see BACKLOG §6d.)* When the suite and the mutation check are green, hand the statistics module to
       the adversarial brief (`canon:adversarial`). Another agent writes only tests and
       never touches source, with one job: break the arithmetic. Take the findings back
       with the intake and record them in the log.
