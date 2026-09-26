@@ -763,3 +763,11 @@ def test_a_reach_proposal_on_two_lines_is_refused(corpus, queue):
     f = _found(corpus, "reach", TWELVE)
     with pytest.raises(ValueError, match="line"):
         rulings.ask(f, "subscription\ntwelve months", queue=queue, corpus=corpus)
+
+
+@pytest.mark.parametrize("text, figure", [("a 12-week period", "12week"),
+                                          ("6 weeks", "6week"),
+                                          ("1 week", "1week")])
+def test_a_period_in_weeks_is_a_figure(text, figure):
+    """Codex on #401: "12-week period" matched no figure at all."""
+    assert [rulings._figure(m) for m in rulings.FIGURE.findall(text)] == [figure]

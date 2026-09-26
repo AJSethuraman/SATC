@@ -308,3 +308,13 @@ def test_a_blank_line_inside_the_facts_block_is_refused():
     split = body.replace("- **taxpayer:** LLC\n", "- **taxpayer:** LLC\n\n", 1)
     with pytest.raises(relay.RelayError, match="damaged|after the block"):
         relay.on_file(split)
+
+
+def test_a_question_cannot_spell_its_way_into_another_requests_ref():
+    """Codex on #401: "Q\\ntrade=general contractor" with no facts and "Q"
+    with trade on file made the same ref, so one could be taken for the
+    other. The facts are now keyed in an unambiguous encoding."""
+    a = relay.ask_many(["Is a reward income?\ntrade=general contractor"], OCCAM)
+    b = relay.ask_many(["Is a reward income?"], OCCAM,
+                       on_file={"trade": "general contractor"})
+    assert a.asks[0].ref != b.asks[0].ref and a.ref != b.ref

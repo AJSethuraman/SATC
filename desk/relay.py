@@ -71,6 +71,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import json
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -150,8 +151,12 @@ def ref_for(question: str, reply_to: str, on_file: str = "") -> str:
     # taken for the other's, or dropped as a duplicate. With no facts the ref
     # is exactly what it always was.
     key = f"{reply_to}\n{question.strip()}"
+    # AND UNAMBIGUOUSLY. Codex on #401: a question carrying its own line
+    # "trade=general contractor" made the same key as the bare question with
+    # that fact on file. With facts the key is a JSON array, which opens "["
+    # where a bare key opens with the session id, so the two cannot meet.
     if on_file:
-        key += f"\n{on_file}"
+        key = json.dumps([reply_to, question.strip(), on_file])
     return hashlib.sha256(key.encode()).hexdigest()[:12]
 
 
@@ -447,7 +452,7 @@ def ask_many(questions, reply_to: str, on_file=None) -> Batch:
     if not questions:
         raise RelayError("no questions. A batch of none is not a request.")
     facts = _facts(on_file) if on_file else ()
-    keyed = "\n".join(f"{n}={v}" for n, v in facts)
+    keyed = json.dumps(facts) if facts else ""
     # `ask` itself stays without a facts parameter -- the firm cut that channel
     # on 8 September and a test holds it shut. The recorded facts key the refs
     # here, where they travel, and only here.
