@@ -139,8 +139,13 @@ jobs:
   # The same check for the Origination Cube: each VBA bug is put back in turn
   # and the test named for it must go red. Seconds, not minutes.
   mutation-origination-cube:
-    name: mutation check (origination-cube)
+    name: mutation check (origination-cube, part ${{ matrix.shard }} of 4)
     runs-on: ubuntu-latest
+    # four jobs, each putting back every fourth bug: one job of all of them ran past two hours
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     defaults:
       run:
         working-directory: origination-cube
@@ -158,7 +163,7 @@ jobs:
       - name: LibreOffice, to calculate the workbook's formulas
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-calc
       - name: Every mutation is caught
-        run: python tools/mutation_check.py
+        run: python tools/mutation_check.py --shard ${{ matrix.shard }}/4
 
   # The website publishes prices. A number on satcllp.com is a commitment, and
   # the estimate a client gets later has to agree with it — so the page is
