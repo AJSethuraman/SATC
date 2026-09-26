@@ -72,15 +72,17 @@ def test_control_asks_what_you_are_running_first_with_two_answers_and_no_default
     ws = load_workbook(b)[control.SHEET]
     keys = [r[control.KEY_COL - 1].value for r in ws.iter_rows(min_row=control.FIRST_ROW)
             if r[control.KEY_COL - 1].value]
-    assert keys[:2] == ["run_kind", "new_variable_step"]                   # the first thing on the tab
-    for k in keys[:2]:
+    # the first thing on the tab, in the block the launcher fills (the redesign)
+    assert keys[:3] == ["launcher|head", "run_kind", "new_variable_step"]
+    for k in keys[1:3]:
         assert ws.cell(row=control.row_of(ws, k), column=control.CHOOSE_COL).value is None     # nothing picked
     # the scouting answer says plainly, on the tab, that it isn't built
     said = {o.label: o.explains for o in s["new_variable_step"].options}
     assert "isn't built yet" in said[SCOUT]
-    # Set up asks it, in the launcher's words
+    # Set up asks for it, in the launcher
     out = book.set_up(synth.write_extract(tmp_path, n=1500))
-    assert any('"What are you running?"' in line and BLEED in line and NEW in line for line in out.lines), out.lines
+    assert any("in the launcher, choose what you're running" in line and BLEED in line and NEW in line
+               for line in out.lines), out.lines
 
 
 def test_a_blank_answer_is_refused_by_its_cell_and_nothing_is_picked_for_you(tmp_path):
@@ -88,7 +90,8 @@ def test_a_blank_answer_is_refused_by_its_cell_and_nothing_is_picked_for_you(tmp
     _answer(b)
     _control(b, run_kind=None)
     text = _refused(book.run(b))
-    assert f'{_cell(b, "run_kind")}: "What are you running?" needs an answer. Pick one from the list.' in text
+    assert (f'{_cell(b, "run_kind")}: "What are you running?" is chosen in the launcher. '
+            f'{control.LAUNCHER_NOTE}') in text
     # the follow-up isn't asked until the answer says it applies
     assert "Scout first" not in text
     wb = load_workbook(b)
@@ -103,8 +106,8 @@ def test_the_follow_up_is_refused_blank_only_when_testing_a_new_variable(tmp_pat
     _answer(b)
     _control(b, run_kind=NEW, new_variable_step=None)
     text = _refused(book.run(b))
-    assert (f'{_cell(b, "new_variable_step")}: "Scout first, or test from a pre-spec already written?" needs an '
-            f'answer. Pick one from the list.') in text
+    assert (f'{_cell(b, "new_variable_step")}: "Scout first, or test from a pre-spec already written?" is chosen '
+            f'in the launcher.') in text
     _control(b, run_kind=BLEED)
     assert book.run(b).ok
 
@@ -198,9 +201,9 @@ def test_a_new_variable_run_refuses_two_origination_dates(tmp_path, monkeypatch)
 def test_scouting_is_refused_as_not_built(tmp_path, monkeypatch):
     x, b = _new_variable(tmp_path, monkeypatch, step=SCOUT)
     text = _refused(book.run(b))
-    assert (f"{_cell(b, 'new_variable_step')}: Scouting isn't built yet. Pick \"{FROM_SPEC}\", or run "
-            f"{BLEED}.") in text
-    assert "Scouting isn't built yet" in "\n".join(_log(b))
+    assert (f"{_cell(b, 'new_variable_step')}: PocketBook confirms a saved shortlist of new variables. Pick the "
+            f"shortlist in the launcher (Choose tests, Or confirm a saved shortlist), or run {BLEED}.") in text
+    assert "PocketBook confirms a saved shortlist" in "\n".join(_log(b))
 
 
 def test_testing_from_a_pre_spec_needs_the_file_named(tmp_path, monkeypatch):

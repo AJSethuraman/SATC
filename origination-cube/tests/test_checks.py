@@ -15,6 +15,7 @@ from openpyxl import load_workbook
 from conftest import cube, table
 from origination_cube import book, checks, engine, meanings, synth
 from test_book import _answer
+from test_book_dates import _choose
 
 BENCH = {"min_units": 30, "min_events": 51, "worse_at": 1.25, "better_at": 0.8, "confidence": 0.95, "power": 0.8,
          "compare_to": "peers", "many_tests": "bh", "materiality": "none"}
@@ -173,9 +174,8 @@ def test_check_carries_the_budget_the_families_and_the_product_mix(tmp_path):
     wb = load_workbook(out.book)
     for r in wb["Columns"].iter_rows(min_row=book.COL_FIRST):
         if r[book.C_NAME - 1].value == "LOAN_TYPE":
-            assert r[book.C_MEANS - 1].value == "Credit product" and r[book.C_CUT - 1].value == "Yes"
-            r[book.C_CUT - 1].value = "No"
-    wb.save(out.book)
+            assert r[book.C_MEANS - 1].value == "Credit product"
+    _choose(out.book, drop=("LOAN_TYPE",))                   # not ticked under Segment by in the launcher
     ran = book.run(out.book)
     assert ran.ok, ran.lines
     check = {}

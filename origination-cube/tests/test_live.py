@@ -28,6 +28,7 @@ from origination_cube import book, config as cfgmod, control, engine, live, stat
 from origination_cube.ingest import read_table
 from recalc import SOFFICE, recalc, recalc_file, values_of
 from test_book import _answer
+from test_book_dates import _choose
 
 pytestmark = pytest.mark.skipif(SOFFICE is None, reason="LibreOffice (soffice) isn't installed, so the "
                                                          "workbook's formulas can't be calculated here")
@@ -75,12 +76,7 @@ def ran(tmp_path_factory):
         extract = synth.write_extract(d, n=4000)
         b = book.set_up(extract).book
         _answer(b)
-        wb = load_workbook(b)
-        ws = wb["Columns"]
-        for r in ws.iter_rows(min_row=book.COL_FIRST):
-            if r[book.C_NAME - 1].value == "REV_DEBT":
-                r[book.C_SPLIT - 1].value = "Yes"
-        wb.save(b)
+        _choose(b, split="REV_DEBT")
         assert book.run(b).ok
         raw, problems, _ = book.read_book(b)
         assert not problems
@@ -330,8 +326,8 @@ def test_a_setting_for_the_next_run_changes_nothing_on_the_result_tabs(ran, tmp_
         said = ws.cell(row=r, column=control.WHEN_COL).value
         if s.key in live.LIVE_KEYS:
             assert said == "Now, on the result tabs", s.key
-        elif s.key in control.AT_SET_UP:
-            assert said == "At the next Set up", s.key
+        elif s.in_launcher:
+            assert said is None, s.key          # chosen in the launcher: its block's note says how to change it
         else:
             assert said == "At the next Run", s.key
     assert ws.cell(row=4, column=control.WHEN_COL).value == "When a change shows"

@@ -14,7 +14,8 @@ from openpyxl.chart import BarChart, ScatterChart
 
 from origination_cube import book, look, synth
 from origination_cube.ingest import read_table
-from test_book_results import _ready, _set
+from test_book_results import _ready
+from test_book_dates import _choose
 
 NUMBER_COLUMNS = ["FICO", "ORIG_BAL", "GCO_AMT", "RANR_AMT", "REV_DEBT"]
 
@@ -135,7 +136,7 @@ def test_the_five_most_repeated_values_include_the_code(tmp_path):
 
 def test_a_run_split_by_revolving_debt_adds_a_scatter_against_each_band_column(tmp_path):
     b = _ready(tmp_path, n=3000)
-    _set(b, "REV_DEBT", book.C_SPLIT, "Yes")
+    _choose(b, split="REV_DEBT")
     raw, _, _ = book.read_book(b)
     bands = [x["field"] for x in raw["bands"]]
     assert bands == ["FICO", "ORIG_BAL"]

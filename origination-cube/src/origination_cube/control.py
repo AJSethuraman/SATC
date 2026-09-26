@@ -45,7 +45,6 @@ KEY_COL, CHOOSE_COL, OWN_COL = 7, 3, 4            # G, C, D
 #: when a change to the setting shows (OC-40): I, after "Last Run used" in H
 WHEN_COL = 9
 WHEN = {"live": "Now, on the result tabs", "re-run": "At the next Run"}
-AT_SET_UP = ("few_values", "many_values")         # applied when the extract's columns are read, at Set up
 NEEDS = "FCE4C4"          # the shade on a cell that still needs an answer
 INSTRUCTIONS = (
     "Fill in the shaded cells. The rest have starting values; change them if the population calls for it. "
@@ -86,6 +85,7 @@ class Setting:
     judgment: bool = False
     valid: dict | None = None        # {min, max, whole}: what a typed value may be
     only_when: dict | None = None    # {key: value}: asked only when another setting has that answer
+    in_launcher: bool = False        # chosen in the launcher; Control shows it read-only (the redesign)
 
     def recommended(self) -> Option | None:
         return next((o for o in self.options if o.recommended), None)
@@ -113,7 +113,7 @@ def load_settings(path: str | Path | None = None) -> list[Setting]:
             out.append(Setting(key=s["key"], question=s["question"], takes_effect=s["takes_effect"],
                                override=s.get("override"), options=opts, group=g["title"],
                                judgment=bool(s.get("judgment", False)), valid=s.get("valid"),
-                               only_when=s.get("only_when")))
+                               only_when=s.get("only_when"), in_launcher=s.get("asked_in") == "launcher"))
     return out
 
 
@@ -168,10 +168,12 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         c.fill = PatternFill("solid", fgColor=INK)
     ws.freeze_panes = "C5"
 
-    r = FIRST_ROW
-    group = None
     row_of: dict[str, int] = {}
+    r = _write_launcher_block(ws, settings, row_of)
+    group = None
     for s in settings:
+        if s.in_launcher:
+            continue
         if s.group != group:
             group = s.group
             ws.cell(row=r, column=2, value=group).font = Font(name="Calibri", bold=True, color=INK)
@@ -232,7 +234,7 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
                                         f'options.{instead}"))))'))
         k = ws.cell(row=r, column=KEY_COL, value=s.key)
         k.font = Font(name="Consolas", size=8, color=SLATE)
-        w = ws.cell(row=r, column=WHEN_COL, value="At the next Set up" if s.key in AT_SET_UP else WHEN[s.takes_effect])
+        w = ws.cell(row=r, column=WHEN_COL, value=WHEN[s.takes_effect])
         w.font = Font(name="Calibri", size=10, bold=s.takes_effect == "live", color=INK if s.takes_effect == "live"
                       else SLATE)
         w.alignment = Alignment(wrap_text=True, vertical="top")
@@ -283,6 +285,122 @@ def build_control_book(out: str | Path, settings: list[Setting] | None = None) -
     p = Path(out)
     wb.save(p)
     return p
+
+
+# --------------------------------------------------------------------------
+# Chosen in the launcher (the redesign, 26 Sep 2026): what runs is picked in the
+# launcher before the workbook is written, and shown here read-only. The rows
+# keep their keys, so the run reads a setting among them (What are you running?,
+# the two column limits) exactly as before, and the choices (bands, segments,
+# split, the pre-spec file) from the rows keyed "launcher|...".
+
+LAUNCHER_HEAD = "Chosen in the launcher"
+LAUNCHER_NOTE = "To change these, go back to Choose tests in the launcher and press Next."
+
+
+def _write_launcher_block(ws, settings: list[Setting], row_of: dict[str, int]) -> int:
+    """The block at the top of the settings; returns the first row after it."""
+    from . import choices as ch
+    from .house import MIST as BAND, SLATE as GREY, fill
+    r = FIRST_ROW
+    ws.cell(row=r, column=2, value=LAUNCHER_HEAD).font = Font(name="Arial", bold=True, size=10, color=INK)
+    ws.cell(row=r, column=3, value=LAUNCHER_NOTE).font = Font(name="Calibri", size=9, italic=True, color=GREY)
+    for col in range(2, 7):
+        ws.cell(row=r, column=col).fill = fill(BAND)
+    ws.cell(row=r, column=KEY_COL, value=f"{ch.KEY}|head")
+    r += 1
+    by_key = {s.key: s for s in settings}
+    order = [("run_kind", None), ("new_variable_step", None)] + [(k, lab) for k, lab in ch.ROWS] + \
+            [(PRESPEC_KEY, "Saved shortlist (pre-spec file)"), ("few_values", None), ("many_values", None)]
+    thin = Side(style="thin", color=MIST)
+    for key, label in order:
+        s = by_key.get(key)
+        if s is not None and not s.in_launcher:
+            continue
+        ws.cell(row=r, column=2, value=s.question if s is not None else label)
+        ws.cell(row=r, column=KEY_COL, value=key if s is not None or key == PRESPEC_KEY else f"{ch.KEY}|{key}")
+        if s is not None:
+            row_of[key] = r
+            rec = s.recommended()
+            ws.cell(row=r, column=CHOOSE_COL, value=rec.label if rec is not None else None)
+        for col in range(2, 7):
+            cell = ws.cell(row=r, column=col)
+            cell.border = Border(bottom=thin)
+            cell.alignment = Alignment(vertical="top", wrap_text=col == 2)
+            cell.font = Font(name="Calibri", size=10, color=GREY if col == 2 else INK)
+        ws.cell(row=r, column=KEY_COL).font = Font(name="Consolas", size=8, color=SLATE)
+        r += 1
+    return r + 1
+
+
+def write_choices(ws, got, labels: dict[tuple[str, str], str]) -> None:
+    """The launcher's choices into the block. `labels` maps (setting key, option
+    value) to the option's label, so a setting reads back like one picked on the tab."""
+    from . import choices as ch
+    step = None
+    if got.run_kind == ch.NEW_VARIABLE:
+        step = "prespec" if got.shortlist else "scout"
+    values = {"few_values": labels.get(("few_values", got.few_values), got.few_values),
+              "many_values": labels.get(("many_values", got.many_values), got.many_values),
+              **{f"{ch.KEY}|{k}": v for k, v in got.rows().items()}}
+    if got.run_kind is not None:
+        # what runs, and for a new variable whether a saved shortlist is confirmed; None leaves all three as they are
+        values["run_kind"] = labels[("run_kind", got.run_kind)]
+        values["new_variable_step"] = labels[("new_variable_step", step)] if step else None
+        values[PRESPEC_KEY] = got.shortlist if got.run_kind == ch.NEW_VARIABLE else None
+    for r in ws.iter_rows(min_row=FIRST_ROW):
+        key = r[KEY_COL - 1].value
+        if key in values:
+            r[CHOOSE_COL - 1].value = values[key]
+            if key in ("few_values", "many_values") and answer_of(key, None, r[OWN_COL - 1].value) != \
+                    getattr(got, key):
+                r[OWN_COL - 1].value = None
+    fold_launcher_rows(ws)
+
+
+def fold_launcher_rows(ws) -> None:
+    """Show only the block's rows for what is being run: the new-variable rows fold away for the bleed."""
+    from . import choices as ch
+    only_new = {"new_variable_step", PRESPEC_KEY} | {f"{ch.KEY}|{k}" for k in ("outcome", "test", "hold",
+                                                                                "find_share")}
+    kind_row = row_of(ws, "run_kind")
+    s = next(x for x in load_settings() if x.key == "run_kind")
+    got = _matching(s, ws.cell(row=kind_row, column=CHOOSE_COL).value) if kind_row else []
+    new = bool(got) and got[0].value == ch.NEW_VARIABLE
+    for r in ws.iter_rows(min_row=FIRST_ROW):
+        if r[KEY_COL - 1].value in only_new:
+            ws.row_dimensions[r[0].row].hidden = not new
+
+
+def read_choices(ws):
+    """The block's choices as a Choices, and the cell each row sits in (for a refusal)."""
+    from . import choices as ch
+    got, cells = {}, {}
+    run_kind = shortlist = None
+    limits = {"few_values": 12, "many_values": 50}
+    for r in ws.iter_rows(min_row=FIRST_ROW):
+        key = r[KEY_COL - 1].value
+        if not isinstance(key, str):
+            continue
+        v = r[CHOOSE_COL - 1].value
+        if key.startswith(f"{ch.KEY}|") and key.split("|")[1] in dict(ch.ROWS):
+            got[key.split("|")[1]] = str(v).strip() if v not in (None, "") else None
+            cells[key.split("|")[1]] = f"{SHEET}!C{r[0].row}"
+        elif key == "run_kind":
+            s = next(x for x in load_settings() if x.key == key)
+            hit = _matching(s, v) if v not in (None, "") else []
+            run_kind = hit[0].value if hit else None
+            cells[key] = f"{SHEET}!C{r[0].row}"
+        elif key == PRESPEC_KEY:
+            shortlist = str(v).strip() if v not in (None, "") else None
+            cells[key] = f"{SHEET}!C{r[0].row}"
+        elif key in limits:
+            n = answer_of(key, v, r[OWN_COL - 1].value)
+            if isinstance(n, (int, float)) and not isinstance(n, bool):
+                limits[key] = int(n)
+    if got.get("bands") is None and got.get("segments") is None:
+        return None, cells              # nothing written yet, or a workbook set up before the launcher chose
+    return ch.Choices.from_rows(got, run_kind=run_kind, shortlist=shortlist, **limits), cells
 
 
 # --------------------------------------------------------------------------
@@ -343,6 +461,9 @@ def _take(row, s: Setting, found: dict[str, Any], problems: list[str]) -> None:
             found[key] = int(own) if (s.valid or {}).get("whole") else own
         return
     if chosen in (None, ""):
+        if s.in_launcher:
+            problems.append(f'{where}: "{s.question}" is chosen in the launcher. {LAUNCHER_NOTE}')
+            return
         how = "Pick one from the list." if s.override is None else "Pick one, or enter your own in column D."
         problems.append(f'{where}: "{s.question}" needs an answer. {how}')
         return
@@ -534,49 +655,14 @@ def read_derived(ws) -> tuple[list[dict], list[str]]:
 
 
 # --------------------------------------------------------------------------
-# The pre-spec file (fix 3.15): one cell under the new columns, for a
-# confirmatory run only. A cell rather than a setting: a setting is a pick from
-# a list or a number, and it refuses or shades a blank. This is a path, and
-# blank is the answer for Where the book bleeds. The run reads the file only
-# for "Test from a pre-spec", refuses one it cannot use or one named for the
-# bleed analysis, naming this cell (book.read_book).
+# The pre-spec file (fix 3.15): one cell, for a confirmatory run only. Since the
+# redesign it is picked in the launcher ("Or confirm a saved shortlist") and
+# shown in the "Chosen in the launcher" block. Blank is the answer for Where the
+# book bleeds. The run reads the file only for "Test from a pre-spec", refuses
+# one it cannot use or one named for the bleed analysis, naming this cell
+# (book.read_book).
 
 PRESPEC_KEY = "prespec"
-PRESPEC_NOTE = ("Only for testing a new variable from a pre-spec: the pre-spec file this run is held to, committed "
-                "to git. Type its full path, or just its name if it sits beside this workbook. Leave it blank for "
-                "Where the book bleeds.")
-
-
-def write_prespec(wb: Workbook, path: Any = None) -> None:
-    """The block, under the last row with a key. `path` is what was typed there
-    before, kept through Set up again."""
-    ws = wb[SHEET]
-    last = max(r[0].row for r in ws.iter_rows(min_row=FIRST_ROW) if r[KEY_COL - 1].value)
-    r = last + 2
-    ws.cell(row=r, column=2, value="Pre-spec: what a confirmatory run is held to").font = \
-        Font(name="Calibri", bold=True, color=INK)
-    for col in range(2, 7):
-        ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=CANVAS)
-    ws.cell(row=r, column=KEY_COL, value=f"{PRESPEC_KEY}|head")
-    ws.merge_cells(start_row=r + 1, start_column=2, end_row=r + 1, end_column=6)
-    note = ws.cell(row=r + 1, column=2, value=PRESPEC_NOTE)
-    note.font = Font(name="Calibri", size=10, color=SLATE)
-    note.alignment = Alignment(wrap_text=True, vertical="top")
-    ws.row_dimensions[r + 1].height = 30
-    ws.cell(row=r + 1, column=KEY_COL, value=f"{PRESPEC_KEY}|note")
-    row = r + 2
-    ws.cell(row=row, column=2, value="Pre-spec file")
-    ws.cell(row=row, column=CHOOSE_COL, value=path if path not in (None, "") else None)
-    ws.merge_cells(start_row=row, start_column=CHOOSE_COL, end_row=row, end_column=6)
-    thin = Side(style="thin", color=MIST)
-    for col in range(2, 7):
-        cell = ws.cell(row=row, column=col)
-        cell.border = Border(bottom=thin)
-        cell.alignment = Alignment(wrap_text=True, vertical="top")
-        cell.font = Font(name="Calibri", size=10, color=INK)
-    ws.cell(row=row, column=KEY_COL, value=PRESPEC_KEY).font = Font(name="Consolas", size=8, color=SLATE)
-    ws.print_area = f"B1:F{row}"
-
 
 def read_prespec(ws) -> tuple[str | None, str]:
     """What the pre-spec cell says, without the quotes Windows puts round a

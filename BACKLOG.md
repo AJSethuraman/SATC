@@ -1848,6 +1848,14 @@ back.
   that there are suggestions to be made"*. The design's launcher order does exactly that. It becomes
   the main build; items 4, 6 and 7 fold into it; item 8 (live ordering) is replaced by the design's
   "order as of the last Run, verdicts live"; slicers become dropdowns. `NEXT-GOAL.md` has the phases.
+- [x] **Redesign phase (a): the launcher's five steps, and suggestions at Set up (26 Sep 2026).**
+      Extract, Set up, Choose tests, Answer in workbook, Run, each state (L1 to L5) as the spec draws
+      it; the rules in `launcher.Flow`, tested without a display (`tests/test_launcher.py`), and
+      photographed by `tools/shoot_launcher.py`. The cuts, the split, what's running, the saved
+      shortlist and the two column limits are picked in the launcher and shown read-only on Control.
+      The suggested fewest loans, worse at and better at are on Control when the workbook is written.
+      The product is PocketBook in everything the analyst reads (the firm, 26 Sep 2026); "luck" is not
+      used. Colours in `house.py`, not a copy of credit-suite's style file.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 

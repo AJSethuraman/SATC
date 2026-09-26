@@ -26,6 +26,7 @@ from origination_cube import config as cfgmod
 from origination_cube.ingest import read_table
 from test_book import PICK, _answer
 from test_book_results import _lvr
+from test_book_dates import _choose
 from recalc import calculated_book
 
 # --------------------------------------------------------------------------
@@ -117,7 +118,6 @@ def _workbook(tmp_path, rows, columns, meaning, answers, edges=None, cut_off=())
         name = r[book.C_NAME - 1].value
         if name in meaning:
             r[book.C_MEANS - 1].value = cat[meaning[name]].label
-            r[book.C_CUT - 1].value = "No" if name in cut_off else r[book.C_CUT - 1].value
             if edges and name in edges:
                 r[book.C_EDGES - 1].value = edges[name]
     ws[book.CONFIRM_CELL] = "Yes"
@@ -125,6 +125,8 @@ def _workbook(tmp_path, rows, columns, meaning, answers, edges=None, cut_off=())
         if r[1].value:
             r[4].value = "real"
     wb.save(out.book)
+    if cut_off:
+        _choose(out.book, drop=tuple(cut_off))
     ran = book.run(out.book)
     assert ran.ok, ran.lines
     return calculated_book(out.book)          # the readings are formulas over Control's lines (OC-40)
@@ -276,9 +278,8 @@ def walk_book(tmp_path_factory):
         for r in wb["Columns"].iter_rows(min_row=book.COL_FIRST):
             if r[book.C_NAME - 1].value == "FICO":
                 r[book.C_EDGES - 1].value = "620; 680; 740"
-            if r[book.C_NAME - 1].value == "REV_DEBT":
-                r[book.C_SPLIT - 1].value = "Yes"
         wb.save(out.book)
+        _choose(out.book, split="REV_DEBT")
         ran = book.run(out.book)
         assert ran.ok, ran.lines
     return calculated_book(out.book)          # the readings are formulas over Control's lines (OC-40)

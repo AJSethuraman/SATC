@@ -119,10 +119,10 @@ def test_every_add_on_the_project_declares_is_checked():
 
 def test_the_line_says_what_is_missing_and_what_for(monkeypatch):
     only_missing(monkeypatch, "numpy")
-    assert deps.message(["numpy"]) == ("The cube needs an add-on this computer doesn't have yet: "
-                                       "numpy (for the statistics).")
+    assert deps.message(["numpy"]) == "One add-on is missing: numpy, which does the statistics."
     two = deps.message(["numpy", "openpyxl"])
-    assert two.startswith("The cube needs add-ons") and "numpy (for the statistics) and openpyxl (" in two
+    assert two == ("Two add-ons are missing: numpy, which does the statistics; and openpyxl, which reads "
+                   "and writes Excel files.")
 
 
 # ---- installing ------------------------------------------------------------
@@ -258,7 +258,7 @@ def test_cube_without_an_add_on_is_not_a_traceback(tmp_path):
               "from origination_cube import cli\n"
               f"sys.exit(cli.main(['synth', '--out', {str(tmp_path / 'x')!r}]))")
     assert r.returncode == 2 and "Traceback" not in r.stderr
-    assert "PyYAML (for its settings files)" in r.stderr and "-m pip install" in r.stderr
+    assert "PyYAML, which reads its settings files" in r.stderr and "-m pip install" in r.stderr
 
 
 # ---- the real window, where there is a display --------------------------------
@@ -289,21 +289,25 @@ def test_the_window_keeps_run_off_until_the_install_works(monkeypatch, tmp_path)
         gone = only_missing(monkeypatch, "numpy")
         w = launcher.build(root)
         root.update()
-        assert str(w["run"].cget("state")) == "disabled" and str(w["setup"].cget("state")) == "disabled"
+        flow = w["flow"]
+        assert flow.screen() == "L4" and str(w["setup"].cget("state")) == "disabled"
+        assert flow.states()["run"] == "disabled"
         assert w["headline"].cget("text") == deps.message(["numpy"])
         assert w["copy"].winfo_manager() == ""           # nothing to copy until an install fails
         fake_pip(monkeypatch, 1, PROXY)
         w["install"].invoke()
         _wait(root, w["gate"])
-        assert str(w["run"].cget("state")) == "disabled" and w["copy"].winfo_manager() == "pack"
+        root.update()
+        assert flow.states()["run"] == "disabled" and w["copy"].winfo_manager() == "pack"
         assert str(w["install"].cget("text")) == "Try again"
         w["copy"].invoke()
         assert root.clipboard_get() == deps.ask_it(["numpy"])
         fake_pip(monkeypatch, 0, "Successfully installed numpy-2.1.0\n", then=gone.clear)
         w["install"].invoke()
         _wait(root, w["gate"])
-        assert str(w["run"].cget("state")) == "normal" and str(w["setup"].cget("state")) == "normal"
-        assert w["headline"].master.winfo_manager() == ""   # the add-on row is gone
-        assert w["status"].get("1.0", "end").startswith("Installed numpy.")
+        root.update()
+        assert flow.screen() == "L1" and flow.states()["install"] == "disabled"
+        assert not w["headline"].winfo_exists()            # the banner is gone
+        assert flow.message[0].startswith("Installed numpy.")
     finally:
         root.destroy()
