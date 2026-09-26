@@ -1525,6 +1525,24 @@ back.
   - **The losses inside RANR:** GCO.
   - **CMH:** no continuity correction, matching the reference.
   - **Share of loans:** the pooled two-proportion test (A1).
+- [x] **Wave 1 of the fixes (26 Sep 2026), four agents in parallel, each merged:**
+  - **Statistical tests** (`stats.py`, new `perm.py`, `engine.py`):
+    - share of loans on the pooled test (A1), and Fisher's exact test (B1) below
+      fewest loans;
+    - every dollar rate on a 10,000-shuffle permutation test (B2), within the band
+      or the book;
+    - CMH without the ½;
+    - A3's power formula;
+    - the many-tests family is inner pockets only.
+
+    Every worked example in `docs/statistics.md` is reproduced by a test.
+  - **The Look tab** (`look.py`).
+  - **The pre-spec reader** (`prespec.py`, data only).
+  - **The launcher's add-on check and install** (`deps.py`, OC-34).
+
+  CI went red once on the way: numpy wasn't listed in `pyproject.toml`, so the new
+  add-on check refused to run in CI. It was fixed by listing it. 350 tests; 81
+  re-inserted bugs.
 - [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
       `cube drill` and `cube prove` (and put their settings back on the tab).
 - **Not checked:** real Excel, a real extract, and the bank machine

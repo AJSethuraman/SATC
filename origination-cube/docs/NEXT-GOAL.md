@@ -89,15 +89,15 @@ Each is built with a test. The full suite and the mutation check run after each.
       months. Plant one pocket priced high enough to be losing more and keeping more.
       Make Tests 2 and 4 from `origination-cube-for-test-design.md` into fixtures (that
       file was sent to the firm, not committed; the fixtures are rebuilt from it).
-- [ ] **3.6 Permutation test for dollar rates.** Replace any t-test or proportion test
+- [ ] **3.6 Permutation test for dollar rates.** *(Test built 26 Sep 2026, merge cfe045b: `perm.py`, 10,000 shuffles within the comparison group, fixed seed, numpy. Still to do: show it as "N of 10,000 shuffles" on the tabs.)* Replace any t-test or proportion test
       on a dollar rate (GCO per $, RANR per $, share of booked dollars) with a
       within-pocket permutation test, with a fixed seed, reported as "N of 10,000
       shuffles" (`docs/statistics.md` B2).
-- [ ] **3.7 Exact test below the floor.** Below the fewest-loans floor, run Fisher's
+- [x] **3.7 Exact test below the floor.** *(Done 26 Sep 2026, merge cfe045b: Fisher's exact test below fewest loans, labelled "exact test"; walk 6's 29-of-50 pocket reads "worse"; only fewest losses refuses.)* Below the fewest-loans floor, run Fisher's
       exact test on the yes/no outcome instead of refusing, and label the row "exact
       test". Refuse only below fewest-losses. A test proves the 50-loan, 29-bad pocket
       now gets a verdict.
-- [ ] **3.8 Look before you cut.** At Set up, a Look tab showing, for each number
+- [x] **3.8 Look before you cut.** *(Done 26 Sep 2026, merge 72b8806: `look.py`, the Look tab after Columns; scatters added at Run for a number split column.)* At Set up, a Look tab showing, for each number
       column:
       - a histogram
       - the share missing, and the share at sentinel values
@@ -126,7 +126,7 @@ Each is built with a test. The full suite and the mutation check run after each.
       - Without an outcome date, the window is refused, with the reason.
       - Where seasoned vintages exist, report the share of eventual losses that had
         landed by month N.
-- [ ] **3.15 Pre-spec.** The confirmatory run reads a pre-spec file: bins, strata,
+- [ ] **3.15 Pre-spec.** *(Reader built 26 Sep 2026, merge 6001797: `prespec.py`; still to wire into Check and the Log.)* The confirmatory run reads a pre-spec file: bins, strata,
       window, confidence, reference group and holdout origination range.
       - Check echoes the file and the git commit it was read from.
       - If Control disagrees with the pre-spec, warn on Check and label the run
