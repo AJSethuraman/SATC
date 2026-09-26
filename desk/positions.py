@@ -303,7 +303,7 @@ def _kind(value: str, where: str) -> str:
     return value
 
 
-_REST = re.compile(r'^(?:(?P<cit>[^"\n]+?) — )?"(?P<quote>.+)"$')
+_DELIM = ' — "'
 
 
 def _rests_on(value: str, own: str, where: str) -> tuple:
@@ -313,12 +313,22 @@ def _rests_on(value: str, own: str, where: str) -> tuple:
     for line in (l.strip() for l in value.splitlines()):
         if not line:
             continue
-        m = _REST.match(line)
-        if not m:
+        # SPLIT ON THE LAST ` — "`, because a citation may carry quotation
+        # marks of its own -- `IRS Pub. 463 (2025), "Actual Car Expenses"` --
+        # and refusing `"` there made every publication cited by a quoted
+        # title impossible to rest on (Codex on #398).
+        at = line.rfind(_DELIM)
+        if line.startswith('"') and (at < 0 or '"' not in line[:at].strip()[1:]):
+            cit, quote = own, line
+        elif at > 0:
+            cit, quote = line[:at], line[at + len(" — "):]
+        else:
+            cit, quote = "", ""
+        if not (len(quote) >= 2 and quote.startswith('"') and quote.endswith('"')):
             raise RecordError(
                 f'{where}: a Rests on line reads {line!r}. Each line is '
                 f'"quoted words", or a citation, " — ", then "quoted words".')
-        out.append(((m.group("cit") or own).strip(), m.group("quote").strip()))
+        out.append((cit.strip() or own, quote[1:-1].strip()))
     return tuple(out)
 
 

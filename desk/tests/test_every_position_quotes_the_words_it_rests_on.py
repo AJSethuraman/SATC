@@ -229,3 +229,17 @@ def test_a_quotation_that_carries_no_words_is_refused(tmp_path, empty):
     _edit(c, "POS19", '"the taxpayer shall allocate the use of the property on the basis of mileage."', empty)
     with pytest.raises(record.RecordError):
         _load(c)
+
+
+def test_a_position_can_rest_on_a_citation_that_carries_a_quoted_title(tmp_path):
+    """Codex on #398: the citation half of `Rests on:` refused `"`, so no
+    position could rest on `IRS Pub. 463 (2025), "Actual Car Expenses"` or any
+    other publication cited by its quoted section title."""
+    c = _copy(tmp_path)
+    _edit(c, "POS19", '**Rests on:** "the taxpayer shall allocate',
+          '**Rests on:** IRS Pub. 463 (2025), "Actual Car Expenses" — "If you '
+          'don\'t use the standard mileage rate, you may be able to deduct your '
+          'actual car expenses."\n"the taxpayer shall allocate')
+    q = next(p for p in _load(c).positions if p.id == "POS19")
+    assert q.rests_at == ('IRS Pub. 463 (2025), "Actual Car Expenses"',
+                          "26 CFR 1.280F-6(e)(2)")
