@@ -72,7 +72,7 @@ def test_the_committed_example_loads_as_the_docstring_says():
     assert (s.window_months, s.confidence) == (18, 0.95)
     assert s.holdout == P.DateRange(date(2024, 1, 1), date(2024, 12, 31))
     assert s.development == P.DateRange(date(2022, 1, 1), date(2023, 12, 31))
-    assert s.written == date(2026, 10, 1)
+    assert s.written == date(2026, 9, 25) <= date.today()     # it read 2026-10-01, a date still to come
     assert s.text == EXAMPLE.read_text(encoding="utf-8")      # what Check will echo, byte for byte
 
 
@@ -87,6 +87,22 @@ def test_the_end_groups_can_be_named_as_a_grid_shows_them(written, index):
     """A grid prints the lowest and highest groups with the data's own range
     once it has seen the data; either way of writing them names the same group."""
     assert spec(reference=written).reference_index == index
+
+
+def test_once_the_data_is_read_the_end_groups_take_its_range():
+    """Found 26 Sep 2026 (final check, F13): Check named the lowest group "up to 0.09" while the Prevalence
+    tab named the same group "0.02 - 0.09" from the data. One group, one name: the tabs'."""
+    s = P.named(spec(reference="up to 0.09"), 0.034, 7.4)
+    assert s.groups == ("0.03 - 0.09", "0.10 - 0.24", "0.25 - 0.49", "0.50 - 0.99", "1.00 - 1.99", "2.00 - 7.40")
+    assert (s.reference, s.reference_index) == ("0.03 - 0.09", 0)
+    # a run that compared with another group is said with the same names
+    assert P.deviations(P.named(spec(), 0.034, 7.4), {**MATCHING, "reference": 0}) == [
+        "The reference group is `0.03 - 0.09` on Control; the pre-spec says `0.25 - 0.49`."]
+    assert P.deviations(s, {**MATCHING, "reference": 5}) == [
+        "The reference group is `2.00 - 7.40` on Control; the pre-spec says `0.03 - 0.09`."]
+    assert P.deviations(s, {**MATCHING, "reference": "0.03 - 0.09"}) == []
+    # a range the data doesn't give leaves that end named by the bins alone, as a grid's is
+    assert P.named(spec(), None, None).groups == spec().groups
 
 
 def test_dates_may_be_quoted():
@@ -355,17 +371,36 @@ def test_the_same_run_said_differently_is_still_the_same_run():
     ("confidence", 0.90,
      "Confidence is 90% on Control; the pre-spec says 95%."),
     ("holdout", {"from": date(2024, 1, 1), "to": date(2024, 6, 30)},
-     "The holdout is 2024-01-01 to 2024-06-30 on Control; the pre-spec says 2024-01-01 to 2024-12-31."),
+     "The pre-spec's holdout is 2024-01-01 to 2024-12-31; this run used loans made 2024-01-01 to 2024-06-30, "
+     "only part of the holdout."),
 ])
 def test_each_setting_that_differs_is_said_in_words(key, value, sentence):
     assert P.deviations(spec(), {**MATCHING, key: value}) == [sentence]
+
+
+@pytest.mark.parametrize("used,tail", [
+    ((date(2021, 6, 30), date(2024, 12, 30)), "this run used loans made 2021-06-30 to 2024-12-30, not only the "
+                                              "holdout."),
+    ((date(2022, 1, 1), date(2023, 12, 31)), "this run used loans made 2022-01-01 to 2023-12-31, none of them in the "
+                                             "holdout."),
+    (None, "when this run's loans were made isn't known."),
+])
+def test_the_loans_a_run_used_are_never_called_the_holdout(used, tail):
+    """Found 26 Sep 2026 (final check, F5): Check said "The holdout is 2021-06-30 to 2024-12-30 in this run" of
+    the range every loan in the run was made in, two lines above the Holdout row counting the 1,733 loans made
+    in the real one. What differs is that the run was not held to the holdout, and that is what is said."""
+    got = P.deviations(spec(), {**MATCHING, "holdout": used}, where="in this run")
+    assert got == [f"The pre-spec's holdout is 2024-01-01 to 2024-12-31; {tail}"]
+    assert len(got[0].split()) <= 25
 
 
 @pytest.mark.parametrize("key", P.IN_USE_KEYS)
 def test_a_setting_the_run_did_not_state_is_a_deviation_not_a_pass(key):
     in_use = {k: v for k, v in MATCHING.items() if k != key}
     got = P.deviations(spec(), in_use)
-    assert len(got) == 1 and " not set on Control; the pre-spec says " in got[0], got
+    said = ("when this run's loans were made isn't known" if key == "holdout"     # the run's loans, not a setting
+            else " not set on Control; the pre-spec says ")
+    assert len(got) == 1 and said in got[0], got
 
 
 def test_a_confidence_that_differs_past_the_printed_digits_shows_every_digit():
@@ -378,8 +413,8 @@ def test_nonsense_in_the_run_is_a_deviation_not_a_crash():
     assert got == ["The bins are 'five' on Control; the pre-spec says 0.1, 0.25, 0.5, 1, 2.",
                    "The reference group is `middle`, which is not one of its bins' groups on Control; "
                    "the pre-spec says `0.25 - 0.49`.",
-                   "The holdout is '2024', which is not a date range on Control; "
-                   "the pre-spec says 2024-01-01 to 2024-12-31."]
+                   "The pre-spec's holdout is 2024-01-01 to 2024-12-31; this run's loans were made '2024', which "
+                   "is not a date range."]
 
 
 def test_where_the_setting_was_read_is_the_callers_to_say():

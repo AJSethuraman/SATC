@@ -8,7 +8,10 @@ prespec.py reads the file and returns data; this is where a Run meets it.
   (control.write_prespec). Blank means no pre-spec. A file that is not there,
   or that prespec.load refuses, stops the Run, each problem named by that cell.
 - Check echoes what the file says, and the git commit it was read from, or why
-  there is none (prespec.provenance). A pre-spec edited since its commit says so.
+  there is none (prespec.provenance). A pre-spec edited since its commit says so,
+  and so does one dated after the day of the run. Its groups are named as the
+  tabs name them, the lowest and highest from the tested column's smallest and
+  largest value among the loans run (prespec.named), so one group has one name.
 - Check says, one line each, every place the run differs from the pre-spec
   (prespec.deviations), and the Log labels the run "Deviates from pre-spec".
 - The holdout: how many of the extract's loans were made inside the pre-spec's
@@ -62,6 +65,7 @@ class State:
     unchecked: str | None = None             # why the holdout couldn't be checked
     runs_before: int = 0                     # Log lines already saying a run touched the holdout
     failed: str | None = None                # something went wrong working the state out, in words
+    ran_on: date = field(default_factory=date.today)     # the day of the run, which the pre-spec can't postdate
 
     @property
     def name(self) -> str:
@@ -117,6 +121,7 @@ def state(book, about: dict, res) -> State | None:
     ps = got["spec"]
     st = State(spec=ps, path=Path(got["path"]), cell=got["cell"], provenance=prespec.provenance(got["path"]))
     try:
+        ps = st.spec = prespec.named(ps, *column_range(res, ps.column))
         st.deviations = [_plain(x) for x in prespec.deviations(ps, in_use(res, ps), where="in this run")]
         dates, why = origination_dates(res)
         if dates is None:
@@ -153,6 +158,16 @@ def in_use(res, ps: prespec.PreSpec) -> dict[str, Any]:
     out["confidence"] = b.confidence if b is not None else None
     out["holdout"] = run_range(res, ps)
     return out
+
+
+def column_range(res, column: str) -> tuple[float | None, float | None]:
+    """A number column's smallest and largest value among the loans run, read as
+    the tabs read it to name their lowest and highest bands; (None, None) when no
+    loan has one."""
+    from .prevalence import rows_run
+    rule = res.config.missing.get(column)
+    seen = [v for v, why in (engine.classify_number(r.get(column), rule) for r in rows_run(res)) if why is None]
+    return (min(seen), max(seen)) if seen else (None, None)
 
 
 def _reader(res):
@@ -271,6 +286,8 @@ def check_rows(res) -> list[tuple[str, str]]:
         return []
     out = [("Pre-spec", str(st.path)), ("Pre-spec commit", _commit_words(st)),
            ("What the pre-spec says", _says(st.spec))]
+    if st.spec.written > st.ran_on:
+        out.append(("Warning", f"The pre-spec says it was written on {st.spec.written.isoformat()}, after this run."))
     if st.provenance.get("reason"):
         out.append(("Warning", "This run doesn't count as the pre-specified one until the pre-spec is committed, "
                                "unchanged."))
