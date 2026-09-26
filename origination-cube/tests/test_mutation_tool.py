@@ -52,3 +52,13 @@ def test_the_checker_never_writes_bytecode_from_a_mutant():
     assert tool.ENV.get("PYTHONDONTWRITEBYTECODE") == "1"
     text = TOOL.read_text()
     assert text.count("_drop_cache(f)") == 2 and "env=ENV" in text
+
+
+def test_every_planted_bug_still_finds_the_line_it_plants_into(monkeypatch):
+    """Found 26 Sep 2026: a fix rewrote a line one mutation planted into, and CI's mutation run died on its
+    assert sixty mutations in, with the other hundred never run. A stranded entry reads red here instead."""
+    monkeypatch.chdir(TOOL.parents[1])
+    tool = _tool()
+    stranded = [n for n, f, old, _new, _sel in tool.muts if Path(f).read_text().count(old) != 1]
+    assert stranded == []
+    assert len({n for n, *_ in tool.muts}) > 150

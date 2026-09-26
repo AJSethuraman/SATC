@@ -126,7 +126,7 @@ muts = [
  ("profit line one number again", E, '    if line.kind == "test":', '    if False:',
   "follows_the_profit_line or judged_by_the_profit_line"),
  ("fallback called worked out", B, '            res.suggest_fallback = fallback', '            pass', "nothing_to_work_from"),
- ("split luck shaded", B, '                if got[1] is not None and got[1] < 1 - conf:', '                if True:', "bracketed"),
+ ("split luck shaded", B, '                if stats.significant(got[1], conf):', '                if True:', "bracketed"),
  ("small material pockets not pointed out", B, '    if small:\n        rows_said', '    if False:\n        rows_said',
   "too_small_to_test"),
  ("start here left stale", B, 'else f"{stamp}: {lines[0]}")', 'else stamp)', "start_here"),

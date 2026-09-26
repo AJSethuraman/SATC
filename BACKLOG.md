@@ -1627,6 +1627,18 @@ back.
   - **Fix:** the checker writes no bytecode from a mutant, drops the file's cache
     before and after each mutation, and its loop sits behind a main guard.
     `tests/test_mutation_tool.py` rebuilds the trap and proves it cleared.
+- [x] **CI's mutation run died partway through** (26 Sep 2026, on `da0271a`).
+  - **Cause:** the adversarial fix rewrote one line in `book.py` that the "split
+    luck shaded" mutation planted into. Its text was no longer there, so the
+    runner stopped on its own assert after about sixty mutations. The other
+    hundred never ran.
+  - **What I got wrong:** I checked only the four new mutations against the
+    source, not all 169.
+  - **Fix:** the entry now points at the current line and is caught. A new test
+    in `tests/test_mutation_tool.py` checks that every planted bug still finds
+    its line, so the next stranded entry fails the ordinary suite instead.
+    That test failed on the old list and passes on the new one. The suite now has
+    442 tests.
 - [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
       `cube drill` and `cube prove` (and put their settings back on the tab).
 - **Not checked:** real Excel, a real extract, and the bank machine
