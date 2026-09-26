@@ -401,10 +401,12 @@ def settle(queue: Path, rid: str, answer: str, *, on: str = "") -> Asked:
 _YES_WORDS = {"yes", "yep", "yeah", "y", "ok", "okay", "approve", "approved",
               "agree", "agreed", "sure"}
 _NO_WORDS = {"no", "nope", "n", "keep", "leave", "decline", "declined"}
-#: Words that may ride along with a yes or a no without changing it.
+#: Words that may ride along with a yes or a no without changing it. NO
+#: DECISION WORD IS FILLER: Codex on #401 found "yes, keep it" read as yes,
+#: because "keep" was on this list -- and "keep it" is the no.
 _FILLER = {"it", "is", "as", "the", "that", "this", "one", "please", "thanks",
            "thank", "you", "go", "ahead", "do", "looks", "good", "fine",
-           "sounds", "same", "wording", "keep", "leave", "yes", "no"}
+           "sounds", "same", "wording"}
 
 
 def _verdict(body: str) -> str:
@@ -412,19 +414,24 @@ def _verdict(body: str) -> str:
 
     "No, make it 60%" IS NOT A NO, and reading it as one would record the
     opposite of what the firm said. So a yes or a no is only a yes or a no
-    when nothing else is said; a reply that opens with one and goes on to say
-    something is refused, and the desk asks again. A reply opening with
-    neither is the firm's own words.
+    when nothing else is said but the same decision again ("no, keep it") and
+    courtesy words. A reply carrying BOTH decisions ("yes, keep it") or going
+    on to say something is refused, and the desk asks again. A reply opening
+    with neither is the firm's own words.
     """
-    words = re.findall(r"[a-z0-9%$.]+", body.lower())
+    words = [w.strip(".") for w in re.findall(r"[a-z0-9%$.]+", body.lower())]
+    words = [w for w in words if w]
     if not words:
         return "unclear"
-    first, rest = words[0], [w.strip(".") for w in words[1:]]
-    if first in _YES_WORDS or first in _NO_WORDS:
-        if all(w in _FILLER for w in rest if w):
-            return "yes" if first in _YES_WORDS else "no"
+    said = {("yes" if w in _YES_WORDS else "no") for w in words
+            if w in _YES_WORDS or w in _NO_WORDS}
+    if words[0] not in _YES_WORDS and words[0] not in _NO_WORDS:
+        return "words"
+    if len(said) != 1:
         return "unclear"
-    return "words"
+    if all(w in _FILLER or w in _YES_WORDS or w in _NO_WORDS for w in words):
+        return said.pop()
+    return "unclear"
 
 
 def _amended(corpus: Path, pid: str, wording: str, rests: str, *,

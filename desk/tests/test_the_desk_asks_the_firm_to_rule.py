@@ -331,3 +331,25 @@ def test_a_long_reply_sharing_words_with_the_question_is_kept_whole():
     reply = ("U1 gross receipts only where the deposits trace to customers; "
              "unidentified ones stay open")
     assert notifying.added(reply, e) == reply[3:]
+
+
+@pytest.mark.parametrize("reply", ["R1 yes, keep it", "R1 yes no", "R1 no yes",
+                                   "R1 keep it, yes"])
+def test_a_reply_that_says_both_is_asked_again(corpus, queue, reply):
+    """Codex on #401: "yes, keep it" read as yes and changed the position,
+    though "keep it" is the no. A reply carrying both decisions is refused."""
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(reply, sent=line)
+    with pytest.raises(ValueError, match="Ask the firm which they meant"):
+        rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+
+
+@pytest.mark.parametrize("reply", ["R1 no, keep it", "R1 no - leave it as is",
+                                   "R1 yes please, looks good"])
+def test_one_decision_said_twice_is_still_one_decision(corpus, queue, reply):
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(reply, sent=line)
+    r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+    assert r.outcome in ("amended", "upheld")

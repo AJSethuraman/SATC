@@ -556,6 +556,7 @@ will open this session to read what they are ruling on.
 for a parked question. It knows `R<n>` references. Then:
 
 ```python
+rid, answer = notifying.reply_in(message, sent=line)   # ("", "") if not an answer
 done = rulings.settle(rulings.default_queue(), rid, answer)
 rulings.record_ruling(CHECKOUT_CORPUS, done)   # writes the record
 ```
