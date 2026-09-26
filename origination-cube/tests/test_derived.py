@@ -17,51 +17,65 @@ from conftest import cube, row, table
 from origination_cube import config as cfgmod
 from origination_cube import engine, synth
 
-RATIO = [{"name": "GCO_TO_BAL", "top": "GCO", "bottom": "BAL"}]
+RATIO = [{"name": "SCORE_TO_BAL", "top": "SCORE", "bottom": "BAL"}]
+BAND = [{"name": "ratio", "field": "SCORE_TO_BAL", "edges": [3]}]
 
 
 def test_a_new_column_is_one_column_over_another_and_can_be_cut(book):
-    res = engine.run(cube(derived=RATIO, bands=[{"name": "ratio", "field": "GCO_TO_BAL", "edges": [0.3]}]),
-                     table(book))
-    made = {r["ID"]: r["GCO_TO_BAL"] for r in res.table.rows}
-    assert made == {"L1": 0.5, "L2": 0.0, "L3": 0.0, "L4": 0.0, "L5": 0.25, "L6": 0.0}
+    res = engine.run(cube(derived=RATIO, bands=BAND), table(book))
+    made = {r["ID"]: r["SCORE_TO_BAL"] for r in res.table.rows}
+    assert made == {"L1": 6.0, "L2": 6.0, "L3": 3.5, "L4": 3.5, "L5": 1.5, "L6": 0.7}
     g = res.grids[0]
-    assert g.band == "ratio" and g.cell("0.3 - 0.5", "A").rates["loans"].units == 1
+    assert g.band == "ratio" and g.band_labels == ["0 - 2", "3 - 6"]
+    assert g.cell("3 - 6", "A").rates["loans"].units == 3 and g.cell("0 - 2", "B").rates["loans"].units == 2
     assert res.derived[0].made == 6 and not res.derived[0].blank
-    assert res.table.columns[-1] == "GCO_TO_BAL" and "GCO_TO_BAL" not in book[0]     # the extract is untouched
+    assert res.table.columns[-1] == "SCORE_TO_BAL" and "SCORE_TO_BAL" not in book[0]   # the extract is untouched
 
 
 def test_a_zero_or_blank_bottom_gives_a_blank_value_counted_by_why(book):
     book[1]["BAL"] = 0
     book[2]["BAL"] = ""
-    book[3]["GCO"] = "n/a"
-    res = engine.run(cube(derived=RATIO, bands=[{"name": "ratio", "field": "GCO_TO_BAL", "edges": [0.3]}]),
-                     table(book))
-    made = {r["ID"]: r["GCO_TO_BAL"] for r in res.table.rows}
+    book[3]["SCORE"] = "n/a"
+    res = engine.run(cube(derived=RATIO, bands=BAND), table(book))
+    made = {r["ID"]: r["SCORE_TO_BAL"] for r in res.table.rows}
     assert made["L2"] is None and made["L3"] is None and made["L4"] is None
-    assert dict(res.derived[0].blank) == {"BAL is zero": 1, "BAL blank": 1, "GCO blank": 1}
+    assert dict(res.derived[0].blank) == {"BAL is zero": 1, "BAL blank": 1, "SCORE blank": 1}
     assert res.derived[0].made == 3
     # the blanks are their own row in the grid, counted, never read as a zero
     assert res.grids[0].cell(engine.BLANK_LABEL, engine.ALL).rows == 3
 
 
 def test_a_missing_rule_on_the_bottom_applies_to_the_new_column(book):
-    res = engine.run(cube(derived=RATIO, missing={"BAL": {"values": [100]}},
-                          bands=[{"name": "ratio", "field": "GCO_TO_BAL", "edges": [0.3]}]), table(book))
+    res = engine.run(cube(derived=RATIO, missing={"BAL": {"values": [100]}}, bands=BAND), table(book))
     assert dict(res.derived[0].blank) == {"BAL missing by rule": 2}
 
 
 def test_a_new_column_can_use_one_made_before_it(book):
-    two = RATIO + [{"name": "HALF", "top": "GCO_TO_BAL", "bottom": "SCORE"}]
+    two = RATIO + [{"name": "PER_POINT", "top": "SCORE_TO_BAL", "bottom": "SCORE"}]
     res = engine.run(cube(derived=two), table(book))
-    assert res.table.rows[0]["HALF"] == pytest.approx(0.5 / 600)
+    assert res.table.rows[0]["PER_POINT"] == pytest.approx(6.0 / 600)
+
+
+def test_a_new_column_made_from_an_outcome_is_not_cut_by(book):
+    """GCO over the booked amount, cut into bands, puts every loan with GCO in the top band: cutting by it
+    cuts the book by its own outcome, as cutting by GCO would."""
+    gco = [{"name": "GCO_TO_BAL", "top": "GCO", "bottom": "BAL"},
+           {"name": "AGAIN", "top": "GCO_TO_BAL", "bottom": "SCORE"}]
+    bands = [{"name": "score", "field": "SCORE", "edges": [650]}, {"name": "g", "field": "GCO_TO_BAL", "edges": [0.3]},
+             {"name": "a", "field": "AGAIN", "edges": [0.001]}]
+    res = engine.run(cube(derived=gco, bands=bands), table(book))
+    assert [g.band for g in res.grids] == ["score"]
+    assert any("`GCO_TO_BAL` is not cut by: it is made from `GCO`, the top of a rate" in w for w in res.warnings)
+    assert any("`AGAIN` is not cut by: it is made from `GCO`" in w for w in res.warnings)
+    with pytest.raises(engine.DataRefused, match="splitting by it would split the book by its own outcome"):
+        engine.run(cube(derived=gco, split={"field": "GCO_TO_BAL", "how": "own_median"}), table(book))
 
 
 def test_a_new_column_named_like_a_column_of_the_extract_is_refused(book):
     with pytest.raises(engine.DataRefused, match="`SCORE` has the name of a column the extract already has"):
         engine.run(cube(derived=[{"name": "SCORE", "top": "GCO", "bottom": "BAL"}]), table(book))
-    with pytest.raises(engine.ColumnsMissing, match="SALES` \\(used by new column GCO_TO_SALES\\)"):
-        engine.run(cube(derived=[{"name": "GCO_TO_SALES", "top": "GCO", "bottom": "SALES"}]), table(book))
+    with pytest.raises(engine.ColumnsMissing, match="SALES` \\(used by new column SCORE_TO_SALES\\)"):
+        engine.run(cube(derived=[{"name": "SCORE_TO_SALES", "top": "SCORE", "bottom": "SALES"}]), table(book))
 
 
 @pytest.mark.parametrize("entry, says", [

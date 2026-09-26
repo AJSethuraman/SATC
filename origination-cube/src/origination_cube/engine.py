@@ -746,12 +746,25 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
     Such a cut is left out and said so, never run."""
     from dataclasses import replace
     tops = {m.value if m.mode == "sumnum" else m.flag for m in measures if m.is_rate}
+    # a new column made from a rate's top is that outcome too (fix 3.9): GCO over the booked amount, cut into
+    # bands, puts every loan with GCO in the top band
+    made_from = {}
+    for d in config.derived:
+        hit = next((c for c in (d.top, d.bottom) if c in tops or c in made_from), None)
+        if hit is not None:
+            made_from[d.name] = made_from.get(hit, hit)
+    if config.split and config.split[0] in made_from:
+        raise DataRefused(f"`{config.split[0]}` is made from `{made_from[config.split[0]]}`, the top of a rate, so "
+                          f"splitting by it would split the book by its own outcome. Split by another column")
     marked = dict(config.not_cut)              # meanings never cut by: servicing data, dates, the key ...
-    drop = tops | set(marked)
+    drop = tops | set(marked) | set(made_from)
     keep_b = tuple(b for b in config.bands if b.field not in drop)
     keep_d = tuple(d for d in config.dimensions if d.field not in drop)
     for x in [b for b in config.bands if b.field in drop] + [d for d in config.dimensions if d.field in drop]:
-        if x.field in tops:
+        if x.field in made_from:
+            warnings.append(f"`{x.field}` is not cut by: it is made from `{made_from[x.field]}`, the top of a rate, "
+                            f"so cutting by it would cut the book by its own outcome")
+        elif x.field in tops:
             warnings.append(f"`{x.field}` is not cut by: it is the top of a rate, so cutting by it would cut the "
                             f"book by its own outcome")
         else:

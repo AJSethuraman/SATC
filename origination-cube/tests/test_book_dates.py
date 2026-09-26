@@ -62,6 +62,12 @@ def _dated(tmp_path, n=3000):
     return x, out.book
 
 
+def _months(start: str, end: str) -> int:
+    """Whole calendar months between two dates written 2024-01-15, counted here rather than by the engine."""
+    a, b = date.fromisoformat(start), date.fromisoformat(end)
+    return (b.year - a.year) * 12 + b.month - a.month - (b.day < a.day)
+
+
 def _ratios(x):
     with open(x, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
@@ -103,15 +109,19 @@ def test_the_dates_are_recognised_and_the_window_and_as_of_are_asked_for_when_th
     with open(x, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     latest = max(max(r["ORIG_DATE"] for r in rows), max(r["BAD_DATE"] for r in rows))
-    as_of = date.fromisoformat(latest)
-    young = sum(1 for r in rows if (as_of.year - int(r["ORIG_DATE"][:4])) * 12 + as_of.month
-                - int(r["ORIG_DATE"][5:7]) - (as_of.day < int(r["ORIG_DATE"][8:])) < 18)
+    young = sum(1 for r in rows if _months(r["ORIG_DATE"], latest) < 18)
     chk = _check(b)
     assert chk["As-of date"] == f"{latest}: the latest origination or outcome date in the extract"
     assert chk["Left out: under 18 months on book"] == f"{young:,}"
     assert chk["Loans run"] == f"{3000 - young:,}"
     assert chk["Outcome window"].startswith("Bad means it went bad in its first 18 months on book.")
-    assert "of their bad loans had gone bad by month 18" in chk["How much of the loss 18 months catches"]
+    # the seasoned loans' share, counted by hand from the extract
+    seasoned = [r for r in rows if _months(r["ORIG_DATE"], latest) >= 36]
+    bad = [r for r in seasoned if r["BAD_FLAG"] == "1"]
+    by = [r for r in bad if _months(r["ORIG_DATE"], r["BAD_DATE"]) < 18]
+    assert chk["How much of the loss 18 months catches"].startswith(
+        f"Loans 36 months on book or more: {len(seasoned):,}. By month 18, {len(by) / len(bad):.0%} of their bad "
+        f"loans had gone bad ({len(by):,} of {len(bad):,}), with ")
     assert any(line.startswith("Outcome window 18 months: loans made ") for line in ran.lines)
     ws = load_workbook(b)[control.SHEET]
     assert ws.cell(row=ra, column=control.KEY_COL + 1).value.startswith(f"{latest}: the latest")
@@ -160,6 +170,8 @@ def test_a_new_column_is_made_on_control_listed_on_columns_looked_at_and_run(tmp
     assert row[book.C_MEANS - 1].value == "Amount or number" and row[book.C_CUT - 1].value == "Yes"
     assert row[book.C_WHY - 1].value == "made on Control: INCOME ÷ SALES"
     assert row[book.C_MADE - 1].value == "INCOME ÷ SALES" and cols.column_dimensions["P"].hidden
+    # to four figures (0.3075), not seventeen
+    assert all(len(s.strip().lstrip("0.").replace(".", "")) <= 4 for s in row[book.C_SAMPLES - 1].value.split(","))
     assert cols[book.CONFIRM_CELL].value is None and "INCOME_TO_SALES" in cols["D3"].value    # check it first
     # its Look block, against the extract divided by hand
     look = wb["Look"]

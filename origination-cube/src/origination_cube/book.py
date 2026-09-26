@@ -405,7 +405,10 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         ws.cell(row=r, column=C_LOOK, value=" ".join(by_col.get(c, [])) or None)  # after the edges note
         ws.cell(row=r, column=C_WHY, value=tag + sg.why)
         ws.cell(row=r, column=C_BLANK, value=blank).number_format = "0%"
-        ws.cell(row=r, column=C_SAMPLES, value=", ".join(classified[c].samples[:3]) if c in classified else "")
+        samples = classified[c].samples[:3] if c in classified else []
+        if any(m.name == c for m in made):
+            samples = [f"{float(v):.4g}" for v in samples]      # a ratio to four figures, not seventeen
+        ws.cell(row=r, column=C_SAMPLES, value=", ".join(samples))
         ws.cell(row=r, column=C_SUGG, value=sg.means)
         ws.cell(row=r, column=C_PERIOD, value=prior.get("period"))
         dv_period.add(ws.cell(row=r, column=C_PERIOD))
@@ -2205,9 +2208,9 @@ def _date_rows(res) -> list[tuple[str, str]]:
     if d.seasoned_bad:
         mtb = sorted(d.seasoned_months_to_bad)
         rows.append((f"How much of the loss {n} months catches",
-                     f"Of loans {d.seasoned_at} months on book or more ({d.seasoned_loans:,}), "
-                     f"{_share(d.seasoned_bad_by, d.seasoned_bad)} of their bad loans had gone bad by month {n} "
-                     f"({d.seasoned_bad_by:,} of {d.seasoned_bad:,}), carrying "
+                     f"Loans {d.seasoned_at} months on book or more: {d.seasoned_loans:,}. By month {n}, "
+                     f"{_share(d.seasoned_bad_by, d.seasoned_bad)} of their bad loans had gone bad "
+                     f"({d.seasoned_bad_by:,} of {d.seasoned_bad:,}), with "
                      f"{_share(d.seasoned_gco_by, d.seasoned_gco)} of their GCO dollars. "
                      f"Median months to bad: {statistics.median(mtb):g}."))
     else:
