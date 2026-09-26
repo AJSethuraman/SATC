@@ -42,6 +42,7 @@ REGIONS = ["Coast", "Valley", "Hills"]
 #: the dates and their format, and how the cliff is planted. synth.add_ratio draws the ratio GIVEN the outcome;
 #: this book draws the outcome given the ratio, multiplying each loan's odds of charging off.
 DATED = ["ContractDate", "BizIncome", "BizSales"]
+DOLLAR_COLUMNS = ("FinancedAmt", "NetLossDollars", "NetRevenueDollars")        # booked, GCO, RANR
 AUTO_BINS = [0.05, 0.2, 0.6, 1.5]
 AUTO_REF = "0.20 - 0.59"
 #: below 0.05, three times the odds of charging off; 1.50 and up, two and a half times; nothing between
@@ -56,7 +57,7 @@ def _group(ratio: float) -> int:
     return k
 
 
-def _auto_book(d: Path, n: int = 7000, seed: int = 11, cliffs: dict | None = None) -> Path:
+def _auto_book(d: Path, n: int = 7000, seed: int = 11, cliffs: dict | None = None, dollars: bool = True) -> Path:
     """The planted problem: Fleet Direct in the Hills defaults about four times as
     often as the rest, at every score. The revenue column is profit after losses,
     as RANR is (OC-29, OC-35): what the loan paid, less the whole loss. It runs
@@ -74,7 +75,10 @@ def _auto_book(d: Path, n: int = 7000, seed: int = 11, cliffs: dict | None = Non
     a much lower income to sales than the other dealers', so the lowest group is
     full of the worst dealer's loans. Across the whole book, the lowest group
     goes bad more often even with no cliff planted. Inside a Dealer pocket the
-    ratio has nothing to do with charging off, unless a cliff says so."""
+    ratio has nothing to do with charging off, unless a cliff says so.
+
+    `dollars=False` leaves out the financed amount, the loss and the revenue:
+    the extract a test of a new variable needs (Goal 2 item 2), the same loans."""
     rnd = random.Random(seed)
     alt, alt_loss = random.Random(f"auto-dated-{seed}"), random.Random(f"auto-loss-{seed}")
     rows = []
@@ -105,10 +109,13 @@ def _auto_book(d: Path, n: int = 7000, seed: int = 11, cliffs: dict | None = Non
         rows.append({"AcctId": f"A{i:06d}", "BureauScore": score, "Dealer": dealer, "FinancedAmt": amt,
                      "ChargedOff": "Y" if bad else "N", "NetLossDollars": loss, "NetRevenueDollars": rev,
                      "Region": region, "PTI": round(rnd.uniform(0.04, 0.2), 3), **extra})
+    names = [c for c in COLUMNS if dollars or c not in DOLLAR_COLUMNS] + (DATED if cliffs is not None else [])
+    if not dollars:
+        rows = [{k: v for k, v in r.items() if k in names} for r in rows]
     d.mkdir(parents=True, exist_ok=True)
     out = d / "auto book.csv"
     with out.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=COLUMNS + (DATED if cliffs is not None else []))
+        w = csv.DictWriter(f, fieldnames=names)
         w.writeheader()
         w.writerows(rows)
     return out
@@ -127,10 +134,12 @@ def _answer_as_a_person_would(b: Path) -> None:
             r[4].value = "real"                     # revenue below zero is real here
     wb.save(b)
     cat = meanings.catalog()
+    present = {r[book.C_NAME - 1].value for r in load_workbook(b)["Columns"].iter_rows(min_row=book.COL_FIRST)}
     for col, code in {"AcctId": "key", "BureauScore": "fico", "Dealer": "category", "FinancedAmt": "booked",
                       "ChargedOff": "outcome", "NetLossDollars": "gco", "NetRevenueDollars": "ranr",
                       "Region": "category", "PTI": "dti"}.items():
-        _set(b, col, book.C_MEANS, cat[code].label)
+        if col in present:
+            _set(b, col, book.C_MEANS, cat[code].label)
     _set(b, "ChargedOff", book.C_IS, "Y")
     wb = load_workbook(b)
     wb["Columns"][book.CONFIRM_CELL] = "Yes"
@@ -194,11 +203,11 @@ def _git(repo, *args):
                     *args], cwd=repo, check=True, capture_output=True)
 
 
-def _dated_route(folder: Path, cliffs: dict, n: int = 12000):
+def _dated_route(folder: Path, cliffs: dict, n: int = 12000, dollars: bool = True):
     """The auto book, dated, through Set up and Run as a person would take it: Columns answered by meaning,
     the contract date marked Origination date, income ÷ sales made on Control, and "Test from a pre-spec" naming
     a pre-spec committed beside the workbook. Returns the extract, the workbook, the Run and the test itself."""
-    extract = _auto_book(folder, n=n, cliffs=cliffs)
+    extract = _auto_book(folder, n=n, cliffs=cliffs, dollars=dollars)
     b = book.set_up(extract).book
     _answer_as_a_person_would(b)
     cat = meanings.catalog()
@@ -208,7 +217,7 @@ def _dated_route(folder: Path, cliffs: dict, n: int = 12000):
     _control(b, run_kind="Finding and testing a new variable", new_variable_step="Test from a pre-spec",
              **{"derived|1": ("IncomeToSales", "BizIncome", "BizSales")})
     book.set_up(extract)
-    for c in ("FinancedAmt", "PTI", "BizIncome", "BizSales", "IncomeToSales"):
+    for c in ("FinancedAmt", "PTI", "BizIncome", "BizSales", "IncomeToSales")[0 if dollars else 1:]:
         _columns(b, c, C_CUT="No")
     wb = load_workbook(b)
     wb["Columns"][book.CONFIRM_CELL] = "Yes"
@@ -239,12 +248,12 @@ needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git is not i
 @pytest.fixture(scope="module")
 def auto_routes(tmp_path_factory):
     out = {}
-    for name, cliffs in (("planted", CLIFFS), ("clean", {})):
+    for name, cliffs, dollars in (("planted", CLIFFS, True), ("clean", {}, True), ("lean", CLIFFS, False)):
         folder = tmp_path_factory.mktemp(f"auto-{name}")
         with pytest.MonkeyPatch.context() as mp:
             mp.setenv("GIT_CEILING_DIRECTORIES", str(folder))
             mp.setenv("CUBE_MEMORY", str(folder / "memory.yaml"))
-            out[name] = _dated_route(folder, cliffs)
+            out[name] = _dated_route(folder, cliffs, dollars=dollars)
     return out
 
 
@@ -326,3 +335,20 @@ def test_the_second_books_tab_confirms_the_planted_cliffs_and_not_the_clean_book
         assert f"{t.groups[k]} goes bad " in said["planted"], said["planted"]
     assert said["clean"] == (f"On the holdout, no group differs from {AUTO_REF} at 95% sure, with the pockets held "
                              f"fixed."), said["clean"]
+
+
+@needs_git
+def test_the_second_books_cliffs_are_confirmed_from_an_extract_with_no_dollar_columns(auto_routes):
+    """Goal 2 item 2 on this book: the planted loans with no financed amount, loss or revenue. A test of a new
+    variable needs none of them, so the Run goes through and the test is the planted book's, figure for figure."""
+    full, lean = auto_routes["planted"]["t"], auto_routes["lean"]["t"]
+    assert full.dollars and not lean.dollars and lean.problem is None
+    for a, b in ((full.development, lean.development), (full.holdout, lean.holdout)):
+        assert (a.loans, a.bad) == (b.loans, b.bad)
+        assert a.fit.odds == b.fit.odds and a.fit.p == b.fit.p
+        assert a.association.general == b.association.general and a.association.trend == b.association.trend
+    for k in CLIFFS:
+        assert lean.holdout.fit.p[k] < 0.05 and lean.holdout.fit.odds[k] > 1
+    assert [c.lift for c in lean.concentration()] == [c.lift for c in full.concentration()]
+    assert all(c.gco == 0.0 for c in lean.concentration())
+    assert "Losses vs revenue" not in load_workbook(auto_routes["lean"]["b"]).sheetnames

@@ -29,9 +29,10 @@
 groups:
   # What the run is for (the firm, 26 Sep 2026): "it likely makes sense for the script
   # to ask which we are doing so it does indeed have the minimum required". Each answer
-  # checks its own required columns (book.read_book). The bleed analysis never needs a
-  # date; testing a new variable needs the origination date to tell the loans kept back
-  # from the rest. The trees and the regression are optional: "we may skip those steps in
+  # checks its own required columns (book.read_book). The bleed analysis needs the five
+  # core columns and never a date; testing a new variable needs only what it uses: the
+  # key, the outcome and the origination date that tells the loans kept back from the
+  # rest (OC-14, amended 26 Sep 2026: its booked amount, GCO and RANR are optional). The trees and the regression are optional: "we may skip those steps in
   # particular altogether if we already have professional judgment to pick coefficient."
   - title: What you're running
     settings:
@@ -50,7 +51,7 @@ groups:
             label: "Finding and testing a new variable"
             explains: >-
               Whether a new column, like income over sales, tells good loans from bad on loans
-              kept back. Also needs a column marked Origination date on Columns.
+              kept back. Needs the loan number, the outcome and a column marked Origination date.
 
       - key: new_variable_step
         question: Scout first, or test from a pre-spec already written?

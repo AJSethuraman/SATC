@@ -225,9 +225,17 @@ stop the work: anything a client or the bank reads that changes meaning, and any
       either range, although the worst dealer's loans crowd the lowest group, so the book as a whole
       reads a difference there. Two planted bugs: dates read only year-month-day, which the first
       book's goal tests pass, and the pockets forgotten, which the clean copy catches.)*
-- [ ] **2. The new-variable run needs only what it uses:** key, outcome, origination date, the tested
+- [x] **2. The new-variable run needs only what it uses:** key, outcome, origination date, the tested
       columns and strata. Booked, GCO and RANR become optional for it; 4e shows dollars only when they
-      are there. OC-14 and the run-kind entry are amended where they sit (S13).
+      are there. OC-14 and the run-kind entry are amended where they sit (S13). *(Done 26 Sep 2026.
+      Set up says nothing about the dollar columns once the run is a new variable, and the Run goes
+      through without them; the bleed analysis still refuses, naming each. 4e shows GCO whenever
+      there is a GCO column, booked or not. A run without them writes no Losses vs revenue tab, and
+      its other tabs and Check say nothing about profit, shuffled dollar rates or booked dollars. A
+      cube file says it with `run_kind: new_variable`. The second book's cliffs are confirmed from
+      its extract with the dollar columns taken out, figure for figure. Amended where the old
+      minimum stood: design.md OC-14 and Step 0, the README, Control's answer, the settings and
+      config comments, for-test-design.md, vba-findings.md and capabilities-scope.md 4e.)*
 - [ ] **3. Lean pre-spec.** An outcome plus a shortlist of inputs, each with bins and a reference;
       optional columns to hold fixed, each input reported with and without them (this is 4d); the
       allowance for many tests spread across the shortlist. Strata are suggested and left blank

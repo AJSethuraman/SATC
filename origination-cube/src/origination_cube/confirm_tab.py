@@ -278,29 +278,42 @@ def write(wb, res) -> None:
     # ---------------------------------------------------------------- 3. concentration on the holdout (B6)
     _heading(ws, r, "3. How much of the holdout's losses sit in each group?")
     r += 1
-    heads = ("Loans", "Share of loans", "Bad loans", "Share of bad loans", "GCO", "Share of GCO", "Bad rate",
-             "Times the holdout's bad rate")
+    # the dollar columns only when the run has GCO: a test of a new variable needs none (Goal 2 item 2), and then
+    # the table says what it does hold and nothing about dollars (the firm: "don't note what it does not include,
+    # just note what it does")
+    cols = [("Loans", "#,##0"), ("Share of loans", "0.0%"), ("Bad loans", "#,##0"), ("Share of bad loans", "0.0%")]
+    if t.dollars:
+        cols += [("GCO", "$#,##0"), ("Share of GCO", "0.0%")]
+    cols += [("Bad rate", "0.00%"), ("Times the holdout's bad rate", '0.00"x"')]
+    heads, fmts = [h for h, _ in cols], tuple(f for _, f in cols)
+    at = {h: FIRST + 1 + j for j, h in enumerate(heads)}          # each column by its heading
     _head(ws, r, FIRST, f"Group of {t.column}")
     for j, h in enumerate(heads):
         _head(ws, r, FIRST + 1 + j, h)
     ws.row_dimensions[r].height = 58
     r += 1
     conc = t.concentration()
-    fmts = ("#,##0", "0.0%", "#,##0", "0.0%", "$#,##0", "0.0%", "0.00%", '0.00"x"')
+
+    def keep(loans, flag, bad, capture, gco, gco_capture, rate, lift):
+        return (loans, flag, bad, capture) + ((gco, gco_capture) if t.dollars else ()) + (rate, lift)
+
+    lift_col = at["Times the holdout's bad rate"]
     crow = {}
     for k, name in enumerate(t.groups):
         x = conc[k]
         ws.cell(row=r, column=FIRST, value=name + (" (reference)" if k == t.ref else ""))
-        for j, (v, fm) in enumerate(zip((x.loans, x.flag_rate, x.bad, x.capture, x.gco, x.gco_capture, x.bad_rate,
-                                         x.lift), fmts)):
+        for j, (v, fm) in enumerate(zip(keep(x.loans, x.flag_rate, x.bad, x.capture, x.gco, x.gco_capture,
+                                             x.bad_rate, x.lift), fmts)):
             c = ws.cell(row=r, column=FIRST + 1 + j, value=v)
             c.number_format = fm
             c.alignment = Alignment(horizontal="center")
         crow[k] = r
         r += 1
     total_gco = math.fsum(g for g in hold.gco_of if g is not None)
-    vals = ("All holdout loans in the test", hold.n, 1.0 if hold.n else None, hold.n_bad, 1.0 if hold.n_bad else None,
-            total_gco, 1.0 if total_gco else None, hold.n_bad / hold.n if hold.n else None, 1.0 if hold.n else None)
+    vals = ("All holdout loans in the test",) + keep(hold.n, 1.0 if hold.n else None, hold.n_bad,
+                                                     1.0 if hold.n_bad else None, total_gco,
+                                                     1.0 if total_gco else None,
+                                                     hold.n_bad / hold.n if hold.n else None, 1.0 if hold.n else None)
     for j, (v, fm) in enumerate(zip(vals, ("",) + fmts)):
         c = ws.cell(row=r, column=FIRST + j, value=v)
         c.font = Font(name="Calibri", bold=True)
@@ -315,10 +328,12 @@ def write(wb, res) -> None:
             continue
         o, p, _, _ = got
         rr = crow[k]
-        pieces.append(f'IF(AND({live.sig(p)},{o}>1),{_q(f"; {name} holds ")}&TEXT({_c(FIRST + 2)}{rr},"0.0%")&'
-                      f'{_q(" of the loans, ")}&TEXT({_c(FIRST + 4)}{rr},"0.0%")&{_q(" of the bad loans and ")}&'
-                      f'TEXT({_c(FIRST + 6)}{rr},"0.0%")&{_q(" of the GCO, at ")}&TEXT({_c(FIRST + 8)}{rr},"0.00")&'
-                      f'{_q(LIFT_TAIL)},"")')
+        share = lambda h: f'TEXT({_c(at[h])}{rr},"0.0%")'          # noqa: E731
+        held = (f'{share("Share of loans")}&{_q(" of the loans, ")}&{share("Share of bad loans")}&'
+                + (f'{_q(" of the bad loans and ")}&{share("Share of GCO")}&{_q(" of the GCO, at ")}' if t.dollars
+                   else f'{_q(" of the bad loans, at ")}'))
+        pieces.append(f'IF(AND({live.sig(p)},{o}>1),{_q(f"; {name} holds ")}&{held}&'
+                      f'TEXT({_c(lift_col)}{rr},"0.00")&{_q(LIFT_TAIL)},"")')
     h = _helper(ws, r, "&".join(pieces) if pieces else '""')
     f = (f'=IF({h}="",{_q(f"On the holdout, no group goes bad significantly more often than {ref}, so none is singled out; every group is in the table.")},'
          f'{_q("On the holdout, ")}&MID({h},3,2000)&".")')
@@ -327,13 +342,15 @@ def write(wb, res) -> None:
     r += 1
     gco_note = (f" {t.gco_unread:,} holdout loans have no readable GCO and are left out of the GCO figures only."
                 if t.gco_unread else "")
+    what = ("Share of bad loans and of GCO: how much of the holdout's bad loans and GCO dollars sit in the group."
+            if t.dollars else "Share of bad loans: how much of the holdout's bad loans sit in the group.")
     r = _line(ws, r, "How it's worked out",
               f"On the holdout only, and on the book as a whole, not pocket by pocket. Share of loans: the group's "
-              f"loans divided by all holdout loans in this test. Share of bad loans and of GCO: how much of the "
-              f"holdout's bad loans and GCO dollars sit in the group. Times the holdout's bad rate (the lift): the "
+              f"loans divided by all holdout loans in this test. {what} Times the holdout's bad rate (the lift): the "
               f"group's bad rate divided by the rate of every holdout loan here.{gco_note} No group on one column "
               f"will hold most of the losses, because most losses sit in ordinary loans, which are most of the "
-              f"book. So the finding is the lift and the dollars, never the share of all losses.", italic=True)
+              f"book. So the finding is the lift{' and the dollars' if t.dollars else ''}, never the share of all "
+              f"losses.", italic=True)
     r += 1
 
     # ---------------------------------------------------------------- choices for the firm

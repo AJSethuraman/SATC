@@ -45,7 +45,10 @@ Each writes what it checked beside what it found.
 
 ## Step 0: what an extract must carry, and how the tool finds it (built)
 
-The firm's minimum, 25 Sep 2026. The run refuses if any of these is missing.
+The firm's minimum, 25 Sep 2026. The bleed analysis refuses if any of these is
+missing. A test of a new variable needs only the key and the outcome from this
+table, with the origination date, the column it tests and the pre-spec's strata;
+the other three are optional for it (OC-14, amended 26 Sep 2026).
 
 | Line | What it is | Why it's required |
 |---|---|---|
@@ -309,7 +312,14 @@ enough.
   (*"that is the professional's judgment to apply"*).
 - **OC-14:** the minimum an extract must carry is a yes/no outcome, GCO, RANR,
   the booked amount and a key. The key becomes required, reversing D55's
-  warn-not-stop for this tool.
+  warn-not-stop for this tool. *(Superseded in part on 26 Sep 2026, for a test of
+  a new variable only. Asked whether that run needs the dollar columns, the firm:
+  *"what's the point in that if you are searching for possibly important
+  variables to the outcome?"* (`BACKLOG.md` §6d). That run needs the key, the
+  outcome, the origination date, the column it tests and the pre-spec's strata.
+  The booked amount, GCO and RANR are optional for it, and the Confirmatory test
+  shows GCO dollars only when there is a GCO column. The bleed analysis still
+  needs all five, and refuses without any of them.)*
 - **OC-15:** the required columns are suggested with reasons and confirmed by one
   line (*"make assumptions for suggestions but ultimately ask for confirmation
   ... and be able to fix it easily"*).
