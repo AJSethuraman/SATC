@@ -143,10 +143,16 @@ def report(res: engine.Result, top: int = 5) -> str:
                         line += f"{c.rates[m.name].units:>{width},}"
                 out.append(line)
             if m.is_rate and res.total.rates[m.name].rate is not None:
-                ranked = sorted(((c.rates[m.name].excess, k, c) for k, c in g.inner()
-                                 if c.rates[m.name].excess is not None), key=lambda t: -t[0])
-                what = (f"excess {m.numerator()} over the book's rate" if m.higher_is == "worse"
-                        else f"shortfall in {m.numerator()} under the book's rate")
+                # one comparison decides the flag, the dollars and materiality (the firm, 26 Sep 2026)
+                ranked = sorted(((c.rates[m.name].dollars, k, c) for k, c in g.inner()
+                                 if c.rates[m.name].dollars is not None), key=lambda t: -t[0])
+                peers = bench is not None and bench.compare_to == "peers"
+                rate_of = "the rest of its band's rate" if peers else "the book's rate"
+                what = (f"excess {m.numerator()} over {rate_of}" if m.higher_is == "worse"
+                        else f"shortfall in {m.numerator()} under {rate_of}")
+                if peers:
+                    what += " (a pocket alone in its band: the book's)"
+                pline = engine.profit_line(bench, res.materiality_line.get("gco_rate")) if m.in_points else None
                 line = res.materiality_line.get(m.name)
                 out.append(f"  Where it bleeds: {what}, largest first"
                            + (f" (material at {_n(line)} or more)" if line else ""))
@@ -161,6 +167,10 @@ def report(res: engine.Result, top: int = 5) -> str:
                     if len(ranked) and ranked.index((ex, (b, d), c)) >= top:
                         continue
                     out.append(f"    {b} / {d}: {_n(ex)}, {_plural(s.units, 'loan')}")
+                    other = s.excess if s.by_band else s.excess_band
+                    if other is not None:
+                        out.append(f"      for reference, against {'the book' if s.by_band else 'its band'}: "
+                                   f"{_n(other)}")
                     if bench is not None:
                         out.append(f"      against the book's rate {_gap(s.vs_topline, m)}")
                         out.append(f"      vs rest of book {_gap(s.vs_rest, m)} (p {_p(s.p_book)}): "
@@ -169,7 +179,8 @@ def report(res: engine.Result, top: int = 5) -> str:
                                    f"{_word(s.reading_band)}")
                         judged = ("the rest of its band" if bench.compare_to == "peers" and not s.alone
                                   else "the rest of the book")
-                        out.append(f"      flag (judged against {judged}): {_word(s.flag)}")
+                        flag = engine.said(s, pline) if m.in_points else s.flag
+                        out.append(f"      flag (judged against {judged}): {_word(flag)}")
                         if s.smallest_gap:
                             out.append(f"      this many loans can show a gap of {_gap(s.smallest_gap, m)} or more"
                                        if m.in_points else

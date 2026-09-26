@@ -199,19 +199,19 @@ groups:
         options:
           - value: 0.5% of losses
             label: 0.5% of the book's total losses
-            explains: Catches small pockets as well as big ones.
+            explains: Catches small pockets as well as big ones. Excess is counted against whatever a pocket is judged against, below.
           - value: 1% of losses
             label: 1% of the book's total losses
-            explains: Scales with the book, so the same setting works on any population.
+            explains: Scales with the book, so the same setting works on any population. Excess is counted against whatever a pocket is judged against, below.
           - value: 2% of losses
             label: 2% of the book's total losses
-            explains: Keeps pockets whose excess is over 2% of the book's losses.
+            explains: Keeps pockets whose excess is over 2% of the book's losses. Excess is counted against whatever a pocket is judged against, below.
           - value: 5% of losses
             label: 5% of the book's total losses
-            explains: Only pockets that move the total.
+            explains: Only pockets that move the total. Excess is counted against whatever a pocket is judged against, below.
           - value: 10% of losses
             label: 10% of the book's total losses
-            explains: Only the few pockets that carry the book.
+            explains: Only the few pockets that carry the book. Excess is counted against whatever a pocket is judged against, below.
           - value: none
             label: No floor
             explains: >-

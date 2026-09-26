@@ -98,10 +98,10 @@ def test_another_book_with_other_names_finds_its_own_problem(tmp_path):
     # the planted pocket is found: Fleet Direct is the worst Dealer pocket for the outcome, in every
     # BureauScore band that was tested
     ws = wb["Where it bleeds"]
-    rows = [[ws.cell(row=r, column=c).value for c in range(2, 19)] for r in range(5, ws.max_row + 1)]
-    flagged = [x for x in rows if x[0] == "Outcome, share of loans" and x[3] == "Dealer" and x[15] == "worse"]
-    assert flagged and {x[4] for x in flagged} == {"Fleet Direct"}, [(x[2], x[4], x[15]) for x in flagged]
-    assert any(x[3] == "Region" and x[4] == "Hills" and x[15] == "worse" for x in rows)
+    rows = [[ws.cell(row=r, column=c).value for c in range(2, 20)] for r in range(5, ws.max_row + 1)]
+    flagged = [x for x in rows if x[0] == "Outcome, share of loans" and x[3] == "Dealer" and x[16] == "worse"]
+    assert flagged and {x[4] for x in flagged} == {"Fleet Direct"}, [(x[2], x[4], x[16]) for x in flagged]
+    assert any(x[3] == "Region" and x[4] == "Hills" and x[16] == "worse" for x in rows)
 
     # nothing from the other book leaks in: no column, value, or pocket of the synthetic extract
     text = " ".join(str(c.value) for t in wb.sheetnames for row in wb[t].iter_rows() for c in row

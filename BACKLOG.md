@@ -1759,10 +1759,15 @@ back.
         column, then asks: scout first, or test from a pre-spec already written. The trees
         stay optional.
       - Each choice checks and refuses only on its own minimum.
-- [ ] **Then: literal row wording** (the firm, 26 Sep 2026: *"yes I prefer it to be
+- [x] **Then: literal row wording** *(Done 26 Sep, merged with the next item: e.g. "short of its
+      band by 23.90 points ($1,338,239)", "-0.49 points against its band, not significant",
+      "within 0.25 points of its band (-0.12)".)* (the firm, 26 Sep 2026: *"yes I prefer it to be
       literal"*). The profit reading says the gap, e.g. "short of its band by 0.8 points
       ($16,000)" or "ahead of its band by 4 points", instead of "keeps less" or "keeps more".
-- [ ] **Then: one comparison decides the verdict, the dollars and materiality** (the firm, 26
+- [x] **Then: one comparison decides the verdict, the dollars and materiality** *(Done 26 Sep:
+      both dollar figures on Where it bleeds and Losses vs revenue; the judged-against setting
+      picks the one that ranks, flags and meets materiality; Check says which. 481 tests, 189
+      planted bugs after both merges.)* (the firm, 26
       Sep 2026: *"That works"*).
       - Show both dollar figures, "over the book" and "over its band".
       - The reading and materiality follow Control's judged-against setting, so they can't
