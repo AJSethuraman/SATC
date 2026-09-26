@@ -19,7 +19,7 @@ def _row(ws, key):
     raise KeyError(key)
 
 
-JUDGMENT = {"min_loans", "min_events", "materiality", "compare_to", "worse_at", "better_at", "confidence",
+JUDGMENT = {"run_kind", "new_variable_step", "min_loans", "min_events", "materiality", "compare_to", "worse_at", "better_at", "confidence",
             "revenue_line"}
 
 
@@ -55,7 +55,8 @@ def _answer_judgment(book, choices=None):
 def test_a_fresh_tab_waits_for_every_judgment_and_names_each(book):
     with pytest.raises(control.ControlError) as exc:
         control.read_control(book)
-    assert len(exc.value.problems) == len(JUDGMENT)
+    # the follow-up to "What are you running?" isn't asked until that is answered (tests/test_run_kind.py)
+    assert len(exc.value.problems) == len(JUDGMENT) - 1
     assert all("needs an answer" in p for p in exc.value.problems)
     assert not any("judgment" in p.lower() for p in exc.value.problems)
 

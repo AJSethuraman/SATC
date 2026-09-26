@@ -62,6 +62,12 @@ C_SUGG = 15              # hidden: the meaning Set up suggested, so a refusal ca
 C_MADE = 16              # hidden: for a new column made on Control, what Set up made it from ("INCOME ÷ SALES")
 SHOW_OPTIONS = ("median", "average")
 PERIOD_OPTIONS = {"per year": "per_year", "per month": "per_month", "one-time": "one_time"}
+#: What are you running? (Control's first row; the firm, 26 Sep 2026.) Each answer's own minimum of columns:
+#: where the book bleeds never needs a date; testing a new variable needs the origination date to tell the loans
+#: kept back from the rest. The follow-up, scout first or test from a pre-spec, is asked only for a new variable.
+RUN_KIND, STEP = "run_kind", "new_variable_step"
+BLEED, NEW_VARIABLE, SCOUT, FROM_PRESPEC = "bleed", "new_variable", "scout", "prespec"
+NEEDS_COLUMNS = {BLEED: cfgmod.CORE, NEW_VARIABLE: cfgmod.CORE + ("origination_date",)}
 
 
 @dataclass
@@ -466,7 +472,9 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     about["A3"], about["B3"] = "set up", (today or date.today()).isoformat()
     about["A4"], about["B4"] = "extract name", extract.name
     about.sheet_state = "hidden"
-    unanswered = sum(1 for s in control.load_settings() if s.judgment
+    settings = control.load_settings()
+    given = {s.key: control.answer_of(s.key, *kept["control"].get(s.key, (None, None))) for s in settings}
+    unanswered = sum(1 for s in settings if s.judgment and control.asked(s, given)
                      and not any(v not in (None, "n/a") for v in kept["control"].get(s.key, (None, None))))
     last = None
     if "Log" in wb.sheetnames:
@@ -485,6 +493,10 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         why = "; ".join(f"{k:,} where {w}" for w, k in m.blank.items())
         lines.append(f"Made {m.name} = {m.text()} on Columns and Look" + (f". Blank on {why}." if why else "."))
     lines += made_notes
+    if given.get(RUN_KIND) is None:
+        # the firm, 26 Sep 2026: ask which we are doing, so the run checks the minimum it needs
+        kinds = next(x for x in settings if x.key == RUN_KIND).options
+        lines.append(f'First, on Control, answer "What are you running?": {kinds[0].label}, or {kinds[1].label}.')
     if new_cols:
         lines.append(f"New columns since the last check: {', '.join(new_cols)}. Columns!C3 needs a Yes again.")
     nlook = len({rv.column for rv in looks if rv.kind != "cannot run"} | set(new_cols) | edge_noted)
@@ -550,7 +562,8 @@ def _start_here(ws, extract, rows, ncols, looks, nq, unanswered, last_run) -> No
             c.value = None
     _title(ws, "Origination Cube", f"Set up from {Path(extract).name}: {rows:,} loans, {ncols} columns.", "B:D")
     steps = [
-        ("1", "Control", "Fill in the shaded cells: materiality, minimum loans, how much worse counts."),
+        ("1", "Control", "Say what you're running, then fill in the shaded cells: materiality, minimum loans, "
+                          "how much worse counts."),
         ("2", "Columns", "Check each column's meaning and whether to cut by it. Set C3 to Yes when done."),
         ("3", "Odd values", "Answer real or missing. Unanswered ones are used as is."),
         ("4", "Launcher", "Save and close this workbook, then press Run the cube."),
@@ -697,7 +710,7 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
         pattern, _, value = str(r[6]).partition("|")
         questions.append({"column": r[1], "pattern": pattern, "value": float(value) if value else None,
                           "rows": r[3] or 0, "answer": r[4] or None})
-    held_to = confirmatory.read(wb, book, problems)          # fix 3.15: the pre-spec named on Control, if any
+    held_to = _what_is_run(wb, book, use, columns, cat, problems)    # the pre-spec named on Control, if any
     if problems:
         return None, problems, about
     if split:
@@ -756,6 +769,61 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
     about["_use"] = dict(use)
     about["_prespec"] = held_to
     return raw, [], about
+
+
+def _what_is_run(wb, book: Path, use: dict, columns: dict, cat, problems: list[str]) -> dict | None:
+    """What are you running? Each answer's own minimum, refused by name: the
+    columns it needs (NEEDS_COLUMNS), and for a new variable the follow-up. The
+    pre-spec is read only for a test from a pre-spec (fix 3.15), and refused
+    under the bleed analysis, which isn't a test of a new variable. A blank
+    answer was refused already, by control.read_control."""
+    kind, step = use.get(RUN_KIND), use.get(STEP)
+    ws = wb[control.SHEET]
+    kind_cell = f"{control.SHEET}!C{control.row_of(ws, RUN_KIND)}"
+    labels = {o.value: o.label for s in control.load_settings() if s.key in (RUN_KIND, STEP) for o in s.options}
+    text, cell = control.read_prespec(ws)
+    means = {c: (v if isinstance(v, str) else v["means"]) for c, v in columns.items()}
+    for m in NEEDS_COLUMNS.get(kind, cfgmod.CORE if kind is None else ()):
+        hits = [c for c, code in means.items() if code == m]
+        if len(hits) != 1:
+            who = labels.get(kind, "Every run")
+            problems.append(f"Columns: {who} needs one column marked {cat[m].label}, and "
+                            + (f"none is." if not hits else f"{len(hits)} are: {', '.join(hits)}. Keep one."))
+    if kind == BLEED:
+        if text is not None:
+            problems.append(f'{cell}: {labels[BLEED]} isn\'t a test of a new variable, so it isn\'t held to a '
+                            f'pre-spec. Clear the cell, or change "What are you running?" ({kind_cell}).')
+        return None
+    if kind == NEW_VARIABLE and step == SCOUT:
+        problems.append(f'{control.SHEET}!C{control.row_of(ws, STEP)}: Scouting isn\'t built yet. Pick '
+                        f'"{labels[FROM_PRESPEC]}", or run {labels[BLEED]}.')
+        return None
+    if kind == NEW_VARIABLE and step == FROM_PRESPEC and text is None:
+        problems.append(f'{cell}: "{labels[FROM_PRESPEC]}" needs the pre-spec file named here.')
+        return None
+    held_to = confirmatory.read(wb, book, problems)          # fix 3.15
+    if held_to and held_to["spec"].column not in columns:
+        problems.append(f"{cell}: the pre-spec tests {held_to['spec'].column}, and no column on Columns has that "
+                        f"name. Make it under New columns on this tab and press Set up again, or fix the pre-spec.")
+    return held_to
+
+
+def what_was_run(used: dict) -> str | None:
+    """The answer, in the tab's words: "Where the book bleeds", or "Finding and
+    testing a new variable: test from a pre-spec"."""
+    labels = {(s.key, o.value): o.label for s in control.load_settings() if s.key in (RUN_KIND, STEP)
+              for o in s.options}
+    kind = labels.get((RUN_KIND, used.get(RUN_KIND)))
+    if kind is None:
+        return None
+    step = labels.get((STEP, used.get(STEP))) if used.get(RUN_KIND) == NEW_VARIABLE else None
+    return f"{kind}: {step[0].lower() + step[1:]}" if step else kind
+
+
+def _ran_words(res) -> str:
+    """" What was run: Where the book bleeds.", for the first line of a run's Log entry and the launcher."""
+    ran = what_was_run(getattr(res, "control_used", None) or {})
+    return f" What was run: {ran}." if ran else ""
 
 
 def _read_made(wb, columns: dict, made_rows: dict, problems: list[str]) -> list[dict]:
@@ -967,12 +1035,15 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     head = "# Exactly what the last Run used.\n"
     if per_pocket(res):
         head += "# revenue_line: each pocket's own test (profit counts only when its gap is significant)\n"
+    if what_was_run(res.control_used):
+        head += f"# What was run: {what_was_run(res.control_used)}\n"
     head += _dates_head(res)
     head += confirmatory.what_ran(res)
     if isinstance(raw.get("benchmark"), dict) and cfg.benchmark is not None:
         raw["benchmark"].setdefault("shuffles", cfg.benchmark.shuffles)
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
-    lines = notes + [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."]
+    lines = notes + [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."
+                     + _ran_words(res)]
     lines += _top_lines(res)
     lines += confirmatory.launcher_lines(res)
     # the same rows the tab shades blue (its flag), and pockets counted once (the seventh walk, defect 7:
@@ -1197,7 +1268,8 @@ def _write_results(book: Path, res, memory_path, src: Path, forgotten: set[str] 
         sh["B2"] = f"Last run on {res.rows:,} loans from {src.name}."
     _order(wb)
     wb.save(book)
-    _log(book, [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."] +
+    _log(book, [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."
+                + _ran_words(res)] +
          confirmatory.log_lines(res) +          # fix 3.15: held to a pre-spec, and whether it touched the holdout
          [f"Warning: {_plain_warning(w)}" for w in res.warnings])
 
@@ -1227,6 +1299,10 @@ def _last_run_used(ws, res) -> None:
             words = dict(control.describe({key: used[key]})).get(s.question)
         if key in ("few_values", "many_values"):
             continue                        # applied at Set up, and said there
+        if key in (RUN_KIND, STEP):
+            # what are you running, and the follow-up only when it was asked
+            o = next((o for o in s.options if o.value == used.get(key)), None)
+            words = o.label if o else None
         if key == "revenue_line" and profit_line(res):
             words = profit_words(res)
         elif key in fb:
@@ -1234,6 +1310,8 @@ def _last_run_used(ws, res) -> None:
         elif key in sug:
             words = f"{words} (worked out from this book)"
         c = ws.cell(row=row[0].row, column=col, value=words)
+        if key == STEP:
+            c.value = words                 # cleared when not asked: ws.cell(value=None) leaves the old one
         c.alignment = Alignment(wrap_text=True, vertical="top")
         c.font = Font(name="Calibri", color=SLATE)
 
@@ -2118,6 +2196,9 @@ def _check(ws, res, src: Path, record: str = "") -> None:
             ("Record of this run", f"{record}, beside this workbook: every setting the run used, kept for the "
                                    f"file. It is replaced by the next Run."),
             ("Tie-out checks", f"{res.tie_outs:,} of {res.tie_outs:,} agree: every grid adds up to the book")]
+    ran = what_was_run(getattr(res, "control_used", None) or {})
+    if ran:
+        rows.insert(2, ("What was run", ran))
     rows += _origination_rows(res) + _column_rows(res)
     for m in res.measures:
         lo = res.left_out.get(m.name)

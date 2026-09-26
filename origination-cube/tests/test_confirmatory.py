@@ -60,7 +60,8 @@ def _ready(tmp_path, monkeypatch, n=3000):
     x = synth.write_extract(tmp_path / "x", n=n, ratio=True)
     b = book.set_up(x).book
     _answer(b)
-    _control(b, **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
+    _control(b, run_kind="Finding and testing a new variable", new_variable_step="Test from a pre-spec",
+             **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
     book.set_up(x)
     _columns(b, "INCOME_TO_SALES", C_SPLIT="Yes", C_EDGES="0.1; 0.25; 0.5; 1; 2")
     for c in ("ORIG_BAL", "REV_DEBT", "ASSET_CLASS", "INCOME", "SALES"):
@@ -171,8 +172,11 @@ def test_a_pre_spec_the_run_cannot_use_is_refused_by_its_cell(tmp_path, monkeypa
     book.set_up(x)
     ws = load_workbook(b)[control.SHEET]
     assert control.read_prespec(ws) == (str(x.parent / "prespec.yaml"), cell)
-    # and a blank cell is a run with no pre-spec
+    # a blank cell: refused while testing from a pre-spec (tests/test_run_kind.py), and a run with no pre-spec
+    # once the run is Where the book bleeds
     _held(b, None)
+    assert not book.run(b).ok
+    _control(b, run_kind="Where the book bleeds")
     assert book.run(b).ok
     chk = _check(b)
     assert "Pre-spec" not in chk and "Holdout" not in chk
@@ -180,19 +184,30 @@ def test_a_pre_spec_the_run_cannot_use_is_refused_by_its_cell(tmp_path, monkeypa
 
 
 @needs_git
-def test_without_an_origination_date_the_holdout_is_said_unchecked(tmp_path, monkeypatch):
+def test_dates_that_cannot_be_read_leave_the_holdout_said_unchecked(tmp_path, monkeypatch):
+    """Testing a new variable needs a column marked Origination date (tests/test_run_kind.py), so the holdout
+    goes unchecked only when that column's dates can't be read: here every one reads two ways (01/02/2024,
+    January or February?), which is said, never read one way."""
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
-    x = synth.write_extract(tmp_path / "x", n=1500)
-    # the synthetic book carries ORIG_DATE since fix 3.5; take it out, which is this test's premise
-    import csv
+    x = synth.write_extract(tmp_path / "x", n=1500, ratio=True)
     with open(x, newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
+    for r in rows:
+        y, m, d = r["ORIG_DATE"].split("-")
+        r["ORIG_DATE"] = f"{m}/{min(int(d), 12):02d}/{y}"
     with open(x, "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=[k for k in rows[0] if k != "ORIG_DATE"])
+        w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
-        w.writerows({k: v for k, v in r.items() if k != "ORIG_DATE"} for r in rows)
+        w.writerows(rows)
     b = book.set_up(x).book
     _answer(b)
+    _control(b, run_kind="Finding and testing a new variable", new_variable_step="Test from a pre-spec",
+             **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
+    book.set_up(x)
+    _columns(b, "ORIG_DATE", C_MEANS="Origination date")
+    wb = load_workbook(b)
+    wb["Columns"][book.CONFIRM_CELL] = "Yes"
+    wb.save(b)
     f = _spec(x.parent, commit=False)
     _held(b, str(f))
     ran = book.run(b)
@@ -200,18 +215,17 @@ def test_without_an_origination_date_the_holdout_is_said_unchecked(tmp_path, mon
     chk = _check(b)
     assert chk["Pre-spec commit"] == "not in a git repository, so not committed: a pre-spec only counts once it " \
                                      "is committed"
-    assert chk["Holdout"] == ("Couldn't be checked: no column is marked Origination date on Columns. The holdout "
-                              "is 2024-01-01 to 2024-12-31.")
+    assert chk["Holdout"].startswith('Couldn\'t be checked: the dates in "ORIG_DATE" (when each loan was made) read '
+                                     'two ways: ')
+    assert chk["Holdout"].endswith(" The holdout is 2024-01-01 to 2024-12-31.")
     assert chk["Runs that touched the holdout"] == "0 in this workbook's Log before this one, which couldn't be checked"
     devs = [w for w in _warnings(chk) if w.startswith(confirmatory.DEVIATES)]
-    assert devs[0] == 'Deviates from pre-spec: The column tested is not set in this run; the pre-spec says ' \
-                      '"INCOME_TO_SALES".'
     assert not any("window" in d for d in devs)
     assert ("Deviates from pre-spec: The pre-spec's holdout is 2024-01-01 to 2024-12-31; when this run's loans were "
             "made isn't known." in devs)
     log = _log(b)
     assert log[1].startswith("Deviates from pre-spec prespec.yaml (not committed): ")
-    assert log[2] == "Holdout not checked: no column is marked Origination date on Columns."
+    assert log[2].startswith('Holdout not checked: the dates in "ORIG_DATE" (when each loan was made) read two ways')
 
 
 def _prespec_rows(b) -> list[tuple[str, str]]:
