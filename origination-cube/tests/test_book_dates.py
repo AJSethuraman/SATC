@@ -11,8 +11,34 @@ import pytest
 import yaml
 from openpyxl import load_workbook
 
-from origination_cube import book, control, synth
+from origination_cube import book, control, meanings, synth
 from test_book import _answer
+
+
+def _choose(path, drop=(), **changes):
+    """What pressing Next in the launcher again writes on Control, without the window: `drop` takes columns out of
+    the cut (every column its meaning on Columns cuts, until then), and `changes` sets any other choice
+    (split="REV_DEBT", run_kind=...)."""
+    wb = load_workbook(path)
+    ws = wb[control.SHEET]
+    got, _ = control.read_choices(ws)
+    if drop:
+        cat = meanings.catalog()
+        cut = got.cut()
+        kinds = {}
+        for r in wb["Columns"].iter_rows(min_row=book.COL_FIRST):
+            code = book._to_code(r[book.C_MEANS - 1].value, cat)
+            if r[book.C_NAME - 1].value and code:
+                kinds[str(r[book.C_NAME - 1].value)] = cat[code].cut
+        keep = [c for c, k in kinds.items() if (cut is None or c in cut) and c not in drop]
+        got = got.but(bands=tuple(c for c in keep if kinds[c] == "band"),
+                      segments=tuple(c for c in keep if kinds[c] == "dimension"))
+    if "run_kind" not in changes and "shortlist" not in changes:
+        got = got.but(run_kind=None)                 # what runs, as Control already says
+    got = got.but(**changes)
+    labels = {(s.key, o.value): o.label for s in control.load_settings() for o in s.options}
+    control.write_choices(ws, got, labels)
+    wb.save(path)
 
 
 def _control(path, **answers):
@@ -119,7 +145,9 @@ def test_a_new_column_is_made_on_control_listed_on_columns_looked_at_and_run(tmp
     wb = load_workbook(b)
     cols = wb["Columns"]
     row = next(r for r in cols.iter_rows(min_row=book.COL_FIRST) if r[book.C_NAME - 1].value == "INCOME_TO_SALES")
-    assert row[book.C_MEANS - 1].value == "Amount or number" and row[book.C_CUT - 1].value == "Yes"
+    assert row[book.C_MEANS - 1].value == "Amount or number"
+    # cut like any number column: nothing narrowed in the launcher, so every column its meaning cuts
+    assert control.read_choices(wb[control.SHEET])[0].bands is None
     assert row[book.C_WHY - 1].value == "made on Control: INCOME ÷ SALES"
     assert row[book.C_MADE - 1].value == "INCOME ÷ SALES" and cols.column_dimensions["P"].hidden
     # to four figures (0.3075), not seventeen
@@ -135,8 +163,7 @@ def test_a_new_column_is_made_on_control_listed_on_columns_looked_at_and_run(tmp
     assert lines["Median"] == pytest.approx(statistics.median(ratios))
 
     _columns(b, "INCOME_TO_SALES", C_EDGES="0.1; 0.25; 0.5; 1; 2")
-    _columns(b, "INCOME", C_CUT="No")
-    _columns(b, "SALES", C_CUT="No")
+    _choose(b, drop=("INCOME", "SALES"))
     wb = load_workbook(b)
     wb["Columns"][book.CONFIRM_CELL] = "Yes"
     wb.save(b)
@@ -171,9 +198,9 @@ def test_periods_and_meanings_on_columns_are_recorded_warned_and_split_by(tmp_pa
     _control(b, **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
     x2 = book.set_up(x)
     assert x2.ok
-    _columns(b, "INCOME", C_CUT="No", C_PERIOD="per year", C_DEFINE="household income, trailing twelve months")
-    _columns(b, "SALES", C_CUT="No", C_PERIOD="per month", C_DEFINE="business sales, one month times twelve")
-    _columns(b, "INCOME_TO_SALES", C_SPLIT="Yes")
+    _columns(b, "INCOME", C_PERIOD="per year", C_DEFINE="household income, trailing twelve months")
+    _columns(b, "SALES", C_PERIOD="per month", C_DEFINE="business sales, one month times twelve")
+    _choose(b, drop=("INCOME", "SALES"), split="INCOME_TO_SALES")
     row = _columns(b, "CHANNEL", C_PERIOD="per year")
     wb = load_workbook(b)
     wb["Columns"][book.CONFIRM_CELL] = "Yes"

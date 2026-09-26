@@ -302,3 +302,16 @@ edges), refreshed at each Run ("Last Run used").
   row order is as of the last Run, and the tab says so. No SORT or FILTER is needed.
 - **Slicers become dropdown cells** (the design allows "slicers or dropdown cells"). openpyxl cannot
   write slicers and drops them when it re-saves a workbook, and Run re-saves it every time.
+- **Phase (a) built, 26 Sep 2026: the launcher's five steps, and suggestions at Set up.** The window
+  is `launcher.Flow` (every rule, no Tk) drawn by `launcher.build`, in `house.py`'s colours. Set up
+  reads the extract and writes nothing; Choose tests picks the run and its cuts; Next writes the
+  workbook, and Control shows the picks read-only under *Chosen in the launcher* (the two column
+  limits, what's running and the saved shortlist moved there too). Columns no longer asks *Cut by
+  it?* or *Split pockets by it?*. Because the cuts exist when the workbook is written, fewest loans,
+  worse at and better at are worked out then, from the default edges, and written beside their
+  settings ("suggested: 65, from this extract"); every Run works them out again. Nothing is chosen
+  for the analyst (OC-13). A refused Run lists each cell with **Open at**; a finished one shows the
+  three tiles. The product is named PocketBook in everything the analyst reads, and its workbook is
+  *loans - PocketBook.xlsx*. Left for later phases: the Control restyle into Changes now / Needs a
+  Run, and finding new variables on part of the loans (the launcher records the share; the Run asks
+  for a saved shortlist).

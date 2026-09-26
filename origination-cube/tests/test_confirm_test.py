@@ -24,7 +24,7 @@ from conftest import cube, table
 from origination_cube import book, confirm_tab, confirmatory, control, engine, kgroups, prespec, stats, synth
 from recalc import recalc
 from test_book import _answer
-from test_book_dates import _check, _columns, _control
+from test_book_dates import _check, _choose, _columns, _control
 
 needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed on this machine")
 EXAMPLE = Path(__file__).resolve().parents[1] / "docs" / "prespec-example.yaml"
@@ -47,12 +47,9 @@ def _set_up(folder: Path, n: int, spec: Path = EXAMPLE, cut_no=("ORIG_BAL", "REV
     _control(b, run_kind="Finding and testing a new variable", new_variable_step="Test from a pre-spec",
              **{"derived|1": ("income_to_sales", "INCOME", "SALES")})
     book.set_up(x)
-    for c in cut_no:
-        _columns(b, c, C_CUT="No")
+    _choose(b, drop=cut_no, shortlist="prespec.yaml")        # the saved shortlist, picked in the launcher
     wb = load_workbook(b)
     wb["Columns"][book.CONFIRM_CELL] = "Yes"
-    ws = wb[control.SHEET]
-    ws.cell(row=control.row_of(ws, control.PRESPEC_KEY), column=control.CHOOSE_COL).value = "prespec.yaml"
     wb.save(b)
     shutil.copy(spec, folder / "prespec.yaml")
     _git(folder, "init", "-q")
@@ -369,10 +366,10 @@ def test_a_stratum_the_run_does_not_cut_by_is_refused_by_the_pre_spec_cell(tmp_p
     ran = book.run(b)
     assert not ran.ok
     cell = f"Control!C{control.read_prespec(load_workbook(b)[control.SHEET])[1].split('!C')[1]}"
-    want = (f'{cell}: the pre-spec cuts the pockets by ASSET_CLASS, and Columns doesn\'t cut by it. Set its "Cut by '
-            f'it?" to Yes (it becomes a band or a segment). Or fix the pre-spec.')
+    want = (f"{cell}: the pre-spec cuts the pockets by ASSET_CLASS, and the launcher doesn't cut by it. Tick it "
+            f"under Choose tests (a band or a segment), then press Next. Or fix the pre-spec.")
     assert any(want in line for line in ran.lines), ran.lines
-    _columns(b, "ASSET_CLASS", C_CUT="Yes")
+    _choose(b, segments=("CHANNEL", "ASSET_CLASS"))
     assert book.run(b).ok
 
 

@@ -11,7 +11,7 @@ from openpyxl import load_workbook
 from conftest import cube, table
 from origination_cube import book, engine, prevalence, synth
 from test_book import _answer
-from test_book_dates import _columns, _control
+from test_book_dates import _choose, _columns, _control
 
 BENCH = {"min_units": 2, "min_events": 1, "worse_at": 1.25, "better_at": 0.8, "confidence": 0.95, "power": 0.8,
          "compare_to": "peers", "many_tests": "none", "materiality": "none"}
@@ -100,9 +100,8 @@ def test_the_prevalence_tab_counts_the_book_by_the_new_columns_bands(tmp_path):
     _answer(b)
     _control(b, **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
     book.set_up(x)
-    _columns(b, "INCOME_TO_SALES", C_SPLIT="Yes", C_EDGES="0.1; 0.25; 0.5; 1; 2")
-    for c in ("ORIG_BAL", "REV_DEBT", "ASSET_CLASS", "INCOME", "SALES"):
-        _columns(b, c, C_CUT="No")
+    _columns(b, "INCOME_TO_SALES", C_EDGES="0.1; 0.25; 0.5; 1; 2")
+    _choose(b, drop=("ORIG_BAL", "REV_DEBT", "ASSET_CLASS", "INCOME", "SALES"), split="INCOME_TO_SALES")
     wb = load_workbook(b)
     wb["Columns"][book.CONFIRM_CELL] = "Yes"
     wb.save(b)

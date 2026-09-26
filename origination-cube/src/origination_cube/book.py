@@ -39,6 +39,8 @@ from . import control, engine, meanings, memory, perm, profile, stats
 from . import checks, confirmatory, prevalence          # fixes 3.12 and 3.15 to 3.18
 from . import live                                      # OC-40: the judging settings, live in the workbook
 from . import confirm_tab                               # 4b and 4e: the confirmatory test's tab
+from . import choices as ch                             # the redesign: what the launcher chose
+from .house import MIST as READ_ONLY
 from .ingest import Table, read_table
 
 INK, CANVAS, SLATE, PAPER, NEEDS = "16130F", "F4F1EC", "57534B", "FFFFFF", "FCE4C4"
@@ -57,8 +59,10 @@ COL_FIRST = 6            # first column row on the Columns tab
 CONFIRM_CELL = "C3"      # "Checked every column?"
 # Set up's note on Columns!D3 for columns the Yes in C3 doesn't cover yet; a Run takes it off again
 NEW_COLS_NOTE = "New since the last check: {}. Check them, then set C3 to Yes again."
-# Columns tab, one column per thing a person says about an extract column
-C_NAME, C_MEANS, C_CUT, C_IS, C_EDGES, C_SHOW, C_SPLIT, C_LOOK, C_WHY, C_BLANK, C_SAMPLES = range(2, 13)
+# Columns tab, one column per thing a person says about an extract column. D and H held "Cut by it?" and "Split
+# pockets by it?" until the redesign moved both to the launcher (26 Sep 2026); they stay, hidden and empty, so an
+# older workbook's answers read back from the same places
+C_NAME, C_MEANS, _C_WAS_CUT, C_IS, C_EDGES, C_SHOW, _C_WAS_SPLIT, C_LOOK, C_WHY, C_BLANK, C_SAMPLES = range(2, 13)
 # fixes 3.10 and 3.11: what an amount is over, and what it measures in the person's words. At the end, so no
 # column a person already knows moves
 C_PERIOD, C_DEFINE = 13, 14
@@ -83,6 +87,129 @@ class Outcome:
     ok: bool
     book: Path
     lines: list[str] = field(default_factory=list)      # what the launcher shows, in plain words
+    problems: list[str] = field(default_factory=list)   # a refused Run's problems, each naming its tab and cell
+    summary: dict = field(default_factory=dict)         # a finished Run's headline, for the launcher's last step
+
+
+#: The product's name, and the workbook's: "loans - PocketBook.xlsx" beside "loans.csv" (the firm, 26 Sep 2026).
+#: A workbook written before the name changed ends " - Origination Cube.xlsx"; picked as the extract, it is still
+#: recognised as a workbook, and Set up carries its answers into the new one.
+NAME = "PocketBook"
+SUFFIX, OLD_SUFFIX = f" - {NAME}.xlsx", " - Origination Cube.xlsx"
+
+
+def book_for(extract: str | Path) -> Path:
+    """Where the workbook for an extract lives: beside it, named after it."""
+    p = Path(extract)
+    return p.with_name(f"{p.stem}{SUFFIX}")
+
+
+def workbook_picked(extract: str | Path) -> str | None:
+    """The refusal when the file picked as the extract is one of the cube's workbooks."""
+    name = Path(extract).name
+    for suffix in (SUFFIX, OLD_SUFFIX):
+        if name.endswith(suffix):
+            real = name[: -len(suffix)]
+            return (f"{name} is the workbook, not the loan file. Pick the extract it was set up from ({real}.csv "
+                    f"or {real}.xlsx).")
+    return None
+
+
+#: what a column is, as the launcher's Choose tests table treats it
+KIND_OF = {"key": "key", "origination_date": "date", "outcome": "out", "gco": "outd", "ranr": "outd"}
+
+
+@dataclass
+class Column:
+    name: str
+    what: str           # its meaning in the Columns tab's words: "FICO score", "Category · 3 values"
+    kind: str           # key, date, out (the yes/no outcome), outd (outcome dollars), num, cat, other
+
+
+@dataclass
+class Read:
+    """An extract as the launcher's Set up step reads it, before any workbook is written."""
+    extract: Path
+    book: Path
+    loans: int
+    columns: list[Column]
+    chosen: "ch.Choices | None" = None      # what the workbook beside it already shows, if there is one
+    problem: str | None = None
+
+
+def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 50,
+                 memory_path: str | Path | None = None) -> Read:
+    """What each column is, so the launcher can offer the right choices: its
+    meaning as the workbook beside it says (if one exists), else as remembered
+    or suggested. Nothing is written."""
+    extract = Path(extract)
+    target = book_for(extract)
+    if workbook_picked(extract):
+        return Read(extract, extract, 0, [], problem=workbook_picked(extract))
+    try:
+        table = read_table(extract)
+    except Exception as exc:  # the file itself: shown in words, never a traceback
+        return Read(extract, target, 0, [], problem=f"Couldn't read {extract.name}: {exc}")
+    kept = _answers(_earlier(target))
+    mem = memory.load(memory_path)
+    cat = meanings.catalog()
+    sugg = meanings.suggest(table, mem["columns"], few_values=few_values, many_values=many_values)
+    cols = profile.classify(table, few_values, many_values)
+    made_table, made, _ = _made_columns(table, cols, kept, mem)
+    out = []
+    for c in list(table.columns) + [m.name for m in made]:
+        code = _to_code((kept["columns"].get(c) or {}).get("means"), cat) or \
+            (sugg[c].means if c in sugg else "amount")
+        kind = KIND_OF.get(code) or {"band": "num", "dimension": "cat"}.get(cat[code].cut, "other")
+        what = cat[code].label
+        if kind == "cat":
+            n = len({str(r.get(c)) for r in made_table.rows if r.get(c) not in (None, "")})
+            what = f"Category · {n:,} values" if code == "category" else f"{what} · {n:,} values"
+        out.append(Column(c, what, kind))
+    chosen = None
+    if _earlier(target).exists():
+        try:
+            chosen = control.read_choices(load_workbook(_earlier(target))[control.SHEET])[0]
+        except Exception:
+            chosen = None
+    return Read(extract, target, len(table.rows), out, chosen)
+
+
+def _earlier(book: Path) -> Path:
+    """The workbook to carry answers from: this one, or the one written before the name changed."""
+    old = book.with_name(book.name[: -len(SUFFIX)] + OLD_SUFFIX) if book.name.endswith(SUFFIX) else book
+    return old if not book.exists() and old.exists() else book
+
+
+def is_open(book: str | Path) -> bool:
+    """True while the workbook is open in Excel: the file is locked (Windows) or
+    Excel's owner file sits beside it."""
+    book = Path(book)
+    return book.exists() and (not _writable(book) or book.with_name(f"~${book.name}").exists())
+
+
+def open_at(book: str | Path, sheet: str, cell: str) -> bool:
+    """Make the workbook open at a cell: its tab active and the cell selected.
+    False when that can't be done (the workbook is open, or has no such tab);
+    the caller then opens it as it is and says the cell."""
+    book = Path(book)
+    if not book.exists() or is_open(book):
+        return False
+    wb = load_workbook(book)
+    if sheet not in wb.sheetnames or wb[sheet].sheet_state != "visible":
+        return False
+    ws = wb[sheet]
+    wb.active = wb.sheetnames.index(sheet)
+    for other in wb.worksheets:
+        other.sheet_view.tabSelected = other is ws
+    for sel in ws.sheet_view.selection:
+        sel.activeCell = cell
+        sel.sqref = cell
+    try:
+        wb.save(book)
+    except PermissionError:
+        return False
+    return True
 
 
 def _n(k: int, word: str) -> str:
@@ -161,10 +288,9 @@ def _answers(book: Path) -> dict[str, Any]:
         ws = wb["Columns"]
         out["confirmed"] = ws[CONFIRM_CELL].value
         for r in ws.iter_rows(min_row=COL_FIRST, values_only=True):
-            if len(r) > C_SPLIT - 1 and r[C_NAME - 1]:
+            if len(r) > C_SHOW - 1 and r[C_NAME - 1]:
                 out["columns"][str(r[C_NAME - 1])] = {
-                    "means": r[C_MEANS - 1], "cut": r[C_CUT - 1], "is": r[C_IS - 1], "edges": r[C_EDGES - 1],
-                    "show": r[C_SHOW - 1], "split": r[C_SPLIT - 1],
+                    "means": r[C_MEANS - 1], "is": r[C_IS - 1], "edges": r[C_EDGES - 1], "show": r[C_SHOW - 1],
                     "period": r[C_PERIOD - 1] if len(r) >= C_PERIOD else None,
                     "define": r[C_DEFINE - 1] if len(r) >= C_DEFINE else None}
     if "Odd values" in wb.sheetnames:
@@ -233,19 +359,23 @@ def _to_code(v: Any, cat) -> str | None:
 
 @control.settings_once
 def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str | Path | None = None,
-           today: date | None = None) -> Outcome:
+           today: date | None = None, choices: "ch.Choices | None" = None) -> Outcome:
+    """Write the workbook beside the extract. `choices` is what the launcher's
+    Choose tests step picked; without it, what the workbook already shows is kept
+    (or, the first time, every column its meaning cuts, and nothing split).
+    The suggested Control answers are worked out here, from pockets cut at the
+    default edges, and written beside their settings (never chosen for you)."""
     extract = Path(extract)
-    if extract.name.endswith(" - Origination Cube.xlsx"):
+    if workbook_picked(extract):
         # the third walk, defect 10: the workbook sits beside the extract and was picked by mistake
-        real = extract.name[: -len(" - Origination Cube.xlsx")]
-        return Outcome(False, extract, [f"{extract.name} is the workbook, not the loan file. Pick the extract "
-                                        f"it was set up from ({real}.csv or {real}.xlsx)."])
-    book = Path(book) if book else extract.with_name(f"{extract.stem} - Origination Cube.xlsx")
+        return Outcome(False, extract, [workbook_picked(extract)])
+    book = Path(book) if book else book_for(extract)
     try:
         table = read_table(extract)
     except Exception as exc:  # the file itself: shown in words, never a traceback
         return Outcome(False, book, [f"Couldn't read {extract.name}: {exc}"])
-    kept = _answers(book)
+    as_read = table
+    kept = _answers(_earlier(book))
     mem = memory.load(memory_path)
     cat = meanings.catalog()
     method = {s.key: s.recommended().value for s in control.load_settings() if s.recommended()}
@@ -253,6 +383,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     # walk's blank "Last Run used" rows: Set up always used the recommended 12 and 50)
     for key in ("few_values", "many_values"):
         got = control.answer_of(key, *kept["control"].get(key, (None, None)))
+        if choices is not None:
+            got = getattr(choices, key)             # chosen in the launcher, before the workbook existed
         if isinstance(got, (int, float)) and not isinstance(got, bool):
             method[key] = int(got)
     few, many = int(method["few_values"]), int(method["many_values"])
@@ -273,7 +405,9 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     qs = [q for c in cols for q in c.questions]
     open_qs = [q for q in qs if not memory.answer_for(mem, q["column"], q["pattern"], q["value"])]
     looks = meanings.review(table, sugg, open_qs, cat, answer_where="on the Odd values tab", known=facts_of)
-    if control.answer_of(RUN_KIND, *kept["control"].get(RUN_KIND, (None, None))) == NEW_VARIABLE:
+    kind_now = choices.run_kind if choices is not None and choices.run_kind is not None else \
+        control.answer_of(RUN_KIND, *kept["control"].get(RUN_KIND, (None, None)))    # the launcher's, else Control's
+    if kind_now == NEW_VARIABLE:
         # a test of a new variable doesn't use the dollar columns, so their absence isn't news (the firm: "don't
         # note what it does not include, just note what it does")
         absent = tuple(f"No column was found for {cat[m].label} " for m in cfgmod.DOLLARS)
@@ -308,8 +442,14 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
             r[control.CHOOSE_COL - 1].value = choose
             if own not in (None, "n/a"):
                 r[control.OWN_COL - 1].value = own
+    cws = wb[control.SHEET]
+    if choices is not None or control.read_choices(cws)[0] is None:
+        # the launcher's picks; the first time without them, every column its meaning cuts, nothing split
+        choices = choices or ch.Choices(few_values=int(method["few_values"]), many_values=int(method["many_values"]))
+        labels = {(s.key, o.value): o.label for s in control.load_settings() for o in s.options}
+        control.write_choices(cws, choices, labels)
+    control.fold_launcher_rows(cws)
     control.write_derived(wb, number_cols, kept["derived"])
-    control.write_prespec(wb, kept["control"].get(control.PRESPEC_KEY, (None, None))[0])     # fix 3.15
     if kept["last_used"]:
         # what the last Run used stays through Set up again (the sixth walk, defect 6)
         cws = wb[control.SHEET]
@@ -333,9 +473,9 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
 
     # ---- Columns
     ws = wb.create_sheet("Columns")
-    _title(ws, "Columns", "Fix any meaning that's wrong, and set Cut by it to No for anything you don't want in "
-                          "the grids. Shaded rows have a reason under Look first. Set C3 to Yes when done; "
-                          "confirmed meanings carry over to the next extract.", "B:N")
+    _title(ws, "Columns", "Fix any meaning that's wrong. Shaded rows have a reason under Look first. Set C3 to "
+                          "Yes when done; confirmed meanings carry over to the next extract. What the pockets are "
+                          "cut by was chosen in the launcher, and Control shows it.", "B:N")
     ws["B3"] = "Checked every column?"
     ws["B3"].font = Font(name="Calibri", bold=True)
     # new columns since the last check: the Yes no longer covers them (second walk, defect 4)
@@ -356,9 +496,9 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     ws["D3"].alignment = Alignment(wrap_text=True, vertical="top")
     ws.merge_cells("D3:N3")
     ws.row_dimensions[3].height = 30 if notes else 16
-    _head(ws, 5, ["Column", "What it is", "Cut by it?", "Yes means (outcome only)",
+    _head(ws, 5, ["Column", "What it is", None, "Yes means (outcome only)",
                   "Band edges (620; 680 or every 20)",
-                  "Show per pocket", "Split pockets by it?", "Look first", "Why this was suggested", "Blank",
+                  "Show per pocket", None, "Look first", "Why this was suggested", "Blank",
                   "Samples", "Period (amounts only)", "What it measures, in your words"])
     ws.row_dimensions[5].height = 44
     mm = wb.create_sheet("_meanings")
@@ -370,14 +510,11 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     dv_m = DataValidation(type="list", formula1=f"='_meanings'!$A$1:$A${len(cat)}", allow_blank=False,
                           showErrorMessage=True)
     dv_m.error = "Pick one of the meanings in the list."
-    dv_cut = DataValidation(type="list", formula1='"Yes,No"', allow_blank=True, showErrorMessage=True)
     dv_show = DataValidation(type="list", formula1='"median,average"', allow_blank=True, showErrorMessage=True)
-    dv_split = DataValidation(type="list", formula1='"Yes"', allow_blank=True, showErrorMessage=True)
-    dv_split.error = "Type Yes, or leave it blank. Only one column can split the pockets."
     dv_period = DataValidation(type="list", formula1=f'"{",".join(PERIOD_OPTIONS)}"', allow_blank=True,
                                showErrorMessage=True)
     dv_period.error = "Pick per year, per month or one-time, or leave it blank."
-    for dv in (dv_m, dv_cut, dv_show, dv_split, dv_period):
+    for dv in (dv_m, dv_show, dv_period):
         ws.add_data_validation(dv)
     by_col: dict[str, list[str]] = {}
     for rv in looks:
@@ -398,9 +535,6 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         ws.cell(row=r, column=C_NAME, value=c).font = Font(name="Calibri", bold=True)
         ws.cell(row=r, column=C_MEANS, value=cat[code].label)
         dv_m.add(ws.cell(row=r, column=C_MEANS))
-        cuttable = cat[code].cut != "none"
-        ws.cell(row=r, column=C_CUT, value=(prior.get("cut") or "Yes") if cuttable else None)
-        dv_cut.add(ws.cell(row=r, column=C_CUT))
         ws.cell(row=r, column=C_IS, value=prior.get("is") if prior else sg.is_value)
         # remembered edges only fill a column this workbook hasn't seen: what's on this workbook's
         # Columns tab, a cleared cell included, wins (the fifth walk: another copy's "every 2000"
@@ -414,8 +548,6 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         edges.number_format = "@"            # kept as typed: Excel would read 620,680,740 as one number
         ws.cell(row=r, column=C_SHOW, value=prior.get("show"))
         dv_show.add(ws.cell(row=r, column=C_SHOW))
-        ws.cell(row=r, column=C_SPLIT, value=prior.get("split"))
-        dv_split.add(ws.cell(row=r, column=C_SPLIT))
         ws.cell(row=r, column=C_LOOK, value=" ".join(by_col.get(c, [])) or None)  # after the edges note
         ws.cell(row=r, column=C_WHY, value=tag + sg.why)
         ws.cell(row=r, column=C_BLANK, value=blank).number_format = "0%"
@@ -438,6 +570,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     for col, w in zip("ABCDEFGHIJKLMN", (2, 22, 20, 9, 13, 16, 11, 11, 44, 40, 8, 30, 12, 34)):
         ws.column_dimensions[col].width = w
     ws.column_dimensions[_col(C_SUGG)].hidden = True
+    ws.column_dimensions[_col(_C_WAS_CUT)].hidden = True
+    ws.column_dimensions[_col(_C_WAS_SPLIT)].hidden = True
     ws.column_dimensions[_col(C_MADE)].hidden = True
     ws.freeze_panes = f"C{COL_FIRST}"
     _fit(ws)
@@ -490,7 +624,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     about.sheet_state = "hidden"
     settings = control.load_settings()
     given = {s.key: control.answer_of(s.key, *kept["control"].get(s.key, (None, None))) for s in settings}
-    unanswered = sum(1 for s in settings if s.judgment and control.asked(s, given)
+    unanswered = sum(1 for s in settings if s.judgment and not s.in_launcher and control.asked(s, given)
                      and not any(v not in (None, "n/a") for v in kept["control"].get(s.key, (None, None))))
     last = None
     if "Log" in wb.sheetnames:
@@ -500,6 +634,10 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
             last = f"{lg.cell(row=top, column=1).value}: {lg.cell(row=top, column=2).value}"
     _start_here(start, extract, len(table.rows), len(extract_cols), looks, len(qs), unanswered, last)
     _order(wb)
+    if not _writable(book):
+        return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Set up again."])
+    worked = _suggest_at_set_up(wb, book, as_read, memory_path)
+    _suggestions(wb[control.SHEET], *worked, when="from this extract")
     try:
         wb.save(book)
     except PermissionError:
@@ -509,10 +647,11 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         why = "; ".join(f"{k:,} where {w}" for w, k in m.blank.items())
         lines.append(f"Made {m.name} = {m.text()} on Columns and Look" + (f". Blank on {why}." if why else "."))
     lines += made_notes
-    if given.get(RUN_KIND) is None:
+    if given.get(RUN_KIND) is None and (choices is None or choices.run_kind is None):
         # the firm, 26 Sep 2026: ask which we are doing, so the run checks the minimum it needs
         kinds = next(x for x in settings if x.key == RUN_KIND).options
-        lines.append(f'First, on Control, answer "What are you running?": {kinds[0].label}, or {kinds[1].label}.')
+        lines.append(f'First, in the launcher, choose what you\'re running: {kinds[0].label}, or '
+                     f'{kinds[1].label}.')
     if new_cols:
         lines.append(f"New columns since the last check: {', '.join(new_cols)}. Columns!C3 needs a Yes again.")
     nlook = len({rv.column for rv in looks if rv.kind != "cannot run"} | set(new_cols) | edge_noted)
@@ -529,7 +668,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     joined = ", ".join(left[:-1]) + (" and " if len(left) > 1 else "") + left[-1] if left else ""
     lines.append(f"Next: fill in the shaded cells on {joined}, save, close, and press Run." if left
                  else "Everything is answered. Press Run the cube.")
-    return Outcome(True, book, lines)
+    return Outcome(True, book, lines, summary={"suggested": worked[0], "fallback": worked[1]})
 
 
 #: Meanings a person may have confirmed before they were taken out (config.REMOVED), in the words Columns used.
@@ -576,11 +715,11 @@ def _start_here(ws, extract, rows, ncols, looks, nq, unanswered, last_run) -> No
     for row in ws.iter_rows():
         for c in row:
             c.value = None
-    _title(ws, "Origination Cube", f"Set up from {Path(extract).name}: {rows:,} loans, {ncols} columns.", "B:D")
+    _title(ws, NAME, f"Set up from {Path(extract).name}: {rows:,} loans, {ncols} columns.", "B:D")
     steps = [
-        ("1", "Control", "Say what you're running, then fill in the shaded cells: materiality, minimum loans, "
-                          "how much worse counts."),
-        ("2", "Columns", "Check each column's meaning and whether to cut by it. Set C3 to Yes when done."),
+        ("1", "Control", "Fill in the shaded cells: materiality, minimum loans, how much worse counts. The "
+                          "suggested values sit beside them."),
+        ("2", "Columns", "Check each column's meaning. Set C3 to Yes when done."),
         ("3", "Odd values", "Answer real or missing. Unanswered ones are used as is."),
         ("4", "Launcher", "Save and close this workbook, then press Run the cube."),
     ]
@@ -629,7 +768,12 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
         problems.append(f"Columns!{CONFIRM_CELL}: set Checked every column to Yes once you've checked each "
                         f"column's meaning." + (f" {note}" if note.startswith("Forgotten") else ""))
     columns, edges, skip, show, split = {}, {}, set(), {}, []
+    chosen, choice_cells = control.read_choices(wb[control.SHEET])
+    if chosen is None:
+        problems.append("Control: this workbook was set up before the launcher chose what to cut. Press Set up "
+                        "again.")
     made_rows: dict[str, tuple[int, str]] = {}         # a new column made on Control -> (its row, what it was made from)
+    row_of_col: dict[str, int] = {}
     widths: dict[str, float] = {}
     typed: dict[str, str] = {}
     edge_cells: dict[str, str] = {}
@@ -667,8 +811,7 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
         if said not in (None, "") and str(said).strip():
             entry["definition"] = " ".join(str(said).split())
         columns[name] = entry if len(entry) > 1 else code
-        if r[C_CUT - 1].value == "No":
-            skip.add(name)
+        row_of_col[name] = row
         e = r[C_EDGES - 1].value
         if e not in (None, ""):
             where = f"Columns!{_col(C_EDGES)}{row}"
@@ -707,17 +850,8 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
                                 f'{sh} to show. Clear the cell, or change what it is.')
             else:
                 show[name] = sh
-        if r[C_SPLIT - 1].value == "Yes":
-            if cat[code].cut in ("band", "dimension"):
-                split.append((name, code, row))
-            else:
-                # the third walk, defect 7: GCO split by itself read 93.83x; the key "had too few loans"
-                problems.append(f'Columns!{_col(C_SPLIT)}{row}: "{name}" is marked {cat[code].label}, which '
-                                f"can't split the pockets. Only a score, ratio, amount (the booked amount too) or "
-                                f"category can.")
-    if len(split) > 1:
-        cells = " and ".join(f"Columns!{_col(C_SPLIT)}{row}" for _, _, row in split)
-        problems.append(f"{cells}: only one column can split the pockets. Clear all but one.")
+    if chosen is not None:
+        split, skip = _cuts_chosen(chosen, choice_cells, columns, row_of_col, cat, problems)
     derived = _read_made(wb, columns, made_rows, problems)
     questions = []
     for r in wb["Odd values"].iter_rows(min_row=5, values_only=True):
@@ -761,7 +895,8 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
                 continue
             why = ("no column on Columns has that name" if s not in columns
                    else f"{s} splits the pockets, so it isn't cut on its own" if split and split[0][0] == s
-                   else f'Columns doesn\'t cut by it. Set its "Cut by it?" to Yes (it becomes a band or a segment)')
+                   else "the launcher doesn't cut by it. Tick it under Choose tests (a band or a segment), then "
+                        "press Next")
             problems.append(f"{held_to['cell']}: the pre-spec cuts the pockets by {s}, and {why}. Or fix the "
                             f"pre-spec.")
         if problems:
@@ -788,7 +923,7 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
     if use.get(RUN_KIND) == NEW_VARIABLE:
         raw["run_kind"] = NEW_VARIABLE              # its dollar columns are optional (cfgmod.RUN_KINDS)
     if split:
-        name, code, _ = split[0]
+        name, code = split[0]
         raw["split"] = {"field": name, "how": "each_value" if cat[code].cut == "dimension" else "own_median"}
     if derived:
         raw["derived"] = derived                    # fix 3.9
@@ -800,6 +935,43 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
     about["_use"] = dict(use)
     about["_prespec"] = held_to
     return raw, [], about
+
+
+def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, problems: list[str]):
+    """The split, and the columns left uncut, from what the launcher chose. A
+    column is cut when the launcher ticked it (or, with nothing narrowed, when
+    its meaning cuts it), as a band or a segment by its meaning on Columns."""
+    split: list[tuple[str, str]] = []
+    for key in ("bands", "segments"):
+        for name in getattr(chosen, key) or ():
+            if name not in columns:
+                problems.append(f"{cells[key]}: {name} isn't a column in this extract. Choose again in the launcher.")
+    cut = chosen.cut()
+    skip = {c for c in columns if cut is not None and c not in cut}
+    if chosen.split:
+        name = chosen.split
+        code = columns.get(name)
+        code = code if code is None or isinstance(code, str) else code["means"]
+        if code is None:
+            problems.append(f"{cells['split']}: {name} isn't a column in this extract. Choose again in the launcher.")
+        elif cat[code].cut in ("band", "dimension"):
+            split.append((name, code))
+        else:
+            # the third walk, defect 7: GCO split by itself read 93.83x; the key "had too few loans"
+            problems.append(f'{cells["split"]}: "{name}" is marked {cat[code].label} on Columns '
+                            f'(Columns!{_col(C_MEANS)}{row_of_col[name]}), which can\'t split the pockets. Only a '
+                            f"score, ratio, amount (the booked amount too) or category can. Choose another in the "
+                            f"launcher, or fix what it is.")
+    if chosen.run_kind == ch.NEW_VARIABLE and chosen.outcome:
+        code = columns.get(chosen.outcome)
+        code = code if code is None or isinstance(code, str) else code["means"]
+        if code != "outcome":
+            where = (f"Columns!{_col(C_MEANS)}{row_of_col[chosen.outcome]}" if chosen.outcome in row_of_col
+                     else "Columns")
+            problems.append(f"{cells['outcome']}: the launcher tests against {chosen.outcome}, and {where} doesn't "
+                            f"mark it {cat['outcome'].label}. Mark it so, or choose the outcome again in the "
+                            f"launcher.")
+    return split, skip
 
 
 def _what_is_run(wb, book: Path, use: dict, columns: dict, cat, problems: list[str]) -> dict | None:
@@ -826,8 +998,10 @@ def _what_is_run(wb, book: Path, use: dict, columns: dict, cat, problems: list[s
                             f'pre-spec. Clear the cell, or change "What are you running?" ({kind_cell}).')
         return None
     if kind == NEW_VARIABLE and step == SCOUT:
-        problems.append(f'{control.SHEET}!C{control.row_of(ws, STEP)}: Scouting isn\'t built yet. Pick '
-                        f'"{labels[FROM_PRESPEC]}", or run {labels[BLEED]}.')
+        # say what it does (the firm: "don't note what it does not include just note what it does")
+        problems.append(f'{control.SHEET}!C{control.row_of(ws, STEP)}: PocketBook confirms a saved shortlist of '
+                        f'new variables. Pick the shortlist in the launcher (Choose tests, Or confirm a saved '
+                        f'shortlist), or run {labels[BLEED]}.')
         return None
     if kind == NEW_VARIABLE and step == FROM_PRESPEC and text is None:
         problems.append(f'{cell}: "{labels[FROM_PRESPEC]}" needs the pre-spec file named here.')
@@ -956,6 +1130,100 @@ def _suggested(res, which: set[str]) -> dict[str, float]:
     return out
 
 
+SUGGEST_KEYS = ("min_loans", "worse_at", "better_at")
+SUGGEST_COL = control.WHEN_COL + 1          # J on Control, beside "When a change shows"
+#: the answers a first pass at Set up runs with where Control has none yet: never written to the workbook
+PROVISIONAL = {"min_events": "10 losses", "materiality": "No floor", "compare_to": "The rest of its band",
+               "confidence": "95%", "revenue_line": "Each pocket's own test (suggested)"}
+
+
+def _suggest_values(res, which: set[str]) -> tuple[dict[str, float], set[str]]:
+    """_suggested without touching `res`: the values, and those with nothing to work them out from."""
+    had = getattr(res, "suggest_fallback", None)
+    out = _suggested(res, which)
+    fallback = res.suggest_fallback
+    if had is None:
+        del res.suggest_fallback
+    else:
+        res.suggest_fallback = had
+    return out, fallback
+
+
+def _suggest_at_set_up(wb, book: Path, table, memory_path) -> tuple[dict[str, float], set[str]]:
+    """The suggested Control answers, before anyone has answered anything (the
+    firm, 26 Sep 2026: "configure what you can, and then do the workbook config
+    items so that there are suggestions to be made"). The pockets are cut as
+    the launcher chose, at the default edges, and the first pass is the one Run
+    makes: a copy of the workbook with the suggested options picked and any
+    other blank call given a stand-in, read by read_book, run without the
+    shuffle test. Nothing here is written to the workbook but the values."""
+    import tempfile
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            copy = Path(tmp) / book.name
+            wb.save(copy)
+            cw = load_workbook(copy)
+            ws = cw[control.SHEET]
+            labels = {s.key: s for s in control.load_settings()}
+            for r in ws.iter_rows(min_row=control.FIRST_ROW):
+                key = r[control.KEY_COL - 1].value
+                if key in SUGGEST_KEYS:
+                    r[control.CHOOSE_COL - 1].value = next(o.label for o in labels[key].options
+                                                           if o.value in ("calc", "luck"))
+                    r[control.OWN_COL - 1].value = None
+                elif key in PROVISIONAL and control.answer_of(key, r[control.CHOOSE_COL - 1].value,
+                                                              r[control.OWN_COL - 1].value) is None:
+                    r[control.CHOOSE_COL - 1].value = PROVISIONAL[key]
+                elif key == RUN_KIND:
+                    r[control.CHOOSE_COL - 1].value = next(o.label for o in labels[key].options if o.value == BLEED)
+                elif key == control.PRESPEC_KEY:
+                    r[control.CHOOSE_COL - 1].value = None
+            cw["Columns"][CONFIRM_CELL] = "Yes"
+            cw.save(copy)
+            raw, problems, about = read_book(copy, memory_path)
+            if problems:
+                return {}, set()
+            cfg = cfgmod.parse(raw)
+            if _band_widths(raw, about.get("_widths") or {}, cfg, table, about.get("_edge_cells")):
+                return {}, set()
+            if about.get("_widths"):
+                cfg = cfgmod.parse(raw)
+            first = cfgmod.Config(**{**cfg.__dict__, "benchmark": cfgmod.Benchmark(
+                **{**cfg.benchmark.__dict__, "shuffles": 0})})
+            return _suggest_values(engine.run(first, table), set(SUGGEST_KEYS))
+    except Exception:
+        # a book the first pass can't cut yet (no outcome marked, say): the Run works them out instead
+        return {}, set()
+
+
+def _suggestion_words(key: str, v: float, fallback: bool, when: str) -> str:
+    said = f"{v:,.0f}" if key == "min_loans" else f"{v:.2f}x"
+    if fallback:
+        return f"usual value: {said} (nothing in this extract to work it out from)"
+    return f"suggested: {said}, {when}"
+
+
+def _suggestions(ws, values: dict[str, float], fallback: set[str], when: str) -> None:
+    """The worked-out value beside each suggested setting, so it is seen before
+    it is chosen. The answer cell is left alone (ruling OC-13)."""
+    h = ws.cell(row=control.FIRST_ROW - 1, column=SUGGEST_COL, value="Worked out from the loans")
+    h.font = Font(name="Calibri", bold=True, color=PAPER)
+    h.fill = PatternFill("solid", fgColor=INK)
+    ws.column_dimensions[_col(SUGGEST_COL)].width = 30
+    for r in ws.iter_rows(min_row=control.FIRST_ROW):
+        key = r[control.KEY_COL - 1].value
+        if key not in SUGGEST_KEYS:
+            continue
+        v = values.get(key)
+        c = ws.cell(row=r[0].row, column=SUGGEST_COL,
+                    value=_suggestion_words(key, v, key in fallback, when) if v is not None
+                    else "Worked out when you press Run")
+        c.font = Font(name="Calibri", bold=v is not None and key not in fallback, color=INK if v is not None
+                      else SLATE)
+        c.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.print_area = f"B1:{_col(SUGGEST_COL)}{ws.max_row}"
+
+
 def _writable(book: Path) -> bool:
     """False when another program (Excel) holds the file. Checked before
     anything is changed, so a refused run leaves no trace (second walk, defect 8)."""
@@ -987,7 +1255,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if problems:
         _log(book, ["Couldn't run. Fix these, save, close, and press Run again:"] + problems)
         return Outcome(False, book, ["Couldn't run yet. Fix these in the workbook, save, close, and press Run "
-                                     "again:"] + [f"  - {p}" for p in problems])
+                                     "again:"] + [f"  - {p}" for p in problems], problems=list(problems))
     notes = []
     if extract is not None:
         src = Path(extract)
@@ -1010,7 +1278,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if far:
         _log(book, ["Couldn't run. Fix these, save, close, and press Run again:"] + far)
         return Outcome(False, book, ["Couldn't run yet. Fix these in the workbook, save, close, and press Run "
-                                     "again:"] + [f"  - {p}" for p in far])
+                                     "again:"] + [f"  - {p}" for p in far], problems=list(far))
     suggested: dict[str, float] = {}
     try:
         if about.get("_suggest"):
@@ -1034,6 +1302,10 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
             res = engine.run(cfg, table)
         res.suggested = suggested
         res.control_used = about.get("_use") or {}
+        # every suggestion, refreshed for Control whether or not it was picked; a picked one is what was used
+        values, fb = _suggest_values(res, set(SUGGEST_KEYS))
+        fb = (fb - set(suggested)) | (getattr(res, "suggest_fallback", set()) & set(suggested))
+        res.suggest_all = ({**values, **suggested}, fb)
     except (engine.ColumnsMissing, engine.NothingToCut) as exc:
         msg = re.sub(r"used by dimension \w+", "a segment", re.sub(r"used by band \w+", "a band", str(exc)))
         msg = msg.replace("`", '"')
@@ -1109,7 +1381,34 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     tested = getattr(getattr(res, "prespec", None), "test", None)
     lines.append(f"Open {book.name}: start with "
                  + ("Confirmatory test." if tested is not None and tested.problem is None else "Where it bleeds."))
-    return Outcome(True, book, lines)
+    return Outcome(True, book, lines, summary=_headline(res, book))
+
+
+def _headline(res, book: Path) -> dict:
+    """What the launcher's last step shows: how many pockets read worse and
+    material on charge-offs (the loss share of loans without them), what they
+    lost above their share, the tie-outs, and every odd value still unanswered."""
+    rates = [m for m in res.measures if m.is_rate]
+    m = next((x for x in rates if x.name == "gco_rate"), rates[0] if rates else None)
+    worse, pockets = [], 0
+    for g in res.grids if m is not None else ():
+        for _, c in g.inner():
+            pockets += 1
+            s = c.rates[m.name]
+            if s.flag == engine.WORSE and s.material is not False and s.dollars and s.dollars > 0:
+                worse.append(s.dollars)
+    open_qs = []
+    wb = load_workbook(book)
+    if "Odd values" in wb.sheetnames:
+        for r in wb["Odd values"].iter_rows(min_row=5):
+            if len(r) > 4 and r[1].value and r[2].value and not r[4].value:
+                open_qs.append({"sheet": "Odd values", "cell": f"E{r[0].row}",
+                                "says": f"{r[1].value}: {r[2].value} ({r[3].value or 0:,} loans), used as "
+                                        f"recorded. Answer it on Odd values, row {r[0].row}, and press Run again if "
+                                        f"they mean missing."})
+    return {"measure": m.title if m is not None else None, "gco": m is not None and m.name == "gco_rate",
+            "worse": len(worse), "pockets": pockets, "dollars": sum(worse), "tie_outs": res.tie_outs,
+            "open": open_qs}
 
 
 def _edges_outside(book: Path, raw: dict, cfg, table) -> list[str]:
@@ -1140,9 +1439,11 @@ def _edges_outside(book: Path, raw: dict, cfg, table) -> list[str]:
 
 PLAIN = {
     "`dimensions:` needs at least one entry": "Nothing is left to cut across: mark at least one column as a "
-                                             "category (or term) on the Columns tab, with Cut by it set to Yes.",
+                                             "category (or term) on the Columns tab, and tick it under Segment by "
+                                             "in the launcher.",
     "`bands:` needs at least one entry": "Nothing is left to cut into bands: mark at least one number column as "
-                                        "a score, ratio or amount on the Columns tab, with Cut by it set to Yes.",
+                                        "a score, ratio or amount on the Columns tab, and tick it under Cut into "
+                                        "bands in the launcher.",
 }
 
 
@@ -1156,18 +1457,21 @@ def _changed_away(book: Path, problem: str) -> str:
         return ""
     cat = meanings.catalog()
     out = []
-    for r in load_workbook(book)["Columns"].iter_rows(min_row=COL_FIRST):
+    wb = load_workbook(book)
+    chosen, cells = control.read_choices(wb[control.SHEET])
+    cut = chosen.cut() if chosen else None
+    for r in wb["Columns"].iter_rows(min_row=COL_FIRST):
         name, sugg = r[C_NAME - 1].value, r[C_SUGG - 1].value if len(r) >= C_SUGG else None
         if not name or sugg not in cat or cat[sugg].cut != kind:
             continue
         now = _to_code(r[C_MEANS - 1].value, cat)
         if now != sugg:
             out.append(f"{name} (Columns!{_col(C_MEANS)}{r[0].row}, now {cat[now].label if now else 'blank'})")
-        elif r[C_SPLIT - 1].value == "Yes":
-            out.append(f"{name} (Columns!{_col(C_SPLIT)}{r[0].row}: it splits the pockets, so it isn't a "
+        elif chosen and chosen.split == name:
+            out.append(f"{name} ({cells['split']}: it splits the pockets, so it isn't a "
                        f"{'segment' if kind == 'dimension' else 'band'} of its own)")
-        elif r[C_CUT - 1].value == "No":
-            out.append(f"{name} (Columns!{_col(C_CUT)}{r[0].row}, Cut by it? No)")
+        elif cut is not None and name not in cut:
+            out.append(f"{name} (not ticked in the launcher, {cells['bands' if kind == 'band' else 'segments']})")
     return f" Changed from what was suggested: {'; '.join(out)}." if out else ""
 
 
@@ -1282,6 +1586,8 @@ def _write_results(book: Path, res, memory_path, src: Path, forgotten: set[str] 
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     if control.SHEET in wb.sheetnames:
         _last_run_used(wb[control.SHEET], res)
+        if getattr(res, "suggest_all", None):
+            _suggestions(wb[control.SHEET], *res.suggest_all, when="from this extract at the last Run")
     if forgotten and "Columns" in wb.sheetnames:
         # a Forget holds until a person confirms the column again (the third walk, defect 9:
         # the next Run re-learned it from Columns, which still said Yes)

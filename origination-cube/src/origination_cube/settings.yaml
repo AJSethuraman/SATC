@@ -23,6 +23,10 @@
 #                listed options make sense
 
 #
+# asked_in: launcher   Chosen in the launcher before the workbook is written (the firm's redesign,
+#                  26 Sep 2026): Control shows the answer in its "Chosen in the launcher" block,
+#                  and the run reads it from there like any other answer.
+#
 # only_when: {key: value}   Asked only when another setting has that answer. Blank is
 #                  refused only then, and the answer is not used otherwise.
 
@@ -37,6 +41,7 @@ groups:
   - title: What you're running
     settings:
       - key: run_kind
+        asked_in: launcher
         question: What are you running?
         takes_effect: re-run
         override: null
@@ -54,6 +59,7 @@ groups:
               kept back. Needs the loan number, the outcome and a column marked Origination date.
 
       - key: new_variable_step
+        asked_in: launcher
         question: Scout first, or test from a pre-spec already written?
         takes_effect: re-run
         override: null
@@ -74,6 +80,7 @@ groups:
   - title: How columns are recognised
     settings:
       - key: few_values
+        asked_in: launcher
         question: A number column with this many values or fewer is a category
         takes_effect: re-run
         override: whole number of values
@@ -93,6 +100,7 @@ groups:
             explains: Longer lists stay categories, such as a month or a 1-20 score.
 
       - key: many_values
+        asked_in: launcher
         question: A text column with more values than this is too fine to cut by
         takes_effect: re-run
         override: whole number of values

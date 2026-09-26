@@ -133,19 +133,20 @@ def test_own_band_edges_are_used(tmp_path):
     assert check["Band edges used: FICO"] == "620; 680; 740  (4 bands)"
 
 
-def test_cut_by_it_chooses_what_goes_into_the_grids(tmp_path):
-    """Start with FICO and one segment, then add more: the Cut by it column."""
+def test_the_launchers_cut_chooses_what_goes_into_the_grids(tmp_path):
+    """What is cut into bands is ticked in the launcher (the redesign; it was Columns' "Cut by it?")."""
+    from test_book_dates import _choose
     out = book.set_up(synth.write_extract(tmp_path, n=4000))
     _answer(out.book)
-    wb = load_workbook(out.book)
-    assert wb["Columns"]["D9"].value == "Yes"               # ORIG_BAL, a band, cut by default
-    wb["Columns"]["D9"] = "No"
-    wb.save(out.book)
+    chosen, _ = control.read_choices(load_workbook(out.book)[control.SHEET])
+    assert chosen.bands is None                              # every number column, ORIG_BAL too, by default
+    _choose(out.book, drop=("ORIG_BAL",))
     assert book.run(out.book).ok
     check = {r[1].value for r in load_workbook(out.book)["Check"].iter_rows(min_row=4)}
     assert "Band edges used: FICO" in check and "Band edges used: ORIG_BAL" not in check
-    book.set_up(synth.write_extract(tmp_path, n=4000))       # and the No survives a second set-up
-    assert load_workbook(out.book)["Columns"]["D9"].value == "No"
+    book.set_up(synth.write_extract(tmp_path, n=4000))       # and it survives a second set-up
+    chosen, _ = control.read_choices(load_workbook(out.book)[control.SHEET])
+    assert "ORIG_BAL" not in chosen.bands and "FICO" in chosen.bands
 
 
 def test_grids_are_heat_maps_against_the_book_and_against_peers(tmp_path):

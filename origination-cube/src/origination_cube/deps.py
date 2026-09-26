@@ -22,11 +22,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-# pip's name -> (the name Python imports it by, what the cube uses it for)
+# pip's name -> (the name Python imports it by, what it does for the cube)
 NEEDED = {
-    "numpy": ("numpy", "for the statistics"),
-    "openpyxl": ("openpyxl", "to read and write Excel files"),
-    "PyYAML": ("yaml", "for its settings files"),
+    "numpy": ("numpy", "does the statistics"),
+    "openpyxl": ("openpyxl", "reads and writes Excel files"),
+    "PyYAML": ("yaml", "reads its settings files"),
 }
 PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 # Added to the automatic install only: no prompt can hang it, no nag about pip's own version.
@@ -90,10 +90,6 @@ def missing() -> list[str]:
     return [pip for pip, (mod, _) in NEEDED.items() if not _found(mod) or _too_old(pip, low)]
 
 
-def _and(parts: list[str]) -> str:
-    return parts[0] if len(parts) == 1 else f"{', '.join(parts[:-1])} and {parts[-1]}"
-
-
 def message(names: list[str]) -> str:
     """One line: what is missing, and what the cube uses each one for."""
     low = minimums()
@@ -101,10 +97,14 @@ def message(names: list[str]) -> str:
     for n in names:
         mod, why = NEEDED[n]
         old = _too_old(n, low) if _found(mod) else None
-        parts.append(f"{n} ({why}; the copy here is {old[0]} and it needs {old[1]} or later)" if old
-                     else f"{n} ({why})")
-    what = "an add-on" if len(parts) == 1 else "add-ons"
-    return f"The cube needs {what} this computer doesn't have yet: {_and(parts)}."
+        parts.append(f"{n}, which {why} (the copy here is {old[0]} and it needs {old[1]} or later)" if old
+                     else f"{n}, which {why}")
+    # the redesign's words (docs/redesign-2026-09-26/README.md, L4): "One add-on is missing: numpy, which does
+    # the statistics."
+    if len(parts) == 1:
+        return f"One add-on is missing: {parts[0]}."
+    count = {2: "Two", 3: "Three"}.get(len(parts), str(len(parts)))
+    return f"{count} add-ons are missing: {'; '.join(parts[:-1])}; and {parts[-1]}."
 
 
 def python_exe() -> str:
@@ -136,7 +136,7 @@ def ask_it(names: list[str]) -> str:
     whose = ", under my account" if _per_user() else ""
     these, them = ("this Python add-on", "it") if len(names) == 1 else ("these Python add-ons", "them")
     return (f"Please install {these} for {python_exe()}{whose}: {', '.join(names)}. "
-            f"The Origination Cube needs {them}, and installing {them} from my computer didn't work. "
+            f"PocketBook needs {them}, and installing {them} from my computer didn't work. "
             f"The command is:\n\n{command_text(names)}")
 
 

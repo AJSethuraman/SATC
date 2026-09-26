@@ -63,25 +63,41 @@ py -m pip install --user --upgrade numpy openpyxl PyYAML
 
 After that, the whole routine is:
 
-1. Double-click **`Origination Cube.pyw`**. A small window opens.
-2. Pick the extract (the loan file from the bank, .csv or .xlsx) and press
-   **1. Set up from this extract**. A workbook appears beside the extract.
-3. Open the workbook and follow its **Start here** tab:
-   - **Control:** first, **What are you running?** Nothing is picked for you,
-     and a blank answer stops the Run.
-     - *Where the book bleeds:* the grids, the split and the three-way. It
-       needs the five columns below and no date.
-     - *Finding and testing a new variable:* it needs the loan number, the
-       outcome and a column marked *Origination date*; the booked amount, GCO
-       and RANR only if the extract has them. It asks one more thing: **scout first, or test
-       from a pre-spec already written?** Scouting isn't built yet, so that
-       answer stops the Run and says so. Testing from a pre-spec needs the
-       committed pre-spec file named in the last cell (below), and the column
-       it tests on Columns.
+1. Double-click **`Origination Cube.pyw`**. The **PocketBook** window opens
+   (the redesign of 26 Sep 2026, `docs/redesign-2026-09-26/`): five steps down
+   the left, one job on the right.
+2. **Extract.** Pick the loan file from the bank (.csv or .xlsx). The box under
+   it holds the two limits Set up reads the columns with (a number column with
+   12 values or fewer is a category; a text column with more than 50 is too
+   fine to cut by). They sit here because they are needed before the workbook
+   exists. Press **Set up from this extract**: it reads what each column is and
+   writes nothing.
+3. **Choose tests.** First, what you're running:
+   - *Where the book bleeds:* tick the number columns to **cut into bands**,
+     the categories to **segment by**, and at most one number column to
+     **split every pocket by**. Every number column and every category starts
+     ticked. The outcome and dollar columns go into every measure. It needs
+     the five columns below and no date.
+   - *Test new variables:* pick the outcome, tick the inputs to **test**, and
+     the columns to **hold fixed** (a column is one or the other). Or confirm a
+     saved shortlist: **Browse** to the committed pre-spec file, which then
+     decides the inputs and what is held fixed (below). It needs the loan
+     number, the outcome and a column marked *Origination date*; the booked
+     amount, GCO and RANR only if the extract has them.
 
-     Then fill in the other shaded cells. Those are our calls: what's
-     material, how many loans is enough, how much worse counts. The last
-     column, *When a change shows*, says when a change takes effect (below).
+   The box underneath says what will run. **Next: answer in the workbook**
+   writes the workbook beside the extract as *loans - PocketBook.xlsx*.
+   Control shows these choices read-only, under *Chosen in the launcher*; to
+   change one, go back to Choose tests (press it on the left) and Next again.
+   Answers already given are kept.
+4. **Answer in workbook.** Follow its **Start here** tab:
+   - **Control:** fill in the shaded cells. Those are our calls: what's
+     material, how many loans is enough, how much worse counts. Nothing is
+     picked for you. Beside fewest loans, worse at and better at, the last
+     column already shows the value worked out from this extract ("suggested:
+     69, from this extract"), from the pockets cut at the default edges, so
+     you see the number before you choose. Each Run works it out again. The
+     column *When a change shows* says when a change takes effect (below).
    - **Columns:** check what each column is. Anything shaded has its reason
      beside it. Fix any that's wrong from the dropdown, then set "Checked
      every column" to Yes. For a new variable, mark the date each loan was
@@ -92,8 +108,13 @@ After that, the whole routine is:
      most-repeated values, its blanks and codes, and a histogram. Read it
      before typing band edges on Columns.
    - **Odd values:** answer real or missing where you can.
-4. Save, close the workbook, and press **2. Run the cube**. The results land in
-   the workbook:
+5. **Run.** Save, close the workbook, and press **Run the cube**. If anything
+   still needs an answer, the window lists each one by its tab and cell, with
+   the question in words and **Open at C23**, which opens the workbook at that
+   cell. While the workbook is open in Excel it says so, and Run waits. When
+   the Run finishes, it shows how many pockets are worse and material on
+   charge-offs, what they lost above their share, the tie-out checks, and any
+   odd value still unanswered. The results land in the workbook:
    - **Confirmatory test:** only when testing from a pre-spec (below).
    - **Where it bleeds:** every pocket losing more than its share, largest first.
      Each pocket has two dollar figures, its excess over the rest of its band
@@ -157,8 +178,8 @@ and what you're running. Control's last column says which.
   a number) and `_pockets` (every pocket's numbers from the Run, and the
   formulas that judge them). Unhide either to follow a reading back to Control.
 
-**Going a layer deeper.** On Columns, set one column's *Split pockets by it?*
-to Yes. A number (revolving debt, say) splits every FICO-by-asset-class pocket
+**Going a layer deeper.** In the launcher's Choose tests, pick one column
+under *Split pockets by*. A number (revolving debt, say) splits every FICO-by-asset-class pocket
 at that pocket's own median, and the Split tab compares the high half with the
 low half, pocket by pocket and pooled. Each grid says what it holds fixed:
 revolving debt moves with FICO, so a loan-size grid can't tell debt from score,
@@ -173,11 +194,12 @@ you can see whether it only re-sorts the band.
 **A confirmatory run.** A column scouted on development loans (income over
 sales, say) is tested once, on loans kept back, with settings written down and
 committed to git beforehand: the pre-spec (`docs/prespec-example.yaml`; the
-format is in `src/origination_cube/prespec.py`). Answer *Finding and testing a
-new variable* and *Test from a pre-spec* on Control, and name that file in its
-last cell. A file that isn't there or can't be read stops the Run, naming the
-cell, and so does a blank cell, a pre-spec whose column isn't on Columns, or a
-pre-spec named for Where the book bleeds. Otherwise Check echoes what it says and
+format is in `src/origination_cube/prespec.py`). In the launcher, choose *Test
+new variables* and **Browse** to that file under *Or confirm a saved
+shortlist*; Control shows it under *Chosen in the launcher*. A file that isn't
+there or can't be read stops the Run, naming the cell, and so does a pre-spec
+whose column isn't on Columns, or a pre-spec named for Where the book bleeds.
+Without a saved shortlist, the Run stops and asks for one. Otherwise Check echoes what it says and
 the commit it was read from (or that it isn't committed, or was edited since),
 and lists, one line each, where the run differs from it; the Log marks such a
 run *Deviates from pre-spec*. Every run whose extract holds loans made in the
@@ -207,8 +229,8 @@ Check counts them, and every other tab still uses every loan. For each range:
 Each section says its method in plain words, and the tab lists the choices no
 ruling settles yet. Every "significant" and every range follows the confidence
 level on Control. A pocket too small to read on its own still counts in the
-pooled test. A column the pre-spec's strata name must be cut on Columns, or
-the Run stops, naming the pre-spec's cell. Check says where the run differs
+pooled test. A column the pre-spec's strata name must be cut (held fixed in
+the launcher), or the Run stops, naming the pre-spec's cell. Check says where the run differs
 from the pre-spec. A run that did what its pre-spec says differs nowhere: the
 reference group is the pre-spec's, and the holdout is the range the test held
 itself to, not the first and last loan in the extract.
@@ -229,11 +251,15 @@ there: the pockets hold it fixed.
 ![Losses vs revenue: paid, cost and kept, and the chart](docs/losses-vs-revenue.png)
 
 If something needs fixing, the window and the Log tab say what and where, in
-words, e.g. *Control!C6: "What are you running?" needs an answer.* Press Set up again at any time: answers already given are kept.
+words, e.g. *Control!C26: "Smallest excess loss worth reporting" needs an answer.* The window lists each one
+with an **Open at** button that opens the workbook at that cell. Press Next in the launcher again at any time:
+answers already given are kept.
 What you confirm is remembered for next time; the **Learned** tab lets you set
 anything wrongly learned to Forget.
 
-![The launcher after set up](docs/launcher/launcher-02-after-set-up-screen.png)
+![The launcher's Choose tests step](docs/launcher/L2-choose-tests-bleed-split.png)
+
+![Run pressed before everything is answered](docs/launcher/L3-answers-needed.png)
 
 **What an extract must carry** for where the book bleeds: a loan or
 application number, the booked amount, a yes/no outcome, GCO dollars and RANR
@@ -267,14 +293,18 @@ The same engine is behind a command line, which the tests use:
 - `cube control`
 - `cube memory`
 
-`tools/shoot_launcher.py` photographs the window in each state on a virtual
-display.
+`tools/shoot_launcher.py` photographs the window in each state (L1 to L5)
+on a virtual display. The window's rules live in `launcher.Flow`, which knows
+nothing of Tk, so `tests/test_launcher.py` drives every state without one. The
+colours are `house.py`'s: the bank palette, written once for the cube (a copy
+of credit-suite's style file anywhere in the repository fails its conformance
+test).
 
 ## Checking it
 
 ```
-pytest -q                          # 558 tests (1 skips without a display; the 22 in test_live.py, 3 in test_confirm_test.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one
-python tools/mutation_check.py     # puts 236 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 580 tests (2 skip without a display; the 22 in test_live.py, 3 in test_confirm_test.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one
+python tools/mutation_check.py     # puts 251 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

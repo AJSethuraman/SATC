@@ -16,7 +16,7 @@ from openpyxl import load_workbook
 from conftest import cube, table
 from origination_cube import book, confirmatory, control, engine, prespec, prevalence, synth
 from test_book import _answer
-from test_book_dates import _check, _columns, _control
+from test_book_dates import _check, _choose, _columns, _control
 
 needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed on this machine")
 
@@ -63,9 +63,8 @@ def _ready(tmp_path, monkeypatch, n=3000):
     _control(b, run_kind="Finding and testing a new variable", new_variable_step="Test from a pre-spec",
              **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
     book.set_up(x)
-    _columns(b, "INCOME_TO_SALES", C_SPLIT="Yes", C_EDGES="0.1; 0.25; 0.5; 1; 2")
-    for c in ("ORIG_BAL", "REV_DEBT", "ASSET_CLASS", "INCOME", "SALES"):
-        _columns(b, c, C_CUT="No")
+    _columns(b, "INCOME_TO_SALES", C_EDGES="0.1; 0.25; 0.5; 1; 2")
+    _choose(b, drop=("ORIG_BAL", "REV_DEBT", "ASSET_CLASS", "INCOME", "SALES"), split="INCOME_TO_SALES")
     wb = load_workbook(b)
     wb["Columns"][book.CONFIRM_CELL] = "Yes"
     wb.save(b)

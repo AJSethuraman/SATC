@@ -22,6 +22,7 @@ from recalc import calculated_book, values_of
 from conftest import TEST_SHUFFLES
 from origination_cube import book, config as cfgmod, engine, perm, synth
 from test_book import _answer
+from test_book_dates import _choose
 
 
 @pytest.fixture(scope="module")
@@ -33,11 +34,7 @@ def split_book(tmp_path_factory):
         mp.setattr(perm, "SHUFFLES", TEST_SHUFFLES)
         out = book.set_up(synth.write_extract(d, n=8000))
         _answer(out.book)
-        wb = load_workbook(out.book)
-        for r in wb["Columns"].iter_rows(min_row=book.COL_FIRST):
-            if r[book.C_NAME - 1].value == "REV_DEBT":
-                r[book.C_SPLIT - 1].value = "Yes"
-        wb.save(out.book)
+        _choose(out.book, split="REV_DEBT")
         ran = book.run(out.book)
         assert ran.ok, ran.lines
     return calculated_book(out.book)          # some words are formulas over Control's lines (OC-40)

@@ -10,9 +10,10 @@ from openpyxl import load_workbook
 
 from recalc import recalc
 
-from origination_cube import book, engine, meanings, synth
+from origination_cube import book, control, engine, meanings, synth
 from origination_cube.ingest import read_table
 from test_book import _answer
+from test_book_dates import _choose
 
 
 
@@ -121,7 +122,7 @@ def test_median_of_a_category_is_refused_by_cell(tmp_path):
 
 def test_split_by_a_number_finds_the_planted_revolving_debt_effect(tmp_path):
     b = _ready(tmp_path, n=8000)
-    _set(b, "REV_DEBT", book.C_SPLIT, "Yes")
+    _choose(b, split="REV_DEBT")
     raw, problems, _ = book.read_book(b)
     assert not problems and raw["split"] == {"field": "REV_DEBT", "how": "own_median"}
     assert "REV_DEBT" not in {x["field"] for x in raw["bands"]}      # it splits; it isn't also cut
@@ -145,20 +146,11 @@ def test_split_by_a_number_finds_the_planted_revolving_debt_effect(tmp_path):
 
 def test_split_by_a_category_repeats_the_grid_once_per_value(tmp_path):
     b = _ready(tmp_path)
-    _set(b, "ASSET_CLASS", book.C_CUT, "No")
-    _set(b, "ASSET_CLASS", book.C_SPLIT, "Yes")
+    _choose(b, drop=("ASSET_CLASS",), split="ASSET_CLASS")
     assert book.read_book(b)[0]["split"]["how"] == "each_value"
     assert book.run(b).ok
     heads = {c.value for row in load_workbook(b)["Grids"].iter_rows() for c in row if isinstance(c.value, str)}
     assert {"ASSET_CLASS = 1", "ASSET_CLASS = 4"} <= heads
-
-
-def test_only_one_column_can_split(tmp_path):
-    b = _ready(tmp_path, n=2000)
-    _set(b, "REV_DEBT", book.C_SPLIT, "Yes")
-    _set(b, "ORIG_BAL", book.C_SPLIT, "Yes")
-    ran = book.run(b)
-    assert not ran.ok and any("only one column can split" in x for x in ran.lines)
 
 
 def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
@@ -360,7 +352,7 @@ def test_an_edge_outside_the_columns_values_is_refused_by_cell(tmp_path):
 def test_three_way_pockets_are_tested_and_ranked(tmp_path):
     """Ruling OC-27; the third walk, defect 3: a category split drew pictures only."""
     b = _ready(tmp_path)
-    _set(b, "ASSET_CLASS", book.C_SPLIT, "Yes")
+    _choose(b, split="ASSET_CLASS")
     ran = book.run(b)
     assert ran.ok and any("Split by ASSET_CLASS" in x for x in ran.lines)
     wb = load_workbook(b)
@@ -375,9 +367,11 @@ def test_three_way_pockets_are_tested_and_ranked(tmp_path):
 def test_a_split_on_a_column_that_cant_split_is_refused_by_cell(tmp_path):
     """The third walk, defect 7: GCO split by itself read 93.83x."""
     b = _ready(tmp_path, n=2000)
-    _set(b, "GCO_AMT", book.C_SPLIT, "Yes")
+    _choose(b, split="GCO_AMT")
     ran = book.run(b)
-    assert not ran.ok and any("Columns!H11" in x and "can't split the pockets" in x for x in ran.lines)
+    split = f"Control!C{control.row_of(load_workbook(b)[control.SHEET], 'launcher|split')}"
+    assert not ran.ok and any(x.strip(" -").startswith(split) and "Columns!C11" in x and "can't split the pockets"
+                              in x for x in ran.lines), ran.lines
 
 
 def test_a_dollar_materiality_line_is_gco_and_profit_is_held_to_it(tmp_path):
@@ -424,7 +418,7 @@ def test_the_workbook_is_refused_as_its_own_extract(tmp_path):
     b = _ready(tmp_path, n=500)
     out = book.set_up(b)
     assert not out.ok and "is the workbook, not the loan file" in out.lines[0]
-    assert not b.with_name(f"{b.stem} - Origination Cube.xlsx").exists()
+    assert not b.with_name(f"{b.stem}{book.SUFFIX}").exists()
 
 
 def test_a_renamed_column_says_to_press_set_up(tmp_path):
@@ -546,7 +540,7 @@ def test_losses_vs_revenue_dollars_agree_with_the_box_and_untested_pockets_get_n
 def test_three_way_rows_say_what_their_grid_holds_fixed(tmp_path):
     """The fourth walk, defect 1: the Three-way tab carried no caveat at all."""
     b = _ready(tmp_path)
-    _set(b, "REV_DEBT", book.C_SPLIT, "Yes")
+    _choose(b, split="REV_DEBT")
     assert book.run(b).ok
     ws = load_workbook(b)["Three-way"]
     assert ws.cell(row=4, column=20).value == "Holds FICO fixed?"
@@ -747,7 +741,7 @@ def test_a_suggestion_with_nothing_to_work_from_says_so(tmp_path):
 def test_split_gaps_that_could_be_luck_are_bracketed(tmp_path):
     """The sixth walk, defect 9: a 2.33x at 61% luck was deep red."""
     b = _ready(tmp_path)
-    _set(b, "REV_DEBT", book.C_SPLIT, "Yes")
+    _choose(b, split="REV_DEBT")
     assert book.run(b).ok
     ws = _tab(b, "Split")
     vals = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
