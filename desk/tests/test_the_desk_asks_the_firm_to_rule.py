@@ -448,3 +448,59 @@ def test_the_same_number_with_a_different_proposal_is_not_a_retry(corpus, queue)
     other = dataclasses.replace(done, proposed="recordkeeping")
     with pytest.raises(record.RecordError, match="already records a different"):
         rulings.record_ruling(corpus, other)
+
+
+@pytest.mark.parametrize("reply", ["R1 Sounds good", "R1 I agree",
+                                   "R1 Please keep it", "R1 Don't change it"])
+def test_a_courtesy_is_not_new_wording(corpus, queue, reply):
+    """Independent review of #401: "Sounds good" to POS7's ruling became
+    POS7's wording. A reply too short to be a position is asked again."""
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(reply, sent=line)
+    before = (corpus / "positions" / "POSITIONS.md").read_text(encoding="utf-8")
+    with pytest.raises(ValueError, match="Ask the firm which they meant"):
+        rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+    assert (corpus / "positions" / "POSITIONS.md").read_text(encoding="utf-8") == before
+
+
+@pytest.mark.parametrize("pid", ["POS1", "POS2", "POS10", "POS13"])
+def test_a_ruling_changes_the_wording_and_rests_on_and_nothing_else(corpus, pid):
+    """Independent review of #401: new rests-on words dropped every field
+    between Position and Why -- Needs, Unless, Default -- and could leave the
+    position unratified."""
+    before = next(q for q in record.load(corpus).positions if q.id == pid)
+    rests = "; ".join(f'{c} — "{w}"' if c != before.citation else f'"{w}"'
+                      for c, w in before.rests_on)
+    rests = "\n".join(f'{c} — "{w}"' for c, w in before.rests_on)
+    rulings._amended(corpus, pid, before.position + " (ruled)", rests,
+                     ruled="R9 — 2026-09-27: \"yes\"")
+    after = next(q for q in record.load(corpus).positions if q.id == pid)
+    assert after.position.endswith("(ruled)")
+    for field in ("needs", "unless", "default", "ratified", "kind", "applies_at"):
+        assert getattr(after, field) == getattr(before, field), (pid, field)
+    assert after.rests_on == before.rests_on
+
+
+@pytest.mark.parametrize("pid", ["POS13", "POS14"])
+def test_keeping_a_position_leaves_its_ratified_line_whole(corpus, pid):
+    """Independent review of #401: Ratified wraps over two lines on POS13 and
+    POS14, and `Ruled:` was spliced in after the first."""
+    before = next(q for q in record.load(corpus).positions if q.id == pid)
+    rulings._mark_upheld(corpus, pid, 'R9 — 2026-09-27: "no"')
+    after = next(q for q in record.load(corpus).positions if q.id == pid)
+    assert after.ruled == 'R9 — 2026-09-27: "no"'
+    assert after.ratified == before.ratified
+
+
+def test_a_ruling_that_cannot_be_sent_is_not_filed(corpus, queue, monkeypatch):
+    """Independent review of #401: the queue was written before the line was
+    built, so a line the PII guard refused left the subject "already waiting"
+    with nothing sent."""
+    f = _found(corpus, "reach", RECORDS)
+    def refuse(*a, **k):
+        raise ValueError("refusing to send this notification")
+    monkeypatch.setattr(notifying, "line", refuse)
+    with pytest.raises(ValueError, match="refusing"):
+        rulings.ask(f, "commingling", queue=queue, corpus=corpus)
+    assert not queue.exists()

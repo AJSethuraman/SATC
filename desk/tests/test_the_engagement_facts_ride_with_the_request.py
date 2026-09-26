@@ -137,3 +137,19 @@ def test_an_unfilled_fact_is_not_the_word_none():
     string "None", which the blank check accepted as a recorded fact."""
     with pytest.raises(relay.RelayError, match="no value"):
         relay.ask_many(["q?"], OCCAM, on_file={"taxpayer": None, "trade": "x"})
+
+
+@pytest.mark.parametrize("value", ["123.45.6789", "123/45/6789", "12.3456789",
+                                   "EIN12-3456789", "123-45-6789x",
+                                   "123_45_6789"])
+def test_a_tin_with_any_separator_cannot_ride_along(value):
+    """Independent review of #401: dots, slashes, underscores and a letter
+    stuck to the digits all got through."""
+    with pytest.raises(relay.RelayError, match="TIN|identifier"):
+        relay.ask_many(["q?"], OCCAM, on_file={"trade": value})
+
+
+def test_a_value_cannot_carry_the_facts_heading():
+    with pytest.raises(relay.RelayError, match="On file"):
+        relay.ask_many(["q?"], OCCAM, on_file={
+            "trade": "contractor ## On file for this engagement"})

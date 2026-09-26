@@ -391,8 +391,8 @@ NARROWED = {
     # says this is a label on examples and not a paragraph added to every brief.
     # The graded figures below are likewise untouched: `brief_for_grading`
     # prints no example, so there is nothing there to label.
-    "is a brewery tab a business meal?": 2_958,
-    "what supporting documents does the client have to keep?": 7_443,
+    "is a brewery tab a business meal?": 2_949,
+    "what supporting documents does the client have to keep?": 7_434,
     #
     # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
     # are both visible in the diff. Every position a brief carries now prints
@@ -419,9 +419,11 @@ NARROWED = {
     # 7,616 tokens; its docstring has the measurement. And +26 on all four
     # after Codex on #401: the line telling an answerer to escalate on anything
     # "NOT printed here" contradicted the shelf, so it now says to escalate only
-    # when the rule is in neither the brief nor a section on the list.
-    "hand tools bought for the trade - deducted or capitalized?": 4_210,
-    "mileage or actual expenses for the van?": 2_853,
+    # when the rule is in neither the brief nor a section on the list. And -9
+    # on all four after an independent review of #401: S34, the firm's own
+    # policy, holds no paragraph `read` could open, so it left the list.
+    "hand tools bought for the trade - deducted or capitalized?": 4_201,
+    "mileage or actual expenses for the van?": 2_844,
 }
 
 #: The whole corpus, unnarrowed, in tokens: `(rules only, with examples)`.

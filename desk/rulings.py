@@ -396,9 +396,14 @@ def ask(finding: Finding, proposed: str, *, queue: Path, corpus: Path,
                   subject=finding.subject, why=finding.why,
                   proposed=proposed.strip(), asked_by=finding.asked_by,
                   recorded=on or date.today().isoformat())
+    # THE LINE FIRST, THE QUEUE SECOND. `notifying.line` refuses anything that
+    # looks like a client identifier; filed first, a refused ruling would sit
+    # in the queue as "already waiting" with nothing ever sent (independent
+    # review of #401).
+    line = notifying.line(entry.question(), ref=entry.id,
+                          verb="Desk asks you to rule")
     _write(Path(queue), entries + [entry])
-    return entry, notifying.line(entry.question(), ref=entry.id,
-                                 verb="Desk asks you to rule")
+    return entry, line
 
 
 def settle(queue: Path, rid: str, answer: str, *, on: str = "") -> Asked:
@@ -460,6 +465,43 @@ def _verdict(body: str) -> str:
 _MARKER = re.compile(r"\*\*[A-Z][A-Za-z ]*:\*\*")
 
 
+def _field_span(block: str, label: str):
+    """`(start, end)` of one field in a position block, or None.
+
+    A FIELD ENDS AT A BLANK LINE OR THE NEXT FIELD, not at the end of its first
+    line. Independent review of #401: `Ratified:` wraps over two lines on POS13
+    and POS14, and `Ruled:` was spliced between them; `Rests on:` runs over
+    several. Everything outside the span is left exactly as it was.
+    """
+    m = re.search(rf"^\*\*{re.escape(label)}:\*\*", block, re.M)
+    if not m:
+        return None
+    rest = block[m.end():]
+    stops = [i for i in (rest.find("\n\n"),) if i >= 0]
+    nxt = re.search(r"\n\*\*[A-Z][A-Za-z ]*:\*\*", rest)
+    if nxt:
+        stops.append(nxt.start())
+    return m.start(), m.end() + (min(stops) if stops else len(rest.rstrip()))
+
+
+def _after_ratified(block: str, ruled: str) -> str:
+    span = _field_span(block, "Ratified")
+    at = span[1] if span else len(block.rstrip())
+    return block[:at] + f"\n\n**Ruled:** {ruled}" + block[at:]
+
+
+#: A position is a sentence of the firm's, not a courtesy. Independent review
+#: of #401: "Sounds good" to POS7's ruling became POS7's wording. A reply
+#: shorter than this is asked again rather than recorded as wording.
+#:
+#: THE COST, MEASURED: two ratified positions are shorter than a courtesy can
+#: be told apart from -- POS5 "an entry in the books" (5 words) and POS4 (8).
+#: "Please keep it as is" is 5 words too, so no length separates them. A short
+#: wording from the firm costs one more message; a courtesy recorded as a
+#: position costs the position. The first is the cheaper mistake.
+MIN_WORDING = 8
+
+
 def _plain(pid: str, wording: str, rests: str) -> None:
     """Wording is one line of prose, and neither it nor its rests-on lines may
     carry a `**Field:**` marker. Codex on #401: "**Needs:** taxpayer" inside
@@ -490,20 +532,21 @@ def _amended(corpus: Path, pid: str, wording: str, rests: str, *,
     nxt = re.search(r"^## POS\d+ · ", text[head.end():], re.M)
     end = head.end() + nxt.start() if nxt else len(text)
     block = text[head.end():end]
-    pos_at = block.index("**Position:**")
-    why_at = block.index("**Why:**")
-    # A WORDING-ONLY PROPOSAL KEEPS WHAT THE POSITION RESTS ON; one that names
-    # new words replaces them. Either way the result is loaded before it is kept.
+    # THE WORDING AND WHAT IT RESTS ON, AND NOTHING ELSE. Independent review of
+    # #401: replacing everything from Position to Why dropped Needs, Unless and
+    # Default on POS1, POS2, POS10 and POS13, and could leave one unratified.
+    # Each field is replaced in place; every other byte of the block stays.
+    p0, p1 = _field_span(block, "Position")
+    block = block[:p0] + f"**Position:** {wording}" + block[p1:]
     if rests:
-        block = (block[:pos_at] + f"**Position:** {wording}\n\n"
-                 f"**Rests on:** {rests}\n\n" + block[why_at:])
-    else:
-        line_end = block.index("\n", pos_at)
-        block = block[:pos_at] + f"**Position:** {wording}" + block[line_end:]
+        span = _field_span(block, "Rests on")
+        if span:
+            block = block[:span[0]] + f"**Rests on:** {rests}" + block[span[1]:]
+        else:
+            p1 = _field_span(block, "Position")[1]
+            block = block[:p1] + f"\n\n**Rests on:** {rests}" + block[p1:]
     if ruled:
-        rat = re.search(r"^\*\*Ratified:\*\*.*$", block, re.M)
-        at = rat.end() if rat else len(block.rstrip())
-        block = block[:at] + f"\n\n**Ruled:** {ruled}" + block[at:]
+        block = _after_ratified(block, ruled)
     new_text = text[:head.end()] + block + text[end:]
     with tempfile.TemporaryDirectory() as tmp:
         trial = Path(tmp) / "corpus"
@@ -646,6 +689,12 @@ def _record_ruling(corpus: Path, entry: Asked) -> Ruling:
     else:
         wording, rests = _split_proposal(entry.proposed)
         if not said_yes:
+            if len(body.split()) < MIN_WORDING:
+                raise ValueError(
+                    f"{entry.id}: the reply \"{entry.answer}\" is neither a "
+                    f"plain yes or no nor a position's wording. Ask the firm "
+                    f"which they meant; recording it as the new wording would "
+                    f"be a guess.")
             wording = body
         _amended(corpus, entry.subject, wording, rests, ruled=ruled)
         r = replace(base, outcome="amended")
@@ -662,10 +711,7 @@ def _mark_upheld(corpus: Path, pid: str, ruled: str) -> None:
             continue
         nxt = re.search(r"^## POS\d+ · ", text[head.end():], re.M)
         end = head.end() + nxt.start() if nxt else len(text)
-        block = text[head.end():end]
-        rat = re.search(r"^\*\*Ratified:\*\*.*$", block, re.M)
-        at = rat.end() if rat else len(block.rstrip())
-        block = block[:at] + f"\n\n**Ruled:** {ruled}" + block[at:]
+        block = _after_ratified(text[head.end():end], ruled)
         f.write_text(text[:head.end()] + block + text[end:], encoding="utf-8")
         return
     raise record.RecordError(f"no position {pid}")

@@ -37,10 +37,15 @@ def test_the_brief_does_not_say_what_the_engine_does_not_do():
 
 
 def test_every_section_on_file_is_listed_in_the_brief():
+    """Every source holding a stored paragraph. S34, the firm's own policy,
+    holds none -- its positions are printed where they apply."""
     got = ask.consult(COMMINGLED)
     index = got[got.index("## Everything on file"):]
-    for source in record.load(CORPUS).sources:
-        assert f"`{source.citation_prefix}`" in index, source.id
+    desk = record.load(CORPUS)
+    held = {p.source_id for p in desk.passages}
+    for source in desk.sources:
+        assert (f"`{source.citation_prefix}`" in index) == (source.id in held), \
+            source.id
 
 
 def test_the_rule_retrieval_missed_is_one_read_away():
@@ -73,3 +78,15 @@ def test_nothing_on_file_says_so_rather_than_offering_the_nearest():
     got = ask.read("26 CFR 1.6001-9")
     assert got.startswith("Nothing on file under 26 CFR 1.6001-9")
     assert "1.6001-1" not in got
+
+
+def test_every_listed_section_opens():
+    """Independent review of #401: five sources whose citations run
+    "IRS Pub. 463 (2025), ..." were refused by `read`, though the brief told
+    the answerer to read them; and a source holding no paragraphs was listed."""
+    got = ask.consult(COMMINGLED)
+    index = got[got.index("## Everything on file"):]
+    for source in record.load(CORPUS).sources:
+        listed = f"`{source.citation_prefix}`" in index
+        opens = not ask.read(source.citation_prefix).startswith("Nothing on file")
+        assert listed == opens, (source.id, listed, opens)

@@ -350,7 +350,7 @@ def consult(question: str, corpus: Path = CORPUS,
     ruled = {c: r for c, r in ruled.items() if c not in cited}
     cited += list(ruled)
     return brief(question, whole.narrowed_to(cited),
-                 context, rule_added=added, on_file=tuple(whole.sources),
+                 context, rule_added=added, on_file=_shelf(whole),
                  ruled=ruled)
 
 
@@ -856,6 +856,15 @@ def brief(question: str, desk: record.Desk,
     return "\n".join(out)
 
 
+def _shelf(desk) -> tuple:
+    """The sources an answerer can actually open with `read`: those holding a
+    stored paragraph. Independent review of #401: S34, the firm's own policy,
+    holds none -- its positions are printed where they apply -- and listing it
+    told the answerer to read something `read` refuses."""
+    held = {p.source_id for p in desk.passages}
+    return tuple(s for s in desk.sources if s.id in held)
+
+
 def on_file_index(sources) -> list:
     """Every section on file, in one line: what an answerer may go and read.
 
@@ -899,10 +908,13 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
     exact = desk.passage(citation)
     # UNDER MEANS UNDER. A bare prefix test put § 1.61-10 under § 1.61-1 and
     # § 1.274-5T under § 1.274-5; what follows the citation has to open a
-    # sub-paragraph or name an example of it.
+    # sub-paragraph, name an example, or -- for a publication cited
+    # 'IRS Pub. 463 (2025), "Actual Car Expenses"' -- a comma and a heading.
+    # The comma was missed, and five listed sources would not open
+    # (independent review of #401).
     under = [p for p in desk.passages
              if p.citation.startswith(citation)
-             and p.citation[len(citation):][:1] in ("(", " ")]
+             and p.citation[len(citation):][:1] in ("(", " ", ",")]
     if exact:
         out = [f"### {exact.citation}", "", f"> {exact.text}", ""]
         # A LEAD-IN IS HALF A SENTENCE. § 1.263(a)-4(f)(1) ends "does not

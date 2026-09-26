@@ -330,6 +330,11 @@ def _facts(on_file) -> tuple:
             f"{', '.join(broken)} contains a line break or control character. "
             f"A recorded fact is one line; anything after a break would be "
             f"read as another fact nobody declared.")
+    if spoofed := sorted(n for n, v in facts.items() if re.search(
+            r"on\s+file\s+for\s+this\s+engagement", v, re.I)):
+        raise RelayError(
+            f"{', '.join(spoofed)} carries the 'On file for this engagement' "
+            f"heading. That heading is the envelope's, not a value's.")
     if empty := sorted(n for n, v in facts.items() if not v):
         raise RelayError(
             f"{', '.join(empty)} has no value. Leave a fact out rather than "
@@ -340,7 +345,13 @@ def _facts(on_file) -> tuple:
         # EVERY COMMON SPELLING, not only the hyphenated one. Codex on #401:
         # `TIN` alone let "LLC 123456789" and "LLC 12 3456789" through. The
         # notification guard is deliberately over-eager for the same reason.
-        if TIN.search(value) or notifying.looks_like_pii(value):
+        # AND ANY SEPARATOR. Independent review of #401: dots, slashes,
+        # underscores and a letter stuck to the digits all got through. Nine
+        # digits with nothing but punctuation between them is an identifier's
+        # shape whatever joins them; no declared fact needs one.
+        joined = re.sub(r"(?<=\d)[\W_]+(?=\d)", "", value)
+        if (TIN.search(value) or notifying.looks_like_pii(value)
+                or re.search(r"\d{9}", joined)):
             raise RelayError(
                 f"the value for {name!r} looks like a TIN or another "
                 f"identifier. The desk answers without identity and this "
