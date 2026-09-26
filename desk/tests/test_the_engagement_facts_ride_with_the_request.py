@@ -299,3 +299,12 @@ def test_a_damaged_facts_block_is_refused_not_cut_short(damage):
     body = relay.batch_prompt(relay.ask_many(["q?"], OCCAM, on_file=SARCIA))
     with pytest.raises(relay.RelayError, match="damaged|not a fact line"):
         relay.on_file(body.replace(*damage, 1))
+
+
+def test_a_blank_line_inside_the_facts_block_is_refused():
+    """Codex on #401: a blank line between two fact rows ended the block, and
+    only the first was read."""
+    body = relay.batch_prompt(relay.ask_many(["q?"], OCCAM, on_file=SARCIA))
+    split = body.replace("- **taxpayer:** LLC\n", "- **taxpayer:** LLC\n\n", 1)
+    with pytest.raises(relay.RelayError, match="damaged|after the block"):
+        relay.on_file(split)

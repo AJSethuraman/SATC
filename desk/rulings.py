@@ -69,10 +69,13 @@ KINDS = ("reach", "position")
 #: passed as grounded.
 #: AND THE MAGNITUDE. Codex on #401: "$10 million" and "$10 thousand" both
 #: read "$10". And percentage points, which are not percent: "10 percentage
-#: points" matched nothing at all (Codex on #401).
+#: points" matched nothing at all (Codex on #401). And amounts written in
+#: words: "10 million dollars" is "$10 million" (Codex on #401).
 FIGURE = re.compile(
     r"\$\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:thousand|million|billion|trillion|"
     r"bn|mm|[kmb])\b)?"
+    r"|\b\d[\d,]*(?:\.\d+)?\s?(?:(?:thousand|million|billion|trillion)\s)?"
+    r"dollars?\b"
     r"|\b\d[\d,]*(?:\.\d+)?[\s-]*percentage[\s-]*points?\b"
     r"|\b\d[\d,]*(?:\.\d+)?[\s-]*(?:percent\b|%)"
     r"|(?<![\d.])\d+(?:\.\d+)?[\s-]*(?:months?|days?|years?)\b", re.I)
@@ -84,6 +87,8 @@ def _figure(text: str) -> str:
     text = re.sub(r"(months?|days?|years?)$", lambda m: m.group(1).rstrip("s"),
                   text.lower())
     text = re.sub(r"percentage[\s-]*points?$", "pp", text)
+    # "10 million dollars" IS "$10 million" (Codex on #401).
+    text = re.sub(r"^(.*?)\s*dollars?$", r"$\1", text)
     return re.sub(r"[\s,-]", "", text.replace("percent", "%"))
 
 

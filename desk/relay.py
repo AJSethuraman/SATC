@@ -530,10 +530,20 @@ def on_file(body: str):
             "the 'On file for this engagement' block appears more than once. "
             "`ask_many` writes exactly one; a second is not the firm's.")
     facts = {}
-    for line in body[at + len(ON_FILE_HEADING):].splitlines():
+    lines = body[at + len(ON_FILE_HEADING):].splitlines()
+    for i, line in enumerate(lines):
         line = line.strip()
         if not line:
             if facts:
+                # THE BLANK LINE MUST END IT. Codex on #401: a blank between
+                # two fact rows ended the block early and the rest were lost.
+                after = next((x.strip() for x in lines[i + 1:] if x.strip()), "")
+                if re.match(r"^- \*\*[a-z][a-z0-9_]*:\*\* ", after):
+                    raise RelayError(
+                        "the 'On file for this engagement' block is damaged: "
+                        "a fact row comes after the block's closing blank "
+                        "line. Nothing from it is read; ask for the request "
+                        "again.")
                 break
             continue
         # THE RECORD'S OWN NAME GRAMMAR. Codex on #401: `[a-z_]+` ended the

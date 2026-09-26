@@ -744,3 +744,13 @@ def test_percentage_points_are_a_figure(text, figure):
     """Codex on #401: "10 percentage points" matched nothing, so an
     unsupported one passed. It is its own figure, not "10%"."""
     assert [rulings._figure(m) for m in rulings.FIGURE.findall(text)] == [figure]
+
+
+@pytest.mark.parametrize("text, figure", [("10 million dollars", "$10million"),
+                                          ("10 dollars", "$10"),
+                                          ("2,500 dollars", "$2500"),
+                                          ("$10 million", "$10million")])
+def test_an_amount_in_dollars_is_the_same_figure_as_one_with_a_sign(text, figure):
+    """Codex on #401: "10 million dollars" matched nothing, so an unsupported
+    amount written that way passed."""
+    assert [rulings._figure(m) for m in rulings.FIGURE.findall(text)] == [figure]
