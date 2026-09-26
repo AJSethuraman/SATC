@@ -24,12 +24,13 @@ are designed, not built. Nothing here has met a real extract. Log:
 
 A loan or application number (`key:`), the booked amount (`booked:`), a yes/no
 outcome (`outcome:`), GCO dollars (`gco:`) and RANR dollars (`ranr:`). The run
-refuses without any of them. From those it builds four core rates on every
+refuses without any of them. From those it builds five core rates on every
 run:
 - the outcome as a share of loans (straight)
 - the outcome as a share of booked dollars (weighted)
 - GCO per booked dollar
-- RANR per booked dollar
+- profit after losses: RANR per booked dollar
+- contribution before losses: RANR + GCO per booked dollar
 
 ## Using it (no commands)
 
@@ -69,9 +70,10 @@ After that, the whole routine is:
 4. Save, close the workbook, and press **2. Run the cube**. The results land in
    the workbook:
    - **Where it bleeds:** every pocket losing more than its share, largest first.
-   - **Losses vs revenue:** GCO and RANR together. Each side reads more, about
-     the same, or less by the lines you set on Control, so every pocket lands
-     in one of nine boxes. There's one chart per grid.
+   - **Losses vs revenue:** what each pocket paid (contribution before
+     losses), what it cost (GCO) and what was kept (profit after losses,
+     RANR). Each reads more, about the same or less by the lines on Control.
+     Losing more and keeping more reads "priced for it". One chart per grid.
    - **Grids:** heat maps against the book and against the rest of the band.
    - **Split** and **Three-way:** only when a column splits the pockets (below).
    - **Materiality:** what each materiality level would keep.
@@ -91,7 +93,7 @@ you can see whether it only re-sorts the band.
 
 ![The Split tab: high revolving debt against low, inside each pocket](docs/split.png)
 
-![Losses vs revenue: four boxes and the chart](docs/losses-vs-revenue.png)
+![Losses vs revenue: paid, cost and kept, and the chart](docs/losses-vs-revenue.png)
 
 If something needs fixing, the window and the Log tab say what and where, in
 words, e.g. *Control!C16: "Smallest excess loss worth reporting" needs an
@@ -107,12 +109,14 @@ builds:
 - the outcome as a share of loans (straight)
 - the outcome as a share of booked dollars (weighted)
 - GCO per booked dollar
-- RANR per booked dollar (RANR is revenue, so less of it is the bleed)
+- profit after losses: RANR per booked dollar (less of it is the bleed)
+- contribution before losses: RANR + GCO per booked dollar (RANR already has
+  GCO taken out)
 
 **What each pocket carries:**
 - its rate
-- its rate over the book's rate
-- the excess (or, for RANR, the shortfall) in dollars
+- its rate against the book's: a multiple, or for profit a gap in points
+- the excess (or, for profit, the shortfall) in dollars
 - a test against the rest of the book and the rest of its band, after the
   allowance for testing many pockets at once
 - whether it clears the materiality line
@@ -134,8 +138,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 350 tests: one per finding, every worked example in docs/statistics.md, every Control answer applied, the workbook route, the split, the launcher, the pre-spec, the add-on check, the Look tab (the one that opens the window skips without a display)
-python tools/mutation_check.py     # puts 81 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 375 tests: one per finding, every worked example in docs/statistics.md, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab (the one that opens the window skips without a display)
+python tools/mutation_check.py     # puts 95 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):
@@ -153,3 +157,5 @@ python tools/mutation_check.py     # puts 81 bugs back (the VBA's and today's ru
   and at 40,000 loans from 1.4 s to 33 s. Each shuffle is one pass over the
   loans per dollar rate, for the rest of the book and once per band column, so
   by extrapolation, not measured, 200,000 loans would take about 3 minutes.
+- Contribution before losses (26 Sep 2026) is a fourth dollar rate to
+  shuffle: the same whole Run on 8,000 loans now takes 9.9 s.

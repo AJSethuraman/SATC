@@ -93,11 +93,14 @@ def test_the_plant_is_the_worst_pocket(tmp_path):
         assert (band, chan) == (g.band_labels[0], "Broker")
         assert top.rates[m].vs_topline > 4
         assert top.rates[m].reading_topline == engine.WORSE
-    # RANR has no plant: no populated pocket may read as a real difference (a gap
-    # past the threshold that the test calls luck is allowed; that is the test working)
-    for (b, d), c in g.inner():
-        if c.rates["ranr_rate"].units >= 30:
-            assert c.rates["ranr_rate"].reading_topline not in (engine.WORSE, engine.BETTER)
+    # RANR is profit after losses (NEXT-GOAL 3.5). It was a flat draw with no plant, which contradicted OC-29
+    # ("RANR has no plant" was asserted here). Now the loss plant, priced like its band, keeps less than the
+    # rest of its band, and the pocket priced for its risk loses more and keeps more
+    worst = g.cell(g.band_labels[0], "Broker").rates["ranr_rate"]
+    assert worst.vs_band < 0 and worst.reading_band == engine.WORSE
+    priced = g.cell("680 - 739", "Online").rates
+    assert priced["gco_rate"].reading_band == engine.WORSE
+    assert priced["ranr_rate"].vs_band > 0 and priced["ranr_rate"].reading_band == engine.BETTER
 
 
 def test_same_input_same_output(tmp_path):
@@ -248,56 +251,70 @@ def test_bands_read_as_ranges():
     assert engine.band_labels((0.35, 0.42), 0.1, 0.9) == ["0.10 - 0.34", "0.35 - 0.41", "0.42 - 0.90"]
 
 
-def test_revenue_is_judged_by_the_revenue_setting():
-    """The firm, 25 Sep 2026, after the seventh walk: one revenue yardstick on every tab."""
+def test_profit_is_judged_by_the_profit_line():
+    """The firm, 25 Sep 2026, after the seventh walk: one yardstick for profit on
+    every tab. Since NEXT-GOAL 3.2 it reads a gap in points, never a multiple, and
+    the loss lines no longer lend it one."""
     from origination_cube.config import Benchmark
     import dataclasses
-    fields = {f.name for f in dataclasses.fields(Benchmark)}
     base = dict(min_units=30, min_events=0, worse_at=1.25, better_at=0.8, confidence=0.95, power=0.8,
                 compare_to="peers", many_tests="none", materiality=("none", 0))
-    b = Benchmark(**{k: v for k, v in base.items() if k in fields}, revenue_line=0.05)
-    judge, luck = engine.revenue_bench(b)
-    assert not luck and engine.reading_of(0.94, 400, judge, 30, 0.001, higher_is="better") == engine.WORSE
-    assert engine.reading_of(0.96, 400, judge, 30, 0.001, higher_is="better") == engine.IN_LINE
-    judge, luck = engine.revenue_bench(dataclasses.replace(b, revenue_line="luck"))
-    assert luck
-    assert engine.reading_of(0.97, 400, judge, 30, 0.001, higher_is="better", luck_only=True) == engine.WORSE
-    assert engine.reading_of(0.80, 400, judge, 30, 0.3, higher_is="better", luck_only=True) == engine.IN_LINE
-    judge, luck = engine.revenue_bench(dataclasses.replace(b, revenue_line="losses"))
-    assert not luck and judge.worse_at == 1.25
+    b = Benchmark(**base, revenue_line=0.25)
+    line = engine.profit_line(b)
+    assert (line.kind, line.value) == ("points", 0.0025)
+    assert engine.reading_gap(-0.0030, 1e6, line, 0.001, 0.95) == engine.WORSE
+    assert engine.reading_gap(-0.0020, 1e6, line, 0.001, 0.95) == engine.IN_LINE
+    assert engine.reading_gap(0.0030, 1e6, line, 0.30, 0.95) == engine.UNSURE_BETTER
+    line = engine.profit_line(dataclasses.replace(b, revenue_line="luck"))
+    assert line.kind == "test"
+    assert engine.reading_gap(-0.0001, 1e6, line, 0.001, 0.95) == engine.WORSE      # any significant gap
+    assert engine.reading_gap(-0.05, 1e6, line, 0.30, 0.95) == engine.IN_LINE       # a big one that isn't
+    assert engine.profit_line(dataclasses.replace(b, revenue_line=None)).kind == "test"   # absent: its own test
+    line = engine.profit_line(dataclasses.replace(b, revenue_line="materiality"), 5000.0)
+    assert (line.kind, line.value) == ("dollars", 5000.0)
+    assert engine.reading_gap(-0.006, 1e6, line, 0.001, 0.95) == engine.WORSE       # a $6,000 shortfall
+    assert engine.reading_gap(-0.004, 1e6, line, 0.001, 0.95) == engine.IN_LINE     # $4,000 is under the line
 
 
-def test_every_ranr_reading_follows_the_revenue_setting(tmp_path):
-    """The wiring, not just the rule: under each revenue setting, every tested
-    RANR pocket reads what that setting says (both tabs agreeing proved nothing
-    when both used the wrong line)."""
+def test_every_profit_reading_follows_the_profit_line(tmp_path):
+    """The wiring, not just the rule: under each profit line, every tested
+    pocket's profit and contribution read what that line says, from its gap in
+    points (both tabs agreeing proved nothing when both used the wrong line)."""
     import dataclasses
     cfg, data = synth.write(tmp_path, n=8000)
     base, tbl = cfgmod.load(cfg), read_table(data)
-    for rl in (0.05, "luck", "losses"):
+    for rl in (0.25, "luck", "materiality"):
         c = dataclasses.replace(base, benchmark=dataclasses.replace(base.benchmark, revenue_line=rl))
         b, n = c.benchmark, 0
-        for g in engine.run(c, tbl).grids:
+        res = engine.run(c, tbl)
+        # materiality is 1% of losses: the line is 1% of the book's GCO, in dollars
+        cut = {0.25: 0.0025, "luck": None, "materiality": 0.01 * res.total.rates["gco_rate"].num}[rl]
+        seen = set()
+        for g in res.grids:
             for _, cell in g.inner():
-                s = cell.rates["ranr_rate"]
-                if s.reading_band in (engine.THIN, engine.FEW, None) or not s.vs_band or s.vs_band <= 0:
-                    continue
-                real = s.p_band is not None and s.p_band < 1 - b.confidence
-                if rl == "luck":
-                    want = engine.IN_LINE if not real else engine.WORSE if s.vs_band < 1 else engine.BETTER
-                else:
-                    lo, hi = (1 / b.worse_at, 1 / b.better_at) if rl == "losses" else (1 - rl, 1 + rl)
-                    if abs(s.vs_band - lo) < 1e-9 or abs(s.vs_band - hi) < 1e-9:
-                        continue                                  # on a line: either reading is fair
-                    if lo < s.vs_band < hi:
-                        want = engine.IN_LINE
-                    elif s.vs_band < lo:
-                        want = engine.WORSE if real else engine.UNSURE_WORSE
+                for mname in ("ranr_rate", "contribution_rate"):
+                    s = cell.rates[mname]
+                    if s.reading_band in (engine.THIN, engine.FEW, None) or s.vs_band is None:
+                        continue
+                    real = s.p_band is not None and s.p_band < 1 - b.confidence
+                    if rl == "luck":
+                        want = engine.IN_LINE if not real or s.vs_band == 0 else \
+                            engine.WORSE if s.vs_band < 0 else engine.BETTER
                     else:
-                        want = engine.BETTER if real else engine.UNSURE_BETTER
-                assert s.reading_band == want, (rl, s.vs_band, s.p_band, s.reading_band, want)
-                n += 1
+                        size = abs(s.vs_band) if rl == 0.25 else abs(s.vs_band * s.den)
+                        if abs(size - cut) < 1e-9 * max(cut, 1):
+                            continue                              # on the line: either reading is fair
+                        if size < cut:
+                            want = engine.IN_LINE
+                        elif s.vs_band < 0:
+                            want = engine.WORSE if real else engine.UNSURE_WORSE
+                        else:
+                            want = engine.BETTER if real else engine.UNSURE_BETTER
+                    assert s.reading_band == want, (rl, mname, s.vs_band, s.p_band, s.reading_band, want)
+                    seen.add(want)
+                    n += 1
         assert n, rl
+        assert {engine.WORSE, engine.BETTER} <= seen, (rl, seen)      # both directions were exercised
 
 
 # --------------------------------------------------------------------------
@@ -343,18 +360,20 @@ def test_walk_6_defect_8_a_small_pocket_gets_the_exact_test():
 
 def test_walk_6_defect_8_on_the_synthetic_book(tmp_path):
     """The same pocket where the walk found it: every-20 score bands on the
-    8,000-loan synthetic book, fewest loans at the suggested 71."""
+    8,000-loan synthetic book, fewest loans at the suggested floor. It was 71;
+    the pocket priced for its risk (NEXT-GOAL 3.5) goes bad twice as often, so
+    the book's rate rose and the floor is now 65. The pocket is untouched."""
     import copy
     import math
     cfg, data = synth.write(tmp_path, n=8000)
     raw, tbl = copy.deepcopy(cfgmod.load(cfg).raw), read_table(data)
     raw["bands"] = [{"name": "fico", "field": "FICO", "edges": list(range(500, 861, 20))}]
-    rate = 0.07125890736342043                         # the book's share of loans with the outcome
+    rate = 0.07738467308413552                         # the book's share of loans with the outcome
     raw["benchmark"]["min_units"] = math.ceil(5 / rate)
     res = engine.run(cfgmod.parse(raw), tbl)
     assert res.total.rates["outcome_loans"].rate == pytest.approx(rate)
     s = res.grids[0].cell("580 - 599", "Broker").rates["outcome_loans"]
-    assert (s.units, s.num) == (50, 29) and s.units < 71
+    assert (s.units, s.num) == (50, 29) and s.units < math.ceil(5 / rate) == 65
     assert s.test == engine.EXACT_TEST and s.flag == engine.WORSE and s.p_band < 1e-6
 
 

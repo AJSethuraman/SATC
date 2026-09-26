@@ -224,10 +224,11 @@ groups:
         valid: {min: 1.01, max: 100}
         options:
           - value: luck
-            label: What luck alone can move it (suggested)
+            label: The smallest significant gap in a typical pocket (suggested)
             explains: >-
-              Worked out from this book: the gap luck alone can make in a pocket of
-              typical size. A smaller gap can't be told from noise.
+              From this book: the smallest gap a typical pocket can call significant,
+              1.96 standard errors at 95% (how far a pocket's rate typically lands from
+              its true value).
           - value: 1.25
             label: 1.25 times
             explains: The old workbook's value. Moderate gaps; more pockets flagged.
@@ -246,10 +247,10 @@ groups:
         valid: {min: 0.01, max: 0.99}
         options:
           - value: luck
-            label: What luck alone can move it (suggested)
+            label: The smallest significant gap in a typical pocket (suggested)
             explains: >-
-              The same as above, the other way: one over the gap luck alone can
-              make in a pocket of typical size.
+              The same as above, the other way: one over the smallest gap a pocket of
+              typical size can call significant.
           - value: 0.8
             label: 0.8 times
             explains: The old workbook's value.
@@ -261,28 +262,30 @@ groups:
             explains: Half the rate or less. Few, and obvious.
 
       - key: revenue_line
-        question: How far revenue must move before it counts as more or less
+        question: How far profit must move before it counts as more or less
         takes_effect: re-run
         judgment: true
-        override: a share, such as 0.1 for 10%
-        valid: {min: 0.01, max: 0.9}
+        override: a number of points, such as 0.3
+        valid: {min: 0.01, max: 20}
         options:
           - value: luck
-            label: What luck alone can move it (suggested)
+            label: Each pocket's own test (suggested)
             explains: >-
-              Each pocket's own test: revenue counts as more or less only when luck
-              alone is unlikely to explain the gap. A small pocket needs a bigger gap.
-          - value: 0.05
-            label: "5 percent either way"
-            explains: Small moves count. Expect many pockets to read as earning more or less.
-          - value: 0.10
-            label: "10 percent either way"
-            explains: Only moves of a tenth or more count.
-          - value: losses
-            label: The same lines as for losses
+              Profit counts as keeping more or less only when the pocket's own test
+              calls the gap significant. A small pocket needs a bigger gap.
+          - value: 0.25
+            label: "0.25 points either way"
             explains: >-
-              Uses the two answers above for revenue too. Revenue rarely moves
-              that far, so most pockets will read as about the same.
+              A point is 1% of booked dollars. A gap of a quarter point or more counts,
+              and one that isn't significant says so.
+          - value: 0.5
+            label: "0.5 points either way"
+            explains: Only gaps of half a point of booked dollars or more count.
+          - value: materiality
+            label: A gap as big as the materiality line
+            explains: >-
+              Profit counts as keeping less when the pocket's shortfall against its
+              comparison reaches the dollar line above, and as more when its surplus does.
 
   - title: Is it real
     settings:
@@ -331,18 +334,18 @@ groups:
             label: No allowance
             explains: >-
               Each pocket is tested alone. Scan 200 pockets at 95% and about 10 will
-              pass by luck.
+              read significant with no real difference behind them.
           - value: bh
-            label: Hold down the share of lucky finds (Benjamini-Hochberg)
+            label: Hold down the share of false finds (Benjamini-Hochberg)
             recommended: true
             explains: >-
-              Of the pockets that pass, about 5% at 95% are expected to be luck.
-              Suits scanning for leads.
+              Of the pockets that read significant, about 5% at 95% are expected to have
+              no real difference behind them. Suits scanning for leads.
           - value: bonferroni
-            label: Hold down the chance of any lucky find (Bonferroni)
+            label: Hold down the chance of any false find (Bonferroni)
             explains: >-
-              The chance of even one lucky pass is held to 5% at 95%. Very strict
-              across many pockets; suits a short list going to the LOB.
+              The chance of even one pocket reading significant with no real difference
+              is held to 5% at 95%. Very strict; suits a short list going to the LOB.
 
 # What a column can mean, and how `cube init` recognises it. The firm, 25 Sep
 # 2026: "it should suggest all columns, and maybe we can teach it along the way

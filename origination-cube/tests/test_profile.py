@@ -22,7 +22,7 @@ def test_the_synthetic_extract_is_read_the_way_a_person_would(tmp_path):
     cols = profile.classify(read_table(data), few_values=12, many_values=50)
     assert roles(cols) == {"LOAN_NBR": "key", "FICO": "band", "CHANNEL": "dimension", "ORIG_BAL": "band",
                            "BAD_FLAG": "dimension", "GCO_AMT": "band", "RANR_AMT": "band",
-                           "ASSET_CLASS": "dimension", "REV_DEBT": "band"}
+                           "ASSET_CLASS": "dimension", "REV_DEBT": "band", "ORIG_DATE": "date"}
     gco = next(c for c in cols if c.name == "GCO_AMT")
     assert "not a number" in gco.why          # the one "#N/A" is noted, not a reason to doubt the column
 
@@ -54,7 +54,8 @@ def test_every_column_gets_a_meaning_and_a_reason(tmp_path):
     sug = meanings.suggest(read_table(data))
     assert {c: sg.means for c, sg in sug.items()} == {
         "LOAN_NBR": "key", "FICO": "fico", "CHANNEL": "category", "ORIG_BAL": "booked", "BAD_FLAG": "outcome",
-        "GCO_AMT": "gco", "RANR_AMT": "ranr", "ASSET_CLASS": "category", "REV_DEBT": "amount"}
+        "GCO_AMT": "gco", "RANR_AMT": "ranr", "ASSET_CLASS": "category", "REV_DEBT": "amount",
+        "ORIG_DATE": "origination_date"}
     assert all(sg.why for sg in sug.values())
 
 

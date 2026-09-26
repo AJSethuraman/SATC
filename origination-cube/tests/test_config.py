@@ -8,9 +8,9 @@ from origination_cube import config as cfgmod
 
 def test_the_base_file_is_accepted():
     c = cube()
-    assert [m.name for m in c.measures] == ["outcome_loans", "outcome_booked", "gco_rate", "ranr_rate", "loans",
-                                            "score_median"]
-    assert [m.mode for m in c.measures] == ["flagwt", "flagwt", "sumnum", "sumnum", "count", "median"]
+    assert [m.name for m in c.measures] == ["outcome_loans", "outcome_booked", "gco_rate", "ranr_rate",
+                                            "contribution_rate", "loans", "score_median"]
+    assert [m.mode for m in c.measures] == ["flagwt", "flagwt", "sumnum", "sumnum", "sumnum", "count", "median"]
 
 
 @pytest.mark.parametrize("line", ["bands", "dimensions", "benchmark", "name", "key", "booked", "outcome", "gco",
