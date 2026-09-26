@@ -41,19 +41,36 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 SHEET = "Control"
 OPTIONS_SHEET = "_options"
+USED_SHEET = "_used"      # what the last Run used, cell for cell, so Status can compare (the redesign, phase 2)
 RECOMMENDED = " (recommended)"
 FIRST_ROW = 5
-KEY_COL, CHOOSE_COL, OWN_COL = 7, 3, 4            # G, C, D
-#: when a change to the setting shows (OC-40): I, after "Last Run used" in H
-WHEN_COL = 9
-WHEN = {"live": "Now, on the result tabs", "re-run": "At the next Run"}
-NEEDS = "FCE4C4"          # the shade on a cell that still needs an answer
-INSTRUCTIONS = (
-    "Fill in the shaded cells. The rest have starting values; change them if the population calls for it. "
-    "Pick from the list, or type a number in the next column to override it. The lines, confidence, materiality "
-    "and what a pocket is judged against change the result tabs at once; the rest apply on the next Run. The "
-    "last column says which."
-)
+KEY_COL, CHOOSE_COL, OWN_COL = 7, 3, 4            # G (hidden), C, D
+#: the redesign's columns (docs/redesign-2026-09-26/README.md, section 2): Setting B, Your answer C, Or your own D,
+#: Comes to E, Last Run used F, the key G (hidden), Status H, and I the value worked out from the loans
+COMES_COL, LAST_COL, STATUS_COL, SUGGEST_COL = 5, 6, 8, 9
+NEED_COL, PEND_COL = 10, 11                        # hidden: 1 while an answer is needed; a waiting change in words
+PANEL_COL = 13                                     # M: "What each materiality level keeps"
+LAST_VISIBLE = SUGGEST_COL
+WAITING, SAME = "\u21bb Waiting for a Run", "Same as last Run"
+#: the two blocks a person answers, in the spec's order; the launcher's block follows them
+NOW_KEYS = ("worse_at", "better_at", "revenue_line", "confidence", "materiality", "compare_to")
+RUN_KEYS = ("min_loans", "min_events", "band_count", "band_cut", "power", "many_tests")
+BLOCK_NOW, BLOCK_RUN, BLOCK_LAUNCHER = "block|now", "block|run", "block|launcher"
+NEEDS = "F7DEDE"          # ALERT_FG: the shade on a cell that still needs an answer
+METHOD = [
+    ("Changes now", "The result tabs read these answers with formulas. Change one and every reading, dollar figure, "
+                    "colour and verdict follows at once. The order of rows stays as the last Run left it."),
+    ("Needs a Run", "These decide which pockets exist and which test each one gets, so they take effect when you "
+                    "press Run again. Status says when an answer differs from what the last Run used."),
+    ("Your answer", "Pick from the list, or type a number under Or your own: a number there wins. A shaded answer "
+                    "still needs one. Comes to shows what the answer amounts to now."),
+    ("Worked out", "Fewest loans, worse at and better at each have a value worked out from this extract, shown "
+                   "beside the setting. It is never picked for you."),
+    ("Chosen in the launcher", "What you're running and how the pockets are cut. Change them in the launcher's "
+                               "Choose tests, then press Next. They are shown here so a reviewer sees them."),
+    ("Materiality levels", "For each level: its dollar line, how many pockets have charge-offs above their share "
+                           "that reach it, and their part of all such dollars. It follows your answer live."),
+]
 
 INK, CANVAS, MIST, SLATE, PAPER, KEY_RED = "16130F", "F4F1EC", "E4DFD5", "57534B", "FFFFFF", "CC0000"
 
@@ -99,8 +116,8 @@ class Setting:
 REMOVED_ROWS = ("min_age_months", "window_months", "as_of")
 DERIVED_KEY = "derived"
 DERIVED_ROWS = 3
-DERIVED_NOTE = ("Name a new column and pick the two columns it divides. Press Set up again: it then shows on "
-                "Columns and Look like any number column. Where the bottom is zero or blank, it is blank.")
+DERIVED_NOTE = ("Shows here and on Look, and in Choose tests, once you press Set up again. Blank where the bottom "
+                "is zero or blank.")
 
 
 _ONCE = threading.local()
@@ -160,6 +177,13 @@ def _by_value(key: str, v: Any) -> str:
 
 
 def write_control(wb: Workbook, settings: list[Setting]) -> None:
+    """The Control tab as the redesign draws it (docs/redesign-2026-09-26/README.md, section 2): the method note,
+    the legend, Block A (changes now), Block B (needs a Run, with Status), Block C (chosen in the launcher,
+    read-only), and on the right what each materiality level keeps. Every row is found by its key in column G,
+    so reading back doesn't depend on where a row sits."""
+    from . import house
+    from openpyxl.utils import get_column_letter
+    from openpyxl.workbook.defined_name import DefinedName
     ws = wb.create_sheet(SHEET, 0) if SHEET not in wb.sheetnames else wb[SHEET]
     opt = wb.create_sheet(OPTIONS_SHEET)
     opt.append(["lookup", "setting", "option", "value", "what it means", "your own value accepts", "plain",
@@ -168,52 +192,83 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
     for s in settings:
         first = opt.max_row + 1
         for o in s.options:
-            opt.append([f"{s.key}|{o.shown}", s.key, o.shown, o.value, o.explains, s.override or "", o.label,
+            # a number is kept (the lookup by value uses it); a word such as a suggestion's code isn't shown anywhere
+            value = o.value if isinstance(o.value, (int, float)) and not isinstance(o.value, bool) else None
+            opt.append([f"{s.key}|{o.shown}", s.key, o.shown, value, o.explains, s.override or "", o.label,
                         _by_value(s.key, o.value)])
         ranges[s.key] = (first, opt.max_row)
     opt.sheet_state = "hidden"
+    if USED_SHEET not in wb.sheetnames:
+        used = wb.create_sheet(USED_SHEET)          # filled by each Run (book._last_run_used)
+        used.append(["key", "answer as the cells held it", "in words"])
+        used.sheet_state = "hidden"
 
-    thin = Side(style="thin", color=MIST)
-    ws.sheet_view.showGridLines = False
-    widths = {"A": 2, "B": 34, "C": 44, "D": 19, "E": 22, "F": 70, "G": 12}
+    # each column fits its longest value and its header (the spec's rule 5: no wrapping in the rows)
+    fit_b = max(len(s.question) for s in settings) * 0.95 + 2
+    fit_c = max(len(o.shown) for s in settings for o in s.options) * 0.95 + 3
+    widths = {"A": 2, "B": min(fit_b, 80), "C": min(fit_c, 66), "D": 12, "E": 14, "F": 44, "G": 12, "H": 22,
+              "I": 50, "J": 4, "K": 4, "L": 3, "M": 12, "N": 14, "O": 10, "P": 11}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
-    ws.merge_cells("B1:F1")
-    ws["B1"] = "Control center"
-    ws["B1"].font = Font(name="Arial", bold=True, size=16, color=PAPER)
-    for c in "BCDEF":
-        ws[f"{c}1"].fill = PatternFill("solid", fgColor=INK)
-    ws.row_dimensions[1].height = 28
-    ws.merge_cells("B2:F2")
-    ws["B2"] = INSTRUCTIONS
-    ws["B2"].alignment = Alignment(wrap_text=True, vertical="top")
-    ws["B2"].font = Font(name="Calibri", size=10, color=SLATE)
-    ws.row_dimensions[2].height = 44
-    ws["B3"] = "Shaded = still needs an answer"
-    ws["B3"].fill = PatternFill("solid", fgColor=NEEDS)
-    ws["B3"].font = Font(name="Calibri", size=9, color=INK)
-    heads = ["Setting", "Choose", "Or enter your own", "In use", "What it means", "key"]
-    for i, h in enumerate(heads):
-        c = ws.cell(row=4, column=2 + i, value=h)
-        c.font = Font(name="Calibri", bold=True, color=PAPER)
-        c.fill = PatternFill("solid", fgColor=INK)
-    ws.freeze_panes = "C5"
+    house.title_band(ws, "Control", "The professional calls. The top block changes results now; the second waits "
+                                    "for a Run.", 2, PANEL_COL + 3)
+    r = house.method_note(ws, 3, 2, LAST_VISIBLE, METHOD)
+    # the legend: the three input styles, drawn as they appear
+    for col, (text, style) in zip((2, 3, 6), (("Changes now", house.changes_now), ("Needs a Run", house.needs_run),
+                                               ("Still needs an answer", None))):
+        c = ws.cell(row=r, column=col, value=text)
+        if style:
+            style(c)
+        else:
+            c.fill = house.fill(house.ALERT_FG)
+            c.font = Font(name="Calibri", bold=True, size=10, color=house.INK_TEXT)
+        c.alignment = Alignment(horizontal="center", vertical="center")
+    legend_row = r
+    ws.cell(row=legend_row, column=KEY_COL, value="legend")
+    r += 2
 
+    by_key = {s.key: s for s in settings}
+    now = [by_key[k] for k in NOW_KEYS if k in by_key]
+    run = [by_key[k] for k in RUN_KEYS if k in by_key]
+    rest = [s for s in settings if not s.in_launcher and s.key not in NOW_KEYS + RUN_KEYS]
+    run += [s for s in rest if s.takes_effect != "live"]
+    now += [s for s in rest if s.takes_effect == "live"]
+    # where each row lands, worked out first: a setting asked only after another's answer names that row
     row_of: dict[str, int] = {}
-    r = _write_launcher_block(ws, settings, row_of)
-    group = None
-    for s in settings:
-        if s.in_launcher:
-            continue
-        if s.group != group:
-            group = s.group
-            ws.cell(row=r, column=2, value=group).font = Font(name="Calibri", bold=True, color=INK)
-            for col in range(2, 7):
-                ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=CANVAS)
-            r += 1
+    a_top = r
+    for i, s in enumerate(now):
+        row_of[s.key] = a_top + 2 + i
+    b_top = a_top + 2 + len(now) + 1
+    for i, s in enumerate(run):
+        row_of[s.key] = b_top + 2 + i
+    c_top = b_top + 2 + len(run) + 1
+    launcher_rows = _launcher_order(by_key)
+    for i, (key, _) in enumerate(launcher_rows):
+        if key in by_key:
+            row_of[key] = c_top + 1 + i
+
+    house.section(ws, a_top, 2, LAST_VISIBLE, "Changes now · the result tabs follow as you change these")
+    ws.cell(row=a_top, column=KEY_COL, value=BLOCK_NOW)
+    house.sub_header(ws, a_top + 1, 2, ["Setting", "Your answer", "Or your own", "Comes to", "Last Run used", None,
+                                        None, "Worked out from the loans"], centre_from=1)
+    ws.cell(row=a_top + 1, column=KEY_COL, value=None)
+    house.section(ws, b_top, 2, LAST_VISIBLE, "↻ Needs a Run · takes effect when you press Run again",
+                  hex_=house.SLATE, rule=house.STONE)
+    ws.cell(row=b_top, column=KEY_COL, value=BLOCK_RUN)
+    house.sub_header(ws, b_top + 1, 2, ["Setting", "Your answer ↻", "Or your own", None, "Last Run used", None,
+                                        "Status", "Worked out from the loans"], centre_from=1)
+    thin = Side(style="thin", color=house.ROW_RULE)
+    status_rows = []
+    for s in now + run:
+        r = row_of[s.key]
+        live_now = s in now
         first, last = ranges[s.key]
-        row_of[s.key] = r
         ws.cell(row=r, column=2, value=s.question)
+        # what each option means, on the setting's name rather than beside the row (tenet T1): hover to read it
+        from openpyxl.comments import Comment
+        note = Comment("\n".join(f"{o.label}: {o.explains}" for o in s.options), "PocketBook")
+        note.width, note.height = 420, 60 + 44 * len(s.options)
+        ws.cell(row=r, column=2).comment = note
         rec = s.recommended()
         choose = ws.cell(row=r, column=CHOOSE_COL, value=None if s.judgment or rec is None else rec.shown)
         dv = DataValidation(type="list", formula1=f"='{OPTIONS_SHEET}'!$C${first}:$C${last}", allow_blank=True,
@@ -232,61 +287,135 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
             dvo.error = f"Enter {_range_words(s)}."
             ws.add_data_validation(dvo)
             dvo.add(own)
+        style = house.changes_now if live_now else house.needs_run
+        style(choose)
         if s.override is None:
             own.value = "n/a"
-            own.font = Font(name="Calibri", italic=True, color=SLATE)
-            own.fill = PatternFill("solid", fgColor=MIST)
-        from openpyxl.utils import get_column_letter
-        C, D, H = f"C{r}", f"D{r}", f"${get_column_letter(KEY_COL)}{r}"   # H: the key column, wherever it is
-        # shaded while unanswered, on any row: a method setting someone clears needs an answer too.
-        # A row with no own-value cell shades only its dropdown (the grey n/a cell is not an answer).
-        # a setting asked only after another's answer (only_when) is shaded, and explained, only then
-        asked, not_asked = _asked_formula(s, settings, row_of)
-        ws.conditional_formatting.add(
-            f"C{r}:D{r}" if s.override is not None else f"C{r}",
-            FormulaRule(formula=[f'AND({asked},$C{r}="",OR($D{r}="",$D{r}="n/a"))'],
-                        fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
+            own.font = Font(name="Calibri", italic=True, size=10, color=house.STONE)
+        else:
+            style(own)
+        C, D, K = f"$C${r}", f"$D${r}", f"${get_column_letter(KEY_COL)}${r}"
+        asked, _ = _asked_formula(s, settings, row_of)
+        answered_blank = f'AND({asked},$C{r}="",OR($D{r}="",$D{r}="n/a"))'
+        ws.conditional_formatting.add(f"C{r}:D{r}" if s.override is not None else f"C{r}",
+                                      house.still_needed(answered_blank))
+        ws.cell(row=r, column=NEED_COL, value=f"=IF({answered_blank},1,0)")
         own_set = f'AND({D}<>"",{D}<>"n/a")'
-        # the label, or a number equal to an option's value, as the reader takes it: Excel turns "95%"
-        # into 0.95 (the second walk, defect 3), and the tab mustn't say "not an option" to a value
-        # the run then uses (found on the render, 25 Sep 2026)
-        lookup = (f"IFERROR(MATCH({H}&\"|\"&{C},{OPTIONS_SHEET}!$A:$A,0),"
-                  f"MATCH({H}&\"|\"&IFERROR(VALUE({C}),{C}),{OPTIONS_SHEET}!$H:$H,0))")
-        ws.cell(row=r, column=5, value=(f'=IF(NOT({asked}),"",IF({own_set},{D},IF({C}="","",'
-                                        f'IFERROR(INDEX({OPTIONS_SHEET}!$G:$G,{lookup}),"not an option"))))'))
-        note = f"Your own value, in place of the options ({s.override})." if s.override else ""
-        pick = "Pick one, or enter your own." if s.override is not None else "Pick one from the list."
-        instead = " Pick from the list, or put your number in the next column." if s.override is not None \
-            else " Pick from the list."
-        blank = "Needs an answer before we run."
-        ws.cell(row=r, column=6, value=(f'=IF(NOT({asked}),"{not_asked}",IF({own_set},"{note}",IF({C}="","{blank} '
-                                        f'{pick}",'
-                                        f'IFERROR(INDEX({OPTIONS_SHEET}!$E:$E,{lookup}),"That isn\'t one of the '
-                                        f'options.{instead}"))))'))
+        lookup = (f"IFERROR(MATCH({K}&\"|\"&{C},{OPTIONS_SHEET}!$A:$A,0),"
+                  f"MATCH({K}&\"|\"&IFERROR(VALUE({C}),{C}),{OPTIONS_SHEET}!$H:$H,0))")
+        plain = f'IFERROR(INDEX({OPTIONS_SHEET}!$G:$G,{lookup}),"not an option")'
+        if live_now:
+            shown = _comes_to(s.key, plain)
+            ws.cell(row=r, column=COMES_COL, value=(f'=IF(NOT({asked}),"",IF({own_set},{D},IF({C}="","",'
+                                                    f'IF(ISNA({lookup}),"not an option",{shown}))))'))
+        else:
+            # Status (the spec's formula): the answer now against the one the last Run used, kept on _used
+            answer = f"IF({own_set},{D},{C})"
+            last = f"INDEX({USED_SHEET}!$B:$B,MATCH({K},{USED_SHEET}!$A:$A,0))"
+            last_words = f"INDEX({USED_SHEET}!$C:$C,MATCH({K},{USED_SHEET}!$A:$A,0))"
+            ws.cell(row=r, column=STATUS_COL, value=(f'=IF(NOT({asked}),"",IFERROR(IF({answer}&""={last}&"",'
+                                                     f'"{SAME}","{WAITING}"),""))'))
+            ws.cell(row=r, column=PEND_COL, value=(f'=IF($H{r}="{WAITING}",$B{r}&": "&{last_words}&" → "&'
+                                                   f'{answer}&" (Control C{r}); ","")'))
+            status_rows.append(r)
         k = ws.cell(row=r, column=KEY_COL, value=s.key)
         k.font = Font(name="Consolas", size=8, color=SLATE)
-        w = ws.cell(row=r, column=WHEN_COL, value=WHEN[s.takes_effect])
-        w.font = Font(name="Calibri", size=10, bold=s.takes_effect == "live", color=INK if s.takes_effect == "live"
-                      else SLATE)
-        w.alignment = Alignment(wrap_text=True, vertical="top")
-        for col in range(2, 8):
+        ws.cell(row=r, column=2).font = Font(name="Calibri", size=10, color=house.INK_TEXT)
+        for col in (2, COMES_COL, LAST_COL, STATUS_COL, SUGGEST_COL):
             cell = ws.cell(row=r, column=col)
             cell.border = Border(bottom=thin)
-            cell.alignment = Alignment(wrap_text=True, vertical="top")
-            if col != OWN_COL and col != KEY_COL and cell.font.color is None:
-                cell.font = Font(name="Calibri", size=10, color=INK)
-        ws.cell(row=r, column=5).font = Font(name="Calibri", bold=True, color=INK)
-        r += 1
-    ws.column_dimensions["G"].hidden = True
-    h = ws.cell(row=4, column=WHEN_COL, value="When a change shows")
-    h.font = Font(name="Calibri", bold=True, color=PAPER)
-    h.fill = PatternFill("solid", fgColor=INK)
-    ws.column_dimensions["I"].width = 22
-    ws.print_area = f"B1:I{r - 1}"
+            cell.alignment = Alignment(vertical="center", horizontal="left" if col == 2 else "center")
+        ws.cell(row=r, column=COMES_COL).font = Font(name="Calibri", bold=True, size=10, color=house.INK_TEXT)
+        ws.cell(row=r, column=CHOOSE_COL).alignment = Alignment(horizontal="left", vertical="center", indent=1)
+        ws.cell(row=r, column=OWN_COL).alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[r].height = 18
+    if status_rows:
+        rng = f"$H${status_rows[0]}:$H${status_rows[-1]}"
+        wb.defined_names["Status"] = DefinedName("Status", attr_text=f"{SHEET}!{rng}")
+        wb.defined_names["waiting_words"] = DefinedName(
+            "waiting_words", attr_text=f"{SHEET}!$K${status_rows[0]}:$K${status_rows[-1]}")
+        from openpyxl.formatting.rule import FormulaRule
+        ws.conditional_formatting.add(rng.replace("$", ""), FormulaRule(
+            formula=[f'$H{status_rows[0]}="{WAITING}"'], font=Font(bold=True, color=house.CRIMSON),
+            fill=PatternFill("solid", fgColor=house.ALERT_FG, bgColor=house.ALERT_FG)))
+    need = [row_of[s.key] for s in now + run]
+    wb.defined_names["answers_needed"] = DefinedName(
+        "answers_needed", attr_text=f"{SHEET}!$J${min(need)}:$J${max(need)}")
+    _write_launcher_block(ws, settings, row_of, c_top, launcher_rows)
+    _materiality_panel(ws, settings, a_top)
+    for col in ("G", "J", "K"):
+        ws.column_dimensions[col].hidden = True
+    ws.freeze_panes = "C2"
+    ws.print_area = f"B1:P{ws.max_row}"
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
+
+
+def _comes_to(key: str, plain: str) -> str:
+    """What an answer in Block A comes to: the dollar line for materiality and the multiple a suggested line was
+    worked out as, read from the names the last Run defined; the answer's own words otherwise (and before any
+    Run, when the names don't exist yet)."""
+    if key == "materiality":
+        return (f'IFERROR(IF(materiality_kind="none","No floor",IF(materiality_gco>0,"$"&TEXT(materiality_gco,'
+                f'"#,##0"),{plain})),{plain})')
+    if key in ("worse_at", "better_at"):
+        return f'IFERROR(TEXT({key},"0.00")&"×",{plain})'
+    return '""'                 # the answer says it already: nothing to add
+
+
+def _materiality_panel(ws, settings: list[Setting], top: int) -> None:
+    """What each materiality level keeps, beside Block A (it absorbs the Materiality tab): for each share on
+    Control's list, the dollar line, the pockets whose charge-offs above their share reach it, and their part of
+    all such dollars. Live: formulas over the names each Run defines (book_gco, pk_kind, pk_measure, pk_dollars);
+    before the first Run they show nothing."""
+    from . import house
+    first, last = PANEL_COL, PANEL_COL + 3
+    s = next((x for x in settings if x.key == "materiality"), None)
+    if s is None:
+        return
+    for col in range(first, last + 1):
+        c = ws.cell(row=top, column=col)
+        c.fill = house.fill(house.CANVAS)
+        c.border = Border(top=Side(style="thick", color=house.KEY_RED))
+    ws.cell(row=top, column=first, value="What each materiality level keeps").font = Font(
+        name="Arial", bold=True, size=10, color=house.INK_TEXT)
+    house.sub_header(ws, top + 1, first, ["Level", "Dollars", "Pockets", "Of excess"], centre_from=1)
+    levels = [(o.label.split(" ")[0], float(str(o.value).split("%")[0]) / 100) for o in s.options
+              if isinstance(o.value, str) and o.value.endswith("of losses")]
+    crit = 'pk_kind,"grids",pk_measure,"gco_rate"'
+    r = top + 2
+    for label, share in levels:
+        line = f"({share!r}*book_gco)"
+        ws.cell(row=r, column=first, value=(f'=IFERROR("{label}"&IF(AND(materiality_kind="share",'
+                                            f'ABS(materiality_share-{share!r})<1E-9)," ◂",""),"{label}")'))
+        ws.cell(row=r, column=first + 1, value=f'=IFERROR({line},"")').number_format = '"$"#,##0'
+        ws.cell(row=r, column=first + 2, value=(f'=IFERROR(COUNTIFS({crit},pk_dollars,">="&{line},'
+                                                f'pk_dollars,">0"),"")'))
+        all_ = f'SUMIFS(pk_dollars,{crit},pk_dollars,">0")'
+        ws.cell(row=r, column=first + 3, value=(f'=IFERROR(IF({all_}=0,0,SUMIFS(pk_dollars,{crit},pk_dollars,'
+                                                f'">="&{line},pk_dollars,">0")/{all_}),"")')).number_format = "0%"
+        for col in range(first, last + 1):
+            c = ws.cell(row=r, column=col)
+            c.alignment = Alignment(horizontal="left" if col == first else "center", vertical="center")
+            c.font = Font(name="Calibri", size=10, color=house.INK_TEXT)
+            c.border = Border(bottom=Side(style="thin", color=house.ROW_RULE))
+        r += 1
+    from openpyxl.formatting.rule import FormulaRule
+    ws.conditional_formatting.add(
+        f"{_letter(first)}{top + 2}:{_letter(last)}{r - 1}",
+        FormulaRule(formula=[f'RIGHT(${_letter(first)}{top + 2},1)="◂"'], font=Font(bold=True),
+                    fill=PatternFill("solid", fgColor=house.CANVAS, bgColor=house.CANVAS)))
+    for i, words in enumerate(("Charge-offs, every grid, against what each pocket is judged against.",
+                               "A profit shortfall is held to the same dollar line.")):
+        note = ws.cell(row=r + i, column=first, value=words)
+        note.font = Font(name="Calibri", size=9, color=SLATE)
+
+
+def _letter(col: int) -> str:
+    from openpyxl.utils import get_column_letter
+    return get_column_letter(col)
 
 
 def _asked_formula(s: Setting, settings: list[Setting], row_of: dict[str, int]) -> tuple[str, str]:
@@ -329,37 +458,45 @@ LAUNCHER_HEAD = "Chosen in the launcher"
 LAUNCHER_NOTE = "To change these, go back to Choose tests in the launcher and press Next."
 
 
-def _write_launcher_block(ws, settings: list[Setting], row_of: dict[str, int]) -> int:
-    """The block at the top of the settings; returns the first row after it."""
+def _launcher_order(by_key: dict) -> list[tuple[str, str | None]]:
+    """Block C's rows, in order: (key, label for a row that isn't a setting)."""
     from . import choices as ch
-    from .house import MIST as BAND, SLATE as GREY, fill
-    r = FIRST_ROW
-    ws.cell(row=r, column=2, value=LAUNCHER_HEAD).font = Font(name="Arial", bold=True, size=10, color=INK)
-    ws.cell(row=r, column=3, value=LAUNCHER_NOTE).font = Font(name="Calibri", size=9, italic=True, color=GREY)
-    for col in range(2, 7):
-        ws.cell(row=r, column=col).fill = fill(BAND)
-    ws.cell(row=r, column=KEY_COL, value=f"{ch.KEY}|head")
-    r += 1
-    by_key = {s.key: s for s in settings}
     order = [("run_kind", None), ("new_variable_step", None)] + [(k, lab) for k, lab in ch.ROWS] + \
             [(PRESPEC_KEY, "Saved shortlist (pre-spec file)"), ("few_values", None), ("many_values", None)]
-    thin = Side(style="thin", color=MIST)
+    return [(k, lab) for k, lab in order if k not in by_key or by_key[k].in_launcher]
+
+
+def _write_launcher_block(ws, settings: list[Setting], row_of: dict[str, int], top: int,
+                          order: list[tuple[str, str | None]]) -> int:
+    """Block C, chosen in the launcher and shown read-only; returns the first row after it."""
+    from . import choices as ch
+    from . import house
+    house.section(ws, top, 2, LAST_VISIBLE, f"{LAUNCHER_HEAD} · read-only here", hex_=house.MIST, rule=None,
+                  color=house.INK_TEXT)
+    ws.cell(row=top, column=4, value=LAUNCHER_NOTE).font = Font(name="Calibri", size=9, italic=True,
+                                                                 color=house.SLATE)
+    ws.cell(row=top, column=KEY_COL, value=f"{ch.KEY}|head")
+    by_key = {s.key: s for s in settings}
+    thin = Side(style="thin", color=house.ROW_RULE)
+    r = top + 1
     for key, label in order:
         s = by_key.get(key)
-        if s is not None and not s.in_launcher:
-            continue
         ws.cell(row=r, column=2, value=s.question if s is not None else label)
         ws.cell(row=r, column=KEY_COL, value=key if s is not None or key == PRESPEC_KEY else f"{ch.KEY}|{key}")
         if s is not None:
             row_of[key] = r
             rec = s.recommended()
             ws.cell(row=r, column=CHOOSE_COL, value=rec.label if rec is not None else None)
-        for col in range(2, 7):
+        for col in range(2, LAST_VISIBLE + 1):
+            if col == KEY_COL:
+                continue
             cell = ws.cell(row=r, column=col)
             cell.border = Border(bottom=thin)
-            cell.alignment = Alignment(vertical="top", wrap_text=col == 2)
-            cell.font = Font(name="Calibri", size=10, color=GREY if col == 2 else INK)
+            cell.alignment = Alignment(vertical="center")
+            cell.font = Font(name="Calibri", size=10, color=house.SLATE if col == 2 else house.INK_TEXT,
+                             bold=col == CHOOSE_COL)
         ws.cell(row=r, column=KEY_COL).font = Font(name="Consolas", size=8, color=SLATE)
+        ws.row_dimensions[r].height = 18
         r += 1
     return r + 1
 
@@ -437,13 +574,14 @@ def read_choices(ws):
 # --------------------------------------------------------------------------
 
 
-def read_control(path: str | Path, settings: list[Setting] | None = None) -> dict[str, Any]:
+def read_control(path, settings: list[Setting] | None = None) -> dict[str, Any]:
     """The settings in use, read from the cells a person edits. Refuses, all
     at once, any setting left with nothing chosen, an unknown option, or an
-    own value the setting cannot take."""
+    own value the setting cannot take. `path` is the workbook's file, or the
+    workbook already open (a Run loads it once)."""
     settings = settings or load_settings()
     by_key = {s.key: s for s in settings}
-    ws = load_workbook(path)[SHEET]
+    ws = (path if isinstance(path, Workbook) else load_workbook(path))[SHEET]
     found: dict[str, Any] = {}
     seen: set[str] = set()
     problems: list[str] = []
@@ -592,40 +730,38 @@ def row_of(ws, key: str) -> int | None:
 
 
 # --------------------------------------------------------------------------
-# New columns (fix 3.9): a small block under the settings. Each row names a
-# column made by dividing one of the extract's columns by another. Set up
-# writes the block with the extract's number columns in the dropdowns and puts
-# every answer back; the run reads it and refuses a half-filled row by cell.
+# New columns (fix 3.9): "Add a column: one divided by another". Each row names a
+# column made by dividing one of the extract's columns by another. Since the
+# redesign (phase 2) the block sits on Columns, under the table; before it, on
+# Control. Set up writes it with the extract's number columns in the dropdowns
+# and puts every answer back; the run reads it and refuses a half-filled row by
+# cell. The name, top and bottom are three cells side by side from `first`, and
+# `key_col` holds each row's key.
 
 NUMBER_LIST_COL = 10              # J on the hidden options tab: the dropdowns' column names
+DERIVED_HEAD = "Add a column: one divided by another"
 
 
-def write_derived(wb: Workbook, number_columns: list[str], kept: dict[int, tuple] | None = None) -> None:
-    """The block, under the last setting. `kept` maps a slot (1 to DERIVED_ROWS)
-    to the (name, top, bottom) already typed there."""
-    ws, opt = wb[SHEET], wb[OPTIONS_SHEET]
+def write_derived(wb: Workbook, number_columns: list[str], kept: dict[int, tuple] | None = None,
+                  sheet: str = "Columns", top: int | None = None, first: int = 2, key_col: int = KEY_COL,
+                  last: int = 6) -> int:
+    """The block from row `top` (under the last used row when not given). `kept` maps a slot (1 to
+    DERIVED_ROWS) to the (name, top, bottom) already typed there. Returns the row under it."""
+    from . import house
+    ws, opt = wb[sheet], wb[OPTIONS_SHEET]
     kept = kept or {}
     opt.cell(row=1, column=NUMBER_LIST_COL, value="number columns")
     for i, c in enumerate(number_columns, start=2):
         opt.cell(row=i, column=NUMBER_LIST_COL, value=c)
-    last = max(r[0].row for r in ws.iter_rows(min_row=FIRST_ROW) if r[KEY_COL - 1].value)
-    r = last + 2
-    ws.cell(row=r, column=2, value="New columns: one column divided by another").font = \
-        Font(name="Calibri", bold=True, color=INK)
-    for col in range(2, 7):
-        ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=CANVAS)
-    ws.cell(row=r, column=KEY_COL, value=f"{DERIVED_KEY}|head")
-    ws.merge_cells(start_row=r + 1, start_column=2, end_row=r + 1, end_column=6)
-    note = ws.cell(row=r + 1, column=2, value=DERIVED_NOTE)
-    note.font = Font(name="Calibri", size=10, color=SLATE)
-    note.alignment = Alignment(wrap_text=True, vertical="top")
-    ws.row_dimensions[r + 1].height = 30
-    ws.cell(row=r + 1, column=KEY_COL, value=f"{DERIVED_KEY}|note")
-    for i, h in enumerate(("", "Name", "Top (divided)", "Bottom (divided by)", "What it makes"), start=2):
-        c = ws.cell(row=r + 2, column=i, value=h or None)
-        c.font = Font(name="Calibri", bold=True, color=PAPER)
-        c.fill = PatternFill("solid", fgColor=INK)
-    ws.cell(row=r + 2, column=KEY_COL, value=f"{DERIVED_KEY}|cols")
+    r = top if top is not None else ws.max_row + 2
+    house.section(ws, r, first, last, DERIVED_HEAD)
+    ws.cell(row=r, column=key_col, value=f"{DERIVED_KEY}|head")
+    note = ws.cell(row=r + 1, column=first, value=DERIVED_NOTE)
+    note.font = Font(name="Calibri", size=9, color=SLATE)
+    ws.cell(row=r + 1, column=key_col, value=f"{DERIVED_KEY}|note")
+    house.sub_header(ws, r + 2, first, ["New column name ↻", "Top (divided)", "Bottom (divided by)",
+                                        "What it makes"], centre_from=4)
+    ws.cell(row=r + 2, column=key_col, value=f"{DERIVED_KEY}|cols")
     dv = None
     if number_columns:
         dv = DataValidation(type="list", formula1=f"='{OPTIONS_SHEET}'!$J$2:$J${len(number_columns) + 1}",
@@ -633,52 +769,50 @@ def write_derived(wb: Workbook, number_columns: list[str], kept: dict[int, tuple
         dv.errorTitle = "Pick a column"
         dv.error = "Pick one of the extract's number columns from the list."
         ws.add_data_validation(dv)
-    thin = Side(style="thin", color=MIST)
+    thin = Side(style="thin", color=house.ROW_RULE)
+    L = [_letter(first + i) for i in range(3)]
     for slot in range(1, DERIVED_ROWS + 1):
         row = r + 2 + slot
-        ws.cell(row=row, column=2, value=f"New column {slot}")
-        name, top, bottom = kept.get(slot, (None, None, None))
-        ws.cell(row=row, column=3, value=name)
-        ws.cell(row=row, column=4, value=top)
-        ws.cell(row=row, column=5, value=bottom)
-        if dv is not None:
-            dv.add(ws.cell(row=row, column=4))
-            dv.add(ws.cell(row=row, column=5))
-        ws.cell(row=row, column=6, value=(
-            f'=IF(COUNTA(C{row}:E{row})=0,"",IF(COUNTA(C{row}:E{row})<3,"Needs a name, a top and a bottom.",'
-            f'C{row}&" = "&D{row}&" ÷ "&E{row}&" on each loan."))'))
-        ws.cell(row=row, column=KEY_COL, value=f"{DERIVED_KEY}|{slot}")
-        for col in range(2, 8):
-            cell = ws.cell(row=row, column=col)
-            cell.border = Border(bottom=thin)
-            cell.alignment = Alignment(wrap_text=True, vertical="top")
-            if col != KEY_COL:
-                cell.font = Font(name="Calibri", size=10, color=INK)
-        ws.cell(row=row, column=KEY_COL).font = Font(name="Consolas", size=8, color=SLATE)
+        for i, v in enumerate(kept.get(slot, (None, None, None))):
+            c = ws.cell(row=row, column=first + i, value=v)
+            house.needs_run(c)
+            c.alignment = Alignment(vertical="center")
+            if i and dv is not None:
+                dv.add(c)
+        made = ws.cell(row=row, column=first + 3, value=(
+            f'=IF(COUNTA({L[0]}{row}:{L[2]}{row})=0,"",IF(COUNTA({L[0]}{row}:{L[2]}{row})<3,'
+            f'"Needs a name, a top and a bottom.",{L[0]}{row}&" = "&{L[1]}{row}&" ÷ "&{L[2]}{row}&'
+            f'" on each loan."))'))
+        made.font = Font(name="Calibri", size=10, color=SLATE)
+        ws.cell(row=row, column=key_col, value=f"{DERIVED_KEY}|{slot}")
+        for col in range(first + 3, last + 1):
+            ws.cell(row=row, column=col).border = Border(bottom=thin)
+        ws.row_dimensions[row].height = 18
         # a half-filled row is shaded where it still needs something; an empty one is left alone
-        ws.conditional_formatting.add(f"C{row}:E{row}", FormulaRule(
-            formula=[f'AND(C{row}="",COUNTA($C{row}:$E{row})>0)'],
-            fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
-    ws.print_area = f"B1:F{r + 2 + DERIVED_ROWS}"
+        ws.conditional_formatting.add(f"{L[0]}{row}:{L[2]}{row}", house.still_needed(
+            f'AND({L[0]}{row}="",COUNTA(${L[0]}{row}:${L[2]}{row})>0)'))
+    return r + 3 + DERIVED_ROWS
 
 
-def read_derived(ws) -> tuple[list[dict], list[str]]:
+def read_derived(ws, first: int = 2, key_col: int = KEY_COL) -> tuple[list[dict], list[str]]:
     """Each filled new-column row as {slot, row, name, top, bottom}, and a
     problem for each half-filled one, named by cell."""
     out, problems = [], []
     for r in ws.iter_rows(min_row=FIRST_ROW):
-        key = r[KEY_COL - 1].value
+        if len(r) < key_col:
+            continue
+        key = r[key_col - 1].value
         if not (isinstance(key, str) and key.startswith(f"{DERIVED_KEY}|") and key.split("|")[1].isdigit()):
             continue
         row = r[0].row
-        vals = [r[c - 1].value for c in (3, 4, 5)]
+        vals = [r[c - 1].value for c in (first, first + 1, first + 2)]
         vals = [str(v).strip() if v not in (None, "") and str(v).strip() else None for v in vals]
         if not any(vals):
             continue
         if not all(vals):
             lacking = [w for w, v in zip(("a name", "a top", "a bottom"), vals) if not v]
-            col = "CDE"[[v is None for v in vals].index(True)]
-            problems.append(f"{SHEET}!{col}{row}: new column {key.split('|')[1]} needs "
+            col = _letter(first + [v is None for v in vals].index(True))
+            problems.append(f"{ws.title}!{col}{row}: new column {key.split('|')[1]} needs "
                             f"{' and '.join(lacking)}. Fill it in, or clear the row.")
             continue
         out.append({"slot": int(key.split("|")[1]), "row": row, "name": vals[0], "top": vals[1], "bottom": vals[2]})

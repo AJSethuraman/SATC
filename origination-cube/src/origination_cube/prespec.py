@@ -94,7 +94,7 @@ KEYS = ("prespec", "written", "column", "bins", "reference", "strata", "confiden
 #: A line an older pre-spec carried and a run no longer reads, and why (config.REMOVED says it for the cube file).
 REMOVED = {"window_months": "the outcome window was removed: it left young loans out and counted late losses "
                             "as good. A run now shows every loan in the extract as the extract has it. Picking "
-                            "which loans to study is done before the extract reaches the cube. Delete the line."}
+                            "which loans to study is done before the extract reaches PocketBook. Delete the line."}
 RANGE_KEYS = ("from", "to")
 #: What `deviations` compares, in the order it reports. `edges` is read for `bins`.
 IN_USE_KEYS = ("column", "bins", "reference", "strata", "confidence", "holdout")

@@ -21,17 +21,42 @@ def _answer(path, confirm=True, odd=True):
     if confirm:
         wb["Columns"][book.CONFIRM_CELL] = "Yes"
     if odd:
-        for r in wb["Odd values"].iter_rows(min_row=5):
-            if r[1].value == "FICO":
-                r[4].value = "missing"
+        treat_odd(wb, "FICO", "Missing")
     wb.save(path)
+
+
+def at(wb_or_ws, name: str, col: int) -> str:
+    """The cell on Columns for one extract column's row: at(wb, "FICO", book.C_EDGES) is "I14"."""
+    ws = wb_or_ws["Columns"] if hasattr(wb_or_ws, "sheetnames") else wb_or_ws
+    row = next(r[0].row for r in book.table_rows(ws) if r[book.C_NAME - 1].value == name)
+    return f"{book._col(col)}{row}"
+
+
+def treat_all(wb, answer: str, only_blank: bool = True) -> None:
+    """Answer every odd value on Columns (Treat as) that is still blank, or every one."""
+    for r in book.table_rows(wb["Columns"]):
+        key = r[book.C_QKEY - 1].value
+        if isinstance(key, str) and key.count("|") == 2 and not (only_blank and r[book.C_TREAT - 1].value):
+            r[book.C_TREAT - 1].value = answer
+
+
+def treat_odd(wb, column: str, answer: str | None) -> list[int]:
+    """Answer every odd value found in `column` on Columns (Treat as); the rows answered."""
+    rows = []
+    for r in book.table_rows(wb["Columns"]):
+        key = r[book.C_QKEY - 1].value
+        if isinstance(key, str) and key.split("|")[0] == column and key.count("|") == 2:
+            r[book.C_TREAT - 1].value = answer
+            rows.append(r[0].row)
+    return rows
 
 
 def test_set_up_writes_every_tab_a_person_needs(tmp_path):
     out = book.set_up(synth.write_extract(tmp_path, n=3000))
     assert out.ok and out.book.exists()
     names = load_workbook(out.book).sheetnames
-    assert names[:6] == ["Start here", "Control", "Columns", "Look", "Odd values", "Learned"]
+    assert names[:4] == ["Start here", "Control", "Columns", "Look"]
+    assert "Odd values" not in names and "Learned" not in names     # both on Columns since the redesign
 
 
 def test_run_refuses_until_answered_naming_each_cell(tmp_path):
@@ -50,12 +75,12 @@ def test_answers_survive_a_second_set_up(tmp_path):
     out = book.set_up(x)
     _answer(out.book)
     wb = load_workbook(out.book)
-    wb["Columns"]["C8"] = "servicing"                       # CHANNEL, changed by hand
+    wb["Columns"][at(wb, "CHANNEL", book.C_MEANS)] = "servicing"      # changed by hand
     wb.save(out.book)
     book.set_up(x)
     wb = load_workbook(out.book)
     assert wb["Columns"][book.CONFIRM_CELL].value == "Yes"
-    assert wb["Columns"]["C8"].value == "Servicing data"         # shown as its label
+    assert wb["Columns"][at(wb, "CHANNEL", book.C_MEANS)].value == "Servicing data"      # shown as its label
     picked = {r[control.KEY_COL - 1].value: r[control.CHOOSE_COL - 1].value
               for r in wb["Control"].iter_rows(min_row=control.FIRST_ROW)}
     assert picked["confidence"] == "95%" and picked["materiality"] == PICK["materiality"]
@@ -76,17 +101,17 @@ def test_a_full_run_writes_results_into_the_workbook(tmp_path):
     assert out.book.with_name(f"{out.book.stem} - what ran.yaml").exists()      # the record of what ran
 
 
-def test_the_learned_tab_prunes_on_the_next_run(tmp_path):
+def test_forget_on_columns_prunes_the_memory_on_the_next_run(tmp_path):
     x = synth.write_extract(tmp_path, n=3000)
     out = book.set_up(x)
     _answer(out.book)
     assert book.run(out.book).ok
     assert memory.load()["columns"]["FICO"]["means"] == "fico"
+    book.set_up(x)                               # Columns shows what is remembered, with Forget? beside it
+    _answer(out.book)
     wb = load_workbook(out.book)
-    for r in wb["Learned"].iter_rows(min_row=4):
-        if r[2].value == "FICO":
-            r[0].value = memory.FORGET
-    wb["Columns"]["C7"] = "score"                # it was a custom score all along
+    wb["Columns"][at(wb, "FICO", book.C_FORGET)] = book.FORGET_YES
+    wb["Columns"][at(wb, "FICO", book.C_MEANS)] = "score"          # it was a custom score all along
     wb.save(out.book)
     assert book.run(out.book).ok
     assert "FICO" not in memory.load()["columns"]          # a Forget is not learned straight back
@@ -103,30 +128,32 @@ def test_taking_away_every_category_is_said_in_words(tmp_path):
     out = book.set_up(synth.write_extract(tmp_path, n=3000))
     _answer(out.book)
     wb = load_workbook(out.book)
-    wb["Columns"]["C8"] = "servicing"            # CHANNEL
-    wb["Columns"]["C13"] = "servicing"           # ASSET_CLASS: now no category is left
+    channel, asset = at(wb, "CHANNEL", book.C_MEANS), at(wb, "ASSET_CLASS", book.C_MEANS)
+    wb["Columns"][channel] = "servicing"
+    wb["Columns"][asset] = "servicing"           # now no category is left
     wb.save(out.book)
     ran = book.run(out.book)
     assert not ran.ok and any("Nothing is left to cut across" in line for line in ran.lines)
     said = next(line for line in ran.lines if "Nothing is left" in line)
-    assert "CHANNEL (Columns!C8, now Servicing data)" in said and "ASSET_CLASS (Columns!C13" in said
+    assert f"CHANNEL (Columns!{channel}, now Servicing data)" in said and f"ASSET_CLASS (Columns!{asset}" in said
 
 
 def test_a_bad_band_edge_is_named_by_cell(tmp_path):
     out = book.set_up(synth.write_extract(tmp_path, n=3000))
     _answer(out.book)
     wb = load_workbook(out.book)
-    wb["Columns"]["F7"] = "700, 650"                        # FICO, edges not rising
+    edges = at(wb, "FICO", book.C_EDGES)
+    wb["Columns"][edges] = "700, 650"                       # edges not rising
     wb.save(out.book)
     ran = book.run(out.book)
-    assert not ran.ok and any("Columns!F7" in line for line in ran.lines)
+    assert not ran.ok and any(f"Columns!{edges}" in line for line in ran.lines)
 
 
 def test_own_band_edges_are_used(tmp_path):
     out = book.set_up(synth.write_extract(tmp_path, n=6000))
     _answer(out.book)
     wb = load_workbook(out.book)
-    wb["Columns"]["F7"] = "620, 680, 740"
+    wb["Columns"][at(wb, "FICO", book.C_EDGES)] = "620, 680, 740"
     wb.save(out.book)
     assert book.run(out.book).ok
     check = {r[1].value: r[2].value for r in load_workbook(out.book)["Check"].iter_rows(min_row=4)}

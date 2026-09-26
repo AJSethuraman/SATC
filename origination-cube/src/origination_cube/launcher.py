@@ -47,7 +47,7 @@ STEPS = ("Extract", "Set up", "Choose tests", "Answer in workbook", "Run")
 START = ["1. Pick the extract, and press Set up: it reads what each column is.",
          "2. Choose the tests, and press Next: the workbook is written beside the extract.",
          "3. In the workbook, fill in the shaded cells, save and close it.",
-         "4. Press Run the cube. The results land in the workbook."]
+         "4. Press Run. The results land in the workbook."]
 PREFS = Path.home() / ".origination-cube" / "launcher.json"
 MODES = {"bleed": "Where the book bleeds", "new": "Test new variables"}
 FEW = (12, 6, 24)          # the options settings.yaml offers for the two limits, first the recommended one
@@ -105,7 +105,7 @@ class AddOns:
             return [f"Installing {_names(self.installing)}... {took // 60}:{took % 60:02d} so far.",
                     "This can take a few minutes. This line says when it's done."]
         if not self.missing:
-            return ([f"Installed {_names(self.got)}. Everything the cube needs is here.", ""] if self.got else []) + START
+            return ([f"Installed {_names(self.got)}. Everything PocketBook needs is here.", ""] if self.got else []) + START
         if self.said:
             tail = [ln.strip() for ln in self.said.splitlines() if ln.strip()][-6:]
             return [deps.ask_it(self.missing), "", "What the installer said last:", *("    " + ln for ln in tail)]
@@ -403,7 +403,7 @@ class Flow:
 
     def heads(self) -> tuple[str, str, str]:
         return ("Outcome", "Test it", "Hold fixed") if self.mode == "new" else \
-            ("Cut into bands", "Segment by", "Split pockets by")
+            ("Cut into bands", "Segment by", "Split by")
 
     def click(self, name: str, which: str) -> None:
         """A box ticked or a radio picked on the row for `name` (which: a, b or c)."""
@@ -911,7 +911,7 @@ def build(root) -> dict:
         b = flow.book()
         label(page, "Answer in the workbook", "title").pack(anchor="w")
         label(page, f"{b.name} is written beside the extract. Fill in the shaded cells, save and close it, then "
-                    f"press Run the cube.", "body", fg="SLATE", wrap=470).pack(anchor="w", pady=(8, 8))
+                    f"press Run.", "body", fg="SLATE", wrap=470).pack(anchor="w", pady=(8, 8))
         if flow.book_open:
             open_banner()
         said = flow.suggested_line()
@@ -938,7 +938,7 @@ def build(root) -> dict:
 
     def buttons():
         footer(("open", "Open the workbook", open_book, "secondary"),
-               ("run", "Run the cube", lambda: background(flow.run, "Running"), "primary"))
+               ("run", "Run", lambda: background(flow.run, "Running"), "primary"))
 
     def page_needs():
         n = len(flow.needs)
@@ -1008,7 +1008,7 @@ def build(root) -> dict:
             for x in qs[:2]:
                 label(q, x["says"], "small", wrap=450).pack(anchor="w")
             if len(qs) > 2:
-                label(q, f"And {len(qs) - 2} more on the Odd values tab.", "small", fg="SLATE").pack(anchor="w")
+                label(q, f"And {len(qs) - 2} more on Columns, under Treat as.", "small", fg="SLATE").pack(anchor="w")
         message_lines(page, flow.message, fg="INK")
         footer(("run", "Run again", lambda: background(flow.run, "Running"), "secondary"),
                ("start", "Open at Start here", lambda: say(flow.open_at()), "primary"))

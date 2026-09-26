@@ -217,7 +217,7 @@ def test_set_up_and_run_wait_while_an_add_on_is_missing(monkeypatch):
     gate.finish(*deps.install(names))
     assert gate.states() == {"setup": "normal", "run": "normal", "open": "normal", "install": "disabled"}
     assert gate.headline() == ""
-    assert gate.lines()[0] == "Installed numpy. Everything the cube needs is here."
+    assert gate.lines()[0] == "Installed numpy. Everything PocketBook needs is here."
     assert gate.lines()[2:] == launcher.START
 
 

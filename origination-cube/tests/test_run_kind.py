@@ -81,13 +81,15 @@ def test_control_asks_what_you_are_running_first_with_two_answers_and_no_default
     ws = load_workbook(b)[control.SHEET]
     keys = [r[control.KEY_COL - 1].value for r in ws.iter_rows(min_row=control.FIRST_ROW)
             if r[control.KEY_COL - 1].value]
-    # the first thing on the tab, in the block the launcher fills (the redesign)
-    assert keys[:3] == ["launcher|head", "run_kind", "new_variable_step"]
+    # the first thing in the block the launcher fills, at the foot of the tab (the redesign, phase 2)
+    at = keys.index("launcher|head")
+    assert keys[at:at + 3] == ["launcher|head", "run_kind", "new_variable_step"]
+    assert at > keys.index(control.BLOCK_RUN) > keys.index(control.BLOCK_NOW)
     for k in keys[1:3]:
         assert ws.cell(row=control.row_of(ws, k), column=control.CHOOSE_COL).value is None     # nothing picked
-    # the scouting answer says plainly, on the tab, that it isn't built
+    # the scouting answer says what PocketBook does instead, not what it doesn't (the firm, 26 Sep 2026)
     said = {o.label: o.explains for o in s["new_variable_step"].options}
-    assert "isn't built yet" in said[SCOUT]
+    assert "confirms a saved shortlist" in said[SCOUT] and "built" not in said[SCOUT]
     # Set up asks for it, in the launcher
     out = book.set_up(synth.write_extract(tmp_path, n=1500))
     assert any("in the launcher, choose what you're running" in line and BLEED in line and NEW in line
@@ -227,7 +229,7 @@ def test_the_column_a_pre_spec_tests_must_be_on_columns(tmp_path, monkeypatch):
     cell = _held(b, str(_spec(x.parent, commit=False, column="DEBT_TO_SALES")))
     text = _refused(book.run(b))
     assert (f"{cell}: the pre-spec tests DEBT_TO_SALES, and no column on Columns has that name. Make it under "
-            f"New columns on this tab and press Set up again, or fix the pre-spec.") in text
+            f"Add a column on Columns and press Set up again, or fix the pre-spec.") in text
 
 
 @needs_git
@@ -241,9 +243,11 @@ def test_what_was_run_is_recorded_on_check_the_log_control_and_the_record(tmp_pa
     assert _check(b)["What was run"] == said
     assert _log(b)[0].endswith(f"What was run: {said}.")
     assert any(line.endswith(f"What was run: {said}.") for line in ran.lines)
+    # Control shows it in the launcher's block, read-only (the redesign, phase 2)
     ws = load_workbook(b)[control.SHEET]
-    used = {r[control.KEY_COL - 1].value: r[control.KEY_COL].value for r in ws.iter_rows(min_row=control.FIRST_ROW)}
-    assert used["run_kind"] == NEW and used["new_variable_step"] == FROM_SPEC
+    shown = {r[control.KEY_COL - 1].value: r[control.CHOOSE_COL - 1].value
+             for r in ws.iter_rows(min_row=control.FIRST_ROW)}
+    assert shown["run_kind"] == NEW and shown["new_variable_step"] == FROM_SPEC
     record = b.with_name(f"{b.stem} - what ran.yaml").read_text(encoding="utf-8")
     assert f"# What was run: {said}\n" in record
     # and a bleed run records itself, with no follow-up
@@ -252,9 +256,7 @@ def test_what_was_run_is_recorded_on_check_the_log_control_and_the_record(tmp_pa
     assert book.run(b).ok
     assert _check(b)["What was run"] == BLEED
     assert _log(b)[0].endswith(f"What was run: {BLEED}.")
-    used = {r[control.KEY_COL - 1].value: r[control.KEY_COL].value
-            for r in load_workbook(b)[control.SHEET].iter_rows(min_row=control.FIRST_ROW)}
-    assert used["run_kind"] == BLEED and not used.get("new_variable_step")
+    assert f"What was run: {BLEED}\n" in b.with_name(f"{b.stem} - what ran.yaml").read_text(encoding="utf-8")
 
 
 # --------------------------------------------------------------------------
@@ -348,7 +350,7 @@ def test_a_new_variable_run_needs_no_booked_amount_gco_or_ranr(tmp_path, monkeyp
     assert "Losses vs revenue" not in wb.sheetnames
     assert "Booked dollars" not in [c.value for row in wb["Prevalence"].iter_rows() for c in row]
     calc = recalc(b, tmp_path / "calc")
-    for tab in ("Confirmatory test", "Where it bleeds", "Grids", "Split", "Three-way", "Prevalence", "Materiality"):
+    for tab in ("Confirmatory test", "Where it bleeds", "Grids", "Split", "Three-way", "Prevalence"):
         if tab not in calc.sheetnames:
             continue
         said = [str(c.value) for row in calc[tab].iter_rows() for c in row if isinstance(c.value, str)]

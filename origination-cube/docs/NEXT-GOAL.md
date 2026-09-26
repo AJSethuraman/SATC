@@ -315,3 +315,24 @@ edges), refreshed at each Run ("Last Run used").
   *loans - PocketBook.xlsx*. Left for later phases: the Control restyle into Changes now / Needs a
   Run, and finding new variables on part of the loans (the launcher records the share; the Run asks
   for a saved shortlist).
+- [x] **Phase (b) built, 26 Sep 2026: the tabs the analyst fills in.** Start here, Control, Columns and
+  Look each open with the title band (INK, a Key Red rule, a red tab) and one *How this tab works*
+  note grouped so it folds away (T1); gridlines off, panes frozen, the three input styles. **Start
+  here** counts what is left by formula (answers needed, columns to confirm, odd values to answer,
+  changes waiting for a Run), shows the pink pending line naming each waiting change, and after a
+  Run the four tiles and the five largest pockets worse and material, their verdicts live; then the
+  tabs in their three groups. **Control** is three blocks: *Changes now* (Setting · Your answer ·
+  Comes to · Last Run used), *Needs a Run* with `Status` ("↻ Waiting for a Run" / "Same as last Run",
+  against what the Run held on the hidden `_used`), *Chosen in the launcher* read-only; the suggested
+  values stay beside their settings, and on the right *What each materiality level keeps* (it
+  absorbs the Materiality tab), live over names each Run defines. A new-variable run isn't asked
+  the profit line, and Check doesn't echo it. **Columns** holds Odd values (Treat as Real / Missing)
+  and Learned (Remembered, Forget?) on each column's row, C3 blocking Run until Yes, and *Add a
+  column: one divided by another* under the table (it was on Control). **Look** has the mean beside
+  the median, the likely code on a red bar of its own, live bars (10 / 20 / 50) and a From / To
+  regrouped by SUMIFS from 200 counted slices, red dashed edge lines fed by formula from Columns,
+  and the scatters with their correlation, drawn at Set up. A Run loads the workbook once and saves
+  it once, and draws Look again only when the split or its band columns change (Run 31.0 s to
+  22.2 s at 17,000 × 80). Departures from the spec: *Your answer* keeps its *Or your own* cell
+  beside it (reading back is unchanged); each option's meaning is a note on the setting's name rather
+  than a column; the p-value keeps its name ("luck" is out, the firm, 26 Sep 2026).

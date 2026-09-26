@@ -24,7 +24,7 @@ import pytest
 from openpyxl import Workbook, load_workbook
 
 from conftest import cube, row, table
-from origination_cube import book, config as cfgmod, control, engine, live, stats, synth
+from origination_cube import book, config as cfgmod, control, engine, live, look, stats, synth
 from origination_cube.ingest import read_table
 from recalc import SOFFICE, recalc, recalc_file, values_of
 from test_book import _answer
@@ -136,7 +136,7 @@ def _pockets(values):
 
 def _agree(values, res) -> list[str]:
     """Every difference between the calculated workbook and the engine, pocket by pocket: on _pockets, on
-    Where it bleeds, Three-way, Losses vs revenue, Check's counts and the Materiality ladder."""
+    Where it bleeds, Three-way, Losses vs revenue, Check's counts and what each materiality level keeps on Control."""
     want, got = _oracle(res), _pockets(values)
     bad = []
     assert set(want) == set(got), (len(want), len(got))
@@ -215,24 +215,20 @@ def _agree(values, res) -> list[str]:
         said = check[f"Worse now: {m.title}"]
         if not said.startswith(f"{k} of ") or f"; {j} of them are material." not in said:
             bad.append(f"Check, {m.title}: {said!r}, the engine {k} worse and {j} material")
-    # the Materiality ladder, from the dollars that decide now
-    ws = values["Materiality"]
-    ladders = {}
-    for g in res.grids:
-        for m in res.measures:
-            if m.is_rate:
-                ladders[f"{names[g.band]} x {names[g.dimension]}: {m.title}"] = engine.materiality(g, m, res.total)
-    r = 4
-    while r <= ws.max_row:
-        head = ws.cell(row=r, column=2).value
-        if head in ladders:
-            for i, want_row in enumerate(ladders[head]):
-                got_k, got_s = ws.cell(row=r + 2 + i, column=4).value, ws.cell(row=r + 2 + i, column=5).value
-                if got_k != want_row.pockets or got_s != pytest.approx(want_row.captured, abs=1e-9):
-                    bad.append(f"Materiality {head} level {i}: {got_k}, {got_s}; the engine {want_row.pockets}, "
-                               f"{want_row.captured}")
-            r += 2 + len(ladders[head])
-        r += 1
+    # what each materiality level keeps, on Control (it absorbed the Materiality tab in the redesign's phase 2):
+    # charge-offs over every grid, from the dollars that decide now
+    ws = values[control.SHEET]
+    head = next(c for row in ws.iter_rows() for c in row if c.value == "What each materiality level keeps")
+    total = abs(res.total.rates["gco_rate"].num)
+    losing = [w["dollars"] for key, w in want.items() if key[0] == "grids" and key[4] == "gco_rate"
+              and w["dollars"] is not None and w["dollars"] > 0]
+    for i in range(5):
+        level = ws.cell(row=head.row + 2 + i, column=head.column).value
+        share = float(str(level).split("%")[0]) / 100
+        kept = [d for d in losing if d >= share * total]
+        got_k, got_s = (ws.cell(row=head.row + 2 + i, column=head.column + k).value for k in (2, 3))
+        if got_k != len(kept) or got_s != pytest.approx(sum(kept) / sum(losing) if losing else 0, abs=1e-9):
+            bad.append(f"Materiality {level}: {got_k}, {got_s}; the engine {len(kept)}, {sum(kept)}")
     return bad
 
 
@@ -309,7 +305,7 @@ def test_at_the_runs_settings_check_shows_no_line_changed(ran):
 RERUN = {"min_events": ("20 losses", None), "min_loans": ("300 loans", None), "many_tests": ("No allowance", None),
          "power": ("90% of the time", None), "band_count": ("3 bands", None),
          "band_cut": ("The same, snapped to round numbers", None)}
-RESULT = ("Where it bleeds", "Losses vs revenue", "Grids", "Split", "Three-way", "Materiality", "Check")
+RESULT = ("Where it bleeds", "Losses vs revenue", "Grids", "Split", "Three-way", "Check")
 
 
 def test_a_setting_for_the_next_run_changes_nothing_on_the_result_tabs(ran, tmp_path):
@@ -320,17 +316,18 @@ def test_a_setting_for_the_next_run_changes_nothing_on_the_result_tabs(ran, tmp_
         diff = [(c.coordinate, c.value, z[c.coordinate].value) for r in a.iter_rows() for c in r
                 if c.value != z[c.coordinate].value]
         assert diff == [], (tab, diff[:5])
+    # each setting sits in the block that says when a change to it shows: Changes now or Needs a Run
     ws = load_workbook(b)[control.SHEET]
+    now, run = control.row_of(ws, control.BLOCK_NOW), control.row_of(ws, control.BLOCK_RUN)
+    launcher_head = control.row_of(ws, "launcher|head")
     for s in control.load_settings():
         r = control.row_of(ws, s.key)
-        said = ws.cell(row=r, column=control.WHEN_COL).value
         if s.key in live.LIVE_KEYS:
-            assert said == "Now, on the result tabs", s.key
+            assert now < r < run, s.key
         elif s.in_launcher:
-            assert said is None, s.key          # chosen in the launcher: its block's note says how to change it
+            assert r > launcher_head, s.key     # chosen in the launcher: its block's note says how to change it
         else:
-            assert said == "At the next Run", s.key
-    assert ws.cell(row=4, column=control.WHEN_COL).value == "When a change shows"
+            assert run < r < launcher_head, s.key
 
 
 def test_the_live_settings_are_the_ones_settings_yaml_marks_live():
@@ -412,7 +409,9 @@ def test_every_significance_test_compares_with_the_one_rounded_bar(ran):
                 uses += live.BAR in v
                 for m in inline.finditer(v):
                     # the bar's own cell, and the z for a range (NORMSINV(1-(1-confidence)/2)), aren't comparisons
-                    ok = (ws.title == live.LIVE_SHEET and c.row == live.L_BAR) or "NORMSINV(1-(1-confidence)/2)" in v
+                    # the Look tab's chart feed counts loans; it compares nothing with the bar
+                    ok = (ws.title == live.LIVE_SHEET and c.row == live.L_BAR) or \
+                        "NORMSINV(1-(1-confidence)/2)" in v or ws.title == look.DATA
                     assert ok, (ws.title, c.coordinate, v)
                 if "<" in v and "p-value" not in v:
                     for p in re.findall(r"(\$?[A-Z]+\$?\d+)<significance_bar", v):
@@ -433,7 +432,7 @@ def test_the_live_formulas_use_no_dynamic_arrays(ran):
 
 def test_nothing_on_the_result_tabs_is_an_error(ran):
     errors = ("#N/A", "#VALUE!", "#NAME?", "#REF!", "#DIV/0!", "#NUM!", "Err:")
-    for tab in RESULT + (live.POCKETS,):
+    for tab in RESULT + (live.POCKETS, "Start here", control.SHEET, "Look"):
         for r in ran["values"][tab].iter_rows():
             for c in r:
                 assert not (isinstance(c.value, str) and c.value.startswith(errors)), (tab, c.coordinate, c.value)

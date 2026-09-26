@@ -145,7 +145,7 @@ def state(book, about: dict, res) -> State | None:
         else:
             st.touched, st.first, st.last = prespec.holdout_touch(ps, dates)
             st.undated = sum(1 for d in dates if d is None)
-        st.runs_before = holdout_runs(book)
+        st.runs_before = holdout_runs(book, about.get("_wb"))
     except Exception as exc:                     # a line on Check, never a failed run after the engine ran
         st.failed = f"the run couldn't be compared with the pre-spec ({exc})"
     return st
@@ -236,11 +236,12 @@ def run_range(res, ps: prespec.PreSpec):
     return prespec.DateRange(first, last)
 
 
-def holdout_runs(book) -> int:
-    """How many runs this workbook's Log already records as touching the holdout."""
+def holdout_runs(book, loaded=None) -> int:
+    """How many runs this workbook's Log already records as touching the holdout. `loaded`: the workbook the Run
+    already has open, so it isn't read from disk again (one load per Run)."""
     from openpyxl import load_workbook
     try:
-        wb = load_workbook(book, read_only=True)
+        wb = loaded if loaded is not None else load_workbook(book, read_only=True)
     except Exception:
         return 0
     try:
@@ -249,7 +250,8 @@ def holdout_runs(book) -> int:
         return sum(1 for (v,) in wb["Log"].iter_rows(min_col=2, max_col=2, values_only=True)
                    if isinstance(v, str) and v.startswith(HOLDOUT_MARK))
     finally:
-        wb.close()
+        if loaded is None:
+            wb.close()
 
 
 # --------------------------------------------------------------------------

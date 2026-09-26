@@ -55,8 +55,9 @@ def _answer_judgment(book, choices=None):
 def test_a_fresh_tab_waits_for_every_judgment_and_names_each(book):
     with pytest.raises(control.ControlError) as exc:
         control.read_control(book)
-    # the follow-up to "What are you running?" isn't asked until that is answered (tests/test_run_kind.py)
-    assert len(exc.value.problems) == len(JUDGMENT) - 1
+    # the follow-up to "What are you running?" isn't asked until that is answered (tests/test_run_kind.py), nor is
+    # the profit line, which only the bleed analysis reads (the redesign, phase 2)
+    assert len(exc.value.problems) == len(JUDGMENT) - 2
     # What are you running? is chosen in the launcher since the redesign; the rest are answered here
     assert all("needs an answer" in p or "is chosen in the launcher" in p for p in exc.value.problems)
     assert not any("judgment" in p.lower() for p in exc.value.problems)
@@ -67,12 +68,13 @@ def test_unanswered_cells_are_shaded_by_a_rule_not_labelled(book):
     ws = load_workbook(book)[control.SHEET]
     text = " ".join(str(c.value) for row in ws.iter_rows() for c in row if c.value is not None)
     assert "judgment" not in text.lower() and "whose call" not in text.lower()
-    rules = [r for rng in ws.conditional_formatting for r in rng.rules]
-    # the settings chosen in the launcher are shown, not answered, on Control: nothing to shade
-    assert len(rules) == len([s for s in control.load_settings() if not s.in_launcher])
+    # one shading rule per setting answered here; the settings chosen in the launcher are shown, not answered
+    shaded = {str(rng.sqref) for rng in ws.conditional_formatting for rule in rng.rules
+              if '="",OR(' in "".join(rule.formula)}
+    answered = [s for s in control.load_settings() if not s.in_launcher]
+    assert len(shaded) == len(answered)
     r = _row(ws, "materiality")
-    ranges = [str(rng.sqref) for rng in ws.conditional_formatting]
-    assert f"C{r}:D{r}" in ranges
+    assert f"C{r}:D{r}" in shaded
     assert "re-run" not in text and "live" not in text.split()   # results are worked out on Run, not live
 
 
@@ -135,9 +137,13 @@ def test_a_setting_missing_from_the_tab_is_refused(book):
 def test_in_use_and_meaning_are_formulas_over_the_options_tab(book):
     ws = load_workbook(book)[control.SHEET]
     r = _row(ws, "confidence")
-    assert str(ws.cell(row=r, column=5).value).startswith("=IF(")
-    assert "_options" in ws.cell(row=r, column=6).value
+    assert str(ws.cell(row=r, column=control.COMES_COL).value).startswith("=IF(")
+    assert "_options" in ws.cell(row=r, column=control.COMES_COL).value
     assert ws.data_validations.dataValidation, "every Choose cell carries a dropdown"
+    # what each option means is on the setting's name, once, not in a column beside every row (tenet T1)
+    note = ws.cell(row=r, column=2).comment.text
+    assert all(f"{o.label}: {o.explains}" in note for s in control.load_settings() if s.key == "confidence"
+               for o in s.options)
 
 
 @pytest.mark.parametrize("key,bad,why", [("confidence", 95, "from 0.5 to 0.999"), ("worse_at", 0.9, "from 1.01 to 100"),
@@ -159,7 +165,7 @@ def test_the_tab_checks_typed_values_itself(book):
     r = _row(ws, "confidence")
     dvs = [dv for dv in ws.data_validations.dataValidation if f"D{r}" in str(dv.sqref)]
     assert dvs and dvs[0].type == "decimal" and dvs[0].showErrorMessage
-    assert "IFERROR" in ws.cell(row=r, column=5).value and "IFERROR" in ws.cell(row=r, column=6).value
+    assert "IFERROR" in ws.cell(row=r, column=control.COMES_COL).value
     assert ws.column_dimensions["G"].hidden
 
 
@@ -178,8 +184,10 @@ def test_the_lookups_read_the_key_column_wherever_it_is(book):
     from openpyxl.utils import get_column_letter
     ws = load_workbook(book)[control.SHEET]
     r = _row(ws, "confidence")
-    key = f"${get_column_letter(control.KEY_COL)}{r}"
-    assert key in ws.cell(row=r, column=5).value and key in ws.cell(row=r, column=6).value
+    key = f"${get_column_letter(control.KEY_COL)}${r}"
+    assert key in ws.cell(row=r, column=control.COMES_COL).value
+    b = _row(ws, "min_loans")                               # Status, on a Needs a Run row, reads it too
+    assert f"${get_column_letter(control.KEY_COL)}${b}" in ws.cell(row=b, column=control.STATUS_COL).value
 
 
 @pytest.mark.parametrize("stored,want", [("95% sure", 0.95), (0.95, 0.95), ("95%", 0.95), (99, None)])
@@ -213,8 +221,6 @@ def test_a_row_without_its_own_value_cell_doesnt_point_at_one(book):
     compare = by_row[f"Control!C{_row(ws, 'compare_to')}"]
     assert "Pick one from the list." in compare and "column D" not in compare
     assert "column D" in by_row[f"Control!C{_row(ws, 'min_loans')}"]
-    r = _row(ws, "compare_to")
-    assert "column" not in ws.cell(row=r, column=6).value.split('"That isn')[1]
 
 
 def test_the_range_is_said_once_and_95_gets_a_hint(book):
@@ -239,7 +245,7 @@ def test_in_use_takes_a_number_the_run_takes(book):
     assert {"confidence|0.95", "worse_at|1.25", "better_at|0.8"} <= by_value
     for r in wb[control.SHEET].iter_rows(min_row=control.FIRST_ROW):
         if r[control.KEY_COL - 1].value == "confidence":
-            assert "$H:$H" in r[4].value and "VALUE(" in r[4].value and "$H:$H" in r[5].value
+            assert "$H:$H" in r[4].value and "VALUE(" in r[4].value
 
 
 def test_the_readme_quotes_a_refusal_the_tab_really_gives(book):
