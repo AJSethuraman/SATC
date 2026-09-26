@@ -1535,7 +1535,11 @@ back.
     - A3's power formula;
     - the many-tests family is inner pockets only.
 
-    Every worked example in `docs/statistics.md` is reproduced by a test.
+    Every worked example in `docs/statistics.md` for a test the cube runs is reproduced by
+    a test: 8 of the 12 (A1–A3, A5, A6, A8, B1, B2), plus A7's and B9's arithmetic. The
+    other four (B3/B4, B5, B6, B7) belong to capabilities 4a–4e, scoped and not built.
+    *(Corrected 26 Sep: this line first said every worked example; the final check
+    found four untested.)*
   - **The Look tab** (`look.py`).
   - **The pre-spec reader** (`prespec.py`, data only).
   - **The launcher's add-on check and install** (`deps.py`, OC-34).

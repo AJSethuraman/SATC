@@ -2,8 +2,10 @@
 
 No numpy here: the shuffle test (docs/statistics.md B2) is in perm.py, which
 needs it. The letters and numbers below (A1, B1 ...) are the sections of
-docs/statistics.md, the firm's reference for every test; tests/test_stats.py
-reproduces each worked example there by calling these functions. The normal
+docs/statistics.md, the firm's reference for every test. Its worked examples for
+the tests the cube runs are reproduced by calling these functions: A1-A3, A5, A6,
+A8 and B1 in tests/test_stats.py, A7 in test_split.py, B2 in test_perm.py, B9 in
+test_checks.py. B3-B7 are for capabilities not built yet. The normal
 quantile below is copied from portfolio-analysis-pack/src/analysis_pack/stats.py
 (25 Sep 2026), where it is checked against Excel's NORM.S.INV; keep the two in
 step by hand.

@@ -9,16 +9,20 @@ top of a list, in dollars.
 This replaces a set of Excel macros that did the same job slowly and kept
 breaking their own rules. `docs/vba-findings.md` lists each of those breaks and
 the test that stops it coming back. The macros were only a source of ideas, so
-this is not a port and the workbook will be designed from scratch.
+this is not a port, and the workbook was designed from scratch.
 
 **Where it's going:** `docs/design.md` sets out the three stages (find, drill,
-prove), the Control tab, and the firm's rulings of 25 Sep. The Control tab is
-built (`cube control --out control.xlsx`); the rest of the workbook is not.
+prove) and the firm's rulings.
 
-**Status (25 Sep 2026):** the engine, the per-pocket test, `cube init` and the
-Control tab are built. The workbook's other tabs, drill-down and `cube prove`
-are designed, not built. Nothing here has met a real extract. Log:
-`../BACKLOG.md` §6d.
+**Status (26 Sep 2026):**
+- **Built:** the first stage, find. That means the engine, the launcher and the
+  whole workbook: Set up, Control, Columns and every results tab below.
+- **Not built:** drill-down, `cube prove`, and the confirmatory test itself
+  (capability 4b in `docs/capabilities-scope.md`). The cube has the inputs that
+  test needs (dates, a window, new columns and the pre-spec), but not the test.
+- **Not yet met:** a real extract.
+
+The log is `../BACKLOG.md` §6d.
 
 ## What an extract must carry
 
@@ -121,7 +125,7 @@ against its low half, not groups against a reference group.
 ![Losses vs revenue: paid, cost and kept, and the chart](docs/losses-vs-revenue.png)
 
 If something needs fixing, the window and the Log tab say what and where, in
-words, e.g. *Control!C16: "Smallest excess loss worth reporting" needs an
+words, e.g. *Control!C18: "Smallest excess loss worth reporting" needs an
 answer.* Press Set up again at any time: answers already given are kept.
 What you confirm is remembered for next time; the **Learned** tab lets you set
 anything wrongly learned to Forget.
@@ -163,7 +167,7 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 442 tests: one per finding, every worked example in docs/statistics.md, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, dates, the outcome window and new columns, the pre-spec checks, the pocket budget, the prevalence table (the one that opens the window skips without a display)
+pytest -q                          # 442 tests: one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, dates, the outcome window and new columns, the pre-spec checks, the pocket budget, the prevalence table (the one that opens the window skips without a display)
 python tools/mutation_check.py     # puts 169 bugs back (the VBA's and today's rules); every one must be caught
 ```
 

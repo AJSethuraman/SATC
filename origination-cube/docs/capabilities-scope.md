@@ -48,7 +48,7 @@ where each one bends. It nominates; it never confirms (B7).
 | Partial dependence over a grid of the ratio | **Kept, changed** | The grid comes from the column's own quantiles, not a hand-typed list, so it works on any column |
 | `make_book`, the synthetic two-seed books | **Changed** | Reads the extract's columns by meaning. Development and validation are split by origination date, not by row position (`Xdev[:28000]`) |
 | Holdout kept apart "by convention" (separate arrays) | **Changed** | Holdout loans are removed in code before anything is fitted, and a test proves the scout cannot see one |
-| Scoring the frozen forest on the holdout (AUC, calibration) | **Dropped** | B7 says development only. The holdout's one job is the pre-specified test (4b). A model score on the holdout is a second look at it |
+| Scoring the frozen forest on the holdout by AUC (the calibration check is in `statistics-examples.py`, not this script) | **Dropped** | B7 says development only. The holdout's one job is the pre-specified test (4b). A model score on the holdout is a second look at it |
 | The plain logistic regression with the ratio as a number | **Dropped from the cube, kept in the doc** | It is the worked example of why a straight line misses a cliff (B7), not a step the analyst runs |
 | The binned regression with edges typed by hand | **Moved to 4b** | That is the confirmatory test, run from the pre-spec |
 

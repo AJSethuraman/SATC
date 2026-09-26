@@ -14,15 +14,17 @@ The plants:
 - asset class 4 of 1-4 goes bad 1.4 times as often as the others.
 - one pocket is priced for its risk: loans through the online channel with a
   score from 680 to 739 go bad twice as often as the rest of their band, and
-  carry an interest rate 6 points higher. It loses more (GCO) and keeps more
+  carry an interest rate 2 points higher (PREMIUM). It loses more (GCO) and keeps more
   (RANR): "priced for it" on Losses vs revenue.
 
 RANR is profit after losses, as the firm defines it (NEXT-GOAL 3.5; OC-29,
 OC-35): contribution = interest on the balance over the months on book, at a
 rate set by the score (risk-based pricing), plus fees, less the cost of funds
-on the balance over the same months; RANR = contribution - GCO. So RANR per
-booked dollar falls where losses climb, and the broker pocket under 620, priced
-like its band, keeps less. Every loan has an origination date (ORIG_DATE) a
+on the balance over the same months; RANR = contribution - GCO. Across score
+bands the pricing more than pays for the losses, so the band under 620 keeps
+the most per booked dollar. Within a band, at one price, RANR per booked dollar
+falls where losses climb: the broker pocket under 620, priced like its band,
+keeps less. Every loan has an origination date (ORIG_DATE) a
 few years before the as-of date (AS_OF), which gives its months on book.
 
 The dirt, on purpose, one of each kind the engine must count and not zero:

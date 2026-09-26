@@ -26,7 +26,9 @@ committed unchanged. It cites two scripts kept beside it: `statistics-examples.p
 which computes every worked example, and `scout-vs-measure.py`, which does the
 random-forest scouting and the holdout example in B5 and B7. The firm supplied both
 the same evening, and both are committed unchanged beside it. They need numpy,
-scipy and scikit-learn, which the cube itself does not use.
+scipy and scikit-learn. The cube itself needs numpy since OC-34 (26 Sep), and uses
+neither scipy nor scikit-learn. *(Until the final check, this said the cube uses
+none of the three.)*
 
 **How the work is done:** subagents, one per fix, in parallel where they touch
 different files.
@@ -67,7 +69,7 @@ different files.
 
 Each is built with a test. The full suite and the mutation check run after each.
 
-- [x] **3.1 p-value, not "Luck alone".** *(Done 26 Sep 2026, merge 89e1798.)* Rename it on every tab, Control and Check.
+- [x] **3.1 p-value, not "Luck alone".** *(Done 26 Sep 2026, merge 89e1798. "Standard error" is defined in the same words on each tab that uses it, Control, Split and Check, not once, because each tab is read on its own.)* Rename it on every tab, Control and Check.
       Readings become "worse, not significant" and "(not significant)". Every
       explanation that says "wobble" says "standard error" instead, and defines it once,
       as `docs/statistics.md` does.
@@ -84,7 +86,7 @@ Each is built with a test. The full suite and the mutation check run after each.
       - losing more + keeps more = "priced for it"
       - losing more + keeps less = "net drain"
       - losing less + keeps less = "safe but idle"
-- [x] **3.5 Synthetic RANR.** *(Done 26 Sep 2026, merge 89e1798. Test 4 as written, with 3% of balance added, reads profit "about the same": −0.79 points, not significant. The test holds that result, and an 8% variant reads "priced for it".)* RANR = contribution − GCO, where contribution = interest
+- [x] **3.5 Synthetic RANR.** *(Done 26 Sep 2026, merge 89e1798. Test 4 as written, with 3% of balance added, reads profit "about the same": −0.79 points, not significant. The test holds that result, and an 8% variant reads "priced for it". The test-design write-up the item calls not committed was committed later, as `docs/for-test-design.md` (f430378c).)* RANR = contribution − GCO, where contribution = interest
       on balance over months on book + fees − cost of funds on balance over the same
       months. Plant one pocket priced high enough to be losing more and keeping more.
       Make Tests 2 and 4 from `origination-cube-for-test-design.md` into fixtures (that

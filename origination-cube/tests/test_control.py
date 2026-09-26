@@ -241,3 +241,15 @@ def test_in_use_takes_a_number_the_run_takes(book):
     for r in wb[control.SHEET].iter_rows(min_row=control.FIRST_ROW):
         if r[control.KEY_COL - 1].value == "confidence":
             assert "$H:$H" in r[4].value and "VALUE(" in r[4].value and "$H:$H" in r[5].value
+
+
+def test_the_readme_quotes_a_refusal_the_tab_really_gives(book):
+    """The README shows one refusal as its example. Found 26 Sep 2026 by the final check: it still named C16
+    after the window and as-of rows moved the line to C18."""
+    import re
+    from pathlib import Path
+    text = " ".join((Path(__file__).resolve().parents[1] / "README.md").read_text().split())
+    quoted = re.search(r'\*(Control![A-Z]+\d+: "[^"]+" needs an answer\.)\*', text).group(1)
+    with pytest.raises(control.ControlError) as exc:
+        control.read_control(book)
+    assert any(p.startswith(quoted) for p in exc.value.problems), quoted

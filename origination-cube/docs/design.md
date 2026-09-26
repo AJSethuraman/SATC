@@ -17,14 +17,14 @@ each judgment. The professional makes every call about what matters. Where the
 tool can reasonably guess (which column is GCO, which is the key), it suggests,
 says why, and waits for a yes.
 
-Written 25 Sep 2026. **Built:**
+Written 25 Sep 2026; the lists were brought up to date on 26 Sep. **Built:**
 - the engine
 - the per-pocket test
 - `cube init`, with a meaning for every column and a memory that can be pruned
 - the Control tab
+- the rest of the workbook: the launcher, Set up, Columns and every results tab
 
 **Proposed, and the firm reacts before it's built:**
-- the workbook's other tabs
 - drill-down
 - the proof stage
 
@@ -442,6 +442,9 @@ enough.
     more, earning more (revenue gap could be luck)". The luck gate added after
     walk 4 is gone: with the test's bar near 1.5x, above every line, it had made
     the lines decide nothing.
+    *(The words and the revenue multiple were superseded on 26 Sep by OC-38: profit
+    reads "keeps more", not "earning more", and "not significant", not "could be
+    luck". The rule that the lines decide and an unsure side is marked still holds.)*
   - **The suggested fewest loans is 5 expected losses at the book's rate** (n x p
     of 5 or more, the textbook floor), not 10. At 10 it hid a 99-loan pocket with
     50 bad loans. The firm: *"prior to now i had never considered having the
@@ -463,6 +466,12 @@ enough.
   - A luck-marked box isn't shaded or counted with the findings.
   - The RANR column reads against the same line as the box.
   - The Split heat maps show a could-be-luck multiple in brackets, unshaded.
+
+  *(Superseded in part on 26 Sep by OC-38. The fixed options are now 0.25 points,
+  0.5 points, the materiality line or your own number of points. "The loss lines"
+  is refused, since a multiple can't judge a difference. A not-significant gap is
+  bracketed, in points for profit. Each pocket's own test is still the suggested
+  option.)*
 - **OC-32: the revenue setting decides revenue on every tab** (the firm, 25 Sep
   2026, after the seventh walk). Before this, Where it bleeds judged RANR by the
   loss lines while Losses vs revenue used the revenue setting, so one pocket
@@ -492,6 +501,19 @@ enough.
 - **OC-37: share of loans uses the pooled two-proportion test** (`statistics.md` A1;
   the firm, 25 Sep 2026). It had been an unpooled test on n − 1: on one example that
   gave p 0.090, where A1 gives 0.035.
+- **OC-38: profit is profit after losses, compared in points** (the firm's goal, 25
+  Sep 2026, in `docs/NEXT-GOAL.md`; built 26 Sep, fixes 3.1–3.5).
+  - RANR = interest income + fees − cost of funds − losses. It is compared as a
+    difference in points of booked dollars (pocket − rest), never as a multiple. A
+    multiple of two negatives read as "earning more", and a rest near zero blew it
+    up.
+  - Contribution before losses (RANR + GCO, OC-35) sits beside it.
+  - Losses vs revenue reads *what they paid us / what they cost us / what we kept*,
+    with a Together column: "priced for it", "net drain", "safe but idle".
+  - The words are "p-value" and "not significant" rather than "Luck alone" and
+    "could be luck". Profit reads "keeps more / about the same / keeps less".
+  - This supersedes the multiples and wording in OC-30, OC-31 and the Losses vs
+    revenue layout below. The rule that the lines on Control decide stands.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so
@@ -520,7 +542,10 @@ enough.
   rate, the multiple, the reading and the dollars over the rest. Red and green
   sit on each side's multiple and reading; a side that could be luck is marked
   and left plain. The box is still worked out, to order the rows and name the
-  chart's worst pockets, but it is not printed.
+  chart's worst pockets, but it is not printed. *(Since 26 Sep, OC-38: three
+  sides, paid, cost and kept, plus Together. Profit and contribution show a gap in
+  points where losses show a multiple, and "not significant" replaces "could be
+  luck".)*
 - **Control's In use takes a number the run takes.** Excel stores a pick of
   "95%" as 0.95. The run already read that as the 95% option, but In use said
   "not an option". Found on the render, 25 Sep 2026.
@@ -542,8 +567,13 @@ enough.
 - **The adversarial pass (26 Sep 2026).** Another model was given the arithmetic
   (`stats.py`, `perm.py`, the engine's use of them, `checks.py`) with one job:
   break it, writing tests only.
-  - **The count:** it formed 33 hypotheses and ran them; 4 produced a failing test
-    (8 tests) and 27 came out clean. It cross-checked against scipy and statsmodels:
+  - **The count:** it formed 33 hypotheses and ran them. 4 produced a failing test
+    (8 tests), 27 came out clean, and 2 went red only on inputs it judged unlikely.
+    It reported those 2 without filing them: a book where every loan loses exactly
+    the book's rate, and a pocket alone in its band under "the rest of its band"
+    (its flag is blank; see the hand-back). About 10 more were settled by reading
+    the code. *(The "2" was left out of this note until the final check found 4 +
+    27 ≠ 33.)* It cross-checked against scipy and statsmodels:
     Fisher, the chi-square and normal tails, Mantel–Haenszel, CMH, BH, the power
     search, the family count and seed determinism.
   - **The four findings, all fixed** and held by `tests/test_adversarial_2026_09_26.py`:
