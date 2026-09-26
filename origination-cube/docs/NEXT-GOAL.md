@@ -225,7 +225,7 @@ stop the work: anything a client or the bank reads that changes meaning, and any
 - [ ] **3. Lean pre-spec.** An outcome plus a shortlist of inputs, each with bins and a reference;
       optional columns to hold fixed, each input reported with and without them (this is 4d); the
       allowance for many tests spread across the shortlist. Strata are suggested and left blank
-      (OC-13). Lock first: no held-back results until a pre-spec is locked, and the Log keeps the order.
+      (OC-13). The Log records the pre-spec and every held-back run after it, in order; nothing is blocked.
 - [ ] **4. T1 sweep.** One method note per tab, near the top, that an outsider can follow. The
       per-row lone-pocket note and the Test column move into it. Every other tab swept against T1's
       check: a column predictable from the settings and the pocket's size is method.
@@ -257,6 +257,9 @@ question; Goal 2's own end condition above is what counts now.
 - **The redesign hold covers the launcher, the test picker and the layout only.** Items 4, 6, 7 and 8
   go ahead.
 - **Strata are suggested in the label and left blank**, like every other judgment setting (OC-13).
-- **Lock first.** The workbook will not work out held-back results until a pre-spec is locked, and
-  the Log records the lock and then each run, in order. Git is still recorded where it exists. This is
-  built into item 3.
+- ~~**Lock first.**~~ *Reopened the same day.* Once explained, the firm: *"i don't think there's a
+  reason to have some sort of over the top control in place to make sure we didn't mess with our own
+  analysis"*. Proposed instead, and built unless the firm says otherwise: **record, don't block.** The
+  Log records when the pre-spec was written, with its fingerprint, and each held-back run after it,
+  in order; a pre-spec changed after a held-back run labels that run as a change. Nothing is refused.
+  Git is still recorded where it exists. This is built into item 3.

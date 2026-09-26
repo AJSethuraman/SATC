@@ -1837,6 +1837,11 @@ back.
     a pre-spec is locked, and the Log records the lock and then each run, in order; git is recorded
     where it exists. The firm: *"actually i don't really know what this means - explain but probably
     take recommendation"*, explained in the reply the same day.
+  - **Lock first, reopened:** once explained, the firm: *"i don't think there's a reason to have some
+    sort of over the top control in place to make sure we didn't mess with our own analysis. is that
+    what this is for?"* Answered yes, the trap is an honest one (the held-back loans helping pick the
+    test), and proposed the lighter form: record, don't block. Built that way unless the firm says
+    otherwise.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
