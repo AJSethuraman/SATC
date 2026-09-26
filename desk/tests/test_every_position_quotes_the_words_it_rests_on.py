@@ -217,3 +217,15 @@ def test_narrowing_to_where_a_policy_applies_keeps_the_policys_source():
     out = engine.serve(engine.Answer(citation=q.citation, position=q.position),
                        narrow, question="a test question")
     assert isinstance(out, engine.Served), out
+
+
+@pytest.mark.parametrize("empty", ['"[...]"', '"  "', '"the"'])
+def test_a_quotation_that_carries_no_words_is_refused(tmp_path, empty):
+    """Codex on #398: `"[...]"` elides every word, so `elided_match` has no
+    segment to look for and passes on any paragraph -- a position resting on
+    nothing, checked as resting on something. A quotation has to carry words a
+    reader can weigh; one word carries none."""
+    c = _copy(tmp_path)
+    _edit(c, "POS19", '"the taxpayer shall allocate the use of the property on the basis of mileage."', empty)
+    with pytest.raises(record.RecordError):
+        _load(c)

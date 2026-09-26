@@ -1466,6 +1466,17 @@ def load(desk_dir: Path) -> Desk:
                     f"and the paragraph's citation first if it is not this one. "
                     f"If no stored words carry it, it is firm policy.")
             for cit, quote in q.rests_on:
+                # A QUOTATION HAS TO CARRY WORDS. Codex on #398: `"[...]"`
+                # elides everything, so `elided_match` has no segment to find
+                # and passes on any paragraph. Five words is a floor, not a
+                # reading: the shortest real quotation here is fourteen.
+                said = _comparing.normalise(quote).replace(
+                    _comparing.ELLIPSIS, " ").split()
+                if len(said) < 5:
+                    raise RecordError(
+                        f"{desk_dir.name}/position {q.id} rests on {quote!r}, "
+                        f"which carries {len(said)} word(s). Quote the words a "
+                        f"reader can weigh -- five at least.")
                 held = [p for p in passages if p.citation == cit]
                 if not held:
                     raise RecordError(
