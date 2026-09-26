@@ -2,7 +2,20 @@
 
 Run from origination-cube/: python tools/mutation_check.py. Exits non-zero
 if any mutation survives."""
-import subprocess, shutil, sys
+import importlib.util, os, pathlib, subprocess, shutil, sys
+
+# No bytecode is ever written from a mutated file, and any cached bytecode for the file is dropped before and
+# after each mutation. Found 26 Sep 2026: Python checks a cached .pyc against the source's size and its mtime in
+# whole SECONDS. A mutation that keeps the file's size ("< 2" -> "< 1"), restored within the same second, left
+# the mutated bytecode in __pycache__, so the next test run executed the planted bug: a clean checkout read red.
+# Two same-size mutations of one file inside a second could likewise run the previous mutant's bytecode.
+ENV = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+
+
+def _drop_cache(f: str) -> None:
+    pyc = pathlib.Path(importlib.util.cache_from_source(f))
+    if pyc.exists():
+        pyc.unlink()
 E="src/origination_cube/engine.py"; C="src/origination_cube/config.py"; B="src/origination_cube/book.py"
 S="src/origination_cube/stats.py"; P="src/origination_cube/perm.py"
 K="src/origination_cube/checks.py"; CF="src/origination_cube/confirmatory.py"; PV="src/origination_cube/prevalence.py"
@@ -331,14 +344,22 @@ muts = [
  ("unanswered shuffle still named", E, '                if s.p_book is None and s.p_band is None:\n                    s.test = None',
   '                if False:\n                    s.test = None', "could_not_answer"),
 ]
-bad = 0
-for name, f, old, new, sel in muts:
-    src = open(f).read(); assert src.count(old) == 1, name     # exactly the one place the bug went back
-    shutil.copy(f, f + ".bak"); open(f, "w").write(src.replace(old, new, 1))
-    r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-k", sel], capture_output=True, text=True)
-    shutil.move(f + ".bak", f)
-    # pytest exits 5 when the selector matched no test: nothing ran, so nothing was caught
-    caught = r.returncode not in (0, 5)
-    bad += not caught
-    print(("CAUGHT " if caught else "MISSED ") + name, "|", r.stdout.strip().splitlines()[-1])
-sys.exit(bad)
+def main() -> int:
+    bad = 0
+    for name, f, old, new, sel in muts:
+        src = open(f).read(); assert src.count(old) == 1, name     # exactly the one place the bug went back
+        shutil.copy(f, f + ".bak"); open(f, "w").write(src.replace(old, new, 1))
+        _drop_cache(f)
+        r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-k", sel],
+                           capture_output=True, text=True, env=ENV)
+        shutil.move(f + ".bak", f)
+        _drop_cache(f)
+        # pytest exits 5 when the selector matched no test: nothing ran, so nothing was caught
+        caught = r.returncode not in (0, 5)
+        bad += not caught
+        print(("CAUGHT " if caught else "MISSED ") + name, "|", r.stdout.strip().splitlines()[-1])
+    return bad
+
+
+if __name__ == "__main__":
+    sys.exit(main())

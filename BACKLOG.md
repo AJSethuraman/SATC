@@ -1617,6 +1617,16 @@ back.
     Each has a planted bug, all caught; 169 in total.
   - **Proposed tenet for canon** (the firm's yes needed): *compare against a bar
     computed once and rounded, never against `1 − confidence` inline*.
+- [x] **The mutation checker could run a stale planted bug** (found 26 Sep 2026: a
+  clean checkout read one test red).
+  - **Cause:** Python validates cached bytecode against the source's size and its
+    mtime in whole seconds. A same-size mutation restored within one second left
+    the mutant's bytecode in `__pycache__`, and the next run executed it.
+  - **Effect:** one test read red on a clean checkout, and inside a mutation run a
+    same-size mutant of the same file could run the previous one's bytecode.
+  - **Fix:** the checker writes no bytecode from a mutant, drops the file's cache
+    before and after each mutation, and its loop sits behind a main guard.
+    `tests/test_mutation_tool.py` rebuilds the trap and proves it cleared.
 - [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
       `cube drill` and `cube prove` (and put their settings back on the tab).
 - **Not checked:** real Excel, a real extract, and the bank machine
