@@ -348,7 +348,8 @@ def test_a_new_variable_run_needs_no_booked_amount_gco_or_ranr(tmp_path, monkeyp
     # no tab with nothing to show, and no dollars on the tabs a new variable's run does write
     wb = load_workbook(b)
     assert "Losses vs revenue" not in wb.sheetnames
-    assert "Booked dollars" not in [c.value for row in wb["Prevalence"].iter_rows() for c in row]
+    # the bleed's tabs, Prevalence among them, aren't built by a test of a new variable (OC-42)
+    assert not {"Where it bleeds", "Grids", "Split", "Three-way", "Prevalence"} & set(wb.sheetnames)
     calc = recalc(b, tmp_path / "calc")
     for tab in ("Confirmatory test", "Where it bleeds", "Grids", "Split", "Three-way", "Prevalence"):
         if tab not in calc.sheetnames:

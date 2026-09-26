@@ -243,6 +243,16 @@ from the pre-spec. A run that did what its pre-spec says differs nowhere: the
 reference group is the pre-spec's, and the holdout is the range the test held
 itself to, not the first and last loan in the extract.
 
+A test of a new variable builds none of the bleed analysis: no pocket grid, no
+shuffle test, and none of its tabs (Where it bleeds, Losses vs revenue, Grids,
+Split, Three-way, Prevalence). It writes the Confirmatory test, Check and the
+Log. If the workbook still has those tabs from an earlier bleed Run, they are
+taken off, and Check says so on one line. Start here and the launcher's last
+step show the confirmation: how many groups go bad significantly more often than
+the reference group on the holdout, their share of its bad loans, and whether
+the run followed its pre-spec. On 17,000 loans × 80 columns the Run takes
+4.5 s. It took 23.4 s when it also built the grids (design decision OC-42).
+
 On the dated synthetic book (`synth.write_extract(..., ratio=True)`, 20,000
 loans) with `docs/prespec-example.yaml`, the run finds both planted cliffs on
 development (below 0.10: 2.32x, 1.52x to 3.56x; 2.00 and up: 3.25x, 2.42x to
@@ -311,7 +321,7 @@ test).
 ## Checking it
 
 ```
-pytest -q                          # 607 tests (2 skip without a display; the 22 in test_live.py, 6 in test_answer_tabs.py, 3 in test_confirm_test.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the tabs you fill in (Start here, Control in three blocks with Status and the materiality panel, Columns with odd values and memory, Look with live bars, range and edge lines, one load and one save per Run), the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one
+pytest -q                          # 614 tests (2 skip without a display; the 22 in test_live.py, 6 in test_answer_tabs.py, 3 in test_confirm_test.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the tabs you fill in (Start here, Control in three blocks with Status and the materiality panel, Columns with odd values and memory, Look with live bars, range and edge lines, one load and one save per Run), the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one, and a test of a new variable building no grid and writing none of the bleed's tabs
 python tools/mutation_check.py     # puts 279 bugs back (the VBA's and today's rules); every one must be caught
 ```
 

@@ -54,7 +54,10 @@ def attach(book, about: dict | None, res) -> None:
 def rows(res) -> list[tuple[str, str]]:
     """Every newer Check line, in order: the pre-spec first (it says what this
     run is held to), then the budget and coverage, the families, the pockets alone in
-    their band, the products."""
+    their band, the products. A test of a new variable builds no pocket grid (OC-42), so it has the pre-spec's
+    lines alone."""
+    if not getattr(res, "bleed", True):
+        return confirmatory.check_rows(res)
     return (confirmatory.check_rows(res) + budget_rows(res) + family_rows(res) + alone_rows(res)
             + product_rows(res))
 

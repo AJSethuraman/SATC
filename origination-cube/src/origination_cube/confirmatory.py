@@ -446,7 +446,7 @@ def _test_words(t: Test) -> str:
     said = "; ".join(parts) + ". See the Confirmatory test tab."
     said = said[0].upper() + said[1:]
     if t.left_out:
-        said += (" Left out of this test only (the other tabs use every loan): "
+        said += (" Left out of this test only (the loan counts on Check include them): "
                  + "; ".join(f"{v:,} with {k}" if k != OUTSIDE else f"{v:,} {k}" for k, v in t.left_out.items())
                  + ".")
     return said
@@ -567,3 +567,49 @@ def what_ran(res) -> str:
     for line in log_lines(res)[1:]:
         out += f"# {line}\n"
     return out
+
+
+# --------------------------------------------------------------------------
+# What a test of a new variable found, for the launcher's last step and Start here (OC-42: such a run builds no
+# pocket grid, so the bleed's tiles would read nought of nought)
+
+
+def groups_found(res) -> list[dict]:
+    """One row per group of the tested column, on the holdout (the test that counts): its loans, bad loans, bad
+    rate, odds against the reference, p-value, and share of the holdout's bad loans. [] when the test didn't run."""
+    st = getattr(res, "prespec", None)
+    t = getattr(st, "test", None)
+    if t is None or t.problem or t.holdout is None:
+        return []
+    h, conc = t.holdout, t.concentration()
+    out = []
+    for k, name in enumerate(t.groups):
+        out.append({"group": name, "ref": k == t.ref, "loans": h.loans[k], "bad": h.bad[k],
+                    "bad_rate": h.bad[k] / h.loans[k] if h.loans[k] else None,
+                    "odds": 1.0 if k == t.ref else h.fit.odds[k], "p": None if k == t.ref else h.fit.p[k],
+                    "capture": conc[k].capture})
+    return out
+
+
+def headline(res) -> dict:
+    """The launcher's Run-finished tiles for a test of a new variable: how many groups go bad significantly more
+    often than the reference on the holdout, their share of its bad loans, and whether the run followed its
+    pre-spec. Significant is below the one rounded bar (canon S36), at the confidence the Run used."""
+    st = getattr(res, "prespec", None)
+    t = getattr(st, "test", None)
+    out = {"kind": "confirm", "tie_outs": 0}
+    if st is None or t is None or t.problem:
+        why = (t.problem if t is not None else None) or (st.failed if st is not None else None) or \
+            "no pre-spec was read"
+        return {**out, "problem": _plain(why)}
+    b = res.config.benchmark
+    conf = b.confidence if b is not None else st.spec.confidence
+    bar = round(1 - conf, 12)
+    rows = groups_found(res)
+    worse = [g for g in rows if not g["ref"] and g["odds"] is not None and g["odds"] > 1 and g["p"] is not None
+             and g["p"] < bar]
+    return {**out, "column": t.column, "reference": t.groups[t.ref], "confidence": conf,
+            "worse": len(worse), "groups": len(rows) - 1,
+            "capture": sum(g["capture"] or 0.0 for g in worse),
+            "development": t.development.n, "holdout": t.holdout.n,
+            "deviations": None if st.failed else len(st.deviations)}
