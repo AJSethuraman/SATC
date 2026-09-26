@@ -273,3 +273,17 @@ def test_a_declared_name_with_a_digit_is_read_back(monkeypatch):
     got = relay.on_file(relay.batch_prompt(relay.ask_many(["q?"], OCCAM,
                                                           on_file=facts)))
     assert got.facts == facts
+
+
+@pytest.mark.parametrize("value", ["EIN 12a345b6789", "12x34y56z789",
+                                   "123ab45cd6789"])
+def test_a_tin_split_by_letters_cannot_ride_along(value):
+    """Codex on #401: letters between the digits survived the join."""
+    with pytest.raises(relay.RelayError, match="TIN|identifier"):
+        relay.ask_many(["q?"], OCCAM, on_file={"capitalization_rule": value})
+
+
+def test_a_sentence_with_several_numbers_is_not_a_tin():
+    facts = {"capitalization_rule": "the $2,500 ceiling, 12 months, from 2025"}
+    assert relay.on_file(relay.batch_prompt(relay.ask_many(
+        ["q?"], OCCAM, on_file=facts))).facts == facts

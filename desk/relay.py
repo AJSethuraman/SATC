@@ -398,8 +398,12 @@ def _facts(on_file) -> tuple:
         # them (fourth independent review of #401).
         folded = unicodedata.normalize("NFKC", value)
         joined = re.sub(r"(?<=\d)[\W_]+(?=\d)", "", folded)
+        # AND A LETTER OR TWO. Codex on #401: "EIN 12a345b6789" survived the
+        # join. Up to three characters of anything between digits is a
+        # separator; a longer run ("ceiling, 12 months") is words.
+        tight = re.sub(r"(?<=\d)\D{1,3}(?=\d)", "", folded)
         if (TIN.search(folded) or notifying.looks_like_pii(folded)
-                or re.search(r"\d{9}", joined)):
+                or re.search(r"\d{9}", joined) or re.search(r"\d{9}", tight)):
             raise RelayError(
                 f"the value for {name!r} looks like a TIN or another "
                 f"identifier. The desk answers without identity and this "
