@@ -1,0 +1,4 @@
+$ cube validate cube.yaml --data demo/loans.csv
+REFUSED: cube.yaml has 1 problem(s):
+  - the required columns were suggested by `cube init` and are not confirmed yet (key: LOAN_NBR, booked: ORIG_BAL, outcome: BAD_FLAG, gco: GCO_AMT, ranr: RANR_AMT). Check each; type the right column name over any that is wrong; then set `columns_confirmed: yes`
+(exit code 2)

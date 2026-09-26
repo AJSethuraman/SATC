@@ -1,0 +1,41 @@
+# A pre-spec: what the confirmatory run will test, written before anyone looks
+# at the holdout, and committed to git so the date it was written is on record.
+#
+# The bins and the reference group come from scouting the DEVELOPMENT loans
+# (docs/statistics.md B7). The confirmatory run then applies exactly these
+# settings, once, to the HOLDOUT loans (B5, B6). If the run's settings differ
+# from this file, Check says so, line by line, and the Log marks the run as
+# deviating from the pre-spec.
+#
+# Every line is required; none has a default. The format is defined in full at
+# the top of src/origination_cube/prespec.py. A test loads this file.
+
+prespec: 1                          # this format's version
+written: 2026-09-25                 # the day it was written
+
+column: income_to_sales             # the column being tested
+
+# Cut points, each above the one before. Five cut points make six groups, named
+# the way the grids name bands:
+#   0: lowest - 0.09   1: 0.10 - 0.24   2: 0.25 - 0.49
+#   3: 0.50 - 0.99     4: 1.00 - 1.99   5: 2.00 - highest
+# The lowest and highest groups take their names from the data once it is read:
+# if the ratio runs from 0.03 to 7.40, they are "0.03 - 0.09" and "2.00 - 7.40".
+# A ratio of exactly 0.25 is in "0.25 - 0.49": a group holds its first number.
+bins: [0.1, 0.25, 0.5, 1.0, 2.0]
+
+# The group every other group is compared with: its name as above, or its
+# number (2 here). It holds the median, so it is the ordinary case.
+reference: "0.25 - 0.49"
+
+# The columns the pockets are cut by. Each group is compared with the reference
+# inside the same pocket, so a difference in FICO or channel mix cannot pass for
+# a difference in the ratio. [] would treat the whole book as one pocket.
+strata: [FICO, CHANNEL]
+
+confidence: 0.95                    # how sure a difference must be: 95%
+
+# Origination dates. Both ends are included: 2024-01-01 and 2024-12-31 are both
+# in the holdout. The two ranges may not share a day.
+holdout: {from: 2024-01-01, to: 2024-12-31}       # kept back for the confirmatory run
+development: {from: 2022-01-01, to: 2023-12-31}   # where the bins were chosen

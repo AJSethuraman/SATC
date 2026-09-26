@@ -1329,6 +1329,522 @@ sales on the small-business book; built domain-free so a consumer question
       could be re-read on a timer, so saving in Excel builds without a
       second command — a watcher, which is a process, which is a different
       kind of tool.
+## 6d · Origination Cube (`origination-cube/` — started 2026-09-25)
+
+A loan extract and a cube file go in. Every band is crossed with every
+dimension, and each pocket's rate is compared with the topline to find where
+the book bleeds. It replaces the firm's Excel macros
+(M08_Modes/M09_Roles/M10_ConfigEvents/M11_Median), which were reviewed on 25
+Sep. Each place the VBA broke its own rules is tracked one at a time in
+`origination-cube/docs/vba-findings.md`, with the test that stops it coming
+back.
+
+- [x] **Slice 1, the engine: built 25 Sep 2026.**
+  - 39 tests.
+  - 6 of 6 mutations caught (`python tools/mutation_check.py`).
+  - Every grid is tied out against separately accumulated totals, and the
+    excess figures must add to zero.
+  - The planted pocket (score under 620, broker channel) is first on the
+    bleed list.
+  - Speed, pure Python: 1,000,000 loans take 6.7 s to read plus 19.6 s for
+    one grid.
+  - Rulings OC-1 to OC-4 are recorded in `vba-findings.md`:
+    - OC-1: count and show a value that won't read.
+    - OC-2: missing-value codes are rules in the file.
+    - OC-3: thresholds are required.
+    - OC-4: pockets are compared with the topline.
+- [ ] **Slice 2: the workbook.** Python writes a small table of per-cell sums.
+      Rates, the vs-topline index and readings are Excel formulas over it, so
+      the thresholds can be changed in Excel, as in the Portfolio Analysis
+      Pack. It includes a check tab with Python's value beside every formula.
+      Its layout is for the firm to decide.
+- [ ] **Slice 3: `cube init`.** It profiles every column and writes a cube file
+      with `[CONFIRM: ...]` on each band and dimension it proposes. This
+      replaces the candidacy table (READY / REVIEW / BLOCKED).
+- [x] **Answered 25 Sep, rulings OC-5 to OC-10 in `origination-cube/docs/design.md`:**
+  - cross everything and rank it
+  - compare each pocket with the book, its parent and the rest of its peers
+  - raise odd values as questions without stopping the run
+  - apply materiality when the cube is read, not when it's built
+  - a control center with explained options
+  - a proof stage on the loans themselves
+  - Population size: 17,000 × 80 in the firm's example, so pure Python is
+    enough (100 grids in 3.7 s).
+- [x] **Control tab built** (`cube control`): 12 settings from
+      `settings.yaml`, each with options, explanations and your own value;
+      rendered through LibreOffice with no error cells.
+- [x] **Built later on 25 Sep, rulings OC-11 to OC-16 in `origination-cube/docs/design.md`:**
+  - **Required lines:** key, booked, yes/no outcome, GCO and RANR, from which
+    four core rates are built.
+  - **`cube init`:** suggests the required columns with reasons, and refuses
+    until `columns_confirmed: yes`; sorts every column into band, dimension
+    or neither; raises odd values as questions.
+  - **Bands** are set by a count or by cut points.
+  - **Each pocket is tested** against the rest of the book, its band and its
+    dimension (the ratio-estimator test).
+  - **Evidence printed with every run:** loans needed for a gap, the smallest
+    gap each pocket could show, and what each materiality level keeps.
+  - **Judgment settings** (materiality, enough loans, worse at, confidence)
+    open blank on the Control tab and are never pre-chosen.
+  - **The size floor is not a gate.** A version that used the suggested
+    3,500 loans as a minimum hid the planted 6.6x pocket of 531 loans; each
+    pocket's own test decides.
+  - 86 tests; 11 of 11 re-inserted bugs caught.
+- [x] **Every column gets a meaning, and the tool learns** (rulings OC-17
+      to OC-20):
+  - `cube init` suggests a meaning for every column from a catalog in
+    `settings.yaml` (FICO, score, DTI, LTV, dates, servicing ...).
+  - What is confirmed is remembered outside the repository (names and
+    meanings only), and can be pruned with `cube memory --forget` or an Excel
+    Keep / Forget review.
+  - Data recorded after booking is called servicing.
+  - The Control tab shades what needs an answer instead of labelling it.
+  - 95 tests; 13 of 13 re-inserted bugs caught.
+- [x] **No commands for users (ruling OC-22), plus the walkthrough's 15 defects fixed:**
+  - `Origination Cube.pyw` opens a two-button window: Set up, then Run.
+  - One workbook holds every decision: Start here, Control, Columns, Odd
+    values, Learned. Results land in the same workbook: Where it bleeds,
+    Grids, Check, Log.
+  - Every Control answer is applied (loan age, fewest losses, materiality,
+    judged-against, the allowance for many tests).
+  - RANR is revenue, so less of it is the bleed.
+  - 126 tests; 19 of 19 re-inserted bugs caught.
+- [x] **A third layer, GCO against RANR, and the second walkthrough's 16 defects**
+      (rulings OC-23 to OC-25):
+  - One column can split every pocket. A number is split at each pocket's own
+    median, and the Split tab compares high with low, pooled across pockets
+    (Mantel-Haenszel odds, a steadiness check, and observed against expected
+    for the dollar rates). A category repeats each grid once per value.
+  - On a planted book (revolving debt above the usual for the score: 1.8x the
+    bad rate) the split finds 1.84x, worse in 20 of 20 pockets.
+  - **Losses vs revenue:** each pocket in one of four boxes, with both flags
+    and a chart. Nothing is netted until the firm says whether RANR already
+    has losses taken out.
+  - **Show per pocket:** the median or average of any number column.
+  - **Materiality tab:** what each level would keep.
+  - The second walk's defects: 15 fixed, 1 in part (a long problem list can
+    scroll out of sight in the window). The status table is in
+    `docs/walkthrough/walk-2026-09-25-b/WALKTHROUGH-DEFECTS.md`.
+  - 160 tests; 32 of 32 re-inserted bugs caught.
+- [x] **The third walkthrough's 16 defects** (rulings OC-26, OC-27; the firm chose B, B, C):
+  - Losses vs revenue has nine boxes, set by the lines on Control. Revenue has its
+    own line, and the suggested option is worked out from the book: what luck
+    alone can move revenue in a typical pocket.
+  - Each split grid says what it holds fixed, with the correlation.
+  - Three-way pockets are tested and ranked on their own tab.
+  - 14 fixed, 2 in part (the window can still scroll; the charts don't name their boxes). Status table in
+    `docs/walkthrough/walk-2026-09-25-c/WALKTHROUGH-DEFECTS.md`.
+  - 170 tests; 39 of 39 re-inserted bugs caught.
+- **Docket, 25 Sep 2026:** https://claude.ai/artifact/SCjJwU3YSBZskGLztNjBP7. It asks six decisions: the
+  many-tests reach, suggestions for other calls, a real-Excel check at work, RANR
+  netting, the pull request, and remembering band edges. The firm answered at 18:27 UTC:
+  - **Many tests:** keep the allowance per grid. Check will say what it covers.
+  - **Suggestions:** yes, "where there's a calculation". Suggested options come
+    from the book, are labelled, and are never pre-chosen (OC-13 holds).
+  - **Excel check:** *"you keep working and such on it and debugging, i will tell
+    you when i think it's in a position to be used at work"*. No Excel check
+    until the firm says so.
+  - **RANR netting:** still asking. It stays out.
+  - **Pull request:** keep it a draft until the Excel check.
+  - **Band edges:** yes, remember them, and *"it must have more bands than this for
+    sure - like i can tell you from experience 20 point bands look very different.
+    i assume all banding is adjustable to a degree"*. So: a band width ("every
+    20") as well as edges, remembered per column, and more bands on offer.
+  - **Next:** go ahead (the fourth walk).
+  - **RANR (asked at work):** *"ranr does include the credit loss as far as we can
+    tell"*. So nothing is netted (OC-29).
+  - Built the same evening: band widths ("every 20"), remembered edges, 20 bands
+    on offer, and suggested values for fewest loans and worse/better. 174 tests;
+    42 re-inserted bugs.
+- [x] **The fourth walkthrough's 11 defects**: 8 fixed, 3 in part (the luck line
+      is one number per run; chart box names; Control's question wrap). The
+      booked amount can split, by design. Status table in
+      `docs/walkthrough/walk-2026-09-25-d/WALKTHROUGH-DEFECTS.md`.
+- [x] **The fifth walkthrough's 11 defects:** 7 fixed, 3 fixed in part, 1 open
+      (the chart). The firm's calls (OC-30): the lines decide the boxes and luck
+      is marked; the suggested fewest loans is 5 expected losses. Status table in
+      `docs/walkthrough/walk-2026-09-25-e/WALKTHROUGH-DEFECTS.md`. 184 tests; 50
+      re-inserted bugs.
+- [x] **The sixth walkthrough's 11 defects:** 8 fixed, 2 fixed in part, 1 open (an
+      exact test for small pockets, proposed). The firm's call (OC-31): the
+      suggested revenue line is each pocket's own luck range. 187 tests; 53
+      re-inserted bugs. The walk's read on convergence: the edges are getting
+      smaller, but the top defect kept changing shape until OC-31.
+- **Small pockets (25 Sep 2026):** asked whether a pocket too small for the usual
+  test should get an exact test, the firm answered: *"not really sure, if they were
+  large maybe. this is a materiality thing"*. So there's no exact test for now. A
+  pocket that is material but too small to test is shaded blue on Where it bleeds
+  and counted in the window, to be looked at by hand. Both floors (fewest loans,
+  fewest losses) keep their suggested option and take an override.
+- [x] **Bands read as ranges** ("496 - 619", "620 - 679"), not "under 620" and
+      "620 to under 680". The firm asked for this because words make the page look
+      cluttered. 189 tests; 56 re-inserted bugs.
+- [x] **Losses vs revenue shows its numbers** (the firm: *"find a clean way to
+      display the comparable metrics"*). For losses and for revenue: this pocket,
+      the rest, the multiple, a reading and the dollars. Red and green are on the
+      cells, and the "Which box" column is gone. Control's In use now agrees with
+      the run on a number such as 0.95. 190 tests; 59 re-inserted bugs.
+- [x] **The seventh walkthrough's 8 defects:** 5 fixed, 1 gone with the box column
+      (the wrapped box text), and 2 are the firm's call: which line RANR uses on
+      Where it bleeds, and red on Three-way rows that don't hold FICO fixed.
+      Checking its blank *Last Run used* rows found that Control's category limits
+      were never used. They now apply at Set up. The write-up for the firm's own
+      tests found that a negative RANR comparison flipped a pocket's reading; the
+      multiple now keeps its direction. 193 tests; 64 re-inserted bugs. Status
+      table in `docs/walkthrough/walk-2026-09-25-g/WALKTHROUGH-DEFECTS.md`.
+- [x] **Proof that the engine is generic** (the firm asked, worried by walk numbers
+      that all came from one test book). The whole route now runs on a second book
+      with other names, another product and a problem planted in a dealer and a
+      region; the workbook finds it and carries nothing from the first book. That
+      test found Control's explanations using the test book's pocket as their
+      example; they're generic now. 194 tests.
+- [x] **The firm's two calls from walk 7** (OC-32, OC-33): the revenue setting
+      decides revenue on every tab, and Three-way rows whose grid doesn't hold the
+      score fixed aren't red. 197 tests; 66 re-inserted bugs.
+- [x] **Next (set by the firm, 25 Sep 2026):** *(Done 26 Sep 2026: all six steps. The
+      cube has what the confirmatory test needs; the test itself is 4b, the new Next.)*
+      *"RANR is profit after losses —
+      interest income + fees − cost of funds − losses — and the cube's outputs, tests
+      and synthetic book should treat it that way; and the cube should be ready to test
+      a derived column (income ÷ sales) against a dated outcome, on a holdout, from a
+      committed pre-spec."* Every item is listed, with a box to tick, in
+      `origination-cube/docs/NEXT-GOAL.md`:
+      - an audit (1a–k), reported before any source changes
+      - 18 fixes (3.1–3.18)
+      - 5 capabilities, scoped but not built (4a–e)
+      - an adversarial pass on the statistics module
+      - the questions handed back
+
+      Two of its references were not in the repository when it was set:
+      `docs/statistics.md`, and the other agent's tree-based scouting code (no
+      branch of 131 has either). The eighth walk (stopped on the firm's word: *"there
+      will be a large change to code incoming"*) and the Claude Design hand-off wait
+      until this is done.
+- **Audit reported, 25 Sep 2026** (`origination-cube/docs/audit-2026-09-25.md`). The
+  firm's answers to the four questions it raised (rulings OC-34 to OC-37):
+  - **The permutation test:** *"add numpy; this is the kind of script where it should
+    outline what is missing and try to download it, right?"*
+  - **The losses inside RANR:** GCO.
+  - **CMH:** no continuity correction, matching the reference.
+  - **Share of loans:** the pooled two-proportion test (A1).
+- [x] **Wave 1 of the fixes (26 Sep 2026), four agents in parallel, each merged:**
+  - **Statistical tests** (`stats.py`, new `perm.py`, `engine.py`):
+    - share of loans on the pooled test (A1), and Fisher's exact test (B1) below
+      fewest loans;
+    - every dollar rate on a 10,000-shuffle permutation test (B2), within the band
+      or the book;
+    - CMH without the ½;
+    - A3's power formula;
+    - the many-tests family is inner pockets only.
+
+    Every worked example in `docs/statistics.md` for a test the cube runs is reproduced by
+    a test: 8 of the 12 (A1–A3, A5, A6, A8, B1, B2), plus A7's and B9's arithmetic. The
+    other four (B3/B4, B5, B6, B7) belong to capabilities 4a–4e, scoped and not built.
+    *(Corrected 26 Sep: this line first said every worked example; the final check
+    found four untested.)*
+  - **The Look tab** (`look.py`).
+  - **The pre-spec reader** (`prespec.py`, data only).
+  - **The launcher's add-on check and install** (`deps.py`, OC-34).
+
+  CI went red once on the way: numpy wasn't listed in `pyproject.toml`, so the new
+  add-on check refused to run in CI. It was fixed by listing it. 350 tests; 81
+  re-inserted bugs.
+- [x] **Wave 3 (26 Sep 2026): dates, the outcome window, new columns** (NEXT-GOAL 3.9,
+  3.10, 3.11, 3.13, 3.14; merge 3dcb3da).
+  - **Dates:** origination date and outcome date roles give months on book and
+    months to bad.
+  - **The window:** bad means bad within N months. Loans under N months are left
+    out and counted. Check gives the origination range tested and how much of the
+    loss seasoned loans show had landed by month N.
+  - **New columns:** ratio columns defined on Control (e.g. INCOME ÷ SALES), cut or
+    split like any column, each with a Look block.
+  - **Columns tab:** a period (per year / per month / one-time), with a Check warning
+    when a ratio's inputs disagree; and a definition in the analyst's words.
+  - **A dated synthetic book** (`write_extract(dated=True)`) plants the income ÷
+    sales cliffs from `docs/scout-vs-measure.py`.
+  - **A bad date** in a cube file is now a plain refusal.
+
+  385 tests; 119 re-inserted bugs. **Its calls, for the firm to confirm** (listed in
+  the hand-back):
+  - where the as-of date comes from;
+  - only the yes/no outcome is windowed, while GCO and RANR dollars stay as
+    extracted;
+  - the age filter and the window can't both be on;
+  - definitions sit on Columns, not Control.
+- [x] **Wave 2 (26 Sep 2026): RANR is profit after losses** (NEXT-GOAL 3.1–3.6;
+  merge 89e1798).
+  - **Points, not multiples:** RANR and a new "Contribution before losses" (RANR +
+    GCO, OC-35) are compared in points of booked dollars (pocket − rest) on every
+    tab. The two-negatives flaw and the near-zero blow-up are gone.
+  - **The profit line on Control:** each pocket's own test (suggested), ± points, or
+    the materiality line. "The same lines as for losses" is refused.
+  - **Words:**
+    - "p-value" and "not significant" replace "Luck alone" and "could be luck";
+    - profit reads "keeps more / about the same / keeps less";
+    - Losses vs revenue reads what they paid us / what they cost us / what we kept,
+      with a Together column ("priced for it", "net drain", "safe but idle");
+    - the dollar rates' Test column reads "shuffled: N of 10,000".
+  - **Synthetic book:** RANR = contribution − GCO, and a priced-for-it pocket is
+    planted. The firm's Tests 2 and 4 are tests; Test 4 as written reads profit
+    "about the same", and an 8% variant reads "priced for it".
+  - **A merge bug, caught by the suite before the push:** both waves had defined the
+    synthetic book's AS_OF, one as a date and one as text (01d70ff).
+
+  410 tests; 133 re-inserted bugs.
+- [x] **Wave 4 (26 Sep 2026): Check lines, prevalence and the pre-spec** (NEXT-GOAL
+  3.12, 3.15–3.18; merge 60ba9bc, tests brought up to Wave 2 in 7d886de).
+  - **The pre-spec, named on Control:**
+    - Check echoes it, with its commit;
+    - one warning for each place the run deviates, and the Log says "Deviates from
+      pre-spec";
+    - a run whose extract holds holdout loans is logged "Touched the holdout", and
+      Check counts those runs.
+  - **The pocket budget** (bad loans ÷ 5) against each grid's pockets, with
+    coverage in loans and dollars.
+  - **The family count**, with the line that a single red across many families is
+    weak evidence.
+  - **A product-mix warning**, using a new "Credit product" meaning.
+  - **A Prevalence tab** ("a count, not a test").
+
+  430 tests; 164 re-inserted bugs. Every fix, 3.1 to 3.18, is now on the branch.
+- [x] **The adversarial pass (NEXT-GOAL 5, 26 Sep 2026).**
+  - **The pass:** another model, given only the job of breaking the arithmetic
+    with tests, formed 33 hypotheses, ran them, and delivered 8 failing tests (4
+    findings) on branch `adversarial/origination-cube-stats`.
+  - **The intake, done by hand** the way `canon`'s intake works: only its findings
+    file crossed over, and the branch touched nothing else.
+  - **The four findings, all fixed** and moved into
+    `tests/test_adversarial_2026_09_26.py`:
+    - a p-value exactly at the bar;
+    - Cochran's Q off A8's centre;
+    - an absent rate read as zero;
+    - an unanswered shuffle named as a test.
+
+    Each has a planted bug, all caught; 169 in total.
+  - **Proposed tenet for canon** (the firm's yes needed): *compare against a bar
+    computed once and rounded, never against `1 − confidence` inline*.
+- [x] **The mutation checker could run a stale planted bug** (found 26 Sep 2026: a
+  clean checkout read one test red).
+  - **Cause:** Python validates cached bytecode against the source's size and its
+    mtime in whole seconds. A same-size mutation restored within one second left
+    the mutant's bytecode in `__pycache__`, and the next run executed it.
+  - **Effect:** one test read red on a clean checkout, and inside a mutation run a
+    same-size mutant of the same file could run the previous one's bytecode.
+  - **Fix:** the checker writes no bytecode from a mutant, drops the file's cache
+    before and after each mutation, and its loop sits behind a main guard.
+    `tests/test_mutation_tool.py` rebuilds the trap and proves it cleared.
+- [x] **CI's mutation run died partway through** (26 Sep 2026, on `da0271a`).
+  - **Cause:** the adversarial fix rewrote one line in `book.py` that the "split
+    luck shaded" mutation planted into. Its text was no longer there, so the
+    runner stopped on its own assert after about sixty mutations. The other
+    hundred never ran.
+  - **What I got wrong:** I checked only the four new mutations against the
+    source, not all 169.
+  - **Fix:** the entry now points at the current line and is caught. A new test
+    in `tests/test_mutation_tool.py` checks that every planted bug still finds
+    its line, so the next stranded entry fails the ordinary suite instead.
+    That test failed on the old list and passes on the new one. The suite now has
+    442 tests.
+- [x] **The final check (NEXT-GOAL 6, 26 Sep 2026):**
+  `origination-cube/docs/final-check-2026-09-26.md`.
+  - **Who:** an agent that had not seen the work, on a clean copy of `a0f5bd1d`.
+    It checked facts against sources, reran the arithmetic and opened the workbook.
+  - **Result:** 206 claims checked. 181 held, 25 were wrong (14 findings), and 13
+    could not be checked. **No error in the cube's arithmetic:** every worked
+    example it runs matches `statistics.md`, scipy or statsmodels, and one pocket
+    recomputed by hand from the CSV equals the workbook to the dollar.
+  - **Every finding was fixed.**
+    - 11 were in what the docs say about the work (`84440bc`). Examples: the README
+      said the result tabs weren't built; "every worked example is tested" was 8
+      of 12.
+    - 3 were on the tabs, fixed by two agents with tests and planted bugs (merges
+      `c7a6e92`, `924fd7f`):
+      - F5: Check called the run's loan range "the holdout";
+      - F9: jargon, ruling numbers, and a stale ask on Columns;
+      - F13: one pre-spec group had two names, and a future date passed silently.
+    - **One more on the way:** Split answered "yes" to "Same size in every pocket?"
+      whenever Cochran's Q wasn't significant. `statistics.md` A8 says that is "never
+      proof they agree", so it now reads "no sign they differ".
+  - **New:** OC-38 records the switch to profit in points.
+  - **Counts:** 454 tests; 177 planted bugs.
+  - **For 4b:** the holdout line compares the run's first and last loan with the
+    pre-spec's range. Once a run can hold itself to the holdout, it must compare the
+    range it filtered to.
+  - **For the next walk:** the wording seen but not fixed is listed at the end of
+    the final check's file.
+- [x] **The hand-back (NEXT-GOAL 6, 26 Sep 2026).** Docket:
+  https://claude.ai/artifact/Dm54ZNHGJWaT9jooucgW4R. It is a separate page from the
+  25 Sep docket, whose seven answers are logged above and are not asked again.
+  - **Next, which silence approves:** build 4e, then 4b, so a pre-spec'd test of a
+    new column runs from start to finish on held-back loans.
+  - **The 12 decisions, each with both outcomes and a recommendation:**
+    1. correct `statistics.md`'s three slips;
+    2. window the dollars, or not;
+    3. keep "latest" as the as-of date;
+    4. keep refusing the age filter with a window;
+    5. definitions on Columns;
+    6. Test 4's "about the same";
+    7. the pre-spec's "deviates" until 4b;
+    8. a pocket alone in its band;
+    9. scikit-learn for 4a;
+    10. 4c's lines;
+    11. 4d's bands and "survives";
+    12. the tenet "compare against a bar computed once".
+  - **What ran, for the whole goal:**
+    - the audit;
+    - 18 fixes in four waves of agents;
+    - the scope for 4a–4e;
+    - the adversarial pass: 33 ideas, 4 bugs;
+    - the final check: 206 claims, 25 wrong, all fixed.
+
+    The goal started at 197 tests and 66 planted bugs, and ends at 454 and 177.
+- [x] **The firm's answers to the 26 Sep docket** (read back 26 Sep 2026, 10:15 UTC; their
+  words verbatim):
+  1. **statistics.md's three slips:** "Correct them, marked", with *"Confused about why they
+     seemed wrong in the first place. Ensure you are correct too."* All three were recomputed
+     before editing, and each correction is marked in the file:
+     - B1: 1.0189 is 12 × 18 / 212, the rate the test assumes both share. 0.84 used the
+       rest's rate alone.
+     - B3/B4: the example reproduces only with groups of 100/400/500/400/100 loans, and
+       66.4714 rounds to 66.5.
+     - B7: the script prints 7.64% at 0.10.
+  2. **Window the dollars:** *"I need this issue simplified when explained to me."* Asked
+     again in plain words.
+  3. **"Latest" as the as-of date:** *"The as of date is not of concern generally. And we would
+     never use the as of date in place of a date. Either the gross charge off or original date
+     is there or it isn't."*
+  4. **Age filter and window together:** *"The person running it is in charge of whether
+     something has been in the books long enough. This should not be a concern of the engine.
+     If we have the age and can run that particular analysis great. Until this point we didn't
+     include the date and it turns them into additional factors such as charged off in x
+     months."*
+
+     Answers 3 and 4 read together as: the engine stops policing seasoning, and dates only
+     make factors. That reading was put back to the firm to confirm before anything changes.
+  5. **Definitions:** "Keep on Columns". No change.
+  6. **Test 4:** *"Not sure what is being said here. Is this configurable?"* Explained again.
+     After the walk-through (the 3% is a one-time $600-style lift; doubled losses cost about
+     3.8 points; the net −0.8 points is 80 bps short of the band), the firm: *"Approve."* Test 4's
+     "about the same" stands.
+  7. **Pre-spec "deviates" until 4b:** *"This is not a problem if we are fixing it."* Kept
+     until 4b, which is Next.
+  8. **A pocket alone in its band:** "Compare with the book", with *"It's hard to believe this
+     will even happen unless a specific circumstance."* Built (merges a7909d6 and after): a lone
+     pocket is judged against the book; Where it bleeds says so in its Test column, Losses vs
+     revenue in a "Compared with" column, and Check counts them. First try put the note in
+     Together, which the full suite caught (3 tests). 448 tests, 168 planted bugs.
+  9. **scikit-learn for 4a:** "Optional add-on".
+  10. **4c's lines:** *"This is not something the engine is meant to catch. This is non
+      generic. This is meant to be something we may do on a specific study or something."*
+      4c is out of the cube (`docs/capabilities-scope.md`).
+  11. **4d:** "As proposed": 5 equal-loan bands; "survives" means the interval still excludes 1.
+  12. **The tenet:** "Yes, add it". Being added to canon as S36.
+  - **Next:** the box was left blank, so build 4e, then 4b.
+- [x] **First: take the date work out of the bleed analysis (OC-39, the firm, 26 Sep 2026).**
+      *(Done 26 Sep, merge b386e87: every loan runs; Check prints the origination-date range;
+      an old cube file, pre-spec or Control row naming a removed setting is refused by name,
+      and has to be deleted once. 442 tests, 164 planted bugs.)*
+      Remove the loan-age filter, the outcome window, the as-of date, the outcome date role and
+      the pre-spec's `window_months`. Keep the origination date for the dev/holdout split, and
+      add one Check line giving its range. The firm answered decision 2 (windowing), 3 (as-of)
+      and 4 (age filter) with this.
+- [x] **Then: Set up asks what the run is for** *(Done 26 Sep, merge 75723ee: "What are you
+      running?" heads Control, with a follow-up asked only for a new variable; each answer
+      refuses by name on its own minimum; scouting is refused as not built; a pre-spec under a
+      bleed run is refused. 461 tests, 175 planted bugs.)* (the firm, 26 Sep 2026: *"because those are
+      added to this suite it likely makes sense for the script to ask which we are doing so it
+      does indeed have the minimum required"*).
+      - *Where the book bleeds* needs only the five core columns and never asks about dates.
+      - *Finding and testing a new variable* also needs the origination date and the tested
+        column, then asks: scout first, or test from a pre-spec already written. The trees
+        stay optional.
+      - Each choice checks and refuses only on its own minimum.
+- [x] **Then: literal row wording** *(Done 26 Sep, merged with the next item: e.g. "short of its
+      band by 23.90 points ($1,338,239)", "-0.49 points against its band, not significant",
+      "within 0.25 points of its band (-0.12)".)* (the firm, 26 Sep 2026: *"yes I prefer it to be
+      literal"*). The profit reading says the gap, e.g. "short of its band by 0.8 points
+      ($16,000)" or "ahead of its band by 4 points", instead of "keeps less" or "keeps more".
+- [x] **Then: one comparison decides the verdict, the dollars and materiality** *(Done 26 Sep:
+      both dollar figures on Where it bleeds and Losses vs revenue; the judged-against setting
+      picks the one that ranks, flags and meets materiality; Check says which. 481 tests, 189
+      planted bugs after both merges.)* (the firm, 26
+      Sep 2026: *"That works"*).
+      - Show both dollar figures, "over the book" and "over its band".
+      - The reading and materiality follow Control's judged-against setting, so they can't
+        disagree. The other figure stays visible for reference.
+      - Why: materiality applied to the book-relative dollars while the reading used the band.
+        A pocket in a high-loss band could clear materiality against the book while being in
+        line with its neighbours.
+- [x] **Then: the judging settings live in the workbook (OC-40).** *(Done 26 Sep, merge of
+      `live-settings`: the five settings drive formulas on every result tab, through two hidden
+      sheets; one rounded significance bar (S36); a LibreOffice recalculation test proves every
+      live reading equals the engine's after each setting is changed. Order, charts and some
+      Check counts stay as of the Run and say so. CI now installs LibreOffice, and the helper
+      fails rather than skips there. 503 tests, 198 planted bugs.)* The loss line, the profit
+      line, materiality, confidence, and judged against, all adjustable after the run. Scope
+      first: which cells become formulas on each tab, and the recalculation step the tests
+      need (openpyxl doesn't calculate formulas). Open question for the firm: is the bank's
+      Excel Microsoft 365? That decides whether ordering can follow live.
+- [ ] **Then: apply tenet T1** (`origination-cube/TENETS.md`, the firm, 26 Sep 2026: method
+      is said once, never beside every row). Move the lone-pocket note and the Test column into
+      one method note per tab, and sweep the other tabs for per-row settings.
+- [ ] **Then: live ordering and counts (Excel is Microsoft 365, the firm, 26 Sep 2026).** Use
+      SORT/FILTER on Where it bleeds and for Check's counts. The container's LibreOffice is 24.2,
+      which predates SORT/FILTER (24.8), so the tests need a newer LibreOffice or another check.
+- [ ] **Then: "judged against the book" on one basis** (the firm, 26 Sep 2026: option A, *"i
+      think this makes most seense"*): points and dollars both against the rest of the book,
+      as the band already is; the tie-out stays on Check.
+- [ ] **Then: the new-variable run needs only what it uses** (the firm, 26 Sep 2026: *"what's
+      the point in that if you are searching for possibly important variables to the
+      outcome?"*): the loan key, the outcome, the origination date, the tested column(s) and the
+      strata. Booked, GCO and RANR become optional; if present, 4e also shows dollars.
+- [ ] **Then: no "not built yet" option on Control** (the firm: *"don't note what it does not
+      include just note what it does"*): "Scout first" appears only once scouting exists.
+- [ ] **Then: "Worse?" and "Material?" as two columns** (the firm, 26 Sep 2026: *"do it"*).
+      Statistical significance and materiality are judged separately, as in risk and audit
+      practice. The list ranks by dollars among the pockets that are worse.
+- [ ] **Then: the pre-spec asks only for what it needs** (the firm: *"just drop unnecessary
+      pre-spec columns"*). The strata default to the workbook's own band and segment columns,
+      and are listed only when different. Several columns can be confirmed in one pre-spec, with
+      the allowance for many tests across them.
+- [ ] **Then: the tests are picked from one easy place** (the firm, 26 Sep 2026: *"all of these
+      sorts of tests should be available in some sort of easy to pick way. at this point i
+      think i am expecting a GUI of some sort"*). Waits on the redesign.
+- [x] **Screens for the redesign** (the firm, 26 Sep 2026): every tab and every launcher state,
+      rendered from the synthetic book: https://claude.ai/artifact/8duWJxayMTBtMe1GCPrvAX
+      (the builder is `make_shots.py`, kept in the session's scratchpad).
+- [ ] **The pre-spec design** (the firm, 26 Sep 2026): an outcome and a shortlist of inputs (never
+      one: *"one column makes no sense - it can't be used in a tree"*), each with its cut points
+      and reference; optionally the columns to hold fixed. Each input is reported on its own and
+      with them held fixed, which folds in 4d.
+- [ ] **Then: scouting (4a).** Wide, on development loans: rank every candidate column and
+      suggest bins. It feeds the confirmation, which is narrow: a shortlist, on the holdout.
+- [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
+      (`origination-cube/docs/capabilities-scope.md`). It ends when the planted income ÷
+      sales cliffs are found on development loans and confirmed on the holdout from a
+      committed pre-spec, and Check no longer says "deviates" on the reference group.
+- [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
+      `cube drill` and `cube prove` (and put their settings back on the tab).
+- **Goal 2 agreed, Count Bassy's pass, and the firm's three answers (26 Sep 2026).** The firm:
+  *"we are now on the same page - make sure you docket all of this so we know what the goal
+  is"*. Goal 2 is in `origination-cube/docs/NEXT-GOAL.md`, ten items in order. Count Bassy read 50
+  entries (12 held convictions, 36 tenets, T1) and raised nine points. The run's minimum and the lean
+  pre-spec moved up behind 4b (C11), and each item now names its proof (S2, S3, S13, S14, S18, S32).
+  Answered on the docket (https://claude.ai/artifact/U5pHCYek9H7hqehzUvqs8M):
+  - **Redesign hold:** the launcher, the test picker and the layout only. What a tab says goes ahead.
+  - **Strata:** suggested, left blank. OC-13 holds with no exception.
+  - **Pre-spec proof without git:** lock first. The workbook will not work out held-back results until
+    a pre-spec is locked, and the Log records the lock and then each run, in order; git is recorded
+    where it exists. The firm: *"actually i don't really know what this means - explain but probably
+    take recommendation"*, explained in the reply the same day.
+  - **Lock first, reopened:** once explained, the firm: *"i don't think there's a reason to have some
+    sort of over the top control in place to make sure we didn't mess with our own analysis. is that
+    what this is for?"* Answered yes, the trap is an honest one (the held-back loans helping pick the
+    test), and proposed the lighter form: record, don't block. Built that way unless the firm says
+    otherwise.
+- **Not checked:** real Excel, a real extract, and the bank machine
+  (Python and the add-ons installed, and .pyw files opening with Python).
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -1340,6 +1856,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-25 -- **Origination Cube slice 1: the engine** (`origination-cube/`). It replaces the firm's origination-analysis VBA. 39 tests, 6 of 6 mutations caught, and every place the macros broke their own rules is tracked in `docs/vba-findings.md`. The workbook is slice 2. Open questions are in §6d.
 - 2026-09-19 -- **Portfolio Analysis Pack v1 built** (`portfolio-analysis-pack/`, nine slices #364–#372, one PR each). The ladder plus door one, the bundle, the render harness and the mutation tool. 94 tests, 9 of 9 mutations caught, 100,000 loans in 12.7 s to a 164 KB workbook. Then the adversarial pass: 35 hypotheses, 16 red, 15 fixed and 1 restated, all in the suite. Not checked: Excel itself and the desk run — §6c has the list.
 - 2026-09-18 -- **Portfolio Analysis Pack grilled and PRD'd** (`portfolio-analysis-pack/docs/prd-portfolio-analysis-pack.md`). Fourteen decisions put to the firm as questions; two touched the record and are ruled in `canon/CONVICTIONS.md` (C11 struck for the project, C9 upheld on placement). Open items above in §6c.
 - 2026-09-05 -- **Tie-out of every data point in both credit monitors:

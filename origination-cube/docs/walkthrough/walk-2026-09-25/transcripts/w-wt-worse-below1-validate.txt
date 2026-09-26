@@ -1,0 +1,4 @@
+$ cube validate wt-worse-below1.yaml --data demo/loans.csv
+REFUSED: wt-worse-below1.yaml has 1 problem(s):
+  - benchmark.worse_at (0.9) must be above 1: it is how many times worse counts as worse
+(exit code 2)

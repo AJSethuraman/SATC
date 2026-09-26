@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "origination-cube"
+version = "0.1.0"
+description = "Band x dimension cube over a loan extract: every pocket's rate against the topline, to find where the book bleeds."
+requires-python = ">=3.10"
+dependencies = [
+    "openpyxl>=3.1",   # reads an XLSX extract; writes the workbook from slice 2
+    "PyYAML>=6.0",     # the cube file
+    "numpy>=1.22",     # the shuffle test for the dollar rates (docs/statistics.md B2, ruling OC-34)
+]
+
+[project.scripts]
+cube = "origination_cube.cli:main"
+
+[project.optional-dependencies]
+test = ["pytest>=7.4"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+origination_cube = ["settings.yaml"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]

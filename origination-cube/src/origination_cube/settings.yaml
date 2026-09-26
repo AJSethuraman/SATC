@@ -1,0 +1,451 @@
+# The control center's settings: every choice about a run, the options offered
+# for each, and what each option does in plain words.
+#
+# This file is the one source. The Control tab is generated from it and the
+# run reads the answers back from that tab. An option's explanation says what
+# the math does, so the reader can choose without knowing the statistic's name.
+#
+# judgment: true   The professional's call, not the tool's. The firm, 25 Sep 2026:
+#                  "i don't want the engine to decide a charge-off amount or
+#                  something is or is not important, that is the professional's
+#                  judgment to apply." Nothing is pre-selected and the run refuses
+#                  until one is chosen. The tool's job is evidence: the output shows
+#                  what each choice would keep and lose. Where the old workbook had
+#                  a value, the option says so, and it is still not chosen for you.
+# recommended      Only on method settings: how the arithmetic is done, not what
+#                  matters. Pre-selected, and printed on every output.
+#
+# takes_effect:  live    - an Excel formula reads it (OC-40, src/origination_cube/live.py); change it on
+#                          Control and the result tabs follow at once, with no Run
+#                re-run  - Python reads it; change it and run the script again. Control says which, in its
+#                          "When a change shows" column
+# override:      what the "Your own value" cell accepts, or null when only the
+#                listed options make sense
+
+#
+# only_when: {key: value}   Asked only when another setting has that answer. Blank is
+#                  refused only then, and the answer is not used otherwise.
+
+groups:
+  # What the run is for (the firm, 26 Sep 2026): "it likely makes sense for the script
+  # to ask which we are doing so it does indeed have the minimum required". Each answer
+  # checks its own required columns (book.read_book). The bleed analysis never needs a
+  # date; testing a new variable needs the origination date to tell the loans kept back
+  # from the rest. The trees and the regression are optional: "we may skip those steps in
+  # particular altogether if we already have professional judgment to pick coefficient."
+  - title: What you're running
+    settings:
+      - key: run_kind
+        question: What are you running?
+        takes_effect: re-run
+        override: null
+        judgment: true
+        options:
+          - value: bleed
+            label: "Where the book bleeds"
+            explains: >-
+              The grids, the split and the three-way: which pockets lose more than their share.
+              Needs the loan number, booked amount, outcome, GCO and RANR. No date.
+          - value: new_variable
+            label: "Finding and testing a new variable"
+            explains: >-
+              Whether a new column, like income over sales, tells good loans from bad on loans
+              kept back. Also needs a column marked Origination date on Columns.
+
+      - key: new_variable_step
+        question: Scout first, or test from a pre-spec already written?
+        takes_effect: re-run
+        override: null
+        judgment: true
+        only_when: {run_kind: new_variable}
+        options:
+          - value: scout
+            label: "Scout first"
+            explains: >-
+              Look for a new variable worth testing. Scouting isn't built yet, so a run with
+              this answer stops.
+          - value: prespec
+            label: "Test from a pre-spec"
+            explains: >-
+              Test the column the pre-spec names, once, on the loans it kept back. Name the
+              pre-spec file at the bottom of this tab.
+
+  - title: How columns are recognised
+    settings:
+      - key: few_values
+        question: A number column with this many values or fewer is a category
+        takes_effect: re-run
+        override: whole number of values
+        valid: {min: 2, max: 100, whole: true}
+        options:
+          - value: 12
+            label: "12 values"
+            recommended: true
+            explains: >-
+              Term (36, 48, 60) or a grade from 1 to 10 is read as categories, not
+              cut into bands.
+          - value: 6
+            label: "6 values"
+            explains: Only very short lists are categories; more columns are cut into bands.
+          - value: 24
+            label: "24 values"
+            explains: Longer lists stay categories, such as a month or a 1-20 score.
+
+      - key: many_values
+        question: A text column with more values than this is too fine to cut by
+        takes_effect: re-run
+        override: whole number of values
+        valid: {min: 2, max: 1000, whole: true}
+        options:
+          - value: 50
+            label: "50 values"
+            recommended: true
+            explains: >-
+              State (50 or so) is still a dimension; a city or a dealer name is
+              raised as a question instead.
+          - value: 25
+            label: "25 values"
+            explains: Keeps grids small. Longer lists are raised as questions.
+          - value: 100
+            label: "100 values"
+            explains: Allows long lists as dimensions; many of their pockets will be tiny.
+
+      - key: band_count
+        question: How many bands a number column is cut into
+        takes_effect: re-run
+        override: whole number of bands
+        valid: {min: 2, max: 50, whole: true}
+        options:
+          - value: 5
+            label: "5 bands"
+            recommended: true
+            explains: Fine enough to see a trend, with each band holding a fifth of the loans.
+          - value: 3
+            label: "3 bands"
+            explains: Low, middle, high. Big pockets; a problem at the edge may be diluted.
+          - value: 10
+            label: "10 bands"
+            explains: Shows where a rate turns, but each band is a tenth of the book.
+          - value: 20
+            label: "20 bands"
+            explains: >-
+              Narrow bands, each a twentieth of the book. Needs a big book, or most
+              pockets will be too small to test.
+
+      - key: band_cut
+        question: Where the band edges fall
+        takes_effect: re-run
+        override: null
+        options:
+          - value: equal_loans
+            label: Each band holds about the same number of loans
+            recommended: true
+            explains: Every band can be tested equally well. Edges land on uneven numbers.
+          - value: round
+            label: The same, snapped to round numbers
+            explains: Edges on round numbers, easier to quote. Bands hold uneven counts.
+
+  - title: Is it enough loans to matter
+    settings:
+      - key: min_loans
+        question: Fewest loans in a pocket for the usual test (smaller ones get the exact test)
+        takes_effect: re-run
+        judgment: true
+        override: whole number of loans
+        valid: {min: 2, max: 100000, whole: true}
+        options:
+          - value: calc
+            label: Enough for 5 expected losses (suggested)
+            explains: >-
+              Worked out from this book: the loans a pocket needs to expect 5 with the
+              outcome at the book's rate, the textbook floor for the usual test.
+          - value: 30
+            label: "30 loans"
+            explains: >-
+              The old workbook's value. Smaller pockets get the exact test, which
+              needs no minimum.
+          - value: 100
+            label: "100 loans"
+            explains: Pockets under 100 loans get the exact test.
+          - value: 300
+            label: "300 loans"
+            explains: Pockets under 300 loans get the exact test.
+
+      - key: min_events
+        question: Fewest loans with a loss before a loss rate is tested
+        takes_effect: re-run
+        judgment: true
+        override: whole number of loans
+        valid: {min: 1, max: 100000, whole: true}
+        options:
+          - value: 5
+            label: "5 losses"
+            explains: The least the test can work with. Ranges will be wide.
+          - value: 10
+            label: "10 losses"
+            explains: >-
+              A loss rate rests on how many loans lost money, not how many a pocket
+              holds. Ten is a common floor.
+          - value: 20
+            label: "20 losses"
+            explains: Ranges narrow enough to rank pockets against each other.
+
+  - title: Is it material
+    settings:
+      - key: materiality
+        question: Smallest excess loss worth reporting
+        takes_effect: live
+        judgment: true
+        override: a dollar amount of GCO
+        valid: {min: 0, max: 1000000000000}
+        options:
+          - value: 0.5% of losses
+            label: 0.5% of the book's total losses
+            explains: Catches small pockets as well as big ones. Excess is counted against whatever a pocket is judged against, below.
+          - value: 1% of losses
+            label: 1% of the book's total losses
+            explains: Scales with the book, so the same setting works on any population. Excess is counted against whatever a pocket is judged against, below.
+          - value: 2% of losses
+            label: 2% of the book's total losses
+            explains: Keeps pockets whose excess is over 2% of the book's losses. Excess is counted against whatever a pocket is judged against, below.
+          - value: 5% of losses
+            label: 5% of the book's total losses
+            explains: Only pockets that move the total. Excess is counted against whatever a pocket is judged against, below.
+          - value: 10% of losses
+            label: 10% of the book's total losses
+            explains: Only the few pockets that carry the book. Excess is counted against whatever a pocket is judged against, below.
+          - value: none
+            label: No floor
+            explains: >-
+              Every pocket that tests worse is listed, however small. For spotting
+              patterns rather than dollars.
+
+  - title: Does it underperform
+    settings:
+      - key: compare_to
+        question: What a pocket is judged against
+        takes_effect: live
+        judgment: true
+        override: null
+        options:
+          - value: peers
+            label: The rest of its band
+            explains: >-
+              A pocket against the other segments in the same band. Both
+              comparisons are printed; this one decides the flag.
+          - value: topline
+            label: The rest of the book
+            explains: >-
+              The simplest story: does this pocket stand out overall? Both
+              comparisons are printed; this one decides the flag.
+
+      - key: worse_at
+        question: How much worse than its comparison a pocket must be
+        takes_effect: live
+        judgment: true
+        override: a multiple above 1, such as 1.4
+        valid: {min: 1.01, max: 100}
+        options:
+          - value: luck
+            label: The smallest significant gap in a typical pocket (suggested)
+            explains: >-
+              From this book: the smallest gap a typical pocket can call significant,
+              1.96 standard errors at 95% (how far a pocket's rate typically lands from
+              its true value).
+          - value: 1.25
+            label: 1.25 times
+            explains: The old workbook's value. Moderate gaps; more pockets flagged.
+          - value: 1.5
+            label: 1.5 times
+            explains: Half as bad again.
+          - value: 2.0
+            label: 2 times
+            explains: Only pockets at double the rate or more. Few, and obvious.
+
+      - key: better_at
+        question: How much better than its comparison a pocket must be
+        takes_effect: live
+        judgment: true
+        override: a multiple below 1, such as 0.7
+        valid: {min: 0.01, max: 0.99}
+        options:
+          - value: luck
+            label: The smallest significant gap in a typical pocket (suggested)
+            explains: >-
+              The same as above, the other way: one over the smallest gap a pocket of
+              typical size can call significant.
+          - value: 0.8
+            label: 0.8 times
+            explains: The old workbook's value.
+          - value: 0.67
+            label: 0.67 times
+            explains: A third better or more.
+          - value: 0.5
+            label: 0.5 times
+            explains: Half the rate or less. Few, and obvious.
+
+      - key: revenue_line
+        question: How far profit must move before it counts as more or less
+        takes_effect: live
+        judgment: true
+        override: a number of points, such as 0.3
+        valid: {min: 0.01, max: 20}
+        options:
+          - value: luck
+            label: Each pocket's own test (suggested)
+            explains: >-
+              Profit counts as keeping more or less only when the pocket's own test
+              calls the gap significant. A small pocket needs a bigger gap.
+          - value: 0.25
+            label: "0.25 points either way"
+            explains: >-
+              A point is 1% of booked dollars. A gap of a quarter point or more counts,
+              and one that isn't significant says so.
+          - value: 0.5
+            label: "0.5 points either way"
+            explains: Only gaps of half a point of booked dollars or more count.
+          - value: materiality
+            label: A gap as big as the materiality line
+            explains: >-
+              Profit counts as keeping less when the pocket's shortfall against its
+              comparison reaches the dollar line above, and as more when its surplus does.
+
+  - title: Is it real
+    settings:
+      - key: confidence
+        question: How sure a difference must be before it counts
+        takes_effect: live
+        judgment: true
+        override: a share, such as 0.95 for 95%
+        valid: {min: 0.5, max: 0.999}
+        options:
+          - value: 0.90
+            label: "90% sure"
+            explains: Finds more. About 1 in 10 pockets with no real difference will still pass.
+          - value: 0.95
+            label: "95% sure"
+            explains: The usual standard. About 1 pocket in 20 with no real difference will still pass.
+          - value: 0.99
+            label: "99% sure"
+            explains: Strict. About 1 in 100, and smaller real gaps will be missed.
+
+      - key: power
+        question: How often a real gap should be caught
+        takes_effect: re-run
+        override: a share, such as 0.8 for 80%
+        valid: {min: 0.5, max: 0.99}
+        options:
+          - value: 0.8
+            label: "80% of the time"
+            recommended: true
+            explains: >-
+              The usual standard. Used only to say how big a gap each pocket's size
+              could show; it never flags anything.
+          - value: 0.9
+            label: "90% of the time"
+            explains: Each pocket can vouch for larger gaps only.
+          - value: 0.5
+            label: "50% of the time"
+            explains: A coin toss. The smallest gap a pocket could possibly show.
+
+      - key: many_tests
+        question: Allowing for testing many pockets at once
+        takes_effect: re-run
+        override: null
+        options:
+          - value: none
+            label: No allowance
+            explains: >-
+              Each pocket is tested alone. Scan 200 pockets at 95% and about 10 will
+              read significant with no real difference behind them.
+          - value: bh
+            label: Hold down the share of false finds (Benjamini-Hochberg)
+            recommended: true
+            explains: >-
+              Of the pockets that read significant, about 5% at 95% are expected to have
+              no real difference behind them. Suits scanning for leads.
+          - value: bonferroni
+            label: Hold down the chance of any false find (Bonferroni)
+            explains: >-
+              The chance of even one pocket reading significant with no real difference
+              is held to 5% at 95%. Very strict; suits a short list going to the LOB.
+
+# What a column can mean, and how `cube init` recognises it. The firm, 25 Sep
+# 2026: "it should suggest all columns, and maybe we can teach it along the way
+# ... it can record the original column used so it can try to suggest it in the
+# future. it won't and should not be able to guess them all off the bat - but
+# some are obvious."
+#
+# Every column in an extract gets one of these meanings, suggested with its
+# reason, and the cube file will not run until someone has checked them. What
+# was confirmed is remembered (column name -> meaning, never any values) and
+# outranks every hint below the next time that column name turns up.
+#
+#   hints   pieces of a column name, matched ignoring case, spaces and underscores
+#   test    what the values must look like for the meaning to be suggested
+#   cut     band / dimension / none: whether and how the cube cuts by it
+#   required  every extract must have exactly one column with this meaning
+#
+# Add a bank's own column names to `hints` as they turn up, or just confirm
+# them once: the memory does the rest.
+meanings:
+  - {means: key, label: "Loan number (key)",
+     says: "loan or application number", cut: none,
+     required: true, hints: [loan, app, acct, account, nbr, number, id], test: "unique"}
+  - {means: booked, label: "Booked amount",
+     says: "booked or loan amount, which weights the reporting-level rates", cut: band,
+     required: true, hints: [booked, book, origamt, loanamt, amount, principal, bal], test: "positive"}
+  - {means: outcome, label: "Outcome (yes/no)",
+     says: "the yes/no outcome: charged off, ever delinquent, decided by the system", cut: none,
+     required: true, hints: [chargedoff, chargeoff, co, bad, default, delinq, flag], test: "binary"}
+  - {means: gco, label: "GCO dollars",
+     says: "gross charge-off dollars", cut: none,
+     required: true, hints: [gco, grosschargeoff, chargeoffamt, coamt], test: "mostly_zero"}
+  - {means: ranr, label: "RANR dollars",
+     says: "RANR dollars", cut: none,
+     required: true, hints: [ranr], test: "numbers"}
+  - {means: origination_date, label: "Origination date",
+     says: "when the loan was made", cut: none,
+     hints: [orig, open, book, fund, disb, note], test: "dates"}
+  - {means: fico, label: "FICO score",
+     says: "a FICO score", cut: band,
+     hints: [fico, bureau, cb, credit], test: {"range": [300, 850]}}
+  - {means: score, label: "Other score",
+     says: "a score not on the FICO scale (a custom or bank score)", cut: band,
+     hints: [score, scr, grade, pd, risk], test: "numbers"}
+  - {means: dti, label: "DTI-style ratio",
+     says: "a debt-to-income style ratio", cut: band,
+     hints: [dti, pti, debt, dsr, dbr], test: {"ratio_median": [0.05, 0.6]}}
+  - {means: ltv, label: "LTV-style ratio",
+     says: "a loan-to-value style ratio", cut: band,
+     hints: [ltv, cltv, advance], test: {"ratio_median": [0.6, 1.6]}}
+  - {means: rate, label: "Rate or APR",
+     says: "interest rate or APR", cut: band,
+     hints: [rate, apr, coupon, yield], test: {"ratio_median": [0.01, 0.35]}}
+  - {means: term, label: "Term",
+     says: "loan term in months", cut: dimension,
+     hints: [term, tenor, months], test: "term"}
+  # fix 3.18: what kind of credit a loan is. Profit per booked dollar differs by product
+  # (a card and a mortgage keep very different shares), so Check warns when more than
+  # one product is in the book and it isn't a band or segment. Warn only: the firm decides.
+  - {means: product, label: "Credit product",
+     says: "loan type or credit product: auto, card, mortgage, line of credit", cut: dimension,
+     hints: [product, prod_type, loan_type], test: "category"}
+  - {means: servicing, label: "Servicing data",
+     says: "servicing data: recorded after booking, like a new line limit, a status or days past due, so never cut by", cut: none,
+     hints: [servicing, svc, status, dpd, pastdue, current, curbal, newlimit, newline, cli, lineincrease, limitchange, mob], test: "any"}
+  - {means: amount, label: "Amount or number",
+     says: "a number to cut into bands", cut: band,
+     test: "numbers"}
+  - {means: category, label: "Category",
+     says: "a category to cut by: channel, state, product", cut: dimension,
+     test: "category"}
+  - {means: id, label: "Other ID",
+     says: "an identifier that is not the key", cut: none,
+     test: "unique"}
+  - {means: unused, label: "Not used",
+     says: "empty or one value only", cut: none,
+     test: "any"}
+  - {means: unknown, label: "Not sure yet",
+     says: "not known yet, so not cut by until you say what it is", cut: none,
+     test: "any"}

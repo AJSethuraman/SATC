@@ -1,0 +1,6 @@
+$ cube validate wt-keepbad.yaml --data demo/loans.csv
+accepted: loans over 2,000 rows, 2 grid(s), 44 tie-out checks agree
+  WARNING: `GCO_AMT` is not cut by: it is the top of a rate, so cutting by it would cut the book by its own outcome
+  WARNING: `RANR_AMT` is not cut by: it is the top of a rate, so cutting by it would cut the book by its own outcome
+  WARNING: `BAD_FLAG` is not cut by: it is the top of a rate, so cutting by it would cut the book by its own outcome
+(exit code 0)
