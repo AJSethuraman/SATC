@@ -168,6 +168,11 @@ def ensure(wb, res) -> Live:
     lv = Live()
     _write_live(wb, res, lv)
     _write_pockets(wb, res, lv)
+    # the names Control's materiality panel and Start here's tiles read (the redesign, phase 2): defined by each
+    # Run, so before the first one those cells show nothing rather than a broken reference
+    wb.defined_names["book_gco"] = DefinedName("book_gco", attr_text=f"'{LIVE_SHEET}'!$C${L_GCO_TOTAL}")
+    for name, c in PK_NAMES.items():
+        wb.defined_names[name] = DefinedName(name, attr_text=pockets_range(c))
     wb._cube_live = (res, lv)
     return lv
 
@@ -198,11 +203,16 @@ def _options(res) -> list[tuple[str, str, str, object]]:
     return out
 
 
-def _control_rows(wb) -> dict[str, int]:
+def _control_rows(wb, res=None) -> dict[str, int]:
+    """Where each live setting sits on Control. The profit line isn't asked for a test of a new variable, so such
+    a run's profit reads by the line it used rather than a blank cell."""
     if control.SHEET not in wb.sheetnames:
         return {}
     ws = wb[control.SHEET]
-    return {k: control.row_of(ws, k) for k in LIVE_KEYS if control.row_of(ws, k)}
+    skip = set()
+    if (getattr(res, "control_used", None) or {}).get("run_kind") == "new_variable":
+        skip.add("revenue_line")
+    return {k: control.row_of(ws, k) for k in LIVE_KEYS if k not in skip and control.row_of(ws, k)}
 
 
 def _write_live(wb, res, lv: Live) -> None:
@@ -228,7 +238,7 @@ def _write_live(wb, res, lv: Live) -> None:
     b = res.config.benchmark
     total = res.total.rates.get("gco_rate")
     gco_total = abs(total.num) if total is not None else 0.0
-    rows = _control_rows(wb)
+    rows = _control_rows(wb, res)
     opt = lambda key, c, what="M": (f'INDEX(${what}${OPT_FIRST}:${what}${OPT_LAST},'     # noqa: E731
                                     f'MATCH("{key}|"&{c},$K${OPT_FIRST}:$K${OPT_LAST},0))')
 
@@ -528,6 +538,11 @@ def count_formula(measure: str, criteria: list[tuple[int, str]], kind: str = "gr
     parts = [f'{rng(P_KIND)},{q(kind)}', f'{rng(P_MEASURE)},{q(measure)}']
     parts += [f"{rng(c)},{crit}" for c, crit in criteria]
     return f"COUNTIFS({','.join(parts)})"
+
+
+#: the whole-column names over _pockets, for formulas on other tabs
+PK_NAMES = {"pk_kind": P_KIND, "pk_measure": P_MEASURE, "pk_dollars": P_DOLLARS, "pk_flag": P_FLAG,
+            "pk_material": P_MATERIAL}
 
 
 def pockets_range(c: int) -> str:

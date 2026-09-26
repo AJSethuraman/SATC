@@ -69,13 +69,13 @@ groups:
           - value: scout
             label: "Scout first"
             explains: >-
-              Look for a new variable worth testing. Scouting isn't built yet, so a run with
-              this answer stops.
+              Look for a new variable worth testing among many columns. PocketBook confirms a
+              saved shortlist, so pick one in the launcher to run.
           - value: prespec
             label: "Test from a pre-spec"
             explains: >-
-              Test the column the pre-spec names, once, on the loans it kept back. Name the
-              pre-spec file at the bottom of this tab.
+              Test the column the pre-spec names, once, on the loans it kept back. The
+              launcher names the pre-spec file.
 
   - title: How columns are recognised
     settings:
@@ -297,6 +297,8 @@ groups:
         question: How far profit must move before it counts as more or less
         takes_effect: live
         judgment: true
+        # a test of a new variable reads no profit (the firm's redesign, phase 2): not asked for one
+        only_when: {run_kind: bleed}
         override: a number of points, such as 0.3
         valid: {min: 0.01, max: 20}
         options:

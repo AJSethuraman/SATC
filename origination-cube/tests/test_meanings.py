@@ -98,7 +98,7 @@ def test_a_misfire_shows_up_near_the_top(tmp_path):
     looks = meanings.review(t, meanings.suggest(t, memory.load(mpath)["columns"]))
     first_non_blocking = next(rv for rv in looks if rv.kind != "cannot run")
     assert first_non_blocking.kind == "memory disagrees" and first_non_blocking.column == "BANK_SCR"
-    assert "cube memory --forget BANK_SCR" in first_non_blocking.says
+    assert "set Forget? to Yes on its row" in first_non_blocking.says and "cube" not in first_non_blocking.says
 
 
 def test_stray_values_are_on_the_list(tmp_path):
@@ -116,7 +116,10 @@ def test_odd_values_are_answered_where_the_workbook_asks(tmp_path):
     out = bookmod.set_up(synth.write_extract(tmp_path, n=2000))
     ws = load_workbook(out.book)["Columns"]
     looks = [str(c.value) for c in ws[get_column_letter(bookmod.C_LOOK)] if c.value]
-    assert any("on the Odd values tab" in x for x in looks)
-    assert not any("at the bottom" in x for x in looks)
+    # since the redesign (phase 2) each odd value sits in its own column, beside the Treat as cell that answers it
+    odd = [(r[bookmod.C_ODD - 1].value, r[bookmod.C_QKEY - 1].value) for r in bookmod.table_rows(ws)
+           if r[bookmod.C_ODD - 1].value]
+    assert odd and all(key and key.count("|") == 2 for _, key in odd)
+    assert not any("at the bottom" in x or "Odd values tab" in x for x in looks)
     labels = [c.value for c in load_workbook(out.book)["_meanings"]["A"]]
     assert "FICO score" in labels and "fico" not in labels          # the dropdown shows words, not codes

@@ -156,7 +156,8 @@ def test_l1_the_column_limits_are_chosen_before_the_workbook_exists(tmp_path):
     ws = load_workbook(launcher.book_for(f.extract))[control.SHEET]
     head = next(r[0].row for r in ws.iter_rows(min_row=control.FIRST_ROW) if r[control.KEY_COL - 1].value ==
                 f"{choices.KEY}|head")
-    assert head < control.row_of(ws, "few_values") < control.row_of(ws, "min_loans")   # in the launcher's block
+    # in the launcher's block, the last on the tab (the redesign, phase 2: Changes now, Needs a Run, then it)
+    assert control.row_of(ws, "min_loans") < head < control.row_of(ws, "few_values")
 
 
 # ---- L2 · Choose tests
@@ -177,7 +178,7 @@ def test_l2_key_and_date_columns_are_greyed_with_nothing_to_tick(tmp_path):
 
 def test_l2_bleed_starts_with_every_number_and_category_column_and_no_split(tmp_path):
     f = _read(tmp_path)
-    assert f.heads() == ("Cut into bands", "Segment by", "Split pockets by")
+    assert f.heads() == ("Cut into bands", "Segment by", "Split by")
     rows = {r["name"]: r for r in f.rows()}
     assert rows["FICO"]["a"]["on"] and rows["ORIG_BAL"]["a"]["on"] and rows["REV_DEBT"]["a"]["on"]
     assert rows["CHANNEL"]["b"]["on"] and rows["ASSET_CLASS"]["b"]["on"]
@@ -251,10 +252,10 @@ def test_l2_next_writes_the_choices_where_control_shows_them_and_the_run_reads_t
     assert not problems
     assert [x["field"] for x in raw["bands"]] == ["FICO", "ORIG_BAL"] and [x["field"] for x in raw["dimensions"]] \
         == ["CHANNEL"] and raw["split"] == {"field": "REV_DEBT", "how": "own_median"}
-    # Columns no longer asks what to cut: both old columns are hidden and empty
+    # Columns no longer asks what to cut: no heading on it says cut or split
     ws = load_workbook(b)["Columns"]
-    assert ws.column_dimensions["D"].hidden and ws.column_dimensions["H"].hidden
-    assert all(ws.cell(row=r, column=c).value is None for r in range(book.COL_FIRST, ws.max_row + 1) for c in (4, 8))
+    heads = [c.value for c in ws[book.COL_HEAD] if c.value]
+    assert heads and not any("Cut" in h or "Split" in h for h in heads)
 
 
 def test_l2_choosing_again_keeps_the_answers_already_given(tmp_path):
@@ -312,8 +313,10 @@ def test_the_outcome_the_launcher_tests_against_must_be_the_one_columns_marks(tm
     _choose(b, run_kind=choices.NEW_VARIABLE, outcome="ORIG_BAL")
     _, problems, _ = book.read_book(b)
     cell = f"Control!C{control.row_of(load_workbook(b)[control.SHEET], 'launcher|outcome')}"
-    assert any(p.startswith(f"{cell}: the launcher tests against ORIG_BAL, and Columns!C9 doesn't mark it Outcome "
-                            f"(yes/no).") for p in problems), problems
+    means = f"{book._col(book.C_MEANS)}" + str(next(r[0].row for r in book.table_rows(load_workbook(b)["Columns"])
+                                                   if r[book.C_NAME - 1].value == "ORIG_BAL"))
+    assert any(p.startswith(f"{cell}: the launcher tests against ORIG_BAL, and Columns!{means} doesn't mark it "
+                            f"Outcome (yes/no).") for p in problems), problems
     _choose(b, run_kind=choices.NEW_VARIABLE, outcome="BAD_FLAG")
     assert not any("the launcher tests against" in p for p in book.read_book(b)[1])
 
@@ -360,7 +363,7 @@ def test_run_refreshes_the_suggestion_and_records_what_it_used(tmp_path):
     ws = load_workbook(b)[control.SHEET]
     r = control.row_of(ws, "min_loans")
     assert ws.cell(row=r, column=book.SUGGEST_COL).value.endswith("from this extract at the last Run")
-    assert ws.cell(row=r, column=control.KEY_COL + 1).value == "30 loans"          # Last Run used
+    assert ws.cell(row=r, column=control.LAST_COL).value == "30 loans"             # Last Run used
 
 
 # ---- L3 · Run pressed before everything is answered

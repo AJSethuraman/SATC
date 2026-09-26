@@ -43,28 +43,39 @@ def _choose(path, drop=(), **changes):
 
 def _control(path, **answers):
     """Answer Control by key: a setting's option label, ("own", value) for column D, or a new-column
-    slot as {"derived|1": (name, top, bottom)}."""
+    slot as {"derived|1": (name, top, bottom)}, which since the redesign (phase 2) sits on Columns under
+    "Add a column"."""
     wb = load_workbook(path)
     ws = wb[control.SHEET]
     for r in ws.iter_rows(min_row=control.FIRST_ROW):
         k = r[control.KEY_COL - 1].value
-        if k in answers:
+        if k in answers and not k.startswith("derived|"):
             v = answers[k]
-            if k.startswith("derived|"):
-                for c, x in zip((3, 4, 5), v):
-                    r[c - 1].value = x
-            elif isinstance(v, tuple):
+            if isinstance(v, tuple):
                 r[control.OWN_COL - 1].value = v[1]
             else:
                 r[control.CHOOSE_COL - 1].value = v
+    cols = wb["Columns"]
+    for r in cols.iter_rows(min_row=book.COL_FIRST):
+        k = r[book.C_QKEY - 1].value if len(r) >= book.C_QKEY else None
+        if k in answers and str(k).startswith("derived|"):
+            for c, x in zip((book.C_NAME, book.C_NAME + 1, book.C_NAME + 2), answers[k]):
+                r[c - 1].value = x
     wb.save(path)
+
+
+def derived_row(path, slot: int = 1) -> int:
+    """The row of a new-column slot under "Add a column" on Columns."""
+    ws = load_workbook(path)["Columns"]
+    return next(r[0].row for r in ws.iter_rows(min_row=book.COL_FIRST)
+                if len(r) >= book.C_QKEY and r[book.C_QKEY - 1].value == f"derived|{slot}")
 
 
 def _columns(path, name, **cells):
     """Set cells on one Columns row, by constant name: _columns(b, "INCOME", C_PERIOD="per year")."""
     wb = load_workbook(path)
     ws = wb["Columns"]
-    for r in ws.iter_rows(min_row=book.COL_FIRST):
+    for r in book.table_rows(ws):
         if r[book.C_NAME - 1].value == name:
             for const, v in cells.items():
                 ws.cell(row=r[0].row, column=getattr(book, const)).value = v
@@ -135,8 +146,8 @@ def test_a_new_column_is_made_on_control_listed_on_columns_looked_at_and_run(tmp
     assert "INCOME" in opts and "SALES" in opts and "CHANNEL" not in opts     # number columns only
 
     ran = book.run(b)
-    slot = control.row_of(load_workbook(b)[control.SHEET], "derived|1")
-    assert not ran.ok and any(f"Control!C{slot}" in x and "isn't on Columns yet. Press Set up again" in x
+    slot = derived_row(b)
+    assert not ran.ok and any(f"Columns!B{slot}" in x and "isn't in the table yet. Press Set up again" in x
                               for x in ran.lines)
 
     out = book.set_up(x)
@@ -182,15 +193,16 @@ def test_a_new_column_is_made_on_control_listed_on_columns_looked_at_and_run(tmp
 
     _control(b, **{"derived|1": ("INCOME_TO_SALES", "INCOME", "REV_DEBT")})
     ran = book.run(b)
-    assert not ran.ok and any(f"Control!C{slot}" in x and "was made as INCOME ÷ SALES and Control now says INCOME "
+    slot = derived_row(b)
+    assert not ran.ok and any(f"Columns!B{slot}" in x and "was made as INCOME ÷ SALES and the row now says INCOME "
                               "÷ REV_DEBT. Press Set up again" in x for x in ran.lines)
     _control(b, **{"derived|1": (None, None, None)})
     ran = book.run(b)
-    assert not ran.ok and any("was a new column made on Control, and Control doesn't have it now. Press Set up "
+    assert not ran.ok and any("was a new column, and \"Add a column\" doesn't have it now. Press Set up "
                               "again" in x for x in ran.lines)
     _control(b, **{"derived|1": ("INCOME_TO_SALES", None, "SALES")})
     ran = book.run(b)
-    assert not ran.ok and any(f"Control!D{slot}: new column 1 needs a top" in x for x in ran.lines)
+    assert not ran.ok and any(f"Columns!C{slot}: new column 1 needs a top" in x for x in ran.lines)
 
 
 def test_periods_and_meanings_on_columns_are_recorded_warned_and_split_by(tmp_path):
@@ -254,7 +266,7 @@ def test_an_old_control_row_for_a_removed_setting_is_refused_until_set_up_again(
 
 def test_a_remembered_outcome_date_is_not_suggested_and_is_said_to_be_unused(tmp_path):
     """A column confirmed as Outcome date before that meaning was taken out: Set up doesn't suggest it again,
-    and the Learned tab says, in words, that nothing uses it, rather than showing the code."""
+    and Columns says, in words, that nothing uses it, rather than showing the code."""
     from origination_cube import memory
     memory.save({"columns": {"BAD_DATE": {"means": "outcome_date", "first": "2026-09-26", "last": "2026-09-26",
                                           "times": 3}}, "answers": {}})
@@ -272,5 +284,5 @@ def test_a_remembered_outcome_date_is_not_suggested_and_is_said_to_be_unused(tmp
     means = {r[book.C_NAME - 1].value: r[book.C_MEANS - 1].value
              for r in wb["Columns"].iter_rows(min_row=book.COL_FIRST)}
     assert means["BAD_DATE"] != "Outcome date"
-    learned = {r[2]: r[3] for r in wb["Learned"].iter_rows(min_row=4, values_only=True) if r[2]}
-    assert learned["BAD_DATE"] == "Outcome date, which the cube no longer uses. Set it to Forget."
+    said = {r[book.C_NAME - 1].value: r[book.C_REMEMBERED - 1].value for r in book.table_rows(wb["Columns"])}
+    assert said["BAD_DATE"] == "As Outcome date: no longer used. Forget it"

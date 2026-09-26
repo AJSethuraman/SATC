@@ -251,7 +251,7 @@ there: the pockets hold it fixed.
 ![Losses vs revenue: paid, cost and kept, and the chart](docs/losses-vs-revenue.png)
 
 If something needs fixing, the window and the Log tab say what and where, in
-words, e.g. *Control!C26: "Smallest excess loss worth reporting" needs an answer.* The window lists each one
+words, e.g. *Control!C19: "Smallest excess loss worth reporting" needs an answer.* The window lists each one
 with an **Open at** button that opens the workbook at that cell. Press Next in the launcher again at any time:
 answers already given are kept.
 What you confirm is remembered for next time; the **Learned** tab lets you set

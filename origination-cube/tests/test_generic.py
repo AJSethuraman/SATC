@@ -25,7 +25,7 @@ from openpyxl import load_workbook
 from recalc import calculated_book, recalc
 
 from origination_cube import book, confirm_tab, confirmatory, control, kgroups, meanings, synth
-from test_book import PICK
+from test_book import PICK, treat_all
 from test_book_results import _set
 from test_book_dates import _check, _choose, _columns, _control
 
@@ -129,9 +129,7 @@ def _answer_as_a_person_would(b: Path) -> None:
         k = r[control.KEY_COL - 1].value
         if k in PICK:
             r[control.CHOOSE_COL - 1].value = PICK[k]
-    for r in wb["Odd values"].iter_rows(min_row=5):
-        if r[1].value and not r[4].value:
-            r[4].value = "real"                     # revenue below zero is real here
+    treat_all(wb, "Real")                        # revenue below zero is real here
     wb.save(b)
     cat = meanings.catalog()
     present = {r[book.C_NAME - 1].value for r in load_workbook(b)["Columns"].iter_rows(min_row=book.COL_FIRST)}

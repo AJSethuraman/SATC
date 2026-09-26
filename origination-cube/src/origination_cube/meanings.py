@@ -316,7 +316,7 @@ def review(table: Table, sugg: dict[str, Suggestion], open_questions: list[dict]
         if sg.source == "remembered" and "CHECK" in sg.why:
             out.append(Review("memory disagrees", c, f"you confirmed it as {sg.means} before, but these values "
                               f"don't fit. Either this extract changed, or that was the wrong thing to remember "
-                              f"(cube memory --forget {c})."))
+                              "(set Forget? to Yes on its row)."))
         elif sg.source == "name" and "aren't on the FICO scale" in sg.why:
             out.append(Review("name and values disagree", c, f"the name reads like a FICO score but the values "
                               f"aren't on that scale, so it's suggested as `score`. If it really is FICO, the "

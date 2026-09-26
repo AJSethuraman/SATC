@@ -56,7 +56,7 @@ REMOVED = {
     "as_of_date": "the as-of date was removed: it was only used to leave young loans out",
 }
 REMOVED_WHY = ("A run now shows every loan in the extract as the extract has it. Picking which loans to study "
-               "is done before the extract reaches the cube.")
+               "is done before the extract reaches PocketBook.")
 #: What an amount column is over (fix 3.10): said on Columns, recorded in what ran, never used to rescale.
 PERIODS = ("per_year", "per_month", "one_time")
 PERIOD_WORDS = {"per_year": "per year", "per_month": "per month", "one_time": "one-time"}

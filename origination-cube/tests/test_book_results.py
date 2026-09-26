@@ -86,10 +86,15 @@ def _literal(read: str, gap: float, line: float, against: str) -> bool:
 
 
 def _row(ws, name):
-    for r in ws.iter_rows(min_row=book.COL_FIRST):
+    for r in book.table_rows(ws):
         if r[book.C_NAME - 1].value == name:
             return r[0].row
     raise KeyError(name)
+
+
+def _at(path, name, col) -> str:
+    """The cell on Columns for one extract column's row, as a refusal names it: "I14"."""
+    return f"{book._col(col)}{_row(load_workbook(path)['Columns'], name)}"
 
 
 def _set(path, name, col, value):
@@ -117,7 +122,7 @@ def test_median_of_a_category_is_refused_by_cell(tmp_path):
     b = _ready(tmp_path, n=2000)
     _set(b, "CHANNEL", book.C_SHOW, "average")
     ran = book.run(b)
-    assert not ran.ok and any(f"Columns!{book._col(book.C_SHOW)}8" in x for x in ran.lines)
+    assert not ran.ok and any(f"Columns!{_at(b, 'CHANNEL', book.C_SHOW)}" in x for x in ran.lines)
 
 
 def test_split_by_a_number_finds_the_planted_revolving_debt_effect(tmp_path):
@@ -230,16 +235,6 @@ def test_the_suggested_profit_line_is_each_pockets_own_test(tmp_path):
                                                 "or ahead of its band")
 
 
-def test_materiality_tab_shows_what_each_level_keeps(tmp_path):
-    b = _ready(tmp_path, n=4000)
-    assert book.run(b).ok
-    ws = _tab(b, "Materiality")
-    heads = {c.value for row in ws.iter_rows() for c in row}
-    assert "Share of the book's loans with the outcome" in heads and "Pockets kept" in heads
-    assert any(isinstance(v, str) and v.startswith("In use:") for v in (c.value for row in ws.iter_rows()
-                                                                         for c in row))
-
-
 def test_a_copied_workbook_runs_the_extract_picked_not_the_old_path(tmp_path):
     """Second walk, defect 1."""
     b = _ready(tmp_path / "a", n=3000)
@@ -265,7 +260,8 @@ def test_edges_excel_read_as_one_number_are_refused(tmp_path):
     b = _ready(tmp_path, n=2000)
     _set(b, "FICO", book.C_EDGES, 620680740)
     ran = book.run(b)
-    assert not ran.ok and any("Excel dropped the commas" in x and "Columns!F7" in x for x in ran.lines)
+    assert not ran.ok and any("Excel dropped the commas" in x and f"Columns!{_at(b, 'FICO', book.C_EDGES)}" in x
+                              for x in ran.lines)
 
 
 def test_edges_with_semicolons_are_read(tmp_path):
@@ -314,9 +310,9 @@ def test_start_here_says_when_it_last_ran(tmp_path):
     b = _ready(tmp_path, n=3000)
     assert book.run(b).ok
     ws = load_workbook(b)["Start here"]
-    status = {ws.cell(row=r, column=3).value: ws.cell(row=r, column=4).value for r in range(12, 16)}
-    assert status["Calls still to make on Control"] == 0
-    assert "tie-out checks agree" in status["Last run"]
+    assert "last Run 20" in ws["C1"].value                     # the subtitle: when it last ran
+    said = {c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)}
+    assert any(s.endswith(" agree") for s in said) and "=IFERROR(SUM(answers_needed),0)" in said
 
 
 def test_ranr_is_marked_more_is_better_and_its_gap_reads_or_less(tmp_path):
@@ -344,7 +340,7 @@ def test_an_edge_outside_the_columns_values_is_refused_by_cell(tmp_path):
     _set(b, "FICO", book.C_EDGES, "620; 680; 9000")
     ran = book.run(b)
     assert not ran.ok
-    said = next(x for x in ran.lines if "Columns!F7" in x)
+    said = next(x for x in ran.lines if f"Columns!{_at(b, 'FICO', book.C_EDGES)}" in x)
     assert "9,000" in said or "9000" in said
     assert "-9,999" not in said and "-9999" not in said          # the answered missing code is not the range
 
@@ -370,7 +366,7 @@ def test_a_split_on_a_column_that_cant_split_is_refused_by_cell(tmp_path):
     _choose(b, split="GCO_AMT")
     ran = book.run(b)
     split = f"Control!C{control.row_of(load_workbook(b)[control.SHEET], 'launcher|split')}"
-    assert not ran.ok and any(x.strip(" -").startswith(split) and "Columns!C11" in x and "can't split the pockets"
+    assert not ran.ok and any(x.strip(" -").startswith(split) and f"Columns!{_at(b, 'GCO_AMT', book.C_MEANS)}" in x and "can't split the pockets"
                               in x for x in ran.lines), ran.lines
 
 
@@ -400,11 +396,7 @@ def test_a_forget_holds_until_a_person_confirms_again(tmp_path):
     from origination_cube import memory
     b = _ready(tmp_path, n=3000)
     assert book.run(b).ok
-    wb = load_workbook(b)
-    for r in wb["Learned"].iter_rows(min_row=4):
-        if r[2].value == "CHANNEL":
-            r[0].value = memory.FORGET
-    wb.save(b)
+    _set(b, "CHANNEL", book.C_FORGET, book.FORGET_YES)       # Forget? on its Columns row, filled in by the Run
     assert book.run(b).ok
     ws = load_workbook(b)["Columns"]
     assert ws[book.CONFIRM_CELL].value is None and "CHANNEL" in ws["D3"].value
@@ -460,14 +452,15 @@ def test_band_width_every_20_cuts_and_is_remembered(tmp_path):
     other = tmp_path / "next"
     x2 = synth.write_extract(other, n=2000, seed=3)
     again = book.set_up(x2)
-    assert load_workbook(again.book)["Columns"]["F7"].value == "every 20"
+    assert load_workbook(again.book)["Columns"][_at(again.book, "FICO", book.C_EDGES)].value == "every 20"
 
 
 def test_a_band_width_too_narrow_is_refused(tmp_path):
     b = _ready(tmp_path, n=2000)
     _set(b, "FICO", book.C_EDGES, "every 1")
     ran = book.run(b)
-    assert not ran.ok and any("Columns!F7" in x and "50 bands or fewer" in x for x in ran.lines)
+    assert not ran.ok and any(f"Columns!{_at(b, 'FICO', book.C_EDGES)}" in x and "50 bands or fewer" in x
+                              for x in ran.lines)
 
 
 def test_suggested_answers_are_worked_out_from_the_book(tmp_path):
@@ -659,13 +652,14 @@ def test_remembered_edges_only_fill_a_column_the_workbook_has_not_seen(tmp_path)
     assert book.run(b).ok
     assert "edges" not in memory.load()["columns"]["FICO"]     # and forgotten with it
     book.set_up(tmp_path / "loans.csv")
-    assert load_workbook(b)["Columns"]["F7"].value is None
+    assert load_workbook(b)["Columns"][_at(b, "FICO", book.C_EDGES)].value is None
     # a remembered edge fills only a workbook that hasn't seen the column, and says so
     _set(b, "FICO", book.C_EDGES, "every 25")
     assert book.run(b).ok
     other = book.set_up(synth.write_extract(tmp_path / "q4", n=1000, seed=5))
     ws = load_workbook(other.book)["Columns"]
-    assert ws["F7"].value == "every 25" and "remembered from before" in ws["I7"].value
+    assert ws[_at(other.book, "FICO", book.C_EDGES)].value == "every 25"
+    assert "remembered from before" in ws[_at(other.book, "FICO", book.C_LOOK)].value
 
 
 def test_control_shows_what_the_last_run_used(tmp_path):
@@ -680,14 +674,17 @@ def test_control_shows_what_the_last_run_used(tmp_path):
     ran = book.run(b)
     assert ran.ok and any(x.startswith("Worked out from this book: fewest loans") for x in ran.lines)
     ws = load_workbook(b)["Control"]
-    col = control.KEY_COL + 1
-    assert ws.cell(row=control.FIRST_ROW - 1, column=col).value == "Last Run used"
+    col = control.LAST_COL
+    for block in (control.BLOCK_NOW, control.BLOCK_RUN):
+        assert ws.cell(row=control.row_of(ws, block) + 1, column=col).value == "Last Run used"
     used = {r[control.KEY_COL - 1].value: ws.cell(row=r[0].row, column=col).value
             for r in ws.iter_rows(min_row=control.FIRST_ROW) if r[control.KEY_COL - 1].value}
     assert "worked out from this book" in used["min_loans"] and used["revenue_line"] == "each pocket's own test"
     book.set_up(tmp_path / "loans.csv")                        # and it stays through Set up again
     ws = load_workbook(b)["Control"]
-    assert ws.cell(row=control.FIRST_ROW - 1, column=col).value == "Last Run used"
+    again = {r[control.KEY_COL - 1].value: ws.cell(row=r[0].row, column=col).value
+             for r in ws.iter_rows(min_row=control.FIRST_ROW) if r[control.KEY_COL - 1].value}
+    assert again["min_loans"] == used["min_loans"]
 
 
 def test_another_workbooks_edges_stay_out_of_this_one(tmp_path):
@@ -700,8 +697,8 @@ def test_another_workbooks_edges_stay_out_of_this_one(tmp_path):
     assert book.run(b).ok                                    # remembered from the other copy
     book.set_up(tmp_path / "a" / "loans.csv")
     ws = load_workbook(a)["Columns"]
-    assert ws["F7"].value is None
-    assert "remembered from before" not in str(ws["I7"].value or "")
+    assert ws[_at(a, "FICO", book.C_EDGES)].value is None
+    assert "remembered from before" not in str(ws[_at(a, "FICO", book.C_LOOK)].value or "")
 
 
 def test_a_suggestion_with_nothing_to_work_from_says_so(tmp_path):
@@ -728,7 +725,7 @@ def test_a_suggestion_with_nothing_to_work_from_says_so(tmp_path):
     for loss in ("Outcome, share of loans", "Outcome, share of booked dollars", "GCO per booked dollar"):
         assert f"No pocket had enough losses to test {loss}" in said and f"Nothing is worse for {loss}" not in said
     ws = load_workbook(b)["Control"]
-    used = [ws.cell(row=r, column=control.KEY_COL + 1).value for r in range(control.FIRST_ROW, ws.max_row + 1)]
+    used = [ws.cell(row=r, column=control.LAST_COL).value for r in range(control.FIRST_ROW, ws.max_row + 1)]
     assert any(isinstance(x, str) and "the usual value" in x for x in used)
     # Check names the fallback as Control does and never calls it worked out (the seventh walk, defect 6)
     check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
@@ -825,7 +822,7 @@ def test_a_real_loss_keeps_its_red_when_profit_is_not_significant(tmp_path):
     assert real_worse and all(x["g_fill"] == book.RED_CELL for x in real_worse)
     # Control explains the suggested option as it works now: each pocket's own test (defect 2)
     opts = [r[4] for r in load_workbook(b)["_options"].iter_rows(min_row=2, values_only=True)
-            if r[1] == "revenue_line" and r[3] == "luck"]
+            if r[1] == "revenue_line" and r[6] == "Each pocket's own test (suggested)"]
     assert opts and "own test" in opts[0] and "typical size" not in opts[0]
 
 
@@ -843,8 +840,9 @@ def test_the_category_limits_on_control_apply_at_set_up(tmp_path):
     extract = next(tmp_path.rglob("*.csv"))
     assert book.set_up(extract, b).ok
     ws = load_workbook(b)["Control"]
-    used = {r[control.KEY_COL - 1].value: r[control.KEY_COL].value for r in ws.iter_rows(min_row=control.FIRST_ROW)}
-    assert used["few_values"] == "3 values (applied at Set up)"
+    # applied at Set up: the limit shows in the launcher's block, where it is chosen since the redesign
+    assert control.answer_of("few_values", *(ws.cell(row=control.row_of(ws, "few_values"), column=c).value
+                                             for c in (control.CHOOSE_COL, control.OWN_COL))) == 3
     # at 3, a column of four numbers is an amount, not a category (Set up's guess; a confirmed meaning wins)
     table = read_table(extract)
     four = next(c for c in table.columns if c == "ASSET_CLASS")
@@ -854,9 +852,9 @@ def test_the_category_limits_on_control_apply_at_set_up(tmp_path):
     wb["Columns"][book.CONFIRM_CELL] = "Yes"
     wb.save(b)
     assert book.run(b).ok
-    used = {r[control.KEY_COL - 1].value: r[control.KEY_COL].value
+    used = {r[control.KEY_COL - 1].value: r[control.LAST_COL - 1].value
             for r in load_workbook(b)["Control"].iter_rows(min_row=control.FIRST_ROW)}
-    assert used["band_count"] and used["band_cut"] and used["few_values"].startswith("3 values")
+    assert used["band_count"] and used["band_cut"]
 
 
 def test_revenue_reads_the_same_on_both_tabs(tmp_path):

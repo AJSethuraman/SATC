@@ -24,7 +24,7 @@ from conftest import TEST_SHUFFLES, cube, table
 from origination_cube import book, control, engine, meanings, perm, stats, synth
 from origination_cube import config as cfgmod
 from origination_cube.ingest import read_table
-from test_book import PICK, _answer
+from test_book import PICK, _answer, treat_all
 from test_book_results import _lvr
 from test_book_dates import _choose
 from recalc import calculated_book
@@ -121,9 +121,7 @@ def _workbook(tmp_path, rows, columns, meaning, answers, edges=None, cut_off=())
             if edges and name in edges:
                 r[book.C_EDGES - 1].value = edges[name]
     ws[book.CONFIRM_CELL] = "Yes"
-    for r in wb["Odd values"].iter_rows(min_row=5):
-        if r[1].value:
-            r[4].value = "real"
+    treat_all(wb, "Real", only_blank=False)
     wb.save(out.book)
     if cut_off:
         _choose(out.book, drop=tuple(cut_off))
