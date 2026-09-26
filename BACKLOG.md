@@ -1899,6 +1899,11 @@ back.
   17,000 × 80 under a 4 GB limit: Set up 159.5 s → 9.5 s; Run 78.6 s → 75.8 s (the shuffle test is
   untouched); the workbook the same cell for cell but the time and path. `tests/test_set_up_once.py`,
   12 planted bugs in `tools/mutation_check.py`.
+- **A new-variable run skips the bleed grids** (the firm, 26 Sep 2026: *"Yes. Seems obvious I think.
+  They have entirely different outputs generally"*). Queued behind redesign phase 2 (same Run code).
+- **Shuffle test across cores: explained, awaiting a yes.** Proposed: each shuffle seeded from its own
+  number, so the result is the same on any number of cores and every run; the p-values move once,
+  within the shuffle count's own error (about ±0.002 near 0.03 at 10,000 shuffles).
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
