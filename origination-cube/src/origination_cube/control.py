@@ -78,9 +78,29 @@ class Setting:
     options: tuple[Option, ...]
     group: str
     judgment: bool = False
-    valid: dict | None = None        # {min, max, whole}: what a typed value may be
+    valid: dict | None = None        # {min, max, whole} or {date: true}: what a typed value may be
+    needed_when: str | None = None   # asked for only then (NEEDED_WHEN); blank is no answer, not a refusal, otherwise
     def recommended(self) -> Option | None:
         return next((o for o in self.options if o.recommended), None)
+
+    @property
+    def is_date(self) -> bool:
+        return bool((self.valid or {}).get("date"))
+
+
+#: When a setting that isn't always needed is needed, in the words its row shows while blank. The run
+#: (book.read_book) refuses a blank one only then, naming its cell.
+NEEDED_WHEN = {
+    "outcome_date": "Needs an answer when a column on Columns is marked Outcome date.",
+    "age_or_window": "Needs an answer for a loan age filter or an outcome window, unless a column is marked "
+                     "As-of date.",
+}
+DATE_FORMAT = "yyyy-mm-dd"
+#: The new-columns block under the settings (fix 3.9): a heading, a note, a header and this many rows.
+DERIVED_KEY = "derived"
+DERIVED_ROWS = 3
+DERIVED_NOTE = ("Name a new column and pick the two columns it divides. Press Set up again: it then shows on "
+                "Columns and Look like any number column. Where the bottom is zero or blank, it is blank.")
 
 
 def load_settings(path: str | Path | None = None) -> list[Setting]:
@@ -94,7 +114,8 @@ def load_settings(path: str | Path | None = None) -> list[Setting]:
                                 recommended=bool(o.get("recommended", False))) for o in s["options"])
             out.append(Setting(key=s["key"], question=s["question"], takes_effect=s["takes_effect"],
                                override=s.get("override"), options=opts, group=g["title"],
-                               judgment=bool(s.get("judgment", False)), valid=s.get("valid")))
+                               judgment=bool(s.get("judgment", False)), valid=s.get("valid"),
+                               needed_when=s.get("needed_when")))
     return out
 
 
@@ -109,7 +130,9 @@ def _by_value(key: str, v: Any) -> str:
     return f"{key}|{t}"
 
 
-def write_control(wb: Workbook, settings: list[Setting]) -> None:
+def write_control(wb: Workbook, settings: list[Setting], with_columns: bool = False) -> None:
+    """`with_columns`: the workbook has a Columns tab (Set up), so a setting
+    needed only when a column is marked a certain way is shaded only then."""
     ws = wb.create_sheet(SHEET, 0) if SHEET not in wb.sheetnames else wb[SHEET]
     opt = wb.create_sheet(OPTIONS_SHEET)
     opt.append(["lookup", "setting", "option", "value", "what it means", "your own value accepts", "plain",
@@ -151,6 +174,7 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
 
     r = FIRST_ROW
     group = None
+    row_of: dict[str, int] = {}
     for s in settings:
         if s.group != group:
             group = s.group
@@ -159,6 +183,7 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
                 ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=CANVAS)
             r += 1
         first, last = ranges[s.key]
+        row_of[s.key] = r
         ws.cell(row=r, column=2, value=s.question)
         rec = s.recommended()
         choose = ws.cell(row=r, column=CHOOSE_COL, value=None if s.judgment or rec is None else rec.shown)
@@ -169,7 +194,17 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         ws.add_data_validation(dv)
         dv.add(choose)
         own = ws.cell(row=r, column=OWN_COL)
-        if s.override is not None and s.valid:
+        if s.is_date:
+            # a typed date, shown as one; the run reads it whether Excel kept it as a date or as text
+            dvd = DataValidation(type="date", operator="between", formula1="32874", formula2="73415",
+                                 allow_blank=True, showErrorMessage=True)
+            dvd.errorTitle = "Not a date"
+            dvd.error = "Type a date between 1990 and 2100, such as 2026-06-30."
+            ws.add_data_validation(dvd)
+            dvd.add(own)
+            own.number_format = DATE_FORMAT
+            ws.cell(row=r, column=5).number_format = DATE_FORMAT
+        elif s.override is not None and s.valid:
             v = s.valid
             dvo = DataValidation(type="whole" if v.get("whole") else "decimal", operator="between",
                                  formula1=str(v["min"]), formula2=str(v["max"]), allow_blank=True,
@@ -186,10 +221,11 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         C, D, H = f"C{r}", f"D{r}", f"${get_column_letter(KEY_COL)}{r}"   # H: the key column, wherever it is
         # shaded while unanswered, on any row: a method setting someone clears needs an answer too.
         # A row with no own-value cell shades only its dropdown (the grey n/a cell is not an answer).
-        ws.conditional_formatting.add(
-            f"C{r}:D{r}" if s.override is not None else f"C{r}",
-            FormulaRule(formula=[f'AND($C{r}="",OR($D{r}="",$D{r}="n/a"))'],
-                        fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
+        if s.needed_when is None:
+            ws.conditional_formatting.add(
+                f"C{r}:D{r}" if s.override is not None else f"C{r}",
+                FormulaRule(formula=[f'AND($C{r}="",OR($D{r}="",$D{r}="n/a"))'],
+                            fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
         own_set = f'AND({D}<>"",{D}<>"n/a")'
         # the label, or a number equal to an option's value, as the reader takes it: Excel turns "95%"
         # into 0.95 (the second walk, defect 3), and the tab mustn't say "not an option" to a value
@@ -200,9 +236,10 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
                                         f'IFERROR(INDEX({OPTIONS_SHEET}!$G:$G,{lookup}),"not an option")))'))
         note = f"Your own value, in place of the options ({s.override})." if s.override else ""
         pick = "Pick one, or enter your own." if s.override is not None else "Pick one from the list."
-        instead = (" Pick from the list, or put your number in the next column." if s.override is not None
-                   else " Pick from the list.")
-        ws.cell(row=r, column=6, value=(f'=IF({own_set},"{note}",IF({C}="","Needs an answer before we run. '
+        instead = (f" Pick from the list, or put your {'date' if s.is_date else 'number'} in the next column."
+                   if s.override is not None else " Pick from the list.")
+        blank = NEEDED_WHEN[s.needed_when] if s.needed_when else "Needs an answer before we run."
+        ws.cell(row=r, column=6, value=(f'=IF({own_set},"{note}",IF({C}="","{blank} '
                                         f'{pick}",'
                                         f'IFERROR(INDEX({OPTIONS_SHEET}!$E:$E,{lookup}),"That isn\'t one of the '
                                         f'options.{instead}")))'))
@@ -216,12 +253,42 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
                 cell.font = Font(name="Calibri", size=10, color=INK)
         ws.cell(row=r, column=5).font = Font(name="Calibri", bold=True, color=INK)
         r += 1
+    _shade_when_needed(ws, settings, row_of, with_columns)
     ws.column_dimensions["G"].hidden = True
     ws.print_area = f"B1:F{r - 1}"
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
+
+
+def _in_use(r: int, s: Setting) -> str:
+    """An Excel test that a whole-months setting is answered with more than 0."""
+    zero = next((o.shown for o in s.options if o.value == 0), "")
+    return f'OR(AND(ISNUMBER($D{r}),$D{r}>0),AND($C{r}<>"",$C{r}<>"{zero}"))'
+
+
+def _shade_when_needed(ws, settings: list[Setting], row_of: dict[str, int], with_columns: bool) -> None:
+    """A setting needed only sometimes is shaded, while blank, only when it is
+    needed: the window when a column is marked Outcome date on Columns, the
+    as-of date when a loan age filter or a window is in use and no column is
+    marked As-of date. The run refuses on the same conditions (book.read_book)."""
+    by_key = {s.key: s for s in settings}
+    for s in settings:
+        if not s.needed_when:
+            continue
+        r = row_of[s.key]
+        if s.needed_when == "outcome_date":
+            when = 'COUNTIF(Columns!$C:$C,"Outcome date")>0' if with_columns else "FALSE"
+        else:
+            uses = [_in_use(row_of[k], by_key[k]) for k in ("min_age_months", "window_months") if k in row_of]
+            when = f"OR({','.join(uses)})" if uses else "FALSE"
+            if with_columns:
+                when = f'AND(COUNTIF(Columns!$C:$C,"As-of date")=0,{when})'
+        ws.conditional_formatting.add(
+            f"C{r}:D{r}" if s.override is not None else f"C{r}",
+            FormulaRule(formula=[f'AND($C{r}="",OR($D{r}="",$D{r}="n/a"),{when})'],
+                        fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
 
 
 def build_control_book(out: str | Path, settings: list[Setting] | None = None) -> Path:
@@ -257,6 +324,12 @@ def read_control(path: str | Path, settings: list[Setting] | None = None) -> dic
         if own not in (None, "", "n/a"):
             if s.override is None:
                 problems.append(f'{where}: "{s.question}" takes one of the listed options only.')
+            elif s.is_date:
+                got = as_date(own)
+                if got is None:
+                    problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {s.override}; got {own!r}.')
+                else:
+                    found[key] = got
             elif not isinstance(own, (int, float)) or isinstance(own, bool):
                 problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {s.override}; got {own!r}.')
             elif s.valid and not (s.valid["min"] <= own <= s.valid["max"]) or \
@@ -267,6 +340,8 @@ def read_control(path: str | Path, settings: list[Setting] | None = None) -> dic
                 found[key] = int(own) if (s.valid or {}).get("whole") else own
             continue
         if chosen in (None, ""):
+            if s.needed_when:
+                continue                # asked for only when it matters; book.read_book says when it does
             how = "Pick one from the list." if s.override is None else "Pick one, or enter your own in column D."
             problems.append(f'{where}: "{s.question}" needs an answer. {how}')
             continue
@@ -359,3 +434,120 @@ def _percent_hint(s: Setting, own: Any) -> str:
             return f" For {own:g}%, type {own / 100:g}."
         return f" Type a share between {v['min']:g} and {v['max']:g}: for 15%, type 0.15."
     return ""
+
+
+def as_date(v: Any):
+    """A typed date as a date: an Excel date cell, or text written 2026-06-30. None otherwise."""
+    from datetime import date, datetime
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    if isinstance(v, str):
+        try:
+            return date.fromisoformat(v.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def row_of(ws, key: str) -> int | None:
+    """The row a setting (or a new-column slot) sits on, by its key."""
+    for r in ws.iter_rows(min_row=FIRST_ROW):
+        if r[KEY_COL - 1].value == key:
+            return r[0].row
+    return None
+
+
+# --------------------------------------------------------------------------
+# New columns (fix 3.9): a small block under the settings. Each row names a
+# column made by dividing one of the extract's columns by another. Set up
+# writes the block with the extract's number columns in the dropdowns and puts
+# every answer back; the run reads it and refuses a half-filled row by cell.
+
+NUMBER_LIST_COL = 10              # J on the hidden options tab: the dropdowns' column names
+
+
+def write_derived(wb: Workbook, number_columns: list[str], kept: dict[int, tuple] | None = None) -> None:
+    """The block, under the last setting. `kept` maps a slot (1 to DERIVED_ROWS)
+    to the (name, top, bottom) already typed there."""
+    ws, opt = wb[SHEET], wb[OPTIONS_SHEET]
+    kept = kept or {}
+    opt.cell(row=1, column=NUMBER_LIST_COL, value="number columns")
+    for i, c in enumerate(number_columns, start=2):
+        opt.cell(row=i, column=NUMBER_LIST_COL, value=c)
+    last = max(r[0].row for r in ws.iter_rows(min_row=FIRST_ROW) if r[KEY_COL - 1].value)
+    r = last + 2
+    ws.cell(row=r, column=2, value="New columns: one column divided by another").font = \
+        Font(name="Calibri", bold=True, color=INK)
+    for col in range(2, 7):
+        ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=CANVAS)
+    ws.cell(row=r, column=KEY_COL, value=f"{DERIVED_KEY}|head")
+    ws.merge_cells(start_row=r + 1, start_column=2, end_row=r + 1, end_column=6)
+    note = ws.cell(row=r + 1, column=2, value=DERIVED_NOTE)
+    note.font = Font(name="Calibri", size=10, color=SLATE)
+    note.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.row_dimensions[r + 1].height = 30
+    ws.cell(row=r + 1, column=KEY_COL, value=f"{DERIVED_KEY}|note")
+    for i, h in enumerate(("", "Name", "Top (divided)", "Bottom (divided by)", "What it makes"), start=2):
+        c = ws.cell(row=r + 2, column=i, value=h or None)
+        c.font = Font(name="Calibri", bold=True, color=PAPER)
+        c.fill = PatternFill("solid", fgColor=INK)
+    ws.cell(row=r + 2, column=KEY_COL, value=f"{DERIVED_KEY}|cols")
+    dv = None
+    if number_columns:
+        dv = DataValidation(type="list", formula1=f"='{OPTIONS_SHEET}'!$J$2:$J${len(number_columns) + 1}",
+                            allow_blank=True, showErrorMessage=True)
+        dv.errorTitle = "Pick a column"
+        dv.error = "Pick one of the extract's number columns from the list."
+        ws.add_data_validation(dv)
+    thin = Side(style="thin", color=MIST)
+    for slot in range(1, DERIVED_ROWS + 1):
+        row = r + 2 + slot
+        ws.cell(row=row, column=2, value=f"New column {slot}")
+        name, top, bottom = kept.get(slot, (None, None, None))
+        ws.cell(row=row, column=3, value=name)
+        ws.cell(row=row, column=4, value=top)
+        ws.cell(row=row, column=5, value=bottom)
+        if dv is not None:
+            dv.add(ws.cell(row=row, column=4))
+            dv.add(ws.cell(row=row, column=5))
+        ws.cell(row=row, column=6, value=(
+            f'=IF(COUNTA(C{row}:E{row})=0,"",IF(COUNTA(C{row}:E{row})<3,"Needs a name, a top and a bottom.",'
+            f'C{row}&" = "&D{row}&" ÷ "&E{row}&" on each loan."))'))
+        ws.cell(row=row, column=KEY_COL, value=f"{DERIVED_KEY}|{slot}")
+        for col in range(2, 8):
+            cell = ws.cell(row=row, column=col)
+            cell.border = Border(bottom=thin)
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            if col != KEY_COL:
+                cell.font = Font(name="Calibri", size=10, color=INK)
+        ws.cell(row=row, column=KEY_COL).font = Font(name="Consolas", size=8, color=SLATE)
+        # a half-filled row is shaded where it still needs something; an empty one is left alone
+        ws.conditional_formatting.add(f"C{row}:E{row}", FormulaRule(
+            formula=[f'AND(C{row}="",COUNTA($C{row}:$E{row})>0)'],
+            fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
+    ws.print_area = f"B1:F{r + 2 + DERIVED_ROWS}"
+
+
+def read_derived(ws) -> tuple[list[dict], list[str]]:
+    """Each filled new-column row as {slot, row, name, top, bottom}, and a
+    problem for each half-filled one, named by cell."""
+    out, problems = [], []
+    for r in ws.iter_rows(min_row=FIRST_ROW):
+        key = r[KEY_COL - 1].value
+        if not (isinstance(key, str) and key.startswith(f"{DERIVED_KEY}|") and key.split("|")[1].isdigit()):
+            continue
+        row = r[0].row
+        vals = [r[c - 1].value for c in (3, 4, 5)]
+        vals = [str(v).strip() if v not in (None, "") and str(v).strip() else None for v in vals]
+        if not any(vals):
+            continue
+        if not all(vals):
+            lacking = [w for w, v in zip(("a name", "a top", "a bottom"), vals) if not v]
+            col = "CDE"[[v is None for v in vals].index(True)]
+            problems.append(f"{SHEET}!{col}{row}: new column {key.split('|')[1]} needs "
+                            f"{' and '.join(lacking)}. Fill it in, or clear the row.")
+            continue
+        out.append({"slot": int(key.split("|")[1]), "row": row, "name": vals[0], "top": vals[1], "bottom": vals[2]})
+    return out, problems

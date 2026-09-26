@@ -249,8 +249,9 @@ def suggest(table: Table, remembered: dict[str, dict] | None = None,
         if best is None:
             dates_ok, _ = passes(cat["origination_date"].test, f)
             if dates_ok:
-                best = Suggestion(c, "unknown", "dates, but which date? Say origination_date if it is when the "
-                                               "loan was made", "structure")
+                best = Suggestion(c, "unknown", "dates, but which date? Say Origination date if it is when the "
+                                               "loan was made, or Outcome date if it is when it went bad",
+                                  "structure")
             elif passes("unique", f)[0]:
                 best = Suggestion(c, "id", "a different value on every row", "structure")
             elif f.numeric and len(set(f.numbers)) > few_values:
@@ -313,6 +314,8 @@ def review(table: Table, sugg: dict[str, Suggestion], open_questions: list[dict]
                               f"aren't on that scale, so it's suggested as `score`. If it really is FICO, the "
                               f"values need a look; if the suggestion is wrong, the rule needs patching."))
     for c in table.columns:
+        if c in sugg and sugg[c].means == "outcome_date":
+            continue                  # blank on every loan that didn't go bad: what it is, not a slip (fix 3.13)
         f = facts(table, c)
         if f.rows and f.nonblank and (f.rows - f.nonblank) / f.rows >= BLANK_REVIEW:
             share = (f.rows - f.nonblank) / f.rows

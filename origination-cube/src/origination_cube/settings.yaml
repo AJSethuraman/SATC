@@ -27,7 +27,7 @@ groups:
     # (walkthrough defect 1, 25 Sep 2026).
     settings:
       - key: min_age_months
-        question: How old a loan must be to count
+        question: "Loan age filter: how old a loan must be to count"
         takes_effect: re-run
         judgment: true
         override: whole number of months
@@ -40,12 +40,66 @@ groups:
               loans looks better than it is.
           - value: 12
             label: 12 months on book or more
-            explains: Removes the newest loans. Early losses show; late ones may not yet.
+            explains: >-
+              Removes the newest loans. Bad still means bad at any time up to the
+              extract, so older loans have had longer to go bad.
           - value: 24
             label: 24 months on book or more
             explains: >-
               Gives losses about two years to show. Fewer loans qualify, and the
               book you read is older.
+
+      # Fixes 3.13 and 3.14 (26 Sep 2026). The loan age filter above only drops young
+      # loans; a window also fixes how long every loan had to go bad, so old and new
+      # loans are judged over the same months. That needs the date each loan went bad.
+      # needed_when: the run asks for an answer only when it matters. outcome_date: a
+      # column is marked Outcome date on Columns. age_or_window: a loan age filter or a
+      # window is in use and no column is marked As-of date.
+      - key: window_months
+        question: "Outcome window: bad means it went bad within"
+        takes_effect: re-run
+        judgment: true
+        needed_when: outcome_date
+        override: whole number of months
+        valid: {min: 0, max: 360, whole: true}
+        options:
+          - value: 0
+            label: No window
+            explains: >-
+              Bad as the extract has it, however late. Older loans have had longer
+              to go bad than new ones.
+          - value: 12
+            label: 12 months of being made
+            explains: >-
+              Only loans 12 months on book or more count, and a loan that went bad
+              later counts as good.
+          - value: 18
+            label: 18 months of being made
+            explains: >-
+              Only loans 18 months on book or more count, and a loan that went bad
+              later counts as good.
+          - value: 24
+            label: 24 months of being made
+            explains: >-
+              Only loans 24 months on book or more count. Fewer loans qualify, and
+              late losses are caught.
+
+      - key: as_of
+        question: When the data was taken (the as-of date)
+        takes_effect: re-run
+        judgment: true
+        needed_when: age_or_window
+        override: a date, such as 2026-06-30
+        valid: {date: true}
+        options:
+          - value: column
+            label: The As-of date column on Columns
+            explains: One date on every row, marked As-of date on Columns.
+          - value: latest
+            label: The latest date in the extract (suggested)
+            explains: >-
+              The last origination or outcome date in the file. If the data was
+              taken later, loans read a little younger: a few may be left out, none let in early.
 
   - title: How columns are recognised
     settings:
@@ -384,6 +438,11 @@ meanings:
   - {means: as_of_date, label: "As-of date",
      says: "the date the data was taken", cut: none,
      hints: [asof, snapshot, report, perf, monthend, data], test: "one_date"}
+  # fix 3.13: when a bad loan went bad, so the outcome can be windowed on Control
+  - {means: outcome_date, label: "Outcome date",
+     says: "the date the loan went bad; blank for loans that didn't", cut: none,
+     hints: [baddate, baddt, outcomedate, codate, codt, chargeoffdate, chargeoffdt, chgoffdate, defaultdate,
+             delinqdate, dateofdefault, datebad], test: "dates"}
   - {means: fico, label: "FICO score",
      says: "a FICO score", cut: band,
      hints: [fico, bureau, cb, credit], test: {"range": [300, 850]}}

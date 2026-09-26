@@ -21,13 +21,17 @@ def _row(ws, key):
 
 JUDGMENT = {"min_age_months", "min_loans", "min_events", "materiality", "compare_to", "worse_at", "better_at",
             "confidence", "revenue_line"}
+#: judgments asked for only when they matter (fixes 3.13, 3.14): the run refuses them then, by cell
+WHEN_NEEDED = {"window_months": "outcome_date", "as_of": "age_or_window"}
 
 
 def test_judgment_settings_recommend_nothing_and_method_settings_recommend_one():
     """The firm: what is material, what is enough loans, what counts as worse
     is the professional's judgment, never the tool's."""
     settings = control.load_settings()
-    assert {s.key for s in settings if s.judgment} == JUDGMENT
+    assert {s.key for s in settings if s.judgment and not s.needed_when} == JUDGMENT
+    assert {s.key: s.needed_when for s in settings if s.needed_when} == WHEN_NEEDED
+    assert all(s.judgment for s in settings if s.needed_when)
     for s in settings:
         assert sum(o.recommended for o in s.options) == (0 if s.judgment else 1), s.key
 

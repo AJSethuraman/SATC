@@ -1,0 +1,237 @@
+"""The workbook route for NEXT-GOAL 3.9 to 3.14: a new column made on Control,
+the period and meaning of an amount on Columns, the outcome date on Columns and
+the window and as-of date on Control. Each refusal names its cell, and every
+number on Check is checked against the extract counted by hand."""
+
+import csv
+import statistics
+from datetime import date, datetime
+
+import pytest
+import yaml
+from openpyxl import load_workbook
+
+from origination_cube import book, control, synth
+from test_book import _answer
+
+
+def _control(path, **answers):
+    """Answer Control by key: a setting's option label, ("own", value) for column D, or a new-column
+    slot as {"derived|1": (name, top, bottom)}."""
+    wb = load_workbook(path)
+    ws = wb[control.SHEET]
+    for r in ws.iter_rows(min_row=control.FIRST_ROW):
+        k = r[control.KEY_COL - 1].value
+        if k in answers:
+            v = answers[k]
+            if k.startswith("derived|"):
+                for c, x in zip((3, 4, 5), v):
+                    r[c - 1].value = x
+            elif isinstance(v, tuple):
+                r[control.OWN_COL - 1].value = v[1]
+            else:
+                r[control.CHOOSE_COL - 1].value = v
+    wb.save(path)
+
+
+def _columns(path, name, **cells):
+    """Set cells on one Columns row, by constant name: _columns(b, "INCOME", C_PERIOD="per year")."""
+    wb = load_workbook(path)
+    ws = wb["Columns"]
+    for r in ws.iter_rows(min_row=book.COL_FIRST):
+        if r[book.C_NAME - 1].value == name:
+            for const, v in cells.items():
+                ws.cell(row=r[0].row, column=getattr(book, const)).value = v
+            wb.save(path)
+            return r[0].row
+    raise KeyError(name)
+
+
+def _check(path) -> dict:
+    out = {}
+    for r in load_workbook(path)["Check"].iter_rows(min_row=4):
+        if r[1].value:
+            out.setdefault(r[1].value, []).append(r[2].value)
+    return {k: v[0] if len(v) == 1 else v for k, v in out.items()}
+
+
+def _dated(tmp_path, n=3000):
+    x = synth.write_extract(tmp_path, n=n, dated=True)
+    out = book.set_up(x)
+    _answer(out.book)
+    return x, out.book
+
+
+def _ratios(x):
+    with open(x, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    return [float(r["INCOME"]) / float(r["SALES"]) for r in rows if r["SALES"] not in ("", "0")]
+
+
+def test_the_dates_are_recognised_and_the_window_and_as_of_are_asked_for_when_they_matter(tmp_path):
+    x, b = _dated(tmp_path)
+    wb = load_workbook(b)
+    # Set up counted the calls to make: every judgment, and the window (BAD_DATE is an outcome date), but
+    # not the as-of date, which nothing uses yet
+    judgments = sum(1 for s in control.load_settings() if s.judgment and not s.needed_when)
+    assert wb["Start here"]["C12"].value == "Calls still to make on Control"
+    assert wb["Start here"]["D12"].value == judgments + 1
+    means = {r[book.C_NAME - 1].value: r[book.C_MEANS - 1].value
+             for r in wb["Columns"].iter_rows(min_row=book.COL_FIRST)}
+    assert means["ORIG_DATE"] == "Origination date" and means["BAD_DATE"] == "Outcome date"
+    ws = wb[control.SHEET]
+    rw, ra = control.row_of(ws, "window_months"), control.row_of(ws, "as_of")
+    # shaded only while it is needed: the window once a column is marked Outcome date on Columns
+    rules = {str(rng.sqref): [x.formula[0] for x in rng.rules] for rng in ws.conditional_formatting}
+    assert 'COUNTIF(Columns!$C:$C,"Outcome date")>0' in rules[f"C{rw}:D{rw}"][0]
+    assert 'COUNTIF(Columns!$C:$C,"As-of date")=0' in rules[f"C{ra}:D{ra}"][0]
+
+    ran = book.run(b)
+    assert not ran.ok
+    said = [x for x in ran.lines if f"Control!C{rw}" in x]
+    assert said and "BAD_DATE is marked Outcome date on Columns, so say what bad means" in said[0]
+
+    _control(b, window_months="18 months of being made")
+    ran = book.run(b)
+    assert not ran.ok
+    said = [x for x in ran.lines if f"Control!C{ra}" in x]
+    assert said and "an outcome window of 18 months needs the date the data was taken" in said[0]
+
+    _control(b, as_of="The latest date in the extract (suggested)")
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    with open(x, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    latest = max(max(r["ORIG_DATE"] for r in rows), max(r["BAD_DATE"] for r in rows))
+    as_of = date.fromisoformat(latest)
+    young = sum(1 for r in rows if (as_of.year - int(r["ORIG_DATE"][:4])) * 12 + as_of.month
+                - int(r["ORIG_DATE"][5:7]) - (as_of.day < int(r["ORIG_DATE"][8:])) < 18)
+    chk = _check(b)
+    assert chk["As-of date"] == f"{latest}: the latest origination or outcome date in the extract"
+    assert chk["Left out: under 18 months on book"] == f"{young:,}"
+    assert chk["Loans run"] == f"{3000 - young:,}"
+    assert chk["Outcome window"].startswith("Bad means it went bad in its first 18 months on book.")
+    assert "of their bad loans had gone bad by month 18" in chk["How much of the loss 18 months catches"]
+    assert any(line.startswith("Outcome window 18 months: loans made ") for line in ran.lines)
+    ws = load_workbook(b)[control.SHEET]
+    assert ws.cell(row=ra, column=control.KEY_COL + 1).value.startswith(f"{latest}: the latest")
+    ran_yaml = b.with_name(f"{b.stem} - what ran.yaml").read_text(encoding="utf-8")
+    got = yaml.safe_load(ran_yaml)
+    assert got["window_months"] == 18 and got["as_of"] == "latest"
+    assert f"# as-of date used: {latest} (the latest origination or outcome date in the extract)" in ran_yaml
+
+
+def test_the_as_of_date_can_be_typed_and_is_read_as_a_date(tmp_path):
+    p = control.build_control_book(tmp_path / "control.xlsx")
+    wb = load_workbook(p)
+    ws = wb[control.SHEET]
+    for s in control.load_settings():
+        if s.judgment and not s.needed_when:
+            ws.cell(row=control.row_of(ws, s.key), column=control.CHOOSE_COL).value = s.options[0].shown
+    ws.cell(row=control.row_of(ws, "as_of"), column=control.OWN_COL).value = datetime(2026, 6, 30)
+    wb.save(p)
+    got = control.read_control(p)
+    assert got["as_of"] == date(2026, 6, 30) and "window_months" not in got
+    ws = wb[control.SHEET]
+    ws.cell(row=control.row_of(ws, "as_of"), column=control.OWN_COL).value = "30th June"
+    wb.save(p)
+    with pytest.raises(control.ControlError, match="needs a date, such as 2026-06-30"):
+        control.read_control(p)
+
+
+def test_a_new_column_is_made_on_control_listed_on_columns_looked_at_and_run(tmp_path):
+    x, b = _dated(tmp_path)
+    _control(b, window_months="No window", **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
+    wb = load_workbook(b)
+    opts = [c.value for c in wb[control.OPTIONS_SHEET]["J"][1:] if c.value]
+    assert "INCOME" in opts and "SALES" in opts and "CHANNEL" not in opts     # number columns only
+
+    ran = book.run(b)
+    slot = control.row_of(load_workbook(b)[control.SHEET], "derived|1")
+    assert not ran.ok and any(f"Control!C{slot}" in x and "isn't on Columns yet. Press Set up again" in x
+                              for x in ran.lines)
+
+    out = book.set_up(x)
+    assert any(line.startswith("Made INCOME_TO_SALES = INCOME ÷ SALES on Columns and Look. Blank on 3 where "
+                               "SALES is zero; 3 where SALES blank") for line in out.lines), out.lines
+    wb = load_workbook(b)
+    cols = wb["Columns"]
+    row = next(r for r in cols.iter_rows(min_row=book.COL_FIRST) if r[book.C_NAME - 1].value == "INCOME_TO_SALES")
+    assert row[book.C_MEANS - 1].value == "Amount or number" and row[book.C_CUT - 1].value == "Yes"
+    assert row[book.C_WHY - 1].value == "made on Control: INCOME ÷ SALES"
+    assert row[book.C_MADE - 1].value == "INCOME ÷ SALES" and cols.column_dimensions["P"].hidden
+    assert cols[book.CONFIRM_CELL].value is None and "INCOME_TO_SALES" in cols["D3"].value    # check it first
+    # its Look block, against the extract divided by hand
+    look = wb["Look"]
+    at = next(r for r in range(1, look.max_row + 1) if look.cell(row=r, column=2).value == "INCOME_TO_SALES")
+    lines = {look.cell(row=r, column=2).value: look.cell(row=r, column=3).value for r in range(at + 1, at + 10)}
+    ratios = _ratios(x)
+    assert lines["Loans"] == 3000 and lines["Blank"] == 6
+    assert lines["Smallest"] == pytest.approx(min(ratios)) and lines["Largest"] == pytest.approx(max(ratios))
+    assert lines["Median"] == pytest.approx(statistics.median(ratios))
+
+    _columns(b, "INCOME_TO_SALES", C_EDGES="0.1; 0.25; 0.5; 1; 2")
+    _columns(b, "INCOME", C_CUT="No")
+    _columns(b, "SALES", C_CUT="No")
+    wb = load_workbook(b)
+    wb["Columns"][book.CONFIRM_CELL] = "Yes"
+    wb.save(b)
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    chk = _check(b)
+    assert chk["New column: INCOME_TO_SALES"] == ("INCOME ÷ SALES on each loan. Made on 2,994; blank on 6 "
+                                                  "(3 where SALES is zero; 3 where SALES blank).")
+    assert chk["Band edges used: INCOME_TO_SALES"] == "0.1; 0.25; 0.5; 1; 2  (6 bands)"
+    got = yaml.safe_load(b.with_name(f"{b.stem} - what ran.yaml").read_text(encoding="utf-8"))
+    assert got["derived"] == [{"name": "INCOME_TO_SALES", "top": "INCOME", "bottom": "SALES"}]
+    wb = load_workbook(b)
+    assert any("INCOME_TO_SALES" in str(c.value) for r in wb["Grids"].iter_rows() for c in r)
+    # the Run writes Look again, and the new column's block is still there
+    assert any(wb["Look"].cell(row=r, column=2).value == "INCOME_TO_SALES" for r in range(1, wb["Look"].max_row + 1))
+
+    _control(b, **{"derived|1": ("INCOME_TO_SALES", "INCOME", "REV_DEBT")})
+    ran = book.run(b)
+    assert not ran.ok and any(f"Control!C{slot}" in x and "was made as INCOME ÷ SALES and Control now says INCOME "
+                              "÷ REV_DEBT. Press Set up again" in x for x in ran.lines)
+    _control(b, **{"derived|1": (None, None, None)})
+    ran = book.run(b)
+    assert not ran.ok and any("was a new column made on Control, and Control doesn't have it now. Press Set up "
+                              "again" in x for x in ran.lines)
+    _control(b, **{"derived|1": ("INCOME_TO_SALES", None, "SALES")})
+    ran = book.run(b)
+    assert not ran.ok and any(f"Control!D{slot}: new column 1 needs a top" in x for x in ran.lines)
+
+
+def test_periods_and_meanings_on_columns_are_recorded_warned_and_split_by(tmp_path):
+    x, b = _dated(tmp_path)
+    _control(b, window_months="No window", **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
+    x2 = book.set_up(x)
+    assert x2.ok
+    _columns(b, "INCOME", C_CUT="No", C_PERIOD="per year", C_DEFINE="household income, trailing twelve months")
+    _columns(b, "SALES", C_CUT="No", C_PERIOD="per month", C_DEFINE="business sales, one month times twelve")
+    _columns(b, "INCOME_TO_SALES", C_SPLIT="Yes")
+    row = _columns(b, "CHANNEL", C_PERIOD="per year")
+    wb = load_workbook(b)
+    wb["Columns"][book.CONFIRM_CELL] = "Yes"
+    wb.save(b)
+    ran = book.run(b)
+    assert not ran.ok and any(f"Columns!{book._col(book.C_PERIOD)}{row}" in x and "not an amount, so it has no "
+                              "period" in x for x in ran.lines)
+    _columns(b, "CHANNEL", C_PERIOD=None)
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    chk = _check(b)
+    warnings = chk["Warning"] if isinstance(chk["Warning"], list) else [chk["Warning"]]
+    assert any('INCOME_TO_SALES divides "INCOME" (per year) by "SALES" (per month): they aren\'t over the same '
+               'period, so it reads 12 times a like-for-like ratio' in w for w in warnings)
+    assert chk["What INCOME is"] == "per year; household income, trailing twelve months"
+    assert chk["What SALES is"] == "per month; business sales, one month times twelve"
+    got = yaml.safe_load(b.with_name(f"{b.stem} - what ran.yaml").read_text(encoding="utf-8"))
+    assert got["columns"]["INCOME"] == {"means": "amount", "period": "per_year",
+                                        "definition": "household income, trailing twelve months"}
+    assert got["split"] == {"field": "INCOME_TO_SALES", "how": "own_median"}
+    # the new column splits the pockets like any number column, and Look plots it against each band
+    wb = load_workbook(b)
+    assert "Split" in wb.sheetnames
+    text = [c.value for r in wb["Look"].iter_rows() for c in r if isinstance(c.value, str)]
+    assert "INCOME_TO_SALES against FICO" in text

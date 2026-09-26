@@ -63,7 +63,10 @@ benchmark:
 """
 
 
-def make_rows(n: int = 20000, seed: int = 7) -> list[dict]:
+def make_rows(n: int = 20000, seed: int = 7, dated: bool = False) -> list[dict]:
+    """`dated`: add the dated outcome and the income / sales columns (add_dated),
+    after every other value is drawn, so every other plant is the same loan for
+    loan with or without them."""
     rng = random.Random(seed)
     rows = []
     for i in range(n):
@@ -95,19 +98,99 @@ def make_rows(n: int = 20000, seed: int = 7) -> list[dict]:
     rows[2]["GCO_AMT"] = "#N/A"             # as Excel writes an error
     rows[3]["ORIG_BAL"] = ""
     rows[4]["BAD_FLAG"] = 2
+    return add_dated(rows, seed) if dated else rows
+
+
+# --------------------------------------------------------------------------
+# Fixes 3.9 and 3.14 (26 Sep 2026): a dated outcome, and a ratio with a known effect.
+#
+# Kept apart from make_rows on purpose: it draws from its own random stream and
+# only ADDS columns, so the flag, GCO, RANR and every plant above are the same
+# loan for loan. That is also why the ratio's effect is planted by drawing the
+# ratio given the outcome rather than the outcome given the ratio: a bad loan's
+# ratio comes from the good loans' spread tilted by the planted odds, so within
+# any score, channel or asset class the odds of bad are exactly x3 above 2.0 and
+# x2 below 0.1 against the middle, as docs/scout-vs-measure.py plants them.
+
+DATED_COLUMNS = ["ORIG_DATE", "BAD_DATE", "INCOME", "SALES"]
+AS_OF = "2026-06-30"                     # the synthetic extract was "taken" on this day
+FIRST_ORIG = "2021-01-01"                # loans made from here to a month before AS_OF
+RATIO_ODDS = ((2.0, 3.0), (0.1, 2.0))    # above 2.0: x3; below 0.1: x2; nothing between (scout-vs-measure.py)
+MONTHS_TO_BAD = (12.0, 0.7)              # median 12 months, log-spread 0.7: about 72% land by month 18
+
+
+def _odds(ratio: float) -> float:
+    return RATIO_ODDS[0][1] if ratio > RATIO_ODDS[0][0] else RATIO_ODDS[1][1] if ratio < RATIO_ODDS[1][0] else 1.0
+
+
+def _made_on(r: dict, rng: random.Random, first, last):
+    """The row's own origination date if it has one (a later synthetic book may
+    carry ORIG_DATE), else one drawn evenly between `first` and `last`."""
+    from datetime import date, datetime, timedelta
+    v = r.get("ORIG_DATE")
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    if isinstance(v, str) and v.strip():
+        for fmt in ("%Y-%m-%d", "%m/%d/%Y"):
+            try:
+                return datetime.strptime(v.strip(), fmt).date()
+            except ValueError:
+                pass
+    return first + timedelta(days=rng.randrange((last - first).days + 1))
+
+
+def add_dated(rows: list[dict], seed: int = 7) -> list[dict]:
+    """ORIG_DATE (unless the row has one), BAD_DATE on bad loans and blank on the
+    rest, and INCOME and SALES, both per year, whose ratio carries the planted
+    effect. A bad loan goes bad a lognormal number of months after it was made
+    (MONTHS_TO_BAD), never after AS_OF. SALES is 0 on every 997th loan and blank
+    on every 1,009th, so a new column dividing by it has blanks to count."""
+    import math
+    from datetime import date, timedelta
+    rng = random.Random(f"dated-{seed}")
+    as_of, first = date.fromisoformat(AS_OF), date.fromisoformat(FIRST_ORIG)
+    top = max(_odds(x) for x in (0.05, 1.0, 3.0))
+    for i, r in enumerate(rows):
+        made = _made_on(r, rng, first, as_of - timedelta(days=31))
+        r["ORIG_DATE"] = made.isoformat()
+        bad = r.get("BAD_FLAG") == 1
+        r["BAD_DATE"] = ""
+        if bad:
+            days_on_book = (as_of - made).days
+            for _ in range(1000):
+                days = int(math.exp(rng.gauss(math.log(MONTHS_TO_BAD[0]), MONTHS_TO_BAD[1])) * 30.44)
+                if days <= days_on_book:
+                    break
+            else:
+                days = rng.randrange(days_on_book + 1)
+            r["BAD_DATE"] = (made + timedelta(days=days)).isoformat()
+        while True:                      # good: the plain spread; bad: tilted by the planted odds
+            ratio = math.exp(rng.gauss(-0.7, 0.8))
+            if not bad or rng.random() < _odds(ratio) / top:
+                break
+        sales = round(math.exp(rng.gauss(math.log(250000), 0.5)))
+        r["SALES"] = sales
+        r["INCOME"] = round(ratio * sales)
+        if i % 997 == 500:
+            r["SALES"] = 0
+        elif i % 1009 == 600:
+            r["SALES"] = ""
     return rows
 
 
-def write_extract(out: str | Path, n: int = 20000, seed: int = 7) -> Path:
+def write_extract(out: str | Path, n: int = 20000, seed: int = 7, dated: bool = False) -> Path:
     """The extract alone, for the demo: the analyst's route starts from
-    `cube init` on it, so no call is made for them (walkthrough defect 14)."""
+    `cube init` on it, so no call is made for them (walkthrough defect 14).
+    `dated` adds the dated outcome and INCOME and SALES (add_dated)."""
     d = Path(out)
     d.mkdir(parents=True, exist_ok=True)
     data = d / "loans.csv"
     with data.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=COLUMNS)
+        w = csv.DictWriter(f, fieldnames=COLUMNS + ([c for c in DATED_COLUMNS if c not in COLUMNS] if dated else []))
         w.writeheader()
-        w.writerows(make_rows(n, seed))
+        w.writerows(make_rows(n, seed, dated))
     return data
 
 
