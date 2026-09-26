@@ -228,7 +228,7 @@ def test_the_marking_is_truthful_against_the_section_itself():
     # THIS SECTION ONLY, AND IT IS NARROWED BY CITATION RATHER THAN BY SOURCE
     # ID. It read `source_id == "S1"` — right while S1 was this section on a
     # desk holding almost nothing else, wrong twice over now: `dec-kill`
-    # renumbered every id, and one corpus holds 785 passages from thirty-three
+    # renumbered every id, and one corpus holds 1167 passages from thirty-eight
     # publications, none of which is verbatim from THIS section's XML. The
     # citation prefix is what actually names the section.
     for p in (q for q in desk.passages if q.citation.startswith(PREFIX)):
@@ -594,7 +594,11 @@ def test_the_two_sections_that_held_out_longest_read_now():
     """
     paragraphs, underdetermined, cited, dangling = _lands(X622)
     assert underdetermined == [] and dangling == []
-    assert len(cited) == 21 and len(paragraphs) == 49
+    # FIFTY SINCE 26 SEPTEMBER 2026, and the one added is text the government
+    # printed: § 1.62-2's flush paragraph "This section prescribes rules
+    # relating to the requirements of section 62(c)." The reader took `<P>`
+    # only and dropped every `<FP>`; it reads them now, onto the parent.
+    assert len(cited) == 21 and len(paragraphs) == 50
     # The repaired run-in, and the plain label it carries.
     assert {"(f)", "(f)(1)", "(f)(2)"} <= {p.label for p in paragraphs}
 

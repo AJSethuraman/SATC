@@ -104,6 +104,54 @@ ALREADY_OPEN = {
 #: again, which is the exact fault the sixth docket was rebuilt to stop, arriving
 #: through a door nothing was watching.
 ANSWERED = [
+ {"key": "dec-reach",
+  "title": "How does a question reach authority that does not use the asker\u2019s words?",
+  "said": "Add plain words",
+  "where": "on the ninth docket, 25 September \u2014 answered at 18:31, built and pushed by 21:00",
+  "caused": "<b>Eleven of your eleven authority questions now reach their "
+            "authority, from five.</b> A source declares the words you ask it "
+            "in \u2014 five sources do, and every phrase is lifted from your own "
+            "43 questions.<br><br><b>And your close-question set is complete for "
+            "the first time: 16 of 16.</b> Q31 came back here, Q18 came back "
+            "with the hyphen, and neither fix was aimed at either.<br><br>"
+            "<b>It can only ever ADD, and that is arithmetic rather than a "
+            "promise.</b> Measured over all 43: no passage scores less than it "
+            "did, no question returns fewer citations, and 37 of 43 are "
+            "unchanged. The bonus is added; nothing is ever "
+            "subtracted.<br><br><b>The test I wrote to keep the vocabulary "
+            "yours caught me on its first run.</b> I declared <i>\u201cmaterials "
+            "held at year end\u201d</i>; your Q19 says <i>\u201chold materials at "
+            "year end\u201d</i>. Every declared phrase must appear in your own "
+            "questions or it is a word I chose."},
+
+ {"key": "dec-hyphen",
+  "title": "Should a hyphen between two ordinary words split them into two?",
+  "said": "Split on a letter hyphen",
+  "where": "on the ninth docket, 25 September",
+  "caused": "<b><code>cash-back</code> reaches 26 passages. It reached none.</b> "
+            "That was Occam\u2019s pilot finding, and it is closed.<br><br>"
+            "<b>All 113 citation-shaped tokens are provably untouched</b>, "
+            "pinned against every one the corpus holds rather than a list I "
+            "typed.<br><br><b>It repaid a debt nobody expected.</b> "
+            "<code>dec-fullstop</code> cost exactly one commissioned pairing on "
+            "11 September \u2014 Q18, the hardware-store question. Splitting "
+            "<code>hardware-store</code> gave it back. The decision was made for "
+            "<code>cash-back</code>; this fell out.<br><br><b>What it cost, "
+            "re-run before it shipped as promised:</b> fifteen of your 43 "
+            "changed their top eight, thirteen of them by a single citation, "
+            "and one brief in five grew by 491 characters."},
+
+ {"key": "dec-briefsize",
+  "title": "Should the answerer see more than the top eight passages?",
+  "said": "Leave it at eight",
+  "where": "on the ninth docket, 25 September",
+  "caused": "<b>Nothing built, and that was the right call.</b> Raising the "
+            "brief would have bought three more questions at five times the "
+            "text and could never have reached Q4 or Q6, which returned nothing "
+            "to rank.<br><br><b>The plain words reached all eleven at the "
+            "existing depth instead</b> \u2014 so the lever you declined would "
+            "have bought less, for more, than the one you took."},
+
  {"key": "dec-caprule",
   "title": "What is the default capitalisation rule for a client that has none?",
   "said": "Record it at intake",
@@ -264,7 +312,105 @@ ANSWERED = [
 #: closed without the firm saying so.
 #: NOTHING IS OPEN. The three that were here were answered at 17:20 and are in
 #: `ANSWERED` above with what each one did. A key may not be in both.
-OTHERS = []
+OTHERS = [
+ {"key": "dec-paren",
+  "kind": "decision",
+  "group": "From building the answers",
+  "tag": "retrieval \u00b7 dec-paren",
+  "title": "Should a bracket in a citation be part of the word, the way a full stop is?",
+  "rec": "<b>Treat a bracket like a full stop.</b> It is the same defect as the "
+         "one you just fixed twice, in the same place, and it is larger than "
+         "either. <b>683 of your 777 citations cannot find themselves</b> \u2014 "
+         "ask the desk for <code>26 CFR 1.263(a)-1(f)(1)</code> by name and it "
+         "does not come back first. I am recommending the change and NOT "
+         "recommending you take it on my word: it moves every score in the "
+         "corpus, exactly as the hyphen did, so the honest sequence is that I "
+         "build it, re-run your 43 and the whole suite, and bring you what "
+         "moved before it ships. If you would rather leave it, that is a real "
+         "option \u2014 nothing today depends on it, and it has been true since "
+         "the corpus was built.",
+  "rec_pick": "Fix it, and show me what moved",
+  "position": "A bracket is part of a citation the way a full stop is part of "
+              "one, so a citation asked for by name comes back by name.",
+  "context": "<b>How I found it.</b> Writing the hyphen test I asserted that a "
+             "citation looked up by its own string comes back in its own top "
+             "five. It failed on 179 of the first 200. I measured the untouched "
+             "code before assuming it was mine: <b>179 there too</b>. Not my "
+             "change, and not new.<br><br><b>What it is.</b> The tokeniser "
+             "treats <code>.</code>, <code>-</code> and <code>/</code> as part "
+             "of a word so <code>1099-K</code> and <code>Pub. 583</code> survive. "
+             "<code>(</code> is not in that list. So "
+             "<code>26 CFR 1.263(a)-1(f)(1)(i)(A)</code> becomes seven separate "
+             "words \u2014 <i>1.263, a, 1, f, 1, i, a</i> \u2014 six of them "
+             "single letters shared with hundreds of other sub-paragraphs. The "
+             "citation cannot tell itself apart from its "
+             "siblings.<br><br><b>Measured across your whole record:</b> 777 "
+             "citations carry a digit, 683 do not find themselves in their own "
+             "top five, and 680 of those contain a bracket.",
+  "either": [
+    ("If you say fix it and show me",
+     "I build it, re-run your 43 close questions and the full suite, and bring "
+     "the before-and-after here before anything ships \u2014 the same way the "
+     "hyphen was done this morning. Expect rankings to move more than the "
+     "hyphen moved them, because brackets are in 680 citations and hyphens "
+     "were in 92 ordinary words."),
+    ("If you say leave it",
+     "Nothing moves and nothing gets worse. Asking for a sub-paragraph by its "
+     "own name keeps returning its siblings ahead of it, which mostly matters "
+     "to tooling rather than to a preparer \u2014 a person asks in words, not "
+     "in citation numbers. It is pinned as a ratchet either way, so it cannot "
+     "quietly get worse."),
+  ],
+  "picks": ["Fix it, and show me what moved", "Leave it", "Not yet"]},
+
+ {"key": "dec-crowd",
+  "kind": "decision",
+  "group": "From building the answers",
+  "tag": "retrieval \u00b7 dec-crowd",
+  "title": "May one source fill the whole brief?",
+  "rec": "<b>Leave it, and let me bring you a real answer instead.</b> This is "
+         "the cost of the plain words you approved this morning, and it is "
+         "real \u2014 but every way of capping it that I measured means picking "
+         "a number, and your own docket said not to pick a cutoff by taste. It "
+         "is also the kind of question that cannot be settled from the "
+         "retrieval side: whether eight paragraphs of one regulation answer "
+         "better or worse than four plus four is a question about ANSWERS, and "
+         "nothing here has been run against a model yet. So my recommendation "
+         "is to carry it into the pilot, see whether it actually hurts, and "
+         "decide then with evidence rather than now with arithmetic.",
+  "rec_pick": "Leave it and test it in the pilot",
+  "position": "A brief may be filled by one source; whether that is too narrow "
+              "is decided on what the answers look like, not on the ranking.",
+  "context": "<b>What happened.</b> The bonus goes to every passage of a "
+             "declaring source, so a declaration on a source holding 38 "
+             "paragraphs lifts all 38 together. Four of your eleven \u2014 Q16, "
+             "Q18, Q31 and Q33 \u2014 now come back as eight passages of ONE "
+             "source, where they used to carry several.<br><br><b>The real "
+             "loss, named.</b> Q33, streaming television, used to carry "
+             "<i>Pub. 587, \u201cTrade or Business Use\u201d \u2014 the "
+             "test</i>. That is genuinely on point for whether a subscription "
+             "is business use, and it is gone from the brief.<br><br><b>Three "
+             "ways of doing it were measured before this shipped:</b> the "
+             "bonus on every passage gives 11 of 11 and 2.5 sources per brief; "
+             "on the source\u2019s best passage only, 10 of 11 and 4.3 sources; "
+             "capped at half the brief, 11 of 11 and 2.7 sources \u2014 the cap "
+             "barely bites, because the crowding passages DO share words with "
+             "the question.",
+  "either": [
+    ("If you leave it and test it",
+     "Nothing changes now. The pilot tells us whether a one-source brief "
+     "actually answers worse, and that is evidence neither of us has. The risk "
+     "is that a preparer gets a narrower brief on four questions in the "
+     "meantime, and the displaced passages are all still on file and still "
+     "reachable by a different phrasing."),
+    ("If you want it capped now",
+     "I would have to choose how many passages one source may contribute, and "
+     "there is no measurement that picks that number for me \u2014 which is "
+     "exactly the thing you told me not to do. If you name the number it stops "
+     "being my taste and becomes your policy, and I will build it."),
+  ],
+  "picks": ["Leave it and test it in the pilot", "Cap it now", "Not yet"]},
+]
 
 #: BEHAVIOUR 19, ADDED TO CANON THIS MORNING AS 1.13.0: name the goal, report the
 #: distance, then stop. Its incident is this session -- *"i feel like sometimes the
@@ -282,90 +428,114 @@ OTHERS = []
 #: they are the work. Behaviour 19: *"do not manufacture the next decision.
 #: Behaviour 13 says decisions go to the human; it does not say produce some."*
 NEXT = {
- "goal": "Occam installs the plugin and runs a close from start to finish on "
-         "Sarcia Services \u2014 the firm\u2019s V1 goal, set on 11 September 2026.",
- "ends": "It ends with one engagement\u2019s close questions put to the desk through "
-         "the installed plugin, and a written record of three things: every answer "
-         "served, every refusal with what it asked for, and the questions the desk "
-         "never saw.",
- "distance": "<b>Eight of your nine answers are built and pushed; the ninth is "
-             "blocked outside this container.</b> desk 0.34.0 \u2014 seven "
-             "versions, each its own commit with its own mutations run red "
+ "goal": "A close runs on this. Occam takes desk 0.36.0 and closes Sarcia again, "
+         "and we read what the desk did rather than what the suite says.",
+ "ends": "It ends with a written record of three things: every question the "
+         "close raised, which of them reached the desk at all, and for each one "
+         "that did \u2014 served, refused, or answered from the wrong passage.",
+ "distance": "Everything you answered is built and pushed: desk 0.34.1 to "
+             "0.36.0, six versions, one commit each with its mutations run red "
              "first.",
- "detail": "<b>Two things stand between this and the pilot, and neither is a "
-           "decision.</b><br><br><b>1. The branch has to merge.</b> Occam installs "
-           "from <code>main</code>, so a pilot run today would use the version "
-           "without any of this.<br><br><b>2. FASB needs one fetch from a machine "
-           "that can reach fasb.org.</b> Everything else about that answer is "
-           "settled; what is missing is a source entry, and admitting one means "
-           "verifying its words against the publisher\u2019s own page. Your machine "
-           "can almost certainly do it; this container is refused at the network "
-           "policy.<br><br><b>What the pilot still refuses:</b> building more desk "
-           "machinery mid-run \u2014 a missing authority is a finding to write down, "
-           "not a thing to go and fix. Inventing a client. And client PII reaching "
-           "the desk: it sees the question and the engagement\u2019s de-identified "
-           "facts, never a name, an SSN or an EIN.",
+ "detail": "<b>What changed since the pilot, in one line each.</b> Eleven of "
+           "eleven of your authority questions now reach their authority. Your "
+           "close-question set is complete at 16 of 16. <code>cash-back</code> "
+           "reaches 26 passages instead of none. A refusal now survives a plugin "
+           "upgrade. The skills stopped telling their reader to call a function "
+           "that does not exist. And the envelope finally says a second reader "
+           "is required \u2014 which is why four of Occam\u2019s five questions "
+           "came back refused and left no trace.<br><br><b>Two things stand "
+           "between this and the pilot, and neither is a decision.</b> The "
+           "branch has to merge, because Occam installs from <code>main</code>. "
+           "And FASB still needs one fetch from a machine that can reach "
+           "fasb.org.<br><br><b>What I will not do:</b> touch the retriever "
+           "again before you answer the two matters below. Both are the same "
+           "shape as the hyphen was \u2014 a change that moves every score in "
+           "the corpus \u2014 and picking one quietly is how the word list got "
+           "built the first time.",
 }
 
 CHANGED = [
- ("1,346", "desk tests passing", "1,254 on 14 September; identical from a checkout and from an install"),
- ("8 of 9", "answers built and pushed", "FASB is the one left, blocked on network access rather than on a decision"),
- ("0.28.1 \u2192 0.34.0", "versions shipped", "one per answer, each with its own mutations run red first"),
- ("17 / 0", "of 98 right answers a refusing source-gate would cost", "terse phrasing against full-facts phrasing \u2014 the spread is the finding"),
- ("6 of 113", "questions that would get worked examples and nothing else", "the four tried by hand were all fine"),
- ("23,044", "characters of position prose that reach no ratification card", "see the decision below"),
+ ("11 of 11", "authority questions whose authority reaches the brief", "was 5 of 11 this morning \u2014 and I told you 6, which was wrong"),
+ ("16 of 16", "of your close questions reaching what was commissioned for them", "the known-miss list is empty for the first time since it was written"),
+ ("0", "passages that score LESS than before the plain words", "measured over all 43 \u2014 it widens and cannot narrow"),
+ ("26", "passages <code>cash-back</code> now reaches", "it reached none; <code>cash back</code> reached 20"),
+ ("1,056 of 1,159", "citations that cannot find themselves in their own top five", "1,053 of them because of a parenthesis \u2014 the first matter below"),
+ ("1,499", "desk tests passing", "the ask side, fixed after Sarcia pilot 2"),
 ]
 
 LANDED = [
- ("New", "<b>The record holds what something cost, and checks it.</b> One word to "
-         "declare; the format check is the answer. It fires where the fact is "
-         "recorded, not where it is answered."),
- ("New", "<b>A passage that says it applies somewhere else says so</b>, printed "
-         "above the passage rather than below it."),
- ("New", "<b>Both of your answers on one passage come back together</b>, the second "
-         "marked with what it came back beside."),
- ("New", "<b>Worked examples are labelled as another taxpayer\u2019s facts</b>, and a "
-         "brief is never examples alone."),
- ("Fixed", "<b>Two of your ratified positions are reachable again</b> after being "
-           "unservable on every client since 5 September."),
- ("Fixed", "<b>Six checks that prove an install now run from one</b>, and the suite "
-           "is green from both places for the first time."),
+ ("0.36.0", "<b>Eleven of your eleven authority questions now reach their "
+            "authority</b>, from five. A source declares the words you ask it "
+            "in; those words can only ever ADD a passage, proved over all 43."),
+ ("0.36.0", "<b>Your close-question set is complete for the first time \u2014 "
+            "16 of 16.</b> Q18 came back with the hyphen and Q31 with the plain "
+            "words, and neither fix was aimed at either."),
+ ("0.35.0", "<b><code>cash-back</code> reaches 26 passages, from nothing.</b> "
+            "A hyphen splits only with no digit either side, so all 113 "
+            "citation-shaped tokens are provably untouched."),
+ ("0.34.4", "<b>The envelope tells the desk a second reader is required.</b> It "
+            "never said the word before, while the record demands one \u2014 so "
+            "a desk following it literally was refused on every answer it got "
+            "right, and that refusal is the one that leaves no trace."),
+ ("0.34.3", "<b>The skills no longer tell their reader to call a function that "
+            "does not exist</b>, and a test now binds every call in every skill "
+            "against the real signature."),
+ ("0.34.2", "<b>A refusal survives a plugin upgrade.</b> The store left the "
+            "versioned cache, the report reads it, and the old paths are still "
+            "read so nothing filed before the move goes silent."),
 ]
 
 UNCHECKED = [
- ("FASB, end to end.", "fasb.org is refused by this container\u2019s network policy "
-  "\u2014 403 on every host, while irs.gov and ecfr.gov answer from the same place. "
-  "Nothing was admitted from memory and no source entry was written."),
- ("Any of this against a live model.", "Every engine run used a recorded second "
-  "reader. What is proved is the engine\u2019s behaviour, not a model\u2019s."),
- ("The pilot itself.", "That is the goal above, and it has not run."),
- ("What the new dollar field does to the 98 recorded problems.", "The field is "
-  "declared and checked; which problems now answer differently is not measured."),
- ("Whether the truncation below has ever changed a ratification.", "The 23,044 "
-  "characters are measured. Whether any of it would have changed your mind on a "
-  "position you ratified is not something I can know."),
+ ("Anything against a live model.", "Every run is the retriever and the engine. "
+  "What a brief with the right passage in it actually produces as an ANSWER is "
+  "still not measured \u2014 and that is now the largest untested claim here, "
+  "because the retrieval half is fixed and the answering half is not."),
+ ("Whether the four one-source briefs answer worse.", "Q16, Q18, Q31 and Q33 "
+  "each return eight passages of a single source now. I can show what was "
+  "displaced; I cannot show whether an answerer does better or worse on them."),
+ ("The 22 refusals stranded in 0.27.0.", "They are reported, not moved \u2014 "
+  "nothing here reaches into a plugin cache. Whether any is a real gap in the "
+  "record is unread."),
+ ("FASB, still.", "fasb.org is refused by this container\u2019s network policy. "
+  "Unchanged since 14 September and nothing was admitted from memory."),
+ ("Whether the pilot\u2019s 40 client flags and 7 preparer holds should have been "
+  "questions.", "Five reached the desk. I have not read the other 47."),
+ ("A second pilot.", "Everything below is measured on your 43 close questions "
+  "and the suite. Nobody has run a close on any of it."),
 ]
 
 WRONG = [
- ("<b>My first capitalisation default told the preparer to write the wrong thing.</b>",
-  "It said to record the IRS ceiling. Recording a FIGURE is how you tell the desk "
-  "this client is different, so it would have refused every time. Caught by running "
-  "it, not by reading it. The word is <code>none</code>."),
- ("<b>I nearly shipped an examples guard that never fires.</b>",
-  "The four questions I tried by hand all had a rule in their top eight, so it "
-  "looked inert. Measured on all 113 instead, it fires on six."),
- ("<b>I broke the tie-out tool and its own suite caught it.</b>",
-  "It parses citations back out of the rendered brief. My example label landed "
-  "between the heading and the quotation, and the pattern swallowed it \u2014 so "
-  "every example in the corpus came back \u201cnot in the record\u201d."),
- ("<b>One of my tests proved nothing and I wrote it that way on purpose.</b>",
-  "It ended <code>assert ... or True</code>, hedged because the fixture was "
-  "awkward. Rewritten with the fixture actually built."),
- ("<b>One of my mutation checks destroyed the work it was testing.</b>",
-  "Restoring after a mutation I ran <code>git checkout</code> on a file with "
-  "uncommitted changes. Re-applied and re-run with a file copy."),
- ("<b>The docket said 36 scoped passages and 28 open by scoping themselves.</b>",
-  "The looser count swept in thirteen mid-sentence cross-references."),
+ ("<b>I told you six of your eleven authority questions reached their authority. It was five.</b>",
+  "I measured the brief at eight and at fifteen, and wrote the FIFTEEN figure "
+  "under the eight-deep heading. It went onto this page, into the pull request "
+  "and into what I said to you. Caught re-running the same measurement before "
+  "building, and corrected everywhere. The improvement below is against five."),
+ ("<b>I told you four refusals were the problem. They were the symptom.</b>",
+  "I reported Occam\u2019s pilot as one served and four refused and left it there. "
+  "Putting your own 43 back through the corpus showed the refusals were mostly "
+  "FALSE \u2014 the record held the answer and the question could not reach it."),
+ ("<b>I said the hyphen was too dangerous to touch, and it was not.</b>",
+  "I told you splitting <code>cash-back</code> risked every citation we hold. "
+  "Measured: 113 hyphenated tokens carry a digit, 92 do not, and the sets do "
+  "not overlap. It was a small rule with a measurable blast radius."),
+ ("<b>I invented a phrasing and put it in your record.</b>",
+  "I declared <i>\u201cmaterials held at year end\u201d</i> on a source. Your Q19 "
+  "says <i>\u201chold materials at year end\u201d</i>. The provenance test I wrote "
+  "for exactly this caught it in its first run \u2014 every declared phrase must "
+  "appear in your own 43 questions, or it is a word I chose."),
+ ("<b>I let <code>corpus/unsupported/</code> stop shipping and did not notice for eleven days.</b>",
+  "And investigating it found something worse: every refusal the INSTALLED desk "
+  "filed went inside a versioned plugin cache. 22 are stranded in 0.27.0 while "
+  "0.34.0 runs. The sibling store was moved out for this exact reason on "
+  "8 September; the fix was applied to a location instead of to a rule."),
+ ("<b>My first version of a test asserted something false about the codebase.</b>",
+  "It said a citation finds itself in its own top five and failed on 179 of "
+  "200. Measured on untouched code before assuming it was mine: 179 there too. "
+  "It is the first matter below."),
+ ("<b>POS11 did not reproduce.</b>",
+  "Occam reported that citing POS11 by its own citation string returned "
+  "<code>authority_absent</code>. Run here it is SERVED \u2014 a finding about "
+  "the tester, which is what was asked for."),
 ]
 
 def _md(t: str) -> str:
@@ -611,12 +781,13 @@ def _preface(c) -> str:
     )
     return (
       "<p><b>%s things wait on you.</b> %s</p>"
-      "<p><b>Every card was re-run before it reached this page.</b> These began "
-      "as findings from the session that tests the desk on your machine. It asked "
-      "for them to be verified rather than believed, so each one was reproduced "
-      "here first — six held, two carried corrections that changed the "
-      "question being asked, and what did not reproduce is listed under "
-      "<i>What I got wrong</i> at the foot of this page.</p>"
+      "<p><b>Every figure on this page was measured, not recalled.</b> These "
+      "matters came out of putting your own 43 close questions back through the "
+      "corpus on the version Occam piloted, and out of that pilot\u2019s findings, "
+      "which were reproduced here rather than believed. One of them did not "
+      "reproduce and is reported as a finding about the tester. What I got wrong "
+      "\u2014 including what I told you yesterday \u2014 is at the foot of this "
+      "page.</p>"
       "<p>No proposal is open and all %s ratified positions stand, so nothing "
       "below is a position waiting to be ratified — every card is a choice "
       "no rule settles.</p>"
@@ -917,7 +1088,7 @@ function card(d) {
       <span class="chip kind">${kindLabel}</span>
     </div>
     <h3 class="t">${esc(d.title)}</h3>
-    ${(n.rec || d.rec) ? `<div class="reclead"><h4>What I would do</h4><p>${n.rec || esc(d.rec)}</p></div>` : ""}
+    ${(n.rec || d.rec) ? `<div class="reclead"><h4>What I would do</h4><p>${n.rec || d.rec}</p></div>` : ""}
     <div class="says"><b>${d.kind === "decision" ? "What I would put in place" : "What the desk would say, in your words"}</b>&ldquo;${esc(d.position)}&rdquo;</div>
     ${d.citation ? `<div class="rests">Rests on <span class="c">${esc(d.citation)}</span><br>${esc(d.source)}</div>` : ""}
     ${d.context ? `<p class="ctx">${d.context}</p>` : ""}

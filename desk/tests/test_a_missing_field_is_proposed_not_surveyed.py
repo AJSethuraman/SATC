@@ -87,7 +87,7 @@ def _file_one(corpus, desk):
     assert isinstance(out, engine.Refusal), "it served an answer needing a field"
     assert out.reason == "no_field_for_this_fact", out.reason
     entries = unsupported.parse(
-        (corpus / "unsupported" / "asked.md").read_text(encoding="utf-8"))
+        unsupported.default_store().read_text(encoding="utf-8"))
     return out, entries[-1], position
 
 
@@ -117,7 +117,7 @@ def test_both_or_neither_survives_the_round_trip(undeclared):
     field request with no chain, which is the shape this file is about."""
     corpus, _ = undeclared
     _out, entry, _ = _file_one(*undeclared)
-    text = (corpus / "unsupported" / "asked.md").read_text(encoding="utf-8")
+    text = unsupported.default_store().read_text(encoding="utf-8")
     assert "**Needs field:** capitalization_rule" in text
     assert f"**Asked by:** {entry.asked_by}" in text
     for e in unsupported.parse(text):
@@ -135,7 +135,7 @@ def test_a_refusal_that_is_not_about_a_field_carries_neither(undeclared):
     assert isinstance(out, engine.Refusal)
     assert out.reason != "no_field_for_this_fact"
     entry = unsupported.parse(
-        (corpus / "unsupported" / "asked.md").read_text(encoding="utf-8"))[-1]
+        unsupported.default_store().read_text(encoding="utf-8"))[-1]
     assert entry.needs_field == "" and entry.asked_by == ""
 
 
@@ -193,7 +193,7 @@ def test_one_refusal_files_one_decision_and_not_an_audit(undeclared):
     corpus, desk = undeclared
     _file_one(corpus, desk)
     entries = unsupported.parse(
-        (corpus / "unsupported" / "asked.md").read_text(encoding="utf-8"))
+        unsupported.default_store().read_text(encoding="utf-8"))
     fields = [e for e in entries if e.needs_field]
     assert len(fields) == 1, (
         f"{len(fields)} field requests from one refusal. This channel fires "

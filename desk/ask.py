@@ -150,8 +150,8 @@ def nothing_on_file(question: str, corpus: Path = CORPUS, *, looked=None) -> str
     do with it? we bought a forklift" reaches nothing, while the same
     transaction as "is the invoice price deducted or capitalized?" reaches eight
     passages including the firm's own $2,500 threshold. The cause is two words —
-    `bought` and `forklift` appear in none of the 785 stored passages, while
-    `purchase` appears in 85. Told only that nothing was found, a doer concludes
+    `bought` and `forklift` appear in none of the 1167 stored passages, while
+    `purchase` appears in 93. Told only that nothing was found, a doer concludes
     the firm holds no authority on forklifts. They hold it under other words.
 
     THE LIST IS EXHAUSTIVE AND THAT IS NOT A COINCIDENCE — it is every
@@ -695,6 +695,14 @@ def brief(question: str, desk: record.Desk,
                 "your own words in `working`, never in `position`.", ""]
         for q in ratified:
             out += [f"### {q.citation}", "", f"> {q.position}", ""]
+            # THE WORDS IT RESTS ON, where the second reader will look for them.
+            # Sarcia pilot 3: second readers refused 7 of 9 attempts, four on
+            # positions whose own paragraph did not carry them. A reader told
+            # which words, and which paragraph, reads the right one.
+            if getattr(q, "rests_on", ()):
+                out += ["Rests on: " + "; ".join(
+                    (f'{c} — "{w}"' if c != q.citation else f'"{w}"')
+                    for c, w in q.rests_on), ""]
             # A POLICY SAYS WHAT IT IS WHERE IT IS READ. `dec-pos2`, the firm's
             # first condition: *"I want this to be clearly marked as they may
             # need to be reviewed/changed at some point."* `engine.serve` puts
@@ -826,7 +834,7 @@ def brief_for_grading(question: str, desk: record.Desk,
 def answer(question: str, *, position: str = "",
            citation: str = "", escalate: str = "", model: str = "",
            working: str = "", ask: str = "", corpus: Path = CORPUS,
-           keep: bool = True,
+           keep: bool = True, queue: Path | None = None,
            context: record.Context | None = None, prove=None, judged=None,
            found_at: str = "", found_text: str = ""):
     """Put a proposed answer through the production path. Served, or refused.
@@ -1065,7 +1073,19 @@ def answer(question: str, *, position: str = "",
     # is complete. Filing it would put a work item in a queue nobody can act on
     # and would inflate the one count that is supposed to mean something.
     if isinstance(out, engine.Refusal) and keep and out.reason != "not_judged":
-        path = corpus / "unsupported" / "asked.md"
+        # NOT `corpus / "unsupported"`. That is inside the package, and
+        # installed the package is inside a VERSIONED plugin cache -- so every
+        # refusal the desk filed died at the next upgrade. Measured: 22 of them
+        # are stranded in `0.27.0` on this machine while `0.34.0` runs. The
+        # parked-question queue was moved out for this exact reason on
+        # 8 September and the refusal store was not; `unsupported.default_store`
+        # carries the whole account.
+        #
+        # `queue` is how a test (or a one-off run against a copied record) says
+        # where it wants them instead. It is a real argument rather than an
+        # environment variable at the call site because the destination of a
+        # finding should be readable where the finding is made.
+        path = Path(queue) if queue else unsupported.default_store()
         existing = (unsupported.parse(path.read_text(encoding="utf-8"))
                     if path.exists() else [])
         # THE REFUSAL ITSELF, NOT A `Result` BUILT FROM THREE OF ITS FIELDS.

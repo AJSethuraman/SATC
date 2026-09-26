@@ -136,9 +136,13 @@ def test_its_reference_cannot_be_read_as_a_paragraph(policy):
 
 def test_every_other_position_is_unaffected(desk):
     """Narrowing. Adding the field changed no existing position: absent means
-    `authority`, which is what all twenty were."""
+    `authority`, which is what all twenty were.
+
+    SIXTEEN SINCE 26 SEPTEMBER 2026: POS15, POS17 and POS20 became firm policy
+    under `dec-pos2` after Sarcia pilot 3 (`test_every_position_quotes_the_words
+    _it_rests_on.py`). Counted, so a fourth leaving goes red."""
     others = [q for q in desk.positions if not q.is_policy]
-    assert len(others) == 19, f"{len(others)} cited positions, not 19"
+    assert len(others) == 16, f"{len(others)} cited positions, not 16"
     for q in others:
         assert q.kind == positions.AUTHORITY
         assert not q.unreviewed

@@ -36,6 +36,11 @@ def _follow_up():
         relay.follow_up(ref, "fixed-assets", {"cost": "over the threshold"}))
 
 
+def _batch():
+    return relay.batch_prompt(relay.ask_many(
+        [Q, "is a cash back reward on a business card income?"], reply_to=ME))
+
+
 def _research():
     gap = relay.research(Q, reply_to=ME,
                          refused_by=(("fixed-assets", "authority_absent"),))
@@ -47,6 +52,9 @@ SPECIMENS = {
     "as_prompt": _ask,
     "follow_up_prompt": _follow_up,
     "research_prompt": _research,
+    #: Added 25 September 2026 with `ask_many`, after Sarcia pilot 2. The guard
+    #: below went red until it was registered here, which is its job.
+    "batch_prompt": _batch,
 }
 
 
@@ -65,9 +73,9 @@ def test_the_registry_covers_every_envelope():
         "SPECIMENS so the stamp is checked on it too")
 
 
-def test_there_really_are_three_of_them():
+def test_there_really_are_four_of_them():
     """A registry that emptied itself would satisfy the equality above."""
-    assert len(SPECIMENS) == 3
+    assert len(SPECIMENS) == 4
 
 
 def test_every_envelope_says_what_composed_it():

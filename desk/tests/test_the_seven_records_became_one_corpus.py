@@ -92,8 +92,15 @@ def test_nothing_the_firm_wrote_was_lost(corpus, seven):
 
     moved = {q[0] for k in seven for q in k["positions"]} - {
         q.citation for q in corpus.positions}
-    assert moved == {"26 CFR 1.262-1(a) — the general rule"}, (
-        f"a position's citation moved and it is not the one `dec-pos2` moved: "
+    # AND THREE MORE, 26 September 2026, by the same decision applied to the
+    # same fault. Sarcia pilot 3's second readers found POS15, POS17 and POS20
+    # on paragraphs that do not carry them, and `Rests on:` found no stored
+    # words that do. `dec-pos2` is the firm's answer for exactly that: "Firm
+    # policy, no citation — with two conditions." Named, not allowed for.
+    assert moved == {"26 CFR 1.262-1(a) — the general rule",
+                     "26 CFR 1.6050W-1(c)(3)", "26 CFR 1.280F-6(d)(2)(i)",
+                     "26 CFR 1.62-2(c)(1)"}, (
+        f"a position's citation moved and it is not one `dec-pos2` moved: "
         f"{sorted(moved)}. Repinning a ratified position is the firm's, and it "
         f"belongs in the commit that does it.")
 

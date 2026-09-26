@@ -100,6 +100,28 @@ class Source:
     citation_prefix: str
     url: str = ""
     note: str = ""
+    #: `dec-reach`, 25 September 2026 -- the firm: **"Add plain words."**
+    #:
+    #: THE WORDS A PREPARER WOULD ASK THIS SOURCE IN, semicolon-separated, in
+    #: the firm's own phrasing. They WIDEN what the pool returns and can never
+    #: narrow it: `pool.look` adds a bonus and admits a passage the question's
+    #: own words missed, and it subtracts nothing from anything.
+    #:
+    #: WHY THIS IS NOT `fires_on` WEARING A HAT, and the difference is the whole
+    #: reason the firm said yes. `fires_on` decided WHICH DESK a question
+    #: reached, exclusively -- a wrong word sent the question elsewhere and the
+    #: right authority became unreachable, which is the measurement `dec-kill`
+    #: was decided on. This cannot exclude anything, by construction, and
+    #: `test_a_question_reaches_authority_that_does_not_use_its_words.py`
+    #: proves it over every one of the firm's 43 close questions rather than
+    #: asserting it here.
+    #:
+    #: NOR IS IT A SYNONYM TABLE. `pool.unseen` warns against one in as many
+    #: words -- "a hand-written list of what a word means would be the same
+    #: mechanism under a kinder name" -- and it is right. This maps no word to
+    #: any other word and rewrites no question. A SOURCE says what it answers;
+    #: nothing says what a word means.
+    asked_as: tuple[str, ...] = ()
 
     @property
     def binding(self) -> bool:
@@ -725,7 +747,18 @@ _QUALIFIER = " \u2014 "
 
 
 def _stem(citation: str) -> str:
-    """A citation with the firm's hand-written ` \u2014 which rule` note removed."""
+    """A citation with the firm's hand-written ` \u2014 which rule` note removed.
+
+    A FIRM POLICY IS ITS OWN STEM. `SATC policy — <which policy>` uses the same
+    dash, and with one policy in the record nothing noticed. With four (26
+    September 2026, three unpinned after Sarcia pilot 3) every policy became the
+    sibling of every other: `alongside` would have served all four as the
+    firm's opposite answers on one passage, and `narrowed_to` would have
+    carried all four into a brief that asked about one. A policy is not a
+    paragraph and has no neighbours.
+    """
+    if citation.startswith(_POLICY_PREFIX):
+        return citation.strip()
     return citation.split(_QUALIFIER, 1)[0].strip()
 
 
@@ -861,10 +894,22 @@ class Desk:
         import dataclasses
         wanted = {c for c in citations}
         stems = {_stem(c) for c in wanted}
-        passages = tuple(p for p in self.passages if p.citation in wanted)
         positions = tuple(q for q in self.positions
-                          if q.citation in wanted or _stem(q.citation) in stems)
-        used = {p.source_id for p in passages}
+                          if q.citation in wanted or _stem(q.citation) in stems
+                          or wanted & set(getattr(q, "applies_at", ())))
+        # A KEPT POSITION KEEPS WHAT IT NEEDS TO BE SERVED. Codex on #398, both
+        # found the day `Rests on:` and `Applies at:` landed: narrowed to POS7's
+        # own citation, the paragraph it rests on was dropped and the second
+        # reader was handed (b)(1)(i) again; narrowed to where POS15 applies,
+        # the firm's policy row was dropped and serving it raised. So the
+        # paragraphs a kept position rests on come with it, and so does every
+        # source a kept passage OR position resolves to.
+        resting = {c for q in positions for c in getattr(q, "rests_at", ())}
+        passages = tuple(p for p in self.passages
+                         if p.citation in wanted or p.citation in resting)
+        used = {p.source_id for p in passages} | {
+            s.id for q in positions for s in self.sources
+            if from_source(q.citation, s.citation_prefix)}
         return dataclasses.replace(
             self,
             passages=passages,
@@ -1018,7 +1063,7 @@ def _prose(block: str, label: str, where: str, *, fields: tuple,
 
 #: The labels a SOURCE entry carries, so `_prose` knows where one ends.
 SOURCE_FIELDS = ("Tier", "Access", "May store", "Checked", "Citation prefix",
-                 "Url", "Why")
+                 "Url", "Asked as", "Why")
 
 
 def _inline(block: str, label: str, where: str) -> str:
@@ -1084,6 +1129,21 @@ def _date(value: str, label: str, where: str) -> str:
     return value
 
 
+def _asked_as(block: str, where: str) -> tuple[str, ...]:
+    """The firm's own phrasings for this source, or nothing.
+
+    OPTIONAL BY DESIGN. A source that declares none behaves exactly as it did
+    before `dec-reach`, which is what makes the change additive at the level of
+    the record as well as of the score: adding the field to one source cannot
+    affect any other.
+
+    SEMICOLONS, NOT COMMAS. "tool, fixed asset or supply" is one phrasing with a
+    comma in it, and splitting on commas would silently turn it into three.
+    """
+    raw = _field(block, "Asked as", where, required=False)
+    return tuple(p.strip() for p in raw.split(";") if p.strip())
+
+
 def parse_sources(text: str) -> list[Source]:
     out = []
     for head, block in _blocks(text, _HEAD):
@@ -1099,6 +1159,7 @@ def parse_sources(text: str) -> list[Source]:
             checked=_date(_inline(block, "Checked", where), "checked", where),
             citation_prefix=_field(block, "Citation prefix", where),
             url=_field(block, "Url", where, required=False),
+            asked_as=_asked_as(block, where),
             note=_prose(block, "Why", where, fields=SOURCE_FIELDS),
         ))
     if not out:
@@ -1368,6 +1429,69 @@ def load(desk_dir: Path) -> Desk:
                     f"position was checked against what is on file; on a cited "
                     f"one it would read as a general review log and claim "
                     f"something this record does not check.")
+
+        # A POSITION QUOTES THE WORDS IT RESTS ON, AND THE WORDS MUST BE THERE.
+        #
+        # Sarcia pilot 3: five of twenty ratified positions cited a paragraph
+        # that did not carry them, and every one passed this loader, because it
+        # checked that a citation RESOLVED and never that the paragraph SAID the
+        # thing. The same containment check the second reader faces at answer
+        # time (`comparing.elided_match`), moved to the moment a position is
+        # written. It proves the words are real, not that they carry the
+        # position -- the writer still has to choose words that do, and a
+        # reader of `Rests on:` can now see in one line whether they did.
+        if q.applies_at and not q.is_policy:
+            raise RecordError(
+                f"{desk_dir.name}/position {q.id} declares `Applies at:` and is "
+                f"not firm policy. A cited position is shown wherever its own "
+                f"citation is; the line is for a policy, which has none.")
+        for cit in q.applies_at:
+            if not any(p.citation == cit for p in passages):
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} applies at {cit!r}, which "
+                    f"the record does not store, so nothing could ever show it.")
+        if q.is_policy:
+            if q.rests_on:
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} is firm policy and quotes "
+                    f"words it rests on. A policy rests on the firm; a quotation "
+                    f"beside it reads as authority it does not have.")
+        elif any(p.citation == q.citation for p in passages) or q.rests_on:
+            import comparing as _comparing   # local, like positions
+            if not q.rests_on:
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} cites {q.citation!r} "
+                    f"and does not say which words it rests on. Add `Rests on:` "
+                    f"with them, quoted exactly, `[...]` for anything left out, "
+                    f"and the paragraph's citation first if it is not this one. "
+                    f"If no stored words carry it, it is firm policy.")
+            for cit, quote in q.rests_on:
+                # A QUOTATION HAS TO CARRY WORDS. Codex on #398: `"[...]"`
+                # elides everything, so `elided_match` has no segment to find
+                # and passes on any paragraph. Five words is a floor, not a
+                # reading: the shortest real quotation here is fourteen.
+                said = _comparing.normalise(quote).replace(
+                    _comparing.ELLIPSIS, " ").split()
+                if len(said) < 5:
+                    raise RecordError(
+                        f"{desk_dir.name}/position {q.id} rests on {quote!r}, "
+                        f"which carries {len(said)} word(s). Quote the words a "
+                        f"reader can weigh -- five at least.")
+                held = [p for p in passages if p.citation == cit]
+                if not held:
+                    raise RecordError(
+                        f"{desk_dir.name}/position {q.id} rests on {cit!r}, "
+                        f"which the record does not store. Words nobody can "
+                        f"read are not words anybody checked.")
+                ours = _comparing.normalise(quote)
+                if not any(_comparing.elided_match(
+                        ours, _comparing.normalise(p.text))[0] for p in held):
+                    missing = _comparing.elided_match(
+                        ours, _comparing.normalise(held[0].text))[1]
+                    raise RecordError(
+                        f"{desk_dir.name}/position {q.id} rests on words "
+                        f"{cit!r} does not contain: {missing!r}. A position "
+                        f"that quotes its paragraph wrongly cites it wrongly.")
 
         # A DEFAULT IS AN ANSWER TO AN `Unless:` AND MEANS NOTHING WITHOUT ONE.
         #

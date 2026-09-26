@@ -21,7 +21,7 @@ Nothing you find enters the record unless **both** of these hold:
 
 1. the words are still on the publisher's own page **today**, checked by
    re-fetching it — not by trusting the page you read; and
-2. the firm has **admitted that publisher** for that desk.
+2. the firm has **admitted that publisher** for that subject.
 
 Everything else comes back to the firm as a proposal. That is not a failure
 mode; it is the normal outcome the first time a publisher comes up.

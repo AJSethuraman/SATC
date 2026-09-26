@@ -232,6 +232,25 @@ And where a book figure is simply an error, correcting it IS the right move. Thi
 
 ---
 
+## C15 · Not GAAP, but close enough to become GAAP; on cash basis, tax breaks the tie
+
+**State:** held · **Recorded:** 2026-09-26 · **Applies:** everything the practice books and reports
+
+> *GAAP is a nice place to default to but this isn't GAAP accounting - i just want to follow the rules reasonably closely so they could be GAAP fairly easily. as long as we are doing cash basis, then we might as well follow tax rules for some things like depreciation because we will have to keep track of both anyway*
+> — the firm, 26 September 2026
+
+**Why:** It says where C14's line falls, which C14 did not. C14 — tax treatment does not move the books — was recorded about *bending a figure*: a cash balance made to match a statement or a return. It does not reach the choice of *method* for an entry the books must make anyway. Depreciation is that second kind: there is no single right answer, and on cash basis the tax figure exists regardless because a return is being produced. A second book number beside it manufactures a book/tax difference nobody reads and somebody maintains. The standard set here is not GAAP compliance but GAAP *convertibility* — close enough that moving a client to accrual later is work rather than a rebuild.
+
+**Scope, narrowed on purpose.** A wider version was drafted — *"the rules are the default, depart only where it costs more long-run"* — and the firm declined it the same day: *"i'm good with this narrower scope, i don't want to risk losing sight something i should have thought about."* The wide form would wave through cases that ought to reach them. This entry fires only where the tax figure is being produced anyway; everything else is a judgement, not a default. **Do not re-propose the wider scope.**
+
+**Fires on:** gaap, accrual, cash basis, depreciation, amortisation, method, convention, book/tax, tax basis, two sets, conform, convert
+
+**A challenge looks like:** carrying a second book figure beside a tax one where no reader needs the difference — or the reverse, a shortcut adopted because tax allows it that would have to be unpicked to produce accrual accounts later. Also reading this as "always follow tax" on a basis where the tax number is not being produced anyway, which is the scope the firm declined.
+
+**How it could be wrong:** *"we will have to keep track of both anyway"* is true on cash basis, and the firm said in the same breath that accrual is not — *"we can work in straight line when we work in accrual."* Read as a general rule it would carry a cash-basis convenience somewhere a reader does need the book number. And a book that follows tax inherits statutory change: when a method moves by law, the books move for a reason that has nothing to do with what happened — which is the thing C14 exists to prevent.
+
+---
+
 ## Not convictions
 
 Proposals the firm read and said no to. They are kept for two reasons. The

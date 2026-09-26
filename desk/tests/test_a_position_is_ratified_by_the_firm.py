@@ -107,17 +107,23 @@ RATIFIED = {
     # to what it says. It is also the position the 7 September reachability
     # defect was about — see
     # `test_a_ratified_position_can_actually_be_served.py`.
-    "26 CFR 1.6050W-1(c)(3)":
+    # Unpinned from 26 CFR 1.6050W-1(c)(3) on 26 September 2026 under `dec-pos2`; the
+    # ratification did not move and neither did a word of the position.
+    "SATC policy — a payment whose rail cannot be told is reported":
         ("POS15", "7 September 2026", "rewards-and-information-returns/POS3"),
     'IRS Pub. 463 (2025), "Actual Car Expenses"':
         ("POS16", "5 September 2026", "vehicle-expense/POS1"),
-    "26 CFR 1.280F-6(d)(2)(i)":
+    # Unpinned from 26 CFR 1.280F-6(d)(2)(i) on 26 September 2026 under `dec-pos2`; the
+    # ratification did not move and neither did a word of the position.
+    "SATC policy — whose vehicle it is comes before any vehicle cost":
         ("POS17", "5 September 2026", "vehicle-expense/POS2"),
     'IRS Pub. 463 (2025), "What Are Adequate Records?"':
         ("POS18", "5 September 2026", "vehicle-expense/POS3"),
     "26 CFR 1.280F-6(e)(2)":
         ("POS19", "5 September 2026", "vehicle-expense/POS4"),
-    "26 CFR 1.62-2(c)(1)":
+    # Unpinned from 26 CFR 1.62-2(c)(1) on 26 September 2026 under `dec-pos2`; the
+    # ratification did not move and neither did a word of the position.
+    "SATC policy — vehicle costs with no vehicle on the books are an ownership question":
         ("POS20", "5 September 2026", "vehicle-expense/POS5"),
 }
 

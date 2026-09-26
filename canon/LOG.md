@@ -1087,7 +1087,7 @@ path the short one and the other one visible in a grep for `print-to-pdf`
 outside this module. That is prevention where prevention reaches and detection
 where it does not, and the difference is stated rather than blurred.
 
-## 1.21.0 — S36, the first tenet added since the thirty-five (26 September 2026)
+## 1.22.0 — S36, the first tenet added since the thirty-five (26 September 2026)
 
 The docket asked *"Add a tenet to canon: compare against a bar worked out
 once?"* and the firm answered *"Yes, add it."* **S36 · Compare against a bar
@@ -1107,6 +1107,6 @@ record's current size moved to thirty-six: the two tests that asserted 35,
 repo-root `CLAUDE.md`. The historical ones stay — the ratification on
 3 September was of thirty-five, and that is still what happened.
 
-**Released as 1.21.0** on the firm's go-ahead, the same day (*"Go ahead"*). The version
+**Released as 1.22.0** (1.21.0 went to C15 on main the same day) on the firm's go-ahead, the same day (*"Go ahead"*). The version
 moved in both manifests and `release.py` rewrote the digest. Without the bump, installed
 sessions would never have fetched S36: that is the C11 incident this check exists for.

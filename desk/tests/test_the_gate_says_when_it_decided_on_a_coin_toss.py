@@ -224,7 +224,7 @@ def test_it_is_printed_above_the_conclusion_and_not_merely_above_the_authority()
     where = text.index("THIS ANSWER MAY NOT BE ABOUT YOUR QUESTION")
     assert where < text.index("yes - capitalize") if "yes - capitalize" in text \
         else True
-    assert where < text.index("primary ·"), "the badge vouches for it first"
+    assert where < text.index("primary |"), "the badge vouches for it first"
     assert where < text.index("THE AUTHORITY, in full")
 
 

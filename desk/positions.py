@@ -96,6 +96,41 @@ class Position:
     #: Only meaningful on a `firm policy` position; `record.load` refuses it
     #: elsewhere rather than letting it read as a general review log.
     reviewed: str = OPEN
+    #: THE WORDS OF THE CITED PARAGRAPH THIS POSITION RESTS ON, quoted exactly,
+    #: with `[...]` marking anything left out between them. Required on every
+    #: position that cites a stored paragraph; refused on a firm policy, which
+    #: rests on the firm and has no paragraph to quote.
+    #:
+    #: WHY, FROM SARCIA PILOT 3, 25 September 2026. Five of twenty ratified
+    #: positions cited a paragraph that did not carry them -- POS7 cited the
+    #: paragraph that DEFINES entertainment for a rule about beverages, POS15 a
+    #: definition for a $2,000 threshold. Every one passed every check here,
+    #: because the checks asked whether the citation RESOLVED, never whether the
+    #: paragraph SAID it. The second reader found them, but only at answer time,
+    #: and only for the positions a question happened to reach. This moves the
+    #: same reading to the moment a position is written: whoever writes one has
+    #: to find the words, and `record.load` refuses words the paragraph does not
+    #: contain.
+    #:
+    #: WHERE IT SITS AND WHAT CARRIES IT ARE TWO THINGS, and for some positions
+    #: two paragraphs. A position answers every question that lands on its
+    #: `Citation:`, so that line is where its TOPIC is -- POS7 sits where bars
+    #: are named. `Rests on:` is where the RULE is, one `(citation, quote)` per
+    #: line, a bare quote meaning the position's own citation. Moving POS7 to
+    #: the paragraph that carries it would have answered every concession-stand
+    #: question with the brewery rule; found by the suite on the first attempt.
+    rests_on: tuple = ()
+    #: WHERE A FIRM POLICY IS SHOWN, as citations of stored paragraphs. A policy
+    #: rests on the firm and cites no paragraph, and before 26 September 2026
+    #: that left it where no question could reach it. It is shown in a brief
+    #: whenever one of these paragraphs is, and it cites none of them: this is
+    #: where its TOPIC is, never what it rests on. Refused on any other kind.
+    applies_at: tuple = ()
+
+    @property
+    def rests_at(self) -> tuple:
+        """The citations this position's words come from, in order."""
+        return tuple(dict.fromkeys(c for c, _ in self.rests_on))
     #: The facts about the ENGAGEMENT this position cannot be applied without,
     #: from `record.Context.FACTS`. Optional, and empty on almost every position.
     #:
@@ -191,7 +226,8 @@ _FACT = re.compile(r"^[a-z][a-z0-9_]*$")
 #: The labels a POSITION entry carries. `_prose` ends the `Why:` body at the
 #: next one of these rather than at any bold line -- see `record._prose`.
 POSITION_FIELDS = ("Citation", "Recorded", "Position", "Why", "Ratified",
-                   "Kind", "Reviewed", "Needs", "Unless", "Default")
+                   "Kind", "Reviewed", "Needs", "Unless", "Default", "Rests on",
+                   "Applies at")
 
 
 def _a_default(block: str, where: str) -> str:
@@ -267,6 +303,35 @@ def _kind(value: str, where: str) -> str:
     return value
 
 
+_DELIM = ' — "'
+
+
+def _rests_on(value: str, own: str, where: str) -> tuple:
+    """`Rests on:` as `((citation, quote), ...)`. REFUSES a line it cannot read:
+    a quotation silently dropped here would be a claim nobody checked."""
+    out = []
+    for line in (l.strip() for l in value.splitlines()):
+        if not line:
+            continue
+        # SPLIT ON THE LAST ` — "`, because a citation may carry quotation
+        # marks of its own -- `IRS Pub. 463 (2025), "Actual Car Expenses"` --
+        # and refusing `"` there made every publication cited by a quoted
+        # title impossible to rest on (Codex on #398).
+        at = line.rfind(_DELIM)
+        if line.startswith('"') and (at < 0 or '"' not in line[:at].strip()[1:]):
+            cit, quote = own, line
+        elif at > 0:
+            cit, quote = line[:at], line[at + len(" — "):]
+        else:
+            cit, quote = "", ""
+        if not (len(quote) >= 2 and quote.startswith('"') and quote.endswith('"')):
+            raise RecordError(
+                f'{where}: a Rests on line reads {line!r}. Each line is '
+                f'"quoted words", or a citation, " — ", then "quoted words".')
+        out.append((cit.strip() or own, quote[1:-1].strip()))
+    return tuple(out)
+
+
 def parse(text: str) -> list[Position]:
     out = []
     for head, block in _blocks(text, _HEAD):
@@ -283,6 +348,12 @@ def parse(text: str) -> list[Position]:
             kind=_kind(_field(block, "Kind", where, required=False), where),
             reviewed=(_field(block, "Reviewed", where, required=False).strip()
                       or OPEN),
+            rests_on=_rests_on(_field(block, "Rests on", where,
+                                      required=False),
+                               _inline(block, "Citation", where), where),
+            applies_at=tuple(l.strip() for l in _field(
+                block, "Applies at", where, required=False).splitlines()
+                if l.strip()),
             needs=_needs(_field(block, "Needs", where, required=False), where),
             unless=_needs(_field(block, "Unless", where, required=False), where,
                           "Unless"),

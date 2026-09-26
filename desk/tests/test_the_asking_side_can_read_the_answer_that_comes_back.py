@@ -177,7 +177,11 @@ def test_the_reader_keys_on_what_the_rendering_already_guarantees(desk):
     either breaks here rather than in the field."""
     _, served = _answer(desk, "TP1")
     _, refused = _answer(desk, "RW7")
-    assert str(refused).startswith("THE DESK DID NOT ANSWER — ")
+    # THE ANCHORS WENT ASCII ON 25 SEPTEMBER 2026 (`:` and `|`), because every
+    # reply in Sarcia pilot 2 lost its em dashes and middle dots to a console on
+    # the way back. `test_a_reply_survives_a_console_that_mangles_it.py` holds
+    # why and holds the old spellings still reading; this pins what is written.
+    assert str(refused).startswith("THE DESK DID NOT ANSWER: ")
     lines = str(served).split("\n")
-    i = next(n for n, l in enumerate(lines) if l.startswith("    ") and "·" not in l)
-    assert lines[i + 1].startswith("    ") and " · confirmed " in lines[i + 1]
+    i = next(n for n, l in enumerate(lines) if l.startswith("    ") and "|" not in l)
+    assert lines[i + 1].startswith("    ") and " | confirmed " in lines[i + 1]

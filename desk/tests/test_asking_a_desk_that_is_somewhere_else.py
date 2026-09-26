@@ -241,13 +241,44 @@ def test_the_headings_survive_as_headings():
         assert heading in lines, f"{heading!r} is not on a line of its own"
 
 
+def _fenced(body: str) -> list[list[str]]:
+    """Every fenced block in the envelope, in order.
+
+    IT USED TO TAKE THE FIRST ONE AND REQUIRE THERE BE EXACTLY TWO FENCES. That
+    held while the envelope carried one snippet, and broke the day it carried
+    two — on 25 September 2026, when the judging snippet was added ahead of the
+    reply snippet and this test failed reporting that `create_trigger` was not
+    fenced. It was; it was second.
+
+    The assertion was right and the way it found its block was not, so the
+    finding moves rather than relaxes: EVERY block must be closed, and the
+    reply snippet must be one of them.
+    """
+    lines = body.splitlines()
+    fences = [i for i, l in enumerate(lines) if l == "```"]
+    assert len(fences) % 2 == 0, (
+        "an unclosed fence: everything after it renders as code to the desk")
+    return [lines[a + 1:b] for a, b in zip(fences[::2], fences[1::2])]
+
+
 def test_the_reply_snippet_is_a_fenced_block_a_desk_can_copy():
-    lines = relay.as_prompt(relay.ask(Q, reply_to=ME)).splitlines()
-    assert lines.count("```") == 2, "the create_trigger snippet is not fenced"
-    opened = lines.index("```")
-    block = lines[opened + 1:lines.index("```", opened + 1)]
-    assert any(l.startswith("create_trigger(") for l in block)
-    assert any(l.startswith("fire_trigger(") for l in block)
+    blocks = _fenced(relay.as_prompt(relay.ask(Q, reply_to=ME)))
+    assert any(any(l.startswith("create_trigger(") for l in b)
+               and any(l.startswith("fire_trigger(") for l in b)
+               for b in blocks), (
+        "no fenced block carries both create_trigger and fire_trigger, so the "
+        "reply instruction is not something a desk can copy")
+
+
+def test_the_judging_snippet_is_fenced_too():
+    """Added with the judge, 25 September 2026. The envelope now tells the desk
+    to build a `judging.Judgment`, and an instruction to write code is only
+    followable if the code is copyable — the same property the reply snippet has
+    been held to since the envelope existed."""
+    blocks = _fenced(relay.as_prompt(relay.ask(Q, reply_to=ME)))
+    assert any(any("judging.Judgment(" in l for l in b) for b in blocks), (
+        "the envelope names `judging.Judgment` but not inside a fenced block, "
+        "so the desk is told to write code it has to reconstruct from prose")
 
 
 # ------------------------------------------------------- where the desk lives
@@ -316,8 +347,17 @@ def test_the_envelope_asks_the_desk_to_say_what_the_phrasing_reached():
     assert "reaches authority this one did not" in body
 
 
-def test_the_envelopes_measurement_is_still_the_truth():
-    """THE ENVELOPE QUOTES A NUMBER, SO THE NUMBER IS RECOMPUTED HERE.
+def test_the_measurement_behind_the_phrasing_rule_is_still_the_truth():
+    """THE MEASUREMENT BEHIND "SAY WHAT THE PHRASING REACHED", RECOMPUTED.
+
+    THE ENVELOPE STOPPED QUOTING IT ON 25 SEPTEMBER 2026. The message was cut to
+    its rules — 6,082 characters to 2,990 — because it cost the asking session
+    about 20,000 characters of context per question and Occam stopped sending
+    after three in Sarcia pilot 2. The number was the story of how the rule was
+    learned, not part of the rule. It stays pinned here, because a rule whose
+    evidence has quietly stopped being true is a rule nobody should trust.
+
+    WHAT IT WAS WHEN THE ENVELOPE QUOTED IT:
 
     It tells the answerer that the forklift asked the natural way now reaches
     NOTHING while the explicit phrasing reaches eight — measured 11 September
@@ -339,9 +379,11 @@ def test_the_envelopes_measurement_is_still_the_truth():
 
     assert len(ask.looked(natural, CORPUS)) == 0, (
         "the natural phrasing reaches something now; the envelope still says "
-        "it reaches NOTHING AT ALL. Fix the sentence in `relay.as_prompt`.")
+        "it reaches NOTHING AT ALL. The rule stands either way; update this.")
     assert len(ask.looked(explicit, CORPUS)) == 8
-    assert "0 passages against 8" in body
+    # and the envelope must NOT carry the number any more: a figure in a
+    # message read at runtime is the worst place for one to go stale.
+    assert "0 passages against 8" not in body
 
 
 def test_and_says_why_the_asker_cannot_do_it_themselves():

@@ -269,16 +269,25 @@ def _reaches() -> tuple[list[int], list[int]]:
 #:
 #: SAME DISCIPLINE AS Q31: Pub. 583 is arguably a fair hit for a question whose
 #: own words end *"a bank feed has none"*, and deciding that would be this
-#: session marking its own paper. So it is 14 of 16, and the price is named in
-#: `test_a_word_keeps_its_meaning_at_the_end_of_a_sentence.py` beside what was
-#: bought with it rather than written off here.
-UNREACHED = [18, 31]
+#: session marking its own paper.
+#:
+#: BOTH CAME BACK ON 25 SEPTEMBER 2026 AND NEITHER FIX WAS AIMED AT THEM.
+#: `dec-hyphen` split `hardware-store` and returned Q18. `dec-reach` let § 1.262-1
+#: declare *"personal spending on a business card"* — the firm's own words from
+#: Q31 — and returned Q31. **16 of 16**, and the list is empty for the first
+#: time since it was written.
+#:
+#: THE COMMENTS ABOVE ARE KEPT RATHER THAN DELETED. They are the record of what
+#: each fix cost and what it gave back, and an empty list with no history behind
+#: it teaches the next session that this was always easy. If a question leaves
+#: this set again, it is a regression with a name.
+UNREACHED = []
 
 
 def test_every_commissioned_question_reaches_the_authority_built_for_it():
-    """14 of 16, on the close's own words. Authority nothing reaches is
-    authority nobody asks — and the two it does not reach are each named above
-    with why, rather than counted away."""
+    """16 of 16, on the close's own words. Authority nothing reaches is
+    authority nobody asks — and for the first time every one of them reaches
+    it. What each of the two recoveries cost is kept above, not deleted."""
     reached, missed = _reaches()
     assert missed == UNREACHED, (
         f"Q{missed} no longer reach the authority commissioned for them; "

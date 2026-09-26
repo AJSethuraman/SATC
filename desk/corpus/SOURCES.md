@@ -12,6 +12,8 @@ named seven different publications and the id said nothing on its own.
 
 **Url:** https://www.ecfr.gov/current/title-26/section-1.263(a)-1
 
+**Asked as:** capitalisation threshold; capitalization threshold; line between a tool and a fixed asset; hardware-store purchase; become an asset; write-off limit
+
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. It is the section that creates the de minimis safe harbour election at (f), states its two ceilings, its exceptions, its anti-abuse rule and the manner of making it, and it carries eleven worked examples at (f)(7) that state their own conclusions — which is what makes this desk scoreable against answers nobody here wrote. Fetched as XML from the eCFR versioner API at the 2026-01-01 issue and sliced paragraph by paragraph, never retyped. NOTE WHAT IT DOES NOT SAY: (f)(1)(ii)(D) still reads "$500 per invoice (or per item as substantiated by the invoice) or other amount as identified in published guidance". The $2,500 figure is not in this text and must not be attributed to it.
 
 ---
@@ -24,6 +26,8 @@ named seven different publications and the id said nothing on its own.
 
 **Url:** https://www.ecfr.gov/current/title-26/section-1.162-3
 
+**Asked as:** hardware-store purchase; hold materials at year end
+
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. It is here because it is the other half of the question a trade-supplier purchase actually raises: an item that is not caught by the safe harbour is not automatically an asset, and (c)(1) is where the regulation says what counts as a material or supply — a component acquired to repair, a consumable, a twelve-month item, or a unit of property costing $200 or less. (f) is the seam back to S1: elect the safe harbour and it governs these amounts instead. Fourteen worked examples at (h) state their own conclusions.
 
 ---
@@ -35,6 +39,8 @@ named seven different publications and the id said nothing on its own.
 **Citation prefix:** IRS Tangible Property Final Regulations
 
 **Url:** https://www.irs.gov/businesses/small-businesses-self-employed/tangible-property-final-regulations
+
+**Asked as:** capitalisation threshold; capitalization threshold; write-off limit
 
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. SECONDARY, and deliberately kept so. It is the Service's own plain-language explanation of the final tangibles regulations — not authority a taxpayer may rely on — but it is the only source reachable from here that states the CURRENT de minimis ceiling: "If you don't have an AFS, you may use the safe harbor to deduct amounts up to $2,500 ($500 prior to Jan. 1, 2016) per invoice or item". The regulation itself defers that figure to published guidance and the guidance is Notice 2015-82, which this page cites and links but which was not itself fetched. The revision date recorded above is the one printed on the page as fetched — "Page Last Reviewed or Updated: 04-Aug-2026" — read off the page, not assumed. Because this source does not bind, every problem keyed to it escalates rather than answers, which is the record telling the firm where its decision is required. ONE THING IN THE S3 CITATIONS IS NOT VERBATIM AND IT IS SAID HERE RATHER THAN LEFT TO BE NOTICED: the quoted TEXT of every S3 passage is the page's own sentence, sliced out of the fetched HTML, but two of the citation LABELS shorten the page's heading, which runs to fifty words. `"If you use the de minimis safe harbor, do you have to capitalize all expenses that exceed the limitations?"` drops `the $2,500 ($500 prior to Jan. 1, 2016) or $5,000`, and `"What if your book policy exceeds the de minimis safe harbor ceiling?"` stands for a heading beginning `What if you don't have an AFS but have had a policy for your books and records ...`. The label is a locator this session wrote; the passage under it is not.
 
@@ -119,6 +125,8 @@ proposed are stored, as with S2: admitting a section is not importing it.
 
 **Url:** https://www.ecfr.gov/current/title-26/section-1.274-11
 
+**Asked as:** is a brewery a meal; brewery
+
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. This is the 2017 Act disallowance as the regulation actually writes it, and the reason a "meals and entertainment" account cannot answer anything: (b)(1)(ii) says food or beverages are NOT entertainment unless provided at or during an entertainment activity, and that if they are, the separate statement of their cost on the bill is what decides between 50 percent and nothing.
 
 ---
@@ -178,6 +186,8 @@ proposed are stored, as with S2: admitting a section is not importing it.
 **Citation prefix:** 26 CFR 1.262-1
 
 **Url:** https://www.ecfr.gov/current/title-26/section-1.262-1
+
+**Asked as:** is streaming television ever a business subscription; streaming television; personal spending on a business card
 
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Fetched from the eCFR versioner API at the 2026-01-01 point-in-time on 5 September 2026; the section's own credit line ends "T.D. 9696, 79 FR 59114, Oct. 1, 2014". IT IS HERE BECAUSE IT DECIDES AND SHOWS ITS WORKING: paragraph (b) is nine worked examples that state their own conclusions, so the answers on this desk are the regulation's and not ours. And it is the source that settles what the J.Crew case actually turns on — (b)(8) states a test about the ITEM and the PROFESSION, and there is no vendor anywhere in it.
 
@@ -422,5 +432,65 @@ So a position may rest on the firm rather than on a paragraph. It still needs a 
 **`tier: tertiary` IS THE CLOSEST HONEST LABEL AND IT IS NOT WHAT DECIDES.** `TIERS` is a closed vocabulary of primary, secondary and tertiary — degrees of how far a document sits from the rule — and the firm's own policy is not on that scale at all. It is not somebody's reading of a regulation; it is what this practice does where the rules leave a choice. What makes it BIND is `engine.serve`'s `from_position`, which has always outranked the tier underneath: *"the firm is the last layer; where they have spoken, their words are the authority."* The tier here is a slot that had to be filled, and it is filled with the label that overstates least.
 
 **Every position under this row carries a caveat saying so**, and says whether anybody has read it against what is on file — the firm's two conditions, which are `Kind:` and `Reviewed:` on the position itself.
+
+---
+
+## S35 · Treasury Regulation § 1.6001-1 — Records
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-26
+
+**Citation prefix:** 26 CFR 1.6001-1
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.6001-1
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Every taxpayer's duty to keep records sufficient to establish income and deductions, and to keep them as long as they may become material. Three Sarcia pilot 3 refusals traced back to its absence: without it, questions about a commingled account, unlabelled deposits and missing statements could only land on Pub. 583, which is guidance. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds.
+
+---
+
+## S36 · Treasury Regulation § 1.164-1 — Deduction for taxes
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-26
+
+**Citation prefix:** 26 CFR 1.164-1
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.164-1
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Which taxes are deductible, and -- in the flush paragraph after (a)(5), which a reader of <P> elements alone never saw -- that other state and local taxes paid in carrying on a trade or business are deductible too. Named by the Sarcia pilot 3 refusal on payments to a town and a state motor-vehicle registry. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds.
+
+---
+
+## S37 · Treasury Regulation § 1.461-1 — General rule for taxable year of deduction
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-26
+
+**Citation prefix:** 26 CFR 1.461-1
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.461-1
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. When a deduction is taken: under the cash method, in the year paid, subject to the capitalization rules; under an accrual method, when all events have occurred. Named by the Sarcia pilot 3 refusal on an annual subscription paid in one month. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds. ITS WORKED EXAMPLES ARE NOT STORED, deliberately: `tools/extract_ecfr.py` could not place them under the paragraphs that announce them (§ 1.163-8T filed all eleven of paragraph (c)'s under (c)(2)(iii)), and an example cited to the wrong rule is worse than none. The rules are complete.
+
+---
+
+## S38 · Treasury Regulation § 1.263(a)-4 — Amounts paid to acquire or create intangibles
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-26
+
+**Citation prefix:** 26 CFR 1.263(a)-4
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.263(a)-4
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Which payments for intangibles and prepaid benefits must be capitalized, and the 12-month rule in (f) that lets a payment for a benefit lasting no more than twelve months, and not past the end of the next year, be deducted. Named by the Sarcia pilot 3 refusal on a twelve-month subscription. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds. ITS WORKED EXAMPLES ARE NOT STORED, deliberately: `tools/extract_ecfr.py` could not place them under the paragraphs that announce them (§ 1.163-8T filed all eleven of paragraph (c)'s under (c)(2)(iii)), and an example cited to the wrong rule is worse than none. The rules are complete.
+
+---
+
+## S39 · Treasury Regulation § 1.163-8T — Allocation of interest expense among expenditures
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-26
+
+**Citation prefix:** 26 CFR 1.163-8T
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.163-8T
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Interest follows what the borrowed money was spent on. A card used for both business purchases and personal ones carries interest that is allocated by that tracing, not by the account's name. Named by the Sarcia pilot 3 refusal on interest charged on a mixed-use card. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds. ITS WORKED EXAMPLES ARE NOT STORED, deliberately: `tools/extract_ecfr.py` could not place them under the paragraphs that announce them (§ 1.163-8T filed all eleven of paragraph (c)'s under (c)(2)(iii)), and an example cited to the wrong rule is worse than none. The rules are complete.
 
 ---

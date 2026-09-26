@@ -220,7 +220,10 @@ def test_an_unscoped_answer_prints_no_mark():
 #: pointing at where one of its own sub-clauses applies, which is not the
 #: passage announcing its reach. 28 is the narrower and right thing. All six
 #: rows the firm was shown are inside it.
-SCOPED = 28
+# FORTY-TWO SINCE 26 SEPTEMBER 2026: the five sections admitted after Sarcia
+# pilot 3 carry fourteen paragraphs that open by scoping themselves -- up is
+# the record gaining authority that borrows a term, which is what happened.
+SCOPED = 42
 
 
 def test_the_count_is_measured_and_does_not_go_stale(held):

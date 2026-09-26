@@ -20,6 +20,7 @@ the network by accident, and this suite's socket layer would raise if there were
 from __future__ import annotations
 
 import pathlib
+import unsupported
 import shutil
 import sys
 
@@ -260,7 +261,7 @@ def test_the_withdrawal_is_filed_like_any_other_refusal(tmp_path):
     front.answer(p.facts,  position=p.answer, citation=p.citation,
                  corpus=desks,
                  prove=lambda s, c: _Page(f"{p.citation} rewritten"))
-    filed = (desks / "unsupported" / "asked.md").read_text(encoding="utf-8")
+    filed = unsupported.default_store().read_text(encoding="utf-8")
     assert "authority_has_moved" in filed
     assert "**Asked:**" in filed
 

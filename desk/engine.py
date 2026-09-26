@@ -304,6 +304,12 @@ class Served:
     #: the one check that matters without the paragraph in front of them. Making
     #: them go and fetch it is what makes the review nominal.
     passage: str = ""
+    #: `(citation, quoted words)` a ratified position rests on, when the answer
+    #: came from one. Printed with the answer, and where any of them is not the
+    #: answer's own citation, `passage` is THOSE paragraphs -- what a second
+    #: reader has to be handed to judge it. Sarcia pilot 3: POS7 sits where bars
+    #: are named and rests on the beverage rule one paragraph down.
+    rests_on: tuple = ()
     #: The clause the passage uses to say it applies SOMEWHERE ELSE, read off
     #: its own opening words, or `""`. `dec-scoped`, 14 September 2026 -- the
     #: firm: **"Mark them."**
@@ -488,9 +494,16 @@ class Served:
               ([self.off_source, ""] if self.off_source else []) + [
                self.position, "",
                f"    {self.citation}",
-               f"    {self.tier if self.classified else 'tier not established'} · "
-               f"{'the firm treats as binding' if self.binding else 'not binding — read the note below'}"
-               f" · confirmed {self.checked}"]
+               # PLAIN ASCII, BECAUSE THIS LINE IS PARSED ON THE OTHER SIDE OF A
+               # WIRE THAT DOES NOT PRESERVE ANYTHING ELSE. Sarcia pilot 2,
+               # 25 September 2026: all three desk replies arrived with every
+               # em dash and middle dot turned into a hyphen -- the answering
+               # session's console mangles UTF-8 -- and `relay.read` raised on
+               # every one. A pipe cannot be mistaken for the hyphen that may
+               # already sit inside a value, and it survives any console.
+               f"    {self.tier if self.classified else 'tier not established'} | "
+               f"{'the firm treats as binding' if self.binding else 'not binding: read the note below'}"
+               f" | confirmed {self.checked}"]
         if (tied := _tieout_line(self.proof)):
             out += [tied]
         if self.caveat:
@@ -560,6 +573,9 @@ class Served:
                             f"rule here; nothing has checked whether these facts "
                             f"are inside that scope, and its heading will not say "
                             f"so."]
+            if self.rests_on:
+                out += ["", "THE FIRM'S POSITION RESTS ON THESE WORDS:"]
+                out += [f'  {c} — "{w}"' for c, w in self.rests_on]
             out += ["", "THE AUTHORITY, in full:", "", f"> {self.passage}"]
         # IN FULL, AND NEVER AN EXCERPT. The obvious fix was a snippet under
         # each entry above. It fails on the one case this exists for: in the
@@ -758,8 +774,11 @@ class Refusal:
         # come back, and it must not come back FIRST. `Served` puts the
         # conclusion at the top and the caveats under it; a refusal that
         # inverts that teaches a reader the shape means nothing.
-        out = [f"THE DESK DID NOT ANSWER — {self.reason}"
-               + (f"  ·  {self.desk}" if self.desk else ""), f"    {self.detail}"]
+        # PLAIN ASCII for the same reason as `Served`'s grade line: the banner
+        # is what `relay.read` anchors on, and the pilot's replies lost every
+        # character that was not.
+        out = [f"THE DESK DID NOT ANSWER: {self.reason}"
+               + (f"  |  {self.desk}" if self.desk else ""), f"    {self.detail}"]
         # WHAT THE TIE-OUT DID, WHERE ONE WAS TRIED. Directly under the detail,
         # because on the refusals that exist because of a fetch it IS the
         # detail -- the host asked, the moment, and what came back.
@@ -1067,6 +1086,21 @@ def _rule_reaches(desk: Desk, question: str, guide: str = "") -> bool:
                for sid, terms in desk.answered_from.items())
 
 
+def _resting_text(position, desk: Desk, citation: str) -> str:
+    """The paragraphs a position rests on, when any is not its own citation.
+
+    `""` otherwise, which leaves the served passage what it always was. Each
+    paragraph is labelled, so a reader handed two can tell them apart; the
+    second reader's containment check reads straight across the labels.
+    """
+    at = getattr(position, "rests_at", ()) or ()
+    if not at or tuple(at) == (citation,):
+        return ""
+    return "\n\n".join(
+        f"{c}: {getattr(desk.passage(c), 'text', '')}" for c in at
+        if getattr(desk.passage(c), "text", ""))
+
+
 def _check(answer: Answer, desk: Desk, question: str = "", context=None):
     """The one verification. Shared by the gate and the scoreboard on purpose.
 
@@ -1225,6 +1259,33 @@ def _check(answer: Answer, desk: Desk, question: str = "", context=None):
     # over-refuses or under-catches; neither is exact enough to block on, which
     # is the line `guards.py` draws. Left public, tested and unused until the
     # firm picks a shape.
+
+    # A FIRM POLICY STILL GOVERNS THE PARAGRAPH IT APPLIES AT. Codex on #398.
+    # While POS15 sat on § 1.6050W-1(c)(3), an answer citing that paragraph had
+    # to be the firm's position or be refused. Unpinned to firm policy, the
+    # paragraph became ordinary authority again, and an answer could cite it,
+    # say the opposite, and be served. So an answer on an `Applies at:`
+    # paragraph is held to the policy -- and one that agrees is sent to cite
+    # the policy's own reference, because served on the paragraph it would
+    # read as the paragraph's rule: the mis-pin, undone.
+    if kind == "passage":
+        for pol in (q for q in desk.positions
+                    if not q.proposed and answer.citation in
+                    getattr(q, "applies_at", ())):
+            if not _same(answer.position, pol.position):
+                return Refusal(
+                    "contradicts_ratified_position",
+                    f"cited {answer.citation!r}, where the firm's standing "
+                    f"policy {pol.citation!r} applies: {pol.position!r}; "
+                    f"answered {answer.position!r}. A position is the firm's "
+                    f"word and a desk does not revise it",
+                ), passage, source, verdict
+            return Refusal(
+                "citation_does_not_support",
+                f"that is the firm's standing policy, and it rests on the firm, "
+                f"not on {answer.citation!r}. Cite {pol.citation!r} so it is "
+                f"served as the firm's and marked as such.",
+            ), passage, source, verdict
 
     # A ratified position IS the firm's answer, so tier does not gate it: the
     # firm already made the choice that a secondary source would only have
@@ -1528,9 +1589,19 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
         # words are the fallback only for a citation-only source — `human_only`,
         # where a position genuinely IS the desk's entire knowledge of the
         # authority and there is nothing else to show.
-        passage=(getattr(passage, "text", "")
+        # A FIRM POLICY HAS NO AUTHORITY TEXT, and its own sentence must not
+        # stand in for one. Codex on #398: the last fallback printed the
+        # policy's words under THE AUTHORITY, in full, straight after the
+        # answer said it rests on no paragraph. The fallback stays for a
+        # citation-only AUTHORITY position (`human_only`), where the firm's
+        # words really are all anybody may show of a real source.
+        passage=("" if getattr(passage, "is_policy", False) else
+                 _resting_text(passage, desk, answer.citation)
+                 or getattr(passage, "text", "")
                  or getattr(desk.passage(answer.citation), "text", "")
                  or getattr(passage, "position", "") or ""),
+        rests_on=(tuple(getattr(passage, "rests_on", ()) or ())
+                  if from_position else ()),
         # READ OFF THE PASSAGE BEING SERVED, never off the citation. Two rules
         # in one section scope themselves differently and the citation cannot
         # tell them apart.

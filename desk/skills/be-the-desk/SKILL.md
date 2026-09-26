@@ -153,8 +153,8 @@ only if you pass a search engine, because two of the four steps are yours:
 brief, filed = ask.consult_or_file(
     question,
     queue=unsupported.default_queue(),
-    search=<a callable taking a query, returning [{"url", "title", "snippet"}]>,
-    transport=<a callable taking a url, returning the page text>,
+    search=web_search,        # a callable: query -> [{"url", "title", "snippet"}]
+    transport=fetch_page,     # a callable: url   -> the page text
     queries=["the words you would actually search"],          # YOUR judgement
     proposals=[{"citation": "...",     # which paragraph these words ARE
                 "quoted": "...",       # the words EXACTLY as printed
@@ -215,12 +215,13 @@ refusals, and they are not the same:
 The second is a **hole in what the firm tracks**, found by real work rather than
 by an audit. `python3 $CLAUDE_PLUGIN_ROOT/tools/holes.py` reads them out.
 
-`consult` routes the question and hands back **everything that desk will let you
-answer from** — its sources, the firm's own ratified positions, and its stored
-authority. Nothing else.
+`consult` scores every citation in the corpus on the authority's own text and
+hands back **everything the top of that ranking will let you answer from** —
+those sources, the firm's own ratified positions on them, and their stored
+authority. Nothing else. There is no desk to reach and none to name.
 
 ```python
-out = ask.answer(question, desk,
+out = ask.answer(question,
                  position="an entry in the books",
                  citation='IRS Pub. 583 (12/2024), "Reconciling the checking '
                           'account" — what the books are updated for',
@@ -230,7 +231,7 @@ out = ask.answer(question, desk,
 Or, when nothing in the brief settles it — **and then you MUST say what to ask**:
 
 ```python
-out = ask.answer(question, desk, escalate="facts_not_established",
+out = ask.answer(question, escalate="facts_not_established",
                  working="§ 1.263(a)-2(d)(1) opens 'Except as provided in "
                          "§ 1.162-3 ... and in § 1.263(a)-1(f)', and this desk "
                          "holds neither exception's facts",
@@ -300,9 +301,9 @@ firm has ratified a position on it **you must return the firm's words, not your
 own restatement of them.** A real citation from the wrong paragraph of the right
 publication is refused too.
 
-**4 · A refusal is kept.** Every one lands in `corpus/unsupported/`, the one
-queue,
-with your reasoning intact. That queue is the only thing that tells the firm what
+**4 · A refusal is kept.** Every one lands in `~/.satc/desk/unsupported/asked.md`
+— outside the plugin, so it survives the next upgrade — with your reasoning
+intact. That queue is the only thing that tells the firm what
 authority is missing, so **write a real `working`** — "could not tell" helps
 nobody; "the rule turns on whether the item takes the place of ordinary civilian
 clothing, and nothing says what was bought" is a work item.
@@ -338,6 +339,19 @@ what it had. The rendering lives on the object now — `Served.__str__` — whic
 current whenever the code is. A skill can go stale; what it tells you to print
 cannot. Do not reassemble it field by field: anything added after the version of
 this file you are reading will be in the object and not in the list.
+
+**A request may carry several questions** — `DESK REQUEST` with numbered
+questions, each under its own `ref`. Answer EACH one separately: its own
+`consult`, its own `ask.answer`, its own second reader. Then send ONE reply in
+which every answer opens with its own `DESK ANSWER <ref>` line followed by that
+question's `print(out)`. Leave none out: a ref with no answer reaches the asker
+as unanswered, not as a no.
+
+**Send the printed output as it was printed — do not retype it.** In Sarcia
+pilot 2 every reply lost its em dashes and middle dots on the way out, because
+the console this session composed them in mangles UTF-8, and the asker's reader
+failed on all three. The lines it parses are plain ASCII now, so that no longer
+breaks it; a retyped reply can still drop what a copied one would not.
 
 `repr(out)` is a different thing and is for the log — it carries the counters
 (`showed`, `showed_by_source`) that exist to falsify a model's claim about its
