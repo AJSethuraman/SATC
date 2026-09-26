@@ -1856,6 +1856,20 @@ back.
       The suggested fewest loans, worse at and better at are on Control when the workbook is written.
       The product is PocketBook in everything the analyst reads (the firm, 26 Sep 2026); "luck" is not
       used. Colours in `house.py`, not a copy of credit-suite's style file.
+- **The firm's calls, 26 Sep 2026 (evening).**
+  - **Name: PocketBook.** *"i want to change the name of this... let's call it the PocketBook"*. What
+    the analyst sees is renamed with the redesign; folder and package names in one sweep after the
+    running agents land; workbooks under the old name still recognised.
+  - **"Luck" is out.** *"i don't like the luck term, unless that's truly standard terminology"*. It is
+    not, and "chance it's luck" misstates a p-value. Recommended and adopted unless the firm objects:
+    the header stays **p-value**, explained once in the tab's method note; Worse? carries the verdict.
+  - **Look: live bars and range** (*"If truly cheap- yes"*), plus the **mean** beside the median.
+    Run stores fine counts per column in a hidden sheet; a Bars dropdown and a from/to range regroup
+    them by formula. Phase 2.
+  - **Found: Run does not scale.** 17,000 loans × 80 columns (70 filler), FICO in 3 bands, split by
+    REV_DEBT: Set up 155 s; Run still going at 10 min and 12 GB, stopped. 8,000 × 10 runs in about a
+    minute. To be profiled and fixed before the redesign phases; then time the firm's two cases
+    (the bleed with 3 bands on 4 dimensions, and a pre-spec test) on that extract.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
