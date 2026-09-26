@@ -1723,6 +1723,9 @@ back.
      make factors. That reading was put back to the firm to confirm before anything changes.
   5. **Definitions:** "Keep on Columns". No change.
   6. **Test 4:** *"Not sure what is being said here. Is this configurable?"* Explained again.
+     After the walk-through (the 3% is a one-time $600-style lift; doubled losses cost about
+     3.8 points; the net −0.8 points is 80 bps short of the band), the firm: *"Approve."* Test 4's
+     "about the same" stands.
   7. **Pre-spec "deviates" until 4b:** *"This is not a problem if we are fixing it."* Kept
      until 4b, which is Next.
   8. **A pocket alone in its band:** "Compare with the book", with *"It's hard to believe this
