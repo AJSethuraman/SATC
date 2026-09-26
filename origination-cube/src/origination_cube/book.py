@@ -231,6 +231,7 @@ def _to_code(v: Any, cat) -> str | None:
 # --------------------------------------------------------------------------
 
 
+@control.settings_once
 def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str | Path | None = None,
            today: date | None = None) -> Outcome:
     extract = Path(extract)
@@ -255,21 +256,23 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         if isinstance(got, (int, float)) and not isinstance(got, bool):
             method[key] = int(got)
     few, many = int(method["few_values"]), int(method["many_values"])
-    cols = profile.classify(table, few, many)
-    sugg = meanings.suggest(table, mem["columns"], few_values=few, many_values=many)
+    # each column's facts once, for classify, suggest, review and Look (found 26 Sep 2026: four times over)
+    facts_of = meanings.facts_of(table)
+    cols = profile.classify(table, few, many, facts_of)
+    sugg = meanings.suggest(table, mem["columns"], few_values=few, many_values=many, known=facts_of)
     extract_cols = list(table.columns)
     # fix 3.9: the new columns typed on Control are made here, so Columns lists them and Look shows them
-    facts_of = {c: meanings.facts(table, c) for c in extract_cols}
     number_cols = [c for c in extract_cols if facts_of[c].numeric]
     table, made, made_notes = _made_columns(table, cols, kept, mem)
     if made:
+        facts_of = meanings.facts_of(table, facts_of)
         cols += profile.classify(Table(path=table.path, sha256=table.sha256, columns=[r.name for r in made],
-                                       rows=table.rows, kind=table.kind), few, many)
+                                       rows=table.rows, kind=table.kind), few, many, facts_of)
         for r_ in made:
             sugg[r_.name] = meanings.Suggestion(r_.name, "amount", f"made on Control: {r_.text()}", "control")
     qs = [q for c in cols for q in c.questions]
     open_qs = [q for q in qs if not memory.answer_for(mem, q["column"], q["pattern"], q["value"])]
-    looks = meanings.review(table, sugg, open_qs, cat, answer_where="on the Odd values tab")
+    looks = meanings.review(table, sugg, open_qs, cat, answer_where="on the Odd values tab", known=facts_of)
     if control.answer_of(RUN_KIND, *kept["control"].get(RUN_KIND, (None, None))) == NEW_VARIABLE:
         # a test of a new variable doesn't use the dollar columns, so their absence isn't news (the firm: "don't
         # note what it does not include, just note what it does")
@@ -475,8 +478,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     _fit(wo)
 
     from . import look                      # fix 3.8: each number column's shape, before its edges are chosen
-    shown = look.number_columns(table, cols, few)
-    look.write_look(wb, table, shown + [m.name for m in made if m.name not in shown])
+    shown = look.number_columns(table, cols, few, facts_of)
+    look.write_look(wb, table, shown + [m.name for m in made if m.name not in shown], known=facts_of)
     _learned_tab(wb, memory_path)
 
     about = wb.create_sheet(ABOUT)
@@ -965,6 +968,7 @@ def _writable(book: Path) -> bool:
         return True
 
 
+@control.settings_once
 def run(book: str | Path, extract: str | Path | None = None, memory_path: str | Path | None = None) -> Outcome:
     """Run from the workbook. `extract` is the file picked in the launcher; it
     wins over the path remembered at set up, so a workbook copied to another

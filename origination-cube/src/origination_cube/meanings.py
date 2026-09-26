@@ -29,7 +29,7 @@ from typing import Any
 
 import yaml
 
-from .ingest import Bad, Table, detect_date_format, is_blank, parse_number
+from .ingest import Bad, DateDetection, Table, detect_date_format, is_blank, parse_number
 
 REQUIRED = ("key", "booked", "outcome", "gco", "ranr")
 
@@ -83,6 +83,7 @@ class Facts:
     texts: list[str]
     dates: int                   # values that read as dates
     one_value: bool
+    det: DateDetection | None = None     # what the date patterns made of it, for profile.classify to reuse
 
     @property
     def numeric(self) -> bool:
@@ -104,7 +105,15 @@ def facts(table: Table, col: str) -> Facts:
         # all numbers: a date only when every value is an 8-digit YYYYMMDD, the way a mainframe writes one
         eight = all(len(t) == 8 for t in (str(v).strip() for v in nonblank))
         dates = len(nonblank) if eight and det.fits.get("%Y%m%d") == len(nonblank) else 0
-    return Facts(col, len(raw), len(nonblank), len(set(texts)), nums, texts, dates, len(set(texts)) == 1)
+    return Facts(col, len(raw), len(nonblank), len(set(texts)), nums, texts, dates, len(set(texts)) == 1, det)
+
+
+def facts_of(table: Table, known: dict[str, Facts] | None = None) -> dict[str, Facts]:
+    """Every column's facts, reusing those already worked out. Set up works them
+    out once and hands them to classify, suggest, review and Look (found 26 Sep
+    2026: each worked them out again, date detection and all, four times over)."""
+    known = known or {}
+    return {c: known[c] if c in known else facts(table, c) for c in table.columns}
 
 
 def _ratio_scale(v: list[float]) -> list[float]:
@@ -180,13 +189,13 @@ BY_VALUES_ALONE = ("fico",)
 
 def suggest(table: Table, remembered: dict[str, dict] | None = None,
             cat: dict[str, Meaning] | None = None, few_values: int = 12,
-            many_values: int = 50) -> dict[str, Suggestion]:
+            many_values: int = 50, known: dict[str, Facts] | None = None) -> dict[str, Suggestion]:
     """few_values and many_values are Control's category limits: a number column
     with more values than few_values is an amount, and a list with at most
-    many_values values is a category."""
+    many_values values is a category. `known`: facts already worked out, by column."""
     cat = cat or catalog()
     remembered = remembered or {}
-    fs = {c: facts(table, c) for c in table.columns}
+    fs = facts_of(table, known)
     out: dict[str, Suggestion] = {}
 
     # 1. remembered
@@ -291,8 +300,10 @@ class Review:
 
 
 def review(table: Table, sugg: dict[str, Suggestion], open_questions: list[dict] | None = None,
-           cat: dict[str, Meaning] | None = None, answer_where: str = "at the bottom") -> list[Review]:
+           cat: dict[str, Meaning] | None = None, answer_where: str = "at the bottom",
+           known: dict[str, Facts] | None = None) -> list[Review]:
     cat = cat or catalog()
+    fs = facts_of(table, known)
     out: list[Review] = []
     for m in REQUIRED:
         hits = [c for c, sg in sugg.items() if sg.means == m]
@@ -311,13 +322,13 @@ def review(table: Table, sugg: dict[str, Suggestion], open_questions: list[dict]
                               f"aren't on that scale, so it's suggested as `score`. If it really is FICO, the "
                               f"values need a look; if the suggestion is wrong, the rule needs patching."))
     for c in table.columns:
-        f = facts(table, c)
+        f = fs[c]
         if f.rows and f.nonblank and (f.rows - f.nonblank) / f.rows >= BLANK_REVIEW:
             share = (f.rows - f.nonblank) / f.rows
             out.append(Review("blanks", c, f"{share:.0%} blank. Blanks are left out of every rate and get their "
                               f"own row in a grid. If they weren't meant to be blank, fix the extract."))
     for c, sg in sugg.items():
-        f = facts(table, c)
+        f = fs[c] if c in fs else facts(table, c)
         text = f.nonblank - len(f.numbers)
         if sg.means == "outcome" and sg.is_value is None and f.numbers:
             other = sum(1 for x in f.numbers if x not in (0.0, 1.0)) + text

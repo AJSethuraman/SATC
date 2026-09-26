@@ -1885,6 +1885,12 @@ back.
       are not confirmed, though the whole book reads a difference in the lowest group (the worst
       dealer crowds it). Two planted bugs, both caught: dates read only year-month-day (the first
       book's goal tests pass it) and the pockets forgotten. 544 tests, 213 planted bugs.
+- **Set up's reading, fixed (26 Sep 2026).** A regex gate per date pattern before strptime (looser than
+  strptime's own, held to it over 22,750 generated values), each column's facts worked out once and
+  handed to classify, suggest, review and Look, and settings.yaml read once per Set up or Run. Bleed at
+  17,000 × 80 under a 4 GB limit: Set up 159.5 s → 9.5 s; Run 78.6 s → 75.8 s (the shuffle test is
+  untouched); the workbook the same cell for cell but the time and path. `tests/test_set_up_once.py`,
+  12 planted bugs in `tools/mutation_check.py`.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
