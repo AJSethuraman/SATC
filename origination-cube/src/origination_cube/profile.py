@@ -46,7 +46,7 @@ from pathlib import Path
 from typing import Any
 
 from . import control, meanings, memory
-from .ingest import Bad, Table, cell_text, detect_date_format, is_blank, parse_number
+from .ingest import Table, cell_text, is_blank
 
 #: A repeated value is asked about when it covers this share of rows or more ...
 REPEAT_SHARE = 0.01
@@ -81,18 +81,22 @@ def _slug(name: str) -> str:
     return s or "column"
 
 
-def classify(table: Table, few_values: int, many_values: int) -> list[Column]:
+def classify(table: Table, few_values: int, many_values: int,
+             known: dict[str, meanings.Facts] | None = None) -> list[Column]:
+    """`known`: each column's facts, already worked out (Set up's); its numbers
+    and date detection are used rather than read again."""
     n = len(table.rows)
     out = []
+    fs = meanings.facts_of(table, known)
     for col in table.columns:
+        f = fs[col]
         raw = [r.get(col) for r in table.rows]
         nonblank = [v for v in raw if not is_blank(v)]
         blank_share = (n - len(nonblank)) / n if n else 0.0
         texts = [cell_text(v) for v in nonblank]
         distinct = len(set(texts))
         samples = list(dict.fromkeys(texts))[:5]
-        nums = [parse_number(v) for v in nonblank]
-        numeric = [x for x in nums if not isinstance(x, Bad)]
+        numeric = f.numbers
 
         def make(role, why, qs=None):
             out.append(Column(col, role, why, distinct, blank_share, samples, qs or []))
@@ -103,7 +107,7 @@ def classify(table: Table, few_values: int, many_values: int) -> list[Column]:
         if distinct == 1:
             make("skipped", f"one value only ({samples[0]})")
             continue
-        det = detect_date_format(col, raw)
+        det = f.det
         date_like = det.typed + max(det.fits.values(), default=0)
         if det.typed == len(nonblank) or (date_like >= 0.9 * len(nonblank) and len(numeric) < len(nonblank)):
             make("date", "dates")
@@ -198,7 +202,8 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
     def method(key):
         return use[key] if key in use else settings[key].recommended().value
 
-    cols = classify(table, int(method("few_values")), int(method("many_values")))
+    fs = meanings.facts_of(table)                   # once, for classify, suggest and review alike
+    cols = classify(table, int(method("few_values")), int(method("many_values")), fs)
     count, cut = int(method("band_count")), method("band_cut")
     by_role: dict[str, list[Column]] = {}
     for c in cols:
@@ -210,11 +215,11 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
              f"name: {_slug(Path(table.path).stem)}", "schema_version: 1"]
     mem = memory.load(memory_path)
     sugg = meanings.suggest(table, mem["columns"], few_values=int(method("few_values")),
-                            many_values=int(method("many_values")))
+                            many_values=int(method("many_values")), known=fs)
     cat = meanings.catalog()
     qs_all = [q for c in cols for q in c.questions]
     open_qs = [q for q in qs_all if not memory.answer_for(mem, q["column"], q["pattern"], q["value"])]
-    looks = meanings.review(table, sugg, open_qs, cat)
+    looks = meanings.review(table, sugg, open_qs, cat, known=fs)
     lines += ["", "# LOOK AT THESE FIRST, most important first. Each says why it's worth a look."]
     if looks:
         for i, rv in enumerate(looks, 1):

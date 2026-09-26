@@ -261,8 +261,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 540 tests (1 skips without a display; the 22 in test_live.py and 3 in test_confirm_test.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand
-python tools/mutation_check.py     # puts 211 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 549 tests (1 skips without a display; the 22 in test_live.py and 3 in test_confirm_test.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 20,000 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand
+python tools/mutation_check.py     # puts 223 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):
@@ -282,3 +282,9 @@ python tools/mutation_check.py     # puts 211 bugs back (the VBA's and today's r
   by extrapolation, not measured, 200,000 loans would take about 3 minutes.
 - Contribution before losses (26 Sep 2026) is a fourth dollar rate to
   shuffle: the same whole Run on 8,000 loans now takes 9.9 s.
+- Set up on 17,000 loans by 80 columns (26 Sep 2026): 159.5 s, 84% of it
+  trying every date pattern on every value, down to 9.5 s once a shape check
+  turns a value away before strptime and each column's facts and settings.yaml
+  are read once. The workbook is the same cell for cell but for the time and
+  the path (441,342 cells compared, after a Run); the Run
+  after it took 78.6 s before and 75.8 s after.
