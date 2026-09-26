@@ -195,3 +195,51 @@ For each: the data it needs, what it adds to the outputs, and roughly how much w
       read back and logged in `BACKLOG.md` §6d.)*
 - [x] Log what ran. *(Done 26 Sep 2026: `BACKLOG.md` §6d, the adversarial pass and the
       final check, whose report is `docs/final-check-2026-09-26.md`.)*
+
+---
+
+# Goal 2 (agreed 26 Sep 2026): the firm's rulings built, and the screens ready to be designed once
+
+**Agreed with the firm, 26 Sep 2026** (*"we are now on the same page - make sure you docket all of
+this so we know what the goal is"*). Goal 1 above is finished except 4b and 4e, which were scoped in
+step 4 and are now being built. The rulings behind each item are logged in `BACKLOG.md` §6d and in
+`docs/design.md` (OC-38 to OC-40); the project's standing rule is `TENETS.md` T1.
+
+**What would end it:** every item below is ticked, with a test that holds it, the suite and the
+mutation check are green in CI, and a run with "Test from a pre-spec" finds the planted
+income ÷ sales cliffs on the development loans and confirms them on the held-back ones. Item 10 is
+the exception: it waits on the redesign, and the goal ends with it handed over, not built.
+
+**Proceeding autonomously, in this order, unless the firm says otherwise.** The firm's gates still
+stop the work: anything a client or the bank reads that changes meaning, and any new tenet.
+
+- [ ] **1. 4b + 4e.** K groups with their own edges (Mantel–Haenszel general association and trend,
+      cross-checked against stratified logistic regression), develop on one origination range and
+      confirm on a later one; concentration (flag rate, capture, lift) on the holdout. Check stops
+      reading "deviates" on the reference group.
+- [ ] **2. T1 sweep.** One method note per tab, near the top, that an outsider can follow. The
+      per-row lone-pocket note and the Test column move into it. Every other tab swept against T1's
+      check: a column predictable from the settings and the pocket's size is method.
+- [ ] **3. Option A.** "Judged against the book" measures points and dollars both against the rest
+      of the book. The tie-out to the whole book stays on Check.
+- [ ] **4. The new-variable run needs only what it uses:** key, outcome, origination date, the tested
+      columns and strata. Booked, GCO and RANR become optional for it.
+- [ ] **5. No "not built yet" options.** Control offers only what exists; "Scout first" appears when
+      scouting does.
+- [ ] **6. "Worse?" and "Material?" as two columns.** Among the worse pockets, rank by dollars.
+- [ ] **7. Live ordering and counts** with SORT and FILTER (Excel 365). Verified by a LibreOffice new
+      enough to calculate them (24.8 or later) in the tests and in CI, or by an equivalent check that
+      is written down.
+- [ ] **8. Lean pre-spec.** An outcome plus a shortlist of inputs, each with bins and a reference;
+      optional columns to hold fixed, each input reported with and without them (this is 4d); strata
+      default to the workbook's band and segment; the allowance for many tests spread across the
+      shortlist.
+- [ ] **9. Scouting (4a).** A random forest on the development loans only; scikit-learn an optional
+      add-on; wide candidates; with and without the held-fixed columns; correlated pairs flagged.
+- [ ] **10. Screens: held for the redesign.** The test picker (outcome, shortlist, hold-fixed, the
+      tests to run, in one easy place) and any layout change wait for the firm's Claude Design pass
+      over the screens published 26 Sep 2026 (https://claude.ai/artifact/8duWJxayMTBtMe1GCPrvAX), so
+      they are designed once rather than built twice. The firm, 26 Sep: *"good"*.
+
+**Open with the firm:** a git-free pre-spec. The bank machine likely has no git, so the workbook
+would write the pre-spec itself and record its fingerprint and date in the Log. Recommended.
