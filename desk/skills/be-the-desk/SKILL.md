@@ -130,6 +130,21 @@ question about Shakespeare comes back with tax law, at length. If none of what
 you are shown reaches what you were asked, say so and escalate
 `authority_absent`. That is a finding, not a failure.
 
+**But first look at the shelf.** Every brief ends with every section on file.
+Retrieval is word overlap, and the law rarely uses the asker's words: in Sarcia
+pilot 4, § 1.6001-1(a) — the duty to keep records — ranked 442nd for a question
+about a commingled account, and § 1.263(a)-4(f)(1), the 12-month rule, ranked
+622nd for a prepaid subscription. Both were on file. So before you escalate
+`authority_absent`, read the list and open any section that could hold the rule:
+
+```python
+print(ask.read("26 CFR 1.263(a)-4"))        # its paragraphs, by their own headings
+print(ask.read("26 CFR 1.263(a)-4(f)(1)"))  # the words, with (i) and (ii) under it
+```
+
+Any paragraph on file may be cited, whether or not it was printed in the brief.
+`authority_absent` means **not on file**, not *not in the eight I was shown*.
+
 **Use `consult_or_file`, not `consult`, on a live request.** `consult` is the
 pure query; `consult_or_file` returns the same page AND writes the question into
 the queue when nothing holds it. To ask whether the corpus holds anything at all
@@ -473,11 +488,73 @@ empty, say so and ask; do not settle an entry on your own reading.
 or lift "the important part" out. It is the firm's ruling and the record's job
 is to show what they said.
 
-**`settle` closes a question. It does NOT ratify a position.** A position lives
-on a desk in `POSITIONS.md`, changes what the engine serves everybody, and
-enters the record only through a pull request the firm merges. If the answer
-looks like it should become a position, say so and stop — that is a separate
-piece of work with a separate yes.
+**`settle` closes a question. It does NOT ratify a position.** A parked
+question's answer changes nothing the desk holds. If the answer looks like it
+should become a position, say so and stop — that is a separate piece of work
+with a separate yes. **A ruling is different, and it is the next section.**
 
 **Then tell the doer**, if one is waiting: the question is answered, and here is
 what the firm said.
+
+## Ask the firm to rule — and record their answer yourself
+
+**The firm, 26 September 2026:** *"why wouldn't the desk send me a notification
+asking me to rule on something and record it itself"*. Until then a finding
+about the desk itself reached the firm only if a doer happened to report it, and
+their answer then had to be given twice: once in chat and again on a pull
+request.
+
+**When you start a session, and after any run, ask the record what needs ruling:**
+
+```python
+import rulings
+for f in rulings.findings(ROOT_CORPUS):   # the corpus directory
+    print(f.kind, f.subject, "—", f.why)
+```
+
+There are two kinds, and both come from the record alone:
+
+- **`reach`**: a paragraph admitted to answer a question that the question does
+  not bring up. `f.asked_by` is that question, verbatim. **Propose the words** a
+  question like it would use and the law does not. Every word of every phrase must
+  be in `f.asked_by`, and `rulings.ask` refuses one that is not.
+- **`position`**: a position stating a figure that none of the words it rests
+  on contain. **Propose the corrected wording.** If it needs different words to
+  rest on, add a line `Rests on:` and then the lines, in the form POSITIONS.md
+  uses. `rulings.ask` loads it on a copy and refuses anything that would not load,
+  or that still states an unsupported figure.
+
+**One finding at a time, then send exactly what `ask` returns:**
+
+```python
+entry, line = rulings.ask(f, proposed, queue=rulings.default_queue(),
+                          corpus=ROOT_CORPUS)
+# PushNotification(line)  -- verbatim, as with a parked question
+```
+
+Then **print the whole ruling in this session**: the finding, `f.asked_by`
+where there is one, and your full proposal. The push is one line, and the firm
+will open this session to read what they are ruling on.
+
+**When they reply**, read it with `notifying.reply_in(message, sent=line)` as
+for a parked question. It knows `R<n>` references. Then:
+
+```python
+done = rulings.settle(rulings.default_queue(), rid, answer)
+rulings.record_ruling(CHECKOUT_CORPUS, done)   # writes the record
+```
+
+`record_ruling` takes **yes** as your proposal, **no** as the firm keeping
+things as they are (recorded, and not asked again), and anything else as the
+firm's own words. It **raises** on a yes or a no that goes on to say more
+("No, make it 60 percent"), and on wording that would not load. Either way,
+ask them again and quote why. Never pick a reading for them.
+
+**Write to a checkout of the repository, never the installed plugin.** A write
+into `~/.claude/plugins/cache/...` is gone at the next update. Commit on a
+branch named `desk-ruling-R<n>`. The message is the ruling and the firm's reply,
+verbatim. Push the branch, open a draft pull request, and send the link to the
+session that maintains the desk. It merges once the suite is green. If you have
+no checkout, send that session the settled entry (`rulings.queued(...)`) instead.
+Do not hand-edit POSITIONS.md, RULINGS.md or SOURCES.md to get round a refusal.
+

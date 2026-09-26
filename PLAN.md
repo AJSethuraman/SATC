@@ -447,6 +447,39 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-26 — Sarcia pilot 4, and the desk now asks the firm to rule (desk
+  0.39.0).** Pilot 4 put 18 questions in one batch and all 18 came back readable.
+  9 were served (pilot 3: 6 of 16). 61 of 485 rows were worked (pilot 3: 0), and
+  each of the other 424 has a named blocker. Occam held all 189 rows that rest on
+  a served answer whose conditions are not established; pilot 3 approved 202 on
+  the same answer. The finding is the desk's own: five sections were admitted
+  because pilot 3 named them, and asked again, the paragraph carrying the rule
+  reached the brief for ONE. Re-measured here: § 1.6001-1(a) ranked 442nd and
+  § 1.263(a)-4(f)(1) 622nd of 1,171.
+  The firm: **"definitely fix retrieval"**. Then, on being asked in chat which
+  plain words should reach a paragraph: *"why wouldn't the desk send me a
+  notification asking me to rule on something and record it itself"*. On POS7:
+  *"is this not something i would expect the desk to ask me so it can record
+  the right answer?"*
+  Built:
+  - Every brief now lists every section on file. `ask.read` opens a section or a
+    paragraph. The brief's first sentence had said a citation to anything not
+    printed is refused, and that was false: the engine checks the whole corpus.
+  - `rulings.py`: the desk finds, from the record alone, a paragraph that the
+    question it was admitted for does not reach, and a position stating a figure
+    its quoted words do not carry. First run: four reach findings, and POS6,
+    POS7, POS8 and POS19. Two of those positions were news.
+  - The desk proposes a fix, the engine checks it, and one line goes to the
+    firm. Their reply is written into the record by the desk.
+    `DESIGN-PRINCIPLES.md` §9 says so.
+  Measured and not built: plain words declared on a whole source lift its other
+  paragraphs and not the rule. A word the corpus never uses earns no score at
+  all. Joining a lead-in to its list items moved the 12-month rule from 622nd to
+  72nd. So the firm's ruling puts a paragraph in the brief outright rather than
+  nudging its rank. Still open: the card-charge question, which blocks 322 rows.
+  Pub. 502 and IRS INFO 2010-0153 state "counts when charged" for medical costs
+  and for charity. Rev. Rul. 78-38 has not been readable from here.
+
 - **2026-09-14 — The eighth docket: all eight answered, every one taking the
   recommendation (artifact `642c3276`).**
 

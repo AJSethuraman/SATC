@@ -122,6 +122,15 @@ class Source:
     #: any other word and rewrites no question. A SOURCE says what it answers;
     #: nothing says what a word means.
     asked_as: tuple[str, ...] = ()
+    #: WHY THIS SOURCE IS ON FILE, as `((citation, question), ...)`: the
+    #: paragraph that answers it and the question that asked for it, verbatim.
+    #:
+    #: Sarcia pilot 4, 26 September 2026: five sections were admitted because
+    #: pilot 3's refusals named them, and asked again, the paragraph carrying
+    #: the rule reached the brief for ONE. Nothing recorded which question each
+    #: was admitted to answer, so nothing could notice it still did not. With
+    #: this, `rulings.findings` can -- and asks the firm what should reach it.
+    admitted_for: tuple = ()
 
     @property
     def binding(self) -> bool:
@@ -1063,7 +1072,7 @@ def _prose(block: str, label: str, where: str, *, fields: tuple,
 
 #: The labels a SOURCE entry carries, so `_prose` knows where one ends.
 SOURCE_FIELDS = ("Tier", "Access", "May store", "Checked", "Citation prefix",
-                 "Url", "Asked as", "Why")
+                 "Url", "Asked as", "Admitted for", "Why")
 
 
 def _inline(block: str, label: str, where: str) -> str:
@@ -1144,6 +1153,26 @@ def _asked_as(block: str, where: str) -> tuple[str, ...]:
     return tuple(p.strip() for p in raw.split(";") if p.strip())
 
 
+def _admitted_for(block: str, where: str) -> tuple:
+    """`Admitted for:` lines -- `citation — "the question"` -- or nothing.
+
+    REFUSES A LINE IT CANNOT READ, like `Rests on:` does: a question silently
+    dropped here is an admission nobody will ever check was answered.
+    """
+    out = []
+    for line in (l.strip() for l in _field(block, "Admitted for", where,
+                                           required=False).splitlines()):
+        if not line:
+            continue
+        at = line.find(' — "')
+        if at <= 0 or not line.endswith('"'):
+            raise RecordError(
+                f'{where}: an Admitted for line reads {line!r}. Each line is a '
+                f'citation, " — ", then the question in double quotes.')
+        out.append((line[:at].strip(), line[at + 4:-1].strip()))
+    return tuple(out)
+
+
 def parse_sources(text: str) -> list[Source]:
     out = []
     for head, block in _blocks(text, _HEAD):
@@ -1160,6 +1189,7 @@ def parse_sources(text: str) -> list[Source]:
             citation_prefix=_field(block, "Citation prefix", where),
             url=_field(block, "Url", where, required=False),
             asked_as=_asked_as(block, where),
+            admitted_for=_admitted_for(block, where),
             note=_prose(block, "Why", where, fields=SOURCE_FIELDS),
         ))
     if not out:
@@ -1274,6 +1304,18 @@ def load(desk_dir: Path) -> Desk:
                 f"copy answers would be decided by filename order"
             )
         seen_citations.add(p.citation)
+
+    # AN ADMISSION NAMES A PARAGRAPH THIS SOURCE HOLDS, or the check it exists
+    # for -- does the question that asked for it reach it? -- measures nothing.
+    held_by = {}
+    for p in passages:
+        held_by.setdefault(p.source_id, set()).add(p.citation)
+    for s_ in sources:
+        for cit, _q in s_.admitted_for:
+            if cit not in held_by.get(s_.id, set()):
+                raise RecordError(
+                    f"{s_.id} says it was admitted for {cit!r}, which it does "
+                    f"not hold. Name a stored paragraph of this source.")
 
     known = seen_ids
     for p in passages:

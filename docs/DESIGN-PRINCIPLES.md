@@ -148,6 +148,27 @@ already gathered, the timing already noticed.
 *Enforced:* no SMTP anywhere (an ast-parsing test proves it); the action queue
 writes nothing; a model-classified arrival cannot close a client request.
 
+**The firm's reply to a ruling is the disposal, and the desk records it.** The
+firm, 26 September 2026: *"why wouldn't the desk send me a notification asking
+me to rule on something and record it itself"*. The desk used to be able to ask
+the firm a question and never to change what it holds on their answer, so a
+position that disallowed what its own regulation allows reached the firm only
+because a doer happened to report it. Now `desk/rulings.py` finds from the
+record alone what needs ruling. That covers two cases: a paragraph that the
+question it was admitted for does not reach, and a position stating a figure its
+quoted words do not carry. The model proposes the fix and the engine checks it
+would work. One line goes to the firm, and **their reply** decides. The desk
+writes that reply into the record. This strains nothing here: the decision is
+still the firm's and is still made in one reply. What goes is the second time
+they had to say it, on a pull request. A yes or a no that goes on to say
+something more is refused rather than read either way.
+
+*Enforced:* `desk/tests/test_the_desk_asks_the_firm_to_rule.py`. A proposal that
+would not reach the question, or would not load, is never sent. Wording that
+states a figure nothing it rests on contains is never written, even when it is
+the firm's own. "No, make it 60 percent" is asked again rather than recorded as
+a no. The list of open findings may only shrink.
+
 ## 10 · Errors name the right next step
 
 A refusal that only says "no" ends a run — on a small model, and on a tired

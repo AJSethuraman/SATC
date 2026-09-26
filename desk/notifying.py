@@ -183,7 +183,16 @@ def for_entry(entry) -> str:
 #: digits, because that is what `unsupported.next_id` produces and what
 #: `line` puts in the brackets. Deliberately not a general id pattern: a
 #: looser one matches things the firm never meant as a reference.
-_REF = re.compile(r"\bU(\d+)\b", re.I)
+#:
+#: AND `R` AND DIGITS, since 26 September 2026: a ruling the desk asks the firm
+#: for (`rulings.ask`) is numbered R<n>, and the reply comes back on the same
+#: path. Still two letters, not a general pattern -- the reason above holds.
+_REF = re.compile(r"\b[UR](\d+)\b", re.I)
+
+#: The label a line opens with, which a reply quoting the notification carries
+#: back and which is not the firm's answer. One pattern for every verb `line`
+#: is called with, so a new verb cannot be quoted back as substance.
+_VERBS = r"desk (?:parked|proposes|asks you to rule):?"
 
 
 def reply_in(text: str, *, sent: str = "") -> tuple:
@@ -244,13 +253,13 @@ def reply_in(text: str, *, sent: str = "") -> tuple:
     # punctuation around them is how you tell "[U1]" from a real reply -- it is
     # not how the answer is stored.
     rest = _REF.sub(" ", text)
-    rest = re.sub(r"desk parked:?", " ", rest, flags=re.I)
+    rest = re.sub(_VERBS, " ", rest, flags=re.I)
     if sent:
         # WORD BY WORD, NOT AS A SUBSTRING. A quoted notification comes back
         # re-wrapped, re-punctuated, sometimes with the em dash swapped -- so
         # `sent in text` misses it. What is left after removing the words that
         # were sent is what the firm added.
-        for word in _REF.sub(" ", re.sub(r"desk parked:?", " ", sent, flags=re.I)).split():
+        for word in _REF.sub(" ", re.sub(_VERBS, " ", sent, flags=re.I)).split():
             rest = re.sub(rf"(?<!\w){re.escape(word)}(?!\w)", " ", rest, count=1)
     if not re.search(r"[A-Za-z0-9]", rest):
         return "", ""
