@@ -9414,9 +9414,13 @@ any other year. Do not read a rate off this file for a year it does not name.
 
 ## 26 CFR 1.280F-6(d)(2)(ii)(A)
 
-**Source:** S32 · **Checked:** 2026-09-05 · **Kind:** rule
+**Source:** S32 · **Checked:** 2026-09-26 · **Kind:** rule
 
-> In general. The term qualified business use shall not include:
+> In general. The term qualified business use shall not include: [...]
+> Paragraph (d)(2)(ii)(A)(1) of this section shall apply only to the extent
+> that the use of the listed property is by an individual who is a related
+> party or a 5-percent owner with respect to the owner or lessee of the
+> property.
 
 ## 26 CFR 1.280F-6(d)(2)(ii)(A)(1)
 
@@ -9703,9 +9707,18 @@ any other year. Do not read a rate off this file for a year it does not name.
 
 ## 26 CFR 1.62-2(b)
 
-**Source:** S33 · **Checked:** 2026-09-05 · **Kind:** rule
+**Source:** S33 · **Checked:** 2026-09-26 · **Kind:** rule
 
-> Scope. For purposes of determining “adjusted gross income,” section 62(a)(2)(A) allows an employee a deduction for expenses allowed by part VI (section 161 and following), subchapter B, chapter 1 of the Code, paid by the employee, in connection with the performance of services as an employee of the employer, under a reimbursement or other expense allowance arrangement with a payor (the employer, its agent, or a third party). Section 62(c) provides that an arrangement will not be treated as a reimbursement or other expense allowance arrangement for purposes of section 62(a)(2)(A) if—
+> Scope. For purposes of determining “adjusted gross income,” section
+> 62(a)(2)(A) allows an employee a deduction for expenses allowed by part VI
+> (section 161 and following), subchapter B, chapter 1 of the Code, paid by
+> the employee, in connection with the performance of services as an employee
+> of the employer, under a reimbursement or other expense allowance
+> arrangement with a payor (the employer, its agent, or a third party).
+> Section 62(c) provides that an arrangement will not be treated as a
+> reimbursement or other expense allowance arrangement for purposes of section
+> 62(a)(2)(A) if— [...] This section prescribes rules relating to the
+> requirements of section 62(c).
 
 ## 26 CFR 1.62-2(b)(1)
 
@@ -10091,9 +10104,13 @@ any other year. Do not read a rate off this file for a year it does not name.
 
 ## 26 CFR 1.274-5T(b)(6)
 
-**Source:** S12 · **Checked:** 2026-09-05 · **Kind:** rule
+**Source:** S12 · **Checked:** 2026-09-26 · **Kind:** rule
 
-> Listed property. The elements to be proved with respect to any listed property are—
+> Listed property. The elements to be proved with respect to any listed
+> property are— [...] See also § 1.274-5T(e) relating to the substantiation of
+> business use of employer-provided listed property and § 1.274-6T for special
+> rules for substantiating the business/investment use of certain types of
+> listed property.
 
 ## 26 CFR 1.274-5T(b)(6)(i)(A)
 
@@ -10151,9 +10168,21 @@ any other year. Do not read a rate off this file for a year it does not name.
 
 ## 26 CFR 1.274-5T(c)(3)(i)
 
-**Source:** S12 · **Checked:** 2026-09-05 · **Kind:** rule
+**Source:** S12 · **Checked:** 2026-09-26 · **Kind:** rule
 
-> In general. If a taxpayer fails to establish to the satisfaction of the district director that he has substantially complied with the “adequate records” requirements of paragraph (c)(2) of this section with respect to an element of an expenditure or use, then, except as otherwise provided in this paragraph, the taxpayer must establish such element—
+> In general. If a taxpayer fails to establish to the satisfaction of the
+> district director that he has substantially complied with the “adequate
+> records” requirements of paragraph (c)(2) of this section with respect to an
+> element of an expenditure or use, then, except as otherwise provided in this
+> paragraph, the taxpayer must establish such element— [...] If such element
+> is the description of a gift, or the cost or amount, time, place, or date of
+> an expenditure or use, the corrobative evidence shall be direct evidence,
+> such as a statement in writing or the oral testimony of persons entertained
+> or other witnesses setting forth detailed information about such element, or
+> the documentary evidence described in paragraph (c)(2) of this section. If
+> such element is either the business relationship to the taxpayer of persons
+> entertained, or the business purpose of an expenditure, the corrobative
+> evidence may be circumstantial evidence.
 
 ## 26 CFR 1.274-5T(c)(3)(ii)(A)
 

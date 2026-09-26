@@ -101,7 +101,10 @@ def test_an_unmarked_passage_is_unaffected():
 #: parent joined to the flush paragraph the publisher prints after its
 #: children -- the gap marked so a tie-out does not read them as adjacent
 #: (Codex on #398).
-MARKED = 9
+#: AND THIRTEEN: four flush paragraphs the old reader dropped from sections
+#: already on file, now on their parents -- § 1.274-5T(b)(6), (c)(3)(i),
+#: § 1.280F-6(d)(2)(ii)(A) and § 1.62-2(b).
+MARKED = 13
 
 
 def test_the_passages_in_the_record_actually_carry_the_mark():

@@ -141,3 +141,27 @@ def test_a_paragraph_in_pieces_is_emitted_once_with_its_gap_marked(tmp_path):
     labels = [label for label, _ in got]
     assert labels.count("(a)") == 1
     assert dict(got)["(a)"] == "In general. Only these: [...] In addition, the rest."
+
+
+#: THE SEVEN FLUSH PARAGRAPHS THE OLD READER DROPPED from sections already on
+#: file (Codex on #398: fixing the reader did not put them in the shipped
+#: corpus). Four are attached to their parent, gap marked. Three are left out,
+#: each for a reason that is a finding rather than a skip:
+#:   § 1.274-5T(c)(6)(iii) and § 1.6041-1(i) -- the parent is not stored, so
+#:     there is nothing to attach them to;
+#:   § 1.280F-6 -- the reader places it on (d)(3)(iv), and its own words say
+#:     "For purposes of this paragraph (d)(4)(iv)(C)". A placement its text
+#:     contradicts is a guess, and a guessed citation is worse than none.
+ATTACHED = {
+    "26 CFR 1.274-5T(b)(6)": "See also § 1.274-5T(e) relating to the substantiation",
+    "26 CFR 1.274-5T(c)(3)(i)": "If such element is the description of a gift",
+    "26 CFR 1.280F-6(d)(2)(ii)(A)": "shall apply only to the extent that the use",
+    "26 CFR 1.62-2(b)": "This section prescribes rules relating to the requirements of section 62(c).",
+}
+
+
+def test_the_flush_paragraphs_already_owed_are_on_their_parents():
+    held = {p.citation: p.text for p in record.load(CORPUS).passages}
+    for citation, words in ATTACHED.items():
+        assert words in held[citation], citation
+        assert "[...]" in held[citation], citation
