@@ -280,3 +280,18 @@ def test_the_firms_words_on_that_paragraph_are_sent_to_the_policy_not_served(pid
 
 def q_position(pid):
     return next(p for p in record.load(CORPUS).positions if p.id == pid).position
+
+
+@pytest.mark.parametrize("pid", ["POS11", "POS15", "POS17", "POS20"])
+def test_a_served_policy_shows_no_authority_block(pid):
+    """Codex on #398: with no stored text behind it, a policy's own sentence
+    fell through into `passage` and printed under THE AUTHORITY, in full --
+    straight after the answer said it rests on no paragraph. The firm's words
+    are the answer; they are not a publisher's text."""
+    d = record.load(CORPUS)
+    q = next(p for p in d.positions if p.id == pid)
+    out = engine.serve(engine.Answer(citation=q.citation, position=q.position),
+                       d, question="a test question")
+    assert isinstance(out, engine.Served), out
+    assert out.passage == ""
+    assert "THE AUTHORITY, in full" not in str(out)

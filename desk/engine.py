@@ -1589,7 +1589,14 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
         # words are the fallback only for a citation-only source — `human_only`,
         # where a position genuinely IS the desk's entire knowledge of the
         # authority and there is nothing else to show.
-        passage=(_resting_text(passage, desk, answer.citation)
+        # A FIRM POLICY HAS NO AUTHORITY TEXT, and its own sentence must not
+        # stand in for one. Codex on #398: the last fallback printed the
+        # policy's words under THE AUTHORITY, in full, straight after the
+        # answer said it rests on no paragraph. The fallback stays for a
+        # citation-only AUTHORITY position (`human_only`), where the firm's
+        # words really are all anybody may show of a real source.
+        passage=("" if getattr(passage, "is_policy", False) else
+                 _resting_text(passage, desk, answer.citation)
                  or getattr(passage, "text", "")
                  or getattr(desk.passage(answer.citation), "text", "")
                  or getattr(passage, "position", "") or ""),
