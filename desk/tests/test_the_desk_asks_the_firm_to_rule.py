@@ -754,3 +754,12 @@ def test_an_amount_in_dollars_is_the_same_figure_as_one_with_a_sign(text, figure
     """Codex on #401: "10 million dollars" matched nothing, so an unsupported
     amount written that way passed."""
     assert [rulings._figure(m) for m in rulings.FIGURE.findall(text)] == [figure]
+
+
+def test_a_reach_proposal_on_two_lines_is_refused(corpus, queue):
+    """Codex on #401: "subscription\\ntwelve months" was checked as one phrase
+    and recorded as two after a yes, so the ruling fired on "subscription"
+    alone. One line, or phrases separated by semicolons."""
+    f = _found(corpus, "reach", TWELVE)
+    with pytest.raises(ValueError, match="line"):
+        rulings.ask(f, "subscription\ntwelve months", queue=queue, corpus=corpus)

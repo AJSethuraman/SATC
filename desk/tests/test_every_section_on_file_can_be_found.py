@@ -90,3 +90,17 @@ def test_every_listed_section_opens():
         listed = f"`{source.citation_prefix}`" in index
         opens = not ask.read(source.citation_prefix).startswith("Nothing on file")
         assert listed == opens, (source.id, listed, opens)
+
+
+def test_an_exact_read_prints_its_own_clauses_and_lists_the_rest():
+    """Codex on #401: reading a parent printed every descendant --
+    § 1.263(a)-3(k) came back as 55 passages and 52,915 characters, past the
+    8,192-token window before the brief was counted. Direct sub-paragraphs
+    finish a lead-in and are printed; anything deeper is listed by citation,
+    one `read` away."""
+    got = ask.read("26 CFR 1.263(a)-3(k)")
+    assert len(got) < 16_000, len(got)
+    assert "`26 CFR 1.263(a)-3(k)(1)(i)`" in got or "### 26 CFR 1.263(a)-3(k)(1)" in got
+    deeper = [line for line in got.splitlines() if line.startswith("### ")]
+    assert all(line.count("(") - "26 CFR 1.263(a)-3(k)".count("(") <= 1
+               for line in deeper), deeper

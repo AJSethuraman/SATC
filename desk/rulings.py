@@ -384,6 +384,12 @@ def check(finding: Finding, proposed: str, corpus: Path) -> None:
         raise ValueError(f"{finding.subject}: an empty proposal asks the firm "
                          f"to rule on nothing")
     if finding.kind == "reach":
+        # ONE LINE. Codex on #401: a proposal on two lines was checked as one
+        # phrase and recorded as two, so the ruling fired on half of it.
+        if "\n" in proposed or "\r" in proposed:
+            raise ValueError(
+                f"{finding.subject}: a reach proposal is one line -- phrases "
+                f"separated by semicolons, never by line breaks")
         _reaches(finding.subject, finding.asked_by, proposed)
         return
     wording, rests = _split_proposal(proposed)

@@ -30,6 +30,7 @@ Retained is not accepted: nothing filed is ever returned to a caller.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import engine
@@ -920,9 +921,20 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
         # A LEAD-IN IS HALF A SENTENCE. § 1.263(a)-4(f)(1) ends "does not
         # extend beyond the earlier of--" and its two limits are (f)(1)(i) and
         # (ii). Printed alone it states no rule at all.
+        # ITS OWN CLAUSES, NOT ITS WHOLE SUBTREE. Codex on #401: § 1.263(a)-3(k)
+        # printed 55 passages and 52,915 characters, past the 8,192-token
+        # window before the brief was counted. The direct sub-paragraphs are
+        # what finish a lead-in; anything deeper is listed, one `read` away.
+        deeper = []
         for p in under:
-            if p.citation[len(citation):].startswith("("):
+            rest = p.citation[len(citation):]
+            if re.fullmatch(r"\([^()]+\)", rest):
                 out += [f"### {p.citation}", "", f"> {p.text}", ""]
+            elif rest.startswith("("):
+                deeper.append(p.citation)
+        if deeper:
+            out += ["Further down, not printed -- `ask.read` any of these:", ""]
+            out += [f"- `{c}`" for c in deeper] + [""]
         return "\n".join(out)
     if under:
         out = [f"## On file under {citation}", ""]
