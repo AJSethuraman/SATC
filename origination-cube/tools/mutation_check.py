@@ -112,6 +112,12 @@ muts = [
  ("small material pockets not pointed out", B, '    if small:\n        rows_said', '    if False:\n        rows_said',
   "too_small_to_test"),
  ("start here left stale", B, 'else f"{stamp}: {lines[0]}")', 'else stamp)', "start_here"),
+ ("run on while an add-on is missing", "src/origination_cube/launcher.py",
+  '"run": _on(ready)', '"run": "normal"', "set_up_and_run_wait"),
+ ("install ok on pip's word", "src/origination_cube/deps.py",
+  '    return not still, out', '    return rc == 0, out', "only_ok_when_the_check_after"),
+ ("first install unseen until restart", "src/origination_cube/deps.py",
+  '            site.addsitedir(user)', '            pass', "seen_without_a_restart"),
 ]
 bad = 0
 for name, f, old, new, sel in muts:

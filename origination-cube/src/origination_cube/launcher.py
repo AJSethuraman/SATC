@@ -13,7 +13,11 @@ workbook's Log tab. Anything that goes wrong inside is caught and shown as a
 sentence with where to look, never as a Python traceback.
 
 Tkinter ships with standard Python on Windows, so nothing extra is needed for
-the window itself.
+the window itself. The cube's add-ons (numpy, openpyxl, PyYAML) are checked
+first, without loading them (ruling OC-34): while any is missing, the window
+says which, offers Install now, and keeps Set up and Run switched off. So
+nothing at the top of this file may import them; `book` is imported inside
+the buttons that use it.
 """
 
 from __future__ import annotations
@@ -24,10 +28,17 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 import traceback
 from pathlib import Path
 
+from . import deps
+
 TITLE = "Origination Cube"
+START = ["1. Pick the extract.",
+         "2. Press Set up: this writes the workbook beside the extract.",
+         "3. In the workbook, fill in the shaded cells, save and close it.",
+         "4. Press Run the cube. The results land in the workbook."]
 PREFS = Path.home() / ".origination-cube" / "launcher.json"
 
 
@@ -37,14 +48,66 @@ def book_for(extract: str | Path) -> Path:
     return p.with_name(f"{p.stem} - Origination Cube.xlsx")
 
 
-def missing_addons() -> list[str]:
-    out = []
-    for mod, name in (("openpyxl", "openpyxl"), ("yaml", "PyYAML")):
-        try:
-            __import__(mod)
-        except ImportError:
-            out.append(name)
-    return out
+def _on(yes: bool) -> str:
+    return "normal" if yes else "disabled"
+
+
+def _names(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+
+
+class AddOns:
+    """What the window says and allows about the add-ons (OC-34), kept apart
+    from Tk so a test can drive it. Set up and Run stay off while anything the
+    cube needs is missing, and come on only when a fresh check finds it all."""
+
+    def __init__(self) -> None:
+        self.missing = deps.missing()
+        self.installing: list[str] = []
+        self.began = 0.0
+        self.said = ""              # what the installer said, when the last try didn't work
+        self.got: list[str] = []    # what the last install added
+
+    def states(self) -> dict[str, str]:
+        """Each button's state, by the name build() gives it."""
+        ready = not self.missing
+        return {"setup": _on(ready), "run": _on(ready), "open": "normal",
+                "install": _on(not ready and not self.installing)}
+
+    def headline(self) -> str:
+        """The one line above the buttons; empty once nothing is missing."""
+        if not self.missing:
+            return ""
+        if self.said and not self.installing:
+            return f"Couldn't install {_names(self.missing)} from here. Press Copy for IT and send them the note below."
+        return deps.message(self.missing)
+
+    def lines(self) -> list[str]:
+        """What the box underneath says."""
+        if self.installing:
+            took = int(time.monotonic() - self.began)
+            return [f"Installing {_names(self.installing)}... {took // 60}:{took % 60:02d} so far.",
+                    "This can take a few minutes. This box says when it's done."]
+        if not self.missing:
+            return ([f"Installed {_names(self.got)}. Everything the cube needs is here.", ""] if self.got else []) + START
+        if self.said:
+            tail = [ln.strip() for ln in self.said.splitlines() if ln.strip()][-6:]
+            return [deps.ask_it(self.missing), "", "What the installer said last:", *("    " + ln for ln in tail)]
+        them, theyre = ("it", "it's") if len(self.missing) == 1 else ("them", "they're")
+        return [f"Install now downloads {them} from the internet. It takes a minute or two.",
+                f"Set up and Run switch on once {theyre} in."]
+
+    def start(self) -> list[str]:
+        """Mark an install begun, and return the names to hand to deps.install."""
+        self.installing, self.began, self.said = list(self.missing), time.monotonic(), ""
+        return list(self.installing)
+
+    def finish(self, ok: bool, output: str) -> None:
+        """Take the install's answer, and look again for what is still missing."""
+        tried, self.installing = self.installing, []
+        self.missing = deps.missing()
+        self.got = [n for n in tried if n not in self.missing]
+        self.said = "" if not self.missing else (output.strip() or "The installer said nothing.")
 
 
 def do_set_up(extract: str) -> list[str]:
@@ -123,6 +186,16 @@ def build(root) -> dict:
     ttk.Label(frame, text=TITLE, font=("Segoe UI", 16, "bold")).grid(row=0, column=0, columnspan=3, sticky="w",
                                                                     pady=(0, 12))
 
+    # Row 1 is there only while an add-on is missing (OC-34): what, why, and Install now.
+    gate = AddOns()
+    fix = ttk.Frame(frame)
+    fix.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+    headline = ttk.Label(fix, font=("Segoe UI", 10, "bold"), wraplength=640, justify="left")
+    headline.pack(anchor="w")
+    fix.bind("<Configure>", lambda e: headline.configure(wraplength=max(200, e.width - 8)))
+    fix_row = ttk.Frame(fix)
+    fix_row.pack(anchor="w", pady=(8, 0))
+
     ttk.Label(frame, text="Extract:").grid(row=2, column=0, sticky="w")
     extract = tk.StringVar(value=_prefs().get("extract", ""))
     box = ttk.Entry(frame, textvariable=extract, width=60)
@@ -156,11 +229,29 @@ def build(root) -> dict:
         status.insert("end", "\n".join(lines))
         status.configure(state="disabled")
 
+    def apply() -> None:
+        """Buttons and row 1 as the add-ons stand. Every state comes from AddOns.states()."""
+        for name, state in gate.states().items():
+            widgets[name].configure(state=state)
+        headline.configure(text=gate.headline())
+        if gate.missing:
+            fix.grid()
+        else:
+            fix.grid_remove()
+        if gate.said and not gate.installing:
+            b_copy.pack(side="left", padx=(0, 8), before=b_close)
+            b_install.configure(text="Try again")
+        else:
+            b_copy.pack_forget()
+            b_install.configure(text="Install now")
+
     def busy(on: bool, what: str = "") -> None:
-        for b in (b_setup, b_run, b_open):
-            b.configure(state="disabled" if on else "normal")
         if on:
+            for b in (b_setup, b_run, b_open):
+                b.configure(state="disabled")
             show([f"{what}... this can take a minute on a large extract."])
+        else:
+            apply()
 
     def in_background(fn, what):
         # Tk may only be touched from the main thread (found by tools/shoot_launcher.py:
@@ -197,18 +288,43 @@ def build(root) -> dict:
     b_run.pack(side="left", padx=(0, 8))
     b_open.pack(side="left")
 
-    missing = missing_addons()
-    if missing:
-        show([f"This needs {', '.join(missing)} installed alongside Python before it can run.",
-              "Double-click 'Install add-ons.bat' in this folder once, then open this window again."])
-        b_setup.configure(state="disabled")
-        b_run.configure(state="disabled")
-    else:
-        show(["1. Pick the extract.",
-              "2. Press Set up: this writes the workbook beside the extract.",
-              "3. In the workbook, fill in the shaded cells, save and close it.",
-              "4. Press Run the cube. The results land in the workbook."])
-    return {"extract": extract, "setup": b_setup, "run": b_run, "open": b_open, "status": status}
+    def install() -> None:
+        # pip runs in a thread so the window keeps answering; the clock in the box shows it hasn't hung.
+        names = gate.start()
+        apply()
+        show(gate.lines())
+        done: queue.Queue = queue.Queue()
+        threading.Thread(target=lambda: done.put(deps.install(names)), daemon=True).start()
+
+        def poll():
+            try:
+                ok, said = done.get_nowait()
+            except queue.Empty:
+                show(gate.lines())
+                root.after(500, poll)
+                return
+            gate.finish(ok, said)
+            apply()
+            show(gate.lines())
+        root.after(500, poll)
+
+    def copy_for_it() -> None:
+        root.clipboard_clear()
+        root.clipboard_append(deps.ask_it(gate.missing))
+        b_copy.configure(text="Copied")
+        root.after(2000, lambda: b_copy.configure(text="Copy for IT"))
+
+    b_install = ttk.Button(fix_row, text="Install now", command=install)
+    b_copy = ttk.Button(fix_row, text="Copy for IT", command=copy_for_it)
+    b_close = ttk.Button(fix_row, text="Close", command=root.destroy)
+    b_install.pack(side="left", padx=(0, 8))
+    b_close.pack(side="left")
+
+    widgets = {"extract": extract, "setup": b_setup, "run": b_run, "open": b_open, "status": status,
+               "install": b_install, "copy": b_copy, "close": b_close, "headline": headline, "gate": gate}
+    apply()
+    show(gate.lines())
+    return widgets
 
 
 def main() -> None:

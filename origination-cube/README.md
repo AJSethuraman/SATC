@@ -33,8 +33,23 @@ run:
 
 ## Using it (no commands)
 
-One-time setup: install Python 3.10 or later from python.org, then double-click
-**`Install add-ons.bat`** in this folder (it adds openpyxl and PyYAML).
+One-time setup: install Python 3.10 or later from python.org. The cube also
+needs three add-ons for Python:
+- **numpy**, for the statistics
+- **openpyxl**, to read and write Excel files
+- **PyYAML**, for its settings files
+
+The window checks for them each time it opens. If any is missing, it says
+which and offers **Install now**. If the bank's network blocks the download,
+it gives you a note for IT, and **Copy for IT** copies it.
+
+To install them by hand, run this once in a Command Prompt (`py` is the
+Python starter that python.org installs). `Install add-ons.bat` in this folder
+runs the same thing:
+
+```
+py -m pip install --user --upgrade numpy openpyxl PyYAML
+```
 
 After that, the whole routine is:
 
@@ -114,8 +129,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 197 tests: one per finding, every Control answer applied, the workbook route, the split, the launcher
-python tools/mutation_check.py     # puts 66 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 215 tests: one per finding, every Control answer applied, the workbook route, the split, the launcher, the add-on check (the one that opens the window skips without a display)
+python tools/mutation_check.py     # puts 69 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

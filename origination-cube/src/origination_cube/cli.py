@@ -19,9 +19,16 @@ import argparse
 import sys
 import time
 
-from . import config as cfgmod
-from . import engine, synth
-from .ingest import inspect_columns, read_table
+from . import deps
+
+try:
+    from . import config as cfgmod
+    from . import engine, synth
+    from .ingest import inspect_columns, read_table
+except ImportError:
+    # An add-on is missing (OC-34): main() says which and how to get it, instead of a traceback here.
+    if not deps.missing():
+        raise
 
 
 def _pct(v):
@@ -167,6 +174,11 @@ def report(res: engine.Result, top: int = 5) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    gone = deps.missing()
+    if gone:
+        print(deps.message(gone), file=sys.stderr)
+        print(f"Install {'it' if len(gone) == 1 else 'them'} with:\n  {deps.command_text(gone)}", file=sys.stderr)
+        return 2
     p = argparse.ArgumentParser(prog="cube", description="Origination cube: where does the book bleed?")
     sub = p.add_subparsers(dest="cmd", required=True)
     pi = sub.add_parser("inspect")
