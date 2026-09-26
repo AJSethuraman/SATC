@@ -71,18 +71,24 @@ class Shape:
     exact: str = "#,##0"                        # the most-repeated values' format
 
 
-def number_columns(table, cols, few_values: int = 12) -> list[str]:
+def number_columns(table, cols, few_values: int = 12, known: dict | None = None) -> list[str]:
     """The columns that get a block, from Set up's profile.classify reading
     (`cols`): numbers to cut into bands, and numbers it asks about because every
     loan's differs (a balance with cents does). A 0/1 flag, a four-value class,
-    a fixed-width loan number or a date has no edges to choose."""
+    a fixed-width loan number or a date has no edges to choose. `known`: Set
+    up's facts by column, whose numbers are used rather than read again."""
     out = []
+    known = known or {}
     for c in cols:
         if c.role == "question":
-            vals = [parse_number(r.get(c.name)) for r in table.rows if not is_blank(r.get(c.name))]
-            nums = {v for v in vals if not isinstance(v, Bad)}
-            if not vals or len(nums) <= few_values or \
-                    sum(not isinstance(v, Bad) for v in vals) < profile.NUMERIC_SHARE * len(vals):
+            f = known.get(c.name)
+            if f is not None:
+                count, nums, numbers = f.nonblank, set(f.numbers), len(f.numbers)
+            else:
+                vals = [parse_number(r.get(c.name)) for r in table.rows if not is_blank(r.get(c.name))]
+                count, nums = len(vals), {v for v in vals if not isinstance(v, Bad)}
+                numbers = sum(not isinstance(v, Bad) for v in vals)
+            if not count or len(nums) <= few_values or numbers < profile.NUMERIC_SHARE * count:
                 continue
         elif c.role != "band":
             continue
@@ -90,18 +96,23 @@ def number_columns(table, cols, few_values: int = 12) -> list[str]:
     return out
 
 
-def shape_of(table, col: str) -> Shape:
-    nums, blank, text = [], 0, 0
-    for r in table.rows:
-        v = r.get(col)
-        if is_blank(v):
-            blank += 1
-            continue
-        p = parse_number(v)
-        if isinstance(p, Bad):
-            text += 1
-        else:
-            nums.append(p)
+def shape_of(table, col: str, known=None) -> Shape:
+    """`known`: the column's facts from Set up, whose numbers are used rather
+    than read again."""
+    if known is not None:
+        nums, blank, text = list(known.numbers), known.rows - known.nonblank, known.nonblank - len(known.numbers)
+    else:
+        nums, blank, text = [], 0, 0
+        for r in table.rows:
+            v = r.get(col)
+            if is_blank(v):
+                blank += 1
+                continue
+            p = parse_number(v)
+            if isinstance(p, Bad):
+                text += 1
+            else:
+                nums.append(p)
     code = next((q["value"] for q in profile.odd_values(col, nums) if q["pattern"] == "repeated_value"), None)
     values = sorted(x for x in nums if x != code)
     counts = Counter(nums)
@@ -187,10 +198,11 @@ def _plain(x: float) -> str:
 # The tab
 
 
-def write_look(wb, table, columns, split: str | None = None, bands=()) -> None:
+def write_look(wb, table, columns, split: str | None = None, bands=(), known: dict | None = None) -> None:
     """Write (or write again) the Look tab and its hidden chart data. `columns`
     are the number columns to show, `split` the column that splits the pockets
-    (after a Run), and `bands` the band columns it is plotted against."""
+    (after a Run), and `bands` the band columns it is plotted against. `known`
+    is Set up's facts by column, so no column's numbers are read twice."""
     at = wb.sheetnames.index(LOOK) if LOOK in wb.sheetnames else (
         wb.sheetnames.index(AFTER) + 1 if AFTER in wb.sheetnames else None)
     for t in (LOOK, DATA):
@@ -205,7 +217,8 @@ def write_look(wb, table, columns, split: str | None = None, bands=()) -> None:
         hs.cell(row=1, column=i, value=c)
 
     _title(ws)
-    shapes = {c: shape_of(table, c) for c in columns}
+    known = known or {}
+    shapes = {c: shape_of(table, c, known.get(c)) for c in columns}
     r = FIRST
     for i, c in enumerate(columns):
         if i and i % PAGE_BLOCKS == 0:

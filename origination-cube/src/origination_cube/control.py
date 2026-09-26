@@ -28,7 +28,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
+import functools
 import math
+import threading
 from typing import Any
 
 import yaml
@@ -101,8 +103,37 @@ DERIVED_NOTE = ("Name a new column and pick the two columns it divides. Press Se
                 "Columns and Look like any number column. Where the bottom is zero or blank, it is blank.")
 
 
+_ONCE = threading.local()
+
+
+def settings_once(fn):
+    """Read settings.yaml once for the whole of `fn` (book.set_up, book.run).
+    Found 26 Sep 2026: one Run parsed it up to 45 times, once inside a loop over
+    Control's rows. The copy is dropped when `fn` is entered and when it returns,
+    so an edit to the file between two presses of the button is always read."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        outer = getattr(_ONCE, "cache", None)
+        _ONCE.cache = {}
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            _ONCE.cache = outer if outer is None else {}
+    return wrapper
+
+
 def load_settings(path: str | Path | None = None) -> list[Setting]:
-    text = (Path(path).read_text(encoding="utf-8") if path
+    cache = getattr(_ONCE, "cache", None)
+    if cache is None:
+        return _read_settings(path)
+    key = str(path) if path else None
+    if key not in cache:
+        cache[key] = _read_settings(path)
+    return list(cache[key])
+
+
+def _read_settings(path: str | Path | None = None) -> list[Setting]:
+    text =(Path(path).read_text(encoding="utf-8") if path
             else resources.files("origination_cube").joinpath("settings.yaml").read_text(encoding="utf-8"))
     raw = yaml.safe_load(text)
     out = []

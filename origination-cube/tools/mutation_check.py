@@ -21,6 +21,7 @@ L="src/origination_cube/live.py"
 S="src/origination_cube/stats.py"; P="src/origination_cube/perm.py"
 K="src/origination_cube/checks.py"; CF="src/origination_cube/confirmatory.py"; PV="src/origination_cube/prevalence.py"
 KG="src/origination_cube/kgroups.py"; CT="src/origination_cube/confirm_tab.py"; LA="src/origination_cube/launcher.py"
+I="src/origination_cube/ingest.py"; LK="src/origination_cube/look.py"; CO="src/origination_cube/control.py"
 muts = [
  ("1 blank->zero",       E, 'if p is BLANK:\n        return None, "blank"', 'if p is BLANK:\n        return 0.0, None', "test_finding_1"),
  ("2 empty->index 0",    E, 'if rate is None or base is None or base == 0:', 'if base is None or base == 0:\n        return None\n    if rate is None:\n        rate = 0.0\n    if False:', "test_finding_2"),
@@ -538,6 +539,31 @@ muts = [
  ("Losses vs revenue written with nothing to show", B,
   '    if res.config.benchmark is None or {"gco_rate", "ranr_rate", "contribution_rate"} <= have:',
   '    if True:', "needs_no_booked_amount or no_dollar_columns"),
+ # 26 Sep 2026: Set up does each piece of reading once (tests/test_set_up_once.py)
+ ("date gate: no space-padded day", I, r'_N = r" ?\d{1,2}"', r'_N = r"\d{1,2}"',
+  "turn_away_nothing or space_padded"),
+ ("date gate: %Y%m%d eight digits only", I, r'"%Y%m%d": r"\d{4}\d{1,2} ?\d{1,2}",', r'"%Y%m%d": r"\d{6,8}",',
+  "turn_away_nothing or space_padded"),
+ ("date gate: case matters", I, "re.compile(rx, re.IGNORECASE | re.DOTALL)", "re.compile(rx, re.DOTALL)",
+  "turn_away_nothing or space_padded"),
+ ("date gate: one space only", I, r'"%b %d, %Y": rf".+\s+{_N},\s+\d{{4}}",', r'"%b %d, %Y": rf".+ {_N}, \d{{4}}",',
+  "turn_away_nothing or space_padded"),
+ ("date gate never asked", I, "            if gate(s) is None:", "            if False:", "never_reach_strptime"),
+ ("date gate backwards", I, "            if gate(s) is None:", "            if gate(s) is not None:",
+  "counts_exactly_what_strptime"),
+ ("set up classifies from scratch", B, "    cols = profile.classify(table, few, many, facts_of)",
+  "    cols = profile.classify(table, few, many)", "facts_once"),
+ ("review works the facts out again", "src/origination_cube/meanings.py",
+  "    fs = facts_of(table, known)\n    out: list[Review] = []",
+  "    fs = {c: facts(table, c) for c in table.columns}\n    out: list[Review] = []", "facts_once"),
+ ("Look reads the numbers again", LK, "    shapes = {c: shape_of(table, c, known.get(c)) for c in columns}",
+  "    shapes = {c: shape_of(table, c) for c in columns}", "no_number_set_up"),
+ ("handed-down blanks not counted", LK, "known.rows - known.nonblank, known.nonblank - len(known.numbers)",
+  "0, known.nonblank - len(known.numbers)", "same_answers"),
+ ("settings read on every call", CO, "    if key not in cache:\n        cache[key] = _read_settings(path)",
+  "    if True:\n        cache[key] = _read_settings(path)", "settings_yaml_once"),
+ ("settings kept after the run", CO, "            _ONCE.cache = outer if outer is None else {}", "            pass",
+  "between_two_runs"),
 ]
 def main() -> int:
     bad = 0
