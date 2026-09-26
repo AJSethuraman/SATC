@@ -202,7 +202,9 @@ def test_nothing_comes_back_for_nothing():
 #: 13 at five, 25 at three. Recorded because the first four questions tried by
 #: hand were all fine, and a check built on those would have shipped a guard
 #: that never fires while reading as though it did.
-EXAMPLES_ONLY = 6
+# THREE SINCE 26 SEPTEMBER 2026, down from six: admitting §§ 1.6001-1, 1.164-1,
+# 1.461-1, 1.263(a)-4 and 1.163-8T gave three of those questions a rule to reach.
+EXAMPLES_ONLY = 3
 ASKED = 113
 
 

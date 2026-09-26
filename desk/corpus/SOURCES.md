@@ -434,3 +434,63 @@ So a position may rest on the firm rather than on a paragraph. It still needs a 
 **Every position under this row carries a caveat saying so**, and says whether anybody has read it against what is on file — the firm's two conditions, which are `Kind:` and `Reviewed:` on the position itself.
 
 ---
+
+## S35 · Treasury Regulation § 1.6001-1 — Records
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-26
+
+**Citation prefix:** 26 CFR 1.6001-1
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.6001-1
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Every taxpayer's duty to keep records sufficient to establish income and deductions, and to keep them as long as they may become material. Three Sarcia pilot 3 refusals traced back to its absence: without it, questions about a commingled account, unlabelled deposits and missing statements could only land on Pub. 583, which is guidance. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds.
+
+---
+
+## S36 · Treasury Regulation § 1.164-1 — Deduction for taxes
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-26
+
+**Citation prefix:** 26 CFR 1.164-1
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.164-1
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Which taxes are deductible, and -- in the flush paragraph after (a)(5), which a reader of <P> elements alone never saw -- that other state and local taxes paid in carrying on a trade or business are deductible too. Named by the Sarcia pilot 3 refusal on payments to a town and a state motor-vehicle registry. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds.
+
+---
+
+## S37 · Treasury Regulation § 1.461-1 — General rule for taxable year of deduction
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-26
+
+**Citation prefix:** 26 CFR 1.461-1
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.461-1
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. When a deduction is taken: under the cash method, in the year paid, subject to the capitalization rules; under an accrual method, when all events have occurred. Named by the Sarcia pilot 3 refusal on an annual subscription paid in one month. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds. ITS WORKED EXAMPLES ARE NOT STORED, deliberately: `tools/extract_ecfr.py` could not place them under the paragraphs that announce them (§ 1.163-8T filed all eleven of paragraph (c)'s under (c)(2)(iii)), and an example cited to the wrong rule is worse than none. The rules are complete.
+
+---
+
+## S38 · Treasury Regulation § 1.263(a)-4 — Amounts paid to acquire or create intangibles
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-26
+
+**Citation prefix:** 26 CFR 1.263(a)-4
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.263(a)-4
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Which payments for intangibles and prepaid benefits must be capitalized, and the 12-month rule in (f) that lets a payment for a benefit lasting no more than twelve months, and not past the end of the next year, be deducted. Named by the Sarcia pilot 3 refusal on a twelve-month subscription. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds. ITS WORKED EXAMPLES ARE NOT STORED, deliberately: `tools/extract_ecfr.py` could not place them under the paragraphs that announce them (§ 1.163-8T filed all eleven of paragraph (c)'s under (c)(2)(iii)), and an example cited to the wrong rule is worse than none. The rules are complete.
+
+---
+
+## S39 · Treasury Regulation § 1.163-8T — Allocation of interest expense among expenditures
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-26
+
+**Citation prefix:** 26 CFR 1.163-8T
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.163-8T
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Interest follows what the borrowed money was spent on. A card used for both business purchases and personal ones carries interest that is allocated by that tracing, not by the account's name. Named by the Sarcia pilot 3 refusal on interest charged on a mixed-use card. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds. ITS WORKED EXAMPLES ARE NOT STORED, deliberately: `tools/extract_ecfr.py` could not place them under the paragraphs that announce them (§ 1.163-8T filed all eleven of paragraph (c)'s under (c)(2)(iii)), and an example cited to the wrong rule is worse than none. The rules are complete.
+
+---

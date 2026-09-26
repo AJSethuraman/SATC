@@ -140,17 +140,22 @@ def test_the_hyphen_did_not_change_how_many_citations_find_themselves(corpus):
     # check. Measured both ways on the day: 683 of 777 whole, 98 of 111 sampled.
     withdig = sorted((h for h in corpus if any(x.isdigit() for x in h.citation)),
                      key=lambda h: h.citation)
-    assert len(withdig) == 777, (
-        f"the corpus holds {len(withdig)} digit-bearing citations, not 777 — "
+    # RE-MEASURED 26 SEPTEMBER 2026, when five sections were admitted after
+    # Sarcia pilot 3: 1159 digit-bearing citations, 1056 missing themselves
+    # whole (1053 parenthesised), 151 of the 166 sampled. The rate moved from
+    # 88% to 91% because the new paragraphs are deep sub-paragraphs -- more
+    # single-letter siblings -- which is the recorded cause, not a new one.
+    assert len(withdig) == 1159, (
+        f"the corpus holds {len(withdig)} digit-bearing citations, not 1159 — "
         f"the denominator moved, so re-measure before trusting the figure below")
     sample = withdig[::7]
-    assert len(sample) == 111
+    assert len(sample) == 166
     missed = [h.citation for h in sample
               if h.citation not in
               [f.held.citation for f in pool.look(h.citation, corpus, limit=5)]]
-    assert len(missed) <= 98, (
-        f"{len(missed)} of 111 sampled citations cannot find themselves in "
-        f"their own top five, up from 98. A tokeniser change has made "
+    assert len(missed) <= 151, (
+        f"{len(missed)} of 166 sampled citations cannot find themselves in "
+        f"their own top five, up from 151. A tokeniser change has made "
         f"retrieval worse.")
     parens = [m for m in missed if "(" in m]
     assert len(parens) >= len(missed) - 2, (

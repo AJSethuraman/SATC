@@ -115,9 +115,13 @@ def test_neither_shape_fits_the_window_any_more_and_the_size_is_pinned():
     # Up 30 on 10 September 2026: `dec-pos2` added the firm's own standing
     # policy as a source row, and the index a graded prompt shows lists every
     # source the record holds.
-    assert biggest == {"index": 25652, "text": 91096}, (
+    # Up to 38,234 / 132,100 on 26 September 2026: five sections admitted after
+    # Sarcia pilot 3 add 382 rule paragraphs, and the graded prompt lists them.
+    # And +1 / +4 after Codex on #398: two passages carry a `[...]` gap mark.
+    # And +355 text: four flush paragraphs owed to sections already on file.
+    assert biggest == {"index": 38235, "text": 132459}, (
         f"the graded prompt changed size: {biggest}, and this file says "
-        f"{{'index': 25652, 'text': 91096}}. That is allowed — it is what "
+        f"{{'index': 38235, 'text': 132459}}. That is allowed — it is what "
         f"storing authority does — but it is quoted in docs/CONTEXT-ON-FILE.md "
         f"and must move deliberately.")
     assert biggest["index"] > room, (
@@ -389,8 +393,21 @@ NARROWED = {
     # prints no example, so there is nothing there to label.
     "is a brewery tab a business meal?": 2_750,
     "what supporting documents does the client have to keep?": 7_122,
-    "hand tools bought for the trade - deducted or capitalized?": 3_493,
-    "mileage or actual expenses for the van?": 2_420,
+    #
+    # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
+    # are both visible in the diff. Every position a brief carries now prints
+    # the words it rests on (`Rests on:`), so the van brief gains POS16's one
+    # line and nothing else (+43). The hand-tools brief gains POS7's one line
+    # (+57), checked by diffing the brief. Nothing else in either brief moved.
+    # AND AGAIN THE SAME DAY (+18): the admitted § 1.461-1 put its (c)(3)(ii)(f)
+    # into this brief in place of a § 1.263(a)-3(k)(1)(i) passage, with S37 in
+    # the sources list. Retrieval moving, checked by diffing the brief.
+    # AND +445 AFTER CODEX ON #398: a narrowed brief now keeps the paragraph
+    # each kept position rests on, so POS7 brings § 1.274-11(b)(1)(ii) with it.
+    # That is the fix working -- without it the second reader was handed the
+    # wrong paragraph.
+    "hand tools bought for the trade - deducted or capitalized?": 4_013,
+    "mileage or actual expenses for the van?": 2_463,
 }
 
 #: The whole corpus, unnarrowed, in tokens: `(rules only, with examples)`.
@@ -408,7 +425,17 @@ NARROWED = {
 # the rules side: `dec-examples` labels every worked example, and this figure
 # prints all 260 of them. The rules-only figure is unchanged to the token, which
 # is the check that the label went on examples and nowhere else.
-WHOLE = (91_807, 206_113)
+# +1,371 on BOTH sides on 26 September 2026, equal to the token, which says it
+# is all position text and no example: sixteen `Rests on:` quotations, the
+# notes on POS7 and POS8, and three positions unpinned to firm policy with the
+# note saying why (Sarcia pilot 3).
+# +41,201 on both sides the same day: 382 rule paragraphs of §§ 1.6001-1,
+# 1.164-1, 1.461-1, 1.263(a)-4 and 1.163-8T, and no example -- theirs are not
+# stored (S37-S39 say why), which is why the two sides moved equally.
+# And +3 / +4 after Codex on #398: two passages joined across a gap now mark it.
+# And +355 on both sides: the four flush paragraphs the old reader dropped from
+# § 1.274-5T, § 1.280F-6 and § 1.62-2, now on their parents.
+WHOLE = (134_737, 249_043)
 
 
 def _answering_sizes():

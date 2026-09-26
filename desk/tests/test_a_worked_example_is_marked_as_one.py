@@ -48,7 +48,7 @@ _HAS_SOURCES = [d for d in [CORPUS] if (d / "SOURCES.md").is_file()]
 #: passage text opens "Example." because the IRS wrote it that way.
 _OPENS = re.compile(r"^Examples?[.\s]")
 _LEADIN = re.compile(r"(following examples? (illustrate|illustrates)|"
-                     r"illustrated in the following examples)", re.I)
+                     r"illustrated (in|by) the following examples?)", re.I)
 
 _BLOCK = ("## C 1\n\n**Source:** S1 · **Checked:** 2026-09-04{kind}\n\n"
           "> Example. A buys a widget. A must capitalize it.\n")
@@ -177,7 +177,13 @@ def test_a_lead_in_is_a_rule_and_not_an_example():
     this paragraph (c)". That sentence is rule text. What follows it is not
     stored at all, which is the gap this whole change is about."""
     leadins = [(d, p) for d, p in _kinds() if _LEADIN.search(p.text[:220])]
-    assert len(leadins) == 12, f"{len(leadins)} lead-ins, not 12"
+    # THIRTY-SEVEN SINCE 26 SEPTEMBER 2026: twelve, plus the twenty-five the
+    # three sections admitted after Sarcia pilot 3 carry (§ 1.263(a)-4 14,
+    # § 1.163-8T 8, § 1.461-1 3). Their examples are NOT stored -- see S37-S39
+    # -- and this pattern now also reads "illustrated by the following
+    # examples", the way those sections write it. Widened and re-measured: it
+    # took in no passage already on file.
+    assert len(leadins) == 37, f"{len(leadins)} lead-ins, not 37"
     for d, p in leadins:
         assert p.kind == record.RULE, (
             f"{d} · {p.citation} announces examples and is marked as one. A "
@@ -345,7 +351,9 @@ def test_that_index_still_carries_the_rules():
     # reply is scored against, and `ask.consult` narrows to eight before
     # anything is shown. What is scored and what is shown are now two different
     # sizes, which was not true when a desk was the unit.
-    assert set(index) == rules and len(index) == 525, len(index)
+    # 907 SINCE 26 SEPTEMBER 2026: 525 plus the 382 rule paragraphs of the five
+    # sections admitted after Sarcia pilot 3.
+    assert set(index) == rules and len(index) == 907, len(index)
 
 
 # ── an example must hang off the paragraph that announces it ─────────────────

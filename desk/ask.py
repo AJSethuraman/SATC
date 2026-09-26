@@ -150,8 +150,8 @@ def nothing_on_file(question: str, corpus: Path = CORPUS, *, looked=None) -> str
     do with it? we bought a forklift" reaches nothing, while the same
     transaction as "is the invoice price deducted or capitalized?" reaches eight
     passages including the firm's own $2,500 threshold. The cause is two words —
-    `bought` and `forklift` appear in none of the 785 stored passages, while
-    `purchase` appears in 85. Told only that nothing was found, a doer concludes
+    `bought` and `forklift` appear in none of the 1167 stored passages, while
+    `purchase` appears in 93. Told only that nothing was found, a doer concludes
     the firm holds no authority on forklifts. They hold it under other words.
 
     THE LIST IS EXHAUSTIVE AND THAT IS NOT A COINCIDENCE — it is every
@@ -695,6 +695,14 @@ def brief(question: str, desk: record.Desk,
                 "your own words in `working`, never in `position`.", ""]
         for q in ratified:
             out += [f"### {q.citation}", "", f"> {q.position}", ""]
+            # THE WORDS IT RESTS ON, where the second reader will look for them.
+            # Sarcia pilot 3: second readers refused 7 of 9 attempts, four on
+            # positions whose own paragraph did not carry them. A reader told
+            # which words, and which paragraph, reads the right one.
+            if getattr(q, "rests_on", ()):
+                out += ["Rests on: " + "; ".join(
+                    (f'{c} — "{w}"' if c != q.citation else f'"{w}"')
+                    for c, w in q.rests_on), ""]
             # A POLICY SAYS WHAT IT IS WHERE IT IS READ. `dec-pos2`, the firm's
             # first condition: *"I want this to be clearly marked as they may
             # need to be reviewed/changed at some point."* `engine.serve` puts
