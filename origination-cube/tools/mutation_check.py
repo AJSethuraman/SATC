@@ -662,5 +662,19 @@ def main() -> int:
     return bad
 
 
+def shard(items: list, arg: str | None) -> list:
+    """`k/n` keeps every n-th bug starting at the k-th (k counted from 0), so n CI jobs
+    together put back every bug exactly once and each finishes well inside a job's time limit."""
+    if not arg:
+        return items
+    k, n = (int(x) for x in arg.split("/"))
+    if not 0 <= k < n:
+        raise SystemExit(f"--shard {arg}: the first number must be 0 to {n - 1}")
+    return items[k::n]
+
+
 if __name__ == "__main__":
+    if "--shard" in sys.argv:
+        muts = shard(muts, sys.argv[sys.argv.index("--shard") + 1])
+        print(f"putting back {len(muts)} of the bugs (shard {sys.argv[sys.argv.index('--shard') + 1]})")
     sys.exit(main())

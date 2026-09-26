@@ -62,3 +62,13 @@ def test_every_planted_bug_still_finds_the_line_it_plants_into(monkeypatch):
     stranded = [n for n, f, old, _new, _sel in tool.muts if Path(f).read_text().count(old) != 1]
     assert stranded == []
     assert len({n for n, *_ in tool.muts}) > 150
+
+
+def test_the_ci_shards_put_back_every_bug_exactly_once():
+    """CI splits the planted bugs over four jobs so none runs into GitHub's time limit; together they
+    must still put every bug back, and none twice."""
+    tool = _tool()
+    names = [m[0] for m in tool.muts]
+    got = [m[0] for k in range(4) for m in tool.shard(tool.muts, f"{k}/4")]
+    assert sorted(got) == sorted(names) and len(got) == len(names)
+    assert tool.shard(tool.muts, None) == tool.muts
