@@ -66,3 +66,20 @@ def book():
 def _memory_in_tmp(tmp_path, monkeypatch):
     """No test may read or write the real ~/.origination-cube memory."""
     monkeypatch.setenv("CUBE_MEMORY", str(tmp_path / "memory.yaml"))
+
+
+#: The shuffle count a cube file gets when it doesn't name one, for tests that aren't about the
+#: shuffle test: 2,000 instead of the production 10,000, so the suite stays quick. 2,000 still lets a
+#: p-value print as small as 0.0005, small enough to clear the allowance for many tests in a grid of 60
+#: pockets. Tests about the shuffle test set their own count, and
+#: test_perm.test_the_production_default_runs_end_to_end runs the real 10,000 through the workbook.
+TEST_SHUFFLES = 2_000
+from origination_cube import perm as _perm                                       # noqa: E402
+
+#: what a cube file with no `shuffles:` line runs with outside the tests, read before any test changes it
+PRODUCTION_SHUFFLES = _perm.SHUFFLES
+
+
+@pytest.fixture(autouse=True)
+def _fewer_shuffles(monkeypatch):
+    monkeypatch.setattr(_perm, "SHUFFLES", TEST_SHUFFLES)

@@ -51,7 +51,7 @@ measures:                  # extras; the core rates are built from the lines abo
   - {name: fico_median, mode: median, value: FICO}
 min_age_months: 0          # every loan (the synthetic book has no dates)
 benchmark:
-  min_units: 30            # below this a pocket is shown but not tested
+  min_units: 30            # below this the outcome's share of loans gets the exact test
   min_events: 10           # a loss rate on fewer losses than this is not tested
   worse_at: 1.25
   better_at: 0.8

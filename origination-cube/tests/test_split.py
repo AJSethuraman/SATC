@@ -136,3 +136,37 @@ def test_the_split_luck_figures_carry_the_allowance(planted):
     assert tested
     for k in tested:
         assert held[k]["outcome_loans"][1] == pytest.approx(min(1.0, plain[k]["outcome_loans"][1] * len(tested)))
+
+
+def test_statistics_md_a5_to_a8_through_the_split():
+    """statistics.md's two pockets, run through the engine's split: pocket A,
+    high half 8 bad of 100 and low half 4 of 100; pocket B, 20 of 200 and 12 of
+    200. A7: actual against expected with the low half's rate is 28 / 16 = 1.75
+    (the pooled rate would give 28 / 22 = 1.27). A5: odds 1.829. A6: CMH with no
+    continuity correction, p 0.060, now shown beside the odds. A8: p 0.81."""
+    from conftest import cube, row, table
+    rows, i = [], 0
+    for chan, n, high_bad, low_bad in (("A", 200, 8, 4), ("B", 400, 20, 12)):
+        for k in range(1, n + 1):                        # DEBT 1..n: the high half is above the median
+            high = k > n // 2
+            bad = (k - n // 2 <= high_bad) if high else (k <= low_bad)
+            r = row(i, 600, chan, 100, int(bad), 50 if bad else 0, 10)
+            r["DEBT"] = k
+            rows.append(r)
+            i += 1
+    bench = {"min_units": 2, "min_events": 1, "worse_at": 1.25, "better_at": 0.8, "confidence": 0.95,
+             "power": 0.8, "compare_to": "peers", "many_tests": "none", "materiality": "none"}
+    res = engine.run(cube(split={"field": "DEBT", "how": "own_median"}, benchmark=bench), table(rows))
+    g = res.grids[0]
+    pooled = g.split_pooled["outcome_loans"]
+    assert pooled["pockets"] == 2 and pooled["ratio"] == pytest.approx(28 / 16) and round(pooled["ratio"], 2) == 1.75
+    assert round(pooled["odds"], 3) == 1.829
+    assert round(pooled["odds_p"], 3) == 0.060
+    assert round(pooled["steady_p"], 2) == 0.81
+    # each pocket's halves by A1, pooled
+    idx, p, nh, nl = g.split_compare[("600 - 649", "A")]["outcome_loans"]
+    assert (nh, nl) == (100, 100) and idx == pytest.approx(2.0)
+    assert p == pytest.approx(stats.two_prop_z(8, 100, 4, 100)[1], rel=1e-12)
+    # a dollar rate's split test is the within-pocket shuffle (B2)
+    gco = g.split_pooled["gco_rate"]
+    assert gco["shuffles"] == 2_000 and 0 < gco["ratio_p"] <= 1 and gco["ratio_p"] == (gco["ratio_hits"] + 1) / 2_001

@@ -114,8 +114,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 197 tests: one per finding, every Control answer applied, the workbook route, the split, the launcher
-python tools/mutation_check.py     # puts 66 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 227 tests: one per finding, every Control answer applied, the workbook route, the split, the launcher, every worked example in docs/statistics.md
+python tools/mutation_check.py     # puts 75 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):
@@ -127,3 +127,9 @@ python tools/mutation_check.py     # puts 66 bugs back (the VBA's and today's ru
 - By extrapolation, not measured: a million loans through 25 grids would take
   about a minute and a half. numpy would cut that to seconds, if the machine at
   the bank has it.
+- The shuffle test for the dollar rates (numpy, 10,000 shuffles; 26 Sep 2026)
+  is on top of that, and grows with the loans: the 8,000-loan synthetic book's
+  6 grids went from 0.3 s to 6.5 s in the engine (a whole Run, 2.9 s to 7.9 s),
+  and at 40,000 loans from 1.4 s to 33 s. Each shuffle is one pass over the
+  loans per dollar rate, for the rest of the book and once per band column, so
+  by extrapolation, not measured, 200,000 loans would take about 3 minutes.

@@ -23,6 +23,9 @@ from typing import Any
 
 import yaml
 
+from . import perm
+from .perm import SHUFFLES
+
 SCHEMA_VERSION = 1
 #: The marker a person must replace. A file still carrying one is refused,
 #: naming each (the VBA's "undecided REVIEW row stops the run", finding 3).
@@ -57,10 +60,12 @@ CORE_NAMES = ("outcome_loans", "outcome_booked", "gco_rate", "ranr_rate")
 MISSING_KEYS = {"below", "above", "values"}
 BENCHMARK_KEYS = ("min_units", "min_events", "worse_at", "better_at", "confidence", "power", "compare_to",
                   "many_tests", "materiality")
-# Optional: only the Losses vs revenue tab reads it, to say when revenue counts as
-# more or less than its comparison (ruling OC-26). Absent, that tab uses worse_at
-# and better_at, and says so.
-BENCHMARK_OPTIONAL = ("revenue_line",)
+# Optional. revenue_line: when revenue counts as more or less than its comparison
+# (ruling OC-26), on every tab; absent, the loss lines are used, and the tabs say so.
+# shuffles: how many times the shuffle test deals out the pocket labels for a dollar
+# rate (docs/statistics.md B2); absent, perm.SHUFFLES (10,000). It changes no reading
+# a person chooses, only how finely a p-value can print (1 in B + 1 at the smallest).
+BENCHMARK_OPTIONAL = ("revenue_line", "shuffles")
 REVENUE_LINES = ("luck", "losses")
 COMPARE_TO = ("peers", "topline")
 MANY_TESTS = ("none", "bh", "bonferroni")
@@ -193,7 +198,7 @@ class Measure:
 class Benchmark:
     """Every call that decides what a pocket's word is. All required, none
     defaulted: the Control tab or the person writes each one."""
-    min_units: int                   # below this a pocket is shown but not tested
+    min_units: int                   # below this the outcome's share of loans gets the exact test, not the z test
     min_events: int                  # a loss rate resting on fewer losses than this is not tested
     worse_at: float
     better_at: float
@@ -203,6 +208,7 @@ class Benchmark:
     many_tests: str                  # none | bh | bonferroni
     materiality: tuple               # ("share", 0.01) | ("dollars", 250000.0) | ("none", 0.0)
     revenue_line: Any = None         # None | "luck" | "losses" | a share such as 0.1 (RANR on every tab)
+    shuffles: int = SHUFFLES         # the shuffle test's B (docs/statistics.md B2); 0 runs no shuffle test
 
 
 @dataclass(frozen=True)
@@ -443,7 +449,7 @@ def _missing_line(k: str) -> str:
         "schema_version": f"schema_version: {SCHEMA_VERSION}",
         "bands": "bands:\n  - {name: score_band, field: SCORE_COLUMN, edges: [620, 680, 740]}",
         "dimensions": "dimensions:\n  - {name: channel, field: CHANNEL_COLUMN}",
-        "benchmark": ("benchmark:\n  min_units: 30          # below this a pocket is shown but not tested\n"
+        "benchmark": ("benchmark:\n  min_units: 30          # below this the exact test runs instead of the z test\n"
                       "  min_events: 10         # a loss rate on fewer losses than this is not tested\n"
                       "  worse_at: 1.25         # this many times worse counts as worse\n"
                       "  better_at: 0.8         # this many times better counts as better\n"
@@ -641,6 +647,10 @@ def _parse_benchmark(node: Any, problems: list[str]) -> Benchmark | None:
     if rl is not None and rl not in REVENUE_LINES and not (_num(rl) and 0 < rl < 1):
         problems.append(f"benchmark.revenue_line must be luck, losses, or a share such as 0.1; got {rl!r}")
         ok = False
+    sh = node.get("shuffles", perm.SHUFFLES)
+    if not isinstance(sh, int) or isinstance(sh, bool) or not 100 <= sh <= 1_000_000:
+        problems.append(f"benchmark.shuffles must be a whole number from 100 to 1,000,000; got {sh!r}")
+        ok = False
     if ok and better >= worse:
         problems.append(f"benchmark.better_at ({better}) must be below worse_at ({worse})")
         ok = False
@@ -650,7 +660,7 @@ def _parse_benchmark(node: Any, problems: list[str]) -> Benchmark | None:
     return (Benchmark(min_units=mu, min_events=me, worse_at=float(worse), better_at=float(better),
                       confidence=float(conf), power=float(power), compare_to=node["compare_to"],
                       many_tests=node["many_tests"], materiality=mat,
-                      revenue_line=float(rl) if _num(rl) else rl) if ok else None)
+                      revenue_line=float(rl) if _num(rl) else rl, shuffles=sh) if ok else None)
 
 
 def _parse_materiality(v: Any):

@@ -29,7 +29,7 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import stats
+from . import perm, stats
 from .config import EACH_LOAN, Band, Config, Dimension, Measure, MissingRule
 from .ingest import BLANK, Bad, Table, cell_text, is_blank, parse_number
 
@@ -44,6 +44,15 @@ WORSE, BETTER, IN_LINE = "worse", "better", "in line"
 UNSURE_WORSE, UNSURE_BETTER = "worse, but could be luck", "better, but could be luck"
 THIN, FEW = "too few loans to test", "too few losses to test"
 UNSURE = UNSURE_WORSE
+# the test behind a pocket's p-value (RateStat.test), in the words the workbook uses
+Z_TEST, EXACT_TEST, SHUFFLE_TEST = "z", "exact", "shuffle"
+
+
+def yes_no(m: Measure) -> bool:
+    """A yes/no per loan (the share of loans): tested as a proportion, by A1 or
+    B1. Every other rate - its bottom is dollars, or its top isn't a yes/no -
+    is a ratio of totals and is shuffled (B2)."""
+    return m.mode == "flagwt" and m.per == EACH_LOAN
 
 
 class ColumnsMissing(Exception):
@@ -223,13 +232,16 @@ def reading_of(idx: float | None, units: int, bench, min_units: float, p: float 
                min_events: int = 0, luck_only: bool = False) -> str | None:
     """The word for a cell. A gap past a threshold counts only when the test
     says it is unlikely to be luck at the file's confidence (after any
-    allowance for testing many pockets); the floors only stop a test being run
-    on a handful of loans or losses. For a measure where higher is better
-    (RANR), a rate below its comparison is the bad direction. `tested=False` is
-    the median comparison, which has no peer group to test against."""
+    allowance for testing many pockets). Only fewest losses stops a test: below
+    fewest loans the share of loans gets the exact test and a dollar rate is
+    shuffled, neither of which needs a minimum (docs/statistics.md A4, B1, B2;
+    walk 6 defect 8: 29 bad of 50 read "too few loans to test"). For a measure
+    where higher is better (RANR), a rate below its comparison is the bad
+    direction. `tested=False` is the median comparison, which has no test at
+    all, so the fewest-loans floor still keeps it off a handful of loans."""
     if idx is None or bench is None:
         return None
-    if units < min_units:
+    if not tested and units < min_units:
         return THIN
     if events is not None and higher_is == "worse" and events < min_events:
         return FEW
@@ -290,16 +302,20 @@ class RateStat:
     sxx: float = 0.0
     sxy: float = 0.0
     vs_rest: float | None = None    # against the rest of the book (the book without this pocket)
-    p_book: float | None = None     # the test of vs_rest
+    p_book: float | None = None     # the test of vs_rest, after the allowance for many tests
     vs_band: float | None = None    # against the rest of its band (its row, without it)
     p_band: float | None = None
-    vs_dim: float | None = None     # against the rest of its dimension level (its column, without it)
-    p_dim: float | None = None
     reading_band: str | None = None
     smallest_gap: float | None = None   # the smallest multiple of the book's rate this pocket could show
     events: int = 0                     # loans whose top is not zero: losses, for a loss rate
     flag: str | None = None             # the reading that decides, per `compare_to`
     material: bool | None = None        # excess at or over the materiality line (None: not applied)
+    # which test gave p_book and p_band (docs/statistics.md): "z" (A1), "exact" (B1, a pocket under
+    # fewest loans), "shuffle" (B2, a dollar rate); None when nothing was tested
+    test: str | None = None
+    hits_book: int | None = None        # the shuffle test: shuffles with a gap at least as big, of `shuffles`
+    hits_band: int | None = None
+    shuffles: int | None = None
 
     def sums(self) -> tuple:
         return (self.units, self.num, self.den, self.syy, self.sxx, self.sxy)
@@ -343,6 +359,8 @@ class Grid:
     split_cells: dict[tuple[str, str, str], Cell] = field(default_factory=dict)
     split_compare: dict[tuple[str, str], dict[str, tuple]] = field(default_factory=dict)  # high vs low
     split_pooled: dict[str, dict] = field(default_factory=dict)
+    # per measure, the pockets whose halves both clear the floors: the only ones compared or pooled
+    split_tested: dict[str, list] = field(default_factory=dict, repr=False)
 
     def cell(self, band_label: str, dim_label: str) -> Cell:
         return self.cells[(band_label, dim_label)]
@@ -569,8 +587,14 @@ def run(config: Config, table: Table) -> Result:
         for m in measures:
             if not m.is_rate:
                 continue
-            ln = stats.loans_needed(m.name, [v for v in per_row[m.name] if v is not None],
-                                    bench.worse_at, bench.confidence, bench.power)
+            if yes_no(m):
+                # A3, exactly: a pocket of this book against the rest of it (ruling OC-37)
+                t = total.rates[m.name]
+                ln = stats.loans_needed_two_prop(m.name, t.rate, t.units, bench.worse_at, bench.confidence,
+                                                 bench.power)
+            else:
+                ln = stats.loans_needed(m.name, [v for v in per_row[m.name] if v is not None],
+                                        bench.worse_at, bench.confidence, bench.power)
             needed[m.name] = ln
             min_units[m.name] = bench.min_units
 
@@ -585,13 +609,18 @@ def run(config: Config, table: Table) -> Result:
         else:
             split_vals = [classify_number(raw, rules.get(sfield))[0] for raw in col(sfield)]
     grids, three_way = [], []
+    built: list[tuple[Grid, str, list]] = []           # every grid, its band, and each row's pocket
+    halved: list[tuple[Grid, list, list]] = []         # grids split at each pocket's own median, and the labels
     tie_outs = 0
     for b in config.bands:
         for d in config.dimensions:
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
                                topline, min_units, total, needed, materiality_line, band_label_sets[b.name])
+            built.append((grid, b.name, list(zip(bands[b.name], dims[d.name]))))
             if split_vals is not None:
                 labels = _split(grid, config, bands[b.name], dims[d.name], split_vals, measures, per_row)
+                if config.split[1] == "own_median":
+                    halved.append((grid, list(zip(bands[b.name], dims[d.name])), labels))
                 # the three-way pockets go through the same machinery as any pocket: tested, flagged,
                 # given dollars and tied out (OC-27; the third walk, defect 3: they were pictures only)
                 sfield = config.split[0]
@@ -601,10 +630,18 @@ def run(config: Config, table: Table) -> Result:
                 three = _build_grid(config, b, Dimension(name=f"{d.name} / {sfield}", field=d.field),
                                     band_edges[b.name], bands[b.name], composite, measures, per_row, topline,
                                     min_units, total, needed, materiality_line, band_label_sets[b.name])
+                built.append((three, b.name, list(zip(bands[b.name], composite))))
                 tie_outs += tie_out(three, total, measures, n)
                 three_way.append(three)
             tie_outs += tie_out(grid, total, measures, n)
             grids.append(grid)
+    # the dollar rates' shuffle test (B2), one random order per shuffle for every grid at once; then the
+    # allowance for many tests and the words, which need every p-value in
+    _shuffle_tests(config, measures, per_row, n, built, halved)
+    for g, _, _ in built:
+        _judge(g, config, measures, min_units, materiality_line)
+    for g, _, _ in halved:
+        _finish_split(g, config, measures)
     moves_with: dict[str, float] = {}
     if config.split and config.split[1] == "own_median":
         for b in config.bands:
@@ -754,8 +791,25 @@ def _minus(a: tuple, b: tuple) -> tuple:
     return tuple(x - y for x, y in zip(a, b))
 
 
+def _proportion_p(x1: float, n1: int, rest: tuple, floor: float) -> tuple[float | None, str | None]:
+    """A yes/no per loan: the pocket's x1 bad of n1 against the rest's. The
+    pooled two-proportion z test (A1, ruling OC-37) at or above fewest loans;
+    Fisher's exact test (B1) below it, where A1's bell curve is too sure of
+    itself (walk 6 defect 8: 29 bad of 50 went untested)."""
+    n2, x2 = rest[0], rest[1]
+    if n1 <= 0 or n2 <= 0:
+        return None, None
+    if n1 >= floor:
+        return stats.two_prop_z(x1, n1, x2, n2)[1], Z_TEST
+    k, big_k = round(x1), round(x1 + x2)
+    return stats.fisher_exact(k, n1, big_k, n1 + n2), EXACT_TEST
+
+
 def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topline, min_units, total,
                 needed, materiality_line, labels: list[str] | None = None) -> Grid:
+    """The grid's cells, rates, multiples and excess, and the share of loans'
+    tests. The dollar rates' shuffle test runs across every grid at once
+    (_shuffle_tests), and the words come after it (_judge)."""
     inner = _accumulate(measures, per_row, list(zip(bl, dl)))
     for c in inner.values():
         _finish_cell(c, measures)
@@ -769,6 +823,10 @@ def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topli
     for d in dim_order:
         cells[(ALL, d)] = _merge([c for (_, dd), c in inner.items() if dd == d], measures)
     cells[(ALL, ALL)] = _merge(list(inner.values()), measures)
+    # the pockets tested, and so the family the allowance for many tests covers (A2): one grid, one
+    # rate, one comparison, the inner pockets only. The band and segment totals are never shown, and
+    # counting them made a 2 x 2 grid's family 8 where A2 says 4 (the audit, item b)
+    pockets = [k for k in cells if k[0] != ALL and k[1] != ALL]
 
     bench = config.benchmark
     benchmarks: dict[str, float | None] = {}
@@ -792,19 +850,45 @@ def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topli
             s.vs_topline = index_of(s.rate, top)
             if bench is None:
                 continue
-            if (b, d) != (ALL, ALL):
-                s.vs_rest, s.p_book = stats.compare(s.sums(), _minus(book, s.sums()))
             if ln is not None:
-                s.smallest_gap = stats.smallest_gap(s.units, ln.rate, ln.s_d, ln.x_bar, bench.confidence, bench.power)
+                s.smallest_gap = stats.smallest_gap_for(ln, s.units, bench.confidence, bench.power)
+            if (b, d) == (ALL, ALL):
+                continue
+            rest_book, rest_band = _minus(book, s.sums()), None
+            s.vs_rest = index_of(s.rate, _rate(rest_book))
             if b != ALL and d != ALL:
                 s.vs_median = index_of(s.rate, med)
-                s.vs_band, s.p_band = stats.compare(s.sums(), _minus(cells[(b, ALL)].rates[m.name].sums(), s.sums()))
-                s.vs_dim, s.p_dim = stats.compare(s.sums(), _minus(cells[(ALL, d)].rates[m.name].sums(), s.sums()))
-        if bench is None:
+                rest_band = _minus(cells[(b, ALL)].rates[m.name].sums(), s.sums())
+                s.vs_band = index_of(s.rate, _rate(rest_band))
+            if (b, d) not in pockets:
+                continue
+            if yes_no(m):
+                s.p_book, s.test = _proportion_p(s.num, s.units, rest_book, floor)
+                s.p_band = _proportion_p(s.num, s.units, rest_band, floor)[0] if rest_band else None
+            else:
+                s.test = SHUFFLE_TEST if bench.shuffles else None        # filled in by _shuffle_tests
+    return Grid(band=band.name, dimension=dim.name, band_labels=band_order, dim_labels=dim_order,
+                cells=cells, benchmarks=benchmarks)
+
+
+def _rate(sums: tuple) -> float | None:
+    return sums[1] / sums[2] if sums[2] else None
+
+
+def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
+    """The allowance for many tests, then each cell's words and materiality."""
+    bench = config.benchmark
+    if bench is None:
+        return
+    cells = grid.cells
+    for m in measures:
+        if not m.is_rate:
             continue
-        # allow for testing many pockets at once: across this grid's pockets, per comparison
+        floor = min_units.get(m.name, 0)
+        hi = m.higher_is
+        # allow for testing many pockets at once: across this grid's pockets, per comparison (A2)
         keys = [k for k in cells if k != (ALL, ALL)]
-        for attr in ("p_book", "p_band", "p_dim"):
+        for attr in ("p_book", "p_band"):
             adj = adjust([getattr(cells[k].rates[m.name], attr) for k in keys], bench.many_tests)
             for k, p in zip(keys, adj):
                 setattr(cells[k].rates[m.name], attr, p)
@@ -825,8 +909,69 @@ def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topli
                     s.flag = s.reading_band
             if mat is not None and s.excess is not None:
                 s.material = s.excess > 0 and s.excess >= mat
-    return Grid(band=band.name, dimension=dim.name, band_labels=band_order, dim_labels=dim_order,
-                cells=cells, benchmarks=benchmarks)
+
+
+def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
+    """The shuffle test (B2) for every dollar rate, every grid and both
+    comparisons, and for the split's halves: one perm.run, so one random order
+    per shuffle serves them all (perm.py says why that is sound). Against the
+    rest of the book, all the loans that entered the rate are shuffled;
+    against the rest of its band, loans move only within their band; the
+    split's halves only within their pocket."""
+    bench = config.benchmark
+    dollar = [m for m in measures if m.is_rate and not yes_no(m)]
+    if bench is None or not dollar or not bench.shuffles or not n:
+        return
+    columns = [perm.Column(m.name, [v[0] if v is not None else None for v in per_row[m.name]],
+                           [v[1] if v is not None else None for v in per_row[m.name]]) for m in dollar]
+    book = perm.Structure("rest of the book", None, [])
+    bands: dict[str, perm.Structure] = {}
+    placed = []                                   # (grid, where its book layout is, where its band layout is)
+    for grid, bname, keys in built:
+        ids = {k: i for i, (k, _) in enumerate(grid.inner())}
+        lay = [ids[k] for k in keys]
+        if bname not in bands:
+            codes = {lab: i for i, lab in enumerate(sorted({b for b, _ in keys}))}
+            bands[bname] = perm.Structure(f"rest of the band ({bname})", [codes[b] for b, _ in keys], [])
+        sb = bands[bname]
+        for s in (book, sb):
+            s.layouts.append(lay)
+            for m in dollar:
+                s.stats[(len(s.layouts) - 1, m.name)] = perm.RestGap()
+        placed.append((grid, len(book.layouts) - 1, sb, len(sb.layouts) - 1))
+    halves = []
+    for grid, keys, labels in halved:
+        ids = {k: i for i, (k, _) in enumerate(grid.inner())}
+        group = [ids[k] if lab in (HIGH, LOW) else None for k, lab in zip(keys, labels)]
+        lay = [2 * g + (0 if lab == HIGH else 1) if g is not None else -1 for g, lab in zip(group, labels)]
+        s = perm.Structure(f"halves of {grid.band} x {grid.dimension}", group, [lay])
+        for m in dollar:
+            tested = {ids[k] for k in grid.split_tested.get(m.name, [])}
+            s.stats[(0, m.name)] = perm.HalfGap(pooled=tested)
+        halves.append((grid, s, ids))
+    perm.run(n, columns, [book, *bands.values(), *(s for _, s, _ in halves)], bench.shuffles,
+             perm.seed_of("one order per shuffle, shared by every test in the run"))
+    for grid, bi, sb, si in placed:
+        for m in dollar:
+            got_book, got_band = book.stats[(bi, m.name)].answers, sb.stats[(si, m.name)].answers
+            for i, (_, c) in enumerate(grid.inner()):
+                s = c.rates[m.name]
+                s.shuffles = bench.shuffles
+                if i in got_book:
+                    s.p_book, s.hits_book = got_book[i].p, got_book[i].hits
+                if i in got_band:
+                    s.p_band, s.hits_band = got_band[i].p, got_band[i].hits
+    for grid, s, ids in halves:
+        for m in dollar:
+            st = s.stats[(0, m.name)]
+            for k in grid.split_tested.get(m.name, []):
+                got = st.answers.get(ids[k])
+                idx, _, nh, nl = grid.split_compare[k][m.name]
+                grid.split_compare[k][m.name] = (idx, got.p if got else None, nh, nl)
+            pooled = grid.split_pooled.get(m.name)
+            if pooled is not None and "ratio" in pooled and st.pooled is not None:
+                pooled["ratio_p"], pooled["ratio_hits"], pooled["shuffles"] = (st.pooled.p, st.pooled.hits,
+                                                                              st.pooled.shuffles)
 
 
 # --------------------------------------------------------------------------
@@ -838,7 +983,13 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
     layer per value (asset class 1, 2, 3, 4). `own_median`: two halves per
     pocket, at that pocket's own median, so the split says what the column adds
     beyond the band and segment already fixed (revolving debt moves with the
-    score; one cut for everyone would mostly re-sort the score)."""
+    score; one cut for everyone would mostly re-sort the score).
+
+    The share of loans is tested here: each pocket's halves by A1 (pooled), and
+    pooled across pockets by Mantel-Haenszel and CMH (A5, A6). A dollar rate's
+    halves are shuffled within their pocket (B2), with every other shuffle
+    test, and its pooled actual-against-expected is tested the same way; the
+    allowance for many tests comes after that (_finish_split)."""
     field_, how = config.split
     if how == "each_value":
         labels = split_vals
@@ -866,6 +1017,7 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
         if not m.is_rate:
             continue
         strata, o_sum, e_sum, v_sum, pockets, high_worse = [], 0.0, 0.0, 0.0, 0, 0
+        tested = grid.split_tested.setdefault(m.name, [])
         for (b, d), _ in grid.inner():
             h, lo = cells3.get((b, d, HIGH)), cells3.get((b, d, LOW))
             if h is None or lo is None:
@@ -878,8 +1030,11 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             if thin or few:
                 grid.split_compare.setdefault((b, d), {})[m.name] = (None, None, sh.units, sl.units)
                 continue
-            idx, p = stats.compare(sh.sums(), sl.sums())
+            idx = stats.multiple(sh.rate, sl.rate)
+            # a yes/no per loan: A1, pooled; a dollar rate's p comes from the shuffle test
+            p = stats.two_prop_z(sh.num, sh.units, sl.num, sl.units)[1] if yes_no(m) else None
             grid.split_compare.setdefault((b, d), {})[m.name] = (idx, p, sh.units, sl.units)
+            tested.append((b, d))
             pockets += 1
             # a high half with losses against a low half with none has no multiple, and is worse
             if idx is not None:
@@ -898,19 +1053,13 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             s_dd = max(sh.syy - 2 * r * sh.sxy + r * r * sh.sxx, 0.0) * n / max(n - 1, 1)
             se_l = stats.ratio_se(*sl.sums()) or 0.0
             v_sum += s_dd + (sh.den * se_l) ** 2
-        # the same allowance for many tests as every other pocket test, within this grid and measure
-        # (asked on 25 Sep 2026: the split's "Luck alone" figures were the only ones shown without it)
-        if bench is not None:
-            keys = [k for k, got in grid.split_compare.items() if m.name in got and got[m.name][1] is not None]
-            adj = adjust([grid.split_compare[k][m.name][1] for k in keys], bench.many_tests)
-            for k, p in zip(keys, adj):
-                idx, _, nh, nl = grid.split_compare[k][m.name]
-                grid.split_compare[k][m.name] = (idx, p, nh, nl)
         out = {"pockets": pockets, "high_worse": high_worse, "measure": m.name}
         z = stats.norm_s_inv(1 - (1 - (bench.confidence if bench else 0.95)) / 2)
         if e_sum > 0:
             out["ratio"] = o_sum / e_sum
-            out["ratio_p"] = math.erfc(abs(o_sum - e_sum) / math.sqrt(v_sum) / math.sqrt(2)) if v_sum > 0 else None
+            if yes_no(m):
+                out["ratio_p"] = (math.erfc(abs(o_sum - e_sum) / math.sqrt(v_sum) / math.sqrt(2))
+                                  if v_sum > 0 else None)
             half = z * math.sqrt(v_sum) / e_sum
             out["ratio_lo"], out["ratio_hi"] = max(out["ratio"] - half, 0.0), out["ratio"] + half
         if strata:
@@ -919,6 +1068,23 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             out["steady_p"], out["steady_pockets"] = stats.steadiness_p(strata, orr)
         grid.split_pooled[m.name] = out
     return labels
+
+
+def _finish_split(grid: Grid, config: Config, measures) -> None:
+    """The allowance for many tests on the split's pocket figures, once every
+    p-value is in (the shuffle test fills the dollar rates')."""
+    bench = config.benchmark
+    for m in measures:
+        if not m.is_rate:
+            continue
+        # the same allowance for many tests as every other pocket test, within this grid and measure
+        # (asked on 25 Sep 2026: the split's "Luck alone" figures were the only ones shown without it)
+        if bench is not None:
+            keys = [k for k, got in grid.split_compare.items() if m.name in got and got[m.name][1] is not None]
+            adj = adjust([grid.split_compare[k][m.name][1] for k in keys], bench.many_tests)
+            for k, p in zip(keys, adj):
+                idx, _, nh, nl = grid.split_compare[k][m.name]
+                grid.split_compare[k][m.name] = (idx, p, nh, nl)
 
 
 # --------------------------------------------------------------------------

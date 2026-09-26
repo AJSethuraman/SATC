@@ -10,6 +10,7 @@ requires-python = ">=3.10"
 dependencies = [
     "openpyxl>=3.1",   # reads an XLSX extract; writes the workbook from slice 2
     "PyYAML>=6.0",     # the cube file
+    "numpy>=1.22",     # the shuffle test for the dollar rates (docs/statistics.md B2, ruling OC-34)
 ]
 
 [project.scripts]

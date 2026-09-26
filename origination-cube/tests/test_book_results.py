@@ -611,6 +611,10 @@ def test_a_suggestion_with_nothing_to_work_from_says_so(tmp_path):
         key = r[control.KEY_COL - 1].value
         if key == "min_loans":
             r[control.CHOOSE_COL - 1].value, r[control.OWN_COL - 1].value = None, 100000
+        # since 25 Sep 2026 fewest loans only picks the test (exact below it), so nothing is untested
+        # unless fewest losses says so
+        if key == "min_events":
+            r[control.CHOOSE_COL - 1].value, r[control.OWN_COL - 1].value = None, 100000
         if key in ("worse_at", "better_at"):
             r[control.CHOOSE_COL - 1].value = "What luck alone can move it (suggested)"
     wb.save(b)
@@ -618,7 +622,8 @@ def test_a_suggestion_with_nothing_to_work_from_says_so(tmp_path):
     assert ran.ok
     said = " ".join(ran.lines)
     assert "Nothing in this book to work these out from" in said and "Worked out from this book" not in said
-    assert "No pocket had enough loans or losses to test" in said and "Nothing is worse" not in said
+    for loss in ("Outcome, share of loans", "Outcome, share of booked dollars", "GCO per booked dollar"):
+        assert f"No pocket had enough losses to test {loss}" in said and f"Nothing is worse for {loss}" not in said
     ws = load_workbook(b)["Control"]
     used = [ws.cell(row=r, column=control.KEY_COL + 1).value for r in range(control.FIRST_ROW, ws.max_row + 1)]
     assert any(isinstance(x, str) and "the usual value" in x for x in used)
@@ -645,8 +650,10 @@ def test_material_pockets_too_small_to_test_are_pointed_out(tmp_path):
     b = _ready(tmp_path, n=4000)
     wb = load_workbook(b)
     for r in wb["Control"].iter_rows(min_row=control.FIRST_ROW):
-        if r[control.KEY_COL - 1].value == "min_loans":
-            r[control.CHOOSE_COL - 1].value, r[control.OWN_COL - 1].value = None, 400
+        # too few losses is what leaves a pocket untested since 25 Sep 2026: below fewest loans the
+        # share of loans gets the exact test and a dollar rate is shuffled, so 400 loans no longer did it
+        if r[control.KEY_COL - 1].value == "min_events":
+            r[control.CHOOSE_COL - 1].value, r[control.OWN_COL - 1].value = None, 60
     wb.save(b)
     ran = book.run(b)
     assert ran.ok and any("material but too small to test" in x for x in ran.lines)
@@ -665,6 +672,30 @@ def test_material_pockets_too_small_to_test_are_pointed_out(tmp_path):
         assert f"({len(blue)} rows" in said
     rules = [r for rng in ws.conditional_formatting for r in rng.rules]
     assert any('LEFT($Q5,7)="too few"' in (r.formula or [""])[0] for r in rules)
+
+
+def test_a_pocket_under_fewest_loans_is_tested_and_says_how(tmp_path):
+    """Walk 6, defect 8, on the workbook: under fewest loans the share of loans
+    gets the exact test (statistics.md B1), shows its p-value, names its test,
+    and is never shaded blue as too small to test."""
+    from origination_cube import control
+    b = _ready(tmp_path, n=4000)
+    wb = load_workbook(b)
+    for r in wb["Control"].iter_rows(min_row=control.FIRST_ROW):
+        if r[control.KEY_COL - 1].value == "min_loans":
+            r[control.CHOOSE_COL - 1].value, r[control.OWN_COL - 1].value = None, 230
+    wb.save(b)
+    assert book.run(b).ok
+    ws = load_workbook(b)["Where it bleeds"]
+    assert ws.cell(row=4, column=19).value == "Test"
+    rows = [r for r in range(5, ws.max_row + 1) if ws.cell(row=r, column=2).value == "Outcome, share of loans"]
+    flag, test, luck = (lambda r: ws.cell(row=r, column=17).value), (lambda r: ws.cell(row=r, column=19).value), \
+        (lambda r: ws.cell(row=r, column=16).value)
+    small = [r for r in rows if ws.cell(row=r, column=7).value < 230 and not str(flag(r)).startswith("too few")]
+    big = [r for r in rows if ws.cell(row=r, column=7).value >= 230 and not str(flag(r)).startswith("too few")]
+    assert small and all(test(r) == "exact test" and luck(r) is not None for r in small)
+    assert big and all(test(r) == "z test" for r in big)
+    assert not any(str(flag(r)).startswith("too few loans") for r in range(5, ws.max_row + 1))
 
 
 def test_a_real_loss_keeps_its_red_when_revenue_could_be_luck(tmp_path):
