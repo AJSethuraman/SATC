@@ -1321,7 +1321,7 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     ws[ROWS.replace("$", "")] = "=" + match(xk("S|", (G,), "|rows"))
     ws[COLS.replace("$", "")] = "=" + match(xk("S|", (G,), "|cols"))
     t = r + 3
-    for c0, title, what in ((left, f'={M}&", high vs low"', "v"), (right, "p-value", "p")):
+    for c0, title, what in ((left, f'={M}&", high vs low"', "v"), (right, "p-value per pocket", "p")):
         _block_head(ws, t, c0, w, title)
         ws.cell(row=t + 1, column=c0).fill = house.fill(CANVAS)
         for j in range(1, nd + 1):
