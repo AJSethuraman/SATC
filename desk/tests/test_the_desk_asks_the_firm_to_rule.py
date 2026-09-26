@@ -127,9 +127,9 @@ def test_the_firms_own_words_are_what_is_recorded(corpus, queue):
     f = _found(corpus, "reach", TWELVE)
     entry, line = rulings.ask(f, "subscription", queue=queue, corpus=corpus)
     rid, answer = notifying.reply_in(
-        f"{entry.id} subscription; prepaid", sent=line)
+        f"{entry.id} subscription; twelve months", sent=line)
     r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
-    assert r.reaches_on == ("subscription", "prepaid")
+    assert r.reaches_on == ("subscription", "twelve months")
     assert f"### {TWELVE}" in ask.consult(f.asked_by, corpus)
 
 
@@ -234,3 +234,30 @@ def test_a_wording_only_proposal_keeps_what_the_position_rests_on(corpus, queue)
     after = next(q for q in record.load(corpus).positions if q.id == "POS8")
     assert after.rests_on == before.rests_on
     assert "fully deductible only" in after.position
+
+
+def test_a_ruled_word_the_law_never_uses_still_brings_the_paragraph(corpus, queue):
+    """Codex on #401: a question whose only substantive word is the ruled one
+    reaches NOTHING by overlap -- the exact mismatch rulings exist to repair --
+    and `consult` returned "Nothing on file" before the rulings were read."""
+    f = _found(corpus, "reach", RECORDS)
+    entry, _ = rulings.ask(f, "commingling", queue=queue, corpus=corpus)
+    rulings.record_ruling(corpus, rulings.settle(queue, entry.id, "yes"))
+    assert not ask.looked("commingling?", corpus)
+    got = ask.consult("commingling?", corpus)
+    assert f"### {RECORDS}" in got
+    assert "Nothing on file" not in got
+
+
+def test_the_firms_own_words_must_reach_the_question_too(corpus, queue):
+    """Codex on #401: words that would never bring the paragraph up for the
+    question that missed it were recorded, and the finding was then suppressed
+    as ruled. They are refused and the ruling stays open."""
+    f = _found(corpus, "reach", RECORDS)
+    entry, _ = rulings.ask(f, "commingling", queue=queue, corpus=corpus)
+    done = rulings.settle(queue, entry.id, "books of account")
+    with pytest.raises(ValueError, match="would not bring it up"):
+        rulings.record_ruling(corpus, done)
+    assert not (corpus / rulings.RULINGS_FILE).exists()
+    assert ("reach", RECORDS) in {
+        (x.kind, x.subject) for x in rulings.findings(corpus)}

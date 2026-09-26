@@ -326,6 +326,19 @@ def _split_proposal(proposed: str) -> tuple[str, str]:
     return text.strip(), rests.strip()
 
 
+def _reaches(subject: str, asked_by: str, phrases: str) -> None:
+    """Raise unless every phrase would fire on the question that missed."""
+    asked = set(pool.terms(asked_by))
+    for phrase in (p.strip() for p in phrases.split(";") if p.strip()):
+        need = set(pool.terms(phrase))
+        short = need - asked
+        if short or not need:
+            raise ValueError(
+                f"{subject}: \"{phrase}\" would not bring it up for the "
+                f"question that missed it -- that question does not say "
+                f"{', '.join(sorted(short)) or 'any word of it'}")
+
+
 def check(finding: Finding, proposed: str, corpus: Path) -> None:
     """Refuse a proposal that would not do what it says. The model proposes;
     this disposes, before the firm is ever asked."""
@@ -334,14 +347,7 @@ def check(finding: Finding, proposed: str, corpus: Path) -> None:
         raise ValueError(f"{finding.subject}: an empty proposal asks the firm "
                          f"to rule on nothing")
     if finding.kind == "reach":
-        asked = set(pool.terms(finding.asked_by))
-        for phrase in (p.strip() for p in proposed.split(";") if p.strip()):
-            short = set(pool.terms(phrase)) - asked
-            if short:
-                raise ValueError(
-                    f"{finding.subject}: \"{phrase}\" would not bring it up for "
-                    f"the question that missed it -- that question does not "
-                    f"say {', '.join(sorted(short))}")
+        _reaches(finding.subject, finding.asked_by, proposed)
         return
     wording, rests = _split_proposal(proposed)
     try:
@@ -524,9 +530,14 @@ def record_ruling(corpus: Path, entry: Asked) -> Ruling:
             r = replace(base, outcome="declined")
         else:
             words = entry.proposed if said_yes else body
-            r = replace(base, reaches_on=tuple(
-                p.strip() for p in re.split(r"[;\n]", words) if p.strip()),
-                outcome="ruled")
+            phrases = tuple(p.strip() for p in re.split(r"[;\n]", words)
+                            if p.strip())
+            # THE FIRM'S OWN WORDS GO THROUGH THE SAME CHECK AS THE DESK'S.
+            # Codex on #401: words the question that missed never says would
+            # be recorded, never fire, and -- because a ruled subject is no
+            # longer a finding -- close the defect they did not fix.
+            _reaches(entry.subject, entry.asked_by, "; ".join(phrases))
+            r = replace(base, reaches_on=phrases, outcome="ruled")
         _append_ruling(corpus, r)
         return r
     # ONE LINE, NO ASTERISKS: `Ruled:` is read up to the next `**`, so a reply

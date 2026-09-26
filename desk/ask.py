@@ -317,22 +317,26 @@ def consult(question: str, corpus: Path = CORPUS,
     the whole engine exists to decide properly.
     """
     found = looked(question, corpus, limit=limit)
-    if not found:
-        return nothing_on_file(question, corpus)
-    # `dec-examples`, second half: a brief is never worked examples alone.
-    widened = with_a_rule(question, found, corpus)
-    added = widened[-1].held.citation if len(widened) > len(found) else ""
     whole = _corpus(corpus)[0]
-    # THE FIRM'S RULINGS ON WHAT A QUESTION REACHES. Added, never subtracted:
-    # a paragraph the firm ruled this question's words should bring up is in
-    # the brief whatever it scored, and nothing else moves. See `rulings`.
+    # THE FIRM'S RULINGS ON WHAT A QUESTION REACHES, read BEFORE the empty
+    # return. Codex on #401: a question whose only substantive word is the
+    # ruled one -- "commingling?" -- overlaps nothing on file, which is the
+    # mismatch rulings exist to repair, and returning "Nothing on file" first
+    # meant the firm's ruling could never fire where it was needed most.
+    # Added, never subtracted: nothing else moves. See `rulings`.
     import rulings as _rulings
-    cited = [f.held.citation for f in widened]
     ruled = {}
     for r, cit in _rulings.brought_by(question, _rulings.load(corpus)):
-        if cit not in cited and whole.passage(cit):
-            cited.append(cit)
+        if whole.passage(cit):
             ruled[cit] = r
+    if not found and not ruled:
+        return nothing_on_file(question, corpus)
+    # `dec-examples`, second half: a brief is never worked examples alone.
+    widened = with_a_rule(question, found, corpus) if found else ()
+    added = widened[-1].held.citation if len(widened) > len(found) else ""
+    cited = [f.held.citation for f in widened]
+    ruled = {c: r for c, r in ruled.items() if c not in cited}
+    cited += list(ruled)
     return brief(question, whole.narrowed_to(cited),
                  context, rule_added=added, on_file=tuple(whole.sources),
                  ruled=ruled)
