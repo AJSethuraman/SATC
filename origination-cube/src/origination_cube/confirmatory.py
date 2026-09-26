@@ -4,8 +4,9 @@ Log.
 
 prespec.py reads the file and returns data; this is where a Run meets it.
 
-- The file is named in one cell on Control, under the new columns
-  (control.write_prespec). Blank means no pre-spec. A file that is not there,
+- The file is picked in the launcher ("Or confirm a saved shortlist") and shown
+  in one cell of Control's "Chosen in the launcher" block (control.read_prespec).
+  Blank means no pre-spec. A file that is not there,
   or that prespec.load refuses, stops the Run, each problem named by that cell.
 - Check echoes what the file says, and the git commit it was read from, or why
   there is none (prespec.provenance). A pre-spec edited since its commit says so,

@@ -27,7 +27,7 @@ from recalc import calculated_book, recalc
 from origination_cube import book, confirm_tab, confirmatory, control, kgroups, meanings, synth
 from test_book import PICK
 from test_book_results import _set
-from test_book_dates import _check, _columns, _control
+from test_book_dates import _check, _choose, _columns, _control
 
 # an auto book, not a card book: none of these names are in the synthetic extract
 COLUMNS = ["AcctId", "BureauScore", "Dealer", "FinancedAmt", "ChargedOff", "NetLossDollars",
@@ -217,8 +217,7 @@ def _dated_route(folder: Path, cliffs: dict, n: int = 12000, dollars: bool = Tru
     _control(b, run_kind="Finding and testing a new variable", new_variable_step="Test from a pre-spec",
              **{"derived|1": ("IncomeToSales", "BizIncome", "BizSales")})
     book.set_up(extract)
-    for c in ("FinancedAmt", "PTI", "BizIncome", "BizSales", "IncomeToSales")[0 if dollars else 1:]:
-        _columns(b, c, C_CUT="No")
+    _choose(b, drop=("FinancedAmt", "PTI", "BizIncome", "BizSales", "IncomeToSales")[0 if dollars else 1:])
     wb = load_workbook(b)
     wb["Columns"][book.CONFIRM_CELL] = "Yes"
     ws = wb[control.SHEET]

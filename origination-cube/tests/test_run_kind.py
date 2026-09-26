@@ -27,7 +27,7 @@ from origination_cube import book, confirm_tab, confirmatory, control, engine, p
 from origination_cube import config as cfgmod
 from recalc import recalc
 from test_book import _answer
-from test_book_dates import _check, _columns, _control
+from test_book_dates import _check, _choose, _columns, _control
 from test_confirm_test import BINS as SMALL_BINS, SPEC as SMALL_SPEC, _dated
 from test_confirmatory import _held, _log, _spec, git
 
@@ -285,9 +285,8 @@ def _lean(tmp_path, monkeypatch, n=3000):
     for c, m in means.items():
         if m in ("Booked amount", "GCO dollars", "RANR dollars"):
             _columns(b, c, C_MEANS="Amount or number")
-    _columns(b, "INCOME_TO_SALES", C_SPLIT="Yes", C_EDGES="0.1; 0.25; 0.5; 1; 2")
-    for c in ("REV_DEBT", "ASSET_CLASS", "INCOME", "SALES"):
-        _columns(b, c, C_CUT="No")
+    _columns(b, "INCOME_TO_SALES", C_EDGES="0.1; 0.25; 0.5; 1; 2")
+    _choose(b, drop=("REV_DEBT", "ASSET_CLASS", "INCOME", "SALES"), split="INCOME_TO_SALES")
     wb = load_workbook(b)
     wb["Columns"][book.CONFIRM_CELL] = "Yes"
     wb.save(b)
