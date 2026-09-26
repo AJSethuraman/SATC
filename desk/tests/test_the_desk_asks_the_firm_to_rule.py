@@ -127,7 +127,7 @@ def test_the_firms_own_words_are_what_is_recorded(corpus, queue):
     f = _found(corpus, "reach", TWELVE)
     entry, line = rulings.ask(f, "subscription", queue=queue, corpus=corpus)
     rid, answer = notifying.reply_in(
-        f'{entry.id} "subscription; twelve months"', sent=line)
+        f'{entry.id} "subscription"; "twelve months"', sent=line)
     r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
     assert r.reaches_on == ("subscription", "twelve months")
     assert f"### {TWELVE}" in ask.consult(f.asked_by, corpus)
@@ -713,4 +713,25 @@ def test_a_fractional_period_is_read_whole(text, figure):
     """Codex on #401, after the fourth review: `\\b\\d+` started after the
     decimal point, so "2.5 years" and "1.5 years" were both "5 years", and an
     unsupported duration read as grounded."""
+    assert [rulings._figure(m) for m in rulings.FIGURE.findall(text)] == [figure]
+
+
+def test_a_semicolon_inside_one_quoted_phrase_is_asked_again(corpus, queue):
+    """Codex on #401: '"subscription; twelve months"' was recorded as two
+    phrases, and the ruling then fired on "subscription" alone. `Reaches on`
+    separates phrases with semicolons, so a phrase cannot hold one."""
+    f = _found(corpus, "reach", TWELVE)
+    entry, line = rulings.ask(f, "subscription", queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in('R1 "subscription; twelve months"', sent=line)
+    with pytest.raises(ValueError, match="Ask the firm which they meant"):
+        rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+    assert not (corpus / rulings.RULINGS_FILE).exists()
+
+
+@pytest.mark.parametrize("text, figure", [("$10 million", "$10million"),
+                                          ("$10 thousand", "$10thousand"),
+                                          ("$2.5M", "$2.5m"), ("$25k", "$25k"),
+                                          ("$2,500", "$2500")])
+def test_a_dollar_amount_keeps_its_magnitude(text, figure):
+    """Codex on #401: "$10 million" and "$10 thousand" both read "$10"."""
     assert [rulings._figure(m) for m in rulings.FIGURE.findall(text)] == [figure]

@@ -67,8 +67,11 @@ KINDS = ("reach", "position")
 #: THE WHOLE NUMBER. Codex on #401: `\b\d+` began after the decimal point, so
 #: "2.5 years" and "1.5 years" both read "5 years" and an unsupported duration
 #: passed as grounded.
+#: AND THE MAGNITUDE. Codex on #401: "$10 million" and "$10 thousand" both
+#: read "$10".
 FIGURE = re.compile(
-    r"\$\s?\d[\d,]*(?:\.\d+)?"
+    r"\$\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:thousand|million|billion|trillion|"
+    r"bn|mm|[kmb])\b)?"
     r"|\b\d[\d,]*(?:\.\d+)?[\s-]*(?:percent\b|%)"
     r"|(?<![\d.])\d+(?:\.\d+)?[\s-]*(?:months?|days?|years?)\b", re.I)
 
@@ -738,6 +741,15 @@ def _record_ruling(corpus: Path, entry: Asked) -> Ruling:
             f"no, and it is not wording in quotes. Ask the firm which they "
             f"meant; recording either would be a guess.")
     quoted = (_segments(body) or [_unquote(body)]) if verdict == "words" else []
+    # ONE QUOTED PHRASE IS ONE PHRASE. Codex on #401: '"subscription; twelve
+    # months"' was joined and re-split into two, and the ruling then fired on
+    # "subscription" alone. `Reaches on` separates phrases with semicolons, so
+    # a phrase holding one cannot be stored as itself: ask again.
+    if entry.kind == "reach" and any(re.search(r"[;\n]", q) for q in quoted):
+        raise ValueError(
+            f"{entry.id}: the reply \"{entry.answer}\" quotes a phrase with a "
+            f"semicolon in it. Ask the firm which they meant -- one phrase, or "
+            f"several, each in its own quotes.")
     if verdict == "words":
         body = "; ".join(quoted)
     said_yes, said_no = verdict == "yes", verdict == "no"
