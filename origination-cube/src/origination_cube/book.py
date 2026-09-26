@@ -1308,7 +1308,10 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
                     gap]
             if note_of:
                 vals.append(note_of(g)[0])
-            vals.append(which_test(s, peers) if tested else "")
+            said = which_test(s, peers) if tested else ""
+            if peers and s.alone:
+                said = f"{said}; {ALONE}" if said else ALONE
+            vals.append(said)
             for i, v in enumerate(vals, start=2):
                 ws.cell(row=r, column=i, value=v)
             ws.cell(row=r, column=len(vals) + 1).alignment = Alignment(horizontal="left", indent=1)   # clear of the gap
@@ -1380,12 +1383,14 @@ def which_test(s, peers: bool = True) -> str:
     if s.test == engine.Z_TEST:
         return "z test"
     if s.test == engine.SHUFFLE_TEST and s.shuffles:
-        hits = s.hits_band if peers else s.hits_book
+        hits = s.hits_band if peers and not s.alone else s.hits_book
         return f"shuffled: {hits:,} of {s.shuffles:,}" if hits is not None else f"{s.shuffles:,} shuffles"
     return ""
 
 
 NOT_TESTED = "Not tested: too few losses"
+#: a pocket with no other pocket in its band, judged against the book instead (the firm, 26 Sep 2026)
+ALONE = "alone in its band: compared with the book"
 SMALL_FILL = "DDEBF7"      # material, but too few losses to test: look at it by hand
 WARN_TEXT = "960019"
 
@@ -1533,13 +1538,15 @@ def _losses_vs_revenue(ws, res) -> None:
         rows = []
         for (bl, dl), c in g.inner():
             ss = {k: c.rates[k] for k, *_ in LVR_SIDES}
-            gaps = {k: s.vs_band if peers else s.vs_rest for k, s in ss.items()}
+            alone = peers and ss["gco_rate"].alone
+            band = peers and not alone
+            gaps = {k: s.vs_band if band else s.vs_rest for k, s in ss.items()}
             # every pocket with all three comparisons, whatever its size: below fewest loans a dollar rate
             # is still shuffled (docs/statistics.md B2), and only fewest losses leaves a side untested
             if any(v is None for v in gaps.values()):
                 continue
-            flags = {k: s.reading_band if peers else s.reading_topline for k, s in ss.items()}
-            ps = {k: s.p_band if peers else s.p_book for k, s in ss.items()}
+            flags = {k: s.reading_band if band else s.reading_topline for k, s in ss.items()}
+            ps = {k: s.p_band if band else s.p_book for k, s in ss.items()}
             # GCO by the lines on Control; a side whose own test says the gap isn't significant keeps its
             # reading and says so (the firm, 25 Sep 2026, after the fifth walk)
             sides = {k: PROFIT_SIDE.get(f, "same") for k, f in flags.items()}
@@ -1551,7 +1558,7 @@ def _losses_vs_revenue(ws, res) -> None:
             untested = bool(set(flags.values()) & set(untested_words))
             shown = {k: None if untested or unsure[k] else sides[k] for k in sides}
             # dollars against the same comparison as the reading (the fourth walk, defect 2)
-            parent = g.cells[(bl, engine.ALL)] if peers else res.total
+            parent = g.cells[(bl, engine.ALL)] if band else res.total
             over = {k: _over(s, parent.rates[k]) for k, s in ss.items()}
             cells = [bl, dl, ss["gco_rate"].units]
             for k, _, _, more, less, _ in LVR_SIDES:
@@ -1561,6 +1568,8 @@ def _losses_vs_revenue(ws, res) -> None:
                     + (" (not significant)" if unsure[k] else ""))
                 cells += [s.rate, _rest_rate(s, parent.rates[k]), _shown(gaps[k], ms[k]), word, over[k]]
             together = "" if untested else together_of(shown["gco_rate"], shown["ranr_rate"])
+            if alone:
+                together = f"{together}; {ALONE}" if together else ALONE
             rows.append({"band": bl, "seg": dl, "untested": untested, "gidx": gaps["gco_rate"],
                          "ridx": gaps["ranr_rate"] * 100, "shown": shown, "cells": cells + [together or None],
                          "g_over": over["gco_rate"]})

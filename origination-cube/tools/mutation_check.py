@@ -80,7 +80,7 @@ muts = [
  ("suggestion not worked out", B, '        if about.get("_suggest"):', '        if False:', "suggested_answers"),
  ("edges not remembered", "src/origination_cube/memory.py", '        if text:\n            e["edges"] = text',
   '        if False:\n            e["edges"] = text', "every_20"),
- ("dollars against the book", B, '            parent = g.cells[(bl, engine.ALL)] if peers else res.total',
+ ("dollars against the book", B, '            parent = g.cells[(bl, engine.ALL)] if band else res.total',
   '            parent = res.total', "dollars_agree"),
  ("untested pockets boxed", B, '            untested = bool(set(flags.values()) & set(untested_words))',
   '            untested = False', "dollars_agree"),
@@ -227,7 +227,7 @@ muts = [
  ("shuffle count missing from the Test column", B,
   '        return f"shuffled: {hits:,} of {s.shuffles:,}" if hits is not None else f"{s.shuffles:,} shuffles"',
   '        return f"{s.shuffles:,} shuffles"', "shuffle_count"),
- ("shuffle count from the other comparison", B, '        hits = s.hits_band if peers else s.hits_book',
+ ("shuffle count from the other comparison", B, '        hits = s.hits_band if peers and not s.alone else s.hits_book',
   '        hits = s.hits_book', "shuffle_count"),
  ("Luck alone back on the tabs", B, '"Vs rest of book", "p-value", "Vs rest of band", "p-value",',
   '"Vs rest of book", "Luck alone", "Vs rest of band", "Luck alone",', "p_value_and_not_significant"),
@@ -345,6 +345,12 @@ muts = [
   "absent_rate"),
  ("unanswered shuffle still named", E, '                if s.p_book is None and s.p_band is None:\n                    s.test = None',
   '                if False:\n                    s.test = None', "could_not_answer"),
+ ("lone pocket judged by its empty band", E, '                    if not s.alone:\n                        s.flag = s.reading_band',
+  '                    if True:\n                        s.flag = s.reading_band', "alone_in_its_band_is_flagged"),
+ ("lone pocket's row says nothing", B, '            if peers and s.alone:\n                said = f"{said}; {ALONE}"',
+  '            if False:\n                said = f"{said}; {ALONE}"', "alone_in_its_band_says_why"),
+ ("lone pocket not counted on Check", K, '    return [("Alone in its band", ',
+  '    return []\n    return [("Alone in its band", ', "counts_the_pockets_alone"),
 ]
 def main() -> int:
     bad = 0

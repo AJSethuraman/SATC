@@ -167,7 +167,8 @@ def report(res: engine.Result, top: int = 5) -> str:
                                    f"{_word(s.reading_topline)}")
                         out.append(f"      vs rest of band {_gap(s.vs_band, m)} (p {_p(s.p_band)}): "
                                    f"{_word(s.reading_band)}")
-                        judged = "the rest of its band" if bench.compare_to == "peers" else "the rest of the book"
+                        judged = ("the rest of its band" if bench.compare_to == "peers" and not s.alone
+                                  else "the rest of the book")
                         out.append(f"      flag (judged against {judged}): {_word(s.flag)}")
                         if s.smallest_gap:
                             out.append(f"      this many loans can show a gap of {_gap(s.smallest_gap, m)} or more"
