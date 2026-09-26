@@ -1901,7 +1901,7 @@ back.
   12 planted bugs in `tools/mutation_check.py`.
 - **A new-variable run skips the bleed grids** (the firm, 26 Sep 2026: *"Yes. Seems obvious I think.
   They have entirely different outputs generally"*). Queued behind redesign phase 2 (same Run code).
-- **Shuffle test across cores: explained, awaiting a yes.** Proposed: each shuffle seeded from its own
+- **Shuffle test across cores: approved** (the firm, 26 Sep 2026: *"I'm good with plan"*); being built. Proposed: each shuffle seeded from its own
   number, so the result is the same on any number of cores and every run; the p-values move once,
   within the shuffle count's own error (about ±0.002 near 0.03 at 10,000 shuffles).
 - **Not checked:** real Excel, a real extract, and the bank machine
