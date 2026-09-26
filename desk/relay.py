@@ -539,8 +539,15 @@ def on_file(body: str):
         # THE RECORD'S OWN NAME GRAMMAR. Codex on #401: `[a-z_]+` ended the
         # block at a declared name like `form_1099` and dropped it silently.
         m = re.match(r"^- \*\*([a-z][a-z0-9_]*):\*\* (.+)$", line)
+        # REFUSED, NOT CUT SHORT. Codex on #401: a damaged row ended the
+        # block and the facts before it were read as the whole context. The
+        # block `ask_many` writes is fact rows and nothing else up to a blank
+        # line; any other line inside it means the envelope was damaged.
         if not m:
-            break
+            raise RelayError(
+                f"the 'On file for this engagement' block is damaged: "
+                f"{line[:60]!r} is not a fact line. Nothing from it is read; "
+                f"ask for the request again.")
         # ONCE EACH. Second independent review of #401: a second `trade` line
         # after the real one quietly replaced the firm's value.
         if m.group(1) in facts:

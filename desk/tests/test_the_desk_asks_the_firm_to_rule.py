@@ -735,3 +735,12 @@ def test_a_semicolon_inside_one_quoted_phrase_is_asked_again(corpus, queue):
 def test_a_dollar_amount_keeps_its_magnitude(text, figure):
     """Codex on #401: "$10 million" and "$10 thousand" both read "$10"."""
     assert [rulings._figure(m) for m in rulings.FIGURE.findall(text)] == [figure]
+
+
+@pytest.mark.parametrize("text, figure", [("10 percentage points", "10pp"),
+                                          ("a 5-percentage-point cut", "5pp"),
+                                          ("1 percentage point", "1pp")])
+def test_percentage_points_are_a_figure(text, figure):
+    """Codex on #401: "10 percentage points" matched nothing, so an
+    unsupported one passed. It is its own figure, not "10%"."""
+    assert [rulings._figure(m) for m in rulings.FIGURE.findall(text)] == [figure]

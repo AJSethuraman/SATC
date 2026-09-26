@@ -68,10 +68,12 @@ KINDS = ("reach", "position")
 #: "2.5 years" and "1.5 years" both read "5 years" and an unsupported duration
 #: passed as grounded.
 #: AND THE MAGNITUDE. Codex on #401: "$10 million" and "$10 thousand" both
-#: read "$10".
+#: read "$10". And percentage points, which are not percent: "10 percentage
+#: points" matched nothing at all (Codex on #401).
 FIGURE = re.compile(
     r"\$\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:thousand|million|billion|trillion|"
     r"bn|mm|[kmb])\b)?"
+    r"|\b\d[\d,]*(?:\.\d+)?[\s-]*percentage[\s-]*points?\b"
     r"|\b\d[\d,]*(?:\.\d+)?[\s-]*(?:percent\b|%)"
     r"|(?<![\d.])\d+(?:\.\d+)?[\s-]*(?:months?|days?|years?)\b", re.I)
 
@@ -81,6 +83,7 @@ def _figure(text: str) -> str:
     and `$50` stays a different figure from `50%`."""
     text = re.sub(r"(months?|days?|years?)$", lambda m: m.group(1).rstrip("s"),
                   text.lower())
+    text = re.sub(r"percentage[\s-]*points?$", "pp", text)
     return re.sub(r"[\s,-]", "", text.replace("percent", "%"))
 
 

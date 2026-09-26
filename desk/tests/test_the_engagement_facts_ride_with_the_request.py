@@ -287,3 +287,15 @@ def test_a_sentence_with_several_numbers_is_not_a_tin():
     facts = {"capitalization_rule": "the $2,500 ceiling, 12 months, from 2025"}
     assert relay.on_file(relay.batch_prompt(relay.ask_many(
         ["q?"], OCCAM, on_file=facts))).facts == facts
+
+
+@pytest.mark.parametrize("damage", [
+    ("- **trade:** general contractor", "- trade: general contractor"),
+    ("- **taxpayer:** LLC\n", "- **taxpayer:** LLC\nsee below\n"),
+    ("- **taxpayer:** LLC", "taxpayer LLC")])
+def test_a_damaged_facts_block_is_refused_not_cut_short(damage):
+    """Codex on #401: a malformed row ended the block, and the facts before it
+    were returned as the whole engagement context."""
+    body = relay.batch_prompt(relay.ask_many(["q?"], OCCAM, on_file=SARCIA))
+    with pytest.raises(relay.RelayError, match="damaged|not a fact line"):
+        relay.on_file(body.replace(*damage, 1))
