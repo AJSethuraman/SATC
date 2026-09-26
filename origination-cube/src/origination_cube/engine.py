@@ -11,6 +11,11 @@ lose more than their share. So every rate cell carries three comparisons.
   excess       the cell's losses minus what it would have lost at the topline
                rate. In dollars, and it adds to zero across a grid, so it
                reconciles as the rates do.
+  excess_band  the same against the rest of its band's rate (the band without
+               the pocket, as vs_band), so a pocket in a high-loss band that
+               is in line with its neighbours has little. Control's "judged
+               against" picks which of the two is the pocket's dollars, its
+               materiality and its place in the ranking (the firm, 26 Sep 2026).
   vs median    the cell's rate over the median of the grid's cell rates, thin
                cells excluded from that median (the workbook's option 2, D61).
 
@@ -287,6 +292,45 @@ def reading_gap(gap: float | None, den: float, line: ProfitLine | None, p: float
     return WORSE if worse else BETTER
 
 
+def _signed(points: float) -> str:
+    """Points with their sign: "+0.12", "-0.80", and "0.00" for no gap."""
+    return f"{points:+.2f}" if round(points, 2) else "0.00"
+
+
+def literal(word: str | None, gap: float | None, dollars: float | None, against: str, line: ProfitLine | None,
+            p: float | None = None) -> str | None:
+    """A profit reading said literally (the firm, 26 Sep 2026: "yes I prefer it to be literal"): the gap
+    against the comparison that decides it, in points of booked dollars, and the shortfall or surplus it
+    comes to in dollars, e.g. "short of its band by 0.80 points ($16,000)". `word` is reading_gap's word,
+    `gap` the pocket less its comparison in the rate's units, `dollars` the shortfall against the same
+    comparison, `against` "its band" or "the book". Too few to test says so; a gap inside the line gives
+    the line and the gap."""
+    if word is None or word in (THIN, FEW) or gap is None:
+        return word
+    if word == IN_LINE:
+        if line is None or line.kind == "test":
+            why = "not tested" if p is None else "not significant"
+            return f"{_signed(gap * 100)} points against {against}, {why}"
+        if line.kind == "points":
+            return f"within {line.value * 100:.2f} points of {against} ({_signed(gap * 100)})"
+        return f"within ${line.value:,.0f} of {against} ({_signed(gap * 100)} points)"
+    side = "short of" if word in (WORSE, UNSURE_WORSE) else "ahead of"
+    out = f"{side} {against} by {abs(gap) * 100:.2f} points"
+    if dollars is not None:
+        out += f" (${abs(dollars):,.0f})"
+    if word in (UNSURE_WORSE, UNSURE_BETTER):
+        out += " (not significant)"
+    return out
+
+
+def said(s: "RateStat", line: ProfitLine | None) -> str | None:
+    """A pocket's profit reading, literal, against the comparison that decides it: its flag, its gap and
+    its dollars all come from the one comparison."""
+    if s.by_band:
+        return literal(s.flag, s.vs_band, s.dollars, "its band", line, s.p_band)
+    return literal(s.flag, s.vs_rest, s.dollars, "the book", line, s.p_book)
+
+
 def reading_of(idx: float | None, units: int, bench, min_units: float, p: float | None = None,
                tested: bool = True, higher_is: str = "worse", events: int | None = None,
                min_events: int = 0) -> str | None:
@@ -367,7 +411,14 @@ class RateStat:
     events: int = 0                     # loans whose top is not zero: losses, for a loss rate
     flag: str | None = None             # the reading that decides, per `compare_to`
     alone: bool = False                 # under peers, the only pocket in its band: flagged against the book
-    material: bool | None = None        # excess at or over the materiality line (None: not applied)
+    # the dollars over the rest of its band's rate (a shortfall under it, for profit); None for a pocket
+    # alone in its band, or a margin. `excess` is the same over the book's rate
+    excess_band: float | None = None
+    # one comparison decides the flag, the dollars and materiality (the firm, 26 Sep 2026): True when it is
+    # the rest of its band, and then `dollars` is excess_band; otherwise the book, and `dollars` is excess
+    by_band: bool = False
+    dollars: float | None = None
+    material: bool | None = None        # dollars at or over the materiality line (None: not applied)
     # which test gave p_book and p_band (docs/statistics.md): "z" (A1), "exact" (B1, a pocket under
     # fewest loans), "shuffle" (B2, a dollar rate); None when nothing was tested
     test: str | None = None
@@ -1045,18 +1096,25 @@ def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topli
             if top is not None:
                 # the bleed: losses over the topline, or for profit a shortfall under it
                 s.excess = (s.num - top * s.den) if hi == "worse" else (top * s.den - s.num)
+            s.dollars = s.excess                    # until _judge knows which comparison decides
             s.vs_topline = gap_of(s.rate, top, pts)
+            rest_band = None
+            if b != ALL and d != ALL:
+                # the rest of its band: its row without it, the same rest vs_band is taken against
+                rest_band = _minus(cells[(b, ALL)].rates[m.name].sums(), s.sums())
+                rb = _rate(rest_band)
+                if rb is not None:
+                    s.excess_band = (s.num - rb * s.den) if hi == "worse" else (rb * s.den - s.num)
             if bench is None:
                 continue
             if ln is not None:
                 s.smallest_gap = stats.smallest_gap_for(ln, s.units, bench.confidence, bench.power)
             if (b, d) == (ALL, ALL):
                 continue
-            rest_book, rest_band = _minus(book, s.sums()), None
+            rest_book = _minus(book, s.sums())
             s.vs_rest = gap_of(s.rate, _rate(rest_book), pts)
             if b != ALL and d != ALL:
                 s.vs_median = gap_of(s.rate, med, pts)
-                rest_band = _minus(cells[(b, ALL)].rates[m.name].sums(), s.sums())
                 s.vs_band = gap_of(s.rate, _rate(rest_band), pts)
             if (b, d) not in pockets:
                 continue
@@ -1116,8 +1174,10 @@ def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
                     s.alone = mates[b] == 1
                     if not s.alone:
                         s.flag = s.reading_band
-            if mat is not None and s.excess is not None:
-                s.material = s.excess > 0 and s.excess >= mat
+                        # the same comparison gives the dollars, and so materiality and the ranking
+                        s.by_band, s.dollars = True, s.excess_band
+            if mat is not None and s.dollars is not None:
+                s.material = s.dollars > 0 and s.dollars >= mat
 
 
 def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
@@ -1363,7 +1423,8 @@ def materiality(grid: Grid, m: Measure, total: Cell) -> list[stats.MaterialityRo
     """Evidence for the professional's materiality call, never the call: for
     each candidate threshold, how many pockets it keeps and how much of the
     grid's bleed they hold."""
-    ex = [c.rates[m.name].excess for _, c in grid.inner() if c.rates[m.name].excess is not None]
+    # the dollars Control's "judged against" picks, the same ones the materiality line is held to
+    ex = [c.rates[m.name].dollars for _, c in grid.inner() if c.rates[m.name].dollars is not None]
     # profit is laddered on the book's GCO, the same dollars its materiality line is drawn from
     base = total.rates["gco_rate"] if m.name in PROFIT and "gco_rate" in total.rates else total.rates[m.name]
     return stats.materiality_ladder(ex, abs(base.num))

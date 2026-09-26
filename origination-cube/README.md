@@ -79,10 +79,16 @@ After that, the whole routine is:
 4. Save, close the workbook, and press **2. Run the cube**. The results land in
    the workbook:
    - **Where it bleeds:** every pocket losing more than its share, largest first.
+     Each pocket has two dollar figures, its excess over the rest of its band
+     and over the book. Control's "judged against" picks one, and that one
+     decides the flag, whether the pocket is material and where it ranks.
+     The other is shown next to it, for reference.
    - **Losses vs revenue:** what each pocket paid (contribution before
      losses), what it cost (GCO) and what was kept (profit after losses,
-     RANR). Each reads more, about the same or less by the lines on Control.
-     Losing more and keeping more reads "priced for it". One chart per grid.
+     RANR). GCO reads losing more, about the same or losing less by the lines
+     on Control. Contribution and profit give the gap itself, e.g. "short of
+     its band by 0.80 points ($16,000)". Losing more and keeping more reads
+     "priced for it". One chart per grid.
    - **Grids:** heat maps against the book and against the rest of the band.
    - **Split** and **Three-way:** only when a column splits the pockets (below).
    - **Prevalence:** only with a split or a new column. How many loans and
@@ -90,7 +96,10 @@ After that, the whole routine is:
      column's bands), pocket by pocket. A count of the book, not a test.
    - **Materiality:** what each materiality level would keep.
    - **Check:** settings, tie-outs, and what was left out of each rate (a
-     blank or unreadable value, never a loan's age). With a column marked
+     blank or unreadable value, never a loan's age). One line says which
+     comparison decides each pocket's flag, its dollars and whether it is
+     material, and another how a profit reading is worded, with this run's
+     own pockets as examples. With a column marked
      Origination date, one line gives the earliest and latest date among the
      loans run and how many have no readable date, so a wrong extract shows on
      the first page. Also the pocket
@@ -152,7 +161,9 @@ builds:
 **What each pocket carries:**
 - its rate
 - its rate against the book's: a multiple, or for profit a gap in points
-- the excess (or, for profit, the shortfall) in dollars
+- the excess (or, for profit, the shortfall) in dollars, twice: over the
+  rest of its band and over the book. The comparison picked on Control
+  decides; a pocket alone in its band has no band figure and uses the book's
 - a test against the rest of the book and the rest of its band, after the
   allowance for testing many pockets at once
 - whether it clears the materiality line
@@ -174,8 +185,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 448 tests: one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band (the one that opens the window skips without a display)
-python tools/mutation_check.py     # puts 168 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 468 tests: one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording (the one that opens the window skips without a display)
+python tools/mutation_check.py     # puts 182 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):
