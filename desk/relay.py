@@ -164,6 +164,15 @@ def ask(question: str, reply_to: str) -> Ask:
             f"…). The envelope is stored on the trigger and read back out of "
             f"its record; no client identifier crosses this wire. Ask the "
             f"question without it — the desks do not need it to answer.")
+    # A QUESTION MAY NOT WEAR THE FACTS HEADING. Codex on #401: a question
+    # carrying "## On file for this engagement" and a fact line was read by
+    # `on_file` as firm-recorded context -- the asker writing the facts, which
+    # is the one thing the block exists to rule out.
+    if re.search(r"on\s+file\s+for\s+this\s+engagement", question, re.I):
+        raise RelayError(
+            "the question contains the 'On file for this engagement' heading. "
+            "That block carries only what the firm recorded in setup, and "
+            "`ask_many(..., on_file=...)` writes it. A question cannot.")
     return Ask(question=question, reply_to=reply_to,
                ref=ref_for(question, reply_to))
 
@@ -308,11 +317,16 @@ def _facts(on_file) -> tuple:
             f"{', '.join(empty)} has no value. Leave a fact out rather than "
             f"send it blank: blank is not a fact, and the desk would read it "
             f"as one.")
+    import notifying
     for name, value in facts.items():
-        if TIN.search(value):
+        # EVERY COMMON SPELLING, not only the hyphenated one. Codex on #401:
+        # `TIN` alone let "LLC 123456789" and "LLC 12 3456789" through. The
+        # notification guard is deliberately over-eager for the same reason.
+        if TIN.search(value) or notifying.looks_like_pii(value):
             raise RelayError(
-                f"the value for {name!r} looks like a TIN. The desk answers "
-                f"without identity and this envelope is stored on a trigger.")
+                f"the value for {name!r} looks like a TIN or another "
+                f"identifier. The desk answers without identity and this "
+                f"envelope is stored on a trigger.")
     return tuple(sorted(facts.items()))
 
 
@@ -399,6 +413,10 @@ def on_file(body: str):
     at = body.find(ON_FILE_HEADING)
     if at < 0:
         return record.NOTHING_ON_FILE
+    if body.count(ON_FILE_HEADING) > 1:
+        raise RelayError(
+            "the 'On file for this engagement' block appears more than once. "
+            "`ask_many` writes exactly one; a second is not the firm's.")
     facts = {}
     for line in body[at + len(ON_FILE_HEADING):].splitlines():
         line = line.strip()

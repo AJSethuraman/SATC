@@ -353,3 +353,15 @@ def test_one_decision_said_twice_is_still_one_decision(corpus, queue, reply):
     rid, answer = notifying.reply_in(reply, sent=line)
     r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
     assert r.outcome in ("amended", "upheld")
+
+
+def test_a_running_desk_serves_the_ruled_wording_at_once(corpus, queue):
+    """Codex on #401: `findings` loads the corpus into `ask`'s cache, the
+    ruling rewrote POSITIONS.md, and the same process went on serving the
+    wording the firm had just corrected."""
+    f = _found(corpus, "position", "POS7")
+    ask._corpus(corpus)                       # warm the cache, as a live desk has
+    entry, _ = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rulings.record_ruling(corpus, rulings.settle(queue, entry.id, "yes"))
+    pos7 = next(q for q in ask._corpus(corpus)[0].positions if q.id == "POS7")
+    assert "neither bought nor billed separately" in pos7.position

@@ -502,7 +502,23 @@ desk put to the firm (`rulings.ask`), their reply verbatim, and what it changed.
 """
 
 
+def _forget(corpus: Path) -> None:
+    """Drop `ask`'s cached corpus after the record changes. Codex on #401: a
+    live desk had loaded it for `findings`, and went on serving the wording
+    the firm had just corrected until the process restarted."""
+    import ask
+    ask._LOADED.pop(str(Path(corpus).resolve()), None)
+
+
 def record_ruling(corpus: Path, entry: Asked) -> Ruling:
+    """See `_record_ruling`; the cache is dropped whatever it wrote."""
+    try:
+        return _record_ruling(corpus, entry)
+    finally:
+        _forget(corpus)
+
+
+def _record_ruling(corpus: Path, entry: Asked) -> Ruling:
     """Write an answered ruling into the corpus. The firm's reply is the yes.
 
     yes     the desk's proposal is recorded
