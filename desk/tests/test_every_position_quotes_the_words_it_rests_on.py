@@ -185,3 +185,35 @@ def test_a_policy_cannot_apply_at_a_paragraph_nobody_stored(tmp_path):
           "**Applies at:** 26 CFR 1.6050W-1(c)(9)")
     with pytest.raises(record.RecordError, match="nothing could ever show it"):
         _load(c)
+
+
+# --- narrowing keeps what a position needs (Codex on #398) -----------------------
+
+def test_narrowing_to_a_position_keeps_the_paragraphs_it_rests_on():
+    """A brief is the record narrowed to what the pool returned. Narrowed to
+    POS7's own citation, (b)(1)(ii) was dropped, so the served passage fell
+    back to (b)(1)(i) and the second reader was handed the wrong paragraph
+    again -- the guarantee this file exists for, undone one layer down."""
+    d = record.load(CORPUS)
+    q = next(p for p in d.positions if p.id == "POS7")
+    narrow = d.narrowed_to([q.citation])
+    out = engine.serve(engine.Answer(citation=q.citation, position=q.position),
+                       narrow, question="a test question")
+    assert isinstance(out, engine.Served), out
+    assert "26 CFR 1.274-11(b)(1)(ii)" in out.passage
+    words = q.rests_on[0][1]
+    assert judging.read(judging.Judgment(by="reader", supports=True,
+                                         because=words),
+                        out.passage).verdict == judging.HOLDS
+
+
+def test_narrowing_to_where_a_policy_applies_keeps_the_policys_source():
+    """Narrowed to § 1.6050W-1(c)(3), POS15 came along through `Applies at:`
+    and its source, the firm's policy row, did not -- so serving it raised."""
+    d = record.load(CORPUS)
+    q = next(p for p in d.positions if p.id == "POS15")
+    narrow = d.narrowed_to(["26 CFR 1.6050W-1(c)(3)"])
+    assert q in narrow.positions
+    out = engine.serve(engine.Answer(citation=q.citation, position=q.position),
+                       narrow, question="a test question")
+    assert isinstance(out, engine.Served), out

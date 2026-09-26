@@ -894,11 +894,22 @@ class Desk:
         import dataclasses
         wanted = {c for c in citations}
         stems = {_stem(c) for c in wanted}
-        passages = tuple(p for p in self.passages if p.citation in wanted)
         positions = tuple(q for q in self.positions
                           if q.citation in wanted or _stem(q.citation) in stems
                           or wanted & set(getattr(q, "applies_at", ())))
-        used = {p.source_id for p in passages}
+        # A KEPT POSITION KEEPS WHAT IT NEEDS TO BE SERVED. Codex on #398, both
+        # found the day `Rests on:` and `Applies at:` landed: narrowed to POS7's
+        # own citation, the paragraph it rests on was dropped and the second
+        # reader was handed (b)(1)(i) again; narrowed to where POS15 applies,
+        # the firm's policy row was dropped and serving it raised. So the
+        # paragraphs a kept position rests on come with it, and so does every
+        # source a kept passage OR position resolves to.
+        resting = {c for q in positions for c in getattr(q, "rests_at", ())}
+        passages = tuple(p for p in self.passages
+                         if p.citation in wanted or p.citation in resting)
+        used = {p.source_id for p in passages} | {
+            s.id for q in positions for s in self.sources
+            if from_source(q.citation, s.citation_prefix)}
         return dataclasses.replace(
             self,
             passages=passages,

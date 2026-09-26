@@ -400,7 +400,11 @@ NARROWED = {
     # AND AGAIN THE SAME DAY (+18): the admitted § 1.461-1 put its (c)(3)(ii)(f)
     # into this brief in place of a § 1.263(a)-3(k)(1)(i) passage, with S37 in
     # the sources list. Retrieval moving, checked by diffing the brief.
-    "hand tools bought for the trade - deducted or capitalized?": 3_568,
+    # AND +445 AFTER CODEX ON #398: a narrowed brief now keeps the paragraph
+    # each kept position rests on, so POS7 brings § 1.274-11(b)(1)(ii) with it.
+    # That is the fix working -- without it the second reader was handed the
+    # wrong paragraph.
+    "hand tools bought for the trade - deducted or capitalized?": 4_013,
     "mileage or actual expenses for the van?": 2_463,
 }
 
