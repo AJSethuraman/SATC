@@ -112,6 +112,11 @@ muts = [
  ("small material pockets not pointed out", B, '    if small:\n        rows_said', '    if False:\n        rows_said',
   "too_small_to_test"),
  ("start here left stale", B, 'else f"{stamp}: {lines[0]}")', 'else stamp)', "start_here"),
+ # NEXT-GOAL 3.15: the pre-spec
+ ("pre-spec edited but read as committed", "src/origination_cube/prespec.py",
+  '        dirty = bool(status.stdout.strip())', '        dirty = False', "dirty"),
+ ("holdout ends left out", "src/origination_cube/prespec.py",
+  '        return self.start <= d <= self.end', '        return self.start < d < self.end', "holdout_touch"),
 ]
 bad = 0
 for name, f, old, new, sel in muts:

@@ -114,8 +114,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 197 tests: one per finding, every Control answer applied, the workbook route, the split, the launcher
-python tools/mutation_check.py     # puts 66 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 296 tests: one per finding, every Control answer applied, the workbook route, the split, the launcher, the pre-spec
+python tools/mutation_check.py     # puts 68 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):
