@@ -434,7 +434,7 @@ def test_the_words_are_p_value_and_not_significant(walk_book):
     assert check["Standard error"].startswith("How far a rate worked out from this many loans typically lands")
     assert "Two-sided" in check["p-value"]
     assert check["Contribution before losses"].startswith("RANR + GCO, per booked dollar. This assumes RANR has "
-                                                         "gross charge-offs taken out (OC-35)")
+                                                         "gross charge-offs taken out.")
     options = [r[2] for r in walk_book["_options"].iter_rows(min_row=2, values_only=True)]
     assert not any("luck" in str(o).lower() for o in options)
 

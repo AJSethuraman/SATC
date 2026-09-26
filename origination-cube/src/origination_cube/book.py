@@ -51,6 +51,8 @@ ABOUT = "_about"
 CHART_DATA = "_chart"     # the Losses vs revenue charts' own numbers, hidden
 COL_FIRST = 6            # first column row on the Columns tab
 CONFIRM_CELL = "C3"      # "Checked every column?"
+# Set up's note on Columns!D3 for columns the Yes in C3 doesn't cover yet; a Run takes it off again
+NEW_COLS_NOTE = "New since the last check: {}. Check them, then set C3 to Yes again."
 # Columns tab, one column per thing a person says about an extract column
 C_NAME, C_MEANS, C_CUT, C_IS, C_EDGES, C_SHOW, C_SPLIT, C_LOOK, C_WHY, C_BLANK, C_SAMPLES = range(2, 13)
 # fixes 3.10 and 3.11: what an amount is over, and what it measures in the person's words. At the end, so no
@@ -335,7 +337,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
                                                             fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
     notes = [rv.says for rv in looks if rv.kind == "cannot run"]
     if new_cols:
-        notes.append(f"New since the last check: {', '.join(new_cols)}. Check them, then set C3 to Yes again.")
+        notes.append(NEW_COLS_NOTE.format(", ".join(new_cols)))
     if gone_cols:
         notes.append(f"No longer in the extract: {', '.join(gone_cols)}.")
     notes += made_notes
@@ -1242,6 +1244,11 @@ def _write_results(book: Path, res, memory_path, src: Path, forgotten: set[str] 
                 why = str(row[C_WHY - 1].value or "")
                 if why.startswith("Remembered"):
                     row[C_WHY - 1].value = "Forgotten on Learned; it was remembered before."
+    elif "Columns" in wb.sheetnames:
+        # a Run needs C3 = Yes, so the new columns have been checked and the ask is spent (the final check, F9)
+        head, tail = (re.escape(x) for x in NEW_COLS_NOTE.split("{}"))
+        cols = wb["Columns"]
+        cols["D3"] = re.sub(head + ".*?" + tail + r"\s*", "", str(cols["D3"].value or ""), flags=re.S).strip() or None
     if "Start here" in wb.sheetnames:
         # the second walk, defect 9, and the third walk, defect 15: the counts went stale after a run
         sh = wb["Start here"]
@@ -1936,6 +1943,18 @@ def _holds_fixed(res, g) -> tuple[str, float]:
     return " ".join(words) or "", 0.0
 
 
+def _same_size(m, pooled: dict, conf: float) -> str:
+    """The Split tab's "Same size in every pocket?" for one measure. Cochran's Q
+    (A8) runs on the yes/no outcome only, so anything else says it wasn't tested
+    and why; "yes/no outcome only" there read as an answer (the final check, F9)."""
+    steady = pooled.get("steady_p")
+    if steady is not None:
+        return "yes" if not stats.significant(steady, conf) else "no: bigger in some pockets"
+    if not engine.yes_no(m):
+        return "not tested: dollar rate"
+    return "not tested: too few pockets" if pooled.get("pockets", 0) < 2 else "not tested: couldn't be worked out"
+
+
 def _split_tab(ws, res) -> None:
     """The third layer in words and heat maps. For a number column split at each
     pocket's own median: in every pocket, the high half against the low half,
@@ -2029,7 +2048,6 @@ def _split_tab(ws, res) -> None:
         rates = [m for m in res.measures if m.is_rate]
         for m in rates:
             p = g.split_pooled.get(m.name, {})
-            steady = p.get("steady_p")
             if m.in_points:
                 # profit: (O - E) over the high halves' booked dollars, in points (NEXT-GOAL 3.2)
                 pooled = _shown(p.get("gap"), m)
@@ -2040,11 +2058,11 @@ def _split_tab(ws, res) -> None:
                 rng = f"{p['ratio_lo']:.2f}x to {p['ratio_hi']:.2f}x" if p.get("ratio_hi") else ""
             vals = [m.title, p.get("pockets", 0),
                     f"{p['high_worse']} of {p['pockets']}" if p.get("pockets") else "none big enough",
-                    pooled, rng, p.get("ratio_p"), p.get("odds"), p.get("odds_p"),
-                    ("yes/no outcome only" if steady is None else
-                     "yes" if not stats.significant(steady, conf) else "no: bigger in some pockets")]
+                    pooled, rng, p.get("ratio_p"), p.get("odds"), p.get("odds_p"), _same_size(m, p, conf)]
             for i, v in enumerate(vals, start=2):
-                ws.cell(row=rr, column=i, value=v).alignment = Alignment(horizontal="left" if i == 2 else "center")
+                # the last answer wraps in its own column: spilling left, the p-value beside it cut it off
+                ws.cell(row=rr, column=i, value=v).alignment = Alignment(
+                    horizontal="left" if i == 2 else "center", vertical="top", wrap_text=i == len(vals) + 1)
             ws.cell(row=rr, column=5).number_format = _gap_fmt(m)
             ws.cell(row=rr, column=7).number_format = P_FMT
             ws.cell(row=rr, column=8).number_format = '0.00"x"'
@@ -2232,7 +2250,10 @@ def _check(ws, res, src: Path, record: str = "") -> None:
                               f"shuffled {b.shuffles:,} times, within the band for the rest of its band; the Test "
                               f"column says how many shuffles made a gap as big. Profit and contribution are "
                               f"compared as a gap in points, never a multiple. The split's odds: "
-                              f"Cochran-Mantel-Haenszel, with no continuity correction."))
+                              f"Cochran-Mantel-Haenszel, which asks whether an odds ratio this far from 1 could "
+                              f"come from shuffling loans within their pockets. It has no continuity correction: "
+                              f"nothing is taken off the gap between actual and expected before it is squared. "
+                              f"That is the modern form."))
         # the words the tabs use, defined once (docs/statistics.md, conventions; NEXT-GOAL 3.1)
         rows.append(("p-value", f"The chance of a gap at least this big if there were no real difference, after "
                                 f"the allowance for many tests. Below {1 - b.confidence:.0%} is significant, at "
@@ -2242,11 +2263,11 @@ def _check(ws, res, src: Path, record: str = "") -> None:
                                        f"errors is the {b.confidence:.0%} line."))
     if b is not None and b.many_tests != "none":
         rows.append(("The allowance for many tests covers",
-                     "each grid and measure on its own, one comparison at a time (the firm's call, 25 Sep 2026)"))
+                     "each grid and measure on its own, one comparison at a time"))
     if "contribution_rate" in res.total.rates:
         # the definition the tabs rest on (OC-35): the losses inside RANR are GCO
         rows.append(("Contribution before losses", "RANR + GCO, per booked dollar. This assumes RANR has gross "
-                                                   "charge-offs taken out (OC-35). If RANR nets recoveries instead, "
+                                                   "charge-offs taken out. If RANR nets recoveries instead, "
                                                    "contribution is overstated by the recoveries."))
     if b is not None:
         said = profit_words(res)
