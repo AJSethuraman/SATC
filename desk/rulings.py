@@ -281,9 +281,9 @@ class Asked:
         """The one line the firm is asked. Short: it rides on a notification."""
         if self.kind == "reach":
             return (f"should questions saying \"{self.proposed}\" bring up "
-                    f"{self.subject}? Reply yes, no, or your words")
+                    f"{self.subject}? Reply yes, no, or your words in quotes")
         return (f"{self.why}. Reply yes to the desk's new wording, no to keep "
-                f"it, or your own")
+                f"it, or your own in quotes")
 
 
 def _q(text: str) -> list[str]:
@@ -417,6 +417,15 @@ def settle(queue: Path, rid: str, answer: str, *, on: str = "") -> Asked:
         raise record.RecordError(f"{rid} is not an open ruling")
     if known[rid].answered:
         raise record.RecordError(f"{rid} was answered on {known[rid].answered}")
+    # A DATE THE RECORD CAN READ. Second independent review of #401: `on=` was
+    # written into `Ruled:` as given, and a line the parser refuses takes down
+    # every consultation that loads the corpus.
+    if on:
+        try:
+            date.fromisoformat(on)
+        except ValueError:
+            raise record.RecordError(
+                f"{rid}: {on!r} is not a date written YYYY-MM-DD") from None
     done = replace(known[rid], answer=answer,
                    answered=on or date.today().isoformat())
     _write(Path(queue), [done if e.id == rid else e for e in entries])
@@ -433,8 +442,26 @@ _NO_WORDS = {"no", "nope", "n", "keep", "leave", "decline", "declined"}
 #: DECISION WORD IS FILLER: Codex on #401 found "yes, keep it" read as yes,
 #: because "keep" was on this list -- and "keep it" is the no.
 _FILLER = {"it", "is", "as", "the", "that", "this", "one", "please", "thanks",
-           "thank", "you", "go", "ahead", "do", "looks", "good", "fine",
-           "sounds", "same", "wording"}
+           "thank", "you", "do", "same", "wording"}
+#: Words that agree. They may follow a yes; after a no they are the other
+#: decision. Second independent review of #401: "No, go ahead" was recorded as
+#: the firm keeping its wording, because these sat in `_FILLER` -- and "no, go
+#: ahead" most likely means "no objection".
+_AGREEING = {"go", "ahead", "looks", "good", "fine", "sounds", "great", "right"}
+
+#: The firm's own wording is what they QUOTE. Second independent review of
+#: #401: "Please leave the current wording alone, it is correct as written"
+#: became POS7's text -- a sentence about the wording, taken for the wording.
+#: No length or figure check tells those apart, so the line asks for quotes
+#: and anything that is neither a decision nor quoted is asked again.
+_QUOTED = re.compile(r'^\s*(["\u201c\u201d\u2018\u2019\'])(.+)'
+                     r'(["\u201c\u201d\u2018\u2019\'])\s*[.!]?\s*$', re.S)
+
+
+def _unquote(body: str) -> str | None:
+    """The words inside the quotes, or None when the reply is not quoted."""
+    m = _QUOTED.match(body)
+    return m.group(2).strip() if m and m.group(2).strip() else None
 
 
 def _verdict(body: str) -> str:
@@ -444,9 +471,11 @@ def _verdict(body: str) -> str:
     opposite of what the firm said. So a yes or a no is only a yes or a no
     when nothing else is said but the same decision again ("no, keep it") and
     courtesy words. A reply carrying BOTH decisions ("yes, keep it") or going
-    on to say something is refused, and the desk asks again. A reply opening
-    with neither is the firm's own words.
+    on to say something is refused, and the desk asks again. A QUOTED reply is
+    the firm's own words, whatever it opens with; anything else is unclear.
     """
+    if _unquote(body) is not None:
+        return "words"
     words = [w.strip(".") for w in re.findall(r"[a-z0-9%$.]+", body.lower())]
     words = [w for w in words if w]
     if not words:
@@ -454,11 +483,14 @@ def _verdict(body: str) -> str:
     said = {("yes" if w in _YES_WORDS else "no") for w in words
             if w in _YES_WORDS or w in _NO_WORDS}
     if words[0] not in _YES_WORDS and words[0] not in _NO_WORDS:
-        return "words"
+        return "unclear"
     if len(said) != 1:
         return "unclear"
-    if all(w in _FILLER or w in _YES_WORDS or w in _NO_WORDS for w in words):
-        return said.pop()
+    verdict = said.pop()
+    allowed = _FILLER | _YES_WORDS | _NO_WORDS | (
+        _AGREEING if verdict == "yes" else set())
+    if all(w in allowed for w in words):
+        return verdict
     return "unclear"
 
 
@@ -485,6 +517,10 @@ def _field_span(block: str, label: str):
 
 
 def _after_ratified(block: str, ruled: str) -> str:
+    # ONCE. Second independent review of #401: a crash after the position was
+    # written and before RULINGS.md was left a retry adding a second `Ruled:`.
+    if f"**Ruled:** {ruled}" in block:
+        return block
     span = _field_span(block, "Ratified")
     at = span[1] if span else len(block.rstrip())
     return block[:at] + f"\n\n**Ruled:** {ruled}" + block[at:]
@@ -656,9 +692,11 @@ def _record_ruling(corpus: Path, entry: Asked) -> Ruling:
     verdict = _verdict(body)
     if verdict == "unclear":
         raise ValueError(
-            f"{entry.id}: the reply \"{entry.answer}\" opens with a yes or a no "
-            f"and then says more. Ask the firm which they meant; recording "
-            f"either would be a guess.")
+            f"{entry.id}: the reply \"{entry.answer}\" is not a plain yes or "
+            f"no, and it is not wording in quotes. Ask the firm which they "
+            f"meant; recording either would be a guess.")
+    if verdict == "words":
+        body = _unquote(body)
     said_yes, said_no = verdict == "yes", verdict == "no"
     base = Ruling(id=entry.id, kind=entry.kind, subject=entry.subject,
                   ruled=entry.answered, asked=entry.question(),

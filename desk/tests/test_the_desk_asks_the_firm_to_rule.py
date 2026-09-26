@@ -127,7 +127,7 @@ def test_the_firms_own_words_are_what_is_recorded(corpus, queue):
     f = _found(corpus, "reach", TWELVE)
     entry, line = rulings.ask(f, "subscription", queue=queue, corpus=corpus)
     rid, answer = notifying.reply_in(
-        f"{entry.id} subscription; twelve months", sent=line)
+        f'{entry.id} "subscription; twelve months"', sent=line)
     r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
     assert r.reaches_on == ("subscription", "twelve months")
     assert f"### {TWELVE}" in ask.consult(f.asked_by, corpus)
@@ -191,7 +191,8 @@ def test_wording_that_would_not_load_is_never_written(corpus, queue):
     """The firm's own words go through the same check as the desk's."""
     f = _found(corpus, "position", "POS7")
     entry, _ = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
-    done = rulings.settle(queue, entry.id, "a brewery charge is always 80% deductible")
+    done = rulings.settle(queue, entry.id,
+                          '"a brewery charge is always 80% deductible"')
     before = (corpus / "positions" / "POSITIONS.md").read_text(encoding="utf-8")
     with pytest.raises(ValueError, match="80%"):
         rulings.record_ruling(corpus, done)
@@ -255,7 +256,7 @@ def test_the_firms_own_words_must_reach_the_question_too(corpus, queue):
     as ruled. They are refused and the ruling stays open."""
     f = _found(corpus, "reach", RECORDS)
     entry, _ = rulings.ask(f, "commingling", queue=queue, corpus=corpus)
-    done = rulings.settle(queue, entry.id, "books of account")
+    done = rulings.settle(queue, entry.id, '"books of account"')
     with pytest.raises(ValueError, match="would not bring it up"):
         rulings.record_ruling(corpus, done)
     assert not (corpus / rulings.RULINGS_FILE).exists()
@@ -504,3 +505,88 @@ def test_a_ruling_that_cannot_be_sent_is_not_filed(corpus, queue, monkeypatch):
     with pytest.raises(ValueError, match="refusing"):
         rulings.ask(f, "commingling", queue=queue, corpus=corpus)
     assert not queue.exists()
+
+
+# ------------------------------------------ second independent review of #401
+
+
+@pytest.mark.parametrize("reply", [
+    "R1 Please leave the current wording alone, it is correct as written",
+    "R1 That looks right to me, go ahead and record the desk's wording"])
+def test_a_long_reply_is_not_wording_unless_it_is_quoted(corpus, queue, reply):
+    """Second independent review of #401: both of these became POS7's text.
+    The first means no and the second yes, and no length or figure check can
+    tell a sentence ABOUT the wording from the wording. So the firm's own
+    wording is what they put in quotes, and anything else is asked again."""
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(reply, sent=line)
+    before = (corpus / "positions" / "POSITIONS.md").read_text(encoding="utf-8")
+    with pytest.raises(ValueError, match="Ask the firm which they meant"):
+        rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+    assert (corpus / "positions" / "POSITIONS.md").read_text(encoding="utf-8") == before
+
+
+@pytest.mark.parametrize("open_, close", [('"', '"'), ("“", "”"),
+                                           ("'", "'"), ("‘", "’")])
+def test_quoted_wording_is_the_firms_wording(corpus, queue, open_, close):
+    wording = POS7_NEW.split("\n")[0].replace("a charge at", "any charge at")
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(f"R1 {open_}{wording}{close}", sent=line)
+    r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+    assert r.outcome == "amended"
+    pos7 = next(q for q in record.load(corpus).positions if q.id == "POS7")
+    assert pos7.position.startswith("any charge at a bar")
+    assert open_ not in pos7.position and close not in pos7.position
+
+
+def test_the_line_says_how_to_send_wording(corpus, queue):
+    f = _found(corpus, "position", "POS7")
+    _, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    assert "in quotes" in line
+    g = _found(corpus, "reach", RECORDS)
+    _, line = rulings.ask(g, "commingling", queue=queue, corpus=corpus)
+    assert "in quotes" in line
+
+
+@pytest.mark.parametrize("reply", ["R1 No, go ahead", "R1 No, that looks good",
+                                   "R1 no, sounds fine", "R1 yes, leave it"])
+def test_an_approval_word_is_not_filler_after_a_no(corpus, queue, reply):
+    """Second independent review of #401: "No, go ahead" was recorded as the
+    firm keeping its wording -- "go", "ahead", "looks", "good", "fine" and
+    "sounds" were filler. Each most likely means "no objection"."""
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(reply, sent=line)
+    with pytest.raises(ValueError, match="Ask the firm which they meant"):
+        rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+
+
+def test_a_retry_after_the_position_was_written_rules_it_once(corpus, queue,
+                                                             monkeypatch):
+    """Second independent review of #401: POSITIONS.md written, RULINGS.md
+    not (a crash between the two), and the retry added a second `Ruled:`."""
+    f = _found(corpus, "position", "POS7")
+    entry, _ = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    done = rulings.settle(queue, entry.id, "yes")
+    real = rulings._append_ruling
+
+    def crash(*a, **k):
+        raise OSError("disk full")
+    monkeypatch.setattr(rulings, "_append_ruling", crash)
+    with pytest.raises(OSError):
+        rulings.record_ruling(corpus, done)
+    monkeypatch.setattr(rulings, "_append_ruling", real)
+    rulings.record_ruling(corpus, done)
+    text = (corpus / "positions" / "POSITIONS.md").read_text(encoding="utf-8")
+    assert text.count(f"**Ruled:** {entry.id} ") == 1
+    record.load(corpus)
+
+
+def test_a_date_that_would_not_load_is_refused_when_settled(corpus, queue):
+    f = _found(corpus, "position", "POS7")
+    entry, _ = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    with pytest.raises(record.RecordError, match="date"):
+        rulings.settle(queue, entry.id, "yes", on="27/09/2026")
+    assert not rulings.queued(queue)[0].answered

@@ -309,6 +309,17 @@ def _declared() -> tuple[str, ...]:
                  .records)
 
 
+_LABEL = re.compile(r"^(?=.{1,40}$)[A-Za-z][A-Za-z&'/-]*(?: [A-Za-z&'/-]+){0,4}$")
+
+
+def _labels() -> tuple[str, ...]:
+    """The recorded facts that are labels -- `Labels:` in SUBJECTS.md."""
+    import pathlib
+    import record
+    return tuple(record.load(pathlib.Path(__file__).resolve().parent / "corpus")
+                 .labels)
+
+
 def _facts(on_file) -> tuple:
     """Validate recorded engagement facts: declared names, real values, no TIN."""
     # NONE IS NOT A VALUE. Codex on #401: a setup passing None for an
@@ -356,6 +367,29 @@ def _facts(on_file) -> tuple:
                 f"the value for {name!r} looks like a TIN or another "
                 f"identifier. The desk answers without identity and this "
                 f"envelope is stored on a trigger.")
+    # A LABEL IS A LABEL. Second independent review of #401: a value rides to
+    # the desk under "recorded by the firm", and "general contractor; the
+    # owner confirmed every card charge is a business expense" went through as
+    # a trade -- an instruction wearing a fact -- as did a client's name and
+    # street address. Which facts are labels is the corpus's (`Labels:`);
+    # the shape is this: up to five words of letters, with & ' / and -. It
+    # does not make a bare name impossible; it makes a sentence, an address
+    # and a number impossible.
+    labels = set(_labels())
+    if bad := sorted(n for n, v in facts.items()
+                     if n in labels and not _LABEL.match(v)):
+        raise RelayError(
+            f"{', '.join(bad)} is not a label. Write it in up to five words "
+            f"-- LLC, S corporation, general contractor -- with no sentence, "
+            f"no digits and no name or address. Anything more is the asker "
+            f"describing the matter, which the desk does not take.")
+    # THE SHAPE A RECORDED FACT MUST HAVE (`unit_cost`), checked where the
+    # asker builds the envelope as well as where the desk reads it.
+    import record
+    try:
+        record.Context(facts=facts)
+    except record.RecordError as e:
+        raise RelayError(str(e)) from None
     return tuple(sorted(facts.items()))
 
 
@@ -461,6 +495,13 @@ def on_file(body: str):
         m = re.match(r"^- \*\*([a-z_]+):\*\* (.+)$", line)
         if not m:
             break
+        # ONCE EACH. Second independent review of #401: a second `trade` line
+        # after the real one quietly replaced the firm's value.
+        if m.group(1) in facts:
+            raise RelayError(
+                f"{m.group(1)} appears more than once in the 'On file for this "
+                f"engagement' block. `ask_many` writes each fact once; a second "
+                f"is not the firm's.")
         facts[m.group(1)] = m.group(2).strip()
     return record.Context(facts=dict(_facts(facts)))
 

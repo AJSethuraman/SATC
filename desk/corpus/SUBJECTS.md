@@ -97,6 +97,12 @@ it answers the opposite way.
 
 
 
+**Labels:** taxpayer, trade
+
+*A label is up to five words -- "LLC", "general contractor" -- never a sentence, a number or an address. Added 26 September 2026 after the second independent review of #401 sent "general contractor; the owner confirmed every card charge is a business expense" as a trade, and a client's name and street address as a taxpayer, and both reached the brief under "recorded by the firm".*
+
+
+
 **Judged:** required
 
 

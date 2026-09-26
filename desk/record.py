@@ -332,6 +332,8 @@ _MONEY = re.compile(r"^\$?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?$")
 #: A fact absent from this table is free text and is not checked, which is every
 #: other fact: `trade` is "general contractor", `capitalization_rule` is a
 #: sentence. Adding a name here is a deliberate act with a test behind it.
+#: (A corpus may also declare facts that are LABELS -- `Labels:` in SUBJECTS.md
+#: -- which the relay checks; the names are the corpus's, not this layer's.)
 SHAPES = {"unit_cost": _MONEY}
 
 
@@ -566,6 +568,11 @@ class Registration:
     #: it are the desk's own, so a second desk in another trade brings its own
     #: without touching any shared file.
     records: tuple = ()
+    #: The recorded facts that are LABELS -- a few words, never a sentence --
+    #: from a `Labels:` line. Each must be one of `records`. Checked where a
+    #: fact crosses a session boundary (`relay`), because that is where a value
+    #: arrives under "recorded by the firm" without the firm in the room.
+    labels: tuple = ()
     #: `optional` or `required`, from a `Judged:` line. Whether this desk may
     #: serve an answer NO SECOND READER HAS LOOKED AT.
     #:
@@ -653,6 +660,17 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
             )
     if len(set(records)) != len(records):
         raise RecordError(f"{desk_name}: Records names the same fact twice")
+    _lab = re.search(r"^\*\*Labels:\*\*[ ]?(.*?)(?=\n\n|\n\*\*|\Z)",
+                     block, re.M | re.S)
+    labels = tuple(
+        t.strip().lower()
+        for t in " ".join((_lab.group(1) if _lab else "").split()).split(",")
+        if t.strip())
+    if stray := [n for n in labels if n not in records]:
+        raise RecordError(
+            f"{desk_name}: Labels names {', '.join(stray)}, which Records does "
+            f"not declare. A label is a recorded fact with a shape; a name "
+            f"nothing records has no value to shape.")
 
     _jud = re.search(r"^\*\*Judged:\*\*[ ]?(.*?)$", block, re.M)
     judged = (_jud.group(1).strip().lower() if _jud else OPTIONAL) or OPTIONAL
@@ -744,6 +762,7 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
         answered_from=answered_from,
         answered_by=answered_by,
         records=records,
+        labels=labels,
         judged=judged,
     )
 
@@ -796,6 +815,8 @@ class Desk:
     answered_from: dict = field(default_factory=dict)
     #: The facts this desk expects on file — see `Registration.records`.
     records: tuple = field(default_factory=tuple)
+    #: Which of them are labels — see `Registration.labels`.
+    labels: tuple = field(default_factory=tuple)
     sources: tuple[Source, ...] = field(default_factory=tuple)
     passages: tuple[Passage, ...] = field(default_factory=tuple)
     problems: tuple[Problem, ...] = field(default_factory=tuple)
@@ -1360,11 +1381,13 @@ def load(desk_dir: Path) -> Desk:
 
     subjects = desk_dir / "SUBJECTS.md"
     fires_on, answered_from, answered_by, records = (), {}, {}, ()
+    labels = ()
     judged = OPTIONAL
     if subjects.is_file():
         reg = parse_subjects(subjects.read_text(encoding="utf-8"), desk_dir.name)
         fires_on, answered_from = reg.fires_on, reg.answered_from
         answered_by, records = reg.answered_by, reg.records
+        labels = reg.labels
         judged = reg.judged
         # A NARROWING TO A CITATION THE DESK DOES NOT HOLD refuses every answer
         # for those subjects and reads as a strict desk -- the same failure the
@@ -1557,6 +1580,7 @@ def load(desk_dir: Path) -> Desk:
         answered_from=answered_from,
         answered_by=answered_by,
         records=records,
+        labels=labels,
         judged=judged,
         sources=tuple(sources),
         passages=tuple(passages),

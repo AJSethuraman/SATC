@@ -563,10 +563,12 @@ rulings.record_ruling(CORPUS, done)   # writes the record
 ```
 
 `record_ruling` takes **yes** as your proposal, **no** as the firm keeping
-things as they are (recorded, and not asked again), and anything else as the
-firm's own words. It **raises** on a yes or a no that goes on to say more
-("No, make it 60 percent"), and on wording that would not load. Either way,
-ask them again and quote why. Never pick a reading for them.
+things as they are (recorded, and not asked again), and **wording in quotes**
+as the firm's own words — the line asks for quotes. It **raises** on a yes or a
+no that goes on to say more ("No, make it 60 percent", "No, go ahead"), on an
+unquoted sentence ("Please leave the wording alone" is about the wording, not
+the wording), and on wording that would not load. Either way, ask them again
+and quote why. Never pick a reading for them.
 
 **Find, ask and record against the SAME corpus: a checkout of the
 repository.** A ruling is numbered against the corpus it is asked in; recording
