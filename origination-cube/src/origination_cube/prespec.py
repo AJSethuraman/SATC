@@ -6,7 +6,7 @@ loans: the forest ranks it, the shape shows where the rate bends, and bins are
 drawn there (`docs/statistics.md` B7; `docs/scout-vs-measure.py`, whose edges
 were "written down after looking at" the scouting). Bins chosen because of what
 the development loans showed prove nothing on those same loans. The evidence is
-the identical test - same bins, strata, window, confidence and reference group -
+the identical test - same bins, strata, confidence and reference group -
 run on loans the scouting never saw: the holdout (B5, B6). The pre-spec is that
 promise, and it only binds once git holds it, dated, before the holdout run.
 
@@ -18,7 +18,6 @@ THE FILE (YAML). Every line is required and none has a default:
     bins: [0.1, 0.25, 0.5, 1.0, 2.0]    # its cut points, chosen on development data
     reference: "0.25 - 0.49"            # the group every other group is compared with
     strata: [FICO, CHANNEL]             # the columns the pockets are cut by, held fixed
-    window_months: 18                   # bad = bad within this many months of origination
     confidence: 0.95                    # how sure a difference must be, as a share
     holdout: {from: 2024-01-01, to: 2024-12-31}       # origination range kept back
     development: {from: 2022-01-01, to: 2023-12-31}   # origination range the bins came from
@@ -43,7 +42,6 @@ Line by line:
   with any range, "0.01 - 0.09", "2.00 - 7.40", or as "up to 0.09" and "2.00 and up".
 - `strata` lists column names, each once, never the tested column. `strata: []` says
   explicitly that the whole book is one pocket.
-- `window_months` is a whole number, 1 or more.
 - `confidence` is a share from 0.5 up to, not including, 1 (as the cube file's).
 - `holdout` and `development` are origination ranges, `{from: DATE, to: DATE}`, and
   BOTH ENDS ARE INCLUSIVE: `{from: 2024-01-01, to: 2024-12-31}` holds a loan made on
@@ -53,7 +51,9 @@ Line by line:
 
 As with the cube file (`config.py`), a line the file does not recognise is refused,
 since a misspelled `confidense` that was quietly ignored is the silent fallback this
-exists to stop. A value still reading `[CONFIRM: ...]` is refused, naming it. Every
+exists to stop. So is `window_months`, which an older pre-spec carried: the outcome
+window was removed, and a run shows every loan as the extract has it (the firm, 26
+Sep 2026). The refusal says so by name, rather than calling the line unknown. A value still reading `[CONFIRM: ...]` is refused, naming it. Every
 problem is listed at once, one per line.
 
 `docs/prespec-example.yaml` is the same example, committed, and a test loads it.
@@ -90,11 +90,14 @@ from .engine import band_labels
 
 VERSION = 1
 CONFIRM = "[CONFIRM:"
-KEYS = ("prespec", "written", "column", "bins", "reference", "strata", "window_months", "confidence",
-        "holdout", "development")
+KEYS = ("prespec", "written", "column", "bins", "reference", "strata", "confidence", "holdout", "development")
+#: A line an older pre-spec carried and a run no longer reads, and why (config.REMOVED says it for the cube file).
+REMOVED = {"window_months": "the outcome window was removed: it left young loans out and counted late losses "
+                            "as good. A run now shows every loan in the extract as the extract has it. Picking "
+                            "which loans to study is done before the extract reaches the cube. Delete the line."}
 RANGE_KEYS = ("from", "to")
 #: What `deviations` compares, in the order it reports. `edges` is read for `bins`.
-IN_USE_KEYS = ("column", "bins", "reference", "strata", "window_months", "confidence", "holdout")
+IN_USE_KEYS = ("column", "bins", "reference", "strata", "confidence", "holdout")
 #: The git program. A module setting so a test can point it at nothing.
 GIT = "git"
 GIT_TIMEOUT = 15                                           # seconds, per git call
@@ -109,7 +112,6 @@ _LINES = {
     "bins": "bins: [0.1, 0.25, 0.5, 1.0, 2.0]    # its cut points, chosen on development data",
     "reference": 'reference: "0.25 - 0.49"           # the group the others are compared with',
     "strata": "strata: [FICO, CHANNEL]             # the columns the pockets are cut by; [] for none",
-    "window_months": "window_months: 18                   # bad means bad within this many months",
     "confidence": "confidence: 0.95                    # how sure a difference must be",
     "holdout": "holdout: {from: 2024-01-01, to: 2024-12-31}       # kept back for the confirmatory run",
     "development": "development: {from: 2022-01-01, to: 2023-12-31}   # where the bins were chosen",
@@ -149,7 +151,6 @@ class PreSpec:
     reference: str                   # the reference group's name, one of `groups`
     reference_index: int             # its place in `groups`, 0 the lowest
     strata: tuple[str, ...]
-    window_months: int
     confidence: float
     holdout: DateRange
     development: DateRange
@@ -194,7 +195,9 @@ def parse(raw: Any, source_path: str = "", text: str = "") -> PreSpec:
         problems.append(f"`{where}` still reads {val!r}: replace it with your answer")
         marked.add(where.split(".")[0].split("[")[0])
     for k in raw:
-        if k not in KEYS:
+        if k in REMOVED:
+            problems.append(f"`{k}:` is no longer read: {REMOVED[k]}")
+        elif k not in KEYS:
             problems.append(f"unknown line `{k}:` (known: {', '.join(KEYS)})")
     for k in KEYS:
         if k not in raw:
@@ -253,14 +256,6 @@ def parse(raw: Any, source_path: str = "", text: str = "") -> PreSpec:
             if not twice and column not in names:
                 strata = tuple(names)
 
-    window = None
-    if has("window_months"):
-        v = raw["window_months"]
-        if isinstance(v, int) and not isinstance(v, bool) and v >= 1:
-            window = v
-        else:
-            problems.append(f"`window_months:` must be a whole number of months, 1 or more; got {v!r}")
-
     conf = None
     if has("confidence"):
         v = raw["confidence"]
@@ -279,7 +274,7 @@ def parse(raw: Any, source_path: str = "", text: str = "") -> PreSpec:
     if problems:
         raise PreSpecError(problems)
     return PreSpec(written=written, column=column, bins=bins, groups=groups, reference=groups[ref_index],
-                   reference_index=ref_index, strata=strata, window_months=window, confidence=conf,
+                   reference_index=ref_index, strata=strata, confidence=conf,
                    holdout=holdout, development=development, source_path=source_path, text=text)
 
 
@@ -440,7 +435,6 @@ _SAID = {
     "bins": ("The bins are", "The bins are not set"),
     "reference": ("The reference group is", "The reference group is not set"),
     "strata": ("Pockets are cut by", "What the pockets are cut by is not set"),
-    "window_months": ("The outcome window is", "The outcome window is not set"),
     "confidence": ("Confidence is", "Confidence is not set"),
 }
 
@@ -451,11 +445,11 @@ def deviations(prespec: PreSpec, in_use: dict, where: str = "on Control") -> lis
     that was pre-specified.
 
     `in_use` holds what the run used: column, bins (or edges), reference (a
-    group's name or number), strata, window_months, confidence (a share) and
+    group's name or number), strata, confidence (a share) and
     holdout: the origination range of the loans it used ({from, to}, a (from, to)
     pair, or a DateRange). A key that is absent or None is reported as not set (the
-    holdout's as not known): a run that never said its window has not matched the
-    pre-spec's. Other keys,
+    holdout's as not known): a run that never said its confidence has not matched
+    the pre-spec's. Other keys,
     such as the rest of Control's settings, are not the pre-spec's business and
     are passed over. `where` says where the run's value was read, for the
     sentence; the holdout's sentence is about the loans the run used, wherever its
@@ -467,8 +461,7 @@ def deviations(prespec: PreSpec, in_use: dict, where: str = "on Control") -> lis
     if got.get("bins") is None and got.get("edges") is not None:
         got["bins"] = got["edges"]
     want = {"column": f"`{ps.column}`", "bins": _bins_text(ps.bins), "reference": f"`{ps.reference}`",
-            "strata": _strata_text(ps.strata), "window_months": _months(ps.window_months),
-            "confidence": _pct(ps.confidence)}
+            "strata": _strata_text(ps.strata), "confidence": _pct(ps.confidence)}
     out: list[str] = []
     in_bins = _as_bins(got.get("bins"))
 
@@ -509,9 +502,6 @@ def deviations(prespec: PreSpec, in_use: dict, where: str = "on Control") -> lis
                 seen = repr(v)
             elif {c.strip() for c in cols} != set(ps.strata):
                 seen = _strata_text(tuple(c.strip() for c in cols))
-        elif key == "window_months":
-            if not _num(v) or v != ps.window_months:
-                seen = _months(v) if _num(v) else repr(v)
         elif key == "confidence":
             c = _share(v)
             if c is None:
@@ -594,10 +584,6 @@ def _bins_text(bins: Iterable[float]) -> str:
 
 def _strata_text(strata: tuple[str, ...]) -> str:
     return ", ".join(strata) if strata else "nothing (the whole book is one pocket)"
-
-
-def _months(n: Any) -> str:
-    return f"{_n(n)} month" + ("" if n == 1 else "s")
 
 
 def _pct(share: float) -> str:

@@ -204,18 +204,6 @@ def _made_columns(table, cols, kept: dict, mem: dict):
     return made, reports, notes
 
 
-def _needed(s, kept: dict, codes: set[str]) -> bool:
-    """Whether a Control setting needs an answer for this workbook as it stands:
-    always, or - for one asked only sometimes - when its condition holds."""
-    if not s.needed_when:
-        return True
-    if s.needed_when == "outcome_date":
-        return "outcome_date" in codes
-    in_use = any((control.answer_of(k, *kept["control"].get(k, (None, None))) or 0) > 0
-                 for k in ("min_age_months", "window_months"))
-    return in_use and "as_of_date" not in codes
-
-
 def _to_code(v: Any, cat) -> str | None:
     """A meaning as the Columns tab shows it (a label) or as the code."""
     if v in cat:
@@ -290,7 +278,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     start = wb.create_sheet("Start here")
     if "_placeholder" in wb.sheetnames:
         del wb["_placeholder"]
-    control.write_control(wb, control.load_settings(), with_columns=True)
+    control.write_control(wb, control.load_settings())
     for r in wb[control.SHEET].iter_rows(min_row=control.FIRST_ROW):
         key = r[control.KEY_COL - 1].value
         if key in kept["control"]:
@@ -377,7 +365,6 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         by_col.setdefault(c, []).insert(0, "New since the last check.")
     classified = {c.name: c for c in cols}
     edge_noted: set[str] = set()
-    codes_now: set[str] = set()
     r = COL_FIRST
     for c in table.columns:
         sg = sugg[c]
@@ -419,7 +406,6 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         dv_period.add(ws.cell(row=r, column=C_PERIOD))
         ws.cell(row=r, column=C_DEFINE, value=prior.get("define"))
         ws.cell(row=r, column=C_MADE, value=next((m.text() for m in made if m.name == c), None))
-        codes_now.add(code)
         for col in range(C_NAME, C_DEFINE + 1):
             ws.cell(row=r, column=col).alignment = Alignment(wrap_text=True, vertical="top", indent=1 if col in (
                 C_BLANK, C_SAMPLES) else 0, horizontal="center" if col == C_BLANK else None)
@@ -480,7 +466,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     about["A3"], about["B3"] = "set up", (today or date.today()).isoformat()
     about["A4"], about["B4"] = "extract name", extract.name
     about.sheet_state = "hidden"
-    unanswered = sum(1 for s in control.load_settings() if s.judgment and _needed(s, kept, codes_now)
+    unanswered = sum(1 for s in control.load_settings() if s.judgment
                      and not any(v not in (None, "n/a") for v in kept["control"].get(s.key, (None, None))))
     last = None
     if "Log" in wb.sheetnames:
@@ -518,6 +504,10 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     return Outcome(True, book, lines)
 
 
+#: Meanings a person may have confirmed before they were taken out (config.REMOVED), in the words Columns used.
+REMOVED_MEANINGS = {"outcome_date": "Outcome date", "as_of_date": "As-of date"}
+
+
 def _learned_tab(wb, memory_path) -> None:
     if "Learned" in wb.sheetnames:
         del wb["Learned"]
@@ -537,7 +527,11 @@ def _learned_tab(wb, memory_path) -> None:
         learned = rw["learned"]
         if rw["kind"] == "column":
             code = re.split(r"[ ;]", learned)[0]          # "fico; band edges every 20" (the seventh walk)
-            learned = learned.replace(code, cat[code].label, 1) if code in cat else learned
+            if code in cat:
+                learned = learned.replace(code, cat[code].label, 1)
+            elif code in REMOVED_MEANINGS:
+                # remembered before the meaning was taken out: never suggested again, and said so here
+                learned = f"{REMOVED_MEANINGS[code]}, which the cube no longer uses. Set it to Forget."
         ws.append([memory.KEEP, rw["kind"], rw["column"], learned, rw["first"], rw["last"], rw["times"], rw["id"]])
         dv.add(ws.cell(row=ws.max_row, column=1))
     if not rows:
@@ -696,7 +690,6 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
         cells = " and ".join(f"Columns!{_col(C_SPLIT)}{row}" for _, _, row in split)
         problems.append(f"{cells}: only one column can split the pockets. Clear all but one.")
     derived = _read_made(wb, columns, made_rows, problems)
-    dates = _read_dates(wb, use, columns, problems) if use else {}
     questions = []
     for r in wb["Odd values"].iter_rows(min_row=5, values_only=True):
         if len(r) < 7 or not r[1] or not r[6]:
@@ -742,7 +735,6 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
         "bands": raw_bands,
         "dimensions": raw_dims,
         "measures": measures,
-        "min_age_months": int(use["min_age_months"]),
         "benchmark": {"min_units": _num_or(use["min_loans"], 30, int), "min_events": int(use["min_events"]),
                       "worse_at": _num_or(use["worse_at"], 1.25, float),
                       "better_at": _num_or(use["better_at"], 0.8, float),
@@ -754,7 +746,6 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
     if split:
         name, code, _ = split[0]
         raw["split"] = {"field": name, "how": "each_value" if cat[code].cut == "dimension" else "own_median"}
-    raw.update(dates)                               # fixes 3.13, 3.14: the window and the as-of date
     if derived:
         raw["derived"] = derived                    # fix 3.9
     about = dict(about)
@@ -796,57 +787,6 @@ def _read_made(wb, columns: dict, made_rows: dict, problems: list[str]) -> list[
         if name not in named:
             problems.append(f'Columns!{_col(C_NAME)}{row}: "{name}" was a new column made on Control, and Control '
                             f'doesn\'t have it now. Press Set up again.')
-    return out
-
-
-def _read_dates(wb, use: dict, columns: dict, problems: list[str]) -> dict:
-    """The outcome window and the as-of date from Control, checked against the
-    dates marked on Columns (fixes 3.13, 3.14). Each is asked for only when it
-    matters, and then refused by cell until it is answered: the window when a
-    column is marked Outcome date, the as-of date when a loan age filter or a
-    window is in use and no column is marked As-of date. The as-of date is never
-    worked out unless someone picked "the latest date in the extract"."""
-    ws = wb[control.SHEET]
-    cat = meanings.catalog()
-    marked = {m: [c for c, v in columns.items() if (v if isinstance(v, str) else v["means"]) == m]
-              for m in cfgmod.DATE_ROLES}
-
-    def cell(key: str) -> str:
-        return f"{control.SHEET}!C{control.row_of(ws, key) or ''}"
-
-    out: dict[str, Any] = {}
-    age = int(use.get("min_age_months") or 0)
-    window = use.get("window_months")
-    if window is None and marked["outcome_date"]:
-        problems.append(f"{cell('window_months')}: {marked['outcome_date'][0]} is marked Outcome date on Columns, so "
-                        f"say what bad means: No window, or bad within so many months of being made.")
-    window = int(window or 0)
-    if marked["outcome_date"] or window:
-        out["window_months"] = window
-    if window and not marked["outcome_date"]:
-        problems.append(f"{cell('window_months')}: an outcome window of {window} months needs the date each loan went "
-                        f"bad. Mark that column {cat['outcome_date'].label} on Columns, or pick No window.")
-    if window and not marked["origination_date"]:
-        problems.append(f"{cell('window_months')}: an outcome window of {window} months needs the date each loan was "
-                        f"made. Mark that column {cat['origination_date'].label} on Columns.")
-    if window and age:
-        problems.append(f"{cell('min_age_months')} and {cell('window_months')}: use the loan age filter or the outcome "
-                        f"window, not both. The window already leaves out loans under {window} months on book, so "
-                        f"set the loan age filter to Every loan.")
-    as_of = use.get("as_of")
-    what = f"an outcome window of {window} months" if window else f"a loan age filter of {age} months"
-    if marked["as_of_date"] and as_of not in (None, "column"):
-        problems.append(f"{cell('as_of')}: the as-of date is on Control and {marked['as_of_date'][0]} is marked "
-                        f"As-of date on Columns. Keep one: pick the As-of date column here, or mark it Not used.")
-    elif (window or age) and not marked["as_of_date"]:
-        if as_of is None:
-            problems.append(f"{cell('as_of')}: {what} needs the date the data was taken. Pick the latest date in the "
-                            f"extract, or type the date.")
-        elif as_of == "column":
-            problems.append(f"{cell('as_of')}: no column on Columns is marked As-of date. Mark it, pick the latest "
-                            f"date in the extract, or type the date.")
-        else:
-            out["as_of"] = as_of                       # "latest", or the date typed
     return out
 
 
@@ -1034,7 +974,6 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     lines = notes + [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."]
     lines += _top_lines(res)
-    lines += _date_lines(res)
     lines += confirmatory.launcher_lines(res)
     # the same rows the tab shades blue (its flag), and pockets counted once (the seventh walk, defect 7:
     # "58 pockets" was 58 rows from 23 pockets)
@@ -1274,7 +1213,7 @@ def _last_run_used(ws, res) -> None:
     h.alignment = Alignment(wrap_text=True, vertical="top")
     ws.column_dimensions[_col(col)].width = 26
     ws.print_area = f"B1:{_col(col)}{ws.max_row}"          # on the page (the sixth walk, defect 6)
-    by_q = dict(control.describe({**_settings_of(res.config), **_date_settings(res.config)}))
+    by_q = dict(control.describe(_settings_of(res.config)))
     sug = getattr(res, "suggested", None) or {}
     used = getattr(res, "control_used", None) or {}
     for row in ws.iter_rows(min_row=control.FIRST_ROW):
@@ -1294,8 +1233,6 @@ def _last_run_used(ws, res) -> None:
             words = f"{words} (the usual value: nothing in this book to work it out from)"
         elif key in sug:
             words = f"{words} (worked out from this book)"
-        if key == "as_of" and res.dates is not None:
-            words = f"{res.dates.as_of.isoformat()}: {res.dates.as_of_from}"
         c = ws.cell(row=row[0].row, column=col, value=words)
         c.alignment = Alignment(wrap_text=True, vertical="top")
         c.font = Font(name="Calibri", color=SLATE)
@@ -2172,9 +2109,7 @@ def _check(ws, res, src: Path, record: str = "") -> None:
             ("Record of this run", f"{record}, beside this workbook: every setting the run used, kept for the "
                                    f"file. It is replaced by the next Run."),
             ("Tie-out checks", f"{res.tie_outs:,} of {res.tie_outs:,} agree: every grid adds up to the book")]
-    if res.aged_out and not (res.dates and res.dates.window):
-        rows.append(("Left out for loan age", f"{res.aged_out:,}"))
-    rows += _date_rows(res) + _column_rows(res)
+    rows += _origination_rows(res) + _column_rows(res)
     for m in res.measures:
         lo = res.left_out.get(m.name)
         if lo:
@@ -2276,7 +2211,7 @@ def _check(ws, res, src: Path, record: str = "") -> None:
         if b.revenue_line is None:
             said += " (the cube file doesn't name one, so this one)"
         rows.append(("Profit counts as more or less", said))
-    for q, words in control.describe({**_settings_of(res.config), **_date_settings(res.config)}):
+    for q, words in control.describe(_settings_of(res.config)):
         rows.append((q, words))
     for w in res.warnings:
         rows.append(("Warning", _plain_warning(w)))
@@ -2290,75 +2225,24 @@ def _check(ws, res, src: Path, record: str = "") -> None:
     _fit(ws)
 
 
-def _date_settings(cfg) -> dict:
-    """The window and the as-of date as Control names them, when the run used them."""
-    out: dict[str, Any] = {}
-    if cfg.window_months or cfg.outcome_date:
-        out["window_months"] = cfg.window_months
-    if (cfg.min_age_months or cfg.window_months) and cfg.as_of is not None:
-        out["as_of"] = cfg.as_of if cfg.as_of == cfgmod.AS_OF_LATEST or isinstance(cfg.as_of, date) else "column"
-    return out
-
-
-def _share(k: float, of: float) -> str:
-    return f"{k / of:.0%}" if of else "none"
-
-
-def _date_rows(res) -> list[tuple[str, str]]:
-    """Check's lines for the dates (fixes 3.13, 3.14): the as-of date and where
-    it came from, the origination range tested, every loan left out by why, and
-    how much of the loss the window catches."""
+def _origination_rows(res) -> list[tuple[str, str]]:
+    """One line on Check when a column is marked Origination date: the range of
+    dates among the loans run, and how many have no readable date. A fact only:
+    nothing is left out for its dates, so a wrong extract shows here."""
     d = res.dates
     if d is None:
         return []
-    rows = [("As-of date", f"{d.as_of.isoformat()}: {d.as_of_from}")]
-    rows.append(("Origination range tested", f"{d.first.isoformat()} to {d.last.isoformat()} ({_n(d.kept, 'loan')})"
-                 if d.first else "none: no loan is left"))
-    if not d.window:
-        return rows
-    n = d.window
-    rows.insert(0, ("Outcome window", f"Bad means it went bad in its first {n} months on book. Only the yes/no "
-                                      f"outcome is windowed: GCO and RANR dollars are as the extract has them."))
-    for why, k in d.left_out.items():
-        rows.append((f"Left out: {why}", f"{k:,}"))
-    rows.append((f"Bad after month {n}, so good here", f"{d.bad_after_window:,}"))
-    if d.seasoned_bad:
-        mtb = sorted(d.seasoned_months_to_bad)
-        rows.append((f"How much of the loss {n} months catches",
-                     f"Loans {d.seasoned_at} months on book or more: {d.seasoned_loans:,}. By month {n}, "
-                     f"{_share(d.seasoned_bad_by, d.seasoned_bad)} of their bad loans had gone bad "
-                     f"({d.seasoned_bad_by:,} of {d.seasoned_bad:,}), with "
-                     f"{_share(d.seasoned_gco_by, d.seasoned_gco)} of their GCO dollars. "
-                     f"Median months to bad: {statistics.median(mtb):g}."))
-    else:
-        rows.append((f"How much of the loss {n} months catches",
-                     f"Can't say: no loan {d.seasoned_at} months on book or more went bad"
-                     + ("." if d.seasoned_loans else f" (none is {d.seasoned_at} months on book).")))
-    return rows
-
-
-def _date_lines(res) -> list[str]:
-    """The window in one line for the launcher."""
-    d = res.dates
-    if d is None or not d.window:
-        return []
-    young = d.left_out.get(engine.YOUNG.format(n=d.window), 0)
-    other = d.excluded - young
-    return [f"Outcome window {d.window} months: loans made {d.first.isoformat() if d.first else '-'} to "
-            f"{d.last.isoformat() if d.last else '-'}; {young:,} under {d.window} months on book left out"
-            + (f", and {other:,} more with a date problem (see Check)." if other else ".")]
+    if d.problem:
+        return [("Origination dates", f"Couldn't be read: {_plain_warning(d.problem)}")]
+    none = f"{d.unreadable:,} without a readable date"
+    if d.first is None:
+        return [("Origination dates", f"none readable in {d.column} ({_n(d.loans, 'loan')}; {none})")]
+    return [("Origination dates", f"{d.first.isoformat()} to {d.last.isoformat()} ({_n(d.loans, 'loan')}; {none})")]
 
 
 def _dates_head(res) -> str:
-    """What the dates and new columns did, as comments at the top of what ran."""
+    """What the new columns did, as comments at the top of what ran."""
     out = ""
-    d = res.dates
-    if d is not None:
-        out += f"# as-of date used: {d.as_of.isoformat()} ({d.as_of_from})\n"
-        if d.window:
-            out += (f"# outcome window: bad in the first {d.window} months on book; origination range tested "
-                    f"{d.first} to {d.last}; {d.excluded:,} loans left out; {d.bad_after_window:,} bad after "
-                    f"month {d.window}, counted good\n")
     for m in res.derived:
         blank = sum(m.blank.values())
         out += f"# new column {m.name} = {m.text()}: made on {m.made:,} loans, blank on {blank:,}\n"
@@ -2390,4 +2274,4 @@ def _settings_of(cfg) -> dict:
         b.materiality[0], f"${b.materiality[1]:,.0f} of GCO")
     return {"min_loans": b.min_units, "min_events": b.min_events, "worse_at": b.worse_at, "better_at": b.better_at,
             "confidence": b.confidence, "power": b.power, "compare_to": b.compare_to, "many_tests": b.many_tests,
-            "materiality": mat, "min_age_months": cfg.min_age_months, "revenue_line": b.revenue_line}
+            "materiality": mat, "revenue_line": b.revenue_line}

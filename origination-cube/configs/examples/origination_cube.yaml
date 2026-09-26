@@ -17,7 +17,6 @@ measures:                  # extras; the core rates are built from the lines abo
   - {name: loans, mode: count}
   - {name: gco_per_loan, mode: sumnum, value: GCO_AMT, per: each_loan, higher_is: worse}   # a straight average
   - {name: fico_median, mode: median, value: FICO}
-min_age_months: 0          # every loan (the synthetic book has no dates)
 benchmark:
   min_units: 30            # below this a pocket is shown but not tested
   min_events: 10           # a loss rate on fewer losses than this is not tested

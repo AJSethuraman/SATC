@@ -122,6 +122,9 @@ Each is built with a test. The full suite and the mutation check run after each.
       group per pocket, with no test attached. A count of the book, not a finding.
 - [x] **3.13 Date roles on Columns.** *(Done 26 Sep 2026, merge 3dcb3da.)* Origination date and outcome date. The engine
       derives months on book and months to bad.
+      *(26 Sep 2026: the outcome date and the as-of date were removed from the bleed analysis by OC-39, with
+      months on book and months to bad. The origination date stays, for the development / holdout split, and
+      Check gives its range. See `docs/design.md`, OC-39.)*
 - [x] **3.14 Outcome window.** *(Done 26 Sep 2026, merge 3dcb3da.)* Extend loan age to a true window of N months:
       - It requires the outcome date. Bad means bad within N months.
       - Loans under N months on book are excluded.
@@ -129,6 +132,9 @@ Each is built with a test. The full suite and the mutation check run after each.
       - Without an outcome date, the window is refused, with the reason.
       - Where seasoned vintages exist, report the share of eventual losses that had
         landed by month N.
+      *(26 Sep 2026: removed from the bleed analysis by OC-39, with the loan age filter it extended: a run now
+      shows every loan in the extract. `window_months` is gone from the pre-spec too. See `docs/design.md`,
+      OC-39.)*
 - [x] **3.15 Pre-spec.** *(Done 26 Sep 2026: the reader `prespec.py` in merge 6001797, wired into Check and the Log in merge 60ba9bc. Until 4b is built, every pre-spec run reads "deviates from pre-spec" on the reference group, because the cube compares halves, not groups against a reference.)* The confirmatory run reads a pre-spec file: bins, strata,
       window, confidence, reference group and holdout origination range.
       - Check echoes the file and the git commit it was read from.

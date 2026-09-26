@@ -33,7 +33,6 @@ reference: "0.25 - 0.49"
 # a difference in the ratio. [] would treat the whole book as one pocket.
 strata: [FICO, CHANNEL]
 
-window_months: 18                   # bad means bad within 18 months of origination
 confidence: 0.95                    # how sure a difference must be: 95%
 
 # Origination dates. Both ends are included: 2024-01-01 and 2024-12-31 are both

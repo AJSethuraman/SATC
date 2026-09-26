@@ -223,8 +223,8 @@ def main(argv: list[str] | None = None) -> int:
     ps = sub.add_parser("synth")
     ps.add_argument("--out", required=True)
     ps.add_argument("--rows", type=int, default=20000)
-    ps.add_argument("--dated", action="store_true",
-                    help="add origination and outcome dates, and INCOME and SALES with a planted ratio effect")
+    ps.add_argument("--ratio", action="store_true",
+                    help="add INCOME and SALES, whose ratio carries a planted effect")
     a = p.parse_args(argv)
 
     if a.cmd == "control":
@@ -242,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         return 0
     if a.cmd == "synth":
-        data = synth.write_extract(a.out, n=a.rows, dated=a.dated)
+        data = synth.write_extract(a.out, n=a.rows, ratio=a.ratio)
         print(f"wrote {data}: a synthetic extract with a planted problem (score under 620, broker channel).")
         print(f"Set it up like a real one: cube init {data} -o cube.yaml")
         return 0

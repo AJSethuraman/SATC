@@ -21,7 +21,7 @@ from test_book_dates import _check, _columns, _control
 needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed on this machine")
 
 SPEC = {"prespec": 1, "written": "2026-09-26", "column": "INCOME_TO_SALES", "bins": [0.1, 0.25, 0.5, 1.0, 2.0],
-        "reference": "0.25 - 0.49", "strata": ["FICO", "CHANNEL"], "window_months": 18, "confidence": 0.95,
+        "reference": "0.25 - 0.49", "strata": ["FICO", "CHANNEL"], "confidence": 0.95,
         "holdout": {"from": "2024-01-01", "to": "2024-12-31"},
         "development": {"from": "2022-01-01", "to": "2023-12-31"}}
 
@@ -54,14 +54,13 @@ def _held(b, path):
 
 
 def _ready(tmp_path, monkeypatch, n=3000):
-    """The dated book, INCOME / SALES made on Control and splitting the pockets, cut only by FICO and
-    CHANNEL, with the pre-spec's window: every setting the pre-spec says except the ones it can't."""
+    """The synthetic book with INCOME and SALES, INCOME / SALES made on Control and splitting the pockets,
+    cut only by FICO and CHANNEL: every setting the pre-spec says except the ones it can't."""
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
-    x = synth.write_extract(tmp_path / "x", n=n, dated=True)
+    x = synth.write_extract(tmp_path / "x", n=n, ratio=True)
     b = book.set_up(x).book
     _answer(b)
-    _control(b, window_months="18 months of being made", as_of="The latest date in the extract (suggested)",
-             **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
+    _control(b, **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
     book.set_up(x)
     _columns(b, "INCOME_TO_SALES", C_SPLIT="Yes", C_EDGES="0.1; 0.25; 0.5; 1; 2")
     for c in ("ORIG_BAL", "REV_DEBT", "ASSET_CLASS", "INCOME", "SALES"):
@@ -97,15 +96,17 @@ def test_a_run_held_to_a_committed_pre_spec_echoes_it_says_where_it_differs_and_
     assert chk["Pre-spec commit"].startswith(f"{head[:12]}, committed ")
     says = chk["What the pre-spec says"].splitlines()
     assert "column: INCOME_TO_SALES" in says and "holdout: 2024-01-01 to 2024-12-31" in says
-    assert "reference: 0.25 - 0.49" in says and "strata: FICO, CHANNEL" in says and "window_months: 18" in says
+    assert "reference: 0.25 - 0.49" in says and "strata: FICO, CHANNEL" in says
+    assert not any("window" in s for s in says)
 
-    # what the run could follow, it did: the column, its bins (typed on Columns), the strata, the window and
-    # the confidence. What it couldn't: its reference is each pocket's low half, and its loans run from
-    # 2021, not only the holdout's
+    # what the run could follow, it did: the column, its bins (typed on Columns), the strata and the
+    # confidence. What it couldn't: its reference is each pocket's low half, and its loans, every one in the
+    # extract, run from 2021, not only the holdout's
     with open(x, newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
-    latest = max(max(r["ORIG_DATE"] for r in rows), max(r["BAD_DATE"] for r in rows))
-    kept = sorted(r["ORIG_DATE"] for r in rows if _months(r["ORIG_DATE"], latest) >= 18)
+    kept = sorted(r["ORIG_DATE"] for r in rows)
+    assert chk["Loans run"] == "3,000"
+    assert chk["Origination dates"] == f"{kept[0]} to {kept[-1]} (3,000 loans; 0 without a readable date)"
     devs = [w for w in _warnings(chk) if w.startswith(confirmatory.DEVIATES)]
     assert devs == [
         'Deviates from pre-spec: The reference group is "the low half of each pocket", which is not one of its '
@@ -147,11 +148,6 @@ def test_a_run_held_to_a_committed_pre_spec_echoes_it_says_where_it_differs_and_
             in _warnings(chk))
     assert _log(b)[1].startswith(f"Deviates from pre-spec prespec.yaml (commit {head[:12]}, edited since)")
     assert chk["Runs that touched the holdout"] == "3 in this workbook's Log, this one included"
-
-
-def _months(start: str, end: str) -> int:
-    a, b = date.fromisoformat(start), date.fromisoformat(end)
-    return (b.year - a.year) * 12 + b.month - a.month - (b.day < a.day)
 
 
 @needs_git
@@ -210,7 +206,7 @@ def test_without_an_origination_date_the_holdout_is_said_unchecked(tmp_path, mon
     devs = [w for w in _warnings(chk) if w.startswith(confirmatory.DEVIATES)]
     assert devs[0] == 'Deviates from pre-spec: The column tested is not set in this run; the pre-spec says ' \
                       '"INCOME_TO_SALES".'
-    assert "Deviates from pre-spec: The outcome window is not set in this run; the pre-spec says 18 months." in devs
+    assert not any("window" in d for d in devs)
     assert ("Deviates from pre-spec: The pre-spec's holdout is 2024-01-01 to 2024-12-31; when this run's loans were "
             "made isn't known." in devs)
     log = _log(b)
@@ -256,9 +252,7 @@ def test_check_names_the_pre_specs_groups_as_the_tabs_name_them(tmp_path, monkey
     # the end groups' names hold the smallest and largest ratio among the loans run, counted here by hand
     with open(x, newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
-    latest = max(max(r["ORIG_DATE"] for r in rows), max(r["BAD_DATE"] for r in rows))
-    ratios = [float(r["INCOME"]) / float(r["SALES"]) for r in rows
-              if _months(r["ORIG_DATE"], latest) >= 18 and r["SALES"] not in ("", "0")]
+    ratios = [float(r["INCOME"]) / float(r["SALES"]) for r in rows if r["SALES"] not in ("", "0")]
     low, high = float(lowest.split(" - ")[0]), float(highest.split(" - ")[1])
     assert low <= min(ratios) < low + 0.01 and high - 0.01 < max(ratios) <= high
 
@@ -320,9 +314,8 @@ def test_a_band_column_tested_is_left_out_of_the_strata_and_its_edges_are_the_bi
     used = confirmatory.in_use(res, ps)
     assert used["column"] == "R" and used["bins"] == [0.1, 0.25, 0.5, 1.0, 2.0]
     assert used["strata"] == ["SCORE", "CHAN"] and used["reference"] == "the rest of the book"
-    assert used["window_months"] is None and used["confidence"] == 0.95 and used["holdout"] is ps.holdout
+    assert "window_months" not in used and used["confidence"] == 0.95 and used["holdout"] is ps.holdout
     assert prespec.deviations(ps, used, where="in this run") == [
         "The reference group is `the rest of the book`, which is not one of its bins' groups in this run; the "
         "pre-spec says `0.25 - 0.49`.",
-        "Pockets are cut by SCORE, CHAN in this run; the pre-spec says CHAN.",
-        "The outcome window is not set in this run; the pre-spec says 18 months."]
+        "Pockets are cut by SCORE, CHAN in this run; the pre-spec says CHAN."]

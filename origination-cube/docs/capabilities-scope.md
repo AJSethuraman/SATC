@@ -8,6 +8,11 @@ against what the cube will have once fixes 3.1–3.18 land.
 - an outcome window (3.14);
 - a committed pre-spec with the holdout range (3.15).
 
+*26 Sep 2026: the outcome date and the outcome window were removed from the cube by OC-39
+(`docs/design.md`): the bleed analysis shows every loan. The origination date and the
+pre-spec's holdout stay. Where a capability below needs a dated outcome or a window, that
+belongs to the scouting pipeline and is the firm's to settle when the capability is built.*
+
 4a and 4b also use derived columns (3.9).
 
 **Work** is given in working days for one person, including tests and a render check

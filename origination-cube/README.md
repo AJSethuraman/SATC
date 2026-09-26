@@ -19,7 +19,8 @@ prove) and the firm's rulings.
   whole workbook: Set up, Control, Columns and every results tab below.
 - **Not built:** drill-down, `cube prove`, and the confirmatory test itself
   (capability 4b in `docs/capabilities-scope.md`). The cube has the inputs that
-  test needs (dates, a window, new columns and the pre-spec), but not the test.
+  test needs (the origination date, new columns and the pre-spec), but not the
+  test.
 - **Not yet met:** a real extract.
 
 The log is `../BACKLOG.md` §6d.
@@ -28,8 +29,9 @@ The log is `../BACKLOG.md` §6d.
 
 A loan or application number (`key:`), the booked amount (`booked:`), a yes/no
 outcome (`outcome:`), GCO dollars (`gco:`) and RANR dollars (`ranr:`). The run
-refuses without any of them. From those it builds five core rates on every
-run:
+refuses without any of them. Every loan in the extract is run: none is left
+out for how old it is or when it went bad, so choose the period before the
+extract reaches the cube. From those it builds five core rates on every run:
 - the outcome as a share of loans (straight)
 - the outcome as a share of booked dollars (weighted)
 - GCO per booked dollar
@@ -68,7 +70,8 @@ After that, the whole routine is:
      cell (below).
    - **Columns:** check what each column is. Anything shaded has its reason
      beside it. Fix any that's wrong from the dropdown, then set "Checked
-     every column" to Yes.
+     every column" to Yes. Mark the date each loan was made *Origination
+     date*: it is what splits development loans from the holdout.
    - **Look:** each number column's smallest, median and largest value, its
      most-repeated values, its blanks and codes, and a histogram. Read it
      before typing band edges on Columns.
@@ -86,7 +89,11 @@ After that, the whole routine is:
      booked dollars sit in each group (the split's halves or values, a new
      column's bands), pocket by pocket. A count of the book, not a test.
    - **Materiality:** what each materiality level would keep.
-   - **Check:** settings, tie-outs, and what was left out. Also the pocket
+   - **Check:** settings, tie-outs, and what was left out of each rate (a
+     blank or unreadable value, never a loan's age). With a column marked
+     Origination date, one line gives the earliest and latest date among the
+     loans run and how many have no readable date, so a wrong extract shows on
+     the first page. Also the pocket
      budget (the book's bad loans ÷ 5: the most pockets a grid can test) with
      each grid's pocket count and how much of the book sits in testable
      pockets; how many families of tests the run holds, since a single red
@@ -125,7 +132,7 @@ against its low half, not groups against a reference group.
 ![Losses vs revenue: paid, cost and kept, and the chart](docs/losses-vs-revenue.png)
 
 If something needs fixing, the window and the Log tab say what and where, in
-words, e.g. *Control!C18: "Smallest excess loss worth reporting" needs an
+words, e.g. *Control!C14: "Smallest excess loss worth reporting" needs an
 answer.* Press Set up again at any time: answers already given are kept.
 What you confirm is remembered for next time; the **Learned** tab lets you set
 anything wrongly learned to Forget.
@@ -167,8 +174,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 454 tests: one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, dates, the outcome window and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording (the one that opens the window skips without a display)
-python tools/mutation_check.py     # puts 177 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 442 tests: one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording (the one that opens the window skips without a display)
+python tools/mutation_check.py     # puts 164 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

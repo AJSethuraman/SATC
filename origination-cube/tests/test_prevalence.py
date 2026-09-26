@@ -95,10 +95,10 @@ def test_a_count_that_does_not_add_up_to_the_grid_is_not_shown():
 
 
 def test_the_prevalence_tab_counts_the_book_by_the_new_columns_bands(tmp_path):
-    x = synth.write_extract(tmp_path, n=3000, dated=True)
+    x = synth.write_extract(tmp_path, n=3000, ratio=True)
     b = book.set_up(x).book
     _answer(b)
-    _control(b, window_months="No window", **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
+    _control(b, **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
     book.set_up(x)
     _columns(b, "INCOME_TO_SALES", C_SPLIT="Yes", C_EDGES="0.1; 0.25; 0.5; 1; 2")
     for c in ("ORIG_BAL", "REV_DEBT", "ASSET_CLASS", "INCOME", "SALES"):

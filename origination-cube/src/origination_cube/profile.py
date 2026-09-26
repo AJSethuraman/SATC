@@ -12,7 +12,7 @@ until answered, which the file and every output say. Nothing stops the run.
                 or number-like codes written with leading zeros (a ZIP, a branch code)
     key         text that differs on every row, or a same-width number of 6+ digits
                 that does (loan number, application number)
-    date        dates (the origination date, for loan age; not cut by)
+    date        dates (the origination date, for the holdout; not cut by)
     skipped     empty, or one value only: nothing to cut by
     question    text with too many values to cut by, a mix of numbers and text,
                 or any other number that differs on every row (an ID or an amount?)
@@ -273,12 +273,6 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
         lines.append(f"  {fkey}: {_q(val) if val is not None else _confirm(settings[skey])}")
     lines.append(f"  power: {_q(method('power'))}")
     lines.append(f"  many_tests: {_q(method('many_tests'))}")
-    age = use.get("min_age_months")
-    lines.append(f"min_age_months: {_q(age) if age is not None else _confirm(settings['min_age_months'])}")
-    if any(sg.means == "outcome_date" for sg in sugg.values()):
-        # fix 3.14: an outcome date is marked, so what bad means is a call for us to make
-        win = use.get("window_months")
-        lines.append(f"window_months: {_q(win) if win is not None else _confirm(settings['window_months'])}")
 
     qs = [q for c in cols for q in c.questions]
     lines += ["", "# Odd values. Each is used AS RECORDED until you answer: real, or missing.",

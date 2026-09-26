@@ -6,7 +6,7 @@ from openpyxl import load_workbook
 
 from origination_cube import book, control, memory, synth
 
-PICK = {"min_age_months": "Every loan", "min_loans": "30", "min_events": "10",
+PICK = {"min_loans": "30", "min_events": "10",
         "materiality": "1% of the book's total losses", "compare_to": "The rest of its band",
         "worse_at": "1.25 times", "better_at": "0.8 times", "confidence": "95%",
         "revenue_line": "Each pocket's own test (suggested)"}
