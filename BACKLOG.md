@@ -1912,7 +1912,7 @@ back.
   container's 4 cores (20.5 s on 3); about 70 MB per worker. The p-values moved once: on the synthetic
   books the largest of 465 moved 0.0149 (6,145 → 5,996 of 10,000), about 2 standard errors, and no
   allowed-for p-value crossed 0.05. `Origination Cube.pyw` now opens its window only as the program,
-  never in a worker. 7 planted bugs in `tools/mutation_check.py`, all caught.
+  never in a worker. 7 planted bugs in `tools/mutation_check.py`, all caught; 586 tests, 258 planted bugs.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
