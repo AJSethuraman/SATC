@@ -1862,6 +1862,18 @@ back.
     REV_DEBT: Set up 155 s; Run still going at 10 min and 12 GB, stopped. 8,000 × 10 runs in about a
     minute. To be profiled and fixed before the redesign phases; then time the firm's two cases
     (the bleed with 3 bands on 4 dimensions, and a pre-spec test) on that extract.
+- **Speed, diagnosed (26 Sep 2026).** The 12 GB run was the test's own doing: "Cut by it?" defaults
+  to Yes (`book.py:390`), so all 48 number and 26 category filler columns were cut, 1,248 grids. The
+  redesign's launcher step (choose what to cut) removes that default. Realistic cases at 17,000 × 80:
+  - bleed, 4 number columns in 8–10 bands, 2 segments, a split: Set up 158 s, Run 84 s, 0.35 GB;
+  - pre-spec, 5-input shortlist: 162 s + 161 s (two Set ups) + 58 s.
+  Causes: Set up's date detection (84%: every pattern tried on every value, each column checked five
+  times) and Run's shuffle test (53 s of 75 s; linear in loans × groupings × rates × shuffles).
+  Fixing now: date detection and repeated parsing (measured 158 s → 16 s). With the phase 2 Look
+  rewrite: one workbook load and save per Run, Look not redrawn at Run. Expected after both: bleed
+  about 75 s, pre-spec about 1.4 min. Open with the firm: spread the shuffles over the machine's cores
+  (about 3× faster, p-values move within the shuffle test's own error), and whether a new-variable
+  run needs the bleed grids at all.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
