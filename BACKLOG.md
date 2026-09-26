@@ -1735,6 +1735,11 @@ back.
   11. **4d:** "As proposed": 5 equal-loan bands; "survives" means the interval still excludes 1.
   12. **The tenet:** "Yes, add it". Being added to canon as S36.
   - **Next:** the box was left blank, so build 4e, then 4b.
+- [ ] **First: take the date work out of the bleed analysis (OC-39, the firm, 26 Sep 2026).**
+      Remove the loan-age filter, the outcome window, the as-of date, the outcome date role and
+      the pre-spec's `window_months`. Keep the origination date for the dev/holdout split, and
+      add one Check line giving its range. The firm answered decision 2 (windowing), 3 (as-of)
+      and 4 (age filter) with this.
 - [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
       (`origination-cube/docs/capabilities-scope.md`). It ends when the planted income ÷
       sales cliffs are found on development loans and confirmed on the holdout from a

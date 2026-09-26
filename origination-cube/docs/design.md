@@ -514,6 +514,26 @@ enough.
     "could be luck". Profit reads "keeps more / about the same / keeps less".
   - This supersedes the multiples and wording in OC-30, OC-31 and the Losses vs
     revenue layout below. The rule that the lines on Control decide stands.
+- **OC-39: dates are for the scouting pipeline, not the bleed analysis** (the firm, 26 Sep
+  2026). *"The only instance in which our suite cares about dates is when we are doing the
+  random analysis to try and find coefficients that are relevant ... when we are doing our
+  bleed analysis and such I don't want to hide things from view. They are distinct."* And:
+  *"Data hygiene we would already have sorted this issue out. We wouldn't have data in the
+  future."*
+  - **Removed:** the loan-age filter, the outcome window, the as-of date, the outcome date
+    role, and `window_months` in the pre-spec. Each hid loans, or relabelled them, in a run
+    that should show everything. Choosing the period is data preparation, done before the
+    extract reaches the cube.
+  - **Kept:** the origination date, for the pipeline only: splitting development years from
+    the holdout, and flagging a run that touches the holdout. Check also prints the range
+    of origination dates in the run, one line that removes nothing, so a wrong extract is
+    obvious on the first page.
+  - **The trees and the regression are optional steps.** *"We may skip those steps in
+    particular altogether if we already have professional judgment to pick coefficient."*
+    4b runs straight from a pre-spec whose column the analyst chose, with or without 4a.
+  - **What I got wrong:** fixes 3.13 and 3.14 were built into every run without asking how
+    they fit a generic analysis. The firm: *"Shouldn't have added that date work without
+    conferring with me ... it's clearly non generic."*
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so
