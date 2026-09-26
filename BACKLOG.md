@@ -1757,7 +1757,8 @@ back.
       - *Where the book bleeds* needs only the five core columns and never asks about dates.
       - *Finding and testing a new variable* also needs the origination date and the tested
         column, then asks: scout first, or test from a pre-spec already written. The trees
-        stay optional.
+        stay optional. *(Amended 26 Sep 2026: it needs only what it uses, the key, the outcome,
+        the origination date, the tested column and the strata; "the new-variable run needs only what it uses", below.)*
       - Each choice checks and refuses only on its own minimum.
 - [x] **Then: literal row wording** *(Done 26 Sep, merged with the next item: e.g. "short of its
       band by 23.90 points ($1,338,239)", "-0.49 points against its band, not significant",
@@ -1794,10 +1795,13 @@ back.
 - [ ] **Then: "judged against the book" on one basis** (the firm, 26 Sep 2026: option A, *"i
       think this makes most seense"*): points and dollars both against the rest of the book,
       as the band already is; the tie-out stays on Check.
-- [ ] **Then: the new-variable run needs only what it uses** (the firm, 26 Sep 2026: *"what's
+- [x] **Then: the new-variable run needs only what it uses** (the firm, 26 Sep 2026: *"what's
       the point in that if you are searching for possibly important variables to the
       outcome?"*): the loan key, the outcome, the origination date, the tested column(s) and the
       strata. Booked, GCO and RANR become optional; if present, 4e also shows dollars.
+      *(Done 26 Sep 2026, Goal 2 item 2: design.md OC-14 amended in place. Such a run writes
+      no Losses vs revenue tab and says nothing about profit or booked dollars; the bleed
+      analysis still refuses by name. Eleven planted bugs, all caught.)*
 - [ ] **Then: no "not built yet" option on Control** (the firm: *"don't note what it does not
       include just note what it does"*): "Scout first" appears only once scouting exists.
 - [ ] **Then: "Worse?" and "Material?" as two columns** (the firm, 26 Sep 2026: *"do it"*).
@@ -1870,6 +1874,25 @@ back.
     REV_DEBT: Set up 155 s; Run still going at 10 min and 12 GB, stopped. 8,000 × 10 runs in about a
     minute. To be profiled and fixed before the redesign phases; then time the firm's two cases
     (the bleed with 3 bands on 4 dimensions, and a pre-spec test) on that extract.
+- **Speed, diagnosed (26 Sep 2026).** The 12 GB run was the test's own doing: "Cut by it?" defaults
+  to Yes (`book.py:390`), so all 48 number and 26 category filler columns were cut, 1,248 grids. The
+  redesign's launcher step (choose what to cut) removes that default. Realistic cases at 17,000 × 80:
+  - bleed, 4 number columns in 8–10 bands, 2 segments, a split: Set up 158 s, Run 84 s, 0.35 GB;
+  - pre-spec, 5-input shortlist: 162 s + 161 s (two Set ups) + 58 s.
+  Causes: Set up's date detection (84%: every pattern tried on every value, each column checked five
+  times) and Run's shuffle test (53 s of 75 s; linear in loans × groupings × rates × shuffles).
+  Fixing now: date detection and repeated parsing (measured 158 s → 16 s). With the phase 2 Look
+  rewrite: one workbook load and save per Run, Look not redrawn at Run. Expected after both: bleed
+  about 75 s, pre-spec about 1.4 min. Open with the firm: spread the shuffles over the machine's cores
+  (about 3× faster, p-values move within the shuffle test's own error), and whether a new-variable
+  run needs the bleed grids at all.
+- [x] **Goal 2 item 1 finished: the cliffs in the second book (26 Sep 2026).** The auto book in
+      `tests/test_generic.py`, dated with US-style contract dates, carries income ÷ sales cliffs of
+      its own (x3 below 0.05, x2.5 from 1.50, planted on each loan's odds). A "Test from a pre-spec"
+      run finds both on development and confirms both on the holdout; the same loans with no cliff
+      are not confirmed, though the whole book reads a difference in the lowest group (the worst
+      dealer crowds it). Two planted bugs, both caught: dates read only year-month-day (the first
+      book's goal tests pass it) and the pockets forgotten. 544 tests, 213 planted bugs.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 

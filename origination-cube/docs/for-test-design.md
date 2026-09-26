@@ -7,7 +7,7 @@ Written 25 Sep 2026 from the repository at commit `73bc96f` on `claude/keen-fran
 ## 1. What it is, in five lines
 
 - **In:** a loan extract (.csv or .xlsx) and your answers on the workbook's Control tab.
-- **It needs five columns:** loan number, booked amount, a yes/no outcome, GCO dollars, RANR dollars (OC-14).
+- **It needs five columns:** loan number, booked amount, a yes/no outcome, GCO dollars, RANR dollars (OC-14). *(Since 26 Sep 2026 that is the bleed analysis's minimum. A test of a new variable needs the loan number, the outcome, the origination date, the tested column and the strata; OC-14 as amended.)*
 - **It cuts:** every number column into bands (FICO, loan size), crossed with every category column (channel, asset class). Each crossing is a **pocket**.
 - **It measures four rates per pocket:** the outcome as a share of loans, the outcome as a share of booked dollars, GCO per booked dollar, and RANR per booked dollar.
 - **The question:** where does the book bleed? Which pockets lose more than their share, can the gap be told from luck, and is it big enough in dollars to matter.

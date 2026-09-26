@@ -27,11 +27,14 @@ The log is `../BACKLOG.md` §6d.
 
 ## What an extract must carry
 
-A loan or application number (`key:`), the booked amount (`booked:`), a yes/no
-outcome (`outcome:`), GCO dollars (`gco:`) and RANR dollars (`ranr:`). The run
-refuses without any of them. Every loan in the extract is run: none is left
-out for how old it is or when it went bad, so choose the period before the
-extract reaches the cube. From those it builds five core rates on every run:
+For where the book bleeds: a loan or application number (`key:`), the booked
+amount (`booked:`), a yes/no outcome (`outcome:`), GCO dollars (`gco:`) and
+RANR dollars (`ranr:`). The run refuses without any of them. For a test of a
+new variable, only what the test uses: the loan number, the outcome, the
+origination date, the column tested and the pre-spec's strata. Every loan in
+the extract is run: none is left out for how old it is or when it went bad, so
+choose the period before the extract reaches the cube. From the five it builds
+five core rates:
 - the outcome as a share of loans (straight)
 - the outcome as a share of booked dollars (weighted)
 - GCO per booked dollar
@@ -78,8 +81,9 @@ After that, the whole routine is:
    - *Test new variables:* pick the outcome, tick the inputs to **test**, and
      the columns to **hold fixed** (a column is one or the other). Or confirm a
      saved shortlist: **Browse** to the committed pre-spec file, which then
-     decides the inputs and what is held fixed (below). It also needs a
-     column marked *Origination date*.
+     decides the inputs and what is held fixed (below). It needs the loan
+     number, the outcome and a column marked *Origination date*; the booked
+     amount, GCO and RANR only if the extract has them.
 
    The box underneath says what will run. **Next: answer in the workbook**
    writes the workbook beside the extract as *loans - PocketBook.xlsx*.
@@ -219,8 +223,8 @@ Check counts them, and every other tab still uses every loan. For each range:
   2.26 times as often as 0.25 - 0.49 (1.22x to 4.18x) ..., with the pockets held
   fixed."*
 - **On the holdout only:** each group's share of the loans, of the bad loans
-  and of the GCO, and its bad rate against the holdout's (B6). No cost or
-  benefit figures.
+  and, when the extract has GCO, of the GCO, and its bad rate against the
+  holdout's (B6). No cost or benefit figures.
 
 Each section says its method in plain words, and the tab lists the choices no
 ruling settles yet. Every "significant" and every range follows the confidence
@@ -237,6 +241,13 @@ development (below 0.10: 2.32x, 1.52x to 3.56x; 2.00 and up: 3.25x, 2.42x to
 4.38x) and confirms them on the holdout (2.26x, 1.22x to 4.18x; 2.68x, 1.70x to
 4.24x), and Check reads "Differs from the pre-spec: nowhere".
 
+The same holds on a second book the first had no hand in (`tests/test_generic.py`, 12,000 auto
+loans): other column names, contract dates written 3/7/2023, other edges and reference group, and
+cliffs planted on each loan's odds (x3 below 0.05, x2.5 from 1.50). Both are found on development
+and confirmed on the holdout (3.04x and 2.80x). The same loans with no cliff are not confirmed,
+though the worst dealer's loans crowd the lowest group and the book as a whole reads a difference
+there: the pockets hold it fixed.
+
 ![Losses vs revenue: paid, cost and kept, and the chart](docs/losses-vs-revenue.png)
 
 If something needs fixing, the window and the Log tab say what and where, in
@@ -250,9 +261,10 @@ anything wrongly learned to Forget.
 
 ![Run pressed before everything is answered](docs/launcher/L3-answers-needed.png)
 
-**What an extract must carry:** a loan or application number, the booked
-amount, a yes/no outcome, GCO dollars and RANR dollars. From those, every run
-builds:
+**What an extract must carry** for where the book bleeds: a loan or
+application number, the booked amount, a yes/no outcome, GCO dollars and RANR
+dollars (a test of a new variable needs less; above). From those, every such
+run builds:
 - the outcome as a share of loans (straight)
 - the outcome as a share of booked dollars (weighted)
 - GCO per booked dollar
@@ -291,8 +303,8 @@ test).
 ## Checking it
 
 ```
-pytest -q                          # 562 tests (2 skip without a display; the 22 in test_live.py and 3 in test_confirm_test.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand
-python tools/mutation_check.py     # puts 226 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 571 tests (2 skip without a display; the 22 in test_live.py, 3 in test_confirm_test.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one
+python tools/mutation_check.py     # puts 239 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

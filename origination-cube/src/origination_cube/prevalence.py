@@ -1,5 +1,6 @@
 """The Prevalence tab (fix 3.12): loans and booked dollars per group, pocket by
-pocket, with no test attached.
+pocket, with no test attached. A test of a new variable run without a booked
+amount (Goal 2 item 2) counts loans alone, and the tab has no dollar column.
 
 docs/statistics.md B8: "Loans and dollars per group per pocket, with no p-value
 attached. A count of the book, so it needs no holdout and no confidence level.
@@ -198,7 +199,9 @@ def write(wb, res) -> None:
     blocks = [(g, [(grid, count(res, grid, g, rows, bands)) for grid in res.grids
                    if g.skip_band is None or grid.band != g.skip_band]) for g in gs]
     widest = max((len(got[0]) for _, done in blocks for _, got in done if got is not None), default=1)
-    last = max(GROUP_COL + 2 * widest - 1, 9)
+    dollars = bool(res.config.booked)
+    step, first = (2, GROUP_COL) if dollars else (1, GROUP_COL - 1)
+    last = max(first + step * widest - 1, 9)
     ws = wb.create_sheet(SHEET)
     ws.merge_cells(start_row=1, start_column=2, end_row=1, end_column=last)
     ws.cell(row=1, column=2, value="Prevalence: a count, not a test").font = Font(name="Arial", bold=True, size=16,
@@ -207,8 +210,8 @@ def write(wb, res) -> None:
         ws.cell(row=1, column=c).fill = PatternFill("solid", fgColor=INK)
     ws.row_dimensions[1].height = 28
     ws.merge_cells(start_row=2, start_column=2, end_row=2, end_column=last)
-    sub = ws.cell(row=2, column=2, value="How many loans and booked dollars sit in each group, pocket by pocket. "
-                                         "Nothing here is tested, so nothing reads better or worse: it shows how "
+    sub = ws.cell(row=2, column=2, value=f"How many loans{' and booked dollars' if dollars else ''} sit in each "
+                                         "group, pocket by pocket. Nothing here is tested, so nothing reads better or worse: it shows how "
                                          "common a group is, not whether it goes bad.")
     sub.font = Font(name="Calibri", size=10, color=SLATE)
     sub.alignment = Alignment(wrap_text=True, vertical="top")
@@ -231,14 +234,14 @@ def write(wb, res) -> None:
                 r += 3
                 continue
             order, per, shown = got
-            r = _block(ws, r + 1, grid, names, order, per, shown)
+            r = _block(ws, r + 1, grid, names, order, per, shown, dollars)
             r += 1
         r += 1
     for col, w in zip("ABCDE", (2, 17, 16, 10, 14)):
         ws.column_dimensions[col].width = w
     from openpyxl.utils import get_column_letter
-    for c in range(GROUP_COL, last + 1):
-        ws.column_dimensions[get_column_letter(c)].width = 11 if (c - GROUP_COL) % 2 == 0 else 14
+    for c in range(first, last + 1):
+        ws.column_dimensions[get_column_letter(c)].width = 11 if (c - first) % step == 0 else 14
     ws.freeze_panes = "D4"
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1
@@ -246,22 +249,28 @@ def write(wb, res) -> None:
     ws.sheet_properties.pageSetUpPr.fitToPage = True
 
 
-def _block(ws, r: int, grid, names: dict, order: list, per: dict, shown: list[str]) -> int:
+def _block(ws, r: int, grid, names: dict, order: list, per: dict, shown: list[str], dollars: bool = True) -> int:
     """One grid: a header, a row per pocket, the whole grid, and each group's
-    share of it. Returns the row after it."""
+    share of it. Returns the row after it. Without `dollars`, loans alone."""
     band, seg = names.get(grid.band, grid.band), names.get(grid.dimension, grid.dimension)
-    heads = [band, seg, "Loans", "Booked dollars"]
+    heads = [band, seg, "Loans"] + (["Booked dollars"] if dollars else [])
     for i, h in enumerate(heads):
         _heading(ws, r, FIRST_COL + i, h)
         _heading(ws, r + 1, FIRST_COL + i, None)
+    first = FIRST_COL + len(heads)
     for j, s in enumerate(shown):
-        c = GROUP_COL + 2 * j
+        if not dollars:
+            _heading(ws, r, first + j, s)
+            _heading(ws, r + 1, first + j, "Loans")
+            continue
+        c = first + 2 * j
         ws.merge_cells(start_row=r, start_column=c, end_row=r, end_column=c + 1)
         _heading(ws, r, c, s)
         _heading(ws, r, c + 1, None)
         _heading(ws, r + 1, c, "Loans")
         _heading(ws, r + 1, c + 1, "Booked dollars")
     r += 2
+    keep = (lambda pair: list(pair)) if dollars else (lambda pair: [pair[0]])        # noqa: E731
     totals = {g: [0, 0.0] for g in order}
     for bl in grid.band_labels:
         for dl in grid.dim_labels:
@@ -269,22 +278,23 @@ def _block(ws, r: int, grid, names: dict, order: list, per: dict, shown: list[st
             if got is None:
                 continue
             loans = sum(x[0] for x in got.values())
-            dollars = math.fsum(x[1] for x in got.values())
-            vals = [bl, dl, loans, dollars]
+            booked = math.fsum(x[1] for x in got.values())
+            vals = [bl, dl] + keep((loans, booked))
             for g in order:
                 x = got.get(g, [0, 0.0])
-                vals += [x[0], x[1]]
+                vals += keep(x)
                 totals[g][0] += x[0]
                 totals[g][1] += x[1]
             _row(ws, r, vals)
             r += 1
     loans = sum(x[0] for x in totals.values())
-    dollars = math.fsum(x[1] for x in totals.values())
-    _row(ws, r, ["Every pocket", "", loans, dollars] + [v for g in order for v in totals[g]], bold=True)
+    total_d = math.fsum(x[1] for x in totals.values())
+    _row(ws, r, ["Every pocket", ""] + keep((loans, total_d)) + [v for g in order for v in keep(totals[g])],
+         bold=True)
     r += 1
-    share = ["Share of the grid", "", None, None]
+    share = ["Share of the grid", ""] + keep((None, None))
     for g in order:
-        share += [totals[g][0] / loans if loans else None, totals[g][1] / dollars if dollars else None]
+        share += keep((totals[g][0] / loans if loans else None, totals[g][1] / total_d if total_d else None))
     _row(ws, r, share, bold=True, pct=True)
     return r + 1
 

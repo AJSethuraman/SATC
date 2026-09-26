@@ -304,6 +304,9 @@ class Test:
     holdout: RangeTest | None = None
     left_out: dict[str, int] = field(default_factory=dict)
     gco_unread: int = 0                         # holdout loans in the test with no readable GCO (B6's dollars only)
+    #: whether the run has a GCO column, so B6 has dollars to show. A test of a new variable needs no dollar
+    #: column (Goal 2 item 2); without one, the tab shows loans and bad loans and says nothing about dollars
+    dollars: bool = True
     problem: str | None = None                  # why the test couldn't be run, in words
     method: str = kgroups.CONDITIONAL
 
@@ -394,7 +397,8 @@ def run_test(res, ps: prespec.PreSpec) -> Test:
         return t
     cfg = res.config
     m = next((x for x in res.measures if x.name == "outcome_loans"), None)
-    g = next((x for x in res.measures if x.name == "gco_rate"), None)
+    gcol = getattr(cfg, "gco", "") or None       # B6's dollars need only GCO itself, not the booked amount
+    t.dollars = gcol is not None
     if m is None:
         t.problem = "this run has no yes/no outcome to test"
         return t
@@ -420,14 +424,14 @@ def run_test(res, ps: prespec.PreSpec) -> Test:
             left[NO_OUTCOME] += 1
             continue
         gco = None
-        if g is not None:
-            gv, gw = engine.classify_number(r.get(g.value), rules.get(g.value))
+        if gcol is not None:
+            gv, gw = engine.classify_number(r.get(gcol), rules.get(gcol))
             gco = None if gw else gv
         items[which].append((st, bisect.bisect_right(ps.bins, v), y, gco))
     t.left_out = {k: v for k, v in left.items() if v}
     t.development = _range_test(DEVELOPMENT, dev, K, t.ref, t.scores, items[DEVELOPMENT])
     t.holdout = _range_test(HOLDOUT, hold, K, t.ref, t.scores, items[HOLDOUT])
-    t.gco_unread = sum(1 for x in items[HOLDOUT] if x[3] is None) if g is not None else 0
+    t.gco_unread = sum(1 for x in items[HOLDOUT] if x[3] is None) if gcol is not None else 0
     return t
 
 

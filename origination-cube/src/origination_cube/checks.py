@@ -113,8 +113,9 @@ def budget_rows(res) -> list[tuple[str, str]]:
         head = f"{kind}{nm.get(g.band, g.band)} x {nm.get(g.dimension, g.dimension)}"
         out.append((f"Pockets: {head}", f"{_n(n, 'pocket')}, against a budget of {most:,}. {ok:,} "
                                         f"{'has' if ok == 1 else 'have'} at least {floor:,} bad loans and can be "
-                                        f"tested, holding {loans:.0%} of the loans and {dollars:.0%} of the booked "
-                                        f"dollars."))
+                                        f"tested, holding {loans:.0%} of the loans"
+                                        + (f" and {dollars:.0%} of the booked dollars." if BOOKED in res.total.rates
+                                           else ".")))
         if n > most:
             over.append((head, n))
     out.append(("Pockets in all", f"{_n(total, 'pocket')} across {_n(len(grids), 'grid')}. Testable means at least "

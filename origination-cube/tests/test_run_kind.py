@@ -4,22 +4,31 @@ script to ask which we are doing so it does indeed have the minimum required").
 Two answers on Control, and each checks its own minimum:
 - Where the book bleeds: the five core columns, and never a date. A pre-spec is
   refused: the run isn't a test of a new variable.
-- Finding and testing a new variable: the core columns, a column marked
-  Origination date, and then one more answer: scout first (not built, so
+- Finding and testing a new variable: only what it uses (Goal 2 item 2; the
+  firm, 26 Sep 2026: "what's the point in that if you are searching for
+  possibly important variables to the outcome?"). The key, the outcome, a
+  column marked Origination date, the column it tests and the pre-spec's
+  strata; the booked amount, GCO and RANR are optional, and a tab shows dollars
+  only when they are there. Then one more answer: scout first (not built, so
   refused) or test from a pre-spec, whose file must be named and whose column
   must be on Columns.
 A blank answer is refused by its cell, like every other call on Control: the
 tool never picks for the analyst."""
 
 import csv
+import math
 import shutil
 
 import pytest
 from openpyxl import load_workbook
 
-from origination_cube import book, confirmatory, control, synth
+from conftest import cube, table
+from origination_cube import book, confirm_tab, confirmatory, control, engine, prespec, synth
+from origination_cube import config as cfgmod
+from recalc import recalc
 from test_book import _answer
 from test_book_dates import _check, _columns, _control
+from test_confirm_test import BINS as SMALL_BINS, SPEC as SMALL_SPEC, _dated
 from test_confirmatory import _held, _log, _spec, git
 
 BLEED, NEW = "Where the book bleeds", "Finding and testing a new variable"
@@ -246,3 +255,172 @@ def test_what_was_run_is_recorded_on_check_the_log_control_and_the_record(tmp_pa
     used = {r[control.KEY_COL - 1].value: r[control.KEY_COL].value
             for r in load_workbook(b)[control.SHEET].iter_rows(min_row=control.FIRST_ROW)}
     assert used["run_kind"] == BLEED and not used.get("new_variable_step")
+
+
+# --------------------------------------------------------------------------
+# Goal 2 item 2: a test of a new variable needs only what it uses. The booked amount, GCO and RANR are optional
+# for it; the bleed analysis still needs all five.
+
+DOLLARS = ("ORIG_BAL", "GCO_AMT", "RANR_AMT")
+#: words that only a run with dollar columns has any business saying on a result tab ("$" is looked for only once
+#: the formulas are calculated, since a formula's cell references carry it)
+DOLLAR_WORDS = ("GCO", "RANR", "booked", "Booked", "profit", "Profit")
+
+
+def _lean(tmp_path, monkeypatch, n=3000):
+    """The dated synthetic book with no booked amount, GCO or RANR: a new variable tested from a committed
+    pre-spec, INCOME / SALES splitting the pockets at its bins so the Prevalence tab counts it too."""
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    x = _without(synth.write_extract(tmp_path / "x", n=n, ratio=True), *DOLLARS)
+    first = book.set_up(x)
+    assert first.ok, first.lines
+    b = first.book
+    _answer(b)
+    _control(b, run_kind=NEW, new_variable_step=FROM_SPEC, **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
+    again = book.set_up(x)
+    assert again.ok, again.lines
+    # Set up doesn't mark any column as a dollar column that isn't one
+    means = {r[book.C_NAME - 1].value: r[book.C_MEANS - 1].value
+             for r in load_workbook(b)["Columns"].iter_rows(min_row=book.COL_FIRST)}
+    for c, m in means.items():
+        if m in ("Booked amount", "GCO dollars", "RANR dollars"):
+            _columns(b, c, C_MEANS="Amount or number")
+    _columns(b, "INCOME_TO_SALES", C_SPLIT="Yes", C_EDGES="0.1; 0.25; 0.5; 1; 2")
+    for c in ("REV_DEBT", "ASSET_CLASS", "INCOME", "SALES"):
+        _columns(b, c, C_CUT="No")
+    wb = load_workbook(b)
+    wb["Columns"][book.CONFIRM_CELL] = "Yes"
+    wb.save(b)
+    _spec(x.parent)
+    _held(b, "prespec.yaml")
+    return x, b, again
+
+
+@needs_git
+def test_a_new_variable_run_needs_no_booked_amount_gco_or_ranr(tmp_path, monkeypatch):
+    """The extract carries the key, the outcome, the origination date, the two columns the tested one is made
+    from and the strata, and nothing else the run could use. Set up says nothing about the dollar columns once
+    the run is a new variable, the Run goes through, and the confirmatory test is the one a full extract gets."""
+    x, b, again = _lean(tmp_path, monkeypatch)
+    d3 = str(load_workbook(b)["Columns"]["D3"].value or "")
+    for label in ("Booked amount", "GCO dollars", "RANR dollars"):
+        assert label not in d3 and not any(label in line for line in again.lines), (label, d3, again.lines)
+    seen = {}
+    real = confirmatory.state
+
+    def spy(*a, **k):
+        seen["st"] = real(*a, **k)
+        return seen["st"]
+
+    monkeypatch.setattr(confirmatory, "state", spy)
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    chk = _check(b)
+    assert chk["What was run"] == f"{NEW}: {FROM_SPEC.lower()}"
+    assert chk["Differs from the pre-spec"] == "nowhere: this run used what it says"
+    assert "Profit counts as more or less" not in chk and "How profit reads" not in chk
+    assert "The profit line" not in chk
+
+    # the test is the one a full extract gets: its loans and bad loans, counted by hand from the csv
+    t = seen["st"].test
+    with open(x, newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    for side, lo, hi in ((t.development, "2022-01-01", "2023-12-31"), (t.holdout, "2024-01-01", "2024-12-31")):
+        mine = [(sum(float(r["INCOME"]) / float(r["SALES"]) >= e for e in SMALL_BINS), int(r["BAD_FLAG"]))
+                for r in rows if lo <= r["ORIG_DATE"] <= hi and r["SALES"] not in ("", "0")
+                and r["BAD_FLAG"] in ("0", "1")]
+        assert side.loans == [sum(1 for g, _ in mine if g == k) for k in range(6)]
+        assert side.bad == [sum(y for g, y in mine if g == k) for k in range(6)]
+    assert not t.dollars
+
+    # 4e's table: loans and bad loans, and no dollar column
+    ws = load_workbook(b)[confirm_tab.SHEET]
+    texts = [str(c.value) for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
+    assert not [s for s in texts if any(w in s for w in DOLLAR_WORDS)], \
+        [s for s in texts if any(w in s for w in DOLLAR_WORDS)]
+    heads = next([ws.cell(row=r, column=c).value for c in range(confirm_tab.FIRST + 1, confirm_tab.FIRST + 9)]
+                 for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=confirm_tab.FIRST + 1).value == "Loans"
+                 and ws.cell(row=r, column=confirm_tab.FIRST + 2).value == "Share of loans")
+    assert heads == ["Loans", "Share of loans", "Bad loans", "Share of bad loans", "Bad rate",
+                     "Times the holdout's bad rate", None, None]
+
+    # no tab with nothing to show, and no dollars on the tabs a new variable's run does write
+    wb = load_workbook(b)
+    assert "Losses vs revenue" not in wb.sheetnames
+    assert "Booked dollars" not in [c.value for row in wb["Prevalence"].iter_rows() for c in row]
+    calc = recalc(b, tmp_path / "calc")
+    for tab in ("Confirmatory test", "Where it bleeds", "Grids", "Split", "Three-way", "Prevalence", "Materiality"):
+        if tab not in calc.sheetnames:
+            continue
+        said = [str(c.value) for row in calc[tab].iter_rows() for c in row if isinstance(c.value, str)]
+        assert not [s for s in said if s.startswith("#") or "Err:" in s], tab
+        assert not [s for s in said if any(w in s for w in DOLLAR_WORDS + ("$",))], \
+            (tab, [s for s in said if any(w in s for w in DOLLAR_WORDS + ("$",))])
+    check = [str(c.value) for row in calc["Check"].iter_rows(min_col=3, max_col=4) for c in row
+             if isinstance(c.value, str)]
+    assert not [s for s in check if any(w in s for w in ("GCO", "RANR", "booked dollars", "Profit and contrib"))], \
+        [s for s in check if any(w in s for w in ("GCO", "RANR", "booked dollars", "Profit and contrib"))]
+
+
+def test_a_bleed_run_still_refuses_an_extract_without_the_dollar_columns(tmp_path):
+    """The other direction: the same lean extract, run as Where the book bleeds, is refused naming each missing
+    column, and Set up keeps saying they are missing while the run is the bleed analysis."""
+    x = _without(synth.write_extract(tmp_path, n=1500, ratio=True), *DOLLARS)
+    out = book.set_up(x)
+    b = out.book
+    _answer(b)                                                  # Where the book bleeds
+    again = book.set_up(x)
+    assert "No column was found for Booked amount" in str(load_workbook(b)["Columns"]["D3"].value)
+    text = _refused(book.run(b))
+    for label in ("Booked amount", "GCO dollars", "RANR dollars"):
+        assert f"Columns: {BLEED} needs one column marked {label}, and none is." in text, text
+    assert again.ok
+
+
+# --------------------------------------------------------------------------
+# The same rule in a cube file, and 4e's dollars only where there is GCO
+
+
+def test_a_cube_file_needs_the_dollar_lines_unless_it_tests_a_new_variable():
+    with pytest.raises(cfgmod.ConfigError) as got:
+        cube(booked=None, gco=None, ranr=None)
+    said = "\n".join(got.value.problems)
+    for k in ("booked", "gco", "ranr"):
+        assert f"`{k}:`" in said, said
+    cfg = cube(run_kind="new_variable", booked=None, gco=None, ranr=None)
+    assert [m.name for m in cfg.measures if m.core] == ["outcome_loans"]
+    assert cfg.run_kind == "new_variable" and cfg.booked == "" and cfg.gco == ""
+    # every line given, a new variable's run builds every rate, as the bleed analysis does
+    assert [m.name for m in cube(run_kind="new_variable").measures if m.core] == list(cfgmod.CORE_NAMES)
+    with pytest.raises(cfgmod.ConfigError) as got:
+        cube(run_kind="scout")
+    assert "`run_kind:` is 'scout'; it takes bleed or new_variable" in got.value.problems
+
+
+def _mixed():
+    out = []
+    for d, n in (("2022-03-01", 60), ("2024-06-01", 60)):
+        for i in range(n):
+            out.append((d, "AB"[i % 2], (0.5, 1.5, 2.5)[i % 3], 1 if i % 5 == 0 or (i % 3 == 2 and i % 4 == 0) else 0))
+    return out
+
+
+def test_4e_shows_gco_dollars_only_when_there_is_a_gco_column():
+    """GCO alone is enough for 4e's dollars (it needs no booked amount); without it, 4e says nothing about
+    dollars and every other figure is the same."""
+    rows = _dated(_mixed())
+    ps = prespec.parse(SMALL_SPEC)
+    got = {}
+    for name, lines in (("gco", {"booked": None, "ranr": None}), ("none", {"booked": None, "ranr": None, "gco": None})):
+        res = engine.run(cube(origination_date="ORIG", run_kind="new_variable", **lines), table(rows))
+        got[name] = confirmatory.run_test(res, prespec.named(ps, *confirmatory.column_range(res, "R")))
+    with_gco, without = got["gco"], got["none"]
+    assert with_gco.dollars and not without.dollars
+    hold = [(d, v, bad) for d, _, v, bad in _mixed() if d.startswith("2024")]
+    for k in range(3):
+        want = math.fsum(50 * bad for _, v, bad in hold if (v > 1) + (v > 2) == k)
+        assert with_gco.concentration()[k].gco == want
+        assert without.concentration()[k].gco == 0.0
+        assert (with_gco.concentration()[k].loans, with_gco.concentration()[k].lift) == \
+            (without.concentration()[k].loans, without.concentration()[k].lift)
+    assert with_gco.holdout.fit.odds == without.holdout.fit.odds

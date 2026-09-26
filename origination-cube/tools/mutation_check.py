@@ -403,8 +403,8 @@ muts = [
  # 26 Sep 2026: what are you running? Each answer's own minimum (tests/test_run_kind.py)
  ("bleed run asks for a date", B, 'NEEDS_COLUMNS = {BLEED: cfgmod.CORE, NEW_VARIABLE:',
   'NEEDS_COLUMNS = {BLEED: cfgmod.CORE + ("origination_date",), NEW_VARIABLE:', "never_asks_for_a_date"),
- ("new variable run without a date", B, 'NEW_VARIABLE: cfgmod.CORE + ("origination_date",)}',
-  'NEW_VARIABLE: cfgmod.CORE}', "needs_an_origination_date or two_origination_dates"),
+ ("new variable run without a date", B, 'NEW_VARIABLE: cfgmod.TESTING_CORE + ("origination_date",)}',
+  'NEW_VARIABLE: cfgmod.TESTING_CORE}', "needs_an_origination_date or two_origination_dates"),
  ("core column not refused by name", B, '        if len(hits) != 1:\n            who = ',
   '        if False:\n            who = ', "core_column_by_name"),
  ("blank run kind picks for you", "src/origination_cube/control.py",
@@ -500,6 +500,44 @@ muts = [
   "saved_shortlist"),
  ("the outcome tested against unchecked", B, '        if code != "outcome":', '        if False:',
   "outcome_the_launcher_tests"),
+ # 26 Sep 2026: Goal 2 item 1, the cliffs planted in the second book (tests/test_generic.py). The first reads
+ # dates only as the first book writes them, which the first book's own goal test cannot see; the second forgets
+ # the pockets, which the second book's clean copy is built to catch (its worst dealer crowds the lowest group)
+ ("dates read only year-month-day", CF, '        return engine._date_reader(table, col, "when each loan was made"), None',
+  '        return (lambda raw: __import__("origination_cube.ingest", fromlist=["x"]).parse_date(raw, "%Y-%m-%d")), None',
+  "second_books"),
+ ("the pockets forgotten", CF, 'strata=tuple(ps.strata), scores=', 'strata=(), scores=',
+  "second_book_with_no_cliff"),
+ # 26 Sep 2026: Goal 2 item 2, a test of a new variable needs only what it uses (tests/test_run_kind.py,
+ # tests/test_generic.py). Each puts the old minimum back, lets the bleed analysis off it, or shows dollars
+ # a run doesn't have
+ ("new variable run needs the dollar columns again", B, 'NEW_VARIABLE: cfgmod.TESTING_CORE + ("origination_date",)}',
+  'NEW_VARIABLE: cfgmod.CORE + ("origination_date",)}', "needs_no_booked_amount"),
+ ("the cube file needs the dollar lines on every run", C,
+  '    needs = TESTING_CORE if run_kind == "new_variable" else CORE', '    needs = CORE',
+  "needs_the_dollar_lines_unless or needs_no_booked_amount"),
+ ("the bleed analysis lets the dollar columns go", C,
+  '    needs = TESTING_CORE if run_kind == "new_variable" else CORE', '    needs = TESTING_CORE',
+  "needs_the_dollar_lines_unless"),
+ ("the bleed run's minimum loses the dollar columns", B, 'NEEDS_COLUMNS = {BLEED: cfgmod.CORE, NEW_VARIABLE:',
+  'NEEDS_COLUMNS = {BLEED: cfgmod.TESTING_CORE, NEW_VARIABLE:', "still_refuses_an_extract_without_the_dollar"),
+ ("set up notes the dollar columns a new variable doesn't use", B,
+  '    if kind_now == NEW_VARIABLE:',
+  '    if False:', "needs_no_booked_amount"),
+ ("4e shows GCO with no GCO column", CF, '    t.dollars = gcol is not None', '    t.dollars = True',
+  "needs_no_booked_amount or gco_dollars_only_when"),
+ ("4e reads GCO through the booked amount", CF, '    gcol = getattr(cfg, "gco", "") or None',
+  '    gcol = next((x.value for x in res.measures if x.name == "gco_rate"), None)', "gco_dollars_only_when"),
+ ("4e drops its GCO figures when there are some", CT,
+  '        return (loans, flag, bad, capture) + ((gco, gco_capture) if t.dollars else ()) + (rate, lift)',
+  '        return (loans, flag, bad, capture) + (rate, lift, None, None)', "capture_is_on_the_holdout"),
+ ("Prevalence counts booked dollars with no booked amount", PV, '    dollars = bool(res.config.booked)',
+  '    dollars = True', "needs_no_booked_amount"),
+ ("a new variable's tabs talk about profit it doesn't have", L,
+  '    profit = any(m.name in PROFIT for m in res.measures)', '    profit = True', "needs_no_booked_amount"),
+ ("Losses vs revenue written with nothing to show", B,
+  '    if res.config.benchmark is None or {"gco_rate", "ranr_rate", "contribution_rate"} <= have:',
+  '    if True:', "needs_no_booked_amount or no_dollar_columns"),
 ]
 def main() -> int:
     bad = 0
