@@ -159,7 +159,7 @@ def make_rows(n: int = 20000, seed: int = 7, dated: bool = False) -> list[dict]:
 # x2 below 0.1 against the middle, as docs/scout-vs-measure.py plants them.
 
 DATED_COLUMNS = ["ORIG_DATE", "BAD_DATE", "INCOME", "SALES"]
-AS_OF = "2026-06-30"                     # the synthetic extract was "taken" on this day
+AS_OF_TEXT = AS_OF.isoformat()          # the synthetic extract was "taken" on this day (AS_OF, above)
 FIRST_ORIG = "2021-01-01"                # loans made from here to a month before AS_OF
 RATIO_ODDS = ((2.0, 3.0), (0.1, 2.0))    # above 2.0: x3; below 0.1: x2; nothing between (scout-vs-measure.py)
 MONTHS_TO_BAD = (12.0, 0.7)              # median 12 months, log-spread 0.7: about 72% land by month 18
@@ -196,7 +196,7 @@ def add_dated(rows: list[dict], seed: int = 7) -> list[dict]:
     import math
     from datetime import date, timedelta
     rng = random.Random(f"dated-{seed}")
-    as_of, first = date.fromisoformat(AS_OF), date.fromisoformat(FIRST_ORIG)
+    as_of, first = AS_OF, date.fromisoformat(FIRST_ORIG)
     top = max(_odds(x) for x in (0.05, 1.0, 3.0))
     for i, r in enumerate(rows):
         made = _made_on(r, rng, first, as_of - timedelta(days=31))

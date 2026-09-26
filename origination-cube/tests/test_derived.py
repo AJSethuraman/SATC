@@ -136,7 +136,7 @@ def test_the_dated_book_keeps_every_other_plant_loan_for_loan(dated_book):
 
 
 def test_the_dated_book_has_an_outcome_date_on_bad_loans_only(dated_book):
-    as_of = date.fromisoformat(synth.AS_OF)
+    as_of = synth.AS_OF
     months = []
     for r in dated_book:
         made = date.fromisoformat(r["ORIG_DATE"])
