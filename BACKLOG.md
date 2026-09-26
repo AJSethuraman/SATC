@@ -1543,6 +1543,28 @@ back.
   CI went red once on the way: numpy wasn't listed in `pyproject.toml`, so the new
   add-on check refused to run in CI. It was fixed by listing it. 350 tests; 81
   re-inserted bugs.
+- [x] **Wave 3 (26 Sep 2026): dates, the outcome window, new columns** (NEXT-GOAL 3.9,
+  3.10, 3.11, 3.13, 3.14; merge 3dcb3da).
+  - **Dates:** origination date and outcome date roles give months on book and
+    months to bad.
+  - **The window:** bad means bad within N months. Loans under N months are left
+    out and counted. Check gives the origination range tested and how much of the
+    loss seasoned loans show had landed by month N.
+  - **New columns:** ratio columns defined on Control (e.g. INCOME ÷ SALES), cut or
+    split like any column, each with a Look block.
+  - **Columns tab:** a period (per year / per month / one-time), with a Check warning
+    when a ratio's inputs disagree; and a definition in the analyst's words.
+  - **A dated synthetic book** (`write_extract(dated=True)`) plants the income ÷
+    sales cliffs from `docs/scout-vs-measure.py`.
+  - **A bad date** in a cube file is now a plain refusal.
+
+  385 tests; 119 re-inserted bugs. **Its calls, for the firm to confirm** (listed in
+  the hand-back):
+  - where the as-of date comes from;
+  - only the yes/no outcome is windowed, while GCO and RANR dollars stay as
+    extracted;
+  - the age filter and the window can't both be on;
+  - definitions sit on Columns, not Control.
 - [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
       `cube drill` and `cube prove` (and put their settings back on the tab).
 - **Not checked:** real Excel, a real extract, and the bank machine

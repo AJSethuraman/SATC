@@ -134,8 +134,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 350 tests: one per finding, every worked example in docs/statistics.md, every Control answer applied, the workbook route, the split, the launcher, the pre-spec, the add-on check, the Look tab (the one that opens the window skips without a display)
-python tools/mutation_check.py     # puts 81 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 385 tests: one per finding, every worked example in docs/statistics.md, every Control answer applied, the workbook route, the split, the launcher, the pre-spec, the add-on check, the Look tab, dates, the outcome window and new columns (the one that opens the window skips without a display)
+python tools/mutation_check.py     # puts 119 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

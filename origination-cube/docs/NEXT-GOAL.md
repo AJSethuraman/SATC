@@ -106,20 +106,20 @@ Each is built with a test. The full suite and the mutation check run after each.
 
       Plus a scatter of any split column against each band column. Today, edges are
       chosen blind.
-- [ ] **3.9 Derived column.** A ratio of two existing columns, defined on Control
+- [x] **3.9 Derived column.** *(Done 26 Sep 2026, merge 3dcb3da.)* A ratio of two existing columns, defined on Control
       (numerator, denominator, name). It is recorded in what-ran, usable as a band or
       split column, and gets a Look like any number column.
-- [ ] **3.10 Period attribute.** Amount columns get a period: per year, per month or
+- [x] **3.10 Period attribute.** *(Done 26 Sep 2026, merge 3dcb3da.)* Amount columns get a period: per year, per month or
       one-time, recorded in what-ran. If a derived ratio's inputs disagree, warn on
       Check; never stop.
-- [ ] **3.11 Definitions on Control.** Free text for what each amount column means
+- [x] **3.11 Definitions on Control.** *(Done 26 Sep 2026, merge 3dcb3da, but on the Columns tab beside each column, not on Control: the firm to confirm.)* Free text for what each amount column means
       (household vs guarantor income; trailing-twelve actual vs a month × 12), carried
       into what-ran.
 - [ ] **3.12 Prevalence table.** For any split or derived column: loans and dollars per
       group per pocket, with no test attached. A count of the book, not a finding.
-- [ ] **3.13 Date roles on Columns.** Origination date and outcome date. The engine
+- [x] **3.13 Date roles on Columns.** *(Done 26 Sep 2026, merge 3dcb3da.)* Origination date and outcome date. The engine
       derives months on book and months to bad.
-- [ ] **3.14 Outcome window.** Extend loan age to a true window of N months:
+- [x] **3.14 Outcome window.** *(Done 26 Sep 2026, merge 3dcb3da.)* Extend loan age to a true window of N months:
       - It requires the outcome date. Bad means bad within N months.
       - Loans under N months on book are excluded.
       - Check reports the origination range tested and the count excluded.
