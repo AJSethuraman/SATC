@@ -284,6 +284,22 @@ def _went_and_looked(looked) -> list:
     return out
 
 
+def _ruled_for(question: str, corpus: Path = CORPUS) -> dict:
+    """`{citation: ruling}`: paragraphs the firm ruled this question reaches.
+
+    ONE PLACE, BECAUSE THERE ARE TWO FRONT DOORS. `consult` and
+    `consult_or_file` each decide whether anything is on file, and Codex on
+    #401 found the second still asking only the pool -- so a question the
+    firm's ruling answered was filed as a hole in the very authority the ruling
+    points at.
+    """
+    import rulings as _rulings
+    whole = _corpus(corpus)[0]
+    return {cit: r for r, cit in _rulings.brought_by(question,
+                                                     _rulings.load(corpus))
+            if whole.passage(cit)}
+
+
 def consult(question: str, corpus: Path = CORPUS,
             context: record.Context | None = None, *, limit: int = 8) -> str:
     """Everything the corpus will let you answer this from — or why it will not.
@@ -324,11 +340,7 @@ def consult(question: str, corpus: Path = CORPUS,
     # mismatch rulings exist to repair, and returning "Nothing on file" first
     # meant the firm's ruling could never fire where it was needed most.
     # Added, never subtracted: nothing else moves. See `rulings`.
-    import rulings as _rulings
-    ruled = {}
-    for r, cit in _rulings.brought_by(question, _rulings.load(corpus)):
-        if whole.passage(cit):
-            ruled[cit] = r
+    ruled = _ruled_for(question, corpus)
     if not found and not ruled:
         return nothing_on_file(question, corpus)
     # `dec-examples`, second half: a brief is never worked examples alone.
@@ -378,7 +390,7 @@ def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
     # ASKED OF THE POOL, NOT OF THE BRIEF'S LENGTH. `consult` returns a
     # document either way since `dec-coverage`, so testing it for emptiness
     # would file every question ever asked.
-    if looked(question, corpus):
+    if looked(question, corpus) or _ruled_for(question, corpus):
         return consult(question, corpus, context), None
     queue = Path(queue)
     existing = (unsupported.parse(queue.read_text(encoding="utf-8"))
@@ -579,8 +591,9 @@ def brief(question: str, desk: record.Desk,
            '`ask.read("<citation or section>")` prints the stored words, or a',
            "section's paragraphs. A citation to anything NOT on file is refused",
            "by the engine, however real it is.", "",
-           "If the rule you need is NOT printed here, do not cite it from",
-           "memory — escalate `authority_absent`. If you have been given a way",
+           "If the rule you need is in neither — not among these paragraphs,",
+           "and not in a section the list shows once you have read it — do not cite it",
+           "from memory: escalate `authority_absent`. If you have been given a way",
            "to fetch, you may instead hand in the URL you found it at and the",
            "exact words you are resting on: the engine will fetch that page and",
            "serve only if those words are on it right now. It will not take",

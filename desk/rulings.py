@@ -427,11 +427,6 @@ def _verdict(body: str) -> str:
     return "words"
 
 
-def _reply_body(answer: str, rid: str) -> str:
-    """The reply without the reference the firm quoted to address it."""
-    return re.sub(rf"\[?\b{rid}\b\]?:?", " ", answer, flags=re.I).strip()
-
-
 def _amended(corpus: Path, pid: str, wording: str, rests: str, *,
              ruled: str, check_only: bool = False) -> None:
     """Rewrite one position's wording and rests-on, then prove the record loads
@@ -514,7 +509,14 @@ def record_ruling(corpus: Path, entry: Asked) -> Ruling:
     """
     if not entry.answered:
         raise record.RecordError(f"{entry.id} has not been answered")
-    body = _reply_body(entry.answer, entry.id)
+    # CLASSIFIED ON WHAT THE FIRM ADDED, STORED AS WHAT THEY SENT. Codex on
+    # #401: tapping the notification quotes it back, and "Desk asks you to
+    # rule: ... — yes" read as the firm's own words. The line is rebuilt
+    # exactly as `ask` sent it and removed as a run; the reply kept on record
+    # is still verbatim.
+    sent = notifying.line(entry.question(), ref=entry.id,
+                          verb="Desk asks you to rule")
+    body = notifying.added(entry.answer, sent)
     verdict = _verdict(body)
     if verdict == "unclear":
         raise ValueError(

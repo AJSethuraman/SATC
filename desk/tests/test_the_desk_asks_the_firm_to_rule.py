@@ -261,3 +261,73 @@ def test_the_firms_own_words_must_reach_the_question_too(corpus, queue):
     assert not (corpus / rulings.RULINGS_FILE).exists()
     assert ("reach", RECORDS) in {
         (x.kind, x.subject) for x in rulings.findings(corpus)}
+
+
+def test_the_live_front_door_honours_a_ruling_too(corpus, queue, tmp_path):
+    """Codex on #401: `consult_or_file` asked only the pool, so a question the
+    firm's ruling answered was filed as a hole in the authority it points at."""
+    f = _found(corpus, "reach", RECORDS)
+    entry, _ = rulings.ask(f, "commingling", queue=queue, corpus=corpus)
+    rulings.record_ruling(corpus, rulings.settle(queue, entry.id, "yes"))
+    parked = tmp_path / "unfiled" / "CLOSE.md"
+    got, filed = ask.consult_or_file("commingling?", queue=parked, corpus=corpus)
+    assert filed is None and not parked.exists()
+    assert f"### {RECORDS}" in got
+
+
+@pytest.mark.parametrize("reply", ["R1 yes", "yes [R1]", "[R1] Yes."])
+def test_a_plain_yes_survives_a_question_that_says_yes(corpus, queue, reply):
+    """The ruling's own line says "Reply yes ... no to keep it", and the old
+    echo filter deleted each of its words from the reply wherever they stood:
+    a plain "R1 yes" came back as nothing at all."""
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    assert entry.id == "R1"
+    rid, answer = notifying.reply_in(reply, sent=line)
+    assert rid == "R1"
+    r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+    assert r.outcome == "amended"
+
+
+def test_the_notification_quoted_back_with_a_yes_is_a_yes(corpus, queue):
+    """Codex on #401: tapping the push quotes it, and the quote made a yes
+    read as the firm's own words."""
+    f = _found(corpus, "reach", RECORDS)
+    entry, line = rulings.ask(f, "commingling", queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(line + " — yes", sent=line)
+    r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+    assert r.reaches_on == ("commingling",)
+    assert r.reply == line + " — yes"
+
+
+def test_the_firms_wording_is_kept_as_they_typed_it():
+    line = notifying.line("POS7 states 50 percent. Reply yes, no, or your own",
+                          ref="R2", verb="Desk asks you to rule")
+    assert notifying.added(line + " — Bars only, at 50%.", line) == \
+        "Bars only, at 50%"
+
+
+def test_a_parked_reply_may_reuse_a_word_of_the_question():
+    """The same filter ate "U1 gross receipts" answering "are unidentified
+    deposits gross receipts?"."""
+    e = notifying.line("are unidentified deposits gross receipts?", ref="U1")
+    assert notifying.reply_in("U1 gross receipts", sent=e) == (
+        "U1", "U1 gross receipts")
+
+
+def test_the_brief_does_not_say_escalate_on_anything_not_printed():
+    """Codex on #401: the old line told an answerer to escalate whenever the
+    rule was not printed -- the rank-442 case the shelf exists to fix."""
+    got = ask.consult("A single account carries purchases for customers' jobs "
+                      "and for the household. What records must be kept?")
+    assert "NOT printed here, do not cite it from" not in got
+    assert "not in a section the list shows once you have read it" in got
+
+
+def test_a_long_reply_sharing_words_with_the_question_is_kept_whole():
+    """The echo is cut only where the WHOLE run appears. A reply longer than
+    the question, sharing some of its words out of order, loses nothing."""
+    e = notifying.line("are unidentified deposits gross receipts?", ref="U1")
+    reply = ("U1 gross receipts only where the deposits trace to customers; "
+             "unidentified ones stay open")
+    assert notifying.added(reply, e) == reply[3:]

@@ -391,8 +391,8 @@ NARROWED = {
     # says this is a label on examples and not a paragraph added to every brief.
     # The graded figures below are likewise untouched: `brief_for_grading`
     # prints no example, so there is nothing there to label.
-    "is a brewery tab a business meal?": 2_932,
-    "what supporting documents does the client have to keep?": 7_417,
+    "is a brewery tab a business meal?": 2_958,
+    "what supporting documents does the client have to keep?": 7_443,
     #
     # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
     # are both visible in the diff. Every position a brief carries now prints
@@ -416,9 +416,12 @@ NARROWED = {
     # shown sources rather than sitting beside it. Net +171 to +364: a brief
     # showing more sources lost more of the old list. The index is citations
     # only because headings did not fit the supporting-documents brief under
-    # 7,616 tokens; its docstring has the measurement.
-    "hand tools bought for the trade - deducted or capitalized?": 4_184,
-    "mileage or actual expenses for the van?": 2_827,
+    # 7,616 tokens; its docstring has the measurement. And +26 on all four
+    # after Codex on #401: the line telling an answerer to escalate on anything
+    # "NOT printed here" contradicted the shelf, so it now says to escalate only
+    # when the rule is in neither the brief nor a section on the list.
+    "hand tools bought for the trade - deducted or capitalized?": 4_210,
+    "mileage or actual expenses for the van?": 2_853,
 }
 
 #: The whole corpus, unnarrowed, in tokens: `(rules only, with examples)`.
@@ -448,8 +451,9 @@ NARROWED = {
 # § 1.274-5T, § 1.280F-6 and § 1.62-2, now on their parents.
 # And +75 on both sides for the same pilot-4 sentence: what is refused is a
 # citation to anything NOT ON FILE, not anything not printed. The unnarrowed
-# brief carries no on-file index -- it already prints everything.
-WHOLE = (134_812, 249_118)
+# brief carries no on-file index -- it already prints everything. +26/+25
+# more for the escalation line Codex on #401 found contradicting the shelf.
+WHOLE = (134_838, 249_143)
 
 
 def _answering_sizes():
