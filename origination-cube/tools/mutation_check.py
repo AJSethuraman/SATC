@@ -20,6 +20,7 @@ E="src/origination_cube/engine.py"; C="src/origination_cube/config.py"; B="src/o
 L="src/origination_cube/live.py"
 S="src/origination_cube/stats.py"; P="src/origination_cube/perm.py"
 K="src/origination_cube/checks.py"; CF="src/origination_cube/confirmatory.py"; PV="src/origination_cube/prevalence.py"
+KG="src/origination_cube/kgroups.py"; CT="src/origination_cube/confirm_tab.py"
 muts = [
  ("1 blank->zero",       E, 'if p is BLANK:\n        return None, "blank"', 'if p is BLANK:\n        return 0.0, None', "test_finding_1"),
  ("2 empty->index 0",    E, 'if rate is None or base is None or base == 0:', 'if base is None or base == 0:\n        return None\n    if rate is None:\n        rate = 0.0\n    if False:', "test_finding_2"),
@@ -433,6 +434,36 @@ muts = [
   '    return f"AND(ISNUMBER({p}),{p}<1-confidence)"', "one_rounded_bar"),
  ("a p-value at the bar reads significant", L, '    return f"AND(ISNUMBER({p}),{p}<{BAR})"',
   '    return f"AND(ISNUMBER({p}),{p}<={BAR})"', "exactly_at_the_bar or profit_at_the_bar"),
+ # 26 Sep 2026: the confirmatory test, 4b and 4e (tests/test_kgroups.py, tests/test_confirm_test.py)
+ ("B3 on K degrees of freedom", KG, '        p_general = stats.chi2_sf(general, len(keep))',
+  '        p_general = stats.chi2_sf(general, len(keep) + 1)', "b3_on_k_minus_1 or b3_b4_worked"),
+ ("the trend scores unused", KG, '        T += float((s * (n - E)).sum())', '        T += float((n - E).sum())',
+  "b3_b4_worked or trend_uses_its_scores"),
+ ("the unconditional fit on thin pockets", CF, '    fit = kgroups.conditional_fit(pockets, ref, K)',
+  '    fit = kgroups.unconditional_fit(pockets, ref, K)', "fits_conditionally"),
+ ("the holdout takes development loans", CF,
+  '        which = HOLDOUT if hold.holds(d) else DEVELOPMENT if dev.holds(d) else None',
+  '        which = HOLDOUT if (hold.holds(d) or dev.holds(d)) else None',
+  "holdout_takes_no_development or holdout_holds_only"),
+ ("the reference group ignored", CF, 'groups=tuple(ps.groups), ref=ps.reference_index,',
+  'groups=tuple(ps.groups), ref=0,', "reference_group_is_the_pre_specs"),
+ ("capture on every loan, not the holdout", CF, '        return concentration(self.holdout)',
+  '        return concentration(self.development, self.holdout)', "capture_is_on_the_holdout"),
+ ("a pocket under the floor left out of the pooled test", KG,
+  '    return [p for p in pockets if p.informative()]',
+  '    return [p for p in pockets if p.informative() and p.n >= 30]', "below_every_floor or too_small_to_read"),
+ ("the reference deviation back", CF, '    if test is not None and test.problem is None:', '    if False:',
+  "goal_check_no_longer or range_held_to"),
+ ("the holdout line reads the first and last loan", CF, '                "holdout": test.holdout.range}',
+  '                "holdout": run_range(res, ps)}', "goal_check_no_longer or range_held_to"),
+ ("a stratum not cut by accepted", B, '            if s in cut_by:\n                continue',
+  '            if True:\n                continue', "stratum_the_run_does_not_cut"),
+ ("the tab's reading not live", CT, """IF({live.sig(ref)},"significant","not significant"))'""",
+  """IF({ref}<0.05,"significant","not significant"))'""", "follow_the_confidence"),
+ ("the tab's range at 95% always", CT, """value=(f'=TEXT(EXP({b}-{Z}*{se}),"0.00")&"x to "&'""",
+  """value=(f'=TEXT(EXP({b}-1.96*{se}),"0.00")&"x to "&'""", "follow_the_confidence"),
+ ("a group not significant in the plain line", CT, """pieces.append(f'IF({live.sig(p)},{said}&{rng},"")')""",
+  """pieces.append(f'{said}&{rng}')""", "tab_says_what_it_found"),
 ]
 def main() -> int:
     bad = 0

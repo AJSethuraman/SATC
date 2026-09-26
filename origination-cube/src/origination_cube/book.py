@@ -38,13 +38,14 @@ from . import config as cfgmod
 from . import control, engine, meanings, memory, perm, profile, stats
 from . import checks, confirmatory, prevalence          # fixes 3.12 and 3.15 to 3.18
 from . import live                                      # OC-40: the judging settings, live in the workbook
+from . import confirm_tab                               # 4b and 4e: the confirmatory test's tab
 from .ingest import Table, read_table
 
 INK, CANVAS, SLATE, PAPER, NEEDS = "16130F", "F4F1EC", "57534B", "FFFFFF", "FCE4C4"
 WORSE_FILL, LUCK_FILL = "F7DEDE", "FFF1D6"
 GREEN, RED = "63BE7B", "F8696B"
 INPUT_TABS = ("Start here", "Control", "Columns", "Look", "Odd values", "Learned")
-RESULT_TABS = ("Where it bleeds", "Losses vs revenue", "Grids", "Split", "Prevalence", "Three-way", "Materiality",
+RESULT_TABS = ("Confirmatory test", "Where it bleeds", "Losses vs revenue", "Grids", "Split", "Prevalence", "Three-way", "Materiality",
                "Check", "Log")
 LOG_FIRST = 4            # the newest line on the Log tab
 LOG_NOTE = ("Every Run and every refusal, newest first. Each entry is what that Run used: a line changed on "
@@ -740,6 +741,19 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
             raw_bands.append(b)
         elif cat[m].cut == "dimension":
             raw_dims.append({"name": uniq(profile._slug(c)), "field": c})
+    if held_to:
+        # 4b: the pockets are the pre-spec's strata, cut as the grids cut them, so each must be cut on Columns
+        cut_by = {b["field"] for b in raw_bands} | {d["field"] for d in raw_dims}
+        for s in held_to["spec"].strata:
+            if s in cut_by:
+                continue
+            why = ("no column on Columns has that name" if s not in columns
+                   else f"{s} splits the pockets, so it isn't cut on its own" if split and split[0][0] == s
+                   else f'Columns doesn\'t cut by it. Set its "Cut by it?" to Yes (it becomes a band or a segment)')
+            problems.append(f"{held_to['cell']}: the pre-spec cuts the pockets by {s}, and {why}. Or fix the "
+                            f"pre-spec.")
+        if problems:
+            return None, problems, about
     measures = [{"name": "loans", "mode": "count"}]
     for c, how in show.items():
         measures.append({"name": f"{how} {c}", "mode": "median", "value": c, "show": how})
@@ -1077,7 +1091,9 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if dropped:
         lines.append(f"Forgot {', '.join(sorted(dropped))}, as marked on Learned. Check "
                      f"{'it' if len(dropped) == 1 else 'them'} on Columns and set C3 to Yes before the next Run.")
-    lines.append(f"Open {book.name}: start with Where it bleeds.")
+    tested = getattr(getattr(res, "prespec", None), "test", None)
+    lines.append(f"Open {book.name}: start with "
+                 + ("Confirmatory test." if tested is not None and tested.problem is None else "Where it bleeds."))
     return Outcome(True, book, lines)
 
 
@@ -1242,6 +1258,7 @@ def _write_results(book: Path, res, memory_path, src: Path, forgotten: set[str] 
         _bleeds(wb.create_sheet("Three-way"), res, res.three_way, "Three-way",
                 f"Pockets split by {sf}, each tested like any other pocket,", note, after)
     prevalence.write(wb, res)                   # fix 3.12: only with a split or a new column
+    confirm_tab.write(wb, res)                  # 4b and 4e: only when testing from a pre-spec
     _materiality_tab(wb.create_sheet("Materiality"), res)
     _check(wb.create_sheet("Check"), res, src, f"{book.stem} - what ran.yaml")
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")

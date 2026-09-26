@@ -58,12 +58,12 @@ class NumpyMissing(ImportError):
     """The shuffle test needs numpy (ruling OC-34)."""
 
 
-def numpy():
+def numpy(needed_by: str = "the shuffle test for the dollar rates (docs/statistics.md B2)"):
     try:
         import numpy as np
     except ImportError as exc:
-        raise NumpyMissing("the shuffle test for the dollar rates (docs/statistics.md B2) needs numpy, which "
-                           "is not installed. Install it (python -m pip install numpy), or ask IT for it") from exc
+        raise NumpyMissing(f"{needed_by} needs numpy, which is not installed. Install it "
+                           "(python -m pip install numpy), or ask IT for it") from exc
     return np
 
 

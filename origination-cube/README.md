@@ -16,11 +16,11 @@ prove) and the firm's rulings.
 
 **Status (26 Sep 2026):**
 - **Built:** the first stage, find. That means the engine, the launcher and the
-  whole workbook: Set up, Control, Columns and every results tab below.
-- **Not built:** drill-down, `cube prove`, and the confirmatory test itself
-  (capability 4b in `docs/capabilities-scope.md`). The cube has the inputs that
-  test needs (the origination date, new columns and the pre-spec), but not the
-  test.
+  whole workbook: Set up, Control, Columns and every results tab below. Also the
+  confirmatory test of a new column from a committed pre-spec, on development
+  loans and on the holdout (capabilities 4b and 4e in
+  `docs/capabilities-scope.md`).
+- **Not built:** drill-down, `cube prove`, and scouting (4a).
 - **Not yet met:** a real extract.
 
 The log is `../BACKLOG.md` §6d.
@@ -90,6 +90,7 @@ After that, the whole routine is:
    - **Odd values:** answer real or missing where you can.
 4. Save, close the workbook, and press **2. Run the cube**. The results land in
    the workbook:
+   - **Confirmatory test:** only when testing from a pre-spec (below).
    - **Where it bleeds:** every pocket losing more than its share, largest first.
      Each pocket has two dollar figures, its excess over the rest of its band
      and over the book. Control's "judged against" picks one, and that one
@@ -178,8 +179,41 @@ and lists, one line each, where the run differs from it; the Log marks such a
 run *Deviates from pre-spec*. Every run whose extract holds loans made in the
 pre-spec's holdout range is marked *Touched the holdout* in the Log, and Check
 counts those runs, so how often the holdout has been looked at stays visible.
-Today's cube always differs in one place: it tests each pocket's high half
-against its low half, not groups against a reference group.
+
+The test itself is on the **Confirmatory test** tab. The column is cut at the
+pre-spec's bins, each group is compared with its reference group, and a loan is
+only ever compared with loans in its own pocket (the pre-spec's strata, cut as
+the grids cut them). It runs twice, side by side: on the development range and
+on the holdout, split by origination date. Loans made outside both ranges, or
+with no readable date, column value or outcome, are left out of this test only;
+Check counts them, and every other tab still uses every loan. For each range:
+- **Does the column matter?** The general test (K-group Mantel-Haenszel, on
+  K - 1 degrees of freedom), the trend test (1 degree of freedom, the groups
+  scored 1 to K), and the regression's block test, with one plain line reading
+  them together, e.g. "differs across the groups, but not in one direction".
+- **How much more often does each group go bad?** An odds ratio against the
+  reference, with its range and p-value, from conditional logistic regression
+  (numpy only), and one plain line, e.g. *"On the holdout, 0.02 - 0.09 goes bad
+  2.26 times as often as 0.25 - 0.49 (1.22x to 4.18x) ..., with the pockets held
+  fixed."*
+- **On the holdout only:** each group's share of the loans, of the bad loans
+  and of the GCO, and its bad rate against the holdout's (B6). No cost or
+  benefit figures.
+
+Each section says its method in plain words, and the tab lists the choices no
+ruling settles yet. Every "significant" and every range follows the confidence
+level on Control. A pocket too small to read on its own still counts in the
+pooled test. A column the pre-spec's strata name must be cut on Columns, or
+the Run stops, naming the pre-spec's cell. Check says where the run differs
+from the pre-spec. A run that did what its pre-spec says differs nowhere: the
+reference group is the pre-spec's, and the holdout is the range the test held
+itself to, not the first and last loan in the extract.
+
+On the dated synthetic book (`synth.write_extract(..., ratio=True)`, 20,000
+loans) with `docs/prespec-example.yaml`, the run finds both planted cliffs on
+development (below 0.10: 2.32x, 1.52x to 3.56x; 2.00 and up: 3.25x, 2.42x to
+4.38x) and confirms them on the holdout (2.26x, 1.22x to 4.18x; 2.68x, 1.70x to
+4.24x), and Check reads "Differs from the pre-spec: nowhere".
 
 ![Losses vs revenue: paid, cost and kept, and the chart](docs/losses-vs-revenue.png)
 
@@ -227,8 +261,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 503 tests (1 skips without a display; the 22 in test_live.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting)
-python tools/mutation_check.py     # puts 198 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 540 tests (1 skips without a display; the 22 in test_live.py and 3 in test_confirm_test.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand
+python tools/mutation_check.py     # puts 211 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

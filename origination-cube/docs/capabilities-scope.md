@@ -118,6 +118,38 @@ is unbiased at that size.
 conditional fit takes a day and a half, written in numpy (no statsmodels on the bank
 machine). The two-range report and the tab take half a day.
 
+*Built 26 Sep 2026 (`src/origination_cube/kgroups.py`, `confirmatory.run_test`, the
+Confirmatory test tab in `confirm_tab.py`), only under "Test from a pre-spec". The groups,
+reference and strata are the pre-spec's; the strata are cut as the grids cut them, and a
+strata column not cut on Columns stops the Run. Development and holdout are split by
+origination date on the pre-spec's two ranges; loans outside both, or with no readable
+date, value or outcome, are left out of this test and counted on Check. The dated outcome
+and window this section lists were removed by OC-39: the outcome is the extract's as it
+stands. What was built against what is written above:*
+- *B3 and B4 as statistics.md writes them; the trend's scores are 1 to K (not the bins'
+  midpoints: a choice for the firm, listed on the tab).*
+- *B5 by conditional logistic regression in every pocket, computed group by group (each
+  pocket's likelihood is one coefficient of a product of K polynomials, tilted so the
+  numbers stay in range). The unconditional fallback for big pockets was not needed: the
+  grouped computation is exact and fast at any size. A group with no bad loan, or only bad
+  loans, has no odds ratio, and the rest are fitted at that limit.*
+- *The cross-checks are tests (`tests/test_kgroups.py`): B3 equals the score test from the
+  conditional likelihood's own derivatives to 1e-9, on four books and every choice of
+  reference; those derivatives equal finite differences of a 40-digit brute-force
+  likelihood to 1e-9; statsmodels 0.15.0's `ConditionalLogit` on one example is written in
+  as literals; and B5's odds ratios agree with Mantel-Haenszel's within 4 standard
+  deviations of their difference (Hausman), with about 5% of 236 gaps past 2.*
+- *The rule the goal sets holds: every pocket that says anything counts in the pooled
+  test, however small.*
+- *The worked examples are reproduced: 66.47 on 4 df and trend 0.000; 0.0014 and 0.0011;
+  B5's holdout table and the 255.0 block test, rebuilt from scout-vs-measure.py's seeds.
+  Three printed figures of B5's table are off by one in the last digit (0.39 for 0.40;
+  2.66, 2.07 - 3.42 for 2.67, 2.07 - 3.43): the script's scikit-learn fit stops short of
+  the maximum, which statsmodels confirms. Recorded, not corrected.*
+- *On the dated synthetic book with the example pre-spec both cliffs are found on
+  development and confirmed on the holdout, and Check says the run differs from the
+  pre-spec nowhere.*
+
 ## 4c. Loss typing: fraud-shaped against failure-shaped
 
 > **Out of the cube (the firm, 26 Sep 2026):** *"This is not something the engine is meant
@@ -189,6 +221,16 @@ business's call. As B6 says, the finding is the lift and the dollars, never the 
 of all losses.
 
 **Work:** half a day after the pre-spec and holdout wiring.
+
+*Built 26 Sep 2026, on the Confirmatory test tab below 4b: per group of the pre-spec's
+column, on the holdout only, its share of the loans, of the bad loans and of the GCO
+dollars, its bad rate, and that rate against the holdout's. "All loans" is every holdout
+loan in the test (a readable value and outcome); a loan with no readable GCO is left out
+of the GCO figures only, and the tab says how many. One plain line names each group that
+goes bad significantly more often than the reference, with its three figures. No cost or
+benefit figures. B6's worked example (4.3%, 9.1%, 2.13x; 6.7%, 13.2%, 1.95x) is
+reproduced by `tests/test_kgroups.py`. The dated outcome and window above were removed
+by OC-39.*
 
 ---
 
