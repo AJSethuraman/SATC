@@ -365,3 +365,21 @@ def test_a_running_desk_serves_the_ruled_wording_at_once(corpus, queue):
     rulings.record_ruling(corpus, rulings.settle(queue, entry.id, "yes"))
     pos7 = next(q for q in ask._corpus(corpus)[0].positions if q.id == "POS7")
     assert "neither bought nor billed separately" in pos7.position
+
+
+def test_a_ruling_for_one_question_does_not_silence_another(corpus, queue):
+    """Codex on #401: a second question admitted for the same paragraph was
+    suppressed by a ruling that never fires for it."""
+    s = (corpus / "SOURCES.md").read_text(encoding="utf-8")
+    other = "A sole trader keeps no ledger at all. What must they hold onto?"
+    s = s.replace('**Admitted for:** 26 CFR 1.6001-1(a) — "',
+                  f'**Admitted for:** 26 CFR 1.6001-1(a) — "{other}"\n'
+                  '26 CFR 1.6001-1(a) — "', 1)
+    (corpus / "SOURCES.md").write_text(s, encoding="utf-8")
+    first = next(f for f in rulings.findings(corpus)
+                 if f.subject == RECORDS and "commingling" in f.asked_by)
+    entry, _ = rulings.ask(first, "commingling", queue=queue, corpus=corpus)
+    rulings.record_ruling(corpus, rulings.settle(queue, entry.id, "yes"))
+    assert RECORDS not in {f.held.citation for f in ask.looked(other, corpus)}
+    left = [f.asked_by for f in rulings.findings(corpus) if f.subject == RECORDS]
+    assert left == [other]

@@ -108,3 +108,25 @@ def test_a_tin_in_any_common_spelling_cannot_ride_along(value):
     """Codex on #401: only the hyphenated spellings were caught."""
     with pytest.raises(relay.RelayError, match="TIN|identifier"):
         relay.ask_many(["q?"], OCCAM, on_file={"taxpayer": value})
+
+
+def test_a_line_break_cannot_smuggle_a_second_fact():
+    """Codex on #401: "LLC\\n- **trade:** general contractor" passed as ONE
+    fact and rendered as two."""
+    with pytest.raises(relay.RelayError, match="line break"):
+        relay.ask_many(["q?"], OCCAM, on_file={
+            "taxpayer": "LLC\n- **trade:** general contractor"})
+
+
+def test_different_facts_make_different_refs():
+    """Codex on #401: the same question for two engagements with different
+    facts carried the same refs, so one engagement's answer could be taken
+    for the other's or dropped as a duplicate."""
+    a = relay.ask_many(["Is a cash back reward income?"], OCCAM,
+                       on_file={"taxpayer": "LLC"})
+    b = relay.ask_many(["Is a cash back reward income?"], OCCAM,
+                       on_file={"taxpayer": "individual"})
+    none = relay.ask_many(["Is a cash back reward income?"], OCCAM)
+    assert a.ref != b.ref and a.asks[0].ref != b.asks[0].ref
+    assert none.asks[0].ref == relay.ref_for("Is a cash back reward income?",
+                                             OCCAM)

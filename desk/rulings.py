@@ -110,6 +110,9 @@ class Ruling:
     reaches_on: tuple = ()
     #: position: `amended` or `upheld`.
     outcome: str = ""
+    #: reach: the admitted question the ruling answered, verbatim. A citation
+    #: may be admitted for several; a ruling is about ONE of them.
+    asked_by: str = ""
 
 
 _HEAD = re.compile(r"^## (R\d+) · (.+)$", re.M)
@@ -150,7 +153,8 @@ def parse(text: str) -> tuple[Ruling, ...]:
             asked=_quoted(block, "Asked"), reply=reply,
             reaches_on=tuple(p.strip() for p in
                              _field(block, "Reaches on").split(";") if p.strip()),
-            outcome=_field(block, "Outcome")))
+            outcome=_field(block, "Outcome"),
+            asked_by=_quoted(block, "Asked by")))
     ids = [r.id for r in out]
     if len(ids) != len(set(ids)):
         raise record.RecordError(f"{RULINGS_FILE} numbers a ruling twice")
@@ -196,11 +200,21 @@ def findings(corpus: Path) -> tuple[Finding, ...]:
     """
     import ask
     desk = record.load(corpus)
-    ruled = {(r.kind, r.subject) for r in load(corpus)}
+    held = load(corpus)
+    ruled = {(r.kind, r.subject) for r in held}
     out = []
     for s in desk.sources:
         for cit, question in s.admitted_for:
-            if ("reach", cit) in ruled:
+            # PER QUESTION, NOT PER PARAGRAPH. Codex on #401: a citation may be
+            # admitted for several questions, and a ruling answering one of
+            # them silenced the rest though it never fires for them. Settled
+            # means the firm's words bring it for THIS question, or the firm
+            # said no to THIS question.
+            if cit in {c for _r, c in brought_by(question, held)}:
+                continue
+            if any(r.kind == "reach" and r.subject == cit
+                   and r.outcome == "declined" and r.asked_by == question
+                   for r in held):
                 continue
             got = [f.held.citation for f in ask.looked(question, corpus,
                                                        limit=DEPTH)]
@@ -483,6 +497,8 @@ def _append_ruling(corpus: Path, r: Ruling) -> None:
              f"**Kind:** {r.kind} · **Ruled:** {r.ruled}", "",
              "**Asked:**", "", *_q(r.asked), "",
              "**Reply:**", "", *_q(r.reply)]
+    if r.asked_by:
+        lines += ["", "**Asked by:**", "", *_q(r.asked_by)]
     if r.reaches_on:
         lines += ["", f"**Reaches on:** {'; '.join(r.reaches_on)}"]
     if r.outcome:
@@ -549,7 +565,7 @@ def _record_ruling(corpus: Path, entry: Asked) -> Ruling:
     said_yes, said_no = verdict == "yes", verdict == "no"
     base = Ruling(id=entry.id, kind=entry.kind, subject=entry.subject,
                   ruled=entry.answered, asked=entry.question(),
-                  reply=entry.answer)
+                  reply=entry.answer, asked_by=entry.asked_by)
     if entry.kind == "reach":
         if said_no:
             r = replace(base, outcome="declined")

@@ -135,7 +135,7 @@ class Ask:
     ref: str
 
 
-def ref_for(question: str, reply_to: str) -> str:
+def ref_for(question: str, reply_to: str, on_file: str = "") -> str:
     """A stable ref: the same question from the same asker gets the same one.
 
     STABLE ON PURPOSE. A random id would make a duplicate delivery look like a
@@ -143,8 +143,15 @@ def ref_for(question: str, reply_to: str) -> str:
     characters of a digest -- enough that two different questions colliding is
     not a thing that happens, short enough to read in a log.
     """
-    return hashlib.sha256(
-        f"{reply_to}\n{question.strip()}".encode()).hexdigest()[:12]
+    # THE FACTS ARE PART OF WHAT WAS ASKED. Codex on #401: the same question
+    # for two engagements with different recorded facts got one ref, and the
+    # replies are matched on refs alone -- so one engagement's answer could be
+    # taken for the other's, or dropped as a duplicate. With no facts the ref
+    # is exactly what it always was.
+    key = f"{reply_to}\n{question.strip()}"
+    if on_file:
+        key += f"\n{on_file}"
+    return hashlib.sha256(key.encode()).hexdigest()[:12]
 
 
 def ask(question: str, reply_to: str) -> Ask:
@@ -312,6 +319,15 @@ def _facts(on_file) -> tuple:
             f"{', '.join(extra)} is not a fact the desk records. It records "
             f"{', '.join(sorted(declared))}. A fact outside that list is the "
             f"asker framing the question.")
+    # ONE LINE EACH. Codex on #401: "LLC\n- **trade:** general contractor"
+    # passed as one declared fact and rendered as two, the second never
+    # checked against anything.
+    if broken := sorted(n for n, v in facts.items()
+                        if re.search(r"[\r\n\x00-\x1f\x7f]", v)):
+        raise RelayError(
+            f"{', '.join(broken)} contains a line break or control character. "
+            f"A recorded fact is one line; anything after a break would be "
+            f"read as another fact nobody declared.")
     if empty := sorted(n for n, v in facts.items() if not v):
         raise RelayError(
             f"{', '.join(empty)} has no value. Leave a fact out rather than "
@@ -339,7 +355,13 @@ def ask_many(questions, reply_to: str, on_file=None) -> Batch:
     questions = list(questions or [])
     if not questions:
         raise RelayError("no questions. A batch of none is not a request.")
-    asks = tuple(ask(q, reply_to) for q in questions)
+    facts = _facts(on_file) if on_file else ()
+    keyed = "\n".join(f"{n}={v}" for n, v in facts)
+    # `ask` itself stays without a facts parameter -- the firm cut that channel
+    # on 8 September and a test holds it shut. The recorded facts key the refs
+    # here, where they travel, and only here.
+    asks = tuple(dataclasses.replace(a, ref=ref_for(a.question, reply_to, keyed))
+                 for a in (ask(q, reply_to) for q in questions))
     refs = [a.ref for a in asks]
     if len(set(refs)) != len(refs):
         dup = sorted({r for r in refs if refs.count(r) > 1})
@@ -357,8 +379,7 @@ def ask_many(questions, reply_to: str, on_file=None) -> Batch:
     # are the desk's own (`Records:`), a blank is refused, and the envelope
     # says where the values came from. Two pilots running, the desk refused
     # the rewards, refund and clothing rows for want of exactly these.
-    return Batch(asks=asks, reply_to=reply_to, ref=ref,
-                 on_file=_facts(on_file) if on_file else ())
+    return Batch(asks=asks, reply_to=reply_to, ref=ref, on_file=facts)
 
 
 def batch_prompt(b: Batch) -> str:
