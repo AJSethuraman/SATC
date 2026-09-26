@@ -1748,7 +1748,10 @@ back.
       the pre-spec's `window_months`. Keep the origination date for the dev/holdout split, and
       add one Check line giving its range. The firm answered decision 2 (windowing), 3 (as-of)
       and 4 (age filter) with this.
-- [ ] **Then: Set up asks what the run is for** (the firm, 26 Sep 2026: *"because those are
+- [x] **Then: Set up asks what the run is for** *(Done 26 Sep, merge 75723ee: "What are you
+      running?" heads Control, with a follow-up asked only for a new variable; each answer
+      refuses by name on its own minimum; scouting is refused as not built; a pre-spec under a
+      bleed run is refused. 461 tests, 175 planted bugs.)* (the firm, 26 Sep 2026: *"because those are
       added to this suite it likely makes sense for the script to ask which we are doing so it
       does indeed have the minimum required"*).
       - *Where the book bleeds* needs only the five core columns and never asks about dates.
