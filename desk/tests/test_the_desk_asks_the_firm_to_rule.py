@@ -590,3 +590,67 @@ def test_a_date_that_would_not_load_is_refused_when_settled(corpus, queue):
     with pytest.raises(record.RecordError, match="date"):
         rulings.settle(queue, entry.id, "yes", on="27/09/2026")
     assert not rulings.queued(queue)[0].answered
+
+
+# ------------------------------------------- third independent review of #401
+
+
+@pytest.mark.parametrize("on", ["20260927", "2026-W39-6", "2026-9-27"])
+def test_only_the_date_the_record_can_read_is_accepted(corpus, queue, on):
+    """Third independent review: `date.fromisoformat` also takes the compact
+    and week forms, the RULINGS.md parser does not, and every consultation
+    then failed to load."""
+    f = _found(corpus, "position", "POS7")
+    entry, _ = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    with pytest.raises(record.RecordError, match="date"):
+        rulings.settle(queue, entry.id, "yes", on=on)
+
+
+@pytest.mark.parametrize("reply", ["R1 No, do it", "R1 no please do",
+                                   "R1 no, do that"])
+def test_do_it_is_not_filler_after_a_no(corpus, queue, reply):
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(reply, sent=line)
+    with pytest.raises(ValueError, match="Ask the firm which they meant"):
+        rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+
+
+def test_yes_do_it_is_still_a_yes(corpus, queue):
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in("R1 yes, do it", sent=line)
+    r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+    assert r.outcome == "amended"
+
+
+@pytest.mark.parametrize("reply", ['R1 "subscription"; "twelve months"',
+                                   'R1 "subscription" and "twelve months"',
+                                   'R1 “subscription”, “twelve months”'])
+def test_several_quoted_phrases_are_several_phrases(corpus, queue, reply):
+    """Third independent review: everything from the first quote to the last
+    was one phrase, and stray quote marks were written to the record."""
+    f = _found(corpus, "reach", TWELVE)
+    entry, line = rulings.ask(f, "subscription", queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(reply, sent=line)
+    r = rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+    assert r.reaches_on == ("subscription", "twelve months")
+
+
+def test_two_quoted_wordings_for_one_position_are_asked_again(corpus, queue):
+    wording = POS7_NEW.split("\n")[0]
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(f'R1 "{wording}" or "{wording}"', sent=line)
+    with pytest.raises(ValueError, match="Ask the firm which they meant"):
+        rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))
+
+
+@pytest.mark.parametrize("reply", ['R1 "yes"', 'R1 "Keep it"'])
+def test_a_short_quote_is_refused_for_what_it_is(corpus, queue, reply):
+    """The refusal said "neither a plain yes or no", which a quoted yes is."""
+    f = _found(corpus, "position", "POS7")
+    entry, line = rulings.ask(f, POS7_NEW, queue=queue, corpus=corpus)
+    rid, answer = notifying.reply_in(reply, sent=line)
+    with pytest.raises(ValueError, match="too short to be a position"):
+        rulings.record_ruling(corpus, rulings.settle(queue, rid, answer))

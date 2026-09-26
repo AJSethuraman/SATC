@@ -420,12 +420,18 @@ def settle(queue: Path, rid: str, answer: str, *, on: str = "") -> Asked:
     # A DATE THE RECORD CAN READ. Second independent review of #401: `on=` was
     # written into `Ruled:` as given, and a line the parser refuses takes down
     # every consultation that loads the corpus.
+    # AND ONLY YYYY-MM-DD. Third independent review of #401:
+    # `date.fromisoformat` also takes "20260927" and "2026-W39-6", which the
+    # RULINGS.md parser refuses.
     if on:
         try:
-            date.fromisoformat(on)
+            ok = bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", on)) and bool(
+                date.fromisoformat(on))
         except ValueError:
+            ok = False
+        if not ok:
             raise record.RecordError(
-                f"{rid}: {on!r} is not a date written YYYY-MM-DD") from None
+                f"{rid}: {on!r} is not a date written YYYY-MM-DD")
     done = replace(known[rid], answer=answer,
                    answered=on or date.today().isoformat())
     _write(Path(queue), [done if e.id == rid else e for e in entries])
@@ -442,12 +448,13 @@ _NO_WORDS = {"no", "nope", "n", "keep", "leave", "decline", "declined"}
 #: DECISION WORD IS FILLER: Codex on #401 found "yes, keep it" read as yes,
 #: because "keep" was on this list -- and "keep it" is the no.
 _FILLER = {"it", "is", "as", "the", "that", "this", "one", "please", "thanks",
-           "thank", "you", "do", "same", "wording"}
+           "thank", "you", "same", "wording"}
 #: Words that agree. They may follow a yes; after a no they are the other
 #: decision. Second independent review of #401: "No, go ahead" was recorded as
 #: the firm keeping its wording, because these sat in `_FILLER` -- and "no, go
 #: ahead" most likely means "no objection".
-_AGREEING = {"go", "ahead", "looks", "good", "fine", "sounds", "great", "right"}
+_AGREEING = {"go", "ahead", "looks", "good", "fine", "sounds", "great", "right",
+             "do"}  # "no, do it": third independent review of #401
 
 #: The firm's own wording is what they QUOTE. Second independent review of
 #: #401: "Please leave the current wording alone, it is correct as written"
@@ -464,6 +471,24 @@ def _unquote(body: str) -> str | None:
     return m.group(2).strip() if m and m.group(2).strip() else None
 
 
+#: One double-quoted segment. Single quotes are left out on purpose: an
+#: apostrophe inside a phrase ("don't") would end it.
+_SEGMENT = re.compile(r'["\u201c\u201d]([^"\u201c\u201d]+)["\u201c\u201d]')
+
+
+def _segments(body: str) -> list[str]:
+    """Each quoted phrase, when the reply is NOTHING BUT quoted phrases joined
+    by commas, semicolons, "and" or "or"; else []. Third independent review of
+    #401: '"subscription"; "twelve months"' was one phrase running from the
+    first quote to the last, stray quote marks and all."""
+    parts = [m.strip() for m in _SEGMENT.findall(body)]
+    rest = _SEGMENT.sub(" ", body)
+    if parts and all(parts) and re.fullmatch(
+            r"[\s;,.!]*(?:(?:and|or)[\s;,.!]*)*", rest, re.I):
+        return parts
+    return []
+
+
 def _verdict(body: str) -> str:
     """`yes`, `no`, `words` (the firm's own), or `unclear`.
 
@@ -474,7 +499,7 @@ def _verdict(body: str) -> str:
     on to say something is refused, and the desk asks again. A QUOTED reply is
     the firm's own words, whatever it opens with; anything else is unclear.
     """
-    if _unquote(body) is not None:
+    if _segments(body) or _unquote(body) is not None:
         return "words"
     words = [w.strip(".") for w in re.findall(r"[a-z0-9%$.]+", body.lower())]
     words = [w for w in words if w]
@@ -695,8 +720,9 @@ def _record_ruling(corpus: Path, entry: Asked) -> Ruling:
             f"{entry.id}: the reply \"{entry.answer}\" is not a plain yes or "
             f"no, and it is not wording in quotes. Ask the firm which they "
             f"meant; recording either would be a guess.")
+    quoted = (_segments(body) or [_unquote(body)]) if verdict == "words" else []
     if verdict == "words":
-        body = _unquote(body)
+        body = "; ".join(quoted)
     said_yes, said_no = verdict == "yes", verdict == "no"
     base = Ruling(id=entry.id, kind=entry.kind, subject=entry.subject,
                   ruled=entry.answered, asked=entry.question(),
@@ -727,12 +753,17 @@ def _record_ruling(corpus: Path, entry: Asked) -> Ruling:
     else:
         wording, rests = _split_proposal(entry.proposed)
         if not said_yes:
+            if len(quoted) > 1:
+                raise ValueError(
+                    f"{entry.id}: the reply \"{entry.answer}\" quotes "
+                    f"{len(quoted)} wordings for one position. Ask the firm "
+                    f"which they meant; recording either would be a guess.")
             if len(body.split()) < MIN_WORDING:
                 raise ValueError(
-                    f"{entry.id}: the reply \"{entry.answer}\" is neither a "
-                    f"plain yes or no nor a position's wording. Ask the firm "
-                    f"which they meant; recording it as the new wording would "
-                    f"be a guess.")
+                    f"{entry.id}: the reply \"{entry.answer}\" quotes words "
+                    f"too short to be a position. Ask the firm which they "
+                    f"meant; recording it as the new wording would be a "
+                    f"guess, and a quoted yes or no is still not a yes or no.")
             wording = body
         _amended(corpus, entry.subject, wording, rests, ruled=ruled)
         r = replace(base, outcome="amended")

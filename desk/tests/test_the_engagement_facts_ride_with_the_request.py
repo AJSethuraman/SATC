@@ -205,3 +205,23 @@ def test_which_facts_are_labels_is_the_corpus_s_and_must_be_recorded(tmp_path):
 def test_ordinary_labels_still_pass(name, value):
     assert relay.on_file(relay.batch_prompt(relay.ask_many(
         ["q?"], OCCAM, on_file={name: value}))).facts == {name: value}
+
+
+@pytest.mark.parametrize("facts", [
+    {"trade": "general contractor", "TRADE": "roofer"},
+    {"trade": "general contractor", "trade ": "roofer"}])
+def test_one_fact_spelled_twice_is_refused_when_built(facts):
+    """Third independent review: keys were folded to one and the last won."""
+    with pytest.raises(relay.RelayError, match="more than once"):
+        relay.ask_many(["q?"], OCCAM, on_file=facts)
+
+
+@pytest.mark.parametrize("name, value", [
+    ("taxpayer", "S corp."), ("taxpayer", "L.L.C."), ("taxpayer", "Inc."),
+    ("trade", "general contractor (residential)"), ("trade", "café owner"),
+    ("taxpayer", "LLC taxed as an S corporation"),
+    ("taxpayer", "LLC, single member"), ("trade", "real estate agent / broker")])
+def test_labels_the_firm_would_plausibly_record_pass(name, value):
+    """Third independent review: each was refused."""
+    assert relay.on_file(relay.batch_prompt(relay.ask_many(
+        ["q?"], OCCAM, on_file={name: value}))).facts == {name: value}

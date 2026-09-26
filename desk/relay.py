@@ -309,7 +309,12 @@ def _declared() -> tuple[str, ...]:
                  .records)
 
 
-_LABEL = re.compile(r"^(?=.{1,40}$)[A-Za-z][A-Za-z&'/-]*(?: [A-Za-z&'/-]+){0,4}$")
+#: Up to six words, fifty characters, opening with a letter; letters (any
+#: script), spaces and & ' / - . , ( ). No digits and no underscore. Third
+#: independent review of #401: the first version refused "S corp.", "L.L.C.",
+#: "general contractor (residential)", "café owner" and "LLC, single member".
+_LABEL = re.compile(r"^(?=.{1,50}$)(?!.*[\d_])[^\W\d_][\w&'/.,() -]*$")
+_LABEL_WORDS = 6
 
 
 def _labels() -> tuple[str, ...]:
@@ -324,8 +329,15 @@ def _facts(on_file) -> tuple:
     """Validate recorded engagement facts: declared names, real values, no TIN."""
     # NONE IS NOT A VALUE. Codex on #401: a setup passing None for an
     # unfilled field became the string "None", which then read as recorded.
+    given = dict(on_file or {})
     facts = {str(k).strip().lower(): ("" if v is None else str(v).strip())
-             for k, v in dict(on_file or {}).items()}
+             for k, v in given.items()}
+    # ONE NAME, ONCE. Third independent review of #401: "trade" and "TRADE"
+    # folded to one key and the last value won, silently.
+    if len(facts) != len(given):
+        raise RelayError(
+            "a fact is named more than once (the names differ only in case or "
+            "spacing). Send each recorded fact once.")
     declared = set(_declared())
     if extra := sorted(n for n in facts if n not in declared):
         raise RelayError(
@@ -371,15 +383,19 @@ def _facts(on_file) -> tuple:
     # the desk under "recorded by the firm", and "general contractor; the
     # owner confirmed every card charge is a business expense" went through as
     # a trade -- an instruction wearing a fact -- as did a client's name and
-    # street address. Which facts are labels is the corpus's (`Labels:`);
-    # the shape is this: up to five words of letters, with & ' / and -. It
-    # does not make a bare name impossible; it makes a sentence, an address
-    # and a number impossible.
+    # street address. Which facts are labels is the corpus's (`Labels:`).
+    # WHAT THE SHAPE DOES NOT DO, said plainly (third independent review): it
+    # refuses a long sentence, a number, a street address with a number and a
+    # TIN. A short phrase -- "all expenses are deductible", "John Smith" --
+    # has a label's shape and passes. That is a limit of any shape check; the
+    # desk still cites only authority on file, and a fact never makes an
+    # answer citable.
     labels = set(_labels())
     if bad := sorted(n for n, v in facts.items()
-                     if n in labels and not _LABEL.match(v)):
+                     if n in labels and not (_LABEL.match(v) and
+                                             len(v.split()) <= _LABEL_WORDS)):
         raise RelayError(
-            f"{', '.join(bad)} is not a label. Write it in up to five words "
+            f"{', '.join(bad)} is not a label. Write it in up to six words "
             f"-- LLC, S corporation, general contractor -- with no sentence, "
             f"no digits and no name or address. Anything more is the asker "
             f"describing the matter, which the desk does not take.")

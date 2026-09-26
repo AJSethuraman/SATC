@@ -266,7 +266,7 @@ b = relay.ask_many(questions, reply_to=my_session_id,
 
 `ask_many` refuses a name the desk does not record, a blank value, anything
 shaped like a TIN, and a `taxpayer` or `trade` that is not a short label —
-"LLC" and "general contractor" pass; a sentence, a number or an address does not. Send only facts that are filled in. A fact nobody recorded
+"LLC" and "general contractor" pass; a long sentence, a number or an address does not. Send only facts that are filled in. A fact nobody recorded
 stays off the request, and the desk will say it is missing. That is how a hole
 gets found.
 
