@@ -15,8 +15,10 @@
 # recommended      Only on method settings: how the arithmetic is done, not what
 #                  matters. Pre-selected, and printed on every output.
 #
-# takes_effect:  live    - an Excel formula reads it; change it and the book recalculates
-#                re-run  - Python reads it; change it and run the script again
+# takes_effect:  live    - an Excel formula reads it (OC-40, src/origination_cube/live.py); change it on
+#                          Control and the result tabs follow at once, with no Run
+#                re-run  - Python reads it; change it and run the script again. Control says which, in its
+#                          "When a change shows" column
 # override:      what the "Your own value" cell accepts, or null when only the
 #                listed options make sense
 
@@ -147,7 +149,7 @@ groups:
     settings:
       - key: min_loans
         question: Fewest loans in a pocket for the usual test (smaller ones get the exact test)
-        takes_effect: live
+        takes_effect: re-run
         judgment: true
         override: whole number of loans
         valid: {min: 2, max: 100000, whole: true}
@@ -171,7 +173,7 @@ groups:
 
       - key: min_events
         question: Fewest loans with a loss before a loss rate is tested
-        takes_effect: live
+        takes_effect: re-run
         judgment: true
         override: whole number of loans
         valid: {min: 1, max: 100000, whole: true}
@@ -284,7 +286,7 @@ groups:
 
       - key: revenue_line
         question: How far profit must move before it counts as more or less
-        takes_effect: re-run
+        takes_effect: live
         judgment: true
         override: a number of points, such as 0.3
         valid: {min: 0.01, max: 20}
@@ -329,7 +331,7 @@ groups:
 
       - key: power
         question: How often a real gap should be caught
-        takes_effect: live
+        takes_effect: re-run
         override: a share, such as 0.8 for 80%
         valid: {min: 0.5, max: 0.99}
         options:
@@ -348,7 +350,7 @@ groups:
 
       - key: many_tests
         question: Allowing for testing many pockets at once
-        takes_effect: live
+        takes_effect: re-run
         override: null
         options:
           - value: none

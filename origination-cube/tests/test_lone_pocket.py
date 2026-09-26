@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from openpyxl import Workbook
 
+from recalc import calculated
 from conftest import cube, row, table
 from origination_cube import book, checks, engine
 
@@ -87,6 +88,7 @@ def test_a_pocket_alone_in_its_band_says_why_on_its_row():
     _, lone = _cells(res)
     ws = Workbook().active
     book._bleeds(ws, res)
+    ws = calculated(ws)                       # the Test column is a formula (OC-40)
     heads = [c.value for c in ws[4]]
     rows = [[c.value for c in r] for r in ws.iter_rows(min_row=5) if r[1].value]
     band, test = heads.index("Band"), heads.index("Test")
@@ -109,6 +111,7 @@ def test_losses_vs_revenue_says_why_in_its_own_column_and_together_stays_the_pai
     _, lone = _cells(res)
     ws = Workbook().active
     book._losses_vs_revenue(ws, res)
+    ws = calculated(ws)                       # Compared with and Together are formulas (OC-40)
     head = next(r for r in ws.iter_rows() if any(c.value == "Compared with" for c in r))
     cols = {c.value: c.column for c in head if c.value}
     rows = [r for r in ws.iter_rows(min_row=head[0].row + 1) if r[cols["Band"] - 1].value]

@@ -76,7 +76,8 @@ After that, the whole routine is:
        it tests on Columns.
 
      Then fill in the other shaded cells. Those are our calls: what's
-     material, how many loans is enough, how much worse counts.
+     material, how many loans is enough, how much worse counts. The last
+     column, *When a change shows*, says when a change takes effect (below).
    - **Columns:** check what each column is. Anything shaded has its reason
      beside it. Fix any that's wrong from the dropdown, then set "Checked
      every column" to Yes. For a new variable, mark the date each loan was
@@ -93,7 +94,9 @@ After that, the whole routine is:
      Each pocket has two dollar figures, its excess over the rest of its band
      and over the book. Control's "judged against" picks one, and that one
      decides the flag, whether the pocket is material and where it ranks.
-     The other is shown next to it, for reference.
+     The other is shown next to it, for reference. Under their own heading
+     after the rest: the pockets losing more only against the other
+     comparison, so switching "judged against" finds them.
    - **Losses vs revenue:** what each pocket paid (contribution before
      losses), what it cost (GCO) and what was kept (profit after losses,
      RANR). GCO reads losing more, about the same or losing less by the lines
@@ -105,8 +108,11 @@ After that, the whole routine is:
    - **Prevalence:** only with a split or a new column. How many loans and
      booked dollars sit in each group (the split's halves or values, a new
      column's bands), pocket by pocket. A count of the book, not a test.
-   - **Materiality:** what each materiality level would keep.
-   - **Check:** what was run, settings, tie-outs, and what was left out of each rate (a
+   - **Materiality:** what each materiality level would keep: the pockets
+     and their share follow "judged against"; the levels don't move.
+   - **Check:** the lines in use now beside what the last Run used (a line
+     changed since is shaded), and how many pockets read worse now and how
+     many of those are material. Then what was run, settings, tie-outs, and what was left out of each rate (a
      blank or unreadable value, never a loan's age). One line says which
      comparison decides each pocket's flag, its dollars and whether it is
      material, and another how a profit reading is worded, with this run's
@@ -120,7 +126,31 @@ After that, the whole routine is:
      across many is weak evidence; and a warning when a column marked Credit
      product holds more than one product and isn't a band or segment.
    - **Log:** every run and refusal, what each run was, and whether it
-     followed its pre-spec and touched the holdout.
+     followed its pre-spec and touched the holdout. It records what each Run
+     used, and doesn't follow a line changed on Control afterwards.
+
+**Changing the lines after a Run** (the firm, 26 Sep 2026: *"this is the stuff
+i want to be able to adjust in book on the fly ... i know it cannot reband and
+such"*). Five answers on Control only judge numbers the Run has already worked
+out, so they are Excel formulas: the loss line (how much worse, how much
+better), the profit line, materiality, the confidence level, and what a pocket
+is judged against. Change one on Control and every reading, flag, dollar
+figure, "is material" and colour on the result tabs follows at once, with no
+Run. The p-values don't depend on the confidence level (the tests and both
+allowances for many tests are worked out without it), so only the bar they are
+compared with moves: one cell, `ROUND(1 - confidence, 12)`. Everything else
+takes effect on the next Run: band edges, segments, the split, fewest loans
+and fewest losses, the shuffles, the allowance for many tests, the catch rate
+and what you're running. Control's last column says which.
+- Each result tab says at its top which lines it is using now.
+- Left as of the last Run, and said so on each tab: the order of the rows, the
+  charts, the smallest gap a pocket could show, Check's other counts, and a
+  suggested line worked out from the book (it keeps the multiple the Run
+  worked out; Run again to work it out at a new confidence level).
+- The formulas work in Excel 2016 and in LibreOffice: nothing needs Microsoft
+  365's `SORT` or `FILTER`. They read two hidden sheets: `_live` (each line as
+  a number) and `_pockets` (every pocket's numbers from the Run, and the
+  formulas that judge them). Unhide either to follow a reading back to Control.
 
 **Going a layer deeper.** On Columns, set one column's *Split pockets by it?*
 to Yes. A number (revolving debt, say) splits every FICO-by-asset-class pocket
@@ -197,8 +227,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 481 tests: one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording (the one that opens the window skips without a display)
-python tools/mutation_check.py     # puts 189 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 503 tests (1 skips without a display; the 22 in test_live.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting)
+python tools/mutation_check.py     # puts 198 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

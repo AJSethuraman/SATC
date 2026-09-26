@@ -17,6 +17,8 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
+from recalc import calculated_book
+
 from origination_cube import book, control, meanings, synth
 from test_book import PICK
 from test_book_results import _set
@@ -89,7 +91,7 @@ def test_another_book_with_other_names_finds_its_own_problem(tmp_path):
     _answer_as_a_person_would(out.book)
     ran = book.run(out.book)
     assert ran.ok, ran.lines
-    wb = load_workbook(out.book)
+    wb = calculated_book(out.book)            # the flags are formulas over Control's lines (OC-40)
 
     # the grids are this book's columns
     grids = [c.value for c in wb["Grids"]["B"] if isinstance(c.value, str) and " x " in c.value]

@@ -17,6 +17,7 @@ def _drop_cache(f: str) -> None:
     if pyc.exists():
         pyc.unlink()
 E="src/origination_cube/engine.py"; C="src/origination_cube/config.py"; B="src/origination_cube/book.py"
+L="src/origination_cube/live.py"
 S="src/origination_cube/stats.py"; P="src/origination_cube/perm.py"
 K="src/origination_cube/checks.py"; CF="src/origination_cube/confirmatory.py"; PV="src/origination_cube/prevalence.py"
 muts = [
@@ -95,8 +96,8 @@ muts = [
  ("in use refuses a number", "src/origination_cube/control.py",
   '        lookup = (f"IFERROR(MATCH({H}&\\"|\\"&{C},{OPTIONS_SHEET}!$A:$A,0),"\n                  f"MATCH({H}&\\"|\\"&IFERROR(VALUE({C}),{C}),{OPTIONS_SHEET}!$H:$H,0))")',
   '        lookup = f"MATCH({H}&\\"|\\"&{C},{OPTIONS_SHEET}!$A:$A,0)"', "number_the_run_takes"),
- ("rest rate from the book", B, '_rest_rate(s, parent.rates[k]), _shown(gaps[k], ms[k])',
-  '_rest_rate(s, res.total.rates[k]), _shown(gaps[k], ms[k])', "boxes_follow"),
+ ("rest rate from the book", L, 'value=f"={pick(P_REST_BAND, P_REST_BOOK)}")',
+  'value=f"={R(P_REST_BOOK)}")', "boxes_follow"),
  ("luck side coloured", B, '            shown = {k: None if untested or unsure[k] else sides[k] for k in sides}',
   '            shown = {k: None if untested else sides[k] for k in sides}', "luck_gap_keeps"),
  ("negative comparison divided plainly", "src/origination_cube/stats.py",
@@ -124,7 +125,8 @@ muts = [
  ("profit line one number again", E, '    if line.kind == "test":', '    if False:',
   "follows_the_profit_line or judged_by_the_profit_line"),
  ("fallback called worked out", B, '            res.suggest_fallback = fallback', '            pass', "nothing_to_work_from"),
- ("split luck shaded", B, '                if stats.significant(got[1], conf):', '                if True:', "bracketed"),
+ ("split luck shaded", B, '                return f"=IF({live.sig(pcell[(bl, d)])},{live.num(v)},{words})"',
+  '                return f"={live.num(v)}"', "bracketed"),
  ("small material pockets not pointed out", B, '    if small:\n        rows_said', '    if False:\n        rows_said',
   "too_small_to_test"),
  ("start here left stale", B, 'else f"{stamp}: {lines[0]}")', 'else stamp)', "start_here"),
@@ -229,8 +231,8 @@ muts = [
   '        return f"{s.shuffles:,} shuffles"', "shuffle_count"),
  ("shuffle count from the other comparison", B, '        hits = s.hits_band if peers and not s.alone else s.hits_book',
   '        hits = s.hits_book', "shuffle_count"),
- ("Luck alone back on the tabs", B, '"Vs rest of book", "p-value", "Vs rest of band", "p-value",',
-  '"Vs rest of book", "Luck alone", "Vs rest of band", "Luck alone",', "p_value_and_not_significant"),
+ ("Luck alone back on the tabs", B, '"Material", "Vs rest of book", "p-value",',
+  '"Material", "Vs rest of book", "Luck alone",', "p_value_and_not_significant"),
  ("could be luck back in the readings", E,
   'UNSURE_WORSE, UNSURE_BETTER = "worse, not significant", "better, not significant"',
   'UNSURE_WORSE, UNSURE_BETTER = "worse, but could be luck", "better, but could be luck"',
@@ -320,16 +322,16 @@ muts = [
  ("prevalence tie-out off", PV, '        if sum(x[0] for x in out[k].values()) != c.rows:\n            return None',
   '        if False:\n            return None', "does_not_add_up"),
  ("prevalence tab not written", B, '    prevalence.write(wb, res)', '    pass', "prevalence_tab_counts"),
- ("words run into numbers", B, '            for col in (12, 18, 20):\n                ws.cell(row=r, column=col).alignment = Alignment(horizontal="left", indent=1)',
-  '            for col in ():\n                pass', "words_after_a_number"),
+ ("words run into numbers", B, '        for col in (12, 18, 20):\n            ws.cell(row=r, column=col).alignment = Alignment(horizontal="left", indent=1)',
+  '        for col in ():\n            pass', "words_after_a_number"),
  # 26 Sep 2026: the final check's wording finding, F9 (tests/test_tab_wording.py)
  ("split test named, not explained", B,
   'f"Cochran-Mantel-Haenszel, which asks whether an odds ratio this far from 1 could "\n' + ' ' * 30
   + 'f"come from shuffling loans within their pockets. It has no continuity correction: "\n' + ' ' * 30
   + 'f"nothing is taken off the gap between actual and expected before it is squared."))',
   'f"Cochran-Mantel-Haenszel, with no continuity correction."))', "split_test_asks"),
- ("steady pockets read as proof", B, '        return "no sign they differ" if not stats.significant(steady, conf)',
-  '        return "yes" if not stats.significant(steady, conf)', "same_size_says"),
+ ("steady pockets read as proof", B, '"no: bigger in some pockets","no sign they differ")\'',
+  '"no: bigger in some pockets","yes")\'', "same_size_says"),
  ("ruling number back on Check", B, '"charge-offs taken out. If RANR nets recoveries instead, "',
   '"charge-offs taken out (OC-35). If RANR nets recoveries instead, "', "no_ruling_number"),
  ("dollar rate answers same size", B, '        return "not tested: dollar rate"', '        return "yes/no outcome only"',
@@ -367,8 +369,8 @@ muts = [
   '                ranked = sorted(((c.rates[m.name].dollars, k, c) for k, c in g.inner()\n                                 if c.rates[m.name].dollars is not None)',
   '                ranked = sorted(((c.rates[m.name].excess, k, c) for k, c in g.inner()\n                                 if c.rates[m.name].excess is not None)',
   "one_comparison"),
- ("profit verdict word back", B, '                    word = engine.said(s, line)          # literal: the gap, in points and dollars',
-  '                    word = {"more": "keeps more", "less": "keeps less", "same": "about the same"}[sides[k]]',
+ ("profit verdict word back", B, '                    word = f"={at(k, live.P_SAID)}"      # literal: the gap, in points and dollars',
+  '                    word = f\'=IF({at(k, live.P_FLAG)}="worse","keeps less",IF({at(k, live.P_FLAG)}="better","keeps more","about the same"))\'',
   "one_comparison or test_2_on_the_workbook or priced_pocket"),
  ("literal gap from the other comparison", E,
   '        return literal(s.flag, s.vs_band, s.dollars, "its band", line, s.p_band)',
@@ -380,16 +382,17 @@ muts = [
   '    if False:\n        out += " (not significant)"', "one_comparison or luck_gap_keeps"),
  ("inside the line read as not significant", E, '        if line is None or line.kind == "test":\n            why',
   '        if True:\n            why', "one_comparison"),
- ("profit flag not literal on Where it bleeds", B, '(engine.said(s, line) if m.in_points else s.flag) or ""',
-  's.flag or ""', "one_comparison or test_2_on_the_workbook or same_on_both_tabs"),
+ ("profit flag not literal on Where it bleeds", L,
+  'f"={literal(R(P_FLAG), R(P_GAP), R(P_P), R(P_DOLLARS), R(P_BY_BAND))}" if m.in_points',
+  'f"={R(P_FLAG)}" if m.in_points', "one_comparison or test_2_on_the_workbook or same_on_both_tabs"),
  ("a literal shortfall not red", B, """    worse = f'OR($R5="worse",AND({short},NOT({unsure})))'""",
   """    worse = '$R5="worse"'""", "literal_shortfall"),
  ("lone pocket judged by its empty band", E, '                    if not s.alone:\n                        s.flag = s.reading_band',
   '                    if True:\n                        s.flag = s.reading_band', "alone_in_its_band_is_flagged"),
- ("lone pocket's row says nothing", B, '            if peers and s.alone:\n                said = f"{said}; {ALONE}"',
-  '            if False:\n                said = f"{said}; {ALONE}"', "alone_in_its_band_says_why"),
- ("lone note in Together", B, '"cells": cells + [together or None, ALONE if alone else None],',
-  '"cells": cells + [(f"{together}; {ALONE}" if together else ALONE) if alone else together or None, None],',
+ ("lone pocket's row says nothing", L, 'IF(AND(judged_band,{R(P_ALONE)}),IF({t}="","","; ")&{q(ALONE)},"")',
+  'IF(FALSE,IF({t}="","","; ")&{q(ALONE)},"")', "alone_in_its_band_says_why"),
+ ("lone note in Together", B, 'cells += [together, f\'=IF(AND(judged_band,{at("gco_rate", live.P_ALONE)}),"{ALONE}","")\']',
+  'cells += [f\'=IF(AND(judged_band,{at("gco_rate", live.P_ALONE)}),"{ALONE}",{together[1:]})\', ""]',
   "together_stays_the_pair"),
  # 26 Sep 2026: what are you running? Each answer's own minimum (tests/test_run_kind.py)
  ("bleed run asks for a date", B, 'NEEDS_COLUMNS = {BLEED: cfgmod.CORE, NEW_VARIABLE:',
@@ -408,6 +411,27 @@ muts = [
  ("scouting runs", B, '    if kind == NEW_VARIABLE and step == SCOUT:', '    if False:', "scouting_is_refused"),
  ("lone pocket not counted on Check", K, '    return [("Alone in its band", ',
   '    return []\n    return [("Alone in its band", ', "counts_the_pockets_alone"),
+ # 26 Sep 2026: the judging settings live in the workbook (OC-40, tests/test_live.py). Each plants a formula that
+ # ignores its setting on Control, reading what the last Run used instead
+ ("loss line worse-at not live", L, '    formulas[L_WORSE] = number("worse_at", L_WORSE)',
+  '    formulas[L_WORSE] = last[L_WORSE]', "follow_a_change and worse_at"),
+ ("loss line better-at not live", L, '    formulas[L_BETTER] = number("better_at", L_BETTER)',
+  '    formulas[L_BETTER] = last[L_BETTER]', "follow_a_change and better_at"),
+ ("confidence not live", L, '    formulas[L_CONF] = number("confidence", L_CONF)',
+  '    formulas[L_CONF] = last[L_CONF]', "follow_a_change and confidence"),
+ ("judged against not live", L, """    formulas[L_BAND] = f'=IFERROR({opt("compare_to", c)}="peers",NA())' if c else last[L_BAND]""",
+  '    formulas[L_BAND] = last[L_BAND]', "follow_a_change and judged"),
+ ("materiality not live", L, """        formulas[L_MKIND] = f'=IF({own_set(d)},"dollars",IFERROR({opt("materiality", c, "L")},NA()))'""",
+  '        formulas[L_MKIND] = last[L_MKIND]', "follow_a_change and materiality"),
+ ("profit line not live", L, """        formulas[L_PKIND] = (f'=IF({own_set(d)},"points",IFERROR({opt("revenue_line", c, "L")},'""",
+  """        formulas[L_PKIND] = last[L_PKIND]\n        (f'=IF({own_set(d)},"points",IFERROR({opt("revenue_line", c, "L")},'""",
+  "follow_a_change and profit"),
+ ("the live bar not rounded", L, '    formulas[L_BAR] = f"=ROUND(1-C{L_CONF},12)"', '    formulas[L_BAR] = f"=1-C{L_CONF}"',
+  "one_rounded_bar"),
+ ("1 - confidence inline in a reading", L, '    return f"AND(ISNUMBER({p}),{p}<{BAR})"',
+  '    return f"AND(ISNUMBER({p}),{p}<1-confidence)"', "one_rounded_bar"),
+ ("a p-value at the bar reads significant", L, '    return f"AND(ISNUMBER({p}),{p}<{BAR})"',
+  '    return f"AND(ISNUMBER({p}),{p}<={BAR})"', "exactly_at_the_bar or profit_at_the_bar"),
 ]
 def main() -> int:
     bad = 0

@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook
 
+from recalc import calculated
 from conftest import cube, row, table
 from origination_cube import book, cli, engine
 
@@ -89,16 +90,23 @@ def test_judged_against_the_book_the_reverse():
     assert high_c.excess_band >= LINE                                            # still worked out, for reference
 
 
-def _sheet(res, write):
+def _sheet(res, write, formulas: bool = False):
+    """One tab written, and calculated: the readings, dollars and headings are formulas (OC-40)."""
     ws = Workbook().active
     write(ws, res)
-    return ws
+    return ws if formulas else calculated(ws)
 
 
 def _bleeds(res) -> list[dict]:
     ws = _sheet(res, book._bleeds)
     heads = [c.value for c in ws[4]]
-    return [dict(zip(heads, (c.value for c in r))) for r in ws.iter_rows(min_row=5) if r[1].value]
+    out = []
+    for r in ws.iter_rows(min_row=5):
+        if str(r[1].value).startswith("Losing more than their share against"):
+            break                             # after it: losing more only against the other comparison
+        if r[1].value:
+            out.append(dict(zip(heads, (c.value for c in r))))
+    return out
 
 
 @pytest.mark.parametrize("compare_to, first, other", [("peers", "Excess over its band", "Excess over the book"),
@@ -238,6 +246,7 @@ def test_a_literal_shortfall_is_red_and_an_unsure_one_amber():
     short = [ws.cell(row=r, column=flag).value for r in range(5, ws.max_row + 1)
              if str(ws.cell(row=r, column=flag).value).startswith("short of its band by ")]
     assert short
+    ws = _sheet(res, book._bleeds, formulas=True)                  # the rules themselves
     rules = {r.dxf.fill.fgColor.rgb[-6:]: r.formula[0] for rng in ws.conditional_formatting for r in rng.rules}
     assert rules[book.WORSE_FILL] == ('OR($R5="worse",AND(LEFT($R5,8)="short of",'
                                       'NOT(RIGHT($R5,17)="(not significant)")))')
