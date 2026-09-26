@@ -124,3 +124,20 @@ def test_their_examples_are_not_stored_until_they_can_be_placed():
         held = [p for p in desk.passages if p.source_id == sid]
         assert held, sid
         assert all(p.kind == record.RULE for p in held), sid
+
+
+def test_a_paragraph_in_pieces_is_emitted_once_with_its_gap_marked(tmp_path):
+    """Codex on #398: the flush text became a second `Paragraph` on the
+    parent's path, `build()` wrote one heading per piece, and the record
+    refused the duplicate citation. One heading per paragraph; text the
+    publisher prints after the children joins with the omission mark, so a
+    tie-out does not read the two as adjacent."""
+    f = tmp_path / "s.xml"
+    f.write_text("<SECTION><P>(a) <I>In general.</I> Only these:</P>"
+                 "<P>(1) One.</P><P>(2) Two.</P>"
+                 "<FP>In addition, the rest.</FP><P>(b) Other.</P></SECTION>",
+                 encoding="utf-8")
+    got = X.merged(X.outline(f)[0])
+    labels = [label for label, _ in got]
+    assert labels.count("(a)") == 1
+    assert dict(got)["(a)"] == "In general. Only these: [...] In addition, the rest."

@@ -117,9 +117,10 @@ def test_neither_shape_fits_the_window_any_more_and_the_size_is_pinned():
     # source the record holds.
     # Up to 38,234 / 132,100 on 26 September 2026: five sections admitted after
     # Sarcia pilot 3 add 382 rule paragraphs, and the graded prompt lists them.
-    assert biggest == {"index": 38234, "text": 132100}, (
+    # And +1 / +4 after Codex on #398: two passages carry a `[...]` gap mark.
+    assert biggest == {"index": 38235, "text": 132104}, (
         f"the graded prompt changed size: {biggest}, and this file says "
-        f"{{'index': 38234, 'text': 132100}}. That is allowed — it is what "
+        f"{{'index': 38235, 'text': 132104}}. That is allowed — it is what "
         f"storing authority does — but it is quoted in docs/CONTEXT-ON-FILE.md "
         f"and must move deliberately.")
     assert biggest["index"] > room, (
@@ -430,7 +431,8 @@ NARROWED = {
 # +41,201 on both sides the same day: 382 rule paragraphs of §§ 1.6001-1,
 # 1.164-1, 1.461-1, 1.263(a)-4 and 1.163-8T, and no example -- theirs are not
 # stored (S37-S39 say why), which is why the two sides moved equally.
-WHOLE = (134_379, 248_684)
+# And +3 / +4 after Codex on #398: two passages joined across a gap now mark it.
+WHOLE = (134_382, 248_688)
 
 
 def _answering_sizes():

@@ -10406,11 +10406,11 @@ any other year. Do not read a rate off this file for a year it does not name.
 
 > In general. Only the following taxes shall be allowed as a deduction under
 > this section for the taxable year within which paid or accrued, according to
-> the method of accounting used in computing taxable income: In addition,
-> there shall be allowed as a deduction under this section State and local and
-> foreign taxes not described in subparagraphs (1) through (5) of this
-> paragraph which are paid or accrued within the taxable year in carrying on a
-> trade or business or an activity described in section 212 (relating to
+> the method of accounting used in computing taxable income: [...] In
+> addition, there shall be allowed as a deduction under this section State and
+> local and foreign taxes not described in subparagraphs (1) through (5) of
+> this paragraph which are paid or accrued within the taxable year in carrying
+> on a trade or business or an activity described in section 212 (relating to
 > expenses for production of income). For example, dealers or investors in
 > securities and dealers or investors in real estate may deduct State stock
 > transfer and real estate transfer taxes, respectively, under section 164, to
@@ -11154,17 +11154,17 @@ any other year. Do not read a rate off this file for a year it does not name.
 > In any case in which it is established to the satisfaction of the
 > Commissioner that the taxpayer does not intend to avoid taxes, one-tenth of
 > such amount shall be allowed as a deduction in each of the 10 succeeding
-> taxable years— Normally, if the deduction not allowed under subparagraph (1)
-> is a result of a change, not requested by the taxpayer, in the taxpayer's
-> annual accounting period or dividend or interest payment or crediting dates
-> solely as a consequence of a requirement of a Federal or State regulatory
-> authority, or if the deduction is not allowed solely as a result of the
-> taxpayer being a party to an acquisition to which section 381(a) applies,
-> the Commissioner will permit the allowance of the amount not allowed in the
-> manner provided in this subdivision. Nothing set forth in this subdivision
-> shall be construed as permitting the allowance of a credit or refund for any
-> year which is barred by the limitations on credit or refund provided by
-> section 6511.
+> taxable years— [...] Normally, if the deduction not allowed under
+> subparagraph (1) is a result of a change, not requested by the taxpayer, in
+> the taxpayer's annual accounting period or dividend or interest payment or
+> crediting dates solely as a consequence of a requirement of a Federal or
+> State regulatory authority, or if the deduction is not allowed solely as a
+> result of the taxpayer being a party to an acquisition to which section
+> 381(a) applies, the Commissioner will permit the allowance of the amount not
+> allowed in the manner provided in this subdivision. Nothing set forth in
+> this subdivision shall be construed as permitting the allowance of a credit
+> or refund for any year which is barred by the limitations on credit or
+> refund provided by section 6511.
 
 ## 26 CFR 1.461-1(e)(3)(ii)(a)
 

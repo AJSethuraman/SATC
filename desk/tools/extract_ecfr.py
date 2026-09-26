@@ -314,6 +314,11 @@ class Paragraph:
     """One paragraph of the section, outside its examples, at its full path."""
     path: tuple[str, ...]
     text: str
+    #: True for a flush paragraph placed on its parent AFTER the parent's
+    #: children -- text the publisher does not print next to the parent's own,
+    #: so it is joined with `ELLIPSIS` and a tie-out does not read the two as
+    #: adjacent. Codex on #398.
+    after_gap: bool = False
 
     @property
     def label(self) -> str:
@@ -619,7 +624,8 @@ def outline(xml_path: Path) -> tuple[list[Paragraph], list[str]]:
         for text in continuations.get(i, ()):
             paragraphs.append(Paragraph(path=path, text=text))
         for text in flush.get(i, ()):
-            paragraphs.append(Paragraph(path=path[:-1] or path, text=text))
+            paragraphs.append(Paragraph(path=path[:-1] or path, text=text,
+                                        after_gap=len(path) > 1))
     return paragraphs, underdetermined
 
 
@@ -1024,6 +1030,28 @@ def examples(xml_path: Path):
             }
 
 
+def merged(paragraphs) -> list[tuple[str, str]]:
+    """One `(label, text)` per paragraph, in the order each first appears.
+
+    A PARAGRAPH CAN ARRIVE IN PIECES: an unlabelled continuation, and since 26
+    September 2026 a flush paragraph placed on its parent. Emitted one heading
+    per piece, the record held the citation twice and `record.load` refused it
+    -- Codex on #398, on § 1.164-1(a). A piece the publisher prints straight
+    after joins with a space; one printed after the parent's children joins
+    with `ELLIPSIS`, so a tie-out does not read them as adjacent.
+    """
+    out: dict[str, str] = {}
+    for p in paragraphs:
+        if not p.text:
+            out.setdefault(p.label, "")
+            continue
+        if out.get(p.label):
+            out[p.label] += (f" {ELLIPSIS} " if p.after_gap else " ") + p.text
+        else:
+            out[p.label] = p.text
+    return list(out.items())
+
+
 def corpus(xml_path: Path) -> dict:
     """The stored rules and the facts the header states about them.
 
@@ -1138,10 +1166,10 @@ def build(xml_path: Path, desk_dir: Path, *, section="1.263(a)-3",
         for i, (e, _) in enumerate(kept, 1)
     ]
     passages = [
-        f"## 26 CFR {section}{p.label}\n\n"
+        f"## 26 CFR {section}{label}\n\n"
         f"**Source:** {source_id} · **Checked:** {today} · **Kind:** rule\n\n"
-        f"{wrap(p.text)}\n"
-        for p in paragraphs
+        f"{wrap(text)}\n"
+        for label, text in merged(paragraphs)
     ]
     # EVERY EXAMPLE, COMPLETE, AND `all_ex` RATHER THAN `kept`. An example that
     # could not become a PROBLEM -- because it states two outcomes, or leans on

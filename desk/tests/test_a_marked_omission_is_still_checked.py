@@ -97,7 +97,11 @@ def test_an_unmarked_passage_is_unaffected():
 #: was all `cash-and-bank` held and a question only ever reached one desk. One
 #: corpus holds all seven records' marks, so it is 7, and the other five were
 #: always there and were never checked by this guard.
-MARKED = 7
+#: NINE SINCE 26 SEPTEMBER 2026: § 1.164-1(a) and § 1.461-1(e)(3)(ii), each a
+#: parent joined to the flush paragraph the publisher prints after its
+#: children -- the gap marked so a tie-out does not read them as adjacent
+#: (Codex on #398).
+MARKED = 9
 
 
 def test_the_passages_in_the_record_actually_carry_the_mark():
@@ -168,4 +172,4 @@ def test_no_marked_passage_leaves_nothing_to_check():
     # one: the labels "(ii)" and "(iii)" sit between the segments. All four came
     # back DIFFERS on their first check against eCFR. Marked, each segment is
     # found in order and only the labels go unchecked.
-    assert seen == 7, f"{seen} marked passages across every desk, not 7"
+    assert seen == MARKED, f"{seen} marked passages across every desk, not {MARKED}"
