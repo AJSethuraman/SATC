@@ -464,6 +464,14 @@ muts = [
   """value=(f'=TEXT(EXP({b}-1.96*{se}),"0.00")&"x to "&'""", "follow_the_confidence"),
  ("a group not significant in the plain line", CT, """pieces.append(f'IF({live.sig(p)},{said}&{rng},"")')""",
   """pieces.append(f'{said}&{rng}')""", "tab_says_what_it_found"),
+ # 26 Sep 2026: Goal 2 item 1, the cliffs planted in the second book (tests/test_generic.py). The first reads
+ # dates only as the first book writes them, which the first book's own goal test cannot see; the second forgets
+ # the pockets, which the second book's clean copy is built to catch (its worst dealer crowds the lowest group)
+ ("dates read only year-month-day", CF, '        return engine._date_reader(table, col, "when each loan was made"), None',
+  '        return (lambda raw: __import__("origination_cube.ingest", fromlist=["x"]).parse_date(raw, "%Y-%m-%d")), None',
+  "second_books"),
+ ("the pockets forgotten", CF, 'strata=tuple(ps.strata), scores=', 'strata=(), scores=',
+  "second_book_with_no_cliff"),
 ]
 def main() -> int:
     bad = 0

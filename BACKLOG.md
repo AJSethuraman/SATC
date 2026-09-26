@@ -1842,6 +1842,13 @@ back.
     what this is for?"* Answered yes, the trap is an honest one (the held-back loans helping pick the
     test), and proposed the lighter form: record, don't block. Built that way unless the firm says
     otherwise.
+- [x] **Goal 2 item 1 finished: the cliffs in the second book (26 Sep 2026).** The auto book in
+      `tests/test_generic.py`, dated with US-style contract dates, carries income ÷ sales cliffs of
+      its own (x3 below 0.05, x2.5 from 1.50, planted on each loan's odds). A "Test from a pre-spec"
+      run finds both on development and confirms both on the holdout; the same loans with no cliff
+      are not confirmed, though the whole book reads a difference in the lowest group (the worst
+      dealer crowds it). Two planted bugs, both caught: dates read only year-month-day (the first
+      book's goal tests pass it) and the pockets forgotten. 544 tests, 213 planted bugs.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 

@@ -215,6 +215,13 @@ development (below 0.10: 2.32x, 1.52x to 3.56x; 2.00 and up: 3.25x, 2.42x to
 4.38x) and confirms them on the holdout (2.26x, 1.22x to 4.18x; 2.68x, 1.70x to
 4.24x), and Check reads "Differs from the pre-spec: nowhere".
 
+The same holds on a second book the first had no hand in (`tests/test_generic.py`, 12,000 auto
+loans): other column names, contract dates written 3/7/2023, other edges and reference group, and
+cliffs planted on each loan's odds (x3 below 0.05, x2.5 from 1.50). Both are found on development
+and confirmed on the holdout (3.04x and 2.80x). The same loans with no cliff are not confirmed,
+though the worst dealer's loans crowd the lowest group and the book as a whole reads a difference
+there: the pockets hold it fixed.
+
 ![Losses vs revenue: paid, cost and kept, and the chart](docs/losses-vs-revenue.png)
 
 If something needs fixing, the window and the Log tab say what and where, in
@@ -261,8 +268,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 540 tests (1 skips without a display; the 22 in test_live.py and 3 in test_confirm_test.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand
-python tools/mutation_check.py     # puts 211 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 544 tests (1 skips without a display; the 22 in test_live.py, 3 in test_confirm_test.py and 2 in test_generic.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed)
+python tools/mutation_check.py     # puts 213 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):
