@@ -214,7 +214,7 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
                                     "for a Run.", 2, PANEL_COL + 3)
     r = house.method_note(ws, 3, 2, LAST_VISIBLE, METHOD)
     # the legend: the three input styles, drawn as they appear
-    for col, (text, style) in zip((2, 3, 5), (("Changes now", house.changes_now), ("Needs a Run", house.needs_run),
+    for col, (text, style) in zip((2, 3, 6), (("Changes now", house.changes_now), ("Needs a Run", house.needs_run),
                                                ("Still needs an answer", None))):
         c = ws.cell(row=r, column=col, value=text)
         if style:

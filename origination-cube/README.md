@@ -90,25 +90,35 @@ After that, the whole routine is:
    Control shows these choices read-only, under *Chosen in the launcher*; to
    change one, go back to Choose tests (press it on the left) and Next again.
    Answers already given are kept.
-4. **Answer in workbook.** Follow its **Start here** tab:
-   - **Control:** fill in the shaded cells. Those are our calls: what's
-     material, how many loans is enough, how much worse counts. Nothing is
-     picked for you. Beside fewest loans, worse at and better at, the last
-     column already shows the value worked out from this extract ("suggested:
-     69, from this extract"), from the pockets cut at the default edges, so
-     you see the number before you choose. Each Run works it out again. The
-     column *When a change shows* says when a change takes effect (below).
-   - **Columns:** check what each column is. Anything shaded has its reason
-     beside it. Fix any that's wrong from the dropdown, then set "Checked
-     every column" to Yes. For a new variable, mark the date each loan was
-     made *Origination date*: it is what splits development loans from the
-     holdout. Where the book bleeds uses it, if marked, only for one line on
-     Check.
-   - **Look:** each number column's smallest, median and largest value, its
-     most-repeated values, its blanks and codes, and a histogram. Read it
-     before typing band edges on Columns.
-   - **Odd values:** answer real or missing where you can.
-5. **Run.** Save, close the workbook, and press **Run the cube**. If anything
+4. **Answer in workbook.** The four red tabs are the ones you fill in. Each
+   opens with a title band and one note, *How this tab works*, that folds away
+   with the outline's minus. **Start here** counts what is left, live: answers
+   still needed, columns to confirm, odd values to answer, and changes waiting
+   for a Run (with a pink line naming each one); after a Run it shows what the
+   Run found and the five largest pockets, worse and material.
+   - **Control:** three blocks. *Changes now* (solid boxes) holds the lines the
+     result tabs read by formula: worse at, better at, the profit line, how
+     sure, materiality and what a pocket is judged against; *Comes to* shows
+     what an answer amounts to (materiality in dollars). *Needs a Run* (dashed
+     boxes) holds the answers that decide which pockets exist; its *Status*
+     says "Waiting for a Run" where an answer differs from the last Run's.
+     *Chosen in the launcher* is read-only. Pink cells still need an answer,
+     and nothing is picked for you. Beside fewest loans, worse at and better
+     at, the value worked out from this extract ("suggested: 69, from this
+     extract"). On the right, what each materiality level keeps, live. A test
+     of a new variable isn't asked the profit line.
+   - **Columns:** one row per column: what it is, why it was suggested, its
+     odd values with *Treat as* (Real or Missing) beside them, band edges, and
+     whether it is remembered, with *Forget?*. Set "Checked every column" (C3)
+     to Yes; Run waits until it is. Under the table, *Add a column: one
+     divided by another*. For a new variable, mark the date each loan was made
+     *Origination date*: it splits development loans from the holdout.
+   - **Look:** each number column's loans, blanks, likely code (on a red bar
+     of its own), smallest, median, mean and largest, and its bars. Pick 10,
+     20 or 50 bars and a From and To, and the chart regroups live; the edges
+     typed on Columns show as red dashed lines as you type them. With a split,
+     a scatter of it against each band column.
+5. **Run.** Save, close the workbook, and press **Run**. If anything
    still needs an answer, the window lists each one by its tab and cell, with
    the question in words and **Open at C23**, which opens the workbook at that
    cell. While the workbook is open in Excel it says so, and Run waits. When
@@ -134,8 +144,6 @@ After that, the whole routine is:
    - **Prevalence:** only with a split or a new column. How many loans and
      booked dollars sit in each group (the split's halves or values, a new
      column's bands), pocket by pocket. A count of the book, not a test.
-   - **Materiality:** what each materiality level would keep: the pockets
-     and their share follow "judged against"; the levels don't move.
    - **Check:** the lines in use now beside what the last Run used (a line
      changed since is shaded), and how many pockets read worse now and how
      many of those are material. Then what was run, settings, tie-outs, and what was left out of each rate (a
@@ -186,8 +194,8 @@ revolving debt moves with FICO, so a loan-size grid can't tell debt from score,
 and it says so with the number. A category repeats each grid once per value.
 Either way, every three-way pocket is tested and ranked on the **Three-way**
 tab. *Show per pocket* puts a column's median or average in every pocket.
-After a Run, the Look tab plots a split number against each band column, so
-you can see whether it only re-sorts the band.
+The Look tab plots a split number against each band column, so you can see
+whether it only re-sorts the band.
 
 ![The Split tab: high revolving debt against low, inside each pocket](docs/split.png)
 
@@ -254,8 +262,8 @@ If something needs fixing, the window and the Log tab say what and where, in
 words, e.g. *Control!C19: "Smallest excess loss worth reporting" needs an answer.* The window lists each one
 with an **Open at** button that opens the workbook at that cell. Press Next in the launcher again at any time:
 answers already given are kept.
-What you confirm is remembered for next time; the **Learned** tab lets you set
-anything wrongly learned to Forget.
+What you confirm is remembered for next time; on Columns, set *Forget?* to Yes
+on anything wrongly learned.
 
 ![The launcher's Choose tests step](docs/launcher/L2-choose-tests-bleed-split.png)
 
@@ -303,8 +311,8 @@ test).
 ## Checking it
 
 ```
-pytest -q                          # 586 tests (2 skip without a display; the 22 in test_live.py, 3 in test_confirm_test.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one
-python tools/mutation_check.py     # puts 258 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 607 tests (2 skip without a display; the 22 in test_live.py, 6 in test_answer_tabs.py, 3 in test_confirm_test.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the tabs you fill in (Start here, Control in three blocks with Status and the materiality panel, Columns with odd values and memory, Look with live bars, range and edge lines, one load and one save per Run), the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one
+python tools/mutation_check.py     # puts 279 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):
@@ -334,3 +342,10 @@ python tools/mutation_check.py     # puts 258 bugs back (the VBA's and today's r
   its answer is the same on any number of them. On that 17,000-loan run it took
   53.6 s on one core and 20.9 s across this container's 4 (20.5 s on 3);
   each worker holds about 70 MB.
+- One load and one save per Run (26 Sep 2026, the redesign's phase 2): a Run
+  loaded the workbook eight times and saved it three, and drew Look again each
+  time. Now the workbook is opened once, saved once, and Look's blocks are left
+  as Set up drew them (the scatters are drawn again only when the split or the
+  band columns change). The same 17,000 by 80 bleed, answered, under a 4 GB
+  limit on 4 cores: Run 31.0 s before, 22.2 s after; Set up 11.8 s before,
+  12.5 s after (Look now counts its live bars and draws the scatters at Set up).

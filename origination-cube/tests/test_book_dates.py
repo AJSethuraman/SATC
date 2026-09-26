@@ -159,8 +159,8 @@ def test_a_new_column_is_made_on_control_listed_on_columns_looked_at_and_run(tmp
     assert row[book.C_MEANS - 1].value == "Amount or number"
     # cut like any number column: nothing narrowed in the launcher, so every column its meaning cuts
     assert control.read_choices(wb[control.SHEET])[0].bands is None
-    assert row[book.C_WHY - 1].value == "made on Control: INCOME ÷ SALES"
-    assert row[book.C_MADE - 1].value == "INCOME ÷ SALES" and cols.column_dimensions["P"].hidden
+    assert row[book.C_WHY - 1].value == "made under Add a column: INCOME ÷ SALES"
+    assert row[book.C_MADE - 1].value == "INCOME ÷ SALES" and cols.column_dimensions[book._col(book.C_MADE)].hidden
     # to four figures (0.3075), not seventeen
     assert all(len(s.strip().lstrip("0.").replace(".", "")) <= 4 for s in row[book.C_SAMPLES - 1].value.split(","))
     assert cols[book.CONFIRM_CELL].value is None and "INCOME_TO_SALES" in cols["D3"].value    # check it first
@@ -238,6 +238,9 @@ def test_periods_and_meanings_on_columns_are_recorded_warned_and_split_by(tmp_pa
     assert "Split" in wb.sheetnames
     text = [c.value for r in wb["Look"].iter_rows() for c in r if isinstance(c.value, str)]
     assert "INCOME_TO_SALES against FICO" in text
+    # drawn from the loans with the new column made on them, so the dots are there
+    titles = [c.title.tx.rich.p[0].r[0].t for c in wb["Look"]._charts if type(c).__name__ == "ScatterChart"]
+    assert "INCOME_TO_SALES against FICO" in titles
 
 
 def test_an_old_control_row_for_a_removed_setting_is_refused_until_set_up_again(tmp_path):

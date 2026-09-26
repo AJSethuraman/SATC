@@ -232,7 +232,7 @@ muts = [
  ("new column run before set up", B, '        elif made is None:\n            problems.append',
   '        elif made is None and False:\n            problems.append', "made_on_control"),
  ("Look loses the new column at Run", B, '    look.refresh(wb, res.table or table, res.config.split',
-  '    look.refresh(wb, table, res.config.split', "made_on_control"),
+  '    look.refresh(wb, table, res.config.split', "made_on_control or periods_and_meanings"),
  ("new column samples to seventeen figures", B, '            samples = [f"{float(v):.4g}" for v in samples]',
   '            pass', "made_on_control"),
  ("period on Columns not recorded", B, '                entry["period"] = PERIOD_OPTIONS[str(per).strip()]',
@@ -598,8 +598,8 @@ muts = [
  ("the code gets no bar of its own", LK, '    if s.code is None or not s.at_code:', '    if True:', "red_bar_of_its_own"),
  ("scatters redrawn at every Run", LK, '    if hs.cell(row=3, column=1).value == _drawn(split, bands):',
   '    if False:', "not_redrawn"),
- ("a Run loads the workbook twice", B, '    raw, problems, about = read_book(book, memory_path, wb=wb)',
-  '    raw, problems, about = read_book(book, memory_path)', "loads_the_workbook_once"),
+ ("a Run loads the workbook twice", B, '    raw, problems, about = read_book(book, memory_path, wb=wb)\n    if raw is not None:',
+  '    raw, problems, about = read_book(book, memory_path)\n    if raw is not None:', "loads_the_workbook_once"),
  ("a Run saves twice", B, '    summary = _headline(res, wb)', '    summary = _headline(res, wb); _save(wb, book)',
   "loads_the_workbook_once"),
  ("Treat as not read", B, '            answer = str(said).strip().lower() if said not in (None, "") else None',
@@ -617,6 +617,8 @@ muts = [
   "title_band"),
  ("Needs a Run drawn as Changes now", HO, '    s = _side("dashed", SLATE)', '    s = _side("thin", INK_TEXT)',
   "three_input_styles"),
+ ("Set up's stand-ins left in the workbook", B, '        for cell, v in reversed(changed):\n            cell.value = v',
+  '        pass', "refuses_until_answered or nothing_is_picked_for_you"),
 ]
 def main() -> int:
     bad = 0

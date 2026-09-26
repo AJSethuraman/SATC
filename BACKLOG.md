@@ -1860,6 +1860,21 @@ back.
       The suggested fewest loans, worse at and better at are on Control when the workbook is written.
       The product is PocketBook in everything the analyst reads (the firm, 26 Sep 2026); "luck" is not
       used. Colours in `house.py`, not a copy of credit-suite's style file.
+- [x] **Redesign phase (b): the tabs the analyst fills in (26 Sep 2026).** Start here, Control, Columns
+      and Look to the spec's global rules and sections 1 to 4, with the firm's two Look additions: the
+      mean beside the median, and live bars and range (10 / 20 / 50 bars and a From / To, regrouped by
+      SUMIFS from 200 counted slices; no SORT, FILTER or LET), plus red dashed edge lines fed by
+      formula from Columns and the likely code on its own bar. Control in three blocks with Status and
+      the materiality panel (the Materiality tab is gone); Columns carries Odd values and Learned (the
+      two tabs are gone); a new-variable run isn't asked the profit line. A Run loads the workbook once
+      and saves it once (it was eight loads, three saves) and draws Look again only when the split
+      moves: Run 31.0 s to 22.2 s, Set up 11.8 s to 12.5 s, at 17,000 × 80 under a 4 GB limit. "Run the
+      cube" is "Run"; the launcher's clipped header is "Split by"; no analyst-facing "luck" or "cube"
+      (a test reads every cell of the finished workbook). `tests/test_answer_tabs.py`, the Look tests
+      rewritten; 21 planted bugs added, all caught; 10 moved ones repointed. 607 tests, 279 planted
+      bugs. Departures: the answer keeps its *Or your own* cell; each option's meaning is a note on the
+      setting's name, not a column. Not checked: real Excel (the combined bar-and-line chart is drawn
+      by LibreOffice on the bars' axis; Excel draws it on the lines' own).
 - **The firm's calls, 26 Sep 2026 (evening).**
   - **Name: PocketBook.** *"i want to change the name of this... let's call it the PocketBook"*. What
     the analyst sees is renamed with the redesign; folder and package names in one sweep after the

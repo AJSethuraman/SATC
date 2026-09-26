@@ -844,8 +844,8 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
         f'LEFT({words},LEN({words})-2)&". The result tabs still show the last Run. Save, close, and press Run in '
         f'the launcher."),"")'))
     ws.cell(row=b, column=2).font = Font(name="Calibri", size=10, bold=True, color=house.CRIMSON)
-    ws.cell(row=b, column=2).alignment = Alignment(vertical="center", indent=1)
-    ws.row_dimensions[b].height = 22
+    ws.cell(row=b, column=2).alignment = Alignment(vertical="center", indent=1, wrap_text=True)
+    ws.row_dimensions[b].height = 30
     ws.conditional_formatting.add(f"B{b}:I{b}", FormulaRule(
         formula=[f'$B${b}<>""'], fill=PatternFill("solid", fgColor=house.ALERT_FG, bgColor=house.ALERT_FG)))
     r = b + 2
@@ -1396,46 +1396,51 @@ def _suggest_at_set_up(wb, book: Path, table, memory_path) -> tuple[dict[str, fl
     firm, 26 Sep 2026: "configure what you can, and then do the workbook config
     items so that there are suggestions to be made"). The pockets are cut as
     the launcher chose, at the default edges, and the first pass is the one Run
-    makes: a copy of the workbook with the suggested options picked and any
-    other blank call given a stand-in, read by read_book, run without the
-    shuffle test. Nothing here is written to the workbook but the values."""
-    import tempfile
+    makes: the workbook with the suggested options picked and any other blank
+    call given a stand-in, read by read_book, run without the shuffle test.
+    The stand-ins go into the open workbook and every one is put back before
+    this returns (found 26 Sep 2026: a saved copy cost two saves and two loads
+    of the whole workbook). Nothing here stays in the workbook but the values."""
+    changed: list[tuple[Any, Any]] = []
+
+    def put(cell, v) -> None:
+        changed.append((cell, cell.value))
+        cell.value = v
+
     try:
-        with tempfile.TemporaryDirectory() as tmp:
-            copy = Path(tmp) / book.name
-            wb.save(copy)
-            cw = load_workbook(copy)
-            ws = cw[control.SHEET]
-            labels = {s.key: s for s in control.load_settings()}
-            for r in ws.iter_rows(min_row=control.FIRST_ROW):
-                key = r[control.KEY_COL - 1].value
-                if key in SUGGEST_KEYS:
-                    r[control.CHOOSE_COL - 1].value = next(o.label for o in labels[key].options
-                                                           if o.value in ("calc", "luck"))
-                    r[control.OWN_COL - 1].value = None
-                elif key in PROVISIONAL and control.answer_of(key, r[control.CHOOSE_COL - 1].value,
-                                                              r[control.OWN_COL - 1].value) is None:
-                    r[control.CHOOSE_COL - 1].value = PROVISIONAL[key]
-                elif key == RUN_KIND:
-                    r[control.CHOOSE_COL - 1].value = next(o.label for o in labels[key].options if o.value == BLEED)
-                elif key == control.PRESPEC_KEY:
-                    r[control.CHOOSE_COL - 1].value = None
-            cw["Columns"][CONFIRM_CELL] = "Yes"
-            cw.save(copy)
-            raw, problems, about = read_book(copy, memory_path)
-            if problems:
-                return {}, set()
+        ws = wb[control.SHEET]
+        labels = {s.key: s for s in control.load_settings()}
+        for r in ws.iter_rows(min_row=control.FIRST_ROW):
+            key = r[control.KEY_COL - 1].value
+            if key in SUGGEST_KEYS:
+                put(r[control.CHOOSE_COL - 1], next(o.label for o in labels[key].options
+                                                    if o.value in ("calc", "luck")))
+                put(r[control.OWN_COL - 1], None)
+            elif key in PROVISIONAL and control.answer_of(key, r[control.CHOOSE_COL - 1].value,
+                                                          r[control.OWN_COL - 1].value) is None:
+                put(r[control.CHOOSE_COL - 1], PROVISIONAL[key])
+            elif key == RUN_KIND:
+                put(r[control.CHOOSE_COL - 1], next(o.label for o in labels[key].options if o.value == BLEED))
+            elif key == control.PRESPEC_KEY:
+                put(r[control.CHOOSE_COL - 1], None)
+        put(wb["Columns"][CONFIRM_CELL], "Yes")
+        raw, problems, about = read_book(book, memory_path, wb=wb)
+        if problems:
+            return {}, set()
+        cfg = cfgmod.parse(raw)
+        if _band_widths(raw, about.get("_widths") or {}, cfg, table, about.get("_edge_cells")):
+            return {}, set()
+        if about.get("_widths"):
             cfg = cfgmod.parse(raw)
-            if _band_widths(raw, about.get("_widths") or {}, cfg, table, about.get("_edge_cells")):
-                return {}, set()
-            if about.get("_widths"):
-                cfg = cfgmod.parse(raw)
-            first = cfgmod.Config(**{**cfg.__dict__, "benchmark": cfgmod.Benchmark(
-                **{**cfg.benchmark.__dict__, "shuffles": 0})})
-            return _suggest_values(engine.run(first, table), set(SUGGEST_KEYS))
+        first = cfgmod.Config(**{**cfg.__dict__, "benchmark": cfgmod.Benchmark(
+            **{**cfg.benchmark.__dict__, "shuffles": 0})})
+        return _suggest_values(engine.run(first, table), set(SUGGEST_KEYS))
     except Exception:
         # a book the first pass can't cut yet (no outcome marked, say): the Run works them out instead
         return {}, set()
+    finally:
+        for cell, v in reversed(changed):
+            cell.value = v
 
 
 def _suggestion_words(key: str, v: float, fallback: bool, when: str) -> str:
@@ -1921,7 +1926,9 @@ def _write_found(wb, res, stamp: str) -> None:
         for (b, d), c in g.inner():
             s = c.rates[m.name]
             if s.flag == engine.WORSE and s.material is not False and s.dollars and s.dollars > 0:
-                top.append((s.dollars, f"{names[g.band]} {b}", str(d), s.units, lv.row(g, b, d, m.name)))
+                # a segment that is only a number reads with its column's name: "ASSET_CLASS 4", as the spec does
+                seg = f"{names[g.dimension]} {d}" if str(d).replace(".", "").isdigit() else str(d)
+                top.append((s.dollars, f"{names[g.band]} {b}", seg, s.units, lv.row(g, b, d, m.name)))
     for dollars, band, seg, loans, prow in sorted(top, key=lambda t: -t[0])[:5]:
         if prow is not None:
             ws.append(["top", band, seg, loans, prow])

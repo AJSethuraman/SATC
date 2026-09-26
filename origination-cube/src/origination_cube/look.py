@@ -481,13 +481,17 @@ def _block(ws, hs, r: int, s: Shape, g: int, dv, edge_row: int | None, treat) ->
             f"=IFERROR(IF({every},IF({nth}<={V(S_MAX)},{nth},NA()),VALUE({token})),NA())"))
         e = _L(g + G_EDGE, row)
         x = (f"=IFERROR(IF(AND({e}>={F},{e}<={V(S_TO)}),{LOW}+0.5+{MIDDLE}*({e}-{F})/({V(S_TO)}-{F}),NA()),NA())")
-        for p, y in ((0, 0), (1, 1)):
+        # from the floor to the tallest bar: LibreOffice draws the lines on the bars' own axis, Excel on the
+        # lines' second one, and both then show a line the height of the chart
+        slots = f"${L(G_SLOT)}${DATA_TOP}:${L(G_SLOT)}${DATA_TOP + SLOTS - 1}"
+        for p, y in ((0, "0"), (1, f"MAX({slots})")):
             xr = DATA_TOP + 2 * (k - 1) + p
             hs.cell(row=xr, column=g + G_EX, value=x)
             # no edge: both ends not a number, so no program draws a stray point
             hs.cell(row=xr, column=g + G_EY, value=f"=IF(ISNA({_L(g + G_EX, xr)}),NA(),{y})")
+    at = f"'{DATA}'!{src}"
     edges_now = ws.cell(row=r, column=8, value=(
-        f'=IF({src}="","{s.name} · no edges on Columns yet","{s.name} · edges now "&{src})'))
+        f'=IF({at}="","{s.name} · no edges on Columns yet","{s.name} · edges now "&{at})'))
     edges_now.font = Font(name="Calibri", size=9, color=house.SLATE)
     _chart(ws, hs, r, s, g)
 
@@ -528,12 +532,14 @@ def _chart(ws, hs, r: int, s: Shape, g: int) -> None:
         line.graphicalProperties.line.dashStyle = "dash"
         line.graphicalProperties.line.width = 19050
         lines.series.append(line)
+    # the lines' own axes, crossing each other: x in chart slots, y from 0 to 1 whatever the bars' height
     lines.x_axis.axId, lines.y_axis.axId = 500, 600
+    lines.x_axis.crossAx, lines.y_axis.crossAx = 600, 500
     lines.x_axis.scaling.min, lines.x_axis.scaling.max = 0.5, SLOTS + 0.5
-    lines.y_axis.scaling.min, lines.y_axis.scaling.max = 0, 1
+    lines.y_axis.scaling.min = 0
     lines.y_axis.crosses = "max"
     lines.x_axis.delete = lines.y_axis.delete = True
-    lines.y_axis.majorGridlines = None
+    lines.x_axis.majorGridlines = lines.y_axis.majorGridlines = None
     ch += lines
     ch.width, ch.height = 17, 8
     ws.add_chart(ch, f"{CHART_AT}{r + 1}")

@@ -145,9 +145,9 @@ def test_the_answer_cells_carry_the_three_input_styles_and_the_legend_shows_them
     assert _hex(run.fill.fgColor) == house.PAPER and run.border.left.style == "dashed" and run.font.b
     assert _hex(run.border.left.color) == house.SLATE
     legend = rows["legend"]
-    said = [ws.cell(row=legend, column=k).value for k in (2, 3, 5)]
+    said = [ws.cell(row=legend, column=k).value for k in (2, 3, 6)]
     assert said == ["Changes now", "Needs a Run", "Still needs an answer"]
-    assert _hex(ws.cell(row=legend, column=5).fill.fgColor) == house.ALERT_FG
+    assert _hex(ws.cell(row=legend, column=6).fill.fgColor) == house.ALERT_FG
     # the shade on a blank answer is ALERT_FG, by conditional format
     fills = {_hex(rule.dxf.fill.fgColor) for rng in ws.conditional_formatting for rule in rng.rules
              if rule.dxf is not None and rule.dxf.fill is not None and "=\"\"" in "".join(rule.formula)}
