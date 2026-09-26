@@ -239,6 +239,122 @@ def test_a_pockets_answer_does_not_hang_on_the_other_grids(tmp_path):
 
 
 # --------------------------------------------------------------------------
+# Every core, and the same answer however many there are (the firm, 26 Sep 2026: design.md OC-41)
+
+
+def _many_tests(keep=True):
+    """A run shaped like the engine's: two rates (one that some loans did not
+    enter), pockets against the book on two grids, against the rest of their
+    band, and split halves pooled across bands."""
+    rng = np.random.default_rng(11)
+    n = 600
+    x = rng.lognormal(np.log(20000), 0.5, n)
+    gco = np.where(rng.random(n) < 0.08, x * rng.uniform(0.3, 0.8, n), 0.0)
+    ranr = x * rng.normal(0.03, 0.02, n)
+    band = (np.arange(n) % 3).tolist()
+    ranr_y = [None if i % 7 == 0 else float(v) for i, v in enumerate(ranr)]       # left out, never a zero
+    columns = [perm.Column("gco", gco.tolist(), x.tolist()), perm.Column("ranr", ranr_y, x.tolist())]
+    grid_a = (np.arange(n) % 12).tolist()                                # 12 pockets, 4 inside each band
+    grid_b = ((np.arange(n) // 5) % 6 * 3 + np.arange(n) % 3).tolist()   # another cut, still inside the bands
+    book = perm.Structure("book", None, [grid_a, grid_b],
+                          {(0, "gco"): perm.RestGap(keep), (0, "ranr"): perm.RestGap(keep),
+                           (1, "gco"): perm.RestGap(keep)})
+    bands = perm.Structure("bands", band, [grid_a], {(0, "gco"): perm.RestGap(keep), (0, "ranr"): perm.RestGap(keep)})
+    halves = [2 * band[i] + int(x[i] < np.median(x)) for i in range(n)]
+    split = perm.Structure("halves", band, [halves], {(0, "gco"): perm.HalfGap(pooled={0, 1, 2}),
+                                                    (0, "ranr"): perm.HalfGap(pooled={0, 2})})
+    return n, columns, [book, bands, split]
+
+
+def _everything(structures):
+    got = []
+    for s in structures:
+        for key in sorted(s.stats):
+            st = s.stats[key]
+            got.append((s.name, key, st.n, st.hits.tolist(), sorted(st.answers.items()),
+                        getattr(st, "t_hits", None), getattr(st, "pooled", None),
+                        np.concatenate(st.draws).tolist() if getattr(st, "draws", None) else None))
+    return got
+
+
+def test_the_answer_is_the_same_on_one_two_three_or_four_workers():
+    """The firm, 26 Sep 2026: the shuffle test uses every core, and its result
+    does not depend on how many the machine has. 1,000 shuffles in chunks of 64
+    split 334 / 333 / 333 across three workers, so no worker's share starts on a
+    chunk boundary: every count, every answer, the pooled halves and every kept
+    shuffled gap, in order, must come out bit for bit the same."""
+    runs = {}
+    for w in (1, 2, 3, 4):
+        n, columns, structures = _many_tests()
+        used = perm.run(n, columns, structures, 1_000, perm.seed_of("cores"), chunk=64, workers=w)
+        assert used == w                                      # the pool really dealt them, not this process
+        runs[w] = _everything(structures)
+    assert all(st_n == 1_000 for _, _, st_n, *_ in runs[1])
+    assert any(hits != [0] * len(hits) and hits != [1_000] * len(hits) for _, _, _, hits, *_ in runs[1])
+    assert runs[1] == runs[2] == runs[3] == runs[4]
+
+
+def test_shuffle_i_is_the_same_order_whoever_deals_it():
+    """Shuffle i draws from its own stream, the i-th child of the run's seed, so
+    no worker's order depends on which shuffles it dealt before."""
+    seed = perm.seed_of("streams")
+    children = np.random.SeedSequence(seed).spawn(40)
+    for i in (0, 1, 17, 39):
+        want = np.random.Generator(np.random.PCG64(children[i])).permutation(50)
+        assert np.array_equal(perm.order_of(np, 50, seed, i), want)
+    assert not np.array_equal(perm.order_of(np, 50, seed, 1), perm.order_of(np, 50, seed, 2))
+
+
+def test_the_shares_are_every_shuffle_once_in_order():
+    for shuffles, workers in ((10_000, 3), (1_000, 4), (5, 4), (7, 1)):
+        got = perm.shares(shuffles, workers)
+        assert len(got) == workers and got[0][0] == 0 and got[-1][1] == shuffles
+        assert all(a[1] == b[0] for a, b in zip(got, got[1:]))
+        assert max(b - a for a, b in got) - min(b - a for a, b in got) <= 1
+
+
+def test_a_big_run_uses_the_cores_and_a_small_one_stays_in_this_process(monkeypatch):
+    """Starting workers costs about a third of a second, so a run of fewer than
+    20 million loan-shuffles stays here; a bigger one takes every core up to eight,
+    and never more workers than whole chunks of shuffles."""
+    monkeypatch.setattr(os, "sched_getaffinity", lambda pid: set(range(16)), raising=False)
+    assert perm.workers_for(3_000, 2_000) == 1
+    assert perm.workers_for(17_000, 10_000) == perm.MAX_WORKERS == 8
+    assert perm.workers_for(100_000, 512) == 2
+    monkeypatch.setattr(os, "sched_getaffinity", lambda pid: {0, 1, 2}, raising=False)
+    assert perm.workers_for(17_000, 10_000) == 3
+    monkeypatch.setattr(os, "sched_getaffinity", lambda pid: {0}, raising=False)
+    assert perm.workers_for(17_000, 10_000) == 1
+
+
+def test_a_machine_that_will_not_start_workers_still_gets_the_same_answer(monkeypatch):
+    n, columns, structures = _many_tests()
+    perm.run(n, columns, structures, 300, perm.seed_of("cores"), chunk=64, workers=1)
+    want = _everything(structures)
+
+    def refused(*a, **k):
+        raise OSError("no new processes on this machine")
+    monkeypatch.setattr(perm, "_in_pool", refused)
+    n, columns, structures = _many_tests()
+    assert perm.run(n, columns, structures, 300, perm.seed_of("cores"), chunk=64, workers=4) == 1
+    assert _everything(structures) == want
+
+
+def test_a_worker_never_opens_the_window():
+    """Windows starts each worker by running the double-clicked file again under
+    the name __mp_main__; the launcher must open only when it is the program."""
+    pyw = Path(__file__).resolve().parents[1] / "Origination Cube.pyw"
+    code = ("import runpy, sys, types\n"
+            "sys.modules['origination_cube.launcher'] = types.SimpleNamespace(main=lambda: print('WINDOW'))\n"
+            f"runpy.run_path({str(pyw)!r}, run_name='__mp_main__')\n"
+            "print('worker ready')\n"
+            f"runpy.run_path({str(pyw)!r}, run_name='__main__')\n")
+    got = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert got.returncode == 0, got.stderr
+    assert got.stdout.split() == ["worker", "ready", "WINDOW"], got.stdout
+
+
+# --------------------------------------------------------------------------
 # numpy, and the production default
 
 

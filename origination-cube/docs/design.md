@@ -558,6 +558,30 @@ enough.
     - significance compares with one rounded bar, `ROUND(1 − confidence, 12)`, as S36 requires;
     - ordering and Check's counts follow live only where the bank's Excel has `SORT` and
       `FILTER` (Microsoft 365); otherwise they are labelled as of the run.
+- **OC-41: the shuffle test uses every core, and its answer does not depend on how many
+  there are** (the firm, 26 Sep 2026: *"I'm good with plan"*, logged in `BACKLOG.md` §6d
+  "Shuffle test across cores"; built the same day).
+  - **Each shuffle has its own random stream**, the i-th child of the run's fixed seed
+    (numpy's `SeedSequence(seed).spawn(...)[i]`, `perm.order_of`). Shuffle i is the same
+    order whichever process deals it and whatever that process dealt before.
+  - **The shuffles are split into runs of consecutive shuffles, one per worker**, and the
+    counts added up in order. Workers are the cores this process may use, at most 8
+    (`perm.MAX_WORKERS`); a run under 20 million loan-shuffles stays in one process,
+    because starting workers costs about a third of a second. Workers are started the
+    way Windows must start them ("spawn") on every machine, so the tests run what the
+    bank's machine runs; `Origination Cube.pyw` opens its window only when it is the
+    program, never in a worker.
+  - **Proved bit for bit**: every count, answer and kept shuffled gap is the same on 1, 2,
+    3 and 4 workers (`tests/test_perm.py`). A machine that will not start workers, or a
+    worker that dies, falls back to one process and gets the same answer.
+  - **The p-values moved once**, because the 10,000 shuffles are a different 10,000. On the
+    synthetic books (3,000 and 8,000 loans, 465 shuffle p-values) the largest move was
+    0.0149 (6,145 → 5,996 of 10,000), about 2 standard errors of the difference between two
+    independent runs; the moves' spread was 0.91 of that error, and no allowed-for p-value
+    crossed 0.05.
+  - **Timing**, `perm.run` on the realistic 17,000-loan bleed run (160 statistics), 10,000
+    shuffles, under a 4 GB memory limit on a 4-core machine: 53.6 s before; 57.9 s on one
+    worker, 27.4 s on 2, 20.5 s on 3, 20.9 s on 4. Each worker peaks at about 70 MB.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so

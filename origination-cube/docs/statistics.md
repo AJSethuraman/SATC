@@ -291,6 +291,8 @@ expected bad was about 1, not 5.
 **Arithmetic.** Observed gap `g = rate(pocket) − rate(rest)`, each rate a ratio of totals
 (`ΣGCO / Σbalance`). Then, `B` times (10,000): shuffle which loans carry the "pocket" label, keeping the
 pocket's loan count, recompute `g*`. With a fixed random seed the same extract gives the same answer.
+Each shuffle draws from its own stream, the i-th child of that seed, so the answer is also the same
+however many cores share the shuffles (`design.md` OC-41).
 
 ```
 p-value = ( #{ |g*| ≥ |g| } + 1 ) / ( B + 1 )
