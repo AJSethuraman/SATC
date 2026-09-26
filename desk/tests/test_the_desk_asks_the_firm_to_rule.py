@@ -422,3 +422,29 @@ def test_a_different_ruling_under_a_used_number_is_refused(corpus, queue):
                           answer="yes", answered="2026-09-27")
     with pytest.raises(record.RecordError, match="already records a different"):
         rulings.record_ruling(corpus, other)
+
+
+@pytest.mark.parametrize("wording", [
+    "a charge at a bar is a meal.\n\n**Needs:** taxpayer",
+    "a charge at a bar is a meal. **Unless:** trade",
+])
+def test_wording_cannot_carry_a_field_of_the_position(corpus, queue, wording):
+    """Codex on #401: a "**Needs:** taxpayer" line in proposed wording became
+    real metadata -- a client-fact gate nobody ruled on."""
+    f = _found(corpus, "position", "POS7")
+    with pytest.raises(ValueError, match="field"):
+        rulings.ask(f, wording, queue=queue, corpus=corpus)
+
+
+def test_the_same_number_with_a_different_proposal_is_not_a_retry(corpus, queue):
+    """Codex on #401: two queues numbering R1 for the same finding, both
+    answered yes, but proposing different words -- the second was returned
+    as the first."""
+    f = _found(corpus, "reach", RECORDS)
+    entry, _ = rulings.ask(f, "commingling", queue=queue, corpus=corpus)
+    done = rulings.settle(queue, entry.id, "yes")
+    rulings.record_ruling(corpus, done)
+    import dataclasses
+    other = dataclasses.replace(done, proposed="recordkeeping")
+    with pytest.raises(record.RecordError, match="already records a different"):
+        rulings.record_ruling(corpus, other)

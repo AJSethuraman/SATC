@@ -118,6 +118,9 @@ class Ruling:
     #: reach: the admitted question the ruling answered, verbatim. A citation
     #: may be admitted for several; a ruling is about ONE of them.
     asked_by: str = ""
+    #: What the desk proposed when it asked, verbatim -- part of what the firm
+    #: said yes to, so part of what makes two rulings the same ruling.
+    proposed: str = ""
 
 
 _HEAD = re.compile(r"^## (R\d+) · (.+)$", re.M)
@@ -159,7 +162,8 @@ def parse(text: str) -> tuple[Ruling, ...]:
             reaches_on=tuple(p.strip() for p in
                              _field(block, "Reaches on").split(";") if p.strip()),
             outcome=_field(block, "Outcome"),
-            asked_by=_quoted(block, "Asked by")))
+            asked_by=_quoted(block, "Asked by"),
+            proposed=_quoted(block, "Proposed")))
     ids = [r.id for r in out]
     if len(ids) != len(set(ids)):
         raise record.RecordError(f"{RULINGS_FILE} numbers a ruling twice")
@@ -453,10 +457,31 @@ def _verdict(body: str) -> str:
     return "unclear"
 
 
+_MARKER = re.compile(r"\*\*[A-Z][A-Za-z ]*:\*\*")
+
+
+def _plain(pid: str, wording: str, rests: str) -> None:
+    """Wording is one line of prose, and neither it nor its rests-on lines may
+    carry a `**Field:**` marker. Codex on #401: "**Needs:** taxpayer" inside
+    proposed wording was parsed as real metadata -- a client-fact gate that
+    nobody ruled on. A ruling changes the words and what they rest on; it
+    changes no other field of the position."""
+    if "\n" in wording.strip() or _MARKER.search(wording):
+        raise ValueError(
+            f"{pid}: the wording is one line with no field marker in it; a "
+            f"'**Field:**' there would change a field of the position that "
+            f"nobody was asked to rule on")
+    if _MARKER.search(rests):
+        raise ValueError(
+            f"{pid}: a Rests on line may not carry a field marker; that would "
+            f"change a field of the position nobody was asked to rule on")
+
+
 def _amended(corpus: Path, pid: str, wording: str, rests: str, *,
              ruled: str, check_only: bool = False) -> None:
     """Rewrite one position's wording and rests-on, then prove the record loads
     and the figure check passes -- on a copy, before the real file is touched."""
+    _plain(pid, wording, rests)
     corpus = Path(corpus)
     pfile = next(f for f in sorted((corpus / "positions").glob("*.md"))
                  if re.search(rf"^## {re.escape(pid)} · ", f.read_text(encoding="utf-8"), re.M))
@@ -504,6 +529,8 @@ def _append_ruling(corpus: Path, r: Ruling) -> None:
              "**Reply:**", "", *_q(r.reply)]
     if r.asked_by:
         lines += ["", "**Asked by:**", "", *_q(r.asked_by)]
+    if r.proposed:
+        lines += ["", "**Proposed:**", "", *_q(r.proposed)]
     if r.reaches_on:
         lines += ["", f"**Reaches on:** {'; '.join(r.reaches_on)}"]
     if r.outcome:
@@ -546,8 +573,9 @@ def record_ruling(corpus: Path, entry: Asked) -> Ruling:
         # another, and returning the old one silently threw the firm's new
         # answer away. Same kind, subject, question and reply, or refuse.
         was = already[entry.id]
-        if (was.kind, was.subject, was.asked_by, was.reply) != (
-                entry.kind, entry.subject, entry.asked_by, entry.answer):
+        if (was.kind, was.subject, was.asked_by, was.reply, was.proposed) != (
+                entry.kind, entry.subject, entry.asked_by, entry.answer,
+                entry.proposed):
             raise record.RecordError(
                 f"{entry.id}: RULINGS.md already records a different ruling "
                 f"under this number ({was.kind} on {was.subject}). Nothing was "
@@ -591,7 +619,8 @@ def _record_ruling(corpus: Path, entry: Asked) -> Ruling:
     said_yes, said_no = verdict == "yes", verdict == "no"
     base = Ruling(id=entry.id, kind=entry.kind, subject=entry.subject,
                   ruled=entry.answered, asked=entry.question(),
-                  reply=entry.answer, asked_by=entry.asked_by)
+                  reply=entry.answer, asked_by=entry.asked_by,
+                  proposed=entry.proposed)
     if entry.kind == "reach":
         if said_no:
             r = replace(base, outcome="declined")
