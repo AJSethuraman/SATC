@@ -214,32 +214,51 @@ the exception: it waits on the redesign, and the goal ends with it handed over, 
 stop the work: anything a client or the bank reads that changes meaning, and any new tenet.
 
 - [ ] **1. 4b + 4e.** K groups with their own edges (Mantel–Haenszel general association and trend,
-      cross-checked against stratified logistic regression), develop on one origination range and
+      cross-checked against conditional logistic regression), develop on one origination range and
       confirm on a later one; concentration (flag rate, capture, lift) on the holdout. Check stops
-      reading "deviates" on the reference group.
-- [ ] **2. T1 sweep.** One method note per tab, near the top, that an outsider can follow. The
+      reading "deviates" on the reference group. The cliffs are planted in the second synthetic book
+      (`test_generic.py`) as well as the first, so finding them is not the code agreeing with its own
+      fixture (S32, S18).
+- [ ] **2. The new-variable run needs only what it uses:** key, outcome, origination date, the tested
+      columns and strata. Booked, GCO and RANR become optional for it; 4e shows dollars only when they
+      are there. OC-14 and the run-kind entry are amended where they sit (S13).
+- [ ] **3. Lean pre-spec.** An outcome plus a shortlist of inputs, each with bins and a reference;
+      optional columns to hold fixed, each input reported with and without them (this is 4d); the
+      allowance for many tests spread across the shortlist. Strata: see the open question.
+- [ ] **4. T1 sweep.** One method note per tab, near the top, that an outsider can follow. The
       per-row lone-pocket note and the Test column move into it. Every other tab swept against T1's
       check: a column predictable from the settings and the pocket's size is method.
-- [ ] **3. Option A.** "Judged against the book" measures points and dollars both against the rest
-      of the book. The tie-out to the whole book stays on Check.
-- [ ] **4. The new-variable run needs only what it uses:** key, outcome, origination date, the tested
-      columns and strata. Booked, GCO and RANR become optional for it.
-- [ ] **5. No "not built yet" options.** Control offers only what exists; "Scout first" appears when
+- [ ] **5. Option A.** "Judged against the book" measures points and dollars both against the rest
+      of the book. The whole-book tie-out stays on Check. OC-4's "excess adds to zero" is marked
+      superseded for the reading, kept for the tie-out.
+- [ ] **6. No "not built yet" options.** Control offers only what exists; "Scout first" appears when
       scouting does.
-- [ ] **6. "Worse?" and "Material?" as two columns.** Among the worse pockets, rank by dollars.
-- [ ] **7. Live ordering and counts** with SORT and FILTER (Excel 365). Verified by a LibreOffice new
-      enough to calculate them (24.8 or later) in the tests and in CI, or by an equivalent check that
-      is written down.
-- [ ] **8. Lean pre-spec.** An outcome plus a shortlist of inputs, each with bins and a reference;
-      optional columns to hold fixed, each input reported with and without them (this is 4d); strata
-      default to the workbook's band and segment; the allowance for many tests spread across the
-      shortlist.
+- [ ] **7. "Worse?" and "Material?" as two columns.** Among the worse pockets, rank by dollars. The
+      engine and the workbook's formulas make the same call, proven by recalculation (S3).
+- [ ] **8. Live ordering and counts** with SORT and FILTER (Excel 365). Verified by a LibreOffice new
+      enough to calculate them (24.8 or later) in the tests and in CI; where it is older the test
+      fails, never skips (S2). This is a stand-in for Excel, not Excel: the workbook stays unproven in
+      real Excel until the firm opens it there (design.md, Open (a)).
 - [ ] **9. Scouting (4a).** A random forest on the development loans only; scikit-learn an optional
-      add-on; wide candidates; with and without the held-fixed columns; correlated pairs flagged.
+      add-on that CI installs, so the scouting path and its refusal without the add-on both run (S14);
+      wide candidates; with and without the held-fixed columns; correlated pairs flagged.
 - [ ] **10. Screens: held for the redesign.** The test picker (outcome, shortlist, hold-fixed, the
       tests to run, in one easy place) and any layout change wait for the firm's Claude Design pass
       over the screens published 26 Sep 2026 (https://claude.ai/artifact/8duWJxayMTBtMe1GCPrvAX), so
       they are designed once rather than built twice. The firm, 26 Sep: *"good"*.
 
-**Open with the firm:** a git-free pre-spec. The bank machine likely has no git, so the workbook
-would write the pre-spec itself and record its fingerprint and date in the Log. Recommended.
+**Reordered 26 Sep 2026 after Count Bassy's pass** (C11: do known work upfront). The run's minimum and
+the lean pre-spec come straight after 4b, because both reshape what 4b confirms. Bassy also noted that
+the goal's first wording ("a dated outcome", "a committed pre-spec") predates OC-39 and the git
+question; Goal 2's own end condition above is what counts now.
+
+**Open with the firm** (on the docket, https://claude.ai/artifact/U5pHCYek9H7hqehzUvqs8M):
+- **What the redesign hold covers.** Recommended: the launcher, the test picker and layout only. The
+  rulings that decide what a tab says (items 4, 6, 7, 8) go ahead, because the design brief already
+  assumes them.
+- **Strata in the pre-spec.** OC-13 says judgment settings are never pre-chosen. Recommended: the band
+  and segment are suggested in the label and left blank, as the other judgment settings are.
+- **Proof the pre-spec came first, without git.** A fingerprint and date written by the workbook prove
+  the file did not change afterwards, not that it came first (C8, S31). Recommended: the workbook will
+  not work out held-back results until a pre-spec is locked, and the Log records the lock and then
+  each run, in order, so the order is enforced rather than claimed.
