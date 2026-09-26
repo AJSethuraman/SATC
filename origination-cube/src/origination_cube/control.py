@@ -551,3 +551,58 @@ def read_derived(ws) -> tuple[list[dict], list[str]]:
             continue
         out.append({"slot": int(key.split("|")[1]), "row": row, "name": vals[0], "top": vals[1], "bottom": vals[2]})
     return out, problems
+
+
+# --------------------------------------------------------------------------
+# The pre-spec file (fix 3.15): one cell under the new columns, for a
+# confirmatory run only. A cell rather than a setting: a setting is a pick from
+# a list or a number, and it refuses or shades a blank. This is a path, and
+# blank is the ordinary answer: no pre-spec. The run reads the file and
+# refuses a pre-spec it cannot use, naming this cell (book.read_book).
+
+PRESPEC_KEY = "prespec"
+PRESPEC_NOTE = ("For a confirmatory run only: the pre-spec file this run is held to, committed to git. Type its "
+                "full path, or just its name if it sits beside this workbook. Leave it blank for any other run.")
+
+
+def write_prespec(wb: Workbook, path: Any = None) -> None:
+    """The block, under the last row with a key. `path` is what was typed there
+    before, kept through Set up again."""
+    ws = wb[SHEET]
+    last = max(r[0].row for r in ws.iter_rows(min_row=FIRST_ROW) if r[KEY_COL - 1].value)
+    r = last + 2
+    ws.cell(row=r, column=2, value="Pre-spec: what a confirmatory run is held to").font = \
+        Font(name="Calibri", bold=True, color=INK)
+    for col in range(2, 7):
+        ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=CANVAS)
+    ws.cell(row=r, column=KEY_COL, value=f"{PRESPEC_KEY}|head")
+    ws.merge_cells(start_row=r + 1, start_column=2, end_row=r + 1, end_column=6)
+    note = ws.cell(row=r + 1, column=2, value=PRESPEC_NOTE)
+    note.font = Font(name="Calibri", size=10, color=SLATE)
+    note.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.row_dimensions[r + 1].height = 30
+    ws.cell(row=r + 1, column=KEY_COL, value=f"{PRESPEC_KEY}|note")
+    row = r + 2
+    ws.cell(row=row, column=2, value="Pre-spec file")
+    ws.cell(row=row, column=CHOOSE_COL, value=path if path not in (None, "") else None)
+    ws.merge_cells(start_row=row, start_column=CHOOSE_COL, end_row=row, end_column=6)
+    thin = Side(style="thin", color=MIST)
+    for col in range(2, 7):
+        cell = ws.cell(row=row, column=col)
+        cell.border = Border(bottom=thin)
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+        cell.font = Font(name="Calibri", size=10, color=INK)
+    ws.cell(row=row, column=KEY_COL, value=PRESPEC_KEY).font = Font(name="Consolas", size=8, color=SLATE)
+    ws.print_area = f"B1:F{row}"
+
+
+def read_prespec(ws) -> tuple[str | None, str]:
+    """What the pre-spec cell says, without the quotes Windows puts round a
+    copied path, or None when it is blank or the tab has no such cell (a
+    workbook set up before there was one); and the cell, for a refusal."""
+    row = row_of(ws, PRESPEC_KEY)
+    if row is None:
+        return None, f"{SHEET}!C"
+    v = ws.cell(row=row, column=CHOOSE_COL).value
+    text = str(v).strip().strip('"').strip("'").strip() if v not in (None, "") else ""
+    return (text or None), f"{SHEET}!C{row}"

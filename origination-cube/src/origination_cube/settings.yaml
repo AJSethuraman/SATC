@@ -464,6 +464,12 @@ meanings:
   - {means: term, label: "Term",
      says: "loan term in months", cut: dimension,
      hints: [term, tenor, months], test: "term"}
+  # fix 3.18: what kind of credit a loan is. Profit per booked dollar differs by product
+  # (a card and a mortgage keep very different shares), so Check warns when more than
+  # one product is in the book and it isn't a band or segment. Warn only: the firm decides.
+  - {means: product, label: "Credit product",
+     says: "loan type or credit product: auto, card, mortgage, line of credit", cut: dimension,
+     hints: [product, prod_type, loan_type], test: "category"}
   - {means: servicing, label: "Servicing data",
      says: "servicing data: recorded after booking, like a new line limit, a status or days past due, so never cut by", cut: none,
      hints: [servicing, svc, status, dpd, pastdue, current, curbal, newlimit, newline, cli, lineincrease, limitchange, mob], test: "any"}

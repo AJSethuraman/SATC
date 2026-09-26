@@ -59,7 +59,9 @@ After that, the whole routine is:
    **1. Set up from this extract**. A workbook appears beside the extract.
 3. Open the workbook and follow its **Start here** tab:
    - **Control:** fill in the shaded cells. Those are our calls: what's
-     material, how many loans is enough, how much worse counts.
+     material, how many loans is enough, how much worse counts. For a
+     confirmatory run only, name the committed pre-spec file in the last
+     cell (below).
    - **Columns:** check what each column is. Anything shaded has its reason
      beside it. Fix any that's wrong from the dropdown, then set "Checked
      every column" to Yes.
@@ -76,9 +78,18 @@ After that, the whole routine is:
      Losing more and keeping more reads "priced for it". One chart per grid.
    - **Grids:** heat maps against the book and against the rest of the band.
    - **Split** and **Three-way:** only when a column splits the pockets (below).
+   - **Prevalence:** only with a split or a new column. How many loans and
+     booked dollars sit in each group (the split's halves or values, a new
+     column's bands), pocket by pocket. A count of the book, not a test.
    - **Materiality:** what each materiality level would keep.
-   - **Check:** settings, tie-outs, and what was left out.
-   - **Log:** every run and refusal.
+   - **Check:** settings, tie-outs, and what was left out. Also the pocket
+     budget (the book's bad loans ÷ 5: the most pockets a grid can test) with
+     each grid's pocket count and how much of the book sits in testable
+     pockets; how many families of tests the run holds, since a single red
+     across many is weak evidence; and a warning when a column marked Credit
+     product holds more than one product and isn't a band or segment.
+   - **Log:** every run and refusal, and whether a run followed its pre-spec
+     and touched the holdout.
 
 **Going a layer deeper.** On Columns, set one column's *Split pockets by it?*
 to Yes. A number (revolving debt, say) splits every FICO-by-asset-class pocket
@@ -92,6 +103,20 @@ After a Run, the Look tab plots a split number against each band column, so
 you can see whether it only re-sorts the band.
 
 ![The Split tab: high revolving debt against low, inside each pocket](docs/split.png)
+
+**A confirmatory run.** A column scouted on development loans (income over
+sales, say) is tested once, on loans kept back, with settings written down and
+committed to git beforehand: the pre-spec (`docs/prespec-example.yaml`; the
+format is in `src/origination_cube/prespec.py`). Name that file in the last
+cell on Control; blank means an ordinary run. A file that isn't there or can't
+be read stops the Run, naming the cell. Otherwise Check echoes what it says and
+the commit it was read from (or that it isn't committed, or was edited since),
+and lists, one line each, where the run differs from it; the Log marks such a
+run *Deviates from pre-spec*. Every run whose extract holds loans made in the
+pre-spec's holdout range is marked *Touched the holdout* in the Log, and Check
+counts those runs, so how often the holdout has been looked at stays visible.
+Today's cube always differs in one place: it tests each pocket's high half
+against its low half, not groups against a reference group.
 
 ![Losses vs revenue: paid, cost and kept, and the chart](docs/losses-vs-revenue.png)
 
@@ -138,8 +163,8 @@ display.
 ## Checking it
 
 ```
-pytest -q                          # 410 tests: one per finding, every worked example in docs/statistics.md, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, dates, the outcome window and new columns (the one that opens the window skips without a display)
-python tools/mutation_check.py     # puts 133 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 430 tests: one per finding, every worked example in docs/statistics.md, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher, the pre-spec, the add-on check, the Look tab, dates, the outcome window and new columns, the pre-spec checks, the pocket budget, the prevalence table (the one that opens the window skips without a display)
+python tools/mutation_check.py     # puts 164 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

@@ -36,13 +36,15 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from . import config as cfgmod
 from . import control, engine, meanings, memory, perm, profile, stats
+from . import checks, confirmatory, prevalence          # fixes 3.12 and 3.15 to 3.18
 from .ingest import Table, read_table
 
 INK, CANVAS, SLATE, PAPER, NEEDS = "16130F", "F4F1EC", "57534B", "FFFFFF", "FCE4C4"
 WORSE_FILL, LUCK_FILL = "F7DEDE", "FFF1D6"
 GREEN, RED = "63BE7B", "F8696B"
 INPUT_TABS = ("Start here", "Control", "Columns", "Look", "Odd values", "Learned")
-RESULT_TABS = ("Where it bleeds", "Losses vs revenue", "Grids", "Split", "Three-way", "Materiality", "Check", "Log")
+RESULT_TABS = ("Where it bleeds", "Losses vs revenue", "Grids", "Split", "Prevalence", "Three-way", "Materiality",
+               "Check", "Log")
 LOG_FIRST = 4            # the newest line on the Log tab
 HELPERS = ("_options", "_meanings", "_about")
 ABOUT = "_about"
@@ -295,6 +297,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
             if own not in (None, "n/a"):
                 r[control.OWN_COL - 1].value = own
     control.write_derived(wb, number_cols, kept["derived"])
+    control.write_prespec(wb, kept["control"].get(control.PRESPEC_KEY, (None, None))[0])     # fix 3.15
     if kept["last_used"]:
         # what the last Run used stays through Set up again (the sixth walk, defect 6)
         cws = wb[control.SHEET]
@@ -699,6 +702,7 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
         pattern, _, value = str(r[6]).partition("|")
         questions.append({"column": r[1], "pattern": pattern, "value": float(value) if value else None,
                           "rows": r[3] or 0, "answer": r[4] or None})
+    held_to = confirmatory.read(wb, book, problems)          # fix 3.15: the pre-spec named on Control, if any
     if problems:
         return None, problems, about
     if split:
@@ -757,6 +761,7 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
     about["_edge_cells"] = edge_cells
     about["_suggest"] = {k for k in ("min_loans", "worse_at", "better_at") if use.get(k) in ("calc", "luck")}
     about["_use"] = dict(use)
+    about["_prespec"] = held_to
     return raw, [], about
 
 
@@ -998,6 +1003,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     except perm.NumpyMissing as exc:
         _log(book, ["Couldn't run:", str(exc)])
         return Outcome(False, book, [f"Couldn't run: {exc}"])
+    checks.attach(book, about, res)             # fixes 3.12, 3.15: the pre-spec's state and the edges on Columns
     forgotten = memory.apply_review(book, memory_path)[1]
     dropped = {g.split(" ", 1)[1] for g in forgotten if g.startswith("column ")}
     if dropped:
@@ -1020,12 +1026,14 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if per_pocket(res):
         head += "# revenue_line: each pocket's own test (profit counts only when its gap is significant)\n"
     head += _dates_head(res)
+    head += confirmatory.what_ran(res)
     if isinstance(raw.get("benchmark"), dict) and cfg.benchmark is not None:
         raw["benchmark"].setdefault("shuffles", cfg.benchmark.shuffles)
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     lines = notes + [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."]
     lines += _top_lines(res)
     lines += _date_lines(res)
+    lines += confirmatory.launcher_lines(res)
     # the same rows the tab shades blue (its flag), and pockets counted once (the seventh walk, defect 7:
     # "58 pockets" was 58 rows from 23 pockets)
     blue = [(gi, key) for gi, g in enumerate(res.grids) for key, c in g.inner() for m in res.measures
@@ -1215,6 +1223,7 @@ def _write_results(book: Path, res, memory_path, src: Path, forgotten: set[str] 
                  if note and pt else "")
         _bleeds(wb.create_sheet("Three-way"), res, res.three_way, "Three-way",
                 f"Pockets split by {sf}, each tested like any other pocket,", note, after)
+    prevalence.write(wb, res)                   # fix 3.12: only with a split or a new column
     _materiality_tab(wb.create_sheet("Materiality"), res)
     _check(wb.create_sheet("Check"), res, src, f"{book.stem} - what ran.yaml")
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -1243,6 +1252,7 @@ def _write_results(book: Path, res, memory_path, src: Path, forgotten: set[str] 
     _order(wb)
     wb.save(book)
     _log(book, [f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."] +
+         confirmatory.log_lines(res) +          # fix 3.15: held to a pre-spec, and whether it touched the holdout
          [f"Warning: {_plain_warning(w)}" for w in res.warnings])
 
 
@@ -2245,6 +2255,7 @@ def _check(ws, res, src: Path, record: str = "") -> None:
         rows.append((q, words))
     for w in res.warnings:
         rows.append(("Warning", _plain_warning(w)))
+    rows += checks.rows(res)                    # fixes 3.15 to 3.18: pre-spec, pocket budget, families, products
     for i, (k, v) in enumerate(rows, start=4):
         ws.cell(row=i, column=2, value=k).alignment = Alignment(wrap_text=True, vertical="top")
         ws.cell(row=i, column=2).font = Font(name="Calibri", bold=True)
