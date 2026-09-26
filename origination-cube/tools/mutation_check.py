@@ -343,6 +343,18 @@ muts = [
  ("prevalence tab not written", B, '    prevalence.write(wb, res)', '    pass', "prevalence_tab_counts"),
  ("words run into numbers", B, '            for col in (11, 17, 19):\n                ws.cell(row=r, column=col).alignment = Alignment(indent=1)',
   '            for col in ():\n                pass', "words_after_a_number"),
+ # 26 Sep 2026: the final check's wording finding, F9 (tests/test_tab_wording.py)
+ ("split test named, not explained", B,
+  'f"Cochran-Mantel-Haenszel, which asks whether an odds ratio this far from 1 could "\n' + ' ' * 30
+  + 'f"come from shuffling loans within their pockets. It has no continuity correction: "\n' + ' ' * 30
+  + 'f"nothing is taken off the gap between actual and expected before it is squared. "\n' + ' ' * 30
+  + 'f"That is the modern form."))', 'f"Cochran-Mantel-Haenszel, with no continuity correction."))', "split_test_asks"),
+ ("ruling number back on Check", B, '"charge-offs taken out. If RANR nets recoveries instead, "',
+  '"charge-offs taken out (OC-35). If RANR nets recoveries instead, "', "no_ruling_number"),
+ ("dollar rate answers same size", B, '        return "not tested: dollar rate"', '        return "yes/no outcome only"',
+  "same_size_is or same_size_says"),
+ ("D3 outlives the check", B, '    elif "Columns" in wb.sheetnames:\n        # a Run needs C3 = Yes',
+  '    elif False:\n        # a Run needs C3 = Yes', "retires_the_ask"),
  # 26 Sep 2026: the adversarial pass's four findings, fixed (tests/test_adversarial_2026_09_26.py)
  ("the bar not rounded", S, '    return round(1.0 - confidence, 12)', '    return 1.0 - confidence', "at_the_bar"),
  ("Q about the pooled ratio again", S,
