@@ -367,6 +367,7 @@ class RateStat:
     smallest_gap: float | None = None   # the smallest gap this pocket could show: a multiple, or a difference
     events: int = 0                     # loans whose top is not zero: losses, for a loss rate
     flag: str | None = None             # the reading that decides, per `compare_to`
+    alone: bool = False                 # under peers, the only pocket in its band: flagged against the book
     material: bool | None = None        # excess at or over the materiality line (None: not applied)
     # which test gave p_book and p_band (docs/statistics.md): "z" (A1), "exact" (B1, a pocket under
     # fewest loans), "shuffle" (B2, a dollar rate); None when nothing was tested
@@ -1264,6 +1265,7 @@ def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
             for k, p in zip(keys, adj):
                 setattr(cells[k].rates[m.name], attr, p)
         mat = materiality_line.get(m.name)
+        mates = Counter(b for b, d in cells if b != ALL and d != ALL)
         # profit is read in points by the profit line on Control, on every tab (OC-32; NEXT-GOAL 3.2)
         line = profit_line(bench, materiality_line.get("gco_rate")) if m.in_points else None
         for (b, d), c in cells.items():
@@ -1284,7 +1286,10 @@ def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
                     s.reading_median = reading_of(s.vs_median, s.units, bench, floor, tested=False, **kw)
                     s.reading_band = reading_of(s.vs_band, s.units, bench, floor, s.p_band, **kw)
                 if bench.compare_to == "peers":
-                    s.flag = s.reading_band
+                    # nothing in its band to compare it with, so the rest of the book (the firm, 26 Sep 2026)
+                    s.alone = mates[b] == 1
+                    if not s.alone:
+                        s.flag = s.reading_band
             if mat is not None and s.excess is not None:
                 s.material = s.excess > 0 and s.excess >= mat
 

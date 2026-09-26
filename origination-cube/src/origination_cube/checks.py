@@ -53,8 +53,10 @@ def attach(book, about: dict | None, res) -> None:
 
 def rows(res) -> list[tuple[str, str]]:
     """Every newer Check line, in order: the pre-spec first (it says what this
-    run is held to), then the budget and coverage, the families, the products."""
-    return confirmatory.check_rows(res) + budget_rows(res) + family_rows(res) + product_rows(res)
+    run is held to), then the budget and coverage, the families, the pockets alone in
+    their band, the products."""
+    return (confirmatory.check_rows(res) + budget_rows(res) + family_rows(res) + alone_rows(res)
+            + product_rows(res))
 
 
 # --------------------------------------------------------------------------
@@ -182,6 +184,16 @@ def family_rows(res) -> list[tuple[str, str]]:
         out.append(("Reading a single red", f"Each family gets its own allowance for many tests, not one for the "
                                             f"whole run. So a single red across {n:,} families is weak evidence."))
     return out
+
+
+def alone_rows(res) -> list[tuple[str, str]]:
+    """Under the rest of its band, the pockets with nothing else in their band: each was compared with
+    the rest of the book instead (the firm, 26 Sep 2026). Counted once, whatever the rate."""
+    k = sum(1 for g in (*res.grids, *res.three_way) for _, c in g.inner() if any(s.alone for s in c.rates.values()))
+    if not k:
+        return []
+    return [("Alone in its band", f"{_n(k, 'pocket')} had no other pocket in its band, so "
+                                  f"{'it was' if k == 1 else 'they were'} compared with the rest of the book.")]
 
 
 # --------------------------------------------------------------------------
