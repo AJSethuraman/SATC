@@ -67,11 +67,15 @@ C_MADE = 16              # hidden: for a new column made on Control, what Set up
 SHOW_OPTIONS = ("median", "average")
 PERIOD_OPTIONS = {"per year": "per_year", "per month": "per_month", "one-time": "one_time"}
 #: What are you running? (Control's first row; the firm, 26 Sep 2026.) Each answer's own minimum of columns:
-#: where the book bleeds never needs a date; testing a new variable needs the origination date to tell the loans
-#: kept back from the rest. The follow-up, scout first or test from a pre-spec, is asked only for a new variable.
+#: where the book bleeds needs the five core columns and never a date; testing a new variable needs only what it
+#: uses: the key, the outcome, and the origination date that tells the loans kept back from the rest (the tested
+#: column and the pre-spec's strata are checked against Columns below). Its booked amount, GCO and RANR are
+#: optional (the firm, 26 Sep 2026: "what's the point in that if you are searching for possibly important
+#: variables to the outcome?"). The follow-up, scout first or test from a pre-spec, is asked only for a new
+#: variable.
 RUN_KIND, STEP = "run_kind", "new_variable_step"
 BLEED, NEW_VARIABLE, SCOUT, FROM_PRESPEC = "bleed", "new_variable", "scout", "prespec"
-NEEDS_COLUMNS = {BLEED: cfgmod.CORE, NEW_VARIABLE: cfgmod.CORE + ("origination_date",)}
+NEEDS_COLUMNS = {BLEED: cfgmod.CORE, NEW_VARIABLE: cfgmod.TESTING_CORE + ("origination_date",)}
 
 
 @dataclass
@@ -266,6 +270,11 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     qs = [q for c in cols for q in c.questions]
     open_qs = [q for q in qs if not memory.answer_for(mem, q["column"], q["pattern"], q["value"])]
     looks = meanings.review(table, sugg, open_qs, cat, answer_where="on the Odd values tab")
+    if control.answer_of(RUN_KIND, *kept["control"].get(RUN_KIND, (None, None))) == NEW_VARIABLE:
+        # a test of a new variable doesn't use the dollar columns, so their absence isn't news (the firm: "don't
+        # note what it does not include, just note what it does")
+        absent = tuple(f"No column was found for {cat[m].label} " for m in cfgmod.DOLLARS)
+        looks = [rv for rv in looks if not (rv.kind == "cannot run" and rv.says.startswith(absent))]
     new_cols = [c for c in table.columns if kept["columns"] and c not in kept["columns"]]
     gone_cols = [c for c in kept["columns"] if c not in table.columns]
 
@@ -773,6 +782,8 @@ def read_book(book: Path, memory_path=None) -> tuple[dict | None, list[str], dic
                       "materiality": use["materiality"], "revenue_line": use["revenue_line"]},
         "questions": questions or [],
     }
+    if use.get(RUN_KIND) == NEW_VARIABLE:
+        raw["run_kind"] = NEW_VARIABLE              # its dollar columns are optional (cfgmod.RUN_KINDS)
     if split:
         name, code, _ = split[0]
         raw["split"] = {"field": name, "how": "each_value" if cat[code].cut == "dimension" else "own_median"}
@@ -1245,7 +1256,10 @@ def _write_results(book: Path, res, memory_path, src: Path, forgotten: set[str] 
             del wb[t]
     _learned_tab(wb, memory_path)
     _bleeds(wb.create_sheet("Where it bleeds"), res)
-    _losses_vs_revenue(wb.create_sheet("Losses vs revenue"), res)
+    have = {m.name for m in res.measures}
+    if res.config.benchmark is None or {"gco_rate", "ranr_rate", "contribution_rate"} <= have:
+        # a test of a new variable run without GCO and RANR has nothing to put on it, so there is no tab
+        _losses_vs_revenue(wb.create_sheet("Losses vs revenue"), res)
     _grids(wb.create_sheet("Grids"), res)
     if res.config.split:
         _split_tab(wb.create_sheet("Split"), res)
@@ -1400,16 +1414,22 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
     b = res.config.benchmark
     peers = bool(b and b.compare_to == "peers")
     names = _names(res)
+    # a test of a new variable may run without RANR, or without any dollar rate (Goal 2 item 2): the note then
+    # says nothing about profit or shuffles
+    profit, dollar_rates = _has_profit(res), _has_dollar_rates(res)
     _title(ws, title, "", "B:U" if note_of else "B:T")
     ws["B2"] = live.text(
-        f"{lead} losing more than their share (profit: falling short of it), largest first. Each pocket is "
-        f"compared with ", JUDGED, ": that decides the flag, the excess, whether it is material and the order. ",
+        f"{lead} losing more than their share{' (profit: falling short of it)' if profit else ''}, largest first. "
+        f"Each pocket is compared with ", JUDGED, ": that decides the flag, the excess, whether it is material and "
+        f"the order. ",
         ('IF(judged_band,"Excess over the book","Excess over its band")',),
-        f" is beside it for reference. Profit is a gap in points, judged by the profit line on Control. Red: "
-        f"worse. Amber: worse, not significant. Blue: material, but too few losses to test, so look by hand. "
-        f"p-value: the chance of a gap this big with no real difference, after the allowance for many tests (see "
-        f"Check). Test: which test ran; for a dollar rate, how many shuffles made a gap as big against ", JUDGED,
-        f".{after}")
+        f" is beside it for reference."
+        + (" Profit is a gap in points, judged by the profit line on Control." if profit else "")
+        + " Red: worse. Amber: worse, not significant. Blue: material, but too few losses to test, so look by hand. "
+        "p-value: the chance of a gap this big with no real difference, after the allowance for many tests (see "
+        "Check). Test: which test ran" + ("; for a dollar rate, how many shuffles made a gap as big against "
+                                          if dollar_rates else "."),
+        *((JUDGED, ".") if dollar_rates else ()), after)
     ws.row_dimensions[2].height = 58
     _in_use(ws, SORTED_NOTE, "U" if note_of else "T")
     first_h = ('IF(judged_band,"Excess over its band","Excess over the book")',)
@@ -1583,6 +1603,17 @@ def profit_line(res):
     line in GCO dollars for the dollar option."""
     b = res.config.benchmark
     return engine.profit_line(b, res.materiality_line.get("gco_rate")) if b is not None else None
+
+
+def _has_profit(res) -> bool:
+    """Whether the run has a profit rate. A test of a new variable may run without RANR (Goal 2 item 2), and then
+    no tab says anything about profit."""
+    return any(m.name in cfgmod.PROFIT for m in res.measures)
+
+
+def _has_dollar_rates(res) -> bool:
+    """Whether the run has any rate in dollars, so a shuffle test to describe; not without the dollar columns."""
+    return any(m.is_rate and m.name != "outcome_loans" for m in res.measures)
 
 
 def per_pocket(res) -> bool:
@@ -2025,8 +2056,9 @@ def _grids(ws, res) -> None:
     side by side."""
     names = _names(res)
     _title(ws, "Grids", "Each grid three ways: the rate, the rate against the book, and the rate against the rest "
-                        "of the same band. Red is worse, green is better. Profit and contribution are compared as a "
-                        "gap in points, and less is red.", "B:Z")
+                        "of the same band. Red is worse, green is better."
+                        + (" Profit and contribution are compared as a gap in points, and less is red."
+                           if _has_profit(res) else ""), "B:Z")
     _in_use(ws, "Nothing on this tab moves with them: the colours are the gaps themselves, and a blank is a pocket "
                 "with fewer losses than fewest losses, which takes effect on the next Run.", "Z", 30)
     width = max((len(x.dim_labels) + 3 for x in res.grids), default=6)
@@ -2192,22 +2224,28 @@ def _split_tab(ws, res) -> None:
     conf = b.confidence if b else 0.95
     allowance = {"bh": "Benjamini-Hochberg", "bonferroni": "Bonferroni", "none": "none"}.get(
         b.many_tests if b else "none", "none")
+    # a test of a new variable may run without RANR, or without any dollar rate (Goal 2 item 2): then the note
+    # says nothing about profit or shuffles
+    profit, dollar_rates = _has_profit(res), _has_dollar_rates(res)
     # said once, here, instead of repeated under every grid (asked for on 25 Sep 2026)
     how_rows = [
         ("What it does", f"Inside each pocket (one band, one segment) the loans are sorted by {field_} and cut at "
                          f"that pocket's own median. The high half is compared with the low half, so the band and "
                          f"segment are the same on both sides. {field_} isn't cut into bands of its own while it "
                          f"splits."),
-        ("High half vs low", "The high half's rate divided by the low half's: 2.00x means the high half goes bad, "
-                             "or loses, twice as often. Profit and contribution are a gap in points instead: "
-                             "+0.30 pts means the high half keeps 0.30 points more per booked dollar."),
+        ("High half vs low", "The high half's rate divided by the low half's: 2.00x means the high half goes bad"
+                             + (", or loses," if dollar_rates else "") + " twice as often."
+                             + (" Profit and contribution are a gap in points instead: +0.30 pts means the high half "
+                                "keeps 0.30 points more per booked dollar." if profit else "")),
         ("p-value", live.text("The chance of a gap at least this big if the two halves were no different. Below ",
                               ('TEXT(significance_bar,"0%")',), " is significant. "
                               f"For the yes/no outcome's share of loans the test measures "
                     f"the gap in standard errors (how far a rate from this many loans typically lands from its "
-                    f"true value); for a dollar rate the loans are dealt into the two halves at random inside "
-                    f"their pocket, {b.shuffles if b else 0:,} times, and the p-value is how often that made a gap "
-                    f"as big. The pocket figures (the heat maps) are after the allowance for many tests "
+                    f"true value)"
+                    + (f"; for a dollar rate the loans are dealt into the two halves at random inside "
+                       f"their pocket, {b.shuffles if b else 0:,} times, and the p-value is how often that made a gap "
+                       f"as big" if dollar_rates else "")
+                    + f". The pocket figures (the heat maps) are after the allowance for many tests "
                     f"({allowance}), across the pockets of one grid and one measure; a gap that is not "
                     f"significant is shown in brackets, unshaded. The summary's figure is one pooled test per "
                     f"grid and measure, with no allowance. Blank: a half has fewer loans or losses than the "
@@ -2215,9 +2253,10 @@ def _split_tab(ws, res) -> None:
                     f"losses).")),
         ("Pooled across pockets", live.text(f"The high halves' actual total against what it would be at their "
                                             f"low halves' rates, added over every pocket, with its range at ",
-                                            ('TEXT(confidence,"0%")',), f" sure. For profit "
-                                  f"and contribution the difference is taken over the high halves' booked dollars, "
-                                  f"in points. For the yes/no outcome only, the odds are pooled too "
+                                            ('TEXT(confidence,"0%")',), " sure. "
+                                  + ("For profit and contribution the difference is taken over the high halves' "
+                                     "booked dollars, in points. " if profit else "")
+                                  + f"For the yes/no outcome only, the odds are pooled too "
                                   f"(Mantel-Haenszel: a standard way to combine pockets without mixing their "
                                   f"loans), with their p-value (Cochran-Mantel-Haenszel), and Cochran's Q checks "
                                   f"whether the gap is about the same size in every pocket.")),
@@ -2369,8 +2408,9 @@ def _materiality_tab(ws, res) -> None:
     _title(ws, "Materiality", "", "B:F")
     ws["B2"] = live.text("What each materiality level would keep: how many pockets, and how much of the grid's "
                          "excess they hold. The excess is over ", JUDGED, ", the comparison that decides the flag. "
-                         "The level itself is set on Control. A profit shortfall is held to the same dollar line "
-                         "as GCO.")
+                         "The level itself is set on Control."
+                         + (" A profit shortfall is held to the same dollar line as GCO."
+                            if _has_profit(res) else ""))
     _in_use(ws, "The pockets kept and their share follow what a pocket is judged against; the levels are shares "
                 "of the book, so they don't move.", "F")
     kept_rng, grid_rng, rate_rng, kind_rng = (live.pockets_range(c) for c in (live.P_DOLLARS, live.P_GRID,
@@ -2435,6 +2475,8 @@ def _check(ws, res, src: Path, record: str = "") -> None:
     if ran:
         rows.insert(2, ("What was run", ran))
     lv = live.ensure(ws.parent, res)
+    # a test of a new variable may run without the dollar columns: then no profit and no dollar rate is on Check
+    profit, dollar_rates = _has_profit(res), _has_dollar_rates(res)
     first_live = None
     if res.config.benchmark is not None:
         # the lines in use now, beside what the last Run used (OC-40): a line changed on Control since the Run
@@ -2446,6 +2488,8 @@ def _check(ws, res, src: Path, record: str = "") -> None:
         for label, r in (("The loss line: worse at", live.L_WORSE), ("The loss line: better at", live.L_BETTER),
                          ("The profit line", live.L_PKIND), ("Confidence", live.L_CONF),
                          ("Materiality", live.L_MKIND), ("Judged against", live.L_BAND)):
+            if r == live.L_PKIND and not profit:
+                continue
             rows.append((label, f"='{live.LIVE_SHEET}'!$E${r}", lv.last.get(r)))
         last_live = len(rows) + 3
         for m in res.measures:
@@ -2529,10 +2573,13 @@ def _check(ws, res, src: Path, record: str = "") -> None:
     if b is not None:
         # which test gave each p-value (docs/statistics.md; OC-36 asks Check to name the split's)
         rows.append(("Tests", f"Outcome, share of loans: the z test, pooled, for a pocket of {b.min_units:,} loans "
-                              f"or more, and the exact test (Fisher's) below that. Every dollar rate: the loans are "
-                              f"shuffled {b.shuffles:,} times, within the band for the rest of its band; the Test "
-                              f"column says how many shuffles made a gap as big. Profit and contribution are "
-                              f"compared as a gap in points, never a multiple. The split's odds: "
+                              f"or more, and the exact test (Fisher's) below that."
+                              + (f" Every dollar rate: the loans are shuffled {b.shuffles:,} times, within the band "
+                                 f"for the rest of its band; the Test column says how many shuffles made a gap as "
+                                 f"big." if dollar_rates else "")
+                              + (" Profit and contribution are compared as a gap in points, never a multiple."
+                                 if profit else "")
+                              + f" The split's odds: "
                               f"Cochran-Mantel-Haenszel, which asks whether an odds ratio this far from 1 could "
                               f"come from shuffling loans within their pockets. It has no continuity correction: "
                               f"nothing is taken off the gap between actual and expected before it is squared."))
@@ -2555,6 +2602,7 @@ def _check(ws, res, src: Path, record: str = "") -> None:
                                                    "contribution is overstated by the recoveries."))
     if b is not None:
         rows.append(("Decides each pocket", decides(res)))
+    if b is not None and profit:
         said = (f"='{live.LIVE_SHEET}'!$E${live.L_PKIND}&IF(profit_kind=\"test\",\": only a gap that is "
                 f"significant at \"&TEXT(confidence,\"0%\"),\"\")")
         if b.revenue_line is None:

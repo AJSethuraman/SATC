@@ -213,15 +213,29 @@ the exception: it waits on the redesign, and the goal ends with it handed over, 
 **Proceeding autonomously, in this order, unless the firm says otherwise.** The firm's gates still
 stop the work: anything a client or the bank reads that changes meaning, and any new tenet.
 
-- [ ] **1. 4b + 4e.** K groups with their own edges (Mantel–Haenszel general association and trend,
+- [x] **1. 4b + 4e.** K groups with their own edges (Mantel–Haenszel general association and trend,
       cross-checked against conditional logistic regression), develop on one origination range and
       confirm on a later one; concentration (flag rate, capture, lift) on the holdout. Check stops
       reading "deviates" on the reference group. The cliffs are planted in the second synthetic book
       (`test_generic.py`) as well as the first, so finding them is not the code agreeing with its own
-      fixture (S32, S18).
-- [ ] **2. The new-variable run needs only what it uses:** key, outcome, origination date, the tested
+      fixture (S32, S18). *(Done 26 Sep 2026. The auto book, dated: US-style contract dates, its own
+      edges and reference, cliffs of x3 below 0.05 and x2.5 from 1.50, planted on each loan's odds
+      where the first book plants them on the ratio. A "Test from a pre-spec" run finds both on
+      development and confirms both on the holdout. The same loans with no cliff are not confirmed on
+      either range, although the worst dealer's loans crowd the lowest group, so the book as a whole
+      reads a difference there. Two planted bugs: dates read only year-month-day, which the first
+      book's goal tests pass, and the pockets forgotten, which the clean copy catches.)*
+- [x] **2. The new-variable run needs only what it uses:** key, outcome, origination date, the tested
       columns and strata. Booked, GCO and RANR become optional for it; 4e shows dollars only when they
-      are there. OC-14 and the run-kind entry are amended where they sit (S13).
+      are there. OC-14 and the run-kind entry are amended where they sit (S13). *(Done 26 Sep 2026.
+      Set up says nothing about the dollar columns once the run is a new variable, and the Run goes
+      through without them; the bleed analysis still refuses, naming each. 4e shows GCO whenever
+      there is a GCO column, booked or not. A run without them writes no Losses vs revenue tab, and
+      its other tabs and Check say nothing about profit, shuffled dollar rates or booked dollars. A
+      cube file says it with `run_kind: new_variable`. The second book's cliffs are confirmed from
+      its extract with the dollar columns taken out, figure for figure. Amended where the old
+      minimum stood: design.md OC-14 and Step 0, the README, Control's answer, the settings and
+      config comments, for-test-design.md, vba-findings.md and capabilities-scope.md 4e.)*
 - [ ] **3. Lean pre-spec.** An outcome plus a shortlist of inputs, each with bins and a reference;
       optional columns to hold fixed, each input reported with and without them (this is 4d); the
       allowance for many tests spread across the shortlist. Strata are suggested and left blank

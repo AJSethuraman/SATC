@@ -74,6 +74,9 @@ POCKET_HEADS = {
 P_FIRST = 4               # the first pocket row on _pockets
 
 # _live rows (column C: in use now, D: the last Run used, E: in words now, F: in words at the last Run)
+#: What a materiality share is of, in a run with no GCO (a test of a new variable without the dollar columns): the
+#: only rate it holds is the outcome's share of loans, whose line is a share of the book's loans with the outcome
+NO_GCO_SHARE = "loans with the outcome"
 L_WORSE, L_BETTER, L_CONF, L_BAR, L_BAND, L_MKIND, L_MSHARE, L_MGCO, L_PKIND, L_PLINE, L_GCO_TOTAL = range(5, 16)
 L_SENTENCE = 17
 L_LINES = 20              # the first rate's materiality line
@@ -278,7 +281,9 @@ def _write_live(wb, res, lv: Live) -> None:
                  f'TEXT(C{L_CONF}*100,"0.0"))&"% sure"'),
         L_BAND: f'IF(C{L_BAND},"the rest of its band","the rest of the book")',
         L_MKIND: (f'IF(C{L_MKIND}="none","no floor",IF(C{L_MKIND}="share",TEXT(C{L_MSHARE}*100,"0.0")&"% of the '
-                  f'book\'s GCO, $"&TEXT(C{L_MGCO},"#,##0"),"$"&TEXT(C{L_MGCO},"#,##0")&" of GCO"))'),
+                  + (f'book\'s GCO, $"&TEXT(C{L_MGCO},"#,##0")' if last.get("has_gco", True) else
+                     f'book\'s {NO_GCO_SHARE}"')
+                  + f',"$"&TEXT(C{L_MGCO},"#,##0")&" of GCO"))'),
         L_PKIND: (f'IF(C{L_PKIND}="test","each pocket\'s own test",IF(C{L_PKIND}="points",TEXT(C{L_PLINE}*100,'
                   f'"0.00")&" points either way","a gap of $"&TEXT(C{L_PLINE},"#,##0")&" either way (the '
                   f'materiality line)"))'),
@@ -294,12 +299,15 @@ def _write_live(wb, res, lv: Live) -> None:
         if r in L_NAMES:
             wb.defined_names[L_NAMES[r]] = DefinedName(L_NAMES[r], attr_text=f"'{LIVE_SHEET}'!$C${r}")
     ws.cell(row=L_SENTENCE, column=2, value="In use now, in one sentence (the result tabs show it at the top)")
+    # a test of a new variable run without RANR has no profit rate, so the sentence has no profit line in it
+    profit = any(m.name in PROFIT for m in res.measures)
     ws.cell(row=L_SENTENCE, column=3, value=(
-        f'="Lines in use now, from Control: "&E{L_WORSE}&" and "&E{L_BETTER}&" (the loss line); profit line "&'
-        f'E{L_PKIND}&"; "&E{L_CONF}&"; materiality "&E{L_MKIND}&"; judged against "&E{L_BAND}&"."'))
+        f'="Lines in use now, from Control: "&E{L_WORSE}&" and "&E{L_BETTER}&" (the loss line); '
+        + (f'profit line "&E{L_PKIND}&"; ' if profit else "")
+        + f'"&E{L_CONF}&"; materiality "&E{L_MKIND}&"; judged against "&E{L_BAND}&"."'))
     lv.last_sentence = (f"Lines the last Run used: {lv.last[L_WORSE]} and {lv.last[L_BETTER]} (the loss line); "
-                        f"profit line {lv.last[L_PKIND]}; {lv.last[L_CONF]}; materiality {lv.last[L_MKIND]}; "
-                        f"judged against {lv.last[L_BAND]}.")
+                        + (f"profit line {lv.last[L_PKIND]}; " if profit else "")
+                        + f"{lv.last[L_CONF]}; materiality {lv.last[L_MKIND]}; judged against {lv.last[L_BAND]}.")
     ws.cell(row=L_SENTENCE, column=4, value=lv.last_sentence)
     wb.defined_names[IN_USE] = DefinedName(IN_USE, attr_text=f"'{LIVE_SHEET}'!$C${L_SENTENCE}")
     # each rate's materiality line, as engine._materiality_lines draws it: a share of the book's total for a
@@ -341,7 +349,8 @@ def _last(res, gco_total: float) -> dict:
     line = engine.profit_line(b, gco_line)
     return {L_WORSE: b.worse_at, L_BETTER: b.better_at, L_CONF: b.confidence, L_BAR: stats.bar(b.confidence),
             L_BAND: b.compare_to == "peers", L_MKIND: kind, L_MSHARE: v if kind == "share" else 0.0,
-            L_MGCO: gco_line, L_PKIND: line.kind, L_PLINE: line.value, L_GCO_TOTAL: gco_total}
+            L_MGCO: gco_line, L_PKIND: line.kind, L_PLINE: line.value, L_GCO_TOTAL: gco_total,
+            "has_gco": "gco_rate" in res.total.rates}
 
 
 def lv_words(last: dict, r: int) -> str | None:
@@ -360,6 +369,8 @@ def lv_words(last: dict, r: int) -> str | None:
         k = last[L_MKIND]
         if k == "none":
             return "no floor"
+        if k == "share" and not last.get("has_gco", True):
+            return f"{last[L_MSHARE] * 100:.1f}% of the book's {NO_GCO_SHARE}"
         if k == "share":
             return f"{last[L_MSHARE] * 100:.1f}% of the book's GCO, ${last[L_MGCO]:,.0f}"
         return f"${last[L_MGCO]:,.0f} of GCO"
