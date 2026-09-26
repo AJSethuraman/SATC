@@ -50,8 +50,8 @@ def test_check_says_what_the_split_test_asks_and_which_form(split_book):
     # the name stays, so it can be looked up; what it asks and which form follow in plain words (A6)
     assert "Cochran-Mantel-Haenszel" in said
     assert "asks whether an odds ratio this far from 1 could come from shuffling loans within their pockets" in said
-    assert "no continuity correction: nothing is taken off the gap between actual and expected before it is " \
-           "squared. That is the modern form." in said
+    assert said.endswith("no continuity correction: nothing is taken off the gap between actual and expected "
+                         "before it is squared.")
     for s in re.split(r"(?<=\.) ", said):
         if "Cochran" in s or "continuity" in s:
             assert len(s.split()) <= 25, s
@@ -81,7 +81,7 @@ def test_same_size_is_not_tested_for_a_dollar_rate(split_book):
         while ws.cell(row=r, column=2).value:
             name, said = ws.cell(row=r, column=2).value, ws.cell(row=r, column=h.column).value
             if name == "Outcome, share of loans":
-                assert said in ("yes", "no: bigger in some pockets"), said        # tested: an answer
+                assert said in ("no sign they differ", "no: bigger in some pockets"), said        # tested: an answer
             else:
                 assert said == "not tested: dollar rate", (name, said)
             # wider than its column: it wraps there, or the p-value beside it cuts it off on the page
@@ -101,7 +101,8 @@ def test_same_size_says_why_the_outcome_was_not_tested():
     # pockets enough, but the high halves had none with the outcome: pooled odds 0, and Q can't be worked out
     assert book._same_size(outcome, {"pockets": 4, "odds": 0.0}, 0.95) == "not tested: couldn't be worked out"
     assert book._same_size(gco, {"pockets": 6}, 0.95) == "not tested: dollar rate"
-    assert book._same_size(outcome, {"steady_p": 0.5}, 0.95) == "yes"
+    # A8: not significant is "no evidence the pockets disagree", never "proof they agree", so never a plain yes
+    assert book._same_size(outcome, {"steady_p": 0.5}, 0.95) == "no sign they differ"
     assert book._same_size(outcome, {"steady_p": 0.001}, 0.95) == "no: bigger in some pockets"
 
 

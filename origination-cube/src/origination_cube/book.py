@@ -1949,7 +1949,8 @@ def _same_size(m, pooled: dict, conf: float) -> str:
     and why; "yes/no outcome only" there read as an answer (the final check, F9)."""
     steady = pooled.get("steady_p")
     if steady is not None:
-        return "yes" if not stats.significant(steady, conf) else "no: bigger in some pockets"
+        # A8: a Q that isn't significant is "no evidence the pockets disagree", never "proof they agree"
+        return "no sign they differ" if not stats.significant(steady, conf) else "no: bigger in some pockets"
     if not engine.yes_no(m):
         return "not tested: dollar rate"
     return "not tested: too few pockets" if pooled.get("pockets", 0) < 2 else "not tested: couldn't be worked out"
@@ -2252,8 +2253,7 @@ def _check(ws, res, src: Path, record: str = "") -> None:
                               f"compared as a gap in points, never a multiple. The split's odds: "
                               f"Cochran-Mantel-Haenszel, which asks whether an odds ratio this far from 1 could "
                               f"come from shuffling loans within their pockets. It has no continuity correction: "
-                              f"nothing is taken off the gap between actual and expected before it is squared. "
-                              f"That is the modern form."))
+                              f"nothing is taken off the gap between actual and expected before it is squared."))
         # the words the tabs use, defined once (docs/statistics.md, conventions; NEXT-GOAL 3.1)
         rows.append(("p-value", f"The chance of a gap at least this big if there were no real difference, after "
                                 f"the allowance for many tests. Below {1 - b.confidence:.0%} is significant, at "

@@ -164,13 +164,29 @@ touches the arithmetic.
 | F2 | Fixed | README, BACKLOG and `stats.py` say 8 of the 12 worked examples are reproduced, the 8 for tests the cube runs; B3–B7 wait on 4a–4e |
 | F3 | Fixed | New ruling OC-38 records the switch to profit after losses in points, and OC-30, OC-31 and the Losses vs revenue note each say what it superseded |
 | F4 | Fixed | The count was 4 red + 27 clean + 2 reported but not filed = 33. design.md now names the 2; one of them is a question on the hand-back |
-| F5 | Being fixed | Check's holdout deviation line |
+| F5 | Fixed, with tests | Check says what differs: "The pre-spec's holdout is 2024-01-01 to 2024-12-31; this run used loans made 2021-06-30 to 2024-12-28, not only the holdout." What counts as a deviation is unchanged. When 4b is built, the comparison must use the range the run filtered to, not its first and last loan: a run on holdout loans alone would otherwise still read "only part of the holdout" |
 | F6 | Fixed, with a test | README names `Control!C18`. `test_the_readme_quotes_a_refusal_the_tab_really_gives` fails if the example stops matching a real refusal |
 | F7 | Fixed | `synth.py` says 2 points (`PREMIUM`) |
 | F8 | Fixed | `synth.py` says the riskiest band keeps the most across bands; losses cut profit within a band at one price |
-| F9 | Being fixed | The four wordings on Check, Split and Columns |
+| F9 | Fixed, with tests | Check says what the Cochran-Mantel-Haenszel test asks (A6) and what "no continuity correction" means. No ruling number or dated call is left on any tab. Split's "Same size in every pocket?" says "not tested: dollar rate" instead of looking like an answer. Columns!D3 stops asking for a re-check once a Run succeeds. **Also:** a not-significant Cochran's Q read "yes", which A8 rules out ("never proof they agree"), so it now reads "no sign they differ" |
 | F10 | Fixed | NEXT-GOAL's notes say numpy is required and the test-design file was committed. The firm's own item text is untouched |
 | F11 | Kept, note fixed | Each tab that uses "standard error" defines it in the same words, since each tab is read on its own. NEXT-GOAL 3.1's note now says so |
 | F12 | Fixed | `capabilities-scope.md` credits the script with AUC only; calibration is in `statistics-examples.py` |
-| F13 | Being fixed | Group names and the future date |
+| F13 | Fixed, with tests | Wherever the workbook names a pre-spec group, it uses the tabs' names from the data's range ("0.03 - 0.09", "2.00 - 6.44"), the highest group included. A pre-spec dated after the run gets a warning on Check, and the run goes on. The example is dated 2026-09-25. The file still accepts "up to 0.09" for `reference`; a refusal before the data is read still names groups that way, since there is no range yet |
 | F14 | Fixed | The audit gives the test's own p (1.5 × 10⁻¹¹) and the after-allowance figure (2.3 × 10⁻¹⁰), marked as corrected |
+
+**The fixes' own counts:** 454 tests (12 new) and 177 planted bugs (8 new, each
+caught alone). Two agents did the three code findings, one per area: F5 and F13
+(`prespec.py`, `confirmatory.py`), and F9 (`book.py`). The rest were fixed by hand.
+
+**Seen while fixing, outside the findings; left for the next walkthrough:**
+- Split's "How this tab works" notes have sentences of 40 to 60 words.
+- Check's Tests row: the dollar-rate sentence is about 30 words;
+  "within the band for the rest of its band" is hard to follow; "the z test" is
+  not explained.
+- Check's "Materiality line: Outcome, share of loans" reads "6.2 loans".
+- Some Check labels fill their column and nearly touch the value; some rows
+  render with a blank line under them.
+- On Columns, a new column's cell still says "New since the last check." and
+  stays shaded after the Run, and D3 says "Check them" when only one column is
+  new.

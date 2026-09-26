@@ -347,8 +347,10 @@ muts = [
  ("split test named, not explained", B,
   'f"Cochran-Mantel-Haenszel, which asks whether an odds ratio this far from 1 could "\n' + ' ' * 30
   + 'f"come from shuffling loans within their pockets. It has no continuity correction: "\n' + ' ' * 30
-  + 'f"nothing is taken off the gap between actual and expected before it is squared. "\n' + ' ' * 30
-  + 'f"That is the modern form."))', 'f"Cochran-Mantel-Haenszel, with no continuity correction."))', "split_test_asks"),
+  + 'f"nothing is taken off the gap between actual and expected before it is squared."))',
+  'f"Cochran-Mantel-Haenszel, with no continuity correction."))', "split_test_asks"),
+ ("steady pockets read as proof", B, '        return "no sign they differ" if not stats.significant(steady, conf)',
+  '        return "yes" if not stats.significant(steady, conf)', "same_size_says"),
  ("ruling number back on Check", B, '"charge-offs taken out. If RANR nets recoveries instead, "',
   '"charge-offs taken out (OC-35). If RANR nets recoveries instead, "', "no_ruling_number"),
  ("dollar rate answers same size", B, '        return "not tested: dollar rate"', '        return "yes/no outcome only"',

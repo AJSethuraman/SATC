@@ -1643,6 +1643,33 @@ back.
     its line, so the next stranded entry fails the ordinary suite instead.
     That test failed on the old list and passes on the new one. The suite now has
     442 tests.
+- [x] **The final check (NEXT-GOAL 6, 26 Sep 2026):**
+  `origination-cube/docs/final-check-2026-09-26.md`.
+  - **Who:** an agent that had not seen the work, on a clean copy of `a0f5bd1d`.
+    It checked facts against sources, reran the arithmetic and opened the workbook.
+  - **Result:** 206 claims checked. 181 held, 25 were wrong (14 findings), and 13
+    could not be checked. **No error in the cube's arithmetic:** every worked
+    example it runs matches `statistics.md`, scipy or statsmodels, and one pocket
+    recomputed by hand from the CSV equals the workbook to the dollar.
+  - **Every finding was fixed.**
+    - 11 were in what the docs say about the work (`84440bc`). Examples: the README
+      said the result tabs weren't built; "every worked example is tested" was 8
+      of 12.
+    - 3 were on the tabs, fixed by two agents with tests and planted bugs (merges
+      `c7a6e92`, `924fd7f`):
+      - F5: Check called the run's loan range "the holdout";
+      - F9: jargon, ruling numbers, and a stale ask on Columns;
+      - F13: one pre-spec group had two names, and a future date passed silently.
+    - **One more on the way:** Split answered "yes" to "Same size in every pocket?"
+      whenever Cochran's Q wasn't significant. `statistics.md` A8 says that is "never
+      proof they agree", so it now reads "no sign they differ".
+  - **New:** OC-38 records the switch to profit in points.
+  - **Counts:** 454 tests; 177 planted bugs.
+  - **For 4b:** the holdout line compares the run's first and last loan with the
+    pre-spec's range. Once a run can hold itself to the holdout, it must compare the
+    range it filtered to.
+  - **For the next walk:** the wording seen but not fixed is listed at the end of
+    the final check's file.
 - [ ] **After that:** the eighth walk on the new layout; the Claude Design hand-off;
       `cube drill` and `cube prove` (and put their settings back on the tab).
 - **Not checked:** real Excel, a real extract, and the bank machine
