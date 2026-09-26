@@ -47,6 +47,9 @@ After that, the whole routine is:
    - **Columns:** check what each column is. Anything shaded has its reason
      beside it. Fix any that's wrong from the dropdown, then set "Checked
      every column" to Yes.
+   - **Look:** each number column's smallest, median and largest value, its
+     most-repeated values, its blanks and codes, and a histogram. Read it
+     before typing band edges on Columns.
    - **Odd values:** answer real or missing where you can.
 4. Save, close the workbook, and press **2. Run the cube**. The results land in
    the workbook:
@@ -68,6 +71,8 @@ revolving debt moves with FICO, so a loan-size grid can't tell debt from score,
 and it says so with the number. A category repeats each grid once per value.
 Either way, every three-way pocket is tested and ranked on the **Three-way**
 tab. *Show per pocket* puts a column's median or average in every pocket.
+After a Run, the Look tab plots a split number against each band column, so
+you can see whether it only re-sorts the band.
 
 ![The Split tab: high revolving debt against low, inside each pocket](docs/split.png)
 

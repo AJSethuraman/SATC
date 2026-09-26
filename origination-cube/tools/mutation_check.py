@@ -112,6 +112,9 @@ muts = [
  ("small material pockets not pointed out", B, '    if small:\n        rows_said', '    if False:\n        rows_said',
   "too_small_to_test"),
  ("start here left stale", B, 'else f"{stamp}: {lines[0]}")', 'else stamp)', "start_here"),
+ # fix 3.8: the Look tab
+ ("look spreads over the code", "src/origination_cube/look.py", '    values = sorted(x for x in nums if x != code)',
+  '    values = sorted(nums)', "test_look"),
 ]
 bad = 0
 for name, f, old, new, sel in muts:
