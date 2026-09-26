@@ -9,6 +9,8 @@ the citation is, which is what `alongside` matches on and what the engine checks
 
 **Position:** elect the de minimis safe harbor; attach the election statement to the timely filed original return
 
+**Rests on:** "A taxpayer makes the election by attaching a statement to the taxpayer's timely filed original Federal tax return (including extensions) for the taxable year in which these amounts are paid."
+
 **Ratified:** the firm, 7 September 2026 — ratified on the sixth docket, unamended, once the field it waits on existed.
 
 **Unless:** capitalization_rule
@@ -83,6 +85,8 @@ what the firm decided to write down rather than in what this client was asked:
 **Citation:** IRS Tangible Property Final Regulations, "What is the de minimis safe harbor election?" · **Recorded:** 2026-09-05
 
 **Position:** $2,500 per invoice or per item; $5,000 where the client has an applicable financial statement
+
+**Rests on:** "If you have an applicable financial statement (AFS), you may use this safe harbor to deduct amounts paid for tangible property up to $5,000 per invoice or item (as substantiated by invoice). If you don't have an AFS, you may use the safe harbor to deduct amounts up to $2,500"
 
 **Ratified:** the firm, 7 September 2026 — ratified on the sixth docket, unamended.
 
@@ -159,6 +163,8 @@ what the firm decided to write down rather than in what this client was asked:
 
 **Position:** record the client's expensing policy and its effective date at engagement; a policy first written during the close does not support the safe harbour for that year
 
+**Rests on:** "The taxpayer has at the beginning of the taxable year accounting procedures treating as an expense for non-tax purposes"
+
 **Why:** The regulation conditions the safe harbour on procedures the taxpayer
 has *"at the beginning of the taxable year"*. A threshold agreed in March about
 last year is not that. This is the one part of Q4 that cannot be fixed at close
@@ -190,6 +196,8 @@ this position asks for it — but it asks for it as practice, not as law.
 
 **Position:** a reconciling item, no entry in the books
 
+**Rests on:** "Does not include deposits made after the statement date or checks that did not clear your account before the statement date."
+
 **Why:** In the firm's own words, 5 September 2026: *"we would not normally
 adjust cash ever in accounting when we would make it a reconciling item because
 we don't have cash. We don't say we have cash."* And: *"i account like an
@@ -219,6 +227,8 @@ it is not what settles them.
 
 **Position:** an entry in the books
 
+**Rests on:** "Make sure that your checkbook and books reflect all bank charges and the correct balance in the checking account, and Correct any errors in your bank statement, checkbook, and books."
+
 **Why:** The other half of the same convention, and the half that keeps it from
 being a rule against ever touching cash. A bank charge nobody entered, or a
 deposit entered for the wrong amount, is not a timing difference — it is
@@ -239,6 +249,8 @@ right move."*
 
 **Position:** three accounts at least, split by the answer and not by the vendor: food or beverages at 50 percent, food or beverages at 100 percent under a named exception, and entertainment at nothing. A charge goes to the 100 percent account only where the record names which exception in § 1.274-12(c)(2) is being claimed. A single "Meals and Entertainment" account is refused, because the two halves of its name now have different answers.
 
+**Rests on:** "The limitations on the deduction of food or beverage expenses in paragraph (a) of this section do not apply to any expense described in paragraph (c)(2) of this section."
+
 **Why:** The question this answers was put as a binary and the firm rejected the framing. In their own words, 5 September 2026, on Q5: *"I think that Book them or refuse them is too narrow of a question to me this is more like the first question in the sense that it is how many accounts do we need to account for what the client does and how do we find that out and what do we need to know anyway maybe these are the kinds of questions that we should be aware of or the agent should be like OK these are good follow-ups to a question like this and these are similar follow-ups to the question just before because whether or not it is deductible to a certain point also largely depends on who it was with when it was et cetera if it was travel it's almost definitely deductible as long as we trust the expense"*
 
 And on Q6, 5 September 2026: *"I'm just going to say the same thing as above like with the meals question you know entertainment slash meals they're very subjective in these natures so it makes more sense to maybe have some sort of like client rule but it also makes sense just generally speaking for the agent to ask a question that then provokes questions like OK well how many accounts may we need anyway"*
@@ -257,6 +269,8 @@ The regulation is what makes three the floor rather than a preference. § 1.274-
 
 **Position:** a charge at a bar, brewery or taproom is a food or beverage expense at 50 percent unless the record shows the drink was provided at or during an entertainment activity, in which case it follows the entertainment. Where the record shows neither, the line is held for the client to answer and is not booked to owner's draws on the strength of the vendor's name.
 
+**Rests on:** 26 CFR 1.274-11(b)(1)(ii) — "the term entertainment does not include food or beverages unless the food or beverages are provided at or during an entertainment activity."
+
 **Why:** The firm's words, 5 September 2026, on Q6: *"I'm just going to say the same thing as above like with the meals question you know entertainment slash meals they're very subjective in these natures so it makes more sense to maybe have some sort of like client rule but it also makes sense just generally speaking for the agent to ask a question that then provokes questions like OK well how many accounts may we need anyway"*
 
 The regulation cuts both ways here and that is why this is a position rather than a lookup. § 1.274-11(b)(1)(i), the citation above, names *"entertaining at bars"* in its own list of what entertainment means. But § 1.274-11(b)(1)(ii) says the term entertainment *"does not include food or beverages unless the food or beverages are provided at or during an entertainment activity."* A beer bought at a bar is a beverage; the bar becomes entertainment when there is an entertainment activity for it to be provided at or during. The vendor's merchant category does not decide which of those happened, and the closing agent's rule — breweries to owner's draws — decides it by the name over the door.
@@ -265,11 +279,16 @@ The regulation cuts both ways here and that is why this is a position rather tha
 
 ---
 
+**Rests on a different paragraph from the one it sits on, and says so (26 September 2026).** Sarcia pilot 3's second reader refused this position because § 1.274-11(b)(1)(i) DEFINES entertainment and names bars, which points the other way. It was right about the support and it is not a reason to move the position: a position answers every question that lands on its citation, so on (b)(1)(ii) it would answer a concession-stand or a stadium-suite question with the brewery rule. It stays where bars are named, and `Rests on:` names the paragraph that carries it, which is the one the reasoning above already quoted.
+
 ## POS8 · A supermarket charge is held, not booked, until the record says which exception is claimed
 
 **Citation:** 26 CFR 1.274-12(a)(1) · **Recorded:** 2026-09-05
 
 **Position:** groceries bought on a business card are food or beverages under § 1.274-12(b)(1) and are 50 percent at most, and 100 percent only where the record names the § 1.274-12(c)(2) exception relied on. Where nothing in the record establishes that the taxpayer or an employee was present and that the food went to the taxpayer or a business associate, the line is flagged for the client and is not booked either way.
+
+**Rests on:** "no deduction is allowed for the expense of any food or beverages provided by the taxpayer (or an employee of the taxpayer) unless [...] The taxpayer, or an employee of the taxpayer, is present at the furnishing of such food or beverages; and (iii) The food or beverages are provided to the taxpayer or a business associate."
+26 CFR 1.274-12(a)(2) — "the amount allowable as a deduction for any food or beverage expense described in paragraph (a)(1) of this section may not exceed 50 percent of the amount of the expense that otherwise would be allowable."
 
 **Why:** The firm's words, 5 September 2026, on Q7: *"the client had already told me that he could guarantee they were deductible and honestly I will believe the guy however this is a great question and I think that like the j.crew thing it may at least instead of being booked to owners drawers be flagged for attention or something"*
 
@@ -281,11 +300,15 @@ The regulation is only the floor. § 1.274-12(a)(1), the citation above, allows 
 
 ---
 
+**Rests on two paragraphs, and names both (26 September 2026).** Sarcia pilot 3's second reader refused this position because § 1.274-12(a)(1) contains no percentage. It was right: the hold rests on (a)(1) and the 50 percent on (a)(2). Moving the position to (a)(2) would answer every meal with a customer and every break-room question with the supermarket rule, so it stays, and `Rests on:` quotes both.
+
 ## POS9 · Airfare is not booked to Travel from a feed alone
 
 **Citation:** 26 CFR 1.162-2(a) · **Recorded:** 2026-09-05
 
 **Position:** an airline charge is held until the business reason for the trip is recorded. Booking it to Travel with the purpose still missing records a conclusion the file does not support, and the four elements § 1.274-5T(b)(2) requires — amount, time, place, business purpose — are cheap to get in the week of the trip and expensive to reconstruct in March.
+
+**Rests on:** "If the trip is undertaken for other than business purposes, the travel fares and expenses incident to travel are personal expenses"
 
 **Why:** **THE FIRM HAS SAID NOTHING ON THIS.** Q13 is one of the twenty-three in `docs/CLOSE-QUESTIONS-2026-09-05.md` that carries no response, so unlike POS1 through POS3 there are no words of theirs to quote and this proposal is the agent's alone. It is recorded here rather than acted on for exactly that reason.
 
@@ -300,6 +323,8 @@ The closing agent's call — booked to Travel pending a stated purpose — puts 
 **Citation:** 26 CFR 1.262-1(b)(8) — the test for a serviceman's equipment · **Recorded:** 2026-09-05
 
 **Position:** ask what the item is and what the profession requires; who sold it is evidence about what was bought and never the answer
+
+**Rests on:** "to the extent that such equipment is especially required by his profession and does not merely take the place of articles required in civilian life."
 
 **Ratified:** the firm, 7 September 2026 — ratified on the fifth docket, unamended and with no note, against a recommendation to ratify it as drafted.
 
@@ -417,6 +442,8 @@ the money that left the account.
 
 **Position:** treat it as the owner's household expense, and ask whether any part of the home is used regularly and exclusively for the business before treating any part of it as the business's
 
+**Rests on:** "Expenses for utilities and services, such as electricity, gas, trash removal, and cleaning services, are primarily personal expenses. However, if you use part of your home for business, you can deduct the business part of these expenses."
+
 **Why:** THE FIRM HAS NOT SPOKEN ON THIS ONE. Q35 in
 `docs/CLOSE-QUESTIONS-2026-09-05.md` is one of the twenty-three they did not
 answer, so there is nothing of theirs to quote and this is a proposal in the
@@ -449,6 +476,8 @@ and 1.280A-3 each returned 404 from the eCFR versioner on 5 September 2026.
 **Citation:** PLR 201027015, LAW AND ANALYSIS · **Recorded:** 2026-09-05
 
 **Position:** an adjustment to the price paid, booked against the cost it arose from, and not income
+
+**Rests on:** "A rebate received by a buyer from the party to whom the buyer directly or indirectly paid the purchase price for an item is an adjustment in purchase price, not an accession to wealth, and is not includible in the buyer's gross income."
 
 **Needs:** taxpayer
 
@@ -567,6 +596,8 @@ individual desk. This is the business desk."*
 
 **Position:** the payor is not required to file an information return under section 6041
 
+**Rests on:** "Transactions that are described in paragraph (a)(1)(ii) of this section that otherwise would be subject to reporting under both sections 6041 and 6050W are reported under section 6050W and not section 6041."
+
 **Why:** The firm, on the 43 close questions, recorded 5 September 2026:
 *"this is fair I guess digging deeper and stuff makes sense and of course there
 are answers that could immediately make it like uh who cares which is kind of
@@ -632,7 +663,11 @@ Reworded 6 September 2026 on the firm's instruction: *"Reword POS2."*
 
 ## POS15 · When you cannot tell which rail a payment took, report it
 
-**Citation:** 26 CFR 1.6050W-1(c)(3) · **Recorded:** 2026-09-06
+**Citation:** SATC policy — a payment whose rail cannot be told is reported · **Recorded:** 2026-09-06
+
+**Kind:** firm policy
+
+**Applies at:** 26 CFR 1.6050W-1(c)(3)
 
 **Position:** where a payment for services shows no evidence it settled through a third party payment network, treat it as outside section 6050W and count it toward the $2,000 threshold
 
@@ -669,11 +704,15 @@ is this paragraph.
 goods-and-services rail (POS2 answers it) and a transfer known to be personal and
 not for services (section 6041 never reached it). Only the unknown middle.
 
+**Unpinned from 26 CFR 1.6050W-1(c)(3) on 26 September 2026**, after Sarcia pilot 3, the way POS11 was on the firm's `dec-pos2` answer: *"Firm policy, no citation — with two conditions."* Every position now has to quote the words it rests on, and no stored words carry this one: the paragraph defines a third party payment network and says nothing about a payment whose rail cannot be told, or about the $2,000 threshold. The entry's own reasoning already says the authority stops here and the firm decides. The position and the firm's words are unchanged. It is still shown wherever that paragraph comes up (`Applies at:`), so nothing that reached it before stops reaching it; it just no longer claims the paragraph as its authority. `Reviewed:` is open, so it serves marked as unchecked until somebody reads `ask.review_brief` against it.
+
 ## POS16 · Vehicle costs are booked to the lines the actual-expense method needs, and the reasoning is given with the count
 
 **Citation:** IRS Pub. 463 (2025), "Actual Car Expenses" · **Recorded:** 2026-09-05
 
 **Position:** book the components the actual-expense method itemises, and answer with the reasoning rather than with a number of accounts
+
+**Rests on:** "If you don't use the standard mileage rate, you may be able to deduct your actual car expenses. Actual car expenses include:"
 
 **Why:** The firm, 5 September 2026, on the question "should vehicle costs be one
 account or four?": *"OK so I don't think this is an inherently bad question but
@@ -707,7 +746,11 @@ depreciation-plus-interest pair. That is the choice being handed over.
 
 ## POS17 · Whose vehicle it is is established before a vehicle cost is booked at all
 
-**Citation:** 26 CFR 1.280F-6(d)(2)(i) · **Recorded:** 2026-09-05
+**Citation:** SATC policy — whose vehicle it is comes before any vehicle cost · **Recorded:** 2026-09-05
+
+**Kind:** firm policy
+
+**Applies at:** 26 CFR 1.280F-6(d)(2)(i)
 
 **Position:** ask who owns the vehicle, in whose name it is, and on what terms, before booking any vehicle cost
 
@@ -743,11 +786,15 @@ the document list, not a treatment.
 
 ---
 
+**Unpinned from 26 CFR 1.280F-6(d)(2)(i) on 26 September 2026**, after Sarcia pilot 3, the way POS11 was on the firm's `dec-pos2` answer: *"Firm policy, no citation — with two conditions."* Every position now has to quote the words it rests on, and no stored words carry this one: the paragraph defines qualified business use. It says what follows from ownership, not that ownership is asked first; asking first is the firm's practice. The position and the firm's words are unchanged. It is still shown wherever that paragraph comes up (`Applies at:`), so nothing that reached it before stops reaching it; it just no longer claims the paragraph as its authority. `Reviewed:` is open, so it serves marked as unchecked until somebody reads `ask.review_brief` against it.
+
 ## POS18 · The vehicle documents are requested by name, not inferred from the feed
 
 **Citation:** IRS Pub. 463 (2025), "What Are Adequate Records?" · **Recorded:** 2026-09-05
 
 **Position:** request the title or registration, the loan or lease agreement with its statements, the insurance declarations page, and the mileage log — before answering how the vehicle is treated
+
+**Rests on:** "You should keep the proof you need in an account book, diary, log, statement of expense, trip sheets, or similar record. You should also keep documentary evidence that, together with your record, will support each element of an expense."
 
 **Why:** The firm, 5 September 2026, connecting the loan question straight back to
 this subject: *"yeah this connects to the vehicle expenses there should be
@@ -785,6 +832,8 @@ for:
 
 **Position:** obtain the mileage figures; where they are absent, record the business-use percentage as unknown rather than expensing at 100%, and mark the line for the reviewer so the question is put to the client rather than left implicit
 
+**Rests on:** "the taxpayer shall allocate the use of the property on the basis of mileage."
+
 **Why:** The firm, 5 September 2026, on whether the vehicle is used for business
 only: *"this is a good question especially if we do their taxes we want it to be
 right either way"*
@@ -808,7 +857,11 @@ option that records an assumption as a fact.
 
 ## POS20 · Vehicle running costs with no vehicle on the books are a question, not a classification
 
-**Citation:** 26 CFR 1.62-2(c)(1) · **Recorded:** 2026-09-05
+**Citation:** SATC policy — vehicle costs with no vehicle on the books are an ownership question · **Recorded:** 2026-09-05
+
+**Kind:** firm policy
+
+**Applies at:** 26 CFR 1.62-2(c)(1)
 
 **Position:** treat twelve months of vehicle costs with no vehicle and no vehicle loan as an unanswered ownership question: assemble what the file already shows about the vehicle, put the ownership question to the client, and set the treatment on their answer rather than booking one now and correcting it later
 
@@ -831,3 +884,6 @@ recorded rather than covered over.** If they read Q17 differently from Q3, this
 entry is the one to strike.
 
 **Ratified:** the firm, 5 September 2026 — ratified on the docket WITH AN EDIT, which is in the position above. Holding the line was not what they wanted: the work of assembling what the file shows is cheap, and they would rather do it and confirm than book a treatment and correct it later.
+
+**Unpinned from 26 CFR 1.62-2(c)(1) on 26 September 2026**, after Sarcia pilot 3, the way POS11 was on the firm's `dec-pos2` answer: *"Firm policy, no citation — with two conditions."* Every position now has to quote the words it rests on, and no stored words carry this one: the paragraph defines an employer's reimbursement arrangement. It says what the answer depends on and nothing about assembling the file and asking the client, which is the firm's practice. The position and the firm's words are unchanged. It is still shown wherever that paragraph comes up (`Applies at:`), so nothing that reached it before stops reaching it; it just no longer claims the paragraph as its authority. `Reviewed:` is open, so it serves marked as unchecked until somebody reads `ask.review_brief` against it.
+

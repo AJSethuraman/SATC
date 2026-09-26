@@ -304,6 +304,12 @@ class Served:
     #: the one check that matters without the paragraph in front of them. Making
     #: them go and fetch it is what makes the review nominal.
     passage: str = ""
+    #: `(citation, quoted words)` a ratified position rests on, when the answer
+    #: came from one. Printed with the answer, and where any of them is not the
+    #: answer's own citation, `passage` is THOSE paragraphs -- what a second
+    #: reader has to be handed to judge it. Sarcia pilot 3: POS7 sits where bars
+    #: are named and rests on the beverage rule one paragraph down.
+    rests_on: tuple = ()
     #: The clause the passage uses to say it applies SOMEWHERE ELSE, read off
     #: its own opening words, or `""`. `dec-scoped`, 14 September 2026 -- the
     #: firm: **"Mark them."**
@@ -567,6 +573,9 @@ class Served:
                             f"rule here; nothing has checked whether these facts "
                             f"are inside that scope, and its heading will not say "
                             f"so."]
+            if self.rests_on:
+                out += ["", "THE FIRM'S POSITION RESTS ON THESE WORDS:"]
+                out += [f'  {c} — "{w}"' for c, w in self.rests_on]
             out += ["", "THE AUTHORITY, in full:", "", f"> {self.passage}"]
         # IN FULL, AND NEVER AN EXCERPT. The obvious fix was a snippet under
         # each entry above. It fails on the one case this exists for: in the
@@ -1077,6 +1086,21 @@ def _rule_reaches(desk: Desk, question: str, guide: str = "") -> bool:
                for sid, terms in desk.answered_from.items())
 
 
+def _resting_text(position, desk: Desk, citation: str) -> str:
+    """The paragraphs a position rests on, when any is not its own citation.
+
+    `""` otherwise, which leaves the served passage what it always was. Each
+    paragraph is labelled, so a reader handed two can tell them apart; the
+    second reader's containment check reads straight across the labels.
+    """
+    at = getattr(position, "rests_at", ()) or ()
+    if not at or tuple(at) == (citation,):
+        return ""
+    return "\n\n".join(
+        f"{c}: {getattr(desk.passage(c), 'text', '')}" for c in at
+        if getattr(desk.passage(c), "text", ""))
+
+
 def _check(answer: Answer, desk: Desk, question: str = "", context=None):
     """The one verification. Shared by the gate and the scoreboard on purpose.
 
@@ -1538,9 +1562,12 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
         # words are the fallback only for a citation-only source — `human_only`,
         # where a position genuinely IS the desk's entire knowledge of the
         # authority and there is nothing else to show.
-        passage=(getattr(passage, "text", "")
+        passage=(_resting_text(passage, desk, answer.citation)
+                 or getattr(passage, "text", "")
                  or getattr(desk.passage(answer.citation), "text", "")
                  or getattr(passage, "position", "") or ""),
+        rests_on=(tuple(getattr(passage, "rests_on", ()) or ())
+                  if from_position else ()),
         # READ OFF THE PASSAGE BEING SERVED, never off the citation. Two rules
         # in one section scope themselves differently and the citation cannot
         # tell them apart.

@@ -747,7 +747,18 @@ _QUALIFIER = " \u2014 "
 
 
 def _stem(citation: str) -> str:
-    """A citation with the firm's hand-written ` \u2014 which rule` note removed."""
+    """A citation with the firm's hand-written ` \u2014 which rule` note removed.
+
+    A FIRM POLICY IS ITS OWN STEM. `SATC policy — <which policy>` uses the same
+    dash, and with one policy in the record nothing noticed. With four (26
+    September 2026, three unpinned after Sarcia pilot 3) every policy became the
+    sibling of every other: `alongside` would have served all four as the
+    firm's opposite answers on one passage, and `narrowed_to` would have
+    carried all four into a brief that asked about one. A policy is not a
+    paragraph and has no neighbours.
+    """
+    if citation.startswith(_POLICY_PREFIX):
+        return citation.strip()
     return citation.split(_QUALIFIER, 1)[0].strip()
 
 
@@ -885,7 +896,8 @@ class Desk:
         stems = {_stem(c) for c in wanted}
         passages = tuple(p for p in self.passages if p.citation in wanted)
         positions = tuple(q for q in self.positions
-                          if q.citation in wanted or _stem(q.citation) in stems)
+                          if q.citation in wanted or _stem(q.citation) in stems
+                          or wanted & set(getattr(q, "applies_at", ())))
         used = {p.source_id for p in passages}
         return dataclasses.replace(
             self,
@@ -1406,6 +1418,58 @@ def load(desk_dir: Path) -> Desk:
                     f"position was checked against what is on file; on a cited "
                     f"one it would read as a general review log and claim "
                     f"something this record does not check.")
+
+        # A POSITION QUOTES THE WORDS IT RESTS ON, AND THE WORDS MUST BE THERE.
+        #
+        # Sarcia pilot 3: five of twenty ratified positions cited a paragraph
+        # that did not carry them, and every one passed this loader, because it
+        # checked that a citation RESOLVED and never that the paragraph SAID the
+        # thing. The same containment check the second reader faces at answer
+        # time (`comparing.elided_match`), moved to the moment a position is
+        # written. It proves the words are real, not that they carry the
+        # position -- the writer still has to choose words that do, and a
+        # reader of `Rests on:` can now see in one line whether they did.
+        if q.applies_at and not q.is_policy:
+            raise RecordError(
+                f"{desk_dir.name}/position {q.id} declares `Applies at:` and is "
+                f"not firm policy. A cited position is shown wherever its own "
+                f"citation is; the line is for a policy, which has none.")
+        for cit in q.applies_at:
+            if not any(p.citation == cit for p in passages):
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} applies at {cit!r}, which "
+                    f"the record does not store, so nothing could ever show it.")
+        if q.is_policy:
+            if q.rests_on:
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} is firm policy and quotes "
+                    f"words it rests on. A policy rests on the firm; a quotation "
+                    f"beside it reads as authority it does not have.")
+        elif any(p.citation == q.citation for p in passages) or q.rests_on:
+            import comparing as _comparing   # local, like positions
+            if not q.rests_on:
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} cites {q.citation!r} "
+                    f"and does not say which words it rests on. Add `Rests on:` "
+                    f"with them, quoted exactly, `[...]` for anything left out, "
+                    f"and the paragraph's citation first if it is not this one. "
+                    f"If no stored words carry it, it is firm policy.")
+            for cit, quote in q.rests_on:
+                held = [p for p in passages if p.citation == cit]
+                if not held:
+                    raise RecordError(
+                        f"{desk_dir.name}/position {q.id} rests on {cit!r}, "
+                        f"which the record does not store. Words nobody can "
+                        f"read are not words anybody checked.")
+                ours = _comparing.normalise(quote)
+                if not any(_comparing.elided_match(
+                        ours, _comparing.normalise(p.text))[0] for p in held):
+                    missing = _comparing.elided_match(
+                        ours, _comparing.normalise(held[0].text))[1]
+                    raise RecordError(
+                        f"{desk_dir.name}/position {q.id} rests on words "
+                        f"{cit!r} does not contain: {missing!r}. A position "
+                        f"that quotes its paragraph wrongly cites it wrongly.")
 
         # A DEFAULT IS AN ANSWER TO AN `Unless:` AND MEANS NOTHING WITHOUT ONE.
         #

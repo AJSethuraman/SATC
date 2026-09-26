@@ -246,7 +246,10 @@ def _human_only_desk(tmp_path, *, position="not required to capitalize",
         "## POS1 · What we do here\n\n"
         "**Citation:** ASC 360-10 · **Recorded:** 2026-09-04\n\n"
         f"**Position:** {position}\n\n"
-        "**Ratified:** the firm, 4 September 2026\n", encoding="utf-8")
+        # A position on stored text has to quote the words it rests on
+        # (Sarcia pilot 3, 26 September 2026). The fixture rests on all of it.
+        + (f'**Rests on:** "{passage_text}"\n\n' if passage_text else "")
+        + "**Ratified:** the firm, 4 September 2026\n", encoding="utf-8")
     if passage_text is not None:
         (d / "extracted" / "p.md").write_text(
             "## ASC 360-10\n\n**Source:** S1 · **Checked:** 2026-09-04 · **Kind:** rule\n\n"

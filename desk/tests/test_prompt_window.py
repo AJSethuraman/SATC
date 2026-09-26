@@ -389,8 +389,14 @@ NARROWED = {
     # prints no example, so there is nothing there to label.
     "is a brewery tab a business meal?": 2_750,
     "what supporting documents does the client have to keep?": 7_122,
-    "hand tools bought for the trade - deducted or capitalized?": 3_493,
-    "mileage or actual expenses for the van?": 2_420,
+    #
+    # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
+    # are both visible in the diff. Every position a brief carries now prints
+    # the words it rests on (`Rests on:`), so the van brief gains POS16's one
+    # line and nothing else (+43). The hand-tools brief gains POS7's one line
+    # (+57), checked by diffing the brief. Nothing else in either brief moved.
+    "hand tools bought for the trade - deducted or capitalized?": 3_550,
+    "mileage or actual expenses for the van?": 2_463,
 }
 
 #: The whole corpus, unnarrowed, in tokens: `(rules only, with examples)`.
@@ -408,7 +414,11 @@ NARROWED = {
 # the rules side: `dec-examples` labels every worked example, and this figure
 # prints all 260 of them. The rules-only figure is unchanged to the token, which
 # is the check that the label went on examples and nowhere else.
-WHOLE = (91_807, 206_113)
+# +1,371 on BOTH sides on 26 September 2026, equal to the token, which says it
+# is all position text and no example: sixteen `Rests on:` quotations, the
+# notes on POS7 and POS8, and three positions unpinned to firm policy with the
+# note saying why (Sarcia pilot 3).
+WHOLE = (93_178, 207_484)
 
 
 def _answering_sizes():

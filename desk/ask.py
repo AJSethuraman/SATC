@@ -695,6 +695,14 @@ def brief(question: str, desk: record.Desk,
                 "your own words in `working`, never in `position`.", ""]
         for q in ratified:
             out += [f"### {q.citation}", "", f"> {q.position}", ""]
+            # THE WORDS IT RESTS ON, where the second reader will look for them.
+            # Sarcia pilot 3: second readers refused 7 of 9 attempts, four on
+            # positions whose own paragraph did not carry them. A reader told
+            # which words, and which paragraph, reads the right one.
+            if getattr(q, "rests_on", ()):
+                out += ["Rests on: " + "; ".join(
+                    (f'{c} — "{w}"' if c != q.citation else f'"{w}"')
+                    for c, w in q.rests_on), ""]
             # A POLICY SAYS WHAT IT IS WHERE IT IS READ. `dec-pos2`, the firm's
             # first condition: *"I want this to be clearly marked as they may
             # need to be reviewed/changed at some point."* `engine.serve` puts

@@ -76,9 +76,12 @@ def test_every_ratified_position_sits_on_a_source_the_corpus_answers_from():
     policies = [q for q in desk.positions
                 if not q.proposed and getattr(q, "is_policy", False)]
     assert ratified, "no ratified positions rest on authority — the fixture moved"
-    assert len(policies) <= 1, (
-        f"{len(policies)} firm policies now; each is a position nothing here "
-        f"checks the reachability of, so say so deliberately")
+    # FOUR SINCE 26 SEPTEMBER 2026 (POS15, POS17, POS20 unpinned under
+    # `dec-pos2` after Sarcia pilot 3). Their reachability is by their own
+    # words through the pool, and `test_a_firm_policy_is_reached_by_its_own
+    # _words` below checks it.
+    assert len(policies) <= 4, (
+        f"{len(policies)} firm policies now; say so deliberately")
     for q in ratified:
         assert _reachable(desk, q.citation), (
             f"{q.id} is ratified on {q.citation!r}, and no subject this corpus "
@@ -90,12 +93,16 @@ def test_every_ratified_position_sits_on_a_source_the_corpus_answers_from():
 
 def test_the_defect_this_was_written_for_is_actually_fixed():
     """The instance, not just the property — so a rewrite of the check that
-    stopped covering this case goes red."""
+    stopped covering this case goes red.
+
+    POS15 NO LONGER SITS ON THIS PARAGRAPH, 26 September 2026: the paragraph
+    defines a payment network and never carried the position, which is firm
+    policy now (`dec-pos2`). What this still guards is the PARAGRAPH: the
+    close's own question has to be able to reach it. The position's own reach
+    is `test_a_firm_policy_is_reached_by_its_own_words`."""
     desk = record.load(CORPUS)
-    pos = [q for q in desk.positions if q.citation == THE_DEFECT]
-    assert pos, f"nothing sits on {THE_DEFECT} any more"
-    assert not pos[0].proposed, "the position stopped being ratified"
-    assert _reachable(desk, THE_DEFECT), "the 1099 position is unreachable again"
+    assert desk.passage(THE_DEFECT) is not None, f"{THE_DEFECT} is not stored"
+    assert _reachable(desk, THE_DEFECT), "the 1099 paragraph is unreachable again"
 
     on_the_paragraph = {
         sid for sid in _reachable(desk, THE_DEFECT)
@@ -138,3 +145,22 @@ def test_the_check_would_catch_it_if_it_came_back():
     assert not _reachable(emptied, THE_DEFECT), (
         "with nothing answered from any source covering it, the position must "
         "read as unreachable")
+
+
+def test_an_unpinned_policy_is_still_shown_where_it_used_to_be_reached():
+    """UNPINNING MUST NOT MAKE A POSITION DEAD TEXT. POS15, POS17 and POS20 left
+    their paragraphs on 26 September 2026 (`dec-pos2`, Sarcia pilot 3) and sit
+    at them through `Applies at:` instead -- shown with the paragraph, citing
+    none of it. Measured before and after on six questions: identical reach.
+    This holds the property, and the 1099 question holds the instance."""
+    import ask
+    desk = record.load(CORPUS)
+    policies = [q for q in desk.positions if q.is_policy and q.applies_at]
+    assert {q.id for q in policies} == {"POS15", "POS17", "POS20"}
+    for q in policies:
+        for cit in q.applies_at:
+            assert q in desk.narrowed_to([cit]).positions, (q.id, cit)
+    brief = ask.consult("a payment for services was sent through an app and we "
+                        "cannot tell if it went through a payment network - is "
+                        "it reported on a 1099")
+    assert "SATC policy — a payment whose rail cannot be told is reported" in brief
