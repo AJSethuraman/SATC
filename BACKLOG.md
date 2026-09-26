@@ -1785,6 +1785,14 @@ back.
       first: which cells become formulas on each tab, and the recalculation step the tests
       need (openpyxl doesn't calculate formulas). Open question for the firm: is the bank's
       Excel Microsoft 365? That decides whether ordering can follow live.
+- [ ] **Then: apply tenet T1** (`origination-cube/TENETS.md`, the firm, 26 Sep 2026: method
+      is said once, never beside every row). Move the lone-pocket note and the Test column into
+      one method note per tab, and sweep the other tabs for per-row settings.
+- [ ] **Then: live ordering and counts (Excel is Microsoft 365, the firm, 26 Sep 2026).** Use
+      SORT/FILTER on Where it bleeds and for Check's counts. The container's LibreOffice is 24.2,
+      which predates SORT/FILTER (24.8), so the tests need a newer LibreOffice or another check.
+- [ ] **Open: "judged against the book" points and dollars on one basis** (recommendation and
+      consequences put to the firm, 26 Sep 2026).
 - [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
       (`origination-cube/docs/capabilities-scope.md`). It ends when the planted income ÷
       sales cliffs are found on development loans and confirmed on the holdout from a
