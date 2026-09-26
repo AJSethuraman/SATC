@@ -534,6 +534,20 @@ enough.
   - **What I got wrong:** fixes 3.13 and 3.14 were built into every run without asking how
     they fit a generic analysis. The firm: *"Shouldn't have added that date work without
     conferring with me ... it's clearly non generic."*
+- **OC-40: the judging settings are live in the workbook** (the firm, 26 Sep 2026: *"this is
+  the stuff i want to be able to adjust in book on the fly ... i know it cannot reband and
+  such"*).
+  - **Live, as Excel formulas and conditional formatting:** the loss line (a multiple), the
+    profit line (points), the materiality dollars, the confidence level, and judged against
+    the book or the band. Each only judges numbers the run has already worked out.
+  - **Still a re-run:** band edges, segments, the split column, the fewest-loans and
+    fewest-losses floors, the shuffle count and the allowance for many tests.
+  - **Guards:**
+    - every tab shows the settings its readings are using, so a line changed since the run
+      is obvious beside the Log's record;
+    - significance compares with one rounded bar, `ROUND(1 − confidence, 12)`, as S36 requires;
+    - ordering and Check's counts follow live only where the bank's Excel has `SORT` and
+      `FILTER` (Microsoft 365); otherwise they are labelled as of the run.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so

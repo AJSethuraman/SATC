@@ -1767,6 +1767,11 @@ back.
       - Why: materiality applied to the book-relative dollars while the reading used the band.
         A pocket in a high-loss band could clear materiality against the book while being in
         line with its neighbours.
+- [ ] **Then: the judging settings live in the workbook (OC-40).** The loss line, the profit
+      line, materiality, confidence, and judged against, all adjustable after the run. Scope
+      first: which cells become formulas on each tab, and the recalculation step the tests
+      need (openpyxl doesn't calculate formulas). Open question for the firm: is the bank's
+      Excel Microsoft 365? That decides whether ordering can follow live.
 - [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
       (`origination-cube/docs/capabilities-scope.md`). It ends when the planted income ÷
       sales cliffs are found on development loans and confirmed on the holdout from a
