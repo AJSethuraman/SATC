@@ -397,3 +397,28 @@ def test_recording_a_ruling_twice_changes_nothing(corpus, queue):
     assert again == first
     assert (corpus / rulings.RULINGS_FILE).read_text(encoding="utf-8") == text
     assert len(rulings.load(corpus)) == 1
+
+
+@pytest.mark.parametrize("figure", ["a 36-month lease", "a 12-day period",
+                                    "a 50-percent limit"])
+def test_a_hyphenated_figure_is_still_a_figure(figure):
+    """Codex on #401: "36-month lease" slipped past the figure check, so a
+    proposal could state an unsupported duration and be recorded as ruled."""
+    class P:
+        position = f"deductible over {figure}"
+        rests_on = (("x", "no figure here at all"),)
+    assert rulings.unsupported_figures(P)
+
+
+def test_a_different_ruling_under_a_used_number_is_refused(corpus, queue):
+    """Codex on #401: an id already on record was taken as a retry and the
+    firm's NEW answer silently discarded, when it was a different ruling that
+    happened to be numbered the same."""
+    f = _found(corpus, "reach", RECORDS)
+    entry, _ = rulings.ask(f, "commingling", queue=queue, corpus=corpus)
+    rulings.record_ruling(corpus, rulings.settle(queue, entry.id, "yes"))
+    other = rulings.Asked(id=entry.id, kind="position", subject="POS7",
+                          why="x", proposed=POS7_NEW, recorded="2026-09-27",
+                          answer="yes", answered="2026-09-27")
+    with pytest.raises(record.RecordError, match="already records a different"):
+        rulings.record_ruling(corpus, other)

@@ -61,16 +61,21 @@ KINDS = ("reach", "position")
 #: the claims a reader can check against a quotation character by character,
 #: and the ones that did the damage -- POS7's "50 percent" is in no word it
 #: rests on, and applied as written it disallows what the regulation allows.
+#: A HYPHEN IS A SPACE HERE. Codex on #401: "36-month lease" and "50-percent
+#: limit" slipped past, so a proposal could state an unsupported duration and
+#: be recorded as ruled.
 FIGURE = re.compile(
     r"\$\s?\d[\d,]*(?:\.\d+)?"
-    r"|\b\d[\d,]*(?:\.\d+)?\s*(?:percent\b|%)"
-    r"|\b\d+\s*(?:months?|days?|years?)\b", re.I)
+    r"|\b\d[\d,]*(?:\.\d+)?[\s-]*(?:percent\b|%)"
+    r"|\b\d+[\s-]*(?:months?|days?|years?)\b", re.I)
 
 
 def _figure(text: str) -> str:
     """One spelling for one figure: `50 percent`, `50%` and `50  percent` agree,
     and `$50` stays a different figure from `50%`."""
-    return re.sub(r"[\s,]", "", text.lower().replace("percent", "%"))
+    text = re.sub(r"(months?|days?|years?)$", lambda m: m.group(1).rstrip("s"),
+                  text.lower())
+    return re.sub(r"[\s,-]", "", text.replace("percent", "%"))
 
 
 def unsupported_figures(position) -> tuple[str, ...]:
@@ -536,7 +541,19 @@ def record_ruling(corpus: Path, entry: Asked) -> Ruling:
     """
     already = {r.id: r for r in load(corpus)}
     if entry.id in already:
-        return already[entry.id]
+        # A RETRY ONLY IF IT IS THE SAME RULING. Codex on #401: an id allocated
+        # against one corpus can collide with a different ruling recorded in
+        # another, and returning the old one silently threw the firm's new
+        # answer away. Same kind, subject, question and reply, or refuse.
+        was = already[entry.id]
+        if (was.kind, was.subject, was.asked_by, was.reply) != (
+                entry.kind, entry.subject, entry.asked_by, entry.answer):
+            raise record.RecordError(
+                f"{entry.id}: RULINGS.md already records a different ruling "
+                f"under this number ({was.kind} on {was.subject}). Nothing was "
+                f"written; renumber the open ruling against this corpus and "
+                f"record it again.")
+        return was
     try:
         return _record_ruling(corpus, entry)
     finally:

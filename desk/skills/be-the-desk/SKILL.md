@@ -524,7 +524,8 @@ request.
 
 ```python
 import rulings
-for f in rulings.findings(ROOT_CORPUS):   # the corpus directory
+CORPUS = "<your SATC checkout>/desk/corpus"   # ONE corpus, start to finish
+for f in rulings.findings(CORPUS):
     print(f.kind, f.subject, "—", f.why)
 ```
 
@@ -544,7 +545,7 @@ There are two kinds, and both come from the record alone:
 
 ```python
 entry, line = rulings.ask(f, proposed, queue=rulings.default_queue(),
-                          corpus=ROOT_CORPUS)
+                          corpus=CORPUS)
 # PushNotification(line)  -- verbatim, as with a parked question
 ```
 
@@ -558,7 +559,7 @@ for a parked question. It knows `R<n>` references. Then:
 ```python
 rid, answer = notifying.reply_in(message, sent=line)   # ("", "") if not an answer
 done = rulings.settle(rulings.default_queue(), rid, answer)
-rulings.record_ruling(CHECKOUT_CORPUS, done)   # writes the record
+rulings.record_ruling(CORPUS, done)   # writes the record
 ```
 
 `record_ruling` takes **yes** as your proposal, **no** as the firm keeping
@@ -567,7 +568,11 @@ firm's own words. It **raises** on a yes or a no that goes on to say more
 ("No, make it 60 percent"), and on wording that would not load. Either way,
 ask them again and quote why. Never pick a reading for them.
 
-**Write to a checkout of the repository, never the installed plugin.** A write
+**Find, ask and record against the SAME corpus: a checkout of the
+repository.** A ruling is numbered against the corpus it is asked in; recording
+it into a different one can collide with a ruling that one already holds, and
+`record_ruling` refuses a collision rather than guess. Never the installed
+plugin either. A write
 into `~/.claude/plugins/cache/...` is gone at the next update. Commit on a
 branch named `desk-ruling-R<n>`. The message is the ruling and the firm's reply,
 verbatim. Push the branch, open a draft pull request, and send the link to the
