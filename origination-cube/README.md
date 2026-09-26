@@ -330,3 +330,7 @@ python tools/mutation_check.py     # puts 251 bugs back (the VBA's and today's r
   are read once. The workbook is the same cell for cell but for the time and
   the path (441,342 cells compared, after a Run); the Run
   after it took 78.6 s before and 75.8 s after.
+- The shuffle test uses every core (26 Sep 2026, `docs/design.md` OC-41), and
+  its answer is the same on any number of them. On that 17,000-loan run it took
+  53.6 s on one core and 20.9 s across this container's 4 (20.5 s on 3);
+  each worker holds about 70 MB.

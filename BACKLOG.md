@@ -1901,9 +1901,18 @@ back.
   12 planted bugs in `tools/mutation_check.py`.
 - **A new-variable run skips the bleed grids** (the firm, 26 Sep 2026: *"Yes. Seems obvious I think.
   They have entirely different outputs generally"*). Queued behind redesign phase 2 (same Run code).
-- **Shuffle test across cores: approved** (the firm, 26 Sep 2026: *"I'm good with plan"*); being built. Proposed: each shuffle seeded from its own
+- **Shuffle test across cores: approved** (the firm, 26 Sep 2026: *"I'm good with plan"*); built (below). Proposed: each shuffle seeded from its own
   number, so the result is the same on any number of cores and every run; the p-values move once,
   within the shuffle count's own error (about ±0.002 near 0.03 at 10,000 shuffles).
+- **Shuffle test across cores, built (26 Sep 2026; `origination-cube/docs/design.md` OC-41).** Shuffle i
+  draws from its own stream (the i-th child of the run's seed); the shuffles go to worker processes in
+  runs of consecutive shuffles, started the Windows way ("spawn") everywhere, and the counts are added
+  in order. Every count, answer and kept gap is bit for bit the same on 1, 2, 3 and 4 workers.
+  `perm.run` on the 17,000-loan bleed run, 10,000 shuffles, 4 GB limit: 53.6 s before, 20.9 s on this
+  container's 4 cores (20.5 s on 3); about 70 MB per worker. The p-values moved once: on the synthetic
+  books the largest of 465 moved 0.0149 (6,145 → 5,996 of 10,000), about 2 standard errors, and no
+  allowed-for p-value crossed 0.05. `Origination Cube.pyw` now opens its window only as the program,
+  never in a worker. 7 planted bugs in `tools/mutation_check.py`, all caught.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 

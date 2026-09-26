@@ -34,6 +34,12 @@ depends on which other grids or rates ran.
 REPRODUCIBLE. The seed is a hash of fixed names (`seed_of`), never run order or
 the clock, so the same extract gives the same answer every time.
 
+EVERY CORE (the firm, 26 Sep 2026: design.md OC-41). Shuffle i draws its order
+from its own stream, the i-th child of the seed (`order_of`), so it is the same
+order whichever process deals it. The shuffles are split into runs of
+consecutive shuffles, one per worker process, and the counts added up in order:
+the answer is bit for bit the same on one core or eight.
+
 numpy is imported when a test runs, not when the module loads, so the launcher
 can start without it and say it is missing.
 """
@@ -41,6 +47,8 @@ can start without it and say it is missing.
 from __future__ import annotations
 
 import hashlib
+import os
+from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
@@ -125,6 +133,11 @@ class Statistic:
     def chunk(self, np, ys, xs) -> None:                            # pragma: no cover - interface
         raise NotImplementedError
 
+    def absorb(self, other: "Statistic") -> None:                   # pragma: no cover - interface
+        """Add in what the same statistic, started the same way, counted over
+        other shuffles (another worker's share of them)."""
+        raise NotImplementedError
+
 
 class RestGap(Statistic):
     """Every pocket against the rest of its group: rate(pocket) - rate(rest).
@@ -157,6 +170,15 @@ class RestGap(Statistic):
         self.n += len(ys)
         if self.keep:
             self.draws.append(g)
+        self._settle()
+
+    def absorb(self, other: "RestGap") -> None:
+        self.hits += other.hits
+        self.n += other.n
+        self.draws.extend(other.draws)
+        self._settle()
+
+    def _settle(self) -> None:
         self.answers = {int(k): Shuffled(float(self.g[i]), int(self.hits[i]), self.n)
                         for i, k in enumerate(self.pockets) if self.ok[i]}
 
@@ -200,6 +222,15 @@ class HalfGap(Statistic):
         self.hits += (~(np.abs(gap) < self.thr)).sum(axis=0)
         self.t_hits += int((~(np.abs(t) < self.t_thr)).sum())
         self.n += len(ys)
+        self._settle(np)
+
+    def absorb(self, other: "HalfGap") -> None:
+        self.hits += other.hits
+        self.t_hits += other.t_hits
+        self.n += other.n
+        self._settle(numpy())
+
+    def _settle(self, np) -> None:
         self.answers = {g: Shuffled(float(self.gap[i]), int(self.hits[i]), self.n)
                         for i, g in enumerate(self.groups) if np.isfinite(self.gap[i])}
         self.pooled = (Shuffled(self.t, self.t_hits, self.n)
@@ -230,10 +261,59 @@ def _layout(np, rows_grp, pk, y, x):
 
 
 def run(n: int, columns: list[Column], structures: list[Structure], shuffles: int, seed: int,
-        chunk: int = 256) -> None:
+        chunk: int = 256, workers: int | None = None) -> int:
     """Shuffle the `n` rows `shuffles` times and feed every statistic. One random
-    order per shuffle serves every structure, layout and column."""
+    order per shuffle serves every structure, layout and column.
+
+    Shuffle i draws its order from its own stream, (seed, i), so it is the same
+    order whichever process deals it and the counts do not depend on how many
+    workers share the shuffles (the firm, 26 Sep 2026, design.md OC-41).
+    `workers`: None to use the machine's cores when the run is big enough to be
+    worth it, else that many (1: in this process, no pool). Returns how many
+    processes dealt the shuffles."""
     np = numpy()
+    work = _prepare(np, n, columns, structures, chunk)
+    if not work or shuffles <= 0:
+        return 0
+    if workers is None:
+        workers = workers_for(n, shuffles, chunk)
+    workers = max(1, min(int(workers), -(-shuffles // chunk)))        # never a worker without a whole chunk
+    if workers > 1:
+        try:
+            parts = _in_pool(n, work, shuffles, seed, chunk, workers)
+        except (OSError, BrokenProcessPool):
+            # a machine that will not start processes, or a worker that died (out of memory): nothing has
+            # been counted yet, and the answer does not depend on the workers, so deal them all here instead
+            parts = None
+        if parts is not None:
+            for part in parts:                                         # in shuffle order, so kept draws stay in order
+                for st, got in zip(_stats(work), part):
+                    st.absorb(got)
+            return workers
+    _deal(np, n, work, seed, 0, shuffles, chunk)
+    return 1
+
+
+#: cores the shuffle test will use at most: each worker holds its own copy of the run's rates (about 100 MB
+#: with numpy at 17,000 loans), and past this the grouping and gathering are waiting on memory, not cores
+MAX_WORKERS = 8
+#: below this many row-shuffles (loans x shuffles) starting the workers costs more than it saves
+POOL_FROM = 20_000_000
+
+
+def workers_for(n: int, shuffles: int, chunk: int = 256) -> int:
+    """How many processes a run of `n` rows and `shuffles` shuffles uses when not told."""
+    if n * shuffles < POOL_FROM:
+        return 1
+    try:
+        cores = len(os.sched_getaffinity(0))                           # the cores this process may run on
+    except (AttributeError, OSError):
+        cores = os.cpu_count() or 1
+    return max(1, min(cores, MAX_WORKERS, -(-shuffles // chunk)))
+
+
+def _prepare(np, n, columns, structures, chunk):
+    """Start every statistic on the observed sums; return the work one shuffle does."""
     cols = {}
     for c in columns:
         enter = np.array([a is not None and b is not None for a, b in zip(c.y, c.x)], dtype=bool)
@@ -278,31 +358,78 @@ def run(n: int, columns: list[Column], structures: list[Structure], shuffles: in
             lays = [(st, np.searchsorted(seg, first)) for st, first in lays]
             # a rate every row of the structure entered needs no dropping: its rows are the first ones
             fast = len(rows) if keep[inside].all() else None
-            per_col.append((z, keep, fast, seg, lays, np.empty((chunk, len(seg)), dtype=np.complex128)))
+            per_col.append((z, keep, fast, seg, lays))
         if per_col:
             work.append((codes, per_col))
-    if not work or shuffles <= 0:
-        return
+    return work
 
-    rng = np.random.Generator(np.random.PCG64(seed))
-    done = 0
-    while done < shuffles:
-        b = min(chunk, shuffles - done)
+
+def _stats(work):
+    return [st for _, per_col in work for *_, lays in per_col for st, _ in lays]
+
+
+def order_of(np, n: int, seed: int, i: int):
+    """Shuffle i's random order of the n rows: its own stream, the i-th child of
+    the run's seed (numpy's SeedSequence(seed).spawn(...)[i]), so it is the same
+    order whichever worker deals it and whatever else that worker dealt first."""
+    return np.random.Generator(np.random.PCG64(np.random.SeedSequence(seed, spawn_key=(i,)))).permutation(n)
+
+
+def _deal(np, n, work, seed, start, stop, chunk):
+    """Deal shuffles start .. stop - 1 and feed every statistic, a chunk at a time."""
+    bufs = [[np.empty((chunk, len(seg)), dtype=np.complex128) for _, _, _, seg, _ in per_col] for _, per_col in work]
+    done = start
+    while done < stop:
+        b = min(chunk, stop - done)
         for j in range(b):
-            pi = rng.permutation(n)
-            for codes, per_col in work:
+            pi = order_of(np, n, seed, done + j)
+            for (codes, per_col), bb in zip(work, bufs):
                 # within groups: the same random order, stably grouped
                 order = pi if codes is None else pi[np.argsort(codes[pi], kind="stable")]
-                for z, keep, fast, seg, lays, buf in per_col:
+                for (z, keep, fast, seg, lays), buf in zip(per_col, bb):
                     sig = order[:fast] if fast is not None else order[keep[order]]
                     buf[j] = np.add.reduceat(z.take(sig), seg)
-        for codes, per_col in work:
-            for z, keep, fast, seg, lays, buf in per_col:
+        for (codes, per_col), bb in zip(work, bufs):
+            for (z, keep, fast, seg, lays), buf in zip(per_col, bb):
                 part = buf[:b]
                 for st, idx in lays:
                     sums = np.add.reduceat(part, idx, axis=1)
                     st.chunk(np, sums.real, sums.imag)
         done += b
+
+
+def shares(shuffles: int, workers: int) -> list[tuple[int, int]]:
+    """The shuffle indices split into `workers` runs of consecutive shuffles, as
+    even as they go, in order: [(start, stop), ...] covering 0 .. shuffles - 1."""
+    base, extra = divmod(shuffles, workers)
+    out, at = [], 0
+    for w in range(workers):
+        size = base + (w < extra)
+        out.append((at, at + size))
+        at += size
+    return out
+
+
+def _worker(n, work, seed, start, stop, chunk):
+    """One worker's share, in its own process. Module level, so a spawned process
+    (Windows starts every worker that way) can import it without running any
+    window. Returns every statistic's counts over its shuffles only."""
+    np = numpy()
+    _deal(np, n, work, seed, start, stop, chunk)
+    return _stats(work)
+
+
+def _in_pool(n, work, shuffles, seed, chunk, workers):
+    """Every share on its own process; the parts come back in shuffle order.
+    Started the way Windows must start them ("spawn") on every machine, so the
+    tests here exercise what the bank's machine runs."""
+    import multiprocessing
+    from concurrent.futures import ProcessPoolExecutor
+
+    ctx = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as pool:
+        futures = [pool.submit(_worker, n, work, seed, a, b, chunk) for a, b in shares(shuffles, workers)]
+        return [f.result() for f in futures]
 
 
 # --------------------------------------------------------------------------
