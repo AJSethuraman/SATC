@@ -117,6 +117,13 @@ muts = [
   '        dirty = bool(status.stdout.strip())', '        dirty = False', "dirty"),
  ("holdout ends left out", "src/origination_cube/prespec.py",
   '        return self.start <= d <= self.end', '        return self.start < d < self.end', "holdout_touch"),
+ # OC-34: the add-ons
+ ("run on while an add-on is missing", "src/origination_cube/launcher.py",
+  '"run": _on(ready)', '"run": "normal"', "set_up_and_run_wait"),
+ ("install ok on pip's word", "src/origination_cube/deps.py",
+  '    return not still, out', '    return rc == 0, out', "only_ok_when_the_check_after"),
+ ("first install unseen until restart", "src/origination_cube/deps.py",
+  '            site.addsitedir(user)', '            pass', "seen_without_a_restart"),
 ]
 bad = 0
 for name, f, old, new, sel in muts:
