@@ -4,6 +4,7 @@ Run from origination-cube/: python tools/mutation_check.py. Exits non-zero
 if any mutation survives."""
 import subprocess, shutil, sys
 E="src/origination_cube/engine.py"; C="src/origination_cube/config.py"; B="src/origination_cube/book.py"
+S="src/origination_cube/stats.py"; P="src/origination_cube/perm.py"
 muts = [
  ("1 blank->zero",       E, 'if p is BLANK:\n        return None, "blank"', 'if p is BLANK:\n        return 0.0, None', "test_finding_1"),
  ("2 empty->index 0",    E, 'if rate is None or base is None or base == 0:', 'if base is None or base == 0:\n        return None\n    if rate is None:\n        rate = 0.0\n    if False:', "test_finding_2"),
@@ -70,8 +71,8 @@ muts = [
   '            untested = set()', "dollars_agree"),
  ("three-way without its caveat", B, '        note = (lambda g: _three_way_note(res, g)) if res.config.split[1] == "own_median" else None',
   '        note = None', "holds_fixed"),
- ("luck line at the catch rate", B, '                x = stats.smallest_gap(s.units, ln.rate, ln.s_d, ln.x_bar, b.confidence, 0.5)',
-  '                x = stats.smallest_gap(s.units, ln.rate, ln.s_d, ln.x_bar, b.confidence, b.power)', "luck_alone"),
+ ("luck line at the catch rate", B, '                x = stats.smallest_gap_for(ln, s.units, b.confidence, 0.5)',
+  '                x = stats.smallest_gap_for(ln, s.units, b.confidence, b.power)', "luck_alone"),
  ("bands say up to", E, "        first = f(math.floor(lo / step) * step) if lo is not None and lo < edges[0] else None",
   "        first = None", "bands_read_as_ranges"),
  ("grids lose the data range", E, "        labels = band_labels(edges, min(seen), max(seen)) if seen else band_labels(edges)",
@@ -124,18 +125,35 @@ muts = [
   '    return not still, out', '    return rc == 0, out', "only_ok_when_the_check_after"),
  ("first install unseen until restart", "src/origination_cube/deps.py",
   '            site.addsitedir(user)', '            pass', "seen_without_a_restart"),
- # NEXT-GOAL 3.8: the Look tab
  # fix 3.8: the Look tab
  ("look spreads over the code", "src/origination_cube/look.py", '    values = sorted(x for x in nums if x != code)',
   '    values = sorted(nums)', "test_look"),
+ # 25 Sep 2026: the tests of docs/statistics.md, rulings OC-34 to OC-37
+ ("share of loans unpooled again", S, '    return math.sqrt(max(pbar * (1 - pbar), 0.0) * (1 / n1 + 1 / n2))',
+  '    p1, p2 = x1 / n1, x2 / n2\n    return math.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)', "a1_ or family_is_the_inner"),
+ ("Fisher one-sided", S, '    return min(1.0, math.fsum(math.exp(v) for v in logs if v <= cut))',
+  '    return min(1.0, math.fsum(math.exp(v) for v in logs[k - lo:]))', "fisher"),
+ ("shuffle p without the +1", P, '        return (self.hits + 1) / (self.shuffles + 1)', '        return self.hits / self.shuffles',
+  "plus_one"),
+ ("shuffled across the band", P, '                order = pi if codes is None else pi[np.argsort(codes[pi], kind="stable")]',
+  '                order = pi if codes is None else pi[np.argsort(codes, kind="stable")]', "within"),
+ ("family counts the totals", E, '    pockets = [k for k in cells if k[0] != ALL and k[1] != ALL]',
+  '    pockets = [k for k in cells if k != (ALL, ALL)]', "family_is_the_inner"),
+ ("CMH subtracts a half again", S, '    chi = num * num / var', '    chi = (max(abs(num) - 0.5, 0.0)) ** 2 / var',
+  "cmh or a5_to_a8"),
+ ("fewest loans refuses again", E, '    if not tested and units < min_units:', '    if units < min_units:', "walk_6"),
+ ("z test below the floor", E, '    if n1 >= floor:', '    if True:', "walk_6"),
+ ("shuffle ties dropped", P, '        self.hits += (~(np.abs(g) < self.thr)).sum(axis=0)',
+  '        self.hits += (np.abs(g) > np.abs(self.g)).sum(axis=0)', "exact_tie"),
 ]
 bad = 0
 for name, f, old, new, sel in muts:
-    src = open(f).read(); assert old in src, name
+    src = open(f).read(); assert src.count(old) == 1, name     # exactly the one place the bug went back
     shutil.copy(f, f + ".bak"); open(f, "w").write(src.replace(old, new, 1))
     r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-k", sel], capture_output=True, text=True)
     shutil.move(f + ".bak", f)
-    caught = r.returncode != 0
+    # pytest exits 5 when the selector matched no test: nothing ran, so nothing was caught
+    caught = r.returncode not in (0, 5)
     bad += not caught
     print(("CAUGHT " if caught else "MISSED ") + name, "|", r.stdout.strip().splitlines()[-1])
 sys.exit(bad)

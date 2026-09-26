@@ -4,7 +4,7 @@ the synthetic one."""
 import pytest
 
 from conftest import cube, row, table
-from origination_cube import engine, synth
+from origination_cube import engine, stats, synth
 from origination_cube import config as cfgmod
 from origination_cube.ingest import read_table
 
@@ -109,18 +109,21 @@ def test_same_input_same_output(tmp_path):
 
 
 def test_the_test_matches_a_hand_two_proportion_z():
-    """Unweighted flag (every balance 1): the ratio test is the textbook
-    two-proportion z with each group's own variance."""
+    """The share of loans is tested by the pooled two-proportion z (statistics.md
+    A1, ruling OC-37), by hand: 40 bad of 400 against 180 of 3,600. It was the
+    unpooled test on n - 1 until 25 Sep 2026, which this test used to hold."""
     import math
-    from origination_cube import stats
-    a = (400, 40.0, 400.0, 40.0, 400.0, 40.0)        # 40 bad of 400: 10%
-    b = (3600, 180.0, 3600.0, 180.0, 3600.0, 180.0)  # 180 of 3,600: 5%
-    idx, p = stats.compare(a, b)
-    pa, pb = 0.10, 0.05
-    se = math.sqrt(pa * (1 - pa) / 400 * 400 / 399 + pb * (1 - pb) / 3600 * 3600 / 3599)
-    want = math.erfc(abs(pa - pb) / se / math.sqrt(2))
-    assert idx == pytest.approx(2.0)
-    assert p == pytest.approx(want, rel=1e-9)
+    rows = [row(i, 600, "A" if i < 400 else "B", 100, 1 if (i < 40 or 400 <= i < 580) else 0, 0)
+            for i in range(4000)]
+    res = engine.run(cube(), table(rows))
+    s = res.grids[0].cell("600 - 649", "A").rates["outcome_loans"]
+    pbar = 220 / 4000
+    se = math.sqrt(pbar * (1 - pbar) * (1 / 400 + 1 / 3600))
+    want = math.erfc(abs(0.10 - 0.05) / se / math.sqrt(2))
+    assert s.vs_rest == pytest.approx(2.0) and s.test == engine.Z_TEST
+    assert s.p_book == pytest.approx(want, rel=1e-9)
+    unpooled = math.sqrt(0.1 * 0.9 / 399 + 0.05 * 0.95 / 3599)
+    assert s.p_book != pytest.approx(math.erfc(0.05 / unpooled / math.sqrt(2)), rel=1e-3)
 
 
 def test_peers_are_the_parent_without_the_pocket(book):
@@ -129,8 +132,8 @@ def test_peers_are_the_parent_without_the_pocket(book):
     s = g.cell("600 - 649", "A").rates["gco_rate"]
     # rest of under-650 is channel B: loan 5, 100 / 400
     assert s.vs_band == pytest.approx(0.25 / 0.25)
-    # rest of channel A is 650+ / A: loan 3, 0 / 200 -> no rate to divide by
-    assert s.vs_dim is None
+    # (the rest of its segment was worked out too until 25 Sep 2026, never shown, and is gone)
+    assert not hasattr(s, "vs_dim") and not hasattr(s, "p_dim")
 
 
 def test_the_plant_is_significant_and_its_neighbours_are_not_overstated(tmp_path):
@@ -138,7 +141,11 @@ def test_the_plant_is_significant_and_its_neighbours_are_not_overstated(tmp_path
     res = engine.run(cfgmod.load(cfg), read_table(data))
     g = res.grids[0]
     plant = g.cell(g.band_labels[0], "Broker").rates["gco_rate"]
-    assert plant.p_book < 1e-6 and plant.p_band < 1e-6
+    # GCO is shuffled (statistics.md B2): no shuffle came near the plant, so its p is the smallest a
+    # count of shuffles can print, 1 in B + 1, before the allowance for many tests. It read under 1e-6
+    # from the ratio z test this replaced (25 Sep 2026)
+    assert plant.test == engine.SHUFFLE_TEST and plant.hits_book == plant.hits_band == 0
+    assert plant.p_book < 0.01 and plant.p_band < 0.01
     assert plant.reading_topline == engine.WORSE and plant.reading_band == engine.WORSE
     # the other under-620 pockets are worse than the book but better than their band, which the plant drags up
     other = g.cell(g.band_labels[0], "Branch").rates["gco_rate"]
@@ -291,3 +298,94 @@ def test_every_ranr_reading_follows_the_revenue_setting(tmp_path):
                 assert s.reading_band == want, (rl, s.vs_band, s.p_band, s.reading_band, want)
                 n += 1
         assert n, rl
+
+
+# --------------------------------------------------------------------------
+# Which test runs where (docs/statistics.md, "Which test, where"), 25 Sep 2026
+
+
+def _bench(**kw):
+    b = {"min_units": 71, "min_events": 10, "worse_at": 1.25, "better_at": 0.8, "confidence": 0.95, "power": 0.8,
+         "compare_to": "peers", "many_tests": "none", "materiality": "none"}
+    b.update(kw)
+    return b
+
+
+def _pockets(spec):
+    """Rows from (score, channel, loans, bad): balance 1,000, a bad loan loses 400."""
+    rows, i = [], 0
+    for score, chan, n, bad in spec:
+        for k in range(n):
+            rows.append(row(i, score, chan, 1000, 1 if k < bad else 0, 400 if k < bad else 0, 20))
+            i += 1
+    return rows
+
+
+def test_walk_6_defect_8_a_small_pocket_gets_the_exact_test():
+    """Walk 6, defect 8: 29 bad of 50, under the suggested fewest loans of 71, read
+    "too few loans to test". Below fewest loans the share of loans now gets
+    Fisher's exact test (B1), which needs no minimum, and the pocket is worse."""
+    rows = _pockets([(600, "A", 50, 29), (600, "B", 300, 24), (700, "A", 400, 28), (700, "B", 400, 28)])
+    res = engine.run(cube(benchmark=_bench()), table(rows))
+    g = res.grids[0]
+    s = g.cell("600 - 649", "A").rates["outcome_loans"]
+    assert s.test == engine.EXACT_TEST
+    assert s.p_band == pytest.approx(stats.fisher_exact(29, 50, 53, 350), rel=1e-12)
+    assert s.p_book == pytest.approx(stats.fisher_exact(29, 50, 29 + 24 + 28 + 28, 1150), rel=1e-12)
+    assert s.reading_band == s.reading_topline == s.flag == engine.WORSE
+    big = g.cell("600 - 649", "B").rates["outcome_loans"]           # at or above the floor: A1
+    assert big.test == engine.Z_TEST
+    assert big.p_band == pytest.approx(stats.two_prop_z(24, 300, 29, 50)[1], rel=1e-12)
+    # the dollar rates are shuffled at any size (B2 has no floor)
+    gco = g.cell("600 - 649", "A").rates["gco_rate"]
+    assert gco.test == engine.SHUFFLE_TEST and gco.hits_band == 0 and gco.reading_band == engine.WORSE
+
+
+def test_walk_6_defect_8_on_the_synthetic_book(tmp_path):
+    """The same pocket where the walk found it: every-20 score bands on the
+    8,000-loan synthetic book, fewest loans at the suggested 71."""
+    import copy
+    import math
+    cfg, data = synth.write(tmp_path, n=8000)
+    raw, tbl = copy.deepcopy(cfgmod.load(cfg).raw), read_table(data)
+    raw["bands"] = [{"name": "fico", "field": "FICO", "edges": list(range(500, 861, 20))}]
+    rate = 0.07125890736342043                         # the book's share of loans with the outcome
+    raw["benchmark"]["min_units"] = math.ceil(5 / rate)
+    res = engine.run(cfgmod.parse(raw), tbl)
+    assert res.total.rates["outcome_loans"].rate == pytest.approx(rate)
+    s = res.grids[0].cell("580 - 599", "Broker").rates["outcome_loans"]
+    assert (s.units, s.num) == (50, 29) and s.units < 71
+    assert s.test == engine.EXACT_TEST and s.flag == engine.WORSE and s.p_band < 1e-6
+
+
+def test_a_pocket_below_fewest_losses_still_refuses():
+    """Only fewest losses stops a test: 5 bad of 60 under a floor of 10 losses is
+    too few to test, for the share of loans and for GCO alike. RANR has no loss
+    floor, as before."""
+    rows = _pockets([(600, "A", 60, 5), (600, "B", 300, 24), (700, "A", 400, 28), (700, "B", 400, 28)])
+    res = engine.run(cube(benchmark=_bench()), table(rows))
+    c = res.grids[0].cell("600 - 649", "A")
+    assert c.rates["outcome_loans"].flag == engine.FEW
+    assert c.rates["gco_rate"].flag == engine.FEW
+    assert c.rates["ranr_rate"].flag not in (engine.FEW, engine.THIN, None)
+    # and nothing reads "too few loans" any more
+    assert not any(cell.rates[m].flag == engine.THIN for _, cell in res.grids[0].inner() for m in cell.rates)
+
+
+def test_the_family_is_the_inner_pockets_only():
+    """A2: one family is one grid, one rate, one comparison. On the Test 1 book
+    (2 x 2) that is 4 tests; counting the band and segment totals made it 8
+    (the audit, item b), and they are never shown."""
+    rows = _pockets([(600, "Broker", 1000, 150), (600, "Branch", 1000, 50),
+                     (700, "Broker", 1000, 50), (700, "Branch", 1000, 50)])
+    res = engine.run(cube(benchmark=_bench(min_units=30, many_tests="bonferroni")), table(rows))
+    g = res.grids[0]
+    for (b, d), c in g.inner():
+        s = c.rates["outcome_loans"]
+        rest = [x for k, x in g.inner() if k != (b, d)]
+        raw = stats.two_prop_z(s.num, s.units, sum(x.rates["outcome_loans"].num for x in rest), 3000)[1]
+        assert s.p_book == pytest.approx(min(1.0, 4 * raw), rel=1e-9), (b, d)
+    assert all(c.rates["outcome_loans"].p_book is None for k, c in g.cells.items() if engine.ALL in k)
+    # A1's worked example, through the engine: Broker 600 against Branch 600, z 7.45
+    s = g.cell("600 - 649", "Broker").rates["outcome_loans"]
+    assert s.p_band == pytest.approx(min(1.0, 4 * stats.two_prop_z(150, 1000, 50, 1000)[1]), rel=1e-9)

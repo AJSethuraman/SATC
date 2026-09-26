@@ -125,7 +125,7 @@ groups:
   - title: Is it enough loans to matter
     settings:
       - key: min_loans
-        question: Fewest loans in a pocket before it is tested
+        question: Fewest loans in a pocket for the usual test (smaller ones get the exact test)
         takes_effect: live
         judgment: true
         override: whole number of loans
@@ -135,18 +135,18 @@ groups:
             label: Enough for 5 expected losses (suggested)
             explains: >-
               Worked out from this book: the loans a pocket needs to expect 5 with the
-              outcome at the book's rate, the textbook floor for testing a rate.
+              outcome at the book's rate, the textbook floor for the usual test.
           - value: 30
             label: "30 loans"
             explains: >-
-              The old workbook's value. Stops a test on a handful of loans; the test
-              itself decides whether a gap is luck.
+              The old workbook's value. Smaller pockets get the exact test, which
+              needs no minimum.
           - value: 100
             label: "100 loans"
-            explains: Small pockets are shown but not tested, even when their gap is large.
+            explains: Pockets under 100 loans get the exact test.
           - value: 300
             label: "300 loans"
-            explains: Only large pockets are tested. Suits a first pass on a big book.
+            explains: Pockets under 300 loans get the exact test.
 
       - key: min_events
         question: Fewest loans with a loss before a loss rate is tested

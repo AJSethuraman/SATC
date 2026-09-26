@@ -88,3 +88,127 @@ def test_a_negative_comparison_keeps_the_direction():
     assert engine.reading_of(idx, 400, Bench, 30, p, higher_is="better") == engine.WORSE
     idx, p = stats.compare(sums(0.005), sums(-0.018))
     assert engine.reading_of(idx, 400, Bench, 30, p, higher_is="better") == engine.BETTER
+
+
+# --------------------------------------------------------------------------
+# docs/statistics.md, worked example by worked example, through the cube's own
+# functions, to the precision the document prints.
+
+
+def test_a1_the_pooled_two_proportion_z_on_the_test_1_book():
+    """A1: Broker 600, 150 of 1,000, against Branch 600 (50 of 1,000) and against
+    the rest of the book (150 of 3,000). Pooled (ruling OC-37)."""
+    assert round(stats.pooled_se(150, 1000, 50, 1000), 6) == 0.013416
+    z, p = stats.two_prop_z(150, 1000, 50, 1000)
+    assert round(z, 2) == 7.45 and p == pytest.approx(9e-14, rel=0.05)
+    assert round(stats.pooled_se(150, 1000, 150, 3000), 6) == 0.009618
+    assert round(stats.two_prop_z(150, 1000, 150, 3000)[0], 2) == 10.40
+
+
+def test_a1_is_pooled_not_the_unpooled_test_it_replaced():
+    """The audit's example (item b): 12 of 200 against 30 of 1,000 was p 0.090 by
+    the unpooled test on n - 1; A1 gives 0.035."""
+    assert round(stats.two_prop_z(12, 200, 30, 1000)[1], 4) == 0.0351
+
+
+def test_a2_benjamini_hochberg():
+    from origination_cube import engine
+    got = engine.adjust([0.001, 0.008, 0.02, 0.04, 0.30], "bh")
+    assert [round(x, 3) for x in got] == [0.005, 0.020, 0.033, 0.050, 0.300]
+    assert sum(x <= 0.05 for x in got) == 4
+
+
+def test_a3_the_smallest_gap_a_pocket_could_show():
+    """A3: a pocket of 71 at the synthetic book's 7.13% against the rest of 8,000."""
+    book = 0.0713
+    for n, want in ((71, 2.37), (140, 1.95), (280, 1.67)):
+        assert round(stats.mde_two_prop(n, book, 8000 - n, 0.95, 0.8), 2) == want
+    at80 = stats.mde_two_prop(71, book, 7929, 0.95, 0.8)
+    assert round(at80 * book, 3) == 0.169                       # 16.9%
+    at50 = stats.mde_two_prop(71, book, 7929, 0.95, 0.5)        # caught half the time: just clears 1.96
+    assert round(at50, 2) == 1.85 and round(at50 * book, 3) == 0.132
+    # the 50% rate is exactly where A1's z reaches 1.96
+    assert stats.two_prop_z(at50 * book * 71, 71, book * 7929, 7929)[0] == pytest.approx(1.96, abs=1e-3)
+
+
+def test_a3_loans_needed_inverts_the_same_formula():
+    at80 = stats.mde_two_prop(71, 0.0713, 7929, 0.95, 0.8)
+    ln = stats.loans_needed_two_prop("outcome", 0.0713, 8000, at80, 0.95, 0.8)
+    assert ln.loans == 71 and ln.method == "two_prop"
+    assert stats.power_two_prop(at80 * 0.0713, 71, 0.0713, 7929, 0.95) >= 0.8
+    assert stats.power_two_prop(at80 * 0.0713, 70, 0.0713, 7930, 0.95) < 0.8
+    # a book too small for the gap says so, rather than a number bigger than the book
+    small = stats.loans_needed_two_prop("outcome", 0.0713, 500, 1.25, 0.95, 0.8)
+    assert small.loans is None and small.rate and "no pocket of this book" in small.sentence()
+
+
+def test_the_engine_uses_a3_for_the_share_of_loans(tmp_path):
+    """Replaces the approximation for the share of loans only; the dollar rates
+    keep it until the wave that reads RANR as points."""
+    from origination_cube import config as cfgmod, engine, synth
+    from origination_cube.ingest import read_table
+    cfg, data = synth.write(tmp_path, n=4000)
+    res = engine.run(cfgmod.load(cfg), read_table(data))
+    ln = res.loans_needed["outcome_loans"]
+    t = res.total.rates["outcome_loans"]
+    assert ln.method == "two_prop" and res.loans_needed["gco_rate"].method == "ratio"
+    for _, c in res.grids[0].inner():
+        s = c.rates["outcome_loans"]
+        want = stats.mde_two_prop(s.units, t.rate, t.units - s.units, 0.95, 0.8)
+        assert s.smallest_gap == (pytest.approx(want) if want else None)
+
+
+A5_STRATA = [(8, 92, 4, 96), (20, 180, 12, 188)]         # pockets A and B: (high bad, high good, low bad, low good)
+
+
+def test_a5_mantel_haenszel():
+    assert round(stats.mantel_haenszel(A5_STRATA, 1.96)[0], 3) == 1.829
+
+
+def test_a6_cmh_has_no_continuity_correction():
+    """Ruling OC-36: A6's 3.53, p 0.060. With the 1959 test's half subtracted it
+    was 2.962, p 0.085 (the audit, item j)."""
+    chi, p = stats.cmh(A5_STRATA)
+    assert round(chi, 4) == 3.5251 and round(p, 4) == 0.0604
+    assert round(chi, 2) == 3.53 and round(p, 3) == 0.060
+    assert stats.cmh_p(A5_STRATA) == p
+
+
+def test_a8_cochrans_q():
+    orr = stats.mantel_haenszel(A5_STRATA, 1.96)[0]
+    q, k = stats.cochran_q(A5_STRATA, orr)
+    assert (round(q, 3), k) == (0.061, 2)
+    assert round(stats.steadiness_p(A5_STRATA, orr)[0], 2) == 0.81
+
+
+def test_b1_fisher_exact_below_the_floor():
+    """B1: 4 bad of 12 against 14 of 200 (N 212, K 18). The z test on the same
+    counts is eight times too sure of itself."""
+    probs = [round(stats.hypergeom_pmf(k, 12, 18, 212), 4) for k in range(6)]
+    assert probs == [0.3346, 0.3950, 0.2007, 0.0579, 0.0105, 0.0013]
+    assert [round(x, 3) for x in probs[:4]] == [0.335, 0.395, 0.201, 0.058]
+    p = stats.fisher_exact(4, 12, 18, 212)
+    assert round(p, 4) == 0.0119
+    assert round(sum(stats.hypergeom_pmf(k, 12, 18, 212) for k in range(4, 13)), 4) == 0.0119
+    z, pz = stats.two_prop_z(4, 12, 14, 200)
+    assert round(z, 2) == 3.18 and round(pz, 4) == 0.0015
+
+
+def test_fisher_is_two_sided():
+    """Every count no more likely than the one seen, in either tail. The values
+    are scipy.stats.fisher_exact's on the same tables (25 Sep 2026)."""
+    # symmetric: the other tail is exactly as likely, and a tie must be counted, not lost to rounding
+    assert stats.fisher_exact(2, 10, 10, 20) == pytest.approx(0.023014137565221155, rel=1e-12)
+    assert stats.fisher_exact(8, 10, 10, 20) == pytest.approx(0.023014137565221155, rel=1e-12)
+    # a pocket with none bad: its own tail is 0.335, the other tail adds the counts as unlikely as that
+    assert stats.fisher_exact(0, 12, 18, 212) == pytest.approx(0.60504060271159, rel=1e-12)
+    assert stats.fisher_exact(29, 50, 53, 350) == pytest.approx(5.0198262412038815e-15, rel=1e-9)
+
+
+def test_fisher_holds_up_on_a_million_loans():
+    """C(1,000,000, 50) overflows a float; the ratio of neighbours does not."""
+    p = stats.fisher_exact(12, 50, 20_000, 1_000_000)          # expected 1: twelve is far out
+    assert 0 < p < 1e-8
+    assert stats.fisher_exact(1, 50, 20_000, 1_000_000) == pytest.approx(1.0, abs=1e-9)
+    total = sum(stats.hypergeom_pmf(k, 50, 20_000, 1_000_000) for k in range(51))
+    assert total == pytest.approx(1.0, abs=1e-12)
