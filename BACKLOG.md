@@ -1740,6 +1740,14 @@ back.
       the pre-spec's `window_months`. Keep the origination date for the dev/holdout split, and
       add one Check line giving its range. The firm answered decision 2 (windowing), 3 (as-of)
       and 4 (age filter) with this.
+- [ ] **Then: Set up asks what the run is for** (the firm, 26 Sep 2026: *"because those are
+      added to this suite it likely makes sense for the script to ask which we are doing so it
+      does indeed have the minimum required"*).
+      - *Where the book bleeds* needs only the five core columns and never asks about dates.
+      - *Finding and testing a new variable* also needs the origination date and the tested
+        column, then asks: scout first, or test from a pre-spec already written. The trees
+        stay optional.
+      - Each choice checks and refuses only on its own minimum.
 - [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
       (`origination-cube/docs/capabilities-scope.md`). It ends when the planted income ÷
       sales cliffs are found on development loans and confirmed on the holdout from a
