@@ -1800,6 +1800,15 @@ back.
       strata. Booked, GCO and RANR become optional; if present, 4e also shows dollars.
 - [ ] **Then: no "not built yet" option on Control** (the firm: *"don't note what it does not
       include just note what it does"*): "Scout first" appears only once scouting exists.
+- [ ] **Then: "Worse?" and "Material?" as two columns** (the firm, 26 Sep 2026: *"do it"*).
+      Statistical significance and materiality are judged separately, as in risk and audit
+      practice. The list ranks by dollars among the pockets that are worse.
+- [ ] **Then: the pre-spec asks only for what it needs** (the firm: *"just drop unnecessary
+      pre-spec columns"*). The strata default to the workbook's own band and segment columns,
+      and are listed only when different. Several columns can be confirmed in one pre-spec, with
+      the allowance for many tests across them.
+- [ ] **Then: scouting (4a).** Wide, on development loans: rank every candidate column and
+      suggest bins. It feeds the confirmation, which is narrow: a shortlist, on the holdout.
 - [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
       (`origination-cube/docs/capabilities-scope.md`). It ends when the planted income ÷
       sales cliffs are found on development loans and confirmed on the holdout from a
