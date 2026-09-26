@@ -2,8 +2,6 @@
 Walkthrough defect 1 (25 Sep 2026): five answers were required and then
 silently dropped. Each test here fails if its answer stops being applied."""
 
-from datetime import date
-
 import pytest
 
 from conftest import BASE, cube, row, table
@@ -98,19 +96,3 @@ def test_materiality_as_a_share_and_in_dollars(book):
     assert res.materiality_line == {"gco_rate": 40.0, "ranr_rate": 40.0, "contribution_rate": 40.0}
     assert any("Outcome, share of loans: no materiality line" in w for w in res.warnings)
     assert not any("RANR" in w and "no materiality line" in w for w in res.warnings)
-
-
-def test_loan_age_keeps_only_loans_old_enough(book):
-    for r, d in zip(book, ("2024-01-15", "2024-06-30", "2025-12-01", "2024-07-01", "2023-03-03", "")):
-        r["ORIG"] = d
-    res = engine.run(cube(min_age_months=24, origination_date="ORIG", as_of="2026-06-30"), table(book))
-    # 2024-06-30 is exactly 24 months at 2026-06-30; 2024-07-01 is 23; 2025-12-01 is 6; blank is unreadable
-    assert res.rows == 3 and res.aged_out == 3
-    assert any("loan age: 2 loans under 24 months" in w and "1 with no readable origination date" in w
-               for w in res.warnings)
-
-
-def test_loan_age_needs_its_dates_and_says_so():
-    from origination_cube import config as cfgmod
-    with pytest.raises(cfgmod.ConfigError, match="needs to know when each loan was made"):
-        cube(min_age_months=12)

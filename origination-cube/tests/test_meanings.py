@@ -22,7 +22,7 @@ def _rows(n=400):
             "DEBT_RATIO": 0.12 + (i % 40) / 100,                # a DTI written as a fraction
             "R_2": 55 + (i % 70),                               # an LTV written as a percentage, no name
             "OPEN_DT": f"2023-{1 + i % 12:02d}-{1 + i % 28:02d}",
-            "SNAP": "2026-06-30",                               # one date on every row: the as-of date
+            "SNAP": "2026-06-30",                               # one date on every row: nothing to use
             "NEW_LINE_LIMIT": 1000 + (i % 9) * 500,
             "TERM_MO": [36, 48, 60, 72][i % 4],
         })
@@ -36,7 +36,7 @@ def test_the_obvious_ones_are_suggested():
     assert got["BANK_SCR"] == "score"          # named like a score, not on the FICO scale
     assert got["DEBT_RATIO"] == "dti"
     assert got["OPEN_DT"] == "origination_date"
-    assert got["SNAP"] == "as_of_date"
+    assert got["SNAP"] == "unused"
     assert got["NEW_LINE_LIMIT"] == "servicing"
     assert got["TERM_MO"] == "term"
 

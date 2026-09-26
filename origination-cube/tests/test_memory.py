@@ -8,7 +8,7 @@ from openpyxl import load_workbook
 from origination_cube import cli, config as cfgmod, memory, profile, synth
 from origination_cube.ingest import read_table
 
-ANSWERS = dict(min_units=30, min_events=10, worse_at=1.25, better_at=0.8, confidence=0.95, compare_to='peers', materiality='"1% of losses"', min_age_months=0)
+ANSWERS = dict(min_units=30, min_events=10, worse_at=1.25, better_at=0.8, confidence=0.95, compare_to='peers', materiality='"1% of losses"')
 
 
 def _confirmed_file(tmp_path, n=2000):

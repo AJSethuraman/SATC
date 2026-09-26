@@ -117,7 +117,7 @@ def _product_cube(cut_product: bool, dims_extra=()):
         "columns": {"ID": "key", "BAL": "booked", "BAD": "outcome", "GCO": "gco", "RANR": "ranr", "SCORE": "fico",
                     "CHAN": "category", "LOAN_TYPE": "product", "X": "amount"},
         "bands": [{"name": "score", "field": "SCORE", "edges": [650]}], "dimensions": dims,
-        "measures": [{"name": "loans", "mode": "count"}], "benchmark": BENCH, "min_age_months": 0})
+        "measures": [{"name": "loans", "mode": "count"}], "benchmark": BENCH})
 
 
 def _with_products(products):

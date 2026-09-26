@@ -9,7 +9,7 @@ A suggestion is made in this order, and says which reason it rests on:
                   but if the values no longer fit, it says so.
   2. name + values  a hint in the column name, and the values pass the test
   3. values alone  only for tests specific enough to stand without a name:
-                  a 300-850 score, one date on every row, a 0/1 column
+                  a 300-850 score, a 0/1 column
   4. structure    band-like numbers become `amount`, short lists `category`,
                   anything else `unknown`, which is never cut by
 The firm: "it won't and should not be able to guess them all off the bat -
@@ -127,8 +127,6 @@ def passes(test: Any, f: Facts) -> tuple[bool, str]:
         return not f.numeric or f.distinct <= 24, f"{f.distinct} different values"
     if test == "dates":
         return f.dates >= 0.9 * f.nonblank and not f.one_value, "dates"
-    if test == "one_date":
-        return f.dates >= 0.9 * f.nonblank and f.one_value, "one date on every row"
     if not f.numeric:
         return False, "not numbers"
     v = f.numbers
@@ -177,7 +175,7 @@ class Suggestion:
 
 
 #: meanings specific enough to suggest from the values alone
-BY_VALUES_ALONE = ("fico", "as_of_date")
+BY_VALUES_ALONE = ("fico",)
 
 
 def suggest(table: Table, remembered: dict[str, dict] | None = None,
@@ -222,7 +220,7 @@ def suggest(table: Table, remembered: dict[str, dict] | None = None,
     for c, f in fs.items():
         if c in out:
             continue
-        if f.nonblank == 0 or (f.one_value and not passes(cat["as_of_date"].test, f)[0]):
+        if f.nonblank == 0 or f.one_value:
             out[c] = Suggestion(c, "unused", "empty" if f.nonblank == 0 else f"one value only ({f.texts[0]})",
                                 "structure")
             continue
@@ -250,8 +248,7 @@ def suggest(table: Table, remembered: dict[str, dict] | None = None,
             dates_ok, _ = passes(cat["origination_date"].test, f)
             if dates_ok:
                 best = Suggestion(c, "unknown", "dates, but which date? Say Origination date if it is when the "
-                                               "loan was made, or Outcome date if it is when it went bad",
-                                  "structure")
+                                               "loan was made; otherwise Not used", "structure")
             elif passes("unique", f)[0]:
                 best = Suggestion(c, "id", "a different value on every row", "structure")
             elif f.numeric and len(set(f.numbers)) > few_values:
@@ -314,8 +311,6 @@ def review(table: Table, sugg: dict[str, Suggestion], open_questions: list[dict]
                               f"aren't on that scale, so it's suggested as `score`. If it really is FICO, the "
                               f"values need a look; if the suggestion is wrong, the rule needs patching."))
     for c in table.columns:
-        if c in sugg and sugg[c].means == "outcome_date":
-            continue                  # blank on every loan that didn't go bad: what it is, not a slip (fix 3.13)
         f = facts(table, c)
         if f.rows and f.nonblank and (f.rows - f.nonblank) / f.rows >= BLANK_REVIEW:
             share = (f.rows - f.nonblank) / f.rows

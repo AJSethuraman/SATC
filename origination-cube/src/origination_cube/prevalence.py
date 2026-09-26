@@ -47,14 +47,8 @@ class Grouping:
 
 
 def rows_run(res) -> list[dict]:
-    """The loans the Run counted: the extract, with any new columns, after the
-    loan age filter or the outcome window. Worked out once per result."""
-    got = getattr(res, "_rows_run", None)
-    if got is None:
-        table = res.table
-        got = engine.age_filter(res.config, table, [])[0] if table is not None else []
-        res._rows_run = got
-    return got
+    """The loans the Run counted: every loan in the extract, with any new columns."""
+    return res.table.rows if res.table is not None else []
 
 
 def edges_of(res, column: str) -> tuple[tuple[float, ...] | None, str]:

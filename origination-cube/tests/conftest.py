@@ -26,7 +26,6 @@ BASE = {
     ],
     "benchmark": {"min_units": 2, "min_events": 1, "worse_at": 1.25, "better_at": 0.8, "confidence": 0.95,
                   "power": 0.8, "compare_to": "topline", "many_tests": "none", "materiality": "none"},
-    "min_age_months": 0,
 }
 
 

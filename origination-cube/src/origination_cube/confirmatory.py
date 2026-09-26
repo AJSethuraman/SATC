@@ -30,7 +30,7 @@ What the run used, as the pre-spec's keys (`in_use`):
   is one of the pre-spec's groups, so today's cube always differs here: it has
   no test of groups against a reference group yet (docs/NEXT-GOAL.md 4b).
 - strata: the band and segment columns, the tested column left out.
-- window_months and confidence: as Control has them. No window is not set.
+- confidence: as Control has it.
 - holdout: the origination range of the loans the run used. When every one of
   them was made inside the pre-spec's holdout, the run used the holdout;
   otherwise the range it used is reported, since a confirmatory run on loans
@@ -154,7 +154,6 @@ def in_use(res, ps: prespec.PreSpec) -> dict[str, Any]:
     if out["column"] is not None and out["reference"] is None and b is not None:
         out["reference"] = "the rest of its band" if b.compare_to == "peers" else "the rest of the book"
     out["strata"] = [c for c in cut if c != out["column"]]
-    out["window_months"] = cfg.window_months or None
     out["confidence"] = b.confidence if b is not None else None
     out["holdout"] = run_range(res, ps)
     return out
@@ -258,7 +257,6 @@ def _says(ps: prespec.PreSpec) -> str:
         f"bins: {', '.join(engine._fmt(x) for x in ps.bins)} (groups: {'; '.join(ps.groups)})",
         f"reference: {ps.reference}",
         f"strata: {strata}",
-        f"window_months: {ps.window_months}",
         f"confidence: {ps.confidence:g}",
         f"holdout: {ps.holdout.text()}",
         f"development: {ps.development.text()}",

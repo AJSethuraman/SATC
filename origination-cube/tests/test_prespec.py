@@ -25,7 +25,6 @@ BASE = {
     "bins": [0.1, 0.25, 0.5, 1.0, 2.0],
     "reference": "0.25 - 0.49",
     "strata": ["FICO", "CHANNEL"],
-    "window_months": 18,
     "confidence": 0.95,
     "holdout": {"from": date(2024, 1, 1), "to": date(2024, 12, 31)},
     "development": {"from": date(2022, 1, 1), "to": date(2023, 12, 31)},
@@ -37,7 +36,6 @@ MATCHING = {
     "bins": [0.1, 0.25, 0.5, 1.0, 2.0],
     "reference": "0.25 - 0.49",
     "strata": ["FICO", "CHANNEL"],
-    "window_months": 18,
     "confidence": 0.95,
     "holdout": {"from": date(2024, 1, 1), "to": date(2024, 12, 31)},
 }
@@ -69,7 +67,7 @@ def test_the_committed_example_loads_as_the_docstring_says():
     assert s.groups == ("up to 0.09", "0.10 - 0.24", "0.25 - 0.49", "0.50 - 0.99", "1.00 - 1.99", "2.00 and up")
     assert (s.reference, s.reference_index) == ("0.25 - 0.49", 2)
     assert s.strata == ("FICO", "CHANNEL")
-    assert (s.window_months, s.confidence) == (18, 0.95)
+    assert s.confidence == 0.95
     assert s.holdout == P.DateRange(date(2024, 1, 1), date(2024, 12, 31))
     assert s.development == P.DateRange(date(2022, 1, 1), date(2023, 12, 31))
     assert s.written == date(2026, 9, 25) <= date.today()     # it read 2026-10-01, a date still to come
@@ -158,12 +156,6 @@ def test_confidence_must_be_a_share(conf):
         f"`confidence:` must be a share between 0.5 and 1, such as 0.95 for 95%; got {conf!r}"]
 
 
-@pytest.mark.parametrize("window", [0, -3, 18.5, True, "18"])
-def test_the_window_is_a_positive_whole_number(window):
-    assert refused(window_months=window) == [
-        f"`window_months:` must be a whole number of months, 1 or more; got {window!r}"]
-
-
 @pytest.mark.parametrize("key", ["holdout", "development"])
 def test_a_range_that_runs_backwards_is_refused(key):
     problems = refused(**{key: {"from": date(2025, 6, 30), "to": date(2025, 1, 1)}})
@@ -207,9 +199,9 @@ def test_strata_are_distinct_columns_other_than_the_one_tested(strata, words):
 
 
 def test_every_problem_is_listed_at_once():
-    problems = refused(bins=[2.0, 1.0], confidence=95, window_months=0, column=None,
+    problems = refused(bins=[2.0, 1.0], confidence=95, column=None,
                       holdout={"from": date(2025, 1, 1), "to": date(2024, 1, 1)})
-    assert len(problems) == 5, problems
+    assert len(problems) == 4, problems
 
 
 def test_a_file_that_is_not_yaml_or_not_there_is_refused_plainly(tmp_path):
@@ -366,8 +358,6 @@ def test_the_same_run_said_differently_is_still_the_same_run():
      "Pockets are cut by FICO on Control; the pre-spec says FICO, CHANNEL."),
     ("strata", [],
      "Pockets are cut by nothing (the whole book is one pocket) on Control; the pre-spec says FICO, CHANNEL."),
-    ("window_months", 12,
-     "The outcome window is 12 months on Control; the pre-spec says 18 months."),
     ("confidence", 0.90,
      "Confidence is 90% on Control; the pre-spec says 95%."),
     ("holdout", {"from": date(2024, 1, 1), "to": date(2024, 6, 30)},
@@ -418,8 +408,8 @@ def test_nonsense_in_the_run_is_a_deviation_not_a_crash():
 
 
 def test_where_the_setting_was_read_is_the_callers_to_say():
-    assert P.deviations(spec(), {**MATCHING, "window_months": 1}, where="in this run") == [
-        "The outcome window is 1 month in this run; the pre-spec says 18 months."]
+    assert P.deviations(spec(), {**MATCHING, "confidence": 0.9}, where="in this run") == [
+        "Confidence is 90% in this run; the pre-spec says 95%."]
 
 
 # --------------------------------------------------------------------------

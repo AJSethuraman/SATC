@@ -9,7 +9,6 @@ never infinity, and each is counted by why. Periods that disagree are warned
 about on Check and never stop the run."""
 
 from bisect import bisect_right
-from datetime import date
 
 import pytest
 
@@ -126,37 +125,25 @@ def test_a_period_is_for_an_amount_and_a_definition_is_kept():
 
 
 @pytest.fixture(scope="module")
-def dated_book():
-    return synth.make_rows(40000, 7, dated=True)
+def ratio_book():
+    return synth.make_rows(40000, 7, ratio=True)
 
 
-def test_the_dated_book_keeps_every_other_plant_loan_for_loan(dated_book):
+def test_the_ratio_book_keeps_every_other_plant_loan_for_loan(ratio_book):
     plain = synth.make_rows(40000, 7)
-    assert all(a[k] == b[k] for a, b in zip(dated_book, plain) for k in synth.COLUMNS)
+    assert all(a[k] == b[k] for a, b in zip(ratio_book, plain) for k in synth.COLUMNS)
+    assert all(set(a) == set(synth.COLUMNS + synth.RATIO_COLUMNS) for a in ratio_book)     # no outcome date
 
 
-def test_the_dated_book_has_an_outcome_date_on_bad_loans_only(dated_book):
-    as_of = synth.AS_OF
-    months = []
-    for r in dated_book:
-        made = date.fromisoformat(r["ORIG_DATE"])
-        assert made <= as_of
-        if r["BAD_FLAG"] == 1:
-            went = date.fromisoformat(r["BAD_DATE"])
-            assert made <= went <= as_of
-            months.append(engine.months_between(made, went))
-        else:
-            assert r["BAD_DATE"] == ""
-    months.sort()
-    assert 6 <= months[len(months) // 2] <= 12 and months[-1] >= 36          # a realistic spread, with a tail
-    assert sum(r["SALES"] == 0 for r in dated_book) == 40 and sum(r["SALES"] == "" for r in dated_book) == 40
+def test_the_ratio_book_has_zero_and_blank_sales_to_count(ratio_book):
+    assert sum(r["SALES"] == 0 for r in ratio_book) == 40 and sum(r["SALES"] == "" for r in ratio_book) == 40
 
 
-def test_the_dated_book_plants_the_ratio_effect(dated_book):
+def test_the_ratio_book_plants_the_ratio_effect(ratio_book):
     """bad odds x3 above 2.0 and x2 below 0.1, against the middle (docs/scout-vs-measure.py)."""
     edges = [0.1, 0.25, 0.5, 1.0, 2.0]
     loans, bad = [0] * 6, [0] * 6
-    for r in dated_book:
+    for r in ratio_book:
         if r["BAD_FLAG"] in (0, 1) and r["SALES"] not in ("", 0):
             g = bisect_right(edges, r["INCOME"] / r["SALES"])
             loans[g] += 1

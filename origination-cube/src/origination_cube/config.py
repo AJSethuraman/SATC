@@ -40,12 +40,23 @@ MODE_KEYS = {
     "median": {"required": ("value",), "allowed": ("optional", "show")},
 }
 TOP_KEYS = {"name", "schema_version", "key", "booked", "outcome", "gco", "ranr", "columns", "columns_confirmed",
-            "missing", "bands", "dimensions", "measures", "benchmark", "questions", "min_age_months",
-            "origination_date", "as_of", "split", "window_months", "outcome_date", "derived"}
-#: The dates a run can be told about, as meanings in `columns:`: each names at most one column.
-DATE_ROLES = ("origination_date", "outcome_date", "as_of_date")
-#: `as_of: latest` - the latest origination or outcome date in the extract (fix 3.13). Only when picked.
-AS_OF_LATEST = "latest"
+            "missing", "bands", "dimensions", "measures", "benchmark", "questions",
+            "origination_date", "split", "derived"}
+#: The dates a run can be told about, as meanings in `columns:`: each names at most one column. Only the
+#: origination date is left: it splits development loans from the holdout, and Check gives its range.
+DATE_ROLES = ("origination_date",)
+#: Lines and meanings a run no longer reads (OC-39, the firm, 26 Sep 2026: "when we are doing our bleed
+#: analysis and such I don't want to hide things from view"). Each hid loans, or relabelled them, in a run
+#: that should show every loan. An old file that still has one is refused by name, never quietly ignored.
+REMOVED = {
+    "min_age_months": "the loan age filter was removed: it left young loans out",
+    "window_months": "the outcome window was removed: it left young loans out and counted late losses as good",
+    "as_of": "the as-of date was removed: it was only used to leave young loans out",
+    "outcome_date": "the outcome date was removed: it was only used to count late losses as good",
+    "as_of_date": "the as-of date was removed: it was only used to leave young loans out",
+}
+REMOVED_WHY = ("A run now shows every loan in the extract as the extract has it. Picking which loans to study "
+               "is done before the extract reaches the cube.")
 #: What an amount column is over (fix 3.10): said on Columns, recorded in what ran, never used to rescale.
 PERIODS = ("per_year", "per_month", "one_time")
 PERIOD_WORDS = {"per_year": "per year", "per_month": "per month", "one_time": "one-time"}
@@ -62,7 +73,7 @@ CORE = ("key", "booked", "outcome", "gco", "ranr")
 #: The required columns are said either as five top-level lines (a file written
 #: by hand) or as meanings in `columns:` (a file written by `cube init`, which
 #: lists every column). Never both: one place to say it.
-REQUIRED_TOP = ("name", "schema_version", "bands", "dimensions", "benchmark", "min_age_months")
+REQUIRED_TOP = ("name", "schema_version", "bands", "dimensions", "benchmark")
 #: `per: each_loan` divides by the number of loans rather than a column: a
 #: straight share or average, beside the booked-weighted one reporting uses.
 EACH_LOAN = "each_loan"
@@ -295,14 +306,10 @@ class Config:
     questions: tuple[Question, ...] = ()
     booked: str = ""
     outcome: str = ""
-    min_age_months: int = 0
-    origination_date: str | None = None
-    as_of: Any = None                                 # a date, or the name of a column holding it
+    origination_date: str | None = None               # the column holding when each loan was made
     split: tuple | None = None                        # (column, own_median | each_value): the third layer
     columns: dict = field(default_factory=dict)       # column -> (meaning, is-value); from `columns:`
     not_cut: dict = field(default_factory=dict)       # column -> meaning, for meanings never cut by
-    window_months: int = 0                            # bad = bad in the first N months on book; 0, no window
-    outcome_date: str | None = None                   # the column holding the date each loan went bad
     derived: tuple = ()                               # Derived columns, made in this order
     periods: dict = field(default_factory=dict)       # column -> per_year | per_month | one_time
     definitions: dict = field(default_factory=dict)   # column -> what it measures, in the person's words
@@ -330,7 +337,7 @@ def load(path: str | Path) -> Config:
     except yaml.YAMLError as exc:
         raise ConfigError([f"{p}: not readable as YAML: {exc}"]) from exc
     except ValueError as exc:
-        # an unquoted date that isn't a real day (as_of: 2026-13-01): YAML reads it as a date and fails
+        # an unquoted date that isn't a real day (written: 2026-13-01): YAML reads it as a date and fails
         # with Python's own words (found by another agent, 26 Sep 2026: it came out as a bare ValueError)
         raise ConfigError([_bad_date_line(p, text, exc)]) from exc
     return parse(raw, source_path=str(p))
@@ -359,7 +366,9 @@ def parse(raw: Any, source_path: str = "") -> Config:
         problems.append(f"`{where}` still reads {text!r}: replace it with your answer")
 
     for k in raw:
-        if k not in TOP_KEYS:
+        if k in REMOVED:
+            problems.append(removed_line(k))
+        elif k not in TOP_KEYS:
             problems.append(f"unknown line `{k}:` (known: {', '.join(sorted(TOP_KEYS))})")
     for k in REQUIRED_TOP:
         if k not in raw:
@@ -422,8 +431,10 @@ def parse(raw: Any, source_path: str = "") -> Config:
                         higher_is="better"),
                 Measure(name="contribution_rate", mode="sumnum", value=cols["ranr"], plus=cols["gco"],
                         per=cols["booked"], core=True, higher_is="better"))
-    age, orig_col, as_of = _parse_age(raw, columns, problems)
-    window, out_date = _parse_window(raw, columns, age, orig_col, as_of, problems)
+    orig_col = raw.get("origination_date") or next((c for c, (m, _) in columns.items() if m == "origination_date"),
+                                                   None)
+    if orig_col is not None and (not isinstance(orig_col, str) or not orig_col.strip()):
+        problems.append(f"`origination_date:` must name the column holding when each loan was made; got {orig_col!r}")
     derived = _parse_derived(raw.get("derived"), problems) if raw.get("derived") is not None else ()
     split = None
     if raw.get("split") is not None:
@@ -452,8 +463,8 @@ def parse(raw: Any, source_path: str = "") -> Config:
         raise ConfigError(problems)
     return Config(name=str(raw["name"]), key=key, missing=missing, bands=bands, dimensions=dims,
                   measures=measures, benchmark=bench, questions=questions, booked=cols["booked"], outcome=out_field,
-                  min_age_months=age, origination_date=orig_col, as_of=as_of, split=split,
-                  columns=columns, not_cut=not_cut, window_months=window, outcome_date=out_date, derived=derived,
+                  origination_date=orig_col, split=split,
+                  columns=columns, not_cut=not_cut, derived=derived,
                   periods=periods, definitions=definitions, source_path=source_path, raw=raw)
 
 
@@ -488,6 +499,10 @@ def _parse_columns(node: Any, problems: list[str]) -> tuple[dict, dict, dict, di
             if isinstance(v, dict) else (None, None)
         if isinstance(v, dict):
             _unknown(v, {"means", "is", "period", "definition"}, f"columns.{col}", problems)
+        if means in REMOVED:
+            problems.append(f"columns.{col}: " + removed_line(means, f"means: {means}")
+                            .replace("Delete the line.", "Mark the column `unused`."))
+            continue
         if means not in cat:
             problems.append(f"columns.{col}: `means: {means}` is not a meaning this tool knows. "
                             f"Use one of: {', '.join(cat)}")
@@ -512,7 +527,7 @@ def _parse_columns(node: Any, problems: list[str]) -> tuple[dict, dict, dict, di
     for role in DATE_ROLES:
         hits = [c for c, (m, _) in out.items() if m == role]
         if len(hits) > 1:
-            # one column each: which of two origination dates the window counts from is not a guess to make
+            # one column each: which of two origination dates splits the holdout is not a guess to make
             problems.append(f"`columns:` needs at most one column that means {role}; found {len(hits)}: "
                             f"{', '.join(hits)}")
     return out, not_cut, periods, definitions
@@ -554,9 +569,13 @@ def _missing_line(k: str) -> str:
                       "  many_tests: bh         # none, bh or bonferroni\n"
                       "  materiality: 1% of losses   # or 5% of losses, none, or a dollar amount\n"
                       "# or, to build without comparisons:  benchmark: none"),
-        "min_age_months": "min_age_months: 0    # 0 keeps every loan; 24 keeps loans two years on book or more",
     }
     return f"missing line `{k}:`. Add:\n{lines[k]}"
+
+
+def removed_line(k: str, said: str | None = None) -> str:
+    """The one refusal for a line a run no longer reads (REMOVED): what it was, why it went, what to do."""
+    return f"`{said or k + ':'}` is no longer read: {REMOVED[k]}. {REMOVED_WHY} Delete the line."
 
 
 def _num(v: Any) -> bool:
@@ -777,92 +796,6 @@ def _parse_materiality(v: Any):
     if _num(v) and v >= 0:
         return ("dollars", float(v))
     return None
-
-
-def _parse_age(raw: dict, columns: dict, problems: list[str]):
-    """Loan age (the Control tab's first call). 0 keeps every loan. Above 0
-    needs to know when each loan was made and when the data was taken: from
-    `columns:` (origination_date, as_of_date) or from `origination_date:` and
-    `as_of:` lines. Nothing is assumed."""
-    orig = raw.get("origination_date") or next((c for c, (m, _) in columns.items() if m == "origination_date"), None)
-    as_of = _parse_as_of(raw["as_of"], problems) if raw.get("as_of") is not None else \
-        next((c for c, (m, _) in columns.items() if m == "as_of_date"), None)
-    age = raw.get("min_age_months")
-    if "min_age_months" not in raw:
-        return 0, orig, as_of
-    if not isinstance(age, int) or isinstance(age, bool) or age < 0:
-        if not (isinstance(age, str) and CONFIRM in age):
-            problems.append(f"`min_age_months:` must be a whole number of months, 0 for every loan; got {age!r}")
-        return 0, orig, as_of
-    if age > 0 and not orig:
-        problems.append(f"loan age of {age} months needs to know when each loan was made: mark a column "
-                        f"`means: origination_date`, or add `origination_date: COLUMN`")
-    if age > 0 and not as_of:
-        problems.append(f"loan age of {age} months needs the as-of date: mark a column `means: as_of_date`, "
-                        f"or add `as_of: 2026-06-30`, or `as_of: {AS_OF_LATEST}` for the latest date in the extract")
-    return age, orig, as_of
-
-
-def _parse_as_of(v: Any, problems: list[str]):
-    """The as-of date: a date, `latest` (the latest origination or outcome date
-    in the extract, only when someone picks it), or the name of a column holding
-    one date. A string that looks like a date but isn't a real day is refused
-    here, never read as a column name."""
-    from datetime import date as _date, datetime as _datetime
-    if isinstance(v, _datetime):
-        return v.date()
-    if isinstance(v, _date):
-        return v
-    if isinstance(v, str) and v.strip():
-        t = v.strip()
-        if t == AS_OF_LATEST:
-            return t
-        if re.fullmatch(r"\d{4}-\d{1,2}-\d{1,2}", t):
-            try:
-                y, m, d = (int(x) for x in t.split("-"))
-                return _date(y, m, d)
-            except ValueError:
-                problems.append(f"`as_of: {t}` isn't a real date. Write it as year-month-day, such as 2026-06-30")
-                return None
-        return t                                            # a column's name; the run checks it is there
-    problems.append(f"`as_of:` must be a date such as 2026-06-30, `{AS_OF_LATEST}`, or the column holding the "
-                    f"date the data was taken; got {v!r}")
-    return None
-
-
-def _parse_window(raw: dict, columns: dict, age: int, orig, as_of, problems: list[str]):
-    """The outcome window (fix 3.14): bad means bad in a loan's first N months
-    on book, and a loan under N months on book is left out. It needs when each
-    loan was made, when each bad loan went bad, and when the data was taken; a
-    window without any of them is refused, naming it. Where an outcome date is
-    marked, the line is required: bad as the extract has it (0) and bad within
-    a window are different questions, and which one is asked is our call."""
-    out_date = raw.get("outcome_date") or next((c for c, (m, _) in columns.items() if m == "outcome_date"), None)
-    if "window_months" not in raw:
-        if out_date:
-            problems.append(f"an outcome date (`{out_date}`) is marked, so say what bad means: add "
-                            f"`window_months: 0` for bad as the extract has it, or `window_months: 18` for bad "
-                            f"in the first 18 months on book")
-        return 0, out_date
-    n = raw["window_months"]
-    if isinstance(n, str) and CONFIRM in n:
-        return 0, out_date
-    if not isinstance(n, int) or isinstance(n, bool) or not 0 <= n <= 360:
-        problems.append(f"`window_months:` must be a whole number of months from 0 (no window) to 360; got {n!r}")
-        return 0, out_date
-    if n > 0 and not out_date:
-        problems.append(f"an outcome window of {n} months needs the date each loan went bad: mark that column "
-                        f"`means: outcome_date`, or add `outcome_date: COLUMN`")
-    if n > 0 and not orig:
-        problems.append(f"an outcome window of {n} months needs to know when each loan was made: mark a column "
-                        f"`means: origination_date`, or add `origination_date: COLUMN`")
-    if n > 0 and not as_of:
-        problems.append(f"an outcome window of {n} months needs the as-of date: mark a column `means: as_of_date`, "
-                        f"or add `as_of: 2026-06-30`, or `as_of: {AS_OF_LATEST}` for the latest date in the extract")
-    if n > 0 and age > 0:
-        problems.append(f"`min_age_months: {age}` and `window_months: {n}` both leave out young loans. Keep one: the "
-                        f"window already leaves out loans under {n} months on book, so set min_age_months: 0")
-    return n, out_date
 
 
 def _parse_derived(node: Any, problems: list[str]) -> tuple[Derived, ...]:
