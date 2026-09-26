@@ -275,6 +275,10 @@ def write_cube_file(table: Table, out: str | Path, settings_in_use: dict[str, An
     lines.append(f"  many_tests: {_q(method('many_tests'))}")
     age = use.get("min_age_months")
     lines.append(f"min_age_months: {_q(age) if age is not None else _confirm(settings['min_age_months'])}")
+    if any(sg.means == "outcome_date" for sg in sugg.values()):
+        # fix 3.14: an outcome date is marked, so what bad means is a call for us to make
+        win = use.get("window_months")
+        lines.append(f"window_months: {_q(win) if win is not None else _confirm(settings['window_months'])}")
 
     qs = [q for c in cols for q in c.questions]
     lines += ["", "# Odd values. Each is used AS RECORDED until you answer: real, or missing.",

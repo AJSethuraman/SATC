@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import perm, stats
-from .config import EACH_LOAN, Band, Config, Dimension, Measure, MissingRule
+from .config import EACH_LOAN, PERIOD_WORDS, Band, Config, Dimension, Measure, MissingRule
 from .ingest import BLANK, Bad, Table, cell_text, is_blank, parse_number
 
 BLANK_LABEL = "(blank)"
@@ -67,6 +67,13 @@ class ColumnsMissing(Exception):
 
 class NothingToCut(Exception):
     """Every band or every dimension was taken out, so there is no grid to build."""
+
+
+class DataRefused(NothingToCut):
+    """What the run was asked needs something the data can't give: a date that
+    reads two ways, an as-of date with nothing to take it from, a new column
+    named like one the extract already has. Said in words, caught where
+    NothingToCut is, so every caller shows it without a traceback."""
 
 
 class TieOutError(Exception):
@@ -391,6 +398,10 @@ class Result:
     # closely the split column moves with each number column that is cut into bands
     three_way: list["Grid"] = field(default_factory=list)
     split_moves_with: dict[str, float] = field(default_factory=dict)        # band column -> correlation
+    # fixes 3.9, 3.13 and 3.14: the new columns made, and what the dates did
+    dates: "DateReport | None" = None
+    derived: list["DerivedReport"] = field(default_factory=list)
+    table: Table | None = None                  # the extract as the run read it, new columns included
 
 
 # --------------------------------------------------------------------------
@@ -421,45 +432,312 @@ def _materiality_lines(bench, measures, total, warnings) -> dict[str, float]:
     return out
 
 
-def age_filter(config: Config, table: Table, warnings: list[str]) -> tuple[list[dict], int]:
-    """Keep loans at least `min_age_months` on book at the as-of date. Months on
-    book are whole calendar months, one fewer when the as-of day of the month
-    is earlier than the origination day (as the Portfolio Analysis Pack
-    counts). A loan with no readable origination date is left out and counted,
-    never assumed old enough."""
-    if not config.min_age_months:
-        return table.rows, 0
-    from datetime import date as _date
+# --------------------------------------------------------------------------
+# New columns (fix 3.9), and the dates: loan age, the outcome window (fixes 3.13, 3.14)
+
+
+@dataclass
+class DerivedReport:
+    """One new column as made: how many loans got a value, and why the rest are blank."""
+    name: str
+    top: str
+    bottom: str
+    made: int
+    blank: Counter                                  # why -> loans, e.g. "SALES is zero"
+
+    def text(self) -> str:
+        return f"{self.top} ÷ {self.bottom}"
+
+
+def derive(config: Config, table: Table, warnings: list[str]) -> tuple[Table, list[DerivedReport]]:
+    """The extract with the cube file's new columns added, each worked out on
+    every loan before anything else reads it. The missing rules of the top and
+    bottom apply, so an answered -9999 is blank here too."""
+    if not config.derived:
+        return table, []
+    out, reports = derive_columns(table, config.derived, config.missing)
+    for d in config.derived:
+        pt, pb = config.periods.get(d.top), config.periods.get(d.bottom)
+        if pt and pb and pt != pb:
+            # fix 3.10: warn, never stop, and never rescale: which one is right is the person's to say
+            factor = {("per_year", "per_month"): ", so it reads 12 times a like-for-like ratio",
+                      ("per_month", "per_year"): ", so it reads a twelfth of a like-for-like ratio"}.get((pt, pb), "")
+            warnings.append(f"{d.name} divides `{d.top}` ({PERIOD_WORDS[pt]}) by `{d.bottom}` ({PERIOD_WORDS[pb]}): "
+                            f"they aren't over the same period{factor}")
+    return out, reports
+
+
+def derive_columns(table: Table, defs, rules: dict | None = None) -> tuple[Table, list[DerivedReport]]:
+    """`defs` in order, each (name, top, bottom). A zero or blank bottom, or a
+    blank top, gives a blank value: never a zero, never infinity, and each is
+    counted by why. A new column may use one made before it."""
+    rules = rules or {}
+    cols = list(table.columns)
+    for d in defs:
+        if d.name in table.columns:
+            raise DataRefused(f"the new column `{d.name}` has the name of a column the extract already has. Give it "
+                              f"a name of its own")
+    known = set(cols)
+    missing: list[tuple[str, str]] = []
+    for d in defs:
+        missing += [(c, f"new column {d.name}") for c in (d.top, d.bottom) if c not in known]
+        known.add(d.name)
+    if missing:
+        raise ColumnsMissing(missing, table.columns)
+    rows = [dict(r) for r in table.rows]
+    reports = []
+    for d in defs:
+        blank: Counter = Counter()
+        made = 0
+        rt, rb = rules.get(d.top), rules.get(d.bottom)
+        for r in rows:
+            b, why_b = classify_number(r.get(d.bottom), rb)
+            t, why_t = classify_number(r.get(d.top), rt)
+            v = None
+            if why_b:
+                blank[f"{d.bottom} {why_b}"] += 1
+            elif b == 0:
+                blank[f"{d.bottom} is zero"] += 1
+            elif why_t:
+                blank[f"{d.top} {why_t}"] += 1
+            else:
+                v = t / b
+                made += 1
+            r[d.name] = v
+        cols.append(d.name)
+        reports.append(DerivedReport(d.name, d.top, d.bottom, made, blank))
+    return Table(path=table.path, sha256=table.sha256, columns=cols, rows=rows, kind=table.kind), reports
+
+
+#: Why a loan is left out by the window, in the order Check says them. None of these is guessed past.
+YOUNG = "under {n} months on book"
+NO_ORIG = "no readable origination date"
+MADE_AFTER = "made after the as-of date"
+BAD_NO_DATE = "bad, with no readable outcome date"
+BAD_BEFORE = "went bad before it was made"
+BAD_AFTER = "went bad after the as-of date"
+DATE_ON_GOOD = "an outcome date on a loan that isn't bad"
+#: what the outcome reads, for a bad loan past the window, when the outcome is a named value (flag_is)
+NOT_BAD_IN_WINDOW = "(bad after the window)"
+
+
+@dataclass
+class DateReport:
+    """What the dates did to the run: the loan age filter (window 0) or the outcome window."""
+    window: int                                     # months; 0 for the plain loan age filter
+    min_age: int
+    as_of: Any                                      # a date
+    as_of_from: str                                 # where it came from, in words
+    first: Any = None                               # the origination range of the loans kept
+    last: Any = None
+    kept: int = 0
+    left_out: dict = field(default_factory=dict)    # why -> loans
+    bad_after_window: int = 0                       # bad after month N: good, in the window
+    seasoned_at: int = 0                            # months on book that makes a loan seasoned (2N)
+    seasoned_loans: int = 0
+    seasoned_bad: int = 0                           # their bad loans with a usable outcome date
+    seasoned_bad_by: int = 0                        # ... that had gone bad by month N
+    seasoned_gco: float = 0.0                       # the GCO dollars on those bad loans
+    seasoned_gco_by: float = 0.0
+    seasoned_months_to_bad: list = field(default_factory=list)
+
+    @property
+    def excluded(self) -> int:
+        return sum(self.left_out.values())
+
+
+def months_between(start, end) -> int:
+    """Whole calendar months from `start` to `end`, one fewer when `end`'s day of
+    the month is earlier than `start`'s (as the Portfolio Analysis Pack counts).
+    A loan's k-th month on book is the one where this reads k - 1."""
+    return (end.year - start.year) * 12 + (end.month - start.month) - (1 if end.day < start.day else 0)
+
+
+def _date_reader(table: Table, col: str, what: str):
+    """How to read one date column: the pattern its text fits, found once. A
+    column whose every date reads two ways (01/02/2024: January or February?) is
+    refused, never read one way by default."""
     from .ingest import best_pattern, detect_date_format, parse_date
-    orig = config.origination_date
-    if orig not in table.columns:
-        raise ColumnsMissing([(orig, "origination date, for loan age")], table.columns)
-    det = detect_date_format(orig, [r.get(orig) for r in table.rows])
+    det = detect_date_format(col, [r.get(col) for r in table.rows])
+    if det.ambiguous:
+        ways = " or ".join(day for _, day in det.readings()[:2])
+        raise DataRefused(f"the dates in `{col}` ({what}) read two ways: {det.sample} is {ways}. Write them "
+                          f"year-month-day in the extract, such as 2024-01-02")
     fmt = det.resolved or best_pattern(det)
-    as_of = config.as_of
-    if isinstance(as_of, str) and as_of in table.columns:
-        adet = detect_date_format(as_of, [r.get(as_of) for r in table.rows])
-        vals = {parse_date(r.get(as_of), adet.resolved or best_pattern(adet)) for r in table.rows}
+    return lambda raw: parse_date(raw, fmt)
+
+
+def _as_of_date(config: Config, table: Table, read_orig, read_out) -> tuple[Any, str]:
+    """The as-of date and where it came from. Only what was said: a date given,
+    the one date in an as-of column, or - when someone picked it - the latest
+    origination or outcome date in the extract. The latest can only be on or
+    before the day the data was taken, so it never makes a loan look older than
+    it is."""
+    from datetime import date as _date
+    from .config import AS_OF_LATEST
+    a = config.as_of
+    if isinstance(a, _date):
+        return a, "as given"
+    if a == AS_OF_LATEST and AS_OF_LATEST not in table.columns:
+        seen = [read_orig(r.get(config.origination_date)) for r in table.rows]
+        if read_out is not None:
+            seen += [read_out(r.get(config.outcome_date)) for r in table.rows]
+        seen = [d for d in seen if isinstance(d, _date)]
+        if not seen:
+            raise DataRefused("the as-of date was to be the latest date in the extract, but no origination or "
+                              "outcome date in it can be read")
+        return max(seen), "the latest origination or outcome date in the extract"
+    if isinstance(a, str) and a in table.columns:
+        read = _date_reader(table, a, "the date the data was taken")
+        vals = {read(r.get(a)) for r in table.rows}
         vals = {v for v in vals if isinstance(v, _date)}
         if len(vals) != 1:
-            raise NothingToCut(f"the as-of column `{as_of}` holds {len(vals)} different dates; loan age needs one")
-        as_of = vals.pop()
-    elif isinstance(as_of, str):
-        as_of = _date.fromisoformat(as_of)
+            raise NothingToCut(f"the as-of column `{a}` holds {len(vals)} different dates; loan age needs one")
+        return vals.pop(), f"the as-of column `{a}`"
+    if isinstance(a, str):
+        try:
+            return _date.fromisoformat(a), "as given"
+        except ValueError:
+            pass
+    raise ColumnsMissing([(str(a), "the as-of date")], table.columns)
+
+
+def _is_bad(raw: Any, flag_is: Any, rule) -> bool | None:
+    """The outcome on one loan as the outcome rates read it: yes, no, or None
+    when it can't be read (those are left out of the outcome and counted there)."""
+    if flag_is is not None:
+        if is_blank(raw) or classify_text(raw, rule) == MISSING_RULE_LABEL:
+            return None
+        return cell_text(raw) == cell_text(flag_is)
+    v, why = classify_number(raw, rule)
+    if why:
+        return None
+    return True if v == 1.0 else False if v == 0.0 else None
+
+
+def age_filter(config: Config, table: Table, warnings: list[str]) -> tuple[list[dict], int, DateReport | None]:
+    """Keep loans at least `min_age_months` on book at the as-of date, or apply
+    the outcome window. Months on book are whole calendar months (months_between).
+    A loan with no readable origination date is left out and counted, never
+    assumed old enough."""
+    if not config.min_age_months and not config.window_months:
+        return table.rows, 0, None
+    from datetime import date as _date
+    orig = config.origination_date
+    what = "origination date, for the outcome window" if config.window_months else "origination date, for loan age"
+    if orig not in table.columns:
+        raise ColumnsMissing([(orig, what)], table.columns)
+    read_orig = _date_reader(table, orig, "when each loan was made")
+    read_out = None
+    if config.window_months and config.outcome_date not in table.columns:
+        raise ColumnsMissing([(config.outcome_date, "outcome date, for the outcome window")], table.columns)
+    if config.outcome_date in table.columns:
+        read_out = _date_reader(table, config.outcome_date, "when each loan went bad")
+    as_of, said = _as_of_date(config, table, read_orig, read_out)
+    if config.window_months:
+        return _window(config, table, read_orig, read_out, as_of, said, warnings)
     kept, young, unreadable = [], 0, 0
+    first = last = None
     for r in table.rows:
-        d = parse_date(r.get(orig), fmt)
+        d = read_orig(r.get(orig))
         if not isinstance(d, _date):
             unreadable += 1
             continue
-        months = (as_of.year - d.year) * 12 + (as_of.month - d.month) - (1 if as_of.day < d.day else 0)
+        months = months_between(d, as_of)
         if months >= config.min_age_months:
             kept.append(r)
+            first = d if first is None or d < first else first
+            last = d if last is None or d > last else last
         else:
             young += 1
     warnings.append(f"loan age: {young:,} loans under {config.min_age_months} months on book at {as_of} were left "
                     f"out" + (f", and {unreadable:,} with no readable origination date" if unreadable else ""))
-    return kept, young + unreadable
+    report = DateReport(window=0, min_age=config.min_age_months, as_of=as_of, as_of_from=said, first=first,
+                        last=last, kept=len(kept),
+                        left_out={k: v for k, v in ((YOUNG.format(n=config.min_age_months), young),
+                                                    (NO_ORIG, unreadable)) if v})
+    return kept, young + unreadable, report
+
+
+def _window(config: Config, table: Table, read_orig, read_out, as_of, said: str, warnings: list[str]):
+    """The outcome window (fix 3.14). Bad means bad in the loan's first N months
+    on book: an outcome date before the N-month anniversary. A loan under N
+    months on book hasn't had its N months, so it is left out and counted. A bad
+    loan that went bad later is good for this run: its outcome is read as no.
+    Only the yes/no outcome is windowed; dollar columns are as the extract has
+    them, and Check says so.
+
+    Loans seasoned well past the window (2N months on book or more) say how much
+    of the loss the window catches: of their bad loans, the share that had gone
+    bad by month N."""
+    from datetime import date as _date
+    n = config.window_months
+    orig, oc, flag_col = config.origination_date, config.outcome_date, config.outcome
+    core = next((m for m in config.measures if m.mode == "flagwt" and m.flag == flag_col), None)
+    flag_is = core.flag_is if core is not None else None
+    rule = config.missing.get(flag_col)
+    gco_col = next((m.value for m in config.measures if m.name == "gco_rate"), None)
+    gco_rule = config.missing.get(gco_col) if gco_col else None
+    young = YOUNG.format(n=n)
+    left = {k: 0 for k in (young, NO_ORIG, MADE_AFTER, BAD_NO_DATE, BAD_BEFORE, BAD_AFTER, DATE_ON_GOOD)}
+    rep = DateReport(window=n, min_age=0, as_of=as_of, as_of_from=said, seasoned_at=2 * n)
+    kept: list[dict] = []
+    for r in table.rows:
+        d = read_orig(r.get(orig))
+        if not isinstance(d, _date):
+            left[NO_ORIG] += 1
+            continue
+        if d > as_of:
+            left[MADE_AFTER] += 1
+            continue
+        bad = _is_bad(r.get(flag_col), flag_is, rule)
+        raw_out = r.get(oc)
+        k = None
+        if bad is True:
+            od = read_out(raw_out)
+            if not isinstance(od, _date):
+                left[BAD_NO_DATE] += 1
+                continue
+            if od < d:
+                left[BAD_BEFORE] += 1
+                continue
+            if od > as_of:
+                left[BAD_AFTER] += 1
+                continue
+            k = months_between(d, od)
+        elif bad is False and not is_blank(raw_out):
+            # the flag says no and a date says it went bad: not ours to settle
+            left[DATE_ON_GOOD] += 1
+            continue
+        age = months_between(d, as_of)
+        if age >= rep.seasoned_at:
+            rep.seasoned_loans += 1
+            if bad is True:
+                rep.seasoned_bad += 1
+                rep.seasoned_months_to_bad.append(k)
+                g = classify_number(r.get(gco_col), gco_rule)[0] if gco_col in table.columns else None
+                rep.seasoned_bad_by += k < n
+                if g is not None:
+                    rep.seasoned_gco += g
+                    rep.seasoned_gco_by += g if k < n else 0.0
+        if age < n:
+            left[young] += 1
+            continue
+        if bad is True and k >= n:
+            rep.bad_after_window += 1
+            r = dict(r)
+            r[flag_col] = 0.0 if flag_is is None else NOT_BAD_IN_WINDOW
+        kept.append(r)
+        rep.first = d if rep.first is None or d < rep.first else rep.first
+        rep.last = d if rep.last is None or d > rep.last else rep.last
+    rep.kept = len(kept)
+    rep.left_out = {k: v for k, v in left.items() if v}
+    said_out = "; ".join(f"{v:,} {k}" for k, v in rep.left_out.items())
+    late = rep.bad_after_window
+    warnings.append(f"outcome window: bad means bad in the first {n} months on book, at {as_of}. Left out: "
+                    f"{said_out or 'none'}. {late:,} {'loan' if late == 1 else 'loans'} went bad after month {n}, "
+                    f"so {'counts' if late == 1 else 'count'} as good here")
+    return kept, rep.excluded, rep
 
 
 def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
@@ -468,12 +746,25 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
     Such a cut is left out and said so, never run."""
     from dataclasses import replace
     tops = {m.value if m.mode == "sumnum" else m.flag for m in measures if m.is_rate}
+    # a new column made from a rate's top is that outcome too (fix 3.9): GCO over the booked amount, cut into
+    # bands, puts every loan with GCO in the top band
+    made_from = {}
+    for d in config.derived:
+        hit = next((c for c in (d.top, d.bottom) if c in tops or c in made_from), None)
+        if hit is not None:
+            made_from[d.name] = made_from.get(hit, hit)
+    if config.split and config.split[0] in made_from:
+        raise DataRefused(f"`{config.split[0]}` is made from `{made_from[config.split[0]]}`, the top of a rate, so "
+                          f"splitting by it would split the book by its own outcome. Split by another column")
     marked = dict(config.not_cut)              # meanings never cut by: servicing data, dates, the key ...
-    drop = tops | set(marked)
+    drop = tops | set(marked) | set(made_from)
     keep_b = tuple(b for b in config.bands if b.field not in drop)
     keep_d = tuple(d for d in config.dimensions if d.field not in drop)
     for x in [b for b in config.bands if b.field in drop] + [d for d in config.dimensions if d.field in drop]:
-        if x.field in tops:
+        if x.field in made_from:
+            warnings.append(f"`{x.field}` is not cut by: it is made from `{made_from[x.field]}`, the top of a rate, "
+                            f"so cutting by it would cut the book by its own outcome")
+        elif x.field in tops:
             warnings.append(f"`{x.field}` is not cut by: it is the top of a rate, so cutting by it would cut the "
                             f"book by its own outcome")
         else:
@@ -488,9 +779,10 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
 
 def run(config: Config, table: Table) -> Result:
     warnings: list[str] = []
+    table, derived = derive(config, table, warnings)
     measures = _resolve_columns(config, table, warnings)
     config = _drop_outcome_cuts(config, measures, warnings)
-    rows, aged_out = age_filter(config, table, warnings)
+    rows, aged_out, dates = age_filter(config, table, warnings)
     n = len(rows)
     rules = config.missing
 
@@ -653,7 +945,7 @@ def run(config: Config, table: Table) -> Result:
                   left_out=left_out, grids=grids, warnings=warnings, tie_outs=tie_outs,
                   band_edges=band_edges, loans_needed=needed, min_units=min_units,
                   materiality_line=materiality_line, aged_out=aged_out, three_way=three_way,
-                  split_moves_with=moves_with)
+                  split_moves_with=moves_with, dates=dates, derived=derived, table=table)
 
 
 def _correlation(xs, ys) -> float | None:
