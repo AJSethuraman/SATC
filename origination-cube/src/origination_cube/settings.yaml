@@ -20,7 +20,54 @@
 # override:      what the "Your own value" cell accepts, or null when only the
 #                listed options make sense
 
+#
+# only_when: {key: value}   Asked only when another setting has that answer. Blank is
+#                  refused only then, and the answer is not used otherwise.
+
 groups:
+  # What the run is for (the firm, 26 Sep 2026): "it likely makes sense for the script
+  # to ask which we are doing so it does indeed have the minimum required". Each answer
+  # checks its own required columns (book.read_book). The bleed analysis never needs a
+  # date; testing a new variable needs the origination date to tell the loans kept back
+  # from the rest. The trees and the regression are optional: "we may skip those steps in
+  # particular altogether if we already have professional judgment to pick coefficient."
+  - title: What you're running
+    settings:
+      - key: run_kind
+        question: What are you running?
+        takes_effect: re-run
+        override: null
+        judgment: true
+        options:
+          - value: bleed
+            label: "Where the book bleeds"
+            explains: >-
+              The grids, the split and the three-way: which pockets lose more than their share.
+              Needs the loan number, booked amount, outcome, GCO and RANR. No date.
+          - value: new_variable
+            label: "Finding and testing a new variable"
+            explains: >-
+              Whether a new column, like income over sales, tells good loans from bad on loans
+              kept back. Also needs a column marked Origination date on Columns.
+
+      - key: new_variable_step
+        question: Scout first, or test from a pre-spec already written?
+        takes_effect: re-run
+        override: null
+        judgment: true
+        only_when: {run_kind: new_variable}
+        options:
+          - value: scout
+            label: "Scout first"
+            explains: >-
+              Look for a new variable worth testing. Scouting isn't built yet, so a run with
+              this answer stops.
+          - value: prespec
+            label: "Test from a pre-spec"
+            explains: >-
+              Test the column the pre-spec names, once, on the loans it kept back. Name the
+              pre-spec file at the bottom of this tab.
+
   - title: How columns are recognised
     settings:
       - key: few_values

@@ -352,6 +352,21 @@ muts = [
  ("lone note in Together", B, '"cells": cells + [together or None, ALONE if alone else None],',
   '"cells": cells + [(f"{together}; {ALONE}" if together else ALONE) if alone else together or None, None],',
   "together_stays_the_pair"),
+ # 26 Sep 2026: what are you running? Each answer's own minimum (tests/test_run_kind.py)
+ ("bleed run asks for a date", B, 'NEEDS_COLUMNS = {BLEED: cfgmod.CORE, NEW_VARIABLE:',
+  'NEEDS_COLUMNS = {BLEED: cfgmod.CORE + ("origination_date",), NEW_VARIABLE:', "never_asks_for_a_date"),
+ ("new variable run without a date", B, 'NEW_VARIABLE: cfgmod.CORE + ("origination_date",)}',
+  'NEW_VARIABLE: cfgmod.CORE}', "needs_an_origination_date or two_origination_dates"),
+ ("core column not refused by name", B, '        if len(hits) != 1:\n            who = ',
+  '        if False:\n            who = ', "core_column_by_name"),
+ ("blank run kind picks for you", "src/origination_cube/control.py", '    if chosen in (None, ""):\n        how =',
+  '    if chosen in (None, "") and s.key == "run_kind":\n        found[key] = "bleed"\n        return\n'
+  '    if chosen in (None, ""):\n        how =', "blank_answer_is_refused"),
+ ("follow-up never asked", "src/origination_cube/control.py", '        if asked(s, found):\n            _take',
+  '        if False:\n            _take', "follow_up_is_refused"),
+ ("pre-spec held under a bleed run", B, '    if kind == BLEED:\n        if text is not None:',
+  '    if kind == BLEED:\n        if False:', "pre_spec_under_a_bleed_run"),
+ ("scouting runs", B, '    if kind == NEW_VARIABLE and step == SCOUT:', '    if False:', "scouting_is_refused"),
  ("lone pocket not counted on Check", K, '    return [("Alone in its band", ',
   '    return []\n    return [("Alone in its band", ', "counts_the_pockets_alone"),
 ]

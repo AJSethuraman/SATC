@@ -79,6 +79,7 @@ class Setting:
     group: str
     judgment: bool = False
     valid: dict | None = None        # {min, max, whole}: what a typed value may be
+    only_when: dict | None = None    # {key: value}: asked only when another setting has that answer
 
     def recommended(self) -> Option | None:
         return next((o for o in self.options if o.recommended), None)
@@ -105,7 +106,8 @@ def load_settings(path: str | Path | None = None) -> list[Setting]:
                                 recommended=bool(o.get("recommended", False))) for o in s["options"])
             out.append(Setting(key=s["key"], question=s["question"], takes_effect=s["takes_effect"],
                                override=s.get("override"), options=opts, group=g["title"],
-                               judgment=bool(s.get("judgment", False)), valid=s.get("valid")))
+                               judgment=bool(s.get("judgment", False)), valid=s.get("valid"),
+                               only_when=s.get("only_when")))
     return out
 
 
@@ -199,9 +201,11 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         C, D, H = f"C{r}", f"D{r}", f"${get_column_letter(KEY_COL)}{r}"   # H: the key column, wherever it is
         # shaded while unanswered, on any row: a method setting someone clears needs an answer too.
         # A row with no own-value cell shades only its dropdown (the grey n/a cell is not an answer).
+        # a setting asked only after another's answer (only_when) is shaded, and explained, only then
+        asked, not_asked = _asked_formula(s, settings, row_of)
         ws.conditional_formatting.add(
             f"C{r}:D{r}" if s.override is not None else f"C{r}",
-            FormulaRule(formula=[f'AND($C{r}="",OR($D{r}="",$D{r}="n/a"))'],
+            FormulaRule(formula=[f'AND({asked},$C{r}="",OR($D{r}="",$D{r}="n/a"))'],
                         fill=PatternFill("solid", fgColor=NEEDS, bgColor=NEEDS)))
         own_set = f'AND({D}<>"",{D}<>"n/a")'
         # the label, or a number equal to an option's value, as the reader takes it: Excel turns "95%"
@@ -209,17 +213,17 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         # the run then uses (found on the render, 25 Sep 2026)
         lookup = (f"IFERROR(MATCH({H}&\"|\"&{C},{OPTIONS_SHEET}!$A:$A,0),"
                   f"MATCH({H}&\"|\"&IFERROR(VALUE({C}),{C}),{OPTIONS_SHEET}!$H:$H,0))")
-        ws.cell(row=r, column=5, value=(f'=IF({own_set},{D},IF({C}="","",'
-                                        f'IFERROR(INDEX({OPTIONS_SHEET}!$G:$G,{lookup}),"not an option")))'))
+        ws.cell(row=r, column=5, value=(f'=IF(NOT({asked}),"",IF({own_set},{D},IF({C}="","",'
+                                        f'IFERROR(INDEX({OPTIONS_SHEET}!$G:$G,{lookup}),"not an option"))))'))
         note = f"Your own value, in place of the options ({s.override})." if s.override else ""
         pick = "Pick one, or enter your own." if s.override is not None else "Pick one from the list."
         instead = " Pick from the list, or put your number in the next column." if s.override is not None \
             else " Pick from the list."
         blank = "Needs an answer before we run."
-        ws.cell(row=r, column=6, value=(f'=IF({own_set},"{note}",IF({C}="","{blank} '
+        ws.cell(row=r, column=6, value=(f'=IF(NOT({asked}),"{not_asked}",IF({own_set},"{note}",IF({C}="","{blank} '
                                         f'{pick}",'
                                         f'IFERROR(INDEX({OPTIONS_SHEET}!$E:$E,{lookup}),"That isn\'t one of the '
-                                        f'options.{instead}")))'))
+                                        f'options.{instead}"))))'))
         k = ws.cell(row=r, column=KEY_COL, value=s.key)
         k.font = Font(name="Consolas", size=8, color=SLATE)
         for col in range(2, 8):
@@ -236,6 +240,26 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
+
+
+def _asked_formula(s: Setting, settings: list[Setting], row_of: dict[str, int]) -> tuple[str, str]:
+    """An Excel condition that is TRUE while the setting is asked, and what its
+    explanation says while it isn't: 'Only asked when "What are you running?" is
+    Finding and testing a new variable.' TRUE for every setting asked always."""
+    if not s.only_when:
+        return "TRUE", ""
+    conds, words = [], []
+    for key, value in s.only_when.items():
+        other = next(x for x in settings if x.key == key)
+        opt = next(o for o in other.options if o.value == value)
+        conds.append(f'$C${row_of[key]}="{opt.shown}"')
+        words.append(f'""{other.question}"" is {opt.label}')
+    return (conds[0] if len(conds) == 1 else f"AND({','.join(conds)})"), f"Only asked when {' and '.join(words)}."
+
+
+def asked(s: Setting, answers: dict[str, Any]) -> bool:
+    """Whether a setting is asked, given the answers read so far (only_when)."""
+    return all(answers.get(k) == v for k, v in (s.only_when or {}).items())
 
 
 def build_control_book(out: str | Path, settings: list[Setting] | None = None) -> Path:
@@ -260,6 +284,7 @@ def read_control(path: str | Path, settings: list[Setting] | None = None) -> dic
     found: dict[str, Any] = {}
     seen: set[str] = set()
     problems: list[str] = []
+    later: list[tuple[Any, Setting]] = []
     for row in ws.iter_rows(min_row=FIRST_ROW):
         key = row[KEY_COL - 1].value
         if key in REMOVED_ROWS:
@@ -271,35 +296,47 @@ def read_control(path: str | Path, settings: list[Setting] | None = None) -> dic
             continue
         s = by_key[key]
         seen.add(key)
-        chosen, own = row[CHOOSE_COL - 1].value, row[OWN_COL - 1].value
-        where = f"{SHEET}!C{row[0].row}"
-        if own not in (None, "", "n/a"):
-            if s.override is None:
-                problems.append(f'{where}: "{s.question}" takes one of the listed options only.')
-            elif not isinstance(own, (int, float)) or isinstance(own, bool):
-                problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {s.override}; got {own!r}.')
-            elif s.valid and not (s.valid["min"] <= own <= s.valid["max"]) or \
-                    (s.valid and s.valid.get("whole") and not float(own).is_integer()):
-                problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {_range_words(s)}; got {own!r}.'
-                                + _percent_hint(s, own))
-            else:
-                found[key] = int(own) if (s.valid or {}).get("whole") else own
+        if s.only_when:
+            later.append((row, s))          # read once the answer it hangs on is known
             continue
-        if chosen in (None, ""):
-            how = "Pick one from the list." if s.override is None else "Pick one, or enter your own in column D."
-            problems.append(f'{where}: "{s.question}" needs an answer. {how}')
-            continue
-        match = _matching(s, chosen)
-        if not match:
-            problems.append(f'{where}: {chosen!r} is not an option for "{s.question}".')
-            continue
-        found[key] = match[0].value
+        _take(row, s, found, problems)
+    for row, s in later:
+        if asked(s, found):
+            _take(row, s, found, problems)
     for k in by_key:
         if k not in seen:
             problems.append(f'The {SHEET} tab is missing the setting "{by_key[k].question}". Press Set up again.')
     if problems:
         raise ControlError(problems)
     return found
+
+
+def _take(row, s: Setting, found: dict[str, Any], problems: list[str]) -> None:
+    """One setting's answer into `found`, or its problem, named by cell."""
+    key = s.key
+    chosen, own = row[CHOOSE_COL - 1].value, row[OWN_COL - 1].value
+    where = f"{SHEET}!C{row[0].row}"
+    if own not in (None, "", "n/a"):
+        if s.override is None:
+            problems.append(f'{where}: "{s.question}" takes one of the listed options only.')
+        elif not isinstance(own, (int, float)) or isinstance(own, bool):
+            problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {s.override}; got {own!r}.')
+        elif s.valid and not (s.valid["min"] <= own <= s.valid["max"]) or \
+                (s.valid and s.valid.get("whole") and not float(own).is_integer()):
+            problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {_range_words(s)}; got {own!r}.'
+                            + _percent_hint(s, own))
+        else:
+            found[key] = int(own) if (s.valid or {}).get("whole") else own
+        return
+    if chosen in (None, ""):
+        how = "Pick one from the list." if s.override is None else "Pick one, or enter your own in column D."
+        problems.append(f'{where}: "{s.question}" needs an answer. {how}')
+        return
+    match = _matching(s, chosen)
+    if not match:
+        problems.append(f'{where}: {chosen!r} is not an option for "{s.question}".')
+        return
+    found[key] = match[0].value
 
 
 def describe(found: dict[str, Any], settings: list[Setting] | None = None) -> list[tuple[str, str]]:
@@ -486,12 +523,14 @@ def read_derived(ws) -> tuple[list[dict], list[str]]:
 # The pre-spec file (fix 3.15): one cell under the new columns, for a
 # confirmatory run only. A cell rather than a setting: a setting is a pick from
 # a list or a number, and it refuses or shades a blank. This is a path, and
-# blank is the ordinary answer: no pre-spec. The run reads the file and
-# refuses a pre-spec it cannot use, naming this cell (book.read_book).
+# blank is the answer for Where the book bleeds. The run reads the file only
+# for "Test from a pre-spec", refuses one it cannot use or one named for the
+# bleed analysis, naming this cell (book.read_book).
 
 PRESPEC_KEY = "prespec"
-PRESPEC_NOTE = ("For a confirmatory run only: the pre-spec file this run is held to, committed to git. Type its "
-                "full path, or just its name if it sits beside this workbook. Leave it blank for any other run.")
+PRESPEC_NOTE = ("Only for testing a new variable from a pre-spec: the pre-spec file this run is held to, committed "
+                "to git. Type its full path, or just its name if it sits beside this workbook. Leave it blank for "
+                "Where the book bleeds.")
 
 
 def write_prespec(wb: Workbook, path: Any = None) -> None:
