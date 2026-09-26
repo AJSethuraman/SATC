@@ -1738,7 +1738,10 @@ back.
   11. **4d:** "As proposed": 5 equal-loan bands; "survives" means the interval still excludes 1.
   12. **The tenet:** "Yes, add it". Being added to canon as S36.
   - **Next:** the box was left blank, so build 4e, then 4b.
-- [ ] **First: take the date work out of the bleed analysis (OC-39, the firm, 26 Sep 2026).**
+- [x] **First: take the date work out of the bleed analysis (OC-39, the firm, 26 Sep 2026).**
+      *(Done 26 Sep, merge b386e87: every loan runs; Check prints the origination-date range;
+      an old cube file, pre-spec or Control row naming a removed setting is refused by name,
+      and has to be deleted once. 442 tests, 164 planted bugs.)*
       Remove the loan-age filter, the outcome window, the as-of date, the outcome date role and
       the pre-spec's `window_months`. Keep the origination date for the dev/holdout split, and
       add one Check line giving its range. The firm answered decision 2 (windowing), 3 (as-of)
