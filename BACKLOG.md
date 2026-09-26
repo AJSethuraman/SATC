@@ -1791,8 +1791,15 @@ back.
 - [ ] **Then: live ordering and counts (Excel is Microsoft 365, the firm, 26 Sep 2026).** Use
       SORT/FILTER on Where it bleeds and for Check's counts. The container's LibreOffice is 24.2,
       which predates SORT/FILTER (24.8), so the tests need a newer LibreOffice or another check.
-- [ ] **Open: "judged against the book" points and dollars on one basis** (recommendation and
-      consequences put to the firm, 26 Sep 2026).
+- [ ] **Then: "judged against the book" on one basis** (the firm, 26 Sep 2026: option A, *"i
+      think this makes most seense"*): points and dollars both against the rest of the book,
+      as the band already is; the tie-out stays on Check.
+- [ ] **Then: the new-variable run needs only what it uses** (the firm, 26 Sep 2026: *"what's
+      the point in that if you are searching for possibly important variables to the
+      outcome?"*): the loan key, the outcome, the origination date, the tested column(s) and the
+      strata. Booked, GCO and RANR become optional; if present, 4e also shows dollars.
+- [ ] **Then: no "not built yet" option on Control** (the firm: *"don't note what it does not
+      include just note what it does"*): "Scout first" appears only once scouting exists.
 - [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
       (`origination-cube/docs/capabilities-scope.md`). It ends when the planted income ÷
       sales cliffs are found on development loans and confirmed on the holdout from a

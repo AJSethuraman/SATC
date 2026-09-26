@@ -11,6 +11,11 @@ The firm, 26 Sep 2026:
 > the deliverable includes. i do not like when each and every row has a configuration next
 > to it - it does not help with transparency so much as take space up"*
 
+- **But it must be followed by an outsider.** The firm, the same day: *"it's important that
+  someone who isn't a total expert on this and from a third party could reasonably follow
+  along. i don't want to have it spelled out on every line, because it's sloppy, but it needs
+  overviewed"*. So the note is not optional or terse. It explains, once, in plain words, every
+  test and choice behind the rows below it.
 - **What it means.** How a figure was worked out goes in one method note: on the tab, near
   the top, or once in the deliverable. Rows carry results, not the settings or tests behind
   them.
