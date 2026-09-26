@@ -771,3 +771,13 @@ def test_a_reach_proposal_on_two_lines_is_refused(corpus, queue):
 def test_a_period_in_weeks_is_a_figure(text, figure):
     """Codex on #401: "12-week period" matched no figure at all."""
     assert [rulings._figure(m) for m in rulings.FIGURE.findall(text)] == [figure]
+
+
+@pytest.mark.parametrize("text, figure", [("a 24-hour period", "24hour"),
+                                          ("48 hours", "48hour"),
+                                          ("30 minutes", "30minute"),
+                                          ("2 quarters", "2quarter")])
+def test_every_common_period_unit_is_a_figure(text, figure):
+    """Codex on #401, round after round: weeks, then hours. All the common
+    units at once rather than one a round."""
+    assert [rulings._figure(m) for m in rulings.FIGURE.findall(text)] == [figure]

@@ -78,13 +78,13 @@ FIGURE = re.compile(
     r"dollars?\b"
     r"|\b\d[\d,]*(?:\.\d+)?[\s-]*percentage[\s-]*points?\b"
     r"|\b\d[\d,]*(?:\.\d+)?[\s-]*(?:percent\b|%)"
-    r"|(?<![\d.])\d+(?:\.\d+)?[\s-]*(?:months?|weeks?|days?|years?)\b", re.I)
+    r"|(?<![\d.])\d+(?:\.\d+)?[\s-]*(?:seconds?|minutes?|hours?|days?|weeks?|months?|quarters?|years?)\b", re.I)
 
 
 def _figure(text: str) -> str:
     """One spelling for one figure: `50 percent`, `50%` and `50  percent` agree,
     and `$50` stays a different figure from `50%`."""
-    text = re.sub(r"(months?|weeks?|days?|years?)$", lambda m: m.group(1).rstrip("s"),
+    text = re.sub(r"(seconds?|minutes?|hours?|days?|weeks?|months?|quarters?|years?)$", lambda m: m.group(1).rstrip("s"),
                   text.lower())
     text = re.sub(r"percentage[\s-]*points?$", "pp", text)
     # "10 million dollars" IS "$10 million" (Codex on #401).

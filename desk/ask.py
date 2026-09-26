@@ -930,10 +930,14 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
             rest = p.citation[len(citation):]
             if re.fullmatch(r"\([^()]+\)", rest):
                 out += [f"### {p.citation}", "", f"> {p.text}", ""]
-            elif rest.startswith("("):
+            elif rest.startswith("(") or re.match(r" Example \d", rest):
+                # WORKED EXAMPLES TOO. Codex on #401: § 1.263(a)-3(e)(6) printed
+                # a lead-in ending in a colon, and its 19 examples were neither
+                # printed nor listed.
                 deeper.append(p.citation)
         if deeper:
-            out += ["Further down, not printed -- `ask.read` any of these:", ""]
+            out += ["Further down or worked examples, not printed -- "
+                    "`ask.read` any of these:", ""]
             out += [f"- `{c}`" for c in deeper] + [""]
         return "\n".join(out)
     if under:

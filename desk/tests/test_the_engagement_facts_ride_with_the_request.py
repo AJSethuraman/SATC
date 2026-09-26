@@ -318,3 +318,11 @@ def test_a_question_cannot_spell_its_way_into_another_requests_ref():
     b = relay.ask_many(["Is a reward income?"], OCCAM,
                        on_file={"trade": "general contractor"})
     assert a.asks[0].ref != b.asks[0].ref and a.ref != b.ref
+
+
+@pytest.mark.parametrize("value", [False, True])
+def test_a_boolean_or_number_placeholder_is_not_a_fact(value):
+    """Codex on #401: `{"taxpayer": False}` became the label "False". A number
+    stays allowed -- `unit_cost` may well arrive as 185."""
+    with pytest.raises(relay.RelayError, match="no value|not text"):
+        relay.ask_many(["q?"], OCCAM, on_file={"taxpayer": value})

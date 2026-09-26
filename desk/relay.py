@@ -354,6 +354,12 @@ def _facts(on_file) -> tuple:
     # before anything could see it (fourth independent review of #401).
     given = list(on_file.items()) if hasattr(on_file, "items") else list(
         on_file or ())
+    # NOR IS A BOOLEAN. Codex on #401: `{"taxpayer": False}` became the label
+    # "False", read as recorded. A number stays allowed (`unit_cost`: 185).
+    if flagged := sorted(str(k) for k, v in given if isinstance(v, bool)):
+        raise RelayError(
+            f"{', '.join(flagged)} has no value: True or False is not text a "
+            f"firm recorded. Leave an unfilled fact out.")
     facts = {str(k).strip().lower(): ("" if v is None else str(v).strip())
              for k, v in given}
     # ONE NAME, ONCE. Third independent review of #401: "trade" and "TRADE"

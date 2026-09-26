@@ -104,3 +104,11 @@ def test_an_exact_read_prints_its_own_clauses_and_lists_the_rest():
     deeper = [line for line in got.splitlines() if line.startswith("### ")]
     assert all(line.count("(") - "26 CFR 1.263(a)-3(k)".count("(") <= 1
                for line in deeper), deeper
+
+
+def test_a_paragraph_with_worked_examples_lists_them():
+    """Codex on #401: § 1.263(a)-3(e)(6) printed its lead-in, which ends in a
+    colon, and none of its 19 examples was printed or listed."""
+    got = ask.read("26 CFR 1.263(a)-3(e)(6)")
+    assert "`26 CFR 1.263(a)-3(e)(6) Example 1`" in got
+    assert got.count("Example ") >= 19
