@@ -1086,3 +1086,29 @@ stop a builder shelling out to Chrome itself. What it can do is make the honest
 path the short one and the other one visible in a grep for `print-to-pdf`
 outside this module. That is prevention where prevention reaches and detection
 where it does not, and the difference is stated rather than blurred.
+
+## 26 September 2026 — S36, the first tenet added since the thirty-five
+
+The docket asked *"Add a tenet to canon: compare against a bar worked out
+once?"* and the firm answered *"Yes, add it."* **S36 · Compare against a bar
+computed once and rounded, never against 1 − confidence written inline.**
+
+It is cited to one incident, in `origination-cube`: the adversarial pass on the
+cube's statistics found that `1 - 0.95` is `0.050000000000000044`, so a p-value
+of exactly 0.05 read significant at 95% and not at 90%. Commit `da0271a` put the
+bar in one place, `stats.bar(confidence) = round(1.0 - confidence, 12)`, and the
+mutation check's *"the bar not rounded"* turns all four of the tests that hold
+it red — rerun for this entry, not taken from the commit message.
+
+It is also the first tenet whose evidence names a project other than SATC,
+which is what the evidence tally was built to show. The counts that meant the
+record's current size moved to thirty-six: the two tests that asserted 35,
+`skills/how-we-work`, the README's state line, and the canon row in the
+repo-root `CLAUDE.md`. The historical ones stay — the ratification on
+3 September was of thirty-five, and that is still what happened.
+
+**Not released.** The version was not moved and `release.py` was not run: that
+is the firm's step. Until it is taken,
+`test_the_version_says_what_the_record_actually_contains` is red, which is that
+test doing its job — the record changed, and "should this be 1.21.0?" is now a
+question in front of a reviewer rather than one nobody asked.
