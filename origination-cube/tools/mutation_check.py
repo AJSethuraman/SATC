@@ -319,6 +319,8 @@ muts = [
  ("prevalence tie-out off", PV, '        if sum(x[0] for x in out[k].values()) != c.rows:\n            return None',
   '        if False:\n            return None', "does_not_add_up"),
  ("prevalence tab not written", B, '    prevalence.write(wb, res)', '    pass', "prevalence_tab_counts"),
+ ("words run into numbers", B, '            for col in (11, 17, 19):\n                ws.cell(row=r, column=col).alignment = Alignment(indent=1)',
+  '            for col in ():\n                pass', "words_after_a_number"),
 ]
 bad = 0
 for name, f, old, new, sel in muts:

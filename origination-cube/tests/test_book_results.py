@@ -819,3 +819,16 @@ def test_revenue_reads_the_same_on_both_tabs(tmp_path):
                 assert lvr[key] == word[flag], (option, key, flag, lvr[key])
                 seen += 1
         assert seen, option
+
+
+def test_words_after_a_number_start_clear_of_it(tmp_path):
+    """The render of 26 Sep 2026 printed "10.9%worse" and "80.4loans": a word column
+    beside a right-aligned number needs its own indent on Where it bleeds."""
+    b = _ready(tmp_path, n=3000)
+    assert book.run(b).ok
+    ws = load_workbook(b)["Where it bleeds"]
+    heads = {ws.cell(row=4, column=c).value: c for c in range(2, 22)}
+    for name in ("Excess is in", "Test"):
+        assert ws.cell(row=5, column=heads[name]).alignment.indent >= 1, name
+    flag = next(c for h, c in heads.items() if h and h.startswith("Flag"))
+    assert ws.cell(row=5, column=flag).alignment.indent >= 1

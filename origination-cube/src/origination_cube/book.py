@@ -1376,6 +1376,10 @@ def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Po
             ws.cell(row=r, column=18).number_format = ('0.00" pts or less"' if m.in_points else
                                                        '0.00"x or more"' if m.higher_is == "worse"
                                                        else '0.00"x or less"')
+            # words that follow a right-aligned number start clear of it ("10.9%worse", "80.4loans" on the render,
+            # 26 Sep 2026)
+            for col in (11, 17, 19):
+                ws.cell(row=r, column=col).alignment = Alignment(indent=1)
             r += 1
     if r == 5:
         ws.cell(row=5, column=2, value="Nothing is losing more than its share at these settings.")
