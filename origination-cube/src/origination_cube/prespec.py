@@ -13,7 +13,7 @@ promise, and it only binds once git holds it, dated, before the holdout run.
 THE FILE (YAML). Every line is required and none has a default:
 
     prespec: 1                          # this format's version
-    written: 2026-10-01                 # the day it was written
+    written: 2026-09-25                 # the day it was written
     column: income_to_sales             # the derived or split column being tested
     bins: [0.1, 0.25, 0.5, 1.0, 2.0]    # its cut points, chosen on development data
     reference: "0.25 - 0.49"            # the group every other group is compared with
@@ -26,17 +26,21 @@ THE FILE (YAML). Every line is required and none has a default:
 Line by line:
 
 - `prespec` is 1.
-- `written` and every `from` / `to` is a date written 2024-01-01, quoted or not.
+- `written` and every `from` / `to` is a date written 2024-01-01, quoted or not. A
+  `written` date after the day of the run is said on Check, and the run goes on.
 - `column` names one column.
 - `bins` is a list of numbers, each above the one before. N cut points make N + 1
   groups. A group holds its first number and stops short of the next cut point, so a
   ratio of exactly 0.25 is in "0.25 - 0.49". The groups are named the way the grids
-  name bands (`engine.band_labels`): "up to 0.09", "0.10 - 0.24", "0.25 - 0.49",
-  "0.50 - 0.99", "1.00 - 1.99", "2.00 and up".
+  name bands (`engine.band_labels`): between the cut points above, "0.10 - 0.24",
+  "0.25 - 0.49", "0.50 - 0.99", "1.00 - 1.99". The lowest and highest groups take
+  their names from the data once it is read, as a grid's do: if the ratio runs from
+  0.03 to 7.40, they are "0.03 - 0.09" and "2.00 - 7.40", and the workbook names them
+  so wherever it names a group (`named`).
 - `reference` is one of those names, or the group's number counting from 0 at the
-  lowest (2 is "0.25 - 0.49" above, as `ref = 2` is in scout-vs-measure.py). The
-  lowest and highest groups may also be written the way a grid shows them once the
-  data's range is known: "0.01 - 0.09", "2.00 - 7.40".
+  lowest (2 is "0.25 - 0.49" above, as `ref = 2` is in scout-vs-measure.py). The file
+  is written before the data is read, so the lowest and highest groups may be written
+  with any range, "0.01 - 0.09", "2.00 - 7.40", or as "up to 0.09" and "2.00 and up".
 - `strata` lists column names, each once, never the tested column. `strata: []` says
   explicitly that the whole book is one pocket.
 - `window_months` is a whole number, 1 or more.
@@ -59,6 +63,8 @@ file and its commit, and the Log counting holdout runs, are wired in elsewhere
 (`docs/NEXT-GOAL.md` 3.15).
 
 - `load(path) -> PreSpec`, or `PreSpecError` listing every problem.
+- `named(prespec, lo, hi) -> PreSpec`: its groups named from the tested column's
+  smallest and largest value in a run, as that run's tabs name them.
 - `provenance(path) -> {commit, committed_at, dirty, reason}`: the commit the file
   was last committed in, and whether it has changed since. Never raises.
 - `deviations(prespec, in_use) -> [str]`: each place the run disagrees with the
@@ -73,7 +79,7 @@ import math
 import os
 import subprocess
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Iterable
@@ -98,7 +104,7 @@ ONLY_ONCE_COMMITTED = "a pre-spec only counts once it is committed"
 
 _LINES = {
     "prespec": f"prespec: {VERSION}",
-    "written": "written: 2026-10-01                 # the day this was written",
+    "written": "written: 2026-09-25                 # the day this was written",
     "column": "column: income_to_sales             # the column being tested",
     "bins": "bins: [0.1, 0.25, 0.5, 1.0, 2.0]    # its cut points, chosen on development data",
     "reference": 'reference: "0.25 - 0.49"           # the group the others are compared with',
@@ -149,6 +155,17 @@ class PreSpec:
     development: DateRange
     source_path: str = ""
     text: str = ""                   # the file exactly as read, for Check to echo
+    lo: float | None = None          # the tested column's smallest and largest value in a run, once read,
+    hi: float | None = None          # from which the lowest and highest groups are named (`named`)
+
+
+def named(prespec: PreSpec, lo: float | None, hi: float | None) -> PreSpec:
+    """The pre-spec with its groups named as a run's tabs name them, from the
+    tested column's smallest and largest value in that run: "0.03 - 0.09", not
+    "up to 0.09". Without a value for an end, that end is named as the bins alone
+    name it, as a grid's is."""
+    groups = tuple(band_labels(prespec.bins, lo, hi))
+    return replace(prespec, groups=groups, reference=groups[prespec.reference_index], lo=lo, hi=hi)
 
 
 # --------------------------------------------------------------------------
@@ -425,7 +442,6 @@ _SAID = {
     "strata": ("Pockets are cut by", "What the pockets are cut by is not set"),
     "window_months": ("The outcome window is", "The outcome window is not set"),
     "confidence": ("Confidence is", "Confidence is not set"),
-    "holdout": ("The holdout is", "The holdout is not set"),
 }
 
 
@@ -436,11 +452,15 @@ def deviations(prespec: PreSpec, in_use: dict, where: str = "on Control") -> lis
 
     `in_use` holds what the run used: column, bins (or edges), reference (a
     group's name or number), strata, window_months, confidence (a share) and
-    holdout ({from, to}, a (from, to) pair, or a DateRange). A key that is
-    absent or None is reported as not set: a run that never said its window has
-    not matched the pre-spec's. Other keys, such as the rest of Control's
-    settings, are not the pre-spec's business and are passed over. `where` says
-    where the run's value was read, for the sentence.
+    holdout: the origination range of the loans it used ({from, to}, a (from, to)
+    pair, or a DateRange). A key that is absent or None is reported as not set (the
+    holdout's as not known): a run that never said its window has not matched the
+    pre-spec's. Other keys,
+    such as the rest of Control's settings, are not the pre-spec's business and
+    are passed over. `where` says where the run's value was read, for the
+    sentence; the holdout's sentence is about the loans the run used, wherever its
+    settings were read, and never calls their range the holdout. Groups are named
+    as `named` named them, from the data's range when it has been read.
     """
     ps = prespec
     got = dict(in_use)
@@ -448,13 +468,18 @@ def deviations(prespec: PreSpec, in_use: dict, where: str = "on Control") -> lis
         got["bins"] = got["edges"]
     want = {"column": f"`{ps.column}`", "bins": _bins_text(ps.bins), "reference": f"`{ps.reference}`",
             "strata": _strata_text(ps.strata), "window_months": _months(ps.window_months),
-            "confidence": _pct(ps.confidence), "holdout": ps.holdout.text()}
+            "confidence": _pct(ps.confidence)}
     out: list[str] = []
     in_bins = _as_bins(got.get("bins"))
 
     for key in IN_USE_KEYS:
-        says, unset = _SAID[key]
         v = got.get(key)
+        if key == "holdout":
+            said = _holdout_said(ps.holdout, v)
+            if said:
+                out.append(said)
+            continue
+        says, unset = _SAID[key]
         if v is None:
             out.append(f"{unset} {where}; the pre-spec says {want[key]}.")
             continue
@@ -470,13 +495,14 @@ def deviations(prespec: PreSpec, in_use: dict, where: str = "on Control") -> lis
         elif key == "reference":
             bins = in_bins if in_bins is not None else ps.bins
             idx = _group_index(v, bins)
+            names = band_labels(bins, ps.lo, ps.hi)
             if idx is None:
                 seen = f"`{v}`, which is not one of its bins' groups"
             elif _same_bins(bins, ps.bins):
                 if idx != ps.reference_index:
-                    seen = f"`{band_labels(bins)[idx]}`"
-            elif band_labels(bins)[idx] != ps.reference:
-                seen = f"`{band_labels(bins)[idx]}`"
+                    seen = f"`{names[idx]}`"
+            elif names[idx] != ps.reference:
+                seen = f"`{names[idx]}`"
         elif key == "strata":
             cols = [v] if isinstance(v, str) else v
             if not isinstance(cols, (list, tuple)) or not all(isinstance(c, str) for c in cols):
@@ -494,15 +520,30 @@ def deviations(prespec: PreSpec, in_use: dict, where: str = "on Control") -> lis
                 seen = _pct(c)
                 if seen == want[key]:                      # differs past the printed digits: show them all
                     seen, want[key] = repr(c), repr(ps.confidence)
-        elif key == "holdout":
-            r = _as_range(v)
-            if r is None:
-                seen = f"{v!r}, which is not a date range"
-            elif r != ps.holdout:
-                seen = r.text()
         if seen is not None:
             out.append(f"{says} {seen} {where}; the pre-spec says {want[key]}.")
     return out
+
+
+def _holdout_said(hold: DateRange, v: Any) -> str | None:
+    """How the loans a run used differ from the holdout, or None when they are it.
+    Found 26 Sep 2026: "The holdout is 2021-06-30 to 2024-12-30 in this run" named
+    the range of every loan run as if it were a holdout."""
+    said = f"The pre-spec's holdout is {hold.text()}; "
+    if v is None:
+        return said + "when this run's loans were made isn't known."
+    r = _as_range(v)
+    if r is None:
+        return said + f"this run's loans were made {v!r}, which is not a date range."
+    if r == hold:
+        return None
+    if not r.overlaps(hold):
+        tail = "none of them in the holdout"
+    elif hold.start <= r.start and r.end <= hold.end:
+        tail = "only part of the holdout"
+    else:
+        tail = "not only the holdout"
+    return said + f"this run used loans made {r.text()}, {tail}."
 
 
 def _as_bins(v: Any) -> tuple[float, ...] | None:

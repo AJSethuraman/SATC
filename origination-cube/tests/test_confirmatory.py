@@ -7,14 +7,14 @@ counted here by hand from the extract."""
 import csv
 import shutil
 import subprocess
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 import yaml
 from openpyxl import load_workbook
 
 from conftest import cube, table
-from origination_cube import book, confirmatory, control, engine, prespec, synth
+from origination_cube import book, confirmatory, control, engine, prespec, prevalence, synth
 from test_book import _answer
 from test_book_dates import _check, _columns, _control
 
@@ -110,8 +110,8 @@ def test_a_run_held_to_a_committed_pre_spec_echoes_it_says_where_it_differs_and_
     assert devs == [
         'Deviates from pre-spec: The reference group is "the low half of each pocket", which is not one of its '
         'bins\' groups in this run; the pre-spec says "0.25 - 0.49".',
-        f"Deviates from pre-spec: The holdout is {kept[0]} to {kept[-1]} in this run; the pre-spec says "
-        f"2024-01-01 to 2024-12-31."]
+        f"Deviates from pre-spec: The pre-spec's holdout is 2024-01-01 to 2024-12-31; this run used loans made "
+        f"{kept[0]} to {kept[-1]}, not only the holdout."]
 
     # the holdout, counted by hand: every loan in the extract made in 2024, both ends included
     held = sorted(r["ORIG_DATE"] for r in rows if "2024-01-01" <= r["ORIG_DATE"] <= "2024-12-31")
@@ -211,9 +211,85 @@ def test_without_an_origination_date_the_holdout_is_said_unchecked(tmp_path, mon
     assert devs[0] == 'Deviates from pre-spec: The column tested is not set in this run; the pre-spec says ' \
                       '"INCOME_TO_SALES".'
     assert "Deviates from pre-spec: The outcome window is not set in this run; the pre-spec says 18 months." in devs
+    assert ("Deviates from pre-spec: The pre-spec's holdout is 2024-01-01 to 2024-12-31; when this run's loans were "
+            "made isn't known." in devs)
     log = _log(b)
     assert log[1].startswith("Deviates from pre-spec prespec.yaml (not committed): ")
     assert log[2] == "Holdout not checked: no column is marked Origination date on Columns."
+
+
+def _prespec_rows(b) -> list[tuple[str, str]]:
+    """Check's pre-spec rows, in order, from "Pre-spec" to the holdout count."""
+    out = []
+    for r in load_workbook(b)["Check"].iter_rows(min_row=4):
+        if r[1].value == "Pre-spec" or out:
+            out.append((r[1].value, r[2].value))
+        if r[1].value == "Runs that touched the holdout":
+            break
+    return out
+
+
+def _prevalence_groups(b, column) -> list[str]:
+    """The groups the Prevalence tab shows for a new column, lowest first, from its first grid."""
+    ws = load_workbook(b)[prevalence.SHEET]
+    top = next(r for r in range(1, ws.max_row + 1)
+               if str(ws.cell(row=r, column=2).value or "").startswith(f"{column} = "))
+    row = next(r for r in range(top + 1, ws.max_row + 1) if ws.cell(row=r, column=prevalence.GROUP_COL).value)
+    return [ws.cell(row=row, column=c).value for c in range(prevalence.GROUP_COL, ws.max_column + 1, 2)
+            if ws.cell(row=row, column=c).value]
+
+
+@needs_git
+def test_check_names_the_pre_specs_groups_as_the_tabs_name_them(tmp_path, monkeypatch):
+    """Found 26 Sep 2026 (final check, F13): the pre-spec named its lowest group "up to 0.09" from the cut
+    points alone, so Check echoed "up to 0.09" while Prevalence named the same group "0.02 - 0.09" from the
+    data. The firm: bands read as ranges, never "up to". The file may say it either way; the workbook says it
+    one way, the tabs'."""
+    x, b = _ready(tmp_path, monkeypatch, n=1500)
+    _spec(x.parent, reference="up to 0.09")
+    _held(b, "prespec.yaml")
+    assert book.run(b).ok
+    shown = [g for g in _prevalence_groups(b, "INCOME_TO_SALES") if g not in engine.REASON_LABEL.values()]
+    lowest, highest = shown[0], shown[-1]
+    assert lowest.endswith(" - 0.09") and highest.startswith("2.00 - ")
+
+    # the end groups' names hold the smallest and largest ratio among the loans run, counted here by hand
+    with open(x, newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    latest = max(max(r["ORIG_DATE"] for r in rows), max(r["BAD_DATE"] for r in rows))
+    ratios = [float(r["INCOME"]) / float(r["SALES"]) for r in rows
+              if _months(r["ORIG_DATE"], latest) >= 18 and r["SALES"] not in ("", "0")]
+    low, high = float(lowest.split(" - ")[0]), float(highest.split(" - ")[1])
+    assert low <= min(ratios) < low + 0.01 and high - 0.01 < max(ratios) <= high
+
+    got = _prespec_rows(b)
+    says = dict(got)["What the pre-spec says"].splitlines()
+    assert f"reference: {lowest}" in says
+    groups = next(s for s in says if s.startswith("bins: ")).split("(groups: ")[1].rstrip(")").split("; ")
+    assert [g for g in groups if g in shown] == shown and (groups[0], groups[-1]) == (lowest, highest)
+    assert (f'Deviates from pre-spec: The reference group is "the low half of each pocket", which is not one of its '
+            f'bins\' groups in this run; the pre-spec says "{lowest}".') in [v for k, v in got if k == "Warning"]
+    assert not any("up to" in str(v) for _, v in got)
+
+
+@needs_git
+def test_a_pre_spec_written_after_the_run_is_warned_of_and_the_run_goes_on(tmp_path, monkeypatch):
+    """Found 26 Sep 2026 (final check, F13): the example pre-spec was dated 2026-10-01, five days after the run,
+    and nothing said so. A pre-spec can't have been written after the run held to it."""
+    x, b = _ready(tmp_path, monkeypatch, n=1500)
+    later = date.today() + timedelta(days=1)
+    _spec(x.parent, written=later.isoformat())
+    _held(b, "prespec.yaml")
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    got = _prespec_rows(b)
+    # with the other pre-spec lines: straight after what it says
+    said = [k for k, _ in got].index("What the pre-spec says")
+    assert got[said + 1] == ("Warning", f"The pre-spec says it was written on {later.isoformat()}, after this run.")
+    # written the day of the run: nothing to say
+    _spec(x.parent, written=date.today().isoformat())
+    assert book.run(b).ok
+    assert not any("after this run" in str(v) for _, v in _prespec_rows(b))
 
 
 # --------------------------------------------------------------------------
