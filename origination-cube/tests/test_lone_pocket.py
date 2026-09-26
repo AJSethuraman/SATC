@@ -100,3 +100,19 @@ def test_check_counts_the_pockets_alone_in_their_band():
     got = [v for k, v in checks.rows(res) if k == "Alone in its band"]
     assert got == ["1 pocket had no other pocket in its band, so it was compared with the rest of the book."]
     assert not [v for k, v in checks.rows(_run("topline")) if k == "Alone in its band"]
+
+
+def test_losses_vs_revenue_says_why_in_its_own_column_and_together_stays_the_pair():
+    """Found 26 Sep 2026 by the full suite: the note first went into Together, which only ever reads the
+    pair (priced for it, net drain, safe but idle)."""
+    res = _run("peers")
+    _, lone = _cells(res)
+    ws = Workbook().active
+    book._losses_vs_revenue(ws, res)
+    head = next(r for r in ws.iter_rows() if any(c.value == "Compared with" for c in r))
+    cols = {c.value: c.column for c in head if c.value}
+    rows = [r for r in ws.iter_rows(min_row=head[0].row + 1) if r[cols["Band"] - 1].value]
+    lone_rows = [r for r in rows if r[cols["Band"] - 1].value == lone]
+    assert lone_rows and all(r[cols["Compared with"] - 1].value == ALONE for r in lone_rows)
+    assert all(ALONE not in str(r[cols["Together"] - 1].value or "") for r in rows)
+    assert not any(r[cols["Compared with"] - 1].value for r in rows if r[cols["Band"] - 1].value != lone)

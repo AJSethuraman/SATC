@@ -1729,8 +1729,10 @@ back.
   7. **Pre-spec "deviates" until 4b:** *"This is not a problem if we are fixing it."* Kept
      until 4b, which is Next.
   8. **A pocket alone in its band:** "Compare with the book", with *"It's hard to believe this
-     will even happen unless a specific circumstance."* Being built: compared with the book, and
-     the row says so.
+     will even happen unless a specific circumstance."* Built (merges a7909d6 and after): a lone
+     pocket is judged against the book; Where it bleeds says so in its Test column, Losses vs
+     revenue in a "Compared with" column, and Check counts them. First try put the note in
+     Together, which the full suite caught (3 tests). 448 tests, 168 planted bugs.
   9. **scikit-learn for 4a:** "Optional add-on".
   10. **4c's lines:** *"This is not something the engine is meant to catch. This is non
       generic. This is meant to be something we may do on a specific study or something."*

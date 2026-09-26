@@ -1568,21 +1568,21 @@ def _losses_vs_revenue(ws, res) -> None:
                     + (" (not significant)" if unsure[k] else ""))
                 cells += [s.rate, _rest_rate(s, parent.rates[k]), _shown(gaps[k], ms[k]), word, over[k]]
             together = "" if untested else together_of(shown["gco_rate"], shown["ranr_rate"])
-            if alone:
-                together = f"{together}; {ALONE}" if together else ALONE
+            # a lone pocket's note sits in its own column: Together only ever reads the pair (the firm, 26 Sep 2026)
             rows.append({"band": bl, "seg": dl, "untested": untested, "gidx": gaps["gco_rate"],
-                         "ridx": gaps["ranr_rate"] * 100, "shown": shown, "cells": cells + [together or None],
+                         "ridx": gaps["ranr_rate"] * 100, "shown": shown,
+                         "cells": cells + [together or None, ALONE if alone else None],
                          "g_over": over["gco_rate"]})
         rows.sort(key=lambda x: (x["untested"], -(x["g_over"] or 0)))
         ws.cell(row=top, column=2, value=f"{names[g.band]} x {names[g.dimension]}").font = Font(
             name="Calibri", bold=True, size=12)
         # two header rows: which side, then what each column holds
-        _head(ws, top + 1, ["", "", ""] + [x for _, h, *_ in LVR_SIDES for x in (h, "", "", "", "")] + [""])
+        _head(ws, top + 1, ["", "", ""] + [x for _, h, *_ in LVR_SIDES for x in (h, "", "", "", "")] + ["", ""])
         for _, _, a, *_ in LVR_SIDES:
             ws.merge_cells(start_row=top + 1, start_column=a, end_row=top + 1, end_column=a + 4)
             ws.cell(row=top + 1, column=a).alignment = Alignment(horizontal="center")
         ws.row_dimensions[top + 1].height = 16
-        _head(ws, top + 2, ["Band", "Segment", "Loans"] + side_heads * 3 + ["Together"])
+        _head(ws, top + 2, ["Band", "Segment", "Loans"] + side_heads * 3 + ["Together", "Compared with"])
         r = top + 3
         first = r
         for row in rows:
@@ -1612,7 +1612,7 @@ def _losses_vs_revenue(ws, res) -> None:
                            1 + gi * 3, top)
         top = max(r, top + 24) + 2
     # the readings fit "keeps more (not significant)" on one line (the seventh walk, defects 4 and 5)
-    widths = [2, 15, 12, 7] + [9, 9, 10, 28, 12] * 3 + [14, 2]
+    widths = [2, 15, 12, 7] + [9, 9, 10, 28, 12] * 3 + [14, 36, 2]
     for j, w in enumerate(widths, start=1):
         ws.column_dimensions[_col(j)].width = w
     ws.freeze_panes = "B4"
@@ -1703,7 +1703,7 @@ def _revenue_chart(ws, hs, rows, first: int, title: str, b, line, hcol: int, anc
     chart.x_axis.delete = chart.y_axis.delete = False
     chart.x_axis.crosses = "min"           # the multiples along the bottom, not across a profit of 0 (the render)
     chart.width, chart.height = 15, 10
-    ws.add_chart(chart, f"{_col(LVR_T + 2)}{anchor_row}")
+    ws.add_chart(chart, f"{_col(LVR_T + 3)}{anchor_row}")
 
 
 def _heat(ws, rng: str, m, bound: float | None = None) -> None:

@@ -349,6 +349,9 @@ muts = [
   '                    if True:\n                        s.flag = s.reading_band', "alone_in_its_band_is_flagged"),
  ("lone pocket's row says nothing", B, '            if peers and s.alone:\n                said = f"{said}; {ALONE}"',
   '            if False:\n                said = f"{said}; {ALONE}"', "alone_in_its_band_says_why"),
+ ("lone note in Together", B, '"cells": cells + [together or None, ALONE if alone else None],',
+  '"cells": cells + [(f"{together}; {ALONE}" if together else ALONE) if alone else together or None, None],',
+  "together_stays_the_pair"),
  ("lone pocket not counted on Check", K, '    return [("Alone in its band", ',
   '    return []\n    return [("Alone in its band", ', "counts_the_pockets_alone"),
 ]
