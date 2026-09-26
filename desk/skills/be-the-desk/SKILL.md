@@ -357,7 +357,23 @@ this file you are reading will be in the object and not in the list.
 
 **A request may carry several questions** — `DESK REQUEST` with numbered
 questions, each under its own `ref`. Answer EACH one separately: its own
-`consult`, its own `ask.answer`, its own second reader. Then send ONE reply in
+`consult`, its own `ask.answer`, its own second reader.
+
+**A request may carry the engagement's recorded facts** under `## On file for
+this engagement`. The firm records these in the engagement's setup; they are
+not the asker's description. Read them with the engine and pass them to every
+`consult` and `answer` for that request:
+
+```python
+ctx = relay.on_file(message)          # refuses an undeclared name or a blank
+brief = ask.consult(question, context=ctx)
+out = ask.answer(question, position=position, citation=citation,
+                 working=working, context=ctx, judged=judged)
+```
+
+Never add a fact that is not in that block, and never infer one from a vendor
+name. A fact the block does not list is NOT on file: escalate
+`context_not_on_file` for it, as before. Then send ONE reply in
 which every answer opens with its own `DESK ANSWER <ref>` line followed by that
 question's `print(out)`. Leave none out: a ref with no answer reaches the asker
 as unanswered, not as a no.

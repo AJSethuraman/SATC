@@ -279,9 +279,44 @@ class Batch:
     asks: tuple
     reply_to: str
     ref: str
+    #: THE ENGAGEMENT'S RECORDED FACTS, as `((name, value), ...)`, or `()`.
+    #: See `ask_many`.
+    on_file: tuple = ()
 
 
-def ask_many(questions, reply_to: str) -> Batch:
+def _declared() -> tuple[str, ...]:
+    """The fact names the desk records -- `Records:` in SUBJECTS.md, read
+    through the parser, never copied into this file."""
+    import pathlib
+    import record
+    return tuple(record.load(pathlib.Path(__file__).resolve().parent / "corpus")
+                 .records)
+
+
+def _facts(on_file) -> tuple:
+    """Validate recorded engagement facts: declared names, real values, no TIN."""
+    facts = {str(k).strip().lower(): str(v).strip()
+             for k, v in dict(on_file or {}).items()}
+    declared = set(_declared())
+    if extra := sorted(n for n in facts if n not in declared):
+        raise RelayError(
+            f"{', '.join(extra)} is not a fact the desk records. It records "
+            f"{', '.join(sorted(declared))}. A fact outside that list is the "
+            f"asker framing the question.")
+    if empty := sorted(n for n, v in facts.items() if not v):
+        raise RelayError(
+            f"{', '.join(empty)} has no value. Leave a fact out rather than "
+            f"send it blank: blank is not a fact, and the desk would read it "
+            f"as one.")
+    for name, value in facts.items():
+        if TIN.search(value):
+            raise RelayError(
+                f"the value for {name!r} looks like a TIN. The desk answers "
+                f"without identity and this envelope is stored on a trigger.")
+    return tuple(sorted(facts.items()))
+
+
+def ask_many(questions, reply_to: str, on_file=None) -> Batch:
     """Build a batch, or REFUSE. Every question passes `ask`'s checks.
 
     ONE BAD QUESTION REFUSES THE BATCH. Sending the other six would hand the
@@ -299,7 +334,17 @@ def ask_many(questions, reply_to: str) -> Batch:
             f"would answer it twice and the second copy would read as a "
             f"duplicate delivery. Send it once.")
     ref = hashlib.sha256("\n".join(sorted(refs)).encode()).hexdigest()[:12]
-    return Batch(asks=asks, reply_to=reply_to, ref=ref)
+    # `on_file` IS WHAT THE FIRM RECORDED IN THE ENGAGEMENT'S SETUP, AND NOTHING
+    # ELSE. The firm, 26 September 2026: *"occam should ensure there is a spot
+    # to fill it out in the setup process so that we can assign it there and
+    # that's where it reads it from."* That is not the context field they cut
+    # -- *"we don't add context to it, that defeats the purpose"* -- because
+    # the asker chooses nothing but which recorded values to pass: the names
+    # are the desk's own (`Records:`), a blank is refused, and the envelope
+    # says where the values came from. Two pilots running, the desk refused
+    # the rewards, refund and clothing rows for want of exactly these.
+    return Batch(asks=asks, reply_to=reply_to, ref=ref,
+                 on_file=_facts(on_file) if on_file else ())
 
 
 def batch_prompt(b: Batch) -> str:
@@ -317,15 +362,55 @@ def batch_prompt(b: Batch) -> str:
            "## The questions", ""]
     for n, a in enumerate(b.asks, 1):
         out += [f"### {n} - ref {a.ref}", "", a.question, ""]
-    out += ["No context came with them, deliberately. Read the facts off the "
-            "record through `consult`, where the ones not held are named as "
-            "such, and escalate on a missing one rather than infer it.", ""]
+    if b.on_file:
+        out += [ON_FILE_HEADING, "",
+                *[f"- **{n}:** {v}" for n, v in b.on_file], "",
+                "These were recorded by the firm in this engagement's setup. "
+                "They are not the asker's description of anything. Pass exactly "
+                "these to every `consult` and `answer`: "
+                "`context=relay.on_file(<this message>)`. A fact not listed "
+                "here is NOT on file; escalate on it rather than infer it.", ""]
+    else:
+        out += ["No context came with them, deliberately. Read the facts off "
+                "the record through `consult`, where the ones not held are "
+                "named as such, and escalate on a missing one rather than "
+                "infer it.", ""]
     out += _how_to_answer()
     out += _how_to_reply(b.reply_to, [a.ref for a in b.asks])
     out += ["", f"**Send ONE reply holding every answer**, each opening with its "
                 f"own `DESK ANSWER <ref>` line. Answer every question: a ref you "
                 f"leave out comes back to the asker as unanswered, not as a no."]
     return "\n".join(out)
+
+
+ON_FILE_HEADING = "## On file for this engagement"
+
+
+def on_file(body: str):
+    """The engagement facts a request carries, as a `record.Context`.
+
+    READ BY THE DESK, CHECKED AGAIN HERE. The asker's `ask_many` validated
+    them; the desk does not take that on trust, because the envelope is text
+    that crossed a session boundary. An unknown name or a blank value refuses.
+    A request with no such block is `record.NOTHING_ON_FILE`, which is what it
+    always was.
+    """
+    import record
+    at = body.find(ON_FILE_HEADING)
+    if at < 0:
+        return record.NOTHING_ON_FILE
+    facts = {}
+    for line in body[at + len(ON_FILE_HEADING):].splitlines():
+        line = line.strip()
+        if not line:
+            if facts:
+                break
+            continue
+        m = re.match(r"^- \*\*([a-z_]+):\*\* (.+)$", line)
+        if not m:
+            break
+        facts[m.group(1)] = m.group(2).strip()
+    return record.Context(facts=dict(_facts(facts)))
 
 
 @dataclass(frozen=True)

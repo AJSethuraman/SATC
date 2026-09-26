@@ -253,6 +253,22 @@ desk is your own reasoning coming back with a citation attached. The desk reads
 the facts off the record itself, where the ones nobody holds are named as
 missing.
 
+**The one thing that does ride along: what the firm recorded in the
+engagement's setup.** The firm, 26 September 2026: *"occam should ensure there
+is a spot to fill it out in the setup process so that we can assign it there and
+that's where it reads it from."* Read those values from your app's setup and
+pass them as they are recorded, never as you would describe the client:
+
+```python
+b = relay.ask_many(questions, reply_to=my_session_id,
+                   on_file=read_engagement_facts())   # e.g. {"taxpayer": "LLC"}
+```
+
+`ask_many` refuses a name the desk does not record, a blank value, and anything
+shaped like a TIN. Send only facts that are filled in. A fact nobody recorded
+stays off the request, and the desk will say it is missing. That is how a hole
+gets found.
+
 **4 · One ref per question — many questions per envelope.** This read "one
 question per envelope" until 25 September 2026, and that is what made each
 question cost a full envelope. Every question in a batch still carries its own

@@ -479,6 +479,16 @@ it with them.
   nudging its rank. Still open: the card-charge question, which blocks 322 rows.
   Pub. 502 and IRS INFO 2010-0153 state "counts when charged" for medical costs
   and for charity. Rev. Rul. 78-38 has not been readable from here.
+  Then, from the firm: *"engagement file - still not needed. occam should
+  ensure there is a spot to fill it out in the setup process so that we can
+  assign it there and that's where it reads it from"*. And for Sarcia: *"sarcia
+  services is an LLC and is a general contractor"*.
+  - Occam added an Engagement section to its setup wizard (occam#20).
+  - `relay.ask_many(..., on_file=...)` now carries only the facts the desk
+    declares it records, and refuses a blank value or a TIN.
+  - The desk reads them back with `relay.on_file`, which checks them again.
+  - This lifts POS13's `context_not_on_file`, which blocked the rewards rows
+    in pilots 3 and 4.
 
 - **2026-09-14 — The eighth docket: all eight answered, every one taking the
   recommendation (artifact `642c3276`).**
