@@ -127,7 +127,8 @@ make.
 **All thirteen slices are built.** The record parses and round-trips, nothing
 enters it without an explicit yes, nothing is ever deleted, the challenge fires
 and the silence holds, evidence accumulates, all 35 tenets have moved in and
-were **ratified by the firm on 3 September 2026**, the corpus can be mined, and
+were **ratified by the firm on 3 September 2026** (a thirty-sixth, S36, was added
+on the firm's yes of 26 September 2026), the corpus can be mined, and
 a repository that predates canon can be adopted.
 
 | | |
