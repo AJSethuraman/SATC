@@ -57,12 +57,22 @@ from pathlib import Path
 from typing import Any
 
 import bisect
+import hashlib
+import math
+import re
 
 from . import control, engine, kgroups, perm, prespec
 
 HOLDOUT_MARK = "Touched the holdout:"       # how a Log line says a run touched the holdout; Check counts them
 DEVIATES = "Deviates from pre-spec"          # how a Log line labels a run that differs from its pre-spec
 LOW_HALF = "the low half of each pocket"
+#: record, don't block (the firm, 26 Sep 2026: "i don't think there's a reason to have some sort of over the top
+#: control in place"): the Log records each pre-spec when a Run first reads it, by its fingerprint, and every run
+#: held to it after that; a pre-spec changed after a held-back run labels the run. Nothing is refused for it
+WRITTEN, SAME_AS = "written:", "as before:"
+CHANGED = "Changed pre-spec:"               # how a Log line labels a run on a pre-spec changed after a held-back run
+_FP_LINE = re.compile(r"^(?:Pre-spec (?P<a>.+?) (?:written|as before): fingerprint (?P<fa>[0-9a-f]{12})"
+                      r"|Changed pre-spec: (?P<b>.+?) changed after .*?, (?P<fb>[0-9a-f]{12}) now)")
 
 
 @dataclass
@@ -81,10 +91,27 @@ class State:
     failed: str | None = None                # something went wrong working the state out, in words
     ran_on: date = field(default_factory=date.today)     # the day of the run, which the pre-spec can't postdate
     test: "Test | None" = None               # the confirmatory test itself (4b, 4e)
+    fingerprint: str = ""                    # the first 12 characters of the file's SHA-256, as read
+    #: this pre-spec's earlier runs in this workbook's Log, oldest first: (when, fingerprint, touched the holdout)
+    earlier: list = field(default_factory=list)
 
     @property
     def name(self) -> str:
         return self.path.name
+
+    @property
+    def first_read(self) -> bool:
+        """No earlier run in this workbook's Log read this pre-spec as it is now."""
+        return not any(fp == self.fingerprint for _, fp, _ in self.earlier)
+
+    @property
+    def changed_after(self) -> tuple[str, str] | None:
+        """(when, fingerprint then) of the last held-back run before this one, when the pre-spec has changed since
+        it; None when it hasn't, or no earlier run touched the holdout."""
+        held = [(when, fp) for when, fp, touched in self.earlier if touched]
+        if held and held[-1][1] != self.fingerprint:
+            return held[-1]
+        return None
 
     @property
     def runs(self) -> int:
@@ -134,7 +161,8 @@ def state(book, about: dict, res) -> State | None:
     if not got:
         return None
     ps = got["spec"]
-    st = State(spec=ps, path=Path(got["path"]), cell=got["cell"], provenance=prespec.provenance(got["path"]))
+    st = State(spec=ps, path=Path(got["path"]), cell=got["cell"], provenance=prespec.provenance(got["path"]),
+               fingerprint=fingerprint(ps.text))
     try:
         ps = st.spec = prespec.named(ps, *column_range(res, ps.column))
         st.test = run_test(res, ps)
@@ -146,6 +174,7 @@ def state(book, about: dict, res) -> State | None:
             st.touched, st.first, st.last = prespec.holdout_touch(ps, dates)
             st.undated = sum(1 for d in dates if d is None)
         st.runs_before = holdout_runs(book, about.get("_wb"))
+        st.earlier = history(about.get("_wb"), st.name)
     except Exception as exc:                     # a line on Check, never a failed run after the engine ran
         st.failed = f"the run couldn't be compared with the pre-spec ({exc})"
     return st
@@ -240,18 +269,40 @@ def holdout_runs(book, loaded=None) -> int:
     """How many runs this workbook's Log already records as touching the holdout. `loaded`: the workbook the Run
     already has open, so it isn't read from disk again (one load per Run)."""
     from openpyxl import load_workbook
+    from . import record
     try:
         wb = loaded if loaded is not None else load_workbook(book, read_only=True)
     except Exception:
         return 0
     try:
-        if "Log" not in wb.sheetnames:
-            return 0
-        return sum(1 for (v,) in wb["Log"].iter_rows(min_col=2, max_col=2, values_only=True)
-                   if isinstance(v, str) and v.startswith(HOLDOUT_MARK))
+        return sum(1 for _, lines in record.entries(wb) for v in lines if v.startswith(HOLDOUT_MARK))
     finally:
         if loaded is None:
             wb.close()
+
+
+def fingerprint(text: str) -> str:
+    """A pre-spec's fingerprint: the first 12 characters of the SHA-256 of the file as read. Any change to the
+    file, a comment included, changes it."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+
+
+def history(wb, name: str) -> list[tuple[str, str, bool]]:
+    """Every earlier run in this workbook's Log held to the pre-spec called `name`, oldest first: when it ran, the
+    fingerprint it read, and whether it touched the holdout."""
+    from . import record
+    if wb is None:
+        return []
+    out = []
+    for when, lines in reversed(record.entries(wb)):
+        fp = None
+        for v in lines:
+            m = _FP_LINE.match(v)
+            if m and (m.group("a") or m.group("b")) == name:
+                fp = m.group("fa") or m.group("fb")
+        if fp:
+            out.append((when or "", fp, any(v.startswith(HOLDOUT_MARK) for v in lines)))
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -305,6 +356,10 @@ class Test:
     scores: tuple[float, ...]                   # B4's: 1, 2, ... K, lowest group first
     development: RangeTest | None = None
     holdout: RangeTest | None = None
+    #: the same test on the same loans with the held-fixed columns taken away: every loan in one pocket (the firm's
+    #: lean pre-spec, 26 Sep 2026: each input reported with and without the columns held fixed)
+    development_plain: RangeTest | None = None
+    holdout_plain: RangeTest | None = None
     left_out: dict[str, int] = field(default_factory=dict)
     gco_unread: int = 0                         # holdout loans in the test with no readable GCO (B6's dollars only)
     #: whether the run has a GCO column, so B6 has dollars to show. A test of a new variable needs no dollar
@@ -315,6 +370,11 @@ class Test:
 
     def ranges(self) -> list[RangeTest]:
         return [r for r in (self.development, self.holdout) if r is not None]
+
+    @property
+    def held(self) -> bool:
+        """Whether any column is held fixed: with none, the test with them and without them is the same test."""
+        return bool(self.strata)
 
     def concentration(self) -> list[kgroups.Concentration]:
         """4e: B6 on the holdout only (statistics.md B6: "on the holdout only")."""
@@ -377,6 +437,11 @@ def _range_test(name, rng, K, ref, scores, items) -> RangeTest:
                      [k for _, k, _, _ in items], [y for _, _, y, _ in items], [g for _, _, _, g in items])
 
 
+def _unheld(items: list[tuple]) -> list[tuple]:
+    """The loans of one range with no column held fixed: every one in the same pocket."""
+    return [((), k, y, g) for _, k, y, g in items]
+
+
 def run_test(res, ps: prespec.PreSpec) -> Test:
     """The confirmatory test: B3, B4 and B5 on the development range and on the holdout, and B6 on the holdout.
     Every loan with a readable date in one of the two ranges, a readable value of the column and a readable
@@ -434,8 +499,46 @@ def run_test(res, ps: prespec.PreSpec) -> Test:
     t.left_out = {k: v for k, v in left.items() if v}
     t.development = _range_test(DEVELOPMENT, dev, K, t.ref, t.scores, items[DEVELOPMENT])
     t.holdout = _range_test(HOLDOUT, hold, K, t.ref, t.scores, items[HOLDOUT])
+    # without the held-fixed columns: the same loans, every one in a single pocket
+    t.development_plain = _range_test(DEVELOPMENT, dev, K, t.ref, t.scores, _unheld(items[DEVELOPMENT]))
+    t.holdout_plain = _range_test(HOLDOUT, hold, K, t.ref, t.scores, _unheld(items[HOLDOUT]))
     t.gco_unread = sum(1 for x in items[HOLDOUT] if x[3] is None) if gcol is not None else 0
     return t
+
+
+@dataclass
+class Excess:
+    """Each group's losses on the holdout above its share, scaled to the whole book, in the unit the materiality
+    line on Control is in: charge-off dollars when the run has GCO per booked dollar, bad loans otherwise."""
+    per_group: list[float | None]
+    unit: str                                   # DOLLARS or BAD_LOANS
+    scale: float | None                         # the whole book's losses over the holdout's
+
+
+DOLLARS, BAD_LOANS = "dollars", "bad loans"
+
+
+def excess(res, t: Test) -> Excess | None:
+    """How far each group's losses on the holdout sit above its share of them (its share of the holdout's loans),
+    times the whole book's losses over the holdout's, so the figure is on the scale of Control's materiality line
+    (a share of the book's losses). None when the test didn't run."""
+    if t.problem or t.holdout is None:
+        return None
+    conc = t.concentration()
+    rates = res.total.rates
+    if t.dollars and "gco_rate" in rates:
+        hold = math.fsum(g for g in t.holdout.gco_of if g is not None)
+        book_total, unit = abs(rates["gco_rate"].num), DOLLARS
+        mine = [c.gco for c in conc]
+    else:
+        hold = float(t.holdout.n_bad)
+        book_total = float(rates["outcome_loans"].num) if "outcome_loans" in rates else 0.0
+        unit, mine = BAD_LOANS, [float(c.bad) for c in conc]
+    scale = book_total / hold if hold else None
+    out = []
+    for c, m in zip(conc, mine):
+        out.append(None if scale is None or c.flag_rate is None else (m - c.flag_rate * hold) * scale)
+    return Excess(out, unit, scale)
 
 
 def _test_words(t: Test) -> str:
@@ -443,10 +546,10 @@ def _test_words(t: Test) -> str:
     if t.problem:
         return f"Couldn't be run: {_plain(t.problem)}."
     parts = [f"{r.name} {r.range.text()}: {r.n:,} loans, {r.n_bad:,} bad" for r in t.ranges()]
-    said = "; ".join(parts) + ". See the Confirmatory test tab."
+    said = "; ".join(parts) + ". See the New variables tab."
     said = said[0].upper() + said[1:]
     if t.left_out:
-        said += (" Left out of this test only (the loan counts on Check include them): "
+        said += (" Left out of this test only (the loan counts on Record include them): "
                  + "; ".join(f"{v:,} with {k}" if k != OUTSIDE else f"{v:,} {k}" for k, v in t.left_out.items())
                  + ".")
     return said
@@ -504,12 +607,16 @@ def check_rows(res) -> list[tuple[str, str]]:
     if st is None:
         return []
     out = [("Pre-spec", str(st.path)), ("Pre-spec commit", _commit_words(st)),
+           ("Pre-spec fingerprint", f"{st.fingerprint}: the first 12 characters of the file's SHA-256, so any "
+                                    f"change to it shows"),
            ("What the pre-spec says", _says(st.spec))]
     if st.spec.written > st.ran_on:
         out.append(("Warning", f"The pre-spec says it was written on {st.spec.written.isoformat()}, after this run."))
     if st.provenance.get("reason"):
         out.append(("Warning", "This run doesn't count as the pre-specified one until the pre-spec is committed, "
                                "unchanged."))
+    if st.changed_after is not None:
+        out.append(("Warning", provenance_line(st)))
     if st.failed:
         out.append(("Warning", f"Pre-spec: {st.failed}."))
     elif st.deviations:
@@ -519,10 +626,19 @@ def check_rows(res) -> list[tuple[str, str]]:
     out.append(("Holdout", _holdout_words(st)))
     if st.test is not None:
         out.append(("Confirmatory test", _test_words(st.test)))
-    runs = f"{st.runs:,} in this workbook's Log" + (", this one included" if st.touched else "")
+    runs = f"{st.runs:,} on Record's Every Run" + (", this one included" if st.touched else "")
     if st.touched is None:
-        runs = f"{st.runs_before:,} in this workbook's Log before this one, which couldn't be checked"
+        runs = f"{st.runs_before:,} on Record's Every Run before this one, which couldn't be checked"
     out.append(("Runs that touched the holdout", runs))
+    out.append(("This pre-spec's held-back runs", history_words(st)))
+    if st.test is not None and st.test.problem is None:
+        k = len(st.test.groups)
+        out.append(("Tests on New variables",
+                    f"Each group against the reference: conditional logistic regression, its odds ratio, range and "
+                    f"p-value, and its block test (a likelihood ratio test on {k - 1} degrees of freedom); whether the "
+                    f"column matters at all: the Mantel-Haenszel test for {k} groups and its trend test. Each on the "
+                    f"loans the groups were found on and on the held-back loans, with and without the columns held "
+                    f"fixed."))
     return out
 
 
@@ -538,7 +654,7 @@ def log_lines(res) -> list[str]:
         out = [f"Pre-spec {st.name} ({of}): {st.failed}."]
     elif st.deviations:
         k = len(st.deviations)
-        out = [f"{DEVIATES} {st.name} ({of}): {k} {'place' if k == 1 else 'places'}, listed on Check."]
+        out = [f"{DEVIATES} {st.name} ({of}): {k} {'place' if k == 1 else 'places'}, listed on Record."]
     else:
         out = [f"Follows pre-spec {st.name} ({of})."]
     if st.touched:
@@ -546,14 +662,47 @@ def log_lines(res) -> list[str]:
                    f"{st.first.isoformat()} to {st.last.isoformat()}.")
     elif st.touched is None:
         out.append(f"Holdout not checked: {st.unchecked}.")
+    out.append(provenance_line(st))
     return out
+
+
+def provenance_line(st: State) -> str:
+    """The Log's record of the pre-spec this run read (record, don't block): when it was written, the first time a
+    Run reads it as it is now; that it is the same, after that; and a change, when it changed after a held-back
+    run, which labels this run."""
+    ch = st.changed_after
+    if ch is not None:
+        when, then = ch
+        return (f"{CHANGED} {st.name} changed after the held-back run of {when}: fingerprint {then} then, "
+                f"{st.fingerprint} now. This run is on the changed pre-spec.")
+    if st.first_read:
+        pv = st.provenance
+        commit = (f", committed {str(pv.get('committed_at') or '').replace('T', ' ')} in {pv['commit'][:12]}"
+                  if pv.get("commit") and not pv.get("dirty") else "")
+        return (f"Pre-spec {st.name} {WRITTEN} fingerprint {st.fingerprint}, dated {st.spec.written.isoformat()} "
+                f"in the file{commit}; first read by this run.")
+    return f"Pre-spec {st.name} {SAME_AS} fingerprint {st.fingerprint}, unchanged since it was first read."
+
+
+def history_words(st: State) -> str:
+    """Record's line on this pre-spec's held-back runs, in order, this one last."""
+    runs = [(when, fp) for when, fp, touched in st.earlier if touched]
+    if st.touched:
+        runs.append(("this run", st.fingerprint))
+    if not runs:
+        return "None yet: no run held to this pre-spec has touched the holdout."
+    said, prev = [], None
+    for when, fp in runs:
+        said.append(f"{when} ({fp}" + (", changed" if prev is not None and fp != prev else "") + ")")
+        prev = fp
+    return "In order: " + "; ".join(said) + "."
 
 
 def launcher_lines(res) -> list[str]:
     st = getattr(res, "prespec", None)
     if st is None:
         return []
-    return log_lines(res) + [f"Runs that touched the holdout, in this workbook's Log: {st.runs:,}."]
+    return log_lines(res) + [f"Runs that touched the holdout, on Record: {st.runs:,}."]
 
 
 def what_ran(res) -> str:

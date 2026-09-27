@@ -15,7 +15,8 @@ Everything counted here is counted from the test's own groups by hand, never fro
 import pytest
 from openpyxl import load_workbook
 
-from origination_cube import book, confirm_tab, confirmatory, engine, launcher, perm, results
+from origination_cube import book, confirm_tab, confirmatory, control, engine, launcher, perm, results
+import tabs
 from recalc import recalc
 from test_book_dates import _check, _control
 from test_confirmatory import _held, _log, _ready, _spec, needs_git
@@ -101,7 +102,8 @@ def test_a_new_variable_run_writes_no_bleed_tab_and_takes_off_the_ones_a_bleed_r
     tabs = set(load_workbook(runs["b"]).sheetnames)
     assert not tabs & BLEED_TABS, tabs & BLEED_TABS
     assert not tabs & {*results.HIDDEN, results.CHART}                  # nor the hidden sheets they read
-    assert {confirm_tab.SHEET, "Check", "Log", "Start here"} <= tabs
+    assert {confirm_tab.SHEET, "Record", "_log", "Start here"} <= tabs
+    assert not tabs & {"Check", "Log", "Confirmatory test"}                # the tabs Record and New variables replaced
 
 
 @needs_git
@@ -115,7 +117,7 @@ def test_check_says_so_in_one_line_and_says_nothing_of_pockets_or_tie_outs(runs)
     # what the confirmatory test rests on is still there: the strata's band edges, and the pre-spec's lines
     assert "Band edges used: FICO" in chk and chk["Differs from the pre-spec"] == "nowhere: this run used what it says"
     assert "tie-out" not in _log(runs["b"])[0] and "tie-out" not in runs["ran"].lines[0]
-    assert runs["ran"].lines[-1].endswith("start with Confirmatory test.")
+    assert runs["ran"].lines[-1].endswith("start with New variables.")
 
 
 # --------------------------------------------------------------------------
@@ -195,3 +197,98 @@ def test_the_engine_builds_no_grid_for_a_new_variable_and_the_same_grids_as_befo
     assert tested.band_edges == bled.band_edges and tested.rows == bled.rows
     assert {k: (v.num, v.den) for k, v in tested.total.rates.items()} == \
         {k: (v.num, v.den) for k, v in bled.total.rates.items()}
+
+
+# --------------------------------------------------------------------------
+# Control asks a new variable only what it uses (the redesign, phase 4)
+
+#: what a test of a new variable reads on Control: the worse line (the New variables chart), materiality,
+#: confidence, and how the held-fixed columns are banded
+USED = ("worse_at", "materiality", "confidence", "band_count", "band_cut")
+UNUSED = ("min_loans", "min_events", "better_at", "compare_to", "power", "many_tests", "revenue_line")
+
+
+def _dev_by_hand(x) -> tuple[list[int], list[int]]:
+    """Development loans (2022-2023) per group of INCOME / SALES, and their bad loans, counted from the extract."""
+    import bisect
+    import csv as csv_
+    from test_confirm_test import BINS
+    loans, bad = [0] * 6, [0] * 6
+    with open(x, newline="", encoding="utf-8") as fh:
+        for r in csv_.DictReader(fh):
+            if not "2022-01-01" <= r["ORIG_DATE"] <= "2023-12-31" or r["SALES"] in ("", "0") or \
+                    r["BAD_FLAG"] not in ("0", "1"):
+                continue
+            g = bisect.bisect_right(BINS, float(r["INCOME"]) / float(r["SALES"]))
+            loans[g] += 1
+            bad[g] += int(r["BAD_FLAG"])
+    return loans, bad
+
+
+def _copied(runs, folder):
+    """The fixture's workbook, extract and pre-spec, copied into a folder of the test's own."""
+    import shutil
+    folder.mkdir(exist_ok=True)
+    for f in (runs["b"], runs["x"], runs["x"].parent / "prespec.yaml"):
+        shutil.copy(f, folder / f.name)
+    return folder / runs["b"].name, folder / runs["x"].name
+
+
+@needs_git
+def test_a_new_variable_run_is_asked_only_what_it_uses(runs, tmp_path):
+    b, _ = _copied(runs, tmp_path / "copy")
+    ws = load_workbook(b)[control.SHEET]
+    hidden = {k for k in USED + UNUSED if ws.row_dimensions[control.row_of(ws, k)].hidden}
+    assert hidden == set(UNUSED)
+    # left blank, none of them is asked for: the Run goes ahead, and Record lists only what the run used
+    wb = load_workbook(b)
+    ws = wb[control.SHEET]
+    for k in UNUSED:
+        r = control.row_of(ws, k)
+        ws.cell(row=r, column=control.CHOOSE_COL).value = None
+        if ws.cell(row=r, column=control.OWN_COL).value != "n/a":
+            ws.cell(row=r, column=control.OWN_COL).value = None
+    wb.save(b)
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    q = {s.key: s.question for s in control.load_settings()}
+    assert sorted(tabs.settings(b)) == sorted(q[k] for k in USED)
+    # a bleed workbook still asks every one of them
+    bl = load_workbook(runs["b"])
+    cws = bl[control.SHEET]
+    cws.cell(row=control.row_of(cws, "run_kind"), column=control.CHOOSE_COL).value = BLEED
+    control.fold_launcher_rows(cws)
+    assert [k for k in USED + UNUSED if cws.row_dimensions[control.row_of(cws, k)].hidden] == []
+
+
+@needs_git
+def test_the_worse_line_is_suggested_from_the_confirmations_own_groups(runs):
+    """The smallest odds ratio a group of typical size could call significant against the reference, on the loans
+    the groups were found on: worked out here from the extract's counts, at 95% sure."""
+    import math
+    import statistics
+    loans, bad = _dev_by_hand(runs["x"])
+    t = runs["t"]
+    p = sum(bad) / sum(loans)
+    pq = p * (1 - p)
+    want = round(statistics.median(math.exp(1.959963984540054 * math.sqrt(1 / (n * pq) + 1 / (loans[t.ref] * pq)))
+                                   for k, n in enumerate(loans) if k != t.ref), 2)
+    assert book.test_gap(t, 0.95) == want
+    ws = load_workbook(runs["b"])[control.SHEET]
+    said = ws.cell(row=control.row_of(ws, "worse_at"), column=book.SUGGEST_COL).value
+    assert said == f"suggested: {want:.2f}x, from this extract at the last Run"
+
+
+@needs_git
+def test_a_new_variable_set_up_builds_no_grid_and_suggests_the_worse_line(runs, tmp_path, monkeypatch):
+    """Found 27 Sep 2026: a pre-spec Set up worked its suggestions out from a bleed run of every grid, which a test
+    of a new variable never shows; at 17,000 x 80 with every column cut that pass held 2.4 GB."""
+    b, x = _copied(runs, tmp_path / "again")
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    with pytest.MonkeyPatch.context() as spy:
+        seen = _counting(spy)
+        out = book.set_up(x)
+    assert out.ok and seen == {"grids": 0, "shuffles": 0}
+    ws = load_workbook(b)[control.SHEET]
+    said = ws.cell(row=control.row_of(ws, "worse_at"), column=book.SUGGEST_COL).value
+    assert said == f"suggested: {book.test_gap(runs['t'], 0.95):.2f}x, from this extract"

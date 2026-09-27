@@ -21,7 +21,8 @@ import pytest
 from openpyxl import load_workbook
 
 from conftest import cube, table
-from origination_cube import book, confirm_tab, confirmatory, control, engine, kgroups, prespec, stats, synth
+from origination_cube import book, confirm_tab, confirmatory, control, engine, house, kgroups, prespec, stats, synth
+from openpyxl.utils import get_column_letter
 from recalc import recalc
 from test_book import _answer
 from test_book_dates import _check, _choose, _columns, _control
@@ -126,7 +127,7 @@ def test_the_goal_check_no_longer_says_deviates(route):
     assert chk["Differs from the pre-spec"] == "nowhere: this run used what it says"
     assert route["st"].deviations == []
     assert any(line.startswith("Follows pre-spec prespec.yaml (commit ") for line in route["ran"].lines)
-    assert route["ran"].lines[-1].endswith("start with Confirmatory test.")
+    assert route["ran"].lines[-1].endswith("start with New variables.")
 
 
 # --------------------------------------------------------------------------
@@ -191,10 +192,11 @@ def test_4e_capture_is_on_the_holdout_only_counted_by_hand(route):
         assert c.lift == pytest.approx(want_lift, rel=1e-12)
         # and the tab's own table says the same (its last block: rows named by the group, share columns)
         r = max(rr for label, rr in table_rows.items() if label and str(label).startswith(name))
-        assert ws.cell(row=r, column=4).value == pytest.approx(want_flag, rel=1e-12)
-        assert ws.cell(row=r, column=6).value == pytest.approx(want_cap, rel=1e-12)
-        assert ws.cell(row=r, column=8).value == pytest.approx(want_gco, rel=1e-12)
-        assert ws.cell(row=r, column=10).value == pytest.approx(want_lift, rel=1e-12)
+        C = confirm_tab.CONC_FIRST
+        assert ws.cell(row=r, column=C + 1).value == pytest.approx(want_flag, rel=1e-12)
+        assert ws.cell(row=r, column=C + 3).value == pytest.approx(want_cap, rel=1e-12)
+        assert ws.cell(row=r, column=C + 5).value == pytest.approx(want_gco, rel=1e-12)
+        assert ws.cell(row=r, column=C + 7).value == pytest.approx(want_lift, rel=1e-12)
 
 
 # --------------------------------------------------------------------------
@@ -208,6 +210,19 @@ def calculated(route, tmp_path_factory):
 
 def _texts(ws) -> list[str]:
     return [str(c.value) for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
+
+
+def _under(ws, head: str) -> dict:
+    """The rows under the CANVAS row starting `head`, by their label in B, up to the next such row or blank."""
+    top = next(r for r in range(1, ws.max_row + 1) if str(ws.cell(row=r, column=2).value or "").startswith(head))
+    out = {}
+    for r in range(top + 1, ws.max_row + 1):
+        v = ws.cell(row=r, column=2).value
+        if v in (None, "", "What it found"):
+            break
+        out.setdefault(v, r)
+        out.setdefault(str(v).removesuffix(" (reference)"), r)
+    return out
 
 
 def _found(ws, lead: str) -> str:
@@ -260,18 +275,194 @@ def test_the_readings_follow_the_confidence_level_on_control(route, tmp_path):
     assert any(s.startswith("On the holdout, the bad rate differs across the groups, but not in one direction")
                for s in texts)
     assert "Range (99% sure)" in texts
-    # the tables follow too: the trend's reading on the holdout, and the range beside each odds ratio
-    rows = {}
-    for r in range(1, calc.max_row + 1):
-        rows.setdefault(calc.cell(row=r, column=2).value, r)
-    hold = confirm_tab.FIRST + 7
-    assert calc.cell(row=rows["A steady climb or fall (trend)"], column=hold + 3).value == "not significant"
-    assert calc.cell(row=rows["Any difference across the groups (general)"], column=hold + 3).value == "significant"
-    assert calc.cell(row=rows[t.groups[5]], column=hold + 4).value == f"{lo:.2f}x to {hi:.2f}x"
+    # the tables follow too: the trend's reading on the holdout, and the range beside each odds ratio, both with
+    # the pockets held fixed (the tests in full: each set of loans under a CANVAS row naming it)
+    tests = _under(calc, "Confirmed on the held-back loans, FICO and CHANNEL held fixed: ")
+    D = confirm_tab.DATA
+    assert calc.cell(row=tests["A steady climb or fall (trend)"], column=D + 3).value == "not significant"
+    assert calc.cell(row=tests["Any difference across the groups (general)"], column=D + 3).value == "significant"
+    groups = _under(calc, "Confirmed on the held-back loans: ")
+    assert calc.cell(row=groups[t.groups[5]], column=D + 8).value == f"{lo:.2f}x to {hi:.2f}x"
 
 
 # --------------------------------------------------------------------------
-# The same, on small books built in memory
+# The New variables tab's table (the redesign, section 9): each candidate found, confirmed, and confirmed with the
+# columns held fixed, its excess and whether it is material, read as the analyst sees it
+
+
+def _table(ws) -> dict:
+    """The table's rows, by what each compares ("0.02 - 0.09 vs 0.25 - 0.49"): {column: value}, keyed by the
+    table's own column constants."""
+    head = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=confirm_tab.N_CAND).value == "Candidate")
+    out = {}
+    for r in range(head + 1, ws.max_row + 1):
+        comp = ws.cell(row=r, column=confirm_tab.N_COMP).value
+        if not comp:
+            break
+        out[comp] = {c: ws.cell(row=r, column=c).value for c in range(confirm_tab.N_CAND, confirm_tab.N_WORDS + 1)}
+        out[comp]["row"] = r
+    return out
+
+
+def _one_pocket(x, lo: str, hi: str):
+    """The loans made lo to hi, counted by hand from the extract, all in one pocket: nothing held fixed."""
+    mine = _by_hand(x, lo, hi)
+    return kgroups.Pocket([sum(1 for g, _, _ in mine if g == k) for k in range(6)],
+                          [sum(y for g, y, _ in mine if g == k) for k in range(6)])
+
+
+def _book_gco(x) -> float:
+    """The book's GCO as GCO per booked dollar counts it: every loan with a readable GCO and booked amount."""
+    total = 0.0
+    for r in _rows(x):
+        try:
+            gco, bal = float(r["GCO_AMT"]), float(r["ORIG_BAL"])
+        except ValueError:
+            continue
+        if bal > 0:
+            total += gco
+    return total
+
+
+def test_without_the_held_fixed_columns_each_gap_is_the_test_on_one_pocket_counted_by_hand(route):
+    """The firm's lean pre-spec (26 Sep 2026): each input reported with and without the columns held fixed. Without
+    them, every loan of a range sits in one pocket: the same regression, on counts made here from the extract."""
+    t = route["t"]
+    for side, (lo, hi) in ((t.development_plain, ("2022-01-01", "2023-12-31")),
+                           (t.holdout_plain, ("2024-01-01", "2024-12-31"))):
+        pocket = _one_pocket(route["x"], lo, hi)
+        want = kgroups.conditional_fit([pocket], t.ref, 6)
+        assert len(side.pockets) == 1 and side.loans == [int(n) for n in pocket.loans]
+        for k in range(6):
+            if k != t.ref:
+                assert side.fit.odds[k] == pytest.approx(want.odds[k], rel=1e-9)
+                assert side.fit.p[k] == pytest.approx(want.p[k], rel=1e-9)
+    # and it differs from the test with FICO and CHANNEL held fixed, which is the point of reporting both
+    assert [round(o, 6) for o in t.holdout_plain.fit.odds if o] != [round(o, 6) for o in t.holdout.fit.odds if o]
+
+
+def test_each_candidate_row_is_found_confirmed_and_confirmed_with_the_columns_held_fixed(route, calculated):
+    t = route["t"]
+    rows = _table(calculated)
+    ref = t.groups[t.ref]
+    assert sorted(rows) == sorted(f"{g} vs {ref}" for k, g in enumerate(t.groups) if k != t.ref)
+    for k, g in enumerate(t.groups):
+        if k == t.ref:
+            continue
+        x = rows[f"{g} vs {ref}"]
+        assert x[confirm_tab.N_CAND] == t.column
+        for (odds_col, p_col), side in (((confirm_tab.N_FG, confirm_tab.N_FP), t.development_plain),
+                                        ((confirm_tab.N_CG, confirm_tab.N_CP), t.holdout_plain),
+                                        ((confirm_tab.N_HG, confirm_tab.N_HP), t.holdout)):
+            assert x[odds_col] == pytest.approx(side.fit.odds[k], rel=1e-9)
+            assert x[p_col] == pytest.approx(side.fit.p[k], rel=1e-9)
+
+
+def _verdicts_by_hand(t, bar: float) -> dict:
+    """Holds up? and Still holds?: significant on the held-back loans, on the side of 1 the found loans showed."""
+    out = {}
+    for k, g in enumerate(t.groups):
+        if k == t.ref:
+            continue
+        found = t.development_plain.fit.odds[k]
+
+        def holds(side):
+            o, p = side.fit.odds[k], side.fit.p[k]
+            return "Yes" if o is not None and p < bar and (o > 1) == (found > 1) else "No"
+        out[f"{g} vs {t.groups[t.ref]}"] = (holds(t.holdout_plain), holds(t.holdout))
+    return out
+
+
+def test_holds_up_and_still_holds_are_worked_out_live_at_the_confidence_on_control(route, calculated, tmp_path):
+    t = route["t"]
+    want = _verdicts_by_hand(t, 0.05)
+    got = {k: (x[confirm_tab.N_HOLDS], x[confirm_tab.N_STILL]) for k, x in _table(calculated).items()}
+    assert got == want
+    assert ("Yes", "Yes") in want.values()               # the planted cliffs hold up, FICO and CHANNEL held fixed
+    words = {k: x[confirm_tab.N_WORDS] for k, x in _table(calculated).items()}
+    said = {("Yes", "Yes"): "Holds up, and not just FICO and CHANNEL", ("Yes", "No"): "Holds up, but it was mostly "
+            "FICO and CHANNEL", ("No", "Yes"): "Holds up only with FICO and CHANNEL held fixed",
+            ("No", "No"): "Didn't hold up on held-back loans"}
+    assert words == {k: said[v] for k, v in want.items()}
+    # at 99% sure a verdict between the two bars turns, with no Run
+    wb = load_workbook(route["b"])
+    ws = wb[control.SHEET]
+    ws.cell(row=control.row_of(ws, "confidence"), column=control.CHOOSE_COL).value = "99% sure"
+    copy = tmp_path / "at-99.xlsx"
+    wb.save(copy)
+    calc = recalc(copy, tmp_path / "calc")[confirm_tab.SHEET]
+    strict = _verdicts_by_hand(t, 0.01)
+    assert strict != want
+    assert {k: (x[confirm_tab.N_HOLDS], x[confirm_tab.N_STILL]) for k, x in _table(calc).items()} == strict
+    # and at 90% a Holds up? between 5% and 10% turns the other way: each column follows the level, not only one
+    ws.cell(row=control.row_of(ws, "confidence"), column=control.CHOOSE_COL).value = "90% sure"
+    copy = tmp_path / "at-90.xlsx"
+    wb.save(copy)
+    calc = recalc(copy, tmp_path / "calc90")[confirm_tab.SHEET]
+    loose = _verdicts_by_hand(t, 0.10)
+    assert [k for k in want if loose[k][0] != want[k][0]], "no Holds up? between 5% and 10% to show the change"
+    assert {k: (x[confirm_tab.N_HOLDS], x[confirm_tab.N_STILL]) for k, x in _table(calc).items()} == loose
+
+
+def test_excess_is_each_groups_charge_offs_above_its_share_scaled_to_the_book_and_material_follows_control(
+        route, calculated, tmp_path):
+    t = route["t"]
+    mine = _by_hand(route["x"], "2024-01-01", "2024-12-31")
+    hold_gco = math.fsum(g for _, _, g in mine if g is not None)
+    scale = _book_gco(route["x"]) / hold_gco
+    rows = _table(calculated)
+    want = {}
+    for k, g in enumerate(t.groups):
+        if k == t.ref:
+            continue
+        inside = [m for m in mine if m[0] == k]
+        excess = (math.fsum(x for _, _, x in inside if x is not None) - len(inside) / len(mine) * hold_gco) * scale
+        key = f"{g} vs {t.groups[t.ref]}"
+        assert rows[key][confirm_tab.N_EX] == pytest.approx(excess, rel=1e-9)
+        want[key] = excess
+    line = 0.01 * _book_gco(route["x"])                   # tests/test_book.py answers 1% of the book's losses
+    assert {k: x[confirm_tab.N_MAT] for k, x in rows.items()} == \
+        {k: "Yes" if e > 0 and e >= line else "No" for k, e in want.items()}
+    assert "Yes" in {x[confirm_tab.N_MAT] for x in rows.values()} and "No" in {x[confirm_tab.N_MAT] for x in rows.values()}
+    # a higher line, live
+    wb = load_workbook(route["b"])
+    ws = wb[control.SHEET]
+    ws.cell(row=control.row_of(ws, "materiality"), column=control.CHOOSE_COL).value = "10% of the book's total losses"
+    copy = tmp_path / "at-10.xlsx"
+    wb.save(copy)
+    calc = recalc(copy, tmp_path / "calc")[confirm_tab.SHEET]
+    assert {k: x[confirm_tab.N_MAT] for k, x in _table(calc).items()} == \
+        {k: "Yes" if e > 0 and e >= 10 * line else "No" for k, e in want.items()}
+
+
+def test_a_saved_shortlist_hides_the_found_columns_and_record_names_the_file(route):
+    wb = load_workbook(route["b"])
+    ws = wb[confirm_tab.SHEET]
+    hidden = {c for c in range(confirm_tab.N_CAND, confirm_tab.N_WORDS + 1)
+              if ws.column_dimensions[get_column_letter(c)].hidden}
+    assert hidden == {confirm_tab.N_FG, confirm_tab.N_FP}
+    assert _check(route["b"])["Pre-spec"].endswith("prespec.yaml")
+    # nothing the tiles or the tests in full show sits in a hidden column
+    heads = [ws.cell(row=r, column=c).value for r in range(1, ws.max_row + 1) for c in sorted(hidden)
+             if ws.cell(row=r, column=c).value not in (None, "")]
+    assert [h for h in heads if h not in ("Gap", "p-value", f"Found · {route['t'].development.n:,} loans")
+            and not isinstance(h, (int, float))] == []
+
+
+def test_the_chart_draws_found_confirmed_and_held_fixed_from_the_table_with_the_worse_line(route):
+    ws = load_workbook(route["b"])[confirm_tab.SHEET]
+    (chart,) = ws._charts
+    rows = _table(ws)
+    first, last = min(x["row"] for x in rows.values()), max(x["row"] for x in rows.values())
+    col = lambda c: f"'{confirm_tab.SHEET}'!${get_column_letter(c)}${first}:${get_column_letter(c)}${last}"  # noqa
+    bars = [s.val.numRef.f for s in chart.series]
+    # the Found bars are left off with the Found columns (a saved shortlist)
+    assert bars == [col(confirm_tab.N_CG), col(confirm_tab.N_HG)]
+    assert [s.graphicalProperties.solidFill.srgbClr for s in chart.series] == [house.INK, house.KEY_RED]
+    (line,) = chart._charts[1].series
+    assert line.val.numRef.f == col(confirm_tab.LINE_COL) and line.graphicalProperties.line.dashStyle == "dash"
+    assert {ws.cell(row=r, column=confirm_tab.LINE_COL).value for r in range(first, last + 1)} == {"=worse_at"}
+    assert chart.visible_cells_only is False
 
 
 def _dated(rows_spec):

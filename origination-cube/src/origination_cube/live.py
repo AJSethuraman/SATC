@@ -215,9 +215,11 @@ def _control_rows(wb, res=None) -> dict[str, int]:
     if control.SHEET not in wb.sheetnames:
         return {}
     ws = wb[control.SHEET]
-    skip = set()
-    if (getattr(res, "control_used", None) or {}).get("run_kind") == "new_variable":
-        skip.add("revenue_line")
+    used = getattr(res, "control_used", None) or {}
+    # a setting this run wasn't asked (settings.yaml only_when: the profit line, the better line and what a pocket
+    # is judged against, on a test of a new variable) reads by what the run used, never a blank cell
+    skip = {s.key for s in control.load_settings() if s.key in LIVE_KEYS and used.get("run_kind") is not None
+            and not control.asked(s, used)}
     return {k: control.row_of(ws, k) for k in LIVE_KEYS if k not in skip and control.row_of(ws, k)}
 
 

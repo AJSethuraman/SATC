@@ -166,3 +166,55 @@ def block(ws, title: str, start: int | None = None) -> dict:
                     rr += 1
                 return out
     raise KeyError(title)
+
+
+# --------------------------------------------------------------------------
+# Record (the redesign, phase 4: Check and the Log on one tab)
+
+
+def _record_ws(src):
+    from origination_cube import record as rc
+    if isinstance(src, (str, Path)):
+        return load_workbook(src)[rc.SHEET]
+    if hasattr(src, "sheetnames"):
+        return src[rc.SHEET]
+    return src
+
+
+def record_rows(src) -> list[tuple]:
+    """Record's rows as (label, value, last Run used, section, changed), every section but Every Run, in the tab's order; a
+    list that runs over several rows (a value of several lines) comes back as one value, its lines joined by
+    newlines. Settings' value is what is in use now; `last` what the last Run used."""
+    from origination_cube import record as rc
+    out: list[tuple] = []
+    for kind, label, v, last, changed in rc.read(_record_ws(src)):
+        if kind == rc.RUNS:
+            continue
+        if label is None and out and out[-1][3] == kind:
+            k, prev, pl, pk, pc = out[-1]
+            out[-1] = (k, f"{prev}\n{v}", pl, pk, pc)
+        else:
+            out.append((label, v, last, kind, changed))
+    return out
+
+
+def record(src) -> dict:
+    """Record as Check read: {label: value}, a label on more than one row (Warning) giving a list. A setting's value
+    is what the last Run used (Check's "What the last Run used" rows); `settings` has what is in use now."""
+    from origination_cube import record as rc
+    got: dict = {}
+    for label, v, last, kind, _ in record_rows(src):
+        got.setdefault(label, []).append(last if kind == rc.SETTINGS else v)
+    return {k: v[0] if len(v) == 1 else v for k, v in got.items()}
+
+
+def settings(src) -> dict:
+    """Record's Settings: {setting: (in use now, last Run used, 1 while they differ)}."""
+    from origination_cube import record as rc
+    return {label: (v, last, changed) for label, v, last, kind, changed in record_rows(src) if kind == rc.SETTINGS}
+
+
+def runs(src) -> list[str]:
+    """Every line of every Run's entry, newest first, as Record's Every Run shows them (the Log tab's column B)."""
+    from origination_cube import record as rc
+    return [v for kind, _, v, _, _ in rc.read(_record_ws(src)) if kind == rc.RUNS and v]

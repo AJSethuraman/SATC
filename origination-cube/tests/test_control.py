@@ -56,8 +56,12 @@ def test_a_fresh_tab_waits_for_every_judgment_and_names_each(book):
     with pytest.raises(control.ControlError) as exc:
         control.read_control(book)
     # the follow-up to "What are you running?" isn't asked until that is answered (tests/test_run_kind.py), nor is
-    # the profit line, which only the bleed analysis reads (the redesign, phase 2)
-    assert len(exc.value.problems) == len(JUDGMENT) - 2
+    # anything asked for one kind of run only: the profit line (the redesign, phase 2), and fewest loans, fewest
+    # losses, better at and what a pocket is judged against, which a test of a new variable doesn't use (phase 4)
+    one_kind = {s.key for s in control.load_settings() if s.only_when}
+    assert one_kind & JUDGMENT == {"new_variable_step", "revenue_line", "min_loans", "min_events", "better_at",
+                                   "compare_to"}
+    assert len(exc.value.problems) == len(JUDGMENT - one_kind)
     # What are you running? is chosen in the launcher since the redesign; the rest are answered here
     assert all("needs an answer" in p or "is chosen in the launcher" in p for p in exc.value.problems)
     assert not any("judgment" in p.lower() for p in exc.value.problems)
@@ -214,6 +218,10 @@ def test_no_option_label_looks_like_a_number():
 
 def test_a_row_without_its_own_value_cell_doesnt_point_at_one(book):
     """The second walk, defect 11: "enter your own in column D" on a grey n/a row."""
+    wb = load_workbook(book)
+    ws = wb[control.SHEET]
+    ws.cell(row=_row(ws, "run_kind"), column=control.CHOOSE_COL).value = "Where the book bleeds"
+    wb.save(book)
     with pytest.raises(control.ControlError) as exc:
         control.read_control(book)
     by_row = {p.split(":")[0]: p for p in exc.value.problems}

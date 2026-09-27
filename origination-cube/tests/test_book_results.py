@@ -168,7 +168,7 @@ def test_the_suggested_profit_line_is_each_pockets_own_test(tmp_path):
     b = _ready(tmp_path)
     assert book.run(b).ok
     v = recalc(b, tmp_path / "rc")
-    check = {r[1].value: r[2].value for r in v["Check"].iter_rows(min_row=4)}
+    check = tabs.record(v)
     assert check["Profit counts as more or less"] == "each pocket's own test: only a gap that is significant at 95%"
     reads = [r[live.P_SAID - 1] for r in v[live.POCKETS].iter_rows(min_row=live.P_FIRST, values_only=True)
              if r[live.P_MEASURE - 1] in ("ranr_rate", "contribution_rate") and r[live.P_SAID - 1]]
@@ -236,7 +236,7 @@ def test_set_up_again_keeps_the_last_results(tmp_path):
     assert book.run(out.book).ok
     book.set_up(x)
     names = load_workbook(out.book).sheetnames
-    assert {results.POCKETS, results.GRIDS, "Check", results.PCK} <= set(names)
+    assert {results.POCKETS, results.GRIDS, "Record", results.PCK} <= set(names)
 
 
 def test_a_workbook_open_in_excel_is_refused_before_anything_changes(tmp_path, monkeypatch):
@@ -304,7 +304,7 @@ def test_three_way_pockets_are_tested_and_ranked(tmp_path):
     assert ws.cell(row=head, column=results.K_HALF).value == "ASSET_CLASS"
     rows = tabs.pockets(ws)
     assert rows and {x["half"] for x in rows} <= {"1", "2", "3", "4"} and all(x["worse"] for x in rows)
-    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    check = tabs.record(b)
     assert "ASSET_CLASS" in check["Split"] and "isn't cut on its own" in check["Split"]
 
 
@@ -331,7 +331,7 @@ def test_a_dollar_materiality_line_is_gco_and_profit_is_held_to_it(tmp_path):
             r[2].value, r[3].value = None, 100000
     wb.save(b)
     assert book.run(b).ok, PICK
-    check = {r[1].value: r[2].value for r in _tab(b, "Check").iter_rows(min_row=4)}
+    check = tabs.record(_tab(b, "Record"))
     assert check["Materiality line: GCO per booked dollar"] == "100,000 GCO_AMT dollars"
     assert check["Materiality line: Profit after losses: RANR per booked dollar"] == (
         "a shortfall of 100,000 RANR_AMT dollars: the same dollar line as GCO (Control's materiality answer)")
@@ -390,7 +390,7 @@ def test_band_width_every_20_cuts_and_is_remembered(tmp_path):
     _set(b, "FICO", book.C_EDGES, "every 20")
     ran = book.run(b)
     assert ran.ok, ran.lines
-    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    check = tabs.record(b)
     edges = check["Band edges used: FICO"]
     pts = [float(x) for x in edges.split("(")[0].replace(",", "").split(";")]
     assert all(p % 20 == 0 for p in pts) and len(pts) > 10
@@ -421,7 +421,7 @@ def test_suggested_answers_are_worked_out_from_the_book(tmp_path):
     wb.save(b)
     ran = book.run(b)
     assert ran.ok, ran.lines
-    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    check = tabs.record(b)
     said = check["Worked out from this book"]
     loans = int(said.split("fewest loans ")[1].split(" ")[0].replace(",", ""))
     assert 60 < loans < 90                                     # 5 / 7.1% bad = about 71 (the firm, 25 Sep 2026)
@@ -434,7 +434,7 @@ def test_suggested_answers_are_worked_out_from_the_book(tmp_path):
 def test_check_says_what_the_allowance_covers(tmp_path):
     b = _ready(tmp_path, n=2000)
     assert book.run(b).ok
-    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    check = tabs.record(b)
     assert "each grid and measure on its own" in check["The allowance for many tests covers"]
 
 
@@ -506,7 +506,7 @@ def test_the_luck_line_is_luck_alone_not_the_catch_rate(tmp_path):
             r[2].value = "The smallest significant gap in a typical pocket (suggested)"
     wb.save(b)
     assert book.run(b).ok
-    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    check = tabs.record(b)
     worse = float(check["Worked out from this book"].split("worse at ")[1].split("x")[0])
     assert 1.1 < worse < 1.45                                  # luck alone; the catch-rate gap is bigger
 
@@ -676,7 +676,7 @@ def test_a_suggestion_with_nothing_to_work_from_says_so(tmp_path):
     used = [ws.cell(row=r, column=control.LAST_COL).value for r in range(control.FIRST_ROW, ws.max_row + 1)]
     assert any(isinstance(x, str) and "the usual value" in x for x in used)
     # Check names the fallback as Control does and never calls it worked out (the seventh walk, defect 6)
-    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
+    check = tabs.record(b)
     fell = check["Suggested values"]
     # the worked-out wording never sits beside a fallback ("luck alone can make" until NEXT-GOAL 3.1)
     assert "can call significant" not in fell and "how much better (0.80x) and how much worse (1.25x)" in fell

@@ -22,6 +22,7 @@ from conftest import PRODUCTION_SHUFFLES, cube, row, table
 from recalc import calculated_book
 from origination_cube import book, engine, perm, synth, live, results
 from origination_cube import config as cfgmod
+import tabs
 from origination_cube.ingest import read_table
 
 
@@ -390,7 +391,7 @@ def test_the_production_default_runs_end_to_end(tmp_path, monkeypatch):
     took = time.perf_counter() - start
     assert ran.ok, ran.lines
     wb = calculated_book(out.book)          # the verdicts are formulas (OC-40)
-    check = {r[1].value: r[2].value for r in wb["Check"].iter_rows(min_row=4)}
+    check = tabs.record(wb)
     assert "shuffled 10,000 times" in check["Tests"] and "no continuity correction" in check["Tests"]
     ran_with = yaml.safe_load(out.book.with_name(f"{out.book.stem} - what ran.yaml").read_text())
     assert ran_with["benchmark"]["shuffles"] == 10_000

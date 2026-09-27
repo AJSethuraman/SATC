@@ -535,9 +535,18 @@ def fold_launcher_rows(ws) -> None:
     s = next(x for x in load_settings() if x.key == "run_kind")
     got = _matching(s, ws.cell(row=kind_row, column=CHOOSE_COL).value) if kind_row else []
     new = bool(got) and got[0].value == ch.NEW_VARIABLE
+    # a setting asked only for one kind of run is hidden for the other (the redesign, phase 4: a new-variable run
+    # is asked only what it uses); with no kind chosen yet every setting shows
+    kind = got[0].value if got else None
+    by_kind = {x.key for x in load_settings() if x.only_when and set(x.only_when) == {"run_kind"}
+               and kind is not None and not asked(x, {"run_kind": kind})}
     for r in ws.iter_rows(min_row=FIRST_ROW):
-        if r[KEY_COL - 1].value in only_new:
+        key = r[KEY_COL - 1].value
+        if key in only_new:
             ws.row_dimensions[r[0].row].hidden = not new
+        elif isinstance(key, str) and any(x.key == key and x.only_when and set(x.only_when) == {"run_kind"}
+                                          for x in load_settings()):
+            ws.row_dimensions[r[0].row].hidden = key in by_kind
 
 
 def read_choices(ws):

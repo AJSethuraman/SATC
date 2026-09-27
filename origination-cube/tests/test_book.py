@@ -5,6 +5,8 @@ has answered is thrown away."""
 from openpyxl import load_workbook
 
 from origination_cube import book, control, memory, synth, house, results
+from origination_cube import record
+import tabs
 
 PICK = {"run_kind": "Where the book bleeds", "min_loans": "30", "min_events": "10",
         "materiality": "1% of the book's total losses", "compare_to": "The rest of its band",
@@ -66,8 +68,10 @@ def test_run_refuses_until_answered_naming_each_cell(tmp_path):
     text = "\n".join(ran.lines)
     assert "Control!C" in text and "Columns!C3" in text
     assert "Traceback" not in text and "`" not in text          # words, not code
-    log = load_workbook(out.book)["Log"]
-    assert log["A1"].value == "Log" and "Couldn't run" in str(log.cell(row=book.LOG_FIRST, column=2).value)
+    wb = load_workbook(out.book)
+    assert wb[record.LOG]["A1"].value == "Log" and "Couldn't run" in str(
+        wb[record.LOG].cell(row=book.LOG_FIRST, column=2).value)
+    assert "Couldn't run" in tabs.runs(wb)[0]                  # Record's Every Run shows the refusal at once
 
 
 def test_answers_survive_a_second_set_up(tmp_path):
@@ -94,7 +98,7 @@ def test_a_full_run_writes_results_into_the_workbook(tmp_path):
     assert any("tie-out checks agree" in line for line in ran.lines)
     assert any("Worst for GCO per booked dollar: FICO " in line and "Broker" in line for line in ran.lines)
     wb = load_workbook(out.book)
-    for t in (results.POCKETS, results.GRIDS, "Check", "Log"):
+    for t in (results.POCKETS, results.GRIDS, record.SHEET, record.LOG):
         assert t in wb.sheetnames
     first = [r for r in wb[results.LIST].iter_rows(min_row=2, values_only=True)][0]
     assert first[results.L_MEAS - 1] == "Bad loans" and first[results.L_SEG - 1] == "Broker"
@@ -156,7 +160,7 @@ def test_own_band_edges_are_used(tmp_path):
     wb["Columns"][at(wb, "FICO", book.C_EDGES)] = "620, 680, 740"
     wb.save(out.book)
     assert book.run(out.book).ok
-    check = {r[1].value: r[2].value for r in load_workbook(out.book)["Check"].iter_rows(min_row=4)}
+    check = tabs.record(out.book)
     assert check["Band edges used: FICO"] == "620; 680; 740  (4 bands)"
 
 
@@ -169,7 +173,7 @@ def test_the_launchers_cut_chooses_what_goes_into_the_grids(tmp_path):
     assert chosen.bands is None                              # every number column, ORIG_BAL too, by default
     _choose(out.book, drop=("ORIG_BAL",))
     assert book.run(out.book).ok
-    check = {r[1].value for r in load_workbook(out.book)["Check"].iter_rows(min_row=4)}
+    check = set(tabs.record(out.book))
     assert "Band edges used: FICO" in check and "Band edges used: ORIG_BAL" not in check
     book.set_up(synth.write_extract(tmp_path, n=4000))       # and it survives a second set-up
     chosen, _ = control.read_choices(load_workbook(out.book)[control.SHEET])
