@@ -108,7 +108,7 @@ muts = [
   '        lookup = (f"IFERROR(MATCH({K}&\\"|\\"&{C},{OPTIONS_SHEET}!$A:$A,0),"\n                  f"MATCH({K}&\\"|\\"&IFERROR(VALUE({C}),{C}),{OPTIONS_SHEET}!$H:$H,0))")',
   '        lookup = f"MATCH({K}&\\"|\\"&{C},{OPTIONS_SHEET}!$A:$A,0)"', "number_the_run_takes"),
  ("rest rate from the book", L, 'value=f"={pick(P_REST_BAND, P_REST_BOOK)}")',
-  'value=f"={R(P_REST_BOOK)}")', "boxes_follow"),
+  'value=f"={R(P_REST_BOOK)}")', "rest_a_pocket_is_read_against"),
  ("luck side coloured", RS, '            ws.cell(row=rr, column=c, value=f"={at(live.P_FLAG, prow)}")',
   '            ws.cell(row=rr, column=c, value=f\'=SUBSTITUTE({at(live.P_FLAG, prow)},", not significant","")\')',
   "not_significant_is_left_plain or real_loss_keeps"),
