@@ -551,3 +551,45 @@ def test_what_is_on_file_is_not_named():
     desk = record.load(CORPUS)
     assert "26 USC 274(e)" not in desk.unheld("see section 274(e) and 274(o)")
     assert desk.unheld("see section 132(e)(2)") == ["26 USC 132(e)(2)"]
+
+
+# ── The reader, against what a second reviewer reproduced on 5b762a5b ───────
+
+@pytest.mark.parametrize("text, want", [
+    # Other Acts, and other titles even with a subsection, are not the Code.
+    ("section 16(a) of the Securities Exchange Act of 1934", []),
+    ("section 502 of the Tax Reform Act of 1986", []),
+    ("section 3 of Rev. Proc. 2019-46", []),
+    ("section 13101 of Public Law 115-97", []),
+    ("section 552(b)(3) of title 5", []),
+    ("section 2101(a) of title 46", []),
+    # ... but the Code named as the Code is.
+    ("section 162(a) of title 26", ["26 USC 162(a)"]),
+    ("section 162(a) of the Internal Revenue Code", ["26 USC 162(a)"]),
+    ("section 61 of this title", ["26 USC 61"]),
+    # Capitalised, the symbol, every item of a list, and a hyphenated number.
+    ("Section 263A provides the rule.", ["26 USC 263A"]),
+    ("under § 162 generally", ["26 USC 162"]),
+    ("sections 162 and 212", ["26 USC 162", "26 USC 212"]),
+    ("section 6042(a)(1), 6044(a)(1), 6047(e), 6049(a), or 6050N(a)",
+     ["26 USC 6042(a)(1)", "26 USC 6044(a)(1)", "26 USC 6047(e)",
+      "26 USC 6049(a)", "26 USC 6050N(a)"]),
+    ("sections 179, 179B, or 179C", ["26 USC 179", "26 USC 179B", "26 USC 179C"]),
+    ("section 1400Z-2(d)", ["26 USC 1400Z-2(d)"]),
+    # Regulations stay out, alone or in a list.
+    ("sections 1.162-3 and 1.263(a)-2", []),
+    ("section 1.274-5T(c)", []),
+    ("section 119(a).", ["26 USC 119(a)"]),
+])
+def test_the_reader_reads_code_sections_and_nothing_else(text, want):
+    assert record.code_references(text) == want
+
+
+def test_a_narrowed_desk_checks_against_the_corpus_it_came_from():
+    """A brief built from a narrowed desk without `whole=` called § 274(e)(2)(A)
+    not on file: the narrowed desk no longer held it. A narrowed desk now
+    remembers the corpus it was cut from."""
+    desk = record.load(CORPUS)
+    narrow = desk.narrowed_to(["26 CFR 1.274-12(c)(2)(i)(A)"])
+    got = ask.brief("x", narrow)
+    assert "`26 USC 274(e)(2)(A)`" not in got

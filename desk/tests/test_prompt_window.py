@@ -400,7 +400,7 @@ NARROWED = {
     # The graded figures below are likewise untouched: `brief_for_grading`
     # prints no example, so there is nothing there to label.
     "is a brewery tab a business meal?": 3_058,
-    "what supporting documents does the client have to keep?": 6_681,
+    "what supporting documents does the client have to keep?": 6_725,
     #
     # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
     # are both visible in the diff. Every position a brief carries now prints
@@ -451,7 +451,10 @@ NARROWED = {
     # and to escalate rather than assume (`unheld`, Codex on #403 -- § 274(o)
     # turns on § 132(e)(2) and § 119(a), neither on file). Supporting
     # documents did not move: nothing it prints cites an unheld section.
-    "hand tools bought for the trade - deducted or capitalized?": 4_385,
+    # THEN +44 supporting documents and +15 hand tools when the reader was
+    # rewritten after a second review: it now reads every section of a list
+    # and a capitalised "Section", and drops other Acts and titles.
+    "hand tools bought for the trade - deducted or capitalized?": 4_400,
     "mileage or actual expenses for the van?": 2_899,
 }
 
@@ -501,7 +504,9 @@ NARROWED = {
 # +9,208 / +12,781 for the same line under every paragraph citing a Code
 # section not on file -- 264 of 1,257 -- which the unnarrowed brief prints
 # all of. The narrowed briefs above moved by tens, not thousands.
-WHOLE = (155_325, 279_478)
+# +865 / +877 when the reader was rewritten (lists, "Section", § ; other
+# Acts and titles dropped): 274 paragraphs cite an unheld section, not 264.
+WHOLE = (156_190, 280_355)
 
 
 def _answering_sizes():

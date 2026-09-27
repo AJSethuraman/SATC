@@ -847,9 +847,9 @@ def brief(question: str, desk: record.Desk,
         # finishes -- a definition of "fine" without the denial it defines a
         # word for -- is not the rule (Codex on #403). Named, not printed; what
         # this brief already prints is not named again.
-        framed = [f for f in (whole or desk).frame(p.citation)
+        framed = [f for f in (whole or desk.corpus).frame(p.citation)
                   if f not in in_brief]
-        unheld = (whole or desk).unheld(getattr(p, "text", "") or "")
+        unheld = (whole or desk.corpus).unheld(getattr(p, "text", "") or "")
         if unheld:
             out += [f"**Cites authority not on file: "
                     f"{'; '.join(f'`{c}`' for c in unheld)}. Whatever turns on "

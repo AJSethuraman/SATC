@@ -460,7 +460,7 @@ CHANGED = [
  ("0", "passages that score LESS than before the plain words", "measured over all 43 \u2014 it widens and cannot narrow"),
  ("26", "passages <code>cash-back</code> now reaches", "it reached none; <code>cash back</code> reached 20"),
  ("1,143 of 1,247", "citations that cannot find themselves in their own top five", "1,140 of them because of a parenthesis \u2014 the first matter below"),
- ("1,742", "desk tests passing", "the desk asks you to rule, and records your answer itself"),
+ ("1,761", "desk tests passing", "the desk asks you to rule, and records your answer itself"),
 ]
 
 LANDED = [

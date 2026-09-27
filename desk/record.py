@@ -832,6 +832,15 @@ class Desk:
     #: `optional` or `required` — see `Registration.judged`. Whether this desk
     #: may serve an answer no second reader has looked at.
     judged: str = OPTIONAL
+    #: The corpus a narrowed desk was cut from, or None for the whole one.
+    #: Structure and "is it on file" are questions about the whole record: a
+    #: brief from a narrowed desk called a held § 274(e)(2)(A) not on file.
+    whole: object = field(default=None, repr=False, compare=False)
+
+    @property
+    def corpus(self) -> "Desk":
+        """The whole record this desk is, or was cut from."""
+        return self.whole or self
 
     @property
     def needs_a_judge(self) -> bool:
@@ -1030,6 +1039,7 @@ class Desk:
             passages=passages,
             positions=positions,
             sources=tuple(s for s in self.sources if s.id in used),
+            whole=self.corpus,
         )
 
     def rules_only(self) -> "Desk":
@@ -1279,20 +1289,38 @@ def _admitted_for(block: str, where: str) -> tuple:
     return tuple(out)
 
 
-#: "section 132(e)(2)" in a paragraph's words -- a Code section it cites. Not a
-#: regulation ("section 1.263(a)-3": the decimal point stops it) and not another
-#: title ("section 2101 of title 46").
+#: One Code section number: "132(e)(2)", "263A", "1400Z-2(d)". Never a
+#: regulation -- "1.263(a)-3" stops at its decimal point -- and never cut short
+#: before a digit.
+_SECTION_NO = r"\d+[A-Z]*(?:-\d+)?(?:\([A-Za-z0-9]+\))*(?!\.?\d)"
+#: "section", "Sections", "§" or "§§", then one number or a list of them:
+#: "sections 179, 179B, or 179C". A second reviewer on 5b762a5b found the first
+#: reader took only the first of a list and missed a capitalised "Section".
 _CODE_REF = re.compile(
-    r"\bsections? (\d+[A-Z]?)((?:\([A-Za-z0-9]+\))*)(?!\.\d|\d|\s*of title)")
+    r"(?:\b[Ss]ections?|\u00a7\u00a7?)\s+(" + _SECTION_NO
+    + r"(?:(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)" + _SECTION_NO + r")*)")
+#: What follows the WHOLE reference decides whose section it is -- checked after
+#: the match, not inside it, because inside it the engine backtracks: "section
+#: 552(b)(3) of title 5" matched as 552(b) once the lookahead failed.
+_OF_SOMETHING = re.compile(r"\s*of\s+\S")
+_OF_THE_CODE = re.compile(
+    r"\s*of\s+(?:the\s+(?:Internal\s+Revenue\s+)?Code\b|this\s+title\b"
+    r"|title\s+26\b)")
 
 
 def code_references(text: str) -> list:
-    """The Code sections a paragraph's own words cite, as citations, in order."""
+    """The Code sections a paragraph's own words cite, as citations, in order.
+    A reference "of" anything but the Code -- "of the Securities Exchange Act",
+    "of title 46", "of Rev. Proc. 2019-46" -- is somebody else's section."""
     out = []
     for m in _CODE_REF.finditer(text):
-        c = f"26 USC {m.group(1)}{m.group(2)}"
-        if c not in out:
-            out.append(c)
+        after = text[m.end():]
+        if _OF_SOMETHING.match(after) and not _OF_THE_CODE.match(after):
+            continue
+        for n in re.findall(_SECTION_NO, m.group(1)):
+            c = f"26 USC {n}"
+            if c not in out:
+                out.append(c)
     return out
 
 
