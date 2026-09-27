@@ -240,24 +240,29 @@ stop the work: anything a client or the bank reads that changes meaning, and any
       optional columns to hold fixed, each input reported with and without them (this is 4d); the
       allowance for many tests spread across the shortlist. Strata are suggested and left blank
       (OC-13). The Log records the pre-spec and every held-back run after it, in order; nothing is blocked.
-- [ ] **4. T1 sweep.** One method note per tab, near the top, that an outsider can follow. The
+- [x] **4. T1 sweep.** One method note per tab, near the top, that an outsider can follow. The
       per-row lone-pocket note and the Test column move into it. Every other tab swept against T1's
       check: a column predictable from the settings and the pocket's size is method.
-- [ ] **5. Option A.** "Judged against the book" measures points and dollars both against the rest
+      *(Done in redesign phases (b)–(d): one folding "How this tab works" note per tab; the Test column and the lone-pocket note are off the rows.)*
+- [x] **5. Option A.** "Judged against the book" measures points and dollars both against the rest
       of the book. The whole-book tie-out stays on Check. OC-4's "excess adds to zero" is marked
       superseded for the reading, kept for the tie-out.
-- [ ] **6. No "not built yet" options.** Control offers only what exists; "Scout first" appears when
+      *(Done: OC-44, phase (c).)*
+- [x] **6. No "not built yet" options.** Control offers only what exists; "Scout first" appears when
       scouting does.
-- [ ] **7. "Worse?" and "Material?" as two columns.** Among the worse pockets, rank by dollars. The
+      *(Done in phase (b): Control offers only what exists; the scouting choice says what PocketBook does.)*
+- [x] **7. "Worse?" and "Material?" as two columns.** Among the worse pockets, rank by dollars. The
       engine and the workbook's formulas make the same call, proven by recalculation (S3).
-- [ ] **8. Live ordering and counts** with SORT and FILTER (Excel 365). Verified by a LibreOffice new
+      *(Done: phase (c).)*
+- [x] **8. Live ordering and counts** with SORT and FILTER (Excel 365). Verified by a LibreOffice new
       enough to calculate them (24.8 or later) in the tests and in CI; where it is older the test
       fails, never skips (S2). This is a stand-in for Excel, not Excel: the workbook stays unproven in
       real Excel until the firm opens it there (design.md, Open (a)).
+      *(Replaced by the redesign's rule, 26 Sep 2026: verdicts, dollars and colours live; row order as of the last Run. No SORT or FILTER.)*
 - [ ] **9. Scouting (4a).** A random forest on the development loans only; scikit-learn an optional
       add-on that CI installs, so the scouting path and its refusal without the add-on both run (S14);
       wide candidates; with and without the held-fixed columns; correlated pairs flagged.
-- [ ] **10. Screens: held for the redesign.** The test picker (outcome, shortlist, hold-fixed, the
+- [x] **10. Screens: held for the redesign.** The test picker (outcome, shortlist, hold-fixed, the
       tests to run, in one easy place) and any layout change wait for the firm's Claude Design pass
       over the screens published 26 Sep 2026 (https://claude.ai/artifact/8duWJxayMTBtMe1GCPrvAX), so
       they are designed once rather than built twice. The firm, 26 Sep: *"good"*.
@@ -315,6 +320,7 @@ edges), refreshed at each Run ("Last Run used").
   *loans - PocketBook.xlsx*. Left for later phases: the Control restyle into Changes now / Needs a
   Run, and finding new variables on part of the loans (the launcher records the share; the Run asks
   for a saved shortlist).
+      *(Built as redesign phases (a)–(d), 26–27 Sep 2026, from the firm's Claude Design pass.)*
 - [x] **Phase (b) built, 26 Sep 2026: the tabs the analyst fills in.** Start here, Control, Columns and
   Look each open with the title band (INK, a Key Red rule, a red tab) and one *How this tab works*
   note grouped so it folds away (T1); gridlines off, panes frozen, the three input styles. **Start
