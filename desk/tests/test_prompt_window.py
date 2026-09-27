@@ -398,7 +398,7 @@ NARROWED = {
     # The graded figures below are likewise untouched: `brief_for_grading`
     # prints no example, so there is nothing there to label.
     "is a brewery tab a business meal?": 2_960,
-    "what supporting documents does the client have to keep?": 6_640,
+    "what supporting documents does the client have to keep?": 6_681,
     #
     # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
     # are both visible in the diff. Every position a brief carries now prints
@@ -439,7 +439,10 @@ NARROWED = {
     # System" (-805 net, the Pub. 583 passage being the longer); the hand-tools
     # brief shows § 1.162-21(d)(2)(ii) where it showed § 1.461-1(c)(3)(ii)(f),
     # neither of them about hand tools (-10 net).
-    "hand tools bought for the trade - deducted or capitalized?": 4_202,
+    # And +41 on both of those two: the § 1.162-21 paragraph each now shows
+    # names (g), the applicability date that confines the whole section
+    # to taxable years from 19 January 2021 (Codex on #403).
+    "hand tools bought for the trade - deducted or capitalized?": 4_243,
     "mileage or actual expenses for the van?": 2_855,
 }
 
@@ -479,7 +482,10 @@ NARROWED = {
 # +54 on both sides for the one `Read with` line under § 274(e)(1), which the
 # unnarrowed brief prints because it prints every paragraph, and +49 for the
 # second, under § 274(o) itself, which carries the date (Codex on #403 again).
-WHOLE = (142_832, 262_888)
+# +2,314 / +2,838 because a limit now reaches a paragraph's clauses and
+# examples: § 1.162-21(g) dates the whole section, so each of its other 68
+# paragraphs names it, and the (o) clauses name the date (Codex, #403).
+WHOLE = (145_146, 265_726)
 
 
 def _answering_sizes():

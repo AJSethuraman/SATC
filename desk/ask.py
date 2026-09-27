@@ -839,8 +839,8 @@ def brief(question: str, desk: record.Desk,
                     "question, the record may simply not hold a rule that "
                     "does, and that is worth saying rather than working "
                     "around.", ""]
-        if p.citation in _read_with(desk):
-            names = "; ".join(f"`{o}`" for o in _read_with(desk)[p.citation])
+        if limits_on(desk, p.citation):
+            names = "; ".join(f"`{o}`" for o in limits_on(desk, p.citation))
             out += [f"**Read with {names} — the record says it changes what "
                     f"this paragraph says. `ask.read` it before relying on "
                     f"this.**", ""]
@@ -905,6 +905,19 @@ def _read_with(desk) -> dict:
     return {cit: others for s in desk.sources for cit, others in s.read_with}
 
 
+def limits_on(desk, citation: str) -> list:
+    """What the record says to read with `citation`: its own `Read with` line
+    and every ancestor's, so a clause or a worked example carries its parent's
+    limit. Codex on #403, twice: a limit keyed on § 274(o) did not reach (o)(1)
+    when a brief or a read printed the clause alone. Never the paragraph
+    itself -- § 1.162-21 is read with its own (g)."""
+    out = []
+    for key, others in _read_with(desk).items():
+        if record.is_under(citation, key):
+            out += [o for o in others if o != citation and o not in out]
+    return out
+
+
 def read(citation: str, corpus: Path = CORPUS) -> str:
     """The stored words of a paragraph, or the paragraphs of a section.
 
@@ -951,19 +964,10 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
             out += [f"- `{c}`" for c in deeper] + [""]
         # WHAT CHANGES WHAT WAS JUST PRINTED. Codex on #403: reading § 274(e)
         # printed (e)(1) and not the § 274(o) that takes it away from 2026.
-        limits = _read_with(desk)
         printed = [l[4:] for l in out if l.startswith("### ")]
         shown = set(printed)
-        def limits_on(c):
-            # A CLAUSE CARRIES ITS PARENT'S LIMIT. Codex on #403 again: the
-            # date was read with (e)(1) only, so opening (o) or (o)(1) printed
-            # the denial with no year on it.
-            return [o for k, os_ in limits.items() for o in os_
-                    if c == k or (c.startswith(k)
-                                  and re.fullmatch(r"(\([^()]+\))+",
-                                                   c[len(k):]))]
         for c in printed:
-            for o in limits_on(c):
+            for o in limits_on(desk, c):
                 if o in shown:
                     continue
                 other = desk.passage(o)

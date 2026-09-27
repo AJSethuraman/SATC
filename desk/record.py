@@ -1202,6 +1202,15 @@ def _admitted_for(block: str, where: str) -> tuple:
     return tuple(out)
 
 
+def is_under(citation: str, key: str) -> bool:
+    """`citation` is `key` or a paragraph or worked example beneath it:
+    `26 CFR 1.162-21(f)(10) Example 10` is under `26 CFR 1.162-21`, and
+    `26 USC 274(e)(10)` is not under `26 USC 274(e)(1)`."""
+    return citation == key or bool(
+        citation.startswith(key) and re.fullmatch(
+            r"(\([^()]+\))*( Example \d+)?", citation[len(key):]))
+
+
 def _read_with(block: str, where: str) -> tuple:
     """`Read with:` lines -- `citation — other; other` -- or nothing. Refuses a
     line it cannot read, as `Admitted for` does."""
@@ -1370,10 +1379,13 @@ def load(desk_dir: Path) -> Desk:
     every = {p.citation for p in passages}
     for s_ in sources:
         for cit, others in s_.read_with:
-            if cit not in held_by.get(s_.id, set()):
+            # A paragraph, or a section whose every paragraph the limit
+            # reaches: § 1.162-21(g) dates all sixty-eight of the others.
+            if not any(is_under(h, cit) for h in held_by.get(s_.id, set())):
                 raise RecordError(
-                    f"{s_.id} says {cit!r} is read with others, and it does "
-                    f"not hold {cit!r}. Name a stored paragraph of this source.")
+                    f"{s_.id} says {cit!r} is read with others, and it holds "
+                    f"nothing at or under {cit!r}. Name a stored paragraph of "
+                    f"this source, or the section it is cut from.")
             for o in others:
                 if o not in every:
                     raise RecordError(

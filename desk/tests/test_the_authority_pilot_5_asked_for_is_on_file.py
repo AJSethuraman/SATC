@@ -255,6 +255,42 @@ def test_opening_the_denial_shows_when_it_starts(opened):
     assert got.index(f"### {opened}") < got.index(f"### {U.O_DATE}")
 
 
+FACILITY_2025 = ("In 2025, can a business deduct expenses for food or beverages "
+                 "associated with its section 132(e)(2) facility?")
+
+
+def test_a_brief_that_prints_a_clause_of_the_denial_names_its_date():
+    """Codex on #403, the fourth time: `ask.read` inherited the parent's limit
+    and the brief did not, so a brief quoting (o)(1) alone served a denial
+    that is not yet in force for 2025 with nothing saying so."""
+    got = ask.consult(FACILITY_2025)
+    assert "### 26 USC 274(o)(1)" in got, "the question no longer reaches (o)(1)"
+    tail = got[got.index("### 26 USC 274(o)(1)"):]
+    tail = tail[:tail.find("\n### ", 5)] if "\n### " in tail[5:] else tail
+    assert f"`{U.O_DATE}`" in tail
+
+
+FINES_DATE = "26 CFR 1.162-21(g)"
+
+
+@pytest.mark.parametrize("opened", ["26 CFR 1.162-21(a)",
+                                    "26 CFR 1.162-21(b)(2)(iii)(A)",
+                                    "26 CFR 1.162-21(f)(10) Example 10"])
+def test_opening_the_fines_rule_shows_when_it_applies(opened):
+    """Codex on #403: § 1.162-21(g) confines the whole section to taxable years
+    beginning on or after 19 January 2021, and a grandfathered agreement
+    escapes it; read without (g), a 2019 fine is denied by a rule that did
+    not reach it. Every paragraph and every example is read with (g)."""
+    got = ask.read(opened)
+    assert f"### {FINES_DATE}" in got
+    assert "January 19, 2021" in got
+
+
+def test_opening_the_date_itself_does_not_print_it_twice():
+    got = ask.read(FINES_DATE)
+    assert got.count(f"### {FINES_DATE}") == 1
+
+
 def test_a_brief_that_prints_the_exception_names_the_limit():
     got = ask.consult(EMPLOYEE_MEALS)
     assert "### 26 USC 274(e)(1)" in got, "the question no longer reaches (e)(1)"
