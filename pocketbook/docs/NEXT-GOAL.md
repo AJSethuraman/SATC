@@ -446,8 +446,12 @@ says otherwise:
       `WALKTHROUGH-DEFECTS.md`. 12 defects, none caught by the suite; 11 fixed with a test and a planted bug
       each, 11 design questions (A to K) left for the firm with a recommendation. 735 tests, 385 planted bugs.
       BACKLOG §6d has the list.)*
-- [ ] **3. The bank-machine checklist:** numbered steps to install, open in real Excel 365 and check the
+- [x] **3. The bank-machine checklist:** numbered steps to install, open in real Excel 365 and check the
       live parts (dropdowns, verdicts, colours, the Look lines), with what each should show.
+      *(Done 27 Sep 2026: `docs/BANK-MACHINE-CHECKLIST.pdf` (`.md` the source, `.html` beside it), and
+      `tools/bank_kit.py`, which makes `PocketBook.zip` and the offline add-ons for Windows. Every command run
+      here or its Linux counterpart; Excel's behaviour marked "check this" throughout. 5 tests in
+      `tests/test_bank_checklist.py`. BACKLOG §6d has the detail.)*
 
 **What would end it:** all three done, CI green, and the checklist handed to the firm.
 **Open with the firm:** the wording "Earned before losses" / "Earns less, not from losses".
