@@ -243,6 +243,18 @@ def test_opening_the_exception_shows_the_limit_on_it(opened):
     assert "### 26 USC 274(o)(1)" in got and "### 26 USC 274(o)(2)" in got
 
 
+@pytest.mark.parametrize("opened", ["26 USC 274(o)", "26 USC 274(o)(1)"])
+def test_opening_the_denial_shows_when_it_starts(opened):
+    """Codex on #403, the third time: the date was read with (e)(1) only, so
+    opening (o) itself printed the denial with no year on it, and a 2025
+    question read it as current. A clause of (o) carries its parent's limit."""
+    got = ask.read(opened)
+    assert f"### {opened}" in got
+    assert f"### {U.O_DATE}" in got
+    assert "after December 31, 2025" in got
+    assert got.index(f"### {opened}") < got.index(f"### {U.O_DATE}")
+
+
 def test_a_brief_that_prints_the_exception_names_the_limit():
     got = ask.consult(EMPLOYEE_MEALS)
     assert "### 26 USC 274(e)(1)" in got, "the question no longer reaches (e)(1)"

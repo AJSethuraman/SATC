@@ -954,8 +954,16 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
         limits = _read_with(desk)
         printed = [l[4:] for l in out if l.startswith("### ")]
         shown = set(printed)
+        def limits_on(c):
+            # A CLAUSE CARRIES ITS PARENT'S LIMIT. Codex on #403 again: the
+            # date was read with (e)(1) only, so opening (o) or (o)(1) printed
+            # the denial with no year on it.
+            return [o for k, os_ in limits.items() for o in os_
+                    if c == k or (c.startswith(k)
+                                  and re.fullmatch(r"(\([^()]+\))+",
+                                                   c[len(k):]))]
         for c in printed:
-            for o in limits.get(c, ()):
+            for o in limits_on(c):
                 if o in shown:
                     continue
                 other = desk.passage(o)
