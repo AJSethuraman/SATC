@@ -639,12 +639,13 @@ class _LivePage:
 
 
 def _live(desk, moved=()):
-    """The publisher's page for each citation: its stored words, or -- for a
-    citation in `moved` -- a page that names it and says something else."""
+    """The publisher's document for a source: every stored paragraph of it --
+    except those in `moved`, which the page names and says something else of."""
     def transport(source, citation):
-        if citation in moved:
-            return _LivePage(f"{citation} now reads differently")
-        return _LivePage("preamble " + desk.passage(citation).text + " end")
+        return _LivePage("\n\n".join(
+            (f"{p.citation} now reads differently" if p.citation in moved
+             else p.text)
+            for p in desk.passages if p.source_id == source.id))
     return transport
 
 
@@ -663,16 +664,42 @@ def test_a_proof_ties_only_when_every_appended_paragraph_ties():
     assert U.O_DATE in moved.note
 
 
-def test_an_appended_paragraph_that_could_not_be_checked_is_not_a_tie():
-    desk = record.load(CORPUS)
+def test_an_appended_paragraph_that_could_not_be_checked_is_not_a_tie(tmp_path):
+    """Read with a paragraph from ANOTHER source, whose publisher hangs up: the
+    cited paragraph ties and the answer still does not."""
+    import shutil
+    c = tmp_path / "corpus"
+    shutil.copytree(CORPUS, c)
+    src = (c / "SOURCES.md").read_text(encoding="utf-8")
+    (c / "SOURCES.md").write_text(src.replace(
+        "**Read with:** 26 USC 274(e)(1) — 26 USC 274(o);",
+        "**Read with:** 26 USC 274(e)(1) — 26 CFR 1.162-21(g); 26 USC 274(o);"),
+        encoding="utf-8")
+    desk = record.load(c)
+    whole = _live(desk)
 
     def half(source, citation):
-        if citation == U.O_DATE:
+        if source.id != "S41":
             raise ConnectionResetError("the publisher hung up")
-        return _LivePage("preamble " + desk.passage(citation).text + " end")
+        return whole(source, citation)
 
     got = proving.prove(_served_274e1(), desk, half)
     assert got.verdict == proving.COULD_NOT and not got.held
+    assert "26 CFR 1.162-21(g)" in got.note
+
+
+def test_a_proof_fetches_each_source_once():
+    """Codex on #403: proving § 274(e)(1) with what is served beside it made
+    sixteen requests to one House page."""
+    desk = record.load(CORPUS)
+    whole, calls = _live(desk), []
+
+    def counting(source, citation):
+        calls.append(source.id)
+        return whole(source, citation)
+
+    assert proving.prove(_served_274e1(), desk, counting).verdict == proving.TIED
+    assert calls == ["S41"]
 
 
 def test_the_judge_reads_the_cited_page_not_the_last_one_fetched():
@@ -682,10 +709,11 @@ def test_the_judge_reads_the_cited_page_not_the_last_one_fetched():
     desk = record.load(CORPUS)
     live = "ONLY ON THE LIVE PAGE: furnished on the business premises"
 
+    whole = _live(desk)
+
     def transport(source, citation):
-        if citation == "26 USC 274(e)(1)":
-            return _LivePage(desk.passage(citation).text + " " + live)
-        return _LivePage("preamble " + desk.passage(citation).text + " end")
+        page = whole(source, citation)
+        return _LivePage(page.text + " " + live) if source.id == "S41" else page
 
     out = ask.answer(EMPLOYER_MEALS_2026, position=DEDUCTIBLE,
                      citation="26 USC 274(e)(1)", keep=False, prove=transport,

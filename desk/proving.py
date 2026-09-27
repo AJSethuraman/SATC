@@ -285,6 +285,23 @@ def _absent(citation, text, why, here) -> Proof:
                       f"of those is a finding about the publisher.")
 
 
+def _once_per_source(transport):
+    kept = {}
+
+    def once(source, citation):
+        key = getattr(source, "id", None) or getattr(source, "url", "") or citation
+        if key not in kept:
+            try:
+                kept[key] = (True, transport(source, citation))
+            except Exception as exc:                     # replayed, not retried
+                kept[key] = (False, exc)
+        ok, got = kept[key]
+        if not ok:
+            raise got
+        return got
+    return once
+
+
 def prove(served, desk, transport) -> Proof:
     """Prove a served answer: resolve its authority, then `prove_passage`.
 
@@ -294,6 +311,13 @@ def prove(served, desk, transport) -> Proof:
     here and not in the core.
     """
     citation = served.citation
+    # ONE FETCH PER DOCUMENT. A source is one publisher's document -- a Code
+    # section, a regulation section, a publication -- and every paragraph of it
+    # is in what comes back. Codex on #403: proving § 274(e)(1) with what is
+    # served beside it made sixteen requests to one House page, which is slow
+    # and is what throttling is made of. A failed fetch is kept too, not
+    # retried: a network that refused once is asked once.
+    transport = _once_per_source(transport)
     backing = desk.authority_for(citation)
     if backing is None:                                     # pragma: no cover
         return Proof(COULD_NOT, citation,

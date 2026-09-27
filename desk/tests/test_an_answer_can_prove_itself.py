@@ -34,7 +34,7 @@ import ask as front                                         # noqa: E402
 import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
-from conftest import CORPUS                          # noqa: E402
+from conftest import CORPUS, publisher_document                          # noqa: E402
 
 DESK = "corpus"
 
@@ -196,13 +196,12 @@ def test_a_tied_answer_is_served_carrying_its_proof(tmp_path):
     desk = record.load(desks)
     p = desk.problems[0]
     passage = desk.passage(p.citation)
-    page = _Page(passage.text)
-    # EACH CITATION ITS OWN PAGE, as a publisher serves them: since #403 the
-    # proof also fetches every paragraph served with the answer.
+    page = _Page(publisher_document(desk, passage.source_id))
+    # THE SOURCE'S WHOLE DOCUMENT, as a publisher serves it: since #403 the
+    # proof checks every paragraph served with the answer against it.
     out = front.answer(p.facts,  position=p.answer, citation=p.citation,
                        corpus=desks, keep=False,
-                       prove=lambda s, c: (page if c == p.citation
-                                           else _Page(desk.passage(c).text)),
+                       prove=lambda s, c: page,
                        judged=_judged(page.text))
     assert isinstance(out, engine.Served)
     assert out.proof.verdict == proving.TIED

@@ -44,7 +44,7 @@ import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
 import tieouts                                              # noqa: E402
-from conftest import CORPUS                                  # noqa: E402
+from conftest import CORPUS, publisher_document                                  # noqa: E402
 
 #: The record a refusal names. There is one, and `dec-kill` is why:
 #: it took a desk name until 10 September 2026, when there were seven.
@@ -98,9 +98,9 @@ def _host(url: str) -> str:
     return (urllib.parse.urlsplit(url).hostname or "").removeprefix("www.")
 
 
-# EACH CITATION ITS OWN PAGE: since #403 a proof also fetches every paragraph
-# served with the answer (its lead-in, clauses and `Read with` limits), so a
-# transport that hands every citation one page is not a publisher.
+# A PUBLISHER SERVES A DOCUMENT: since #403 a proof checks every paragraph
+# served with the answer (its lead-in, clauses and `Read with` limits) against
+# its source's one fetched document -- `conftest.publisher_document`.
 
 # ── 1. the answer says what the attempt did ─────────────────────────────────
 
@@ -108,11 +108,11 @@ def test_a_tied_answer_says_so_where_the_authority_is(tmp_path):
     desks = _copy(tmp_path)
     desk, p = _problem(desks)
     url = _url(desk, p.citation)
-    page = _Page(desk.passage(p.citation).text, url=url)
+    page = _Page(publisher_document(
+        desk, desk.passage(p.citation).source_id), url=url)
     out = front.answer(p.facts,  position=p.answer, citation=p.citation,
                        corpus=desks, keep=False,
-                       prove=lambda s, c: (page if c == p.citation else
-                                           _Page(desk.passage(c).text)),
+                       prove=lambda s, c: page,
                        judged=_judged(page.text))
     assert isinstance(out, engine.Served)
     assert out.proof.verdict == proving.TIED
@@ -237,12 +237,12 @@ def test_every_verdict_is_recorded_including_the_one_that_changed_nothing(
     desk, p = _problem(desks)
     # THE PAGE MUST NAME THE CITATION TO BE A REWRITE. A document that does
     # not is one we cannot show is the right one, which is COULD NOT (#344).
-    body = (desk.passage(p.citation).text if page is None
+    body = (publisher_document(desk, desk.passage(p.citation).source_id)
+            if page is None
             else page.format(citation=p.citation))
     front.answer(p.facts,  position=p.answer, citation=p.citation,
                  corpus=desks, keep=True,
-                 prove=lambda s, c: (_Page(body) if c == p.citation else
-                                     _Page(desk.passage(c).text)))
+                 prove=lambda s, c: _Page(body))
     rows = attempts.parse(
         attempts.store_for(desks).read_text(encoding="utf-8"))
     assert [r.verdict for r in rows] == [verdict]
@@ -285,7 +285,7 @@ def test_measuring_writes_nothing(tmp_path):
     desk, p = _problem(desks)
     front.answer(p.facts,  position=p.answer, citation=p.citation,
                  corpus=desks, keep=False,
-                 prove=lambda s, c: _Page(desk.passage(c).text))
+                 prove=lambda s, c: _Page(publisher_document(desk, s)))
     assert not attempts.store_for(desks).exists()
 
 
@@ -304,14 +304,12 @@ def test_the_report_names_what_it_was_counted_over(tmp_path):
 def test_the_report_counts_by_publisher_and_shows_only_the_failures(tmp_path):
     desks = _copy(tmp_path)
     desk, p = _problem(desks)
-    passage = desk.passage(p.citation).text
+    passage = publisher_document(desk, desk.passage(p.citation).source_id)
     url = _url(desk, p.citation)
     for body in (passage, passage, f"{p.citation} rewritten"):
         front.answer(p.facts,  position=p.answer, citation=p.citation,
                      corpus=desks, keep=True,
-                     prove=lambda s, c: (_Page(body, url=url)
-                                         if c == p.citation else
-                                         _Page(desk.passage(c).text)))
+                     prove=lambda s, c: _Page(body, url=url))
     out = tieouts.report(root=desks)
     assert "Read 1 store of 1 looked for" in out
     assert "3 attempt(s) recorded" in out
@@ -326,6 +324,6 @@ def test_the_report_says_so_when_every_one_tied_out(tmp_path):
     desk, p = _problem(desks)
     front.answer(p.facts,  position=p.answer, citation=p.citation,
                  corpus=desks, keep=True,
-                 prove=lambda s, c: _Page(desk.passage(c).text))
+                 prove=lambda s, c: _Page(publisher_document(desk, s)))
     out = tieouts.report(root=desks)
     assert "Every one of the 1 tied out. Recorded rather than assumed." in out

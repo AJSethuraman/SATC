@@ -100,6 +100,15 @@ def wrong_position(problem):
 #: check was not running, and every test using it would prove nothing. Pass the
 #: text the judge is being handed -- the stored passage, or the fetched page
 #: where one was fetched -- and this quotes the front of it.
+def publisher_document(desk, source) -> str:
+    """What a publisher serves for one source: every stored paragraph of it, in
+    one document. Since #403 a proof fetches each source ONCE and checks every
+    paragraph served with the answer against it, so a fake publisher that
+    serves one paragraph per page is not a publisher."""
+    return "\n\n".join(p.text for p in desk.passages
+                         if p.source_id == getattr(source, "id", source))
+
+
 def a_judgment(text, *, by="a-second-reader", supports=True):
     import judging
     words = " ".join(str(text).split())[:200]
