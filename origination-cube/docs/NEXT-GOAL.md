@@ -421,3 +421,22 @@ edges), refreshed at each Run ("Last Run used").
   never "luck". Not checked: real Excel.
 - [x] **Items 5 and 7 done with it:** Option A (OC-44) and Worse? / Material? as two columns. Item 4's T1
   sweep is done for the result tabs.
+
+---
+
+# Goal 3 (proposed 27 Sep 2026; silence approves): ready for first use at the bank
+
+Goal 2 is done: all ten items ticked, the last (scouting) merged at 304e933e. Proposed on the docket
+(https://claude.ai/artifact/U5pHCYek9H7hqehzUvqs8M), and what the session proceeds with unless the firm
+says otherwise:
+
+- [ ] **1. The rename sweep.** Folder, package, command and file names to PocketBook; workbooks and cube
+      files made under the old name still read.
+- [ ] **2. A walk-through as the analyst** on the synthetic book, end to end through the launcher's five
+      steps, both run kinds, writing the step-by-step procedure with screenshots and the defects only a
+      screen shows (canon's walk).
+- [ ] **3. The bank-machine checklist:** numbered steps to install, open in real Excel 365 and check the
+      live parts (dropdowns, verdicts, colours, the Look lines), with what each should show.
+
+**What would end it:** all three done, CI green, and the checklist handed to the firm.
+**Open with the firm:** the wording "Earned before losses" / "Earns less, not from losses".
