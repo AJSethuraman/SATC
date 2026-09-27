@@ -995,23 +995,21 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
         printed = [l[4:] for l in out if l.startswith("### ")]
         shown = set(printed)
         for c in printed:
-            for o in limits_on(desk, c):
-                if o in shown:
+            limits = set(limits_on(desk, c))
+            # WHAT AN ANSWER CITING `c` WOULD CARRY, from the one definition --
+            # a copy of the expansion here printed every sibling of a limit it
+            # followed up to its parent: § 274(o) reached (e) through (e)(8),
+            # and all of (e)(1)-(9) came with it (Codex on #403). A limit's own
+            # clauses still come: (o) alone ends "for-", which states nothing.
+            for o in desk.served_with(c):
+                if o in shown or record.is_under(o, citation) or not desk.passage(o):
                     continue
-                other = desk.passage(o)
-                out += [f"### {o}", "",
-                        f"**Read with `{c}` — the record says it changes "
-                        f"what that paragraph says.**", "",
-                        f"> {other.text}", ""]
+                out += [f"### {o}", ""]
+                if o in limits:
+                    out += [f"**Read with `{c}` — the record says it changes "
+                            f"what that paragraph says.**", ""]
+                out += [f"> {desk.passage(o).text}", ""]
                 shown.add(o)
-                # AND ITS OWN CLAUSES: (o) alone ends "no deduction shall be
-                # allowed under this chapter for-", which states nothing.
-                for q in desk.passages:
-                    rest = q.citation[len(o):]
-                    if (q.citation.startswith(o) and q.citation not in shown
-                            and re.fullmatch(r"\([^()]+\)", rest)):
-                        out += [f"### {q.citation}", "", f"> {q.text}", ""]
-                        shown.add(q.citation)
         # WHAT IT CITES AND THE RECORD DOES NOT HOLD, said (Codex on #403).
         unheld = desk.unheld("\n".join(out))
         if unheld:

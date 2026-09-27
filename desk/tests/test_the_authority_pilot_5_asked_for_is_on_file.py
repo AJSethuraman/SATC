@@ -1009,3 +1009,15 @@ def test_a_page_that_is_not_the_publishers_does_not_replace_the_served_text():
     assert out.proof.verdict == proving.COULD_NOT
     assert out.judged.stands
     assert out.judged.against != "the document fetched from the publisher"
+
+
+def test_a_read_does_not_carry_the_siblings_of_a_limit_it_follows():
+    """Codex on #403: reading § 274(o) follows (e)(8) up to (e), and ask.read's
+    own copy of the expansion then printed all of (e)(1)-(9), naming §§ 274(d),
+    267, 414, 501 and 74 as missing. The read now carries `served_with`'s set."""
+    got = ask.read("26 USC 274(o)")
+    assert "### 26 USC 274(e)(8)\n" in got and "### 26 USC 274(e)\n" in got
+    assert "### 26 USC 274(e)(9)\n" not in got
+    assert "26 USC 74`" not in got and "26 USC 274(d)" not in got
+    # And the clauses of a limit that is not above anything still come.
+    assert "### 26 USC 274(o)(2)\n" in ask.read("26 USC 274(e)(1)")
