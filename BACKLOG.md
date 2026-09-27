@@ -2049,6 +2049,34 @@ back.
         odds unlabelled; the finished screen shows none of the Run's lines; a print-title repeat.
       - Tests: 735 (12 new in `tests/test_walk_2026_09_27.py`, 2 of them window tests that skip without a
         display; 5 updated). Planted bugs: 14 added, each put back alone and caught; 385 in all.
+- [x] **Goal 3 item 3: the bank-machine checklist (27 Sep 2026).** `pocketbook/docs/BANK-MACHINE-CHECKLIST.md`,
+      with `.html` and `.pdf` beside it (16 pages, pictures embedded; built by `docs/bank-machine/build.py`).
+      Seven parts: before you go, install and first open, a dry run on the practice book with the numbers to
+      compare, Excel's live parts cell by cell, speed and the cores, the first real extract (what it needs,
+      what to look at first, what never leaves the bank), what to send back; then a symptom table.
+      - **Made, not prescribed:** `tools/bank_kit.py` writes `PocketBook.zip` (the window, its code, both
+        install files, the checklist, the procedure, and `VERSION.txt` naming the commit, since the bank has no
+        git) and, with `--add-ons`, `PocketBook add-ons.zip`: the Windows wheels for Python 3.11 to 3.14
+        (233 MB; about 60 MB for one version). pip fetched them through this container's proxy.
+        `Install add-ons from this folder.bat` installs from them with `--user --no-index --find-links`.
+        The zip, not a wheel: a wheel can't carry `PocketBook.pyw`.
+      - **Verified here:** the practice and speed books made by the checklist's own commands on 3.11 and 3.12
+        (same MD5s); the dry run with the checklist's answers gave every number in its table (4 of 81,
+        $3,094,991, 702 of 702, the four largest; 8.1 s on 4 cores), also on a fresh Python 3.12 with the
+        add-ons installed offline from the kit (numpy 2.5.3, newer than CI's). 40,000 loans: 30.6 s on 4
+        cores, 84.5 s on 1, same answer. LibreOffice: no error value on any visible tab; the live change
+        (2 of 81, $1,922,025), the waiting banner's four places, the dropdown captions, and Look's dashed
+        lines (the picture in the checklist). The window opened from the unzipped kit, with and without add-ons.
+      - **Marked "check this", never seen:** everything in Excel (repair prompt, Find in hidden tabs, the
+        validation message, the lock the open-workbook bar looks for, Look's lines on Excel's second axis, the
+        outline fold, the charts, Run on a workbook Excel saved); pip through the bank's proxy; the Windows-only
+        commands (`tar -xf` on a zip, `certutil`, `ren`, the .bat files), checked by reading.
+      - **Found on the way:** the practice book's answers are remembered (`~/.pocketbook/memory.yaml`) and
+        would be suggested for a real extract with the same column names; the checklist moves the file aside
+        before Part 6. Not changed in code.
+      - Tests: `tests/test_bank_checklist.py`, 5: the checklist's commands make the books whose MD5 it prints,
+        the kit holds what it lists and no data files, the add-ons agree everywhere, the HTML is current, and
+        every cell Part 4 names holds what it says. Two edits to the checklist (an MD5, a cell) turned it red.
 - **The firm's calls, 26 Sep 2026 (evening).**
   - **Name: PocketBook.** *"i want to change the name of this... let's call it the PocketBook"*. What
     the analyst sees is renamed with the redesign; folder and package names in one sweep after the
@@ -2134,6 +2162,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-27 -- **PocketBook bank-machine checklist** (`pocketbook/docs/BANK-MACHINE-CHECKLIST.pdf`, and `tools/bank_kit.py` to make what to carry). Goal 3 item 3; §6d has what was verified and what is marked "check this".
 - 2026-09-27 -- **Origination Cube renamed PocketBook** (`origination-cube/` → `pocketbook/`; package, command, launcher file, memory folder and variable). Everything a machine kept under the old names is still read. §6d has the list of what was left as written.
 - 2026-09-25 -- **Origination Cube slice 1: the engine** (`origination-cube/`). It replaces the firm's origination-analysis VBA. 39 tests, 6 of 6 mutations caught, and every place the macros broke their own rules is tracked in `docs/vba-findings.md`. The workbook is slice 2. Open questions are in §6d.
 - 2026-09-19 -- **Portfolio Analysis Pack v1 built** (`portfolio-analysis-pack/`, nine slices #364–#372, one PR each). The ladder plus door one, the bundle, the render harness and the mutation tool. 94 tests, 9 of 9 mutations caught, 100,000 loans in 12.7 s to a 164 KB workbook. Then the adversarial pass: 35 hypotheses, 16 red, 15 fixed and 1 restated, all in the suite. Not checked: Excel itself and the desk run — §6c has the list.
