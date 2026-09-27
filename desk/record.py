@@ -892,6 +892,17 @@ class Desk:
                 if not any(h == c or is_under(h, c) or is_under(c, h)
                            for h in held)]
 
+    def _opens(self, p) -> bool:
+        """Does `p` state nothing without its clauses? A lead-in, a heading, or
+        a short full-stopped caption with clauses under it -- § 1.162-21(b)(2)
+        (iii), "Payment amount not identified." (Codex on #403)."""
+        if is_lead_in(p.text) or is_heading(p.text):
+            return True
+        return _short_phrase(p.text) and any(
+            q.citation.startswith(p.citation)
+            and re.fullmatch(r"\([^()]+\)", q.citation[len(p.citation):])
+            for q in self.passages)
+
     def _clauses(self, of: str) -> list:
         """`of`'s direct clauses, and a clause's own when it is a lead-in too."""
         out = []
@@ -902,7 +913,7 @@ class Desk:
                 # DOWN THROUGH LEAD-INS AND HEADINGS ALIKE: a child heading
                 # alone is a caption, and the tests are beneath it (Codex on
                 # #403, § 1.162-21(b)(2) and (b)(3)).
-                if is_lead_in(p.text) or is_heading(p.text):
+                if self._opens(p):
                     out += self._clauses(p.citation)
         return out
 
@@ -924,9 +935,23 @@ class Desk:
         # AND A CITED HEADING, whose clauses are the whole of what it says.
         # Headings ABOVE a clause are not added: the clause states its rule.
         own = self.passage(citation)
-        if own and (is_lead_in(own.text) or is_heading(own.text)):
+        if own and self._opens(own):
             out += [c for c in self._clauses(citation) if c not in out]
         return out
+
+    def served_with(self, citation: str) -> list:
+        """EVERYTHING AN ANSWER CITING `citation` CARRIES, in order: its frame,
+        then what the record reads it -- and every framed paragraph -- with,
+        each with its clauses. One definition, because the served passage, the
+        second reader and the live proof must all check the same set (Codex
+        on #403: § 274(e) carried (e)(1) but not the § 274(o) it is read with)."""
+        order = list(self.frame(citation))
+        for c in [citation, *order]:
+            for o in self.limits_on(c):
+                for x in [o, *self._clauses(o)]:
+                    if x != citation and x not in order:
+                        order.append(x)
+        return order
 
     def limits_text(self, citation: str) -> str:
         """What the served answer carries after its own paragraph, and the second
@@ -934,11 +959,7 @@ class Desk:
         that complete it -- then whatever the record reads it with, each with its
         own clauses; § 274(o) alone ends "no deduction shall be allowed under
         this chapter for-", which states nothing. Labelled, `""` when neither."""
-        order = list(self.frame(citation))
-        for o in self.limits_on(citation):
-            for c in [o, *self._clauses(o)]:
-                if c != citation and c not in order:
-                    order.append(c)
+        order = self.served_with(citation)
         return "\n\n".join(f"{c}: {self.passage(c).text}" for c in order
                             if self.passage(c))
 
@@ -1368,8 +1389,19 @@ def is_heading(text: str) -> bool:
     off its words: no closing punctuation, and not a lead-in. Cited alone it
     states nothing; its clauses are the rule (Codex on #403, § 1.162-21(b))."""
     t = text.rstrip()
-    return bool(t) and not is_lead_in(text) and not t.endswith(
-        (".", ";", ",", ")", "]", '"', "\u201d", "'", "\u2019"))
+    if not t or is_lead_in(text):
+        return False
+    return not t.endswith((".", ";", ",", ")", "]", '"', "\u201d", "'", "\u2019"))
+
+
+def _short_phrase(text: str) -> bool:
+    """"Payment amount not identified." -- one short phrase ending in a full
+    stop. From the words alone that is also "It is not deductible.", so it
+    counts as a caption only where clauses are stored under it (`Desk._opens`)."""
+    t = text.rstrip()
+    body = t[:-1]
+    return (t.endswith(".") and len(body.split()) <= 8
+            and not re.search(r"[.;:,]", body))
 
 
 def is_under(citation: str, key: str) -> bool:

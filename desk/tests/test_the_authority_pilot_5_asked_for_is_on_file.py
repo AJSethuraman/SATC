@@ -861,3 +861,33 @@ def test_the_judge_keeps_the_stored_text_when_the_cited_fetch_failed(tmp_path):
                                              because=words))
     assert isinstance(out, engine.Served), out
     assert out.judged.stands
+
+
+def test_a_caption_ending_in_a_full_stop_is_still_a_heading():
+    """Codex on #403: § 1.162-21(b)(2)(iii) is "Payment amount not identified."
+    and its full stop hid that it is a caption, so (A) and (B) -- the tests for
+    an unidentified amount -- were left out, cited directly or through (b)."""
+    desk = record.load(CORPUS)
+    assert desk._opens(desk.passage("26 CFR 1.162-21(b)(2)(iii)"))
+    # A short sentence with no clauses under it is a sentence, not a caption.
+    assert not record.is_heading("It is not deductible.")
+    out = _served("26 CFR 1.162-21(b)(2)(iii)", "Payment amount not identified")
+    for c in ("(b)(2)(iii)(A)", "(b)(2)(iii)(B)"):
+        assert f"26 CFR 1.162-21{c}:" in out.passage, c
+    whole = _served("26 CFR 1.162-21(b)", "Exception for restitution")
+    assert "26 CFR 1.162-21(b)(2)(iii)(A):" in whole.passage
+
+
+def test_a_carried_paragraph_brings_its_own_limits():
+    """Codex on #403: citing § 274(e) carried (e)(1) in its frame but not what
+    (e)(1) is read with, so a 2026 answer was served the exception without
+    § 274(o) or its date. And the proof must check that same set."""
+    out = _served("26 USC 274(e)", "Subsection (a) shall not apply to-")
+    assert "26 USC 274(o):" in out.passage
+    assert f"{U.O_DATE}:" in out.passage
+    desk = record.load(CORPUS)
+    served = engine.Served(position="x", citation="26 USC 274(e)",
+                           tier="primary", checked=None)
+    assert proving.prove(served, desk, _live(desk)).verdict == proving.TIED
+    moved = proving.prove(served, desk, _live(desk, moved={U.O_DATE}))
+    assert moved.verdict == proving.DIFFERS

@@ -345,11 +345,7 @@ def prove(served, desk, transport) -> Proof:
     if first.verdict == DIFFERS:
         return first
     whole = getattr(desk, "corpus", desk)
-    appended = list(whole.frame(citation))
-    for o in whole.limits_on(citation):
-        for c in [o, *whole._clauses(o)]:
-            if c != citation and c not in appended:
-                appended.append(c)
+    appended = whole.served_with(citation)
     worst = first
     for c in appended:
         # THE STORED TEXT THAT WAS SERVED, never `authority_for`: that resolves
