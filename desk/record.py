@@ -855,11 +855,19 @@ class Desk:
         parent's limit. Codex on #403: a limit keyed on § 274(o) did not reach
         (o)(1) when the clause was printed alone. Never the paragraph itself --
         § 1.162-21 is read with its own (g)."""
-        out = []
-        for s_ in self.sources:
-            for key, others in s_.read_with:
-                if is_under(citation, key):
-                    out += [o for o in others if o != citation and o not in out]
+        # AND WHAT THOSE ARE READ WITH, in turn: (e)(1) is read with (o), and
+        # (o) with (n)(2)(C), the exception it names. Stopping after one step
+        # served a denial without the exception to it (Codex, #403).
+        out, todo = [], [citation]
+        while todo:
+            at = todo.pop(0)
+            for s_ in self.sources:
+                for key, others in s_.read_with:
+                    if is_under(at, key):
+                        for o in others:
+                            if o != citation and o not in out:
+                                out.append(o)
+                                todo.append(o)
         return out
 
     def limits_text(self, citation: str) -> str:

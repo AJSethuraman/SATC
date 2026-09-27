@@ -366,3 +366,44 @@ def test_a_served_fines_answer_carries_the_applicability_date():
     assert isinstance(out, engine.Served), out
     assert "26 CFR 1.162-21(g)" in out.passage
     assert "January 19, 2021" in out.passage
+
+
+# ── (o) names its own exception, § 274(n)(2)(C), and that is on file too ────
+
+N2C = "26 USC 274(n)(2)(C)"
+N2 = "26 USC 274(n)(2)"
+
+
+def test_the_exception_to_the_denial_is_stored():
+    """Codex on #403: (o) denies "other than expenses described in subsection
+    (e)(8) or (n)(2)(C)", and (n)(2)(C) was not on file -- so the denial was
+    served with a cross-reference nobody could open. It is the crew-and-
+    offshore-platform rule, and (n)(2)'s closing sentence narrows two of its
+    clauses, so that sentence is stored on (n)(2), as (e)'s is on (e)."""
+    desk = record.load(CORPUS)
+    c = desk.passage(N2C)
+    assert c and c.text.startswith("(C) such expense is for food or beverages-")
+    assert "drilling rig if the platform or rig is located offshore" in c.text
+    assert c.text.endswith("(within the meaning of section 143(k)(2)(B)), or")
+    two = desk.passage(N2)
+    assert two and "Paragraph (1) shall not apply to any expense if-" in two.text
+    assert ELLIPSIS in two.text
+    assert "luxury water transportation" in two.text
+
+
+@pytest.mark.parametrize("opened", ["26 USC 274(o)", "26 USC 274(e)(1)"])
+def test_reading_the_denial_or_what_it_limits_reaches_the_exception(opened):
+    """READ WITH IS TRANSITIVE: (e)(1) is read with (o), and (o) with the
+    exception it names, so opening (e)(1) reaches (n)(2)(C) without anyone
+    having to know to open (o) first."""
+    got = ask.read(opened)
+    assert f"### {N2C}" in got
+    assert "luxury water transportation" in got
+
+
+def test_a_served_answer_on_the_exception_carries_the_exception_to_it():
+    out = _served_on_274e1(judging.Judgment(
+        by="second-reader", supports=True,
+        because="provided on an oil or gas platform or drilling rig"))
+    assert isinstance(out, engine.Served), out
+    assert f"{N2C}:" in out.passage

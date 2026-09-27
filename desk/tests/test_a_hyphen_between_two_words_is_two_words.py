@@ -154,8 +154,12 @@ def test_the_hyphen_did_not_change_how_many_citations_find_themselves(corpus):
     # AND § 274(o) WITH ITS DATING NOTE, the same day (Codex on #403): 1247
     # digit-bearing citations, 1143 missing themselves whole (1140
     # parenthesised), 166 of the 179 sampled, all parenthesised. Same cause.
-    assert len(withdig) == 1247, (
-        f"the corpus holds {len(withdig)} digit-bearing citations, not 1247 — "
+    # AND § 274(n)(2) WITH (n)(2)(C), the exception (o) names (Codex, #403):
+    # 1249 digit-bearing citations, 1145 missing themselves whole (1142
+    # parenthesised); the sample is still 179, and still 166 of them miss, all
+    # parenthesised.
+    assert len(withdig) == 1249, (
+        f"the corpus holds {len(withdig)} digit-bearing citations, not 1249 — "
         f"the denominator moved, so re-measure before trusting the figure below")
     sample = withdig[::7]
     assert len(sample) == 179

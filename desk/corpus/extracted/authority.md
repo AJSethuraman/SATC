@@ -15024,6 +15024,39 @@ any other year. Do not read a rate off this file for a year it does not name.
 > return filed by such taxpayer under part III of subchapter A of chapter 61
 > and is not so included.
 
+## 26 USC 274(n)(2)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (2) Exceptions Paragraph (1) shall not apply to any expense if- [...]
+> Clauses (i) and (ii) of subparagraph (C) shall not apply to vessels
+> primarily engaged in providing luxury water transportation (determined under
+> the principles of subsection (m)). In the case of the employee, the
+> exception of subparagraph (A) shall not apply to expenses described in
+> subparagraph (B).
+
+## 26 USC 274(n)(2)(C)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (C) such expense is for food or beverages- (i) required by any Federal law
+> to be provided to crew members of a commercial vessel, (ii) provided to crew
+> members of a commercial vessel- (I) which is operating on the Great Lakes,
+> the Saint Lawrence Seaway, or any inland waterway of the United States, and
+> (II) which is of a kind which would be required by Federal law to provide
+> food and beverages to crew members if it were operated at sea, (iii)
+> provided on an oil or gas platform or drilling rig if the platform or rig is
+> located offshore, (iv) provided on an oil or gas platform or drilling rig,
+> or at a support camp which is in proximity and integral to such platform or
+> rig, if the platform or rig is located in the United States north of 54
+> degrees north latitude, or (v) provided- (I) on a fishing vessel, fish
+> processing vessel, or fish tender vessel (as such terms are defined in
+> section 2101 of title 46, United States Code ), or (II) at a facility for
+> the processing of fish for commercial use or consumption which- (aa) is
+> located in the United States north of 50 degrees north latitude, and (bb) is
+> not located in a metropolitan statistical area (within the meaning of
+> section 143(k)(2)(B)), or
+
 ## 26 USC 274(o)
 
 **Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule

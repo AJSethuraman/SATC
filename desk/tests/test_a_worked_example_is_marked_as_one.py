@@ -361,7 +361,8 @@ def test_that_index_still_carries_the_rules():
     # 15 of § 274(a) and (e), admitted after Sarcia pilot 5 and desk trial 1.
     # 982: plus § 274(o), (o)(1), (o)(2) and the note that dates (o) -- Codex on
     # #403 found (e)(1) stored without the limit that overrides it from 2026.
-    assert set(index) == rules and len(index) == 982, len(index)
+    # 984: plus § 274(n)(2) and (n)(2)(C), the exception (o) names (Codex, #403).
+    assert set(index) == rules and len(index) == 984, len(index)
 
 
 # ── an example must hang off the paragraph that announces it ─────────────────

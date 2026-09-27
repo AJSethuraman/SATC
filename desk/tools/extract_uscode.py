@@ -103,6 +103,19 @@ S274 = (
     # deductible under an exception that no longer reaches it. The date is in
     # the enacting law, which the page prints among its notes; that one
     # sentence is stored too, sliced the same way.
+    # (o)'s OWN EXCEPTION. (o) denies "other than expenses described in
+    # subsection (e)(8) or (n)(2)(C)", and Codex on #403 found (n)(2)(C) was
+    # not on file: the crew, offshore-platform and fish-processing meals. (n)(2)
+    # closes on a flush sentence that narrows (C)'s first two clauses, so (n)(2)
+    # is stored as its lead-in and that sentence, joined on the omission mark,
+    # exactly as (e) is.
+    ("26 USC 274(n)(2)", (
+        ("\n(2) Exceptions\nParagraph (1) shall not apply to any expense if-",
+         "\n(A) such expense is described in paragraph (2), (3), (4), (7), (8), or (9)", 1),
+        ("Clauses (i) and (ii) of subparagraph (C) shall not apply to vessels",
+         "\n(3) Special rule for individuals subject to Federal hours of service", 1))),
+    ("26 USC 274(n)(2)(C)", (
+        ("\n(C) such expense is for food or beverages-", "\n(D) such expense is-", 1),)),
     ("26 USC 274(o)", (
         ("\n(o) Meals provided at convenience of employer",
          "\n(1) any expense for the operation of a facility described in section 132(e)(2)", 1),)),

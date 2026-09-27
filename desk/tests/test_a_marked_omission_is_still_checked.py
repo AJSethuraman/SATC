@@ -109,7 +109,9 @@ def test_an_unmarked_passage_is_unaffected():
 #: the paragraph labels between them marked -- the way § 1.274-12's four are --
 #: and § 274(e), whose closing flush sentence is its own and follows its nine
 #: paragraphs, so the gap is marked rather than the two read as adjacent.
-MARKED = 27
+#: And § 274(n)(2), stored as its lead-in and the closing sentence that narrows
+#: (n)(2)(C), the exception § 274(o) names (Codex on #403).
+MARKED = 28
 
 
 def test_the_passages_in_the_record_actually_carry_the_mark():

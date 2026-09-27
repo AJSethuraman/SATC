@@ -125,9 +125,11 @@ def test_neither_shape_fits_the_window_any_more_and_the_size_is_pinned():
     # thirteen examples are not in it -- a graded prompt prints no example.
     # +234 / +237 the same day for § 274(o), its two paragraphs and the note
     # that dates it -- Codex on #403: (e)(1) stored without its 2026 limit.
-    assert biggest == {"index": 42204, "text": 140318}, (
+    # +470 / +509 for § 274(n)(2) and (n)(2)(C), the exception (o) names
+    # -- Codex on #403 again: the denial was stored without the exception to it.
+    assert biggest == {"index": 42674, "text": 140827}, (
         f"the graded prompt changed size: {biggest}, and this file says "
-        f"{{'index': 42204, 'text': 140318}}. That is allowed — it is what "
+        f"{{'index': 42674, 'text': 140827}}. That is allowed — it is what "
         f"storing authority does — but it is quoted in docs/CONTEXT-ON-FILE.md "
         f"and must move deliberately.")
     assert biggest["index"] > room, (
@@ -485,7 +487,9 @@ NARROWED = {
 # +2,314 / +2,838 because a limit now reaches a paragraph's clauses and
 # examples: § 1.162-21(g) dates the whole section, so each of its other 68
 # paragraphs names it, and the (o) clauses name the date (Codex, #403).
-WHOLE = (145_146, 265_726)
+# +564 / +564 for § 274(n)(2) and (n)(2)(C), and for the read-with lines that
+# now follow (o) on to them from (e)(1) as well.
+WHOLE = (145_710, 266_290)
 
 
 def _answering_sizes():
