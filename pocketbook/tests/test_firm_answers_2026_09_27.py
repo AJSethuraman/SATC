@@ -352,3 +352,78 @@ def test_the_finished_window_draws_two_tiles_and_the_runs_first_two_lines(monkey
         assert w["first"].cget("text") == "\n".join(first) and w["first"].winfo_manager() == "pack"
     finally:
         root.destroy()
+
+
+# ---- Choose tests, in the order the analyst works down it (the firm, 27 Sep 2026: "it just isn't necessary to
+# have anything there, really. i would prefer that screens are ordered more sensibly- this one seems all over the
+# place")
+
+ORDER = ["FICO", "ORIG_BAL", "REV_DEBT",          # cut into bands, or split by
+         "CHANNEL", "ASSET_CLASS",                # segment by
+         "BAD_FLAG", "GCO_AMT", "RANR_AMT",       # what is measured
+         "LOAN_NBR", "ORIG_DATE"]                 # the key and the date, greyed
+
+
+def test_choose_tests_rows_run_numbers_categories_outcomes_then_key_and_date(tmp_path):
+    """The extract reads LOAN_NBR, FICO, CHANNEL, ORIG_BAL, BAD_FLAG, ...: the table no longer does. The same order
+    for both run kinds, so the toggle never reshuffles it; an outcome row carries no box and no words."""
+    f = _read(tmp_path)
+    assert [c.name for c in f.read.columns] != ORDER
+    for mode in ("bleed", "new", "bleed"):
+        f.set_mode(mode)
+        rows = f.rows()
+        assert [r["name"] for r in rows] == ORDER, mode
+        assert [r["group"] for r in rows] == [0, 0, 0, 1, 1, 2, 2, 2, 3, 3]
+        assert [r["name"] for r in rows if r["grey"]] == ["LOAN_NBR", "ORIG_DATE"]
+        assert not any("every" in r for r in rows)
+    for r in f.rows()[5:]:
+        assert r["a"] is r["b"] is r["c"] is None
+
+
+def test_choose_tests_rows_keep_the_extracts_order_within_a_group(tmp_path):
+    """Grouped, not sorted: the extract written back to front reads each group back to front too."""
+    x = synth.write_extract(tmp_path / "a", n=1500)
+    lines = [ln.split(",") for ln in x.read_text(encoding="utf-8").splitlines()]
+    back = tmp_path / "b" / "loans.csv"
+    back.parent.mkdir()
+    back.write_text("\n".join(",".join(reversed(ln)) for ln in lines) + "\n", encoding="utf-8")
+    f = launcher.Flow(gate=launcher.AddOns())
+    f.pick(str(back))
+    f.set_up()
+    assert f.screen() == "L2", f.message
+    assert [r["name"] for r in f.rows()] == ["REV_DEBT", "ORIG_BAL", "FICO", "ASSET_CLASS", "CHANNEL",
+                                            "RANR_AMT", "GCO_AMT", "BAD_FLAG", "ORIG_DATE", "LOAN_NBR"]
+
+
+def test_choose_tests_window_draws_the_rows_in_order_with_a_quiet_gap_and_no_every_measure(monkeypatch, tmp_path):
+    """On the window: the rows top to bottom as Flow.rows says, a gap with no words where one group ends, and no
+    "every measure" anywhere. Needs a display (xvfb-run on Linux)."""
+    from test_deps import _window
+    root = _window()
+    try:
+        monkeypatch.setattr(launcher, "PREFS", tmp_path / "launcher.json")
+        w = launcher.build(root)
+        flow = w["flow"]
+        flow.pick(str(synth.write_extract(tmp_path, n=1500)))
+        flow.set_up()
+        for mode in ("bleed", "new"):
+            flow.set_mode(mode)
+            w["render"]()
+            root.update()
+            ys = [w[f"row_{n}"].winfo_y() for n in ORDER]
+            assert ys == sorted(ys) and len(set(ys)) == len(ys), mode
+            assert len(w["gaps"]) == 3 and all(not g.winfo_children() for g in w["gaps"])
+            last = w["row_ORIG_DATE"]                    # ten columns and three gaps fit without scrolling
+            assert last.winfo_y() + last.winfo_reqheight() + 1 <= int(w["table"].cget("height")), mode
+            said, todo = [], [root]
+            while todo:
+                x = todo.pop()
+                todo += x.winfo_children()
+                try:
+                    said.append(str(x.cget("text")))
+                except Exception:
+                    pass
+            assert said and not [s for s in said if "every measure" in s], mode
+            assert all(g.winfo_class() == "Frame" for g in w["gaps"])            # frames: nothing written
+    finally:
+        root.destroy()

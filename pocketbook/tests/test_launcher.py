@@ -183,7 +183,8 @@ def test_l2_bleed_starts_with_every_number_and_category_column_and_no_split(tmp_
     assert rows["FICO"]["a"]["on"] and rows["ORIG_BAL"]["a"]["on"] and rows["REV_DEBT"]["a"]["on"]
     assert rows["CHANNEL"]["b"]["on"] and rows["ASSET_CLASS"]["b"]["on"]
     assert not any(r["c"]["on"] for r in rows.values() if r["c"])
-    assert rows["BAD_FLAG"].get("every") and rows["GCO_AMT"].get("every") and rows["BAD_FLAG"]["a"] is None
+    for name in ("BAD_FLAG", "GCO_AMT", "RANR_AMT"):                # an outcome: nothing to tick, nothing said
+        assert rows[name]["a"] is rows[name]["b"] is rows[name]["c"] is None and not rows[name]["grey"]
 
 
 def test_l2_only_one_column_splits_and_it_is_not_also_cut(tmp_path):

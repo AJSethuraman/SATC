@@ -324,6 +324,13 @@ def in_order(needs: list[Need]) -> list[Need]:
     return sorted(needs, key=key)
 
 
+# the Choose tests table's groups, top to bottom: what can be cut into bands (and split), what can segment, what is
+# measured; the key, the date and anything else, greyed, last
+GROUP = {"num": 0, "cat": 1, "out": 2, "outd": 2}
+LAST = 3
+GAP = 6             # px between two groups: ten rows and three gaps still fit Test new variables unscrolled
+
+
 class Flow:
     """The launcher's state and every rule about it. The window draws what this
     says; a test drives it the way a person would."""
@@ -463,16 +470,20 @@ class Flow:
 
     def rows(self) -> list[dict]:
         """The Choose tests table. Each control is None (none on that row) or
-        {"on", "radio"}; key and date rows are greyed and carry none."""
+        {"on", "radio"}; key and date rows are greyed and carry none; an outcome row in a
+        bleed run carries none either, and says nothing about it.
+
+        In the order the analyst works down it, not the extract's (the firm, 27 Sep 2026: "i would prefer that
+        screens are ordered more sensibly- this one seems all over the place"): the number columns, then the
+        categories, then the outcomes, then the key and date, each group in the extract's order. The same order
+        in both run kinds, so the toggle never reshuffles the table."""
         out = []
         locked = self.mode == "new" and self.spec is not None      # the saved shortlist decides
-        for c in self.read.columns if self.read else ():
+        for c in sorted(self.read.columns if self.read else (), key=lambda c: GROUP.get(c.kind, LAST)):
             k = c.kind
             row = {"name": c.name, "what": c.what, "grey": k in ("key", "date", "other"), "a": None, "b": None,
-                   "c": None, "locked": locked}
+                   "c": None, "locked": locked, "group": GROUP.get(k, LAST)}
             if self.mode == "bleed":
-                if k in ("out", "outd"):
-                    row["every"] = True                     # it goes into every measure; no box to tick
                 if k == "num":
                     row["a"] = {"on": c.name in self.cut and self.split != c.name, "radio": False}
                     row["c"] = {"on": self.split == c.name, "radio": True}
@@ -1019,18 +1030,16 @@ def build(root) -> dict:
         holder.create_window((0, 0), window=inner, anchor="nw")
         holder.configure(yscrollcommand=scroll.set)
         rows = flow.rows()
-        for r in rows:
+        widgets["gaps"] = []
+        for j, r in enumerate(rows):
+            if j and r["group"] != rows[j - 1]["group"]:
+                gap = tk.Frame(inner, bg=C["WHITE"], height=GAP)         # between two groups: a gap, no words
+                gap.pack(fill="x")
+                widgets["gaps"].append(gap)
             line = tk.Frame(inner, bg=C["WHITE"])
             line.pack(fill="x")
+            widgets[f"row_{r['name']}"] = line
             for i, w in enumerate(widths):
-                if i == 2 and r.get("every"):
-                    # an outcome column goes into every measure: said once across the three boxes
-                    cell = tk.Frame(line, bg=C["WHITE"], width=sum(widths[2:]), height=22)
-                    cell.pack(side="left")
-                    cell.pack_propagate(False)
-                    tk.Label(cell, text="· every measure", anchor="w", bg=C["WHITE"], font=F["cell"],
-                             fg=C["SLATE"]).pack(fill="both", expand=True, padx=(6, 0))
-                    break
                 cell = tk.Frame(line, bg=C["WHITE"], width=w, height=22)
                 cell.pack(side="left")
                 cell.pack_propagate(False)
@@ -1052,9 +1061,11 @@ def build(root) -> dict:
             tk.Frame(inner, bg=C["RULE"], height=1).pack(fill="x")
         inner.update_idletasks()
         need = inner.winfo_reqheight()
-        holder.configure(height=min(need, 250 if flow.mode == "new" else 280), scrollregion=(0, 0, 480, need))
+        room = 250 if flow.mode == "new" else 280
+        holder.configure(height=min(need, room), scrollregion=(0, 0, 480, need))
         holder.pack(side="left", fill="both", expand=True)
-        if need > 280:
+        widgets["table"] = holder
+        if need > room:          # was 280 in both: a table 251 to 280 px tall lost its last rows with no scroll bar
             scroll.pack(side="right", fill="y")
         holder.bind_all("<MouseWheel>", lambda e: holder.yview_scroll(int(-e.delta / 120), "units"))
         if flow.mode == "new":

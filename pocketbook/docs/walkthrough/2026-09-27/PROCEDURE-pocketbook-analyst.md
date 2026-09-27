@@ -67,13 +67,13 @@ PocketBook reads the file and guesses what each column is. Nothing is written ye
 
 ![Step 4](step-04-set-up-read-the-columns.png)
 
-**Correct screen:** the left side shows the file name and "8,000 loans", then "10 columns read". The table lists every column with what PocketBook thinks it is. **Where the book bleeds** is picked at the top right.
+**Correct screen:** the left side shows the file name and "8,000 loans", then "10 columns read". The table lists every column with what PocketBook thinks it is: the number columns first, then the categories, then the outcome and dollar columns, then the loan number and date in grey. **Where the book bleeds** is picked at the top right.
 
 The boxes decide what is cut:
 - **Cut into bands:** number columns to split into ranges (FICO, ORIG_BAL, REV_DEBT are ticked).
 - **Segment by:** category columns (CHANNEL, ASSET_CLASS).
 - **Split by:** at most one number column, used to cut every pocket in half at its own middle value.
-- The outcome and dollar columns say **every measure**: they are what is measured, not what is cut.
+- The outcome and dollar columns have no boxes: they are what is measured, not what is cut.
 
 In the shaded box, under what will run, a line for each word you meet here first: GCO dollars, RANR dollars, a grid, and the five measures.
 

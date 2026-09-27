@@ -81,7 +81,8 @@ After that, the whole routine is:
    - *Where the book bleeds:* tick the number columns to **cut into bands**,
      the categories to **segment by**, and at most one number column to
      **split every pocket by**. Every number column and every category starts
-     ticked. The outcome and dollar columns go into every measure. It needs
+     ticked. The outcome and dollar columns come after them, with no boxes:
+     they go into every measure. It needs
      the five columns below and no date.
    - *Test new variables:* pick the outcome, tick the inputs to **test**, and
      the columns to **hold fixed** (a column is one or the other). Or confirm a

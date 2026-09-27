@@ -80,7 +80,7 @@ To view the design, open the `.dc.html` in a browser with `support.js` beside it
   - A segmented toggle: **Where the book bleeds | Test new variables**.
   - A table listing every extract column: Column · What it is · three control columns that change with the mode.
     - **Test new variables:** Outcome (radio; outcome and dollar columns only) · Test it (checkbox) · Hold fixed (checkbox). Test it and Hold fixed exclude each other on a row. Under the table: "Find on [70% ▾] confirm on the rest", and "Or confirm a saved shortlist [Browse…]" (the pre-spec file).
-    - **Where the book bleeds:** Cut into bands (number columns) · Segment by (categories) · Split pockets by (radio, one number column). Outcome columns show "· every measure".
+    - **Where the book bleeds:** Cut into bands (number columns) · Segment by (categories) · Split pockets by (radio, one number column). Outcome columns show "· every measure". *(27 Sep 2026: they show nothing now, and the rows run number columns, categories, outcomes, then key and date.)*
     - Key and date columns are greyed, with no controls.
   - A live summary box (CANVAS, 3 pt red top border): "This will run: 4 inputs (…) against BAD_FLAG, each with and without FICO held fixed: 8 tests, found on 70% and confirmed on 30%." In bleed mode: "2 band columns × 2 segment columns = 4 grids, five measures each; split by REV_DEBT adds 4 more."
   - Footer: "Saved to Control, read-only." and the primary button **Next: answer in the workbook →**.

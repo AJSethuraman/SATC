@@ -527,7 +527,7 @@ muts = [
   '            if False:', "finished_run_shows"),
  ("the launcher's column limits ignored", B, '            got = getattr(choices, key)             # chosen',
   '            pass             # chosen', "column_limits_are_chosen"),
- ("a saved shortlist's boxes move", LA, '"c": None, "locked": locked}', '"c": None, "locked": False}',
+ ("a saved shortlist's boxes move", LA, '"c": None, "locked": locked,', '"c": None, "locked": False,',
   "saved_shortlist"),
  ("the outcome tested against unchecked", B, '        if code != "outcome":', '        if False:',
   "outcome_the_launcher_tests"),
@@ -949,6 +949,20 @@ muts = [
  ("paste not checked", "tools/bank_kit.py", 'if hashlib.sha256(text.encode("utf-8")).hexdigest() != want:',
   'if False:', "one_line_changed"),
  ("paste cut short accepted", "tools/bank_kit.py", 'if end is None or len(files) != end:', 'if False:', "cut_short"),
+ # 27 Sep 2026: Choose tests in the order the analyst works down it, and nothing in an outcome row's boxes
+ ("Choose tests in the extract's order", LA,
+  'for c in sorted(self.read.columns if self.read else (), key=lambda c: GROUP.get(c.kind, LAST)):',
+  'for c in (self.read.columns if self.read else ()):', "choose_tests_rows"),
+ ("categories above the number columns", LA, 'GROUP = {"num": 0, "cat": 1, "out": 2, "outd": 2}',
+  'GROUP = {"num": 1, "cat": 0, "out": 2, "outd": 2}', "choose_tests_rows"),
+ ("a group sorted by name, not the extract's order", LA, 'key=lambda c: GROUP.get(c.kind, LAST)):',
+  'key=lambda c: (GROUP.get(c.kind, LAST), c.name)):', "choose_tests_rows"),
+ ("the table says every measure again", LA,
+  '                gap = tk.Frame(inner, bg=C["WHITE"], height=GAP)',
+  '                gap = tk.Label(inner, text="· every measure", bg=C["WHITE"], font=F["cell"])', "choose_tests_window"),
+ ("no gap between the groups", LA, '            if j and r["group"] != rows[j - 1]["group"]:',
+  '            if False:', "choose_tests_window"),
+ ("the gaps push the last row out of sight", LA, 'GAP = 6 ', 'GAP = 10 ', "choose_tests_window"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

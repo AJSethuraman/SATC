@@ -103,7 +103,7 @@ if __name__ == "__main__":
     # ---- where the book bleeds: the window
     make("step-04-set-up-read-the-columns", SH / "s06-choose-tests-bleed.png",
          rings=[L(441, 16, 702, 45), L(217, 438, 700, 495)])
-    make("step-05-split-by-rev-debt", SH / "s07-split-rev-debt.png", rings=[L(630, 258, 690, 282), L(217, 395, 700, 495)])
+    make("step-05-split-by-rev-debt", SH / "s07-split-rev-debt.png", rings=[L(630, 120, 690, 144), L(217, 395, 700, 495)])
     make("step-06-answer-in-the-workbook", SH / "s08-answer-in-workbook.png",
          rings=[L(217, 97, 700, 172), L(217, 180, 700, 215)])
     make("step-07-run-before-answering", SH / "s09-run-before-answering.png",
@@ -160,9 +160,9 @@ if __name__ == "__main__":
     make("step-21-run-again", SH / "s20-run-again.png", rings=[L(215, 53, 530, 153)])
     # ---- test new variables
     make("step-22-test-new-variables", SH / "s22-test-new-variables.png",
-         rings=[L(582, 16, 702, 45), L(561, 363, 701, 395), L(217, 405, 700, 497)])
+         rings=[L(582, 16, 702, 45), L(561, 365, 701, 396), L(217, 405, 700, 502)])
     make("step-23-scikit-learn-installed", SH / "s23b-sklearn-installed.png", rings=[L(217, 405, 700, 500)])
-    make("step-24-candidates", SH / "s24-candidates-ticked.png", rings=[L(540, 97, 702, 282), L(217, 378, 700, 500)])
+    make("step-24-candidates", SH / "s24-candidates-ticked.png", rings=[L(540, 75, 702, 195), L(217, 378, 700, 500)])
     make("step-25-answer-new", SH / "s25-answer-new.png", rings=[L(217, 93, 700, 110)])
     make("step-25b-start-here-waits", page("07-new-written", 1), crop=(0.07, 0.1, 0.93, 0.45),
          rings=[span(find("07-new-written", 1, "Changes waiting for a Run"), find("07-new-written", 1, "Control · Status")),
