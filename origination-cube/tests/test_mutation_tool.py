@@ -72,3 +72,19 @@ def test_the_ci_shards_put_back_every_bug_exactly_once():
     got = [m[0] for k in range(4) for m in tool.shard(tool.muts, f"{k}/4")]
     assert sorted(got) == sorted(names) and len(got) == len(names)
     assert tool.shard(tool.muts, None) == tool.muts
+
+
+def test_a_run_that_prints_nothing_still_gets_its_verdict(tmp_path, monkeypatch, capsys):
+    """Found 26 Sep 2026: pytest printed nothing to stdout (the run was killed), main() crashed on an empty
+    list, and the crash hid whether the planted bug had been caught. The verdict prints, with stderr's last line."""
+    tool = _tool()
+    f = tmp_path / "m.py"
+    f.write_text("x = 1\n")
+    tool.muts = [("a bug", str(f), "x = 1", "x = 2", "anything")]
+
+    class Silent:
+        returncode, stdout, stderr = 1, "", "Killed\n"
+    monkeypatch.setattr(tool.subprocess, "run", lambda *a, **k: Silent())
+    assert tool.main() == 0
+    assert "CAUGHT a bug | Killed" in capsys.readouterr().out
+    assert f.read_text() == "x = 1\n"                        # and the file is put back

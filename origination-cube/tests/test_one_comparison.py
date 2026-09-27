@@ -4,8 +4,10 @@
 "That works": the dollars were measured against the whole book's rate while the reading followed Control's
 "judged against", and materiality was applied to the book's dollars. So a pocket in a high-loss band could
 clear materiality against the book while being in line with its neighbours. Now the setting picks one of
-two dollar figures, over the book and over its band, for the reading, materiality and the ranking, and
-the other stays on the row for reference.
+two dollar figures, over the rest of the book and over the rest of its band, for the reading, materiality and
+the ranking. Since Option A (the firm, 26 Sep 2026: "i think this makes most seense") the book's figure is
+over the rest of the book, the same rest its gap and test are taken against; the dollars over the whole book
+stay only as the tie-out, which adds to zero (OC-4).
 
 "yes I prefer it to be literal": profit and contribution say their gap, "short of its band by 0.80 points
 ($16,000)", instead of "keeps less".
@@ -23,7 +25,8 @@ from openpyxl import Workbook
 
 from recalc import calculated
 from conftest import cube, row, table
-from origination_cube import book, cli, engine
+from origination_cube import book, cli, engine, house, live, results
+import tabs
 
 BANDS = [{"name": "score", "field": "SCORE", "edges": [650]}]
 LINE = 5_000                              # the materiality line, in GCO dollars
@@ -55,17 +58,29 @@ def _gco(res, band: int, chan: str):
 
 
 def test_by_hand():
-    """The two dollar figures, worked out by hand. Over the book: 42,000 less 42,000 x 146 / 2,400 of $400,000.
-    Over its band: 42,000 less 80 / 800 of $400,000 (the rest of its band, as vs_band is taken)."""
+    """The dollar figures, worked out by hand. Over the rest of the book (Option A): 42,000 less 104 / 2,000 of
+    $400,000. Over its band: 42,000 less 80 / 800 of $400,000 (the rest of its band, as vs_band is taken).
+    Over the whole book, the tie-out only: 42,000 less 146 / 2,400 of $400,000."""
     res = _run("peers")
     low_a, high_c = _gco(res, 0, "A"), _gco(res, 1, "C")
-    assert low_a.excess == pytest.approx(42_000 - 146 / 2400 * 400_000)          # 17,667
+    assert low_a.excess_rest == pytest.approx(42_000 - 104 / 2000 * 400_000)     # 21,200
     assert low_a.excess_band == pytest.approx(42_000 - 0.10 * 400_000)           # 2,000
-    assert high_c.excess == pytest.approx(16_000 - 146 / 2400 * 400_000)         # -8,333
+    assert high_c.excess_rest == pytest.approx(16_000 - 130 / 2000 * 400_000)    # -10,000
     assert high_c.excess_band == pytest.approx(16_000 - 8 / 800 * 400_000)       # 12,000
+    assert low_a.excess == pytest.approx(42_000 - 146 / 2400 * 400_000)          # 17,667: the tie-out's
     # both figures are there whatever the setting: only which one decides changes
     other = _gco(_run("topline"), 0, "A")
-    assert (other.excess, other.excess_band) == pytest.approx((low_a.excess, low_a.excess_band))
+    assert (other.excess_rest, other.excess_band) == pytest.approx((low_a.excess_rest, low_a.excess_band))
+
+
+def test_the_tie_out_still_adds_to_zero_over_the_whole_book():
+    """OC-4's excess over the whole book stays as Check's tie-out: across a grid it adds to zero, and the Run
+    checks it (the tie-out raises otherwise). The dollars that decide are the rest of the book's."""
+    res = _run("topline")
+    inner = [c.rates["gco_rate"] for _, c in res.grids[0].inner()]
+    assert sum(s.excess for s in inner) == pytest.approx(0, abs=1e-6)
+    assert all(s.dollars == s.excess_rest != s.excess for s in inner)
+    assert res.tie_outs > 0
 
 
 def test_judged_against_its_band_the_band_decides_the_flag_the_dollars_and_materiality():
@@ -84,74 +99,70 @@ def test_judged_against_the_book_the_reverse():
     res = _run("topline")
     low_a, high_c = _gco(res, 0, "A"), _gco(res, 1, "C")
     assert not low_a.by_band and low_a.flag == engine.WORSE
-    assert low_a.dollars == low_a.excess >= LINE and low_a.material is True
+    assert low_a.dollars == low_a.excess_rest >= LINE and low_a.material is True        # Option A
     assert not high_c.by_band and high_c.flag in (engine.BETTER, engine.UNSURE_BETTER)       # not worse
-    assert high_c.dollars == high_c.excess < 0 and high_c.material is False
+    assert high_c.dollars == high_c.excess_rest < 0 and high_c.material is False
     assert high_c.excess_band >= LINE                                            # still worked out, for reference
 
 
-def _sheet(res, write, formulas: bool = False):
-    """One tab written, and calculated: the readings, dollars and headings are formulas (OC-40)."""
-    ws = Workbook().active
-    write(ws, res)
-    return ws if formulas else calculated(ws)
+def _tab(res, tab: str, **picks):
+    """One result tab for this run, its dropdowns set, calculated: its verdicts and dollars are formulas (OC-40).
+    The tab as written rides along as .formulas."""
+    wb = Workbook()
+    results.write(wb, res, "now")
+    for label, value in picks.items():
+        tabs.dropdown(wb[tab], label).value = value
+    ws = calculated(wb[tab])
+    ws.formulas = wb[tab]
+    return ws
 
 
-def _bleeds(res) -> list[dict]:
-    ws = _sheet(res, book._bleeds)
-    heads = [c.value for c in ws[4]]
-    out = []
-    for r in ws.iter_rows(min_row=5):
-        if str(r[1].value).startswith("Losing more than their share against"):
-            break                             # after it: losing more only against the other comparison
-        if r[1].value:
-            out.append(dict(zip(heads, (c.value for c in r))))
-    return out
-
-
-@pytest.mark.parametrize("compare_to, first, other", [("peers", "Excess over its band", "Excess over the book"),
-                                                      ("topline", "Excess over the book", "Excess over its band")])
-def test_where_it_bleeds_ranks_by_the_deciding_dollars_and_shows_the_other(compare_to, first, other):
+@pytest.mark.parametrize("compare_to, rest", [("peers", "Rest of band"), ("topline", "Rest of book")])
+def test_pockets_ranks_by_the_deciding_dollars(compare_to, rest):
+    """Worse pockets first by the dollars that decide, then the rest by theirs, then those losing more only
+    against the other comparison (so a change of Judged against finds them). The other comparison's figure is
+    no longer beside each row (the redesign's columns); it stays on _pockets and the command line."""
     res = _run(compare_to)
-    rows = [x for x in _bleeds(res) if x["Measure"] == "GCO per booked dollar"]
-    heads = list(rows[0])
-    assert heads.index(first) + 1 == heads.index(other)                           # the deciding one first
-    firsts = [x[first] for x in rows]
-    assert firsts == sorted(firsts, reverse=True) and all(v > 0 for v in firsts)
-    got = {(x["Band"], x["Segment"]): x for x in rows}
-    lo, hi = res.grids[0].band_labels
+    ws = _tab(res, results.POCKETS, measure="Charge-offs")
+    rows = tabs.pockets(ws)
+    head = tabs.header_row(ws, results.K_NUM, "#")
+    assert ws.cell(row=head, column=results.K_REST).value == rest
+    got = {(x["band"], x["seg"]): x for x in rows}
+    lo, hi = (f"SCORE {x}" for x in res.grids[0].band_labels)
+    worse = [x["excess"] for x in rows if x["worse"] == "Yes"]
+    rest_ = [x["excess"] for x in rows if x["worse"] != "Yes"]
+    assert [x["worse"] == "Yes" for x in rows] == sorted((x["worse"] == "Yes" for x in rows), reverse=True)
+    assert worse == sorted(worse, reverse=True) and all(v > 0 for v in worse)
+    positive = [v for v in rest_ if v > 0]
+    assert rest_[:len(positive)] == sorted(positive, reverse=True)          # losing more now, then the others
     if compare_to == "peers":
         a = got[(lo, "A")]
-        assert a[first] == pytest.approx(2_000) and a[other] == pytest.approx(17_667, abs=1)
-        assert a["Material"] == "below the line" and a[f"Flag (vs the rest of its band)"] == engine.IN_LINE
+        assert a["excess"] == pytest.approx(2_000) and (a["worse"], a["material"]) == ("No", "No")
         c = got[(hi, "C")]
-        assert c["Material"] == "yes" and c["Flag (vs the rest of its band)"] == engine.WORSE
-        assert rows[0]["Segment"] == "C" and rows[0]["Band"] == hi                  # the biggest over its band
+        assert (c["worse"], c["material"]) == ("Yes", "Yes") and rows[0] is c        # the biggest over its band
     else:
-        assert (hi, "C") not in got                                               # under the book: not bleeding
         a = got[(lo, "A")]
-        assert a["Material"] == "yes" and a[other] == pytest.approx(2_000)
+        assert a["excess"] == pytest.approx(21_200) and a["material"] == "Yes"
+        c = got[(hi, "C")]                         # under the rest of the book, over its band: last, not worse
+        assert c["excess"] == pytest.approx(-10_000) and c["worse"] == "No" and rows[-1] is c
 
 
-def test_losses_vs_revenue_dollars_are_the_engines_and_the_other_is_beside_them():
-    """Before, this tab worked out its own dollars against the rest of the book; now it shows the engine's,
-    so it can't disagree with Where it bleeds or materiality."""
-    for compare_to in ("peers", "topline"):
+def test_paid_cost_kept_dollars_are_the_engines():
+    """Before, this tab worked out its own dollars against the rest of the book; it shows the engine's, so it
+    can't disagree with Pockets or materiality."""
+    for compare_to, times in (("peers", "× band"), ("topline", "× book")):
         res = _run(compare_to)
-        ws = _sheet(res, book._losses_vs_revenue)
-        g0 = book.LVR_G
-        first, other = ((("Over its band ($)", "Over the book ($)") if compare_to == "peers"
-                         else ("Over the book ($)", "Over its band ($)")))
-        assert [ws.cell(row=6, column=g0 + 4).value, ws.cell(row=6, column=g0 + 5).value] == [first, other]
-        rows = {(ws.cell(row=r, column=2).value, ws.cell(row=r, column=3).value): r for r in range(7, 13)}
+        ws = _tab(res, results.PCK)
+        head = tabs.header_row(ws, results.C_TOG, "Together")
+        assert ws.cell(row=head, column=results.C_COST).value == times
+        rows = {(x["band"], x["seg"]): x for x in tabs.pck(ws)}
         lo, hi = res.grids[0].band_labels
         s = _gco(res, 0, "A")
-        r = rows[(lo, "A")]
-        want = (s.excess_band, s.excess) if compare_to == "peers" else (s.excess, s.excess_band)
-        assert (ws.cell(row=r, column=g0 + 4).value, ws.cell(row=r, column=g0 + 5).value) == pytest.approx(want)
+        assert rows[(lo, "A")]["cost_d"] == pytest.approx(s.dollars)
+        assert s.dollars == pytest.approx(s.excess_band if compare_to == "peers" else s.excess_rest)
         # profit's dollars are over, so a shortfall is negative: the engine's shortfall, turned round
         p = res.grids[0].cell(lo, "A").rates["ranr_rate"]
-        assert ws.cell(row=r, column=book.LVR_R + 4).value == pytest.approx(-p.dollars)
+        assert rows[(lo, "A")]["kept_d"] == pytest.approx(-p.dollars)
 
 
 def test_a_pocket_alone_in_its_band_has_no_dollars_over_it_and_is_ranked_by_the_books():
@@ -160,19 +171,22 @@ def test_a_pocket_alone_in_its_band_has_no_dollars_over_it_and_is_ranked_by_the_
                           benchmark=_bench("peers")), table(rows))
     g = res.grids[0]
     s = g.cell(g.band_labels[-1], "A").rates["gco_rate"]
-    assert s.alone and not s.by_band and s.excess_band is None and s.dollars == s.excess > LINE and s.material
-    got = [x for x in _bleeds(res) if x["Measure"] == "GCO per booked dollar" and x["Band"] == g.band_labels[-1]]
-    assert got and got[0]["Excess over its band"] is None and got[0]["Excess over the book"] == pytest.approx(s.excess)
+    assert s.alone and not s.by_band and s.excess_band is None and s.dollars == s.excess_rest > LINE and s.material
+    rows = tabs.pockets(_tab(res, results.POCKETS, measure="Charge-offs"))
+    got = [x for x in rows if x["band"] == f"SCORE {g.band_labels[-1]}"]
+    assert got and got[0]["excess"] == pytest.approx(s.excess_rest) and got[0]["material"] == "Yes"
 
 
 def test_check_says_which_comparison_decides():
     for compare_to, opens in (("peers", "The rest of its band decides"), ("topline", "The rest of the book decides")):
         res = _run(compare_to)
-        ws = _sheet(res, lambda ws, r: book._check(ws, r, Path("loans.csv")))
+        ws = Workbook().active
+        book._check(ws, res, Path("loans.csv"))
+        ws = calculated(ws)
         check = {r[1].value: r[2].value for r in ws.iter_rows(min_row=4)}
         said = check["Decides each pocket"]
         assert said.startswith(opens) and "flag, its dollars and whether it is material" in said
-        assert ("alone in its band is compared with the book" in said) == (compare_to == "peers")
+        assert ("alone in its band is compared with the rest of the book" in said) == (compare_to == "peers")
 
 
 def test_the_command_line_ranks_by_the_deciding_dollars():
@@ -181,7 +195,7 @@ def test_the_command_line_ranks_by_the_deciding_dollars():
     gco = gco[gco.index("Where it bleeds"):gco.index("Materiality evidence")]
     assert "excess GCO over the rest of its band's rate" in gco
     # four times its band, under the book: listed, material, with the book's figure beside it
-    assert "650 - 700 / C: 12,000, 400 loans\n      for reference, against the book: -8,333" in gco
+    assert "650 - 700 / C: 12,000, 400 loans\n      for reference, against the book: -10,000" in gco
     # in line with its band, far over the book: below the line, by its band's dollars
     assert "below the materiality line: 1 pocket, 2,000 together" in gco
 
@@ -223,32 +237,33 @@ def test_the_reading_names_the_comparison_that_decides_it():
 
 
 def test_no_verdict_word_is_left_on_the_profit_side():
+    """The literal wording is the reading of record on _pockets (and the command line); the tabs show the gap
+    and its dollars in columns, and Worse? says whether it counts."""
     res = _run("peers", revenue_line=0.25)
-    ws = _sheet(res, book._losses_vs_revenue)
-    reads = [ws.cell(row=r, column=c).value for r in range(7, 13) for c in (book.LVR_C + 3, book.LVR_R + 3)]
+    wb = Workbook()
+    results.write(wb, res, "now")
+    v = calculated(wb[results.POCKETS]).parent
+    reads = [r[live.P_SAID - 1].value for r in v[live.POCKETS].iter_rows(min_row=live.P_FIRST)
+             if r[live.P_MEASURE - 1].value in ("ranr_rate", "contribution_rate")]
     assert reads and all(isinstance(x, str) for x in reads)
     for x in reads:
         assert not any(w in x for w in ("keeps", "pays", "about the same")), x
         assert x.startswith(("short of ", "ahead of ", "within ", "too few")), x
-    # the loss side keeps its words
-    losses = [ws.cell(row=r, column=book.LVR_G + 3).value for r in range(7, 13)]
-    assert all(x.startswith(("losing more", "losing less", "about the same", "too few")) for x in losses), losses
+    for x in tabs.pck(v[results.PCK]):
+        assert all(isinstance(x[k], (int, float)) for k in ("paid", "paid_d", "kept", "kept_d")), x
 
 
-def test_a_literal_shortfall_is_red_and_an_unsure_one_amber():
-    """Where it bleeds shades by the flag's words. Profit's flag is literal now, so "short of" is worse,
-    and one ending "(not significant)" is amber, as "worse, not significant" is."""
+def test_a_real_shortfall_is_pink_and_an_unsure_one_canvas():
+    """Worse? is Yes on a shortfall past the line with a p-value under the bar, and pink with crimson words;
+    Not sure is CANVAS (the redesign's Global rule 9)."""
     res = _run("peers", revenue_line=0.25)
-    ws = _sheet(res, book._bleeds)
-    heads = [c.value for c in ws[4]]
-    flag = heads.index("Flag (vs the rest of its band)") + 1
-    assert book._col(flag) == "R"                                  # the column the rules read
-    short = [ws.cell(row=r, column=flag).value for r in range(5, ws.max_row + 1)
-             if str(ws.cell(row=r, column=flag).value).startswith("short of its band by ")]
-    assert short
-    ws = _sheet(res, book._bleeds, formulas=True)                  # the rules themselves
-    rules = {r.dxf.fill.fgColor.rgb[-6:]: r.formula[0] for rng in ws.conditional_formatting for r in rng.rules}
-    assert rules[book.WORSE_FILL] == ('OR($R5="worse",AND(LEFT($R5,8)="short of",'
-                                      'NOT(RIGHT($R5,17)="(not significant)")))')
-    assert rules[book.LUCK_FILL] == ('OR($R5="worse, not significant",AND(LEFT($R5,8)="short of",'
-                                     'RIGHT($R5,17)="(not significant)"))')
+    ws = _tab(res, results.POCKETS, measure="Kept after losses")
+    rows = tabs.pockets(ws)
+    assert any(x["worse"] == "Yes" and x["gap"] < 0 for x in rows)
+    rules = [(r.formula[0], r.dxf) for rng in ws.formulas.conditional_formatting
+             if str(rng.sqref).startswith(results.col(results.K_WORSE)) for r in rng.rules]
+    yes = next(d for f, d in rules if f.endswith(f'="{live.YES}")'))
+    assert yes.fill.fgColor.rgb.endswith(house.ALERT_FG) and yes.font.color.rgb.endswith(house.CRIMSON) and yes.font.b
+    unsure = next(d for f, d in rules if f.endswith(f'="{live.NOT_SURE}")'))
+    assert unsure.fill.fgColor.rgb.endswith(house.CANVAS)
+

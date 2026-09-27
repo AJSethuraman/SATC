@@ -147,11 +147,11 @@ def report(res: engine.Result, top: int = 5) -> str:
                 ranked = sorted(((c.rates[m.name].dollars, k, c) for k, c in g.inner()
                                  if c.rates[m.name].dollars is not None), key=lambda t: -t[0])
                 peers = bench is not None and bench.compare_to == "peers"
-                rate_of = "the rest of its band's rate" if peers else "the book's rate"
+                rate_of = "the rest of its band's rate" if peers else "the rest of the book's rate"      # Option A
                 what = (f"excess {m.numerator()} over {rate_of}" if m.higher_is == "worse"
                         else f"shortfall in {m.numerator()} under {rate_of}")
                 if peers:
-                    what += " (a pocket alone in its band: the book's)"
+                    what += " (a pocket alone in its band: the rest of the book's)"
                 pline = engine.profit_line(bench, res.materiality_line.get("gco_rate")) if m.in_points else None
                 line = res.materiality_line.get(m.name)
                 out.append(f"  Where it bleeds: {what}, largest first"
@@ -167,7 +167,7 @@ def report(res: engine.Result, top: int = 5) -> str:
                     if len(ranked) and ranked.index((ex, (b, d), c)) >= top:
                         continue
                     out.append(f"    {b} / {d}: {_n(ex)}, {_plural(s.units, 'loan')}")
-                    other = s.excess if s.by_band else s.excess_band
+                    other = s.excess_rest if s.by_band else s.excess_band
                     if other is not None:
                         out.append(f"      for reference, against {'the book' if s.by_band else 'its band'}: "
                                    f"{_n(other)}")

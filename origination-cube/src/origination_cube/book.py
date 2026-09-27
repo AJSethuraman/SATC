@@ -8,9 +8,10 @@ buttons call the two functions here:
                       remembered), Look. Answers already given are kept, and so
                       are the results of the last run.
     run(book)         reads the answers, runs the engine, and writes the results
-                      into the same workbook: Where it bleeds, Losses vs revenue,
-                      Grids, Split, Check, Log, and Start here's findings. It
-                      loads the workbook once and saves it once.
+                      into the same workbook: Pockets, Paid cost kept, Grids,
+                      Split (results.py, the redesign's phase 3), Check, Log,
+                      and Start here's findings. It loads the workbook once and
+                      saves it once.
 
 A problem is never a traceback: it is a sentence naming the tab and cell, shown
 in the launcher and on the Log tab. A run that can't write its results changes
@@ -30,18 +31,18 @@ from typing import Any
 
 import yaml
 from openpyxl import Workbook, load_workbook
-from openpyxl.chart import Reference, ScatterChart, Series
-from openpyxl.formatting.rule import ColorScaleRule, FormulaRule
+from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from . import config as cfgmod
 from . import control, engine, meanings, memory, perm, profile, stats
-from . import checks, confirmatory, prevalence          # fixes 3.12 and 3.15 to 3.18
+from . import checks, confirmatory                      # fixes 3.15 to 3.18
 from . import live                                      # OC-40: the judging settings, live in the workbook
 from . import confirm_tab                               # 4b and 4e: the confirmatory test's tab
 from . import choices as ch                             # the redesign: what the launcher chose
+from . import results                                   # the redesign, phase 3: the result tabs
 from .house import MIST as READ_ONLY
 from .ingest import Table, read_table
 
@@ -53,15 +54,13 @@ INPUT_TABS = ("Start here", "Control", "Columns", "Look")
 #: tabs an older workbook carries that the redesign folded into others: taken off at Set up (and Materiality,
 #: now the panel on Control, at Run)
 FOLDED_TABS = ("Odd values", "Learned", "Materiality")
-RESULT_TABS = ("Confirmatory test", "Where it bleeds", "Losses vs revenue", "Grids", "Split", "Prevalence", "Three-way",
-               "Check", "Log")
+RESULT_TABS = ("Confirmatory test",) + results.TABS + ("Check", "Log")
 LOG_FIRST = 4            # the newest line on the Log tab
 LOG_NOTE = ("Every Run and every refusal, newest first. Each entry is what that Run used: a line changed on "
             "Control afterwards shows on the result tabs, not here.")
 HELPERS = ("_options", "_meanings", "_about")
 ABOUT = "_about"
 FOUND = "_found"          # what the last Run found, for Start here's tiles and top five (kept through Set up)
-CHART_DATA = "_chart"     # the Losses vs revenue charts' own numbers, hidden
 CONFIRM_CELL = "C3"      # "Checked every column?"
 # Set up's note on Columns!D3 for columns the Yes in C3 doesn't cover yet; a Run takes it off again
 NEW_COLS_NOTE = "New since the last check: {}. Check them, then set C3 to Yes again."
@@ -939,8 +938,8 @@ def _found_block(ws, wb, r: int) -> int:
     ws.conditional_formatting.add(f"H{t + 1}:H{last}", FormulaRule(
         formula=[f'H{t + 1}="Yes"'], font=Font(bold=True),
         fill=PatternFill("solid", fgColor=house.MIST, bgColor=house.MIST)))
-    link = ws.cell(row=last + 1, column=2, value="Every pocket, every measure: the Where it bleeds tab.")
-    link.hyperlink = "#'Where it bleeds'!A1"
+    link = ws.cell(row=last + 1, column=2, value="Every pocket, every measure: the Pockets tab.")
+    link.hyperlink = f"#'{results.POCKETS}'!A1"
     link.font = Font(name="Calibri", size=10, color=house.KEY_RED, underline="single")
     return last + 3
 
@@ -949,9 +948,8 @@ def _found_block(ws, wb, r: int) -> int:
 TAB_GROUPS = [
     ("You answer", "KEY_RED", [("Control", "the professional calls"), ("Columns", "meanings, odd values, memory"),
                                ("Look", "each number column's shape")]),
-    ("Results", "INK", [("Where it bleeds", "every pocket, largest first"), ("Losses vs revenue", "paid against cost"),
-                        ("Grids", "every rate, band by segment"), ("Split", "each pocket halved"),
-                        ("Three-way", "the halves, tested"), ("Prevalence", "how common each value is"),
+    ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "paid against cost"),
+                        (results.GRIDS, "one grid at a time, and how common"), (results.SPLIT, "each pocket halved"),
                         ("Confirmatory test", "a saved shortlist, confirmed")]),
     ("Record", "STONE", [("Check", "what ran, and the tie-outs"), ("Log", "every Run, newest first")]),
 ]
@@ -1630,7 +1628,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if small:
         rows_said = "" if len(blue) == small else f" ({len(blue)} rows: a pocket has a row for each measure)"
         lines.append(f"{_n(small, 'pocket')} {'is' if small == 1 else 'are'} material but too small to test: "
-                     f"shaded blue on Where it bleeds{rows_said}, to look at by hand.")
+                     f"Worse? reads Too few losses and Material? Yes on Pockets{rows_said}, to look at by hand.")
     sug = getattr(res, "suggested", None) or {}
     if sug:
         said = {"min_loans": "fewest loans {:,}", "worse_at": "worse at {:.2f}x", "better_at": "better at {:.2f}x"}
@@ -1644,8 +1642,9 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                          + "; ".join(usual) + ".")
     if cfg.split and bleed_tabs(res):
         sf, how = cfg.split
-        lines.append(f"Split by {sf}: " + ("each pocket halved at its own median. See the Split and Three-way tabs."
-                                           if how == "own_median" else "one layer per value. See the Three-way tab.")
+        lines.append(f"Split by {sf}: " + ("each pocket halved at its own median. See the Split tab, and Pockets "
+                                           f"split by {sf}." if how == "own_median" else
+                                           f"one layer per value. See Pockets split by {sf}.")
                      + f" {sf} isn't cut on its own while it splits.")
     if dropped:
         lines.append(f"Forgot {', '.join(sorted(dropped))}, as marked on Columns. Check "
@@ -1653,7 +1652,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     tested = getattr(getattr(res, "prespec", None), "test", None)
     lines.append(f"Open {book.name}: start with "
                  + ("Confirmatory test." if tested is not None and tested.problem is None
-                    else "Where it bleeds." if bleed_tabs(res) else "Check."))
+                    else "Pockets." if bleed_tabs(res) else "Check."))
     return Outcome(True, book, lines, summary=summary)
 
 
@@ -1849,12 +1848,16 @@ def _write_results(wb, book: Path, res, memory_path, src: Path, forgotten: set[s
     for t in RESULT_TABS[:-1] + ("Materiality", "Learned"):
         if t in wb.sheetnames:
             del wb[t]
+    for t in results.OLD_TABS + results.HIDDEN + (results.CHART,):     # tabs and helpers the redesign replaced
+        if t in wb.sheetnames:
+            del wb[t]
+    stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     if bleed_tabs(res):
-        _write_bleed(wb, res)
+        _write_bleed(wb, res, stamp)
     confirm_tab.write(wb, res)                  # 4b and 4e: only when testing from a pre-spec
     live.ensure(wb, res)                        # the names Control's materiality panel reads, with no tab of its own
     _check(wb.create_sheet("Check"), res, src, f"{book.stem} - what ran.yaml")
-    _write_rest(wb, book, res, memory_path, src, forgotten, ncols)
+    _write_rest(wb, book, res, memory_path, src, forgotten, ncols, stamp)
 
 
 def bleed_tabs(res) -> bool:
@@ -1863,28 +1866,13 @@ def bleed_tabs(res) -> bool:
     return getattr(res, "bleed", True)
 
 
-def _write_bleed(wb, res) -> None:
-    _bleeds(wb.create_sheet("Where it bleeds"), res)
-    have = {m.name for m in res.measures}
-    if res.config.benchmark is None or {"gco_rate", "ranr_rate", "contribution_rate"} <= have:
-        # a test of a new variable run without GCO and RANR has nothing to put on it, so there is no tab
-        _losses_vs_revenue(wb.create_sheet("Losses vs revenue"), res)
-    _grids(wb.create_sheet("Grids"), res)
-    if res.config.split:
-        _split_tab(wb.create_sheet("Split"), res)
-        note = (lambda g: _three_way_note(res, g)) if res.config.split[1] == "own_median" else None
-        pt = _partner(res)
-        sf = res.config.split[0]
-        after = (f" {sf} moves with {pt[0]} (correlation {pt[1]:+.2f}). Rows whose grid doesn't hold {pt[0]} fixed "
-                 f"(the last column says no) come after the rest, and aren't shaded red: part of their gap may be {pt[0]}."
-                 if note and pt else "")
-        _bleeds(wb.create_sheet("Three-way"), res, res.three_way, "Three-way",
-                f"Pockets split by {sf}, each tested like any other pocket,", note, after)
-    prevalence.write(wb, res)                   # fix 3.12: only with a split or a new column
+def _write_bleed(wb, res, stamp: str) -> None:
+    """The bleed analysis's tabs, the redesign's phase 3: Pockets, Paid cost kept, Grids (with how common each
+    group is, fix 3.12) and Split (results.py)."""
+    results.write(wb, res, stamp)
 
 
-def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols) -> None:
-    stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, stamp: str) -> None:
     if control.SHEET in wb.sheetnames:
         _last_run_used(wb, res)
         if getattr(res, "suggest_all", None):
@@ -2042,167 +2030,6 @@ def _in_use(ws, note: str, last_col: str, height: float = 44) -> None:
     ws.row_dimensions[3].height = height
 
 
-#: what stays as of the last Run on the pocket lists, said on each (OC-40: no SORT or FILTER in the bank's Excel)
-SORTED_NOTE = ("Sorted as of the last Run: changing a line on Control updates the readings, dollars and colours "
-               "here, not the order. The smallest gap each pocket could show is as of the last Run.")
-JUDGED = ('IF(judged_band,"the rest of its band","the rest of the book")',)
-
-
-def _bleeds(ws, res, grids=None, title: str = "Where it bleeds", lead: str = "Pockets", note_of=None,
-            after: str = "") -> None:
-    """Every pocket losing more than its share, largest first. The Three-way tab
-    is the same list over the three-way pockets, with what each grid holds fixed
-    beside every row, and the grids that hold it fixed first (`note_of` gives the
-    words and the order; the fourth walk, defect 1).
-
-    One comparison decides the flag, the dollars, materiality and the order (the
-    firm, 26 Sep 2026): the one Control's "judged against" picks. Its dollars come
-    first; the other comparison's are beside them for reference. A pocket alone in
-    its band has no excess over its band, so it is ranked by the book's.
-
-    Live (OC-40): the flag, both dollar columns, Material, the Test column and the
-    headings that name the comparison are formulas over the hidden _pockets sheet,
-    so a line changed on Control shows here at once. The rows and their order are
-    the last Run's. So that a change of "judged against" finds every pocket it
-    could flag, the pockets losing more than their share against the other
-    comparison only are listed after the rest, under their own heading."""
-    grids = res.grids if grids is None else grids
-    lv = live.ensure(ws.parent, res)
-    kind = "three-way" if grids is not res.grids else "grids"
-    b = res.config.benchmark
-    peers = bool(b and b.compare_to == "peers")
-    names = _names(res)
-    # a test of a new variable may run without RANR, or without any dollar rate (Goal 2 item 2): the note then
-    # says nothing about profit or shuffles
-    profit, dollar_rates = _has_profit(res), _has_dollar_rates(res)
-    _title(ws, title, "", "B:U" if note_of else "B:T")
-    ws["B2"] = live.text(
-        f"{lead} losing more than their share{' (profit: falling short of it)' if profit else ''}, largest first. "
-        f"Each pocket is compared with ", JUDGED, ": that decides the flag, the excess, whether it is material and "
-        f"the order. ",
-        ('IF(judged_band,"Excess over the book","Excess over its band")',),
-        f" is beside it for reference."
-        + (" Profit is a gap in points, judged by the profit line on Control." if profit else "")
-        + " Red: worse. Amber: worse, not significant. Blue: material, but too few losses to test, so look by hand. "
-        "p-value: the chance of a gap this big with no real difference, after the allowance for many tests (see "
-        "Check). Test: which test ran" + ("; for a dollar rate, how many shuffles made a gap as big against "
-                                          if dollar_rates else "."),
-        *((JUDGED, ".") if dollar_rates else ()), after)
-    ws.row_dimensions[2].height = 58
-    _in_use(ws, SORTED_NOTE, "U" if note_of else "T")
-    first_h = ('IF(judged_band,"Excess over its band","Excess over the book")',)
-    other_h = ('IF(judged_band,"Excess over the book","Excess over its band")',)
-    heads = ["Measure", "Band column", "Band", "Segment column", "Segment", "Loans", "Rate", "Book rate",
-             live.text(first_h), live.text(other_h), "Excess is in", "Material", "Vs rest of book", "p-value",
-             "Vs rest of band", "p-value", live.text("Flag (vs ", JUDGED, ")"), "Smallest gap it could show"] + (
-                [f"Holds {_partner(res)[0]} fixed?" if _partner(res) else "Holds fixed?"] if note_of else []) + [
-                "Test"]
-    _head(ws, 4, heads)
-    ws.row_dimensions[4].height = 44           # "Excess over the book" on two lines
-    untested = (engine.THIN, engine.FEW)
-    main, others = [], []
-    for m in res.measures:
-        if not m.is_rate:
-            continue
-        found, elsewhere = [], []
-        for g in grids:
-            for (bl, dl), c in g.inner():
-                s = c.rates[m.name]
-                if s.dollars is not None and s.dollars > 0:
-                    found.append((s.dollars, g, bl, dl, s))
-                else:
-                    # losing more against the comparison that doesn't decide now: a change on Control can flag it
-                    other = s.excess if peers else s.excess_band
-                    if other is not None and other > 0:
-                        elsewhere.append((other, g, bl, dl, s))
-        order = (lambda t: (note_of(t[1])[1], -t[0])) if note_of else (lambda t: -t[0])
-        main += [(m, *t[1:]) for t in sorted(found, key=order)]
-        others += [(m, *t[1:]) for t in sorted(elsewhere, key=order)]
-
-    def write(r, m, g, bl, dl, s):
-        tested = s.reading_topline not in untested
-        if m.in_points:
-            # a shortfall of at least this many points: profit's bleed is the downward gap
-            gap = -s.smallest_gap * 100 if s.smallest_gap else None
-        else:
-            gap = s.smallest_gap if m.higher_is == "worse" else (1 / s.smallest_gap if s.smallest_gap else None)
-        at = lambda c: lv.ref(kind, g, bl, dl, m.name, c)           # noqa: E731
-        first = f'=IF(judged_band,IF({at(live.P_EX_BAND)}="","",{at(live.P_EX_BAND)}),{at(live.P_EX_BOOK)})'
-        other = f'=IF(judged_band,{at(live.P_EX_BOOK)},IF({at(live.P_EX_BAND)}="","",{at(live.P_EX_BAND)}))'
-        vals = [m.title, names[g.band], bl, names[g.dimension], dl, s.units, s.rate,
-                res.total.rates[m.name].rate, first, other, _unit(m), f"={at(live.P_MATERIAL)}",
-                _shown(s.vs_rest, m), s.p_book if tested else None, _shown(s.vs_band, m),
-                s.p_band if tested else None, f"={at(live.P_SAID)}", gap]
-        if note_of:
-            vals.append(note_of(g)[0])
-        vals.append(f"={at(live.P_TEST)}")
-        for i, v in enumerate(vals, start=2):
-            ws.cell(row=r, column=i, value=v)
-        ws.cell(row=r, column=len(vals) + 1).alignment = Alignment(horizontal="left", indent=1)   # clear of the gap
-        # loans to one decimal, like the line they're held against (the third walk, defect 13)
-        ex_fmt = "#,##0.0" if _unit(m) == "loans" else "#,##0"
-        for col, fmt in ((8, "0.00%"), (9, "0.00%"), (10, ex_fmt), (11, ex_fmt), (14, _gap_fmt(m)), (15, P_FMT),
-                         (16, _gap_fmt(m)), (17, P_FMT)):
-            ws.cell(row=r, column=col).number_format = fmt
-        ws.cell(row=r, column=19).number_format = ('0.00" pts or less"' if m.in_points else
-                                                   '0.00"x or more"' if m.higher_is == "worse"
-                                                   else '0.00"x or less"')
-        # words that follow a right-aligned number start clear of it ("10.9%worse", "80.4loans" on the render,
-        # 26 Sep 2026)
-        # (an indent only shows in LibreOffice on a cell aligned left: the render of 26 Sep 2026 still ran
-        # them together)
-        for col in (12, 18, 20):
-            ws.cell(row=r, column=col).alignment = Alignment(horizontal="left", indent=1)
-
-    r = 5
-    for t in main:
-        write(r, *t)
-        r += 1
-    if not main:
-        ws.cell(row=5, column=2, value="Nothing is losing more than its share at the last Run's settings.")
-        r = 6
-    if others:
-        r += 1
-        other_words = "the rest of the book" if peers else "the rest of its band"
-        h = ws.cell(row=r, column=2, value=(
-            f"Losing more than their share against {other_words} only, at the last Run's settings. Listed so "
-            f"that changing what a pocket is judged against, on Control, finds them here."))
-        h.font = Font(name="Calibri", bold=True, color=INK)
-        ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=21 if note_of else 20)
-        h.alignment = Alignment(wrap_text=True, vertical="top")
-        ws.row_dimensions[r].height = 30
-        r += 1
-        for t in others:
-            write(r, *t)
-            r += 1
-    # material but too small to test: shown, not hidden (the firm, 25 Sep 2026: "this is a materiality thing")
-    # on Three-way, no red on a row whose grid doesn't hold the split's partner fixed: its gap may be
-    # mostly that column (the firm, 25 Sep 2026, after the seventh walk). A real effect of the split
-    # column still shows red in the grids that do hold it fixed. Profit's flag is literal ("short of its band
-    # by 0.80 points ($16,000)"): a shortfall is worse, and one that ends "(not significant)" is amber
-    short, unsure = 'LEFT($R5,8)="short of"', 'RIGHT($R5,17)="(not significant)"'
-    worse = f'OR($R5="worse",AND({short},NOT({unsure})))'
-    red = f'AND({worse},LEFT($T5,3)<>"no:")' if note_of else worse
-    for formula, fill in ((red, WORSE_FILL), (f'OR($R5="{engine.UNSURE_WORSE}",AND({short},{unsure}))', LUCK_FILL),
-                          ('AND($M5="yes",LEFT($R5,7)="too few")', SMALL_FILL)):
-        ws.conditional_formatting.add(f"B5:S{max(r, 6)}", FormulaRule(formula=[formula], fill=PatternFill(
-            "solid", fgColor=fill, bgColor=fill)))
-    seg_w = 26 if grids is not res.grids else 13
-    # the measure's name on one line: "Contribution before losses per booked dollar" (the render, 26 Sep 2026);
-    # and profit's flag: "short of its band by 0.80 points ($16,000) (not significant)"
-    for col, w in zip("ABCDEFGHIJKLMNOPQRS", (2, 42, 12, 22, 16 if seg_w == 13 else 26, seg_w, 8, 8, 8, 12, 12, 30,
-                                              14, 11, 11, 11, 11, 56, 17)):
-        ws.column_dimensions[col].width = w
-    ws.column_dimensions["U" if note_of else "T"].width = 22
-    if note_of:
-        ws.column_dimensions["T"].width = 30
-        ws.row_dimensions[2].height = 86
-        for row in ws.iter_rows(min_row=5, min_col=20, max_col=20):
-            row[0].alignment = Alignment(wrap_text=True, vertical="top")
-    ws.freeze_panes = "B5"
-    _fit(ws)
-
-
 P_FMT = '[<0.0001]"under 0.01%";[<0.01]0.00%;0.0%'
 #: a difference in percentage points of booked dollars, signed: "+0.35 pts", "-1.20 pts" (NEXT-GOAL 3.2)
 PTS_FMT = '+0.00" pts";-0.00" pts";0.00" pts"'
@@ -2237,23 +2064,10 @@ def which_test(s, peers: bool = True) -> str:
     return ""
 
 
-NOT_TESTED = "Not tested: too few losses"
-#: a pocket with no other pocket in its band, judged against the book instead (the firm, 26 Sep 2026)
-ALONE = "alone in its band: compared with the book"
-SMALL_FILL = "DDEBF7"      # material, but too few losses to test: look at it by hand
 WARN_TEXT = "960019"
 
-# GCO's side and RANR's read together (NEXT-GOAL 3.4), only for these three pairs; blank otherwise. Each side
-# is the one shown in colour: tested, and significant
-TOGETHER = {("more", "more"): "priced for it", ("more", "less"): "net drain", ("less", "less"): "safe but idle"}
-
-
-def together_of(gco: str | None, ranr: str | None) -> str:
-    """gco and ranr are each "more", "same", "less", or None when a side is
-    untested or not significant: losing more and keeping more is priced for
-    it; losing more and keeping less, a net drain; losing less and keeping
-    less, safe but idle."""
-    return TOGETHER.get((gco, ranr), "")
+#: Together, the two sides of Paid, cost, kept read at once (NEXT-GOAL 3.4; five verdicts since the redesign)
+TOGETHER, together_of = results.TOGETHER, results.together_of
 
 
 def profit_line(res):
@@ -2293,10 +2107,9 @@ def profit_words(res) -> str:
 
 
 DECIDES_BAND = ("The rest of its band decides each pocket's flag, its dollars and whether it is material. A pocket "
-                "alone in its band is compared with the book. The excess over the book is shown beside it for "
-                "reference.")
-DECIDES_BOOK = ("The rest of the book decides each pocket's flag, its dollars and whether it is material. The "
-                "excess over its band is shown beside it for reference.")
+                "alone in its band is compared with the rest of the book.")
+DECIDES_BOOK = ("The rest of the book decides each pocket's flag, its dollars and whether it is material: every "
+                "other loan in the book, for the gap and the dollars alike.")
 
 
 def decides(res) -> str:
@@ -2360,447 +2173,6 @@ def luck_gap(res, mname: str, floor: float) -> float | None:
     return round(statistics.median(gaps), 2) if gaps else None
 
 
-def _side(idx, lo: float, hi: float) -> str | None:
-    if idx is None:
-        return None
-    return "more" if idx >= hi else "less" if idx <= lo else "same"
-
-
-RED_CELL, GREEN_CELL = "F2C4C4", "CFE8C4"
-# the tab's columns, one side after the other (the firm, 25 Sep 2026: "instead of just listing GCO vs
-# Comparison, find a clean way to display the comparable metrics"), and since NEXT-GOAL 3.4 three sides:
-# what they paid us, what they cost us, what we kept
-LVR_C, LVR_G, LVR_R, LVR_T = 5, 11, 17, 23       # first column of each side, and Together
-# the dollars of the comparison that decides come first, the other's beside them (the firm, 26 Sep 2026)
-LVR_SIDE = ("This pocket", "{rest}", "Gap", "Reading", "{first} ($)", "{other} ($)")
-# (measure, heading, first column, word for more, word for less, the side that is worse). Contribution and
-# profit say their gap literally instead (engine.literal; the firm, 26 Sep 2026: "yes I prefer it to be literal")
-LVR_SIDES = (("contribution_rate", "What they paid us: contribution before losses", LVR_C, None, None, "less"),
-             ("gco_rate", "What they cost us: GCO", LVR_G, "losing more", "losing less", "more"),
-             ("ranr_rate", "What we kept: profit after losses (RANR)", LVR_R, None, None, "less"))
-PROFIT_SIDE = {engine.WORSE: "less", engine.UNSURE_WORSE: "less", engine.BETTER: "more", engine.UNSURE_BETTER: "more"}
-
-
-def _rest_rate(s, parent) -> float | None:
-    den = parent.den - s.den
-    return (parent.num - s.num) / den if den else None
-
-
-#: Losses vs revenue's hidden columns, far right of the charts: each row's untested mark and each side's flag,
-#: which the red and green rules read (OC-40: the colours follow Control)
-LVR_HIDDEN = 60
-CHART_POINTS = 100        # on the hidden _chart sheet: each grid's points as of the last Run, x then y
-
-
-def _losses_vs_revenue(ws, res) -> None:
-    """What they paid us, what they cost us and what we kept, per pocket
-    (NEXT-GOAL 3.4). The firm: 'GCO is high but profit is high - do we care?
-    maybe.' Each side shows the pocket's rate, the rate of the rest it's
-    compared with, the gap, a reading and the dollars, so the numbers behind a
-    reading are on the row. GCO reads by the loss lines on Control (a
-    multiple); contribution and profit by the profit line (points), as the
-    engine read them, so this tab and Where it bleeds can't disagree (OC-32).
-    Red and green show which side is worse or better (the firm, 25 Sep 2026:
-    "i can just visually see that"). Nothing is netted: RANR already has GCO
-    taken out (OC-29, OC-35), so contribution adds it back. The dollars use the
-    same comparison as the reading (the third walk, defect 5), the engine's, so
-    materiality and Where it bleeds agree (the firm, 26 Sep 2026); the other
-    comparison's dollars sit beside them. Contribution and profit read
-    literally: "short of its band by 0.80 points ($16,000)".
-
-    Live (OC-40): the rest's rate, the gap, the readings, both dollar columns,
-    Together and Compared with are formulas over the hidden _pockets sheet, and
-    red and green are rules over each side's flag, so a line changed on Control
-    shows here at once. The rows, their order and the charts are the last Run's."""
-    names = _names(res)
-    b = res.config.benchmark
-    if b is None or not {"gco_rate", "ranr_rate", "contribution_rate"} <= {m.name for m in res.measures}:
-        _title(ws, "Losses vs revenue", "Needs the Control settings.", "B:T")
-        return
-    lv = live.ensure(ws.parent, res)
-    peers = b.compare_to == "peers"
-    _title(ws, "Losses vs revenue", "", "B:X")
-    ws["B2"] = live.text(
-        "Each pocket beside ", JUDGED,
-        ": what they paid us (contribution before losses), what they cost us (GCO) and what we kept (profit after "
-        "losses, RANR). RANR already has GCO taken out, so contribution is RANR + GCO. GCO counts as more at ",
-        ('TEXT(worse_at,"0.00")',), "x or above and less at ", ('TEXT(better_at,"0.00")',),
-        "x or below. Contribution and profit read as their gap: points short of or ahead of ", JUDGED,
-        ", and the dollars that comes to. A gap counts ",
-        ('IF(profit_kind="test","only when the pocket\'s own test calls the gap significant",IF(profit_kind="points",'
-         '"at "&TEXT(profit_line*100,"0.00")&" points either way","when the gap reaches "&TEXT(profit_line,'
-         '"#,##0")&" dollars (the materiality line)"))',),
-        ". ", ('IF(judged_band,"Over its band","Over the book")',), ": the dollars over ", JUDGED, "; ",
-        ('IF(judged_band,"over the book","over its band")',),
-        " is beside it for reference. Red is worse, green is better; a gap that is not significant is marked and "
-        "left plain. Together: losing more and keeping more is priced for it; losing more and keeping less, a net "
-        "drain; losing less and keeping less, safe but idle.")
-    ws.row_dimensions[2].height = 72
-    _in_use(ws, "Rows sorted as of the last Run, and the charts are as of the last Run too: changing a line on "
-                "Control updates the readings, dollars and colours here, not the order or the charts.", "X")
-    side_heads = [live.text(('IF(judged_band,"Rest of band","Rest of book")',)) if h == "{rest}" else
-                  live.text(('IF(judged_band,"Over its band ($)","Over the book ($)")',)) if h == "{first} ($)" else
-                  live.text(('IF(judged_band,"Over the book ($)","Over its band ($)")',)) if h == "{other} ($)"
-                  else h for h in LVR_SIDE]
-    # the charts' own numbers (the Control lines, the named pockets, the points) live on a hidden sheet:
-    # hidden cells on this tab aren't drawn by every spreadsheet program
-    wb = ws.parent
-    if CHART_DATA in wb.sheetnames:
-        del wb[CHART_DATA]
-    hs = wb.create_sheet(CHART_DATA)
-    hs.sheet_state = "hidden"
-    real = lambda p: stats.significant(p, b.confidence)      # noqa: E731
-    untested_words = (engine.THIN, engine.FEW)
-    top = 4
-    ms = {m.name: m for m in res.measures}
-    for gi, g in enumerate(res.grids):
-        rows = []
-        mates = {}
-        for (bl, _), _c in g.inner():
-            mates[bl] = mates.get(bl, 0) + 1
-        for (bl, dl), c in g.inner():
-            ss = {k: c.rates[k] for k, *_ in LVR_SIDES}
-            alone = peers and ss["gco_rate"].alone
-            band = peers and not alone
-            gaps = {k: s.vs_band if band else s.vs_rest for k, s in ss.items()}
-            # every pocket with all three comparisons, whatever its size: below fewest loans a dollar rate
-            # is still shuffled (docs/statistics.md B2), and only fewest losses leaves a side untested. With
-            # "judged against" live, a pocket complete against either comparison is kept (OC-40)
-            other = {k: s.vs_rest if band or mates[bl] == 1 else s.vs_band for k, s in ss.items()}
-            if any(v is None for v in gaps.values()) and any(v is None for v in other.values()):
-                continue
-            flags = {k: s.reading_band if band else s.reading_topline for k, s in ss.items()}
-            ps = {k: s.p_band if band else s.p_book for k, s in ss.items()}
-            sides = {k: PROFIT_SIDE.get(f, "same") for k, f in flags.items()}
-            sides["gco_rate"] = _side(gaps["gco_rate"], b.better_at, b.worse_at)
-            unsure = {k: f in (engine.UNSURE_WORSE, engine.UNSURE_BETTER) for k, f in flags.items()}
-            unsure["gco_rate"] = (sides["gco_rate"] != "same" and not real(ps["gco_rate"])
-                                  and flags["gco_rate"] not in untested_words)
-            # untested on any side: no colour and no Together (the fourth walk, defect 3). Fewest losses is a
-            # Run setting, so this is fixed until the next Run
-            untested = bool(set(flags.values()) & set(untested_words))
-            shown = {k: None if untested or unsure[k] else sides[k] for k in sides}
-            rows.append({"band": bl, "seg": dl, "untested": untested,
-                         "gidx": gaps["gco_rate"], "ridx": None if gaps["ranr_rate"] is None else gaps["ranr_rate"] * 100,
-                         "shown": shown, "g_over": ss["gco_rate"].dollars, "units": ss["gco_rate"].units,
-                         "rates": {k: s.rate for k, s in ss.items()}})
-        rows.sort(key=lambda x: (x["untested"], -(x["g_over"] or 0)))
-        ws.cell(row=top, column=2, value=f"{names[g.band]} x {names[g.dimension]}").font = Font(
-            name="Calibri", bold=True, size=12)
-        # two header rows: which side, then what each column holds
-        _head(ws, top + 1, ["", "", ""] + [x for _, h, *_ in LVR_SIDES for x in (h, "", "", "", "", "")] + ["", ""])
-        for _, _, a, *_ in LVR_SIDES:
-            ws.merge_cells(start_row=top + 1, start_column=a, end_row=top + 1, end_column=a + 5)
-            ws.cell(row=top + 1, column=a).alignment = Alignment(horizontal="center")
-        ws.row_dimensions[top + 1].height = 16
-        _head(ws, top + 2, ["Band", "Segment", "Loans"] + side_heads * 3 + ["Together", "Compared with"])
-        r = top + 3
-        first = r
-        for row in rows:
-            at = lambda k, c: lv.ref("grids", g, row["band"], row["seg"], k, c)        # noqa: E731
-            cells = [row["band"], row["seg"], row["units"]]
-            for k, _, a, more, less, _ in LVR_SIDES:
-                neg = "-" if ms[k].higher_is == "better" else ""
-                sr = lambda c: f'IF({at(k, c)}="","",{neg}{at(k, c)})'                  # noqa: E731
-                gap = at(k, live.P_GAP)
-                if more is None:
-                    word = f"={at(k, live.P_SAID)}"      # literal: the gap, in points and dollars
-                else:
-                    z = at(k, live.P_FLAG)
-                    word = (f'=IF({z}="{engine.WORSE}","{more}",IF({z}="{engine.UNSURE_WORSE}","{more} (not '
-                            f'significant)",IF({z}="{engine.BETTER}","{less}",IF({z}="{engine.UNSURE_BETTER}",'
-                            f'"{less} (not significant)",IF({z}="{engine.IN_LINE}","about the same",{z})))))')
-                cells += [row["rates"][k], f"={at(k, live.P_REST)}",
-                          f'=IF({gap}="","",{gap}*100)' if ms[k].in_points else f"={gap}", word,
-                          f"=IF(judged_band,{sr(live.P_EX_BAND)},{sr(live.P_EX_BOOK)})",
-                          f"=IF(judged_band,{sr(live.P_EX_BOOK)},{sr(live.P_EX_BAND)})"]
-            gz, rz = at("gco_rate", live.P_FLAG), at("ranr_rate", live.P_FLAG)
-            u = f"${_col(LVR_HIDDEN)}{r}"
-            together = (f'=IF({u},"",IF(AND({gz}="{engine.WORSE}",{rz}="{engine.BETTER}"),"{TOGETHER[("more", "more")]}",'
-                        f'IF(AND({gz}="{engine.WORSE}",{rz}="{engine.WORSE}"),"{TOGETHER[("more", "less")]}",'
-                        f'IF(AND({gz}="{engine.BETTER}",{rz}="{engine.WORSE}"),"{TOGETHER[("less", "less")]}",""))))')
-            # a lone pocket's note sits in its own column: Together only ever reads the pair (the firm, 26 Sep 2026)
-            cells += [together, f'=IF(AND(judged_band,{at("gco_rate", live.P_ALONE)}),"{ALONE}","")']
-            for i, v in enumerate(cells, start=2):
-                # a two-line reading makes a tall row: its numbers sit level with the words
-                ws.cell(row=r, column=i, value=v).alignment = Alignment(vertical="center")
-            ws.cell(row=r, column=LVR_HIDDEN, value=row["untested"])
-            for j, (k, *_x) in enumerate(LVR_SIDES, start=1):
-                ws.cell(row=r, column=LVR_HIDDEN + j, value=f"={at(k, live.P_FLAG)}")
-            # the words after a number start clear of it; an indent only shows on a cell aligned left
-            ws.cell(row=r, column=LVR_T).alignment = Alignment(horizontal="left", indent=1, vertical="center")
-            for k, _, a, _, _, bad in LVR_SIDES:
-                ws.cell(row=r, column=a).number_format = ws.cell(row=r, column=a + 1).number_format = "0.00%"
-                ws.cell(row=r, column=a + 2).number_format = '0.00"x"' if k == "gco_rate" else PTS_FMT
-                ws.cell(row=r, column=a + 4).number_format = ws.cell(row=r, column=a + 5).number_format = "#,##0"
-                # clear of the gap, and a literal reading on two lines rather than cut off
-                ws.cell(row=r, column=a + 3).alignment = Alignment(horizontal="left", indent=1, wrap_text=True,
-                                                                   vertical="center")
-                ws.cell(row=r, column=a).border = Border(left=Side(style="thin", color=SLATE))
-            ws.cell(row=r, column=LVR_T).border = Border(left=Side(style="thin", color=SLATE))
-            ws.cell(row=r, column=LVR_T).font = Font(name="Calibri", bold=True)
-            r += 1
-        if rows:
-            # red and green by side, worse and better, from the flag the lines on Control give; a side that isn't
-            # significant isn't shaded like a finding (the sixth walk, defect 2), and nothing on an untested row
-            u = f"${_col(LVR_HIDDEN)}{first}"
-            for j, (k, _, a, *_x) in enumerate(LVR_SIDES, start=1):
-                f = f"${_col(LVR_HIDDEN + j)}{first}"
-                rng = f"{_col(a + 2)}{first}:{_col(a + 3)}{r - 1}"
-                for word, fill in ((engine.WORSE, RED_CELL), (engine.BETTER, GREEN_CELL)):
-                    ws.conditional_formatting.add(rng, FormulaRule(
-                        formula=[f'AND(NOT({u}),{f}="{word}")'], fill=PatternFill("solid", fgColor=fill,
-                                                                                   bgColor=fill)))
-        if not rows:
-            ws.cell(row=r, column=2, value="No pocket has enough loans to place.")
-            r += 1
-        if any(not x["untested"] and x["gidx"] is not None and x["ridx"] is not None for x in rows):
-            _revenue_chart(ws, hs, rows, first, f"{names[g.band]} x {names[g.dimension]} (as of the last Run)", b,
-                           profit_line(res), 1 + gi * 3, top, CHART_POINTS + gi * 3)
-        top = max(r, top + 24) + 2
-    # a reading fits "losing more (not significant)" on one line (the seventh walk, defects 4 and 5); a literal
-    # one, "short of its band by 0.80 points ($16,000) (not significant)", on two
-    widths = [2, 15, 12, 7] + [9, 9, 10, 44, 12, 12] * 3 + [14, 36, 2]
-    for j, w in enumerate(widths, start=1):
-        ws.column_dimensions[_col(j)].width = w
-    for j in range(LVR_HIDDEN, LVR_HIDDEN + 4):
-        ws.column_dimensions[_col(j)].hidden = True
-    ws.cell(row=3, column=LVR_HIDDEN, value="For the colour rules: untested (fewest losses, a Run setting), then "
-                                            "each side's flag")
-    ws.freeze_panes = "B4"
-    _fit(ws)
-
-
-def _nice_step(span: float) -> float:
-    """A round tick step giving about eight ticks over `span`."""
-    for step in (0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50):
-        if span / step <= 8:
-            return step
-    return 100.0
-
-
-def _revenue_chart(ws, hs, rows, first: int, title: str, b, line, hcol: int, anchor_row: int, pcol: int) -> None:
-    """One chart per grid (the third walk, defect 11: one chart for every grid
-    counted the same loans six times). GCO's multiple across, on a scale of
-    tens, so one pocket at 8x doesn't squash the rest and 1.00x sits on a tick;
-    profit's gap in points up. The lines from Control mark the sides (0 when
-    profit is read by each pocket's own test), and the three biggest bleeders
-    are named. All as of the last Run (OC-40): the points are copied to the
-    hidden _chart sheet, so the chart doesn't move with a line changed on
-    Control, and its title says so."""
-    chart = ScatterChart()
-    chart.title = title
-    chart.style = 13
-    chart.x_axis.title = "GCO multiple (right: losing more)"
-    chart.y_axis.title = "Profit gap in points (up: ahead)"
-    boxed = [x for x in rows if not x["untested"] and x["gidx"] is not None and x["ridx"] is not None]
-    for k, x in enumerate(boxed, start=1):
-        hs.cell(row=k, column=pcol, value=x["gidx"])
-        hs.cell(row=k, column=pcol + 1, value=x["ridx"])
-    last = len(boxed)
-    pts = Series(Reference(hs, min_col=pcol + 1, min_row=1, max_row=last),
-                 Reference(hs, min_col=pcol, min_row=1, max_row=last), title="Pockets")
-    pts.marker.symbol = "circle"
-    pts.marker.size = 6
-    pts.marker.graphicalProperties.solidFill = "2F5597"
-    pts.marker.graphicalProperties.line.solidFill = "2F5597"
-    pts.graphicalProperties.line.noFill = True
-    chart.series.append(pts)
-    xs, ys = [x["gidx"] for x in boxed if x["gidx"] > 0], [x["ridx"] for x in boxed]
-    x_lo = 10 ** math.floor(math.log10(min(xs + [b.better_at])))
-    x_hi = 10 ** math.ceil(math.log10(max(xs + [b.worse_at])))
-    band = line.value * 100 if line is not None and line.kind == "points" else None
-    lo_y, hi_y = min(ys + ([-band] if band else [0.0])), max(ys + ([band] if band else [0.0]))
-    step = _nice_step((hi_y - lo_y) or 1.0)
-    y_lo, y_hi = math.floor(lo_y / step) * step - step, math.ceil(hi_y / step) * step + step
-    # the lines, in hidden helper columns: x, y pairs
-    r = 1
-    lines = [((b.worse_at, y_lo), (b.worse_at, y_hi)), ((b.better_at, y_lo), (b.better_at, y_hi))]
-    lines += [((x_lo, band), (x_hi, band)), ((x_lo, -band), (x_hi, -band))] if band else [((x_lo, 0), (x_hi, 0))]
-    for (x1, y1), (x2, y2) in lines:
-        for k, (xv, yv) in enumerate(((x1, y1), (x2, y2))):
-            hs.cell(row=r + k, column=hcol, value=xv)
-            hs.cell(row=r + k, column=hcol + 1, value=yv)
-        ln = Series(Reference(hs, min_col=hcol + 1, min_row=r, max_row=r + 1),
-                    Reference(hs, min_col=hcol, min_row=r, max_row=r + 1), title="line")
-        ln.marker.symbol = "none"
-        ln.graphicalProperties.line.solidFill = "7F7F7F"
-        ln.graphicalProperties.line.dashStyle = "dash"
-        chart.series.append(ln)
-        r += 2
-    # the three biggest bleeders, named on the chart
-    from openpyxl.chart.label import DataLabelList
-    # only pockets whose loss side is a finding: not one whose test says it isn't significant (the seventh walk)
-    named = [k for k, x in enumerate(boxed) if x["shown"]["gco_rate"] == "more"][:3]
-    for n_, k in enumerate(named):
-        row = boxed[k]
-        name = f"{row['band']} / {row['seg']}"
-        one = Series(Reference(hs, min_col=pcol + 1, min_row=k + 1, max_row=k + 1),
-                     Reference(hs, min_col=pcol, min_row=k + 1, max_row=k + 1), title=name)
-        one.marker.symbol = "circle"
-        one.marker.size = 8
-        one.marker.graphicalProperties.solidFill = "C00000"
-        one.marker.graphicalProperties.line.solidFill = "C00000"
-        one.graphicalProperties.line.noFill = True
-        one.dLbls = DataLabelList()
-        one.dLbls.showSerName = True
-        for flag in ("showVal", "showCatName", "showLegendKey", "showPercent", "showBubbleSize"):
-            setattr(one.dLbls, flag, False)
-        one.dLbls.position = ("r", "t", "b")[n_]
-        chart.series.append(one)
-        r += 1
-    chart.legend = None
-    chart.x_axis.scaling.logBase = 10
-    chart.x_axis.scaling.min, chart.x_axis.scaling.max = x_lo, x_hi
-    chart.y_axis.scaling.min, chart.y_axis.scaling.max = y_lo, y_hi
-    chart.y_axis.majorUnit = step
-    chart.x_axis.number_format = '0.00"x"'
-    chart.y_axis.number_format = '+0.0" pts";-0.0" pts";0" pts"'
-    chart.x_axis.delete = chart.y_axis.delete = False
-    chart.x_axis.crosses = "min"           # the multiples along the bottom, not across a profit of 0 (the render)
-    chart.width, chart.height = 15, 10
-    ws.add_chart(chart, f"{_col(LVR_T + 3)}{anchor_row}")
-
-
-def _heat(ws, rng: str, m, bound: float | None = None) -> None:
-    """A heat map: a multiple on a doubling scale, white at 1.00x; for profit a
-    difference in points, white at 0, red below (keeps less) and green above,
-    even either way to the biggest gap shown (NEXT-GOAL 3.2)."""
-    if m.in_points:
-        top = max(bound or 0.0, 0.01)
-        ws.conditional_formatting.add(rng, ColorScaleRule(start_type="num", start_value=-top, start_color=RED,
-                                                          mid_type="num", mid_value=0, mid_color="FFFFFF",
-                                                          end_type="num", end_value=top, end_color=GREEN))
-        return
-    lo, hi = (GREEN, RED) if m.higher_is == "worse" else (RED, GREEN)
-    ws.conditional_formatting.add(rng, ColorScaleRule(start_type="num", start_value=0.5, start_color=lo,
-                                                      mid_type="num", mid_value=1, mid_color="FFFFFF",
-                                                      end_type="num", end_value=2, end_color=hi))
-
-
-def _block(ws, top: int, c0: int, label: str, rows_: list[str], cols: list[str], value, fmt: str, heat_m=None,
-           skip_margins: bool = False, bound: float | None = None) -> None:
-    ws.cell(row=top, column=c0, value=label).font = Font(name="Calibri", bold=True, color=PAPER)
-    ws.cell(row=top, column=c0).fill = PatternFill("solid", fgColor=INK)
-    for j, d in enumerate(cols, start=c0 + 1):
-        h = ws.cell(row=top, column=j, value=d)
-        h.font = Font(name="Calibri", bold=True, color=PAPER)
-        h.fill = PatternFill("solid", fgColor=INK)
-        h.alignment = Alignment(wrap_text=True, horizontal="center")
-    rr = top + 1
-    shown: list[float] = []
-    for bl in rows_:
-        ws.cell(row=rr, column=c0, value=bl)
-        for j, d in enumerate(cols, start=c0 + 1):
-            if skip_margins and (bl == engine.ALL or d == engine.ALL):
-                continue
-            v = value(bl, d)
-            if v is not None:
-                ws.cell(row=rr, column=j, value=v).number_format = fmt
-                if isinstance(v, (int, float)):
-                    shown.append(abs(v))
-        rr += 1
-    if heat_m is not None:
-        _heat(ws, f"{_col(c0 + 1)}{top + 1}:{_col(c0 + len(cols))}{rr - 1}", heat_m,
-              bound if bound is not None else max(shown, default=0.0))
-
-
-def _grids(ws, res) -> None:
-    """Every band crossed with every dimension, as heat maps: the rate, the rate
-    against the book, and the rate against the rest of the same band (its peers).
-    Red is worse, green better; for profit, a gap in points where more is
-    better, below zero is red. A column shown per pocket (median or average)
-    gets its own block. A split by a category repeats the grid once per value,
-    side by side."""
-    names = _names(res)
-    _title(ws, "Grids", "Each grid three ways: the rate, the rate against the book, and the rate against the rest "
-                        "of the same band. Red is worse, green is better."
-                        + (" Profit and contribution are compared as a gap in points, and less is red."
-                           if _has_profit(res) else ""), "B:Z")
-    _in_use(ws, "Nothing on this tab moves with them: the colours are the gaps themselves, and a blank is a pocket "
-                "with fewer losses than fewest losses, which takes effect on the next Run.", "Z", 30)
-    width = max((len(x.dim_labels) + 3 for x in res.grids), default=6)
-    shows = [m for m in res.measures if m.mode == "median"]
-    r = 4
-    for g in res.grids:
-        rows_ = g.band_labels + [engine.ALL]
-        cols_all = g.dim_labels + [engine.ALL]
-        for m in res.measures:
-            if not m.is_rate:
-                continue
-            note = "  (more is better)" if m.higher_is == "better" else ""
-            ws.cell(row=r, column=2, value=f"{names[g.band]} x {names[g.dimension]}: {m.title}{note}").font = Font(
-                name="Calibri", bold=True, size=12)
-            ws.cell(row=r + 1, column=2, value=m.words()).font = Font(name="Calibri", italic=True, size=9,
-                                                                      color=SLATE)
-            top = r + 2
-
-            def cell(bl, d, f, m=m, g=g):
-                c = g.cells.get((bl, d))
-                return f(c.rates[m.name]) if c is not None else None
-
-            untested = (engine.THIN, engine.FEW)
-            # the heat maps leave out what the minimums on Control say not to judge (the third
-            # walk, defect 4: a 1-loan row and an untested 54-loan pocket were the strongest colours)
-            _block(ws, top, 2, "Rate", rows_, cols_all, lambda bl, d: cell(bl, d, lambda s: s.rate), "0.00%")
-            _block(ws, top, 2 + width, "Vs the book", rows_, cols_all,
-                   lambda bl, d: cell(bl, d, lambda s: _shown(s.vs_topline, m) if s.reading_topline not in untested
-                                      else None), _gap_fmt(m), m)
-            _block(ws, top, 2 + 2 * width, "Vs the rest of its band", rows_, g.dim_labels,
-                   lambda bl, d: cell(bl, d, lambda s: _shown(s.vs_band, m) if s.reading_band not in untested
-                                      else None), _gap_fmt(m), m, skip_margins=True)
-            r = top + len(rows_) + 1
-            ws.cell(row=r, column=2 + width, value="Blank: fewer losses than the minimum on Control, so "
-                                                   "not compared.").font = Font(name="Calibri", italic=True,
-                                                                                size=9, color=SLATE)
-            r += 1
-            if res.config.split and res.config.split[1] == "each_value" and g.split_labels:
-                ws.cell(row=r, column=2, value=f"...split by {res.config.split[0]}: the rate against the book, "
-                                               f"one grid per value").font = Font(name="Calibri", italic=True)
-                r += 1
-                top_rate = res.total.rates[m.name].rate
-                for k, lab in enumerate(g.split_labels):
-                    if k and k % 3 == 0:
-                        r += len(rows_) + 1
-                    c0 = 2 + (k % 3) * width
-
-                    def val(bl, d, lab=lab, m=m, g=g):
-                        c = g.split_cells.get((bl, d, lab))
-                        if c is None or c.rates[m.name].units < res.min_units.get(m.name, 0):
-                            return None
-                        return _shown(engine.gap_of(c.rates[m.name].rate, top_rate, m.in_points), m)
-
-                    _block(ws, r, c0, f"{res.config.split[0]} = {lab}", g.band_labels, g.dim_labels, val,
-                           _gap_fmt(m), m)
-                r += len(rows_) + 2
-        for sm in shows:
-            fig = "Average" if sm.show == "average" else "Median"
-            ws.cell(row=r, column=2, value=f"{names[g.band]} x {names[g.dimension]}: {fig.lower()} {sm.value} per "
-                                           f"pocket").font = Font(name="Calibri", bold=True, size=12)
-
-            def shown(bl, d, sm=sm, g=g):
-                c = g.cells.get((bl, d))
-                if c is None:
-                    return None
-                return c.medians[sm.name].mean if sm.show == "average" else c.medians[sm.name].median
-
-            ws.cell(row=r + 1, column=2, value=f"Beside the rates, for reading them: not tested, and {'an' if fig == 'Average' else 'a'} {fig.lower()} "
-                                               f"doesn't add up across pockets.").font = Font(
-                name="Calibri", italic=True, size=9, color=SLATE)
-            got = [v for v in (shown(bl, d) for bl in rows_ for d in cols_all) if v is not None]
-            # whole numbers for amounts, two places for small figures such as a ratio
-            # (the third walk, defect 14: #,##0.## printed 32,583.3 beside 32,967.)
-            fmt = "#,##0" if got and max(abs(v) for v in got) >= 100 else "#,##0.00"
-            _block(ws, r + 2, 2, fig, rows_, cols_all, shown, fmt)
-            r += len(rows_) + 4
-    ws.column_dimensions["A"].width = 2
-    for j in range(2, 2 + 3 * width):
-        ws.column_dimensions[_col(j)].width = 11
-    for k in range(3):
-        ws.column_dimensions[_col(2 + k * width)].width = 24
-    _fit(ws)
-
-
 def _partner(res) -> tuple[str, float] | None:
     """The band column the split column moves with most, and the correlation."""
     field_ = res.config.split[0]
@@ -2817,7 +2189,7 @@ def _holds_partner(res, g) -> bool | None:
 
 
 def _three_way_note(res, g) -> tuple[str, float]:
-    """One short cell per Three-way row, and the order: grids that hold the
+    """One short cell per split pocket on Pockets, and the order: grids that hold the
     split's partner fixed first (the fifth walk: the same 35-word sentence on
     every row was read past)."""
     p = _partner(res)
@@ -2861,181 +2233,6 @@ def _same_size(m, pooled: dict, conf: float) -> str:
     if not engine.yes_no(m):
         return "not tested: dollar rate"
     return "not tested: too few pockets" if pooled.get("pockets", 0) < 2 else "not tested: couldn't be worked out"
-
-
-def _split_tab(ws, res) -> None:
-    """The third layer in words and heat maps. For a number column split at each
-    pocket's own median: in every pocket, the high half against the low half,
-    and one pooled answer across the pockets. Grids that hold fixed what the
-    split column moves with come first."""
-    field_, how = res.config.split
-    names = _names(res)
-    if how == "each_value":
-        _title(ws, "Split", f"Every pocket split by each value of {field_}. The grids are on the Grids tab, one "
-                            f"per value, and every three-way pocket is tested and ranked on the Three-way tab. "
-                            f"{field_} isn't a segment of its own while it splits.", "B:H")
-        return
-    _title(ws, "Split", f"Every pocket split in two at its own median {field_}. How the tab works comes first; "
-                        f"then each grid: what it holds fixed, a summary, and the pockets as heat maps.", "B:P")
-    width = max((len(x.dim_labels) + 3 for x in res.grids), default=6)
-    b = res.config.benchmark
-    conf = b.confidence if b else 0.95
-    allowance = {"bh": "Benjamini-Hochberg", "bonferroni": "Bonferroni", "none": "none"}.get(
-        b.many_tests if b else "none", "none")
-    # a test of a new variable may run without RANR, or without any dollar rate (Goal 2 item 2): then the note
-    # says nothing about profit or shuffles
-    profit, dollar_rates = _has_profit(res), _has_dollar_rates(res)
-    # said once, here, instead of repeated under every grid (asked for on 25 Sep 2026)
-    how_rows = [
-        ("What it does", f"Inside each pocket (one band, one segment) the loans are sorted by {field_} and cut at "
-                         f"that pocket's own median. The high half is compared with the low half, so the band and "
-                         f"segment are the same on both sides. {field_} isn't cut into bands of its own while it "
-                         f"splits."),
-        ("High half vs low", "The high half's rate divided by the low half's: 2.00x means the high half goes bad"
-                             + (", or loses," if dollar_rates else "") + " twice as often."
-                             + (" Profit and contribution are a gap in points instead: +0.30 pts means the high half "
-                                "keeps 0.30 points more per booked dollar." if profit else "")),
-        ("p-value", live.text("The chance of a gap at least this big if the two halves were no different. Below ",
-                              ('TEXT(significance_bar,"0%")',), " is significant. "
-                              f"For the yes/no outcome's share of loans the test measures "
-                    f"the gap in standard errors (how far a rate from this many loans typically lands from its "
-                    f"true value)"
-                    + (f"; for a dollar rate the loans are dealt into the two halves at random inside "
-                       f"their pocket, {b.shuffles if b else 0:,} times, and the p-value is how often that made a gap "
-                       f"as big" if dollar_rates else "")
-                    + f". The pocket figures (the heat maps) are after the allowance for many tests "
-                    f"({allowance}), across the pockets of one grid and one measure; a gap that is not "
-                    f"significant is shown in brackets, unshaded. The summary's figure is one pooled test per "
-                    f"grid and measure, with no allowance. Blank: a half has fewer loans or losses than the "
-                    f"minimums on Control ({b.min_units if b else 0:,} loans, {b.min_events if b else 0:,} "
-                    f"losses).")),
-        ("Pooled across pockets", live.text(f"The high halves' actual total against what it would be at their "
-                                            f"low halves' rates, added over every pocket, with its range at ",
-                                            ('TEXT(confidence,"0%")',), " sure. "
-                                  + ("For profit and contribution the difference is taken over the high halves' "
-                                     "booked dollars, in points. " if profit else "")
-                                  + f"For the yes/no outcome only, the odds are pooled too "
-                                  f"(Mantel-Haenszel: a standard way to combine pockets without mixing their "
-                                  f"loans), with their p-value (Cochran-Mantel-Haenszel), and Cochran's Q checks "
-                                  f"whether the gap is about the same size in every pocket.")),
-        ("What it assumes", f"A grid holds fixed only its band and segment. Anything {field_} moves with that the "
-                            f"grid doesn't hold fixed can show up here as a {field_} effect, so each grid gives the "
-                            f"correlation, and grids that hold fixed what {field_} moves with most come first. "
-                            f"A correlation runs from -1 to 1: 0 means unrelated, and the further from 0, the "
-                            f"more of a gap may belong to the other column. "
-                            f"Inside a band the score still varies a little, so a little can remain even there. "
-                            f"Loans are treated as independent of each other."),
-    ]
-    live.ensure(ws.parent, res)
-    _in_use(ws, "The pooled range, the brackets on the heat maps (not significant) and \"Same size in every "
-                "pocket?\" follow the confidence level on Control. The order of the grids is as of the last Run.",
-            _col(2 + 2 * width - 1), 30)
-    ws.cell(row=4, column=2, value="How this tab works").font = Font(name="Calibri", bold=True, size=12)
-    r = 5
-    for k, v in how_rows:
-        ws.cell(row=r, column=2, value=k).font = Font(name="Calibri", bold=True)
-        ws.cell(row=r, column=2).alignment = Alignment(vertical="top")
-        c = ws.cell(row=r, column=3, value=v)
-        c.alignment = Alignment(wrap_text=True, vertical="top")
-        ws.merge_cells(start_row=r, start_column=3, end_row=r, end_column=2 + 2 * width - 1)
-        ws.row_dimensions[r].height = 58 if k == "p-value" else 44
-        r += 1
-    r += 1
-    heads = ["Measure", "Pockets tested", "High half worse in", "High vs low, pooled",
-             live.text("Range (", ('TEXT(confidence,"0%")',), ")"),
-             "p-value", "As odds", "p-value, as odds", "Same size in every pocket?"]
-    pt = _partner(res)
-    said_break = False
-    for g in sorted(res.grids, key=lambda x: _holds_fixed(res, x)[1]):
-        if pt and _holds_partner(res, g) is False and not said_break:
-            # the fifth walk: a no-effect book still read 1.62x "under 0.01%" in these grids
-            brk = ws.cell(row=r, column=2, value=f"Grids that don't hold {pt[0]} fixed. {field_} moves with {pt[0]} "
-                                                 f"(correlation {pt[1]:+.2f}), so part of every gap below may be "
-                                                 f"{pt[0]}, not {field_}.")
-            brk.font = Font(name="Calibri", bold=True, size=12, color=WARN_TEXT)
-            brk.alignment = Alignment(wrap_text=True, vertical="top")
-            ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=2 + 2 * width - 1)
-            ws.row_dimensions[r].height = 34
-            r += 2
-            said_break = True
-        ws.cell(row=r, column=2, value=f"{names[g.band]} x {names[g.dimension]}").font = Font(
-            name="Calibri", bold=True, size=12)
-        fw = ws.cell(row=r + 1, column=2, value=_holds_fixed(res, g)[0])
-        fw.alignment = Alignment(wrap_text=True, vertical="top")
-        ws.merge_cells(start_row=r + 1, start_column=2, end_row=r + 1, end_column=2 + 2 * width - 1)
-        ws.row_dimensions[r + 1].height = 30
-        _head(ws, r + 2, heads)
-        ws.row_dimensions[r + 2].height = 44            # "Same size in every pocket?" on three lines
-        rr = r + 3
-        rates = [m for m in res.measures if m.is_rate]
-        for m in rates:
-            p = g.split_pooled.get(m.name, {})
-            # the range at the confidence on Control (OC-40): the run's half-width at its own confidence,
-            # divided by that confidence's z, is the standard error, and the live z scales it back up
-            z_run = stats.z_for_confidence(conf)
-            z = "NORMSINV(1-(1-confidence)/2)"
-            if m.in_points:
-                # profit: (O - E) over the high halves' booked dollars, in points (NEXT-GOAL 3.2)
-                pooled = _shown(p.get("gap"), m)
-                rng = ""
-                if p.get("gap_hi") is not None:
-                    g0, se = p["gap"] * 100, (p["gap_hi"] - p["gap"]) * 100 / z_run
-                    rng = (f'=TEXT({live.num(g0)}-{z}*{live.num(se)},"+0.00;-0.00")&" to "&'
-                           f'TEXT({live.num(g0)}+{z}*{live.num(se)},"+0.00;-0.00")&" pts"')
-            else:
-                pooled = p.get("ratio")
-                rng = ""
-                if p.get("ratio_hi"):
-                    se = (p["ratio_hi"] - p["ratio"]) / z_run
-                    rng = (f'=TEXT(MAX({live.num(p["ratio"])}-{z}*{live.num(se)},0),"0.00")&"x to "&'
-                           f'TEXT({live.num(p["ratio"])}+{z}*{live.num(se)},"0.00")&"x"')
-            vals = [m.title, p.get("pockets", 0),
-                    f"{p['high_worse']} of {p['pockets']}" if p.get("pockets") else "none big enough",
-                    pooled, rng, p.get("ratio_p"), p.get("odds"), p.get("odds_p"), _same_size(m, p, conf)]
-            for i, v in enumerate(vals, start=2):
-                # the last answer wraps in its own column: spilling left, the p-value beside it cut it off
-                ws.cell(row=rr, column=i, value=v).alignment = Alignment(
-                    horizontal="left" if i == 2 else "center", vertical="top", wrap_text=i == len(vals) + 1)
-            ws.cell(row=rr, column=5).number_format = _gap_fmt(m)
-            ws.cell(row=rr, column=7).number_format = P_FMT
-            ws.cell(row=rr, column=8).number_format = '0.00"x"'
-            ws.cell(row=rr, column=9).number_format = P_FMT
-            rr += 1
-        r = rr + 1
-        for m in rates:
-            def cmp_(bl, d, k, m=m, g=g):
-                got = g.split_compare.get((bl, d), {}).get(m.name)
-                return got[k] if got else None
-
-            pcell = {(bl, d): f"{_col(2 + width + 1 + j)}{r + 1 + i}" for i, bl in enumerate(g.band_labels)
-                     for j, d in enumerate(g.dim_labels)}
-
-            def shown(bl, d, m=m, g=g, pcell=pcell):
-                # a gap that is not significant: in brackets and unshaded (the sixth walk, defect 9). Which is
-                # which follows the confidence on Control: the p-value beside it, against the one bar (OC-40)
-                got = g.split_compare.get((bl, d), {}).get(m.name)
-                if not got or got[0] is None:
-                    return None
-                v = _shown(got[0], m)
-                words = (f'"("&TEXT({live.num(v)},"+0.00;-0.00")&" pts)"' if m.in_points
-                         else f'"("&TEXT({live.num(v)},"0.00")&"x)"')
-                return f"=IF({live.sig(pcell[(bl, d)])},{live.num(v)},{words})"
-
-            got_all = [abs(_shown(x[m.name][0], m)) for x in g.split_compare.values()
-                       if m.name in x and x[m.name][0] is not None]
-            _block(ws, r, 2, m.title, g.band_labels, g.dim_labels, shown, _gap_fmt(m), m,
-                   bound=max(got_all, default=0.0))
-            _block(ws, r, 2 + width, "p-value", g.band_labels, g.dim_labels, lambda bl, d: cmp_(bl, d, 1),
-                   P_FMT)
-            r += len(g.band_labels) + 2
-        r += 1
-    ws.column_dimensions["A"].width = 2
-    for j in range(2, 2 + 3 * width):
-        ws.column_dimensions[_col(j)].width = 12
-    ws.column_dimensions["F"].width = 18         # the range: "-3.65 to -1.92 pts" (the render, 26 Sep 2026)
-    for k in range(3):
-        ws.column_dimensions[_col(2 + k * width)].width = 44     # a measure's whole name on one line
-    _fit(ws)
 
 
 def _p(v) -> str:
@@ -3143,7 +2340,7 @@ def _check(ws, res, src: Path, record: str = "") -> None:
         sf, how = res.config.split
         rows.append(("Split", f"{sf}, " + ("each pocket halved at its own median" if how == "own_median"
                                           else "one layer per value") + f". {sf} isn't cut on its own while it "
-                                                                        f"splits. Three-way pockets: "
+                                                                        f"splits. Split pockets: "
                                                                         f"{sum(1 for g in res.three_way for _ in g.inner()):,}."))
         for f, r in sorted(res.split_moves_with.items(), key=lambda t: -abs(t[1])):
             if f != sf:
@@ -3183,7 +2380,7 @@ def _check(ws, res, src: Path, record: str = "") -> None:
         rows.append(("Tests", f"Outcome, share of loans: the z test, pooled, for a pocket of {b.min_units:,} loans "
                               f"or more, and the exact test (Fisher's) below that."
                               + (f" Every dollar rate: the loans are shuffled {b.shuffles:,} times, within the band "
-                                 f"for the rest of its band; the Test column says how many shuffles made a gap as "
+                                 f"for the rest of its band, and its p-value is how often a shuffle made a gap as "
                                  f"big." if dollar_rates else "")
                               + (" Profit and contribution are compared as a gap in points, never a multiple."
                                  if profit else "")

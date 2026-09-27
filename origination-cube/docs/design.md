@@ -612,6 +612,49 @@ enough.
   - **Not settled:** Control still asks the fewest loans and the loss lines for a new
     variable, and still suggests them. Those suggestions were worked out from the bleed's
     grids, so on such a Run the loss lines fall back to the usual values.
+- **OC-43: the result tabs pick what they show with dropdown cells over hidden sheets** (the
+  redesign's phase 3, 26 Sep 2026; the firm's redesign, sections 5 to 8, with the rulings given
+  for the build: slicers become dropdown cells, the column is "p-value", never "luck").
+  - **Four tabs where there were seven:** *Pockets* (Where it bleeds and Three-way), *Paid, cost,
+    kept* (Losses vs revenue), *Grids* (with Prevalence under its blocks) and *Split*. A Run takes
+    the old ones off an older workbook.
+  - **Dropdowns, not slicers:** openpyxl cannot write slicers and drops them when it saves a
+    workbook, which every Run does. Pockets has Measure, Pockets (two-way or split) and Show;
+    Paid cost kept a Grid; Grids a Grid and a Measure; Split a Grid and a Measure.
+  - **How a dropdown picks rows without SORT or FILTER:** Pockets' candidate rows sit on the
+    hidden `_list` in the last Run's order, each with its live Worse? and Material? (read from
+    `_pockets`), a 1 when the dropdowns show it, and a running count of those. The k-th row shown
+    is the first whose running count reaches k (`MATCH(k, …, 0)`). Every other number these tabs
+    show is one keyed row on the hidden `_views` ("G|FICO x CHANNEL|gco_rate|book|2"), read by
+    `INDEX`/`MATCH`. LibreOffice 24.2 calculates it, so the tests prove it.
+  - **Live and as of the Run:** Worse?, Material?, the dollars, the gaps, Together and every colour
+    follow Control (OC-40). The order of the rows, the smallest gap each pocket could have caught
+    and the heat maps are the last Run's, and each tab says so once. Ranking: the worse pockets
+    first, by the dollars that decide; then the rest by theirs; then the pockets losing more only
+    against the other comparison, so a change of *Judged against* finds them.
+  - **Worse? and Material? are separate columns** (NEXT-GOAL item 7): Yes / Not sure / No / Too
+    few losses, and Yes / No.
+  - **Tenet T1:** the Test column and the lone-pocket note are off the rows. Each tab's one method
+    note says which test gave the p-value and that a pocket alone in its band is judged against
+    the rest of the book. The test behind each p-value stays pocket by pocket on `_pockets`.
+  - **Together reads five pairs** (the redesign, section 6): priced for it, net drain, strong
+    (fewer charge-offs, more kept), safe but idle, and earns less, not from losses (less kept,
+    charge-offs about the same). Blank on a row with a side untested.
+  - **One rule per cell:** LibreOffice applies one conditional format to a cell, the first that
+    holds; Excel applies every one that holds. So each rule carries everything its cell needs
+    (fill, font, number format, the row's divider), and a cell sits in one range only.
+  - **The scatter is live:** its points are the table's cells (through the hidden `_chart`, since
+    Excel leaves out a chart's points in hidden columns), so it follows the Grid dropdown and
+    Control. The spec said "as of the last Run"; live is the stronger promise.
+- **OC-44: judged against the book counts points and dollars against the rest of the book**
+  (Option A, NEXT-GOAL item 5; the firm, 26 Sep 2026: *"i think this makes most seense"*).
+  - A pocket's dollars under *the rest of the book* are its losses less what it would have lost
+    at the rate of every other loan in the book (`excess_rest`), the same rest its gap and its
+    test are taken against, as the band's are over the rest of its band.
+  - OC-4's excess over the whole book stays as the tie-out only (`vba-findings.md`): across a
+    grid it adds to zero, and the Run checks that on every grid.
+  - A worse pocket now always has dollars above zero under either comparison, so every pocket
+    Pockets could flag is on its list whatever Control says.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so

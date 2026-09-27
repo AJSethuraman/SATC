@@ -11,7 +11,6 @@ Tests 2 and 4 are the firm's own, from docs/for-test-design.md, built here.
 Test 1's book is built from the write-up too, since Test 2 is an edit of it.
 """
 
-import copy
 import csv
 import random
 import re
@@ -21,11 +20,11 @@ import yaml
 from openpyxl import load_workbook
 
 from conftest import TEST_SHUFFLES, cube, table
-from origination_cube import book, control, engine, meanings, perm, stats, synth
+from origination_cube import book, control, engine, house, live, meanings, perm, results, stats, synth
 from origination_cube import config as cfgmod
 from origination_cube.ingest import read_table
 from test_book import PICK, _answer, treat_all
-from test_book_results import _lvr
+import tabs
 from test_book_dates import _choose
 from recalc import calculated_book
 
@@ -127,7 +126,9 @@ def _workbook(tmp_path, rows, columns, meaning, answers, edges=None, cut_off=())
         _choose(out.book, drop=tuple(cut_off))
     ran = book.run(out.book)
     assert ran.ok, ran.lines
-    return calculated_book(out.book)          # the readings are formulas over Control's lines (OC-40)
+    got = calculated_book(out.book)          # the readings are formulas over Control's lines (OC-40)
+    got.path = out.book
+    return got
 
 
 TEST1_ANSWERS = {**PICK, "min_loans": "30 loans", "materiality": "No floor"}
@@ -138,37 +139,35 @@ TEST1_MEANING = {"ID": "key", "SCORE": "fico", "CHAN": "category", "BAL": "booke
 @pytest.mark.parametrize("option", ["Each pocket's own test (suggested)", "0.5 points either way"])
 def test_test_2_on_the_workbook(tmp_path, option):
     """Test 2 as the firm would run it, with the same Control answers as Test 1,
-    then again with a fixed line: Broker 600 falls short of its band, in red,
+    then again with a fixed line: Broker 600 falls short of its band, in pink,
     with a positive shortfall; Branch 600 is ahead of it. Since 26 Sep 2026 the
-    readings say the gap literally, and the dollars are over the rest of its
-    band, the comparison that decides; the book's are beside them."""
+    reading says the gap literally, and the dollars are over the rest of its
+    band, the comparison that decides; the rest of the book's are kept too."""
     wb = _workbook(tmp_path, _test1(_test2_ranr), list(TEST1_MEANING), TEST1_MEANING,
                    {**TEST1_ANSWERS, "revenue_line": option}, edges={"SCORE": "620"}, cut_off=("BAL",))
-    rows = {(x["band"], x["seg"]): x for x in _lvr(wb["Losses vs revenue"])}
+    rows = {(x["band"], x["seg"]): x for x in tabs.pck(wb[results.PCK])}
     broker, branch = rows[(LOW, "Broker")], rows[(LOW, "Branch")]
-    assert broker["r_read"] == "short of its band by 2.00 points ($200,000)" and broker["r_fill"] == book.RED_CELL
-    assert broker["r_x"] == pytest.approx(-2.0) and broker["r_over"] == pytest.approx(-200_000)
-    assert broker["r_other"] == pytest.approx(-350_000)                         # against the book, for reference
-    assert branch["r_read"] == "ahead of its band by 2.00 points ($200,000)" and branch["r_fill"] == book.GREEN_CELL
+    assert broker["kept"] == pytest.approx(-2.0) and broker["kept_d"] == pytest.approx(-200_000)
+    assert broker["r_fill"] == house.ALERT_FG
+    assert branch["kept"] == pytest.approx(2.0) and branch["r_fill"] == house.POSITIVE_BG
     # losing more, keeping less: a net drain; it pays more (RANR + GCO: 3.5% against 0.5%)
-    assert (broker["g_read"], broker["together"]) == ("losing more", "net drain")
-    assert broker["c_read"] == "ahead of its band by 3.00 points ($300,000)" and broker["c_x"] == pytest.approx(3.0)
-    ws = wb["Where it bleeds"]
-    # the main list: after its heading come the pockets losing more only against the other comparison (OC-40)
-    end = next((r for r in range(5, ws.max_row + 1)
-                if str(ws.cell(row=r, column=2).value).startswith("Losing more than their share against")),
-               ws.max_row + 1)
-    below = {(ws.cell(row=r, column=4).value, ws.cell(row=r, column=6).value) for r in range(end, ws.max_row + 1)
-             if ws.cell(row=r, column=2).value == "Profit after losses: RANR per booked dollar"}
-    assert (LOW, "Branch") in below                    # short of the book, ahead of its band: listed, below
-    ranr = [[ws.cell(row=r, column=c).value for c in range(2, 21)] for r in range(5, end)
-            if ws.cell(row=r, column=2).value == "Profit after losses: RANR per booked dollar"]
-    got = {(x[2], x[4]): x for x in ranr}
-    assert got[(LOW, "Broker")][8] == pytest.approx(200_000)                     # a positive shortfall, its band's
-    assert got[(LOW, "Broker")][9] == pytest.approx(350_000)                     # and the book's beside it
-    assert got[(LOW, "Broker")][14] == pytest.approx(-2.0)
-    assert got[(LOW, "Broker")][16] == "short of its band by 2.00 points ($200,000)"
-    assert (LOW, "Branch") not in got                                           # ahead of its band: no shortfall
+    assert (broker["flags"]["g"], broker["together"]) == (engine.WORSE, "Net drain")
+    assert broker["paid"] == pytest.approx(3.0) and broker["paid_d"] == pytest.approx(300_000)
+    # the reading of record, literal, and the rest of the book's dollars beside it, on _pockets
+    pk = wb[live.POCKETS]
+    prow = wb[results.PCK].cell(row=broker["row"], column=results.C_H_RR).value
+    assert pk.cell(row=prow, column=live.P_SAID).value == "short of its band by 2.00 points ($200,000)"
+    # over the rest of the book (Option A): -200,000 less -400,000 is $200,000 over $30,000,000, and at that
+    # rate Broker 600's $10,000,000 would have kept $66,667, not -$400,000
+    assert pk.cell(row=prow, column=live.P_OTHER).value == pytest.approx(466_666.67, abs=0.01)
+    # Pockets, Kept after losses: Broker 600 a positive shortfall, its band's; Branch 600, short of the book
+    # and ahead of its band, listed after, as its band reads it
+    ws = tabs.calculated(tabs.choose(wb.path, tmp_path / "k.xlsx", results.POCKETS, measure="Kept after losses"),
+                         results.POCKETS)
+    got = {(x["band"], x["seg"]): x for x in tabs.pockets(ws)}
+    b_, br = got[(f"SCORE {LOW}", "Broker")], got[(f"SCORE {LOW}", "Branch")]
+    assert b_["excess"] == pytest.approx(200_000) and b_["gap"] == pytest.approx(-2.0) and b_["worse"] == "Yes"
+    assert br["excess"] == pytest.approx(-200_000) and br["worse"] == "No" and br["row"] > b_["row"]
 
 
 # --------------------------------------------------------------------------
@@ -226,11 +225,11 @@ def test_test_4_with_a_bigger_uplift_keeps_more(line):
 
 
 @pytest.mark.parametrize("uplift, together, reading", [(0.03, "", r"-0\.\d\d points against its band, not significant"),
-                                                      (0.08, "priced for it", r"ahead of its band by \d\.\d\d points "
+                                                      (0.08, "Priced for it", r"ahead of its band by \d\.\d\d points "
                                                                               r"\(\$[\d,]+\)")])
 def test_test_4_on_the_workbook(tmp_path, uplift, together, reading):
-    """Test 4 through the workbook, on the suggested option: GCO red, losing more;
-    at 3% profit's gap is given and called not significant, and nothing is read
+    """Test 4 through the workbook, on the suggested option: charge-offs pink,
+    losing more; at 3% profit's gap is not significant, and nothing is read
     together; at 8% it is green, ahead of its band, and the pair reads priced
     for it."""
     rows = _test4_rows(uplift)
@@ -250,14 +249,17 @@ def test_test_4_on_the_workbook(tmp_path, uplift, together, reading):
             r[book.C_EDGES - 1].value = "620; 680; 740"
     wb.save(out.book)
     assert book.run(out.book).ok
-    got = {(x["band"], x["seg"]): x for x in _lvr(calculated_book(out.book)["Losses vs revenue"])}
+    v = calculated_book(out.book)
+    got = {(x["band"], x["seg"]): x for x in tabs.pck(v[results.PCK])}
     p = got[("620 - 679", "Online")]
-    assert p["g_read"] == "losing more" and p["g_fill"] == book.RED_CELL and p["g_over"] > 0
-    assert re.fullmatch(reading, p["r_read"]), p["r_read"]
+    assert p["flags"]["g"] == engine.WORSE and p["g_fill"] == house.ALERT_FG and p["cost_d"] > 0
+    prow = v[results.PCK].cell(row=p["row"], column=results.C_H_RR).value
+    said = v[live.POCKETS].cell(row=prow, column=live.P_SAID).value
+    assert re.fullmatch(reading, said), said
     assert (p["together"] or "") == together
-    assert p["r_fill"] == (book.GREEN_CELL if uplift == 0.08 else None)
+    assert p["r_fill"] == (house.POSITIVE_BG if uplift == 0.08 else None)
     if uplift == 0.08:
-        assert p["r_over"] > 0                               # over-the-rest dollars positive on both sides
+        assert p["kept_d"] > 0                               # over-the-rest dollars positive on both sides
 
 
 # --------------------------------------------------------------------------
@@ -280,54 +282,59 @@ def walk_book(tmp_path_factory):
         _choose(out.book, split="REV_DEBT")
         ran = book.run(out.book)
         assert ran.ok, ran.lines
-    return calculated_book(out.book)          # the readings are formulas over Control's lines (OC-40)
+    got = calculated_book(out.book)          # the readings are formulas over Control's lines (OC-40)
+    got.path = out.book                      # so a test can pick another view on a copy
+    return got
 
 
 def test_the_priced_pocket_reads_priced_for_it(walk_book):
     """The plant (synth.py, NEXT-GOAL 3.5): Online, scores 680 to 739, goes bad
     twice as often as the rest of its band and carries 2 points more interest.
     It pays more, loses more and keeps more: priced for it. The loss plant under
-    620 / Broker, priced like its band, is a net drain. Profit and contribution
-    say their gap literally (26 Sep 2026)."""
-    ws = walk_book["Losses vs revenue"]
-    got = {(x["band"], x["seg"]): x for x in _lvr(ws) if x["row"] < 30}          # the first grid, FICO x CHANNEL
+    620 / Broker, priced like its band, is a net drain."""
+    ws = walk_book[results.PCK]
+    assert tabs.dropdown(ws, "Grid").value == "FICO x CHANNEL"
+    got = {(x["band"], x["seg"]): x for x in tabs.pck(ws)}
     p = got[("680 - 739", "Online")]
-    assert (p["g_read"], p["together"]) == ("losing more", "priced for it")
-    assert p["c_read"].startswith("ahead of its band by ") and p["r_read"].startswith("ahead of its band by ")
-    assert (p["c_fill"], p["g_fill"], p["r_fill"]) == (book.GREEN_CELL, book.RED_CELL, book.GREEN_CELL)
-    assert p["r_x"] > 0 and p["g_x"] > 1.25
+    assert (p["flags"]["g"], p["together"]) == (engine.WORSE, "Priced for it")
+    assert p["paid"] > 0 and p["kept"] > 0
+    assert (p["c_fill"], p["g_fill"], p["r_fill"]) == (house.POSITIVE_BG, house.ALERT_FG, house.POSITIVE_BG)
+    assert p["cost"] > 1.25
     drain = got[("496 - 619", "Broker")]
-    assert (drain["g_read"], drain["together"]) == ("losing more", "net drain")
-    assert drain["r_read"].startswith("short of its band by ")
-    # only the three pairs are ever named
-    assert {x["together"] for x in _lvr(ws)} <= {None, "priced for it", "net drain", "safe but idle"}
+    assert (drain["flags"]["g"], drain["together"]) == (engine.WORSE, "Net drain") and drain["kept"] < 0
+    # only the redesign's five are ever named
+    assert {x["together"] for x in tabs.pck(ws)} <= {None, *results.TOGETHER.values()}
 
 
-def test_profit_is_a_gap_in_points_on_every_tab(walk_book):
+def test_profit_is_a_gap_in_points_on_every_tab(walk_book, tmp_path):
     """NEXT-GOAL 3.2: every profit comparison is pocket - rest in points, never a
-    multiple: Where it bleeds, Losses vs revenue, the Grids' heat maps, the Split
-    tab's halves and its pooled figure."""
-    ws = walk_book["Where it bleeds"]
-    profit = [r for r in range(5, ws.max_row + 1)
-              if ws.cell(row=r, column=2).value in ("Profit after losses: RANR per booked dollar",
-                                                     "Contribution before losses per booked dollar")]
-    assert profit
-    for r in profit:
-        for col in (14, 16):
-            assert ws.formulas.cell(row=r, column=col).number_format == book.PTS_FMT
-        assert ws.formulas.cell(row=r, column=19).number_format == '0.00" pts or less"'
-    lvr = walk_book["Losses vs revenue"].formulas
-    assert lvr.cell(row=7, column=book.LVR_R + 2).number_format == book.PTS_FMT
-    assert lvr.cell(row=7, column=book.LVR_G + 2).number_format == '0.00"x"'
-    split = walk_book["Split"]
-    rows = {}
-    for r in range(10, 40):                      # the first grid's summary, before its heat maps
-        rows.setdefault(split.cell(row=r, column=2).value, r)
-    r = rows["Profit after losses: RANR per booked dollar"]
-    assert split.formulas.cell(row=r, column=5).number_format == book.PTS_FMT
-    assert split.cell(row=r, column=6).value.endswith(" pts") and "x" not in split.cell(row=r, column=6).value
+    multiple: Pockets, Paid cost kept, the Grids' heat scale, the Split tab's
+    halves and its pooled figure."""
+    b = walk_book.path
+    ws = tabs.calculated(tabs.choose(b, tmp_path / "p.xlsx", results.POCKETS, measure="Kept after losses"),
+                         results.POCKETS)
+    head = tabs.header_row(ws, results.K_NUM, "#")
+    assert ws.cell(row=head, column=results.K_GAP).value == "Gap in pts"
+    rows = tabs.pockets(ws)
+    assert rows and any(x["gap"] < 0 for x in rows)
+    for c in (results.K_GAP, results.K_CAUGHT):
+        fmts = {r.dxf.numFmt.formatCode for rng in ws.formulas.conditional_formatting
+                if str(rng.sqref).startswith(results.col(c)) for r in rng.rules if r.dxf.numFmt}
+        assert fmts == {book.PTS_FMT}, c
+    pck = walk_book[results.PCK].formulas
+    first = tabs.header_row(pck, results.C_TOG, "Together") + 1
+    assert pck.cell(row=first, column=results.C_KEPT).number_format == book.PTS_FMT
+    assert pck.cell(row=first, column=results.C_COST).number_format == results.X_FMT
+    meta = {r[0]: r[1] for r in load_workbook(b)[results.VIEWS].iter_rows(values_only=True)}
+    assert meta["G|FICO x CHANNEL|ranr_rate|meta"] == "pts"
+    split = walk_book[results.SPLIT]
+    head = tabs.header_row(split, 2, "Measure")
+    r = next(r for r in range(head + 1, head + 8) if split.cell(row=r, column=2).value == "Kept after losses")
+    assert split.cell(row=r, column=6).value.endswith(" pts") and "×" not in split.cell(row=r, column=6).value
     assert split.cell(row=r, column=5).value < 0          # the high-debt half loses more, at the same price
-    texts = [c.value for row in split.iter_rows() for c in row if isinstance(c.value, str)]
+    sp = tabs.calculated(tabs.choose(b, tmp_path / "s.xlsx", results.SPLIT, measure="Kept after losses"),
+                         results.SPLIT)
+    texts = [v for v in tabs.block(sp, "Kept after losses, high vs low").values() if isinstance(v, str)]
     assert any(t.startswith("(") and t.endswith(" pts)") for t in texts)        # not significant: bracketed
 
 
@@ -439,17 +446,19 @@ def test_the_smallest_profit_gap_is_in_points_and_ignores_the_rate():
 def test_the_words_are_p_value_and_not_significant(walk_book):
     """NEXT-GOAL 3.1: "Luck alone" is "p-value" on every tab, Control and Check;
     "could be luck" is "not significant"; nothing says "wobble" or calls profit
-    revenue or earnings; standard error is defined on Check."""
+    earnings; standard error is defined on Check. The redesign's own words for
+    contribution ("Earned before losses") and one Together verdict ("Earns less,
+    not from losses") are the firm's, and are the only ones allowed."""
     text = " ".join(str(c.value) for t in walk_book.sheetnames for row in walk_book[t].iter_rows() for c in row
                     if isinstance(c.value, str))
-    low = text.lower()
+    low = text.lower().replace("earns less, not from losses", "")
     # found first, then asserted: pytest explaining `x not in <megabytes of workbook text>` never finishes
     # (the planted bug "could be luck back in the readings" hung CI's mutation check on exactly this line)
     found = [gone for gone in ("luck alone", "could be luck", "wobble", "earning", "earns") if gone in low]
     assert not found, found
     assert "p-value" in text and "not significant" in text
-    ws = walk_book["Where it bleeds"]
-    assert [ws.cell(row=4, column=c).value for c in (15, 17)] == ["p-value", "p-value"]
+    ws = walk_book[results.POCKETS]
+    assert ws.cell(row=tabs.header_row(ws, results.K_NUM, "#"), column=results.K_P).value == "p-value"
     check = {r[1].value: r[2].value for r in walk_book["Check"].iter_rows(min_row=4)}
     assert check["Standard error"].startswith("How far a rate worked out from this many loans typically lands")
     assert "Two-sided" in check["p-value"]
@@ -459,15 +468,19 @@ def test_the_words_are_p_value_and_not_significant(walk_book):
     assert not any("luck" in str(o).lower() for o in options)
 
 
-def test_the_shuffle_count_is_in_the_test_column(walk_book):
-    """NEXT-GOAL 3.6: a dollar rate's p-value made literal, as N of the shuffles
-    that made a gap at least as big against the comparison that decides the flag."""
-    ws = walk_book["Where it bleeds"]
-    tests = [ws.cell(row=r, column=20).value for r in range(5, ws.max_row + 1)
-             if ws.cell(row=r, column=2).value == "GCO per booked dollar"]
-    assert tests and all(t.startswith("shuffled: ") and t.endswith(f" of {TEST_SHUFFLES:,}") for t in tests if t)
-    first = tests[0]                                   # the planted pocket: no shuffle came close
-    assert first == f"shuffled: 0 of {TEST_SHUFFLES:,}"
+def test_the_shuffle_count_is_kept_pocket_by_pocket(walk_book):
+    """NEXT-GOAL 3.6: a dollar rate's p-value made literal, as N of the shuffles that made a gap at least as big
+    against the comparison that decides the flag. Since tenet T1 the rows carry the p-value and the method note
+    says how it was worked out; the count stays pocket by pocket on _pockets."""
+    note = " ".join(str(c.value) for row in walk_book[results.POCKETS].iter_rows(max_row=14) for c in row if c.value)
+    assert f"the loans are shuffled {TEST_SHUFFLES:,} times" in note
+    tests = {r[0].row: r[live.P_TEST - 1].value for r in walk_book[live.POCKETS].iter_rows(min_row=live.P_FIRST)
+             if r[live.P_MEASURE - 1].value == "gco_rate" and r[live.P_KIND - 1].value == "grids"}
+    assert tests and all(t.startswith("shuffled: ") and t.endswith(f" of {TEST_SHUFFLES:,}") for t in tests.values()
+                         if t)
+    first = next(r for r in walk_book[results.LIST].iter_rows(min_row=2, values_only=True)
+                 if r[results.L_KKEY - 1] == "grids" and r[results.L_MKEY - 1] == "gco_rate")
+    assert tests[first[results.L_ROW - 1]] == f"shuffled: 0 of {TEST_SHUFFLES:,}"    # the planted pocket
 
 
 def test_the_shuffle_count_names_the_flags_comparison():

@@ -2,7 +2,6 @@
 against revenue, materiality) and the second walkthrough's defects, each held
 by a test that goes red if it comes back."""
 
-import re
 import shutil
 import pytest
 
@@ -10,18 +9,11 @@ from openpyxl import load_workbook
 
 from recalc import recalc
 
-from origination_cube import book, control, engine, meanings, synth
+from origination_cube import book, control, engine, house, live, meanings, results, synth
+import tabs
 from origination_cube.ingest import read_table
 from test_book import _answer
 from test_book_dates import _choose
-
-
-
-# what they paid us (c_), what they cost us (g_), what we kept (r_), and the two read together (NEXT-GOAL 3.4).
-# _over: the dollars of the comparison that decides; _other: the other comparison's, for reference (26 Sep 2026)
-LVR_KEYS = ("band", "seg", "loans", "c_rate", "c_rest", "c_x", "c_read", "c_over", "c_other",
-            "g_rate", "g_rest", "g_x", "g_read", "g_over", "g_other", "r_rate", "r_rest", "r_x", "r_read", "r_over",
-            "r_other", "together", "compared")
 
 
 
@@ -31,58 +23,6 @@ def _tab(path, name):
     ws = recalc(path)[name]
     ws.formulas = load_workbook(path)[name]
     return ws
-
-
-RULE = re.compile(r'^AND\(NOT\(\$([A-Z]+)(\d+)\),\$([A-Z]+)(\d+)="([^"]+)"\)$')
-
-
-def _cf_fill(ws, r: int, col: int) -> str | None:
-    """The fill a conditional-formatting rule gives a cell, worked out from the rules on the tab as written
-    (ws.formulas) and the calculated values: red and green on Losses vs revenue are rules since OC-40. Only
-    the one shape of rule that tab writes is read; anything else fails the test rather than guess."""
-    from openpyxl.utils import column_index_from_string, range_boundaries
-    for rng in ws.formulas.conditional_formatting:
-        for bounds in str(rng.sqref).split():
-            c0, r0, c1, r1 = range_boundaries(bounds)
-            if not (c0 <= col <= c1 and r0 <= r <= r1):
-                continue
-            for rule in rng.rules:
-                m = RULE.match(rule.formula[0])
-                assert m, rule.formula[0]
-                ucol, urow, fcol, frow, word = m.groups()
-                dr = r - r0
-                untested = ws.cell(row=int(urow) + dr, column=column_index_from_string(ucol)).value
-                flag = ws.cell(row=int(frow) + dr, column=column_index_from_string(fcol)).value
-                if not untested and flag == word:
-                    return rule.dxf.fill.fgColor.rgb[-6:]
-    return None
-
-
-def _lvr(ws) -> list[dict]:
-    """The Losses vs revenue rows, by name, with the fill on each side's gap. `ws` is the calculated tab
-    (_tab): the fill comes from its conditional formatting, over the flags the lines on Control give."""
-    out = []
-    for r in range(5, ws.max_row + 1):
-        if not isinstance(ws.cell(row=r, column=4).value, int):
-            continue
-        x = dict(zip(LVR_KEYS, (ws.cell(row=r, column=c).value for c in range(2, 2 + len(LVR_KEYS)))))
-        x = {k: (None if v == "" else v) for k, v in x.items()}          # a formula's "" reads as nothing
-        x["row"] = r
-        x["against"] = "the book" if x["compared"] else "its band"          # a pocket alone in its band: the book
-        for k, col in (("c_fill", book.LVR_C + 2), ("g_fill", book.LVR_G + 2), ("r_fill", book.LVR_R + 2)):
-            x[k] = _cf_fill(ws, r, col)
-        out.append(x)
-    return out
-
-
-def _literal(read: str, gap: float, line: float, against: str) -> bool:
-    """A profit or contribution reading, as the lines on Control make it (the firm, 26 Sep 2026: "yes I
-    prefer it to be literal"): past the line, the gap and its dollars; inside it, the line and the gap."""
-    if gap >= line:
-        return read.startswith(f"ahead of {against} by {abs(gap):.2f} points ($")
-    if gap <= -line:
-        return read.startswith(f"short of {against} by {abs(gap):.2f} points ($")
-    return read == f"within {line:.2f} points of {against} ({engine._signed(gap)})"
 
 
 def _row(ws, name):
@@ -111,11 +51,16 @@ def _ready(tmp_path, n=6000):
 
 
 def test_median_per_pocket_is_shown_on_the_grids(tmp_path):
+    """A column shown per pocket is one of the Grids tab's measures: its median in the Rate block."""
     b = _ready(tmp_path)
     _set(b, "REV_DEBT", book.C_SHOW, "median")
     assert book.run(b).ok
-    text = {c.value for row in load_workbook(b)["Grids"].iter_rows() for c in row if isinstance(c.value, str)}
-    assert any("median REV_DEBT per pocket" in t for t in text)
+    assert "Median REV_DEBT per pocket" in tabs.options(load_workbook(b), results.GRIDS, "Measure")
+    ws = tabs.calculated(tabs.choose(b, tmp_path / "median.xlsx", results.GRIDS, measure="Median REV_DEBT per pocket"),
+                         results.GRIDS)
+    rate = tabs.block(ws, "Rate · Median REV_DEBT per pocket")
+    assert sum(1 for v in rate.values() if isinstance(v, (int, float)) and v > 1000) > 10
+    assert all(v is None for v in tabs.block(ws, "vs the book").values())       # a median isn't compared
 
 
 def test_median_of_a_category_is_refused_by_cell(tmp_path):
@@ -132,38 +77,42 @@ def test_split_by_a_number_finds_the_planted_revolving_debt_effect(tmp_path):
     assert not problems and raw["split"] == {"field": "REV_DEBT", "how": "own_median"}
     assert "REV_DEBT" not in {x["field"] for x in raw["bands"]}      # it splits; it isn't also cut
     assert book.run(b).ok
-    ws = load_workbook(b)["Split"]
+    ws = tabs.calculated(b, results.SPLIT)
     # the method is said once, at the top (asked for on 25 Sep 2026), not under every grid
-    labels = [ws.cell(row=r, column=2).value for r in range(4, 11)]
-    assert labels[:6] == ["How this tab works", "What it does", "High half vs low", "p-value",
-                          "Pooled across pockets", "What it assumes"]
-    grids = [(r, ws.cell(row=r, column=2).value) for r in range(11, ws.max_row + 1)
-             if isinstance(ws.cell(row=r, column=2).value, str) and " x " in ws.cell(row=r, column=2).value]
-    assert grids[0][1].startswith("FICO x")                   # grids that hold the score fixed come first
-    r0 = grids[0][0]
-    assert "holds FICO fixed" in ws.cell(row=r0 + 1, column=2).value
-    assert ws.cell(row=r0 + 3, column=2).value == "Outcome, share of loans"
-    ratio = ws.cell(row=r0 + 3, column=5).value
+    labels = [ws.cell(row=r, column=2).value for r in range(3, 10)]
+    assert labels == ["How this tab works", "What it does", "High vs low", "High vs low, all", "p-value",
+                      "What it holds", "As of"]
+    grids = tabs.options(load_workbook(b), results.SPLIT, "Grid")
+    assert grids[0].startswith("FICO x")                     # grids that hold the score fixed come first
+    assert tabs.dropdown(ws, "Grid").value == grids[0]
+    assert ws.cell(row=tabs.dropdown(ws, "Grid").row, column=3).value == "Holds FICO fixed"
+    head = tabs.header_row(ws, 2, "Measure")
+    assert ws.cell(row=head + 1, column=2).value == "Bad loans"
+    ratio = ws.cell(row=head + 1, column=5).value
     assert 1.3 < ratio < 2.6                                   # planted: 1.8x the bad rate
-    lines = [ws.cell(row=r + 1, column=2).value for r, _ in grids]
-    assert any("doesn't hold FICO fixed" in x for x in lines)
+    chips = [r[1] for r in load_workbook(b)[results.VIEWS].iter_rows(values_only=True) if str(r[0]).endswith("|chip")]
+    assert "Doesn't hold FICO fixed" in chips and "Holds FICO fixed" in chips
 
 
 def test_split_by_a_category_repeats_the_grid_once_per_value(tmp_path):
+    """Each grid split by every value is a grid of its own on Grids, its segments each value of each segment."""
     b = _ready(tmp_path)
     _choose(b, drop=("ASSET_CLASS",), split="ASSET_CLASS")
     assert book.read_book(b)[0]["split"]["how"] == "each_value"
     assert book.run(b).ok
-    heads = {c.value for row in load_workbook(b)["Grids"].iter_rows() for c in row if isinstance(c.value, str)}
-    assert {"ASSET_CLASS = 1", "ASSET_CLASS = 4"} <= heads
+    grids = tabs.options(load_workbook(b), results.GRIDS, "Grid")
+    split = [g for g in grids if g.endswith(" / ASSET_CLASS")]
+    assert split and len(split) * 2 == len(grids)
+    ws = tabs.calculated(tabs.choose(b, tmp_path / "g.xlsx", results.GRIDS, grid=split[0]), results.GRIDS)
+    heads = set(c for _, c in tabs.block(ws, "vs the book"))
+    assert {"Broker · 1", "Broker · 4"} <= heads
 
 
-def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
+def test_paid_cost_kept_follows_the_lines_on_control(tmp_path):
+    """Ruling OC-26; the third walk, defects 1 and 5. Each side reads by the Control lines, against the same
+    comparison as its flag: charge-offs by their multiple, what they paid and what we kept by their gap in
+    points (NEXT-GOAL 3.2 to 3.4). The shading shows the flag; a side that isn't significant is left plain."""
     untested = (engine.THIN, engine.FEW)
-    """Ruling OC-26; the third walk, defects 1 and 5. Each side reads more, the
-    same or less by the Control lines, against the same comparison as its flag:
-    GCO by its multiple, contribution and profit by their gap in points
-    (NEXT-GOAL 3.2 to 3.4)."""
     b = _ready(tmp_path)
     wb = load_workbook(b)
     for r in wb["Control"].iter_rows(min_row=4):
@@ -171,62 +120,58 @@ def test_losses_vs_revenue_boxes_follow_the_lines_on_control(tmp_path):
             r[2].value = "0.5 points either way"
     wb.save(b)
     assert book.run(b).ok
-    ws = _tab(b, "Losses vs revenue")
-    rows = [x for x in _lvr(ws) if not {x["c_read"], x["g_read"], x["r_read"]} & set(untested)]
+    ws = tabs.calculated(b, results.PCK)
+    rows = [x for x in tabs.pck(ws) if not set(x["flags"].values()) & set(untested)]
     assert rows
-    sub = ws["B2"].value
-    assert "counts as more at 1.25x or above and less at 0.80x or below" in sub
-    pts = float(sub.split("A gap counts at ")[1].split(" points")[0])
-    assert pts == 0.5
     for x in rows:
-        # the lines on Control decide each side (the firm, 25 Sep 2026); not significant is marked, not gated
-        g = "losing more" if x["g_x"] >= 1.25 else "losing less" if x["g_x"] <= 0.8 else "about the same"
-        assert x["g_read"].split(" (")[0] == g, x
-        # contribution and profit say their gap, on the same side of the same line
-        assert _literal(x["r_read"], x["r_x"], pts, x["against"]), x
-        assert _literal(x["c_read"], x["c_x"], pts, x["against"]), x
-        # the numbers behind a reading are on the row (the firm, 25 Sep 2026: "find a clean way to
-        # display the comparable metrics"): GCO's gap is its rate over the rest's; profit's is the
-        # difference, in points, never a multiple
-        assert x["g_x"] == pytest.approx(x["g_rate"] / x["g_rest"])
-        assert x["r_x"] == pytest.approx((x["r_rate"] - x["r_rest"]) * 100)
-        assert x["c_x"] == pytest.approx((x["c_rate"] - x["c_rest"]) * 100)
-        # and what they paid us, less what they cost us, is what we kept (contribution = RANR + GCO, OC-35).
-        # Within a hair: the one loan with a GCO of "#N/A" is out of GCO and contribution but in RANR
-        assert x["c_rate"] - x["g_rate"] == pytest.approx(x["r_rate"], abs=5e-4)
-    # the first grid is FICO x CHANNEL, largest GCO excess first: the planted pocket, priced like its
-    # band, loses far more and keeps less
-    assert ws["B4"].value == "FICO x CHANNEL"
-    assert [ws.cell(row=6, column=c).value for c in (5, 6, 7, 8, 9, 10)] == [
-        "This pocket", "Rest of band", "Gap", "Reading", "Over its band ($)", "Over the book ($)"]
-    assert [ws.cell(row=5, column=c).value for c in (book.LVR_C, book.LVR_G, book.LVR_R)] == [
-        "What they paid us: contribution before losses", "What they cost us: GCO",
-        "What we kept: profit after losses (RANR)"]
-    assert ws.cell(row=6, column=book.LVR_T).value == "Together"
-    assert "Which box" not in [c.value for c in ws[6]]
-    band, seg = ws["B7"].value, ws["C7"].value
-    gread, rread = ws.cell(row=7, column=book.LVR_G + 3).value, ws.cell(row=7, column=book.LVR_R + 3).value
-    firsts, r = [], 7
-    while ws.cell(row=r, column=2).value:                 # the first grid's rows
-        v = str(ws.cell(row=r, column=2).value)
-        if v[0].isdigit():                                # not "(marked missing)"
-            firsts.append(int(v.split(" - ")[0]))
-        r += 1
-    assert int(band.split(" - ")[0]) == min(firsts) and seg == "Broker"      # the lowest FICO band
-    assert gread == "losing more" and rread.startswith("short of its band by ")
-    assert ws.cell(row=7, column=book.LVR_T).value == "net drain"
-    assert len(ws._charts) == 6
-    grids = [c.value for c in ws["B"] if isinstance(c.value, str) and " x " in c.value]
-    assert len(grids) == 6 and len(ws._charts) == len(grids)     # one chart per grid
+        g, r, c = x["flags"]["g"], x["flags"]["r"], x["flags"]["c"]
+        # the lines on Control decide each side (the firm, 25 Sep 2026)
+        want_g = ((engine.WORSE, engine.UNSURE_WORSE) if x["cost"] >= 1.25 else (engine.BETTER, engine.UNSURE_BETTER)
+                  if x["cost"] <= 0.8 else (engine.IN_LINE,))
+        assert g in want_g, x
+        for gap, flag in ((x["kept"], r), (x["paid"], c)):
+            assert flag in ((engine.WORSE, engine.UNSURE_WORSE) if gap <= -0.5 else (engine.BETTER, engine.UNSURE_BETTER)
+                            if gap >= 0.5 else (engine.IN_LINE,)), x
+        # shaded by the flag: pink worse and real, green better and real, plain otherwise
+        for fill, flag in ((x["g_fill"], g), (x["r_fill"], r), (x["c_fill"], c)):
+            assert fill == {engine.WORSE: house.ALERT_FG, engine.BETTER: house.POSITIVE_BG}.get(flag), x
+    # what they paid us, less what they cost us, is what we kept (contribution = RANR + GCO, OC-35), pocket by
+    # pocket on _pockets. Within a hair: the one loan with a GCO of "#N/A" is out of GCO and contribution only
+    v = recalc(b, tmp_path / "all")
+    rate = {}
+    for r_ in v[live.POCKETS].iter_rows(min_row=live.P_FIRST, values_only=True):
+        if r_[live.P_KIND - 1] == "grids":
+            rate[(r_[live.P_GRID - 1], r_[live.P_BAND - 1], r_[live.P_SEG - 1], r_[live.P_MEASURE - 1])] = \
+                r_[live.P_RATE - 1]
+    pockets = {k[:3] for k in rate if None not in (rate[(*k[:3], m)] for m in ("contribution_rate", "gco_rate",
+                                                                             "ranr_rate"))}
+    assert pockets and all(rate[(*k, "contribution_rate")] - rate[(*k, "gco_rate")] == pytest.approx(
+        rate[(*k, "ranr_rate")], abs=5e-4) for k in pockets)
+    # the grid picked is FICO x CHANNEL; its first row is the planted pocket, priced like its band, losing far
+    # more and keeping less
+    assert tabs.dropdown(ws, "Grid").value == "FICO x CHANNEL"
+    head = tabs.header_row(ws, results.C_TOG, "Together")
+    assert tabs.heads(ws, head, results.C_BAND, results.C_TOG) == [
+        "Band", "Segment", "Loans", "Gap pts", "Dollars", "× band", "Dollars", "Gap pts", "Dollars", "Together"]
+    assert [ws.cell(row=head - 1, column=c).value for c in (results.C_PAID, results.C_COST, results.C_KEPT)] == [
+        "Paid us · gap vs band", "Cost us · charge-offs", "Kept · gap vs band"]
+    first = tabs.pck(ws)[0]
+    firsts = [int(str(x["band"]).split(" - ")[0]) for x in tabs.pck(ws) if str(x["band"])[0].isdigit()]
+    assert int(first["band"].split(" - ")[0]) == min(firsts) and first["seg"] == "Broker"
+    assert first["flags"]["g"] == engine.WORSE and first["flags"]["r"] == engine.WORSE
+    assert first["together"] == "Net drain"
+    assert len(tabs.options(load_workbook(b), results.PCK, "Grid")) == 6
+    assert len(load_workbook(b)[results.PCK]._charts) == 1                 # one chart: the grid picked
 
 
 def test_the_suggested_profit_line_is_each_pockets_own_test(tmp_path):
     b = _ready(tmp_path)
     assert book.run(b).ok
-    check = {r[1].value: r[2].value for r in _tab(b, "Check").iter_rows(min_row=4)}
+    v = recalc(b, tmp_path / "rc")
+    check = {r[1].value: r[2].value for r in v["Check"].iter_rows(min_row=4)}
     assert check["Profit counts as more or less"] == "each pocket's own test: only a gap that is significant at 95%"
-    ws = _tab(b, "Losses vs revenue")
-    reads = [x["r_read"] for x in _lvr(ws)] + [x["c_read"] for x in _lvr(ws)]
+    reads = [r[live.P_SAID - 1] for r in v[live.POCKETS].iter_rows(min_row=live.P_FIRST, values_only=True)
+             if r[live.P_MEASURE - 1] in ("ranr_rate", "contribution_rate") and r[live.P_SAID - 1]]
     # nothing past a line is left to mark: a gap its own test doesn't call significant says so in words
     assert reads and not any(x.endswith("(not significant)") for x in reads)
     assert all(x.endswith(", not significant") for x in reads if not x.startswith(("short of", "ahead of", "too few")))
@@ -291,7 +236,7 @@ def test_set_up_again_keeps_the_last_results(tmp_path):
     assert book.run(out.book).ok
     book.set_up(x)
     names = load_workbook(out.book).sheetnames
-    assert {"Where it bleeds", "Grids", "Check", "Losses vs revenue"} <= set(names)
+    assert {results.POCKETS, results.GRIDS, "Check", results.PCK} <= set(names)
 
 
 def test_a_workbook_open_in_excel_is_refused_before_anything_changes(tmp_path, monkeypatch):
@@ -316,22 +261,23 @@ def test_start_here_says_when_it_last_ran(tmp_path):
 
 
 def test_ranr_is_marked_more_is_better_and_its_gap_reads_or_less(tmp_path):
-    """Second walk, defects 13 and 14."""
+    """Second walk, defects 13 and 14: profit reads in points, a shortfall below zero, never a multiple
+    (NEXT-GOAL 3.2), on Pockets and on the Grids' heat scale."""
     b = _ready(tmp_path)
     assert book.run(b).ok
-    wb = load_workbook(b)
-    heads = [c.value for row in wb["Grids"].iter_rows() for c in row if isinstance(c.value, str)]
-    assert any("Profit after losses: RANR per booked dollar  (more is better)" in h for h in heads)
-    ws = wb["Where it bleeds"]
-    for r in range(5, ws.max_row + 1):
-        if ws.cell(row=r, column=2).value == "Profit after losses: RANR per booked dollar":
-            # a shortfall in points, never a multiple (NEXT-GOAL 3.2)
-            assert ws.cell(row=r, column=19).number_format == '0.00" pts or less"'
-            assert ws.cell(row=r, column=19).value < 0
-            assert ws.cell(row=r, column=14).number_format == book.PTS_FMT
-            break
-    else:
-        raise AssertionError("no RANR row on Where it bleeds")
+    ws = tabs.calculated(tabs.choose(b, tmp_path / "k.xlsx", results.POCKETS, measure="Kept after losses"),
+                         results.POCKETS)
+    rows = tabs.pockets(ws)
+    assert rows and all(x["caught"] < 0 for x in rows if x["caught"] is not None)
+    head = tabs.header_row(ws, results.K_NUM, "#")
+    assert ws.cell(row=head, column=results.K_GAP).value == "Gap in pts"
+    assert ws.cell(row=head, column=results.K_EX).value == "Dollars short of band"
+    fmts = [r.dxf.numFmt.formatCode for rng in ws.formulas.conditional_formatting
+            if str(rng.sqref).startswith(results.col(results.K_CAUGHT)) for r in rng.rules if r.dxf.numFmt]
+    assert fmts and set(fmts) == {results.PTS_FMT}
+    # Grids reads it as a gap in points where more is better: its heat runs the other way
+    meta = {r[0]: r[1:3] for r in load_workbook(b)[results.VIEWS].iter_rows(values_only=True)}
+    assert meta["G|FICO x CHANNEL|ranr_rate|meta"][0] == "pts" and meta["G|FICO x CHANNEL|gco_rate|meta"][0] == "x"
 
 
 def test_an_edge_outside_the_columns_values_is_refused_by_cell(tmp_path):
@@ -346,17 +292,19 @@ def test_an_edge_outside_the_columns_values_is_refused_by_cell(tmp_path):
 
 
 def test_three_way_pockets_are_tested_and_ranked(tmp_path):
-    """Ruling OC-27; the third walk, defect 3: a category split drew pictures only."""
+    """Ruling OC-27; the third walk, defect 3: a category split drew pictures only. On Pockets, the split view."""
     b = _ready(tmp_path)
     _choose(b, split="ASSET_CLASS")
     ran = book.run(b)
     assert ran.ok and any("Split by ASSET_CLASS" in x for x in ran.lines)
-    wb = load_workbook(b)
-    ws = wb["Three-way"]
-    first = [c.value for c in ws[5]]
-    assert first[4] == "CHANNEL / ASSET_CLASS" and " / ASSET_CLASS " in first[5]
-    assert first[17]                                          # every row carries a flag
-    check = {r[1].value: r[2].value for r in wb["Check"].iter_rows(min_row=4)}
+    assert "Split by ASSET_CLASS" in tabs.options(load_workbook(b), results.POCKETS, "Pockets")
+    ws = tabs.calculated(tabs.choose(b, tmp_path / "s.xlsx", results.POCKETS, pockets="Split by ASSET_CLASS"),
+                         results.POCKETS)
+    head = tabs.header_row(ws, results.K_NUM, "#")
+    assert ws.cell(row=head, column=results.K_HALF).value == "ASSET_CLASS"
+    rows = tabs.pockets(ws)
+    assert rows and {x["half"] for x in rows} <= {"1", "2", "3", "4"} and all(x["worse"] for x in rows)
+    check = {r[1].value: r[2].value for r in load_workbook(b)["Check"].iter_rows(min_row=4)}
     assert "ASSET_CLASS" in check["Split"] and "isn't cut on its own" in check["Split"]
 
 
@@ -427,13 +375,11 @@ def test_the_heat_maps_leave_out_pockets_under_the_minimum(tmp_path):
     """The third walk, defect 4: a 1-loan row was among the strongest colours."""
     b = _ready(tmp_path, n=4000)
     assert book.run(b).ok
-    ws = load_workbook(b)["Grids"]
-    start = next(c for row in ws.iter_rows() for c in row if c.value == "Vs the book")
-    blank_rows = [r for r in range(start.row + 1, start.row + 12)
-                  if ws.cell(row=r, column=start.column).value == "(blank)"]
-    assert blank_rows
-    r = blank_rows[0]
-    assert all(ws.cell(row=r, column=start.column + k).value is None for k in range(1, 4))
+    ws = tabs.calculated(b, results.GRIDS)
+    vs = tabs.block(ws, "vs the book")
+    blank = [v for (bl, _), v in vs.items() if bl == "(blank)"]
+    assert blank and all(v is None for v in blank)
+    assert any(isinstance(v, float) for v in vs.values())
 
 
 def test_band_width_every_20_cuts_and_is_remembered(tmp_path):
@@ -492,68 +438,62 @@ def test_check_says_what_the_allowance_covers(tmp_path):
     assert "each grid and measure on its own" in check["The allowance for many tests covers"]
 
 
-def test_losses_vs_revenue_dollars_agree_with_the_box_and_untested_pockets_get_none(tmp_path):
+def test_paid_cost_kept_dollars_agree_with_the_flag_and_untested_pockets_get_none(tmp_path):
     """The fourth walk, defects 2 and 3."""
     b = _ready(tmp_path)
     assert book.run(b).ok
-    ws = _tab(b, "Losses vs revenue")
-    rows = _lvr(ws)
-    untested = [x for x in rows if {x["g_read"], x["r_read"]} & {engine.THIN, engine.FEW}]
+    ws = tabs.calculated(b, results.PCK)
+    rows = tabs.pck(ws)
+    few = {engine.THIN, engine.FEW}
+    untested = [x for x in rows if set(x["flags"].values()) & few]
     for x in rows:
-        if x["g_read"].startswith("losing more"):
-            assert x["g_over"] > 0, x
-        if x["g_read"].startswith("losing less"):
-            assert x["g_over"] < 0, x
-        if x["r_read"].startswith("ahead of"):
-            assert x["r_over"] > 0, x
-        if x["r_read"].startswith("short of"):
-            assert x["r_over"] < 0, x
-        if x["c_read"].startswith("ahead of"):
-            assert x["c_over"] > 0, x
-        # and the dollars in the reading are the ones in the column
-        for k in ("r", "c"):
-            if x[f"{k}_read"].startswith(("ahead of", "short of")):
-                assert f"(${abs(x[f'{k}_over']):,.0f})" in x[f"{k}_read"], x
-    assert any(x["g_read"].startswith("losing more") for x in rows)
+        g, r, c = x["flags"]["g"], x["flags"]["r"], x["flags"]["c"]
+        if g in (engine.WORSE, engine.UNSURE_WORSE):
+            assert x["cost_d"] > 0, x
+        if g in (engine.BETTER, engine.UNSURE_BETTER):
+            assert x["cost_d"] < 0, x
+        if r in (engine.BETTER, engine.UNSURE_BETTER):
+            assert x["kept_d"] > 0, x
+        if r in (engine.WORSE, engine.UNSURE_WORSE):
+            assert x["kept_d"] < 0, x
+        if c in (engine.BETTER, engine.UNSURE_BETTER):
+            assert x["paid_d"] > 0, x
+    assert any(x["flags"]["g"] == engine.WORSE for x in rows)
     # untested on any side: no colour on any side, and nothing read together
     assert untested and all(x["c_fill"] is None and x["g_fill"] is None and x["r_fill"] is None
                             and not x["together"] for x in untested)
-    # and they sit at the foot of their grid, off the chart
-    prev, seen_untested = None, False
-    for x in rows:
-        if prev is None or x["row"] != prev + 1:
-            seen_untested = False                         # a new grid
-        is_untested = x in untested
-        assert is_untested or not seen_untested, x
-        seen_untested |= is_untested
-        prev = x["row"]
-    assert "RANR already has GCO taken out, so contribution is RANR + GCO" in ws["B2"].value
+    # and they sit at the foot of the grid
+    flags = [x in untested for x in rows]
+    assert flags == sorted(flags)
+    note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 12)}
+    assert "RANR already has the charge-offs taken out, so this adds them back" in note["Paid us"]
 
 
-def test_three_way_rows_say_what_their_grid_holds_fixed(tmp_path):
-    """The fourth walk, defect 1: the Three-way tab carried no caveat at all."""
+def test_split_rows_say_what_their_grid_holds_fixed(tmp_path):
+    """The fourth walk, defect 1: the Three-way tab carried no caveat at all. On Pockets' split view, each row
+    says whether its grid holds the split's partner fixed; those that don't come last, grey, with no verdict
+    colour (the firm, 25 Sep 2026, after the seventh walk)."""
     b = _ready(tmp_path)
     _choose(b, split="REV_DEBT")
     assert book.run(b).ok
-    ws = load_workbook(b)["Three-way"]
-    assert ws.cell(row=4, column=20).value == "Holds FICO fixed?"
-    rows = [(ws.cell(row=r, column=3).value, ws.cell(row=r, column=20).value) for r in range(5, ws.max_row + 1)
-            if ws.cell(row=r, column=2).value == "Outcome, share of loans"]
-    assert rows[0][0] == "FICO" and rows[0][1] == "yes"
-    assert any(band == "ORIG_BAL" and words.startswith("no: may be mostly FICO") for band, words in rows)
-    # no red on those rows (the firm, 25 Sep 2026, after the seventh walk); red stays for the rest
-    rules = [r.formula[0] for rng in ws.conditional_formatting for r in rng.rules
-             if r.dxf.fill.fgColor.rgb.endswith(book.WORSE_FILL)]
-    worse = 'OR($R5="worse",AND(LEFT($R5,8)="short of",NOT(RIGHT($R5,17)="(not significant)")))'
-    assert rules == [f'AND({worse},LEFT($T5,3)<>"no:")']
-    where = load_workbook(b)["Where it bleeds"]
-    assert [r.formula[0] for rng in where.conditional_formatting for r in rng.rules
-            if r.dxf.fill.fgColor.rgb.endswith(book.WORSE_FILL)] == [worse]
-    firsts = [i for i, (band, _) in enumerate(rows) if band == "ORIG_BAL"]
-    assert all(rows[i][0] == "FICO" for i in range(min(firsts)))           # held-fixed grids first
-    split = load_workbook(b)["Split"]
-    texts = [c.value for row in split.iter_rows() for c in row if isinstance(c.value, str)]
-    assert sum(1 for x in texts if "holds FICO fixed" in x) == 2        # once per FICO grid, not per measure
+    ws = tabs.calculated(tabs.choose(b, tmp_path / "s.xlsx", results.POCKETS, pockets="Split by REV_DEBT"),
+                         results.POCKETS)
+    head = tabs.header_row(ws, results.K_NUM, "#")
+    assert ws.cell(row=head, column=results.K_HOLDS).value == "Holds FICO fixed?"
+    rows = tabs.pockets(ws)
+    assert rows[0]["band"].startswith("FICO") and rows[0]["holds"] == "Yes"
+    assert any(x["band"].startswith("ORIG_BAL") and x["holds"] == "No: may be mostly FICO" for x in rows)
+    held = [x["holds"] == "Yes" for x in rows]
+    assert held == sorted(held, reverse=True)                              # held-fixed grids first
+    # no verdict colour on those rows: their first rule greys them and the verdict rules come after it
+    rules = [r.formula[0] for rng in ws.formulas.conditional_formatting
+             if str(rng.sqref).startswith(results.col(results.K_WORSE)) for r in sorted(rng.rules,
+                                                                                    key=lambda x: x.priority)]
+    assert 'LEFT($' in rules[0] and '="No:"' in rules[0] and 'Yes"' in rules[1]
+    split = tabs.calculated(b, results.SPLIT)
+    chips = [r[1] for r in load_workbook(b)[results.VIEWS].iter_rows(values_only=True) if str(r[0]).endswith("|chip")]
+    assert chips.count("Holds FICO fixed") == 2                              # once per FICO grid, not per measure
+    assert tabs.dropdown(split, "Grid").value.startswith("FICO")
 
 
 def test_the_luck_line_is_luck_alone_not_the_catch_rate(tmp_path):
@@ -597,49 +537,57 @@ def test_the_planted_pocket_is_a_net_drain(tmp_path):
     b = _ready(tmp_path, n=8000)
     _set(b, "FICO", book.C_EDGES, "620; 680; 740")
     assert book.run(b).ok
-    ws = _tab(b, "Losses vs revenue")
-    assert ws["B7"].value.endswith(" - 619") and ws["C7"].value == "Broker"
-    paid, cost, kept, together = (ws.cell(row=7, column=c).value for c in (
-        book.LVR_C + 3, book.LVR_G + 3, book.LVR_R + 3, book.LVR_T))
-    assert re.fullmatch(r"[+-]?\d+\.\d\d points against its band, not significant|"
-                        r"-?0\.00 points against its band, not significant", paid), paid
-    assert (cost, together) == ("losing more", "net drain") and kept.startswith("short of its band by ")
-    # red and green are conditional formatting over the flags since OC-40: the rules, worked out on the values
-    assert _cf_fill(ws, 7, book.LVR_G + 2) == book.RED_CELL and _cf_fill(ws, 7, book.LVR_R + 2) == book.RED_CELL
-    assert _cf_fill(ws, 7, book.LVR_C + 2) is None
+    ws = tabs.calculated(b, results.PCK)
+    x = tabs.pck(ws)[0]
+    assert x["band"].endswith(" - 619") and x["seg"] == "Broker"
+    assert x["flags"]["c"] in (engine.IN_LINE, engine.UNSURE_WORSE, engine.UNSURE_BETTER)     # not significant
+    assert (x["flags"]["g"], x["flags"]["r"], x["together"]) == (engine.WORSE, engine.WORSE, "Net drain")
+    assert x["kept"] < 0 and x["cost"] > 1.25
+    # pink on the two sides that are worse and real, none on what they paid
+    assert x["g_fill"] == house.ALERT_FG and x["r_fill"] == house.ALERT_FG and x["c_fill"] is None
 
 
 def test_boxes_follow_the_lines_exactly():
-    """A side reads more or less only past its line; between the lines it's the
-    same. (The book-level test can pass by chance when no pocket sits between
-    1.00x and a line, which let 'boxes by 1.00x again' slip past the mutation
-    check in CI on 25 Sep 2026.)"""
-    assert book._side(1.10, 0.80, 1.25) == "same"
-    assert book._side(0.90, 0.80, 1.25) == "same"
-    assert book._side(1.25, 0.80, 1.25) == "more"
-    assert book._side(0.80, 0.80, 1.25) == "less"
-    # GCO and RANR read together, for three pairs only (NEXT-GOAL 3.4)
-    assert book.together_of("more", "more") == "priced for it"
-    assert book.together_of("more", "less") == "net drain"
-    assert book.together_of("less", "less") == "safe but idle"
-    assert [book.together_of(g, r) for g, r in (("less", "more"), ("more", "same"), ("same", "less"),
-                                                 (None, "less"), ("more", None))] == [""] * 5
+    """A side reads more or less only past its line; between the lines it's the same. (The book-level test can
+    pass by chance when no pocket sits between 1.00x and a line, which let 'boxes by 1.00x again' slip past the
+    mutation check in CI on 25 Sep 2026.)"""
+    from conftest import cube
+    bench = cube(benchmark={"min_units": 2, "min_events": 1, "worse_at": 1.25, "better_at": 0.8,
+                            "confidence": 0.95, "power": 0.8, "compare_to": "topline", "many_tests": "none",
+                            "materiality": "none", "shuffles": 200}).benchmark
+    read = lambda x: engine.reading_of(x, 100, bench, 0, 0.001)             # noqa: E731
+    assert (read(1.10), read(0.90), read(1.25), read(0.80)) == (engine.IN_LINE, engine.IN_LINE, engine.WORSE,
+                                                                   engine.BETTER)
+    # a side is more or less only when its flag is worse or better and real; the same when tested and neither
+    assert results.side_of(engine.WORSE, "worse") == "more" and results.side_of(engine.WORSE, "better") == "less"
+    assert results.side_of(engine.UNSURE_WORSE, "worse") == "same" and results.side_of(engine.FEW, "worse") is None
+    # charge-offs and what we kept read together (NEXT-GOAL 3.4; the redesign's five, section 6)
+    t = results.together_of
+    assert t(engine.WORSE, engine.BETTER) == "Priced for it"
+    assert t(engine.WORSE, engine.WORSE) == "Net drain"
+    assert t(engine.BETTER, engine.BETTER) == "Strong"
+    assert t(engine.BETTER, engine.WORSE) == "Safe but idle"
+    assert t(engine.IN_LINE, engine.WORSE) == t(engine.UNSURE_WORSE, engine.WORSE) == "Earns less, not from losses"
+    assert [t(g, r) for g, r in ((engine.WORSE, engine.IN_LINE), (engine.IN_LINE, engine.BETTER),
+                                 (engine.FEW, engine.WORSE), (engine.WORSE, engine.FEW),
+                                 (engine.IN_LINE, engine.IN_LINE))] == [""] * 5
 
 
-def test_a_luck_gap_keeps_its_box_and_says_so(tmp_path):
-    """The firm, 25 Sep 2026, after the fifth walk: the lines decide, luck is marked."""
+def test_a_gap_that_is_not_significant_is_left_plain(tmp_path):
+    """The firm, 25 Sep 2026, after the fifth walk: the lines decide, and a gap that could be chance is marked
+    (its flag says not significant) and left plain."""
     b = _ready(tmp_path, n=8000)
     _set(b, "FICO", book.C_EDGES, "620; 680; 740")
     assert book.run(b).ok
-    ws = _tab(b, "Losses vs revenue")
-    rows = _lvr(ws)
-    marked = [x for x in rows if x["g_read"].endswith("(not significant)")]
-    assert marked and all(x["g_fill"] is None for x in marked)              # marked and left plain
-    assert any(x["g_fill"] == book.RED_CELL for x in rows)
+    rows = tabs.pck_all(b, tmp_path / "grids")                  # every grid, each picked in turn
+    marked = [x for x in rows if x["flags"]["g"] in (engine.UNSURE_WORSE, engine.UNSURE_BETTER)]
+    assert marked and all(x["g_fill"] is None for x in marked)
+    assert any(x["g_fill"] == house.ALERT_FG for x in rows)
     # and the other way round: a gap past a line on Control that isn't coloured is marked, either side
-    past = [x for x in rows if not x["g_read"].startswith("too few") and (x["g_x"] >= 1.25 or x["g_x"] <= 0.8)]
+    past = [x for x in rows if x["flags"]["g"] not in (engine.FEW, engine.THIN) and (x["cost"] >= 1.25 or x["cost"] <= 0.8)]
     plain = [x for x in past if x["g_fill"] is None]
-    assert any(x["g_x"] >= 1.25 for x in plain) and all(x["g_read"].endswith("(not significant)") for x in plain)
+    assert any(x["cost"] >= 1.25 for x in plain)
+    assert all(x["flags"]["g"] in (engine.UNSURE_WORSE, engine.UNSURE_BETTER) for x in plain)
 
 
 def test_remembered_edges_only_fill_a_column_the_workbook_has_not_seen(tmp_path):
@@ -735,18 +683,20 @@ def test_a_suggestion_with_nothing_to_work_from_says_so(tmp_path):
     assert "_at" not in fell and check["Pockets tested"].startswith("none of")
 
 
-def test_split_gaps_that_could_be_luck_are_bracketed(tmp_path):
-    """The sixth walk, defect 9: a 2.33x at 61% luck was deep red."""
+def test_split_gaps_that_are_not_significant_are_bracketed(tmp_path):
+    """The sixth walk, defect 9: a 2.33x at 61% was deep red."""
     b = _ready(tmp_path)
     _choose(b, split="REV_DEBT")
     assert book.run(b).ok
-    ws = _tab(b, "Split")
-    vals = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
-    assert any(v.startswith("(") and v.endswith("x)") for v in vals)
+    ws = tabs.calculated(b, results.SPLIT)
+    vals = list(tabs.block(ws, "Bad loans, high vs low").values())
+    assert any(isinstance(v, str) and v.startswith("(") and v.endswith("×)") for v in vals)
+    assert any(isinstance(v, float) for v in vals)
 
 
 def test_material_pockets_too_small_to_test_are_pointed_out(tmp_path):
-    """The firm, 25 Sep 2026: whether a small pocket matters is a materiality thing."""
+    """The firm, 25 Sep 2026: whether a small pocket matters is a materiality thing. On Pockets: Worse? reads Too
+    few losses and Material? Yes, the two separate columns."""
     from origination_cube import control
     b = _ready(tmp_path, n=4000)
     wb = load_workbook(b)
@@ -758,27 +708,29 @@ def test_material_pockets_too_small_to_test_are_pointed_out(tmp_path):
     wb.save(b)
     ran = book.run(b)
     assert ran.ok and any("material but too small to test" in x for x in ran.lines)
-    ws = _tab(b, "Where it bleeds")
-    # the window counts pockets, once each, and the rows the tab shades (the seventh walk, defect 7)
     said = next(x for x in ran.lines if "material but too small to test" in x)
-    blue = [ws.cell(row=r, column=c).value for r in range(5, ws.max_row + 1)
-            for c in (18,) if ws.cell(row=r, column=13).value == "yes"
-            and str(ws.cell(row=r, column=18).value or "").startswith("too few")]
-    pockets = {(ws.cell(row=r, column=3).value, ws.cell(row=r, column=4).value, ws.cell(row=r, column=5).value,
-                ws.cell(row=r, column=6).value) for r in range(5, ws.max_row + 1)
-               if ws.cell(row=r, column=13).value == "yes"
-               and str(ws.cell(row=r, column=18).value or "").startswith("too few")}
-    assert said.startswith(f"{len(pockets)} pocket")
-    if len(blue) != len(pockets):
-        assert f"({len(blue)} rows" in said
-    rules = [r for rng in ws.conditional_formatting for r in rng.rules]
-    assert any('LEFT($R5,7)="too few"' in (r.formula or [""])[0] for r in rules)
+    assert "Worse? reads Too few losses and Material? Yes on Pockets" in said
+    # the window counts pockets, once each, and the rows (the seventh walk, defect 7)
+    v = recalc(b, tmp_path / "rc")
+    key = {r[0].row: tuple(c.value for c in (r[live.P_GRID - 1], r[live.P_BAND - 1], r[live.P_SEG - 1]))
+           for r in v[live.POCKETS].iter_rows(min_row=live.P_FIRST)}
+    small = [r for r in v[results.LIST].iter_rows(min_row=2, values_only=True)
+             if r[results.L_KKEY - 1] == "grids" and r[results.L_WORSE - 1] == live.TOO_FEW
+             and r[results.L_MAT - 1] == live.YES]
+    pockets = {key[r[results.L_ROW - 1]] for r in small}
+    assert pockets and said.startswith(f"{len(pockets)} pocket")
+    if len(small) != len(pockets):
+        assert f"({len(small)} rows" in said
+    # and a measure's view shows them
+    ws = v[results.POCKETS]
+    assert any(x["worse"] == live.TOO_FEW and x["material"] == live.YES for x in tabs.pockets(ws)) or any(
+        r[results.L_MEAS - 1] != "Bad loans" for r in small)
 
 
 def test_a_pocket_under_fewest_loans_is_tested_and_says_how(tmp_path):
-    """Walk 6, defect 8, on the workbook: under fewest loans the share of loans
-    gets the exact test (statistics.md B1), shows its p-value, names its test,
-    and is never shaded blue as too small to test."""
+    """Walk 6, defect 8, on the workbook: under fewest loans the share of loans gets the exact test (statistics.md
+    B1) and shows its p-value, never read as too few to test. Which test ran is said once, in Pockets' method
+    note (tenet T1), and kept pocket by pocket on _pockets."""
     from origination_cube import control
     b = _ready(tmp_path, n=4000)
     wb = load_workbook(b)
@@ -787,22 +739,24 @@ def test_a_pocket_under_fewest_loans_is_tested_and_says_how(tmp_path):
             r[control.CHOOSE_COL - 1].value, r[control.OWN_COL - 1].value = None, 230
     wb.save(b)
     assert book.run(b).ok
-    ws = _tab(b, "Where it bleeds")
-    assert ws.cell(row=4, column=20).value == "Test"
-    rows = [r for r in range(5, ws.max_row + 1) if ws.cell(row=r, column=2).value == "Outcome, share of loans"]
-    flag, test, luck = (lambda r: ws.cell(row=r, column=18).value), (lambda r: ws.cell(row=r, column=20).value), \
-        (lambda r: ws.cell(row=r, column=17).value)
-    small = [r for r in rows if ws.cell(row=r, column=7).value < 230 and not str(flag(r)).startswith("too few")]
-    big = [r for r in rows if ws.cell(row=r, column=7).value >= 230 and not str(flag(r)).startswith("too few")]
-    assert small and all(test(r) == "exact test" and luck(r) is not None for r in small)
-    assert big and all(test(r) == "z test" for r in big)
-    assert not any(str(flag(r)).startswith("too few loans") for r in range(5, ws.max_row + 1))
+    v = recalc(b, tmp_path / "rc")
+    ws = v[results.POCKETS]
+    note = " ".join(str(ws.cell(row=r, column=results.K_BAND + 1).value) for r in range(3, 14))
+    assert "the exact test for a pocket under 230 loans" in note
+    assert "Test" not in tabs.heads(ws, tabs.header_row(ws, results.K_NUM, "#"))
+    rows = [x for x in tabs.pockets(ws) if x["worse"] != live.TOO_FEW]
+    small, big = [x for x in rows if x["loans"] < 230], [x for x in rows if x["loans"] >= 230]
+    assert small and all(x["p"] is not None for x in small) and big
+    tests = {(r[live.P_LOANS - 1] < 230): r[live.P_TEST_BOOK - 1]
+             for r in v[live.POCKETS].iter_rows(min_row=live.P_FIRST, values_only=True)
+             if r[live.P_MEASURE - 1] == "outcome_loans" and r[live.P_TEST_BOOK - 1]}
+    assert tests == {True: "exact test", False: "z test"}
+    assert not any(x["worse"] == "too few loans to test" for x in tabs.pockets(ws))
 
 
 def test_a_real_loss_keeps_its_red_when_profit_is_not_significant(tmp_path):
-    """The seventh walk, defect 1: under a fixed revenue line, under 620 / Broker
-    (GCO 5.35x, a finding) lost its shading because its revenue side could be
-    luck. Each side is now coloured on its own."""
+    """The seventh walk, defect 1: under a fixed revenue line, under 620 / Broker (GCO 5.35x, a finding) lost its
+    shading because its revenue side could be chance. Each side is coloured on its own."""
     b = _ready(tmp_path, n=8000)
     _set(b, "FICO", book.C_EDGES, "620; 680; 740")
     wb = load_workbook(b)
@@ -811,15 +765,13 @@ def test_a_real_loss_keeps_its_red_when_profit_is_not_significant(tmp_path):
             r[2].value = "0.25 points either way"
     wb.save(b)
     assert book.run(b).ok
-    ws = _tab(b, "Losses vs revenue")
-    assert ws["C7"].value == "Broker" and ws.cell(row=7, column=book.LVR_G + 3).value == "losing more"
-    assert _cf_fill(ws, 7, book.LVR_G + 2) == book.RED_CELL
-    rows = _lvr(ws)
-    marked = [x for x in rows if "not significant" in x["r_read"]]
+    rows = tabs.pck_all(b, tmp_path / "grids")                  # every grid, each picked in turn
+    assert rows[0]["seg"] == "Broker" and rows[0]["flags"]["g"] == engine.WORSE and rows[0]["g_fill"] == house.ALERT_FG
+    marked = [x for x in rows if x["flags"]["r"] in (engine.UNSURE_WORSE, engine.UNSURE_BETTER)]
     assert marked and all(x["r_fill"] is None and not x["together"] for x in marked)   # the fixed line marks some
-    assert any(x["g_fill"] == book.RED_CELL for x in marked)            # and their loss side keeps its red
-    real_worse = [x for x in rows if x["g_read"] == "losing more"]
-    assert real_worse and all(x["g_fill"] == book.RED_CELL for x in real_worse)
+    assert any(x["g_fill"] == house.ALERT_FG for x in marked)            # and their loss side keeps its colour
+    real_worse = [x for x in rows if x["flags"]["g"] == engine.WORSE]
+    assert real_worse and all(x["g_fill"] == house.ALERT_FG for x in real_worse)
     # Control explains the suggested option as it works now: each pocket's own test (defect 2)
     opts = [r[4] for r in load_workbook(b)["_options"].iter_rows(min_row=2, values_only=True)
             if r[1] == "revenue_line" and r[6] == "Each pocket's own test (suggested)"]
@@ -872,10 +824,9 @@ def test_the_category_limits_chosen_in_the_launcher_change_set_ups_guesses(tmp_p
 
 
 def test_revenue_reads_the_same_on_both_tabs(tmp_path):
-    """The seventh walk, defect 3, and the firm's call (25 Sep 2026): the profit
-    line on Control decides profit on Where it bleeds too, so a pocket can't
-    read "keeps less" on one tab and "in line" on the other. Since 26 Sep 2026
-    both say the gap literally, so the two readings are the same words."""
+    """The seventh walk, defect 3, and the firm's call (25 Sep 2026): the profit line on Control decides profit on
+    Pockets too, so a pocket can't read "keeps less" on one tab and "in line" on the other. Both read the one
+    flag on _pockets: Worse? on Pockets is Paid, cost, kept's kept side, pocket by pocket."""
     for option in ("Each pocket's own test (suggested)", "0.25 points either way"):
         b = _ready(tmp_path / option[:4], n=8000)
         wb = load_workbook(b)
@@ -884,36 +835,37 @@ def test_revenue_reads_the_same_on_both_tabs(tmp_path):
                 r[2].value = option
         wb.save(b)
         assert book.run(b).ok
-        lvr = {(x["band"], x["seg"]): x["r_read"] for x in _lvr(_tab(b, "Losses vs revenue"))}
-        ws = _tab(b, "Where it bleeds")
+        k = tabs.choose(b, tmp_path / option[:4] / "k.xlsx", results.POCKETS, measure="Kept after losses")
+        v = recalc(k, tmp_path / option[:4] / "rc")
+        pk = v[results.PCK]
+        kept = {pk.cell(row=x["row"], column=results.C_H_RR).value: x["flags"]["r"] for x in tabs.pck(pk)}
+        ws = v[results.POCKETS]
         seen = 0
-        for r in range(5, ws.max_row + 1):
-            if ws.cell(row=r, column=2).value != "Profit after losses: RANR per booked dollar":
-                continue
-            flag = ws.cell(row=r, column=18).value
-            key = (ws.cell(row=r, column=4).value, ws.cell(row=r, column=6).value)
-            if key in lvr and flag not in (engine.THIN, engine.FEW):
-                assert flag.startswith(("short of", "ahead of", "within", "-", "+", "0.00")), flag
-                assert lvr[key] == flag, (option, key, flag, lvr[key])
+        for x in tabs.pockets(ws):
+            prow = ws.cell(row=x["row"], column=results.K_ROW).value
+            if prow in kept:
+                assert x["worse"] == live.worse_of(kept[prow]), (option, x, kept[prow])
                 seen += 1
         assert seen, option
 
 
 def test_words_after_a_number_start_clear_of_it(tmp_path):
-    """The render of 26 Sep 2026 printed "10.9%worse" and "80.4loans": a word column
-    beside a right-aligned number needs its own indent on Where it bleeds."""
+    """The render of 26 Sep 2026 printed "10.9%worse" and "80.4loans". The redesign's rule 4: numbers, verdicts
+    and short answers centred; labels left, with an indent (LibreOffice draws no indent on a cell left to the
+    default)."""
     b = _ready(tmp_path, n=3000)
     assert book.run(b).ok
-    ws = _tab(b, "Where it bleeds")
-    heads = {ws.cell(row=4, column=c).value: c for c in range(2, 22)}
-    # and aligned left: LibreOffice draws no indent on a cell left to the default (the render, 26 Sep 2026)
-    for name in ("Excess is in", "Test"):
-        got = ws.cell(row=5, column=heads[name]).alignment
-        assert got.indent >= 1 and got.horizontal == "left", name
-    flag = next(c for h, c in heads.items() if h and h.startswith("Flag"))
-    got = ws.cell(row=5, column=flag).alignment
+    wb = load_workbook(b)
+    ws = wb[results.POCKETS]
+    first = tabs.header_row(ws, results.K_NUM, "#") + 1
+    for c in (results.K_BAND, results.K_SEG, results.K_HOLDS):
+        got = ws.cell(row=first, column=c).alignment
+        assert got.indent >= 1 and got.horizontal == "left", c
+    for c in (results.K_LOANS, results.K_GAP, results.K_EX, results.K_WORSE, results.K_P, results.K_MAT):
+        assert ws.cell(row=first, column=c).alignment.horizontal == "center", c
+    pk = wb[results.PCK]
+    first = tabs.header_row(pk, results.C_TOG, "Together") + 1
+    got = pk.cell(row=first, column=results.C_TOG).alignment
     assert got.indent >= 1 and got.horizontal == "left"
-    lvr = _tab(b, "Losses vs revenue")
-    for col in (book.LVR_C + 3, book.LVR_G + 3, book.LVR_R + 3, book.LVR_T):
-        got = lvr.cell(row=7, column=col).alignment
-        assert got.indent >= 1 and got.horizontal == "left", col
+
+

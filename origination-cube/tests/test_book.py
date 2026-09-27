@@ -4,7 +4,7 @@ has answered is thrown away."""
 
 from openpyxl import load_workbook
 
-from origination_cube import book, control, memory, synth
+from origination_cube import book, control, memory, synth, house, results
 
 PICK = {"run_kind": "Where the book bleeds", "min_loans": "30", "min_events": "10",
         "materiality": "1% of the book's total losses", "compare_to": "The rest of its band",
@@ -94,10 +94,10 @@ def test_a_full_run_writes_results_into_the_workbook(tmp_path):
     assert any("tie-out checks agree" in line for line in ran.lines)
     assert any("Worst for GCO per booked dollar: FICO " in line and "Broker" in line for line in ran.lines)
     wb = load_workbook(out.book)
-    for t in ("Where it bleeds", "Grids", "Check", "Log"):
+    for t in (results.POCKETS, results.GRIDS, "Check", "Log"):
         assert t in wb.sheetnames
-    first = [c.value for c in wb["Where it bleeds"][5]]
-    assert first[1] == "Outcome, share of loans" and first[5] == "Broker"
+    first = [r for r in wb[results.LIST].iter_rows(min_row=2, values_only=True)][0]
+    assert first[results.L_MEAS - 1] == "Bad loans" and first[results.L_SEG - 1] == "Broker"
     assert out.book.with_name(f"{out.book.stem} - what ran.yaml").exists()      # the record of what ran
 
 
@@ -177,19 +177,20 @@ def test_the_launchers_cut_chooses_what_goes_into_the_grids(tmp_path):
 
 
 def test_grids_are_heat_maps_against_the_book_and_against_peers(tmp_path):
+    """The Grids tab (the redesign, section 7): four blocks for the grid and measure picked, and the heat scale
+    in the spec's tokens, one step at 2x and over, 0.5x and under the greenest; a gap in points (profit) on the
+    same steps, measured against the largest in the grid, less being red."""
     out = book.set_up(synth.write_extract(tmp_path, n=4000))
     _answer(out.book)
     assert book.run(out.book).ok
-    ws = load_workbook(out.book)["Grids"]
-    heads = {c.value for row in ws.iter_rows(max_row=12) for c in row if c.value}
-    assert {"Rate", "Vs the book", "Vs the rest of its band"} <= heads
-    scales = [r for rng in ws.conditional_formatting for r in rng.rules if r.type == "colorScale"]
-    # white at 1.00x for a multiple; for profit, a gap in points, white at 0, even either way, red below
-    # (NEXT-GOAL 3.2)
-    mids = [float(r.colorScale.cfvo[1].val) for r in scales]
-    assert scales and set(mids) == {1.0, 0.0}
-    for r in scales:
-        if float(r.colorScale.cfvo[1].val) == 0.0:
-            lo, hi = float(r.colorScale.cfvo[0].val), float(r.colorScale.cfvo[2].val)
-            assert lo == -hi < 0 and r.colorScale.color[0].rgb.endswith(book.RED)
-            assert r.colorScale.color[2].rgb.endswith(book.GREEN)
+    ws = load_workbook(out.book)[results.GRIDS]
+    heads = {c.value for row in ws.iter_rows() for c in row if c.value}
+    assert {"vs the book", "vs rest of band", "Loans"} <= heads and any(str(h).startswith('="Rate · "') for h in heads)
+    fills = {r.dxf.fill.fgColor.rgb[-6:] for rng in ws.conditional_formatting for r in rng.rules
+             if r.dxf is not None and r.dxf.fill is not None}
+    assert {house.HEAT_GOOD, house.HEAT_MID, house.HEAT_BAD, house.HEAT_BAD2} <= fills
+    steps = [r.formula[0] for rng in ws.conditional_formatting for r in rng.rules if "LOG(" in r.formula[0]]
+    assert any(">=1.0)" in f for f in steps) and any("<=-0.585)" in f for f in steps)
+    assert all('="pts",-' in f for f in steps)                 # a gap in points: less is worse
+
+

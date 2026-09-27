@@ -15,14 +15,14 @@ Everything counted here is counted from the test's own groups by hand, never fro
 import pytest
 from openpyxl import load_workbook
 
-from origination_cube import book, confirm_tab, confirmatory, engine, launcher, perm
+from origination_cube import book, confirm_tab, confirmatory, engine, launcher, perm, results
 from recalc import recalc
 from test_book_dates import _check, _control
 from test_confirmatory import _held, _log, _ready, _spec, needs_git
 
 BLEED, NEW = "Where the book bleeds", "Finding and testing a new variable"
 FROM_SPEC = "Test from a pre-spec"
-BLEED_TABS = {"Where it bleeds", "Losses vs revenue", "Grids", "Split", "Three-way", "Prevalence"}
+BLEED_TABS = set(results.TABS)          # Pockets, Paid cost kept, Grids, Split (the redesign, phase 3)
 
 
 def _counting(mp):
@@ -100,6 +100,7 @@ def test_a_new_variable_run_writes_no_bleed_tab_and_takes_off_the_ones_a_bleed_r
     assert BLEED_TABS <= runs["bleed_tabs"]
     tabs = set(load_workbook(runs["b"]).sheetnames)
     assert not tabs & BLEED_TABS, tabs & BLEED_TABS
+    assert not tabs & {*results.HIDDEN, results.CHART}                  # nor the hidden sheets they read
     assert {confirm_tab.SHEET, "Check", "Log", "Start here"} <= tabs
 
 

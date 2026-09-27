@@ -126,24 +126,44 @@ After that, the whole routine is:
    charge-offs, what they lost above their share, the tie-out checks, and any
    odd value still unanswered. The results land in the workbook:
    - **Confirmatory test:** only when testing from a pre-spec (below).
-   - **Where it bleeds:** every pocket losing more than its share, largest first.
-     Each pocket has two dollar figures, its excess over the rest of its band
-     and over the book. Control's "judged against" picks one, and that one
-     decides the flag, whether the pocket is material and where it ranks.
-     The other is shown next to it, for reference. Under their own heading
-     after the rest: the pockets losing more only against the other
-     comparison, so switching "judged against" finds them.
-   - **Losses vs revenue:** what each pocket paid (contribution before
-     losses), what it cost (GCO) and what was kept (profit after losses,
-     RANR). GCO reads losing more, about the same or losing less by the lines
-     on Control. Contribution and profit give the gap itself, e.g. "short of
-     its band by 0.80 points ($16,000)". Losing more and keeping more reads
-     "priced for it". One chart per grid.
-   - **Grids:** heat maps against the book and against the rest of the band.
-   - **Split** and **Three-way:** only when a column splits the pockets (below).
-   - **Prevalence:** only with a split or a new column. How many loans and
-     booked dollars sit in each group (the split's halves or values, a new
-     column's bands), pocket by pocket. A count of the book, not a test.
+   Every result tab opens the same way: a title band, one *How this tab works*
+   note that folds away (tenet T1: how a figure was worked out is said once,
+   never beside every row), the lines in use now as tiles read from Control,
+   then dropdowns, then result rows. The dropdowns stand in for the redesign's
+   slicers (a spreadsheet written by Python can't keep a slicer); each picks
+   what the tab shows by formula (design decision OC-43).
+   - **Pockets:** every pocket losing more than its share. Pick the **Measure**
+     (Bad loans, Bad dollars, Charge-offs, Kept after losses, Earned before
+     losses), the **Pockets** (two-way, or split by the split column) and
+     **Show** (all, worse and material, worse or not sure); the caption counts
+     "N worse and material · N worse · N shown". Each row: the pocket, its
+     loans, its rate and the rest's, the gap, the excess, **Worse?** (Yes, Not
+     sure, No, Too few losses) and **Material?** (Yes, No) in separate columns,
+     the p-value, and the smallest gap a pocket its size could have caught.
+     Control's *Judged against* picks the rest: every other loan in its band,
+     or every other loan in the book, for the gap and the dollars alike
+     (OC-44). The worse pockets come first, largest dollars first; the order
+     is the last Run's, the verdicts and dollars are live. On the split view,
+     pockets from grids that don't hold the split's partner fixed come last, in
+     grey, reading "No: may be mostly FICO".
+   - **Paid, cost, kept:** one grid at a time (a Grid dropdown). What each
+     pocket paid (earned before losses: RANR + GCO), what it cost (charge-offs)
+     and what was kept (RANR), each as its gap and dollars; pink where worse and
+     real, green where better and real. **Together** reads the pair: priced for
+     it, net drain, strong, safe but idle, or earns less, not from losses. A
+     scatter of the grid picked: charge-offs across on a log scale, what was
+     kept up, lines at 1× and 0, the pockets read together named.
+   - **Grids:** a Grid and a Measure dropdown, and four blocks: the rate,
+     against the book, against the rest of its band (heat in the redesign's
+     tokens, 2× and over deepest) and the loans (shaded by share, no red or
+     green). Under them, how many loans and booked dollars fall in each group
+     of the split column or a new column, pocket by pocket: a count, not a test
+     (it was the Prevalence tab). The split grids are in the Grid list too.
+   - **Split:** only when a number column splits the pockets (below). A Grid
+     dropdown and a chip saying whether it holds the split's partner fixed; the
+     summary for every measure; whether the gap is the same in every pocket; and
+     two grids side by side for the measure picked: high against low, and its
+     p-value.
    - **Check:** the lines in use now beside what the last Run used (a line
      changed since is shaded), and how many pockets read worse now and how
      many of those are material. Then what was run, settings, tie-outs, and what was left out of each rate (a
@@ -176,15 +196,19 @@ compared with moves: one cell, `ROUND(1 - confidence, 12)`. Everything else
 takes effect on the next Run: band edges, segments, the split, fewest loans
 and fewest losses, the shuffles, the allowance for many tests, the catch rate
 and what you're running. Control's last column says which.
-- Each result tab says at its top which lines it is using now.
+- Each result tab shows the lines it is using now as tiles, and says under them
+  when a change on Control waits for a Run.
 - Left as of the last Run, and said so on each tab: the order of the rows, the
-  charts, the smallest gap a pocket could show, Check's other counts, and a
-  suggested line worked out from the book (it keeps the multiple the Run
-  worked out; Run again to work it out at a new confidence level).
+  smallest gap a pocket could have caught, the heat maps, Check's other counts,
+  and a suggested line worked out from the book (it keeps the multiple the Run
+  worked out; Run again to work it out at a new confidence level). The scatter
+  on Paid, cost, kept is drawn from the table's own cells, so it follows too.
 - The formulas work in Excel 2016 and in LibreOffice: nothing needs Microsoft
-  365's `SORT` or `FILTER`. They read two hidden sheets: `_live` (each line as
-  a number) and `_pockets` (every pocket's numbers from the Run, and the
-  formulas that judge them). Unhide either to follow a reading back to Control.
+  365's `SORT` or `FILTER`. They read hidden sheets: `_live` (each line as a
+  number), `_pockets` (every pocket's numbers from the Run, and the formulas
+  that judge them), `_list` (Pockets' rows in the Run's order, and which the
+  dropdowns show) and `_views` (every other number, one keyed row each). Unhide
+  any of them to follow a reading back to Control.
 
 **Going a layer deeper.** In the launcher's Choose tests, pick one column
 under *Split pockets by*. A number (revolving debt, say) splits every FICO-by-asset-class pocket
@@ -192,8 +216,8 @@ at that pocket's own median, and the Split tab compares the high half with the
 low half, pocket by pocket and pooled. Each grid says what it holds fixed:
 revolving debt moves with FICO, so a loan-size grid can't tell debt from score,
 and it says so with the number. A category repeats each grid once per value.
-Either way, every three-way pocket is tested and ranked on the **Three-way**
-tab. *Show per pocket* puts a column's median or average in every pocket.
+Either way, every split pocket is tested and ranked on **Pockets** (pick
+*Split by* in its Pockets dropdown). *Show per pocket* puts a column's median or average in every pocket.
 The Look tab plots a split number against each band column, so you can see
 whether it only re-sorts the band.
 
@@ -244,8 +268,7 @@ reference group is the pre-spec's, and the holdout is the range the test held
 itself to, not the first and last loan in the extract.
 
 A test of a new variable builds none of the bleed analysis: no pocket grid, no
-shuffle test, and none of its tabs (Where it bleeds, Losses vs revenue, Grids,
-Split, Three-way, Prevalence). It writes the Confirmatory test, Check and the
+shuffle test, and none of its tabs (Pockets, Paid cost kept, Grids, Split). It writes the Confirmatory test, Check and the
 Log. If the workbook still has those tabs from an earlier bleed Run, they are
 taken off, and Check says so on one line. Start here and the launcher's last
 step show the confirmation: how many groups go bad significantly more often than
@@ -266,7 +289,7 @@ and confirmed on the holdout (3.04x and 2.80x). The same loans with no cliff are
 though the worst dealer's loans crowd the lowest group and the book as a whole reads a difference
 there: the pockets hold it fixed.
 
-![Losses vs revenue: paid, cost and kept, and the chart](docs/losses-vs-revenue.png)
+![Paid, cost, kept: paid, cost and kept for the grid picked, and its chart](docs/paid-cost-kept.png)
 
 If something needs fixing, the window and the Log tab say what and where, in
 words, e.g. *Control!C19: "Smallest excess loss worth reporting" needs an answer.* The window lists each one
@@ -321,8 +344,8 @@ test).
 ## Checking it
 
 ```
-pytest -q                          # 616 tests (2 skip without a display; the 22 in test_live.py, 6 in test_answer_tabs.py, 3 in test_confirm_test.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the tabs you fill in (Start here, Control in three blocks with Status and the materiality panel, Columns with odd values and memory, Look with live bars, range and edge lines, one load and one save per Run), the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one, and a test of a new variable building no grid and writing none of the bleed's tabs
-python tools/mutation_check.py     # puts 279 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 639 tests (2 skip without a display; the 22 in test_live.py, 21 in test_result_tabs.py, 6 in test_answer_tabs.py, 3 in test_confirm_test.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the tabs you fill in (Start here, Control in three blocks with Status and the materiality panel, Columns with odd values and memory, Look with live bars, range and edge lines, one load and one save per Run), the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one, and a test of a new variable building no grid and writing none of the bleed's tabs
+python tools/mutation_check.py     # puts 310 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

@@ -594,8 +594,8 @@ def _scatters(wb, ws, r: int, table, shapes: dict[str, Shape], split: str | None
         return r + 2
     if split not in shapes:
         _bar_row(ws, r, f"{split} splits the pockets")
-        _note(ws, r + 1, f"{split} isn't a number column, so it has no scatter. The Three-way tab shows it value "
-                         f"by value.")
+        _note(ws, r + 1, f"{split} isn't a number column, so it has no scatter. Pockets shows it value by value "
+                         f"(Pockets: Split by {split}).")
         return r + 2
     if r > FIRST:
         _page(ws, r)

@@ -24,9 +24,10 @@ import pytest
 from openpyxl import Workbook, load_workbook
 
 from conftest import cube, row, table
-from origination_cube import book, config as cfgmod, control, engine, live, look, stats, synth
+from origination_cube import book, config as cfgmod, control, engine, live, look, results, stats, synth
 from origination_cube.ingest import read_table
 from recalc import SOFFICE, recalc, recalc_file, values_of
+import tabs
 from test_book import _answer
 from test_book_dates import _choose
 
@@ -64,8 +65,8 @@ def test_the_recalculation_really_recalculates(tmp_path):
 
 @pytest.fixture(scope="module")
 def ran(tmp_path_factory):
-    """A whole Run on the synthetic book, split by revolving debt so the Split and Three-way tabs are there
-    too, and its calculated values."""
+    """A whole Run on the synthetic book, split by revolving debt so the Split tab and Pockets' split view are
+    there too, and its calculated values."""
     import os
     from origination_cube import perm
     d = tmp_path_factory.mktemp("live")
@@ -114,7 +115,8 @@ def _oracle(res):
                     out[(kind, gname, bl, dl, m.name)] = {
                         "said": (engine.said(s, line) if m.in_points else s.flag) or "", "flag": s.flag or "",
                         "dollars": s.dollars, "material": {True: "yes", False: "below the line", None: ""}[s.material],
-                        "s": s, "m": m}
+                        "worse": live.worse_of(s.flag),
+                        "mat": {True: live.YES, False: live.NO, None: ""}[s.material], "s": s, "m": m}
     return out
 
 
@@ -130,80 +132,101 @@ def _pockets(values):
             continue
         key = tuple(r[c - 1].value for c in (live.P_KIND, live.P_GRID, live.P_BAND, live.P_SEG, live.P_MEASURE))
         out[key] = {"said": _blank(r[live.P_SAID - 1].value), "flag": _blank(r[live.P_FLAG - 1].value),
-                    "dollars": r[live.P_DOLLARS - 1].value, "material": _blank(r[live.P_MATERIAL - 1].value)}
+                    "dollars": r[live.P_DOLLARS - 1].value, "material": _blank(r[live.P_MATERIAL - 1].value),
+                    "worse": _blank(r[live.P_WORSE - 1].value), "mat": _blank(r[live.P_MAT - 1].value)}
     return out
 
 
+def _rows_of(values) -> dict:
+    """Each pocket's row on _pockets, by its key."""
+    ws = values[live.POCKETS]
+    return {tuple(r[c - 1].value for c in (live.P_KIND, live.P_GRID, live.P_BAND, live.P_SEG, live.P_MEASURE)):
+            r[0].row for r in ws.iter_rows(min_row=live.P_FIRST) if r[live.P_KIND - 1].value is not None}
+
+
+def _view(ws, res) -> tuple[str, str]:
+    """What Pockets' dropdowns pick now: (kind, measure key)."""
+    kind = "grids" if tabs.dropdown(ws, "Pockets").value == results.TWO_WAY else "three-way"
+    label = tabs.dropdown(ws, "Measure").value
+    return kind, next(m.name for m in res.measures if m.is_rate and results.plain(m) == label)
+
+
 def _agree(values, res) -> list[str]:
-    """Every difference between the calculated workbook and the engine, pocket by pocket: on _pockets, on
-    Where it bleeds, Three-way, Losses vs revenue, Check's counts and what each materiality level keeps on Control."""
+    """Every difference between the calculated workbook and the engine, pocket by pocket: on _pockets (with its
+    Worse? and Material?), on _list (every pocket Pockets can show, for every measure and both kinds, with its
+    live verdicts), on Pockets as its dropdowns stand (the rows, their numbers and the caption), on Paid, cost,
+    kept's grid as it stands (each side's flag and Together), Check's counts and what each materiality level
+    keeps on Control."""
     want, got = _oracle(res), _pockets(values)
     bad = []
     assert set(want) == set(got), (len(want), len(got))
     for k, w in want.items():
         g = got[k]
-        for f in ("said", "flag", "material"):
+        for f in ("said", "flag", "material", "worse", "mat"):
             if g[f] != w[f]:
                 bad.append(f"_pockets {k} {f}: {g[f]!r}, the engine {w[f]!r}")
         if (w["dollars"] is None) != (g["dollars"] in (None, "")) or (
                 w["dollars"] is not None and g["dollars"] != pytest.approx(w["dollars"], rel=1e-9, abs=1e-6)):
             bad.append(f"_pockets {k} dollars: {g['dollars']!r}, the engine {w['dollars']!r}")
-    names = _names(res)
-    titles = {m.title: m.name for m in res.measures}
-    peers = res.config.benchmark.compare_to == "peers"
-    for tab, kind in (("Where it bleeds", "grids"), ("Three-way", "three-way")):
-        ws = values[tab]
-        seen = 0
-        for r in ws.iter_rows(min_row=5):
-            title = r[1].value
-            if title not in titles:
-                continue
-            key = (kind, f"{r[2].value} x {r[4].value}", r[3].value, r[5].value, titles[title])
-            w = want[key]
-            seen += 1
-            if _blank(r[17].value) != w["said"]:
-                bad.append(f"{tab} row {r[0].row} flag: {r[17].value!r}, the engine {w['said']!r}")
-            if _blank(r[12].value) != w["material"]:
-                bad.append(f"{tab} row {r[0].row} material: {r[12].value!r}, the engine {w['material']!r}")
-            s = w["s"]
-            first = s.excess_band if peers else s.excess
-            if (first is None) != (r[9].value in (None, "")) or (
-                    first is not None and r[9].value != pytest.approx(first, rel=1e-9, abs=1e-6)):
-                bad.append(f"{tab} row {r[0].row} first dollars: {r[9].value!r}, the engine {first!r}")
-        # every pocket losing more than its share against the comparison that decides now is on the list
-        losing = {k for k, w in want.items() if k[0] == kind and w["dollars"] is not None and w["dollars"] > 0}
-        listed = {(kind, f"{r[2].value} x {r[4].value}", r[3].value, r[5].value, titles[r[1].value])
-                  for r in ws.iter_rows(min_row=5) if r[1].value in titles}
-        if losing - listed:
-            bad.append(f"{tab}: {len(losing - listed)} pockets losing more than their share aren't listed: {sorted(losing - listed)[:3]}")
-        if not seen:
-            bad.append(f"{tab}: no rows read")
-    # Losses vs revenue: each side's reading, and the two read together
-    ws = values["Losses vs revenue"]
-    grid = None
-    n = 0
-    for r in range(4, ws.max_row + 1):
-        b_ = ws.cell(row=r, column=2).value
-        if isinstance(b_, str) and " x " in b_ and ws.cell(row=r, column=4).value is None:
-            grid = b_
+    by_row = {r: k for k, r in _rows_of(values).items()}
+    # _list: every pocket losing more than its share against the comparison that decides now is listed, for every
+    # measure and both kinds, and its live verdicts are the engine's
+    listed = set()
+    for r in values[results.LIST].iter_rows(min_row=2, values_only=True):
+        if r[results.L_ROW - 1] is None:
             continue
-        if not isinstance(ws.cell(row=r, column=4).value, int):
-            continue
-        n += 1
-        k = lambda m: ("grids", grid, b_, ws.cell(row=r, column=3).value, m)          # noqa: E731
-        gw, rw, cw = want[k("gco_rate")], want[k("ranr_rate")], want[k("contribution_rate")]
-        for col_, w in ((book.LVR_G + 3, GCO_WORDS.get(gw["flag"], "")), (book.LVR_R + 3, rw["said"]),
-                        (book.LVR_C + 3, cw["said"])):
-            if _blank(ws.cell(row=r, column=col_).value) != w:
-                bad.append(f"Losses vs revenue {grid} row {r} col {col_}: {ws.cell(row=r, column=col_).value!r}, "
-                           f"the engine {w!r}")
-        untested = gw["flag"] in (engine.FEW, engine.THIN)
-        pair = {(engine.WORSE, engine.BETTER): "priced for it", (engine.WORSE, engine.WORSE): "net drain",
-                (engine.BETTER, engine.WORSE): "safe but idle"}.get((gw["flag"], rw["flag"]), "")
-        if _blank(ws.cell(row=r, column=book.LVR_T).value) != ("" if untested else pair):
-            bad.append(f"Losses vs revenue {grid} row {r} Together: {ws.cell(row=r, column=book.LVR_T).value!r}")
-    if not n:
-        bad.append("Losses vs revenue: no rows read")
+        k = by_row[r[results.L_ROW - 1]]
+        listed.add(k)
+        w = want[k]
+        if (_blank(r[results.L_WORSE - 1]), _blank(r[results.L_MAT - 1])) != (w["worse"], w["mat"]):
+            bad.append(f"_list {k}: {r[results.L_WORSE - 1]!r}, {r[results.L_MAT - 1]!r}; the engine {w['worse']!r}, "
+                       f"{w['mat']!r}")
+    losing = {k for k, w in want.items() if w["dollars"] is not None and w["dollars"] > 0}
+    if losing - listed:
+        bad.append(f"_list: {len(losing - listed)} pockets losing more than their share aren't listed: "
+                   f"{sorted(losing - listed)[:3]}")
+    # Pockets, as its dropdowns stand: each row is its pocket, with the engine's numbers and verdicts
+    ws = values[results.POCKETS]
+    rows = tabs.pockets(ws)
+    view = _view(ws, res)
+    if not rows:
+        bad.append("Pockets: no rows read")
+    for x in rows:
+        k = by_row[ws.cell(row=x["row"], column=results.K_ROW).value]
+        w = want[k]
+        if (k[0], k[4]) != view:
+            bad.append(f"Pockets row {x['row']}: {k} isn't the view picked, {view}")
+        if (x["worse"], x["material"]) != (w["worse"] or None, w["mat"] or None):
+            bad.append(f"Pockets row {x['row']} {k}: {x['worse']!r}, {x['material']!r}; the engine {w['worse']!r}, "
+                       f"{w['mat']!r}")
+        if (w["dollars"] is None) != (x["excess"] is None) or (
+                w["dollars"] is not None and x["excess"] != pytest.approx(w["dollars"], rel=1e-9, abs=1e-6)):
+            bad.append(f"Pockets row {x['row']} excess: {x['excess']!r}, the engine {w['dollars']!r}")
+    kind, mname = view
+    n_worse = sum(1 for k, w in want.items() if k[0] == kind and k[4] == mname and w["worse"] == live.YES)
+    n_both = sum(1 for k, w in want.items() if k[0] == kind and k[4] == mname and w["worse"] == live.YES
+                 and w["mat"] == live.YES)
+    caption = tabs.dropdown(ws, "Measure").offset(column=results.K_LOANS - results.K_BAND).value
+    if not caption.startswith(f"{n_both} worse and material · {n_worse} worse · "):
+        bad.append(f"Pockets caption: {caption!r}, the engine {n_both} worse and material, {n_worse} worse")
+    # Paid, cost, kept, the grid its dropdown picks: each side's flag, and the two read together
+    if results.PCK in values.sheetnames:
+        ws = values[results.PCK]
+        grid = tabs.dropdown(ws, "Grid").value
+        n = 0
+        for x in tabs.pck(ws):
+            n += 1
+            k = lambda m: ("grids", grid, x["band"], x["seg"], m)          # noqa: E731
+            gw, rw, cw = want[k("gco_rate")], want[k("ranr_rate")], want[k("contribution_rate")]
+            if (x["flags"]["g"], x["flags"]["r"], x["flags"]["c"]) != (gw["flag"] or None, rw["flag"] or None,
+                                                                      cw["flag"] or None):
+                bad.append(f"Paid, cost, kept {grid} row {x['row']}: flags {x['flags']}")
+            untested = any(w["flag"] in (engine.FEW, engine.THIN) for w in (gw, rw, cw))
+            pair = "" if untested else results.together_of(gw["flag"], rw["flag"])
+            if (x["together"] or "") != pair:
+                bad.append(f"Paid, cost, kept {grid} row {x['row']} Together: {x['together']!r}, the engine {pair!r}")
+        if not n:
+            bad.append("Paid, cost, kept: no rows read")
     # Check counts the pockets that read worse now
     check = {r[1].value: r[2].value for r in values["Check"].iter_rows(min_row=4)}
     for m in res.measures:
@@ -284,8 +307,12 @@ def test_live_readings_follow_a_change_on_control(ran, change, tmp_path):
     after = {k: (w["said"], w["material"]) for k, w in _oracle(res).items()}
     assert before != after, change
     assert _agree(values, res) == []
-    # the tab says what it's using now, and Check shows the change beside the last Run's record
-    assert values["Where it bleeds"]["B3"].value.startswith("Lines in use now, from Control: ")
+    # the tabs' tiles say what they're using now, and Check shows the change beside the last Run's record
+    for tab in (results.POCKETS, results.PCK, results.SPLIT):
+        tiles = _tiles(values[tab])
+        assert tiles["Worse at"] == pytest.approx(bench.worse_at) and tiles["How sure"] == pytest.approx(
+            bench.confidence), tab
+        assert tiles["Judged against"] == ("Rest of its band" if bench.compare_to == "peers" else "Rest of the book")
     check = values["Check"]
     changed = [r[1].value for r in check.iter_rows(min_row=4) if r[3].value and r[2].value != r[3].value
                and r[1].value.startswith(("The loss line", "The profit line", "Confidence", "Materiality",
@@ -305,17 +332,30 @@ def test_at_the_runs_settings_check_shows_no_line_changed(ran):
 RERUN = {"min_events": ("20 losses", None), "min_loans": ("300 loans", None), "many_tests": ("No allowance", None),
          "power": ("90% of the time", None), "band_count": ("3 bands", None),
          "band_cut": ("The same, snapped to round numbers", None)}
-RESULT = ("Where it bleeds", "Losses vs revenue", "Grids", "Split", "Three-way", "Check")
+RESULT = (results.POCKETS, results.PCK, results.GRIDS, results.SPLIT, "Check")
+WAITS = "↻ 6 Control changes wait for a Run."
+
+
+def _tiles(ws) -> dict:
+    """The lines-in-use tiles on a result tab: {label: value}."""
+    head = next(c for row in ws.iter_rows(max_row=40) for c in row if c.value == "LINES IN USE NOW")
+    return {ws.cell(row=head.row, column=c).value: ws.cell(row=head.row + 1, column=c).value
+            for c in range(head.column + 1, ws.max_column + 1) if ws.cell(row=head.row, column=c).value}
 
 
 def test_a_setting_for_the_next_run_changes_nothing_on_the_result_tabs(ran, tmp_path):
+    """Nothing a result tab shows moves, but the line under the tiles says the changes wait for a Run (the
+    redesign's Global rule 1.3)."""
     b = _set(ran["book"], tmp_path / "rerun.xlsx", RERUN)
     values = recalc(b, tmp_path / "rc")
     for tab in RESULT:
         a, z = ran["values"][tab], values[tab]
         diff = [(c.coordinate, c.value, z[c.coordinate].value) for r in a.iter_rows() for c in r
                 if c.value != z[c.coordinate].value]
-        assert diff == [], (tab, diff[:5])
+        if tab in (results.POCKETS, results.PCK, results.SPLIT):          # the tabs with the lines in use
+            assert [(x or None, y) for _, x, y in diff] == [(None, WAITS)], (tab, diff[:5])
+        else:
+            assert diff == [], (tab, diff[:5])
     # each setting sits in the block that says when a change to it shows: Changes now or Needs a Run
     ws = load_workbook(b)[control.SHEET]
     now, run = control.row_of(ws, control.BLOCK_NOW), control.row_of(ws, control.BLOCK_RUN)
@@ -335,12 +375,21 @@ def test_the_live_settings_are_the_ones_settings_yaml_marks_live():
 
 
 def test_the_tabs_say_what_stays_as_of_the_run(ran):
+    """Once each, beside the tiles and in the method note: the order is the last Run's, the verdicts are live.
+    The chart on Paid, cost, kept is drawn from the table's own cells, so it follows the dropdown and Control."""
     v = ran["values"]
-    for tab in ("Where it bleeds", "Three-way", "Losses vs revenue"):
-        assert "as of the last Run" in v[tab]["B3"].value, tab
-        assert "not the order" in v[tab]["B3"].value, tab
-    assert "(as of the last Run)" in load_workbook(ran["book"])["Losses vs revenue"]._charts[0].title.tx.rich.p[
-        0].r[0].t
+    said = {tab: " ".join(str(c.value) for row in v[tab].iter_rows(max_row=40) for c in row if c.value)
+            for tab in (results.POCKETS, results.PCK)}
+    assert 'Order and "Could have caught" are from the last Run, 20' in said[results.POCKETS]
+    assert "not the order" in said[results.POCKETS]
+    assert "The order is from the last Run, 20" in said[results.PCK]
+    wb = load_workbook(ran["book"])
+    chart = wb[results.PCK]._charts[0]
+    assert "the grid picked above" in chart.title.tx.rich.p[0].r[0].t
+    points = chart.series[0]
+    assert points.xVal.numRef.f.startswith(f"'{results.CHART}'!") and points.yVal.numRef.f.startswith(
+        f"'{results.CHART}'!")
+    assert f"'{results.PCK}'!" in wb[results.CHART]["A1"].value            # the table's cells, so live
     log = load_workbook(ran["book"])["Log"]
     assert "a line changed on Control afterwards shows on the result tabs, not here" in log["A2"].value
 

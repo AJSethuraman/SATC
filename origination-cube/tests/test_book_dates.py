@@ -11,7 +11,8 @@ import pytest
 import yaml
 from openpyxl import load_workbook
 
-from origination_cube import book, control, meanings, synth
+import tabs
+from origination_cube import book, control, meanings, synth, results
 from test_book import _answer
 
 
@@ -187,7 +188,7 @@ def test_a_new_column_is_made_on_control_listed_on_columns_looked_at_and_run(tmp
     got = yaml.safe_load(b.with_name(f"{b.stem} - what ran.yaml").read_text(encoding="utf-8"))
     assert got["derived"] == [{"name": "INCOME_TO_SALES", "top": "INCOME", "bottom": "SALES"}]
     wb = load_workbook(b)
-    assert any("INCOME_TO_SALES" in str(c.value) for r in wb["Grids"].iter_rows() for c in r)
+    assert any("INCOME_TO_SALES" in g for g in tabs.options(wb, results.GRIDS, "Grid"))
     # the Run writes Look again, and the new column's block is still there
     assert any(wb["Look"].cell(row=r, column=2).value == "INCOME_TO_SALES" for r in range(1, wb["Look"].max_row + 1))
 

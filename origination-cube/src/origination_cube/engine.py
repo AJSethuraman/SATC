@@ -10,7 +10,11 @@ lose more than their share. So every rate cell carries three comparisons.
                in points instead, never a multiple (NEXT-GOAL 3.2).
   excess       the cell's losses minus what it would have lost at the topline
                rate. In dollars, and it adds to zero across a grid, so it
-               reconciles as the rates do.
+               reconciles as the rates do. Since Option A it is the tie-out
+               only (OC-4, superseded for the reading).
+  excess_rest  the same against the rest of the book's rate (the book without
+               the pocket, as vs_rest): what "judged against the book" counts
+               as the pocket's dollars (Option A, the firm, 26 Sep 2026).
   excess_band  the same against the rest of its band's rate (the band without
                the pocket, as vs_band), so a pocket in a high-loss band that
                is in line with its neighbours has little. Control's "judged
@@ -412,10 +416,13 @@ class RateStat:
     flag: str | None = None             # the reading that decides, per `compare_to`
     alone: bool = False                 # under peers, the only pocket in its band: flagged against the book
     # the dollars over the rest of its band's rate (a shortfall under it, for profit); None for a pocket
-    # alone in its band, or a margin. `excess` is the same over the book's rate
+    # alone in its band, or a margin. `excess_rest` is the same over the rest of the book's rate
     excess_band: float | None = None
+    # the dollars over the rest of the book's rate (the book without this pocket): what "judged against the
+    # book" counts (Option A, NEXT-GOAL item 5). None for the whole book, which has no rest
+    excess_rest: float | None = None
     # one comparison decides the flag, the dollars and materiality (the firm, 26 Sep 2026): True when it is
-    # the rest of its band, and then `dollars` is excess_band; otherwise the book, and `dollars` is excess
+    # the rest of its band, and then `dollars` is excess_band; otherwise the book, and `dollars` is excess_rest
     by_band: bool = False
     dollars: float | None = None
     material: bool | None = None        # dollars at or over the materiality line (None: not applied)
@@ -1119,6 +1126,13 @@ def _build_grid(config, band: Band, dim, edges, bl, dl, measures, per_row, topli
                 continue
             rest_book = _minus(book, s.sums())
             s.vs_rest = gap_of(s.rate, _rate(rest_book), pts)
+            # Option A (the firm, 26 Sep 2026: "i think this makes most seense"): judged against the book, the
+            # dollars are over the rest of the book, the same rest the gap and its test are taken against, as the
+            # band's are over the rest of its band. `excess` (over the whole book) stays for the tie-out only
+            rr = _rate(rest_book)
+            if rr is not None:
+                s.excess_rest = (s.num - rr * s.den) if hi == "worse" else (rr * s.den - s.num)
+                s.dollars = s.excess_rest
             if b != ALL and d != ALL:
                 s.vs_median = gap_of(s.rate, med, pts)
                 s.vs_band = gap_of(s.rate, _rate(rest_band), pts)

@@ -1,6 +1,8 @@
-"""The Prevalence tab (fix 3.12): loans and booked dollars per group, pocket by
-pocket, with no test attached. A test of a new variable run without a booked
-amount (Goal 2 item 2) counts loans alone, and the tab has no dollar column.
+"""How common each group is (fix 3.12): loans and booked dollars per group,
+pocket by pocket, with no test attached. Shown under the Grids tab's blocks
+since the redesign's phase 3 (it was the Prevalence tab; results._groups writes
+it). A test of a new variable run without a booked amount (Goal 2 item 2)
+counts loans alone, with no dollar column.
 
 docs/statistics.md B8: "Loans and dollars per group per pocket, with no p-value
 attached. A count of the book, so it needs no holdout and no confidence level.
@@ -27,14 +29,9 @@ import math
 import statistics
 from dataclasses import dataclass
 
-from openpyxl.styles import Alignment, Font, PatternFill
-
 from . import engine
 
-SHEET = "Prevalence"
-INK, SLATE, PAPER, CANVAS = "16130F", "57534B", "FFFFFF", "F4F1EC"       # the workbook's colours (book.py)
-FIRST_COL = 2
-GROUP_COL = 6            # the first group's column: band, segment, the pocket's loans and dollars before it
+GROUP_COL = 6            # on Grids, the first group's column: band, segment, the pocket's loans and dollars first
 
 
 @dataclass
@@ -183,134 +180,3 @@ def count(res, grid, grouping: Grouping, rows=None, bands=None) -> tuple[list, d
                 if sc is None or sc.rows != x[0]:
                     return None
     return order, out, shown
-
-
-def write(wb, res) -> None:
-    """The tab, after Split: one block per grouping and grid. Written only when
-    the run has a split column or a new column."""
-    gs, notes = groupings(res)
-    if not gs and not notes:
-        return
-    names = {b.name: b.field for b in res.config.bands}
-    names.update({d.name: d.field for d in res.config.dimensions})
-    rows = rows_run(res)
-    bands = _labels_by_band(res, rows)
-    # every count first, so the tab is only as wide as its widest block
-    blocks = [(g, [(grid, count(res, grid, g, rows, bands)) for grid in res.grids
-                   if g.skip_band is None or grid.band != g.skip_band]) for g in gs]
-    widest = max((len(got[0]) for _, done in blocks for _, got in done if got is not None), default=1)
-    dollars = bool(res.config.booked)
-    step, first = (2, GROUP_COL) if dollars else (1, GROUP_COL - 1)
-    last = max(first + step * widest - 1, 9)
-    ws = wb.create_sheet(SHEET)
-    ws.merge_cells(start_row=1, start_column=2, end_row=1, end_column=last)
-    ws.cell(row=1, column=2, value="Prevalence: a count, not a test").font = Font(name="Arial", bold=True, size=16,
-                                                                                   color=PAPER)
-    for c in range(2, last + 1):
-        ws.cell(row=1, column=c).fill = PatternFill("solid", fgColor=INK)
-    ws.row_dimensions[1].height = 28
-    ws.merge_cells(start_row=2, start_column=2, end_row=2, end_column=last)
-    sub = ws.cell(row=2, column=2, value=f"How many loans{' and booked dollars' if dollars else ''} sit in each "
-                                         "group, pocket by pocket. Nothing here is tested, so nothing reads better or worse: it shows how "
-                                         "common a group is, not whether it goes bad.")
-    sub.font = Font(name="Calibri", size=10, color=SLATE)
-    sub.alignment = Alignment(wrap_text=True, vertical="top")
-    ws.row_dimensions[2].height = 32
-    ws.sheet_view.showGridLines = False
-    r = 4
-    for n in notes:
-        ws.cell(row=r, column=2, value=n).font = Font(name="Calibri", italic=True, color=SLATE)
-        r += 1
-    if notes:
-        r += 1
-    for g, done in blocks:
-        ws.cell(row=r, column=2, value=g.title).font = Font(name="Calibri", bold=True, size=13)
-        r += 2
-        for grid, got in done:          # a grid cut by the new column itself is left out: its bands are the grid's
-            head = f"{names.get(grid.band, grid.band)} x {names.get(grid.dimension, grid.dimension)}"
-            ws.cell(row=r, column=2, value=head).font = Font(name="Calibri", bold=True)
-            if got is None:
-                ws.cell(row=r + 1, column=2, value="Not shown: the count didn't add up to this grid's loans.")
-                r += 3
-                continue
-            order, per, shown = got
-            r = _block(ws, r + 1, grid, names, order, per, shown, dollars)
-            r += 1
-        r += 1
-    for col, w in zip("ABCDE", (2, 17, 16, 10, 14)):
-        ws.column_dimensions[col].width = w
-    from openpyxl.utils import get_column_letter
-    for c in range(first, last + 1):
-        ws.column_dimensions[get_column_letter(c)].width = 11 if (c - first) % step == 0 else 14
-    ws.freeze_panes = "D4"
-    ws.page_setup.orientation = "landscape"
-    ws.page_setup.fitToWidth = 1
-    ws.page_setup.fitToHeight = 0
-    ws.sheet_properties.pageSetUpPr.fitToPage = True
-
-
-def _block(ws, r: int, grid, names: dict, order: list, per: dict, shown: list[str], dollars: bool = True) -> int:
-    """One grid: a header, a row per pocket, the whole grid, and each group's
-    share of it. Returns the row after it. Without `dollars`, loans alone."""
-    band, seg = names.get(grid.band, grid.band), names.get(grid.dimension, grid.dimension)
-    heads = [band, seg, "Loans"] + (["Booked dollars"] if dollars else [])
-    for i, h in enumerate(heads):
-        _heading(ws, r, FIRST_COL + i, h)
-        _heading(ws, r + 1, FIRST_COL + i, None)
-    first = FIRST_COL + len(heads)
-    for j, s in enumerate(shown):
-        if not dollars:
-            _heading(ws, r, first + j, s)
-            _heading(ws, r + 1, first + j, "Loans")
-            continue
-        c = first + 2 * j
-        ws.merge_cells(start_row=r, start_column=c, end_row=r, end_column=c + 1)
-        _heading(ws, r, c, s)
-        _heading(ws, r, c + 1, None)
-        _heading(ws, r + 1, c, "Loans")
-        _heading(ws, r + 1, c + 1, "Booked dollars")
-    r += 2
-    keep = (lambda pair: list(pair)) if dollars else (lambda pair: [pair[0]])        # noqa: E731
-    totals = {g: [0, 0.0] for g in order}
-    for bl in grid.band_labels:
-        for dl in grid.dim_labels:
-            got = per.get((bl, dl))
-            if got is None:
-                continue
-            loans = sum(x[0] for x in got.values())
-            booked = math.fsum(x[1] for x in got.values())
-            vals = [bl, dl] + keep((loans, booked))
-            for g in order:
-                x = got.get(g, [0, 0.0])
-                vals += keep(x)
-                totals[g][0] += x[0]
-                totals[g][1] += x[1]
-            _row(ws, r, vals)
-            r += 1
-    loans = sum(x[0] for x in totals.values())
-    total_d = math.fsum(x[1] for x in totals.values())
-    _row(ws, r, ["Every pocket", ""] + keep((loans, total_d)) + [v for g in order for v in keep(totals[g])],
-         bold=True)
-    r += 1
-    share = ["Share of the grid", ""] + keep((None, None))
-    for g in order:
-        share += keep((totals[g][0] / loans if loans else None, totals[g][1] / total_d if total_d else None))
-    _row(ws, r, share, bold=True, pct=True)
-    return r + 1
-
-
-def _heading(ws, r: int, c: int, text) -> None:
-    cell = ws.cell(row=r, column=c, value=text)
-    cell.font = Font(name="Calibri", bold=True, color=PAPER)
-    cell.fill = PatternFill("solid", fgColor=INK)
-    cell.alignment = Alignment(wrap_text=True, vertical="top", horizontal="center" if c >= FIRST_COL + 2 else None)
-
-
-def _row(ws, r: int, vals: list, bold: bool = False, pct: bool = False) -> None:
-    for i, v in enumerate(vals):
-        c = ws.cell(row=r, column=FIRST_COL + i, value=v)
-        if i >= 2:
-            c.number_format = "0.0%" if pct else "#,##0"
-        if bold:
-            c.font = Font(name="Calibri", bold=True)
-            c.fill = PatternFill("solid", fgColor=CANVAS)

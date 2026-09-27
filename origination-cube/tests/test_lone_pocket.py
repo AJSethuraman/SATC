@@ -1,6 +1,7 @@
 """A pocket alone in its band, judged against the rest of its band (the firm,
 26 Sep 2026). There is nothing in its band to compare it with, so it is
-compared with the rest of the book instead, and its row says so. Before this,
+compared with the rest of the book instead, and the tab's method note says so once
+(tenet T1; its row said so until the redesign's phase 3). Before this,
 its flag was blank, no reason was given, and "Worst for" skipped it even at 10
 times the book's rate (the adversarial pass, reported in its hand-back)."""
 
@@ -8,9 +9,12 @@ from __future__ import annotations
 
 from openpyxl import Workbook
 
+import pytest
+
 from recalc import calculated
 from conftest import cube, row, table
-from origination_cube import book, checks, engine
+from origination_cube import book, checks, engine, results
+import tabs
 
 ALONE = "alone in its band: compared with the book"
 BANDS = [{"name": "score", "field": "SCORE", "edges": [650, 750]}]
@@ -83,18 +87,34 @@ def test_the_families_count_a_lone_pocket_once_against_the_book():
     assert fam[("outcome_loans", "the rest of its band")] == 4
 
 
-def test_a_pocket_alone_in_its_band_says_why_on_its_row():
+def _written(res):
+    """The result tabs for this run in a workbook of their own, calculated (their verdicts are formulas, OC-40)."""
+    wb = Workbook()
+    results.write(wb, res, "now")
+    return calculated(wb[results.POCKETS]).parent
+
+
+def test_a_pocket_alone_in_its_band_is_explained_once_not_on_its_row():
+    """Tenet T1 (the firm, 26 Sep 2026): the lone-pocket note was on every such row; it is said once, in the
+    method note, and the row carries its result: judged against the rest of the book, worse."""
     res = _run("peers")
     _, lone = _cells(res)
-    ws = Workbook().active
-    book._bleeds(ws, res)
-    ws = calculated(ws)                       # the Test column is a formula (OC-40)
-    heads = [c.value for c in ws[4]]
-    rows = [[c.value for c in r] for r in ws.iter_rows(min_row=5) if r[1].value]
-    band, test = heads.index("Band"), heads.index("Test")
-    said = [r for r in rows if r[band] == lone]
-    assert said and all(ALONE in (r[test] or "") for r in said), said
-    assert not any(ALONE in (r[test] or "") for r in rows if r[band] != lone)
+    v = _written(res)
+    ws = v[results.POCKETS]
+    note = {ws.cell(row=r, column=results.K_BAND).value: ws.cell(row=r, column=results.K_BAND + 1).value
+            for r in range(3, 14)}
+    assert "A pocket alone in its band has nothing beside it to compare with, so it is judged against the rest " \
+           "of the book" in note["Rest of band"]
+    rows = tabs.pockets(ws)
+    said = [x for x in rows if x["band"] == f"SCORE {lone}"]
+    assert said and all(x["worse"] == "Yes" for x in said), said
+    # its rest is the rest of the book, the comparison that judged it
+    s = res.grids[0].cell(lone, "A").rates["outcome_loans"]
+    rest = (res.total.rates["outcome_loans"].num - s.num) / (res.total.rates["outcome_loans"].den - s.den)
+    assert said[0]["rest"] == pytest.approx(rest)
+    # and nothing on any row says why: no Test column, no note
+    assert "Test" not in tabs.heads(ws, tabs.header_row(ws, results.K_NUM, "#"))
+    assert not any("alone" in str(v_) for x in rows for v_ in x.values())
 
 
 def test_check_counts_the_pockets_alone_in_their_band():
@@ -104,18 +124,14 @@ def test_check_counts_the_pockets_alone_in_their_band():
     assert not [v for k, v in checks.rows(_run("topline")) if k == "Alone in its band"]
 
 
-def test_losses_vs_revenue_says_why_in_its_own_column_and_together_stays_the_pair():
+def test_paid_cost_kept_says_nothing_on_the_row_and_together_stays_the_pair():
     """Found 26 Sep 2026 by the full suite: the note first went into Together, which only ever reads the
-    pair (priced for it, net drain, safe but idle)."""
+    pair. Since T1 the lone pocket's row carries its numbers only, and Together reads the pair."""
     res = _run("peers")
     _, lone = _cells(res)
-    ws = Workbook().active
-    book._losses_vs_revenue(ws, res)
-    ws = calculated(ws)                       # Compared with and Together are formulas (OC-40)
-    head = next(r for r in ws.iter_rows() if any(c.value == "Compared with" for c in r))
-    cols = {c.value: c.column for c in head if c.value}
-    rows = [r for r in ws.iter_rows(min_row=head[0].row + 1) if r[cols["Band"] - 1].value]
-    lone_rows = [r for r in rows if r[cols["Band"] - 1].value == lone]
-    assert lone_rows and all(r[cols["Compared with"] - 1].value == ALONE for r in lone_rows)
-    assert all(ALONE not in str(r[cols["Together"] - 1].value or "") for r in rows)
-    assert not any(r[cols["Compared with"] - 1].value for r in rows if r[cols["Band"] - 1].value != lone)
+    ws = _written(res)[results.PCK]
+    rows = tabs.pck(ws)
+    lone_rows = [x for x in rows if x["band"] == lone]
+    assert lone_rows
+    assert all((x["together"] or "") in ("", *results.TOGETHER.values()) for x in rows)
+    assert not any("alone" in str(v) for x in rows for v in x.values())
