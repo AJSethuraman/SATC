@@ -561,8 +561,9 @@ muts = [
  ("4e drops its GCO figures when there are some", CT,
   '        return (loans, flag, bad, capture) + ((gco, gco_capture) if t.dollars else ()) + (rate, lift)',
   '        return (loans, flag, bad, capture) + (rate, lift, None, None)', "capture_is_on_the_holdout"),
- ("a new variable's tabs talk about profit it doesn't have", L,
-  '    profit = any(m.name in PROFIT for m in res.measures)', '    profit = True', "needs_no_booked_amount"),
+ # (retired 27 Sep 2026, redesign phase 4: "a new variable's tabs talk about profit it doesn't have" planted into the
+ # lines-in-use sentence on the hidden _live, which the Confirmatory test tab showed and no tab shows now: New
+ # variables shows its own lines, and Record's Settings reads each line on its own)
  # (two entries retired here with OC-42: "Prevalence counts booked dollars with no booked amount" and "Losses vs
  # revenue written with nothing to show" planted into tabs only a bleed Run writes now, and a bleed Run always has
  # the booked amount, GCO and RANR, so no Run can reach either line with them missing)
@@ -728,14 +729,14 @@ muts = [
   '    if label.startswith(_LEFT):\n        return ADDS', "every_line_check_carried"),
  ("an older workbook's Log thrown away", RC, '        ws = wb[OLD_LOG]\n        ws.title = LOG',
   '        del wb[OLD_LOG]\n        ws = wb.create_sheet(LOG)', "older_workbooks_log"),
- ("a pair's sections end on different rows", RC, '        elif right != SETTINGS:\n            ws.merge_cells(',
-  '        elif False:\n            ws.merge_cells(', "refused_run_shows_on_every_run or six_sections"),
+ ("a pair's sections end on different rows", RC, '    _rule(ws, r - 1, R_LABEL, R_B)',
+  '    _rule(ws, r - 1 - max(0, len(a) - len(b)), R_LABEL, R_B)', "six_sections"),
  ("a pre-spec changed after a held-back run not labelled", CF, '        if held and held[-1][1] != self.fingerprint:',
   '        if False:', "changed_after_a_held_back_run"),
  ("a pre-spec's first reading not recorded", CF, '    if st.first_read:', '    if False:',
   "records_the_pre_spec_when_first_read"),
  ("the held-back runs out of order", CF, '    for when, lines in reversed(record.entries(wb)):',
-  '    for when, lines in record.entries(wb):', "records_the_pre_spec_when_first_read"),
+  '    for when, lines in record.entries(wb):', "records_the_pre_spec_when_first_read or changed_after_a_held_back_run"),
  ("a new variable shown the bleed's settings", CO, '            ws.row_dimensions[r[0].row].hidden = key in by_kind',
   '            ws.row_dimensions[r[0].row].hidden = False', "asked_only_what_it_uses"),
  ("a new variable's Set up suggests from bleed grids", B, '        if testing:\n            got = about.get("_prespec")',

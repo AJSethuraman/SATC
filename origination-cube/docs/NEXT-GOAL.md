@@ -357,5 +357,34 @@ edges), refreshed at each Run ("Last Run used").
   less, not from losses" are allowed past the old no-"earns" test, as the spec's own words; Split adds
   a Measure dropdown and keeps As odds; the other comparison's dollars leave the rows (they stay on
   `_pockets` and the command line). Not checked: real Excel.
+- [x] **Phase (d) built, 27 Sep 2026: New variables and Record (27 Sep 2026; `origination-cube/docs/design.md` OC-45 to OC-48).**
+  **New variables** (black tab, spec section 9) replaces the Confirmatory test tab, in `confirm_tab.py`: one row per
+  group of the pre-spec's column against its reference, **Found** (development, nothing held fixed), **Confirmed**
+  on the held-back loans with *Holds up?*, **Confirmed with the held-fixed columns** (the pre-spec's strata) with
+  *Still holds?*, then Excess (charge-offs above the group's share on the held-back loans, scaled to the book; bad
+  loans without GCO), *Material?* and *In words*; the tiles (Outcome, Candidates, Held fixed, Loans found and held
+  back, Material at, live) and a bar chart (Confirmed INK, held fixed KEY_RED, Found STONE when shown) with a dashed
+  red line at worse at. The firm's lean pre-spec ruling is built: each input reported with and without the columns
+  held fixed (the same conditional logistic regression with every loan in one pocket); the pre-spec needs no `hold`
+  list, as its strata are the held-fixed columns, and old pre-specs read unchanged. A saved shortlist hides the
+  Found columns and Record names the file. Every statistic the old tab had (B3, B4, the block test, B5 with its
+  live range, 4e) is kept under the chart, on both sets of loans, with and without the columns held fixed.
+  **Record** (grey tab, section 10, `record.py`) merges Check and the Log: This Run | Settings, Does it add up |
+  Tests used, Left out | Every Run, each with the ONYX band, a CANVAS row, one label width and rows one line high
+  (a long line goes on in the rows under it and reads back whole); Settings has in use now beside the last Run's,
+  shaded while they differ. The Log is kept on the hidden `_log`, so a refusal shows at once; an older workbook's
+  Log carries over. **Record, don't block:** the Log records a pre-spec when first read (fingerprint, the date in
+  the file, its commit), each held-back run after it in order, and labels a run on a pre-spec changed after a
+  held-back run. **Control** asks a new variable only worse at, materiality, confidence and the bands (the bleed's
+  floors, better at, judged against, the catch rate and the allowance are hidden); worse at is suggested from the
+  confirmation's own groups. **Memory:** the 2.5 GB pre-spec Set up was the harness's Set up without the launcher's
+  choices, which cut all 74 columns (1,248 grids) for a suggestion pass run as a bleed; a new variable's Set up now
+  builds no grid: 92.7 s and 2.41 GB to 12.8 s and 0.27 GB. The launcher's route at 17,000 × 80, before and after:
+  pre-spec Set up 11.0 s / 0.23 GB and 14.0 s / 0.29 GB to 9.8 s / 0.22 GB and 13.8 s / 0.29 GB, Run 4.0 s / 0.21 GB
+  both; bleed Set up 12.7 s to 13.2 s (0.28 GB), Run 21.3 s to 21.1 s (0.27 GB). 664 tests (23 new; the tests that
+  read Check, the Log and the Confirmatory test read Record and New variables). 18 planted bugs added and 8 repointed, 1 retired (it planted into a sentence no tab shows now): 327 in all. Every planted bug whose test was rewritten or read through a rewritten helper was put back, each alone: 110 of 110 caught, 3 after their tests were strengthened.
+  Departures: Found is always hidden today (every new-variable run confirms a saved shortlist); Record's rows wrap
+  where a formula or label needs it, and a pair shares row heights; the tab keeps a short folding note; "p-value",
+  never "luck". Not checked: real Excel.
 - [x] **Items 5 and 7 done with it:** Option A (OC-44) and Worse? / Material? as two columns. Item 4's T1
   sweep is done for the result tabs.

@@ -391,10 +391,13 @@ def test_a_pre_spec_changed_after_a_held_back_run_labels_the_run_as_a_change_and
     assert label in _log(b) and label in ran.lines
     assert label in _warnings(_check(b))
     assert _check(b)["This pre-spec's held-back runs"] == f"In order: {then} ({before}); this run ({after}, changed)."
-    # a run after that, on the same (changed) pre-spec, is not a change again
+    # a run after that, on the same (changed) pre-spec, is not a change again, and the runs read in order
+    second = record.entries(load_workbook(b))[0][0]
     assert book.run(b).ok
     assert _log(b).count(label) == 1
     assert not [w for w in _warnings(_check(b)) if w.startswith(confirmatory.CHANGED)]
+    assert _check(b)["This pre-spec's held-back runs"] == \
+        f"In order: {then} ({before}); {second} ({after}, changed); this run ({after})."
 
 
 @needs_git

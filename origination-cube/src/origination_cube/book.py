@@ -2091,17 +2091,6 @@ def _plain_warning(w: str) -> str:
             .replace("`", '"'))
 
 
-def _in_use(ws, note: str, last_col: str, height: float = 44) -> None:
-    """Row 3 of a result tab: the lines its readings are using now, as a formula pointing at Control, and what
-    on the tab stays as of the last Run (OC-40)."""
-    ws.merge_cells(f"B3:{last_col}3")
-    c = ws["B3"]
-    c.value = live.text((live.IN_USE,), " " + note if note else "")
-    c.alignment = Alignment(wrap_text=True, vertical="top")
-    c.font = Font(name="Calibri", size=10, bold=True, color=INK)
-    ws.row_dimensions[3].height = height
-
-
 P_FMT = '[<0.0001]"under 0.01%";[<0.01]0.00%;0.0%'
 #: a difference in percentage points of booked dollars, signed: "+0.35 pts", "-1.20 pts" (NEXT-GOAL 3.2)
 PTS_FMT = '+0.00" pts";-0.00" pts";0.00" pts"'

@@ -394,6 +394,14 @@ def test_holds_up_and_still_holds_are_worked_out_live_at_the_confidence_on_contr
     strict = _verdicts_by_hand(t, 0.01)
     assert strict != want
     assert {k: (x[confirm_tab.N_HOLDS], x[confirm_tab.N_STILL]) for k, x in _table(calc).items()} == strict
+    # and at 90% a Holds up? between 5% and 10% turns the other way: each column follows the level, not only one
+    ws.cell(row=control.row_of(ws, "confidence"), column=control.CHOOSE_COL).value = "90% sure"
+    copy = tmp_path / "at-90.xlsx"
+    wb.save(copy)
+    calc = recalc(copy, tmp_path / "calc90")[confirm_tab.SHEET]
+    loose = _verdicts_by_hand(t, 0.10)
+    assert [k for k in want if loose[k][0] != want[k][0]], "no Holds up? between 5% and 10% to show the change"
+    assert {k: (x[confirm_tab.N_HOLDS], x[confirm_tab.N_STILL]) for k, x in _table(calc).items()} == loose
 
 
 def test_excess_is_each_groups_charge_offs_above_its_share_scaled_to_the_book_and_material_follows_control(

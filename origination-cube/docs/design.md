@@ -725,7 +725,10 @@ enough.
   - **Set up builds no bleed grid for a new variable.** Found 27 Sep 2026: the suggestion pass forced
     the run to Where the book bleeds and cut every column it was given; the timing harness's Set up,
     written without the launcher's choices, cut all 74 number and category columns (1,248 grids) and
-    peaked at 2.5 GB. A new variable's Set up now runs the confirmation instead.
+    peaked at 2.5 GB. A new variable's Set up now runs the confirmation instead: that Set up went from
+    92.7 s and 2.41 GB to 12.8 s and 0.27 GB, under a 4 GB limit. A bleed Set up with nothing chosen still
+    cuts every column (87.5 s, 2.43 GB); the launcher always chooses, so only a script meets it. Through
+    the launcher a pre-spec Set up was 0.29 GB before and after.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so
