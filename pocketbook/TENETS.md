@@ -28,3 +28,19 @@ The firm, 26 Sep 2026:
   note itself.
 - **How to check a change against it.** If a column's value can be predicted from the
   settings and the pocket's size alone, it is method, not a result, and belongs in the note.
+
+## T2 · A check figure is shown only where it can fail
+
+The firm, 27 Sep 2026, on the tie-out tile that always read "702 / 702":
+
+> *"I specifically have asked and keep asking for this kind for wording to be considered slop. It is the
+> slowest way to communicate a check figure. If it didn't tie out what would happen now"*
+
+Agreed the same day: *"okay add that tenet"*.
+
+- **What it means.** A number, tile or sentence that can only ever say "fine" tells the reader nothing, and
+  costs them time to read. Remove it. Don't explain it, don't reword it into a longer reassurance.
+- **Where a check lives instead.** If a failed check stops the Run, the stop is the signal: the refusal names
+  what failed. The passing record belongs once, on Record, for an auditor, not on the screens people read.
+- **How to check a change against it.** Ask what the figure would show if the thing went wrong. If the answer
+  is "it never shows, because the Run stops first", the figure comes off the page.
