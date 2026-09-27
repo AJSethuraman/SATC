@@ -504,3 +504,27 @@ So a position may rest on the firm rather than on a paragraph. It still needs a 
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Interest follows what the borrowed money was spent on. A card used for both business purchases and personal ones carries interest that is allocated by that tracing, not by the account's name. Named by the Sarcia pilot 3 refusal on interest charged on a mixed-use card. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds. ITS WORKED EXAMPLES ARE NOT STORED, deliberately: `tools/extract_ecfr.py` could not place them under the paragraphs that announce them (§ 1.163-8T filed all eleven of paragraph (c)'s under (c)(2)(iii)), and an example cited to the wrong rule is worse than none. The rules are complete.
 
 ---
+
+## S40 · Treasury Regulation § 1.162-21 — Denial of deduction for certain fines, penalties, and other amounts
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-27
+
+**Citation prefix:** 26 CFR 1.162-21
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.162-21
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. No deduction for an amount paid to, or at the direction of, a government in relation to the violation of any law, which includes a fine or penalty; the exceptions for restitution, remediation and coming into compliance; and (a)(3)(ii), that a routine inspection is not an investigation. Desk trial 1 could not answer whether a town charge that is a fine is deductible, because § 162(f) and this section were not on file. The firm: "add whatever". Admitted 27 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds. ITS THIRTEEN WORKED EXAMPLES ARE STORED, marked `Kind: example`, because unlike S37-S39 the extractor places every one: the section writes each as its own numbered paragraph, (f)(1) to (f)(13), so the path is the regulation's and not a guess. Examples 10 to 12 set a county's inspection fees beside its fine, which is the trial's question. Each example's Facts and Analysis are stored inside it, joined on the marked omission, and (f)'s one-line lead-in is not stored, as with § 1.274-11(d) and § 1.274-12, which write theirs the same way. The statute, § 162(f), is not on file.
+
+---
+
+## S41 · Internal Revenue Code § 274 — Disallowance of certain entertainment, etc., expenses
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-27
+
+**Citation prefix:** 26 USC 274
+
+**Url:** https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section274&num=0&edition=prelim
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. § 274(a) disallows a deduction for an activity of a type generally considered entertainment, amusement or recreation, and (e) lists the nine expenses (a) does not apply to. In Sarcia pilot 5 (27 September 2026) the desk answered a streaming-subscription question from § 1.274-11(a) and could only say its answer was "subject to" § 274(e): § 1.274-11(c) names the nine exceptions by number alone, and the statute was not on file. The answer needed at least (e)(2), (e)(4), (e)(7) and (e)(8). The firm: "add whatever". The page, read on 27 September 2026, says "Text contains those laws in effect on September 25, 2026". SUBSECTIONS (a) AND (e) ONLY, every word sliced from that page by `tools/extract_uscode.py`, which reuses the reader S18-S21 were cut with, and none retyped. (e)'s closing flush sentence is (e)'s own and is stored on it after a marked omission, not on (e)(9). The rest of the section, among it (b) on gifts, (d) on substantiation and (n) on meals, is not stored. It binds.
+
+---

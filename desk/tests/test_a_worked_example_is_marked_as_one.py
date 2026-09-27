@@ -165,9 +165,13 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
     # examples were stored twice, on `meals-and-entertainment` and on
     # `vehicle-expense`, and one corpus holds each once. Nothing was lost: the
     # merge report reconciles all 260 and the missing set is empty.
+    #
+    # 273 SINCE 27 SEPTEMBER 2026: § 1.162-21's thirteen, admitted after desk
+    # trial 1, stored because the extractor places them -- each is its own numbered
+    # paragraph, (f)(1) to (f)(13) -- where S37-S39's could not be placed.
     examples = [p for _, p in _kinds() if p.kind == record.EXAMPLE]
-    assert len(examples) == 260, len(examples)
-    assert len({p.citation for p in examples}) == 260, "a citation stored twice"
+    assert len(examples) == 273, len(examples)
+    assert len({p.citation for p in examples}) == 273, "a citation stored twice"
 
 
 def test_a_lead_in_is_a_rule_and_not_an_example():
@@ -353,7 +357,9 @@ def test_that_index_still_carries_the_rules():
     # sizes, which was not true when a desk was the unit.
     # 907 SINCE 26 SEPTEMBER 2026: 525 plus the 382 rule paragraphs of the five
     # sections admitted after Sarcia pilot 3.
-    assert set(index) == rules and len(index) == 907, len(index)
+    # 978 SINCE 27 SEPTEMBER 2026: plus 56 rule paragraphs of § 1.162-21 and
+    # 15 of § 274(a) and (e), admitted after Sarcia pilot 5 and desk trial 1.
+    assert set(index) == rules and len(index) == 978, len(index)
 
 
 # ── an example must hang off the paragraph that announces it ─────────────────

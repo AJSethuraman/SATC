@@ -104,7 +104,12 @@ def test_an_unmarked_passage_is_unaffected():
 #: AND THIRTEEN: four flush paragraphs the old reader dropped from sections
 #: already on file, now on their parents -- § 1.274-5T(b)(6), (c)(3)(i),
 #: § 1.280F-6(d)(2)(ii)(A) and § 1.62-2(b).
-MARKED = 13
+#: TWENTY-SEVEN SINCE 27 SEPTEMBER 2026, after Sarcia pilot 5 and desk trial 1:
+#: § 1.162-21's thirteen worked examples, each its Facts and its Analysis with
+#: the paragraph labels between them marked -- the way § 1.274-12's four are --
+#: and § 274(e), whose closing flush sentence is its own and follows its nine
+#: paragraphs, so the gap is marked rather than the two read as adjacent.
+MARKED = 27
 
 
 def test_the_passages_in_the_record_actually_carry_the_mark():

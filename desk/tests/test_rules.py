@@ -228,7 +228,7 @@ def test_the_marking_is_truthful_against_the_section_itself():
     # THIS SECTION ONLY, AND IT IS NARROWED BY CITATION RATHER THAN BY SOURCE
     # ID. It read `source_id == "S1"` — right while S1 was this section on a
     # desk holding almost nothing else, wrong twice over now: `dec-kill`
-    # renumbered every id, and one corpus holds 1167 passages from thirty-eight
+    # renumbered every id, and one corpus holds 1251 passages from forty
     # publications, none of which is verbatim from THIS section's XML. The
     # citation prefix is what actually names the section.
     for p in (q for q in desk.passages if q.citation.startswith(PREFIX)):

@@ -119,9 +119,13 @@ def test_neither_shape_fits_the_window_any_more_and_the_size_is_pinned():
     # Sarcia pilot 3 add 382 rule paragraphs, and the graded prompt lists them.
     # And +1 / +4 after Codex on #398: two passages carry a `[...]` gap mark.
     # And +355 text: four flush paragraphs owed to sections already on file.
-    assert biggest == {"index": 38235, "text": 132459}, (
+    # Up to 41,970 / 140,081 on 27 September 2026: § 1.162-21 and § 274(a) and
+    # (e), admitted after Sarcia pilot 5 and desk trial 1, add 71 rule
+    # paragraphs (56 and 15), and the graded prompt lists them. § 1.162-21's
+    # thirteen examples are not in it -- a graded prompt prints no example.
+    assert biggest == {"index": 41970, "text": 140081}, (
         f"the graded prompt changed size: {biggest}, and this file says "
-        f"{{'index': 38235, 'text': 132459}}. That is allowed — it is what "
+        f"{{'index': 41970, 'text': 140081}}. That is allowed — it is what "
         f"storing authority does — but it is quoted in docs/CONTEXT-ON-FILE.md "
         f"and must move deliberately.")
     assert biggest["index"] > room, (
@@ -391,8 +395,8 @@ NARROWED = {
     # says this is a label on examples and not a paragraph added to every brief.
     # The graded figures below are likewise untouched: `brief_for_grading`
     # prints no example, so there is nothing there to label.
-    "is a brewery tab a business meal?": 2_949,
-    "what supporting documents does the client have to keep?": 7_434,
+    "is a brewery tab a business meal?": 2_960,
+    "what supporting documents does the client have to keep?": 6_640,
     #
     # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
     # are both visible in the diff. Every position a brief carries now prints
@@ -422,8 +426,19 @@ NARROWED = {
     # when the rule is in neither the brief nor a section on the list. And -9
     # on all four after an independent review of #401: S34, the firm's own
     # policy, holds no paragraph `read` could open, so it left the list.
-    "hand tools bought for the trade - deducted or capitalized?": 4_201,
-    "mileage or actual expenses for the van?": 2_844,
+    #
+    # ALL FOUR MOVED ON 27 SEPTEMBER 2026, when § 1.162-21 and § 274 were
+    # admitted after Sarcia pilot 5 and desk trial 1, checked by diffing each
+    # brief against the record before them. +11 on every one is the on-file
+    # index gaining `26 CFR 1.162-21` and `26 USC 274`. Two also changed a
+    # passage, and that is retrieval moving, not a choice: the supporting-
+    # documents brief shows § 1.162-21(b)(3)(ii) -- "documentary evidence
+    # [...] includes [...] receipts" -- where it showed Pub. 583's "Bookkeeping
+    # System" (-805 net, the Pub. 583 passage being the longer); the hand-tools
+    # brief shows § 1.162-21(d)(2)(ii) where it showed § 1.461-1(c)(3)(ii)(f),
+    # neither of them about hand tools (-10 net).
+    "hand tools bought for the trade - deducted or capitalized?": 4_202,
+    "mileage or actual expenses for the van?": 2_855,
 }
 
 #: The whole corpus, unnarrowed, in tokens: `(rules only, with examples)`.
@@ -455,7 +470,10 @@ NARROWED = {
 # citation to anything NOT ON FILE, not anything not printed. The unnarrowed
 # brief carries no on-file index -- it already prints everything. +26/+25
 # more for the escalation line Codex on #401 found contradicting the shelf.
-WHOLE = (134_838, 249_143)
+# +7,652 rules-only and +13,402 with examples on 27 September 2026: 71 rule
+# paragraphs of § 1.162-21 and § 274(a) and (e) on both sides, and § 1.162-21's
+# thirteen worked examples (+5,750) on the examples side only.
+WHOLE = (142_490, 262_545)
 
 
 def _answering_sizes():

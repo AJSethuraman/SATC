@@ -447,6 +447,33 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-27 — § 274(e) and § 1.162-21 are on file (desk 0.40.0).** In Sarcia
+  pilot 5 the desk answered a streaming-subscription question from
+  § 1.274-11(a) and could only say its answer was "subject to" § 274(e):
+  § 1.274-11(c) names the statute's nine exceptions by number alone, and the
+  statute was not on file. In desk trial 1 it could not say whether a town
+  charge that is a fine is deductible, because § 162(f) and § 1.162-21 were not
+  on file. The firm's standing instruction: *"add whatever"*.
+  - S40, § 1.162-21, from the eCFR API issue of 2026-01-01, sliced by
+    `tools/extract_ecfr.py`: 56 rule paragraphs AND its 13 worked examples. The
+    examples are stored because, unlike S37-S39, the extractor places every one:
+    each is its own numbered paragraph, (f)(1) to (f)(13). Examples 10 to 12 set
+    a county's inspection fees beside its fine.
+  - S41, § 274(a) and (e), from uscode.house.gov ("Text contains those laws in
+    effect on September 25, 2026"): 15 paragraphs, every exception (e)(1) to
+    (e)(9) its own citation. `tools/extract_uscode.py` is new and small: it
+    reuses the reader S18-S21 were cut with and adds only a paragraph stored in
+    pieces, because (e)'s closing flush sentence is (e)'s and not (e)(9)'s.
+  - 1,167 -> 1,251 passages. All 84 tied out live against the publishers the
+    same day (eCFR issue 2026-09-08 and the House page), 70 exact, 14 elided.
+  - Not stored: § 162(f), the statute behind S40; the rest of § 274. No
+    `Admitted for:` line was written, because the pilot's and the trial's
+    questions are not in this repository verbatim and a paraphrase would be an
+    invented question. `rulings.findings()` is unchanged: eight, the same eight.
+  Retrieval moved in two answering briefs, recorded in `test_prompt_window.py`:
+  the supporting-documents brief now shows § 1.162-21(b)(3)(ii) where it showed
+  Pub. 583's "Bookkeeping System".
+
 - **2026-09-27 — The desk never drives a browser it cannot see (desk 0.39.1).**
   The trial brief said "go and look, with Chrome on the Forge". Forge-Desk used
   the Claude in Chrome tools with `createIfEmpty: true`, and a new window opened

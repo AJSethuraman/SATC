@@ -459,8 +459,8 @@ CHANGED = [
  ("16 of 16", "of your close questions reaching what was commissioned for them", "the known-miss list is empty for the first time since it was written"),
  ("0", "passages that score LESS than before the plain words", "measured over all 43 \u2014 it widens and cannot narrow"),
  ("26", "passages <code>cash-back</code> now reaches", "it reached none; <code>cash back</code> reached 20"),
- ("1,056 of 1,159", "citations that cannot find themselves in their own top five", "1,053 of them because of a parenthesis \u2014 the first matter below"),
- ("1,695", "desk tests passing", "the desk asks you to rule, and records your answer itself"),
+ ("1,139 of 1,243", "citations that cannot find themselves in their own top five", "1,136 of them because of a parenthesis \u2014 the first matter below"),
+ ("1,708", "desk tests passing", "the desk asks you to rule, and records your answer itself"),
 ]
 
 LANDED = [
