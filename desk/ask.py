@@ -975,7 +975,12 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
         # lead-in it finishes -- § 1.162-21(a)(3)(i) without (a)'s "no deduction
         # is allowed" -- is a definition served as a rule (Codex on #403).
         shown = {l[4:] for l in out if l.startswith("### ")}
+        # What sits BELOW the cited paragraph keeps the read's own rule --
+        # direct clauses printed, deeper ones listed (Codex on #401: § 1.263(a)
+        # -3(k) was 52,915 characters) -- so the frame adds only what is above.
         for f in desk.frame(citation):
+            if record.is_under(f, citation):
+                continue
             if f not in shown and desk.passage(f):
                 out += [f"### {f}", "",
                         f"**Read as one with `{citation}` — a lead-in and the "

@@ -918,8 +918,10 @@ class Desk:
             for c in [a.citation, *self._clauses(a.citation)]:
                 if c != citation and c not in out:
                     out.append(c)
+        # AND A CITED HEADING, whose clauses are the whole of what it says.
+        # Headings ABOVE a clause are not added: the clause states its rule.
         own = self.passage(citation)
-        if own and is_lead_in(own.text):
+        if own and (is_lead_in(own.text) or is_heading(own.text)):
             out += [c for c in self._clauses(citation) if c not in out]
         return out
 
@@ -1350,6 +1352,16 @@ def is_lead_in(text: str) -> bool:
     decided per subsection -- Codex on #403 found a line per subsection leaked."""
     first = text.split("[...]", 1)[0].rstrip()
     return first.endswith(("-", "\u2014", ":"))
+
+
+def is_heading(text: str) -> bool:
+    """A paragraph that is only a caption -- "Exception for restitution,
+    remediation, and amounts paid to come into compliance with a law" -- read
+    off its words: no closing punctuation, and not a lead-in. Cited alone it
+    states nothing; its clauses are the rule (Codex on #403, § 1.162-21(b))."""
+    t = text.rstrip()
+    return bool(t) and not is_lead_in(text) and not t.endswith(
+        (".", ";", ",", ")", "]", '"', "\u201d", "'", "\u2019"))
 
 
 def is_under(citation: str, key: str) -> bool:

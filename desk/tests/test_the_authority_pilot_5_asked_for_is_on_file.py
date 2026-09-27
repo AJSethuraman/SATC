@@ -775,3 +775,24 @@ def test_the_judge_may_quote_any_document_the_answer_was_proved_against(tmp_path
                                              because="ONLY ON THE REGULATION'S PAGE"))
     assert isinstance(out, engine.Served), out
     assert out.judged.stands
+
+
+def test_a_cited_heading_is_served_with_what_it_heads():
+    """Codex on #403: § 1.162-21(b) is only "Exception for restitution ...", so
+    an answer citing it was served the heading and (g) -- not (b)(1), which
+    requires BOTH the identification and establishment tests. A heading is read
+    off its words: no closing punctuation, and clauses under it."""
+    assert record.is_heading("(b) Exception for restitution, remediation, or to "
+                             "come into compliance with law")
+    assert not record.is_heading("It is not deductible.")
+    out = _served("26 CFR 1.162-21(b)", "Exception for restitution")
+    assert isinstance(out, engine.Served), out
+    assert "26 CFR 1.162-21(b)(1):" in out.passage
+    assert "26 CFR 1.162-21(b)(2):" in out.passage
+
+
+def test_a_heading_above_a_clause_is_still_not_pulled_in():
+    """The control stands: § 274(a)(1) states its whole rule, and the heading
+    above it adds nothing."""
+    out = _served("26 USC 274(a)(1)", "No deduction otherwise allowable")
+    assert "26 USC 274(a):" not in out.passage
