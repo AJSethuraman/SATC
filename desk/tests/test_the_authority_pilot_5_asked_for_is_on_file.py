@@ -839,3 +839,25 @@ def test_a_frame_paragraph_a_position_rests_on_is_still_proved():
     assert proving.prove(served, desk, _live(desk)).verdict == proving.TIED
     got = proving.prove(served, desk, _live(desk, moved={b}))
     assert got.verdict == proving.DIFFERS and b in got.note
+
+
+def test_the_judge_keeps_the_stored_text_when_the_cited_fetch_failed(tmp_path):
+    """Codex on #403: with the cited publisher down and another source fetched,
+    the judge was checked against the OTHER document alone, so quoting the
+    cited paragraph -- which was served -- was refused."""
+    c, desk = _cross_source(tmp_path)
+    whole = _live(desk)
+
+    def transport(source, citation):
+        if source.id == "S41":
+            raise ConnectionResetError("the publisher hung up")
+        return whole(source, citation)
+
+    words = desk.passage("26 USC 274(e)(1)").text.split("(1)", 1)[-1].strip()[:40]
+    out = ask.answer(EMPLOYER_MEALS_2026, position=DEDUCTIBLE,
+                     citation="26 USC 274(e)(1)", corpus=c, keep=False,
+                     prove=transport,
+                     judged=judging.Judgment(by="second-reader", supports=True,
+                                             because=words))
+    assert isinstance(out, engine.Served), out
+    assert out.judged.stands

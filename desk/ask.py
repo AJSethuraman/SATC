@@ -1230,12 +1230,19 @@ def answer(question: str, *, position: str = "",
         # the served passage carries paragraphs of other sources too, and a
         # judge quoting one of those is quoting what they were handed (Codex
         # on #403). One fetch per source, so no document appears twice.
-        first = [fetched[out.citation]] if out.citation in fetched else []
+        # WHERE THE CITED FETCH FAILED, THE STORED PASSAGE STANDS IN FOR IT:
+        # that is what was served, and a judge quoting it must not be refused
+        # because only another source's page came back (Codex on #403).
+        others = [t for c, t in fetched.items() if c != out.citation]
+        cited_live = out.citation in fetched
         live = "\n\n".join(
-            first + [t for c, t in fetched.items() if c != out.citation])
+            [fetched[out.citation] if cited_live else out.passage] + others
+        ) if (cited_live or others) else ""
         seen = judging.read(
             judged, live or out.passage, answered_by=model,
-            against=("the document fetched from the publisher" if live
+            against=("the document fetched from the publisher" if cited_live
+                     else "this desk's stored passage, and what else was "
+                          "fetched" if others
                      else "this desk's stored passage"))
         if seen.verdict == judging.SAYS_NO:
             out = engine.Refusal(
