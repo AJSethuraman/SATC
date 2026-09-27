@@ -5,6 +5,9 @@
     python pocketbook/tools/bank_kit.py --out DIR --add-ons --python 3.12 --platform win_amd64
 
 Writes, into the kit folder:
+  PocketBook.py              the window and its code as one plain-text script, for a bank that only lets text in:
+                             paste it into a file of that name and run it. It writes the PocketBook folder beside
+                             itself, checks each file against its SHA-256, and opens the window.
   PocketBook.zip             one folder, PocketBook, holding what the window needs to run (PocketBook.pyw, src,
                              the two install files, the checklist and the analyst's procedure) and VERSION.txt:
                              the version, the commit it was made from, and whether that commit had changes on top.
@@ -21,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -87,6 +91,101 @@ def make_zip(out: Path) -> Path:
     return z
 
 
+#: what goes into the one script to paste: the window and the code it runs, nothing else
+PASTE_KEEP = ("PocketBook.pyw", "src/pocketbook")
+#: the start of the script; the files follow it as comment lines, so the whole thing is one valid .py
+PASTE_HEAD = '''\
+# PocketBook, as one script. Paste all of it into a file called PocketBook.py and run:  py PocketBook.py
+# It writes a folder called PocketBook beside itself, checks every file came through whole, and opens the window.
+# Everything under "The files" is PocketBook's own code, each line kept after "#|". Nothing here is downloaded.
+{version}
+import hashlib
+import pathlib
+import sys
+
+HERE = pathlib.Path(__file__).resolve().parent
+FOLDER = HERE / "PocketBook"
+
+
+def unpack():
+    lines = pathlib.Path(__file__).read_text(encoding="utf-8").splitlines()
+    files, name, want, body, end = {{}}, None, None, [], None
+    for line in lines:
+        if line.startswith("#=== FILE "):
+            name, want = line[10:].rsplit(" sha256=", 1)
+            body = []
+        elif line.startswith("#=== DONE ") and name:
+            text = "".join(line + "\\n" for line in body)
+            if hashlib.sha256(text.encode("utf-8")).hexdigest() != want:
+                sys.exit("The paste didn't come through whole: " + name + " doesn't match. Paste the script again.")
+            files[name] = text
+            name = None
+        elif line.startswith("#=== END files="):
+            end = int(line[15:])
+        elif name is not None and line.startswith("#|"):
+            body.append(line[2:])
+    if end is None or len(files) != end:
+        sys.exit("The paste stops early: " + str(len(files)) + " files came through, not " + str(end or "all")
+                 + ". Copy the whole script, to its last line, and paste again.")
+    for rel, text in files.items():
+        p = FOLDER / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if not p.exists() or p.read_text(encoding="utf-8") != text:
+            p.write_text(text, encoding="utf-8", newline="\\n")
+    return len(files)
+
+
+sys.path.insert(0, str(FOLDER / "src"))
+if __name__ == "__main__":
+    print("Writing PocketBook into " + str(FOLDER) + " ...")
+    print(str(unpack()) + " files, every one checked. Opening the window.")
+    import multiprocessing
+
+    multiprocessing.freeze_support()
+    from pocketbook.launcher import main
+
+    main()
+
+# ---------------------------------------------------------------- The files
+'''
+
+
+def paste_files() -> list[tuple[Path, str]]:
+    """(the file here, its path inside the PocketBook folder) for everything the paste-able script carries."""
+    out = []
+    for keep in PASTE_KEEP:
+        p = ROOT / keep
+        if p.is_dir():
+            out += [(f, f.relative_to(ROOT).as_posix()) for f in sorted(p.rglob("*"))
+                    if f.is_file() and "__pycache__" not in f.parts and f.suffix not in (".pyc", ".pyo")]
+        else:
+            out.append((p, keep))
+    return out
+
+
+def paste_text() -> str:
+    """The whole paste-able script: a short program, then every file as '#|' comment lines with its SHA-256."""
+    ver = "".join("# " + line + "\n" for line in version_text().splitlines())
+    parts = [PASTE_HEAD.format(version=ver.rstrip("\n"))]
+    fs = paste_files()
+    for f, rel in fs:
+        text = f.read_text(encoding="utf-8").replace("\r\n", "\n")
+        if text and not text.endswith("\n"):
+            text += "\n"
+        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        parts.append(f"#=== FILE {rel} sha256={digest}\n")
+        parts.append("".join("#|" + line + "\n" for line in text.splitlines()))
+        parts.append(f"#=== DONE {rel}\n")
+    parts.append(f"#=== END files={len(fs)}\n")
+    return "".join(parts)
+
+
+def make_paste(out: Path) -> Path:
+    p = out / "PocketBook.py"
+    p.write_text(paste_text(), encoding="utf-8", newline="\n")
+    return p
+
+
 def pip_download(dest: Path, python: str, platform: str) -> str:
     """Fetch the add-ons for one Python version and platform into dest; what pip said, last lines."""
     argv = [sys.executable, "-m", "pip", "download", "--disable-pip-version-check", "--only-binary=:all:",
@@ -122,6 +221,8 @@ def main(argv: list[str] | None = None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     z = make_zip(out)
     print(f"Wrote {z} ({z.stat().st_size / 1e6:.1f} MB).")
+    ps = make_paste(out)
+    print(f"Wrote {ps} ({ps.stat().st_size / 1e6:.1f} MB): the same code as one script, to paste.")
     print("  " + version_text().replace("\n", "\n  ").rstrip())
     if a.add_ons:
         print(f"Fetching the add-ons for Python {', '.join(a.python)}:")

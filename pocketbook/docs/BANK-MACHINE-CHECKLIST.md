@@ -42,11 +42,12 @@ In the SATC repository folder, run this (on Windows, type `py` where it says `py
 python pocketbook/tools/bank_kit.py --add-ons
 ```
 
-☐ It ends by printing three lines starting `Wrote`. They are in a folder called `PocketBook-kit` in your home folder:
+☐ It ends by printing four lines starting `Wrote`. They are in a folder called `PocketBook-kit` in your home folder:
 
 | File | What it is | Size |
 |---|---|---|
 | `PocketBook.zip` | PocketBook itself: the window (`PocketBook.pyw`), its code, the two install files, this checklist and the analyst's step-by-step procedure. Also `VERSION.txt`, which names the exact code inside. | about 6 MB |
+| `PocketBook.py` | The same code as one plain-text script, for a bank that only lets text in. Paste it into a file and run it (2.2). | about 1 MB |
 | `PocketBook add-ons.zip` | The add-ons for 64-bit Windows, for Python 3.11, 3.12, 3.13 and 3.14. Only needed if the bank's proxy blocks pip. | about 230 MB |
 | `BANK-MACHINE-CHECKLIST.pdf` | This checklist. Print it. | |
 
@@ -79,7 +80,7 @@ pip brings what each one needs with it: scipy (1.18.1; 1.17.1 for Python 3.11), 
 
 ### 1.4 Pack
 
-☐ `PocketBook.zip` and `PocketBook add-ons.zip`, on whatever the bank lets you bring files in on. **Check this:** bank email often strips `.zip`, `.bat` and `.pyw` files, and USB sticks are often blocked. Ask IT how a file gets onto the machine before you go.
+☐ `PocketBook.zip` and `PocketBook add-ons.zip`, or just the text of `PocketBook.py`, on whatever the bank lets you bring files in on. **Check this:** bank email often strips `.zip`, `.bat` and `.pyw` files, and USB sticks are often blocked. Ask IT how a file gets onto the machine before you go.
 
 ☐ This checklist, printed.
 
@@ -100,6 +101,17 @@ py --version
 If it says `'py' is not recognized`, try `python --version`. If that opens the Microsoft Store or isn't recognised either, Python isn't installed: see 1.2. Wherever this checklist says `py`, type `python` instead on this machine.
 
 ### 2.2 Unzip PocketBook into your own folder
+
+**If only text gets in:** open `PocketBook.py` on your own computer, select all of it and copy it. At the bank, open Notepad, paste, and save it as `PocketBook.py` in your own folder (`%USERPROFILE%`), with **Save as type: All files**. Then in Command Prompt:
+
+```
+cd /d "%USERPROFILE%"
+py PocketBook.py
+```
+
+☐ It prints `32 files, every one checked. Opening the window.` and the window opens. It has written the `PocketBook` folder beside the script; skip to 2.3. If it says *The paste stops early* or *didn't come through whole*, the copy missed something: copy the whole script again, to its last line.
+
+Otherwise, with the zips:
 
 Copy both zips into your **Downloads** folder. Then, before unzipping, right-click each zip, choose **Properties**, and if there's an **Unblock** box at the bottom, tick it and press **OK**. (Windows marks files that came from outside, and may then refuse to run them.)
 

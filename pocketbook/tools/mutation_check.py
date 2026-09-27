@@ -945,6 +945,10 @@ muts = [
   'finished_screen_shows_the_runs_first'),
  ("K: the candidates' header printed over the pre-spec", "src/pocketbook/scout_tab.py", '    _ = first_row, last_row\n',
   '    ws.print_title_rows = f"{head}:{head}"\n    _ = first_row, last_row\n', 'prints_without_the_candidates'),
+ # 27 Sep 2026: the kit as one script to paste, because the bank lets only text in
+ ("paste not checked", "tools/bank_kit.py", 'if hashlib.sha256(text.encode("utf-8")).hexdigest() != want:',
+  'if False:', "one_line_changed"),
+ ("paste cut short accepted", "tools/bank_kit.py", 'if end is None or len(files) != end:', 'if False:', "cut_short"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

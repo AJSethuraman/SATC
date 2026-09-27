@@ -173,3 +173,58 @@ def test_every_cell_the_checklist_names_holds_what_it_says(tmp_path):
     said("in I14 (FICO's band edges)")
     row = next(r[0].row for r in book.table_rows(wb["Columns"]) if r[book.C_NAME - 1].value == "FICO")
     assert f"{book._col(book.C_EDGES)}{row}" == "I14"
+
+
+def _paste(tmp_path, text: str):
+    """Paste the script as the firm will on the bank machine: into PocketBook.py, with Windows line endings."""
+    import runpy
+
+    f = tmp_path / "PocketBook.py"
+    f.write_bytes(text.replace("\n", "\r\n").encode("utf-8"))
+    return runpy.run_path(str(f), run_name="pasted")["unpack"]
+
+
+def test_the_paste_script_writes_back_every_file_exactly(tmp_path):
+    """27 Sep 2026, the firm: "i expect the file to be sent in script form ... i will just paste it into py's".
+    PocketBook.py carries the window and all its code; pasted with Windows line endings and run, it writes a
+    PocketBook folder holding each file byte for byte as it is here, and nothing else."""
+    n = _paste(tmp_path, bank_kit.paste_text())()
+    want = {rel: f.read_text(encoding="utf-8") for f, rel in bank_kit.paste_files()}
+    assert n == len(want) and "src/pocketbook/launcher.py" in want and "PocketBook.pyw" in want
+    got = {p.relative_to(tmp_path / "PocketBook").as_posix(): p.read_text(encoding="utf-8")
+           for p in (tmp_path / "PocketBook").rglob("*") if p.is_file()}
+    assert got == want
+
+
+def test_a_paste_cut_short_is_refused_and_writes_nothing(tmp_path):
+    """A paste that stops before the last line names how far it got and writes no folder: half a PocketBook
+    would open and fail somewhere deep inside a Run."""
+    text = bank_kit.paste_text()
+    last = text.rindex("#=== FILE ")
+    unpack = _paste(tmp_path, text[:last])
+    try:
+        unpack()
+        raise AssertionError("a cut-short paste was unpacked")
+    except SystemExit as e:
+        assert "stops early" in str(e)
+    assert not (tmp_path / "PocketBook").exists()
+
+
+def test_a_paste_with_one_line_changed_is_refused(tmp_path):
+    """One character different in one file (an editor's autocorrect, a lost indent) fails that file's SHA-256,
+    and the refusal names the file."""
+    text = bank_kit.paste_text()
+    at = text.index("#|", text.index("#=== FILE src/pocketbook/stats.py"))
+    unpack = _paste(tmp_path, text[:at] + "#| " + text[at + 2:])
+    try:
+        unpack()
+        raise AssertionError("a changed paste was unpacked")
+    except SystemExit as e:
+        assert "src/pocketbook/stats.py" in str(e)
+    assert not (tmp_path / "PocketBook").exists()
+
+
+def test_the_checklist_says_how_many_files_the_paste_writes():
+    """2.2 tells the analyst what a good paste prints; the count is the script's own."""
+    said = re.search(r"`(\d+) files, every one checked\. Opening the window\.`", TEXT)
+    assert said and int(said.group(1)) == len(bank_kit.paste_files())
