@@ -536,8 +536,8 @@ muts = [
  ("dates read only year-month-day", CF, '        return engine._date_reader(table, col, "when each loan was made"), None',
   '        return (lambda raw: __import__("origination_cube.ingest", fromlist=["x"]).parse_date(raw, "%Y-%m-%d")), None',
   "second_books"),
- ("the pockets forgotten", CF, 'strata=tuple(ps.strata), scores=', 'strata=(), scores=',
-  "second_book_with_no_cliff"),
+ ("the pockets forgotten", CF, '        labels, _ = _stratum_labels(res, tuple(ps.strata), res.table.rows)',
+  '        labels, _ = _stratum_labels(res, (), res.table.rows)', "second_book_with_no_cliff"),
  # 26 Sep 2026: Goal 2 item 2, a test of a new variable needs only what it uses (tests/test_run_kind.py,
  # tests/test_generic.py). Each puts the old minimum back, lets the bleed analysis off it, or shows dollars
  # a run doesn't have
