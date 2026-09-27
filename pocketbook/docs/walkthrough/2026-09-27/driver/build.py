@@ -40,7 +40,7 @@ ROUTE = f"""<figure class="route"><svg viewBox="0 0 1000 470" xmlns="http://www.
 {box(530, 160, 460, 80, *BOOK, "Steps 19-21 · Change and see", ["worse at 2 times: the tabs follow now", "fewest loans 100: waits for a Run, then Run again"])}
 {arrow(870, 124, 870, 158)}
 <text x="10" y="278" font-size="13" font-weight="bold" fill="#333">Test new variables</text>
-{box(10, 288, 230, 110, *WIN, "Steps 22-26 · Window", ["Choose tests, Test new variables", "Install scikit-learn", "Test it x4, Hold fixed FICO", "Next, Run (20 s)"])}
+{box(10, 288, 230, 110, *WIN, "Steps 22-26 · Window", ["Choose tests, Test new variables", "Install scikit-learn", "Test it x4, Hold fixed FICO", "Next, Run (23 s)"])}
 {box(290, 288, 250, 110, *READ, "Steps 27-30 · Results", ["Start here, Scouting,", "New variables, Record", "the pre-spec file is written", "beside the workbook"])}
 {box(590, 288, 400, 110, *BOOK, "Step 31 · Change the test afterwards", ["edit the pre-spec file, Run again:", "the window says Changed, in red,", "and Record says when and how"])}
 {arrow(240, 343, 288, 343)}{arrow(540, 343, 588, 343)}

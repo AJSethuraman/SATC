@@ -75,7 +75,7 @@ The boxes decide what is cut:
 - **Split by:** at most one number column, used to cut every pocket in half at its own middle value.
 - The outcome and dollar columns say **every measure**: they are what is measured, not what is cut.
 
-Under the shaded box, a line for each word you meet here first: GCO dollars, RANR dollars, a grid, and the five measures.
+In the shaded box, under what will run, a line for each word you meet here first: GCO dollars, RANR dollars, a grid, and the five measures.
 
 > The made-up book has three number columns you can cut. Your bank's file may have more.
 
@@ -175,7 +175,7 @@ Every pocket, worst first. Pick the **Measure** (Bad loans, Bad dollars, Charge-
 
 ![Step 14](step-14-pockets.png)
 
-**Correct screen:** the **Lines in use now** bar repeats your Control answers. **Worse?** is Yes, Not sure (a gap, but it could be chance) or No. **Material?** is Yes when the excess reaches your dollar line.
+**Correct screen:** the **Lines in use now** bar repeats your Control answers. **Worse?** is Yes, Not sure (a gap, but it could be chance), Too few losses (not tested) or No. **Material?** is Yes when the excess reaches your dollar line.
 
 ### Step 15 · Read Paid, cost, kept
 
@@ -275,7 +275,7 @@ Control now shows only the questions this kind of run uses, and **What are you r
 
 ### Step 26 · Press Run
 
-On 8,000 loans it took 20 seconds. PocketBook scouts on the development loans, writes the pre-spec `Consumer book Q3 - pre-spec.yaml` beside the workbook, and only then tests it on the held-back loans.
+On 8,000 loans it took 23 seconds. PocketBook scouts on the development loans, writes the pre-spec `Consumer book Q3 - pre-spec.yaml` beside the workbook, and only then tests it on the held-back loans.
 
 ![Step 26](step-27-scouting-finished.png)
 
