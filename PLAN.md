@@ -447,6 +447,64 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-27 — The desk never drives a browser it cannot see (desk 0.39.1).**
+  The trial brief said "go and look, with Chrome on the Forge". Forge-Desk used
+  the Claude in Chrome tools with `createIfEmpty: true`, and a new window opened
+  on the firm's primary desktop and went to one eCFR page (§ 1.164-1). Nothing
+  was typed, clicked or submitted, and the tab is closed. The firm: *"why in the
+  world was my primary desktop used to go to the eCFR site and not the forge"*.
+  It never checked which machine the extension was attached to, and no browser
+  was needed: the same text came over the eCFR API. The fault was the brief's
+  wording, which named a machine and gave no way to confirm it. The rule now
+  lives in `run-down-a-question`: fetch over HTTP from where you run; Claude in
+  Chrome and computer use are off limits except on a device the firm names,
+  confirmed with `list_connected_browsers` and never with `createIfEmpty`.
+  `ask-desk` no longer tells askers the desk "runs on the Forge with a browser".
+  Held by `test_the_desk_never_drives_a_browser_it_cannot_see.py`.
+
+- **2026-09-26 — Sarcia pilot 4, and the desk now asks the firm to rule (desk
+  0.39.0).** Pilot 4 put 18 questions in one batch and all 18 came back readable.
+  9 were served (pilot 3: 6 of 16). 61 of 485 rows were worked (pilot 3: 0), and
+  each of the other 424 has a named blocker. Occam held all 189 rows that rest on
+  a served answer whose conditions are not established; pilot 3 approved 202 on
+  the same answer. The finding is the desk's own: five sections were admitted
+  because pilot 3 named them, and asked again, the paragraph carrying the rule
+  reached the brief for ONE. Re-measured here: § 1.6001-1(a) ranked 442nd and
+  § 1.263(a)-4(f)(1) 622nd of 1,171.
+  The firm: **"definitely fix retrieval"**. Then, on being asked in chat which
+  plain words should reach a paragraph: *"why wouldn't the desk send me a
+  notification asking me to rule on something and record it itself"*. On POS7:
+  *"is this not something i would expect the desk to ask me so it can record
+  the right answer?"*
+  Built:
+  - Every brief now lists every section on file. `ask.read` opens a section or a
+    paragraph. The brief's first sentence had said a citation to anything not
+    printed is refused, and that was false: the engine checks the whole corpus.
+  - `rulings.py`: the desk finds, from the record alone, a paragraph that the
+    question it was admitted for does not reach, and a position stating a figure
+    its quoted words do not carry. First run: four reach findings, and POS6,
+    POS7, POS8 and POS19. Two of those positions were news.
+  - The desk proposes a fix, the engine checks it, and one line goes to the
+    firm. Their reply is written into the record by the desk.
+    `DESIGN-PRINCIPLES.md` §9 says so.
+  Measured and not built: plain words declared on a whole source lift its other
+  paragraphs and not the rule. A word the corpus never uses earns no score at
+  all. Joining a lead-in to its list items moved the 12-month rule from 622nd to
+  72nd. So the firm's ruling puts a paragraph in the brief outright rather than
+  nudging its rank. Still open: the card-charge question, which blocks 322 rows.
+  Pub. 502 and IRS INFO 2010-0153 state "counts when charged" for medical costs
+  and for charity. Rev. Rul. 78-38 has not been readable from here.
+  Then, from the firm: *"engagement file - still not needed. occam should
+  ensure there is a spot to fill it out in the setup process so that we can
+  assign it there and that's where it reads it from"*. And for Sarcia: *"sarcia
+  services is an LLC and is a general contractor"*.
+  - Occam added an Engagement section to its setup wizard (occam#20).
+  - `relay.ask_many(..., on_file=...)` now carries only the facts the desk
+    declares it records, and refuses a blank value or a TIN.
+  - The desk reads them back with `relay.on_file`, which checks them again.
+  - This lifts POS13's `context_not_on_file`, which blocked the rewards rows
+    in pilots 3 and 4.
+
 - **2026-09-14 — The eighth docket: all eight answered, every one taking the
   recommendation (artifact `642c3276`).**
 

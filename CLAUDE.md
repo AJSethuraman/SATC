@@ -26,9 +26,10 @@ collects/retains client info, and provides small services around Drake.
 
 **The repo also holds eleven credit and macro analytics projects** —
 `credit-review-os/`, `portfolio-analysis-pack/` *(v1 built 18–19 Sep 2026; its
-PRD is the spec and `BACKLOG.md` §6c the log)*, `origination-cube/` *(where the
-book bleeds: pockets against the topline; slice 1 built 25 Sep 2026, log in
-`BACKLOG.md` §6d)*, `stock-helper/`, `fdic-peer-monitor/`,
+PRD is the spec and `BACKLOG.md` §6c the log)*, `pocketbook/` *(PocketBook,
+`origination-cube/` until 27 Sep 2026: where the book bleeds, pockets against
+the topline; slice 1 built 25 Sep 2026, log in `BACKLOG.md` §6d)*,
+`stock-helper/`, `fdic-peer-monitor/`,
 `cfpb-mortgage-monitor/`, `edgar-crit-class-tracker/`,
 `fred-credit-risk-dashboard/`, `bureau-credit-risk-dashboard/`,
 `macro-early-warning-dashboard/`, `bls-laus-county-monitor/`. They belong to a

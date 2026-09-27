@@ -126,6 +126,12 @@ class Position:
     #: whenever one of these paragraphs is, and it cites none of them: this is
     #: where its TOPIC is, never what it rests on. Refused on any other kind.
     applies_at: tuple = ()
+    #: THE FIRM'S RULING ON THIS POSITION, when the desk asked them for one:
+    #: `R<n> — <date>: "<their reply>"`. 26 September 2026, the firm, on POS7:
+    #: *"is this not something i would expect the desk to ask me so it can
+    #: record the right answer?"* A position the desk found wanting is put to
+    #: the firm by `rulings`, and their reply is recorded here by the desk.
+    ruled: str = ""
 
     @property
     def rests_at(self) -> tuple:
@@ -227,7 +233,7 @@ _FACT = re.compile(r"^[a-z][a-z0-9_]*$")
 #: next one of these rather than at any bold line -- see `record._prose`.
 POSITION_FIELDS = ("Citation", "Recorded", "Position", "Why", "Ratified",
                    "Kind", "Reviewed", "Needs", "Unless", "Default", "Rests on",
-                   "Applies at")
+                   "Applies at", "Ruled")
 
 
 def _a_default(block: str, where: str) -> str:
@@ -358,15 +364,18 @@ def parse(text: str) -> list[Position]:
             unless=_needs(_field(block, "Unless", where, required=False), where,
                           "Unless"),
             default=_a_default(block, where),
+            ruled=_field(block, "Ruled", where, required=False).strip(),
         ))
     return out
 
 
 PREAMBLE = """# Positions — what the firm does where the rules permit a choice
 
-**An agent proposes here. It never writes.** The pull request is the firm's yes,
-and a position that entered any other way is one they will disown the moment it
-is read back at them.
+**An agent proposes here. It never writes on its own say-so.** The firm's yes
+is either the pull request or their reply to a ruling the desk asked them for
+(`rulings`), which the desk then records with the reply beside it on `Ruled:`.
+A position that entered any other way is one they will disown the moment it is
+read back at them.
 
 Each entry carries the firm's **own words**, the authority it rests on, and the
 date. Where a source cannot be read by a desk at all — a licence forbidding the

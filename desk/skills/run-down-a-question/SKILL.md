@@ -26,6 +26,32 @@ Nothing you find enters the record unless **both** of these hold:
 Everything else comes back to the firm as a proposal. That is not a failure
 mode; it is the normal outcome the first time a publisher comes up.
 
+## How you look: over HTTP, from where you run
+
+**Fetch pages from the machine you are running on. Never drive a browser you
+cannot see.** 27 September 2026: told to "go and look, with Chrome on the
+Forge", a desk session used the Claude in Chrome tools with
+`createIfEmpty: true`. A new window opened on the firm's **primary desktop**
+and went to eCFR. It had never checked which machine the extension was
+attached to. The firm: *"why in the world was my primary desktop used to go to
+the eCFR site and not the forge"*. It did not need a browser at all; the same
+regulation came over the API minutes later.
+
+- **eCFR:** the versioner API. It refuses a request that does not accept
+  compression, so send the header:
+  `curl -s --compressed -H "Accept-Encoding: gzip, deflate" "https://www.ecfr.gov/api/versioner/v1/full/<YYYY-MM-DD>/title-26.xml?part=1&section=<section>"`
+- **IRS publications, notices and anything else public:** fetch the page over
+  HTTP the same way.
+- **Claude in Chrome, computer use, and any other browser or desktop-control
+  tool are off limits.** They act on whatever machine they are attached to,
+  which may be a person's own desktop, mid-work. The exception is a device the
+  firm has named for this run. Even then, call `list_connected_browsers` first,
+  confirm it is that device, and never pass `createIfEmpty`. If you cannot
+  confirm the device, do not use the tool.
+- **If a page can only be read in a browser,** do not reach for one. Record it
+  as "could not reach — needs a browser on a named device", with the URL, and
+  move on. That is a finding, not a failure.
+
 ## The four steps, and which two are yours
 
     1. turn a refused question into search queries        YOU

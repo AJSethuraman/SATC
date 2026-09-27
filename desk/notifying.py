@@ -183,7 +183,63 @@ def for_entry(entry) -> str:
 #: digits, because that is what `unsupported.next_id` produces and what
 #: `line` puts in the brackets. Deliberately not a general id pattern: a
 #: looser one matches things the firm never meant as a reference.
-_REF = re.compile(r"\bU(\d+)\b", re.I)
+#:
+#: AND `R` AND DIGITS, since 26 September 2026: a ruling the desk asks the firm
+#: for (`rulings.ask`) is numbered R<n>, and the reply comes back on the same
+#: path. Still two letters, not a general pattern -- the reason above holds.
+_REF = re.compile(r"\b[UR](\d+)\b", re.I)
+
+#: The label a line opens with, which a reply quoting the notification carries
+#: back and which is not the firm's answer. One pattern for every verb `line`
+#: is called with, so a new verb cannot be quoted back as substance.
+_VERBS = r"desk (?:parked|proposes|asks you to rule):?"
+
+
+_TOKEN = re.compile(r"[A-Za-z0-9%$]+")
+
+
+def added(text: str, sent: str = "") -> str:
+    """What the firm wrote, in their own characters, with the reference, the
+    label and any quoted-back notification taken out. `""` means nothing added.
+
+    THE ECHO IS REMOVED AS A RUN, NOT WORD BY WORD, and the word-by-word
+    version ate real answers. It deleted each word of the sent line from the
+    reply once, wherever it stood -- and a ruling's line says "Reply yes ... no
+    to keep it", so a plain "R3 yes" lost its "yes" and came back as nothing.
+    A parked question fared the same: "U1 gross receipts" answering "are
+    unidentified deposits gross receipts?" lost both words. Found by Codex on
+    #401 as the quoted-back case misreading, and worse on inspection.
+
+    So the sent line's words are compared as a SEQUENCE, case and punctuation
+    aside -- which is what a re-wrapped, re-punctuated, dash-swapped quote
+    still is -- and cut out only where the whole run appears. A word the firm
+    typed that happens to be in the question stays, and what is returned is
+    their text as they typed it, not a normalised copy.
+    """
+    cut = [(m.start(), m.end()) for m in _REF.finditer(text)]
+    cut += [(m.start(), m.end()) for m in re.finditer(_VERBS, text, re.I)]
+    toks = [m for m in _TOKEN.finditer(text)
+            if not any(a <= m.start() < b for a, b in cut)]
+    if sent:
+        bare = re.sub(_VERBS, " ", _REF.sub(" ", sent), flags=re.I)
+        echo = [w.lower() for w in _TOKEN.findall(bare)]
+        words = [m.group(0).lower() for m in toks]
+        n = len(echo)
+        for i in range(len(words) - n + 1) if n else ():
+            if words[i:i + n] == echo:
+                cut.append((toks[i].start(), toks[i + n - 1].end()))
+                toks = toks[:i] + toks[i + n:]
+                break
+    if not toks:
+        return ""
+    out, at = [], 0
+    for a, b in sorted(cut):
+        if a >= at:
+            out.append(text[at:a])
+            at = b
+    out.append(text[at:])
+    kept = " ".join(" ".join(out).split())
+    return kept.strip(" \t[]:;,.—–-") or kept
 
 
 def reply_in(text: str, *, sent: str = "") -> tuple:
@@ -243,16 +299,7 @@ def reply_in(text: str, *, sent: str = "") -> tuple:
     # original. Removing the reference, the label the firm quoted back and the
     # punctuation around them is how you tell "[U1]" from a real reply -- it is
     # not how the answer is stored.
-    rest = _REF.sub(" ", text)
-    rest = re.sub(r"desk parked:?", " ", rest, flags=re.I)
-    if sent:
-        # WORD BY WORD, NOT AS A SUBSTRING. A quoted notification comes back
-        # re-wrapped, re-punctuated, sometimes with the em dash swapped -- so
-        # `sent in text` misses it. What is left after removing the words that
-        # were sent is what the firm added.
-        for word in _REF.sub(" ", re.sub(r"desk parked:?", " ", sent, flags=re.I)).split():
-            rest = re.sub(rf"(?<!\w){re.escape(word)}(?!\w)", " ", rest, count=1)
-    if not re.search(r"[A-Za-z0-9]", rest):
+    if not added(text, sent):
         return "", ""
     # THE ORIGINAL, NOT THE SANITISED COPY. `_flatten` strips `*`, backticks,
     # `#` and `>` and collapses whitespace -- it exists to decide what a
