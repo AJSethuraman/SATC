@@ -300,6 +300,22 @@ def test_judged_against_the_book_counts_points_and_dollars_against_the_rest_of_t
     assert seen > 100
 
 
+def test_the_rest_a_pocket_is_read_against_follows_judged_against(ran):
+    """Rest of band on Pockets is the rest the verdict used: the rest of the pocket's band when Control says
+    so (the fixture's answer), not the rest of the book. Redesign phase 3 rewrote the only test that read it,
+    and CI's planted bug "rest rate from the book" went uncaught."""
+    ws = ran["values"][live.POCKETS]
+    wrong, seen = [], 0
+    for r in ws.iter_rows(min_row=live.P_FIRST):
+        shown, band, whole = (r[c - 1].value for c in (live.P_REST, live.P_REST_BAND, live.P_REST_BOOK))
+        if not all(isinstance(v, (int, float)) for v in (shown, band, whole)) or band == pytest.approx(whole):
+            continue
+        seen += 1
+        if shown != pytest.approx(band):
+            wrong.append((r[0].row, shown, band, whole))
+    assert seen > 50 and not wrong, wrong[:5]
+
+
 # --------------------------------------------------------------------------
 # Paid, cost, kept
 
