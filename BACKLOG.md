@@ -1951,6 +1951,59 @@ back.
         being asked). Planted bugs: 20 added and 6 repointed (their lines were rewritten), 347 in all. Put back
         each alone: the 20 new, the 6 repointed and the 5 whose selectors reach a rewritten test, 31 of 31 caught.
       - Rendered through LibreOffice (three inputs, 20,000 loans): the tab reads as above. Not checked: real Excel.
+- [x] **Goal 2 item 9: scouting, find then confirm in one Run (27 Sep 2026; `origination-cube/docs/design.md` OC-50).**
+      The firm: scouting is *"to try and guess importance ... it should be wider"*, *"dates are for the scouting
+      pipeline"* (OC-39), and each input tested *"once with and once without"* the held-fixed columns. Today a
+      new-variable Run without a saved shortlist was refused; now it finds first. `scout.py` and `scout_tab.py`.
+      - **Find**, on the development loans only (the first *Find on* share by origination date; the held-back
+        loans' dates are read, nothing else): scikit-learn's random forest (200 trees, leaves of 40, seed 7) ranks
+        every column ticked Test it and every new column by permutation importance (drop in AUC, cross-fitted in 3
+        runs by date, 5 shuffles), with the candidates alone and with the Hold fixed columns in the forest, against
+        a noise floor (the largest importance over at least 20 tries with the outcomes shuffled). Proposed: a number
+        column above the floor in either forest whose shape bends. Bins from partial dependence over the column's
+        own percentiles (a step of 25% of the curve's average, groups of at least 2%, at most 6), each edge where
+        the forest itself split most, two figures; reference the median's group. Pairs with rank correlation 0.7 or
+        more flagged.
+      - **Write the pre-spec** (`<extract> - pre-spec.yaml`, the shortlist format; strata the Hold fixed columns,
+        or `[CONFIRM: ...]` with none, which stops the Run after scouting with the file's line as what it waits
+        for) and log it (fingerprint, date) before any held-back loan is tested. A file already there is
+        confirmed as it stands, never written over; the Scouting tab lists where it differs from the proposal, and
+        an edit after a held-back run is labelled as OC-47 built it.
+      - **Confirm**: the saved-shortlist path, unchanged, its Found columns shown. **Scouting** tab (house style:
+        title band, one folding note, tiles, the candidates ranked with both importances, bins, reference,
+        partners, Proposed? and why; the held-fixed columns' own importance; the file; a curve and chart per
+        proposed candidate). Record: *Scouting*, *Scouting held back*, *Scouting's pre-spec*, *Tests: scouting*.
+      - **scikit-learn optional:** `deps.OPTIONAL`, the `scout` extra; the launcher offers *Install scikit-learn*
+        where finding needs it; without it finding is refused by its Control cell in words and a saved shortlist
+        still confirms (tested with it simulated missing, as test_perm does numpy). CI installs `.[test,scout]`
+        in both origination-cube jobs (S14).
+      - **Repeatable:** same extract, same forests, shortlist and file: the 17,000 × 80 file's fingerprint was
+        a32fe0713bff in two separate processes. scikit-learn's `predict_proba` sums the trees in thread order,
+        which moved the partial dependence in its 17th figure between two Runs; the votes are summed in the trees'
+        own order here.
+      - **Of scout-vs-measure.py:** kept the forest, the AUC-drop permutation importance, partial dependence and the
+        median reference; changed 400 trees / 10 shuffles / one row-position split to 200 / 5 / cross-fitted by date
+        (time; lower noise), hand-typed edges to found ones, two arrays to one extract split by date; added the
+        noise floor; dropped `make_book`, the straight-line regression (kept in the doc as B7's example) and the
+        frozen forest's holdout AUC (B7: development only). The table is in OC-50.
+      - **Found and fixed on the way:** a new-variable Run with nothing held fixed, or a number held and no
+        category, was refused by the bleed's "Nothing is left to cut" (config.py, engine.py); over values from
+        0.03, bins [0.1, 2] named the lowest group "0.0 - 0.0" (now "0.03 - 0.09", fractional edges only), and the
+        pre-spec now recognises a group named from the run's range.
+      - **On the first book with filler** (12,000 loans in the tests, 20,000 rendered): income ÷ sales and UTIL
+        rank first and are proposed, TENURE and five filler columns (a correlated pair and a category among them)
+        aren't; bins 0.9 for UTIL and 0.1 / 0.099 and 2 for income ÷ sales. At 20,000, confirmed on the 5,993
+        held back: UTIL above 0.9 2.08x; income ÷ sales from 2.00 3.07x (2.86x FICO and CHANNEL held fixed); below
+        0.099 1.68x, not holding up after the allowance.
+      - **Speed** at 17,000 × 80 with 40 candidates, under a 4 GB limit: the Run 64.4 s, scouting 59.3 s of it,
+        0.56 GB at its peak (a confirmation-only Run is 4.5 s). Rendered through LibreOffice: the Scouting and New
+        variables tabs read as above. Not checked: real Excel.
+      - Tests: 719 (18 new in `tests/test_scout.py`; 2 in `test_run_kind.py` rewritten: scouting is no longer
+        refused as not built, and its option says what it does). Planted bugs: 20 added, 367 in all; each put back
+        alone, 20 of 20 caught, and the 1 whose selector reaches a rewritten test (*scouting runs*) caught.
+      - **Departures:** noise floor over at least 20 tries, not 30 (time); proposed on either forest, not both; a
+        category ranked, never proposed; a file already beside the workbook is never written over (delete it to
+        re-propose); the ranking cross-fitted in 3 runs by date where the scope planned one 70 / 30 split.
 - **The firm's calls, 26 Sep 2026 (evening).**
   - **Name: PocketBook.** *"i want to change the name of this... let's call it the PocketBook"*. What
     the analyst sees is renamed with the redesign; folder and package names in one sweep after the
