@@ -443,8 +443,10 @@ def test_the_words_are_p_value_and_not_significant(walk_book):
     text = " ".join(str(c.value) for t in walk_book.sheetnames for row in walk_book[t].iter_rows() for c in row
                     if isinstance(c.value, str))
     low = text.lower()
-    for gone in ("luck alone", "could be luck", "wobble", "earning", "earns"):
-        assert gone not in low, gone
+    # found first, then asserted: pytest explaining `x not in <megabytes of workbook text>` never finishes
+    # (the planted bug "could be luck back in the readings" hung CI's mutation check on exactly this line)
+    found = [gone for gone in ("luck alone", "could be luck", "wobble", "earning", "earns") if gone in low]
+    assert not found, found
     assert "p-value" in text and "not significant" in text
     ws = walk_book["Where it bleeds"]
     assert [ws.cell(row=4, column=c).value for c in (15, 17)] == ["p-value", "p-value"]
