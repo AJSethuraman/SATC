@@ -489,3 +489,17 @@ def test_a_parent_that_is_only_a_heading_is_not_pulled_in():
     out = _served("26 USC 274(a)(1)", "No deduction otherwise allowable")
     assert isinstance(out, engine.Served), out
     assert "26 USC 274(a):" not in out.passage
+
+
+def test_a_brief_that_prints_a_clause_names_its_lead_in():
+    """Codex on #403: `frame` reached reads and served answers and not the
+    brief, so a brief quoting § 1.162-21(a)(3)(i) -- a definition of "fine" --
+    left out the rule it defines a word for. Named, not printed: a brief is
+    narrowed on purpose, and `ask.read` prints the rest."""
+    got = ask.consult("A fine was paid for breaking a law. Can we deduct it?",
+                      limit=1)
+    assert f"### {FINE}" in got, "the question no longer reaches (a)(3)(i)"
+    tail = got[got.index(f"### {FINE}"):]
+    tail = tail[:tail.find("\n### ", 5)] if "\n### " in tail[5:] else tail
+    assert "`26 CFR 1.162-21(a)`" in tail
+    assert "`26 CFR 1.162-21(a)(1)`" in tail

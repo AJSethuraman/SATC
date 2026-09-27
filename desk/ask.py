@@ -352,7 +352,7 @@ def consult(question: str, corpus: Path = CORPUS,
     cited += list(ruled)
     return brief(question, whole.narrowed_to(cited),
                  context, rule_added=added, on_file=_shelf(whole),
-                 ruled=ruled)
+                 ruled=ruled, whole=whole)
 
 
 def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
@@ -559,8 +559,11 @@ def review_brief(position, corpus: Path = CORPUS, *, limit: int = 8) -> str:
 def brief(question: str, desk: record.Desk,
           context: record.Context | None = None, *,
           rule_added: str = "", on_file: tuple = (),
-          ruled: dict | None = None) -> str:
-    """Everything the desk will let an answerer see, and nothing else."""
+          ruled: dict | None = None, whole: record.Desk | None = None) -> str:
+    """Everything the desk will let an answerer see, and nothing else.
+
+    `whole` is the corpus `desk` was narrowed from: a lead-in above a printed
+    clause is structure, and a narrowed desk no longer holds it."""
     ratified = [q for q in desk.positions if not q.proposed]
     context = context or record.NOTHING_ON_FILE
     # THE RUNNING CODE SAYS WHAT IT IS, in the one artifact an answerer always
@@ -806,6 +809,7 @@ def brief(question: str, desk: record.Desk,
     # `record.shown` and not `desk.passages`: the engine counts the same call
     # when it reports how much a desk put in front of a model that then said the
     # desk held nothing. Two readings of "what was shown" is one too many.
+    in_brief = {p.citation for p in record.shown(desk)}
     for p in record.shown(desk):
         out += [f"### {p.citation}", ""]
         # SOMEBODY ELSE'S FACTS, SAID SO. `dec-examples`, 14 September 2026 --
@@ -839,6 +843,16 @@ def brief(question: str, desk: record.Desk,
                     "question, the record may simply not hold a rule that "
                     "does, and that is worth saying rather than working "
                     "around.", ""]
+        # WHAT IT COMPLETES, NAMED: a clause printed without the lead-in it
+        # finishes -- a definition of "fine" without the denial it defines a
+        # word for -- is not the rule (Codex on #403). Named, not printed; what
+        # this brief already prints is not named again.
+        framed = [f for f in (whole or desk).frame(p.citation)
+                  if f not in in_brief]
+        if framed:
+            out += [f"**Read as one with {'; '.join(f'`{f}`' for f in framed)} "
+                    f"— a lead-in and the clauses that finish it. `ask.read` "
+                    f"it before relying on this.**", ""]
         if limits_on(desk, p.citation):
             names = "; ".join(f"`{o}`" for o in limits_on(desk, p.citation))
             out += [f"**Read with {names} — the record says it changes what "

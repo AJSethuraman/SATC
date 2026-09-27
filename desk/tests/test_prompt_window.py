@@ -444,7 +444,9 @@ NARROWED = {
     # And +41 on both of those two: the § 1.162-21 paragraph each now shows
     # names (g), the applicability date that confines the whole section
     # to taxable years from 19 January 2021 (Codex on #403).
-    "hand tools bought for the trade - deducted or capitalized?": 4_243,
+    # And +52 on hand tools: § 1.162-21(d)(2)(ii) now names the lead-in it
+    # finishes and that lead-in's other clauses (`frame`, Codex on #403).
+    "hand tools bought for the trade - deducted or capitalized?": 4_295,
     "mileage or actual expenses for the van?": 2_855,
 }
 
