@@ -612,6 +612,14 @@ def test_what_is_on_file_is_not_named():
      [f"26 USC 1221(a)({i})" for i in (1, 3, 4, 5)]),
     ("section 274(m)(1), (2), and (3)", [f"26 USC 274(m)({i})" for i in (1, 2, 3)]),
     ("section 163(d)(1) and (h)", ["26 USC 163(d)(1)", "26 USC 163(h)"]),
+    # Codex on #403: a range that ends in labels is a range too, and is not
+    # read as a truncated first end -- § 1.446-1(e)(2)(iii) Example 17 writes
+    # "Section 168(g)(1)(A) through (D)", which read as 168(g)(1).
+    ("Section 168(g)(1)(A) through (D)", []),
+    ("section 274(e)(1) through (9)", []),
+    ("section 274(e)(1)-(9)", []),
+    # ... and a number inside an aside is not a section.
+    ("sections 162 (amended in 2017) and 212", ["26 USC 162", "26 USC 212"]),
     # ... but a label opening a capitalised item is the paragraph's own list:
     # § 1.274-5T(a), "Gifts defined in section 274(b), or (4) Any listed property".
     ("(3) Gifts defined in section 274(b), or (4) Any listed property",

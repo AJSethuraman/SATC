@@ -22,6 +22,7 @@ difference between a field that was empty and a field that was never read.
 from __future__ import annotations
 
 import decimal
+import functools
 import re
 from datetime import date as _date_cls
 from dataclasses import dataclass, field
@@ -782,6 +783,12 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
 _QUALIFIER = " \u2014 "
 
 
+#: `Desk._index`, by desk. Kept with the passages it was built from and checked
+#: by identity, so a reused id can never serve another record's index.
+_INDEXES: dict = {}
+
+
+@functools.lru_cache(maxsize=None)
 def _stem(citation: str) -> str:
     """A citation with the firm's hand-written ` \u2014 which rule` note removed.
 
@@ -889,12 +896,33 @@ class Desk:
         was cut from (re-review of 3e7a1e98). `within` is the paragraph the
         text opens with, for "subsection (d)" (`code_references`)."""
         held = [p.citation for p in self.corpus.passages]
-        labels = re.compile(r"^(?:###\s+)?(" + "|".join(
-            re.escape(h) for h in sorted(held, key=len, reverse=True))
-            + r")(?::\s|\s*$)", re.M)
+        labels = _held_labels(tuple(held))
         return [c for c in code_references(text, within=within, labels=labels)
                 if not any(h == c or is_under(h, c) or is_under(c, h)
                            for h in held)]
+
+    def _index(self) -> tuple:
+        """(children, by_stem), built once per record: every direct clause of
+        each stem, and every passage by its stem. `frame` scanned all 1,257
+        passages per call and the brief calls it per paragraph for everything
+        an answer carries -- four seconds a brief (second adversarial pass)."""
+        kept = _INDEXES.get(id(self))
+        if kept is not None and kept[0] is self.passages:
+            return kept[1]
+        children, by_stem = {}, {}
+        for p in self.passages:
+            base = _stem(p.citation)
+            by_stem.setdefault(base, []).append(p)
+            m = re.fullmatch(r"(.+?)(\([^()]+\))", base)
+            if m:
+                children.setdefault(m.group(1), []).append(p)
+        if len(_INDEXES) > 64:              # narrowed desks come and go
+            _INDEXES.clear()
+        _INDEXES[id(self)] = (self.passages, (children, by_stem))
+        return children, by_stem
+
+    def _children(self, of: str) -> list:
+        return self._index()[0].get(_stem(of), [])
 
     def _opens(self, p) -> bool:
         """Does `p` state nothing without its clauses? A lead-in, a heading, or
@@ -902,32 +930,25 @@ class Desk:
         (iii), "Payment amount not identified." (Codex on #403)."""
         if is_lead_in(p.text) or is_heading(p.text):
             return True
-        return _short_phrase(p.text) and any(
-            q.citation.startswith(p.citation)
-            and re.fullmatch(r"\([^()]+\)", q.citation[len(p.citation):])
-            for q in self.passages)
+        return _short_phrase(p.text) and bool(self._children(p.citation))
 
     def _clauses(self, of: str) -> list:
         """`of`'s direct clauses, and a clause's own when it is a lead-in too."""
         out = []
-        for p in self.passages:
-            if (p.citation.startswith(of)
-                    and re.fullmatch(r"\([^()]+\)", p.citation[len(of):])):
-                out.append(p.citation)
-                # DOWN THROUGH LEAD-INS AND HEADINGS ALIKE: a child heading
-                # alone is a caption, and the tests are beneath it (Codex on
-                # #403, § 1.162-21(b)(2) and (b)(3)).
-                if self._opens(p):
-                    out += self._clauses(p.citation)
+        for p in self._children(of):
+            out.append(p.citation)
+            # DOWN THROUGH LEAD-INS AND HEADINGS ALIKE: a child heading alone
+            # is a caption, and the tests are beneath it (Codex on #403,
+            # § 1.162-21(b)(2) and (b)(3)).
+            if self._opens(p):
+                out += self._clauses(p.citation)
         return out
 
     def _joined(self, of: str) -> bool:
         """Are `of`'s clauses one rule -- a list joined by "and"? Read off the
         words: one of them ends ", and" or "; and"."""
         return any(re.search(r"[;,]\s*and$", p.text.rstrip())
-                   for p in self.passages
-                   if p.citation.startswith(of)
-                   and re.fullmatch(r"\([^()]+\)", p.citation[len(of):]))
+                   for p in self._children(of))
 
     def frame(self, citation: str, own: bool = True) -> list:
         """What completes `citation` by its structure, read off the words: every
@@ -936,9 +957,21 @@ class Desk:
         any amount" and the (a)(1)-(3) it joins -- and, when `citation` is itself
         a lead-in, its own clauses: § 274(o) ends "for-". Codex on #403, twice."""
         out = []
+        # ITS ANCESTORS' STEMS, read off the citation: drop a worked example's
+        # number, then one label at a time -- then look only those up.
+        by_stem, stems = self._index()[1], []
+        at = re.sub(r" Example \d+$", "", _stem(citation))
+        stems.append(_stem(citation))
+        while True:
+            stems.append(at)
+            m = re.fullmatch(r"(.+?)\([^()]+\)", at)
+            if not m:
+                break
+            at = m.group(1)
         ancestors = sorted(
-            (p for p in self.passages if p.citation != citation
-             and is_under(citation, p.citation) and is_lead_in(p.text)),
+            {id(p): p for st in stems for p in by_stem.get(st, [])
+             if p.citation != citation and is_under(citation, p.citation)
+             and is_lead_in(p.text)}.values(),
             key=lambda p: len(p.citation))
         for a in ancestors:
             # ITS OTHER CLAUSES ONLY WHEN THEY ARE ONE RULE: § 1.162-21(a)'s end
@@ -1358,9 +1391,12 @@ _LABEL = (r"\((?:\d+|[A-Z]+|[a-z]|" + "|".join(c * 2 for c in "abcdefghijklmnopq
 #: after a letter, so "261-276" is not read as a section. Never a regulation
 #: ("1.263(a)-3" stops at its decimal point), never cut short before a digit,
 #: and never the first end of a range ("261-276", "1 through 5"), which names
-#: sections the reader cannot list.
+#: sections the reader cannot list -- nor a range ending in labels, "168(g)(1)
+#: (A) through (D)", which the engine read as 168(g)(1) by backing off the
+#: labels; a match may not stop before a label (Codex on #403).
 _SECTION_NO = (r"\d+(?:[A-Z]+(?:-\d+)?)?(?:\s?" + _LABEL + r")*"
-               r"(?!\.?\d|\s*[-\u2013]\s*\d|\s+through\b)")
+               r"(?!\.?\d|\s*[-\u2013]\s*\d|[-\u2013]\(|\s+through\b|\s?"
+               + _LABEL + r")")
 #: An explanatory aside between items of a list -- "sections 469 (the "passive
 #: loss limitation") and 163 (d)", § 1.163-8T(a)(1), Codex on #403. It holds a
 #: space or a quote, which a subsection label like "(d)" or "(iii)" never does.
@@ -1409,9 +1445,32 @@ _OWNED_BEFORE = re.compile(
 #: #403). `Desk.unheld` adds every citation the record holds; only a Code paragraph's resolves anything -- a regulation's "paragraph
 #: (e)(5)" is its own, and a note, "26 USC 274 note, Pub. L. ...", speaks of the
 #: enacting law's sections.
-_LABELLED = re.compile(
-    r"^(?:###\s+)?((?:26 (?:USC|CFR) |IRS |Instr\. |Rev\. (?:Rul|Proc)\. |PLR "
-    r"|Announcement |Notice |TAM |Treas\. )[^\n:]+?)(?::\s|\s*$)", re.M)
+_LABEL_HEADS = (r"(?:26 (?:USC|CFR) |IRS |Instr\. |Rev\. (?:Rul|Proc)\. |PLR "
+                r"|Announcement |Notice |TAM |Treas\. )")
+
+
+def _label_pattern(heads: str) -> "re.Pattern":
+    """A label is "### <citation>" on a line of its own -- how `ask.read`
+    prints one -- or "<citation>: " -- how a served passage does. A line that
+    only BEGINS like one ("Notice of the election is filed ...") is words, not
+    a label (second adversarial pass: the owner was reset by ordinary English)."""
+    return re.compile(r"^(?:###\s+(" + heads + r"[^\n]*?)\s*$|(" + heads
+                      + r"[^\n:]*?):\s)", re.M)
+
+
+_LABELLED = _label_pattern(_LABEL_HEADS + r"[^\n:]")
+
+
+@functools.lru_cache(maxsize=8)
+def _held_labels(held: tuple) -> "re.Pattern | None":
+    """Every held citation as a label, compiled once per record -- compiled on
+    every call it made the whole-corpus brief six times slower (second
+    adversarial pass). None for a record holding nothing: an empty alternation
+    matches every blank line."""
+    if not held:
+        return None
+    return _label_pattern("(?:" + "|".join(
+        re.escape(h) for h in sorted(held, key=len, reverse=True)) + ")")
 _CODE_CITATION = re.compile(r"26 USC (\d+[A-Z]*(?:-\d+)?)((?:\([a-z]+\))?)"
                             r"(?:\([A-Za-z0-9]+\))*$")
 #: "subsection (d)", "subsections (a) and (c)(1)", "paragraph (2)" -- a place in
@@ -1468,15 +1527,21 @@ def _relative(text: str, within: str) -> list:
     for r in _RELATIVE.finditer(text):
         # ... NOR A RANGE, as for section numbers: "subsections (a) through
         # (c)" was read as (a) alone (adversarial pass on #403).
-        if (_OWNED_ELSEWHERE.match(text, r.end())
-                or re.match(r"\s+through\b|\s*[-\u2013]\s*\(", text[r.end():])):
+        if _OWNED_ELSEWHERE.match(text, r.end()):
             continue
         base = f"26 USC {section}" + ("" if r.group(1) == "subsection"
                                       else subsection)
         if r.group(1) == "paragraph" and not subsection:
             continue
         kind = "lower" if r.group(1) == "subsection" else "digit"
-        out += [base + item for item in _items(kind, r.group(2))]
+        items = _items(kind, r.group(2))
+        # ONLY THE LAST MEMBER can be a range's first end: "subsections (a)
+        # and (b) through (d)" still names (a). And a dash with a space after
+        # it opens a sub-list -- § 274(a)(2)'s "paragraph (1)- (A) Dues" --
+        # which is not a range (second adversarial pass).
+        if re.match(r"\s+through\b|[-\u2013]\(", text[r.end():]):
+            items = items[:-1]
+        out += [base + item for item in items]
     return out
 
 
@@ -1488,9 +1553,11 @@ def code_references(text: str, within: str = "", labels=None) -> list:
     is read against; a labelled paragraph in `text` is read against its own
     label instead."""
     out = []
-    found_at = {m.start(): m.group(1) for m in _LABELLED.finditer(text)}
+    found_at = {m.start(): m.group(1) or m.group(2)
+                for m in _LABELLED.finditer(text)}
     if labels is not None:
-        found_at.update({m.start(): m.group(1) for m in labels.finditer(text)})
+        found_at.update({m.start(): m.group(1) or m.group(2)
+                         for m in labels.finditer(text)})
     starts = [(0, within)] + sorted(found_at.items())
     for (at, owner), (end, _) in zip(starts, starts[1:] + [(len(text), "")]):
         for c in _relative(text[at:end], owner):
@@ -1501,8 +1568,11 @@ def code_references(text: str, within: str = "", labels=None) -> list:
         if (_OWNED_AFTER.match(text, tail)
                 or _OWNED_BEFORE.search(text[max(0, m.start() - 40):m.start()])):
             continue
+        # THE LIST'S OWN ITEMS, never a number inside an aside: "sections 162
+        # (amended in 2017) and 212" named a § 2017 (Codex on #403).
+        items = re.sub(r"\s*(?!" + _LABEL + r")\([^()]*\)", " ", m.group(1))
         found = [f"26 USC {n.replace(' ', '')}"
-                 for n in re.findall(_SECTION_NO, m.group(1))]
+                 for n in re.findall(_SECTION_NO, items)]
         # AND WHAT THE LIST SHARES AFTER IT: "(a)(1), (3), (4), or (5)".
         shared = text[m.end():tail]
         if found and shared:
@@ -1556,10 +1626,28 @@ def is_under(citation: str, key: str) -> bool:
     # THE RECORD'S OWN " — which rule" SUFFIX is the same paragraph: every
     # stored paragraph of § 1.262-1 is cited so, and none was under its
     # section (adversarial pass on #403).
-    base = citation.split(" \u2014 ", 1)[0]
-    return citation == key or base == key or bool(
-        base.startswith(key) and re.fullmatch(
-            r"(\([^()]+\))*( Example \d+)?", base[len(key):]))
+    # ON BOTH SIDES (second adversarial pass): "(b) — how the examples are
+    # introduced" is a lead-in whose clauses are "(b)(1) — life insurance
+    # premiums" and eight more, and it had none. Two rules written on ONE
+    # paragraph -- same stem, different note -- are siblings, not containment.
+    if citation == key:
+        return True
+    base, kbase = _stem(citation), _stem(key)
+    if base == kbase:
+        return key == kbase
+    return bool(base.startswith(kbase) and re.fullmatch(
+        r"(\([^()]+\))*( Example \d+)?", base[len(kbase):]))
+
+
+def _clause_of(citation: str, of: str) -> bool:
+    """`citation` is a direct clause of `of`, reading through the record's
+    " — which rule" note on either side."""
+    obase = _stem(of)
+    if not citation.startswith(obase):      # cheap, and true of every clause
+        return False
+    base = _stem(citation)
+    return (base != obase and base.startswith(obase)
+            and bool(re.fullmatch(r"\([^()]+\)", base[len(obase):])))
 
 
 def _read_with(block: str, where: str) -> tuple:

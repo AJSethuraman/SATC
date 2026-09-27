@@ -527,7 +527,9 @@ NARROWED = {
 # (adversarial pass on #403): it stops re-naming what its "Read as one with"
 # line already names -- § 274(e) under each of its own clauses -- and § 274(e)
 # now names the § 274(o) an answer citing it carries.
-WHOLE = (156_236, 280_423)
+# -0 / -6 when a range ending in labels stopped being read as its first end:
+# § 1.446-1(e)(2)(iii) Example 17 no longer names 26 USC 168(g)(1) (Codex).
+WHOLE = (156_236, 280_417)
 
 
 def _answering_sizes():

@@ -957,6 +957,12 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
     under = [p for p in desk.passages
              if p.citation.startswith(citation)
              and p.citation[len(citation):][:1] in ("(", " ", ",")]
+    # A CITATION WITH THE RECORD'S " — which rule" NOTE has its clauses under
+    # its stem: "(b) — how the examples are introduced" is a lead-in, and its
+    # clauses are "(b)(1) — life insurance premiums" and on (second
+    # adversarial pass on #403).
+    if record._stem(citation) != citation:
+        under = [p for p in desk.passages if record._clause_of(p.citation, citation)]
     if exact:
         out = [f"### {exact.citation}", "", f"> {exact.text}", ""]
         # A LEAD-IN IS HALF A SENTENCE. § 1.263(a)-4(f)(1) ends "does not
@@ -969,7 +975,9 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
         deeper = []
         for p in under:
             rest = p.citation[len(citation):]
-            if re.fullmatch(r"\([^()]+\)", rest):
+            if (re.fullmatch(r"\([^()]+\)", rest)
+                    or record._clause_of(p.citation, citation)
+                    and record._stem(citation) != citation):
                 out += [f"### {p.citation}", "", f"> {p.text}", ""]
             elif rest.startswith("(") or re.match(r" Example \d", rest):
                 # WORKED EXAMPLES TOO. Codex on #401: § 1.263(a)-3(e)(6) printed
