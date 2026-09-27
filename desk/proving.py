@@ -302,7 +302,7 @@ def _once_per_source(transport):
     return once
 
 
-def prove(served, desk, transport) -> Proof:
+def prove(served, desk, transport, each=None) -> Proof:
     """Prove a served answer: resolve its authority, then `prove_passage`.
 
     THIS FUNCTION IS THE RECORD HALF and does nothing else. Two of its three
@@ -311,6 +311,11 @@ def prove(served, desk, transport) -> Proof:
     here and not in the core.
     """
     citation = served.citation
+    # `each`, when given, is filled with every paragraph's own proof, by
+    # citation: the judge may read a fetched page only where it TIED -- a 200
+    # that is a bot interstitial proves COULD NOT and is not the publisher's
+    # document (Codex on #403).
+    each = {} if each is None else each
     # ONE FETCH PER DOCUMENT. A source is one publisher's document -- a Code
     # section, a regulation section, a publication -- and every paragraph of it
     # is in what comes back. Codex on #403: proving § 274(e)(1) with what is
@@ -335,8 +340,8 @@ def prove(served, desk, transport) -> Proof:
         # ... BUT WHAT IS SERVED BESIDE IT DOES. Codex on #403: POS3 is served
         # with six regulation paragraphs, and returning here left a changed one
         # unchecked. Only a DIFFERS among them can make this verdict worse.
-        return _with_appended(first, citation, desk, transport)
-    first = prove_passage(citation, obj.text, source, transport)
+        return _with_appended(first, citation, desk, transport, each)
+    first = each[citation] = prove_passage(citation, obj.text, source, transport)
     # AND WHAT IS SERVED WITH IT. The served passage carries the paragraph's
     # frame and its `Read with` limits; Codex on #403 found that a § 274(o)
     # date note which had moved or gone was served on a TIED proof as current
@@ -346,10 +351,10 @@ def prove(served, desk, transport) -> Proof:
     # DIFFERS on the cited paragraph is already the worst; anything else keeps
     # going, because a paragraph of ANOTHER source can still differ (Codex on
     # #403: a COULD NOT here returned before that source was ever fetched).
-    return _with_appended(first, citation, desk, transport)
+    return _with_appended(first, citation, desk, transport, each)
 
 
-def _with_appended(first, citation, desk, transport) -> Proof:
+def _with_appended(first, citation, desk, transport, each) -> Proof:
     """`first`, or worse: each paragraph served with `citation` proved too."""
     if first.verdict == DIFFERS:
         return first
@@ -364,7 +369,7 @@ def _with_appended(first, citation, desk, transport) -> Proof:
         src = whole.source(held.source_id) if held else None
         if held is None or src is None:
             continue
-        p = prove_passage(c, held.text, src, transport)
+        p = each[c] = prove_passage(c, held.text, src, transport)
         if p.verdict == DIFFERS:
             return dataclasses.replace(
                 p, citation=citation,

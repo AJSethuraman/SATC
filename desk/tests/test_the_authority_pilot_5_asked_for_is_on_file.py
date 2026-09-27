@@ -986,3 +986,26 @@ def test_a_leaf_of_a_list_of_alternatives_is_not_served_its_siblings():
     assert desk.unheld(desk.limits_text("26 USC 274(e)(8)")) == []
     # The control: § 1.162-21(a)'s clauses end "; and", and are one rule.
     assert all(f"26 CFR 1.162-21(a)({i})" in desk.frame(FINE) for i in (1, 2, 3))
+
+
+def test_a_page_that_is_not_the_publishers_does_not_replace_the_served_text():
+    """Codex on #403: a 200 that is a bot interstitial, not the page, proves
+    COULD NOT -- and was still handed to the judge as the publisher's document,
+    so a judgment quoting what was actually served was refused."""
+    desk = record.load(CORPUS)
+    whole = _live(desk)
+
+    def transport(source, citation):
+        if source.id == "S41":
+            return _LivePage("Please verify you are a human to continue.")
+        return whole(source, citation)
+
+    words = desk.passage("26 USC 274(e)(1)").text.split("(1)", 1)[-1].strip()[:40]
+    out = ask.answer(EMPLOYER_MEALS_2026, position=DEDUCTIBLE,
+                     citation="26 USC 274(e)(1)", keep=False, prove=transport,
+                     judged=judging.Judgment(by="second-reader", supports=True,
+                                             because=words))
+    assert isinstance(out, engine.Served), out
+    assert out.proof.verdict == proving.COULD_NOT
+    assert out.judged.stands
+    assert out.judged.against != "the document fetched from the publisher"

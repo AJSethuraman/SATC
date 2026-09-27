@@ -1157,6 +1157,7 @@ def answer(question: str, *, position: str = "",
         return raw
 
     transport = _watching if prove is not None else None
+    proved = {}
 
     out = engine.serve(proposed, desk, question=question, context=context)
     # THE CANDIDATE PATH, and it sits exactly here for a reason: AFTER the gate
@@ -1189,7 +1190,7 @@ def answer(question: str, *, position: str = "",
 
         import attempts
         import proving
-        p = proving.prove(out, desk, transport)
+        p = proving.prove(out, desk, transport, each=proved)
         if p.verdict == proving.DIFFERS:
             out = engine.Refusal(
                 proving.MOVED,
@@ -1234,6 +1235,16 @@ def answer(question: str, *, position: str = "",
         # WHERE THE CITED FETCH FAILED, THE STORED PASSAGE STANDS IN FOR IT:
         # that is what was served, and a judge quoting it must not be refused
         # because only another source's page came back (Codex on #403).
+        # AND ONLY A PAGE THE PROOF FOUND ITS OWN PARAGRAPH ON. A 200 that is
+        # a bot interstitial, or a redirect to another host, proves COULD NOT
+        # and is not the publisher's document; the stored text stands (Codex
+        # on #403).
+        import proving
+        # A candidate was proved on its own path, and its proof is on `out`.
+        if getattr(out, "proof", None) is not None:
+            proved.setdefault(out.citation, out.proof)
+        fetched = {c: t for c, t in fetched.items()
+                   if getattr(proved.get(c), "verdict", None) == proving.TIED}
         others = [t for c, t in fetched.items() if c != out.citation]
         cited_live = out.citation in fetched
         live = "\n\n".join(
