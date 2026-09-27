@@ -253,6 +253,15 @@ def test_the_suggested_bins_sit_on_the_planted_cliffs_and_the_reference_holds_th
         assert small == [], (c.name, c.bins, small)
 
 
+def test_scouting_prints_without_the_candidates_header_over_the_pre_spec(wide):
+    """K, the firm's answer of 27 Sep 2026: printed, the print titles carried the candidates table's header onto the
+    page where the pre-spec file starts."""
+    ws = load_workbook(wide["b"])[scout.SHEET]
+    assert ws.print_title_rows is None and ws.print_title_cols is None
+    pre = [c.row for row in ws.iter_rows() for c in row if c.value == "The pre-spec"]
+    assert pre and ws.print_area                                  # the pre-spec is on the page, under no header
+
+
 def test_the_development_loans_are_the_first_share_by_origination_date(wide):
     sc = wide["sc"]
     last, first, end = _split(wide["x"])

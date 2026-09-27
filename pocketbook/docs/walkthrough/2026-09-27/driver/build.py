@@ -34,7 +34,7 @@ ROUTE = f"""<figure class="route"><svg viewBox="0 0 1000 470" xmlns="http://www.
 <text x="10" y="18" font-size="13" font-weight="bold" fill="#333">Where the book bleeds</text>
 {box(10, 28, 190, 96, *WIN, "Steps 1-7 · Window", ["Install add-ons, Browse", "Set up, tick the cuts", "Next (Run too early: 9 left)"])}
 {box(250, 28, 230, 96, *BOOK, "Steps 8-11 · Workbook", ["Control: pick each answer", "Columns: Treat as, C3 = Yes", "save and close"])}
-{box(530, 28, 170, 96, *WIN, "Step 12 · Window", ["Run", "three tiles"])}
+{box(530, 28, 170, 96, *WIN, "Step 12 · Window", ["Run", "two tiles, first lines"])}
 {box(750, 28, 240, 96, *READ, "Steps 13-18 · Results", ["Start here, Pockets,", "Paid cost kept, Grids,", "Split, Record"])}
 {arrow(200, 76, 248, 76)}{arrow(480, 76, 528, 76)}{arrow(700, 76, 748, 76)}
 {box(530, 160, 460, 80, *BOOK, "Steps 19-21 · Change and see", ["worse at 2 times: the tabs follow now", "fewest loans 100: waits for a Run, then Run again"])}

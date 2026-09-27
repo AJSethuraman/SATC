@@ -547,7 +547,10 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
               and cat[_to_code(r[C_MEANS - 1].value, cat)].cut == "band"}
     chosen_now = choices or control.read_choices(cws)[0]
     cut = chosen_now.cut() if chosen_now is not None else None
-    look.write_look(wb, table, shown + [m.name for m in made if m.name not in shown], known=facts_of,
+    # H, the firm's answer of 27 Sep 2026: only a column that can be cut into bands gets a block. GCO and RANR drew a
+    # chart saying "no edges on Columns yet" ("Not sure why we even have the info? Like obviously we didn't band them")
+    shown = [c for c in shown + [m.name for m in made if m.name not in shown] if c in banded]
+    look.write_look(wb, table, shown, known=facts_of,
                     edge_rows=edge_rows, split=chosen_now.split if chosen_now is not None else None,
                     bands=[c for c in shown if c in banded and (cut is None or c in cut)],
                     treat_rows=_treat_rows(ws))
@@ -560,8 +563,6 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     about.sheet_state = "hidden"
     settings = control.load_settings()
     given = {s.key: control.answer_of(s.key, *kept["control"].get(s.key, (None, None))) for s in settings}
-    unanswered = sum(1 for s in settings if s.judgment and not s.in_launcher and control.asked(s, given)
-                     and not any(v not in (None, "n/a") for v in kept["control"].get(s.key, (None, None))))
     _start_here(start, wb, extract, len(table.rows), len(extract_cols))
     _order(wb)
     if not _writable(book):
@@ -584,19 +585,15 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
                      f'{kinds[1].label}.')
     if new_cols:
         lines.append(f"New columns since the last check: {', '.join(new_cols)}. Columns!C3 needs a Yes again.")
-    nlook = len({rv.column for rv in looks if rv.kind != "cannot run"} | set(new_cols) | edge_noted)
-    if nlook:
-        lines.append(f"{_n(nlook, 'column')} to look at first, on the Columns tab.")
-    left = []
-    if unanswered:
-        left.append("Control")
-    if ws[CONFIRM_CELL].value != "Yes" or odd_open:
-        left.append("Columns")
-    # the second walk, defect 15: this line said the same thing with nothing left to fill
-    joined = ", ".join(left[:-1]) + (" and " if len(left) > 1 else "") + left[-1] if left else ""
-    lines.append(f"Next: fill in the shaded cells on {joined}, save, close, and press Run." if left
+    # E, the firm's answer of 27 Sep 2026: one count of what is left, the Run's refusal's own. The window said "7
+    # columns to look at first", Start here "Columns to confirm: 10", and the refusal listed 9
+    _, left, _ = read_book(book, memory_path)
+    on = [t for t in ("Control", "Columns", "Look") if any(p.startswith(t) for p in left)]
+    joined = ", ".join(on[:-1]) + (" and " if len(on) > 1 else "") + on[-1] if on else ""
+    lines.append(f"Next: {_n(len(left), 'answer')} needed before Run" + (f", on {joined}" if on else "")
+                 + ". Fill in the shaded cells, save, close, and press Run." if left
                  else "Everything is answered. Press Run.")
-    return Outcome(True, book, lines, summary={"suggested": worked[0], "fallback": worked[1]})
+    return Outcome(True, book, lines, summary={"suggested": worked[0], "fallback": worked[1], "needed": len(left)})
 
 
 def _answer_row(r) -> bool:
@@ -793,6 +790,10 @@ def _treat_rows(ws) -> dict[str, tuple[int, str]]:
     return out
 
 
+#: Start here's count of what is left before Run: the launcher and the Run's refusal say the same number
+NEEDED = "Answers needed before Run"
+
+
 def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
     """Start here, as the redesign draws it (section 1): where things stand, as formulas over Control and
     Columns; the pending banner; what the last Run found (from _found, kept through Set up) with its five
@@ -807,8 +808,7 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
     r = house.method_note(ws, 3, 2, 9, [
         ("Where things stand", "What is left before Run, counted live from Control and Columns as you fill them "
                                "in."),
-        ("What the last Run found", "Pockets that read worse and are material, and the five largest. Worse? and "
-                                    "Material? follow Control; the order and the rest are as of the last Run."
+        ("What the last Run found", "Pockets worse and material at Control's lines, and the five largest."
          if _found_value(wb, "kind") != confirm_tab.FOUND_KIND else
          "Each group of the tested column on the holdout, against the reference group. Significant? follows the "
          "confidence on Control; the rest is as of the last Run."),
@@ -818,15 +818,17 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
     cols = wb["Columns"] if "Columns" in wb.sheetnames else None
     end = next((c.row for c in cols[_col(C_QKEY)] if c.value == TABLE_END), COL_FIRST + 1) - 1 if cols \
         else COL_FIRST
-    names = f"Columns!$B${COL_FIRST}:$B${end}"
     keys, treat = f"Columns!${_col(C_QKEY)}${COL_FIRST}:${_col(C_QKEY)}${end}", \
         f"Columns!${_col(C_TREAT)}${COL_FIRST}:${_col(C_TREAT)}${end}"
-    tiles = [("Answers still needed", "=IFERROR(SUM(answers_needed),0)", "Control"),
-             ("Columns to confirm", f'=IF(Columns!{CONFIRM_CELL.replace("C", "$C$")}="Yes",0,COUNTA({names}))',
-              "Columns"),
+    # the count the Run's refusal gives (E, the firm, 27 Sep 2026): each blank answer on Control, what is being run
+    # when the launcher hasn't said, and Checked every column; "Columns to confirm" counted every column instead
+    kind_row = control.row_of(wb[control.SHEET], RUN_KIND) if control.SHEET in wb.sheetnames else None
+    kind_blank = f'+IF({control.SHEET}!$C${kind_row}="",1,0)' if kind_row else ""
+    tiles = [(NEEDED, f'=IFERROR(SUM(answers_needed),0){kind_blank}'
+                      f'+IF(Columns!{CONFIRM_CELL.replace("C", "$C$")}="Yes",0,1)', "Control and Columns"),
              ("Odd values to answer", f'=COUNTIFS({keys},"?*",{treat},"")', "Columns · Treat as"),
              ("Changes waiting for a Run", f'=IFERROR(COUNTIF(Status,"{house.WAITING}"),0)',
-              "Control · Needs a Run")]
+              "Control · Status")]
     for i, (label, f, where) in enumerate(tiles):
         first = 2 + 2 * i
         house.tile(ws, r + 1, first, first + 1, label, f, top=house.STONE)
@@ -835,17 +837,18 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
         foot.alignment = Alignment(indent=1)
     value_row = r + 2
     from openpyxl.formatting.rule import FormulaRule
-    for i in range(4):
+    for i in range(len(tiles)):
         # a count above nought is crimson, and its tile's rule turns red
         c, d = _col(2 + 2 * i), _col(3 + 2 * i)
         ws.conditional_formatting.add(f"{c}{value_row}", FormulaRule(
             formula=[f"${c}${value_row}>0"], font=Font(name="Arial", bold=True, size=12, color=house.CRIMSON)))
         ws.conditional_formatting.add(f"{c}{r + 1}:{d}{r + 1}", FormulaRule(
             formula=[f"${c}${value_row}>0"], border=Border(top=Side(style="thick", color=house.KEY_RED))))
-    # the pending banner: shown only while an answer under Needs a Run differs from what the last Run used
+    # the pending banner: shown only while an answer under Needs a Run, or a choice in the launcher, differs from
+    # what the last Run used
     b = r + 5
     ws.merge_cells(start_row=b, start_column=2, end_row=b, end_column=9)
-    words = "&".join(f"INDEX(waiting_words,{k})" for k in range(1, len(control.RUN_KEYS) + 1))
+    words = "&".join(f"INDEX(waiting_words,{k})" for k in range(1, control.waiting_rows(wb) + 1))
     n = f'COUNTIF(Status,"{house.WAITING}")'
     ws.cell(row=b, column=2, value=(
         f'=IFERROR(IF({n}=0,"","↻ "&{n}&IF({n}=1," change is"," changes are")&" waiting for a Run. "&'
@@ -853,7 +856,7 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
         f'the launcher."),"")'))
     ws.cell(row=b, column=2).font = Font(name="Calibri", size=10, bold=True, color=house.CRIMSON)
     ws.cell(row=b, column=2).alignment = Alignment(vertical="center", indent=1, wrap_text=True)
-    ws.row_dimensions[b].height = 30
+    ws.row_dimensions[b].height = 42            # three lines: a change or two in the launcher and on Control
     ws.conditional_formatting.add(f"B{b}:I{b}", FormulaRule(
         formula=[f'$B${b}<>""'], fill=PatternFill("solid", fgColor=house.ALERT_FG, bgColor=house.ALERT_FG)))
     r = b + 2
@@ -877,9 +880,20 @@ def _found_value(wb, key: str):
     return None
 
 
+#: Start here's list of the largest pockets, worse and material: how many rows it shows
+TOP_ROWS = 5
+#: the hidden column on Start here holding which _found row each of those rows shows
+TOP_HELPER = 11
+
+
 def _found_block(ws, wb, r: int) -> int:
-    """What the last Run found: four tiles and the five largest pockets, worse and material. The words are the
-    Run's; Worse?, Material?, the dollars and the counts are formulas over _pockets, so they follow Control."""
+    """What the last Run found: the tiles and the five largest pockets that are worse and material now. The words
+    are the Run's; the tiles, the dollars and which pockets are listed are formulas over _pockets, so they follow
+    Control. The list is picked as Pockets' Show dropdown picks (results._write_list): _found carries every pocket
+    the Run found losing more than its share, largest dollars first, each with its live Worse? and Material? and a
+    running count of those that are both, and row k is the first whose count reaches k (the firm, 27 Sep 2026, on
+    rows that no longer read worse under that heading: "I don't understand this like at all like meaning it's
+    slop")."""
     from . import house
     _heading(ws, r, "What the last Run found")
     if _found_value(wb, "kind") == confirm_tab.FOUND_KIND:
@@ -903,47 +917,42 @@ def _found_block(ws, wb, r: int) -> int:
                       f'=IFERROR(COUNTIFS({pc})&" short $"&TEXT(SUMIFS(pk_dollars,{pc}),"#,##0"),"")'))
     else:
         tiles.append(("Last Run", _found_value(wb, "stamp")))
-    tiles.append(("Tie-out checks", _found_value(wb, "tie_outs")))
     for i, (label, f) in enumerate(tiles):
         house.tile(ws, r + 1, 2 + 2 * i, 3 + 2 * i, label, f)
     ws.cell(row=r + 2, column=4).number_format = '"$"#,##0' if dollar else "#,##0.0"
-    if _found_value(wb, "tie_outs") and str(_found_value(wb, "tie_outs")).split(" of ")[0] == \
-            str(_found_value(wb, "tie_outs")).split(" of ")[-1].split(" ")[0]:
-        ws.cell(row=r + 2, column=8).font = Font(name="Arial", bold=True, size=12, color=house.POSITIVE)
     t = r + 4
     heads = ["Largest, worse and material", "Segment", "Loans", "× its comparison",
-             f"{'Dollars' if dollar else 'Bad loans'} above share", "Worse?", "Material?"]
-    house.header(ws, t, 2, heads + [None], centre_from=2)
-    top = [row for row in wb[FOUND].iter_rows(min_row=1, values_only=True) if row[0] == "top"]
-    for i, (_, band, seg, loans, prow) in enumerate(top[:5], start=1):
-        rr = t + i
-        P = lambda c: f"'{live.POCKETS}'!${live.col(c)}${prow}"         # noqa: E731
-        vals = [band, seg, loans, f"=IF({P(live.P_GAP)}=\"\",\"\",{P(live.P_GAP)})",
-                f"=IF({P(live.P_DOLLARS)}=\"\",\"\",{P(live.P_DOLLARS)})",
-                f'=IF({P(live.P_FLAG)}="{engine.WORSE}","Yes",IF(LEFT({P(live.P_FLAG)},5)="worse","Not sure","No"))',
-                f'=IF({P(live.P_MATERIAL)}="yes","Yes","No")']
-        for j, v in enumerate(vals):
-            c = ws.cell(row=rr, column=2 + j, value=v)
-            c.font = Font(name="Calibri", size=10, color=house.INK_TEXT)
-            c.alignment = Alignment(horizontal="left" if j < 2 else "center", vertical="center")
-            c.border = Border(bottom=Side(style="thin", color=house.ROW_RULE))
-        ws.cell(row=rr, column=4).number_format = "#,##0"
-        ws.cell(row=rr, column=5).number_format = '0.00"×"'
-        ws.cell(row=rr, column=6).number_format = '"$"#,##0' if dollar else "#,##0.0"
-        ws.row_dimensions[rr].height = 18
-    if not top:
-        ws.cell(row=t + 1, column=2, value="No pocket read worse and material at the last Run's lines.").font = \
+             f"{'Dollars' if dollar else 'Bad loans'} above share"]
+    house.header(ws, t, 2, heads, centre_from=2)
+    rows = [c.row for c in wb[FOUND]["A"] if c.value == "top"]
+    if not rows:
+        ws.cell(row=t + 1, column=2, value="Nothing lost more than its share at the last Run.").font = \
             Font(name="Calibri", size=10, color=SLATE)
-    from openpyxl.formatting.rule import FormulaRule
-    last = t + max(1, len(top[:5]))
-    ws.conditional_formatting.add(f"G{t + 1}:G{last}", FormulaRule(
-        formula=[f'G{t + 1}="Yes"'], font=Font(bold=True, color=house.CRIMSON),
-        fill=PatternFill("solid", fgColor=house.ALERT_FG, bgColor=house.ALERT_FG)))
-    ws.conditional_formatting.add(f"G{t + 1}:G{last}", FormulaRule(
-        formula=[f'G{t + 1}="Not sure"'], fill=PatternFill("solid", fgColor=house.CANVAS, bgColor=house.CANVAS)))
-    ws.conditional_formatting.add(f"H{t + 1}:H{last}", FormulaRule(
-        formula=[f'H{t + 1}="Yes"'], font=Font(bold=True),
-        fill=PatternFill("solid", fgColor=house.MIST, bgColor=house.MIST)))
+    else:
+        a, z = rows[0], rows[-1]
+        F = lambda c: f"'{FOUND}'!${_col(c)}${a}:${_col(c)}${z}"                    # noqa: E731
+        for k in range(1, TOP_ROWS + 1):
+            rr = t + k
+            idx = f"${_col(TOP_HELPER)}{rr}"
+            ws.cell(row=rr, column=TOP_HELPER, value=f'=IFERROR(MATCH({k},{F(TOP_CUM)},0),"")')
+            got = lambda c: f"INDEX({F(c)},{idx})"                                 # noqa: E731
+            P = lambda c: f"INDEX('{live.POCKETS}'!${live.col(c)}:${live.col(c)},{got(TOP_PROW)})"   # noqa: E731
+            none = '"No pocket is worse and material."' if k == 1 else '""'
+            vals = [f'=IF({idx}="",{none},{got(TOP_BAND)})', f'=IF({idx}="","",{got(TOP_SEG)})',
+                    f'=IF({idx}="","",{got(TOP_LOANS)})',
+                    f'=IF({idx}="","",IF({P(live.P_GAP)}="","",{P(live.P_GAP)}))',
+                    f'=IF({idx}="","",IF({P(live.P_DOLLARS)}="","",{P(live.P_DOLLARS)}))']
+            for j, v in enumerate(vals):
+                c = ws.cell(row=rr, column=2 + j, value=v)
+                c.font = Font(name="Calibri", size=10, color=house.INK_TEXT)
+                c.alignment = Alignment(horizontal="left" if j < 2 else "center", vertical="center")
+                c.border = Border(bottom=Side(style="thin", color=house.ROW_RULE))
+            ws.cell(row=rr, column=4).number_format = "#,##0"
+            ws.cell(row=rr, column=5).number_format = '0.00"×"'
+            ws.cell(row=rr, column=6).number_format = '"$"#,##0' if dollar else "#,##0.0"
+            ws.row_dimensions[rr].height = 18
+        ws.column_dimensions[_col(TOP_HELPER)].hidden = True
+    last = t + (TOP_ROWS if rows else 1)
     link = ws.cell(row=last + 1, column=2, value="Every pocket, every measure: the Pockets tab.")
     link.hyperlink = f"#'{results.POCKETS}'!A1"
     link.font = Font(name="Calibri", size=10, color=house.KEY_RED, underline="single")
@@ -1556,6 +1565,9 @@ def _suggestions(ws, values: dict[str, float], fallback: set[str], when: str) ->
         c.font = Font(name="Calibri", size=10, bold=v is not None and key not in fallback,
                       color=INK if v is not None else SLATE)
         c.alignment = Alignment(horizontal="left", vertical="center")
+        if key in control.NOW_KEYS:
+            # the number itself, hidden, for Comes to before the first Run (G)
+            ws.cell(row=r[0].row, column=control.WORKED_COL).value = v
 
 
 def _writable(book: Path) -> bool:
@@ -1755,12 +1767,23 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                  + (f"{confirm_tab.SHEET}." if tested and all(x.problem is None for x in tested)
                     else "Pockets." if bleed_tabs(res) else f"{scout.SHEET}." if res.scout is not None
                     else f"{record.SHEET}."))
+    summary["first"] = first_lines(lines)
     if res.scout_waits:
         # found and written, not yet confirmed: the pre-spec asks for an answer first (OC-13)
         lines += ["The held-back loans weren't tested yet. The pre-spec scouting wrote waits for:"] + \
             [f"  - {w}" for w in res.scout_waits]
         return Outcome(False, book, lines, problems=list(res.scout_waits), summary=summary)
     return Outcome(True, book, lines, summary=summary)
+
+
+def first_lines(lines: list[str]) -> list[str]:
+    """The Run's first two lines, for the launcher's finished screen (J, the firm, 27 Sep 2026): where to start
+    reading, then the first of a pre-spec changed after a held-back run, the pockets too small to test, what splits
+    the pockets, and what the Run ran on. The rest of what the Run said is on Record."""
+    start = [x for x in lines if x.startswith("Open ") and ": start with " in x]
+    return (start + [x for x in lines if x.startswith(confirmatory.CHANGED)]
+            + [x for x in lines if " material but too small to test" in x]
+            + [x for x in lines if x.startswith("Split by ")] + [x for x in lines if x.startswith("Ran on ")])[:2]
 
 
 def _scout(res, about: dict, book: Path):
@@ -1918,11 +1941,10 @@ def _names(res) -> dict[str, str]:
 
 
 def _ran_on(res, src: Path) -> str:
-    """The first line of a Run's Log entry and the launcher's: the tie-outs are the grids', so a test of a new
-    variable, which builds none (OC-42), doesn't count them."""
-    if not bleed_tabs(res):
-        return f"Ran on {res.rows:,} loans from {src.name}."
-    return f"Ran on {res.rows:,} loans from {src.name}; {res.tie_outs:,} tie-out checks agree."
+    """The first line of a Run's Log entry and the launcher's. It no longer counts the tie-outs: a Run whose grids
+    don't add up stops and writes nothing, so "N tie-out checks agree" could only ever read fine (tenet T2). Record's
+    Tie-out checks row keeps the count, once."""
+    return f"Ran on {res.rows:,} loans from {src.name}."
 
 
 def _top_lines(res) -> list[str]:
@@ -2043,16 +2065,20 @@ def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, s
     _order(wb)
 
 
+#: _found's "top" rows: the word, band, segment, loans, the _pockets row, then 1 when Worse? and Material? both read
+#: Yes now, and the running count of those, which Start here's rows MATCH (as Pockets' rows MATCH _list's)
+TOP_BAND, TOP_SEG, TOP_LOANS, TOP_PROW, TOP_SHOWN, TOP_CUM = range(2, 8)
+
+
 def _write_found(wb, res, stamp: str) -> None:
     """What the last Run found, kept on a hidden sheet so Start here can be written again at Set up: the measure
-    its tiles count, the pockets, the tie-outs, and the five largest pockets worse and material with the _pockets
-    row each one's live verdicts read."""
+    its tiles count, the pockets, and every pocket losing more than its share on that measure against either
+    comparison, largest dollars first as of this Run, each with the _pockets row its live verdicts are read from."""
     if FOUND in wb.sheetnames:
         del wb[FOUND]
     ws = wb.create_sheet(FOUND)
     ws.sheet_state = "hidden"
     ws.append(["stamp", stamp])
-    ws.append(["tie_outs", f"{res.tie_outs:,} of {res.tie_outs:,} agree"])
     if not bleed_tabs(res):
         return confirm_tab.write_found(ws, res)     # no pocket was built: what the confirmation found (OC-42)
     rates = [m for m in res.measures if m.is_rate]
@@ -2071,13 +2097,26 @@ def _write_found(wb, res, stamp: str) -> None:
     for g in res.grids:
         for (b, d), c in g.inner():
             s = c.rates[m.name]
-            if s.flag == engine.WORSE and s.material is not False and s.dollars and s.dollars > 0:
-                # a segment that is only a number reads with its column's name: "ASSET_CLASS 4", as the spec does
-                seg = f"{names[g.dimension]} {d}" if str(d).replace(".", "").isdigit() else str(d)
-                top.append((s.dollars, f"{names[g.band]} {b}", seg, s.units, lv.row(g, b, d, m.name)))
-    for dollars, band, seg, loans, prow in sorted(top, key=lambda t: -t[0])[:5]:
-        if prow is not None:
-            ws.append(["top", band, seg, loans, prow])
+            other = s.excess_band if not s.by_band else s.excess_rest
+            deciding = s.dollars is not None and s.dollars > 0
+            if not (deciding or (other is not None and other > 0)):
+                continue
+            prow = lv.row(g, b, d, m.name)
+            if prow is None:
+                continue
+            # a segment that is only a number reads with its column's name: "ASSET_CLASS 4", as the spec does
+            seg = f"{names[g.dimension]} {d}" if str(d).replace(".", "").isdigit() else str(d)
+            top.append(((0 if deciding else 1, -(s.dollars if deciding else other)), f"{names[g.band]} {b}", seg,
+                        s.units, prow))
+    P = lambda c, row: f"'{live.POCKETS}'!${live.col(c)}${row}"          # noqa: E731
+    for _, band, seg, loans, prow in sorted(top, key=lambda t: t[0]):
+        r = ws.max_row + 1
+        ws.append(["top", band, seg, loans, prow])
+        ws.cell(row=r, column=TOP_SHOWN, value=f'=IF(AND({P(live.P_WORSE, prow)}="{live.YES}",'
+                                               f'{P(live.P_MAT, prow)}="{live.YES}"),1,0)')
+        first = ws.cell(row=r - 1, column=1).value != "top"
+        ws.cell(row=r, column=TOP_CUM, value=f"={_col(TOP_SHOWN)}{r}" if first else
+                f"={_col(TOP_CUM)}{r - 1}+{_col(TOP_SHOWN)}{r}")
 
 
 def _last_run_used(wb, res) -> None:
@@ -2108,6 +2147,12 @@ def _last_run_used(wb, res) -> None:
         c.value = words                     # cleared when not asked: ws.cell(value=None) leaves the old one
         c.alignment = Alignment(horizontal="center", vertical="center")
         c.font = Font(name="Calibri", size=10, color=SLATE)
+    # and each choice made in the launcher, as the Run read it, so Next changing one shows as waiting (A)
+    for r in control.launcher_rows_of(ws):
+        own = ws.cell(row=r, column=control.OWN_COL).value
+        choose = ws.cell(row=r, column=control.CHOOSE_COL).value
+        answer = own if own not in (None, "", "n/a") else choose
+        held.append([ws.cell(row=r, column=control.KEY_COL).value, answer, answer])
 
 
 def _used_words(res) -> dict[str, str]:
@@ -2417,7 +2462,7 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
     rows = [("Extract", src.name), ("Loans run", f"{res.rows:,}"),
             ("Record of this run", f"{record_}, beside this workbook: every setting the run used, kept for the "
                                    f"file. It is replaced by the next Run."),
-            ("Tie-out checks", f"{res.tie_outs:,} of {res.tie_outs:,} agree: every grid adds up to the book")]
+            ("Tie-out checks", f"{res.tie_outs:,}: every grid adds up to the book")]
     ran = what_was_run(getattr(res, "control_used", None) or {})
     if ran:
         rows.insert(2, ("What was run", ran))

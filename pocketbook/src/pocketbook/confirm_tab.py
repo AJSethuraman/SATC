@@ -762,6 +762,9 @@ def write_found(ws, res) -> None:
     ws.append(["loans", f"{h['development']:,} found · {h['holdout']:,} held back"])
     said, under, _ = confirmatory.follows_words(h)
     ws.append(["follows", said if said == "Yes" else f"{said}: {under}"])
+    # the odds on the holdout are worked out with the pre-spec's columns held fixed: Start here's header says so (I)
+    t0 = next(iter(confirmatory._ran(getattr(res, "prespec", None))), None)
+    ws.append(["held", _held_words(t0.strata) if t0 is not None and t0.held else ""])
     for g in confirmatory.groups_found(res):
         ws.append(["group", g["group"], g["loans"], g["bad"], g["bad_rate"], g["odds"], g["p"], g["capture"],
                    "yes" if g["ref"] else None, g["candidate"]])
@@ -800,9 +803,16 @@ def found_block(ws, wb, r: int, value_of) -> int:
     for i, (label, f, fmt) in enumerate(tiles):
         house.tile(ws, r + 1, 2 + 2 * i, 3 + 2 * i, label, f, fmt)
     t = r + 4
+    held = value_of("held")
+    odds = ("× its reference's odds" if many else f"× {ref}'s odds") + (f", {held} held fixed" if held else "")
     house.header(ws, t, 2, ["Candidate: group" if many else f"Group of {value_of('column')}", "Loans", "Bad rate",
-                            "× its reference's odds" if many else f"× {ref}'s odds", "p-value", "Significant?",
+                            odds, "p-value", "Significant?",
                             "Share of bad loans", None], centre_from=2)
+    if held:
+        # the longer odds heading wraps in its column rather than running under its neighbours
+        c = ws.cell(row=t, column=5)
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        ws.row_dimensions[t].height = 40
     rows = [row for row in wb[FOUND].iter_rows(min_row=1) if row[0].value == "group"]
     for i, row in enumerate(rows, start=1):
         rr, src = t + i, row[0].row

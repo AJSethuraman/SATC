@@ -16,7 +16,9 @@ from pocketbook.ingest import read_table
 from test_book_results import _ready
 from test_book_dates import _choose
 
-NUMBER_COLUMNS = ["FICO", "ORIG_BAL", "GCO_AMT", "RANR_AMT", "REV_DEBT"]
+#: the number columns Look draws: those that can be cut into bands. GCO_AMT and RANR_AMT are outcomes (H, the firm,
+#: 27 Sep 2026)
+NUMBER_COLUMNS = ["FICO", "ORIG_BAL", "REV_DEBT"]
 
 
 def _csv(path, col) -> list[str]:
@@ -115,7 +117,7 @@ def test_the_numbers_match_a_count_by_hand(tmp_path):
     assert (got["Smallest"][0], got["Median"][0], got["Largest"][0]) == \
         (min(vals), statistics.median(vals), max(vals))
     assert blocks["ORIG_BAL"]["fmt"]["Median"] == "#,##0"                 # dollars too
-    assert blocks["GCO_AMT"]["lines"]["Not a number"] == (1, 1 / 3000)   # the "#N/A"
+    assert look.shape_of(read_table(x), "GCO_AMT").text == 1              # the "#N/A", counted as not a number
 
 
 def test_the_slices_sit_on_round_numbers_around_the_1st_and_99th_percentile():

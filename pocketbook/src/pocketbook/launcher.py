@@ -138,6 +138,31 @@ def waiting_words(missing: list[str]) -> str:
     return f"Until {them} in, you can still pick the extract and open a workbook written before."
 
 
+#: The words the window uses before the workbook explains them, each with its meaning in a line (F, the firm, 27 Sep
+#: 2026: "worse at 1.34x", "GCO dollars" and "scouting" were first read on the window, with the meaning only on a
+#: tab). A multiple is filled in from the words around it.
+TERMS = (("GCO dollars", "GCO dollars: what a loan charged off, in dollars."),
+         ("RANR dollars", "RANR dollars: what we kept from a loan after its losses, in dollars."),
+         ("grid", "A grid: every band of one column against every segment of another."),
+         ("measures", "Five measures: bad loans, bad dollars, charge-offs, earned before and kept after losses."),
+         ("worse at", "worse at {x}x: losing {x} times as much as the rest counts as worse."),
+         ("better at", "better at {x}x: losing {x} times as much as the rest counts as better."),
+         ("scouting", "Scouting: a first look at most of the loans, to pick what to test."))
+
+
+def plain_words(said: str) -> list[str]:
+    """The meaning of each term in `said`, once each."""
+    out = []
+    for term, meaning in TERMS:
+        if term in ("worse at", "better at"):
+            m = re.search(term + r" ([0-9.]+)x", said)
+            if m:
+                out.append(meaning.format(x=m.group(1)))
+        elif re.search(r"\b" + term + r"s?\b", said):
+            out.append(meaning)
+    return out
+
+
 def banner_clock(widgets: dict, gate: AddOns, optional: bool) -> None:
     """Move the black bar's clock on while the add-ons the cube needs install. An optional add-on's install has no
     bar: the one an earlier install used is gone, and setting its dead line raised inside the loop that waits for
@@ -661,9 +686,40 @@ class Flow:
         """The Run-finished tiles."""
         return (self.finished.summary or {}) if self.finished else {}
 
+    def first_lines(self) -> list[str]:
+        """The Run's first two lines, under the finished screen's tiles (J, the firm, 27 Sep 2026): where to start
+        reading, and a pre-spec changed after a held-back run when there is one. They were built and never shown."""
+        return list(self.headline().get("first") or [])[:2]
+
+    def meanings(self) -> list[str]:
+        """A plain meaning for each term the window uses first on this page (F, the firm, 27 Sep 2026), one line
+        each, in the order the page shows them."""
+        if self.page == "choose" and self.read is not None:
+            said = [r["what"] for r in self.rows()] + [self.summary()[1]]
+        elif self.page == "answer":
+            said = [self.suggested_line()]
+        else:
+            return []
+        return plain_words(" ".join(said))
+
 
 # --------------------------------------------------------------------------
 # The window
+
+
+def finished_tiles(h: dict) -> tuple:
+    """The Run-finished tiles: (head, value, under it, rule colour, value colour). There is no tie-out tile: a Run
+    whose grids don't add up stops and writes nothing, so "702 / 702" could never read anything else (B, the firm,
+    27 Sep 2026: "It is the slowest way to communicate a check figure. If it didn't tie out what would happen now")."""
+    if h.get("kind") == "confirm":
+        return confirm_tiles(h)
+    gco = h.get("gco")
+    worse = h.get("worse", 0)
+    what = "charge-offs" if gco else (h.get("measure") or "the outcome").lower()
+    return (("Pockets worse and material", f"{worse:,}", f"{what}, of {h.get('pockets', 0):,}", "KEY_RED", "INK"),
+            ("Charge-offs above their share" if gco else "Losses above their share",
+             _money(h.get("dollars", 0)) if gco else f"{h.get('dollars', 0):,.1f}",
+             f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"))
 
 
 def confirm_tiles(h: dict) -> tuple:
@@ -1033,6 +1089,7 @@ def build(root) -> dict:
         widgets["summary"] = label(text, ("This will run: " + said) if ok else said, "small", bg=C["CANVAS"],
                                    wrap=460)
         widgets["summary"].pack(anchor="w")
+        words_under(sumbox, C["CANVAS"], padx=10)
         message_lines(page, flow.note, fg="INK")
         message_lines(page, flow.message)
         footer(("next", "Next: answer in the workbook →", lambda: background(flow.next, "Writing the workbook"),
@@ -1050,12 +1107,20 @@ def build(root) -> dict:
             tile = tk.Frame(page, bg=C["CANVAS"])
             tile.pack(fill="x", pady=(4, 8))
             tk.Frame(tile, bg=C["KEY_RED"], height=3).pack(fill="x")
-            label(tile, said, "small", bg=C["CANVAS"], wrap=460).pack(anchor="w", padx=10, pady=6)
+            label(tile, said, "small", bg=C["CANVAS"], wrap=460).pack(anchor="w", padx=10, pady=(6, 0))
+            words_under(tile, C["CANVAS"], padx=10)
         lines = (flow.written.lines[1:] if flow.written else [])
         if lines:
             label(page, "\n".join(lines), "small", fg="INK", wrap=470).pack(anchor="w")
         message_lines(page, flow.message)
         buttons()
+
+    def words_under(master, bg, padx=0):
+        """The plain meaning of each term this page uses first (Flow.meanings), in slate under what uses it."""
+        lines = flow.meanings()
+        widgets["meanings"] = label(master, "\n".join(lines), "sub", fg="SLATE", bg=bg, wrap=460)
+        if lines:
+            widgets["meanings"].pack(anchor="w", padx=padx, pady=(2, 6))
 
     def open_banner():
         warn = tk.Frame(page, bg=C["ALERT_FG"], padx=10, pady=6)
@@ -1112,17 +1177,7 @@ def build(root) -> dict:
         label(page, "Run finished. Results are in the workbook.", "title").pack(anchor="w", pady=(0, 12))
         tiles = tk.Frame(page, bg=C["WHITE"])
         tiles.pack(fill="x")
-        gco = h.get("gco")
-        worse = h.get("worse", 0)
-        what = "charge-offs" if gco else (h.get("measure") or "the outcome").lower()
-        n = h.get("tie_outs", 0)
-        shown = confirm_tiles(h) if h.get("kind") == "confirm" else (
-                ("Pockets worse and material", f"{worse:,}", f"{what}, of {h.get('pockets', 0):,}", "KEY_RED",
-                 "INK"),
-                ("Charge-offs above their share" if gco else "Losses above their share",
-                 _money(h.get("dollars", 0)) if gco else f"{h.get('dollars', 0):,.1f}",
-                 f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"),
-                ("Tie-out checks", f"{n:,} / {n:,}", "every grid adds up to the book", "INK", "POSITIVE"))
+        shown = finished_tiles(h)
         made = []
         for i, (head, value, sub, rule, fg) in enumerate(shown):
             t = tk.Frame(tiles, bg=C["CANVAS"], width=150, height=96)
@@ -1139,6 +1194,10 @@ def build(root) -> dict:
         for t in made:
             t.configure(height=tall)
         widgets["tiles"] = made
+        first = flow.first_lines()
+        if first:
+            widgets["first"] = label(page, "\n".join(first), "small", fg="INK", wrap=470)
+            widgets["first"].pack(anchor="w", pady=(12, 0))
         qs = h.get("open") or []
         if qs:
             q = tk.Frame(page, bg=C["WHITE"], highlightbackground=C["MIST"], highlightthickness=1, padx=10, pady=8)
@@ -1157,7 +1216,8 @@ def build(root) -> dict:
         draw_banner()
         draw_rail()
         clear(page)
-        for k in ("setup", "next", "run", "open", "start", "open_banner", "summary", "install_optional", "tiles"):
+        for k in ("setup", "next", "run", "open", "start", "open_banner", "summary", "install_optional", "tiles",
+                  "first", "meanings"):
             widgets.pop(k, None)
         {"extract": page_extract, "choose": page_choose, "answer": page_answer, "needs": page_needs,
          "done": page_done}["extract" if flow.gate.missing else flow.page]()

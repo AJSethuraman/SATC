@@ -2160,6 +2160,47 @@ back.
     live instead: the list is picked by formula from the current verdicts, like the result tabs.
   - **H, Look on outcome columns:** *"Not sure why we even have the info? Like obviously we didn't band
     them?"* Look shows only columns that can be cut into bands; outcome columns come off it.
+- **The firm's answers on the walk-through's design calls, built (27 Sep 2026).** All eleven, A to K, and
+  tenet T2 (a check figure is shown only where it can fail). `pocketbook/docs/walkthrough/2026-09-27/
+  WALKTHROUGH-DEFECTS.md` marks each resolved with what changed.
+  - **A:** each Run keeps what the launcher chose on `_used`; *Chosen in the launcher* has a Status, and Next
+    changing a row makes it wait: Start here counts it and the pink line names it (*Cut into bands: FICO,
+    ORIG_BAL → FICO (launcher)*). A new kind of run is one change: the first build counted 9 on the walk's
+    switch to Test new variables, every row that changes with it.
+  - **B and T2:** the tie-out tile is off the finished screen and Start here, with no sentence in its place.
+    The sweep T2 asked for found three more that could only read fine: the Run's first line ("N tie-out
+    checks agree", on the Log and in the launcher's lines), Record's "702 of 702 agree" (now "702: every grid
+    adds up to the book", the one place the count stays), and, once D was live, Start here's Worse? and
+    Material? columns on its largest pockets (every row shown is both). Left as it was: the command line's
+    "Tie-out: N of N checks agree" (`cli.py`), which no analyst screen shows.
+  - **C:** *Losing more, profit holding* (charge-offs worse and real, kept gap not significant). The firm's
+    Test 4 at 3% uplift reads it now; its test said "nothing read together" and was updated.
+  - **D:** Start here's list is picked live, as Pockets' Show dropdown picks: `_found` holds every pocket the
+    Run found losing more than its share, largest dollars first, with live Worse? and Material? from
+    `_pockets` and a running count; row k is the first whose count reaches k. After worse at goes to 2 times
+    it lists 2 pockets, both worse (the walk's four rows, two reading No).
+  - **E:** one count, the refusal's: Next says *9 answers needed before Run, on Control and Columns*; Start
+    here's *Answers needed before Run* counts live the refusal's way; *Columns to confirm* and *7 columns to
+    look at first* are gone.
+  - **F:** a slate line under each term the window uses first (GCO dollars, RANR dollars, a grid, five
+    measures, worse at and better at with the worked-out multiple, scouting), 15 words or fewer, no term of
+    art in the explanation.
+  - **G:** Comes to shows the worked-out multiple before the first Run (1.34×, 0.75× on the walk's book),
+    never the option's words; materiality's dollar line is blank until a Run has the book's losses.
+  - **H:** Look draws only columns that can be cut into bands: FICO, ORIG_BAL, REV_DEBT.
+  - **I:** *× 11,000 - 14,999's odds, FICO held fixed*. **J:** the Run's first two lines under the finished
+    tiles. **K:** no print titles on Scouting.
+  - Tests: 12 added (11 in `tests/test_firm_answers_2026_09_27.py`, 1 in `test_scout.py`); 752 collected, from
+    740. 1 of them needs a display: under xvfb with Python 3.12 it passes, with the other window tests (69 of
+    69 in the four window-test files). 9 existing tests rewritten for the new wording or layout (test_answer_tabs 2, test_book 1, test_book_results 3, test_look 2, test_profit 1).
+  - Planted bugs: 20 added to `tools/mutation_check.py`, each run alone, 20 caught; 405 in all. The 10
+    existing planted bugs whose selectors match a rewritten test were run again: 10 of 10 caught.
+  - The procedure's changed pictures (22 of them, and a new one for step 25) were taken again on the fixed build,
+    scripted this time (`driver/walk_answers.py`, `driver/shots_answers.py`), and the PDF rebuilt. Before and
+    after for B, D and H: `design-{B,D,H}-{before,after}.png`. The bank checklist's numbers that moved
+    (the Run's tiles, Start here's list after worse at 2 times, Comes to, Look) are updated and its PDF rebuilt.
+  - Full suite (Python 3.11, no display, LibreOffice present): `747 passed, 5 skipped in 1899.63s (0:31:39)`. The 5 skipped are the window tests.
+    The one new window test was also planted by hand under xvfb (the Run's lines not packed): it went red.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
@@ -2174,6 +2215,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-27 -- **PocketBook: the firm's answers to the walk's design calls, built** (A to K, and tenet T2's sweep). 12 tests, 20 planted bugs caught; the procedure's changed pictures taken again and its PDF rebuilt. §6d has each answer.
 - 2026-09-27 -- **PocketBook bank-machine checklist** (`pocketbook/docs/BANK-MACHINE-CHECKLIST.pdf`, and `tools/bank_kit.py` to make what to carry). Goal 3 item 3; §6d has what was verified and what is marked "check this".
 - 2026-09-27 -- **Origination Cube renamed PocketBook** (`origination-cube/` → `pocketbook/`; package, command, launcher file, memory folder and variable). Everything a machine kept under the old names is still read. §6d has the list of what was left as written.
 - 2026-09-25 -- **Origination Cube slice 1: the engine** (`origination-cube/`). It replaces the firm's origination-analysis VBA. 39 tests, 6 of 6 mutations caught, and every place the macros broke their own rules is tracked in `docs/vba-findings.md`. The workbook is slice 2. Open questions are in §6d.

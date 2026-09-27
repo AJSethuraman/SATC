@@ -218,7 +218,8 @@ def write(wb, res, stamp: str = "") -> None:
     for c in sc.proposed:
         r = _shape(ws, c, r)
     _finish(ws, r)
-    ws.print_title_rows = f"{head}:{head}"
+    # no print titles (K, the firm, 27 Sep 2026): repeated on every printed page, the candidates' header sat over the
+    # pre-spec file where it starts
     _ = first_row, last_row
 
 

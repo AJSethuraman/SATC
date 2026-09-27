@@ -63,7 +63,9 @@ SHOW = ("All", "Worse and material", "Worse or not sure")
 TWO_WAY = "Two-way"
 #: Together, the two sides read at once (Paid, cost, kept): charge-offs, then what we kept
 TOGETHER = {("more", "more"): "Priced for it", ("more", "less"): "Net drain", ("less", "more"): "Strong",
-            ("less", "less"): "Safe but idle", ("same", "less"): "Earns less, not from losses"}
+            ("less", "less"): "Safe but idle", ("same", "less"): "Earns less, not from losses",
+            # the mirror of the one before: charge-offs worse and real, what we kept no different (the firm, 27 Sep)
+            ("more", "same"): "Losing more, profit holding"}
 GOOD_TOGETHER, BAD_TOGETHER = ("Priced for it", "Strong"), ("Net drain",)
 
 INK, ONYX, CANVAS, MIST, STONE, SLATE = house.INK, house.ONYX, house.CANVAS, house.MIST, house.STONE, house.SLATE
@@ -622,10 +624,12 @@ def together_formula(g: str, k: str, untested: str) -> str:
     """Together as a formula over the two flags, blank on a row with a side untested."""
     W, B = f'"{engine.WORSE}"', f'"{engine.BETTER}"'
     same = f'OR({g}="{engine.IN_LINE}",{g}="{engine.UNSURE_WORSE}",{g}="{engine.UNSURE_BETTER}")'
+    same_k = f'OR({k}="{engine.IN_LINE}",{k}="{engine.UNSURE_WORSE}",{k}="{engine.UNSURE_BETTER}")'
     return (f'IF(OR({untested}=1,{untested}=""),"",IF(AND({g}={W},{k}={B}),"{TOGETHER[("more", "more")]}",'
             f'IF(AND({g}={W},{k}={W}),"{TOGETHER[("more", "less")]}",IF(AND({g}={B},{k}={B}),'
             f'"{TOGETHER[("less", "more")]}",IF(AND({g}={B},{k}={W}),"{TOGETHER[("less", "less")]}",'
-            f'IF(AND({same},{k}={W}),"{TOGETHER[("same", "less")]}",""))))))')
+            f'IF(AND({same},{k}={W}),"{TOGETHER[("same", "less")]}",IF(AND({g}={W},{same_k}),'
+            f'"{TOGETHER[("more", "same")]}","")))))))')
 
 
 def pck_rows(res, g) -> list[dict]:
@@ -682,7 +686,8 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         ("Together", "The two sides read at once. Priced for it: more charge-offs and more kept. Net drain: more "
                      "charge-offs and less kept. Strong: fewer charge-offs and more kept. Safe but idle: fewer "
                      "charge-offs and less kept. Earns less, not from losses: less kept while charge-offs are "
-                     "about the same. Blank: nothing to read together."),
+                     "about the same. Losing more, profit holding: more charge-offs while what we kept is about "
+                     "the same. Blank: nothing to read together."),
         ("Order and chart", "Rows are as of the last Run: the pockets read together first, then by charge-off "
                             "dollars; a pocket with too few losses last. The chart shows the grid picked above, "
                             "live; the pockets read together are named on it."),

@@ -224,14 +224,16 @@ def test_test_4_with_a_bigger_uplift_keeps_more(line):
     assert c["ranr_rate"].vs_band > 0.03 and c["ranr_rate"].reading_band == engine.BETTER
 
 
-@pytest.mark.parametrize("uplift, together, reading", [(0.03, "", r"-0\.\d\d points against its band, not significant"),
+@pytest.mark.parametrize("uplift, together, reading", [(0.03, "Losing more, profit holding",
+                                                       r"-0\.\d\d points against its band, not significant"),
                                                       (0.08, "Priced for it", r"ahead of its band by \d\.\d\d points "
                                                                               r"\(\$[\d,]+\)")])
 def test_test_4_on_the_workbook(tmp_path, uplift, together, reading):
     """Test 4 through the workbook, on the suggested option: charge-offs pink,
-    losing more; at 3% profit's gap is not significant, and nothing is read
-    together; at 8% it is green, ahead of its band, and the pair reads priced
-    for it."""
+    losing more; at 3% profit's gap is not significant, and the pair reads
+    losing more, profit holding (the firm's answer C, 27 Sep 2026: it read
+    nothing together before); at 8% it is green, ahead of its band, and the
+    pair reads priced for it."""
     rows = _test4_rows(uplift)
     d = tmp_path / f"t4-{uplift}"
     d.mkdir()
