@@ -889,7 +889,10 @@ class Desk:
         was cut from (re-review of 3e7a1e98). `within` is the paragraph the
         text opens with, for "subsection (d)" (`code_references`)."""
         held = [p.citation for p in self.corpus.passages]
-        return [c for c in code_references(text, within=within)
+        labels = re.compile(r"^(?:###\s+)?(" + "|".join(
+            re.escape(h) for h in sorted(held, key=len, reverse=True))
+            + r")(?::\s|\s*$)", re.M)
+        return [c for c in code_references(text, within=within, labels=labels)
                 if not any(h == c or is_under(h, c) or is_under(c, h)
                            for h in held)]
 
@@ -926,7 +929,7 @@ class Desk:
                    if p.citation.startswith(of)
                    and re.fullmatch(r"\([^()]+\)", p.citation[len(of):]))
 
-    def frame(self, citation: str) -> list:
+    def frame(self, citation: str, own: bool = True) -> list:
         """What completes `citation` by its structure, read off the words: every
         stored ancestor that is a lead-in, with that lead-in's clauses -- (a)(3)(i)
         of § 1.162-21 means nothing without (a)'s "no deduction is allowed ... for
@@ -949,8 +952,8 @@ class Desk:
                     out.append(c)
         # AND A CITED HEADING, whose clauses are the whole of what it says.
         # Headings ABOVE a clause are not added: the clause states its rule.
-        own = self.passage(citation)
-        if own and self._opens(own):
+        cited = self.passage(citation) if own else None
+        if cited and self._opens(cited):
             out += [c for c in self._clauses(citation) if c not in out]
         return out
 
@@ -973,7 +976,11 @@ class Desk:
                             for x in [c, citation, *limits])
                 clauses = (self._clauses(o) if not above or self._joined(o)
                            else ())
-                for x in [o, *clauses]:
+                # AND THE LEAD-IN IT COMPLETES: a limit that is a bare clause,
+                # "(2) any expense for a club.", states nothing without the
+                # "shall not apply to-" above it (adversarial pass on #403).
+                # Its ancestors only: its own clauses come on the terms above.
+                for x in [o, *self.frame(o, own=False), *clauses]:
                     if x != citation and x not in order:
                         order.append(x)
         return order
@@ -1362,7 +1369,7 @@ _EXPLAINED = r"(?:\s*(?!" + _LABEL + r")\([^()]*\))?"
 #: "sections 179, 179B, or 179C". A second reviewer on 5b762a5b found the first
 #: reader took only the first of a list and missed a capitalised "Section".
 _CODE_REF = re.compile(
-    r"(?:\b[Ss]ections?|\u00a7\u00a7?)\s+(" + _SECTION_NO
+    r"(?:\b[Ss]ections?\s+|\u00a7\u00a7?\s*)(" + _SECTION_NO
     + r"(?:" + _EXPLAINED + r"(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)"
     + _SECTION_NO + r")*)")
 #: SOMEBODY ELSE'S SECTION, named after it -- checked after the whole match,
@@ -1372,7 +1379,8 @@ _CODE_REF = re.compile(
 #: on every "of" dropping § 224(d)(1).
 _OWNED_AFTER = re.compile(
     r"\s*of\s+(?:title\s+(?!26\b)\d+"
-    r"|(?:the|such|this)\s+(?:[A-Z][\w.,'-]*\s+(?:(?:and|of|for|on|the)\s+)*)*"
+    r"|(?:the|such|this)\s+(?:[A-Z][\w.,'-]*\s+"
+    r"(?:(?:and|of|for|on|the|from|to|in|with|by|at|a|an)\s+)*)*"
     r"(?:Act|Law)\b"
     r"|Public\s+Law|Pub\.\s*L\.|Rev\.\s*(?:Proc|Rul)\.|Notice\s+\d"
     r"|this\s+(?:revenue\s+(?:procedure|ruling)|notice)\b)")
@@ -1380,12 +1388,14 @@ _OWNED_AFTER = re.compile(
 #: 13261(g)(2) or (3) of the Revenue Reconciliation Act of 1993" (§ 1.446-1(e)
 #: (3)(iii); Codex on #403). Skipped before the owner is looked for.
 #: A label that opens a capitalised item -- "or (4) Any listed property", in
-#: § 1.274-5T(a) -- is the paragraph's own list, not shared. A "(" straight
+#: § 1.274-5T(a) -- is the paragraph's own list, not shared; so is one that
+#: opens a lower-case clause, "section 274(d), (i) the taxpayer must". A "(" straight
 #: after a chain is refused too, so the engine cannot back off to a shorter
 #: one; a spaced aside, "(h) (the ...)", is still an aside.
 _SHARED_TAIL = re.compile(
     r"(?:\s*(?:,\s*(?:or\s+|and\s+)?|\s+(?:or|and)\s+)(?:" + _LABEL + r")+"
-    r"(?![A-Z(]|\s+[A-Z]))*")
+    r"(?![A-Z(]|\s+[A-Z]|\s+(?:the|a|an|any|each|every|such|all|no|if|it|"
+    r"that|this|there|in|to)\b))*")
 #: ... and named BEFORE it: "Pub. L. 115-97, § 13304(e)(2)".
 _OWNED_BEFORE = re.compile(
     r"(?:Pub\.\s*L\.|Public\s+Law|Rev\.\s*(?:Proc|Rul)\.|Notice)"
@@ -1393,12 +1403,15 @@ _OWNED_BEFORE = re.compile(
 
 
 #: A paragraph's own label where a served passage or `ask.read` carries it:
-#: "26 USC 274(e)(3): ..." or "### 26 USC 274(e)(3)". Every label starts a new
-#: owner; only a Code paragraph's resolves anything -- a regulation's "paragraph
+#: "26 USC 274(e)(3): ..." or "### 26 USC 274(e)(3)" -- or a publication's,
+#: a ruling's: every label starts a new owner (a Pub. 463 paragraph after a
+#: Code one had its "subsection (q)" read as § 274(q); adversarial pass on
+#: #403). `Desk.unheld` adds every citation the record holds; only a Code paragraph's resolves anything -- a regulation's "paragraph
 #: (e)(5)" is its own, and a note, "26 USC 274 note, Pub. L. ...", speaks of the
 #: enacting law's sections.
-_LABELLED = re.compile(r"^(?:###\s+)?(26 (?:USC|CFR) [^\n:]+?)(?::\s|\s*$)",
-                       re.M)
+_LABELLED = re.compile(
+    r"^(?:###\s+)?((?:26 (?:USC|CFR) |IRS |Instr\. |Rev\. (?:Rul|Proc)\. |PLR "
+    r"|Announcement |Notice |TAM |Treas\. )[^\n:]+?)(?::\s|\s*$)", re.M)
 _CODE_CITATION = re.compile(r"26 USC (\d+[A-Z]*(?:-\d+)?)((?:\([a-z]+\))?)"
                             r"(?:\([A-Za-z0-9]+\))*$")
 #: "subsection (d)", "subsections (a) and (c)(1)", "paragraph (2)" -- a place in
@@ -1453,7 +1466,10 @@ def _relative(text: str, within: str) -> list:
     section, subsection = m.groups()
     out = []
     for r in _RELATIVE.finditer(text):
-        if _OWNED_ELSEWHERE.match(text, r.end()):
+        # ... NOR A RANGE, as for section numbers: "subsections (a) through
+        # (c)" was read as (a) alone (adversarial pass on #403).
+        if (_OWNED_ELSEWHERE.match(text, r.end())
+                or re.match(r"\s+through\b|\s*[-\u2013]\s*\(", text[r.end():])):
             continue
         base = f"26 USC {section}" + ("" if r.group(1) == "subsection"
                                       else subsection)
@@ -1464,7 +1480,7 @@ def _relative(text: str, within: str) -> list:
     return out
 
 
-def code_references(text: str, within: str = "") -> list:
+def code_references(text: str, within: str = "", labels=None) -> list:
     """The Code sections a paragraph's own words cite, as citations, in order.
     A section owned by something else -- another Act, another title, a public
     law, a revenue procedure or notice, named before or after it -- is not.
@@ -1472,8 +1488,10 @@ def code_references(text: str, within: str = "") -> list:
     is read against; a labelled paragraph in `text` is read against its own
     label instead."""
     out = []
-    starts = [(0, within)] + [(m.start(), m.group(1))
-                              for m in _LABELLED.finditer(text)]
+    found_at = {m.start(): m.group(1) for m in _LABELLED.finditer(text)}
+    if labels is not None:
+        found_at.update({m.start(): m.group(1) for m in labels.finditer(text)})
+    starts = [(0, within)] + sorted(found_at.items())
     for (at, owner), (end, _) in zip(starts, starts[1:] + [(len(text), "")]):
         for c in _relative(text[at:end], owner):
             if c not in out:
@@ -1515,7 +1533,10 @@ def is_heading(text: str) -> bool:
     t = text.rstrip()
     if not t or is_lead_in(text):
         return False
-    return not t.endswith((".", ";", ",", ")", "]", '"', "\u201d", "'", "\u2019"))
+    # "?" and "!" close a sentence too: Rev. Rul. 2005-28's ISSUE is a whole
+    # question, not a caption (adversarial pass on #403).
+    return not t.endswith((".", ";", ",", ")", "]", '"', "\u201d", "'", "\u2019",
+                           "?", "!"))
 
 
 def _short_phrase(text: str) -> bool:
@@ -1532,9 +1553,13 @@ def is_under(citation: str, key: str) -> bool:
     """`citation` is `key` or a paragraph or worked example beneath it:
     `26 CFR 1.162-21(f)(10) Example 10` is under `26 CFR 1.162-21`, and
     `26 USC 274(e)(10)` is not under `26 USC 274(e)(1)`."""
-    return citation == key or bool(
-        citation.startswith(key) and re.fullmatch(
-            r"(\([^()]+\))*( Example \d+)?", citation[len(key):]))
+    # THE RECORD'S OWN " — which rule" SUFFIX is the same paragraph: every
+    # stored paragraph of § 1.262-1 is cited so, and none was under its
+    # section (adversarial pass on #403).
+    base = citation.split(" \u2014 ", 1)[0]
+    return citation == key or base == key or bool(
+        base.startswith(key) and re.fullmatch(
+            r"(\([^()]+\))*( Example \d+)?", base[len(key):]))
 
 
 def _read_with(block: str, where: str) -> tuple:

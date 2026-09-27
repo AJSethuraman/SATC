@@ -523,7 +523,11 @@ NARROWED = {
 # +77 / +100 when a list's shared labels were read -- "section 1221(a)(1), (3),
 # (4), or (5)" names four paragraphs, not one; eleven paragraphs gain the
 # shared ones in their not-on-file lines (Codex on #403).
-WHOLE = (156_517, 280_704)
+# -281 / -281 when the brief's Read-with line came from `served_with` itself
+# (adversarial pass on #403): it stops re-naming what its "Read as one with"
+# line already names -- § 274(e) under each of its own clauses -- and § 274(e)
+# now names the § 274(o) an answer citing it carries.
+WHOLE = (156_236, 280_423)
 
 
 def _answering_sizes():

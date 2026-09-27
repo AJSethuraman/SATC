@@ -863,7 +863,13 @@ def brief(question: str, desk: record.Desk,
         # THE WHOLE CORPUS, like the frame and the unheld check: the narrowed
         # desk holds only this paragraph's source, and a Read-with chain that
         # crosses into another stopped at its first link (Codex on #403).
-        limits = limits_on(whole or desk.corpus, p.citation)
+        # EVERYTHING THE SERVED ANSWER WOULD CARRY that the frame line has not
+        # named, from `served_with` itself: the brief on § 274(e) named no
+        # limit, though an answer citing (e) carries § 274(o) through (e)(1)
+        # (adversarial pass on #403).
+        w = whole or desk.corpus
+        limits = [o for o in w.served_with(p.citation)
+                  if o not in w.frame(p.citation)]
         if limits:
             names = "; ".join(f"`{o}`" for o in limits)
             out += [f"**Read with {names} — the record says it changes what "
