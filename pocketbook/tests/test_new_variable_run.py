@@ -134,7 +134,8 @@ def test_the_launchers_last_step_reads_the_confirmation(runs):
     assert h["capture"] == pytest.approx(sum(t.holdout.bad[k] for k in worse) / sum(t.holdout.bad), rel=1e-12)
     assert (h["development"], h["holdout"], h["deviations"]) == (t.development.n, t.holdout.n, 0)
     tiles = launcher.confirm_tiles(h)
-    assert tiles[0][:2] == (f"Groups worse than {t.groups[t.ref]}", f"{len(worse)} of {len(t.groups) - 1}")
+    assert tiles[0][:2] == (f"{t.column} groups worse than {t.groups[t.ref]}",
+                            f"{len(worse)} of {len(t.groups) - 1}")
     assert tiles[1][1] == f"{h['capture']:.0%}" and tiles[2][1] == "Yes"
     assert "Pockets worse and material" not in [x[0] for x in tiles]
 

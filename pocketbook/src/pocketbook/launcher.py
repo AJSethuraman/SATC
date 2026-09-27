@@ -131,6 +131,24 @@ class AddOns:
         self.said = "" if not still else (output.strip() or "The installer said nothing.")
 
 
+def waiting_words(missing: list[str]) -> str:
+    """The line under the extract box while add-ons are missing. It said "while the add-on installs" with three
+    missing and nothing installing yet (walk of 27 Sep 2026)."""
+    them = "it is" if len(missing) == 1 else "they are"
+    return f"Until {them} in, you can still pick the extract and open a workbook written before."
+
+
+def banner_clock(widgets: dict, gate: AddOns, optional: bool) -> None:
+    """Move the black bar's clock on while the add-ons the cube needs install. An optional add-on's install has no
+    bar: the one an earlier install used is gone, and setting its dead line raised inside the loop that waits for
+    pip, which then stopped, so the window said "Installing scikit-learn..." for ever (the walk's second run,
+    27 Sep 2026)."""
+    line = widgets.get("status")
+    if optional or line is None or not line.winfo_exists():
+        return
+    line.configure(text="\n".join(gate.lines()))
+
+
 def do_set_up(extract: str, choices: ch.Choices | None = None) -> list[str]:
     """Write the workbook (the Next button), in words."""
     from . import book
@@ -157,8 +175,16 @@ def _run(extract: str):
     if not target.exists():
         return book.Outcome(False, target, [f"There's no workbook for {Path(extract).name} yet. Choose the tests "
                                             f"and press Next first."])
+    from .engine import TieOutError
     try:
         return book.run(target, extract)
+    except TieOutError as exc:
+        # walk of 27 Sep 2026: the one check the finished screen shows, when it failed, read "Something went wrong"
+        _crash("running")
+        return book.Outcome(False, target, [f"Run stopped: the grids didn't add up to the book, so nothing was "
+                                            f"written. {exc}.", f"That is a fault in PocketBook, not in your answers. "
+                                            f"The details are in {places.folder() / 'last-error.txt'}; send that "
+                                            f"file over to get it fixed."])
     except Exception:
         return book.Outcome(False, target, _crash("running"))
 
@@ -173,6 +199,17 @@ def _crash(what: str) -> list[str]:
     except OSError:
         pass
     return [f"Something went wrong while {what}. The details are in {log}; send that file over to get it fixed."]
+
+
+def _open(path: Path) -> str:
+    """Open the workbook; what to say when it can't be opened from here (no program for .xlsx, say), else "".
+    Walk of 27 Sep 2026: Open at... raised inside the window and the window said nothing."""
+    try:
+        open_file(path)
+    except OSError as exc:
+        return (f"Couldn't open {Path(path).name} from here ({exc.strerror or exc}). Open it yourself: it is in "
+                f"{Path(path).parent}.")
+    return ""
 
 
 def open_file(path: Path) -> None:
@@ -248,6 +285,20 @@ def needs_of(problems: list[str]) -> list[Need]:
     return out
 
 
+#: the tabs a refused Run names, in the workbook's own order
+TAB_ORDER = ("Control", "Columns", "Look")
+
+
+def in_order(needs: list[Need]) -> list[Need]:
+    """The needs top to bottom as the workbook shows them: Control's rows first, then Columns', each by its row, then
+    anything that names no cell, as it came. The walk of 27 Sep 2026 read C15, C18, C19, C16, C17, C20."""
+    def key(n: Need):
+        tab = TAB_ORDER.index(n.sheet) if n.sheet in TAB_ORDER else len(TAB_ORDER)
+        row = int(re.sub(r"\D", "", n.cell)) if n.cell else 0
+        return (tab, row) if n.sheet else (len(TAB_ORDER) + 1, 0)
+    return sorted(needs, key=key)
+
+
 class Flow:
     """The launcher's state and every rule about it. The window draws what this
     says; a test drives it the way a person would."""
@@ -271,6 +322,8 @@ class Flow:
         self.spec_problem: str | None = None
         self.written = None           # book.Outcome of the last Next
         self.needs: list[Need] = []
+        self.answers = True           # the needs are answers the workbook is waiting for; False: the Run stopped
+        self.note: list[str] = []     # good news for the current page (an install that worked), never in red
         self.finished = None          # book.Outcome of the last Run that finished
         self.finished_at, self.took = "", 0.0
         self.book_open = False
@@ -322,7 +375,7 @@ class Flow:
                 subs[3] = "Fill in the shaded cells"
             if at == 3:
                 marks[3] = "blocked"
-                subs[3] = f"{len(self.needs)} left"
+                subs[3] = f"{len(self.needs)} left" if self.answers else "Run stopped"
             if at == 4:
                 marks[3:] = ["done", "done"]
                 subs[3] = "All answered"
@@ -347,7 +400,7 @@ class Flow:
         if got.problem:
             self.message = [got.problem]
             return
-        self.read, self.message = got, []
+        self.read, self.message, self.note = got, [], []
         self._defaults(got.chosen)
         self.page = "choose"
 
@@ -519,7 +572,7 @@ class Flow:
         if not out.ok:
             self.message = out.lines
             return
-        self.written, self.message, self.needs, self.finished = out, [], [], None
+        self.written, self.message, self.needs, self.finished, self.note = out, [], [], None, []
         self.page = "answer"
         self.refresh()
 
@@ -552,7 +605,8 @@ class Flow:
             self.finished_at = datetime.now().strftime("%H:%M")
             self.needs, self.message, self.page = [], [], "done"
         else:
-            self.needs = needs_of(out.problems) if out.problems else [Need(None, None, x) for x in out.lines]
+            self.answers = bool(out.problems)
+            self.needs = in_order(needs_of(out.problems)) if out.problems else [Need(None, None, x) for x in out.lines]
             self.message, self.page = [], "needs"
         self.refresh()
 
@@ -564,8 +618,17 @@ class Flow:
         if need is not None:
             sheet, cell = need.sheet or "Start here", need.cell or "A1"
         moved = book.open_at(b, sheet, cell)
-        open_file(b)
+        said = _open(b)
+        if said:
+            return said + f" Then go to {sheet} {cell}."
         return "" if moved else f"Go to {sheet} {cell}: the workbook was already open, so it opened where it was."
+
+    def open_book(self) -> str:
+        """The Open the workbook button: what to say, or "" once it is opening."""
+        b = self.book()
+        if not (b and b.exists()):
+            return "There's no workbook yet. Choose the tests and press Next first."
+        return _open(b)
 
     def go(self, index: int) -> None:
         """A done step on the rail, pressed: back to that step."""
@@ -576,6 +639,23 @@ class Flow:
             return
         if page:
             self.page, self.message = page, []
+
+    def needs_head(self) -> tuple[str, str]:
+        """The L3 page's title and the line under it. A Run that stopped for a reason other than an answer (a
+        fault, a file it couldn't write) is not "1 answer needed", which is what it said on the walk of 27 Sep."""
+        if not self.answers:
+            return "Run stopped", "Nothing was written. Your answers so far are kept."
+        return (f"{_s(len(self.needs), 'answer')} needed before Run",
+                "Each one opens the workbook at its cell. Nothing ran; your answers so far are kept.")
+
+    def after_install(self, optional: bool) -> None:
+        """What the page says once an install ends and nothing the cube needs is missing: an optional add-on that
+        didn't install is the note for IT, in red; one that did is good news, never in the red of a refusal."""
+        if optional and self.gate.optional:
+            self.message = [f"Couldn't install {_names(self.gate.optional)} from here.", deps.ask_it(self.gate.optional)]
+            self.note = []
+        else:
+            self.note, self.message = self.gate.lines()[:1], []
 
     def headline(self) -> dict:
         """The Run-finished tiles."""
@@ -591,13 +671,10 @@ def confirm_tiles(h: dict) -> tuple:
     pocket, so the tiles are the confirmation's, on the holdout. (head, value, under it, rule colour, value colour)"""
     if h.get("problem"):
         return (("Confirmatory test", "Not run", h["problem"], "KEY_RED", "INK"),)
-    dev = h.get("deviations")
-    if dev is None:
-        follows = ("Couldn't compare", "see Record")
-    elif not dev:
-        follows = ("Yes", "differs nowhere")
-    else:
-        follows = ("No", f"differs in {_s(dev, 'place')}")
+    from .confirmatory import follows_words
+    said, under, clean = follows_words(h)
+    follows = ("Follows the pre-spec", said, under, "INK", "POSITIVE" if clean else "CRIMSON" if h.get("changed")
+               else "INK")
     n = len(h.get("candidates") or [h.get("column")])
     if n > 1:
         # several candidates' groups hold the same loans, so their shares of bad loans don't add up: count the
@@ -605,11 +682,12 @@ def confirm_tiles(h: dict) -> tuple:
         return (("Groups worse than their reference", f"{h['worse']:,} of {h['groups']:,}",
                  f"on the holdout, {h['confidence']:.0%} sure", "KEY_RED", "INK"),
                 ("Candidates with a group worse", f"{h['holding']:,} of {n:,}", "on the holdout", "KEY_RED", "INK"),
-                ("Follows the pre-spec", follows[0], follows[1], "INK", "POSITIVE" if dev == 0 else "INK"))
-    return ((f"Groups worse than {h['reference']}", f"{h['worse']:,} of {h['groups']:,}",
+                follows)
+    # the column named: "Groups worse than 11,000 - 14,999" alone didn't say whose groups (walk of 27 Sep 2026)
+    return ((f"{h['column']} groups worse than {h['reference']}", f"{h['worse']:,} of {h['groups']:,}",
              f"on the holdout, {h['confidence']:.0%} sure", "KEY_RED", "INK"),
             ("Their share of bad loans", f"{h['capture']:.0%}", "on the holdout", "KEY_RED", "INK"),
-            ("Follows the pre-spec", follows[0], follows[1], "INK", "POSITIVE" if dev == 0 else "INK"))
+            follows)
 
 
 def _money(v: float) -> str:
@@ -824,7 +902,7 @@ def build(root) -> dict:
         widgets["browse"] = Button(row, "Browse…", browse)
         widgets["browse"].pack(side="left", padx=(8, 0))
         if flow.gate.missing:
-            label(page, "You can still pick the extract and open an existing workbook while the add-on installs.",
+            label(page, waiting_words(flow.gate.missing),
                   "body", fg="SLATE", wrap=470).pack(anchor="w", pady=(10, 0))
         else:
             how = tk.Frame(page, bg=C["WHITE"], highlightbackground=C["MIST"], highlightthickness=1)
@@ -845,6 +923,7 @@ def build(root) -> dict:
                     _save_prefs({"extract": extract.get(), "few": flow.few, "many": flow.many})
                 pickb.bind("<<ComboboxSelected>>", chosen)
                 widgets[key] = pickb
+        message_lines(page, flow.note, fg="INK")
         message_lines(page, flow.message)
         setup = ("setup", "Set up from this extract", lambda: background(flow.set_up, "Reading the extract"),
                  "primary")
@@ -954,6 +1033,7 @@ def build(root) -> dict:
         widgets["summary"] = label(text, ("This will run: " + said) if ok else said, "small", bg=C["CANVAS"],
                                    wrap=460)
         widgets["summary"].pack(anchor="w")
+        message_lines(page, flow.note, fg="INK")
         message_lines(page, flow.message)
         footer(("next", "Next: answer in the workbook →", lambda: background(flow.next, "Writing the workbook"),
                 "primary"), note="Saved to Control, read-only.")
@@ -993,9 +1073,9 @@ def build(root) -> dict:
 
     def page_needs():
         n = len(flow.needs)
-        label(page, f"{_s(n, 'answer')} needed before Run", "title").pack(anchor="w")
-        label(page, "Each one opens the workbook at its cell. Nothing ran; your answers so far are kept.", "body",
-              fg="SLATE", wrap=470).pack(anchor="w", pady=(6, 8))
+        title, under = flow.needs_head()
+        label(page, title, "title").pack(anchor="w")
+        label(page, under, "body", fg="SLATE", wrap=470).pack(anchor="w", pady=(6, 8))
         if flow.book_open:
             open_banner()
         box_ = tk.Frame(page, bg=C["WHITE"], highlightbackground=C["MIST"], highlightthickness=1)
@@ -1043,14 +1123,22 @@ def build(root) -> dict:
                  _money(h.get("dollars", 0)) if gco else f"{h.get('dollars', 0):,.1f}",
                  f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"),
                 ("Tie-out checks", f"{n:,} / {n:,}", "every grid adds up to the book", "INK", "POSITIVE"))
+        made = []
         for i, (head, value, sub, rule, fg) in enumerate(shown):
             t = tk.Frame(tiles, bg=C["CANVAS"], width=150, height=96)
-            t.pack(side="left", padx=(0 if i == 0 else 10, 0))
+            t.pack(side="left", anchor="n", padx=(0 if i == 0 else 10, 0))
             t.pack_propagate(False)
             tk.Frame(t, bg=C[rule], height=3).pack(fill="x")
             label(t, head, "small", fg="SLATE", bg=C["CANVAS"], wrap=134).pack(anchor="w", padx=8, pady=(6, 0))
             label(t, value, "tile", fg=fg, bg=C["CANVAS"]).pack(anchor="w", padx=8)
             label(t, sub, "small", fg="SLATE", bg=C["CANVAS"], wrap=134).pack(anchor="w", padx=8)
+            made.append(t)
+        # 96 px, or taller when a tile's words need it: a long column name or group cut the last line off
+        tiles.update_idletasks()
+        tall = max([96] + [sum(c.winfo_reqheight() for c in t.winfo_children()) + 12 for t in made])
+        for t in made:
+            t.configure(height=tall)
+        widgets["tiles"] = made
         qs = h.get("open") or []
         if qs:
             q = tk.Frame(page, bg=C["WHITE"], highlightbackground=C["MIST"], highlightthickness=1, padx=10, pady=8)
@@ -1069,7 +1157,7 @@ def build(root) -> dict:
         draw_banner()
         draw_rail()
         clear(page)
-        for k in ("setup", "next", "run", "open", "start", "open_banner", "summary", "install_optional"):
+        for k in ("setup", "next", "run", "open", "start", "open_banner", "summary", "install_optional", "tiles"):
             widgets.pop(k, None)
         {"extract": page_extract, "choose": page_choose, "answer": page_answer, "needs": page_needs,
          "done": page_done}["extract" if flow.gate.missing else flow.page]()
@@ -1131,11 +1219,7 @@ def build(root) -> dict:
         render()
 
     def open_book():
-        b = flow.book()
-        if b and b.exists():
-            open_file(b)
-        else:
-            say("There's no workbook yet. Choose the tests and press Next first.")
+        say(flow.open_book())
 
     def on_extract(*_):
         # redrawn only when the page changes: a redraw while someone types would take the box away from them
@@ -1162,16 +1246,12 @@ def build(root) -> dict:
             try:
                 ok, said = done.get_nowait()
             except queue.Empty:
-                if "status" in widgets:
-                    widgets["status"].configure(text="\n".join(flow.gate.lines()))
+                banner_clock(widgets, flow.gate, optional)
                 root.after(500, poll)
                 return
             flow.gate.finish(ok, said)
             if not flow.gate.missing:
-                # an optional add-on that didn't install: the note for IT, as the banner gives it for a needed one
-                flow.message = ([f"Couldn't install {_names(flow.gate.optional)} from here.",
-                                 deps.ask_it(flow.gate.optional)] if optional and flow.gate.optional
-                                else flow.gate.lines()[:1])
+                flow.after_install(optional)
             render()
         root.after(500, poll)
 

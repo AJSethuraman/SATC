@@ -230,6 +230,13 @@ def _line(ws, r: int, text: str) -> int:
     return r + 1
 
 
+def curve_format(curve) -> str:
+    """How a curve's values are shown: whole numbers with thousands for a column in the hundreds and up (a debt of
+    733.1264 dollars read as that, on the walk of 27 Sep 2026), up to four places for a ratio."""
+    top = max((abs(x) for x, _ in curve), default=0)
+    return "#,##0" if top >= 100 else "0.####"
+
+
 def _shape(ws, c, r: int) -> int:
     """One proposed candidate's curve: its values and the forest's bad rate, and a chart of them with the edges."""
     house.section(ws, r, FIRST, LAST, f"{c.name}: the forest's bad rate as {c.name} moves (cut at "
@@ -238,8 +245,9 @@ def _shape(ws, c, r: int) -> int:
     house.sub_header(ws, r, FIRST, [c.name, "", "Bad rate"], centre_from=2)
     r += 1
     top = r
+    fmt = curve_format(c.curve)
     for x, p in c.curve:
-        _cell(ws, r, S_NAME, x, h="left", fmt="0.####")
+        _cell(ws, r, S_NAME, x, h="left", fmt=fmt)
         _cell(ws, r, S_IMP, p, fmt="0.0%")
         r += 1
     ch = ScatterChart()

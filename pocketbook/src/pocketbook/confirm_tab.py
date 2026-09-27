@@ -302,8 +302,12 @@ def write(wb, res, stamp: str = "") -> None:
     # ---------------------------------------------------------------- what was tested: the tiles
     outcome = next((m.flag for m in res.measures if m.name == "outcome_loans"), "the outcome")
     _cell(ws, r, FIRST, "WHAT WAS TESTED", bold=True, color=SLATE, h="left", size=8)
-    _cell(ws, r + 1, FIRST, "from the shortlist scouting wrote" if getattr(st, "scouted", False) else
-          "from the saved shortlist", color=SLATE, h="left", size=8)
+    # a pre-spec changed after a held-back run says so here, in red, in place of where it came from: appended, the
+    # words ran past the cell and "changed" was the part cut off (walk of 27 Sep 2026)
+    changed = getattr(st, "changed_after", None) is not None
+    _cell(ws, r + 1, FIRST, "changed after a held-back run" if changed else
+          "from the shortlist scouting wrote" if getattr(st, "scouted", False) else "from the saved shortlist",
+          color=house.CRIMSON if changed else SLATE, h="left", size=8)
     tile_row = r
     r += 3
     n = f'COUNTIF(Status,"{house.WAITING}")'
@@ -753,10 +757,11 @@ def write_found(ws, res) -> None:
     ws.append(["column", h["column"]])
     ws.append(["candidates", ", ".join(h["candidates"])])
     ws.append(["reference", h["reference"]])
-    ws.append(["loans", f"{h['development']:,} on development, {h['holdout']:,} on the holdout"])
-    dev = h["deviations"]
-    ws.append(["follows", "Couldn't be compared" if dev is None else "Yes" if not dev
-               else f"No: differs in {dev} place{'s' if dev != 1 else ''}"])
+    # the New variables tab's own words; "5,604 on development, 2,395 on the holdout" ran into the next tile on
+    # Start here (walk of 27 Sep 2026)
+    ws.append(["loans", f"{h['development']:,} found · {h['holdout']:,} held back"])
+    said, under, _ = confirmatory.follows_words(h)
+    ws.append(["follows", said if said == "Yes" else f"{said}: {under}"])
     for g in confirmatory.groups_found(res):
         ws.append(["group", g["group"], g["loans"], g["bad"], g["bad_rate"], g["odds"], g["p"], g["capture"],
                    "yes" if g["ref"] else None, g["candidate"]])

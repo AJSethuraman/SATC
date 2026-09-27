@@ -439,9 +439,13 @@ says otherwise:
       as the extract it is refused). Left as they were: entries above dated before the move, the dated
       walk-throughs, audit and redesign folders, and the shuffle test's seed text, which would move every
       p-value. 4 tests and 4 planted bugs added, 371 in all.)*
-- [ ] **2. A walk-through as the analyst** on the synthetic book, end to end through the launcher's five
+- [x] **2. A walk-through as the analyst** on the synthetic book, end to end through the launcher's five
       steps, both run kinds, writing the step-by-step procedure with screenshots and the defects only a
       screen shows (canon's walk).
+      *(Done 27 Sep 2026: `docs/walkthrough/2026-09-27/PROCEDURE-pocketbook-analyst.pdf` and
+      `WALKTHROUGH-DEFECTS.md`. 12 defects, none caught by the suite; 11 fixed with a test and a planted bug
+      each, 11 design questions (A to K) left for the firm with a recommendation. 735 tests, 385 planted bugs.
+      BACKLOG §6d has the list.)*
 - [ ] **3. The bank-machine checklist:** numbered steps to install, open in real Excel 365 and check the
       live parts (dropdowns, verdicts, colours, the Look lines), with what each should show.
 
