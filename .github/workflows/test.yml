@@ -80,11 +80,11 @@ jobs:
           # every PR. The render harness (LibreOffice) is desk-run, not CI.
           - project: portfolio-analysis-pack
             install: pip install -e ".[test]"
-          # Origination Cube: pockets against the topline, replacing the firm's
+          # PocketBook (was origination-cube until 27 Sep 2026): pockets against the topline, replacing the firm's
           # origination VBA. Each finding from the VBA review has a test here.
           # scikit-learn (the `scout` extra) is optional for the analyst and installed here, so the scouting
           # path runs in CI (canon S14: unreachable code is unchecked); its refusal without it is tested too.
-          - project: origination-cube
+          - project: pocketbook
             install: pip install -e ".[test,scout]"
     defaults:
       run:
@@ -103,11 +103,11 @@ jobs:
           python -m pip install --upgrade pip
           ${{ matrix.install }}
 
-      # The Origination Cube's workbook judges pockets with live Excel formulas (OC-40), and its
+      # PocketBook's workbook judges pockets with live Excel formulas (OC-40), and its
       # tests calculate them through LibreOffice. Without it those tests would skip, and a skipped
       # check is not a passed one: in CI the helper refuses to skip.
       - name: LibreOffice, to calculate the workbook's formulas
-        if: matrix.project == 'origination-cube'
+        if: matrix.project == 'pocketbook'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-calc
 
       - name: Run tests
@@ -138,10 +138,10 @@ jobs:
       - name: Every mutation is caught
         run: python tools/mutation_check.py
 
-  # The same check for the Origination Cube: each VBA bug is put back in turn
+  # The same check for PocketBook: each VBA bug is put back in turn
   # and the test named for it must go red. Seconds, not minutes.
-  mutation-origination-cube:
-    name: mutation check (origination-cube, part ${{ matrix.shard }} of 4)
+  mutation-pocketbook:
+    name: mutation check (pocketbook, part ${{ matrix.shard }} of 4)
     runs-on: ubuntu-latest
     # four jobs, each putting back every fourth bug: one job of all of them ran past two hours
     strategy:
@@ -150,7 +150,7 @@ jobs:
         shard: [0, 1, 2, 3]
     defaults:
       run:
-        working-directory: origination-cube
+        working-directory: pocketbook
     steps:
       - name: Checkout
         uses: actions/checkout@v4

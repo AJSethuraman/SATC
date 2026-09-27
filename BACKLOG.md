@@ -1329,7 +1329,11 @@ sales on the small-business book; built domain-free so a consumer question
       could be re-read on a timer, so saving in Excel builds without a
       second command — a watcher, which is a process, which is a different
       kind of tool.
-## 6d · Origination Cube (`origination-cube/` — started 2026-09-25)
+## 6d · PocketBook (`pocketbook/`, built as Origination Cube in `origination-cube/` — started 2026-09-25)
+
+*2026-09-27: the folder moved from `origination-cube/` to `pocketbook/` (Goal 3 item 1, the rename sweep;
+entry below). Entries dated before then keep the old paths as they were written: read `origination-cube/` as
+`pocketbook/` and `src/origination_cube/` as `src/pocketbook/`.*
 
 A loan extract and a cube file go in. Every band is crossed with every
 dimension, and each pocket's rate is compared with the topline to find where
@@ -2004,6 +2008,22 @@ back.
       - **Departures:** noise floor over at least 20 tries, not 30 (time); proposed on either forest, not both; a
         category ranked, never proposed; a file already beside the workbook is never written over (delete it to
         re-propose); the ranking cross-fitted in 3 runs by date where the scope planned one 70 / 30 split.
+- [x] **Goal 3 item 1: the rename sweep (27 Sep 2026).** The firm, 26 Sep: *"let's call it the PocketBook"*.
+      The folder moved `origination-cube/` → `pocketbook/` (git mv, history kept); the package
+      `origination_cube` → `pocketbook`; the command `cube` → `pocketbook`; `Origination Cube.pyw` →
+      `PocketBook.pyw` (its `__main__` guard and `freeze_support()` kept); `$CUBE_MEMORY` →
+      `$POCKETBOOK_MEMORY`; `~/.origination-cube/` → `~/.pocketbook/` (new `places.py`). CI's pytest matrix
+      entry and the four-part mutation job now name `pocketbook`.
+      - **Still read under the old names:** `$CUBE_MEMORY` when the new variable is unset; memory and the
+        launcher's last choices from `~/.origination-cube/` while `~/.pocketbook/` has none (the next save writes
+        the new folder, the old file is left alone); an installed `origination-cube` package's declared minimums;
+        a `- Origination Cube.xlsx` workbook (Set up carries its answers over, now tested; picked as the extract
+        it is refused, as before).
+      - **Left as written:** entries in this section dated before the move; the dated walk-throughs, audit,
+        final check, for-test-design write-up and redesign folder; canon's citation of the cube's commit; and
+        the shuffle test's seed text (`perm.BASE`), which names the old folder and would move every p-value.
+      - Tests: 723 (4 new). Planted bugs: 4 added, 371 in all; those 4 and 6 older ones put back alone from the
+        new folder, 10 of 10 caught.
 - **The firm's calls, 26 Sep 2026 (evening).**
   - **Name: PocketBook.** *"i want to change the name of this... let's call it the PocketBook"*. What
     the analyst sees is renamed with the redesign; folder and package names in one sweep after the
@@ -2089,6 +2109,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-27 -- **Origination Cube renamed PocketBook** (`origination-cube/` → `pocketbook/`; package, command, launcher file, memory folder and variable). Everything a machine kept under the old names is still read. §6d has the list of what was left as written.
 - 2026-09-25 -- **Origination Cube slice 1: the engine** (`origination-cube/`). It replaces the firm's origination-analysis VBA. 39 tests, 6 of 6 mutations caught, and every place the macros broke their own rules is tracked in `docs/vba-findings.md`. The workbook is slice 2. Open questions are in §6d.
 - 2026-09-19 -- **Portfolio Analysis Pack v1 built** (`portfolio-analysis-pack/`, nine slices #364–#372, one PR each). The ladder plus door one, the bundle, the render harness and the mutation tool. 94 tests, 9 of 9 mutations caught, 100,000 loans in 12.7 s to a 164 KB workbook. Then the adversarial pass: 35 hypotheses, 16 red, 15 fixed and 1 restated, all in the suite. Not checked: Excel itself and the desk run — §6c has the list.
 - 2026-09-18 -- **Portfolio Analysis Pack grilled and PRD'd** (`portfolio-analysis-pack/docs/prd-portfolio-analysis-pack.md`). Fourteen decisions put to the firm as questions; two touched the record and are ruled in `canon/CONVICTIONS.md` (C11 struck for the project, C9 upheld on placement). Open items above in §6c.
