@@ -339,7 +339,10 @@ def prove(served, desk, transport) -> Proof:
     # authority, because only (e)(1) was checked. Each appended paragraph is
     # proved too, and the worst verdict stands: DIFFERS over COULD NOT over TIED
     # -- COULD NOT is never upgraded, whichever paragraph it came from.
-    if first.verdict != TIED:
+    # DIFFERS on the cited paragraph is already the worst; anything else keeps
+    # going, because a paragraph of ANOTHER source can still differ (Codex on
+    # #403: a COULD NOT here returned before that source was ever fetched).
+    if first.verdict == DIFFERS:
         return first
     whole = getattr(desk, "corpus", desk)
     appended = list(whole.frame(citation))

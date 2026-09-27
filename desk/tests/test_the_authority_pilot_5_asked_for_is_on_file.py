@@ -723,3 +723,55 @@ def test_the_judge_reads_the_cited_page_not_the_last_one_fetched():
     assert out.proof.verdict == proving.TIED
     assert out.judged.stands
     assert out.judged.against == "the document fetched from the publisher"
+
+
+def _cross_source(tmp_path):
+    """(e)(1) read with a paragraph of ANOTHER source, § 1.162-21(g) -- the
+    shape no stored record has yet and the proof must handle anyway."""
+    import shutil
+    c = tmp_path / "corpus"
+    shutil.copytree(CORPUS, c)
+    src = (c / "SOURCES.md").read_text(encoding="utf-8")
+    (c / "SOURCES.md").write_text(src.replace(
+        "**Read with:** 26 USC 274(e)(1) — 26 USC 274(o);",
+        "**Read with:** 26 USC 274(e)(1) — 26 CFR 1.162-21(g); 26 USC 274(o);"),
+        encoding="utf-8")
+    return c, record.load(c)
+
+
+def test_a_moved_paragraph_of_another_source_differs_when_the_cited_one_could_not(tmp_path):
+    """Codex on #403: a COULD NOT on the cited source returned before the other
+    source was fetched, so its DIFFERS -- the worse verdict -- was never seen."""
+    _c, desk = _cross_source(tmp_path)
+    moved = _live(desk, moved={"26 CFR 1.162-21(g)"})
+
+    def transport(source, citation):
+        if source.id == "S41":
+            raise ConnectionResetError("the publisher hung up")
+        return moved(source, citation)
+
+    got = proving.prove(_served_274e1(), desk, transport)
+    assert got.verdict == proving.DIFFERS
+    assert "26 CFR 1.162-21(g)" in got.note
+
+
+def test_the_judge_may_quote_any_document_the_answer_was_proved_against(tmp_path):
+    """Codex on #403: the judge was checked against the cited source's page
+    only, so quoting the other source's -- served with the answer -- was
+    refused as not in the passage."""
+    c, desk = _cross_source(tmp_path)
+    whole = _live(desk)
+
+    def transport(source, citation):
+        page = whole(source, citation)
+        if source.id == "S40":
+            return _LivePage(page.text + " ONLY ON THE REGULATION'S PAGE")
+        return page
+
+    out = ask.answer(EMPLOYER_MEALS_2026, position=DEDUCTIBLE,
+                     citation="26 USC 274(e)(1)", corpus=c, keep=False,
+                     prove=transport,
+                     judged=judging.Judgment(by="second-reader", supports=True,
+                                             because="ONLY ON THE REGULATION'S PAGE"))
+    assert isinstance(out, engine.Served), out
+    assert out.judged.stands

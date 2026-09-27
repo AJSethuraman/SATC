@@ -1217,7 +1217,13 @@ def answer(question: str, *, position: str = "",
         # copy establishes that the judge read what WE hold, which is a weaker
         # claim than that they read what the PUBLISHER holds, and `Read.against`
         # is what lets a reader tell the two apart afterwards.
-        live = fetched.get(out.citation, "")
+        # EVERY DOCUMENT THE ANSWER WAS PROVED AGAINST, the cited one first:
+        # the served passage carries paragraphs of other sources too, and a
+        # judge quoting one of those is quoting what they were handed (Codex
+        # on #403). One fetch per source, so no document appears twice.
+        first = [fetched[out.citation]] if out.citation in fetched else []
+        live = "\n\n".join(
+            first + [t for c, t in fetched.items() if c != out.citation])
         seen = judging.read(
             judged, live or out.passage, answered_by=model,
             against=("the document fetched from the publisher" if live
