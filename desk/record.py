@@ -870,21 +870,50 @@ class Desk:
                                 todo.append(o)
         return out
 
+    def _clauses(self, of: str) -> list:
+        """`of`'s direct clauses, and a clause's own when it is a lead-in too."""
+        out = []
+        for p in self.passages:
+            if (p.citation.startswith(of)
+                    and re.fullmatch(r"\([^()]+\)", p.citation[len(of):])):
+                out.append(p.citation)
+                if is_lead_in(p.text):
+                    out += self._clauses(p.citation)
+        return out
+
+    def frame(self, citation: str) -> list:
+        """What completes `citation` by its structure, read off the words: every
+        stored ancestor that is a lead-in, with that lead-in's clauses -- (a)(3)(i)
+        of § 1.162-21 means nothing without (a)'s "no deduction is allowed ... for
+        any amount" and the (a)(1)-(3) it joins -- and, when `citation` is itself
+        a lead-in, its own clauses: § 274(o) ends "for-". Codex on #403, twice."""
+        out = []
+        ancestors = sorted(
+            (p for p in self.passages if p.citation != citation
+             and is_under(citation, p.citation) and is_lead_in(p.text)),
+            key=lambda p: len(p.citation))
+        for a in ancestors:
+            for c in [a.citation, *self._clauses(a.citation)]:
+                if c != citation and c not in out:
+                    out.append(c)
+        own = self.passage(citation)
+        if own and is_lead_in(own.text):
+            out += [c for c in self._clauses(citation) if c not in out]
+        return out
+
     def limits_text(self, citation: str) -> str:
-        """Those paragraphs' words, labelled, each with its own direct clauses --
-        § 274(o) alone ends "no deduction shall be allowed under this chapter
-        for-", which states nothing. `""` when the record reads it with nothing.
-        What the served answer carries and the second reader is handed."""
-        out, seen = [], {citation}
+        """What the served answer carries after its own paragraph, and the second
+        reader is handed: its FRAME -- the lead-in it completes, or the clauses
+        that complete it -- then whatever the record reads it with, each with its
+        own clauses; § 274(o) alone ends "no deduction shall be allowed under
+        this chapter for-", which states nothing. Labelled, `""` when neither."""
+        order = list(self.frame(citation))
         for o in self.limits_on(citation):
-            for p in self.passages:
-                rest = p.citation[len(o):]
-                if p.citation not in seen and (
-                        p.citation == o or (p.citation.startswith(o)
-                                            and re.fullmatch(r"\([^()]+\)", rest))):
-                    out.append(f"{p.citation}: {p.text}")
-                    seen.add(p.citation)
-        return "\n\n".join(out)
+            for c in [o, *self._clauses(o)]:
+                if c != citation and c not in order:
+                    order.append(c)
+        return "\n\n".join(f"{c}: {self.passage(c).text}" for c in order
+                            if self.passage(c))
 
     def position(self, citation: str):
         """A ratified position resting on this citation, if the firm took one.
@@ -1237,6 +1266,15 @@ def _admitted_for(block: str, where: str) -> tuple:
                 f'citation, " — ", then the question in double quotes.')
         out.append((line[:at].strip(), line[at + 4:-1].strip()))
     return tuple(out)
+
+
+def is_lead_in(text: str) -> bool:
+    """A paragraph that states nothing until its clauses finish it: it ends in
+    a dash or a colon, or its first piece does where a marked omission joins it
+    to a closing sentence (§ 274(e), § 274(n)(2)). Read off the words, never
+    decided per subsection -- Codex on #403 found a line per subsection leaked."""
+    first = text.split("[...]", 1)[0].rstrip()
+    return first.endswith(("-", "\u2014", ":"))
 
 
 def is_under(citation: str, key: str) -> bool:

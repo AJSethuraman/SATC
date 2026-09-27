@@ -437,3 +437,55 @@ def test_a_clause_is_served_with_the_words_that_give_it_effect(cited, lead_in):
                                              because=lead_in))
     assert isinstance(out, engine.Served), out
     assert lead_in in out.passage
+
+
+# ── A LEAD-IN IS READ WITH ITS CLAUSES, AND A CLAUSE WITH ITS LEAD-IN ───────
+#
+# Codex on #403, after the § 274 lines: one record line per subsection kept
+# leaking -- § 1.162-21(a)(3)(i) defines a fine and was served without (a)'s
+# "no deduction is allowed" or the (a)(1)-(3) conditions, and § 274(o) was
+# served ending "for-" with nothing after it. The rule is general now, read off
+# the words: a paragraph that ends in a dash or a colon states nothing alone.
+
+FINE = "26 CFR 1.162-21(a)(3)(i)"
+DENIAL = "no deduction is allowed under chapter 1 of the Internal Revenue Code"
+
+
+def _served(cited, because):
+    return ask.answer("Is it deductible?", position="It is not deductible.",
+                      citation=cited, keep=False,
+                      judged=judging.Judgment(by="second-reader",
+                                              supports=True, because=because))
+
+
+def test_a_clause_is_served_with_its_lead_in_and_the_lead_ins_other_clauses():
+    out = _served(FINE, "includes a fine or penalty")
+    assert isinstance(out, engine.Served), out
+    assert DENIAL in out.passage
+    for c in ("(a)(1)", "(a)(2)", "(a)(3)"):
+        assert f"26 CFR 1.162-21{c}:" in out.passage, c
+
+
+@pytest.mark.parametrize("cited, clauses", [
+    ("26 USC 274(o)", ("26 USC 274(o)(1)", "26 USC 274(o)(2)")),
+    ("26 CFR 1.162-21(a)", tuple(f"26 CFR 1.162-21(a)({i})" for i in (1, 2, 3))),
+])
+def test_a_lead_in_is_served_with_its_clauses(cited, clauses):
+    out = _served(cited, "paid or incurred" if "CFR" in cited else "no deduction")
+    assert isinstance(out, engine.Served), out
+    for c in clauses:
+        assert f"{c}:" in out.passage, c
+
+
+def test_reading_a_clause_shows_its_lead_in():
+    got = ask.read(FINE)
+    assert "### 26 CFR 1.162-21(a)\n" in got
+    assert DENIAL in got
+
+
+def test_a_parent_that_is_only_a_heading_is_not_pulled_in():
+    """The control: § 274(a) is a heading, not a lead-in -- (a)(1) states the
+    whole rule itself -- so nothing is added for it."""
+    out = _served("26 USC 274(a)(1)", "No deduction otherwise allowable")
+    assert isinstance(out, engine.Served), out
+    assert "26 USC 274(a):" not in out.passage

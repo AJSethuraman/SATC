@@ -1553,10 +1553,11 @@ it with them.
 - **2026-06 — Cowork plugin built** to the four-layer blueprint (app API → thin MCP proxy
   → plugin skills → agent), scoped to withholding.
 
-**Follow-up from #403 (27 September 2026), not done in it:** a clause cited on
-its own is served without its parent's words wherever the parent is a lead-in.
-§ 274's subsections are now read with themselves, which closes it for the
-paragraphs #403 added. The older regulations have the same shape (for example
-§ 1.162-21(a)(1) under (a)'s "no deduction is allowed ... for any amount that is
-paid or incurred—"), and fixing them means a corpus-wide rule rather than a line
-per subsection. Codex found the class on #403.
+**Done in #403 after all (27 September 2026):** a clause cited on its own was
+served without its parent's words wherever the parent is a lead-in. Line-per-
+subsection fixes leaked (§ 1.162-21(a)(3)(i) was next), so the rule is now
+general and read off the words: a paragraph ending in a dash or a colon -- or
+whose first piece does, before a marked omission -- is a lead-in; a clause is
+read and served with every lead-in above it and that lead-in's clauses, and a
+cited lead-in with its own. 107 of 1,257 stored paragraphs are lead-ins.
+`record.Desk.frame`; a heading-only parent such as § 274(a) is not pulled in.

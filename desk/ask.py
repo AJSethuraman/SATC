@@ -951,6 +951,17 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
             out += [f"- `{c}`" for c in deeper] + [""]
         # WHAT CHANGES WHAT WAS JUST PRINTED. Codex on #403: reading § 274(e)
         # printed (e)(1) and not the § 274(o) that takes it away from 2026.
+        # WHAT IT COMPLETES, OR WHAT COMPLETES IT: a clause printed without the
+        # lead-in it finishes -- § 1.162-21(a)(3)(i) without (a)'s "no deduction
+        # is allowed" -- is a definition served as a rule (Codex on #403).
+        shown = {l[4:] for l in out if l.startswith("### ")}
+        for f in desk.frame(citation):
+            if f not in shown and desk.passage(f):
+                out += [f"### {f}", "",
+                        f"**Read as one with `{citation}` — a lead-in and the "
+                        f"clauses that finish it.**", "",
+                        f"> {desk.passage(f).text}", ""]
+                shown.add(f)
         printed = [l[4:] for l in out if l.startswith("### ")]
         shown = set(printed)
         for c in printed:
