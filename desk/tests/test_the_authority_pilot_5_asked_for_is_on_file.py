@@ -891,3 +891,16 @@ def test_a_carried_paragraph_brings_its_own_limits():
     assert proving.prove(served, desk, _live(desk)).verdict == proving.TIED
     moved = proving.prove(served, desk, _live(desk, moved={U.O_DATE}))
     assert moved.verdict == proving.DIFFERS
+
+
+def test_a_leaf_of_the_restitution_exception_carries_its_general_rule():
+    """Codex on #403: citing § 1.162-21(b)(2)(iii)(A) carried nothing of (b)(1),
+    which makes the exception need BOTH the identification and establishment
+    tests. (b) and (b)(2) are headings, and a heading above a clause is not
+    pulled in -- so the record says it: everything under (b) is read with
+    (b)(1)."""
+    leaf = "26 CFR 1.162-21(b)(2)(iii)(A)"
+    words = " ".join(record.load(CORPUS).passage(leaf).text.split()[:6])
+    out = _served(leaf, words)
+    assert isinstance(out, engine.Served), out
+    assert "26 CFR 1.162-21(b)(1):" in out.passage

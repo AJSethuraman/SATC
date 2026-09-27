@@ -400,7 +400,7 @@ NARROWED = {
     # The graded figures below are likewise untouched: `brief_for_grading`
     # prints no example, so there is nothing there to label.
     "is a brewery tab a business meal?": 3_058,
-    "what supporting documents does the client have to keep?": 6_725,
+    "what supporting documents does the client have to keep?": 6_733,
     #
     # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
     # are both visible in the diff. Every position a brief carries now prints
@@ -454,6 +454,8 @@ NARROWED = {
     # THEN +44 supporting documents and +15 hand tools when the reader was
     # rewritten after a second review: it now reads every section of a list
     # and a capitalised "Section", and drops other Acts and titles.
+    # +8 supporting documents: its § 1.162-21(b)(3)(ii) now names (b)(1),
+    # which everything under (b) is read with (Codex on #403).
     "hand tools bought for the trade - deducted or capitalized?": 4_400,
     "mileage or actual expenses for the van?": 2_899,
 }
@@ -512,7 +514,8 @@ NARROWED = {
 # owner: § 1.446-1(e)(3)(iii) no longer names a nonexistent 26 USC 13261.
 # +29 / +29 when an explanatory aside inside a list stopped ending it:
 # § 1.163-8T(a)(1) now names § 163(d) as well as § 469 (Codex on #403).
-WHOLE = (156_220, 280_384)
+# +78 / +78 for the notes naming § 1.162-21(b)(1) under every paragraph of (b).
+WHOLE = (156_298, 280_462)
 
 
 def _answering_sizes():
