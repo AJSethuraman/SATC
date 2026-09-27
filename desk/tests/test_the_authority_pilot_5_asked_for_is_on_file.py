@@ -525,7 +525,9 @@ def test_the_references_read_off_a_paragraph_are_code_sections_only():
 
 
 def test_a_served_answer_names_what_it_cites_and_the_record_does_not_hold():
-    out = _served("26 USC 274(o)(1)", "no deduction shall be allowed")
+    # § 274(o) itself: (o)(1) ends ", or", so citing it alone no longer carries
+    # (o)(2) and its § 119(a) -- they are alternatives (Codex on #403).
+    out = _served("26 USC 274(o)", "no deduction shall be allowed")
     assert isinstance(out, engine.Served), out
     assert "26 USC 132(e)(2)" in out.unheld
     assert "26 USC 119(a)" in out.unheld
@@ -928,3 +930,59 @@ def test_a_position_backed_answer_still_proves_what_is_served_with_it():
     assert proving.prove(served, desk, _live(desk)).verdict == proving.COULD_NOT
     got = proving.prove(served, desk, _live(desk, moved={appended[-1]}))
     assert got.verdict == proving.DIFFERS and appended[-1] in got.note
+
+
+# Codex on #403: § 274(e)(3) excepts a nonemployee's reimbursed expenses only
+# "to the extent provided by subsection (d)", § 274(d) is not on file, and the
+# reader counted only section numbers -- so nothing said it was missing.
+@pytest.mark.parametrize("text, within, want", [
+    ("(to the extent provided by subsection (d)) to such person.",
+     "26 USC 274(e)(3)", ["26 USC 274(d)"]),
+    ("as provided in paragraph (2)", "26 USC 274(n)(1)", ["26 USC 274(n)(2)"]),
+    ("subsections (a) and (c)(1)", "26 USC 162(b)", ["26 USC 162(a)", "26 USC 162(c)(1)"]),
+    # Somebody else's subsection is not this section's.
+    ("under subsection (a) of section 162", "26 USC 274(e)(3)", ["26 USC 162"]),
+    ("under subsection (a)(1) of section 162", "26 USC 274(e)(3)", ["26 USC 162"]),
+    ("paragraph (1) of this subsection", "26 USC 274(n)(2)", ["26 USC 274(n)(1)"]),
+    # No Code paragraph to resolve against: a regulation, a note, or nothing.
+    ("see paragraph (e)(5) of this section", "26 CFR 1.162-21(a)(1)", []),
+    ("subsection (a) shall apply", "26 USC 274 note, Pub. L. 115-97 § 13304(e)(2)", []),
+    ("subsection (d)", "", []),
+])
+def test_a_relative_reference_is_read_against_its_own_section(text, within, want):
+    assert record.code_references(text, within=within) == want
+
+
+def test_a_labelled_paragraph_is_read_against_its_own_label():
+    """A served passage and an `ask.read` carry each paragraph under its own
+    citation; "subsection (d)" in (e)(3)'s block is § 274's."""
+    text = ("26 USC 274(o): denies it.\n\n"
+            "26 USC 274(e)(3): as provided by subsection (d).\n\n"
+            "### 26 CFR 1.162-21(a)\n\n> subsection (q)")
+    assert record.code_references(text) == ["26 USC 274(d)"]
+
+
+def test_reimbursed_expenses_say_the_substantiation_rule_is_not_on_file():
+    desk = record.load(CORPUS)
+    assert "26 USC 274(d)" in desk.unheld(desk.passage("26 USC 274(e)(3)").text,
+                                          within="26 USC 274(e)(3)")
+    words = " ".join(desk.passage("26 USC 274(e)(3)").text.split()[:6])
+    out = _served("26 USC 274(e)(3)", words)
+    assert isinstance(out, engine.Served), out
+    assert "26 USC 274(d)" in out.unheld
+    assert "26 USC 274(d)" in ask.read("26 USC 274(e)(3)")
+
+
+def test_a_leaf_of_a_list_of_alternatives_is_not_served_its_siblings():
+    """Codex on #403: citing § 274(e)(8) framed it with every exception in (e),
+    and (e)(1)'s § 274(o) chain came with them -- eleven sections called missing
+    that the answer never turned on. (e)'s items are each a whole exception;
+    only a list joined by "and" is one rule that needs all of it."""
+    desk = record.load(CORPUS)
+    assert desk.frame("26 USC 274(e)(8)") == ["26 USC 274(e)"]
+    assert "26 USC 274(o)" not in desk.served_with("26 USC 274(e)(8)")
+    # Nor through a limit: (o)(1) is read with (e)(8), and (e)(8) with (e).
+    assert "26 USC 274(e)(9)" not in desk.served_with("26 USC 274(o)(1)")
+    assert desk.unheld(desk.limits_text("26 USC 274(e)(8)")) == []
+    # The control: § 1.162-21(a)'s clauses end "; and", and are one rule.
+    assert all(f"26 CFR 1.162-21(a)({i})" in desk.frame(FINE) for i in (1, 2, 3))

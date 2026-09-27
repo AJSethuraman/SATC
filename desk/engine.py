@@ -1439,7 +1439,8 @@ def serve(answer: Answer, desk: Desk, *, question: str,
     out = _serve(answer, desk, question=question, context=context)
     if isinstance(out, Served) and out.passage:
         import dataclasses as _dc
-        out = _dc.replace(out, unheld=tuple(desk.unheld(out.passage)))
+        out = _dc.replace(out, unheld=tuple(desk.unheld(out.passage,
+                                                     within=out.citation)))
     if isinstance(out, Refusal) and not out.desk:
         import dataclasses as _dc
         return _dc.replace(out, desk=desk.name)

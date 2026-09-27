@@ -879,16 +879,17 @@ class Desk:
                                 todo.append(o)
         return out
 
-    def unheld(self, text: str) -> list:
+    def unheld(self, text: str, within: str = "") -> list:
         """The Code sections `text` cites that the record holds nothing at, under
         or above. Codex on #403: § 274(o) denies only what § 132(e)(2) and
         § 119(a) describe, neither is on file, and nothing said so. Chasing
         every cross-reference is endless -- 274 of 1,257 paragraphs cite one --
         so the rule is to SAY it, and let the answerer escalate. Asked of the
         WHOLE corpus whoever calls it: a narrowed desk no longer holds what it
-        was cut from (re-review of 3e7a1e98)."""
+        was cut from (re-review of 3e7a1e98). `within` is the paragraph the
+        text opens with, for "subsection (d)" (`code_references`)."""
         held = [p.citation for p in self.corpus.passages]
-        return [c for c in code_references(text)
+        return [c for c in code_references(text, within=within)
                 if not any(h == c or is_under(h, c) or is_under(c, h)
                            for h in held)]
 
@@ -917,6 +918,14 @@ class Desk:
                     out += self._clauses(p.citation)
         return out
 
+    def _joined(self, of: str) -> bool:
+        """Are `of`'s clauses one rule -- a list joined by "and"? Read off the
+        words: one of them ends ", and" or "; and"."""
+        return any(re.search(r"[;,]\s*and$", p.text.rstrip())
+                   for p in self.passages
+                   if p.citation.startswith(of)
+                   and re.fullmatch(r"\([^()]+\)", p.citation[len(of):]))
+
     def frame(self, citation: str) -> list:
         """What completes `citation` by its structure, read off the words: every
         stored ancestor that is a lead-in, with that lead-in's clauses -- (a)(3)(i)
@@ -929,7 +938,13 @@ class Desk:
              and is_under(citation, p.citation) and is_lead_in(p.text)),
             key=lambda p: len(p.citation))
         for a in ancestors:
-            for c in [a.citation, *self._clauses(a.citation)]:
+            # ITS OTHER CLAUSES ONLY WHEN THEY ARE ONE RULE: § 1.162-21(a)'s end
+            # "; and", and all three must hold. § 274(e)'s are nine separate
+            # exceptions, and citing (e)(8) was served (e)(1)'s § 274(o) chain
+            # and eleven sections "not on file" it never turned on (Codex on
+            # #403).
+            joined = self._joined(a.citation)
+            for c in [a.citation, *(self._clauses(a.citation) if joined else ())]:
                 if c != citation and c not in out:
                     out.append(c)
         # AND A CITED HEADING, whose clauses are the whole of what it says.
@@ -947,8 +962,18 @@ class Desk:
         on #403: § 274(e) carried (e)(1) but not the § 274(o) it is read with)."""
         order = list(self.frame(citation))
         for c in [citation, *order]:
-            for o in self.limits_on(c):
-                for x in [o, *self._clauses(o)]:
+            limits = self.limits_on(c)
+            for o in limits:
+                # A limit ABOVE what it is carried for is a frame by another
+                # route -- § 274(e) is read with (e) -- and brings its other
+                # clauses on the frame's terms: only when they are one rule.
+                # Checked against the whole chain, which `limits_on` walks
+                # transitively: (o)(1) reaches (e) through (e)(8).
+                above = any(x != o and is_under(x, o)
+                            for x in [c, citation, *limits])
+                clauses = (self._clauses(o) if not above or self._joined(o)
+                           else ())
+                for x in [o, *clauses]:
                     if x != citation and x not in order:
                         order.append(x)
         return order
@@ -1362,11 +1387,60 @@ _OWNED_BEFORE = re.compile(
     r"\s*[\d-]+,?\s*$")
 
 
-def code_references(text: str) -> list:
+#: A paragraph's own label where a served passage or `ask.read` carries it:
+#: "26 USC 274(e)(3): ..." or "### 26 USC 274(e)(3)". Every label starts a new
+#: owner; only a Code paragraph's resolves anything -- a regulation's "paragraph
+#: (e)(5)" is its own, and a note, "26 USC 274 note, Pub. L. ...", speaks of the
+#: enacting law's sections.
+_LABELLED = re.compile(r"^(?:###\s+)?(26 (?:USC|CFR) [^\n:]+?)(?::\s|\s*$)",
+                       re.M)
+_CODE_CITATION = re.compile(r"26 USC (\d+[A-Z]*(?:-\d+)?)((?:\([a-z]+\))?)"
+                            r"(?:\([A-Za-z0-9]+\))*$")
+#: "subsection (d)", "subsections (a) and (c)(1)", "paragraph (2)" -- a place in
+#: the paragraph's OWN section, unless another is named after it ("of section
+#: 162"). § 274(e)(3) excepts a nonemployee's reimbursement only "to the extent
+#: provided by subsection (d)", and § 274(d) was not on file (Codex on #403).
+_RELATIVE = re.compile(
+    r"\b(subsection|paragraph)s?\s+((?:" + _LABEL + r")+"
+    r"(?:(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)(?:" + _LABEL + r")+)*)")
+#: ... checked after the WHOLE match, never inside it, where the engine would
+#: back off "(a)(1) of section 162" to "(a)" and find no "of" after it.
+_OWNED_ELSEWHERE = re.compile(r"\s*of\s+(?!this\s+(?:section|subsection)\b)")
+
+
+def _relative(text: str, within: str) -> list:
+    """What `text`'s relative references name, read against `within`."""
+    m = _CODE_CITATION.match(within or "")
+    if not m:
+        return []
+    section, subsection = m.groups()
+    out = []
+    for r in _RELATIVE.finditer(text):
+        if _OWNED_ELSEWHERE.match(text, r.end()):
+            continue
+        base = f"26 USC {section}" + ("" if r.group(1) == "subsection"
+                                      else subsection)
+        if r.group(1) == "paragraph" and not subsection:
+            continue
+        for item in re.findall(r"(?:" + _LABEL + r")+", r.group(2)):
+            out.append(base + item)
+    return out
+
+
+def code_references(text: str, within: str = "") -> list:
     """The Code sections a paragraph's own words cite, as citations, in order.
     A section owned by something else -- another Act, another title, a public
-    law, a revenue procedure or notice, named before or after it -- is not."""
+    law, a revenue procedure or notice, named before or after it -- is not.
+    `within` is the Code paragraph the words are from, which "subsection (d)"
+    is read against; a labelled paragraph in `text` is read against its own
+    label instead."""
     out = []
+    starts = [(0, within)] + [(m.start(), m.group(1))
+                              for m in _LABELLED.finditer(text)]
+    for (at, owner), (end, _) in zip(starts, starts[1:] + [(len(text), "")]):
+        for c in _relative(text[at:end], owner):
+            if c not in out:
+                out.append(c)
     for m in _CODE_REF.finditer(text):
         tail = _SHARED_TAIL.match(text, m.end()).end()
         if (_OWNED_AFTER.match(text, tail)

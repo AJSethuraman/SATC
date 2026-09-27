@@ -849,7 +849,8 @@ def brief(question: str, desk: record.Desk,
         # this brief already prints is not named again.
         framed = [f for f in (whole or desk.corpus).frame(p.citation)
                   if f not in in_brief]
-        unheld = (whole or desk.corpus).unheld(getattr(p, "text", "") or "")
+        unheld = (whole or desk.corpus).unheld(getattr(p, "text", "") or "",
+                                               within=p.citation)
         if unheld:
             out += [f"**Cites authority not on file: "
                     f"{'; '.join(f'`{c}`' for c in unheld)}. Whatever turns on "

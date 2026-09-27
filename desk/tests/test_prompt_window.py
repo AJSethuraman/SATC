@@ -517,7 +517,10 @@ NARROWED = {
 # +78 / +78 for the notes naming § 1.162-21(b)(1) under every paragraph of (b).
 # -8 / -8 when a one-word aside stopped being read as a subsection: § 1.262-1(c)
 # names 26 USC 163, not 26 USC 163(interest) (Codex on #403).
-WHOLE = (156_290, 280_454)
+# +150 / +150 when "subsection (d)" and "paragraph (2)" were read against their
+# own section: § 274(d), § 274(m), § 6041(b) and § 6050W(a) are named not on
+# file in the paragraphs that cite them that way (Codex on #403).
+WHOLE = (156_440, 280_604)
 
 
 def _answering_sizes():
