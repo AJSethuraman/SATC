@@ -520,7 +520,10 @@ NARROWED = {
 # +150 / +150 when "subsection (d)" and "paragraph (2)" were read against their
 # own section: § 274(d), § 274(m), § 6041(b) and § 6050W(a) are named not on
 # file in the paragraphs that cite them that way (Codex on #403).
-WHOLE = (156_440, 280_604)
+# +77 / +100 when a list's shared labels were read -- "section 1221(a)(1), (3),
+# (4), or (5)" names four paragraphs, not one; eleven paragraphs gain the
+# shared ones in their not-on-file lines (Codex on #403).
+WHOLE = (156_517, 280_704)
 
 
 def _answering_sizes():

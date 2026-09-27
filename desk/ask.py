@@ -994,22 +994,25 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
                 shown.add(f)
         printed = [l[4:] for l in out if l.startswith("### ")]
         shown = set(printed)
-        for c in printed:
-            limits = set(limits_on(desk, c))
-            # WHAT AN ANSWER CITING `c` WOULD CARRY, from the one definition --
-            # a copy of the expansion here printed every sibling of a limit it
-            # followed up to its parent: § 274(o) reached (e) through (e)(8),
-            # and all of (e)(1)-(9) came with it (Codex on #403). A limit's own
-            # clauses still come: (o) alone ends "for-", which states nothing.
-            for o in desk.served_with(c):
-                if o in shown or record.is_under(o, citation) or not desk.passage(o):
-                    continue
-                out += [f"### {o}", ""]
-                if o in limits:
-                    out += [f"**Read with `{c}` — the record says it changes "
-                            f"what that paragraph says.**", ""]
-                out += [f"> {desk.passage(o).text}", ""]
-                shown.add(o)
+        # WHAT AN ANSWER CITING `citation` WOULD CARRY, from the one definition,
+        # and ONCE: not re-expanded from each printed paragraph. A copy of the
+        # expansion here printed every sibling of a limit it followed up to its
+        # parent (§ 274(o) reached (e) through (e)(8)); expanding each printed
+        # paragraph did the same to a leaf's own frame, § 274(e)(8)'s (e)
+        # (Codex on #403, twice). `served_with` already carries the limits of
+        # every paragraph it frames, and a limit's own clauses: (o) alone ends
+        # "for-", which states nothing.
+        carried = desk.served_with(citation)
+        limits = {o for c in [citation, *carried] for o in limits_on(desk, c)}
+        for o in carried:
+            if o in shown or record.is_under(o, citation) or not desk.passage(o):
+                continue
+            out += [f"### {o}", ""]
+            if o in limits:
+                out += [f"**Read with `{citation}` — the record says it changes "
+                        f"what it says.**", ""]
+            out += [f"> {desk.passage(o).text}", ""]
+            shown.add(o)
         # WHAT IT CITES AND THE RECORD DOES NOT HOLD, said (Codex on #403).
         unheld = desk.unheld("\n".join(out))
         if unheld:
@@ -1245,8 +1248,18 @@ def answer(question: str, *, position: str = "",
                    if getattr(proved.get(c), "verdict", None) == proving.TIED}
         others = [t for c, t in fetched.items() if c != out.citation]
         cited_live = out.citation in fetched
+        # AND THE STORED TEXT OF ANYTHING SERVED THAT DID NOT TIE: the cited
+        # page tying says nothing about a Read-with paragraph of another source
+        # whose fetch came back a bot page, and that paragraph WAS served
+        # (Codex on #403).
+        whole = getattr(desk, "corpus", desk)
+        unproved = any(
+            getattr(proved.get(c), "verdict", None) != proving.TIED
+            for c in whole.served_with(out.citation)
+            if c not in fetched)
         live = "\n\n".join(
             [fetched[out.citation] if cited_live else out.passage] + others
+            + ([out.passage] if cited_live and unproved else [])
         ) if (cited_live or others) else ""
         seen = judging.read(
             judged, live or out.passage, answered_by=model,

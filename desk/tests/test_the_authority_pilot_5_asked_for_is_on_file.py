@@ -600,12 +600,24 @@ def test_what_is_on_file_is_not_named():
     ("section 13261(g)(2) or (3) of the Revenue Reconciliation Act of 1993", []),
     ("section 13101 of the Tax Cuts and Jobs Act", []),
     ("section 2 of the Housing and Economic Recovery Act of 2008", []),
-    ("section 168(k)(2) or (3) of the Code", ["26 USC 168(k)(2)"]),
+    ("section 168(k)(2) or (3) of the Code", ["26 USC 168(k)(2)", "26 USC 168(k)(3)"]),
     # Codex on #403, § 1.163-8T(a)(1)'s own words: an explanatory parenthetical
     # between items, and a space before a subsection.
     ("applying sections 469 (the \u201cpassive loss limitation\u201d) and 163 (d) "
      "and (h) (the \u201cnonbusiness interest limitation\u201d)",
-     ["26 USC 469", "26 USC 163(d)"]),
+     ["26 USC 469", "26 USC 163(d)", "26 USC 163(h)"]),
+    # Codex on #403: a label after a list separator shares the prefix before it
+    # -- § 1.263(a)-3(h)(3)(iv) names four paragraphs of § 1221(a), not one.
+    ("section 1221(a)(1), (3), (4), or (5)",
+     [f"26 USC 1221(a)({i})" for i in (1, 3, 4, 5)]),
+    ("section 274(m)(1), (2), and (3)", [f"26 USC 274(m)({i})" for i in (1, 2, 3)]),
+    ("section 163(d)(1) and (h)", ["26 USC 163(d)(1)", "26 USC 163(h)"]),
+    # ... but a label opening a capitalised item is the paragraph's own list:
+    # § 1.274-5T(a), "Gifts defined in section 274(b), or (4) Any listed property".
+    ("(3) Gifts defined in section 274(b), or (4) Any listed property",
+     ["26 USC 274(b)"]),
+    ("section 45(b)(1), (2)(A), or (c)",
+     ["26 USC 45(b)(1)", "26 USC 45(b)(2)(A)", "26 USC 45(c)"]),
     # Codex on #403, § 1.262-1(c): a one-word aside is not a subsection. A label
     # is a number, a capital, a lower-case letter (or one doubled) or a roman
     # numeral -- never a word.
@@ -940,6 +952,8 @@ def test_a_position_backed_answer_still_proves_what_is_served_with_it():
      "26 USC 274(e)(3)", ["26 USC 274(d)"]),
     ("as provided in paragraph (2)", "26 USC 274(n)(1)", ["26 USC 274(n)(2)"]),
     ("subsections (a) and (c)(1)", "26 USC 162(b)", ["26 USC 162(a)", "26 USC 162(c)(1)"]),
+    ("subsection (a)(1), (3), or (4)", "26 USC 274(e)(3)",
+     ["26 USC 274(a)(1)", "26 USC 274(a)(3)", "26 USC 274(a)(4)"]),
     # Somebody else's subsection is not this section's.
     ("under subsection (a) of section 162", "26 USC 274(e)(3)", ["26 USC 162"]),
     ("under subsection (a)(1) of section 162", "26 USC 274(e)(3)", ["26 USC 162"]),
@@ -1021,3 +1035,34 @@ def test_a_read_does_not_carry_the_siblings_of_a_limit_it_follows():
     assert "26 USC 74`" not in got and "26 USC 274(d)" not in got
     # And the clauses of a limit that is not above anything still come.
     assert "### 26 USC 274(o)(2)\n" in ask.read("26 USC 274(e)(1)")
+
+
+def test_a_read_of_a_leaf_does_not_expand_its_alternative_parent():
+    """Codex on #403: ask.read("26 USC 274(e)(8)") printed (e) as its frame,
+    then expanded (e) as if it were cited -- sixteen paragraphs, and §§ 274(d),
+    267, 414, 501 and 74 called missing."""
+    got = ask.read("26 USC 274(e)(8)")
+    assert "### 26 USC 274(e)\n" in got
+    assert "### 26 USC 274(e)(9)\n" not in got and "26 USC 74`" not in got
+
+
+def test_a_dependency_that_could_not_be_checked_stays_before_the_judge(tmp_path):
+    """Codex on #403: the cited page tied and a Read-with dependency on another
+    source came back a bot page; the judge was checked against the cited page
+    alone, so quoting the dependency -- which was served -- was refused."""
+    c, desk = _cross_source(tmp_path)
+    whole = _live(desk)
+
+    def transport(source, citation):
+        if source.id == "S40":
+            return _LivePage("Please verify you are a human to continue.")
+        return whole(source, citation)
+
+    words = " ".join(desk.passage("26 CFR 1.162-21(g)").text.split()[2:9])
+    out = ask.answer(EMPLOYER_MEALS_2026, position=DEDUCTIBLE,
+                     citation="26 USC 274(e)(1)", corpus=c, keep=False,
+                     prove=transport,
+                     judged=judging.Judgment(by="second-reader", supports=True,
+                                             because=words))
+    assert isinstance(out, engine.Served), out
+    assert out.judged.stands

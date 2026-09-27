@@ -1379,8 +1379,13 @@ _OWNED_AFTER = re.compile(
 #: A subparagraph the reference shares before its owner is named: "section
 #: 13261(g)(2) or (3) of the Revenue Reconciliation Act of 1993" (§ 1.446-1(e)
 #: (3)(iii); Codex on #403). Skipped before the owner is looked for.
+#: A label that opens a capitalised item -- "or (4) Any listed property", in
+#: § 1.274-5T(a) -- is the paragraph's own list, not shared. A "(" straight
+#: after a chain is refused too, so the engine cannot back off to a shorter
+#: one; a spaced aside, "(h) (the ...)", is still an aside.
 _SHARED_TAIL = re.compile(
-    r"(?:\s*(?:,\s*(?:or\s+|and\s+)?|\s+(?:or|and)\s+)(?:" + _LABEL + r")+)*")
+    r"(?:\s*(?:,\s*(?:or\s+|and\s+)?|\s+(?:or|and)\s+)(?:" + _LABEL + r")+"
+    r"(?![A-Z(]|\s+[A-Z]))*")
 #: ... and named BEFORE it: "Pub. L. 115-97, § 13304(e)(2)".
 _OWNED_BEFORE = re.compile(
     r"(?:Pub\.\s*L\.|Public\s+Law|Rev\.\s*(?:Proc|Rul)\.|Notice)"
@@ -1408,6 +1413,38 @@ _RELATIVE = re.compile(
 _OWNED_ELSEWHERE = re.compile(r"\s*of\s+(?!this\s+(?:section|subsection)\b)")
 
 
+def _kind(label: str) -> str:
+    inner = label.strip("()")
+    return "digit" if inner.isdigit() else "upper" if inner.isupper() else "lower"
+
+
+def _share(prev: str, chain: str) -> str:
+    """`chain` -- "(3)", "(2)(A)", "(c)" -- written after `prev` in a list, as
+    "section 1221(a)(1), (3), (4), or (5)" writes it: it replaces the last
+    label of `prev` of its own kind, and whatever followed that (Codex on #403:
+    § 1.263(a)-3(h)(3)(iv) names four paragraphs of § 1221(a), and only the
+    first was read)."""
+    labels = re.findall(_LABEL, chain)
+    base, own = re.match(r"(.*?)((?:" + _LABEL + r")*)$", prev).groups()
+    have = re.findall(_LABEL, own)
+    for i in range(len(have) - 1, -1, -1):
+        if _kind(have[i]) == _kind(labels[0]):
+            return base + "".join(have[:i]) + "".join(labels)
+    return prev + "".join(labels)
+
+
+def _items(first_kind: str, listed: str, prev: str = "") -> list:
+    """Each label chain in `listed`, whole -- or shared from the one before it
+    when it opens with a label of another kind than the list's own."""
+    out = []
+    for chain in re.findall(r"(?:" + _LABEL + r")+", listed):
+        head = re.match(_LABEL, chain).group(0)
+        out.append(_share(out[-1] if out else prev, chain)
+                   if (out or prev) and _kind(head) != first_kind
+                   else chain)
+    return out
+
+
 def _relative(text: str, within: str) -> list:
     """What `text`'s relative references name, read against `within`."""
     m = _CODE_CITATION.match(within or "")
@@ -1422,8 +1459,8 @@ def _relative(text: str, within: str) -> list:
                                       else subsection)
         if r.group(1) == "paragraph" and not subsection:
             continue
-        for item in re.findall(r"(?:" + _LABEL + r")+", r.group(2)):
-            out.append(base + item)
+        kind = "lower" if r.group(1) == "subsection" else "digit"
+        out += [base + item for item in _items(kind, r.group(2))]
     return out
 
 
@@ -1446,8 +1483,16 @@ def code_references(text: str, within: str = "") -> list:
         if (_OWNED_AFTER.match(text, tail)
                 or _OWNED_BEFORE.search(text[max(0, m.start() - 40):m.start()])):
             continue
-        for n in re.findall(_SECTION_NO, m.group(1)):
-            c = f"26 USC {n.replace(' ', '')}"
+        found = [f"26 USC {n.replace(' ', '')}"
+                 for n in re.findall(_SECTION_NO, m.group(1))]
+        # AND WHAT THE LIST SHARES AFTER IT: "(a)(1), (3), (4), or (5)".
+        shared = text[m.end():tail]
+        if found and shared:
+            prev = found[-1]
+            for chain in re.findall(r"(?:" + _LABEL + r")+", shared):
+                prev = _share(prev, chain)
+                found.append(prev)
+        for c in found:
             if c not in out:
                 out.append(c)
     return out
