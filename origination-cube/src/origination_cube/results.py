@@ -1112,6 +1112,9 @@ def _groups(ws, res, views: Views, G: str, r: int, first: int, hid: int) -> int:
                           if dollars else [totals[x][0] / loans_ if loans_ else None])
             views.put(f"P|{gi}|{gname}|{k + 2}", share)
             most = max(most, k + 2)
+        for g in res.three_way:          # a split grid is already cut by the split: its own groups are its pockets
+            gname = f"{names[g.band]} x {names[g.dimension]}"
+            views.put(f"P|{gi}|{gname}|say", ["Counted on the two-way grids: pick one without the split."])
         width = 2 + step + step * widest
         SAY = f"${col(hid)}${r}"
         ws[SAY.replace("$", "")] = "=" + match(xk(f"P|{gi}|", (G,), "|say"))
