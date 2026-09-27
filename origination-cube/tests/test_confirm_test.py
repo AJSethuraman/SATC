@@ -355,11 +355,23 @@ def test_each_candidate_row_is_found_confirmed_and_confirmed_with_the_columns_he
                                         ((confirm_tab.N_CG, confirm_tab.N_CP), t.holdout_plain),
                                         ((confirm_tab.N_HG, confirm_tab.N_HP), t.holdout)):
             assert x[odds_col] == pytest.approx(side.fit.odds[k], rel=1e-9)
-            assert x[p_col] == pytest.approx(side.fit.p[k], rel=1e-9)
+            # the p-value after the allowance for testing many at once (OC-49): here the one candidate's own groups
+            assert x[p_col] == pytest.approx(side.allowed[k], rel=1e-9)
+            assert side.allowed[k] >= side.fit.p[k] * (1 - 1e-12)
 
 
 def _verdicts_by_hand(t, bar: float) -> dict:
-    """Holds up? and Still holds?: significant on the held-back loans, on the side of 1 the found loans showed."""
+    """Holds up? and Still holds?: significant on the held-back loans after the allowance for testing many at once
+    (Benjamini-Hochberg across the groups, worked out here: statistics.md A2), on the side of 1 the found loans
+    showed."""
+    allowed = {}
+    for side in (t.holdout_plain, t.holdout):
+        ks = [k for k in range(len(t.groups)) if k != t.ref and side.fit.p[k] is not None]
+        order = sorted(ks, key=lambda k: side.fit.p[k])
+        m = len(order)
+        scaled = [side.fit.p[k] * m / (j + 1) for j, k in enumerate(order)]
+        for j, k in enumerate(order):
+            allowed[(id(side), k)] = min(1.0, min(scaled[j:]))
     out = {}
     for k, g in enumerate(t.groups):
         if k == t.ref:
@@ -367,8 +379,8 @@ def _verdicts_by_hand(t, bar: float) -> dict:
         found = t.development_plain.fit.odds[k]
 
         def holds(side):
-            o, p = side.fit.odds[k], side.fit.p[k]
-            return "Yes" if o is not None and p < bar and (o > 1) == (found > 1) else "No"
+            o, p = side.fit.odds[k], allowed.get((id(side), k))
+            return "Yes" if o is not None and p is not None and p < bar and (o > 1) == (found > 1) else "No"
         out[f"{g} vs {t.groups[t.ref]}"] = (holds(t.holdout_plain), holds(t.holdout))
     return out
 
@@ -394,13 +406,14 @@ def test_holds_up_and_still_holds_are_worked_out_live_at_the_confidence_on_contr
     strict = _verdicts_by_hand(t, 0.01)
     assert strict != want
     assert {k: (x[confirm_tab.N_HOLDS], x[confirm_tab.N_STILL]) for k, x in _table(calc).items()} == strict
-    # and at 90% a Holds up? between 5% and 10% turns the other way: each column follows the level, not only one
+    # and at 90% a verdict between 5% and 10% turns the other way (since the allowance, OC-49, it is a Still holds?
+    # on this book: the Holds up? p-value between the bars is on the other side of 1 from the found one)
     ws.cell(row=control.row_of(ws, "confidence"), column=control.CHOOSE_COL).value = "90% sure"
     copy = tmp_path / "at-90.xlsx"
     wb.save(copy)
     calc = recalc(copy, tmp_path / "calc90")[confirm_tab.SHEET]
     loose = _verdicts_by_hand(t, 0.10)
-    assert [k for k in want if loose[k][0] != want[k][0]], "no Holds up? between 5% and 10% to show the change"
+    assert [k for k in want if loose[k] != want[k]], "no verdict between 5% and 10% to show the change"
     assert {k: (x[confirm_tab.N_HOLDS], x[confirm_tab.N_STILL]) for k, x in _table(calc).items()} == loose
 
 
@@ -445,7 +458,7 @@ def test_a_saved_shortlist_hides_the_found_columns_and_record_names_the_file(rou
     # nothing the tiles or the tests in full show sits in a hidden column
     heads = [ws.cell(row=r, column=c).value for r in range(1, ws.max_row + 1) for c in sorted(hidden)
              if ws.cell(row=r, column=c).value not in (None, "")]
-    assert [h for h in heads if h not in ("Gap", "p-value", f"Found · {route['t'].development.n:,} loans")
+    assert [h for h in heads if h not in ("Gap", confirm_tab.P_ALLOWED, f"Found · {route['t'].development.n:,} loans")
             and not isinstance(h, (int, float))] == []
 
 

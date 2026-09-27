@@ -1260,9 +1260,10 @@ def _what_is_run(wb, book: Path, use: dict, columns: dict, cat, problems: list[s
         problems.append(f'{cell}: "{labels[FROM_PRESPEC]}" needs the pre-spec file named here.')
         return None
     held_to = confirmatory.read(wb, book, problems)          # fix 3.15
-    if held_to and held_to["spec"].column not in columns:
-        problems.append(f"{cell}: the pre-spec tests {held_to['spec'].column}, and no column on Columns has that "
-                        f"name. Make it under Add a column on Columns and press Set up again, or fix the pre-spec.")
+    for c in (held_to["spec"].columns if held_to else ()):
+        if c not in columns:
+            problems.append(f"{cell}: the pre-spec tests {c}, and no column on Columns has that name. Make it under "
+                            f"Add a column on Columns and press Set up again, or fix the pre-spec.")
     return held_to
 
 
@@ -1456,8 +1457,8 @@ def _suggest_at_set_up(wb, book: Path, table, memory_path, testing: bool = False
                 return {}, set()
             res = engine.run(first, table)
             ps = got["spec"]
-            gap = test_gap(confirmatory.run_test(res, prespec.named(ps, *confirmatory.column_range(res, ps.column))),
-                           cfg.benchmark.confidence)
+            named = prespec.named(ps, ranges={c: confirmatory.column_range(res, c) for c in ps.columns})
+            gap = test_gap(confirmatory.run_tests(res, named), cfg.benchmark.confidence)
             return ({"worse_at": gap}, set()) if gap is not None else ({}, set())
         return _suggest_values(engine.run(first, table), set(SUGGEST_KEYS))
     except Exception:
@@ -1473,18 +1474,22 @@ def test_gap(t, confidence: float) -> float | None:
     significant against the reference group, on the loans the groups were found on (development). For each group
     other than the reference, exp(z x the standard error of its log odds ratio, sqrt(1 / (n p q) + 1 / (n_ref p
     q))), at the development loans' bad rate p and the confidence's z; the median of those, as a pocket's is for
-    the bleed (`luck_gap`). It reads how many loans each group holds and the overall bad rate, never which group
-    went bad. None when there is nothing to work it out from."""
-    d = getattr(t, "development", None)
-    if t is None or t.problem or d is None or not d.n:
-        return None
-    p = d.n_bad / d.n
-    nref = d.loans[t.ref]
-    if not 0 < p < 1 or not nref:
-        return None
+    the bleed (`luck_gap`). `t` is one test, or a shortlist's (one per input): the median is then over every
+    candidate's groups, each against its own reference. It reads how many loans each group holds and the overall bad
+    rate, never which group went bad. None when there is nothing to work it out from."""
     z = stats.z_for_confidence(confidence)
-    pq = p * (1 - p)
-    gaps = [math.exp(z * math.sqrt(1 / (n * pq) + 1 / (nref * pq))) for k, n in enumerate(d.loans) if k != t.ref and n]
+    gaps = []
+    for x in (t if isinstance(t, (list, tuple)) else [t]):
+        d = getattr(x, "development", None)
+        if x is None or x.problem or d is None or not d.n:
+            continue
+        p = d.n_bad / d.n
+        nref = d.loans[x.ref]
+        if not 0 < p < 1 or not nref:
+            continue
+        pq = p * (1 - p)
+        gaps += [math.exp(z * math.sqrt(1 / (n * pq) + 1 / (nref * pq))) for k, n in enumerate(d.loans)
+                 if k != x.ref and n]
     return round(statistics.median(gaps), 2) if gaps else None
 
 
@@ -1492,9 +1497,9 @@ def _suggest_from_the_test(res, picked: set[str]) -> None:
     """A test of a new variable's suggestion, worked out once its test has run (checks.attach): worse at from the
     confirmation's own groups (`test_gap`). When the answer on Control is the suggestion, the run uses it: the
     New variables tab's worse line reads it. Nothing else on the tab depends on it."""
-    t = getattr(getattr(res, "prespec", None), "test", None)
+    t = getattr(getattr(res, "prespec", None), "tests", None)
     b = res.config.benchmark
-    gap = test_gap(t, b.confidence) if t is not None and b is not None else None
+    gap = test_gap(t, b.confidence) if t and b is not None else None
     fallback = set() if gap is not None else {"worse_at"}
     value = max(gap if gap is not None else 1.25, 1.05)
     res.suggest_all = ({"worse_at": value}, fallback)
@@ -1717,9 +1722,9 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if dropped:
         lines.append(f"Forgot {', '.join(sorted(dropped))}, as marked on Columns. Check "
                      f"{'it' if len(dropped) == 1 else 'them'} and set C3 to Yes before the next Run.")
-    tested = getattr(getattr(res, "prespec", None), "test", None)
+    tested = getattr(getattr(res, "prespec", None), "tests", None) or []
     lines.append(f"Open {book.name}: start with "
-                 + (f"{confirm_tab.SHEET}." if tested is not None and tested.problem is None
+                 + (f"{confirm_tab.SHEET}." if tested and all(x.problem is None for x in tested)
                     else "Pockets." if bleed_tabs(res) else f"{record.SHEET}."))
     return Outcome(True, book, lines, summary=summary)
 

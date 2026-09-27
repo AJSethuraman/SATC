@@ -716,7 +716,9 @@ enough.
   - **Asked:** worse at (the New variables chart's line), materiality, confidence, and the band count
     and cut (the held-fixed columns are banded). **Hidden:** fewest loans, fewest losses, better at,
     judged against, the catch rate and the allowance for many tests (`only_when: {run_kind: bleed}`),
-    as the profit line already was. Hidden rows are not asked, and the Run stands in their defaults,
+    as the profit line already was. *(Amended 27 Sep 2026, OC-49: the allowance for many tests is asked
+    of a new variable too, since a shortlist's groups are many tests at once. Control's method note says
+    only worse at is worked out on that run, and its levels panel, which counts pockets, is hidden.)* Hidden rows are not asked, and the Run stands in their defaults,
     which decide nothing without a pocket.
   - **Worse at is suggested from the confirmation's own groups** (`book.test_gap`): the smallest odds
     ratio a group of typical size could call significant against the reference, on the development
@@ -729,6 +731,54 @@ enough.
     92.7 s and 2.41 GB to 12.8 s and 0.27 GB, under a 4 GB limit. A bleed Set up with nothing chosen still
     cuts every column (87.5 s, 2.43 GB); the launcher always chooses, so only a script meets it. Through
     the launcher a pre-spec Set up was 0.29 GB before and after.
+- **OC-49: the lean pre-spec is an outcome plus a shortlist of inputs** (Goal 2 item 3; the firm, 26 Sep
+  2026: *"well it cannot be one column, but a shortlist whatever. one column makes no sense - it can't be
+  used in a tree"*, and *"we might want to test a set once with and once without"* FICO).
+  - **The file:** `outcome:` and `inputs:`, each input exactly `column`, `bins` and `reference`, beside
+    `strata`, `confidence`, `holdout` and `development`. Every line is required, none has a default,
+    and an input with a line missing or unknown is refused by its place (`inputs[1].bins:`). An input
+    listed twice, a stratum that is also an input, the outcome listed as an input or held fixed, and a
+    file with `inputs:` and a top-level `column:` as well are refused.
+  - **The one-column pre-spec is still read, as a shortlist of one.** It names no outcome (the line did not
+    exist), so it is tested against the outcome the run marks, as before, and Record echoes it as it did.
+    A file with no input's line at the top is read as a shortlist, so a file missing its inputs is asked
+    for `inputs:`, not for the old lines. Written as a shortlist of one, the same input gives the same
+    tab, number for number (`tests/test_shortlist.py`).
+  - **The outcome is recorded, not enforced:** a run tested against another outcome than the file names
+    says so on Record as a deviation, like any other. The launcher picks the file's outcome when the
+    extract has it.
+  - **The allowance for many tests spread across the shortlist:** every group of every candidate
+    against its own reference is one test, and each set of loans (found and confirmed, with and without
+    the held-fixed columns) is one family, as a grid's pockets are one family per rate (statistics.md
+    A2: "one grid, one rate, one comparison"). The method is Control's *Allowing for testing many pockets
+    at once* (`engine.adjust`, Benjamini-Hochberg by default), now asked of a new variable too. The table's
+    p-value columns show the allowed p-value and read *p, allowed* (*p-value* with No allowance);
+    *Holds up?* and *Still holds?* read it; the tests in full keep every raw p-value, and their own
+    readings are the raw ones, as they were. The allowed p-value does not depend on the confidence, so
+    the verdicts stay live.
+  - **Departure, and why:** a shortlist of one now allows for its own groups, where phase 4 read each
+    group raw. A grid of one column's bands is allowed for across its bands, and a candidate's groups are
+    the same kind of family; keeping one input raw while two inputs are allowed for would make the
+    allowance jump from none to eleven tests when a second input is added. Every odds ratio, raw p-value,
+    count and excess is unchanged; only a verdict whose group sat between its own p-value and the allowed
+    one moves, and with *No allowance* on Control the verdicts are phase 4's exactly.
+  - **New variables:** one block of rows per candidate in the pre-spec's order (the name bold on its
+    first row, a heavier rule between blocks), a chart per candidate read from its own block, and the
+    *Candidates* tile counting the candidates with a group that holds up, live ("3 · 2 hold up"). The
+    tests in full come candidate by candidate under *The tests in full: X*. The method note names the
+    allowance once (*Many at once*). A shortlist of one reads as before.
+  - **Start here and the launcher's last step** count groups worse than their reference across every
+    candidate, after the allowance. With several candidates the share of bad loans is replaced by the
+    candidates with a group worse, since several candidates' groups hold the same loans and their shares
+    don't add up.
+  - **The suggested worse line** is the median over every candidate's groups (`book.test_gap`), each
+    against its own reference, on the development loans.
+  - **Strata are suggested and left blank** in what PocketBook writes (OC-13; the firm's answer on the 26
+    Sep docket): the line offered for a missing `strata:` reads `[CONFIRM: ...]`, which the file refuses
+    until it is answered, and so does the committed shortlist example.
+  - **Phase 4's loose ends:** on a new-variable run Control's method note says only worse at is worked
+    out, and says Material? is on New variables; the levels panel (it counts pockets, and that run builds
+    none) is hidden, and shown again for the bleed.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so

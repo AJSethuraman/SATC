@@ -90,7 +90,8 @@ class State:
     runs_before: int = 0                     # Log lines already saying a run touched the holdout
     failed: str | None = None                # something went wrong working the state out, in words
     ran_on: date = field(default_factory=date.today)     # the day of the run, which the pre-spec can't postdate
-    test: "Test | None" = None               # the confirmatory test itself (4b, 4e)
+    #: the confirmatory test itself (4b, 4e), one per input on the shortlist, in the pre-spec's order
+    tests: list = field(default_factory=list)
     fingerprint: str = ""                    # the first 12 characters of the file's SHA-256, as read
     #: this pre-spec's earlier runs in this workbook's Log, oldest first: (when, fingerprint, touched the holdout)
     earlier: list = field(default_factory=list)
@@ -98,6 +99,11 @@ class State:
     @property
     def name(self) -> str:
         return self.path.name
+
+    @property
+    def test(self) -> "Test | None":
+        """The first input's test: a one-column pre-spec's only one. None before the tests have run."""
+        return self.tests[0] if self.tests else None
 
     @property
     def first_read(self) -> bool:
@@ -164,9 +170,9 @@ def state(book, about: dict, res) -> State | None:
     st = State(spec=ps, path=Path(got["path"]), cell=got["cell"], provenance=prespec.provenance(got["path"]),
                fingerprint=fingerprint(ps.text))
     try:
-        ps = st.spec = prespec.named(ps, *column_range(res, ps.column))
-        st.test = run_test(res, ps)
-        st.deviations = [_plain(x) for x in prespec.deviations(ps, in_use(res, ps, st.test), where="in this run")]
+        ps = st.spec = prespec.named(ps, ranges={c: column_range(res, c) for c in ps.columns})
+        st.tests = run_tests(res, ps)
+        st.deviations = [_plain(x) for x in prespec.deviations(ps, in_use(res, ps, st.tests), where="in this run")]
         dates, why = origination_dates(res)
         if dates is None:
             st.unchecked = why
@@ -180,15 +186,36 @@ def state(book, about: dict, res) -> State | None:
     return st
 
 
-def in_use(res, ps: prespec.PreSpec, test: "Test | None" = None) -> dict[str, Any]:
-    """What the run used, as prespec.deviations reads it (the module docstring says how each is found)."""
+def in_use(res, ps: prespec.PreSpec, test: "Test | list | None" = None) -> dict[str, Any]:
+    """What the run used, as prespec.deviations reads it (the module docstring says how each is found). `test` is
+    the one test of a one-column pre-spec, or the list of a shortlist's, one per input. The flat column, bins and
+    reference are the first input's; `inputs` lists every one the run tested, and `outcome` is the yes/no column
+    the run tested them against."""
+    tests = list(test) if isinstance(test, (list, tuple)) else [test] if test is not None else []
+    cfg = res.config
+    b = cfg.benchmark
+    m = next((x for x in res.measures if x.name == "outcome_loans"), None)
+    outcome = m.flag if m is not None else None
+    ran = [t for t in tests if t is not None and t.problem is None]
+    if ran and len(ran) == len(tests):
+        t = ran[0]
+        return {"outcome": outcome, "column": t.column, "bins": list(t.bins), "reference": t.groups[t.ref],
+                "inputs": [{"column": x.column, "bins": list(x.bins), "reference": x.groups[x.ref]} for x in ran],
+                "strata": list(t.strata), "confidence": b.confidence if b is not None else None,
+                "holdout": t.holdout.range}
+    out = _in_use_tabs(res, ps.column)
+    if len(ps.inputs) > 1 or ps.shortlist:
+        each = [_in_use_tabs(res, c) for c in ps.columns]
+        out["inputs"] = [{k: x[k] for k in ("column", "bins", "reference")} for x in each if x["column"] is not None]
+    out["outcome"] = outcome
+    out["holdout"] = run_range(res, ps)
+    return out
+
+
+def _in_use_tabs(res, column: str) -> dict[str, Any]:
+    """What the other tabs used for one input, when the test itself couldn't run."""
     from .prevalence import edges_of
     cfg = res.config
-    if test is not None and test.problem is None:
-        b = cfg.benchmark
-        return {"column": test.column, "bins": list(test.bins), "reference": test.groups[test.ref],
-                "strata": list(test.strata), "confidence": b.confidence if b is not None else None,
-                "holdout": test.holdout.range}
     b = cfg.benchmark
     cut = [x.field for x in cfg.bands] + [x.field for x in cfg.dimensions]
     out: dict[str, Any] = {"column": None, "bins": None, "reference": None}
@@ -198,14 +225,13 @@ def in_use(res, ps: prespec.PreSpec, test: "Test | None" = None) -> dict[str, An
         if how == "own_median":
             out["bins"] = list(edges_of(res, sf)[0] or ()) or None
             out["reference"] = LOW_HALF
-    elif ps.column in [x.field for x in cfg.bands]:
-        out["column"] = ps.column
-        out["bins"] = list(edges_of(res, ps.column)[0] or ()) or None
+    elif column in [x.field for x in cfg.bands]:
+        out["column"] = column
+        out["bins"] = list(edges_of(res, column)[0] or ()) or None
     if out["column"] is not None and out["reference"] is None and b is not None:
         out["reference"] = "the rest of its band" if b.compare_to == "peers" else "the rest of the book"
     out["strata"] = [c for c in cut if c != out["column"]]
     out["confidence"] = b.confidence if b is not None else None
-    out["holdout"] = run_range(res, ps)
     return out
 
 
@@ -328,6 +354,10 @@ class RangeTest:
     group_of: list[int] = field(default_factory=list, repr=False)     # per loan in this range, for B6
     bad_of: list[int] = field(default_factory=list, repr=False)
     gco_of: list[float | None] = field(default_factory=list, repr=False)
+    #: each group's p-value after the allowance for testing many at once (`allow`), across every input on the
+    #: shortlist on this set of loans; None for the reference and where the raw one is None. The raw p-values stay
+    #: on `fit.p`, and the tests in full show them
+    allowed: list[float | None] = field(default_factory=list)
 
     @property
     def n(self) -> int:
@@ -442,24 +472,27 @@ def _unheld(items: list[tuple]) -> list[tuple]:
     return [((), k, y, g) for _, k, y, g in items]
 
 
-def run_test(res, ps: prespec.PreSpec) -> Test:
-    """The confirmatory test: B3, B4 and B5 on the development range and on the holdout, and B6 on the holdout.
-    Every loan with a readable date in one of the two ranges, a readable value of the column and a readable
-    outcome is in it; the rest are counted by why they are not."""
+def run_test(res, ps: prespec.PreSpec, inp: prespec.Input | None = None, labels=None) -> Test:
+    """The confirmatory test of one input (the first when `inp` isn't given: a one-column pre-spec's only one): B3,
+    B4 and B5 on the development range and on the holdout, and B6 on the holdout. Every loan with a readable date in
+    one of the two ranges, a readable value of the column and a readable outcome is in it; the rest are counted by
+    why they are not. `labels`: each loan's pocket, when the caller has cut them already (`run_tests`)."""
     perm.numpy()                                  # B5 needs numpy (OC-34); refused by name without it
-    K = len(ps.bins) + 1
-    t = Test(column=ps.column, bins=tuple(ps.bins), groups=tuple(ps.groups), ref=ps.reference_index,
+    inp = inp if inp is not None else ps.inputs[0]
+    K = len(inp.bins) + 1
+    t = Test(column=inp.column, bins=tuple(inp.bins), groups=tuple(inp.groups), ref=inp.reference_index,
              strata=tuple(ps.strata), scores=tuple(float(k) for k in range(1, K + 1)))
     read, why = _reader(res)
     if read is None:
         t.problem = f"the loans can't be split into development and holdout: {why}"
         return t
     table = res.table
-    if table is None or ps.column not in table.columns:
-        t.problem = f"{ps.column} isn't among the columns this run read"
+    if table is None or inp.column not in table.columns:
+        t.problem = f"{inp.column} isn't among the columns this run read"
         return t
     rows = table.rows
-    labels, why = _stratum_labels(res, t.strata, rows)
+    if labels is None:
+        labels, why = _stratum_labels(res, t.strata, rows)
     if labels is None:
         t.problem = why
         return t
@@ -483,7 +516,7 @@ def run_test(res, ps: prespec.PreSpec) -> Test:
         if which is None:
             left[OUTSIDE] += 1
             continue
-        v, bad_v = engine.classify_number(r.get(ps.column), rules.get(ps.column))
+        v, bad_v = engine.classify_number(r.get(inp.column), rules.get(inp.column))
         if bad_v:
             left[NO_VALUE] += 1
             continue
@@ -495,7 +528,7 @@ def run_test(res, ps: prespec.PreSpec) -> Test:
         if gcol is not None:
             gv, gw = engine.classify_number(r.get(gcol), rules.get(gcol))
             gco = None if gw else gv
-        items[which].append((st, bisect.bisect_right(ps.bins, v), y, gco))
+        items[which].append((st, bisect.bisect_right(inp.bins, v), y, gco))
     t.left_out = {k: v for k, v in left.items() if v}
     t.development = _range_test(DEVELOPMENT, dev, K, t.ref, t.scores, items[DEVELOPMENT])
     t.holdout = _range_test(HOLDOUT, hold, K, t.ref, t.scores, items[HOLDOUT])
@@ -503,7 +536,59 @@ def run_test(res, ps: prespec.PreSpec) -> Test:
     t.development_plain = _range_test(DEVELOPMENT, dev, K, t.ref, t.scores, _unheld(items[DEVELOPMENT]))
     t.holdout_plain = _range_test(HOLDOUT, hold, K, t.ref, t.scores, _unheld(items[HOLDOUT]))
     t.gco_unread = sum(1 for x in items[HOLDOUT] if x[3] is None) if gcol is not None else 0
+    allow([t], allowance(res))
     return t
+
+
+def run_tests(res, ps: prespec.PreSpec) -> list[Test]:
+    """The confirmatory test of every input on the shortlist, in the pre-spec's order, each on the same pockets (the
+    pre-spec's strata, cut once), then the allowance for testing them all at once (`allow`)."""
+    perm.numpy()
+    labels = None
+    if res.table is not None and _reader(res)[0] is not None:
+        labels, _ = _stratum_labels(res, tuple(ps.strata), res.table.rows)
+    tests = [run_test(res, ps, inp, labels) for inp in ps.inputs]
+    allow(tests, allowance(res))
+    return tests
+
+
+#: The four sets of loans a candidate is read on; each is one family for the allowance (statistics.md A2: "one
+#: comparison")
+SETS = ("development_plain", "development", "holdout_plain", "holdout")
+
+
+def allowance(res) -> str:
+    """The allowance for testing many at once the run uses: Control's "Allowing for testing many pockets at once",
+    none, bh (Benjamini-Hochberg, the default) or bonferroni."""
+    b = getattr(res.config, "benchmark", None)
+    return getattr(b, "many_tests", None) or "bh"
+
+
+ALLOWANCE_NAMES = {"bh": "Benjamini-Hochberg", "bonferroni": "Bonferroni", "none": "none"}
+
+
+def allow(tests: list[Test], how: str) -> int:
+    """Each group's p-value after allowing for testing every candidate's groups at once (Goal 2 item 3: "the
+    allowance for many tests spread across the shortlist"), by the method Control names for pockets
+    (engine.adjust: Benjamini-Hochberg by default). One family per set of loans (SETS): every group of every input
+    against its own reference, on those loans, as a grid's pockets are one family per rate (statistics.md A2). A
+    shortlist of one allows for its own groups, as a grid of one column does. Fills `RangeTest.allowed`; the raw
+    p-values stay on `fit.p`. Returns how many comparisons each family holds (at most)."""
+    ran = [t for t in tests if t.problem is None]
+    most = 0
+    for name in SETS:
+        sides = [(t, getattr(t, name)) for t in ran if getattr(t, name) is not None]
+        where, ps = [], []
+        for i, (t, side) in enumerate(sides):
+            side.allowed = [None] * len(t.groups)
+            for k in range(len(t.groups)):
+                if k != t.ref and side.fit.p[k] is not None:
+                    where.append((i, k))
+                    ps.append(side.fit.p[k])
+        most = max(most, len(ps))
+        for (i, k), p in zip(where, engine.adjust(ps, how)):
+            sides[i][1].allowed[k] = p
+    return most
 
 
 @dataclass
@@ -575,11 +660,20 @@ def _commit_words(st: State) -> str:
 def _says(ps: prespec.PreSpec) -> str:
     """The pre-spec's lines, as read."""
     strata = ", ".join(ps.strata) if ps.strata else "none (the whole book is one pocket)"
+
+    def one(inp, lead=""):
+        return [f"{lead}column: {inp.column}",
+                f"{lead}bins: {', '.join(engine._fmt(x) for x in inp.bins)} (groups: {'; '.join(inp.groups)})",
+                f"{lead}reference: {inp.reference}"]
+    if not ps.shortlist:
+        head = ([f"outcome: {ps.outcome}"] if ps.outcome else []) + one(ps.inputs[0])
+    else:
+        head = [f"outcome: {ps.outcome}", f"inputs: {len(ps.inputs)}"]
+        for i, inp in enumerate(ps.inputs, start=1):
+            head += one(inp, f"{i}. ")
     return "\n".join([
         f"written: {ps.written.isoformat()}",
-        f"column: {ps.column}",
-        f"bins: {', '.join(engine._fmt(x) for x in ps.bins)} (groups: {'; '.join(ps.groups)})",
-        f"reference: {ps.reference}",
+        *head,
         f"strata: {strata}",
         f"confidence: {ps.confidence:g}",
         f"holdout: {ps.holdout.text()}",
@@ -624,22 +718,42 @@ def check_rows(res) -> list[tuple[str, str]]:
     else:
         out.append(("Differs from the pre-spec", "nowhere: this run used what it says"))
     out.append(("Holdout", _holdout_words(st)))
-    if st.test is not None:
-        out.append(("Confirmatory test", _test_words(st.test)))
+    many = len(st.tests) > 1
+    for t in st.tests:
+        out.append(("Confirmatory test", (f"{t.column}: " if many else "") + _test_words(t)))
     runs = f"{st.runs:,} on Record's Every Run" + (", this one included" if st.touched else "")
     if st.touched is None:
         runs = f"{st.runs_before:,} on Record's Every Run before this one, which couldn't be checked"
     out.append(("Runs that touched the holdout", runs))
     out.append(("This pre-spec's held-back runs", history_words(st)))
-    if st.test is not None and st.test.problem is None:
-        k = len(st.test.groups)
+    ran = _ran(st)
+    if ran:
+        ks = sorted({len(t.groups) for t in ran})
+        k = ks[0] if len(ks) == 1 else None
         out.append(("Tests on New variables",
                     f"Each group against the reference: conditional logistic regression, its odds ratio, range and "
-                    f"p-value, and its block test (a likelihood ratio test on {k - 1} degrees of freedom); whether the "
-                    f"column matters at all: the Mantel-Haenszel test for {k} groups and its trend test. Each on the "
+                    f"p-value, and its block test (a likelihood ratio test on "
+                    + (f"{k - 1} degrees of freedom" if k else "one fewer degree of freedom than the groups")
+                    + "); whether the column matters at all: the Mantel-Haenszel test for "
+                    + (f"{k} groups" if k else "the groups") + " and its trend test. Each on the "
                     f"loans the groups were found on and on the held-back loans, with and without the columns held "
                     f"fixed."))
+        out.append(("Tests: the allowance for many at once", allowance_words(res, ran)))
     return out
+
+
+def allowance_words(res, ran: list[Test]) -> str:
+    """Record's and the New variables tab's line on the allowance for testing many at once."""
+    how = allowance(res)
+    m = sum(len(t.groups) - 1 for t in ran)
+    whose = (f"the {len(ran)} candidates' {m} groups" if len(ran) > 1 else f"{ran[0].column}'s {m} groups")
+    if how == "none":
+        return (f"None: each p-value in the New variables table is the group's own, as Control's \"Allowing for "
+                f"testing many pockets at once\" says. With {m} comparisons on each set of loans, some may read "
+                f"significant by chance.")
+    return (f"{ALLOWANCE_NAMES[how]}, as Control's \"Allowing for testing many pockets at once\" says: across "
+            f"{whose}, each against its reference, on each set of loans. The New variables table shows the p-value "
+            f"after it, and Holds up? and Still holds? read that one; the tests in full keep each raw p-value.")
 
 
 def log_lines(res) -> list[str]:
@@ -723,32 +837,40 @@ def what_ran(res) -> str:
 # pocket grid, so the bleed's tiles would read nought of nought)
 
 
+def _ran(st) -> list[Test]:
+    """The tests that ran, in the pre-spec's order."""
+    return [t for t in getattr(st, "tests", None) or () if t.problem is None and t.holdout is not None]
+
+
 def groups_found(res) -> list[dict]:
-    """One row per group of the tested column, on the holdout (the test that counts): its loans, bad loans, bad
-    rate, odds against the reference, p-value, and share of the holdout's bad loans. [] when the test didn't run."""
+    """One row per group of each tested column, on the holdout (the test that counts), candidate by candidate in
+    the pre-spec's order: its loans, bad loans, bad rate, odds against the reference, p-value after the allowance
+    for testing many at once, and share of the holdout's bad loans. [] when no test ran."""
     st = getattr(res, "prespec", None)
-    t = getattr(st, "test", None)
-    if t is None or t.problem or t.holdout is None:
-        return []
-    h, conc = t.holdout, t.concentration()
     out = []
-    for k, name in enumerate(t.groups):
-        out.append({"group": name, "ref": k == t.ref, "loans": h.loans[k], "bad": h.bad[k],
-                    "bad_rate": h.bad[k] / h.loans[k] if h.loans[k] else None,
-                    "odds": 1.0 if k == t.ref else h.fit.odds[k], "p": None if k == t.ref else h.fit.p[k],
-                    "capture": conc[k].capture})
+    for t in _ran(st):
+        h, conc = t.holdout, t.concentration()
+        for k, name in enumerate(t.groups):
+            p = None if k == t.ref else (h.allowed[k] if h.allowed else h.fit.p[k])
+            out.append({"candidate": t.column, "group": name, "ref": k == t.ref, "loans": h.loans[k],
+                        "bad": h.bad[k], "bad_rate": h.bad[k] / h.loans[k] if h.loans[k] else None,
+                        "odds": 1.0 if k == t.ref else h.fit.odds[k], "p": p, "p_raw": None if k == t.ref
+                        else h.fit.p[k], "capture": conc[k].capture})
     return out
 
 
 def headline(res) -> dict:
     """The launcher's Run-finished tiles for a test of a new variable: how many groups go bad significantly more
-    often than the reference on the holdout, their share of its bad loans, and whether the run followed its
-    pre-spec. Significant is below the one rounded bar (canon S36), at the confidence the Run used."""
+    often than their reference on the holdout (after the allowance for testing many at once), how many candidates
+    have such a group, their share of the holdout's bad loans (one candidate only: several candidates' groups
+    overlap), and whether the run followed its pre-spec. Significant is below the one rounded bar (canon S36), at
+    the confidence the Run used."""
     st = getattr(res, "prespec", None)
-    t = getattr(st, "test", None)
+    tests = list(getattr(st, "tests", None) or ())
     out = {"kind": "confirm", "tie_outs": 0}
-    if st is None or t is None or t.problem:
-        why = (t.problem if t is not None else None) or (st.failed if st is not None else None) or \
+    bad = next((t for t in tests if t.problem), None)
+    if st is None or not tests or bad is not None:
+        why = (bad.problem if bad is not None else None) or (st.failed if st is not None else None) or \
             "no pre-spec was read"
         return {**out, "problem": _plain(why)}
     b = res.config.benchmark
@@ -757,8 +879,12 @@ def headline(res) -> dict:
     rows = groups_found(res)
     worse = [g for g in rows if not g["ref"] and g["odds"] is not None and g["odds"] > 1 and g["p"] is not None
              and g["p"] < bar]
+    t = tests[0]
+    one = len(tests) == 1
     return {**out, "column": t.column, "reference": t.groups[t.ref], "confidence": conf,
-            "worse": len(worse), "groups": len(rows) - 1,
-            "capture": sum(g["capture"] or 0.0 for g in worse),
+            "candidates": [x.column for x in tests], "holding": len({g["candidate"] for g in worse}),
+            "worse": len(worse), "groups": sum(1 for g in rows if not g["ref"]),
+            "capture": sum(g["capture"] or 0.0 for g in worse) if one else None,
+            "allowance": ALLOWANCE_NAMES.get(allowance(res), "none"),
             "development": t.development.n, "holdout": t.holdout.n,
             "deviations": None if st.failed else len(st.deviations)}

@@ -1817,7 +1817,7 @@ back.
 - [x] **Screens for the redesign** (the firm, 26 Sep 2026): every tab and every launcher state,
       rendered from the synthetic book: https://claude.ai/artifact/8duWJxayMTBtMe1GCPrvAX
       (the builder is `make_shots.py`, kept in the session's scratchpad).
-- [ ] **The pre-spec design** (the firm, 26 Sep 2026): an outcome and a shortlist of inputs (never
+- [x] **The pre-spec design** (the firm, 26 Sep 2026; built 27 Sep, OC-49, below): an outcome and a shortlist of inputs (never
       one: *"one column makes no sense - it can't be used in a tree"*), each with its cut points
       and reference; optionally the columns to hold fixed. Each input is reported on its own and
       with them held fixed, which folds in 4d.
@@ -1925,6 +1925,31 @@ back.
       Departures: Found is always hidden today (every new-variable run confirms a saved shortlist); Record's rows wrap
       where a formula or label needs it, and a pair shares row heights; the tab keeps a short folding note; "p-value",
       never "luck". Not checked: real Excel.
+- [x] **Goal 2 item 3: the lean pre-spec, a shortlist of inputs (27 Sep 2026; `origination-cube/docs/design.md` OC-49).**
+      The pre-spec takes `outcome:` and `inputs:` (each input's column, bins and reference), beside strata,
+      confidence and the two ranges; every line required, each input refused by its place. The one-column form
+      is still read, as a shortlist of one: written either way, the same input gives the same New variables tab,
+      number for number. **The allowance for many tests across the shortlist:** every candidate's groups against
+      their own references are one family per set of loans, adjusted by Control's *Allowing for testing many
+      pockets at once* (Benjamini-Hochberg by default), now asked of a new variable too; the table shows the
+      allowed p-value (*p, allowed*), Holds up? and Still holds? read it, the tests in full keep every raw one,
+      and the method note names the method once. New variables: a block of rows and a chart per candidate, and
+      *Candidates · live* counting those that hold up. Start here and the launcher's last step count groups
+      across candidates. The launcher fills Test it, Hold fixed and the outcome from the file. The line offered
+      for missing strata, and `docs/prespec-shortlist-example.yaml`, leave strata as `[CONFIRM: ...]` (OC-13).
+      The first book gains UTIL (x2.5 odds above 0.9, planted as the ratio is) and TENURE (nothing planted),
+      each on a stream of its own: with FICO and CHANNEL held fixed and without, income ÷ sales' two cliffs and
+      UTIL's hold up after the allowance; TENURE doesn't. Phase 4's loose ends: on a new-variable run Control's
+      panel of levels is hidden and its method note names only worse at.
+      - **Departure:** a shortlist of one allows for its own groups, where phase 4 read each group raw (a grid of
+        one column is allowed for across its bands; otherwise the allowance would jump from none to eleven tests
+        when a second input is added). Every odds ratio, raw p-value, count and excess is unchanged; with *No
+        allowance* the verdicts are phase 4's exactly. On the goal's book one Still holds? at 90% sure moved, so
+        `test_confirm_test.py`'s 90% check now reads either verdict.
+      - Tests: 701 (37 new in `tests/test_shortlist.py`; 4 rewritten for the allowed p-value and the allowance
+        being asked). Planted bugs: 20 added and 6 repointed (their lines were rewritten), 347 in all. Put back
+        each alone: the 20 new, the 6 repointed and the 5 whose selectors reach a rewritten test, 31 of 31 caught.
+      - Rendered through LibreOffice (three inputs, 20,000 loans): the tab reads as above. Not checked: real Excel.
 - **The firm's calls, 26 Sep 2026 (evening).**
   - **Name: PocketBook.** *"i want to change the name of this... let's call it the PocketBook"*. What
     the analyst sees is renamed with the redesign; folder and package names in one sweep after the

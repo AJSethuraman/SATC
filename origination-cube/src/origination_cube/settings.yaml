@@ -379,9 +379,9 @@ groups:
       - key: many_tests
         question: Allowing for testing many pockets at once
         takes_effect: re-run
-        # a test of a new variable builds no pocket, so it isn't asked this (the redesign, phase 4: Control
-        # asks only what the run uses)
-        only_when: {run_kind: bleed}
+        # asked of both kinds of run: a test of a new variable builds no pocket, but its shortlist's groups are
+        # many tests at once, and each verdict on New variables allows for them the same way (OC-49; Goal 2
+        # item 3: "the allowance for many tests spread across the shortlist")
         override: null
         options:
           - value: none

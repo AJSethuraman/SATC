@@ -236,10 +236,24 @@ stop the work: anything a client or the bank reads that changes meaning, and any
       its extract with the dollar columns taken out, figure for figure. Amended where the old
       minimum stood: design.md OC-14 and Step 0, the README, Control's answer, the settings and
       config comments, for-test-design.md, vba-findings.md and capabilities-scope.md 4e.)*
-- [ ] **3. Lean pre-spec.** An outcome plus a shortlist of inputs, each with bins and a reference;
+- [x] **3. Lean pre-spec.** An outcome plus a shortlist of inputs, each with bins and a reference;
       optional columns to hold fixed, each input reported with and without them (this is 4d); the
       allowance for many tests spread across the shortlist. Strata are suggested and left blank
       (OC-13). The Log records the pre-spec and every held-back run after it, in order; nothing is blocked.
+      *(Done 27 Sep 2026, `docs/design.md` OC-49, `tests/test_shortlist.py`. The pre-spec takes `outcome:`
+      and `inputs:` (each input's column, bins and reference), every line required; the one-column form is
+      still read as a shortlist of one, and the same input written either way gives the same tab, number
+      for number. Each verdict allows for every candidate's groups at once by Control's method
+      (Benjamini-Hochberg by default), one family per set of loans; the table shows the allowed p-value,
+      the tests in full keep the raw ones. New variables has a block and a chart per candidate and a live
+      count of candidates holding up; Start here and the launcher's last step count across candidates.
+      The launcher fills Test it, Hold fixed and the outcome from the file. The line offered for missing
+      strata, and the committed shortlist example, leave them unanswered. On the first book, three inputs
+      (income ÷ sales, UTIL with a cliff planted above 0.9, TENURE with nothing planted): the two planted
+      hold up with and without FICO and CHANNEL held fixed, TENURE doesn't. Phase 4's loose ends closed:
+      Control's panel of levels is hidden on a new-variable run and its method note names only worse at.
+      Departure: a shortlist of one now allows for its own groups too; with No allowance the verdicts are
+      phase 4's.)*
 - [x] **4. T1 sweep.** One method note per tab, near the top, that an outsider can follow. The
       per-row lone-pocket note and the Test column move into it. Every other tab swept against T1's
       check: a column predictable from the settings and the pocket's size is method.
