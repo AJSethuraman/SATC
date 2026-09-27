@@ -308,6 +308,6 @@ def test_the_window_keeps_run_off_until_the_install_works(monkeypatch, tmp_path)
         root.update()
         assert flow.screen() == "L1" and flow.states()["install"] == "disabled"
         assert not w["headline"].winfo_exists()            # the banner is gone
-        assert flow.message[0].startswith("Installed numpy.")
+        assert flow.note[0].startswith("Installed numpy.") and flow.message == []
     finally:
         root.destroy()

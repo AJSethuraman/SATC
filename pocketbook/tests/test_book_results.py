@@ -350,10 +350,10 @@ def test_a_dollar_materiality_line_is_gco_and_profit_is_held_to_it(tmp_path):
     wb.save(b)
     assert book.run(b).ok, PICK
     check = tabs.record(_tab(b, "Record"))
-    assert check["Materiality line: GCO per booked dollar"] == "100,000 GCO_AMT dollars"
-    assert check["Materiality line: Profit after losses: RANR per booked dollar"] == (
+    assert check["Materiality line: Charge-offs"] == "100,000 GCO_AMT dollars"
+    assert check["Materiality line: Kept after losses"] == (
         "a shortfall of 100,000 RANR_AMT dollars: the same dollar line as GCO (Control's materiality answer)")
-    assert "GCO amount" in check["Materiality line: Outcome, share of loans"]
+    assert "GCO amount" in check["Materiality line: Bad loans"]
     assert check["Smallest excess loss worth reporting"] == "$100,000 of GCO"
 
 

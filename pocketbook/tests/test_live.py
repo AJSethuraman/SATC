@@ -235,7 +235,7 @@ def _agree(values, res) -> list[str]:
         k = sum(1 for key, w in want.items() if key[0] == "grids" and key[4] == m.name and w["flag"] == engine.WORSE)
         j = sum(1 for key, w in want.items() if key[0] == "grids" and key[4] == m.name and w["flag"] == engine.WORSE
                 and w["material"] == "yes")
-        said = check[f"Worse now: {m.title}"]
+        said = check[f"Worse now: {book.measure_name(m)}"]
         if not said.startswith(f"{k} of ") or f"; {j} of them are material." not in said:
             bad.append(f"Check, {m.title}: {said!r}, the engine {k} worse and {j} material")
     # what each materiality level keeps, on Control (it absorbed the Materiality tab in the redesign's phase 2):

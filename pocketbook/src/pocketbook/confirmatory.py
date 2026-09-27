@@ -895,4 +895,24 @@ def headline(res) -> dict:
             "capture": sum(g["capture"] or 0.0 for g in worse) if one else None,
             "allowance": ALLOWANCE_NAMES.get(allowance(res), "none"),
             "development": t.development.n, "holdout": t.holdout.n,
-            "deviations": None if st.failed else len(st.deviations)}
+            "deviations": None if st.failed else len(st.deviations),
+            # walk of 27 Sep 2026: a pre-spec edited after a held-back run, or written by this very Run, read "Follows
+            # the pre-spec: Yes" in green. The first is the run the label exists for; the second can't differ
+            "changed": st.changed_after is not None, "written": bool(st.scouted and st.first_read)}
+
+
+def follows_words(h: dict) -> tuple[str, str, bool]:
+    """What "Follows the pre-spec" says for a headline: (the answer, the line under it, whether it is a clean yes).
+    Only a pre-spec that was already there, unchanged since its last held-back run, and followed everywhere is a yes.
+    One changed after a held-back run says so first, whatever else is true: that run is the one a reviewer must see.
+    One this Run's scouting wrote can't differ from itself, so it says it was written, not that it was followed."""
+    dev = h.get("deviations")
+    if h.get("changed"):
+        return "Changed", "after a held-back run: see Record", False
+    if dev is None:
+        return "Couldn't compare", "see Record", False
+    if dev:
+        return "No", f"differs in {dev} place{'' if dev == 1 else 's'}", False
+    if h.get("written"):
+        return "Written now", "by this Run's scouting", False
+    return "Yes", "differs nowhere", True

@@ -2405,6 +2405,11 @@ def _record(wb, res, src: Path, record_name: str = "") -> None:
     record.write(wb, _record_rows(wb, res, src, record_name))
 
 
+def measure_name(m) -> str:
+    """A measure as the result tabs name it (results.PLAIN), or its own title when they don't."""
+    return results.PLAIN.get(m.name, m.title)
+
+
 def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
     """Every line Check carried, each in the Record section it belongs in (record.section_of), and Settings: one
     row per Control setting the run asked."""
@@ -2416,6 +2421,9 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
     ran = what_was_run(getattr(res, "control_used", None) or {})
     if ran:
         rows.insert(2, ("What was run", ran))
+    # each measure by the name the result tabs give it: the walk of 27 Sep 2026 read "Outcome, share of loans" here
+    # beside "Bad loans" on Pockets, Grids and Split, for the same measure
+    title = measure_name
     lv = live.ensure(wb, res)
     # a test of a new variable may run without the dollar columns: then no profit and no dollar rate is on Record
     profit, dollar_rates = _has_profit(res), _has_dollar_rates(res)
@@ -2427,13 +2435,13 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
             n = sum(1 for g in res.grids for _ in g.inner())
             worse = live.count_formula(m.name, [(live.P_FLAG, f'"{engine.WORSE}"')])
             material = live.count_formula(m.name, [(live.P_FLAG, f'"{engine.WORSE}"'), (live.P_MATERIAL, '"yes"')])
-            rows.append((f"Worse now: {m.title}", f'={worse}&" of {n:,} pockets on the grids read worse; "&'
+            rows.append((f"Worse now: {title(m)}", f'={worse}&" of {n:,} pockets on the grids read worse; "&'
                                                    f'{material}&" of them are material."'))
     rows += _origination_rows(res) + _column_rows(res)
     for m in res.measures:
         lo = res.left_out.get(m.name)
         if lo:
-            rows.append((f"Left out of {m.title}", "; ".join(f"{k:,} x {col} {why}" for (col, why), k in lo.items())))
+            rows.append((f"Left out of {title(m)}", "; ".join(f"{k:,} x {col} {why}" for (col, why), k in lo.items())))
     names = _names(res)
     for name, e in res.band_edges.items():
         rows.append((f"Band edges used: {names.get(name, name)}",
@@ -2444,12 +2452,12 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
         if m.in_points:
             # profit is a gap in points: what a pocket of typical size can see, not a multiple (NEXT-GOAL 3.2)
             typ = _typical_gap(res, m)
-            rows.append((f"Smallest gap a typical pocket could show: {m.title}",
+            rows.append((f"Smallest gap a typical pocket could show: {title(m)}",
                          f"{typ * 100:.2f} points either way (the median over the pockets; caught "
                          f"{b.power:.0%} of the time at {b.confidence:.0%} sure)" if typ
                          else "can't be sized: no pocket has the loans to show one"))
             continue
-        rows.append((f"Loans needed for a {ln.gap:g}x gap: {m.title}",
+        rows.append((f"Loans needed for a {ln.gap:g}x gap: {title(m)}",
                      f"about {ln.loans:,}" if ln.loans else "can't be sized (the book's rate is zero)"
                      if not ln.rate else "more than this book has: not even half of it could show that gap"))
     for m in res.measures:
@@ -2458,7 +2466,7 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
             v = lv.line_cell[m.name]
             said = (f'"a shortfall of "&{_amount_f(v, m)}&": the same dollar line as GCO (Control\'s materiality '
                     f'answer)"' if m.name in cfgmod.PROFIT else _amount_f(v, m))
-            rows.append((f"Materiality line: {m.title}",
+            rows.append((f"Materiality line: {title(m)}",
                          f'=IF({v}="","no line: the dollar line on Control is a GCO amount",{said})'))
     if res.config.split:
         sf, how = res.config.split

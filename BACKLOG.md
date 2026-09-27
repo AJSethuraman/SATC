@@ -2024,6 +2024,31 @@ back.
         the shuffle test's seed text (`perm.BASE`), which names the old folder and would move every p-value.
       - Tests: 723 (4 new). Planted bugs: 4 added, 371 in all; those 4 and 6 older ones put back alone from the
         new folder, 10 of 10 caught.
+- [x] **Goal 3 item 2: a walk-through as the analyst (27 Sep 2026).** canon's walk, on `970b3647` frozen in
+      scratch: the real Tk window under xvfb (Python 3.12, a fresh venv, so **Install now** and **Install
+      scikit-learn** ran pip for real), the workbook read through LibreOffice, both run kinds on the synthetic
+      book (8,000 loans), and the refusals (Run before answering, workbook open, add-ons missing, no program to
+      open a workbook, a tie-out forced to fail). Then walked a second time on the fixed build.
+      Deliverables in `pocketbook/docs/walkthrough/2026-09-27/`: `PROCEDURE-pocketbook-analyst.pdf` (one file,
+      30 pages, a route picture, 32 numbered steps and a refusals table, every picture embedded; `.html` beside
+      it, `.md` the source), `WALKTHROUGH-DEFECTS.md`, the pictures, and `driver/` (the scripts).
+      - **12 defects, none caught by the 723 tests or the 371 planted bugs.** Fixed 11: (1, high) a pre-spec
+        edited after the held-back run read "Follows the pre-spec: Yes" in green on the window and Start here,
+        and on a scout-first run "Yes" couldn't be anything else. Now "Changed, after a held-back run" in red,
+        or "Written now". (12, high, found on the second run) installing scikit-learn after the add-ons in one
+        window never finished: the pip loop set the gone black bar's line and died. (2) A failed Run, a failed
+        tie-out included, read "1 answer needed before Run". (3) Open at… failed silently with no program for
+        .xlsx. (4) Install success in refusal red. (5) Answers needed out of order. (6) Record named the measures
+        differently from the result tabs. (7) The new-variable tile didn't name its column, and the tiles now
+        grow to their words. (8) Scouting's curve to four decimals. (9) "while the add-on installs". (11) Start
+        here's Loans tested ran into the next tile.
+      - **Left for the firm (A to K in the defects file, each with a recommendation):** Changes waiting for a
+        Run doesn't count launcher choices; the tie-out tile can't show a failure; no name for "more
+        charge-offs, kept the same"; Start here's largest list after a live change; three counts for one job;
+        window jargon; Control's Comes to before the first Run; Look's outcome columns; Start here's held-fixed
+        odds unlabelled; the finished screen shows none of the Run's lines; a print-title repeat.
+      - Tests: 735 (12 new in `tests/test_walk_2026_09_27.py`, 2 of them window tests that skip without a
+        display; 5 updated). Planted bugs: 14 added, each put back alone and caught; 385 in all.
 - **The firm's calls, 26 Sep 2026 (evening).**
   - **Name: PocketBook.** *"i want to change the name of this... let's call it the PocketBook"*. What
     the analyst sees is renamed with the redesign; folder and package names in one sweep after the
