@@ -697,22 +697,28 @@ muts = [
  ("the Grids' blank not blank", RS, '                    rate.append(s.rate if s is not None else None)',
   '                    rate.append(s.rate if s is not None else 0.0)', "four_blocks"),
 ]
+LIMIT = 600                  # seconds one planted bug's tests may take
+
+
 def main() -> int:
     bad = 0
     for name, f, old, new, sel in muts:
         src = open(f).read(); assert src.count(old) == 1, name     # exactly the one place the bug went back
         shutil.copy(f, f + ".bak"); open(f, "w").write(src.replace(old, new, 1))
         _drop_cache(f)
-        r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-k", sel],
-                           capture_output=True, text=True, env=ENV)
-        shutil.move(f + ".bak", f)
-        _drop_cache(f)
-        # pytest exits 5 when the selector matched no test: nothing ran, so nothing was caught
-        caught = r.returncode not in (0, 5)
+        try:
+            # a planted bug that makes its test hang is not caught: it would stall CI for hours instead
+            r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-k", sel],
+                               capture_output=True, text=True, env=ENV, timeout=LIMIT)
+            said = (r.stdout.strip().splitlines() or r.stderr.strip().splitlines() or ["(pytest said nothing)"])[-1]
+            # pytest exits 5 when the selector matched no test: nothing ran, so nothing was caught
+            caught = r.returncode not in (0, 5)
+        except subprocess.TimeoutExpired:
+            said, caught = f"still running after {LIMIT // 60} minutes, stopped", False
+        finally:
+            shutil.move(f + ".bak", f)
+            _drop_cache(f)
         bad += not caught
-        # pytest can print nothing to stdout (a crash, a kill): the last line of stderr says why, and the verdict
-        # still prints (found 26 Sep 2026: an IndexError here hid whether the bug had been caught)
-        said = (r.stdout.strip().splitlines() or r.stderr.strip().splitlines() or [f"exit {r.returncode}, nothing printed"])[-1]
         print(("CAUGHT " if caught else "MISSED ") + name, "|", said, flush=True)
     return bad
 
