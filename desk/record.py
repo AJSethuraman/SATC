@@ -899,7 +899,10 @@ class Desk:
             if (p.citation.startswith(of)
                     and re.fullmatch(r"\([^()]+\)", p.citation[len(of):])):
                 out.append(p.citation)
-                if is_lead_in(p.text):
+                # DOWN THROUGH LEAD-INS AND HEADINGS ALIKE: a child heading
+                # alone is a caption, and the tests are beneath it (Codex on
+                # #403, § 1.162-21(b)(2) and (b)(3)).
+                if is_lead_in(p.text) or is_heading(p.text):
                     out += self._clauses(p.citation)
         return out
 

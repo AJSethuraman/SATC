@@ -796,3 +796,12 @@ def test_a_heading_above_a_clause_is_still_not_pulled_in():
     above it adds nothing."""
     out = _served("26 USC 274(a)(1)", "No deduction otherwise allowable")
     assert "26 USC 274(a):" not in out.passage
+
+
+def test_a_cited_heading_carries_the_tests_under_its_child_headings():
+    """Codex on #403: (b)(2) and (b)(3) are headings too, and arrived as bare
+    captions -- without (b)(2)(i)-(iii) and (b)(3)(i)-(ii), which say how the
+    identification and establishment tests are met."""
+    out = _served("26 CFR 1.162-21(b)", "Exception for restitution")
+    for c in ("(b)(2)(i)", "(b)(2)(iii)", "(b)(3)(i)", "(b)(3)(ii)"):
+        assert f"26 CFR 1.162-21{c}:" in out.passage, c
