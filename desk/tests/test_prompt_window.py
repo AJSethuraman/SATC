@@ -506,7 +506,9 @@ NARROWED = {
 # all of. The narrowed briefs above moved by tens, not thousands.
 # +865 / +877 when the reader was rewritten (lists, "Section", § ; other
 # Acts and titles dropped): 274 paragraphs cite an unheld section, not 264.
-WHOLE = (156_190, 280_355)
+# +8 / +7 after the re-review of 3e7a1e98: § 224(d)(1) back, the bogus
+# "261-276" gone, and owners named before a number respected.
+WHOLE = (156_198, 280_362)
 
 
 def _answering_sizes():

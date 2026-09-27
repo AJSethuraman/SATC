@@ -580,6 +580,18 @@ def test_what_is_on_file_is_not_named():
     ("sections 1.162-3 and 1.263(a)-2", []),
     ("section 1.274-5T(c)", []),
     ("section 119(a).", ["26 USC 119(a)"]),
+    # Re-review of 3e7a1e98: an "of" that is not an owner keeps the reference.
+    ("described in section 224(d)(1) of the person receiving such tips",
+     ["26 USC 224(d)(1)"]),
+    ("under section 274(d) of $100x of meal expenses", ["26 USC 274(d)"]),
+    ("section 162 of such Code", ["26 USC 162"]),
+    ("section 172 of this chapter", ["26 USC 172"]),
+    # A range is not a section, and cannot be read as its first member.
+    ("see sections 261-276, inclusive", []),
+    ("sections 1 through 5", []),
+    # An owner named BEFORE the number.
+    ("Pub. L. 115-97, § 13304(e)(2)", []),
+    ("Rev. Proc. 2019-46, section 3.", []),
 ])
 def test_the_reader_reads_code_sections_and_nothing_else(text, want):
     assert record.code_references(text) == want
@@ -593,3 +605,11 @@ def test_a_narrowed_desk_checks_against_the_corpus_it_came_from():
     narrow = desk.narrowed_to(["26 CFR 1.274-12(c)(2)(i)(A)"])
     got = ask.brief("x", narrow)
     assert "`26 USC 274(e)(2)(A)`" not in got
+
+
+def test_unheld_asks_the_whole_corpus_whoever_calls_it():
+    """`serve` calls `desk.unheld` on whatever desk it was handed; a narrowed
+    one called a held § 274(e)(2)(A) not on file (re-review of 3e7a1e98)."""
+    desk = record.load(CORPUS)
+    narrow = desk.narrowed_to(["26 CFR 1.274-12(c)(2)(i)(A)"])
+    assert narrow.unheld("see section 274(e)(2)(A)") == []

@@ -883,9 +883,11 @@ class Desk:
         """The Code sections `text` cites that the record holds nothing at, under
         or above. Codex on #403: § 274(o) denies only what § 132(e)(2) and
         § 119(a) describe, neither is on file, and nothing said so. Chasing
-        every cross-reference is endless -- 264 of 1,257 paragraphs cite one --
-        so the rule is to SAY it, and let the answerer escalate."""
-        held = [p.citation for p in self.passages]
+        every cross-reference is endless -- 274 of 1,257 paragraphs cite one --
+        so the rule is to SAY it, and let the answerer escalate. Asked of the
+        WHOLE corpus whoever calls it: a narrowed desk no longer holds what it
+        was cut from (re-review of 3e7a1e98)."""
+        held = [p.citation for p in self.corpus.passages]
         return [c for c in code_references(text)
                 if not any(h == c or is_under(h, c) or is_under(c, h)
                            for h in held)]
@@ -1289,33 +1291,43 @@ def _admitted_for(block: str, where: str) -> tuple:
     return tuple(out)
 
 
-#: One Code section number: "132(e)(2)", "263A", "1400Z-2(d)". Never a
-#: regulation -- "1.263(a)-3" stops at its decimal point -- and never cut short
-#: before a digit.
-_SECTION_NO = r"\d+[A-Z]*(?:-\d+)?(?:\([A-Za-z0-9]+\))*(?!\.?\d)"
+#: One Code section number: "132(e)(2)", "263A", "1400Z-2(d)" -- a hyphen only
+#: after a letter, so "261-276" is not read as a section. Never a regulation
+#: ("1.263(a)-3" stops at its decimal point), never cut short before a digit,
+#: and never the first end of a range ("261-276", "1 through 5"), which names
+#: sections the reader cannot list.
+_SECTION_NO = (r"\d+(?:[A-Z]+(?:-\d+)?)?(?:\([A-Za-z0-9]+\))*"
+               r"(?!\.?\d|\s*[-\u2013]\s*\d|\s+through\b)")
 #: "section", "Sections", "§" or "§§", then one number or a list of them:
 #: "sections 179, 179B, or 179C". A second reviewer on 5b762a5b found the first
 #: reader took only the first of a list and missed a capitalised "Section".
 _CODE_REF = re.compile(
     r"(?:\b[Ss]ections?|\u00a7\u00a7?)\s+(" + _SECTION_NO
     + r"(?:(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)" + _SECTION_NO + r")*)")
-#: What follows the WHOLE reference decides whose section it is -- checked after
-#: the match, not inside it, because inside it the engine backtracks: "section
-#: 552(b)(3) of title 5" matched as 552(b) once the lookahead failed.
-_OF_SOMETHING = re.compile(r"\s*of\s+\S")
-_OF_THE_CODE = re.compile(
-    r"\s*of\s+(?:the\s+(?:Internal\s+Revenue\s+)?Code\b|this\s+title\b"
-    r"|title\s+26\b)")
+#: SOMEBODY ELSE'S SECTION, named after it -- checked after the whole match,
+#: not inside it, where the engine backtracked ("552(b)(3) of title 5" matched
+#: as 552(b)). Only a named owner excludes: "of the person receiving such tips"
+#: and "of $100x" are English, and the re-review of 3e7a1e98 found an exclusion
+#: on every "of" dropping § 224(d)(1).
+_OWNED_AFTER = re.compile(
+    r"\s*of\s+(?:title\s+(?!26\b)\d+"
+    r"|(?:the|such|this)\s+(?:[A-Z][\w.,'-]*\s+)*(?:Act|Law)\b"
+    r"|Public\s+Law|Pub\.\s*L\.|Rev\.\s*(?:Proc|Rul)\.|Notice\s+\d"
+    r"|this\s+(?:revenue\s+(?:procedure|ruling)|notice)\b)")
+#: ... and named BEFORE it: "Pub. L. 115-97, § 13304(e)(2)".
+_OWNED_BEFORE = re.compile(
+    r"(?:Pub\.\s*L\.|Public\s+Law|Rev\.\s*(?:Proc|Rul)\.|Notice)"
+    r"\s*[\d-]+,?\s*$")
 
 
 def code_references(text: str) -> list:
     """The Code sections a paragraph's own words cite, as citations, in order.
-    A reference "of" anything but the Code -- "of the Securities Exchange Act",
-    "of title 46", "of Rev. Proc. 2019-46" -- is somebody else's section."""
+    A section owned by something else -- another Act, another title, a public
+    law, a revenue procedure or notice, named before or after it -- is not."""
     out = []
     for m in _CODE_REF.finditer(text):
-        after = text[m.end():]
-        if _OF_SOMETHING.match(after) and not _OF_THE_CODE.match(after):
+        if (_OWNED_AFTER.match(text, m.end())
+                or _OWNED_BEFORE.search(text[max(0, m.start() - 40):m.start()])):
             continue
         for n in re.findall(_SECTION_NO, m.group(1)):
             c = f"26 USC {n}"
