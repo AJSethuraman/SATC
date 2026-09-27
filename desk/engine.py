@@ -1101,6 +1101,21 @@ def _resting_text(position, desk: Desk, citation: str) -> str:
         if getattr(desk.passage(c), "text", ""))
 
 
+def _with_limits(text: str, desk: Desk, citation: str) -> str:
+    """The served passage, and after it whatever the record reads it WITH.
+
+    Codex on #403: the brief and `ask.read` printed § 274(o) beside (e)(1) and
+    this did not, so a 2026 answer calling employer-premises meals deductible
+    was served with (e)(1) alone -- and the second reader, who is handed THIS
+    text, judged it against (e)(1) alone. The limit goes where both look.
+    """
+    extra = desk.limits_text(citation) if text else ""
+    if not extra:
+        return text
+    return (f"{text}\n\nREAD WITH IT -- the record says these change what it "
+            f"says:\n\n{extra}")
+
+
 def _check(answer: Answer, desk: Desk, question: str = "", context=None):
     """The one verification. Shared by the gate and the scoreboard on purpose.
 
@@ -1595,11 +1610,13 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
         # answer said it rests on no paragraph. The fallback stays for a
         # citation-only AUTHORITY position (`human_only`), where the firm's
         # words really are all anybody may show of a real source.
-        passage=("" if getattr(passage, "is_policy", False) else
-                 _resting_text(passage, desk, answer.citation)
-                 or getattr(passage, "text", "")
-                 or getattr(desk.passage(answer.citation), "text", "")
-                 or getattr(passage, "position", "") or ""),
+        passage=_with_limits(
+            "" if getattr(passage, "is_policy", False) else
+            _resting_text(passage, desk, answer.citation)
+            or getattr(passage, "text", "")
+            or getattr(desk.passage(answer.citation), "text", "")
+            or getattr(passage, "position", "") or "",
+            desk, answer.citation),
         rests_on=(tuple(getattr(passage, "rests_on", ()) or ())
                   if from_position else ()),
         # READ OFF THE PASSAGE BEING SERVED, never off the citation. Two rules

@@ -900,22 +900,9 @@ def on_file_index(sources) -> list:
     return out + [""]
 
 
-def _read_with(desk) -> dict:
-    """`{citation: (other, ...)}` from every source's `Read with:` lines."""
-    return {cit: others for s in desk.sources for cit, others in s.read_with}
-
-
 def limits_on(desk, citation: str) -> list:
-    """What the record says to read with `citation`: its own `Read with` line
-    and every ancestor's, so a clause or a worked example carries its parent's
-    limit. Codex on #403, twice: a limit keyed on § 274(o) did not reach (o)(1)
-    when a brief or a read printed the clause alone. Never the paragraph
-    itself -- § 1.162-21 is read with its own (g)."""
-    out = []
-    for key, others in _read_with(desk).items():
-        if record.is_under(citation, key):
-            out += [o for o in others if o != citation and o not in out]
-    return out
+    """`record.Desk.limits_on`, for callers holding a desk."""
+    return desk.limits_on(citation)
 
 
 def read(citation: str, corpus: Path = CORPUS) -> str:

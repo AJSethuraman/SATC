@@ -310,3 +310,59 @@ def test_read_with_must_name_what_the_corpus_holds(tmp_path):
         encoding="utf-8")
     with pytest.raises(record.RecordError, match="274\\(q\\)"):
         record.load(c)
+
+
+# ── and the SERVED answer carries the limit, which is what the judge reads ──
+
+EMPLOYER_MEALS_2026 = ("In 2026, are meals the employer furnishes on its "
+                       "business premises for its convenience deductible?")
+DEDUCTIBLE = ("Deductible: section 274(e)(1) excepts food and beverages "
+              "furnished on the business premises primarily for employees.")
+EXCEPTED = "Food, beverages, and facilities furnished on the business premises"
+
+
+def _served_on_274e1(judged):
+    return ask.answer(EMPLOYER_MEALS_2026, position=DEDUCTIBLE,
+                      citation="26 USC 274(e)(1)", keep=False, judged=judged)
+
+
+def test_a_served_answer_carries_what_the_record_reads_it_with():
+    """Codex on #403, the fifth time: the brief and `ask.read` printed § 274(o)
+    beside (e)(1) and the production path did not -- a 2026 answer calling
+    employer-premises meals deductible was Served with (e)(1) alone, and judged
+    against it. The limit is part of the passage served AND the one judged."""
+    passage = next(p.text for p in record.load(CORPUS).passages
+                   if p.citation == "26 USC 274(e)(1)")
+    words = passage.split("(1)", 1)[-1].strip()[:40]
+    out = _served_on_274e1(judging.Judgment(by="second-reader", supports=True,
+                                            because=words))
+    assert isinstance(out, engine.Served), out
+    assert "26 USC 274(o)(1)" in out.passage
+    assert "after December 31, 2025" in out.passage
+    assert "after December 31, 2025" in str(out)
+
+
+def test_the_judge_is_handed_the_limit():
+    """What the second reader's quotation is checked against IS the served
+    passage, so words quoted from § 274(o) are found there. Before, they were
+    refused as `judgment_not_in_the_passage`: the judge had been handed (e)(1)
+    alone. (A judge's NO is taken without a containment check, so only a
+    quotation proves what they were given.)"""
+    out = _served_on_274e1(judging.Judgment(
+        by="second-reader", supports=True,
+        because="shall apply to amounts incurred or paid after December 31, 2025"))
+    assert isinstance(out, engine.Served), out
+    assert out.judged.stands
+
+
+def test_a_served_fines_answer_carries_the_applicability_date():
+    out = ask.answer(
+        "Is a fine paid to a town for a zoning violation deductible?",
+        position="Not deductible: it is paid to a government in relation to "
+                 "the violation of a law.",
+        citation="26 CFR 1.162-21(a)", keep=False,
+        judged=judging.Judgment(by="second-reader", supports=True,
+                                because="paid or incurred"))
+    assert isinstance(out, engine.Served), out
+    assert "26 CFR 1.162-21(g)" in out.passage
+    assert "January 19, 2021" in out.passage

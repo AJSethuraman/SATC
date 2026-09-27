@@ -849,6 +849,35 @@ class Desk:
         """
         return next((p for p in self.passages if p.citation == citation), None)
 
+    def limits_on(self, citation: str) -> list:
+        """What the record says to read with `citation`: its own `Read with`
+        line and every ancestor's, so a clause or a worked example carries its
+        parent's limit. Codex on #403: a limit keyed on § 274(o) did not reach
+        (o)(1) when the clause was printed alone. Never the paragraph itself --
+        § 1.162-21 is read with its own (g)."""
+        out = []
+        for s_ in self.sources:
+            for key, others in s_.read_with:
+                if is_under(citation, key):
+                    out += [o for o in others if o != citation and o not in out]
+        return out
+
+    def limits_text(self, citation: str) -> str:
+        """Those paragraphs' words, labelled, each with its own direct clauses --
+        § 274(o) alone ends "no deduction shall be allowed under this chapter
+        for-", which states nothing. `""` when the record reads it with nothing.
+        What the served answer carries and the second reader is handed."""
+        out, seen = [], {citation}
+        for o in self.limits_on(citation):
+            for p in self.passages:
+                rest = p.citation[len(o):]
+                if p.citation not in seen and (
+                        p.citation == o or (p.citation.startswith(o)
+                                            and re.fullmatch(r"\([^()]+\)", rest))):
+                    out.append(f"{p.citation}: {p.text}")
+                    seen.add(p.citation)
+        return "\n\n".join(out)
+
     def position(self, citation: str):
         """A ratified position resting on this citation, if the firm took one.
 
