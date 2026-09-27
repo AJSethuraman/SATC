@@ -25,7 +25,7 @@ able, gives you no rule to follow:
 So: **the rule is do not read them, and here is why.** You send a question to the
 session that holds them, and it sends an answer back. Two things that buys:
 
-- **The desk can go and look.** It runs on the Forge with a browser. Where its
+- **The desk can go and look.** It fetches publishers' pages itself. Where its
   record does not reach a question it can search, tie the find out against the
   publisher's own page, and come back with the passage — or with *"looked, and
   it is not there"*, which is a real answer and one a library cannot give.
@@ -252,6 +252,23 @@ objectively."* An asker who writes the context writes the answer, and then the
 desk is your own reasoning coming back with a citation attached. The desk reads
 the facts off the record itself, where the ones nobody holds are named as
 missing.
+
+**The one thing that does ride along: what the firm recorded in the
+engagement's setup.** The firm, 26 September 2026: *"occam should ensure there
+is a spot to fill it out in the setup process so that we can assign it there and
+that's where it reads it from."* Read those values from your app's setup and
+pass them as they are recorded, never as you would describe the client:
+
+```python
+b = relay.ask_many(questions, reply_to=my_session_id,
+                   on_file=read_engagement_facts())   # e.g. {"taxpayer": "LLC"}
+```
+
+`ask_many` refuses a name the desk does not record, a blank value, anything
+shaped like a TIN, and a `taxpayer` or `trade` that is not a short label —
+"LLC" and "general contractor" pass; a long sentence, a number or an address does not. Send only facts that are filled in. A fact nobody recorded
+stays off the request, and the desk will say it is missing. That is how a hole
+gets found.
 
 **4 · One ref per question — many questions per envelope.** This read "one
 question per envelope" until 25 September 2026, and that is what made each
