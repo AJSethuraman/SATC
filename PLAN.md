@@ -447,6 +447,21 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-27 — The desk never drives a browser it cannot see (desk 0.39.1).**
+  The trial brief said "go and look, with Chrome on the Forge". Forge-Desk used
+  the Claude in Chrome tools with `createIfEmpty: true`, and a new window opened
+  on the firm's primary desktop and went to one eCFR page (§ 1.164-1). Nothing
+  was typed, clicked or submitted, and the tab is closed. The firm: *"why in the
+  world was my primary desktop used to go to the eCFR site and not the forge"*.
+  It never checked which machine the extension was attached to, and no browser
+  was needed: the same text came over the eCFR API. The fault was the brief's
+  wording, which named a machine and gave no way to confirm it. The rule now
+  lives in `run-down-a-question`: fetch over HTTP from where you run; Claude in
+  Chrome and computer use are off limits except on a device the firm names,
+  confirmed with `list_connected_browsers` and never with `createIfEmpty`.
+  `ask-desk` no longer tells askers the desk "runs on the Forge with a browser".
+  Held by `test_the_desk_never_drives_a_browser_it_cannot_see.py`.
+
 - **2026-09-26 — Sarcia pilot 4, and the desk now asks the firm to rule (desk
   0.39.0).** Pilot 4 put 18 questions in one batch and all 18 came back readable.
   9 were served (pilot 3: 6 of 16). 61 of 485 rows were worked (pilot 3: 0), and

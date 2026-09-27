@@ -25,7 +25,7 @@ able, gives you no rule to follow:
 So: **the rule is do not read them, and here is why.** You send a question to the
 session that holds them, and it sends an answer back. Two things that buys:
 
-- **The desk can go and look.** It runs on the Forge with a browser. Where its
+- **The desk can go and look.** It fetches publishers' pages itself. Where its
   record does not reach a question it can search, tie the find out against the
   publisher's own page, and come back with the passage — or with *"looked, and
   it is not there"*, which is a real answer and one a library cannot give.
