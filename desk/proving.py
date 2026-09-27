@@ -328,10 +328,14 @@ def prove(served, desk, transport) -> Proof:
         # could be proved is the paragraph underneath it, which is a different
         # claim from the one being served, and reporting that as a proof of the
         # answer would be the mirror wearing a hat.
-        return Proof(COULD_NOT, citation, url=source.url if source else "",
-                     note="served from the firm's own position; there is no "
-                          "publisher to check it against, and the paragraph "
-                          "beneath it is not what was served")
+        first = Proof(COULD_NOT, citation, url=source.url if source else "",
+                      note="served from the firm's own position; there is no "
+                           "publisher to check it against, and the paragraph "
+                           "beneath it is not what was served")
+        # ... BUT WHAT IS SERVED BESIDE IT DOES. Codex on #403: POS3 is served
+        # with six regulation paragraphs, and returning here left a changed one
+        # unchecked. Only a DIFFERS among them can make this verdict worse.
+        return _with_appended(first, citation, desk, transport)
     first = prove_passage(citation, obj.text, source, transport)
     # AND WHAT IS SERVED WITH IT. The served passage carries the paragraph's
     # frame and its `Read with` limits; Codex on #403 found that a § 274(o)
@@ -342,6 +346,11 @@ def prove(served, desk, transport) -> Proof:
     # DIFFERS on the cited paragraph is already the worst; anything else keeps
     # going, because a paragraph of ANOTHER source can still differ (Codex on
     # #403: a COULD NOT here returned before that source was ever fetched).
+    return _with_appended(first, citation, desk, transport)
+
+
+def _with_appended(first, citation, desk, transport) -> Proof:
+    """`first`, or worse: each paragraph served with `citation` proved too."""
     if first.verdict == DIFFERS:
         return first
     whole = getattr(desk, "corpus", desk)

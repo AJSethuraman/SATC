@@ -1317,17 +1317,22 @@ def _admitted_for(block: str, where: str) -> tuple:
     return tuple(out)
 
 
+#: A subsection label -- "(d)", "(aa)", "(2)", "(B)", "(iii)", "(IV)" -- and
+#: never a word: § 1.262-1(c) writes "Section 163 (interest)", which was read
+#: as a citation to 26 USC 163(interest) (Codex on #403).
+_LABEL = (r"\((?:\d+|[A-Z]+|[a-z]|" + "|".join(c * 2 for c in "abcdefghijklmnopqrstuvwxyz")
+          + r"|(?=[ivx])x{0,3}(?:ix|iv|v?i{0,3}))\)")
 #: One Code section number: "132(e)(2)", "263A", "1400Z-2(d)" -- a hyphen only
 #: after a letter, so "261-276" is not read as a section. Never a regulation
 #: ("1.263(a)-3" stops at its decimal point), never cut short before a digit,
 #: and never the first end of a range ("261-276", "1 through 5"), which names
 #: sections the reader cannot list.
-_SECTION_NO = (r"\d+(?:[A-Z]+(?:-\d+)?)?(?:\s?\([A-Za-z0-9]+\))*"
+_SECTION_NO = (r"\d+(?:[A-Z]+(?:-\d+)?)?(?:\s?" + _LABEL + r")*"
                r"(?!\.?\d|\s*[-\u2013]\s*\d|\s+through\b)")
 #: An explanatory aside between items of a list -- "sections 469 (the "passive
 #: loss limitation") and 163 (d)", § 1.163-8T(a)(1), Codex on #403. It holds a
 #: space or a quote, which a subsection label like "(d)" or "(iii)" never does.
-_EXPLAINED = r"(?:\s*\((?=[^()]*[\s\u201c\"])[^()]*\))?"
+_EXPLAINED = r"(?:\s*(?!" + _LABEL + r")\([^()]*\))?"
 #: "section", "Sections", "§" or "§§", then one number or a list of them:
 #: "sections 179, 179B, or 179C". A second reviewer on 5b762a5b found the first
 #: reader took only the first of a list and missed a capitalised "Section".
@@ -1350,7 +1355,7 @@ _OWNED_AFTER = re.compile(
 #: 13261(g)(2) or (3) of the Revenue Reconciliation Act of 1993" (§ 1.446-1(e)
 #: (3)(iii); Codex on #403). Skipped before the owner is looked for.
 _SHARED_TAIL = re.compile(
-    r"(?:\s*(?:,\s*(?:or\s+|and\s+)?|\s+(?:or|and)\s+)(?:\([A-Za-z0-9]+\))+)*")
+    r"(?:\s*(?:,\s*(?:or\s+|and\s+)?|\s+(?:or|and)\s+)(?:" + _LABEL + r")+)*")
 #: ... and named BEFORE it: "Pub. L. 115-97, § 13304(e)(2)".
 _OWNED_BEFORE = re.compile(
     r"(?:Pub\.\s*L\.|Public\s+Law|Rev\.\s*(?:Proc|Rul)\.|Notice)"

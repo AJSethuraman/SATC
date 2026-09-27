@@ -515,7 +515,9 @@ NARROWED = {
 # +29 / +29 when an explanatory aside inside a list stopped ending it:
 # § 1.163-8T(a)(1) now names § 163(d) as well as § 469 (Codex on #403).
 # +78 / +78 for the notes naming § 1.162-21(b)(1) under every paragraph of (b).
-WHOLE = (156_298, 280_462)
+# -8 / -8 when a one-word aside stopped being read as a subsection: § 1.262-1(c)
+# names 26 USC 163, not 26 USC 163(interest) (Codex on #403).
+WHOLE = (156_290, 280_454)
 
 
 def _answering_sizes():

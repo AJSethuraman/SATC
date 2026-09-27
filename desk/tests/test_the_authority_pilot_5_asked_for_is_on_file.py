@@ -604,6 +604,14 @@ def test_what_is_on_file_is_not_named():
     ("applying sections 469 (the \u201cpassive loss limitation\u201d) and 163 (d) "
      "and (h) (the \u201cnonbusiness interest limitation\u201d)",
      ["26 USC 469", "26 USC 163(d)"]),
+    # Codex on #403, § 1.262-1(c): a one-word aside is not a subsection. A label
+    # is a number, a capital, a lower-case letter (or one doubled) or a roman
+    # numeral -- never a word.
+    ("Section 163 (interest), Section 164 (taxes), and Section 165 (losses)",
+     ["26 USC 163", "26 USC 164", "26 USC 165"]),
+    ("sections 469 (interest) and 163(d)", ["26 USC 469", "26 USC 163(d)"]),
+    ("section 401(a)(iii) and 45(aa)(B)", ["26 USC 401(a)(iii)", "26 USC 45(aa)(B)"]),
+    ("section 162 (civil)", ["26 USC 162"]),
 ])
 def test_the_reader_reads_code_sections_and_nothing_else(text, want):
     assert record.code_references(text) == want
@@ -904,3 +912,19 @@ def test_a_leaf_of_the_restitution_exception_carries_its_general_rule():
     out = _served(leaf, words)
     assert isinstance(out, engine.Served), out
     assert "26 CFR 1.162-21(b)(1):" in out.passage
+
+
+def test_a_position_backed_answer_still_proves_what_is_served_with_it():
+    """Codex on #403: citing § 1.263(a)-1(f)(1)(ii)(B) resolves to the firm's
+    POS3, and the proof returned COULD NOT before looking at the six regulation
+    paragraphs served with it -- so a changed one was served unchecked. A
+    position has no publisher; what is served beside it does."""
+    desk = record.load(CORPUS)
+    b = "26 CFR 1.263(a)-1(f)(1)(ii)(B)"
+    assert desk.authority_for(b)[0] == "position"
+    appended = desk.served_with(b)
+    assert appended
+    served = engine.Served(position="x", citation=b, tier="primary", checked=None)
+    assert proving.prove(served, desk, _live(desk)).verdict == proving.COULD_NOT
+    got = proving.prove(served, desk, _live(desk, moved={appended[-1]}))
+    assert got.verdict == proving.DIFFERS and appended[-1] in got.note
