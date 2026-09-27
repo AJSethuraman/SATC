@@ -648,7 +648,10 @@ def main() -> int:
         _drop_cache(f)
         try:
             # a planted bug that makes its test hang is not caught: it would stall CI for hours instead
-            r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-k", sel],
+            # --assert=plain: only pass or fail matters here. Under CI, pytest stops shortening a failure's
+            # explanation, and spelling out a big comparison took past ten minutes ("worker seeded by its share")
+            r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "--assert=plain",
+                                "-k", sel],
                                capture_output=True, text=True, env=ENV, timeout=LIMIT)
             said = (r.stdout.strip().splitlines() or r.stderr.strip().splitlines() or ["(pytest said nothing)"])[-1]
             # pytest exits 5 when the selector matched no test: nothing ran, so nothing was caught
