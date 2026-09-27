@@ -710,7 +710,10 @@ def main() -> int:
         # pytest exits 5 when the selector matched no test: nothing ran, so nothing was caught
         caught = r.returncode not in (0, 5)
         bad += not caught
-        print(("CAUGHT " if caught else "MISSED ") + name, "|", r.stdout.strip().splitlines()[-1])
+        # pytest can print nothing to stdout (a crash, a kill): the last line of stderr says why, and the verdict
+        # still prints (found 26 Sep 2026: an IndexError here hid whether the bug had been caught)
+        said = (r.stdout.strip().splitlines() or r.stderr.strip().splitlines() or [f"exit {r.returncode}, nothing printed"])[-1]
+        print(("CAUGHT " if caught else "MISSED ") + name, "|", said, flush=True)
     return bad
 
 

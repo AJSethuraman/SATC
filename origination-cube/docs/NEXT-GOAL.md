@@ -336,3 +336,26 @@ edges), refreshed at each Run ("Last Run used").
   22.2 s at 17,000 × 80). Departures from the spec: *Your answer* keeps its *Or your own* cell
   beside it (reading back is unchanged); each option's meaning is a note on the setting's name rather
   than a column; the p-value keeps its name ("luck" is out, the firm, 26 Sep 2026).
+- [x] **Phase (c) built, 26 Sep 2026: the result tabs (26 Sep 2026; `origination-cube/docs/design.md` OC-43, OC-44).**
+  Pockets (Where it bleeds and Three-way), Paid cost kept (Losses vs revenue), Grids (with Prevalence
+  under its blocks) and Split, to the spec's sections 5 to 8, in `src/origination_cube/results.py`; the
+  four old tabs are taken off an older workbook at Run. Each tab: the title band, one grouped method
+  note (T1: the Test column and the lone-pocket note are off the rows), lines-in-use tiles read from
+  Control with "↻ N Control changes wait for a Run", then dropdowns in place of the slicers (Pockets:
+  Measure, Pockets, Show; Paid cost kept: Grid; Grids: Grid and Measure; Split: Grid and Measure), each
+  picking rows by INDEX/MATCH over hidden `_list`/`_views`, no SORT/FILTER/LET. Pockets' caption "N
+  worse and material · N worse · N shown" is live. **Worse?** and **Material?** are separate columns;
+  worse pockets rank first by dollars; order is the last Run's and each tab says so. **Option A built:**
+  judged against the book counts points and dollars against the rest of the book (`excess_rest`); the
+  whole-book excess stays as the tie-out. Together reads five pairs (adds strong; earns less, not from
+  losses). Heat in the spec's tokens by rules that follow the Measure dropdown; loans shaded by share.
+  The scatter (log x) is drawn from the table's cells, so it is live. "p-value" everywhere, never
+  "luck". `tests/test_result_tabs.py` (21) and `tests/tabs.py` (reads a tab as the analyst sees it);
+  old tests moved to the new layout. 20 planted bugs repointed and 24 added (310 in all), plus
+  main() no longer crashes when pytest prints nothing. Run at 17,000 × 80: 23.2 s before, 21.7 s after.
+  Departures: the scatter is live (the spec said as of the Run); "Earned before losses" and "Earns
+  less, not from losses" are allowed past the old no-"earns" test, as the spec's own words; Split adds
+  a Measure dropdown and keeps As odds; the other comparison's dollars leave the rows (they stay on
+  `_pockets` and the command line). Not checked: real Excel.
+- [x] **Items 5 and 7 done with it:** Option A (OC-44) and Worse? / Material? as two columns. Item 4's T1
+  sweep is done for the result tabs.
