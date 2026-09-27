@@ -96,7 +96,29 @@ S274 = (
     ("26 USC 274(e)(9)", (
         ("\n(9) Expenses includible in income of persons who are not employees",
          "\nFor purposes of this subsection, any item referred to in subsection (a)", 1),)),
+    # (o) LIMITS (e)(1), AND ITS DATE IS NOT IN ITS OWN WORDS. Codex on #403:
+    # from 2026 no deduction is allowed for meals at an employer-operated
+    # eating facility or for § 119 meals, which (e)(1) would otherwise except.
+    # (e)(1) stored without (o) would let a 2026 question be answered
+    # deductible under an exception that no longer reaches it. The date is in
+    # the enacting law, which the page prints among its notes; that one
+    # sentence is stored too, sliced the same way.
+    ("26 USC 274(o)", (
+        ("\n(o) Meals provided at convenience of employer",
+         "\n(1) any expense for the operation of a facility described in section 132(e)(2)", 1),)),
+    ("26 USC 274(o)(1)", (
+        ("\n(1) any expense for the operation of a facility described in section 132(e)(2)",
+         "\n(2) any expense for meals described in section 119(a).", 1),)),
+    ("26 USC 274(o)(2)", (
+        ("\n(2) any expense for meals described in section 119(a).",
+         "\n(p) Regulatory authority", 1),)),
+    ("26 USC 274 note, Pub. L. 115-97 § 13304(e)(2)", (
+        ("Effective date for elimination of deduction for meals provided at convenience of employer",
+         '"\nPub. L. 115–97,\n title I, §13310(b)', 1),)),
 )
+
+#: The enacting-law sentence that dates § 274(o).
+O_DATE = "26 USC 274 note, Pub. L. 115-97 § 13304(e)(2)"
 
 #: The page's own statement of how current it is, read off the page.
 _CURRENCY = re.compile(r"Text contains those laws in effect on [A-Z][a-z]+ \d{1,2}, \d{4}")

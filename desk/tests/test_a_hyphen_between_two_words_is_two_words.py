@@ -151,17 +151,20 @@ def test_the_hyphen_did_not_change_how_many_citations_find_themselves(corpus):
     # 178 sampled -- every one of the 165 parenthesised. 91% to 93%, the same
     # cause again: § 1.162-21 runs to (e)(4)(i)(A)(4), and "26 USC 274(e)(3)"
     # tokenises to `26 usc 274 e 3`, nine siblings sharing every token but one.
-    assert len(withdig) == 1243, (
-        f"the corpus holds {len(withdig)} digit-bearing citations, not 1243 — "
+    # AND § 274(o) WITH ITS DATING NOTE, the same day (Codex on #403): 1247
+    # digit-bearing citations, 1143 missing themselves whole (1140
+    # parenthesised), 166 of the 179 sampled, all parenthesised. Same cause.
+    assert len(withdig) == 1247, (
+        f"the corpus holds {len(withdig)} digit-bearing citations, not 1247 — "
         f"the denominator moved, so re-measure before trusting the figure below")
     sample = withdig[::7]
-    assert len(sample) == 178
+    assert len(sample) == 179
     missed = [h.citation for h in sample
               if h.citation not in
               [f.held.citation for f in pool.look(h.citation, corpus, limit=5)]]
-    assert len(missed) <= 165, (
-        f"{len(missed)} of 178 sampled citations cannot find themselves in "
-        f"their own top five, up from 165. A tokeniser change has made "
+    assert len(missed) <= 166, (
+        f"{len(missed)} of 179 sampled citations cannot find themselves in "
+        f"their own top five, up from 166. A tokeniser change has made "
         f"retrieval worse.")
     parens = [m for m in missed if "(" in m]
     assert len(parens) >= len(missed) - 2, (

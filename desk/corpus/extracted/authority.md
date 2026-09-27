@@ -15024,3 +15024,34 @@ any other year. Do not read a rate off this file for a year it does not name.
 > return filed by such taxpayer under part III of subchapter A of chapter 61
 > and is not so included.
 
+## 26 USC 274(o)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (o) Meals provided at convenience of employer Except in the case of an
+> expense described in subsection (e)(8) or (n)(2)(C), no deduction shall be
+> allowed under this chapter for-
+
+## 26 USC 274(o)(1)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (1) any expense for the operation of a facility described in section
+> 132(e)(2), and any expense for food or beverages, including under section
+> 132(e)(1), associated with such facility, or
+
+## 26 USC 274(o)(2)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (2) any expense for meals described in section 119(a).
+
+## 26 USC 274 note, Pub. L. 115-97 § 13304(e)(2)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Effective date for elimination of deduction for meals provided at
+> convenience of employer .-The amendments made by subsection (d) [amending
+> this section] shall apply to amounts incurred or paid after December 31,
+> 2025.
+

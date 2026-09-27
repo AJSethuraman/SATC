@@ -123,9 +123,11 @@ def test_neither_shape_fits_the_window_any_more_and_the_size_is_pinned():
     # (e), admitted after Sarcia pilot 5 and desk trial 1, add 71 rule
     # paragraphs (56 and 15), and the graded prompt lists them. § 1.162-21's
     # thirteen examples are not in it -- a graded prompt prints no example.
-    assert biggest == {"index": 41970, "text": 140081}, (
+    # +234 / +237 the same day for § 274(o), its two paragraphs and the note
+    # that dates it -- Codex on #403: (e)(1) stored without its 2026 limit.
+    assert biggest == {"index": 42204, "text": 140318}, (
         f"the graded prompt changed size: {biggest}, and this file says "
-        f"{{'index': 41970, 'text': 140081}}. That is allowed — it is what "
+        f"{{'index': 42204, 'text': 140318}}. That is allowed — it is what "
         f"storing authority does — but it is quoted in docs/CONTEXT-ON-FILE.md "
         f"and must move deliberately.")
     assert biggest["index"] > room, (
@@ -473,7 +475,8 @@ NARROWED = {
 # +7,652 rules-only and +13,402 with examples on 27 September 2026: 71 rule
 # paragraphs of § 1.162-21 and § 274(a) and (e) on both sides, and § 1.162-21's
 # thirteen worked examples (+5,750) on the examples side only.
-WHOLE = (142_490, 262_545)
+# +239 / +240 for § 274(o) and its dating note (Codex on #403).
+WHOLE = (142_729, 262_785)
 
 
 def _answering_sizes():

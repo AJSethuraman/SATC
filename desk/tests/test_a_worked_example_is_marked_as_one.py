@@ -359,7 +359,9 @@ def test_that_index_still_carries_the_rules():
     # sections admitted after Sarcia pilot 3.
     # 978 SINCE 27 SEPTEMBER 2026: plus 56 rule paragraphs of § 1.162-21 and
     # 15 of § 274(a) and (e), admitted after Sarcia pilot 5 and desk trial 1.
-    assert set(index) == rules and len(index) == 978, len(index)
+    # 982: plus § 274(o), (o)(1), (o)(2) and the note that dates (o) -- Codex on
+    # #403 found (e)(1) stored without the limit that overrides it from 2026.
+    assert set(index) == rules and len(index) == 982, len(index)
 
 
 # ── an example must hang off the paragraph that announces it ─────────────────

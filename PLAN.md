@@ -473,6 +473,12 @@ it with them.
   Retrieval moved in two answering briefs, recorded in `test_prompt_window.py`:
   the supporting-documents brief now shows § 1.162-21(b)(3)(ii) where it showed
   Pub. 583's "Bookkeeping System".
+  **§ 274(o) was added the same day, on Codex's review of #403.** From 2026 it
+  denies the deduction for meals at an employer-operated eating facility and
+  for § 119(a) meals, which (e)(1) would otherwise except, so (e)(1) stored
+  alone would answer a 2026 question wrongly. (o) carries no date of its own;
+  the enacting law's sentence that dates it, Pub. L. 115-97 § 13304(e)(2), is
+  stored beside it as the page prints it.
 
 - **2026-09-27 — The desk never drives a browser it cannot see (desk 0.39.1).**
   The trial brief said "go and look, with Chrome on the Forge". Forge-Desk used

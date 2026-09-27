@@ -200,3 +200,24 @@ def test_a_paragraph_274e_does_not_have_is_still_refused():
     out = ask.answer(QUESTION, position=POSITION, citation="26 USC 274(e)(10)",
                      corpus=CORPUS, keep=False)
     assert isinstance(out, engine.Refusal) and out.reason == "authority_absent"
+
+
+def test_the_limit_on_274e1_is_stored_with_its_date():
+    """Codex on #403: from 2026 § 274(o) takes away the deduction for meals at an
+    employer-operated eating facility and for § 119 meals, which (e)(1) would
+    otherwise except. Storing (e)(1) without (o) would let a 2026 question be
+    answered deductible under an exception that no longer reaches it. (o) does
+    not carry its own date; the enacting law does, so that sentence is stored
+    too, as the page prints it."""
+    desk = record.load(CORPUS)
+    o = desk.passage("26 USC 274(o)")
+    assert o and "no deduction shall be allowed under this chapter for-" in o.text
+    assert "(e)(8) or (n)(2)(C)" in o.text
+    assert "section 132(e)(2)" in desk.passage("26 USC 274(o)(1)").text
+    assert "section 119(a)" in desk.passage("26 USC 274(o)(2)").text
+    note = desk.passage(U.O_DATE)
+    assert note and "after December 31, 2025" in note.text
+    assert "elimination of deduction for meals provided at convenience of employer" in note.text
+    listed = ask.read("26 USC 274")
+    for c in ("26 USC 274(o)", "26 USC 274(o)(1)", "26 USC 274(o)(2)", U.O_DATE):
+        assert f"`{c}`" in listed, c
