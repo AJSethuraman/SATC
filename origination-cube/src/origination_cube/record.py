@@ -74,7 +74,7 @@ METHOD = [
 _THIS = ("Extract", "Loans run", "What was run", "Record of this run", "Origination dates", "Band edges used",
          "New column", "What ", "Split", "How closely ", "Pre-spec", "What the pre-spec says", "Holdout",
          "Confirmatory test", "Runs that touched the holdout", "This pre-spec's held-back runs",
-         "Differs from the pre-spec")
+         "Differs from the pre-spec", "Scouting")
 _TESTS = ("Tests", "p-value", "Standard error", "The allowance for many tests covers", "Contribution before losses",
           "Decides each pocket", "Profit counts as more or less", "How profit reads", "Reading a single red",
           "Families of tests")

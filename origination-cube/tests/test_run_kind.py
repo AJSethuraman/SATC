@@ -23,7 +23,7 @@ import pytest
 from openpyxl import load_workbook
 
 from conftest import cube, table
-from origination_cube import book, confirm_tab, confirmatory, control, engine, prespec, synth, results
+from origination_cube import book, confirm_tab, confirmatory, control, engine, prespec, scout, synth, results
 from origination_cube import config as cfgmod
 from recalc import recalc
 from test_book import _answer
@@ -90,7 +90,9 @@ def test_control_asks_what_you_are_running_first_with_two_answers_and_no_default
         assert ws.cell(row=control.row_of(ws, k), column=control.CHOOSE_COL).value is None     # nothing picked
     # the scouting answer says what PocketBook does instead, not what it doesn't (the firm, 26 Sep 2026)
     said = {o.label: o.explains for o in s["new_variable_step"].options}
-    assert "confirms a saved shortlist" in said[SCOUT] and "built" not in said[SCOUT]
+    # (Goal 2 item 9: scouting is built, so it says what scouting does)
+    assert "write the pre-spec" in said[SCOUT] and "confirm it on the loans held back" in said[SCOUT]
+    assert "built" not in said[SCOUT]
     # Set up asks for it, in the launcher
     out = book.set_up(synth.write_extract(tmp_path, n=1500))
     assert any("in the launcher, choose what you're running" in line and BLEED in line and NEW in line
@@ -210,12 +212,16 @@ def test_a_new_variable_run_refuses_two_origination_dates(tmp_path, monkeypatch)
     assert f"Columns: {NEW} needs one column marked Origination date, and 2 are: ORIG_DATE, INCOME." in text
 
 
-def test_scouting_is_refused_as_not_built(tmp_path, monkeypatch):
+def test_scouting_is_refused_on_its_own_minimum_by_the_launcher_cells(tmp_path, monkeypatch):
+    """Scouting is built (Goal 2 item 9; it was refused as not built until then). It needs an outcome and something
+    to rank, both chosen in the launcher; without the outcome it is refused by that cell, before anything runs."""
     x, b = _new_variable(tmp_path, monkeypatch, step=SCOUT)
+    got, cells = control.read_choices(load_workbook(b)[control.SHEET])
+    assert got.outcome is None
     text = _refused(book.run(b))
-    assert (f"{_cell(b, 'new_variable_step')}: PocketBook confirms a saved shortlist of new variables. Pick the "
-            f"shortlist in the launcher (Choose tests, Or confirm a saved shortlist), or run {BLEED}.") in text
-    assert "PocketBook confirms a saved shortlist" in "\n".join(_log(b))
+    assert f"{cells['outcome']}: pick the outcome in the launcher." in text
+    assert "pick the outcome in the launcher" in "\n".join(_log(b))
+    assert scout.SHEET not in load_workbook(b).sheetnames
 
 
 def test_testing_from_a_pre_spec_needs_the_file_named(tmp_path, monkeypatch):

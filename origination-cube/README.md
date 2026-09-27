@@ -19,8 +19,9 @@ prove) and the firm's rulings.
   whole workbook: Set up, Control, Columns and every results tab below. Also the
   confirmatory test of a new column from a committed pre-spec, on development
   loans and on the holdout (capabilities 4b and 4e in
-  `docs/capabilities-scope.md`).
-- **Not built:** drill-down, `cube prove`, and scouting (4a).
+  `docs/capabilities-scope.md`), and scouting (4a, 27 Sep 2026): find on the development loans, write the
+  pre-spec, confirm it on the rest, in one Run.
+- **Not built:** drill-down and `cube prove`.
 - **Not yet met:** a real extract.
 
 The log is `../BACKLOG.md` §6d.
@@ -236,7 +237,7 @@ under *Or confirm a saved shortlist*: *Test it* ticks every input on the list, *
 and the outcome its outcome; Control shows the file under *Chosen in the launcher*. A file that isn't
 there or can't be read stops the Run, naming the cell, and so does a pre-spec
 with an input that isn't on Columns, or a pre-spec named for Where the book bleeds.
-Without a saved shortlist, the Run stops and asks for one. Otherwise Record echoes what it says,
+Without a saved shortlist, the Run scouts first (below). Either way Record echoes what the pre-spec says,
 the commit it was read from (or that it isn't committed, or was edited since) and its fingerprint (the
 first 12 characters of its SHA-256), and lists, one line each, where the run differs from it; Every Run
 marks such a run *Deviates from pre-spec*. Every run whose extract holds loans made in the pre-spec's
@@ -309,6 +310,34 @@ cliffs planted on each loan's odds (x3 below 0.05, x2.5 from 1.50). Both are fou
 and confirmed on the holdout (3.04x and 2.80x). The same loans with no cliff are not confirmed,
 though the worst dealer's loans crowd the lowest group and the book as a whole reads a difference
 there: the pockets hold it fixed.
+
+**Scouting: find on 70%, confirm on the rest, in one Run** (design decision OC-50). In the launcher,
+choose *Test new variables*, tick *Test it* on as many columns as you like (dozens is fine), tick *Hold
+fixed* on the columns to hold fixed, and pick *Find on* (70% by default). With no saved shortlist, the
+Run does two steps, in order:
+1. **Find**, on the development loans only: the first 70% of the loans by origination date. A random
+   forest (scikit-learn) ranks every ticked column and every new column made on Columns by how much it
+   leans on it (permutation importance), once with the candidates alone and once with the Hold fixed
+   columns in it too, against a noise floor from the same forests grown with the outcomes shuffled. It
+   suggests bins where each column's shape bends, and a reference group (the one holding the median),
+   and flags pairs that move together (rank correlation 0.7 or more). The **Scouting** tab shows it all,
+   ranked. The held-back loans' outcomes and values are never read here.
+2. **Write the pre-spec** from the candidates it proposes, `loans - pre-spec.yaml` beside the workbook,
+   and log it on Record (fingerprint and date) before any held-back loan is tested. The columns held
+   fixed are the ones you ticked; with none ticked the file asks (`[CONFIRM: ...]`) and the Run stops
+   there. A file already there is confirmed as it stands, never written over: edit it if you like, and
+   Record labels an edit made after a held-back run.
+3. **Confirm** it on the held-back loans: exactly the saved-shortlist confirmation above, on New
+   variables, with its Found columns showing.
+
+scikit-learn is an optional add-on: without it the launcher offers *Install scikit-learn* where finding
+needs it, a Run that would find says so in words, and confirming a saved shortlist works as before
+(`pip install -e ".[scout]"`). On the first book (20,000 loans) with filler added, the planted income ÷
+sales and UTIL rank first and are proposed, TENURE and the filler aren't, and the bins land on the
+plants: 0.9 for UTIL, 0.099 and 2 for income ÷ sales. Confirmed on the 5,993 held-back loans, UTIL above
+0.9 reads 2.08x (2.08x with FICO and CHANNEL held fixed), income ÷ sales from 2.00 reads 3.07x (2.86x),
+and below 0.099 1.68x, which doesn't hold up after the allowance. At 17,000 loans × 80 columns with 40
+candidates the Run takes 64 s, 59 s of it scouting, under a 4 GB limit (0.56 GB at its peak).
 
 ![Paid, cost, kept: paid, cost and kept for the grid picked, and its chart](docs/paid-cost-kept.png)
 

@@ -28,6 +28,11 @@ NEEDED = {
     "openpyxl": ("openpyxl", "reads and writes Excel files"),
     "PyYAML": ("yaml", "reads its settings files"),
 }
+#: optional add-ons: pip's name -> (the name Python imports it by, what it does). Without one the cube still starts
+#: and runs; only what it does is refused, in words, and the launcher offers to install it (Goal 2 item 9: scouting)
+OPTIONAL = {
+    "scikit-learn": ("sklearn", "finds new variables (scouting)"),
+}
 PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 # Added to the automatic install only: no prompt can hang it, no nag about pip's own version.
 QUIET = ["--disable-pip-version-check", "--no-input", "--progress-bar", "off"]
@@ -90,12 +95,17 @@ def missing() -> list[str]:
     return [pip for pip, (mod, _) in NEEDED.items() if not _found(mod) or _too_old(pip, low)]
 
 
+def missing_optional() -> list[str]:
+    """The optional add-ons that aren't here, by pip's name."""
+    return [pip for pip, (mod, _) in OPTIONAL.items() if not _found(mod)]
+
+
 def message(names: list[str]) -> str:
     """One line: what is missing, and what the cube uses each one for."""
     low = minimums()
     parts = []
     for n in names:
-        mod, why = NEEDED[n]
+        mod, why = NEEDED[n] if n in NEEDED else OPTIONAL[n]
         old = _too_old(n, low) if _found(mod) else None
         parts.append(f"{n}, which {why} (the copy here is {old[0]} and it needs {old[1]} or later)" if old
                      else f"{n}, which {why}")

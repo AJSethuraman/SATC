@@ -79,6 +79,7 @@ class AddOns:
 
     def __init__(self) -> None:
         self.missing = deps.missing()
+        self.optional = deps.missing_optional()     # scikit-learn: only finding new variables needs it
         self.installing: list[str] = []
         self.began = 0.0
         self.said = ""              # what the installer said, when the last try didn't work
@@ -113,17 +114,21 @@ class AddOns:
         return [f"Install now downloads {them} from the internet. It takes a minute or two.",
                 f"Set up and Run switch on once {theyre} in."]
 
-    def start(self) -> list[str]:
-        """Mark an install begun, and return the names to hand to deps.install."""
-        self.installing, self.began, self.said = list(self.missing), time.monotonic(), ""
+    def start(self, optional: bool = False) -> list[str]:
+        """Mark an install begun, and return the names to hand to deps.install: what the cube needs, or with
+        `optional` the optional add-ons that aren't here (scikit-learn, for finding new variables)."""
+        names = list(self.optional) if optional and not self.missing else list(self.missing)
+        self.installing, self.began, self.said = names, time.monotonic(), ""
         return list(self.installing)
 
     def finish(self, ok: bool, output: str) -> None:
         """Take the install's answer, and look again for what is still missing."""
         tried, self.installing = self.installing, []
         self.missing = deps.missing()
-        self.got = [n for n in tried if n not in self.missing]
-        self.said = "" if not self.missing else (output.strip() or "The installer said nothing.")
+        self.optional = deps.missing_optional()
+        still = [n for n in tried if n in self.missing or n in self.optional]
+        self.got = [n for n in tried if n not in still]
+        self.said = "" if not still else (output.strip() or "The installer said nothing.")
 
 
 def do_set_up(extract: str, choices: ch.Choices | None = None) -> list[str]:
@@ -286,8 +291,10 @@ class Flow:
         ready = not self.gate.missing and not self.busy
         b = self.book()
         ok, _ = self.summary()
+        finding = self.mode == "new" and not self.shortlist and self.read is not None
         return {"setup": _on(ready and bool(self.extract) and Path(self.extract).is_file()),
                 "next": _on(ready and self.read is not None and ok),
+                "install_optional": _on(ready and finding and bool(self.gate.optional) and not self.gate.installing),
                 "run": _on(ready and b is not None and b.exists() and not self.book_open),
                 "open": _on(not self.busy and b is not None and b.exists()),
                 "install": self.gate.states()["install"]}
@@ -487,6 +494,10 @@ class Flow:
             what = cols[0] if len(cols) == 1 else f"{_s(len(cols), 'input')} ({', '.join(cols)})"
             return True, (f"the saved shortlist {Path(self.shortlist).name}: {what} against "
                           f"{self.outcome or 'the outcome'}{held}, confirmed on the loans it held back.")
+        if "scikit-learn" in self.gate.optional:
+            # Goal 2 item 9: finding needs the forest; confirming a saved shortlist doesn't
+            return False, (f"{deps.message(['scikit-learn'])} Press Install scikit-learn, or confirm a saved "
+                           f"shortlist instead.")
         if not self.outcome:
             return False, "Mark a yes/no outcome column on Columns, then pick it here."
         if not self.test:
@@ -926,6 +937,13 @@ def build(root) -> dict:
             widgets["shortlist"].pack(side="right")
             label(under, Path(flow.shortlist).name if flow.shortlist else "Or confirm a saved shortlist",
                   "small").pack(side="right", padx=6)
+            if flow.states()["install_optional"] == "normal":
+                # Goal 2 item 9: finding needs scikit-learn, an optional add-on (deps.OPTIONAL)
+                more = tk.Frame(page, bg=C["WHITE"])
+                more.pack(fill="x", pady=(6, 0))
+                widgets["install_optional"] = Button(more, "Install scikit-learn", lambda: install(optional=True),
+                                                     "primary")
+                widgets["install_optional"].pack(side="right")
         ok, said = flow.summary()
         sumbox = tk.Frame(page, bg=C["CANVAS"])
         sumbox.pack(fill="x", pady=(10, 0))
@@ -1050,7 +1068,7 @@ def build(root) -> dict:
         draw_banner()
         draw_rail()
         clear(page)
-        for k in ("setup", "next", "run", "open", "start", "open_banner", "summary"):
+        for k in ("setup", "next", "run", "open", "start", "open_banner", "summary", "install_optional"):
             widgets.pop(k, None)
         {"extract": page_extract, "choose": page_choose, "answer": page_answer, "needs": page_needs,
          "done": page_done}["extract" if flow.gate.missing else flow.page]()
@@ -1130,9 +1148,11 @@ def build(root) -> dict:
 
     extract.trace_add("write", on_extract)
 
-    def install() -> None:
+    def install(optional: bool = False) -> None:
         # pip runs in a thread so the window keeps answering; the clock in the banner shows it hasn't hung.
-        names = flow.gate.start()
+        names = flow.gate.start(optional)
+        if optional:
+            flow.message = [f"Installing {_names(names)}... this can take a few minutes."]
         render()
         done: queue.Queue = queue.Queue()
         threading.Thread(target=lambda: done.put(deps.install(names)), daemon=True).start()
@@ -1147,7 +1167,10 @@ def build(root) -> dict:
                 return
             flow.gate.finish(ok, said)
             if not flow.gate.missing:
-                flow.message = flow.gate.lines()[:1]
+                # an optional add-on that didn't install: the note for IT, as the banner gives it for a needed one
+                flow.message = ([f"Couldn't install {_names(flow.gate.optional)} from here.",
+                                 deps.ask_it(flow.gate.optional)] if optional and flow.gate.optional
+                                else flow.gate.lines()[:1])
             render()
         root.after(500, poll)
 

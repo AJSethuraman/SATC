@@ -46,6 +46,7 @@ from . import confirm_tab                               # 4b and 4e: the confirm
 from . import choices as ch                             # the redesign: what the launcher chose
 from . import results                                   # the redesign, phase 3: the result tabs
 from . import record                                    # the redesign, phase 4: Check and the Log as Record
+from . import scout, scout_tab                          # Goal 2 item 9: scouting, then the confirmation
 from .house import MIST as READ_ONLY
 from .ingest import Table, read_table
 
@@ -57,7 +58,7 @@ INPUT_TABS = ("Start here", "Control", "Columns", "Look")
 #: tabs an older workbook carries that the redesign folded into others: taken off at Set up (and Materiality,
 #: now the panel on Control, at Run)
 FOLDED_TABS = ("Odd values", "Learned", "Materiality")
-RESULT_TABS = (confirm_tab.SHEET,) + results.TABS + (record.SHEET,)
+RESULT_TABS = (scout.SHEET, confirm_tab.SHEET) + results.TABS + (record.SHEET,)
 #: tabs the redesign's phase 4 replaced: a Run takes them off an older workbook (the Log becomes the hidden _log)
 OLD_RESULT_TABS = (confirm_tab.OLD_SHEET, record.OLD_CHECK)
 LOG_FIRST = record.LOG_FIRST            # the newest line on the hidden _log (the Log tab it replaces)
@@ -110,6 +111,7 @@ PERIOD_OPTIONS = {"per year": "per_year", "per month": "per_month", "one-time": 
 #: variable.
 RUN_KIND, STEP = "run_kind", "new_variable_step"
 BLEED, NEW_VARIABLE, SCOUT, FROM_PRESPEC = "bleed", "new_variable", "scout", "prespec"
+SCOUT_KEY = "_scout"
 NEEDS_COLUMNS = {BLEED: cfgmod.CORE, NEW_VARIABLE: cfgmod.TESTING_CORE + ("origination_date",)}
 
 
@@ -954,7 +956,8 @@ TAB_GROUPS = [
                                ("Look", "each number column's shape")]),
     ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "paid against cost"),
                         (results.GRIDS, "one grid at a time, and how common"), (results.SPLIT, "each pocket halved"),
-                        (confirm_tab.SHEET, "a saved shortlist, confirmed")]),
+                        (scout.SHEET, "the candidates ranked, on development loans"),
+                        (confirm_tab.SHEET, "the shortlist, confirmed")]),
     ("Record", "STONE", [(record.SHEET, "what ran, the tie-outs, every Run")]),
 ]
 
@@ -1110,7 +1113,10 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
     if chosen is not None:
         split, skip = _cuts_chosen(chosen, choice_cells, columns, row_of_col, cat, problems)
     derived = _read_made(wb, columns, made_rows, problems)
-    held_to = _what_is_run(wb, book, use, columns, cat, problems)    # the pre-spec named on Control, if any
+    held_to = _what_is_run(wb, book, use, columns, cat, problems, tuple(d["name"] for d in derived))
+    scouting = bool(held_to and held_to.get(SCOUT_KEY))       # Goal 2 item 9: find first, then confirm
+    if scouting:
+        held_to = None
     if problems:
         return None, problems, about
     if split:
@@ -1187,6 +1193,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
     about["_suggest"] = {k for k in ("min_loans", "worse_at", "better_at") if use.get(k) in ("calc", "luck")}
     about["_use"] = dict(use)
     about["_prespec"] = held_to
+    about["_scout"] = chosen if scouting else None
     return raw, [], about
 
 
@@ -1227,7 +1234,7 @@ def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, prob
     return split, skip
 
 
-def _what_is_run(wb, book: Path, use: dict, columns: dict, cat, problems: list[str]) -> dict | None:
+def _what_is_run(wb, book: Path, use: dict, columns: dict, cat, problems: list[str], made: tuple = ()) -> dict | None:
     """What are you running? Each answer's own minimum, refused by name: the
     columns it needs (NEEDS_COLUMNS), and for a new variable the follow-up. The
     pre-spec is read only for a test from a pre-spec (fix 3.15), and refused
@@ -1251,11 +1258,25 @@ def _what_is_run(wb, book: Path, use: dict, columns: dict, cat, problems: list[s
                             f'pre-spec. Clear the cell, or change "What are you running?" ({kind_cell}).')
         return None
     if kind == NEW_VARIABLE and step == SCOUT:
-        # say what it does (the firm: "don't note what it does not include just note what it does")
-        problems.append(f'{control.SHEET}!C{control.row_of(ws, STEP)}: PocketBook confirms a saved shortlist of '
-                        f'new variables. Pick the shortlist in the launcher (Choose tests, Or confirm a saved '
-                        f'shortlist), or run {labels[BLEED]}.')
-        return None
+        # Goal 2 item 9: find on the development loans, write the pre-spec, confirm it on the rest (scout.py). The
+        # scouting itself runs once the engine has read the loans (run); here, only what it needs is checked
+        step_cell = f"{control.SHEET}!C{control.row_of(ws, STEP)}"
+        why = scout.missing()
+        if why:
+            problems.append(f"{step_cell}: {why}")
+            return None
+        chosen, cells = control.read_choices(ws)
+        if chosen is not None:
+            for c in list(chosen.test) + list(chosen.hold):
+                if c not in columns:
+                    problems.append(f"{cells.get('test', step_cell)}: {c} isn't a column in this extract. Choose "
+                                    f"again in the launcher.")
+            if not chosen.test and not made:
+                problems.append(f"{cells.get('test', step_cell)}: tick at least one column Test it in the launcher, "
+                                f"for scouting to rank.")
+            if not chosen.outcome:
+                problems.append(f"{cells.get('outcome', step_cell)}: pick the outcome in the launcher.")
+        return {SCOUT_KEY: True}
     if kind == NEW_VARIABLE and step == FROM_PRESPEC and text is None:
         problems.append(f'{cell}: "{labels[FROM_PRESPEC]}" needs the pre-spec file named here.')
         return None
@@ -1653,6 +1674,9 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         return _refused(wb, book, ["Couldn't run:", msg], Outcome(False, book, [f"Couldn't run: {msg}"]))
     except perm.NumpyMissing as exc:
         return _refused(wb, book, ["Couldn't run:", str(exc)], Outcome(False, book, [f"Couldn't run: {exc}"]))
+    waits = _scout(res, about, book)            # Goal 2 item 9: find on the development loans, write the pre-spec
+    if isinstance(waits, Outcome):
+        return _refused(wb, book, waits.lines, waits)
     about["_wb"] = wb
     checks.attach(book, about, res)             # fixes 3.12, 3.15: the pre-spec's state and the edges on Columns
     if testing:
@@ -1673,6 +1697,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                  [b.field for b in res.config.bands])
     summary = _headline(res, wb)
     _log(wb, [_ran_on(res, src) + _ran_words(res)]
+         + scout_tab.log_lines(res)             # Goal 2 item 9: what scouting wrote, before any held-back result
+         + [f"Confirmation waits: {w}" for w in res.scout_waits]
          + confirmatory.log_lines(res)          # fix 3.15: held to a pre-spec, and whether it touched the holdout
          + [f"Warning: {_plain_warning(w)}" for w in res.warnings], redraw=False)
     _record(wb, res, src, f"{book.stem} - what ran.yaml")     # Check and the Log, this Run's entry included
@@ -1686,12 +1712,14 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if what_was_run(res.control_used):
         head += f"# What was run: {what_was_run(res.control_used)}\n"
     head += _dates_head(res)
+    head += "".join(f"# {x}\n" for x in scout_tab.log_lines(res))
     head += confirmatory.what_ran(res)
     if isinstance(raw.get("benchmark"), dict) and cfg.benchmark is not None:
         raw["benchmark"].setdefault("shuffles", cfg.benchmark.shuffles)
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     lines = notes + [_ran_on(res, src) + _ran_words(res)]
     lines += _top_lines(res)
+    lines += scout_tab.launcher_lines(res)
     lines += confirmatory.launcher_lines(res)
     # the same rows the tab shades blue (its flag), and pockets counted once (the seventh walk, defect 7:
     # "58 pockets" was 58 rows from 23 pockets)
@@ -1725,8 +1753,42 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     tested = getattr(getattr(res, "prespec", None), "tests", None) or []
     lines.append(f"Open {book.name}: start with "
                  + (f"{confirm_tab.SHEET}." if tested and all(x.problem is None for x in tested)
-                    else "Pockets." if bleed_tabs(res) else f"{record.SHEET}."))
+                    else "Pockets." if bleed_tabs(res) else f"{scout.SHEET}." if res.scout is not None
+                    else f"{record.SHEET}."))
+    if res.scout_waits:
+        # found and written, not yet confirmed: the pre-spec asks for an answer first (OC-13)
+        lines += ["The held-back loans weren't tested yet. The pre-spec scouting wrote waits for:"] + \
+            [f"  - {w}" for w in res.scout_waits]
+        return Outcome(False, book, lines, problems=list(res.scout_waits), summary=summary)
     return Outcome(True, book, lines, summary=summary)
+
+
+def _scout(res, about: dict, book: Path):
+    """Goal 2 item 9, the find half of "Find on 70%, confirm on the rest": scout the development loans
+    (scout.run), write the pre-spec beside the workbook (scout.write, before any held-back loan is tested), and hand
+    it to the confirmation as a saved one would be (confirmatory.state reads about["_prespec"]). Returns what the
+    confirmation waits for, in words (a pre-spec still to answer, such as its strata), [] when nothing; or a refused
+    Outcome when scikit-learn is missing."""
+    res.scout, res.scout_waits = None, []
+    chosen = about.get("_scout")
+    if chosen is None:
+        return []
+    try:
+        sc = scout.run(res, chosen)
+    except scout.ScoutMissing as exc:
+        return Outcome(False, book, ["Couldn't run:", str(exc)], problems=[str(exc)])
+    res.scout = sc
+    if sc.problem:
+        return []
+    path = scout.write(sc, book)
+    if path is None:
+        return []
+    try:
+        about["_prespec"] = {"spec": prespec.load(path), "path": path, "cell": path.name, "scouted": True}
+    except prespec.PreSpecError as exc:
+        res.scout_waits = [f"{path.name}: {confirmatory._plain(x.removeprefix(f'{path}: '))}. Then press Run again."
+                           for x in exc.problems]
+    return res.scout_waits
 
 
 def _forget(wb, memory_path) -> list[str]:
@@ -1915,6 +1977,7 @@ def _write_results(wb, book: Path, res, memory_path, src: Path, forgotten: set[s
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     if bleed_tabs(res):
         _write_bleed(wb, res, stamp)
+    scout_tab.write(wb, res, stamp)             # Goal 2 item 9: only when this Run scouted (Scouting)
     confirm_tab.write(wb, res, stamp)           # 4b and 4e: only when testing from a pre-spec (New variables)
     live.ensure(wb, res)                        # the names Control's materiality panel reads, with no tab of its own
     _write_rest(wb, book, res, memory_path, src, forgotten, ncols, stamp)

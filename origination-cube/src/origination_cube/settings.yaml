@@ -71,8 +71,8 @@ groups:
           - value: scout
             label: "Scout first"
             explains: >-
-              Look for a new variable worth testing among many columns. PocketBook confirms a
-              saved shortlist, so pick one in the launcher to run.
+              Rank each column ticked Test it on the development loans, write the pre-spec from
+              the ones worth testing, then confirm it on the loans held back. Needs scikit-learn.
           - value: prespec
             label: "Test from a pre-spec"
             explains: >-

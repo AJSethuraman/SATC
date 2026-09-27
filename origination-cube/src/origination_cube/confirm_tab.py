@@ -148,7 +148,8 @@ def _method(res, st, tests, excesses, stamp: str) -> list[tuple[str, object]]:
         out = [("The column", f"{t.column}, in {K} groups: {'; '.join(t.groups)}. The groups are the pre-spec's."),
                ("Compared with", f"{ref}, the pre-spec's reference group. Every other group is compared with it.")]
     else:
-        out = [("The candidates", f"{len(tests)} inputs on the saved shortlist, each in its own groups, the "
+        where = "the shortlist scouting wrote" if getattr(st, "scouted", False) else "the saved shortlist"
+        out = [("The candidates", f"{len(tests)} inputs on {where}, each in its own groups, the "
                                   f"pre-spec's: " + "; ".join(f"{x.column} in {len(x.groups)} groups "
                                                              f"({', '.join(x.groups)})" for x in tests) + "."),
                ("Compared with", "Each candidate's own reference group, the pre-spec's: "
@@ -231,7 +232,12 @@ def _method(res, st, tests, excesses, stamp: str) -> list[tuple[str, object]]:
                                        + (f" As a check, each odds ratio held fixed was worked out a second way, pair "
                                           f"by pair with Mantel-Haenszel: the largest gap between the two is "
                                           f"{max(gaps):.1%}." if gaps else ""))))
-    if st is not None:
+    if st is not None and st.scouted:
+        out.append(("Written by scouting", f"This Run found the candidates on its development loans (the Scouting "
+                                           f"tab), wrote the pre-spec {st.name} from them, and then confirmed it on "
+                                           f"the loans held back. Found is those development loans, where the "
+                                           f"groups were chosen. Record names the file."))
+    elif st is not None:
         out.append(("Written shortlist", f"This run confirms the saved shortlist {st.name}, the pre-spec. Its Found "
                                          f"columns are hidden (unhide columns D and E to see them) and Record names "
                                          f"the file. The tests in full show both sets of loans."))
@@ -296,7 +302,8 @@ def write(wb, res, stamp: str = "") -> None:
     # ---------------------------------------------------------------- what was tested: the tiles
     outcome = next((m.flag for m in res.measures if m.name == "outcome_loans"), "the outcome")
     _cell(ws, r, FIRST, "WHAT WAS TESTED", bold=True, color=SLATE, h="left", size=8)
-    _cell(ws, r + 1, FIRST, "from the saved shortlist", color=SLATE, h="left", size=8)
+    _cell(ws, r + 1, FIRST, "from the shortlist scouting wrote" if getattr(st, "scouted", False) else
+          "from the saved shortlist", color=SLATE, h="left", size=8)
     tile_row = r
     r += 3
     n = f'COUNTIF(Status,"{house.WAITING}")'
@@ -343,7 +350,8 @@ def write(wb, res, stamp: str = "") -> None:
     ws.conditional_formatting.add(rng(N_MAT), FormulaRule(
         formula=[f'{_c(N_MAT)}{first_row}="{YES}"'], font=Font(bold=True),
         fill=PatternFill("solid", fgColor=house.MIST, bgColor=house.MIST)))
-    found_hidden = st is not None                              # a saved shortlist: found on another run (the spec)
+    # a saved shortlist: found on another run (the spec); one scouting wrote was found on this Run's own loans
+    found_hidden = st is not None and not st.scouted
     if found_hidden:
         for c in (N_FG, N_FP):
             ws.column_dimensions[_c(c)].hidden = True

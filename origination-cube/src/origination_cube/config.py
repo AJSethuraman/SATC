@@ -431,8 +431,14 @@ def parse(raw: Any, source_path: str = "") -> Config:
     key = cols["key"]
 
     missing = _parse_missing(raw.get("missing") or {}, problems)
-    bands = _parse_bands(raw.get("bands"), problems) if "bands" in raw else ()
-    dims = _parse_dims(raw.get("dimensions"), problems) if "dimensions" in raw else ()
+    # a test of a new variable builds no grid (OC-42): its bands and segments are only the columns held fixed, and
+    # with none chosen to Hold fixed there are none (found 27 Sep 2026, Goal 2 item 9: such a run was refused as
+    # "Nothing is left to cut", which is the bleed's minimum, not its own)
+    nothing_held = run_kind == "new_variable"
+    bands = (_parse_bands(raw.get("bands"), problems)
+             if "bands" in raw and not (nothing_held and raw.get("bands") == []) else ())
+    dims = (_parse_dims(raw.get("dimensions"), problems)
+            if "dimensions" in raw and not (nothing_held and raw.get("dimensions") == []) else ())
     extras = _parse_measures(raw.get("measures"), problems) if raw.get("measures") else ()
     for m in extras:
         if m.name in CORE_NAMES:

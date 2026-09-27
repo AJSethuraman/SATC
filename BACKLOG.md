@@ -1821,8 +1821,9 @@ back.
       one: *"one column makes no sense - it can't be used in a tree"*), each with its cut points
       and reference; optionally the columns to hold fixed. Each input is reported on its own and
       with them held fixed, which folds in 4d.
-- [ ] **Then: scouting (4a).** Wide, on development loans: rank every candidate column and
+- [x] **Then: scouting (4a).** Wide, on development loans: rank every candidate column and
       suggest bins. It feeds the confirmation, which is narrow: a shortlist, on the holdout.
+      *(Done 27 Sep 2026: Goal 2 item 9, below; `origination-cube/docs/design.md` OC-50.)*
 - [ ] **Next (proposed on the 26 Sep docket; silence approves it):** build 4e, then 4b
       (`origination-cube/docs/capabilities-scope.md`). It ends when the planted income ÷
       sales cliffs are found on development loans and confirmed on the holdout from a

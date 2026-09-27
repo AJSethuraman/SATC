@@ -29,7 +29,8 @@ random-forest scouting and the holdout example in B5 and B7. The firm supplied b
 the same evening, and both are committed unchanged beside it. They need numpy,
 scipy and scikit-learn. The cube itself needs numpy since OC-34 (26 Sep), and uses
 neither scipy nor scikit-learn. *(Until the final check, this said the cube uses
-none of the three.)*
+none of the three.)* *(27 Sep 2026, item 9: scouting uses scikit-learn, and scipy, which it brings, as an
+optional add-on; nothing else does.)*
 
 **How the work is done:** subagents, one per fix, in parallel where they touch
 different files.
@@ -273,9 +274,21 @@ stop the work: anything a client or the bank reads that changes meaning, and any
       fails, never skips (S2). This is a stand-in for Excel, not Excel: the workbook stays unproven in
       real Excel until the firm opens it there (design.md, Open (a)).
       *(Replaced by the redesign's rule, 26 Sep 2026: verdicts, dollars and colours live; row order as of the last Run. No SORT or FILTER.)*
-- [ ] **9. Scouting (4a).** A random forest on the development loans only; scikit-learn an optional
+- [x] **9. Scouting (4a).** A random forest on the development loans only; scikit-learn an optional
       add-on that CI installs, so the scouting path and its refusal without the add-on both run (S14);
       wide candidates; with and without the held-fixed columns; correlated pairs flagged.
+      *(Done 27 Sep 2026, `docs/design.md` OC-50, `tests/test_scout.py`. "Find on 70%, confirm on the rest" is one
+      Run in two steps: scouting ranks every column ticked Test it and every new column on the first 70% of the
+      loans by origination date (the held-back loans' dates only are read; a test turns every held-back outcome
+      over and gets the same shortlist and file), with and without the Hold fixed columns in the forest, against
+      a noise floor from shuffled outcomes; suggests bins and a reference from the forest's shape and its own
+      splits; flags pairs moving together (rank correlation 0.7 or more); writes the pre-spec beside the workbook
+      (strata the Hold fixed columns, or `[CONFIRM: ...]` with none) and logs it before any held-back result; then
+      the confirmation reads it as a saved shortlist. A new **Scouting** tab. On the first book with filler, the
+      planted income / sales and UTIL rank first and are proposed, TENURE and the filler aren't, and the bins land
+      on the planted cliffs (0.1 and 2 for income / sales, 0.9 for UTIL). scikit-learn is the `scout` extra, CI
+      installs it, and a test simulates it missing: finding is refused in words, a saved shortlist still confirms.
+      Kept, changed and dropped from `scout-vs-measure.py`: the table in OC-50.)*
 - [x] **10. Screens: held for the redesign.** The test picker (outcome, shortlist, hold-fixed, the
       tests to run, in one easy place) and any layout change wait for the firm's Claude Design pass
       over the screens published 26 Sep 2026 (https://claude.ai/artifact/8duWJxayMTBtMe1GCPrvAX), so

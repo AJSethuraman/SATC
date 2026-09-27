@@ -57,7 +57,8 @@ def rows(res) -> list[tuple[str, str]]:
     their band, the products. A test of a new variable builds no pocket grid (OC-42), so it has the pre-spec's
     lines alone."""
     if not getattr(res, "bleed", True):
-        return confirmatory.check_rows(res)
+        from . import scout_tab
+        return scout_tab.check_rows(res) + confirmatory.check_rows(res)     # Goal 2 item 9: scouting first
     return (confirmatory.check_rows(res) + budget_rows(res) + family_rows(res) + alone_rows(res)
             + product_rows(res))
 

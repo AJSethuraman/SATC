@@ -95,6 +95,9 @@ class State:
     fingerprint: str = ""                    # the first 12 characters of the file's SHA-256, as read
     #: this pre-spec's earlier runs in this workbook's Log, oldest first: (when, fingerprint, touched the holdout)
     earlier: list = field(default_factory=list)
+    #: written by this Run's scouting (Goal 2 item 9), or beside the workbook where scouting writes it: found on this
+    #: Run's development loans, so the New variables tab shows its Found columns
+    scouted: bool = False
 
     @property
     def name(self) -> str:
@@ -168,7 +171,7 @@ def state(book, about: dict, res) -> State | None:
         return None
     ps = got["spec"]
     st = State(spec=ps, path=Path(got["path"]), cell=got["cell"], provenance=prespec.provenance(got["path"]),
-               fingerprint=fingerprint(ps.text))
+               fingerprint=fingerprint(ps.text), scouted=bool(got.get("scouted")))
     try:
         ps = st.spec = prespec.named(ps, ranges={c: column_range(res, c) for c in ps.columns})
         st.tests = run_tests(res, ps)
@@ -870,7 +873,12 @@ def headline(res) -> dict:
     out = {"kind": "confirm", "tie_outs": 0}
     bad = next((t for t in tests if t.problem), None)
     if st is None or not tests or bad is not None:
+        sc = getattr(res, "scout", None)
+        waits = getattr(res, "scout_waits", None)
         why = (bad.problem if bad is not None else None) or (st.failed if st is not None else None) or \
+            (f"the pre-spec scouting wrote waits for an answer: {waits[0]}" if waits else None) or \
+            (f"scouting couldn't be run: {sc.problem}" if sc is not None and sc.problem else None) or \
+            ("scouting proposed no candidate, so there was nothing to confirm" if sc is not None else None) or \
             "no pre-spec was read"
         return {**out, "problem": _plain(why)}
     b = res.config.benchmark
