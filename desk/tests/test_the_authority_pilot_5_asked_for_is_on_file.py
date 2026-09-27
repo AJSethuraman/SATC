@@ -407,3 +407,33 @@ def test_a_served_answer_on_the_exception_carries_the_exception_to_it():
         because="provided on an oil or gas platform or drilling rig"))
     assert isinstance(out, engine.Served), out
     assert f"{N2C}:" in out.passage
+
+
+# ── (o) names two exceptions, and a clause carries its lead-in ──────────────
+
+def test_the_denial_is_read_with_both_exceptions_it_names():
+    """Codex on #403: (o) excepts "(e)(8) or (n)(2)(C)", and only the second
+    was read with it, though (e)(8) was on file the whole time."""
+    got = ask.read("26 USC 274(o)")
+    assert "### 26 USC 274(e)(8)" in got
+    assert "### 26 USC 274(n)(2)(C)" in got
+
+
+@pytest.mark.parametrize("cited, lead_in", [
+    ("26 USC 274(o)(1)", "no deduction shall be allowed under this chapter for-"),
+    ("26 USC 274(n)(2)(C)", "Paragraph (1) shall not apply to any expense if-"),
+    ("26 USC 274(e)(8)", "Subsection (a) shall not apply to-"),
+])
+def test_a_clause_is_served_with_the_words_that_give_it_effect(cited, lead_in):
+    """Codex on #403: cited alone, (o)(1) is "any expense for the operation of a
+    facility" -- the denial is in (o)'s lead-in, not in it. The same holds for
+    (n)(2)(C), whose parent also carries the luxury-vessel carve-out, and for
+    every exception in (e). Each § 274 subsection stored here is read with
+    itself, so every clause under it carries the parent's words."""
+    assert lead_in in ask.read(cited)
+    out = ask.answer("Is it deductible?", position="It is not deductible.",
+                     citation=cited, keep=False,
+                     judged=judging.Judgment(by="second-reader", supports=True,
+                                             because=lead_in))
+    assert isinstance(out, engine.Served), out
+    assert lead_in in out.passage

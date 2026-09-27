@@ -489,7 +489,9 @@ NARROWED = {
 # paragraphs names it, and the (o) clauses name the date (Codex, #403).
 # +564 / +564 for § 274(n)(2) and (n)(2)(C), and for the read-with lines that
 # now follow (o) on to them from (e)(1) as well.
-WHOLE = (145_710, 266_290)
+# +407 / +407 for the read-with notes when (o), (e) and (n)(2) are read with
+# themselves -- each clause names its parent -- and (o) with (e)(8).
+WHOLE = (146_117, 266_697)
 
 
 def _answering_sizes():
