@@ -2215,6 +2215,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-27 -- **PocketBook: Test 4 settled.** Asked on the docket whether the firm's Test 4 (3% uplift) should keep answer C's label *Losing more, profit holding* or stay blank; the firm picked **keep the label** (recommended). No code change: `tests/test_profit.py` already expects it. Nothing is left open with the firm; the next goal waits on the bank-machine trip.
 - 2026-09-27 -- **PocketBook: the firm's answers to the walk's design calls, built** (A to K, and tenet T2's sweep). 12 tests, 20 planted bugs caught; the procedure's changed pictures taken again and its PDF rebuilt. §6d has each answer.
 - 2026-09-27 -- **PocketBook bank-machine checklist** (`pocketbook/docs/BANK-MACHINE-CHECKLIST.pdf`, and `tools/bank_kit.py` to make what to carry). Goal 3 item 3; §6d has what was verified and what is marked "check this".
 - 2026-09-27 -- **Origination Cube renamed PocketBook** (`origination-cube/` → `pocketbook/`; package, command, launcher file, memory folder and variable). Everything a machine kept under the old names is still read. §6d has the list of what was left as written.
