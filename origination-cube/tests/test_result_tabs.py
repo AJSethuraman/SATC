@@ -203,6 +203,29 @@ def test_the_dropdowns_pick_the_rows_and_the_caption_counts_them(ran, tmp_path, 
         assert all(x["half"] in ("high", "low", "none") for x in rows) and all(x["holds"] for x in rows)
 
 
+def test_worse_and_material_leaves_out_a_worse_pocket_below_the_line(ran, tmp_path):
+    """Worse? and Material? are judged apart: with the materiality line between the worse pockets' dollars, Show
+    "Worse and material" keeps the worse pockets over the line and leaves out the ones under it."""
+    res0 = ran["res"]
+    worse = sorted(c.rates["gco_rate"].dollars for g in res0.three_way for _, c in g.inner()
+                   if c.rates["gco_rate"].flag == engine.WORSE)
+    assert len(worse) >= 2                                   # the split pockets: several worse on charge-offs
+    line = (worse[0] + worse[-1]) / 2
+    b = _set(ran["book"], tmp_path / "line.xlsx", {"materiality": (None, line)})
+    b = tabs.choose(b, tmp_path / "picked.xlsx", results.POCKETS, measure="Charge-offs", show="Worse and material",
+                    pockets="Split by REV_DEBT")
+    v = recalc(b, tmp_path / "rc")
+    cfg = ran["cfg"]
+    res = engine.run(dataclasses.replace(cfg, benchmark=dataclasses.replace(cfg.benchmark,
+                                                                            materiality=("dollars", line))),
+                     ran["table"])
+    got = _verdicts(res)
+    want = [x for x in _order(res0, "three-way", "gco_rate") if got[x][:2] == (live.YES, live.YES)]
+    left_out = [x for x in _order(res0, "three-way", "gco_rate") if got[x][:2] == (live.YES, live.NO)]
+    assert want and left_out
+    assert _shown(v) == want
+
+
 def test_the_rows_verdicts_caption_and_colours_follow_control_without_a_run(ran, tmp_path):
     """Worse at 2 times and judged against the rest of the book, changed on Control: the rows shown, their
     verdicts and the caption are the engine's run again with those lines, in the last Run's order."""
@@ -307,6 +330,26 @@ def test_paid_cost_kept_shows_one_grid_at_a_time_in_its_column_groups(ran, tmp_p
         assert x["cost_d"] == pytest.approx(s["gco_rate"].dollars)
 
 
+def test_the_together_formula_reads_all_five_pairs_and_nothing_untested(tmp_path):
+    """Together as the tab writes it, calculated, against results.together_of for every pair of flags."""
+    from openpyxl import Workbook
+    from recalc import values_of
+    flags = [engine.WORSE, engine.BETTER, engine.IN_LINE, engine.UNSURE_WORSE, engine.UNSURE_BETTER, engine.FEW]
+    wb = Workbook()
+    ws = wb.active
+    cases = [(g, r, u) for g in flags for r in flags for u in (0, 1)]
+    for i, (g, r, u) in enumerate(cases, start=1):
+        ws.cell(row=i, column=1, value=g)
+        ws.cell(row=i, column=2, value=r)
+        ws.cell(row=i, column=3, value=u)
+        ws.cell(row=i, column=4, value="=" + results.together_formula(f"$A{i}", f"$B{i}", f"$C{i}"))
+    got = values_of(wb, tmp_path).active
+    for i, (g, r, u) in enumerate(cases, start=1):
+        want = "" if u else results.together_of(g, r)
+        assert (got.cell(row=i, column=4).value or "") == want, (g, r, u)
+    assert {results.together_of(g, r) for g in flags for r in flags} - {""} == set(results.TOGETHER.values())
+
+
 def test_the_scatter_is_the_grid_picked_on_a_log_scale_with_lines_at_one_and_zero(ran):
     wb = load_workbook(ran["book"])
     (chart,) = wb[results.PCK]._charts
@@ -351,6 +394,11 @@ def test_grids_fill_the_four_blocks_for_the_grid_and_measure_picked(ran, tmp_pat
         assert band[(bl, d)] == (None if s.reading_band in few or s.vs_band is None else pytest.approx(s.vs_band))
         assert loans[(bl, d)] == c.rows
     assert loans[("All", "All")] == res.rows
+    # a pocket with no loans is blank, not nought (the first grid, as the tab opens)
+    g0 = res.grids[0]
+    rate0 = tabs.block(ran["values"][results.GRIDS], "Rate · Bad loans")
+    empty = [(bl, d) for bl in g0.band_labels for d in g0.dim_labels if (bl, d) not in g0.cells]
+    assert empty and all(rate0[k] is None for k in empty)
     assert all(v_ is None for (bl, d), v_ in band.items() if "All" in (bl, d))
 
 

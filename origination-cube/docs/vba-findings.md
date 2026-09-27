@@ -50,4 +50,7 @@ and proves that it does.
     the cell's share of the losses divided by its share of the volume.
   - **excess**: the cell's losses minus what it would have lost at the topline
     rate. Excess adds to zero across a grid, which the tie-out checks.
+    *(Since OC-44, 26 Sep 2026, this is the tie-out only. A pocket judged against
+    the book is read by its dollars over the rest of the book, the same rest its
+    gap is taken against.)*
   - **vs median**: the workbook's option 2 (D61), kept as a second view.

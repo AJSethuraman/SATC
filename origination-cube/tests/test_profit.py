@@ -453,7 +453,8 @@ def test_the_words_are_p_value_and_not_significant(walk_book):
                     if isinstance(c.value, str))
     low = text.lower().replace("earns less, not from losses", "")
     for gone in ("luck alone", "could be luck", "wobble", "earning", "earns"):
-        assert gone not in low, gone
+        found = gone in low             # a bool: pytest would otherwise diff the whole workbook's text
+        assert not found, gone
     assert "p-value" in text and "not significant" in text
     ws = walk_book[results.POCKETS]
     assert ws.cell(row=tabs.header_row(ws, results.K_NUM, "#"), column=results.K_P).value == "p-value"

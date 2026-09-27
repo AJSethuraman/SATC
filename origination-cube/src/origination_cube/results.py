@@ -1362,9 +1362,9 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
 
 
 def write(wb, res, stamp: str) -> None:
-    """Every result tab this run has, and the hidden sheets they read. An older workbook's tabs these replace are
-    taken off first."""
-    for t in TABS + OLD_TABS + HIDDEN + (CHART,):
+    """Every result tab this run has, and the hidden sheets they read, each written afresh. The tabs these replace
+    in an older workbook are taken off by book._write_results, with every other result tab."""
+    for t in TABS + HIDDEN + (CHART,):                  # book._write_results takes off the ones replaced
         if t in wb.sheetnames:
             del wb[t]
     for name in [n for n in wb.defined_names if n.startswith("pk_sel_")]:
