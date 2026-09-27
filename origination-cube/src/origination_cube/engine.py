@@ -147,6 +147,10 @@ def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | N
                 dec = max(dec, len(t.split(".")[1]))
     for d in range(dec, 7):
         step = 10.0 ** -d
+        if dec and lo is not None and lo < edges[0] and edges[0] - step < lo and d < 6:
+            # the lowest band would end below its own smallest value: 0.03 to 0.099 read "0.0 - 0.0" at edges of
+            # one decimal (found 27 Sep 2026, on the bins scouting suggested for income / sales, [0.1, 2])
+            continue
 
         def f(x, d=d):
             return f"{x:,.{d}f}"
@@ -720,7 +724,8 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
                             f"book by its own outcome")
         else:
             warnings.append(f"`{x.field}` is not cut by: `columns:` says it means {marked[x.field]}")
-    if not keep_b or not keep_d:
+    # a test of a new variable cuts only the columns held fixed, a number, a category, both or neither (OC-42)
+    if (not keep_b or not keep_d) and config.run_kind != "new_variable":
         which = "band" if not keep_b else "dimension"
         raise NothingToCut(f"no {which} is left to cut by: every one listed is either the top of a rate or a "
                            f"column `columns:` says is not cut by ({', '.join(sorted(drop))}). Add a {which}, "

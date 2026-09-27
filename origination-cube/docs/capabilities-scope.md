@@ -22,6 +22,11 @@ of the workbook.
 
 ## 4a. Scouting: a random forest on development vintages only
 
+*Built 27 Sep 2026 (Goal 2 item 9): `docs/design.md` OC-50 has what was built, and what of
+`scout-vs-measure.py` was kept, changed or dropped, which moved from the plan below in places (200 trees
+cross-fitted in 3 runs by date; the bins found from the curve's steps and the forest's own splits; a noise
+floor from shuffled outcomes).*
+
 **What it answers:** which columns, derived ratios included, the book leans on, and
 where each one bends. It nominates; it never confirms (B7).
 

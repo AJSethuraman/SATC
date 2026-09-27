@@ -18,6 +18,9 @@ cube = "origination_cube.cli:main"
 
 [project.optional-dependencies]
 test = ["pytest>=7.4"]
+# finding new variables (scouting, Goal 2 item 9): the random forest. Optional; the launcher offers it, and CI
+# installs it so the scouting path is checked (canon S14)
+scout = ["scikit-learn>=1.4"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

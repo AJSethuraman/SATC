@@ -19,8 +19,9 @@ prove) and the firm's rulings.
   whole workbook: Set up, Control, Columns and every results tab below. Also the
   confirmatory test of a new column from a committed pre-spec, on development
   loans and on the holdout (capabilities 4b and 4e in
-  `docs/capabilities-scope.md`).
-- **Not built:** drill-down, `cube prove`, and scouting (4a).
+  `docs/capabilities-scope.md`), and scouting (4a, 27 Sep 2026): find on the development loans, write the
+  pre-spec, confirm it on the rest, in one Run.
+- **Not built:** drill-down and `cube prove`.
 - **Not yet met:** a real extract.
 
 The log is `../BACKLOG.md` §6d.
@@ -236,7 +237,7 @@ under *Or confirm a saved shortlist*: *Test it* ticks every input on the list, *
 and the outcome its outcome; Control shows the file under *Chosen in the launcher*. A file that isn't
 there or can't be read stops the Run, naming the cell, and so does a pre-spec
 with an input that isn't on Columns, or a pre-spec named for Where the book bleeds.
-Without a saved shortlist, the Run stops and asks for one. Otherwise Record echoes what it says,
+Without a saved shortlist, the Run scouts first (below). Either way Record echoes what the pre-spec says,
 the commit it was read from (or that it isn't committed, or was edited since) and its fingerprint (the
 first 12 characters of its SHA-256), and lists, one line each, where the run differs from it; Every Run
 marks such a run *Deviates from pre-spec*. Every run whose extract holds loans made in the pre-spec's
@@ -310,6 +311,34 @@ and confirmed on the holdout (3.04x and 2.80x). The same loans with no cliff are
 though the worst dealer's loans crowd the lowest group and the book as a whole reads a difference
 there: the pockets hold it fixed.
 
+**Scouting: find on 70%, confirm on the rest, in one Run** (design decision OC-50). In the launcher,
+choose *Test new variables*, tick *Test it* on as many columns as you like (dozens is fine), tick *Hold
+fixed* on the columns to hold fixed, and pick *Find on* (70% by default). With no saved shortlist, the
+Run does two steps, in order:
+1. **Find**, on the development loans only: the first 70% of the loans by origination date. A random
+   forest (scikit-learn) ranks every ticked column and every new column made on Columns by how much it
+   leans on it (permutation importance), once with the candidates alone and once with the Hold fixed
+   columns in it too, against a noise floor from the same forests grown with the outcomes shuffled. It
+   suggests bins where each column's shape bends, and a reference group (the one holding the median),
+   and flags pairs that move together (rank correlation 0.7 or more). The **Scouting** tab shows it all,
+   ranked. The held-back loans' outcomes and values are never read here.
+2. **Write the pre-spec** from the candidates it proposes, `loans - pre-spec.yaml` beside the workbook,
+   and log it on Record (fingerprint and date) before any held-back loan is tested. The columns held
+   fixed are the ones you ticked; with none ticked the file asks (`[CONFIRM: ...]`) and the Run stops
+   there. A file already there is confirmed as it stands, never written over: edit it if you like, and
+   Record labels an edit made after a held-back run.
+3. **Confirm** it on the held-back loans: exactly the saved-shortlist confirmation above, on New
+   variables, with its Found columns showing.
+
+scikit-learn is an optional add-on: without it the launcher offers *Install scikit-learn* where finding
+needs it, a Run that would find says so in words, and confirming a saved shortlist works as before
+(`pip install -e ".[scout]"`). On the first book (20,000 loans) with filler added, the planted income ÷
+sales and UTIL rank first and are proposed, TENURE and the filler aren't, and the bins land on the
+plants: 0.9 for UTIL, 0.099 and 2 for income ÷ sales. Confirmed on the 5,993 held-back loans, UTIL above
+0.9 reads 2.08x (2.08x with FICO and CHANNEL held fixed), income ÷ sales from 2.00 reads 3.07x (2.86x),
+and below 0.099 1.68x, which doesn't hold up after the allowance. At 17,000 loans × 80 columns with 40
+candidates the Run takes 64 s, 59 s of it scouting, under a 4 GB limit (0.56 GB at its peak).
+
 ![Paid, cost, kept: paid, cost and kept for the grid picked, and its chart](docs/paid-cost-kept.png)
 
 If something needs fixing, the window and Record's Every Run say what and where, in
@@ -365,8 +394,8 @@ test).
 ## Checking it
 
 ```
-pytest -q                          # 701 tests (2 skip without a display; the 22 in test_live.py, 22 in test_result_tabs.py, 6 in test_answer_tabs.py, 6 in test_confirm_test.py, 5 in test_shortlist.py, 2 in test_record.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the tabs you fill in (Start here, Control in three blocks with Status and the materiality panel, Columns with odd values and memory, Look with live bars, range and edge lines, one load and one save per Run), the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one, and a test of a new variable building no grid and writing none of the bleed's tabs; New variables (each group found, confirmed and confirmed with the held-fixed columns, the test with nothing held fixed counted by hand, Holds up? and Still holds? and Material? live, excess counted by hand, the Found columns hidden for a saved shortlist, the chart's worse line), Record (six sections in three pairs, every Check line in its section, Settings shaded on a change, a refusal on Every Run at once, an older Log carried over), the pre-spec recorded not blocked (its fingerprint, each held-back run in order, a change labelled), and a new variable asked only what it uses, its worse line suggested from its own groups, its Set up building no grid; and the lean pre-spec: a shortlist of inputs read line by line, the one-column form still read and confirmed figure for figure, three inputs on the first book (two planted hold up, one with nothing planted does not), Benjamini-Hochberg across every candidate's groups worked out by hand, a verdict the allowance turns, a block and a chart per candidate, and the launcher filling its boxes from the file
-python tools/mutation_check.py     # puts 327 bugs back (the VBA's and today's rules); every one must be caught
+pytest -q                          # 719 tests (2 skip without a display; the 22 in test_live.py, 22 in test_result_tabs.py, 6 in test_answer_tabs.py, 6 in test_confirm_test.py, 5 in test_shortlist.py, 2 in test_record.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the tabs you fill in (Start here, Control in three blocks with Status and the materiality panel, Columns with odd values and memory, Look with live bars, range and edge lines, one load and one save per Run), the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one, and a test of a new variable building no grid and writing none of the bleed's tabs; New variables (each group found, confirmed and confirmed with the held-fixed columns, the test with nothing held fixed counted by hand, Holds up? and Still holds? and Material? live, excess counted by hand, the Found columns hidden for a saved shortlist, the chart's worse line), Record (six sections in three pairs, every Check line in its section, Settings shaded on a change, a refusal on Every Run at once, an older Log carried over), the pre-spec recorded not blocked (its fingerprint, each held-back run in order, a change labelled), and a new variable asked only what it uses, its worse line suggested from its own groups, its Set up building no grid; and the lean pre-spec: a shortlist of inputs read line by line, the one-column form still read and confirmed figure for figure, three inputs on the first book (two planted hold up, one with nothing planted does not), Benjamini-Hochberg across every candidate's groups worked out by hand, a verdict the allowance turns, a block and a chart per candidate, and the launcher filling its boxes from the file; and scouting: the planted inputs ranked first and proposed and nothing else, with and without the held-fixed columns, a correlated pair counted by hand, the bins on the planted cliffs and the reference holding the median, the development loans the first 70% by date counted by hand, the held-back loans proved unread (every one turned over, the same shortlist and file), the pre-spec written and logged before any held-back result and confirmed figure for figure against a hand-written one, the same file from the same extract, an edit after a held-back run kept and labelled, the strata waiting for an answer when nothing is held fixed, and scikit-learn simulated missing (finding refused in words, a saved shortlist still confirmed, the launcher offering it)
+python tools/mutation_check.py     # puts 367 bugs back (the VBA's and today's rules); every one must be caught
 ```
 
 **Speed** (this container, 25 Sep 2026, pure Python):

@@ -463,10 +463,13 @@ def _range(v: Any, key: str, problems: list[str]) -> DateRange | None:
     return DateRange(start, end)
 
 
-def _group_index(v: Any, bins: tuple[float, ...]) -> int | None:
+def _group_index(v: Any, bins: tuple[float, ...], lo: float | None = None, hi: float | None = None) -> int | None:
     """Which group a reference names: its number (0 the lowest), its name as the
     grids print it without the data's range, or, for the lowest and highest
-    groups, as they print it with the range ("0.01 - 0.09", "2.00 - 7.40")."""
+    groups, as they print it with the range ("0.01 - 0.09", "2.00 - 7.40"). With
+    the data's range (`lo`, `hi`), also its name as a run's tabs print it, which
+    may carry more decimals: bins [0.1, 2] over values from 0.03 are named
+    "0.03 - 0.09", "0.10 - 1.99" (engine.band_labels)."""
     labels = band_labels(tuple(bins))
     if isinstance(v, bool):
         return None
@@ -477,6 +480,10 @@ def _group_index(v: Any, bins: tuple[float, ...]) -> int | None:
     t = " ".join(v.split())
     if t in labels:
         return labels.index(t)
+    if lo is not None or hi is not None:
+        named = band_labels(tuple(bins), lo, hi)
+        if t in named:
+            return named.index(t)
     low_top = " - " + labels[0].removeprefix("up to ")
     high_bottom = labels[-1].removesuffix(" and up") + " - "
     if t.endswith(low_top) and (lo := _number(t[: -len(low_top)])) is not None and lo < bins[0]:
@@ -693,7 +700,7 @@ def _input_deviations(inp: Input, got: dict, where: str, lead: str) -> list[str]
                 seen = _bins_text(in_bins)
         else:
             bins = in_bins if in_bins is not None else inp.bins
-            idx = _group_index(v, bins)
+            idx = _group_index(v, bins, inp.lo, inp.hi)
             names = band_labels(bins, inp.lo, inp.hi)
             if idx is None:
                 seen = f"`{v}`, which is not one of its bins' groups"

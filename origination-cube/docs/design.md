@@ -779,6 +779,91 @@ enough.
   - **Phase 4's loose ends:** on a new-variable run Control's method note says only worse at is worked
     out, and says Material? is on New variables; the levels panel (it counts pockets, and that run builds
     none) is hidden, and shown again for the bleed.
+- **OC-50: scouting finds on the development loans, writes the pre-spec, and the confirmation reads it, in one
+  Run** (Goal 2 item 9; capability 4a; statistics.md B7; the firm, 26-27 Sep 2026: scouting is *"to try and
+  guess importance ... it should be wider"*, *"dates are for the scouting pipeline"* (OC-39), and *"test a set
+  once with and once without"*). `scout.py` does the work, `scout_tab.py` writes the Scouting tab and its lines on
+  Record and the Log.
+  - **The loans.** Ordered by origination date, the first `find_share` of them (the launcher's *Find on 70%*)
+    are the development loans; the loans made after the last development date are held back. Scouting reads
+    the held-back loans' dates only, to draw the line and to name the holdout's range; `development_rows`
+    picks the development loans from the dates alone and nothing after it sees the others. A test turns every
+    held-back outcome over and scrambles every other value of theirs, and gets the same shortlist number for
+    number and the same file.
+  - **Candidates:** the columns ticked Test it, plus every new column made on Columns (one divided by
+    another), never an outcome or a held-fixed column. Wide is fine. A category is given one number per value,
+    in the order of its values, and is ranked but never proposed (the pre-spec cuts a number at its bins).
+  - **The forest and the ranking.** scikit-learn's random forest, 200 trees, leaves of at least 40 loans, seed
+    7; permutation importance as the drop in AUC when a column is shuffled, on loans the forest did not train
+    on, cross-fitted: the development loans are cut into 3 runs by date, each scored by a forest grown on the
+    other two, 5 shuffles a column a run, averaged. Twice: with the candidates alone, and with the Hold fixed
+    columns in the forest too; the held-fixed columns' own importance is shown under the table.
+  - **The noise floor and the proposal.** The same forests on the development loans with their outcomes
+    shuffled among them (so no column can matter), repeated until there are at least 20 importances; the floor
+    is the largest. **Proposed:** a number column whose importance clears the floor with the held-fixed columns
+    in the forest or without them, and whose shape bends somewhere to cut. Said once, in the tab's note.
+  - **Bins and reference.** Partial dependence over the column's own percentiles (1% to 99%), from a forest
+    grown on every development loan (with the held-fixed columns in it when there are any, as the confirmation
+    holds them fixed), averaged over 1,000 development loans drawn by seed. A cut where the curve steps by at
+    least 25% of its average, largest step first, each group at least 2% of the development loans (a sliver
+    left between two close steps joins the neighbour whose rate is closer), at most 6 groups. The edge inside a
+    step is where the forest itself split the column most (the weighted median of its thresholds there,
+    weighted by how much each split separated bad from good), at two significant figures. The reference is the
+    group holding the development loans' median, as scout-vs-measure.py's is.
+  - **Correlated pairs:** Spearman's rank correlation of 0.7 or more either way, on the development loans with
+    both values, among the number candidates and the held-fixed number columns; each row lists its partners,
+    and the note says the line once.
+  - **The file.** `<extract> - pre-spec.yaml` beside the workbook, in the shortlist format (OC-49): the proposed
+    inputs in rank order, each reference written as its number with its name in a comment, `strata` the Hold
+    fixed columns chosen in the launcher or, with none chosen, `[CONFIRM: ...]` (OC-13), which the file refuses
+    until answered: the Run then writes Scouting and Record, tests no held-back loan, and returns the file's line
+    as what it waits for. Written only when no file is there. **A file already there is confirmed as it stands**
+    and never written over: an edit is the analyst's, Record's Log labels an edit made after a held-back run
+    (OC-47, unchanged), and the Scouting tab lists where the file differs from this Run's proposal (the day it
+    was written is not a difference). Delete it to have the next Run write the proposal again.
+  - **Record, don't block:** the Log's entry has scouting's line (the development loans, how many were held
+    back and not read, what was proposed, the file written with its fingerprint and date, or kept) ahead of the
+    held-back lines; Record has *Scouting*, *Scouting held back*, *Scouting's pre-spec* and *Tests: scouting*.
+    The file is written to disk before the confirmation reads a held-back loan.
+  - **The confirmation is the shortlist path, unchanged:** the file is handed to it as a saved one is. Its Found
+    columns show (they were found on this Run's development loans), and its note says the pre-spec was written by
+    scouting.
+  - **Seeded and repeatable.** The same extract and choices give the same forests, the same shortlist and the
+    same file, byte for byte on the same day. scikit-learn's own `predict_proba` adds the trees up in whichever
+    order its threads finish, which moved the partial dependence in its 17th figure between two Runs of one
+    book; the trees' votes are added up here in the trees' own order. scikit-learn's version is recorded, since
+    forests are not bit-identical across its versions.
+  - **scikit-learn is optional** (`deps.OPTIONAL`, the `scout` extra; the firm, 26 Sep 2026: "Optional
+    add-on"). Without it the cube starts and runs; finding is refused by the Control cell that chose it, in
+    words; confirming a saved shortlist works; the launcher's Choose tests offers *Install scikit-learn* where
+    finding needs it. CI installs it, so the scouting path is checked (S14), and a test simulates it missing.
+  - **Of `docs/scout-vs-measure.py`:**
+
+    | Part | | Why |
+    |---|---|---|
+    | Random forest, leaves of at least 40, fixed seed | Kept | B7's model |
+    | Permutation importance by drop in AUC, on loans the forest didn't train on | Kept | B7's ranking |
+    | Partial dependence (the column set to one value for every loan, the predicted rate averaged) | Kept, worked out directly | Same arithmetic, over the column's own percentiles instead of a typed grid, on a seeded draw of 1,000 loans, with missing values allowed |
+    | The reference: the group holding the median | Kept | as `ref = 2` there |
+    | 400 trees, 10 shuffles, one 70 / 30 split by row position | Changed: 200 trees, 5 shuffles, cross-fitted in 3 runs by date | Time at 17,000 x 80 with 40 candidates; cross-fitting scores every development loan once: on the first book (20,000 loans, three candidates, 400 trees either way) the floor went from 0.018 to 0.014 and income / sales from 0.020 to 0.025 with FICO and CHANNEL in the forest |
+    | Edges "written down after looking at (2)" | Changed: found from the curve's steps and placed at the forest's own splits | Wide: dozens of candidates can't each be read by eye. The analyst can still edit the file |
+    | Two books, "development" and "holdout", as separate arrays | Changed | One extract, split by origination date, the held-back loans removed in code and proved unread by a test |
+    | A noise floor | Added | The firm's "clearly above the noise floor from a shuffled-label baseline" |
+    | `make_book` | Dropped | PocketBook reads the extract |
+    | The plain logistic regression with the ratio as a number | Dropped from the cube, kept in the doc | B7's worked example of why a straight line misses a cliff |
+    | The binned regression on the holdout | Moved, unchanged | It is the confirmation (4b, OC-45, OC-49) |
+    | The frozen forest's AUC on the holdout | Dropped | B7: development only. The holdout's one job is the pre-specified test |
+    | `n_jobs=-1` on permutation importance (processes) | Dropped | Threads, and the trees' votes summed in their own order, for repeatability |
+  - **Found building it, fixed:** (1) a test of a new variable with nothing held fixed, or with a number held
+    fixed and no category, was refused by the bleed's own minimum ("Nothing is left to cut"); it builds no grid
+    (OC-42), so it needs none (`config.py`, `engine._drop_outcome_cuts`). (2) Over values from 0.03, bins at
+    [0.1, 2] named the lowest group "0.0 - 0.0", a range below every value in it; with fractional edges the
+    lowest group now takes the decimals its own values need ("0.03 - 0.09", "0.10 - 1.99"; whole-number edges
+    are named as before), and the pre-spec recognises a group named from the run's range, so a run held to such
+    bins doesn't read as deviating.
+  - **Choices made here that no ruling settles yet:** the proposal rule (either forest, not both); the floor as
+    the largest of at least 20 null importances; the 25% step, 2% share and 6 groups; a category ranked and not
+    proposed; a file already there never written over.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so
