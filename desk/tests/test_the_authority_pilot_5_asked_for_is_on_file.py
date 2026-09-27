@@ -221,3 +221,44 @@ def test_the_limit_on_274e1_is_stored_with_its_date():
     listed = ask.read("26 USC 274")
     for c in ("26 USC 274(o)", "26 USC 274(o)(1)", "26 USC 274(o)(2)", U.O_DATE):
         assert f"`{c}`" in listed, c
+
+
+# ── (o) is READ WITH (e)(1), not merely stored beside it ────────────────────
+
+EMPLOYEE_MEALS = ("Food and beverages furnished to employees on the business "
+                  "premises: is the expense excepted under section 274(e)?")
+
+
+@pytest.mark.parametrize("opened", ["26 USC 274(e)(1)", "26 USC 274(e)"])
+def test_opening_the_exception_shows_the_limit_on_it(opened):
+    """Codex on #403, after (o) was stored: `ask.read` prints a paragraph and
+    its own children, and (o) is (e)(1)'s sibling-once-removed, so reading the
+    exception still showed it without the provision that overrides it."""
+    got = ask.read(opened)
+    assert "### 26 USC 274(e)(1)" in got
+    assert "### 26 USC 274(o)" in got
+    assert "after December 31, 2025" in got
+    assert got.index("### 26 USC 274(e)(1)") < got.index("### 26 USC 274(o)")
+    # (o) is a lead-in; its two clauses are what it denies.
+    assert "### 26 USC 274(o)(1)" in got and "### 26 USC 274(o)(2)" in got
+
+
+def test_a_brief_that_prints_the_exception_names_the_limit():
+    got = ask.consult(EMPLOYEE_MEALS)
+    assert "### 26 USC 274(e)(1)" in got, "the question no longer reaches (e)(1)"
+    tail = got[got.index("### 26 USC 274(e)(1)"):]
+    tail = tail[:tail.find("\n### ", 5)] if "\n### " in tail[5:] else tail
+    assert "`26 USC 274(o)`" in tail
+
+
+def test_read_with_must_name_what_the_corpus_holds(tmp_path):
+    import shutil
+    c = tmp_path / "corpus"
+    shutil.copytree(CORPUS, c)
+    s = (c / "SOURCES.md").read_text(encoding="utf-8")
+    (c / "SOURCES.md").write_text(
+        s.replace("**Read with:** 26 USC 274(e)(1) — 26 USC 274(o);",
+                  "**Read with:** 26 USC 274(e)(1) — 26 USC 274(q);"),
+        encoding="utf-8")
+    with pytest.raises(record.RecordError, match="274\\(q\\)"):
+        record.load(c)

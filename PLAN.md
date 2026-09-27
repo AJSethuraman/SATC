@@ -479,6 +479,11 @@ it with them.
   alone would answer a 2026 question wrongly. (o) carries no date of its own;
   the enacting law's sentence that dates it, Pub. L. 115-97 § 13304(e)(2), is
   stored beside it as the page prints it.
+  Stored beside it was not enough (Codex again): `ask.read` prints a paragraph
+  and its own children, and (o) is not (e)(1)'s child. So a source now records
+  what must be read together (`**Read with:**`), and a read or a brief that
+  prints (e)(1) prints or names (o) and its date with it. Which paragraph
+  limits which is recorded, never inferred from numbering.
 
 - **2026-09-27 — The desk never drives a browser it cannot see (desk 0.39.1).**
   The trial brief said "go and look, with Chrome on the Forge". Forge-Desk used

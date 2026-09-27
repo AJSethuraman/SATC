@@ -839,6 +839,11 @@ def brief(question: str, desk: record.Desk,
                     "question, the record may simply not hold a rule that "
                     "does, and that is worth saying rather than working "
                     "around.", ""]
+        if p.citation in _read_with(desk):
+            names = "; ".join(f"`{o}`" for o in _read_with(desk)[p.citation])
+            out += [f"**Read with {names} — the record says it changes what "
+                    f"this paragraph says. `ask.read` it before relying on "
+                    f"this.**", ""]
         if ruled and p.citation in ruled:
             r = ruled[p.citation]
             out += [f"**Here because the firm ruled it ({r.id}, {r.ruled}): "
@@ -895,6 +900,11 @@ def on_file_index(sources) -> list:
     return out + [""]
 
 
+def _read_with(desk) -> dict:
+    """`{citation: (other, ...)}` from every source's `Read with:` lines."""
+    return {cit: others for s in desk.sources for cit, others in s.read_with}
+
+
 def read(citation: str, corpus: Path = CORPUS) -> str:
     """The stored words of a paragraph, or the paragraphs of a section.
 
@@ -939,6 +949,29 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
             out += ["Further down or worked examples, not printed -- "
                     "`ask.read` any of these:", ""]
             out += [f"- `{c}`" for c in deeper] + [""]
+        # WHAT CHANGES WHAT WAS JUST PRINTED. Codex on #403: reading § 274(e)
+        # printed (e)(1) and not the § 274(o) that takes it away from 2026.
+        limits = _read_with(desk)
+        printed = [l[4:] for l in out if l.startswith("### ")]
+        shown = set(printed)
+        for c in printed:
+            for o in limits.get(c, ()):
+                if o in shown:
+                    continue
+                other = desk.passage(o)
+                out += [f"### {o}", "",
+                        f"**Read with `{c}` — the record says it changes "
+                        f"what that paragraph says.**", "",
+                        f"> {other.text}", ""]
+                shown.add(o)
+                # AND ITS OWN CLAUSES: (o) alone ends "no deduction shall be
+                # allowed under this chapter for-", which states nothing.
+                for q in desk.passages:
+                    rest = q.citation[len(o):]
+                    if (q.citation.startswith(o) and q.citation not in shown
+                            and re.fullmatch(r"\([^()]+\)", rest)):
+                        out += [f"### {q.citation}", "", f"> {q.text}", ""]
+                        shown.add(q.citation)
         return "\n".join(out)
     if under:
         out = [f"## On file under {citation}", ""]

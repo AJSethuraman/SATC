@@ -476,7 +476,9 @@ NARROWED = {
 # paragraphs of § 1.162-21 and § 274(a) and (e) on both sides, and § 1.162-21's
 # thirteen worked examples (+5,750) on the examples side only.
 # +239 / +240 for § 274(o) and its dating note (Codex on #403).
-WHOLE = (142_729, 262_785)
+# +54 on both sides for the one `Read with` line under § 274(e)(1), which the
+# unnarrowed brief prints because it prints every paragraph.
+WHOLE = (142_783, 262_839)
 
 
 def _answering_sizes():

@@ -131,6 +131,14 @@ class Source:
     #: was admitted to answer, so nothing could notice it still did not. With
     #: this, `rulings.findings` can -- and asks the firm what should reach it.
     admitted_for: tuple = ()
+    #: PARAGRAPHS THAT MUST BE READ TOGETHER, as `((citation, (other, ...)),
+    #: ...)`: whenever `citation` is printed, so are the others, because they
+    #: change what it says. Codex on #403: § 274(e)(1) excepts meals for
+    #: employees, § 274(o) takes that away from 2026, and (o) is not (e)(1)'s
+    #: child, so a read of the exception showed it without the limit. Which
+    #: paragraphs limit which is a fact about the law, recorded where the
+    #: source is, never inferred from how the citations are numbered.
+    read_with: tuple = ()
 
     @property
     def binding(self) -> bool:
@@ -1093,7 +1101,7 @@ def _prose(block: str, label: str, where: str, *, fields: tuple,
 
 #: The labels a SOURCE entry carries, so `_prose` knows where one ends.
 SOURCE_FIELDS = ("Tier", "Access", "May store", "Checked", "Citation prefix",
-                 "Url", "Asked as", "Admitted for", "Why")
+                 "Url", "Asked as", "Admitted for", "Read with", "Why")
 
 
 def _inline(block: str, label: str, where: str) -> str:
@@ -1194,6 +1202,25 @@ def _admitted_for(block: str, where: str) -> tuple:
     return tuple(out)
 
 
+def _read_with(block: str, where: str) -> tuple:
+    """`Read with:` lines -- `citation — other; other` -- or nothing. Refuses a
+    line it cannot read, as `Admitted for` does."""
+    out = []
+    for line in (l.strip() for l in _field(block, "Read with", where,
+                                           required=False).splitlines()):
+        if not line:
+            continue
+        at = line.find(" — ")
+        others = tuple(o.strip() for o in line[at + 3:].split(";") if o.strip())
+        if at <= 0 or not others:
+            raise RecordError(
+                f"{where}: a Read with line reads {line!r}. Each line is a "
+                f"citation, \" — \", then the paragraphs to read with it, "
+                f"separated by semicolons.")
+        out.append((line[:at].strip(), others))
+    return tuple(out)
+
+
 def parse_sources(text: str) -> list[Source]:
     out = []
     for head, block in _blocks(text, _HEAD):
@@ -1211,6 +1238,7 @@ def parse_sources(text: str) -> list[Source]:
             url=_field(block, "Url", where, required=False),
             asked_as=_asked_as(block, where),
             admitted_for=_admitted_for(block, where),
+            read_with=_read_with(block, where),
             note=_prose(block, "Why", where, fields=SOURCE_FIELDS),
         ))
     if not out:
@@ -1337,6 +1365,20 @@ def load(desk_dir: Path) -> Desk:
                 raise RecordError(
                     f"{s_.id} says it was admitted for {cit!r}, which it does "
                     f"not hold. Name a stored paragraph of this source.")
+    # AND WHAT IS READ WITH WHAT IS ON FILE, both ends: a limit naming a
+    # paragraph nobody holds would be printed as nothing, silently.
+    every = {p.citation for p in passages}
+    for s_ in sources:
+        for cit, others in s_.read_with:
+            if cit not in held_by.get(s_.id, set()):
+                raise RecordError(
+                    f"{s_.id} says {cit!r} is read with others, and it does "
+                    f"not hold {cit!r}. Name a stored paragraph of this source.")
+            for o in others:
+                if o not in every:
+                    raise RecordError(
+                        f"{s_.id} says {cit!r} is read with {o!r}, which is "
+                        f"not on file.")
 
     known = seen_ids
     for p in passages:
