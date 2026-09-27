@@ -121,31 +121,56 @@ Reproduced on `970b3647` for the picture: the same two installs, for real, in on
 
 ---
 
-## Left for the firm
+## Left for the firm, and answered (27 Sep 2026)
 
-Each is a design question, not a slip. The recommendation is mine.
+Each was a design question, not a slip. The recommendation was mine; the firm's answers are in BACKLOG §6d, and all
+eleven are built. Each carries a test in `tests/test_firm_answers_2026_09_27.py` (K's is in `tests/test_scout.py`) and at least one planted bug
+in `tools/mutation_check.py` that the test catches. The procedure's pictures of screens that changed were taken again
+on the fixed build (`driver/walk_answers.py`, `driver/shots_answers.py`).
 
 **A · Changes waiting for a Run doesn't count the launcher's choices.** After switching to Test new variables and pressing Next, Start here said **0** changes waiting while every result tab still showed the bleed Run, under a Control that read *Finding and testing a new variable*. The same holds for a changed cut or split. *Recommend:* count a launcher change as waiting (compare Control's *Chosen in the launcher* block with what the last Run used), or have Next take the result tabs off when the run kind changes.
 
+**Resolved (the firm: yes, count it).** Each Run keeps what the launcher chose on `_used`; each row of *Chosen in the launcher* has a Status, and a row Next changed reads **Waiting for a Run**. Start here counts it and the pink line names it: *Cut into bands: FICO, ORIG_BAL → FICO (launcher)*. A different kind of run is one change, not one for every row that changes with it (the first build counted 9 on the walk's switch). Pictures: steps 25a and 25b.
+
 **B · The tie-out tile can never show a failure.** "702 / 702" is written as n of n, and a failed tie-out stops the Run. It is a green that can't go red. *Recommend:* say what it means where the reader is standing, e.g. value "702", under it "all add up; a Run stops if one doesn't". It is the redesign's tile, so it's the firm's wording.
+
+**Resolved (the firm: "It is the slowest way to communicate a check figure. If it didn't tie out what would happen now").** The recommendation was wrong: the tile is gone from the finished screen and from Start here, with no sentence in its place. Record keeps the check as a number: *Tie-out checks: 702: every grid adds up to the book*. The firm made it tenet T2, and the sweep it asked for found one more: the Run's first line, "N tie-out checks agree", on the Log and in the launcher's lines, is gone too. Before and after: `design-B-before.png`, `design-B-after.png`.
 
 **C · Paid, cost, kept has no name for "more charge-offs, kept about the same".** On five equal FICO bands the priced-for-it pocket (FICO 712 to 745 / Online) is shaded worse on charge-offs (2.06 times), and its kept gap (+2.10 points) could be chance, so **Together** is blank. *Earns less, not from losses* covers the mirror case. This belongs with the open wording question on *Earned before losses*.
 
+**Resolved.** Charge-offs worse and real with the kept gap not significant reads **Losing more, profit holding**, on the tab and in its note. FICO 712 to 745 / Online reads it on the walk's book. *Earned before losses* and *Earns less, not from losses* stay (the firm: "Fine for now").
+
 **D · Start here's "Largest, worse and material" keeps rows that no longer read worse.** After worse at went to 2 times, two of the four rows read **Worse? No** under that heading. The order is the last Run's, as the tab says. *Recommend:* title it "Largest at the last Run", or hide rows that no longer read worse.
+
+**Resolved (the firm: "I don't understand this like at all like meaning it's slop"; make it live).** The list is picked by formula from the verdicts now, the way Pockets' Show dropdown picks: `_found` holds every pocket the Run found losing more than its share, largest dollars first, each with its live Worse? and Material? read from `_pockets` and a running count, and row k is the first whose count reaches k. No SORT, FILTER or LET. After worse at goes to 2 times it lists two pockets, both worse. Worse? and Material? came off the list: every row it shows is both (T2). Before and after: `design-D-before.png`, `design-D-after.png`.
 
 **E · Three counts for one job.** After Next the window said "7 columns to look at first", Start here "Columns to confirm: 10", and the Run refusal listed 9 answers (8 on Control, 1 on Columns). Each is right about something different. *Recommend:* one count, the refusal's, on all three.
 
+**Resolved.** Next says *9 answers needed before Run, on Control and Columns* (the refusal's own reading of the workbook, taken at Next). Start here's first tile is **Answers needed before Run**, counted live the refusal's way: each blank answer on Control, what is being run if the launcher hasn't said, and Checked every column. *Columns to confirm* and *7 columns to look at first* are gone.
+
 **F · Words a first-time analyst meets without a meaning.** On the window: *GCO dollars*, *RANR dollars*, *worse at 1.34x*, *grids, five measures each*, *scouting*. The workbook explains each on its tab, but the window is where they're first read. *Recommend:* a line under each on the window, e.g. "worse at 1.34x: a pocket counts as worse when it goes bad 1.34 times as often as the loans it is compared with". The procedure carries a table of these words meanwhile.
+
+**Resolved.** A slate line under what uses each word first: *GCO dollars: what a loan charged off, in dollars.* *RANR dollars: what we kept from a loan after its losses, in dollars.* *A grid: every band of one column against every segment of another.* *Five measures: bad loans, bad dollars, charge-offs, earned before and kept after losses.* *worse at 1.34x: losing 1.34 times as much as the rest counts as worse* (and better at). *Scouting: a first look at most of the loans, to pick what to test.* Each is 15 words or fewer; the test holds that and that none uses a term of art.
 
 **G · Control's "Comes to" before the first Run repeats the option text.** For the two suggested answers, "Comes to" read "The smallest significant gap in a typical pocket (suggested)", spilling left over **Or your own**, where after the Run it reads 1.34×. *Recommend:* show the worked-out value (the suggestion is already known at Set up), or leave it blank until the Run.
 
+**Resolved.** Set up keeps the worked-out number in a hidden cell beside worse at and better at; before the first Run, Comes to shows it (**1.34×**, **0.75×**), or a picked option's own number (0.80×). Materiality's dollar line needs the Run's total losses, so it is blank until then. Never the option's words.
+
 **H · Look draws outcome columns with "no edges on Columns yet".** GCO_AMT and RANR_AMT get a chart that says so, but an outcome column has no band edges to type. *Recommend:* "GCO_AMT · an outcome: not cut into bands".
+
+**Resolved (the firm: "Not sure why we even have the info? Like obviously we didn't band them?").** Look draws only the columns that can be cut into bands: FICO, ORIG_BAL and REV_DEBT on the walk's book. GCO_AMT, RANR_AMT and the outcome are not on it at all. Before and after: `design-H-before.png`, `design-H-after.png`.
 
 **I · Start here's group table shows the odds with FICO held fixed without saying so.** After the scouting Run, 0 to 10,999 read 1.24× and 15,000 and up 2.69×: New variables' *Confirmed, FICO held fixed* column, where its unheld column says 1.12× and 3.27×. The header says only "× 11,000 - 14,999's odds". *Recommend:* "× 11,000 - 14,999's odds, FICO held fixed".
 
+**Resolved.** The heading reads *× 11,000 - 14,999's odds, FICO held fixed* (wrapped in its column), and says nothing held fixed when the pre-spec holds none.
+
 **J · The finished screen shows none of the Run's lines.** The launcher builds lines such as "Open … start with Pockets" and, after an edit, "Changed pre-spec: …", and never shows them. Defect 1 is fixed on the tile; the rest are only on Record. *Recommend:* the first two lines under the tiles.
 
+**Resolved.** Under the tiles: where to start reading, then the first of a pre-spec changed after a held-back run, pockets too small to test, what splits the pockets, or what the Run ran on. After the edit in Step 31 it reads *Changed pre-spec: … changed after the held-back run of …*.
+
 **K · Printed, Scouting repeats its table's header over the pre-spec.** The print titles carry the candidates table's header onto the page where the pre-spec file starts. Low; print only.
+
+**Resolved.** Scouting has no print titles. Step 28b's picture is the printed page.
 
 **Not a defect:** the brief asked for four number columns cut into bands. The synthetic book has three (FICO, ORIG_BAL, REV_DEBT; ASSET_CLASS has four values and is read as a category). The walk cut two and split by the third.
 
@@ -153,7 +178,7 @@ Each is a design question, not a slip. The recommendation is mine.
 
 ## Counts
 
-- **Defects found:** 12 (11 on the first walk, 1 on the second). **Fixed:** 11. **Left for the firm:** 11 design questions (A to K). Defect 10 is design question H.
+- **Defects found:** 12 (11 on the first walk, 1 on the second). **Fixed:** 11. **Left for the firm:** 11 design questions (A to K), all answered and built on 27 Sep 2026. Defect 10 is design question H.
 - **Tests:** 12 added in `tests/test_walk_2026_09_27.py` (735 collected, from 723). 10 run anywhere. 2 need a display and skip without one. 5 existing tests updated for the new wording (`test_book_results`, `test_live`, `test_record`, `test_new_variable_run`, `test_deps`).
 - **Full suite after the fixes** (Python 3.11, no display, LibreOffice present): `731 passed, 4 skipped in 1823.89s (0:30:23)`. The 4 skipped are the window tests.
 - **Planted bugs:** 14 added to `tools/mutation_check.py`, each run alone, 14 caught. 385 in all. The two display-only checks (the tile height, and the window half of defect 12) can't be planted there, since the checker runs without a display. Each was planted by hand under xvfb, and its test went red.

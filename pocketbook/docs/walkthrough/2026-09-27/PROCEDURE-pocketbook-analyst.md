@@ -75,6 +75,8 @@ The boxes decide what is cut:
 - **Split by:** at most one number column, used to cut every pocket in half at its own middle value.
 - The outcome and dollar columns say **every measure**: they are what is measured, not what is cut.
 
+Under the shaded box, a line for each word you meet here first: GCO dollars, RANR dollars, a grid, and the five measures.
+
 > The made-up book has three number columns you can cut. Your bank's file may have more.
 
 ### Step 5 · Tick Split by on REV_DEBT
@@ -91,7 +93,7 @@ The workbook is written beside the extract: `Consumer book Q3 - PocketBook.xlsx`
 
 ![Step 6](step-06-answer-in-the-workbook.png)
 
-**Correct screen:** step 4 on the left is red. The shaded box gives three values PocketBook worked out from this book (fewest loans in a pocket, how much worse, how much better). They are only suggestions, and each sits beside its question on the Control tab.
+**Correct screen:** step 4 on the left is red. The shaded box gives three values PocketBook worked out from this book (fewest loans in a pocket, how much worse, how much better), with a line under it on what *worse at* and *better at* mean. They are only suggestions, and each sits beside its question on the Control tab. Under the box: **9 answers needed before Run, on Control and Columns**. Start here and the Run itself (Step 7) give the same count.
 
 ### Step 7 · (What happens if you press Run too early)
 
@@ -123,7 +125,7 @@ Pick from each cell's dropdown. On the walk, reading the suggestions:
 | How much better … | The smallest significant gap in a typical pocket (suggested) | 0.75 times |
 | How far profit must move before it counts | Each pocket's own test (suggested) | |
 | How sure a difference must be before it counts | 95% sure | |
-| Smallest excess loss worth reporting | 1% of the book's total losses | came to $107,354 |
+| Smallest excess loss worth reporting | 1% of the book's total losses | comes to $107,354 once the Run has added up the book's losses |
 | What a pocket is judged against | The rest of its band | |
 | Fewest loans in a pocket for the usual test | Enough for 5 expected losses (suggested) | 65 loans |
 | Fewest loans with a loss before a loss rate is tested | 10 losses | |
@@ -132,7 +134,7 @@ The rest already hold a recommended answer.
 
 ![Step 9](step-10-control-answered.png)
 
-**Correct screen:** no pink cell left on Control.
+**Correct screen:** no pink cell left on Control. **Comes to** already shows **1.34×** and **0.75×** beside the two suggestions, before any Run.
 
 ### Step 10 · Answer Columns
 
@@ -157,7 +159,7 @@ On 8,000 loans it took 9 seconds.
 
 ![Step 12](step-12-run-finished.png)
 
-**Correct screen:** "Run finished." Three tiles: how many pockets are worse on charge-offs and material, the charge-off dollars above their share in them, and the tie-out checks. A **tie-out** adds every grid's pockets back up and checks they come to the book's totals. If one doesn't, the Run stops and says so (see Step 32).
+**Correct screen:** "Run finished." Two tiles: how many pockets are worse on charge-offs and material, and the charge-off dollars above their share in them. Under them, the Run's first two lines: where to start reading, and what splits the pockets. PocketBook also checks that every grid adds back up to the book. If one didn't, the Run would stop there and say so (Step 32); Record keeps how many checks there were.
 
 ### Step 13 · Read Start here
 
@@ -165,7 +167,7 @@ Press **Open at Start here**.
 
 ![Step 13](step-13-start-here.png)
 
-**Correct screen:** **Where things stand** is all zeros (nothing left to answer). **What the last Run found** gives the same numbers as the window, then the largest pockets that are worse and material. On the walk the top one was FICO 496 to 653 / Broker, 2.62 times its band's charge-offs, $1,494,129 above its share. That is the pocket planted in the made-up book.
+**Correct screen:** **Where things stand** is all zeros: no answers needed before Run, no odd value left, no change waiting. **What the last Run found** gives the same numbers as the window, then the largest pockets that are worse and material. On the walk the top one was FICO 496 to 653 / Broker, 2.62 times its band's charge-offs, $1,494,129 above its share. That is the pocket planted in the made-up book.
 
 ### Step 14 · Read Pockets
 
@@ -177,11 +179,11 @@ Every pocket, worst first. Pick the **Measure** (Bad loans, Bad dollars, Charge-
 
 ### Step 15 · Read Paid, cost, kept
 
-What each pocket paid the bank, what its losses cost, and what was kept. **Together** reads both sides at once: *Net drain* is more charge-offs and less kept; *Strong* is fewer charge-offs and more kept.
+What each pocket paid the bank, what its losses cost, and what was kept. **Together** reads both sides at once: *Net drain* is more charge-offs and less kept; *Strong* is fewer charge-offs and more kept; *Losing more, profit holding* is more charge-offs while what was kept is about the same.
 
 ![Step 15](step-15-paid-cost-kept.png)
 
-**Correct screen:** FICO 496 to 653 / Broker reads **Net drain**. The chart puts each pocket by its charge-offs (across) and what it kept (up).
+**Correct screen:** FICO 496 to 653 / Broker reads **Net drain**, and FICO 712 to 745 / Online **Losing more, profit holding**. The chart puts each pocket by its charge-offs (across) and what it kept (up).
 
 ### Step 16 · Read Grids
 
@@ -209,7 +211,7 @@ On Control, change **How much worse than its comparison a pocket must be** to **
 
 ![Step 19](step-19-live-change-start-here.png)
 
-**Correct screen:** without pressing Run, Start here now says **2 of 81** (it said 4), and Pockets' **Worse?** column follows. Rows now under 2 times read **No**:
+**Correct screen:** without pressing Run, Start here now says **2 of 81** (it said 4), and its list of the largest keeps only the two still worse: FICO 496 to 653 / Broker and FICO 712 to 745 / Online. Pockets' **Worse?** column follows. Rows now under 2 times read **No**:
 
 ![Step 19b](step-19b-live-change-pockets.png)
 
@@ -219,7 +221,7 @@ On Control, change **Fewest loans in a pocket for the usual test** to **100 loan
 
 ![Step 20](step-20-waiting-for-a-run.png)
 
-**Correct screen:** Start here's **Changes waiting for a Run** says 1, in red, and a pink line names the change and its cell. On Control its **Status** reads **Waiting for a Run**:
+**Correct screen:** Start here's **Changes waiting for a Run** says 1, in red, and a pink line names the change and its cell. On Control its **Status** reads **Waiting for a Run**. The choices made in the launcher, at the foot of Control, have a Status too, and read **Same as last Run**:
 
 ![Step 20b](step-20b-control-status.png)
 
@@ -263,7 +265,11 @@ Tick **Test it** on REV_DEBT, ASSET_CLASS, CHANNEL and ORIG_BAL. Tick **Hold fix
 
 ![Step 25](step-25-answer-new.png)
 
-**Correct screen:** "Everything is answered. Press Run." Your Control answers carry over. Control now shows only the questions this kind of run uses, and **What are you running?** reads *Finding and testing a new variable*:
+**Correct screen:** "Everything is answered. Press Run." Your Control answers carry over. Start here counts the new kind of run as **1** change waiting for a Run, because the result tabs still show the last one:
+
+![Step 25a](step-25b-start-here-waits.png)
+
+Control now shows only the questions this kind of run uses, and **What are you running?** reads *Finding and testing a new variable*, **Waiting for a Run**:
 
 ![Step 25b](step-26-control-new-variable.png)
 
@@ -273,13 +279,13 @@ On 8,000 loans it took 20 seconds. PocketBook scouts on the development loans, w
 
 ![Step 26](step-27-scouting-finished.png)
 
-**Correct screen:** the first tile names the column and its reference group (the middle group, which every other is compared with): **1 of 2** REV_DEBT groups worse, on the held-back loans. The last tile says the pre-spec was **written now, by this Run's scouting**. It can't differ from itself, so it doesn't say "Yes".
+**Correct screen:** the first tile names the column and its reference group (the middle group, which every other is compared with): **1 of 2** REV_DEBT groups worse, on the held-back loans. The last tile says the pre-spec was **written now, by this Run's scouting**. It can't differ from itself, so it doesn't say "Yes". Under the tiles: start with New variables.
 
 ### Step 27 · Read Start here
 
 ![Step 27](step-28-start-here-new.png)
 
-**Correct screen:** one row per REV_DEBT group on the held-back loans. 15,000 and up is **Yes, worse**: 2.69 times the odds of going bad, holding 54% of the bad loans.
+**Correct screen:** one row per REV_DEBT group on the held-back loans. 15,000 and up is **Yes, worse**: 2.69 times the odds of going bad with FICO held fixed (the column heading says so), holding 54% of the bad loans.
 
 ### Step 28 · Read Scouting
 
@@ -289,7 +295,7 @@ Which candidates the book leans on, ranked, on the development loans only.
 
 **Correct screen:** REV_DEBT first, **Proposed? Yes**, above the **noise floor** (what a column scores by pure chance). CHANNEL and ASSET_CLASS are categories, ranked but not proposed. ORIG_BAL is below the floor.
 
-Further down, the pre-spec as written, and REV_DEBT's curve with the suggested cuts:
+Further down, the pre-spec as written, and REV_DEBT's curve with the suggested cuts. Printed, the pre-spec's page has no table heading over it:
 
 ![Step 28b](step-29b-the-pre-spec.png)
 
@@ -315,7 +321,7 @@ This is what the pre-spec exists to catch: changing the test after seeing the an
 
 ![Step 31](step-32-run-after-edit.png)
 
-**Correct screen:** the last tile says **Changed, after a held-back run**, in red. On Record, under **This Run**, a red **Warning** gives the date of the earlier run and both fingerprints:
+**Correct screen:** the last tile says **Changed, after a held-back run**, in red, and the line under the tiles gives the date of the earlier run and both fingerprints. On Record, under **This Run**, a red **Warning** says the same:
 
 ![Step 31b](step-33-record-changed.png)
 

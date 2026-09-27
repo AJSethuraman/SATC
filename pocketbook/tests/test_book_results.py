@@ -275,7 +275,7 @@ def test_start_here_says_when_it_last_ran(tmp_path):
     ws = load_workbook(b)["Start here"]
     assert "last Run 20" in ws["C1"].value                     # the subtitle: when it last ran
     said = {c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)}
-    assert any(s.endswith(" agree") for s in said) and "=IFERROR(SUM(answers_needed),0)" in said
+    assert any(s.startswith("=IFERROR(SUM(answers_needed),0)") for s in said)
 
 
 def test_ranr_is_marked_more_is_better_and_its_gap_reads_or_less(tmp_path):
@@ -586,9 +586,10 @@ def test_boxes_follow_the_lines_exactly():
     assert t(engine.BETTER, engine.BETTER) == "Strong"
     assert t(engine.BETTER, engine.WORSE) == "Safe but idle"
     assert t(engine.IN_LINE, engine.WORSE) == t(engine.UNSURE_WORSE, engine.WORSE) == "Earns less, not from losses"
-    assert [t(g, r) for g, r in ((engine.WORSE, engine.IN_LINE), (engine.IN_LINE, engine.BETTER),
+    assert t(engine.WORSE, engine.IN_LINE) == t(engine.WORSE, engine.UNSURE_BETTER) == "Losing more, profit holding"
+    assert [t(g, r) for g, r in ((engine.IN_LINE, engine.BETTER),
                                  (engine.FEW, engine.WORSE), (engine.WORSE, engine.FEW),
-                                 (engine.IN_LINE, engine.IN_LINE))] == [""] * 5
+                                 (engine.IN_LINE, engine.IN_LINE))] == [""] * 4
 
 
 def test_a_gap_that_is_not_significant_is_left_plain(tmp_path):
@@ -786,7 +787,11 @@ def test_a_real_loss_keeps_its_red_when_profit_is_not_significant(tmp_path):
     rows = tabs.pck_all(b, tmp_path / "grids")                  # every grid, each picked in turn
     assert rows[0]["seg"] == "Broker" and rows[0]["flags"]["g"] == engine.WORSE and rows[0]["g_fill"] == house.ALERT_FG
     marked = [x for x in rows if x["flags"]["r"] in (engine.UNSURE_WORSE, engine.UNSURE_BETTER)]
-    assert marked and all(x["r_fill"] is None and not x["together"] for x in marked)   # the fixed line marks some
+    assert marked and all(x["r_fill"] is None for x in marked)            # the fixed line marks some
+    # read together, a real loss beside a kept gap that could be chance is "Losing more, profit holding" (C, the
+    # firm, 27 Sep 2026); any other pair with that kept side reads nothing together
+    assert all(x["together"] == ("Losing more, profit holding" if x["flags"]["g"] == engine.WORSE else None)
+               for x in marked), [(x["flags"], x["together"]) for x in marked]
     assert any(x["g_fill"] == house.ALERT_FG for x in marked)            # and their loss side keeps its colour
     real_worse = [x for x in rows if x["flags"]["g"] == engine.WORSE]
     assert real_worse and all(x["g_fill"] == house.ALERT_FG for x in real_worse)

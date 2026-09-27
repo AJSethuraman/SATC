@@ -314,7 +314,7 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
                   f"MATCH({K}&\"|\"&IFERROR(VALUE({C}),{C}),{OPTIONS_SHEET}!$H:$H,0))")
         plain = f'IFERROR(INDEX({OPTIONS_SHEET}!$G:$G,{lookup}),"not an option")'
         if live_now:
-            shown = _comes_to(s.key, plain)
+            shown = _comes_to(s.key, plain, f'IFERROR(INDEX({OPTIONS_SHEET}!$D:$D,{lookup}),"")', f"$K${r}")
             ws.cell(row=r, column=COMES_COL, value=(f'=IF(NOT({asked}),"",IF({own_set},{D},IF({C}="","",'
                                                     f'IF(ISNA({lookup}),"not an option",{shown}))))'))
         else:
@@ -338,6 +338,28 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         ws.cell(row=r, column=CHOOSE_COL).alignment = Alignment(horizontal="left", vertical="center", indent=1)
         ws.cell(row=r, column=OWN_COL).alignment = Alignment(horizontal="center", vertical="center")
         ws.row_dimensions[r].height = 18
+    need = [row_of[s.key] for s in now + run]
+    wb.defined_names["answers_needed"] = DefinedName(
+        "answers_needed", attr_text=f"{SHEET}!$J${min(need)}:$J${max(need)}")
+    end = _write_launcher_block(ws, settings, row_of, c_top, launcher_rows)
+    # A, the firm's answer of 27 Sep 2026: a choice made in the launcher waits for a Run too. After Next switched to
+    # a test of a new variable, Start here said 0 changes waiting under result tabs from the bleed's Run
+    kind = f"$H${row_of['run_kind']}" if "run_kind" in row_of else None
+    for r in range(c_top + 1, end - 1):
+        key = ws.cell(row=r, column=KEY_COL).value
+        if not key:
+            continue
+        C, D, K = f"$C${r}", f"$D${r}", f"${get_column_letter(KEY_COL)}${r}"
+        answer = f'IF(AND({D}<>"",{D}<>"n/a"),{D},{C})'
+        last = f"INDEX({USED_SHEET}!$B:$B,MATCH({K},{USED_SHEET}!$A:$A,0))"
+        status = f'IFERROR(IF({answer}&""={last}&"","{SAME}","{WAITING}"),"")'
+        # a different kind of run is the one change: the rows that follow from it aren't counted again
+        ws.cell(row=r, column=STATUS_COL, value=f"={status}" if key == "run_kind" or kind is None else
+                f'=IF({kind}="{WAITING}","",{status})')
+        ws.cell(row=r, column=PEND_COL, value=(f'=IF($H{r}="{WAITING}",$B{r}&": "&IF({last}&""="","none",{last})&'
+                                               f'" → "&IF({answer}&""="","none",{answer})&" (launcher); ","")'))
+        ws.cell(row=r, column=STATUS_COL).alignment = Alignment(horizontal="center", vertical="center")
+        status_rows.append(r)
     if status_rows:
         rng = f"$H${status_rows[0]}:$H${status_rows[-1]}"
         wb.defined_names["Status"] = DefinedName("Status", attr_text=f"{SHEET}!{rng}")
@@ -347,10 +369,6 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         ws.conditional_formatting.add(rng.replace("$", ""), FormulaRule(
             formula=[f'$H{status_rows[0]}="{WAITING}"'], font=Font(bold=True, color=house.CRIMSON),
             fill=PatternFill("solid", fgColor=house.ALERT_FG, bgColor=house.ALERT_FG)))
-    need = [row_of[s.key] for s in now + run]
-    wb.defined_names["answers_needed"] = DefinedName(
-        "answers_needed", attr_text=f"{SHEET}!$J${min(need)}:$J${max(need)}")
-    _write_launcher_block(ws, settings, row_of, c_top, launcher_rows)
     _materiality_panel(ws, settings, a_top)
     for col in ("G", "J", "K"):
         ws.column_dimensions[col].hidden = True
@@ -362,15 +380,48 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
     ws.sheet_properties.pageSetUpPr.fitToPage = True
 
 
-def _comes_to(key: str, plain: str) -> str:
-    """What an answer in Block A comes to: the dollar line for materiality and the multiple a suggested line was
-    worked out as, read from the names the last Run defined; the answer's own words otherwise (and before any
-    Run, when the names don't exist yet)."""
+def waiting_rows(wb) -> int:
+    """How many rows the waiting_words range spans (Needs a Run's rows to the launcher block's last), for the
+    banner on Start here that joins them."""
+    import re
+    got = wb.defined_names.get("waiting_words")
+    m = re.search(r"\$K\$(\d+):\$K\$(\d+)", got.attr_text if got is not None else "")
+    return int(m.group(2)) - int(m.group(1)) + 1 if m else len(RUN_KEYS)
+
+
+def launcher_rows_of(ws) -> list[int]:
+    """The rows of the block Chosen in the launcher, each with its key: what the last Run used is kept for each on
+    _used, so Status can say when Next has changed one."""
+    out, inside = [], False
+    for r in ws.iter_rows(min_row=FIRST_ROW):
+        key = r[KEY_COL - 1].value
+        if inside and not isinstance(key, str):
+            break                               # the block ends at its first row without a key
+        if inside:
+            out.append(r[0].row)
+        inside = inside or key == "launcher|head"
+    return out
+
+
+#: Block A's hidden column K: the value Set up (or the last Run) worked out for a suggested line, as a number, so
+#: Comes to can show it before the first Run defines worse_at and better_at (G, the firm, 27 Sep 2026). Needs a
+#: Run's rows keep their waiting words in the same column
+WORKED_COL = PEND_COL
+
+
+def _comes_to(key: str, plain: str, value: str = '""', worked: str = '""') -> str:
+    """What an answer in Block A comes to: the dollar line for materiality and the multiple a line comes to, read
+    from the names the last Run defined. Before the first Run those names don't exist: a multiple is the option's
+    own number, or for the suggestion the value Set up worked out (`worked`, column K), and never the option's
+    words, which is what Comes to read on the walk of 27 Sep 2026 ("The smallest significant gap in a typical
+    pocket (suggested)", spilling over Or your own). The dollar line waits for a Run: it is blank until then."""
     if key == "materiality":
         return (f'IFERROR(IF(materiality_kind="none","No floor",IF(materiality_gco>0,"$"&TEXT(materiality_gco,'
-                f'"#,##0"),{plain})),{plain})')
+                f'"#,##0"),{plain})),"")')
     if key in ("worse_at", "better_at"):
-        return f'IFERROR(TEXT({key},"0.00")&"×",{plain})'
+        before = (f'IF(ISNUMBER({value}),TEXT({value},"0.00")&"×",IF(ISNUMBER({worked}),TEXT({worked},"0.00")&"×",'
+                  f'""))')
+        return f'IFERROR(TEXT({key},"0.00")&"×",{before})'
     return '""'                 # the answer says it already: nothing to add
 
 

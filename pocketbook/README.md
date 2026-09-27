@@ -90,7 +90,8 @@ After that, the whole routine is:
      number, the outcome and a column marked *Origination date*; the booked
      amount, GCO and RANR only if the extract has them.
 
-   The box underneath says what will run. **Next: answer in the workbook**
+   The box underneath says what will run, with a plain line under it for each
+   word the window uses first (GCO dollars, a grid, scouting). **Next: answer in the workbook**
    writes the workbook beside the extract as *loans - PocketBook.xlsx*.
    Control shows these choices read-only, under *Chosen in the launcher*; to
    change one, go back to Choose tests (press it on the left) and Next again.
@@ -98,16 +99,20 @@ After that, the whole routine is:
 4. **Answer in workbook.** The four red tabs are the ones you fill in. Each
    opens with a title band and one note, *How this tab works*, that folds away
    with the outline's minus. **Start here** counts what is left, live: answers
-   still needed, columns to confirm, odd values to answer, and changes waiting
-   for a Run (with a pink line naming each one); after a Run it shows what the
-   Run found and the five largest pockets, worse and material.
+   needed before Run (the same count the launcher and the Run's refusal give),
+   odd values to answer, and changes waiting for a Run, on Control or in the
+   launcher (with a pink line naming each one); after a Run it shows what the
+   Run found and the five largest pockets that are worse and material now,
+   picked live from Control's lines.
    - **Control:** three blocks. *Changes now* (solid boxes) holds the lines the
      result tabs read by formula: worse at, better at, the profit line, how
      sure, materiality and what a pocket is judged against; *Comes to* shows
-     what an answer amounts to (materiality in dollars). *Needs a Run* (dashed
+     what an answer amounts to (worse at and better at as a multiple, from Set
+     up on; materiality in dollars, from the first Run). *Needs a Run* (dashed
      boxes) holds the answers that decide which pockets exist; its *Status*
      says "Waiting for a Run" where an answer differs from the last Run's.
-     *Chosen in the launcher* is read-only. Pink cells still need an answer,
+     *Chosen in the launcher* is read-only, with a Status of its own: Next
+     changing one waits for a Run too. Pink cells still need an answer,
      and nothing is picked for you. Beside fewest loans, worse at and better
      at, the value worked out from this extract ("suggested: 69, from this
      extract"). On the right, what each materiality level keeps, live. A test
@@ -118,7 +123,8 @@ After that, the whole routine is:
      to Yes; Run waits until it is. Under the table, *Add a column: one
      divided by another*. For a new variable, mark the date each loan was made
      *Origination date*: it splits development loans from the holdout.
-   - **Look:** each number column's loans, blanks, likely code (on a red bar
+   - **Look:** each column that can be cut into bands (not GCO, RANR or the
+     outcome): its loans, blanks, likely code (on a red bar
      of its own), smallest, median, mean and largest, and its bars. Pick 10,
      20 or 50 bars and a From and To, and the chart regroups live; the edges
      typed on Columns show as red dashed lines as you type them. With a split,
@@ -128,7 +134,8 @@ After that, the whole routine is:
    the question in words and **Open at C23**, which opens the workbook at that
    cell. While the workbook is open in Excel it says so, and Run waits. When
    the Run finishes, it shows how many pockets are worse and material on
-   charge-offs, what they lost above their share, the tie-out checks, and any
+   charge-offs, what they lost above their share, the Run's first two lines
+   (where to start reading, and a changed pre-spec when there is one), and any
    odd value still unanswered. The results land in the workbook:
    - **New variables:** only when testing from a pre-spec (below).
    Every result tab opens the same way: a title band, one *How this tab works*
@@ -155,7 +162,8 @@ After that, the whole routine is:
      pocket paid (earned before losses: RANR + GCO), what it cost (charge-offs)
      and what was kept (RANR), each as its gap and dollars; pink where worse and
      real, green where better and real. **Together** reads the pair: priced for
-     it, net drain, strong, safe but idle, or earns less, not from losses. A
+     it, net drain, strong, safe but idle, earns less, not from losses, or
+     losing more, profit holding. A
      scatter of the grid picked: charge-offs across on a log scale, what was
      kept up, lines at 1× and 0, the pockets read together named.
    - **Grids:** a Grid and a Measure dropdown, and four blocks: the rate,

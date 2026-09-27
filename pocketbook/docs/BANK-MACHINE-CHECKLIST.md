@@ -204,14 +204,15 @@ Compare as you go. Every number here came up on the walk and again on this check
 | Where | What it should show |
 |---|---|
 | Set up (Step 4) | 8,000 loans, 10 columns read |
-| Next (Step 6) | worked out from this book: fewest loans **65**, worse at **1.34×**, better at **0.75×** |
-| Control C19, **Comes to** (Step 9) | 1% of losses comes to **$107,354** |
+| Next (Step 6) | worked out from this book: fewest loans **65**, worse at **1.34×**, better at **0.75×**; **9 answers needed before Run** |
+| Control C15 and C16, **Comes to** (Step 9) | **1.34×** and **0.75×**, before any Run |
+| Control C19, **Comes to** (after Step 12) | 1% of losses comes to **$107,354** |
 | Columns (Step 10) | FICO: **-9999 on 160 loans**; RANR: **negative on 595 loans** |
-| Run (Step 12) | **4** pockets worse and material, charge-offs, of 81 · **$3.09M** · **702 / 702** |
-| Start here (Step 13) | **4 of 81** · **$3,094,991** · **4 short $3,248,654** · **702 of 702 agree** |
+| Run (Step 12) | **4** pockets worse and material, charge-offs, of 81 · **$3.09M**, and under them *Open … start with Pockets* |
+| Start here (Step 13) | **4 of 81** · **$3,094,991** · **4 short $3,248,654** |
 | Start here, the largest | FICO 496 - 653 / Broker: 523 loans, **2.62×**, **$1,494,129** · FICO 496 - 653 / ASSET_CLASS 4: 1.74×, $643,768 · ORIG_BAL 37,951 - 49,151 / ASSET_CLASS 4: 1.75×, $529,198 · FICO 712 - 745 / Online: 2.06×, $427,896 |
 | Pockets, as it opens | Bad loans · Two-way · All: **7 worse and material · 7 worse · 41 shown** |
-| Paid, cost, kept | FICO 496 - 653 / Broker reads **Net drain** |
+| Paid, cost, kept | FICO 496 - 653 / Broker reads **Net drain**; FICO 712 - 745 / Online reads **Losing more, profit holding** |
 | Split | the high REV_DEBT half worse in **14 of 15** pockets, **2.02×** overall |
 
 ![What the Run should end on](walkthrough/2026-09-27/step-12-run-finished.png)
@@ -285,7 +286,7 @@ Put Pockets back to **Bad loans** and **All** when done.
 
 On Control, pick **2 times** in C15.
 
-☐ Start here, without pressing Run: **2 of 81** and **$1,922,025**. In the largest four, the two at 1.74× and 1.75× now read **No** under **Worse?**, and lose their pink.
+☐ Start here, without pressing Run: **2 of 81** and **$1,922,025**. The largest are now two: FICO 496 - 653 / Broker and FICO 712 - 745 / Online. The two at 1.74× and 1.75× come off the list.
 
 ☐ Pockets' **Worse?** column follows the same way.
 
@@ -343,7 +344,7 @@ Each tab opens with **How this tab works**.
 
 ☐ **Paid, cost, kept:** a scatter of the grid picked, charge-offs across on a log scale, what was kept up, lines at 1× and 0, the pockets read together named. Pick another grid in B16: the dots move.
 
-☐ **Look:** a chart per number column, and a red bar on its own left of FICO's for the -9999s.
+☐ **Look:** a chart per number column that can be cut into bands (FICO, ORIG_BAL, REV_DEBT; not GCO_AMT or RANR_AMT), and a red bar on its own left of FICO's for the -9999s.
 
 ☐ **Split** and **Grids:** the shaded tables have their colours (pink worse, green better, deeper for bigger gaps).
 

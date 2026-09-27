@@ -360,14 +360,15 @@ def test_start_here_counts_what_is_left_and_what_the_last_run_found(ran, tmp_pat
     _, b = ran
     got = _calc(b, tmp_path / "start")
     ws = got["Start here"]
-    assert _tile(ws, "Answers still needed") == 0
-    assert _tile(ws, "Columns to confirm") == 0
+    assert _tile(ws, book.NEEDED) == 0
     assert _tile(ws, "Odd values to answer") == 1                     # RANR_AMT's negatives
     found = _tile(ws, "Pockets worse and material, charge-offs")
     k, of = found.split(" of ")
     dollars = [d for d in _pockets(got) if d is not None]
     assert int(of.replace(",", "")) == len(dollars)
-    assert _tile(ws, "Tie-out checks").endswith(" agree")
+    # the tie-out tile is gone: a Run that doesn't tie out stops, so it could only read fine (tenet T2)
+    assert [c.coordinate for row in ws.iter_rows() for c in row if isinstance(c.value, str) and "Tie-out" in c.value] \
+        == []
     heads = [c.value for row in ws.iter_rows() for c in row if c.value == "Largest, worse and material"]
     assert heads
     groups = [c.value for row in ws.iter_rows() for c in row if c.value in ("You answer", "Results", "Record")]
@@ -383,9 +384,8 @@ def test_a_blank_answer_and_an_odd_value_are_counted_on_start_here_as_they_are_l
     got = _calc(out.book, tmp_path / "calc0")
     ws = got["Start here"]
     judged = [s for s in control.load_settings() if s.judgment and not s.in_launcher]
-    assert _tile(ws, "Answers still needed") == len(judged)
-    assert _tile(ws, "Columns to confirm") == len(list(r for r in book.table_rows(load_workbook(out.book)["Columns"])
-                                                       if r[book.C_NAME - 1].value))
+    # the Run's refusal's own count: each blank answer on Control, and Checked every column
+    assert _tile(ws, book.NEEDED) == len(judged) + 1 == len(book.read_book(out.book)[1])
     assert _tile(ws, "Odd values to answer") >= 2
     assert any(str(c.value).startswith("Nothing yet") for row in ws.iter_rows() for c in row)
 
