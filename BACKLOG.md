@@ -2148,6 +2148,18 @@ back.
   books the largest of 465 moved 0.0149 (6,145 → 5,996 of 10,000), about 2 standard errors, and no
   allowed-for p-value crossed 0.05. `Origination Cube.pyw` now opens its window only as the program,
   never in a worker. 7 planted bugs in `tools/mutation_check.py`, all caught; 586 tests, 258 planted bugs.
+- **The firm's answers on the walk-through's design calls (27 Sep 2026, docket U5pHCYek9H7hqehzUvqs8M).**
+  Yes to A (launcher changes count as waiting), C ("Losing more, profit holding"), E (one count), F (plain
+  words on the launcher), G (Comes to shows the value), I (say FICO held fixed), J (the Run's first lines
+  on the finished screen), K (print titles). "Earned before losses" wording: *"Fine for now"*.
+  - **B, the tie-out tile:** *"I specifically have asked and keep asking for this kind for wording to be
+    considered slop. It is the slowest way to communicate a check figure. If it didn't tie out what would
+    happen now"*. A failed tie-out stops the Run and writes no results, so a tile saying it tied is empty:
+    it comes off. The check stays on Record.
+  - **D, Start here's top five:** *"I don't understand this like at all like meaning it's slop"*. Rebuilt
+    live instead: the list is picked by formula from the current verdicts, like the result tabs.
+  - **H, Look on outcome columns:** *"Not sure why we even have the info? Like obviously we didn't band
+    them?"* Look shows only columns that can be cut into bands; outcome columns come off it.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
