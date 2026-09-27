@@ -191,17 +191,52 @@ def add_ratio(rows: list[dict], seed: int = 7) -> list[dict]:
     return rows
 
 
-def write_extract(out: str | Path, n: int = 20000, seed: int = 7, ratio: bool = False) -> Path:
+# --------------------------------------------------------------------------
+# Goal 2 item 3 (27 Sep 2026): a shortlist needs more than one input, one of them with nothing behind it.
+#
+# Two more columns, drawn after everything else from a stream of their own, so every value above (the ratio's
+# included) is the same loan for loan with or without them:
+# - UTIL, revolving utilisation (0 to 1.2): planted as the ratio is, by drawing it given the outcome. Within any
+#   score, channel or asset class, a loan using more than 0.9 of its line has 2.5 times the odds of going bad of
+#   one using less, and nothing else about it matters.
+# - TENURE, years at the address: drawn with no regard to anything, so it must not hold up on held-back loans.
+
+SHORTLIST_COLUMNS = ["UTIL", "TENURE"]
+UTIL_CLIFF, UTIL_ODDS = 0.9, 2.5          # above 0.9 of the line: x2.5 the odds; nothing below
+
+
+def add_shortlist(rows: list[dict], seed: int = 7) -> list[dict]:
+    """UTIL, with a cliff planted above 0.9, and TENURE, with nothing planted (see above)."""
+    rng = random.Random(f"shortlist-{seed}")
+    tenure = random.Random(f"tenure-{seed}")      # a stream of its own: nothing about the loan reaches it
+    for r in rows:
+        bad = r.get("BAD_FLAG") == 1
+        while True:                      # good: uniform on 0 to 1.2; bad: tilted by the planted odds
+            u = rng.uniform(0.0, 1.2)
+            if not bad or rng.random() < (UTIL_ODDS if u > UTIL_CLIFF else 1.0) / UTIL_ODDS:
+                break
+        r["UTIL"] = round(u, 4)
+        r["TENURE"] = round(tenure.expovariate(1 / 6.0), 1)
+    return rows
+
+
+def write_extract(out: str | Path, n: int = 20000, seed: int = 7, ratio: bool = False,
+                  shortlist: bool = False) -> Path:
     """The extract alone, for the demo: the analyst's route starts from
     `cube init` on it, so no call is made for them (walkthrough defect 14).
-    `ratio` adds INCOME and SALES (add_ratio)."""
+    `ratio` adds INCOME and SALES (add_ratio); `shortlist` adds UTIL and TENURE
+    (add_shortlist)."""
     d = Path(out)
     d.mkdir(parents=True, exist_ok=True)
     data = d / "loans.csv"
+    rows = make_rows(n, seed, ratio)
+    if shortlist:
+        rows = add_shortlist(rows, seed)
     with data.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=COLUMNS + (RATIO_COLUMNS if ratio else []))
+        w = csv.DictWriter(f, fieldnames=COLUMNS + (RATIO_COLUMNS if ratio else [])
+                           + (SHORTLIST_COLUMNS if shortlist else []))
         w.writeheader()
-        w.writerows(make_rows(n, seed, ratio))
+        w.writerows(rows)
     return data
 
 

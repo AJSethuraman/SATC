@@ -71,6 +71,15 @@ METHOD = [
     ("Materiality levels", "For each level: its dollar line, how many pockets have charge-offs above their share "
                            "that reach it, and their part of all such dollars. It follows your answer live."),
 ]
+#: the two method lines a test of a new variable reads differently: it builds no pocket, so only worse at is worked
+#: out (from the confirmation's own groups), and the levels panel, which counts pockets, is hidden (phase 4's loose
+#: ends, closed with Goal 2 item 3). The bleed reads METHOD's
+METHOD_NEW = {
+    "Worked out": "Worse at has a value worked out from this extract, from the groups being confirmed, shown beside "
+                  "the setting. It is never picked for you.",
+    "Materiality levels": "Material? on New variables compares each group's excess with the level you pick, live. "
+                          "The panel of levels counts pockets, so it is hidden on this run, which builds none.",
+}
 
 INK, CANVAS, MIST, SLATE, PAPER, KEY_RED = "16130F", "F4F1EC", "E4DFD5", "57534B", "FFFFFF", "CC0000"
 
@@ -547,6 +556,19 @@ def fold_launcher_rows(ws) -> None:
         elif isinstance(key, str) and any(x.key == key and x.only_when and set(x.only_when) == {"run_kind"}
                                           for x in load_settings()):
             ws.row_dimensions[r[0].row].hidden = key in by_kind
+    _method_for(ws, new)
+
+
+def _method_for(ws, new: bool) -> None:
+    """The method note's two lines that differ for a test of a new variable (METHOD_NEW), and the levels panel
+    hidden on it: it counts pockets, and that run builds none."""
+    said = dict(METHOD)
+    for r in range(2, FIRST_ROW + len(METHOD) + 2):
+        label = ws.cell(row=r, column=2).value
+        if label in METHOD_NEW:
+            ws.cell(row=r, column=3).value = METHOD_NEW[label] if new else said[label]
+    for col in range(PANEL_COL, PANEL_COL + 4):
+        ws.column_dimensions[_letter(col)].hidden = new
 
 
 def read_choices(ws):

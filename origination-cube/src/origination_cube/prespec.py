@@ -10,23 +10,40 @@ the identical test - same bins, strata, confidence and reference group -
 run on loans the scouting never saw: the holdout (B5, B6). The pre-spec is that
 promise, and it only binds once git holds it, dated, before the holdout run.
 
-THE FILE (YAML). Every line is required and none has a default:
+THE FILE (YAML). Every line is required and none has a default. A shortlist (Goal 2
+item 3, the lean pre-spec: "an outcome plus a shortlist of inputs"; the firm, 26 Sep
+2026: "it cannot be one column, but a shortlist whatever"):
 
     prespec: 1                          # this format's version
     written: 2026-09-25                 # the day it was written
-    column: income_to_sales             # the derived or split column being tested
-    bins: [0.1, 0.25, 0.5, 1.0, 2.0]    # its cut points, chosen on development data
-    reference: "0.25 - 0.49"            # the group every other group is compared with
-    strata: [FICO, CHANNEL]             # the columns the pockets are cut by, held fixed
+    outcome: BAD_FLAG                   # the yes/no column every input is tested against
+    inputs:                             # the shortlist: each input with its bins and reference group
+      - column: income_to_sales         # the derived or split column being tested
+        bins: [0.1, 0.25, 0.5, 1.0, 2.0]  # its cut points, chosen on development data
+        reference: "0.25 - 0.49"        # the group every other group is compared with
+      - column: DTI
+        bins: [0.2, 0.35, 0.45]
+        reference: 0
+    strata: [FICO, CHANNEL]             # the columns held fixed; each input is reported with and without them
     confidence: 0.95                    # how sure a difference must be, as a share
     holdout: {from: 2024-01-01, to: 2024-12-31}       # origination range kept back
     development: {from: 2022-01-01, to: 2023-12-31}   # origination range the bins came from
+
+The one-column pre-spec written before the shortlist (`column:`, `bins:` and
+`reference:` at the top, and no `outcome:`) is still read, as a shortlist of one.
+It names no outcome, so it is tested against the outcome the run marks, as it
+always was; an `outcome:` line may be added to it. A file with both `inputs:` and
+a top-level `column:`, `bins:` or `reference:` is refused: which one is meant?
 
 Line by line:
 
 - `prespec` is 1.
 - `written` and every `from` / `to` is a date written 2024-01-01, quoted or not. A
   `written` date after the day of the run is said on Check, and the run goes on.
+- `outcome` names one column: the yes/no outcome the run marks. A run tested
+  against another says so on Record.
+- `inputs` is a list of one or more inputs, each exactly `column`, `bins` and
+  `reference`, every one required. No column is listed twice.
 - `column` names one column.
 - `bins` is a list of numbers, each above the one before. N cut points make N + 1
   groups. A group holds its first number and stops short of the next cut point, so a
@@ -40,8 +57,10 @@ Line by line:
   lowest (2 is "0.25 - 0.49" above, as `ref = 2` is in scout-vs-measure.py). The file
   is written before the data is read, so the lowest and highest groups may be written
   with any range, "0.01 - 0.09", "2.00 - 7.40", or as "up to 0.09" and "2.00 and up".
-- `strata` lists column names, each once, never the tested column. `strata: []` says
-  explicitly that the whole book is one pocket.
+- `strata` lists column names, each once, never a tested column. `strata: []` says
+  explicitly that the whole book is one pocket. Which columns to hold fixed is the
+  analyst's call: anything PocketBook writes suggests them and leaves the value blank
+  (OC-13; the firm's answer on the 26 Sep docket).
 - `confidence` is a share from 0.5 up to, not including, 1 (as the cube file's).
 - `holdout` and `development` are origination ranges, `{from: DATE, to: DATE}`, and
   BOTH ENDS ARE INCLUSIVE: `{from: 2024-01-01, to: 2024-12-31}` holds a loan made on
@@ -64,11 +83,13 @@ file and its commit, and the Log counting holdout runs, are wired in elsewhere
 
 - `load(path) -> PreSpec`, or `PreSpecError` listing every problem.
 - `named(prespec, lo, hi) -> PreSpec`: its groups named from the tested column's
-  smallest and largest value in a run, as that run's tabs name them.
+  smallest and largest value in a run, as that run's tabs name them; for a
+  shortlist, `named(prespec, ranges={column: (lo, hi)})` names every input's.
 - `provenance(path) -> {commit, committed_at, dirty, reason}`: the commit the file
   was last committed in, and whether it has changed since. Never raises.
 - `deviations(prespec, in_use) -> [str]`: each place the run disagrees with the
-  pre-spec, in words. A key the run did not set is a deviation, not a pass.
+  pre-spec, in words. A key the run did not set is a deviation, not a pass. A
+  shortlist's inputs are compared one by one (`in_use["inputs"]`).
 - `holdout_touch(prespec, dates) -> (count, first, last)`: how many loans were made
   inside the holdout range, ends inclusive.
 """
@@ -90,7 +111,12 @@ from .engine import band_labels
 
 VERSION = 1
 CONFIRM = "[CONFIRM:"
+#: The one-column pre-spec's lines, every one required (the format before the shortlist; still read)
 KEYS = ("prespec", "written", "column", "bins", "reference", "strata", "confidence", "holdout", "development")
+#: A shortlist's lines, every one required (Goal 2 item 3: an outcome plus a shortlist of inputs)
+SHORTLIST_KEYS = ("prespec", "written", "outcome", "inputs", "strata", "confidence", "holdout", "development")
+#: The lines of one input in `inputs:`, every one required
+INPUT_KEYS = ("column", "bins", "reference")
 #: A line an older pre-spec carried and a run no longer reads, and why (config.REMOVED says it for the cube file).
 REMOVED = {"window_months": "the outcome window was removed: it left young loans out and counted late losses "
                             "as good. A run now shows every loan in the extract as the extract has it. Picking "
@@ -105,13 +131,22 @@ GIT_TIMEOUT = 15                                           # seconds, per git ca
 _GIT_ELSEWHERE = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR")
 ONLY_ONCE_COMMITTED = "a pre-spec only counts once it is committed"
 
+#: The line to add for each missing one. Strata are the analyst's call, so the line suggests them and leaves the
+#: value blank, as every judgment setting is (OC-13; the firm, 26 Sep 2026): a blank reads [CONFIRM: ...], which
+#: the file refuses until it is answered.
 _LINES = {
     "prespec": f"prespec: {VERSION}",
     "written": "written: 2026-09-25                 # the day this was written",
+    "outcome": "outcome: BAD_FLAG                   # the yes/no column every input is tested against",
+    "inputs": ("inputs:                             # the shortlist: each input, its bins and its reference group\n"
+               "  - column: income_to_sales\n"
+               "    bins: [0.1, 0.25, 0.5, 1.0, 2.0]\n"
+               '    reference: "0.25 - 0.49"'),
     "column": "column: income_to_sales             # the column being tested",
     "bins": "bins: [0.1, 0.25, 0.5, 1.0, 2.0]    # its cut points, chosen on development data",
     "reference": 'reference: "0.25 - 0.49"           # the group the others are compared with',
-    "strata": "strata: [FICO, CHANNEL]             # the columns the pockets are cut by; [] for none",
+    "strata": ('strata: "[CONFIRM: the columns to hold fixed, such as [FICO, CHANNEL]; [] for none]"   '
+               "# held fixed; each input is reported with and without them"),
     "confidence": "confidence: 0.95                    # how sure a difference must be",
     "holdout": "holdout: {from: 2024-01-01, to: 2024-12-31}       # kept back for the confirmatory run",
     "development": "development: {from: 2022-01-01, to: 2023-12-31}   # where the bins were chosen",
@@ -143,30 +178,80 @@ class DateRange:
 
 
 @dataclass(frozen=True)
-class PreSpec:
-    written: date
+class Input:
+    """One input on the shortlist: its column, cut into groups at its bins, each compared with its reference."""
     column: str
     bins: tuple[float, ...]
     groups: tuple[str, ...]          # the groups the bins make, named as the grids name bands
     reference: str                   # the reference group's name, one of `groups`
     reference_index: int             # its place in `groups`, 0 the lowest
+    lo: float | None = None          # the column's smallest and largest value in a run, once read,
+    hi: float | None = None          # from which the lowest and highest groups are named (`named`)
+
+
+@dataclass(frozen=True)
+class PreSpec:
+    written: date
+    inputs: tuple[Input, ...]        # the shortlist, in the file's order; one for a one-column pre-spec
     strata: tuple[str, ...]
     confidence: float
     holdout: DateRange
     development: DateRange
+    outcome: str | None = None       # None: a one-column pre-spec written before the line existed
     source_path: str = ""
     text: str = ""                   # the file exactly as read, for Check to echo
-    lo: float | None = None          # the tested column's smallest and largest value in a run, once read,
-    hi: float | None = None          # from which the lowest and highest groups are named (`named`)
+    shortlist: bool = False          # written as a shortlist (`inputs:`), not the one-column form
+
+    # The first input's lines, as a one-column pre-spec had them. Code that handles a shortlist reads `inputs`.
+    @property
+    def column(self) -> str:
+        return self.inputs[0].column
+
+    @property
+    def columns(self) -> tuple[str, ...]:
+        return tuple(i.column for i in self.inputs)
+
+    @property
+    def bins(self) -> tuple[float, ...]:
+        return self.inputs[0].bins
+
+    @property
+    def groups(self) -> tuple[str, ...]:
+        return self.inputs[0].groups
+
+    @property
+    def reference(self) -> str:
+        return self.inputs[0].reference
+
+    @property
+    def reference_index(self) -> int:
+        return self.inputs[0].reference_index
+
+    @property
+    def lo(self) -> float | None:
+        return self.inputs[0].lo
+
+    @property
+    def hi(self) -> float | None:
+        return self.inputs[0].hi
 
 
-def named(prespec: PreSpec, lo: float | None, hi: float | None) -> PreSpec:
+def _named_input(inp: Input, lo: float | None, hi: float | None) -> Input:
+    groups = tuple(band_labels(inp.bins, lo, hi))
+    return replace(inp, groups=groups, reference=groups[inp.reference_index], lo=lo, hi=hi)
+
+
+def named(prespec: PreSpec, lo: float | None = None, hi: float | None = None, *,
+          ranges: dict | None = None) -> PreSpec:
     """The pre-spec with its groups named as a run's tabs name them, from the
     tested column's smallest and largest value in that run: "0.03 - 0.09", not
     "up to 0.09". Without a value for an end, that end is named as the bins alone
-    name it, as a grid's is."""
-    groups = tuple(band_labels(prespec.bins, lo, hi))
-    return replace(prespec, groups=groups, reference=groups[prespec.reference_index], lo=lo, hi=hi)
+    name it, as a grid's is. `lo` and `hi` name the first input's (a one-column
+    pre-spec's only one); `ranges` maps each input's column to its (lo, hi)."""
+    got = dict(ranges or {})
+    if ranges is None:
+        got[prespec.inputs[0].column] = (lo, hi)
+    return replace(prespec, inputs=tuple(_named_input(i, *got.get(i.column, (None, None))) for i in prespec.inputs))
 
 
 # --------------------------------------------------------------------------
@@ -185,21 +270,64 @@ def load(path: str | Path) -> PreSpec:
     return parse(raw, source_path=str(p), text=text)
 
 
+def _one_input(raw: dict, where: str, has, problems: list[str]) -> Input | None:
+    """One input's column, bins and reference, read from `raw` (the file's top level for a one-column pre-spec, an
+    entry of `inputs:` for a shortlist). `where` prefixes each line's name ("inputs[1]." or ""); `has(k)` says
+    whether line k is there to read (a missing or unanswered one is said elsewhere)."""
+    column = None
+    if has("column"):
+        v = raw["column"]
+        if isinstance(v, str) and v.strip():
+            column = v.strip()
+        else:
+            problems.append(f"`{where}column:` must name the column being tested, such as income_to_sales; got {v!r}")
+    bins = None
+    if has("bins"):
+        v = raw["bins"]
+        if not isinstance(v, list) or not v or not all(_finite(x) for x in v):
+            problems.append(f"`{where}bins:` must be a list of cut points, such as [0.1, 0.25, 0.5, 1.0, 2.0]; "
+                            f"got {v!r}")
+        elif any(b <= a for a, b in zip(v, v[1:])):
+            problems.append(f"`{where}bins:` must rise, each cut point above the one before; got {v}")
+        else:
+            bins = tuple(float(x) for x in v)
+    groups, ref_index = (), None
+    if bins is not None:
+        groups = tuple(band_labels(bins))
+        if has("reference"):
+            ref_index = _group_index(raw["reference"], bins)
+            if ref_index is None:
+                problems.append(f"`{where}reference: {raw['reference']!r}` is not one of the groups the bins make: "
+                                f"{'; '.join(groups)}. Write one of those, or its number, 0 for the lowest "
+                                f"and {len(groups) - 1} for the highest")
+    if column is None or ref_index is None:
+        return None
+    return Input(column=column, bins=bins, groups=groups, reference=groups[ref_index], reference_index=ref_index)
+
+
 def parse(raw: Any, source_path: str = "", text: str = "") -> PreSpec:
     if not isinstance(raw, dict):
         raise PreSpecError([f"the pre-spec must be a list of `key: value` lines, starting `prespec: {VERSION}`"])
     problems: list[str] = []
+    # a shortlist, or the one-column form: a file with no input's line at the top is read as a shortlist, so a
+    # file missing its inputs is asked for them, not for the one-column form's lines
+    listed = "inputs" in raw or not any(k in raw for k in INPUT_KEYS)
+    own = SHORTLIST_KEYS if listed else KEYS
 
     marked = set()
     for where, val in _confirm_markers(raw):
         problems.append(f"`{where}` still reads {val!r}: replace it with your answer")
+        marked.add(where)
         marked.add(where.split(".")[0].split("[")[0])
     for k in raw:
         if k in REMOVED:
             problems.append(f"`{k}:` is no longer read: {REMOVED[k]}")
-        elif k not in KEYS:
-            problems.append(f"unknown line `{k}:` (known: {', '.join(KEYS)})")
-    for k in KEYS:
+        elif listed and k in INPUT_KEYS:
+            problems.append(f"`{k}:` is written at the top as well as under `inputs:`. A shortlist names each "
+                            f"input's column, bins and reference under `inputs:`; delete the top-level `{k}:`")
+        elif k not in own and not (k == "outcome" and not listed):
+            problems.append(f"unknown line `{k}:` (known: {', '.join(own)})")
+    for k in own:
         if k not in raw:
             problems.append(f"missing line `{k}:`; no line has a default. Add:\n{_LINES[k]}")
 
@@ -211,33 +339,41 @@ def parse(raw: Any, source_path: str = "", text: str = "") -> PreSpec:
 
     written = _date(raw["written"], "written", problems) if has("written") else None
 
-    column = None
-    if has("column"):
-        v = raw["column"]
+    outcome = None
+    if has("outcome"):
+        v = raw["outcome"]
         if isinstance(v, str) and v.strip():
-            column = v.strip()
+            outcome = v.strip()
         else:
-            problems.append(f"`column:` must name the column being tested, such as income_to_sales; got {v!r}")
+            problems.append(f"`outcome:` must name the yes/no column every input is tested against, such as "
+                            f"BAD_FLAG; got {v!r}")
 
-    bins = None
-    if has("bins"):
-        v = raw["bins"]
-        if not isinstance(v, list) or not v or not all(_finite(x) for x in v):
-            problems.append(f"`bins:` must be a list of cut points, such as [0.1, 0.25, 0.5, 1.0, 2.0]; got {v!r}")
-        elif any(b <= a for a, b in zip(v, v[1:])):
-            problems.append(f"`bins:` must rise, each cut point above the one before; got {v}")
+    inputs: list[Input | None] = []
+    if not listed:
+        inputs.append(_one_input(raw, "", has, problems))
+    elif "inputs" in raw:
+        v = raw["inputs"]
+        if not isinstance(v, list) or not v or not all(isinstance(x, dict) for x in v):
+            if "inputs" not in marked:
+                problems.append(f"`inputs:` must list one or more inputs, each with its `column:`, `bins:` and "
+                                f"`reference:`; got {v!r}")
         else:
-            bins = tuple(float(x) for x in v)
-
-    groups, ref_index = (), None
-    if bins is not None:
-        groups = tuple(band_labels(bins))
-        if has("reference"):
-            ref_index = _group_index(raw["reference"], bins)
-            if ref_index is None:
-                problems.append(f"`reference: {raw['reference']!r}` is not one of the groups the bins make: "
-                                f"{'; '.join(groups)}. Write one of those, or its number, 0 for the lowest "
-                                f"and {len(groups) - 1} for the highest")
+            for i, entry in enumerate(v):
+                where = f"inputs[{i}]."
+                for k in entry:
+                    if k not in INPUT_KEYS:
+                        problems.append(f"unknown line `{where}{k}:` (an input has {', '.join(INPUT_KEYS)})")
+                for k in INPUT_KEYS:
+                    if k not in entry:
+                        problems.append(f"missing line `{where}{k}:`; no line has a default. Each input names "
+                                        f"its column, bins and reference")
+                inputs.append(_one_input(entry, where, lambda k, e=entry, w=where: k in e and w + k not in marked,
+                                         problems))
+            names = [x.column for x in inputs if x is not None]
+            twice = sorted({c for c in names if names.count(c) > 1})
+            if twice:
+                problems.append(f"`inputs:` lists {', '.join(twice)} more than once")
+    tested = [x.column for x in inputs if x is not None]
 
     strata = None
     if has("strata"):
@@ -250,11 +386,16 @@ def parse(raw: Any, source_path: str = "", text: str = "") -> PreSpec:
             twice = sorted({s for s in names if names.count(s) > 1})
             if twice:
                 problems.append(f"`strata:` names {', '.join(twice)} more than once")
-            if column is not None and column in names:
-                problems.append(f"`strata:` includes `{column}`, the column being tested. A column cannot be "
+            both = [c for c in tested if c in names]
+            for c in both:
+                problems.append(f"`strata:` includes `{c}`, the column being tested. A column cannot be "
                                 f"tested and held fixed at once")
-            if not twice and column not in names:
+            if outcome is not None and outcome in names:
+                problems.append(f"`strata:` includes `{outcome}`, the outcome. It cannot be held fixed")
+            if not twice and not both and outcome not in names:
                 strata = tuple(names)
+    if outcome is not None and outcome in tested:
+        problems.append(f"`inputs:` tests `{outcome}`, the outcome itself")
 
     conf = None
     if has("confidence"):
@@ -273,9 +414,8 @@ def parse(raw: Any, source_path: str = "", text: str = "") -> PreSpec:
 
     if problems:
         raise PreSpecError(problems)
-    return PreSpec(written=written, column=column, bins=bins, groups=groups, reference=groups[ref_index],
-                   reference_index=ref_index, strata=strata, confidence=conf,
-                   holdout=holdout, development=development, source_path=source_path, text=text)
+    return PreSpec(written=written, inputs=tuple(inputs), strata=strata, confidence=conf, holdout=holdout,
+                   development=development, outcome=outcome, source_path=source_path, text=text, shortlist=listed)
 
 
 def _confirm_markers(node: Any, where: str = ""):
@@ -455,17 +595,47 @@ def deviations(prespec: PreSpec, in_use: dict, where: str = "on Control") -> lis
     sentence; the holdout's sentence is about the loans the run used, wherever its
     settings were read, and never calls their range the holdout. Groups are named
     as `named` named them, from the data's range when it has been read.
+
+    A shortlist (Goal 2 item 3): `in_use["inputs"]` lists each input the run
+    tested as {column, bins (or edges), reference}, and each of the pre-spec's
+    inputs is compared with the one of the same column, its sentences starting
+    "For DTI:". An input the run didn't test, or one it tested that the pre-spec
+    doesn't list, is said. Without `inputs`, the flat column, bins and reference
+    are the one input's, as for a one-column pre-spec. When the pre-spec names
+    its outcome, `in_use["outcome"]` is compared with it first.
     """
     ps = prespec
     got = dict(in_use)
-    if got.get("bins") is None and got.get("edges") is not None:
-        got["bins"] = got["edges"]
-    want = {"column": f"`{ps.column}`", "bins": _bins_text(ps.bins), "reference": f"`{ps.reference}`",
-            "strata": _strata_text(ps.strata), "confidence": _pct(ps.confidence)}
     out: list[str] = []
-    in_bins = _as_bins(got.get("bins"))
-
-    for key in IN_USE_KEYS:
+    if ps.outcome is not None:
+        v = got.get("outcome")
+        if v is None:
+            out.append(f"The outcome is not set {where}; the pre-spec says `{ps.outcome}`.")
+        elif not (isinstance(v, str) and v.strip() == ps.outcome):
+            out.append(f"The outcome is `{v}` {where}; the pre-spec says `{ps.outcome}`.")
+    listed = got.get("inputs")
+    if listed is None or (len(ps.inputs) == 1 and not ps.shortlist and not isinstance(listed, (list, tuple))):
+        out += _input_deviations(ps.inputs[0], got, where, "")
+    else:
+        seen_cols = []
+        by_col = {}
+        for x in listed if isinstance(listed, (list, tuple)) else ():
+            c = x.get("column") if isinstance(x, dict) else None
+            if isinstance(c, str):
+                by_col.setdefault(c.strip(), x)
+                seen_cols.append(c.strip())
+        many = len(ps.inputs) > 1 or ps.shortlist
+        for inp in ps.inputs:
+            x = by_col.get(inp.column)
+            if x is None:
+                out.append(f"`{inp.column}` isn't tested {where}; the pre-spec lists it.")
+                continue
+            out += _input_deviations(inp, x, where, f"For {inp.column}: " if many else "")
+        for c in seen_cols:
+            if c not in ps.columns:
+                out.append(f"`{c}` is tested {where}; the pre-spec doesn't list it.")
+    want = {"strata": _strata_text(ps.strata), "confidence": _pct(ps.confidence)}
+    for key in IN_USE_KEYS[3:]:
         v = got.get(key)
         if key == "holdout":
             said = _holdout_said(ps.holdout, v)
@@ -477,26 +647,7 @@ def deviations(prespec: PreSpec, in_use: dict, where: str = "on Control") -> lis
             out.append(f"{unset} {where}; the pre-spec says {want[key]}.")
             continue
         seen = None                                        # what the run used, in words, when it differs
-        if key == "column":
-            if not (isinstance(v, str) and v.strip() == ps.column):
-                seen = f"`{v}`"
-        elif key == "bins":
-            if in_bins is None:
-                seen = repr(v)
-            elif not _same_bins(in_bins, ps.bins):
-                seen = _bins_text(in_bins)
-        elif key == "reference":
-            bins = in_bins if in_bins is not None else ps.bins
-            idx = _group_index(v, bins)
-            names = band_labels(bins, ps.lo, ps.hi)
-            if idx is None:
-                seen = f"`{v}`, which is not one of its bins' groups"
-            elif _same_bins(bins, ps.bins):
-                if idx != ps.reference_index:
-                    seen = f"`{names[idx]}`"
-            elif names[idx] != ps.reference:
-                seen = f"`{names[idx]}`"
-        elif key == "strata":
+        if key == "strata":
             cols = [v] if isinstance(v, str) else v
             if not isinstance(cols, (list, tuple)) or not all(isinstance(c, str) for c in cols):
                 seen = repr(v)
@@ -510,6 +661,47 @@ def deviations(prespec: PreSpec, in_use: dict, where: str = "on Control") -> lis
                 seen = _pct(c)
                 if seen == want[key]:                      # differs past the printed digits: show them all
                     seen, want[key] = repr(c), repr(ps.confidence)
+        if seen is not None:
+            out.append(f"{says} {seen} {where}; the pre-spec says {want[key]}.")
+    return out
+
+
+def _input_deviations(inp: Input, got: dict, where: str, lead: str) -> list[str]:
+    """Where one input's column, bins and reference differ from what the run used (`got`), one sentence each."""
+    got = dict(got)
+    if got.get("bins") is None and got.get("edges") is not None:
+        got["bins"] = got["edges"]
+    want = {"column": f"`{inp.column}`", "bins": _bins_text(inp.bins), "reference": f"`{inp.reference}`"}
+    in_bins = _as_bins(got.get("bins"))
+    out = []
+    for key in IN_USE_KEYS[:3]:
+        v = got.get(key)
+        says, unset = _SAID[key]
+        if lead:
+            says, unset = lead + says[0].lower() + says[1:], lead + unset[0].lower() + unset[1:]
+        if v is None:
+            out.append(f"{unset} {where}; the pre-spec says {want[key]}.")
+            continue
+        seen = None
+        if key == "column":
+            if not (isinstance(v, str) and v.strip() == inp.column):
+                seen = f"`{v}`"
+        elif key == "bins":
+            if in_bins is None:
+                seen = repr(v)
+            elif not _same_bins(in_bins, inp.bins):
+                seen = _bins_text(in_bins)
+        else:
+            bins = in_bins if in_bins is not None else inp.bins
+            idx = _group_index(v, bins)
+            names = band_labels(bins, inp.lo, inp.hi)
+            if idx is None:
+                seen = f"`{v}`, which is not one of its bins' groups"
+            elif _same_bins(bins, inp.bins):
+                if idx != inp.reference_index:
+                    seen = f"`{names[idx]}`"
+            elif names[idx] != inp.reference:
+                seen = f"`{names[idx]}`"
         if seen is not None:
             out.append(f"{says} {seen} {where}; the pre-spec says {want[key]}.")
     return out

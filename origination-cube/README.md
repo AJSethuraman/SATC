@@ -225,12 +225,17 @@ whether it only re-sorts the band.
 
 **A confirmatory run.** A column scouted on development loans (income over
 sales, say) is tested once, on loans kept back, with settings written down and
-committed to git beforehand: the pre-spec (`docs/prespec-example.yaml`; the
-format is in `src/origination_cube/prespec.py`). In the launcher, choose *Test
-new variables* and **Browse** to that file under *Or confirm a saved
-shortlist*; Control shows it under *Chosen in the launcher*. A file that isn't
+committed to git beforehand: the pre-spec. It is **an outcome plus a shortlist of inputs**, each input
+with its column, bins and reference group, then the columns held fixed (`strata`), the confidence and
+the holdout and development ranges (`docs/prespec-shortlist-example.yaml`; the format is in
+`src/origination_cube/prespec.py`). Every line is required. The one-column pre-spec written before the
+shortlist (`docs/prespec-example.yaml`) is still read, as a shortlist of one. Which columns to hold
+fixed is the analyst's call: the example suggests them and leaves the line unanswered, and the file is
+refused until it is answered. In the launcher, choose *Test new variables* and **Browse** to that file
+under *Or confirm a saved shortlist*: *Test it* ticks every input on the list, *Hold fixed* its strata,
+and the outcome its outcome; Control shows the file under *Chosen in the launcher*. A file that isn't
 there or can't be read stops the Run, naming the cell, and so does a pre-spec
-whose column isn't on Columns, or a pre-spec named for Where the book bleeds.
+with an input that isn't on Columns, or a pre-spec named for Where the book bleeds.
 Without a saved shortlist, the Run stops and asks for one. Otherwise Record echoes what it says,
 the commit it was read from (or that it isn't committed, or was edited since) and its fingerprint (the
 first 12 characters of its SHA-256), and lists, one line each, where the run differs from it; Every Run
@@ -241,17 +246,21 @@ the pre-spec when a Run first reads it (its fingerprint, the date it says it was
 commit), and every held-back run after it, in order; a pre-spec changed after a held-back run labels
 that run *Changed pre-spec* and Record warns. Nothing is refused for it.
 
-The test itself is on the **New variables** tab (black; it replaces the Confirmatory test tab). The
-column is cut at the pre-spec's bins, and each group is compared with its reference group. Each row is
-one comparison, a group against the reference: **Found** (the development loans, where the groups came
+The test itself is on the **New variables** tab (black; it replaces the Confirmatory test tab). Each
+input is cut at its own bins, and each group is compared with its own reference group, one block of rows
+per candidate. Each row is one comparison, a group against the reference: **Found** (the development loans, where the groups came
 from), **Confirmed** on the held-back loans with *Holds up?*, **Confirmed with the held-fixed columns**
 (the pre-spec's strata: a loan is only compared with loans in its own pocket) with *Still holds?*, then
 **Excess** (the group's charge-offs on the held-back loans above its share, scaled to the whole book;
 bad loans when the extract has no GCO), **Material?** against Control's line, and **In words** ("Holds
 up, and not just FICO and CHANNEL"). A saved shortlist was found elsewhere, so its Found columns are
-hidden. A bar chart draws Found, Confirmed and held fixed a comparison, with a dashed line at *worse
-at*. Tiles above it: the outcome, the candidates, what is held fixed, the loans found on and held back,
-and the materiality line, live. Loans made outside both ranges, or with no readable date, column value
+hidden. The p-values in the table allow for testing every candidate's groups at once, by the method
+Control's *Allowing for testing many pockets at once* names (Benjamini-Hochberg by default; the tab's
+method note says which, once), one family per set of loans; *Holds up?* and *Still holds?* read the
+allowed p-value, and the tests in full keep each raw one. A bar chart per candidate draws Found,
+Confirmed and held fixed a comparison, with a dashed line at *worse at*. Tiles above it: the outcome,
+the candidates (with several, how many hold up, live), what is held fixed, the loans found on and held
+back, and the materiality line, live. Loans made outside both ranges, or with no readable date, column value
 or outcome, are left out of this test only; Record counts them, and every other tab still uses every
 loan. Under the chart, the tests in full, with and without the columns held fixed, on each set of
 loans:
@@ -356,7 +365,7 @@ test).
 ## Checking it
 
 ```
-pytest -q                          # 664 tests (2 skip without a display; the 22 in test_live.py, 22 in test_result_tabs.py, 6 in test_answer_tabs.py, 6 in test_confirm_test.py, 2 in test_record.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the tabs you fill in (Start here, Control in three blocks with Status and the materiality panel, Columns with odd values and memory, Look with live bars, range and edge lines, one load and one save per Run), the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one, and a test of a new variable building no grid and writing none of the bleed's tabs; New variables (each group found, confirmed and confirmed with the held-fixed columns, the test with nothing held fixed counted by hand, Holds up? and Still holds? and Material? live, excess counted by hand, the Found columns hidden for a saved shortlist, the chart's worse line), Record (six sections in three pairs, every Check line in its section, Settings shaded on a change, a refusal on Every Run at once, an older Log carried over), the pre-spec recorded not blocked (its fingerprint, each held-back run in order, a change labelled), and a new variable asked only what it uses, its worse line suggested from its own groups, its Set up building no grid
+pytest -q                          # 701 tests (2 skip without a display; the 22 in test_live.py, 22 in test_result_tabs.py, 6 in test_answer_tabs.py, 6 in test_confirm_test.py, 5 in test_shortlist.py, 2 in test_record.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the tabs you fill in (Start here, Control in three blocks with Status and the materiality panel, Columns with odd values and memory, Look with live bars, range and edge lines, one load and one save per Run), the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one, and a test of a new variable building no grid and writing none of the bleed's tabs; New variables (each group found, confirmed and confirmed with the held-fixed columns, the test with nothing held fixed counted by hand, Holds up? and Still holds? and Material? live, excess counted by hand, the Found columns hidden for a saved shortlist, the chart's worse line), Record (six sections in three pairs, every Check line in its section, Settings shaded on a change, a refusal on Every Run at once, an older Log carried over), the pre-spec recorded not blocked (its fingerprint, each held-back run in order, a change labelled), and a new variable asked only what it uses, its worse line suggested from its own groups, its Set up building no grid; and the lean pre-spec: a shortlist of inputs read line by line, the one-column form still read and confirmed figure for figure, three inputs on the first book (two planted hold up, one with nothing planted does not), Benjamini-Hochberg across every candidate's groups worked out by hand, a verdict the allowance turns, a block and a chart per candidate, and the launcher filling its boxes from the file
 python tools/mutation_check.py     # puts 327 bugs back (the VBA's and today's rules); every one must be caught
 ```
 

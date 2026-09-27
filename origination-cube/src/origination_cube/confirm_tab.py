@@ -122,22 +122,51 @@ class _Views:
                         (hold, "Confirmed on the held-back loans, nothing held fixed", "On the holdout,")]
 
 
-def _method(res, st, t, excess, stamp: str) -> list[tuple[str, object]]:
-    """The tab's one method note (tenet T1): every test and choice behind the rows, once, in plain words."""
-    K = len(t.groups)
-    ref = t.groups[t.ref]
+def _loans_said(tests, side_name: str) -> str:
+    """How many loans and bad loans a set holds, once when every candidate has the same, else candidate by
+    candidate (a loan with no readable value of one candidate is left out of that candidate's test only)."""
+    sides = [getattr(t, side_name) for t in tests]
+    if len({(s.n, s.n_bad) for s in sides}) == 1:
+        s = sides[0]
+        rate = s.n_bad / s.n if s.n else None
+        return f"{s.n:,} loans, {s.n_bad:,} bad" + (f" ({rate:.2%})" if rate is not None else "")
+    return "; ".join(f"{t.column} {s.n:,} loans, {s.n_bad:,} bad" for t, s in zip(tests, sides))
+
+
+def _method(res, st, tests, excesses, stamp: str) -> list[tuple[str, object]]:
+    """The tab's one method note (tenet T1): every test and choice behind the rows, once, in plain words. A shortlist
+    of one reads as the one-column pre-spec's did; several candidates are named together."""
+    from . import confirmatory
+    t = tests[0]
+    one = len(tests) == 1
+    Ks = sorted({len(x.groups) for x in tests})
+    K = Ks[0] if len(Ks) == 1 else None
+    ref = t.groups[t.ref] if one else "its reference group"
     held = _held_words(t.strata)
     dev, hold = t.development, t.holdout
-    out = [("The column", f"{t.column}, in {K} groups: {'; '.join(t.groups)}. The groups are the pre-spec's."),
-           ("Compared with", f"{ref}, the pre-spec's reference group. Every other group is compared with it.")]
+    if one:
+        out = [("The column", f"{t.column}, in {K} groups: {'; '.join(t.groups)}. The groups are the pre-spec's."),
+               ("Compared with", f"{ref}, the pre-spec's reference group. Every other group is compared with it.")]
+    else:
+        out = [("The candidates", f"{len(tests)} inputs on the saved shortlist, each in its own groups, the "
+                                  f"pre-spec's: " + "; ".join(f"{x.column} in {len(x.groups)} groups "
+                                                             f"({', '.join(x.groups)})" for x in tests) + "."),
+               ("Compared with", "Each candidate's own reference group, the pre-spec's: "
+                                 + "; ".join(f"{x.column} against {x.groups[x.ref]}" for x in tests)
+                                 + ". Every other group of a candidate is compared with its reference.")]
     said = []
-    for side, what in ((dev, "found on: where the groups were chosen"), (hold, "held back: the test that counts")):
-        rate = side.n_bad / side.n if side.n else None
-        said.append(f"Loans made {side.range.text()}: {side.n:,} loans, {side.n_bad:,} bad"
-                    + (f" ({rate:.2%})" if rate is not None else "") + f"; {what}.")
-    if t.left_out:
-        words = "; ".join(f"{v:,} {k}" if k.startswith("made") else f"{v:,} with {k}" for k, v in t.left_out.items())
-        said.append(f"Left out of this test: {words}. Record counts every loan.")
+    for side_name, side, what in (("development", dev, "found on: where the groups were chosen"),
+                                  ("holdout", hold, "held back: the test that counts")):
+        said.append(f"Loans made {side.range.text()}: {_loans_said(tests, side_name)}; {what}.")
+    def left_words(left):
+        return "; ".join(f"{v:,} {k}" if k.startswith("made") else f"{v:,} with {k}" for k, v in left.items())
+    if one or len({tuple(x.left_out.items()) for x in tests}) == 1:
+        if t.left_out:
+            said.append(f"Left out of {'this test' if one else 'each test'}: {left_words(t.left_out)}. Record counts "
+                        f"every loan.")
+    else:
+        said.append(" ".join(f"Left out of {x.column}'s test: {left_words(x.left_out)}." for x in tests
+                             if x.left_out) + " Record counts every loan.")
     out.append(("Found, then confirmed", " ".join(said) + " The comparison is made once on each; only the "
                                                           "held-back result counts."))
     out.append(("Gap", f"The odds ratio against {ref}. Odds are bad loans divided by good ones, and an odds ratio is "
@@ -146,25 +175,30 @@ def _method(res, st, t, excess, stamp: str) -> list[tuple[str, object]]:
                        f"regression, which compares the groups inside each pocket and takes each pocket's own count "
                        f"of bad loans as given, instead of estimating a rate for every pocket, which biases the "
                        f"answer when pockets are thin."))
+    how = confirmatory.allowance(res)
+    after = "" if how == "none" else ", after the allowance for testing many at once (below)"
     out.append(("p-value", live.text("The chance of a gap at least this big if the group were no different from "
-                                     f"{ref}. Below ", ('TEXT(significance_bar,"0%")',), " is significant, at ",
+                                     f"{ref}{after}. Below ", ('TEXT(significance_bar,"0%")',), " is significant, at ",
                                      ('TEXT(confidence,"0%")',), " sure. Two-sided: a gap either way counts.")))
+    out.append(("Many at once", confirmatory.allowance_words(res, tests)))
     out.append(("Holds up?", "Yes when the held-back loans show the gap on the same side of 1 as the found loans "
                              "did, and significant. Only the held-back result counts: the found one is where the "
                              "idea came from."))
+    what_col = t.column if one else "the candidate"
     if t.held:
         out.append((f"{held} held fixed",
                     f"The held-back comparison made again with every loan compared only with loans in its own "
                     f"pocket, cut by {held} at the band edges on Record. A difference in the {held} mix then can't "
-                    f"pass for a difference in {t.column}. Still holds? says whether the gap stays; if it goes, "
+                    f"pass for a difference in {what_col}. Still holds? says whether the gap stays; if it goes, "
                     f"the candidate was mostly telling you {held}. Every pocket counts, however small: fewest "
                     f"loans and fewest losses decide only whether one pocket can be read on its own, and a "
                     f"pocket where no loan, or every loan, went bad says nothing and adds nothing."))
     else:
         out.append(("Nothing held fixed", "The pre-spec holds no column fixed, so the whole book is one pocket and "
                                           "there is one confirmation."))
-    if excess is not None:
-        what = "charge-offs" if excess.unit == "dollars" else "bad loans"
+    ex = next((e for e in excesses if e is not None), None)
+    if ex is not None:
+        what = "charge-offs" if ex.unit == "dollars" else "bad loans"
         out.append(("Material?", f"Excess is a group's {what} on the held-back loans above its share of them (its "
                                  f"share of the held-back loans), times the whole book's {what} over the held-back "
                                  f"loans', so it sits on the same scale as Control's materiality line. Material? is "
@@ -173,22 +207,27 @@ def _method(res, st, t, excess, stamp: str) -> list[tuple[str, object]]:
                             f"holds up, but it was mostly {held or 'those columns'}; holds up only with them held "
                             f"fixed; or didn't hold up on held-back loans." if t.held else
                 "Holds up on held-back loans, or didn't."))
-    out.append(("The tests in full", f"Under the chart. Does {t.column} matter at all: the general test (the "
-                                     f"Mantel-Haenszel test for {K} groups: a standard way to add pockets up without "
-                                     f"mixing their loans), read against a chi-square on {K - 1} degrees of freedom, "
-                                     f"one fewer than the groups; the trend test, which gives the groups the scores "
-                                     f"1 to {K} and asks whether the bad rate climbs or falls steadily with them, on 1 "
+    k_words = (f"the Mantel-Haenszel test for {K} groups" if K else "the Mantel-Haenszel test for its groups")
+    df_words = (f"{K - 1} degrees of freedom" if K else "one fewer degree of freedom than its groups")
+    out.append(("The tests in full", f"Under the chart{'' if one else ', one block per candidate'}. Does "
+                                     f"{t.column if one else 'each candidate'} matter at all: the general test "
+                                     f"({k_words}: a standard way to add pockets up without "
+                                     f"mixing their loans), read against a chi-square on {df_words}"
+                                     f"{', one fewer than the groups' if K else ''}; the trend test, which gives the "
+                                     f"groups the scores 1 to {K if K else 'their number'} and asks whether the bad "
+                                     f"rate climbs or falls steadily with them, on 1 "
                                      f"degree of freedom; and the regression's block test (a likelihood ratio test, "
-                                     f"on {K - 1} degrees of freedom), whether the groups together add anything. A "
+                                     f"on {df_words}), whether the groups together add anything. A "
                                      f"difference with no trend is a U or a hump, which a straight-line test would "
-                                     f"call nothing. Then each group's odds ratio with its range, and how much of the "
+                                     f"call nothing. Then each group's odds ratio with its range and its raw p-value, "
+                                     f"before any allowance, and how much of the "
                                      f"held-back loans' losses sit in each group (on the holdout only, and on the "
                                      f"book as a whole, not pocket by pocket: the lift, the group's bad rate over "
                                      f"the holdout's, is the finding, never the share of all losses)."))
-    gaps = [s.mh_gap for s in (dev, hold) if s.mh_gap is not None]
+    gaps = [s.mh_gap for x in tests for s in (x.development, x.holdout) if s.mh_gap is not None]
     out.append(("The range", live.text("Where the true odds ratio sits, ", ('TEXT(confidence,"0%")',), " sure: the "
                                        "log odds ratio plus and minus the multiple of its standard error that the "
-                                       "confidence level sets."
+                                       "confidence level sets. It is each group's own, before the allowance."
                                        + (f" As a check, each odds ratio held fixed was worked out a second way, pair "
                                           f"by pair with Mantel-Haenszel: the largest gap between the two is "
                                           f"{max(gaps):.1%}." if gaps else ""))))
@@ -196,8 +235,13 @@ def _method(res, st, t, excess, stamp: str) -> list[tuple[str, object]]:
         out.append(("Written shortlist", f"This run confirms the saved shortlist {st.name}, the pre-spec. Its Found "
                                          f"columns are hidden (unhide columns D and E to see them) and Record names "
                                          f"the file. The tests in full show both sets of loans."))
+    for x in getattr(st, "tests", None) or ():
+        if x.problem:
+            out.append(("Not run", f"{x.column} couldn't be tested: {x.problem}. Record says why."))
     out.append(("Choices made here that no ruling settles yet", " ".join((
-        f"The trend test scores the groups 1 to {K}, evenly spaced, rather than by where their numbers sit.",
+        f"The trend test scores the groups 1 to {K}, evenly spaced, rather than by where their numbers sit." if K else
+        "The trend test scores each candidate's groups 1, 2, 3 and on, evenly spaced, rather than by where their "
+        "numbers sit.",
         "Conditional logistic regression is used in every pocket, whatever its size: the unconditional fit the scope "
         "allows for pockets over a few thousand loans isn't used, as the conditional one is exact and quick at any "
         "size.",
@@ -205,7 +249,9 @@ def _method(res, st, t, excess, stamp: str) -> list[tuple[str, object]]:
         "grids.",
         "A group with no bad loan, or only bad loans, in the pockets that say something has no odds ratio; the "
         "others are fitted as if its loans weren't there, which is where the regression heads anyway.",
-        "Excess is scaled to the whole book by its losses over the held-back loans' losses."))))
+        "Excess is scaled to the whole book by its losses over the held-back loans' losses.",
+        "The allowance treats each set of loans as one family, every candidate's groups together, as a grid's "
+        "pockets are one family per rate."))))
     out.append(("As of", f"The numbers are the last Run's, {stamp}. Holds up?, Still holds?, Material?, In words, "
                          f"every range and the chart's worse line follow Control."))
     return out
@@ -213,8 +259,8 @@ def _method(res, st, t, excess, stamp: str) -> list[tuple[str, object]]:
 
 def write(wb, res, stamp: str = "") -> None:
     st = getattr(res, "prespec", None)
-    t = getattr(st, "test", None) if st is not None else None
-    if t is None:
+    tests = list(getattr(st, "tests", None) or ()) if st is not None else []
+    if not tests:
         return
     from . import confirmatory, results
     for old in (SHEET, OLD_SHEET):
@@ -224,30 +270,34 @@ def write(wb, res, stamp: str = "") -> None:
     live.ensure(wb, res)
     for c, w in WIDTHS.items():
         ws.column_dimensions[_c(c)].width = w
-    house.title_band(ws, SHEET, f"Does {t.column} still tell good loans from bad on loans it was never found on, "
-                                f"and once {_held_words(t.strata) or 'the columns held fixed'} "
-                                f"{'are' if len(t.strata) != 1 else 'is'} held fixed?", FIRST, LAST,
-                     tab=house.TAB_RESULT)
-    if t.problem:
+    ran = [t for t in tests if not t.problem]
+    first = ran[0] if ran else tests[0]
+    held_w = _held_words(first.strata) or "the columns held fixed"
+    verb = "are" if len(first.strata) != 1 else "is"
+    what = first.column if len(tests) == 1 else f"each of the {len(tests)} candidates"
+    house.title_band(ws, SHEET, f"Does {what} still tell good loans from bad on loans it was never found on, "
+                                f"and once {held_w} {verb} held fixed?", FIRST, LAST, tab=house.TAB_RESULT)
+    if not ran:
         r = house.method_note(ws, 3, FIRST, LAST, [("Not run", f"The confirmatory test couldn't be run: "
-                                                              f"{t.problem}. Record says why.")])
+                                                              f"{first.problem}. Record says why.")])
         _finish(ws, r)
         return
-    excess = confirmatory.excess(res, t)
-    r = house.method_note(ws, 3, FIRST, LAST, _method(res, st, t, excess, stamp or "as of the last Run"))
+    excesses = [confirmatory.excess(res, t) for t in ran]
+    r = house.method_note(ws, 3, FIRST, LAST, _method(res, st, ran, excesses, stamp or "as of the last Run"))
+
+    # ---------------------------------------------------------------- the table's rows, worked out first: the
+    # Candidates tile counts the candidates holding up over them
+    t0 = ran[0]
+    held = _held_words(t0.strata)
+    unit_dollars = any(e is not None and e.unit == "dollars" for e in excesses)
+    raw_p = confirmatory.allowance(res) == "none"
+    p_head = "p-value" if raw_p else P_ALLOWED
 
     # ---------------------------------------------------------------- what was tested: the tiles
-    dev, hold = t.development, t.holdout
     outcome = next((m.flag for m in res.measures if m.name == "outcome_loans"), "the outcome")
     _cell(ws, r, FIRST, "WHAT WAS TESTED", bold=True, color=SLATE, h="left", size=8)
     _cell(ws, r + 1, FIRST, "from the saved shortlist", color=SLATE, h="left", size=8)
-    # tiles sit only over columns that are never hidden: Found's two are, for a saved shortlist
-    tiles = [("Outcome", outcome, N_COMP, N_COMP), ("Candidates", t.column, N_CG, N_HOLDS),
-             ("Held fixed", " · ".join(t.strata) or "Nothing", N_HG, N_STILL),
-             ("Material at · live", results.material_at(res), N_EX, N_MAT),
-             ("Loans", f"{dev.n:,} found · {hold.n:,} held back", N_WORDS, N_WORDS)]
-    for label, value, a, b in tiles:
-        house.tile(ws, r, a, b, label, value, top=house.KEY_RED if label.startswith("Material") else house.INK)
+    tile_row = r
     r += 3
     n = f'COUNTIF(Status,"{house.WAITING}")'
     _cell(ws, r, FIRST, f"The numbers are from the last Run, {stamp or 'as of the last Run'}. The verdicts, the "
@@ -257,30 +307,100 @@ def write(wb, res, stamp: str = "") -> None:
           size=9)
     r += 3
 
-    # ---------------------------------------------------------------- the table
-    held = _held_words(t.strata)
-    unit_dollars = excess is not None and excess.unit == "dollars"
-    groups = [(N_FG, N_FP, f"Found · {dev.n:,} loans", house.STONE, SLATE),
-              (N_CG, N_HOLDS, f"Confirmed · {hold.n:,} held back", house.INK, INK),
-              (N_HG, N_STILL, f"Confirmed, {held} held fixed" if t.held else "Nothing held fixed: the pre-spec holds "
-                                                                          "no column fixed", house.INK, INK)]
+    # ---------------------------------------------------------------- the table: one block of rows per candidate
+    dev_n = t0.development.n if len({t.development.n for t in ran}) == 1 else None
+    hold_n = t0.holdout.n if len({t.holdout.n for t in ran}) == 1 else None
+    groups = [(N_FG, N_FP, f"Found · {dev_n:,} loans" if dev_n is not None else "Found", house.STONE, SLATE),
+              (N_CG, N_HOLDS, f"Confirmed · {hold_n:,} held back" if hold_n is not None else
+               "Confirmed on the held-back loans", house.INK, INK),
+              (N_HG, N_STILL, f"Confirmed, {held} held fixed" if t0.held else "Nothing held fixed: the pre-spec holds "
+                                                                             "no column fixed", house.INK, INK)]
     for a, b, text, rule, colour in groups:
         ws.merge_cells(start_row=r, start_column=a, end_row=r, end_column=b)
         _cell(ws, r, a, text, bold=True, color=colour, size=9)
         for c in (a, b):
             ws.cell(row=r, column=c).border = Border(bottom=Side(style="medium", color=rule))
     head = r + 1
-    house.header(ws, head, FIRST, ["Candidate", "Compared", "Gap", "p-value", "Gap", "p-value", "Holds up?", "Gap",
-                                   "p-value", "Still holds?", "Excess $" if unit_dollars else "Excess bad loans",
+    house.header(ws, head, FIRST, ["Candidate", "Compared", "Gap", p_head, "Gap", p_head, "Holds up?", "Gap",
+                                   p_head, "Still holds?", "Excess $" if unit_dollars else "Excess bad loans",
                                    "Material?", "In words"], centre_from=2)
     ws.cell(row=head, column=N_WORDS).alignment = Alignment(horizontal="left", vertical="center")
-    ref = t.groups[t.ref]
-    fit = lambda side, k: (None if side is None or side.fit.odds[k] is None else side.fit.odds[k],   # noqa: E731
-                           None if side is None else side.fit.p[k])
-    key = live.q("gco_rate" if unit_dollars else "outcome_loans")
-    line = f'IF(materiality_kind="none",0,INDEX(line_values,MATCH({key},line_keys,0)))'
     first_row = head + 1
     r = first_row
+    blocks = []                                                # (test, first row, last row) per candidate
+    for i, (t, excess) in enumerate(zip(ran, excesses)):
+        start = r
+        r = _rows(ws, t, excess, r, unit_dollars, raw_p, top=i > 0)
+        blocks.append((t, start, r - 1))
+    last_row = r - 1
+    rng = lambda c: f"{_c(c)}{first_row}:{_c(c)}{last_row}"                 # noqa: E731
+    for c in (N_HOLDS, N_STILL):
+        ws.conditional_formatting.add(rng(c), FormulaRule(
+            formula=[f'{_c(c)}{first_row}="{YES}"'], font=Font(bold=True, color=house.POSITIVE),
+            fill=PatternFill("solid", fgColor=house.POSITIVE_BG, bgColor=house.POSITIVE_BG)))
+        ws.conditional_formatting.add(rng(c), FormulaRule(formula=[f'{_c(c)}{first_row}="{NO}"'],
+                                                          font=Font(bold=True, color=SLATE)))
+    ws.conditional_formatting.add(rng(N_MAT), FormulaRule(
+        formula=[f'{_c(N_MAT)}{first_row}="{YES}"'], font=Font(bold=True),
+        fill=PatternFill("solid", fgColor=house.MIST, bgColor=house.MIST)))
+    found_hidden = st is not None                              # a saved shortlist: found on another run (the spec)
+    if found_hidden:
+        for c in (N_FG, N_FP):
+            ws.column_dimensions[_c(c)].hidden = True
+    ws.freeze_panes = f"A{head + 1}"
+
+    # the tiles, now the rows exist: Candidates counts those holding up, live (tiles sit only over columns that are
+    # never hidden: Found's two are, for a saved shortlist)
+    if len(ran) == 1:
+        cand = t0.column
+    else:
+        C, H = (f"${_c(c)}${first_row}:${_c(c)}${last_row}" for c in (N_CAND, N_HOLDS))
+        up = "+".join(f'(COUNTIFS({C},{_q(t.column)},{H},"{YES}")>0)' for t in ran)
+        cand = f'=IFERROR("{len(ran)} · "&({up})&" hold up","{len(ran)}")'
+    loans = (f"{dev_n:,} found · {hold_n:,} held back" if dev_n is not None and hold_n is not None else
+             f"up to {max(t.development.n for t in ran):,} found · {max(t.holdout.n for t in ran):,} held back")
+    tiles = [("Outcome", outcome, N_COMP, N_COMP),
+             ("Candidates" if len(ran) == 1 else "Candidates · live", cand, N_CG, N_HOLDS),
+             ("Held fixed", " · ".join(t0.strata) or "Nothing", N_HG, N_STILL),
+             ("Material at · live", results.material_at(res), N_EX, N_MAT),
+             ("Loans", loans, N_WORDS, N_WORDS)]
+    for label, value, a, b in tiles:
+        house.tile(ws, tile_row, a, b, label, value, top=house.KEY_RED if label.startswith("Material") else house.INK)
+    r += 1
+
+    # ---------------------------------------------------------------- the chart, one per candidate
+    for t, a, b in blocks:
+        r = _chart(ws, t, a, b, r, found_hidden, many=len(ran) > 1)
+
+    # ---------------------------------------------------------------- the tests in full, candidate by candidate
+    helper_rows: list[int] = []
+    for t in ran:
+        views = _Views(t)
+        house.section(ws, r, FIRST, LAST, "The tests in full" + (f": {t.column}" if len(ran) > 1 else ""))
+        r += 2
+        r = _matters(ws, t, views, r)
+        r = _odds(ws, t, views, r, helper_rows)
+        r = _concentration(ws, t, r, helper_rows)
+    _finish(ws, r, helper_rows)
+
+
+P_ALLOWED = "p, allowed"
+
+
+def _rows(ws, t, excess, r: int, unit_dollars: bool, raw_p: bool, top: bool) -> int:
+    """One candidate's block: a row per group against its reference, found, confirmed, and confirmed with the columns
+    held fixed, each p-value after the allowance (the raw ones are in the tests in full). Returns the next row."""
+    ref = t.groups[t.ref]
+    held = _held_words(t.strata)
+
+    def fit(side, k):
+        if side is None:
+            return None, None
+        p = side.fit.p[k] if raw_p or not side.allowed else side.allowed[k]
+        return (None if side.fit.odds[k] is None else side.fit.odds[k]), p
+    key = live.q("gco_rate" if unit_dollars else "outcome_loans")
+    line = f'IF(materiality_kind="none",0,INDEX(line_values,MATCH({key},line_keys,0)))'
+    first = r
     for k, name in enumerate(t.groups):
         if k == t.ref:
             continue
@@ -293,8 +413,9 @@ def write(wb, res, stamp: str = "") -> None:
         for c, v in vals.items():
             fmt = X_FMT if c in (N_FG, N_CG, N_HG) else P_FMT if c in (N_FP, N_CP, N_HP) else \
                 ('"$"#,##0;-"$"#,##0' if unit_dollars else "#,##0.0") if c == N_EX else None
-            _cell(ws, r, c, v, bold=c in (N_CAND, N_CG, N_HG), h="left" if c in (N_CAND,) else "center", fmt=fmt,
-                  color=SLATE if c in (N_FG, N_FP, N_COMP) else INK)
+            _cell(ws, r, c, v, bold=c in (N_CG, N_HG) or (c == N_CAND and r == first),
+                  h="left" if c in (N_CAND,) else "center", fmt=fmt,
+                  color=SLATE if c in (N_FG, N_FP, N_COMP) or (c == N_CAND and r != first) else INK)
         F, G, C_, P, H, J = (f"${_c(c)}{r}" for c in (N_FG, N_FP, N_CG, N_CP, N_HG, N_HP))
 
         def same(x):
@@ -315,47 +436,22 @@ def write(wb, res, stamp: str = "") -> None:
         _cell(ws, r, N_WORDS, words, h="left")
         ws.cell(row=r, column=LINE_COL, value="=worse_at")
         _rule(ws, r)
+        if top and r == first:                                 # a heavier rule between one candidate and the next
+            for c in range(FIRST, LAST + 1):
+                ws.cell(row=r, column=c).border = Border(top=Side(style="medium", color=house.INK),
+                                                         bottom=Side(style="thin", color=house.ROW_RULE))
         r += 1
-    last_row = r - 1
-    rng = lambda c: f"{_c(c)}{first_row}:{_c(c)}{last_row}"                 # noqa: E731
-    for c in (N_HOLDS, N_STILL):
-        ws.conditional_formatting.add(rng(c), FormulaRule(
-            formula=[f'{_c(c)}{first_row}="{YES}"'], font=Font(bold=True, color=house.POSITIVE),
-            fill=PatternFill("solid", fgColor=house.POSITIVE_BG, bgColor=house.POSITIVE_BG)))
-        ws.conditional_formatting.add(rng(c), FormulaRule(formula=[f'{_c(c)}{first_row}="{NO}"'],
-                                                          font=Font(bold=True, color=SLATE)))
-    ws.conditional_formatting.add(rng(N_MAT), FormulaRule(
-        formula=[f'{_c(N_MAT)}{first_row}="{YES}"'], font=Font(bold=True),
-        fill=PatternFill("solid", fgColor=house.MIST, bgColor=house.MIST)))
-    found_hidden = st is not None                              # a saved shortlist: found on another run (the spec)
-    if found_hidden:
-        for c in (N_FG, N_FP):
-            ws.column_dimensions[_c(c)].hidden = True
-    ws.freeze_panes = f"A{head + 1}"
-    r += 1
-
-    # ---------------------------------------------------------------- the chart
-    r = _chart(ws, t, first_row, last_row, r, found_hidden)
-
-    # ---------------------------------------------------------------- the tests in full
-    views = _Views(t)
-    helper_rows: list[int] = []
-    house.section(ws, r, FIRST, LAST, "The tests in full")
-    r += 2
-    r = _matters(ws, t, views, r)
-    r = _odds(ws, t, views, r, helper_rows)
-    r = _concentration(ws, t, r, helper_rows)
-    _finish(ws, r, helper_rows)
+    return r
 
 
-def _chart(ws, t, first_row: int, last_row: int, r: int, found_hidden: bool) -> int:
-    """Three bars a candidate (found STONE, confirmed INK, held fixed KEY_RED) and a dashed red line at the worse line,
-    read from the table's cells, so it follows them."""
+def _chart(ws, t, first_row: int, last_row: int, r: int, found_hidden: bool, many: bool = False) -> int:
+    """One candidate's bars (found STONE, confirmed INK, held fixed KEY_RED) and a dashed red line at the worse line,
+    read from its block of the table, so it follows the table."""
     ch = BarChart()
     ch.type = "col"
     ch.grouping = "clustered"
     ref = t.groups[t.ref]
-    ch.title = f"The gap against {ref} (dashed: the worse line)"
+    ch.title = (f"{t.column}: " if many else "") + f"the gap against {ref} (dashed: the worse line)"
     ch.y_axis.title = "Odds ratio"
     ch.y_axis.number_format = '0.00"×"'
     ch.y_axis.majorGridlines = None
@@ -383,10 +479,10 @@ def _chart(ws, t, first_row: int, last_row: int, r: int, found_hidden: bool) -> 
     line.set_categories(cats)
     ch += line
     ch.legend.position = "b"
-    ch.height, ch.width = 8.5, 26
+    ch.height, ch.width = (8.5, 26) if not many else (7.0, 26)
     ch.visible_cells_only = False                              # the worse line sits in a hidden column
     ws.add_chart(ch, f"{_c(FIRST)}{r}")
-    return r + 19
+    return r + (19 if not many else 16)
 
 
 def _matters(ws, t, views, r: int) -> int:
@@ -634,10 +730,12 @@ def _finish(ws, last_row: int, helper_rows=()) -> None:
 
 FOUND_KIND = "confirm"
 G_NAME, G_LOANS, G_BAD, G_RATE, G_ODDS, G_P, G_CAPTURE, G_REF = range(2, 10)     # _found's columns B to I
+G_CAND = 10                                                                      # J: the candidate (Goal 2 item 3)
 
 
 def write_found(ws, res) -> None:
-    """What this test found, on _found (ws), under the stamp."""
+    """What this test found, on _found (ws), under the stamp: one row per group of every candidate, its p-value after
+    the allowance for testing many at once."""
     from . import confirmatory
     h = confirmatory.headline(res)
     ws.append(["kind", FOUND_KIND])
@@ -645,6 +743,7 @@ def write_found(ws, res) -> None:
         ws.append(["problem", h["problem"]])
         return
     ws.append(["column", h["column"]])
+    ws.append(["candidates", ", ".join(h["candidates"])])
     ws.append(["reference", h["reference"]])
     ws.append(["loans", f"{h['development']:,} on development, {h['holdout']:,} on the holdout"])
     dev = h["deviations"]
@@ -652,11 +751,13 @@ def write_found(ws, res) -> None:
                else f"No: differs in {dev} place{'s' if dev != 1 else ''}"])
     for g in confirmatory.groups_found(res):
         ws.append(["group", g["group"], g["loans"], g["bad"], g["bad_rate"], g["odds"], g["p"], g["capture"],
-                   "yes" if g["ref"] else None])
+                   "yes" if g["ref"] else None, g["candidate"]])
 
 
 def found_block(ws, wb, r: int, value_of) -> int:
-    """Four tiles and one row per group, on the holdout. value_of(key) reads _found. Returns the next free row."""
+    """Four tiles and one row per group, on the holdout. value_of(key) reads _found. Returns the next free row. With
+    several candidates, the rows run candidate by candidate, and the share tile, which would add up groups of
+    different candidates that hold the same loans, counts the candidates holding up instead."""
     from . import house
     from .book import FOUND
     note = Font(name="Calibri", size=10, color=SLATE)
@@ -666,26 +767,36 @@ def found_block(ws, wb, r: int, value_of) -> int:
             = note
         return r + 3
     ref = value_of("reference")
+    cands = [c for c in str(value_of("candidates") or value_of("column") or "").split(", ") if c]
+    many = len(cands) > 1
     F = lambda c: f"'{FOUND}'!${_c(c)}:${_c(c)}"                           # noqa: E731
     worse = f'COUNTIFS({F(1)},"group",{F(G_ODDS)},">1",{F(G_P)},"<"&{live.BAR})'
     groups = sum(1 for row in wb[FOUND].iter_rows(min_row=1, max_col=1, values_only=True) if row[0] == "group")
-    tiles = [(f"Groups worse than {ref}, on the holdout", f'=IFERROR({worse}&" of {groups - 1}","")', None),
-             ("Their share of the holdout's bad loans",
-              f'=IFERROR(SUMIFS({F(G_CAPTURE)},{F(1)},"group",{F(G_ODDS)},">1",{F(G_P)},"<"&{live.BAR}),"")',
-              "0%"),
-             ("Loans tested", value_of("loans"), None),
-             ("Follows the pre-spec", value_of("follows"), None)]
+    if not many:
+        tiles = [(f"Groups worse than {ref}, on the holdout", f'=IFERROR({worse}&" of {groups - 1}","")', None),
+                 ("Their share of the holdout's bad loans",
+                  f'=IFERROR(SUMIFS({F(G_CAPTURE)},{F(1)},"group",{F(G_ODDS)},">1",{F(G_P)},"<"&{live.BAR}),"")',
+                  "0%")]
+    else:
+        up = "+".join(f'(COUNTIFS({F(1)},"group",{F(G_CAND)},{live.q(c)},{F(G_ODDS)},">1",{F(G_P)},"<"&{live.BAR})>0)'
+                      for c in cands)
+        tiles = [("Groups worse than their reference, on the holdout",
+                  f'=IFERROR({worse}&" of {groups - len(cands)}","")', None),
+                 ("Candidates with a group worse", f'=IFERROR(({up})&" of {len(cands)}","")', None)]
+    tiles += [("Loans tested", value_of("loans"), None), ("Follows the pre-spec", value_of("follows"), None)]
     for i, (label, f, fmt) in enumerate(tiles):
         house.tile(ws, r + 1, 2 + 2 * i, 3 + 2 * i, label, f, fmt)
     t = r + 4
-    house.header(ws, t, 2, [f"Group of {value_of('column')}", "Loans", "Bad rate", f"× {ref}'s odds", "p-value",
-                            "Significant?", "Share of bad loans", None], centre_from=2)
+    house.header(ws, t, 2, ["Candidate: group" if many else f"Group of {value_of('column')}", "Loans", "Bad rate",
+                            "× its reference's odds" if many else f"× {ref}'s odds", "p-value", "Significant?",
+                            "Share of bad loans", None], centre_from=2)
     rows = [row for row in wb[FOUND].iter_rows(min_row=1) if row[0].value == "group"]
     for i, row in enumerate(rows, start=1):
         rr, src = t + i, row[0].row
         P = lambda c: f"'{FOUND}'!${_c(c)}${src}"                          # noqa: E731
         ref_row = row[G_REF - 1].value == "yes"
-        vals = [f"={P(G_NAME)}" + ('&" (reference)"' if ref_row else ""), f"={P(G_LOANS)}",
+        name = (f'={P(G_CAND)}&": "&{P(G_NAME)}' if many else f"={P(G_NAME)}") + ('&" (reference)"' if ref_row else "")
+        vals = [name, f"={P(G_LOANS)}",
                 f'=IF({P(G_RATE)}="","",{P(G_RATE)})', f'=IF({P(G_ODDS)}="","none",{P(G_ODDS)})',
                 f'=IF({P(G_P)}="","",{P(G_P)})',
                 None if ref_row else f'=IF({live.sig(P(G_P))},IF({P(G_ODDS)}>1,"Yes, worse","Yes, better"),"No")',

@@ -432,7 +432,9 @@ class Flow:
 
     def pick_shortlist(self, path: str | None) -> None:
         """Confirm a saved shortlist (a pre-spec file) instead of finding one: it names
-        the input and what is held fixed, so those boxes follow it."""
+        the inputs, what is held fixed and, when it says, the outcome, so those boxes
+        follow it: Test it ticks every input on the list, in its order, and Hold fixed
+        its strata (Goal 2 item 3). Its outcome is picked when the extract has that column."""
         self.shortlist, self.spec, self.spec_problem = path or None, None, None
         if not path:
             return
@@ -445,7 +447,9 @@ class Flow:
         except OSError as exc:
             self.spec_problem = f"Couldn't read {Path(path).name}: {exc}"
             return
-        self.test, self.hold = [self.spec.column], list(self.spec.strata)
+        self.test, self.hold = list(self.spec.columns), list(self.spec.strata)
+        if self.spec.outcome and self._kind().get(self.spec.outcome) == "out":
+            self.outcome = self.spec.outcome
 
     def choices(self) -> ch.Choices:
         """The table as the workbook gets it."""
@@ -479,7 +483,9 @@ class Flow:
             if self.spec is None:
                 return False, self.spec_problem or ""
             held = f", with {_names(list(self.spec.strata))} held fixed" if self.spec.strata else ""
-            return True, (f"the saved shortlist {Path(self.shortlist).name}: {self.spec.column} against "
+            cols = list(self.spec.columns)
+            what = cols[0] if len(cols) == 1 else f"{_s(len(cols), 'input')} ({', '.join(cols)})"
+            return True, (f"the saved shortlist {Path(self.shortlist).name}: {what} against "
                           f"{self.outcome or 'the outcome'}{held}, confirmed on the loans it held back.")
         if not self.outcome:
             return False, "Mark a yes/no outcome column on Columns, then pick it here."
@@ -580,6 +586,14 @@ def confirm_tiles(h: dict) -> tuple:
         follows = ("Yes", "differs nowhere")
     else:
         follows = ("No", f"differs in {_s(dev, 'place')}")
+    n = len(h.get("candidates") or [h.get("column")])
+    if n > 1:
+        # several candidates' groups hold the same loans, so their shares of bad loans don't add up: count the
+        # candidates with a group worse instead (Goal 2 item 3)
+        return (("Groups worse than their reference", f"{h['worse']:,} of {h['groups']:,}",
+                 f"on the holdout, {h['confidence']:.0%} sure", "KEY_RED", "INK"),
+                ("Candidates with a group worse", f"{h['holding']:,} of {n:,}", "on the holdout", "KEY_RED", "INK"),
+                ("Follows the pre-spec", follows[0], follows[1], "INK", "POSITIVE" if dev == 0 else "INK"))
     return ((f"Groups worse than {h['reference']}", f"{h['worse']:,} of {h['groups']:,}",
              f"on the holdout, {h['confidence']:.0%} sure", "KEY_RED", "INK"),
             ("Their share of bad loans", f"{h['capture']:.0%}", "on the holdout", "KEY_RED", "INK"),
