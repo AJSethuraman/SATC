@@ -18,6 +18,7 @@ import pytest
 from openpyxl import load_workbook
 
 from recalc import calculated_book, values_of
+import tabs
 
 from conftest import TEST_SHUFFLES
 from origination_cube import book, config as cfgmod, engine, perm, synth
@@ -41,7 +42,7 @@ def split_book(tmp_path_factory):
 
 
 def _check(wb) -> dict:
-    return {r[1].value: r[2].value for r in wb["Check"].iter_rows(min_row=4)}
+    return tabs.record(wb)
 
 
 def test_check_says_what_the_split_test_asks_and_which_form(split_book):

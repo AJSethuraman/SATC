@@ -655,6 +655,77 @@ enough.
     grid it adds to zero, and the Run checks that on every grid.
   - A worse pocket now always has dollars above zero under either comparison, so every pocket
     Pockets could flag is on its list whatever Control says.
+- **OC-45: New variables replaces the Confirmatory test tab, each candidate with and without the
+  held-fixed columns** (the redesign, section 9; the firm's lean pre-spec, 26 Sep 2026: each input
+  reported on its own and with the columns held fixed).
+  - **A row is one comparison:** a group of the pre-spec's column against its reference group. *Found*
+    is the development loans with nothing held fixed; *Confirmed* the held-back loans with nothing
+    held fixed, and *Holds up?*; *Confirmed, X held fixed* the same loans inside the pockets the
+    pre-spec's strata make (the test the Confirmatory test tab showed), and *Still holds?*. Then
+    *Excess*, *Material?* and *In words*.
+  - **Without the held-fixed columns** is the same conditional logistic regression with every loan of
+    a range in one pocket (`confirmatory.Test.development_plain`, `holdout_plain`). It costs about 0.2 s
+    a range at 12,000 loans.
+  - **No `hold` list in the pre-spec:** its `strata` are the columns held fixed. The launcher already
+    shows a saved shortlist's strata under *Hold fixed*, and with `strata: []` there is one
+    confirmation and the held-fixed columns read "Nothing held fixed". Old pre-specs read unchanged.
+  - **Holds up? / Still holds?:** significant against the one rounded bar (OC-40), on the side of 1 the
+    found loans showed. Live, as is *In words*.
+  - **Excess** is a group's charge-offs on the held-back loans above its share of them (its share of
+    the held-back loans), times the book's charge-offs over the held-back loans', so it is on the scale
+    of Control's line (a share of the book's losses). Bad loans instead when the run has no GCO per
+    booked dollar. *Material?* compares it with the line in use, live.
+  - **A saved shortlist hides the Found columns** (the spec), and Record names the file. Every run of a
+    new variable today confirms a saved shortlist, so Found is always hidden; the columns are still
+    written, and the tests in full show both sets of loans. Nothing else sits in those two columns, so
+    unhiding them is safe.
+  - **Every statistic the Confirmatory test tab showed is kept**, under the chart as *the tests in
+    full*: B3 and B4 and the block test, B5 with its live range, each on the found and the held-back
+    loans with and without the held-fixed columns, and 4e's concentration on the holdout. Each keeps
+    its one plain line; the method notes merged into the tab's one folding note (T1).
+  - **The chart** reads the table's cells: Confirmed INK, held fixed KEY_RED (Found STONE when shown),
+    and a dashed red line at `worse_at`, fed by a hidden column so it follows Control.
+- **OC-46: Record merges Check and the Log** (the redesign, section 10).
+  - **Six sections in three pairs:** This Run | Settings; Does it add up | Tests used; Left out |
+    Every Run. Each of Check's lines is sorted into its section by its label (`record.section_of`); a
+    warning goes with the line before it, and the engine's own warnings (about the extract) go under
+    Left out.
+  - **Settings** has one row per Control setting the run asked: in use now (a formula over Control:
+    `_live`'s words for a Changes-now line, the answer's label for a Needs-a-Run one), what the last Run
+    used, and a hidden flag that is 1 while they differ, which shades the pair. It replaces Check's
+    "In use now" block and its "What the last Run used" list.
+  - **The Log is kept on the hidden `_log`,** in the Log tab's own layout, so a refused Run adds its
+    entry and Every Run is drawn again without the rest of the Run. An older workbook's Log becomes
+    `_log` as it is, and its Check goes. What counts the held-back runs reads `_log`.
+  - **Departures:** rows keep one line where their words fit and wrap where they don't (Check's lines
+    are sentences, some of 500 characters); a pair's two rows share a height. A value of several lines
+    (what the pre-spec says) is one row a line. The tab has a short folding method note, as every tab
+    does (Global rule 1.2), though the mock shows none.
+- **OC-47: a pre-spec is recorded, never blocked** (the firm, 26 Sep 2026, reopening "lock first": *"i
+  don't think there's a reason to have some sort of over the top control in place"*).
+  - **Its fingerprint** is the first 12 characters of the SHA-256 of the file as read. The first Run
+    to read a fingerprint logs *"Pre-spec prespec.yaml written: fingerprint …, dated … in the file,
+    committed … in …; first read by this run."*; later runs log it *as before*.
+  - **A change after a held-back run** (the last earlier run on that pre-spec that touched the holdout
+    read another fingerprint) logs *"Changed pre-spec: prespec.yaml changed after the held-back run of
+    …: fingerprint A then, B now. This run is on the changed pre-spec."*, and Record warns. The run goes
+    ahead.
+  - Record's *This pre-spec's held-back runs* lists them in order, each with its fingerprint, a change
+    marked. The git commit is recorded where it exists, as before.
+- **OC-48: Control asks a new variable only what it uses** (the redesign, phase 4).
+  - **Asked:** worse at (the New variables chart's line), materiality, confidence, and the band count
+    and cut (the held-fixed columns are banded). **Hidden:** fewest loans, fewest losses, better at,
+    judged against, the catch rate and the allowance for many tests (`only_when: {run_kind: bleed}`),
+    as the profit line already was. Hidden rows are not asked, and the Run stands in their defaults,
+    which decide nothing without a pocket.
+  - **Worse at is suggested from the confirmation's own groups** (`book.test_gap`): the smallest odds
+    ratio a group of typical size could call significant against the reference, on the development
+    loans: the median over groups of exp(z × √(1/(n p q) + 1/(n_ref p q))). It reads group sizes and
+    the overall bad rate, never which group went bad.
+  - **Set up builds no bleed grid for a new variable.** Found 27 Sep 2026: the suggestion pass forced
+    the run to Where the book bleeds and cut every column it was given; the timing harness's Set up,
+    written without the launcher's choices, cut all 74 number and category columns (1,248 grids) and
+    peaked at 2.5 GB. A new variable's Set up now runs the confirmation instead.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so

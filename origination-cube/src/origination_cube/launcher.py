@@ -575,7 +575,7 @@ def confirm_tiles(h: dict) -> tuple:
         return (("Confirmatory test", "Not run", h["problem"], "KEY_RED", "INK"),)
     dev = h.get("deviations")
     if dev is None:
-        follows = ("Couldn't compare", "see Check")
+        follows = ("Couldn't compare", "see Record")
     elif not dev:
         follows = ("Yes", "differs nowhere")
     else:

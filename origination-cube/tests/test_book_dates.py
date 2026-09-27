@@ -86,11 +86,8 @@ def _columns(path, name, **cells):
 
 
 def _check(path) -> dict:
-    out = {}
-    for r in load_workbook(path)["Check"].iter_rows(min_row=4):
-        if r[1].value:
-            out.setdefault(r[1].value, []).append(r[2].value)
-    return {k: v[0] if len(v) == 1 else v for k, v in out.items()}
+    """Record's lines as Check had them (the redesign, phase 4: Check and the Log are Record)."""
+    return tabs.record(path)
 
 
 def _dated(tmp_path, n=3000):

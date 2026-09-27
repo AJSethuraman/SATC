@@ -28,7 +28,9 @@
 #                  and the run reads it from there like any other answer.
 #
 # only_when: {key: value}   Asked only when another setting has that answer. Blank is
-#                  refused only then, and the answer is not used otherwise.
+#                  refused only then, and the answer is not used otherwise. Control hides the row
+#                  while it isn't asked. A test of a new variable is asked only what it uses: worse at
+#                  (the New variables tab's worse line), materiality, confidence and the bands.
 
 groups:
   # What the run is for (the firm, 26 Sep 2026): "it likely makes sense for the script
@@ -159,6 +161,9 @@ groups:
       - key: min_loans
         question: Fewest loans in a pocket for the usual test (smaller ones get the exact test)
         takes_effect: re-run
+        # a test of a new variable builds no pocket, so it isn't asked this (the redesign, phase 4: Control
+        # asks only what the run uses)
+        only_when: {run_kind: bleed}
         judgment: true
         override: whole number of loans
         valid: {min: 2, max: 100000, whole: true}
@@ -183,6 +188,9 @@ groups:
       - key: min_events
         question: Fewest loans with a loss before a loss rate is tested
         takes_effect: re-run
+        # a test of a new variable builds no pocket, so it isn't asked this (the redesign, phase 4: Control
+        # asks only what the run uses)
+        only_when: {run_kind: bleed}
         judgment: true
         override: whole number of loans
         valid: {min: 1, max: 100000, whole: true}
@@ -234,6 +242,9 @@ groups:
       - key: compare_to
         question: What a pocket is judged against
         takes_effect: live
+        # a test of a new variable builds no pocket, so it isn't asked this (the redesign, phase 4: Control
+        # asks only what the run uses)
+        only_when: {run_kind: bleed}
         judgment: true
         override: null
         options:
@@ -274,6 +285,9 @@ groups:
       - key: better_at
         question: How much better than its comparison a pocket must be
         takes_effect: live
+        # a test of a new variable builds no pocket, so it isn't asked this (the redesign, phase 4: Control
+        # asks only what the run uses)
+        only_when: {run_kind: bleed}
         judgment: true
         override: a multiple below 1, such as 0.7
         valid: {min: 0.01, max: 0.99}
@@ -343,6 +357,9 @@ groups:
       - key: power
         question: How often a real gap should be caught
         takes_effect: re-run
+        # a test of a new variable builds no pocket, so it isn't asked this (the redesign, phase 4: Control
+        # asks only what the run uses)
+        only_when: {run_kind: bleed}
         override: a share, such as 0.8 for 80%
         valid: {min: 0.5, max: 0.99}
         options:
@@ -362,6 +379,9 @@ groups:
       - key: many_tests
         question: Allowing for testing many pockets at once
         takes_effect: re-run
+        # a test of a new variable builds no pocket, so it isn't asked this (the redesign, phase 4: Control
+        # asks only what the run uses)
+        only_when: {run_kind: bleed}
         override: null
         options:
           - value: none

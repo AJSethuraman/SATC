@@ -80,19 +80,21 @@ def _letter(col: int) -> str:
     return get_column_letter(col)
 
 
-def title_band(ws, title: str, sub: str, first: int, last: int, tab: str = TAB_YOU) -> None:
+def title_band(ws, title: str, sub: str, first: int, last: int, tab: str = TAB_YOU, fill_hex: str = INK,
+               rule: str = KEY_RED, sub_color: str = STONE) -> None:
     """Row 1: the tab's name in white Arial 16 on INK, a one-line subtitle in STONE beside it, and a 3 pt Key Red
-    rule under the band. Gridlines off, and the tab coloured for what it is."""
+    rule under the band. Gridlines off, and the tab coloured for what it is. The Record tab's band is SLATE with a
+    STONE rule (the spec's Global rule 1.1)."""
     from openpyxl.styles import Alignment, Border, Font
     for col in range(first, last + 1):
         c = ws.cell(row=1, column=col)
-        c.fill = fill(INK)
-        c.border = Border(bottom=_side("thick", KEY_RED))
+        c.fill = fill(fill_hex)
+        c.border = Border(bottom=_side("thick", rule))
     head = ws.cell(row=1, column=first, value=title)
     head.font = Font(name="Arial", bold=True, size=16, color=PAPER)
     head.alignment = Alignment(vertical="center")
     subc = ws.cell(row=1, column=first + 1, value=sub)
-    subc.font = Font(name="Arial", size=10, color=STONE)
+    subc.font = Font(name="Arial", size=10, color=sub_color)
     subc.alignment = Alignment(vertical="center")
     ws.row_dimensions[1].height = 30
     ws.sheet_view.showGridLines = False

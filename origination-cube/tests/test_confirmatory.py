@@ -14,7 +14,8 @@ import yaml
 from openpyxl import load_workbook
 
 from conftest import cube, table
-from origination_cube import book, confirmatory, control, engine, prespec, synth
+from origination_cube import book, confirm_tab, confirmatory, control, engine, prespec, record, synth
+import tabs
 from test_book import _answer
 from test_book_dates import _check, _choose, _columns, _control
 
@@ -72,9 +73,8 @@ def _ready(tmp_path, monkeypatch, n=3000):
 
 
 def _log(b) -> list[str]:
-    ws = load_workbook(b)["Log"]
-    return [ws.cell(row=r, column=2).value for r in range(book.LOG_FIRST, ws.max_row + 1)
-            if ws.cell(row=r, column=2).value]
+    """Every line of Record's Every Run, newest first (the Log tab's lines, before Record)."""
+    return tabs.runs(b)
 
 
 def _warnings(chk) -> list[str]:
@@ -117,11 +117,11 @@ def test_a_run_held_to_a_committed_pre_spec_echoes_it_says_where_it_differs_and_
     assert chk["Holdout"] == (f"{len(held):,} of this extract's loans were made in the holdout (2024-01-01 to "
                               f"2024-12-31), the first on {held[0]} and the last on {held[-1]}. This run touched "
                               f"the holdout.")
-    assert chk["Runs that touched the holdout"] == "1 in this workbook's Log, this one included"
+    assert chk["Runs that touched the holdout"] == "1 on Record's Every Run, this one included"
     log = _log(b)
     assert log[1] == f"Follows pre-spec prespec.yaml (commit {head[:12]})."
     assert log[2] == f"Touched the holdout: {len(held):,} loans made {held[0]} to {held[-1]}."
-    assert log[1] in ran.lines and "Runs that touched the holdout, in this workbook's Log: 1." in ran.lines
+    assert log[1] in ran.lines and "Runs that touched the holdout, on Record: 1." in ran.lines
     ran_yaml = b.with_name(f"{b.stem} - what ran.yaml").read_text(encoding="utf-8")
     assert f"# pre-spec: {f.resolve()} ({head[:12]}, committed " in ran_yaml
     assert f"# Touched the holdout: {len(held):,} loans made" in ran_yaml
@@ -132,8 +132,8 @@ def test_a_run_held_to_a_committed_pre_spec_echoes_it_says_where_it_differs_and_
     chk = _check(b)
     devs = [w for w in _warnings(chk) if w.startswith(confirmatory.DEVIATES)]
     assert devs == ["Deviates from pre-spec: Confidence is 90% in this run; the pre-spec says 95%."]
-    assert chk["Runs that touched the holdout"] == "2 in this workbook's Log, this one included"
-    assert _log(b)[1] == f"Deviates from pre-spec prespec.yaml (commit {head[:12]}): 1 place, listed on Check."
+    assert chk["Runs that touched the holdout"] == "2 on Record's Every Run, this one included"
+    assert _log(b)[1] == f"Deviates from pre-spec prespec.yaml (commit {head[:12]}): 1 place, listed on Record."
 
     # the pre-spec edited after its commit: said on Check and in the Log, and the run doesn't count
     f.write_text(f.read_text(encoding="utf-8") + "# an afterthought\n", encoding="utf-8")
@@ -144,7 +144,7 @@ def test_a_run_held_to_a_committed_pre_spec_echoes_it_says_where_it_differs_and_
     assert ("This run doesn't count as the pre-specified one until the pre-spec is committed, unchanged."
             in _warnings(chk))
     assert _log(b)[1].startswith(f"Deviates from pre-spec prespec.yaml (commit {head[:12]}, edited since)")
-    assert chk["Runs that touched the holdout"] == "3 in this workbook's Log, this one included"
+    assert chk["Runs that touched the holdout"] == "3 on Record's Every Run, this one included"
 
 
 @needs_git
@@ -214,7 +214,7 @@ def test_dates_that_cannot_be_read_leave_the_holdout_said_unchecked(tmp_path, mo
     assert chk["Holdout"].startswith('Couldn\'t be checked: the dates in "ORIG_DATE" (when each loan was made) read '
                                      'two ways: ')
     assert chk["Holdout"].endswith(" The holdout is 2024-01-01 to 2024-12-31.")
-    assert chk["Runs that touched the holdout"] == "0 in this workbook's Log before this one, which couldn't be checked"
+    assert chk["Runs that touched the holdout"] == "0 on Record's Every Run before this one, which couldn't be checked"
     devs = [w for w in _warnings(chk) if w.startswith(confirmatory.DEVIATES)]
     assert not any("window" in d for d in devs)
     assert ("Deviates from pre-spec: The pre-spec's holdout is 2024-01-01 to 2024-12-31; when this run's loans were "
@@ -225,19 +225,19 @@ def test_dates_that_cannot_be_read_leave_the_holdout_said_unchecked(tmp_path, mo
 
 
 def _prespec_rows(b) -> list[tuple[str, str]]:
-    """Check's pre-spec rows, in order, from "Pre-spec" to the holdout count."""
+    """Record's pre-spec rows, in order, from "Pre-spec" to the holdout count."""
     out = []
-    for r in load_workbook(b)["Check"].iter_rows(min_row=4):
-        if r[1].value == "Pre-spec" or out:
-            out.append((r[1].value, r[2].value))
-        if r[1].value == "Runs that touched the holdout":
+    for label, v, *_ in tabs.record_rows(b):
+        if label == "Pre-spec" or out:
+            out.append((label, v))
+        if label == "Runs that touched the holdout":
             break
     return out
 
 
 def _confirm_groups(b) -> list[str]:
-    """The groups the Confirmatory test tab shows, lowest first: its "The column" line lists them."""
-    ws = load_workbook(b)["Confirmatory test"]
+    """The groups the New variables tab shows, lowest first: its "The column" line lists them."""
+    ws = load_workbook(b)[confirm_tab.SHEET]
     line = next(ws.cell(row=r, column=3).value for r in range(1, ws.max_row + 1)
                 if ws.cell(row=r, column=2).value == "The column")
     return line.split(" groups: ", 1)[1].split(". The groups are")[0].split("; ")
@@ -253,7 +253,7 @@ def test_check_names_the_pre_specs_groups_as_the_tabs_name_them(tmp_path, monkey
     _spec(x.parent, reference="up to 0.09")
     _held(b, "prespec.yaml")
     assert book.run(b).ok
-    # the groups as the Confirmatory test tab names them (Prevalence, which named them too, is the bleed's: OC-42)
+    # the groups as the New variables tab names them (Prevalence, which named them too, is the bleed's: OC-42)
     shown = [g for g in _confirm_groups(b) if g not in engine.REASON_LABEL.values()]
     lowest, highest = shown[0], shown[-1]
     assert lowest.endswith(" - 0.09") and highest.startswith("2.00 - ")
@@ -272,7 +272,7 @@ def test_check_names_the_pre_specs_groups_as_the_tabs_name_them(tmp_path, monkey
     assert [g for g in groups if g in shown] == shown and (groups[0], groups[-1]) == (lowest, highest)
     # the confirmatory test compares with the group the pre-spec names, under the tabs' name for it (4b)
     assert not [v for k, v in got if k == "Warning" and v.startswith(confirmatory.DEVIATES)]
-    ws = load_workbook(b)["Confirmatory test"]
+    ws = load_workbook(b)[confirm_tab.SHEET]
     said = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
     assert f"{lowest}, the pre-spec's reference group. Every other group is compared with it." in said
     assert f"{lowest} (reference)" in said
@@ -332,3 +332,78 @@ def test_a_band_column_tested_is_left_out_of_the_strata_and_its_edges_are_the_bi
         "The reference group is `the rest of the book`, which is not one of its bins' groups in this run; the "
         "pre-spec says `0.25 - 0.49`.",
         "Pockets are cut by SCORE, CHAN in this run; the pre-spec says CHAN."]
+
+
+# --------------------------------------------------------------------------
+# Record, don't block (the firm, 26 Sep 2026: "i don't think there's a reason to have some sort of over the top
+# control in place"): the Log records the pre-spec when it was written, by its fingerprint, and every held-back run
+# after it, in order; a pre-spec changed after a held-back run labels that run as a change, and nothing is refused
+
+
+def _fingerprint(f) -> str:
+    import hashlib
+    return hashlib.sha256(f.read_text(encoding="utf-8").encode("utf-8")).hexdigest()[:12]
+
+
+@needs_git
+def test_the_log_records_the_pre_spec_when_first_read_and_each_held_back_run_after_it_in_order(tmp_path,
+                                                                                               monkeypatch):
+    x, b = _ready(tmp_path, monkeypatch, n=1500)
+    f = _spec(x.parent)
+    head = git(x.parent, "rev-parse", "HEAD")
+    when = git(x.parent, "log", "-1", "--format=%cI").replace("T", " ")
+    fp = _fingerprint(f)
+    _held(b, "prespec.yaml")
+    first = book.run(b)
+    assert first.ok, first.lines
+    log = _log(b)
+    written = f"Pre-spec prespec.yaml written: fingerprint {fp}, dated 2026-09-26 in the file, committed {when} in " \
+              f"{head[:12]}; first read by this run."
+    assert written in log and written in first.lines
+    assert _check(b)["Pre-spec fingerprint"].startswith(f"{fp}: ")
+    second = book.run(b)
+    assert second.ok
+    log = _log(b)
+    same = f"Pre-spec prespec.yaml as before: fingerprint {fp}, unchanged since it was first read."
+    assert log.count(same) == 1 and log.count(written) == 1
+    assert log.index(same) < log.index(written)                      # newest first: the second run above the first
+    stamps = [w for w, _ in record.entries(load_workbook(b))]
+    assert _check(b)["This pre-spec's held-back runs"] == f"In order: {stamps[1]} ({fp}); this run ({fp})."
+    assert not [w for w in _warnings(_check(b)) if w.startswith(confirmatory.CHANGED)]
+
+
+@needs_git
+def test_a_pre_spec_changed_after_a_held_back_run_labels_the_run_as_a_change_and_nothing_is_refused(tmp_path,
+                                                                                                    monkeypatch):
+    x, b = _ready(tmp_path, monkeypatch, n=1500)
+    f = _spec(x.parent)
+    _held(b, "prespec.yaml")
+    assert book.run(b).ok
+    before = _fingerprint(f)
+    then = record.entries(load_workbook(b))[0][0]
+    _spec(x.parent, bins=[0.1, 0.25, 0.5, 1.0, 3.0])                 # the pre-spec rewritten, and committed
+    after = _fingerprint(f)
+    assert after != before
+    ran = book.run(b)
+    assert ran.ok, ran.lines                                         # recorded, never blocked
+    label = (f"{confirmatory.CHANGED} prespec.yaml changed after the held-back run of {then}: fingerprint {before} "
+             f"then, {after} now. This run is on the changed pre-spec.")
+    assert label in _log(b) and label in ran.lines
+    assert label in _warnings(_check(b))
+    assert _check(b)["This pre-spec's held-back runs"] == f"In order: {then} ({before}); this run ({after}, changed)."
+    # a run after that, on the same (changed) pre-spec, is not a change again
+    assert book.run(b).ok
+    assert _log(b).count(label) == 1
+    assert not [w for w in _warnings(_check(b)) if w.startswith(confirmatory.CHANGED)]
+
+
+@needs_git
+def test_a_pre_spec_edited_but_not_committed_still_runs_and_is_recorded_by_its_fingerprint(tmp_path, monkeypatch):
+    x, b = _ready(tmp_path, monkeypatch, n=1500)
+    f = _spec(x.parent)
+    _held(b, "prespec.yaml")
+    assert book.run(b).ok
+    f.write_text(f.read_text(encoding="utf-8") + "# an afterthought\n", encoding="utf-8")
+    ran = book.run(b)
+    assert ran.ok
+    assert any(line.startswith(confirmatory.CHANGED) and _fingerprint(f) in line for line in _log(b)[:8])

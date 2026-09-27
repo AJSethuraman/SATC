@@ -24,7 +24,7 @@ import pytest
 from openpyxl import Workbook, load_workbook
 
 from conftest import cube, row, table
-from origination_cube import book, config as cfgmod, control, engine, live, look, results, stats, synth
+from origination_cube import book, config as cfgmod, control, engine, live, look, record, results, stats, synth
 from origination_cube.ingest import read_table
 from recalc import SOFFICE, recalc, recalc_file, values_of
 import tabs
@@ -228,7 +228,7 @@ def _agree(values, res) -> list[str]:
         if not n:
             bad.append("Paid, cost, kept: no rows read")
     # Check counts the pockets that read worse now
-    check = {r[1].value: r[2].value for r in values["Check"].iter_rows(min_row=4)}
+    check = tabs.record(values)
     for m in res.measures:
         if not m.is_rate:
             continue
@@ -313,26 +313,29 @@ def test_live_readings_follow_a_change_on_control(ran, change, tmp_path):
         assert tiles["Worse at"] == pytest.approx(bench.worse_at) and tiles["How sure"] == pytest.approx(
             bench.confidence), tab
         assert tiles["Judged against"] == ("Rest of its band" if bench.compare_to == "peers" else "Rest of the book")
-    check = values["Check"]
-    changed = [r[1].value for r in check.iter_rows(min_row=4) if r[3].value and r[2].value != r[3].value
-               and r[1].value.startswith(("The loss line", "The profit line", "Confidence", "Materiality",
-                                          "Judged against"))]
+    # Record's Settings (the redesign, phase 4): the line in use now beside the last Run's, shaded where they differ
+    got = tabs.settings(values)
+    live_lines = {s.question for s in control.load_settings() if s.key in live.LIVE_KEYS}
+    changed = [k for k, (now, last, flag) in got.items() if k in live_lines and now != last]
     assert changed, change
+    # shaded exactly where a line differs from the last Run's; a setting for the next Run hasn't moved
+    assert [k for k, (now, last, flag) in got.items() if k in live_lines and (flag == 1) != (now != last)] == []
+    assert [k for k, (_, _, flag) in got.items() if k not in live_lines and flag != 0] == []
 
 
-def test_at_the_runs_settings_check_shows_no_line_changed(ran):
-    check = ran["values"]["Check"]
-    rows = [r for r in check.iter_rows(min_row=4) if r[3].value and r[1].value.startswith(
-        ("The loss line", "The profit line", "Confidence", "Materiality", "Judged against"))]
-    assert len(rows) == 6
-    assert all(r[2].value == r[3].value for r in rows), [(r[2].value, r[3].value) for r in rows]
+def test_at_the_runs_settings_record_shows_no_line_changed(ran):
+    got = tabs.settings(ran["values"])
+    live_lines = {s.question for s in control.load_settings() if s.key in live.LIVE_KEYS}
+    assert len(live_lines & set(got)) == 6
+    assert [(k, now, last) for k, (now, last, _) in got.items() if k in live_lines and now != last] == []
+    assert [k for k, (_, _, flag) in got.items() if flag != 0] == []
 
 
 #: settings that take effect on the next Run: changed on Control, nothing on a result tab moves
 RERUN = {"min_events": ("20 losses", None), "min_loans": ("300 loans", None), "many_tests": ("No allowance", None),
          "power": ("90% of the time", None), "band_count": ("3 bands", None),
          "band_cut": ("The same, snapped to round numbers", None)}
-RESULT = (results.POCKETS, results.PCK, results.GRIDS, results.SPLIT, "Check")
+RESULT = (results.POCKETS, results.PCK, results.GRIDS, results.SPLIT, "Record")
 WAITS = "↻ 6 Control changes wait for a Run."
 
 
@@ -354,6 +357,14 @@ def test_a_setting_for_the_next_run_changes_nothing_on_the_result_tabs(ran, tmp_
                 if c.value != z[c.coordinate].value]
         if tab in (results.POCKETS, results.PCK, results.SPLIT):          # the tabs with the lines in use
             assert [(x or None, y) for _, x, y in diff] == [(None, WAITS)], (tab, diff[:5])
+        elif tab == "Record":
+            # Record's Settings shows each waiting change beside what the last Run used, shaded; nothing else moves
+            was, now = tabs.settings(a), tabs.settings(z)
+            waiting = {s.question for s in control.load_settings() if s.key in RERUN}
+            assert sorted(k for k in now if now[k] != was[k]) == sorted(waiting)
+            assert [k for k in waiting if now[k][2] != 1 or now[k][1] != was[k][1]] == []
+            cols = {record.R_A, record.FLAG}
+            assert [d for d in diff if z[d[0]].column not in cols] == [], diff[:5]
         else:
             assert diff == [], (tab, diff[:5])
     # each setting sits in the block that says when a change to it shows: Changes now or Needs a Run
@@ -390,7 +401,7 @@ def test_the_tabs_say_what_stays_as_of_the_run(ran):
     assert points.xVal.numRef.f.startswith(f"'{results.CHART}'!") and points.yVal.numRef.f.startswith(
         f"'{results.CHART}'!")
     assert f"'{results.PCK}'!" in wb[results.CHART]["A1"].value            # the table's cells, so live
-    log = load_workbook(ran["book"])["Log"]
+    log = load_workbook(ran["book"])[record.LOG]
     assert "a line changed on Control afterwards shows on the result tabs, not here" in log["A2"].value
 
 

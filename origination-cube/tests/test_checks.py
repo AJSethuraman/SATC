@@ -16,6 +16,7 @@ from conftest import cube, table
 from origination_cube import book, checks, engine, meanings, synth
 from test_book import _answer
 from test_book_dates import _choose
+import tabs
 
 BENCH = {"min_units": 30, "min_events": 51, "worse_at": 1.25, "better_at": 0.8, "confidence": 0.95, "power": 0.8,
          "compare_to": "peers", "many_tests": "bh", "materiality": "none"}
@@ -179,9 +180,9 @@ def test_check_carries_the_budget_the_families_and_the_product_mix(tmp_path):
     ran = book.run(out.book)
     assert ran.ok, ran.lines
     check = {}
-    for r in load_workbook(out.book)["Check"].iter_rows(min_row=4):
-        if r[1].value:
-            check.setdefault(r[1].value, []).append(r[2].value)
+    for label, v, *_ in tabs.record_rows(out.book):
+        if label:
+            check.setdefault(label, []).append(v)
     bad = sum(1 for r in rows if r["BAD_FLAG"] == "1")
     assert check["Pocket budget"][0].startswith(f"At most {bad // 5:,} pockets per grid can be tested")
     assert f"the book has {bad:,} ({bad:,} ÷ 5 = {bad // 5:,})" in check["Pocket budget"][0]

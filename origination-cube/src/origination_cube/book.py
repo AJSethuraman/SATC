@@ -9,12 +9,14 @@ buttons call the two functions here:
                       are the results of the last run.
     run(book)         reads the answers, runs the engine, and writes the results
                       into the same workbook: Pockets, Paid cost kept, Grids,
-                      Split (results.py, the redesign's phase 3), Check, Log,
-                      and Start here's findings. It loads the workbook once and
-                      saves it once.
+                      Split (results.py, the redesign's phase 3), or New
+                      variables for a test from a pre-spec (confirm_tab.py),
+                      Record (record.py: Check and the Log, phase 4), and Start
+                      here's findings. It loads the workbook once and saves it
+                      once.
 
 A problem is never a traceback: it is a sentence naming the tab and cell, shown
-in the launcher and on the Log tab. A run that can't write its results changes
+in the launcher and on Record's Every Run. A run that can't write its results changes
 nothing else (no memory, no record), so a refused run leaves no trace.
 """
 
@@ -38,11 +40,12 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from . import config as cfgmod
 from . import control, engine, meanings, memory, perm, profile, stats
-from . import checks, confirmatory                      # fixes 3.15 to 3.18
+from . import checks, confirmatory, prespec             # fixes 3.15 to 3.18
 from . import live                                      # OC-40: the judging settings, live in the workbook
 from . import confirm_tab                               # 4b and 4e: the confirmatory test's tab
 from . import choices as ch                             # the redesign: what the launcher chose
 from . import results                                   # the redesign, phase 3: the result tabs
+from . import record                                    # the redesign, phase 4: Check and the Log as Record
 from .house import MIST as READ_ONLY
 from .ingest import Table, read_table
 
@@ -54,10 +57,11 @@ INPUT_TABS = ("Start here", "Control", "Columns", "Look")
 #: tabs an older workbook carries that the redesign folded into others: taken off at Set up (and Materiality,
 #: now the panel on Control, at Run)
 FOLDED_TABS = ("Odd values", "Learned", "Materiality")
-RESULT_TABS = ("Confirmatory test",) + results.TABS + ("Check", "Log")
-LOG_FIRST = 4            # the newest line on the Log tab
-LOG_NOTE = ("Every Run and every refusal, newest first. Each entry is what that Run used: a line changed on "
-            "Control afterwards shows on the result tabs, not here.")
+RESULT_TABS = (confirm_tab.SHEET,) + results.TABS + (record.SHEET,)
+#: tabs the redesign's phase 4 replaced: a Run takes them off an older workbook (the Log becomes the hidden _log)
+OLD_RESULT_TABS = (confirm_tab.OLD_SHEET, record.OLD_CHECK)
+LOG_FIRST = record.LOG_FIRST            # the newest line on the hidden _log (the Log tab it replaces)
+LOG_NOTE = record.LOG_NOTE
 HELPERS = ("_options", "_meanings", "_about")
 ABOUT = "_about"
 FOUND = "_found"          # what the last Run found, for Start here's tiles and top five (kept through Set up)
@@ -560,7 +564,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     _order(wb)
     if not _writable(book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Set up again."])
-    worked = _suggest_at_set_up(wb, book, as_read, memory_path)
+    worked = _suggest_at_set_up(wb, book, as_read, memory_path, testing=kind_now == NEW_VARIABLE)
     _suggestions(wb[control.SHEET], *worked, when="from this extract")
     try:
         wb.save(book)
@@ -950,8 +954,8 @@ TAB_GROUPS = [
                                ("Look", "each number column's shape")]),
     ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "paid against cost"),
                         (results.GRIDS, "one grid at a time, and how common"), (results.SPLIT, "each pocket halved"),
-                        ("Confirmatory test", "a saved shortlist, confirmed")]),
-    ("Record", "STONE", [("Check", "what ran, and the tie-outs"), ("Log", "every Run, newest first")]),
+                        (confirm_tab.SHEET, "a saved shortlist, confirmed")]),
+    ("Record", "STONE", [(record.SHEET, "what ran, the tie-outs, every Run")]),
 ]
 
 
@@ -1158,11 +1162,14 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
         "bands": raw_bands,
         "dimensions": raw_dims,
         "measures": measures,
-        "benchmark": {"min_units": _num_or(use["min_loans"], 30, int), "min_events": int(use["min_events"]),
+        # a test of a new variable isn't asked the bleed's settings (settings.yaml only_when): it builds no pocket,
+        # so what stands in for them here decides nothing, and Record's Settings leaves them off
+        "benchmark": {"min_units": _num_or(use.get("min_loans", 30), 30, int),
+                      "min_events": int(use.get("min_events", 10)),
                       "worse_at": _num_or(use["worse_at"], 1.25, float),
-                      "better_at": _num_or(use["better_at"], 0.8, float),
-                      "confidence": float(use["confidence"]), "power": float(use["power"]),
-                      "compare_to": use["compare_to"], "many_tests": use["many_tests"],
+                      "better_at": _num_or(use.get("better_at", 0.8), 0.8, float),
+                      "confidence": float(use["confidence"]), "power": float(use.get("power", 0.8)),
+                      "compare_to": use.get("compare_to", "peers"), "many_tests": use.get("many_tests", "bh"),
                       "materiality": use["materiality"], "revenue_line": use.get("revenue_line")},
         "questions": questions or [],
     }
@@ -1394,7 +1401,8 @@ def _suggest_values(res, which: set[str]) -> tuple[dict[str, float], set[str]]:
     return out, fallback
 
 
-def _suggest_at_set_up(wb, book: Path, table, memory_path) -> tuple[dict[str, float], set[str]]:
+def _suggest_at_set_up(wb, book: Path, table, memory_path, testing: bool = False
+                       ) -> tuple[dict[str, float], set[str]]:
     """The suggested Control answers, before anyone has answered anything (the
     firm, 26 Sep 2026: "configure what you can, and then do the workbook config
     items so that there are suggestions to be made"). The pockets are cut as
@@ -1403,7 +1411,12 @@ def _suggest_at_set_up(wb, book: Path, table, memory_path) -> tuple[dict[str, fl
     call given a stand-in, read by read_book, run without the shuffle test.
     The stand-ins go into the open workbook and every one is put back before
     this returns (found 26 Sep 2026: a saved copy cost two saves and two loads
-    of the whole workbook). Nothing here stays in the workbook but the values."""
+    of the whole workbook). Nothing here stays in the workbook but the values.
+
+    A test of a new variable (`testing`) builds no pocket, so its one suggestion, worse at, comes from the
+    confirmation's own groups instead (`test_gap`): the pre-spec's column cut into its groups on the loans they
+    were found on. No bleed grid is built for it (found 27 Sep 2026: this first pass cut every column as a bleed
+    would, the grids a new variable never shows)."""
     changed: list[tuple[Any, Any]] = []
 
     def put(cell, v) -> None:
@@ -1422,9 +1435,9 @@ def _suggest_at_set_up(wb, book: Path, table, memory_path) -> tuple[dict[str, fl
             elif key in PROVISIONAL and control.answer_of(key, r[control.CHOOSE_COL - 1].value,
                                                           r[control.OWN_COL - 1].value) is None:
                 put(r[control.CHOOSE_COL - 1], PROVISIONAL[key])
-            elif key == RUN_KIND:
+            elif key == RUN_KIND and not testing:
                 put(r[control.CHOOSE_COL - 1], next(o.label for o in labels[key].options if o.value == BLEED))
-            elif key == control.PRESPEC_KEY:
+            elif key == control.PRESPEC_KEY and not testing:
                 put(r[control.CHOOSE_COL - 1], None)
         put(wb["Columns"][CONFIRM_CELL], "Yes")
         raw, problems, about = read_book(book, memory_path, wb=wb)
@@ -1437,6 +1450,15 @@ def _suggest_at_set_up(wb, book: Path, table, memory_path) -> tuple[dict[str, fl
             cfg = cfgmod.parse(raw)
         first = cfgmod.Config(**{**cfg.__dict__, "benchmark": cfgmod.Benchmark(
             **{**cfg.benchmark.__dict__, "shuffles": 0})})
+        if testing:
+            got = about.get("_prespec")
+            if not got:
+                return {}, set()
+            res = engine.run(first, table)
+            ps = got["spec"]
+            gap = test_gap(confirmatory.run_test(res, prespec.named(ps, *confirmatory.column_range(res, ps.column))),
+                           cfg.benchmark.confidence)
+            return ({"worse_at": gap}, set()) if gap is not None else ({}, set())
         return _suggest_values(engine.run(first, table), set(SUGGEST_KEYS))
     except Exception:
         # a book the first pass can't cut yet (no outcome marked, say): the Run works them out instead
@@ -1444,6 +1466,44 @@ def _suggest_at_set_up(wb, book: Path, table, memory_path) -> tuple[dict[str, fl
     finally:
         for cell, v in reversed(changed):
             cell.value = v
+
+
+def test_gap(t, confidence: float) -> float | None:
+    """A test of a new variable's suggested worse line: the smallest odds ratio a group of typical size could call
+    significant against the reference group, on the loans the groups were found on (development). For each group
+    other than the reference, exp(z x the standard error of its log odds ratio, sqrt(1 / (n p q) + 1 / (n_ref p
+    q))), at the development loans' bad rate p and the confidence's z; the median of those, as a pocket's is for
+    the bleed (`luck_gap`). It reads how many loans each group holds and the overall bad rate, never which group
+    went bad. None when there is nothing to work it out from."""
+    d = getattr(t, "development", None)
+    if t is None or t.problem or d is None or not d.n:
+        return None
+    p = d.n_bad / d.n
+    nref = d.loans[t.ref]
+    if not 0 < p < 1 or not nref:
+        return None
+    z = stats.z_for_confidence(confidence)
+    pq = p * (1 - p)
+    gaps = [math.exp(z * math.sqrt(1 / (n * pq) + 1 / (nref * pq))) for k, n in enumerate(d.loans) if k != t.ref and n]
+    return round(statistics.median(gaps), 2) if gaps else None
+
+
+def _suggest_from_the_test(res, picked: set[str]) -> None:
+    """A test of a new variable's suggestion, worked out once its test has run (checks.attach): worse at from the
+    confirmation's own groups (`test_gap`). When the answer on Control is the suggestion, the run uses it: the
+    New variables tab's worse line reads it. Nothing else on the tab depends on it."""
+    t = getattr(getattr(res, "prespec", None), "test", None)
+    b = res.config.benchmark
+    gap = test_gap(t, b.confidence) if t is not None and b is not None else None
+    fallback = set() if gap is not None else {"worse_at"}
+    value = max(gap if gap is not None else 1.25, 1.05)
+    res.suggest_all = ({"worse_at": value}, fallback)
+    res.suggested = {"worse_at": value} if "worse_at" in picked else {}
+    res.suggest_fallback = fallback & set(res.suggested)
+    if res.suggested and b is not None:
+        better = b.better_at if b.better_at < value else round(1 / value, 2)
+        res.config = cfgmod.Config(**{**res.config.__dict__, "benchmark": cfgmod.Benchmark(
+            **{**b.__dict__, "worse_at": value, "better_at": better})})
 
 
 def _suggestion_words(key: str, v: float, fallback: bool, when: str) -> str:
@@ -1461,6 +1521,9 @@ def _suggestions(ws, values: dict[str, float], fallback: set[str], when: str) ->
         if key not in SUGGEST_KEYS:
             continue
         v = values.get(key)
+        if v is None and ws.row_dimensions[r[0].row].hidden:
+            ws.cell(row=r[0].row, column=SUGGEST_COL).value = None      # not asked for this run (only_when)
+            continue
         c = ws.cell(row=r[0].row, column=SUGGEST_COL,
                     value=_suggestion_words(key, v, key in fallback, when) if v is not None
                     else "Worked out when you press Run")
@@ -1548,8 +1611,9 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                         Outcome(False, book, ["Couldn't run yet. Fix these in the workbook, save, close, and press "
                                               "Run again:"] + [f"  - {p}" for p in far], problems=list(far)))
     suggested: dict[str, float] = {}
+    testing = cfg.run_kind == NEW_VARIABLE
     try:
-        if about.get("_suggest"):
+        if about.get("_suggest") and not testing:
             # a suggested answer is worked out from a first pass, then the run is done again with it. The
             # first pass needs rates and pocket sizes only, so it runs no shuffle test
             first = cfg if cfg.benchmark is None else cfgmod.Config(**{
@@ -1570,10 +1634,11 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
             res = engine.run(cfg, table)
         res.suggested = suggested
         res.control_used = about.get("_use") or {}
-        # every suggestion, refreshed for Control whether or not it was picked; a picked one is what was used
-        values, fb = _suggest_values(res, set(SUGGEST_KEYS))
-        fb = (fb - set(suggested)) | (getattr(res, "suggest_fallback", set()) & set(suggested))
-        res.suggest_all = ({**values, **suggested}, fb)
+        if not testing:
+            # every suggestion, refreshed for Control whether or not it was picked; a picked one is what was used
+            values, fb = _suggest_values(res, set(SUGGEST_KEYS))
+            fb = (fb - set(suggested)) | (getattr(res, "suggest_fallback", set()) & set(suggested))
+            res.suggest_all = ({**values, **suggested}, fb)
     except (engine.ColumnsMissing, engine.NothingToCut) as exc:
         msg = re.sub(r"used by dimension \w+", "a segment", re.sub(r"used by band \w+", "a band", str(exc)))
         msg = msg.replace("`", '"')
@@ -1585,6 +1650,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         return _refused(wb, book, ["Couldn't run:", str(exc)], Outcome(False, book, [f"Couldn't run: {exc}"]))
     about["_wb"] = wb
     checks.attach(book, about, res)             # fixes 3.12, 3.15: the pre-spec's state and the edges on Columns
+    if testing:
+        _suggest_from_the_test(res, about.get("_suggest") or set())
     forgotten = _forget(wb, memory_path)
     dropped = {g.split(" ", 1)[1] for g in forgotten if g.startswith("column ")}
     if dropped:
@@ -1602,7 +1669,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     summary = _headline(res, wb)
     _log(wb, [_ran_on(res, src) + _ran_words(res)]
          + confirmatory.log_lines(res)          # fix 3.15: held to a pre-spec, and whether it touched the holdout
-         + [f"Warning: {_plain_warning(w)}" for w in res.warnings])
+         + [f"Warning: {_plain_warning(w)}" for w in res.warnings], redraw=False)
+    _record(wb, res, src, f"{book.stem} - what ran.yaml")     # Check and the Log, this Run's entry included
     _order(wb)
     if not _save(wb, book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
@@ -1651,8 +1719,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                      f"{'it' if len(dropped) == 1 else 'them'} and set C3 to Yes before the next Run.")
     tested = getattr(getattr(res, "prespec", None), "test", None)
     lines.append(f"Open {book.name}: start with "
-                 + ("Confirmatory test." if tested is not None and tested.problem is None
-                    else "Pockets." if bleed_tabs(res) else "Check."))
+                 + (f"{confirm_tab.SHEET}." if tested is not None and tested.problem is None
+                    else "Pockets." if bleed_tabs(res) else f"{record.SHEET}."))
     return Outcome(True, book, lines, summary=summary)
 
 
@@ -1822,24 +1890,12 @@ def _top_lines(res) -> list[str]:
 # Results
 
 
-def _log(wb, lines: list[str]) -> None:
-    """The Run's lines at the top of the Log tab, in the open workbook (the Run saves it once)."""
-    ws = wb["Log"] if "Log" in wb.sheetnames else wb.create_sheet("Log")
-    if ws["A1"].value != "Log":
-        # a heading like every other tab, and the newest run first under it (second walk, defect 16)
-        if ws.max_row > 1 or ws["A1"].value:
-            ws.insert_rows(1, amount=LOG_FIRST - 1)
-        _title(ws, "Log", LOG_NOTE, "A:B")
-    # a record of what each Run used: it doesn't follow a line changed on Control afterwards (OC-40)
-    ws["A2"] = LOG_NOTE
-    stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    ws.insert_rows(LOG_FIRST, amount=len(lines) + 1)
-    for i, line in enumerate(lines):
-        ws.cell(row=LOG_FIRST + i, column=1, value=stamp if i == 0 else None).alignment = Alignment(vertical="top")
-        ws.cell(row=LOG_FIRST + i, column=2, value=line).alignment = Alignment(wrap_text=True, vertical="top")
-    ws.column_dimensions["A"].width = 17
-    ws.column_dimensions["B"].width = 100
-    _fit(ws, landscape=False)
+def _log(wb, lines: list[str], redraw: bool = True) -> None:
+    """The Run's lines at the top of the Log (Record's Every Run, kept on the hidden _log), in the open workbook
+    (the Run saves it once). A refusal draws Every Run again at once; a Run writes Record afterwards."""
+    record.add(wb, lines)
+    if redraw:
+        record.refresh_runs(wb)
     _order(wb)
 
 
@@ -1848,15 +1904,14 @@ def _write_results(wb, book: Path, res, memory_path, src: Path, forgotten: set[s
     for t in RESULT_TABS[:-1] + ("Materiality", "Learned"):
         if t in wb.sheetnames:
             del wb[t]
-    for t in results.OLD_TABS + results.HIDDEN + (results.CHART,):     # tabs and helpers the redesign replaced
+    for t in results.OLD_TABS + OLD_RESULT_TABS + results.HIDDEN + (results.CHART,):   # the redesign replaced
         if t in wb.sheetnames:
             del wb[t]
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     if bleed_tabs(res):
         _write_bleed(wb, res, stamp)
-    confirm_tab.write(wb, res)                  # 4b and 4e: only when testing from a pre-spec
+    confirm_tab.write(wb, res, stamp)           # 4b and 4e: only when testing from a pre-spec (New variables)
     live.ensure(wb, res)                        # the names Control's materiality panel reads, with no tab of its own
-    _check(wb.create_sheet("Check"), res, src, f"{book.stem} - what ran.yaml")
     _write_rest(wb, book, res, memory_path, src, forgotten, ncols, stamp)
 
 
@@ -1875,6 +1930,7 @@ def _write_bleed(wb, res, stamp: str) -> None:
 def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, stamp: str) -> None:
     if control.SHEET in wb.sheetnames:
         _last_run_used(wb, res)
+        control.fold_launcher_rows(wb[control.SHEET])     # the rows this kind of run asks, and only those
         if getattr(res, "suggest_all", None):
             _suggestions(wb[control.SHEET], *res.suggest_all, when="from this extract at the last Run")
     if "Columns" in wb.sheetnames:
@@ -1963,9 +2019,7 @@ def _last_run_used(wb, res) -> None:
     for Status to compare with."""
     ws = wb[control.SHEET]
     col = control.LAST_COL
-    by_q = dict(control.describe(_settings_of(res.config)))
-    sug = getattr(res, "suggested", None) or {}
-    used = getattr(res, "control_used", None) or {}
+    said = _used_words(res)
     if control.USED_SHEET in wb.sheetnames:
         del wb[control.USED_SHEET]
     held = wb.create_sheet(control.USED_SHEET)
@@ -1981,8 +2035,27 @@ def _last_run_used(wb, res) -> None:
         answer = own if own not in (None, "", "n/a") else choose
         picked = control._matching(s, choose) if answer is choose and choose not in (None, "") else []
         held.append([key, answer, picked[0].label if picked else answer])
+        words = said.get(key)
+        c = ws.cell(row=row[0].row, column=col, value=words)
+        c.value = words                     # cleared when not asked: ws.cell(value=None) leaves the old one
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.font = Font(name="Calibri", size=10, color=SLATE)
+
+
+def _used_words(res) -> dict[str, str]:
+    """What the last Run used for each Control setting, in words, as Control's Last Run used and Record's Settings
+    say it: a suggested value marked worked out, or the usual value when nothing could be worked out. A setting the
+    run didn't ask (the profit line, or a bleed's lines on a test of a new variable) used nothing: it has none."""
+    by_q = dict(control.describe(_settings_of(res.config)))
+    sug = getattr(res, "suggested", None) or {}
+    used = getattr(res, "control_used", None) or {}
+    fb = getattr(res, "suggest_fallback", set())
+    out = {}
+    for s in control.load_settings():
+        if s.in_launcher:
+            continue
+        key = s.key
         words = by_q.get(s.question)
-        fb = getattr(res, "suggest_fallback", set())
         if words is None and key in ("band_count", "band_cut") and key in used:
             words = dict(control.describe({key: used[key]})).get(s.question)
         if key == "revenue_line" and profit_line(res):
@@ -1991,12 +2064,11 @@ def _last_run_used(wb, res) -> None:
             words = f"{words} (the usual value: nothing in this book to work it out from)"
         elif key in sug:
             words = f"{words} (worked out from this book)"
-        if key == "revenue_line" and not control.asked(s, used):
+        if not control.asked(s, used):
             words = None                    # not asked for this run, so nothing was used
-        c = ws.cell(row=row[0].row, column=col, value=words)
-        c.value = words                     # cleared when not asked: ws.cell(value=None) leaves the old one
-        c.alignment = Alignment(horizontal="center", vertical="center")
-        c.font = Font(name="Calibri", size=10, color=SLATE)
+        if words is not None:
+            out[key] = words
+    return out
 
 
 def _unit(m) -> str:
@@ -2270,33 +2342,28 @@ def _typical_gap(res, m) -> float | None:
     return statistics.median(got) if got else None
 
 
-def _check(ws, res, src: Path, record: str = "") -> None:
-    _title(ws, "Check", "Settings used, tie-outs, and what was left out.", "B:C")
+def _record(wb, res, src: Path, record_name: str = "") -> None:
+    """Record (the redesign, section 10): Check's lines and the Log on one tab, the Log's newest entry included
+    (so a Run writes it after the Log has this Run's lines)."""
+    record.write(wb, _record_rows(wb, res, src, record_name))
+
+
+def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
+    """Every line Check carried, each in the Record section it belongs in (record.section_of), and Settings: one
+    row per Control setting the run asked."""
+    record_ = record_name
     rows = [("Extract", src.name), ("Loans run", f"{res.rows:,}"),
-            ("Record of this run", f"{record}, beside this workbook: every setting the run used, kept for the "
+            ("Record of this run", f"{record_}, beside this workbook: every setting the run used, kept for the "
                                    f"file. It is replaced by the next Run."),
             ("Tie-out checks", f"{res.tie_outs:,} of {res.tie_outs:,} agree: every grid adds up to the book")]
     ran = what_was_run(getattr(res, "control_used", None) or {})
     if ran:
         rows.insert(2, ("What was run", ran))
-    lv = live.ensure(ws.parent, res)
-    # a test of a new variable may run without the dollar columns: then no profit and no dollar rate is on Check
+    lv = live.ensure(wb, res)
+    # a test of a new variable may run without the dollar columns: then no profit and no dollar rate is on Record
     profit, dollar_rates = _has_profit(res), _has_dollar_rates(res)
-    first_live = None
     if res.config.benchmark is not None:
-        # the lines in use now, beside what the last Run used (OC-40): a line changed on Control since the Run
-        # is shaded, and the Log keeps the record
-        rows.append(("In use now, from Control", "The lines the result tabs are reading now. Beside each, what "
-                                                 "the last Run used; a line changed since then is shaded.",
-                     "The last Run used"))
-        first_live = len(rows) + 4
-        for label, r in (("The loss line: worse at", live.L_WORSE), ("The loss line: better at", live.L_BETTER),
-                         ("The profit line", live.L_PKIND), ("Confidence", live.L_CONF),
-                         ("Materiality", live.L_MKIND), ("Judged against", live.L_BAND)):
-            if r == live.L_PKIND and not profit:
-                continue
-            rows.append((label, f"='{live.LIVE_SHEET}'!$E${r}", lv.last.get(r)))
-        last_live = len(rows) + 3
+        # the lines in use now, beside what the last Run used (OC-40), are Record's Settings section
         for m in res.measures:
             if not m.is_rate:
                 continue
@@ -2359,7 +2426,9 @@ def _check(ws, res, src: Path, record: str = "") -> None:
         for k in lines_:
             words.append(f"{'worse' if k == 'worse_at' else 'better'} at {sug[k]:.2f}x")
         if lines_:
-            words[-1] += " (the smallest outcome gap a pocket of typical size can call significant)"
+            words[-1] += (" (the smallest outcome gap a pocket of typical size can call significant)" if bleed_tabs(res)
+                          else " (the smallest odds ratio a group of typical size can call significant against the "
+                               "reference group, on the loans the groups were found on)")
         if fb:
             named = {"min_loans": "fewest loans", "worse_at": "how much worse", "better_at": "how much better"}
             words.append("nothing could be worked out (no rate, or no pocket big enough), so the usual value "
@@ -2414,31 +2483,52 @@ def _check(ws, res, src: Path, record: str = "") -> None:
             said += '&" (none was chosen, so each pocket\'s own test)"'
         rows.append(("Profit counts as more or less", said))
         rows.append(("How profit reads", reads(res) + " The examples are as of the last Run."))
-    rows.append(("What the last Run used", "Every setting, as the Log records it. Changing Control afterwards "
-                                           "doesn't change these."))
-    for q, words in control.describe(_settings_of(res.config)):
-        rows.append((q, words))
-    for w in res.warnings:
-        rows.append(("Warning", _plain_warning(w)))
+    # what the data left out, beside what each measure left out (the engine's warnings are about the extract)
+    rows += [("Warning", _plain_warning(w), record.LEFT) for w in res.warnings]
     if not bleed_tabs(res):
-        rows = _without_bleed(rows, (last_live - 3) if first_live else None)
+        rows = _without_bleed(rows, None)
     rows += checks.rows(res)                    # fixes 3.15 to 3.18: pre-spec, pocket budget, families, products
-    for i, (k, v, *d) in enumerate(rows, start=4):
-        ws.cell(row=i, column=2, value=k).alignment = Alignment(wrap_text=True, vertical="top")
-        ws.cell(row=i, column=2).font = Font(name="Calibri", bold=True)
-        ws.cell(row=i, column=3, value=v).alignment = Alignment(wrap_text=True, vertical="top")
-        if d:
-            ws.cell(row=i, column=4, value=d[0]).alignment = Alignment(wrap_text=True, vertical="top")
-            ws.cell(row=i, column=4).font = Font(name="Calibri", color=SLATE)
-    if first_live:
-        ws.cell(row=first_live - 1, column=4).font = Font(name="Calibri", bold=True)
-        ws.conditional_formatting.add(f"C{first_live}:C{last_live}", FormulaRule(
-            formula=[f"$C{first_live}<>$D{first_live}"], fill=PatternFill("solid", fgColor=LUCK_FILL,
-                                                                           bgColor=LUCK_FILL)))
-    ws.column_dimensions["B"].width = 50
-    ws.column_dimensions["C"].width = 100
-    ws.column_dimensions["D"].width = 40
-    _fit(ws)
+    out: dict[str, list] = {}
+    before = None
+    for k, v, *where in rows:
+        sec = where[0] if where else record.section_of(str(k), before)
+        out.setdefault(sec, []).append((k, v))
+        before = sec
+    out[record.SETTINGS] = _settings_rows(wb, res)
+    return out
+
+
+def _settings_rows(wb, res) -> list[tuple]:
+    """Record's Settings: every Control setting this run asked, as (the question, in use now, what the last Run
+    used, 1 while the two differ). A Changes-now setting reads its words on _live, now and at the Run; a Needs-a-Run
+    one reads Control's answer now and the answer the Run used, and differs while Control's Status says it waits
+    for a Run. A workbook with no Control (a test's) has the Run's words only."""
+    used = getattr(res, "control_used", None) or {}
+    words = _used_words(res)
+    settings = [s for s in control.load_settings() if not s.in_launcher]
+    live_row = {"worse_at": live.L_WORSE, "better_at": live.L_BETTER, "confidence": live.L_CONF,
+                "materiality": live.L_MKIND, "compare_to": live.L_BAND, "revenue_line": live.L_PKIND}
+    lv = live.ensure(wb, res)
+    if control.SHEET not in wb.sheetnames:
+        return [(s.question, words.get(s.key), words.get(s.key), None) for s in settings
+                if words.get(s.key) is not None]
+    ws, out = wb[control.SHEET], []
+    L = f"'{live.LIVE_SHEET}'"
+    on_control = live._control_rows(wb, res)
+    for s in settings:
+        r = control.row_of(ws, s.key)
+        if r is None or not control.asked(s, used):
+            continue
+        if s.key in live_row and s.key in on_control:
+            x = live_row[s.key]
+            out.append((s.question, f"={L}!$E${x}", lv.last.get(x), f"=IF({L}!$E${x}<>{L}!$F${x},1,0)"))
+            continue
+        C, D, K = (f"{control.SHEET}!${_col(c)}${r}" for c in (control.CHOOSE_COL, control.OWN_COL, control.KEY_COL))
+        now = (f'=IF(AND({D}<>"",{D}<>"n/a"),{D},IFERROR(INDEX({control.OPTIONS_SHEET}!$G:$G,MATCH({K}&"|"&{C},'
+               f'{control.OPTIONS_SHEET}!$A:$A,0)),{C}&""))')
+        status = f"{control.SHEET}!${_col(control.STATUS_COL)}${r}"
+        out.append((s.question, now, words.get(s.key), f'=IF({status}="{control.WAITING}",1,0)'))
+    return out
 
 
 #: Check's one line on a test of a new variable, in place of the tie-outs (OC-42)

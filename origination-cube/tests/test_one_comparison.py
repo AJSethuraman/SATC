@@ -180,10 +180,10 @@ def test_a_pocket_alone_in_its_band_has_no_dollars_over_it_and_is_ranked_by_the_
 def test_check_says_which_comparison_decides():
     for compare_to, opens in (("peers", "The rest of its band decides"), ("topline", "The rest of the book decides")):
         res = _run(compare_to)
-        ws = Workbook().active
-        book._check(ws, res, Path("loans.csv"))
-        ws = calculated(ws)
-        check = {r[1].value: r[2].value for r in ws.iter_rows(min_row=4)}
+        wb = Workbook()
+        book._record(wb, res, Path("loans.csv"))
+        ws = calculated(wb["Record"])
+        check = tabs.record(ws)
         said = check["Decides each pocket"]
         assert said.startswith(opens) and "flag, its dollars and whether it is material" in said
         assert ("alone in its band is compared with the rest of the book" in said) == (compare_to == "peers")

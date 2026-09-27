@@ -30,6 +30,7 @@ from test_book import _answer
 from test_book_dates import _check, _choose, _columns, _control
 from test_confirm_test import BINS as SMALL_BINS, SPEC as SMALL_SPEC, _dated
 from test_confirmatory import _held, _log, _spec, git
+import tabs
 
 BLEED, NEW = "Where the book bleeds", "Finding and testing a new variable"
 SCOUT, FROM_SPEC = "Scout first", "Test from a pre-spec"
@@ -339,9 +340,10 @@ def test_a_new_variable_run_needs_no_booked_amount_gco_or_ranr(tmp_path, monkeyp
     texts = [str(c.value) for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
     assert not [s for s in texts if any(w in s for w in DOLLAR_WORDS)], \
         [s for s in texts if any(w in s for w in DOLLAR_WORDS)]
-    heads = next([ws.cell(row=r, column=c).value for c in range(confirm_tab.FIRST + 1, confirm_tab.FIRST + 9)]
-                 for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=confirm_tab.FIRST + 1).value == "Loans"
-                 and ws.cell(row=r, column=confirm_tab.FIRST + 2).value == "Share of loans")
+    C = confirm_tab.CONC_FIRST
+    heads = next([ws.cell(row=r, column=c).value for c in range(C, C + 8)]
+                 for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=C).value == "Loans"
+                 and ws.cell(row=r, column=C + 1).value == "Share of loans")
     assert heads == ["Loans", "Share of loans", "Bad loans", "Share of bad loans", "Bad rate",
                      "Times the holdout's bad rate", None, None]
 
@@ -350,15 +352,14 @@ def test_a_new_variable_run_needs_no_booked_amount_gco_or_ranr(tmp_path, monkeyp
     # the bleed's tabs aren't built by a test of a new variable (OC-42), nor the ones the redesign replaced
     assert not {*results.TABS, *results.OLD_TABS} & set(wb.sheetnames)
     calc = recalc(b, tmp_path / "calc")
-    for tab in ("Confirmatory test", results.POCKETS, results.GRIDS, results.SPLIT):
+    for tab in (confirm_tab.SHEET, results.POCKETS, results.GRIDS, results.SPLIT):
         if tab not in calc.sheetnames:
             continue
         said = [str(c.value) for row in calc[tab].iter_rows() for c in row if isinstance(c.value, str)]
         assert not [s for s in said if s.startswith(("#N/A", "#VALUE", "#NAME", "#REF", "#DIV", "#NUM")) or "Err:" in s], tab
         assert not [s for s in said if any(w in s for w in DOLLAR_WORDS + ("$",))], \
             (tab, [s for s in said if any(w in s for w in DOLLAR_WORDS + ("$",))])
-    check = [str(c.value) for row in calc["Check"].iter_rows(min_col=3, max_col=4) for c in row
-             if isinstance(c.value, str)]
+    check = [x for row in tabs.record_rows(calc) for x in row[1:3] if isinstance(x, str)] + tabs.runs(calc)
     assert not [s for s in check if any(w in s for w in ("GCO", "RANR", "booked dollars", "Profit and contrib"))], \
         [s for s in check if any(w in s for w in ("GCO", "RANR", "booked dollars", "Profit and contrib"))]
 

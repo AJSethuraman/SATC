@@ -125,7 +125,7 @@ After that, the whole routine is:
    the Run finishes, it shows how many pockets are worse and material on
    charge-offs, what they lost above their share, the tie-out checks, and any
    odd value still unanswered. The results land in the workbook:
-   - **Confirmatory test:** only when testing from a pre-spec (below).
+   - **New variables:** only when testing from a pre-spec (below).
    Every result tab opens the same way: a title band, one *How this tab works*
    note that folds away (tenet T1: how a figure was worked out is said once,
    never beside every row), the lines in use now as tiles read from Control,
@@ -164,24 +164,24 @@ After that, the whole routine is:
      summary for every measure; whether the gap is the same in every pocket; and
      two grids side by side for the measure picked: high against low, and its
      p-value.
-   - **Check:** the lines in use now beside what the last Run used (a line
-     changed since is shaded), and how many pockets read worse now and how
-     many of those are material. Then what was run, settings, tie-outs, and what was left out of each rate (a
-     blank or unreadable value, never a loan's age). One line says which
-     comparison decides each pocket's flag, its dollars and whether it is
-     material, and another how a profit reading is worded, with this run's
-     own pockets as examples. With a column marked
-     Origination date, one line gives the earliest and latest date among the
-     loans run and how many have no readable date, so a wrong extract shows on
-     the first page. Also the pocket
-     budget (the book's bad loans ÷ 5: the most pockets a grid can test) with
-     each grid's pocket count and how much of the book sits in testable
-     pockets; how many families of tests the run holds, since a single red
-     across many is weak evidence; and a warning when a column marked Credit
-     product holds more than one product and isn't a band or segment.
-   - **Log:** every run and refusal, what each run was, and whether it
-     followed its pre-spec and touched the holdout. It records what each Run
-     used, and doesn't follow a line changed on Control afterwards.
+   - **Record** (grey tab; it merges Check and the Log): six sections in three
+     pairs, read across. *This Run*: the extract, the loans run, what was run,
+     the band edges, the split, the range of origination dates (so a wrong
+     extract shows on the first page) and, for a pre-spec, the file, its
+     commit and fingerprint and every held-back run on it. *Settings*: every
+     setting the run asked, the answer in use now beside what the last Run
+     used, shaded while they differ. *Does it add up*: the tie-outs, how many
+     pockets read worse now and how many are material, the pocket budget (the
+     book's bad loans ÷ 5: the most pockets a grid can test) with each grid's
+     count and coverage, and the values worked out from the book. *Tests
+     used*: which test gave each p-value, the words the tabs use, which
+     comparison decides each pocket and how a profit reading is worded, how
+     many families of tests the run holds. *Left out*: what each rate left
+     out (a blank or unreadable value, never a loan's age), and each open data
+     question. *Every Run, newest first*: every run and refusal, what each was,
+     and whether it followed its pre-spec and touched the holdout. The entries
+     are kept on the hidden `_log`, so a refusal shows at once; an older
+     workbook's Log carries on there.
 
 **Changing the lines after a Run** (the firm, 26 Sep 2026: *"this is the stuff
 i want to be able to adjust in book on the fly ... i know it cannot reband and
@@ -199,7 +199,7 @@ and what you're running. Control's last column says which.
 - Each result tab shows the lines it is using now as tiles, and says under them
   when a change on Control waits for a Run.
 - Left as of the last Run, and said so on each tab: the order of the rows, the
-  smallest gap a pocket could have caught, the heat maps, Check's other counts,
+  smallest gap a pocket could have caught, the heat maps, Record's other counts,
   and a suggested line worked out from the book (it keeps the multiple the Run
   worked out; Run again to work it out at a new confidence level). The scatter
   on Paid, cost, kept is drawn from the table's own cells, so it follows too.
@@ -231,20 +231,30 @@ new variables* and **Browse** to that file under *Or confirm a saved
 shortlist*; Control shows it under *Chosen in the launcher*. A file that isn't
 there or can't be read stops the Run, naming the cell, and so does a pre-spec
 whose column isn't on Columns, or a pre-spec named for Where the book bleeds.
-Without a saved shortlist, the Run stops and asks for one. Otherwise Check echoes what it says and
-the commit it was read from (or that it isn't committed, or was edited since),
-and lists, one line each, where the run differs from it; the Log marks such a
-run *Deviates from pre-spec*. Every run whose extract holds loans made in the
-pre-spec's holdout range is marked *Touched the holdout* in the Log, and Check
-counts those runs, so how often the holdout has been looked at stays visible.
+Without a saved shortlist, the Run stops and asks for one. Otherwise Record echoes what it says,
+the commit it was read from (or that it isn't committed, or was edited since) and its fingerprint (the
+first 12 characters of its SHA-256), and lists, one line each, where the run differs from it; Every Run
+marks such a run *Deviates from pre-spec*. Every run whose extract holds loans made in the pre-spec's
+holdout range is marked *Touched the holdout*, and Record counts those runs, so how often the holdout
+has been looked at stays visible. **Record, don't block** (the firm, 26 Sep 2026): Every Run records
+the pre-spec when a Run first reads it (its fingerprint, the date it says it was written and its
+commit), and every held-back run after it, in order; a pre-spec changed after a held-back run labels
+that run *Changed pre-spec* and Record warns. Nothing is refused for it.
 
-The test itself is on the **Confirmatory test** tab. The column is cut at the
-pre-spec's bins, each group is compared with its reference group, and a loan is
-only ever compared with loans in its own pocket (the pre-spec's strata, cut as
-the grids cut them). It runs twice, side by side: on the development range and
-on the holdout, split by origination date. Loans made outside both ranges, or
-with no readable date, column value or outcome, are left out of this test only;
-Check counts them, and every other tab still uses every loan. For each range:
+The test itself is on the **New variables** tab (black; it replaces the Confirmatory test tab). The
+column is cut at the pre-spec's bins, and each group is compared with its reference group. Each row is
+one comparison, a group against the reference: **Found** (the development loans, where the groups came
+from), **Confirmed** on the held-back loans with *Holds up?*, **Confirmed with the held-fixed columns**
+(the pre-spec's strata: a loan is only compared with loans in its own pocket) with *Still holds?*, then
+**Excess** (the group's charge-offs on the held-back loans above its share, scaled to the whole book;
+bad loans when the extract has no GCO), **Material?** against Control's line, and **In words** ("Holds
+up, and not just FICO and CHANNEL"). A saved shortlist was found elsewhere, so its Found columns are
+hidden. A bar chart draws Found, Confirmed and held fixed a comparison, with a dashed line at *worse
+at*. Tiles above it: the outcome, the candidates, what is held fixed, the loans found on and held back,
+and the materiality line, live. Loans made outside both ranges, or with no readable date, column value
+or outcome, are left out of this test only; Record counts them, and every other tab still uses every
+loan. Under the chart, the tests in full, with and without the columns held fixed, on each set of
+loans:
 - **Does the column matter?** The general test (K-group Mantel-Haenszel, on
   K - 1 degrees of freedom), the trend test (1 degree of freedom, the groups
   scored 1 to K), and the regression's block test, with one plain line reading
@@ -258,19 +268,21 @@ Check counts them, and every other tab still uses every loan. For each range:
   and, when the extract has GCO, of the GCO, and its bad rate against the
   holdout's (B6). No cost or benefit figures.
 
-Each section says its method in plain words, and the tab lists the choices no
-ruling settles yet. Every "significant" and every range follows the confidence
-level on Control. A pocket too small to read on its own still counts in the
+The tab says its method once, in its folding note, with the choices no ruling
+settles yet. Holds up?, Still holds?, Material?, In words, every "significant",
+every range and the chart's worse line follow Control. A pocket too small to read on its own still counts in the
 pooled test. A column the pre-spec's strata name must be cut (held fixed in
-the launcher), or the Run stops, naming the pre-spec's cell. Check says where the run differs
+the launcher), or the Run stops, naming the pre-spec's cell. Record says where the run differs
 from the pre-spec. A run that did what its pre-spec says differs nowhere: the
 reference group is the pre-spec's, and the holdout is the range the test held
 itself to, not the first and last loan in the extract.
 
 A test of a new variable builds none of the bleed analysis: no pocket grid, no
-shuffle test, and none of its tabs (Pockets, Paid cost kept, Grids, Split). It writes the Confirmatory test, Check and the
-Log. If the workbook still has those tabs from an earlier bleed Run, they are
-taken off, and Check says so on one line. Start here and the launcher's last
+shuffle test, and none of its tabs (Pockets, Paid cost kept, Grids, Split). It writes New variables
+and Record. If the workbook still has those tabs from an earlier bleed Run, they are
+taken off, and Record says so on one line. Control asks it only what it uses: worse at (the chart's
+line, suggested from the confirmation's own groups), materiality, confidence and the bands; the
+bleed's other settings are hidden. Start here and the launcher's last
 step show the confirmation: how many groups go bad significantly more often than
 the reference group on the holdout, their share of its bad loans, and whether
 the run followed its pre-spec. On 17,000 loans × 80 columns the Run takes
@@ -280,7 +292,7 @@ On the dated synthetic book (`synth.write_extract(..., ratio=True)`, 20,000
 loans) with `docs/prespec-example.yaml`, the run finds both planted cliffs on
 development (below 0.10: 2.32x, 1.52x to 3.56x; 2.00 and up: 3.25x, 2.42x to
 4.38x) and confirms them on the holdout (2.26x, 1.22x to 4.18x; 2.68x, 1.70x to
-4.24x), and Check reads "Differs from the pre-spec: nowhere".
+4.24x), and Record reads "Differs from the pre-spec: nowhere".
 
 The same holds on a second book the first had no hand in (`tests/test_generic.py`, 12,000 auto
 loans): other column names, contract dates written 3/7/2023, other edges and reference group, and
@@ -291,7 +303,7 @@ there: the pockets hold it fixed.
 
 ![Paid, cost, kept: paid, cost and kept for the grid picked, and its chart](docs/paid-cost-kept.png)
 
-If something needs fixing, the window and the Log tab say what and where, in
+If something needs fixing, the window and Record's Every Run say what and where, in
 words, e.g. *Control!C19: "Smallest excess loss worth reporting" needs an answer.* The window lists each one
 with an **Open at** button that opens the workbook at that cell. Press Next in the launcher again at any time:
 answers already given are kept.
