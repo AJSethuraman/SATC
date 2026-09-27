@@ -41,6 +41,7 @@ so rather than implying otherwise.
 """
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import re
 from dataclasses import dataclass
@@ -307,4 +308,33 @@ def prove(served, desk, transport) -> Proof:
                      note="served from the firm's own position; there is no "
                           "publisher to check it against, and the paragraph "
                           "beneath it is not what was served")
-    return prove_passage(citation, obj.text, source, transport)
+    first = prove_passage(citation, obj.text, source, transport)
+    # AND WHAT IS SERVED WITH IT. The served passage carries the paragraph's
+    # frame and its `Read with` limits; Codex on #403 found that a § 274(o)
+    # date note which had moved or gone was served on a TIED proof as current
+    # authority, because only (e)(1) was checked. Each appended paragraph is
+    # proved too, and the worst verdict stands: DIFFERS over COULD NOT over TIED
+    # -- COULD NOT is never upgraded, whichever paragraph it came from.
+    if first.verdict != TIED:
+        return first
+    whole = getattr(desk, "corpus", desk)
+    appended = list(whole.frame(citation))
+    for o in whole.limits_on(citation):
+        for c in [o, *whole._clauses(o)]:
+            if c != citation and c not in appended:
+                appended.append(c)
+    worst = first
+    for c in appended:
+        back = whole.authority_for(c)
+        if back is None or back[0] == "position":
+            continue
+        p = prove_passage(c, back[1].text, back[2], transport)
+        if p.verdict == DIFFERS:
+            return dataclasses.replace(
+                p, citation=citation,
+                note=f"served with {c}, which {p.note or 'no longer ties'}")
+        if p.verdict == COULD_NOT and worst.verdict == TIED:
+            worst = dataclasses.replace(
+                p, citation=citation,
+                note=f"served with {c}, which could not be checked: {p.note}")
+    return worst

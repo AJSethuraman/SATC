@@ -63,9 +63,13 @@ def _desk():
 
 
 def _passage(desk):
-    """A passage backed by a fetchable source, not a position."""
+    """A passage backed by a fetchable source, not a position -- and one served
+    ALONE: since #403 a proof also checks each paragraph served with it (its
+    lead-in, its clauses, its `Read with` limits), and these tests hand every
+    citation the same one page. The appended case has its own tests."""
     for p in desk.passages:
-        if desk.position(p.citation) is None:
+        if (desk.position(p.citation) is None and not desk.frame(p.citation)
+                and not desk.limits_on(p.citation)):
             return p
     raise AssertionError("no passage on this desk is backed by a source")
 
@@ -193,8 +197,12 @@ def test_a_tied_answer_is_served_carrying_its_proof(tmp_path):
     p = desk.problems[0]
     passage = desk.passage(p.citation)
     page = _Page(passage.text)
+    # EACH CITATION ITS OWN PAGE, as a publisher serves them: since #403 the
+    # proof also fetches every paragraph served with the answer.
     out = front.answer(p.facts,  position=p.answer, citation=p.citation,
-                       corpus=desks, keep=False, prove=lambda s, c: page,
+                       corpus=desks, keep=False,
+                       prove=lambda s, c: (page if c == p.citation
+                                           else _Page(desk.passage(c).text)),
                        judged=_judged(page.text))
     assert isinstance(out, engine.Served)
     assert out.proof.verdict == proving.TIED

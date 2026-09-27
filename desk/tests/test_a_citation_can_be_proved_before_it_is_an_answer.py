@@ -160,7 +160,10 @@ def test_prove_goes_through_the_core_rather_than_repeating_it(monkeypatch):
     seen = {}
 
     def spy(citation, passage, source, transport):
-        seen.update(citation=citation, passage=passage, source=source)
+        # THE FIRST CALL is the cited paragraph; since #403 the paragraphs
+        # served with it are proved after, through the same core.
+        if not seen:
+            seen.update(citation=citation, passage=passage, source=source)
         return proving.Proof(proving.TIED, citation, note="from the spy")
 
     monkeypatch.setattr(proving, "prove_passage", spy)

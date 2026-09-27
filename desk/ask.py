@@ -1140,7 +1140,10 @@ def answer(question: str, *, position: str = "",
 
     def _watching(source, citation):
         raw = prove(source, citation)
-        fetched["text"] = raw.text if hasattr(raw, "text") else str(raw)
+        # BY CITATION: a proof now fetches the paragraphs served WITH the
+        # answer too, and the judge must read the cited one's page, not
+        # whichever came back last.
+        fetched[citation] = raw.text if hasattr(raw, "text") else str(raw)
         return raw
 
     transport = _watching if prove is not None else None
@@ -1214,7 +1217,7 @@ def answer(question: str, *, position: str = "",
         # copy establishes that the judge read what WE hold, which is a weaker
         # claim than that they read what the PUBLISHER holds, and `Read.against`
         # is what lets a reader tell the two apart afterwards.
-        live = fetched.get("text", "")
+        live = fetched.get(out.citation, "")
         seen = judging.read(
             judged, live or out.passage, answered_by=model,
             against=("the document fetched from the publisher" if live

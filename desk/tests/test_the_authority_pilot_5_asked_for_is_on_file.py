@@ -28,6 +28,7 @@ import ask                                                  # noqa: E402
 import engine                                               # noqa: E402
 import extract_uscode as U                                  # noqa: E402
 import judging                                              # noqa: E402
+import proving                                              # noqa: E402
 import record                                               # noqa: E402
 from build_rewards_desk import html_text                    # noqa: E402
 from comparing import ELLIPSIS                              # noqa: E402
@@ -627,3 +628,70 @@ def test_a_late_depreciation_election_does_not_cite_another_act_as_the_code():
     got = ask.consult("Is making a late depreciation election a change in "
                       "accounting method?")
     assert "26 USC 13261" not in got
+
+
+# ── A live proof checks what is served WITH the answer, not the cited paragraph alone
+
+class _LivePage:
+    def __init__(self, text):
+        self.text, self.body, self.url = text, text.encode("utf-8"), ""
+        self.at, self.nbytes = "2026-09-27T12:00:00+00:00", len(self.body)
+
+
+def _live(desk, moved=()):
+    """The publisher's page for each citation: its stored words, or -- for a
+    citation in `moved` -- a page that names it and says something else."""
+    def transport(source, citation):
+        if citation in moved:
+            return _LivePage(f"{citation} now reads differently")
+        return _LivePage("preamble " + desk.passage(citation).text + " end")
+    return transport
+
+
+def _served_274e1():
+    return engine.Served(position="x", citation="26 USC 274(e)(1)",
+                         tier="primary", checked=None)
+
+
+def test_a_proof_ties_only_when_every_appended_paragraph_ties():
+    """Codex on #403: the proof checked (e)(1) alone, so a § 274(o) date note
+    that had moved or gone was served on a TIED proof as current authority."""
+    desk = record.load(CORPUS)
+    assert proving.prove(_served_274e1(), desk, _live(desk)).verdict == proving.TIED
+    moved = proving.prove(_served_274e1(), desk, _live(desk, moved={U.O_DATE}))
+    assert moved.verdict == proving.DIFFERS
+    assert U.O_DATE in moved.note
+
+
+def test_an_appended_paragraph_that_could_not_be_checked_is_not_a_tie():
+    desk = record.load(CORPUS)
+
+    def half(source, citation):
+        if citation == U.O_DATE:
+            raise ConnectionResetError("the publisher hung up")
+        return _LivePage("preamble " + desk.passage(citation).text + " end")
+
+    got = proving.prove(_served_274e1(), desk, half)
+    assert got.verdict == proving.COULD_NOT and not got.held
+
+
+def test_the_judge_reads_the_cited_page_not_the_last_one_fetched():
+    """The proof fetches (e)(1)'s page first and the appended paragraphs' after
+    it; the judge's quotation is checked against the fetched document, which
+    was whichever came back LAST until the pages were kept by citation."""
+    desk = record.load(CORPUS)
+    live = "ONLY ON THE LIVE PAGE: furnished on the business premises"
+
+    def transport(source, citation):
+        if citation == "26 USC 274(e)(1)":
+            return _LivePage(desk.passage(citation).text + " " + live)
+        return _LivePage("preamble " + desk.passage(citation).text + " end")
+
+    out = ask.answer(EMPLOYER_MEALS_2026, position=DEDUCTIBLE,
+                     citation="26 USC 274(e)(1)", keep=False, prove=transport,
+                     judged=judging.Judgment(by="second-reader", supports=True,
+                                             because="ONLY ON THE LIVE PAGE"))
+    assert isinstance(out, engine.Served), out
+    assert out.proof.verdict == proving.TIED
+    assert out.judged.stands
+    assert out.judged.against == "the document fetched from the publisher"
