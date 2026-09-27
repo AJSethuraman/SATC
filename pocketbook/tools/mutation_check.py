@@ -957,12 +957,15 @@ muts = [
   'GROUP = {"num": 1, "cat": 0, "out": 2, "outd": 2}', "choose_tests_rows"),
  ("a group sorted by name, not the extract's order", LA, 'key=lambda c: GROUP.get(c.kind, LAST)):',
   'key=lambda c: (GROUP.get(c.kind, LAST), c.name)):', "choose_tests_rows"),
+ # headless on purpose: CI has no display, so a bug only the window test sees would read MISSED there
  ("the table says every measure again", LA,
-  '                gap = tk.Frame(inner, bg=C["WHITE"], height=GAP)',
-  '                gap = tk.Label(inner, text="· every measure", bg=C["WHITE"], font=F["cell"])', "choose_tests_window"),
- ("no gap between the groups", LA, '            if j and r["group"] != rows[j - 1]["group"]:',
-  '            if False:', "choose_tests_window"),
- ("the gaps push the last row out of sight", LA, 'GAP = 6 ', 'GAP = 10 ', "choose_tests_window"),
+  '                if k == "cat":\n                    row["b"] = {"on": c.name in self.seg, "radio": False}',
+  '                if k == "cat":\n                    row["b"] = {"on": c.name in self.seg, "radio": False}\n'
+  '                if k == "out":\n                    row["every"] = True', "choose_tests_rows_run_numbers"),
+ ("no gap between the groups", LA,
+  '            row["gap_before"] = bool(out) and out[-1]["group"] != row["group"]',
+  '            row["gap_before"] = False', "gaps_fall_where_a_group_starts"),
+ ("the gaps push the last row out of sight", LA, 'GAP = 6 ', 'GAP = 10 ', "gaps_fall_where_a_group_starts"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

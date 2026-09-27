@@ -328,8 +328,15 @@ def in_order(needs: list[Need]) -> list[Need]:
 # measured; the key, the date and anything else, greyed, last
 GROUP = {"num": 0, "cat": 1, "out": 2, "outd": 2}
 LAST = 3
+ROW_H = 22          # px a table row is tall; each is ruled off below by 1 px
+ROOM = {"new": 250, "bleed": 280}   # px the table may take before it scrolls, by run kind
 GAP = 6             # px between two groups: ten rows and three gaps still fit Test new variables unscrolled
 
+
+
+def table_height(rows: list[dict]) -> int:
+    """How tall the Choose tests table draws: each row and its rule, and a gap where a group starts."""
+    return sum(ROW_H + 1 + (GAP if r["gap_before"] else 0) for r in rows)
 
 class Flow:
     """The launcher's state and every rule about it. The window draws what this
@@ -483,6 +490,7 @@ class Flow:
             k = c.kind
             row = {"name": c.name, "what": c.what, "grey": k in ("key", "date", "other"), "a": None, "b": None,
                    "c": None, "locked": locked, "group": GROUP.get(k, LAST)}
+            row["gap_before"] = bool(out) and out[-1]["group"] != row["group"]     # a new group starts here
             if self.mode == "bleed":
                 if k == "num":
                     row["a"] = {"on": c.name in self.cut and self.split != c.name, "radio": False}
@@ -1031,8 +1039,8 @@ def build(root) -> dict:
         holder.configure(yscrollcommand=scroll.set)
         rows = flow.rows()
         widgets["gaps"] = []
-        for j, r in enumerate(rows):
-            if j and r["group"] != rows[j - 1]["group"]:
+        for r in rows:
+            if r["gap_before"]:
                 gap = tk.Frame(inner, bg=C["WHITE"], height=GAP)         # between two groups: a gap, no words
                 gap.pack(fill="x")
                 widgets["gaps"].append(gap)
@@ -1040,7 +1048,7 @@ def build(root) -> dict:
             line.pack(fill="x")
             widgets[f"row_{r['name']}"] = line
             for i, w in enumerate(widths):
-                cell = tk.Frame(line, bg=C["WHITE"], width=w, height=22)
+                cell = tk.Frame(line, bg=C["WHITE"], width=w, height=ROW_H)
                 cell.pack(side="left")
                 cell.pack_propagate(False)
                 if i < 2:
@@ -1061,7 +1069,7 @@ def build(root) -> dict:
             tk.Frame(inner, bg=C["RULE"], height=1).pack(fill="x")
         inner.update_idletasks()
         need = inner.winfo_reqheight()
-        room = 250 if flow.mode == "new" else 280
+        room = ROOM[flow.mode]
         holder.configure(height=min(need, room), scrollregion=(0, 0, 480, need))
         holder.pack(side="left", fill="both", expand=True)
         widgets["table"] = holder

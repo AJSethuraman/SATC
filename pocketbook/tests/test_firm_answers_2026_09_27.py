@@ -427,3 +427,17 @@ def test_choose_tests_window_draws_the_rows_in_order_with_a_quiet_gap_and_no_eve
             assert all(g.winfo_class() == "Frame" for g in w["gaps"])            # frames: nothing written
     finally:
         root.destroy()
+
+
+def test_choose_tests_gaps_fall_where_a_group_starts_and_the_table_fits_unscrolled(tmp_path):
+    """Headless, so CI checks it too: a gap before the first category, the first outcome and the key, nowhere
+    else; and ten columns with their three gaps fit in the room each run kind gives the table, so no row hides
+    below it."""
+    flow = launcher.Flow()
+    flow.pick(str(synth.write_extract(tmp_path, n=1500)))
+    flow.set_up()
+    for mode in ("bleed", "new"):
+        flow.set_mode(mode)
+        rows = flow.rows()
+        assert [r["name"] for r in rows if r["gap_before"]] == ["CHANNEL", "BAD_FLAG", "LOAN_NBR"], mode
+        assert launcher.table_height(rows) <= launcher.ROOM[mode], mode
