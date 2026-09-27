@@ -1301,14 +1301,19 @@ def _admitted_for(block: str, where: str) -> tuple:
 #: ("1.263(a)-3" stops at its decimal point), never cut short before a digit,
 #: and never the first end of a range ("261-276", "1 through 5"), which names
 #: sections the reader cannot list.
-_SECTION_NO = (r"\d+(?:[A-Z]+(?:-\d+)?)?(?:\([A-Za-z0-9]+\))*"
+_SECTION_NO = (r"\d+(?:[A-Z]+(?:-\d+)?)?(?:\s?\([A-Za-z0-9]+\))*"
                r"(?!\.?\d|\s*[-\u2013]\s*\d|\s+through\b)")
+#: An explanatory aside between items of a list -- "sections 469 (the "passive
+#: loss limitation") and 163 (d)", § 1.163-8T(a)(1), Codex on #403. It holds a
+#: space or a quote, which a subsection label like "(d)" or "(iii)" never does.
+_EXPLAINED = r"(?:\s*\((?=[^()]*[\s\u201c\"])[^()]*\))?"
 #: "section", "Sections", "§" or "§§", then one number or a list of them:
 #: "sections 179, 179B, or 179C". A second reviewer on 5b762a5b found the first
 #: reader took only the first of a list and missed a capitalised "Section".
 _CODE_REF = re.compile(
     r"(?:\b[Ss]ections?|\u00a7\u00a7?)\s+(" + _SECTION_NO
-    + r"(?:(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)" + _SECTION_NO + r")*)")
+    + r"(?:" + _EXPLAINED + r"(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)"
+    + _SECTION_NO + r")*)")
 #: SOMEBODY ELSE'S SECTION, named after it -- checked after the whole match,
 #: not inside it, where the engine backtracked ("552(b)(3) of title 5" matched
 #: as 552(b)). Only a named owner excludes: "of the person receiving such tips"
@@ -1342,7 +1347,7 @@ def code_references(text: str) -> list:
                 or _OWNED_BEFORE.search(text[max(0, m.start() - 40):m.start()])):
             continue
         for n in re.findall(_SECTION_NO, m.group(1)):
-            c = f"26 USC {n}"
+            c = f"26 USC {n.replace(' ', '')}"
             if c not in out:
                 out.append(c)
     return out

@@ -352,10 +352,14 @@ def prove(served, desk, transport) -> Proof:
                 appended.append(c)
     worst = first
     for c in appended:
-        back = whole.authority_for(c)
-        if back is None or back[0] == "position":
+        # THE STORED TEXT THAT WAS SERVED, never `authority_for`: that resolves
+        # a citation the firm took a position on to the POSITION, and the frame
+        # served the regulation's words (Codex on #403, § 1.263(a)-1(f)(1)(ii)(B)).
+        held = whole.passage(c)
+        src = whole.source(held.source_id) if held else None
+        if held is None or src is None:
             continue
-        p = prove_passage(c, back[1].text, back[2], transport)
+        p = prove_passage(c, held.text, src, transport)
         if p.verdict == DIFFERS:
             return dataclasses.replace(
                 p, citation=citation,

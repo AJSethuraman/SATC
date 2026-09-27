@@ -510,7 +510,9 @@ NARROWED = {
 # "261-276" gone, and owners named before a number respected.
 # -7 / -7 when a shared "or (3)" before an Act's name stopped hiding the
 # owner: § 1.446-1(e)(3)(iii) no longer names a nonexistent 26 USC 13261.
-WHOLE = (156_191, 280_355)
+# +29 / +29 when an explanatory aside inside a list stopped ending it:
+# § 1.163-8T(a)(1) now names § 163(d) as well as § 469 (Codex on #403).
+WHOLE = (156_220, 280_384)
 
 
 def _answering_sizes():

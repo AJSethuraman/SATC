@@ -599,6 +599,11 @@ def test_what_is_on_file_is_not_named():
     ("section 13101 of the Tax Cuts and Jobs Act", []),
     ("section 2 of the Housing and Economic Recovery Act of 2008", []),
     ("section 168(k)(2) or (3) of the Code", ["26 USC 168(k)(2)"]),
+    # Codex on #403, § 1.163-8T(a)(1)'s own words: an explanatory parenthetical
+    # between items, and a space before a subsection.
+    ("applying sections 469 (the \u201cpassive loss limitation\u201d) and 163 (d) "
+     "and (h) (the \u201cnonbusiness interest limitation\u201d)",
+     ["26 USC 469", "26 USC 163(d)"]),
 ])
 def test_the_reader_reads_code_sections_and_nothing_else(text, want):
     assert record.code_references(text) == want
@@ -805,3 +810,32 @@ def test_a_cited_heading_carries_the_tests_under_its_child_headings():
     out = _served("26 CFR 1.162-21(b)", "Exception for restitution")
     for c in ("(b)(2)(i)", "(b)(2)(iii)", "(b)(3)(i)", "(b)(3)(ii)"):
         assert f"26 CFR 1.162-21{c}:" in out.passage, c
+
+
+def test_a_brief_follows_a_chain_into_another_source(tmp_path):
+    """Codex on #403: the brief walked Read-with limits on the NARROWED desk,
+    which holds only the printed paragraph's source, so a chain crossing into
+    another source stopped at its first link."""
+    c, _ = _cross_source(tmp_path)
+    src = (c / "SOURCES.md").read_text(encoding="utf-8")
+    (c / "SOURCES.md").write_text(src.replace(
+        "**Read with:** 26 CFR 1.162-21 — 26 CFR 1.162-21(g)\n",
+        "**Read with:** 26 CFR 1.162-21 — 26 CFR 1.162-21(g)\n"
+        "26 CFR 1.162-21(g) — 26 CFR 1.162-21(f)(10) Example 10\n"), encoding="utf-8")
+    whole = record.load(c)
+    got = ask.brief("x", whole.narrowed_to(["26 USC 274(e)(1)"]), whole=whole)
+    assert "`26 CFR 1.162-21(f)(10) Example 10`" in got
+
+
+def test_a_frame_paragraph_a_position_rests_on_is_still_proved():
+    """Codex on #403: (f)(1)(ii)(B) of § 1.263(a)-1 is served in the frame of
+    (A) as stored text, but authority_for resolves it to the firm's POS3, so
+    the proof skipped it -- a changed (B) was served on a TIED proof."""
+    desk = record.load(CORPUS)
+    a = "26 CFR 1.263(a)-1(f)(1)(ii)(A)"
+    b = "26 CFR 1.263(a)-1(f)(1)(ii)(B)"
+    assert b in desk.frame(a) and desk.authority_for(b)[0] == "position"
+    served = engine.Served(position="x", citation=a, tier="primary", checked=None)
+    assert proving.prove(served, desk, _live(desk)).verdict == proving.TIED
+    got = proving.prove(served, desk, _live(desk, moved={b}))
+    assert got.verdict == proving.DIFFERS and b in got.note

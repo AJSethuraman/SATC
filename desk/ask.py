@@ -859,8 +859,12 @@ def brief(question: str, desk: record.Desk,
             out += [f"**Read as one with {'; '.join(f'`{f}`' for f in framed)} "
                     f"— a lead-in and the clauses that finish it. `ask.read` "
                     f"it before relying on this.**", ""]
-        if limits_on(desk, p.citation):
-            names = "; ".join(f"`{o}`" for o in limits_on(desk, p.citation))
+        # THE WHOLE CORPUS, like the frame and the unheld check: the narrowed
+        # desk holds only this paragraph's source, and a Read-with chain that
+        # crosses into another stopped at its first link (Codex on #403).
+        limits = limits_on(whole or desk.corpus, p.citation)
+        if limits:
+            names = "; ".join(f"`{o}`" for o in limits)
             out += [f"**Read with {names} — the record says it changes what "
                     f"this paragraph says. `ask.read` it before relying on "
                     f"this.**", ""]
