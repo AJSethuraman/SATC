@@ -408,3 +408,12 @@ def test_the_family_is_the_inner_pockets_only():
     # A1's worked example, through the engine: Broker 600 against Branch 600, z 7.45
     s = g.cell("600 - 649", "Broker").rates["outcome_loans"]
     assert s.p_band == pytest.approx(min(1.0, 4 * stats.two_prop_z(150, 1000, 50, 1000)[1]), rel=1e-9)
+
+
+def test_a_grids_bands_run_from_the_columns_smallest_to_its_largest_value():
+    """The firm, 25 Sep 2026: bands are written "0 - 660", ends included. The lowest band starts at the
+    column's smallest value and the highest stops at its largest, not at an edge alone. (Redesign phase 3
+    rewrote the only test that read the labels, and CI's planted bug "grids lose the data range" went
+    uncaught.)"""
+    b = [row(i, s, "AB"[i % 2], 100, int(i % 3 == 0), 10) for i, s in enumerate([612, 630, 655, 681, 702, 733, 640, 690])]
+    assert engine.run(cube(), table(b)).grids[0].band_labels == ["612 - 649", "650 - 733"]

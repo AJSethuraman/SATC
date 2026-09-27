@@ -103,7 +103,7 @@ muts = [
  ("bands say up to", E, "        first = f(math.floor(lo / step) * step) if lo is not None and lo < edges[0] else None",
   "        first = None", "bands_read_as_ranges"),
  ("grids lose the data range", E, "        labels = band_labels(edges, min(seen), max(seen)) if seen else band_labels(edges)",
-  "        labels = band_labels(edges)", "boxes_follow"),
+  "        labels = band_labels(edges)", "smallest_to_its_largest"),
  ("in use refuses a number", "src/origination_cube/control.py",
   '        lookup = (f"IFERROR(MATCH({K}&\\"|\\"&{C},{OPTIONS_SHEET}!$A:$A,0),"\n                  f"MATCH({K}&\\"|\\"&IFERROR(VALUE({C}),{C}),{OPTIONS_SHEET}!$H:$H,0))")',
   '        lookup = f"MATCH({K}&\\"|\\"&{C},{OPTIONS_SHEET}!$A:$A,0)"', "number_the_run_takes"),
