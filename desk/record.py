@@ -1311,9 +1311,15 @@ _CODE_REF = re.compile(
 #: on every "of" dropping § 224(d)(1).
 _OWNED_AFTER = re.compile(
     r"\s*of\s+(?:title\s+(?!26\b)\d+"
-    r"|(?:the|such|this)\s+(?:[A-Z][\w.,'-]*\s+)*(?:Act|Law)\b"
+    r"|(?:the|such|this)\s+(?:[A-Z][\w.,'-]*\s+(?:(?:and|of|for|on|the)\s+)*)*"
+    r"(?:Act|Law)\b"
     r"|Public\s+Law|Pub\.\s*L\.|Rev\.\s*(?:Proc|Rul)\.|Notice\s+\d"
     r"|this\s+(?:revenue\s+(?:procedure|ruling)|notice)\b)")
+#: A subparagraph the reference shares before its owner is named: "section
+#: 13261(g)(2) or (3) of the Revenue Reconciliation Act of 1993" (§ 1.446-1(e)
+#: (3)(iii); Codex on #403). Skipped before the owner is looked for.
+_SHARED_TAIL = re.compile(
+    r"(?:\s*(?:,\s*(?:or\s+|and\s+)?|\s+(?:or|and)\s+)(?:\([A-Za-z0-9]+\))+)*")
 #: ... and named BEFORE it: "Pub. L. 115-97, § 13304(e)(2)".
 _OWNED_BEFORE = re.compile(
     r"(?:Pub\.\s*L\.|Public\s+Law|Rev\.\s*(?:Proc|Rul)\.|Notice)"
@@ -1326,7 +1332,8 @@ def code_references(text: str) -> list:
     law, a revenue procedure or notice, named before or after it -- is not."""
     out = []
     for m in _CODE_REF.finditer(text):
-        if (_OWNED_AFTER.match(text, m.end())
+        tail = _SHARED_TAIL.match(text, m.end()).end()
+        if (_OWNED_AFTER.match(text, tail)
                 or _OWNED_BEFORE.search(text[max(0, m.start() - 40):m.start()])):
             continue
         for n in re.findall(_SECTION_NO, m.group(1)):

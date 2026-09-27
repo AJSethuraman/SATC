@@ -592,6 +592,12 @@ def test_what_is_on_file_is_not_named():
     # An owner named BEFORE the number.
     ("Pub. L. 115-97, § 13304(e)(2)", []),
     ("Rev. Proc. 2019-46, section 3.", []),
+    # Codex on #403: the owner after a shared subparagraph, as § 1.446-1(e)(3)(iii)
+    # writes it -- and an Act named with lowercase words in it.
+    ("section 13261(g)(2) or (3) of the Revenue Reconciliation Act of 1993", []),
+    ("section 13101 of the Tax Cuts and Jobs Act", []),
+    ("section 2 of the Housing and Economic Recovery Act of 2008", []),
+    ("section 168(k)(2) or (3) of the Code", ["26 USC 168(k)(2)"]),
 ])
 def test_the_reader_reads_code_sections_and_nothing_else(text, want):
     assert record.code_references(text) == want
@@ -613,3 +619,11 @@ def test_unheld_asks_the_whole_corpus_whoever_calls_it():
     desk = record.load(CORPUS)
     narrow = desk.narrowed_to(["26 CFR 1.274-12(c)(2)(i)(A)"])
     assert narrow.unheld("see section 274(e)(2)(A)") == []
+
+
+def test_a_late_depreciation_election_does_not_cite_another_act_as_the_code():
+    """Codex on #403, with the corpus's own words: the consult reported a
+    nonexistent 26 USC 13261(g)(2) and told the answerer to escalate."""
+    got = ask.consult("Is making a late depreciation election a change in "
+                      "accounting method?")
+    assert "26 USC 13261" not in got

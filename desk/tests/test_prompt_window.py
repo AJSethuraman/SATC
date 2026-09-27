@@ -508,7 +508,9 @@ NARROWED = {
 # Acts and titles dropped): 274 paragraphs cite an unheld section, not 264.
 # +8 / +7 after the re-review of 3e7a1e98: § 224(d)(1) back, the bogus
 # "261-276" gone, and owners named before a number respected.
-WHOLE = (156_198, 280_362)
+# -7 / -7 when a shared "or (3)" before an Act's name stopped hiding the
+# owner: § 1.446-1(e)(3)(iii) no longer names a nonexistent 26 USC 13261.
+WHOLE = (156_191, 280_355)
 
 
 def _answering_sizes():
