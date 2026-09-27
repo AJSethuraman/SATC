@@ -454,4 +454,7 @@ says otherwise:
       `tests/test_bank_checklist.py`. BACKLOG §6d has the detail.)*
 
 **What would end it:** all three done, CI green, and the checklist handed to the firm.
-**Open with the firm:** the wording "Earned before losses" / "Earns less, not from losses".
+**Open with the firm:** Test 4 at 3% uplift: keep answer C's label *Losing more, profit holding*, or leave it blank
+(asked on the docket, 27 Sep 2026; the test expects the label until answered). *(The wording "Earned before losses" /
+"Earns less, not from losses" was answered 27 Sep: "Fine for now", kept.)*
+**Next:** nothing new is built until the firm has been to the bank machine; what they find decides Goal 4.
