@@ -1576,3 +1576,18 @@ answerer to escalate `authority_absent`. A Code paragraph's "subsection (d)" or
 extent provided by subsection (d)" names § 274(d) (Codex on #403). 277 of 1,257
 stored paragraphs cite a Code section not on file; the most cited are § 263A, § 162, § 274(d), § 168,
 § 481 and § 1245. Which to admit next is the firm's call, from that list.
+
+**Adversarial pass on #403 (27 September 2026).** Codex ran out of quota, so
+the firm asked for one: a different model, told to break the desk by writing
+tests only, never source. About 25 hypotheses, ~35 checks, 10 red, ~22 clean.
+All ten were real and are fixed; the tests live in
+`desk/tests/test_what_the_adversary_found_on_403.py`. The two that mattered on
+the real corpus: the brief on § 274(e) did not name the § 274(o) an answer
+citing it carries (the brief now reads `served_with` itself), and no paragraph
+of § 1.262-1 or § 1.162-1 was "under" its section because the record cites
+them with a " — which rule" suffix (`is_under` now reads through it). The
+rest were edges the fixtures never used: a limit that is a bare clause served
+without its lead-in, a publication's label not starting a new owner, "§274"
+without a space, a lower-case inline list read as a shared label, Acts named
+with "from"/"to", a relative range read as its first end, and a question
+classed as a caption.
