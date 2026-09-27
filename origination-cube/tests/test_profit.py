@@ -451,18 +451,11 @@ def test_the_words_are_p_value_and_not_significant(walk_book):
     not from losses") are the firm's, and are the only ones allowed."""
     text = " ".join(str(c.value) for t in walk_book.sheetnames for row in walk_book[t].iter_rows() for c in row
                     if isinstance(c.value, str))
-<<<<<<< HEAD
     low = text.lower().replace("earns less, not from losses", "")
-    for gone in ("luck alone", "could be luck", "wobble", "earning", "earns"):
-        found = gone in low             # a bool: pytest would otherwise diff the whole workbook's text
-        assert not found, gone
-=======
-    low = text.lower()
     # found first, then asserted: pytest explaining `x not in <megabytes of workbook text>` never finishes
     # (the planted bug "could be luck back in the readings" hung CI's mutation check on exactly this line)
     found = [gone for gone in ("luck alone", "could be luck", "wobble", "earning", "earns") if gone in low]
     assert not found, found
->>>>>>> abcaf422341de092daabe3423d68a714de62c180
     assert "p-value" in text and "not significant" in text
     ws = walk_book[results.POCKETS]
     assert ws.cell(row=tabs.header_row(ws, results.K_NUM, "#"), column=results.K_P).value == "p-value"
