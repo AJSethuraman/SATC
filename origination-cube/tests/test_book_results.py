@@ -809,6 +809,20 @@ def test_the_category_limits_on_control_apply_at_set_up(tmp_path):
     assert used["band_count"] and used["band_cut"]
 
 
+def test_the_category_limits_chosen_in_the_launcher_change_set_ups_guesses(tmp_path):
+    """The limits moved to the launcher (redesign phase 1) and the test above checks only that they are
+    shown: CI's planted bug "category limits ignored" went uncaught. What Set up guesses must follow
+    them: at 3, a column of four values is an amount; at the usual 12, a category."""
+    from origination_cube import choices as ch
+    got = {}
+    for few in (3, 12):
+        made = book.set_up(synth.write_extract(tmp_path / str(few), n=2000), choices=ch.Choices(few_values=few))
+        ws = load_workbook(made.book)["Columns"]
+        got[few] = next(r[book.C_SUGG - 1].value for r in ws.iter_rows(min_row=book.COL_FIRST)
+                        if r[book.C_NAME - 1].value == "ASSET_CLASS")
+    assert got == {3: "amount", 12: "category"}
+
+
 def test_revenue_reads_the_same_on_both_tabs(tmp_path):
     """The seventh walk, defect 3, and the firm's call (25 Sep 2026): the profit line on Control decides profit on
     Pockets too, so a pocket can't read "keeps less" on one tab and "in line" on the other. Both read the one
