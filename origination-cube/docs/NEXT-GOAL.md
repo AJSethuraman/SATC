@@ -352,7 +352,7 @@ edges), refreshed at each Run ("Last Run used").
   The scatter (log x) is drawn from the table's cells, so it is live. "p-value" everywhere, never
   "luck". `tests/test_result_tabs.py` (21) and `tests/tabs.py` (reads a tab as the analyst sees it);
   old tests moved to the new layout. 20 planted bugs repointed and 24 added (310 in all), plus
-  main() no longer crashes when pytest prints nothing. Run at 17,000 × 80: 23.2 s before, 21.7 s after.
+  a test that a pytest run printing nothing still gets its verdict. 45 of 45 caught, each run alone. Run at 17,000 × 80: 23.2 s before, 21.7 s after.
   Departures: the scatter is live (the spec said as of the Run); "Earned before losses" and "Earns
   less, not from losses" are allowed past the old no-"earns" test, as the spec's own words; Split adds
   a Measure dropdown and keeps As odds; the other comparison's dollars leave the rows (they stay on
