@@ -436,6 +436,10 @@ class Served:
     #: the quoted words are in the passage; whether they carry the conclusion is
     #: the judge's call, recorded here rather than recomputed.
     judged: object = None
+    #: Code sections the served authority cites and the record does not hold --
+    #: `record.Desk.unheld`, read off the words served. Set in `serve`, never
+    #: passed. Whatever turns on them is not checked here.
+    unheld: tuple = ()
 
     def __str__(self) -> str:
         """The whole answer, laid out for a person. WHY THIS IS NOT IN THE SKILL.
@@ -577,6 +581,11 @@ class Served:
                 out += ["", "THE FIRM'S POSITION RESTS ON THESE WORDS:"]
                 out += [f'  {c} — "{w}"' for c, w in self.rests_on]
             out += ["", "THE AUTHORITY, in full:", "", f"> {self.passage}"]
+            if self.unheld:
+                out += ["", f"IT CITES AUTHORITY NOT ON FILE: "
+                            f"{'; '.join(self.unheld)}. Whatever turns on "
+                            f"those is not checked here -- escalate "
+                            f"`authority_absent` rather than assume it."]
         # IN FULL, AND NEVER AN EXCERPT. The obvious fix was a snippet under
         # each entry above. It fails on the one case this exists for: in the
         # Pub. 583 passage behind the firm's other cash position, the clause
@@ -1428,6 +1437,9 @@ def serve(answer: Answer, desk: Desk, *, question: str,
     shape that cannot be forgotten — a new `return Refusal(...)` inherits it.
     """
     out = _serve(answer, desk, question=question, context=context)
+    if isinstance(out, Served) and out.passage:
+        import dataclasses as _dc
+        out = _dc.replace(out, unheld=tuple(desk.unheld(out.passage)))
     if isinstance(out, Refusal) and not out.desk:
         import dataclasses as _dc
         return _dc.replace(out, desk=desk.name)

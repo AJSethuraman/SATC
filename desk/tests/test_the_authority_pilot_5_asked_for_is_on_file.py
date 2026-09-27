@@ -503,3 +503,51 @@ def test_a_brief_that_prints_a_clause_names_its_lead_in():
     tail = tail[:tail.find("\n### ", 5)] if "\n### " in tail[5:] else tail
     assert "`26 CFR 1.162-21(a)`" in tail
     assert "`26 CFR 1.162-21(a)(1)`" in tail
+
+
+# ── WHAT A PARAGRAPH CITES AND THE RECORD DOES NOT HOLD, SAID ───────────────
+#
+# Codex on #403: § 274(o) denies only what § 132(e)(2) and § 119(a) describe,
+# and neither is on file, so nothing could apply their tests -- and nothing said
+# so. Every statute cites others; 264 of 1,257 stored paragraphs cite a Code
+# section the record does not hold. Chasing each is endless; SAYING it is the
+# rule: the desk names what it does not hold and says to escalate rather than
+# assume, where it serves, reads and briefs.
+
+def test_the_references_read_off_a_paragraph_are_code_sections_only():
+    assert record.code_references(
+        "a facility described in section 132(e)(2), and meals described in "
+        "section 119(a).") == ["26 USC 132(e)(2)", "26 USC 119(a)"]
+    # A regulation is not a Code section, and title 46 is not title 26.
+    assert record.code_references("under section 1.263(a)-3 of this chapter") == []
+    assert record.code_references("defined in section 2101 of title 46, United") == []
+
+
+def test_a_served_answer_names_what_it_cites_and_the_record_does_not_hold():
+    out = _served("26 USC 274(o)(1)", "no deduction shall be allowed")
+    assert isinstance(out, engine.Served), out
+    assert "26 USC 132(e)(2)" in out.unheld
+    assert "26 USC 119(a)" in out.unheld
+    text = str(out)
+    assert "NOT ON FILE" in text and "authority_absent" in text
+
+
+def test_reading_the_denial_names_what_it_turns_on():
+    got = ask.read("26 USC 274(o)")
+    assert "`26 USC 132(e)(2)`" in got and "`26 USC 119(a)`" in got
+    assert "authority_absent" in got
+
+
+def test_a_brief_names_what_a_printed_paragraph_turns_on():
+    got = ask.consult(FACILITY_2025)
+    tail = got[got.index("### 26 USC 274(o)(1)"):]
+    tail = tail[:tail.find("\n### ", 5)] if "\n### " in tail[5:] else tail
+    assert "`26 USC 132(e)(2)`" in tail
+
+
+def test_what_is_on_file_is_not_named():
+    """The control: a section the record holds part of is not named; one it
+    holds nothing of is."""
+    desk = record.load(CORPUS)
+    assert "26 USC 274(e)" not in desk.unheld("see section 274(e) and 274(o)")
+    assert desk.unheld("see section 132(e)(2)") == ["26 USC 132(e)(2)"]

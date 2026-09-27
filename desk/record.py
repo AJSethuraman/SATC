@@ -870,6 +870,17 @@ class Desk:
                                 todo.append(o)
         return out
 
+    def unheld(self, text: str) -> list:
+        """The Code sections `text` cites that the record holds nothing at, under
+        or above. Codex on #403: § 274(o) denies only what § 132(e)(2) and
+        § 119(a) describe, neither is on file, and nothing said so. Chasing
+        every cross-reference is endless -- 264 of 1,257 paragraphs cite one --
+        so the rule is to SAY it, and let the answerer escalate."""
+        held = [p.citation for p in self.passages]
+        return [c for c in code_references(text)
+                if not any(h == c or is_under(h, c) or is_under(c, h)
+                           for h in held)]
+
     def _clauses(self, of: str) -> list:
         """`of`'s direct clauses, and a clause's own when it is a lead-in too."""
         out = []
@@ -1266,6 +1277,23 @@ def _admitted_for(block: str, where: str) -> tuple:
                 f'citation, " — ", then the question in double quotes.')
         out.append((line[:at].strip(), line[at + 4:-1].strip()))
     return tuple(out)
+
+
+#: "section 132(e)(2)" in a paragraph's words -- a Code section it cites. Not a
+#: regulation ("section 1.263(a)-3": the decimal point stops it) and not another
+#: title ("section 2101 of title 46").
+_CODE_REF = re.compile(
+    r"\bsections? (\d+[A-Z]?)((?:\([A-Za-z0-9]+\))*)(?!\.\d|\d|\s*of title)")
+
+
+def code_references(text: str) -> list:
+    """The Code sections a paragraph's own words cite, as citations, in order."""
+    out = []
+    for m in _CODE_REF.finditer(text):
+        c = f"26 USC {m.group(1)}{m.group(2)}"
+        if c not in out:
+            out.append(c)
+    return out
 
 
 def is_lead_in(text: str) -> bool:

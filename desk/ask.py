@@ -849,6 +849,12 @@ def brief(question: str, desk: record.Desk,
         # this brief already prints is not named again.
         framed = [f for f in (whole or desk).frame(p.citation)
                   if f not in in_brief]
+        unheld = (whole or desk).unheld(getattr(p, "text", "") or "")
+        if unheld:
+            out += [f"**Cites authority not on file: "
+                    f"{'; '.join(f'`{c}`' for c in unheld)}. Whatever turns on "
+                    f"it is not checked here -- escalate `authority_absent` "
+                    f"rather than assume it.**", ""]
         if framed:
             out += [f"**Read as one with {'; '.join(f'`{f}`' for f in framed)} "
                     f"— a lead-in and the clauses that finish it. `ask.read` "
@@ -996,6 +1002,13 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
                             and re.fullmatch(r"\([^()]+\)", rest)):
                         out += [f"### {q.citation}", "", f"> {q.text}", ""]
                         shown.add(q.citation)
+        # WHAT IT CITES AND THE RECORD DOES NOT HOLD, said (Codex on #403).
+        unheld = desk.unheld("\n".join(out))
+        if unheld:
+            out += [f"**Cites authority not on file: "
+                    f"{'; '.join(f'`{c}`' for c in unheld)}. Whatever turns on "
+                    f"it is not checked here -- escalate `authority_absent` "
+                    f"rather than assume it.**", ""]
         return "\n".join(out)
     if under:
         out = [f"## On file under {citation}", ""]

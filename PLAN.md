@@ -1561,3 +1561,12 @@ whose first piece does, before a marked omission -- is a lead-in; a clause is
 read and served with every lead-in above it and that lead-in's clauses, and a
 cited lead-in with its own. 107 of 1,257 stored paragraphs are lead-ins.
 `record.Desk.frame`; a heading-only parent such as § 274(a) is not pulled in.
+
+**Follow-up from #403 (27 September 2026):** admit the Code sections § 274(o)
+turns on -- § 132(e)(2) (employer-operated eating facility) and § 119(a) (meals
+for the employer's convenience) -- and § 162(f), which § 1.162-21 implements.
+Until then the desk now SAYS it does not hold them wherever it serves, reads or
+briefs a paragraph that cites them (`record.Desk.unheld`), and tells the
+answerer to escalate `authority_absent`. 264 of 1,257 stored paragraphs cite a
+Code section not on file; the most cited are § 263A, § 162, § 274(d), § 168,
+§ 481 and § 1245. Which to admit next is the firm's call, from that list.
