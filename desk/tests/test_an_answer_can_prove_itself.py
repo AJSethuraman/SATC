@@ -34,7 +34,7 @@ import ask as front                                         # noqa: E402
 import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
-from conftest import CORPUS                          # noqa: E402
+from conftest import CORPUS, publisher_document                          # noqa: E402
 
 DESK = "corpus"
 
@@ -63,9 +63,13 @@ def _desk():
 
 
 def _passage(desk):
-    """A passage backed by a fetchable source, not a position."""
+    """A passage backed by a fetchable source, not a position -- and one served
+    ALONE: since #403 a proof also checks each paragraph served with it (its
+    lead-in, its clauses, its `Read with` limits), and these tests hand every
+    citation the same one page. The appended case has its own tests."""
     for p in desk.passages:
-        if desk.position(p.citation) is None:
+        if (desk.position(p.citation) is None and not desk.frame(p.citation)
+                and not desk.limits_on(p.citation)):
             return p
     raise AssertionError("no passage on this desk is backed by a source")
 
@@ -192,9 +196,12 @@ def test_a_tied_answer_is_served_carrying_its_proof(tmp_path):
     desk = record.load(desks)
     p = desk.problems[0]
     passage = desk.passage(p.citation)
-    page = _Page(passage.text)
+    page = _Page(publisher_document(desk, passage.source_id))
+    # THE SOURCE'S WHOLE DOCUMENT, as a publisher serves it: since #403 the
+    # proof checks every paragraph served with the answer against it.
     out = front.answer(p.facts,  position=p.answer, citation=p.citation,
-                       corpus=desks, keep=False, prove=lambda s, c: page,
+                       corpus=desks, keep=False,
+                       prove=lambda s, c: page,
                        judged=_judged(page.text))
     assert isinstance(out, engine.Served)
     assert out.proof.verdict == proving.TIED

@@ -145,17 +145,30 @@ def test_the_hyphen_did_not_change_how_many_citations_find_themselves(corpus):
     # whole (1053 parenthesised), 151 of the 166 sampled. The rate moved from
     # 88% to 91% because the new paragraphs are deep sub-paragraphs -- more
     # single-letter siblings -- which is the recorded cause, not a new one.
-    assert len(withdig) == 1159, (
-        f"the corpus holds {len(withdig)} digit-bearing citations, not 1159 — "
+    # AND AGAIN 27 SEPTEMBER 2026, when § 1.162-21 and § 274(a) and (e) were
+    # admitted after Sarcia pilot 5 and desk trial 1: 1243 digit-bearing
+    # citations, 1139 missing themselves whole (1136 parenthesised), 165 of the
+    # 178 sampled -- every one of the 165 parenthesised. 91% to 93%, the same
+    # cause again: § 1.162-21 runs to (e)(4)(i)(A)(4), and "26 USC 274(e)(3)"
+    # tokenises to `26 usc 274 e 3`, nine siblings sharing every token but one.
+    # AND § 274(o) WITH ITS DATING NOTE, the same day (Codex on #403): 1247
+    # digit-bearing citations, 1143 missing themselves whole (1140
+    # parenthesised), 166 of the 179 sampled, all parenthesised. Same cause.
+    # AND § 274(n)(2) WITH (n)(2)(C), the exception (o) names (Codex, #403):
+    # 1249 digit-bearing citations, 1145 missing themselves whole (1142
+    # parenthesised); the sample is still 179, and still 166 of them miss, all
+    # parenthesised.
+    assert len(withdig) == 1249, (
+        f"the corpus holds {len(withdig)} digit-bearing citations, not 1249 — "
         f"the denominator moved, so re-measure before trusting the figure below")
     sample = withdig[::7]
-    assert len(sample) == 166
+    assert len(sample) == 179
     missed = [h.citation for h in sample
               if h.citation not in
               [f.held.citation for f in pool.look(h.citation, corpus, limit=5)]]
-    assert len(missed) <= 151, (
-        f"{len(missed)} of 166 sampled citations cannot find themselves in "
-        f"their own top five, up from 151. A tokeniser change has made "
+    assert len(missed) <= 166, (
+        f"{len(missed)} of 179 sampled citations cannot find themselves in "
+        f"their own top five, up from 166. A tokeniser change has made "
         f"retrieval worse.")
     parens = [m for m in missed if "(" in m]
     assert len(parens) >= len(missed) - 2, (

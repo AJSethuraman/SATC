@@ -14067,3 +14067,1024 @@ any other year. Do not read a rate off this file for a year it does not name.
 > (n)(3) (vii) or (viii) of this section may not be revoked or modified except
 > with the consent of the Commissioner.
 
+## 26 CFR 1.162-21(a)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Deduction Disallowed. Except as otherwise provided in this section, no
+> deduction is allowed under chapter 1 of the Internal Revenue Code (Code) for
+> any amount that is paid or incurred—
+
+## 26 CFR 1.162-21(a)(1)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> By suit, settlement agreement (agreement), or otherwise, as defined in
+> paragraph (e)(5) of this section;
+
+## 26 CFR 1.162-21(a)(2)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> To, or at the direction of, a government, as defined in paragraph (e)(1) of
+> this section, or a governmental entity, as defined in paragraph (e)(2) of
+> this section; and
+
+## 26 CFR 1.162-21(a)(3)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> In relation to the violation, or investigation or inquiry by such government
+> or governmental entity into the potential violation, of any civil or
+> criminal law.
+
+## 26 CFR 1.162-21(a)(3)(i)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> An amount that is paid or incurred in relation to the violation of any civil
+> or criminal law includes a fine or penalty.
+
+## 26 CFR 1.162-21(a)(3)(ii)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> An investigation or inquiry into the potential violation of any law does not
+> include routine investigations or inquiries, such as audits or inspections,
+> of regulated businesses that are not related to any evidence of wrongdoing
+> or suspected wrongdoing, but are conducted to ensure compliance with the
+> rules and regulations applicable to those businesses.
+
+## 26 CFR 1.162-21(b)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Exception for restitution, remediation, and amounts paid to come into
+> compliance with a law
+
+## 26 CFR 1.162-21(b)(1)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> In general. Paragraph (a) of this section does not apply to amounts paid or
+> incurred for restitution (including remediation) or to come into compliance
+> with a law, as defined in paragraphs (e)(4) of this section, provided that
+> both the identification and the establishment requirements of paragraphs
+> (b)(2) and (b)(3) of this section are met.
+
+## 26 CFR 1.162-21(b)(2)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Identification requirement
+
+## 26 CFR 1.162-21(b)(2)(i)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> In general. A court order (order) or an agreement, as defined in paragraph
+> (e)(5) of this section, identifies a payment by stating the nature of, or
+> purpose for, each payment each taxpayer is obligated to pay and the amount
+> of each payment identified.
+
+## 26 CFR 1.162-21(b)(2)(ii)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Meeting the identification requirement. The identification requirement is
+> met if an order or agreement specifically states the amount of the payment
+> described in paragraph (b)(2)(i) of this section and that the payment
+> constitutes restitution, remediation, or an amount paid to come into
+> compliance with a law. If the order or agreement uses a different form of
+> the required words (such as “remediate” or “comply with a law”) and
+> describes the purpose for which restitution or remediation will be paid or
+> the law with which the taxpayer must comply, the order or agreement will be
+> treated as stating that the payment constitutes restitution, remediation, or
+> an amount paid to come into compliance with a law. Similarly, if an order or
+> agreement specifically describes the damage done, harm suffered, or manner
+> of noncompliance with a law and describes the action required of the
+> taxpayer to provide restitution, remediation, or to come into compliance
+> with any law, as defined in paragraph (e)(4) of this section, the order or
+> agreement will be treated as stating that the payment constitutes
+> restitution, remediation, or an amount paid to come into compliance with any
+> law. Meeting the establishment requirement of paragraph (b)(3) of this
+> section alone is not sufficient to meet the identification requirement of
+> paragraph (b)(2) of this section.
+
+## 26 CFR 1.162-21(b)(2)(iii)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Payment amount not identified.
+
+## 26 CFR 1.162-21(b)(2)(iii)(A)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> If the order or agreement identifies a payment as restitution, remediation,
+> or to come into compliance with a law but does not identify some or all of
+> the amount the taxpayer must pay or incur, the identification requirement
+> may be met for any payment amount not identified if the order or agreement
+> describes the damage done, harm suffered, or manner of noncompliance with a
+> law, and describes the action required of the taxpayer, such as paying or
+> incurring costs to provide services or to provide property.
+
+## 26 CFR 1.162-21(b)(2)(iii)(B)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> If the order or agreement identifies a lump-sum payment or multiple damages
+> award as restitution, remediation, or to come into compliance with a law but
+> does not allocate some or all of the amount the taxpayer must pay or incur
+> among restitution, remediation, or to come into compliance with a law, or
+> does not allocate the total payment amount among multiple taxpayers, the
+> identification requirement may be met for any payment amount not
+> specifically allocated if the order or agreement describes the damage done,
+> harm suffered, or manner of noncompliance with a law, and describes the
+> action required of the taxpayer, such as paying or incurring costs to
+> provide services or to provide property.
+
+## 26 CFR 1.162-21(b)(3)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Establishment requirement
+
+## 26 CFR 1.162-21(b)(3)(i)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Meeting the establishment requirement. The establishment requirement is met
+> if the taxpayer, using documentary evidence, proves the taxpayer's legal
+> obligation, pursuant to the order or agreement, to pay the amount identified
+> as restitution, remediation, or to come into compliance with a law; the
+> amount paid or incurred; the date the amount was paid or incurred; and that,
+> based on the origin of the liability and the nature and purpose of the
+> amount paid or incurred, the amount the taxpayer paid or incurred was for
+> restitution or remediation, as defined in paragraph (e)(4)(i) of this
+> section or to come into compliance with any law, as defined in paragraph
+> (e)(4)(ii) of this section. If the amount is paid or incurred to a
+> segregated fund or account, as described in paragraphs (e)(4)(i)(A)(2) and
+> (3), (e)(4)(i)(B), or (e)(4)(i)(C) of this section, the taxpayer may meet
+> the establishment requirement even if each ultimate recipient, or each
+> ultimate use, of the payment is not designated or is unknown. A taxpayer
+> will not meet the establishment requirement if the taxpayer fails to prove
+> that the taxpayer paid or incurred the amount identified as restitution,
+> remediation, or to come into compliance with a law; the amount paid; the
+> date the amount was paid or incurred; or that the amount the taxpayer paid
+> or incurred was for the nature and purpose identified in the order or
+> agreement as required by paragraph (b)(2)(i) of this section, or was made
+> for the damage done, harm suffered, noncompliance, or to provide property or
+> services as described in (b)(2)(iii) of this section. Meeting the
+> identification requirement of paragraph (b)(2) of this section is not
+> sufficient to meet the establishment requirement of paragraph (b)(3) of this
+> section.
+
+## 26 CFR 1.162-21(b)(3)(ii)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Substantiating the establishment requirement. The documentary evidence
+> described in paragraph (b)(3)(i) of this section includes, but is not
+> limited to, receipts; the legal or regulatory provision related to the
+> violation or potential violation of any law; documents issued by the
+> government or governmental entity relating to the investigation or inquiry,
+> including court pleadings filed by the government or governmental entity
+> requesting restitution, remediation, or demanding that defendant take action
+> to come into compliance with the law; judgment; decree; documents describing
+> how the amount to be paid was determined; and correspondence exchanged
+> between the taxpayer and the government or governmental entity before the
+> order or agreement became binding under applicable law, determined without
+> regard to whether all appeals have been exhausted or the time for filing an
+> appeal has expired.
+
+## 26 CFR 1.162-21(c)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Other exceptions
+
+## 26 CFR 1.162-21(c)(1)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Suits between private parties. Paragraph (a) of this section does not apply
+> to any amount paid or incurred by reason of any order or agreement in a suit
+> in which no government or governmental entity is a party or any order or
+> agreement in a suit pursuant to which a government or governmental entity
+> enforces its rights as a private party.
+
+## 26 CFR 1.162-21(c)(2)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Taxes and related interest. Paragraph (a) of this section does not apply to
+> amounts paid or incurred as otherwise deductible taxes or related interest.
+> However, if penalties are imposed relating to such taxes, paragraph (a) of
+> this section applies to disallow a deduction for such penalties and interest
+> payments related to such penalties.
+
+## 26 CFR 1.162-21(c)(3)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Failure to pay title 26 tax. In the case of any amount paid or incurred as
+> restitution for failure to pay tax imposed under title 26 of the United
+> States Code, paragraph (a) of this section does not disallow a deduction for
+> title 26 taxes, such as excise and employment taxes, which are equal to or
+> less than the deduction otherwise allowed under chapter 1 of the Code if the
+> tax had been timely paid.
+
+## 26 CFR 1.162-21(d)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Application of general principles of Federal income tax law
+
+## 26 CFR 1.162-21(d)(1)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Taxable year of deduction. If, under paragraph (b) or (c) of this section,
+> the taxpayer is allowed a deduction for the amount paid or incurred pursuant
+> to an order or agreement, the deduction is taken into account under the
+> rules of section 461 and the related regulations, or under a provision
+> specifically applicable to the allowed deduction, such as § 1.468B-3(c).
+
+## 26 CFR 1.162-21(d)(2)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Tax benefit rule applies. If the deduction allowed under paragraphs (b) or
+> (c) of this section results in a tax benefit to the taxpayer, the taxpayer
+> must include in income, under sections 61 and 111, the recovery of any
+> amount deducted in a prior taxable year to the extent the prior year's
+> deduction reduced the taxpayer's tax liability.
+
+## 26 CFR 1.162-21(d)(2)(i)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> A tax benefit to the taxpayer includes a reduction in the taxpayer's tax
+> liability for a prior taxable year or the creation of a net operating loss
+> carryback or carryover.
+
+## 26 CFR 1.162-21(d)(2)(ii)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> A taxpayer's recovery of any amount deducted in a prior taxable year
+> includes, but is not limited to—
+
+## 26 CFR 1.162-21(d)(2)(ii)(A)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Receiving a refund, recoupment, rebate, reimbursement, or otherwise
+> recovering some or all of the amount the taxpayer paid or incurred, or
+
+## 26 CFR 1.162-21(d)(2)(ii)(B)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Being relieved of some or all of the payment liability under the order or
+> agreement.
+
+## 26 CFR 1.162-21(e)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Definitions. For section 162(f) and § 1.162-21, the following definitions
+> apply:
+
+## 26 CFR 1.162-21(e)(1)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Government. A government means—
+
+## 26 CFR 1.162-21(e)(1)(i)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> The government of the United States, a State, or the District of Columbia;
+
+## 26 CFR 1.162-21(e)(1)(ii)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> The government of a territory of the United States, including American
+> Samoa, Guam, the Northern Mariana Islands, Puerto Rico, or the U.S. Virgin
+> Islands;
+
+## 26 CFR 1.162-21(e)(1)(iii)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> The government of a foreign country;
+
+## 26 CFR 1.162-21(e)(1)(iv)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> An Indian tribal government, as defined in section 7701(a)(40), or a
+> subdivision of an Indian tribal government, as determined in accordance with
+> section 7871(d); or
+
+## 26 CFR 1.162-21(e)(1)(v)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> A political subdivision (such as a local government unit) of a government
+> described in paragraph (e)(1)(i), (ii), or (iii) of this section.
+
+## 26 CFR 1.162-21(e)(2)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Governmental entity. A governmental entity means—
+
+## 26 CFR 1.162-21(e)(2)(i)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> A corporation or other entity serving as an agency or instrumentality of a
+> government (as defined in paragraph (e)(1) of this section), or
+
+## 26 CFR 1.162-21(e)(2)(ii)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> A nongovernmental entity treated as a governmental entity as described in
+> paragraph (e)(3) of this section.
+
+## 26 CFR 1.162-21(e)(3)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Nongovernmental entity treated as a governmental entity. A nongovernmental
+> entity treated as a governmental entity is an entity that—
+
+## 26 CFR 1.162-21(e)(3)(i)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Exercises self-regulatory powers (including imposing sanctions) in
+> connection with a qualified board or exchange, as defined in section
+> 1256(g)(7); or
+
+## 26 CFR 1.162-21(e)(3)(ii)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Exercises self-regulatory powers, including adopting, administering, or
+> enforcing rules and imposing sanctions, as part of performing an essential
+> governmental function.
+
+## 26 CFR 1.162-21(e)(4)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Restitution, remediation of property, and amounts paid to come into
+> compliance with a law
+
+## 26 CFR 1.162-21(e)(4)(i)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Amounts for restitution or remediation. An amount is paid or incurred for
+> restitution or remediation pursuant to paragraph (b)(1) of this section if
+> it is paid or incurred to restore, in whole or in part, the person, as
+> defined in section 7701(a)(1); government; governmental entity; property;
+> environment; wildlife; or natural resources harmed, injured, or damaged by
+> the violation or potential violation of any law described in paragraph
+> (a)(3) of this section to the same or substantially similar position or
+> condition as existed prior to such harm, injury or damage.
+
+## 26 CFR 1.162-21(e)(4)(i)(A)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Environment, wildlife, or natural resources. Restitution or remediation of
+> the environment, wildlife, or natural resources includes amounts paid or
+> incurred for the purpose of conserving soil, air, or water resources,
+> protecting or restoring the environment or an ecosystem, improving forests,
+> or providing a habitat for fish, wildlife, or plants. The amounts must be
+> paid or incurred—
+
+## 26 CFR 1.162-21(e)(4)(i)(A)(1)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> To, or at the direction of, a government or governmental entity to be used
+> exclusively for the restitution or remediation of a harm to the environment,
+> wildlife, or natural resources;
+
+## 26 CFR 1.162-21(e)(4)(i)(A)(2)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> To a segregated fund or account established by a government or governmental
+> entity and, pursuant to the order or agreement, the amounts are not
+> disbursed to the general account of the government or governmental entity
+> for general enforcement efforts or other discretionary purposes; or
+
+## 26 CFR 1.162-21(e)(4)(i)(A)(3)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> To a segregated fund or account established at the direction of a government
+> or governmental entity.
+
+## 26 CFR 1.162-21(e)(4)(i)(A)(4)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Paragraph (e)(4)(i)(A) of this section applies only if there is a strong
+> nexus or connection between the purpose of the payment and the harm to the
+> environment, natural resources, or wildlife that the taxpayer has caused or
+> is alleged to have caused.
+
+## 26 CFR 1.162-21(e)(4)(i)(B)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Disgorgement or forfeiture. Provided the identification and establishment
+> requirements of paragraphs (b)(2) and (b)(3) of this section are met,
+> restitution may include amounts paid or incurred as disgorgement or
+> forfeiture, if paid or incurred at the direction of a government or
+> governmental entity directly to the person, as defined in section
+> 7701(a)(1), harmed by the violation or potential violation of any law or to,
+> or at the direction of, the government or governmental entity, to establish
+> a segregated fund or account for the benefit of such harmed person. This
+> paragraph (e)(4)(i)(B) does not apply if the order or agreement identifies
+> the payment amount as in excess of the taxpayer's net profits or, pursuant
+> to the order or agreement, the amounts are disbursed to the general account
+> of the government or governmental entity for general enforcement efforts or
+> other discretionary purposes.
+
+## 26 CFR 1.162-21(e)(4)(i)(C)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Segregated funds or accounts. Provided the identification and establishment
+> requirements of paragraphs (b)(2) and (b)(3) of this section are met,
+> restitution or remediation may include amounts paid or incurred, pursuant to
+> an order or agreement, to a segregated fund or account to restore, in whole
+> or in part, the person, as defined in section 7701(a)(1); government;
+> governmental entity; property; environment; wildlife; or natural resources
+> harmed, injured, or damaged by the violation or potential violation of any
+> law described in paragraph (a)(3) of this section. This paragraph
+> (e)(4)(i)(C) does not apply if, pursuant to the order or agreement, the
+> amounts are disbursed to the general account of the government or
+> governmental entity for general enforcement efforts or other discretionary
+> purposes.
+
+## 26 CFR 1.162-21(e)(4)(ii)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Amounts to come into compliance with a law. An amount is paid or incurred to
+> come into compliance with a law that the taxpayer has violated, or is
+> alleged to have violated, by performing services; taking action, such as
+> modifying equipment; providing property; or doing any combination thereof to
+> come into compliance with that law.
+
+## 26 CFR 1.162-21(e)(4)(iii)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Amounts not included. Regardless of whether the order or agreement
+> identifies them as such, restitution, remediation, and amounts paid to come
+> into compliance with a law do not include any amount paid or incurred—
+
+## 26 CFR 1.162-21(e)(4)(iii)(A)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> As reimbursement to a government or governmental entity for investigation
+> costs or litigation costs incurred in such government or governmental
+> entity's investigation into, or litigation concerning, the violation or
+> potential violation of any law; or
+
+## 26 CFR 1.162-21(e)(4)(iii)(B)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> At the taxpayer's election, in lieu of a fine or penalty.
+
+## 26 CFR 1.162-21(e)(5)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Suit, agreement, or otherwise. A suit, agreement, or otherwise includes, but
+> is not limited to, suits; settlement agreements; orders; non-prosecution
+> agreements; deferred prosecution agreements; judicial proceedings;
+> administrative adjudications; decisions issued by officials, committees,
+> commissions, or boards of a government or governmental entity; and any legal
+> actions or hearings which impose a liability on the taxpayer or pursuant to
+> which the taxpayer assumes liability.
+
+## 26 CFR 1.162-21(g)
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Applicability date. The rules of this section apply to taxable years
+> beginning on or after January 19, 2021, except that such rules do not apply
+> to amounts paid or incurred under any order or agreement pursuant to a suit,
+> agreement, or otherwise, which became binding under applicable law before
+> such date, determined without regard to whether all appeals have been
+> exhausted or the time for filing appeals has expired.
+
+## 26 CFR 1.162-21(f)(1) Example 1
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. Corp. A enters into an agreement with State Y's environmental
+> enforcement agency (Agency) for violating state environmental laws. Pursuant
+> to the agreement, Corp. A pays $40X to the Agency in civil penalties, $80X
+> in restitution for the environmental harm that the taxpayer has caused, $50X
+> for remediation of contaminated sites, and $60X to conduct comprehensive
+> upgrades to Corp. A's operations to come into compliance with the state
+> environmental laws. [...] Analysis. The identification requirement is
+> satisfied for those amounts the agreement identifies as restitution,
+> remediation, or to come into compliance with a law. If Corp. A meets the
+> establishment requirement, as provided in paragraph (b)(3), paragraph (a) of
+> this section will not disallow Corp. A's deduction for $80X in restitution
+> and $50X for remediation. Under paragraph (a) of this section, Corp. A may
+> not deduct the $40X in civil penalties. Paragraph (a) of this section will
+> not disallow Corp. A's deduction for the $60X paid to come into compliance
+> with the state environmental laws. See section 161, concerning items allowed
+> as deductions, and section 261, concerning items for which no deduction is
+> allowed, and the regulations related to sections 161 and 261.
+
+## 26 CFR 1.162-21(f)(2) Example 2
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. Corp. A enters into an agreement with State T's securities agency
+> (Agency) for violating a securities law by inducing B to make a $100X
+> investment in Corp. C stock, which B lost when the Corp. C stock became
+> worthless. As part of the agreement, Corp. A agrees to pay $100X to B as
+> restitution for B's investment loss, incurred as a result of Corp. A's
+> actions. The agreement specifically states that the $100X payment by Corp. A
+> to B is restitution. The agreement also requires Corp. A to pay a $40X
+> penalty for violating Agency law. Corp. A pays the $140X. [...] Analysis.
+> Corp. A's $100X payment to B is identified in the agreement as restitution.
+> If Corp. A establishes, as provided in paragraph (b)(3) of this section,
+> that the amount paid was for that purpose, paragraph (a) of this section
+> will not disallow Corp. A's deduction for the $100X payment. Under paragraph
+> (a) of this section, Corp. A may not deduct its $40X payment to the Agency
+> because it was paid for Corp. A's violation of Agency law.
+
+## 26 CFR 1.162-21(f)(3) Example 3
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. Corp. B is under investigation by State X's environmental enforcement
+> agency for a potential violation of State X's law governing emissions
+> standards. Corp. B enters into an agreement with State X under which it
+> agrees to upgrade the engines in a fleet of vehicles that Corp. B operates
+> to come into compliance with State X's law. Although the agreement does not
+> provide the specific amount Corp. B will incur to upgrade the engines to
+> come into compliance with State X's law, it identifies that Corp. B must
+> upgrade existing engines to lower certain emissions. Under the agreement,
+> Corp. B also agrees to construct a nature center in a local park for the
+> benefit of the community. Instead of paying $12X, to come into compliance
+> with State X's law, Corp. B pays $15X to upgrade the engines to a standard
+> higher than that which the law requires. Corp. B presents evidence to
+> establish that it would cost $12X to upgrade the engines to come into
+> compliance with State X's law. [...] Analysis. Because the agreement
+> describes the specific action Corp. B must take to come into compliance with
+> State X's law, and Corp. B provides evidence, as described in paragraph
+> (b)(3)(ii) of this section, to establish that the agreement obligates it to
+> incur costs to come into compliance with a law, paragraph (a) of this
+> section will not disallow Corp. B's deduction for the $12X Corp. B incurs to
+> come into compliance. Corp. B may also deduct the $3X if it is otherwise
+> deductible under chapter 1 of the Code. However, Corp. B may not deduct the
+> amounts paid to construct the nature center because no facts exist to
+> establish that the amount was paid either to come into compliance with a law
+> or as restitution or remediation.
+
+## 26 CFR 1.162-21(f)(4) Example 4
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. Corp. D enters into an agreement with governmental entity, Trade
+> Agency, for engaging in unfair trade practices in violation of Trade Agency
+> laws. The agreement requires Corp. D to pay $80X to a Trade Agency fund,
+> through disgorgement of net profits, to be used exclusively to pay
+> restitution to the consumers harmed by Corp. D's violation of Trade Agency
+> law. Corp. D pays $80X to Trade Agency fund and Trade Agency disburses all
+> amounts in the restitution fund to the harmed consumers. [...] Analysis. The
+> agreement identifies the $80X payment to the fund as restitution. Trade
+> Agency uses the funds exclusively to provide restitution to the harmed
+> consumers and does not use it for discretionary or general enforcement
+> purposes. If Corp. D establishes, as provided in paragraph (b)(3) of this
+> section, that the $80X constitutes restitution under paragraph (e)(4)(i)(B)
+> of this section, paragraph (a) of this section does not apply.
+
+## 26 CFR 1.162-21(f)(5) Example 5
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. B, a regulated banking institution, is subject to the supervision of,
+> and annual examinations by governmental entity, R. In the ordinary course of
+> its business, B is required to pay annual assessment fees to R, which fees
+> are used to support R in supervising and examining banking institutions to
+> ensure a safe and sound banking system. Following an annual examination
+> conducted in the ordinary course of B's business, R issues a letter to B
+> identifying concerns with B's internal compliance functions. B takes
+> corrective action to address R's concerns by investing in its internal
+> compliance functions. R does not conduct an investigation or inquiry into
+> B's potential violation of any law. [...] Analysis. The payment of annual
+> assessment fees by B to R in the ordinary course of business is not related
+> to the violation of any law or the investigation or inquiry into the
+> potential violation of any law. In addition, B's costs of taking the
+> corrective action are not related to the violation of any law or the
+> investigation or inquiry into the potential violation of any law as
+> described in section 162(f)(1). Paragraph (a) of this section will not
+> disallow the deduction of the annual assessment fees and the cost of the
+> corrective actions.
+
+## 26 CFR 1.162-21(f)(6) Example 6
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. B, a regulated banking institution, is subject to the supervision of,
+> and annual examinations by governmental entity, R. Following an annual
+> examination conducted in the ordinary course of B's business, R pursues an
+> enforcement action against B for violation of banking laws. B and R enter a
+> settlement agreement, pursuant to which B agrees to undertake certain
+> improvements to come into compliance with banking laws and to pay R $20X for
+> violation of banking laws. B pays the $20X. [...] Analysis. If the agreement
+> meets the identification requirement of paragraph (b)(2) of this section and
+> B meets the establishment requirement of paragraph (b)(3) of this section,
+> paragraph (a) of this section will not disallow the deduction of the costs
+> of the corrective actions to come into compliance with banking laws.
+> However, B may not deduct the $20X paid to R because the amount was not paid
+> to come into compliance with a law or as restitution or remediation.
+
+## 26 CFR 1.162-21(f)(7) Example 7
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. Corp. C contracts with governmental entity, Q, to design and build a
+> rail project within five years. Corp. C does not complete the project. Q
+> sues Corp. C for breach of contract and damages of $10X. A jury finds Corp.
+> C breached the contract and Corp. C pays $10X to Q. [...] Analysis. The suit
+> arose out of a proprietary contract, wherein Q enforced its rights as a
+> private party. Paragraph (a) of this section will not disallow Corp. C's
+> deduction of the payment of $10X pursuant to this suit.
+
+## 26 CFR 1.162-21(f)(8) Example 8
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. Corp. C contracts with governmental entity, Q, to design and build a
+> rail project within five years. Site conditions cause construction delays
+> and Corp. C asks Q to pay $50X in excess of the contracted amount to
+> complete the project. After Q pays for the work, it learns that, at the time
+> it entered the contract with Corp. C, Corp. C knew that certain conditions
+> at the project site would make it challenging to complete the project within
+> five years. Q sues Corp. C for withholding critical information during
+> contract negotiations in violation of the False Claims Act (FCA). The court
+> enters a judgment in favor of Q pursuant to which Corp. C will pay Q $50X in
+> restitution and $150X in treble damages. Corp. C pays the $200X. [...]
+> Analysis. The suit pertains to Corp. C's violation of the FCA. The order
+> identifies the $50X Corp. C is required to pay as restitution, as described
+> in paragraph (b)(2) of this section. If Corp. C establishes, as provided in
+> paragraph (b)(3) of this section, that the amount paid was for restitution,
+> paragraph (a) of this section will not disallow Corp. C's deduction for the
+> $50X payment. Under paragraph (a) of this section, Corp. C may not deduct
+> the $150X paid for the treble damages imposed for violation of the FCA
+> because the order did not identify all or part of the payment as
+> restitution.
+
+## 26 CFR 1.162-21(f)(9) Example 9
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. Corp. T operates a truck fleet company incorporated in State A. State
+> A requires that all vehicles registered in State A have a vehicle emissions
+> test every two years. Corp. T's 40 trucks take the emissions test on March 1
+> for which it pays the $15 per vehicle. Under State A law, if a vehicle fails
+> the emissions test, the vehicle owner has 30 days to certify to State A that
+> the vehicle has been repaired and has passed the emissions test. State A
+> imposes a $1X penalty per vehicle for failure to comply with this 30-day
+> rule. Twenty trucks pass; twenty trucks fail. Corp. T does not submit the
+> required certification to State A for the twenty trucks that failed the
+> emissions test. State A imposes a $40X penalty against Corp. T. Corp. T pays
+> the $40X. [...] Analysis. Emissions tests are conducted in the ordinary
+> course of operating a truck fleet company and, therefore, paragraph (a) of
+> this section does not apply to the $600 Corp. T pays for the emissions
+> tests. However, Corp. T may not deduct the $40X penalty for failure to
+> comply with State A requirements because the amount is required to be paid
+> to a government in relation to the violation of a law.
+
+## 26 CFR 1.162-21(f)(10) Example 10
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. Corp. G operates a chain of 20 grocery stores in County X. Under
+> County X health and food safety code and regulations, Corp. G is subject to
+> annual inspections for which Corp. G is required to pay an inspection fee of
+> $40 per store. Pursuant to the annual inspection, the County X health
+> inspector finds violations of County X's health and food safety code and
+> regulations in three of Corp. G's 20 stores. County X bills Corp. G $800 for
+> the annual inspection fees for the 20 stores and a $1,000 fine for each of
+> the three stores, for a total fine of $3,000, for violations of the health
+> and food safety code. Corp. G pays the fees and fines. [...] Analysis.
+> Paragraph (a) of this section will not disallow Corp. G's deduction for the
+> $800 inspection fees paid in the ordinary course of a regulated business.
+> Under paragraph (a) of this section, Corp. G may not deduct the $3,000 fine
+> for violation of the County X health code and food safety ordinances because
+> it was paid to a government in relation to the violation of a law.
+
+## 26 CFR 1.162-21(f)(11) Example 11
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. Corp. G operates a chain of grocery stores in County X. Under County
+> X health and food safety code and regulations, Corp. G is subject to annual
+> inspections. Pursuant to an annual inspection, the County X health inspector
+> finds that the refrigeration system in one of Corp. G's stores does not keep
+> food at the temperature required by the health and food safety code and
+> regulations. The County X health inspector issues a warning letter
+> instructing Corp. G to correct the violation and bring the refrigeration
+> system into compliance with the law before a reinspection in 60 days or face
+> the imposition of fines if it fails to comply. Corp. G pays $10,000 to bring
+> its refrigeration system into compliance with the law. [...] Analysis.
+> Provided the identification and establishment requirements of paragraphs
+> (b)(2) and (b)(3), respectively, of this section are met, paragraph (a) of
+> this section will not disallow Corp. G's deduction for the $10,000 it pays
+> to bring its refrigeration system into compliance with the law.
+
+## 26 CFR 1.162-21(f)(12) Example 12
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. Corp. G operates a chain of grocery stores in County X. Under County
+> X health and food safety code and regulations, Corp. G is subject to annual
+> inspections. Pursuant to an annual inspection, the County X health inspector
+> finds that the refrigeration system in one of Corp. G's stores does not keep
+> food at the temperature required by the health and food safety code and
+> regulations. The County X health inspector issues a warning letter
+> instructing Corp. G to correct the violation and bring the refrigeration
+> system into compliance with the law before a reinspection in 60 days or face
+> the imposition of fines if it fails to comply. The County X health inspector
+> later reinspects the refrigeration system. Corp. G pays a reinspection fee
+> of $80. During the reinspection, the health inspector finds that Corp. G did
+> not bring its refrigeration system into compliance with the law. The health
+> inspector issues a citation imposing a $250 fine on Corp. G. Corp. G pays
+> the $250 fine. [...] Analysis. Paragraph (a) of this section will disallow
+> Corp. G's deduction for the $80 inspection fee because it is paid in
+> relation to the investigation or inquiry by County X into the potential
+> violation of a law. Paragraph (a) of this section will also disallow Corp.
+> G's deduction for the $250 fine paid for violation of the law.
+
+## 26 CFR 1.162-21(f)(13) Example 13
+
+**Source:** S40 · **Checked:** 2026-09-27 · **Kind:** example
+
+> Facts. Accounting Firm was convicted of embezzling $500X from Bank in
+> violation of State X law. The court issued an order requiring Accounting
+> Firm to pay $100X in restitution to Bank. The court also issued an order of
+> forfeiture and restitution for $400X, which was seized by the State X
+> officials. Accounting Firm paid $100X to Bank. The $400X seized was
+> deposited with Fund within the State X treasury and, at the discretion of
+> the State X Attorney General, was used to support law enforcement programs.
+> [...] Analysis. Although the order identified the amount forfeited as
+> restitution, paragraph (a) of this section will disallow Accounting Firm's
+> deduction for the $400X forfeited because, under paragraph (e)(4)(i)(B)(I)
+> of this section, it does not constitute restitution. If Accounting Firm
+> establishes, as provided in paragraph (b)(3) of this section, that the $100X
+> constitutes restitution under paragraph (e)(4)(i), paragraph (a) of this
+> section will not disallow Accounting Firm's deduction for the $100X paid,
+> provided the $100X is otherwise deductible under chapter 1.
+
+## 26 USC 274(a)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (a) Entertainment, amusement, recreation, or qualified transportation
+> fringes
+
+## 26 USC 274(a)(1)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (1) In general No deduction otherwise allowable under this chapter shall be
+> allowed for any item- (A) Activity With respect to an activity which is of a
+> type generally considered to constitute entertainment, amusement, or
+> recreation, or (B) Facility With respect to a facility used in connection
+> with an activity referred to in subparagraph (A).
+
+## 26 USC 274(a)(2)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (2) Special rules For purposes of applying paragraph (1)- (A) Dues or fees
+> to any social, athletic, or sporting club or organization shall be treated
+> as items with respect to facilities. (B) An activity described in section
+> 212 shall be treated as a trade or business.
+
+## 26 USC 274(a)(3)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (3) Denial of deduction for club dues Notwithstanding the preceding
+> provisions of this subsection, no deduction shall be allowed under this
+> chapter for amounts paid or incurred for membership in any club organized
+> for business, pleasure, recreation, or other social purpose.
+
+## 26 USC 274(a)(4)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (4) Qualified transportation fringes No deduction shall be allowed under
+> this chapter for the expense of any qualified transportation fringe (as
+> defined in section 132(f)) provided to an employee of the taxpayer.
+
+## 26 USC 274(e)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (e) Specific exceptions to application of subsection (a) Subsection (a)
+> shall not apply to- [...] For purposes of this subsection, any item referred
+> to in subsection (a) shall be treated as an expense.
+
+## 26 USC 274(e)(1)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (1) Food and beverages for employees Expenses for food and beverages (and
+> facilities used in connection therewith) furnished on the business premises
+> of the taxpayer primarily for his employees.
+
+## 26 USC 274(e)(2)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (2) Expenses treated as compensation (A) In general Except as provided in
+> subparagraph (B), expenses for goods, services, and facilities, to the
+> extent that the expenses are treated by the taxpayer, with respect to the
+> recipient of the entertainment, amusement, or recreation, as compensation to
+> an employee on the taxpayer's return of tax under this chapter and as wages
+> to such employee for purposes of chapter 24 (relating to withholding of
+> income tax at source on wages). (B) Specified individuals (i) In general In
+> the case of a recipient who is a specified individual, subparagraph (A) and
+> paragraph (9) shall each be applied by substituting "to the extent that the
+> expenses do not exceed the amount of the expenses which" for "to the extent
+> that the expenses". (ii) Specified individual For purposes of clause (i),
+> the term "specified individual" means any individual who- (I) is subject to
+> the requirements of section 16(a) of the Securities Exchange Act of 1934
+> with respect to the taxpayer or a related party to the taxpayer, or (II)
+> would be subject to such requirements if the taxpayer (or such related
+> party) were an issuer of equity securities referred to in such section. For
+> purposes of this clause, a person is a related party with respect to another
+> person if such person bears a relationship to such other person described in
+> section 267(b) or 707(b).
+
+## 26 USC 274(e)(3)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (3) Reimbursed expenses Expenses paid or incurred by the taxpayer, in
+> connection with the performance by him of services for another person
+> (whether or not such other person is his employer), under a reimbursement or
+> other expense allowance arrangement with such other person, but this
+> paragraph shall apply- (A) where the services are performed for an employer,
+> only if the employer has not treated such expenses in the manner provided in
+> paragraph (2), or (B) where the services are performed for a person other
+> than an employer, only if the taxpayer accounts (to the extent provided by
+> subsection (d)) to such person.
+
+## 26 USC 274(e)(4)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (4) Recreational, etc., expenses for employees Expenses for recreational,
+> social, or similar activities (including facilities therefor) primarily for
+> the benefit of employees (other than employees who are highly compensated
+> employees (within the meaning of section 414(q))). For purposes of this
+> paragraph, an individual owning less than a 10-percent interest in the
+> taxpayer's trade or business shall not be considered a shareholder or other
+> owner, and for such purposes an individual shall be treated as owning any
+> interest owned by a member of his family (within the meaning of section
+> 267(c)(4)). This paragraph shall not apply for purposes of subsection
+> (a)(3).
+
+## 26 USC 274(e)(5)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (5) Employees, stockholder, etc., business meetings Expenses incurred by a
+> taxpayer which are directly related to business meetings of his employees,
+> stockholders, agents, or directors.
+
+## 26 USC 274(e)(6)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (6) Meetings of business leagues, etc. Expenses directly related and
+> necessary to attendance at a business meeting or convention of any
+> organization described in section 501(c)(6) (relating to business leagues,
+> chambers of commerce, real estate boards, and boards of trade) and exempt
+> from taxation under section 501(a).
+
+## 26 USC 274(e)(7)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (7) Items available to public Expenses for goods, services, and facilities
+> made available by the taxpayer to the general public.
+
+## 26 USC 274(e)(8)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (8) Entertainment sold to customers Expenses for goods or services
+> (including the use of facilities) which are sold by the taxpayer in a bona
+> fide transaction for an adequate and full consideration in money or money's
+> worth.
+
+## 26 USC 274(e)(9)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (9) Expenses includible in income of persons who are not employees Expenses
+> paid or incurred by the taxpayer for goods, services, and facilities to the
+> extent that the expenses are includible in the gross income of a recipient
+> of the entertainment, amusement, or recreation who is not an employee of the
+> taxpayer as compensation for services rendered or as a prize or award under
+> section 74. The preceding sentence shall not apply to any amount paid or
+> incurred by the taxpayer if such amount is required to be included (or would
+> be so required except that the amount is less than $600) in any information
+> return filed by such taxpayer under part III of subchapter A of chapter 61
+> and is not so included.
+
+## 26 USC 274(n)(2)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (2) Exceptions Paragraph (1) shall not apply to any expense if- [...]
+> Clauses (i) and (ii) of subparagraph (C) shall not apply to vessels
+> primarily engaged in providing luxury water transportation (determined under
+> the principles of subsection (m)). In the case of the employee, the
+> exception of subparagraph (A) shall not apply to expenses described in
+> subparagraph (B).
+
+## 26 USC 274(n)(2)(C)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (C) such expense is for food or beverages- (i) required by any Federal law
+> to be provided to crew members of a commercial vessel, (ii) provided to crew
+> members of a commercial vessel- (I) which is operating on the Great Lakes,
+> the Saint Lawrence Seaway, or any inland waterway of the United States, and
+> (II) which is of a kind which would be required by Federal law to provide
+> food and beverages to crew members if it were operated at sea, (iii)
+> provided on an oil or gas platform or drilling rig if the platform or rig is
+> located offshore, (iv) provided on an oil or gas platform or drilling rig,
+> or at a support camp which is in proximity and integral to such platform or
+> rig, if the platform or rig is located in the United States north of 54
+> degrees north latitude, or (v) provided- (I) on a fishing vessel, fish
+> processing vessel, or fish tender vessel (as such terms are defined in
+> section 2101 of title 46, United States Code ), or (II) at a facility for
+> the processing of fish for commercial use or consumption which- (aa) is
+> located in the United States north of 50 degrees north latitude, and (bb) is
+> not located in a metropolitan statistical area (within the meaning of
+> section 143(k)(2)(B)), or
+
+## 26 USC 274(o)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (o) Meals provided at convenience of employer Except in the case of an
+> expense described in subsection (e)(8) or (n)(2)(C), no deduction shall be
+> allowed under this chapter for-
+
+## 26 USC 274(o)(1)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (1) any expense for the operation of a facility described in section
+> 132(e)(2), and any expense for food or beverages, including under section
+> 132(e)(1), associated with such facility, or
+
+## 26 USC 274(o)(2)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> (2) any expense for meals described in section 119(a).
+
+## 26 USC 274 note, Pub. L. 115-97 § 13304(e)(2)
+
+**Source:** S41 · **Checked:** 2026-09-27 · **Kind:** rule
+
+> Effective date for elimination of deduction for meals provided at
+> convenience of employer .-The amendments made by subsection (d) [amending
+> this section] shall apply to amounts incurred or paid after December 31,
+> 2025.
+

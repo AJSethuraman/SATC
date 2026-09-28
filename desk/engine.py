@@ -436,6 +436,10 @@ class Served:
     #: the quoted words are in the passage; whether they carry the conclusion is
     #: the judge's call, recorded here rather than recomputed.
     judged: object = None
+    #: Code sections the served authority cites and the record does not hold --
+    #: `record.Desk.unheld`, read off the words served. Set in `serve`, never
+    #: passed. Whatever turns on them is not checked here.
+    unheld: tuple = ()
 
     def __str__(self) -> str:
         """The whole answer, laid out for a person. WHY THIS IS NOT IN THE SKILL.
@@ -577,6 +581,11 @@ class Served:
                 out += ["", "THE FIRM'S POSITION RESTS ON THESE WORDS:"]
                 out += [f'  {c} — "{w}"' for c, w in self.rests_on]
             out += ["", "THE AUTHORITY, in full:", "", f"> {self.passage}"]
+            if self.unheld:
+                out += ["", f"IT CITES AUTHORITY NOT ON FILE: "
+                            f"{'; '.join(self.unheld)}. Whatever turns on "
+                            f"those is not checked here -- escalate "
+                            f"`authority_absent` rather than assume it."]
         # IN FULL, AND NEVER AN EXCERPT. The obvious fix was a snippet under
         # each entry above. It fails on the one case this exists for: in the
         # Pub. 583 passage behind the firm's other cash position, the clause
@@ -1101,6 +1110,21 @@ def _resting_text(position, desk: Desk, citation: str) -> str:
         if getattr(desk.passage(c), "text", ""))
 
 
+def _with_limits(text: str, desk: Desk, citation: str) -> str:
+    """The served passage, and after it whatever the record reads it WITH.
+
+    Codex on #403: the brief and `ask.read` printed § 274(o) beside (e)(1) and
+    this did not, so a 2026 answer calling employer-premises meals deductible
+    was served with (e)(1) alone -- and the second reader, who is handed THIS
+    text, judged it against (e)(1) alone. The limit goes where both look.
+    """
+    extra = desk.limits_text(citation) if text else ""
+    if not extra:
+        return text
+    return (f"{text}\n\nREAD WITH IT -- the record says these change what it "
+            f"says:\n\n{extra}")
+
+
 def _check(answer: Answer, desk: Desk, question: str = "", context=None):
     """The one verification. Shared by the gate and the scoreboard on purpose.
 
@@ -1413,6 +1437,10 @@ def serve(answer: Answer, desk: Desk, *, question: str,
     shape that cannot be forgotten — a new `return Refusal(...)` inherits it.
     """
     out = _serve(answer, desk, question=question, context=context)
+    if isinstance(out, Served) and out.passage:
+        import dataclasses as _dc
+        out = _dc.replace(out, unheld=tuple(desk.unheld(out.passage,
+                                                     within=out.citation)))
     if isinstance(out, Refusal) and not out.desk:
         import dataclasses as _dc
         return _dc.replace(out, desk=desk.name)
@@ -1595,11 +1623,13 @@ def _serve(answer: Answer, desk: Desk, *, question: str,
         # answer said it rests on no paragraph. The fallback stays for a
         # citation-only AUTHORITY position (`human_only`), where the firm's
         # words really are all anybody may show of a real source.
-        passage=("" if getattr(passage, "is_policy", False) else
-                 _resting_text(passage, desk, answer.citation)
-                 or getattr(passage, "text", "")
-                 or getattr(desk.passage(answer.citation), "text", "")
-                 or getattr(passage, "position", "") or ""),
+        passage=_with_limits(
+            "" if getattr(passage, "is_policy", False) else
+            _resting_text(passage, desk, answer.citation)
+            or getattr(passage, "text", "")
+            or getattr(desk.passage(answer.citation), "text", "")
+            or getattr(passage, "position", "") or "",
+            desk, answer.citation),
         rests_on=(tuple(getattr(passage, "rests_on", ()) or ())
                   if from_position else ()),
         # READ OFF THE PASSAGE BEING SERVED, never off the citation. Two rules
