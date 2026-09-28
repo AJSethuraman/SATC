@@ -22,6 +22,7 @@ difference between a field that was empty and a field that was never read.
 from __future__ import annotations
 
 import decimal
+import functools
 import re
 from datetime import date as _date_cls
 from dataclasses import dataclass, field
@@ -131,6 +132,14 @@ class Source:
     #: was admitted to answer, so nothing could notice it still did not. With
     #: this, `rulings.findings` can -- and asks the firm what should reach it.
     admitted_for: tuple = ()
+    #: PARAGRAPHS THAT MUST BE READ TOGETHER, as `((citation, (other, ...)),
+    #: ...)`: whenever `citation` is printed, so are the others, because they
+    #: change what it says. Codex on #403: § 274(e)(1) excepts meals for
+    #: employees, § 274(o) takes that away from 2026, and (o) is not (e)(1)'s
+    #: child, so a read of the exception showed it without the limit. Which
+    #: paragraphs limit which is a fact about the law, recorded where the
+    #: source is, never inferred from how the citations are numbered.
+    read_with: tuple = ()
 
     @property
     def binding(self) -> bool:
@@ -774,6 +783,12 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
 _QUALIFIER = " \u2014 "
 
 
+#: `Desk._index`, by desk. Kept with the passages it was built from and checked
+#: by identity, so a reused id can never serve another record's index.
+_INDEXES: dict = {}
+
+
+@functools.lru_cache(maxsize=None)
 def _stem(citation: str) -> str:
     """A citation with the firm's hand-written ` \u2014 which rule` note removed.
 
@@ -824,6 +839,15 @@ class Desk:
     #: `optional` or `required` — see `Registration.judged`. Whether this desk
     #: may serve an answer no second reader has looked at.
     judged: str = OPTIONAL
+    #: The corpus a narrowed desk was cut from, or None for the whole one.
+    #: Structure and "is it on file" are questions about the whole record: a
+    #: brief from a narrowed desk called a held § 274(e)(2)(A) not on file.
+    whole: object = field(default=None, repr=False, compare=False)
+
+    @property
+    def corpus(self) -> "Desk":
+        """The whole record this desk is, or was cut from."""
+        return self.whole or self
 
     @property
     def needs_a_judge(self) -> bool:
@@ -840,6 +864,169 @@ class Desk:
         citation check exists to catch.
         """
         return next((p for p in self.passages if p.citation == citation), None)
+
+    def limits_on(self, citation: str) -> list:
+        """What the record says to read with `citation`: its own `Read with`
+        line and every ancestor's, so a clause or a worked example carries its
+        parent's limit. Codex on #403: a limit keyed on § 274(o) did not reach
+        (o)(1) when the clause was printed alone. Never the paragraph itself --
+        § 1.162-21 is read with its own (g)."""
+        # AND WHAT THOSE ARE READ WITH, in turn: (e)(1) is read with (o), and
+        # (o) with (n)(2)(C), the exception it names. Stopping after one step
+        # served a denial without the exception to it (Codex, #403).
+        out, todo = [], [citation]
+        while todo:
+            at = todo.pop(0)
+            for s_ in self.sources:
+                for key, others in s_.read_with:
+                    if is_under(at, key):
+                        for o in others:
+                            if o != citation and o not in out:
+                                out.append(o)
+                                todo.append(o)
+        return out
+
+    def unheld(self, text: str, within: str = "") -> list:
+        """The Code sections `text` cites that the record holds nothing at, under
+        or above. Codex on #403: § 274(o) denies only what § 132(e)(2) and
+        § 119(a) describe, neither is on file, and nothing said so. Chasing
+        every cross-reference is endless -- 274 of 1,257 paragraphs cite one --
+        so the rule is to SAY it, and let the answerer escalate. Asked of the
+        WHOLE corpus whoever calls it: a narrowed desk no longer holds what it
+        was cut from (re-review of 3e7a1e98). `within` is the paragraph the
+        text opens with, for "subsection (d)" (`code_references`)."""
+        held = [p.citation for p in self.corpus.passages]
+        labels = _held_labels(tuple(held))
+        return [c for c in code_references(text, within=within, labels=labels)
+                if not any(h == c or is_under(h, c) or is_under(c, h)
+                           for h in held)]
+
+    def _index(self) -> tuple:
+        """(children, by_stem), built once per record: every direct clause of
+        each stem, and every passage by its stem. `frame` scanned all 1,257
+        passages per call and the brief calls it per paragraph for everything
+        an answer carries -- four seconds a brief (second adversarial pass)."""
+        kept = _INDEXES.get(id(self))
+        if kept is not None and kept[0] is self.passages:
+            return kept[1]
+        children, by_stem = {}, {}
+        for p in self.passages:
+            base = _stem(p.citation)
+            by_stem.setdefault(base, []).append(p)
+            m = re.fullmatch(r"(.+?)(\([^()]+\))", base)
+            if m:
+                children.setdefault(m.group(1), []).append(p)
+        if len(_INDEXES) > 64:              # narrowed desks come and go
+            _INDEXES.clear()
+        _INDEXES[id(self)] = (self.passages, (children, by_stem))
+        return children, by_stem
+
+    def _children(self, of: str) -> list:
+        return self._index()[0].get(_stem(of), [])
+
+    def _opens(self, p) -> bool:
+        """Does `p` state nothing without its clauses? A lead-in, a heading, or
+        a short full-stopped caption with clauses under it -- § 1.162-21(b)(2)
+        (iii), "Payment amount not identified." (Codex on #403)."""
+        if is_lead_in(p.text) or is_heading(p.text):
+            return True
+        return _short_phrase(p.text) and bool(self._children(p.citation))
+
+    def _clauses(self, of: str) -> list:
+        """`of`'s direct clauses, and a clause's own when it is a lead-in too."""
+        out = []
+        for p in self._children(of):
+            out.append(p.citation)
+            # DOWN THROUGH LEAD-INS AND HEADINGS ALIKE: a child heading alone
+            # is a caption, and the tests are beneath it (Codex on #403,
+            # § 1.162-21(b)(2) and (b)(3)).
+            if self._opens(p):
+                out += self._clauses(p.citation)
+        return out
+
+    def _joined(self, of: str) -> bool:
+        """Are `of`'s clauses one rule -- a list joined by "and"? Read off the
+        words: one of them ends ", and" or "; and"."""
+        return any(re.search(r"[;,]\s*and$", p.text.rstrip())
+                   for p in self._children(of))
+
+    def frame(self, citation: str, own: bool = True) -> list:
+        """What completes `citation` by its structure, read off the words: every
+        stored ancestor that is a lead-in, with that lead-in's clauses -- (a)(3)(i)
+        of § 1.162-21 means nothing without (a)'s "no deduction is allowed ... for
+        any amount" and the (a)(1)-(3) it joins -- and, when `citation` is itself
+        a lead-in, its own clauses: § 274(o) ends "for-". Codex on #403, twice."""
+        out = []
+        # ITS ANCESTORS' STEMS, read off the citation: drop a worked example's
+        # number, then one label at a time -- then look only those up.
+        by_stem, stems = self._index()[1], []
+        at = re.sub(r" Example \d+$", "", _stem(citation))
+        stems.append(_stem(citation))
+        while True:
+            stems.append(at)
+            m = re.fullmatch(r"(.+?)\([^()]+\)", at)
+            if not m:
+                break
+            at = m.group(1)
+        ancestors = sorted(
+            {id(p): p for st in stems for p in by_stem.get(st, [])
+             if p.citation != citation and is_under(citation, p.citation)
+             and is_lead_in(p.text)}.values(),
+            key=lambda p: len(p.citation))
+        for a in ancestors:
+            # ITS OTHER CLAUSES ONLY WHEN THEY ARE ONE RULE: § 1.162-21(a)'s end
+            # "; and", and all three must hold. § 274(e)'s are nine separate
+            # exceptions, and citing (e)(8) was served (e)(1)'s § 274(o) chain
+            # and eleven sections "not on file" it never turned on (Codex on
+            # #403).
+            joined = self._joined(a.citation)
+            for c in [a.citation, *(self._clauses(a.citation) if joined else ())]:
+                if c != citation and c not in out:
+                    out.append(c)
+        # AND A CITED HEADING, whose clauses are the whole of what it says.
+        # Headings ABOVE a clause are not added: the clause states its rule.
+        cited = self.passage(citation) if own else None
+        if cited and self._opens(cited):
+            out += [c for c in self._clauses(citation) if c not in out]
+        return out
+
+    def served_with(self, citation: str) -> list:
+        """EVERYTHING AN ANSWER CITING `citation` CARRIES, in order: its frame,
+        then what the record reads it -- and every framed paragraph -- with,
+        each with its clauses. One definition, because the served passage, the
+        second reader and the live proof must all check the same set (Codex
+        on #403: § 274(e) carried (e)(1) but not the § 274(o) it is read with)."""
+        order = list(self.frame(citation))
+        for c in [citation, *order]:
+            limits = self.limits_on(c)
+            for o in limits:
+                # A limit ABOVE what it is carried for is a frame by another
+                # route -- § 274(e) is read with (e) -- and brings its other
+                # clauses on the frame's terms: only when they are one rule.
+                # Checked against the whole chain, which `limits_on` walks
+                # transitively: (o)(1) reaches (e) through (e)(8).
+                above = any(x != o and is_under(x, o)
+                            for x in [c, citation, *limits])
+                clauses = (self._clauses(o) if not above or self._joined(o)
+                           else ())
+                # AND THE LEAD-IN IT COMPLETES: a limit that is a bare clause,
+                # "(2) any expense for a club.", states nothing without the
+                # "shall not apply to-" above it (adversarial pass on #403).
+                # Its ancestors only: its own clauses come on the terms above.
+                for x in [o, *self.frame(o, own=False), *clauses]:
+                    if x != citation and x not in order:
+                        order.append(x)
+        return order
+
+    def limits_text(self, citation: str) -> str:
+        """What the served answer carries after its own paragraph, and the second
+        reader is handed: its FRAME -- the lead-in it completes, or the clauses
+        that complete it -- then whatever the record reads it with, each with its
+        own clauses; § 274(o) alone ends "no deduction shall be allowed under
+        this chapter for-", which states nothing. Labelled, `""` when neither."""
+        order = self.served_with(citation)
+        return "\n\n".join(f"{c}: {self.passage(c).text}" for c in order
+                            if self.passage(c))
 
     def position(self, citation: str):
         """A ratified position resting on this citation, if the firm took one.
@@ -945,6 +1132,7 @@ class Desk:
             passages=passages,
             positions=positions,
             sources=tuple(s for s in self.sources if s.id in used),
+            whole=self.corpus,
         )
 
     def rules_only(self) -> "Desk":
@@ -1093,7 +1281,7 @@ def _prose(block: str, label: str, where: str, *, fields: tuple,
 
 #: The labels a SOURCE entry carries, so `_prose` knows where one ends.
 SOURCE_FIELDS = ("Tier", "Access", "May store", "Checked", "Citation prefix",
-                 "Url", "Asked as", "Admitted for", "Why")
+                 "Url", "Asked as", "Admitted for", "Read with", "Why")
 
 
 def _inline(block: str, label: str, where: str) -> str:
@@ -1194,6 +1382,293 @@ def _admitted_for(block: str, where: str) -> tuple:
     return tuple(out)
 
 
+#: A subsection label -- "(d)", "(aa)", "(2)", "(B)", "(iii)", "(IV)" -- and
+#: never a word: § 1.262-1(c) writes "Section 163 (interest)", which was read
+#: as a citation to 26 USC 163(interest) (Codex on #403).
+_LABEL = (r"\((?:\d+|[A-Z]+|[a-z]|" + "|".join(c * 2 for c in "abcdefghijklmnopqrstuvwxyz")
+          + r"|(?=[ivx])x{0,3}(?:ix|iv|v?i{0,3}))\)")
+#: One Code section number: "132(e)(2)", "263A", "1400Z-2(d)" -- a hyphen only
+#: after a letter, so "261-276" is not read as a section. Never a regulation
+#: ("1.263(a)-3" stops at its decimal point), never cut short before a digit,
+#: and never the first end of a range ("261-276", "1 through 5"), which names
+#: sections the reader cannot list -- nor a range ending in labels, "168(g)(1)
+#: (A) through (D)", which the engine read as 168(g)(1) by backing off the
+#: labels; a match may not stop before a label (Codex on #403).
+_SECTION_NO = (r"\d+(?:[A-Z]+(?:-\d+)?)?(?:\s?" + _LABEL + r")*"
+               r"(?!\.?\d|\s*[-\u2013]\s*\d|[-\u2013]\(|\s+through\b|\s?"
+               + _LABEL + r")")
+#: An explanatory aside between items of a list -- "sections 469 (the "passive
+#: loss limitation") and 163 (d)", § 1.163-8T(a)(1), Codex on #403. It holds a
+#: space or a quote, which a subsection label like "(d)" or "(iii)" never does.
+_EXPLAINED = r"(?:\s*(?!" + _LABEL + r")\([^()]*\))?"
+#: "section", "Sections", "§" or "§§", then one number or a list of them:
+#: "sections 179, 179B, or 179C". A second reviewer on 5b762a5b found the first
+#: reader took only the first of a list and missed a capitalised "Section".
+_CODE_REF = re.compile(
+    r"(?:\b[Ss]ections?\s+|\u00a7\u00a7?\s*)(" + _SECTION_NO
+    + r"(?:" + _EXPLAINED + r"(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)"
+    + _SECTION_NO + r")*)")
+#: SOMEBODY ELSE'S SECTION, named after it -- checked after the whole match,
+#: not inside it, where the engine backtracked ("552(b)(3) of title 5" matched
+#: as 552(b)). Only a named owner excludes: "of the person receiving such tips"
+#: and "of $100x" are English, and the re-review of 3e7a1e98 found an exclusion
+#: on every "of" dropping § 224(d)(1).
+_OWNED_AFTER = re.compile(
+    r"\s*of\s+(?:title\s+(?!26\b)\d+"
+    r"|(?:the|such|this)\s+(?:[A-Z][\w.,'-]*\s+"
+    r"(?:(?:and|of|for|on|the|from|to|in|with|by|at|a|an)\s+)*)*"
+    r"(?:Act|Law)\b"
+    r"|Public\s+Law|Pub\.\s*L\.|Rev\.\s*(?:Proc|Rul)\.|Notice\s+\d"
+    r"|this\s+(?:revenue\s+(?:procedure|ruling)|notice)\b)")
+#: A subparagraph the reference shares before its owner is named: "section
+#: 13261(g)(2) or (3) of the Revenue Reconciliation Act of 1993" (§ 1.446-1(e)
+#: (3)(iii); Codex on #403). Skipped before the owner is looked for.
+#: A label that opens a capitalised item -- "or (4) Any listed property", in
+#: § 1.274-5T(a) -- is the paragraph's own list, not shared; so is one that
+#: opens a lower-case clause, "section 274(d), (i) the taxpayer must". A "(" straight
+#: after a chain is refused too, so the engine cannot back off to a shorter
+#: one; a spaced aside, "(h) (the ...)", is still an aside.
+_SHARED_TAIL = re.compile(
+    r"(?:\s*(?:,\s*(?:or\s+|and\s+)?|\s+(?:or|and)\s+)(?:" + _LABEL + r")+"
+    r"(?![A-Z(]|\s+[A-Z]|\s+(?:the|a|an|any|each|every|such|all|no|if|it|"
+    r"that|this|there|in|to)\b))*")
+#: ... and named BEFORE it: "Pub. L. 115-97, § 13304(e)(2)".
+_OWNED_BEFORE = re.compile(
+    r"(?:Pub\.\s*L\.|Public\s+Law|Rev\.\s*(?:Proc|Rul)\.|Notice)"
+    r"\s*[\d-]+,?\s*$")
+
+
+#: A paragraph's own label where a served passage or `ask.read` carries it:
+#: "26 USC 274(e)(3): ..." or "### 26 USC 274(e)(3)" -- or a publication's,
+#: a ruling's: every label starts a new owner (a Pub. 463 paragraph after a
+#: Code one had its "subsection (q)" read as § 274(q); adversarial pass on
+#: #403). `Desk.unheld` adds every citation the record holds; only a Code paragraph's resolves anything -- a regulation's "paragraph
+#: (e)(5)" is its own, and a note, "26 USC 274 note, Pub. L. ...", speaks of the
+#: enacting law's sections.
+_LABEL_HEADS = (r"(?:26 (?:USC|CFR) |IRS |Instr\. |Rev\. (?:Rul|Proc)\. |PLR "
+                r"|Announcement |Notice |TAM |Treas\. )")
+
+
+def _label_pattern(heads: str) -> "re.Pattern":
+    """A label is "### <citation>" on a line of its own -- how `ask.read`
+    prints one -- or "<citation>: " -- how a served passage does. A line that
+    only BEGINS like one ("Notice of the election is filed ...") is words, not
+    a label (second adversarial pass: the owner was reset by ordinary English)."""
+    return re.compile(r"^(?:###\s+(" + heads + r"[^\n]*?)\s*$|(" + heads
+                      + r"[^\n:]*?):\s)", re.M)
+
+
+_LABELLED = _label_pattern(_LABEL_HEADS + r"[^\n:]")
+
+
+@functools.lru_cache(maxsize=8)
+def _held_labels(held: tuple) -> "re.Pattern | None":
+    """Every held citation as a label, compiled once per record -- compiled on
+    every call it made the whole-corpus brief six times slower (second
+    adversarial pass). None for a record holding nothing: an empty alternation
+    matches every blank line."""
+    if not held:
+        return None
+    return _label_pattern("(?:" + "|".join(
+        re.escape(h) for h in sorted(held, key=len, reverse=True)) + ")")
+_CODE_CITATION = re.compile(r"26 USC (\d+[A-Z]*(?:-\d+)?)((?:\([a-z]+\))?)"
+                            r"(?:\([A-Za-z0-9]+\))*$")
+#: "subsection (d)", "subsections (a) and (c)(1)", "paragraph (2)" -- a place in
+#: the paragraph's OWN section, unless another is named after it ("of section
+#: 162"). § 274(e)(3) excepts a nonemployee's reimbursement only "to the extent
+#: provided by subsection (d)", and § 274(d) was not on file (Codex on #403).
+_RELATIVE = re.compile(
+    r"\b(subsection|paragraph)s?\s+((?:" + _LABEL + r")+"
+    r"(?:(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)(?:" + _LABEL + r")+)*)")
+#: ... checked after the WHOLE match, never inside it, where the engine would
+#: back off "(a)(1) of section 162" to "(a)" and find no "of" after it.
+_OWNED_ELSEWHERE = re.compile(r"\s*of\s+(?!this\s+(?:section|subsection)\b)")
+
+
+def _kind(label: str) -> str:
+    inner = label.strip("()")
+    return "digit" if inner.isdigit() else "upper" if inner.isupper() else "lower"
+
+
+def _share(prev: str, chain: str) -> str:
+    """`chain` -- "(3)", "(2)(A)", "(c)" -- written after `prev` in a list, as
+    "section 1221(a)(1), (3), (4), or (5)" writes it: it replaces the last
+    label of `prev` of its own kind, and whatever followed that (Codex on #403:
+    § 1.263(a)-3(h)(3)(iv) names four paragraphs of § 1221(a), and only the
+    first was read)."""
+    labels = re.findall(_LABEL, chain)
+    base, own = re.match(r"(.*?)((?:" + _LABEL + r")*)$", prev).groups()
+    have = re.findall(_LABEL, own)
+    for i in range(len(have) - 1, -1, -1):
+        if _kind(have[i]) == _kind(labels[0]):
+            return base + "".join(have[:i]) + "".join(labels)
+    return prev + "".join(labels)
+
+
+def _items(first_kind: str, listed: str, prev: str = "") -> list:
+    """Each label chain in `listed`, whole -- or shared from the one before it
+    when it opens with a label of another kind than the list's own."""
+    out = []
+    for chain in re.findall(r"(?:" + _LABEL + r")+", listed):
+        head = re.match(_LABEL, chain).group(0)
+        out.append(_share(out[-1] if out else prev, chain)
+                   if (out or prev) and _kind(head) != first_kind
+                   else chain)
+    return out
+
+
+def _relative(text: str, within: str) -> list:
+    """What `text`'s relative references name, read against `within`."""
+    m = _CODE_CITATION.match(within or "")
+    if not m:
+        return []
+    section, subsection = m.groups()
+    out = []
+    for r in _RELATIVE.finditer(text):
+        # ... NOR A RANGE, as for section numbers: "subsections (a) through
+        # (c)" was read as (a) alone (adversarial pass on #403).
+        if _OWNED_ELSEWHERE.match(text, r.end()):
+            continue
+        base = f"26 USC {section}" + ("" if r.group(1) == "subsection"
+                                      else subsection)
+        if r.group(1) == "paragraph" and not subsection:
+            continue
+        kind = "lower" if r.group(1) == "subsection" else "digit"
+        items = _items(kind, r.group(2))
+        # ONLY THE LAST MEMBER can be a range's first end: "subsections (a)
+        # and (b) through (d)" still names (a). And a dash with a space after
+        # it opens a sub-list -- § 274(a)(2)'s "paragraph (1)- (A) Dues" --
+        # which is not a range (second adversarial pass).
+        if re.match(r"\s+through\b|[-\u2013]\(", text[r.end():]):
+            items = items[:-1]
+        out += [base + item for item in items]
+    return out
+
+
+def code_references(text: str, within: str = "", labels=None) -> list:
+    """The Code sections a paragraph's own words cite, as citations, in order.
+    A section owned by something else -- another Act, another title, a public
+    law, a revenue procedure or notice, named before or after it -- is not.
+    `within` is the Code paragraph the words are from, which "subsection (d)"
+    is read against; a labelled paragraph in `text` is read against its own
+    label instead."""
+    out = []
+    found_at = {m.start(): m.group(1) or m.group(2)
+                for m in _LABELLED.finditer(text)}
+    if labels is not None:
+        found_at.update({m.start(): m.group(1) or m.group(2)
+                         for m in labels.finditer(text)})
+    starts = [(0, within)] + sorted(found_at.items())
+    for (at, owner), (end, _) in zip(starts, starts[1:] + [(len(text), "")]):
+        for c in _relative(text[at:end], owner):
+            if c not in out:
+                out.append(c)
+    for m in _CODE_REF.finditer(text):
+        tail = _SHARED_TAIL.match(text, m.end()).end()
+        if (_OWNED_AFTER.match(text, tail)
+                or _OWNED_BEFORE.search(text[max(0, m.start() - 40):m.start()])):
+            continue
+        # THE LIST'S OWN ITEMS, never a number inside an aside: "sections 162
+        # (amended in 2017) and 212" named a § 2017 (Codex on #403).
+        items = re.sub(r"\s*(?!" + _LABEL + r")\([^()]*\)", " ", m.group(1))
+        found = [f"26 USC {n.replace(' ', '')}"
+                 for n in re.findall(_SECTION_NO, items)]
+        # AND WHAT THE LIST SHARES AFTER IT: "(a)(1), (3), (4), or (5)".
+        shared = text[m.end():tail]
+        if found and shared:
+            prev = found[-1]
+            for chain in re.findall(r"(?:" + _LABEL + r")+", shared):
+                prev = _share(prev, chain)
+                found.append(prev)
+        for c in found:
+            if c not in out:
+                out.append(c)
+    return out
+
+
+def is_lead_in(text: str) -> bool:
+    """A paragraph that states nothing until its clauses finish it: it ends in
+    a dash or a colon, or its first piece does where a marked omission joins it
+    to a closing sentence (§ 274(e), § 274(n)(2)). Read off the words, never
+    decided per subsection -- Codex on #403 found a line per subsection leaked."""
+    first = text.split("[...]", 1)[0].rstrip()
+    return first.endswith(("-", "\u2014", ":"))
+
+
+def is_heading(text: str) -> bool:
+    """A paragraph that is only a caption -- "Exception for restitution,
+    remediation, and amounts paid to come into compliance with a law" -- read
+    off its words: no closing punctuation, and not a lead-in. Cited alone it
+    states nothing; its clauses are the rule (Codex on #403, § 1.162-21(b))."""
+    t = text.rstrip()
+    if not t or is_lead_in(text):
+        return False
+    # "?" and "!" close a sentence too: Rev. Rul. 2005-28's ISSUE is a whole
+    # question, not a caption (adversarial pass on #403).
+    return not t.endswith((".", ";", ",", ")", "]", '"', "\u201d", "'", "\u2019",
+                           "?", "!"))
+
+
+def _short_phrase(text: str) -> bool:
+    """"Payment amount not identified." -- one short phrase ending in a full
+    stop. From the words alone that is also "It is not deductible.", so it
+    counts as a caption only where clauses are stored under it (`Desk._opens`)."""
+    t = text.rstrip()
+    body = t[:-1]
+    return (t.endswith(".") and len(body.split()) <= 8
+            and not re.search(r"[.;:,]", body))
+
+
+def is_under(citation: str, key: str) -> bool:
+    """`citation` is `key` or a paragraph or worked example beneath it:
+    `26 CFR 1.162-21(f)(10) Example 10` is under `26 CFR 1.162-21`, and
+    `26 USC 274(e)(10)` is not under `26 USC 274(e)(1)`."""
+    # THE RECORD'S OWN " — which rule" SUFFIX is the same paragraph: every
+    # stored paragraph of § 1.262-1 is cited so, and none was under its
+    # section (adversarial pass on #403).
+    # ON BOTH SIDES (second adversarial pass): "(b) — how the examples are
+    # introduced" is a lead-in whose clauses are "(b)(1) — life insurance
+    # premiums" and eight more, and it had none. Two rules written on ONE
+    # paragraph -- same stem, different note -- are siblings, not containment.
+    if citation == key:
+        return True
+    base, kbase = _stem(citation), _stem(key)
+    if base == kbase:
+        return key == kbase
+    return bool(base.startswith(kbase) and re.fullmatch(
+        r"(\([^()]+\))*( Example \d+)?", base[len(kbase):]))
+
+
+def _clause_of(citation: str, of: str) -> bool:
+    """`citation` is a direct clause of `of`, reading through the record's
+    " — which rule" note on either side."""
+    obase = _stem(of)
+    if not citation.startswith(obase):      # cheap, and true of every clause
+        return False
+    base = _stem(citation)
+    return (base != obase and base.startswith(obase)
+            and bool(re.fullmatch(r"\([^()]+\)", base[len(obase):])))
+
+
+def _read_with(block: str, where: str) -> tuple:
+    """`Read with:` lines -- `citation — other; other` -- or nothing. Refuses a
+    line it cannot read, as `Admitted for` does."""
+    out = []
+    for line in (l.strip() for l in _field(block, "Read with", where,
+                                           required=False).splitlines()):
+        if not line:
+            continue
+        at = line.find(" — ")
+        others = tuple(o.strip() for o in line[at + 3:].split(";") if o.strip())
+        if at <= 0 or not others:
+            raise RecordError(
+                f"{where}: a Read with line reads {line!r}. Each line is a "
+                f"citation, \" — \", then the paragraphs to read with it, "
+                f"separated by semicolons.")
+        out.append((line[:at].strip(), others))
+    return tuple(out)
+
+
 def parse_sources(text: str) -> list[Source]:
     out = []
     for head, block in _blocks(text, _HEAD):
@@ -1211,6 +1686,7 @@ def parse_sources(text: str) -> list[Source]:
             url=_field(block, "Url", where, required=False),
             asked_as=_asked_as(block, where),
             admitted_for=_admitted_for(block, where),
+            read_with=_read_with(block, where),
             note=_prose(block, "Why", where, fields=SOURCE_FIELDS),
         ))
     if not out:
@@ -1337,6 +1813,23 @@ def load(desk_dir: Path) -> Desk:
                 raise RecordError(
                     f"{s_.id} says it was admitted for {cit!r}, which it does "
                     f"not hold. Name a stored paragraph of this source.")
+    # AND WHAT IS READ WITH WHAT IS ON FILE, both ends: a limit naming a
+    # paragraph nobody holds would be printed as nothing, silently.
+    every = {p.citation for p in passages}
+    for s_ in sources:
+        for cit, others in s_.read_with:
+            # A paragraph, or a section whose every paragraph the limit
+            # reaches: § 1.162-21(g) dates all sixty-eight of the others.
+            if not any(is_under(h, cit) for h in held_by.get(s_.id, set())):
+                raise RecordError(
+                    f"{s_.id} says {cit!r} is read with others, and it holds "
+                    f"nothing at or under {cit!r}. Name a stored paragraph of "
+                    f"this source, or the section it is cut from.")
+            for o in others:
+                if o not in every:
+                    raise RecordError(
+                        f"{s_.id} says {cit!r} is read with {o!r}, which is "
+                        f"not on file.")
 
     known = seen_ids
     for p in passages:

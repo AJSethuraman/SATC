@@ -447,6 +447,44 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-27 — § 274(e) and § 1.162-21 are on file (desk 0.40.0).** In Sarcia
+  pilot 5 the desk answered a streaming-subscription question from
+  § 1.274-11(a) and could only say its answer was "subject to" § 274(e):
+  § 1.274-11(c) names the statute's nine exceptions by number alone, and the
+  statute was not on file. In desk trial 1 it could not say whether a town
+  charge that is a fine is deductible, because § 162(f) and § 1.162-21 were not
+  on file. The firm's standing instruction: *"add whatever"*.
+  - S40, § 1.162-21, from the eCFR API issue of 2026-01-01, sliced by
+    `tools/extract_ecfr.py`: 56 rule paragraphs AND its 13 worked examples. The
+    examples are stored because, unlike S37-S39, the extractor places every one:
+    each is its own numbered paragraph, (f)(1) to (f)(13). Examples 10 to 12 set
+    a county's inspection fees beside its fine.
+  - S41, § 274(a) and (e), from uscode.house.gov ("Text contains those laws in
+    effect on September 25, 2026"): 15 paragraphs, every exception (e)(1) to
+    (e)(9) its own citation. `tools/extract_uscode.py` is new and small: it
+    reuses the reader S18-S21 were cut with and adds only a paragraph stored in
+    pieces, because (e)'s closing flush sentence is (e)'s and not (e)(9)'s.
+  - 1,167 -> 1,251 passages. All 84 tied out live against the publishers the
+    same day (eCFR issue 2026-09-08 and the House page), 70 exact, 14 elided.
+  - Not stored: § 162(f), the statute behind S40; the rest of § 274. No
+    `Admitted for:` line was written, because the pilot's and the trial's
+    questions are not in this repository verbatim and a paraphrase would be an
+    invented question. `rulings.findings()` is unchanged: eight, the same eight.
+  Retrieval moved in two answering briefs, recorded in `test_prompt_window.py`:
+  the supporting-documents brief now shows § 1.162-21(b)(3)(ii) where it showed
+  Pub. 583's "Bookkeeping System".
+  **§ 274(o) was added the same day, on Codex's review of #403.** From 2026 it
+  denies the deduction for meals at an employer-operated eating facility and
+  for § 119(a) meals, which (e)(1) would otherwise except, so (e)(1) stored
+  alone would answer a 2026 question wrongly. (o) carries no date of its own;
+  the enacting law's sentence that dates it, Pub. L. 115-97 § 13304(e)(2), is
+  stored beside it as the page prints it.
+  Stored beside it was not enough (Codex again): `ask.read` prints a paragraph
+  and its own children, and (o) is not (e)(1)'s child. So a source now records
+  what must be read together (`**Read with:**`), and a read or a brief that
+  prints (e)(1) prints or names (o) and its date with it. Which paragraph
+  limits which is recorded, never inferred from numbering.
+
 - **2026-09-27 — The desk never drives a browser it cannot see (desk 0.39.1).**
   The trial brief said "go and look, with Chrome on the Forge". Forge-Desk used
   the Claude in Chrome tools with `createIfEmpty: true`, and a new window opened
@@ -1514,3 +1552,52 @@ it with them.
   stateless, no-PII withholding API; the heavy tools stay in-process.
 - **2026-06 — Cowork plugin built** to the four-layer blueprint (app API → thin MCP proxy
   → plugin skills → agent), scoped to withholding.
+
+**Done in #403 after all (27 September 2026):** a clause cited on its own was
+served without its parent's words wherever the parent is a lead-in. Line-per-
+subsection fixes leaked (§ 1.162-21(a)(3)(i) was next), so the rule is now
+general and read off the words: a paragraph ending in a dash or a colon -- or
+whose first piece does, before a marked omission -- is a lead-in; a clause is
+read and served with every lead-in above it, and a cited lead-in with its own.
+A lead-in's OTHER clauses come with a clause only when they are one rule -- a
+list joined by "; and", as § 1.162-21(a)'s are; § 274(e)'s nine exceptions and
+§ 274(o)'s ", or" alternatives are each whole (Codex on #403: citing (e)(8)
+carried all of (e) and eleven sections "not on file"). 107 of 1,257 stored
+paragraphs are lead-ins.
+`record.Desk.frame`; a heading-only parent such as § 274(a) is not pulled in.
+
+**Follow-up from #403 (27 September 2026):** admit the Code sections § 274(o)
+turns on -- § 132(e)(2) (employer-operated eating facility) and § 119(a) (meals
+for the employer's convenience) -- and § 162(f), which § 1.162-21 implements.
+Until then the desk now SAYS it does not hold them wherever it serves, reads or
+briefs a paragraph that cites them (`record.Desk.unheld`), and tells the
+answerer to escalate `authority_absent`. A Code paragraph's "subsection (d)" or
+"paragraph (2)" is read against its own section, so § 274(e)(3)'s "to the
+extent provided by subsection (d)" names § 274(d) (Codex on #403). 277 of 1,257
+stored paragraphs cite a Code section not on file; the most cited are § 263A, § 162, § 274(d), § 168,
+§ 481 and § 1245. Which to admit next is the firm's call, from that list.
+
+**Adversarial pass on #403 (27 September 2026).** Codex ran out of quota, so
+the firm asked for one: a different model, told to break the desk by writing
+tests only, never source. About 25 hypotheses, ~35 checks, 10 red, ~22 clean.
+All ten were real and are fixed; the tests live in
+`desk/tests/test_what_the_adversary_found_on_403.py`. The two that mattered on
+the real corpus: the brief on § 274(e) did not name the § 274(o) an answer
+citing it carries (the brief now reads `served_with` itself), and no paragraph
+of § 1.262-1 or § 1.162-1 was "under" its section because the record cites
+them with a " — which rule" suffix (`is_under` now reads through it). The
+rest were edges the fixtures never used: a limit that is a bare clause served
+without its lead-in, a publication's label not starting a new owner, "§274"
+without a space, a lower-case inline list read as a shared label, Acts named
+with "from"/"to", a relative range read as its first end, and a question
+classed as a caption.
+
+**Follow-up from #403: same-section references in regulations.** A regulation
+paragraph that says "paragraph (b)(2) of this section" is served without that
+paragraph unless SOURCES.md has a Read-with line for it. Codex found it twice
+on § 1.162-21 ((b)(1), then (e)(4)(i)(B)-(C) and eight examples), and each was
+fixed by a record line. Measured 28 September 2026: **117 regulation paragraphs
+name a same-section paragraph that is held and not carried, 157 references.**
+Carrying them all automatically would grow every served answer; naming them
+the way `unheld` names what is not on file ("it refers to (b)(2) -- `ask.read`
+it") is the cheaper shape. Not decided; the record lines stand until it is.

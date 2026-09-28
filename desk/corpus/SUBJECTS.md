@@ -91,6 +91,10 @@ it answers the opposite way.
 
 **Answered from S39:** interest, interest expense, finance charge, finance charges, credit card interest, allocation of interest, interest allocation, debt proceeds, tracing, mixed use, mixed-use, business and personal
 
+**Answered from S40:** fine, fines, fined, penalty, penalties, violation, violations, restitution, remediation, come into compliance, settlement, settlement agreement, governmental entity, inspection, inspection fee, inspection fees, reinspection, 162(f), 1.162-21
+
+**Answered from S41:** entertainment, entertaining, amusement, recreation, recreational, club dues, subscription, subscriptions, streaming, sold to customers, general public, available to the public, business meeting, business meetings, treated as compensation, 274(a), 274(e), section 274
+
 
 
 **Records:** capitalization_rule, trade, taxpayer, unit_cost

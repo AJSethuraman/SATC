@@ -151,7 +151,7 @@ def nothing_on_file(question: str, corpus: Path = CORPUS, *, looked=None) -> str
     do with it? we bought a forklift" reaches nothing, while the same
     transaction as "is the invoice price deducted or capitalized?" reaches eight
     passages including the firm's own $2,500 threshold. The cause is two words —
-    `bought` and `forklift` appear in none of the 1167 stored passages, while
+    `bought` and `forklift` appear in none of the 1251 stored passages, while
     `purchase` appears in 93. Told only that nothing was found, a doer concludes
     the firm holds no authority on forklifts. They hold it under other words.
 
@@ -352,7 +352,7 @@ def consult(question: str, corpus: Path = CORPUS,
     cited += list(ruled)
     return brief(question, whole.narrowed_to(cited),
                  context, rule_added=added, on_file=_shelf(whole),
-                 ruled=ruled)
+                 ruled=ruled, whole=whole)
 
 
 def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
@@ -559,8 +559,11 @@ def review_brief(position, corpus: Path = CORPUS, *, limit: int = 8) -> str:
 def brief(question: str, desk: record.Desk,
           context: record.Context | None = None, *,
           rule_added: str = "", on_file: tuple = (),
-          ruled: dict | None = None) -> str:
-    """Everything the desk will let an answerer see, and nothing else."""
+          ruled: dict | None = None, whole: record.Desk | None = None) -> str:
+    """Everything the desk will let an answerer see, and nothing else.
+
+    `whole` is the corpus `desk` was narrowed from: a lead-in above a printed
+    clause is structure, and a narrowed desk no longer holds it."""
     ratified = [q for q in desk.positions if not q.proposed]
     context = context or record.NOTHING_ON_FILE
     # THE RUNNING CODE SAYS WHAT IT IS, in the one artifact an answerer always
@@ -806,6 +809,7 @@ def brief(question: str, desk: record.Desk,
     # `record.shown` and not `desk.passages`: the engine counts the same call
     # when it reports how much a desk put in front of a model that then said the
     # desk held nothing. Two readings of "what was shown" is one too many.
+    in_brief = {p.citation for p in record.shown(desk)}
     for p in record.shown(desk):
         out += [f"### {p.citation}", ""]
         # SOMEBODY ELSE'S FACTS, SAID SO. `dec-examples`, 14 September 2026 --
@@ -839,6 +843,38 @@ def brief(question: str, desk: record.Desk,
                     "question, the record may simply not hold a rule that "
                     "does, and that is worth saying rather than working "
                     "around.", ""]
+        # WHAT IT COMPLETES, NAMED: a clause printed without the lead-in it
+        # finishes -- a definition of "fine" without the denial it defines a
+        # word for -- is not the rule (Codex on #403). Named, not printed; what
+        # this brief already prints is not named again.
+        framed = [f for f in (whole or desk.corpus).frame(p.citation)
+                  if f not in in_brief]
+        unheld = (whole or desk.corpus).unheld(getattr(p, "text", "") or "",
+                                               within=p.citation)
+        if unheld:
+            out += [f"**Cites authority not on file: "
+                    f"{'; '.join(f'`{c}`' for c in unheld)}. Whatever turns on "
+                    f"it is not checked here -- escalate `authority_absent` "
+                    f"rather than assume it.**", ""]
+        if framed:
+            out += [f"**Read as one with {'; '.join(f'`{f}`' for f in framed)} "
+                    f"— a lead-in and the clauses that finish it. `ask.read` "
+                    f"it before relying on this.**", ""]
+        # THE WHOLE CORPUS, like the frame and the unheld check: the narrowed
+        # desk holds only this paragraph's source, and a Read-with chain that
+        # crosses into another stopped at its first link (Codex on #403).
+        # EVERYTHING THE SERVED ANSWER WOULD CARRY that the frame line has not
+        # named, from `served_with` itself: the brief on § 274(e) named no
+        # limit, though an answer citing (e) carries § 274(o) through (e)(1)
+        # (adversarial pass on #403).
+        w = whole or desk.corpus
+        limits = [o for o in w.served_with(p.citation)
+                  if o not in w.frame(p.citation)]
+        if limits:
+            names = "; ".join(f"`{o}`" for o in limits)
+            out += [f"**Read with {names} — the record says it changes what "
+                    f"this paragraph says. `ask.read` it before relying on "
+                    f"this.**", ""]
         if ruled and p.citation in ruled:
             r = ruled[p.citation]
             out += [f"**Here because the firm ruled it ({r.id}, {r.ruled}): "
@@ -895,6 +931,11 @@ def on_file_index(sources) -> list:
     return out + [""]
 
 
+def limits_on(desk, citation: str) -> list:
+    """`record.Desk.limits_on`, for callers holding a desk."""
+    return desk.limits_on(citation)
+
+
 def read(citation: str, corpus: Path = CORPUS) -> str:
     """The stored words of a paragraph, or the paragraphs of a section.
 
@@ -916,6 +957,12 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
     under = [p for p in desk.passages
              if p.citation.startswith(citation)
              and p.citation[len(citation):][:1] in ("(", " ", ",")]
+    # A CITATION WITH THE RECORD'S " — which rule" NOTE has its clauses under
+    # its stem: "(b) — how the examples are introduced" is a lead-in, and its
+    # clauses are "(b)(1) — life insurance premiums" and on (second
+    # adversarial pass on #403).
+    if record._stem(citation) != citation:
+        under = [p for p in desk.passages if record._clause_of(p.citation, citation)]
     if exact:
         out = [f"### {exact.citation}", "", f"> {exact.text}", ""]
         # A LEAD-IN IS HALF A SENTENCE. § 1.263(a)-4(f)(1) ends "does not
@@ -928,7 +975,9 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
         deeper = []
         for p in under:
             rest = p.citation[len(citation):]
-            if re.fullmatch(r"\([^()]+\)", rest):
+            if (re.fullmatch(r"\([^()]+\)", rest)
+                    or record._clause_of(p.citation, citation)
+                    and record._stem(citation) != citation):
                 out += [f"### {p.citation}", "", f"> {p.text}", ""]
             elif rest.startswith("(") or re.match(r" Example \d", rest):
                 # WORKED EXAMPLES TOO. Codex on #401: § 1.263(a)-3(e)(6) printed
@@ -939,6 +988,52 @@ def read(citation: str, corpus: Path = CORPUS) -> str:
             out += ["Further down or worked examples, not printed -- "
                     "`ask.read` any of these:", ""]
             out += [f"- `{c}`" for c in deeper] + [""]
+        # WHAT CHANGES WHAT WAS JUST PRINTED. Codex on #403: reading § 274(e)
+        # printed (e)(1) and not the § 274(o) that takes it away from 2026.
+        # WHAT IT COMPLETES, OR WHAT COMPLETES IT: a clause printed without the
+        # lead-in it finishes -- § 1.162-21(a)(3)(i) without (a)'s "no deduction
+        # is allowed" -- is a definition served as a rule (Codex on #403).
+        shown = {l[4:] for l in out if l.startswith("### ")}
+        # What sits BELOW the cited paragraph keeps the read's own rule --
+        # direct clauses printed, deeper ones listed (Codex on #401: § 1.263(a)
+        # -3(k) was 52,915 characters) -- so the frame adds only what is above.
+        for f in desk.frame(citation):
+            if record.is_under(f, citation):
+                continue
+            if f not in shown and desk.passage(f):
+                out += [f"### {f}", "",
+                        f"**Read as one with `{citation}` — a lead-in and the "
+                        f"clauses that finish it.**", "",
+                        f"> {desk.passage(f).text}", ""]
+                shown.add(f)
+        printed = [l[4:] for l in out if l.startswith("### ")]
+        shown = set(printed)
+        # WHAT AN ANSWER CITING `citation` WOULD CARRY, from the one definition,
+        # and ONCE: not re-expanded from each printed paragraph. A copy of the
+        # expansion here printed every sibling of a limit it followed up to its
+        # parent (§ 274(o) reached (e) through (e)(8)); expanding each printed
+        # paragraph did the same to a leaf's own frame, § 274(e)(8)'s (e)
+        # (Codex on #403, twice). `served_with` already carries the limits of
+        # every paragraph it frames, and a limit's own clauses: (o) alone ends
+        # "for-", which states nothing.
+        carried = desk.served_with(citation)
+        limits = {o for c in [citation, *carried] for o in limits_on(desk, c)}
+        for o in carried:
+            if o in shown or record.is_under(o, citation) or not desk.passage(o):
+                continue
+            out += [f"### {o}", ""]
+            if o in limits:
+                out += [f"**Read with `{citation}` — the record says it changes "
+                        f"what it says.**", ""]
+            out += [f"> {desk.passage(o).text}", ""]
+            shown.add(o)
+        # WHAT IT CITES AND THE RECORD DOES NOT HOLD, said (Codex on #403).
+        unheld = desk.unheld("\n".join(out))
+        if unheld:
+            out += [f"**Cites authority not on file: "
+                    f"{'; '.join(f'`{c}`' for c in unheld)}. Whatever turns on "
+                    f"it is not checked here -- escalate `authority_absent` "
+                    f"rather than assume it.**", ""]
         return "\n".join(out)
     if under:
         out = [f"## On file under {citation}", ""]
@@ -1070,10 +1165,14 @@ def answer(question: str, *, position: str = "",
 
     def _watching(source, citation):
         raw = prove(source, citation)
-        fetched["text"] = raw.text if hasattr(raw, "text") else str(raw)
+        # BY CITATION: a proof now fetches the paragraphs served WITH the
+        # answer too, and the judge must read the cited one's page, not
+        # whichever came back last.
+        fetched[citation] = raw.text if hasattr(raw, "text") else str(raw)
         return raw
 
     transport = _watching if prove is not None else None
+    proved = {}
 
     out = engine.serve(proposed, desk, question=question, context=context)
     # THE CANDIDATE PATH, and it sits exactly here for a reason: AFTER the gate
@@ -1106,7 +1205,7 @@ def answer(question: str, *, position: str = "",
 
         import attempts
         import proving
-        p = proving.prove(out, desk, transport)
+        p = proving.prove(out, desk, transport, each=proved)
         if p.verdict == proving.DIFFERS:
             out = engine.Refusal(
                 proving.MOVED,
@@ -1144,10 +1243,43 @@ def answer(question: str, *, position: str = "",
         # copy establishes that the judge read what WE hold, which is a weaker
         # claim than that they read what the PUBLISHER holds, and `Read.against`
         # is what lets a reader tell the two apart afterwards.
-        live = fetched.get("text", "")
+        # EVERY DOCUMENT THE ANSWER WAS PROVED AGAINST, the cited one first:
+        # the served passage carries paragraphs of other sources too, and a
+        # judge quoting one of those is quoting what they were handed (Codex
+        # on #403). One fetch per source, so no document appears twice.
+        # WHERE THE CITED FETCH FAILED, THE STORED PASSAGE STANDS IN FOR IT:
+        # that is what was served, and a judge quoting it must not be refused
+        # because only another source's page came back (Codex on #403).
+        # AND ONLY A PAGE THE PROOF FOUND ITS OWN PARAGRAPH ON. A 200 that is
+        # a bot interstitial, or a redirect to another host, proves COULD NOT
+        # and is not the publisher's document; the stored text stands (Codex
+        # on #403).
+        import proving
+        # A candidate was proved on its own path, and its proof is on `out`.
+        if getattr(out, "proof", None) is not None:
+            proved.setdefault(out.citation, out.proof)
+        fetched = {c: t for c, t in fetched.items()
+                   if getattr(proved.get(c), "verdict", None) == proving.TIED}
+        others = [t for c, t in fetched.items() if c != out.citation]
+        cited_live = out.citation in fetched
+        # AND THE STORED TEXT OF ANYTHING SERVED THAT DID NOT TIE: the cited
+        # page tying says nothing about a Read-with paragraph of another source
+        # whose fetch came back a bot page, and that paragraph WAS served
+        # (Codex on #403).
+        whole = getattr(desk, "corpus", desk)
+        unproved = any(
+            getattr(proved.get(c), "verdict", None) != proving.TIED
+            for c in whole.served_with(out.citation)
+            if c not in fetched)
+        live = "\n\n".join(
+            [fetched[out.citation] if cited_live else out.passage] + others
+            + ([out.passage] if cited_live and unproved else [])
+        ) if (cited_live or others) else ""
         seen = judging.read(
             judged, live or out.passage, answered_by=model,
-            against=("the document fetched from the publisher" if live
+            against=("the document fetched from the publisher" if cited_live
+                     else "this desk's stored passage, and what else was "
+                          "fetched" if others
                      else "this desk's stored passage"))
         if seen.verdict == judging.SAYS_NO:
             out = engine.Refusal(

@@ -41,6 +41,7 @@ so rather than implying otherwise.
 """
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import re
 from dataclasses import dataclass
@@ -284,7 +285,24 @@ def _absent(citation, text, why, here) -> Proof:
                       f"of those is a finding about the publisher.")
 
 
-def prove(served, desk, transport) -> Proof:
+def _once_per_source(transport):
+    kept = {}
+
+    def once(source, citation):
+        key = getattr(source, "id", None) or getattr(source, "url", "") or citation
+        if key not in kept:
+            try:
+                kept[key] = (True, transport(source, citation))
+            except Exception as exc:                     # replayed, not retried
+                kept[key] = (False, exc)
+        ok, got = kept[key]
+        if not ok:
+            raise got
+        return got
+    return once
+
+
+def prove(served, desk, transport, each=None) -> Proof:
     """Prove a served answer: resolve its authority, then `prove_passage`.
 
     THIS FUNCTION IS THE RECORD HALF and does nothing else. Two of its three
@@ -293,6 +311,18 @@ def prove(served, desk, transport) -> Proof:
     here and not in the core.
     """
     citation = served.citation
+    # `each`, when given, is filled with every paragraph's own proof, by
+    # citation: the judge may read a fetched page only where it TIED -- a 200
+    # that is a bot interstitial proves COULD NOT and is not the publisher's
+    # document (Codex on #403).
+    each = {} if each is None else each
+    # ONE FETCH PER DOCUMENT. A source is one publisher's document -- a Code
+    # section, a regulation section, a publication -- and every paragraph of it
+    # is in what comes back. Codex on #403: proving § 274(e)(1) with what is
+    # served beside it made sixteen requests to one House page, which is slow
+    # and is what throttling is made of. A failed fetch is kept too, not
+    # retried: a network that refused once is asked once.
+    transport = _once_per_source(transport)
     backing = desk.authority_for(citation)
     if backing is None:                                     # pragma: no cover
         return Proof(COULD_NOT, citation,
@@ -303,8 +333,49 @@ def prove(served, desk, transport) -> Proof:
         # could be proved is the paragraph underneath it, which is a different
         # claim from the one being served, and reporting that as a proof of the
         # answer would be the mirror wearing a hat.
-        return Proof(COULD_NOT, citation, url=source.url if source else "",
-                     note="served from the firm's own position; there is no "
-                          "publisher to check it against, and the paragraph "
-                          "beneath it is not what was served")
-    return prove_passage(citation, obj.text, source, transport)
+        first = Proof(COULD_NOT, citation, url=source.url if source else "",
+                      note="served from the firm's own position; there is no "
+                           "publisher to check it against, and the paragraph "
+                           "beneath it is not what was served")
+        # ... BUT WHAT IS SERVED BESIDE IT DOES. Codex on #403: POS3 is served
+        # with six regulation paragraphs, and returning here left a changed one
+        # unchecked. Only a DIFFERS among them can make this verdict worse.
+        return _with_appended(first, citation, desk, transport, each)
+    first = each[citation] = prove_passage(citation, obj.text, source, transport)
+    # AND WHAT IS SERVED WITH IT. The served passage carries the paragraph's
+    # frame and its `Read with` limits; Codex on #403 found that a § 274(o)
+    # date note which had moved or gone was served on a TIED proof as current
+    # authority, because only (e)(1) was checked. Each appended paragraph is
+    # proved too, and the worst verdict stands: DIFFERS over COULD NOT over TIED
+    # -- COULD NOT is never upgraded, whichever paragraph it came from.
+    # DIFFERS on the cited paragraph is already the worst; anything else keeps
+    # going, because a paragraph of ANOTHER source can still differ (Codex on
+    # #403: a COULD NOT here returned before that source was ever fetched).
+    return _with_appended(first, citation, desk, transport, each)
+
+
+def _with_appended(first, citation, desk, transport, each) -> Proof:
+    """`first`, or worse: each paragraph served with `citation` proved too."""
+    if first.verdict == DIFFERS:
+        return first
+    whole = getattr(desk, "corpus", desk)
+    appended = whole.served_with(citation)
+    worst = first
+    for c in appended:
+        # THE STORED TEXT THAT WAS SERVED, never `authority_for`: that resolves
+        # a citation the firm took a position on to the POSITION, and the frame
+        # served the regulation's words (Codex on #403, § 1.263(a)-1(f)(1)(ii)(B)).
+        held = whole.passage(c)
+        src = whole.source(held.source_id) if held else None
+        if held is None or src is None:
+            continue
+        p = each[c] = prove_passage(c, held.text, src, transport)
+        if p.verdict == DIFFERS:
+            return dataclasses.replace(
+                p, citation=citation,
+                note=f"served with {c}, which {p.note or 'no longer ties'}")
+        if p.verdict == COULD_NOT and worst.verdict == TIED:
+            worst = dataclasses.replace(
+                p, citation=citation,
+                note=f"served with {c}, which could not be checked: {p.note}")
+    return worst

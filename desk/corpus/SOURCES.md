@@ -504,3 +504,46 @@ So a position may rest on the firm rather than on a paragraph. It still needs a 
 **Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. Interest follows what the borrowed money was spent on. A card used for both business purchases and personal ones carries interest that is allocated by that tracing, not by the account's name. Named by the Sarcia pilot 3 refusal on interest charged on a mixed-use card. Admitted 26 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds. ITS WORKED EXAMPLES ARE NOT STORED, deliberately: `tools/extract_ecfr.py` could not place them under the paragraphs that announce them (§ 1.163-8T filed all eleven of paragraph (c)'s under (c)(2)(iii)), and an example cited to the wrong rule is worse than none. The rules are complete.
 
 ---
+
+## S40 · Treasury Regulation § 1.162-21 — Denial of deduction for certain fines, penalties, and other amounts
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-27
+
+**Citation prefix:** 26 CFR 1.162-21
+
+**Url:** https://www.ecfr.gov/current/title-26/section-1.162-21
+
+**Read with:** 26 CFR 1.162-21 — 26 CFR 1.162-21(g)
+26 CFR 1.162-21(b) — 26 CFR 1.162-21(b)(1)
+26 CFR 1.162-21(b)(1) — 26 CFR 1.162-21(b)(2); 26 CFR 1.162-21(b)(3)
+26 CFR 1.162-21(e)(4)(i)(B) — 26 CFR 1.162-21(b)(1)
+26 CFR 1.162-21(e)(4)(i)(C) — 26 CFR 1.162-21(b)(1)
+26 CFR 1.162-21(f)(1) Example 1 — 26 CFR 1.162-21(b)(1)
+26 CFR 1.162-21(f)(2) Example 2 — 26 CFR 1.162-21(b)(1)
+26 CFR 1.162-21(f)(3) Example 3 — 26 CFR 1.162-21(b)(1)
+26 CFR 1.162-21(f)(4) Example 4 — 26 CFR 1.162-21(b)(1)
+26 CFR 1.162-21(f)(6) Example 6 — 26 CFR 1.162-21(b)(1)
+26 CFR 1.162-21(f)(8) Example 8 — 26 CFR 1.162-21(b)(1)
+26 CFR 1.162-21(f)(11) Example 11 — 26 CFR 1.162-21(b)(1)
+26 CFR 1.162-21(f)(13) Example 13 — 26 CFR 1.162-21(b)(1)
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. No deduction for an amount paid to, or at the direction of, a government in relation to the violation of any law, which includes a fine or penalty; the exceptions for restitution, remediation and coming into compliance; and (a)(3)(ii), that a routine inspection is not an investigation. Desk trial 1 could not answer whether a town charge that is a fine is deductible, because § 162(f) and this section were not on file. The firm: "add whatever". Admitted 27 September 2026 from the eCFR API issue of 2026-01-01, every word sliced from the XML by `tools/extract_ecfr.py` and none retyped. It binds. ITS THIRTEEN WORKED EXAMPLES ARE STORED, marked `Kind: example`, because unlike S37-S39 the extractor places every one: the section writes each as its own numbered paragraph, (f)(1) to (f)(13), so the path is the regulation's and not a guess. Examples 10 to 12 set a county's inspection fees beside its fine, which is the trial's question. Each example's Facts and Analysis are stored inside it, joined on the marked omission, and (f)'s one-line lead-in is not stored, as with § 1.274-11(d) and § 1.274-12, which write theirs the same way. (B)(1) IS READ WITH EVERYTHING UNDER (b): it makes the restitution exception need both the identification test of (b)(2) and the establishment test of (b)(3), and (b) and (b)(2) are captions, so a leaf such as (b)(2)(iii)(A) cited alone carried neither (Codex on #403). AND (b)(1) IS READ WITH (b)(2) AND (b)(3): it states that both tests must be met and states neither, so cited alone it carried only (g) (Codex on #403). AND SO IS EVERY PARAGRAPH THAT INVOKES THE TESTS -- (e)(4)(i)(B) and (C), and Examples 1, 2, 3, 4, 6, 8, 11 and 13 -- each read with (b)(1), which brings both (Codex on #403). The statute, § 162(f), is not on file.
+
+---
+
+## S41 · Internal Revenue Code § 274 — Disallowance of certain entertainment, etc., expenses
+
+**Tier:** primary · **Access:** public_fetch · **May store:** full_text · **Checked:** 2026-09-27
+
+**Citation prefix:** 26 USC 274
+
+**Url:** https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section274&num=0&edition=prelim
+
+**Read with:** 26 USC 274(e)(1) — 26 USC 274(o); 26 USC 274 note, Pub. L. 115-97 § 13304(e)(2)
+26 USC 274(o) — 26 USC 274(o); 26 USC 274 note, Pub. L. 115-97 § 13304(e)(2); 26 USC 274(e)(8); 26 USC 274(n)(2)(C); 26 USC 274(n)(2)
+26 USC 274(e) — 26 USC 274(e)
+26 USC 274(n)(2) — 26 USC 274(n)(2)
+
+**Why:** A work of the United States Government, so 17 U.S.C. § 105 places it in the public domain and it is storable in full. § 274(a) disallows a deduction for an activity of a type generally considered entertainment, amusement or recreation, and (e) lists the nine expenses (a) does not apply to. In Sarcia pilot 5 (27 September 2026) the desk answered a streaming-subscription question from § 1.274-11(a) and could only say its answer was "subject to" § 274(e): § 1.274-11(c) names the nine exceptions by number alone, and the statute was not on file. The answer needed at least (e)(2), (e)(4), (e)(7) and (e)(8). The firm: "add whatever". The page, read on 27 September 2026, says "Text contains those laws in effect on September 25, 2026". SUBSECTIONS (a), (e) AND (o), AND (n)(2)(C) WITH (n)(2)'s TWO ENDS, every word sliced from that page by `tools/extract_uscode.py`, which reuses the reader S18-S21 were cut with, and none retyped. (e)'s closing flush sentence is (e)'s own and is stored on it after a marked omission, not on (e)(9). (O) IS HERE BECAUSE IT LIMITS (e)(1), and Codex found it missing on #403: from 2026 no deduction is allowed for meals at an employer-operated eating facility or for § 119(a) meals, which (e)(1) would otherwise except, so (e)(1) read alone answers a 2026 question wrongly. (o)'s own words carry no date; the enacting law does, and the page prints it among its notes, so that one sentence is stored as `26 USC 274 note, Pub. L. 115-97 § 13304(e)(2)`: the amendments "shall apply to amounts incurred or paid after December 31, 2025". (N)(2)(C) IS HERE BECAUSE (o) EXCEPTS IT, again found by Codex on #403: (o) denies "other than expenses described in subsection (e)(8) or (n)(2)(C)", and (n)(2)(C) is the crew, offshore-platform and fish-processing meals. (n)(2) is stored as its lead-in and its closing sentence, which narrows (C)'s first two clauses, joined on a marked omission as (e) is. A SUBSECTION READ WITH ITSELF is how a clause carries its parent's words, and Codex on #403 found why that matters: cited alone, (o)(1) is "any expense for the operation of a facility" -- the denial is in (o)'s lead-in -- (n)(2)(C) loses (n)(2)'s luxury-vessel carve-out, and each exception in (e) loses "Subsection (a) shall not apply to-". So (o), (e) and (n)(2) are each read with themselves, and every clause under them is served with their words. (o) is also read with (e)(8), the other exception it names. The rest of the section, among it (b) on gifts, (d) on substantiation and the rest of (n) on meals, is not stored. It binds.
+
+---

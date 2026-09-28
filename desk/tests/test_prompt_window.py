@@ -119,9 +119,17 @@ def test_neither_shape_fits_the_window_any_more_and_the_size_is_pinned():
     # Sarcia pilot 3 add 382 rule paragraphs, and the graded prompt lists them.
     # And +1 / +4 after Codex on #398: two passages carry a `[...]` gap mark.
     # And +355 text: four flush paragraphs owed to sections already on file.
-    assert biggest == {"index": 38235, "text": 132459}, (
+    # Up to 41,970 / 140,081 on 27 September 2026: § 1.162-21 and § 274(a) and
+    # (e), admitted after Sarcia pilot 5 and desk trial 1, add 71 rule
+    # paragraphs (56 and 15), and the graded prompt lists them. § 1.162-21's
+    # thirteen examples are not in it -- a graded prompt prints no example.
+    # +234 / +237 the same day for § 274(o), its two paragraphs and the note
+    # that dates it -- Codex on #403: (e)(1) stored without its 2026 limit.
+    # +470 / +509 for § 274(n)(2) and (n)(2)(C), the exception (o) names
+    # -- Codex on #403 again: the denial was stored without the exception to it.
+    assert biggest == {"index": 42674, "text": 140827}, (
         f"the graded prompt changed size: {biggest}, and this file says "
-        f"{{'index': 38235, 'text': 132459}}. That is allowed — it is what "
+        f"{{'index': 42674, 'text': 140827}}. That is allowed — it is what "
         f"storing authority does — but it is quoted in docs/CONTEXT-ON-FILE.md "
         f"and must move deliberately.")
     assert biggest["index"] > room, (
@@ -391,8 +399,10 @@ NARROWED = {
     # says this is a label on examples and not a paragraph added to every brief.
     # The graded figures below are likewise untouched: `brief_for_grading`
     # prints no example, so there is nothing there to label.
-    "is a brewery tab a business meal?": 2_949,
-    "what supporting documents does the client have to keep?": 7_434,
+    "is a brewery tab a business meal?": 3_058,
+    # +64 when § 1.162-21(b)(1) came to be read with its two tests (Codex on
+    # #403): this brief prints (b)(3)(ii), which now names (b)(2) as well.
+    "what supporting documents does the client have to keep?": 6_797,
     #
     # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
     # are both visible in the diff. Every position a brief carries now prints
@@ -422,8 +432,34 @@ NARROWED = {
     # when the rule is in neither the brief nor a section on the list. And -9
     # on all four after an independent review of #401: S34, the firm's own
     # policy, holds no paragraph `read` could open, so it left the list.
-    "hand tools bought for the trade - deducted or capitalized?": 4_201,
-    "mileage or actual expenses for the van?": 2_844,
+    #
+    # ALL FOUR MOVED ON 27 SEPTEMBER 2026, when § 1.162-21 and § 274 were
+    # admitted after Sarcia pilot 5 and desk trial 1, checked by diffing each
+    # brief against the record before them. +11 on every one is the on-file
+    # index gaining `26 CFR 1.162-21` and `26 USC 274`. Two also changed a
+    # passage, and that is retrieval moving, not a choice: the supporting-
+    # documents brief shows § 1.162-21(b)(3)(ii) -- "documentary evidence
+    # [...] includes [...] receipts" -- where it showed Pub. 583's "Bookkeeping
+    # System" (-805 net, the Pub. 583 passage being the longer); the hand-tools
+    # brief shows § 1.162-21(d)(2)(ii) where it showed § 1.461-1(c)(3)(ii)(f),
+    # neither of them about hand tools (-10 net).
+    # And +41 on both of those two: the § 1.162-21 paragraph each now shows
+    # names (g), the applicability date that confines the whole section
+    # to taxable years from 19 January 2021 (Codex on #403).
+    # And +52 on hand tools: § 1.162-21(d)(2)(ii) now names the lead-in it
+    # finishes and that lead-in's other clauses (`frame`, Codex on #403).
+    # AND THREE MOVED AGAIN, +98 brewery, +90 hand tools, +44 van: a printed
+    # paragraph citing a Code section the record does not hold now says so,
+    # and to escalate rather than assume (`unheld`, Codex on #403 -- § 274(o)
+    # turns on § 132(e)(2) and § 119(a), neither on file). Supporting
+    # documents did not move: nothing it prints cites an unheld section.
+    # THEN +44 supporting documents and +15 hand tools when the reader was
+    # rewritten after a second review: it now reads every section of a list
+    # and a capitalised "Section", and drops other Acts and titles.
+    # +8 supporting documents: its § 1.162-21(b)(3)(ii) now names (b)(1),
+    # which everything under (b) is read with (Codex on #403).
+    "hand tools bought for the trade - deducted or capitalized?": 4_400,
+    "mileage or actual expenses for the van?": 2_899,
 }
 
 #: The whole corpus, unnarrowed, in tokens: `(rules only, with examples)`.
@@ -455,7 +491,50 @@ NARROWED = {
 # citation to anything NOT ON FILE, not anything not printed. The unnarrowed
 # brief carries no on-file index -- it already prints everything. +26/+25
 # more for the escalation line Codex on #401 found contradicting the shelf.
-WHOLE = (134_838, 249_143)
+# +7,652 rules-only and +13,402 with examples on 27 September 2026: 71 rule
+# paragraphs of § 1.162-21 and § 274(a) and (e) on both sides, and § 1.162-21's
+# thirteen worked examples (+5,750) on the examples side only.
+# +239 / +240 for § 274(o) and its dating note (Codex on #403).
+# +54 on both sides for the one `Read with` line under § 274(e)(1), which the
+# unnarrowed brief prints because it prints every paragraph, and +49 for the
+# second, under § 274(o) itself, which carries the date (Codex on #403 again).
+# +2,314 / +2,838 because a limit now reaches a paragraph's clauses and
+# examples: § 1.162-21(g) dates the whole section, so each of its other 68
+# paragraphs names it, and the (o) clauses name the date (Codex, #403).
+# +564 / +564 for § 274(n)(2) and (n)(2)(C), and for the read-with lines that
+# now follow (o) on to them from (e)(1) as well.
+# +407 / +407 for the read-with notes when (o), (e) and (n)(2) are read with
+# themselves -- each clause names its parent -- and (o) with (e)(8).
+# +9,208 / +12,781 for the same line under every paragraph citing a Code
+# section not on file -- 264 of 1,257 -- which the unnarrowed brief prints
+# all of. The narrowed briefs above moved by tens, not thousands.
+# +865 / +877 when the reader was rewritten (lists, "Section", § ; other
+# Acts and titles dropped): 274 paragraphs cite an unheld section, not 264.
+# +8 / +7 after the re-review of 3e7a1e98: § 224(d)(1) back, the bogus
+# "261-276" gone, and owners named before a number respected.
+# -7 / -7 when a shared "or (3)" before an Act's name stopped hiding the
+# owner: § 1.446-1(e)(3)(iii) no longer names a nonexistent 26 USC 13261.
+# +29 / +29 when an explanatory aside inside a list stopped ending it:
+# § 1.163-8T(a)(1) now names § 163(d) as well as § 469 (Codex on #403).
+# +78 / +78 for the notes naming § 1.162-21(b)(1) under every paragraph of (b).
+# -8 / -8 when a one-word aside stopped being read as a subsection: § 1.262-1(c)
+# names 26 USC 163, not 26 USC 163(interest) (Codex on #403).
+# +150 / +150 when "subsection (d)" and "paragraph (2)" were read against their
+# own section: § 274(d), § 274(m), § 6041(b) and § 6050W(a) are named not on
+# file in the paragraphs that cite them that way (Codex on #403).
+# +77 / +100 when a list's shared labels were read -- "section 1221(a)(1), (3),
+# (4), or (5)" names four paragraphs, not one; eleven paragraphs gain the
+# shared ones in their not-on-file lines (Codex on #403).
+# -281 / -281 when the brief's Read-with line came from `served_with` itself
+# (adversarial pass on #403): it stops re-naming what its "Read as one with"
+# line already names -- § 274(e) under each of its own clauses -- and § 274(e)
+# now names the § 274(o) an answer citing it carries.
+# -0 / -6 when a range ending in labels stopped being read as its first end:
+# § 1.446-1(e)(2)(iii) Example 17 no longer names 26 USC 168(g)(1) (Codex).
+# +457 / +457 for the same record line, named under every paragraph of (b).
+# +178 / +890 when every § 1.162-21 paragraph invoking the restitution tests
+# ((e)(4)(i)(B)-(C) and eight examples) came to be read with (b)(1) (Codex).
+WHOLE = (156_871, 281_764)
 
 
 def _answering_sizes():
