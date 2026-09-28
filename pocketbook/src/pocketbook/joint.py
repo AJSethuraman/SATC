@@ -43,6 +43,9 @@ from . import engine, kgroups, stats
 MIN_BAD_PER_POCKET = 5
 #: a coefficient past this (an odds ratio beyond e^15, about 3 million) or a standard error past MAX_SE is the fit
 #: running off towards a limit: separation, refused rather than printed
+#: why the joint model refuses when its fit runs off
+DIDNT_SETTLE = ("the regression didn't settle on an answer: some combination of groups has no bad loan, or only "
+                "bad loans, so its odds ratios would be meaningless")
 MAX_BETA, MAX_SE = 15.0, 50.0
 NO_LOANS = "no held-back loan is in it, in the pockets that say something"
 NO_BAD = "no loan in it went bad, in the pockets that say something"
@@ -223,15 +226,17 @@ def _fit(cells: dict, terms: list[Term], use: list[int]) -> _Fit:
     try:
         beta, se, ll, settled = kgroups.logistic(X, y, w)
     except np.linalg.LinAlgError:
-        return _Fit(0.0, {}, {}, False, gone, len(pockets), loans, bad, quiet, "the regression couldn't be solved")
+        # the columns were checked independent above, so the solver only breaks down when the fit runs off towards
+        # a combination with no bad loan (or only bad): the same case as not settling, and said the same way on
+        # every machine (found 28 Sep 2026: CI's numpy failed here where this machine's ran off without settling)
+        return _Fit(0.0, {}, {}, False, gone, len(pockets), loans, bad, quiet, DIDNT_SETTLE)
     b = {ig: float(beta[len(pockets) + j]) for j, ig in enumerate(cols)}
     s = {ig: float(se[len(pockets) + j]) for j, ig in enumerate(cols)}
     wild = [ig for ig in cols if not (math.isfinite(b[ig]) and math.isfinite(s[ig]))
             or abs(b[ig]) > MAX_BETA or s[ig] > MAX_SE]
     problem = None
     if not settled or wild:
-        problem = ("the regression didn't settle on an answer: some combination of groups has no bad loan, or only "
-                   "bad loans, so its odds ratios would be meaningless")
+        problem = DIDNT_SETTLE
     return _Fit(float(ll), b, s, settled, gone, len(pockets), loans, bad, quiet, problem)
 
 

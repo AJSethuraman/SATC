@@ -274,3 +274,17 @@ def test_pockets_too_thin_for_a_constant_each_are_refused():
     assert j.problem.startswith("the pockets are too thin for a constant each: 160 bad loans across 40 pockets")
     cells = {k: [20, 2] if k[1] else v for k, v in cells.items()}         # six bad a pocket: fitted
     assert joint.fit_cells(joint.Joint(_terms(2, 2), ()), cells).problem is None
+
+
+def test_a_solver_that_breaks_down_refuses_the_same_way(monkeypatch):
+    """Where numpy gives up solving instead of running off (CI's did, 28 Sep 2026, on the case above), the model
+    refuses with the same words: the columns were checked independent first, so the cause is the same."""
+    import numpy as np
+
+    def breaks(*a, **k):
+        raise np.linalg.LinAlgError("Singular matrix")
+    monkeypatch.setattr(joint.kgroups, "logistic", breaks)
+    cells = _cells([("p", 0, 0, 100, 10), ("p", 1, 0, 100, 20), ("p", 2, 1, 100, 30), ("p", 2, 0, 100, 30),
+                    ("p", 0, 1, 100, 30), ("p", 1, 1, 100, 30)])
+    j = joint.fit_cells(joint.Joint(_terms(3, 2), ()), cells)
+    assert j.problem == joint.DIDNT_SETTLE and all(t.odds == [] for t in j.terms)
