@@ -1087,3 +1087,21 @@ def test_the_restitution_exception_carries_both_of_its_tests():
         assert f"26 CFR 1.162-21{c}" in carried, c
     got = ask.read("26 CFR 1.162-21(b)(1)")
     assert "### 26 CFR 1.162-21(b)(2)\n" in got and "### 26 CFR 1.162-21(b)(3)\n" in got
+
+
+def test_every_paragraph_invoking_the_restitution_tests_carries_them():
+    """Codex on #403: § 1.162-21(e)(4)(i)(B) and (C) condition restitution
+    treatment on the identification and establishment tests, and eight worked
+    examples apply them -- and each was served with (e) and (g) alone. Read off
+    the words, so a paragraph stored later that invokes them is held to it too."""
+    desk = record.load(CORPUS)
+    invoking = [p.citation for p in desk.passages
+                if p.citation.startswith("26 CFR 1.162-21(")
+                and re.search(r"paragraphs? \(b\)\((?:2|3)\)|\(b\)\(2\) and \(3\)"
+                              r"|identification requirement|establishment requirement",
+                              p.text)]
+    assert len(invoking) >= 16, invoking
+    for c in invoking:
+        carried = [c, *desk.served_with(c)]
+        for test in ("26 CFR 1.162-21(b)(2)", "26 CFR 1.162-21(b)(3)"):
+            assert test in carried, (c, test)

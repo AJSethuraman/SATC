@@ -1591,3 +1591,13 @@ without its lead-in, a publication's label not starting a new owner, "§274"
 without a space, a lower-case inline list read as a shared label, Acts named
 with "from"/"to", a relative range read as its first end, and a question
 classed as a caption.
+
+**Follow-up from #403: same-section references in regulations.** A regulation
+paragraph that says "paragraph (b)(2) of this section" is served without that
+paragraph unless SOURCES.md has a Read-with line for it. Codex found it twice
+on § 1.162-21 ((b)(1), then (e)(4)(i)(B)-(C) and eight examples), and each was
+fixed by a record line. Measured 28 September 2026: **117 regulation paragraphs
+name a same-section paragraph that is held and not carried, 157 references.**
+Carrying them all automatically would grow every served answer; naming them
+the way `unheld` names what is not on file ("it refers to (b)(2) -- `ask.read`
+it") is the cheaper shape. Not decided; the record lines stand until it is.

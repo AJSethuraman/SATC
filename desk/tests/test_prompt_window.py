@@ -532,7 +532,9 @@ NARROWED = {
 # -0 / -6 when a range ending in labels stopped being read as its first end:
 # § 1.446-1(e)(2)(iii) Example 17 no longer names 26 USC 168(g)(1) (Codex).
 # +457 / +457 for the same record line, named under every paragraph of (b).
-WHOLE = (156_693, 280_874)
+# +178 / +890 when every § 1.162-21 paragraph invoking the restitution tests
+# ((e)(4)(i)(B)-(C) and eight examples) came to be read with (b)(1) (Codex).
+WHOLE = (156_871, 281_764)
 
 
 def _answering_sizes():
