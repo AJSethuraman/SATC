@@ -330,8 +330,10 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
             answer = f"IF({own_set},{D},{C})"
             last = f"INDEX({USED_SHEET}!$B:$B,MATCH({K},{USED_SHEET}!$A:$A,0))"
             last_words = f"INDEX({USED_SHEET}!$C:$C,MATCH({K},{USED_SHEET}!$A:$A,0))"
-            ws.cell(row=r, column=STATUS_COL, value=(f'=IF(NOT({asked}),"",IFERROR(IF({answer}&""={last}&"",'
-                                                     f'"{SAME}","{WAITING}"),""))'))
+            # blank and still needing an answer, Status says nothing: the shading says it (the walk of 28 Sep 2026:
+            # the new cutoff read "Same as last Run" beside its empty, shaded cell)
+            ws.cell(row=r, column=STATUS_COL, value=(f'=IF(OR(NOT({asked}),{answered_blank}),"",IFERROR(IF('
+                                                     f'{answer}&""={last}&"","{SAME}","{WAITING}"),""))'))
             ws.cell(row=r, column=PEND_COL, value=(f'=IF($H{r}="{WAITING}",$B{r}&": "&{last_words}&" → "&'
                                                    f'{answer}&" (Control C{r}); ","")'))
             status_rows.append(r)

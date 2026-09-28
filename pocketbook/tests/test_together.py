@@ -118,6 +118,9 @@ def test_the_joint_model_keeps_the_planted_inputs_and_tenure_adds_nothing(three)
     # the allowance is Benjamini-Hochberg's own steps over the three likelihood ratio p-values
     assert [t.p_allowed for t in j.terms] == pytest.approx(_bh([t.p_lr for t in j.terms]), rel=1e-12)
     assert all(t.df == len(t.groups) - 1 for t in j.terms) and all(t.partners == [] for t in j.terms)
+    # Record names the test once, with the others the run used
+    import tabs
+    assert tabs.record(three["b"])["Tests: all together"].startswith("One logistic regression on the held-back loans")
 
 
 def test_the_joint_fit_is_scikit_learns_on_a_design_built_by_hand(three):

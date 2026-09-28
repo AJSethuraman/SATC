@@ -147,7 +147,7 @@ TERMS = (("GCO dollars", "GCO dollars: what a loan charged off, in dollars."),
          ("measures", "Five measures: bad loans, bad dollars, charge-offs, earned before and kept after losses."),
          ("worse at", "worse at {x}x: losing {x} times as much as the rest counts as worse."),
          ("better at", "better at {x}x: losing {x} times as much as the rest counts as better."),
-         ("scouting", "Scouting: a first look at most of the loans, to pick what to test."))
+         ("scouting", "Scouting: the tree's first look at loans before the cutoff, to pick what to test."))
 
 
 def plain_words(said: str) -> list[str]:

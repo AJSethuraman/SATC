@@ -178,7 +178,12 @@ def state(book, about: dict, res) -> State | None:
         ps = st.spec = prespec.named(ps, ranges={c: column_range(res, c) for c in ps.columns})
         labels = pockets_of(res, ps)
         st.tests = run_tests(res, ps, labels)
-        st.joint = joint.run(res, ps, st.tests, labels, allowance(res))    # OC-51: every input together
+        try:                                     # OC-51: every input together; a failure there is said, not fatal
+            st.joint = joint.run(res, ps, st.tests, labels, allowance(res))
+        except Exception as exc:                 # noqa: BLE001
+            st.joint = joint.Joint(terms=[joint.Term(t.column, tuple(t.groups), t.ref) for t in st.tests
+                                          if t.problem is None], strata=tuple(ps.strata),
+                                   problem=f"it couldn't be worked out ({exc})")
         st.deviations = [_plain(x) for x in prespec.deviations(ps, in_use(res, ps, st.tests), where="in this run")]
         dates, why = origination_dates(res)
         if dates is None:
@@ -755,6 +760,13 @@ def check_rows(res) -> list[tuple[str, str]]:
                     f"loans the groups were found on and on the held-back loans, with and without the columns held "
                     f"fixed."))
         out.append(("Tests: the allowance for many at once", allowance_words(res, ran)))
+    j = getattr(st, "joint", None)
+    if j is not None and len(ran) > 1:
+        # OC-51: every candidate together (joint.py, statistics.md B10)
+        out.append(("Tests: all together", f"Not fitted: {_plain(j.problem)}." if j.problem else
+                    "One logistic regression on the held-back loans with every candidate's groups at once and one "
+                    "constant per pocket (the pockets as control dummies); per candidate, a likelihood ratio test "
+                    "of taking it out, with the allowance above across the shortlist (statistics.md B10)."))
     return out
 
 

@@ -439,6 +439,11 @@ def test_the_same_extract_writes_the_same_file_and_an_edit_after_the_held_back_r
     assert changed and f"fingerprint {wide['sc'].fingerprint} then" in changed[0], entry[:8]
     words = " ".join(str(v) for v in _note_rows(b))
     assert "confirmed as it stands" in words and "UTIL: the file cuts at 0.8" in words
+    # OC-51: every Run here read the held-back loans twice (the tree's check, then the test), and counts once: the
+    # copy carried the fixture's Run, then two Runs on the copy
+    touched = sum(1 for v in tabs.runs(b) if v.startswith(confirmatory.HOLDOUT_MARK))
+    assert touched == 6 and tabs.record(b)["Runs that touched the holdout"] == \
+        "3 on Record's Every Run, this one included"
 
 
 def _note_rows(b):
@@ -666,6 +671,35 @@ def test_the_trees_out_of_time_auc_is_scikit_learns_on_loans_it_never_saw(wide):
     assert o.auc > 0.55 and o.auc_held > o.auc
 
 
+def test_a_category_keeps_its_development_numbering_on_the_held_back_loans(wide):
+    """A category is given one number per value, in the order of the development loans' values. On held-back loans
+    missing a value (here, no Central), every other value keeps its number, so the forest reads them as it learnt
+    them."""
+    import numpy as np
+    sc, res = wide["sc"], wide["res"]
+    col = res.config.origination_date
+    other = copy.copy(res)
+    other.table = copy.copy(res.table)
+    other.table.rows = [dict(r, REGION="West") if r["REGION"] == "Central"
+                        and date.fromisoformat(str(r[col])[:10]) >= sc.cutoff else r for r in res.table.rows]
+    again = copy.copy(sc)
+    o = scout.out_of_time(other, again)
+    assert again.oot is o and sc.oot is not o and o.problem is None
+    rows = [r for r in other.table.rows if date.fromisoformat(str(r[col])[:10]) >= sc.cutoff
+            and str(r["BAD_FLAG"]) in ("0", "1")]
+    levels = sc.levels["REGION"]
+    j = sc.forests["names"].index("REGION")
+    X = again.forests["dev"][0]
+    assert set(np.unique(X[:, j][~np.isnan(X[:, j])])) == set(range(len(levels)))      # the development numbering
+    got = []
+    for name in sc.forests["names"]:
+        v, _ = scout._values(other, rows, name, next(c.kind for c in sc.candidates if c.name == name),
+                             levels if name == "REGION" else None)
+        got.append(v)
+    want = sc.forests["plain"].predict_proba(np.column_stack(got))[:, 1]
+    assert "Central" in levels and np.allclose(o.scores, want, rtol=0, atol=1e-12)
+
+
 def test_the_out_of_time_check_is_recorded_as_a_touch_of_the_holdout(wide):
     sc, b = wide["sc"], wide["b"]
     o = sc.oot
@@ -755,7 +789,7 @@ def test_a_blank_cutoff_waits_for_an_answer_like_the_other_judgment_settings(tmp
     before = sum(1 for row in _rows(x) if date.fromisoformat(row["ORIG_DATE"]) < cut)
     assert ws.cell(row=r, column=control.CHOOSE_COL).value is None and not ws.row_dimensions[r].hidden
     assert ws.cell(row=r, column=control.SUGGEST_COL).value == (
-        f"suggested: {cut.isoformat()}, from this extract: {before:,} loans before it, {3000 - before:,} on or after")
+        f"suggested: {cut.isoformat()} ({before:,} loans before, {3000 - before:,} after)")
     ran, res = _run(b, monkeypatch)
     q = next(s.question for s in control.load_settings() if s.key == "cutoff")
     assert not ran.ok and f'Control!C{r}: "{q}" needs an answer. Pick one, or enter your own in column D.' in \
@@ -771,8 +805,15 @@ def test_a_blank_cutoff_waits_for_an_answer_like_the_other_judgment_settings(tmp
 
 def test_the_cutoff_is_asked_only_when_scouting(wide, tmp_path):
     """Control shows the cutoff for scouting and folds it away for a saved shortlist and for the bleed."""
+    from recalc import recalc
     b = tmp_path / "copy.xlsx"
     shutil.copy(wide["b"], b)
+    # blanked after a Run, the cell is shaded and Status says nothing (it read "Same as last Run" on the walk)
+    _control(b, cutoff=None)
+    ws = recalc(b, tmp_path / "calc")[control.SHEET]
+    r = control.row_of(ws, "cutoff")
+    assert ws.cell(row=r, column=control.NEED_COL).value == 1
+    assert ws.cell(row=r, column=control.STATUS_COL).value in (None, "")
     for changes, hidden in (({}, False), ({"shortlist": "some.yaml", "run_kind": "new_variable"}, True),
                             ({"run_kind": "bleed"}, True)):
         if changes:

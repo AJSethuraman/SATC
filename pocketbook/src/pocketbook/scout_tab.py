@@ -343,7 +343,9 @@ def check_rows(res) -> list[tuple[str, str]]:
     out.append(("Tests: scouting", f"A random forest (scikit-learn {sc.version}, {scout.TREES} trees, leaves of at "
                                    f"least {scout.LEAF}, seed {scout.SEED}) ranking by permutation importance, "
                                    f"cross-fitted in {scout.FOLDS} runs by date, against a noise floor from shuffled "
-                                   f"outcomes; bins from partial dependence and the forest's own splits."))
+                                   f"outcomes; bins from partial dependence and the forest's own splits"
+                                   + ("; once the pre-spec was written, the forests' AUC on the held-back loans "
+                                      "(statistics.md B11)." if o is not None else ".")))
     return out
 
 

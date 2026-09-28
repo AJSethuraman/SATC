@@ -1817,7 +1817,10 @@ def _scout(res, about: dict, book: Path):
                            for x in exc.problems]
         return res.scout_waits
     # OC-51: the pre-spec is on disk and read, so the held-back loans may now be read: the tree's out-of-time check
-    scout.out_of_time(res, sc)
+    try:
+        scout.out_of_time(res, sc)
+    except Exception as exc:                    # noqa: BLE001 - said on New variables and Record, never a failed Run
+        sc.oot = scout.OutOfTime(held_back=sc.holdout, problem=f"it couldn't be worked out ({exc})")
     return res.scout_waits
 
 
@@ -1851,8 +1854,7 @@ def _cutoff_words(ws, table, cols_ws, cat) -> None:
         got = scout.suggest_cutoff(dates)
         if got is not None:
             before = sum(1 for d in dates if d < got)
-            said = (f"suggested: {got.isoformat()}, from this extract: {before:,} loans before it, "
-                    f"{len(dates) - before:,} on or after")
+            said = f"suggested: {got.isoformat()} ({before:,} loans before, {len(dates) - before:,} after)"
     c = ws.cell(row=r, column=SUGGEST_COL, value=said)
     c.font = Font(name="Calibri", size=10, bold=said.startswith("suggested"), color=INK)
     c.alignment = Alignment(horizontal="left", vertical="center")
