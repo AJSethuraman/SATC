@@ -784,7 +784,7 @@ enough.
   guess importance ... it should be wider"*, *"dates are for the scouting pipeline"* (OC-39), and *"test a set
   once with and once without"*). `scout.py` does the work, `scout_tab.py` writes the Scouting tab and its lines on
   Record and the Log.
-  - **The loans.** Ordered by origination date, the first `find_share` of them (the launcher's *Find on 70%*)
+  - **The loans.** *(Since OC-51, the line is a cutoff date picked on Control, not a share.)* Ordered by origination date, the first `find_share` of them (the launcher's *Find on 70%*)
     are the development loans; the loans made after the last development date are held back. Scouting reads
     the held-back loans' dates only, to draw the line and to name the holdout's range; `development_rows`
     picks the development loans from the dates alone and nothing after it sees the others. A test turns every
@@ -852,7 +852,7 @@ enough.
     | `make_book` | Dropped | PocketBook reads the extract |
     | The plain logistic regression with the ratio as a number | Dropped from the cube, kept in the doc | B7's worked example of why a straight line misses a cliff |
     | The binned regression on the holdout | Moved, unchanged | It is the confirmation (4b, OC-45, OC-49) |
-    | The frozen forest's AUC on the holdout | Dropped | B7: development only. The holdout's one job is the pre-specified test |
+    | The frozen forest's AUC on the holdout | Dropped *(put back by OC-51, 27 Sep 2026, after the pre-spec is written)* | B7: development only. The holdout's one job is the pre-specified test |
     | `n_jobs=-1` on permutation importance (processes) | Dropped | Threads, and the trees' votes summed in their own order, for repeatability |
   - **Found building it, fixed:** (1) a test of a new variable with nothing held fixed, or with a number held
     fixed and no category, was refused by the bleed's own minimum ("Nothing is left to cut"); it builds no grid
@@ -864,6 +864,71 @@ enough.
   - **Choices made here that no ruling settles yet:** the proposal rule (either forest, not both); the floor as
     the largest of at least 20 null importances; the 25% step, 2% share and 6 groups; a category ranked and not
     proposed; a file already there never written over.
+- **OC-51: the tree is the main path: a cutoff the analyst picks, the tree checked on later loans, and the
+  shortlist regressed together** (Goal 4; the firm, 27 Sep 2026: *"isn't the tree the entire point? how can it be
+  optional."*, then *"shouldn't it regress all of those identified variables if it actually deems them important?
+  import --> tree runs --> tree guesses on 2024 data if 2022-2023 are used to build branches --> regress
+  shortlist?"*, then *"yes build it out"*). `scout.py`, `joint.py`, `confirm_tab.py`; statistics.md B10 and B11.
+  - **The cutoff replaces "Find on 70%".** A judgment setting on Control (`cutoff`, Needs a Run), asked only when
+    scouting: *Loans made before this date find the candidates; the rest are held back*. OC-13: the suggestion
+    (the first of the month nearest the date by which 70% of the loans had been made, keeping a loan each side) is
+    worked out at Set up and shown under *Worked out from the loans* with how many loans fall each side; the answer
+    is blank until the analyst picks the suggestion or types a date under *Or your own*, and a blank one refuses
+    the Run by its cell, like every other judgment setting. The pre-spec scouting writes carries it exactly:
+    `development` ends the day before the cutoff and `holdout` starts on it. The launcher's share picker is gone;
+    70% survives only as where the suggestion comes from (`scout.SUGGEST_SHARE`). A saved shortlist is confirmed
+    on its own ranges and is not asked the cutoff.
+  - **Scouting is the main path.** In the launcher, *Test new variables* scouts unless a saved shortlist is picked
+    (*Or confirm a saved shortlist instead*, the secondary way in); Control's step reads *Scout first*, the main
+    path, and *Test from a pre-spec*, a shortlist saved earlier. The Choose tests table itself is untouched.
+  - **The tree's out-of-time check (B11).** Only after the pre-spec is written and read (a pre-spec still waiting for
+    an answer stops before it), the forest grown on every development loan scores the held-back loans; with columns
+    held fixed, the forest with them in it too. One line, on New variables first and on Record: *"Built on loans
+    made … : AUC 0.62. On loans made … , unseen: 0.60."* It reads the held-back loans, so the Log gives it a line
+    of its own starting *Touched the holdout:*, and Record's count of runs that touched the holdout now counts runs,
+    not lines (one Run touches it twice when it scouts). This reverses OC-50's "the frozen forest's AUC on the
+    holdout: dropped" for this one check, after the file is fixed.
+  - **Every candidate together (B10).** One logistic regression on the held-back loans with every shortlisted
+    candidate's groups (each against its pre-spec reference) and one constant per pocket the held-fixed columns
+    make. Unconditional with the pockets as control dummies, not conditional: the conditional likelihood over
+    every combination of every candidate's groups does not finish at the bank, and PocketBook's pockets are the
+    large-strata case where the constants are well estimated (Breslow & Day 1980, ch. 6); under 5 bad loans a
+    pocket it refuses instead. Per candidate: each group's odds ratio together with its live range and Wald
+    p-value, and a likelihood ratio test of taking the candidate out (what it adds net of the others), with the
+    run's allowance across the shortlist. A group with no loan, no bad loan or only bad loans has no odds ratio (its
+    loans taken out, as kgroups does); a group holding exactly another candidate's loans is said to be
+    indistinguishable; a candidate whose reference can't be compared with is left out, said so; a fit that still
+    runs off refuses the whole model in words. Pairs moving together (Spearman's 0.7 on the development loans, as
+    scouting flags them) are named beside both, with one line under the table on how to read "adds nothing" for
+    such a pair. With one candidate the section is not drawn: together is the same as alone.
+  - **New variables leads with them.** The method note's first items are *The tree, unseen* and *All together*
+    (T1: said once); then the tiles; then *The tree on loans it never saw* (the line), *All N candidates
+    together* (the table, *Adds?* live against the bar, and a live line naming which add something), then *Each
+    candidate on its own*: the per-candidate table, charts and tests in full, unchanged. No check figure that can't
+    fail (T2).
+  - **Figures on the synthetic books** (the current build; the tab as LibreOffice draws it is
+    `docs/new-variables-together.png`):
+    - *The scouting book* (`tests/test_scout.py`: 12,000 loans, nine candidates, FICO and CHANNEL held fixed). The
+      suggested cutoff is 2024-11-01: 8,394 development loans (673 bad), 3,605 held back. Proposed: UTIL and
+      income / sales. The tree: *Built on loans made 2021-06-30 to 2024-10-31: AUC 0.63. On loans made 2024-11-01
+      to 2026-03-30, unseen: 0.60. With FICO and CHANNEL in the forest too: 0.69 built, 0.68 unseen.* Together, on
+      3,596 held-back loans (278 bad) in 18 pockets: UTIL above 0.9 2.35× (1.82 to 3.04), adds 41.12 on 1 df,
+      p 3 × 10⁻¹⁰ after Benjamini–Hochberg; income / sales above 2.00 2.62× (1.66 to 4.13) and below 0.10 2.00×
+      (0.99 to 4.06), adds 17.36 on 2 df, p 0.0002. Both add something the other doesn't.
+    - *The shortlist book* (`tests/test_shortlist.py`, 20,000 loans, income / sales, UTIL and TENURE, FICO and
+      CHANNEL): income / sales adds 19.67 on 5 df (p 0.002 allowed), UTIL 47.19 on 3 (p 1 × 10⁻⁹), TENURE 3.56
+      on 3 (p 0.31): statistics.md B10's table.
+    - *A near copy* (UTIL_COPY, UTIL plus a little noise, ρ = 0.96 on the development loans): flagged beside both;
+      alone it holds up (1.83×, significant), together it adds 1.96 on 1 df, p 0.16, its odds ratio 0.74.
+    - *The walk's book* (8,000 loans, the procedure's Part C): only REV_DEBT is proposed, so the joint table is not
+      drawn; the tree: built 0.67, unseen 0.63 (0.69 and 0.65 with FICO).
+  - **Timing**, a scouting Run at 17,000 × 80 (40 candidates, FICO and CHANNEL held fixed, 4 processors shared
+    with other work, load about 1.5): 72.6 s and 72.4 s before, 76.6 s and 74.8 s after; peak memory 0.76 to 0.79
+    GB either way. The few seconds are the forest without the held-fixed columns grown once more on every
+    development loan, the held-back loans scored by both, and the joint fits.
+  - **Choices made here that no ruling settles yet:** the suggestion's month start (nearest, earlier on a tie);
+    the joint model's floor of 5 bad loans a pocket; the out-of-time forest being the same 200 trees as the
+    ranking's; one likelihood ratio p-value per candidate as the family the allowance covers.
 - **Every pocket's "Luck alone" figure is after the allowance for many tests**,
   the Split tab's heat maps included (they were the only raw ones until 25 Sep
   2026). The Split summary's pooled figure is one test per grid and measure, so

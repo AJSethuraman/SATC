@@ -4,7 +4,7 @@
 
 **What you'll have at the end:** a workbook beside the loan file that shows which groups of loans lose more than their share, how much, and whether it could be chance. Then a second kind of run: whether a new column (here, revolving debt) really tells good loans from bad, checked on loans it was never found on.
 
-**Walked on:** 27 Sep 2026, on a made-up book of 8,000 loans with known answers planted in it. Every picture below is the real screen from that walk.
+**Walked on:** 27 Sep 2026, on a made-up book of 8,000 loans with known answers planted in it. Every picture below is the real screen from that walk. Part C was walked again on 28 Sep 2026, on the same book, after the firm made the tree the main path: a cutoff date you pick, the tree checked on the loans after it, and the shortlist tested together.
 
 <!-- ROUTE -->
 
@@ -26,8 +26,9 @@ Each is shown the first time on screen. This is what they mean.
 | **p-value** | How likely a gap this big is by chance alone. Under 5% means it is unlikely to be chance. |
 | **Material** | Big enough in dollars to matter: at or above the line you pick on Control. |
 | **Pre-spec** | A short file that fixes, before the test, exactly what will be tested. It stops anyone moving the goalposts after seeing the answer. |
-| **Development loans / held back** | The loans are split by date. The first 70% are where an idea is found (**development**). The last 30% are **held back** and only used to check it. |
-| **Scouting** | The step that looks through the columns you ticked, on the development loans, and proposes which are worth testing. |
+| **Cutoff** | A date you pick on Control. Loans made before it are where an idea is found (**development**). Loans made on or after it are **held back** and only used to check it. |
+| **Scouting** | The step where a tree of yes/no questions looks through the columns you ticked, on the development loans, and proposes which are worth testing. |
+| **AUC** | How well a score puts bad loans above good ones: 0.5 is a coin flip, 1 is perfect. |
 
 ---
 
@@ -255,27 +256,27 @@ Press **Choose tests** on the left, then **Test new variables** at the top right
 
 ### Step 24 · Tick what to test and what to hold fixed
 
-Tick **Test it** on REV_DEBT, ASSET_CLASS, CHANNEL and ORIG_BAL. Tick **Hold fixed** on FICO. Leave **Find on** at **70%**: the first 70% of the loans by date are used to find, the rest to confirm.
+Tick **Test it** on REV_DEBT, ASSET_CLASS, CHANNEL and ORIG_BAL. Tick **Hold fixed** on FICO. Under the table it reads **Scout first**: that is the main path. **Or confirm a saved shortlist instead** is for a pre-spec written earlier; leave it.
 
 ![Step 24](step-24-candidates.png)
 
-**Correct screen:** *4 inputs … against BAD_FLAG, each with and without FICO held fixed: 8 tests, found on 70% and confirmed on 30%.*
+**Correct screen:** *4 inputs … against BAD_FLAG, with and without FICO held fixed: found on the loans made before the cutoff you pick on Control, then tested together and one by one on the rest.*
 
 ### Step 25 · Press Next
 
 ![Step 25](step-25-answer-new.png)
 
-**Correct screen:** "Everything is answered. Press Run." Your Control answers carry over. Start here counts the new kind of run as **1** change waiting for a Run, because the result tabs still show the last one:
+**Correct screen:** *Next: 1 answer needed before Run, on Control.* Your other Control answers carry over. Start here counts **1** answer needed, and the new kind of run as **1** change waiting for a Run, because the result tabs still show the last one:
 
 ![Step 25a](step-25b-start-here-waits.png)
 
-Control now shows only the questions this kind of run uses, and **What are you running?** reads *Finding and testing a new variable*, **Waiting for a Run**:
+Open the workbook at Control. It shows only the questions this kind of run uses. One is new and shaded: **Loans made before this date find the candidates; the rest are held back.** That date is the **cutoff**. Beside it, under *Worked out from the loans*, PocketBook suggests one: *2024-11-01 (5,641 loans before, 2,359 after)*, the first of the month nearest 70% of the loans. Pick **The month start nearest 70% of the loans (suggested)**, or type a date of your own under **Or your own**. Save and close.
 
 ![Step 25b](step-26-control-new-variable.png)
 
 ### Step 26 · Press Run
 
-On 8,000 loans it took 23 seconds. PocketBook scouts on the development loans, writes the pre-spec `Consumer book Q3 - pre-spec.yaml` beside the workbook, and only then tests it on the held-back loans.
+On 8,000 loans it took 27 seconds. PocketBook builds the tree on the loans made before 2024-11-01, writes the pre-spec `Consumer book Q3 - pre-spec.yaml` beside the workbook, and only then reads the held-back loans: first to check the tree on them, then to test the shortlist.
 
 ![Step 26](step-27-scouting-finished.png)
 
@@ -285,7 +286,7 @@ On 8,000 loans it took 23 seconds. PocketBook scouts on the development loans, w
 
 ![Step 27](step-28-start-here-new.png)
 
-**Correct screen:** one row per REV_DEBT group on the held-back loans. 15,000 and up is **Yes, worse**: 2.69 times the odds of going bad with FICO held fixed (the column heading says so), holding 54% of the bad loans.
+**Correct screen:** one row per REV_DEBT group on the held-back loans. 15,000 and up is **Yes, worse**: 2.68 times the odds of going bad with FICO held fixed (the column heading says so), holding 54% of the bad loans.
 
 ### Step 28 · Read Scouting
 
@@ -305,13 +306,17 @@ Does REV_DEBT still tell good loans from bad on loans it was never found on, and
 
 ![Step 29](step-30-new-variables.png)
 
-**Correct screen:** 15,000 and up: **Holds up? Yes** and **Still holds? Yes** (with FICO held fixed), **Material? Yes**. Under 11,000: found on development, but it **didn't hold up** on the held-back loans.
+**Correct screen:** first, one line: **the tree on loans it never saw**. Built on loans made up to 2024-10-31 its AUC was 0.67; on the loans made from 2024-11-01, which it never saw, 0.63 (0.69 and 0.65 with FICO in the tree too). It still ranks later loans nearly as well, so it learnt the book, not those years.
+
+When scouting proposes two columns or more, the next table puts them all in one regression on the held-back loans: each group's odds ratio net of the other columns, and **Adds?**, whether each column tells you something the others don't. Here scouting proposed REV_DEBT alone, so there is nothing to read it net of, and that table isn't drawn.
+
+Then REV_DEBT on its own. 15,000 and up: **Holds up? Yes** and **Still holds? Yes** (with FICO held fixed), **Material? Yes**. Under 11,000: found on development, but it **didn't hold up** on the held-back loans.
 
 ### Step 30 · Read Record
 
 ![Step 30](step-31-record-new.png)
 
-**Correct screen:** the pre-spec's fingerprint (a short code that changes if the file changes by even one character), and one run that touched the held-back loans.
+**Correct screen:** **Scouting out of time**, the tree's line again; the pre-spec's fingerprint (a short code that changes if the file changes by even one character); and one run that touched the held-back loans. It read them twice, for the tree's check and for the test, and counts once. (The pre-spec's own row, which names where the file is, is left out of this picture.)
 
 ### Step 31 · Edit the pre-spec after the held-back run, and Run again
 
@@ -321,7 +326,7 @@ This is what the pre-spec exists to catch: changing the test after seeing the an
 
 ![Step 31](step-32-run-after-edit.png)
 
-**Correct screen:** the last tile says **Changed, after a held-back run**, in red, and the line under the tiles gives the date of the earlier run and both fingerprints. On Record, under **This Run**, a red **Warning** says the same:
+**Correct screen:** the last tile says **Changed, after a held-back run**, in red, and the line under the tiles gives the date of the earlier run and both fingerprints. On Record, under **This Run**, a red **Warning** says the same, and two runs have now touched the held-back loans:
 
 ![Step 31b](step-33-record-changed.png)
 

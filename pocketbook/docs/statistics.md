@@ -442,7 +442,8 @@ repeat across a grid of `v`. The **shape**: where the rate bends. This is where 
 from.
 
 **For.** Development vintages only, never the holdout. Nominates candidates and locates edges; the
-tests above then measure them.
+tests above then measure them. *(27 Sep 2026, the firm's ruling, OC-51: one exception, after the pre-spec is
+written — the same forest scores the held-back loans once, B11.)*
 
 **Worked example** (`scout-vs-measure.py`). Importance: FICO 0.236, income/sales 0.015, loan size and
 both noise columns ≈ 0. Partial dependence on the ratio: 11.0% at 0.05, flat at 7.1–7.6% from 0.1 to
@@ -466,6 +467,108 @@ asks for, and the **coverage** — the share of loans and dollars that sit in te
 **Family count.** How many grid × rate × comparison families the run contains (A2), with one line saying
 that a single red across many families is weak evidence.
 
+### B10. Every candidate together — what each adds, net of the others
+
+*(Added 27 Sep 2026, OC-51. The firm: "shouldn't it regress all of those identified variables if it actually
+deems them important? ... regress shortlist?")*
+
+**Asks.** With every shortlisted candidate in the model at once, does each still tell good loans from bad, or was
+it saying what another candidate already says?
+
+**Arithmetic.** On the held-back loans, one logistic regression with every candidate's groups as dummies (each
+candidate's reference group omitted) and the pockets the held-fixed columns make as control dummies:
+
+```
+ln( p / (1 − p) ) = α_pocket + Σ_v Σ_{k ≠ ref_v} β_vk · [ loan is in group k of candidate v ]
+odds ratio, together     = e^{β_vk},  95% range e^{β_vk ± 1.96 · SE_vk},  Wald p from β_vk / SE_vk
+adds, net of the others  = 2 ( ℓ_all − ℓ_all but v ),   χ² with (groups of v − 1) df        (likelihood-ratio test)
+```
+
+Then the allowance across the shortlist (A2, Control's *Allowing for testing many pockets at once*): one p-value
+per candidate, so a shortlist of V candidates is one family of V. The fit is on grouped rows (one per pocket and
+combination of groups, weighted by its loans), which is the loan-level likelihood exactly; Newton's method, as B5's
+unconditional fit (`kgroups.logistic`).
+
+**Why unconditional, with the pockets as dummies, and not conditional.** B5 conditions each pocket's total out
+because hundreds of thin pockets bias the estimated constants, and the odds ratios with them. The per-candidate
+test keeps doing that. For the joint model the conditional likelihood would have to be summed over every way a
+pocket's bad loans can fall across every *combination* of every candidate's groups — with five candidates of four
+groups, a thousand cells a pocket, and the second derivatives over every pair of them — which does not finish at
+the bank. The unconditional fit estimates one constant per pocket instead. That is what Breslow & Day's chapter 6
+is about, *"Unconditional logistic regression for large strata"*: with few strata, each holding many cases, the
+constants are well estimated and the odds ratios are unbiased to order 1/n; with many small strata (their chapter 7,
+matched sets) they are not, and the conditional likelihood is needed. PocketBook's pockets are the held-fixed
+columns' bands crossed (FICO in five bands by three channels is 15 to 18 pockets), each with dozens of bad loans
+on the held-back loans, which is the large-strata case. **Where it stops being safe, it refuses:** under 5 bad loans
+per pocket on average (`joint.MIN_BAD_PER_POCKET`), the model says the pockets are too thin and asks for fewer
+held-fixed columns or fewer bands, rather than print biased odds ratios. A pocket where no loan, or every one, went
+bad says nothing (its constant runs off to the limit) and is left out, as in B3 and B5.
+
+*Source:* N. E. Breslow and N. E. Day, *Statistical Methods in Cancer Research, Volume I: The Analysis of
+Case-Control Studies*, IARC Scientific Publications No. 32 (Lyon, 1980), chapters 6 and 7; the likelihood-ratio
+test's χ² from S. S. Wilks, *Annals of Mathematical Statistics* 9 (1938), 60–62.
+
+**Where the likelihood has no finite answer** (A. Albert and J. A. Anderson, *Biometrika* 71 (1984), 1–10: with
+separated data the maximum sits at infinity):
+
+- A group with no held-back loan has no odds ratio, and is said so.
+- A group where no loan, or every loan, went bad sits at the limit (odds ratio 0 or infinite). As in B5, its loans
+  are taken out with their bad loans (the likelihood's own limit) and the rest is fitted; the group is said to have
+  no odds ratio.
+- A group holding exactly the loans other candidates' groups hold cannot be told apart from them; said so.
+- A candidate whose reference group has no loan, no bad loan or only bad loans cannot be compared with it, and is
+  left out of the joint model, said so.
+- A fit that still runs off (a *combination* of groups with no bad loan, when no group on its own has none) or
+  does not settle refuses the whole joint model in words: nothing is printed.
+
+**Reading it beside the correlated pairs.** When two candidates rise and fall together (Spearman's ρ of 0.7 or
+more on the development loans, as scouting flags them), each can read as adding nothing *net of the other* while
+the pair together plainly matters. The tab says so beside both, so "adds nothing" is read as "adds nothing the
+other doesn't already say", not "nothing there".
+
+**Worked example** (the synthetic book of `tests/test_shortlist.py`: 20,000 loans, income / sales planted ×2 below
+0.1 and ×3 above 2.0, UTIL ×2.5 above 0.9, TENURE nothing; FICO and CHANNEL held fixed; 4,153 held-back loans
+made in 2024 with a value of all three, 351 bad, in 17 pockets):
+
+| candidate | adds, net of the others | p-value | after Benjamini–Hochberg |
+|---|---:|---:|---:|
+| income / sales | 19.67 on 5 df | 0.0014 | 0.0022 |
+| UTIL | 47.19 on 3 df | 3 × 10⁻¹⁰ | 1 × 10⁻⁹ |
+| TENURE | 3.56 on 3 df | 0.31 | 0.31 |
+
+UTIL above 0.9 against 0.0–0.2: 2.25× together (1.66 to 3.06), 2.25× alone. Income / sales above 2.0 against
+0.25–0.49: 2.75× together (1.73 to 4.38), 2.63× alone. The planted inputs are unrelated to each other, so together
+and alone agree; TENURE adds nothing. With `UTIL_COPY` (UTIL plus a little noise, ρ = 0.96) on the same shortlist,
+the copy holds up alone (1.83×, significant) and together adds nothing: 1.96 on 1 df, p = 0.16, its odds ratio
+0.74. `tests/test_together.py` checks every coefficient, standard error and likelihood ratio against
+scikit-learn's own fit of a design built by hand from the extract.
+
+### B11. The tree on loans it never saw — the out-of-time check
+
+*(Added 27 Sep 2026, OC-51, reversing B7's "development only" for this one check. The firm: "tree guesses on 2024
+data if 2022-2023 are used to build branches".)*
+
+**Asks.** Does the forest that ranked the candidates tell good loans from bad on loans made after the ones it
+learnt from?
+
+**Arithmetic.** The analyst picks a cutoff date on Control (suggested: the month start nearest 70% of the loans;
+never chosen for them). The forest of B7 is grown on every loan made before it and scores every loan made on or
+after it. Its AUC there — the chance a random bad held-back loan scores above a random good one (J. A. Hanley and
+B. J. McNeil, *Radiology* 143 (1982), 29–36) — is set beside its cross-fitted AUC on the development loans (B7's
+three runs by date). With columns held fixed, a second forest with them in it is scored the same way.
+
+**Gives.** One line: *"Built on loans made 2021-06-30 to 2024-10-31: AUC 0.62. On loans made 2024-11-01 to
+2026-03-30, unseen: 0.60."* Unseen well under built means the tree learnt those years, not the book.
+
+**Order, and the holdout.** It runs only after the pre-spec is written to disk and read, so nothing it sees can
+move the shortlist; it reads the held-back loans, so Record's Log says so on a line of its own starting *Touched the
+holdout:*, and Record counts runs that touched the holdout, not lines.
+
+**Worked example** (`tests/test_scout.py`'s book: 12,000 loans, nine candidates, FICO and CHANNEL held fixed;
+cutoff 2024-11-01): built 0.63, unseen 0.60 with the candidates alone; 0.69 and 0.68 with FICO and CHANNEL in the
+forest. `tests/test_scout.py` rebuilds the held-back loans' columns from the extract and checks the AUC against
+scikit-learn's own `roc_auc_score` of the same forest's scores.
+
 ---
 
 ## Which test, where
@@ -480,3 +583,5 @@ that a single red across many families is weak evidence.
 | Split column just the band? | | | A9, and the Look tab's scatter |
 | How concentrated is the stress? | | | B6 — holdout only |
 | What to test in the first place? | | | B7, B8 — development only |
+| Does the tree hold on later loans? | | | B11 — once, after the pre-spec is written |
+| What does each candidate add, net of the others? | | | B10 — holdout only |

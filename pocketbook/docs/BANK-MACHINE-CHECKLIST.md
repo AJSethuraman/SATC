@@ -237,13 +237,17 @@ Compare as you go. Every number here came up on the walk and again on this check
 
 ### 3.3 Test new variables
 
-Steps 22 to 30 of the procedure. If scikit-learn isn't in yet, press **Install scikit-learn** (Step 22); behind the proxy, it goes the way 2.4 went.
+Steps 22 to 30 of the procedure. If scikit-learn isn't in yet, press **Install scikit-learn** (Step 22); behind the proxy, it goes the way 2.4 went. After **Next**, Control asks one thing more: the **cutoff** (Step 25). Pick the suggestion, **The month start nearest 70% of the loans (suggested)**, in Excel, save and close.
 
 | Where | What it should show |
 |---|---|
-| Run (Step 26) | **REV_DEBT groups worse than 11,000 - 14,999: 1 of 2**, on the held-back loans. About 20 seconds. |
-| Start here (Step 27) | 5,604 found · 2,395 held back; 15,000 - 48,522: **Yes, worse**, **2.69×** the odds, **54%** of the bad loans |
+| Control (Step 25) | *Loans made before this date find the candidates; the rest are held back* shaded, and beside it **suggested: 2024-11-01 (5,641 loans before, 2,359 after)** |
+| Run (Step 26) | **REV_DEBT groups worse than 11,000 - 14,999: 1 of 2**, on the held-back loans. About 25 seconds. |
+| Start here (Step 27) | 5,640 found · 2,359 held back; 15,000 - 48,522: **Yes, worse**, **2.68×** the odds, **54%** of the bad loans |
 | Scouting (Step 28) | REV_DEBT first, **Proposed? Yes**; ORIG_BAL below the noise floor |
+| New variables (Step 29) | First line: **Built on loans made 2021-06-30 to 2024-10-31: AUC 0.67. On loans made 2024-11-01 to 2026-03-30, unseen: 0.63.** |
+
+☐ **Check this, the first time:** the cutoff is the one answer in this checklist that is a date. Pick the suggestion from the list; if you type your own under **Or your own** instead, Excel must keep it as a date (it shows as one, such as 2024-11-01), not as text. If Run says it needs a date, that's the finding: screenshot the cell.
 
 Skip Step 31 (editing the pre-spec). It's about the pre-spec, not the machine.
 
@@ -496,7 +500,7 @@ Only from the practice and speed books, never the real extract. The practice wor
 
 ## What's been checked, and how
 
-- **Run here (Linux, 27 Sep 2026):** every command, on Python 3.11 and 3.12. The practice book and the speed book were made with 3.1's and 5.2's commands on both, and gave the MD5s above. The dry run followed 3.2's answers and gave every number in its table, in 8 seconds on 4 processors. The speed book ran in 31 seconds on 4 processors and 85 on 1, with the same answer. The new-variable run gave 3.3's numbers in 23 seconds.
+- **Run here (Linux, 27 Sep 2026):** every command, on Python 3.11 and 3.12. The practice book and the speed book were made with 3.1's and 5.2's commands on both, and gave the MD5s above. The dry run followed 3.2's answers and gave every number in its table, in 8 seconds on 4 processors. The speed book ran in 31 seconds on 4 processors and 85 on 1, with the same answer. The new-variable run gave 3.3's numbers in 23 seconds. *(28 Sep 2026: 3.3 walked again after the cutoff, the tree's check and the candidates together were added: 27 seconds, on a machine shared with other work.)*
 - **Through LibreOffice here, in place of Excel:** 4.2 (no error values on any tab you can see; `#N/A` on `_look` and `_chart` only), 4.3's lists, captions and grid values, 4.4 and 4.5's numbers and words, and 4.7's picture.
 - **The kit and the offline install:** `bank_kit.py --add-ons` fetched the Windows add-ons for Python 3.11 to 3.14 through this machine's proxy. The same command, fetching Linux add-ons, was unzipped into a fresh Python 3.12 with none installed; the install in 2.4's third step ran with `--user --no-index --find-links`, and the window opened from the unzipped folder.
 - **Not run here, Windows only, checked by reading:** `cd /d`, `tar -xf` on a zip, `dir`, `type`, `ren`, `certutil`, `echo %NUMBER_OF_PROCESSORS%`, `ver`, `notepad`, the two .bat files, Task Manager, and everything in Excel. Their Linux counterparts were run where one exists.

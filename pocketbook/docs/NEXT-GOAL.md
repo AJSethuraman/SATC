@@ -458,3 +458,38 @@ says otherwise:
 which the test already expects. The wording "Earned before losses" / "Earns less, not from losses" was answered the same
 day: "Fine for now", kept.)*
 **Next:** nothing new is built until the firm has been to the bank machine; what they find decides Goal 4.
+*(27 Sep 2026: the firm set Goal 4 themselves, below, ahead of the visit.)*
+
+---
+
+# Goal 4 (set by the firm 27 Sep 2026): the tree is the main path, checked on later loans, and the shortlist regressed together
+
+The firm, 27 Sep 2026, first: *"isn't the tree the entire point? how can it be optional."* Then:
+
+> *"shouldn't it regress all of those identified variables if it actually deems them important? import --> tree
+> runs --> tree guesses on 2024 data if 2022-2023 are used to build branches --> regress shortlist?"*
+
+and *"yes build it out"*. `design.md` OC-51 is the ruling as built; `statistics.md` B10 and B11 the arithmetic.
+
+- [x] **1. A cutoff date the analyst picks** on Control (Needs a Run, judgment, asked only when scouting): loans
+      made before it build the tree, loans on or after it are held back. Suggested (the month start nearest 70%
+      of the loans) and left blank until answered (OC-13); the pre-spec's ranges carry it to the day. The
+      launcher's *Find on 70%* is gone. `tests/test_scout.py`: the cutoff splits the loans exactly by date; a blank
+      cutoff waits like the other judgment settings; asked only when scouting.
+- [x] **2. Scouting is the main path;** a saved shortlist stays the other way in (*Or confirm a saved shortlist
+      instead*). The launcher's Choose tests table is untouched.
+- [x] **3. The tree built on the earlier loans and the shortlist written**, logic unchanged.
+- [x] **4. The tree's out-of-time check** after the shortlist is written: its AUC on the held-back loans beside its
+      cross-fitted AUC, with and without the held-fixed columns, one plain line, recorded on the Log as a touch of
+      the holdout. `tests/test_scout.py`: the AUC is scikit-learn's own on the same scores, rebuilt from the
+      extract; the touch is recorded, and counted once a Run.
+- [x] **5. One joint regression on the held-back loans:** every shortlisted candidate's groups together, the pockets
+      as control dummies (unconditional; why, and where it refuses, in B10), odds ratios with ranges, a likelihood
+      ratio test per candidate with the run's allowance across the shortlist, separation and empty groups refused
+      in words, correlated pairs named beside both. `tests/test_together.py`: the planted inputs add something,
+      TENURE and a near copy of UTIL add nothing, and the fit matches scikit-learn's on a design built by hand.
+- [x] **6. The per-candidate results stay, underneath.**
+- [x] **7. New variables leads with** the tree's line, then the joint table, then each candidate on its own.
+
+**What would end it:** all seven ticked, the suite and the planted bugs green, the walk-through's new-variable
+pictures retaken, and CI green.

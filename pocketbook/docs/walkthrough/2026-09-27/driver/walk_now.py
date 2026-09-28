@@ -180,6 +180,11 @@ def main():
     render()
     shot(root, "s25-answer-new")
     keep(book, "07-new-written")
+    # OC-51: the cutoff between the loans the tree is built on and the loans held back, answered on Control with the
+    # suggestion shown beside it
+    answer(book, cutoff="The month start nearest 70% of the loans (suggested)")
+    keep(book, "07b-cutoff-answered")
+    flow.refresh()
     flow.run()
     render()
     shot(root, "s26-scout-finished")

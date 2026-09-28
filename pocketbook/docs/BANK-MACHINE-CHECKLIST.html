@@ -227,7 +227,7 @@ hr { border: none; border-top: 1px solid #ddd; margin: 14pt 0; }
 <pre><code>cd /d &quot;%USERPROFILE%&quot;
 py PocketBook.py
 </code></pre>
-<p>☐ It prints <code>32 files, every one checked. Opening the window.</code> and the window opens. It has written the <code>PocketBook</code> folder beside the script; skip to 2.3. If it says <em>The paste stops early</em> or <em>didn't come through whole</em>, the copy missed something: copy the whole script again, to its last line.</p>
+<p>☐ It prints <code>33 files, every one checked. Opening the window.</code> and the window opens. It has written the <code>PocketBook</code> folder beside the script; skip to 2.3. If it says <em>The paste stops early</em> or <em>didn't come through whole</em>, the copy missed something: copy the whole script again, to its last line.</p>
 <p>Otherwise, with the zips:</p>
 <p>Copy both zips into your <strong>Downloads</strong> folder. Then, before unzipping, right-click each zip, choose <strong>Properties</strong>, and if there's an <strong>Unblock</strong> box at the bottom, tick it and press <strong>OK</strong>. (Windows marks files that came from outside, and may then refuse to run them.)</p>
 <p>Type:</p>
@@ -340,7 +340,7 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 <p>☐ <strong>Check this, the first time:</strong> the Run in Step 12 reads a workbook that <strong>Excel</strong> has saved. Every check so far typed answers with a Python library instead. If Run refuses or stops here, that's the finding: screenshot the window.</p>
 <p>☐ Write down the time under <strong>Run</strong> on the left (the walk's was 9 seconds; the dry run's 8).</p>
 <h3>3.3 Test new variables</h3>
-<p>Steps 22 to 30 of the procedure. If scikit-learn isn't in yet, press <strong>Install scikit-learn</strong> (Step 22); behind the proxy, it goes the way 2.4 went.</p>
+<p>Steps 22 to 30 of the procedure. If scikit-learn isn't in yet, press <strong>Install scikit-learn</strong> (Step 22); behind the proxy, it goes the way 2.4 went. After <strong>Next</strong>, Control asks one thing more: the <strong>cutoff</strong> (Step 25). Pick the suggestion, <strong>The month start nearest 70% of the loans (suggested)</strong>, in Excel, save and close.</p>
 <table>
 <thead>
 <tr>
@@ -350,19 +350,28 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 </thead>
 <tbody>
 <tr>
+<td>Control (Step 25)</td>
+<td><em>Loans made before this date find the candidates; the rest are held back</em> shaded, and beside it <strong>suggested: 2024-11-01 (5,641 loans before, 2,359 after)</strong></td>
+</tr>
+<tr>
 <td>Run (Step 26)</td>
-<td><strong>REV_DEBT groups worse than 11,000 - 14,999: 1 of 2</strong>, on the held-back loans. About 20 seconds.</td>
+<td><strong>REV_DEBT groups worse than 11,000 - 14,999: 1 of 2</strong>, on the held-back loans. About 25 seconds.</td>
 </tr>
 <tr>
 <td>Start here (Step 27)</td>
-<td>5,604 found · 2,395 held back; 15,000 - 48,522: <strong>Yes, worse</strong>, <strong>2.69×</strong> the odds, <strong>54%</strong> of the bad loans</td>
+<td>5,640 found · 2,359 held back; 15,000 - 48,522: <strong>Yes, worse</strong>, <strong>2.68×</strong> the odds, <strong>54%</strong> of the bad loans</td>
 </tr>
 <tr>
 <td>Scouting (Step 28)</td>
 <td>REV_DEBT first, <strong>Proposed? Yes</strong>; ORIG_BAL below the noise floor</td>
 </tr>
+<tr>
+<td>New variables (Step 29)</td>
+<td>First line: <strong>Built on loans made 2021-06-30 to 2024-10-31: AUC 0.67. On loans made 2024-11-01 to 2026-03-30, unseen: 0.63.</strong></td>
+</tr>
 </tbody>
 </table>
+<p>☐ <strong>Check this, the first time:</strong> the cutoff is the one answer in this checklist that is a date. Pick the suggestion from the list; if you type your own under <strong>Or your own</strong> instead, Excel must keep it as a date (it shows as one, such as 2024-11-01), not as text. If Run says it needs a date, that's the finding: screenshot the cell.</p>
 <p>Skip Step 31 (editing the pre-spec). It's about the pre-spec, not the machine.</p>
 <hr />
 <h2>Part 4 · Excel: the live parts</h2>
@@ -668,7 +677,7 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 <hr />
 <h2>What's been checked, and how</h2>
 <ul>
-<li><strong>Run here (Linux, 27 Sep 2026):</strong> every command, on Python 3.11 and 3.12. The practice book and the speed book were made with 3.1's and 5.2's commands on both, and gave the MD5s above. The dry run followed 3.2's answers and gave every number in its table, in 8 seconds on 4 processors. The speed book ran in 31 seconds on 4 processors and 85 on 1, with the same answer. The new-variable run gave 3.3's numbers in 23 seconds.</li>
+<li><strong>Run here (Linux, 27 Sep 2026):</strong> every command, on Python 3.11 and 3.12. The practice book and the speed book were made with 3.1's and 5.2's commands on both, and gave the MD5s above. The dry run followed 3.2's answers and gave every number in its table, in 8 seconds on 4 processors. The speed book ran in 31 seconds on 4 processors and 85 on 1, with the same answer. The new-variable run gave 3.3's numbers in 23 seconds. <em>(28 Sep 2026: 3.3 walked again after the cutoff, the tree's check and the candidates together were added: 27 seconds, on a machine shared with other work.)</em></li>
 <li><strong>Through LibreOffice here, in place of Excel:</strong> 4.2 (no error values on any tab you can see; <code>#N/A</code> on <code>_look</code> and <code>_chart</code> only), 4.3's lists, captions and grid values, 4.4 and 4.5's numbers and words, and 4.7's picture.</li>
 <li><strong>The kit and the offline install:</strong> <code>bank_kit.py --add-ons</code> fetched the Windows add-ons for Python 3.11 to 3.14 through this machine's proxy. The same command, fetching Linux add-ons, was unzipped into a fresh Python 3.12 with none installed; the install in 2.4's third step ran with <code>--user --no-index --find-links</code>, and the window opened from the unzipped folder.</li>
 <li><strong>Not run here, Windows only, checked by reading:</strong> <code>cd /d</code>, <code>tar -xf</code> on a zip, <code>dir</code>, <code>type</code>, <code>ren</code>, <code>certutil</code>, <code>echo %NUMBER_OF_PROCESSORS%</code>, <code>ver</code>, <code>notepad</code>, the two .bat files, Task Manager, and everything in Excel. Their Linux counterparts were run where one exists.</li>
