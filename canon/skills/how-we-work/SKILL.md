@@ -10,7 +10,7 @@ one — behaviour 20 — because the firm named a standing condition instead, an
 that entry says so of itself. Each is written next to the thing that produced it. **A rule with a body
 count gets followed; a rule that sounds wise gets skimmed.**
 
-These are not the tenets. `TENETS.md` is case law about *code* — thirty-five
+These are not the tenets. `TENETS.md` is case law about *code* — thirty-six
 rules, each cited to a bug. This is how a session *conducts itself*: what it
 reports, what it refuses to claim, and when it stops and asks.
 
@@ -45,7 +45,7 @@ that gap somewhere.
 with the incident attached, in the firm's own words where they exist. Name the
 rule in the commit that broke or upheld it.
 
-**Incident:** thirty-five tenets exist, each cited to a real bug. The first one
+**Incident:** thirty-six tenets exist, each cited to a real bug. The first one
 exists because a proof artifact declared 190 documents fine when every one of
 them was unreadable.
 

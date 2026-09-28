@@ -1,0 +1,19 @@
+$ cube control --read control.xlsx
+grids            pairs
+drill_depth      1
+min_age_months   0
+few_values       12
+many_values      50
+band_count       5
+band_cut         equal_loans
+min_loans        30
+min_events       10
+materiality      1% of losses
+compare_to       peers
+worse_at         1.4
+better_at        0.8
+confidence       0.95
+power            0.8
+many_tests       bh
+proof            time
+(exit code 0)

@@ -1104,3 +1104,63 @@ proved against nothing.
 *(Related: **S2**, it reports 241 strings examined so a rename cannot leave it
 reading none; **S31**, the thing that compares a claim to behaviour — here the
 claim is "our software speaks plainly" and nothing had ever asked.)*
+
+---
+
+## S36 · Compare against a bar computed once and rounded, never against 1 − confidence written inline. At the edge, floating point picks the side.
+
+**Evidence: 1** *(origination-cube ×1)*
+
+### origination-cube · 2026-09-26 · commit da0271a — found by the adversarial pass on the cube's statistics
+
+**Added on the firm's yes, 26 September 2026.** The docket asked: *"Add a
+tenet to canon: compare against a bar worked out once?"* The firm answered:
+*"Yes, add it."*
+
+The cube's rule is that a result is significant when its p-value is *below the
+bar*. Five places in `book.py` and `engine.py` wrote that bar out where they
+stood — `p < 1 - confidence` in some, `p >= 1 - confidence` in others. Every one
+reads correctly. None of them is exact:
+
+```
+>>> 1 - 0.95
+0.050000000000000044
+>>> 1 - 0.90
+0.09999999999999998
+```
+
+So a p-value of exactly 0.05 sat *below* the 95% bar and read significant, while
+exactly 0.1 at 90% sat above its bar and read not significant. One rule, opposite
+answers at the edge, settled by which way a subtraction happened to round. The
+edge is not exotic: the shuffle test with 9,999 shuffles and 499 hits gives
+500 / 10,000 = 0.05 exactly, and Bonferroni and BH adjustments land on round
+numbers the same way.
+
+**The fix** made the bar one function, rounded once, and sent every comparison
+through it (`src/origination_cube/stats.py`):
+
+```python
+def bar(confidence: float) -> float:
+    return round(1.0 - confidence, 12)
+
+def significant(p: float | None, confidence: float) -> bool:
+    return p is not None and p < bar(confidence)
+```
+
+No comparison in the cube writes `1 - confidence` any more. It still appears
+where it feeds a z-score or a label, and neither is compared at an edge.
+
+**The rule, generally.** A threshold worked out by arithmetic from a setting,
+and compared at its edge, is computed in one place and rounded to the precision
+the setting was actually given in. Written inline, it is only as exact as the
+float that falls out — and two sites written slightly differently can disagree
+about the same number with nothing comparing them.
+
+**What holds it.** `tests/test_adversarial_2026_09_26.py` puts a p-value
+exactly on the bar at 95%, 99% and 99.9%, and on the profit gap at 95%, and
+requires "not significant" every time. `tools/mutation_check.py` plants *"the
+bar not rounded"* — the `round` taken out — and all four go red.
+
+*(Related: **S3**, two halves of one tool must make the same call — here five
+sites, and the fix is the same: one of them is the rest; **S31**, a claim in
+one place and the behaviour in another with nothing comparing them.)*

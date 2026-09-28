@@ -341,9 +341,12 @@ def test_adding_evidence_to_a_rule_that_is_not_there_refuses(tenets):
 # ── slice 8 · the migration ───────────────────────────────────────────────
 
 def test_all_thirty_five_tenets_came_across():
+    """The migration brought S1-S35. S36 was added afterwards, on the firm's
+    yes of 26 September 2026, so the record now holds thirty-six."""
     got = R.parse_tenets(R.TENETS.read_text(encoding="utf-8"))
     ids = [t.id for t in got]
-    assert len(ids) == 35, f"{len(ids)} tenets, expected 35"
+    assert [f"S{n}" for n in range(1, 36)] == ids[:35], "a migrated tenet is missing"
+    assert len(ids) == 36, f"{len(ids)} tenets, expected 36"
     assert ids == sorted(ids, key=lambda s: int(s[1:])), "out of order"
     assert "S31" in ids
 

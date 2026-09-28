@@ -1,0 +1,3 @@
+$ cube synth --out demo --rows 2000
+wrote demo/loans.csv and demo/cube.yaml
+(exit code 0)

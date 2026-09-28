@@ -1,0 +1,4 @@
+$ cube init demo/loans.csv -o wt-intochoose.yaml --control wt-intochoose.xlsx
+REFUSED: wt-intochoose.xlsx has 1 setting(s) to answer:
+  - Control!C21: '1.4' is not an option for `How much worse than its comparison a pocket must be`
+(exit code 2)

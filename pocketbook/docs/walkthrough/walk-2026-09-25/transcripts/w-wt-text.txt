@@ -1,0 +1,4 @@
+$ cube init demo/loans.csv -o wt-text.yaml --control wt-text.xlsx
+REFUSED: wt-text.xlsx has 1 setting(s) to answer:
+  - Control!D21: `How much worse than its comparison a pocket must be` needs a multiple above 1, such as 1.4; got '1.4x'
+(exit code 2)
