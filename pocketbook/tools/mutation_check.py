@@ -1033,6 +1033,9 @@ muts = [
  ("a setting of .nan taken as a number", CFG,
   '    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)',
   '    return isinstance(v, (int, float)) and not isinstance(v, bool)', "nan_or_infinity_is_refused"),
+ # the tie-out of 28 Sep 2026: a pocket with too few losses given a p-value and counted in the allowance
+ ("an untested pocket counted in the allowance", E, '            if hi == "worse" and s.events < bench.min_events:\n                s.p_book = s.p_band = None',
+  '            if False:\n                s.p_book = s.p_band = None', "not_counted_in_the_allowance"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

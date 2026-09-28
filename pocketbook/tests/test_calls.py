@@ -96,3 +96,34 @@ def test_materiality_as_a_share_and_in_dollars(book):
     assert res.materiality_line == {"gco_rate": 40.0, "ranr_rate": 40.0, "contribution_rate": 40.0}
     assert any("Outcome, share of loans: no materiality line" in w for w in res.warnings)
     assert not any("RANR" in w and "no materiality line" in w for w in res.warnings)
+
+
+def test_a_pocket_with_too_few_losses_has_no_p_value_and_is_not_counted_in_the_allowance(tmp_path):
+    """The tie-out of 28 Sep 2026 (docs/tie-out/2026-09-28): the tab says a pocket with fewer bad loans than the
+    floor is "not tested", yet it showed a p-value and was one of the tests Benjamini-Hochberg allowed for, so
+    every other pocket's p-value ran over 18 where 15 were tested. Now: no p-value, and the allowance is over the
+    tested pockets only, exactly what BH gives on their unadjusted p-values."""
+    from pocketbook import config as cfgmod, synth
+    from pocketbook.ingest import read_table
+    cfg, data = synth.write(tmp_path, n=6000)
+    t = read_table(data)
+    raw = cfgmod.load(cfg).raw
+    floor = 12
+    runs = {how: engine.run(cfgmod.parse({**raw, "benchmark": {**raw["benchmark"], "many_tests": how,
+                                                                 "min_events": floor}}), t)
+            for how in ("none", "bh")}
+    few_seen = tested_seen = 0
+    for m in ("outcome_loans", "gco_rate"):
+        for gi, grid in enumerate(runs["none"].grids):
+            raw_p, bh_p = {}, {}
+            for (k, c), (_, cb) in zip(grid.inner(), runs["bh"].grids[gi].inner()):
+                s = c.rates[m]
+                if s.events < floor:
+                    assert s.p_book is None and s.p_band is None and cb.rates[m].p_book is None
+                    few_seen += 1
+                elif s.p_book is not None:
+                    raw_p[k], bh_p[k] = s.p_book, cb.rates[m].p_book
+                    tested_seen += 1
+            keys = list(raw_p)
+            assert engine.adjust([raw_p[k] for k in keys], "bh") == pytest.approx([bh_p[k] for k in keys])
+    assert few_seen and tested_seen                     # the book has both kinds, or this proved nothing

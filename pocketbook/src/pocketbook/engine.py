@@ -1169,6 +1169,14 @@ def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
         hi = m.higher_is
         # allow for testing many pockets at once: across this grid's pockets, per comparison (A2)
         keys = [k for k in cells if k != (ALL, ALL)]
+        # a pocket with too few losses is not tested (its reading says so), so it has no p-value and is not one
+        # of the tests the allowance is for. Found by the tie-out of 28 Sep 2026: three such pockets still
+        # showed a p-value and were counted, so the grid's allowance ran over 18 pockets where 15 were tested
+        for k in keys:
+            s = cells[k].rates[m.name]
+            if hi == "worse" and s.events < bench.min_events:
+                s.p_book = s.p_band = None
+                s.test = None
         for attr in ("p_book", "p_band"):
             adj = adjust([getattr(cells[k].rates[m.name], attr) for k in keys], bench.many_tests)
             for k, p in zip(keys, adj):
