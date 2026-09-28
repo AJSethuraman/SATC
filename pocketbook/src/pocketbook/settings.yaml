@@ -95,7 +95,7 @@ groups:
             label: The month start nearest 70% of the loans (suggested)
             explains: >-
               Worked out from this extract's dates: the first of the month by which about 70% of the
-              loans had been made. The tree learns on the loans before it.
+              loans had been made. The tree is built on the loans before it.
           - value: calc80
             label: The month start nearest 80% of the loans
             explains: >-
