@@ -1074,3 +1074,16 @@ def test_a_dependency_that_could_not_be_checked_stays_before_the_judge(tmp_path)
                                              because=words))
     assert isinstance(out, engine.Served), out
     assert out.judged.stands
+
+
+def test_the_restitution_exception_carries_both_of_its_tests():
+    """Codex on #403: § 1.162-21(b)(1) allows the exception only when the
+    identification AND establishment requirements are met, and states
+    neither -- they are (b)(2) and (b)(3). Cited alone it was served with
+    (g) and nothing else."""
+    desk = record.load(CORPUS)
+    carried = desk.served_with("26 CFR 1.162-21(b)(1)")
+    for c in ("(b)(2)", "(b)(2)(i)", "(b)(2)(iii)(A)", "(b)(3)", "(b)(3)(ii)"):
+        assert f"26 CFR 1.162-21{c}" in carried, c
+    got = ask.read("26 CFR 1.162-21(b)(1)")
+    assert "### 26 CFR 1.162-21(b)(2)\n" in got and "### 26 CFR 1.162-21(b)(3)\n" in got

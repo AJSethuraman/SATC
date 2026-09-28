@@ -400,7 +400,9 @@ NARROWED = {
     # The graded figures below are likewise untouched: `brief_for_grading`
     # prints no example, so there is nothing there to label.
     "is a brewery tab a business meal?": 3_058,
-    "what supporting documents does the client have to keep?": 6_733,
+    # +64 when § 1.162-21(b)(1) came to be read with its two tests (Codex on
+    # #403): this brief prints (b)(3)(ii), which now names (b)(2) as well.
+    "what supporting documents does the client have to keep?": 6_797,
     #
     # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
     # are both visible in the diff. Every position a brief carries now prints
@@ -529,7 +531,8 @@ NARROWED = {
 # now names the § 274(o) an answer citing it carries.
 # -0 / -6 when a range ending in labels stopped being read as its first end:
 # § 1.446-1(e)(2)(iii) Example 17 no longer names 26 USC 168(g)(1) (Codex).
-WHOLE = (156_236, 280_417)
+# +457 / +457 for the same record line, named under every paragraph of (b).
+WHOLE = (156_693, 280_874)
 
 
 def _answering_sizes():
