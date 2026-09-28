@@ -70,14 +70,17 @@ def test_the_families_are_grids_by_rates_by_comparisons():
     got = dict(checks.family_rows(res))
     # 2 grids x 5 rates x 2 comparisons (contribution before losses is the fifth rate, NEXT-GOAL 3.4). Tests per
     # rate: the score grid's 4 pockets, each against the book and its band (8); the balance grid's 3 pockets
-    # against the book, but only 2 against their band, since Broker 600 is alone in the 300 band (5). 13 x 5 = 65
-    assert got["Families of tests"].startswith("20, holding 65 tests: 2 grids x 5 rates x 2 comparisons.")
+    # against the book, but only 2 against their band, since Broker 600 is alone in the 300 band (5). But a pocket
+    # with fewer bad loans than min_events (51 here) is not tested (the tie-out of 28 Sep 2026): on the three
+    # rates that count losses, the score grid keeps only its 150-bad pocket (2 tests, not 8) and the balance grid
+    # its two pockets over 51 (3, not 5); RANR and contribution keep all theirs. 3 x (2 + 3) + 2 x (8 + 5) = 41
+    assert got["Families of tests"].startswith("20, holding 41 tests: 2 grids x 5 rates x 2 comparisons.")
     assert got["Reading a single red"] == ("Each family gets its own allowance for many tests, not one for the whole "
                                            "run. So a single red across 20 families is weak evidence.")
     # with no allowance, every test stands alone
     res = engine.run(cube(benchmark={**BENCH, "many_tests": "none"}, bands=two_grids), table(_test1()))
     assert dict(checks.family_rows(res))["Reading a single red"] == (
-        "No allowance for many tests is in use, so each of the 65 tests stands alone: a single red among them is "
+        "No allowance for many tests is in use, so each of the 41 tests stands alone: a single red among them is "
         "weak evidence.")
 
 
@@ -86,8 +89,9 @@ def test_a_rate_nothing_tested_is_no_family():
     from dataclasses import replace
     cfg = cube(benchmark=BENCH)
     res = engine.run(replace(cfg, benchmark=replace(cfg.benchmark, shuffles=0)), table(_test1()))
+    # 2 tests, not 8: only the 150-bad pocket clears min_events (51); the three with 50 are not tested
     assert dict(checks.family_rows(res))["Families of tests"].startswith(
-        "2, holding 8 tests: 1 grid x 1 rate x 2 comparisons.")
+        "2, holding 2 tests: 1 grid x 1 rate x 2 comparisons.")
 
 
 def test_the_split_adds_its_three_way_grid_and_its_halves_as_families():
