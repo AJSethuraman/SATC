@@ -1025,6 +1025,14 @@ muts = [
   """(f'=IF(OR(NOT({asked}),False),"",IFERROR(IF('""", "cutoff_is_asked_only_when_scouting"),
  ("the test of all together left off Record", CF, '    if j is not None and len(ran) > 1:',
   '    if False:', "planted_inputs_and_tenure_adds_nothing"),
+ # Codex on #394, 28 Sep 2026: values that are not finite numbers, and two columns with one name
+ ("NaN in the extract read as a number", I, '    return f if math.isfinite(f) else Bad("non-numeric", value)',
+  '    return f', "not_a_finite_number"),
+ ("two columns of one name read as one", I, '    if twice:\n        raise ValueError(', '    if False:\n        raise ValueError(',
+  "two_columns_of_one_name"),
+ ("a setting of .nan taken as a number", CFG,
+  '    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)',
+  '    return isinstance(v, (int, float)) and not isinstance(v, bool)', "nan_or_infinity_is_refused"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import math
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -62,6 +63,7 @@ def read_table(path: str | Path, sheet: str | None = None) -> Table:
         if header is None:
             raise ValueError(f"{p}: the sheet has no header row")
         columns = [str(h).strip() if h is not None else "" for h in header]
+        _refuse_duplicates(p, columns)
         rows = []
         for r in it:
             if r is None or all(v is None for v in r):
@@ -72,8 +74,23 @@ def read_table(path: str | Path, sheet: str | None = None) -> Table:
     text = data.decode("utf-8-sig")
     reader = csv.DictReader(text.splitlines())
     columns = [c.strip() for c in (reader.fieldnames or [])]
+    _refuse_duplicates(p, columns)
     rows = [{k.strip() if k else k: v for k, v in row.items()} for row in reader]
     return Table(path=str(p), sha256=digest, columns=columns, rows=rows, kind="csv")
+
+
+def _refuse_duplicates(p: Path, columns: list[str]) -> None:
+    """Two columns with one name (once spaces are trimmed) would be read as one: each row keeps only the last,
+    and every tab would use it under the first one's name. Refused, naming them (Codex on #394, 28 Sep 2026).
+    Unnamed columns are left alone: nothing can be picked by a name it hasn't got."""
+    seen, twice = set(), []
+    for c in columns:
+        if c and c in seen and c not in twice:
+            twice.append(c)
+        seen.add(c)
+    if twice:
+        raise ValueError(f"{p.name} has two columns called {', '.join(twice)}. Rename one so each column has "
+                         f"its own name, then pick the file again")
 
 
 def is_blank(value: Any) -> bool:
@@ -90,10 +107,8 @@ def parse_number(value: Any) -> Any:
         return BLANK
     if isinstance(value, bool):
         return Bad("non-numeric", value)
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, Decimal):
-        return float(value)
+    if isinstance(value, (int, float, Decimal)):
+        return _finite(float(value), value)
     if isinstance(value, (datetime, date)):
         return Bad("non-numeric", value)
     s = str(value).strip()
@@ -107,8 +122,14 @@ def parse_number(value: Any) -> Any:
         d = Decimal(s)
     except InvalidOperation:
         return Bad("non-numeric", value)
-    f = float(d)
-    return -f if neg else f
+    f = _finite(float(d), value)
+    return -f if neg and not isinstance(f, Bad) else f
+
+
+def _finite(f: float, value: Any) -> Any:
+    """NaN, Infinity or a number too big for a float (1e9999) is not an amount: read as non-numeric, never
+    counted into a band or a sum (Codex on #394, 28 Sep 2026)."""
+    return f if math.isfinite(f) else Bad("non-numeric", value)
 
 
 DATE_PATTERNS = ("%m/%d/%Y", "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%y", "%Y%m%d", "%d-%b-%Y", "%b %d, %Y",

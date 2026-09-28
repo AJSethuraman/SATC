@@ -15,6 +15,7 @@ quietly ignored would be exactly the silent fallback this file exists to stop.
 
 from __future__ import annotations
 
+import math
 import re
 
 from dataclasses import dataclass, field
@@ -616,7 +617,9 @@ def removed_line(k: str, said: str | None = None) -> str:
 
 
 def _num(v: Any) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
+    """A setting's number: YAML's .nan and .inf are not one (a NaN edge slips past "rising", a NaN worse-at makes
+    every comparison false). Codex on #394, 28 Sep 2026."""
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
 def _unknown(entry: dict, allowed: set[str], where: str, problems: list[str]) -> None:
