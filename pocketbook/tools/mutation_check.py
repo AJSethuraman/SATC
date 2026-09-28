@@ -1001,7 +1001,7 @@ muts = [
   '        return _Fit(0.0, {}, {}, False, gone, len(pockets), loans, bad, quiet, DIDNT_SETTLE)',
   '        return _Fit(0.0, {}, {}, False, gone, len(pockets), loans, bad, quiet, "the regression couldn\'t be solved")',
   "solver_that_breaks_down"),
- ("a fit that ran off printed", JT, '    if not settled or wild:', '    if False:', "combination_with_no_bad_loan"),
+ ("a fit that ran off printed", JT, '    if not settled or wild:', '    if False:', "fit_that_ran_off"),
  ("a reference with no bad loan compared with", JT, '        if n == 0 or b == 0 or b == n:', '        if n == 0:',
   "reference_with_no_bad_loan"),
  ("thin pockets given a constant each", JT, '    if full.pockets and full.bad / full.pockets < MIN_BAD_PER_POCKET:',

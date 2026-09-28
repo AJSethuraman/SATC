@@ -288,3 +288,23 @@ def test_a_solver_that_breaks_down_refuses_the_same_way(monkeypatch):
                     ("p", 0, 1, 100, 30), ("p", 1, 1, 100, 30)])
     j = joint.fit_cells(joint.Joint(_terms(3, 2), ()), cells)
     assert j.problem == joint.DIDNT_SETTLE and all(t.odds == [] for t in j.terms)
+
+
+@pytest.mark.parametrize("settled, big", [(False, False), (True, True)])
+def test_a_fit_that_ran_off_refuses_on_every_machine(monkeypatch, settled, big):
+    """Whether numpy runs off or gives up on the case above depends on the machine, so this drives the fit's own
+    answer: one that didn't settle, or settled on an odds ratio no book could hold, is refused either way."""
+    import numpy as np
+    real = joint.kgroups.logistic
+
+    def ran_off(X, y, w=None, **k):
+        beta, se, ll, _ = real(X, y, w)
+        beta = np.array(beta, dtype=float)
+        if big:
+            beta[-1] = 40.0
+        return beta, se, ll, settled
+    monkeypatch.setattr(joint.kgroups, "logistic", ran_off)
+    cells = _cells([("p", 0, 0, 100, 10), ("p", 1, 0, 100, 20), ("p", 2, 1, 100, 30), ("p", 2, 0, 100, 30),
+                    ("p", 0, 1, 100, 30), ("p", 1, 1, 100, 30)])
+    j = joint.fit_cells(joint.Joint(_terms(3, 2), ()), cells)
+    assert j.problem == joint.DIDNT_SETTLE and all(t.odds == [] for t in j.terms)
