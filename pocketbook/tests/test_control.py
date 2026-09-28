@@ -19,7 +19,7 @@ def _row(ws, key):
     raise KeyError(key)
 
 
-JUDGMENT = {"run_kind", "new_variable_step", "min_loans", "min_events", "materiality", "compare_to", "worse_at", "better_at", "confidence",
+JUDGMENT = {"run_kind", "new_variable_step", "cutoff", "min_loans", "min_events", "materiality", "compare_to", "worse_at", "better_at", "confidence",
             "revenue_line"}
 
 
@@ -59,8 +59,8 @@ def test_a_fresh_tab_waits_for_every_judgment_and_names_each(book):
     # anything asked for one kind of run only: the profit line (the redesign, phase 2), and fewest loans, fewest
     # losses, better at and what a pocket is judged against, which a test of a new variable doesn't use (phase 4)
     one_kind = {s.key for s in control.load_settings() if s.only_when}
-    assert one_kind & JUDGMENT == {"new_variable_step", "revenue_line", "min_loans", "min_events", "better_at",
-                                   "compare_to"}
+    assert one_kind & JUDGMENT == {"new_variable_step", "cutoff", "revenue_line", "min_loans", "min_events",
+                                   "better_at", "compare_to"}
     assert len(exc.value.problems) == len(JUDGMENT - one_kind)
     # What are you running? is chosen in the launcher since the redesign; the rest are answered here
     assert all("needs an answer" in p or "is chosen in the launcher" in p for p in exc.value.problems)

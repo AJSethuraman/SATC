@@ -569,6 +569,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Set up again."])
     worked = _suggest_at_set_up(wb, book, as_read, memory_path, testing=kind_now == NEW_VARIABLE)
     _suggestions(wb[control.SHEET], *worked, when="from this extract")
+    _cutoff_words(wb[control.SHEET], as_read, wb["Columns"], cat)          # OC-51
     try:
         wb.save(book)
     except PermissionError:
@@ -1712,6 +1713,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
          + scout_tab.log_lines(res)             # Goal 2 item 9: what scouting wrote, before any held-back result
          + [f"Confirmation waits: {w}" for w in res.scout_waits]
          + confirmatory.log_lines(res)          # fix 3.15: held to a pre-spec, and whether it touched the holdout
+         + scout_tab.held_back_lines(res)       # OC-51: the tree's out-of-time check read the held-back loans too
          + [f"Warning: {_plain_warning(w)}" for w in res.warnings], redraw=False)
     _record(wb, res, src, f"{book.stem} - what ran.yaml")     # Check and the Log, this Run's entry included
     _order(wb)
@@ -1726,6 +1728,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     head += _dates_head(res)
     head += "".join(f"# {x}\n" for x in scout_tab.log_lines(res))
     head += confirmatory.what_ran(res)
+    head += "".join(f"# {x}\n" for x in scout_tab.held_back_lines(res))
     if isinstance(raw.get("benchmark"), dict) and cfg.benchmark is not None:
         raw["benchmark"].setdefault("shuffles", cfg.benchmark.shuffles)
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
@@ -1733,6 +1736,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     lines += _top_lines(res)
     lines += scout_tab.launcher_lines(res)
     lines += confirmatory.launcher_lines(res)
+    lines += scout_tab.held_back_lines(res)
     # the same rows the tab shades blue (its flag), and pockets counted once (the seventh walk, defect 7:
     # "58 pockets" was 58 rows from 23 pockets)
     blue = [(gi, key) for gi, g in enumerate(res.grids) for key, c in g.inner() for m in res.measures
@@ -1797,7 +1801,7 @@ def _scout(res, about: dict, book: Path):
     if chosen is None:
         return []
     try:
-        sc = scout.run(res, chosen)
+        sc = scout.run(res, chosen, cutoff=cutoff_of(res, about.get("_use") or {}))
     except scout.ScoutMissing as exc:
         return Outcome(False, book, ["Couldn't run:", str(exc)], problems=[str(exc)])
     res.scout = sc
@@ -1811,7 +1815,47 @@ def _scout(res, about: dict, book: Path):
     except prespec.PreSpecError as exc:
         res.scout_waits = [f"{path.name}: {confirmatory._plain(x.removeprefix(f'{path}: '))}. Then press Run again."
                            for x in exc.problems]
+        return res.scout_waits
+    # OC-51: the pre-spec is on disk and read, so the held-back loans may now be read: the tree's out-of-time check
+    scout.out_of_time(res, sc)
     return res.scout_waits
+
+
+def cutoff_of(res, use: dict):
+    """The cutoff the Run uses (OC-51): the date typed on Control, or for the suggestion the month start nearest 70%
+    of the loans, worked out from this extract's dates as Set up showed it. None when there is none to use."""
+    got = use.get("cutoff")
+    if isinstance(got, date):
+        return got
+    if got in scout.CUTOFF_SHARES:
+        dates, _ = confirmatory.origination_dates(res)
+        return scout.suggest_cutoff(dates or [], scout.CUTOFF_SHARES[got])
+    return None
+
+
+def _cutoff_words(ws, table, cols_ws, cat) -> None:
+    """The suggested cutoff beside its setting on Control (OC-51, OC-13: shown, never chosen): the month start
+    nearest 70% of the loans, and how many loans fall each side of it."""
+    r = control.row_of(ws, "cutoff")
+    if r is None:
+        return
+    col = next((str(x[C_NAME - 1].value) for x in table_rows(cols_ws) if x[C_NAME - 1].value
+                and _to_code(x[C_MEANS - 1].value, cat) == "origination_date"), None)
+    said = "Worked out once a column is marked Origination date on Columns"
+    if col and col in table.columns:
+        try:
+            read = engine._date_reader(table, col, "when each loan was made")
+            dates = [d for d in (read(x.get(col)) for x in table.rows) if isinstance(d, date)]
+        except engine.NothingToCut:
+            dates = []
+        got = scout.suggest_cutoff(dates)
+        if got is not None:
+            before = sum(1 for d in dates if d < got)
+            said = (f"suggested: {got.isoformat()}, from this extract: {before:,} loans before it, "
+                    f"{len(dates) - before:,} on or after")
+    c = ws.cell(row=r, column=SUGGEST_COL, value=said)
+    c.font = Font(name="Calibri", size=10, bold=said.startswith("suggested"), color=INK)
+    c.alignment = Alignment(horizontal="left", vertical="center")
 
 
 def _forget(wb, memory_path) -> list[str]:
@@ -2177,6 +2221,12 @@ def _used_words(res) -> dict[str, str]:
             words = f"{words} (the usual value: nothing in this book to work it out from)"
         elif key in sug:
             words = f"{words} (worked out from this book)"
+        if key == "cutoff":
+            sc = getattr(res, "scout", None)
+            got = getattr(sc, "cutoff", None)
+            words = None if got is None else got.isoformat() + (" (worked out from this book)"
+                                                                 if used.get("cutoff") in scout.CUTOFF_SHARES
+                                                                 else "")
         if not control.asked(s, used):
             words = None                    # not asked for this run, so nothing was used
         if words is not None:

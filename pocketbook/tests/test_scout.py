@@ -60,9 +60,13 @@ def _extract(folder: Path, n: int) -> Path:
     return x
 
 
-def _book(folder: Path, n: int, test=TEST, hold=HOLD):
-    """The workbook set up for "Find on 70%, confirm on the rest": income / sales made on Columns, `test` ticked
-    Test it, `hold` Hold fixed, BAD_FLAG the outcome, as the launcher's Next writes them."""
+SUGGESTED = "The month start nearest 70% of the loans (suggested)"
+
+
+def _book(folder: Path, n: int, test=TEST, hold=HOLD, cutoff=SUGGESTED):
+    """The workbook set up for scouting: income / sales made on Columns, `test` ticked Test it, `hold` Hold fixed,
+    BAD_FLAG the outcome, as the launcher's Next writes them, and the cutoff on Control answered (`cutoff`: the
+    suggestion's label, a date typed under Or your own, or None to leave it blank)."""
     x = _extract(folder, n)
     b = book.set_up(x).book
     _answer(b)
@@ -72,6 +76,8 @@ def _book(folder: Path, n: int, test=TEST, hold=HOLD):
     names = [str(r[book.C_NAME - 1].value) for r in book.table_rows(wb["Columns"]) if r[book.C_NAME - 1].value]
     _choose(b, drop=tuple(c for c in names if c not in hold), run_kind="new_variable", outcome="BAD_FLAG",
             test=tuple(test), hold=tuple(hold))
+    if cutoff is not None:
+        _control(b, cutoff=cutoff if isinstance(cutoff, str) else ("own", cutoff))   # OC-51: the analyst's call
     wb = load_workbook(b)
     wb["Columns"][book.CONFIRM_CELL] = "Yes"
     wb.save(b)
@@ -112,10 +118,14 @@ def _rows(x):
         return list(csv.DictReader(fh))
 
 
-def _split(x, share=0.7):
-    """The last development date, by hand: the loans ordered by origination date, the first `share` of them."""
+def _suggested(x, share=0.7):
+    """The suggested cutoff, by hand (OC-51): the loans ordered by origination date, the date by which `share` of them
+    had been made, and of the first of its month and the first of the next, the nearer (the earlier on a tie)."""
     dates = sorted(date.fromisoformat(r["ORIG_DATE"]) for r in _rows(x))
-    return dates[math.ceil(share * len(dates)) - 1], dates[0], dates[-1]
+    at = dates[math.ceil(share * len(dates)) - 1]
+    this = at.replace(day=1)
+    nxt = (this + timedelta(days=32)).replace(day=1)
+    return min((this, nxt), key=lambda d: (abs((d - at).days), d)), dates[0], dates[-1]
 
 
 def _value(r, column):
@@ -211,8 +221,8 @@ def test_importance_is_reported_with_and_without_the_held_fixed_columns(wide):
 
 def test_a_correlated_pair_is_flagged_on_both_rows_and_the_line_is_said_once(wide):
     sc = wide["sc"]
-    last, _, _ = _split(wide["x"])
-    dev = [r for r in _rows(wide["x"]) if date.fromisoformat(r["ORIG_DATE"]) <= last and r["BAD_FLAG"] in ("0", "1")]
+    cut = wide["sc"].cutoff
+    dev = [r for r in _rows(wide["x"]) if date.fromisoformat(r["ORIG_DATE"]) < cut and r["BAD_FLAG"] in ("0", "1")]
     nums = ["income_to_sales", "UTIL", "TENURE", "F1", "F2", "F3", "F4"]
     want = set()
     for i, a in enumerate(nums):
@@ -238,8 +248,8 @@ def test_the_suggested_bins_sit_on_the_planted_cliffs_and_the_reference_holds_th
     assert any(0.85 <= e <= 0.95 for e in util.bins), util.bins
     assert any(0.08 <= e <= 0.12 for e in ratio.bins), ratio.bins
     assert any(1.7 <= e <= 2.3 for e in ratio.bins), ratio.bins
-    last, _, _ = _split(wide["x"])
-    dev = [r for r in _rows(wide["x"]) if date.fromisoformat(r["ORIG_DATE"]) <= last and r["BAD_FLAG"] in ("0", "1")]
+    cut = wide["sc"].cutoff
+    dev = [r for r in _rows(wide["x"]) if date.fromisoformat(r["ORIG_DATE"]) < cut and r["BAD_FLAG"] in ("0", "1")]
     for c in (util, ratio):
         vals = sorted(v for v in (_value(r, c.name) for r in dev) if v is not None)
         n = len(vals)
@@ -262,23 +272,37 @@ def test_scouting_prints_without_the_candidates_header_over_the_pre_spec(wide):
     assert pre and ws.print_area                                  # the pre-spec is on the page, under no header
 
 
-def test_the_development_loans_are_the_first_share_by_origination_date(wide):
-    sc = wide["sc"]
-    last, first, end = _split(wide["x"])
-    assert sc.development == prespec.DateRange(first, last)
-    assert sc.holdout == prespec.DateRange(last + timedelta(days=1), end)
+def test_the_cutoff_splits_the_loans_exactly_by_date(wide):
+    """OC-51: the loans made before the cutoff on Control build the tree; those made on it or after are held back, to
+    the day. The book answered the suggestion, the month start nearest 70% of the loans, worked out here by hand; a
+    date typed by hand splits the same way."""
+    sc, res = wide["sc"], wide["res"]
+    cut, first, end = _suggested(wide["x"])
+    assert sc.cutoff == cut and cut.day == 1
+    assert sc.development == prespec.DateRange(first, cut - timedelta(days=1))
+    assert sc.holdout == prespec.DateRange(cut, end)
     rows = _rows(wide["x"])
-    assert sc.n_held_back == sum(1 for r in rows if date.fromisoformat(r["ORIG_DATE"]) > last)
-    dev = [r for r in rows if date.fromisoformat(r["ORIG_DATE"]) <= last]
+    assert sc.n_held_back == sum(1 for r in rows if date.fromisoformat(r["ORIG_DATE"]) >= cut)
+    dev = [r for r in rows if date.fromisoformat(r["ORIG_DATE"]) < cut]
     assert sc.n_dev == sum(1 for r in dev if r["BAD_FLAG"] in ("0", "1"))
     assert sc.n_dev_bad == sum(1 for r in dev if r["BAD_FLAG"] == "1")
+    col = res.config.origination_date
+    for typed in (date(2024, 1, 1), date(2023, 6, 15), cut + timedelta(days=1)):
+        got, lo, before, hi, after, why = scout.development_rows(res, typed)
+        assert why is None and (lo, before, hi) == (first, typed - timedelta(days=1), end)
+        want = [i for i, r in enumerate(res.table.rows) if date.fromisoformat(str(r[col])[:10]) < typed]
+        assert sorted(got) == want
+        assert after == len(res.table.rows) - len(want)
+    # a cutoff that leaves nothing on one side is refused in words, never split some other way
+    assert "none is left to hold back" in scout.development_rows(res, end + timedelta(days=1))[-1]
+    assert "no loan was made before the cutoff" in scout.development_rows(res, first)[-1]
 
 
 def test_scouting_never_reads_the_held_back_loans(wide):
     """Every held-back loan's outcome turned over, and every other value of it scrambled but its date: the identical
     shortlist, number for number, and the identical file."""
     res, sc = wide["res"], wide["sc"]
-    last = sc.development.end
+    cut = sc.cutoff
     col = res.config.origination_date
     rng = random.Random("scramble")
     other = copy.copy(res)
@@ -286,7 +310,7 @@ def test_scouting_never_reads_the_held_back_loans(wide):
     rows = []
     changed = 0
     for r in res.table.rows:
-        if date.fromisoformat(str(r[col])[:10]) > last:
+        if date.fromisoformat(str(r[col])[:10]) >= cut:
             r = dict(r)
             for k in list(r):
                 if k == col:
@@ -305,7 +329,7 @@ def test_scouting_never_reads_the_held_back_loans(wide):
         rows.append(r)
     other.table.rows = rows
     assert changed == sc.n_held_back
-    again = scout.run(other, load_choices(wide["b"]))
+    again = scout.run(other, load_choices(wide["b"]), cutoff=sc.cutoff)
 
     def said(s):
         return [(c.name, c.rank, c.importance, c.importance_held, c.bins, c.reference_index, c.proposed, c.partners,
@@ -439,6 +463,8 @@ def test_with_nothing_held_fixed_the_strata_wait_for_an_answer_and_nothing_is_co
     assert scout.SHEET in wb.sheetnames and confirm_tab.SHEET not in wb.sheetnames
     assert res is None or res.prespec is None
     assert any(v.startswith("Confirmation waits: ") for v in tabs.runs(b))
+    # OC-51: the tree's out-of-time check waits for the pre-spec too: no held-back loan read while it is unanswered
+    assert not any("the tree's out-of-time check" in v for v in tabs.runs(b))
     assert _table(b)["UTIL"]["Held fixed"] == "Nothing held"
     # answered: nothing held fixed
     p.write_text(p.read_text(encoding="utf-8").replace(
@@ -584,3 +610,172 @@ def test_the_lowest_group_is_named_from_its_own_values_and_the_pre_spec_reads_th
                                                "reference": "0.10 - 1.99"}],
             "strata": ["FICO"], "confidence": 0.95, "holdout": ps.holdout}
     assert prespec.deviations(ps, used) == []
+
+
+# --------------------------------------------------------------------------
+# OC-51 (the firm, 27 Sep 2026): "import --> tree runs --> tree guesses on 2024 data if 2022-2023 are used to build
+# branches --> regress shortlist?". The cutoff is the analyst's; the tree is checked on the loans after it; the
+# shortlist is regressed together (tests/test_together.py holds the regression's own arithmetic).
+
+
+def _held_back(x, cut):
+    """The held-back loans by hand: made on or after the cutoff, with a readable outcome, in the extract's order."""
+    return [r for r in _rows(x) if date.fromisoformat(r["ORIG_DATE"]) >= cut and r["BAD_FLAG"] in ("0", "1")]
+
+
+def _num(v):
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return math.nan
+    return x
+
+
+def test_the_trees_out_of_time_auc_is_scikit_learns_on_loans_it_never_saw(wide):
+    """The forest grown on every development loan scores the held-back loans, rebuilt here from the extract by hand:
+    the same outcomes, the same columns, the same scores, and scikit-learn's own AUC of them."""
+    import numpy as np
+    from sklearn.metrics import roc_auc_score
+    sc = wide["sc"]
+    o = sc.oot
+    assert o is not None and o.problem is None and o.held_back == sc.holdout
+    rows = _held_back(wide["x"], sc.cutoff)
+    y = np.array([int(r["BAD_FLAG"]) for r in rows])
+    assert (o.loans, o.bad) == (len(rows), int(y.sum())) and list(o.y) == list(y)
+
+    def column(name, rs):
+        if name == "income_to_sales":
+            return [(_value(r, name) if _value(r, name) is not None else math.nan) for r in rs]
+        if name in ("REGION", "CHANNEL"):
+            dev = [r for r in _rows(wide["x"]) if date.fromisoformat(r["ORIG_DATE"]) < sc.cutoff
+                   and r["BAD_FLAG"] in ("0", "1")]
+            levels = sorted({r[name] for r in dev if r[name] != ""})
+            return [levels.index(r[name]) if r[name] in levels else math.nan for r in rs]
+        vals = [_num(r[name]) for r in rs]
+        return [math.nan if name == "FICO" and v < -1000 else v for v in vals]
+    X = np.column_stack([column(n, rows) for n in sc.forests["names"]])
+    Xh = np.column_stack([X] + [np.array(column(h, rows)) for h in sc.hold])
+    plain, held = sc.forests["plain"], sc.forests["held"]
+    assert np.allclose(o.scores, plain.predict_proba(X)[:, 1], rtol=0, atol=1e-12)
+    assert np.allclose(o.scores_held, held.predict_proba(Xh)[:, 1], rtol=0, atol=1e-12)
+    assert o.auc == roc_auc_score(y, o.scores) and o.auc_held == roc_auc_score(y, o.scores_held)
+    assert math.isclose(o.auc, roc_auc_score(y, plain.predict_proba(X)[:, 1]), abs_tol=1e-9)
+    # the forest that scored them never saw them: it was grown on the development loans alone
+    assert plain.n_features_in_ == len(sc.forests["names"]) and sc.forests["dev"][0].shape[0] == sc.n_dev
+    # the planted inputs carry the tree on loans it never saw, well past a coin flip
+    assert o.auc > 0.55 and o.auc_held > o.auc
+
+
+def test_the_out_of_time_check_is_recorded_as_a_touch_of_the_holdout(wide):
+    sc, b = wide["sc"], wide["b"]
+    o = sc.oot
+    entry = tabs.runs(b)
+    touched = [v for v in entry if v.startswith(confirmatory.HOLDOUT_MARK)]
+    tree = [v for v in touched if "the tree's out-of-time check" in v]
+    assert len(tree) == 1 and len(touched) == 2, touched
+    assert (f"scored {o.loans:,} loans made {sc.holdout.text()}, after the pre-spec was written" in tree[0]
+            and scout.auc_words(sc) in tree[0])
+    # after the scouting line: the file was written before the tree read a held-back loan
+    assert entry.index(tree[0]) > next(i for i, v in enumerate(entry) if v.startswith("Scouting on"))
+    rec = tabs.record(b)
+    assert rec["Scouting out of time"] == scout.auc_words(sc)
+    # one Run, however many lines say it touched the holdout: counted once
+    assert rec["Runs that touched the holdout"] == "1 on Record's Every Run, this one included"
+
+
+def test_the_one_line_reads_built_then_unseen(wide):
+    sc = wide["sc"]
+    said = scout.auc_words(sc)
+    assert said == (f"Built on loans made {sc.development.text()}: AUC {sc.auc:.2f}. On loans made "
+                    f"{sc.holdout.text()}, unseen: {sc.oot.auc:.2f}. With FICO and CHANNEL in the forest too: "
+                    f"{sc.auc_held:.2f} built, {sc.oot.auc_held:.2f} unseen.")
+
+
+def test_new_variables_leads_with_the_tree_then_all_together_then_each_on_its_own(wide, tmp_path_factory):
+    from recalc import recalc
+    res, sc = wide["res"], wide["sc"]
+    j = res.prespec.joint
+    ws = load_workbook(wide["b"])[confirm_tab.SHEET]
+    where = {}
+    for r in range(1, ws.max_row + 1):
+        v = ws.cell(row=r, column=confirm_tab.FIRST).value
+        if isinstance(v, str) and v not in where:
+            where[v] = r
+    together = next(k for k in where if k.startswith("All ") and k.endswith("together, on the held-back loans"))
+    heads = [r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=confirm_tab.N_CAND).value == "Candidate"]
+    assert where["The tree on loans it never saw"] < where[together] < heads[0] < where["Each candidate on its own"] \
+        < heads[1]
+    assert ws.cell(row=where["The tree on loans it never saw"] + 1, column=confirm_tab.FIRST + 1).value == \
+        scout.auc_words(sc)
+    # the joint table: a row per group against its reference, the odds ratio together, and per candidate what it adds
+    calc = recalc(wide["b"], tmp_path_factory.mktemp("wide_calc"))[confirm_tab.SHEET]
+    seen = {}
+    r = heads[0] + 1
+    cand = None
+    while ws.cell(row=r, column=confirm_tab.J_COMP).value:
+        cand = ws.cell(row=r, column=confirm_tab.J_CAND).value or cand
+        seen[(cand, ws.cell(row=r, column=confirm_tab.J_COMP).value)] = r
+        r += 1
+    want = [(t.column, f"{g} vs {t.groups[t.ref]}") for t in j.terms for k, g in enumerate(t.groups) if k != t.ref]
+    assert list(seen) == want
+    for t in j.terms:
+        top = seen[(t.column, f"{t.groups[1 if t.ref == 0 else 0]} vs {t.groups[t.ref]}")]
+        assert ws.cell(row=top, column=confirm_tab.J_STAT).value == f"{t.lr:.2f} on {t.df}"
+        assert ws.cell(row=top, column=confirm_tab.J_PADD).value == pytest.approx(t.p_allowed, rel=1e-12)
+        adds = calc.cell(row=top, column=confirm_tab.J_ADDS).value
+        assert adds == ("Yes" if t.p_allowed < 0.05 else "No"), (t.column, adds)
+        for k, g in enumerate(t.groups):
+            if k != t.ref:
+                rr = seen[(t.column, f"{g} vs {t.groups[t.ref]}")]
+                assert ws.cell(row=rr, column=confirm_tab.J_ODDS).value == round(t.odds[k], 10)
+                lo, hi = (math.exp(t.beta[k] + s * 1.959963984540054 * t.se[k]) for s in (-1, 1))
+                assert calc.cell(row=rr, column=confirm_tab.J_RANGE).value == f"{lo:.2f}x to {hi:.2f}x"
+    # the planted inputs add something net of each other, and the line under the table says so
+    assert {t.column for t in j.terms} == PLANTED
+    found = calc.cell(row=_row_after(ws, heads[0], "What it found"), column=confirm_tab.FIRST + 1).value
+    assert found.startswith("Adds something the others don't: ") and all(c in found for c in PLANTED), found
+    # the method note says the two new things once each
+    note = {ws.cell(row=r, column=2).value for r in range(3, where["WHAT WAS TESTED"])}
+    assert {"The tree, unseen", "All together"} <= note
+
+
+def _row_after(ws, start: int, label: str) -> int:
+    return next(r for r in range(start, ws.max_row + 1) if ws.cell(row=r, column=confirm_tab.FIRST).value == label)
+
+
+def test_a_blank_cutoff_waits_for_an_answer_like_the_other_judgment_settings(tmp_path, monkeypatch):
+    """OC-13: the cutoff is suggested beside the setting and never chosen. Blank, the Run refuses by the cell, and
+    no loan is scouted or held back; answered with the suggestion, it runs on the date shown."""
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    x, b = _book(tmp_path, 3000, test=("UTIL", "TENURE"), cutoff=None)
+    ws = load_workbook(b)[control.SHEET]
+    r = control.row_of(ws, "cutoff")
+    cut, _, _ = _suggested(x)
+    before = sum(1 for row in _rows(x) if date.fromisoformat(row["ORIG_DATE"]) < cut)
+    assert ws.cell(row=r, column=control.CHOOSE_COL).value is None and not ws.row_dimensions[r].hidden
+    assert ws.cell(row=r, column=control.SUGGEST_COL).value == (
+        f"suggested: {cut.isoformat()}, from this extract: {before:,} loans before it, {3000 - before:,} on or after")
+    ran, res = _run(b, monkeypatch)
+    q = next(s.question for s in control.load_settings() if s.key == "cutoff")
+    assert not ran.ok and f'Control!C{r}: "{q}" needs an answer. Pick one, or enter your own in column D.' in \
+        ran.problems, ran.problems
+    assert not scout.prespec_for(b).exists() and scout.SHEET not in load_workbook(b).sheetnames
+    # a date typed under Or your own is used to the day
+    _control(b, cutoff=("own", date(2024, 3, 1)))
+    ran, res = _run(b, monkeypatch)
+    assert ran.ok, ran.lines
+    assert res.scout.cutoff == date(2024, 3, 1) and res.prespec.spec.holdout.start == date(2024, 3, 1)
+    assert tabs.record(b)["Loans made before this date find the candidates; the rest are held back"] == "2024-03-01"
+
+
+def test_the_cutoff_is_asked_only_when_scouting(wide, tmp_path):
+    """Control shows the cutoff for scouting and folds it away for a saved shortlist and for the bleed."""
+    b = tmp_path / "copy.xlsx"
+    shutil.copy(wide["b"], b)
+    for changes, hidden in (({}, False), ({"shortlist": "some.yaml", "run_kind": "new_variable"}, True),
+                            ({"run_kind": "bleed"}, True)):
+        if changes:
+            _choose(b, **changes)
+        ws = load_workbook(b)[control.SHEET]
+        assert ws.row_dimensions[control.row_of(ws, "cutoff")].hidden is hidden, changes

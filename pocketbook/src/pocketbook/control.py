@@ -287,7 +287,15 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         ws.add_data_validation(dv)
         dv.add(choose)
         own = ws.cell(row=r, column=OWN_COL)
-        if s.override is not None and s.valid:
+        if s.override is not None and is_date_setting(s):
+            dvd = DataValidation(type="date", operator="greaterThan", formula1="1", allow_blank=True,
+                                 showErrorMessage=True)
+            dvd.errorTitle = "Not a date"
+            dvd.error = f"Enter {s.override}."
+            ws.add_data_validation(dvd)
+            dvd.add(own)
+            own.number_format = "yyyy-mm-dd"
+        elif s.override is not None and s.valid:
             v = s.valid
             dvo = DataValidation(type="whole" if v.get("whole") else "decimal", operator="between",
                                  formula1=str(v["min"]), formula2=str(v["max"]), allow_blank=True,
@@ -589,8 +597,7 @@ def write_choices(ws, got, labels: dict[tuple[str, str], str]) -> None:
 def fold_launcher_rows(ws) -> None:
     """Show only the block's rows for what is being run: the new-variable rows fold away for the bleed."""
     from . import choices as ch
-    only_new = {"new_variable_step", PRESPEC_KEY} | {f"{ch.KEY}|{k}" for k in ("outcome", "test", "hold",
-                                                                                "find_share")}
+    only_new = {"new_variable_step", PRESPEC_KEY} | {f"{ch.KEY}|{k}" for k in ("outcome", "test", "hold")}
     kind_row = row_of(ws, "run_kind")
     s = next(x for x in load_settings() if x.key == "run_kind")
     got = _matching(s, ws.cell(row=kind_row, column=CHOOSE_COL).value) if kind_row else []
@@ -598,13 +605,20 @@ def fold_launcher_rows(ws) -> None:
     # a setting asked only for one kind of run is hidden for the other (the redesign, phase 4: a new-variable run
     # is asked only what it uses); with no kind chosen yet every setting shows
     kind = got[0].value if got else None
-    by_kind = {x.key for x in load_settings() if x.only_when and set(x.only_when) == {"run_kind"}
-               and kind is not None and not asked(x, {"run_kind": kind})}
+    # the cutoff (OC-51) hangs on the step as well: shown for scouting, hidden for a saved shortlist
+    step_row = row_of(ws, "new_variable_step")
+    st = next((x for x in load_settings() if x.key == "new_variable_step"), None)
+    step_got = _matching(st, ws.cell(row=step_row, column=CHOOSE_COL).value) if step_row and st else []
+    now = {"run_kind": kind}
+    if step_got:
+        now["new_variable_step"] = step_got[0].value
+    by_kind = {x.key for x in load_settings() if x.only_when and "run_kind" in x.only_when and kind is not None
+               and not all(now.get(k, v) == v for k, v in x.only_when.items())}
     for r in ws.iter_rows(min_row=FIRST_ROW):
         key = r[KEY_COL - 1].value
         if key in only_new:
             ws.row_dimensions[r[0].row].hidden = not new
-        elif isinstance(key, str) and any(x.key == key and x.only_when and set(x.only_when) == {"run_kind"}
+        elif isinstance(key, str) and any(x.key == key and x.only_when and "run_kind" in x.only_when
                                           for x in load_settings()):
             ws.row_dimensions[r[0].row].hidden = key in by_kind
     _method_for(ws, new)
@@ -683,9 +697,17 @@ def read_control(path, settings: list[Setting] | None = None) -> dict[str, Any]:
             later.append((row, s))          # read once the answer it hangs on is known
             continue
         _take(row, s, found, problems)
-    for row, s in later:
-        if asked(s, found):
-            _take(row, s, found, problems)
+    # a setting can hang on one that itself hangs on another (the cutoff on the step, the step on the kind of run):
+    # read in passes until nothing more is asked
+    while later:
+        now = [(row, s) for row, s in later if all(k in found or k not in by_key or not by_key[k].only_when
+                                                   for k in s.only_when)]
+        if not now:
+            break
+        for row, s in now:
+            if asked(s, found):
+                _take(row, s, found, problems)
+        later = [x for x in later if x not in now]
     for k in by_key:
         if k not in seen:
             problems.append(f'The {SHEET} tab is missing the setting "{by_key[k].question}". Press Set up again.')
@@ -699,6 +721,13 @@ def _take(row, s: Setting, found: dict[str, Any], problems: list[str]) -> None:
     key = s.key
     chosen, own = row[CHOOSE_COL - 1].value, row[OWN_COL - 1].value
     where = f"{SHEET}!C{row[0].row}"
+    if own not in (None, "", "n/a") and is_date_setting(s):
+        d = as_date(own)
+        if d is None:
+            problems.append(f'{SHEET}!D{row[0].row}: "{s.question}" needs {s.override}; got {own!r}.')
+        else:
+            found[key] = d
+        return
     if own not in (None, "", "n/a"):
         if s.override is None:
             problems.append(f'{where}: "{s.question}" takes one of the listed options only.')
@@ -767,6 +796,27 @@ def _matching(s: Setting, chosen: Any) -> list[Option]:
             and abs(float(o.value) - n) < 1e-9]
 
 
+def is_date_setting(s: Setting) -> bool:
+    """A setting whose own value is a date (OC-51: the cutoff)."""
+    return bool((s.valid or {}).get("date"))
+
+
+def as_date(v: Any):
+    """A date typed or picked in a cell, however Excel stored it: a date, a date and time, or text such as
+    2024-01-01. None when it isn't one."""
+    from datetime import date as _date, datetime as _dt
+    if isinstance(v, _dt):
+        return v.date()
+    if isinstance(v, _date):
+        return v
+    if isinstance(v, str):
+        try:
+            return _dt.strptime(v.strip()[:10], "%Y-%m-%d").date()
+        except ValueError:
+            return None
+    return None
+
+
 def answer_of(key: str, choose: Any, own: Any) -> Any:
     """One setting's answer from its two cells, or None when there isn't a usable
     one: a valid own value first, then the option picked. For Set up, which reads
@@ -774,6 +824,8 @@ def answer_of(key: str, choose: Any, own: Any) -> Any:
     s = next((x for x in load_settings() if x.key == key), None)
     if s is None:
         return None
+    if is_date_setting(s) and own not in (None, "", "n/a"):
+        return as_date(own)
     n = _as_number(own) if own not in (None, "", "n/a") else None
     v = s.valid or {}
     if n is not None and v.get("min", -math.inf) <= n <= v.get("max", math.inf):

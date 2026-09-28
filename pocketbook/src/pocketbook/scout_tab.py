@@ -63,10 +63,11 @@ def _method(sc, stamp: str) -> list[tuple[str, str]]:
         ("What it is", f"Scouting: which of the {n} candidates the book leans on, and where each one bends. It "
                        f"nominates; it never confirms (statistics.md B7). The confirmation is the New variables tab, "
                        f"on loans scouting never read."),
-        ("Found on", f"{sc.n_dev:,} development loans made {sc.development.text()}, {sc.n_dev_bad:,} of them bad: the "
-                     f"first {sc.share:.0%} of the loans by origination date. The {sc.n_held_back:,} loans made after "
-                     f"them are held back. Only their dates were read here, to draw the line and to name the "
-                     f"holdout's range; their outcomes and every other value were not."
+        ("Found on", f"{sc.n_dev:,} development loans made {sc.development.text()}, {sc.n_dev_bad:,} of them bad: "
+                     f"every loan made before the cutoff on Control, {sc.cutoff.isoformat()}. The "
+                     f"{sc.n_held_back:,} loans made on or after it are held back. Only their dates were read to "
+                     f"rank the candidates and cut their bins; their outcomes and every other value were read only "
+                     f"once the pre-spec was written, to check the tree on them (the New variables tab)."
                      + (f" Left out: {'; '.join(f'{v:,} with {k}' for k, v in sc.left_out.items())}."
                         if sc.left_out else "")),
         ("Candidates", "The columns ticked Test it in the launcher, and every new column made on Columns (one column "
@@ -336,6 +337,9 @@ def check_rows(res) -> list[tuple[str, str]]:
            ("Scouting held back", f"{sc.n_held_back:,} loans made {sc.holdout.text()}: none of their outcomes or "
                                   f"values was read by scouting."),
            ("Scouting's pre-spec", " ".join(file_words(sc)))]
+    o = sc.oot
+    if o is not None:
+        out.append(("Scouting out of time", scout.auc_words(sc) or f"Couldn't be worked out: {o.problem}."))
     out.append(("Tests: scouting", f"A random forest (scikit-learn {sc.version}, {scout.TREES} trees, leaves of at "
                                    f"least {scout.LEAF}, seed {scout.SEED}) ranking by permutation importance, "
                                    f"cross-fitted in {scout.FOLDS} runs by date, against a noise floor from shuffled "
@@ -345,3 +349,18 @@ def check_rows(res) -> list[tuple[str, str]]:
 
 def launcher_lines(res) -> list[str]:
     return log_lines(res)
+
+
+def held_back_lines(res) -> list[str]:
+    """The Log's line for the tree's out-of-time check (OC-51): it read the held-back loans, so it is a touch of the
+    holdout, recorded as the test's is (confirmatory.HOLDOUT_MARK)."""
+    from .confirmatory import HOLDOUT_MARK
+    sc = getattr(res, "scout", None)
+    o = getattr(sc, "oot", None)
+    if o is None:
+        return []
+    if o.problem:
+        return [f"{HOLDOUT_MARK} the tree's out-of-time check read the loans made {o.held_back.text()} and couldn't "
+                f"score them: {o.problem}."]
+    return [f"{HOLDOUT_MARK} the tree's out-of-time check scored {o.loans:,} loans made {o.held_back.text()}, "
+            f"after the pre-spec was written. " + scout.auc_words(sc)]

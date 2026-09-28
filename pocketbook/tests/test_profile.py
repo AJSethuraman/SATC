@@ -113,7 +113,8 @@ def test_a_filled_control_tab_fills_the_judgment(tmp_path):
     for r in ws.iter_rows(min_row=control.FIRST_ROW):
         key = r[control.KEY_COL - 1].value
         s = next((x for x in control.load_settings() if x.key == key), None)
-        if s and s.judgment:
+        # the bleed's judgments: the cutoff is asked only when scouting (OC-51)
+        if s and s.judgment and control.asked(s, {"run_kind": "bleed"}) or key == "run_kind":
             plain = [o for o in s.options if o.value not in ("calc", "luck")]      # suggestions aside
             # the bleed analysis, which is asked every judgment (a new variable isn't asked the pockets' floors)
             r[control.CHOOSE_COL - 1].value = plain[0 if key == "run_kind" else 1].shown

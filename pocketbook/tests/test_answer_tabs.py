@@ -121,7 +121,8 @@ def test_control_holds_changes_now_then_needs_a_run_then_the_launchers_choices(r
     a, bb, c = rows[control.BLOCK_NOW], rows[control.BLOCK_RUN], rows["launcher|head"]
     assert a < bb < c
     assert [k for k, r in sorted(rows.items(), key=lambda t: t[1]) if a < r < bb] == list(control.NOW_KEYS)
-    assert [k for k, r in sorted(rows.items(), key=lambda t: t[1]) if bb < r < c] == list(control.RUN_KEYS)
+    # the cutoff (OC-51) closes Block B: asked only when scouting, it moves no row a bleed run reads
+    assert [k for k, r in sorted(rows.items(), key=lambda t: t[1]) if bb < r < c] == list(control.RUN_KEYS) + ["cutoff"]
     assert "run_kind" in rows and rows["run_kind"] > c
     # the bands: INK with a red rule, SLATE with a STONE rule, MIST
     assert _hex(ws.cell(row=a, column=2).fill.fgColor) == house.INK
@@ -272,7 +273,7 @@ def test_a_new_variable_run_is_not_asked_the_profit_line_and_check_does_not_echo
 
 _PICK = {"min_loans": "30", "min_events": "10", "materiality": "1% of the book's total losses",
          "compare_to": "The rest of its band", "worse_at": "1.25 times", "better_at": "0.8 times",
-         "confidence": "95%"}
+         "confidence": "95%", "cutoff": "The month start nearest 70% of the loans (suggested)"}
 
 
 def _config_without_profit_line():
@@ -383,7 +384,9 @@ def test_a_blank_answer_and_an_odd_value_are_counted_on_start_here_as_they_are_l
     out = book.set_up(synth.write_extract(tmp_path, n=1500), choices=ch.Choices(run_kind=ch.BLEED))
     got = _calc(out.book, tmp_path / "calc0")
     ws = got["Start here"]
-    judged = [s for s in control.load_settings() if s.judgment and not s.in_launcher]
+    # the bleed's: the cutoff is asked only when scouting (OC-51)
+    judged = [s for s in control.load_settings() if s.judgment and not s.in_launcher
+              and control.asked(s, {"run_kind": ch.BLEED})]
     # the Run's refusal's own count: each blank answer on Control, and Checked every column
     assert _tile(ws, book.NEEDED) == len(judged) + 1 == len(book.read_book(out.book)[1])
     assert _tile(ws, "Odd values to answer") >= 2

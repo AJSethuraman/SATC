@@ -216,6 +216,7 @@ def test_scouting_is_refused_on_its_own_minimum_by_the_launcher_cells(tmp_path, 
     """Scouting is built (Goal 2 item 9; it was refused as not built until then). It needs an outcome and something
     to rank, both chosen in the launcher; without the outcome it is refused by that cell, before anything runs."""
     x, b = _new_variable(tmp_path, monkeypatch, step=SCOUT)
+    _control(b, cutoff="The month start nearest 70% of the loans (suggested)")      # OC-51: answered on Control
     got, cells = control.read_choices(load_workbook(b)[control.SHEET])
     assert got.outcome is None
     text = _refused(book.run(b))

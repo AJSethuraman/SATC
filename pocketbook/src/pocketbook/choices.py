@@ -19,12 +19,10 @@ from dataclasses import dataclass, replace
 BLEED, NEW_VARIABLE = "bleed", "new_variable"
 #: the Control rows the launcher writes that aren't settings, in the order they show, with their labels
 ROWS = (("bands", "Cut into bands"), ("segments", "Segment by"), ("split", "Split every pocket by"),
-        ("outcome", "Tested against"), ("test", "Inputs tested"), ("hold", "Held fixed"),
-        ("find_share", "Found on"))
+        ("outcome", "Tested against"), ("test", "Inputs tested"), ("hold", "Held fixed"))
 KEY = "launcher"                  # Control's key column reads "launcher|bands" and so on
 #: what the bands and segments rows read when nobody narrowed them: every column its meaning cuts
 EVERY = {"bands": "Every number column", "segments": "Every category"}
-SHARES = (0.5, 0.6, 0.7, 0.8)
 
 
 def names(text) -> tuple[str, ...]:
@@ -45,7 +43,6 @@ class Choices:
     outcome: str | None = None
     test: tuple[str, ...] = ()
     hold: tuple[str, ...] = ()
-    find_share: float = 0.7
     shortlist: str | None = None            # the saved pre-spec file, confirmed instead of finding
     few_values: int = 12
     many_values: int = 50
@@ -64,9 +61,7 @@ class Choices:
                "split": self.split,
                "outcome": self.outcome if new else None,
                "test": ", ".join(self.test) if new and self.test else None,
-               "hold": ", ".join(self.hold) if new and self.hold else None,
-               "find_share": (f"{pct(self.find_share)}, confirmed on the rest" if new and not self.shortlist
-                              else None)}
+               "hold": ", ".join(self.hold) if new and self.hold else None}
         return out
 
     @classmethod
@@ -77,13 +72,9 @@ class Choices:
             if v in (None, "") or v == EVERY.get(k):
                 return None
             return () if v == "None" else names(v)
-        share = 0.7
-        text = str(got.get("find_share") or "")
-        if text[:2].isdigit():
-            share = int(text[:2]) / 100
         return cls(bands=listed("bands"), segments=listed("segments"), split=got.get("split") or None,
                    outcome=got.get("outcome") or None, test=names(got.get("test")), hold=names(got.get("hold")),
-                   find_share=share, **settings)
+                   **settings)
 
     def but(self, **changes) -> "Choices":
         return replace(self, **changes)

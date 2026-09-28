@@ -61,7 +61,7 @@ import hashlib
 import math
 import re
 
-from . import control, engine, kgroups, perm, prespec
+from . import control, engine, joint, kgroups, perm, prespec
 
 HOLDOUT_MARK = "Touched the holdout:"       # how a Log line says a run touched the holdout; Check counts them
 DEVIATES = "Deviates from pre-spec"          # how a Log line labels a run that differs from its pre-spec
@@ -98,6 +98,8 @@ class State:
     #: written by this Run's scouting (Goal 2 item 9), or beside the workbook where scouting writes it: found on this
     #: Run's development loans, so the New variables tab shows its Found columns
     scouted: bool = False
+    #: every input together on the held-back loans (OC-51, joint.py); None before the tests have run
+    joint: object = None
 
     @property
     def name(self) -> str:
@@ -174,7 +176,9 @@ def state(book, about: dict, res) -> State | None:
                fingerprint=fingerprint(ps.text), scouted=bool(got.get("scouted")))
     try:
         ps = st.spec = prespec.named(ps, ranges={c: column_range(res, c) for c in ps.columns})
-        st.tests = run_tests(res, ps)
+        labels = pockets_of(res, ps)
+        st.tests = run_tests(res, ps, labels)
+        st.joint = joint.run(res, ps, st.tests, labels, allowance(res))    # OC-51: every input together
         st.deviations = [_plain(x) for x in prespec.deviations(ps, in_use(res, ps, st.tests), where="in this run")]
         dates, why = origination_dates(res)
         if dates is None:
@@ -304,7 +308,9 @@ def holdout_runs(book, loaded=None) -> int:
     except Exception:
         return 0
     try:
-        return sum(1 for _, lines in record.entries(wb) for v in lines if v.startswith(HOLDOUT_MARK))
+        # runs, not lines: one Run touches the holdout twice when it scouts (the tree's out-of-time check, then the
+        # test), and says each on a line of its own (OC-51)
+        return sum(1 for _, lines in record.entries(wb) if any(v.startswith(HOLDOUT_MARK) for v in lines))
     finally:
         if loaded is None:
             wb.close()
@@ -543,13 +549,20 @@ def run_test(res, ps: prespec.PreSpec, inp: prespec.Input | None = None, labels=
     return t
 
 
-def run_tests(res, ps: prespec.PreSpec) -> list[Test]:
+def pockets_of(res, ps: prespec.PreSpec) -> list[tuple] | None:
+    """Each extract loan's pocket, the pre-spec's strata cut as the grids cut them; None when they can't be."""
+    if res.table is None or _reader(res)[0] is None:
+        return None
+    return _stratum_labels(res, tuple(ps.strata), res.table.rows)[0]
+
+
+def run_tests(res, ps: prespec.PreSpec, labels=None) -> list[Test]:
     """The confirmatory test of every input on the shortlist, in the pre-spec's order, each on the same pockets (the
-    pre-spec's strata, cut once), then the allowance for testing them all at once (`allow`)."""
+    pre-spec's strata, cut once: `labels`, worked out here when not given), then the allowance for testing them all
+    at once (`allow`)."""
     perm.numpy()
-    labels = None
-    if res.table is not None and _reader(res)[0] is not None:
-        labels, _ = _stratum_labels(res, tuple(ps.strata), res.table.rows)
+    if labels is None:
+        labels = pockets_of(res, ps)
     tests = [run_test(res, ps, inp, labels) for inp in ps.inputs]
     allow(tests, allowance(res))
     return tests

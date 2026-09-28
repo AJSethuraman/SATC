@@ -5,11 +5,17 @@ The firm, 26 Sep 2026: scouting is "to try and guess importance ... it should be
 scouting pipeline" (OC-39). Wide: dozens of candidates. The confirmation stays narrow: the shortlist, on the loans
 held back.
 
-WHAT IT READS. The loans are ordered by origination date, and the first `find_share` of them (the launcher's "Find
-on 70%") are the development loans; the rest are held back. Only the dates of the held-back loans are read, to draw
-the line and to name the holdout's range in the pre-spec; their outcome and every other value are never read here.
-`development_rows` picks the development loans from the dates alone, and everything after it sees only those.
-A test changes every held-back outcome and gets the identical shortlist.
+WHAT IT READS. The analyst picks a cutoff date on Control (OC-51; suggested, never pre-chosen: `suggest_cutoff`, the
+month start nearest 70% of the loans). Loans made before it are the development loans; loans made on or after it are
+held back. Only the dates of the held-back loans are read, to draw the line and to name the holdout's range in the
+pre-spec; their outcome and every other value are never read by `run`. `development_rows` picks the development
+loans from the dates alone, and everything after it sees only those. A test changes every held-back outcome and gets
+the identical shortlist.
+
+THE TREE'S OUT-OF-TIME CHECK (OC-51; the firm, 27 Sep 2026: "tree guesses on 2024 data if 2022-2023 are used to build
+branches"). `out_of_time`, called only after the pre-spec is written and read: forests grown on every development
+loan, with the held-fixed columns and without them, score the held-back loans, and their AUC there is set beside the
+cross-fitted AUC on the development loans. It is a touch of the holdout, and Record's Log says so.
 
 WHAT IT DOES, as docs/scout-vs-measure.py does it, with the changes said in `docs/design.md` OC-50:
 - Candidates: the columns ticked Test it, and every new column made on Columns (one column divided by another),
@@ -133,7 +139,7 @@ class Candidate:
 class Scouting:
     outcome: str
     hold: tuple[str, ...]
-    share: float
+    cutoff: date | None
     candidates: list[Candidate] = field(default_factory=list)          # ranked
     held: list[tuple[str, float]] = field(default_factory=list)        # the held-fixed columns' own importance
     floor: float | None = None
@@ -156,10 +162,31 @@ class Scouting:
     differs: list[str] = field(default_factory=list)
     fingerprint: str = ""
     written_on: date | None = None
+    #: the tree's out-of-time check (`out_of_time`), once the pre-spec is written; None before, or when not run
+    oot: "OutOfTime | None" = None
+    #: kept from `run` for `out_of_time`: the forests grown on every development loan, and each category's values
+    forests: dict = field(default_factory=dict, repr=False)
+    levels: dict = field(default_factory=dict, repr=False)
 
     @property
     def proposed(self) -> list[Candidate]:
         return [c for c in self.candidates if c.proposed]
+
+
+@dataclass
+class OutOfTime:
+    """The tree on loans it never saw: forests grown on every development loan score the held-back loans."""
+    held_back: prespec.DateRange | None       # when the held-back loans scored were made
+    loans: int = 0                             # held-back loans scored (a readable outcome)
+    bad: int = 0
+    auc: float | None = None                   # the candidates alone
+    auc_held: float | None = None              # with the held-fixed columns; None when nothing is held fixed
+    left_out: dict[str, int] = field(default_factory=dict)
+    problem: str | None = None
+    #: what the AUCs were worked out from, for a test to check them independently
+    y: object = field(default=None, repr=False)
+    scores: object = field(default=None, repr=False)
+    scores_held: object = field(default=None, repr=False)
 
 
 WROTE, KEPT, SAME = "wrote", "kept", "same"
@@ -169,14 +196,39 @@ WROTE, KEPT, SAME = "wrote", "kept", "same"
 # The loans
 
 
-def development_rows(res, share: float) -> tuple[list[int], date, date, date, int, str | None]:
-    """The development loans: the first `share` of the loans with a readable origination date, by that date.
-    Returns (their row numbers in date order, the first and last development date, the last date of all, how many
-    loans were made after the development range, why not). Reads the dates and nothing else."""
+#: the share of loans the suggested cutoff sits nearest (the launcher's old "Find on 70%"; OC-51 keeps it only here)
+SUGGEST_SHARE = 0.7
+#: Control's cutoff options that are worked out from the dates, by the share of loans each sits nearest
+CUTOFF_SHARES = {"calc": SUGGEST_SHARE, "calc80": 0.8}
+
+
+def suggest_cutoff(dates, share: float = SUGGEST_SHARE) -> date | None:
+    """The suggested cutoff (OC-51, OC-13: shown beside the setting, never chosen for you): the first day of a month,
+    the one nearest the date by which `share` of the loans had been made, keeping at least one loan on each side.
+    None when there aren't two dated loans on different days."""
+    dated = sorted(d for d in dates if d is not None)
+    if len(dated) < 2 or dated[0] == dated[-1]:
+        return None
+    at = dated[max(1, math.ceil(share * len(dated))) - 1]
+    this = at.replace(day=1)
+    nxt = (this + timedelta(days=32)).replace(day=1)
+    picks = sorted((this, nxt), key=lambda d: (abs((d - at).days), d))
+    for d in picks:
+        if dated[0] < d <= dated[-1]:
+            return d
+    return dated[-1]                          # every loan in one month or two: the last day still leaves one each side
+
+
+def development_rows(res, cutoff: date) -> tuple[list[int], date, date, date, int, str | None]:
+    """The development loans: those with a readable origination date before `cutoff`. Returns (their row numbers in
+    date order, the first date of all, the day before the cutoff, the last date of all, how many loans were made on
+    or after the cutoff, why not). Reads the dates and nothing else."""
     from .confirmatory import _date_or_none, _reader
     read, why = _reader(res)
     if read is None:
         return [], None, None, None, 0, f"the loans can't be split into development and held back: {why}"
+    if cutoff is None:
+        return [], None, None, None, 0, "no cutoff date is chosen on Control"
     col = res.config.origination_date
     dated = []
     for i, r in enumerate(res.table.rows):
@@ -186,14 +238,15 @@ def development_rows(res, share: float) -> tuple[list[int], date, date, date, in
     if not dated:
         return [], None, None, None, 0, "no loan has a readable origination date"
     dated.sort()
-    k = max(1, math.ceil(share * len(dated)))
-    last_dev = dated[k - 1][0]
-    dev = [i for d, i in dated if d <= last_dev]
+    dev = [i for d, i in dated if d < cutoff]
     after = len(dated) - len(dev)
+    if not dev:
+        return [], None, None, None, 0, (f"no loan was made before the cutoff, {cutoff.isoformat()}: the first was "
+                                         f"made {dated[0][0].isoformat()}")
     if not after:
-        return [], None, None, None, 0, (f"every dated loan was made on or before {last_dev.isoformat()}, so none "
-                                         f"is left to hold back")
-    return dev, dated[0][0], last_dev, dated[-1][0], after, None
+        return [], None, None, None, 0, (f"no loan was made on or after the cutoff, {cutoff.isoformat()}: the last "
+                                         f"was made {dated[-1][0].isoformat()}, so none is left to hold back")
+    return dev, dated[0][0], cutoff - timedelta(days=1), dated[-1][0], after, None
 
 
 def _kind(res, name: str) -> str:
@@ -218,9 +271,10 @@ def candidates_of(res, chosen) -> list[str]:
     return out
 
 
-def _values(res, rows: list[dict], name: str, kind: str):
+def _values(res, rows: list[dict], name: str, kind: str, levels: list[str] | None = None):
     """One column over the development loans, as numbers (a category as its value's place in sorted order), NaN
-    where unreadable."""
+    where unreadable. `levels`: a category's values as the development loans have them, for the held-back loans
+    (a value they never had is NaN)."""
     import numpy as np
     rule = res.config.missing.get(name)
     if kind == NUMBER:
@@ -228,7 +282,8 @@ def _values(res, rows: list[dict], name: str, kind: str):
         return np.array([v if why is None else np.nan for v, why in vals], dtype=float), None
     labels = [engine.classify_text(r.get(name), rule) for r in rows]
     blank = {engine.BLANK_LABEL, engine.MISSING_RULE_LABEL}
-    levels = sorted({x for x in labels if x not in blank})
+    if levels is None:
+        levels = sorted({x for x in labels if x not in blank})
     where = {x: i for i, x in enumerate(levels)}
     return np.array([where.get(x, np.nan) for x in labels], dtype=float), levels
 
@@ -472,9 +527,10 @@ def _reference(v, bins: tuple[float, ...]) -> int:
 # The whole scouting step
 
 
-def run(res, chosen, confidence: float | None = None) -> Scouting:
-    """Scout the development loans for the candidates `chosen` names (choices.Choices: test, hold, outcome,
-    find_share). Never raises for the data: a problem is said on `problem`. Raises ScoutMissing without scikit-learn."""
+def run(res, chosen, confidence: float | None = None, cutoff: date | None = None) -> Scouting:
+    """Scout the development loans, those made before `cutoff`, for the candidates `chosen` names (choices.Choices:
+    test, hold, outcome). Never raises for the data: a problem is said on `problem`. Raises ScoutMissing without
+    scikit-learn."""
     why = missing()
     if why:
         raise ScoutMissing(why)
@@ -483,7 +539,7 @@ def run(res, chosen, confidence: float | None = None) -> Scouting:
     m = next((x for x in res.measures if x.name == "outcome_loans"), None)
     outcome = m.flag if m is not None else (chosen.outcome or "")
     b = res.config.benchmark
-    sc = Scouting(outcome=outcome, hold=tuple(chosen.hold or ()), share=chosen.find_share,
+    sc = Scouting(outcome=outcome, hold=tuple(chosen.hold or ()), cutoff=cutoff,
                   confidence=confidence if confidence is not None else (b.confidence if b is not None else 0.95),
                   version=version())
     names = candidates_of(res, chosen)
@@ -498,7 +554,7 @@ def run(res, chosen, confidence: float | None = None) -> Scouting:
     if gone:
         sc.problem = f"{', '.join(gone)} isn't among the columns this run read"
         return sc
-    dev, first, last_dev, last, after, why = development_rows(res, chosen.find_share)
+    dev, first, last_dev, last, after, why = development_rows(res, cutoff)
     if why:
         sc.problem = why
         return sc
@@ -518,12 +574,20 @@ def run(res, chosen, confidence: float | None = None) -> Scouting:
         sc.problem = "no development loan went bad" if not sc.n_dev_bad else "every development loan went bad"
         return sc
     cands = [Candidate(c, _kind(res, c)) for c in names]
+    sc.forests = {"names": list(names)}
     cols = []
     for c in cands:
-        v, _ = _values(res, rows, c.name, c.kind)
+        v, lv = _values(res, rows, c.name, c.kind)
         c.loans = int((~np.isnan(v)).sum())
         cols.append(v)
-    held_cols = [_values(res, rows, h, _kind(res, h))[0] for h in sc.hold]
+        if lv is not None:
+            sc.levels[c.name] = lv
+    held_cols = []
+    for h in sc.hold:
+        v, lv = _values(res, rows, h, _kind(res, h))
+        held_cols.append(v)
+        if lv is not None:
+            sc.levels[h] = lv
     X = np.column_stack(cols)
     imp, sc.auc = importances(X, y)
     for c, v in zip(cands, imp):
@@ -539,6 +603,7 @@ def run(res, chosen, confidence: float | None = None) -> Scouting:
 
     # the shape and the bins, from a forest grown on every development loan
     rf = _forest().fit(Xh, y)
+    sc.forests.update({"held" if held_cols else "plain": rf, "dev": (X, y)})
     for j, (c, v) in enumerate(zip(cands, cols)):
         if c.kind != NUMBER:
             continue
@@ -580,6 +645,72 @@ def run(res, chosen, confidence: float | None = None) -> Scouting:
         c.rank = i
     sc.candidates = cands
     return sc
+
+
+def out_of_time(res, sc: Scouting) -> OutOfTime | None:
+    """The tree's out-of-time check (OC-51): forests grown on every development loan score the loans made on or after
+    the cutoff, and their AUC there is worked out, with the held-fixed columns in the forest and without them. Call it
+    only once the pre-spec is written and read: this reads the held-back loans' outcomes and values, which is a touch
+    of the holdout (Record's Log says so). None when scouting didn't get as far as a forest."""
+    if sc.problem or "dev" not in sc.forests or sc.cutoff is None:
+        return None
+    import numpy as np
+    from . import confirmatory
+    oot = sc.oot = OutOfTime(held_back=sc.holdout)
+    m = next((x for x in res.measures if x.name == "outcome_loans"), None)
+    read, why = confirmatory._reader(res)
+    if read is None or m is None:
+        oot.problem = why or "this run has no yes/no outcome"
+        return oot
+    col = res.config.origination_date
+    rows, ys = [], []
+    for r in res.table.rows:
+        d = confirmatory._date_or_none(read(r.get(col)))
+        if d is None or d < sc.cutoff:
+            continue
+        y = confirmatory.outcome_of(r.get(m.flag), m, res.config.missing)
+        if y is None:
+            oot.left_out["no readable outcome"] = oot.left_out.get("no readable outcome", 0) + 1
+            continue
+        rows.append(r)
+        ys.append(y)
+    y = np.array(ys, dtype=int)
+    oot.loans, oot.bad = len(y), int(y.sum())
+    if not oot.loans or not oot.bad or oot.bad == oot.loans:
+        oot.problem = ("no held-back loan has a readable outcome" if not oot.loans else
+                       "no held-back loan went bad" if not oot.bad else "every held-back loan went bad")
+        return oot
+    kinds = {c.name: c.kind for c in sc.candidates}
+    # the columns in the order `run` fed them to the forest: the candidates as candidates_of named them, then held
+    cols = [_values(res, rows, n, kinds[n], sc.levels.get(n))[0] for n in sc.forests["names"]]
+    held = [_values(res, rows, h, _kind(res, h), sc.levels.get(h))[0] for h in sc.hold]
+    plain = sc.forests.get("plain")
+    if plain is None:
+        Xd, yd = sc.forests["dev"]
+        plain = sc.forests["plain"] = _forest().fit(Xd, yd)
+    oot.y = y
+    oot.scores = proba(plain, np.column_stack(cols))
+    oot.auc = _auc(y, oot.scores)
+    if held and "held" in sc.forests:
+        oot.scores_held = proba(sc.forests["held"], np.column_stack(cols + held))
+        oot.auc_held = _auc(y, oot.scores_held)
+    return oot
+
+
+def auc_words(sc: Scouting) -> str | None:
+    """The one plain line: "Built on loans made 2022-01-01 to 2023-12-31: AUC 0.71. On loans made 2024-01-01 to
+    2024-12-31, unseen: 0.69." With columns held fixed, the forest with them in it is said too. None when the check
+    didn't run."""
+    o = getattr(sc, "oot", None)
+    if o is None or o.problem or o.auc is None:
+        return None
+    built = f"{sc.auc:.2f}" if sc.auc is not None else "not worked out"
+    said = (f"Built on loans made {sc.development.text()}: AUC {built}. On loans made {o.held_back.text()}, "
+            f"unseen: {o.auc:.2f}.")
+    if o.auc_held is not None:
+        bh = f"{sc.auc_held:.2f}" if sc.auc_held is not None else "not worked out"
+        said += f" With {' and '.join(sc.hold)} in the forest too: {bh} built, {o.auc_held:.2f} unseen."
+    return said
 
 
 def _pairs(cands, cols, held) -> None:

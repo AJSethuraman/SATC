@@ -223,8 +223,10 @@ def test_l2_the_summary_says_what_will_run_in_both_modes(tmp_path):
     for c in ("CHANNEL", "ORIG_BAL", "ASSET_CLASS", "REV_DEBT"):
         f.click(c, "b")
     f.click("FICO", "c")
-    assert f.summary() == (True, "4 inputs (CHANNEL, ORIG_BAL, ASSET_CLASS, REV_DEBT) against BAD_FLAG, each with "
-                                 "and without FICO held fixed: 8 tests, found on 70% and confirmed on 30%.")
+    # OC-51: the line between found and held back is the cutoff on Control, no longer a share picked here
+    assert f.summary() == (True, "4 inputs (CHANNEL, ORIG_BAL, ASSET_CLASS, REV_DEBT) against BAD_FLAG, with and "
+                                 "without FICO held fixed: found on the loans made before the cutoff you pick on "
+                                 "Control, then tested together and one by one on the rest.")
 
 
 def test_l2_next_is_off_until_there_is_a_grid_to_run(tmp_path):

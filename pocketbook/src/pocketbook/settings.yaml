@@ -71,13 +71,35 @@ groups:
           - value: scout
             label: "Scout first"
             explains: >-
-              Rank each column ticked Test it on the development loans, write the pre-spec from
-              the ones worth testing, then confirm it on the loans held back. Needs scikit-learn.
+              The main path: the tree ranks the ticked columns on loans before the cutoff, to write
+              the pre-spec and confirm it on the loans held back. Needs scikit-learn.
           - value: prespec
             label: "Test from a pre-spec"
             explains: >-
-              Test the column the pre-spec names, once, on the loans it kept back. The
-              launcher names the pre-spec file.
+              Or test a shortlist saved earlier, once, on the loans it kept back. The launcher
+              names the pre-spec file.
+
+      # OC-51 (the firm, 27 Sep 2026: "tree guesses on 2024 data if 2022-2023 are used to build branches"): the
+      # line between the loans the tree is built on and the loans it is checked on. A judgment call (OC-13): the
+      # suggestion is worked out from the extract's dates and shown beside it, never picked for you. It replaces the
+      # launcher's "Find on 70%", which is now only where the suggestion comes from.
+      - key: cutoff
+        question: Loans made before this date find the candidates; the rest are held back
+        takes_effect: re-run
+        judgment: true
+        only_when: {run_kind: new_variable, new_variable_step: scout}
+        override: a date, such as 2024-01-01
+        valid: {date: true}
+        options:
+          - value: calc
+            label: The month start nearest 70% of the loans (suggested)
+            explains: >-
+              Worked out from this extract's dates: the first of the month by which about 70% of the
+              loans had been made. The tree learns on the loans before it.
+          - value: calc80
+            label: The month start nearest 80% of the loans
+            explains: >-
+              The same at 80%: more loans to find on, fewer held back to confirm on.
 
   - title: How columns are recognised
     settings:

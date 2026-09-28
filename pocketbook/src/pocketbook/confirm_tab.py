@@ -2,6 +2,11 @@
 from bad on loans it was never found on, and once the held-fixed columns are held fixed? It replaces the
 Confirmatory test tab and keeps every statistic that tab showed.
 
+It leads (OC-51; the firm, 27 Sep 2026: "tree guesses on 2024 data if 2022-2023 are used to build branches -->
+regress shortlist?") with the tree on loans it never saw, one line, when this Run scouted; then every candidate
+together in one regression on the held-back loans (joint.py): each group's odds ratio net of the other candidates,
+and what each candidate adds net of them; then each candidate on its own, as below.
+
 A test of a new variable today confirms a saved shortlist, the pre-spec: its column cut into groups, each group
 compared with the reference group. Each row of the table is one candidate comparison, a group against the reference:
 
@@ -33,7 +38,7 @@ from openpyxl.chart.series import SeriesLabel
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-from . import house, live
+from . import house, joint, live
 
 SHEET = "New variables"
 OLD_SHEET = "Confirmatory test"                            # the tab this replaces; a Run takes it off
@@ -139,17 +144,18 @@ def _method(res, st, tests, excesses, stamp: str) -> list[tuple[str, object]]:
     from . import confirmatory
     t = tests[0]
     one = len(tests) == 1
+    lead = _method_lead(res, st)
     Ks = sorted({len(x.groups) for x in tests})
     K = Ks[0] if len(Ks) == 1 else None
     ref = t.groups[t.ref] if one else "its reference group"
     held = _held_words(t.strata)
     dev, hold = t.development, t.holdout
     if one:
-        out = [("The column", f"{t.column}, in {K} groups: {'; '.join(t.groups)}. The groups are the pre-spec's."),
+        out = lead + [("The column", f"{t.column}, in {K} groups: {'; '.join(t.groups)}. The groups are the pre-spec's."),
                ("Compared with", f"{ref}, the pre-spec's reference group. Every other group is compared with it.")]
     else:
         where = "the shortlist scouting wrote" if getattr(st, "scouted", False) else "the saved shortlist"
-        out = [("The candidates", f"{len(tests)} inputs on {where}, each in its own groups, the "
+        out = lead + [("The candidates", f"{len(tests)} inputs on {where}, each in its own groups, the "
                                   f"pre-spec's: " + "; ".join(f"{x.column} in {len(x.groups)} groups "
                                                              f"({', '.join(x.groups)})" for x in tests) + "."),
                ("Compared with", "Each candidate's own reference group, the pre-spec's: "
@@ -257,10 +263,186 @@ def _method(res, st, tests, excesses, stamp: str) -> list[tuple[str, object]]:
         "others are fitted as if its loans weren't there, which is where the regression heads anyway.",
         "Excess is scaled to the whole book by its losses over the held-back loans' losses.",
         "The allowance treats each set of loans as one family, every candidate's groups together, as a grid's "
-        "pockets are one family per rate."))))
+        "pockets are one family per rate.",
+        *(["All together gives each pocket its own constant rather than conditioning the pockets out, and refuses "
+           f"when they average under {joint.MIN_BAD_PER_POCKET} bad loans each (statistics.md B10)."]
+          if _joint_shown(st) else [])))))
     out.append(("As of", f"The numbers are the last Run's, {stamp}. Holds up?, Still holds?, Material?, In words, "
                          f"every range and the chart's worse line follow Control."))
     return out
+
+
+def _joint_shown(st) -> bool:
+    """Whether the tab shows every candidate together: two candidates or more ran (with one, together is alone)."""
+    j = getattr(st, "joint", None)
+    return j is not None and len([t for t in getattr(st, "tests", None) or () if t.problem is None]) > 1
+
+
+def _method_lead(res, st) -> list[tuple[str, object]]:
+    """The method note's first items (OC-51): the tree on loans it never saw, and every candidate together."""
+    from . import scout
+    out = []
+    sc = getattr(res, "scout", None)
+    if sc is not None and getattr(sc, "oot", None) is not None:
+        held = " and ".join(sc.hold)
+        out.append(("The tree, unseen", "The random forest from the Scouting tab, grown on every loan made before the "
+                                        f"cutoff ({sc.cutoff.isoformat()}), scores the loans made on or after it, "
+                                        "which it never saw. AUC is the chance a random bad loan scores above a "
+                                        "random good one: 0.5 is a coin flip, 1 is perfect. Built is the forest's "
+                                        "AUC on the development loans, each scored by a forest grown on the others "
+                                        "(the Scouting tab); unseen is on the held-back loans. Unseen well under "
+                                        "built means the tree learnt those years, not the book."
+                                        + (f" Said twice: from the candidates alone, and with {held} in the forest "
+                                           f"too." if sc.hold else "")))
+    if _joint_shown(st):
+        j = st.joint
+        held = " and ".join(j.strata)
+        pockets = (f"one constant for each pocket {held} make, so the pockets are held fixed as they are below"
+                   if j.strata else "one constant for the whole book, as nothing is held fixed")
+        out.append(("All together", "One logistic regression on the held-back loans with every candidate's groups in "
+                                    f"it at once, each against its own reference, and {pockets}. Each odds ratio is "
+                                    "then net of every other candidate. Adds is a likelihood ratio test of taking "
+                                    "the candidate out, all its groups at once: its test statistic, on as many "
+                                    "degrees of freedom as it has groups less one, and its p-value"
+                                    + ("" if confirmatory_allowance(res) == "none" else
+                                       ", after the allowance for testing the shortlist at once") + ". Adds? is Yes "
+                                    "when that p-value is under the bar. Moves with names candidates whose values "
+                                    f"rise and fall together (a rank correlation of {scout.CORRELATED:.1f} or more, "
+                                    "on the development loans): what one adds, the other may already say. The "
+                                    "loans are the held-back ones with a value of every candidate, in pockets where "
+                                    "some went bad and some didn't."))
+    return out
+
+
+def confirmatory_allowance(res) -> str:
+    from . import confirmatory
+    return confirmatory.allowance(res)
+
+
+def _unseen(ws, res, r: int) -> int:
+    """The tree on loans it never saw, in one line (OC-51); nothing when this Run didn't scout."""
+    from . import scout
+    sc = getattr(res, "scout", None)
+    o = getattr(sc, "oot", None)
+    if o is None:
+        return r
+    house.section(ws, r, FIRST, LAST, "The tree on loans it never saw")
+    said = scout.auc_words(sc) or f"The tree couldn't be checked on the held-back loans: {o.problem}."
+    r = _line(ws, r + 1, "What it found", said)
+    return r + 1
+
+
+JOINT_HEADS = ("Candidate", "Compared", None, None, "Loans", "Bad rate", "Odds ratio, together", None, "p-value",
+               "Adds: statistic", None, "Adds?", "Moves with")
+(J_CAND, J_COMP, J_LOANS, J_RATE, J_ODDS, J_RANGE, J_P, J_STAT, J_PADD, J_ADDS, J_WITH) = (
+    N_CAND, N_COMP, N_CG, N_CP, N_HOLDS, N_HG, N_HP, N_STILL, N_EX, N_MAT, N_WORDS)
+
+
+def _together(ws, res, st, r: int, helper_rows: list) -> tuple[int, int | None]:
+    """Every candidate in one regression on the held-back loans (OC-51, joint.py): a row per group against its
+    reference, net of the other candidates, and per candidate what it adds net of them. Returns (the next row, the
+    table's header row or None). Nothing with one candidate: together it is the same as on its own, below."""
+    if not _joint_shown(st):
+        return r, None
+    j = st.joint
+    house.section(ws, r, FIRST, LAST, f"All {len([t for t in j.terms])} candidates together, on the held-back loans")
+    r += 1
+    if j.problem:
+        r = _line(ws, r, "Not fitted", f"The candidates couldn't be fitted together: {j.problem}.")
+        return r + 1, None
+    raw = j.allowance == "none"
+    rng_head = live.text("Range (", ('TEXT(confidence,"0%")',), " sure)")
+    heads = list(JOINT_HEADS)
+    heads[J_RANGE - FIRST] = rng_head
+    heads[J_PADD - FIRST] = "Adds: p-value" if raw else "Adds: p, allowed"
+    head = r
+    house.header(ws, head, FIRST, heads, centre_from=2)
+    ws.merge_cells(start_row=head, start_column=J_COMP, end_row=head, end_column=J_COMP + 2)
+    _wrap(ws, head)
+    r += 1
+    first_row = r
+    adds_cells = []
+    for i, t in enumerate(j.terms):
+        if t.problem:
+            continue
+        ref = t.groups[t.ref]
+        top = r
+        for k, name in enumerate(t.groups):
+            if k == t.ref:
+                continue
+            ws.merge_cells(start_row=r, start_column=J_COMP, end_row=r, end_column=J_COMP + 2)
+            _cell(ws, r, J_CAND, t.column if r == top else None, bold=r == top, h="left")
+            _cell(ws, r, J_COMP, f"{name} vs {ref}", color=SLATE)
+            _cell(ws, r, J_LOANS, t.loans[k], fmt="#,##0")
+            _cell(ws, r, J_RATE, t.bad[k] / t.loans[k] if t.loans[k] else None, fmt="0.00%")
+            if t.odds[k] is None:
+                _cell(ws, r, J_ODDS, "none")
+            else:
+                _cell(ws, r, J_ODDS, round(t.odds[k], 10), bold=True, fmt=X_FMT)
+                b, se = live.num(t.beta[k]), live.num(t.se[k])
+                _cell(ws, r, J_RANGE, f'=TEXT(EXP({b}-{Z}*{se}),"0.00")&"x to "&TEXT(EXP({b}+{Z}*{se}),"0.00")&"x"')
+                _cell(ws, r, J_P, t.p[k], fmt=P_FMT)
+            if r == top:
+                if t.lr is not None:
+                    _cell(ws, r, J_STAT, f"{t.lr:.2f} on {t.df}")
+                    padd = t.p_lr if raw else t.p_allowed
+                    _cell(ws, r, J_PADD, padd, fmt=P_FMT, bold=True)
+                    P = f"${_c(J_PADD)}{r}"
+                    _cell(ws, r, J_ADDS, f'=IF(NOT(ISNUMBER({P})),"",IF({live.sig(P)},"{YES}","{NO}"))', bold=True)
+                    adds_cells.append((t.column, P))
+                _cell(ws, r, J_WITH, ", ".join(f"{n} ({rho:+.2f})" for n, rho in t.partners), h="left")
+            _rule(ws, r)
+            if i and r == top:
+                for c in range(FIRST, LAST + 1):
+                    ws.cell(row=r, column=c).border = Border(top=Side(style="medium", color=house.INK),
+                                                             bottom=Side(style="thin", color=house.ROW_RULE))
+            r += 1
+    last_row = r - 1
+    if last_row >= first_row:
+        rng = f"{_c(J_ADDS)}{first_row}:{_c(J_ADDS)}{last_row}"
+        ws.conditional_formatting.add(rng, FormulaRule(
+            formula=[f'{_c(J_ADDS)}{first_row}="{YES}"'], font=Font(bold=True, color=house.POSITIVE),
+            fill=PatternFill("solid", fgColor=house.POSITIVE_BG, bgColor=house.POSITIVE_BG)))
+        ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{_c(J_ADDS)}{first_row}="{NO}"'],
+                                                       font=Font(bold=True, color=SLATE)))
+    r += 1
+    # what it found, live: which candidates add something net of the others
+    yes = "&".join(f'IF({live.sig(P)},{_q("; " + name)},"")' for name, P in adds_cells) or '""'
+    no = "&".join(f'IF(AND(ISNUMBER({P}),NOT({live.sig(P)})),{_q("; " + name)},"")' for name, P in adds_cells) \
+        or '""'
+    hy, hn = _helper(ws, r, yes), _helper(ws, r + 1, no)
+    none_ = _q("No candidate adds anything significant once the others are in. ")
+    adds, adds_not = _q("Adds something the others don't: "), _q("Adds nothing significant once the others are in: ")
+    f = (f'=IF({hy}="",{none_},{adds}&MID({hy},3,2000)&". ")&'
+         f'IF({hn}="","",{adds_not}&MID({hn},3,2000)&".")')
+    r = _line(ws, r, "What it found", f, chars=60 + 25 * len(adds_cells))
+    helper_rows.append(r - 1)
+    r += 1
+    # the words the table can't hold: pairs that move together, groups with no odds ratio, candidates left out
+    said = set()
+    for t in j.fitted:
+        for n, rho in t.partners:
+            other = n.removesuffix(" (held fixed)")
+            key = tuple(sorted((t.column, other)))
+            if key in said:
+                continue
+            said.add(key)
+            if n.endswith(" (held fixed)"):
+                r = _line(ws, r, None, f"{t.column} moves with {other} ({rho:+.2f}), which is held fixed: what it "
+                                       f"adds here is what it says beyond {other}.")
+            else:
+                r = _line(ws, r, None, f"{t.column} and {other} move together ({rho:+.2f}): what one adds, the other "
+                                       f"mostly says already, so each can read as adding little while the pair "
+                                       f"matters.")
+        for k, why in t.not_estimable.items():
+            r = _line(ws, r, None, f"{t.column}, {t.groups[k]}: no odds ratio together, because {why}.")
+    for t in j.terms:
+        if t.problem:
+            r = _line(ws, r, None, f"{t.column} is left out of the candidates together: {t.problem}.")
+    if j.left_out:
+        r = _line(ws, r, None, "Held-back loans left out of the candidates together: "
+                               + "; ".join(f"{v:,} with {k}" for k, v in j.left_out.items()) + ".")
+    return r + 1, head
 
 
 def write(wb, res, stamp: str = "") -> None:
@@ -318,6 +500,15 @@ def write(wb, res, stamp: str = "") -> None:
           size=9)
     r += 3
 
+    # ---------------------------------------------------------------- OC-51: the tree unseen, then all together
+    helper_rows: list[int] = []
+    r = _unseen(ws, res, r)
+    r, joint_head = _together(ws, res, st, r, helper_rows)
+    if joint_head is not None or getattr(getattr(res, "scout", None), "oot", None) is not None:
+        house.section(ws, r, FIRST, LAST, "Each candidate on its own" if len(ran) > 1 else
+                      f"{t0.column} on the held-back loans")
+        r += 2
+
     # ---------------------------------------------------------------- the table: one block of rows per candidate
     dev_n = t0.development.n if len({t.development.n for t in ran}) == 1 else None
     hold_n = t0.holdout.n if len({t.holdout.n for t in ran}) == 1 else None
@@ -359,7 +550,7 @@ def write(wb, res, stamp: str = "") -> None:
     if found_hidden:
         for c in (N_FG, N_FP):
             ws.column_dimensions[_c(c)].hidden = True
-    ws.freeze_panes = f"A{head + 1}"
+    ws.freeze_panes = f"A{(joint_head or head) + 1}"
 
     # the tiles, now the rows exist: Candidates counts those holding up, live (tiles sit only over columns that are
     # never hidden: Found's two are, for a saved shortlist)
@@ -385,7 +576,6 @@ def write(wb, res, stamp: str = "") -> None:
         r = _chart(ws, t, a, b, r, found_hidden, many=len(ran) > 1)
 
     # ---------------------------------------------------------------- the tests in full, candidate by candidate
-    helper_rows: list[int] = []
     for t in ran:
         views = _Views(t)
         house.section(ws, r, FIRST, LAST, "The tests in full" + (f": {t.column}" if len(ran) > 1 else ""))

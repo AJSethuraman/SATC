@@ -24,7 +24,7 @@ KG="src/pocketbook/kgroups.py"; CT="src/pocketbook/confirm_tab.py"; LA="src/pock
 I="src/pocketbook/ingest.py"; LK="src/pocketbook/look.py"; CO="src/pocketbook/control.py"
 HO="src/pocketbook/house.py"; Y="src/pocketbook/settings.yaml"; RS="src/pocketbook/results.py"
 RC="src/pocketbook/record.py"; PS="src/pocketbook/prespec.py"
-SC="src/pocketbook/scout.py"; CFG="src/pocketbook/config.py"
+SC="src/pocketbook/scout.py"; CFG="src/pocketbook/config.py"; JT="src/pocketbook/joint.py"
 muts = [
  ("1 blank->zero",       E, 'if p is BLANK:\n        return None, "blank"', 'if p is BLANK:\n        return 0.0, None', "test_finding_1"),
  ("2 empty->index 0",    E, 'if rate is None or base is None or base == 0:', 'if base is None or base == 0:\n        return None\n    if rate is None:\n        rate = 0.0\n    if False:', "test_finding_2"),
@@ -321,8 +321,8 @@ muts = [
  ("holdout touch not logged", CF, '    if st.touched:\n        out.append(f"{HOLDOUT_MARK}',
   '    if False:\n        out.append(f"{HOLDOUT_MARK}', "held_to_a_committed"),
  ("holdout runs not counted", CF,
-  '        return sum(1 for _, lines in record.entries(wb) for v in lines if v.startswith(HOLDOUT_MARK))',
-  '        return 0 * sum(1 for _, lines in record.entries(wb) for v in lines if v.startswith(HOLDOUT_MARK))',
+  '        return sum(1 for _, lines in record.entries(wb) if any(v.startswith(HOLDOUT_MARK) for v in lines))',
+  '        return 0 * sum(1 for _, lines in record.entries(wb) if any(v.startswith(HOLDOUT_MARK) for v in lines))',
   "held_to_a_committed"),
  # final check 26 Sep 2026: F5 and F13
  ("run's loans called the holdout", "src/pocketbook/prespec.py",
@@ -441,8 +441,8 @@ muts = [
   '    if chosen in (None, ""):\n        if s.in_launcher:',
   '    if chosen in (None, "") and s.key == "run_kind":\n        found[key] = "bleed"\n        return\n'
   '    if chosen in (None, ""):\n        if s.in_launcher:', "blank_answer_is_refused"),
- ("follow-up never asked", "src/pocketbook/control.py", '        if asked(s, found):\n            _take',
-  '        if False:\n            _take', "follow_up_is_refused"),
+ ("follow-up never asked", "src/pocketbook/control.py", '            if asked(s, found):\n                _take',
+  '            if False:\n                _take', "follow_up_is_refused"),
  ("pre-spec held under a bleed run", B, '    if kind == BLEED:\n        if text is not None:',
   '    if kind == BLEED:\n        if False:', "pre_spec_under_a_bleed_run"),
  ("scouting runs", B, '    if kind == NEW_VARIABLE and step == SCOUT:', '    if False:', "scouting_is_refused"),
@@ -537,8 +537,8 @@ muts = [
  ("dates read only year-month-day", CF, '        return engine._date_reader(table, col, "when each loan was made"), None',
   '        return (lambda raw: __import__("pocketbook.ingest", fromlist=["x"]).parse_date(raw, "%Y-%m-%d")), None',
   "second_books"),
- ("the pockets forgotten", CF, '        labels, _ = _stratum_labels(res, tuple(ps.strata), res.table.rows)',
-  '        labels, _ = _stratum_labels(res, (), res.table.rows)', "second_book_with_no_cliff"),
+ ("the pockets forgotten", CF, '    return _stratum_labels(res, tuple(ps.strata), res.table.rows)[0]',
+  '    return _stratum_labels(res, (), res.table.rows)[0]', "second_book_with_no_cliff"),
  # 26 Sep 2026: Goal 2 item 2, a test of a new variable needs only what it uses (tests/test_run_kind.py,
  # tests/test_generic.py). Each puts the old minimum back, lets the bleed analysis off it, or shows dollars
  # a run doesn't have
@@ -792,10 +792,11 @@ muts = [
  ("the headline counts the first candidate only", CF, '    for t in _ran(st):\n        h, conc',
   '    for t in _ran(st)[:1]:\n        h, conc', "tiles_count or start_here_lists"),
  # 27 Sep 2026: scouting (Goal 2 item 9)
- ("scouting reads a month of the held-back loans", SC, '    dev = [i for d, i in dated if d <= last_dev]',
-  '    dev = [i for d, i in dated if d <= last_dev + timedelta(days=30)]', "never_reads_the_held_back"),
- ("the development share ignored", SC, '    k = max(1, math.ceil(share * len(dated)))',
-  '    k = max(1, math.ceil(0.5 * len(dated)))', "first_share_by_origination"),
+ ("scouting reads a month of the held-back loans", SC, '    dev = [i for d, i in dated if d < cutoff]',
+  '    dev = [i for d, i in dated if d < cutoff + timedelta(days=30)]', "never_reads_the_held_back"),
+ # OC-51 (27 Sep 2026): the cutoff on Control replaced the launcher's share; the share is only the suggestion's
+ ("the suggested cutoff at half the loans", SC, '    at = dated[max(1, math.ceil(share * len(dated))) - 1]',
+  '    at = dated[max(1, math.ceil(0.5 * len(dated))) - 1]', "cutoff_splits_the_loans_exactly"),
  ("the noise floor ignored", SC, '        clears = sc.floor is not None and any(v is not None and v > sc.floor',
   '        clears = sc.floor is not None and any(v is not None and v > -1', "ranks_the_planted"),
  ("the held-fixed columns left out of the second forest", SC, '        Xh = np.column_stack(cols + held_cols)',
@@ -966,6 +967,55 @@ muts = [
   '            row["gap_before"] = bool(out) and out[-1]["group"] != row["group"]',
   '            row["gap_before"] = False', "gaps_fall_where_a_group_starts"),
  ("the gaps push the last row out of sight", LA, 'GAP = 6 ', 'GAP = 10 ', "gaps_fall_where_a_group_starts"),
+ # OC-51 (27 Sep 2026, Goal 4): a cutoff the analyst picks, the tree checked on later loans, the shortlist together
+ ("the cutoff's own day held back from the tree", SC, '    dev = [i for d, i in dated if d < cutoff]',
+  '    dev = [i for d, i in dated if d <= cutoff]', "cutoff_splits_the_loans_exactly"),
+ ("the cutoff asked for a saved shortlist instead", Y, '        only_when: {run_kind: new_variable, new_variable_step: scout}',
+  '        only_when: {run_kind: new_variable, new_variable_step: prespec}', "blank_cutoff_waits"),
+ ("the suggestion's counts take in the cutoff's own day", B, '            before = sum(1 for d in dates if d < got)',
+  '            before = sum(1 for d in dates if d <= got)', "blank_cutoff_waits"),
+ ("the tree checked on its own development loans", SC, '        if d is None or d < sc.cutoff:\n            continue\n        y = ',
+  '        if d is None or d >= sc.cutoff:\n            continue\n        y = ', "out_of_time_auc"),
+ ("a category's values renumbered on the held-back loans", SC,
+  '    cols = [_values(res, rows, n, kinds[n], sc.levels.get(n))[0] for n in sc.forests["names"]]',
+  '    cols = [_values(res, rows, n, kinds[n], None)[0] for n in sc.forests["names"]]', "out_of_time_auc"),
+ ("the tree's check never run", B, '    scout.out_of_time(res, sc)\n', '    pass\n', "out_of_time_check_is_recorded"),
+ ("the tree reads the held-back loans before the pre-spec is answered", B,
+  '        return res.scout_waits\n    # OC-51: the pre-spec is on disk', '        pass\n    # OC-51: the pre-spec is on disk',
+  "strata_wait_for_an_answer"),
+ ("runs that touched the holdout counted by the line", CF,
+  '        return sum(1 for _, lines in record.entries(wb) if any(v.startswith(HOLDOUT_MARK) for v in lines))',
+  '        return sum(1 for _, lines in record.entries(wb) for v in lines if v.startswith(HOLDOUT_MARK))',
+  "out_of_time_check_is_recorded"),
+ ("the tree's check not logged", B, '         + scout_tab.held_back_lines(res)       # OC-51',
+  '         + []       # OC-51', "out_of_time_check_is_recorded"),
+ ("taking a candidate out takes nothing out", JT, '            without = _fit(cells, terms, [x for x in use if x != i])',
+  '            without = _fit(cells, terms, use)', "planted_inputs_and_tenure_adds_nothing or scikit_learns_on_a_design"),
+ ("the pockets not held fixed together", JT, '        X[r, where[k[0]]] = 1.0', '        X[r, 0] = 1.0',
+  "scikit_learns_on_a_design"),
+ ("a group with no bad loan fitted anyway", JT, '                elif b == 0 or b == n:', '                elif False:',
+  "a_group_with_no_bad_loan"),
+ ("a group holding another's loans not caught", JT, '        if got > rank:', '        if True:',
+  "same_loans_as_another"),
+ ("a fit that ran off printed", JT, '    if not settled or wild:', '    if False:', "combination_with_no_bad_loan"),
+ ("a reference with no bad loan compared with", JT, '        if n == 0 or b == 0 or b == n:', '        if n == 0:',
+  "reference_with_no_bad_loan"),
+ ("thin pockets given a constant each", JT, '    if full.pockets and full.bad / full.pockets < MIN_BAD_PER_POCKET:',
+  '    if full.pockets and full.bad / full.pockets < 0:', "too_thin"),
+ ("no allowance across the shortlist", JT, '    adjusted = engine.adjust([t.p_lr for t in terms], j.allowance)',
+  '    adjusted = [t.p_lr for t in terms]', "planted_inputs_and_tenure_adds_nothing"),
+ ("a candidate's test on every group, the reference's too", JT,
+  '        t.df = sum(1 for g in range(K) if g != t.ref and t.beta[g] is not None)', '        t.df = K',
+  "planted_inputs_and_tenure_adds_nothing"),
+ ("a near copy never flagged", JT, '            if abs(rho) >= scout.CORRELATED:', '            if abs(rho) > 1:',
+  "near_copy"),
+ ("the pair's partner left off the tab", CT,
+  '                _cell(ws, r, J_WITH, ", ".join(f"{n} ({rho:+.2f})" for n, rho in t.partners), h="left")',
+  '                _cell(ws, r, J_WITH, "", h="left")', "near_copy"),
+ ("New variables not led by the tree", CT, '    r = _unseen(ws, res, r)\n', '', "leads_with_the_tree"),
+ ("Adds? reads the wrong way", CT,
+  """IF({live.sig(P)},"{YES}","{NO}"))', bold=True)""",
+  """IF({live.sig(P)},"{NO}","{YES}"))', bold=True)""", "leads_with_the_tree"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

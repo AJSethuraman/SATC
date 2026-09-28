@@ -293,7 +293,9 @@ def test_the_readings_follow_the_confidence_level_on_control(route, tmp_path):
 def _table(ws) -> dict:
     """The table's rows, by what each compares ("0.02 - 0.09 vs 0.25 - 0.49"): {column: value}, keyed by the
     table's own column constants."""
-    head = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=confirm_tab.N_CAND).value == "Candidate")
+    # each candidate on its own: the table whose Found column reads Gap (OC-51: all together sits above it)
+    head = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=confirm_tab.N_CAND).value == "Candidate"
+                and ws.cell(row=r, column=confirm_tab.N_FG).value == "Gap")
     out = {}
     for r in range(head + 1, ws.max_row + 1):
         comp = ws.cell(row=r, column=confirm_tab.N_COMP).value

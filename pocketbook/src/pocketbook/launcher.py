@@ -355,7 +355,6 @@ class Flow:
         self.outcome: str | None = None
         self.test: list[str] = []
         self.hold: list[str] = []
-        self.share = 0.7
         self.shortlist: str | None = None
         self.spec = None              # the saved shortlist, loaded: its column and strata
         self.spec_problem: str | None = None
@@ -466,7 +465,6 @@ class Flow:
             self.outcome = chosen.outcome if chosen.outcome in kind else self.outcome
             self.test = [c for c in chosen.test if c in kind]
             self.hold = [c for c in chosen.hold if c in kind]
-            self.share = chosen.find_share
         if chosen.shortlist:
             self.pick_shortlist(chosen.shortlist)
 
@@ -570,7 +568,7 @@ class Flow:
                           bands=tuple(c for c in self.hold if kind.get(c, "num") == "num"),
                           segments=tuple(c for c in self.hold if kind.get(c) == "cat"),
                           split=test[0] if len(test) == 1 else None, outcome=self.outcome, test=tuple(test),
-                          hold=tuple(self.hold), find_share=self.share, shortlist=self.shortlist, **base)
+                          hold=tuple(self.hold), shortlist=self.shortlist, **base)
 
     def summary(self) -> tuple[bool, str]:
         """The "This will run:" box, and whether Next can be pressed."""
@@ -600,14 +598,11 @@ class Flow:
             return False, "Mark a yes/no outcome column on Columns, then pick it here."
         if not self.test:
             return False, "Tick at least one input to test."
+        # OC-51: the tree is built on the loans before the cutoff picked on Control, and checked on the rest
         n = len(self.test)
-        found, rest = ch.pct(self.share), ch.pct(1 - self.share)
-        if self.hold:
-            return True, (f"{_s(n, 'input')} ({', '.join(self.test)}) against {self.outcome}, each with and without "
-                          f"{_names(self.hold)} held fixed: {_s(2 * n, 'test')}, found on {found} and confirmed on "
-                          f"{rest}.")
-        return True, (f"{_s(n, 'input')} ({', '.join(self.test)}) against {self.outcome}: {_s(n, 'test')}, found "
-                      f"on {found} and confirmed on {rest}.")
+        held = f", with and without {_names(self.hold)} held fixed" if self.hold else ""
+        return True, (f"{_s(n, 'input')} ({', '.join(self.test)}) against {self.outcome}{held}: found on the loans "
+                      f"made before the cutoff you pick on Control, then tested together and one by one on the rest.")
 
     def next(self) -> None:
         """Write the workbook with these choices (book.set_up keeps any answers already given)."""
@@ -1079,19 +1074,13 @@ def build(root) -> dict:
         if flow.mode == "new":
             under = tk.Frame(page, bg=C["WHITE"])
             under.pack(fill="x", pady=(6, 0))
-            label(under, "Find on", "small").pack(side="left")
-            share = tk.StringVar(value=ch.pct(flow.share))
-            sb = ttk.Combobox(under, textvariable=share, values=[ch.pct(x) for x in ch.SHARES], width=5,
-                              state="disabled" if flow.shortlist else "readonly", font=F["small"])
-            sb.pack(side="left", padx=4)
-            sb.bind("<<ComboboxSelected>>", lambda e: (setattr(flow, "share", int(share.get()[:-1]) / 100),
-                                                      render()))
-            widgets["share"] = sb
-            label(under, "confirm on the rest", "small", fg="SLATE").pack(side="left")
+            # OC-51: scouting is the main path; a saved shortlist is the other way in
+            label(under, "Confirming a saved shortlist" if flow.shortlist else "Scout first", "small").pack(
+                side="left")
             widgets["shortlist"] = Button(under, "Clear" if flow.shortlist else "Browse…", pick_shortlist)
             widgets["shortlist"].pack(side="right")
-            label(under, Path(flow.shortlist).name if flow.shortlist else "Or confirm a saved shortlist",
-                  "small").pack(side="right", padx=6)
+            label(under, Path(flow.shortlist).name if flow.shortlist else "Or confirm a saved shortlist instead",
+                  "small", fg="SLATE").pack(side="right", padx=6)
             if flow.states()["install_optional"] == "normal":
                 # Goal 2 item 9: finding needs scikit-learn, an optional add-on (deps.OPTIONAL)
                 more = tk.Frame(page, bg=C["WHITE"])

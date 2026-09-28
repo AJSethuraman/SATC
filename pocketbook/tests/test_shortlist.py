@@ -176,7 +176,9 @@ def _family(tests, side_name):
 
 def _table(ws) -> dict:
     """New variables' table as the analyst reads it: {(candidate, comparison): {column: value, "row": r}}."""
-    head = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=confirm_tab.N_CAND).value == "Candidate")
+    # each candidate on its own: the table whose Found column reads Gap (OC-51: all together sits above it)
+    head = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=confirm_tab.N_CAND).value == "Candidate"
+                and ws.cell(row=r, column=confirm_tab.N_FG).value == "Gap")
     out = {}
     for r in range(head + 1, ws.max_row + 1):
         comp = ws.cell(row=r, column=confirm_tab.N_COMP).value
