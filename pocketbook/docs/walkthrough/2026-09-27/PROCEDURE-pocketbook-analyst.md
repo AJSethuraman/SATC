@@ -4,7 +4,7 @@
 
 **What you'll have at the end:** a workbook beside the loan file that shows which groups of loans lose more than their share, how much, and whether it could be chance. Then a second kind of run: whether a new column (here, revolving debt) really tells good loans from bad, checked on loans it was never found on.
 
-**Walked on:** 27 Sep 2026, on a made-up book of 8,000 loans with known answers planted in it. Every picture below is the real screen from that walk. Part C was walked again on 28 Sep 2026, on the same book, after the firm made the tree the main path: a cutoff date you pick, the tree checked on the loans after it, and the shortlist tested together.
+**Walked on:** 27 Sep 2026, on a made-up book of 8,000 loans with known answers planted in it. The whole walk was taken again on 28 Sep 2026, on the same book, after two changes: Choose tests now lists the columns in the order you work down them, and the tree is the main path for a new variable (a cutoff date you pick, the tree checked on the loans after it, the shortlist tested together). Every picture below is the real screen from that second walk.
 
 <!-- ROUTE -->
 
@@ -156,7 +156,7 @@ While it is open in Excel, the window shows a pink bar and **Run** stays grey, b
 
 ### Step 12 · Press Run
 
-On 8,000 loans it took 9 seconds.
+On 8,000 loans it took 10 seconds.
 
 ![Step 12](step-12-run-finished.png)
 
@@ -246,7 +246,7 @@ Press **Choose tests** on the left, then **Test new variables** at the top right
 
 ![Step 22](step-22-test-new-variables.png)
 
-**Correct screen:** the columns now read **Outcome**, **Test it** and **Hold fixed**. If a red button says **Install scikit-learn**, press it. **scikit-learn** is the free add-on that does the scouting.
+**Correct screen:** the columns now read **Outcome**, **Test it** and **Hold fixed**. The rows stay in the same order. If a red button says **Install scikit-learn**, press it. **scikit-learn** is the free add-on that does the scouting.
 
 ### Step 23 · Wait for scikit-learn
 
@@ -256,7 +256,7 @@ Press **Choose tests** on the left, then **Test new variables** at the top right
 
 ### Step 24 · Tick what to test and what to hold fixed
 
-Tick **Test it** on REV_DEBT, ASSET_CLASS, CHANNEL and ORIG_BAL. Tick **Hold fixed** on FICO. Under the table it reads **Scout first**: that is the main path. **Or confirm a saved shortlist instead** is for a pre-spec written earlier; leave it.
+Tick **Test it** on ORIG_BAL, REV_DEBT, CHANNEL and ASSET_CLASS. Tick **Hold fixed** on FICO. Under the table it reads **Scout first**: that is the main path. **Or confirm a saved shortlist instead** is for a pre-spec written earlier; leave it.
 
 ![Step 24](step-24-candidates.png)
 
@@ -276,7 +276,7 @@ Open the workbook at Control. It shows only the questions this kind of run uses.
 
 ### Step 26 · Press Run
 
-On 8,000 loans it took 27 seconds. PocketBook builds the tree on the loans made before 2024-11-01, writes the pre-spec `Consumer book Q3 - pre-spec.yaml` beside the workbook, and only then reads the held-back loans: first to check the tree on them, then to test the shortlist.
+On 8,000 loans it took 22 seconds. PocketBook builds the tree on the loans made before 2024-11-01, writes the pre-spec `Consumer book Q3 - pre-spec.yaml` beside the workbook, and only then reads the held-back loans: first to check the tree on them, then to test the shortlist.
 
 ![Step 26](step-27-scouting-finished.png)
 

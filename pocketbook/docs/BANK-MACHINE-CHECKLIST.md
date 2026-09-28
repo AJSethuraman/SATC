@@ -233,7 +233,7 @@ Compare as you go. Every number here came up on the walk and again on this check
 
 ☐ **Check this, the first time:** the Run in Step 12 reads a workbook that **Excel** has saved. Every check so far typed answers with a Python library instead. If Run refuses or stops here, that's the finding: screenshot the window.
 
-☐ Write down the time under **Run** on the left (the walk's was 9 seconds; the dry run's 8).
+☐ Write down the time under **Run** on the left (the walk's was 10 seconds; the dry run's 8).
 
 ### 3.3 Test new variables
 

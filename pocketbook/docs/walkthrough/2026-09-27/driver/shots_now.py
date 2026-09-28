@@ -2,7 +2,8 @@
 Writes into pocketbook/docs/walkthrough/2026-09-27/. The defect-*, fixed-* and design-* pictures are history and are
 not touched here.
 
-    xvfb-run -a -s "-screen 0 1000x760x24" venv/bin/python walk_now.py pocketbook/src OUT "/home/analyst/Loan files"
+    xvfb-run -a -s "-screen 0 1000x760x24" venv/bin/python walk_now.py pocketbook/src OUT "/srv/analyst/Loan files"
+    (a neutral folder: it shows in the Browse dialog and on the stopped Run; never a scratch or session path)
     DPI=160: python3 render.py OUT/books/STAGE.xlsx OUT/r/STAGE 160          (every stage in OUT/books)
     python3 shots_now.py OUT
 
@@ -103,7 +104,7 @@ if __name__ == "__main__":
     # ---- where the book bleeds: the window
     make("step-04-set-up-read-the-columns", SH / "s06-choose-tests-bleed.png",
          rings=[L(441, 16, 702, 45), L(217, 438, 700, 495)])
-    make("step-05-split-by-rev-debt", SH / "s07-split-rev-debt.png", rings=[L(630, 258, 690, 282), L(217, 395, 700, 495)])
+    make("step-05-split-by-rev-debt", SH / "s07-split-rev-debt.png", rings=[L(470, 120, 690, 144), L(217, 395, 700, 495)])
     make("step-06-answer-in-the-workbook", SH / "s08-answer-in-workbook.png",
          rings=[L(217, 97, 700, 172), L(217, 180, 700, 215)])
     make("step-07-run-before-answering", SH / "s09-run-before-answering.png",
@@ -162,7 +163,7 @@ if __name__ == "__main__":
     make("step-22-test-new-variables", SH / "s22-test-new-variables.png",
          rings=[L(582, 16, 702, 45), L(561, 363, 701, 395), L(217, 405, 700, 497)])
     make("step-23-scikit-learn-installed", SH / "s23b-sklearn-installed.png", rings=[L(217, 405, 700, 500)])
-    make("step-24-candidates", SH / "s24-candidates-ticked.png", rings=[L(540, 97, 702, 282), L(217, 338, 700, 470)])
+    make("step-24-candidates", SH / "s24-candidates-ticked.png", rings=[L(540, 75, 702, 195), L(217, 338, 700, 470)])
     make("step-25-answer-new", SH / "s25-answer-new.png", rings=[L(217, 93, 700, 125)])
     make("step-25b-start-here-waits", page("07-new-written", 1), crop=(0.07, 0.1, 0.93, 0.45),
          rings=[across(span(find("07-new-written", 1, "Answers needed before Run"),
@@ -187,21 +188,22 @@ if __name__ == "__main__":
          crop=(0.06, tested[1] - 0.012, 0.94, find("08-scout", 8, "Holds up, and not just FICO")[3] + 0.012),
          rings=[across(find("08-scout", 8, "Built on loans made"), 0.065, 0.93),
                 across(find("08-scout", 8, "15,000 - 48,522 vs 11,000 - 14,999"), 0.065, 0.93)])
-    # Record, less the pre-spec's own path (the walk's folder is a scratch folder here: this build can't write to
-    # the analyst's home), with the tree's line, the fingerprint and the runs that touched the holdout
+    # Record, less the pre-spec's own path row, with the tree's line, the fingerprint and the runs that touched the
+    # holdout
     rec = find("08-scout", 11, "Pre-spec commit")
-    make("step-31-record-new", page("08-scout", 11), crop=(0.06, 0.1, 0.5, find("08-scout", 11, "Pre-spec", nth=0)[1] - 0.0012),
+    tree = across(span(find("08-scout", 11, "Scouting out of time", pad=(0, 0.0015)),
+                       find("08-scout", 11, "With FICO in the forest", pad=(0, 0.0015))), 0.066, 0.497)
+    make("step-31-record-new", page("08-scout", 11), crop=(0.06, 0.1, 0.5, tree[3] + 0.003),
          zoom=(0.06, rec[1] - 0.0012, 0.5, find("08-scout", 11, "This pre-spec's held-back runs")[3] + 0.004),
-         rings=[across(span(find("08-scout", 11, "Scouting out of time", pad=(0, 0.0015)),
-                            find("08-scout", 11, "With FICO in the forest", pad=(0, 0.0015))), 0.066, 0.5),
-                across(find("08-scout", 11, "Pre-spec fingerprint", pad=(0, 0.0015)), 0.066, 0.5),
-                across(find("08-scout", 11, "Runs that touched the holdout", pad=(0, 0.0015)), 0.066, 0.5)], rp=0)
+         rings=[tree,
+                across(find("08-scout", 11, "Pre-spec fingerprint", pad=(0, 0.0015)), 0.066, 0.497),
+                across(find("08-scout", 11, "Runs that touched the holdout", pad=(0, 0.0015)), 0.066, 0.497)], rp=0)
     make("step-32-run-after-edit", SH / "s27-edited-prespec-run.png", rings=[L(535, 53, 690, 178), L(215, 185, 690, 250)])
     top = find("09-edited", 11, "Pre-spec commit")
     make("step-33-record-changed", page("09-edited", 11),
          crop=(0.06, top[1] - 0.0012, 0.5, find("09-edited", 11, "This pre-spec's held-back runs")[3] + 0.006),
-         rings=[(0.066, find("09-edited", 11, "Warning", nth=1)[1] - 0.0015, 0.5,
+         rings=[(0.066, find("09-edited", 11, "Warning", nth=1)[1] - 0.0015, 0.497,
                  find("09-edited", 11, "fingerprint", below=find("09-edited", 11, "Warning", nth=1)[1] + 0.01)[3]
                  + 0.0005),
-                across(find("09-edited", 11, "Runs that touched the holdout", pad=(0, 0.0015)), 0.066, 0.5)], rp=0)
+                across(find("09-edited", 11, "Runs that touched the holdout", pad=(0, 0.0015)), 0.066, 0.497)], rp=0)
     make("step-34-run-stopped", SH / "d-tieout-fails.png", rings=[L(215, 18, 702, 196)])
