@@ -163,6 +163,7 @@ class Column:
     yes: int | None = None   # a column that could be the outcome: how many loans read 1 (bad); None if it couldn't
     no: int = 0              # ... 0 (good)
     other: int = 0           # ... anything else, blanks included: left out of the outcome rates and counted
+    values: int | None = None   # a category: how many values it holds, blanks aside
 
 
 @dataclass
@@ -232,10 +233,11 @@ def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 5
             (sugg[c].means if c in sugg else "amount")
         kind = KIND_OF.get(code) or {"band": "num", "dimension": "cat"}.get(cat[code].cut, "other")
         what = cat[code].label
+        n = None
         if kind == "cat":
             n = len({str(r.get(c)) for r in made_table.rows if r.get(c) not in (None, "")})
             what = f"Category · {n:,} values" if code == "category" else f"{what} · {n:,} values"
-        out.append(Column(c, what, kind, *_yes_no(made_table, c, kind)))
+        out.append(Column(c, what, kind, *_yes_no(made_table, c, kind), values=n))
     chosen = None
     if _earlier(target).exists():
         try:
@@ -1032,7 +1034,7 @@ TAB_GROUPS = [
     ("You answer", "KEY_RED", [("Control", "the professional calls"), ("Columns", "meanings, odd values, memory"),
                                ("Look", "each number column's shape")]),
     ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "paid against cost"),
-                        (results.GRIDS, "one grid at a time, and how common"), (results.SPLIT, "each pocket halved"),
+                        (results.GRIDS, "one grid at a time, and how common"), (results.SPLIT, "each pocket split"),
                         (scout.SHEET, "the candidates ranked, on development loans"),
                         (confirm_tab.SHEET, "the shortlist, confirmed")]),
     ("Record", "STONE", [(record.SHEET, "what ran, the tie-outs, every Run")]),
@@ -1828,7 +1830,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         sf, how = cfg.split
         lines.append(f"Split by {sf}: " + ("each pocket halved at its own median. See the Split tab, and Pockets "
                                            f"split by {sf}." if how == "own_median" else
-                                           f"one layer per value. See Pockets split by {sf}.")
+                                           f"each pocket split by each value. See the Split tab, and Pockets split "
+                                           f"by {sf}.")
                      + f" {sf} isn't cut on its own while it splits.")
     if dropped:
         lines.append(f"Forgot {', '.join(sorted(dropped))}, as marked on Columns. Check "
@@ -2635,7 +2638,8 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
     if res.config.split:
         sf, how = res.config.split
         rows.append(("Split", f"{sf}, " + ("each pocket halved at its own median" if how == "own_median"
-                                          else "one layer per value") + f". {sf} isn't cut on its own while it "
+                                          else "each pocket split by each value, and each value set against the "
+                                               "rest of its pocket") + f". {sf} isn't cut on its own while it "
                                                                         f"splits. Split pockets: "
                                                                         f"{sum(1 for g in res.three_way for _ in g.inner()):,}."))
         for f, r in sorted(res.split_moves_with.items(), key=lambda t: -abs(t[1])):
@@ -2682,6 +2686,11 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                                  f"big." if dollar_rates else "")
                               + (" Profit and contribution are compared as a gap in points, never a multiple."
                                  if profit else "")
+                              + (" A split by a category: each value against the rest of its pocket, as the "
+                                 "halves are compared; and whether the values differ at all, every value at once, "
+                                 "by the K-group Mantel-Haenszel test (general association, on one fewer degrees "
+                                 "of freedom than there are values), bad loans only."
+                                 if res.config.split and res.config.split[1] == "each_value" else "")
                               + f" The split's odds: "
                               f"Cochran-Mantel-Haenszel, which asks whether an odds ratio this far from 1 could "
                               f"come from shuffling loans within their pockets. It has no continuity correction: "

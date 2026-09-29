@@ -2234,6 +2234,28 @@ fixed now so go ahead fix the changes"*. Items 1 and 7 stay open: neither stops 
   - Look's charts lose their "Loans" axis title, which Excel drew over the axis's numbers (*"The axis title is
     out of place"*; LibreOffice had placed it clear).
   - Tests: 3 more in `tests/test_firm_answers_2026_09_29.py`; 5 planted bugs, all caught.
+  - **A category splits the pockets too.** The firm: *"I kind of figured I'd be able to see a view with system
+    flag and origination FICO and asset segment somehow"* ... *"Like I know it can't break down too far but can we
+    not make something work?"* Split by now offers a radio on category rows as well as number rows (still one
+    column, or none); picking a category unticks it from Segment by, and ticking it as a segment again stops the
+    split. A category with more than 6 values (blanks aside; `choices.SPLIT_MOST_VALUES`) is refused in the same
+    words in the launcher (Next stays off) and at the Run: *"REGION has 7 values. A category can split the pockets
+    by 6 values at most: with more, each pocket's parts are too thin to read. ..."*. The engine already built the
+    per-value layers (Grids' "FICO x ASSET_CLASS / SYS_FLAG", columns "ASSET_CLASS 4 · Y"; Pockets' split list;
+    the tie-outs); what was missing was every comparison. Now each value is set against the rest of its pocket
+    (the other value, when there are two) by exactly the halves' machinery: per pocket, the z test for bad loans
+    and the within-pocket shuffle for the dollar rates; pooled, actual against expected with its range, and for
+    bad loans the Mantel-Haenszel odds, CMH and Cochran's Q. The allowance for many tests takes every value and
+    pocket of a grid and measure as one family, and the pooled p-values across the values. New, for bad loans
+    only: whether the values differ at all, B3's K-group Mantel-Haenszel test on K - 1 degrees of freedom
+    (`kgroups.association`, docs/statistics.md), which with two values is CMH's chi-square (a test holds them
+    equal). The Split tab's Grid dropdown picks a grid and a value ("FICO x ASSET_CLASS · SYS_FLAG Y vs rest").
+    **Left out, and said on the tab:** the partner chip (how a category moves with a band column isn't worked
+    out; the note says a gap may partly be a column the grid doesn't hold); and the differ-at-all test for the
+    dollar measures (no test of more than two groups at once exists here for a dollar rate). Paid, cost, kept and
+    Start here's five largest read the two-way grids only, for a number split too, so nothing changed there.
+    Record: the Split row, the Tests row and the Families row say what a category split does.
+    Tests: 5 more in `tests/test_firm_answers_2026_09_29.py`; 9 planted bugs (and one repointed).
 
 The firm, 29 Sep 2026: *"make sure you're noting all of these so that we can go over them later for final
 decision."* Each item: what is true now, what would change it, and the recommendation. Nothing below has been

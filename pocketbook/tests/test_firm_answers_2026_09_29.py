@@ -12,6 +12,7 @@
 import csv
 import random
 
+import pytest
 from openpyxl import load_workbook
 
 from pocketbook import book, choices as ch, control, launcher, meanings, synth
@@ -267,3 +268,200 @@ def test_look_charts_have_no_axis_title_for_excel_to_draw_over_the_numbers(tmp_p
     with zipfile.ZipFile(out.book) as z:
         charts = [z.read(n).decode("utf-8") for n in z.namelist() if n.startswith("xl/charts/chart")]
     assert charts and not [c for c in charts if "<a:t>Loans</a:t>" in c]
+
+
+# ---- later the same day, at the bank: a category splits the pockets too
+# The firm: "I kind of figured I'd be able to see a view with system flag and origination FICO and asset segment
+# somehow" ... "I'd rather make it able to happen within the config or launcher. Like I know it can't break down too
+# far but can we not make something work?"
+
+
+def _flag_file(tmp_path, n=1500, seed=29):
+    """The synthetic book with two categories added after every other value is drawn, so no planted number
+    moves: SYS_FLAG (Y or N, a blank on every 97th loan) and REGION (seven values)."""
+    src = synth.write_extract(tmp_path / "src", n=n)
+    rows = list(csv.DictReader(open(src, encoding="utf-8")))
+    rng = random.Random(seed)
+    out = tmp_path / "flagged.csv"
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(list(rows[0]) + ["SYS_FLAG", "REGION"])
+        for i, r in enumerate(rows):
+            flag = "" if i % 97 == 0 else rng.choice("YN")
+            w.writerow(list(r.values()) + [flag, rng.choice(["R1", "R2", "R3", "R4", "R5", "R6", "R7"])])
+    return out
+
+
+def test_category_split_launcher_offers_split_by_on_a_category_and_never_segments_by_it_too(tmp_path):
+    f = _flow(_flag_file(tmp_path))
+    rows = {r["name"]: r for r in f.rows()}
+    assert rows["SYS_FLAG"]["c"] == {"on": False, "radio": True}          # a category can split
+    assert rows["CHANNEL"]["c"] is not None and rows["FICO"]["c"] is not None
+    f.click("SYS_FLAG", "c")
+    rows = {r["name"]: r for r in f.rows()}
+    assert f.split == "SYS_FLAG" and "SYS_FLAG" not in f.seg               # unticked from Segment by
+    assert rows["SYS_FLAG"]["c"]["on"] and not rows["SYS_FLAG"]["b"]["on"]
+    f.pick_outcome("BAD_FLAG")
+    f.answer_outcome(True)
+    got = f.choices()
+    assert got.split == "SYS_FLAG" and "SYS_FLAG" not in got.segments and "CHANNEL" in got.segments
+    ok, said = f.summary()
+    assert ok and "split by SYS_FLAG" in said
+    f.pick_every("b", True)                                                 # All leaves the split alone
+    assert "SYS_FLAG" not in f.seg and f.split == "SYS_FLAG"
+    f.click("SYS_FLAG", "b")                                                # ticked as a segment: no longer splits
+    assert f.split is None and "SYS_FLAG" in f.seg
+    f.click("SYS_FLAG", "c")
+    f.click("REV_DEBT", "c")                                                # still one split column, or none
+    assert f.split == "REV_DEBT" and "SYS_FLAG" not in f.seg
+
+
+def test_category_split_too_many_values_is_refused_in_words_in_the_launcher_and_at_the_run(tmp_path, monkeypatch):
+    assert ch.too_many_values("X", ch.SPLIT_MOST_VALUES) is None           # six values split
+    said = ch.too_many_values("REGION", 7)
+    assert said == ("REGION has 7 values. A category can split the pockets by 6 values at most: with more, each "
+                    "pocket's parts are too thin to read. Split by a column with fewer values, or by none.")
+    f = _flow(_flag_file(tmp_path))
+    f.pick_outcome("BAD_FLAG")
+    f.answer_outcome(True)
+    f.click("REGION", "c")
+    assert f.summary() == (False, said) and f.states()["next"] == "disabled"
+    # the Run refuses it too, in the same words, whatever wrote the workbook
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    out = book.set_up(f.extract, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL",),
+                                                    split="REGION", outcome="BAD_FLAG"))
+    _answer(out.book)
+    ran = book.run(out.book)
+    assert not ran.ok and ran.lines == [f"Couldn't run: {said}"]
+
+
+def _category_run(tmp_path, field, many_tests="bh", n=12000):
+    from pocketbook import config as cfgmod, engine
+    from pocketbook.ingest import read_table
+    cfg, _ = synth.write(tmp_path / "cube", n=n)
+    raw = cfgmod.load(cfg).raw
+    raw["split"] = {"field": field, "how": "each_value"}
+    raw["benchmark"]["many_tests"] = many_tests
+    return engine.run(cfgmod.parse(raw), read_table(_flag_file(tmp_path, n=n)))
+
+
+def test_category_split_engine_sets_each_value_against_the_rest_of_its_pocket(tmp_path):
+    """Asset class 4 goes bad 1.4 times as often as the others (synth.py): each value against the rest of its
+    pocket finds it, pocket by pocket and pooled, and every figure is worked out again here from the parts."""
+    from pocketbook import engine, stats
+    res = _category_run(tmp_path, "ASSET_CLASS")
+    g = res.grids[0]                                                         # FICO x CHANNEL
+    assert g.split_parts == ["1", "2", "3", "4"] and not g.split_compare     # no halves
+    four = g.part_pooled["4"]["outcome_loans"]
+    assert 1.2 < four["ratio"] < 1.8 and four["odds_p"] < 0.01 and four["pockets"] >= 8
+    assert g.part_pooled["1"]["outcome_loans"]["ratio"] < 1
+    # every value is one comparison: the value's rate over the rest of its pocket's, and the p-value of the z test,
+    # after one allowance for many tests across every value and pocket of the grid
+    raw, want = {}, {}
+    for v in g.split_parts:
+        for (b, d) in g.part_tested[v]["outcome_loans"]:
+            me = g.split_cells[(b, d, v)].rates["outcome_loans"]
+            rest = [g.split_cells[(b, d, x)].rates["outcome_loans"] for x in g.split_parts
+                    if x != v and (b, d, x) in g.split_cells]
+            num, den, units = sum(r.num for r in rest), sum(r.den for r in rest), sum(r.units for r in rest)
+            assert g.part_compare[v][(b, d)]["outcome_loans"][0] == pytest.approx(stats.multiple(me.rate, num / den))
+            raw[(v, b, d)] = stats.two_prop_z(me.num, me.units, num, units)[1]
+    for k, p in zip(raw, engine.adjust(list(raw.values()), "bh")):
+        want[k] = p
+    got = {(v, b, d): x["outcome_loans"][1] for v in g.split_parts for (b, d), x in g.part_compare[v].items()
+           if x.get("outcome_loans", (None, None))[1] is not None}
+    assert got.keys() == want.keys() and all(got[k] == pytest.approx(want[k]) for k in want)
+    # a dollar rate's parts are shuffled within their pocket, like the halves
+    gco = [x["gco_rate"][1] for x in g.part_compare["4"].values() if x.get("gco_rate", (None,))[0] is not None]
+    assert gco and all(p is not None for p in gco)
+    # whether the values differ at all: B3 on three degrees of freedom, and the planted class shows
+    b3 = g.split_general["outcome_loans"]
+    assert b3["df"] == 3 and b3["p"] < 0.001
+    assert "gco_rate" not in g.split_general                                 # no k-group test for a dollar rate
+    # the families Record counts: every value's pockets in one family per grid and rate
+    from pocketbook import checks
+    fam = [f for f in checks.families(res) if f[0] == "split values" and f[2] == "outcome_loans"
+           and f[1] == f"{g.band} x {g.dimension}"]
+    assert fam and fam[0][4] == len(want)
+
+
+def test_category_split_engine_with_two_values_is_the_cmh_test_for_the_differ_at_all(tmp_path):
+    """With two values, B3 is Cochran-Mantel-Haenszel's chi-square (docs/statistics.md B3: "With two groups it
+    collapses to A6"), worked out here from every pocket's four counts; and Y against the rest is Y against N."""
+    from pocketbook import stats
+    g = _category_run(tmp_path, "SYS_FLAG", many_tests="none", n=8000).grids[0]
+    assert g.split_parts == ["N", "Y", "(blank)"]                          # a blank is a value of its own
+    assert g.split_general["outcome_loans"]["df"] == 2
+    t = _two_valued(tmp_path).grids[0]
+    assert t.split_parts == ["N", "Y"]
+    strata = []
+    for (b, d), _ in t.inner():
+        cells = [t.split_cells.get((b, d, v)) for v in ("Y", "N")]
+        s = [c.rates["outcome_loans"] if c else None for c in cells]
+        strata.append(tuple(x for r in s for x in ((r.events, r.units - r.events) if r else (0, 0))))
+    chi, p = stats.cmh(strata)
+    assert t.split_general["outcome_loans"]["df"] == 1
+    assert t.split_general["outcome_loans"]["q"] == pytest.approx(chi, rel=1e-9)
+    assert t.split_general["outcome_loans"]["p"] == pytest.approx(p, rel=1e-9)
+    for (b, d), x in t.part_compare["Y"].items():                           # Y against the rest is Y against N
+        if x["outcome_loans"][0] is not None:
+            y, n_ = (t.split_cells[(b, d, v)].rates["outcome_loans"] for v in ("Y", "N"))
+            assert x["outcome_loans"][0] == pytest.approx(stats.multiple(y.rate, n_.rate))
+            assert x["outcome_loans"][1] == pytest.approx(stats.two_prop_z(y.num, y.units, n_.num, n_.units)[1])
+
+
+def _two_valued(tmp_path, n=8000):
+    """SYS_FLAG with its blanks read as N: two values."""
+    from pocketbook import config as cfgmod, engine
+    from pocketbook.ingest import read_table
+    src = _flag_file(tmp_path / "two", n=n)
+    rows = list(csv.DictReader(open(src, encoding="utf-8")))
+    out = tmp_path / "two.csv"
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        for r in rows:
+            w.writerow({**r, "SYS_FLAG": r["SYS_FLAG"] or "N"})
+    cfg, _ = synth.write(tmp_path / "cube2", n=n)
+    raw = cfgmod.load(cfg).raw
+    raw["split"] = {"field": "SYS_FLAG", "how": "each_value"}
+    raw["benchmark"]["many_tests"] = "none"
+    return engine.run(cfgmod.parse(raw), read_table(out))
+
+
+def test_category_split_workbook_carries_the_flag_through_every_tab(tmp_path, monkeypatch):
+    """FICO x asset segment by the system flag, as the firm asked: Grids, Pockets, Split, Record and Start here."""
+    from pocketbook import results
+    import tabs
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    x = _flag_file(tmp_path, n=6000)
+    out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL", "ASSET_CLASS"),
+                                            split="SYS_FLAG", outcome="BAD_FLAG"))
+    _answer(out.book)
+    assert book.read_book(out.book)[0]["split"] == {"field": "SYS_FLAG", "how": "each_value"}
+    ran = book.run(out.book)
+    assert ran.ok, ran.lines
+    b = out.book
+    wb = load_workbook(b)
+    assert "FICO x ASSET_CLASS / SYS_FLAG" in tabs.options(wb, results.GRIDS, "Grid")
+    assert tabs.options(wb, results.POCKETS, "Pockets") == ["Two-way", "Split by SYS_FLAG"]
+    split = tabs.options(wb, results.SPLIT, "Grid")
+    assert "FICO x ASSET_CLASS · SYS_FLAG Y vs rest" in split and "FICO x CHANNEL · SYS_FLAG N vs rest" in split
+    ws = tabs.calculated(tabs.choose(b, tmp_path / "g.xlsx", results.GRIDS, grid="FICO x ASSET_CLASS / SYS_FLAG"),
+                         results.GRIDS)
+    heads = set(c for _, c in tabs.block(ws, "vs the book"))
+    assert {"ASSET_CLASS 4 · Y", "ASSET_CLASS 4 · N"} <= heads or {"4 · Y", "4 · N"} <= heads
+    ws = tabs.calculated(tabs.choose(b, tmp_path / "s.xlsx", results.SPLIT, grid="FICO x ASSET_CLASS · SYS_FLAG Y vs "
+                                                                                 "rest"), results.SPLIT)
+    text = [str(v) for row in ws.iter_rows(values_only=True) for v in row if v is not None]
+    assert "Worse than the rest in" in text and "Value vs rest, all" in text
+    assert "Bad loans, value vs rest" in text
+    differ = next(t for t in text if t.startswith("Do the values of SYS_FLAG differ at all? Bad loans: "))
+    assert "degrees of freedom" in differ and "Charge-offs" in differ and "not tested: dollar rate" in differ
+    assert not [t for t in text if "high half" in t.lower() or "High vs low" in t]
+    rec = {k: v for k, v, *_ in tabs.record_rows(b)}
+    assert "each value set against the rest of its pocket" in rec["Split"]
+    assert "for the split's values" in rec["Families of tests"]
+    assert "K-group Mantel-Haenszel" in rec["Tests"]
+    start = [str(v) for row in load_workbook(b)["Start here"].iter_rows(values_only=True) for v in row if v]
+    assert "Split: each pocket split" in start

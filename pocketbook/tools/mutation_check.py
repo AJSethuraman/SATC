@@ -961,9 +961,11 @@ muts = [
   'key=lambda c: (GROUP.get(c.kind, LAST), c.name)):', "choose_tests_rows"),
  # headless on purpose: CI has no display, so a bug only the window test sees would read MISSED there
  ("the table says every measure again", LA,
-  '                if k == "cat":\n                    row["b"] = {"on": c.name in self.seg, "radio": False}',
-  '                if k == "cat":\n                    row["b"] = {"on": c.name in self.seg, "radio": False}\n'
-  '                if k == "out":\n                    row["every"] = True', "choose_tests_rows_run_numbers"),
+  '                    row["b"] = {"on": c.name in self.seg and self.split != c.name, "radio": False}\n'
+  '                    row["c"] = {"on": self.split == c.name, "radio": True}\n',
+  '                    row["b"] = {"on": c.name in self.seg and self.split != c.name, "radio": False}\n'
+  '                    row["c"] = {"on": self.split == c.name, "radio": True}\n'
+  '                if k == "out":\n                    row["every"] = True\n', "choose_tests_rows_run_numbers"),
  ("no gap between the groups", LA,
   '            row["gap_before"] = bool(out) and out[-1]["group"] != row["group"]',
   '            row["gap_before"] = False', "gaps_fall_where_a_group_starts"),
@@ -1088,6 +1090,28 @@ muts = [
   '    # title is out of place"); "The bars" above the charts says they count loans\n',
   '    # title is out of place"); "The bars" above the charts says they count loans\n    ch.y_axis.title = "Loans"\n',
   "axis_title"),
+ # later the same day, at the bank: a category splits the pockets too
+ ("a category offered no Split by", LA,
+  '                    row["b"] = {"on": c.name in self.seg and self.split != c.name, "radio": False}\n'
+  '                    row["c"] = {"on": self.split == c.name, "radio": True}\n',
+  '                    row["b"] = {"on": c.name in self.seg and self.split != c.name, "radio": False}\n',
+  "category_split_launcher"),
+ ("a category both segment and split", LA, '                self.cut.discard(name)\n                self.seg.discard(name)',
+  '                self.cut.discard(name)', "category_split_launcher"),
+ ("a category of any size splits", "src/pocketbook/choices.py", '    if n <= SPLIT_MOST_VALUES:', '    if True:',
+  "category_split_too_many"),
+ ("seven values let through", "src/pocketbook/choices.py", '    if n <= SPLIT_MOST_VALUES:',
+  '    if n <= SPLIT_MOST_VALUES + 1:', "category_split_too_many"),
+ ("a value set against its own pocket", E, '            others = [c for q, c in here.items() if q != p]',
+  '            others = list(here.values())', "category_split_engine_sets"),
+ ("the values' pockets without the allowance", E, '        if bench is not None and grid.split_parts:',
+  '        if False:', "category_split_engine_sets"),
+ ("the values' dollars never shuffled", E, '    return [([0 if lab == p else 1 for lab in labels]',
+  '    return [([0 if lab == p else None for lab in labels]', "category_split_engine_sets"),
+ ("do the values differ never worked out", E, '        if a.p_general is not None:', '        if False:',
+  "category_split_engine"),
+ ("the Split tab empty for a category", RS, '        for v in g.split_parts if len(g.split_parts) > 1 else ():',
+  '        for v in ():', "category_split_workbook"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

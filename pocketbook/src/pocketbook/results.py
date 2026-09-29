@@ -1161,6 +1161,52 @@ def _groups(ws, res, views: Views, G: str, r: int, first: int, hid: int) -> int:
 # Split
 
 
+def _value_vs(sf: str, v: str, others: list[str]) -> str:
+    """What one value of a category split is set against: "SYS_FLAG Y vs N" with two values, "... vs rest" with
+    more."""
+    return f"{sf} {v} vs {others[0]}" if len(others) == 1 else f"{sf} {v} vs rest"
+
+
+def _value_note(res, sf: str, b, dollar_rates: bool, profit: bool) -> list[tuple]:
+    """The Split tab's note for a category split: each value against the rest of its pocket. The halves' note
+    says the same things of the high half against the low."""
+    return [
+        ("What it does", f"Inside each pocket the loans are split by their {sf}. Pick a grid and a value: that "
+                         f"value's loans are compared with the rest of the pocket (the other value, when there are "
+                         f"two), so the band and segment are the same on both sides. {sf} isn't a segment of its "
+                         f"own while it splits. At most {engine.SPLIT_MOST_VALUES} values."),
+        ("Value vs rest", "The value's rate over the rest's: 2.00× means it goes bad"
+                          + (", or loses," if dollar_rates else "") + " twice as often."
+                          + (" Kept after losses and Earned before losses are a gap in points instead: +0.30 pts "
+                             "means the value keeps 0.30 points more per booked dollar." if profit else "")),
+        ("Value vs rest, all", live.text(
+            "The value's actual total against what it would be at the rest's rates, added over every pocket, with "
+            "its range at ", ('TEXT(confidence,"0%")',), " sure. For Bad loans only, the odds are pooled too "
+            "(Mantel-Haenszel), with their p-value (Cochran-Mantel-Haenszel), and Cochran's Q asks whether the gap "
+            "is the same size in every pocket.")),
+        ("Do the values differ?", "For Bad loans, one test of every value at once, pooled over the grid's pockets "
+                                  "(the K-group Mantel-Haenszel test, on one fewer degrees of freedom than there "
+                                  "are values). Every pocket counts here, however small, so with two values it can "
+                                  "differ a little from the odds' p-value, which uses only pockets above the "
+                                  "minimums. Not worked out for the dollar measures: the tool has no test of more "
+                                  "than two groups at once for a dollar rate."),
+        ("p-value", live.text(
+            "The chance of a gap at least this big if the value were no different from the rest. Under ",
+            ('TEXT(significance_bar,"0%")',), " counts, and is bold. Bad loans: the gap in standard errors"
+            + (f"; a dollar measure: the loans dealt at random inside their pocket, {b.shuffles:,} times"
+               if dollar_rates else "")
+            + f". The allowance for many tests ({_allowance(b)}) covers every value and pocket of one grid and "
+              f"measure, and the summary's p-values across the values; a gap that is not significant is in "
+              f"brackets, unshaded. A blank: the value or the rest has fewer loans or losses than the minimums "
+              f"({b.min_units:,} loans, {b.min_events:,} losses).")),
+        ("What it holds", f"A grid holds fixed only its band and segment. How closely {sf} moves with a band "
+                          f"column isn't worked out for a category, so a gap here may partly be a column the grid "
+                          f"doesn't hold fixed. Loans are treated as independent of each other."),
+        ("As of", "The numbers are the last Run's. The range, the brackets and the bold follow the confidence on "
+                  "Control."),
+    ]
+
+
 def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     """Split (section 8): a Grid dropdown and a chip saying whether it holds the split's partner fixed; the
     summary for every measure; the line on whether the gap is the same in every pocket; and the two grids side
@@ -1170,19 +1216,28 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     sf, how = res.config.split
     names = bk._names(res)
     b = res.config.benchmark
-    if how == "each_value" or b is None:
+    by_value = how == "each_value"
+    if b is None:
         _widths(ws, {1: 2, 2: 22, 3: 100})
-        house.title_band(ws, SPLIT, f"Every pocket split by each value of {sf}.", 2, 3, tab=house.TAB_RESULT)
-        house.method_note(ws, 3, 2, 3, [("Where to look", f"Every pocket split by each value of {sf}: the Grids "
-                                                          f"tab shows the split grids (pick one ending / {sf}), "
-                                                          f"and Pockets lists every part, tested like any other "
-                                                          f"pocket (Pockets: Split by {sf}). {sf} isn't a segment "
-                                                          f"of its own while it splits.")])
+        house.title_band(ws, SPLIT, f"Every pocket split by {sf}.", 2, 3, tab=house.TAB_RESULT)
+        house.method_note(ws, 3, 2, 3, [("Where to look", f"The Grids tab shows the split grids (pick one ending / "
+                                                          f"{sf}). The comparisons need the Control settings.")])
         return
     ms = rates(res)
-    pt = bk._partner(res)
+    pt = None if by_value else bk._partner(res)
     grids = sorted(res.grids, key=lambda x: bk._holds_fixed(res, x)[1])
-    gnames = [f"{names[g.band]} x {names[g.dimension]}" for g in grids]
+    # what the Grid dropdown picks: a grid for the halves; a grid and one value of a category, set against the
+    # rest of its pocket (the other value, when there are two)
+    shown = []
+    for g in grids:
+        gname = f"{names[g.band]} x {names[g.dimension]}"
+        if not by_value:
+            shown.append((gname, g, g.split_compare, g.split_pooled))
+            continue
+        for v in g.split_parts if len(g.split_parts) > 1 else ():
+            others = [x for x in g.split_parts if x != v]
+            shown.append((f"{gname} · {_value_vs(sf, v, others)}", g, g.part_compare[v], g.part_pooled[v]))
+    gnames = [x[0] for x in shown]
     nb = max((len(g.band_labels) for g in grids), default=1)
     nd = max((len(g.dim_labels) for g in grids), default=1)
     w = nd + 1
@@ -1192,10 +1247,12 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     for c, wd in ((2, 26), (5, 16), (6, 20), (9, 16), (right, 20)):
         widths[c] = max(widths.get(c, 0), wd)
     _widths(ws, {1: 2, **widths})
-    house.title_band(ws, SPLIT, f"Every pocket split in two at its own median {sf}: does the high half do worse?",
+    house.title_band(ws, SPLIT, f"Every pocket split by each value of {sf}: does one value do worse than the rest "
+                                f"of its pocket?" if by_value else
+                     f"Every pocket split in two at its own median {sf}: does the high half do worse?",
                      2, last, tab=house.TAB_RESULT)
     dollar_rates, profit = bk._has_dollar_rates(res), bk._has_profit(res)
-    r = house.method_note(ws, 3, 2, last, [
+    r = house.method_note(ws, 3, 2, last, _value_note(res, sf, b, dollar_rates, profit) if by_value else [
         ("What it does", f"Inside each pocket the loans are sorted by {sf} and cut at that pocket's own median. The "
                          f"high half is compared with the low half, so the band and segment are the same on both "
                          f"sides. {sf} isn't cut into bands of its own while it splits."),
@@ -1230,15 +1287,16 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                  material_at(res),
                  9, last, f"The numbers are from the last Run, {stamp}.")
     # every grid's numbers on _views
-    for g, gname in zip(grids, gnames):
-        held = bk._holds_partner(res, g)
+    for gname, g, compare, pooled in shown:
+        held = bk._holds_partner(res, g) if pt else None
         views.put(f"S|{gname}|chip", [("Holds " if held else "Doesn't hold ") + f"{pt[0]} fixed" if pt else "",
-                                      1 if held else 0, bk._holds_fixed(res, g)[0]])
+                                      (1 if held else 0) if pt else None,
+                                      "" if by_value else bk._holds_fixed(res, g)[0]])
         views.put(f"S|{gname}|rows", list(g.band_labels))
         views.put(f"S|{gname}|cols", [str(d) for d in g.dim_labels])
         z_run = stats.z_for_confidence(b.confidence)
         for i, m in enumerate(ms, start=1):
-            p = g.split_pooled.get(m.name, {})
+            p = pooled.get(m.name, {})
             if m.in_points:
                 g0 = p.get("gap")
                 se = (p["gap_hi"] - p["gap"]) / z_run if p.get("gap_hi") is not None else None
@@ -1247,18 +1305,20 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                 g0 = p.get("ratio")
                 se = (p["ratio_hi"] - p["ratio"]) / z_run if p.get("ratio_hi") else None
             steady = p.get("steady_p")
+            general = g.split_general.get(m.name, {})
             views.put(f"S|{gname}|sum|{i}", [
                 plain(m), p.get("pockets", 0),
                 f"{p['high_worse']} of {p['pockets']}" if p.get("pockets") else "none big enough",
                 g0, se, heat_kind(m), p.get("ratio_p"), p.get("odds"), p.get("odds_p"), steady,
-                bk._same_size(m, p, b.confidence) if steady is None else None])
-            got = [abs(bk._shown(x[m.name][0], m)) for x in g.split_compare.values()
+                bk._same_size(m, p, b.confidence) if steady is None else None,
+                general.get("p"), general.get("df"), general.get("pockets")])
+            got = [abs(bk._shown(x[m.name][0], m)) for x in compare.values()
                    if m.name in x and x[m.name][0] is not None]
             views.put(f"S|{gname}|{m.name}|meta", [heat_kind(m), max(got + [0.01])])
             for bi, bl in enumerate(g.band_labels, start=1):
                 vs, ps = [], []
                 for d in g.dim_labels:
-                    x = g.split_compare.get((bl, d), {}).get(m.name)
+                    x = compare.get((bl, d), {}).get(m.name)
                     vs.append(bk._shown(x[0], m) if x and x[0] is not None else None)
                     ps.append(x[1] if x else None)
                 views.put(f"S|{gname}|{m.name}|v|{bi}", vs)
@@ -1280,7 +1340,8 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     # the summary, every measure
     h = s + 2
     z = "NORMSINV(1-(1-confidence)/2)"
-    house.header(ws, h, 2, ["Measure", "Pockets", "High half worse in", "High vs low, all",
+    house.header(ws, h, 2, ["Measure", "Pockets", "Worse than the rest in" if by_value else "High half worse in",
+                            "Value vs rest, all" if by_value else "High vs low, all",
                             f'="Range ("&TEXT(confidence,"0%")&" sure)"', "p-value", "As odds", "p-value, as odds"],
                  centre_from=1)
     for i in range(1, len(ms) + 1):
@@ -1315,6 +1376,22 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=last)
     _cell(ws, r, 2, '="Same in every pocket? "&' + '&"; "&'.join(parts or ['""']) + '&"."', size=10, h="left",
           indent=1)
+    if by_value:
+        # B3: do the values differ at all, every value at once, pooled over the grid's pockets (bad loans only)
+        r += 1
+        said = []
+        for i, m in enumerate(ms, start=1):
+            if engine.yes_no(m):
+                R = f"${col(hid)}{h + i}"
+                gp, df, n = pick(R, 12), pick(R, 13), pick(R, 14)
+                said.append(f'"{plain(m)}: "&IF({gp}="","not tested",IF({live.sig(gp)},"yes","no sign they do")'
+                            f'&" (p-value "&IF({gp}<0.0001,"under 0.0001",TEXT({gp},"0.0000"))&", on "&{df}&'
+                            f'IF({df}=1," degree"," degrees")&" of freedom, "&{n}&" pockets)")')
+        if dollars:
+            said.append(live.q(f"{', '.join(dollars)}: not tested: dollar rate"))
+        ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=last)
+        _cell(ws, r, 2, f'="Do the values of {sf} differ at all? "&' + '&"; "&'.join(said or ['""']) + '&"."',
+              size=10, h="left", indent=1)
     r += 2
     # the two grids side by side, for the measure picked
     M = dropdown(ws, r + 1, 2, "Measure", m_rng, plain(ms[0]) if ms else "")
@@ -1329,7 +1406,8 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     ws[ROWS.replace("$", "")] = "=" + match(xk("S|", (G,), "|rows"))
     ws[COLS.replace("$", "")] = "=" + match(xk("S|", (G,), "|cols"))
     t = r + 3
-    for c0, title, what in ((left, f'={M}&", high vs low"', "v"), (right, "p-value per pocket", "p")):
+    for c0, title, what in ((left, f'={M}&", value vs rest"' if by_value else f'={M}&", high vs low"', "v"),
+                            (right, "p-value per pocket", "p")):
         _block_head(ws, t, c0, w, title)
         ws.cell(row=t + 1, column=c0).fill = house.fill(CANVAS)
         for j in range(1, nd + 1):
