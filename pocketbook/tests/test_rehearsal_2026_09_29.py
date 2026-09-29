@@ -131,3 +131,56 @@ def test_a_pocket_the_size_of_an_sba_stratum_takes_seconds_not_minutes():
     kgroups.pocket_terms(p, np.zeros(5))
     took = time.perf_counter() - t
     assert took < 20, f"{took:.1f} s for one evaluation (it was 191 s)"
+
+
+# --------------------------------------------------------------------------
+# 3. scikit-learn installed but refused by the machine. On the rehearsal machine, Windows Application Control blocked
+#    scikit-learn 1.9.1's compiled files ("DLL load failed while importing _loss: An Application Control policy has
+#    blocked this file."). PocketBook looks for scikit-learn without loading it, so it counted as there, and the
+#    Run crashed on the import inside the forest instead of saying so; a bank machine is the likeliest place for
+#    such a policy. Now the Run says it in words, and confirming a saved shortlist still works.
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+BLOCKED = "DLL load failed while importing _loss: An Application Control policy has blocked this file."
+
+
+def test_scikit_learn_that_wont_load_is_said_in_words_and_a_saved_shortlist_still_confirms(tmp_path):
+    fake = tmp_path / "blocked"
+    (fake / "sklearn" / "ensemble").mkdir(parents=True)
+    (fake / "sklearn" / "__init__.py").write_text("")
+    (fake / "sklearn" / "ensemble" / "__init__.py").write_text(f"raise ImportError({BLOCKED!r})\n")
+    (fake / "sklearn" / "metrics.py").write_text(f"raise ImportError({BLOCKED!r})\n")
+    work = tmp_path / "work"
+    work.mkdir()
+    code = f"""
+from pathlib import Path
+import yaml
+from pocketbook import book, deps, scout
+import test_scout
+from test_book_dates import _choose
+assert scout.missing() is None              # it is there, as far as looking can tell
+x, b = test_scout._book(Path({str(work)!r}), 3000, test=('UTIL', 'TENURE'))
+ran = book.run(b)
+print('SCOUT', ran.ok, '|'.join(ran.problems))
+spec = {{'prespec': 1, 'written': '2026-09-29', 'outcome': 'BAD_FLAG',
+        'inputs': [{{'column': 'UTIL', 'bins': [0.9], 'reference': 0}}], 'strata': ['FICO', 'CHANNEL'],
+        'confidence': 0.95, 'holdout': {{'from': '2024-11-02', 'to': '2026-12-31'}},
+        'development': {{'from': '2020-01-01', 'to': '2024-11-01'}}}}
+(b.parent / 'saved.yaml').write_text(yaml.safe_dump(spec, sort_keys=False))
+_choose(b, shortlist='saved.yaml', run_kind='new_variable')
+print('SAVED', book.run(b).ok)
+"""
+    here = Path(__file__).parent
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(fake), str(here.parent / "src"), str(here)]),
+               GIT_CEILING_DIRECTORIES=str(tmp_path), POCKETBOOK_MEMORY=str(tmp_path / "memory.yaml"))
+    got = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, cwd=here.parent)
+    assert got.returncode == 0, got.stderr[-3000:]
+    out = {line.split(" ", 1)[0]: line.split(" ", 1)[1] for line in got.stdout.splitlines() if " " in line}
+    ok, problems = out["SCOUT"].split(" ", 1)
+    assert ok == "False"
+    assert "scikit-learn is installed but won't load on this machine" in problems and BLOCKED in problems, problems
+    assert out["SAVED"] == "True"

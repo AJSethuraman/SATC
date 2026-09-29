@@ -1047,6 +1047,10 @@ muts = [
   '    return float(np.dot(a[lo: hi + 1], b[s - hi: s - lo + 1]))', "conditional_likelihood_is_unchanged"),
  ("every coefficient multiplied out again", KG, '        o, pmf = _trim(0, np.exp(logpmf))',
   '        o, pmf = 0, np.exp(logpmf)', "sba_stratum_takes_seconds"),
+ # and scikit-learn installed but blocked by the machine's policy: the Run crashed on the forest's import
+ ("a blocked scikit-learn not loaded before finding", SC,
+  '        import sklearn.ensemble  # noqa: F401\n        import sklearn.metrics  # noqa: F401',
+  '        pass', "wont_load_is_said_in_words"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
