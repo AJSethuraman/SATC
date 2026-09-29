@@ -209,3 +209,199 @@ def test_a_value_on_a_slice_edge_is_counted_in_that_slice(values):
         edge = float(f"{lo + k * w:.12g}")
         counts, below, above = look.slices([edge], lo, hi)
         assert counts.index(1) == k, (lo, hi, k, edge)
+
+
+# ---- at the bank, 29 Sep 2026, evening. The firm: "Shouldn't we have SD markings on the look tab? Our FICO seems
+# fairly distributed but other stuff is not"; offered SD or percentiles, they chose percentiles. And the labels
+# under the bars: Excel wrapped 24,000 as "24,0/00"; it should read 24k.
+
+
+def _by_hand(values: list[float], p: int) -> float:
+    """The p-th percentile as Excel's PERCENTILE.INC works it out, written out here rather than taken from
+    look.py or statistics: the value at position p/100 x (n - 1) of the sorted values, read between its two
+    neighbours."""
+    s = sorted(values)
+    at = p / 100 * (len(s) - 1)
+    k = int(at)
+    return s[k] if k + 1 == len(s) else s[k] + (at - k) * (s[k + 1] - s[k])
+
+
+def _group(hs, name) -> int:
+    return next(c for c in range(2, hs.max_column + 1) if hs.cell(row=look.DATA_TOP - 1, column=c).value == name)
+
+
+def _pct_rows(ws, r) -> dict[str, float]:
+    return {ws.cell(row=r + look.R_PCT + k, column=2).value: ws.cell(row=r + look.R_PCT + k, column=3).value
+            for k in range(len(look.PERCENTILES))}
+
+
+def test_look_percentiles_match_a_count_by_hand_from_the_csv(tmp_path):
+    x = synth.write_extract(tmp_path, n=3000)
+    wb = load_workbook(book.set_up(x).book)
+    ws, hs, blocks = wb["Look"], wb[look.DATA], _blocks(wb["Look"])
+    fico = [v for v in _numbers(_csv(x, "FICO")) if v != -9999]      # the blank and the code left out
+    bal = _numbers(_csv(x, "ORIG_BAL"))
+    for name, vals in (("FICO", fico), ("ORIG_BAL", bal)):
+        want = [_by_hand(vals, p) for p in (10, 25, 50, 75, 90)]
+        r = blocks[name]["row"]
+        got = _pct_rows(ws, r)
+        assert list(got) == ["10th percentile (P10)", "25th percentile (P25)", "50th percentile (P50), the median",
+                             "75th percentile (P75)", "90th percentile (P90)"]
+        assert list(got.values()) == pytest.approx(want, abs=1e-9)
+        assert got["50th percentile (P50), the median"] == pytest.approx(statistics.median(vals))
+        assert ws.cell(row=r + look.R_PCT, column=3).number_format == blocks[name]["fmt"]["Median"]
+        # the same five on _look, where the grey lines are placed from
+        g = _group(hs, name)
+        stored = [hs.cell(row=look.S_PCT + k, column=g + look.G_VALUE).value for k in range(5)]
+        assert stored == pytest.approx(want, abs=1e-9)
+        assert not ws.cell(row=r + look.BLOCK - 1, column=2).value                # a gap row under the list
+    # numpy's default, where it is installed, agrees
+    np = pytest.importorskip("numpy")
+    assert [_by_hand(fico, p) for p in (10, 50, 90)] == pytest.approx(list(np.percentile(fico, [10, 50, 90])))
+
+
+def test_look_percentiles_leave_out_what_columns_answered_missing(tmp_path):
+    """A value answered missing on Columns is no loan on the chart, so it moves no percentile."""
+    from pocketbook import config as cfgmod
+    rows = [{"ID": str(i), "HIST": str(-99000901 - i % 4 if i % 10 == 0 else (i * 37) % 436)} for i in range(400)]
+    p = tmp_path / "hist.csv"
+    with open(p, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=["ID", "HIST"])
+        w.writeheader()
+        w.writerows(rows)
+    table = read_table(p)
+    kept = [float(r["HIST"]) for r in rows if float(r["HIST"]) >= 0]
+    wb = Workbook()
+    look.write_look(wb, table, ["HIST"], rules={"HIST": cfgmod.MissingRule(below=0.0)})
+    got = _pct_rows(wb["Look"], look.FIRST)
+    assert list(got.values()) == pytest.approx([_by_hand(kept, q) for q in (10, 25, 50, 75, 90)])
+    assert min(got.values()) >= 0
+    # unanswered, the codes are used as recorded and pull the 10th down
+    wb = Workbook()
+    look.write_look(wb, table, ["HIST"])
+    assert _pct_rows(wb["Look"], look.FIRST)["10th percentile (P10)"] < 0
+
+
+def _look_book(tmp_path, n=3000, edit=None):
+    """Look alone, on a bare workbook, calculated by LibreOffice after `edit(ws)` on the Look tab; and the
+    workbook as written."""
+    from recalc import values_of
+    table = read_table(synth.write_extract(tmp_path, n=n))
+    wb = Workbook()
+    look.write_look(wb, table, NUMBER_COLUMNS)
+    if edit:
+        edit(wb["Look"])
+    return table, values_of(wb, tmp_path / "calc"), wb
+
+
+def _set(column, bars=None, frm=None, to=None):
+    def edit(ws):
+        r = look.FIRST + look.BLOCK * NUMBER_COLUMNS.index(column)
+        for row, v in ((look.R_BARS, bars), (look.R_FROM, frm), (look.R_TO, to)):
+            if v is not None:
+                ws.cell(row=r + row, column=look.VALUE_COL).value = v
+    return edit
+
+
+def _grey(hs, name):
+    """The grey lines as calculated: each one's x and y at its two points (None where no line), and the tallest
+    bar."""
+    g = _group(hs, name)
+    num = lambda v: v if isinstance(v, (int, float)) else None     # noqa: E731
+    xs = [num(hs.cell(row=look.PCT_TOP + k, column=g + look.G_EX).value) for k in range(2 * len(look.PERCENTILES))]
+    ys = [num(hs.cell(row=look.PCT_TOP + k, column=g + look.G_EY).value) for k in range(2 * len(look.PERCENTILES))]
+    return xs, ys, max(hs.cell(row=look.DATA_TOP + k, column=g + look.G_SLOT).value for k in range(look.SLOTS))
+
+
+def _written_chart(wb, column):
+    """A block's column chart, in a workbook not yet saved (its anchor still a cell name)."""
+    at = f"{look.CHART_AT}{look.FIRST + look.BLOCK * NUMBER_COLUMNS.index(column) + 1}"
+    return next(c for c in wb["Look"]._charts if isinstance(c, BarChart) and c.anchor == at)
+
+
+def _rgb(fill) -> str:
+    rgb = fill if isinstance(fill, str) else fill.srgbClr
+    return rgb if isinstance(rgb, str) else rgb.val
+
+
+def _at(p, frm, to):
+    """Where the red lines put a value (tests/test_answer_tabs.py holds them to it): worked out here."""
+    return look.LOW + 0.5 + look.MIDDLE * (p - frm) / (to - frm)
+
+
+def test_look_percentile_lines_sit_where_the_edge_lines_would_and_follow_from_and_to(tmp_path):
+    table, got, wb = _look_book(tmp_path / "a")
+    fico = look.shape_of(table, "FICO")
+    lo, hi = look.span(fico.values)
+    xs, ys, tallest = _grey(got[look.DATA], "FICO")
+    for k, p in enumerate(fico.pcts):
+        assert lo <= p <= hi
+        assert xs[2 * k] == pytest.approx(_at(p, lo, hi)) and xs[2 * k + 1] == pytest.approx(_at(p, lo, hi))
+        assert (ys[2 * k], ys[2 * k + 1]) == (0, tallest)              # from the floor to the tallest bar
+    # the chart draws them: five thin grey lines named P10 to P90, each named at its top point only, before the red
+    main = _written_chart(wb, "FICO")
+    grey = main._charts[1].series[:len(look.PERCENTILES)]
+    assert [s.tx.v for s in grey] == ["P10", "P25", "P50", "P75", "P90"]
+    for s in grey:
+        assert _rgb(s.graphicalProperties.line.solidFill) == house.SLATE and s.graphicalProperties.line.prstDash in (None, "solid")
+        assert [(d.idx, d.showSerName) for d in s.dLbls.dLbl] == [(1, True)] and not s.dLbls.showSerName
+    red = main._charts[1].series[len(look.PERCENTILES):]
+    assert len(red) == look.EDGE_LINES and all(s.graphicalProperties.line.prstDash == "dash" for s in red)
+    # a narrower range: the 10th and the 90th fall outside it and aren't drawn; the rest move to the new scale
+    frm, to = fico.pcts[0] + 5, fico.pcts[4] - 5
+    _, got, _ = _look_book(tmp_path / "b", edit=_set("FICO", bars=10, frm=frm, to=to))
+    xs, ys, _ = _grey(got[look.DATA], "FICO")
+    assert xs[0:2] == [None, None] and ys[0:2] == [None, None]
+    assert xs[8:10] == [None, None] and ys[8:10] == [None, None]
+    for k in (1, 2, 3):
+        assert xs[2 * k] == pytest.approx(_at(fico.pcts[k], frm, to)) and ys[2 * k] == 0
+
+
+def test_look_labels_under_the_bars_are_short(tmp_path):
+    """The labels as LibreOffice calculates them: FICO keeps its own (550), dollars read 12k, a step of 500
+    keeps its half (20.5k), millions read 1.2M, and a negative keeps its sign."""
+    def labels(got, name):
+        g = _group(got[look.DATA], name)
+        return [v for v in (got[look.DATA].cell(row=look.DATA_TOP + k, column=g + look.G_SLOT_LABEL).value
+                            for k in range(look.SLOTS)) if v not in (None, "")]
+
+    table, got, wb = _look_book(tmp_path / "a")
+    lo, hi = look.span(look.shape_of(table, "FICO").values)
+    assert hi < 1000 and labels(got, "FICO") == [f"{lo + k * (hi - lo) / 5:,.0f}" for k in range(5)]
+    blo, bhi = look.span(look.shape_of(table, "ORIG_BAL").values)
+    starts = [blo + k * (bhi - blo) / 5 for k in range(5)]
+    assert bhi >= 10000 and labels(got, "ORIG_BAL") == [f"{v / 1000:g}k" if v else "0" for v in starts]
+    assert "24k" in labels(got, "ORIG_BAL")                                # the bank's 24,000
+    # the axis sets them flat and never wraps them (Excel's "Wrap text in shape" off), in the file as saved
+    import re
+    import zipfile
+    with zipfile.ZipFile(tmp_path / "a" / "calc" / "book.xlsx") as z:
+        charts = [z.read(n).decode("utf-8") for n in z.namelist() if n.startswith("xl/charts/chart")]
+    cat_axes = [m for c in charts for m in re.findall(r"<(?:c:)?catAx>.*?</(?:c:)?catAx>", c, re.S)
+                if f'tickMarkSkip val="{look.MIDDLE}"' in m]                      # not the red code bars'
+    assert len(cat_axes) == len(NUMBER_COLUMNS)
+    assert all(re.search(r'<a:bodyPr[^>]*rot="0"[^>]*wrap="none"', a) for a in cat_axes)
+
+    def several(ws):
+        _set("ORIG_BAL", bars=10, frm=20000, to=22500)(ws)
+        _set("REV_DEBT", bars=10, frm=0, to=3000000)(ws)
+        _set("FICO", bars=10, frm=-30000, to=0)(ws)
+    _, got, _ = _look_book(tmp_path / "b", edit=several)
+    assert labels(got, "ORIG_BAL") == ["20k", "20.5k", "21k", "21.5k", "22k"]
+    assert labels(got, "REV_DEBT") == ["0", "600k", "1.2M", "1.8M", "2.4M"]
+    assert labels(got, "FICO") == ["-30k", "-24k", "-18k", "-12k", "-6k"]
+
+
+def test_look_axis_formats_read_short_in_libreoffice(tmp_path):
+    """The scatters' axis formats, as a spreadsheet shows them: when every tick is a whole thousand it reads 24k,
+    a millions tick 1.5M; a score keeps its own format."""
+    from recalc import values_of
+    cases = [(700, 0, 50, "700"), (1500, 0, 500, "1,500"), (0, 0, 1000, "0"), (24000, 0, 1000, "24k"), (1500000, 0, 500000, "1.5M"),
+             (200000, 0, 100000, "200k"), (-24000, -30000, 2000, "-24k"), (-3000000, -4000000, 1000000, "-3M")]
+    wb = Workbook()
+    ws = wb.active
+    for i, (v, lo, unit, _) in enumerate(cases, start=1):
+        f = look.axis_format(lo, unit, "#,##0").replace('"', '""')
+        ws.cell(row=i, column=1, value=f'=TEXT({v},"{f}")')
+    got = values_of(wb, tmp_path)
+    assert [got.active.cell(row=i, column=1).value for i in range(1, len(cases) + 1)] == [c[3] for c in cases]

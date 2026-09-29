@@ -131,7 +131,12 @@ After that, the whole routine is:
      outcome): its loans, blanks, likely code (on a red bar
      of its own), smallest, median, mean and largest, and its bars. Pick 10,
      20 or 50 bars and a From and To, and the chart regroups live; the edges
-     typed on Columns show as red dashed lines as you type them. With a split,
+     typed on Columns show as red dashed lines as you type them. The 10th,
+     25th, 50th, 75th and 90th percentiles are listed under the block and
+     drawn as thin grey lines labelled P10 to P90 (worked out as Excel's
+     PERCENTILE.INC, over the same values as the median; a percentile
+     outside From and To isn't drawn). The labels under the bars are short:
+     24k, 1.2M, and a score or a ratio as it is (620, 0.35). With a split,
      a scatter of it against each band column.
 5. **Run.** Save, close the workbook, and press **Run**. If anything
    still needs an answer, the window lists each one by its tab and cell, with

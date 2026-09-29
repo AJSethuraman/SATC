@@ -2353,6 +2353,28 @@ changed in the code.
   - *Decided:* **everything compares against the whole book.** The firm: *"we keep things compared to the
     whole book that's just kind of the point"*. So Grids' vs the book stays the whole book, and a filtered
     view (below) compares against the whole book too.
+- **Later that evening, at the bank: Look** (built, branch `pocketbook-look-0929`):
+  - **Look percentile lines.** The firm: *"Shouldn't we have SD markings on the look tab? Our FICO seems fairly
+    distributed but other stuff is not"*. Offered standard deviations or percentiles by pop-up, they chose
+    percentiles (29 Sep 2026, evening). Each block lists the 10th, 25th, 50th (the median), 75th and 90th
+    percentile, and the chart draws them as thin grey solid lines labelled P10 to P90 at the top, under the red
+    dashed edges. Worked out in Python at draw time over the values the median uses (blanks, not a number, the
+    likely code and anything answered missing left out), as Excel's PERCENTILE.INC and numpy's default do
+    (`statistics.quantiles`, method "inclusive"); stored on `_look` and placed by the red lines' own formula, so
+    they follow Bars, From and To, and one outside From..To isn't drawn. On the synthetic book (3,000 loans)
+    FICO reads 629 · 665 · 701 · 738 · 774, numpy on the CSV the same. The method note says so ("Grey lines").
+    A block is now 20 rows (was 19) and the first starts at row 11 (was 10).
+  - **x-axis labels.** The firm: Excel's labels wrapped, *"24,0/00 should read 24k"*. Labels under the bars are
+    now short: 1,000 and over read 24k, a million and over 1.2M, with the decimals the step between labels needs
+    (20.5k when they are 500 apart); under 1,000 the column's own format (FICO 620, a ratio 0.35). Built from
+    `ROUND(...)&"k"`, not a conditional number format, so negatives (-24k) come out the same in both programs. The
+    axis's text is set flat with "wrap text" off (`wrap="none"`). The scatters' axes get the same short numbers
+    as a number format, only where every tick is a whole thousand.
+  - Tests: 5 in `tests/test_look.py` (percentiles by hand from the CSV for FICO and ORIG_BAL; answered missing
+    left out; grey lines' x as LibreOffice calculates them, gone outside a narrower From..To; labels as
+    calculated: 550 ... 790, 0 / 12k / 24k ..., 20.5k, 600k / 1.2M, -24k; axis formats). 11 planted bugs.
+  - **Not checked in real Excel:** that Excel honours `wrap="none"` on category labels (LibreOffice ignores
+    it), and where Excel puts the P10 to P90 labels (LibreOffice: right of each line's top).
 - **Offered, waiting on a yes** (raised 29 Sep 2026 at the bank):
   1. *Grey out Grids cells under the fewest-loans setting*: shown, not coloured, not setting the colour
      scale. A 3-loan cell at -50 points was the deepest red on the grid and paled every real gap.

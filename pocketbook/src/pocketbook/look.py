@@ -23,6 +23,20 @@ range, "if truly cheap"):
     per edge on the chart's second axes, its place worked out by formula from
     the Columns cell, so the lines follow that tab as it is typed.
 
+The firm, at the bank, 29 Sep 2026: "Shouldn't we have SD markings on the look
+tab? Our FICO seems fairly distributed but other stuff is not". Offered
+standard deviations or percentiles, they chose percentiles: the 10th, 25th,
+50th, 75th and 90th are listed in the block and drawn as thin grey lines,
+labelled P10 to P90, placed by the same formula as the red lines, so they move
+with Bars, From and To and one outside the range isn't drawn. Worked out in
+Python from the values the spread uses, as Excel's PERCENTILE.INC does
+(statistics.quantiles, method="inclusive"; numpy's default "linear").
+
+The labels under the bars are short (the same day: Excel wrapped 24,000 as
+"24,0/00"): 1,000 and over read 24k, a million and over 1.2M, with as many
+decimals as the step between labels needs; anything smaller keeps the
+column's own format (a FICO of 620, a ratio of 0.35).
+
     A scatter of the column that splits the pockets against each band column
     (a random 2,000 loans, the same every time), with the correlation beside
     it: a correlation near zero misses a U, and a picture does not
@@ -46,11 +60,15 @@ from __future__ import annotations
 import math
 import random
 import statistics
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 
 from openpyxl.chart import BarChart, Reference, ScatterChart, Series
+from openpyxl.chart.label import DataLabel, DataLabelList
 from openpyxl.chart.marker import DataPoint
+from openpyxl.chart.shapes import GraphicalProperties
+from openpyxl.chart.text import RichText
+from openpyxl.drawing.text import CharacterProperties, Paragraph, ParagraphProperties, RichTextProperties
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -71,8 +89,8 @@ EDGE_LINES = 24           # red dashed lines at most (every 20 on FICO makes abo
 LABELS = 5                # labels under the bars, whatever their number
 SAMPLE = 2000             # dots on a scatter, at most
 SEED = 7                  # so the same loans are drawn every time
-FIRST = 10                # first block's row, under the method note
-BLOCK = 19                # rows per block, the gap under it included
+FIRST = 11                # first block's row, under the method note
+BLOCK = 20                # rows per block, the gap under it included
 PAGE_BLOCKS = 2           # blocks per printed page
 GROUP = 13                # _look columns per number column
 DATA_TOP = 4              # _look's first data row
@@ -81,15 +99,21 @@ DATA_TOP = 4              # _look's first data row
 R_LOANS, R_BLANK, R_TEXT, R_CODE, R_MIN, R_MEDIAN, R_MEAN, R_MAX = range(1, 9)
 R_MARKED = 9                                        # loans a Treat as answer of Missing leaves out
 R_BARS, R_FROM, R_TO, R_TREAT = 10, 11, 12, 13
+R_PCT = 14                                          # the five percentiles, one a row, to R_PCT + 4
+PERCENTILES = (10, 25, 50, 75, 90)
 RULES_ROW = 4                                       # _look column A: the Treat as answers Look was drawn with
 STATS_COL, VALUE_COL, SHARE_COL = 2, 3, 4          # B, C, D
 CODE_AT, CHART_AT = "F", "H"
 
 # _look, within a column's group (offsets from its first column)
-G_LO, G_MID, G_COUNT, G_LABEL, G_VALUE, G_START, G_BAR, G_SLOT_LABEL, G_SLOT, G_EX, G_EY, G_EDGE = range(12)
+G_LO, G_MID, G_COUNT, G_LABEL, G_VALUE, G_START, G_BAR, G_SLOT_LABEL, G_SLOT, G_EX, G_EY, G_EDGE, G_BAR_LABEL = \
+    range(13)
 # _look scalar rows (G_LABEL / G_VALUE)
 S_NAME, S_LO, S_HI, S_BELOW, S_ABOVE, S_CODE, S_AT_CODE, S_MIN, S_MAX, S_N, S_FROM, S_TO, S_WIDTH, S_PER, \
     S_LOWTAIL, S_HIGHTAIL, S_EDGES, S_FMT = range(DATA_TOP, DATA_TOP + 18)
+S_PCT = DATA_TOP + 18                               # the five percentiles, one a row, to S_PCT + 4
+S_LSTEP = S_PCT + len(PERCENTILES)                  # the step between two labels under the bars
+PCT_TOP = DATA_TOP + 2 * EDGE_LINES                 # G_EX / G_EY: the grey lines' two points each, under the red
 
 METHOD = [
     ("The bars", "How many loans fall in each step between From and To. Pick 10, 20 or 50 bars and change the "
@@ -98,6 +122,9 @@ METHOD = [
                     "the chart, so it doesn't flatten the rest. Columns asks whether it means missing."),
     ("Red dashed lines", "The band edges typed on Columns. They follow that tab as you type, so you can try edges "
                          "here before the next Run. Blank edges are cut at the Run, so no lines show."),
+    ("Grey lines", "The 10th, 25th, 50th, 75th and 90th percentile, P10 to P90: a tenth of the loans on the chart lie "
+                   "below P10, half below P50 (the median). Worked out as Excel's PERCENTILE.INC does. They "
+                   "move with From and To; one outside them isn't drawn."),
     ("How it counts", "Set up counts each column once, in 200 equal slices around its 1st to 99th percentile. A "
                       "range you type is counted to the nearest slice."),
     ("The dots", "The split column against each band column: a random 2,000 loans, the same every time. If the "
@@ -118,6 +145,7 @@ class Shape:
     fmt: str = "#,##0"                          # the spread's format
     marked: int = 0                             # left out: answered Missing under Treat as on Columns
     rule: object = None                         # that answer, as the Run's MissingRule
+    pcts: list[float] = field(default_factory=list)   # the 10th, 25th, 50th, 75th and 90th percentile of values
 
 
 def number_columns(table, cols, few_values: int = 12, known: dict | None = None) -> list[str]:
@@ -165,14 +193,16 @@ def shape_of(table, col: str, known=None, rule=None) -> Shape:
                 text += 1
             else:
                 nums.append(p)
+    everything = nums                                   # as recorded, answered missing included
     kept_nums = [x for x in nums if not caught(x, rule)]
-    marked = len(nums) - len(kept_nums)
+    marked = len(everything) - len(kept_nums)
     nums = kept_nums
     code = next((q["value"] for q in profile.odd_values(col, nums) if q["pattern"] == "repeated_value"), None)
     values = sorted(x for x in nums if x != code)
     s = Shape(col, len(table.rows), blank, text, code, len(nums) - len(values), values, marked=marked, rule=rule)
     if values:
         s.fmt = _format(values)
+    s.pcts = percentiles(values)
     return s
 
 
@@ -216,6 +246,16 @@ def _format(values: list[float]) -> str:
         return "#,##0"
     big = max(abs(values[0]), abs(values[-1]), abs(statistics.median(values)))
     return "#,##0" if big >= 100 else "#,##0.0" if big >= 10 else "0.00" if big >= 1 else "0.000"
+
+
+def percentiles(values: list[float]) -> list[float]:
+    """The 10th, 25th, 50th, 75th and 90th percentile of the sorted values, as Excel's PERCENTILE.INC and numpy's
+    default ("linear") work them out: the value at position p x (n - 1), counted from 0, read between its two
+    neighbours (statistics.quantiles, method="inclusive"). The 50th is the median."""
+    if len(values) < 2:
+        return [float(values[0])] * len(PERCENTILES) if values else []
+    cuts = statistics.quantiles(values, n=100, method="inclusive")
+    return [cuts[p - 1] for p in PERCENTILES]
 
 
 def _nice(raw: float) -> float:
@@ -413,8 +453,21 @@ def _axis(ax, vals: list[float], fmt: str) -> None:
     if ax.scaling.max <= ax.scaling.min:
         ax.scaling.max = ax.scaling.min + unit
     ax.majorUnit = unit
-    ax.number_format = fmt
+    ax.number_format = axis_format(ax.scaling.min, unit, fmt)
     ax.delete = False
+
+
+def axis_format(lo: float, unit: float, fmt: str) -> str:
+    """A scatter axis's numbers, short as the bars' labels are: 200k, 1.5M. Only when every tick is a whole
+    thousand (the step is 1,000 or more), so none is rounded; a millions step shows each tick exactly. A
+    condition in a format is left to axes that start at 0 or above, whose negatives never show."""
+    if unit < 1000:
+        return fmt
+    if lo < 0:
+        return '#,##0,,"M"' if unit >= 1e6 else '#,##0.0,,"M"' if unit >= 1e5 else '#,##0,"k"'
+    if unit >= 1e5:
+        return '[>=1000000]0.0,,"M";[>=1000]#,##0,"k";0'
+    return '[>=1000]#,##0,"k";0'
 
 
 def _bar_row(ws, r: int, text: str, last: int = SHARE_COL) -> None:
@@ -465,6 +518,9 @@ def _block(ws, hs, r: int, s: Shape, g: int, dv, edge_row: int | None, treat) ->
         _line(ws, r + R_MIN, "No numbers to show.")
     if s.marked:
         _line(ws, r + R_MARKED, "Answered missing, left out", s.marked, s.marked / n)
+    pcts = s.pcts
+    for k, (p, v) in enumerate(zip(PERCENTILES, pcts)):
+        _line(ws, r + R_PCT + k, f"{p}th percentile (P{p})" + (", the median" if p == 50 else ""), v, fmt=s.fmt)
     if treat is not None and treat[1].startswith("negatives|"):
         row = treat[0]
         cell = f"Columns!$H${row}"
@@ -490,7 +546,7 @@ def _block(ws, hs, r: int, s: Shape, g: int, dv, edge_row: int | None, treat) ->
     hs.cell(row=DATA_TOP - 1, column=g, value=s.name)
     for off, h in ((G_LO, "slice from"), (G_MID, "middle"), (G_COUNT, "loans"), (G_START, "bar from"),
                    (G_BAR, "bar loans"), (G_SLOT_LABEL, "chart label"), (G_SLOT, "chart loans"),
-                   (G_EX, "edge x"), (G_EY, "edge y"), (G_EDGE, "edge")):
+                   (G_EX, "edge x"), (G_EY, "edge y"), (G_EDGE, "edge"), (G_BAR_LABEL, "bar label")):
         hs.cell(row=DATA_TOP - 2, column=g + off, value=h)
     w = (hi - lo) / SLICES
     for i, k in enumerate(counts):
@@ -523,20 +579,23 @@ def _block(ws, hs, r: int, s: Shape, g: int, dv, edge_row: int | None, treat) ->
             S_LOWTAIL: ("low end bar", f'={V(S_BELOW)}+SUMIFS({cnt},{mid},"<"&{V(S_FROM)})'),
             S_HIGHTAIL: ("high end bar", f'={V(S_ABOVE)}+SUMIFS({cnt},{mid},">"&{V(S_TO)})'),
             S_EDGES: ("band edges on Columns", f'=Columns!$I${edge_row}&""' if edge_row else ""),
-            S_FMT: ("format", s.fmt)}
+            S_FMT: ("format", s.fmt),
+            S_LSTEP: ("step between labels", f"=({V(S_TO)}-{V(S_FROM)})/{LABELS}")}
+    for k, (p, v) in enumerate(zip(PERCENTILES, pcts)):
+        scal[S_PCT + k] = (f"P{p}", v)
     for row, (label, v) in scal.items():
         hs.cell(row=row, column=g + G_LABEL, value=label)
         hs.cell(row=row, column=g + G_VALUE, value=v)
     N, F, W, P = V(S_N), V(S_FROM), V(S_WIDTH), V(S_PER)
-    starts = f"${L(G_START)}${DATA_TOP}:${L(G_START)}${DATA_TOP + max(BARS) - 1}"
     counts_rng = f"${L(G_BAR)}${DATA_TOP}:${L(G_BAR)}${DATA_TOP + max(BARS) - 1}"
     for j in range(1, max(BARS) + 1):
         row = DATA_TOP + j - 1
         st = _L(g + G_START, row)
         hs.cell(row=row, column=g + G_START, value=f'=IF({j}<={N},{F}+({j}-1)*{W},"")')
+        hs.cell(row=row, column=g + G_BAR_LABEL, value=_short_label(st, V(S_LSTEP), s.fmt))
         hs.cell(row=row, column=g + G_BAR, value=(
             f'=IF({j}>{N},"",SUMIFS({cnt},{mid},">="&{st},{mid},IF({j}={N},"<=","<")&({st}+{W})))'))
-    fmt = s.fmt.replace('"', "")
+    labels_rng = f"${L(G_BAR_LABEL)}${DATA_TOP}:${L(G_BAR_LABEL)}${DATA_TOP + max(BARS) - 1}"
     for k in range(1, SLOTS + 1):
         row = DATA_TOP + k - 1
         if k <= LOW:
@@ -546,7 +605,7 @@ def _block(ws, hs, r: int, s: Shape, g: int, dv, edge_row: int | None, treat) ->
             m = k - LOW - 1
             j = f"(INT({m}/{P})+1)"
             value = f"=IF(MOD({m},{P})={P}-1,0,INDEX({counts_rng},{j}))"
-            label = (f'=IF(AND(MOD({m},{P})=0,MOD({j}-1,{N}/{LABELS})=0),TEXT(INDEX({starts},{j}),"{fmt}"),"")')
+            label = f'=IF(AND(MOD({m},{P})=0,MOD({j}-1,{N}/{LABELS})=0),INDEX({labels_rng},{j}),"")'
         else:
             h = k - LOW - MIDDLE - 1
             value = f"=IF({h}<={P}-2,{V(S_HIGHTAIL)},0)"
@@ -574,6 +633,16 @@ def _block(ws, hs, r: int, s: Shape, g: int, dv, edge_row: int | None, treat) ->
             xr = DATA_TOP + 2 * (k - 1) + p
             hs.cell(row=xr, column=g + G_EX, value=x)
             # no edge: both ends not a number, so no program draws a stray point
+            hs.cell(row=xr, column=g + G_EY, value=f"=IF(ISNA({_L(g + G_EX, xr)}),NA(),{y})")
+    # the percentiles, placed as the edges are: the same mapping, so they follow Bars, From and To, and a
+    # percentile outside From..To is not a number, so no line
+    slots = f"${L(G_SLOT)}${DATA_TOP}:${L(G_SLOT)}${DATA_TOP + SLOTS - 1}"
+    for k in range(len(PERCENTILES)):
+        pv = V(S_PCT + k)
+        x = f"=IFERROR(IF(AND({pv}>={F},{pv}<={V(S_TO)}),{LOW}+0.5+{MIDDLE}*({pv}-{F})/({V(S_TO)}-{F}),NA()),NA())"
+        for p, y in ((0, "0"), (1, f"MAX({slots})")):
+            xr = PCT_TOP + 2 * k + p
+            hs.cell(row=xr, column=g + G_EX, value=x)
             hs.cell(row=xr, column=g + G_EY, value=f"=IF(ISNA({_L(g + G_EX, xr)}),NA(),{y})")
     at = f"'{DATA}'!{src}"
     edges_now = ws.cell(row=r, column=8, value=(
@@ -607,8 +676,21 @@ def _chart(ws, hs, r: int, s: Shape, g: int) -> None:
     ch.y_axis.majorGridlines = None
     ch.x_axis.tickLblSkip = 1
     ch.x_axis.tickMarkSkip = MIDDLE
+    # short labels (24k), set flat and never wrapped: Excel wrapped 24,000 as "24,0/00" at the bank, 29 Sep 2026
+    ch.x_axis.txPr = _small_text(house.INK_TEXT, size=900, no_wrap=True)
     ch.x_axis.delete = ch.y_axis.delete = False
     lines = ScatterChart()
+    # the grey percentile lines first, so a red edge on the same spot is drawn over them
+    for k, p in enumerate(PERCENTILES):
+        xs = Reference(hs, min_col=g + G_EX, min_row=PCT_TOP + 2 * k, max_row=PCT_TOP + 2 * k + 1)
+        ys = Reference(hs, min_col=g + G_EY, min_row=PCT_TOP + 2 * k, max_row=PCT_TOP + 2 * k + 1)
+        line = Series(ys, xs, title=f"P{p}")
+        line.marker.symbol = "none"
+        line.smooth = False
+        line.graphicalProperties.line.solidFill = house.SLATE
+        line.graphicalProperties.line.width = 9525                   # 0.75 pt, thinner than the red edges
+        line.dLbls = _name_at_top()
+        lines.series.append(line)
     for k in range(EDGE_LINES):
         xs = Reference(hs, min_col=g + G_EX, min_row=DATA_TOP + 2 * k, max_row=DATA_TOP + 2 * k + 1)
         ys = Reference(hs, min_col=g + G_EY, min_row=DATA_TOP + 2 * k, max_row=DATA_TOP + 2 * k + 1)
@@ -646,6 +728,45 @@ def _chart(ws, hs, r: int, s: Shape, g: int) -> None:
     code.x_axis.delete = code.y_axis.delete = False
     code.width, code.height = 2.6, 8
     ws.add_chart(code, f"{CODE_AT}{r + 1}")
+
+
+def _short_label(x: str, step: str, fmt: str) -> str:
+    """The formula for a bar's label under the chart, from the bar's start in cell x: 24k for 24,000, 1.2M for
+    1,200,000, with the decimals the step between two labels (cell `step`) needs to tell them apart (24.5k when
+    they are 500 apart); under 1,000 the column's own format, so a FICO reads 620 and a ratio 0.35. Built from
+    ROUND and joined text, not a conditional number format, so a negative (-24k) and the decimals come out the
+    same in Excel and LibreOffice."""
+    own = f'TEXT({x},"{fmt.replace(chr(34), "")}")'
+
+    def unit(size: str, suffix: str) -> str:
+        return f'ROUND({x}/{size},MAX(0,1-INT(LOG10({step}/{size}))))&"{suffix}"'
+    return (f'=IF({x}="","",IFERROR(IF(ABS({x})>=1000000,{unit("1000000", "M")},IF(ABS({x})>=1000,'
+            f'{unit("1000", "k")},{own})),{own}))')
+
+
+def _name_at_top() -> DataLabelList:
+    """A grey line's name (P10), beside its top point only."""
+    top = DataLabel(idx=1)
+    for flag in ("showVal", "showCatName", "showLegendKey", "showPercent", "showBubbleSize"):
+        setattr(top, flag, False)
+    top.showSerName = True
+    top.position = "r"
+    top.txPr = _small_text(house.SLATE)
+    top.spPr = GraphicalProperties(solidFill=house.PAPER)          # readable where it sits over a bar
+    d = DataLabelList(dLbl=[top])
+    for flag in ("showSerName", "showVal", "showCatName", "showLegendKey", "showPercent", "showBubbleSize"):
+        setattr(d, flag, False)
+    return d
+
+
+def _small_text(color: str, size: int = 800, no_wrap: bool = False) -> RichText:
+    """Chart text: `size` in hundredths of a point, in `color`, and set flat. `no_wrap`: Excel's "Wrap text in
+    shape" off (wrap="none"), which openpyxl reads as no setting at all, so it is put in past its check."""
+    props = CharacterProperties(sz=size, solidFill=color)
+    body = RichTextProperties(rot=0, vert="horz")
+    if no_wrap:
+        body.__dict__["wrap"] = "none"
+    return RichText(bodyPr=body, p=[Paragraph(pPr=ParagraphProperties(defRPr=props), endParaRPr=props, r=[])])
 
 
 def _plain(x: float) -> str:
