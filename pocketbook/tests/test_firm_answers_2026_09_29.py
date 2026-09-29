@@ -179,9 +179,9 @@ def test_the_two_column_limits_say_which_columns_they_are_for():
 def test_a_click_keeps_the_table_where_it_was_scrolled_and_the_outcome_is_asked(monkeypatch, tmp_path):
     """On the window (needs a display: xvfb-run on Linux): a tick changes its box in place, so a table scrolled
     half way down stays there; All ticks every input; picking the outcome asks first, in counts."""
-    from tkinter import messagebox
     from test_deps import _window
-    root = _window()
+    root = _window()                                 # skips where there is no Tk or no display
+    from tkinter import messagebox
     try:
         from pocketbook import deps
         monkeypatch.setattr(launcher, "PREFS", tmp_path / "launcher.json")
