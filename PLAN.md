@@ -447,6 +447,54 @@ it with them.
 
 ## Decisions log
 
+- **2026-09-29 — The season simulator (`season-simulator/`, new).** The firm,
+  approving the recon's options 1 and 4: *"1 and 4 are good. Use workflow and
+  whatever you need honestly"*. Sixty invented clients walk 1 January to
+  15 October 2027 through the real satc_system routes (Flask test client) and
+  client-documents commands (`cli.main`), the machine clock frozen per
+  simulated day; 50 invariants, each citing the rule it holds the code to, are
+  checked every day. **No production code changed** — a frozen clock reached
+  every read, so no clock seam was needed. Three seeds ran in full, 288 of 288
+  days each (42 and 1066 billing in satc_system, 7 in client-documents): 370,
+  394 and 335 findings, 0 checker crashes, every run-level guard held. Every
+  checker goes red on a planted violation, and six real functions broken on
+  purpose were each caught (`season-simulator/README.md`, "How we know it can
+  fail"). CI runs the mechanics only, never "zero findings" (S22, S25).
+  What the season found, reproduced through the doors, **none fixed here** —
+  handed to the firm, not written into `docs/DEFECT-REGISTER.md`:
+  - *Clear bugs:* the work board and the job page disagree once a delivery is
+    recorded (C5); the season board shows closed-out and disengaged
+    engagements OVERDUE for good, last year's included (E6); a returning client
+    is never invited (B11); **an extension notice with no payment can never
+    pass the pre-send gate** — the floor `estimate-is-not-final-liability`
+    applies to every notice and its only satisfying sentence is inside
+    `[[IF PaymentEnclosed]]` (L1); the signature list chases disengaged clients
+    (D4); `cli season --today` still reads the machine clock (K1); **satc's
+    billing screen tells the owner to put the whole estimate on every
+    engagement-priced line**, so following it bills $975 against a $325
+    estimate (L2).
+  - *The firm's decision:* satc's cutoff is not the date the client was told,
+    and Today proposes extensions to clients inside their date (G4, G8); filed,
+    extended and disengaged clients are told their return is overdue and are
+    still chased, because no door carries those facts into satc_system (B8,
+    G5); whichever system bills, the other is blind (G6) — and under
+    client-documents billing **no return could be transmitted all season**
+    (50 delivered, 0 closed out): a check has no door, though the gate's own
+    refusal says "a bill paid another way is recorded by hand" (L4); every
+    extension notice is also refused because the interview's first-deliverable
+    date predates the extended materials date and the event cannot restate it
+    (L3); returning clients are asked where last year's prior-year return went
+    (B13); amended returns sit at the original dates (E5); satc_system has no
+    Form 1120 workflow (G1).
+  - *Noticed while building, not measured:* `satc_system[app]` cannot import
+    the app — `satc.app.state` needs reportlab, which only `[dev]` installs; the
+    job page pre-fills "Which return" as `<client>-<year>-<engagementType>`,
+    not the `ids.return_key` shape; and **`CLAUDE.md`'s client-documents row
+    says the `cli.py event` documents ship ungated, but the extension notice
+    was refused by the pre-send gate on that path** (`cli.py:2368`,
+    `sending.gate_staged`) — the row looks stale and was not edited here.
+  Reports: `season-simulator/reports/season-2027-seed-{42,7,1066}.md` (+ HTML).
+
 - **2026-09-27 — § 274(e) and § 1.162-21 are on file (desk 0.40.0).** In Sarcia
   pilot 5 the desk answered a streaming-subscription question from
   § 1.274-11(a) and could only say its answer was "subject to" § 274(e):
