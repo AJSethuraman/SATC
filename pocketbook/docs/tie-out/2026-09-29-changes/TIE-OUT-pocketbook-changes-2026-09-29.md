@@ -6,7 +6,7 @@
 
 <div class="meta">Build 05411391 (branch claude/keen-franklin-4l01un) · Runs made 29 Sep 2026 21:02–21:09 · Six made-up loan files: Consumer book Q3 (8,000 loans, the 28 Sep file byte for byte), Scouting book (12,000, the 28 Sep file byte for byte), Flag book and Two-flag book (8,000 each, Q3 plus a system flag), Bureau book (8,000, Q3 plus a bureau column) · 278 views calculated by LibreOffice 24.2 · Loan-file road: Python 3.11 csv module, numpy 2.4, scipy 1.17, statsmodels 0.15, scikit-learn 1.9, awk</div>
 
-<div class="headline-box"><span class="big" data-tieout="headline"><!--HEADLINE--> cells read</span> across six workbooks and two Excel-style saves — every visible cell that holds a number, a digit, a verdict word or a sentence the changes added, under every choice of every dropdown. <b><!--COUNT:TIED--> tie</b> to the loan file and <b><!--COUNT:TIED-WITHIN-SAMPLING--> tie within sampling error</b> (p-values from shuffling, where two honest roads cannot land on the same digits). <b><!--COUNT:DIFFERS--> differ</b>: all of them one pocket's shuffled p-value landing just past the four-standard-error line, shared by 21 pockets through the allowance for many tests — sampling, not a bug (<i>What it found</i>, item 1). <b><!--COUNT:COULD NOT--> could not be checked</b>, the same four kinds as on 28 September. The rest are names, your own answers shown back, and words.</div>
+<div class="headline-box"><span class="big" data-tieout="headline"><!--HEADLINE--> cells read</span> across six workbooks and two Excel-style saves — every visible cell that holds a number, a digit, a verdict word or a sentence the changes added, under every choice of every dropdown. <b><!--COUNT:TIED--> tie</b> to the loan file and <b><!--COUNT:TIED-WITHIN-SAMPLING--> tie within sampling error</b> (p-values from shuffling, where two honest roads cannot land on the same digits). <b><!--COUNT:DIFFERS--> differ</b>: all of them one pocket's shuffled p-value landing just past the four-standard-error line, shared by 21 pockets through the allowance for many tests. Rerun with a million shuffles on each road, the two converge to the same p-value (0.9601 and 0.9604): sampling, not a bug (<i>What it found</i>, item 1). <b><!--COUNT:COULD NOT--> could not be checked</b>, the same four kinds as on 28 September. The rest are names, your own answers shown back, and words.</div>
 
 ## The tallies
 
@@ -97,6 +97,17 @@ All four new books were run through the same walk as Q3: bands FICO and ORIG_BAL
 **Result.** Every figure ties apart from 21 cells of one list, which differ by sampling (below). The *differ at all* line prints its p-value only as "under 0.0001"; the p-value itself, which the workbook keeps on its hidden `_views` sheet, was also set beside this road's for all 20 Grid·value choices: every one agrees to 1 part in 10¹⁴, with the same degrees of freedom and pockets (`results/b3-hidden.txt`; hidden cells are not counted on the roster).
 
 **The DIFFERS.** Pockets tab, POCKETS *Split by SYS_FLAG*, MEASURE *Earned before losses* (view 09), column L (p-value), rows 82, 89, 95, 99, 104, 106, 109, 111, 119, 123, 126, 127, 133, 134, 137, 148, 149, 150, 151, 163, 165: the workbook shows **0.981865** in every one, this road **0.992883**, a gap of 0.0110 against a tolerance of 0.0108. All 21 are pockets of FICO x ASSET_CLASS / SYS_FLAG compared with their band, and all 21 take their allowance-adjusted p-value from one other pocket's raw p: Benjamini-Hochberg gives each p-value the smallest of *p × 69 / rank* over the ranks above it, and for all of them that is set by FICO 746 – 921 / ASSET_CLASS 1 / Y, 67th of 69. Its raw shuffled p-value is **0.9534** in PocketBook (read by running PocketBook's own engine, `diagnose_family.py`) and **0.9641** on this road: 4.1 standard errors apart, just over the four this tie-out allows. Every other raw p-value in the family agrees within 0.004. So it is one sampling draw, copied 21 times; both roads call every one of the 21 not significant, and no verdict, order or dollar figure moves.
+
+**Checked again with far more shuffles.** Four standard errors is too far to wave through, so the pocket's shuffle test was run again on both roads, 200,000 shuffles at a time, five seeds each. PocketBook's side (`long_shuffle_pocketbook.py`) calls PocketBook's own `perm.run` on exactly what its engine hands it for this grid and rate — the Run's seed first, then four others; the loan-file side (`long_shuffle_road2.py`) is 60 lines of numpy on the CSV: the 1,571 loans of FICO 746 – 921 that enter Earned before losses, 183 of them in the pocket, dealt at random within the band. Both roads start from the same observed gap, −0.000133961 (0.013 points: the pocket earns almost exactly what its band does, which is why its p-value is near 1).
+
+| Road | 200,000 shuffles × 5 seeds: p each time (standard error 0.00044 each) | 1,000,000 pooled |
+|---|---|---|
+| PocketBook | 0.96015 (the Run's seed) · 0.95995 · 0.96005 · 0.96037 · 0.95994 | **0.96009** ± 0.00020 |
+| Loan file | 0.95992 · 0.96010 · 0.96065 · 0.96078 · 0.96071 | **0.96043** ± 0.00020 |
+
+The two roads converge to the same p-value: they differ by 0.00034, 1.2 standard errors of the difference. So the method is the same, and the DIFFERS is sampling. Measured against the converged 0.9603, the Run's own 10,000 shuffles (the first 10,000 of the Run's seed; each shuffle has its own stream, so they are the same draws) landed at 0.9534, 3.5 standard errors low, and this road's at 0.9641, 2.0 high — together 4.1 apart. With about 3,300 shuffled p-values compared in this tie-out, one pair that far apart is unlucky rather than surprising. I read `engine._shuffle_tests` and `perm.RestGap` beside this road line by line for the things that could have made a real difference — which loans are shuffled (only those that entered the rate, within the band, every segment and every SYS_FLAG value including the blank, since the band's rest is every other loan of the band), what the gap is (rate of the pocket less rate of the rest, dollar-weighted sums), two-sided counting with a tie allowance, and (hits + 1) / (shuffles + 1) — and they match each other and docs/statistics.md B2 on every point.
+
+<figure class="wide"><img data-tieout="source" src="source-6-long-shuffle.png"><figcaption>The pocket's shuffle test, 200,000 shuffles a time on each road. Ringed: the highest and lowest of each road's five — every one within about two standard errors of 0.9603.</figcaption></figure>
 
 <figure class="wide"><img data-tieout="source" src="source-5-family.png"><figcaption>The family, largest eight raw p-values with their adjusted ones, on this road and in PocketBook. Ringed: the pocket that sets the 21 cells, 0.9641 here and 0.9534 there.</figcaption></figure>
 
@@ -206,6 +217,13 @@ awk -F, 'NR>1 {v=$11; if (v<0) n++; else {k++; s+=v}} END {print n, k, s/k}' "Bu
 python3 cmh_check.py "Two-flag book.csv"
 ```
 
+**Step 3b · The one DIFFERS with a million shuffles a road** (about fifteen minutes; expect p near 0.960 on both):
+
+```
+python3 long_shuffle_road2.py "Flag book.csv" 200000 5
+python3 long_shuffle_pocketbook.py "Flag book - PocketBook.xlsx" "Flag book.csv" 200000 5
+```
+
 **Step 4 · The workbooks again from nothing** (optional):
 
 ```
@@ -221,7 +239,7 @@ python3 make_scout_book.py ../../../src "/tmp/credit/Scout files"
 
 <h2 data-tieout="what-it-found">What it found</h2>
 
-1. **One sampling draw, copied 21 times by the allowance.** On the Flag book's Pockets list split by SYS_FLAG, under Earned before losses, 21 pockets show 0.981865 where this road has 0.992883. They all take their adjusted p-value from one pocket's raw one (FICO 746 – 921 / ASSET_CLASS 1 / Y): 0.9534 in PocketBook, 0.9641 here, 4.1 standard errors apart. It is not a fault in either road — PocketBook's own raw p-values, read by running its engine, agree with this road's everywhere else in the family — but it is worth knowing how it arises: the allowance for many tests hands one pocket's sampling error to every pocket it sets, so one borderline draw shows up as a block of identical differences. No verdict moves: all 21 are nowhere near 5%.
+1. **One sampling draw, copied 21 times by the allowance.** On the Flag book's Pockets list split by SYS_FLAG, under Earned before losses, 21 pockets show 0.981865 where this road has 0.992883. They all take their adjusted p-value from one pocket's raw one (FICO 746 – 921 / ASSET_CLASS 1 / Y): 0.9534 in PocketBook, 0.9641 here, 4.1 standard errors apart. Run again with 1,000,000 shuffles on each road, the two converge — 0.96009 in PocketBook, 0.96043 here, 1.2 standard errors apart — so it is not a fault in either road: the Run's 10,000 shuffles fell 3.5 standard errors low for this pocket. But it is worth knowing how it arises: the allowance for many tests hands one pocket's sampling error to every pocket it sets, so one borderline draw shows up as a block of identical differences. No verdict moves: all 21 are nowhere near 5%.
 2. **Every figure the category split puts on a tab ties**, including the new test of whether the values differ at all (to 1 part in 10¹⁴ on its hidden p-value, and exactly equal to statsmodels' Cochran-Mantel-Haenszel when there are two values), the one family across values and pockets, and the pooled p-values' own allowance across the values.
 3. **"What one cell says" says what the blocks show**, word for word, on 243 picks, and gives the right reason for each blank: alone in its band, too few losses, or not compared.
 4. **The chart colours and numbers its dots by the verdicts the table prints.** The only disagreements are the sampling flip 28 September already found.

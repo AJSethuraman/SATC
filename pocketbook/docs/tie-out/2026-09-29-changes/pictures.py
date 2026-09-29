@@ -94,6 +94,11 @@ def main():
              "The one DIFFERS  ·  Flag book  ·  FICO x ASSET_CLASS / SYS_FLAG, Earned before losses, against the band",
              [(c5, (OUT / "diagnose.txt").read_text())],
              [("(0.9641, 0.9929)", 1), ("(0.9534, 0.9819)", 1)])
+    c6 = "cat results/long-shuffle-pocketbook.txt results/long-shuffle-road2.txt | cut -c1-110"
+    terminal("source-6-long-shuffle.png",
+             "The one DIFFERS again  ·  the same pocket, 200,000 shuffles a time, five seeds on each road",
+             [(c6, run(c6))],
+             [("p 0.96015", 1), ("p 0.95994", 1), ("p 0.95992", 1), ("p 0.96071", 1)])
 
 
 if __name__ == "__main__":
