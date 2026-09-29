@@ -491,5 +491,5 @@ def test_nothing_on_the_result_tabs_or_in_their_dropdowns_says_luck_or_cube(ran)
                 assert not (isinstance(c.value, str) and banned.search(c.value)), (t, c.coordinate, c.value)
     wb = load_workbook(ran["book"])
     for chart in wb[results.PCK]._charts:
-        titles = [chart.title.tx.rich.p[0].r[0].t, chart.x_axis.title.tx.rich.p[0].r[0].t]
+        titles = [a.title.tx.rich.p[0].r[0].t for a in (chart, chart.x_axis, chart.y_axis) if a.title is not None]
         assert not any(banned.search(x) for x in titles)

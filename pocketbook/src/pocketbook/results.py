@@ -597,11 +597,12 @@ SIDES = (("contribution_rate", "Paid us", "gap vs"), ("gco_rate", "Cost us", "ch
 (C_BAND, C_SEG, C_LOANS, C_PAID, C_PAID_D, C_COST, C_COST_D, C_KEPT, C_KEPT_D, C_TOG) = range(2, 12)
 C_H = 40                  # hidden: the _views row, untested, each side's _pockets row and flag
 (C_H_ROW, C_H_UN, C_H_RC, C_H_RG, C_H_RR, C_H_FC, C_H_FG, C_H_FR) = range(C_H, C_H + 8)
-LABELLED = 8              # pockets named on the chart: the first rows, when they have a Together verdict
+LABELLED = 8              # pockets numbered on the chart and named under it: the first rows, with a Together verdict
+CHART_ROWS = 23           # rows the chart covers (11 cm at the tab's row height), so the names list starts under it
 #: the chart's own cells, on a hidden sheet (Excel leaves out a chart's points in hidden columns): each row's point,
 #: x then y, its name when it is read together and that point again, then the dashed lines and the corners
 CHART = "_chart"
-(H_X, H_Y, H_NAME, H_NX, H_NY) = range(1, 6)
+(H_X, H_Y, H_NAME, H_NX, H_NY, H_RX, H_RY, H_GX, H_GY, H_NUM) = range(1, 11)
 
 
 def side_of(flag: str | None, higher: str) -> str | None:
@@ -764,6 +765,14 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         hs.cell(row=k, column=H_NAME, value=f'=IF({tog}="","",{T}${col(C_BAND)}${rr}&" / "&{T}${col(C_SEG)}${rr})')
         hs.cell(row=k, column=H_NX, value=f'=IF({tog}="",NA(),{cost})')
         hs.cell(row=k, column=H_NY, value=f'=IF({tog}="",NA(),{kept})')
+        # coloured by verdict, whatever the row (the firm, 29 Sep 2026: a Net drain drawn black read as nothing)
+        bad = f'{tog}="{BAD_TOGETHER[0]}"'
+        good = f'OR({tog}="{GOOD_TOGETHER[0]}",{tog}="{GOOD_TOGETHER[1]}")'
+        hs.cell(row=k, column=H_RX, value=f"=IF(AND(NOT(ISNA({col(H_X)}{k})),{bad}),{col(H_X)}{k},NA())")
+        hs.cell(row=k, column=H_RY, value=f"=IF(ISNA({col(H_RX)}{k}),NA(),{col(H_Y)}{k})")
+        hs.cell(row=k, column=H_GX, value=f"=IF(AND(NOT(ISNA({col(H_X)}{k})),{good}),{col(H_X)}{k},NA())")
+        hs.cell(row=k, column=H_GY, value=f"=IF(ISNA({col(H_GX)}{k}),NA(),{col(H_Y)}{k})")
+        hs.cell(row=k, column=H_NUM, value=f'=IF({col(H_NAME)}{k}="","",{k})')
     end = first + most - 1
     un = f"${col(C_H_UN)}{first}"
     line_on = f'${col(C_BAND)}{first}<>""'
@@ -799,8 +808,8 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
     chart = ScatterChart()
     chart.title = "Cost us against what we kept, the grid picked above"
     chart.style = 13
-    chart.x_axis.title = "Charge-offs × the rest (log scale)"
-    chart.y_axis.title = "Kept: gap in points"
+    # no axis titles: Excel drew them over the axes' own numbers (the firm, 29 Sep 2026); the line above the chart
+    # says what each axis is
     x_lo = min(0.1, 10 ** math.floor(math.log10(min([v for v in xs if v > 0] + [b.better_at]))))
     x_hi = max(10.0, 10 ** math.ceil(math.log10(max(xs + [b.worse_at]))))
     band = line.value * 100 if line is not None and line.kind == "points" else 0.0
@@ -815,6 +824,14 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
     pts.marker.graphicalProperties.line.solidFill = INK
     pts.graphicalProperties.line.noFill = True
     chart.series.append(pts)
+    for cx, cy, fill in ((H_RX, H_RY, house.KEY_RED), (H_GX, H_GY, POSITIVE)):
+        dots = Series(*(Reference(hs, min_col=c, min_row=1, max_row=n) for c in (cy, cx)))
+        dots.marker.symbol = "circle"
+        dots.marker.size = 8
+        dots.marker.graphicalProperties.solidFill = fill
+        dots.marker.graphicalProperties.line.solidFill = fill
+        dots.graphicalProperties.line.noFill = True
+        chart.series.append(dots)
     # the lines and the corners, under the points
     hr = n + 3
     lines = [((1.0, y_lo), (1.0, y_hi)), ((x_lo, 0.0), (x_hi, 0.0))]
@@ -841,19 +858,17 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
         c.dLbls = _labels(pos="ctr")
         chart.series.append(c)
         hr += 1
-    # the named pockets: the first rows, which are the ones read together at the last Run; a row whose verdict
-    # has gone (a line changed on Control) drops its point and its name
+    # the named pockets: the first rows, which are the ones read together at the last Run, numbered on the chart
+    # and named in the list beside it (their names overlapped when written on the chart); a row whose verdict has
+    # gone (a line changed on Control) drops its number
     for k in range(min(LABELLED, n)):
         rr = 1 + k
         one = Series(Reference(hs, min_col=H_NY, min_row=rr, max_row=rr),
                      Reference(hs, min_col=H_NX, min_row=rr, max_row=rr))
-        one.tx = SeriesLabel(strRef=StrRef(f"'{CHART}'!${col(H_NAME)}${rr}"))
-        one.marker.symbol = "circle"
-        one.marker.size = 8
-        one.marker.graphicalProperties.solidFill = house.KEY_RED
-        one.marker.graphicalProperties.line.solidFill = house.KEY_RED
+        one.tx = SeriesLabel(strRef=StrRef(f"'{CHART}'!${col(H_NUM)}${rr}"))
+        one.marker.symbol = "none"
         one.graphicalProperties.line.noFill = True
-        one.dLbls = _labels(pos=("r", "t", "b", "l")[k % 4])
+        one.dLbls = _labels(pos="r")
         chart.series.append(one)
     chart.legend = None
     chart.x_axis.scaling.logBase = 10
@@ -867,6 +882,15 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
     chart.y_axis.crosses = "min"
     chart.width, chart.height = 17, 11
     ws.add_chart(chart, f"{col(C_TOG + 2)}{anchor}")
+    # what the axes are, above the chart, and the numbered pockets' names under it
+    _cell(ws, anchor - 1, C_TOG + 2, "Across: charge-offs × the rest, on a log scale. Up: kept, as a gap in points. "
+                                     "Red: Net drain. Green: Strong or Priced for it.", size=9, name="Arial", h="left")
+    below = anchor + CHART_ROWS
+    _cell(ws, below, C_TOG + 2, "Numbered on the chart", bold=True, size=9, name="Arial", h="left")
+    for k in range(min(LABELLED, n)):
+        _cell(ws, below + 1 + k, C_TOG + 2,
+              f"=IF('{CHART}'!${col(H_NAME)}${1 + k}=\"\",\"\",\"{1 + k}  \"&'{CHART}'!${col(H_NAME)}${1 + k})",
+              size=9, name="Arial", h="left")
 
 
 def _labels(pos: str):
