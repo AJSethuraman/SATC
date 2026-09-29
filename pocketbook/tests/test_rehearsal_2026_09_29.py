@@ -133,12 +133,32 @@ def test_a_pocket_the_size_of_an_sba_stratum_takes_seconds_not_minutes():
     assert took < 20, f"{took:.1f} s for one evaluation (it was 191 s)"
 
 
+def test_no_polynomial_carries_an_underflowed_zero_at_either_end(monkeypatch):
+    """Found in review, 29 Sep 2026: the planted bug "every coefficient multiplied out again" gives the same numbers,
+    so only the 20 s limit above caught it, and with little room (34 s a pocket on the reviewer's machine: a runner
+    1.7 times faster would have missed it). This holds the fix by its structure, whatever the machine's speed: every
+    polynomial a pocket multiplies carries only coefficients that didn't underflow to 0.0."""
+    seen, real = [], kgroups._prod
+
+    def spy(polys, top):
+        seen.extend(polys)
+        return real(polys, top)
+    monkeypatch.setattr(kgroups, "_prod", spy)
+    loans = np.array([10000, 10000, 10000, 10000, 10000])
+    p = kgroups.Pocket(loans, np.round(loans * np.array([.2, .2, .18, .14, .12])))
+    kgroups.pocket_terms(p, np.zeros(5))
+    assert seen
+    assert all(len(a) and a[0] != 0.0 and a[-1] != 0.0 for _o, a in seen)
+    assert any(o > 0 for o, _a in seen)       # this pocket does underflow at the low end: there was a zero to find
+
+
 # --------------------------------------------------------------------------
-# 3. scikit-learn installed but refused by the machine. On the rehearsal machine, Windows Application Control blocked
-#    scikit-learn 1.9.1's compiled files ("DLL load failed while importing _loss: An Application Control policy has
-#    blocked this file."). PocketBook looks for scikit-learn without loading it, so it counted as there, and the
-#    Run crashed on the import inside the forest instead of saying so; a bank machine is the likeliest place for
-#    such a policy. Now the Run says it in words, and confirming a saved shortlist still works.
+# 3. scikit-learn installed but refused by the machine. On the rehearsal machine, Windows' Smart App Control blocked
+#    newly installed scikit-learn compiled files at first load ("DLL load failed while importing _loss: An
+#    Application Control policy has blocked this file."). The block later cleared, and it was not tied to one
+#    version (review, 29 Sep 2026). PocketBook looks for scikit-learn without loading it, so it counted as there, and
+#    the Run crashed on the import inside the forest instead of saying so. Now the Run says it in words, and
+#    confirming a saved shortlist still works.
 
 import os
 import subprocess
