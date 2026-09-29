@@ -89,7 +89,7 @@ EDGE_LINES = 24           # red dashed lines at most (every 20 on FICO makes abo
 LABELS = 5                # labels under the bars, whatever their number
 SAMPLE = 2000             # dots on a scatter, at most
 SEED = 7                  # so the same loans are drawn every time
-FIRST = 11                # first block's row, under the method note
+FIRST = 10                # first block's row, under the method note (the Bank checklist names C20)
 BLOCK = 20                # rows per block, the gap under it included
 PAGE_BLOCKS = 2           # blocks per printed page
 GROUP = 13                # _look columns per number column
@@ -120,11 +120,10 @@ METHOD = [
                  "range; the chart follows. The grey bar at each end holds the loans outside the range."),
     ("The red bar", "A value that looks like a code, such as a score of -9999, gets a red bar of its own left of "
                     "the chart, so it doesn't flatten the rest. Columns asks whether it means missing."),
-    ("Red dashed lines", "The band edges typed on Columns. They follow that tab as you type, so you can try edges "
-                         "here before the next Run. Blank edges are cut at the Run, so no lines show."),
-    ("Grey lines", "The 10th, 25th, 50th, 75th and 90th percentile, P10 to P90: a tenth of the loans on the chart lie "
-                   "below P10, half below P50 (the median). Worked out as Excel's PERCENTILE.INC does. They "
-                   "move with From and To; one outside them isn't drawn."),
+    ("The lines", "Red dashed: the band edges typed on Columns. They follow that tab as you type, so you can try "
+                  "edges here before the next Run; blank edges are cut at the Run, so no lines show. Grey: the "
+                  "10th, 25th, 50th, 75th and 90th percentile, P10 to P90. A tenth of the loans on the chart lie "
+                  "below P10, half below P50 (the median). Worked out as Excel's PERCENTILE.INC does."),
     ("How it counts", "Set up counts each column once, in 200 equal slices around its 1st to 99th percentile. A "
                       "range you type is counted to the nearest slice."),
     ("The dots", "The split column against each band column: a random 2,000 loans, the same every time. If the "

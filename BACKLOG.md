@@ -2362,8 +2362,9 @@ changed in the code.
     likely code and anything answered missing left out), as Excel's PERCENTILE.INC and numpy's default do
     (`statistics.quantiles`, method "inclusive"); stored on `_look` and placed by the red lines' own formula, so
     they follow Bars, From and To, and one outside From..To isn't drawn. On the synthetic book (3,000 loans)
-    FICO reads 629 · 665 · 701 · 738 · 774, numpy on the CSV the same. The method note says so ("Grey lines").
-    A block is now 20 rows (was 19) and the first starts at row 11 (was 10).
+    FICO reads 629 · 665 · 701 · 738 · 774, numpy on the CSV the same. The method note says how they are worked out.
+    A block is now 20 rows (was 19); the first still starts at row 10, so Bars stays in C20 as the bank checklist
+    says. The method note's "Red dashed lines" line is now "The lines", red and grey.
   - **x-axis labels.** The firm: Excel's labels wrapped, *"24,0/00 should read 24k"*. Labels under the bars are
     now short: 1,000 and over read 24k, a million and over 1.2M, with the decimals the step between labels needs
     (20.5k when they are 500 apart); under 1,000 the column's own format (FICO 620, a ratio 0.35). Built from
