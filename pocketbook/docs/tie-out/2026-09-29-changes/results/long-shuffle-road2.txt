@@ -1,0 +1,5 @@
+  loan file   seed 29092026  gap -0.000133961  hits  191983 of 200000  p 0.95992  se 0.00044   (1571 loans in the band, 183 in the pocket)
+  loan file   seed 29093026  gap -0.000133961  hits  192019 of 200000  p 0.96010  se 0.00044   (1571 loans in the band, 183 in the pocket)
+  loan file   seed 29094026  gap -0.000133961  hits  192129 of 200000  p 0.96065  se 0.00043   (1571 loans in the band, 183 in the pocket)
+  loan file   seed 29095026  gap -0.000133961  hits  192156 of 200000  p 0.96078  se 0.00043   (1571 loans in the band, 183 in the pocket)
+  loan file   seed 29096026  gap -0.000133961  hits  192142 of 200000  p 0.96071  se 0.00043   (1571 loans in the band, 183 in the pocket)

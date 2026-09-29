@@ -1,0 +1,7 @@
+planted 200, caught 195, missed 5
+  by kind (caught, missed): {'groups': (39, 0), 'panel': (28, 0), 'pck-dot': (26, 0), 'pck-listed': (1, 0), 'split-pocket': (86, 5), 'split-sum': (15, 0)}
+  missed: Split K34 ['split-pocket', 'ORIG_BAL x CHANNEL · SYS_FLAG N vs rest', 'Charge-offs', '26,324 - 37,950', 'Online', 'p'] 0.0137986201379862 0.0068993100689931
+  missed: Split J35 ['split-pocket', 'ORIG_BAL x CHANNEL · SYS_FLAG N vs rest', 'Bad dollars', '37,951 - 49,151', 'Broker', 'p'] 0.002999700029997 0.0014998500149985
+  missed: Split K36 ['split-pocket', 'ORIG_BAL x CHANNEL · SYS_FLAG N vs rest', 'Charge-offs', '49,152 - 59,984', 'Online', 'p'] 0.008999100089991 0.0044995500449955
+  missed: Split J32 ['split-pocket', 'FICO x CHANNEL · SYS_FLAG Y vs rest', 'Bad dollars', '496 - 653', 'Broker', 'p'] 0.030996900309969 0.0154984501549845
+  missed: Split K33 ['split-pocket', 'FICO x CHANNEL · SYS_FLAG N vs rest', 'Bad dollars', '654 - 685', 'Online', 'p'] 0.0044995500449955 0.00224977502249775
