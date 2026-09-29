@@ -348,3 +348,108 @@ def test_the_workbook_check_can_fail(tmp_path):
     got = rh.check_workbook(broken)
     assert got["error_token_count"] == 1 and "Pockets!A2" in got["error_tokens"][0]
     assert got["sheets_referenced_but_missing"] == ["Gone", "Old tab"]
+
+
+# --------------------------------------------------------------------------
+# Found in review, 29 Sep 2026: on both SBA files the recorded term depends on the outcome (paid loans' terms are
+# mostly whole years, charged-off loans' mostly not), and columns recorded after booking went in unlabelled. The
+# manifest now counts the one and labels the other.
+
+def test_the_manifest_counts_whole_year_terms_by_outcome(tmp_path):
+    rows = ([_foia_row("P I F", term=t) for t in ("84", "120", "60", "85")]
+            + [_foia_row("CHGOFF", gco="100.0", term=t) for t in ("47", "53", "84")]
+            + [_foia_row("CHGOFF", gco="100.0", term="")])                  # no term: not counted
+    m, _, _ = _foia(tmp_path, rows)
+    tc = m["term_check"]["by_outcome"]
+    assert tc == {"outcome 0": {"loans_with_a_term": 4, "whole_years": 3, "share_whole_years": 0.75},
+                  "outcome 1": {"loans_with_a_term": 3, "whole_years": 1, "share_whole_years": 0.3333}}
+    assert "circular" in m["term_check"]["why"]
+
+
+def test_national_counts_its_term_the_same_way(tmp_path):
+    rows = [_nat_row("1", "P I F", "28-Feb-97", "1997", "31-Mar-97", term="84"),
+            _nat_row("2", "CHGOFF", "28-Feb-97", "1997", "31-Mar-97", gco="$5.00 ", term="41")]
+    out = tmp_path / "n.csv"
+    m = px.convert("sba-national", _nat_zip(tmp_path, rows), out, ranr="neg-gco")
+    assert m["term_check"]["by_outcome"]["outcome 0"]["share_whole_years"] == 1.0
+    assert m["term_check"]["by_outcome"]["outcome 1"]["share_whole_years"] == 0.0
+
+
+def test_columns_not_known_at_booking_are_labelled(tmp_path):
+    m, _, _ = _foia(tmp_path, [_foia_row("P I F")])
+    after = {c["name"]: c.get("after_booking", "") for c in m["columns"]}
+    assert "term_check" in after["TermInMonths"] and "secondary market" in after["SoldSecMrktInd"]
+    assert after["REAL_ESTATE"] and after["RECESSION"]                      # built from the term
+    assert not after["RevolverStatus"] and not after["GrossApproval"]      # known when the loan is made
+    out = tmp_path / "n.csv"
+    n = px.convert("sba-national", _nat_zip(tmp_path, [_nat_row("1", "P I F", "28-Feb-97", "1997", "31-Mar-97")]),
+                   out, ranr="neg-gco")
+    nat = {c["name"]: c.get("after_booking", "") for c in n["columns"]}
+    assert "Disbursed" in nat["DisbursementGross"] and "term_check" in nat["Term"] and nat["RECESSION"]
+
+
+def test_lendingclub_has_no_term_check(tmp_path):
+    """Its term is one value, chosen on the command line: nothing to count."""
+    raw = _write_csv(tmp_path / "lc.csv", _lc_head(), [_lc_row(1, "Fully Paid"), _lc_row(2, "Charged Off")])
+    m = px.convert("lendingclub", raw, tmp_path / "o.csv", term=36, issued="2008-01:2011-12")
+    assert "term_check" not in m and not any("after_booking" in c for c in m["columns"])
+
+
+def test_the_sba_ranr_stand_in_says_its_revenue_is_invented(tmp_path):
+    m, _, _ = _foia(tmp_path, [_foia_row("P I F")])
+    why = {c["name"]: c["why"] for c in m["columns"]}["RANR_NEG_GCO"]
+    assert "invented" in why and "NOT evidence" in why and "InitialInterestRate" in why
+    assert "invents no revenue" not in why
+
+
+# --------------------------------------------------------------------------
+# tools/rehearsal_effects.py: a pocket alone in its band is judged against the book, and its count says so (found in
+# review, 29 Sep 2026: on Term bands, "N worse 3" came from bands where N was the whole band)
+
+def _effects_book(path):
+    from openpyxl import Workbook
+    wb = Workbook()
+    v = wb.active
+    v.title = "_views"
+    for row in (["G|t x s|cols", "N", "Y", "All"], ["G|t x s|rows", "short", "long", "All"],
+                ["G|t x s|outcome_loans|rate|1", 0.5, 0.2, 0.4], ["G|t x s|loans|1", 100, 50, 150],
+                ["G|t x s|outcome_loans|rate|2", 0.1, None, 0.1], ["G|t x s|loans|2", 200, 0, 200],
+                ["G|t x s|outcome_loans|rate|3", 0.2, 0.2, 0.2], ["G|t x s|loans|3", 300, 50, 350]):
+        v.append(row)
+    p = wb.create_sheet("_pockets")
+    head = ["Grids or three-way", "Grid", "Rate (key)", "Segment", "Too few losses to test (fewest losses is a Run setting)",
+            "Alone in its band", "Vs rest of band", "p-value vs band, after the allowance",
+            "Vs rest of book (a multiple; profit: the gap, 0.01 = 1 point)", "p-value vs book, after the allowance"]
+    p.append(head)
+    p.append(["grids", "t x s", "outcome_loans", "N", None, False, 2.5, 0.001, 2.5, 0.001])   # worse vs its band
+    p.append(["grids", "t x s", "outcome_loans", "Y", None, False, 0.4, 0.001, 1.0, 0.9])     # better vs its band
+    p.append(["grids", "t x s", "outcome_loans", "N", None, True, None, None, 0.5, 0.001])    # alone: vs the book
+    wb.save(path)
+    return path
+
+
+def test_effects_say_which_pockets_were_judged_against_the_book(tmp_path):
+    fx = _tool("rehearsal_effects")
+    got = fx.read(_effects_book(tmp_path / "b.xlsx"), "outcome_loans", 1.25, 0.8, 0.95, "band")["t x s"]["pockets"]
+    assert got["N"]["worse"] == 1 and got["N"]["better"] == 1 and got["N"]["better_vs_book"] == 1
+    assert got["N"]["worse_vs_book"] == 0 and got["Y"]["better"] == 1 and got["Y"]["better_vs_book"] == 0
+    assert fx.say(got["N"]) == ("pockets worse 1, better 1 (1 alone in its band, so against the book), "
+                                "neither/untested 0")
+
+
+# --------------------------------------------------------------------------
+# The scripts behind the report's answer key and timing split are in git (review, 29 Sep 2026: they lived only in a
+# session's scratch folder). Both refuse in words without the data folder, which can be purged.
+
+def test_the_answer_key_and_the_timing_split_refuse_without_their_data(tmp_path, capsys):
+    key, timing = _tool("rehearsal_answer_key"), _tool("rehearsal_timing")
+    assert key.main([str(tmp_path)]) == 2 and "isn't there" in capsys.readouterr().err
+    assert timing.main([str(tmp_path), "gone"]) == 2 and "isn't there" in capsys.readouterr().err
+
+
+def test_the_answer_key_reads_rates_and_months_as_the_report_quotes_them():
+    key = _tool("rehearsal_answer_key")
+    assert key.show("grade", {"A": [200, 10], "B": [100, 20], "": [4, 1]}) == \
+        "grade (blank)=25.00%(n=4)  B=20.00%(n=100)  A=5.00%(n=200)"
+    assert key.show("t", {"N": [10, 1], "Y": [10, 5]}, ("Y", "N", "(blank)")) == "t Y=50.00%(n=10)  N=10.00%(n=10)"
+    assert key.months("2005-01-15", "2007-03-02") == 26

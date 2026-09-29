@@ -9,7 +9,8 @@ sheets the result tabs point at (nothing is recomputed from the loans):
   (its All column), with loans, from `_views` (`G|<grid>|<measure>|rate|<row>`, `G|<grid>|loans|<row>`);
 - the pockets: for each segment value, how many of its pockets read worse and how many better, from `_pockets`'
   stored multiples and p-values, judged as Control was answered (--worse-at, --better-at, --confidence, and against
-  the rest of the band, or the book with --against book). The workbook's own verdicts are Excel formulas and are not
+  the rest of the band, or the book with --against book; a pocket alone in its band has no rest of band, is judged
+  against the book, and its count says so). The workbook's own verdicts are Excel formulas and are not
   calculated by openpyxl; this is the same rule applied in Python to the same stored numbers, and says so.
 
 Aggregates only: no loan is read.
@@ -23,6 +24,19 @@ from collections import defaultdict
 from pathlib import Path
 
 from openpyxl import load_workbook
+
+
+def _tally() -> dict:
+    return {"worse": 0, "better": 0, "other": 0, "worse_vs_book": 0, "better_vs_book": 0}
+
+
+def say(t: dict) -> str:
+    """One segment's pocket counts in words, naming any judged against the book because they were alone in their
+    band."""
+    def part(k: str) -> str:
+        n = t.get(k + "_vs_book", 0)
+        return f"{t[k]}" + (f" ({n} alone in {'its' if n == 1 else 'their'} band, so against the book)" if n else "")
+    return f"pockets worse {part('worse')}, better {part('better')}, neither/untested {t['other']}"
 
 
 def read(book: Path, measure: str, worse_at: float, better_at: float, confidence: float, against: str) -> dict:
@@ -44,7 +58,7 @@ def read(book: Path, measure: str, worse_at: float, better_at: float, confidence
         seg = {cols[j]: (rate[ai][j], loans[ai][j]) for j in range(len(cols)) if cols[j] != "All"}
         band = {rows[i]: (rate[i][aj], loans[i][aj]) for i in range(len(rows)) if rows[i] != "All"}
         out[g] = {"topline": rate[ai][aj], "loans": loans[ai][aj], "segments": seg, "bands": band,
-                  "pockets": defaultdict(lambda: {"worse": 0, "better": 0, "other": 0})}
+                  "pockets": defaultdict(_tally)}
     ws = wb["_pockets"]
     head = None
     bar = round(1 - confidence, 12)
@@ -64,13 +78,18 @@ def read(book: Path, measure: str, worse_at: float, better_at: float, confidence
                 r[head["p-value vs book, after the allowance"]]
         tally = out[r[head["Grid"]]]["pockets"][str(r[head["Segment"]])]
         if few or gap is None or p is None:
-            tally["other"] += 1
+            said = "other"
         elif gap >= worse_at and p < bar:
-            tally["worse"] += 1
+            said = "worse"
         elif gap <= better_at and p < bar:
-            tally["better"] += 1
+            said = "better"
         else:
-            tally["other"] += 1
+            said = "other"
+        tally[said] += 1
+        if against == "band" and alone and said != "other":
+            # a pocket alone in its band has no rest of band, so the workbook judges it against the book: counted,
+            # and said, so a band effect doesn't read as a pocket effect (found in review, 29 Sep 2026)
+            tally[f"{said}_vs_book"] += 1
     wb.close()
     return out
 
@@ -92,9 +111,8 @@ def main(argv=None) -> int:
         print(f"== {g}: {a.measure} topline {x['topline']:.4%} over {x['loans']:,} loans")
         print("  segments (All row), highest first:")
         for s, (rate, n) in sorted(x["segments"].items(), key=lambda t: -(t[1][0] or 0)):
-            t = x["pockets"].get(s, {"worse": 0, "better": 0, "other": 0})
-            print(f"    {s:<42} {rate:8.2%}  n={n:>9,}  pockets worse {t['worse']}, better {t['better']}, "
-                  f"neither/untested {t['other']}")
+            t = x["pockets"].get(s, _tally())
+            print(f"    {s:<42} {rate:8.2%}  n={n:>9,}  {say(t)}")
         print("  bands (All column):")
         for b, (rate, n) in x["bands"].items():
             print(f"    {b:<42} {rate:8.2%}  n={n:>9,}")

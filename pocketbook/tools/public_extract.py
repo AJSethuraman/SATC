@@ -58,6 +58,7 @@ class Derived:
     status: str           # NATIVE, CONSTRUCTED or APPROX
     rule: str
     why: str
+    after_booking: str = ""   # set when the value is not known when the loan is booked, or depends on its outcome
 
 
 @dataclass
@@ -67,6 +68,7 @@ class Counts:
     dropped: dict[str, int] = field(default_factory=dict)
     blanked: dict[str, int] = field(default_factory=dict)       # a derived value left blank, by column and reason
     kept_by: dict[str, int] = field(default_factory=dict)       # rows kept, by the source status they were kept for
+    terms: dict[str, list[int]] = field(default_factory=dict)   # outcome -> [loans with a term, of them whole years]
 
     def keep(self, status: str) -> None:
         self.kept += 1
@@ -78,6 +80,13 @@ class Counts:
     def blank(self, col: str, reason: str) -> None:
         k = f"{col}: {reason}"
         self.blanked[k] = self.blanked.get(k, 0) + 1
+
+    def term(self, outcome: str, months: float | None) -> None:
+        if months is None:
+            return
+        t = self.terms.setdefault(outcome, [0, 0])
+        t[0] += 1
+        t[1] += float(months).is_integer() and int(months) % 12 == 0
 
 
 def number(text: str | None) -> float | None:
@@ -130,13 +139,24 @@ def naics2(code: str | None) -> str | None:
     return s[:2]
 
 
+#: Found in review of the rehearsal (29 Sep 2026): on both SBA files the recorded term depends on the outcome. Most paid
+#: loans' terms are whole years and most charged-off loans' are not (the manifest's term_check counts it on every
+#: extract), so the term as recorded carries information from after the loan was made. Whether it is the term approved
+#: is not known. Anything built on it inherits that.
+TERM_AFTER = ("Depends on the outcome in this file: see term_check. Whether this is the term as approved is not "
+              "known, so a finding cut on it may be circular.")
+INHERITS = "Built from the term, which depends on the outcome in this file (term_check): inherits it."
+
+
 def ranr_derived(gco_col: str) -> Derived:
     return Derived(
         "RANR_NEG_GCO", "ranr", APPROX, f"-({gco_col})",
-        "The SBA files carry no interest, fee or funding figures, so no RANR can be read from them. This is the stand-in "
-        "that invents no revenue: RANR = 0 - GCO, i.e. every loan earned nothing. Contribution before losses "
-        "(RANR + GCO) is then 0 for every loan, and profit after losses is only the charge-off rate turned over: the "
-        "profit measures carry no evidence of their own on this extract (decision for the firm, report section 1).")
+        "Revenue set to zero for every loan: an invented value, named with --ranr neg-gco because the files carry "
+        "no fee or funding figures and no interest earned (the FOIA file does carry InitialInterestRate, the rate "
+        "at approval, filled on most FY2009 rows; no interest proxy was built from it). RANR = 0 - GCO. "
+        "Contribution before losses (RANR + GCO) is then 0 for every loan, and profit after losses is only the "
+        "charge-off rate turned over: the profit tabs are NOT evidence on this extract (decision for the firm, "
+        "report section 1).")
 
 
 # --------------------------------------------------------------------------
@@ -150,6 +170,12 @@ FOIA_PASS = ("GrossApproval", "ApprovalDate", "ApprovalFY", "TermInMonths", "Job
              "BusinessType", "BusinessAge", "ProcessingMethod", "RevolverStatus", "CollateralInd", "SoldSecMrktInd",
              "GrossChargeOffAmount")
 FOIA_PAID, FOIA_CHGOFF = "P I F", "CHGOFF"          # as the data writes them (its dictionary says "PIF")
+#: passed-through columns whose value is not known when the loan is booked (found in review, 29 Sep 2026)
+FOIA_AFTER = {
+    "TermInMonths": TERM_AFTER,
+    "SoldSecMrktInd": "Set when the loan is sold on the secondary market, after it is made (data dictionary: 'static "
+                      "field once it is sold'). Not known at booking: do not cut by it.",
+}
 
 
 def foia_columns(prefix: str) -> list[Derived]:
@@ -176,13 +202,13 @@ def foia_columns(prefix: str) -> list[Derived]:
                 "separate, as the paper's table gives them."),
         Derived("REAL_ESTATE", "category", APPROX, "'Y' if TermInMonths >= 240, else 'N'; blank if no term",
                 "The paper's own definition of 'backed by real estate' (p. 60): only real-estate loans run 20 years or "
-                "more. A proxy for collateral the file does not record."),
+                "more. A proxy for collateral the file does not record.", INHERITS),
         Derived("RECESSION", "category", APPROX, "'Y' if FirstDisbursementDate + TermInMonths x 30 days falls from "
                 "2007-12-01 to 2009-06-30, else 'N'; blank if either is blank",
                 "The paper's SAS for 'Recession' (footnote 6), reproduced as written: it is the scheduled end date "
-                "falling in the recession, although the paper's text says 'active during'."),
-    ] + [Derived(c, "(as Set up reads it)", NATIVE, c, "Passed through for cutting by.") for c in FOIA_PASS
-         if c not in ("GrossApproval", "ApprovalDate", "GrossChargeOffAmount")]
+                "falling in the recession, although the paper's text says 'active during'.", INHERITS),
+    ] + [Derived(c, "(as Set up reads it)", NATIVE, c, "Passed through for cutting by.", FOIA_AFTER.get(c, ""))
+         for c in FOIA_PASS if c not in ("GrossApproval", "ApprovalDate", "GrossChargeOffAmount")]
 
 
 def foia_prefix(path: Path) -> str:
@@ -221,6 +247,7 @@ def foia(rows: Iterator[dict], counts: Counts, prefix: str) -> Iterator[dict]:
         if not out["RECESSION"]:
             counts.blank("RECESSION", "FirstDisbursementDate or TermInMonths blank")
         counts.keep(f"LoanStatus {status}")
+        counts.term(out["CHGOFF_FLAG"], term)
         yield out
 
 
@@ -247,7 +274,9 @@ def nat_columns() -> list[Derived]:
         Derived("LoanNr_ChkDgt", "key", NATIVE, "LoanNr_ChkDgt", "SBA's loan number with its check digit."),
         Derived("DisbursementGross", "booked", NATIVE, "DisbursementGross, as written ('$60,000.00 ')",
                 "The amount disbursed; the paper's Table 4 reads loan size from it. Passed through with its dollar "
-                "sign, commas and trailing space, which PocketBook parses: part of the rehearsal."),
+                "sign, commas and trailing space, which PocketBook parses: part of the rehearsal.",
+                "Disbursed, not approved: known only as the loan is drawn, and on a revolving line it can pass the "
+                "approval (GrAppv), more often on the lines that charged off. Not the amount at booking."),
         Derived("CHGOFF_FLAG", "outcome", NATIVE, "1 if MIS_Status is 'CHGOFF', 0 if 'P I F'; a blank status is "
                 "left out and counted", "The paper's Default (Table 1b): 1 if CHGOFF, 0 if PIF."),
         Derived("ChgOffPrinGr", "gco", NATIVE, "ChgOffPrinGr, as written", "Charged-off principal: the file's GCO."),
@@ -259,13 +288,15 @@ def nat_columns() -> list[Derived]:
                 "own ApprovalFY settles it, and a date it cannot settle is blanked and counted, not guessed."),
         Derived("NAICS2", "category", APPROX, "the first two digits of NAICS; blank where NAICS is 0 or blank",
                 "The paper's Table 3. SBAnational writes 0 where no code was recorded; it is not an industry."),
-        Derived("REAL_ESTATE", "category", APPROX, "'Y' if Term >= 240, else 'N'", "The paper's RealEstate (p. 60)."),
+        Derived("REAL_ESTATE", "category", APPROX, "'Y' if Term >= 240, else 'N'", "The paper's RealEstate (p. 60).",
+                INHERITS),
         Derived("RECESSION", "category", APPROX, "'Y' if DisbursementDate + Term x 30 days falls from 2007-12-01 to "
                 "2009-06-30, else 'N'; blank if either is blank or the disbursement's century can't be settled",
                 "The paper's SAS (footnote 6), as written. The disbursement date's two-digit year is read as the "
-                "century that puts it nearest the approval date."),
-    ] + [Derived(c, "(as Set up reads it)", NATIVE, c, "Passed through for cutting by.") for c in NAT_PASS
-         if c not in ("LoanNr_ChkDgt", "DisbursementGross", "ChgOffPrinGr")]
+                "century that puts it nearest the approval date.", INHERITS),
+    ] + [Derived(c, "(as Set up reads it)", NATIVE, c, "Passed through for cutting by.",
+                 TERM_AFTER if c == "Term" else "")
+         for c in NAT_PASS if c not in ("LoanNr_ChkDgt", "DisbursementGross", "ChgOffPrinGr")]
 
 
 def fiscal_year(d: date) -> int:
@@ -341,6 +372,7 @@ def national(rows: Iterator[dict], counts: Counts) -> Iterator[dict]:
         if not out["RECESSION"]:
             counts.blank("RECESSION", "DisbursementDate blank or its century unsettled, or Term blank")
         counts.keep(f"MIS_Status {status}")
+        counts.term(out["CHGOFF_FLAG"], term)
         yield out
 
 
@@ -512,17 +544,34 @@ def convert(source: str, raw: Path, out: Path, ranr: str | None = None, term: in
         "rows_read": counts.read, "rows_kept": counts.kept, "rows_kept_by_status": dict(sorted(counts.kept_by.items())),
         "rows_left_out_by_reason": dict(sorted(counts.dropped.items())),
         "derived_values_left_blank": dict(sorted(counts.blanked.items())),
-        "columns": [{"name": c.name, "read_as": c.means, "status": c.status, "rule": c.rule, "why": c.why}
-                    for c in cols],
+        "columns": [{"name": c.name, "read_as": c.means, "status": c.status, "rule": c.rule, "why": c.why,
+                     **({"after_booking": c.after_booking} if c.after_booking else {})} for c in cols],
         "note": "Every column marked 'rehearsal approximation' or 'constructed' is a stand-in for the rehearsal, "
-                "not a figure a bank extract would carry.",
+                "not a figure a bank extract would carry. A column with 'after_booking' is not known when the loan "
+                "is booked, or depends on its outcome.",
     }
+    if counts.terms:
+        manifest["term_check"] = term_check(counts.terms)
     if counts.read != counts.kept + sum(counts.dropped.values()):
         raise AssertionError("rows read != rows kept + rows left out")         # pragma: no cover - a coding error
     import yaml
     manifest_path(out).write_text(yaml.safe_dump(manifest, sort_keys=False, allow_unicode=True, width=110),
                                   encoding="utf-8")
     return manifest
+
+
+def term_check(terms: dict[str, list[int]]) -> dict:
+    """The share of each outcome's terms that are whole years (a multiple of 12 months). A term fixed when the loan
+    is made should not care how the loan ended; on both SBA files paid loans' terms were 82-87% whole years and
+    charged-off loans' 9-11% (review, 29 Sep 2026). Counted and shown, never judged here: the reader decides."""
+    return {
+        "why": "A term set when the loan is made should read the same whatever the outcome. If the shares below differ "
+               "widely by outcome, the term depends on the outcome, and findings cut on it (or on columns built "
+               "from it) may be circular.",
+        "by_outcome": {f"outcome {k}": {"loans_with_a_term": n, "whole_years": w,
+                                        "share_whole_years": round(w / n, 4) if n else None}
+                       for k, (n, w) in sorted(terms.items())},
+    }
 
 
 def manifest_path(extract: Path) -> Path:
