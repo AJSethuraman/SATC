@@ -215,8 +215,15 @@ def test_B11_a_client_with_nothing_this_year_and_no_invite_goes_red():
 
 def test_B12_an_agent_that_sees_other_rows_goes_red():
     q = [action(title="Chase 1")]
-    assert red("B12", snap(queue=q, agent={"actions": [{"what": "Other", "urgency": "soon"}]}))
-    assert not red("B12", snap(queue=q, agent={"actions": [{"what": "Chase 1", "urgency": "soon"}]}))
+    counts = {"counts_by_kind": {"chase_documents": 1}}
+    assert red("B12", snap(queue=q, agent={"actions": [{"what": "Other", "urgency": "soon"}],
+                                           **counts}))
+    assert not red("B12", snap(queue=q, agent={"actions": [{"what": "Chase 1", "urgency": "soon"}],
+                                               **counts}))
+    # A row only the screen has, past the rows the agent lists, shows in the counts.
+    more = q + [action("interview_invite", cid="C9", urgency="routine")]
+    assert red("B12", snap(queue=more, agent={"actions": [{"what": "Chase 1", "urgency": "soon"}],
+                                              **counts}))
 
 
 def test_B13_asking_a_returning_client_for_a_new_client_document_goes_red():

@@ -269,7 +269,8 @@ def markdown(out: Path) -> str:
     if o.get("billed_clients_by_payment_style"):
         add(f"- **How billed clients paid (invented, scenario.yaml `money:`).** "
             f"{o.get('billed_clients_by_payment_style')}; what the owner could record: "
-            f"{o.get('payment_recorded')}.")
+            f"{o.get('payment_recorded')}; part payers' balances: "
+            f"{o.get('part_payers_balance_recorded') or 'none'}.")
     al = o.get("alert_thresholds") or {}
     if al:
         add(f"- **Two sets of alert thresholds.** {al}. The firm's policy file is loaded "

@@ -491,16 +491,31 @@ def b11(snap, ctx):
 @invariant("B12", "the agent sees what the owner sees", "failure",
            ["satc_system/src/satc/agent/tools.py:103-114", "docs/SOFTWARE-TENETS.md:103"],
            "agent.tools.today passes 'THE SAME ARGUMENTS THE /today SCREEN PASSES', so its "
-           "rows match the screen's rows.")
+           "rows match the screen's rows, and its counts by kind -- which cover every row, "
+           "not only the first few it lists -- match the screen's.")
 def b12(snap, ctx):
     rows = snap.agent.get("actions") or []
-    engine = [(a.title, a.urgency) for a in snap.queue][:len(rows)]
+    screen = [(a.title, a.urgency) for a in snap.queue][:len(rows)]
     got = [(r.get("what"), r.get("urgency")) for r in rows]
-    if got != engine:
-        first = next((i for i, (x, y) in enumerate(zip(got, engine)) if x != y), 0)
-        return [Hit("-", f"agent row {first}: {got[first:first + 1]}; screen: "
-                         f"{engine[first:first + 1]}", "identical rows", "agent.tools.today")], len(rows)
-    return [], len(rows)
+    hits = []
+    call = {"door": "function", "target": "satc.agent.tools.today vs GET /today"}
+    if got != screen:
+        first = next((i for i, (x, y) in enumerate(zip(got, screen)) if x != y), 0)
+        hits.append(Hit("-", f"agent row {first}: {got[first:first + 1]}; screen: "
+                             f"{screen[first:first + 1]}", "identical rows",
+                        "agent.tools.today", call))
+    # The agent lists at most a few rows but counts every one: a row only the
+    # screen has (at the routine end of the list) shows up here and nowhere else.
+    counts: dict[str, int] = {}
+    for a in snap.queue:
+        counts[a.kind] = counts.get(a.kind, 0) + 1
+    theirs = dict(snap.agent.get("counts_by_kind") or {})
+    if theirs != counts:
+        diff = {k: (theirs.get(k, 0), counts.get(k, 0)) for k in sorted(set(theirs) | set(counts))
+                if theirs.get(k, 0) != counts.get(k, 0)}
+        hits.append(Hit("-", f"agent counts vs screen counts, by kind: {diff}",
+                        "the same count of every kind", "agent.tools.today counts", call))
+    return hits, len(rows) + len(counts)
 
 
 @invariant("B13", "the prior-year question does not ask for a new-client-only document", "failure",

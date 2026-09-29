@@ -155,8 +155,11 @@ class Observations:
         # Payments, by what could record them.
         paid = [tr for tr in firm.t.values() if tr.paid_on]
         by_style = Counter(tr.sim.pay_style for tr in firm.t.values() if tr.invoice)
-        recorded = Counter(tr.payment_recorded or "not yet due" for tr in firm.t.values()
-                           if tr.invoice)
+        recorded = Counter(tr.payment_recorded or ("never pays" if tr.sim.pay_style == "never"
+                                                   else "not due by season end")
+                           for tr in firm.t.values() if tr.invoice)
+        balances = Counter(tr.payment2_recorded or "not due by season end"
+                           for tr in firm.t.values() if tr.invoice and tr.paid2_on)
         checks = [p for p in firm.unrecordable_payments if p["by"] == "check"]
         refusals = [dict(r, sim=tr.sim.sim_id) for tr in firm.t.values() for r in tr.refusals]
         return {
@@ -196,6 +199,7 @@ class Observations:
                 "settlement_writer": "record_settlement's only caller is cli.py:900 (Square)"},
             "billed_clients_by_payment_style": dict(by_style),
             "payment_recorded": dict(recorded),
+            "part_payers_balance_recorded": dict(balances),
             "clients_who_paid_by_season_end": len(paid),
             "alert_thresholds": alerts,
             "stale_14_days_job_days": sum(self.stale.values()),
