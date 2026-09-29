@@ -196,15 +196,16 @@ def test_set_up_again_rebuilds_the_tab_without_a_copy(tmp_path):
 
 
 @pytest.mark.parametrize("values", [[0.0, 0.05, 0.24, 0.5, 1.1999] * 50, [300, 512, 640, 849] * 50,
-                                    [0.001, 0.07, 0.29] * 50, [0.3, 0.7, 2.1] * 50])
+                                    [0.001, 0.07, 0.29] * 50, [0.3, 0.7, 2.1] * 50,
+                                    [0.0, 1e-14, 2e-14] * 30])       # below any fixed rounding (Codex on #404)
 def test_a_value_on_a_slice_edge_is_counted_in_that_slice(values):
     """The full tie-out of 28 Sep 2026: UTIL's chart counted every loan at exactly 0.24 a bar low (543 against the
     538 in the file), because the top came out 1.2000000000000002 and 0.24 / 0.006 is 39.99999999. The span's
     edges are the round numbers themselves, and a value on any slice's lower edge is counted in that slice."""
     lo, hi = look.span(sorted(values))
-    assert repr(lo) == repr(float(round(lo, 10))) and repr(hi) == repr(float(round(hi, 10)))
+    assert hi > lo and lo == float(repr(lo)) and len(repr(hi)) <= 8     # round numbers, not 1.2000000000000002
     w = (hi - lo) / look.SLICES
     for k in range(look.SLICES):
-        edge = round(lo + k * w, 10)
+        edge = float(f"{lo + k * w:.12g}")
         counts, below, above = look.slices([edge], lo, hi)
         assert counts.index(1) == k, (lo, hi, k, edge)

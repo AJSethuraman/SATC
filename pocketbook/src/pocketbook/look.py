@@ -43,6 +43,7 @@ import math
 import random
 import statistics
 from dataclasses import dataclass
+from decimal import Decimal
 
 from openpyxl.chart import BarChart, Reference, ScatterChart, Series
 from openpyxl.chart.marker import DataPoint
@@ -192,9 +193,11 @@ def span(values: list[float]) -> tuple[float, float]:
     if hi <= lo:                                             # one value only
         return lo - 0.5, lo + 0.5
     unit = _nice((hi - lo) / 10)
-    # rounded, so a round edge is that number and not 1.2000000000000002: the full tie-out of 28 Sep 2026 found
-    # loans at exactly 0.24 counted a bar low, because the top came out a hair over 1.2 and every slice a hair wide
-    return round(math.floor(lo / unit) * unit, 12), round(math.ceil(hi / unit) * unit, 12)
+    # whole steps worked out in exact decimals, so a round edge is that number and not 1.2000000000000002 (the full
+    # tie-out of 28 Sep 2026 found loans at exactly 0.24 counted a bar low), at any scale: a fixed number of decimal
+    # places would flatten a column whose values are all below it (Codex on #404)
+    step = Decimal(repr(unit))
+    return float(step * math.floor(lo / unit)), float(step * math.ceil(hi / unit))
 
 
 def slices(values: list[float], lo: float, hi: float) -> tuple[list[int], int, int]:
