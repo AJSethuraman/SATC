@@ -2266,7 +2266,10 @@ changed in the code.
    "%" sorts before "E"; a percent column holding 0 and 1 (0% and 100%) passes the outcome's 0-or-1 test. EVER
    GCO would also be ruled out if it holds Y/N rather than 0/1: the outcome test takes numbers only (not
    checked; the file stayed at the bank). So beyond the recommendation above: match whole words, not fragments;
-   never break a tie silently; accept Y/N as an outcome.
+   never break a tie silently. The firm on Y/N: *"yes no or 01 like it doesn't need to accept multiple
+   things as outcomes that can be part of the hygiene process, but I need to know how it's accepting stuff"*.
+   So no new formats; the ask is that the screen says the rule it used (0 is good, 1 is bad, anything else left
+   out and counted; or a *Yes means* value typed on Columns) beside the column it proposes.
 7. **A verdict on a shuffled p-value near 5%** can fall either way with another seed (the full tie-out, *What
    it found* item 1). Either flag those "could fall either way", or shuffle more. **Recommended:** flag them.
 
