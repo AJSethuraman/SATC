@@ -2340,6 +2340,29 @@ changed in the code.
 7. **A verdict on a shuffled p-value near 5%** can fall either way with another seed (the full tie-out, *What
    it found* item 1). Either flag those "could fall either way", or shuffle more. **Recommended:** flag them.
 
+- **Still at the bank, 29 Sep 2026, evening** (built, on PR #409):
+  - *Dropdowns gone after an Excel save.* Excel keeps a dropdown whose list sits on another sheet in its
+    extension block, and openpyxl dropped that block, so the next Run saved the workbook without them
+    (*"I have no drop downs in most places now"*). `excel_lists.py` puts them back on every load.
+  - *Look ignored Treat as Missing* (*"This median call seems to ignore that I said the -99... values ... are
+    treating as missing. Look into this and see if this leaks elsewhere"*). Look is now drawn from the Run's
+    rules and drawn again when an answer changes. The leak was Look only: a scan of every calculated cell
+    after a Run finds the code only in Columns' sample values.
+  - *Segments sorted as text*: a loan amount bucket put $5k-<$10k after $40k+. Numbers in labels now sort as
+    numbers.
+  - *Decided:* **everything compares against the whole book.** The firm: *"we keep things compared to the
+    whole book that's just kind of the point"*. So Grids' vs the book stays the whole book, and a filtered
+    view (below) compares against the whole book too.
+- **Offered, waiting on a yes** (raised 29 Sep 2026 at the bank):
+  1. *Grey out Grids cells under the fewest-loans setting*: shown, not coloured, not setting the colour
+     scale. A 3-loan cell at -50 points was the deepest red on the grid and paled every real gap.
+  2. *"Only loans where" on Grids*: the blocks for one value of a category (*"it would be nice to be able to
+     filter by that category which would probably solve a lot of ... having multiway views"*). First by the
+     Split by column, whose parts are already worked out; any category later.
+  3. *A Loan size measure* for line assignment (*"we tend to give these loan amounts to these FICO scores
+     within this category"*): average and median booked per loan by cell, descriptive, no test.
+  4. *A number column as a segment* (FICO x asset bands in one Run).
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
