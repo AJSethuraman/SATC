@@ -967,7 +967,9 @@ muts = [
  ("no gap between the groups", LA,
   '            row["gap_before"] = bool(out) and out[-1]["group"] != row["group"]',
   '            row["gap_before"] = False', "gaps_fall_where_a_group_starts"),
- ("the gaps push the last row out of sight", LA, 'GAP = 6 ', 'GAP = 10 ', "gaps_fall_where_a_group_starts"),
+ # retired 29 Sep 2026: "the gaps push the last row out of sight" (GAP = 6 -> 10). It guarded the table's fixed
+ # 250 px height; the firm asked for the window to be used, so the table has no cap and scrolls when rows don't
+ # fit (launcher.page_choose, fitted), which only a window test on a display can check.
  # OC-51 (27 Sep 2026, Goal 4): a cutoff the analyst picks, the tree checked on later loans, the shortlist together
  ("the cutoff's own day held back from the tree", SC, '    dev = [i for d, i in dated if d < cutoff]',
   '    dev = [i for d, i in dated if d <= cutoff]', "cutoff_splits_the_loans_exactly"),

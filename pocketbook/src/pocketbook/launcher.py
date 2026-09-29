@@ -331,7 +331,7 @@ LAST = 3
 ROW_H = 22          # px a table row is tall; each is ruled off below by 1 px
 NO_OUTCOME = "Pick the outcome: the yes/no column where 1 means the loan went bad. Nothing is picked for you."
 BASE_W = (104, 128, 84, 84, 86)     # px the Choose tests columns start at; the word columns take any width more
-GAP = 6             # px between two groups: ten rows and three gaps still fit Test new variables unscrolled
+GAP = 6             # px between two groups
 
 
 
