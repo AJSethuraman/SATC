@@ -1152,6 +1152,24 @@ muts = [
   '    for c_, labels, n in ((RL, ROWS, nr), (CL, COLS, nc)):',
   '    for c_, labels, n in ((RL, match(xk("G|", (live.q(gnames[0]),), "|rows")), nr), (CL, COLS, nc)):',
   "one_cell_row_and_column_lists"),
+ # 29 Sep 2026, evening, at the bank: percentile lines on Look, and short labels under its bars (tests/test_look.py)
+ ("Look's percentiles by another method", LK, '    cuts = statistics.quantiles(values, n=100, method="inclusive")',
+  '    cuts = statistics.quantiles(values, n=100, method="exclusive")', "look_percentiles_match"),
+ ("Look's percentiles keep an answered missing", LK, '    s.pcts = percentiles(values)',
+  '    s.pcts = percentiles(sorted(x for x in everything if x != code))', "look_percentiles_leave_out"),
+ ("a grey line drawn outside From and To", LK, 'x = f"=IFERROR(IF(AND({pv}>={F},{pv}<={V(S_TO)}),',
+  'x = f"=IFERROR(IF(TRUE,', "look_percentile_lines"),
+ ("a grey line off the red lines' scale", LK, '{LOW}+0.5+{MIDDLE}*({pv}-{F})', '{LOW}+{MIDDLE}*({pv}-{F})',
+  "look_percentile_lines"),
+ ("the grey lines not drawn", LK, '        line.dLbls = _name_at_top()\n        lines.series.append(line)\n',
+  '        line.dLbls = _name_at_top()\n', "look_percentile_lines"),
+ ("labels back to 24,000", LK, 'IF(ABS({x})>=1000,', 'IF(ABS({x})>=1E+99,', "look_labels_under"),
+ ("a score's labels shortened too", LK, 'IF(ABS({x})>=1000,', 'IF(ABS({x})>=100,', "look_labels_under"),
+ ("no millions on the labels", LK, 'IF(ABS({x})>=1000000,', 'IF(ABS({x})>=1E+99,', "look_labels_under"),
+ ("labels rounded past the step", LK, 'MAX(0,1-INT(LOG10({step}/{size})))', '0', "look_labels_under"),
+ ("labels left to wrap", LK, 'size=900, no_wrap=True)', 'size=900)', "look_labels_under"),
+ ("scatter axes rounded to thousands", LK, '    if unit < 1000:\n        return fmt',
+  '    if unit < 1:\n        return fmt', "look_axis_formats"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
