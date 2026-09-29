@@ -76,7 +76,8 @@ def test_the_ci_shards_put_back_every_bug_exactly_once():
 
 def test_a_run_that_prints_nothing_still_gets_its_verdict(tmp_path, monkeypatch, capsys):
     """Found 26 Sep 2026: pytest printed nothing to stdout (the run was killed), main() crashed on an empty
-    list, and the crash hid whether the planted bug had been caught. The verdict prints, with stderr's last line."""
+    list, and the crash hid whether the planted bug had been caught. The verdict prints, with stderr's last line.
+    Since review on 29 Sep 2026 that verdict is NOT CHECKED: a killed run shows no test failing on the bug."""
     tool = _tool()
     f = tmp_path / "m.py"
     f.write_text("x = 1\n", encoding="utf-8")
@@ -85,6 +86,71 @@ def test_a_run_that_prints_nothing_still_gets_its_verdict(tmp_path, monkeypatch,
     class Silent:
         returncode, stdout, stderr = 1, "", "Killed\n"
     monkeypatch.setattr(tool.subprocess, "run", lambda *a, **k: Silent())
-    assert tool.main() == 0
-    assert "CAUGHT a bug | Killed" in capsys.readouterr().out
+    assert tool.main() == 1
+    assert "NOT CHECKED a bug | Killed" in capsys.readouterr().out
     assert f.read_text(encoding="utf-8") == "x = 1\n"                      # and the file is put back
+
+
+# Found in review, 29 Sep 2026: the checker counted any pytest exit but 0 or 5 as CAUGHT. On a machine where pytest
+# could not write its temp folder, every tmp_path test ERRORED, and every planted bug those tests guard read as
+# caught though no test had failed on it.
+
+def test_only_a_failed_test_is_a_catch():
+    v = _tool().verdict
+    assert v(1, "1 failed, 3 passed, 440 deselected in 2.10s") == "CAUGHT"
+    assert v(1, "2 failed, 1 error in 0.50s") == "CAUGHT"
+    assert v(0, "4 passed, 440 deselected in 1.00s") == "MISSED"
+    assert v(0, "1 passed, 2 skipped, 440 deselected in 1.00s") == "MISSED"
+    assert v(0, "1 skipped, 821 deselected in 9.19s") == "NOT CHECKED"   # LibreOffice absent: nothing ran
+    assert v(1, "4 errors in 0.30s") == "ERRORS"                     # settled by a run without the bug
+    assert v(2, "1 error in 0.20s") == "ERRORS"                      # a collection error
+    assert v(5, "440 deselected in 0.10s") == "NOT CHECKED"          # the selector matched nothing
+    assert v(1, "Killed") == "NOT CHECKED"
+    assert v(3, "INTERNALERROR> boom") == "NOT CHECKED"
+    assert v(4, "ERROR: usage") == "NOT CHECKED"
+
+
+def _runs(tool, monkeypatch, answers):
+    """pytest faked: each call gets the next (exit code, stdout), and records whether the bug was in the file."""
+    seen = []
+
+    def run(*a, **k):
+        code, out = answers[len(seen)]
+        seen.append(Path(tool.muts[0][1]).read_text(encoding="utf-8"))
+
+        class R:
+            returncode, stdout, stderr = code, out, ""
+        return R()
+    monkeypatch.setattr(tool.subprocess, "run", run)
+    return seen
+
+
+def test_errors_that_the_file_without_the_bug_also_gives_are_not_a_catch(tmp_path, monkeypatch, capsys):
+    tool = _tool()
+    f = tmp_path / "m.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+    tool.muts = [("a bug", str(f), "x = 1", "x = 2", "anything")]
+    seen = _runs(tool, monkeypatch, [(1, "3 errors in 0.40s"), (1, "3 errors in 0.40s")])   # WinError 5 both times
+    assert tool.main() == 1
+    assert capsys.readouterr().out.startswith("NOT CHECKED a bug | 3 errors")
+    assert seen == ["x = 2\n", "x = 1\n"]                   # the second run was on the file as it is
+
+
+def test_errors_only_the_bug_causes_are_a_catch(tmp_path, monkeypatch, capsys):
+    tool = _tool()
+    f = tmp_path / "m.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+    tool.muts = [("a bug", str(f), "x = 1", "x = 2", "anything")]
+    _runs(tool, monkeypatch, [(2, "1 error in 0.20s"), (0, "3 passed in 0.40s")])
+    assert tool.main() == 0
+    assert capsys.readouterr().out.startswith("CAUGHT a bug | 1 error")
+
+
+def test_a_run_aimed_at_some_files_puts_back_only_theirs_and_refuses_a_file_with_none():
+    tool = _tool()
+    got = tool.only(tool.muts, ["src/pocketbook/kgroups.py"])
+    assert got and all(m[1] == "src/pocketbook/kgroups.py" for m in got)
+    assert len(got) == sum(m[1] == "src/pocketbook/kgroups.py" for m in tool.muts)
+    import pytest
+    with pytest.raises(SystemExit, match="no planted bug is in src/pocketbook/nothing.py"):
+        tool.only(tool.muts, ["src/pocketbook/nothing.py"])
