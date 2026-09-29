@@ -2256,10 +2256,11 @@ back.
     needing 248 at 1180 x 628); it fails the same way on main's own code here, and is left to the launcher work.
   - **Planted bugs:** on the final code, the 76 in control, kgroups, scout and confirmatory (the 4 new ones
     included): 68 caught, each by a failed test; 8 NOT CHECKED (their only tests need LibreOffice). 459 in all; the
-    other 383 not run here.
-  - **Not checked:** any recalculation of the workbooks, the Tk launcher, CI (it starts with the draft pull
-    request; until then the LibreOffice tests have run nowhere against this code), the planted bugs outside the
-    four files named.
+    other 383 not run here (CI ran all 459).
+  - **CI on the draft pull request (#407, e149a169):** every job passed; `pytest (pocketbook)` 843 passed, 7
+    skipped of 850 (LibreOffice present), and the four mutation shards 459 of 459 caught.
+  - **Not checked here:** any recalculation of the workbooks on this machine (CI's LibreOffice did), the Tk
+    launcher driven by hand, a real extract, the bank machine.
 
 ### Held for the firm's final decision (raised 29 Sep 2026)
 

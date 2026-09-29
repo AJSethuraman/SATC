@@ -425,11 +425,11 @@ Nothing was **calculated**, so a formula that would evaluate to an error is not 
 
 - **Recalculation.** No Excel or LibreOffice recalculation of any workbook (decision 3). The verdict counts in
   section 2 apply the Control rule in Python to the stored numbers.
-- **CI has not run on this branch.** `test.yml` runs on pushes to main and on pull requests, and the draft pull
-  request is what starts it. Until it finishes, the 115 LibreOffice tests and the planted bugs only they catch have
-  run nowhere against this code. The risk is largest for fix 1, which changes what is written into Control's cells
-  that the live formulas read. By inspection only: `answers_needed` covers Control J15:J30, and the launcher's Status
-  formulas read D before C.
+- **CI, since the draft pull request (#407).** On e149a169, every job passed. `pytest (pocketbook)` on Linux with
+  LibreOffice read **843 passed, 7 skipped, of 850**, so the 115 tests that skip here, including those that calculate
+  Control's live formulas after fix 1, passed there. The four mutation shards read **459 of 459 CAUGHT** under the
+  new rule, the 8 that were NOT CHECKED here included. That is CI's word, not this machine's: nothing was
+  recalculated here.
 - **The Tk launcher.** It was not driven. Set up and Run were called as the launcher calls them.
 - **The CLI route** (`pocketbook run`) was not run on the full files.
 - **Other files and proxies.** Not run: the 504 files, the other 7(a) vintages, the whole LendingClub file and the
@@ -440,8 +440,8 @@ Nothing was **calculated**, so a formula that would evaluate to an error is not 
   - 68 were caught, each by a failed test (none by errors alone).
   - 8 read NOT CHECKED: every test that guards them needs LibreOffice and skipped. The builder and a reviewer had the
     same 8.
-  - The other 383 of the 459 planted bugs were not run here. CI's mutation job runs them all once the pull request
-    starts it.
+  - The other 383 of the 459 planted bugs were not run here. CI's mutation job ran all 459 on e149a169: every one
+    CAUGHT.
 - **Two gaps not explained:** the paper's Table 5 population (877,428 loans against 897,167 in the file), and the
   LendingClub N (24,449 against 30,931).
 - **The term.** Whether SBA's TermInMonths is the term as approved.
