@@ -452,47 +452,72 @@ it with them.
   whatever you need honestly"*. Sixty invented clients walk 1 January to
   15 October 2027 through the real satc_system routes (Flask test client) and
   client-documents commands (`cli.main`), the machine clock frozen per
-  simulated day; 50 invariants, each citing the rule it holds the code to, are
-  checked every day. **No production code changed** — a frozen clock reached
-  every read, so no clock seam was needed. Three seeds ran in full, 288 of 288
-  days each (42 and 1066 billing in satc_system, 7 in client-documents): 370,
-  394 and 335 findings, 0 checker crashes, every run-level guard held. Every
-  checker goes red on a planted violation, and six real functions broken on
+  simulated day; 51 invariants, each citing the rule it holds the code to, are
+  checked every day, the Today and Work checks against what the route itself
+  rendered. **No production code changed** — a frozen clock reached every read,
+  so no clock seam was needed. Three seeds ran in full at `11d29781`, 288 of
+  288 days each (42 and 1066 billing in satc_system, 7 in client-documents):
+  373, 395 and 321 findings, 0 checker crashes, 0 banned-call attempts
+  (measured at the ban), every run-level guard held. Every checker goes red on
+  a planted violation and quiet on its clean twin, an always-firing checker is
+  caught for all 50 that can be swapped, and eight real functions broken on
   purpose were each caught (`season-simulator/README.md`, "How we know it can
   fail"). CI runs the mechanics only, never "zero findings" (S22, S25).
   What the season found, reproduced through the doors, **none fixed here** —
   handed to the firm, not written into `docs/DEFECT-REGISTER.md`:
   - *Clear bugs:* the work board and the job page disagree once a delivery is
-    recorded (C5); the season board shows closed-out and disengaged
-    engagements OVERDUE for good, last year's included (E6); a returning client
-    is never invited (B11); **an extension notice with no payment can never
-    pass the pre-send gate** — the floor `estimate-is-not-final-liability`
-    applies to every notice and its only satisfying sentence is inside
-    `[[IF PaymentEnclosed]]` (L1); the signature list chases disengaged clients
-    (D4); `cli season --today` still reads the machine clock (K1); **satc's
-    billing screen tells the owner to put the whole estimate on every
-    engagement-priced line**, so following it bills $975 against a $325
-    estimate (L2).
+    recorded (C5); a returning client is never invited (B11); **an extension
+    notice with no payment can never pass the pre-send gate** — the floor
+    `estimate-is-not-final-liability` applies to every notice and its only
+    satisfying sentence is inside `[[IF PaymentEnclosed]]` (L1);
+    `cli season --today` still reads the machine clock, though only a clock
+    years away from `--today` changes the answer (K1); **satc's billing screen
+    tells the owner to put the whole estimate on every engagement-priced
+    line**, so following it bills $975 against a $325 estimate (L2).
+  - *Held:* Today's money rows, against late, part, over and never payers
+    (M1, M2: 0 findings over 8,763 / 8,815 invoice-days, with 1,090 / 936
+    overdue rows raised, seeds 42 / 1066); the two deadline engines agree (A2).
   - *The firm's decision:* satc's cutoff is not the date the client was told,
     and Today proposes extensions to clients inside their date (G4, G8); filed,
     extended and disengaged clients are told their return is overdue and are
     still chased, because no door carries those facts into satc_system (B8,
-    G5); whichever system bills, the other is blind (G6) — and under
-    client-documents billing **no return could be transmitted all season**
-    (50 delivered, 0 closed out): a check has no door, though the gate's own
-    refusal says "a bill paid another way is recorded by hand" (L4); every
-    extension notice is also refused because the interview's first-deliverable
-    date predates the extended materials date and the event cannot restate it
-    (L3); returning clients are asked where last year's prior-year return went
-    (B13); amended returns sit at the original dates (E5); satc_system has no
-    Form 1120 workflow (G1).
+    G5); whichever system bills, the other is blind (G6; its count is set by
+    the scenario's one-door-per-seed design); the season board shows ended
+    engagements OVERDUE for good and the signature list keeps chasing
+    disengaged clients (E6, D4 — real behaviour, but the rule against it is
+    inferred from principles 5 and 13, not written); an extension notice for a
+    client with a dated first-deliverable target is refused because the event
+    cannot restate the target (L3); returning clients are asked where last
+    year's prior-year return went (B13); amended returns sit at the original
+    dates (E5); satc_system has no Form 1120 workflow (G1).
+  - *Seed 7, stated exactly:* 50 returns delivered, 0 closed out. 13 of the 50
+    billed clients paid by check, and no command records a check — already
+    recorded as *"Judgement, not procedure"* (`docs/OPERATING-PROCEDURES.md:382-385`),
+    so it is an observation, not a failing check. 33 paid by card, whose door
+    (Square) exists but is out of the simulator's reach; 4 never paid. And
+    `cli.py close` does not ask `may_file` (its one caller in cli.py is
+    `sign`, cli.py:1929): the gate is advisory, and the zero is this simulated
+    owner choosing to wait on it.
   - *Noticed while building, not measured:* `satc_system[app]` cannot import
     the app — `satc.app.state` needs reportlab, which only `[dev]` installs; the
     job page pre-fills "Which return" as `<client>-<year>-<engagementType>`,
-    not the `ids.return_key` shape; and **`CLAUDE.md`'s client-documents row
-    says the `cli.py event` documents ship ungated, but the extension notice
-    was refused by the pre-send gate on that path** (`cli.py:2368`,
-    `sending.gate_staged`) — the row looks stale and was not edited here.
+    not the `ids.return_key` shape; `firm_policy.yaml`'s `alerts` (30 / 7 days)
+    are loaded and read by nothing — Today uses propose.py's own defaults, which
+    happen to agree; and **`CLAUDE.md`'s client-documents row says the
+    `cli.py event` documents ship ungated, but the extension notice was refused
+    by the pre-send gate on that path** (`cli.py:2368`, `sending.gate_staged`)
+    — the row looks stale and was not edited here.
+  - *Two reviews, acted on the same day.* They found the Today/Work checks read
+    a copy of each route's call rather than the route; `banned_call_attempts`
+    was a hard-coded 0; B11's printed repro could not reproduce (it narrowed the
+    world to one client); six checkers could fire on everything unnoticed; L4
+    counted scripted payments and observed no code; Today's money rows were
+    never exercised; invented owner inputs sat outside `scenario.yaml`; the
+    seed-7 headline blamed all 50 unclosed returns on checks when 33 were card
+    payers the simulator could not settle. All fixed, each with a test or a
+    mutation (README, "How we know it can fail"). A first run of the new
+    route mutation was *not* caught by B12 (it compared only the rows the agent
+    lists); B12 now also compares counts by kind, and catches it.
   Reports: `season-simulator/reports/season-2027-seed-{42,7,1066}.md` (+ HTML).
 
 - **2026-09-27 — § 274(e) and § 1.162-21 are on file (desk 0.40.0).** In Sarcia

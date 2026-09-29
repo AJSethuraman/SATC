@@ -10,10 +10,10 @@ h3{margin-top:1.4rem}code{background:var(--code);padding:1px 4px;border-radius:3
 word-break:break-word}table{border-collapse:collapse;width:100%;font-size:.9em;display:block;overflow-x:auto}
 td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25rem 0}
 </style></head><body><h1>The 2027 season, simulated -- seed 7</h1>
-<p>60 invented clients driven day by day from 2027-01-01 to 2027-10-15 (288 days, 288 of them read and checked) through the real satc_system routes and client-documents commands. Billing door this seed: <strong>client_documents</strong>. Repository 7ddb58e6, Python 3.12.10, PYTHONHASHSEED 0, wall time 1127.5 s.</p>
-<p><strong>335 findings</strong> from 50 invariants (17 invariant groups hit). 1358 door calls, 8 of them refused or failed (listed under their findings). Checker crashes: 0.</p>
+<p>60 invented clients driven day by day from 2027-01-01 to 2027-10-15 (288 days, 288 of them read and checked) through the real satc_system routes and client-documents commands. Billing door this seed: <strong>client_documents</strong>. Repository 11d29781, Python 3.12.10, PYTHONHASHSEED 0, wall time 1296.6 s.</p>
+<p><strong>321 findings</strong> from 51 invariants (16 of them fired). 50 of the 321 (G6 50) come from a check whose count the scenario&#x27;s design sets, not the code; see its note. 1358 door calls, 8 of them refused or failed (listed under their findings). Checker crashes: 0.</p>
 <p>Every name, email and reference below is invented: <code>Testclient &lt;word&gt; NNN</code>, <code>@example.invalid</code>. Nothing here is a real client.</p>
-<h2>Clear bugs (116 findings, 6 rules)</h2>
+<h2>Clear bugs (86 findings, 4 rules)</h2>
 <p>The code contradicts a rule written in this repository, and the fix is local.</p>
 <h3>C5 -- the board and the job page agree on a job&#x27;s stage</h3>
 <p><em>failure</em> · 54 client(s) · first seen 2027-01-01 · held on up to 258 checked day(s)</p>
@@ -26,79 +26,50 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-01T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /work/engagement-5773a0b67c22576a&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>GET /work lists it as not_started; GET /work/engagement-5773a0b67c22576a shows &#x27;delivered&#x27;</code></li>
 <li>expected: one stage</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-004 --check C5</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-004 --check C5</code></li>
 </ul>
 <li><strong>seed 7 · 2027-01-01 · SIM-006</strong> (engagement-36c0a37e9eb87ee0) -- last seen 2027-10-15, 219 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-01T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /work/engagement-36c0a37e9eb87ee0&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>GET /work lists it as not_started; GET /work/engagement-36c0a37e9eb87ee0 shows &#x27;delivered&#x27;</code></li>
 <li>expected: one stage</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-006 --check C5</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-006 --check C5</code></li>
 </ul>
 <li><strong>seed 7 · 2027-01-01 · SIM-008</strong> (engagement-8ee5f167535ee7cf) -- last seen 2027-10-15, 212 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-01T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /work/engagement-8ee5f167535ee7cf&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>GET /work lists it as not_started; GET /work/engagement-8ee5f167535ee7cf shows &#x27;delivered&#x27;</code></li>
 <li>expected: one stage</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-008 --check C5</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-008 --check C5</code></li>
 </ul>
 <li>... and 51 more: SIM-011, SIM-014, SIM-021, SIM-022, SIM-024, SIM-027, SIM-030, SIM-032, SIM-035, SIM-037, SIM-040, SIM-041, SIM-042, SIM-044, SIM-045, SIM-048, SIM-049, SIM-053, SIM-057, SIM-058, SIM-059, SIM-026 ...</li>
-</ul>
-<h3>E6 -- an ended engagement is not shown as due</h3>
-<p><em>failure</em> · 27 client(s) · first seen 2027-01-01 · held on up to 288 checked day(s)</p>
-<p><strong>Rule.</strong> A disengaged or closed-out engagement has nothing due; showing it OVERDUE on the season board is a confident wrong answer and noise (principles 5, 13).</p>
-<p><strong>Source.</strong> <code>docs/DESIGN-PRINCIPLES.md:64-74</code>; <code>docs/DESIGN-PRINCIPLES.md:235-243</code>; <code>client-documents/deadlines.py:414</code></p>
-<p><strong>Note.</strong> H4 in the brief</p>
-<ul>
-<li><strong>seed 7 · 2027-01-01 · SIM-004</strong> (2026-0004) -- last seen 2027-10-15, 288 day(s)</li>
-<ul>
-<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-01T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;cli.main([&#x27;season&#x27;, ...])&quot;, &quot;today_arg&quot;: &quot;2027-01-01&quot;}</code></li>
-<li>output: <code>2026-0004: papers due in 2026-03-25 OVERDUE (closed out)</code></li>
-<li>expected: off the board</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-004 --check E6</code></li>
-</ul>
-<li><strong>seed 7 · 2027-01-01 · SIM-006</strong> (2026-0006) -- last seen 2027-10-15, 288 day(s)</li>
-<ul>
-<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-01T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;cli.main([&#x27;season&#x27;, ...])&quot;, &quot;today_arg&quot;: &quot;2027-01-01&quot;}</code></li>
-<li>output: <code>2026-0006: papers due in 2026-03-25 OVERDUE (closed out)</code></li>
-<li>expected: off the board</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-006 --check E6</code></li>
-</ul>
-<li><strong>seed 7 · 2027-01-01 · SIM-008</strong> (2026-0008) -- last seen 2027-10-15, 288 day(s)</li>
-<ul>
-<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-01T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;cli.main([&#x27;season&#x27;, ...])&quot;, &quot;today_arg&quot;: &quot;2027-01-01&quot;}</code></li>
-<li>output: <code>2026-0008: papers due in 2026-03-25 OVERDUE (closed out)</code></li>
-<li>expected: off the board</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-008 --check E6</code></li>
-</ul>
-<li>... and 24 more: SIM-011, SIM-014, SIM-021, SIM-022, SIM-024, SIM-027, SIM-030, SIM-032, SIM-035, SIM-037, SIM-040, SIM-041, SIM-042, SIM-044, SIM-045, SIM-048, SIM-049, SIM-053, SIM-057, SIM-058, SIM-059, SIM-009</li>
 </ul>
 <h3>B11 -- a client with nothing started for the year is invited</h3>
 <p><em>failure</em> · 23 client(s) · first seen 2027-01-05 · held on up to 284 checked day(s)</p>
 <p><strong>Rule.</strong> interview_invite means &#x27;a client with no engagement for the year&#x27;. A client with no job, no request and no document for the working year gets one. (S31: a claim and its behaviour are two things.)</p>
 <p><strong>Source.</strong> <code>satc_system/src/satc/actions/propose.py:44</code>; <code>satc_system/src/satc/app/today_views.py:86</code>; <code>docs/SOFTWARE-TENETS.md:706</code></p>
-<p><strong>Note.</strong> expected to fail (H8): /today passes every job in ANY year as engaged</p>
+<p><strong>Note.</strong> expected to fail (H8): /today passes every job in ANY year as engaged. It depends on the whole practice (the working year moves only once some client has a 2026 request), so its repro replays every client</p>
 <ul>
 <li><strong>seed 7 · 2027-01-05 · SIM-004</strong> (SATC-005000) -- last seen 2027-02-11, 38 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-05T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>no interview_invite; the client has jobs only for [2025]</code></li>
 <li>expected: &#x27;Nothing started for 2026&#x27;</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-004 --check B11</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-004 --check B11</code></li>
 </ul>
 <li><strong>seed 7 · 2027-01-05 · SIM-006</strong> (SATC-006000) -- last seen 2027-02-01, 28 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-05T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>no interview_invite; the client has jobs only for [2025]</code></li>
 <li>expected: &#x27;Nothing started for 2026&#x27;</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-006 --check B11</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-006 --check B11</code></li>
 </ul>
 <li><strong>seed 7 · 2027-01-05 · SIM-008</strong> (SATC-007000) -- last seen 2027-02-10, 37 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-05T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>no interview_invite; the client has jobs only for [2025]</code></li>
 <li>expected: &#x27;Nothing started for 2026&#x27;</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-008 --check B11</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-008 --check B11</code></li>
 </ul>
 <li>... and 20 more: SIM-011, SIM-014, SIM-021, SIM-022, SIM-024, SIM-027, SIM-032, SIM-035, SIM-037, SIM-040, SIM-041, SIM-042, SIM-044, SIM-045, SIM-048, SIM-049, SIM-053, SIM-057, SIM-058, SIM-059</li>
 </ul>
@@ -112,67 +83,39 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <li>call: <code>{&quot;args&quot;: {&quot;argv&quot;: [&quot;event&quot;, &quot;--kind&quot;, &quot;extension&quot;, &quot;--engagement&quot;, &quot;2027-0001&quot;, &quot;--answers&quot;, &quot;&lt;RUN&gt;/answers/event-extension-2027-0001.json&quot;, &quot;--skip-render&quot;, &quot;--no-pdf&quot;, &quot;--out&quot;, &quot;&lt;RUN&gt;/out&quot;, &quot;--store&quot;, &quot;&lt;RUN&gt;/engagements&quot;]}, &quot;clock&quot;: &quot;frozen@2027-04-08T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;status&quot;: 1, &quot;target&quot;: &quot;cli.main&quot;, &quot;today_arg&quot;: &quot;2027-04-08&quot;}</code></li>
 <li>output: <code>cli event --kind extension on 2027-04-08: REFUSED BY THE PRE-SEND GATE -- compliance [SAT-C Extension Notice - 001 - 2026.html]: the compliance floor &#x27;estimate-is-not-final-liability&#x27; is not on the page — none of [&#x27;final liability&#x27;, &#x27;not the final&#x27;] appears. The extension payment figure is made from an incomplete file. Saying so is what stops a client treating it as the bill.</code></li>
 <li>expected: the extension document passes the gate</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-001 --check L1</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-001 --check L1</code></li>
 </ul>
 <li><strong>seed 7 · 2027-04-08 · SIM-003</strong> (2027-0003) -- last seen 2027-04-08, 1 day(s)</li>
 <ul>
 <li>call: <code>{&quot;args&quot;: {&quot;argv&quot;: [&quot;event&quot;, &quot;--kind&quot;, &quot;extension&quot;, &quot;--engagement&quot;, &quot;2027-0003&quot;, &quot;--answers&quot;, &quot;&lt;RUN&gt;/answers/event-extension-2027-0003.json&quot;, &quot;--skip-render&quot;, &quot;--no-pdf&quot;, &quot;--out&quot;, &quot;&lt;RUN&gt;/out&quot;, &quot;--store&quot;, &quot;&lt;RUN&gt;/engagements&quot;]}, &quot;clock&quot;: &quot;frozen@2027-04-08T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;status&quot;: 1, &quot;target&quot;: &quot;cli.main&quot;, &quot;today_arg&quot;: &quot;2027-04-08&quot;}</code></li>
 <li>output: <code>cli event --kind extension on 2027-04-08: REFUSED BY THE PRE-SEND GATE -- compliance [SAT-C Extension Notice - 003 - 2026.html]: the compliance floor &#x27;estimate-is-not-final-liability&#x27; is not on the page — none of [&#x27;final liability&#x27;, &#x27;not the final&#x27;] appears. The extension payment figure is made from an incomplete file. Saying so is what stops a client treating it as the bill.</code></li>
 <li>expected: the extension document passes the gate</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-003 --check L1</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-003 --check L1</code></li>
 </ul>
 <li><strong>seed 7 · 2027-04-08 · SIM-012</strong> (2027-0012) -- last seen 2027-04-08, 1 day(s)</li>
 <ul>
 <li>call: <code>{&quot;args&quot;: {&quot;argv&quot;: [&quot;event&quot;, &quot;--kind&quot;, &quot;extension&quot;, &quot;--engagement&quot;, &quot;2027-0012&quot;, &quot;--answers&quot;, &quot;&lt;RUN&gt;/answers/event-extension-2027-0012.json&quot;, &quot;--skip-render&quot;, &quot;--no-pdf&quot;, &quot;--out&quot;, &quot;&lt;RUN&gt;/out&quot;, &quot;--store&quot;, &quot;&lt;RUN&gt;/engagements&quot;]}, &quot;clock&quot;: &quot;frozen@2027-04-08T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;status&quot;: 1, &quot;target&quot;: &quot;cli.main&quot;, &quot;today_arg&quot;: &quot;2027-04-08&quot;}</code></li>
 <li>output: <code>cli event --kind extension on 2027-04-08: REFUSED BY THE PRE-SEND GATE -- compliance [SAT-C Extension Notice - 012 - 2026.html]: the compliance floor &#x27;estimate-is-not-final-liability&#x27; is not on the page — none of [&#x27;final liability&#x27;, &#x27;not the final&#x27;] appears. The extension payment figure is made from an incomplete file. Saying so is what stops a client treating it as the bill.</code></li>
 <li>expected: the extension document passes the gate</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-012 --check L1</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-012 --check L1</code></li>
 </ul>
 <li>... and 5 more: SIM-035, SIM-041, SIM-044, SIM-047, SIM-051</li>
-</ul>
-<h3>D4 -- an ended engagement is not chased for signatures</h3>
-<p><em>failure</em> · 3 client(s) · first seen 2027-03-02 · held on up to 228 checked day(s)</p>
-<p><strong>Rule.</strong> Principle 13: a queue that becomes noise is worse than no queue. An engagement that is disengaged or closed out has nothing left to sign for.</p>
-<p><strong>Source.</strong> <code>docs/DESIGN-PRINCIPLES.md:235-243</code>; <code>client-documents/signing.py:612-647</code></p>
-<p><strong>Note.</strong> H5 in the brief</p>
-<ul>
-<li><strong>seed 7 · 2027-03-02 · SIM-055</strong> (2027-0055) -- last seen 2027-10-15, 228 day(s)</li>
-<ul>
-<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-03-02T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;signing.waiting&quot;, &quot;today_arg&quot;: &quot;2027-03-02&quot;}</code></li>
-<li>output: <code>signing.waiting lists 2027-0055 (disengaged) missing [&#x27;Form 8879/TaxpayerName&#x27;, &#x27;Form 8879/SpouseName&#x27;]</code></li>
-<li>expected: not listed</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-03-02 --client SIM-055 --check D4</code></li>
-</ul>
-<li><strong>seed 7 · 2027-03-15 · SIM-045</strong> (2027-0045) -- last seen 2027-10-15, 215 day(s)</li>
-<ul>
-<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-03-15T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;signing.waiting&quot;, &quot;today_arg&quot;: &quot;2027-03-15&quot;}</code></li>
-<li>output: <code>signing.waiting lists 2027-0045 (disengaged) missing [&#x27;Form 8879/TaxpayerName&#x27;]</code></li>
-<li>expected: not listed</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-03-15 --client SIM-045 --check D4</code></li>
-</ul>
-<li><strong>seed 7 · 2027-03-24 · SIM-052</strong> (2027-0052) -- last seen 2027-10-15, 206 day(s)</li>
-<ul>
-<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-03-24T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;signing.waiting&quot;, &quot;today_arg&quot;: &quot;2027-03-24&quot;}</code></li>
-<li>output: <code>signing.waiting lists 2027-0052 (disengaged) missing [&#x27;Form 8879/TaxpayerName&#x27;, &#x27;Form 8879/SpouseName&#x27;]</code></li>
-<li>expected: not listed</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-03-24 --client SIM-052 --check D4</code></li>
-</ul>
 </ul>
 <h3>K1 -- an explicit --today governs the whole read</h3>
 <p><em>failure</em> · 1 client(s) · first seen 2027-01-01 · held on up to 12 checked day(s)</p>
 <p><strong>Rule.</strong> <code>cli season --today D</code> answers for D. Run under a wrong machine clock with an explicit --today, it must print what it prints under the right one.</p>
 <p><strong>Source.</strong> <code>client-documents/cli.py:3082</code>; <code>client-documents/deadlines.py:414-434</code>; <code>client-documents/deadlines.py:395</code></p>
-<p><strong>Note.</strong> checked by the clock-leak audit on sample days (H11)</p>
+<p><strong>Note.</strong> checked by the clock-leak audit on sample days (H11), under two wrong clocks: 2031-06-15, and the day plus one year. The board changes only when the machine clock is far enough from --today that deadlines.plausible_year (deadlines.py:395) answers differently; the audit line says which clock did</p>
 <ul>
-<li><strong>seed 7 · 2027-01-01 · -</strong> (cli season) -- last seen 2027-10-15, 12 day(s)</li>
+<li><strong>seed 7 · 2027-01-01 · -</strong> (cli season, clock 2031-06-15) -- last seen 2027-10-15, 12 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2031-06-15T14:00Z vs frozen@2027-01-01T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;cli.main([&#x27;season&#x27;, &#x27;--today&#x27;, D, &#x27;--store&#x27;, S])&quot;, &quot;today_arg&quot;: &quot;2027-01-01&quot;}</code></li>
-<li>output: <code>cli season --today 2027-01-01 printed differently when the machine clock was wrong. First difference: clock on the day: &#x27;!! 2026-03-25  OVERDUE  2026-0004  Testclient Delta 004           papers due in&#x27; | clock on 2031-06-15: &#x27;  nothing due in that window.&#x27;</code></li>
+<li>output: <code>cli season --today 2027-01-01 printed differently when the machine clock read 2031-06-15. First difference: clock on the day: &#x27;!! 2026-03-25  OVERDUE  2026-0004  Testclient Delta 004           papers due in&#x27; | clock on 2031-06-15: &#x27;  nothing due in that window.&#x27;</code></li>
 <li>expected: identical output: --today D alone decides the answer</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-01 --check K1</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-01 --check K1</code></li>
 </ul>
 </ul>
-<h2>Needs the firm&#x27;s decision (211 findings, 10 rules)</h2>
+<h2>Needs the firm&#x27;s decision (227 findings, 11 rules)</h2>
 <p>A gap whose fix is a choice: a door to build (D8 deferred one), a policy to pick, or a reading of a rule the firm has to confirm.</p>
 <h3>G4 -- the papers-due date matches what the client was told</h3>
 <p><em>cross_store</em> · 57 client(s) · first seen 2027-01-05 · held on up to 284 checked day(s)</p>
@@ -184,21 +127,21 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-05T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;(read pass)&quot;, &quot;today_arg&quot;: &quot;2027-01-05&quot;}</code></li>
 <li>output: <code>satc documents_due 2027-02-01 (firm_policy cutoff); client told February 22, 2027</code></li>
 <li>expected: the same date</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-005 --check G4</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-005 --check G4</code></li>
 </ul>
 <li><strong>seed 7 · 2027-01-05 · SIM-030</strong> (2027-0030) -- last seen 2027-10-15, 284 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-05T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;(read pass)&quot;, &quot;today_arg&quot;: &quot;2027-01-05&quot;}</code></li>
 <li>output: <code>satc documents_due 2027-03-01 (firm_policy cutoff); client told March 25, 2027</code></li>
 <li>expected: the same date</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-030 --check G4</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-030 --check G4</code></li>
 </ul>
 <li><strong>seed 7 · 2027-01-06 · SIM-042</strong> (2027-0042) -- last seen 2027-10-15, 283 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-06T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;(read pass)&quot;, &quot;today_arg&quot;: &quot;2027-01-06&quot;}</code></li>
 <li>output: <code>satc documents_due 2027-03-01 (firm_policy cutoff); client told March 25, 2027</code></li>
 <li>expected: the same date</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-06 --client SIM-042 --check G4</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-06 --client SIM-042 --check G4</code></li>
 </ul>
 <li>... and 54 more: SIM-045, SIM-056, SIM-026, SIM-016, SIM-021, SIM-037, SIM-003, SIM-013, SIM-055, SIM-058, SIM-033, SIM-035, SIM-041, SIM-060, SIM-038, SIM-046, SIM-007, SIM-012, SIM-015, SIM-034, SIM-043, SIM-053 ...</li>
 </ul>
@@ -206,27 +149,28 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <p><em>cross_store</em> · 50 client(s) · first seen 2027-02-04 · held on up to 254 checked day(s)</p>
 <p><strong>Rule.</strong> D3 settles invoice numbering in client-documents. &#x27;We will not e-file a return before the invoice for it is settled&#x27; is gated by client-documents alone; Today&#x27;s money rows read satc_system&#x27;s invoices alone. Whichever door bills, the other system cannot see it.</p>
 <p><strong>Source.</strong> <code>LOG.md:847-854</code>; <code>satc-handoff/04-TEMPLATES/SATC Engagement Letter - Tax Preparation.html:95</code>; <code>client-documents/signing.py:541-572</code>; <code>satc_system/src/satc/app/today_views.py:81-96</code></p>
+<p><strong>How many is set by the scenario.</strong> The scenario bills every return through ONE door per seed, so the other system never holds a bill, by construction. Under client-documents billing every billed client is a finding; under satc billing every client closed out before paying is. The count measures the scenario; the one fact about the product is that neither system reads the other&#x27;s bills.</p>
 <ul>
 <li><strong>seed 7 · 2027-02-04 · SIM-037</strong> (2027-0037) -- last seen 2027-10-15, 254 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-02-04T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;(read pass)&quot;, &quot;today_arg&quot;: &quot;2027-02-04&quot;}</code></li>
 <li>output: <code>2027-0037 billed as 2027-0001 in client-documents; satc_system holds no invoice for 2026</code></li>
 <li>expected: Today&#x27;s money rows know the bill exists</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-02-04 --client SIM-037 --check G6</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-02-04 --client SIM-037 --check G6</code></li>
 </ul>
 <li><strong>seed 7 · 2027-02-04 · SIM-042</strong> (2027-0042) -- last seen 2027-10-15, 254 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-02-04T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;(read pass)&quot;, &quot;today_arg&quot;: &quot;2027-02-04&quot;}</code></li>
 <li>output: <code>2027-0042 billed as 2027-0002 in client-documents; satc_system holds no invoice for 2026</code></li>
 <li>expected: Today&#x27;s money rows know the bill exists</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-02-04 --client SIM-042 --check G6</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-02-04 --client SIM-042 --check G6</code></li>
 </ul>
 <li><strong>seed 7 · 2027-02-04 · SIM-057</strong> (2027-0057) -- last seen 2027-10-15, 254 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-02-04T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;(read pass)&quot;, &quot;today_arg&quot;: &quot;2027-02-04&quot;}</code></li>
 <li>output: <code>2027-0057 billed as 2027-0003 in client-documents; satc_system holds no invoice for 2026</code></li>
 <li>expected: Today&#x27;s money rows know the bill exists</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-02-04 --client SIM-057 --check G6</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-02-04 --client SIM-057 --check G6</code></li>
 </ul>
 <li>... and 47 more: SIM-026, SIM-030, SIM-015, SIM-027, SIM-056, SIM-013, SIM-016, SIM-049, SIM-005, SIM-046, SIM-038, SIM-033, SIM-014, SIM-034, SIM-060, SIM-007, SIM-053, SIM-018, SIM-059, SIM-023, SIM-009, SIM-010 ...</li>
 </ul>
@@ -240,23 +184,52 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-02-02T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[urgent] Likely extension — 1065 2026 -- Your cutoff was Feb 01 and 4 items are still outstanding. An extension needs the client&#x27;s written authorisation before you file it. (client told February 22, 2027)</code></li>
 <li>expected: no extension flag before February 22, 2027</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-02-02 --client SIM-005 --check G8</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-02-02 --client SIM-005 --check G8</code></li>
 </ul>
 <li><strong>seed 7 · 2027-02-02 · SIM-015</strong> (extension_candidate/SATC-042000/2026) -- last seen 2027-02-10, 9 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-02-02T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[urgent] Likely extension — 1120S 2026 -- Your cutoff was Feb 01 and 2 items are still outstanding. An extension needs the client&#x27;s written authorisation before you file it. (client told February 22, 2027)</code></li>
 <li>expected: no extension flag before February 22, 2027</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-02-02 --client SIM-015 --check G8</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-02-02 --client SIM-015 --check G8</code></li>
 </ul>
 <li><strong>seed 7 · 2027-02-02 · SIM-016</strong> (extension_candidate/SATC-032000/2026) -- last seen 2027-02-18, 17 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-02-02T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[urgent] Likely extension — 1065 2026 -- Your cutoff was Feb 01 and 3 items are still outstanding. An extension needs the client&#x27;s written authorisation before you file it. (client told February 22, 2027)</code></li>
 <li>expected: no extension flag before February 22, 2027</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-02-02 --client SIM-016 --check G8</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-02-02 --client SIM-016 --check G8</code></li>
 </ul>
 <li>... and 36 more: SIM-026, SIM-033, SIM-001, SIM-002, SIM-003, SIM-004, SIM-006, SIM-008, SIM-009, SIM-010, SIM-011, SIM-012, SIM-017, SIM-019, SIM-020, SIM-021, SIM-023, SIM-024, SIM-025, SIM-028, SIM-029, SIM-031 ...</li>
+</ul>
+<h3>E6 -- an ended engagement is not shown as due</h3>
+<p><em>failure</em> · 27 client(s) · first seen 2027-01-01 · held on up to 288 checked day(s)</p>
+<p><strong>Rule.</strong> A disengaged or closed-out engagement has nothing due; showing it OVERDUE on the season board is a confident wrong answer and noise (principles 5, 13).</p>
+<p><strong>Source.</strong> <code>docs/DESIGN-PRINCIPLES.md:64-74</code>; <code>docs/DESIGN-PRINCIPLES.md:235-243</code>; <code>client-documents/deadlines.py:414</code></p>
+<p><strong>Note.</strong> H4. The rule is INFERRED from principles 5 and 13; no recorded rule says the season board must drop ended engagements (deadlines.board has no such filter), so whether it should is the firm&#x27;s call</p>
+<ul>
+<li><strong>seed 7 · 2027-01-01 · SIM-004</strong> (2026-0004) -- last seen 2027-10-15, 288 day(s)</li>
+<ul>
+<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-01T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;cli.main([&#x27;season&#x27;, ...])&quot;, &quot;today_arg&quot;: &quot;2027-01-01&quot;}</code></li>
+<li>output: <code>2026-0004: papers due in 2026-03-25 OVERDUE (closed out)</code></li>
+<li>expected: off the board</li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-004 --check E6</code></li>
+</ul>
+<li><strong>seed 7 · 2027-01-01 · SIM-006</strong> (2026-0006) -- last seen 2027-10-15, 288 day(s)</li>
+<ul>
+<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-01T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;cli.main([&#x27;season&#x27;, ...])&quot;, &quot;today_arg&quot;: &quot;2027-01-01&quot;}</code></li>
+<li>output: <code>2026-0006: papers due in 2026-03-25 OVERDUE (closed out)</code></li>
+<li>expected: off the board</li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-006 --check E6</code></li>
+</ul>
+<li><strong>seed 7 · 2027-01-01 · SIM-008</strong> (2026-0008) -- last seen 2027-10-15, 288 day(s)</li>
+<ul>
+<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-01T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;cli.main([&#x27;season&#x27;, ...])&quot;, &quot;today_arg&quot;: &quot;2027-01-01&quot;}</code></li>
+<li>output: <code>2026-0008: papers due in 2026-03-25 OVERDUE (closed out)</code></li>
+<li>expected: off the board</li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-01 --client SIM-008 --check E6</code></li>
+</ul>
+<li>... and 24 more: SIM-011, SIM-014, SIM-021, SIM-022, SIM-024, SIM-027, SIM-030, SIM-032, SIM-035, SIM-037, SIM-040, SIM-041, SIM-042, SIM-044, SIM-045, SIM-048, SIM-049, SIM-053, SIM-057, SIM-058, SIM-059, SIM-009</li>
 </ul>
 <h3>B13 -- the prior-year question does not ask for a new-client-only document</h3>
 <p><em>failure</em> · 21 client(s) · first seen 2027-01-05 · held on up to 284 checked day(s)</p>
@@ -268,52 +241,23 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-05T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[soon] Ask about 1 document not seen this year -- Prior-year return was on file for 2025 with nothing for 2026 — not even requested.</code></li>
 <li>expected: no question about [&#x27;Prior-year return&#x27;]: the workflow asks it of new clients only</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-030 --check B13</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-05 --client SIM-030 --check B13</code></li>
 </ul>
 <li><strong>seed 7 · 2027-01-06 · SIM-042</strong> (prior_year_question/SATC-020000/2026) -- last seen 2027-10-15, 283 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-06T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[soon] Ask about 2 documents not seen this year -- Brokerage 1099, Prior-year return were on file for 2025 with nothing for 2026 — not even requested.</code></li>
 <li>expected: no question about [&#x27;Prior-year return&#x27;]: the workflow asks it of new clients only</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-06 --client SIM-042 --check B13</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-06 --client SIM-042 --check B13</code></li>
 </ul>
 <li><strong>seed 7 · 2027-01-06 · SIM-045</strong> (prior_year_question/SATC-022000/2026) -- last seen 2027-10-15, 283 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-06T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[soon] Ask about 1 document not seen this year -- Prior-year return was on file for 2025 with nothing for 2026 — not even requested.</code></li>
 <li>expected: no question about [&#x27;Prior-year return&#x27;]: the workflow asks it of new clients only</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-06 --client SIM-045 --check B13</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-06 --client SIM-045 --check B13</code></li>
 </ul>
 <li>... and 18 more: SIM-021, SIM-037, SIM-058, SIM-035, SIM-041, SIM-053, SIM-027, SIM-057, SIM-059, SIM-049, SIM-006, SIM-024, SIM-044, SIM-014, SIM-011, SIM-008, SIM-040, SIM-004</li>
-</ul>
-<h3>L4 -- a payment made another way can be recorded</h3>
-<p><em>failure</em> · 14 client(s) · first seen 2027-02-18 · held on up to 1 checked day(s)</p>
-<p><strong>Rule.</strong> The filing gate&#x27;s refusal says &#x27;a bill paid another way is recorded by hand&#x27;, and the invoice tells the client &#x27;If you would rather pay another way, tell us and we will arrange it.&#x27; A check that arrived must have a door that records it; otherwise the gate blocks transmitting that return for good (S31: a claim and its behaviour are two things).</p>
-<p><strong>Source.</strong> <code>client-documents/signing.py:564-570</code>; <code>client-documents/registry/firm-settings.yaml:100-102</code>; <code>client-documents/payments.py:622-634</code>; <code>client-documents/cli.py:859-900</code>; <code>satc-handoff/04-TEMPLATES/SATC Engagement Letter - Tax Preparation.html:95</code>; <code>docs/SOFTWARE-TENETS.md:706</code></p>
-<p><strong>Note.</strong> H13 in the brief. Only CHECK payers are counted: a card payment would settle through Square, which the simulator is not allowed to reach</p>
-<ul>
-<li><strong>seed 7 · 2027-02-18 · SIM-037</strong> (2027-0037) -- last seen 2027-02-18, 1 day(s)</li>
-<ul>
-<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-02-18T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;(none exists) -- cli.py payments asks Square only&quot;, &quot;today_arg&quot;: &quot;2027-02-18&quot;}</code></li>
-<li>output: <code>check received 2027-02-18 for invoice 2027-0001 on 2027-0037: no command records it (cli.py offers &#x27;payments&#x27;, which asks Square). may_file still says: 1 of 1 invoice(s) on this engagement are not recorded as settled — 2027-0001. Every engagement letter says we will not e-file before the invoice is settled. &#x27;python cli.py payments&#x27; asks the processor; a bill paid anothe</code></li>
-<li>expected: a door that records the check, so the gate can clear</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-02-18 --client SIM-037 --check L4</code></li>
-</ul>
-<li><strong>seed 7 · 2027-03-01 · SIM-013</strong> (2027-0013) -- last seen 2027-03-01, 1 day(s)</li>
-<ul>
-<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-03-01T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;(none exists) -- cli.py payments asks Square only&quot;, &quot;today_arg&quot;: &quot;2027-03-01&quot;}</code></li>
-<li>output: <code>check received 2027-02-28 for invoice 2027-0010 on 2027-0013: no command records it (cli.py offers &#x27;payments&#x27;, which asks Square). may_file still says: 1 of 1 invoice(s) on this engagement are not recorded as settled — 2027-0010. Every engagement letter says we will not e-file before the invoice is settled. &#x27;python cli.py payments&#x27; asks the processor; a bill paid anothe</code></li>
-<li>expected: a door that records the check, so the gate can clear</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-03-01 --client SIM-013 --check L4</code></li>
-</ul>
-<li><strong>seed 7 · 2027-03-01 · SIM-030</strong> (2027-0030) -- last seen 2027-03-01, 1 day(s)</li>
-<ul>
-<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-03-01T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;(none exists) -- cli.py payments asks Square only&quot;, &quot;today_arg&quot;: &quot;2027-03-01&quot;}</code></li>
-<li>output: <code>check received 2027-03-01 for invoice 2027-0005 on 2027-0030: no command records it (cli.py offers &#x27;payments&#x27;, which asks Square). may_file still says: 1 of 1 invoice(s) on this engagement are not recorded as settled — 2027-0005. Every engagement letter says we will not e-file before the invoice is settled. &#x27;python cli.py payments&#x27; asks the processor; a bill paid anothe</code></li>
-<li>expected: a door that records the check, so the gate can clear</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-03-01 --client SIM-030 --check L4</code></li>
-</ul>
-<li>... and 11 more: SIM-046, SIM-060, SIM-005, SIM-034, SIM-054, SIM-050, SIM-008, SIM-043, SIM-036, SIM-051, SIM-003</li>
 </ul>
 <h3>B8 -- a deadline row is dated at the operative deadline</h3>
 <p><em>failure</em> · 11 client(s) · first seen 2027-04-16 · held on up to 183 checked day(s)</p>
@@ -326,49 +270,50 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-04-16T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[overdue] 1040 for 2026 was due Apr 15 -- US 1040, 2026: overdue by 1 days.</code></li>
 <li>expected: no &#x27;overdue&#x27; against the original date: client-documents records 2027-0001 as extended</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-16 --client SIM-001 --check B8</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-16 --client SIM-001 --check B8</code></li>
 </ul>
 <li><strong>seed 7 · 2027-04-16 · SIM-003</strong> (deadline_approaching/SATC-033000/1040-2026) -- last seen 2027-10-15, 183 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-04-16T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[overdue] 1040 for 2026 was due Apr 15 -- US 1040, 2026: overdue by 1 days.</code></li>
 <li>expected: no &#x27;overdue&#x27; against the original date: client-documents records 2027-0003 as extended</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-16 --client SIM-003 --check B8</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-16 --client SIM-003 --check B8</code></li>
 </ul>
 <li><strong>seed 7 · 2027-04-16 · SIM-012</strong> (deadline_approaching/SATC-041000/1040-2026) -- last seen 2027-10-15, 183 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-04-16T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[overdue] 1040 for 2026 was due Apr 15 -- US 1040, 2026: overdue by 1 days.</code></li>
 <li>expected: no &#x27;overdue&#x27; against the original date: client-documents records 2027-0012 as extended</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-16 --client SIM-012 --check B8</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-16 --client SIM-012 --check B8</code></li>
 </ul>
 <li>... and 8 more: SIM-035, SIM-041, SIM-044, SIM-045, SIM-047, SIM-051, SIM-052, SIM-055</li>
 </ul>
 <h3>L3 -- an extension notice can restate what the extension changed</h3>
 <p><em>failure</em> · 8 client(s) · first seen 2027-04-08 · held on up to 1 checked day(s)</p>
-<p><strong>Rule.</strong> The package check refuses a first-deliverable target earlier than the materials deadline. An extension moves the materials deadline past the target promised at the interview, and the extension event carries no field to restate the target -- so every extension notice is refused. The letter commits the firm to filing extensions where needed.</p>
+<p><strong>Rule.</strong> The package check refuses a first-deliverable target that is a DATE earlier than the materials deadline (a target written as a phrase is skipped, consistency.py:328-331). An extension moves the materials deadline past a dated target promised at the interview, and the extension event carries no field to restate the target -- so an extension notice for such a client is refused. The letter commits the firm to filing extensions where needed.</p>
 <p><strong>Source.</strong> <code>client-documents/consistency.py:313-345</code>; <code>satc-handoff/04-TEMPLATES/SATC Engagement Letter - Tax Preparation.html:83</code>; <code>client-documents/registry/lifecycle.yaml</code></p>
+<p><strong>Note.</strong> Every simulated client&#x27;s target is a date (scenario.yaml owner.interview) and every extension notice&#x27;s materials date is the extended date minus owner.extension_notice.materials_days_before_extended -- both invented</p>
 <ul>
 <li><strong>seed 7 · 2027-04-08 · SIM-001</strong> (2027-0001) -- last seen 2027-04-08, 1 day(s)</li>
 <ul>
 <li>call: <code>{&quot;args&quot;: {&quot;argv&quot;: [&quot;event&quot;, &quot;--kind&quot;, &quot;extension&quot;, &quot;--engagement&quot;, &quot;2027-0001&quot;, &quot;--answers&quot;, &quot;&lt;RUN&gt;/answers/event-extension-2027-0001.json&quot;, &quot;--skip-render&quot;, &quot;--no-pdf&quot;, &quot;--out&quot;, &quot;&lt;RUN&gt;/out&quot;, &quot;--store&quot;, &quot;&lt;RUN&gt;/engagements&quot;]}, &quot;clock&quot;: &quot;frozen@2027-04-08T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;status&quot;: 1, &quot;target&quot;: &quot;cli.main&quot;, &quot;today_arg&quot;: &quot;2027-04-08&quot;}</code></li>
 <li>output: <code>cli event --kind extension on 2027-04-08: REFUSED BY THE PRE-SEND GATE -- agrees [(pack)]: the first deliverable is not promised before the materials are due — the first deliverable is promised for April 8, 2027, which is before the August 16, 2027 date the same package tells the client to send everything by</code></li>
 <li>expected: the extension document passes the gate</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-001 --check L3</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-001 --check L3</code></li>
 </ul>
 <li><strong>seed 7 · 2027-04-08 · SIM-003</strong> (2027-0003) -- last seen 2027-04-08, 1 day(s)</li>
 <ul>
 <li>call: <code>{&quot;args&quot;: {&quot;argv&quot;: [&quot;event&quot;, &quot;--kind&quot;, &quot;extension&quot;, &quot;--engagement&quot;, &quot;2027-0003&quot;, &quot;--answers&quot;, &quot;&lt;RUN&gt;/answers/event-extension-2027-0003.json&quot;, &quot;--skip-render&quot;, &quot;--no-pdf&quot;, &quot;--out&quot;, &quot;&lt;RUN&gt;/out&quot;, &quot;--store&quot;, &quot;&lt;RUN&gt;/engagements&quot;]}, &quot;clock&quot;: &quot;frozen@2027-04-08T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;status&quot;: 1, &quot;target&quot;: &quot;cli.main&quot;, &quot;today_arg&quot;: &quot;2027-04-08&quot;}</code></li>
 <li>output: <code>cli event --kind extension on 2027-04-08: REFUSED BY THE PRE-SEND GATE -- agrees [(pack)]: the first deliverable is not promised before the materials are due — the first deliverable is promised for April 8, 2027, which is before the August 16, 2027 date the same package tells the client to send everything by</code></li>
 <li>expected: the extension document passes the gate</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-003 --check L3</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-003 --check L3</code></li>
 </ul>
 <li><strong>seed 7 · 2027-04-08 · SIM-012</strong> (2027-0012) -- last seen 2027-04-08, 1 day(s)</li>
 <ul>
 <li>call: <code>{&quot;args&quot;: {&quot;argv&quot;: [&quot;event&quot;, &quot;--kind&quot;, &quot;extension&quot;, &quot;--engagement&quot;, &quot;2027-0012&quot;, &quot;--answers&quot;, &quot;&lt;RUN&gt;/answers/event-extension-2027-0012.json&quot;, &quot;--skip-render&quot;, &quot;--no-pdf&quot;, &quot;--out&quot;, &quot;&lt;RUN&gt;/out&quot;, &quot;--store&quot;, &quot;&lt;RUN&gt;/engagements&quot;]}, &quot;clock&quot;: &quot;frozen@2027-04-08T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;status&quot;: 1, &quot;target&quot;: &quot;cli.main&quot;, &quot;today_arg&quot;: &quot;2027-04-08&quot;}</code></li>
 <li>output: <code>cli event --kind extension on 2027-04-08: REFUSED BY THE PRE-SEND GATE -- agrees [(pack)]: the first deliverable is not promised before the materials are due — the first deliverable is promised for April 8, 2027, which is before the August 16, 2027 date the same package tells the client to send everything by</code></li>
 <li>expected: the extension document passes the gate</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-012 --check L3</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-012 --check L3</code></li>
 </ul>
 <li>... and 5 more: SIM-035, SIM-041, SIM-044, SIM-047, SIM-051</li>
 </ul>
@@ -382,43 +327,71 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-03-15T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[soon] Ask about 2 documents not seen this year -- 1099-R / 5498, Prior-year return were on file for 2025 with nothing for 2026 — not even requested.</code></li>
 <li>expected: no prior_year_question row: 2027-0045 is disengaged in client-documents</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-03-15 --client SIM-045 --check G5</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-03-15 --client SIM-045 --check G5</code></li>
 </ul>
 <li><strong>seed 7 · 2027-04-08 · SIM-001</strong> (extension_candidate/SATC-061000/2026) -- last seen 2027-10-15, 191 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-04-08T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[urgent] Likely extension — 1040 2026 -- Your cutoff was Mar 01 and 4 items are still outstanding. An extension needs the client&#x27;s written authorisation before you file it.</code></li>
 <li>expected: no extension_candidate row: 2027-0001 is already extended in client-documents</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-001 --check G5</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-001 --check G5</code></li>
 </ul>
 <li><strong>seed 7 · 2027-04-08 · SIM-003</strong> (extension_candidate/SATC-033000/2026) -- last seen 2027-07-11, 95 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-04-08T14:00Z&quot;, &quot;door&quot;: &quot;http&quot;, &quot;target&quot;: &quot;GET /today&quot;, &quot;today_arg&quot;: &quot;(none: the route reads date.today(), frozen)&quot;}</code></li>
 <li>output: <code>[urgent] Likely extension — 1040 2026 -- Your cutoff was Mar 01 and 1 item is still outstanding. An extension needs the client&#x27;s written authorisation before you file it.</code></li>
 <li>expected: no extension_candidate row: 2027-0003 is already extended in client-documents</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-003 --check G5</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-003 --check G5</code></li>
 </ul>
 <li>... and 4 more: SIM-012, SIM-035, SIM-041, SIM-047</li>
+</ul>
+<h3>D4 -- an ended engagement is not chased for signatures</h3>
+<p><em>failure</em> · 3 client(s) · first seen 2027-03-02 · held on up to 228 checked day(s)</p>
+<p><strong>Rule.</strong> Principle 13: a queue that becomes noise is worse than no queue. An engagement that is disengaged or closed out has nothing left to sign for.</p>
+<p><strong>Source.</strong> <code>docs/DESIGN-PRINCIPLES.md:235-243</code>; <code>client-documents/signing.py:612-647</code></p>
+<p><strong>Note.</strong> H5. The rule is INFERRED from principle 13; no recorded rule says the signature list must drop ended engagements (signing.waiting has no such filter), so whether it should is the firm&#x27;s call</p>
+<ul>
+<li><strong>seed 7 · 2027-03-02 · SIM-055</strong> (2027-0055) -- last seen 2027-10-15, 228 day(s)</li>
+<ul>
+<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-03-02T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;signing.waiting&quot;, &quot;today_arg&quot;: &quot;2027-03-02&quot;}</code></li>
+<li>output: <code>signing.waiting lists 2027-0055 (disengaged) missing [&#x27;Form 8879/TaxpayerName&#x27;, &#x27;Form 8879/SpouseName&#x27;]</code></li>
+<li>expected: not listed</li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-03-02 --client SIM-055 --check D4</code></li>
+</ul>
+<li><strong>seed 7 · 2027-03-15 · SIM-045</strong> (2027-0045) -- last seen 2027-10-15, 215 day(s)</li>
+<ul>
+<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-03-15T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;signing.waiting&quot;, &quot;today_arg&quot;: &quot;2027-03-15&quot;}</code></li>
+<li>output: <code>signing.waiting lists 2027-0045 (disengaged) missing [&#x27;Form 8879/TaxpayerName&#x27;]</code></li>
+<li>expected: not listed</li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-03-15 --client SIM-045 --check D4</code></li>
+</ul>
+<li><strong>seed 7 · 2027-03-24 · SIM-052</strong> (2027-0052) -- last seen 2027-10-15, 206 day(s)</li>
+<ul>
+<li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-03-24T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;signing.waiting&quot;, &quot;today_arg&quot;: &quot;2027-03-24&quot;}</code></li>
+<li>output: <code>signing.waiting lists 2027-0052 (disengaged) missing [&#x27;Form 8879/TaxpayerName&#x27;, &#x27;Form 8879/SpouseName&#x27;]</code></li>
+<li>expected: not listed</li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-03-24 --client SIM-052 --check D4</code></li>
+</ul>
 </ul>
 <h3>E5 -- an amended return is not placed at the original return&#x27;s dates</h3>
 <p><em>failure</em> · 2 client(s) · first seen 2027-02-01 · held on up to 257 checked day(s)</p>
 <p><strong>Rule.</strong> An amended return is a refund claim with its own clock (IRC 6511(a), deadlines.py). Placing it at the original return&#x27;s filing dates, already past, is principle 5: a confident wrong answer.</p>
 <p><strong>Source.</strong> <code>client-documents/deadlines.py:348-356</code>; <code>docs/DESIGN-PRINCIPLES.md:64-74</code></p>
-<p><strong>Note.</strong> H6 in the brief; plausible rather than certain</p>
+<p><strong>Note.</strong> H6; plausible rather than certain</p>
 <ul>
 <li><strong>seed 7 · 2027-02-01 · SIM-009</strong> (2027-0109) -- last seen 2027-10-15, 257 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-02-01T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;cli.main([&#x27;season&#x27;, ...])&quot;, &quot;today_arg&quot;: &quot;2027-02-01&quot;}</code></li>
 <li>output: <code>2027-0109: papers due in 2026-03-25 OVERDUE (-313 days)</code></li>
 <li>expected: no original-return deadline on an amended return</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-02-01 --client SIM-009 --check E5</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-02-01 --client SIM-009 --check E5</code></li>
 </ul>
 <li><strong>seed 7 · 2027-02-01 · SIM-030</strong> (2027-0130) -- last seen 2027-10-15, 257 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-02-01T14:00Z&quot;, &quot;door&quot;: &quot;cli&quot;, &quot;target&quot;: &quot;cli.main([&#x27;season&#x27;, ...])&quot;, &quot;today_arg&quot;: &quot;2027-02-01&quot;}</code></li>
 <li>output: <code>2027-0130: papers due in 2026-03-25 OVERDUE (-313 days)</code></li>
 <li>expected: no original-return deadline on an amended return</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-02-01 --client SIM-030 --check E5</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-02-01 --client SIM-030 --check E5</code></li>
 </ul>
 </ul>
 <h3>G1 -- each ref names exactly one satc engagement</h3>
@@ -431,14 +404,14 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-06T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;SATCStore.client_for_ref&quot;, &quot;today_arg&quot;: &quot;2027-01-06&quot;}</code></li>
 <li>output: <code>2027-0056: satc engagements carrying it: none satc_system has no workflow for this return, so there is no job to carry the ref</code></li>
 <li>expected: exactly [SATC-030000]</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-06 --client SIM-056 --check G1</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-06 --client SIM-056 --check G1</code></li>
 </ul>
 <li><strong>seed 7 · 2027-01-19 · SIM-046</strong> (2027-0046) -- last seen 2027-10-15, 270 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-01-19T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;SATCStore.client_for_ref&quot;, &quot;today_arg&quot;: &quot;2027-01-19&quot;}</code></li>
 <li>output: <code>2027-0046: satc engagements carrying it: none satc_system has no workflow for this return, so there is no job to carry the ref</code></li>
 <li>expected: exactly [SATC-039000]</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-01-19 --client SIM-046 --check G1</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-01-19 --client SIM-046 --check G1</code></li>
 </ul>
 </ul>
 <h2>Known, reproduced (8 findings, 1 rule)</h2>
@@ -453,21 +426,21 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-04-08T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;(read pass)&quot;, &quot;today_arg&quot;: &quot;2027-04-08&quot;}</code></li>
 <li>output: <code>2027-0001: papers due in 2027-03-25 OVERDUE (extended)</code></li>
 <li>expected: the extended date</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-001 --check E7</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-001 --check E7</code></li>
 </ul>
 <li><strong>seed 7 · 2027-04-08 · SIM-003</strong> (2027-0003) -- last seen 2027-10-15, 191 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-04-08T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;(read pass)&quot;, &quot;today_arg&quot;: &quot;2027-04-08&quot;}</code></li>
 <li>output: <code>2027-0003: papers due in 2027-03-25 OVERDUE (extended)</code></li>
 <li>expected: the extended date</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-003 --check E7</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-003 --check E7</code></li>
 </ul>
 <li><strong>seed 7 · 2027-04-08 · SIM-012</strong> (2027-0012) -- last seen 2027-10-15, 191 day(s)</li>
 <ul>
 <li>call: <code>{&quot;clock&quot;: &quot;frozen@2027-04-08T14:00Z&quot;, &quot;door&quot;: &quot;function&quot;, &quot;target&quot;: &quot;(read pass)&quot;, &quot;today_arg&quot;: &quot;2027-04-08&quot;}</code></li>
 <li>output: <code>2027-0012: papers due in 2027-03-25 OVERDUE (extended)</code></li>
 <li>expected: the extended date</li>
-<li>repro: <code>python -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-012 --check E7</code></li>
+<li>repro: <code>python -B -m season_sim repro --seed 7 --until 2027-04-08 --client SIM-012 --check E7</code></li>
 </ul>
 <li>... and 5 more: SIM-035, SIM-041, SIM-044, SIM-047, SIM-051</li>
 </ul>
@@ -495,22 +468,26 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 </ul>
 <li><strong>Ready to deliver, never proposed.</strong> 9728 job-days at <code>ready_to_deliver</code> on the board, by workflow {&#x27;new_client_onboarding&#x27;: 8942, &#x27;personal_rental_schedule_e&#x27;: 786}; <code>deliver_return</code> is declared and nothing produces it (propose.py:45). The simulated owner records delivery for the return&#x27;s jobs, never for onboarding, so onboarding jobs sit here once their tasks are ticked -- satc has no other way to call a job finished.</li>
 <li><strong>Sitting untouched.</strong> 5513 job-days idle 14+ days by the firm&#x27;s own <code>stale_after_days</code> (firm_policy.yaml:71-74), by stage {&#x27;not_started&#x27;: 3325, &#x27;ready_to_deliver&#x27;: 2188}; most: [[&#x27;SIM-055&#x27;, 526], [&#x27;SIM-047&#x27;, 500], [&#x27;SIM-052&#x27;, 478], [&#x27;SIM-001&#x27;, 470], [&#x27;SIM-003&#x27;, 338]]. Tax jobs are never workable (no internal tasks), so the idle factor never ranks them.</li>
-<li><strong>Delivered against closed out.</strong> 50 returns delivered, 0 closed out as filed through <code>cli.py close</code> (the only &#x27;filed&#x27; door, and only once <code>may_file</code> is clear). Payments the clients made that no door could record: 50 (14 of them checks; the rest were card payments that only Square could report, and the simulator may not reach Square).</li>
+<li><strong>Delivered against closed out.</strong> 50 returns delivered, 0 closed out as filed through <code>cli.py close</code>. <code>close</code> does not ask <code>may_file</code> (its only caller in cli.py is <code>sign</code>, cli.py:1929), so the gate is advisory; this simulated owner chose to close out only once it was clear (scenario.yaml <code>owner.transmit_when</code>). Payments no door here could record: 46 -- 13 by check, for which no command exists, and 33 by card, whose door (Square, via <code>cli.py payments</code>) exists but is out of the simulator&#x27;s reach: its invoices carry <code>--no-link</code> and Square is banned. So under client-documents billing the card payers&#x27; zero is the simulator&#x27;s limit, not the product&#x27;s.</li>
+<li><strong>A check has no door (H13; was check L4).</strong> 13 check payment(s) that no client-documents command can record (SIM-003, SIM-005, SIM-008, SIM-013, SIM-030, SIM-034, SIM-036, SIM-037, SIM-046, SIM-050, SIM-051, SIM-054, SIM-060). The gate&#x27;s own refusal says so -- client-documents/signing.py:564-570 (&#x27;a bill paid another way is recorded by hand&#x27;) -- and the practice already wrote it down: docs/OPERATING-PROCEDURES.md:382-385 (&#x27;Judgement, not procedure: a bill paid another way ... marking it by hand is a decision about money that belongs to a person&#x27;). record_settlement&#x27;s only caller is cli.py:900 (Square). Reported as an observation, not a failure: it is a recorded decision, and counting it proved nothing about the code.</li>
+<li><strong>How billed clients paid (invented, scenario.yaml <code>money:</code>).</strong> {&#x27;full&#x27;: 30, &#x27;late&#x27;: 11, &#x27;never&#x27;: 4, &#x27;over&#x27;: 3, &#x27;part&#x27;: 2}; what the owner could record: {&#x27;never pays&#x27;: 4, &#x27;no-door&#x27;: 13, &#x27;no-door-sim&#x27;: 33} (under client-documents billing nothing here can record any of it).</li>
+<li><strong>Two sets of alert thresholds.</strong> {&#x27;firm_policy.yaml alerts&#x27;: {&#x27;approaching_days&#x27;: 30, &#x27;urgent_days&#x27;: 7}, &#x27;what Today uses&#x27;: {&#x27;_urgency_from_days urgent&#x27;: 7, &#x27;deadline_pressure soon_days&#x27;: 30}}. The firm&#x27;s policy file is loaded (obligations/policy.py:96-97) and read by nothing else; Today&#x27;s deadline rows use propose.py&#x27;s own defaults. They agree today, so changing the policy file would change nothing on Today.</li>
 <li><strong>Ticked with no completion record.</strong> 114 tasks toggled done through the UI carry no completion time (H9; state.py:911-919), so the idle factor and the unbilled age never see that work.</li>
 <li><strong>What blocks.</strong> Request classes opened for 2026: {&#x27;1095-A -&gt; non_blocking&#x27;: 8, &#x27;1099-R / 5498 -&gt; non_blocking&#x27;: 18, &#x27;Asset acquisition or disposition documents -&gt; non_blocking&#x27;: 2, &#x27;Brokerage 1099 -&gt; non_blocking&#x27;: 22, &#x27;Capital contribution and distribution detail -&gt; non_blocking&#x27;: 2, &#x27;Core income documents -&gt; non_blocking&#x27;: 50, &#x27;Engagement letter -&gt; non_blocking&#x27;: 34, &#x27;Expense records -&gt; non_blocking&#x27;: 3, &#x27;Improvement invoices -&gt; non_blocking&#x27;: 3, &#x27;Intake questionnaire -&gt; non_blocking&#x27;: 34, &#x27;K-1 -&gt; expected_late&#x27;: 4, &#x27;Kickoff call scheduling -&gt; non_blocking&#x27;: 34, &#x27;Mortgage interest and property tax statements -&gt; non_blocking&#x27;: 3, &#x27;Personal-use day confirmation -&gt; non_blocking&#x27;: 3, &#x27;Prior-year return -&gt; non_blocking&#x27;: 63, &#x27;Rent roll -&gt; non_blocking&#x27;: 3, &#x27;Shareholder W-2 and payroll support -&gt; non_blocking&#x27;: 3, &#x27;Shareholder distribution detail -&gt; non_blocking&#x27;: 3, &#x27;Trial balance -&gt; non_blocking&#x27;: 5, &#x27;Welcome email -&gt; non_blocking&#x27;: 34} (H7: nothing on a 1040 plan blocks prep).</li>
 <li><strong>SLAs at season end.</strong> measurable: [&#x27;efile_reject_turnaround&#x27;]; unmeasurable: [&#x27;first_response: client_message_received&#x27;, &#x27;notice_turnaround: notice_response_sent&#x27;, &#x27;return_turnaround: documents_complete&#x27;, &#x27;signature_acknowledged: authorization_signed&#x27;]; Filings on file in satc: 0, so the e-file reject clock has nothing to read.</li>
 <li><strong>K-1 lag.</strong> Partnership delivered to dependent 1040 delivered: [(&#x27;SIM-010&#x27;, 13), (&#x27;SIM-017&#x27;, 28), (&#x27;SIM-021&#x27;, 13), (&#x27;SIM-060&#x27;, 7)]. Cross-job dependencies are modelled nowhere (docs/BRIEFING.md:212).</li>
-<li><strong>Facts with no door.</strong> {&#x27;no_door: client-documents has no door to record it without Square&#x27;: 50, &#x27;no_door: satc_system has no door for it&#x27;: 11, &#x27;no_satc_workflow: Form 1120: satc_system has no workflow to hold this return (satc/intake/fanout.py:117)&#x27;: 2}</li>
-<li><strong>Refused door calls.</strong> 8 (each belongs to a finding above or is listed here): 2027-04-08 SIM-001 cli.main -&gt; 1; 2027-04-08 SIM-003 cli.main -&gt; 1; 2027-04-08 SIM-012 cli.main -&gt; 1; 2027-04-08 SIM-035 cli.main -&gt; 1; 2027-04-08 SIM-041 cli.main -&gt; 1; 2027-04-08 SIM-044 cli.main -&gt; 1</li>
+<li><strong>Facts with no door.</strong> {&#x27;no_door: no client-documents command records a check (recorded as a judgement for a person, OPERATING-PROCEDURES.md:382-385)&#x27;: 13, &#x27;no_door: satc_system has no door for it&#x27;: 11, &#x27;no_satc_workflow: Form 1120: satc_system has no workflow to hold this return (satc/intake/fanout.py:117)&#x27;: 2, &#x27;sim_limit: card settlement exists only through Square, which the simulator may not reach (a simulator limit, not a product gap)&#x27;: 33}</li>
+<li><strong>Refused door calls.</strong> 8 (each belongs to a finding above or is listed here); the first 6 of 8: 2027-04-08 SIM-001 cli.main -&gt; 1; 2027-04-08 SIM-003 cli.main -&gt; 1; 2027-04-08 SIM-012 cli.main -&gt; 1; 2027-04-08 SIM-035 cli.main -&gt; 1; 2027-04-08 SIM-041 cli.main -&gt; 1; 2027-04-08 SIM-044 cli.main -&gt; 1</li>
 </ul>
 <ul>
-<li><strong>Clock-leak audit.</strong> 12 sample days, 6 reads each, run under the simulated clock and again under 2031-06-15 with <code>today=</code> passed. Reads that changed: [&#x27;cli season --today D&#x27;, &#x27;deadlines.board(today=D)&#x27;].</li>
+<li><strong>Clock-leak audit.</strong> 12 sample days, 6 reads each, run under the simulated clock and again under two wrong clocks with <code>today=</code> passed: 2031-06-15, and the same day one year later. Reads that changed under 2031-06-15: [&#x27;cli season --today D&#x27;, &#x27;deadlines.board(today=D)&#x27;]; under a one-year skew: none.</li>
 </ul>
 <h2>What the simulator did NOT cover</h2>
 <ul>
 <li>No document was read. <code>run_intake</code> (folder scanning, classification, OCR, the reader ladder) was never driven; every arrival was recorded with the Received button on /documents.</li>
 <li>No document was opened. Every client-documents event ran with <code>--skip-render --no-pdf</code>; the pre-send gate still ran (its refusals are findings L1 and L3), but no page was rendered or looked at.</li>
-<li>No money moved and no processor was asked. Square, the Windows credential store, sockets and desktop Outlook were replaced with refusals; <code>cli.py payments</code> was never run, so a client-documents invoice can never be settled here (that absence is itself H13).</li>
+<li>No money moved and no processor was asked. Square, the Windows credential store, sockets and desktop Outlook were replaced with refusals; <code>cli.py payments</code> was never run, and client-documents invoices were issued with <code>--no-link</code>. So under client-documents billing NO invoice can be settled here: a card payment&#x27;s door exists and was out of the simulator&#x27;s reach, and a check has no door at all (H13).</li>
+<li>Under satc_system billing, payments were recorded only on the invoice&#x27;s own page (/invoices/&lt;id&gt;/paid), including part payments and overpayments. The payments ledger&#x27;s record-and-match door (/payments/record, /match) was not used.</li>
 <li>No Filing, extension, disengagement or 8879 request exists in satc_system, because no front door writes them (H14; D8 for the Filing). The accepted-extension stage (H3) was asked of the pure function in a labelled what-if, never written.</li>
 <li>State returns, payroll, 1099s, estimated payments and Massachusetts duties never reach Today: client profiles are not persisted, so every client gets the default federal profile (today_views.py:43-50). Estimates were deliberately not simulated (the firm: &quot;drake has voucher generation&quot;).</li>
 <li>Fiscal-year filers, Patriots&#x27; Day and disaster postponements are not modelled by client-documents (deadlines.py:56-59) and were not simulated.</li>
@@ -518,7 +495,8 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <li>Today&#x27;s per-session &#x27;dismiss&#x27; was never pressed.</li>
 <li>The owner&#x27;s behaviour is a small set of assumptions (scenario.yaml <code>owner:</code>); a different owner would produce a different season. Holidays were not modelled in the owner&#x27;s working days.</li>
 <li>Cross-job K-1 links cannot be recorded in satc_system (no route calls <code>add_relationship</code>), so the K-1 dependency lives only in the simulated world.</li>
-<li>One invoice line per return was billed in satc_system (the engagement price as one line, as the refusal instructs); the payments ledger&#x27;s record-and-match door (/payments/record, /match) was not used, only /invoices/&lt;id&gt;/paid.</li>
+<li>One invoice line per return was billed in satc_system (the engagement price as one line, as the refusal instructs).</li>
+<li>Draft invoices were never left unissued, so the invoice_unissued row was never provoked, and no check reads it.</li>
 </ul>
 <h2>Denominators</h2>
 <table>
@@ -537,7 +515,7 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <tr><td>B9</td><td>13091</td><td>288</td><td>249</td><td>0</td></tr>
 <tr><td>B10</td><td>11123</td><td>288</td><td>284</td><td>0</td></tr>
 <tr><td>B11</td><td>1809</td><td>288</td><td>284</td><td>23</td></tr>
-<tr><td>B12</td><td>2304</td><td>288</td><td>288</td><td>0</td></tr>
+<tr><td>B12</td><td>3936</td><td>288</td><td>288</td><td>0</td></tr>
 <tr><td>B13</td><td>6816</td><td>288</td><td>284</td><td>21</td></tr>
 <tr><td>C1</td><td>24347</td><td>288</td><td>288</td><td>0</td></tr>
 <tr><td>C2</td><td>12</td><td>288</td><td>8</td><td>0</td></tr>
@@ -568,18 +546,41 @@ td,th{border:1px solid var(--line);padding:4px 8px;text-align:left}li{margin:.25
 <tr><td>G5</td><td>10352</td><td>288</td><td>284</td><td>7</td></tr>
 <tr><td>G6</td><td>10891</td><td>288</td><td>254</td><td>50</td></tr>
 <tr><td>G8</td><td>1643</td><td>288</td><td>251</td><td>39</td></tr>
-<tr><td>K1</td><td>12</td><td>300</td><td>12</td><td>1</td></tr>
+<tr><td>K1</td><td>12</td><td>12</td><td>12</td><td>1</td></tr>
 <tr><td>L1</td><td>8</td><td>288</td><td>1</td><td>8</td></tr>
 <tr><td>L2</td><td>0</td><td>288</td><td>0</td><td>0</td></tr>
 <tr><td>L3</td><td>8</td><td>288</td><td>1</td><td>8</td></tr>
-<tr><td>L4</td><td>14</td><td>288</td><td>12</td><td>14</td></tr>
+<tr><td>M1</td><td>0</td><td>288</td><td>0</td><td>0</td></tr>
+<tr><td>M2</td><td>0</td><td>288</td><td>0</td><td>0</td></tr>
 </table>
-<p>A row with 0 in the fourth column examined nothing this seed: it neither passed nor failed.</p>
+<p>A row with 0 in the fourth column examined nothing this seed: it neither passed nor failed. K1 is checked on the clock-audit days only, so its days are audit days.</p>
+<p><strong>Examined nothing this seed:</strong> C4, L2, M1, M2.</p>
+<h2>The recon&#x27;s expected failures (H1-H15)</h2>
+<p>The recon brief that numbered these is not in the repository; this is its list, so an H-number above can be followed.</p>
+<ul>
+<li><strong>H1</strong> Today tells filed, extended and disengaged clients their return is overdue -- B8.</li>
+<li><strong>H2</strong> satc&#x27;s document cutoff is not the date the client was told, so Today flags an extension early -- G4, G8.</li>
+<li><strong>H3</strong> a Filing whose ack is &#x27;a&#x27; (extension accepted) would read as complete -- the labelled what-if.</li>
+<li><strong>H4</strong> the season board shows closed-out and disengaged engagements OVERDUE -- E6.</li>
+<li><strong>H5</strong> the signature list keeps chasing disengaged clients -- D4.</li>
+<li><strong>H6</strong> an amended return is placed at the original return&#x27;s dates -- E5.</li>
+<li><strong>H7</strong> nothing on a 1040 plan blocks preparation -- observation; C4 examines nothing.</li>
+<li><strong>H8</strong> Today never invites a returning client to start the new year -- B11.</li>
+<li><strong>H9</strong> a task ticked in the UI carries no completion time -- observation.</li>
+<li><strong>H10</strong> no workflow opens an 8879 request, so no signature_outstanding row appears -- observation.</li>
+<li><strong>H11</strong> <code>cli season --today</code> still reads the machine clock -- K1.</li>
+<li><strong>H12</strong> whichever system bills, the other cannot see the bill -- G6.</li>
+<li><strong>H13</strong> a payment by check has no door in client-documents -- observation (was L4; already recorded in OPERATING-PROCEDURES.md:382-385).</li>
+<li><strong>H14</strong> no door carries filed, extended or disengaged into satc_system -- B8, G5.</li>
+<li><strong>H15</strong> the two deadline engines agree -- A2 (expected to HOLD).</li>
+</ul>
 <h2>Run-level guards</h2>
 <ul>
 <li>banned_call_attempts: 0</li>
 <li>cd_default_store_untouched: True</li>
 <li>cd_out_untouched: True</li>
+<li>days_simulator_copy_differed_from_route: {&#x27;job_page&#x27;: 0, &#x27;today&#x27;: 0, &#x27;work&#x27;: 0}</li>
+<li>days_work_route_refused_to_rank: 0</li>
 <li>env_pinned_at_end: True</li>
 <li>store_is_run_dir: True</li>
 <li>worktree_unchanged: True</li>

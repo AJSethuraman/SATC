@@ -261,7 +261,7 @@ def markdown(out: Path) -> str:
     cp = o.get("check_payments_no_command_records") or {}
     if cp.get("count"):
         add(f"- **A check has no door (H13; was check L4).** {cp['count']} check payment(s) "
-            f"that no client-documents command can record ({', '.join(cp['sims'][:12])}). The "
+            f"that no client-documents command can record ({', '.join(cp['sims'])}). The "
             f"gate's own refusal says so -- {cp['gate_says']} -- and the practice already wrote "
             f"it down: {cp['already_recorded']}. {cp['settlement_writer']}. Reported as an "
             f"observation, not a failure: it is a recorded decision, and counting it proved "
@@ -269,8 +269,11 @@ def markdown(out: Path) -> str:
     if o.get("billed_clients_by_payment_style"):
         add(f"- **How billed clients paid (invented, scenario.yaml `money:`).** "
             f"{o.get('billed_clients_by_payment_style')}; what the owner could record: "
-            f"{o.get('payment_recorded')}; part payers' balances: "
-            f"{o.get('part_payers_balance_recorded') or 'none'}.")
+            f"{o.get('payment_recorded')}"
+            + (f"; part payers' balances: {o.get('part_payers_balance_recorded') or 'none'}"
+               if s.get("billing_door") == "satc" else
+               " (under client-documents billing nothing here can record any of it)")
+            + ".")
     al = o.get("alert_thresholds") or {}
     if al:
         add(f"- **Two sets of alert thresholds.** {al}. The firm's policy file is loaded "
