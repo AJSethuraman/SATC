@@ -131,6 +131,34 @@ class Observations:
 
         facts = Counter(f["kind"] + ": " + f["detail"].split(";")[-1].strip()
                         for f in firm.facts)
+
+        # The alert thresholds the firm wrote (firm_policy.yaml:43-44), loaded by
+        # obligations/policy.py:96-97, against the defaults Today's deadline rows
+        # actually use (propose.deadline_pressure / _urgency_from_days). Nothing
+        # outside policy.py reads the two policy values.
+        import inspect
+
+        from satc.actions.propose import _urgency_from_days, deadline_pressure
+        from satc.obligations.policy import load_policy
+        try:
+            pol = load_policy()
+            alerts = {"firm_policy.yaml alerts": {"approaching_days": pol.approaching_days,
+                                                  "urgent_days": pol.urgent_days},
+                      "what Today uses": {
+                          "deadline_pressure soon_days": inspect.signature(
+                              deadline_pressure).parameters["soon_days"].default,
+                          "_urgency_from_days urgent": inspect.signature(
+                              _urgency_from_days).parameters["urgent"].default}}
+        except Exception as exc:                          # noqa: BLE001
+            alerts = {"could not read": str(exc)}
+
+        # Payments, by what could record them.
+        paid = [tr for tr in firm.t.values() if tr.paid_on]
+        by_style = Counter(tr.sim.pay_style for tr in firm.t.values() if tr.invoice)
+        recorded = Counter(tr.payment_recorded or "not yet due" for tr in firm.t.values()
+                           if tr.invoice)
+        checks = [p for p in firm.unrecordable_payments if p["by"] == "check"]
+        refusals = [dict(r, sim=tr.sim.sim_id) for tr in firm.t.values() for r in tr.refusals]
         return {
             "working_year_before_2026": {
                 "days": len(self.wrong_year_days), "first_2026_day": self.first_2026_request,
@@ -153,7 +181,23 @@ class Observations:
                 "delivered": sum(1 for tr in firm.t.values() if tr.delivered_on),
                 "closed_out_as_filed": sum(1 for tr in firm.t.values() if tr.filed_on),
                 "payments_made_with_no_door": len(firm.unrecordable_payments),
-                "of_which_checks": sum(1 for p in firm.unrecordable_payments if p["by"] == "check")},
+                "of_which_checks": len(checks),
+                "of_which_cards": len(firm.unrecordable_payments) - len(checks)},
+            # What was L4. It never observed the product (it counted the checks the
+            # scenario scripted), and the gap is already written down, so it is an
+            # observation with its record cited, not a failing check.
+            "check_payments_no_command_records": {
+                "count": len(checks), "sims": sorted({p["sim"] for p in checks}),
+                "gate_says": "client-documents/signing.py:564-570 ('a bill paid another way "
+                             "is recorded by hand')",
+                "already_recorded": "docs/OPERATING-PROCEDURES.md:382-385 ('Judgement, not "
+                                    "procedure: a bill paid another way ... marking it by hand "
+                                    "is a decision about money that belongs to a person')",
+                "settlement_writer": "record_settlement's only caller is cli.py:900 (Square)"},
+            "billed_clients_by_payment_style": dict(by_style),
+            "payment_recorded": dict(recorded),
+            "clients_who_paid_by_season_end": len(paid),
+            "alert_thresholds": alerts,
             "stale_14_days_job_days": sum(self.stale.values()),
             "stale_jobs_top": self.stale.most_common(5),
             "request_blocking_classes": dict(blocking),
@@ -163,9 +207,8 @@ class Observations:
             "slas": {"measurable": measurable, "unmeasurable": unmeasurable},
             "k1_dependency": k1,
             "facts_with_no_door": dict(facts),
-            "refused_door_calls": sum(len(tr.refusals) for tr in firm.t.values()),
-            "refusals_sample": [dict(r, sim=tr.sim.sim_id) for tr in firm.t.values()
-                                for r in tr.refusals][:12],
+            "refused_door_calls": len(refusals),
+            "refusals_sample": refusals[:12],
         }
 
 

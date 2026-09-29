@@ -30,7 +30,8 @@ class Finding:
     call: dict
     subjects: set = field(default_factory=set)
 
-    def record(self, *, seed: int, ctx_env: dict, denominators: dict, clock_note: str) -> dict:
+    def record(self, *, seed: int, ctx_env: dict, denominators: dict, clock_note: str,
+               repro_extra: str = "") -> dict:
         inv = REGISTRY[self.invariant]
         fid = hashlib.sha1(f"{self.invariant}|{self.sim_client}|{self.first_seen}".encode()
                            ).hexdigest()[:16]
@@ -47,11 +48,11 @@ class Finding:
             "subject": self.subject, "subjects": len(self.subjects), "call": call,
             "output": self.output, "expected_per_source": self.expected,
             "denominators": denominators, "env": ctx_env,
-            "repro": (f"python -m season_sim repro --seed {seed} --until {self.first_seen} "
-                      f"--client {self.sim_client} --check {self.invariant}"
-                      if self.sim_client.startswith("SIM-") else
-                      f"python -m season_sim repro --seed {seed} --until {self.first_seen} "
-                      f"--check {self.invariant}"),
+            "repro": (f"python -B -m season_sim repro --seed {seed} --until {self.first_seen} "
+                      + (f"--client {self.sim_client} " if self.sim_client.startswith("SIM-")
+                         else "")
+                      + f"--check {self.invariant}"
+                      + (f" {repro_extra}" if repro_extra else "")),
             "clock": clock_note,
         }
 
@@ -85,14 +86,14 @@ class Ledger:
                 f.last_seen = day
                 f.subjects.add(h.subject)
 
-    def records(self, *, seed: int, env: dict, clients: int) -> list[dict]:
+    def records(self, *, seed: int, env: dict, clients: int, repro_extra: str = "") -> list[dict]:
         out = []
         for (code, _sim), f in self.open.items():
             den = {"clients": clients, "examined_total": self.examined.get(code, 0),
                    "days_checked": self.days_checked.get(code, 0),
                    "days_with_subjects": self.days_with_subjects.get(code, 0)}
             out.append(f.record(seed=seed, ctx_env=env, denominators=den,
-                                clock_note="time-machine, tick=False"))
+                                clock_note="time-machine, tick=False", repro_extra=repro_extra))
         kind_order = {"failure": 0, "cross_store": 1, "known": 2, "recorded_deferral": 3}
         out.sort(key=lambda r: (kind_order.get(r["kind"], 9), r["invariant"],
                                 r["first_seen"], r["sim_client"]))

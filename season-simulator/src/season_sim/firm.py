@@ -9,7 +9,10 @@ The owner is deliberately simple and every choice is an assumption labelled in
 `scenario.yaml`: record arrivals the same business day, prepare the earliest
 statutory deadline first at a fixed capacity, extend a week before the original
 date anything not ready, bill when the return goes out, transmit only when
-client-documents' `may_file` is clear.
+client-documents' `may_file` is clear (`close` does not enforce that; this owner
+chooses it). What the owner types into a document -- the interview's
+first-deliverable date, an extension notice's materials date, what was filed --
+comes from `scenario.yaml` `owner:` too, never from a literal in this file.
 
 The simulator keeps the MAPPING (SIM id -> satc client id, job ids, request
 ids, refs). The checkers never read this ledger for facts about the practice --
@@ -44,7 +47,9 @@ class Tracked:
     invoice: str = ""
     invoiced_on: str = ""
     paid_on: str = ""
-    payment_recorded: str = ""          # "", "yes", or "no-door"
+    payment_recorded: str = ""          # "", "yes", "refused", "no-door" or "no-door-sim"
+    paid2_on: str = ""                  # a part payer's balance
+    payment2_recorded: str = ""
     signed_8879_on: str = ""
     spouse_8879_on: str = ""
     recorded_8879: set = field(default_factory=set)
@@ -106,10 +111,20 @@ def satc_answers(c: SimClient, workflow_key: str, *, tax_year: int) -> dict:
     return _no_by_default(workflow_key, set())
 
 
-def cd_answers(c: SimClient, *, tax_year: int, amended: bool = False) -> dict:
+def first_deliverable_target(owner: dict, form: str) -> str:
+    """The date promised at the interview -- scenario.yaml owner.interview, labelled
+    there as invented (it used to come silently from exercise.py)."""
+    from season_sim import clock
+    raw = (owner.get("interview") or {}).get("first_deliverable_target", {}).get(form)
+    when = raw if isinstance(raw, date) else date.fromisoformat(str(raw))
+    return clock.spoken(when)
+
+
+def cd_answers(c: SimClient, *, tax_year: int, amended: bool = False, owner: dict) -> dict:
     import exercise
     ident = dict(client_full_name=c.name, client_email=c.email,
-                 client_address1=f"{c.idx} Simulation Way", client_city="Testville")
+                 client_address1=f"{c.idx} Simulation Way", client_city="Testville",
+                 first_deliverable_target=first_deliverable_target(owner, c.form))
     if c.form == "1040":
         feats, extra = [], {}
         brokerage = c.features.get("brokerage") or (tax_year < 2026 and c.prior_gap)
@@ -225,7 +240,8 @@ class Firm:
                 if job:
                     self.satc.set_ref(job, c.prior_ref)
                     tr.jobs["prior"] = job
-                call, _ = self.cd.interview(c.prior_ref, cd_answers(c, tax_year=prior))
+                call, _ = self.cd.interview(c.prior_ref, cd_answers(c, tax_year=prior,
+                                                                    owner=self.owner))
                 self.cd.sent(c.prior_ref, ph["engaged"].isoformat())
         with clock.frozen(ph["letter_signed"]):
             for tr in returning:
@@ -286,8 +302,9 @@ class Firm:
     def _delivery_payload(self, tr: Tracked, d: date, *, year: int) -> dict:
         deadline = d + timedelta(days=int(self.owner["signature_deadline_days"]))
         form = tr.sim.form
+        est = str((self.owner.get("delivery_letter") or {})["estimated_payments"])
         return {"answers": {"signature_deadline": clock.spoken(deadline), "filing": "efiled",
-                            "estimated_payments": "no"},
+                            "estimated_payments": est},
                 "rows": {"ReturnsDelivered": [{"Return": f"Federal Form {form}",
                                                "Detail": f"Tax year {year}"}],
                          "ActionList": [{"Action": "Sign the e-file authorization",
@@ -298,10 +315,12 @@ class Firm:
         rt = RETURN_TYPE[tr.sim.form]
         ext = deadlines.filing_date(rt, self.tax_year, extended=True)
         orig = deadlines.filing_date(rt, self.tax_year)
+        notice = self.owner["extension_notice"]
+        materials = ext - timedelta(days=int(notice["materials_days_before_extended"]))
         return {"answers": {"extended_deadline": clock.spoken(ext),
                             "payment_deadline": clock.spoken(orig),
-                            "materials_deadline": clock.spoken(ext - timedelta(days=60)),
-                            "payment": "no"},
+                            "materials_deadline": clock.spoken(materials),
+                            "payment": str(notice["payment_enclosed"])},
                 "rows": {"ExtendedReturns": [{"Return": f"Federal Form {tr.sim.form}",
                                               "Detail": f"Extended to {clock.spoken(ext)}"}],
                          "OutstandingItems": [{"Document": "Outstanding documents",
@@ -309,7 +328,8 @@ class Firm:
 
     def _disengagement_payload(self, tr: Tracked, d: date) -> dict:
         return {"answers": {"effective_date": clock.spoken(d),
-                            "records_available_until": clock.spoken(d + timedelta(days=90)),
+                            "records_available_until": clock.spoken(d + timedelta(
+                                days=int(self.owner["disengagement_letter"]["records_available_days"]))),
                             "scope_ended": f"the preparation of your {self.tax_year} return",
                             "ended_by": "client", "balance": "no"},
                 "rows": {"WorkStatus": [{"Work": f"{self.tax_year} return",
@@ -319,8 +339,10 @@ class Firm:
 
     def _filed(self, tr: Tracked, *, extended: bool, year: int, amended: bool = False) -> dict:
         c = tr.sim
+        told = self.owner["close_out"]
         out = {"filed_form": c.form, "filed_basis": "amended" if amended else "original",
-               "filed_state_count": 1, "filed_locality_count": 1,
+               "filed_state_count": int(told["filed_state_count"]),
+               "filed_locality_count": int(told["filed_locality_count"]),
                "filed_extended": "yes" if extended else "no", "closeout_note": ""}
         if c.form == "1040":
             out.update(filed_joint="yes" if c.joint else "no", filed_dependents="no",
@@ -328,7 +350,7 @@ class Firm:
                        filed_rentals=0 if amended else (1 if c.features.get("rental") else 0),
                        filed_businesses=0)
         elif c.form in ("1065", "1120S"):
-            out.update(filed_k1s_issued=2 if c.form == "1065" else 3)
+            out.update(filed_k1s_issued=int(told["k1s_issued"][c.form]))
         return out
 
     # -- one business day ------------------------------------------------------
@@ -400,11 +422,12 @@ class Firm:
 
         # client-documents: the interview, and the pack going out.
         if c.returning:
-            answers = cd_answers(c, tax_year=self.tax_year)
+            answers = cd_answers(c, tax_year=self.tax_year, owner=self.owner)
             answers.pop("returning_client", None)
             call, _ = self.cd.returning(c.prior_ref, c.ref, answers)
         else:
-            call, _ = self.cd.interview(c.ref, cd_answers(c, tax_year=self.tax_year))
+            call, _ = self.cd.interview(c.ref, cd_answers(c, tax_year=self.tax_year,
+                                                          owner=self.owner))
         if call.status != 0:
             self._refused(tr, call, d)
             return
@@ -464,7 +487,8 @@ class Firm:
             return
         ref = c.amended_ref
         if not tr.amended_created:
-            call, _ = self.cd.interview(ref, cd_answers(c, tax_year=self.tax_year - 1, amended=True))
+            call, _ = self.cd.interview(ref, cd_answers(c, tax_year=self.tax_year - 1,
+                                                        amended=True, owner=self.owner))
             if call.status != 0:
                 self._refused(tr, call, d)
                 return
@@ -477,16 +501,20 @@ class Firm:
                 self.cd.record_signature(ref, line, d.isoformat())
             tr.amended_letter_recorded = True
             return
-        if tr.amended_letter_recorded and not tr.amended_delivered and d >= created + timedelta(days=14):
+        lags = self.owner["amended"]
+        if tr.amended_letter_recorded and not tr.amended_delivered and \
+                d >= created + timedelta(days=int(lags["deliver_after_days"])):
             tr.amended_delivered = d.isoformat()
             self._event(tr, ref, "delivery", self._delivery_payload(tr, d, year=self.tax_year - 1), d)
             return
-        if tr.amended_delivered and not tr.amended_signed and                 d >= date.fromisoformat(tr.amended_delivered) + timedelta(days=3):
+        if tr.amended_delivered and not tr.amended_signed and \
+                d >= date.fromisoformat(tr.amended_delivered) + timedelta(
+                    days=int(lags["sign_after_delivery_days"])):
             for line in self._auth_lines(ref):
                 self.cd.record_signature(ref, line, d.isoformat())
             tr.amended_signed = d.isoformat()
             return
-        if tr.amended_signed and self._may_file(ref):
+        if tr.amended_signed and self._may_transmit(ref):
             call, _ = self.cd.close(ref, self._filed(tr, extended=False, year=self.tax_year - 1,
                                                      amended=True))
             tr.amended_filed = d.isoformat()
@@ -506,6 +534,14 @@ class Firm:
         deadline = (saved.get("answers") or {}).get("signature_deadline", "")
         return signing.may_file(ref, record, packaging.documents_for(record), cli.TEMPLATE_DIR,
                                 store=store, deadline=deadline).clear
+
+    def _may_transmit(self, ref: str) -> bool:
+        """The owner's rule for closing out (scenario owner.transmit_when). `close`
+        itself never asks may_file; waiting on it is this owner's choice."""
+        rule = self.owner.get("transmit_when", "may_file_clear")
+        if rule != "may_file_clear":
+            raise ValueError(f"owner.transmit_when {rule!r} is not one the simulator knows")
+        return self._may_file(ref)
 
     def _requote(self, tr: Tracked, d: date) -> None:
         c = tr.sim
@@ -620,6 +656,8 @@ class Firm:
                 self._refused(tr, call, d)
         if tr.invoice and c.pay_lag is not None:
             tr.paid_on = (d + timedelta(days=c.pay_lag)).isoformat()
+            if c.pay_style == "part" and c.pay_lag2 is not None:
+                tr.paid2_on = (d + timedelta(days=max(c.pay_lag2, c.pay_lag))).isoformat()
 
     def _probe_every_instruction(self, tr: Tracked, codes: list, said: dict, d: date) -> None:
         """Do what EVERY line's refusal says, on a draft that is then discarded.
@@ -660,38 +698,74 @@ class Firm:
                 tr.spouse_8879_on = signed.isoformat()
 
     def _payment(self, tr: Tracked, d: date) -> None:
+        c = tr.sim
+        if tr.paid2_on and tr.payment_recorded and not tr.payment2_recorded \
+                and tr.paid2_on <= d.isoformat() and self.world.billing_door == "satc":
+            self._satc_payment(tr, d, second=True)
         if not tr.paid_on or tr.payment_recorded or tr.paid_on > d.isoformat():
             return
-        c = tr.sim
         if self.world.billing_door == "satc":
-            inv = next((i for i in self.STATE.store.load_invoices()
-                        if i.invoice_id == tr.invoice), None)
-            if inv is None:
-                return
-            amount = f"{inv.total:.2f}"
-            call = self.satc.paid(tr.invoice, amount=amount, on=tr.paid_on,
-                                  method="check" if c.pays_by == "check" else "card")
-            tr.payment_recorded = "yes" if call.status == 302 else "refused"
-            if call.status != 302:
-                self._refused(tr, call, d)
-        else:
-            # client-documents settles a bill only from what Square reports
-            # (`cli.py payments`, payments.py:666). A check, or any payment the
-            # simulator cannot ask Square about, has no door.
+            self._satc_payment(tr, d, second=False)
+            return
+        # client-documents settles a bill only from what Square reports
+        # (`cli.py payments`, payments.py:666; record_settlement's only caller is
+        # cli.py:900). The two kinds are DIFFERENT gaps and are kept apart:
+        #   check -- no command exists that records it. docs/OPERATING-PROCEDURES.md
+        #            :382-385 already records this as "judgement, not procedure".
+        #   card  -- the door exists (Square), but the simulator issues bills with
+        #            --no-link and may not reach Square. A gap in the SIMULATOR.
+        if c.pays_by == "check":
             tr.payment_recorded = "no-door"
-            self.facts.append({"day": d.isoformat(), "sim": c.sim_id, "kind": "no_door",
-                               "detail": f"client paid invoice {tr.invoice} by {c.pays_by} on "
-                                         f"{tr.paid_on}; client-documents has no door to "
-                                         f"record it without Square"})
-            self.unrecordable_payments.append({
-                "day": d.isoformat(), "sim": c.sim_id, "ref": c.ref, "invoice": tr.invoice,
-                "paid_on": tr.paid_on, "by": c.pays_by})
+            detail = (f"client paid invoice {tr.invoice} by check on {tr.paid_on}; "
+                      f"no client-documents command records a check (recorded as a "
+                      f"judgement for a person, OPERATING-PROCEDURES.md:382-385)")
+        else:
+            tr.payment_recorded = "no-door-sim"
+            detail = (f"client paid invoice {tr.invoice} by card on {tr.paid_on}; "
+                      f"card settlement exists only through Square, which the "
+                      f"simulator may not reach (a simulator limit, not a product gap)")
+        self.facts.append({"day": d.isoformat(), "sim": c.sim_id,
+                           "kind": "no_door" if c.pays_by == "check" else "sim_limit",
+                           "detail": detail})
+        self.unrecordable_payments.append({
+            "day": d.isoformat(), "sim": c.sim_id, "ref": c.ref, "invoice": tr.invoice,
+            "paid_on": tr.paid_on, "by": c.pays_by})
+
+    def _satc_payment(self, tr: Tracked, d: date, *, second: bool) -> None:
+        """Money arriving, recorded on the invoice's own page (/invoices/<id>/paid).
+        How much is the world's (scenario.yaml `money:`): the total; for a part
+        payer a share now and the balance later; for an overpayer a bit more."""
+        from decimal import Decimal
+        c = tr.sim
+        inv = next((i for i in self.STATE.store.load_invoices()
+                    if i.invoice_id == tr.invoice), None)
+        if inv is None:
+            return
+        money = self.sc.get("money") or {}
+        total = Decimal(inv.total)
+        if c.pay_style == "part":
+            first = (total * Decimal(str(money["part_first_fraction"]))).quantize(Decimal("0.01"))
+            amount = total - first if second else first
+        elif c.pay_style == "over":
+            amount = total + Decimal(str(money["overpay_amount"]))
+        else:
+            amount = total
+        on = tr.paid2_on if second else tr.paid_on
+        call = self.satc.paid(tr.invoice, amount=f"{amount:.2f}", on=on,
+                              method="check" if c.pays_by == "check" else "card")
+        status = "yes" if call.status == 302 else "refused"
+        if second:
+            tr.payment2_recorded = status
+        else:
+            tr.payment_recorded = status
+        if call.status != 302:
+            self._refused(tr, call, d)
 
     def _transmit(self, tr: Tracked, d: date) -> None:
         if tr.filed_on or tr.disengaged_on:
             return
         ref = tr.sim.ref
-        if not self._may_file(ref):
+        if not self._may_transmit(ref):
             return
         tr.filed_on = d.isoformat()
         call, _ = self.cd.close(ref, self._filed(tr, extended=bool(tr.extended_on),
@@ -704,14 +778,13 @@ class Firm:
                                      "Filing (firm decision D8, LOG.md:742)"})
 
     def _work_tasks(self, d: date) -> None:
-        """Take the /work queue in its own order, a few internal tasks a day."""
-        from satc.app.today_views import _obligations, working_tax_year
-        from satc.work.queue import board
+        """Take the /work queue in the order GET /work renders it, a few internal
+        tasks a day (the board the route handed its template, not a copy)."""
         cap = int(self.owner["task_capacity_per_day"])
-        requested = self.STATE.requested_items()
-        year = working_tax_year(list(self.STATE.received_documents()) + list(requested), d)
-        b = board(self.STATE.jobs(), requested=requested, obligations=_obligations(year),
-                  today=d, tax_year=year)
+        _call, _ids, ctx = self.satc.work()
+        b = ctx.get("board")
+        if b is None:
+            return
         done = 0
         for item in b.workable:
             for task in item.job.tasks:

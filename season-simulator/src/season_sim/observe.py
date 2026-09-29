@@ -1,9 +1,12 @@
 """The daily read pass: what every screen and every engine says, on one day.
 
 Everything here READS. It calls the real routes (through the test client) and
-the real engines with the same arguments the routes pass, and it captures both
-so a checker can compare the screen with the engine that is supposed to be
-behind it (S3, `docs/SOFTWARE-TENETS.md:103`).
+keeps what each route handed its template -- the queue /today built, the board
+/work built, the stage a job page derived -- so the checks read the route, not
+a copy of it. It also recomputes each with the arguments the route is known to
+pass; that copy is used only to count the days it disagreed with the route (a
+run-level guard on the simulator's own fidelity). The agent door and
+client-documents' engines, which have no screen here, are called directly.
 
 B5 in the brief -- "reads write nothing" -- is measured here: both SQLite files
 and the whole engagements tree are hashed before and after the pass.
@@ -35,15 +38,18 @@ class Snapshot:
     payments: list = field(default_factory=list)
     deliverables: dict = field(default_factory=dict)     # job_id -> delivery | None
     engagement_refs: dict = field(default_factory=dict)  # ref -> [client_id]
-    queue: list = field(default_factory=list)            # engine, ProposedAction
-    queue_again: list = field(default_factory=list)      # regenerated ids (B4)
+    queue: list = field(default_factory=list)            # what GET /today rendered, ProposedAction
+    queue_again: list = field(default_factory=list)      # ids from a second GET /today (B4)
+    today_year: object = None                            # the year GET /today worked on
     screen_ids: list = field(default_factory=list)       # /today, in page order
     screen_status: int = 0
     agent: dict = field(default_factory=dict)
-    board: object = None
+    board: object = None                                 # what GET /work rendered
+    work_refusal: str = ""
+    copy_mismatch: dict = field(default_factory=dict)    # simulator's copy vs the route, per screen
     work_screen_ids: list = field(default_factory=list)
     page_stage: dict = field(default_factory=dict)       # job_id -> badge text
-    page_view: dict = field(default_factory=dict)        # job_id -> StageView as the page derives
+    page_view: dict = field(default_factory=dict)        # job_id -> StageView GET /work/<id> rendered
     sweep: object = None
     cd_refs: list = field(default_factory=list)
     cd_records: dict = field(default_factory=dict)
@@ -120,7 +126,14 @@ class Observer:
         d = s.day
         s.requested = list(st.requested_items())
         s.received = list(st.received_documents())
-        s.tax_year = working_tax_year(s.received + s.requested, d)
+        copy_year = working_tax_year(s.received + s.requested, d)
+        call, ids, ctx = self.satc.today()
+        s.screen_ids, s.screen_status = ids, call.status
+        routed = ctx.get("queue")
+        s.queue = list(routed.actions) if routed is not None else []
+        s.today_year = ctx.get("tax_year")
+        # The year the checks judge against is the one /today worked on.
+        s.tax_year = int(s.today_year) if s.today_year is not None else copy_year
         choices = st.client_choices()
         s.clients = [cid for cid, _ in choices]
         s.entity = {pc.client_id: pc.entity_type for pc in st.mart.public_clients}
@@ -132,35 +145,59 @@ class Observer:
             if e.engagement_ref:
                 s.engagement_refs.setdefault(e.engagement_ref, []).append(e.client_id)
 
-        def engine():
+        # THE ROUTES' OWN ANSWERS. Today's queue and the Work board are what
+        # /today and /work handed their templates (Flask's template_rendered
+        # signal), not a recomputation with arguments copied from the routes: a
+        # route that changed what it passes the engine must change what the
+        # checks see. The copy is still computed, as a FIDELITY check on the
+        # simulator itself -- every day it disagrees with the route is counted
+        # and reported as a run-level guard, never silently used.
+        def copy_queue():
             return build_queue(
                 clients=[cid for cid, _ in st.client_choices()],
                 requested=s.requested, received=s.received, obligations=s.obligations,
                 engaged_clients=[j.client_id for j in s.jobs], jobs=s.jobs,
                 invoices=s.invoices, payments=s.payments, tax_year=s.tax_year, today=d)
 
-        s.queue = list(engine().actions)
-        s.queue_again = [a.action_id for a in engine().actions]
-        call, ids, _body = self.satc.today_ids()
-        s.screen_ids, s.screen_status = ids, call.status
+        _again_call, _ids, again = self.satc.today()          # B4: the same day, the same queue
+        s.queue_again = [a.action_id for a in again["queue"].actions] if again.get("queue") else []
+        s.copy_mismatch["today"] = ([a.action_id for a in copy_queue().actions]
+                                    != [a.action_id for a in s.queue]
+                                    or s.today_year != copy_year)
         s.agent = agent_tools.today(st)
 
-        s.board = board(s.jobs, requested=s.requested, obligations=s.obligations,
-                        today=d, tax_year=s.tax_year)
-        _call, s.work_screen_ids, _ = self.satc.work_ids()
+        _call, s.work_screen_ids, wctx = self.satc.work()
+        s.board = wctx.get("board")
+        copy_board = board(s.jobs, requested=s.requested, obligations=s.obligations,
+                           today=d, tax_year=s.tax_year)
+        if s.board is None:                  # the route refused to rank; say so, never substitute
+            s.work_refusal = wctx.get("refusal", "(no board rendered)")
+            s.board = type(copy_board)(workable=(), not_workable=(), policy=copy_board.policy)
+        s.copy_mismatch["work"] = (
+            [(w.job_id, w.view.stage) for w in copy_board.workable]
+            + [(b.job_id, b.view.stage) for b in copy_board.not_workable]
+            != [(w.job_id, w.view.stage) for w in s.board.workable]
+            + [(b.job_id, b.view.stage) for b in s.board.not_workable])
 
+        page_mismatch = False
         for job in s.jobs:
             delivery, filings = work_views._delivery_and_filings(job)
             s.deliverables[job.job_id] = delivery
             if job.tax_year is not None and int(job.tax_year) != s.tax_year:
                 continue
             readiness = work_views._readiness(job, s.requested, s.tax_year)
-            s.page_view[job.job_id] = derive_stage(job, readiness=readiness, today=d,
-                                                   delivery=delivery, filings=filings)
+            copy_view = derive_stage(job, readiness=readiness, today=d,
+                                     delivery=delivery, filings=filings)
             if pages:
-                _c, body = self.satc.get(f"/work/{job.job_id}")
+                _c, body, jctx = self.satc.rendered(f"/work/{job.job_id}")
                 m = BADGE.search(body)
                 s.page_stage[job.job_id] = m.group(1).strip() if m else ""
+                view = jctx.get("view")
+                s.page_view[job.job_id] = view if view is not None else copy_view
+                page_mismatch = page_mismatch or view is None or view.stage != copy_view.stage
+            else:
+                s.page_view[job.job_id] = copy_view
+        s.copy_mismatch["job_page"] = page_mismatch
         s.sweep = waiting(st.store, today=d)
 
     # -- client-documents ---------------------------------------------------

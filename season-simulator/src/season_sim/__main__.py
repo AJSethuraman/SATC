@@ -1,13 +1,19 @@
 """`python -m season_sim ...` -- the launcher. It never imports satc itself.
 
     run      one season per seed, each in its own worker process
-    repro    replay a seed up to a date for one client (and what it depends on)
+    repro    replay a seed up to a date -- EVERY client, because a finding can
+             depend on the whole practice -- and print one client's findings
     mutants  check the checker: break a real function, confirm the invariant fires
     report   rebuild the Markdown/HTML report from a run's output
 
 Each worker gets PYTHONHASHSEED=0 and PYTHONDONTWRITEBYTECODE=1. The worktree's
 `git status --porcelain --ignored` is taken before and after every worker; a
 difference is a run-level failure (the harness wrote inside the repository).
+
+Run the launcher itself as `python -B -m season_sim`: `-B` stops the launcher
+writing `season_sim/__pycache__` into the worktree (git-ignored, but a write all
+the same). The package sets `sys.dont_write_bytecode` as soon as it is imported,
+which covers every module but the package's own `__init__`.
 """
 
 from __future__ import annotations
@@ -46,9 +52,13 @@ def _outside(path: Path, what: str) -> Path:
 def launch_worker(seed: int, out: Path, *, clients=None, days="all", until=None, mutation="",
                   only=None, checks=None, keep=False, billing_door=None, label="",
                   pages=True) -> dict:
-    run_dir = _outside(guard.default_run_dir(seed, label or f"w{os.getpid()}"), "the run dir")
+    run_dir = _outside(guard.default_run_dir(seed, label or "w"), "the run dir")
     if run_dir.exists():
-        shutil.rmtree(run_dir, ignore_errors=True)
+        # The name carries this launcher's pid, so an existing one is a leftover
+        # (a --keep run, or a crash) -- never another session's live store, and
+        # never deleted on a guess.
+        raise SystemExit(f"refusing to reuse {run_dir}: it already exists. Delete it "
+                         f"if it is a leftover of your own.")
     out = _outside(out, "--out")
     out.mkdir(parents=True, exist_ok=True)
     before = _git("status", "--porcelain", "--ignored")
@@ -117,17 +127,32 @@ def cmd_run(a) -> int:
     return 0
 
 
-def cmd_repro(a) -> int:
-    out = DEFAULT_OUT / f"repro-{a.seed}-{a.client or 'all'}-{a.until}"
-    summary = launch_worker(a.seed, out, until=a.until, only={a.client} if a.client else None,
-                            checks={a.check} if a.check else None, keep=True,
-                            billing_door=a.billing_door, label="repro", clients=a.clients)
+def repro(seed: int, until: str, *, client: str = "", check: str = "", clients=None,
+          billing_door=None, out: Path | None = None,
+          keep: bool = True) -> tuple[dict, list[dict]]:
+    """Replay the WHOLE world to `until`, the owner acting every weekday exactly as
+    in the season, read only that one day, and keep one client's findings.
+
+    The whole world, not the one client: a check like B11 depends on the practice
+    (Today's working year moves only once SOME client has a 2026 request), so a
+    replay narrowed to one client answers a different question. Reading only the
+    last day is safe because reads write nothing (B5 holds every day)."""
+    out = out or DEFAULT_OUT / f"repro-{seed}-{client or 'all'}-{until}-{os.getpid()}"
+    summary = launch_worker(seed, out, until=until, days="last",
+                            checks={check} if check else None, keep=keep,
+                            billing_door=billing_door, label=f"rp{check}", clients=clients)
     rows = [json.loads(line) for line in (out / "findings.jsonl").read_text(
         encoding="utf-8").splitlines() if line.strip()]
-    rows = [r for r in rows if (not a.check or r["invariant"] == a.check)
-            and (not a.client or r["sim_client"] in (a.client, "-"))]
-    print(f"replayed seed {a.seed} to {a.until} ({summary['clients']} clients incl. "
-          f"dependencies); run dir kept at {summary['run_dir_kept']}")
+    rows = [r for r in rows if (not check or r["invariant"] == check)
+            and (not client or r["sim_client"] in (client, "-"))]
+    return summary, rows
+
+
+def cmd_repro(a) -> int:
+    summary, rows = repro(a.seed, a.until, client=a.client or "", check=a.check or "",
+                          clients=a.clients, billing_door=a.billing_door)
+    print(f"replayed seed {a.seed} to {a.until} ({summary['clients']} clients, all of "
+          f"them; read on {a.until} only); run dir kept at {summary['run_dir_kept']}")
     for r in rows:
         print(f"\n[{r['kind']}] {r['invariant']} {r['sim_client']} first {r['first_seen']}")
         print(f"  call:     {json.dumps(r['call'])}")
@@ -183,7 +208,7 @@ def cmd_report(a) -> int:
     return 0
 
 
-def main(argv=None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="season_sim")
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -192,7 +217,7 @@ def main(argv=None) -> int:
     w.add_argument("--run-dir", required=True)
     w.add_argument("--out", required=True)
     w.add_argument("--clients", type=int)
-    w.add_argument("--days", default="all", choices=["all", "checkpoints"])
+    w.add_argument("--days", default="all", choices=["all", "checkpoints", "last"])
     w.add_argument("--until")
     w.add_argument("--mutation")
     w.add_argument("--only")
@@ -236,7 +261,11 @@ def main(argv=None) -> int:
     rep.add_argument("--report-dir")
     rep.set_defaults(fn=cmd_report)
 
-    a = p.parse_args(argv)
+    return p
+
+
+def main(argv=None) -> int:
+    a = build_parser().parse_args(argv)
     return a.fn(a)
 
 

@@ -107,3 +107,70 @@ def test_sockets_square_and_outlook_are_banned(tmp_path):
     assert line == "socket:refused connect:refused square:refused keyring:refused outlook:False"
     store = next(ln for ln in proc.stdout.splitlines() if ln.startswith("STORE"))
     assert str(tmp_path / "run" / "satc_data") in store
+
+
+def test_the_run_directory_carries_the_launchers_pid_and_is_never_reused(tmp_path):
+    from season_sim.__main__ import launch_worker
+    run = guard.default_run_dir(1, "exists")
+    assert str(os.getpid()) in run.name
+    run.mkdir(parents=True, exist_ok=True)
+    marker = run / "someone-elses-store"
+    marker.write_text("keep", encoding="utf-8")
+    try:
+        with pytest.raises(SystemExit, match="refusing to reuse"):
+            launch_worker(1, tmp_path / "out", label="exists", clients=2, days="last",
+                          until="2027-01-04")
+        assert marker.read_text(encoding="utf-8") == "keep"      # not deleted on a guess
+    finally:
+        marker.unlink()
+        run.rmdir()
+
+
+def test_a_banned_call_is_counted_even_when_something_swallows_it(tmp_path):
+    """The count is taken AT the ban, so a caller that catches the refusal (a CLI
+    command with `except Exception`, a Flask route that renders a 500) cannot hide
+    it -- and the client-documents door then ends the run instead of recording the
+    swallowed call as evidence."""
+    proc = _child(f"""
+        from season_sim import guard, paths
+        iso = guard.pin_environment(r"{tmp_path / 'run'}", paths.REPO)
+        paths.put_projects_on_path()
+        from satc.app.state import STATE
+        import cli, payments, socket
+        guard.install_bans()
+        try:
+            socket.socket()
+        except Exception:
+            pass
+        print("COUNT", len(guard.BANNED_ATTEMPTS))
+        from season_sim.doors_cd import CdDoors
+        doors = CdDoors(iso, [])
+        def swallowing(argv):
+            try:
+                payments.processor()
+            except Exception:
+                return 1
+            return 0
+        cli.main = swallowing
+        try:
+            doors.run_cli(["payments"])
+            print("DOOR", "carried on")
+        except guard.SimRefused:
+            print("DOOR", "ended the run")
+        def raising(argv):
+            payments.processor()
+        cli.main = raising
+        log = []
+        doors.log = log
+        try:
+            doors.run_cli(["payments"])
+            print("RAISE", "recorded as evidence", len(log))
+        except guard.SimRefused:
+            print("RAISE", "ended the run", len(log))
+        print("TOTAL", len(guard.BANNED_ATTEMPTS))
+    """)
+    assert proc.returncode == 0, proc.stderr
+    got = dict(ln.split(" ", 1) for ln in proc.stdout.splitlines() if ln.split(" ")[0] in
+               ("COUNT", "DOOR", "RAISE", "TOTAL"))
+    assert got == {"COUNT": "1", "DOOR": "ended the run", "RAISE": "ended the run 0",
+                   "TOTAL": "3"}, proc.stdout

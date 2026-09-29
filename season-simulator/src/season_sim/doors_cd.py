@@ -20,6 +20,7 @@ import io
 import json
 from pathlib import Path
 
+from season_sim import guard
 from season_sim.doors_satc import Call
 
 
@@ -41,16 +42,23 @@ class CdDoors:
 
     def run_cli(self, argv: list[str], *, log: bool = True) -> tuple[Call, str]:
         buf, err = io.StringIO(), io.StringIO()
+        attempts = len(guard.BANNED_ATTEMPTS)
         with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(err):
             try:
                 rc = self._cli.main(argv)
             except SystemExit as exc:          # argparse, or a refusal that exits
                 rc = f"exit {exc.code}"
+            except guard.SimRefused:
+                raise                           # a banned door ends the run; never evidence
             except Exception as exc:            # noqa: BLE001 -- a door that crashes is evidence
                 import traceback
                 rc = f"exception {type(exc).__name__}"
                 print(f"[the command raised] {type(exc).__name__}: {exc}")
                 print("".join(traceback.format_exc().splitlines(True)[-4:]))
+        if len(guard.BANNED_ATTEMPTS) > attempts:
+            # The command swallowed the refusal itself; the count at the ban did not.
+            raise guard.SimRefused(f"cli.main({argv[:1]}) tried a banned door: "
+                                   f"{guard.BANNED_ATTEMPTS[attempts:]}")
         said = err.getvalue()
         out = self._norm(buf.getvalue() + (f"\n[stderr]\n{said}" if said else ""))
         shown = [self._norm(a) for a in argv]

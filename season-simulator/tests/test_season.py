@@ -20,11 +20,12 @@ run` does.
 from __future__ import annotations
 
 import json
+import shlex
 from pathlib import Path
 
 import pytest
 
-from season_sim.__main__ import launch_worker
+from season_sim.__main__ import build_parser, launch_worker, repro
 
 pytestmark = pytest.mark.season
 
@@ -45,6 +46,9 @@ def test_the_run_level_guards_held(baseline):
     assert rl["worktree_unchanged"], rl.get("worktree_diff")
     assert rl["store_is_run_dir"] and rl["env_pinned_at_end"]
     assert rl["cd_default_store_untouched"] and rl["cd_out_untouched"]
+    assert rl["banned_call_attempts"] == 0
+    assert rl["days_simulator_copy_differed_from_route"] == {"today": 0, "work": 0,
+                                                             "job_page": 0}
     assert s["checker_crashes"] == []
     assert set(s["banned"]) >= {"socket.socket", "payments.processor",
                                 "email_draft.open_outlook_draft"}
@@ -94,3 +98,33 @@ def test_breaking_the_real_function_makes_its_invariant_fire(baseline, tmp_path,
     assert s["mutated"][0] == code
     before, after = _findings(base_out, code), _findings(out, code)
     assert len(after) > len(before), f"{mutation} broke {code}'s function and {code} said nothing"
+
+
+def test_a_printed_repro_command_reproduces_its_finding(baseline, tmp_path):
+    """The report prints a repro command under every finding. Run the printed
+    command, as printed, and the same finding must come back for the same client
+    with the same evidence. B11 first: a replay narrowed to one client once
+    printed 'no finding' for it, because B11 depends on the whole practice.
+
+    Asserts nothing about WHICH findings exist (S25): if the smoke season has no
+    per-client finding at all, there is nothing to replay and the test says so."""
+    out, _ = baseline
+    rows = [json.loads(line) for line in (out / "findings.jsonl").read_text(
+        encoding="utf-8").splitlines() if line.strip()]
+    first: dict[str, dict] = {}
+    for r in rows:
+        if r["sim_client"].startswith("SIM-"):
+            first.setdefault(r["invariant"], r)
+    order = ["B11"] + sorted(c for c in first if c != "B11")
+    chosen = [first[c] for c in order if c in first][:3]
+    if not chosen:
+        pytest.skip("the smoke season produced no per-client finding to replay")
+    for r in chosen:
+        argv = shlex.split(r["repro"])
+        assert argv[:4] == ["python", "-B", "-m", "season_sim"], r["repro"]
+        a = build_parser().parse_args(argv[4:])
+        _s, got = repro(a.seed, a.until, client=a.client, check=a.check, clients=a.clients,
+                        billing_door=a.billing_door, out=tmp_path / r["invariant"], keep=False)
+        mine = [g for g in got if g["sim_client"] == r["sim_client"]]
+        assert mine, f"`{r['repro']}` printed no finding for {r['sim_client']}"
+        assert mine[0]["output"] == r["output"], (r["repro"], mine[0]["output"], r["output"])

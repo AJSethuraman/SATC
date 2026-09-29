@@ -53,6 +53,8 @@ class Season:
         self.billing_door = billing_door
         self.pages = pages
         self.calls: list = []
+        self.copy_mismatch_days: dict[str, int] = {"today": 0, "work": 0, "job_page": 0}
+        self.work_refusal_days = 0
 
     # -- set up ---------------------------------------------------------------
     def boot(self):
@@ -125,7 +127,8 @@ class Season:
         audit_days = {date(2027, m, 1) for m in range(1, 11)} | {date(2027, 4, 16)}
 
         for d in clock.days(start, end):
-            reading = self.days_mode == "all" or d in checkpoints or d == end
+            reading = (self.days_mode == "all" or d == end
+                       or (self.days_mode == "checkpoints" and d in checkpoints))
             with clock.frozen(d):
                 if clock.is_weekday(d):
                     firm.act(d)
@@ -133,6 +136,9 @@ class Season:
                     continue
                 t0 = time.perf_counter()
                 snap = observer.read(d, pages=self.pages)
+                for screen, differs in snap.copy_mismatch.items():
+                    self.copy_mismatch_days[screen] += 1 if differs else 0
+                self.work_refusal_days += 1 if snap.work_refusal else 0
                 ctx.refresh()
                 results = run_all(snap, ctx, only=self.checks)
                 ledger.add_day(d.isoformat(), results)
@@ -157,7 +163,15 @@ class Season:
             observations = obs.finish(last_snap, ctx, firm) if last_snap else {}
         run_level = self.run_level()
         env = _env(self.repo_sha)
-        records = ledger.records(seed=self.seed, env=env, clients=len(w.clients))
+        # The printed repro command must replay THIS world: same client count,
+        # same billing door, same set of clients.
+        extra = []
+        if self.clients_n:
+            extra += ["--clients", str(self.clients_n)]
+        if self.billing_door:
+            extra += ["--billing-door", self.billing_door]
+        records = ledger.records(seed=self.seed, env=env, clients=len(w.clients),
+                                 repro_extra=" ".join(extra))
         (self.out_dir / "findings.jsonl").write_text(dumps(records), encoding="utf-8")
 
         summary = {
@@ -184,7 +198,9 @@ class Season:
                 "engaged": tr.engaged_on, "delivered": tr.delivered_on,
                 "extended": tr.extended_on, "disengaged": tr.disengaged_on,
                 "filed": tr.filed_on, "invoice": tr.invoice, "paid": tr.paid_on,
-                "payment_recorded": tr.payment_recorded} for tr in firm.t.values()},
+                "pays_by": tr.sim.pays_by, "pay_style": tr.sim.pay_style,
+                "payment_recorded": tr.payment_recorded, "paid2": tr.paid2_on,
+                "payment2_recorded": tr.payment2_recorded} for tr in firm.t.values()},
             "env": env,
         }
         (self.out_dir / "summary.json").write_text(
@@ -213,9 +229,11 @@ class Season:
 
     # -- the clock-leak audit ---------------------------------------------------
     def clock_audit(self, d: date, ledger, ctx) -> dict:
-        """Every read, twice: clock frozen on the day, then clock on a sentinel
-        (2031-06-15) with `today=` passed explicitly. A difference is a clock
-        read that `today=` does not reach."""
+        """Every read three times: clock frozen on the day, then under two WRONG
+        clocks with `today=` passed explicitly -- a far one (2031-06-15) and a
+        realistic one (the same day a year later). A difference is a clock read
+        that `today=` does not reach; which wrong clock exposed it says how far
+        apart the clocks have to be before it matters."""
         import deadlines
         import engagements
         import signing
@@ -257,30 +275,46 @@ class Season:
 
         with clock.frozen(d):
             right = reads()
-        with clock.frozen(clock.SENTINEL):
-            wrong = reads()
-        leaks = clock.leaks(right, wrong)
+        by_clock = {}
         hits = []
-        if "cli season --today D" in leaks:
-            a = right["cli season --today D"].splitlines()
-            b = wrong["cli season --today D"].splitlines()
-            diff = next((f"clock on the day: {x!r} | clock on {clock.SENTINEL}: {y!r}"
-                         for x, y in zip(a, b) if x != y), f"{len(a)} vs {len(b)} lines")
-            hits.append(Hit("-", f"cli season --today {d} printed differently when the machine "
-                                 f"clock was wrong. First difference: {diff}",
-                            "identical output: --today D alone decides the answer",
-                            "cli season",
-                            {"door": "cli", "target": "cli.main(['season', '--today', D, '--store', S])",
-                             "clock": f"frozen@{clock.SENTINEL}T14:00Z vs frozen@{d}T14:00Z",
-                             "today_arg": d.isoformat()}))
+        for wrong_day in (clock.SENTINEL, clock.one_year_later(d)):
+            with clock.frozen(wrong_day):
+                wrong = reads()
+            leaks = clock.leaks(right, wrong)
+            by_clock[wrong_day.isoformat()] = leaks
+            if "cli season --today D" in leaks:
+                a = right["cli season --today D"].splitlines()
+                b = wrong["cli season --today D"].splitlines()
+                diff = next((f"clock on the day: {x!r} | clock on {wrong_day}: {y!r}"
+                             for x, y in zip(a, b) if x != y), f"{len(a)} vs {len(b)} lines")
+                hits.append(Hit("-", f"cli season --today {d} printed differently when the "
+                                     f"machine clock read {wrong_day}. First difference: {diff}",
+                                "identical output: --today D alone decides the answer",
+                                f"cli season, clock {wrong_day}",
+                                {"door": "cli",
+                                 "target": "cli.main(['season', '--today', D, '--store', S])",
+                                 "clock": f"frozen@{wrong_day}T14:00Z vs frozen@{d}T14:00Z",
+                                 "today_arg": d.isoformat()}))
         if not self.checks or "K1" in self.checks:
             ledger.add_day(d.isoformat(), {"K1": (hits, 1)})
-        return {"day": d.isoformat(), "reads": sorted(right), "leaks": leaks,
+        return {"day": d.isoformat(), "reads": sorted(right),
+                "leaks": sorted({x for v in by_clock.values() for x in v}),
+                "leaks_by_clock": by_clock,
                 "sizes": {k: len(v) for k, v in right.items()}}
 
     def run_level(self) -> dict:
         out = {}
-        out["banned_call_attempts"] = 0          # any attempt raises SimRefused and ends the run
+        # MEASURED at the ban (guard.BANNED_ATTEMPTS), not asserted: every call
+        # into a banned door is counted before it raises. A door that swallowed
+        # the refusal would still show here (and the doors re-raise it, which
+        # ends the run -- so a finished run should always read 0).
+        out["banned_call_attempts"] = len(guard.BANNED_ATTEMPTS)
+        # The checks read what /today, /work and each job page RENDERED. The
+        # simulator also keeps a copy of each route's call; a day the copy
+        # disagreed means the simulator's picture of a route is stale (the owner
+        # acts on the rendered board, so this changes no finding).
+        out["days_simulator_copy_differed_from_route"] = dict(self.copy_mismatch_days)
+        out["days_work_route_refused_to_rank"] = self.work_refusal_days
         out["env_pinned_at_end"] = all(os.environ.get(k) == v for k, v in {
             "SATC_DATA_DIR": str(self.iso.satc_data),
             "SATC_ENGAGEMENTS": str(self.iso.engagements), "SATC_ROLE": "owner",

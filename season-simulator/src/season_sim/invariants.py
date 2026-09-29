@@ -48,16 +48,25 @@ class Invariant:
     rule: str
     fn: Callable
     note: str = ""
+    audit_only: bool = False     # filled by the clock-leak audit, never by the daily pass
 
 
 REGISTRY: dict[str, Invariant] = {}
 
 
-def invariant(code, name, kind, sources, rule, note=""):
+def invariant(code, name, kind, sources, rule, note="", *, audit_only=False):
     def wrap(fn):
-        REGISTRY[code] = Invariant(code, name, kind, tuple(sources), rule, fn, note)
+        REGISTRY[code] = Invariant(code, name, kind, tuple(sources), rule, fn, note,
+                                   audit_only)
         return fn
     return wrap
+
+
+def _default(fn, name: str):
+    """A threshold read off the real function's own signature, so a changed
+    default changes the check with it (and never shows up as a defect)."""
+    import inspect
+    return inspect.signature(fn).parameters[name].default
 
 
 class Ctx:
@@ -152,7 +161,7 @@ def a1(snap, ctx):
         for ext in (False, True):
             n += 1
             got = deadlines.filing_date(rt, int(ty), extended=ext)
-            month = deadlines._DUE_MONTH[rt] + (6 if ext else 0)
+            month = deadlines._DUE_MONTH[rt] + (deadlines._EXTENSION_MONTHS if ext else 0)
             statutory = date(int(ty) + 1, month, 15)
             if deadlines.is_closed(got) or got < statutory:
                 hits.append(Hit(ctx.sim_for_ref(ref),
@@ -258,7 +267,8 @@ def b2(snap, ctx):
            ["satc_system/src/satc/actions/propose.py:810", "docs/SOFTWARE-TENETS.md:103",
             "satc_system/src/satc/app/templates/today.html:67"],
            "Rows are sorted by propose.sort_key (urgency, due, client, kind), and the "
-           "/today page lists the same action ids in the same order as build_queue.")
+           "/today page lists the same action ids in the same order as the queue the "
+           "route built.")
 def b3(snap, ctx):
     hits = []
     keys = [REAL_SORT_KEY(a) for a in snap.queue]
@@ -268,7 +278,7 @@ def b3(snap, ctx):
             hits.append(Hit(ctx.sim_for_client(b.client_id),
                             f"{b.action_id} {keys[i]} listed after {a.action_id} {keys[i - 1]}",
                             "sorted by sort_key", b.action_id,
-                            {"door": "function", "target": "satc.actions.build_queue"}))
+                            {"door": "http", "target": "GET /today (the queue the route rendered)"}))
             break
     engine = [a.action_id for a in snap.queue]
     if snap.screen_ids != engine:
@@ -285,12 +295,13 @@ def b3(snap, ctx):
 
 @invariant("B4", "the same day gives the same queue", "failure",
            ["docs/DESIGN-PRINCIPLES.md:130-137", "satc_system/tests/test_actions.py:199"],
-           "Regenerating the queue on the same day gives an identical id list.")
+           "Asking /today twice on the same day gives an identical id list.")
 def b4(snap, ctx):
     ids = [a.action_id for a in snap.queue]
     if ids != snap.queue_again:
         return [Hit("-", f"{len(set(ids) ^ set(snap.queue_again))} ids differ between two "
-                         f"builds", "identical", "build_queue")], len(ids)
+                         f"GET /today on one day", "identical", "build_queue",
+                    {"door": "http", "target": "GET /today, twice"})], len(ids)
     return [], len(ids)
 
 
@@ -310,10 +321,12 @@ def b5(snap, ctx):
 @invariant("B6", "every client waiting on paper gets chased", "failure",
            ["satc_system/src/satc/actions/propose.py:150-177",
             "canon/corpus/the-firms-own-words.md:849"],
-           "A client with an open working-year request whose oldest ask is at least 3 "
-           "days old has a chase-documents or 8879 row. (Firm priority N3: chase "
-           "documents, not just signatures.)")
+           "A client with an open working-year request whose oldest ask is at least "
+           "chase_outstanding's own stale_after_days (3) old has a chase-documents or "
+           "8879 row. (Firm priority N3: chase documents, not just signatures.)")
 def b6(snap, ctx):
+    from satc.actions.propose import chase_outstanding
+    stale = _default(chase_outstanding, "stale_after_days")
     hits, n = [], 0
     rows = {(a.client_id, a.kind) for a in snap.queue}
     by: dict[str, list] = {}
@@ -322,7 +335,7 @@ def b6(snap, ctx):
             by.setdefault(r.client_id, []).append(r)
     for cid, items in sorted(by.items()):
         dated = [r.requested_at for r in items if r.requested_at]
-        if dated and (snap.day - min(dated)).days < 3:
+        if dated and (snap.day - min(dated)).days < stale:
             continue
         n += 1
         if (cid, "chase_documents") not in rows and (cid, "signature_outstanding") not in rows:
@@ -332,18 +345,27 @@ def b6(snap, ctx):
     return hits, n
 
 
+# The one threshold with no parameter to read: `urgency="urgent" if (waiting or
+# 0) >= 14` is a literal at propose.py:176. It is transcribed, and the
+# transcription is checked by mutation (that literal changed to 21 turned B7 red).
+CHASE_URGENT_AFTER_DAYS = 14
+
+
 def _expected_urgency(a, snap) -> str | None:
+    from satc.actions.propose import _urgency_from_days, deadline_pressure
     if a.kind == "chase_documents":
         items = [r for r in snap.requested if r.client_id == a.client_id and r.is_open
                  and r.tax_year == snap.tax_year and r.requested_at]
         if not items:
             return None
         waited = (snap.day - min(r.requested_at for r in items)).days
-        return "urgent" if waited >= 14 else "soon"
+        return "urgent" if waited >= CHASE_URGENT_AFTER_DAYS else "soon"
     if a.kind == "deadline_approaching" and a.due:
         days = (a.due - snap.day).days
-        return ("overdue" if days < 0 else "urgent" if days <= 7 else "soon" if days <= 30
-                else "routine")
+        soon = _default(deadline_pressure, "soon_days")
+        urgent = _default(_urgency_from_days, "urgent")
+        return ("overdue" if days < 0 else "urgent" if days <= urgent else "soon"
+                if days <= soon else "routine")
     return None
 
 
@@ -352,7 +374,8 @@ def _expected_urgency(a, snap) -> str | None:
             "satc_system/src/satc/actions/propose.py:176",
             "satc_system/src/satc/actions/propose.py:229-251"],
            "Chase rows are urgent at 14+ days of waiting, soon before; deadline rows are "
-           "overdue / urgent (<=7) / soon (<=30) from the row's own due date.")
+           "overdue / urgent (<= _urgency_from_days' own urgent, 7) / soon (<= "
+           "deadline_pressure's own soon_days, 30) from the row's own due date.")
 def b7(snap, ctx):
     hits, n = [], 0
     for a in snap.queue:
@@ -443,7 +466,9 @@ def b10(snap, ctx):
            "interview_invite means 'a client with no engagement for the year'. A client "
            "with no job, no request and no document for the working year gets one. "
            "(S31: a claim and its behaviour are two things.)",
-           note="expected to fail (H8): /today passes every job in ANY year as engaged")
+           note="expected to fail (H8): /today passes every job in ANY year as engaged. "
+                "It depends on the whole practice (the working year moves only once some "
+                "client has a 2026 request), so its repro replays every client")
 def b11(snap, ctx):
     hits, n = [], 0
     invited = {a.client_id for a in snap.queue if a.kind == "interview_invite"}
@@ -549,7 +574,7 @@ def c2(snap, ctx):
 
 
 @invariant("C3", "delivered and complete need a recorded fact", "failure",
-           ["satc_system/src/satc/work/stage.py:57-62", "satc_system/src/satc/work/stage.py:96-119"],
+           ["satc_system/src/satc/work/stage.py:17-22", "satc_system/src/satc/work/stage.py:96-119"],
            "A job reads delivered or complete only when a Deliverable or an accepted "
            "Filing is on file.")
 def c3(snap, ctx):
@@ -664,7 +689,11 @@ def c8(snap, ctx):
 @invariant("C9", "the work queue ranks against the operative deadline", "failure",
            ["satc_system/src/satc/obligations/due_dates.py:109-110"],
            "Once an extension is on file the deadline factor measures the extended date.",
-           note="expected to fail by construction: no satc door records an extension")
+           note="would fail by construction (no satc door records an extension), but only "
+                "on a workable job that is extended. Tax jobs are never workable (no tax "
+                "workflow plans an internal task), so C9 has only ever examined onboarding "
+                "and rental jobs, none of them extended: it has never been exercised on a "
+                "positive case in a season")
 def c9(snap, ctx):
     work, _ = _board_items(snap)
     to_ref = ctx.client_to_ref()
@@ -743,7 +772,9 @@ def d3(snap, ctx):
            ["docs/DESIGN-PRINCIPLES.md:235-243", "client-documents/signing.py:612-647"],
            "Principle 13: a queue that becomes noise is worse than no queue. An "
            "engagement that is disengaged or closed out has nothing left to sign for.",
-           note="H5 in the brief")
+           note="H5. The rule is INFERRED from principle 13; no recorded rule says the "
+                "signature list must drop ended engagements (signing.waiting has no such "
+                "filter), so whether it should is the firm's call")
 def d4(snap, ctx):
     hits, n = [], 0
     for w in snap.cd_waiting:
@@ -824,7 +855,7 @@ def e4(snap, ctx):
            "An amended return is a refund claim with its own clock (IRC 6511(a), "
            "deadlines.py). Placing it at the original return's filing dates, already "
            "past, is principle 5: a confident wrong answer.",
-           note="H6 in the brief; plausible rather than certain")
+           note="H6; plausible rather than certain")
 def e5(snap, ctx):
     due, _ = snap.cd_board
     hits, n = [], 0
@@ -857,7 +888,9 @@ def e5(snap, ctx):
             "client-documents/deadlines.py:414"],
            "A disengaged or closed-out engagement has nothing due; showing it OVERDUE on "
            "the season board is a confident wrong answer and noise (principles 5, 13).",
-           note="H4 in the brief")
+           note="H4. The rule is INFERRED from principles 5 and 13; no recorded rule says "
+                "the season board must drop ended engagements (deadlines.board has no such "
+                "filter), so whether it should is the firm's call")
 def e6(snap, ctx):
     due, _ = snap.cd_board
     hits, n = [], 0
@@ -1153,11 +1186,15 @@ def l1(snap, ctx):
            ["client-documents/consistency.py:313-345",
             "satc-handoff/04-TEMPLATES/SATC Engagement Letter - Tax Preparation.html:83",
             "client-documents/registry/lifecycle.yaml"],
-           "The package check refuses a first-deliverable target earlier than the "
-           "materials deadline. An extension moves the materials deadline past the "
-           "target promised at the interview, and the extension event carries no "
-           "field to restate the target -- so every extension notice is refused. The "
-           "letter commits the firm to filing extensions where needed.")
+           "The package check refuses a first-deliverable target that is a DATE earlier "
+           "than the materials deadline (a target written as a phrase is skipped, "
+           "consistency.py:328-331). An extension moves the materials deadline past a "
+           "dated target promised at the interview, and the extension event carries no "
+           "field to restate the target -- so an extension notice for such a client is "
+           "refused. The letter commits the firm to filing extensions where needed.",
+           note="Every simulated client's target is a date (scenario.yaml owner.interview) "
+                "and every extension notice's materials date is the extended date minus "
+                "owner.extension_notice.materials_days_before_extended -- both invented")
 def l3(snap, ctx):
     return _gate_hits(snap, ctx, "agrees")
 
@@ -1185,35 +1222,89 @@ def l2(snap, ctx):
     return hits, n
 
 
-@invariant("L4", "a payment made another way can be recorded", "failure",
-           ["client-documents/signing.py:564-570",
-            "client-documents/registry/firm-settings.yaml:100-102",
-            "client-documents/payments.py:622-634", "client-documents/cli.py:859-900",
-            "satc-handoff/04-TEMPLATES/SATC Engagement Letter - Tax Preparation.html:95",
-            "docs/SOFTWARE-TENETS.md:706"],
-           "The filing gate's refusal says 'a bill paid another way is recorded by "
-           "hand', and the invoice tells the client 'If you would rather pay another "
-           "way, tell us and we will arrange it.' A check that arrived must have a door "
-           "that records it; otherwise the gate blocks transmitting that return for "
-           "good (S31: a claim and its behaviour are two things).",
-           note="H13 in the brief. Only CHECK payers are counted: a card payment would "
-                "settle through Square, which the simulator is not allowed to reach")
-def l4(snap, ctx):
+# ============================================================================
+# M. Money on Today (satc_system)
+# ============================================================================
+
+def _ledger_owed(inv, payments):
+    """What is still owed and what was overpaid, summed straight off the payment
+    records -- not through propose.balance_owed, which is the code under test.
+    The fallback to the invoice's own paid flag when no payment names it is
+    the rule as written (propose.py:406-426)."""
+    from decimal import Decimal
+    mine = [p for p in payments if p.invoice_id == inv.invoice_id]
+    if not mine:
+        return (Decimal("0.00") if inv.is_paid else inv.total), Decimal("0.00")
+    paid = sum((p.amount for p in mine), Decimal(0))
+    return max(inv.total - paid, Decimal("0.00")), max(paid - inv.total, Decimal("0.00"))
+
+
+@invariant("M1", "an issued bill past due with money owed is chased, for the balance", "failure",
+           ["satc_system/src/satc/actions/propose.py:599-617",
+            "satc_system/src/satc/actions/propose.py:406-426"],
+           "'Issued, still owed, and past its due date -- one row per invoice.' What is "
+           "owed comes from the payment ledger: a settled invoice is not chased, and a "
+           "part-paid one is chased for the BALANCE. Urgency: soon, then urgent from "
+           "invoice_overdue's own chase_after_days (14) past due, overdue from its "
+           "serious_after_days (45).")
+def m1(snap, ctx):
+    from satc.actions.propose import invoice_overdue
+    chase = _default(invoice_overdue, "chase_after_days")
+    serious = _default(invoice_overdue, "serious_after_days")
     hits, n = [], 0
-    for pay in (ctx.firm.unrecordable_payments if ctx.firm else ()):
-        if not (ctx.prev_day < pay["day"] <= snap.day.isoformat()):
-            continue
-        if pay["by"] != "check":
+    for inv in snap.invoices:
+        if not inv.is_issued or inv.due_on is None or inv.due_on >= snap.day:
             continue
         n += 1
-        gate = snap.cd_may_file.get(pay["ref"])
-        blockers = [b for b in (getattr(gate, "blockers", None) or []) if "settled" in b]
-        hits.append(Hit(pay["sim"], f"check received {pay['paid_on']} for invoice {pay['invoice']} "
-                                    f"on {pay['ref']}: no command records it (cli.py offers "
-                                    f"`payments`, which asks Square). may_file still says: "
-                                    f"{blockers[0][:220] if blockers else '(no money blocker)'}",
-                        "a door that records the check, so the gate can clear", pay["ref"],
-                        {"door": "cli", "target": "(none exists) -- cli.py payments asks Square only"}))
+        owed, _over = _ledger_owed(inv, snap.payments)
+        rows = [a for a in snap.queue if a.kind == "invoice_overdue"
+                and str(inv.invoice_id) in a.evidence]
+        late = (snap.day - inv.due_on).days
+        who = ctx.sim_for_client(inv.client_id)
+        call = {"door": "http", "target": "GET /today"}
+        if owed > 0 and not rows:
+            hits.append(Hit(who, f"invoice {inv.invoice_id} ({inv.total}) due {inv.due_on}, "
+                                 f"{owed} still owed on the ledger, {late} days late: no "
+                                 f"invoice_overdue row", "an invoice_overdue row", str(inv.invoice_id),
+                            call))
+        elif owed <= 0 and rows:
+            hits.append(Hit(who, _q(rows[0]) + f" (the ledger has invoice {inv.invoice_id} settled)",
+                            "no row for a settled invoice", str(inv.invoice_id), call))
+        elif rows:
+            row = rows[0]
+            want = "overdue" if late >= serious else "urgent" if late >= chase else "soon"
+            said = f"{owed:,.2f}" in row.title + row.why
+            if row.urgency != want or not said:
+                hits.append(Hit(who, _q(row) + f" (ledger: {owed} owed, {late} days late)",
+                                f"urgency {want}, naming the balance ${owed:,.2f}",
+                                str(inv.invoice_id), call))
+    return hits, n
+
+
+@invariant("M2", "money beyond the bill is surfaced", "failure",
+           ["satc_system/src/satc/actions/propose.py:661-680"],
+           "'More money arrived against an invoice than the invoice asked for' gets a "
+           "credit_on_account row naming the excess; an invoice that was not overpaid "
+           "gets none.")
+def m2(snap, ctx):
+    hits, n = [], 0
+    for inv in snap.invoices:
+        if not any(p.invoice_id == inv.invoice_id for p in snap.payments):
+            continue
+        n += 1
+        _owed, over = _ledger_owed(inv, snap.payments)
+        rows = [a for a in snap.queue if a.kind == "credit_on_account"
+                and str(inv.invoice_id) in a.evidence]
+        who = ctx.sim_for_client(inv.client_id)
+        call = {"door": "http", "target": "GET /today"}
+        if over > 0 and not (rows and f"{over:,.2f}" in rows[0].title + rows[0].why):
+            hits.append(Hit(who, (_q(rows[0]) if rows else "no credit_on_account row")
+                            + f" (ledger: {over} paid beyond invoice {inv.invoice_id})",
+                            f"a credit_on_account row naming ${over:,.2f}", str(inv.invoice_id),
+                            call))
+        if over <= 0 and rows:
+            hits.append(Hit(who, _q(rows[0]), "no credit row: nothing was overpaid",
+                            str(inv.invoice_id), call))
     return hits, n
 
 
@@ -1226,7 +1317,11 @@ def l4(snap, ctx):
             "client-documents/deadlines.py:395"],
            "`cli season --today D` answers for D. Run under a wrong machine clock with "
            "an explicit --today, it must print what it prints under the right one.",
-           note="checked by the clock-leak audit on sample days (H11)")
+           note="checked by the clock-leak audit on sample days (H11), under two wrong "
+                "clocks: 2031-06-15, and the day plus one year. The board changes only when "
+                "the machine clock is far enough from --today that deadlines.plausible_year "
+                "(deadlines.py:395) answers differently; the audit line says which clock did",
+           audit_only=True)
 def k1(snap, ctx):
     return [], 0      # filled by the audit, which needs a second clock
 
@@ -1238,6 +1333,8 @@ def run_all(snap, ctx, *, only: set[str] | None = None) -> dict[str, tuple[list,
     out = {}
     for code, inv in REGISTRY.items():
         if only and code not in only:
+            continue
+        if inv.audit_only:
             continue
         try:
             out[code] = inv.fn(snap, ctx)

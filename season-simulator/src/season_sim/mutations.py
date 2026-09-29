@@ -65,6 +65,29 @@ def _board_unsorted():
     deadlines.board = board
 
 
+def _today_route_changed():
+    """The change a reviewer tried by hand (today_views.py:86): /today counts as
+    engaged only the clients with a job for the working year. Patched into the
+    ROUTE's own reference to build_queue, so only /today changes: the agent door
+    (agent/tools.py) still passes every year's jobs, and B12 must now see the
+    agent disagree with the screen. Before the checks read what /today rendered,
+    this change left B11 firing and B12 silent."""
+    import satc.app.today_views as tv
+    real = tv.build_queue
+
+    def build_queue(**kw):
+        year = kw.get("tax_year")
+        kw["engaged_clients"] = [j.client_id for j in kw.get("jobs", ())
+                                 if j.tax_year == year]
+        return real(**kw)
+    tv.build_queue = build_queue
+
+
+def _drop_overdue_invoices():
+    import satc.actions as actions
+    actions.invoice_overdue = lambda *a, **k: []
+
+
 MUTATIONS = {
     "deadline_shift": ("A2", "client-documents deadlines.filing_date moved one day later",
                        _deadline_shift),
@@ -75,6 +98,10 @@ MUTATIONS = {
     "signing_list_drops": ("D3", "signing.waiting drops its first engagement",
                            _signing_list_drops),
     "season_unsorted": ("E2", "deadlines.board returns its rows reversed", _board_unsorted),
+    "today_route_changed": ("B12", "/today counts only this year's jobs as engaged; the "
+                                   "agent door is left as it was", _today_route_changed),
+    "drop_overdue_invoices": ("M1", "the invoice_overdue proposer removed from build_queue",
+                              _drop_overdue_invoices),
 }
 
 

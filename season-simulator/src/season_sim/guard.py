@@ -103,8 +103,11 @@ def refuses(path: Path, worktree: Path) -> str:
 
 
 def default_run_dir(seed: int, label: str = "") -> Path:
-    # Short on purpose: the Windows path budget (satc_system/tests/conftest.py).
-    tag = f"{seed}-{label or os.getpid()}"
+    """`%TEMP%/satc-sim/<seed>-<label>-<pid>`. The launcher's pid is part of the
+    name so two sessions running the same seed never share (and never delete)
+    each other's run directory; the launcher refuses one that already exists.
+    Short on purpose: the Windows path budget (satc_system/tests/conftest.py)."""
+    tag = f"{seed}-{label}-{os.getpid()}" if label else f"{seed}-{os.getpid()}"
     return Path(tempfile.gettempdir()) / "satc-sim" / tag
 
 
@@ -148,15 +151,27 @@ def pin_environment(run: Path, worktree: Path) -> Isolation:
     return iso
 
 
+# Every attempt to use a banned door, COUNTED where it happens -- not asserted
+# after the fact. A refusal can be swallowed by whatever called it (a CLI
+# command that catches Exception, a Flask route that turns it into a 500), so
+# the count is kept here, at the ban itself, and the run reports it.
+BANNED_ATTEMPTS: list[str] = []
+
+
+def _attempted(what: str) -> SimRefused:
+    BANNED_ATTEMPTS.append(what)
+    return SimRefused(f"the simulator may not use {what}")
+
+
 def _raiser(what: str):
     def refuse(*_a, **_k):
-        raise SimRefused(f"the simulator may not use {what}")
+        raise _attempted(what)
     return refuse
 
 
 class _NoSocket:
     def __init__(self, *a, **k):
-        raise SimRefused("the simulator may not open a socket")
+        raise _attempted("a socket (socket.socket)")
 
 
 BANNED_CALLS: list[str] = []
@@ -188,4 +203,5 @@ def install_bans() -> list[str]:
     email_draft.outlook_available = lambda: False
     banned += ["email_draft.open_outlook_draft", "email_draft.outlook_available"]
     BANNED_CALLS[:] = banned
+    BANNED_ATTEMPTS.clear()
     return banned

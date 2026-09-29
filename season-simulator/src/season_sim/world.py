@@ -85,6 +85,8 @@ class SimClient:
     sign_8879_lag: int | None = None
     spouse_8879_lag: int | None = None
     pay_lag: int | None = None
+    pay_style: str = "full"               # full | late | never | part | over (the money stream)
+    pay_lag2: int | None = None           # part payers: days from the bill to the balance
     disengage_on: str | None = None
     amended_on: str | None = None
     requote_on: str | None = None
@@ -271,6 +273,32 @@ def build(seed: int, *, scenario: dict | None = None, clients: int | None = None
                 wf.append("new_client_onboarding")
             c.satc_workflows = wf
         out.append(c)
+
+    # How each client pays, from its OWN stream: adding it changed no other draw.
+    money = sc.get("money") or {}
+    if money:
+        mrng = random.Random(f"{seed}/money")
+        late_lag = money["late_pay_lag_days"]
+        for c in out:
+            roll = mrng.random()
+            if c.pay_lag is None:
+                continue
+            edges = [("late", float(money["late_payer_share"])),
+                     ("never", float(money["never_pays_share"])),
+                     ("part", float(money["part_payer_share"])),
+                     ("over", float(money["overpayer_share"]))]
+            acc = 0.0
+            for style, share in edges:
+                acc += share
+                if roll < acc:
+                    c.pay_style = style
+                    break
+            if c.pay_style == "late":
+                c.pay_lag = mrng.randint(*late_lag)
+            elif c.pay_style == "never":
+                c.pay_lag = None
+            elif c.pay_style == "part":
+                c.pay_lag2 = mrng.randint(*late_lag)
 
     # Pair k1_gated returns with the partnerships the firm prepares.
     partnerships = [c for c in out if c.archetype == "partnership"]

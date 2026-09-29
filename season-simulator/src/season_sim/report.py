@@ -25,6 +25,32 @@ SECTION = [("clear_bug", "Clear bugs",
            ("known", "Known, reproduced",
             "Already recorded as a known gap. Reproduced here through the doors, not new.")]
 
+# The recon brief numbered the failures it expected H1-H15. The brief is not in
+# the repository, so the list is written out here (and in the README): each
+# H-number, what it expected, and where this simulator shows it.
+HYPOTHESES = [
+    ("H1", "Today tells filed, extended and disengaged clients their return is overdue",
+     "B8"),
+    ("H2", "satc's document cutoff is not the date the client was told, so Today flags "
+           "an extension early", "G4, G8"),
+    ("H3", "a Filing whose ack is 'a' (extension accepted) would read as complete",
+     "the labelled what-if"),
+    ("H4", "the season board shows closed-out and disengaged engagements OVERDUE", "E6"),
+    ("H5", "the signature list keeps chasing disengaged clients", "D4"),
+    ("H6", "an amended return is placed at the original return's dates", "E5"),
+    ("H7", "nothing on a 1040 plan blocks preparation", "observation; C4 examines nothing"),
+    ("H8", "Today never invites a returning client to start the new year", "B11"),
+    ("H9", "a task ticked in the UI carries no completion time", "observation"),
+    ("H10", "no workflow opens an 8879 request, so no signature_outstanding row appears",
+     "observation"),
+    ("H11", "`cli season --today` still reads the machine clock", "K1"),
+    ("H12", "whichever system bills, the other cannot see the bill", "G6"),
+    ("H13", "a payment by check has no door in client-documents",
+     "observation (was L4; already recorded in OPERATING-PROCEDURES.md:382-385)"),
+    ("H14", "no door carries filed, extended or disengaged into satc_system", "B8, G5"),
+    ("H15", "the two deadline engines agree", "A2 (expected to HOLD)"),
+]
+
 NOT_COVERED = [
     "No document was read. `run_intake` (folder scanning, classification, OCR, the "
     "reader ladder) was never driven; every arrival was recorded with the Received "
@@ -34,8 +60,12 @@ NOT_COVERED = [
     "no page was rendered or looked at.",
     "No money moved and no processor was asked. Square, the Windows credential store, "
     "sockets and desktop Outlook were replaced with refusals; `cli.py payments` was never "
-    "run, so a client-documents invoice can never be settled here (that absence is itself "
-    "H13).",
+    "run, and client-documents invoices were issued with `--no-link`. So under "
+    "client-documents billing NO invoice can be settled here: a card payment's door "
+    "exists and was out of the simulator's reach, and a check has no door at all (H13).",
+    "Under satc_system billing, payments were recorded only on the invoice's own page "
+    "(/invoices/<id>/paid), including part payments and overpayments. The payments "
+    "ledger's record-and-match door (/payments/record, /match) was not used.",
     "No Filing, extension, disengagement or 8879 request exists in satc_system, because "
     "no front door writes them (H14; D8 for the Filing). The accepted-extension stage "
     "(H3) was asked of the pure function in a labelled what-if, never written.",
@@ -55,8 +85,9 @@ NOT_COVERED = [
     "Cross-job K-1 links cannot be recorded in satc_system (no route calls "
     "`add_relationship`), so the K-1 dependency lives only in the simulated world.",
     "One invoice line per return was billed in satc_system (the engagement price as "
-    "one line, as the refusal instructs); the payments ledger's record-and-match door "
-    "(/payments/record, /match) was not used, only /invoices/<id>/paid.",
+    "one line, as the refusal instructs).",
+    "Draft invoices were never left unissued, so the invoice_unissued row was never "
+    "provoked, and no check reads it.",
 ]
 
 
@@ -103,9 +134,16 @@ def markdown(out: Path) -> str:
         f"Python {s['env']['python']}, PYTHONHASHSEED {s['env']['pythonhashseed']}"
         + (f", wall time {timings.get('wall_seconds')} s" if timings else "") + ".")
     add("")
+    from season_sim.decisions import BY_DESIGN
+    design = {code: sum(1 for r in rows if r["invariant"] == code) for code in BY_DESIGN}
+    design_n = sum(design.values())
     add(f"**{total} findings** from {len(s['invariants'])} invariants "
-        f"({sum(len(v) for v in groups.values())} invariant groups hit). "
-        f"{s['door_calls']['total']} door calls, "
+        f"({len({r['invariant'] for r in rows})} of them fired). "
+        + (f"{design_n} of the {total} ("
+           + ", ".join(f"{k} {v}" for k, v in sorted(design.items()) if v)
+           + ") come from a check whose count the scenario's design sets, not the code; "
+             "see its note. " if design_n else "")
+        + f"{s['door_calls']['total']} door calls, "
         f"{sum(s['door_calls']['not_ok'].values())} of them refused or failed (listed under "
         f"their findings). Checker crashes: {len(s['checker_crashes'])}.")
     add("")
@@ -137,6 +175,10 @@ def markdown(out: Path) -> str:
             if r0.get("note"):
                 add("")
                 add(f"**Note.** {r0['note']}")
+            by_design = BY_DESIGN.get(code, "")
+            if by_design:
+                add("")
+                add(f"**How many is set by the scenario.** {by_design}")
             add("")
             for r in rs[:3]:
                 add(f"- **seed {seed} · {r['first_seen']} · {r['sim_client']}**"
@@ -207,11 +249,33 @@ def markdown(out: Path) -> str:
         f"are never workable (no internal tasks), so the idle factor never ranks them.")
     dc = o.get("delivered_vs_closed_out") or {}
     add(f"- **Delivered against closed out.** {dc.get('delivered')} returns delivered, "
-        f"{dc.get('closed_out_as_filed')} closed out as filed through `cli.py close` (the only "
-        f"'filed' door, and only once `may_file` is clear). Payments the clients made that no "
-        f"door could record: {dc.get('payments_made_with_no_door')} "
-        f"({dc.get('of_which_checks')} of them checks; the rest were card payments that only "
-        f"Square could report, and the simulator may not reach Square).")
+        f"{dc.get('closed_out_as_filed')} closed out as filed through `cli.py close`. "
+        f"`close` does not ask `may_file` (its only caller in cli.py is `sign`, cli.py:1929), "
+        f"so the gate is advisory; this simulated owner chose to close out only once it was "
+        f"clear (scenario.yaml `owner.transmit_when`). Payments no door here could record: "
+        f"{dc.get('payments_made_with_no_door')} -- {dc.get('of_which_checks')} by check, "
+        f"for which no command exists, and {dc.get('of_which_cards', '?')} by card, whose door "
+        f"(Square, via `cli.py payments`) exists but is out of the simulator's reach: its "
+        f"invoices carry `--no-link` and Square is banned. So under client-documents billing "
+        f"the card payers' zero is the simulator's limit, not the product's.")
+    cp = o.get("check_payments_no_command_records") or {}
+    if cp.get("count"):
+        add(f"- **A check has no door (H13; was check L4).** {cp['count']} check payment(s) "
+            f"that no client-documents command can record ({', '.join(cp['sims'][:12])}). The "
+            f"gate's own refusal says so -- {cp['gate_says']} -- and the practice already wrote "
+            f"it down: {cp['already_recorded']}. {cp['settlement_writer']}. Reported as an "
+            f"observation, not a failure: it is a recorded decision, and counting it proved "
+            f"nothing about the code.")
+    if o.get("billed_clients_by_payment_style"):
+        add(f"- **How billed clients paid (invented, scenario.yaml `money:`).** "
+            f"{o.get('billed_clients_by_payment_style')}; what the owner could record: "
+            f"{o.get('payment_recorded')}.")
+    al = o.get("alert_thresholds") or {}
+    if al:
+        add(f"- **Two sets of alert thresholds.** {al}. The firm's policy file is loaded "
+            f"(obligations/policy.py:96-97) and read by nothing else; Today's deadline rows "
+            f"use propose.py's own defaults. They agree today, so changing the policy file "
+            f"would change nothing on Today.")
     add(f"- **Ticked with no completion record.** {o.get('tasks_done_with_no_completion_record')} "
         f"tasks toggled done through the UI carry no completion time (H9; state.py:911-919), so "
         f"the idle factor and the unbilled age never see that work.")
@@ -224,17 +288,24 @@ def markdown(out: Path) -> str:
         f"{[(k['sim'], k['lag_days']) for k in o.get('k1_dependency', [])]}. Cross-job "
         f"dependencies are modelled nowhere (docs/BRIEFING.md:212).")
     add(f"- **Facts with no door.** {o.get('facts_with_no_door')}")
+    shown = o.get("refusals_sample", [])[:6]
     add(f"- **Refused door calls.** {o.get('refused_door_calls')} (each belongs to a finding "
-        f"above or is listed here): " + "; ".join(
-            f"{r['day']} {r['sim']} {r.get('target')} -> {str(r.get('status'))}"
-            for r in o.get("refusals_sample", [])[:6]))
+        f"above or is listed here)"
+        + (f"; the first {len(shown)} of {o.get('refused_door_calls')}" if len(shown) < (
+            o.get("refused_door_calls") or 0) else "")
+        + ": " + "; ".join(f"{r['day']} {r['sim']} {r.get('target')} -> {str(r.get('status'))}"
+                           for r in shown))
     add("")
     ca = s.get("clock_audit") or []
     if ca:
-        leaks = sorted({x for a in ca for x in a["leaks"]})
+        far = sorted({x for a in ca for k, v in (a.get("leaks_by_clock") or {}).items()
+                      if k.startswith("2031") for x in v})
+        near = sorted({x for a in ca for k, v in (a.get("leaks_by_clock") or {}).items()
+                       if not k.startswith("2031") for x in v})
         add(f"- **Clock-leak audit.** {len(ca)} sample days, {len(ca[0]['reads'])} reads each, "
-            f"run under the simulated clock and again under {'2031-06-15'} with `today=` "
-            f"passed. Reads that changed: {leaks or 'none'}.")
+            f"run under the simulated clock and again under two wrong clocks with `today=` "
+            f"passed: 2031-06-15, and the same day one year later. Reads that changed under "
+            f"2031-06-15: {far or 'none'}; under a one-year skew: {near or 'none'}.")
         add("")
 
     add("## What the simulator did NOT cover")
@@ -252,7 +323,19 @@ def markdown(out: Path) -> str:
             f"{v['findings']} |")
     add("")
     add("A row with 0 in the fourth column examined nothing this seed: it neither passed nor "
-        "failed.")
+        "failed. K1 is checked on the clock-audit days only, so its days are audit days.")
+    idle = sorted((c for c, v in s["invariants"].items() if not v["examined"]),
+                  key=lambda c: (c[0], int(c[1:])))
+    add("")
+    add(f"**Examined nothing this seed:** {', '.join(idle) if idle else 'none'}.")
+    add("")
+    add("## The recon's expected failures (H1-H15)")
+    add("")
+    add("The recon brief that numbered these is not in the repository; this is its list, "
+        "so an H-number above can be followed.")
+    add("")
+    for h, what, where in HYPOTHESES:
+        add(f"- **{h}** {what} -- {where}.")
     add("")
     rl = s.get("run_level", {})
     add("## Run-level guards")

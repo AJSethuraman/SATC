@@ -25,6 +25,15 @@ import time_machine
 SENTINEL = date(2031, 6, 15)     # the clock-leak audit's "wrong" clock
 
 
+def one_year_later(d: date) -> date:
+    """The clock-leak audit's realistic wrong clock: the same day a year on
+    (28 February for a 29 February)."""
+    try:
+        return d.replace(year=d.year + 1)
+    except ValueError:
+        return d.replace(year=d.year + 1, day=28)
+
+
 def instant(d: date) -> datetime:
     return datetime(d.year, d.month, d.day, 14, 0, tzinfo=timezone.utc)
 

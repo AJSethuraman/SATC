@@ -89,6 +89,36 @@ owner:
   # set: models/evidence.py). Assumption about what a careful owner does.
   on_disengage_mark_requests_na: true
   onboarding_for_new_clients: true # new clients also get new_client_onboarding
+  # Transmitting. `cli.py close` does NOT call may_file (its only caller in
+  # cli.py is `sign`, cli.py:1929), so the gate is advisory. This owner chooses
+  # to wait until it is clear -- the letters' promise -- and that choice is an
+  # assumption, not something the code enforces.
+  transmit_when: may_file_clear
+  # What the owner types into client-documents' documents. All invented.
+  interview:
+    # The first-deliverable target promised at the interview, a DATE (the FIELDS
+    # spec asks for one; consistency.py:328-331 skips a phrase). Before this was
+    # labelled here it came silently from client-documents/exercise.py:76,94
+    # ("April 8, 2027" for every client, entities included).
+    first_deliverable_target:        # source: unsourced
+      "1040": 2027-04-08
+      "1065": 2027-03-08             # before the entity's own 15 March due date
+      "1120S": 2027-03-08
+      "1120": 2027-04-08
+  delivery_letter:
+    estimated_payments: "no"         # source: unsourced (estimates are not simulated)
+  extension_notice:
+    materials_days_before_extended: 60   # source: unsourced
+    payment_enclosed: "no"           # source: unsourced (the no-payment branch, L1)
+  disengagement_letter:
+    records_available_days: 90       # source: unsourced
+  amended:
+    deliver_after_days: 14           # from the day it is opened; source: unsourced
+    sign_after_delivery_days: 3      # source: unsourced
+  close_out:                         # what `cli.py close` is told was filed
+    filed_state_count: 1             # source: unsourced
+    filed_locality_count: 1          # source: unsourced
+    k1s_issued: {"1065": 2, "1120S": 3}  # source: unsourced
   prior_history:                   # the 2025 cycle for returning clients
     engaged: 2026-02-09
     letter_signed: 2026-02-12
@@ -96,6 +126,20 @@ owner:
     delivered: 2026-03-16
     signed_8879: 2026-03-18
     filed: 2026-03-20
+
+# HOW CLIENTS PAY, drawn from its own random stream ("<seed>/money") so adding it
+# left every other draw of the world unchanged. Only a satc_system billing seed
+# can record any of it (client-documents settles only through Square, which the
+# simulator may not reach). The invoice is issued due in 30 days
+# (doors_satc.invoice), so a late payer's bill goes past due on Today.
+money:
+  late_payer_share: 0.15           # source: unsourced
+  late_pay_lag_days: [45, 90]      # source: unsourced
+  never_pays_share: 0.05           # source: unsourced
+  part_payer_share: 0.10           # source: unsourced: pays part on time, the rest late
+  part_first_fraction: 0.5         # source: unsourced
+  overpayer_share: 0.05            # source: unsourced
+  overpay_amount: "25.00"          # source: unsourced
 
 # Which billing door the owner uses. `auto` alternates by seed parity:
 # even seeds bill in satc_system, odd seeds in client-documents. The brief asks

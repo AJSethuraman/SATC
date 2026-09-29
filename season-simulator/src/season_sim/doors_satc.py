@@ -13,7 +13,10 @@ from __future__ import annotations
 
 import html
 import re
+from contextlib import contextmanager
 from dataclasses import dataclass, field
+
+from season_sim import guard
 
 CLIENT_ID = re.compile(r"SATC-\d+")
 JOB_ID = re.compile(r"/engagements/(engagement-[0-9a-f]+)")
@@ -37,13 +40,25 @@ class Call:
                 "status": self.status}
 
 
+@contextmanager
+def _no_banned_call(what: str):
+    """A route that reached a banned door ends the run, even if Flask turned the
+    refusal into a 500 page: the count is taken at the ban (guard.py)."""
+    before = len(guard.BANNED_ATTEMPTS)
+    yield
+    if len(guard.BANNED_ATTEMPTS) > before:
+        raise guard.SimRefused(f"{what} tried a banned door: {guard.BANNED_ATTEMPTS[before:]}")
+
+
 class SatcDoors:
     def __init__(self, app, log: list):
+        self.app = app
         self.c = app.test_client()
         self.log = log
 
     def _post(self, url: str, data: dict) -> tuple[Call, object]:
-        r = self.c.post(url, data=data)
+        with _no_banned_call(f"POST {url}"):
+            r = self.c.post(url, data=data)
         said = r.headers.get("Location") or ""
         if r.status_code != 302:
             # A refusal is rendered on the page it happened on (class="flag").
@@ -55,10 +70,31 @@ class SatcDoors:
         return call, r
 
     def get(self, url: str) -> tuple[Call, str]:
-        r = self.c.get(url)
+        with _no_banned_call(f"GET {url}"):
+            r = self.c.get(url)
         call = Call("http", f"GET {url}", {}, r.status_code)
         body = r.get_data(as_text=True)
         return call, body
+
+    def rendered(self, url: str) -> tuple[Call, str, dict]:
+        """GET a page and keep what the ROUTE handed its template.
+
+        The checks read this, not a copy of the route's arguments: if the route
+        changes what it passes to the engine, the check sees the change. Flask's
+        `template_rendered` signal carries the exact context `render_template`
+        was called with (the queue object /today built, the board /work built,
+        the StageView a job page derived)."""
+        from flask import template_rendered
+        seen: list[dict] = []
+
+        def keep(_app, template, context, **_extra):
+            seen.append(dict(context))
+        template_rendered.connect(keep, self.app)
+        try:
+            call, body = self.get(url)
+        finally:
+            template_rendered.disconnect(keep, self.app)
+        return call, body, (seen[0] if seen else {})
 
     # -- owner acts -------------------------------------------------------
     def quick_add(self, *, name: str, entity_type: str, email: str,
@@ -159,14 +195,16 @@ class SatcDoors:
         return call
 
     # -- screens ----------------------------------------------------------
-    def today_ids(self) -> tuple[Call, list[str], str]:
-        call, body = self.get("/today")
-        return call, ACTION_ID.findall(body), body
+    def today(self) -> tuple[Call, list[str], dict]:
+        """/today: the action ids in page order, and what the route rendered."""
+        call, body, ctx = self.rendered("/today")
+        return call, ACTION_ID.findall(body), ctx
 
-    def work_ids(self) -> tuple[Call, list[str], str]:
-        call, body = self.get("/work")
+    def work(self) -> tuple[Call, list[str], dict]:
+        """/work: the job ids in page order, and what the route rendered."""
+        call, body, ctx = self.rendered("/work")
         seen: list[str] = []
         for j in WORK_JOB.findall(body):
             if j not in seen:
                 seen.append(j)
-        return call, seen, body
+        return call, seen, ctx
