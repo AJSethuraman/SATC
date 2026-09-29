@@ -1036,6 +1036,17 @@ muts = [
  # the tie-out of 28 Sep 2026: a pocket with too few losses given a p-value and counted in the allowance
  ("an untested pocket counted in the allowance", E, '            if hi == "worse" and s.events < bench.min_events:\n                s.p_book = s.p_band = None',
   '            if False:\n                s.p_book = s.p_band = None', "not_counted_in_the_allowance"),
+ # the public-data rehearsal, 29 Sep 2026: a category limit off the launcher's list written where only a listed
+ # option is read
+ ("a limit off the list written as a pick", CO,
+  '                r[OWN_COL - 1].value = None if listed[key] is not None else getattr(got, key)',
+  '                r[OWN_COL - 1].value = None\n                if listed[key] is None:\n'
+  '                    r[CHOOSE_COL - 1].value = getattr(got, key)', "off_the_launchers_list"),
+ # and the conditional likelihood multiplying out every coefficient, exact zeros and all (191 s a pocket)
+ ("the coefficient at m paired the wrong way round", KG, '    return float(np.dot(a[lo: hi + 1], b[s - hi: s - lo + 1][::-1]))',
+  '    return float(np.dot(a[lo: hi + 1], b[s - hi: s - lo + 1]))', "conditional_likelihood_is_unchanged"),
+ ("every coefficient multiplied out again", KG, '        o, pmf = _trim(0, np.exp(logpmf))',
+  '        o, pmf = 0, np.exp(logpmf)', "sba_stratum_takes_seconds"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

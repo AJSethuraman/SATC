@@ -53,3 +53,81 @@ def test_a_listed_limit_is_still_picked_from_the_list(tmp_path):
     assert ws.cell(row=row["few_values"], column=control.CHOOSE_COL).value == "24 values"
     assert ws.cell(row=row["many_values"], column=control.CHOOSE_COL).value == "100 values"
     assert ws.cell(row=row["many_values"], column=control.OWN_COL).value is None
+
+
+# --------------------------------------------------------------------------
+# 2. The confirmatory test's conditional likelihood took minutes per pocket at SBA scale: kgroups.pocket_terms
+#    multiplied every group's polynomial in full with np.convolve, though almost every coefficient of a tilted
+#    binomial is exactly 0.0 (it underflows) and only the coefficient at m is ever read. One evaluation of a
+#    pocket of 217,800 loans took 191 s; the pre-registered test on the FOIA file was stopped after 10 minutes
+#    inside its first fit. Now each polynomial carries only its nonzero coefficients, and a coefficient that is
+#    read once is one dot product: the same sums, without the zeros.
+
+import math
+import time
+
+import numpy as np
+
+from pocketbook import kgroups
+
+
+def _old_pocket_terms(p, b):
+    """kgroups.pocket_terms as it was before 29 Sep 2026, kept here as the reference the new one must equal."""
+    K = len(p.loans)
+    R = p.loans.astype(int)
+    m = int(round(p.m))
+    lam = kgroups._tilt(p.loans, b, m)
+    mul = lambda a, c: np.convolve(a, c)[: m + 1]
+
+    def prod(ps):
+        out = np.ones(1)
+        for q in ps:
+            out = mul(out, q)
+        return out
+    coef = lambda poly: float(poly[m]) if m < len(poly) else 0.0
+    f, g, h = [], [], []
+    for k in range(K):
+        top = min(R[k], m)
+        j = np.arange(top + 1, dtype=float)
+        x = b[k] + lam
+        log1p = math.log1p(math.exp(-abs(x))) + max(x, 0.0)
+        pmf = np.exp(kgroups._log_choose(R[k], top) + j * x - R[k] * log1p)
+        f.append(pmf), g.append(j * pmf), h.append(j * j * pmf)
+    B = coef(prod(f))
+    logD = math.log(B) + sum(float(R[k]) * (math.log1p(math.exp(-abs(b[k] + lam))) + max(b[k] + lam, 0.0))
+                             for k in range(K)) - m * lam
+    ll = float((p.bad * b).sum()) - logD
+    others = [prod([f[l] for l in range(K) if l != k]) for k in range(K)]
+    E = np.array([coef(mul(g[k], others[k])) / B for k in range(K)])
+    cov = np.zeros((K, K))
+    for k in range(K):
+        cov[k, k] = coef(mul(h[k], others[k])) / B - E[k] ** 2
+        for l in range(k + 1, K):
+            rest = prod([f[q] for q in range(K) if q not in (k, l)])
+            cov[k, l] = cov[l, k] = coef(mul(mul(g[k], g[l]), rest)) / B - E[k] * E[l]
+    return ll, p.bad - E, -cov
+
+
+def _pockets():
+    yield kgroups.Pocket([4000, 4100, 3900, 4000, 3800], [800, 820, 700, 560, 460])
+    yield kgroups.Pocket([12, 3000, 7, 2500], [1, 400, 7, 300])              # a group with every loan bad
+    yield kgroups.Pocket([50, 60, 0, 40], [0, 10, 0, 5])                     # an empty group, one with none bad
+    yield kgroups.Pocket([9000, 200], [1500, 190])
+
+
+def test_the_conditional_likelihood_is_unchanged(tmp_path):
+    for p in _pockets():
+        for b in (np.zeros(len(p.loans)), np.linspace(-0.4, 0.5, len(p.loans))):
+            new, old = kgroups.pocket_terms(p, b), _old_pocket_terms(p, b)
+            assert math.isclose(new[0], old[0], rel_tol=1e-12, abs_tol=1e-9), (new[0], old[0])
+            assert np.allclose(new[1], old[1], rtol=1e-10, atol=1e-8), (new[1], old[1])
+            assert np.allclose(new[2], old[2], rtol=1e-9, atol=1e-7), (new[2], old[2])
+
+
+def test_a_pocket_the_size_of_an_sba_stratum_takes_seconds_not_minutes():
+    loans = np.array([44000, 44000, 44000, 44000, 41800])
+    p = kgroups.Pocket(loans, np.round(loans * np.array([.2, .2, .18, .14, .12])))
+    t = time.perf_counter()
+    kgroups.pocket_terms(p, np.zeros(5))
+    took = time.perf_counter() - t
+    assert took < 20, f"{took:.1f} s for one evaluation (it was 191 s)"
