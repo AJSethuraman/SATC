@@ -2253,6 +2253,14 @@ changed in the code.
    workbook is made. **Recommended:** nothing pre-picked for the required columns. Offer every column that
    could be one, the likely one first with its reason, and ask for an explicit yes that names the column
    and what counts as bad (*"BAD_FLAG = 1 is a bad loan: use this as the outcome?"*). Drop `co` as a hint.
+   **The bank's file, 29 Sep:** it picked *% orig commitments* over a column named *EVER GCO*. The firm: *"It
+   picked like % orig commitments for some reason. There is literally a column called EVER GCO."* Why: names
+   are matched as fragments after spaces and symbols are stripped, and `origcommitments` contains both `co` and
+   `gco` (ori-gco-mmitments), so it matched as well as EVER GCO; a tie goes to the name that sorts first, and
+   "%" sorts before "E"; a percent column holding 0 and 1 (0% and 100%) passes the outcome's 0-or-1 test. EVER
+   GCO would also be ruled out if it holds Y/N rather than 0/1: the outcome test takes numbers only (not
+   checked; the file stayed at the bank). So beyond the recommendation above: match whole words, not fragments;
+   never break a tie silently; accept Y/N as an outcome.
 7. **A verdict on a shuffled p-value near 5%** can fall either way with another seed (the full tie-out, *What
    it found* item 1). Either flag those "could fall either way", or shuffle more. **Recommended:** flag them.
 
