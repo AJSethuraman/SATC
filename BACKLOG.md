@@ -2204,7 +2204,27 @@ back.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
-### Held for the firm's final decision (raised 29 Sep 2026; nothing built)
+### Held for the firm's final decision (raised 29 Sep 2026)
+
+**Items 2 to 6 built the same day.** The firm: *"In order to correctly test this I guess these things need to be
+fixed now so go ahead fix the changes"*. Items 1 and 7 stay open: neither stops a test at the bank. What was built:
+- **2:** the two limits read *Number columns: ... more is cut into bands* and *Text columns: ... (text is never cut
+  into bands)*, in the launcher and on Control.
+- **3:** a tick repaints its own boxes, the outcome line and the summary in place; the table keeps its scroll.
+- **4:** *All · None* under Test it (new variable only; All leaves Hold fixed as it is; a saved shortlist locks it).
+- **5:** the window opens at the screen's size (1180 x 628 on a 1366 x 768 laptop, up to 1180 x 860), the table
+  takes the height left and scrolls only when it must, and the word columns take the spare width.
+- **6:** nothing is picked as the outcome, in either run kind. An *Outcome* list above the table (and the Outcome
+  column in Test new variables) offers every column of 0s and 1s, each described by what it holds (*Yes/no · 1 on
+  10.1% of loans*), never as a guess. Picking one asks first: *"Use EVER GCO as the outcome? 1 means the loan went
+  bad: 304 loans (10.1%). 0 means it didn't: 2,696. Nothing else."* Next stays off until one is confirmed. Set up
+  marks the pick on Columns and any other column marked the outcome goes back to a category. Names are read as
+  words (`meanings.words`): a two-letter hint must be a whole word, three to five must begin or end one; `gco` and
+  `ever` added to the outcome's hints; a tie for the outcome, or an outcome only its values suggest, is left to
+  the analyst. A saved shortlist's outcome is asked about too.
+- Tests: `tests/test_firm_answers_2026_09_29.py` (10; 1 needs a display); 6 existing tests changed to pick and
+  confirm the outcome. Planted bugs: 12 added to `tools/mutation_check.py`.
+- Not redone: the procedure's and the checklist's pictures of Choose tests show the old screen.
 
 The firm, 29 Sep 2026: *"make sure you're noting all of these so that we can go over them later for final
 decision."* Each item: what is true now, what would change it, and the recommendation. Nothing below has been

@@ -590,6 +590,7 @@ def test_the_launcher_offers_scikit_learn_only_where_finding_needs_it(tmp_path, 
                                     "confidence": 0.95, "holdout": {"from": "2025-01-01", "to": "2026-12-31"},
                                     "development": {"from": "2020-01-01", "to": "2024-12-31"}}), encoding="utf-8")
     flow.pick_shortlist(str(spec))
+    flow.answer_outcome(True)                                 # the file's outcome, confirmed by the analyst
     ok, _ = flow.summary()
     assert ok and flow.states()["install_optional"] == "disabled"
     # the bleed never asks for it

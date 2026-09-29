@@ -105,7 +105,7 @@ groups:
     settings:
       - key: few_values
         asked_in: launcher
-        question: A number column with this many values or fewer is a category
+        question: "Number columns: this many values or fewer is a category; more is cut into bands"
         takes_effect: re-run
         override: whole number of values
         valid: {min: 2, max: 100, whole: true}
@@ -125,7 +125,7 @@ groups:
 
       - key: many_values
         asked_in: launcher
-        question: A text column with more values than this is too fine to cut by
+        question: "Text columns: more values than this is too many to cut by (text is never cut into bands)"
         takes_effect: re-run
         override: whole number of values
         valid: {min: 2, max: 1000, whole: true}
@@ -450,7 +450,7 @@ meanings:
      required: true, hints: [booked, book, origamt, loanamt, amount, principal, bal], test: "positive"}
   - {means: outcome, label: "Outcome (yes/no)",
      says: "the yes/no outcome: charged off, ever delinquent, decided by the system", cut: none,
-     required: true, hints: [chargedoff, chargeoff, co, bad, default, delinq, flag], test: "binary"}
+     required: true, hints: [chargedoff, chargeoff, co, bad, default, delinq, gco, ever, flag], test: "binary"}
   - {means: gco, label: "GCO dollars",
      says: "gross charge-off dollars", cut: none,
      required: true, hints: [gco, grosschargeoff, chargeoffamt, coamt], test: "mostly_zero"}
