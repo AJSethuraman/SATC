@@ -983,8 +983,11 @@ def _found_block(ws, wb, r: int) -> int:
     m, title = _found_value(wb, "measure"), _found_value(wb, "measure_title")
     crit = f'pk_kind,"grids",pk_measure,"{m}",pk_flag,"{engine.WORSE}",pk_material,"yes"'
     dollar = m != "outcome_loans"
+    # Borderline (the firm, 29 Sep 2026): how many of them turn on a shuffled p-value that near the bar
+    bl = f'COUNTIFS({crit},pk_wborder,"?*")'
     tiles = [(f"Pockets worse and material, {title}",
-              f'=IFERROR(COUNTIFS({crit})&" of {_found_value(wb, "pockets"):,}","")'),
+              f'=IFERROR(COUNTIFS({crit})&" of {_found_value(wb, "pockets"):,}"&IF({bl}>0," · "&{bl}&" borderline",'
+              f'""),"")'),
              (f"{'Dollars' if dollar else 'Bad loans'} above their share, in those",
               f'=IFERROR(SUMIFS(pk_dollars,{crit}),"")')]
     profit = _found_value(wb, "profit")
@@ -1015,7 +1018,11 @@ def _found_block(ws, wb, r: int) -> int:
             got = lambda c: f"INDEX({F(c)},{idx})"                                 # noqa: E731
             P = lambda c: f"INDEX('{live.POCKETS}'!${live.col(c)}:${live.col(c)},{got(TOP_PROW)})"   # noqa: E731
             none = '"No pocket is worse and material."' if k == 1 else '""'
-            vals = [f'=IF({idx}="",{none},{got(TOP_BAND)})', f'=IF({idx}="","",{got(TOP_SEG)})',
+            # the pocket, and " · borderline (p 0.048)" when its Worse? is (the firm, 29 Sep 2026), as Record's
+            # "Worst for" line says it: no Worse? column, since every row listed is worse (tenet T2)
+            wb_ = P(live.P_WBTXT)
+            seg = live.said_formula(got(TOP_SEG), wb_)
+            vals = [f'=IF({idx}="",{none},{got(TOP_BAND)})', f'=IF({idx}="","",{seg})',
                     f'=IF({idx}="","",{got(TOP_LOANS)})',
                     f'=IF({idx}="","",IF({P(live.P_GAP)}="","",{P(live.P_GAP)}))',
                     f'=IF({idx}="","",IF({P(live.P_DOLLARS)}="","",{P(live.P_DOLLARS)}))']
@@ -1961,13 +1968,14 @@ def _headline(res, wb) -> dict:
     lost above their share, the tie-outs, and every odd value still unanswered."""
     rates = [m for m in res.measures if m.is_rate]
     m = next((x for x in rates if x.name == "gco_rate"), rates[0] if rates else None)
-    worse, pockets = [], 0
+    worse, pockets, borderline = [], 0, 0
     for g in res.grids if m is not None else ():
         for _, c in g.inner():
             pockets += 1
             s = c.rates[m.name]
             if s.flag == engine.WORSE and s.material is not False and s.dollars and s.dollars > 0:
                 worse.append(s.dollars)
+                borderline += s.worse_borderline is not None
     open_qs = []
     if "Columns" in wb.sheetnames:
         name = None
@@ -1984,7 +1992,7 @@ def _headline(res, wb) -> dict:
         return {**confirmatory.headline(res), "open": open_qs}      # the confirmation's tiles (OC-42)
     return {"measure": m.title if m is not None else None, "gco": m is not None and m.name == "gco_rate",
             "worse": len(worse), "pockets": pockets, "dollars": sum(worse), "tie_outs": res.tie_outs,
-            "open": open_qs}
+            "borderline": borderline, "open": open_qs}
 
 
 def _edges_outside(wb, raw: dict, cfg, table) -> list[str]:
@@ -2093,7 +2101,8 @@ def _top_lines(res) -> list[str]:
                 # the dollars of the comparison that decides the flag (the firm, 26 Sep 2026)
                 if s.dollars and s.dollars > 0 and s.flag == engine.WORSE and s.material is not False:
                     if best is None or s.dollars > best[0]:
-                        best = (s.dollars, f"{names[g.band]} {b} / {names[g.dimension]} {d}")
+                        best = (s.dollars, live.flagged(f"{names[g.band]} {b} / {names[g.dimension]} {d}",
+                                                        s.worse_borderline))
         tested = any(c.rates[m.name].reading_topline not in (engine.THIN, engine.FEW, None)
                      for g in res.grids for _, c in g.inner())
         if best:
@@ -2619,6 +2628,14 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
             material = live.count_formula(m.name, [(live.P_FLAG, f'"{engine.WORSE}"'), (live.P_MATERIAL, '"yes"')])
             rows.append((f"Worse now: {title(m)}", f'={worse}&" of {n:,} pockets on the grids read worse; "&'
                                                    f'{material}&" of them are material."'))
+        for m in res.measures:
+            if not m.is_rate or engine.yes_no(m) or not res.config.benchmark.shuffles:
+                continue            # only a shuffled p-value can be borderline (docs/statistics.md B2a)
+            n = sum(1 for g in res.grids for _ in g.inner())
+            said = live.count_formula(m.name, [(live.P_BTXT, '"?*"')])
+            worse = live.count_formula(m.name, [(live.P_WBTXT, '"?*"')])
+            rows.append((f"Borderline now: {title(m)}", f'={said}&" of {n:,} pockets on the grids have a borderline '
+                                                        f'verdict ("&{worse}&" on Worse?)."'))
     rows += _origination_rows(res) + _column_rows(res)
     for m in res.measures:
         lo = res.left_out.get(m.name)
@@ -2715,6 +2732,15 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                                           "after the allowance for many tests. Below ",
                                           ('TEXT(significance_bar,"0%")',), " is significant, at ",
                                           ('TEXT(confidence,"0%")',), " sure. Two-sided: a gap either way counts.")))
+        if dollar_rates:
+            rows.append(("Borderline", live.text(
+                "A verdict is borderline when the p-value that decides it came from shuffling and sits within "
+                f"{stats.BORDERLINE_SE:g} of its own standard errors of the ", ('TEXT(significance_bar,"0%")',),
+                " bar, either side, so another run of the shuffles could read it the other way. The standard error "
+                "is the square root of p (1 - p) / shuffles, times what the allowance for many tests multiplied "
+                "the p-value by. The tabs add \"borderline (p 0.048)\" to the verdict; its colour, order and "
+                "counts stay the verdict's. The z test and the exact test give the same p-value on every run, so "
+                "they are never borderline.")))
         rows.append(("Standard error", live.text("How far a rate worked out from this many loans typically lands "
                                                  "from its true value. A gap of ",
                                                  ('TEXT(NORMSINV(1-(1-confidence)/2),"0.00")',),

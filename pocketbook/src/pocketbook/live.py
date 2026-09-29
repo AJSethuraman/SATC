@@ -59,6 +59,12 @@ IN_USE = "in_use_words"
 # the redesign's phase 3: the pocket's own rate (a value), and its two verdicts as the result tabs print them,
 # Worse? and Material?, separate columns (the firm, 26 Sep 2026)
 P_RATE, P_WORSE, P_MAT = 34, 35, 36
+# Borderline (the firm, 29 Sep 2026: "Net drain · borderline (p 0.048)"; docs/statistics.md B2a): each comparison's
+# shuffle standard error after the allowance (values; blank for a test that isn't shuffled), the p-value in words
+# when the flag turns on it and it is that near the bar, the same for Worse?, and Worse? as the tabs print it
+P_SE_BOOK, P_SE_BAND, P_BTXT, P_WBTXT, P_WORSE_SAID = 37, 38, 39, 40, 41
+#: what joins a verdict and its flag: "Yes · borderline (p 0.048)"
+JOIN = " · "
 #: Worse? in words: the flag that decides, as Yes / Not sure / No / Too few losses
 YES, NOT_SURE, NO, TOO_FEW = "Yes", "Not sure", "No", "Too few losses"
 POCKET_HEADS = {
@@ -76,6 +82,11 @@ POCKET_HEADS = {
     P_P: "p-value that decides", P_SAID: "Flag as the tabs print it", P_TEST: "Test, as printed",
     P_REST: "Rest's rate that decides", P_OTHER: "The other dollars, for reference",
     P_RATE: "This pocket's rate", P_WORSE: "Worse?", P_MAT: "Material?",
+    P_SE_BOOK: "Shuffle's standard error of the p-value vs book, after the allowance",
+    P_SE_BAND: "Shuffle's standard error of the p-value vs band, after the allowance",
+    P_BTXT: "Borderline: the p-value that decides, when the flag turns on it and it is within 2 standard errors of "
+            "the bar",
+    P_WBTXT: "Borderline, for Worse?", P_WORSE_SAID: "Worse? as the tabs print it",
 }
 P_FIRST = 4               # the first pocket row on _pockets
 
@@ -459,6 +470,49 @@ def literal(word: str, gap: str, p: str, dollars: str, by_band: str) -> str:
     return f'IF({word}="","",IF({word}={q(engine.IN_LINE)},{inside},{past}))'
 
 
+def p_text(p: str) -> str:
+    """stats.p_text as a formula: three decimals, or four where three would round the p-value onto the bar."""
+    return f'IF(ROUND({p},3)=ROUND({BAR},3),TEXT({p},"0.0000"),TEXT({p},"0.000"))'
+
+
+def turns(f: str, gap: str, profit: bool, worse_only: bool = False) -> str:
+    """engine.p_decides (worse_only: engine.worse_turns) as a formula: whether the flag's word turns on its
+    p-value."""
+    words = (engine.WORSE, engine.UNSURE_WORSE) if worse_only else (engine.WORSE, engine.BETTER,
+                                                                      engine.UNSURE_WORSE, engine.UNSURE_BETTER)
+    out = [f"{f}={q(w)}" for w in words]
+    if profit:
+        out.append(f'AND(profit_kind="test",{f}={q(engine.IN_LINE)},ISNUMBER({gap}),'
+                   f'{gap}{"<" if worse_only else "<>"}0)')
+    return f"OR({','.join(out)})"
+
+
+def border_text(f: str, gap: str, p: str, se: str, profit: bool, worse_only: bool = False) -> str:
+    """The p-value in words when the flag is borderline (stats.borderline: a shuffled p-value within
+    BORDERLINE_SE of its own standard errors of the bar, either side, and the flag's word turns on it), else
+    blank."""
+    near = f"ABS({p}-{BAR})<={stats.BORDERLINE_SE!r}*{se}"
+    return (f'IF(AND(ISNUMBER({p}),ISNUMBER({se})),IF(AND({near},{turns(f, gap, profit, worse_only)}),'
+            f'{p_text(p)},""),"")')
+
+
+def flagged(word: str | None, border: str | None) -> str | None:
+    """A verdict as the tabs print it, in Python: "Yes · borderline (p 0.048)" with its borderline words, else the
+    word alone."""
+    return f"{word}{JOIN}{border}" if word and border else word
+
+
+def said_formula(word: str, ptext: str) -> str:
+    """flagged as a formula: the verdict, and " · borderline (p 0.048)" when `ptext` (a P_BTXT-style cell) holds
+    the p-value."""
+    return f'IF(OR({word}="",{ptext}=""),{word},{word}&{q(JOIN + "borderline (p ")}&{ptext}&")")'
+
+
+def base_word(cell: str) -> str:
+    """A printed verdict without its borderline words, for a colour rule that compares the word itself."""
+    return f'IFERROR(LEFT({cell},FIND({q(JOIN)},{cell})-1),{cell})'
+
+
 def worse_words(f: str) -> str:
     """Worse? as the result tabs print it, from the flag that decides: Yes (worse, and significant), Not sure
     (worse, not significant), Too few losses (not tested), No (anything else), blank for no reading."""
@@ -476,9 +530,9 @@ def worse_of(flag: str | None) -> str:
 def _write_pockets(wb, res, lv: Live) -> None:
     ws = wb.create_sheet(POCKETS)
     ws.sheet_state = "hidden"
-    ws["A1"] = ("Every pocket's numbers from the last Run (columns A to U), and the formulas that read them with the "
-                "lines on Control (V onwards). The result tabs point here, so one set of formulas decides for "
-                "every tab.")
+    ws["A1"] = ("Every pocket's numbers from the last Run (columns A to U, AH, AK and AL), and the formulas that read "
+                "them with the lines on Control (the rest). The result tabs point here, so one set of formulas "
+                "decides for every tab.")
     ws["A1"].font = Font(bold=True)
     ws["A2"] = ("A p-value doesn't depend on the confidence level: the lines only decide what it is compared with. "
                 "The gaps, p-values and dollars are as of the last Run; change band edges, segments, the floors or "
@@ -555,6 +609,14 @@ def _write_pockets(wb, res, lv: Live) -> None:
                         f'=IF({R(P_BY_BAND)},IF({R(P_EX_BOOK)}="","",{R(P_EX_BOOK)}),'
                         f'IF({R(P_EX_BAND)}="","",{R(P_EX_BAND)}))'))
                     ws.cell(row=r, column=P_WORSE, value=f"={worse_words(R(P_FLAG))}")
+                    # Borderline (docs/statistics.md B2a): the standard errors are the Run's, the bar is Control's
+                    ws.cell(row=r, column=P_SE_BOOK, value=s.se_book)
+                    ws.cell(row=r, column=P_SE_BAND, value=s.se_band)
+                    se = pick(P_SE_BAND, P_SE_BOOK)
+                    for cc, only in ((P_BTXT, False), (P_WBTXT, True)):
+                        ws.cell(row=r, column=cc, value="=" + border_text(R(P_FLAG), R(P_GAP), R(P_P), se,
+                                                                           m.in_points, only))
+                    ws.cell(row=r, column=P_WORSE_SAID, value="=" + said_formula(R(P_WORSE), R(P_WBTXT)))
                     ws.cell(row=r, column=P_MAT, value=(
                         f'=IF({R(P_MATERIAL)}="yes",{q(YES)},IF({R(P_MATERIAL)}="","",{q(NO)}))'))
                     lv.rows[(kind, id(g), bl, dl, m.name)] = r
@@ -572,7 +634,8 @@ def count_formula(measure: str, criteria: list[tuple[int, str]], kind: str = "gr
 
 #: the whole-column names over _pockets, for formulas on other tabs
 PK_NAMES = {"pk_kind": P_KIND, "pk_measure": P_MEASURE, "pk_dollars": P_DOLLARS, "pk_flag": P_FLAG,
-            "pk_material": P_MATERIAL, "pk_worse": P_WORSE, "pk_mat": P_MAT}
+            "pk_material": P_MATERIAL, "pk_worse": P_WORSE, "pk_mat": P_MAT, "pk_border": P_BTXT,
+            "pk_wborder": P_WBTXT}
 
 
 def pockets_range(c: int) -> str:

@@ -835,7 +835,10 @@ def finished_tiles(h: dict) -> tuple:
     gco = h.get("gco")
     worse = h.get("worse", 0)
     what = "charge-offs" if gco else (h.get("measure") or "the outcome").lower()
-    return (("Pockets worse and material", f"{worse:,}", f"{what}, of {h.get('pockets', 0):,}", "KEY_RED", "INK"),
+    # Borderline (the firm, 29 Sep 2026): how many of them turn on a shuffled p-value that near the bar
+    near = h.get("borderline", 0)
+    return (("Pockets worse and material", f"{worse:,}", f"{what}, of {h.get('pockets', 0):,}"
+             + (f" · {near:,} borderline" if near else ""), "KEY_RED", "INK"),
             ("Charge-offs above their share" if gco else "Losses above their share",
              _money(h.get("dollars", 0)) if gco else f"{h.get('dollars', 0):,.1f}",
              f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"))

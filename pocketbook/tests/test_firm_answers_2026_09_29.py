@@ -1171,3 +1171,327 @@ def test_grids_loan_size_is_not_offered_without_a_booked_amount(tmp_path):
         heads = {ch_.cell(row=1, column=j).value: j for j in range(1, ch_.max_column + 1)}
         opts = [ch_.cell(row=i, column=heads["Grids: Measure"]).value for i in range(2, ch_.max_row + 1)]
         assert (results.SIZE_NAME in opts) == offered
+
+
+# ---- Borderline: a verdict whose shuffled p-value sits near the bar
+# BACKLOG §6d item 7: "A verdict on a shuffled p-value near 5% can fall either way with another seed ... Recommended:
+# flag them." The firm, 29 Sep 2026, by pop-up: "I don't like 'could fall either way' but flag it somehow", and chose
+# "Borderline": "Net drain · borderline (p 0.048)". The tie-out of the same day found a shuffled p-value 3.5 standard
+# errors from where a million shuffles put it. The rule (docs/statistics.md B2a): the p-value that decides the verdict,
+# after the allowance, came from shuffling and sits within 2 of its own standard errors of the bar, either side; the
+# standard error is sqrt(p (1 - p) / shuffles), times what the allowance multiplied the p-value by. A z test's or an
+# exact test's p-value is the same on every run, so it is never borderline.
+
+UNDER, OVER, FAR, NEAR_Z, TINY = 0.048, 0.052, 0.3, 0.049, 0.001
+
+
+def test_borderline_is_two_of_the_shuffles_own_standard_errors_either_side_of_the_bar():
+    import math
+    from pocketbook import stats
+    assert stats.BORDERLINE_SE == 2
+    assert stats.shuffle_se(0.05, 10_000) == pytest.approx(math.sqrt(0.05 * 0.95 / 10_000))       # 0.00218
+    assert stats.shuffle_se(0.05, None) is None and stats.shuffle_se(None, 2_000) is None
+    se = lambda p: stats.shuffle_se(p, 2_000)                                                 # noqa: E731
+    # both sides of the bar, a pass and a fail alike
+    assert stats.borderline(UNDER, se(UNDER), 0.95) and stats.borderline(OVER, se(OVER), 0.95)
+    # the edge: 1.5 standard errors in, 2.5 out, either side
+    s05 = se(0.05)
+    for k, want in ((1.5, True), (2.5, False)):
+        for p in (0.05 - k * s05, 0.05 + k * s05):
+            assert stats.borderline(p, se(p), 0.95) is want, (k, p)
+    # far from the bar, or with no standard error (a z or exact test), never
+    assert not stats.borderline(FAR, se(FAR), 0.95) and not stats.borderline(TINY, se(TINY), 0.95)
+    assert not stats.borderline(NEAR_Z, None, 0.95)
+    # at 10,000 shuffles the margin is narrower: 0.048 is 0.9 standard errors from 5%, 0.045 is 2.4
+    assert stats.borderline(0.048, stats.shuffle_se(0.048, 10_000), 0.95)
+    assert not stats.borderline(0.045, stats.shuffle_se(0.045, 10_000), 0.95)
+    # the bar follows the confidence: 0.098 is borderline at 90%, not at 95%
+    assert stats.borderline(0.098, se(0.098), 0.90) and not stats.borderline(0.098, se(0.098), 0.95)
+    assert stats.borderline_words(UNDER, 0.95) == "borderline (p 0.048)"
+    assert stats.p_text(0.0496, 0.95) == "0.0496"          # three decimals would print it on the bar, 0.050
+    # docs/statistics.md B2a's worked example
+    se10 = lambda p: stats.shuffle_se(p, 10_000)                                              # noqa: E731
+    assert round((0.05 - 0.048) / se10(0.048), 1) == 0.9 and round((0.05 - 0.045) / se10(0.045), 1) == 2.4
+    assert round(se10(0.0048) * 20 / 2, 4) == 0.0069
+
+
+def test_borderline_standard_error_follows_the_allowance_that_set_the_p_value():
+    """The tie-out of 29 Sep 2026: one pocket's raw p set 21 others' through Benjamini-Hochberg. The standard error
+    is the one of the raw p-value that sets each adjusted one, times the same m / j."""
+    from pocketbook import engine
+    a, b, c = 0.001, 0.002, 0.003
+    # every adjusted p is 0.03, set by the third (0.03 x 3 / 3): so is every standard error, at x 1
+    assert engine.adjust([0.01, 0.02, 0.03], "bh") == pytest.approx([0.03] * 3)
+    assert engine.adjust_se([0.01, 0.02, 0.03], [a, b, c], "bh") == pytest.approx([c, c, c])
+    # 0.01 sets its own (0.01 x 2 / 1 = 0.02): its error x 2; 0.5 sets its own at x 1
+    assert engine.adjust_se([0.01, 0.5], [a, b], "bh") == pytest.approx([2 * a, b])
+    assert engine.adjust_se([0.01, 0.2], [a, b], "bonferroni") == pytest.approx([2 * a, 2 * b])
+    # capped at 1, nowhere near the bar: no standard error, so never borderline
+    assert engine.adjust_se([0.01, 0.6], [a, b], "bonferroni")[1] is None
+    assert engine.adjust_se([0.7, 0.8], [a, b], "bh") == pytest.approx([b, b])       # both set by 0.8, x 1
+    assert engine.adjust_se([0.9, 1.0], [a, b], "bh") == [None, None]                # capped at 1
+    assert engine.adjust_se([0.01, None, 0.02], [a, None, b], "none") == [a, None, b]
+    # a p-value set by one that wasn't shuffled has none
+    assert engine.adjust_se([0.01, 0.02], [a, None], "bh") == [None, None]
+
+
+def _plant(real):
+    """engine._shuffle_tests, then every tested pocket's p-value in two grids planted (both comparisons), so each
+    grid's family is equal p-values and the allowance leaves them as they are: FICO x CHANNEL's charge-offs just
+    under the bar and what it kept far under it, with Bad loans' z and exact tests at 0.049; FICO x ASSET_CLASS's
+    charge-offs just over the bar and what it kept far over it. The split's halves of FICO x CHANNEL: charge-offs
+    just under, and the pooled figure just over."""
+
+    def planted(config, measures, per_row, n, built, halved):
+        real(config, measures, per_row, n, built, halved)
+        two = {g.dimension.lower(): g for g, _, _ in halved}
+        want = [(two["channel"], {"gco_rate": UNDER, "ranr_rate": TINY, "outcome_loans": NEAR_Z}),
+                (two["asset_class"], {"gco_rate": OVER, "ranr_rate": FAR})]
+        for g, ps in want:
+            for _, c in g.inner():
+                for m, p in ps.items():
+                    s = c.rates[m]
+                    if s.p_book is not None:
+                        s.p_book = p
+                    if s.p_band is not None:
+                        s.p_band = p
+        g = two["channel"]
+        for got in g.split_compare.values():
+            x = got.get("gco_rate")
+            if x is not None and x[1] is not None:
+                got["gco_rate"] = (x[0], UNDER, x[2], x[3])
+        if g.split_pooled.get("gco_rate", {}).get("ratio_p") is not None:
+            g.split_pooled["gco_rate"]["ratio_p"] = OVER
+    return planted
+
+
+@pytest.fixture(scope="module")
+def border_book(tmp_path_factory):
+    """The synthetic book, FICO by CHANNEL and by ASSET_CLASS, split in halves by REV_DEBT, with p-values planted
+    either side of the bar (_plant): the book, the engine's result for it, the Run's outcome, and the book
+    calculated."""
+    from pocketbook import engine, perm
+    from recalc import calculated_book
+    d = tmp_path_factory.mktemp("border")
+    got = {}
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 2_000)
+        mp.setattr(engine, "_shuffle_tests", _plant(engine._shuffle_tests))
+        run = engine.run
+
+        def kept(*a, **k):
+            got["res"] = run(*a, **k)
+            return got["res"]
+        mp.setattr(engine, "run", kept)
+        out = book.set_up(synth.write_extract(d / "src", n=8000),
+                          choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL", "ASSET_CLASS"),
+                                             split="REV_DEBT"))
+        _answer(out.book)
+        ran = book.run(out.book)
+        assert ran.ok, ran.lines
+    return {"b": out.book, "res": got["res"], "ran": ran, "calc": calculated_book(out.book)}
+
+
+def _two(res):
+    """The two two-way grids, FICO x CHANNEL and FICO x ASSET_CLASS."""
+    by = {g.dimension.lower(): g for g in res.grids}
+    return by["channel"], by["asset_class"]
+
+
+def _flagged(m: str, grid) -> list:
+    return [c.rates[m].borderline for _, c in grid.inner() if c.rates[m].borderline]
+
+
+def test_borderline_engine_flags_a_shuffled_verdict_just_either_side_of_the_bar_and_nothing_else(border_book):
+    from pocketbook import engine
+    res = border_book["res"]
+    ch_, ac = _two(res)
+    for grid, p, words in ((ch_, UNDER, "borderline (p 0.048)"), (ac, OVER, "borderline (p 0.052)")):
+        turned = 0
+        for _, c in grid.inner():
+            s = c.rates["gco_rate"]
+            if s.flag in (engine.WORSE, engine.BETTER, engine.UNSURE_WORSE, engine.UNSURE_BETTER):
+                assert s.borderline == words, (grid.dimension, s.flag)
+                assert (s.p_band if s.by_band else s.p_book) == pytest.approx(p)
+                assert (s.se_band if s.by_band else s.se_book) == pytest.approx((p * (1 - p) / 2_000) ** 0.5)
+                turned += 1
+            else:
+                assert s.borderline is None, (grid.dimension, s.flag)     # in line inside the loss line: not p's call
+            assert s.worse_borderline == (words if s.flag in (engine.WORSE, engine.UNSURE_WORSE) else None)
+        assert turned >= 3, grid.dimension
+    # a pass just under the bar reads worse, a fail just over reads not significant: both flagged
+    assert any(c.rates["gco_rate"].flag == engine.WORSE for _, c in ch_.inner())
+    assert any(c.rates["gco_rate"].flag == engine.UNSURE_WORSE for _, c in ac.inner())
+    # a z or exact test at 0.049 is never borderline; nor is a shuffled p-value far from the bar either side
+    zs = [c.rates["outcome_loans"] for _, c in ch_.inner() if c.rates["outcome_loans"].p_book is not None]
+    assert zs and all(s.p_book == pytest.approx(NEAR_Z) and s.test in (engine.Z_TEST, engine.EXACT_TEST)
+                      and s.se_book is None and s.borderline is None for s in zs)
+    assert any(s.flag == engine.WORSE for s in zs)                     # a real verdict, still not flagged
+    assert _flagged("ranr_rate", ch_) == [] and _flagged("ranr_rate", ac) == []
+    assert any(c.rates["ranr_rate"].flag == engine.WORSE for _, c in ch_.inner())
+
+
+def _pk_rows(res):
+    """(grid, band, segment, measure, RateStat) in _pockets' own order (live._write_pockets)."""
+    rates = [m for m in res.measures if m.is_rate]
+    for grids in (res.grids, res.three_way):
+        for g in grids:
+            for (bl, dl), c in g.inner():
+                for m in rates:
+                    yield g, bl, dl, m, c.rates[m.name]
+
+
+def _note(ws) -> dict:
+    """A tab's method note, {label: words}, from its calculated cells."""
+    out = {}
+    top = next(c.row for row in ws.iter_rows(max_row=40) for c in row if c.value == "How this tab works")
+    col = next(c.column for c in ws[top] if c.value == "How this tab works")
+    for r in range(top + 1, top + 20):
+        a, b = ws.cell(row=r, column=col).value, ws.cell(row=r, column=col + 1).value
+        if a is None:
+            break
+        out[a] = b
+    return out
+
+
+def test_borderline_pockets_worse_says_it_beside_the_word_and_keeps_the_words_colour(border_book, tmp_path):
+    import tabs
+    from pocketbook import live, results
+    res, calc = border_book["res"], border_book["calc"]
+    # every pocket on _pockets, as the tabs read it, against the engine's own flag
+    pk = calc[live.POCKETS]
+    n = 0
+    for r, (g, bl, dl, m, s) in enumerate(_pk_rows(res), start=live.P_FIRST):
+        assert (pk.cell(row=r, column=live.P_BAND).value, pk.cell(row=r, column=live.P_MEASURE).value) == (bl, m.name)
+        btxt = pk.cell(row=r, column=live.P_BTXT).value or None
+        assert btxt == (s.borderline[len("borderline (p "):-1] if s.borderline else None), (g.dimension, bl, dl,
+                                                                                               m.name)
+        worse = pk.cell(row=r, column=live.P_WORSE).value
+        assert pk.cell(row=r, column=live.P_WORSE_SAID).value == live.flagged(worse, s.worse_borderline)
+        n += bool(btxt)
+    assert n >= 6
+    # the Pockets tab: charge-offs, a pass and a fail, each flagged; Bad loans at 0.049 by the z test, never
+    ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "gco.xlsx", results.POCKETS,
+                                     measure="Charge-offs"), results.POCKETS)
+    said = {x["worse_said"] for x in tabs.pockets(ws)}
+    assert "Yes · borderline (p 0.048)" in said and "Not sure · borderline (p 0.052)" in said, said
+    ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "bad.xlsx", results.POCKETS,
+                                     measure="Bad loans"), results.POCKETS)
+    rows = tabs.pockets(ws)
+    assert any(x["worse"] == "Yes" for x in rows) and not any("borderline" in str(x["worse_said"]) for x in rows)
+    # its colour is the word's, borderline or not: every rule on Worse? compares the word without the flag
+    written = load_workbook(border_book["b"])[results.POCKETS]
+    col = results.col(results.K_WORSE)
+    rules = [r.formula[0] for rng in written.conditional_formatting for r in rng.rules
+             if str(rng.sqref).startswith(col) and f'="{live.YES}"' in r.formula[0]]
+    assert rules and all(f'IFERROR(LEFT(${col}' in f and 'FIND(" · "' in f for f in rules), rules
+    # the method note says what it means, in the firm's plain words and under 25
+    note = _note(calc[results.POCKETS])
+    assert note["Borderline"] == ("The test's p-value is within the shuffle's own margin of the 5% bar, so another "
+                                  "run could read it the other way.")
+    assert len(note["Borderline"].split()) <= 25
+
+
+def test_borderline_paid_cost_kept_together_says_it_and_its_colour_and_chart_stay_the_words(border_book, tmp_path):
+    import tabs
+    from pocketbook import results
+    res = border_book["res"]
+    ch_, _ = _two(res)
+    path = tabs.choose(border_book["b"], tmp_path / "pck.xlsx", results.PCK, grid="FICO x CHANNEL")
+    ws = tabs.calculated(path, results.PCK)
+    rows = tabs.pck(ws)
+    by = {(bl, dl): c for (bl, dl), c in ch_.inner()}
+    said = set()
+    for x in rows:
+        c = by[(x["band"], x["seg"])]
+        want = results.together_said(x["together"], c.rates["gco_rate"].borderline, c.rates["ranr_rate"].borderline)
+        assert x["together_said"] == want, x
+        said.add(x["together_said"])
+    assert "Net drain · borderline (p 0.048)" in said, said
+    # red and green follow the word: the Net drain rows' dots are the red ones
+    from recalc import recalc
+    chart = recalc(path, tmp_path / "pck-chart")[results.CHART]
+    drains = [k for k, x in enumerate(rows, start=1) if x["together"] == "Net drain"]
+    assert drains and all(isinstance(chart.cell(row=k, column=results.H_RX).value, (int, float)) for k in drains)
+    tog = [r.formula[0] for rng in ws.formulas.conditional_formatting for r in rng.rules
+           if str(rng.sqref).startswith(results.col(results.C_TOG))]
+    named = [f for f in tog if "Net drain" in f or "Strong" in f]
+    assert named and all(results.col(results.C_H_TOG) in f for f in named)
+    note = _note(ws)
+    assert "Borderline gives the p-value of each side that is, charge-offs first." in note["Together"]
+    assert note["Borderline"].startswith("The test's p-value is within the shuffle's own margin of the 5% bar")
+
+
+def _summary_p(ws, measure: str):
+    h = next(c.row for row in ws.iter_rows() for c in row if c.value == "High half worse in")
+    for r in range(h + 1, h + 8):
+        if ws.cell(row=r, column=2).value == measure:
+            return ws.cell(row=r, column=7).value
+    raise KeyError(measure)
+
+
+def test_borderline_split_says_it_in_place_of_the_p_value_and_keeps_it_bold(border_book, tmp_path):
+    import tabs
+    from pocketbook import results
+    res = border_book["res"]
+    ch_, _ = _two(res)
+    ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "split.xlsx", results.SPLIT,
+                                     grid="FICO x CHANNEL", measure="Charge-offs"), results.SPLIT)
+    ps = tabs.block(ws, "p-value per pocket")
+    flagged = 0
+    for (bl, dl), c in ch_.inner():
+        x = ch_.split_compare.get((bl, dl), {}).get("gco_rate")
+        se = ch_.split_se.get((bl, dl), {}).get("gco_rate")
+        want = results.split_said(x[1] if x else None, se, 0.95)
+        got = ps[(bl, dl)]
+        assert got == (pytest.approx(want) if isinstance(want, float) else want), (bl, dl, got, want)
+        flagged += want == "borderline (p 0.048)"
+    assert flagged >= 3
+    assert _summary_p(ws, "Charge-offs") == "borderline (p 0.052)"
+    assert isinstance(_summary_p(ws, "Bad loans"), float)                    # the z test's: never
+    # the bold rule reads the number behind the words, one range per column
+    rules = [r.formula[0] for rng in ws.formulas.conditional_formatting for r in rng.rules
+             if "ISTEXT" in r.formula[0] and "significance_bar" in r.formula[0]]
+    assert len(rules) >= len(ch_.dim_labels)
+    assert _note(ws)["Borderline"].startswith("The test's p-value is within the shuffle's own margin")
+
+
+def test_borderline_start_here_record_and_the_launcher_count_and_name_them(border_book):
+    import tabs
+    from pocketbook import engine, launcher, live
+    res, calc, ran = border_book["res"], border_book["calc"], border_book["ran"]
+    names = book._names(res)
+    gco = [(g, bl, dl, c.rates["gco_rate"]) for g in res.grids for (bl, dl), c in g.inner()]
+    worse = [x for x in gco if x[3].flag == engine.WORSE and x[3].material is not False and (x[3].dollars or 0) > 0]
+    border = [x for x in worse if x[3].worse_borderline]
+    assert border and len(border) < len(gco)
+    # the launcher's headline
+    assert ran.summary["borderline"] == len(border)
+    tiles = launcher.finished_tiles(ran.summary)
+    assert tiles[0][2].endswith(f" · {len(border):,} borderline")
+    # Start here: the tile, and each of the five largest that is borderline says so beside its segment
+    ws = calc["Start here"]
+    tile = next(ws.cell(row=c.row + 1, column=c.column).value for row in ws.iter_rows() for c in row
+                if c.value == "Pockets worse and material, charge-offs")
+    assert tile.endswith(f" · {len(border)} borderline"), tile
+    head = next(c.row for row in ws.iter_rows() for c in row if c.value == "Largest, worse and material")
+    listed = [(ws.cell(row=head + k, column=2).value, ws.cell(row=head + k, column=3).value)
+              for k in range(1, book.TOP_ROWS + 1)]
+    want = {(f"{names[g.band]} {bl}", str(dl)): s.worse_borderline for g, bl, dl, s in worse}
+    assert listed[0][0] and any("borderline (p 0.048)" in str(seg) for _, seg in listed), listed
+    for band, seg in (x for x in listed if x[0]):
+        assert seg == live.flagged(tabs.word(seg), want[(band, tabs.word(seg))]), (band, seg)
+    # Record: the rule, and the count now; the Run's line names the worst with its flag
+    rec = tabs.record(calc)
+    assert "within 2 of its own standard errors of the 5% bar" in rec["Borderline"]
+    assert "never borderline" in rec["Borderline"]
+    n = len(gco)
+    assert rec["Borderline now: Charge-offs"] == (f"{sum(1 for x in gco if x[3].borderline)} of {n:,} pockets on "
+                                                  f"the grids have a borderline verdict "
+                                                  f"({sum(1 for x in gco if x[3].worse_borderline)} on Worse?).")
+    assert not any(k.startswith("Borderline now: Bad loans") for k in rec)          # never shuffled
+    top = max(worse, key=lambda x: x[3].dollars)
+    title = next(m.title for m in res.measures if m.name == "gco_rate")
+    line = f"Worst for {title}: {names[top[0].band]} {top[1]} / {names[top[0].dimension]} {top[2]}"
+    assert top[3].worse_borderline and f"{line} · {top[3].worse_borderline}." in ran.lines, ran.lines

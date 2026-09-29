@@ -318,6 +318,14 @@ def _fit(ws) -> None:
     ws.sheet_properties.pageSetUpPr.fitToPage = True
 
 
+def border_note() -> tuple[str, str]:
+    """Each tab's method-note line on Borderline (the firm, 29 Sep 2026, by pop-up, choosing the word). Only a run
+    with a dollar rate has one: nothing else is shuffled, so nothing else can be borderline."""
+    return ("Borderline", live.text("The test's p-value is within the shuffle's own margin of the ",
+                                    ('TEXT(significance_bar,"0%")',),
+                                    " bar, so another run could read it the other way."))
+
+
 def _allowance(b) -> str:
     return {"bh": "Benjamini-Hochberg", "bonferroni": "Bonferroni", "none": "none"}.get(b.many_tests, "none")
 
@@ -475,6 +483,7 @@ def _pockets_note(res) -> list[tuple[str, str]]:
             + (f" Dollar measures: the loans are shuffled {b.shuffles:,} times, within the band for the rest of "
                f"its band, and it is how often a gap as big turned up." if dollar_rates else ""),
             " Under ", ('TEXT(significance_bar,"0%")',), " counts.")),
+        *([border_note()] if dollar_rates else []),
         ("Material?", "Yes when the excess reaches the materiality line on Control (the Material at tile, in the "
                       "measure's own unit). It is judged apart from Worse?: a pocket can be one without the other."),
         ("Could have caught", f"The smallest gap a pocket this size would catch {b.power:.0%} of the time at the "
@@ -571,7 +580,8 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
                 K_HALF: f"={lst(L_HALF)}", K_LOANS: f"={lst(L_LOANS)}", K_THIS: f"={at(live.P_RATE, R)}",
                 K_REST: f"={at(live.P_REST, R)}",
                 K_GAP: f'=IF({at(live.P_GAP, R)}="","",{at(live.P_GAP, R)}*IF({pts},100,1))',
-                K_EX: f"={at(live.P_DOLLARS, R)}", K_WORSE: f"={lst(L_WORSE)}", K_P: f"={at(live.P_P, R)}",
+                # Worse? with its borderline words, when it turns on a shuffled p-value that near the bar
+                K_EX: f"={at(live.P_DOLLARS, R)}", K_WORSE: f"={at(live.P_WORSE_SAID, R)}", K_P: f"={at(live.P_P, R)}",
                 K_MAT: f"={lst(L_MAT)}", K_CAUGHT: f"={lst(L_CAUGHT)}", K_HOLDS: f"={lst(L_HOLDS)}"}
         fmts = {K_LOANS: "#,##0", K_THIS: "0.00%", K_REST: "0.00%", K_GAP: X_FMT, K_EX: "#,##0", K_P: P_FMT,
                 K_CAUGHT: X_FMT}
@@ -589,7 +599,8 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
     # bad loans to one decimal follow the measure picked
     line = f'${col(K_NUM)}{first}<>""'
     loose = f'LEFT(${col(K_HOLDS)}{first},3)="No:"'
-    grey, W = Font(color=SLATE), f"${col(K_WORSE)}{first}"
+    # Worse?'s colour is its word's, borderline or not (the firm, 29 Sep 2026: flag it, the verdict stands)
+    grey, W = Font(color=SLATE), live.base_word(f"${col(K_WORSE)}{first}")
     cf(ws, rng(K_NUM, K_BAND, K_SEG, K_HALF, K_LOANS, K_THIS, K_REST, K_P), [(loose, None, grey, None)], line)
     for c in (K_GAP, K_CAUGHT):
         cf(ws, rng(c), [(f"AND({loose},{pts})", None, grey, PTS_FMT), (loose, None, grey, None),
@@ -617,6 +628,8 @@ SIDES = (("contribution_rate", "Paid us", "gap vs"), ("gco_rate", "Cost us", "ch
 (C_BAND, C_SEG, C_LOANS, C_PAID, C_PAID_D, C_COST, C_COST_D, C_KEPT, C_KEPT_D, C_TOG) = range(2, 12)
 C_H = 40                  # hidden: the _views row, untested, each side's _pockets row and flag
 (C_H_ROW, C_H_UN, C_H_RC, C_H_RG, C_H_RR, C_H_FC, C_H_FG, C_H_FR) = range(C_H, C_H + 8)
+# Together's word alone (the chart and the colours read it), and each side's borderline p-value (live.P_BTXT)
+C_H_TOG, C_H_BG, C_H_BR = C_H + 8, C_H + 9, C_H + 10
 LABELLED = 8              # pockets numbered on the chart and named under it: the first rows, with a Together verdict
 CHART_ROWS = 23           # rows the chart covers (11 cm at the tab's row height), so the names list starts under it
 #: the chart's own cells, on a hidden sheet (Excel leaves out a chart's points in hidden columns): each row's point,
@@ -639,6 +652,23 @@ def side_of(flag: str | None, higher: str) -> str | None:
 def together_of(gco_flag: str | None, ranr_flag: str | None) -> str:
     """Together, in Python: the engine's side of the formula on Paid, cost, kept."""
     return TOGETHER.get((side_of(gco_flag, "worse"), side_of(ranr_flag, "better")), "")
+
+
+def together_said(tog: str | None, gco_border: str | None, ranr_border: str | None) -> str | None:
+    """Together as the tab prints it, in Python: the word, and " · borderline (p 0.048)" when a side it turns on is
+    borderline; with both, the two p-values, charge-offs first ("p 0.048 and 0.052"). The borderline words are
+    each side's RateStat.borderline."""
+    if not tog:
+        return tog
+    ps = [b[len("borderline (p "):-1] for b in (gco_border, ranr_border) if b]
+    return f"{tog}{live.JOIN}borderline (p {' and '.join(ps)})" if ps else tog
+
+
+def together_said_formula(tog: str, bg: str, br: str) -> str:
+    """together_said as a formula, over Together's word and each side's live.P_BTXT."""
+    both = f'IF(AND({bg}<>"",{br}<>""),{bg}&" and "&{br},{bg}&{br})'
+    return (f'IF(OR({tog}="",AND({bg}="",{br}="")),{tog},{tog}&{live.q(live.JOIN + "borderline (p ")}&{both}'
+            f'&")")')
 
 
 def together_formula(g: str, k: str, untested: str) -> str:
@@ -708,7 +738,9 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                      "charge-offs and less kept. Strong: fewer charge-offs and more kept. Safe but idle: fewer "
                      "charge-offs and less kept. Earns less, not from losses: less kept while charge-offs are "
                      "about the same. Losing more, profit holding: more charge-offs while what we kept is about "
-                     "the same. Blank: nothing to read together."),
+                     "the same. Blank: nothing to read together. Borderline gives the p-value of each side "
+                     "that is, charge-offs first."),
+        border_note(),
         ("Order and chart", "Rows are as of the last Run: the pockets read together first, then by charge-off "
                             "dollars; a pocket with too few losses last. The chart shows the grid picked above, "
                             "live; the pockets read together are named on it."),
@@ -765,12 +797,18 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         RC, RG, RR = (f"${col(c)}{rr}" for c in (C_H_RC, C_H_RG, C_H_RR))
         for c, prow in ((C_H_FC, RC), (C_H_FG, RG), (C_H_FR, RR)):
             ws.cell(row=rr, column=c, value=f"={at(live.P_FLAG, prow)}")
+        # Together turns on both sides' flags, so it is borderline when either is (the firm, 29 Sep 2026)
+        for c, prow in ((C_H_BG, RG), (C_H_BR, RR)):
+            ws.cell(row=rr, column=c, value=f"={at(live.P_BTXT, prow)}")
+        TOG = f"${col(C_H_TOG)}{rr}"
+        ws.cell(row=rr, column=C_H_TOG, value="=" + together_formula(f"${col(C_H_FG)}{rr}", f"${col(C_H_FR)}{rr}",
+                                                                     f"${col(C_H_UN)}{rr}"))
         pts = lambda prow: f'=IF({at(live.P_GAP, prow)}="","",{at(live.P_GAP, prow)}*100)'         # noqa: E731
         short = lambda prow: f'=IF({at(live.P_DOLLARS, prow)}="","",-{at(live.P_DOLLARS, prow)})'  # noqa: E731
         vals = {C_BAND: f"={pick(V, 1)}", C_SEG: f"={pick(V, 2)}", C_LOANS: f"={pick(V, 3)}",
                 C_PAID: pts(RC), C_PAID_D: short(RC), C_COST: f"={at(live.P_GAP, RG)}",
                 C_COST_D: f"={at(live.P_DOLLARS, RG)}", C_KEPT: pts(RR), C_KEPT_D: short(RR),
-                C_TOG: "=" + together_formula(f"${col(C_H_FG)}{rr}", f"${col(C_H_FR)}{rr}", f"${col(C_H_UN)}{rr}")}
+                C_TOG: "=" + together_said_formula(TOG, f"${col(C_H_BG)}{rr}", f"${col(C_H_BR)}{rr}")}
         fmts = {C_LOANS: "#,##0", C_PAID: PTS_FMT, C_PAID_D: "#,##0", C_COST: X_FMT, C_COST_D: "#,##0",
                 C_KEPT: PTS_FMT, C_KEPT_D: "#,##0"}
         for c, v in vals.items():
@@ -779,7 +817,7 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         ws.row_dimensions[rr].height = 16
         # the chart's own cells: every pocket read, and the ones read together named
         T = f"'{PCK}'!"
-        un, cost, kept, tog = (f"{T}${col(c)}${rr}" for c in (C_H_UN, C_COST, C_KEPT, C_TOG))
+        un, cost, kept, tog = (f"{T}${col(c)}${rr}" for c in (C_H_UN, C_COST, C_KEPT, C_H_TOG))
         hs.cell(row=k, column=H_X, value=f'=IF(OR({un}<>0,{cost}="",{kept}=""),NA(),{cost})')
         hs.cell(row=k, column=H_Y, value=f"=IF(ISNA({col(H_X)}{k}),NA(),{kept})")
         hs.cell(row=k, column=H_NAME, value=f'=IF({tog}="","",{T}${col(C_BAND)}${rr}&" / "&{T}${col(C_SEG)}${rr})')
@@ -801,7 +839,7 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         cf(ws, f"{col(a)}{first}:{col(b_)}{end}", [(f'AND({un}=0,{f}="{engine.WORSE}")', ALERT, None, None),
                                                    (f'AND({un}=0,{f}="{engine.BETTER}")', POSITIVE_BG, None, None)],
            line_on)
-    T = f"${col(C_TOG)}{first}"
+    T = f"${col(C_H_TOG)}{first}"                  # the word alone: borderline or not, the colour is the word's
     cf(ws, f"{col(C_TOG)}{first}:{col(C_TOG)}{end}",
        [(f'OR({T}="{GOOD_TOGETHER[0]}",{T}="{GOOD_TOGETHER[1]}")', None, Font(color=POSITIVE, bold=True), None),
         (f'{T}="{BAD_TOGETHER[0]}"', None, Font(color=CRIMSON, bold=True), None)], line_on)
@@ -1520,12 +1558,28 @@ def _value_note(res, sf: str, b, dollar_rates: bool, profit: bool) -> list[tuple
               f"measure, and the summary's p-values across the values; a gap that is not significant is in "
               f"brackets, unshaded. A blank: the value or the rest has fewer loans or losses than the minimums "
               f"({b.min_units:,} loans, {b.min_events:,} losses).")),
+        *([border_note()] if dollar_rates else []),
         ("What it holds", f"A grid holds fixed only its band and segment. How closely {sf} moves with a band "
                           f"column isn't worked out for a category, so a gap here may partly be a column the grid "
                           f"doesn't hold fixed. Loans are treated as independent of each other."),
         ("As of", "The numbers are the last Run's. The range, the brackets and the bold follow the confidence on "
                   "Control."),
     ]
+
+
+def split_p(p: str, se: str) -> str:
+    """A split p-value as the tab prints it: the number, or "borderline (p 0.048)" when it is a shuffled one that near
+    the bar (stats.borderline). Significance is the whole verdict here: plain against bracketed, bold or not."""
+    near = f"ABS({p}-{live.BAR})<={stats.BORDERLINE_SE!r}*{se}"
+    return (f'IF(AND(ISNUMBER({p}),ISNUMBER({se})),IF({near},"borderline (p "&{live.p_text(p)}&")",{p}),'
+            f'IF({p}="","",{p}))')
+
+
+def split_said(p: float | None, se: float | None, confidence: float):
+    """split_p in Python: the words for a borderline p-value, else the p-value."""
+    if p is not None and stats.borderline(p, se, confidence):
+        return stats.borderline_words(p, confidence)
+    return p
 
 
 def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
@@ -1553,11 +1607,12 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     for g in grids:
         gname = f"{names[g.band]} x {names[g.dimension]}"
         if not by_value:
-            shown.append((gname, g, g.split_compare, g.split_pooled))
+            shown.append((gname, g, g.split_compare, g.split_pooled, g.split_se))
             continue
         for v in g.split_parts if len(g.split_parts) > 1 else ():
             others = [x for x in g.split_parts if x != v]
-            shown.append((f"{gname} · {_value_vs(sf, v, others)}", g, g.part_compare[v], g.part_pooled[v]))
+            shown.append((f"{gname} · {_value_vs(sf, v, others)}", g, g.part_compare[v], g.part_pooled[v],
+                          g.part_se.get(v, {})))
     gnames = [x[0] for x in shown]
     nb = max((len(g.band_labels) for g in grids), default=1)
     nd = max((len(g.dim_labels) for g in grids), default=1)
@@ -1596,6 +1651,7 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
               f"measure); a gap that is not significant is in brackets, unshaded. The summary is one pooled test "
               f"per grid and measure, with no allowance. A blank: a half has fewer loans or losses than the "
               f"minimums ({b.min_units:,} loans, {b.min_events:,} losses).")),
+        *([border_note()] if dollar_rates else []),
         ("What it holds", (f"A grid holds fixed only its band and segment. {sf} moves with {pt[0]} (correlation "
                            f"{pt[1]:+.2f}), so in a grid that doesn't hold {pt[0]} fixed part of every gap may be "
                            f"{pt[0]}, not {sf}: the chip says which. Grids that hold it fixed come first in the "
@@ -1608,7 +1664,7 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                  material_at(res),
                  9, last, f"The numbers are from the last Run, {stamp}.")
     # every grid's numbers on _views
-    for gname, g, compare, pooled in shown:
+    for gname, g, compare, pooled, ses in shown:
         held = bk._holds_partner(res, g) if pt else None
         views.put(f"S|{gname}|chip", [("Holds " if held else "Doesn't hold ") + f"{pt[0]} fixed" if pt else "",
                                       (1 if held else 0) if pt else None,
@@ -1632,18 +1688,21 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                 f"{p['high_worse']} of {p['pockets']}" if p.get("pockets") else "none big enough",
                 g0, se, heat_kind(m), p.get("ratio_p"), p.get("odds"), p.get("odds_p"), steady,
                 bk._same_size(m, p, b.confidence) if steady is None else None,
-                general.get("p"), general.get("df"), general.get("pockets")])
+                general.get("p"), general.get("df"), general.get("pockets"), p.get("ratio_se")])
             got = [abs(bk._shown(x[m.name][0], m)) for x in compare.values()
                    if m.name in x and x[m.name][0] is not None]
             views.put(f"S|{gname}|{m.name}|meta", [heat_kind(m), max(got + [0.01])])
             for bi, bl in enumerate(g.band_labels, start=1):
-                vs, ps = [], []
+                vs, ps, es = [], [], []
                 for d in g.dim_labels:
                     x = compare.get((bl, d), {}).get(m.name)
                     vs.append(bk._shown(x[0], m) if x and x[0] is not None else None)
                     ps.append(x[1] if x else None)
+                    es.append(ses.get((bl, d), {}).get(m.name))
                 views.put(f"S|{gname}|{m.name}|v|{bi}", vs)
                 views.put(f"S|{gname}|{m.name}|p|{bi}", ps)
+                # Borderline: each pocket's shuffle standard error, beside its p-value (B2a)
+                views.put(f"S|{gname}|{m.name}|se|{bi}", es)
     g_rng, _ = choices.add("Split: Grid", gnames)
     m_rng, (k_rng,) = choices.add("Split: Measure", [plain(m) for m in ms], [m.name for m in ms])
     s = r + 4
@@ -1673,8 +1732,8 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         rng_x = (f'TEXT(MAX({g0}-{z}*{se},0),"0.00")&"× to "&TEXT({g0}+{z}*{se},"0.00")&"×"')
         rng_p = (f'TEXT({g0}-{z}*{se},"+0.00;-0.00")&" to "&TEXT({g0}+{z}*{se},"+0.00;-0.00")&" pts"')
         vals = [f"={pick(R, 1)}", f"={pick(R, 2)}", f"={pick(R, 3)}", f"={g0}",
-                f'=IF(OR({se}="",{g0}=""),"",IF({kind}="pts",{rng_p},{rng_x}))', f"={pick(R, 7)}", f"={pick(R, 8)}",
-                f"={pick(R, 9)}"]
+                f'=IF(OR({se}="",{g0}=""),"",IF({kind}="pts",{rng_p},{rng_x}))', "=" + split_p(pick(R, 7), pick(R, 15)),
+                f"={pick(R, 8)}", f"={pick(R, 9)}"]
         for j, v in enumerate(vals):
             _cell(ws, rr, 2 + j, v, h="left" if j == 0 else "center",
                   fmt={3: X_FMT, 5: P_FMT, 6: X_FMT, 7: P_FMT}.get(j), indent=1 if j == 0 else 0)
@@ -1738,9 +1797,11 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
             rr = t + 1 + i
             V = f"${col(hid + 3)}{rr}"
             P = f"${col(hid + 4)}{rr}"
+            E = f"${col(hid + 5)}{rr}"
             if c0 == left:
                 ws[V.replace("$", "")] = "=" + match(xk("S|", (G,), "|", (KEY,), f"|v|{i}"))
                 ws[P.replace("$", "")] = "=" + match(xk("S|", (G,), "|", (KEY,), f"|p|{i}"))
+                ws[E.replace("$", "")] = "=" + match(xk("S|", (G,), "|", (KEY,), f"|se|{i}"))
             _cell(ws, rr, c0, f"={pick(ROWS, i)}", h="left", indent=1)
             for j in range(1, nd + 1):
                 if what == "v":
@@ -1749,7 +1810,7 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                     f = f'=IF({v}="","",IF({live.sig(p)},{v},{words}))'
                     _cell(ws, rr, c0 + j, f, fmt=X_FMT, color=house.INK_TEXT)
                 else:
-                    _cell(ws, rr, c0 + j, f"={pick(P, j)}", fmt=P_FMT)
+                    _cell(ws, rr, c0 + j, "=" + split_p(pick(P, j), pick(E, j)), fmt=P_FMT)
             ws.row_dimensions[rr].height = 16
         inner = f"{col(c0 + 1)}{t + 2}:{col(c0 + nd)}{t + 1 + nb}"
         corner = f"{col(c0 + 1)}{t + 2}"
@@ -1759,7 +1820,13 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
             cf(ws, inner, [(f"ISTEXT({corner})", None, Font(color=SLATE), None)]
                + heat_rules(corner, KIND, BOUND, f'{KIND}="pts"', PTS_FMT), line_on)
         else:
-            cf(ws, inner, [(live.sig(corner), None, Font(bold=True), None)], line_on)
+            # bold when significant; a borderline p-value prints in words and is bold as its number would be, so
+            # one range a column, since the number sits on _views at that column (the firm, 29 Sep 2026: flag it,
+            # the verdict stands)
+            for j in range(1, nd + 1):
+                cj, pj = f"{col(c0 + j)}{t + 2}", pick(f"${col(hid + 4)}{t + 2}", j)
+                cf(ws, f"{cj}:{col(c0 + j)}{t + 1 + nb}",
+                   [(f"OR({live.sig(cj)},AND(ISTEXT({cj}),{live.sig(pj)}))", None, Font(bold=True), None)], line_on)
     _hide(ws, hid, hid + 5)
     ws.freeze_panes = f"A{s + 1}"
     _fit(ws)

@@ -2339,6 +2339,17 @@ changed in the code.
    out and counted; or a *Yes means* value typed on Columns) beside the column it proposes.
 7. **A verdict on a shuffled p-value near 5%** can fall either way with another seed (the full tie-out, *What
    it found* item 1). Either flag those "could fall either way", or shuffle more. **Recommended:** flag them.
+   **Built** (29 Sep 2026, branch `pocketbook-borderline-0929`). The firm, by pop-up: *"I don't like 'could fall
+   either way' but flag it somehow"*, and chose **Borderline**: *"Net drain · borderline (p 0.048)"*. The rule
+   (`docs/statistics.md` B2a): the p-value that decides a verdict, after the allowance, came from shuffling and sits
+   within 2 of its own standard errors of the bar, either side; SE = √(p(1 − p) / shuffles), times what the
+   allowance multiplied the p-value by (for Benjamini-Hochberg, the raw p that sets it, times m / j, as the tie-out
+   found). Only a verdict whose word turns on the p-value is flagged; a z or exact test never is. Shown on Pockets'
+   Worse?, Paid cost kept's Together, Split's p-values, Start here's five largest and tile, the launcher's tile,
+   the Run's *Worst for* line and Record (the rule, and a count per dollar rate), each tab's method note saying *"The
+   test's p-value is within the shuffle's own margin of the 5% bar, so another run could read it the other way."*
+   Colours, order and counts are unchanged. Tests: the Borderline section of `tests/test_firm_answers_2026_09_29.py`;
+   planted bugs in `tools/mutation_check.py`.
 
 - **Still at the bank, 29 Sep 2026, evening** (built, on PR #409):
   - *Dropdowns gone after an Excel save.* Excel keeps a dropdown whose list sits on another sheet in its

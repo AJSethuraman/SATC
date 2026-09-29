@@ -267,6 +267,19 @@ and what you're running. Control's last column says which.
   dropdowns show) and `_views` (every other number, one keyed row each). Unhide
   any of them to follow a reading back to Control.
 
+**Borderline** (the firm, 29 Sep 2026: *"I don't like 'could fall either way'
+but flag it somehow"*, and they chose the word). A dollar rate's p-value comes
+from shuffling, so another run could land it a little differently. When the
+p-value that decides a verdict is a shuffled one within 2 of its own standard
+errors of the bar, either side, the verdict says so: *Net drain · borderline
+(p 0.048)*, *Not sure · borderline (p 0.052)*. It shows on Pockets' Worse?,
+Paid, cost, kept's Together, the Split tab's p-values, Start here's five largest
+and tile, the Run's *Worst for* line and Record, which states the rule and
+counts them. The colour, order and counts stay the verdict's. A z test's or an
+exact test's p-value is the same on every run, so Bad loans are never
+borderline. The rule, and how the allowance for many tests scales the standard
+error, are in `docs/statistics.md` B2a.
+
 **Going a layer deeper.** In the launcher's Choose tests, pick one column
 under *Split pockets by*. A number (revolving debt, say) splits every FICO-by-asset-class pocket
 at that pocket's own median, and the Split tab compares the high half with the

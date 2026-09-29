@@ -392,6 +392,52 @@ def adjust(ps: list[float | None], how: str) -> list[float | None]:
     return out
 
 
+def adjust_se(ps: list[float | None], ses: list[float | None], how: str) -> list[float | None]:
+    """The standard error of each p-value after the allowance (adjust), for Borderline (docs/statistics.md B2a).
+    The allowance multiplies a raw p-value, and its sampling error with it: Bonferroni's p x m carries SE x m; a
+    Benjamini-Hochberg p is the smallest p_(j) x m / j over the ranks j at or above its own, so it carries the SE
+    of the raw p-value that set it, times that same m / j (the tie-out of 29 Sep 2026 found one pocket's raw p
+    setting 21 others'). None where the p-value that sets it has none (it wasn't shuffled)."""
+    idx = [i for i, p in enumerate(ps) if p is not None]
+    m = len(idx)
+    out: list[float | None] = [None] * len(ps)
+    if how == "none" or m == 0:
+        return [ses[i] if ps[i] is not None else None for i in range(len(ps))]
+    if how == "bonferroni":
+        for i in idx:
+            out[i] = ses[i] * m if ses[i] is not None and ps[i] * m < 1.0 else None
+        return out
+    order = sorted(idx, key=lambda i: ps[i])
+    running, se = math.inf, None
+    for rank in range(m, 0, -1):
+        i = order[rank - 1]
+        v = ps[i] * m / rank
+        if v < running:
+            running, se = v, (ses[i] * m / rank if ses[i] is not None else None)
+        # a p-value the allowance capped at 1 is nowhere near the bar: scaling its error by m / j would say it was
+        out[i] = se if running < 1.0 else None
+    return out
+
+
+def p_decides(word: str | None, gap: float | None, line: "ProfitLine | None") -> bool:
+    """Whether a reading's word turns on its p-value, so a p-value on the other side of the bar reads another
+    word: worse against worse, not significant (and better likewise); for profit read by each pocket's own test,
+    worse or better against in line. A multiple inside the loss line reads in line whatever the p-value, and too
+    few to test was never tested."""
+    if word in (WORSE, BETTER, UNSURE_WORSE, UNSURE_BETTER):
+        return True
+    return word == IN_LINE and line is not None and line.kind == "test" and gap not in (None, 0)
+
+
+def worse_turns(word: str | None, gap: float | None, line: "ProfitLine | None") -> bool:
+    """Whether Worse? (Yes / Not sure / No) turns on the p-value: worse against worse, not significant; and, for
+    profit read by its own test, a shortfall in line (No) against worse (Yes). Better against better, not
+    significant is No either way."""
+    if word in (WORSE, UNSURE_WORSE):
+        return True
+    return word == IN_LINE and line is not None and line.kind == "test" and gap is not None and gap < 0
+
+
 # --------------------------------------------------------------------------
 # Result shapes
 
@@ -438,6 +484,14 @@ class RateStat:
     hits_book: int | None = None        # the shuffle test: shuffles with a gap at least as big, of `shuffles`
     hits_band: int | None = None
     shuffles: int | None = None
+    # Borderline (docs/statistics.md B2a): the shuffle's standard error of p_book and p_band, after the allowance
+    # (adjust_se); None for a test that isn't shuffled. `borderline` is the flag's "borderline (p 0.048)" when the
+    # p-value that decides it is that near the bar at the Run's confidence, and `worse_borderline` the same when it
+    # is Worse? (Yes / Not sure / No) that turns on it
+    se_book: float | None = None
+    se_band: float | None = None
+    borderline: str | None = None
+    worse_borderline: str | None = None
 
     def sums(self) -> tuple:
         return (self.units, self.num, self.den, self.syy, self.sxx, self.sxy)
@@ -505,6 +559,10 @@ class Grid:
     part_tested: dict[str, dict] = field(default_factory=dict, repr=False)
     # and, for a yes/no per loan, whether the values differ at all, pooled over the pockets (B3, on K - 1 df)
     split_general: dict[str, dict] = field(default_factory=dict)
+    # Borderline (docs/statistics.md B2a): each split pocket's p-value's standard error after the allowance, as
+    # split_compare and part_compare hold the p-values ({(band, seg): {measure: se}}); None where not shuffled
+    split_se: dict[tuple[str, str], dict[str, float | None]] = field(default_factory=dict, repr=False)
+    part_se: dict[str, dict] = field(default_factory=dict, repr=False)
     # Grids' "Only loans where" (the firm, 29 Sep 2026): for a split by a category, this grid again on only the
     # loans with each value, keyed by the value. Built like any grid, so "vs the book" is still against the whole
     # book and "vs rest of band" is against the rest of the band among those loans. Shown on Grids only: never
@@ -1275,9 +1333,15 @@ def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
                 s.p_book = s.p_band = None
                 s.test = None
         for attr in ("p_book", "p_band"):
-            adj = adjust([getattr(cells[k].rates[m.name], attr) for k in keys], bench.many_tests)
-            for k, p in zip(keys, adj):
+            raw = [getattr(cells[k].rates[m.name], attr) for k in keys]
+            # a shuffled p-value's own sampling error, before the allowance scales it (Borderline, B2a)
+            ses = [stats.shuffle_se(p, cells[k].rates[m.name].shuffles)
+                   if cells[k].rates[m.name].test == SHUFFLE_TEST else None for k, p in zip(keys, raw)]
+            adj = adjust(raw, bench.many_tests)
+            se_adj = adjust_se(raw, ses, bench.many_tests)
+            for k, p, se in zip(keys, adj, se_adj):
                 setattr(cells[k].rates[m.name], attr, p)
+                setattr(cells[k].rates[m.name], "se_" + attr[2:], se)
         mat = materiality_line.get(m.name)
         mates = Counter(b for b, d in cells if b != ALL and d != ALL)
         # profit is read in points by the profit line on Control, on every tab (OC-32; NEXT-GOAL 3.2)
@@ -1308,6 +1372,13 @@ def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
                         s.by_band, s.dollars = True, s.excess_band
             if mat is not None and s.dollars is not None:
                 s.material = s.dollars > 0 and s.dollars >= mat
+            s.borderline = s.worse_borderline = None
+            if (b, d) != (ALL, ALL):
+                p, se, gap = (s.p_band, s.se_band, s.vs_band) if s.by_band else (s.p_book, s.se_book, s.vs_rest)
+                if stats.borderline(p, se, bench.confidence) and p_decides(s.flag, gap, line):
+                    s.borderline = stats.borderline_words(p, bench.confidence)
+                    if worse_turns(s.flag, gap, line):
+                        s.worse_borderline = s.borderline
 
 
 def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
@@ -1562,25 +1633,42 @@ def _finish_split(grid: Grid, config: Config, measures) -> None:
             continue
         # the same allowance for many tests as every other pocket test, within this grid and measure
         # (asked on 25 Sep 2026: the split's "Luck alone" figures were the only ones shown without it)
+        # a dollar rate's split p-values are shuffled (B2), bench.shuffles times: their own sampling error, before
+        # the allowance scales it (Borderline, B2a); a yes/no's are the z test's and have none
+        shuffled = bench is not None and not yes_no(m) and bool(bench.shuffles)
+        se_of = (lambda p: stats.shuffle_se(p, bench.shuffles) if shuffled else None)       # noqa: E731
         if bench is not None:
             keys = [k for k, got in grid.split_compare.items() if m.name in got and got[m.name][1] is not None]
-            adj = adjust([grid.split_compare[k][m.name][1] for k in keys], bench.many_tests)
-            for k, p in zip(keys, adj):
+            raw = [grid.split_compare[k][m.name][1] for k in keys]
+            adj = adjust(raw, bench.many_tests)
+            for k, p, se in zip(keys, adj, adjust_se(raw, [se_of(x) for x in raw], bench.many_tests)):
                 idx, _, nh, nl = grid.split_compare[k][m.name]
                 grid.split_compare[k][m.name] = (idx, p, nh, nl)
+                grid.split_se.setdefault(k, {})[m.name] = se
+            pooled = grid.split_pooled.get(m.name, {})
+            if pooled.get("ratio_p") is not None:
+                # one pooled test per grid and measure, no allowance (the tab says so)
+                pooled["ratio_se"] = stats.shuffle_se(pooled["ratio_p"], pooled.get("shuffles")) if shuffled else None
         if bench is not None and grid.split_parts:
             # a category: every value's pockets are one family, so a column with more values pays for more tests;
             # and each pooled figure is a family across the values, one test per value
             keys = [(v, k) for v in grid.split_parts for k, got in grid.part_compare[v].items()
                     if m.name in got and got[m.name][1] is not None]
-            adj = adjust([grid.part_compare[v][k][m.name][1] for v, k in keys], bench.many_tests)
-            for (v, k), p in zip(keys, adj):
+            raw = [grid.part_compare[v][k][m.name][1] for v, k in keys]
+            adj = adjust(raw, bench.many_tests)
+            for (v, k), p, se in zip(keys, adj, adjust_se(raw, [se_of(x) for x in raw], bench.many_tests)):
                 idx, _, nh, nl = grid.part_compare[v][k][m.name]
                 grid.part_compare[v][k][m.name] = (idx, p, nh, nl)
+                grid.part_se.setdefault(v, {}).setdefault(k, {})[m.name] = se
             for what in ("ratio_p", "odds_p", "steady_p"):
                 vs = [v for v in grid.split_parts if grid.part_pooled[v].get(m.name, {}).get(what) is not None]
-                for v, p in zip(vs, adjust([grid.part_pooled[v][m.name][what] for v in vs], bench.many_tests)):
+                raw = [grid.part_pooled[v][m.name][what] for v in vs]
+                ses = [stats.shuffle_se(x, grid.part_pooled[v][m.name].get("shuffles"))
+                       if shuffled and what == "ratio_p" else None for v, x in zip(vs, raw)]
+                for v, p, se in zip(vs, adjust(raw, bench.many_tests), adjust_se(raw, ses, bench.many_tests)):
                     grid.part_pooled[v][m.name][what] = p
+                    if what == "ratio_p":
+                        grid.part_pooled[v][m.name]["ratio_se"] = se
 
 
 # --------------------------------------------------------------------------

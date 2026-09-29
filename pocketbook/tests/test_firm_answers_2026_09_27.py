@@ -157,7 +157,8 @@ def _listed(values_wb) -> list[tuple]:
     ws = values_wb["Start here"]
     head = next(c.row for row in ws.iter_rows() for c in row if c.value == "Largest, worse and material")
     rows = [tuple(ws.cell(row=head + k, column=c).value for c in (2, 3, 6)) for k in range(1, book.TOP_ROWS + 1)]
-    return [r for r in rows if r[0]]
+    # a borderline pocket's segment carries its flag (29 Sep 2026); the pocket itself is what is compared here
+    return [(r[0], tabs.word(r[1]), r[2]) for r in rows if r[0]]
 
 
 def _worse_and_material_now(values_wb) -> list[tuple]:

@@ -29,6 +29,12 @@ def blank(v):
     return None if v == "" else v
 
 
+def word(v):
+    """A verdict without its borderline words ("Yes · borderline (p 0.048)" is Yes): what every test of the
+    verdict itself compares. The words are the Borderline tests' (test_firm_answers_2026_09_29), read from `*_said`."""
+    return v.split(" · borderline (", 1)[0] if isinstance(v, str) else v
+
+
 def calculated(path, name: str):
     """A tab as LibreOffice calculates it, the tab as written riding along as .formulas."""
     ws = recalc(path, Path(path).parent / f"rc-{Path(path).stem}")[name]
@@ -85,6 +91,7 @@ def pockets(ws) -> list[dict]:
             break
         x = {k: blank(ws.cell(row=r, column=c).value) for c, k in POCKET_KEYS.items()}
         x["row"] = r
+        x["worse_said"], x["worse"] = x["worse"], word(x["worse"])
         out.append(x)
     return out
 
@@ -106,6 +113,7 @@ def pck(ws) -> list[dict]:
             break
         x = {k: blank(ws.cell(row=r, column=c).value) for c, k in PCK_KEYS.items()}
         x["row"] = r
+        x["together_said"], x["together"] = x["together"], word(x["together"])
         for k, c in (("c_fill", rs.C_PAID), ("g_fill", rs.C_COST), ("r_fill", rs.C_KEPT)):
             x[k] = cf_fill(ws, r, c) if hasattr(ws, "formulas") else None      # the rules ride on .formulas
         x["flags"] = {k: blank(ws.cell(row=r, column=c).value) for k, c in (("c", rs.C_H_FC), ("g", rs.C_H_FG),
