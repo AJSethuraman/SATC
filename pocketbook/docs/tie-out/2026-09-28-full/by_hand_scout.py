@@ -21,6 +21,7 @@ New variables!C5, C9, C10, C16 and C17:
 The Look tab's bars are counted here from the file; the only thing taken from the workbook is where each bar starts
 and ends (the chart's own labels), read from figures-scout.json when it is given.
 """
+import collections
 import csv
 import json
 import math
@@ -263,7 +264,19 @@ def general_trend(strata, G, order):
         Var += f * (Nh * float((scores ** 2 * n).sum()) - float((scores * n).sum()) ** 2)
     q = float(d @ np.linalg.solve(V, d))
     qt = T * T / Var
-    return (q, G - 1, float(st.chi2.sf(q, G - 1))), (qt, 1, float(st.chi2.sf(qt, 1)))
+    return (q, G - 1, float(st.chi2.sf(q, G - 1))), (qt, 1, float(st.chi2.sf(qt, 1))), 1 if T > 0 else -1
+
+
+def looks_like_code(vals):
+    """The Look tab's red bar, from its own words (Look, "The red bar"; statistics.md): one value held by 1% of the
+    loans or more that sits outside the rest by half their spread or more, such as -9999 among scores of 500-850."""
+    nums = [v for v in vals if v is not None]
+    value, k = collections.Counter(nums).most_common(1)[0]
+    rest = [v for v in nums if v != value]
+    if not rest or k < 0.01 * len(nums):
+        return None
+    span = (max(rest) - min(rest)) or abs(max(rest)) or 1.0
+    return value if value < min(rest) - 0.5 * span or value > max(rest) + 0.5 * span else None
 
 
 def rng_(beta, se):
@@ -284,9 +297,9 @@ for c in CANDS:
             strata, order = tables(c, idx, held)
             beta, se, ll = clogit(strata, G)
             _, _, ll0 = clogit(strata, G, fixed=True)
-            gen, trend = general_trend(strata, G, order)
+            gen, trend, way = general_trend(strata, G, order)
             R[(c, sname, held)] = {"order": order, "beta": beta, "se": se, "ll": ll, "ll0": ll0, "gen": gen,
-                                   "trend": trend, "block": (2 * (ll - ll0), G - 1, float(st.chi2.sf(2 * (ll - ll0),
+                                   "trend": trend, "way": way, "block": (2 * (ll - ll0), G - 1, float(st.chi2.sf(2 * (ll - ll0),
                                                                                                         G - 1)))}
 # the allowance: across every candidate's groups on each set of loans (New variables!C11)
 for sname in SETS:
@@ -382,6 +395,19 @@ for c in CANDS:
             put(who + ["Degrees of freedom"], df, "")
             put(who + ["p-value"], p, "")
             put(who + ["Reading"], "significant" if p < ALPHA else "not significant", "")
+        # the same tests said in words under them: which of the general and trend tests clear 5%, and which way
+        g_sig, t_sig = r["gen"][2] < ALPHA, r["trend"][2] < ALPHA
+        lead = ("On development," if sname == "Found" else "On the holdout,") + \
+            ("" if held else " with nothing held fixed,")
+        way = "rises" if r["way"] > 0 else "falls"
+        put(["nv-reading", c, block],
+            f"{lead} the bad rate differs across the groups, and {way} steadily as {c} rises." if g_sig and t_sig else
+            f"{lead} the bad rate differs across the groups, but not in one direction: higher in some groups, "
+            f"lower in others." if g_sig else
+            f"{lead} the groups taken all at once do not differ significantly, but the bad rate {way} steadily as "
+            f"{c} rises (the trend test)." if t_sig else
+            f"{lead} no difference across the groups shows at 95% sure. That is not proof there is none.",
+            "the general and trend p-values above against 5%; the direction from the trend statistic's sign")
 
     # the group tables, found and confirmed (raw p-values, before the allowance)
     for sname, blockname in (("Found", "Found"), ("Confirmed", "Confirmed on the held-back loans")):
@@ -482,6 +508,12 @@ for k, (c, g) in enumerate(cols):
         put(who + ["Adds: statistic"], [lr[c][0], lr[c][1]], "likelihood ratio, the candidate taken out")
         put(who + ["Adds: p, allowed"], lr_adj[c], "")
         put(who + ["Adds?"], "Yes" if lr_adj[c] < ALPHA else "No", "")
+yes_ = [c for c in CANDS if lr_adj[c] < ALPHA]
+no_ = [c for c in CANDS if lr_adj[c] >= ALPHA]
+put(["nv-joint-found"], ("Adds something the others don't: " + "; ".join(yes_) + ". " if yes_ else
+                         "No candidate adds anything significant once the others are in. ") +
+    ("Adds nothing significant once the others are in: " + "; ".join(no_) + "." if no_ else ""),
+    "the candidates whose allowed likelihood ratio p-value is under 5%, in the table's order")
 put(["nv-text", "C39"], [left_joint], "held-back loans without every candidate's value")
 put(["nv-text", "C11"], [len(CANDS), sum(len(BINS[c]) for c in CANDS)], "")
 put(["record", "F72"], [len(CANDS)], "")
@@ -646,6 +678,9 @@ for c in ("FICO", "ORIG_BAL", "REV_DEBT", "SALES", "INCOME", "UTIL", "TENURE", "
     put(["look", c, "Blank", 4], blank / len(raw), "")
     put(["look", c, "Not a number", 3], notnum, "")
     put(["look", c, "Not a number", 4], notnum / len(raw), "")
+    if code is None:
+        put(["look", c, "Likely a code", 3], "none found" if looks_like_code(vals) is None else "a code",
+            "no value on 1% of loans or more sits half the spread or further outside the rest")
     if code is not None:
         at_ = sum(1 for v in vals if v == code)
         put(["look", c, "At -9999, likely a code", 3], at_, "")

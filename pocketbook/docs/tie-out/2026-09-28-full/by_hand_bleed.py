@@ -15,6 +15,7 @@ the usual test, 10 losses, 5 bands of equal loans, 80% power, Benjamini-Hochberg
 The shuffle test (10,000 shuffles, Pockets!D8) is re-run here with this script's own random numbers. It cannot and
 should not land on the same digits: its p-values are compared within sampling error (compare.py says how).
 """
+import collections
 import csv
 import json
 import math
@@ -896,6 +897,18 @@ put(["columns", "ASSET_CLASS", "check"], [len(set(DIMS["ASSET_CLASS"]))], "")
 put(["columns", "REV_DEBT", "check"], [len(set(v for v in REV if v is not None))], "")
 
 # ------------------------------------------------------------------ Look
+def looks_like_code(vals):
+    """The Look tab's red bar, from its own words (Look, "The red bar"; statistics.md): one value held by 1% of the
+    loans or more that sits outside the rest by half their spread or more, such as -9999 among scores of 500-850."""
+    nums = [v for v in vals if v is not None]
+    value, k = collections.Counter(nums).most_common(1)[0]
+    rest = [v for v in nums if v != value]
+    if not rest or k < 0.01 * len(nums):
+        return None
+    span = (max(rest) - min(rest)) or abs(max(rest)) or 1.0
+    return value if value < min(rest) - 0.5 * span or value > max(rest) + 0.5 * span else None
+
+
 def look_stats(name, vals, raw, code=None):
     real = [v for v in vals if v is not None and v != code]
     blank = sum(1 for r in raw if r == "")
@@ -905,6 +918,9 @@ def look_stats(name, vals, raw, code=None):
     put(["look", name, "Blank", 4], blank / len(raw), "")
     put(["look", name, "Not a number", 3], notnum, "")
     put(["look", name, "Not a number", 4], notnum / len(raw), "")
+    if code is None:
+        put(["look", name, "Likely a code", 3], "none found" if looks_like_code(vals) is None else "a code",
+            "no value on 1% of loans or more sits half the spread or further outside the rest")
     if code is not None:
         at = sum(1 for v in vals if v == code)
         put(["look", name, f"At {code:.0f}, likely a code", 3], at, "")

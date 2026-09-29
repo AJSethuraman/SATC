@@ -34,7 +34,7 @@ def read_scouting(F, ws):
         name = ws.cell(r, 2).value
         for c, h in heads.items():
             v = ws.cell(r, c).value
-            if v is not None and has_digit(v) or h in ("Proposed?",) and v:
+            if v is not None and has_digit(v) or h in ("Proposed?", "Why") and v:
                 F.add(tab, "one", ws.cell(r, c).coordinate, ["sc-cand", name, h], v)
         r += 1
     for row in ws.iter_rows(min_row=r, max_row=ws.max_row):
@@ -86,7 +86,7 @@ def read_new_variables(F, ws):
             table(b.row, range(6, 15), "nv-joint")
         if b.value == "Candidate" and ws.cell(b.row, 4).value == "Gap":
             table(b.row, range(4, 15), "nv-main")
-    cand = None
+    cand, joint = None, False
     for row in rows:
         b = row[1]
         v = str(b.value or "")
@@ -103,6 +103,8 @@ def read_new_variables(F, ws):
                     if vv is not None:
                         F.add(tab, "one", ws.cell(rr, c).coordinate, ["nv-test", cand, block, test, h], vv)
                 rr += 1
+            if ws.cell(rr, 2).value == "What it found":            # the tests above, said in words
+                F.add(tab, "one", f"C{rr}", ["nv-reading", cand, block], ws.cell(rr, 3).value)
         if v.startswith("Group of ") and ws.cell(b.row, 9).value == "Odds ratio":
             head = {c: ws.cell(b.row, c).value for c in range(6, 15) if ws.cell(b.row, c).value}
             rr = b.row + 1
@@ -128,6 +130,11 @@ def read_new_variables(F, ws):
                     if vv is not None:
                         F.add(tab, "one", ws.cell(rr, c).coordinate, ["nv-conc", cand, grp, h], vv)
                 rr += 1
+        if v.startswith("All ") and v.endswith("together, on the held-back loans"):
+            joint = True
+        if v == "What it found" and cand is None and joint:          # the together table's verdict in words
+            F.add(tab, "one", f"C{b.row}", ["nv-joint-found"], ws.cell(b.row, 3).value)
+            joint = False
         if v == "What it found" and cand is not None and has_digit(ws.cell(b.row, 3).value or ""):
             t = ws.cell(b.row, 3).value
             where = "Found" if t.startswith("On development") else "Confirmed"
@@ -177,7 +184,7 @@ def read_rest(F, wb):
                 (isinstance(lab, str) and (lab.startswith("At ") or lab == "Likely a code")):
             for c in (3, 4):
                 v = ws.cell(r, c).value
-                if v is not None and has_digit(v):
+                if v is not None and (has_digit(v) or lab == "Likely a code"):
                     F.add("Look", "one", ws.cell(r, c).coordinate, ["look", col, lab, c], v)
     F.sweep(ws, "Look", "one", max_col=16)
     ws = wb["Record"]

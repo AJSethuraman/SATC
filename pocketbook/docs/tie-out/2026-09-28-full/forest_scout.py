@@ -298,6 +298,9 @@ for c in CANDS:
     proposed = c not in CATEGORY and best[c] > floor and c in ("UTIL", "income_to_sales")
     put(["sc-cand", c, "Proposed?"], "Yes" if proposed else "No",
         f"a number column above this road's own noise floor ({floor:.4f}) with a bend to cut", sampled_word=True)
+    put(["sc-cand", c, "Why"], "a category" if c in CATEGORY else "below the noise floor" if best[c] <= floor else
+        "clears the noise floor" if proposed else "no bend to cut at",
+        f"against this road's own noise floor ({floor:.4f})", sampled_word=True)
 put(["sc-text", "D19"], [len(CANDS), 2], "")
 json.dump({"expected": E, "meta": {"bins_attempt": ATTEMPT, "floor_replicate": floor, "floor_draws": len(floor_draws),
                                    "auc": [auc_plain, auc_held, auc_unseen, auc_unseen_h],

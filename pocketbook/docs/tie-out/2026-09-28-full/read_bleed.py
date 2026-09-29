@@ -272,7 +272,7 @@ def read_once(F, wb, view):
                 continue
             for c in (3, 4):
                 v = ws.cell(r, c).value
-                if v is not None and has_digit(v):
+                if v is not None and (has_digit(v) or lab == "Likely a code"):
                     F.add("Look", view, ws.cell(r, c).coordinate, ["look", col, lab, c], v)
         if isinstance(lab, str) and lab.startswith("REV_DEBT against"):
             col = lab

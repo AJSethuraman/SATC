@@ -6,7 +6,7 @@
 
 <div class="meta">Where the book bleeds: Consumer book Q3.csv (8,000 loans, made-up) · Consumer book Q3 - PocketBook.xlsx, Run 2026-09-28 21:24 · 40 views, each calculated by LibreOffice 24.2 · Test new variables: Scouting book.csv (12,000 loans, made-up; the book tests/test_scout.py uses) · Scouting book - PocketBook.xlsx, Run 2026-09-28 21:30 · Loan-file road: Python 3.11 csv module, numpy 2.4, scipy 1.17, statsmodels 0.15, scikit-learn 1.9, awk</div>
 
-<div class="headline-box"><span class="big" data-tieout="headline"><!--HEADLINE--> cells read</span> out of the two workbooks — every visible cell that holds a number, or words with a digit in them, under every view. Of them, <b><!--COUNT:TIED--> tie</b> to the loan file and <b><!--COUNT:TIED-WITHIN-SAMPLING--> tie within sampling error</b> (figures that come from shuffling or sampling at random, which two honest roads cannot make land on the same digits). <b><!--COUNT:DIFFERS--> differ</b>, all sixteen of them bars of one chart, from a small bug found here. <b><!--COUNT:COULD NOT--> could not be checked</b>, each for a reason named below. The rest are names, the analyst's own answers shown back, and words.</div>
+<div class="headline-box"><span class="big" data-tieout="headline"><!--HEADLINE--> cells read</span> out of the two workbooks — every visible cell that holds a number, words with a digit in them, or a sentence or word that gives a verdict, under every view. Of them, <b><!--COUNT:TIED--> tie</b> to the loan file and <b><!--COUNT:TIED-WITHIN-SAMPLING--> tie within sampling error</b> (figures that come from shuffling or sampling at random, which two honest roads cannot make land on the same digits). <b><!--COUNT:DIFFERS--> differ</b>, all sixteen of them bars of one chart, from a small bug found here. <b><!--COUNT:COULD NOT--> could not be checked</b>, each for a reason named below. The rest are names, the analyst's own answers shown back, and words.</div>
 
 ## How the two roads meet
 
@@ -156,11 +156,32 @@ Every cell read is on one line of roster.csv, beside this document, with the wor
 | <span class="v couldnot">COULD NOT</span> | 1 | Scouting!F25, income_to_sales' suggested bins, 0.1 and 2: this road's reading of the rule the tab states in words gave 0.1, 2 and 2.1 (UTIL's 0.9 did land). The words don't say how two cuts that close are merged. |
 | <span class="v couldnot">COULD NOT</span> | 1 | Control!I15 in the new-variable workbook, the suggested worse-at line, 1.43×: the tab says it is the smallest odds ratio a group of typical size can call significant, but not which groups are typical or at what power. One attempt (the median over the groups of the odds ratio a Wald test just calls significant) gives 1.40. |
 
+## How we know nothing was skipped
+
+The firm, on the first version of this document: "how do we know it checked every figure if they aren't in the pdf? how can you confirm". The PDF only counts; `roster.csv` beside it has one line per cell. But a roster only lists what the reader thought to read. So a second, separate script, `completeness.py`, opens the same calculated workbooks with openpyxl alone, lists every cell an analyst can see on every visible tab, and looks each one up in the roster.
+
+| Workbook | Numbers checked in their own view | Numbers checked in another view | Numbers never checked |
+|---|---:|---:|---:|
+| Where the book bleeds, 40 views | 11,344 | 25,447 | **0** |
+| Test new variables | 528 | — | **0** |
+
+*Checked in another view* is the same cell showing the same value under another dropdown choice: Grids' Loans block, for one, reads the same under all five measures and is counted once.
+
+It also lists every piece of text in the result tables the roster never names: 298 different texts in the bleed workbook, 295 in the new-variable one. Every one was read. They are headings, labels, pocket and segment names, the tabs' own explanations, the analyst's settings shown back, the *Forget?* column (No until the analyst answers), Control's *Same as last Run* and Record's *Warning* labels.
+
+**It found a gap, and the gap is closed.** The first survey turned up 30 cells that give a verdict in words and hold no digit, so the first reader had passed them by: the eight *What it found* sentences under New variables' tests in full, Scouting's eight *Why* reasons, the together table's *Adds something the others don't*, and thirteen of Look's *none found* (no value looks like a code). All 30 are now read and worked out again on the loan-file road, and all 30 tie. That is why the roster now has 15,680 lines, not 15,650.
+
+What the survey leaves out: the hidden helper columns and sheets (below), and the SHOW filters other than *All*. A number counted as checked in another view matches on its cell and its value, which assumes the dropdown doesn't change what that cell means.
+
+```
+python3 completeness.py roster.csv work/views-bleed/calculated work/calculated-scout
+```
+
 ## How to run it yourself
 
 Everything runs from the folder this document sits in, `pocketbook/docs/tie-out/2026-09-28-full/`. The new-variable loan file, both workbooks and every script are in it; the bleed loan file is the first tie-out's, `../2026-09-28/Consumer book Q3.csv`, byte for byte the one this Run read.
 
-**Step 1 · Everything, in one go** (about twenty minutes; `work` is any folder for the in-between files). It prints the mutation check at the end: `planted 200, caught 197, missed 3` for the bleed workbook and `planted 200, caught 196, missed 4` for the new-variable one.
+**Step 1 · Everything, in one go** (about twenty minutes; `work` is any folder for the in-between files). It prints the mutation check at the end: `planted 200, caught 199, missed 1` for the bleed workbook and `planted 200, caught 197, missed 3` for the new-variable one, then the survey above: 0 numbers never checked in each.
 
 ```
 sh run-it-all.sh work
@@ -229,12 +250,13 @@ python3 make_scout_book.py ../../../src "/tmp/credit/Loan files"
 - **I first counted Grids' Loans block five times over**, once under each measure, though it is the same cells; the count would have been about 3,000 cells higher. A figure now counts once per cell it can show, not once per view.
 - **My comparison could not see a wrong p-value below 10⁻¹².** It allowed an absolute slack of 10⁻¹² on every number, which swallowed any error in a p-value of 10⁻²⁰; the mutation check planted such errors in the new-variable workbook's p-values and none was caught. The slack is now relative only, and every p-value there still ties.
 - **statsmodels read four p-values as 0.** Its Cochran-Mantel-Haenszel p-value is one minus a probability, which cannot go below about 10⁻¹⁶; Split's odds p-values run to 10⁻³⁰. The statistic is still statsmodels'; its tail now comes from scipy, and all four tie.
+- **My first reader passed over 30 verdicts written in words.** It read text only when the text held a digit, so sentences such as *On the holdout, the bad rate differs across the groups, and rises steadily as UTIL rises* were never compared, though the p-values beside them were. `completeness.py`, written after the firm asked how we knew, found them. All 30 now tie.
 - **I first tried to keep the walk's loan folder under /home, and was stopped.** The folder is `/tmp/credit/Loan files`; its name is written inside both workbooks (where PocketBook records its extract and pre-spec), so it had to be a plain one.
 
 <h2 data-tieout="what-this-does-not-prove">What this does not prove</h2>
 
 - **Not a second method where the tab gives none.** Where the tabs state a rule in words, the loan-file road follows the words. Where the words stop — which pockets make a Benjamini-Hochberg family, the variance behind the split's 95% range, the search behind *Could have caught*, which pockets the Pockets tab lists and in what order, how the forest's columns are laid out — I read PocketBook's code for the definition and wrote it again. A tie there proves the arithmetic, not the choice of method.
-- **Shuffled figures only within sampling error, and loosely when small.** mutate.py plants a wrong value in 200 figures of each workbook, chosen at random, and asks the comparison to catch it: 197 of 200 caught in the bleed workbook, 196 of 200 in the new-variable one. The three bleed misses were small shuffled p-values halved, which after the allowance stays inside sampling error: two roads with their own random numbers cannot tell 0.003 from 0.006 there. Of the four new-variable misses, three were Look bars already marked DIFFERS, moved one loan toward this road's count, and one was the Run's time on Start here, which is its own clock and not checked.
+- **Shuffled figures only within sampling error, and loosely when small.** mutate.py plants a wrong value in 200 figures of each workbook, chosen at random, and asks the comparison to catch it: 199 of 200 caught in the bleed workbook, 197 of 200 in the new-variable one. The bleed miss was a shuffled p-value halved after the allowance, 0.076 to 0.038: the allowance multiplies the shuffles' sampling error along with the p-value, so two roads with their own random numbers cannot tell those two apart. Of the three new-variable misses, two were Look bars already marked DIFFERS, moved one loan toward this road's count, and one was the Run's time on Start here, which is its own clock and not checked.
 - **Not Excel.** LibreOffice 24.2 worked the formulas out. A formula Excel reads differently would not show here.
 - **Not a real extract.** Two made-up loan files from PocketBook's own generator. A real bank file has quoted fields, other date shapes and other codes.
 - **Not everything a screen shows.** Colours and shading, the charts other than Look's bars, and the row order on Paid, cost, kept were not checked. Pockets' SHOW filters other than *All* were not read separately; they show the same rows, fewer of them.

@@ -125,6 +125,7 @@ bleed,Look,Look!C31,ORIG_BAL · Blank · 3,1,1,0,TIED,
 bleed,Look,Look!D31,ORIG_BAL · Blank · 4,0.000125,0.000125,0,TIED,
 bleed,Look,Look!C32,ORIG_BAL · Not a number · 3,0,0,0,TIED,
 bleed,Look,Look!D32,ORIG_BAL · Not a number · 4,0,0,0,TIED,
+bleed,Look,Look!C33,ORIG_BAL · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 bleed,Look,Look!C34,ORIG_BAL · Smallest · 3,5005.32,5005.32,0,TIED,
 bleed,Look,Look!C35,ORIG_BAL · Median · 3,32112.83,32112.83,0,TIED,
 bleed,Look,Look!C36,ORIG_BAL · Mean · 3,32262.5885773,32262.5885773,+3.27e-11,TIED,
@@ -134,6 +135,7 @@ bleed,Look,Look!C50,REV_DEBT · Blank · 3,0,0,0,TIED,
 bleed,Look,Look!D50,REV_DEBT · Blank · 4,0,0,0,TIED,
 bleed,Look,Look!C51,REV_DEBT · Not a number · 3,0,0,0,TIED,
 bleed,Look,Look!D51,REV_DEBT · Not a number · 4,0,0,0,TIED,
+bleed,Look,Look!C52,REV_DEBT · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 bleed,Look,Look!C53,REV_DEBT · Smallest · 3,0,0,0,TIED,
 bleed,Look,Look!C54,REV_DEBT · Median · 3,11392.84,11392.84,0,TIED,
 bleed,Look,Look!C55,REV_DEBT · Mean · 3,12064.4832688,12064.4832688,0,TIED,
@@ -14536,38 +14538,46 @@ scout,Scouting,Scouting!E24,UTIL · FICO and CHANNEL held fixed,0.04644,0.048229
 scout,Scouting,Scouting!F24,UTIL · Suggested bins,0.0 - 0.8; 0.9 - 1.2,0.0 - 0.8; 0.9 - 1.2,,TIED-WITHIN-SAMPLING,"this road's reading of the rule on Scouting!C12, on its own partial dependence"
 scout,Scouting,Scouting!G24,UTIL · Reference,0.0 - 0.8,0.0 - 0.8,,TIED,the group holding the development loans' median
 scout,Scouting,Scouting!I24,UTIL · Proposed?,Yes,Yes,,TIED-WITHIN-SAMPLING,a number column above this road's own noise floor (0.0090) with a bend to cut
+scout,Scouting,Scouting!J24,UTIL · Why,clears the noise floor,clears the noise floor,,TIED-WITHIN-SAMPLING,against this road's own noise floor (0.0090)
 scout,Scouting,Scouting!C25,income_to_sales · Rank,2,2,0,TIED,by the larger importance; ranks 2 to 2 are within sampling error
 scout,Scouting,Scouting!D25,income_to_sales · Importance,0.036077,0.0377834375361,-0.00171,TIED-WITHIN-SAMPLING,tolerance 0.0083: 
 scout,Scouting,Scouting!E25,income_to_sales · FICO and CHANNEL held fixed,0.031561,0.0301725484417,+0.00139,TIED-WITHIN-SAMPLING,tolerance 0.0078: 
 scout,Scouting,Scouting!F25,income_to_sales · Suggested bins,0.02 - 0.09; 0.10 - 1.99; 2.00 - 8.30,,,COULD NOT,"income_to_sales's suggested bins: this road's reading of the rule the tab states in words (Scouting!C12) gave 0.1, 2 and 2.1 where the pre-spec has 0.1 and 2 (UTIL's 0.9 did land); the words don't say how two cuts that close are merged, so the rule could not be followed to the end from the tab alone"
 scout,Scouting,Scouting!G25,income_to_sales · Reference,0.10 - 1.99,0.10 - 1.99,,TIED,the group holding the development loans' median
 scout,Scouting,Scouting!I25,income_to_sales · Proposed?,Yes,Yes,,TIED-WITHIN-SAMPLING,a number column above this road's own noise floor (0.0090) with a bend to cut
+scout,Scouting,Scouting!J25,income_to_sales · Why,clears the noise floor,clears the noise floor,,TIED-WITHIN-SAMPLING,against this road's own noise floor (0.0090)
 scout,Scouting,Scouting!C26,F4 · Rank,3,4,-1,TIED-WITHIN-SAMPLING,by the larger importance; ranks 3 to 8 are within sampling error
 scout,Scouting,Scouting!D26,F4 · Importance,0.005662,0.00311333356706,+0.00255,TIED-WITHIN-SAMPLING,tolerance 0.005: 
 scout,Scouting,Scouting!E26,F4 · FICO and CHANNEL held fixed,0.004672,0.00372179234845,+0.00095,TIED-WITHIN-SAMPLING,tolerance 0.0042: 
 scout,Scouting,Scouting!I26,F4 · Proposed?,No,No,,TIED-WITHIN-SAMPLING,a number column above this road's own noise floor (0.0090) with a bend to cut
+scout,Scouting,Scouting!J26,F4 · Why,below the noise floor,below the noise floor,,TIED-WITHIN-SAMPLING,against this road's own noise floor (0.0090)
 scout,Scouting,Scouting!C27,F2 · Rank,4,5,-1,TIED-WITHIN-SAMPLING,by the larger importance; ranks 3 to 8 are within sampling error
 scout,Scouting,Scouting!D27,F2 · Importance,0.003198,0.00355297228331,-0.000355,TIED-WITHIN-SAMPLING,tolerance 0.005: 
 scout,Scouting,Scouting!E27,F2 · FICO and CHANNEL held fixed,-0.002621,-0.000362532036113,-0.00226,TIED-WITHIN-SAMPLING,tolerance 0.0035: 
 scout,Scouting,Scouting!H27,F2 · Correlated with,F1 (+0.97),0.97,,TIED,compared at the digits the cell shows
 scout,Scouting,Scouting!I27,F2 · Proposed?,No,No,,TIED-WITHIN-SAMPLING,a number column above this road's own noise floor (0.0090) with a bend to cut
+scout,Scouting,Scouting!J27,F2 · Why,below the noise floor,below the noise floor,,TIED-WITHIN-SAMPLING,against this road's own noise floor (0.0090)
 scout,Scouting,Scouting!C28,F1 · Rank,5,3,+2,TIED-WITHIN-SAMPLING,by the larger importance; ranks 3 to 8 are within sampling error
 scout,Scouting,Scouting!D28,F1 · Importance,0.002109,0.00373005118026,-0.00162,TIED-WITHIN-SAMPLING,tolerance 0.006: 
 scout,Scouting,Scouting!E28,F1 · FICO and CHANNEL held fixed,0.00105,0.000395858844406,+0.000654,TIED-WITHIN-SAMPLING,tolerance 0.0031: 
 scout,Scouting,Scouting!H28,F1 · Correlated with,F2 (+0.97),0.97,,TIED,compared at the digits the cell shows
 scout,Scouting,Scouting!I28,F1 · Proposed?,No,No,,TIED-WITHIN-SAMPLING,a number column above this road's own noise floor (0.0090) with a bend to cut
+scout,Scouting,Scouting!J28,F1 · Why,below the noise floor,below the noise floor,,TIED-WITHIN-SAMPLING,against this road's own noise floor (0.0090)
 scout,Scouting,Scouting!C29,TENURE · Rank,6,6,0,TIED,by the larger importance; ranks 3 to 8 are within sampling error
 scout,Scouting,Scouting!D29,TENURE · Importance,0.000605,0.00223652993085,-0.00163,TIED-WITHIN-SAMPLING,tolerance 0.0058: 
 scout,Scouting,Scouting!E29,TENURE · FICO and CHANNEL held fixed,0.002076,0.00324640715572,-0.00117,TIED-WITHIN-SAMPLING,tolerance 0.0039: 
 scout,Scouting,Scouting!I29,TENURE · Proposed?,No,No,,TIED-WITHIN-SAMPLING,a number column above this road's own noise floor (0.0090) with a bend to cut
+scout,Scouting,Scouting!J29,TENURE · Why,below the noise floor,below the noise floor,,TIED-WITHIN-SAMPLING,against this road's own noise floor (0.0090)
 scout,Scouting,Scouting!C30,F3 · Rank,7,7,0,TIED,by the larger importance; ranks 3 to 8 are within sampling error
 scout,Scouting,Scouting!D30,F3 · Importance,-0.001772,-0.000549726808621,-0.00122,TIED-WITHIN-SAMPLING,tolerance 0.006: 
 scout,Scouting,Scouting!E30,F3 · FICO and CHANNEL held fixed,0.000193,0.00111721762983,-0.000924,TIED-WITHIN-SAMPLING,tolerance 0.0032: 
 scout,Scouting,Scouting!I30,F3 · Proposed?,No,No,,TIED-WITHIN-SAMPLING,a number column above this road's own noise floor (0.0090) with a bend to cut
+scout,Scouting,Scouting!J30,F3 · Why,below the noise floor,below the noise floor,,TIED-WITHIN-SAMPLING,against this road's own noise floor (0.0090)
 scout,Scouting,Scouting!C31,REGION · Rank,8,8,0,TIED,by the larger importance; ranks 3 to 8 are within sampling error
 scout,Scouting,Scouting!D31,REGION · Importance,-0.001832,-0.00133464630254,-0.000497,TIED-WITHIN-SAMPLING,tolerance 0.002: 
 scout,Scouting,Scouting!E31,REGION · FICO and CHANNEL held fixed,-0.000929,-0.000673432481254,-0.000256,TIED-WITHIN-SAMPLING,tolerance 0.0011: 
 scout,Scouting,Scouting!I31,REGION · Proposed?,No,No,,TIED-WITHIN-SAMPLING,a number column above this road's own noise floor (0.0090) with a bend to cut
+scout,Scouting,Scouting!J31,REGION · Why,a category,a category,,TIED-WITHIN-SAMPLING,against this road's own noise floor (0.0090)
 scout,Scouting,Scouting!D35,FICO,0.080336,0.0866168154222,-0.00628,TIED-WITHIN-SAMPLING,tolerance 0.013: 
 scout,Scouting,Scouting!D36,CHANNEL,0.005494,0.00568821202805,-0.000194,TIED-WITHIN-SAMPLING,tolerance 0.0028: 
 scout,Scouting,Scouting!B48,bins · UTIL,    bins: [0.9],0.9,,TIED,compared at the digits the cell shows
@@ -14750,6 +14760,7 @@ scout,New variables,New variables!K47,"income_to_sales · 2.00 - 8.30 vs 0.10 - 
 scout,New variables,New variables!L47,"income_to_sales · 2.00 - 8.30 vs 0.10 - 1.99 · Confirmed, FICO and CHANNEL held fixed: Excess $",693606.270556,693606.270556,-2.99e-07,TIED,
 scout,New variables,New variables!M47,"income_to_sales · 2.00 - 8.30 vs 0.10 - 1.99 · Confirmed, FICO and CHANNEL held fixed: Material?",Yes,Yes,,TIED,
 scout,New variables,New variables!N47,"income_to_sales · 2.00 - 8.30 vs 0.10 - 1.99 · Confirmed, FICO and CHANNEL held fixed: In words","Holds up, and not just FICO and CHANNEL","Holds up, and not just FICO and CHANNEL",,TIED,New variables!C15
+scout,New variables,New variables!C37,,Adds something the others don't: UTIL; income_to_sales. ,Adds something the others don't: UTIL; income_to_sales. ,,TIED,"the candidates whose allowed likelihood ratio p-value is under 5%, in the table's order"
 scout,New variables,New variables!F86,"UTIL · Found, nothing held fixed · Any difference across the groups (general) · Statistic",105.678351,105.678351113,-1.13e-07,TIED,shown to six decimals
 scout,New variables,New variables!G86,"UTIL · Found, nothing held fixed · Any difference across the groups (general) · Degrees of freedom",1,1,0,TIED,
 scout,New variables,New variables!H86,"UTIL · Found, nothing held fixed · Any difference across the groups (general) · p-value",8.67297412102e-25,8.67297412102e-25,0,TIED,
@@ -14762,6 +14773,7 @@ scout,New variables,New variables!F88,"UTIL · Found, nothing held fixed · Any 
 scout,New variables,New variables!G88,"UTIL · Found, nothing held fixed · Any difference, from the regression (block test) · Degrees of freedom",1,1,0,TIED,
 scout,New variables,New variables!H88,"UTIL · Found, nothing held fixed · Any difference, from the regression (block test) · p-value",9.39596669263e-23,9.39596669264e-23,-4.29e-35,TIED,
 scout,New variables,New variables!I88,"UTIL · Found, nothing held fixed · Any difference, from the regression (block test) · Reading",significant,significant,,TIED,
+scout,New variables,New variables!C89,"UTIL · Found, nothing held fixed","On development, with nothing held fixed, the bad rate differs across the groups, and rises steadily as UTIL rises.","On development, with nothing held fixed, the bad rate differs across the groups, and rises steadily as UTIL rises.",,TIED,the general and trend p-values above against 5%; the direction from the trend statistic's sign
 scout,New variables,New variables!F92,"UTIL · Found, FICO and CHANNEL held fixed · Any difference across the groups (general) · Statistic",93.811484,93.81148443,-4.3e-07,TIED,shown to six decimals
 scout,New variables,New variables!G92,"UTIL · Found, FICO and CHANNEL held fixed · Any difference across the groups (general) · Degrees of freedom",1,1,0,TIED,
 scout,New variables,New variables!H92,"UTIL · Found, FICO and CHANNEL held fixed · Any difference across the groups (general) · p-value",3.47052310252e-22,3.47052310252e-22,+4.61e-36,TIED,
@@ -14774,6 +14786,7 @@ scout,New variables,New variables!F94,"UTIL · Found, FICO and CHANNEL held fixe
 scout,New variables,New variables!G94,"UTIL · Found, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · Degrees of freedom",1,1,0,TIED,
 scout,New variables,New variables!H94,"UTIL · Found, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · p-value",1.35418735785e-20,1.35418735785e-20,-6.18e-33,TIED,
 scout,New variables,New variables!I94,"UTIL · Found, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · Reading",significant,significant,,TIED,
+scout,New variables,New variables!C95,"UTIL · Found, FICO and CHANNEL held fixed","On development, the bad rate differs across the groups, and rises steadily as UTIL rises.","On development, the bad rate differs across the groups, and rises steadily as UTIL rises.",,TIED,the general and trend p-values above against 5%; the direction from the trend statistic's sign
 scout,New variables,New variables!F98,"UTIL · Confirmed on the held-back loans, nothing held fixed · Any difference across the groups (general) · Statistic",48.308955,48.3089548513,+1.49e-07,TIED,shown to six decimals
 scout,New variables,New variables!G98,"UTIL · Confirmed on the held-back loans, nothing held fixed · Any difference across the groups (general) · Degrees of freedom",1,1,0,TIED,
 scout,New variables,New variables!H98,"UTIL · Confirmed on the held-back loans, nothing held fixed · Any difference across the groups (general) · p-value",3.64085768802e-12,3.64085768802e-12,+1.62e-27,TIED,
@@ -14786,6 +14799,7 @@ scout,New variables,New variables!F100,"UTIL · Confirmed on the held-back loans
 scout,New variables,New variables!G100,"UTIL · Confirmed on the held-back loans, nothing held fixed · Any difference, from the regression (block test) · Degrees of freedom",1,1,0,TIED,
 scout,New variables,New variables!H100,"UTIL · Confirmed on the held-back loans, nothing held fixed · Any difference, from the regression (block test) · p-value",3.49590063258e-11,3.4959006326e-11,-2.07e-22,TIED,
 scout,New variables,New variables!I100,"UTIL · Confirmed on the held-back loans, nothing held fixed · Any difference, from the regression (block test) · Reading",significant,significant,,TIED,
+scout,New variables,New variables!C101,"UTIL · Confirmed on the held-back loans, nothing held fixed","On the holdout, with nothing held fixed, the bad rate differs across the groups, and rises steadily as UTIL rises.","On the holdout, with nothing held fixed, the bad rate differs across the groups, and rises steadily as UTIL rises.",,TIED,the general and trend p-values above against 5%; the direction from the trend statistic's sign
 scout,New variables,New variables!F104,"UTIL · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference across the groups (general) · Statistic",44.444214,44.4442136043,+3.96e-07,TIED,shown to six decimals
 scout,New variables,New variables!G104,"UTIL · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference across the groups (general) · Degrees of freedom",1,1,0,TIED,
 scout,New variables,New variables!H104,"UTIL · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference across the groups (general) · p-value",2.61709350444e-11,2.61709350444e-11,+5.49e-26,TIED,
@@ -14798,6 +14812,7 @@ scout,New variables,New variables!F106,"UTIL · Confirmed on the held-back loans
 scout,New variables,New variables!G106,"UTIL · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · Degrees of freedom",1,1,0,TIED,
 scout,New variables,New variables!H106,"UTIL · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · p-value",1.72026044716e-10,1.72026044716e-10,+4.02e-23,TIED,
 scout,New variables,New variables!I106,"UTIL · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · Reading",significant,significant,,TIED,
+scout,New variables,New variables!C107,"UTIL · Confirmed on the held-back loans, FICO and CHANNEL held fixed","On the holdout, the bad rate differs across the groups, and rises steadily as UTIL rises.","On the holdout, the bad rate differs across the groups, and rises steadily as UTIL rises.",,TIED,the general and trend p-values above against 5%; the direction from the trend statistic's sign
 scout,New variables,New variables!F112,UTIL · Found · 0.0 - 0.8 · Loans,6172,6172,0,TIED,
 scout,New variables,New variables!G112,UTIL · Found · 0.0 - 0.8 · Bad loans,382,382,0,TIED,
 scout,New variables,New variables!H112,UTIL · Found · 0.0 - 0.8 · Bad rate,0.0618924173688,0.0618924173688,+4.86e-17,TIED,
@@ -14867,6 +14882,7 @@ scout,New variables,New variables!F139,"income_to_sales · Found, nothing held f
 scout,New variables,New variables!G139,"income_to_sales · Found, nothing held fixed · Any difference, from the regression (block test) · Degrees of freedom",2,2,0,TIED,
 scout,New variables,New variables!H139,"income_to_sales · Found, nothing held fixed · Any difference, from the regression (block test) · p-value",1.30560123052e-19,1.30560123051e-19,+8.31e-31,TIED,
 scout,New variables,New variables!I139,"income_to_sales · Found, nothing held fixed · Any difference, from the regression (block test) · Reading",significant,significant,,TIED,
+scout,New variables,New variables!C140,"income_to_sales · Found, nothing held fixed","On development, with nothing held fixed, the bad rate differs across the groups, and rises steadily as income_to_sales rises.","On development, with nothing held fixed, the bad rate differs across the groups, and rises steadily as income_to_sales rises.",,TIED,the general and trend p-values above against 5%; the direction from the trend statistic's sign
 scout,New variables,New variables!F143,"income_to_sales · Found, FICO and CHANNEL held fixed · Any difference across the groups (general) · Statistic",112.04727,112.047270259,-2.59e-07,TIED,shown to six decimals
 scout,New variables,New variables!G143,"income_to_sales · Found, FICO and CHANNEL held fixed · Any difference across the groups (general) · Degrees of freedom",2,2,0,TIED,
 scout,New variables,New variables!H143,"income_to_sales · Found, FICO and CHANNEL held fixed · Any difference across the groups (general) · p-value",4.66922075297e-25,4.66922075297e-25,-3.67e-39,TIED,
@@ -14879,6 +14895,7 @@ scout,New variables,New variables!F145,"income_to_sales · Found, FICO and CHANN
 scout,New variables,New variables!G145,"income_to_sales · Found, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · Degrees of freedom",2,2,0,TIED,
 scout,New variables,New variables!H145,"income_to_sales · Found, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · p-value",1.91352306164e-19,1.91352306164e-19,-4.34e-31,TIED,
 scout,New variables,New variables!I145,"income_to_sales · Found, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · Reading",significant,significant,,TIED,
+scout,New variables,New variables!C146,"income_to_sales · Found, FICO and CHANNEL held fixed","On development, the bad rate differs across the groups, and rises steadily as income_to_sales rises.","On development, the bad rate differs across the groups, and rises steadily as income_to_sales rises.",,TIED,the general and trend p-values above against 5%; the direction from the trend statistic's sign
 scout,New variables,New variables!F149,"income_to_sales · Confirmed on the held-back loans, nothing held fixed · Any difference across the groups (general) · Statistic",24.219717,24.2197167579,+2.42e-07,TIED,shown to six decimals
 scout,New variables,New variables!G149,"income_to_sales · Confirmed on the held-back loans, nothing held fixed · Any difference across the groups (general) · Degrees of freedom",2,2,0,TIED,
 scout,New variables,New variables!H149,"income_to_sales · Confirmed on the held-back loans, nothing held fixed · Any difference across the groups (general) · p-value",5.50497472563e-06,5.50497472563e-06,+6.78e-21,TIED,
@@ -14891,6 +14908,7 @@ scout,New variables,New variables!F151,"income_to_sales · Confirmed on the held
 scout,New variables,New variables!G151,"income_to_sales · Confirmed on the held-back loans, nothing held fixed · Any difference, from the regression (block test) · Degrees of freedom",2,2,0,TIED,
 scout,New variables,New variables!H151,"income_to_sales · Confirmed on the held-back loans, nothing held fixed · Any difference, from the regression (block test) · p-value",7.32657928157e-05,7.32657928157e-05,-2.51e-17,TIED,
 scout,New variables,New variables!I151,"income_to_sales · Confirmed on the held-back loans, nothing held fixed · Any difference, from the regression (block test) · Reading",significant,significant,,TIED,
+scout,New variables,New variables!C152,"income_to_sales · Confirmed on the held-back loans, nothing held fixed","On the holdout, with nothing held fixed, the bad rate differs across the groups, and rises steadily as income_to_sales rises.","On the holdout, with nothing held fixed, the bad rate differs across the groups, and rises steadily as income_to_sales rises.",,TIED,the general and trend p-values above against 5%; the direction from the trend statistic's sign
 scout,New variables,New variables!F155,"income_to_sales · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference across the groups (general) · Statistic",22.228068,22.2280682307,-2.31e-07,TIED,shown to six decimals
 scout,New variables,New variables!G155,"income_to_sales · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference across the groups (general) · Degrees of freedom",2,2,0,TIED,
 scout,New variables,New variables!H155,"income_to_sales · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference across the groups (general) · p-value",1.4901717021e-05,1.4901717021e-05,+5.08e-20,TIED,
@@ -14903,6 +14921,7 @@ scout,New variables,New variables!F157,"income_to_sales · Confirmed on the held
 scout,New variables,New variables!G157,"income_to_sales · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · Degrees of freedom",2,2,0,TIED,
 scout,New variables,New variables!H157,"income_to_sales · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · p-value",0.000126635023606,0.000126635023606,-2.93e-17,TIED,
 scout,New variables,New variables!I157,"income_to_sales · Confirmed on the held-back loans, FICO and CHANNEL held fixed · Any difference, from the regression (block test) · Reading",significant,significant,,TIED,
+scout,New variables,New variables!C158,"income_to_sales · Confirmed on the held-back loans, FICO and CHANNEL held fixed","On the holdout, the bad rate differs across the groups, and rises steadily as income_to_sales rises.","On the holdout, the bad rate differs across the groups, and rises steadily as income_to_sales rises.",,TIED,the general and trend p-values above against 5%; the direction from the trend statistic's sign
 scout,New variables,New variables!F163,income_to_sales · Found · 0.02 - 0.09 · Loans,205,205,0,TIED,
 scout,New variables,New variables!G163,income_to_sales · Found · 0.02 - 0.09 · Bad loans,32,32,0,TIED,
 scout,New variables,New variables!H163,income_to_sales · Found · 0.02 - 0.09 · Bad rate,0.156097560976,0.156097560976,+2.5e-16,TIED,
@@ -15171,6 +15190,7 @@ scout,Look,Look!C31,ORIG_BAL · Blank · 3,1,1,0,TIED,
 scout,Look,Look!D31,ORIG_BAL · Blank · 4,8.33333333333e-05,8.33333333333e-05,-2.71e-20,TIED,
 scout,Look,Look!C32,ORIG_BAL · Not a number · 3,0,0,0,TIED,
 scout,Look,Look!D32,ORIG_BAL · Not a number · 4,0,0,0,TIED,
+scout,Look,Look!C33,ORIG_BAL · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 scout,Look,Look!C34,ORIG_BAL · Smallest · 3,5005.32,5005.32,0,TIED,
 scout,Look,Look!C35,ORIG_BAL · Median · 3,32134.41,32134.41,0,TIED,
 scout,Look,Look!C36,ORIG_BAL · Mean · 3,32375.785678,32375.785678,+3.27e-11,TIED,
@@ -15180,6 +15200,7 @@ scout,Look,Look!C50,REV_DEBT · Blank · 3,0,0,0,TIED,
 scout,Look,Look!D50,REV_DEBT · Blank · 4,0,0,0,TIED,
 scout,Look,Look!C51,REV_DEBT · Not a number · 3,0,0,0,TIED,
 scout,Look,Look!D51,REV_DEBT · Not a number · 4,0,0,0,TIED,
+scout,Look,Look!C52,REV_DEBT · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 scout,Look,Look!C53,REV_DEBT · Smallest · 3,0,0,0,TIED,
 scout,Look,Look!C54,REV_DEBT · Median · 3,11419.78,11419.78,0,TIED,
 scout,Look,Look!C55,REV_DEBT · Mean · 3,12069.9065758,12069.9065758,-3.27e-11,TIED,
@@ -15189,6 +15210,7 @@ scout,Look,Look!C69,SALES · Blank · 3,12,12,0,TIED,
 scout,Look,Look!D69,SALES · Blank · 4,0.001,0.001,0,TIED,
 scout,Look,Look!C70,SALES · Not a number · 3,0,0,0,TIED,
 scout,Look,Look!D70,SALES · Not a number · 4,0,0,0,TIED,
+scout,Look,Look!C71,SALES · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 scout,Look,Look!C72,SALES · Smallest · 3,0,0,0,TIED,
 scout,Look,Look!C73,SALES · Median · 3,250287,250287,0,TIED,
 scout,Look,Look!C74,SALES · Mean · 3,282306.734401,282306.734401,+2.91e-10,TIED,
@@ -15198,6 +15220,7 @@ scout,Look,Look!C88,INCOME · Blank · 3,0,0,0,TIED,
 scout,Look,Look!D88,INCOME · Blank · 4,0,0,0,TIED,
 scout,Look,Look!C89,INCOME · Not a number · 3,0,0,0,TIED,
 scout,Look,Look!D89,INCOME · Not a number · 4,0,0,0,TIED,
+scout,Look,Look!C90,INCOME · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 scout,Look,Look!C91,INCOME · Smallest · 3,3830,3830,0,TIED,
 scout,Look,Look!C92,INCOME · Median · 3,126028,126028,0,TIED,
 scout,Look,Look!C93,INCOME · Mean · 3,197973.4745,197973.4745,0,TIED,
@@ -15207,6 +15230,7 @@ scout,Look,Look!C107,UTIL · Blank · 3,0,0,0,TIED,
 scout,Look,Look!D107,UTIL · Blank · 4,0,0,0,TIED,
 scout,Look,Look!C108,UTIL · Not a number · 3,0,0,0,TIED,
 scout,Look,Look!D108,UTIL · Not a number · 4,0,0,0,TIED,
+scout,Look,Look!C109,UTIL · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 scout,Look,Look!C110,UTIL · Smallest · 3,0,0,0,TIED,
 scout,Look,Look!C111,UTIL · Median · 3,0.6073,0.6073,0,TIED,
 scout,Look,Look!C112,UTIL · Mean · 3,0.606772275,0.606772275,-1.11e-16,TIED,
@@ -15216,6 +15240,7 @@ scout,Look,Look!C126,TENURE · Blank · 3,0,0,0,TIED,
 scout,Look,Look!D126,TENURE · Blank · 4,0,0,0,TIED,
 scout,Look,Look!C127,TENURE · Not a number · 3,0,0,0,TIED,
 scout,Look,Look!D127,TENURE · Not a number · 4,0,0,0,TIED,
+scout,Look,Look!C128,TENURE · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 scout,Look,Look!C129,TENURE · Smallest · 3,0,0,0,TIED,
 scout,Look,Look!C130,TENURE · Median · 3,4.2,4.2,0,TIED,
 scout,Look,Look!C131,TENURE · Mean · 3,6.04573333333,6.04573333333,-3.55e-15,TIED,
@@ -15225,6 +15250,7 @@ scout,Look,Look!C145,F1 · Blank · 3,0,0,0,TIED,
 scout,Look,Look!D145,F1 · Blank · 4,0,0,0,TIED,
 scout,Look,Look!C146,F1 · Not a number · 3,0,0,0,TIED,
 scout,Look,Look!D146,F1 · Not a number · 4,0,0,0,TIED,
+scout,Look,Look!C147,F1 · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 scout,Look,Look!C148,F1 · Smallest · 3,-9.44,-9.44,0,TIED,
 scout,Look,Look!C149,F1 · Median · 3,50.25,50.25,0,TIED,
 scout,Look,Look!C150,F1 · Mean · 3,50.0728433333,50.0728433333,-2.84e-14,TIED,
@@ -15234,6 +15260,7 @@ scout,Look,Look!C164,F2 · Blank · 3,0,0,0,TIED,
 scout,Look,Look!D164,F2 · Blank · 4,0,0,0,TIED,
 scout,Look,Look!C165,F2 · Not a number · 3,0,0,0,TIED,
 scout,Look,Look!D165,F2 · Not a number · 4,0,0,0,TIED,
+scout,Look,Look!C166,F2 · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 scout,Look,Look!C167,F2 · Smallest · 3,-11.27,-11.27,0,TIED,
 scout,Look,Look!C168,F2 · Median · 3,45.09,45.09,0,TIED,
 scout,Look,Look!C169,F2 · Mean · 3,45.0467116667,45.0467116667,+3.55e-14,TIED,
@@ -15243,6 +15270,7 @@ scout,Look,Look!C183,F3 · Blank · 3,0,0,0,TIED,
 scout,Look,Look!D183,F3 · Blank · 4,0,0,0,TIED,
 scout,Look,Look!C184,F3 · Not a number · 3,0,0,0,TIED,
 scout,Look,Look!D184,F3 · Not a number · 4,0,0,0,TIED,
+scout,Look,Look!C185,F3 · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 scout,Look,Look!C186,F3 · Smallest · 3,6.177,6.177,0,TIED,
 scout,Look,Look!C187,F3 · Median · 3,10.011,10.011,0,TIED,
 scout,Look,Look!C188,F3 · Mean · 3,10.0206475833,10.0206475833,-3.2e-14,TIED,
@@ -15252,6 +15280,7 @@ scout,Look,Look!C202,F4 · Blank · 3,0,0,0,TIED,
 scout,Look,Look!D202,F4 · Blank · 4,0,0,0,TIED,
 scout,Look,Look!C203,F4 · Not a number · 3,0,0,0,TIED,
 scout,Look,Look!D203,F4 · Not a number · 4,0,0,0,TIED,
+scout,Look,Look!C204,F4 · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 scout,Look,Look!C205,F4 · Smallest · 3,0,0,0,TIED,
 scout,Look,Look!C206,F4 · Median · 3,50.1,50.1,0,TIED,
 scout,Look,Look!C207,F4 · Mean · 3,50.07715,50.07715,0,TIED,
@@ -15261,6 +15290,7 @@ scout,Look,Look!C221,income_to_sales · Blank · 3,24,24,0,TIED,
 scout,Look,Look!D221,income_to_sales · Blank · 4,0.002,0.002,0,TIED,
 scout,Look,Look!C222,income_to_sales · Not a number · 3,0,0,0,TIED,
 scout,Look,Look!D222,income_to_sales · Not a number · 4,0,0,0,TIED,
+scout,Look,Look!C223,income_to_sales · Likely a code · 3,none found,none found,,TIED,no value on 1% of loans or more sits half the spread or further outside the rest
 scout,Look,Look!C224,income_to_sales · Smallest · 3,0.0237014939804,0.0237014939804,+4.51e-17,TIED,
 scout,Look,Look!C225,income_to_sales · Median · 3,0.505838119796,0.505838119796,-3.33e-16,TIED,
 scout,Look,Look!C226,income_to_sales · Mean · 3,0.703668689263,0.703668689263,-4.44e-16,TIED,

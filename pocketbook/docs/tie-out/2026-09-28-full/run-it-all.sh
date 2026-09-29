@@ -35,4 +35,8 @@ python3 roster.py "$OUT/roster-bleed.csv" "$OUT/roster-scout.csv" roster.csv > "
 python3 mutate.py "$OUT/views-bleed/figures.json" "$OUT/expected-bleed.json" > "$OUT/mutate-bleed.txt"
 python3 mutate.py "$OUT/figures-scout.json" "$OUT/expected-scout.json" > "$OUT/mutate-scout.txt"
 cat "$OUT/mutate-bleed.txt" "$OUT/mutate-scout.txt"
+
+# ---- Did anything get skipped? Every visible cell of the calculated workbooks, looked up in roster.csv
+python3 completeness.py roster.csv "$OUT/views-bleed/calculated" "$OUT/calculated-scout" > "$OUT/completeness.txt"
+head -6 "$OUT/completeness.txt"
 echo "roster.csv written; the tallies are in $OUT/tallies.json"
