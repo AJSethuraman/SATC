@@ -942,14 +942,31 @@ def heat_kind(m) -> str:
     return "x" if m.higher_is == "worse" else "xr"
 
 
+#: Grids' Loan size (the firm, 29 Sep 2026): its key, its name in the Measure dropdown, and its shades, a single
+#: neutral hue by how many times the book's average a cell's loans are (darker is bigger, as the Loans block's
+#: darker is more): a description, not a finding, so never red or green
+SIZE, SIZE_NAME = "loan_size", "Loan size"
+SIZE_STEPS = ((2.0, STONE), (1.5, "CFCAC2"), (1.25, MIST), (1.1, house.ROW_RULE))
+SIZE_FMT = '"$"#,##0'
+#: Grids' "Only loans where" (the firm, 29 Sep 2026): the option that filters nothing, and a filtered view's key
+ALL_LOANS = "All loans"
+WHERE = "|where {}"
+
+
+def fewest(res) -> int | None:
+    """The fewest loans in a pocket the Run used (Control's "Fewest loans in a pocket", its suggestion worked out
+    when that was picked): a Grids cell with fewer is grey and sets no colour."""
+    b = res.config.benchmark
+    return b.min_units if b is not None else None
+
+
 def grid_views(res, views: Views) -> tuple[list[str], list, int, int]:
-    """Every grid's four blocks on _views, two-way and split; returns the grids' names, the measures, and the
-    most rows and columns any grid has."""
+    """Every grid's four blocks on _views, two-way and split, and each again on only the loans with one value of a
+    category split (G|<grid>|where <value>|...); returns the grids' names, the measures, and the most rows and
+    columns any grid has."""
     from . import book as bk
     names = bk._names(res)
     ms = rates(res)
-    shows = [m for m in res.measures if m.mode == "median"]
-    untested = (engine.THIN, engine.FEW)
     gnames, most_r, most_c = [], 1, 1
     for g in list(res.grids) + list(res.three_way):
         gname = f"{names[g.band]} x {names[g.dimension]}"
@@ -957,43 +974,68 @@ def grid_views(res, views: Views) -> tuple[list[str], list, int, int]:
         rows_ = g.band_labels + [engine.ALL]
         cols_ = g.dim_labels + [engine.ALL]
         most_r, most_c = max(most_r, len(rows_)), max(most_c, len(cols_))
-        views.put(f"G|{gname}|cols", [_short(res, d) if d != engine.ALL else "All" for d in cols_])
-        views.put(f"G|{gname}|rows", [bl if bl != engine.ALL else "All" for bl in rows_])
-        views.put(f"G|{gname}|names", [names[g.band], names[g.dimension]])
-        total = g.cells[(engine.ALL, engine.ALL)].rows
-        views.put(f"G|{gname}|total", [total])
-        for i, bl in enumerate(rows_, start=1):
-            views.put(f"G|{gname}|loans|{i}", [g.cells[(bl, d)].rows if (bl, d) in g.cells else None for d in cols_])
-        for m in ms:
-            got = []
-            for i, bl in enumerate(rows_, start=1):
-                rate, book, band = [], [], []
-                for d in cols_:
-                    c = g.cells.get((bl, d))
-                    s = c.rates[m.name] if c is not None else None
-                    rate.append(s.rate if s is not None else None)
-                    bv = bk._shown(s.vs_topline, m) if s is not None and s.reading_topline not in untested else None
-                    book.append(bv)
-                    nv = (bk._shown(s.vs_band, m) if s is not None and bl != engine.ALL and d != engine.ALL
-                          and s.reading_band not in untested else None)
-                    band.append(nv)
-                    got += [abs(v) for v in (bv, nv) if isinstance(v, (int, float))]
-                views.put(f"G|{gname}|{m.name}|rate|{i}", rate)
-                views.put(f"G|{gname}|{m.name}|book|{i}", book)
-                views.put(f"G|{gname}|{m.name}|band|{i}", band)
-            views.put(f"G|{gname}|{m.name}|meta", [heat_kind(m), max(got + [0.01]),
-                                                   res.config.benchmark.min_events if res.config.benchmark else None])
-        for sm in shows:
-            key = f"show_{sm.name}"
-            for i, bl in enumerate(rows_, start=1):
-                vals = []
-                for d in cols_:
-                    c = g.cells.get((bl, d))
-                    med = c.medians.get(sm.name) if c is not None else None
-                    vals.append(None if med is None else (med.mean if sm.show == "average" else med.median))
-                views.put(f"G|{gname}|{key}|rate|{i}", vals)
-            views.put(f"G|{gname}|{key}|meta", ["amt", 1])
+        _grid_view(res, views, f"G|{gname}", g, g, names, rows_, cols_, ms)
+        for v in res.split_values:
+            if v in g.filtered:
+                _grid_view(res, views, f"G|{gname}" + WHERE.format(v), g.filtered[v], g, names, rows_, cols_, ms)
+    views.put("G|fewest", [fewest(res)])
     return gnames, ms, most_r, most_c
+
+
+def _grid_view(res, views: Views, key: str, g, whole, names, rows_, cols_, ms) -> None:
+    """One view of one grid on _views: its labels (the whole grid's, so the Row and Column picked stay put), its
+    loans, and each measure's rate, against the book and against the rest of the band, with the heat's kind,
+    its bound, the fewest losses, the book's own figure and the fewest loans. A cell under the fewest loans is
+    left out of the bound (the firm, 29 Sep 2026: a 3-loan cell at -50 points was setting the scale)."""
+    from . import book as bk
+    b = res.config.benchmark
+    few = fewest(res)
+    shows = [m for m in res.measures if m.mode == "median"]
+    untested = (engine.THIN, engine.FEW)
+    views.put(f"{key}|cols", [_short(res, d) if d != engine.ALL else "All" for d in cols_])
+    views.put(f"{key}|rows", [bl if bl != engine.ALL else "All" for bl in rows_])
+    views.put(f"{key}|names", [names[whole.band], names[whole.dimension]])
+    total = g.cells[(engine.ALL, engine.ALL)].rows if (engine.ALL, engine.ALL) in g.cells else 0
+    views.put(f"{key}|total", [total])
+    thin = lambda c: c is None or (few is not None and c.rows < few)          # noqa: E731
+    for i, bl in enumerate(rows_, start=1):
+        views.put(f"{key}|loans|{i}", [g.cells[(bl, d)].rows if (bl, d) in g.cells else None for d in cols_])
+    for m in ms:
+        got = []
+        for i, bl in enumerate(rows_, start=1):
+            rate, book, band = [], [], []
+            for d in cols_:
+                c = g.cells.get((bl, d))
+                s = c.rates[m.name] if c is not None else None
+                rate.append(s.rate if s is not None else None)
+                bv = bk._shown(s.vs_topline, m) if s is not None and s.reading_topline not in untested else None
+                book.append(bv)
+                nv = (bk._shown(s.vs_band, m) if s is not None and bl != engine.ALL and d != engine.ALL
+                      and s.reading_band not in untested else None)
+                band.append(nv)
+                if not thin(c):
+                    got += [abs(v) for v in (bv, nv) if isinstance(v, (int, float))]
+            views.put(f"{key}|{m.name}|rate|{i}", rate)
+            views.put(f"{key}|{m.name}|book|{i}", book)
+            views.put(f"{key}|{m.name}|band|{i}", band)
+        views.put(f"{key}|{m.name}|meta", [heat_kind(m), max(got + [0.01]), b.min_events if b else None,
+                                           res.total.rates[m.name].rate, few])
+    if res.book_size is not None and res.book_size.loans:
+        for i, bl in enumerate(rows_, start=1):
+            got = [engine.size_vs(g.sizes, bl, d, res.book_size) for d in cols_]
+            for j, what in enumerate(("rate", "median", "book", "band")):
+                views.put(f"{key}|{SIZE}|{what}|{i}", [x[j] for x in got])
+        views.put(f"{key}|{SIZE}|meta", ["size", 1, None, res.book_size.average, few])
+    for sm in shows:
+        k = f"show_{sm.name}"
+        for i, bl in enumerate(rows_, start=1):
+            vals = []
+            for d in cols_:
+                c = g.cells.get((bl, d))
+                med = c.medians.get(sm.name) if c is not None else None
+                vals.append(None if med is None else (med.mean if sm.show == "average" else med.median))
+            views.put(f"{key}|{k}|rate|{i}", vals)
+        views.put(f"{key}|{k}|meta", ["amt", 1, None, None, few])
 
 
 #: One cell read out in words under the Grids' blocks (the firm, 29 Sep 2026: "select a particular line and say I
@@ -1008,7 +1050,9 @@ SAY = {"outcome_loans": ("{these}: {r} went bad.", "{x}× the bad-loan rate of {
        "ranr_rate": ("{these} kept {r} of {their} booked dollars after losses.",
                      "Kept {pts} points {more} of their booked dollars than {against}."),
        "contribution_rate": ("{these} earned {r} of {their} booked dollars before losses.",
-                             "Earned {pts} points {more} of their booked dollars than {against}.")}
+                             "Earned {pts} points {more} of their booked dollars than {against}."),
+       # {med} the median booked per loan (the firm, 29 Sep 2026)
+       SIZE: ("{these} averaged {r} booked, median {med}.", "{x}× the average loan of {against}.")}
 SAY_KIND = {"x": ("{these}: {measure} is {r}.", "{x}× the rate of {against}."),
             "pts": ("{these}: {measure} is {r}.", "{pts} points {more} than {against}."),
             "amt": ("{these}: {measure} is {r}.", "Not compared: this figure is shown, not tested.")}
@@ -1020,6 +1064,12 @@ SAY_NOT = "Blank: not compared."
 SAY_LOANS = "{loans}; {row} has {m} in all."
 SAY_COLOUR = ("vs the book is {book}, vs rest of band {band}. Red is worse, green better, deeper a bigger gap. "
               "It is the size of the gap, not a test.")
+#: a cell under the fewest loans (the firm, 29 Sep 2026: "grey out cells with too few loans")
+SAY_GREY = "Grey: only {loans}, fewer than the {min} set on Control, so not coloured."
+SAY_SIZE = ("No red or green: loan size is a description, not a finding. Shaded darker the bigger the loans are "
+            "against the book's.")
+#: filtering needs a category to filter by (Split by, in the launcher)
+SAY_NO_FILTER = "Filtering needs Split by a category."
 SAY_PICK = "Pick a Row and a Column above: their lists follow the Grid."
 SAY_EMPTY = "No loans in this pocket."
 SAY_NORATE = "No rate: these loans have nothing to divide by for this measure."
@@ -1055,11 +1105,13 @@ def sub(template: str, **parts: str) -> str:
 
 
 def write_grids(wb, res, choices: Choices, views: Views) -> None:
-    """Grids (section 7): a Grid and a Measure dropdown, four blocks by INDEX and MATCH, and how common each
-    group is under them (it absorbs Prevalence)."""
+    """Grids (section 7): a Grid, a Measure and an "Only loans where" dropdown, four blocks by INDEX and MATCH, and
+    how common each group is under them (it absorbs Prevalence)."""
     ws = wb.create_sheet(GRIDS)
     gnames, ms, nr, nc = grid_views(res, views)
     shows = [m for m in res.measures if m.mode == "median"]
+    sized = res.book_size is not None and bool(res.book_size.loans)
+    sf = res.config.split[0] if res.config.split and res.config.split[1] == "each_value" else None
     w = nc + 1                          # a block: the band column, then the segments
     left, right = 2, 2 + w + 1
     last = right + w - 1
@@ -1067,68 +1119,102 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     house.title_band(ws, GRIDS, "One grid at a time: the rate, how it compares, and how many loans sit in each "
                                 "pocket.", 2, last, tab=house.TAB_RESULT)
     profit = any(m.name in PROFIT for m in ms)
-    r = house.method_note(ws, 3, 2, last, [
+    few = fewest(res)
+    note = [
         ("Rate", "The measure picked above, in every pocket: one band (down) by one segment (across), with the "
                  "band's and the segment's totals in All."),
-        ("vs the book", "The pocket's rate over the book's: 2.00× goes bad twice as often as the book."
+        ("vs the book", "The pocket's rate over the whole book's, which the heading gives: 2.00× goes bad twice as "
+                        "often as the book."
                         + (" Kept after losses and Earned before losses are a gap in points instead." if profit
                            else "")),
         ("vs rest of band", "The pocket's rate over every other loan in its band, so a band that is bad all "
-                            "through doesn't make each of its pockets look bad."),
+                            "through doesn't make each of its pockets look bad. No rate in its heading: the rest "
+                            "of the band is different in every row."),
         ("Colour", "Red is worse, green better, pale in line: 0.5× and under the greenest, 2× and over the "
                    "deepest red; for a gap in points, the largest in the grid is the deepest. A blank: alone in "
                    "its band, or fewer losses than fewest losses on Control, so not compared (a setting for the "
-                   "next Run)."),
+                   "next Run)."
+                   + (f" Grey: fewer loans than the {few:,} in Fewest loans in a pocket on Control, so not "
+                      f"coloured, and left out of the largest gap." if few is not None else "")),
         ("Loans", "How many loans are in each pocket, shaded by its share of the grid: darker is more. A count, "
                   "not a test, so no red or green."),
+    ]
+    if sized:
+        # said inside Rate, so the note keeps its rows and the dropdowns stay where the bank's checklist says
+        note[0] = ("Rate", note[0][1] + " Loan size: booked dollars per loan, the average; against the book's and "
+                                        "the rest of the band's average as a multiple. It is a description, not a "
+                                        "finding: no red or green, only darker the bigger the loans against the "
+                                        "book's.")
+    note += [
+        ("Only loans where", f"Pick a value of {sf} to see the grid on only its loans. vs the book is still against "
+                             f"the whole book; vs rest of band, the rest of the band among those loans."
+         if sf else SAY_NO_FILTER),
         ("Groups", "Under the blocks: how many loans" + (", and booked dollars," if res.config.booked else "")
-                   + " fall in each group of the split column or a new column, pocket by pocket. The count is "
-                     "checked against the grid's before it is shown."),
-        ("As of", "Everything here is as of the last Run: no line on Control changes it."),
-    ])
-    m_opts = [plain(m) for m in ms] + [f"{'Average' if sm.show == 'average' else 'Median'} {sm.value} per pocket"
-                                       for sm in shows]
-    m_keys = [m.name for m in ms] + [f"show_{sm.name}" for sm in shows]
-    says = [say_for(m.name, heat_kind(m)) for m in ms] + [say_for("", "amt") for _ in shows]
+                   + " fall in each group of the split column or a new column, pocket by pocket, for every loan "
+                     "in the grid. The count is checked against the grid's before it is shown. Everything on this "
+                     "tab is as of the last Run: no line on Control changes it."),
+    ]
+    r = house.method_note(ws, 3, 2, last, note)
+    m_opts = ([plain(m) for m in ms] + ([SIZE_NAME] if sized else [])
+              + [f"{'Average' if sm.show == 'average' else 'Median'} {sm.value} per pocket" for sm in shows])
+    m_keys = [m.name for m in ms] + ([SIZE] if sized else []) + [f"show_{sm.name}" for sm in shows]
+    says = ([say_for(m.name, heat_kind(m)) for m in ms] + ([SAY[SIZE]] if sized else [])
+            + [say_for("", "amt") for _ in shows])
     g_rng, _ = choices.add("Grids: Grid", gnames)
     m_rng, (k_rng, rs_rng, gs_rng) = choices.add("Grids: Measure", m_opts, m_keys, [x[0] for x in says],
                                                  [x[1] for x in says])
+    f_rng, _ = choices.add("Grids: Only loans where", [ALL_LOANS] + (list(res.split_values) if sf else []))
     s = r + 1
     G = dropdown(ws, s, left, "Grid", g_rng, gnames[0] if gnames else "")
     ws.merge_cells(start_row=s, start_column=left, end_row=s, end_column=left + 2)
     M = dropdown(ws, s, left + 4, "Measure", m_rng, m_opts[0] if m_opts else "")
     ws.merge_cells(start_row=s, start_column=left + 4, end_row=s, end_column=left + 6)
-    hid = max(last, left + 14) + 2                         # hidden cells: the keys and the heat's kind and bound
+    F = dropdown(ws, s, left + 8, f"Only loans where {sf} is" if sf else "Only loans where", f_rng, ALL_LOANS)
+    ws.merge_cells(start_row=s, start_column=left + 8, end_row=s, end_column=left + 10)
+    if not sf:
+        _cell(ws, s + 1, left + 8, SAY_NO_FILTER, size=9, color=SLATE, h="left")
+    hid = max(last, left + 18) + 2                         # hidden cells: the keys and the heat's kind and bound
     _widths(ws, {c: 11 for c in range(last + 1, hid)})
     # one cell to read out in words (the firm, 29 Sep 2026): a Row and a Column of the grid picked, each list the
     # grid's own labels, laid out in hidden cells as the Grid dropdown changes, and offered as many as there are
     RL, CL, H2 = hid + 7, hid + 8, hid + 9
     RN, CN = f"${col(H2)}${s}", f"${col(H2)}${s + 1}"
     first_row, first_col = _first_pocket(res, ms)
-    R = dropdown(ws, s, left + 8, "Row", f"OFFSET(${col(RL)}${s},0,0,MAX(1,{RN}),1)", first_row)
-    ws.merge_cells(start_row=s, start_column=left + 8, end_row=s, end_column=left + 10)
-    C = dropdown(ws, s, left + 12, "Column", f"OFFSET(${col(CL)}${s},0,0,MAX(1,{CN}),1)", first_col)
+    R = dropdown(ws, s, left + 12, "Row", f"OFFSET(${col(RL)}${s},0,0,MAX(1,{RN}),1)", first_row)
     ws.merge_cells(start_row=s, start_column=left + 12, end_row=s, end_column=left + 14)
+    C = dropdown(ws, s, left + 16, "Column", f"OFFSET(${col(CL)}${s},0,0,MAX(1,{CN}),1)", first_col)
+    ws.merge_cells(start_row=s, start_column=left + 16, end_row=s, end_column=left + 18)
+    # the view: the grid picked, or it on only the loans with the value picked
+    VW = f"${col(hid + 1)}${s + 2}"
+    ws[VW.replace("$", "")] = f'={G}&IF(OR({F}="",{F}="{ALL_LOANS}"),"",{live.q(WHERE.format(""))}&{F})'
     KEY = f"${col(hid)}${s}"
     ws[f"{col(hid)}{s}"] = f'=IFERROR(INDEX({k_rng},MATCH({M},{m_rng},0)),"")'
     META = f"${col(hid)}${s + 1}"
-    ws[f"{col(hid)}{s + 1}"] = "=" + match(xk("G|", (G,), "|", (KEY,), "|meta"))
+    ws[f"{col(hid)}{s + 1}"] = "=" + match(xk("G|", (VW,), "|", (KEY,), "|meta"))
     KIND, BOUND = f"${col(hid + 1)}${s}", f"${col(hid + 1)}${s + 1}"
     ws[KIND.replace("$", "")] = f"={pick(META, 1)}"
     ws[BOUND.replace("$", "")] = f"={pick(META, 2)}"
+    BOOK, FEW = f"${col(hid + 1)}${s + 3}", f"${col(hid + 1)}${s + 4}"
+    ws[BOOK.replace("$", "")] = f"={pick(META, 4)}"
+    ws[FEW.replace("$", "")] = f"={pick(META, 5)}"
     COLS, ROWS, NAMES, TOTAL = (f"${col(hid)}${s + k}" for k in (2, 3, 4, 5))
     for k, what in ((2, "cols"), (3, "rows"), (4, "names"), (5, "total")):
-        ws[f"{col(hid)}{s + k}"] = "=" + match(xk("G|", (G,), f"|{what}"))
+        ws[f"{col(hid)}{s + k}"] = "=" + match(xk("G|", (VW,), f"|{what}"))
     for c_, labels, n in ((RL, ROWS, nr), (CL, COLS, nc)):         # the grid's own labels, All left off
         for i in range(1, max(n - 1, 1) + 1):
             ws.cell(row=s + i - 1, column=c_, value=f'=IF({pick(labels, i)}="All","",{pick(labels, i)})')
     for cnt, c_, n in ((RN, RL, nr), (CN, CL, nc)):
         ws[cnt.replace("$", "")] = f"=SUMPRODUCT(--(LEN(${col(c_)}${s}:${col(c_)}${s + max(n - 1, 1) - 1})>0))"
     top = s + 2
+    # the book's own figure in the heading of vs the book (the firm, 29 Sep 2026), as the Rate block shows it
+    book_head = (f'=IF(ISNUMBER({BOOK}),"vs the book (book: "&IF({KIND}="size",TEXT({BOOK},"$#,##0"),'
+                 f'TEXT({BOOK},"0.00%"))&")","vs the book")')
     blocks = (("Rate", "rate", left, top, False), ("vs the book", "book", right, top, True),
               ("vs rest of band", "band", left, top + nr + 3, True), ("Loans", "loans", right, top + nr + 3, False))
+    at_ = {what: (c0, t) for _, what, c0, t, _ in blocks}
+    lc, lt = at_["loans"]
     for title, what, c0, t, heated in blocks:
-        _block_head(ws, t, c0, w, f'="Rate · "&{M}' if what == "rate" else title)
+        _block_head(ws, t, c0, w, f'="Rate · "&{M}' if what == "rate" else book_head if what == "book" else title)
         _cell(ws, t + 1, c0, f"={pick(NAMES, 1)}", bold=True, size=9, color=SLATE, h="left", name="Arial", indent=1)
         ws.cell(row=t + 1, column=c0).fill = house.fill(CANVAS)
         for j in range(1, nc + 1):
@@ -1136,7 +1222,7 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
             hc.fill = house.fill(CANVAS)
         for i in range(1, nr + 1):
             rr = t + 1 + i
-            key = xk("G|", (G,), f"|loans|{i}") if what == "loans" else xk("G|", (G,), "|", (KEY,), f"|{what}|{i}")
+            key = xk("G|", (VW,), f"|loans|{i}") if what == "loans" else xk("G|", (VW,), "|", (KEY,), f"|{what}|{i}")
             hcell = f"${col(hid + 2 + (0 if c0 == left else 1))}{rr}"
             ws[hcell.replace("$", "")] = f"={match(key)}"
             _cell(ws, rr, c0, f"={pick(ROWS, i)}", h="left", indent=1)
@@ -1150,9 +1236,20 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
         cf(ws, f"{col(c0)}{t + 2}:{col(c0)}{t + 1 + nr}", [], line_on)
         rules = []
         if what == "rate":
-            rules = [(f'{KIND}="amt"', None, None, "#,##0.00")]
+            rules = [(f'{KIND}="amt"', None, None, "#,##0.00"), (f'{KIND}="size"', None, None, SIZE_FMT)]
         if heated:
-            rules = heat_rules(corner, KIND, BOUND, f'{KIND}="pts"', PTS_FMT)
+            # a cell under the fewest loans: its number in grey, no colour (the firm, 29 Sep 2026); its loans are
+            # the Loans block's cell in the same place
+            loans_at = f"{col(lc + 1)}{lt + 2}"
+            grey = f"AND(ISNUMBER({corner}),ISNUMBER({loans_at}),ISNUMBER({FEW}),{loans_at}<{FEW})"
+            dim = Font(color=house.DISABLED_TEXT)
+            rules = [(f'AND({grey},{KIND}="pts")', None, dim, PTS_FMT), (grey, None, dim, None)]
+            # Loan size: one neutral hue, darker the bigger, never red or green. Every colour also says NOT grey:
+            # Excel applies every rule that holds, where LibreOffice stops at the first (see cf)
+            rules += [(f'AND(NOT({grey}),{KIND}="size",ISNUMBER({corner}),{corner}>={lim})', colour, None, None)
+                      for lim, colour in SIZE_STEPS]
+            rules += [(f'AND(NOT({grey}),{KIND}<>"size",{f})', fill, font, fmt)
+                      for f, fill, font, fmt in heat_rules(corner, KIND, BOUND, f'{KIND}="pts"', PTS_FMT)]
         if what == "loans":
             margin = f'OR(${col(c0)}{t + 2}="All",{col(c0 + 1)}${t + 1}="All")'
             rules = [(f"AND(ISNUMBER({corner}),NOT({margin}),{corner}/{pick(TOTAL, 1)}>={lim})", colour, None, None)
@@ -1161,9 +1258,9 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     r = top + 2 * (nr + 3)
     _cell(ws, r, left, "A blank: alone in its band, or fewer losses than the minimum, so not compared.", size=9,
           color=SLATE, h="left")
-    at_ = {what: (c0, t) for _, what, c0, t, _ in blocks}
-    r = _one_cell(ws, r + 2, left, last, nr, nc, at_, dict(M=M, R=R, C=C, KIND=KIND, BOUND=BOUND, META=META,
-                  RN=RN, CN=CN, RL=RL, CL=CL, H=hid + 10, s=s, rs=rs_rng, gs=gs_rng, m=m_rng))
+    r = _one_cell(ws, r + 2, left, last, nr, nc, at_, dict(M=M, R=R, C=C, F=F, sf=sf, KIND=KIND, BOUND=BOUND,
+                  META=META, FEW=FEW, VW=VW, KEY=KEY, RN=RN, CN=CN, RL=RL, CL=CL, H=hid + 10, s=s, rs=rs_rng,
+                  gs=gs_rng, m=m_rng))
     r = _groups(ws, res, views, G, r + 2, left, hid + 4)
     _hide(ws, hid, hid + 10)
     ws.freeze_panes = f"A{s + 1}"
@@ -1187,17 +1284,20 @@ def _first_pocket(res, ms) -> tuple[str, str]:
 def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: dict) -> int:
     """What one cell says (the firm, 29 Sep 2026): the Row and Column picked, read out in words from the same
     cells the four blocks show, so no number here is worked out again. The sentences are the measure's (SAY,
-    held on _choices beside the Measure dropdown's options); a blank says why it is blank. Returns the last row."""
+    held on _choices beside the Measure dropdown's options); a blank says why it is blank, and a grey cell why it
+    is grey. Returns the last row."""
     M, R, C, KIND, BOUND, s, H = x["M"], x["R"], x["C"], x["KIND"], x["BOUND"], x["s"], x["H"]
+    F, FEW = x["F"], x["FEW"]
     rng = lambda what: (f"${col(at_[what][0] + 1)}${at_[what][1] + 2}:"          # noqa: E731
                         f"${col(at_[what][0] + nc)}${at_[what][1] + 1 + nr}")
     lc, lt = at_["loans"]
-    names = ["RI", "CJ", "RV", "BV", "NV", "LV", "MV", "OTH", "OTHN", "RT", "GT", "MIN"]
+    names = ["RI", "CJ", "RV", "BV", "NV", "LV", "MV", "OTH", "OTHN", "RT", "GT", "MIN", "MD", "GR"]
     h = {n: f"${col(H)}${s + k}" for k, n in enumerate(names)}
-    RI, CJ, RV, BV, NV, LV, MV, OTH, OTHN, RT, GT, MIN = (h[n] for n in names)
+    RI, CJ, RV, BV, NV, LV, MV, OTH, OTHN, RT, GT, MIN, MD, GR = (h[n] for n in names)
     rl = f"${col(x['RL'])}${s}:${col(x['RL'])}${s + max(nr - 1, 1) - 1}"
     cl = f"${col(x['CL'])}${s}:${col(x['CL'])}${s + max(nc - 1, 1) - 1}"
     none = f'OR({RI}="",{CJ}="")'
+    med_row = match(xk("G|", (x["VW"],), "|", (x["KEY"],), "|median|", (RI,)))
     got = {
         RI: f'IF({R}="","",IFERROR(MATCH({R},{rl},0),""))',
         CJ: f'IF({C}="","",IFERROR(MATCH({C},{cl},0),""))',
@@ -1214,6 +1314,10 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
         RT: f'IFERROR(INDEX({x["rs"]},MATCH({M},{x["m"]},0)),"")',
         GT: f'IFERROR(INDEX({x["gs"]},MATCH({M},{x["m"]},0)),"")',
         MIN: f'{pick(x["META"], 3)}',
+        # Loan size's median, from its own _views row: the blocks don't show it
+        MD: f'IF(OR({none},{KIND}<>"size"),"",{pick(f"({med_row})", CJ)})',
+        # under the fewest loans: grey, and no colour (the blocks' rule, the same cells)
+        GR: f"AND(ISNUMBER({LV}),ISNUMBER({FEW}),{LV}<{FEW})",
     }
     for cell, f in got.items():
         ws[cell.replace("$", "")] = f"={f}"
@@ -1227,22 +1331,27 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
 
     few = fill_in(SAY_FEW, min=MIN)
     not_ = live.q(SAY_NOT)
+    untested = f'OR({KIND}="pts",{KIND}="size")'                # blank for no want of losses
     band_against = (fill_in(SAY_BAND, row=R) + f'&IF(AND({OTH}>=1,{OTH}<={SAY_NAMED})," (the "&{OTHN}&" loans)","")')
+    where = (f'IF(OR({F}="",{F}="{ALL_LOANS}"),"",", only loans where {x["sf"]} is "&{F})' if x["sf"] else '""')
+    loans_ = f'{n}&IF({one}," loan"," loans")'
     lines = [
-        (None, f'IF({none},{live.q(SAY_PICK)},{R}&" · "&{C}&", "&{M})'),
+        (None, f'IF({none},{live.q(SAY_PICK)},{R}&" · "&{C}&", "&{M}&{where})'),
         ("Rate", f'IF({none},"",IF(NOT(ISNUMBER({LV})),{live.q(SAY_EMPTY)},IF({RV}="",{live.q(SAY_NORATE)},'
                  + sub(RT, these=f'IF({one},"This one loan","These "&{n}&" loans")', their=f'IF({one},"its","their")',
-                       r=f'IF({KIND}="amt",TEXT({RV},"#,##0.00"),TEXT({RV},"0.00%"))', measure=M) + ")))"),
-        ("vs the book", gap(BV, live.q(SAY_BOOK), f'IF({KIND}="pts",{not_},{few})')),
+                       r=f'IF({KIND}="amt",TEXT({RV},"#,##0.00"),IF({KIND}="size",TEXT({RV},"$#,##0"),'
+                         f'TEXT({RV},"0.00%")))', measure=M, med=f'TEXT({MD},"$#,##0")') + ")))"),
+        ("vs the book", gap(BV, live.q(SAY_BOOK), f'IF({untested},{not_},{few})')),
         ("vs rest of band", gap(NV, band_against,
-                                f'IF({OTH}<1,{fill_in(SAY_ALONE, row=R)},IF({KIND}="pts",{not_},{few}))')),
+                                f'IF({OTH}<1,{fill_in(SAY_ALONE, row=R)},IF({untested},{not_},{few}))')),
         ("Loans", f'IF(OR({none},NOT(ISNUMBER({LV}))),"",'
-                  + fill_in(SAY_LOANS, loans=f'{n}&IF({one}," loan"," loans")', row=R, m=f'TEXT({MV},"#,##0")') + ")"),
+                  + fill_in(SAY_LOANS, loans=loans_, row=R, m=f'TEXT({MV},"#,##0")') + ")"),
         ("The colour", f'IF(OR({none},NOT(ISNUMBER({LV}))),"",IF({KIND}="amt","No colour: this figure is not '
-                       f'compared.",' + fill_in(SAY_COLOUR, book=shade_of(BV, KIND, BOUND),
-                                                   band=shade_of(NV, KIND, BOUND)) + "))"),
+                       f'compared.",IF({GR},' + fill_in(SAY_GREY, loans=loans_, min=f'TEXT({FEW},"#,##0")')
+                       + f',IF({KIND}="size",{live.q(SAY_SIZE)},'
+                       + fill_in(SAY_COLOUR, book=shade_of(BV, KIND, BOUND), band=shade_of(NV, KIND, BOUND)) + "))))"),
     ]
-    end = max(last, left + 14)
+    end = max(last, left + 18)
     _block_head(ws, r, left, end - left + 1, "What one cell says")
     for k, (label, f) in enumerate(lines, start=1):
         rr = r + k

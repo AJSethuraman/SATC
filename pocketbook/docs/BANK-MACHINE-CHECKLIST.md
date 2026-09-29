@@ -286,7 +286,7 @@ Click each cell. A small arrow should appear beside it; press it.
 | Control C15 | 4 choices, from *The smallest significant gap in a typical pocket (suggested)* to *2 times* |
 | Pockets C18, D18, E18 | Measure (5: Bad loans … Earned before losses); Pockets (Two-way, Split by REV_DEBT); Show (All, Worse and material, Worse or not sure) |
 | Paid, cost, kept B16 | the 4 grids, from FICO x CHANNEL |
-| Grids B13 and F13 | 8 grids (4, then the same 4 / REV_DEBT); the 5 measures |
+| Grids B13 and F13 | 8 grids (4, then the same 4 / REV_DEBT); the 5 measures, then Loan size |
 | Split B15 and B26 | the 4 grids; the 5 measures |
 | Look C20 | 10, 20, 50 |
 

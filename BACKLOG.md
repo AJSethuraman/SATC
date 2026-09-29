@@ -2377,15 +2377,37 @@ changed in the code.
     caught. Full suite: `828 passed, 7 skipped in 2167.70s`.
   - **Not checked in real Excel:** that Excel honours `wrap="none"` on category labels (LibreOffice ignores
     it), and where Excel puts the P10 to P90 labels (LibreOffice: right of each line's top).
-- **Offered, waiting on a yes** (raised 29 Sep 2026 at the bank):
-  1. *Grey out Grids cells under the fewest-loans setting*: shown, not coloured, not setting the colour
-     scale. A 3-loan cell at -50 points was the deepest red on the grid and paled every real gap.
-  2. *"Only loans where" on Grids*: the blocks for one value of a category (*"it would be nice to be able to
-     filter by that category which would probably solve a lot of ... having multiway views"*). First by the
-     Split by column, whose parts are already worked out; any category later.
-  3. *A Loan size measure* for line assignment (*"we tend to give these loan amounts to these FICO scores
-     within this category"*): average and median booked per loan by cell, descriptive, no test.
-  4. *A number column as a segment* (FICO x asset bands in one Run).
+- **Answered by pop-up, 29 Sep 2026, evening** (the four Grids changes offered at the bank that day, all **yes**;
+  a number column as a segment, **Later**). Built on branch `pocketbook-grids-0929`
+  (`tests/test_firm_answers_2026_09_29.py`, the section that opens with the firm's words):
+  1. *Grey out Grids cells under the fewest-loans setting* (yes). A pocket with fewer loans than Fewest loans
+     in a pocket (the number the Run used; its suggestion worked out when that was picked) shows its number in
+     grey with no colour, in vs the book and vs rest of band, and is left out of the largest gap that sets the
+     scale. What one cell says: *"Grey: only 3 loans, fewer than the 30 set on Control, so not coloured."* The
+     photo's case, 620-659 · $20k-<$25k, 3 loans, Kept after losses -50.38 pts, is planted in the test book.
+  2. *The book's own rate in the vs the book heading* (yes): *"vs the book (book: 7.73%)"*, live as the
+     Measure changes; for a gap in points, the book's rate the gap is taken from. vs rest of band has none: its
+     rest differs by row.
+  3. *"Only loans where" on Grids* (yes; *"it would be nice to be able to filter by that category which would
+     probably solve a lot of ... having multiway views"*). By the Split by column when it is a category: the
+     engine builds each grid again on each value's loans (`Grid.filtered`), and every block and the one-cell
+     reading show it. vs the book stays the whole book, as decided; vs rest of band is the rest of the band
+     among those loans; grey and the heat scale go by that view's cells. Split in halves or not at all, the
+     dropdown offers only All loans and says filtering needs Split by a category. Any category, not only the
+     split column: later.
+  4. *A Loan size measure* (yes; *"we tend to give these loan amounts to these FICO scores within this
+     category"*): booked dollars per loan by cell, the average in Rate and as a multiple of the book's and the
+     rest of the band's, the median read out in words (*"These 207 loans averaged $32,626 booked, median
+     $34,127."*). Descriptive: no test, not on Pockets or Split, no red or green (one neutral hue, darker the
+     bigger). Offered only when a booked amount is set.
+  - Tests: 6 new (a 3-loan Kiosk pocket at -62 points planted in the test book, every count, rate and gap in a
+    filtered view and every loan size worked out again from the loan file); 16 planted bugs added and 4
+    repointed, all 23 put back one at a time and caught. Full suite 828 passed, 7 skipped. The note on Grids
+    keeps its rows, so the checklist's B13 and F13 still hold; F13 now lists 6 measures (the .md says so; the
+    checklist PDF was not rebuilt).
+  - *A number column as a segment* (FICO x asset bands in one Run): **Later**.
+  - *Pre-banded columns, "Treat as bands"*: parked. The firm: *"I don't know because I feel like there could be
+    a few different ways that they are formatted and I added the ad hoc"*.
 
 ## 7 · Standing rules for new items
 
