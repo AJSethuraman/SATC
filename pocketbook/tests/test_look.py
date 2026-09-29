@@ -6,6 +6,8 @@ checked against a count made by hand from the CSV, not against look.py's own ari
 edge lines and the one-load Run are in tests/test_answer_tabs.py."""
 
 import csv
+
+import pytest
 import statistics
 
 from openpyxl import Workbook, load_workbook
@@ -191,3 +193,18 @@ def test_set_up_again_rebuilds_the_tab_without_a_copy(tmp_path):
     assert [n for n in wb.sheetnames if "look" in n.lower()] == ["Look", "_look"]
     assert len(_main_charts(wb["Look"])) == len(NUMBER_COLUMNS)
     assert wb.sheetnames.index("Look") == wb.sheetnames.index("Columns") + 1
+
+
+@pytest.mark.parametrize("values", [[0.0, 0.05, 0.24, 0.5, 1.1999] * 50, [300, 512, 640, 849] * 50,
+                                    [0.001, 0.07, 0.29] * 50, [0.3, 0.7, 2.1] * 50])
+def test_a_value_on_a_slice_edge_is_counted_in_that_slice(values):
+    """The full tie-out of 28 Sep 2026: UTIL's chart counted every loan at exactly 0.24 a bar low (543 against the
+    538 in the file), because the top came out 1.2000000000000002 and 0.24 / 0.006 is 39.99999999. The span's
+    edges are the round numbers themselves, and a value on any slice's lower edge is counted in that slice."""
+    lo, hi = look.span(sorted(values))
+    assert repr(lo) == repr(float(round(lo, 10))) and repr(hi) == repr(float(round(hi, 10)))
+    w = (hi - lo) / look.SLICES
+    for k in range(look.SLICES):
+        edge = round(lo + k * w, 10)
+        counts, below, above = look.slices([edge], lo, hi)
+        assert counts.index(1) == k, (lo, hi, k, edge)

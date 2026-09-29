@@ -323,6 +323,7 @@ python3 make_scout_book.py ../../../src &quot;/tmp/credit/Loan files&quot;
 </li>
 <li>
 <p><strong>Everything the bleed workbook works out from the loans ties, apart from the sampling in item 1</strong>, and so does every figure on New variables. The New variables tab's statistics — conditional logistic regression written out here from its definition, the Mantel-Haenszel general and trend tests, the block tests, the joint model with statsmodels — agree to the digits the tab shows, and the forest, grown again from the settings the Scouting tab states, lands on its AUCs.</p>
+<p><strong>Fixed the next day, and re-checked.</strong> <code>look.span</code> now returns the round numbers themselves (1.2, not 1.2000000000000002) and <code>look.slices</code> rounds before it cuts, so a value on a slice's lower edge is counted in that slice. A test holds every edge of four ranges, with two planted bugs it catches. Recounted on the fixed build, 18 of UTIL's 20 bars equal this road's count. The other two, 0.54 – 0.60 and 1.08 – 1.14, were this road's own float error: it read each bar's start back out of the workbook as 0.6000000000000001 and 1.1400000000000001, so the one loan at exactly 0.6 and the one at exactly 1.14 fell into the bar below. Counted in exact decimals, those bars hold <strong>578</strong> and <strong>649</strong>, which is what the fixed build shows. All 20 tie. The roster records the build this was first run on.</p>
 </li>
 </ol>
 <h2 data-tieout="what-i-got-wrong">What I got wrong</h2>

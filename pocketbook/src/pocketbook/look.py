@@ -192,7 +192,9 @@ def span(values: list[float]) -> tuple[float, float]:
     if hi <= lo:                                             # one value only
         return lo - 0.5, lo + 0.5
     unit = _nice((hi - lo) / 10)
-    return math.floor(lo / unit) * unit, math.ceil(hi / unit) * unit
+    # rounded, so a round edge is that number and not 1.2000000000000002: the full tie-out of 28 Sep 2026 found
+    # loans at exactly 0.24 counted a bar low, because the top came out a hair over 1.2 and every slice a hair wide
+    return round(math.floor(lo / unit) * unit, 12), round(math.ceil(hi / unit) * unit, 12)
 
 
 def slices(values: list[float], lo: float, hi: float) -> tuple[list[int], int, int]:
@@ -206,7 +208,9 @@ def slices(values: list[float], lo: float, hi: float) -> tuple[list[int], int, i
         elif v > hi:
             above += 1
         else:
-            counts[min(int((v - lo) / w), SLICES - 1)] += 1
+            # a value on a slice's lower edge belongs to that slice: rounded before cutting, so float error
+            # (0.24 / 0.006 = 39.99999999) never drops it into the slice below
+            counts[min(int(round((v - lo) / w, 9)), SLICES - 1)] += 1
     return counts, below, above
 
 
