@@ -225,6 +225,8 @@ def test_the_launcher_says_what_each_term_means_where_it_first_uses_it(tmp_path,
     monkeypatch.setattr(launcher.Path, "home", lambda: tmp_path)
     monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
     f = _read(tmp_path)
+    f.pick_outcome("BAD_FLAG")                       # 29 Sep 2026: nothing is picked for the analyst
+    f.answer_outcome(True)
     got = f.meanings()
     assert [x.split(":")[0] for x in got] == ["GCO dollars", "RANR dollars", "A grid", "Five measures"], got
     f.gate.optional = ["scikit-learn"]
@@ -403,6 +405,8 @@ def test_choose_tests_window_draws_the_rows_in_order_with_a_quiet_gap_and_no_eve
     try:
         monkeypatch.setattr(launcher, "PREFS", tmp_path / "launcher.json")
         w = launcher.build(root)
+        root.geometry("1180x628")                # 29 Sep 2026: the window a 1366 x 768 laptop opens it at
+        root.deiconify()                         # the table takes the window's height, so it has to be shown
         flow = w["flow"]
         flow.pick(str(synth.write_extract(tmp_path, n=1500)))
         flow.set_up()
@@ -414,7 +418,7 @@ def test_choose_tests_window_draws_the_rows_in_order_with_a_quiet_gap_and_no_eve
             assert ys == sorted(ys) and len(set(ys)) == len(ys), mode
             assert len(w["gaps"]) == 3 and all(not g.winfo_children() for g in w["gaps"])
             last = w["row_ORIG_DATE"]                    # ten columns and three gaps fit without scrolling
-            assert last.winfo_y() + last.winfo_reqheight() + 1 <= int(w["table"].cget("height")), mode
+            assert last.winfo_y() + last.winfo_reqheight() + 1 <= w["table"].winfo_height(), mode
             said, todo = [], [root]
             while todo:
                 x = todo.pop()
@@ -440,4 +444,6 @@ def test_choose_tests_gaps_fall_where_a_group_starts_and_the_table_fits_unscroll
         flow.set_mode(mode)
         rows = flow.rows()
         assert [r["name"] for r in rows if r["gap_before"]] == ["CHANNEL", "BAD_FLAG", "LOAN_NBR"], mode
-        assert launcher.table_height(rows) <= launcher.ROOM[mode], mode
+        # 29 Sep 2026: the table takes the window's height, no longer a fixed 250 or 280 px; on a laptop's
+        # 1366 x 768 screen the window opens 628 px tall, room for these rows with the rest of the screen
+        assert launcher.table_height(rows) <= launcher.window_size(1366, 768)[1] - 330, mode

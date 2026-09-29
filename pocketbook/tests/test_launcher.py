@@ -198,12 +198,22 @@ def test_l2_only_one_column_splits_and_it_is_not_also_cut(tmp_path):
     assert f.choices().split is None
 
 
+def _outcome(f, name):
+    """Pick an outcome and say yes to the question, as the analyst does."""
+    f.pick_outcome(name)
+    assert f.asking == name, f.outcome_question()
+    f.answer_outcome(True)
+    assert f.outcome == name
+
+
 def test_l2_test_it_and_hold_fixed_exclude_each_other_on_a_row(tmp_path):
     f = _read(tmp_path)
     f.set_mode("new")
     assert f.heads() == ("Outcome", "Test it", "Hold fixed")
     rows = {r["name"]: r for r in f.rows()}
-    assert rows["BAD_FLAG"]["a"] == {"on": True, "radio": True}   # the outcome, picked for you only if it's the one
+    assert rows["BAD_FLAG"]["a"] == {"on": False, "radio": True}  # offered, never picked for you (29 Sep 2026)
+    _outcome(f, "BAD_FLAG")
+    assert {r["name"]: r for r in f.rows()}["BAD_FLAG"]["a"] == {"on": True, "radio": True}
     assert rows["GCO_AMT"]["a"] is None
     f.click("CHANNEL", "b")
     f.click("CHANNEL", "c")
@@ -215,6 +225,8 @@ def test_l2_test_it_and_hold_fixed_exclude_each_other_on_a_row(tmp_path):
 def test_l2_the_summary_says_what_will_run_in_both_modes(tmp_path):
     f = _read(tmp_path)
     f.click("REV_DEBT", "c")
+    assert f.summary() == (False, launcher.NO_OUTCOME)
+    _outcome(f, "BAD_FLAG")
     ok, said = f.summary()
     assert ok and said == ("2 band columns × 2 segment columns = 4 grids, five measures each; split by REV_DEBT "
                            "adds 4 more.")
@@ -231,6 +243,7 @@ def test_l2_the_summary_says_what_will_run_in_both_modes(tmp_path):
 
 def test_l2_next_is_off_until_there_is_a_grid_to_run(tmp_path):
     f = _read(tmp_path)
+    _outcome(f, "BAD_FLAG")
     for c in ("CHANNEL", "ASSET_CLASS"):
         f.click(c, "b")
     assert f.states()["next"] == "disabled"
@@ -286,6 +299,8 @@ def test_l2_a_saved_shortlist_fills_test_it_and_hold_fixed_from_the_file(tmp_pat
     f.set_mode("new")
     f.pick_shortlist(str(spec))
     assert f.test == ["INCOME_TO_SALES"] and f.hold == ["FICO", "CHANNEL"]
+    assert f.asking is None and f.outcome is None            # this file names no outcome: the analyst picks it
+    _outcome(f, "BAD_FLAG")
     assert all(r["locked"] for r in f.rows())
     f.click("ORIG_BAL", "b")                                      # the file decides: the boxes don't move
     assert f.test == ["INCOME_TO_SALES"]
@@ -483,7 +498,12 @@ def test_the_window_draws_every_state_and_its_buttons_follow_the_flow(tmp_path, 
         assert str(w["setup"].cget("state")) == "normal"
         w["setup"].invoke()
         settle()
-        assert flow.screen() == "L2" and str(w["next"].cget("state")) == "normal"
+        assert flow.screen() == "L2" and str(w["next"].cget("state")) == "disabled"   # no outcome picked yet
+        flow.pick_outcome("BAD_FLAG")
+        flow.answer_outcome(True)
+        w["render"]()
+        root.update()
+        assert str(w["next"].cget("state")) == "normal"
         w["box_REV_DEBT_c"].event_generate("<Button-1>")                        # the split radio, clicked
         root.update()
         assert flow.split == "REV_DEBT" and "split by REV_DEBT" in w["summary"].cget("text")

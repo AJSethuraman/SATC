@@ -329,9 +329,16 @@ def in_order(needs: list[Need]) -> list[Need]:
 GROUP = {"num": 0, "cat": 1, "out": 2, "outd": 2}
 LAST = 3
 ROW_H = 22          # px a table row is tall; each is ruled off below by 1 px
-ROOM = {"new": 250, "bleed": 280}   # px the table may take before it scrolls, by run kind
-GAP = 6             # px between two groups: ten rows and three gaps still fit Test new variables unscrolled
+NO_OUTCOME = "Pick the outcome: the yes/no column where 1 means the loan went bad. Nothing is picked for you."
+BASE_W = (104, 128, 84, 84, 86)     # px the Choose tests columns start at; the word columns take any width more
+GAP = 6             # px between two groups
 
+
+
+def window_size(screen_w: int, screen_h: int) -> tuple[int, int]:
+    """The window's first size: as much of the screen as leaves room for the taskbar, 720 x 560 at the least and
+    1180 x 860 at the most."""
+    return max(720, min(1180, screen_w - 120)), max(560, min(860, screen_h - 140))
 
 
 def table_height(rows: list[dict]) -> int:
@@ -353,6 +360,7 @@ class Flow:
         self.seg: set[str] = set()
         self.split: str | None = None
         self.outcome: str | None = None
+        self.asking: str | None = None  # a column picked as the outcome, waiting for the analyst's yes
         self.test: list[str] = []
         self.hold: list[str] = []
         self.shortlist: str | None = None
@@ -451,9 +459,11 @@ class Flow:
         kind = self._kind()
         nums = {c for c, k in kind.items() if k == "num"}
         cats = {c for c, k in kind.items() if k == "cat"}
-        outs = [c for c, k in kind.items() if k == "out"]
         self.cut, self.seg, self.split = set(nums), set(cats), None
-        self.outcome, self.test, self.hold, self.shortlist, self.spec = (outs[0] if outs else None), [], [], None, None
+        # never picked for the analyst, not even from a workbook an earlier build wrote (the firm, 29 Sep 2026:
+        # "there's no reason for it to automatically assign something, especially when it's just wrong")
+        self.outcome, self.asking = None, None
+        self.test, self.hold, self.shortlist, self.spec = [], [], None, None
         if chosen is None:
             return
         self.mode = "new" if chosen.run_kind == ch.NEW_VARIABLE else "bleed"
@@ -462,7 +472,6 @@ class Flow:
             self.seg = cats if chosen.segments is None else set(chosen.segments) & cats
             self.split = chosen.split if chosen.split in kind else None
         else:
-            self.outcome = chosen.outcome if chosen.outcome in kind else self.outcome
             self.test = [c for c in chosen.test if c in kind]
             self.hold = [c for c in chosen.hold if c in kind]
         if chosen.shortlist:
@@ -486,21 +495,27 @@ class Flow:
         locked = self.mode == "new" and self.spec is not None      # the saved shortlist decides
         for c in sorted(self.read.columns if self.read else (), key=lambda c: GROUP.get(c.kind, LAST)):
             k = c.kind
-            row = {"name": c.name, "what": c.what, "grey": k in ("key", "date", "other"), "a": None, "b": None,
+            what = c.what
+            if c.yes is not None:                  # said as what it holds, never as a guess at what it means
+                share = f"1 on {c.yes / max(c.yes + c.no + c.other, 1):.1%} of loans"
+                what = f"The outcome · {share}" if c.name == self.outcome else f"Yes/no · {share}"
+            row = {"name": c.name, "what": what, "grey": k in ("key", "date", "other"), "a": None, "b": None,
                    "c": None, "locked": locked, "group": GROUP.get(k, LAST)}
             row["gap_before"] = bool(out) and out[-1]["group"] != row["group"]     # a new group starts here
-            if self.mode == "bleed":
+            if c.name == self.outcome:
+                pass                                                  # the outcome is neither tested nor held
+            elif self.mode == "bleed":
                 if k == "num":
                     row["a"] = {"on": c.name in self.cut and self.split != c.name, "radio": False}
                     row["c"] = {"on": self.split == c.name, "radio": True}
                 if k == "cat":
                     row["b"] = {"on": c.name in self.seg, "radio": False}
             else:
-                if k == "out":
-                    row["a"] = {"on": self.outcome == c.name, "radio": True}
                 if k in ("num", "cat"):
                     row["b"] = {"on": c.name in self.test, "radio": False}
                     row["c"] = {"on": c.name in self.hold, "radio": False}
+            if self.mode == "new" and c.yes is not None:
+                row["a"] = {"on": self.outcome == c.name, "radio": True}
             out.append(row)
         return out
 
@@ -525,13 +540,63 @@ class Flow:
                 self.cut.discard(name)
         else:
             if which == "a":
-                self.outcome = name
+                self.pick_outcome(name)
             elif which == "b":
                 self.test = [c for c in self.test if c != name] if name in self.test else self.test + [name]
                 self.hold = [c for c in self.hold if c != name]       # tested or held fixed, never both
             else:
                 self.hold = [c for c in self.hold if c != name] if name in self.hold else self.hold + [name]
                 self.test = [c for c in self.test if c != name]
+
+    # ---- the outcome: offered, never picked for you, and confirmed in words
+
+    def outcome_choices(self) -> list:
+        """Every column that could be the outcome (book.Column with yes set), in the extract's order."""
+        return [c for c in (self.read.columns if self.read else ()) if c.yes is not None]
+
+    def outcome_rule(self, name: str) -> str:
+        """How a column is read as the outcome, in counts: what the analyst says yes to."""
+        c = next((c for c in self.outcome_choices() if c.name == name), None)
+        if c is None:
+            return ""
+        n = c.yes + c.no + c.other
+        rest = "nothing else" if not c.other else \
+            f"{_s(c.other, 'loan')} with anything else (blanks too) left out of the outcome rates, and counted"
+        return (f"1 means the loan went bad: {c.yes:,} loans ({c.yes / max(n, 1):.1%}). 0 means it didn't: "
+                f"{c.no:,}. {rest[0].upper() + rest[1:]}.")
+
+    def pick_outcome(self, name: str | None) -> None:
+        """A column picked as the outcome: asked about before it counts (the firm: "it should be a pop-up to
+        say explicitly this is going to be what our outcome is")."""
+        if name is None or name == self.outcome or (self.mode == "new" and self.spec is not None
+                                                    and self.spec.outcome and name != self.spec.outcome):
+            return
+        if any(c.name == name for c in self.outcome_choices()):
+            self.asking = name
+
+    def outcome_question(self) -> str:
+        if not self.asking:
+            return ""
+        return (f"Use {self.asking} as the outcome?\n\n{self.outcome_rule(self.asking)}\n\nEvery bad rate and "
+                f"every test is measured against it.")
+
+    def answer_outcome(self, yes: bool) -> None:
+        name, self.asking = self.asking, None
+        if yes and name:
+            self.outcome = name
+            self.test = [c for c in self.test if c != name]
+            self.hold = [c for c in self.hold if c != name]
+
+    def test_every(self, on: bool) -> None:
+        """All or None for Test it: every column that can be tested, in the table's order, or none. All leaves
+        a column already held fixed as it is (it can't be both)."""
+        if self.mode != "new" or self.spec is not None:
+            return
+        if not on:
+            self.test = []
+            return
+        more = [r["name"] for r in self.rows() if r["b"] is not None and r["name"] not in self.hold]
+        self.test = self.test + [c for c in more if c not in self.test]
 
     def pick_shortlist(self, path: str | None) -> None:
         """Confirm a saved shortlist (a pre-spec file) instead of finding one: it names
@@ -551,8 +616,9 @@ class Flow:
             self.spec_problem = f"Couldn't read {Path(path).name}: {exc}"
             return
         self.test, self.hold = list(self.spec.columns), list(self.spec.strata)
-        if self.spec.outcome and self._kind().get(self.spec.outcome) == "out":
-            self.outcome = self.spec.outcome
+        if self.spec.outcome and self.spec.outcome != self.outcome:
+            self.outcome = None
+            self.pick_outcome(self.spec.outcome)             # the file names it; the analyst still says yes
 
     def choices(self) -> ch.Choices:
         """The table as the workbook gets it."""
@@ -560,8 +626,11 @@ class Flow:
         kind = self._kind()
         base = dict(few_values=self.few, many_values=self.many)
         if self.mode == "bleed":
-            return ch.Choices(run_kind=ch.BLEED, bands=tuple(c for c in order if c in self.cut and c != self.split),
-                              segments=tuple(c for c in order if c in self.seg), split=self.split, **base)
+            o = self.outcome
+            return ch.Choices(run_kind=ch.BLEED, bands=tuple(c for c in order if c in self.cut and c not in
+                                                             (self.split, o)),
+                              segments=tuple(c for c in order if c in self.seg and c != o), split=self.split,
+                              outcome=self.outcome, **base)
         test = [c for c in self.test]
         # the pockets hold the held-fixed columns fixed; one input splits every pocket, as a pre-spec tests it
         return ch.Choices(run_kind=ch.NEW_VARIABLE,
@@ -575,6 +644,8 @@ class Flow:
         if self.read is None:
             return False, ""
         if self.mode == "bleed":
+            if not self.outcome:
+                return False, NO_OUTCOME
             got = self.choices()
             nb, ns = len(got.bands), len(got.segments)
             g = nb * ns
@@ -585,6 +656,8 @@ class Flow:
         if self.shortlist:
             if self.spec is None:
                 return False, self.spec_problem or ""
+            if not self.outcome:
+                return False, NO_OUTCOME
             held = f", with {_names(list(self.spec.strata))} held fixed" if self.spec.strata else ""
             cols = list(self.spec.columns)
             what = cols[0] if len(cols) == 1 else f"{_s(len(cols), 'input')} ({', '.join(cols)})"
@@ -595,7 +668,7 @@ class Flow:
             return False, (f"{deps.message(['scikit-learn'])} Press Install scikit-learn, or confirm a saved "
                            f"shortlist instead.")
         if not self.outcome:
-            return False, "Mark a yes/no outcome column on Columns, then pick it here."
+            return False, NO_OUTCOME
         if not self.test:
             return False, "Tick at least one input to test."
         # OC-51: the tree is built on the loans before the cutoff picked on Control, and checked on the rest
@@ -780,7 +853,9 @@ def build(root) -> dict:
     C = {k: house.tk(v) for k, v in house.PALETTE.items()}
     C.update(DISABLED=house.tk(house.DISABLED_TEXT), RULE=house.tk(house.ROW_RULE), WHITE=house.tk(house.PAPER))
     root.title(TITLE)
-    root.geometry("720x560")
+    # as much of the screen as is comfortable, not a fixed 720 x 560 (the firm, 29 Sep 2026: "there's a lot of
+    # white space to use, and it should really use it so that I can see everything")
+    root.geometry("{}x{}".format(*window_size(root.winfo_screenwidth(), root.winfo_screenheight())))
     root.minsize(640, 500)
     root.configure(bg=C["WHITE"])
 
@@ -841,9 +916,17 @@ def build(root) -> dict:
             self.create_text(w // 2, h // 2, text=self._text, fill=fg, font=self._font)
 
     def box(master, on, radio, command, enabled=True):
-        """A tick box or radio button, 16 px: Ink when on, a Stone outline when off."""
-        c = tk.Canvas(master, width=18, height=18, highlightthickness=0, bd=0, bg=master.cget("bg"),
-                      cursor="hand2" if enabled else "")
+        """A tick box or radio button, 16 px: Ink when on, a Stone outline when off. Its click always goes to
+        `command`, which may ignore it; paint() redraws it in place."""
+        c = tk.Canvas(master, width=18, height=18, highlightthickness=0, bd=0, bg=master.cget("bg"))
+        c.bind("<Button-1>", lambda e: command() if c.enabled else None)
+        paint(c, on, radio, enabled)
+        return c
+
+    def paint(c, on, radio, enabled=True):
+        c.delete("all")
+        c.enabled = enabled
+        c.configure(cursor="hand2" if enabled else "")
         col = C["INK"] if on else C["STONE"]
         if not enabled:
             col = C["STONE"]
@@ -857,9 +940,6 @@ def build(root) -> dict:
                                fill=(C["INK"] if on and enabled else C["STONE"] if on else C["WHITE"]))
             if on:
                 c.create_line(5, 9, 8, 12, 13, 5, fill=C["WHITE"], width=2)
-        if enabled:
-            c.bind("<Button-1>", lambda e: command())
-        return c
 
     # ---- the frame: banner (L4 only), then the rail and the page
     banner = tk.Frame(root, bg=C["INK"])
@@ -879,6 +959,11 @@ def build(root) -> dict:
     def label(master, text, font="body", fg="INK", bg=None, wrap=0, **kw):
         return tk.Label(master, text=text, font=F[font], fg=C[fg], bg=bg or master.cget("bg"), anchor="w",
                         justify="left", wraplength=wrap, **kw)
+
+    def fit(lab, less=4):
+        """A label's lines wrap at the width it is given, not a fixed one (the firm: use the window)."""
+        lab.bind("<Configure>", lambda e: lab.configure(wraplength=max(e.width - less, 120)))
+        return lab
 
     def draw_rail():
         clear(rail)
@@ -978,8 +1063,11 @@ def build(root) -> dict:
             how = tk.Frame(page, bg=C["WHITE"], highlightbackground=C["MIST"], highlightthickness=1)
             how.pack(fill="x", pady=(14, 0))
             label(how, "▾ How Set up recognises columns", "bold", bg=C["CANVAS"]).pack(fill="x", ipady=4, ipadx=8)
-            for text, key, opts in (("A number column with this many values or fewer is a category", "few", FEW),
-                                    ("A text column with more values than this is too fine to cut by", "many", MANY)):
+            # the firm, 29 Sep 2026: side by side, 12 and 50 read like one scale; they are for different columns
+            for text, key, opts in (("Number columns: this many values or fewer is a category; more is cut into "
+                                     "bands", "few", FEW),
+                                    ("Text columns: more values than this is too many to cut by (text is never "
+                                     "cut into bands)", "many", MANY)):
                 line = tk.Frame(how, bg=C["WHITE"])
                 line.pack(fill="x", padx=8, pady=4)
                 label(line, text, "body", wrap=320).pack(side="left")
@@ -1003,6 +1091,9 @@ def build(root) -> dict:
             footer(setup)
 
     def page_choose():
+        # The firm, 29 Sep 2026: a click "blinks, scroll[s] all the way up and then I have to find where I was
+        # again", and "there's a lot of white space to use". So a click repaints its own boxes in place, a redraw
+        # keeps the table where it was scrolled, and the table takes the window's height and width.
         top = tk.Frame(page, bg=C["WHITE"])
         top.pack(fill="x")
         label(top, "What are you running?", "h2").pack(side="left")
@@ -1015,64 +1106,32 @@ def build(root) -> dict:
             t.pack(side="left")
             t.bind("<Button-1>", lambda e, m=mode: (flow.set_mode(m), render()))
             widgets[f"mode_{mode}"] = t
-        # the table: a header band, then one row per column, scrolling when there are many
-        table = tk.Frame(page, bg=C["WHITE"])
-        table.pack(fill="both", expand=True, pady=(10, 0))
-        widths = (104, 128, 84, 84, 86)
-        head = tk.Frame(table, bg=C["INK"])
-        head.pack(fill="x")
-        for i, (text, w) in enumerate(zip(("Column", "What it is") + flow.heads(), widths)):
-            cell = tk.Frame(head, bg=C["INK"], width=w, height=22)
-            cell.pack(side="left")
-            cell.pack_propagate(False)
-            tk.Label(cell, text=text, font=F["head"], fg=C["WHITE"], bg=C["INK"],
-                     anchor="w" if i < 2 else "center").pack(fill="both", expand=True, padx=(6, 0) if i < 2 else 0)
-        holder = tk.Canvas(table, bg=C["WHITE"], highlightthickness=0, bd=0, height=10)
-        scroll = ttk.Scrollbar(table, orient="vertical", command=holder.yview)
-        inner = tk.Frame(holder, bg=C["WHITE"])
-        holder.create_window((0, 0), window=inner, anchor="nw")
-        holder.configure(yscrollcommand=scroll.set)
-        rows = flow.rows()
-        widgets["gaps"] = []
-        for r in rows:
-            if r["gap_before"]:
-                gap = tk.Frame(inner, bg=C["WHITE"], height=GAP)         # between two groups: a gap, no words
-                gap.pack(fill="x")
-                widgets["gaps"].append(gap)
-            line = tk.Frame(inner, bg=C["WHITE"])
-            line.pack(fill="x")
-            widgets[f"row_{r['name']}"] = line
-            for i, w in enumerate(widths):
-                cell = tk.Frame(line, bg=C["WHITE"], width=w, height=ROW_H)
-                cell.pack(side="left")
-                cell.pack_propagate(False)
-                if i < 2:
-                    text = r["name"] if i == 0 else r["what"]
-                    tk.Label(cell, text=text, anchor="w", bg=C["WHITE"],
-                             font=F["name"] if i == 0 and not r["grey"] else F["cell"],
-                             fg=C["STONE"] if r["grey"] else C["INK"] if i == 0 else C["SLATE"]).pack(
-                        fill="both", expand=True, padx=(6, 0))
-                else:
-                    which = "abc"[i - 2]
-                    ctl = r[which]
-                    if ctl is not None:
-                        b = box(cell, ctl["on"], ctl["radio"], lambda n=r["name"], w_=which: (flow.click(n, w_),
-                                                                                              render()),
-                                enabled=not r["locked"] or which == "a")
-                        b.place(relx=0.5, rely=0.5, anchor="center")
-                        widgets[f"box_{r['name']}_{which}"] = b
-            tk.Frame(inner, bg=C["RULE"], height=1).pack(fill="x")
-        inner.update_idletasks()
-        need = inner.winfo_reqheight()
-        room = ROOM[flow.mode]
-        holder.configure(height=min(need, room), scrollregion=(0, 0, 480, need))
-        holder.pack(side="left", fill="both", expand=True)
-        widgets["table"] = holder
-        if need > room:          # was 280 in both: a table 251 to 280 px tall lost its last rows with no scroll bar
-            scroll.pack(side="right", fill="y")
-        holder.bind_all("<MouseWheel>", lambda e: holder.yview_scroll(int(-e.delta / 120), "units"))
+        # the outcome: offered, never picked for you, and asked about before it counts
+        pick = tk.Frame(page, bg=C["WHITE"])
+        pick.pack(fill="x", pady=(10, 0))
+        label(pick, "Outcome", "bold").pack(side="left")
+        names_ = [c.name for c in flow.outcome_choices()]
+        var = tk.StringVar(value=flow.outcome or "Pick the outcome")
+        combo = ttk.Combobox(pick, textvariable=var, values=names_, state="readonly", font=F["body"],
+                             width=max([16] + [len(n) + 2 for n in names_]))
+        combo.pack(side="left", padx=(8, 0))
+        combo.bind("<<ComboboxSelected>>", lambda e: (flow.pick_outcome(var.get()), ask_outcome()))
+        widgets["outcome"] = combo
+        rule = label(pick, flow.outcome_rule(flow.outcome) if flow.outcome else
+                     ("No column holds only 0 and 1. Fix the extract, or mark one as the outcome on Columns."
+                      if not names_ else "The yes/no column where 1 means the loan went bad."), "small",
+                     fg="SLATE")
+        rule.pack(side="left", padx=(8, 0), fill="x", expand=True)
+        fit(rule)
+        widgets["outcome_rule"] = rule
+
+        # the bottom first, so the table takes whatever height is left
+        footer(("next", "Next: answer in the workbook →", lambda: background(flow.next, "Writing the workbook"),
+                "primary"), note="Saved to Control, read-only.")
+        lower = tk.Frame(page, bg=C["WHITE"])
+        lower.pack(side="bottom", fill="x")
         if flow.mode == "new":
-            under = tk.Frame(page, bg=C["WHITE"])
+            under = tk.Frame(lower, bg=C["WHITE"])
             under.pack(fill="x", pady=(6, 0))
             # OC-51: scouting is the main path; a saved shortlist is the other way in
             label(under, "Confirming a saved shortlist" if flow.shortlist else "Scout first", "small").pack(
@@ -1083,25 +1142,160 @@ def build(root) -> dict:
                   "small", fg="SLATE").pack(side="right", padx=6)
             if flow.states()["install_optional"] == "normal":
                 # Goal 2 item 9: finding needs scikit-learn, an optional add-on (deps.OPTIONAL)
-                more = tk.Frame(page, bg=C["WHITE"])
+                more = tk.Frame(lower, bg=C["WHITE"])
                 more.pack(fill="x", pady=(6, 0))
                 widgets["install_optional"] = Button(more, "Install scikit-learn", lambda: install(optional=True),
                                                      "primary")
                 widgets["install_optional"].pack(side="right")
         ok, said = flow.summary()
-        sumbox = tk.Frame(page, bg=C["CANVAS"])
+        sumbox = tk.Frame(lower, bg=C["CANVAS"])
         sumbox.pack(fill="x", pady=(10, 0))
         tk.Frame(sumbox, bg=C["KEY_RED"], height=3).pack(fill="x")
         text = tk.Frame(sumbox, bg=C["CANVAS"], padx=10, pady=6)
         text.pack(fill="x")
-        widgets["summary"] = label(text, ("This will run: " + said) if ok else said, "small", bg=C["CANVAS"],
-                                   wrap=460)
-        widgets["summary"].pack(anchor="w")
+        widgets["summary"] = label(text, ("This will run: " + said) if ok else said, "small", bg=C["CANVAS"])
+        widgets["summary"].pack(fill="x")
+        fit(widgets["summary"])
         words_under(sumbox, C["CANVAS"], padx=10)
-        message_lines(page, flow.note, fg="INK")
-        message_lines(page, flow.message)
-        footer(("next", "Next: answer in the workbook →", lambda: background(flow.next, "Writing the workbook"),
-                "primary"), note="Saved to Control, read-only.")
+        message_lines(lower, flow.note, fg="INK")
+        message_lines(lower, flow.message)
+
+        # the table: a header band, then one row per column, scrolling only when the window can't hold it
+        table = tk.Frame(page, bg=C["WHITE"])
+        table.pack(fill="both", expand=True, pady=(10, 0))
+        heads = ("Column", "What it is") + flow.heads()
+        cols_ = {"cells": [], "base": BASE_W}
+        head = tk.Frame(table, bg=C["INK"])
+        head.pack(fill="x")
+        for i, (text_, w) in enumerate(zip(heads, BASE_W)):
+            cell = tk.Frame(head, bg=C["INK"], width=w, height=22)
+            cell.pack(side="left")
+            cell.pack_propagate(False)
+            cols_["cells"].append((i, cell))
+            tk.Label(cell, text=text_, font=F["head"], fg=C["WHITE"], bg=C["INK"],
+                     anchor="w" if i < 2 else "center").pack(fill="both", expand=True, padx=(6, 0) if i < 2 else 0)
+        rows = flow.rows()
+        if flow.mode == "new" and not any(r["locked"] for r in rows):
+            # All or None for Test it (the firm: "select everything or not by the press of a button")
+            quick = tk.Frame(table, bg=C["CANVAS"])
+            quick.pack(fill="x")
+            for i, w in enumerate(BASE_W):
+                cell = tk.Frame(quick, bg=C["CANVAS"], width=w, height=20)
+                cell.pack(side="left")
+                cell.pack_propagate(False)
+                cols_["cells"].append((i, cell))
+                if i == 3:
+                    for word, on in (("All", True), ("None", False)):
+                        b = tk.Label(cell, text=word, font=F["sub"], fg=C["INK"], bg=C["CANVAS"], cursor="hand2")
+                        b.pack(side="left", expand=True)
+                        b.bind("<Button-1>", lambda e, on=on: (flow.test_every(on), repaint()))
+                        widgets[f"test_{word.lower()}"] = b
+        body_ = tk.Frame(table, bg=C["WHITE"])
+        body_.pack(fill="both", expand=True)
+        holder = tk.Canvas(body_, bg=C["WHITE"], highlightthickness=0, bd=0, height=40)
+        scroll = ttk.Scrollbar(body_, orient="vertical", command=holder.yview)
+        inner = tk.Frame(holder, bg=C["WHITE"])
+        holder.create_window((0, 0), window=inner, anchor="nw")
+        holder.configure(yscrollcommand=scroll.set)
+        widgets["gaps"] = []
+        boxes = {}
+        for r in rows:
+            if r["gap_before"]:
+                gap = tk.Frame(inner, bg=C["WHITE"], height=GAP)         # between two groups: a gap, no words
+                gap.pack(fill="x")
+                widgets["gaps"].append(gap)
+            line = tk.Frame(inner, bg=C["WHITE"])
+            line.pack(fill="x")
+            widgets[f"row_{r['name']}"] = line
+            for i, w in enumerate(BASE_W):
+                cell = tk.Frame(line, bg=C["WHITE"], width=w, height=ROW_H)
+                cell.pack(side="left")
+                cell.pack_propagate(False)
+                cols_["cells"].append((i, cell))
+                if i < 2:
+                    text_ = r["name"] if i == 0 else r["what"]
+                    lab = tk.Label(cell, text=text_, anchor="w", bg=C["WHITE"],
+                                   font=F["name"] if i == 0 and not r["grey"] else F["cell"],
+                                   fg=C["STONE"] if r["grey"] else C["INK"] if i == 0 else C["SLATE"])
+                    lab.pack(fill="both", expand=True, padx=(6, 0))
+                    if i == 1:
+                        widgets[f"what_{r['name']}"] = lab
+                else:
+                    which = "abc"[i - 2]
+                    b = box(cell, False, False, lambda n=r["name"], w_=which: choose_click(n, w_))
+                    b.place(relx=0.5, rely=0.5, anchor="center")
+                    boxes[(r["name"], which)] = b
+                    widgets[f"box_{r['name']}_{which}"] = b
+            tk.Frame(inner, bg=C["RULE"], height=1).pack(fill="x")
+        widgets["boxes"] = boxes
+        inner.update_idletasks()
+        need = inner.winfo_reqheight()
+        holder.pack(side="left", fill="both", expand=True)
+        widgets["table"] = holder
+        widgets["table_need"] = need
+
+        def fitted(e=None):
+            # widths: the two word columns take any width the window has beyond the three boxes' columns
+            w = holder.winfo_width() or sum(BASE_W)
+            extra = max(0, w - sum(BASE_W))
+            ws_ = (BASE_W[0] + extra * 2 // 5, BASE_W[1] + extra - extra * 2 // 5) + BASE_W[2:]
+            for i, cell in cols_["cells"]:
+                if cell.winfo_exists():
+                    cell.configure(width=ws_[i])
+            holder.configure(scrollregion=(0, 0, sum(ws_), need))
+            if need > holder.winfo_height() > 1:
+                if not scroll.winfo_ismapped():
+                    scroll.pack(side="right", fill="y", before=holder)
+            elif scroll.winfo_ismapped():
+                scroll.pack_forget()
+                holder.yview_moveto(0)
+        holder.bind("<Configure>", fitted)
+        holder.bind_all("<MouseWheel>", lambda e: holder.yview_scroll(int(-e.delta / 120), "units"))
+        repaint()
+        at = widgets.pop("keep_scroll", None)
+        if at:
+            root.after_idle(lambda: holder.winfo_exists() and holder.yview_moveto(at))
+
+    def repaint():
+        """The Choose tests boxes, the outcome line and the summary, changed where they stand: no redraw, so the
+        table stays where it was scrolled. A row whose boxes appear or go needs the whole table drawn again."""
+        rows = flow.rows()
+        boxes = widgets.get("boxes") or {}
+        for r in rows:
+            if f"what_{r['name']}" in widgets:
+                widgets[f"what_{r['name']}"].configure(text=r["what"])
+            for which in "abc":
+                b = boxes.get((r["name"], which))
+                ctl = r[which]
+                if b is None:
+                    continue
+                if ctl is None:
+                    b.place_forget()
+                else:
+                    b.place(relx=0.5, rely=0.5, anchor="center")
+                    paint(b, ctl["on"], ctl["radio"], enabled=not r["locked"] or which == "a")
+        if "outcome" in widgets:
+            widgets["outcome"].set(flow.outcome or "Pick the outcome")
+            widgets["outcome_rule"].configure(text=flow.outcome_rule(flow.outcome) if flow.outcome else
+                                              "The yes/no column where 1 means the loan went bad.")
+        ok, said = flow.summary()
+        if "summary" in widgets:
+            widgets["summary"].configure(text=("This will run: " + said) if ok else said)
+        if "next" in widgets:
+            widgets["next"].configure(state=flow.states()["next"])
+
+    def choose_click(name, which):
+        flow.click(name, which)
+        ask_outcome()
+        repaint()
+
+    def ask_outcome():
+        """The pop-up the firm asked for: the column, and how it will be read, before it becomes the outcome."""
+        if not flow.asking:
+            return
+        from tkinter import messagebox
+        flow.answer_outcome(messagebox.askyesno("Use this as the outcome?", flow.outcome_question(), parent=root))
+        repaint()
 
     def page_answer():
         b = flow.book()
