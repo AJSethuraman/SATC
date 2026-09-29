@@ -2212,14 +2212,20 @@ changed in the code.
 
 1. **Columns that arrive already banded** (a `FICO_BAND` of "620 - 659", a score code 1 to 7). The firm:
    *"Do we have a solution for when the metrics already have banded units that we decided to just try and
-   use?"* Today they are read as categories (a number column with 12 values or fewer, or text with 50 or
-   fewer). In a bleed run that means Segment by only, never Cut into bands, and Choose tests needs one band
-   column, so a book with FICO only as bands can't have a FICO band x segment grid. In a new-variable run
-   scouting skips them ("a category", never proposed); they can still be tested or held fixed, value by value,
-   with no trend reading. Their order is not known to be right ("<600" may not sort before "600 - 619"; not
-   checked). Workaround now: if the raw number is in the extract, cut it on Columns at the bank's own edges.
-   **Recommended:** a *Treat as: bands, in this order* answer on Columns, so such a column can be the band
-   axis and its order feeds the trend test.
+   use?"* What happens depends on how the bands are written (checked on a made-up file, 29 Sep; corrected
+   after Codex on #405 found the first version of this item wrong):
+   - **Band text** ("620 - 659"): read as a category. In a bleed run that is Segment by only, never Cut into
+     bands, and Choose tests needs one band column, so a book with FICO only as text bands can't have a FICO
+     band x segment grid. In a new-variable run scouting skips it ("a category", never proposed); it can
+     still be tested or held fixed, value by value, with no trend reading. Whether the values sort in band
+     order ("<600" before "600 - 619") was not checked.
+   - **Number codes with a score-like name** (FICO_BAND, GRADE, RISK_TIER): read as a score ("Other score")
+     and offered under Cut into bands, where they are cut again into PocketBook's own bands, not the bank's,
+     unless the edges are typed on Columns at each code.
+   - **Number codes with any other name**: 12 values or fewer is a category, as for band text.
+   Workaround now: if the raw number is in the extract, cut it on Columns at the bank's own edges.
+   **Recommended:** a *Treat as: bands, in this order* answer on Columns, so such a column is used as the
+   bank's bands, can be the band axis, and its order feeds the trend test.
 2. **The two "how columns are recognised" settings read like one scale.** The firm: *"it seems odd to say
    anything above 12 is not something we would have as a category, but it takes a whole 50 to get to banding
    so is that middle section just free to do whatever"*. They apply to different columns: 12 is for number
