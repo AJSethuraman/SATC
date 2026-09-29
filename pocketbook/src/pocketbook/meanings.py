@@ -32,6 +32,7 @@ import yaml
 from .ingest import Bad, DateDetection, Table, detect_date_format, is_blank, parse_number
 
 REQUIRED = ("key", "booked", "outcome", "gco", "ranr")
+OUTCOME = "outcome"
 
 
 @dataclass(frozen=True)
@@ -61,10 +62,24 @@ def norm(name: str) -> str:
     return re.sub(r"[^0-9a-z]", "", str(name).lower())
 
 
+def words(name: str) -> list[str]:
+    """A column name's words, lower case: split at anything not a letter or digit, and where a lower-case
+    letter meets a capital. "EVER GCO" is ever, gco; "LoanNumber" is loan, number; "% orig commitments" is
+    orig, commitments."""
+    return [w.lower() for w in re.findall(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+", str(name))]
+
+
 def hint_in(name: str, hints: tuple[str, ...]) -> str | None:
-    n = norm(name)
+    """The first hint the name carries. A hint of two letters must be a whole word; one of three to five must
+    begin or end a word; a longer one may sit anywhere. The firm's bank file, 29 Sep 2026: matching anywhere
+    read "% orig commitments" as the outcome, since ori-gco-mmitments holds both `co` and `gco`."""
+    n, ws = norm(name), words(name)
     for h in hints:
-        if norm(h) and norm(h) in n:
+        hn = norm(h)
+        if not hn:
+            continue
+        if hn in ws or (len(hn) >= 3 and any(w.startswith(hn) or w.endswith(hn) for w in ws)) or \
+                (len(hn) >= 6 and hn in n):
             return h
     return None
 
@@ -217,9 +232,13 @@ def suggest(table: Table, remembered: dict[str, dict] | None = None,
         fits = {c: passes(cat[m].test, f) for c, f in fs.items() if c not in out}
         fits = {c: seen for c, (ok, seen) in fits.items() if ok}
         named = [(cat[m].hints.index(h), c, h) for c in fits if (h := hint_in(c, cat[m].hints))]
+        if m == OUTCOME and named and sum(1 for x in named if x[0] == min(named)[0]) > 1:
+            continue                    # two names fit as well as each other: the analyst picks, never the alphabet
         if named:
             _, c, h = sorted(named)[0]
             out[c] = Suggestion(c, m, _named(h, fits[c]), "name")
+        elif m == OUTCOME:
+            continue                    # never the outcome from its values alone (the firm, 29 Sep 2026)
         elif len(fits) == 1:
             c = next(iter(fits))
             out[c] = Suggestion(c, m, f"the only column that fits: {fits[c]}", "values")

@@ -157,6 +157,9 @@ class Column:
     name: str
     what: str           # its meaning in the Columns tab's words: "FICO score", "Category · 3 values"
     kind: str           # key, date, out (the yes/no outcome), outd (outcome dollars), num, cat, other
+    yes: int | None = None   # a column that could be the outcome: how many loans read 1 (bad); None if it couldn't
+    no: int = 0              # ... 0 (good)
+    other: int = 0           # ... anything else, blanks included: left out of the outcome rates and counted
 
 
 @dataclass
@@ -168,6 +171,37 @@ class Read:
     columns: list[Column]
     chosen: "ch.Choices | None" = None      # what the workbook beside it already shows, if there is one
     problem: str | None = None
+
+
+def _outcome_picked(picked: str, sugg: dict, kept: dict, cat, facts_of: dict, many: int) -> None:
+    """The outcome the analyst picked and confirmed in the launcher goes on Columns as the outcome, over what was
+    suggested or answered before; any other column marked the outcome is read as what it is otherwise, a
+    category (the firm, 29 Sep 2026: "there's no reason for it to automatically assign something")."""
+    why = "picked and confirmed in the launcher as the outcome"
+    for c, sg in list(sugg.items()):
+        prior = (kept["columns"].get(c) or {}).get("means")
+        if c != picked and (sg.means == meanings.OUTCOME or _to_code(prior, cat) == meanings.OUTCOME):
+            f = facts_of.get(c)
+            other = "category" if f is None or f.distinct <= many else "unknown"
+            sugg[c] = meanings.Suggestion(c, other, f"not the outcome: {picked} is ({why})", "launcher")
+            if c in kept["columns"]:
+                kept["columns"][c]["means"] = None
+    sugg[picked] = meanings.Suggestion(picked, meanings.OUTCOME, why, "launcher")
+    if picked in kept["columns"]:
+        kept["columns"][picked]["means"] = cat[meanings.OUTCOME].label
+
+
+def _yes_no(table, c: str, kind: str) -> tuple[int | None, int, int]:
+    """(ones, zeros, anything else) for a column that could be the outcome: one marked so, or one holding 0
+    and 1 on 99% of its loans or more, as the outcome's own test reads it. (None, 0, 0) for any other."""
+    from . import ingest
+    vals = [r.get(c) for r in table.rows]
+    nums = [ingest.parse_number(v) for v in vals]
+    ones, zeros = sum(1 for x in nums if x == 1.0), sum(1 for x in nums if x == 0.0)
+    other = len(vals) - ones - zeros
+    if kind == "out" or (ones and zeros and other <= 0.01 * len(vals)):
+        return ones, zeros, other
+    return None, 0, 0
 
 
 def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 50,
@@ -198,7 +232,7 @@ def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 5
         if kind == "cat":
             n = len({str(r.get(c)) for r in made_table.rows if r.get(c) not in (None, "")})
             what = f"Category · {n:,} values" if code == "category" else f"{what} · {n:,} values"
-        out.append(Column(c, what, kind))
+        out.append(Column(c, what, kind, *_yes_no(made_table, c, kind)))
     chosen = None
     if _earlier(target).exists():
         try:
@@ -476,6 +510,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
                                        rows=table.rows, kind=table.kind), few, many, facts_of)
         for r_ in made:
             sugg[r_.name] = meanings.Suggestion(r_.name, "amount", f"made under Add a column: {r_.text()}", "control")
+    if choices is not None and choices.outcome in table.columns:
+        _outcome_picked(choices.outcome, sugg, kept, cat, facts_of, many)
     qs = [q for c in cols for q in c.questions]
     open_qs = [q for q in qs if not memory.answer_for(mem, q["column"], q["pattern"], q["value"])]
     looks = meanings.review(table, sugg, open_qs, cat, answer_where="under Treat as", known=facts_of)
