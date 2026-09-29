@@ -38,8 +38,9 @@ def main():
     perm.run = catch
     res = engine.run(cfg, read_table(Path(csv_)))
     perm.run = real_run
-    # the grid, in the order the engine built it: per band, per segment, the two-way grid then its three-way one
-    fico = [g for g, bname, _ in [(g, g.band, None) for g in res.grids + res.three_way] if "FICO" in str(bname)]
+    # the grid: the three-way grids in the order the engine built them, FICO x CHANNEL first. Checked two ways: the
+    # pocket's observed gap is the loan-file road's to nine places, and the Run's seed at 10,000 shuffles gives
+    # the workbook's own raw p-value, 0.9534
     print([(g.band, g.dimension) for g in res.three_way])
     grid = res.three_way[1]
     measure = next(m for m in res.measures if m.name == "contribution_rate")
