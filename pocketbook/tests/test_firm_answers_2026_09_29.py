@@ -797,3 +797,10 @@ def test_one_cell_row_and_column_lists_follow_the_grid_picked(one_cell_book, tmp
     _, blocks, said = _grids(b, tmp_path / "g2.xlsx", grid=other, row=k[0], column=k[1])
     assert said["name"] == f"{k[0]} · {k[1]}, Bad loans"
     assert said["Loans"].startswith(f"{blocks['Loans'][k]:,} loans; {k[0]} has ")
+
+
+def test_segments_read_their_numbers_as_numbers():
+    """At the bank, 29 Sep 2026, Grids by Loan Amount Bucket ($5k): "$5k-<$10k" sat after "$40k+", as text sorts."""
+    from pocketbook import engine
+    got = engine._order(["$40k+", "$5k–<$10k", "$0k–<$5k", "$10k–<$15k", engine.BLANK_LABEL, "Tier 10", "Tier 2"])
+    assert got == ["$0k–<$5k", "$5k–<$10k", "$10k–<$15k", "$40k+", "Tier 2", "Tier 10", engine.BLANK_LABEL]

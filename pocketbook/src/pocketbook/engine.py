@@ -34,6 +34,7 @@ book is an error, not a table.
 from __future__ import annotations
 
 import math
+import re
 import statistics
 from collections import Counter
 from dataclasses import dataclass, field
@@ -1060,8 +1061,14 @@ def _merge(parts: list[Cell], measures) -> Cell:
 
 def _order(labels) -> list[str]:
     special = [BLANK_LABEL, NOT_NUMBER_LABEL, MISSING_RULE_LABEL]
-    plain = sorted((x for x in set(labels) if x not in special), key=lambda s: s.lower())
+    plain = sorted((x for x in set(labels) if x not in special), key=_natural)
     return plain + [x for x in special if x in set(labels)]
+
+
+def _natural(label: str) -> list:
+    """A label's sort key with its numbers read as numbers (at the bank, 29 Sep 2026: "$5k-<$10k" came after
+    "$40k+", as text sorts, on a loan amount bucket)."""
+    return [(0, int(t), "") if t.isdigit() else (1, 0, t) for t in re.split(r"(\d+)", str(label).lower()) if t]
 
 
 def _minus(a: tuple, b: tuple) -> tuple:

@@ -1106,6 +1106,8 @@ muts = [
  ("opening at a cell drops them", B, '    wb = _load(book)\n    if sheet not in wb.sheetnames',
   '    wb = load_workbook(book)\n    if sheet not in wb.sheetnames', "at_a_cell_keeps"),
  # at the bank, 29 Sep 2026: Look read -99,000,901 after it was answered missing
+ ("segments sorted as text again", E, '    plain = sorted((x for x in set(labels) if x not in special), key=_natural)',
+  '    plain = sorted((x for x in set(labels) if x not in special), key=lambda s: s.lower())', "numbers_as_numbers"),
  ("Look ignores a Treat as of missing", LK, '    kept_nums = [x for x in nums if not caught(x, rule)]',
   '    kept_nums = list(nums)', "look_leaves_out"),
  ("a Run never draws Look again", B, '    if look.answers_moved(wb, res.config.missing):', '    if False:',
