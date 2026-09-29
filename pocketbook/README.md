@@ -22,7 +22,9 @@ prove) and the firm's rulings.
   `docs/capabilities-scope.md`), and scouting (4a, 27 Sep 2026): find on the development loans, write the
   pre-spec, confirm it on the rest, in one Run.
 - **Not built:** drill-down and `pocketbook prove`.
-- **Not yet met:** a real extract.
+- **Not yet met:** a real extract. **Rehearsed on public loan data** (29 Sep 2026): the SBA's 7(a) FOIA file,
+  the JSE paper's SBAnational.csv and LendingClub, up to 897,167 loans, headlessly through the workbook route; the
+  published effects surfaced, and three defects were found and fixed. `docs/rehearsal-public-data-2026-09.md`.
 
 The log is `../BACKLOG.md` §6d.
 
@@ -448,6 +450,11 @@ python tools/mutation_check.py     # puts 405 bugs back (the VBA's and today's r
   its answer is the same on any number of them. On that 17,000-loan run it took
   53.6 s on one core and 20.9 s across this container's 4 (20.5 s on 3);
   each worker holds about 70 MB.
+- Public loan data (29 Sep 2026, `docs/rehearsal-public-data-2026-09.md`; 12 cores, a shared machine): where the
+  book bleeds on 897,167 loans by 14 grids, Set up 68 s and Run 827 s, 3.9 GB at the peak with the shuffle test's
+  workers; on 604,573 by 16 grids, 54 s and 547 s, 3.1 GB. A test of two new variables from a pre-spec on the
+  604,573, pockets of up to 400,000 loans: 128 s (it was still in its first fit after 10.5 minutes before
+  `kgroups` multiplied only nonzero coefficients). Scouting on the same: 623 s, about 8 minutes of it the forest.
 - One load and one save per Run (26 Sep 2026, the redesign's phase 2): a Run
   loaded the workbook eight times and saved it three, and drew Look again each
   time. Now the workbook is opened once, saved once, and Look's blocks are left

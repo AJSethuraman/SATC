@@ -2203,6 +2203,39 @@ back.
     The one new window test was also planted by hand under xvfb (the Run's lines not packed): it went red.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
+- **The public-data rehearsal (29 Sep 2026, branch `claude/pocketbook-public-rehearsal`; the firm: *"1 and 4
+  are good. Use workflow and whatever you need honestly"*).** PocketBook run end to end, headlessly, through the
+  workbook route on public loans: the SBA 7(a) FOIA file FY2000-09 (604,573 loans with an outcome), the JSE paper's
+  SBAnational.csv (897,167) and LendingClub 36-month loans of 2008-11 (30,931). Report:
+  `pocketbook/docs/rehearsal-public-data-2026-09.md`; data (outside git, can be purged):
+  `C:\Users\ajish\SATC-evidence\public-loans-2026-09-29\`.
+  - **Tools:** `tools/public_extract.py` (raw file to extract and a manifest of every filter and derived column,
+    each labelled native / constructed / rehearsal approximation; judgments refuse rather than default),
+    `tools/rehearse.py` (Set up, answers from a file, Run, timings, peak memory, a workbook check that can fail),
+    `tools/rehearsal_effects.py`. 18 tests on made-up rows (`tests/test_public_extract.py`).
+  - **Defects fixed, each with a regression test (`tests/test_rehearsal_2026_09_29.py`) and a planted bug, 4 of 4
+    caught:** (1) a category limit off the launcher's list (many_values=60 for State) written where only a listed
+    option is read: the Run refused on the launcher's own row and reading back gave 50; (2) the confirmatory test's
+    conditional likelihood multiplied every coefficient out: 191 s for one evaluation of a 217,800-loan pocket, the
+    pre-registered test stopped after 10.5 minutes in its first fit; now 0.25 s, and 128 s for the whole Run, equal
+    to the old code to 1e-12; (3) scikit-learn installed but blocked by Windows Application Control crashed a
+    scouting Run; now refused in words.
+  - **Known effects:** on SBAnational every 2-digit NAICS rate rounds to the paper's Table 3, real estate 1.63% vs
+    20.81% (paper 1.64 / 21.16), recession 31.21% (paper 31.21), Florida highest; the pockets point the same way.
+    Pocketing showed the paper's recession flag is largely term mix (better in 3 of 4 Term bands; checked from the
+    loans). LendingClub: grade, purpose, DTI, utilisation, inquiries, income and rate all in the published direction;
+    rent vs mortgage (1.18x) under the 1.25x line. Two pre-registered hypotheses missed on the FOIA holdout (smallest
+    loans worse; 240 months and up better than 84-119): verified from the loans, not PocketBook.
+  - **Waiting on the firm:** SBA's RANR stand-in (-GCO: profit tabs not evidence), LendingClub's licence, how to
+    read the live cells (LibreOffice or Excel; Excel was not opened), the confirmatory "Excess $" measured against
+    the share of loans (the 350,000-and-up group reads +$6.06bn at odds 0.79), equal-loan bands leaving a sliver
+    (TermInMonths 82-83, 6,351 loans), which scikit-learn to carry to the bank.
+  - **The suite on Windows:** first read 2 failed, 703 passed, 115 skipped. Both failures were fixed in the tests
+    and the checker: `tools/mutation_check.py` and its test read files in cp1252, so four planted bugs could not
+    be found here; the checklist test's symlink is refused without Developer Mode, so it now copies `src`. After the fixes: **707 passed, 115 skipped (all LibreOffice), 0 failed** of 822.
+  - **Planted bugs:** 76 of 446 run (every one aimed at control, kgroups, scout or confirmatory, the 4 new ones
+    included): 68 caught, 8 caught only by LibreOffice tests, which skip here, so not checked.
+  - **Not checked:** any recalculation of the workbooks, the Tk launcher, the other 370 planted bugs.
 
 ## 7 · Standing rules for new items
 
