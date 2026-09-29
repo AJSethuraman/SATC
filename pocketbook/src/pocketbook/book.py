@@ -70,6 +70,9 @@ CONFIRM_CELL = "C3"      # "Checked every column?"
 # Set up's note on Columns!D3 for columns the Yes in C3 doesn't cover yet; a Run takes it off again
 NEW_COLS_NOTE = "New since the last check: {}. Check them, then set C3 to Yes again."
 CONFIRM_NOTE = "Run won't start until this is Yes."
+#: the firm, 29 Sep 2026: "Why would we ever want to make it appear?" The columns not picked in the launcher are
+#: hidden rows, not asked about and not counted: they are kept, so picking one later needs no new answers
+HIDDEN_NOTE = "Only the columns this Run uses are shown; {} not picked in the launcher are hidden."
 # Columns tab (the redesign, phase 2: Columns, Odd values and Learned on one tab), one column per thing said about
 # an extract column, in the spec's order, then the answers the spec has no place for, then hidden keys
 (C_NAME, C_SAMPLES, C_MEANS, C_WHY, C_BLANK, C_ODD, C_TREAT, C_EDGES, C_REMEMBERED, C_FORGET, C_LOOK, C_IS, C_SHOW,
@@ -570,7 +573,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     # ---- Columns: what each column is, its odd values and what is remembered about it, on one tab
     ws = wb.create_sheet("Columns")
     odd_open, edge_noted = _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, made,
-                                        made_notes, new_cols, gone_cols, qs)
+                                        made_notes, new_cols, gone_cols, qs,
+                                        _in_use(choices, table, sugg, kept, cat, made))
     control.write_derived(wb, number_cols, kept["derived"], sheet="Columns", top=ws.max_row + 2,
                           first=C_NAME, key_col=C_QKEY, last=C_WHY + 1)
     _fit(ws)
@@ -661,8 +665,31 @@ def _remembered_words(entry: dict | None) -> str:
     return f"Yes · {times} Run" + ("" if times == 1 else "s")
 
 
+def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
+    """The extract's columns this Run uses, as the launcher picked them: the key, the outcome, the date, and for
+    the bleed the booked and dollar columns, the bands, segments and split; for a new variable what is tested and
+    held fixed. Columns made under Add a column always count. None (every column) when nothing was picked."""
+    if choices is None or choices.run_kind is None:
+        return None
+    new = choices.run_kind == NEW_VARIABLE
+    out = {m.name for m in made}
+    for c in table.columns:
+        code = _to_code((kept["columns"].get(c) or {}).get("means"), cat) or sugg[c].means
+        cut = cat[code].cut if code in cat else "none"
+        if code in ("key", "outcome", "origination_date") or c == choices.outcome:
+            out.add(c)
+        elif new:
+            if c in choices.test or c in choices.hold:
+                out.add(c)
+        elif code in ("booked", "gco", "ranr") or c == choices.split or \
+                (c in choices.bands if choices.bands is not None else cut == "band") or \
+                (c in choices.segments if choices.segments is not None else cut == "dimension"):
+            out.add(c)
+    return out
+
+
 def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, made, made_notes, new_cols, gone_cols,
-                 qs) -> tuple[int, set[str]]:
+                 qs, used: set[str] | None = None) -> tuple[int, set[str]]:
     """Columns, as the redesign draws it (section 3): the check at C3, the method note, then one row per extract
     column (a second odd value in a column gets a row of its own under it, with no name). Returns how many odd
     values are still unanswered, and the columns whose remembered edges were filled in."""
@@ -691,7 +718,8 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
     if gone_cols:
         notes.append(f"No longer in the extract: {', '.join(gone_cols)}.")
     notes += made_notes
-    ws["D3"] = " ".join([CONFIRM_NOTE] + notes)
+    hidden_n = 0 if used is None else sum(1 for c in table.columns if c not in used)
+    ws["D3"] = " ".join([CONFIRM_NOTE] + ([HIDDEN_NOTE.format(hidden_n)] if hidden_n else []) + notes)
     ws["D3"].font = Font(name="Calibri", bold=bool(notes), size=10, color=house.CRIMSON if notes else SLATE)
     ws["D3"].alignment = Alignment(vertical="center")
     ws.row_dimensions[3].height = 20
@@ -740,6 +768,7 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
         sg = sugg[c]
         prior = kept["columns"].get(c, {})
         code = _to_code(prior.get("means"), cat) or sg.means
+        hide = used is not None and c not in used
         tag = "Remembered: " if sg.source == "remembered" else ""
         f = facts_of.get(c) or meanings.facts(table, c)
         blank = (f.rows - f.nonblank) / f.rows if f.rows else 0
@@ -780,7 +809,8 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
         ws.cell(row=r, column=C_DEFINE, value=prior.get("define"))
         ws.cell(row=r, column=C_SUGG, value=sg.means)
         ws.cell(row=r, column=C_MADE, value=next((m.text() for m in made if m.name == c), None))
-        for k, q in enumerate(questions.get(c, []) or [None]):
+        asked = [] if hide else questions.get(c, [])      # a column not in use: nothing asked, nothing counted
+        for k, q in enumerate(asked or [None]):
             row = r + k
             if q is not None:
                 key = f"{q['pattern']}|{q['value'] if q['value'] is not None else ''}"
@@ -802,7 +832,8 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
                     cell.font = Font(name="Calibri", size=10, bold=cell.font.b,
                                      color=SLATE if col in (C_SAMPLES, C_WHY, C_LOOK) else house.INK_TEXT)
             ws.row_dimensions[row].height = 18
-        r += max(1, len(questions.get(c, [])))
+            ws.row_dimensions[row].hidden = hide
+        r += max(1, len(asked))
     ws.cell(row=r, column=C_QKEY, value=TABLE_END)
     treat = _col(C_TREAT)
     key = _col(C_QKEY)

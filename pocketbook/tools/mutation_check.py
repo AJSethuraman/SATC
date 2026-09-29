@@ -1074,6 +1074,20 @@ muts = [
   '        if c != picked and (sg.means == meanings.OUTCOME or _to_code(prior, cat) == meanings.OUTCOME):',
   '        if False:', "goes_on_columns"),
  ("the window a fixed height again", LA, 'max(560, min(860, screen_h - 140))', '560', "window_opens"),
+ # the same day, at the bank: All · None for the bleed, Columns shows what the Run uses, Look's axis title
+ ("None leaves the bands ticked", LA, '            self.cut = set(names) if on else set()', '            self.cut = set(names)',
+  "bleeds_bands"),
+ ("All ticks the split's column too", LA,
+  '        names = {r["name"] for r in self.rows() if r[which] is not None} - {self.split}',
+  '        names = {r["name"] for r in self.rows() if r[which] is not None}', "bleeds_bands"),
+ ("every column shown on Columns again", B, '        hide = used is not None and c not in used', '        hide = False',
+  "hides_what"),
+ ("a hidden column still asked about", B, '        asked = [] if hide else questions.get(c, [])',
+  '        asked = questions.get(c, [])', "hides_what"),
+ ("Look's axis title back over its numbers", "src/pocketbook/look.py",
+  '    # title is out of place"); "The bars" above the charts says they count loans\n',
+  '    # title is out of place"); "The bars" above the charts says they count loans\n    ch.y_axis.title = "Loans"\n',
+  "axis_title"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

@@ -598,6 +598,21 @@ class Flow:
         more = [r["name"] for r in self.rows() if r["b"] is not None and r["name"] not in self.hold]
         self.test = self.test + [c for c in more if c not in self.test]
 
+    def pick_every(self, which: str, on: bool) -> None:
+        """All or None for one column of boxes: Test it for a new variable (test_every), or Cut into bands and
+        Segment by for the bleed (the firm, 29 Sep 2026: "Yes"). The split stays as it is, and is never cut too."""
+        if self.mode == "new":
+            if which == "b":
+                self.test_every(on)
+            return
+        if which not in ("a", "b"):
+            return
+        names = {r["name"] for r in self.rows() if r[which] is not None} - {self.split}
+        if which == "a":
+            self.cut = set(names) if on else set()
+        else:
+            self.seg = set(names) if on else set()
+
     def pick_shortlist(self, path: str | None) -> None:
         """Confirm a saved shortlist (a pre-spec file) instead of finding one: it names
         the inputs, what is held fixed and, when it says, the outcome, so those boxes
@@ -1175,21 +1190,25 @@ def build(root) -> dict:
             tk.Label(cell, text=text_, font=F["head"], fg=C["WHITE"], bg=C["INK"],
                      anchor="w" if i < 2 else "center").pack(fill="both", expand=True, padx=(6, 0) if i < 2 else 0)
         rows = flow.rows()
-        if flow.mode == "new" and not any(r["locked"] for r in rows):
-            # All or None for Test it (the firm: "select everything or not by the press of a button")
+        if not any(r["locked"] for r in rows):
+            # All or None for a column of boxes (the firm: "select everything or not by the press of a button"):
+            # Test it for a new variable; Cut into bands and Segment by for the bleed
             quick = tk.Frame(table, bg=C["CANVAS"])
             quick.pack(fill="x")
+            cols_with = {3: "b"} if flow.mode == "new" else {2: "a", 3: "b"}
             for i, w in enumerate(BASE_W):
                 cell = tk.Frame(quick, bg=C["CANVAS"], width=w, height=20)
                 cell.pack(side="left")
                 cell.pack_propagate(False)
                 cols_["cells"].append((i, cell))
-                if i == 3:
+                if i in cols_with:
+                    which = cols_with[i]
                     for word, on in (("All", True), ("None", False)):
                         b = tk.Label(cell, text=word, font=F["sub"], fg=C["INK"], bg=C["CANVAS"], cursor="hand2")
                         b.pack(side="left", expand=True)
-                        b.bind("<Button-1>", lambda e, on=on: (flow.test_every(on), repaint()))
-                        widgets[f"test_{word.lower()}"] = b
+                        b.bind("<Button-1>", lambda e, on=on, which=which: (flow.pick_every(which, on), repaint()))
+                        name = "test" if flow.mode == "new" else {"a": "cut", "b": "seg"}[which]
+                        widgets[f"{name}_{word.lower()}"] = b
         body_ = tk.Frame(table, bg=C["WHITE"])
         body_.pack(fill="both", expand=True)
         holder = tk.Canvas(body_, bg=C["WHITE"], highlightthickness=0, bd=0, height=40)
