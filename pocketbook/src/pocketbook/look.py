@@ -521,7 +521,8 @@ def _chart(ws, hs, r: int, s: Shape, g: int) -> None:
         pt.graphicalProperties.line.noFill = True
         ser.dPt.append(pt)
     ch.legend = None
-    ch.y_axis.title = "Loans"
+    # no axis title: Excel drew "Loans" over the axis's own numbers (the firm, at the bank, 29 Sep 2026: "The axis
+    # title is out of place"); "The bars" above the charts says they count loans
     ch.y_axis.number_format = "#,##0"
     ch.y_axis.scaling.min = 0
     ch.y_axis.majorGridlines = None

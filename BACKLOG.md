@@ -2225,6 +2225,15 @@ fixed now so go ahead fix the changes"*. Items 1 and 7 stay open: neither stops 
 - Tests: `tests/test_firm_answers_2026_09_29.py` (10; 1 needs a display); 6 existing tests changed to pick and
   confirm the outcome. Planted bugs: 12 added to `tools/mutation_check.py`.
 - Not redone: the procedure's and the checklist's pictures of Choose tests show the old screen.
+- **Later the same day, at the bank** (the firm set up on the bank's file):
+  - *All · None* under Cut into bands and Segment by too (the firm: "Yes"). The split is never ticked by All.
+  - Columns shows only the columns the Run uses; the rest are hidden rows, not asked about and not counted in
+    Start here's *Odd values to answer* (the firm: *"considering the reason we reorganized the entire set up to
+    allow you to pick the workbook first ... Why would we ever want to make it appear?"*). Set up with nothing
+    picked still shows every column.
+  - Look's charts lose their "Loans" axis title, which Excel drew over the axis's numbers (*"The axis title is
+    out of place"*; LibreOffice had placed it clear).
+  - Tests: 3 more in `tests/test_firm_answers_2026_09_29.py`; 5 planted bugs, all caught.
 
 The firm, 29 Sep 2026: *"make sure you're noting all of these so that we can go over them later for final
 decision."* Each item: what is true now, what would change it, and the recommendation. Nothing below has been

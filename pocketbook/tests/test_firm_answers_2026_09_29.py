@@ -215,3 +215,55 @@ def test_a_click_keeps_the_table_where_it_was_scrolled_and_the_outcome_is_asked(
         assert w["outcome"].get() == "EVER GCO" and w["next"].cget("state") == "normal"
     finally:
         root.destroy()
+
+
+# ---- the same day, later: All · None for the bleed, and Columns shows only what this Run uses
+
+
+def test_all_and_none_for_the_bleeds_bands_and_segments_leave_the_split_alone(tmp_path):
+    f = _flow(_bank_file(tmp_path))
+    f.click("REV_DEBT", "c")                                            # split by REV_DEBT
+    f.pick_every("a", False)
+    f.pick_every("b", False)
+    assert f.cut == set() and f.seg == set() and f.split == "REV_DEBT"
+    f.pick_every("a", True)
+    nums = {r["name"] for r in f.rows() if r["a"] is not None}
+    assert f.cut == nums - {"REV_DEBT"} and f.split == "REV_DEBT"
+    f.pick_every("b", True)
+    assert f.seg == {r["name"] for r in f.rows() if r["b"] is not None}
+    f.pick_every("c", False)                                            # the split has no All or None
+    assert f.split == "REV_DEBT"
+
+
+def test_columns_hides_what_the_launcher_didnt_pick_and_asks_nothing_about_it(tmp_path, monkeypatch):
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    x = synth.write_extract(tmp_path, n=1500)
+    picked = ch.Choices(run_kind=ch.BLEED, bands=("ORIG_BAL",), segments=("CHANNEL",), outcome="BAD_FLAG")
+    out = book.set_up(x, choices=picked)
+    ws = load_workbook(out.book)["Columns"]
+    rows = {r[book.C_NAME - 1].value: r for r in book.table_rows(ws) if r[book.C_NAME - 1].value}
+    hidden = {n for n, r in rows.items() if ws.row_dimensions[r[0].row].hidden}
+    assert "FICO" in hidden and "ASSET_CLASS" in hidden and "REV_DEBT" in hidden
+    assert not hidden & {"LOAN_NBR", "ORIG_BAL", "CHANNEL", "BAD_FLAG", "GCO_AMT", "RANR_AMT"}
+    keys = [r[book.C_QKEY - 1].value for r in ws.iter_rows(min_row=book.COL_FIRST) if len(r) >= book.C_QKEY]
+    assert not [k for k in keys if k and str(k).startswith("FICO|")]  # FICO's -9999 isn't asked about
+    assert f"{len(hidden)} not picked in the launcher are hidden" in ws["D3"].value
+    _answer(out.book)
+    _, problems, _ = book.read_book(out.book)
+    assert not problems, problems
+    # nothing picked (Set up without the launcher): every column shows, and FICO's code is asked about again
+    ws = load_workbook(book.set_up(x).book)["Columns"]
+    assert not any(ws.row_dimensions[r[0].row].hidden for r in book.table_rows(ws))
+    keys = [r[book.C_QKEY - 1].value for r in ws.iter_rows(min_row=book.COL_FIRST) if len(r) >= book.C_QKEY]
+    assert [k for k in keys if k and str(k).startswith("FICO|")]
+
+
+def test_look_charts_have_no_axis_title_for_excel_to_draw_over_the_numbers(tmp_path, monkeypatch):
+    """At the bank, in Excel: "The axis title is out of place" -- "Loans" sat on top of 800 and 1,000."""
+    import zipfile
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    out = book.set_up(synth.write_extract(tmp_path, n=1500), choices=ch.Choices(
+        run_kind=ch.BLEED, bands=("FICO", "ORIG_BAL"), segments=("CHANNEL",), outcome="BAD_FLAG"))
+    with zipfile.ZipFile(out.book) as z:
+        charts = [z.read(n).decode("utf-8") for n in z.namelist() if n.startswith("xl/charts/chart")]
+    assert charts and not [c for c in charts if "<a:t>Loans</a:t>" in c]
