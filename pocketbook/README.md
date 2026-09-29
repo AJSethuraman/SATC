@@ -185,6 +185,28 @@ After that, the whole routine is:
      its colour means. A blank says why: alone in its band, or fewer losses than the
      minimum. The sentences are fixed by measure (`results.SAY`); only the names
      and numbers change.
+     A pocket with fewer loans than **Fewest loans in a pocket** on Control (the
+     number the Run used, its suggestion worked out when that was picked) shows
+     its number in **grey**, with no colour, and is left out of the largest gap
+     that sets the scale for a gap in points: a 3-loan pocket at -50 points no
+     longer pales every real gap. What one cell says: "Grey: only 3 loans,
+     fewer than the 30 set on Control, so not coloured." The **vs the book**
+     heading carries the book's own figure for the measure picked ("vs the book
+     (book: 7.73%)"); vs rest of band has none, since its rest differs by row.
+     **Only loans where** *(split column)* **is**, with the Run split by a
+     category, shows every block and the one-cell reading on only the loans
+     with one value (`Grid.filtered`, built in the engine like any grid). vs
+     the book stays against the **whole book** (the firm: *"we keep things
+     compared to the whole book that's just kind of the point"*); vs rest of
+     band is the rest of the band among those loans; grey and the heat scale go
+     by that view's own cells. Split in halves or not at all, it offers only
+     All loans and says filtering needs Split by a category. **Loan size**, in
+     the Measure list when a booked amount is set: booked dollars per loan (the
+     average in Rate, the median read out in words), and the average as a
+     multiple of the book's and of the rest of the band's. It is a
+     description, not a test: no p-value, not on Pockets or Split, and no red
+     or green, only one neutral hue, darker the bigger the loans against the
+     book's.
    - **Split:** only when a column splits the pockets (below). A Grid
      dropdown and a chip saying whether it holds the split's partner fixed; the
      summary for every measure; whether the gap is the same in every pocket; and

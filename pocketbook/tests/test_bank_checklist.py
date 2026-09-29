@@ -154,7 +154,7 @@ def test_every_cell_the_checklist_names_holds_what_it_says(tmp_path):
     assert ctl["H23"].value == "Status" and "Waiting for a Run" in ctl["H24"].value
 
     for tab, cells, sizes in (("Pockets", ("C18", "D18", "E18"), (5, 2, 3)), ("Paid, cost, kept", ("B16",), (4,)),
-                              ("Grids", ("B13", "F13"), (8, 5)), ("Split", ("B15", "B26"), (4, 5))):
+                              ("Grids", ("B13", "F13"), (8, 6)), ("Split", ("B15", "B26"), (4, 5))):
         lv = _lists(wb[tab])
         for cell, n in zip(cells, sizes):
             assert len(_listed(wb, lv[cell])) == n, (tab, cell)

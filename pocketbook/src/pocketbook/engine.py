@@ -462,6 +462,20 @@ class Cell:
     medians: dict[str, MedianStat] = field(default_factory=dict)
 
 
+@dataclass
+class Size:
+    """What the loans in one cell booked (Grids' Loan size, the firm, 29 Sep 2026: "we tend to give these loan
+    amounts to these FICO scores within this category"): the loans with a booked amount, their booked dollars
+    added up, and the median. A description, never tested."""
+    loans: int = 0
+    booked: float = 0.0
+    median: float | None = None
+
+    @property
+    def average(self) -> float | None:
+        return self.booked / self.loans if self.loans else None
+
+
 ALL = "All"
 HIGH = "above its pocket's median"
 LOW = "at or below its pocket's median"
@@ -491,6 +505,13 @@ class Grid:
     part_tested: dict[str, dict] = field(default_factory=dict, repr=False)
     # and, for a yes/no per loan, whether the values differ at all, pooled over the pockets (B3, on K - 1 df)
     split_general: dict[str, dict] = field(default_factory=dict)
+    # Grids' "Only loans where" (the firm, 29 Sep 2026): for a split by a category, this grid again on only the
+    # loans with each value, keyed by the value. Built like any grid, so "vs the book" is still against the whole
+    # book and "vs rest of band" is against the rest of the band among those loans. Shown on Grids only: never
+    # listed as pockets, counted in a family or tied out
+    filtered: dict[str, "Grid"] = field(default_factory=dict, repr=False)
+    # what each cell booked, margins included (Size); empty without a booked amount
+    sizes: dict[tuple[str, str], Size] = field(default_factory=dict, repr=False)
 
     def cell(self, band_label: str, dim_label: str) -> Cell:
         return self.cells[(band_label, dim_label)]
@@ -525,6 +546,8 @@ class Result:
     derived: list["DerivedReport"] = field(default_factory=list)
     table: Table | None = None                  # the extract as the run read it, new columns included
     bleed: bool = True                          # False: a test of a new variable, which builds no grid (OC-42)
+    book_size: Size | None = None               # what the whole book booked, per loan (Grids' Loan size)
+    split_values: list[str] = field(default_factory=list)   # a category split's values, in order
 
 
 # --------------------------------------------------------------------------
@@ -920,6 +943,33 @@ def run(config: Config, table: Table) -> Result:
         _judge(g, config, measures, min_units, materiality_line)
     for g, _, _ in halved:
         _finish_split(g, config, measures)
+    # Grids' Loan size and "Only loans where" (the firm, 29 Sep 2026): each grid's booked dollars per cell, and each
+    # grid again on only the loans with one value of a category split
+    booked = None
+    if bleed and config.booked and config.booked in table.columns:
+        booked = [classify_number(raw, rules.get(config.booked))[0] for raw in col(config.booked)]
+    book_size = None
+    if booked is not None:
+        book_size = loan_sizes([(ALL, ALL)] * n, booked).get((ALL, ALL), Size())
+        for g, _, keys in built:
+            g.sizes = loan_sizes(keys, booked)
+    values: list[str] = []
+    if bleed and split_vals is not None and config.split[1] == "each_value":
+        values = _order(split_vals)
+        by_name = {b.name: b for b in config.bands}
+        rows_of = {v: [i for i, x in enumerate(split_vals) if x == v] for v in values}
+        for g, bname, keys in built:
+            for v in values:
+                idx = rows_of[v]
+                sub = [keys[i] for i in idx]
+                fg = _build_grid(config, by_name[bname], Dimension(name=g.dimension, field=""), band_edges[bname],
+                                 [k[0] for k in sub], [k[1] for k in sub], measures,
+                                 {m: [vals[i] for i in idx] for m, vals in per_row.items()}, topline, min_units,
+                                 total, needed, materiality_line, band_label_sets[bname])
+                _judge(fg, config, measures, min_units, materiality_line)
+                if booked is not None:
+                    fg.sizes = loan_sizes(sub, [booked[i] for i in idx])
+                g.filtered[v] = fg
     moves_with: dict[str, float] = {}
     if bleed and config.split and config.split[1] == "own_median":
         for b in config.bands:
@@ -931,7 +981,36 @@ def run(config: Config, table: Table) -> Result:
                   left_out=left_out, grids=grids, warnings=warnings, tie_outs=tie_outs,
                   band_edges=band_edges, loans_needed=needed, min_units=min_units,
                   materiality_line=materiality_line, three_way=three_way,
-                  split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed)
+                  split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
+                  book_size=book_size, split_values=values)
+
+
+def loan_sizes(keys, booked) -> dict[tuple[str, str], Size]:
+    """Each cell's Size, margins included: `keys` each loan's (band, segment), `booked` its booked amount (None
+    when it has none, and then it is left out). The values are held only while one grid is worked out."""
+    groups: dict[tuple, list[float]] = {}
+    for (b, d), v in zip(keys, booked):
+        if v is None:
+            continue
+        for k in {(b, d), (b, ALL), (ALL, d), (ALL, ALL)}:
+            groups.setdefault(k, []).append(v)
+    return {k: Size(len(v), math.fsum(v), statistics.median(v)) for k, v in groups.items()}
+
+
+def size_vs(sizes: dict, b: str, d: str, book: Size | None) -> tuple:
+    """One cell's loan size as Grids shows it: the average booked per loan, the median, the average as a multiple
+    of the whole book's, and as a multiple of the rest of its band's (its row without it; None for a margin, or
+    a cell alone in its band). Every figure None where there is nothing to divide by."""
+    s = sizes.get((b, d))
+    if s is None or not s.loans:
+        return None, None, None, None
+    avg = s.average
+    vs_book = index_of(avg, book.average) if book is not None else None
+    vs_band = None
+    row = sizes.get((b, ALL))
+    if b != ALL and d != ALL and row is not None and row.loans > s.loans:
+        vs_band = index_of(avg, (row.booked - s.booked) / (row.loans - s.loans))
+    return avg, s.median, vs_book, vs_band
 
 
 def _correlation(xs, ys) -> float | None:

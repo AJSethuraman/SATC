@@ -11,6 +11,8 @@
 
 import csv
 import random
+import re
+import statistics
 
 import pytest
 from openpyxl import load_workbook
@@ -694,6 +696,12 @@ def _shade(v, kind: str, bound: float) -> str:
     return "pale"
 
 
+def _fewest(b) -> int:
+    """The fewest loans in a pocket the last Run used (Control's answer, as Record keeps it)."""
+    from pocketbook import config as cfgmod
+    return cfgmod.parse(book.read_book(b)[0]).benchmark.min_units
+
+
 def _min_losses(b) -> int:
     from pocketbook import config as cfgmod
     return cfgmod.parse(book.read_book(b)[0]).benchmark.min_events
@@ -726,9 +734,15 @@ def test_one_cell_reads_the_blocks_own_numbers_in_words_for_a_multiple_and_a_gap
             assert said["vs rest of band"] == (f"Kept {abs(w):.2f} points {side(w)} of their booked dollars than the "
                                                f"other loans in {bl}{named}.")
         assert said["Loans"] == f"{n:,} loans; {bl} has {loans[(bl, 'All')]:,} in all."
-        bound = max([abs(x) for blk in (bk, bd) for x in blk.values() if isinstance(x, (int, float))] + [0.01])
-        assert said["The colour"].startswith(f"vs the book is {_shade(v, kind, bound)}, vs rest of band "
-                                             f"{_shade(w, kind, bound)}.")
+        # the scale's bound leaves out the cells under the fewest loans, which are grey (the firm, 29 Sep 2026)
+        few = _fewest(b)
+        bound = max([abs(x) for blk in (bk, bd) for k, x in blk.items() if isinstance(x, (int, float))
+                     and isinstance(loans.get(k), (int, float)) and loans[k] >= few] + [0.01])
+        if n < few:
+            assert said["The colour"] == f"Grey: only {n:,} loans, fewer than the {few:,} set on Control, so not coloured."
+        else:
+            assert said["The colour"].startswith(f"vs the book is {_shade(v, kind, bound)}, vs rest of band "
+                                                 f"{_shade(w, kind, bound)}.")
 
 
 def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(one_cell_book, tmp_path):
@@ -804,3 +818,356 @@ def test_segments_read_their_numbers_as_numbers():
     from pocketbook import engine
     got = engine._order(["$40k+", "$5k–<$10k", "$0k–<$5k", "$10k–<$15k", engine.BLANK_LABEL, "Tier 10", "Tier 2"])
     assert got == ["$0k–<$5k", "$5k–<$10k", "$10k–<$15k", "$40k+", "Tier 2", "Tier 10", engine.BLANK_LABEL]
+
+
+# ---- that evening, by pop-up: four changes to Grids, each answered yes
+# Raised at the bank from a photo of Grids: 620-659 · $20k-<$25k, 3 loans, Kept after losses -50.38 pts against the
+# book, was the deepest red on the grid and paled every real gap. The firm on filtering: "it would be nice to be able
+# to filter by that category which would probably solve a lot of ... having multiway views", and, decided the same
+# day: "we keep things compared to the whole book that's just kind of the point". On loan size: "we tend to give
+# these loan amounts to these FICO scores within this category". Yes to all four; a number column as a segment was
+# answered "Later".
+
+KIOSK = "Kiosk"
+ONLY = "Only loans where SYS_FLAG is"
+
+
+def _grids_file(tmp_path, n=6000):
+    """The flagged book, and three loans through a channel of their own, in one score band, each keeping -50% of
+    what it booked: a 3-loan pocket far deeper than any real one, as on the bank's photo."""
+    src = _flag_file(tmp_path, n=n)
+    rows = list(csv.DictReader(open(src, encoding="utf-8")))
+    for k, fico in enumerate((641, 645, 649)):
+        bal = 20000.0 + 1000 * k
+        rows.append({**rows[10], "LOAN_NBR": f"K{k}", "FICO": fico, "CHANNEL": KIOSK, "ORIG_BAL": bal,
+                     "BAD_FLAG": 1, "GCO_AMT": bal * 0.5, "RANR_AMT": -bal * 0.5, "SYS_FLAG": "Y"})
+    out = tmp_path / "grids.csv"
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    return out
+
+
+@pytest.fixture(scope="module")
+def grids_book(tmp_path_factory):
+    """FICO x CHANNEL and FICO x ASSET_CLASS, split by SYS_FLAG, fewest loans 30: the book and its loan file."""
+    from pocketbook import perm
+    d = tmp_path_factory.mktemp("grids")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 200)
+        x = _grids_file(d)
+        out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL", "ASSET_CLASS"),
+                                                split="SYS_FLAG", outcome="BAD_FLAG"))
+        _answer(out.book)
+        ran = book.run(out.book)
+        assert ran.ok, ran.lines
+    return out.book, x
+
+
+def _loans_file(x) -> list[dict]:
+    return list(csv.DictReader(open(x, encoding="utf-8")))
+
+
+def _num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _band(fico, labels) -> str:
+    """A loan's FICO band, read from the grid's own labels ("496 - 653", both ends in the band), worked out here and
+    not by the engine: the -9999 code was answered missing, and a blank is its own row."""
+    if fico in ("", None):
+        return "(blank)"
+    v = float(fico)
+    if v < -1000:
+        return "(marked missing)"
+    for lab in labels:
+        lo, _, hi = lab.partition(" - ")
+        if hi and float(lo) <= v <= float(hi):
+            return lab
+    raise KeyError(fico)
+
+
+def _cells(rows, loans_block) -> dict:
+    """{(band, channel): [loans]}, margins included, over `rows`, for the cells the Loans block has."""
+    labels = [bl for bl, d in loans_block if d == "All" and bl not in ("All", "(blank)", "(marked missing)")]
+    out: dict = {}
+    for r in rows:
+        bl, d = _band(r["FICO"], labels), r["CHANNEL"]
+        for k in {(bl, d), (bl, "All"), ("All", d), ("All", "All")}:
+            out.setdefault(k, []).append(r)
+    return out
+
+
+def _bad_rate(rows):
+    read = [int(r["BAD_FLAG"]) for r in rows if r["BAD_FLAG"] in ("0", "1")]
+    return sum(read) / len(read) if read else None
+
+
+def _size(rows):
+    bals = [_num(r["ORIG_BAL"]) for r in rows if _num(r["ORIG_BAL"]) is not None]
+    return (sum(bals) / len(bals), statistics.median(bals)) if bals else (None, None)
+
+
+def _views_rows(b) -> dict:
+    from pocketbook import results
+    return {r[0]: list(r[1:]) for r in load_workbook(b)[results.VIEWS].iter_rows(values_only=True) if r[0]}
+
+
+def _below(ws) -> int:
+    """The row the blocks start under: the dropdowns', clear of the method note's labels."""
+    import tabs
+    return tabs.dropdown(ws, "Grid").row
+
+
+def _head(ws, title: str) -> str:
+    return next(c.value for row in ws.iter_rows(min_row=_below(ws)) for c in row if isinstance(c.value, str)
+                and c.value.startswith(title))
+
+
+def _inner(formula: str) -> str:
+    """A rule's own formula, without the row's divider every rule on a block carries (results.cf)."""
+    m = re.fullmatch(r'AND\(\$[A-Z]+\d+<>"",(.*)\)', formula)
+    return m.group(1) if m else formula
+
+
+GREY = re.compile(r"^AND\(ISNUMBER\(([A-Z]+)(\d+)\),ISNUMBER\(([A-Z]+)(\d+)\),ISNUMBER\((\$[A-Z]+\$\d+)\),"
+                  r"([A-Z]+)(\d+)<(\$[A-Z]+\$\d+)\)$")
+
+
+def _rules_at(ws, coord: str) -> list:
+    """The conditional formats over one cell of the sheet as written, in the order they are tried."""
+    from openpyxl.utils import range_boundaries
+    from openpyxl.utils.cell import coordinate_from_string, column_index_from_string
+    c, r = coordinate_from_string(coord)
+    c = column_index_from_string(c)
+    out = []
+    for rng in ws.formulas.conditional_formatting:
+        for bounds in str(rng.sqref).split():
+            c0, r0, c1, r1 = range_boundaries(bounds)
+            if c0 <= c <= c1 and r0 <= r <= r1:
+                out += [(x, c - c0, r - r0) for x in sorted(rng.rules, key=lambda x: x.priority)]
+    return out
+
+
+def _is_grey(ws, coord: str) -> bool:
+    """Whether a cell's grey rule holds (its second: the first is the same with a gap in points' number format),
+    worked out from the calculated sheet by moving its relative references as a spreadsheet does."""
+    from openpyxl.utils import get_column_letter
+    from openpyxl.utils.cell import column_index_from_string
+    from pocketbook import house
+    rule, dc, dr = _rules_at(ws, coord)[1]
+    m = GREY.match(_inner(rule.formula[0]))
+    assert m, rule.formula[0]
+    assert rule.dxf.fill is None and rule.dxf.font.color.rgb[-6:] == house.DISABLED_TEXT
+    at = lambda col, row: ws[f"{get_column_letter(column_index_from_string(col) + dc)}{int(row) + dr}"].value  # noqa
+    loans, few = at(m.group(3), m.group(4)), ws[m.group(5).replace("$", "")].value
+    return isinstance(at(m.group(1), m.group(2)), (int, float)) and isinstance(loans, (int, float)) and loans < few
+
+
+def _coord(ws, title: str, key) -> str:
+    """Where a block's cell is on the sheet: the block by its title, the cell by its row and column labels."""
+    for row in ws.iter_rows():
+        for c in row:
+            if isinstance(c.value, str) and c.value.startswith(title) and c.row > _below(ws):
+                cols, j = {}, c.column + 1
+                while ws.cell(row=c.row + 1, column=j).value not in (None, ""):
+                    cols[ws.cell(row=c.row + 1, column=j).value] = j
+                    j += 1
+                rr = c.row + 2
+                while ws.cell(row=rr, column=c.column).value != key[0]:
+                    rr += 1
+                return ws.cell(row=rr, column=cols[key[1]]).coordinate
+    raise KeyError(title)
+
+
+def test_grids_grey_a_cell_under_the_fewest_loans_and_leave_it_out_of_the_scale(grids_book, tmp_path):
+    b, _ = grids_book
+    few = _fewest(b)
+    ws, blocks, _ = _grids(b, tmp_path / "k0.xlsx", measure="Kept after losses")
+    bk, bd, loans = blocks["vs the book"], blocks["vs rest of band"], blocks["Loans"]
+    kiosk = next(k for k, v in loans.items() if k[1] == KIOSK and k[0] != "All" and v)
+    assert loans[kiosk] == 3 and bk[kiosk] < -50                     # the photo: 3 loans, the deepest gap
+    real = [abs(v) for blk in (bk, bd) for k, v in blk.items() if isinstance(v, (int, float)) and loans[k] >= few]
+    assert abs(bk[kiosk]) > max(real)
+    # the colour scale's bound is the largest gap among the cells with enough loans
+    meta = _views_rows(b)["G|FICO x CHANNEL|ranr_rate|meta"]
+    assert meta[1] == pytest.approx(max(real)) and meta[4] == few
+    # every cell under the fewest loans is grey, with no colour; every other number is coloured as before
+    for title, blk in (("vs the book", bk), ("vs rest of band", bd)):
+        for k, v in blk.items():
+            if isinstance(v, (int, float)):
+                assert _is_grey(ws, _coord(ws, title, k)) == (loans[k] < few), (title, k)
+        rules = _rules_at(ws, _coord(ws, title, kiosk))
+        grey = _inner(rules[1][0].formula[0])
+        assert [r.dxf.fill for r, *_ in rules[:2]] == [None, None]
+        coloured = [_inner(r.formula[0]) for r, *_ in rules[2:] if r.dxf.fill is not None]
+        assert coloured and all(f.startswith(f"AND(NOT({grey})") for f in coloured)
+    # what one cell says, and the note
+    _, _, said = _grids(b, tmp_path / "k1.xlsx", measure="Kept after losses", row=kiosk[0], column=KIOSK)
+    assert said["The colour"] == f"Grey: only 3 loans, fewer than the {few} set on Control, so not coloured."
+    note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 16)}
+    assert note["Colour"].endswith(f"Grey: fewer loans than the {few} in Fewest loans in a pocket on Control, so "
+                                   f"not coloured, and left out of the largest gap.")
+
+
+def test_grids_fewest_loans_is_the_number_the_run_used_and_filtering_needs_a_category(tmp_path, monkeypatch):
+    """Fewest loans left at its suggestion: the grey line is the number the Run worked out, not the old 30. Split
+    in halves, nothing can be filtered, and the tab says why."""
+    import math
+    from pocketbook import control, perm, results
+    import tabs
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    monkeypatch.setattr(perm, "SHUFFLES", 100)
+    x = synth.write_extract(tmp_path / "src", n=4000)
+    out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL",),
+                                            split="REV_DEBT", outcome="BAD_FLAG"))
+    _answer(out.book)
+    wb = load_workbook(out.book)
+    for r in wb["Control"].iter_rows(min_row=control.FIRST_ROW):
+        if r[control.KEY_COL - 1].value == "min_loans":
+            r[control.CHOOSE_COL - 1].value = "Enough for 5 expected losses (suggested)"
+    wb.save(out.book)
+    assert book.run(out.book).ok
+    want = max(2, math.ceil(5 / _bad_rate(_loans_file(x))))
+    assert want != 30 and _views_rows(out.book)["G|fewest"][0] == want
+    wb = load_workbook(out.book)
+    assert tabs.options(wb, results.GRIDS, "Only loans where") == [results.ALL_LOANS]
+    ws = wb[results.GRIDS]
+    at = tabs.dropdown(ws, "Only loans where")
+    assert ws.cell(row=at.row + 1, column=at.column).value == "Filtering needs Split by a category."
+    ws, blocks, _ = _grids(out.book, tmp_path / "f0.xlsx")
+    thin = next(k for k, v in _pockets(blocks["Loans"]).items() if v < want)
+    _, _, said = _grids(out.book, tmp_path / "f1.xlsx", row=thin[0], column=thin[1])
+    n = blocks["Loans"][thin]
+    assert said["The colour"] == (f"Grey: only {n} loan{'' if n == 1 else 's'}, fewer than the {want} set on Control, "
+                                  f"so not coloured.")
+    assert f"Grey: fewer loans than the {want} in Fewest loans" in \
+        next(ws.cell(row=r, column=3).value for r in range(3, 16) if ws.cell(row=r, column=2).value == "Colour")
+
+
+def test_grids_the_books_own_figure_heads_vs_the_book(grids_book, tmp_path):
+    """The book's rate, worked out here from the loan file, in the heading, following the Measure picked; the same
+    with a value filtered, since the comparison stays the whole book."""
+    b, x = grids_book
+    rows = _loans_file(x)
+    both = [(_num(r["RANR_AMT"]), _num(r["ORIG_BAL"])) for r in rows]
+    kept = sum(a for a, c in both if a is not None and c is not None) / sum(c for a, c in both
+                                                                         if a is not None and c is not None)
+    want = {"Bad loans": f"{_bad_rate(rows) * 100:.2f}%", "Kept after losses": f"{kept * 100:.2f}%",
+            "Loan size": f"${_size(rows)[0]:,.0f}"}
+    for k, (measure, fig) in enumerate(want.items()):
+        for only in ("All loans", "Y"):
+            ws, _, _ = _grids(b, tmp_path / f"h{k}{only[0]}.xlsx", measure=measure, **{ONLY: only})
+            assert _head(ws, "vs the book") == f"vs the book (book: {fig})", (measure, only)
+            assert _head(ws, "vs rest of band") == "vs rest of band"
+
+
+def test_grids_only_loans_where_shows_one_values_grid_against_the_whole_book(grids_book, tmp_path):
+    """Y's loans only: every count, rate and gap worked out again from the loan file. vs the book is against the
+    whole book's rate; vs rest of band against the rest of the band among Y's loans."""
+    from pocketbook import results
+    import tabs
+    b, x = grids_book
+    rows = _loans_file(x)
+    assert tabs.options(load_workbook(b), results.GRIDS, ONLY) == [results.ALL_LOANS, "N", "Y", "(blank)"]
+    ws, blocks, said = _grids(b, tmp_path / "y.xlsx", **{ONLY: "Y"})
+    rate, bk, bd, loans = (blocks[t] for t in ("Rate", "vs the book", "vs rest of band", "Loans"))
+    cells = _cells([r for r in rows if r["SYS_FLAG"] == "Y"], loans)
+    book_rate = _bad_rate(rows)
+    min_events = _min_losses(b)
+    assert {k for k, v in loans.items() if v} == set(cells)
+    shown = 0
+    for k, got in cells.items():
+        assert loans[k] == len(got)
+        assert rate[k] == pytest.approx(_bad_rate(got))
+        bad = sum(1 for r in got if r["BAD_FLAG"] == "1")
+        if bad < min_events:
+            assert bk[k] is None and bd[k] is None
+            continue
+        assert bk[k] == pytest.approx(_bad_rate(got) / book_rate)                  # the whole book's rate
+        if "All" not in k:
+            rest = [r for kk, v in cells.items() if kk[0] == k[0] and "All" not in kk and kk != k for r in v]
+            if rest and _bad_rate(rest):
+                assert bd[k] == pytest.approx(_bad_rate(got) / _bad_rate(rest))
+                shown += 1
+    assert shown >= 3
+    assert said["name"].endswith(", Bad loans, only loans where SYS_FLAG is Y")
+    # its own heat scale, from its own cells with enough loans
+    few = _fewest(b)
+    v = _views_rows(b)
+    key = "G|FICO x CHANNEL|where Y|ranr_rate"
+    labels = v["G|FICO x CHANNEL|where Y|rows"]
+    got = [abs(g) for i in range(1, len([x for x in labels if x]) + 1) for what in ("book", "band")
+           for g, n in zip(v[f"{key}|{what}|{i}"], v[f"G|FICO x CHANNEL|where Y|loans|{i}"])
+           if isinstance(g, (int, float)) and isinstance(n, int) and n >= few]
+    assert v[f"{key}|meta"][1] == pytest.approx(max(got))
+    assert v[f"{key}|meta"][1] != v["G|FICO x CHANNEL|ranr_rate|meta"][1]
+    # the 3-loan pocket is grey here too, by its count among Y's loans
+    kiosk = next(k for k in cells if k[1] == KIOSK and k[0] != "All")
+    _, _, said = _grids(b, tmp_path / "y1.xlsx", measure="Kept after losses", row=kiosk[0], column=KIOSK,
+                        **{ONLY: "Y"})
+    assert said["The colour"].startswith("Grey: only 3 loans, ")
+
+
+def test_grids_loan_size_is_booked_per_loan_described_never_red_or_green(grids_book, tmp_path):
+    from pocketbook import results
+    import tabs
+    b, x = grids_book
+    rows = _loans_file(x)
+    wb = load_workbook(b)
+    assert results.SIZE_NAME in tabs.options(wb, results.GRIDS, "Measure")
+    assert results.SIZE_NAME not in tabs.options(wb, results.POCKETS, "Measure")          # never tested
+    assert results.SIZE_NAME not in tabs.options(wb, results.SPLIT, "Measure")
+    book_avg = _size(rows)[0]
+    for only, pick in (("All loans", rows), ("Y", [r for r in rows if r["SYS_FLAG"] == "Y"])):
+        ws, blocks, _ = _grids(b, tmp_path / f"s{only[0]}.xlsx", measure=results.SIZE_NAME, **{ONLY: only})
+        rate, bk, bd, loans = (blocks[t] for t in ("Rate", "vs the book", "vs rest of band", "Loans"))
+        cells = _cells(pick, loans)
+        for k, got in cells.items():
+            avg = _size(got)[0]
+            assert rate[k] == pytest.approx(avg) and bk[k] == pytest.approx(avg / book_avg)
+            rest = [r for kk, v in cells.items() if kk[0] == k[0] and "All" not in kk and kk != k for r in v]
+            assert bd[k] == (None if "All" in k or not rest else pytest.approx(avg / _size(rest)[0])), k
+    # one cell in words, with the median, and no red or green
+    k = next(k for k, v in _cells(rows, loans).items() if "All" not in k and len(v) > 100
+             and all(_num(r["ORIG_BAL"]) is not None for r in v))
+    got = _cells(rows, loans)[k]
+    ws, blocks, said = _grids(b, tmp_path / "s1.xlsx", measure=results.SIZE_NAME, row=k[0], column=k[1])
+    avg, med = _size(got)
+    assert said["Rate"] == f"These {len(got):,} loans averaged ${avg:,.0f} booked, median ${med:,.0f}."
+    assert said["vs the book"] == f"{avg / book_avg:.2f}× the average loan of the whole book."
+    assert said["The colour"] == results.SAY_SIZE
+    fills = {r.dxf.fill.fgColor.rgb[-6:] for r, *_ in _rules_at(ws, _coord(ws, "vs the book", k))
+             if r.dxf.fill is not None and '="size"' in r.formula[0]}
+    assert fills == {c for _, c in results.SIZE_STEPS}
+    heat = [r.formula[0] for r, *_ in _rules_at(ws, _coord(ws, "vs the book", k))
+            if r.dxf.fill is not None and "LOG(" in r.formula[0]]
+    assert heat and all('<>"size"' in f for f in heat)
+
+
+def test_grids_loan_size_is_not_offered_without_a_booked_amount(tmp_path):
+    import dataclasses
+    from openpyxl import Workbook
+    from pocketbook import config as cfgmod, engine, results
+    from pocketbook.ingest import read_table
+    cfg, _ = synth.write(tmp_path / "cube", n=3000)
+    raw = cfgmod.load(cfg).raw
+    raw["split"] = {"field": "SYS_FLAG", "how": "each_value"}
+    c = cfgmod.parse(raw)
+    table = read_table(_flag_file(tmp_path, n=3000))
+    res = engine.run(c, table)
+    assert res.book_size is not None and res.grids[0].sizes
+    bare = engine.run(dataclasses.replace(c, booked=""), table)
+    assert bare.book_size is None and not bare.grids[0].sizes
+    for r, offered in ((res, True), (bare, False)):
+        wb = Workbook()
+        results.write_grids(wb, r, results.Choices(wb), results.Views(wb))
+        ch_ = wb[results.CHOICES]
+        heads = {ch_.cell(row=1, column=j).value: j for j in range(1, ch_.max_column + 1)}
+        opts = [ch_.cell(row=i, column=heads["Grids: Measure"]).value for i in range(2, ch_.max_row + 1)]
+        assert (results.SIZE_NAME in opts) == offered
