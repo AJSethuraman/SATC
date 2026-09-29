@@ -34,13 +34,13 @@ def test_a_same_size_mutant_restored_within_a_second_leaves_no_bytecode(tmp_path
     tool = _tool()
     src = tmp_path / "m.py"
     good, bad = "def f():\n    return 1 < 2\n", "def f():\n    return 1 < 1\n"      # the same size
-    src.write_text(good)
+    src.write_text(good, encoding="utf-8")
     st = src.stat()
     # the trap, built by hand: the mutant's bytecode, stamped with the restored file's own second and size
-    src.write_text(bad)
+    src.write_text(bad, encoding="utf-8")
     os.utime(src, (st.st_atime, st.st_mtime))
     py_compile.compile(str(src), cfile=importlib.util.cache_from_source(str(src)))
-    src.write_text(good)
+    src.write_text(good, encoding="utf-8")
     os.utime(src, (st.st_atime, st.st_mtime))
     assert _answer(tmp_path) == "False"       # Python serves the mutant: this is what the checker must prevent
     tool._drop_cache(str(src))
@@ -50,7 +50,7 @@ def test_a_same_size_mutant_restored_within_a_second_leaves_no_bytecode(tmp_path
 def test_the_checker_never_writes_bytecode_from_a_mutant():
     tool = _tool()
     assert tool.ENV.get("PYTHONDONTWRITEBYTECODE") == "1"
-    text = TOOL.read_text()
+    text = TOOL.read_text(encoding="utf-8")
     assert text.count("_drop_cache(f)") == 2 and "env=ENV" in text
 
 
@@ -59,7 +59,7 @@ def test_every_planted_bug_still_finds_the_line_it_plants_into(monkeypatch):
     assert sixty mutations in, with the other hundred never run. A stranded entry reads red here instead."""
     monkeypatch.chdir(TOOL.parents[1])
     tool = _tool()
-    stranded = [n for n, f, old, _new, _sel in tool.muts if Path(f).read_text().count(old) != 1]
+    stranded = [n for n, f, old, _new, _sel in tool.muts if Path(f).read_text(encoding="utf-8").count(old) != 1]
     assert stranded == []
     assert len({n for n, *_ in tool.muts}) > 150
 
@@ -79,7 +79,7 @@ def test_a_run_that_prints_nothing_still_gets_its_verdict(tmp_path, monkeypatch,
     list, and the crash hid whether the planted bug had been caught. The verdict prints, with stderr's last line."""
     tool = _tool()
     f = tmp_path / "m.py"
-    f.write_text("x = 1\n")
+    f.write_text("x = 1\n", encoding="utf-8")
     tool.muts = [("a bug", str(f), "x = 1", "x = 2", "anything")]
 
     class Silent:
@@ -87,4 +87,4 @@ def test_a_run_that_prints_nothing_still_gets_its_verdict(tmp_path, monkeypatch,
     monkeypatch.setattr(tool.subprocess, "run", lambda *a, **k: Silent())
     assert tool.main() == 0
     assert "CAUGHT a bug | Killed" in capsys.readouterr().out
-    assert f.read_text() == "x = 1\n"                        # and the file is put back
+    assert f.read_text(encoding="utf-8") == "x = 1\n"                      # and the file is put back

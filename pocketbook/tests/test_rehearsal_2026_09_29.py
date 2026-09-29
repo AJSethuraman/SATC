@@ -184,3 +184,47 @@ print('SAVED', book.run(b).ok)
     assert ok == "False"
     assert "scikit-learn is installed but won't load on this machine" in problems and BLOCKED in problems, problems
     assert out["SAVED"] == "True"
+
+
+# --------------------------------------------------------------------------
+# 4. The checker of the checker on Windows. tools/mutation_check.py opened each file in the platform's encoding:
+#    cp1252 on Windows, where the bank's machine and this one run, UTF-8 on CI's Linux. Four planted bugs whose line
+#    holds a character outside cp1252 (a multiplication sign, an arrow) were never found there, and a Windows run
+#    died on the first of them; tests/test_mutation_tool.py read the same way and failed on this machine only.
+#    Held on any platform by reading the checker itself: every text file it opens names its encoding.
+
+import ast
+
+TOOLS_DIR = Path(__file__).resolve().parents[1] / "tools"
+
+
+def _unnamed_encodings(path: Path) -> list[str]:
+    bad = []
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if not isinstance(node, ast.Call):
+            continue
+        f = node.func
+        name = f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else ""
+        if name not in ("open", "read_text", "write_text"):
+            continue
+        mode = next((a.value for a in node.args[1:2] if isinstance(a, ast.Constant)), None) if name == "open" else None
+        mode = next((k.value.value for k in node.keywords if k.arg == "mode" and isinstance(k.value, ast.Constant)),
+                    mode)
+        if isinstance(mode, str) and "b" in mode:
+            continue
+        if not any(k.arg == "encoding" for k in node.keywords):
+            bad.append(f"{path.name}:{node.lineno}")
+    return sorted(bad, key=lambda x: int(x.rsplit(":", 1)[1]))
+
+
+def test_the_mutation_checker_reads_and_writes_utf8_whatever_the_platform():
+    here = Path(__file__).resolve().parent
+    assert _unnamed_encodings(TOOLS_DIR / "mutation_check.py") == []
+    assert _unnamed_encodings(here / "test_mutation_tool.py") == []
+
+
+def test_the_encoding_check_can_fail(tmp_path):
+    f = tmp_path / "x.py"
+    f.write_text("open('a').read()\nPath('b').read_text()\nopen('c', 'rb')\nopen('d', encoding='utf-8')\n",
+                 encoding="utf-8")
+    assert _unnamed_encodings(f) == ["x.py:1", "x.py:2"]

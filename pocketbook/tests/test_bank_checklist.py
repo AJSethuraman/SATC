@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import html
 import re
+import shutil
 import subprocess
 import sys
 import zipfile
@@ -32,7 +33,10 @@ def _blocks() -> list[str]:
 def test_the_practice_book_commands_make_the_books_the_checklist_fingerprints(tmp_path):
     """3.1 and 5.2: each `py -c` line, run as typed from the PocketBook folder, prints the path the checklist
     says, and certutil's MD5 of that file is the one the checklist prints."""
-    (tmp_path / "src").symlink_to(ROOT / "src", target_is_directory=True)
+    try:
+        (tmp_path / "src").symlink_to(ROOT / "src", target_is_directory=True)
+    except OSError:       # Windows refuses a symlink without Developer Mode or admin (WinError 1314): copy instead
+        shutil.copytree(ROOT / "src", tmp_path / "src", ignore=shutil.ignore_patterns("__pycache__"))
     commands = [line for b in _blocks() for line in b.splitlines() if line.startswith("py -c") and "synth" in line]
     assert len(commands) == 2
     for line in commands:

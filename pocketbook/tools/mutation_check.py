@@ -1058,8 +1058,10 @@ LIMIT = 600                  # seconds one planted bug's tests may take
 def main() -> int:
     bad = 0
     for name, f, old, new, sel in muts:
-        src = open(f).read(); assert src.count(old) == 1, name     # exactly the one place the bug went back
-        shutil.copy(f, f + ".bak"); open(f, "w").write(src.replace(old, new, 1))
+        # UTF-8 both ways: the platform's own encoding (cp1252 on Windows) missed every line with a character
+        # outside it, and the run died on that assert (the public-data rehearsal, 29 Sep 2026)
+        src = open(f, encoding="utf-8").read(); assert src.count(old) == 1, name     # exactly the one place
+        shutil.copy(f, f + ".bak"); open(f, "w", encoding="utf-8").write(src.replace(old, new, 1))
         _drop_cache(f)
         try:
             # a planted bug that makes its test hang is not caught: it would stall CI for hours instead
