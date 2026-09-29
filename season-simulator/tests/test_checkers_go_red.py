@@ -85,10 +85,11 @@ class FakeTracked:
 
 
 class FakeFirm:
-    def __init__(self, tracked=(), gate_refusals=(), probes=(), store=""):
+    def __init__(self, tracked=(), gate_refusals=(), probes=(), store="", payments=()):
         self.t = {tr.sim.sim_id: tr for tr in tracked}
         self.gate_refusals = list(gate_refusals)
         self.probes = list(probes)
+        self.unrecordable_payments = list(payments)
         self.cd = SimpleNamespace(store=store)
 
     def by_satc(self):
@@ -470,6 +471,13 @@ def test_L2_following_every_instruction_and_billing_twice_goes_red():
              "draft_total": "200.00", "call": {"door": "http"}}
     assert red("L2", snap(), ctx(probes=[probe]))
     assert not red("L2", snap(), ctx(probes=[dict(probe, draft_total="100.00")]))
+
+
+def test_L4_a_check_with_no_door_goes_red_and_a_card_does_not():
+    pay = {"day": DAY.isoformat(), "sim": "SIM-001", "ref": "2027-0001", "invoice": "2027-0001",
+           "paid_on": DAY.isoformat(), "by": "check"}
+    assert red("L4", snap(), ctx(payments=[pay]))
+    assert not red("L4", snap(), ctx(payments=[dict(pay, by="card")]))
 
 
 def test_K1_the_clock_audit_reports_a_read_that_moved():

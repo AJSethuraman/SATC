@@ -23,6 +23,7 @@ class Observations:
         self.work_top: list[dict] = []
         self.ready_to_deliver_days = Counter()     # job -> days at ready_to_deliver
         self.stale = Counter()                     # job -> days idle >= 14 while open
+        self.stale_by_stage = Counter()            # stage -> job-days idle >= 14
         self.stage_days: dict[str, Counter] = defaultdict(Counter)
         self.blocking_classes = Counter()
         self.toggled_without_completion = set()
@@ -61,7 +62,7 @@ class Observations:
         for item in work + stuck:
             self.stage_days[item.view.stage][ctx.sim_for_job(item.job_id)] += 1
             if item.view.stage == "ready_to_deliver":
-                self.ready_to_deliver_days[ctx.sim_for_job(item.job_id)] += 1
+                self.ready_to_deliver_days[item.job.workflow_key] += 1
         ready_files = []
         for tr in (ctx.firm.t.values() if ctx.firm else ()):
             if tr.prep_started and not tr.delivered_on:
@@ -81,6 +82,7 @@ class Observations:
             delivered = snap.deliverables.get(item.job_id) is not None
             if moved and not delivered and (d - moved).days >= 14:
                 self.stale[ctx.sim_for_job(item.job_id)] += 1
+                self.stale_by_stage[item.view.stage] += 1
 
         for j in snap.jobs:
             for t in j.tasks:
@@ -145,6 +147,13 @@ class Observations:
                 "stage_job_days": {k: sum(v.values()) for k, v in self.stage_days.items()},
                 "monthly_top": self.work_top},
             "ready_to_deliver_job_days_never_proposed": sum(self.ready_to_deliver_days.values()),
+            "ready_to_deliver_job_days_by_workflow": dict(self.ready_to_deliver_days),
+            "stale_14_days_job_days_by_stage": dict(self.stale_by_stage),
+            "delivered_vs_closed_out": {
+                "delivered": sum(1 for tr in firm.t.values() if tr.delivered_on),
+                "closed_out_as_filed": sum(1 for tr in firm.t.values() if tr.filed_on),
+                "payments_made_with_no_door": len(firm.unrecordable_payments),
+                "of_which_checks": sum(1 for p in firm.unrecordable_payments if p["by"] == "check")},
             "stale_14_days_job_days": sum(self.stale.values()),
             "stale_jobs_top": self.stale.most_common(5),
             "request_blocking_classes": dict(blocking),

@@ -163,6 +163,7 @@ class Firm:
         self.cd_invoice_seq = 0
         self.probes: list[dict] = []                    # door probes (what-ifs through a door)
         self.gate_refusals: list[dict] = []             # documents the pre-send gate refused
+        self.unrecordable_payments: list[dict] = []     # money that arrived with no door to record it
 
     # -- the mapping, for the checkers to NAME things -----------------------
     def by_ref(self) -> dict[str, Tracked]:
@@ -682,6 +683,9 @@ class Firm:
                                "detail": f"client paid invoice {tr.invoice} by {c.pays_by} on "
                                          f"{tr.paid_on}; client-documents has no door to "
                                          f"record it without Square"})
+            self.unrecordable_payments.append({
+                "day": d.isoformat(), "sim": c.sim_id, "ref": c.ref, "invoice": tr.invoice,
+                "paid_on": tr.paid_on, "by": c.pays_by})
 
     def _transmit(self, tr: Tracked, d: date) -> None:
         if tr.filed_on or tr.disengaged_on:

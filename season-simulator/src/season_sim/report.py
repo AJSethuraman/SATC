@@ -114,7 +114,9 @@ def markdown(out: Path) -> str:
     add("")
     for key, title, blurb in SECTION:
         items = groups.get(key, [])
-        add(f"## {title} ({sum(len(r) for _, r in items)} findings, {len(items)} rules)")
+        n_rules = len(items)
+        add(f"## {title} ({sum(len(r) for _, r in items)} findings, {n_rules} "
+            f"rule{'' if n_rules == 1 else 's'})")
         add("")
         add(blurb)
         add("")
@@ -194,10 +196,22 @@ def markdown(out: Path) -> str:
         top = "; ".join(f"#{t['rank']} {t['sim']} {t['workflow']} {t['score']}" for t in m["top"])
         add(f"  - {m['day']}: {m['workable']} workable, {m['not_workable']} not. {top or '-'}")
     add(f"- **Ready to deliver, never proposed.** {o.get('ready_to_deliver_job_days_never_proposed')} "
-        f"job-days at `ready_to_deliver`; `deliver_return` is declared and nothing produces it "
-        f"(propose.py:45).")
+        f"job-days at `ready_to_deliver` on the board, by workflow "
+        f"{o.get('ready_to_deliver_job_days_by_workflow')}; `deliver_return` is declared and "
+        f"nothing produces it (propose.py:45). The simulated owner records delivery for the "
+        f"return's jobs, never for onboarding, so onboarding jobs sit here once their tasks "
+        f"are ticked -- satc has no other way to call a job finished.")
     add(f"- **Sitting untouched.** {o.get('stale_14_days_job_days')} job-days idle 14+ days by the "
-        f"firm's own `stale_after_days` (firm_policy.yaml:71-74); most: {o.get('stale_jobs_top')}.")
+        f"firm's own `stale_after_days` (firm_policy.yaml:71-74), by stage "
+        f"{o.get('stale_14_days_job_days_by_stage')}; most: {o.get('stale_jobs_top')}. Tax jobs "
+        f"are never workable (no internal tasks), so the idle factor never ranks them.")
+    dc = o.get("delivered_vs_closed_out") or {}
+    add(f"- **Delivered against closed out.** {dc.get('delivered')} returns delivered, "
+        f"{dc.get('closed_out_as_filed')} closed out as filed through `cli.py close` (the only "
+        f"'filed' door, and only once `may_file` is clear). Payments the clients made that no "
+        f"door could record: {dc.get('payments_made_with_no_door')} "
+        f"({dc.get('of_which_checks')} of them checks; the rest were card payments that only "
+        f"Square could report, and the simulator may not reach Square).")
     add(f"- **Ticked with no completion record.** {o.get('tasks_done_with_no_completion_record')} "
         f"tasks toggled done through the UI carry no completion time (H9; state.py:911-919), so "
         f"the idle factor and the unbilled age never see that work.")

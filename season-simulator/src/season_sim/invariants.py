@@ -1185,6 +1185,38 @@ def l2(snap, ctx):
     return hits, n
 
 
+@invariant("L4", "a payment made another way can be recorded", "failure",
+           ["client-documents/signing.py:564-570",
+            "client-documents/registry/firm-settings.yaml:100-102",
+            "client-documents/payments.py:622-634", "client-documents/cli.py:859-900",
+            "satc-handoff/04-TEMPLATES/SATC Engagement Letter - Tax Preparation.html:95",
+            "docs/SOFTWARE-TENETS.md:706"],
+           "The filing gate's refusal says 'a bill paid another way is recorded by "
+           "hand', and the invoice tells the client 'If you would rather pay another "
+           "way, tell us and we will arrange it.' A check that arrived must have a door "
+           "that records it; otherwise the gate blocks transmitting that return for "
+           "good (S31: a claim and its behaviour are two things).",
+           note="H13 in the brief. Only CHECK payers are counted: a card payment would "
+                "settle through Square, which the simulator is not allowed to reach")
+def l4(snap, ctx):
+    hits, n = [], 0
+    for pay in (ctx.firm.unrecordable_payments if ctx.firm else ()):
+        if not (ctx.prev_day < pay["day"] <= snap.day.isoformat()):
+            continue
+        if pay["by"] != "check":
+            continue
+        n += 1
+        gate = snap.cd_may_file.get(pay["ref"])
+        blockers = [b for b in (getattr(gate, "blockers", None) or []) if "settled" in b]
+        hits.append(Hit(pay["sim"], f"check received {pay['paid_on']} for invoice {pay['invoice']} "
+                                    f"on {pay['ref']}: no command records it (cli.py offers "
+                                    f"`payments`, which asks Square). may_file still says: "
+                                    f"{blockers[0][:220] if blockers else '(no money blocker)'}",
+                        "a door that records the check, so the gate can clear", pay["ref"],
+                        {"door": "cli", "target": "(none exists) -- cli.py payments asks Square only"}))
+    return hits, n
+
+
 # ============================================================================
 # K. The clock
 # ============================================================================

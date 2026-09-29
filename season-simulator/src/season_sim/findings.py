@@ -36,7 +36,9 @@ class Finding:
                            ).hexdigest()[:16]
         call = dict(self.call or {"door": "function", "target": "(read pass)"})
         call.setdefault("clock", f"frozen@{self.first_seen}T14:00Z")
-        call.setdefault("today_arg", self.first_seen)
+        route = str(call.get("target", "")).startswith(("GET ", "POST "))
+        call.setdefault("today_arg", "(none: the route reads date.today(), frozen)" if route
+                        else self.first_seen)
         return {
             "finding_id": fid, "kind": inv.kind, "invariant": self.invariant,
             "invariant_name": inv.name, "rule": inv.rule, "source": list(inv.sources),

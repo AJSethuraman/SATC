@@ -9,7 +9,7 @@ DECISION = {
     "B8": "firm_decision", "B13": "firm_decision", "C9": "firm_decision",
     "E5": "firm_decision", "G1": "firm_decision", "G2": "firm_decision",
     "G4": "firm_decision", "G5": "firm_decision", "G6": "firm_decision",
-    "L3": "firm_decision", "G8": "firm_decision", "E7": "known",
+    "L3": "firm_decision", "G8": "firm_decision", "L4": "firm_decision", "E7": "known",
 }
 
 
