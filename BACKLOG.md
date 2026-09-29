@@ -2373,7 +2373,8 @@ changed in the code.
     as a number format, only where every tick is a whole thousand.
   - Tests: 5 in `tests/test_look.py` (percentiles by hand from the CSV for FICO and ORIG_BAL; answered missing
     left out; grey lines' x as LibreOffice calculates them, gone outside a narrower From..To; labels as
-    calculated: 550 ... 790, 0 / 12k / 24k ..., 20.5k, 600k / 1.2M, -24k; axis formats). 11 planted bugs.
+    calculated: 550 ... 790, 0 / 12k / 24k ..., 20.5k, 600k / 1.2M, -24k; axis formats). 11 planted bugs, all
+    caught. Full suite: `828 passed, 7 skipped in 2167.70s`.
   - **Not checked in real Excel:** that Excel honours `wrap="none"` on category labels (LibreOffice ignores
     it), and where Excel puts the P10 to P90 labels (LibreOffice: right of each line's top).
 - **Offered, waiting on a yes** (raised 29 Sep 2026 at the bank):
