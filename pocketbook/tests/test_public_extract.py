@@ -83,6 +83,7 @@ def test_foia_keeps_known_outcomes_and_counts_the_rest_by_reason(tmp_path):
                                             "LoanStatus EXEMPT: no known outcome": 1,
                                             "LoanStatus PIF: no known outcome": 1}
     assert [r["CHGOFF_FLAG"] for r in got] == ["0", "1", "1"]
+    assert m["rows_kept_by_status"] == {"LoanStatus CHGOFF": 2, "LoanStatus P I F": 1}
     # the key is the file and the data row, so the rows left out leave gaps: row 5 is the third kept
     assert [r["ROW_KEY"] for r in got] == ["FY0009-0000001", "FY0009-0000002", "FY0009-0000005"]
     assert [r["GrossChargeOffAmount"] for r in got] == ["0.0", "81234.5", "2000.0"]
@@ -262,6 +263,8 @@ def test_lendingclub_builds_gco_and_ranr_from_cash_flows(tmp_path):
     got = _read(out)
     assert [r["id"] for r in got] == ["1", "2", "6"]
     assert [r["BAD"] for r in got] == ["0", "1", "1"]
+    assert m["rows_kept_by_status"] == {"loan_status Charged Off": 1, "loan_status Fully Paid": 1,
+                                        "loan_status Does not meet the credit policy. Status:Charged Off": 1}
     assert [r["GCO_APPROX"] for r in got] == ["0.00", "6500.00", "9200.00"]
     # total_pymnt - funded_amnt - collection_recovery_fee
     assert [r["RANR_APPROX"] for r in got] == ["1500.50", "-5850.25", "-9000.00"]
@@ -317,3 +320,31 @@ def test_the_harness_will_not_default_the_launcher_limits(tmp_path, capsys):
     assert rh.main([str(ans), "--extract", str(ex), "--memory", str(tmp_path / "m.yaml")]) == 2
     assert "few_values" in capsys.readouterr().err
     assert not list(tmp_path.glob("*PocketBook*"))
+
+
+def test_the_workbook_check_can_fail(tmp_path):
+    """The rehearsal's workbook check reads clean on a clean workbook, and finds a planted #REF!, a formula
+    pointing at a tab that isn't there, and a dropdown listing from one."""
+    from openpyxl import Workbook
+    from openpyxl.worksheet.datavalidation import DataValidation
+    rh = _tool("rehearse")
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Pockets"
+    wb.create_sheet("_live")["A1"] = 1
+    ws["A1"] = "='_live'!A1*2"
+    clean = tmp_path / "clean.xlsx"
+    wb.save(clean)
+    got = rh.check_workbook(clean)
+    assert got["error_token_count"] == 0 and got["sheets_referenced_but_missing"] == []
+    assert got["formulas_per_tab"] == {"Pockets": 1, "_live": 0}
+    ws["A2"] = "=#REF!+1"
+    ws["A3"] = "=Gone!B2"
+    dv = DataValidation(type="list", formula1="='Old tab'!$A$1:$A$3")
+    ws.add_data_validation(dv)
+    dv.add("B1")
+    broken = tmp_path / "broken.xlsx"
+    wb.save(broken)
+    got = rh.check_workbook(broken)
+    assert got["error_token_count"] == 1 and "Pockets!A2" in got["error_tokens"][0]
+    assert got["sheets_referenced_but_missing"] == ["Gone", "Old tab"]

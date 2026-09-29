@@ -66,6 +66,11 @@ class Counts:
     kept: int = 0
     dropped: dict[str, int] = field(default_factory=dict)
     blanked: dict[str, int] = field(default_factory=dict)       # a derived value left blank, by column and reason
+    kept_by: dict[str, int] = field(default_factory=dict)       # rows kept, by the source status they were kept for
+
+    def keep(self, status: str) -> None:
+        self.kept += 1
+        self.kept_by[status] = self.kept_by.get(status, 0) + 1
 
     def drop(self, reason: str) -> None:
         self.dropped[reason] = self.dropped.get(reason, 0) + 1
@@ -215,7 +220,7 @@ def foia(rows: Iterator[dict], counts: Counts, prefix: str) -> Iterator[dict]:
         out["RECESSION"] = recession(disb, term) or ""
         if not out["RECESSION"]:
             counts.blank("RECESSION", "FirstDisbursementDate or TermInMonths blank")
-        counts.kept += 1
+        counts.keep(f"LoanStatus {status}")
         yield out
 
 
@@ -335,7 +340,7 @@ def national(rows: Iterator[dict], counts: Counts) -> Iterator[dict]:
         out["RECESSION"] = recession(disb, term) or ""
         if not out["RECESSION"]:
             counts.blank("RECESSION", "DisbursementDate blank or its century unsettled, or Term blank")
-        counts.kept += 1
+        counts.keep(f"MIS_Status {status}")
         yield out
 
 
@@ -419,7 +424,7 @@ def lendingclub(rows: Iterator[dict], counts: Counts, term: int, window: tuple[d
                "GCO_APPROX": f"{gco:.2f}", "RANR_APPROX": f"{ranr:.2f}", "ISSUE_DATE": issued.isoformat()}
         for c in LC_CUTS:
             out[c] = (r.get(c) or "").strip()
-        counts.kept += 1
+        counts.keep(f"loan_status {status}")
         yield out
 
 
@@ -504,7 +509,7 @@ def convert(source: str, raw: Path, out: Path, ranr: str | None = None, term: in
         "source": source, "raw_file": raw.name, "raw_sha256": sha256_of(raw), "raw_bytes": raw.stat().st_size,
         "extract": out.name, "extract_sha256": sha256_of(out), "written": datetime.now().isoformat(timespec="seconds"),
         "choices": {k: v for k, v in (("ranr", ranr), ("term", term), ("issued", issued)) if v is not None},
-        "rows_read": counts.read, "rows_kept": counts.kept,
+        "rows_read": counts.read, "rows_kept": counts.kept, "rows_kept_by_status": dict(sorted(counts.kept_by.items())),
         "rows_left_out_by_reason": dict(sorted(counts.dropped.items())),
         "derived_values_left_blank": dict(sorted(counts.blanked.items())),
         "columns": [{"name": c.name, "read_as": c.means, "status": c.status, "rule": c.rule, "why": c.why}

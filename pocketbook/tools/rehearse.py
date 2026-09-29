@@ -1,6 +1,7 @@
 """Run PocketBook's workbook route headlessly on an extract, answering the workbook from a file of explicit answers.
 
     python tools/rehearse.py ANSWERS.yaml --extract EXTRACT.csv --memory MEMORY.yaml [--out RESULT.yaml]
+    python tools/rehearse.py --check WORKBOOK.xlsx      # the workbook checks alone (check_workbook)
 
 The public-data rehearsal (docs/rehearsal-public-data-2026-09.md) drives the product the analyst uses: Set up writes
 `<extract> - PocketBook.xlsx` beside the extract, the answers are written into Control and Columns the way a person
@@ -143,7 +144,63 @@ def odd_values(book_path: Path) -> list[str]:
     return out
 
 
+ERRORS = ("#REF!", "#NAME?", "#VALUE!", "#DIV/0!", "#NULL!", "#NUM!")
+
+
+def check_workbook(book_path: Path) -> dict:
+    """What can be checked without a spreadsheet program: the workbook opens with openpyxl; how many formulas each
+    tab holds; any formula, defined name or dropdown carrying an error token; and every sheet a formula, name or
+    dropdown points at exists. Formulas are not calculated here (no LibreOffice on this machine, and Excel was not
+    opened), so a formula that would evaluate to an error is NOT caught."""
+    import re
+
+    from openpyxl import load_workbook
+
+    t = time.perf_counter()
+    wb = load_workbook(book_path)
+    opened = round(time.perf_counter() - t, 1)
+    names = set(wb.sheetnames)
+    ref = re.compile(r"(?:'((?:[^']|'')+)'|(?<![#A-Za-z0-9_.])([A-Za-z_][A-Za-z0-9_.]*))!")
+    formulas, errors, missing = {}, [], set()
+
+    def sheets_in(text: str):
+        for q, bare in ref.findall(text):
+            yield (q.replace("''", "'") if q else bare)
+
+    for ws in wb.worksheets:
+        n = 0
+        for row in ws.iter_rows():
+            for c in row:
+                v = c.value
+                if isinstance(v, str) and v.startswith("="):
+                    n += 1
+                    if any(e in v for e in ERRORS):
+                        errors.append(f"{ws.title}!{c.coordinate}: {v[:80]}")
+                    missing.update(x for x in sheets_in(v) if x not in names)
+                elif isinstance(v, str) and v.strip() in ERRORS:
+                    errors.append(f"{ws.title}!{c.coordinate}: {v}")
+        formulas[ws.title] = n
+        for dv in ws.data_validations.dataValidation:
+            f1 = str(dv.formula1 or "")
+            if any(e in f1 for e in ERRORS):
+                errors.append(f"{ws.title} dropdown {dv.sqref}: {f1}")
+            missing.update(x for x in sheets_in(f1) if x not in names)
+    for name, dn in wb.defined_names.items():
+        text = str(dn.attr_text)
+        if any(e in text for e in ERRORS):
+            errors.append(f"name {name}: {text}")
+        missing.update(x for x in sheets_in(text) if x not in names)
+    return {"opens_with_openpyxl": True, "open_seconds": opened, "bytes": book_path.stat().st_size,
+            "tabs": {ws.title: ws.sheet_state for ws in wb.worksheets}, "formulas_per_tab": formulas,
+            "formulas_total": sum(formulas.values()), "error_tokens": errors[:50], "error_token_count": len(errors),
+            "sheets_referenced_but_missing": sorted(missing),
+            "calculated": "no: openpyxl does not calculate; LibreOffice is not installed and Excel was not opened"}
+
+
 def main(argv: list[str] | None = None) -> int:
+    if argv is None and len(sys.argv) == 3 and sys.argv[1] == "--check":
+        print(yaml.safe_dump(check_workbook(Path(sys.argv[2])), sort_keys=False, allow_unicode=True, width=120))
+        return 0
     p = argparse.ArgumentParser(prog="rehearse")
     p.add_argument("answers", type=Path)
     p.add_argument("--extract", type=Path, required=True)
@@ -215,6 +272,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Run: {t3 - t2:.1f} s, ok={ran.ok}")
     print("\n".join(f"  {x}" for x in ran.lines))
     print({k: v for k, v in result.items() if k.startswith("peak")})
+    result["workbook_check"] = check_workbook(out.book)
+    print(yaml.safe_dump({"workbook_check": result["workbook_check"]}, sort_keys=False, allow_unicode=True))
     _write(a.out, result)
     return 0 if ran.ok else 1
 
