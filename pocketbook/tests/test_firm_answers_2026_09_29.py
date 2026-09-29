@@ -630,3 +630,170 @@ def test_looks_dots_leave_out_what_columns_answered_missing(tmp_path):
     got = look._readable(t, "SHORT_HIST", None, cfgmod.MissingRule(below=0.0))
     assert [v for v in got if v is not None] and min(v for v in got if v is not None) >= 0
     assert sum(v is None for v in got) == sum(1 for i in range(400) if i % 40 == 0)
+
+
+# ---- later still, at the bank: one cell of a grid read out in words
+# The firm: "It would be useful to be able to maybe select a particular line and say I want this as an example and
+# it fills in the band saying what versus book means what versus band means and what loans means and it changes
+# obviously depending on the grid and measure you're looking at, but the measures should be constant from run to
+# run the grid may change, but like that's really just the band."
+
+
+@pytest.fixture(scope="module")
+def one_cell_book(tmp_path_factory):
+    """A Run on the synthetic book, shuffled only a little: these tests read words, not p-values."""
+    from pocketbook import perm
+    d = tmp_path_factory.mktemp("one_cell")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 200)
+        b = book.set_up(synth.write_extract(d, n=4000)).book
+        _answer(b)
+        ran = book.run(b)
+        assert ran.ok, ran.lines
+    return b
+
+
+def _said(ws) -> dict:
+    """What one cell says, as calculated: the cell's name under "name", then each line by its label."""
+    for r in range(1, ws.max_row + 1):
+        if ws.cell(row=r, column=2).value == "What one cell says":
+            out = {"name": ws.cell(row=r + 1, column=2).value}
+            for k in range(2, 7):
+                out[ws.cell(row=r + k, column=2).value] = ws.cell(row=r + k, column=3).value
+            return out
+    raise KeyError("What one cell says")
+
+
+def _grids(b, out, **picks):
+    """Grids with its dropdowns set, calculated: the sheet, its four blocks by title, and what one cell says."""
+    from pocketbook import results
+    import tabs
+    ws = tabs.calculated(tabs.choose(b, out, results.GRIDS, **picks), results.GRIDS)
+    blocks = {t: tabs.block(ws, t) for t in ("Rate", "vs the book", "vs rest of band", "Loans")}
+    return ws, blocks, _said(ws)
+
+
+def _pockets(loans: dict) -> dict:
+    """The inner pockets with loans in them, {(row, column): loans}."""
+    return {k: v for k, v in loans.items() if "All" not in k and isinstance(v, (int, float)) and v > 0}
+
+
+def _shade(v, kind: str, bound: float) -> str:
+    """The heat scale's colour for a gap, worked out here from results.HEAT_STEPS' limits and not its formula."""
+    import math
+    if not isinstance(v, (int, float)):
+        return "blank"
+    t = -v / bound if kind == "pts" else (math.log2(v) if v > 0 else 0)
+    for lim, word in ((1.0, "deep red"), (0.585, "red"), (0.263, "light red")):
+        if t >= lim:
+            return word
+    for lim, word in ((-0.585, "green"), (-0.263, "light green")):
+        if t <= lim:
+            return word
+    return "pale"
+
+
+def _min_losses(b) -> int:
+    from pocketbook import config as cfgmod
+    return cfgmod.parse(book.read_book(b)[0]).benchmark.min_events
+
+
+def test_one_cell_reads_the_blocks_own_numbers_in_words_for_a_multiple_and_a_gap_in_points(one_cell_book, tmp_path):
+    b = one_cell_book
+    for measure, kind in (("Charge-offs", "x"), ("Kept after losses", "pts")):
+        _, blocks, _ = _grids(b, tmp_path / f"{kind}-0.xlsx", measure=measure)
+        rate, bk, bd, loans = (blocks[t] for t in ("Rate", "vs the book", "vs rest of band", "Loans"))
+        both = [k for k in _pockets(loans) if isinstance(bk[k], (int, float)) and isinstance(bd[k], (int, float))]
+        bl, d = both[-1]                                          # not the pocket the tab opens on
+        assert (bl, d) != both[0]
+        ws, blocks, said = _grids(b, tmp_path / f"{kind}.xlsx", measure=measure, row=bl, column=d)
+        assert blocks["Rate"] == rate                             # picking a cell changes nothing above it
+        n, v, w = loans[(bl, d)], bk[(bl, d)], bd[(bl, d)]
+        r = f"{rate[(bl, d)] * 100:.2f}%"
+        others = [c for (x, c) in _pockets(loans) if x == bl and c != d]
+        named = f" (the {', '.join(others)} loans)" if 1 <= len(others) <= 3 else ""
+        assert said["name"] == f"{bl} · {d}, {measure}"
+        if kind == "x":
+            assert said["Rate"] == f"These {n:,} loans charged off {r} of their booked dollars."
+            assert said["vs the book"] == f"{v:.2f}× the charge-off rate of the whole book."
+            assert said["vs rest of band"] == f"{w:.2f}× the charge-off rate of the other loans in {bl}{named}."
+        else:
+            side = lambda g: "less" if g < 0 else "more"                                 # noqa: E731
+            assert said["Rate"] == f"These {n:,} loans kept {r} of their booked dollars after losses."
+            assert said["vs the book"] == (f"Kept {abs(v):.2f} points {side(v)} of their booked dollars than the "
+                                           "whole book.")
+            assert said["vs rest of band"] == (f"Kept {abs(w):.2f} points {side(w)} of their booked dollars than the "
+                                               f"other loans in {bl}{named}.")
+        assert said["Loans"] == f"{n:,} loans; {bl} has {loans[(bl, 'All')]:,} in all."
+        bound = max([abs(x) for blk in (bk, bd) for x in blk.values() if isinstance(x, (int, float))] + [0.01])
+        assert said["The colour"].startswith(f"vs the book is {_shade(v, kind, bound)}, vs rest of band "
+                                             f"{_shade(w, kind, bound)}.")
+
+
+def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(one_cell_book, tmp_path):
+    from pocketbook import results
+    b = one_cell_book
+    few = f"Blank: fewer losses than the minimum ({_min_losses(b)} losses), so not compared."
+    _, blocks, _ = _grids(b, tmp_path / "blank-0.xlsx", measure="Charge-offs")
+    bk, bd, loans = blocks["vs the book"], blocks["vs rest of band"], blocks["Loans"]
+    pockets = _pockets(loans)
+    mates = lambda k: sum(1 for j in pockets if j[0] == k[0])                                  # noqa: E731
+    alone = next(k for k in pockets if mates(k) == 1)
+    thin = next(k for k in pockets if mates(k) > 1 and bk[k] is None and bd[k] is None)
+    assert bd[alone] is None
+    for measure in ("Charge-offs", "Kept after losses"):
+        _, _, said = _grids(b, tmp_path / f"alone-{measure[0]}.xlsx", measure=measure, row=alone[0], column=alone[1])
+        assert said["vs rest of band"] == f"Blank: alone in its band. Nothing else in {alone[0]} to compare with."
+    _, _, said = _grids(b, tmp_path / "alone.xlsx", measure="Charge-offs", row=alone[0], column=alone[1])
+    if loans[alone] == 1:                                         # one loan reads as one, not "1 loans"
+        assert said["Rate"].startswith("This one loan charged off ") and said["Rate"].endswith(" of its booked "
+                                                                                             "dollars.")
+        assert said["Loans"].startswith("1 loan; ")
+    if bk[alone] is None:
+        assert said["vs the book"] == few                        # only one reason a comparison with the book is blank
+    _, _, said = _grids(b, tmp_path / "few.xlsx", measure="Charge-offs", row=thin[0], column=thin[1])
+    assert said["vs the book"] == few and said["vs rest of band"] == few
+    assert "alone" not in said["The colour"] and said["The colour"].startswith("vs the book is blank, vs rest of band "
+                                                                               "blank.")
+    ws = load_workbook(b)[results.GRIDS]
+    notes = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("A blank")]
+    assert notes == ["A blank: alone in its band, or fewer losses than the minimum, so not compared."]
+
+
+def _listed(ws, label: str) -> list:
+    """A Row or Column dropdown's list as it stands (calculated): its OFFSET over the hidden labels, worked out."""
+    import re
+    import tabs
+    cell = tabs.dropdown(ws.formulas, label)
+    dv = next(v for v in ws.formulas.data_validations.dataValidation if cell.coordinate in str(v.sqref))
+    m = re.fullmatch(r"=?OFFSET\(\$([A-Z]+)\$(\d+),0,0,MAX\(1,\$([A-Z]+)\$(\d+)\),1\)", dv.formula1)
+    assert m, dv.formula1
+    c, r, nc_, nr_ = m.groups()
+    n = max(1, int(ws[f"{nc_}{nr_}"].value or 0))
+    return [ws[f"{c}{int(r) + k}"].value for k in range(n)]
+
+
+def test_one_cell_row_and_column_lists_follow_the_grid_picked(one_cell_book, tmp_path):
+    from pocketbook import results
+    import tabs
+    b = one_cell_book
+    grids = tabs.options(load_workbook(b), results.GRIDS, "Grid")
+    ws, blocks, said = _grids(b, tmp_path / "g0.xlsx")
+    rows0 = [bl for bl, d in blocks["Loans"] if d == "All" and bl != "All"]
+    cols0 = [d for bl, d in blocks["Loans"] if bl == "All" and d != "All"]
+    assert _listed(ws, "Row") == rows0 and _listed(ws, "Column") == cols0
+    assert said["name"] == f"{tabs.dropdown(ws, 'Row').value} · {tabs.dropdown(ws, 'Column').value}, Bad loans"
+    other = next(g for g in grids if " / " not in g and g.split(" x ")[0] != grids[0].split(" x ")[0]
+                 and g.split(" x ")[1] != grids[0].split(" x ")[1])
+    ws, blocks, said = _grids(b, tmp_path / "g1.xlsx", grid=other)
+    rows1 = [bl for bl, d in blocks["Loans"] if d == "All" and bl != "All"]
+    cols1 = [d for bl, d in blocks["Loans"] if bl == "All" and d != "All"]
+    assert rows1 != rows0 and cols1 != cols0
+    assert _listed(ws, "Row") == rows1 and _listed(ws, "Column") == cols1
+    # the Row and Column left from the other grid aren't in this one: it asks, and reads out nothing
+    assert said["name"] == results.SAY_PICK and not any(said[k] for k in said if k != "name")
+    k = next(iter(_pockets(blocks["Loans"])))
+    _, blocks, said = _grids(b, tmp_path / "g2.xlsx", grid=other, row=k[0], column=k[1])
+    assert said["name"] == f"{k[0]} · {k[1]}, Bad loans"
+    assert said["Loans"].startswith(f"{blocks['Loans'][k]:,} loans; {k[0]} has ")

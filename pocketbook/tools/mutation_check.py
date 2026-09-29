@@ -1136,6 +1136,20 @@ muts = [
   "category_split_engine"),
  ("the Split tab empty for a category", RS, '        for v in g.split_parts if len(g.split_parts) > 1 else ():',
   '        for v in ():', "category_split_workbook"),
+ # 29 Sep 2026, at the bank: one cell of a grid read out in words (tests/test_firm_answers_2026_09_29.py)
+ ("one cell reads the next cell's gap", RS, """        BV: f'IF({none},"",INDEX({rng("book")},{RI},{CJ}))',""",
+  """        BV: f'IF({none},"",INDEX({rng("book")},{RI},{CJ}+1))',""", "one_cell_reads"),
+ ("one cell's two blank reasons swapped", RS,
+  """                                f'IF({OTH}<1,{fill_in(SAY_ALONE, row=R)},IF({KIND}="pts",{not_},{few}))')),""",
+  """                                f'IF({OTH}>=1,{fill_in(SAY_ALONE, row=R)},IF({KIND}="pts",{not_},{few}))')),""",
+  "one_cell_says_why"),
+ ("one cell words a gap in points as a multiple", RS,
+  '                     "Kept {pts} points {more} of their booked dollars than {against}."),',
+  '                     "{x}× the kept rate of {against}."),', "one_cell_reads"),
+ ("one cell's Row list stuck on the first grid", RS,
+  '    for c_, labels, n in ((RL, ROWS, nr), (CL, COLS, nc)):',
+  '    for c_, labels, n in ((RL, match(xk("G|", (live.q(gnames[0]),), "|rows")), nr), (CL, COLS, nc)):',
+  "one_cell_row_and_column_lists"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

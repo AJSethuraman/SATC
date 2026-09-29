@@ -176,6 +176,15 @@ After that, the whole routine is:
      green). Under them, how many loans and booked dollars fall in each group
      of the split column or a new column, pocket by pocket: a count, not a test
      (it was the Prevalence tab). The split grids are in the Grid list too.
+     A **Row** and a **Column** dropdown beside them (their lists follow the
+     Grid) pick one pocket, and **What one cell says**, under the blocks, reads
+     it out in words from the same cells the blocks show (the synthetic book,
+     Bad loans): "Of these 237 loans, 10.59% went bad", "1.38× the bad-loan
+     rate of the whole book", "0.59× ... of the other loans in 496 - 653 (the
+     Broker, Online loans)", "237 loans; 496 - 653 has 761 in all", and what
+     its colour means. A blank says why: alone in its band, or fewer losses than the
+     minimum. The sentences are fixed by measure (`results.SAY`); only the names
+     and numbers change.
    - **Split:** only when a column splits the pockets (below). A Grid
      dropdown and a chip saying whether it holds the split's partner fixed; the
      summary for every measure; whether the gap is the same in every pocket; and

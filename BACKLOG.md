@@ -2256,6 +2256,22 @@ fixed now so go ahead fix the changes"*. Items 1 and 7 stay open: neither stops 
     Start here's five largest read the two-way grids only, for a number split too, so nothing changed there.
     Record: the Split row, the Tests row and the Families row say what a category split does.
     Tests: 5 more in `tests/test_firm_answers_2026_09_29.py`; 9 planted bugs (and one repointed).
+  - **One cell of a grid read out in words.** The firm: *"It would be useful to be able to maybe select a
+    particular line and say I want this as an example and it fills in the band saying what versus book means
+    what versus band means and what loans means ... the measures should be constant from run to run the grid
+    may change"*. Grids has a **Row** and a **Column** dropdown beside Grid and Measure; their lists are the
+    picked grid's own labels (hidden cells, offered by `OFFSET` over as many as there are), and they open on
+    the first pocket with a rate. **What one cell says**, under the blocks, reads that pocket from the same
+    cells the blocks show: its name, the rate, vs the book, vs rest of band, the loans (and its band's All), and
+    the colour each comparison takes on the heat scale. The sentences are fixed by measure (`results.SAY`),
+    so only names and numbers change. A blank says why: *alone in its band* when nothing else in the row has
+    loans, otherwise *fewer losses than the minimum (N losses)*; the note under the blocks now gives both.
+    A Row or Column left from another grid asks to be picked again rather than read a wrong cell.
+    **Said as it is, not as asked:** vs the book is the pocket over the *whole* book (these loans included),
+    as the block has always shown it, so it reads "the whole book", not "every other loan in the book"; and
+    the colour is the size of the gap only (the block's heat has no test in it), so it says that rather than
+    "unlikely to be chance".
+    Tests: 3 more in `tests/test_firm_answers_2026_09_29.py`; 4 planted bugs, all caught.
 
 The firm, 29 Sep 2026: *"make sure you're noting all of these so that we can go over them later for final
 decision."* Each item: what is true now, what would change it, and the recommendation. Nothing below has been
