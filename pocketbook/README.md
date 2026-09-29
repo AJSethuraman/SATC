@@ -79,8 +79,11 @@ After that, the whole routine is:
    writes nothing.
 3. **Choose tests.** First, what you're running:
    - *Where the book bleeds:* tick the number columns to **cut into bands**,
-     the categories to **segment by**, and at most one number column to
-     **split every pocket by**. Every number column and every category starts
+     the categories to **segment by**, and at most one column to
+     **split every pocket by**: a number column halves each pocket at its own
+     median; a category of 6 values or fewer splits it by each value (a
+     category with more is refused). A column that splits isn't also cut or a
+     segment. Every number column and every category starts
      ticked. The outcome and dollar columns come after them, with no boxes:
      they go into every measure. It needs
      the five columns below and no date.
@@ -173,11 +176,24 @@ After that, the whole routine is:
      green). Under them, how many loans and booked dollars fall in each group
      of the split column or a new column, pocket by pocket: a count, not a test
      (it was the Prevalence tab). The split grids are in the Grid list too.
-   - **Split:** only when a number column splits the pockets (below). A Grid
+     A **Row** and a **Column** dropdown beside them (their lists follow the
+     Grid) pick one pocket, and **What one cell says**, under the blocks, reads
+     it out in words from the same cells the blocks show (the synthetic book,
+     Bad loans): "Of these 237 loans, 10.59% went bad", "1.38× the bad-loan
+     rate of the whole book", "0.59× ... of the other loans in 496 - 653 (the
+     Broker, Online loans)", "237 loans; 496 - 653 has 761 in all", and what
+     its colour means. A blank says why: alone in its band, or fewer losses than the
+     minimum. The sentences are fixed by measure (`results.SAY`); only the names
+     and numbers change.
+   - **Split:** only when a column splits the pockets (below). A Grid
      dropdown and a chip saying whether it holds the split's partner fixed; the
      summary for every measure; whether the gap is the same in every pocket; and
      two grids side by side for the measure picked: high against low, and its
-     p-value.
+     p-value. Split by a category, the Grid dropdown picks a grid and a value,
+     set against the rest of its pocket (the other value, when there are two);
+     there is no partner chip (how a category moves with a band column isn't
+     worked out), and one more line asks whether the values differ at all, for
+     bad loans only (the K-group Mantel-Haenszel test).
    - **Record** (grey tab; it merges Check and the Log): six sections in three
      pairs, read across. *This Run*: the extract, the loans run, what was run,
      the band edges, the split, the range of origination dates (so a wrong

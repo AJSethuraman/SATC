@@ -471,6 +471,7 @@ class Flow:
             self.cut = nums if chosen.bands is None else set(chosen.bands) & nums
             self.seg = cats if chosen.segments is None else set(chosen.segments) & cats
             self.split = chosen.split if chosen.split in kind else None
+            self.seg.discard(self.split)                  # a category that splits isn't a segment too
         else:
             self.test = [c for c in chosen.test if c in kind]
             self.hold = [c for c in chosen.hold if c in kind]
@@ -509,7 +510,10 @@ class Flow:
                     row["a"] = {"on": c.name in self.cut and self.split != c.name, "radio": False}
                     row["c"] = {"on": self.split == c.name, "radio": True}
                 if k == "cat":
-                    row["b"] = {"on": c.name in self.seg, "radio": False}
+                    # a category splits too (the firm, 29 Sep 2026: "system flag and origination FICO and asset
+                    # segment"); it segments or splits, never both
+                    row["b"] = {"on": c.name in self.seg and self.split != c.name, "radio": False}
+                    row["c"] = {"on": self.split == c.name, "radio": True}
             else:
                 if k in ("num", "cat"):
                     row["b"] = {"on": c.name in self.test, "radio": False}
@@ -535,9 +539,12 @@ class Flow:
                     self.split = None
             elif which == "b":
                 self.seg ^= {name}
+                if self.split == name:
+                    self.split = None
             else:
                 self.split = None if self.split == name else name     # one column splits, or none
                 self.cut.discard(name)
+                self.seg.discard(name)
         else:
             if which == "a":
                 self.pick_outcome(name)
@@ -654,6 +661,13 @@ class Flow:
                           split=test[0] if len(test) == 1 else None, outcome=self.outcome, test=tuple(test),
                           hold=tuple(self.hold), shortlist=self.shortlist, **base)
 
+    def split_refused(self) -> str | None:
+        """A category picked to split with more values than a split takes: the refusal, in the Run's words."""
+        c = next((c for c in (self.read.columns if self.read else ()) if c.name == self.split), None)
+        if c is None or c.kind != "cat" or c.values is None:
+            return None
+        return ch.too_many_values(c.name, c.values)
+
     def summary(self) -> tuple[bool, str]:
         """The "This will run:" box, and whether Next can be pressed."""
         if self.read is None:
@@ -666,6 +680,9 @@ class Flow:
             g = nb * ns
             if not g:
                 return False, "Tick at least one band column and one segment column."
+            too_many = self.split_refused()
+            if too_many:
+                return False, too_many
             return True, (f"{_s(nb, 'band column')} × {_s(ns, 'segment column')} = {_s(g, 'grid')}, five measures "
                           f"each" + (f"; split by {self.split} adds {g} more." if self.split else "."))
         if self.shortlist:

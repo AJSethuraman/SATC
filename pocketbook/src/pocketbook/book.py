@@ -47,6 +47,7 @@ from . import choices as ch                             # the redesign: what the
 from . import results                                   # the redesign, phase 3: the result tabs
 from . import record                                    # the redesign, phase 4: Check and the Log as Record
 from . import scout, scout_tab                          # Goal 2 item 9: scouting, then the confirmation
+from .excel_lists import load as _load                   # opens a workbook Excel saved with its dropdowns kept
 from .house import MIST as READ_ONLY
 from .ingest import Table, read_table
 
@@ -163,6 +164,7 @@ class Column:
     yes: int | None = None   # a column that could be the outcome: how many loans read 1 (bad); None if it couldn't
     no: int = 0              # ... 0 (good)
     other: int = 0           # ... anything else, blanks included: left out of the outcome rates and counted
+    values: int | None = None   # a category: how many values it holds, blanks aside
 
 
 @dataclass
@@ -232,10 +234,11 @@ def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 5
             (sugg[c].means if c in sugg else "amount")
         kind = KIND_OF.get(code) or {"band": "num", "dimension": "cat"}.get(cat[code].cut, "other")
         what = cat[code].label
+        n = None
         if kind == "cat":
             n = len({str(r.get(c)) for r in made_table.rows if r.get(c) not in (None, "")})
             what = f"Category · {n:,} values" if code == "category" else f"{what} · {n:,} values"
-        out.append(Column(c, what, kind, *_yes_no(made_table, c, kind)))
+        out.append(Column(c, what, kind, *_yes_no(made_table, c, kind), values=n))
     chosen = None
     if _earlier(target).exists():
         try:
@@ -265,7 +268,7 @@ def open_at(book: str | Path, sheet: str, cell: str) -> bool:
     book = Path(book)
     if not book.exists() or is_open(book):
         return False
-    wb = load_workbook(book)
+    wb = _load(book)
     if sheet not in wb.sheetnames or wb[sheet].sheet_state != "visible":
         return False
     ws = wb[sheet]
@@ -440,6 +443,13 @@ def _made_columns(table, cols, kept: dict, mem: dict):
             names.add(name)
     if not defs:
         return table, [], notes
+    made, reports = engine.derive_columns(table, defs, _odd_rules(cols, kept, mem))
+    return made, reports, notes
+
+
+def _odd_rules(cols, kept: dict, mem: dict) -> dict:
+    """Every Treat as answer of missing on Columns (this workbook's, or remembered), as the Run's rules: what
+    New columns and Look read before a Run, so neither shows a value the Run will leave out."""
     rules: dict = {}
     for c in cols:
         for q in c.questions:
@@ -451,8 +461,7 @@ def _made_columns(table, cols, kept: dict, mem: dict):
                 old = rules.get(q["column"], cfgmod.MissingRule())
                 rules[q["column"]] = cfgmod.MissingRule(below=rule.below if rule.below is not None else old.below,
                                                         above=old.above, values=old.values + rule.values)
-    made, reports = engine.derive_columns(table, defs, rules)
-    return made, reports, notes
+    return rules
 
 
 def _to_code(v: Any, cat) -> str | None:
@@ -532,7 +541,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     # (the second walk, defect 6: Set up again deleted them).
     if book.exists():
         try:
-            wb = load_workbook(book)
+            wb = _load(book)
         except Exception:
             wb = Workbook()
             wb.remove(wb.active)
@@ -593,7 +602,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     look.write_look(wb, table, shown, known=facts_of,
                     edge_rows=edge_rows, split=chosen_now.split if chosen_now is not None else None,
                     bands=[c for c in shown if c in banded and (cut is None or c in cut)],
-                    treat_rows=_treat_rows(ws))
+                    treat_rows=_treat_rows(ws), rules=_odd_rules(cols, kept, mem))
 
     about = wb.create_sheet(ABOUT)
     about["A1"], about["B1"] = "extract", str(extract.resolve())
@@ -1032,7 +1041,7 @@ TAB_GROUPS = [
     ("You answer", "KEY_RED", [("Control", "the professional calls"), ("Columns", "meanings, odd values, memory"),
                                ("Look", "each number column's shape")]),
     ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "paid against cost"),
-                        (results.GRIDS, "one grid at a time, and how common"), (results.SPLIT, "each pocket halved"),
+                        (results.GRIDS, "one grid at a time, and how common"), (results.SPLIT, "each pocket split"),
                         (scout.SHEET, "the candidates ranked, on development loans"),
                         (confirm_tab.SHEET, "the shortlist, confirmed")]),
     ("Record", "STONE", [(record.SHEET, "what ran, the tie-outs, every Run")]),
@@ -1069,7 +1078,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
     named by tab and cell. Nothing is run. `wb`: the workbook already open (a
     Run loads it once)."""
     problems: list[str] = []
-    wb = wb if wb is not None else load_workbook(book)
+    wb = wb if wb is not None else _load(book)
     missing_tabs = [t for t in ("Control", "Columns", ABOUT) if t not in wb.sheetnames]
     if missing_tabs:
         return None, [f"This workbook is missing its {', '.join(missing_tabs)} tab. Press Set up again."], {}
@@ -1680,7 +1689,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if not _writable(book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
     try:
-        wb = load_workbook(book)
+        wb = _load(book)
     except Exception as exc:  # the file itself: in words, never a traceback
         return Outcome(False, book, [f"Couldn't open {book.name}: {exc}. Press Set up again."])
     raw, problems, about = read_book(book, memory_path, wb=wb)
@@ -1773,8 +1782,16 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     memory.remember_edges({c: typed.get(c) for c in bands_only if c not in dropped}, memory_path)
     _write_results(wb, book, res, memory_path, src, dropped, len(table.columns))
     from . import look                  # fix 3.8: the Look tab's scatters, only when the split or the bands moved
-    look.refresh(wb, res.table or table, res.config.split and res.config.split[0],
-                 [b.field for b in res.config.bands])
+    split_col, band_cols = res.config.split and res.config.split[0], [b.field for b in res.config.bands]
+    if look.answers_moved(wb, res.config.missing):
+        # a Treat as answer changed since Look was drawn (at the bank, 29 Sep 2026: a -99,000,901 answered missing
+        # still set Look's smallest and mean): the blocks are drawn again from what the Run reads
+        look.write_look(wb, res.table or table, look.drawn_columns(wb), split=split_col, bands=band_cols,
+                        edge_rows={str(r[C_NAME - 1].value): r[0].row for r in table_rows(wb["Columns"])
+                                   if r[C_NAME - 1].value},
+                        treat_rows=_treat_rows(wb["Columns"]), rules=res.config.missing, keep_inputs=True)
+    else:
+        look.refresh(wb, res.table or table, split_col, band_cols, rules=res.config.missing)
     summary = _headline(res, wb)
     _log(wb, [_ran_on(res, src) + _ran_words(res)]
          + scout_tab.log_lines(res)             # Goal 2 item 9: what scouting wrote, before any held-back result
@@ -1828,7 +1845,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         sf, how = cfg.split
         lines.append(f"Split by {sf}: " + ("each pocket halved at its own median. See the Split tab, and Pockets "
                                            f"split by {sf}." if how == "own_median" else
-                                           f"one layer per value. See Pockets split by {sf}.")
+                                           f"each pocket split by each value. See the Split tab, and Pockets split "
+                                           f"by {sf}.")
                      + f" {sf} isn't cut on its own while it splits.")
     if dropped:
         lines.append(f"Forgot {', '.join(sorted(dropped))}, as marked on Columns. Check "
@@ -2635,7 +2653,8 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
     if res.config.split:
         sf, how = res.config.split
         rows.append(("Split", f"{sf}, " + ("each pocket halved at its own median" if how == "own_median"
-                                          else "one layer per value") + f". {sf} isn't cut on its own while it "
+                                          else "each pocket split by each value, and each value set against the "
+                                               "rest of its pocket") + f". {sf} isn't cut on its own while it "
                                                                         f"splits. Split pockets: "
                                                                         f"{sum(1 for g in res.three_way for _ in g.inner()):,}."))
         for f, r in sorted(res.split_moves_with.items(), key=lambda t: -abs(t[1])):
@@ -2682,6 +2701,11 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                                  f"big." if dollar_rates else "")
                               + (" Profit and contribution are compared as a gap in points, never a multiple."
                                  if profit else "")
+                              + (" A split by a category: each value against the rest of its pocket, as the "
+                                 "halves are compared; and whether the values differ at all, every value at once, "
+                                 "by the K-group Mantel-Haenszel test (general association, on one fewer degrees "
+                                 "of freedom than there are values), bad loans only."
+                                 if res.config.split and res.config.split[1] == "each_value" else "")
                               + f" The split's odds: "
                               f"Cochran-Mantel-Haenszel, which asks whether an odds ratio this far from 1 could "
                               f"come from shuffling loans within their pockets. It has no continuity correction: "

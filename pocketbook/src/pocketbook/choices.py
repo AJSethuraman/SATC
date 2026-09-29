@@ -23,6 +23,18 @@ ROWS = (("bands", "Cut into bands"), ("segments", "Segment by"), ("split", "Spli
 KEY = "launcher"                  # Control's key column reads "launcher|bands" and so on
 #: what the bands and segments rows read when nobody narrowed them: every column its meaning cuts
 EVERY = {"bands": "Every number column", "segments": "Every category"}
+#: the most values a category may split every pocket by (the firm, 29 Sep 2026: "I know it can't break down too
+#: far"), blanks aside: a blank is a part of its own, as it is a segment of its own
+SPLIT_MOST_VALUES = 6
+
+
+def too_many_values(column: str, n: int) -> str | None:
+    """The refusal when a category has too many values to split the pockets by, in the words the launcher and the
+    Run both give; None when it has few enough."""
+    if n <= SPLIT_MOST_VALUES:
+        return None
+    return (f"{column} has {n:,} values. A category can split the pockets by {SPLIT_MOST_VALUES} values at most: "
+            f"with more, each pocket's parts are too thin to read. Split by a column with fewer values, or by none.")
 
 
 def names(text) -> tuple[str, ...]:

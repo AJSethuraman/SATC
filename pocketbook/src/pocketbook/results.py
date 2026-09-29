@@ -222,12 +222,32 @@ def cf(ws, rng: str, rules: list[tuple], row_line: str | None = None) -> None:
         ws.conditional_formatting.add(rng, Rule(type="expression", formula=[f], dxf=dxf))
 
 
+def heat_t(cell: str, kind: str, bound: str) -> str:
+    """A gap on the heat scale's one scale, as a formula: log2 of a multiple (2x is 1, 0.5x is -1), or a gap in
+    points over the largest in the grid, turned so that worse is always above zero."""
+    return (f'IFERROR(IF({kind}="pts",-{cell}/{bound},IF({kind}="x",LOG({cell},2),IF({kind}="xr",-LOG({cell},2),0))),0)')
+
+
+#: the heat scale's steps in words, for the one cell read out under the blocks (HEAT_STEPS, the same order)
+SHADE = {house.HEAT_BAD2: "deep red", house.HEAT_BAD: "red", "EACBC9": "light red", house.HEAT_GOOD: "green",
+         "D7E2D4": "light green"}
+
+
+def shade_of(cell: str, kind: str, bound: str) -> str:
+    """The colour the heat scale gives `cell`, in words: the same steps, in the same order, as heat_rules."""
+    t = heat_t(cell, kind, bound)
+    out = '"pale"'
+    for lim, colour in reversed(HEAT_STEPS):
+        out = f'IF({t}{">=" if lim > 0 else "<="}{lim},"{SHADE[colour]}",{out})'
+    return f'IF(ISNUMBER({cell}),{out},"blank")'
+
+
 def heat_rules(cell: str, kind: str, bound: str, extra: str | None = None, fmt: str | None = None) -> list[tuple]:
     """The heat scale over a block whose measure changes with a dropdown, in the spec's tokens: each step is a rule
     over t, the gap on one scale (log2 of a multiple, so 2x is 1 and 0.5x is -1; a gap in points over the largest
     in the grid), reading `kind` and `bound` from the tab's hidden cells. With `extra` (a formula) each step comes
     twice, first with `fmt` for the cells `extra` holds on (a gap in points: its number format)."""
-    t = (f'IFERROR(IF({kind}="pts",-{cell}/{bound},IF({kind}="x",LOG({cell},2),IF({kind}="xr",-LOG({cell},2),0))),0)')
+    t = heat_t(cell, kind, bound)
     steps = [(f"AND(ISNUMBER({cell}),{t}{'>=' if lim > 0 else '<='}{lim})", colour) for lim, colour in HEAT_STEPS]
     steps.append((f"ISNUMBER({cell})", house.HEAT_MID))
     out = []
@@ -597,11 +617,12 @@ SIDES = (("contribution_rate", "Paid us", "gap vs"), ("gco_rate", "Cost us", "ch
 (C_BAND, C_SEG, C_LOANS, C_PAID, C_PAID_D, C_COST, C_COST_D, C_KEPT, C_KEPT_D, C_TOG) = range(2, 12)
 C_H = 40                  # hidden: the _views row, untested, each side's _pockets row and flag
 (C_H_ROW, C_H_UN, C_H_RC, C_H_RG, C_H_RR, C_H_FC, C_H_FG, C_H_FR) = range(C_H, C_H + 8)
-LABELLED = 8              # pockets named on the chart: the first rows, when they have a Together verdict
+LABELLED = 8              # pockets numbered on the chart and named under it: the first rows, with a Together verdict
+CHART_ROWS = 23           # rows the chart covers (11 cm at the tab's row height), so the names list starts under it
 #: the chart's own cells, on a hidden sheet (Excel leaves out a chart's points in hidden columns): each row's point,
 #: x then y, its name when it is read together and that point again, then the dashed lines and the corners
 CHART = "_chart"
-(H_X, H_Y, H_NAME, H_NX, H_NY) = range(1, 6)
+(H_X, H_Y, H_NAME, H_NX, H_NY, H_RX, H_RY, H_GX, H_GY, H_NUM) = range(1, 11)
 
 
 def side_of(flag: str | None, higher: str) -> str | None:
@@ -764,6 +785,14 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         hs.cell(row=k, column=H_NAME, value=f'=IF({tog}="","",{T}${col(C_BAND)}${rr}&" / "&{T}${col(C_SEG)}${rr})')
         hs.cell(row=k, column=H_NX, value=f'=IF({tog}="",NA(),{cost})')
         hs.cell(row=k, column=H_NY, value=f'=IF({tog}="",NA(),{kept})')
+        # coloured by verdict, whatever the row (the firm, 29 Sep 2026: a Net drain drawn black read as nothing)
+        bad = f'{tog}="{BAD_TOGETHER[0]}"'
+        good = f'OR({tog}="{GOOD_TOGETHER[0]}",{tog}="{GOOD_TOGETHER[1]}")'
+        hs.cell(row=k, column=H_RX, value=f"=IF(AND(NOT(ISNA({col(H_X)}{k})),{bad}),{col(H_X)}{k},NA())")
+        hs.cell(row=k, column=H_RY, value=f"=IF(ISNA({col(H_RX)}{k}),NA(),{col(H_Y)}{k})")
+        hs.cell(row=k, column=H_GX, value=f"=IF(AND(NOT(ISNA({col(H_X)}{k})),{good}),{col(H_X)}{k},NA())")
+        hs.cell(row=k, column=H_GY, value=f"=IF(ISNA({col(H_GX)}{k}),NA(),{col(H_Y)}{k})")
+        hs.cell(row=k, column=H_NUM, value=f'=IF({col(H_NAME)}{k}="","",{k})')
     end = first + most - 1
     un = f"${col(C_H_UN)}{first}"
     line_on = f'${col(C_BAND)}{first}<>""'
@@ -799,8 +828,8 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
     chart = ScatterChart()
     chart.title = "Cost us against what we kept, the grid picked above"
     chart.style = 13
-    chart.x_axis.title = "Charge-offs × the rest (log scale)"
-    chart.y_axis.title = "Kept: gap in points"
+    # no axis titles: Excel drew them over the axes' own numbers (the firm, 29 Sep 2026); the line above the chart
+    # says what each axis is
     x_lo = min(0.1, 10 ** math.floor(math.log10(min([v for v in xs if v > 0] + [b.better_at]))))
     x_hi = max(10.0, 10 ** math.ceil(math.log10(max(xs + [b.worse_at]))))
     band = line.value * 100 if line is not None and line.kind == "points" else 0.0
@@ -815,6 +844,14 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
     pts.marker.graphicalProperties.line.solidFill = INK
     pts.graphicalProperties.line.noFill = True
     chart.series.append(pts)
+    for cx, cy, fill in ((H_RX, H_RY, house.KEY_RED), (H_GX, H_GY, POSITIVE)):
+        dots = Series(*(Reference(hs, min_col=c, min_row=1, max_row=n) for c in (cy, cx)))
+        dots.marker.symbol = "circle"
+        dots.marker.size = 8
+        dots.marker.graphicalProperties.solidFill = fill
+        dots.marker.graphicalProperties.line.solidFill = fill
+        dots.graphicalProperties.line.noFill = True
+        chart.series.append(dots)
     # the lines and the corners, under the points
     hr = n + 3
     lines = [((1.0, y_lo), (1.0, y_hi)), ((x_lo, 0.0), (x_hi, 0.0))]
@@ -841,19 +878,17 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
         c.dLbls = _labels(pos="ctr")
         chart.series.append(c)
         hr += 1
-    # the named pockets: the first rows, which are the ones read together at the last Run; a row whose verdict
-    # has gone (a line changed on Control) drops its point and its name
+    # the named pockets: the first rows, which are the ones read together at the last Run, numbered on the chart
+    # and named in the list beside it (their names overlapped when written on the chart); a row whose verdict has
+    # gone (a line changed on Control) drops its number
     for k in range(min(LABELLED, n)):
         rr = 1 + k
         one = Series(Reference(hs, min_col=H_NY, min_row=rr, max_row=rr),
                      Reference(hs, min_col=H_NX, min_row=rr, max_row=rr))
-        one.tx = SeriesLabel(strRef=StrRef(f"'{CHART}'!${col(H_NAME)}${rr}"))
-        one.marker.symbol = "circle"
-        one.marker.size = 8
-        one.marker.graphicalProperties.solidFill = house.KEY_RED
-        one.marker.graphicalProperties.line.solidFill = house.KEY_RED
+        one.tx = SeriesLabel(strRef=StrRef(f"'{CHART}'!${col(H_NUM)}${rr}"))
+        one.marker.symbol = "none"
         one.graphicalProperties.line.noFill = True
-        one.dLbls = _labels(pos=("r", "t", "b", "l")[k % 4])
+        one.dLbls = _labels(pos="r")
         chart.series.append(one)
     chart.legend = None
     chart.x_axis.scaling.logBase = 10
@@ -867,6 +902,15 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
     chart.y_axis.crosses = "min"
     chart.width, chart.height = 17, 11
     ws.add_chart(chart, f"{col(C_TOG + 2)}{anchor}")
+    # what the axes are, above the chart, and the numbered pockets' names under it
+    _cell(ws, anchor - 1, C_TOG + 2, "Across: charge-offs × the rest, on a log scale. Up: kept, as a gap in points. "
+                                     "Red: Net drain. Green: Strong or Priced for it.", size=9, name="Arial", h="left")
+    below = anchor + CHART_ROWS
+    _cell(ws, below, C_TOG + 2, "Numbered on the chart", bold=True, size=9, name="Arial", h="left")
+    for k in range(min(LABELLED, n)):
+        _cell(ws, below + 1 + k, C_TOG + 2,
+              f"=IF('{CHART}'!${col(H_NAME)}${1 + k}=\"\",\"\",\"{1 + k}  \"&'{CHART}'!${col(H_NAME)}${1 + k})",
+              size=9, name="Arial", h="left")
 
 
 def _labels(pos: str):
@@ -937,7 +981,8 @@ def grid_views(res, views: Views) -> tuple[list[str], list, int, int]:
                 views.put(f"G|{gname}|{m.name}|rate|{i}", rate)
                 views.put(f"G|{gname}|{m.name}|book|{i}", book)
                 views.put(f"G|{gname}|{m.name}|band|{i}", band)
-            views.put(f"G|{gname}|{m.name}|meta", [heat_kind(m), max(got + [0.01])])
+            views.put(f"G|{gname}|{m.name}|meta", [heat_kind(m), max(got + [0.01]),
+                                                   res.config.benchmark.min_events if res.config.benchmark else None])
         for sm in shows:
             key = f"show_{sm.name}"
             for i, bl in enumerate(rows_, start=1):
@@ -949,6 +994,64 @@ def grid_views(res, views: Views) -> tuple[list[str], list, int, int]:
                 views.put(f"G|{gname}|{key}|rate|{i}", vals)
             views.put(f"G|{gname}|{key}|meta", ["amt", 1])
     return gnames, ms, most_r, most_c
+
+
+#: One cell read out in words under the Grids' blocks (the firm, 29 Sep 2026: "select a particular line and say I
+#: want this as an example"). Fixed by measure, so they read the same from run to run; only the names and numbers
+#: change. {these} is "These 237 loans" (or "This one loan"), {their} "their" (or "its"), {r} the rate, {x} a
+#: multiple, {pts} a gap in points and {more} its side, {against} what it is set against, {measure} the measure's name. A measure not named here takes its kind's.
+SAY = {"outcome_loans": ("{these}: {r} went bad.", "{x}× the bad-loan rate of {against}."),
+       "outcome_booked": ("{these}: {r} of {their} booked dollars were in loans that went bad.",
+                          "{x}× the bad-dollar rate of {against}."),
+       "gco_rate": ("{these} charged off {r} of {their} booked dollars.",
+                    "{x}× the charge-off rate of {against}."),
+       "ranr_rate": ("{these} kept {r} of {their} booked dollars after losses.",
+                     "Kept {pts} points {more} of their booked dollars than {against}."),
+       "contribution_rate": ("{these} earned {r} of {their} booked dollars before losses.",
+                             "Earned {pts} points {more} of their booked dollars than {against}.")}
+SAY_KIND = {"x": ("{these}: {measure} is {r}.", "{x}× the rate of {against}."),
+            "pts": ("{these}: {measure} is {r}.", "{pts} points {more} than {against}."),
+            "amt": ("{these}: {measure} is {r}.", "Not compared: this figure is shown, not tested.")}
+SAY_BOOK = "the whole book"
+SAY_BAND = "the other loans in {row}"
+SAY_ALONE = "Blank: alone in its band. Nothing else in {row} to compare with."
+SAY_FEW = "Blank: fewer losses than the minimum ({min} losses), so not compared."
+SAY_NOT = "Blank: not compared."
+SAY_LOANS = "{loans}; {row} has {m} in all."
+SAY_COLOUR = ("vs the book is {book}, vs rest of band {band}. Red is worse, green better, deeper a bigger gap. "
+              "It is the size of the gap, not a test.")
+SAY_PICK = "Pick a Row and a Column above: their lists follow the Grid."
+SAY_EMPTY = "No loans in this pocket."
+SAY_NORATE = "No rate: these loans have nothing to divide by for this measure."
+#: other columns named after "the other loans in <row>" when there are this many or fewer
+SAY_NAMED = 3
+
+
+def say_for(key: str, kind: str) -> tuple[str, str]:
+    """A measure's two sentences, the rate and the gap: by its name, or else by its kind."""
+    return SAY.get(key) or SAY_KIND.get("x" if kind == "xr" else kind, SAY_KIND["x"])
+
+
+def fill_in(template: str, **parts: str) -> str:
+    """A fixed template as an Excel expression: each {name} replaced by its expression, the words between quoted."""
+    out, rest = [], template
+    while "{" in rest:
+        a = rest.index("{")
+        b = rest.index("}", a)
+        if rest[:a]:
+            out.append(live.q(rest[:a]))
+        out.append(f"({parts[rest[a + 1:b]]})")
+        rest = rest[b + 1:]
+    if rest:
+        out.append(live.q(rest))
+    return "&".join(out) or '""'
+
+
+def sub(template: str, **parts: str) -> str:
+    """A template held in a cell (`template` the cell), its {name}s replaced by SUBSTITUTE."""
+    for k, v in parts.items():
+        template = f'SUBSTITUTE({template},"{{{k}}}",{v})'
+    return template
 
 
 def write_grids(wb, res, choices: Choices, views: Views) -> None:
@@ -973,8 +1076,9 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
         ("vs rest of band", "The pocket's rate over every other loan in its band, so a band that is bad all "
                             "through doesn't make each of its pockets look bad."),
         ("Colour", "Red is worse, green better, pale in line: 0.5× and under the greenest, 2× and over the "
-                   "deepest red; for a gap in points, the largest in the grid is the deepest. A blank: fewer "
-                   "losses than fewest losses on Control, so not compared (a setting for the next Run)."),
+                   "deepest red; for a gap in points, the largest in the grid is the deepest. A blank: alone in "
+                   "its band, or fewer losses than fewest losses on Control, so not compared (a setting for the "
+                   "next Run)."),
         ("Loans", "How many loans are in each pocket, shaded by its share of the grid: darker is more. A count, "
                   "not a test, so no red or green."),
         ("Groups", "Under the blocks: how many loans" + (", and booked dollars," if res.config.booked else "")
@@ -985,14 +1089,26 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     m_opts = [plain(m) for m in ms] + [f"{'Average' if sm.show == 'average' else 'Median'} {sm.value} per pocket"
                                        for sm in shows]
     m_keys = [m.name for m in ms] + [f"show_{sm.name}" for sm in shows]
+    says = [say_for(m.name, heat_kind(m)) for m in ms] + [say_for("", "amt") for _ in shows]
     g_rng, _ = choices.add("Grids: Grid", gnames)
-    m_rng, (k_rng,) = choices.add("Grids: Measure", m_opts, m_keys)
+    m_rng, (k_rng, rs_rng, gs_rng) = choices.add("Grids: Measure", m_opts, m_keys, [x[0] for x in says],
+                                                 [x[1] for x in says])
     s = r + 1
     G = dropdown(ws, s, left, "Grid", g_rng, gnames[0] if gnames else "")
     ws.merge_cells(start_row=s, start_column=left, end_row=s, end_column=left + 2)
     M = dropdown(ws, s, left + 4, "Measure", m_rng, m_opts[0] if m_opts else "")
     ws.merge_cells(start_row=s, start_column=left + 4, end_row=s, end_column=left + 6)
-    hid = last + 2                                         # hidden cells: the keys and the heat's kind and bound
+    hid = max(last, left + 14) + 2                         # hidden cells: the keys and the heat's kind and bound
+    _widths(ws, {c: 11 for c in range(last + 1, hid)})
+    # one cell to read out in words (the firm, 29 Sep 2026): a Row and a Column of the grid picked, each list the
+    # grid's own labels, laid out in hidden cells as the Grid dropdown changes, and offered as many as there are
+    RL, CL, H2 = hid + 7, hid + 8, hid + 9
+    RN, CN = f"${col(H2)}${s}", f"${col(H2)}${s + 1}"
+    first_row, first_col = _first_pocket(res, ms)
+    R = dropdown(ws, s, left + 8, "Row", f"OFFSET(${col(RL)}${s},0,0,MAX(1,{RN}),1)", first_row)
+    ws.merge_cells(start_row=s, start_column=left + 8, end_row=s, end_column=left + 10)
+    C = dropdown(ws, s, left + 12, "Column", f"OFFSET(${col(CL)}${s},0,0,MAX(1,{CN}),1)", first_col)
+    ws.merge_cells(start_row=s, start_column=left + 12, end_row=s, end_column=left + 14)
     KEY = f"${col(hid)}${s}"
     ws[f"{col(hid)}{s}"] = f'=IFERROR(INDEX({k_rng},MATCH({M},{m_rng},0)),"")'
     META = f"${col(hid)}${s + 1}"
@@ -1003,6 +1119,11 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     COLS, ROWS, NAMES, TOTAL = (f"${col(hid)}${s + k}" for k in (2, 3, 4, 5))
     for k, what in ((2, "cols"), (3, "rows"), (4, "names"), (5, "total")):
         ws[f"{col(hid)}{s + k}"] = "=" + match(xk("G|", (G,), f"|{what}"))
+    for c_, labels, n in ((RL, ROWS, nr), (CL, COLS, nc)):         # the grid's own labels, All left off
+        for i in range(1, max(n - 1, 1) + 1):
+            ws.cell(row=s + i - 1, column=c_, value=f'=IF({pick(labels, i)}="All","",{pick(labels, i)})')
+    for cnt, c_, n in ((RN, RL, nr), (CN, CL, nc)):
+        ws[cnt.replace("$", "")] = f"=SUMPRODUCT(--(LEN(${col(c_)}${s}:${col(c_)}${s + max(n - 1, 1) - 1})>0))"
     top = s + 2
     blocks = (("Rate", "rate", left, top, False), ("vs the book", "book", right, top, True),
               ("vs rest of band", "band", left, top + nr + 3, True), ("Loans", "loans", right, top + nr + 3, False))
@@ -1038,11 +1159,102 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
                      for lim, colour in LOANS_STEPS]
         cf(ws, inner, rules, line_on)
     r = top + 2 * (nr + 3)
-    _cell(ws, r, left, "A blank: fewer losses than the minimum, so not compared.", size=9, color=SLATE, h="left")
+    _cell(ws, r, left, "A blank: alone in its band, or fewer losses than the minimum, so not compared.", size=9,
+          color=SLATE, h="left")
+    at_ = {what: (c0, t) for _, what, c0, t, _ in blocks}
+    r = _one_cell(ws, r + 2, left, last, nr, nc, at_, dict(M=M, R=R, C=C, KIND=KIND, BOUND=BOUND, META=META,
+                  RN=RN, CN=CN, RL=RL, CL=CL, H=hid + 10, s=s, rs=rs_rng, gs=gs_rng, m=m_rng))
     r = _groups(ws, res, views, G, r + 2, left, hid + 4)
-    _hide(ws, hid, hid + 6)
+    _hide(ws, hid, hid + 10)
     ws.freeze_panes = f"A{s + 1}"
     _fit(ws)
+
+
+def _first_pocket(res, ms) -> tuple[str, str]:
+    """The first grid's first pocket with a rate for the first measure: the Row and Column the tab opens on."""
+    grids = list(res.grids) + list(res.three_way)
+    if not grids:
+        return "", ""
+    g = grids[0]
+    for bl in g.band_labels:
+        for d in g.dim_labels:
+            c = g.cells.get((bl, d))
+            if c is not None and (not ms or c.rates[ms[0].name].rate is not None):
+                return bl, _short(res, d)
+    return "", ""
+
+
+def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: dict) -> int:
+    """What one cell says (the firm, 29 Sep 2026): the Row and Column picked, read out in words from the same
+    cells the four blocks show, so no number here is worked out again. The sentences are the measure's (SAY,
+    held on _choices beside the Measure dropdown's options); a blank says why it is blank. Returns the last row."""
+    M, R, C, KIND, BOUND, s, H = x["M"], x["R"], x["C"], x["KIND"], x["BOUND"], x["s"], x["H"]
+    rng = lambda what: (f"${col(at_[what][0] + 1)}${at_[what][1] + 2}:"          # noqa: E731
+                        f"${col(at_[what][0] + nc)}${at_[what][1] + 1 + nr}")
+    lc, lt = at_["loans"]
+    names = ["RI", "CJ", "RV", "BV", "NV", "LV", "MV", "OTH", "OTHN", "RT", "GT", "MIN"]
+    h = {n: f"${col(H)}${s + k}" for k, n in enumerate(names)}
+    RI, CJ, RV, BV, NV, LV, MV, OTH, OTHN, RT, GT, MIN = (h[n] for n in names)
+    rl = f"${col(x['RL'])}${s}:${col(x['RL'])}${s + max(nr - 1, 1) - 1}"
+    cl = f"${col(x['CL'])}${s}:${col(x['CL'])}${s + max(nc - 1, 1) - 1}"
+    none = f'OR({RI}="",{CJ}="")'
+    got = {
+        RI: f'IF({R}="","",IFERROR(MATCH({R},{rl},0),""))',
+        CJ: f'IF({C}="","",IFERROR(MATCH({C},{cl},0),""))',
+        RV: f'IF({none},"",INDEX({rng("rate")},{RI},{CJ}))',
+        BV: f'IF({none},"",INDEX({rng("book")},{RI},{CJ}))',
+        NV: f'IF({none},"",INDEX({rng("band")},{RI},{CJ}))',
+        LV: f'IF({none},"",INDEX({rng("loans")},{RI},{CJ}))',
+        MV: f'IF({RI}="","",INDEX({rng("loans")},{RI},{x["CN"]}+1))',
+        # the other pockets in the row with loans, and their columns' names
+        OTH: f'IF({none},"",COUNT(OFFSET(${col(lc + 1)}${lt + 2},{RI}-1,0,1,{x["CN"]}))-IF(ISNUMBER({LV}),1,0))',
+        OTHN: "IFERROR(MID(" + "&".join(
+            f'IF(AND({j}<>{CJ},{j}<={x["CN"]},ISNUMBER(INDEX({rng("loans")},{RI},{j}))),", "&${col(lc + j)}${lt + 1},"")'
+            for j in range(1, nc + 1)) + ',3,999),"")',
+        RT: f'IFERROR(INDEX({x["rs"]},MATCH({M},{x["m"]},0)),"")',
+        GT: f'IFERROR(INDEX({x["gs"]},MATCH({M},{x["m"]},0)),"")',
+        MIN: f'{pick(x["META"], 3)}',
+    }
+    for cell, f in got.items():
+        ws[cell.replace("$", "")] = f"={f}"
+    n = f'TEXT({LV},"#,##0")'
+    one = f"{LV}=1"
+
+    def gap(v: str, against: str, blank: str) -> str:
+        said = sub(GT, x=f'TEXT({v},"0.00")', pts=f'TEXT(ABS({v}),"0.00")', more=f'IF({v}<0,"less","more")',
+                   against=against)
+        return f'IF(OR({none},NOT(ISNUMBER({LV}))),"",IF(ISNUMBER({v}),{said},IF({KIND}="amt",{GT},{blank})))'
+
+    few = fill_in(SAY_FEW, min=MIN)
+    not_ = live.q(SAY_NOT)
+    band_against = (fill_in(SAY_BAND, row=R) + f'&IF(AND({OTH}>=1,{OTH}<={SAY_NAMED})," (the "&{OTHN}&" loans)","")')
+    lines = [
+        (None, f'IF({none},{live.q(SAY_PICK)},{R}&" · "&{C}&", "&{M})'),
+        ("Rate", f'IF({none},"",IF(NOT(ISNUMBER({LV})),{live.q(SAY_EMPTY)},IF({RV}="",{live.q(SAY_NORATE)},'
+                 + sub(RT, these=f'IF({one},"This one loan","These "&{n}&" loans")', their=f'IF({one},"its","their")',
+                       r=f'IF({KIND}="amt",TEXT({RV},"#,##0.00"),TEXT({RV},"0.00%"))', measure=M) + ")))"),
+        ("vs the book", gap(BV, live.q(SAY_BOOK), f'IF({KIND}="pts",{not_},{few})')),
+        ("vs rest of band", gap(NV, band_against,
+                                f'IF({OTH}<1,{fill_in(SAY_ALONE, row=R)},IF({KIND}="pts",{not_},{few}))')),
+        ("Loans", f'IF(OR({none},NOT(ISNUMBER({LV}))),"",'
+                  + fill_in(SAY_LOANS, loans=f'{n}&IF({one}," loan"," loans")', row=R, m=f'TEXT({MV},"#,##0")') + ")"),
+        ("The colour", f'IF(OR({none},NOT(ISNUMBER({LV}))),"",IF({KIND}="amt","No colour: this figure is not '
+                       f'compared.",' + fill_in(SAY_COLOUR, book=shade_of(BV, KIND, BOUND),
+                                                   band=shade_of(NV, KIND, BOUND)) + "))"),
+    ]
+    end = max(last, left + 14)
+    _block_head(ws, r, left, end - left + 1, "What one cell says")
+    for k, (label, f) in enumerate(lines, start=1):
+        rr = r + k
+        if label is None:
+            ws.merge_cells(start_row=rr, start_column=left, end_row=rr, end_column=end)
+            _cell(ws, rr, left, f"={f}", bold=True, h="left", name="Arial", indent=1)
+        else:
+            _cell(ws, rr, left, label, bold=True, size=9, color=SLATE, h="left", name="Arial", indent=1)
+            ws.merge_cells(start_row=rr, start_column=left + 1, end_row=rr, end_column=end)
+            _cell(ws, rr, left + 1, f"={f}", h="left", indent=1)
+        ws.row_dimensions[rr].height = 18
+    return r + len(lines)
 
 
 def _block_head(ws, r: int, c0: int, w: int, title: str) -> None:
@@ -1161,6 +1373,52 @@ def _groups(ws, res, views: Views, G: str, r: int, first: int, hid: int) -> int:
 # Split
 
 
+def _value_vs(sf: str, v: str, others: list[str]) -> str:
+    """What one value of a category split is set against: "SYS_FLAG Y vs N" with two values, "... vs rest" with
+    more."""
+    return f"{sf} {v} vs {others[0]}" if len(others) == 1 else f"{sf} {v} vs rest"
+
+
+def _value_note(res, sf: str, b, dollar_rates: bool, profit: bool) -> list[tuple]:
+    """The Split tab's note for a category split: each value against the rest of its pocket. The halves' note
+    says the same things of the high half against the low."""
+    return [
+        ("What it does", f"Inside each pocket the loans are split by their {sf}. Pick a grid and a value: that "
+                         f"value's loans are compared with the rest of the pocket (the other value, when there are "
+                         f"two), so the band and segment are the same on both sides. {sf} isn't a segment of its "
+                         f"own while it splits. At most {engine.SPLIT_MOST_VALUES} values."),
+        ("Value vs rest", "The value's rate over the rest's: 2.00× means it goes bad"
+                          + (", or loses," if dollar_rates else "") + " twice as often."
+                          + (" Kept after losses and Earned before losses are a gap in points instead: +0.30 pts "
+                             "means the value keeps 0.30 points more per booked dollar." if profit else "")),
+        ("Value vs rest, all", live.text(
+            "The value's actual total against what it would be at the rest's rates, added over every pocket, with "
+            "its range at ", ('TEXT(confidence,"0%")',), " sure. For Bad loans only, the odds are pooled too "
+            "(Mantel-Haenszel), with their p-value (Cochran-Mantel-Haenszel), and Cochran's Q asks whether the gap "
+            "is the same size in every pocket.")),
+        ("Do the values differ?", "For Bad loans, one test of every value at once, pooled over the grid's pockets "
+                                  "(the K-group Mantel-Haenszel test, on one fewer degrees of freedom than there "
+                                  "are values). Every pocket counts here, however small, so with two values it can "
+                                  "differ a little from the odds' p-value, which uses only pockets above the "
+                                  "minimums. Not worked out for the dollar measures: the tool has no test of more "
+                                  "than two groups at once for a dollar rate."),
+        ("p-value", live.text(
+            "The chance of a gap at least this big if the value were no different from the rest. Under ",
+            ('TEXT(significance_bar,"0%")',), " counts, and is bold. Bad loans: the gap in standard errors"
+            + (f"; a dollar measure: the loans dealt at random inside their pocket, {b.shuffles:,} times"
+               if dollar_rates else "")
+            + f". The allowance for many tests ({_allowance(b)}) covers every value and pocket of one grid and "
+              f"measure, and the summary's p-values across the values; a gap that is not significant is in "
+              f"brackets, unshaded. A blank: the value or the rest has fewer loans or losses than the minimums "
+              f"({b.min_units:,} loans, {b.min_events:,} losses).")),
+        ("What it holds", f"A grid holds fixed only its band and segment. How closely {sf} moves with a band "
+                          f"column isn't worked out for a category, so a gap here may partly be a column the grid "
+                          f"doesn't hold fixed. Loans are treated as independent of each other."),
+        ("As of", "The numbers are the last Run's. The range, the brackets and the bold follow the confidence on "
+                  "Control."),
+    ]
+
+
 def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     """Split (section 8): a Grid dropdown and a chip saying whether it holds the split's partner fixed; the
     summary for every measure; the line on whether the gap is the same in every pocket; and the two grids side
@@ -1170,19 +1428,28 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     sf, how = res.config.split
     names = bk._names(res)
     b = res.config.benchmark
-    if how == "each_value" or b is None:
+    by_value = how == "each_value"
+    if b is None:
         _widths(ws, {1: 2, 2: 22, 3: 100})
-        house.title_band(ws, SPLIT, f"Every pocket split by each value of {sf}.", 2, 3, tab=house.TAB_RESULT)
-        house.method_note(ws, 3, 2, 3, [("Where to look", f"Every pocket split by each value of {sf}: the Grids "
-                                                          f"tab shows the split grids (pick one ending / {sf}), "
-                                                          f"and Pockets lists every part, tested like any other "
-                                                          f"pocket (Pockets: Split by {sf}). {sf} isn't a segment "
-                                                          f"of its own while it splits.")])
+        house.title_band(ws, SPLIT, f"Every pocket split by {sf}.", 2, 3, tab=house.TAB_RESULT)
+        house.method_note(ws, 3, 2, 3, [("Where to look", f"The Grids tab shows the split grids (pick one ending / "
+                                                          f"{sf}). The comparisons need the Control settings.")])
         return
     ms = rates(res)
-    pt = bk._partner(res)
+    pt = None if by_value else bk._partner(res)
     grids = sorted(res.grids, key=lambda x: bk._holds_fixed(res, x)[1])
-    gnames = [f"{names[g.band]} x {names[g.dimension]}" for g in grids]
+    # what the Grid dropdown picks: a grid for the halves; a grid and one value of a category, set against the
+    # rest of its pocket (the other value, when there are two)
+    shown = []
+    for g in grids:
+        gname = f"{names[g.band]} x {names[g.dimension]}"
+        if not by_value:
+            shown.append((gname, g, g.split_compare, g.split_pooled))
+            continue
+        for v in g.split_parts if len(g.split_parts) > 1 else ():
+            others = [x for x in g.split_parts if x != v]
+            shown.append((f"{gname} · {_value_vs(sf, v, others)}", g, g.part_compare[v], g.part_pooled[v]))
+    gnames = [x[0] for x in shown]
     nb = max((len(g.band_labels) for g in grids), default=1)
     nd = max((len(g.dim_labels) for g in grids), default=1)
     w = nd + 1
@@ -1192,10 +1459,12 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     for c, wd in ((2, 26), (5, 16), (6, 20), (9, 16), (right, 20)):
         widths[c] = max(widths.get(c, 0), wd)
     _widths(ws, {1: 2, **widths})
-    house.title_band(ws, SPLIT, f"Every pocket split in two at its own median {sf}: does the high half do worse?",
+    house.title_band(ws, SPLIT, f"Every pocket split by each value of {sf}: does one value do worse than the rest "
+                                f"of its pocket?" if by_value else
+                     f"Every pocket split in two at its own median {sf}: does the high half do worse?",
                      2, last, tab=house.TAB_RESULT)
     dollar_rates, profit = bk._has_dollar_rates(res), bk._has_profit(res)
-    r = house.method_note(ws, 3, 2, last, [
+    r = house.method_note(ws, 3, 2, last, _value_note(res, sf, b, dollar_rates, profit) if by_value else [
         ("What it does", f"Inside each pocket the loans are sorted by {sf} and cut at that pocket's own median. The "
                          f"high half is compared with the low half, so the band and segment are the same on both "
                          f"sides. {sf} isn't cut into bands of its own while it splits."),
@@ -1230,15 +1499,16 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                  material_at(res),
                  9, last, f"The numbers are from the last Run, {stamp}.")
     # every grid's numbers on _views
-    for g, gname in zip(grids, gnames):
-        held = bk._holds_partner(res, g)
+    for gname, g, compare, pooled in shown:
+        held = bk._holds_partner(res, g) if pt else None
         views.put(f"S|{gname}|chip", [("Holds " if held else "Doesn't hold ") + f"{pt[0]} fixed" if pt else "",
-                                      1 if held else 0, bk._holds_fixed(res, g)[0]])
+                                      (1 if held else 0) if pt else None,
+                                      "" if by_value else bk._holds_fixed(res, g)[0]])
         views.put(f"S|{gname}|rows", list(g.band_labels))
         views.put(f"S|{gname}|cols", [str(d) for d in g.dim_labels])
         z_run = stats.z_for_confidence(b.confidence)
         for i, m in enumerate(ms, start=1):
-            p = g.split_pooled.get(m.name, {})
+            p = pooled.get(m.name, {})
             if m.in_points:
                 g0 = p.get("gap")
                 se = (p["gap_hi"] - p["gap"]) / z_run if p.get("gap_hi") is not None else None
@@ -1247,18 +1517,20 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                 g0 = p.get("ratio")
                 se = (p["ratio_hi"] - p["ratio"]) / z_run if p.get("ratio_hi") else None
             steady = p.get("steady_p")
+            general = g.split_general.get(m.name, {})
             views.put(f"S|{gname}|sum|{i}", [
                 plain(m), p.get("pockets", 0),
                 f"{p['high_worse']} of {p['pockets']}" if p.get("pockets") else "none big enough",
                 g0, se, heat_kind(m), p.get("ratio_p"), p.get("odds"), p.get("odds_p"), steady,
-                bk._same_size(m, p, b.confidence) if steady is None else None])
-            got = [abs(bk._shown(x[m.name][0], m)) for x in g.split_compare.values()
+                bk._same_size(m, p, b.confidence) if steady is None else None,
+                general.get("p"), general.get("df"), general.get("pockets")])
+            got = [abs(bk._shown(x[m.name][0], m)) for x in compare.values()
                    if m.name in x and x[m.name][0] is not None]
             views.put(f"S|{gname}|{m.name}|meta", [heat_kind(m), max(got + [0.01])])
             for bi, bl in enumerate(g.band_labels, start=1):
                 vs, ps = [], []
                 for d in g.dim_labels:
-                    x = g.split_compare.get((bl, d), {}).get(m.name)
+                    x = compare.get((bl, d), {}).get(m.name)
                     vs.append(bk._shown(x[0], m) if x and x[0] is not None else None)
                     ps.append(x[1] if x else None)
                 views.put(f"S|{gname}|{m.name}|v|{bi}", vs)
@@ -1280,7 +1552,8 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     # the summary, every measure
     h = s + 2
     z = "NORMSINV(1-(1-confidence)/2)"
-    house.header(ws, h, 2, ["Measure", "Pockets", "High half worse in", "High vs low, all",
+    house.header(ws, h, 2, ["Measure", "Pockets", "Worse than the rest in" if by_value else "High half worse in",
+                            "Value vs rest, all" if by_value else "High vs low, all",
                             f'="Range ("&TEXT(confidence,"0%")&" sure)"', "p-value", "As odds", "p-value, as odds"],
                  centre_from=1)
     for i in range(1, len(ms) + 1):
@@ -1315,6 +1588,22 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=last)
     _cell(ws, r, 2, '="Same in every pocket? "&' + '&"; "&'.join(parts or ['""']) + '&"."', size=10, h="left",
           indent=1)
+    if by_value:
+        # B3: do the values differ at all, every value at once, pooled over the grid's pockets (bad loans only)
+        r += 1
+        said = []
+        for i, m in enumerate(ms, start=1):
+            if engine.yes_no(m):
+                R = f"${col(hid)}{h + i}"
+                gp, df, n = pick(R, 12), pick(R, 13), pick(R, 14)
+                said.append(f'"{plain(m)}: "&IF({gp}="","not tested",IF({live.sig(gp)},"yes","no sign they do")'
+                            f'&" (p-value "&IF({gp}<0.0001,"under 0.0001",TEXT({gp},"0.0000"))&", on "&{df}&'
+                            f'IF({df}=1," degree"," degrees")&" of freedom, "&{n}&" pockets)")')
+        if dollars:
+            said.append(live.q(f"{', '.join(dollars)}: not tested: dollar rate"))
+        ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=last)
+        _cell(ws, r, 2, f'="Do the values of {sf} differ at all? "&' + '&"; "&'.join(said or ['""']) + '&"."',
+              size=10, h="left", indent=1)
     r += 2
     # the two grids side by side, for the measure picked
     M = dropdown(ws, r + 1, 2, "Measure", m_rng, plain(ms[0]) if ms else "")
@@ -1329,7 +1618,8 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     ws[ROWS.replace("$", "")] = "=" + match(xk("S|", (G,), "|rows"))
     ws[COLS.replace("$", "")] = "=" + match(xk("S|", (G,), "|cols"))
     t = r + 3
-    for c0, title, what in ((left, f'={M}&", high vs low"', "v"), (right, "p-value per pocket", "p")):
+    for c0, title, what in ((left, f'={M}&", value vs rest"' if by_value else f'={M}&", high vs low"', "v"),
+                            (right, "p-value per pocket", "p")):
         _block_head(ws, t, c0, w, title)
         ws.cell(row=t + 1, column=c0).fill = house.fill(CANVAS)
         for j in range(1, nd + 1):

@@ -407,16 +407,26 @@ def _block_row(ws, name) -> int:
     return next(c.row for c in ws["B"] if c.value == name and _hex(c.fill.fgColor) == house.INK)
 
 
-def test_look_shows_the_mean_beside_the_median_and_the_code_on_a_red_bar_of_its_own(ran):
+def test_look_shows_the_mean_beside_the_median_and_the_code_on_a_red_bar_of_its_own(ran, tmp_path, monkeypatch):
     x, b = ran
-    wb = load_workbook(b)
-    ws = wb["Look"]
+    # before anyone answers: the code on a line and a red bar of its own
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    fresh = book.set_up(x, book=tmp_path / "fresh.xlsx", choices=ch.Choices(run_kind=ch.BLEED, split="REV_DEBT")).book
+    ws = load_workbook(fresh)["Look"]
     r = _block_row(ws, "FICO")
     vals = _fico(x)
     lines = {ws.cell(row=r + k, column=2).value: ws.cell(row=r + k, column=3).value for k in range(1, 9)}
     assert lines["Median"] == statistics.median(vals)
     assert lines["Mean"] == pytest.approx(statistics.fmean(vals))
     assert lines["At -9999, likely a code"] == 80
+    # answered missing on Columns and Run (at the bank, 29 Sep 2026): counted as left out, the same spread, and
+    # no red bar, since it is no longer a question
+    run_ws = load_workbook(b)["Look"]
+    rr = _block_row(run_ws, "FICO")
+    after = {run_ws.cell(row=rr + k, column=2).value: run_ws.cell(row=rr + k, column=3).value for k in range(1, 10)}
+    assert after["Answered missing, left out"] == 80 and after["Median"] == lines["Median"]
+    assert not [c for c in run_ws._charts if isinstance(c, BarChart) and c.anchor._from.row + 1 == rr + 1
+                and c.anchor._from.col + 1 == 6]
     reds = [c for c in ws._charts if isinstance(c, BarChart) and c.anchor._from.row + 1 == r + 1
             and c.anchor._from.col + 1 == 6]
     assert len(reds) == 1
@@ -539,7 +549,8 @@ def test_a_run_loads_the_workbook_once_and_saves_it_once(ran, tmp_path, monkeypa
             saves.append(path)
         return real_save(self, path)
 
-    for mod in (openpyxl, book, control):
+    from pocketbook import excel_lists
+    for mod in (openpyxl, book, control, excel_lists):             # excel_lists: book opens it through there
         monkeypatch.setattr(mod, "load_workbook", load)
     monkeypatch.setattr(openpyxl.Workbook, "save", save)
     monkeypatch.setattr(perm, "SHUFFLES", 200)

@@ -386,6 +386,31 @@ def test_the_scatter_is_the_grid_picked_on_a_log_scale_with_lines_at_one_and_zer
     assert named and all(s.tx.strRef.f.startswith(f"'{results.CHART}'!") for s in named)
 
 
+
+def test_the_scatter_colours_by_verdict_numbers_its_named_pockets_and_lists_them_under_it(ran):
+    """At the bank, 29 Sep 2026: a Net drain drawn black read as nothing, and the names ran over the dots."""
+    wb = load_workbook(ran["book"])
+    ws, hs = wb[results.PCK], wb[results.CHART]
+    (chart,) = ws._charts
+    assert chart.x_axis.title is None and chart.y_axis.title is None
+    red = hs.cell(row=1, column=results.H_RX).value
+    green = hs.cell(row=1, column=results.H_GX).value
+    assert f'"{results.BAD_TOGETHER[0]}"' in red and not any(f'"{g}"' in red for g in results.GOOD_TOGETHER)
+    assert all(f'"{g}"' in green for g in results.GOOD_TOGETHER) and f'"{results.BAD_TOGETHER[0]}"' not in green
+    fills = {getattr(s.marker.graphicalProperties.solidFill.srgbClr, "val", s.marker.graphicalProperties.solidFill.srgbClr)
+             for s in chart.series
+             if s.marker is not None and s.marker.graphicalProperties is not None
+             and s.marker.graphicalProperties.solidFill is not None
+             and s.marker.graphicalProperties.solidFill.srgbClr is not None}
+    assert {results.house.KEY_RED, results.POSITIVE} <= fills
+    named = [s for s in chart.series if s.tx is not None and s.tx.strRef is not None]
+    assert named and all(s.tx.strRef.f.split("!")[1].startswith(f"${results.col(results.H_NUM)}$") for s in named)
+    cells = [c.value for r in ws.iter_rows() for c in r if isinstance(c.value, str)]
+    assert "Numbered on the chart" in cells
+    listed = [v for v in cells if v.startswith(f"=IF('{results.CHART}'!${results.col(results.H_NAME)}$")]
+    assert len(listed) == results.LABELLED
+
+
 # --------------------------------------------------------------------------
 # Grids
 
@@ -491,5 +516,5 @@ def test_nothing_on_the_result_tabs_or_in_their_dropdowns_says_luck_or_cube(ran)
                 assert not (isinstance(c.value, str) and banned.search(c.value)), (t, c.coordinate, c.value)
     wb = load_workbook(ran["book"])
     for chart in wb[results.PCK]._charts:
-        titles = [chart.title.tx.rich.p[0].r[0].t, chart.x_axis.title.tx.rich.p[0].r[0].t]
+        titles = [a.title.tx.rich.p[0].r[0].t for a in (chart, chart.x_axis, chart.y_axis) if a.title is not None]
         assert not any(banned.search(x) for x in titles)

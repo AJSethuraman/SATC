@@ -2234,6 +2234,44 @@ fixed now so go ahead fix the changes"*. Items 1 and 7 stay open: neither stops 
   - Look's charts lose their "Loans" axis title, which Excel drew over the axis's numbers (*"The axis title is
     out of place"*; LibreOffice had placed it clear).
   - Tests: 3 more in `tests/test_firm_answers_2026_09_29.py`; 5 planted bugs, all caught.
+  - **A category splits the pockets too.** The firm: *"I kind of figured I'd be able to see a view with system
+    flag and origination FICO and asset segment somehow"* ... *"Like I know it can't break down too far but can we
+    not make something work?"* Split by now offers a radio on category rows as well as number rows (still one
+    column, or none); picking a category unticks it from Segment by, and ticking it as a segment again stops the
+    split. A category with more than 6 values (blanks aside; `choices.SPLIT_MOST_VALUES`) is refused in the same
+    words in the launcher (Next stays off) and at the Run: *"REGION has 7 values. A category can split the pockets
+    by 6 values at most: with more, each pocket's parts are too thin to read. ..."*. The engine already built the
+    per-value layers (Grids' "FICO x ASSET_CLASS / SYS_FLAG", columns "ASSET_CLASS 4 · Y"; Pockets' split list;
+    the tie-outs); what was missing was every comparison. Now each value is set against the rest of its pocket
+    (the other value, when there are two) by exactly the halves' machinery: per pocket, the z test for bad loans
+    and the within-pocket shuffle for the dollar rates; pooled, actual against expected with its range, and for
+    bad loans the Mantel-Haenszel odds, CMH and Cochran's Q. The allowance for many tests takes every value and
+    pocket of a grid and measure as one family, and the pooled p-values across the values. New, for bad loans
+    only: whether the values differ at all, B3's K-group Mantel-Haenszel test on K - 1 degrees of freedom
+    (`kgroups.association`, docs/statistics.md), which with two values is CMH's chi-square (a test holds them
+    equal). The Split tab's Grid dropdown picks a grid and a value ("FICO x ASSET_CLASS · SYS_FLAG Y vs rest").
+    **Left out, and said on the tab:** the partner chip (how a category moves with a band column isn't worked
+    out; the note says a gap may partly be a column the grid doesn't hold); and the differ-at-all test for the
+    dollar measures (no test of more than two groups at once exists here for a dollar rate). Paid, cost, kept and
+    Start here's five largest read the two-way grids only, for a number split too, so nothing changed there.
+    Record: the Split row, the Tests row and the Families row say what a category split does.
+    Tests: 5 more in `tests/test_firm_answers_2026_09_29.py`; 9 planted bugs (and one repointed).
+  - **One cell of a grid read out in words.** The firm: *"It would be useful to be able to maybe select a
+    particular line and say I want this as an example and it fills in the band saying what versus book means
+    what versus band means and what loans means ... the measures should be constant from run to run the grid
+    may change"*. Grids has a **Row** and a **Column** dropdown beside Grid and Measure; their lists are the
+    picked grid's own labels (hidden cells, offered by `OFFSET` over as many as there are), and they open on
+    the first pocket with a rate. **What one cell says**, under the blocks, reads that pocket from the same
+    cells the blocks show: its name, the rate, vs the book, vs rest of band, the loans (and its band's All), and
+    the colour each comparison takes on the heat scale. The sentences are fixed by measure (`results.SAY`),
+    so only names and numbers change. A blank says why: *alone in its band* when nothing else in the row has
+    loans, otherwise *fewer losses than the minimum (N losses)*; the note under the blocks now gives both.
+    A Row or Column left from another grid asks to be picked again rather than read a wrong cell.
+    **Said as it is, not as asked:** vs the book is the pocket over the *whole* book (these loans included),
+    as the block has always shown it, so it reads "the whole book", not "every other loan in the book"; and
+    the colour is the size of the gap only (the block's heat has no test in it), so it says that rather than
+    "unlikely to be chance".
+    Tests: 3 more in `tests/test_firm_answers_2026_09_29.py`; 4 planted bugs, all caught.
 
 The firm, 29 Sep 2026: *"make sure you're noting all of these so that we can go over them later for final
 decision."* Each item: what is true now, what would change it, and the recommendation. Nothing below has been
@@ -2301,6 +2339,29 @@ changed in the code.
    out and counted; or a *Yes means* value typed on Columns) beside the column it proposes.
 7. **A verdict on a shuffled p-value near 5%** can fall either way with another seed (the full tie-out, *What
    it found* item 1). Either flag those "could fall either way", or shuffle more. **Recommended:** flag them.
+
+- **Still at the bank, 29 Sep 2026, evening** (built, on PR #409):
+  - *Dropdowns gone after an Excel save.* Excel keeps a dropdown whose list sits on another sheet in its
+    extension block, and openpyxl dropped that block, so the next Run saved the workbook without them
+    (*"I have no drop downs in most places now"*). `excel_lists.py` puts them back on every load.
+  - *Look ignored Treat as Missing* (*"This median call seems to ignore that I said the -99... values ... are
+    treating as missing. Look into this and see if this leaks elsewhere"*). Look is now drawn from the Run's
+    rules and drawn again when an answer changes. The leak was Look only: a scan of every calculated cell
+    after a Run finds the code only in Columns' sample values.
+  - *Segments sorted as text*: a loan amount bucket put $5k-<$10k after $40k+. Numbers in labels now sort as
+    numbers.
+  - *Decided:* **everything compares against the whole book.** The firm: *"we keep things compared to the
+    whole book that's just kind of the point"*. So Grids' vs the book stays the whole book, and a filtered
+    view (below) compares against the whole book too.
+- **Offered, waiting on a yes** (raised 29 Sep 2026 at the bank):
+  1. *Grey out Grids cells under the fewest-loans setting*: shown, not coloured, not setting the colour
+     scale. A 3-loan cell at -50 points was the deepest red on the grid and paled every real gap.
+  2. *"Only loans where" on Grids*: the blocks for one value of a category (*"it would be nice to be able to
+     filter by that category which would probably solve a lot of ... having multiway views"*). First by the
+     Split by column, whose parts are already worked out; any category later.
+  3. *A Loan size measure* for line assignment (*"we tend to give these loan amounts to these FICO scores
+     within this category"*): average and median booked per loan by cell, descriptive, no test.
+  4. *A number column as a segment* (FICO x asset bands in one Run).
 
 ## 7 · Standing rules for new items
 
