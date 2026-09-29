@@ -2204,6 +2204,43 @@ back.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
+### Held for the firm's final decision (raised 29 Sep 2026; nothing built)
+
+The firm, 29 Sep 2026: *"make sure you're noting all of these so that we can go over them later for final
+decision."* Each item: what is true now, what would change it, and the recommendation. Nothing below has been
+changed in the code.
+
+1. **Columns that arrive already banded** (a `FICO_BAND` of "620 - 659", a score code 1 to 7). The firm:
+   *"Do we have a solution for when the metrics already have banded units that we decided to just try and
+   use?"* Today they are read as categories (a number column with 12 values or fewer, or text with 50 or
+   fewer). In a bleed run that means Segment by only, never Cut into bands, and Choose tests needs one band
+   column, so a book with FICO only as bands can't have a FICO band x segment grid. In a new-variable run
+   scouting skips them ("a category", never proposed); they can still be tested or held fixed, value by value,
+   with no trend reading. Their order is not known to be right ("<600" may not sort before "600 - 619"; not
+   checked). Workaround now: if the raw number is in the extract, cut it on Columns at the bank's own edges.
+   **Recommended:** a *Treat as: bands, in this order* answer on Columns, so such a column can be the band
+   axis and its order feeds the trend test.
+2. **The two "how columns are recognised" settings read like one scale.** The firm: *"it seems odd to say
+   anything above 12 is not something we would have as a category, but it takes a whole 50 to get to banding
+   so is that middle section just free to do whatever"*. They apply to different columns: 12 is for number
+   columns (12 values or fewer: category; 13 or more: cut into bands); 50 is for text columns (50 or fewer:
+   category; more: raised as a question). No middle zone exists. **Recommended:** label them *Number columns:*
+   and *Text columns:* so they don't read as one range.
+3. **Choose tests jumps to the top on every click.** The firm: *"every time I click the button screen kind of
+   blinks scroll all the way up and then I have to find where I was again"*. Cause: a click redraws the whole
+   screen (`launcher.py`, the box's command calls `render()`), and the new table starts scrolled to the top.
+   **Recommended:** a click changes only its box, and anything it affects updates in place.
+4. **All / None for Test it** in Test new variables, instead of one box at a time. Open: should All skip
+   columns already ticked under Hold fixed (a column can't be both)? **Recommended:** yes, so All never undoes
+   a choice. Hold fixed stays one at a time.
+5. **The screens don't use the window.** The firm: *"the column and stuff doesn't fit all the way on the screen
+   ... there's a lot of white space to use, and it should really use it so that I can see everything"*. Cause:
+   the Choose tests table has a fixed height before it scrolls (`ROOM = {"new": 250, "bleed": 280}` px in
+   `launcher.py`) and a fixed width (480 px), whatever the window's size. **Recommended:** the table grows with
+   the window and scrolls only when the window itself is full; the other screens checked the same way.
+6. **A verdict on a shuffled p-value near 5%** can fall either way with another seed (the full tie-out, *What
+   it found* item 1). Either flag those "could fall either way", or shuffle more. **Recommended:** flag them.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
