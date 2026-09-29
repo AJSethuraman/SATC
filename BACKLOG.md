@@ -2238,7 +2238,22 @@ changed in the code.
    the Choose tests table has a fixed height before it scrolls (`ROOM = {"new": 250, "bleed": 280}` px in
    `launcher.py`) and a fixed width (480 px), whatever the window's size. **Recommended:** the table grows with
    the window and scrolls only when the window itself is full; the other screens checked the same way.
-6. **A verdict on a shuffled p-value near 5%** can fall either way with another seed (the full tie-out, *What
+6. **The outcome (and the other required columns) are picked for the analyst, and picked wrong.** The firm:
+   *"I have no idea why it automatically decided this random column was an outcome. I should be able to
+   change that there's no reason for it to automatically assign something, especially when it's just wrong.
+   If anything, it should be a pop-up to say explicitly this is going to be what our outcome is."* Then:
+   *"Yeah, [it] picked the wrong on both things. I literally don't understand why it would be so finite in
+   that when we both know it's not gonna be able to pick it every time correctly."* (Which two columns were
+   wrong on the bank's file was not said.) Cause: `meanings.suggest` fills the five required meanings (key,
+   booked, outcome, GCO, RANR) on its own: a column remembered from an earlier confirmation, else a name
+   hint with fitting values, else *the only column that fits*. The outcome's hints include `co` and `flag`,
+   so any yes/no column named like a co-signer or autopay flag qualifies. The launcher then ticks the first
+   outcome-type column (`launcher.py`, `_defaults`), and Choose tests offers the Outcome choice only on
+   columns already read as outcomes, so a wrong one can't be corrected there; only on Columns, after the
+   workbook is made. **Recommended:** nothing pre-picked for the required columns. Offer every column that
+   could be one, the likely one first with its reason, and ask for an explicit yes that names the column
+   and what counts as bad (*"BAD_FLAG = 1 is a bad loan: use this as the outcome?"*). Drop `co` as a hint.
+7. **A verdict on a shuffled p-value near 5%** can fall either way with another seed (the full tie-out, *What
    it found* item 1). Either flag those "could fall either way", or shuffle more. **Recommended:** flag them.
 
 ## 7 · Standing rules for new items
