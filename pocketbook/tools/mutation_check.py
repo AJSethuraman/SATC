@@ -1097,6 +1097,12 @@ muts = [
   "one.tx = SeriesLabel(strRef=StrRef(f\"'{CHART}'!${col(H_NAME)}${rr}\"))", "colours_by_verdict"),
  ("no list of the numbered pockets", RS, '    for k in range(min(LABELLED, n)):\n        _cell(ws, below + 1 + k,',
   '    for k in range(0):\n        _cell(ws, below + 1 + k,', "colours_by_verdict"),
+ ("Excel's saved dropdowns not put back", "src/pocketbook/excel_lists.py",
+  '    for sheet, dvs in extended(path).items():', '    for sheet, dvs in {}.items():', "dropdowns_excel_saved"),
+ ("a Run opens the workbook without them", B, '        wb = _load(book)\n    except Exception as exc:',
+  '        wb = load_workbook(book)\n    except Exception as exc:', "dropdowns_excel_saved"),
+ ("opening at a cell drops them", B, '    wb = _load(book)\n    if sheet not in wb.sheetnames',
+  '    wb = load_workbook(book)\n    if sheet not in wb.sheetnames', "at_a_cell_keeps"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

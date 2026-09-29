@@ -539,7 +539,8 @@ def test_a_run_loads_the_workbook_once_and_saves_it_once(ran, tmp_path, monkeypa
             saves.append(path)
         return real_save(self, path)
 
-    for mod in (openpyxl, book, control):
+    from pocketbook import excel_lists
+    for mod in (openpyxl, book, control, excel_lists):             # excel_lists: book opens it through there
         monkeypatch.setattr(mod, "load_workbook", load)
     monkeypatch.setattr(openpyxl.Workbook, "save", save)
     monkeypatch.setattr(perm, "SHUFFLES", 200)

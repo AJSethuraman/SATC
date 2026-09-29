@@ -267,3 +267,83 @@ def test_look_charts_have_no_axis_title_for_excel_to_draw_over_the_numbers(tmp_p
     with zipfile.ZipFile(out.book) as z:
         charts = [z.read(n).decode("utf-8") for n in z.namelist() if n.startswith("xl/charts/chart")]
     assert charts and not [c for c in charts if "<a:t>Loans</a:t>" in c]
+
+
+def _as_excel_saves_it(path):
+    """Rewrite a workbook the way Excel saves it: every dropdown whose list sits on another sheet moves
+    out of the sheet's dropdowns and into Excel's 2010 extension block (the x14 dataValidations)."""
+    import re
+    import zipfile
+    from pocketbook import excel_lists as xl
+    src = path.read_bytes()
+    moved = 0
+    with zipfile.ZipFile(__import__("io").BytesIO(src)) as zin, zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename.startswith("xl/worksheets/sheet"):
+                xml = data.decode("utf-8")
+                ext = []
+                def pull(m):
+                    body = m.group(0)
+                    f = re.search(r"<formula1>(.*?)</formula1>", body).group(1)
+                    if "!" not in f:
+                        return body
+                    attrs = re.search(r"<dataValidation ([^>]*)>", body).group(1)
+                    sq = re.search(r'sqref="([^"]*)"', attrs).group(1)
+                    attrs = re.sub(r'\s*sqref="[^"]*"', "", attrs)
+                    ext.append(f'<x14:dataValidation {attrs}><x14:formula1><xm:f>{f.lstrip("=")}</xm:f>'
+                               f'</x14:formula1><xm:sqref>{sq}</xm:sqref></x14:dataValidation>')
+                    return ""
+                xml = re.sub(r"<dataValidation [^>]*>.*?</dataValidation>", pull, xml, flags=re.S)
+                if ext:
+                    moved += len(ext)
+                    xml = re.sub(r"<dataValidations[^>]*>\s*</dataValidations>", "", xml)
+                    xml = re.sub(r'(<dataValidations count=")\d+', lambda m: m.group(1) + str(
+                        len(re.findall(r"<dataValidation ", xml))), xml)
+                    block = (f'<extLst><ext uri="{xl.DV_EXT}" xmlns:x14="{xl.X14}"><x14:dataValidations '
+                             f'count="{len(ext)}" xmlns:xm="{xl.XM}">{"".join(ext)}</x14:dataValidations></ext></extLst>')
+                    xml = xml.replace("</worksheet>", block + "</worksheet>")
+                data = xml.encode("utf-8")
+            z.writestr(item, data)
+    return moved
+
+
+def _lists(path):
+    wb = load_workbook(path)
+    return sorted((ws.title, str(d.sqref), (d.formula1 or "").lstrip("="))
+                  for ws in wb for d in ws.data_validations.dataValidation)
+
+
+def test_dropdowns_excel_saved_on_another_sheet_survive_the_next_run(tmp_path, monkeypatch):
+    """At the bank: "I have no drop downs in most places now", after changing an answer on Control. Excel keeps
+    a dropdown whose list is on another sheet in its extension block; openpyxl dropped that block, so the next
+    Run saved the workbook without them. Only Yes/No and the other typed-in lists were left."""
+    import warnings
+    from pocketbook import excel_lists, perm
+    from test_book import _answer
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    monkeypatch.setattr(perm, "SHUFFLES", 300)
+    b = book.set_up(synth.write_extract(tmp_path, n=1500)).book
+    _answer(b)
+    assert book.run(b).ok
+    before = _lists(b)
+    assert _as_excel_saves_it(b) > 10
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert len(_lists(b)) < len(before)                    # openpyxl alone loses them: the bug
+    assert sum(len(v) for v in excel_lists.extended(b).values()) > 10
+    assert book.run(b).ok
+    after = _lists(b)
+    for sheet in ("Control", "Columns"):                       # kept in place by a Run, never rebuilt
+        assert [x for x in after if x[0] == sheet] == [x for x in before if x[0] == sheet]
+    assert {x[0] for x in after} == {x[0] for x in before}
+
+
+def test_opening_the_workbook_at_a_cell_keeps_the_dropdowns_excel_saved(tmp_path, monkeypatch):
+    """The launcher's Open the workbook button saves it once to pick the cell: that save lost them too."""
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    b = book.set_up(synth.write_extract(tmp_path, n=800)).book
+    before = _lists(b)
+    _as_excel_saves_it(b)
+    assert book.open_at(b, "Control", "C15")
+    assert _lists(b) == before

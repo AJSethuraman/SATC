@@ -47,6 +47,7 @@ from . import choices as ch                             # the redesign: what the
 from . import results                                   # the redesign, phase 3: the result tabs
 from . import record                                    # the redesign, phase 4: Check and the Log as Record
 from . import scout, scout_tab                          # Goal 2 item 9: scouting, then the confirmation
+from .excel_lists import load as _load                   # opens a workbook Excel saved with its dropdowns kept
 from .house import MIST as READ_ONLY
 from .ingest import Table, read_table
 
@@ -265,7 +266,7 @@ def open_at(book: str | Path, sheet: str, cell: str) -> bool:
     book = Path(book)
     if not book.exists() or is_open(book):
         return False
-    wb = load_workbook(book)
+    wb = _load(book)
     if sheet not in wb.sheetnames or wb[sheet].sheet_state != "visible":
         return False
     ws = wb[sheet]
@@ -532,7 +533,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     # (the second walk, defect 6: Set up again deleted them).
     if book.exists():
         try:
-            wb = load_workbook(book)
+            wb = _load(book)
         except Exception:
             wb = Workbook()
             wb.remove(wb.active)
@@ -1069,7 +1070,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
     named by tab and cell. Nothing is run. `wb`: the workbook already open (a
     Run loads it once)."""
     problems: list[str] = []
-    wb = wb if wb is not None else load_workbook(book)
+    wb = wb if wb is not None else _load(book)
     missing_tabs = [t for t in ("Control", "Columns", ABOUT) if t not in wb.sheetnames]
     if missing_tabs:
         return None, [f"This workbook is missing its {', '.join(missing_tabs)} tab. Press Set up again."], {}
@@ -1680,7 +1681,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     if not _writable(book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
     try:
-        wb = load_workbook(book)
+        wb = _load(book)
     except Exception as exc:  # the file itself: in words, never a traceback
         return Outcome(False, book, [f"Couldn't open {book.name}: {exc}. Press Set up again."])
     raw, problems, about = read_book(book, memory_path, wb=wb)
