@@ -2204,6 +2204,95 @@ back.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
 
+### Held for the firm's final decision (raised 29 Sep 2026)
+
+**Items 2 to 6 built the same day.** The firm: *"In order to correctly test this I guess these things need to be
+fixed now so go ahead fix the changes"*. Items 1 and 7 stay open: neither stops a test at the bank. What was built:
+- **2:** the two limits read *Number columns: ... more is cut into bands* and *Text columns: ... (text is never cut
+  into bands)*, in the launcher and on Control.
+- **3:** a tick repaints its own boxes, the outcome line and the summary in place; the table keeps its scroll.
+- **4:** *All · None* under Test it (new variable only; All leaves Hold fixed as it is; a saved shortlist locks it).
+- **5:** the window opens at the screen's size (1180 x 628 on a 1366 x 768 laptop, up to 1180 x 860), the table
+  takes the height left and scrolls only when it must, and the word columns take the spare width.
+- **6:** nothing is picked as the outcome, in either run kind. An *Outcome* list above the table (and the Outcome
+  column in Test new variables) offers every column of 0s and 1s, each described by what it holds (*Yes/no · 1 on
+  10.1% of loans*), never as a guess. Picking one asks first: *"Use EVER GCO as the outcome? 1 means the loan went
+  bad: 304 loans (10.1%). 0 means it didn't: 2,696. Nothing else."* Next stays off until one is confirmed. Set up
+  marks the pick on Columns and any other column marked the outcome goes back to a category. Names are read as
+  words (`meanings.words`): a two-letter hint must be a whole word, three to five must begin or end one; `gco` and
+  `ever` added to the outcome's hints; a tie for the outcome, or an outcome only its values suggest, is left to
+  the analyst. A saved shortlist's outcome is asked about too.
+- Tests: `tests/test_firm_answers_2026_09_29.py` (10; 1 needs a display); 6 existing tests changed to pick and
+  confirm the outcome. Planted bugs: 12 added to `tools/mutation_check.py`.
+- Not redone: the procedure's and the checklist's pictures of Choose tests show the old screen.
+
+The firm, 29 Sep 2026: *"make sure you're noting all of these so that we can go over them later for final
+decision."* Each item: what is true now, what would change it, and the recommendation. Nothing below has been
+changed in the code.
+
+1. **Columns that arrive already banded** (a `FICO_BAND` of "620 - 659", a score code 1 to 7). The firm:
+   *"Do we have a solution for when the metrics already have banded units that we decided to just try and
+   use?"* What happens depends on how the bands are written (checked on a made-up file, 29 Sep; corrected
+   after Codex on #405 found the first version of this item wrong):
+   - **Band text** ("620 - 659"): read as a category. In a bleed run that is Segment by only, never Cut into
+     bands, and Choose tests needs one band column, so a book with FICO only as text bands can't have a FICO
+     band x segment grid. In a new-variable run scouting skips it ("a category", never proposed); it can
+     still be tested or held fixed, value by value, with no trend reading. Whether the values sort in band
+     order ("<600" before "600 - 619") was not checked.
+   - **Number codes with a score-like name** (FICO_BAND, GRADE, RISK_TIER): read as a score ("Other score")
+     and offered under Cut into bands, where they are cut again into PocketBook's own bands, not the bank's,
+     unless the edges are typed on Columns at each code.
+   - **Number codes with any other name**: 12 values or fewer is a category, as for band text.
+   Workaround now: if the raw number is in the extract, cut it on Columns at the bank's own edges.
+   **Recommended:** a *Treat as: bands, in this order* answer on Columns, so such a column is used as the
+   bank's bands, can be the band axis, and its order feeds the trend test.
+2. **The two "how columns are recognised" settings read like one scale.** The firm: *"it seems odd to say
+   anything above 12 is not something we would have as a category, but it takes a whole 50 to get to banding
+   so is that middle section just free to do whatever"*. They apply to different columns: 12 is for number
+   columns (12 values or fewer: category; 13 or more: cut into bands); 50 is for text columns (50 or fewer:
+   category; more: raised as a question). No middle zone exists. **Recommended:** label them *Number columns:*
+   and *Text columns:* so they don't read as one range.
+3. **Choose tests jumps to the top on every click.** The firm: *"every time I click the button screen kind of
+   blinks scroll all the way up and then I have to find where I was again"*. Cause: a click redraws the whole
+   screen (`launcher.py`, the box's command calls `render()`), and the new table starts scrolled to the top.
+   **Recommended:** a click changes only its box, and anything it affects updates in place.
+4. **All / None for Test it** in Test new variables, instead of one box at a time. Open: should All skip
+   columns already ticked under Hold fixed (a column can't be both)? **Recommended:** yes, so All never undoes
+   a choice. Hold fixed stays one at a time.
+5. **The screens don't use the window.** The firm: *"the column and stuff doesn't fit all the way on the screen
+   ... there's a lot of white space to use, and it should really use it so that I can see everything"*. Cause:
+   the Choose tests table has a fixed height before it scrolls (`ROOM = {"new": 250, "bleed": 280}` px in
+   `launcher.py`) and a fixed width (480 px), whatever the window's size. **Recommended:** the table grows with
+   the window and scrolls only when the window itself is full; the other screens checked the same way.
+6. **The outcome (and the other required columns) are picked for the analyst, and picked wrong.** The firm:
+   *"I have no idea why it automatically decided this random column was an outcome. I should be able to
+   change that there's no reason for it to automatically assign something, especially when it's just wrong.
+   If anything, it should be a pop-up to say explicitly this is going to be what our outcome is."* Then:
+   *"Yeah, [it] picked the wrong on both things. I literally don't understand why it would be so finite in
+   that when we both know it's not gonna be able to pick it every time correctly."* (Which two columns were
+   wrong on the bank's file was not said.) Cause: `meanings.suggest` fills the five required meanings (key,
+   booked, outcome, GCO, RANR) on its own: a column remembered from an earlier confirmation, else a name
+   hint with fitting values, else *the only column that fits*. The outcome's hints include `co` and `flag`,
+   so any yes/no column named like a co-signer or autopay flag qualifies. The launcher then ticks the first
+   outcome-type column (`launcher.py`, `_defaults`), and Choose tests offers the Outcome choice only on
+   columns already read as outcomes, so a wrong one can't be corrected there; only on Columns, after the
+   workbook is made. **Recommended:** nothing pre-picked for the required columns. Offer every column that
+   could be one, the likely one first with its reason, and ask for an explicit yes that names the column
+   and what counts as bad (*"BAD_FLAG = 1 is a bad loan: use this as the outcome?"*). Drop `co` as a hint.
+   **The bank's file, 29 Sep:** it picked *% orig commitments* over a column named *EVER GCO*. The firm: *"It
+   picked like % orig commitments for some reason. There is literally a column called EVER GCO."* Why: names
+   are matched as fragments after spaces and symbols are stripped, and `origcommitments` contains both `co` and
+   `gco` (ori-gco-mmitments), so it matched as well as EVER GCO; a tie goes to the name that sorts first, and
+   "%" sorts before "E"; a percent column holding 0 and 1 (0% and 100%) passes the outcome's 0-or-1 test. EVER
+   GCO would also be ruled out if it holds Y/N rather than 0/1: the outcome test takes numbers only (not
+   checked; the file stayed at the bank). So beyond the recommendation above: match whole words, not fragments;
+   never break a tie silently. The firm on Y/N: *"yes no or 01 like it doesn't need to accept multiple
+   things as outcomes that can be part of the hygiene process, but I need to know how it's accepting stuff"*.
+   So no new formats; the ask is that the screen says the rule it used (0 is good, 1 is bad, anything else left
+   out and counted; or a *Yes means* value typed on Columns) beside the column it proposes.
+7. **A verdict on a shuffled p-value near 5%** can fall either way with another seed (the full tie-out, *What
+   it found* item 1). Either flag those "could fall either way", or shuffle more. **Recommended:** flag them.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson

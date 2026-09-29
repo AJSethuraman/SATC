@@ -566,7 +566,9 @@ def test_the_launcher_fills_test_it_and_hold_fixed_from_a_shortlist(tmp_path):
     spec = _write_spec(tmp_path, inputs=[{**UTIL}, {**TENURE}, {**INCOME}], strata=["FICO", "CHANNEL"])
     f.pick_shortlist(str(spec))
     assert f.test == ["UTIL", "TENURE", "income_to_sales"] and f.hold == ["FICO", "CHANNEL"]
-    assert f.outcome == "BAD_FLAG"                             # the file's outcome picked
+    assert f.asking == "BAD_FLAG" and f.outcome is None       # the file's outcome, asked about, not picked
+    f.answer_outcome(True)
+    assert f.outcome == "BAD_FLAG"
     rows = {r["name"]: r for r in f.rows()}
     assert [n for n, r in rows.items() if r["b"] and r["b"]["on"]] == ["UTIL", "TENURE"]   # the ratio isn't made yet
     assert all(r["locked"] for r in rows.values())
