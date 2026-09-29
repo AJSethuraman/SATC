@@ -1036,6 +1036,12 @@ muts = [
  # the tie-out of 28 Sep 2026: a pocket with too few losses given a p-value and counted in the allowance
  ("an untested pocket counted in the allowance", E, '            if hi == "worse" and s.events < bench.min_events:\n                s.p_book = s.p_band = None',
   '            if False:\n                s.p_book = s.p_band = None', "not_counted_in_the_allowance"),
+ # the full tie-out of 28 Sep 2026: Look's slices on float edges
+ ("Look's top a hair over its round number", LK,
+  '    return float(step * math.floor(lo / unit)), float(step * math.ceil(hi / unit))',
+  '    return math.floor(lo / unit) * unit, math.ceil(hi / unit) * unit', "value_on_a_slice_edge"),
+ ("a value on a slice edge dropped a slice", LK, '            counts[min(int(round((v - lo) / w, 9)), SLICES - 1)] += 1',
+  '            counts[min(int((v - lo) / w), SLICES - 1)] += 1', "value_on_a_slice_edge"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
