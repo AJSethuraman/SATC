@@ -29,12 +29,16 @@ range, "if truly cheap"):
     (docs/statistics.md A9).
 
 The shapes can't change on the same extract, so a Run doesn't redraw the blocks
-(found 26 Sep 2026: it did, every Run). It redraws the scatters only when the
-split or the band columns differ from those drawn.
+(found 26 Sep 2026: it did, every Run), unless a Treat as answer on Columns has
+changed since they were drawn: then the whole tab is drawn again from what the
+Run reads, keeping any Bars, From or To typed (at the bank, 29 Sep 2026: a
+-99,000,901 answered missing still set the smallest and the mean). Otherwise it
+redraws the scatters only when the split or the band columns differ.
 
 Nothing here changes a number PocketBook uses. A value that looks like a code is
 counted on its own row and left out of the spread and the bars; whether it
-really is a code is answered on Columns (Treat as).
+really is a code is answered on Columns (Treat as). A value answered missing
+there is counted on a row of its own and left out of everything else, dots included.
 """
 
 from __future__ import annotations
@@ -75,7 +79,9 @@ DATA_TOP = 4              # _look's first data row
 
 # where a block's lines and inputs sit, from its top row
 R_LOANS, R_BLANK, R_TEXT, R_CODE, R_MIN, R_MEDIAN, R_MEAN, R_MAX = range(1, 9)
+R_MARKED = 9                                        # loans a Treat as answer of Missing leaves out
 R_BARS, R_FROM, R_TO, R_TREAT = 10, 11, 12, 13
+RULES_ROW = 4                                       # _look column A: the Treat as answers Look was drawn with
 STATS_COL, VALUE_COL, SHARE_COL = 2, 3, 4          # B, C, D
 CODE_AT, CHART_AT = "F", "H"
 
@@ -110,6 +116,8 @@ class Shape:
     at_code: int
     values: list[float]                         # the other numbers, sorted
     fmt: str = "#,##0"                          # the spread's format
+    marked: int = 0                             # left out: answered Missing under Treat as on Columns
+    rule: object = None                         # that answer, as the Run's MissingRule
 
 
 def number_columns(table, cols, few_values: int = 12, known: dict | None = None) -> list[str]:
@@ -137,9 +145,12 @@ def number_columns(table, cols, few_values: int = 12, known: dict | None = None)
     return out
 
 
-def shape_of(table, col: str, known=None) -> Shape:
+def shape_of(table, col: str, known=None, rule=None) -> Shape:
     """`known`: the column's facts from Set up, whose numbers are used rather
-    than read again."""
+    than read again. `rule`: the column's Treat as answers of Missing, as the
+    Run reads them; the values it catches are counted and left out of
+    everything else here (at the bank, 29 Sep 2026: -99,000,901 answered
+    missing still set the smallest and the mean)."""
     if known is not None:
         nums, blank, text = list(known.numbers), known.rows - known.nonblank, known.nonblank - len(known.numbers)
     else:
@@ -154,12 +165,49 @@ def shape_of(table, col: str, known=None) -> Shape:
                 text += 1
             else:
                 nums.append(p)
+    kept_nums = [x for x in nums if not caught(x, rule)]
+    marked = len(nums) - len(kept_nums)
+    nums = kept_nums
     code = next((q["value"] for q in profile.odd_values(col, nums) if q["pattern"] == "repeated_value"), None)
     values = sorted(x for x in nums if x != code)
-    s = Shape(col, len(table.rows), blank, text, code, len(nums) - len(values), values)
+    s = Shape(col, len(table.rows), blank, text, code, len(nums) - len(values), values, marked=marked, rule=rule)
     if values:
         s.fmt = _format(values)
     return s
+
+
+def caught(v: float, rule) -> bool:
+    """True when a Treat as answer of Missing catches the value: the Run's own test (engine._caught)."""
+    if rule is None:
+        return False
+    from .engine import _caught
+    return _caught(v, rule)
+
+
+def rules_key(rules: dict | None, columns) -> str:
+    """The Treat as answers for these columns, in one line: Look is drawn again when it changes."""
+    parts = []
+    for c in sorted(columns):
+        r = (rules or {}).get(c)
+        if r is not None and (r.below is not None or r.above is not None or r.values):
+            parts.append(f"{c}:{r.below}:{r.above}:{sorted(float(v) for v in r.values if isinstance(v, (int, float)))}")
+    return "|".join(parts)
+
+
+def drawn_columns(wb) -> list[str]:
+    """The columns Look has a block for, in their order."""
+    if DATA not in wb.sheetnames:
+        return []
+    hs = wb[DATA]
+    return [str(hs.cell(row=1, column=i).value) for i in range(2, hs.max_column + 1) if hs.cell(row=1, column=i).value]
+
+
+def answers_moved(wb, rules: dict | None) -> bool:
+    """True when the Treat as answers differ from those Look was drawn with."""
+    if DATA not in wb.sheetnames or LOOK not in wb.sheetnames:
+        return False
+    was = wb[DATA].cell(row=RULES_ROW, column=1).value or ""
+    return str(was) != rules_key(rules, drawn_columns(wb))
 
 
 def _format(values: list[float]) -> str:
@@ -239,11 +287,14 @@ def regroup(values: list[float], bars: int, lo: float, hi: float, frm: float, to
 
 
 def write_look(wb, table, columns, split: str | None = None, bands=(), known: dict | None = None,
-               edge_rows: dict | None = None, treat_rows: dict | None = None) -> None:
+               edge_rows: dict | None = None, treat_rows: dict | None = None, rules: dict | None = None,
+               keep_inputs: bool = False) -> None:
     """Write (or write again) the Look tab and its hidden sheets. `columns` are the number columns to show,
     `split` the column that splits the pockets and `bands` the band columns it is plotted against. `known` is Set
     up's facts by column, so no column's numbers are read twice; `edge_rows` each column's row on Columns (its
-    Band edges cell feeds the red lines), `treat_rows` each column's first odd value there."""
+    Band edges cell feeds the red lines), `treat_rows` each column's first odd value there. `rules` the Treat as
+    answers of Missing, as the Run reads them. `keep_inputs`: a Bars, From or To the analyst typed stays."""
+    typed = _typed_inputs(wb) if keep_inputs else {}
     at = wb.sheetnames.index(LOOK) if LOOK in wb.sheetnames else (
         wb.sheetnames.index(AFTER) + 1 if AFTER in wb.sheetnames else None)
     for t in (LOOK, DATA, DOTS):
@@ -262,7 +313,8 @@ def write_look(wb, table, columns, split: str | None = None, bands=(), known: di
     top = house.method_note(ws, 3, 2, 17, METHOD)
     assert top == FIRST, top
     known = known or {}
-    shapes = {c: shape_of(table, c, known.get(c)) for c in columns}
+    shapes = {c: shape_of(table, c, known.get(c), (rules or {}).get(c)) for c in columns}
+    hs.cell(row=RULES_ROW, column=1, value=rules_key(rules, columns) or None)
     dv = DataValidation(type="list", formula1=f'"{",".join(str(b) for b in BARS)}"', allow_blank=False,
                         showErrorMessage=True)
     dv.error = "Pick 10, 20 or 50 bars."
@@ -272,6 +324,8 @@ def write_look(wb, table, columns, split: str | None = None, bands=(), known: di
         if i and i % PAGE_BLOCKS == 0:
             _page(ws, r)
         _block(ws, hs, r, shapes[c], 2 + GROUP * i, dv, (edge_rows or {}).get(c), (treat_rows or {}).get(c))
+        for row, v in typed.get(c, {}).items():
+            ws.cell(row=r + row, column=VALUE_COL).value = v
         r += BLOCK
     hs.cell(row=2, column=1, value=r)                             # where the scatters start, for refresh()
     end = _scatters(wb, ws, r, table, shapes, split, [b for b in bands if b != split])
@@ -283,7 +337,22 @@ def write_look(wb, table, columns, split: str | None = None, bands=(), known: di
     ws.freeze_panes = "A2"
 
 
-def refresh(wb, table, split: str | None = None, bands=()) -> bool:
+def _typed_inputs(wb) -> dict[str, dict[int, object]]:
+    """Each block's Bars, From and To as the analyst left them, when they differ from what Look wrote: a From
+    and To still at the drawn range are left to follow the new one."""
+    if DATA not in wb.sheetnames or LOOK not in wb.sheetnames:
+        return {}
+    hs, ws, out = wb[DATA], wb[LOOK], {}
+    for i, c in enumerate(drawn_columns(wb)):
+        g, r = 2 + GROUP * i, FIRST + BLOCK * i
+        drawn = {R_BARS: DEFAULT_BARS, R_FROM: hs.cell(row=S_LO, column=g + G_VALUE).value,
+                 R_TO: hs.cell(row=S_HI, column=g + G_VALUE).value}
+        now = {k: ws.cell(row=r + k, column=VALUE_COL).value for k in drawn}
+        out[c] = {k: v for k, v in now.items() if isinstance(v, (int, float)) and v != drawn[k]}
+    return out
+
+
+def refresh(wb, table, split: str | None = None, bands=(), rules: dict | None = None) -> bool:
     """At Run, in the open workbook: the scatters again, and only when the split or the band columns differ
     from those drawn. The blocks are left as they are: their shapes can't change on the same extract. A
     workbook set up before the Look tab existed gets it at its next Set up. True when anything was redrawn."""
@@ -310,7 +379,7 @@ def refresh(wb, table, split: str | None = None, bands=()) -> bool:
             code = hs.cell(row=S_CODE, column=g + G_VALUE).value
             fmt = hs.cell(row=S_FMT, column=g + G_VALUE).value or "#,##0"
             shapes[str(name)] = Shape(str(name), 0, 0, 0, code if isinstance(code, (int, float)) else None, 0, [],
-                                      fmt)
+                                      fmt, rule=(rules or {}).get(str(name)))
     if DOTS in wb.sheetnames:
         del wb[DOTS]
     end = _scatters(wb, ws, start, table, shapes, split, bands)
@@ -394,7 +463,17 @@ def _block(ws, hs, r: int, s: Shape, g: int, dv, edge_row: int | None, treat) ->
         _line(ws, r + R_MAX, "Largest", s.values[-1], fmt=s.fmt)
     else:
         _line(ws, r + R_MIN, "No numbers to show.")
-    if s.code is not None and treat is not None and treat[1].startswith("repeated_value|"):
+    if s.marked:
+        _line(ws, r + R_MARKED, "Answered missing, left out", s.marked, s.marked / n)
+    if treat is not None and treat[1].startswith("negatives|"):
+        row = treat[0]
+        cell = f"Columns!$H${row}"
+        c = ws.cell(row=r + R_TREAT, column=STATS_COL, value=(
+            f'=IF({cell}="Missing","Answered on Columns: its negative values mean missing.",IF({cell}="Real",'
+            f'"Answered on Columns: its negative values are real.","Not answered on Columns yet (row {row}): its '
+            f'negative values are used as recorded."))'))
+        c.font = Font(name="Calibri", size=9, italic=True, color=house.SLATE)
+    elif s.code is not None and treat is not None and treat[1].startswith("repeated_value|"):
         row = treat[0]
         cell = f"Columns!$H${row}"
         c = ws.cell(row=r + R_TREAT, column=STATS_COL, value=(
@@ -609,10 +688,10 @@ def _scatters(wb, ws, r: int, table, shapes: dict[str, Shape], split: str | None
         _page(ws, r)
     ds = wb.create_sheet(DOTS) if DOTS not in wb.sheetnames else wb[DOTS]
     ds.sheet_state = "hidden"
-    ys = _readable(table, split, shapes[split].code)
+    ys = _readable(table, split, shapes[split].code, shapes[split].rule)
     for j, band in enumerate(b for b in bands if b in table.columns):
         sb = shapes.get(band) or shape_of(table, band)
-        pairs = [(x, y) for x, y in zip(_readable(table, band, sb.code), ys) if x is not None and y is not None]
+        pairs = [(x, y) for x, y in zip(_readable(table, band, sb.code, sb.rule), ys) if x is not None and y is not None]
         shown = pairs
         if len(pairs) > SAMPLE:
             # a sample keeps the workbook light; drawn with a fixed seed, so the same loans show every time
@@ -657,10 +736,10 @@ def _scatters(wb, ws, r: int, table, shapes: dict[str, Shape], split: str | None
     return r
 
 
-def _readable(table, col: str, code: float | None) -> list[float | None]:
-    """Each loan's value, None where it is blank, not a number or the code."""
+def _readable(table, col: str, code: float | None, rule=None) -> list[float | None]:
+    """Each loan's value, None where it is blank, not a number, the code or answered missing."""
     out: list[float | None] = []
     for row in table.rows:
         p = parse_number(row.get(col))
-        out.append(p if isinstance(p, float) and p != code else None)
+        out.append(p if isinstance(p, float) and p != code and not caught(p, rule) else None)
     return out

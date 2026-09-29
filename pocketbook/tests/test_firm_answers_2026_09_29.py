@@ -545,3 +545,88 @@ def test_category_split_workbook_carries_the_flag_through_every_tab(tmp_path, mo
     assert "K-group Mantel-Haenszel" in rec["Tests"]
     start = [str(v) for row in load_workbook(b)["Start here"].iter_rows(values_only=True) for v in row if v]
     assert "Split: each pocket split" in start
+
+
+# ---- Look reads the Treat as answers (at the bank, 29 Sep 2026: "This median call seems to ignore that I said the
+# -99... values that represent things missing from the bureau are treating as missing. Look into this and see if
+# this leaks elsewhere"). Look was drawn at Set up, before any answer, and a Run never drew its blocks again.
+
+def _bureau_file(tmp_path, n=1500):
+    """The synthetic book with SHORT_HIST: months of credit history, and where the bureau has none one of four
+    codes from -99,000,901, none on 1% of loans, so no one of them is "likely a code" and Columns asks about the
+    negatives, as it did at the bank."""
+    src = synth.write_extract(tmp_path, n=n)
+    rows = list(csv.DictReader(open(src, encoding="utf-8")))
+    rng = random.Random(3)
+    for i, r in enumerate(rows):
+        r["SHORT_HIST"] = -99000901 - (i // 40) % 4 if i % 40 == 0 else rng.randint(0, 435)
+    out = tmp_path / "bureau.csv"
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    return out
+
+
+def _look_block(path, column):
+    from pocketbook import look
+    wb = load_workbook(path)
+    i = look.drawn_columns(wb).index(column)
+    ws, r = wb[look.LOOK], look.FIRST + look.BLOCK * i
+    return {str(ws.cell(row=r + k, column=look.STATS_COL).value): ws.cell(row=r + k, column=look.VALUE_COL).value
+            for k in range(1, look.R_TREAT)}
+
+
+def test_look_leaves_out_what_columns_answered_missing_once_run(tmp_path, monkeypatch):
+    from pocketbook import perm
+    from test_book import _answer, treat_odd
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    monkeypatch.setattr(perm, "SHUFFLES", 200)
+    b = book.set_up(_bureau_file(tmp_path), choices=ch.Choices(
+        run_kind=ch.BLEED, bands=("FICO", "SHORT_HIST"), segments=("CHANNEL",), outcome="BAD_FLAG")).book
+    before = _look_block(b, "SHORT_HIST")
+    assert before["Smallest"] == -99000904 and before["Mean"] < 0            # unanswered: used as recorded
+    wb = load_workbook(b)
+    assert treat_odd(wb, "SHORT_HIST", "Missing")
+    wb.save(b)
+    _answer(b)                                                               # FICO's -9999 answered Missing too
+    assert book.run(b).ok
+    after = _look_block(b, "SHORT_HIST")
+    assert after["Smallest"] >= 0 and after["Largest"] <= 435 and after["Mean"] > 0
+    assert after["Answered missing, left out"] == sum(1 for i in range(1500) if i % 40 == 0)
+    fico = _look_block(b, "FICO")
+    assert fico["Smallest"] > 0 and fico["Answered missing, left out"] > 0
+    wb = load_workbook(b)
+    note = [c.value for row in wb["Look"].iter_rows() for c in row if isinstance(c.value, str)
+            and "negative values" in c.value]
+    assert note                                                              # it says what was answered
+
+
+def test_look_keeps_a_bars_from_or_to_the_analyst_typed_when_it_is_drawn_again(tmp_path, monkeypatch):
+    from pocketbook import look, perm
+    from test_book import _answer, treat_odd
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    monkeypatch.setattr(perm, "SHUFFLES", 200)
+    b = book.set_up(_bureau_file(tmp_path), choices=ch.Choices(
+        run_kind=ch.BLEED, bands=("FICO", "SHORT_HIST"), segments=("CHANNEL",), outcome="BAD_FLAG")).book
+    wb = load_workbook(b)
+    i = look.drawn_columns(wb).index("SHORT_HIST")
+    r = look.FIRST + look.BLOCK * i
+    wb[look.LOOK].cell(row=r + look.R_BARS, column=look.VALUE_COL).value = 50
+    wb[look.LOOK].cell(row=r + look.R_TO, column=look.VALUE_COL).value = 250
+    treat_odd(wb, "SHORT_HIST", "Missing")
+    wb.save(b)
+    _answer(b)
+    assert book.run(b).ok
+    got = _look_block(b, "SHORT_HIST")
+    assert got["Bars"] == 50 and got["To"] == 250
+
+
+def test_looks_dots_leave_out_what_columns_answered_missing(tmp_path):
+    """The scatters read each loan's value the same way: an answered missing is no dot, as it is no loan in a band."""
+    from pocketbook import config as cfgmod, look
+    from pocketbook.ingest import read_table
+    t = read_table(_bureau_file(tmp_path, n=400))
+    got = look._readable(t, "SHORT_HIST", None, cfgmod.MissingRule(below=0.0))
+    assert [v for v in got if v is not None] and min(v for v in got if v is not None) >= 0
+    assert sum(v is None for v in got) == sum(1 for i in range(400) if i % 40 == 0)

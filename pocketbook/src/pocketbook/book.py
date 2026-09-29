@@ -443,6 +443,13 @@ def _made_columns(table, cols, kept: dict, mem: dict):
             names.add(name)
     if not defs:
         return table, [], notes
+    made, reports = engine.derive_columns(table, defs, _odd_rules(cols, kept, mem))
+    return made, reports, notes
+
+
+def _odd_rules(cols, kept: dict, mem: dict) -> dict:
+    """Every Treat as answer of missing on Columns (this workbook's, or remembered), as the Run's rules: what
+    New columns and Look read before a Run, so neither shows a value the Run will leave out."""
     rules: dict = {}
     for c in cols:
         for q in c.questions:
@@ -454,8 +461,7 @@ def _made_columns(table, cols, kept: dict, mem: dict):
                 old = rules.get(q["column"], cfgmod.MissingRule())
                 rules[q["column"]] = cfgmod.MissingRule(below=rule.below if rule.below is not None else old.below,
                                                         above=old.above, values=old.values + rule.values)
-    made, reports = engine.derive_columns(table, defs, rules)
-    return made, reports, notes
+    return rules
 
 
 def _to_code(v: Any, cat) -> str | None:
@@ -596,7 +602,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     look.write_look(wb, table, shown, known=facts_of,
                     edge_rows=edge_rows, split=chosen_now.split if chosen_now is not None else None,
                     bands=[c for c in shown if c in banded and (cut is None or c in cut)],
-                    treat_rows=_treat_rows(ws))
+                    treat_rows=_treat_rows(ws), rules=_odd_rules(cols, kept, mem))
 
     about = wb.create_sheet(ABOUT)
     about["A1"], about["B1"] = "extract", str(extract.resolve())
@@ -1776,8 +1782,16 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     memory.remember_edges({c: typed.get(c) for c in bands_only if c not in dropped}, memory_path)
     _write_results(wb, book, res, memory_path, src, dropped, len(table.columns))
     from . import look                  # fix 3.8: the Look tab's scatters, only when the split or the bands moved
-    look.refresh(wb, res.table or table, res.config.split and res.config.split[0],
-                 [b.field for b in res.config.bands])
+    split_col, band_cols = res.config.split and res.config.split[0], [b.field for b in res.config.bands]
+    if look.answers_moved(wb, res.config.missing):
+        # a Treat as answer changed since Look was drawn (at the bank, 29 Sep 2026: a -99,000,901 answered missing
+        # still set Look's smallest and mean): the blocks are drawn again from what the Run reads
+        look.write_look(wb, res.table or table, look.drawn_columns(wb), split=split_col, bands=band_cols,
+                        edge_rows={str(r[C_NAME - 1].value): r[0].row for r in table_rows(wb["Columns"])
+                                   if r[C_NAME - 1].value},
+                        treat_rows=_treat_rows(wb["Columns"]), rules=res.config.missing, keep_inputs=True)
+    else:
+        look.refresh(wb, res.table or table, split_col, band_cols, rules=res.config.missing)
     summary = _headline(res, wb)
     _log(wb, [_ran_on(res, src) + _ran_words(res)]
          + scout_tab.log_lines(res)             # Goal 2 item 9: what scouting wrote, before any held-back result
