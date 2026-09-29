@@ -1088,6 +1088,15 @@ muts = [
   '    # title is out of place"); "The bars" above the charts says they count loans\n',
   '    # title is out of place"); "The bars" above the charts says they count loans\n    ch.y_axis.title = "Loans"\n',
   "axis_title"),
+ ("a Net drain dot drawn green", RS, 'good = f\'OR({tog}="{GOOD_TOGETHER[0]}",{tog}="{GOOD_TOGETHER[1]}")\'',
+  'good = f\'OR({tog}="{GOOD_TOGETHER[0]}",{tog}="{GOOD_TOGETHER[1]}",{tog}="{BAD_TOGETHER[0]}")\'',
+  "colours_by_verdict"),
+ ("the red and green dots not drawn", RS, '        chart.series.append(dots)\n', '        pass\n', "colours_by_verdict"),
+ ("the pocket's whole name on the chart again", RS,
+  "one.tx = SeriesLabel(strRef=StrRef(f\"'{CHART}'!${col(H_NUM)}${rr}\"))",
+  "one.tx = SeriesLabel(strRef=StrRef(f\"'{CHART}'!${col(H_NAME)}${rr}\"))", "colours_by_verdict"),
+ ("no list of the numbered pockets", RS, '    for k in range(min(LABELLED, n)):\n        _cell(ws, below + 1 + k,',
+  '    for k in range(0):\n        _cell(ws, below + 1 + k,', "colours_by_verdict"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
