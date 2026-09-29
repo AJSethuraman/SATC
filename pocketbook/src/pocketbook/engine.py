@@ -40,6 +40,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import perm, stats
+from .choices import SPLIT_MOST_VALUES, too_many_values  # noqa: F401  (SPLIT_MOST_VALUES: the tabs say it)
 from .config import EACH_LOAN, PERIOD_WORDS, PROFIT, Band, Config, Dimension, Measure, MissingRule
 from .ingest import BLANK, Bad, Table, cell_text, is_blank, parse_number
 
@@ -481,6 +482,14 @@ class Grid:
     split_pooled: dict[str, dict] = field(default_factory=dict)
     # per measure, the pockets whose halves both clear the floors: the only ones compared or pooled
     split_tested: dict[str, list] = field(default_factory=dict, repr=False)
+    # a split by a category: each value set against the rest of its pocket (the other values together), keyed by
+    # the value, each as split_compare, split_pooled and split_tested are for the halves
+    split_parts: list[str] = field(default_factory=list)
+    part_compare: dict[str, dict] = field(default_factory=dict)
+    part_pooled: dict[str, dict] = field(default_factory=dict)
+    part_tested: dict[str, dict] = field(default_factory=dict, repr=False)
+    # and, for a yes/no per loan, whether the values differ at all, pooled over the pockets (B3, on K - 1 df)
+    split_general: dict[str, dict] = field(default_factory=dict)
 
     def cell(self, band_label: str, dim_label: str) -> Cell:
         return self.cells[(band_label, dim_label)]
@@ -871,12 +880,15 @@ def run(config: Config, table: Table) -> Result:
             split_vals = [classify_number(raw, rules.get(sfield))[0] for raw in col(sfield)]
     grids, three_way = [], []
     built: list[tuple[Grid, str, list]] = []           # every grid, its band, and each row's pocket
-    halved: list[tuple[Grid, list, list]] = []         # grids split at each pocket's own median, and the labels
+    # every grid whose pockets are split in two sides and compared: the halves, or each value against the rest
+    halved: list[tuple[Grid, list, list]] = []
     tie_outs = 0
     # a test of a new variable builds no bleed analysis (OC-42; the firm, 26 Sep 2026: "They have entirely
     # different outputs generally"): no grid, no three-way or split grid, no shuffle test. The bands are still
     # cut above, since the pre-spec's strata are read in them (confirmatory._stratum_labels)
     bleed = config.run_kind != "new_variable"
+    if bleed and split_vals is not None and config.split[1] == "each_value":
+        _few_enough(config.split[0], split_vals)
     for b in config.bands if bleed else ():
         for d in config.dimensions:
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
@@ -884,8 +896,7 @@ def run(config: Config, table: Table) -> Result:
             built.append((grid, b.name, list(zip(bands[b.name], dims[d.name]))))
             if split_vals is not None:
                 labels = _split(grid, config, bands[b.name], dims[d.name], split_vals, measures, per_row)
-                if config.split[1] == "own_median":
-                    halved.append((grid, list(zip(bands[b.name], dims[d.name])), labels))
+                halved.append((grid, list(zip(bands[b.name], dims[d.name])), _sides(grid, config, labels)))
                 # the three-way pockets go through the same machinery as any pocket: tested, flagged,
                 # given dollars and tied out (OC-27; the third walk, defect 3: they were pictures only)
                 sfield = config.split[0]
@@ -1242,16 +1253,18 @@ def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
                 s.stats[(len(s.layouts) - 1, m.name)] = perm.RestGap()
         placed.append((grid, len(book.layouts) - 1, sb, len(sb.layouts) - 1))
     halves = []
-    for grid, keys, labels in halved:
+    for grid, keys, sets in halved:
+        # one structure per grid, shuffled within each pocket; one layout per comparison: the halves, or each
+        # value against the rest of its pocket (side 0 is pocket 2g, side 1 is 2g + 1)
         ids = {k: i for i, (k, _) in enumerate(grid.inner())}
-        group = [ids[k] if lab in (HIGH, LOW) else None for k, lab in zip(keys, labels)]
-        lay = [2 * g + (0 if lab == HIGH else 1) if g is not None else -1 for g, lab in zip(group, labels)]
-        s = perm.Structure(f"halves of {grid.band} x {grid.dimension}", group, [lay])
-        for m in dollar:
-            tested = {ids[k] for k in grid.split_tested.get(m.name, [])}
-            s.stats[(0, m.name)] = perm.HalfGap(pooled=tested)
-        halves.append((grid, s, ids))
-    perm.run(n, columns, [book, *bands.values(), *(s for _, s, _ in halves)], bench.shuffles,
+        group = [ids[k] if any(sides[i] is not None for sides, *_ in sets) else None for i, k in enumerate(keys)]
+        s = perm.Structure(f"halves of {grid.band} x {grid.dimension}", group, [])
+        for li, (sides, _, _, tested) in enumerate(sets):
+            s.layouts.append([2 * g + sd if g is not None and sd is not None else -1 for g, sd in zip(group, sides)])
+            for m in dollar:
+                s.stats[(li, m.name)] = perm.HalfGap(pooled={ids[k] for k in tested.get(m.name, [])})
+        halves.append((s, ids, sets))
+    perm.run(n, columns, [book, *bands.values(), *(s for s, _, _ in halves)], bench.shuffles,
              perm.seed_of("one order per shuffle, shared by every test in the run"))
     for grid, bi, sb, si in placed:
         for m in dollar:
@@ -1265,17 +1278,18 @@ def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
                     s.p_band, s.hits_band = got_band[i].p, got_band[i].hits
                 if s.p_book is None and s.p_band is None:
                     s.test = None           # nothing could be shuffled for this pocket (the adversarial pass)
-    for grid, s, ids in halves:
-        for m in dollar:
-            st = s.stats[(0, m.name)]
-            for k in grid.split_tested.get(m.name, []):
-                got = st.answers.get(ids[k])
-                idx, _, nh, nl = grid.split_compare[k][m.name]
-                grid.split_compare[k][m.name] = (idx, got.p if got else None, nh, nl)
-            pooled = grid.split_pooled.get(m.name)
-            if pooled is not None and ("ratio" in pooled or "gap" in pooled) and st.pooled is not None:
-                pooled["ratio_p"], pooled["ratio_hits"], pooled["shuffles"] = (st.pooled.p, st.pooled.hits,
-                                                                              st.pooled.shuffles)
+    for s, ids, sets in halves:
+        for li, (_, compare, pooled_by, tested) in enumerate(sets):
+            for m in dollar:
+                st = s.stats[(li, m.name)]
+                for k in tested.get(m.name, []):
+                    got = st.answers.get(ids[k])
+                    idx, _, nh, nl = compare[k][m.name]
+                    compare[k][m.name] = (idx, got.p if got else None, nh, nl)
+                pooled = pooled_by.get(m.name)
+                if pooled is not None and ("ratio" in pooled or "gap" in pooled) and st.pooled is not None:
+                    pooled["ratio_p"], pooled["ratio_hits"], pooled["shuffles"] = (st.pooled.p, st.pooled.hits,
+                                                                                  st.pooled.shuffles)
 
 
 # --------------------------------------------------------------------------
@@ -1313,7 +1327,74 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
     grid.split_labels = order
     grid.split_cells = cells3
     if how != "own_median":
+        _by_value(grid, config, cells3, order, measures)
         return labels
+    grid.split_compare, grid.split_pooled, grid.split_tested = _compare(
+        grid, lambda b, d: (cells3.get((b, d, HIGH)), cells3.get((b, d, LOW))), config, measures)
+    return labels
+
+
+def _by_value(grid: Grid, config: Config, cells3, order, measures) -> None:
+    """A split by a category: each value of it set against the rest of its pocket (every other value there,
+    together), by the same comparison the halves get, so with two values it is one against the other. And for a
+    yes/no per loan, whether the values differ at all, pooled over the pockets: B3, the K-group Mantel-Haenszel
+    statistic on K - 1 degrees of freedom (docs/statistics.md; kgroups.association), which with two values is
+    the Cochran-Mantel-Haenszel test the halves get. No pocket is left out of it for being small (B3's rule)."""
+    parts = list(order)
+    grid.split_parts = parts
+    rest: dict[tuple, Cell] = {}
+    for (b, d), _ in grid.inner():
+        here = {p: cells3[(b, d, p)] for p in parts if (b, d, p) in cells3}
+        for p in here:
+            others = [c for q, c in here.items() if q != p]
+            if others:
+                rest[(b, d, p)] = _merge(others, measures)
+    for p in parts:
+        grid.part_compare[p], grid.part_pooled[p], grid.part_tested[p] = _compare(
+            grid, lambda b, d, p=p: (cells3.get((b, d, p)), rest.get((b, d, p))), config, measures)
+    if len(parts) < 2:
+        return
+    from . import kgroups
+    for m in measures:
+        if not (m.is_rate and yes_no(m)):
+            continue
+        pockets = [kgroups.Pocket([cells3[(b, d, p)].rates[m.name].units if (b, d, p) in cells3 else 0
+                                   for p in parts],
+                                  [cells3[(b, d, p)].rates[m.name].events if (b, d, p) in cells3 else 0
+                                   for p in parts]) for (b, d), _ in grid.inner()]
+        try:
+            a = kgroups.association(pockets, range(1, len(parts) + 1))
+        except Exception:                   # a singular variance: no statistic, never a made-up one
+            continue
+        if a.p_general is not None:
+            grid.split_general[m.name] = {"q": a.general, "df": a.df, "p": a.p_general, "pockets": a.pockets}
+
+
+def _few_enough(field_: str, labels) -> None:
+    """A category splits every pocket by each of its values, so a column with many values cuts each pocket into
+    parts too thin to read: refused, said in words, never run."""
+    said = too_many_values(field_, len({v for v in labels if v not in (BLANK_LABEL, MISSING_RULE_LABEL)}))
+    if said:
+        raise DataRefused(said)
+
+
+def _sides(grid: Grid, config: Config, labels) -> list[tuple]:
+    """Each comparison a split makes, for the shuffle test: each row's side (0 or 1, None when it is in neither)
+    and where its figures go. The halves are one comparison; a category makes one per value."""
+    if config.split[1] == "own_median":
+        return [([0 if lab == HIGH else 1 if lab == LOW else None for lab in labels], grid.split_compare,
+                 grid.split_pooled, grid.split_tested)]
+    return [([0 if lab == p else 1 for lab in labels], grid.part_compare[p], grid.part_pooled[p],
+             grid.part_tested[p]) for p in grid.split_parts]
+
+
+def _compare(grid: Grid, sides, config: Config, measures) -> tuple[dict, dict, dict]:
+    """Two sides of every pocket compared, pocket by pocket and pooled: the high half against the low, or one
+    value against the rest of its pocket. `sides(b, d)` gives the two cells. Returns what split_compare,
+    split_pooled and split_tested hold."""
+    compare: dict = {}
+    pooled_by: dict = {}
+    tested_by: dict = {}
     bench = config.benchmark
     floor = bench.min_units if bench else 2
     min_events = bench.min_events if bench else 0
@@ -1321,9 +1402,9 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
         if not m.is_rate:
             continue
         strata, o_sum, e_sum, v_sum, pockets, high_worse, high_den = [], 0.0, 0.0, 0.0, 0, 0, 0.0
-        tested = grid.split_tested.setdefault(m.name, [])
+        tested = tested_by.setdefault(m.name, [])
         for (b, d), _ in grid.inner():
-            h, lo = cells3.get((b, d, HIGH)), cells3.get((b, d, LOW))
+            h, lo = sides(b, d)
             if h is None or lo is None:
                 continue
             sh, sl = h.rates[m.name], lo.rates[m.name]
@@ -1332,13 +1413,13 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             thin = sh.units < floor or sl.units < floor or sl.rate is None or sh.rate is None
             few = m.higher_is == "worse" and sh.events + sl.events < min_events
             if thin or few:
-                grid.split_compare.setdefault((b, d), {})[m.name] = (None, None, sh.units, sl.units)
+                compare.setdefault((b, d), {})[m.name] = (None, None, sh.units, sl.units)
                 continue
             # profit: the high half's rate less the low half's, in points, never a multiple (NEXT-GOAL 3.2)
             idx = sh.rate - sl.rate if m.in_points else stats.multiple(sh.rate, sl.rate)
             # a yes/no per loan: A1, pooled; a dollar rate's p comes from the shuffle test
             p = stats.two_prop_z(sh.num, sh.units, sl.num, sl.units)[1] if yes_no(m) else None
-            grid.split_compare.setdefault((b, d), {})[m.name] = (idx, p, sh.units, sl.units)
+            compare.setdefault((b, d), {})[m.name] = (idx, p, sh.units, sl.units)
             tested.append((b, d))
             pockets += 1
             # a high half with losses against a low half with none has no multiple, and is worse
@@ -1382,8 +1463,8 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             orr, lo_ci, hi_ci = stats.mantel_haenszel(strata, z)
             out.update({"odds": orr, "odds_lo": lo_ci, "odds_hi": hi_ci, "odds_p": stats.cmh_p(strata)})
             out["steady_p"], out["steady_pockets"] = stats.steadiness_p(strata, orr)
-        grid.split_pooled[m.name] = out
-    return labels
+        pooled_by[m.name] = out
+    return compare, pooled_by, tested_by
 
 
 def _finish_split(grid: Grid, config: Config, measures) -> None:
@@ -1401,6 +1482,19 @@ def _finish_split(grid: Grid, config: Config, measures) -> None:
             for k, p in zip(keys, adj):
                 idx, _, nh, nl = grid.split_compare[k][m.name]
                 grid.split_compare[k][m.name] = (idx, p, nh, nl)
+        if bench is not None and grid.split_parts:
+            # a category: every value's pockets are one family, so a column with more values pays for more tests;
+            # and each pooled figure is a family across the values, one test per value
+            keys = [(v, k) for v in grid.split_parts for k, got in grid.part_compare[v].items()
+                    if m.name in got and got[m.name][1] is not None]
+            adj = adjust([grid.part_compare[v][k][m.name][1] for v, k in keys], bench.many_tests)
+            for (v, k), p in zip(keys, adj):
+                idx, _, nh, nl = grid.part_compare[v][k][m.name]
+                grid.part_compare[v][k][m.name] = (idx, p, nh, nl)
+            for what in ("ratio_p", "odds_p", "steady_p"):
+                vs = [v for v in grid.split_parts if grid.part_pooled[v].get(m.name, {}).get(what) is not None]
+                for v, p in zip(vs, adjust([grid.part_pooled[v][m.name][what] for v in vs], bench.many_tests)):
+                    grid.part_pooled[v][m.name][what] = p
 
 
 # --------------------------------------------------------------------------

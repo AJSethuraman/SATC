@@ -155,6 +155,11 @@ def families(res) -> list[tuple[str, str, str, str, int]]:
             k = sum(1 for got in g.split_compare.values() if m.name in got and got[m.name][1] is not None)
             if k:
                 out.append(("split halves", f"{g.band} x {g.dimension}", m.name, "the other half", k))
+            # a category split: every value against the rest of its pocket, one family per grid and rate
+            k = sum(1 for v in g.split_parts for got in g.part_compare.get(v, {}).values()
+                    if m.name in got and got[m.name][1] is not None)
+            if k:
+                out.append(("split values", f"{g.band} x {g.dimension}", m.name, "the rest of its pocket", k))
     return out
 
 
@@ -167,7 +172,7 @@ def family_rows(res) -> list[tuple[str, str]]:
     if not n:
         return [("Families of tests", "none: nothing was tested")]
     parts = []
-    for kind in ("grids", "three-way grids", "split halves"):
+    for kind in ("grids", "three-way grids", "split halves", "split values"):
         mine = [f for f in fam if f[0] == kind]
         if not mine:
             continue
@@ -177,11 +182,15 @@ def family_rows(res) -> list[tuple[str, str]]:
             parts.append(f"{len(mine):,} on the {kind}")
         elif kind == "split halves":
             parts.append(f"{grids} x {_n(r, 'rate')} for the split's halves")
+        elif kind == "split values":
+            parts.append(f"{grids} x {_n(r, 'rate')} for the split's values, every value in one family")
         else:
             parts.append(f"{grids} x {_n(r, 'rate')} x {_n(c, 'comparison')}")
+    other = ("each value against the rest of its pocket" if any(f[0] == "split values" for f in fam)
+             else "the other half")
     out = [("Families of tests", f"{n:,}, holding {tests:,} tests: {'; '.join(parts)}. A family is one grid, one "
                                  f"rate and one comparison (against the rest of the book, the rest of its band, "
-                                 f"or the other half).")]
+                                 f"or {other}).")]
     if b.many_tests == "none":
         out.append(("Reading a single red", f"No allowance for many tests is in use, so each of the {tests:,} tests "
                                             f"stands alone: a single red among them is weak evidence."))
