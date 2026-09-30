@@ -947,7 +947,10 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
     return replace(config, bands=keep_b, dimensions=keep_d)
 
 
-def run(config: Config, table: Table) -> Result:
+def run(config: Config, table: Table, progress=None) -> Result:
+    """`progress`, when given, is told "Cutting bands" and "Running the shuffle test" as each starts (the launcher's
+    progress line, 30 Sep 2026)."""
+    say = progress or (lambda stage: None)
     warnings: list[str] = []
     table, derived = derive(config, table, warnings)
     table = with_year(config, table)
@@ -978,6 +981,7 @@ def run(config: Config, table: Table) -> Result:
     band_edges: dict[str, tuple[float, ...]] = {}
     band_label_sets: dict[str, list[str]] = {}
     value_bands: dict[str, tuple[float, ...]] = {}
+    say("Cutting bands")
     for b in config.bands:
         read = [classify_number(raw, rules.get(b.field)) for raw in col(b.field)]
         seen = [v for v, why in read if why is None]
@@ -1149,6 +1153,7 @@ def run(config: Config, table: Table) -> Result:
     # the dollar rates' shuffle test (B2), one random order per shuffle for every grid at once; then the
     # allowance for many tests and the words, which need every p-value in
     if bleed:
+        say("Running the shuffle test")
         _shuffle_tests(config, measures, per_row, n, built, halved)
     for g, _, _ in built:
         _judge(g, config, measures, min_units, materiality_line)

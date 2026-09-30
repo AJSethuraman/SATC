@@ -239,25 +239,26 @@ def test_all_and_none_for_the_bleeds_bands_and_segments_leave_the_split_alone(tm
     assert f.split == "REV_DEBT"
 
 
-def test_columns_hides_what_the_launcher_didnt_pick_and_asks_nothing_about_it(tmp_path, monkeypatch):
+def test_columns_asks_nothing_about_what_the_launcher_didnt_pick(tmp_path, monkeypatch):
+    """29 Sep 2026 these rows were hidden; from 30 Sep they are shown greyed (test_columns_launcher_2026_09_30)."""
     monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
     x = synth.write_extract(tmp_path, n=1500)
     picked = ch.Choices(run_kind=ch.BLEED, bands=("ORIG_BAL",), segments=("CHANNEL",), outcome="BAD_FLAG")
     out = book.set_up(x, choices=picked)
     ws = load_workbook(out.book)["Columns"]
     rows = {r[book.C_NAME - 1].value: r for r in book.table_rows(ws) if r[book.C_NAME - 1].value}
-    hidden = {n for n, r in rows.items() if ws.row_dimensions[r[0].row].hidden}
-    assert "FICO" in hidden and "ASSET_CLASS" in hidden and "REV_DEBT" in hidden
-    assert not hidden & {"LOAN_NBR", "ORIG_BAL", "CHANNEL", "BAD_FLAG", "GCO_AMT", "RANR_AMT"}
+    unused = {n for n, r in rows.items() if str(r[book.C_LOOK - 1].value or "").startswith(book.NOT_USED)}
+    assert "FICO" in unused and "ASSET_CLASS" in unused and "REV_DEBT" in unused
+    assert not unused & {"LOAN_NBR", "ORIG_BAL", "CHANNEL", "BAD_FLAG", "GCO_AMT", "RANR_AMT"}
     keys = [r[book.C_QKEY - 1].value for r in ws.iter_rows(min_row=book.COL_FIRST) if len(r) >= book.C_QKEY]
     assert not [k for k in keys if k and str(k).startswith("FICO|")]  # FICO's -9999 isn't asked about
-    assert f"{len(hidden)} not picked in the launcher are hidden" in ws["D3"].value
+    assert book.UNUSED_NOTE.format(len(unused)) in ws["D3"].value
     _answer(out.book)
     _, problems, _ = book.read_book(out.book)
     assert not problems, problems
     # nothing picked (Set up without the launcher): every column shows, and FICO's code is asked about again
     ws = load_workbook(book.set_up(x).book)["Columns"]
-    assert not any(ws.row_dimensions[r[0].row].hidden for r in book.table_rows(ws))
+    assert not any(str(r[book.C_LOOK - 1].value or "").startswith(book.NOT_USED) for r in book.table_rows(ws))
     keys = [r[book.C_QKEY - 1].value for r in ws.iter_rows(min_row=book.COL_FIRST) if len(r) >= book.C_QKEY]
     assert [k for k in keys if k and str(k).startswith("FICO|")]
 

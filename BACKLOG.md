@@ -2726,6 +2726,31 @@ changed in the code.
     lines by the larger filter leave a slot empty, drawn blank on the same scale. With a filter across the bottom
     the lines are by the other filter and there is one chart. (no date) and (blank) are lines or panels but never
     a place across.
+- **Built, 30 Sep 2026: Columns shows every column, the wheel never errors, a progress line** (branch
+  `pocketbook-columns-launcher`). The firm: *"for some reason in my testing it is hiding random rows from the
+  columns tab which makes it hard to make sure it's right"*; a wheel scroll at the bank raised *"_tkinter.TclError:
+  invalid command name ".!frame2.!frame3.!frame100.!frame3.!canvas""*; and *"it seemed pocketbook hanging and it
+  didn't before"*.
+  - **Columns** no longer hides the columns the launcher didn't pick (29 Sep's change). They are shown greyed
+    (CANVAS, SLATE text) and Check first opens *Not used this Run.*; D3 says how many. Still nothing asked about
+    them and nothing counted. Check first's shading leaves that note alone.
+  - **The wheel** is bound once, to whichever table is on screen (Choose tests, or the answers list), and does
+    nothing once that page has gone. It was bound to Choose tests' own canvas and outlived it. X11's Button-4/5 too.
+  - **Progress line**: under a busy page, the stage and the time since the button was pressed, e.g. *Running the
+    shuffle test… 1 min 40 s*, updated ten times a second. `book.set_up` and `book.run` take `progress(stage)`
+    (a no-op by default) and call it at their stage boundaries; `engine.run` says *Cutting bands* and *Running the
+    shuffle test*. The work already ran in a thread; the line is what shows it hasn't hung. Picture:
+    `pocketbook/docs/columns-launcher-2026-09-30/run-progress-line.png` (synthetic, xvfb).
+  - **openpyxl's warnings** about Excel's extension blocks (*Data Validation extension…*, *Conditional Formatting
+    extension…*) are filtered on every read of a workbook or an .xlsx extract (`excel_lists.quiet`/`hushed`).
+    Checked: the tabs a Run keeps (Control, Columns, Look, and Start here, which it redraws) have no shading rule
+    that reads another sheet, so Excel has nothing of theirs to move into that block. Grids has four; every Run
+    deletes and redraws Grids, so they come back. Until the next Run, a Set up or a refused Run on a workbook Excel
+    saved leaves Grids without those four.
+  - Tests: 7 in `tests/test_columns_launcher_2026_09_30.py` (one on a display); 1 in
+    `test_firm_answers_2026_09_29.py` and 1 in `test_answer_tabs.py` updated. Planted bugs: 6 added, 3 repointed, 9 of 9 caught (under xvfb; the wheel's and
+    the progress line's need a display). The nine files the change touches: 168 passed, 1 failed for
+    scikit-learn not being installed here.
 
 ## 7 · Standing rules for new items
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import posixpath
 import warnings
+from contextlib import contextmanager
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -36,11 +37,31 @@ FLAGS = {"allowBlank": "allow_blank", "showErrorMessage": "showErrorMessage",
 TEXTS = ("type", "operator", "errorStyle", "errorTitle", "error", "promptTitle", "prompt")
 
 
+#: what openpyxl prints for each of Excel's extension blocks it can't keep: said on every read of a workbook Excel
+#: has saved, to a window nobody can act on (the firm, 30 Sep 2026). The dropdowns are put back by `load`; the
+#: conditional formats PocketBook draws are all drawn again by the Set up or Run that saves the workbook
+QUIET = ("Data Validation extension is not supported", "Conditional Formatting extension is not supported")
+
+
+@contextmanager
+def hushed():
+    """Without openpyxl's two warnings about Excel's extension blocks, and nothing else. A read-only workbook reads
+    each sheet as it is walked, so its warnings come then, not at the load: the walk goes inside this too."""
+    with warnings.catch_warnings():
+        for said in QUIET:
+            warnings.filterwarnings("ignore", message=said)
+        yield
+
+
+def quiet(path, **kw):
+    """load_workbook, without openpyxl's two warnings about Excel's extension blocks."""
+    with hushed():
+        return load_workbook(path, **kw)
+
+
 def load(path, **kw):
     """load_workbook, with the dropdowns Excel kept in its extension block put back."""
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="Data Validation extension is not supported")
-        wb = load_workbook(path, **kw)
+    wb = quiet(path, **kw)
     if kw.get("read_only"):
         return wb
     for sheet, dvs in extended(path).items():
