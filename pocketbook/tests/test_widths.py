@@ -306,3 +306,28 @@ def test_worse_and_together_fit_the_borderline_flag(runs, kind):
     assert _width(wb[results.POCKETS], results.K_WORSE) >= len(worse)
     longest = max(len(f"{t} · {stats.borderline_words(0.048, 0.95)}") for t in results.TOGETHER.values())
     assert _width(wb[results.PCK], results.C_TOG) >= longest
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_the_evening_tie_outs_clipped_cells_now_fit(runs, kind):
+    """The evening tie-out (30 Sep 2026) measured four cells cut short: Split's "borderline (p 0.054)" in a column of
+    13, Start here's "ASSET_CLASS 4 · borderline (p 0.036)" in 16, Look's "50th percentile (P50), the median" at
+    0.9 of a unit a character, and a range such as "1.82x to 3.04x" on New variables in 12."""
+    from pocketbook import look, stats
+    wb = runs[kind]["wb"]
+    words = stats.borderline_words(0.054, 0.95)
+    if results.SPLIT in wb.sheetnames and runs[kind]["res"].config.split:
+        ws = wb[results.SPLIT]
+        data = [ws.column_dimensions[get_column_letter(c)].width for c in range(10, 13)]
+        assert min(w for w in data if w) >= len(words) + 2
+    from pocketbook import book as bk
+    segs = [str(r[bk.TOP_SEG - 1]) for r in wb[bk.FOUND].iter_rows(values_only=True) if r and r[0] == "top"
+            and r[bk.TOP_SEG - 1]] if bk.FOUND in wb.sheetnames else []
+    if segs:
+        assert _width(wb["Start here"], 3) >= min(44, max(len(f"{s} · {words}") for s in segs) + 3)
+    assert _width(wb[look.LOOK], 2) >= len("50th percentile (P50), the median") + 2
+
+
+def test_new_variables_ranges_fit():
+    from pocketbook import confirm_tab as ct
+    assert ct.WIDTHS[ct.N_CG] >= len("1.82x to 3.04x") + 2 and ct.WIDTHS[ct.N_HG] >= len("1.82x to 3.04x") + 2

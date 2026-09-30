@@ -1826,6 +1826,10 @@ def split_widths(res, shown, ms, by_value: bool, left: int, right: int, last: in
     vals[7] = vals[9] = ["under 0.01%", "borderline (p 0.048)"]      # the borderline flag's words, too
     cols = [str(d) for _, g, _c, _p, *_se in shown for d in g.dim_labels]
     dw = min(DATA_CAP, max([SPLIT_FLOOR] + [house.two_line_width(c) + 2 for c in cols]))
+    from . import book as bk
+    if bk._has_dollar_rates(res):
+        # a shuffled p-value can print "borderline (p 0.054)" in a grid's cell (the evening tie-out, 30 Sep)
+        dw = max(dw, len(stats.borderline_words(0.054, 0.95)) + 2)
     lw = house.fit([str(b) for _, g, _c, _p, *_se in shown for b in g.band_labels] + [plain(m) for m in ms]
                    + ["Measure", "(marked missing)"], floor=LABEL_FLOOR, cap=LABEL_CAP, pad=3)
     widths = {c: dw for c in range(2, last + 1)}

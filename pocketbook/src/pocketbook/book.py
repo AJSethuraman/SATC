@@ -917,7 +917,9 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
     tops = [r for r in wb[FOUND].iter_rows(values_only=True) if r and r[0] == "top"] if FOUND in wb.sheetnames \
         else []
     b_w = house.fit(["Largest, worse and material"] + [r[TOP_BAND - 1] for r in tops], floor=22, cap=32)
-    c_w = house.fit([r[TOP_SEG - 1] for r in tops], floor=16, cap=32, pad=3)
+    # a segment can carry the borderline flag ("ASSET_CLASS 4 · borderline (p 0.036)", the evening tie-out, 30 Sep)
+    c_w = house.fit([r[TOP_SEG - 1] for r in tops] + [f"{r[TOP_SEG - 1]} · {stats.borderline_words(0.048, 0.95)}"
+                                                     for r in tops if r[TOP_SEG - 1]], floor=16, cap=44, pad=3)
     for col, w in zip("ABCDEFGHI", (2, b_w, c_w, 12, 18, 21, 16, 16, 22)):
         ws.column_dimensions[col].width = w
     stamp = _found_value(wb, "stamp")

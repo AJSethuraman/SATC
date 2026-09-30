@@ -483,7 +483,8 @@ LOOK_PER_CHAR = 0.9
 def label_width(shapes) -> float:
     """Look's B: the longest stat label + 2 (L1)."""
     codes = [f"At {_plain(s.code)}, likely a code" for s in shapes if s.code is not None]
-    return house.fit(list(STAT_LABELS) + codes, floor=20, cap=40, per_char=LOOK_PER_CHAR)
+    # one width unit a character: at 0.9 "50th percentile (P50), the median" was cut short (the evening tie-out)
+    return house.fit(list(STAT_LABELS) + codes, floor=20, cap=40)
 
 
 def value_width(shapes) -> float:

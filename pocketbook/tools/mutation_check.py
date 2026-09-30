@@ -1267,7 +1267,7 @@ muts = [
  ("pockets segment column fixed", RS, 'K_SEG: max(lw["seg"],', 'K_SEG: max(20,', "segment_and_band_columns_fit"),
  ("split's right label its own width", RS, "widths[left] = widths[right] = lw", "widths[left] = lw",
   "split_grids_share"),
- ("look labels back to 26", LK, "return house.fit(list(STAT_LABELS) + codes, floor=20, cap=40, per_char=LOOK_PER_CHAR)",
+ ("look labels back to 26", LK, "return house.fit(list(STAT_LABELS) + codes, floor=20, cap=40)",
   "return 26", "look_labels_fit"),
  ("Together too narrow for the borderline flag", RS, '                                  floor=28, cap=56), 12: 3})',
   '                                  floor=28, cap=28), 12: 3})', "fit_the_borderline"),
@@ -1308,6 +1308,11 @@ muts = [
   '                           None, split)', "filter_by_grids_widths"),
  ("a band between whole numbers labelled one short", E, '            return math.ceil(round(x / step, 9)) * step if whole else x',
   '            return x', "labelled_by_the_values_it_holds"),
+ ("Split's cells too narrow for the borderline flag", RS, '        dw = max(dw, len(stats.borderline_words(0.054, 0.95)) + 2)',
+  '        pass', "clipped_cells_now_fit"),
+ ("Start here's segment too narrow for the borderline flag", B,
+  "for r in tops if r[TOP_SEG - 1]], floor=16, cap=44, pad=3)", "for r in tops if False], floor=16, cap=44, pad=3)",
+  "clipped_cells_now_fit"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
