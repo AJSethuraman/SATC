@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import math
 import re
 from dataclasses import dataclass
@@ -56,7 +57,9 @@ def read_table(path: str | Path, sheet: str | None = None) -> Table:
     digest = hashlib.sha256(data).hexdigest()
     if p.suffix.lower() in (".xlsx", ".xlsm"):
         import openpyxl
-        wb = openpyxl.load_workbook(p, read_only=True, data_only=True)
+        # from the bytes already read, never the file again (the bank, 30 Sep 2026: the extract sits in a OneDrive
+        # folder, where every read of the file is another trip through the sync client and the virus scanner)
+        wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
         ws = wb[sheet] if sheet else wb.worksheets[0]
         it = ws.iter_rows(values_only=True)
         header = next(it, None)

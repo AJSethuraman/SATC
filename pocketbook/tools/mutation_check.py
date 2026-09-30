@@ -1509,6 +1509,19 @@ muts = [
   '                sfx, title = "", live.q(BOOK_LINE)',
   '                sfx, title = f\'&IF({PV(p)}="","",{live.q("|and ")}&{PV(p)})\', live.q(BOOK_LINE)',
   "one_scale"),
+ # 30 Sep 2026: where a Run's time goes, and what the workbook costs Excel to open (tests/test_speed_2026_09_30.py)
+ ("a stage timed twice keeps only its last part", "src/pocketbook/timing.py",
+  "            self.seconds[self._stage] += now - self._at", "            self.seconds[self._stage] = now - self._at",
+  "clock_adds"),
+ ("whole columns of the Run's tables left whole", "src/pocketbook/bounds.py",
+  "    last = {t: max(wb[t].max_row, 1) for t in TABLES if t in wb.sheetnames}", "    last = {}",
+  "no_offset_and_no_whole_column"),
+ ("Look's lines topped at the first slot, not the tallest bar", LK,
+  'S_TALL: ("tallest bar", f"=MAX(${L(G_SLOT)}${DATA_TOP}:${L(G_SLOT)}${DATA_TOP + SLOTS - 1})")',
+  'S_TALL: ("tallest bar", f"=MAX(${L(G_SLOT)}${DATA_TOP}:${L(G_SLOT)}${DATA_TOP})")', "tallest_bar_is_the_tallest"),
+ ("an xlsx extract opened from the file again", I,
+  "        wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)",
+  "        wb = openpyxl.load_workbook(p, read_only=True, data_only=True)", "read_from_the_bytes_already_read"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

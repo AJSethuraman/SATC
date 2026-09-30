@@ -1540,9 +1540,11 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     RL, CL, H2 = hid + 7, hid + 8, hid + 9
     RN, CN = f"${col(H2)}${s}", f"${col(H2)}${s + 1}"
     first_row, first_col = _first_pocket(res, ms)
-    R = dropdown(ws, s, at_row, "Row", f"OFFSET(${col(RL)}${s},0,0,MAX(1,{RN}),1)", first_row)
+    # each list its first MAX(1, count) labels: INDEX:INDEX, not OFFSET, which Excel works out again on every change
+    # anywhere (the firm, 30 Sep 2026: the workbook "takes quite some time to open")
+    R = dropdown(ws, s, at_row, "Row", _first_n(RL, s, nr, RN), first_row)
     ws.merge_cells(start_row=s, start_column=at_row, end_row=s, end_column=at_row + 2)
-    C = dropdown(ws, s, at_row + 4, "Column", f"OFFSET(${col(CL)}${s},0,0,MAX(1,{CN}),1)", first_col)
+    C = dropdown(ws, s, at_row + 4, "Column", _first_n(CL, s, nc, CN), first_col)
     ws.merge_cells(start_row=s, start_column=at_row + 4, end_row=s, end_column=at_row + 6)
     # the view: the grid picked, or it on only the loans with the value picked
     VW = f"${col(hid + 1)}${s + 2}"
@@ -1650,6 +1652,12 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     _fit(ws)
 
 
+def _first_n(c: int, s: int, n: int, count: str) -> str:
+    """The first MAX(1, count) cells of column c's labels from row s (max(n - 1, 1) of them are laid out)."""
+    top = f"${col(c)}${s}"
+    return f"{top}:INDEX({top}:${col(c)}${s + max(n - 1, 1) - 1},MAX(1,{count}))"
+
+
 def _first_pocket(res, ms) -> tuple[str, str]:
     """The first grid's first pocket with a rate for the first measure: the Row and Column the tab opens on."""
     grids = list(res.grids) + list(res.three_way)
@@ -1673,7 +1681,6 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
     F, FEW = x["F"], x["FEW"]
     rng = lambda what: (f"${col(at_[what][0] + 1)}${at_[what][1] + 2}:"          # noqa: E731
                         f"${col(at_[what][0] + nc)}${at_[what][1] + 1 + nr}")
-    lc, lt = at_["loans"]
     names = ["RI", "CJ", "RV", "BV", "NV", "LV", "MV", "OTH", "OTHN", "RT", "GT", "MIN", "MD", "GR"]
     h = {n: f"${col(H)}${s + k}" for k, n in enumerate(names)}
     RI, CJ, RV, BV, NV, LV, MV, OTH, OTHN, RT, GT, MIN, MD, GR = (h[n] for n in names)
@@ -1690,7 +1697,8 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
         LV: f'IF({none},"",INDEX({rng("loans")},{RI},{CJ}))',
         MV: f'IF({RI}="","",INDEX({rng("loans")},{RI},{x["CN"]}+1))',
         # the other pockets in the row with loans, and their columns' names
-        OTH: f'IF({none},"",COUNT(OFFSET(${col(lc + 1)}${lt + 2},{RI}-1,0,1,{x["CN"]}))-IF(ISNUMBER({LV}),1,0))',
+        OTH: f'IF({none},"",COUNT(INDEX({rng("loans")},{RI},1):INDEX({rng("loans")},{RI},{x["CN"]}))'
+             f'-IF(ISNUMBER({LV}),1,0))',
         OTHN: "IFERROR(MID(" + "&".join(
             f'IF(AND({j}<>{CJ},{j}<={x["CN"]},ISNUMBER(INDEX({rng("loans")},{RI},{j}))),", "&{pick(x["COLS"], j)},"")'
             for j in range(1, nc + 1)) + ',3,999),"")',
@@ -2447,15 +2455,23 @@ def write(wb, res, stamp: str) -> None:
             del wb[t]
     for name in [n for n in wb.defined_names if n.startswith("pk_sel_")]:
         del wb.defined_names[name]
+    from .timing import mark                            # each tab's seconds on Record (the firm, 30 Sep 2026)
+    mark("Writing Pockets")
     choices, views = Choices(wb), Views(wb)
     write_pockets(wb, res, choices, stamp)
     have = {m.name for m in res.measures}
     if res.config.benchmark is not None and {"gco_rate", "ranr_rate", "contribution_rate"} <= have:
         # a test of a new variable run without GCO and RANR has nothing to put on it, so there is no tab
+        mark("Writing Paid cost kept")
         write_pck(wb, res, choices, views, stamp)
+    mark("Writing Grids")
     write_grids(wb, res, choices, views)
+    mark("Writing Summary")
     write_summary(wb, res, choices, views)
     from . import compare                               # compare.py reads this module's helpers
+    if res.config.filter_by:
+        mark("Writing Compare")
     compare.write_compare(wb, res, choices, views)      # only with a Filter by
     if res.config.split:
+        mark("Writing Split")
         write_split(wb, res, choices, views, stamp)
