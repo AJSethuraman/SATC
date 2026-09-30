@@ -346,13 +346,15 @@ def write_look(wb, table, columns, split: str | None = None, bands=(), known: di
     hs.cell(row=1, column=1, value="columns")                     # read back by refresh()
     for i, c in enumerate(columns, start=2):
         hs.cell(row=1, column=i, value=c)
-    for col, w in zip("ABCDEFGH", (2, 26, 12, 9, 2, 13, 2, 10)):
+    known = known or {}
+    shapes = {c: shape_of(table, c, known.get(c), (rules or {}).get(c)) for c in columns}
+    # L1: B fits the longest stat label this tab writes, C the longest value (the survey's per-character 0.9 for
+    # Calibri 10); the rest as drawn
+    for col, w in zip("ABCDEFGH", (2, label_width(shapes.values()), value_width(shapes.values()), 9, 2, 13, 2, 10)):
         ws.column_dimensions[col].width = w
     house.title_band(ws, "Look", "Each number column before you choose its band edges.", 2, 17)
     top = house.method_note(ws, 3, 2, 17, METHOD)
     assert top == FIRST, top
-    known = known or {}
-    shapes = {c: shape_of(table, c, known.get(c), (rules or {}).get(c)) for c in columns}
     hs.cell(row=RULES_ROW, column=1, value=rules_key(rules, columns) or None)
     dv = DataValidation(type="list", formula1=f'"{",".join(str(b) for b in BARS)}"', allow_blank=False,
                         showErrorMessage=True)
@@ -467,6 +469,31 @@ def axis_format(lo: float, unit: float, fmt: str) -> str:
     if unit >= 1e5:
         return '[>=1000000]0.0,,"M";[>=1000]#,##0,"k";0'
     return '[>=1000]#,##0,"k";0'
+
+
+#: the stat labels every block and scatter writes in B (L1); a likely code's label is added per column
+STAT_LABELS = ("Loans", "Blank", "Not a number", "Likely a code", "Smallest", "Median", "Mean", "Largest",
+               "Answered missing, left out", "Bars", "From", "To", "Loans with both values", "Dots shown",
+               "Moves together (correlation)") + tuple(
+    f"{p}th percentile (P{p})" + (", the median" if p == 50 else "") for p in PERCENTILES)
+#: Calibri 10 against Excel's width unit (the survey: 0.9 fits the longest label without a gap)
+LOOK_PER_CHAR = 0.9
+
+
+def label_width(shapes) -> float:
+    """Look's B: the longest stat label + 2 (L1)."""
+    codes = [f"At {_plain(s.code)}, likely a code" for s in shapes if s.code is not None]
+    return house.fit(list(STAT_LABELS) + codes, floor=20, cap=40, per_char=LOOK_PER_CHAR)
+
+
+def value_width(shapes) -> float:
+    """Look's C: the longest value any block shows, in its column's format, + 2, at least 10 (L1)."""
+    texts = ["none found"]
+    for s in shapes:
+        dec = 2 if "." in s.fmt else 0
+        texts += [f"{v:,.{dec}f}" for v in ([s.rows] + (s.values[:1] + s.values[-1:] if s.values else [])
+                                               + list(s.pcts or []))]
+    return house.fit(texts, floor=10, cap=20)
 
 
 def _bar_row(ws, r: int, text: str, last: int = SHARE_COL) -> None:
@@ -773,9 +800,15 @@ def _plain(x: float) -> str:
     return str(int(x)) if float(x).is_integer() else f"{x:g}"
 
 
-def _note(ws, r: int, text: str) -> None:
+def _note(ws, r: int, text: str, wrap_to: int | None = None) -> None:
+    """A note under a block; with `wrap_to`, merged from B to that column and wrapped, the row grown to its lines."""
     c = ws.cell(row=r, column=STATS_COL, value=text)
     c.font = Font(name="Calibri", size=10, color=house.SLATE)
+    if wrap_to:
+        ws.merge_cells(start_row=r, start_column=STATS_COL, end_row=r, end_column=wrap_to)
+        c.alignment = Alignment(wrap_text=True, vertical="top")
+        width = sum(ws.column_dimensions[get_column_letter(k)].width or 9 for k in range(STATS_COL, wrap_to + 1))
+        ws.row_dimensions[r].height = 14 * house.lines_at(text, width / LOOK_PER_CHAR - 2) + 3
 
 
 def correlation(pairs: list[tuple[float, float]]) -> float | None:
@@ -797,12 +830,12 @@ def _scatters(wb, ws, r: int, table, shapes: dict[str, Shape], split: str | None
     if not split:
         _bar_row(ws, r, "Scatters")
         _note(ws, r + 1, "None: nothing splits the pockets. Pick a column to split by in the launcher's Choose "
-                         "tests; a scatter of it against each band column shows here.")
+                         "tests; a scatter of it against each band column shows here.", wrap_to=17)
         return r + 2
     if split not in shapes:
         _bar_row(ws, r, f"{split} splits the pockets")
         _note(ws, r + 1, f"{split} isn't a number column, so it has no scatter. Pockets shows it value by value "
-                         f"(Pockets: Split by {split}).")
+                         f"(Pockets: Split by {split}).", wrap_to=17)
         return r + 2
     if r > FIRST:
         _page(ws, r)

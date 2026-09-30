@@ -706,6 +706,8 @@ def _matters(ws, t, views, r: int) -> int:
         house.sub_header(ws, r, FIRST, [f"{where}: loans made {side.range.text()}"])
         for c in range(FIRST + 1, LAST + 1):
             ws.cell(row=r, column=c).fill = house.fill(house.CANVAS)
+        # N1: the caption runs across the table in one merged cell, rather than widening the first column
+        ws.merge_cells(start_row=r, start_column=FIRST, end_row=r, end_column=LAST)
         r += 1
         cells = []
         for label, get in tests:

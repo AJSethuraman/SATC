@@ -974,11 +974,9 @@ def _coord(ws, title: str, key) -> str:
     for row in ws.iter_rows():
         for c in row:
             if isinstance(c.value, str) and c.value.startswith(title) and c.row > _below(ws):
-                cols, j = {}, c.column + 1
-                while ws.cell(row=c.row + 1, column=j).value not in (None, ""):
-                    cols[ws.cell(row=c.row + 1, column=j).value] = j
-                    j += 1
-                rr = c.row + 2
+                import tabs
+                head, cols = tabs.header_of(ws, c.row, c.column)
+                rr = head + 1
                 while ws.cell(row=rr, column=c.column).value != key[0]:
                     rr += 1
                 return ws.cell(row=rr, column=cols[key[1]]).coordinate

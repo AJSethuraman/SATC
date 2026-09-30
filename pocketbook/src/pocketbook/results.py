@@ -181,10 +181,10 @@ def pick(row: str, j) -> str:
 
 
 def _cell(ws, r: int, c: int, v=None, *, bold=False, size=10, color=house.INK_TEXT, h="center", fmt=None,
-          name="Calibri", indent=0):
+          name="Calibri", indent=0, wrap=False):
     x = ws.cell(row=r, column=c, value=v)
     x.font = Font(name=name, bold=bold, size=size, color=color)
-    x.alignment = Alignment(horizontal=h, vertical="center", indent=indent)
+    x.alignment = Alignment(horizontal=h, vertical="center", indent=indent, wrap_text=wrap or None)
     if fmt:
         x.number_format = fmt
     return x
@@ -499,14 +499,58 @@ def _pockets_note(res) -> list[tuple[str, str]]:
     return items
 
 
+#: the label columns on Pockets, Paid cost kept and Start here (P1): fitted to the Run's labels, between these
+LABELS_FLOOR, LABELS_CAP, HALF_FLOOR = 12, 32, 10
+
+
+def label_widths(res) -> dict[str, float]:
+    """The widths of the label columns Pockets, Paid cost kept and Start here show (P1), each the longest label the
+    Run can put in it + 3 (left, indent 1), between LABELS_FLOOR and LABELS_CAP: `band`, a band with its column's
+    name ("FICO 496 - 653", Pockets and Start here); `band_only`, without it (Paid cost kept); `seg`, a segment as
+    Pockets and Start here show it ("ASSET_CLASS 4"); `seg_raw`, as Paid cost kept does; `half`, the split's part
+    and its heading."""
+    from . import book as bk
+    names = bk._names(res)
+    band, band_only, seg, seg_raw, half = [], [], [], [], []
+    for g in res.grids:
+        band += [f"{names[g.band]} {bl}" for bl in g.band_labels]
+        band_only += [str(bl) for bl in g.band_labels]
+        seg += [_segment(names, g, d) for d in g.dim_labels]
+        seg_raw += [str(d) for d in g.dim_labels]
+    for g in res.three_way:
+        for d in g.dim_labels:
+            s_, h_ = _halves(res, d)
+            seg.append(_segment(names, g, s_))
+            half.append(h_)
+    if res.config.split:
+        half.append(f"{res.config.split[0]} half" if res.config.split[1] == "own_median" else res.config.split[0])
+    f = lambda xs, floor=LABELS_FLOOR: house.fit(xs, floor=floor, cap=LABELS_CAP, pad=3)      # noqa: E731
+    return {"band": f(band), "band_only": f(band_only), "seg": f(seg), "seg_raw": f(seg_raw),
+            "half": f(half, HALF_FLOOR)}
+
+
 def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
     """The Pockets tab (section 5): three dropdowns over one list."""
     from . import book as bk
     ws = wb.create_sheet(POCKETS)
     lv = live.ensure(wb, res)
     b = res.config.benchmark
-    widths = {1: 2, K_NUM: 5, K_BAND: 24, K_SEG: 20, K_HALF: 18, K_LOANS: 9, K_THIS: 11, K_REST: 12, K_GAP: 14,
-              K_EX: 22, K_WORSE: 14, K_P: 12, K_MAT: 11, K_CAUGHT: 16, K_HOLDS: 26}
+    lw = label_widths(res)
+    pt = bk._partner(res) if res.config.split else None
+    kinds_ = [TWO_WAY] + ([split_label(res)] if res.three_way else [])
+    # P1: the label columns fit the Run's labels and the dropdown over them; P2: a number column is its heading + 2
+    # where the heading is the longer ("Could have caught"), never less than its value + 2
+    widths = {1: 2, K_NUM: 5,
+              K_BAND: max(lw["band"], house.fit([plain(m) for m in rates(res)], floor=0, cap=LABELS_CAP, pad=3)),
+              K_SEG: max(lw["seg"], house.fit(kinds_, floor=0, cap=LABELS_CAP, pad=3)),
+              K_HALF: max(lw["half"], house.fit(SHOW, floor=0, cap=LABELS_CAP, pad=3)),
+              K_LOANS: 9, K_THIS: 11, K_REST: 12, K_GAP: 14, K_EX: 22,
+              # the widest word Worse? can print, the borderline flag's included ("Not sure · borderline (p 0.052)")
+              K_WORSE: house.fit([live.TOO_FEW, "Worse?", f"{live.NOT_SURE} · {stats.borderline_words(0.052, 0.95)}"],
+                                 floor=11, cap=36),
+              K_P: SPLIT_FLOOR, K_MAT: 11, K_CAUGHT: house.fit(["Could have caught"], floor=11, cap=20),
+              K_HOLDS: house.fit([f"No: may be mostly {pt[0]}", f"Holds {pt[0]} fixed?"] if pt else [],
+                                 floor=12, cap=LABELS_CAP, pad=3)}
     _widths(ws, widths)
     house.title_band(ws, POCKETS, "Which pockets lose more than their share, how much, and whether it's real "
                                   "and big enough to matter.", K_BAND, K_HOLDS, tab=house.TAB_RESULT)
@@ -711,8 +755,14 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     ws = wb.create_sheet(PCK)
     lv = live.ensure(wb, res)
     names = bk._names(res)
-    _widths(ws, {1: 2, C_BAND: 22, C_SEG: 18, C_LOANS: 9, C_PAID: 11, C_PAID_D: 13, C_COST: 11, C_COST_D: 13,
-                 C_KEPT: 11, C_KEPT_D: 13, C_TOG: 28, 12: 3})
+    lw = label_widths(res)
+    # P1: Band and Segment fit the Run's labels; Band also the "live from Control" under the lines in use
+    _widths(ws, {1: 2, C_BAND: max(lw["band_only"], house.fit(["live from Control"], floor=0, cap=32, pad=3)),
+                 C_SEG: lw["seg_raw"], C_LOANS: 9, C_PAID: 11, C_PAID_D: 13, C_COST: 11, C_COST_D: 13,
+                 C_KEPT: 11, C_KEPT_D: 13,
+                 # the longest verdict with the borderline flag on one side; on both it runs on over the gap beside it
+                 C_TOG: house.fit([f"{t} · {stats.borderline_words(0.048, 0.95)}" for t in TOGETHER.values()],
+                                  floor=28, cap=56), 12: 3})
     house.title_band(ws, PCK, "What each pocket paid us, what it cost us, and what we kept.", C_BAND, C_TOG + 8,
                      tab=house.TAB_RESULT)
     line = bk.profit_line(res)
@@ -995,29 +1045,108 @@ def fewest(res) -> int | None:
     return b.min_units if b is not None else None
 
 
-def grid_views(res, views: Views) -> tuple[list[str], list, int, int]:
+#: Grids' column widths (the firm, 29 Sep 2026: "i prefer to have nice even layouts, or at least the column sizes
+#: should make sense for the data we see"; docs/column-widths-survey-2026-09-29.md): one width for every data column
+#: of the four blocks, and one for both label columns, each fitted per Run to what any grid can show, between these
+DATA_FLOOR, DATA_CAP = 9, 16
+LABEL_FLOOR, LABEL_CAP = 12, 28
+#: a header line of Arial bold 9, in points
+HEAD_LINE = 12
+#: the labels What one cell says puts in the left label column
+ONE_CELL_LABELS = ("Rate", "vs the book", "vs rest of band", "Loans", "The colour")
+
+
+def _shown(v, fmt: str) -> str:
+    """A number as its cell's format shows it, for measuring a column (the formats Grids and Split write)."""
+    if not isinstance(v, (int, float)) or isinstance(v, bool):
+        return "" if v is None else str(v)
+    return {"pct": f"{v * 100:.2f}%", "x": f"{v:.2f}×", "pts": f"{v:+.2f} pts", "usd": f"${v:,.0f}",
+            "amt": f"{v:,.2f}"}.get(fmt, f"{v:,.0f}")
+
+
+def _split_layout(res) -> list[str]:
+    """A split grid's parts, each as the engine writes it after the segment ("REV_DEBT high half", "SYS_FLAG N"),
+    in one order for every split grid of the Run (G4, decided for the firm 29 Sep 2026): every segment gets every
+    part, so the segment row over them is merged once for all the split grids the Grid dropdown can pick. A part a
+    segment has no loans in is an empty column, never a missing one, so the columns under a segment stay put."""
+    sf = res.config.split[0] if res.config.split else None
+    if not res.three_way or sf is None:
+        return []
+    word = {engine.HIGH: f"{sf} high half", engine.LOW: f"{sf} low half", engine.NO_SPLIT_VALUE: f"no {sf}"}
+    tails: list[str] = []
+    for t in ([word.get(lab, f"{sf} {lab}") for g in res.grids for lab in g.split_labels]
+              + [str(d).rpartition(" / ")[2] for g in res.three_way for d in g.dim_labels]):
+        if t not in tails:
+            tails.append(t)
+    return tails
+
+
+def _split_cols(g, tails: list[str]) -> list[str]:
+    """A split grid's columns in that layout: each segment in the engine's order, then every part."""
+    segs: list[str] = []
+    for d in g.dim_labels:
+        seg = str(d).rpartition(" / ")[0]
+        if seg not in segs:
+            segs.append(seg)
+    return [f"{seg} / {t}" for seg in segs for t in tails]
+
+
+def grid_views(res, views: Views) -> tuple[list[str], list, int, int, dict]:
     """Every grid's four blocks on _views, two-way and split, and each again on only the loans with one value of a
-    category split (G|<grid>|where <value>|...); returns the grids' names, the measures, and the most rows and
-    columns any grid has."""
+    category split (G|<grid>|where <value>|...); returns the grids' names, the measures, the most rows and
+    columns any grid has, and what Grids' columns must fit (G1, G2): `heads`, every column label as the lower
+    header row shows it; `segs`, every split grid's segment, shown over its parts; `parts`, how many parts each
+    segment has (0 with no split grid) and `spans`, the most segments a split grid has; `rows`, every row label
+    and band name; `values`, the longest value any block shows."""
     from . import book as bk
     names = bk._names(res)
     ms = rates(res)
+    tails = _split_layout(res)
+    tails = tails if len(tails) > 1 else []            # one part is one column: no segment row over it
+    fit = {"heads": {"All"}, "segs": set(), "parts": len(tails), "spans": 0, "rows": {"All"}, "values": 0}
     gnames, most_r, most_c = [], 1, 1
     for g in list(res.grids) + list(res.three_way):
         gname = f"{names[g.band]} x {names[g.dimension]}"
         gnames.append(gname)
+        split = bool(tails) and g in res.three_way
         rows_ = g.band_labels + [engine.ALL]
-        cols_ = g.dim_labels + [engine.ALL]
+        cols_ = (_split_cols(g, tails) if split else list(g.dim_labels)) + [engine.ALL]
         most_r, most_c = max(most_r, len(rows_)), max(most_c, len(cols_))
-        _grid_view(res, views, f"G|{gname}", g, g, names, rows_, cols_, ms)
+        fit["rows"] |= {str(x) for x in g.band_labels} | {names[g.band]}
+        for d in cols_[:-1]:
+            seg, half = _halves(res, d) if split else ("", _short(res, d))
+            fit["heads"].add(str(half))
+            if split:
+                fit["segs"].add(seg)
+        if split:
+            fit["spans"] = max(fit["spans"], (len(cols_) - 1) // len(tails))
+        _grid_view(res, views, f"G|{gname}", g, g, names, rows_, cols_, ms, fit, split)
         for v in res.split_values:
             if v in g.filtered:
-                _grid_view(res, views, f"G|{gname}" + WHERE.format(v), g.filtered[v], g, names, rows_, cols_, ms)
+                _grid_view(res, views, f"G|{gname}" + WHERE.format(v), g.filtered[v], g, names, rows_, cols_, ms,
+                           fit, split)
     views.put("G|fewest", [fewest(res)])
-    return gnames, ms, most_r, most_c
+    return gnames, ms, most_r, most_c, fit
 
 
-def _grid_view(res, views: Views, key: str, g, whole, names, rows_, cols_, ms) -> None:
+def grid_widths(fit: dict, grp: dict | None = None) -> tuple[float, float]:
+    """Grids' two widths (G1, G2): the data width, one for every data column of the four blocks and the groups table
+    under them, is the larger of the longest value + 2 and the two-line width of the longest column label + 2 (a
+    split grid's segment across all its parts), kept between DATA_FLOOR and DATA_CAP; the label width, the longest
+    row label or band name + 3 (indent 1), between LABEL_FLOOR and LABEL_CAP."""
+    grp = grp or {}
+    parts = fit["parts"]
+    need = [fit["values"] + 2, grp.get("values", 0) + 2]
+    need += [house.two_line_width(h) + 2 for h in list(fit["heads"]) + list(grp.get("heads", ()))]
+    need += [math.ceil((house.two_line_width(sg) + 2) / parts) for sg in fit["segs"]] if parts else []
+    need += [len(sg) + 3 for sg in grp.get("segs", ())]           # the groups' segments: one line, indent 1
+    dw = min(DATA_CAP, max([DATA_FLOOR] + need))
+    lw = house.fit(list(fit["rows"]) + list(ONE_CELL_LABELS) + list(grp.get("bands", ())), floor=LABEL_FLOOR,
+                   cap=LABEL_CAP, pad=3)
+    return dw, lw
+
+
+def _grid_view(res, views: Views, key: str, g, whole, names, rows_, cols_, ms, fit=None, split=False) -> None:
     """One view of one grid on _views: its labels (the whole grid's, so the Row and Column picked stay put), its
     loans, and each measure's rate, against the book and against the rest of the band, with the heat's kind,
     its bound, the fewest losses, the book's own figure and the fewest loans. A cell under the fewest loans is
@@ -1028,13 +1157,24 @@ def _grid_view(res, views: Views, key: str, g, whole, names, rows_, cols_, ms) -
     shows = [m for m in res.measures if m.mode == "median"]
     untested = (engine.THIN, engine.FEW)
     views.put(f"{key}|cols", [_short(res, d) if d != engine.ALL else "All" for d in cols_])
+    # the header's two rows (G4): a split grid's segment over its parts, then each part; any other grid's labels
+    # sit on the lower row
+    views.put(f"{key}|heads", [_halves(res, d)[1] if split and d != engine.ALL else _short(res, d)
+                               if d != engine.ALL else "All" for d in cols_])
+    views.put(f"{key}|segs", [_halves(res, d)[0] for d in cols_[:-1:max(fit["parts"], 1)]]
+              if split and fit else [""])
     views.put(f"{key}|rows", [bl if bl != engine.ALL else "All" for bl in rows_])
+
+    def seen(vals, fmt):
+        if fit is not None:
+            fit["values"] = max([fit["values"]] + [len(_shown(v, fmt)) for v in vals if v is not None])
     views.put(f"{key}|names", [names[whole.band], names[whole.dimension]])
     total = g.cells[(engine.ALL, engine.ALL)].rows if (engine.ALL, engine.ALL) in g.cells else 0
     views.put(f"{key}|total", [total])
     thin = lambda c: c is None or (few is not None and c.rows < few)          # noqa: E731
     for i, bl in enumerate(rows_, start=1):
         views.put(f"{key}|loans|{i}", [g.cells[(bl, d)].rows if (bl, d) in g.cells else None for d in cols_])
+        seen([g.cells[(bl, d)].rows for d in cols_ if (bl, d) in g.cells], "n")
     for m in ms:
         got = []
         for i, bl in enumerate(rows_, start=1):
@@ -1053,6 +1193,8 @@ def _grid_view(res, views: Views, key: str, g, whole, names, rows_, cols_, ms) -
             views.put(f"{key}|{m.name}|rate|{i}", rate)
             views.put(f"{key}|{m.name}|book|{i}", book)
             views.put(f"{key}|{m.name}|band|{i}", band)
+            seen(rate, "pct")
+            seen(book + band, "pts" if m.in_points else "x")
         views.put(f"{key}|{m.name}|meta", [heat_kind(m), max(got + [0.01]), b.min_events if b else None,
                                            res.total.rates[m.name].rate, few])
     if res.book_size is not None and res.book_size.loans:
@@ -1060,6 +1202,7 @@ def _grid_view(res, views: Views, key: str, g, whole, names, rows_, cols_, ms) -
             got = [engine.size_vs(g.sizes, bl, d, res.book_size) for d in cols_]
             for j, what in enumerate(("rate", "median", "book", "band")):
                 views.put(f"{key}|{SIZE}|{what}|{i}", [x[j] for x in got])
+                seen([x[j] for x in got], "usd" if what in ("rate", "median") else "x")
         views.put(f"{key}|{SIZE}|meta", ["size", 1, None, res.book_size.average, few])
     for sm in shows:
         k = f"show_{sm.name}"
@@ -1070,6 +1213,7 @@ def _grid_view(res, views: Views, key: str, g, whole, names, rows_, cols_, ms) -
                 med = c.medians.get(sm.name) if c is not None else None
                 vals.append(None if med is None else (med.mean if sm.show == "average" else med.median))
             views.put(f"{key}|{k}|rate|{i}", vals)
+            seen(vals, "amt")
         views.put(f"{key}|{k}|meta", ["amt", 1, None, None, few])
 
 
@@ -1143,14 +1287,19 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     """Grids (section 7): a Grid, a Measure and an "Only loans where" dropdown, four blocks by INDEX and MATCH, and
     how common each group is under them (it absorbs Prevalence)."""
     ws = wb.create_sheet(GRIDS)
-    gnames, ms, nr, nc = grid_views(res, views)
+    gnames, ms, nr, nc, fit = grid_views(res, views)
+    grp = _group_tables(res, views)
     shows = [m for m in res.measures if m.mode == "median"]
     sized = res.book_size is not None and bool(res.book_size.loans)
     sf = res.config.split[0] if res.config.split and res.config.split[1] == "each_value" else None
     w = nc + 1                          # a block: the band column, then the segments
     left, right = 2, 2 + w + 1
     last = right + w - 1
-    _widths(ws, {1: 2, **{c: 11 for c in range(2, last + 1)}, left: 20, right: 20, right - 1: 3})
+    hid = max(last, left + 18) + 2                         # hidden cells: the keys and the heat's kind and bound
+    dw, lw = grid_widths(fit, grp)
+    parts, hdr = fit["parts"], (2 if fit["parts"] else 1)   # a split grid's header is two rows (G4)
+    # G1, G2, G5: one width for every data column of the four blocks, and one for both label columns
+    _widths(ws, {1: 2, **{c: dw for c in range(2, hid)}, left: lw, right: lw, right - 1: 3})
     house.title_band(ws, GRIDS, "One grid at a time: the rate, how it compares, and how many loans sit in each "
                                 "pocket.", 2, last, tab=house.TAB_RESULT)
     profit = any(m.name in PROFIT for m in ms)
@@ -1208,8 +1357,6 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     ws.merge_cells(start_row=s, start_column=left + 8, end_row=s, end_column=left + 10)
     if not sf:
         _cell(ws, s + 1, left + 8, SAY_NO_FILTER, size=9, color=SLATE, h="left")
-    hid = max(last, left + 18) + 2                         # hidden cells: the keys and the heat's kind and bound
-    _widths(ws, {c: 11 for c in range(last + 1, hid)})
     # one cell to read out in words (the firm, 29 Sep 2026): a Row and a Column of the grid picked, each list the
     # grid's own labels, laid out in hidden cells as the Grid dropdown changes, and offered as many as there are
     RL, CL, H2 = hid + 7, hid + 8, hid + 9
@@ -1232,8 +1379,8 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     BOOK, FEW = f"${col(hid + 1)}${s + 3}", f"${col(hid + 1)}${s + 4}"
     ws[BOOK.replace("$", "")] = f"={pick(META, 4)}"
     ws[FEW.replace("$", "")] = f"={pick(META, 5)}"
-    COLS, ROWS, NAMES, TOTAL = (f"${col(hid)}${s + k}" for k in (2, 3, 4, 5))
-    for k, what in ((2, "cols"), (3, "rows"), (4, "names"), (5, "total")):
+    COLS, ROWS, NAMES, TOTAL, HEADS, SEGS = (f"${col(hid)}${s + k}" for k in (2, 3, 4, 5, 6, 7))
+    for k, what in ((2, "cols"), (3, "rows"), (4, "names"), (5, "total"), (6, "heads"), (7, "segs")):
         ws[f"{col(hid)}{s + k}"] = "=" + match(xk("G|", (VW,), f"|{what}"))
     for c_, labels, n in ((RL, ROWS, nr), (CL, COLS, nc)):         # the grid's own labels, All left off
         for i in range(1, max(n - 1, 1) + 1):
@@ -1244,17 +1391,38 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     # the book's own figure in the heading of vs the book (the firm, 29 Sep 2026), as the Rate block shows it
     book_head = (f'=IF(ISNUMBER({BOOK}),"vs the book (book: "&IF({KIND}="size",TEXT({BOOK},"$#,##0"),'
                  f'TEXT({BOOK},"0.00%"))&")","vs the book")')
+    down = nr + 2 + hdr                 # the lower blocks start this far under the upper
     blocks = (("Rate", "rate", left, top, False), ("vs the book", "book", right, top, True),
-              ("vs rest of band", "band", left, top + nr + 3, True), ("Loans", "loans", right, top + nr + 3, False))
-    at_ = {what: (c0, t) for _, what, c0, t, _ in blocks}
+              ("vs rest of band", "band", left, top + down, True), ("Loans", "loans", right, top + down, False))
+    # each block by its column and the row over its data's header, so its header is `t + 1` and its first data
+    # row `t + 2` whether the header is one row or two
+    at_ = {what: (c0, t + hdr - 1) for _, what, c0, t, _ in blocks}
     lc, lt = at_["loans"]
-    for title, what, c0, t, heated in blocks:
-        _block_head(ws, t, c0, w, f'="Rate · "&{M}' if what == "rate" else book_head if what == "book" else title)
+    # G3: the headers wrap, to two lines when a label needs it, and every block's header rows are the same height
+    lower = max(house.lines_at(h, dw - 2) for h in fit["heads"])
+    upper = max([house.lines_at(sg, parts * dw - 2) for sg in fit["segs"]] or [1])
+    for title, what, c0, t0, heated in blocks:
+        _block_head(ws, t0, c0, w, f'="Rate · "&{M}' if what == "rate" else book_head if what == "book" else title)
+        t = t0 + hdr - 1
+        if hdr == 2:                    # G4: a split grid's segment, merged over its parts
+            ws.cell(row=t0 + 1, column=c0).fill = house.fill(CANVAS)
+            for j in range(1, nc + 1):
+                ws.cell(row=t0 + 1, column=c0 + j).fill = house.fill(CANVAS)
+            for k in range(fit["spans"]):
+                j0 = 1 + k * parts
+                _cell(ws, t0 + 1, c0 + j0, f"={pick(SEGS, k + 1)}", bold=True, size=9, color=SLATE, name="Arial",
+                      wrap=True)
+                if parts > 1:
+                    ws.merge_cells(start_row=t0 + 1, start_column=c0 + j0, end_row=t0 + 1,
+                                   end_column=c0 + j0 + parts - 1)
+            ws.row_dimensions[t0 + 1].height = HEAD_LINE * upper + 4
         _cell(ws, t + 1, c0, f"={pick(NAMES, 1)}", bold=True, size=9, color=SLATE, h="left", name="Arial", indent=1)
         ws.cell(row=t + 1, column=c0).fill = house.fill(CANVAS)
         for j in range(1, nc + 1):
-            hc = _cell(ws, t + 1, c0 + j, f"={pick(COLS, j)}", bold=True, size=9, color=SLATE, name="Arial")
+            hc = _cell(ws, t + 1, c0 + j, f"={pick(HEADS, j)}", bold=True, size=9, color=SLATE, name="Arial",
+                       wrap=True)
             hc.fill = house.fill(CANVAS)
+        ws.row_dimensions[t + 1].height = HEAD_LINE * lower + 4
         for i in range(1, nr + 1):
             rr = t + 1 + i
             key = xk("G|", (VW,), f"|loans|{i}") if what == "loans" else xk("G|", (VW,), "|", (KEY,), f"|{what}|{i}")
@@ -1290,13 +1458,13 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
             rules = [(f"AND(ISNUMBER({corner}),NOT({margin}),{corner}/{pick(TOTAL, 1)}>={lim})", colour, None, None)
                      for lim, colour in LOANS_STEPS]
         cf(ws, inner, rules, line_on)
-    r = top + 2 * (nr + 3)
+    r = top + 2 * down
     _cell(ws, r, left, "A blank: alone in its band, or fewer losses than the minimum, so not compared.", size=9,
           color=SLATE, h="left")
     r = _one_cell(ws, r + 2, left, last, nr, nc, at_, dict(M=M, R=R, C=C, F=F, sf=sf, KIND=KIND, BOUND=BOUND,
                   META=META, FEW=FEW, VW=VW, KEY=KEY, RN=RN, CN=CN, RL=RL, CL=CL, H=hid + 10, s=s, rs=rs_rng,
-                  gs=gs_rng, m=m_rng))
-    r = _groups(ws, res, views, G, r + 2, left, hid + 4)
+                  gs=gs_rng, m=m_rng, COLS=COLS))
+    r = _groups(ws, grp, G, r + 2, left, hid + 4, dw)
     _hide(ws, hid, hid + 10)
     ws.freeze_panes = f"A{s + 1}"
     _fit(ws)
@@ -1344,7 +1512,7 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
         # the other pockets in the row with loans, and their columns' names
         OTH: f'IF({none},"",COUNT(OFFSET(${col(lc + 1)}${lt + 2},{RI}-1,0,1,{x["CN"]}))-IF(ISNUMBER({LV}),1,0))',
         OTHN: "IFERROR(MID(" + "&".join(
-            f'IF(AND({j}<>{CJ},{j}<={x["CN"]},ISNUMBER(INDEX({rng("loans")},{RI},{j}))),", "&${col(lc + j)}${lt + 1},"")'
+            f'IF(AND({j}<>{CJ},{j}<={x["CN"]},ISNUMBER(INDEX({rng("loans")},{RI},{j}))),", "&{pick(x["COLS"], j)},"")'
             for j in range(1, nc + 1)) + ',3,999),"")',
         RT: f'IFERROR(INDEX({x["rs"]},MATCH({M},{x["m"]},0)),"")',
         GT: f'IFERROR(INDEX({x["gs"]},MATCH({M},{x["m"]},0)),"")',
@@ -1410,27 +1578,24 @@ def _block_head(ws, r: int, c0: int, w: int, title: str) -> None:
     ws.row_dimensions[r].height = 20
 
 
-def _groups(ws, res, views: Views, G: str, r: int, first: int, hid: int) -> int:
-    """How common each group is, pocket by pocket, for the grid picked (the Prevalence tab, absorbed): loans, and
-    booked dollars when there is a booked amount, per group of the split column or a new column. Nothing is
-    tested. Returns the row after it."""
+def _group_tables(res, views: Views) -> dict:
+    """How common each group is, pocket by pocket, for every grid (the Prevalence tab, absorbed): loans, and booked
+    dollars when there is a booked amount, per group of the split column or a new column, put on _views. Nothing
+    is tested. Worked out before Grids is laid out, so its headings and numbers enter the tab's one data width
+    (G6): what it returns is the tables and what their columns must fit. Booked dollars too long for the widest
+    data column show in thousands ($1,234k), never as ####."""
     from . import book as bk
     gs, notes = prevalence.groupings(res)
+    out = {"gs": gs, "notes": notes, "tables": [], "heads": set(), "segs": set(), "bands": set(), "values": 0,
+           "thousands": False, "dollars": bool(res.config.booked)}
     if not gs and not notes:
-        return r
+        return out
     names = bk._names(res)
-    dollars = bool(res.config.booked)
-    step = 2 if dollars else 1
+    dollars = out["dollars"]
     rows = prevalence.rows_run(res)
     bands = prevalence._labels_by_band(res, rows)
-    _block_head(ws, r, first, 8, "How common each group is: a count, not a test")
-    r += 1
-    for n in notes:
-        _cell(ws, r, first, n, size=9, color=SLATE, h="left")
-        r += 1
+    counts, booked_ = [0], [0.0]
     for gi, grouping in enumerate(gs):
-        _cell(ws, r, first, grouping.title, bold=True, h="left", name="Arial")
-        r += 1
         most, widest = 1, 1
         for g in res.grids:
             gname = f"{names[g.band]} x {names[g.dimension]}"
@@ -1443,9 +1608,11 @@ def _groups(ws, res, views: Views, G: str, r: int, first: int, hid: int) -> int:
                 continue
             order, per, shown = got
             widest = max(widest, len(shown))
-            views.put(f"P|{gi}|{gname}|head", [names[g.band], names[g.dimension], "Loans"]
-                      + (["Booked dollars"] if dollars else []) + [x for s in shown for x in ([s, ""] if dollars
-                                                                                             else [s])])
+            head = ([names[g.band], names[g.dimension], "Loans"] + (["Booked dollars"] if dollars else [])
+                    + [x for s in shown for x in ([s, ""] if dollars else [s])])
+            views.put(f"P|{gi}|{gname}|head", head)
+            out["heads"] |= {str(x) for x in head[1:] if x}
+            out["bands"].add(names[g.band])
             k = 0
             totals = {x: [0, 0.0] for x in order}
             for bl in g.band_labels:
@@ -1463,8 +1630,12 @@ def _groups(ws, res, views: Views, G: str, r: int, first: int, hid: int) -> int:
                         totals[x][0] += v[0]
                         totals[x][1] += v[1]
                     views.put(f"P|{gi}|{gname}|{k}", vals)
+                    out["bands"].add(str(bl))
+                    out["segs"].add(str(dl))
             loans_ = sum(x[0] for x in totals.values())
             booked = math.fsum(x[1] for x in totals.values())
+            counts.append(loans_)
+            booked_.append(booked)
             views.put(f"P|{gi}|{gname}|{k + 1}", ["Every pocket", "", loans_] + ([booked] if dollars else [])
                       + [v for x in order for v in ((totals[x][0], totals[x][1]) if dollars else (totals[x][0],))])
             share = ["Share of the grid", "", None] + ([None] if dollars else [])
@@ -1476,6 +1647,37 @@ def _groups(ws, res, views: Views, G: str, r: int, first: int, hid: int) -> int:
         for g in res.three_way:          # a split grid is already cut by the split: its own groups are its pockets
             gname = f"{names[g.band]} x {names[g.dimension]}"
             views.put(f"P|{gi}|{gname}|say", ["Counted on the two-way grids: pick one without the split."])
+        out["tables"].append((grouping, most, widest))
+    out["bands"] |= {"Every pocket", "Share of the grid"}
+    # the largest figure is a grid's whole book: every pocket's loans, and its booked dollars
+    top = max(booked_)
+    out["thousands"] = dollars and len(f"{top:,.0f}") + 2 > DATA_CAP
+    out["values"] = max([len(f"{max(counts):,}"), len("100.0%")]
+                        + ([len(f"${top / 1000:,.0f}k") if out["thousands"] else len(f"{top:,.0f}")] if dollars
+                           else []))
+    return out
+
+
+#: booked dollars in thousands, when the whole book's would be too long for Grids' data columns (G6)
+THOUSANDS_FMT = '"$"#,##0,"k"'
+
+
+def _groups(ws, grp: dict, G: str, r: int, first: int, hid: int, dw: float) -> int:
+    """How common each group is, for the grid picked, from what _group_tables put on _views. The headings wrap to
+    the lines they need at the tab's data width. Returns the row after it."""
+    if not grp["gs"] and not grp["notes"]:
+        return r
+    dollars = grp["dollars"]
+    step = 2 if dollars else 1
+    _block_head(ws, r, first, 8, "How common each group is: a count, not a test")
+    r += 1
+    for n in grp["notes"]:
+        _cell(ws, r, first, n, size=9, color=SLATE, h="left")
+        r += 1
+    lines = max([house.lines_at(h, dw - 2) for h in grp["heads"]] or [1])
+    for gi, (grouping, most, widest) in enumerate(grp["tables"]):
+        _cell(ws, r, first, grouping.title, bold=True, h="left", name="Arial")
+        r += 1
         width = 2 + step + step * widest
         SAY = f"${col(hid)}${r}"
         ws[SAY.replace("$", "")] = "=" + match(xk(f"P|{gi}|", (G,), "|say"))
@@ -1484,26 +1686,32 @@ def _groups(ws, res, views: Views, G: str, r: int, first: int, hid: int) -> int:
         ws[HEAD.replace("$", "")] = "=" + match(xk(f"P|{gi}|", (G,), "|head"))
         for j in range(1, width + 1):
             x = _cell(ws, r + 1, first + j - 1, f"={pick(HEAD, j)}", bold=True, size=9, color=house.PAPER,
-                      name="Arial", h="left" if j <= 2 else "center")
+                      name="Arial", h="left" if j <= 2 else "center", wrap=True)
             x.fill = house.fill(INK)
+        ws.row_dimensions[r + 1].height = HEAD_LINE * lines + 4
         sub = [None, None, None] + ([None] if dollars else []) + ["Loans", "Booked dollars"] * widest if dollars \
             else [None, None, None] + ["Loans"] * widest
         for j, v in enumerate(sub, start=1):
             if v:
                 j0 = j - (j - (3 + step)) % step
                 x = _cell(ws, r + 2, first + j - 1, f'=IF({pick(HEAD, j0)}="","","{v}")' if j > 2 + step else v,
-                          bold=True, size=9, color=SLATE, name="Arial")
+                          bold=True, size=9, color=SLATE, name="Arial", wrap=True)
                 x.fill = house.fill(CANVAS)
             else:
                 ws.cell(row=r + 2, column=first + j - 1).fill = house.fill(CANVAS)
+        ws.row_dimensions[r + 2].height = HEAD_LINE * max(house.lines_at(v, dw - 2) for v in sub if v) + 4 \
+            if any(sub) else None
         t = r + 3
+        # booked dollars: the 4th column, then every second one after it
+        money = {j for j in range(4, width + 1) if dollars and (j - 4) % 2 == 0}
         for k in range(1, most + 1):
             rr = t + k - 1
             RW = f"${col(hid)}{rr}"
             ws[RW.replace("$", "")] = "=" + match(xk(f"P|{gi}|", (G,), f"|{k}"))
             for j in range(1, width + 1):
                 _cell(ws, rr, first + j - 1, f"={pick(RW, j)}", h="left" if j <= 2 else "center",
-                      fmt=None if j <= 2 else "#,##0", indent=1 if j <= 2 else 0)
+                      fmt=None if j <= 2 else THOUSANDS_FMT if j in money and grp["thousands"] else "#,##0",
+                      indent=1 if j <= 2 else 0)
             ws.row_dimensions[rr].height = 16
         rng = f"{col(first)}{t}:{col(first + width - 1)}{t + most - 1}"
         lab = f"${col(first)}{t}"
@@ -1577,6 +1785,51 @@ def split_said(p: float | None, se: float | None, confidence: float):
         return stats.borderline_words(p, confidence)
     return p
 
+#: Split: the chip saying whether a grid holds the split's partner fixed, beside the Grid dropdown (B:D)
+SPLIT_CHIP = 5
+#: the shortest a Split data column may be: a p-value can read "under 0.01%", a value that could be luck "(+0.28 pts)"
+SPLIT_FLOOR = len("under 0.01%") + 2
+
+
+def split_widths(res, shown, ms, by_value: bool, left: int, right: int, last: int) -> tuple[dict, int, int]:
+    """Split's widths (S1): the two grids' data columns one width, fitted as Grids' are (G1) over their column labels
+    and values; both label columns one width (G2) over the band labels and the summary's measure names; each
+    summary column at least what its heading (on two lines) and its values need. Returns the widths, and the lines
+    the summary's headings and the grids' headers take."""
+    z = stats.z_for_confidence(res.config.benchmark.confidence)
+    heads = {3: "Pockets", 4: "Worse than the rest in" if by_value else "High half worse in",
+             5: "Value vs rest, all" if by_value else "High vs low, all",
+             6: f"Range ({res.config.benchmark.confidence:.0%} sure)", 7: "p-value", 8: "As odds",
+             9: "p-value, as odds"}
+    vals: dict[int, list[str]] = {c: [] for c in heads}
+    for _, g, _c, pooled, *_se in shown:
+        for m in ms:
+            p = pooled.get(m.name, {})
+            vals[4].append(f"{p['high_worse']} of {p['pockets']}" if p.get("pockets") else "none big enough")
+            if m.in_points and p.get("gap") is not None:
+                g0 = p["gap"] * 100
+                se = (p["gap_hi"] - p["gap"]) * 100 / z if p.get("gap_hi") is not None else 0
+                vals[5].append(_shown(g0, "pts"))
+                vals[6].append(f"{g0 - z * se:+.2f} to {g0 + z * se:+.2f} pts")
+            elif p.get("ratio") is not None:
+                g0 = p["ratio"]
+                se = (p["ratio_hi"] - g0) / z if p.get("ratio_hi") else 0
+                vals[5].append(_shown(g0, "x"))
+                vals[6].append(f"{max(g0 - z * se, 0):.2f}× to {g0 + z * se:.2f}×")
+            vals[8].append(_shown(p.get("odds"), "x"))
+    vals[7] = vals[9] = ["under 0.01%", "borderline (p 0.048)"]      # the borderline flag's words, too
+    cols = [str(d) for _, g, _c, _p, *_se in shown for d in g.dim_labels]
+    dw = min(DATA_CAP, max([SPLIT_FLOOR] + [house.two_line_width(c) + 2 for c in cols]))
+    lw = house.fit([str(b) for _, g, _c, _p, *_se in shown for b in g.band_labels] + [plain(m) for m in ms]
+                   + ["Measure", "(marked missing)"], floor=LABEL_FLOOR, cap=LABEL_CAP, pad=3)
+    widths = {c: dw for c in range(2, last + 1)}
+    widths[left] = widths[right] = lw
+    for c, h in heads.items():
+        widths[c] = max(widths[c], house.two_line_width(h) + 2, max((len(v) + 2 for v in vals[c]), default=0))
+    sum_lines = max(house.lines_at(h, widths[c] - 2) for c, h in heads.items())
+    grid_lines = max([house.lines_at(c, dw - 2) for c in cols] or [1])
+    return widths, sum_lines, grid_lines
+
 
 def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     """Split (section 8): a Grid dropdown and a chip saying whether it holds the split's partner fixed; the
@@ -1615,9 +1868,7 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     w = nd + 1
     left, right = 2, 2 + w + 1
     last = max(right + w - 1, 9)
-    widths = {c: 12 for c in range(2, last + 1)}
-    for c, wd in ((2, 26), (5, 16), (6, 20), (9, 16), (right, 20)):
-        widths[c] = max(widths.get(c, 0), wd)
+    widths, sum_heads, grid_lines = split_widths(res, shown, ms, by_value, left, right, last)
     _widths(ws, {1: 2, **widths})
     house.title_band(ws, SPLIT, f"Every pocket split by each value of {sf}: does one value do worse than the rest "
                                 f"of its pocket?" if by_value else
@@ -1702,16 +1953,19 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     m_rng, (k_rng,) = choices.add("Split: Measure", [plain(m) for m in ms], [m.name for m in ms])
     s = r + 4
     G = dropdown(ws, s, 2, "Grid", g_rng, gnames[0] if gnames else "")
+    # the Grid dropdown spans B:D, so a long grid name ("FICO x CHANNEL · SYS_FLAG N vs rest") fits without
+    # widening B (S1); the chip beside it, then the grid's note
+    ws.merge_cells(start_row=s, start_column=2, end_row=s, end_column=4)
     hid = last + 2
     CHIP = f"${col(hid)}${s}"
     ws[CHIP.replace("$", "")] = "=" + match(xk("S|", (G,), "|chip"))
-    chip = _cell(ws, s, 3, f"={pick(CHIP, 1)}", bold=True, size=9, h="center", name="Arial")
-    ws.merge_cells(start_row=s, start_column=3, end_row=s, end_column=4)
-    cf(ws, f"C{s}:D{s}", [(f"{pick(CHIP, 2)}=1", POSITIVE_BG, Font(color=POSITIVE, bold=True), None),
-                          (f"{pick(CHIP, 2)}=0", ALERT, Font(color=CRIMSON, bold=True), None)])
-    del chip
-    ws.merge_cells(start_row=s, start_column=5, end_row=s, end_column=last)
-    _cell(ws, s, 5, f"={pick(CHIP, 3)}", size=9, color=SLATE, h="left", indent=1)
+    _cell(ws, s, SPLIT_CHIP, f"={pick(CHIP, 1)}", bold=True, size=9, h="center", name="Arial")
+    ws.merge_cells(start_row=s, start_column=SPLIT_CHIP, end_row=s, end_column=SPLIT_CHIP + 1)
+    cf(ws, f"{col(SPLIT_CHIP)}{s}:{col(SPLIT_CHIP + 1)}{s}",
+       [(f"{pick(CHIP, 2)}=1", POSITIVE_BG, Font(color=POSITIVE, bold=True), None),
+        (f"{pick(CHIP, 2)}=0", ALERT, Font(color=CRIMSON, bold=True), None)])
+    ws.merge_cells(start_row=s, start_column=SPLIT_CHIP + 2, end_row=s, end_column=last)
+    _cell(ws, s, SPLIT_CHIP + 2, f"={pick(CHIP, 3)}", size=9, color=SLATE, h="left", indent=1)
     # the summary, every measure
     h = s + 2
     z = "NORMSINV(1-(1-confidence)/2)"
@@ -1719,6 +1973,11 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                             "Value vs rest, all" if by_value else "High vs low, all",
                             f'="Range ("&TEXT(confidence,"0%")&" sure)"', "p-value", "As odds", "p-value, as odds"],
                  centre_from=1)
+    # S1: the summary's headings wrap, to the lines the longest needs at its column's width
+    for c in range(2, 10):
+        ws.cell(row=h, column=c).alignment = Alignment(horizontal="left" if c == 2 else "center", vertical="center",
+                                                       wrap_text=True)
+    ws.row_dimensions[h].height = HEAD_LINE * sum_heads + 6
     for i in range(1, len(ms) + 1):
         rr = h + i
         R = f"${col(hid)}{rr}"
@@ -1786,8 +2045,10 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         _block_head(ws, t, c0, w, title)
         ws.cell(row=t + 1, column=c0).fill = house.fill(CANVAS)
         for j in range(1, nd + 1):
-            x = _cell(ws, t + 1, c0 + j, f"={pick(COLS, j)}", bold=True, size=9, color=SLATE, name="Arial")
+            x = _cell(ws, t + 1, c0 + j, f"={pick(COLS, j)}", bold=True, size=9, color=SLATE, name="Arial",
+                      wrap=True)
             x.fill = house.fill(CANVAS)
+        ws.row_dimensions[t + 1].height = HEAD_LINE * grid_lines + 4
         for i in range(1, nb + 1):
             rr = t + 1 + i
             V = f"${col(hid + 3)}{rr}"

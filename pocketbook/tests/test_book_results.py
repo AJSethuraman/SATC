@@ -85,7 +85,7 @@ def test_split_by_a_number_finds_the_planted_revolving_debt_effect(tmp_path):
     grids = tabs.options(load_workbook(b), results.SPLIT, "Grid")
     assert grids[0].startswith("FICO x")                     # grids that hold the score fixed come first
     assert tabs.dropdown(ws, "Grid").value == grids[0]
-    assert ws.cell(row=tabs.dropdown(ws, "Grid").row, column=3).value == "Holds FICO fixed"
+    assert ws.cell(row=tabs.dropdown(ws, "Grid").row, column=results.SPLIT_CHIP).value == "Holds FICO fixed"
     head = tabs.header_row(ws, 2, "Measure")
     assert ws.cell(row=head + 1, column=2).value == "Bad loans"
     ratio = ws.cell(row=head + 1, column=5).value
