@@ -92,7 +92,7 @@ CORE_NAMES = ("outcome_loans", "outcome_booked", "gco_rate", "ranr_rate", "contr
 #: The two core rates that are profit, not loss: compared as a difference in points, judged by the
 #: profit line on Control, and material at the loss side's dollar line (NEXT-GOAL 3.2 to 3.4).
 PROFIT = ("ranr_rate", "contribution_rate")
-MISSING_KEYS = {"below", "above", "values"}
+MISSING_KEYS = {"below", "above", "values", "at_or_below"}
 BENCHMARK_KEYS = ("min_units", "min_events", "worse_at", "better_at", "confidence", "power", "compare_to",
                   "many_tests", "materiality")
 # Optional. revenue_line: when profit (RANR, and contribution before losses) counts as more
@@ -130,6 +130,44 @@ class MissingRule:
     below: float | None = None
     above: float | None = None
     values: tuple[Any, ...] = ()
+    #: at or below this is missing: Control's bureau codes answer (BUREAU_CODE_LINE), in every column it covers
+    at_or_below: float | None = None
+
+    def merged(self, other: "MissingRule | None") -> "MissingRule":
+        """This rule and another on the same column, both applied: what either catches is missing."""
+        if other is None:
+            return self
+        return MissingRule(below=other.below if other.below is not None else self.below,
+                           above=other.above if other.above is not None else self.above,
+                           values=self.values + tuple(v for v in other.values if v not in self.values),
+                           at_or_below=other.at_or_below if other.at_or_below is not None else self.at_or_below)
+
+
+#: Control's "Bureau missing codes" answer of Yes makes any value at or below this missing, in every column
+#: (the firm, 30 Sep 2026: "I can guarantee you that they are the bureau missing codes"). The bureau's codes
+#: seen on the bank's extract and the synthetic books are -99,000,900 to -99,000,904; a real value never gets
+#: near it, and -1,000 is nowhere near it either.
+BUREAU_CODE_LINE = -99_000_000.0
+
+
+def plain_value(x: Any) -> str:
+    """A value as a person reads it: -99,000,900, 0.35, 12,410. Thousands separators, a whole number without
+    ".0", and never scientific notation (the firm's photo of 30 Sep 2026 read "-9.90009e+07 on 12,410 loans")."""
+    if isinstance(x, bool) or not isinstance(x, (int, float)):
+        return str(x)
+    if float(x).is_integer():
+        return f"{int(x):,}"
+    for places in (6, 12):
+        t = f"{x:,.{places}f}".rstrip("0").rstrip(".")
+        if t not in ("0", "-0"):
+            return t
+    return "0"
+
+
+def bureau_rules(columns, exempt=()) -> dict[str, MissingRule]:
+    """Control's bureau codes answer of Yes as a rule on each of `columns`, but not on those in `exempt`: a
+    column whose own Treat as answer on Columns says its codes are Real keeps them."""
+    return {c: MissingRule(at_or_below=BUREAU_CODE_LINE) for c in columns if c not in set(exempt)}
 
 
 @dataclass(frozen=True)
@@ -300,7 +338,7 @@ class Question:
 
     def text(self) -> str:
         what = ("negative values in a column that is mostly positive" if self.pattern == "negatives"
-                else f"the value {_fmt_num(self.value)} repeated far more than any other")
+                else f"the value {plain_value(self.value)} repeated far more than any other")
         return f"`{self.column}`: {what} ({self.rows:,} rows)"
 
 
@@ -496,9 +534,7 @@ def parse(raw: Any, source_path: str = "") -> Config:
     for q in questions:
         rule = q.as_rule()
         if rule is not None:
-            old = missing.get(q.column, MissingRule())
-            missing[q.column] = MissingRule(below=rule.below if rule.below is not None else old.below,
-                                            above=old.above, values=old.values + rule.values)
+            missing[q.column] = missing.get(q.column, MissingRule()).merged(rule)
 
     names = [b.name for b in bands] + [d.name for d in dims] + [m.name for m in measures]
     dupes = sorted({n for n in names if names.count(n) > 1})
@@ -648,8 +684,8 @@ def _parse_missing(node: Any, problems: list[str]) -> dict[str, MissingRule]:
             problems.append(f"{where}: give at least one of below / above / values")
             continue
         _unknown(rule, MISSING_KEYS, where, problems)
-        below, above = rule.get("below"), rule.get("above")
-        for k, v in (("below", below), ("above", above)):
+        below, above, floor = rule.get("below"), rule.get("above"), rule.get("at_or_below")
+        for k, v in (("below", below), ("above", above), ("at_or_below", floor)):
             if v is not None and not _num(v):
                 problems.append(f"{where}.{k} must be a number, not {v!r}")
         values = rule.get("values", [])
@@ -658,7 +694,7 @@ def _parse_missing(node: Any, problems: list[str]) -> dict[str, MissingRule]:
             values = []
         out[str(col)] = MissingRule(below=float(below) if _num(below) else None,
                                     above=float(above) if _num(above) else None,
-                                    values=tuple(values))
+                                    values=tuple(values), at_or_below=float(floor) if _num(floor) else None)
     return out
 
 

@@ -219,7 +219,7 @@ Compare as you go. Every number here came up on the walk and again on this check
 | Next (Step 6) | worked out from this book: fewest loans **65**, worse at **1.34×**, better at **0.75×**; **9 answers needed before Run** |
 | Control C15 and C16, **Comes to** (Step 9) | **1.34×** and **0.75×**, before any Run |
 | Control C19, **Comes to** (after Step 12) | 1% of losses comes to **$107,354** |
-| Columns (Step 10) | FICO: **-9999 on 160 loans**; RANR: **negative on 595 loans** |
+| Columns (Step 10) | FICO: **-9,999 on 160 loans**; RANR: **Negative on 595 loans (e.g. …)** |
 | Run (Step 12) | **4** pockets worse and material, charge-offs, of 81 · **$3.09M**, and under them *Open … start with Pockets* |
 | Start here (Step 13) | **4 of 81** · **$3,094,991** · **4 short $3,248,654** |
 | Start here, the largest | FICO 496 - 653 / Broker: 523 loans, **2.62×**, **$1,494,129** · FICO 496 - 653 / ASSET_CLASS 4: 1.74×, $643,768 · ORIG_BAL 37,951 - 49,151 / ASSET_CLASS 4: 1.75×, $529,198 · FICO 712 - 745 / Online: 2.06×, $427,896 |

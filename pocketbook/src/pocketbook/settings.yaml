@@ -178,6 +178,25 @@ groups:
             label: The same, snapped to round numbers
             explains: Edges on round numbers, easier to quote. Bands hold uneven counts.
 
+      # The firm, 30 Sep 2026: "I can guarantee you that they are the bureau missing codes". Asked once, never
+      # answered for them: blank changes nothing and the Run doesn't wait for it (optional). The line is
+      # config.BUREAU_CODE_LINE. A column's own Treat as answer of Real on Columns keeps its codes.
+      - key: bureau_codes
+        question: "Treat values ≤ -99,000,000 as missing in every column?"
+        takes_effect: re-run
+        override: null
+        optional: true
+        options:
+          - value: "yes"
+            label: "Yes"
+            explains: >-
+              Every value at or below -99,000,000, in every column, is left out as missing. A column
+              answered Real under Treat as on Columns keeps its values.
+          - value: "no"
+            label: "No"
+            explains: >-
+              Nothing changes: each column's odd values are used as recorded until answered on Columns.
+
   - title: Is it enough loans to matter
     settings:
       - key: min_loans

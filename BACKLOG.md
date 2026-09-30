@@ -2660,6 +2660,29 @@ changed in the code.
     1 added (*row highlight never cleared*), caught with a display (2 failed) and without one (1 failed).
   - Picture: `pocketbook/docs/row-highlight-2026-09-30/choose-row-highlighted.png` (REV_DEBT clicked at Split by,
     the pointer off the table).
+- **Built, 30 Sep 2026: the bureau's missing codes, in every column** (branch `pocketbook-odd-values-all`). The
+  firm: *"still not seeming to identify that things that aren't recent delinquency have negative values ... it's
+  useful to see the value because they are generally just missing items"*, and *"I can guarantee you that they are
+  the bureau missing codes so I think it's just not working correctly."* The cause: a numeric column read as a
+  category (installment delinquencies of 0, 1, 2 and -99,000,900) was never asked about, and the one cell that was
+  asked read *-9.90009e+07 on 12,410 loans*.
+  - **Columns** now asks about every column of numbers, a category's too (`profile.classify`), and a 0/1 flag's 0,
+    one step from the 1s, is never asked. The Odd values cell names the values and their loans in plain numbers:
+    *-99,000,900 on 460 loans*; up to five negatives each with its count, more than five as *Negative on N loans
+    (e.g. ...)*. Never scientific notation (`config.plain_value`, also used by Look and the memory rows). A category
+    answered Missing puts those loans in *(marked missing)*, as a band does.
+  - **Control** asks one question more, in the firm's words: *"Treat values ≤ -99,000,000 as missing in every
+    column?"* (Yes/No; blank changes nothing and the Run doesn't wait for it). Yes makes every value at or below
+    -99,000,000 missing in every column, with no Treat as needed; a column answered Real on Columns keeps its
+    values. The Run's lines and the Log say how many loans it made missing in each column the Run read, and Columns
+    marks each code it covered *→ missing (Control: ≤ -99,000,000)*, which Start here no longer counts as open.
+  - A value missing by either route is in no band edge, rate, percentile or Look chart (`engine._caught`, which
+    Look reads too).
+  - Tests: 10 in `tests/test_firm_answers_2026_09_30.py`, on a synthetic extract, with counts tied to the
+    CSV; 3 existing tests now read -9,999 for -9999. Planted bugs: 9 added to `tools/mutation_check.py` and 2
+    repointed (their lines had moved), 11 of 11 caught. The bank checklist's Step 10 row reads the new cell text.
+  - **For the firm to confirm:** with the Control question unanswered or No, an unanswered code is still used as
+    recorded (odd values are asked, never acted on, OC-7), so it shows in Look until answered one way or the other.
 
 ## 7 · Standing rules for new items
 

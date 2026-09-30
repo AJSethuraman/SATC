@@ -32,10 +32,19 @@ with `--control`.
 
 ODD VALUES (ruling OC-7). Two patterns are raised as questions, never acted on:
   repeated_value  one value, 1% of rows or more, sitting far outside the rest
-                  (a -9999 among scores of 500-850)
+                  (a -9999 among scores of 500-850), and further from the rest
+                  than any two of the rest's own values sit from each other (so
+                  the 0 of a 0/1 flag, one step from the 1s, is never asked about)
   negatives       some negative values in a column that is otherwise positive
                   (RANR's negatives are real; a balance's would not be)
 The thresholds below only decide what gets ASKED. They never change a number.
+
+Every column whose values are numbers is asked about, whatever it is read as: a
+band, and a category of a few numbers too. The firm, 30 Sep 2026: "things that
+aren't recent delinquency have negative values, but ... just like recent
+delinquency, it's useful to see the value because they are generally just
+missing items". "Installment 30 Day Delinquencies" (0, 1, 2 and -99,000,900) was
+read as a category, and nothing was asked about its code.
 """
 
 from __future__ import annotations
@@ -134,10 +143,12 @@ def classify(table: Table, few_values: int, many_values: int,
             note = (f"; {text:,} {'value' if text == 1 else 'values'} not a number, counted when read"
                     if text else "")
             n_distinct = len(set(numeric))
+            # every column of numbers is asked about, a category's too (the firm, 30 Sep 2026)
             if coded:
-                make("dimension", f"a code written with leading zeros{note}")
+                make("dimension", f"a code written with leading zeros{note}", odd_values(col, numeric))
             elif n_distinct <= few_values:
-                make("dimension", f"numbers with only {n_distinct} values: read as categories{note}")
+                make("dimension", f"numbers with only {n_distinct} values: read as categories{note}",
+                     odd_values(col, numeric))
             else:
                 make("band", f"numbers with {n_distinct:,} values{note}", odd_values(col, numeric))
             continue
@@ -152,23 +163,36 @@ def classify(table: Table, few_values: int, many_values: int,
     return out
 
 
+#: the most negative values Columns names one by one, each with its loans (the firm, 30 Sep 2026)
+SHOWN = 5
+
+
 def odd_values(col: str, numeric: list[float]) -> list[dict]:
+    """The odd-value questions for one column of numbers. A negatives question also carries what Columns shows
+    of it (the firm, 30 Sep 2026: "it's useful to see the value"): `shown`, its most common negative values with
+    their loans, five at most; `distinct`, how many different negatives there are; `highest`, the one nearest
+    zero. None of these is part of its key, so a remembered answer still finds it."""
     qs = []
     if not numeric:
         return qs
     counts = Counter(numeric)
     value, k = counts.most_common(1)[0]
-    rest = [x for x in numeric if x != value]
+    rest = sorted({x for x in numeric if x != value})
     repeated = None
     if rest and k >= REPEAT_SHARE * len(numeric):
-        lo, hi = min(rest), max(rest)
+        lo, hi = rest[0], rest[-1]
         span = (hi - lo) or abs(hi) or 1.0
-        if value < lo - REPEAT_DISTANCE * span or value > hi + REPEAT_DISTANCE * span:
+        # a value one step from the rest is never far outside it: the 0 of a 0/1 flag, or of counts 0, 1, 2
+        step = max((b - a for a, b in zip(rest, rest[1:])), default=span)
+        away = lo - value if value < lo else value - hi
+        if away > REPEAT_DISTANCE * span and away > step:
             repeated = value
             qs.append({"column": col, "pattern": "repeated_value", "value": value, "rows": k})
     neg = [x for x in numeric if x < 0 and x != repeated]
     if neg and len(neg) < NEGATIVE_SHARE * len(numeric):
-        qs.append({"column": col, "pattern": "negatives", "value": None, "rows": len(neg)})
+        by = Counter(neg).most_common()
+        qs.append({"column": col, "pattern": "negatives", "value": None, "rows": len(neg),
+                   "shown": [(v, n) for v, n in by[:SHOWN]], "distinct": len(by), "highest": max(neg)})
     return qs
 
 

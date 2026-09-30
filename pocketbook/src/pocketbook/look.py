@@ -218,8 +218,10 @@ def rules_key(rules: dict | None, columns) -> str:
     parts = []
     for c in sorted(columns):
         r = (rules or {}).get(c)
-        if r is not None and (r.below is not None or r.above is not None or r.values):
-            parts.append(f"{c}:{r.below}:{r.above}:{sorted(float(v) for v in r.values if isinstance(v, (int, float)))}")
+        floor = getattr(r, "at_or_below", None)
+        if r is not None and (r.below is not None or r.above is not None or r.values or floor is not None):
+            parts.append(f"{c}:{r.below}:{r.above}:{sorted(float(v) for v in r.values if isinstance(v, (int, float)))}"
+                         + (f":{floor}" if floor is not None else ""))
     return "|".join(parts)
 
 
@@ -797,8 +799,9 @@ def _small_text(color: str, size: int = 800, no_wrap: bool = False) -> RichText:
 
 
 def _plain(x: float) -> str:
-    """A value as the Columns tab writes it: -9999, 0.35."""
-    return str(int(x)) if float(x).is_integer() else f"{x:g}"
+    """A value as the Columns tab writes it: -9,999, -99,000,900, 0.35, never in scientific notation."""
+    from .config import plain_value
+    return plain_value(x)
 
 
 def _note(ws, r: int, text: str, wrap_to: int | None = None) -> None:

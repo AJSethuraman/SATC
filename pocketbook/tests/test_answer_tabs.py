@@ -122,7 +122,9 @@ def test_control_holds_changes_now_then_needs_a_run_then_the_launchers_choices(r
     assert a < bb < c
     assert [k for k, r in sorted(rows.items(), key=lambda t: t[1]) if a < r < bb] == list(control.NOW_KEYS)
     # the cutoff (OC-51) closes Block B: asked only when scouting, it moves no row a bleed run reads
-    assert [k for k, r in sorted(rows.items(), key=lambda t: t[1]) if bb < r < c] == list(control.RUN_KEYS) + ["cutoff"]
+    # and the bureau codes question (30 Sep 2026) after it, the last row before the launcher's block
+    assert [k for k, r in sorted(rows.items(), key=lambda t: t[1]) if bb < r < c] == list(control.RUN_KEYS) + [
+        "cutoff", "bureau_codes"]
     assert "run_kind" in rows and rows["run_kind"] > c
     # the bands: INK with a red rule, SLATE with a STONE rule, MIST
     assert _hex(ws.cell(row=a, column=2).fill.fgColor) == house.INK
@@ -297,7 +299,7 @@ def test_columns_names_each_column_once_with_its_odd_values_and_memory_on_its_ro
     names = [r[book.C_NAME - 1].value for r in book.table_rows(ws) if r[book.C_NAME - 1].value]
     assert names == header
     fico = next(r for r in book.table_rows(ws) if r[book.C_NAME - 1].value == "FICO")
-    assert fico[book.C_ODD - 1].value == "-9999 on 80 loans"          # every 50th loan of 4,000
+    assert fico[book.C_ODD - 1].value == "-9,999 on 80 loans"         # every 50th loan of 4,000
     assert fico[book.C_TREAT - 1].value == "Missing" and fico[book.C_EDGES - 1].value == EDGES
     ranr = next(r for r in book.table_rows(ws) if r[book.C_NAME - 1].value == "RANR_AMT")
     assert ranr[book.C_ODD - 1].value.startswith("Negative on ") and ranr[book.C_TREAT - 1].value is None
@@ -418,7 +420,7 @@ def test_look_shows_the_mean_beside_the_median_and_the_code_on_a_red_bar_of_its_
     lines = {ws.cell(row=r + k, column=2).value: ws.cell(row=r + k, column=3).value for k in range(1, 9)}
     assert lines["Median"] == statistics.median(vals)
     assert lines["Mean"] == pytest.approx(statistics.fmean(vals))
-    assert lines["At -9999, likely a code"] == 80
+    assert lines["At -9,999, likely a code"] == 80
     # answered missing on Columns and Run (at the bank, 29 Sep 2026): counted as left out, the same spread, and
     # no red bar, since it is no longer a question
     run_ws = load_workbook(b)["Look"]

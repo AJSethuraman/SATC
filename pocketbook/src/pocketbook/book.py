@@ -481,20 +481,53 @@ def _made_columns(table, cols, kept: dict, mem: dict):
     return made, reports, notes
 
 
-def _odd_rules(cols, kept: dict, mem: dict) -> dict:
-    """Every Treat as answer of missing on Columns (this workbook's, or remembered), as the Run's rules: what
-    New columns and Look read before a Run, so neither shows a value the Run will leave out."""
-    rules: dict = {}
+#: Control's key for "Treat values ≤ -99,000,000 as missing in every column?" (the firm's words, 30 Sep 2026)
+BUREAU = "bureau_codes"
+
+
+def _bureau_exempt(questions) -> set[str]:
+    """The columns Control's bureau codes answer leaves alone: one whose own Treat as answer on Columns says its
+    codes are Real (its negatives, or a repeated value at or below the line). A column's own answer wins."""
+    out = set()
+    for q in questions:
+        if str(q.get("answer") or "").lower() != "real":
+            continue
+        if q["pattern"] == "negatives" or (q.get("value") is not None
+                                           and float(q["value"]) <= cfgmod.BUREAU_CODE_LINE):
+            out.add(q["column"])
+    return out
+
+
+def _bureau_yes(kept: dict) -> bool:
+    """Control's bureau codes answer, as this workbook holds it before a Run (Set up reads it to draw Columns and
+    Look as the Run will read them)."""
+    return control.answer_of(BUREAU, *kept["control"].get(BUREAU, (None, None))) == "yes"
+
+
+def _answered(cols, kept: dict, mem: dict) -> list[dict]:
+    """Every odd value's question with its Treat as answer: this workbook's, or remembered."""
+    out = []
     for c in cols:
         for q in c.questions:
             key = (q["column"], f"{q['pattern']}|{q['value'] if q['value'] is not None else ''}")
             known = memory.answer_for(mem, q["column"], q["pattern"], q["value"])
-            answer = kept["odd"].get(key) or (known["answer"] if known else None)
-            rule = cfgmod.Question(q["column"], q["pattern"], q["value"], q["rows"], answer).as_rule()
-            if rule is not None:
-                old = rules.get(q["column"], cfgmod.MissingRule())
-                rules[q["column"]] = cfgmod.MissingRule(below=rule.below if rule.below is not None else old.below,
-                                                        above=old.above, values=old.values + rule.values)
+            out.append({**q, "answer": kept["odd"].get(key) or (known["answer"] if known else None)})
+    return out
+
+
+def _odd_rules(cols, kept: dict, mem: dict) -> dict:
+    """Every Treat as answer of missing on Columns (this workbook's, or remembered), and Control's bureau codes
+    answer, as the Run's rules: what New columns and Look read before a Run, so neither shows a value the Run
+    will leave out."""
+    rules: dict = {}
+    qs = _answered(cols, kept, mem)
+    for q in qs:
+        rule = cfgmod.Question(q["column"], q["pattern"], q["value"], q["rows"], q["answer"]).as_rule()
+        if rule is not None:
+            rules[q["column"]] = rules.get(q["column"], cfgmod.MissingRule()).merged(rule)
+    if _bureau_yes(kept):
+        for c, rule in cfgmod.bureau_rules([c.name for c in cols], _bureau_exempt(qs)).items():
+            rules[c] = rule.merged(rules.get(c))
     return rules
 
 
@@ -692,12 +725,47 @@ def _answer_row(r) -> bool:
 REMOVED_MEANINGS = {"outcome_date": "Outcome date", "as_of_date": "As-of date"}
 
 
-def _odd_words(q: dict) -> str:
-    """An odd value as the Columns tab says it: "-9999 on 60 loans", "Negative on 595 loans"."""
+#: what Columns adds to an odd value that Control's bureau codes answer of Yes already makes missing
+BUREAU_MARK = "Control: ≤ -99,000,000"
+BUREAU_WORDS = f" → missing ({BUREAU_MARK})"
+
+
+def _bureau_code(q: dict) -> bool:
+    """True when every value of this odd value sits at or below the bureau codes line (cfgmod.BUREAU_CODE_LINE):
+    a repeated -99,000,900, or negatives that are all codes. A negatives question whose values aren't known is
+    never taken as one."""
+    line = cfgmod.BUREAU_CODE_LINE
     if q["pattern"] == "negatives":
-        return f"Negative on {q['rows']:,} loans"
-    v = q["value"]
-    return f"{int(v) if float(v).is_integer() else v:g} on {q['rows']:,} loans"
+        return q.get("highest") is not None and q["highest"] <= line
+    return q.get("value") is not None and float(q["value"]) <= line
+
+
+def _odd_words(q: dict, bureau: bool = False) -> str:
+    """An odd value as the Columns tab says it, the values themselves shown (the firm, 30 Sep 2026: "it's useful
+    to see the value"): "-9,999 on 60 loans"; negatives of up to profile.SHOWN values, each with its loans,
+    "-99,000,900 on 460 loans; -99,000,901 on 6"; more than that (RANR's real negatives, every one different),
+    "Negative on 595 loans (e.g. -12.5, -3, …)". Thousands separators, never scientific notation. `bureau`:
+    Control's bureau codes answer is Yes and this column keeps it, so its codes are missing already, and it says
+    so."""
+    plain = cfgmod.plain_value
+    if q["pattern"] == "negatives":
+        shown = q.get("shown") or []
+        if shown and q.get("distinct", len(shown)) <= len(shown):
+            words = "; ".join(f"{plain(v)} on {n:,}" + (f" loan{'' if n == 1 else 's'}" if i == 0 else "")
+                              for i, (v, n) in enumerate(shown))
+        elif shown:
+            words = f"Negative on {q['rows']:,} loans (e.g. {', '.join(plain(v) for v, _ in shown[:3])}, …)"
+        else:
+            words = f"Negative on {q['rows']:,} loans"
+    else:
+        words = f"{plain(q['value'])} on {q['rows']:,} loans"
+    return words + (BUREAU_WORDS if bureau and _bureau_code(q) else "")
+
+
+def _odd_rows(words: str) -> int:
+    """The loans an odd value's words on Columns count: every "on N" added up ("-99,000,900 on 460 loans;
+    -99,000,901 on 6" is 466). None of the values themselves is counted."""
+    return sum(int(n.replace(",", "")) for n in re.findall(r"\bon ([\d,]+)", words))
 
 
 def _remembered_words(entry: dict | None) -> str:
@@ -823,6 +891,7 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
     questions: dict[str, list[dict]] = {}
     for q in qs:
         questions.setdefault(q["column"], []).append(q)
+    bureau_yes = _bureau_yes(kept)
     edge_noted: set[str] = set()
     odd_open = 0
     thin = Border(bottom=Side(style="thin", color=house.ROW_RULE))
@@ -871,18 +940,25 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
         ws.cell(row=r, column=C_SUGG, value=sg.means)
         ws.cell(row=r, column=C_MADE, value=next((m.text() for m in made if m.name == c), None))
         asked = [] if hide else questions.get(c, [])      # a column not in use: nothing asked, nothing counted
+        answers = []
+        for q in asked:
+            key = f"{q['pattern']}|{q['value'] if q['value'] is not None else ''}"
+            known = memory.answer_for(mem, q["column"], q["pattern"], q["value"])
+            answers.append(kept["odd"].get((c, key)) or (known["answer"] if known else None))
+        # Control's bureau codes answer of Yes already makes this column's codes missing, unless answered Real here
+        bureau = bureau_yes and c not in _bureau_exempt(
+            [{**q, "answer": a} for q, a in zip(asked, answers)])
         for k, q in enumerate(asked or [None]):
             row = r + k
             if q is not None:
                 key = f"{q['pattern']}|{q['value'] if q['value'] is not None else ''}"
-                known = memory.answer_for(mem, q["column"], q["pattern"], q["value"])
-                answer = kept["odd"].get((c, key)) or (known["answer"] if known else None)
-                ws.cell(row=row, column=C_ODD, value=("and " if k else "") + _odd_words(q))
+                answer = answers[k]
+                ws.cell(row=row, column=C_ODD, value=("and " if k else "") + _odd_words(q, bureau))
                 treat = ws.cell(row=row, column=C_TREAT, value=str(answer).capitalize() if answer else None)
                 house.needs_run(treat)
                 dv_treat.add(treat)
                 ws.cell(row=row, column=C_QKEY, value=f"{c}|{key}")
-                odd_open += not answer
+                odd_open += not answer and not (bureau and _bureau_code(q))     # Control answered it
             for col in range(C_NAME, last + 1):
                 cell = ws.cell(row=row, column=col)
                 if cell.border.left.style is None:
@@ -896,16 +972,45 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
             ws.row_dimensions[row].hidden = hide
         r += max(1, len(asked))
     ws.cell(row=r, column=C_QKEY, value=TABLE_END)
+    # Odd values fits what it says on one line, now that the values are shown (30 Sep 2026)
+    ws.column_dimensions[_col(C_ODD)].width = house.fit(
+        [ws.cell(row=x, column=C_ODD).value for x in range(COL_FIRST, r)], floor=23, cap=72)
     treat = _col(C_TREAT)
     key = _col(C_QKEY)
+    odd = _col(C_ODD)
+    # a code Control's bureau codes answer already makes missing isn't shaded: it is answered (30 Sep 2026)
     ws.conditional_formatting.add(f"{treat}{COL_FIRST}:{treat}{r - 1}", house.still_needed(
-        f'AND(${key}{COL_FIRST}<>"",${treat}{COL_FIRST}="")'))
+        f'AND(${key}{COL_FIRST}<>"",${treat}{COL_FIRST}="",'
+        f'ISERROR(SEARCH("{BUREAU_MARK}",${odd}{COL_FIRST})))'))
     look = _col(C_LOOK)
     ws.conditional_formatting.add(f"{look}{COL_FIRST}:{look}{r - 1}", house.still_needed(f'{look}{COL_FIRST}<>""'))
     for col in (C_SUGG, C_MADE, C_QKEY):
         ws.column_dimensions[_col(col)].hidden = True
     ws.freeze_panes = f"C{COL_FIRST}"
     return odd_open, edge_noted
+
+
+def _bureau_on_columns(ws, rules: dict, table) -> None:
+    """Each odd value on Columns says whether Control's bureau codes answer makes it missing, as this Run read
+    it: BUREAU_WORDS added where the Run's rule for its column catches every value the
+    question is about, and taken off where it no longer does (Control answered No, or the column Real)."""
+    for r in table_rows(ws):
+        key = r[C_QKEY - 1].value if len(r) >= C_QKEY else None
+        if not (isinstance(key, str) and key.count("|") == 2):
+            continue
+        col, pattern, value = key.split("|")
+        rule = rules.get(col)
+        covered = rule is not None and rule.at_or_below is not None
+        if covered and pattern == "negatives":
+            from .ingest import BLANK, Bad, parse_number
+            read = (parse_number(x.get(col)) for x in table.rows)
+            neg = [p for p in read if p is not BLANK and not isinstance(p, Bad) and p < 0]
+            covered = bool(neg) and max(neg) <= rule.at_or_below
+        elif covered:
+            covered = value != "" and float(value) <= rule.at_or_below
+        cell = r[C_ODD - 1]
+        base = str(cell.value or "").replace(BUREAU_WORDS, "")
+        cell.value = base + (BUREAU_WORDS if covered else "")
 
 
 def _treat_rows(ws) -> dict[str, tuple[int, str]]:
@@ -957,13 +1062,16 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
         else COL_FIRST
     keys, treat = f"Columns!${_col(C_QKEY)}${COL_FIRST}:${_col(C_QKEY)}${end}", \
         f"Columns!${_col(C_TREAT)}${COL_FIRST}:${_col(C_TREAT)}${end}"
+    odd = f"Columns!${_col(C_ODD)}${COL_FIRST}:${_col(C_ODD)}${end}"
     # the count the Run's refusal gives (E, the firm, 27 Sep 2026): each blank answer on Control, what is being run
     # when the launcher hasn't said, and Checked every column; "Columns to confirm" counted every column instead
     kind_row = control.row_of(wb[control.SHEET], RUN_KIND) if control.SHEET in wb.sheetnames else None
     kind_blank = f'+IF({control.SHEET}!$C${kind_row}="",1,0)' if kind_row else ""
     tiles = [(NEEDED, f'=IFERROR(SUM(answers_needed),0){kind_blank}'
                       f'+IF(Columns!{CONFIRM_CELL.replace("C", "$C$")}="Yes",0,1)', "Control and Columns"),
-             ("Odd values to answer", f'=COUNTIFS({keys},"?*",{treat},"")', "Columns · Treat as"),
+             # a code Control's bureau codes answer already makes missing isn't one to answer (30 Sep 2026)
+             ("Odd values to answer", f'=COUNTIFS({keys},"?*",{treat},"",{odd},"<>*{BUREAU_MARK}*")',
+              "Columns · Treat as"),
              ("Changes waiting for a Run", f'=IFERROR(COUNTIF(Status,"{house.WAITING}"),0)',
               "Control · Status")]
     for i, (label, f, where) in enumerate(tiles):
@@ -1189,7 +1297,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
                 problems.append(f"Columns!{_col(C_TREAT)}{r[0].row}: Treat as takes Real or Missing, or blank.")
                 answer = None
             words = str(r[C_ODD - 1].value or "")
-            rows = int(re.sub(r"[^0-9]", "", words.rsplit(" on ", 1)[-1]) or 0) if " on " in words else 0
+            rows = _odd_rows(words)
             questions.append({"column": qcol, "pattern": pattern, "value": float(value) if value else None,
                               "rows": rows, "answer": answer})
         name = r[C_NAME - 1].value
@@ -1337,6 +1445,11 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
                       "materiality": use["materiality"], "revenue_line": use.get("revenue_line")},
         "questions": questions or [],
     }
+    if use.get(BUREAU) == "yes":
+        # Control's bureau codes answer (the firm, 30 Sep 2026): every column, a category's too, but one answered
+        # Real on Columns keeps its codes. The rule merges with the column's own Treat as answers (cfgmod.parse)
+        raw["missing"] = {c: {"at_or_below": cfgmod.BUREAU_CODE_LINE}
+                          for c in cfgmod.bureau_rules(columns, _bureau_exempt(questions))}
     if use.get(RUN_KIND) == NEW_VARIABLE:
         raw["run_kind"] = NEW_VARIABLE              # its dollar columns are optional (cfgmod.RUN_KINDS)
     if split:
@@ -1491,6 +1604,30 @@ def what_was_run(used: dict) -> str | None:
         return None
     step = labels.get((STEP, used.get(STEP))) if used.get(RUN_KIND) == NEW_VARIABLE else None
     return f"{kind}: {step[0].lower() + step[1:]}" if step else kind
+
+
+def _bureau_lines(res, table) -> list[str]:
+    """What Control's answer of Yes to "Treat values ≤ -99,000,000 as missing in every column?" did, in the Run's
+    lines (the firm, 30 Sep 2026): each column this Run read that it caught codes in, with its loans, counted from
+    the extract itself."""
+    if (getattr(res, "control_used", None) or {}).get(BUREAU) != "yes":
+        return []
+    from .ingest import BLANK, Bad, parse_number
+    line = cfgmod.BUREAU_CODE_LINE
+    hit = []
+    read = set(res.config.referenced_columns()) | {res.config.filter_by} | {(res.config.split or (None,))[0]}
+    for c in table.columns:
+        rule = res.config.missing.get(c)
+        if c not in read or rule is None or rule.at_or_below is None:
+            continue
+        n = 0
+        for x in table.rows:
+            p = parse_number(x.get(c))
+            n += p is not BLANK and not isinstance(p, Bad) and p <= rule.at_or_below
+        if n:
+            hit.append(f"{c} on {_n(n, 'loan')}")
+    said = f"Values at or below {cfgmod.plain_value(line)} treated as missing (Control)"
+    return [f"{said}: {'; '.join(hit)}." if hit else f"{said}: none in any column."]
 
 
 def _ran_words(res) -> str:
@@ -1902,9 +2039,11 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                         treat_rows=_treat_rows(wb["Columns"]), rules=res.config.missing, keep_inputs=True)
     else:
         look.refresh(wb, res.table or table, split_col, band_cols, rules=res.config.missing)
+    _bureau_on_columns(wb["Columns"], res.config.missing, res.table or table)
     summary = _headline(res, wb)
     _log(wb, [_ran_on(res, src) + _ran_words(res)]
          + scout_tab.log_lines(res)             # Goal 2 item 9: what scouting wrote, before any held-back result
+         + _bureau_lines(res, res.table or table)   # Control's codes answer, per column (30 Sep 2026)
          + [f"Confirmation waits: {w}" for w in res.scout_waits]
          + confirmatory.log_lines(res)          # fix 3.15: held to a pre-spec, and whether it touched the holdout
          + scout_tab.held_back_lines(res)       # OC-51: the tree's out-of-time check read the held-back loans too
@@ -1929,6 +2068,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     lines = notes + [_ran_on(res, src) + _ran_words(res)]
     each = getattr(res, "value_bands", {})
     lines += [engine.EACH_VALUE_SAYS.format(b.field) + "." for b in res.config.bands if b.name in each]
+    lines += _bureau_lines(res, res.table or table)
     lines += _top_lines(res)
     lines += scout_tab.launcher_lines(res)
     lines += confirmatory.launcher_lines(res)
@@ -2091,7 +2231,8 @@ def _headline(res, wb) -> dict:
         for r in table_rows(wb["Columns"]):
             name = r[C_NAME - 1].value or name
             key = r[C_QKEY - 1].value if len(r) >= C_QKEY else None
-            if isinstance(key, str) and key.count("|") == 2 and not r[C_TREAT - 1].value:
+            if isinstance(key, str) and key.count("|") == 2 and not r[C_TREAT - 1].value \
+                    and BUREAU_WORDS not in str(r[C_ODD - 1].value or ""):     # answered on Control, not open
                 cell = f"{_col(C_TREAT)}{r[0].row}"
                 open_qs.append({"sheet": "Columns", "cell": cell,
                                 "says": f"{key.split('|')[0]}: {r[C_ODD - 1].value}, used as recorded. Answer it "

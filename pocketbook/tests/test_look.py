@@ -98,7 +98,7 @@ def test_the_numbers_match_a_count_by_hand(tmp_path):
     f = blocks["FICO"]["lines"]
     assert f["Loans"][0] == 3000
     assert f["Blank"] == (blank, blank / 3000) and blank == 1
-    assert f["At -9999, likely a code"] == (60, 60 / 3000)               # every 50th loan
+    assert f["At -9,999, likely a code"] == (60, 60 / 3000)               # every 50th loan
     assert f["Smallest"][0] == min(rest) and f["Largest"][0] == max(rest)
     assert f["Median"][0] == statistics.median(rest)
     assert f["Mean"][0] == statistics.fmean(rest)                        # the firm: the mean beside the median

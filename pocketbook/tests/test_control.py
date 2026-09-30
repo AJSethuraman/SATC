@@ -28,8 +28,10 @@ def test_judgment_settings_recommend_nothing_and_method_settings_recommend_one()
     is the professional's judgment, never the tool's."""
     settings = control.load_settings()
     assert {s.key for s in settings if s.judgment} == JUDGMENT
+    # an optional setting (the bureau codes, 30 Sep 2026) is asked and never answered for the firm either
+    assert {s.key for s in settings if s.optional} == {"bureau_codes"}
     for s in settings:
-        assert sum(o.recommended for o in s.options) == (0 if s.judgment else 1), s.key
+        assert sum(o.recommended for o in s.options) == (0 if s.judgment or s.optional else 1), s.key
 
 
 def test_every_setting_has_options_and_short_explanations():
@@ -72,10 +74,11 @@ def test_unanswered_cells_are_shaded_by_a_rule_not_labelled(book):
     ws = load_workbook(book)[control.SHEET]
     text = " ".join(str(c.value) for row in ws.iter_rows() for c in row if c.value is not None)
     assert "judgment" not in text.lower() and "whose call" not in text.lower()
-    # one shading rule per setting answered here; the settings chosen in the launcher are shown, not answered
+    # one shading rule per setting answered here; the settings chosen in the launcher are shown, not answered, and
+    # an optional one's blank is an answer (the bureau codes, 30 Sep 2026)
     shaded = {str(rng.sqref) for rng in ws.conditional_formatting for rule in rng.rules
               if '="",OR(' in "".join(rule.formula)}
-    answered = [s for s in control.load_settings() if not s.in_launcher]
+    answered = [s for s in control.load_settings() if not s.in_launcher and not s.optional]
     assert len(shaded) == len(answered)
     r = _row(ws, "materiality")
     assert f"C{r}:D{r}" in shaded
@@ -86,7 +89,9 @@ def test_method_settings_open_on_their_recommendation(book):
     _answer_judgment(book)
     got = control.read_control(book)
     for s in control.load_settings():
-        if not s.judgment:
+        if s.optional:
+            assert s.key not in got                  # blank: not answered, nothing assumed
+        elif not s.judgment:
             assert got[s.key] == s.recommended().value
 
 
