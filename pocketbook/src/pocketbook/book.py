@@ -1955,7 +1955,7 @@ def _save(wb, book: Path) -> bool:
 @control.settings_once
 def run(book: str | Path, extract: str | Path | None = None, memory_path: str | Path | None = None,
         progress=timing.no_progress) -> Outcome:
-    """Run from the workbook, each stage timed (Record's "Where the time went", and the Run's last line: the firm,
+    """Run from the workbook, each stage timed (Record's "Where the time went", and a line of the Run's: the firm,
     30 Sep 2026, a Run of 578 s on the bank's laptop and nothing saying where it went). `progress(stage)` is
     called as each stage starts, for the launcher to show; by default it does nothing."""
     with timing.running(timing.Clock(progress)) as clock:
@@ -2176,7 +2176,7 @@ def _run(book: str | Path, extract: str | Path | None = None, memory_path: str |
     summary["first"] = first_lines(lines)
     if clock is not None:
         clock.stop()
-        lines.append(timing.took_line(clock))
+        lines.insert(len(lines) - 1, timing.took_line(clock))     # "Open ...: start with" stays last
     if res.scout_waits:
         # found and written, not yet confirmed: the pre-spec asks for an answer first (OC-13)
         lines += ["The held-back loans weren't tested yet. The pre-spec scouting wrote waits for:"] + \
@@ -3182,7 +3182,7 @@ def time_rows(clock) -> list[tuple[str, str]]:
         pct = f", {v / total:.0%}" if total > 0 else ""
         note = clock.notes.get(k)
         rows.append((f"  {k}", f"{timing.took(v)}{pct}" + (f" ({note})" if note else "")))
-    rows.append((f"  {TIME_AFTER}", "After this tab was written: the Run's last line in the launcher, and the record "
+    rows.append((f"  {TIME_AFTER}", "After this tab was written: the Run's Took line in the launcher, and the record "
                                     "file beside this workbook, give every stage."))
     return rows
 

@@ -9,6 +9,7 @@ The live parts are proved by calculating the workbook through LibreOffice (tests
 with openpyxl, the copy recalculated, and the cells the charts and tiles read compared with a count by hand."""
 
 import csv
+import io
 import re
 import statistics
 from pathlib import Path
@@ -542,7 +543,8 @@ def test_a_run_loads_the_workbook_once_and_saves_it_once(ran, tmp_path, monkeypa
     real_load, real_save = openpyxl.load_workbook, openpyxl.Workbook.save
 
     def load(path, *a, **k):
-        if Path(str(path)).name == copy.name:
+        # the workbook's bytes, read once from the file and opened from memory (30 Sep 2026: OneDrive at the bank)
+        if Path(str(path)).name == copy.name or isinstance(path, io.BytesIO):
             loads.append(path)
         return real_load(path, *a, **k)
 

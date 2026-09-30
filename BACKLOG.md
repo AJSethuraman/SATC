@@ -2726,6 +2726,52 @@ changed in the code.
     lines by the larger filter leave a slot empty, drawn blank on the same scale. With a filter across the bottom
     the lines are by the other filter and there is one chart. (no date) and (blank) are lines or panels but never
     a place across.
+- **Built, 30 Sep 2026: where a Run's time goes, and what the workbook costs Excel to open** (branch
+  `pocketbook-speed`). The firm: a Run on about 17,000 loans x 70 columns took **578 s** on the bank's laptop
+  (Ryzen 9 PRO 7940HS, 32 GB, Windows, the extract an .xlsx in a OneDrive folder), and *"in excel it seems to work
+  quickly enough but it takes quite some time to open particularly in the last stretch of loading"*.
+  - **Seconds per stage.** `timing.py`: every stage of `book.run` and `book.set_up` is timed by the wall clock and
+    handed to a `progress(stage)` callback as it starts (default: nothing; for the launcher to wire). Record's This
+    Run gains *Where the time went*: each stage in order, its seconds and share, what it worked on (the extract's
+    kind and rows x columns, the grids, the shuffles and how many processes dealt them, or that the worker processes
+    didn't start); the Run's lines gain *"Took 12 s: the shuffle test 3.8 s, writing Look 3.3 s, saving the
+    workbook 1.3 s."* (above *Open ...: start with*, which stays last); the record file carries every stage.
+  - **Measured here** (Linux, 4 cores, synthetic 17,000 x 70: FICO in bands, CHANNEL, split by REV_DEBT, filter
+    SYS_FLAG, 10,000 shuffles; the .xlsx an Excel-style file with shared strings). Run, .csv / .xlsx: opening the
+    workbook 1.0 / 1.0 s, reading the extract **0.3 / 5.4 s**, the loans' values 0.7 / 0.4, grids 0.7 / 0.7, the
+    shuffle test 3.8 / 3.9 (4 processes), filter grids 0.3 / 0.3, result tabs 0.5 / 0.5, **Look 3.3 / 3.0**, saving
+    1.3 / 1.4; in all **12.3 / 16.9 s** (before these changes 12.2 / 16.6). Set up: 14.1 to 12.1 s (.csv), 18.6 to
+    17.3 s (.xlsx), from not reading back the workbook it had just saved. Nothing here explains 578 s: the table
+    will say where the bank's time goes. The likeliest, in order: many more grids than here (the shuffle test and
+    the grids grow with banded columns x segments; *Every number column* left chosen would do it); the worker
+    processes failing to start (Record now says so); OneDrive and the virus scanner on every file read and write
+    (each file is now read once: the extract's bytes and the workbook's bytes are opened from memory, and a sheet
+    without Excel's dropdown block is no longer parsed twice).
+  - **The workbook's open cost** (the same Run's workbook; LibreOffice headless as the stand-in for Excel: 6.3 s to
+    open and calculate, 1.6 s for an empty workbook). 31,350 formulas, 74% of them on the hidden `_look`; 231
+    conditional-format rules over 5,708 cells; 50 dropdowns; 1 volatile formula (OFFSET on Grids, plus 2 OFFSETs
+    in dropdown lists); about 4,500 whole-column references to `_views` and `_pockets`; 46 charts. Taken apart:
+    **Look is 4.0 s of the 4.7 s above an empty workbook** (without Look, `_look` and `_dots`: 2.3 s); its 44
+    charts (29 series each, 24 of them the red edge lines) are 2.5 s, `_look`'s formulas about 1.1 s (the 120
+    chart slots per column most of it), every result tab's formulas together about 0.6 s. Changed, every number
+    the same (LibreOffice-calculated copies compared cell by cell: 186,920 cells, differing only in the time
+    stamps, Record's timings and the new cells): no OFFSET (INDEX:INDEX); whole columns of `_views` and `_pockets`
+    ended at their last row (`bounds.py`, before the save; Record left word for word); Look's 58 line ends per
+    column read one *tallest bar* cell instead of each taking MAX over 120 slots. Measured: 6.3 s to 6.2 s, within
+    LibreOffice's noise. Not checked: real Excel.
+  - **For the firm to decide:** the open cost is Look's blocks, one per number column that can be cut (43 here).
+    Drawing blocks only for the columns chosen to band and the split, or fewer edge lines per chart, would take
+    most of it off; either changes what Look shows. Reading an .xlsx extract costs 5 s here against 0.3 s for the
+    same file as .csv, twice (Set up and Run): saving the extract as CSV before picking it is the cheapest win at
+    the bank.
+  - Tests: `tests/test_speed_2026_09_30.py` (12: the table there, in order, adding up, the Took line, progress,
+    a broken progress, the refused pool said, each file read once, no OFFSET or whole column, the calculated values
+    unchanged, the tallest bar). Two tests follow the change: the Row/Column list parser in
+    `test_firm_answers_2026_09_29.py`, and the load counter in `test_answer_tabs.py` (the workbook is opened from
+    its bytes). The bank checklist's paste count is 37 (two new modules); its PDF not rebuilt. 4 planted bugs
+    added in `tools/mutation_check.py`; with 8 existing ones near the change, 12 of 12 caught (1 after its test
+    was strengthened). Already failing before this branch, at f2998527: `test_compare_...panels_by_system_approved`,
+    `test_a_new_variable_run_is_asked_only_what_it_uses`, `test_l2_the_summary_says_what_will_run_in_both_modes`.
 
 ## 7 · Standing rules for new items
 

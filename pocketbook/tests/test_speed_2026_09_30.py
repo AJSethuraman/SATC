@@ -4,7 +4,7 @@
 part. And: "in excel it seems to work quickly enough but it takes quite some time to open particularly in the last
 stretch of loading".
 
-- Each stage of a Run is timed by the wall clock: Record's "Where the time went", the Run's last line ("Took ...: the
+- Each stage of a Run is timed by the wall clock: Record's "Where the time went", a line of the Run's ("Took ...: the
   three biggest"), the record file, and `Outcome.timings`; `progress(stage)` is told as each starts. No test here
   asserts a number of seconds: only that the table is there, in the Run's order, and adds up.
 - The extract and the workbook are each read from disk once (a OneDrive folder and a virus scanner at the bank).
@@ -120,9 +120,9 @@ def test_record_shows_where_the_time_went_and_it_adds_up(ran):
     assert "2 grids: 1 banded column by 1 segment, each split" in notes["Building the grids"]
 
 
-def test_the_runs_last_line_says_how_long_it_took_and_names_the_three_biggest(ran):
+def test_the_runs_lines_say_how_long_it_took_and_names_the_three_biggest(ran):
     _, got, _, _ = ran
-    last = got.lines[-1]
+    last = got.lines[-2]                  # just above "Open ...: start with", which stays the last line
     total = sum(s for _, s in got.timings)
     assert last.startswith(f"Took {timing.took(total)}: "), last
     big = sorted(got.timings, key=lambda kv: -kv[1])[:3]
@@ -173,13 +173,15 @@ def test_worker_processes_that_will_not_start_are_said_on_record(tmp_path, monke
     assert "on 1 process; the worker processes didn't start (OSError: no processes on this machine)" in said
 
 
-def test_the_clock_adds_a_stage_marked_twice_and_says_times_plainly():
+def test_the_clock_adds_a_stage_marked_twice_and_says_times_plainly(monkeypatch):
+    ticks = iter(range(100))                     # a clock that moves one second each time it is read
+    monkeypatch.setattr(timing.time, "perf_counter", lambda: float(next(ticks)))
     c = timing.Clock()
     with timing.running(c):
         timing.mark("A")
         timing.mark("B")
         timing.mark("A")
-    assert [k for k, _ in c.rows()] == ["A", "B"]
+    assert c.rows() == [("A", 2.0), ("B", 1.0)]
     assert timing.took(0.04) == "0.0 s" and timing.took(9.84) == "9.8 s" and timing.took(42.4) == "42 s"
     assert timing.took(578) == "9 min 38 s"
     timing.mark("nobody is timing")          # no clock running: nothing happens
