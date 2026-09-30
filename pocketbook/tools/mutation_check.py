@@ -23,7 +23,7 @@ K="src/pocketbook/checks.py"; CF="src/pocketbook/confirmatory.py"; PV="src/pocke
 KG="src/pocketbook/kgroups.py"; CT="src/pocketbook/confirm_tab.py"; LA="src/pocketbook/launcher.py"
 I="src/pocketbook/ingest.py"; LK="src/pocketbook/look.py"; CO="src/pocketbook/control.py"
 HO="src/pocketbook/house.py"; Y="src/pocketbook/settings.yaml"; RS="src/pocketbook/results.py"
-RC="src/pocketbook/record.py"; PS="src/pocketbook/prespec.py"
+RC="src/pocketbook/record.py"; PS="src/pocketbook/prespec.py"; CMP="src/pocketbook/compare.py"
 SC="src/pocketbook/scout.py"; CFG="src/pocketbook/config.py"; JT="src/pocketbook/joint.py"
 muts = [
  ("1 blank->zero",       E, 'if p is BLANK:\n        return None, "blank"', 'if p is BLANK:\n        return 0.0, None', "test_finding_1"),
@@ -527,7 +527,7 @@ muts = [
   '            if False \\\n', "finished_run_shows"),
  ("the launcher's column limits ignored", B, '            got = getattr(choices, key)             # chosen',
   '            pass             # chosen', "column_limits_are_chosen"),
- ("a saved shortlist's boxes move", LA, '"d": None, "locked": locked,', '"d": None, "locked": False,',
+ ("a saved shortlist's boxes move", LA, '"d": None, "e": None, "locked": locked,', '"d": None, "e": None, "locked": False,',
   "saved_shortlist"),
  ("the outcome tested against unchecked", B, '        if code != "outcome":', '        if False:',
   "outcome_the_launcher_tests"),
@@ -1228,12 +1228,14 @@ muts = [
   "{m: [vals[i] for i in idx] for m, vals in per_row.items()}, {m.name: _rate(_accumulate(measures, {k: [v[i] for i "
   "in idx] for k, v in per_row.items()}, [None] * len(idx))[None].rates[m.name].sums()) for m in measures if "
   "m.is_rate}, min_units,", "grids_only_loans"),
+ # repointed 30 Sep 2026: a filtered view is keyed by both filters' values now (results.view_key)
  ("the filter shows the whole grid", RS,
-  '_grid_view(res, views, f"G|{gname}" + WHERE.format(v), g.filtered[v], g, names, rows_, cols_, ms,',
-  '_grid_view(res, views, f"G|{gname}" + WHERE.format(v), g, g, names, rows_, cols_, ms,', "grids_only_loans"),
+  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2), fg, g, names, rows_, cols_, ms, fit, split)',
+  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2), g, g, names, rows_, cols_, ms, fit, split)',
+  "grids_only_loans"),
  ("the filter dropdown does nothing", RS,
-  """ws[VW.replace("$", "")] = f'={G}&IF(OR({F}="",{F}="{ALL_LOANS}"),"",{live.q(WHERE.format(""))}&{F})'""",
-  """ws[VW.replace("$", "")] = f'={G}'""", "grids_only_loans"),
+  """ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, F2)""",
+  """ws[VW.replace("$", "")] = f'={G}' + ''""", "grids_only_loans"),
  ("loan size the median, not the average", E, '    avg = s.average\n', '    avg = s.median\n', "grids_loan_size"),
  ("loan size's rest of band keeps the pocket", E,
   '        vs_band = index_of(avg, (row.booked - s.booked) / (row.loans - s.loans))',
@@ -1334,10 +1336,9 @@ muts = [
  ("Origination year can't split", B, '            split.append((ch.ORIG_YEAR, "category"))',
   '            no_year(cells["split"], "the launcher splits the pockets")', "filter_by_origination"),
  ("filtered views left out of the widths", RS,
-  '_grid_view(res, views, f"G|{gname}" + WHERE.format(v), g.filtered[v], g, names, rows_, cols_, ms,\n'
-  '                           fit, split)',
-  '_grid_view(res, views, f"G|{gname}" + WHERE.format(v), g.filtered[v], g, names, rows_, cols_, ms,\n'
-  '                           None, split)', "filter_by_grids_widths"),
+  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2), fg, g, names, rows_, cols_, ms, fit, split)',
+  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2), fg, g, names, rows_, cols_, ms, None, split)',
+  "filter_by_grids_widths"),
  ("a band between whole numbers labelled one short", E, '            return math.ceil(round(x / step, 9)) * step if whole else x',
   '            return x', "labelled_by_the_values_it_holds"),
  ("Split's cells too narrow for the borderline flag", RS, '        dw = max(dw, len(stats.borderline_words(0.054, 0.95)) + 2)',
@@ -1427,12 +1428,8 @@ muts = [
  ("Summary's x book against the filtered loans, not the book", E,
   'gco_x=index_of(g.rate, whole.rate if whole else None),', 'gco_x=index_of(g.rate, top.rates["gco_rate"].rate),',
   "summary"),
- ("Summary's filter ignored", E,
-  '            part = summaries[(b.name, v)] = _summary(b.name, measures, per_row, bands[b.name], booked, whole.labels,\n'
-  '                                                     rows_of[v])',
-  '            part = summaries[(b.name, v)] = _summary(b.name, measures, per_row, bands[b.name], booked, whole.labels,\n'
-  '                                                     range(n))',
-  "summary"),
+ ("Summary's filter ignored", E, '                                                        whole.labels, rows_of[(v, w)])',
+  '                                                        whole.labels, range(n))', "summary"),
  ("Summary's bad loans % over every loan", E, '            row.update(bad=o.num, bad_rate=o.rate)',
   '            row.update(bad=o.num, bad_rate=share(o.num, c.rows))', "summary"),
  ("Summary's missing source column not said", RS,
@@ -1481,6 +1478,37 @@ muts = [
  ("the Rate heading names the option, not what is divided by what", RS,
   """f'="Rate · "&IFERROR(INDEX({hd_rng},MATCH({M},{m_rng},0)),{M})'""", """f'="Rate · "&{M}'""",
   "rate_heading_says"),
+ # 30 Sep 2026: two filters, and the Compare chart (the firm: two filters "independently and in conjunction with each
+ # other"; "it should not be vintage analysis only"; tests/test_compare_2026_09_30.py)
+ ("Filter 2 ignored by the engine", E, '                               and (w is None or filter_vals2[i] == w)]',
+  '                               and True]', "two_filters_grids or two_filters_summary"),
+ ("Grids' view key without Filter 2", RS, """ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, F2)""",
+  """ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, None)""", "two_filters_grids"),
+ ("Summary's view key without Filter 2", RS, '    where = ("&" + where_formula(F, F2)) if F else ""',
+  '    where = ("&" + where_formula(F, None)) if F else ""', "two_filters_summary"),
+ ("Filter 2 alone dropped by the launcher", LA,
+  'filter=self.filter or self.filter2, filter2=self.filter2 if self.filter else None,',
+  'filter=self.filter, filter2=self.filter2,', "filter_2_in_the_launcher"),
+ ("one column as both filters accepted", E, '        if ff2 == config.filter_by:', '        if False:',
+  "one_column_as_both"),
+ ("two filters' views unlimited", "src/pocketbook/choices.py", '    if views <= FILTER_MOST_VIEWS:', '    if True:',
+  "too_many_views"),
+ ("a thin point plotted", CMP, 'IF({loans}<{FEW},NA(),{rate}))', 'IF(FALSE,NA(),{rate}))',
+  "compare_vintage_by_system or compare_is_not_vintage_only"),
+ ("each panel scaled to the first panel's values only", CMP,
+  'clean = f"${col(scol(1, 0, CLEAN))}${DR}:${col(scol(P, L, CLEAN))}${DR + MB - 1}"',
+  'clean = f"${col(scol(1, 0, CLEAN))}${DR}:${col(scol(1, L, CLEAN))}${DR + MB - 1}"', "one_scale"),
+ ("each panel on its own y scale", CMP, 'value=f"=IF(COUNT({clean})>0,{SCALE_X},NA())"',
+  'value=f"=IF(AND({p}=1,COUNT({clean})>0),{SCALE_X},NA())"', "one_scale"),
+ ("a filter across the bottom read the wrong way round", CMP,
+  '        s = res.summaries.get((b0, v, w) if k == 1 else (b0, w, v))',
+  '        s = res.summaries.get((b0, w, v) if k == 1 else (b0, v, w))', "compare_vintage_by_system"),
+ ("lines by the filter that is across the bottom", CMP, "LB: f'IF({XF}=1,2,IF({XF}=2,1,",
+  "LB: f'IF({XF}=1,1,IF({XF}=2,2,", "compare_vintage_by_system"),
+ ("the whole book line drawn from the panel's loans", CMP,
+  '                sfx, title = "", live.q(BOOK_LINE)',
+  '                sfx, title = f\'&IF({PV(p)}="","",{live.q("|and ")}&{PV(p)})\', live.q(BOOK_LINE)',
+  "one_scale"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

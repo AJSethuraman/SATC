@@ -42,7 +42,7 @@ MODE_KEYS = {
 }
 TOP_KEYS = {"name", "schema_version", "key", "booked", "outcome", "gco", "ranr", "columns", "columns_confirmed",
             "missing", "bands", "dimensions", "measures", "benchmark", "questions",
-            "origination_date", "split", "filter_by", "derived", "run_kind"}
+            "origination_date", "split", "filter_by", "filter_by2", "derived", "run_kind"}
 #: The dates a run can be told about, as meanings in `columns:`: each names at most one column. Only the
 #: origination date is left: it splits development loans from the holdout, and Check gives its range.
 DATE_ROLES = ("origination_date",)
@@ -365,6 +365,7 @@ class Config:
     origination_date: str | None = None               # the column holding when each loan was made
     split: tuple | None = None                        # (column, own_median | each_value): the third layer
     filter_by: str | None = None                      # Grids' "Only loans where": a category, or ORIG_YEAR
+    filter_by2: str | None = None                     # Filter 2, "and <column> is": with filter_by, never alone
     columns: dict = field(default_factory=dict)       # column -> (meaning, is-value); from `columns:`
     not_cut: dict = field(default_factory=dict)       # column -> meaning, for meanings never cut by
     derived: tuple = ()                               # Derived columns, made in this order
@@ -530,6 +531,11 @@ def parse(raw: Any, source_path: str = "") -> Config:
         problems.append(f"`filter_by:` must name one category column (or ORIG_YEAR), the column Grids' Only loans "
                         f"where offers the values of; got {filter_by!r}")
         filter_by = None
+    filter_by2 = raw.get("filter_by2")
+    if filter_by2 is not None and (not isinstance(filter_by2, str) or not filter_by2.strip() or not filter_by):
+        problems.append(f"`filter_by2:` must name a second category column (or ORIG_YEAR), beside a `filter_by:`; "
+                        f"got {filter_by2!r}")
+        filter_by2 = None
     measures = core + extras
     bench = _parse_benchmark(raw.get("benchmark"), problems) if "benchmark" in raw else None
     questions = _parse_questions(raw.get("questions") or [], problems)
@@ -548,7 +554,7 @@ def parse(raw: Any, source_path: str = "") -> Config:
     return Config(name=str(raw["name"]), key=key, missing=missing, bands=bands, dimensions=dims,
                   measures=measures, benchmark=bench, questions=questions, booked=cols["booked"], outcome=out_field,
                   gco=cols["gco"], run_kind=run_kind if run_kind in RUN_KINDS else "bleed",
-                  origination_date=orig_col, split=split, filter_by=filter_by,
+                  origination_date=orig_col, split=split, filter_by=filter_by, filter_by2=filter_by2,
                   columns=columns, not_cut=not_cut, derived=derived,
                   periods=periods, definitions=definitions, source_path=source_path, raw=raw)
 

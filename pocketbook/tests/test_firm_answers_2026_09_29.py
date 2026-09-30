@@ -1549,7 +1549,7 @@ def test_filter_by_launcher_offers_every_category_and_the_origination_year(tmp_p
     x = _vintage_file(tmp_path, n=1500)
     loans = _loans_file(x)
     f = _flow(x)
-    assert f.heads() == ("Cut into bands", "Segment by", "Split by", "Filter by")
+    assert f.heads() == ("Cut into bands", "Segment by", "Split by", "Filter 1", "Filter 2")
     rows = f.rows()
     by = {r["name"]: r for r in rows}
     for name in ("CHANNEL", "ASSET_CLASS"):                                  # every category can filter

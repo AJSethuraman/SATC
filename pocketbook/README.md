@@ -91,7 +91,12 @@ After that, the whole routine is:
      category with more is refused). A column that splits isn't also cut or a
      segment. Separately, at most one column to **filter by**: a category of 6
      values or fewer, whose values Grids' *Only loans where* offers, whatever the
-     split is doing (a category may segment and filter at once). When a column
+     split is doing (a category may segment and filter at once), and a
+     second, **Filter 2** (the firm, 30 Sep 2026: two filters, *"independently
+     and in conjunction with each other"*): another such column, offered beside
+     the first, each alone or both at once (ORIG_YEAR = 2023 and SYS_FLAG = Y).
+     One column picked twice is refused, and so is a pair making more than 49
+     views of every grid (All loans and each value, counted on both). When a column
      is marked *Origination date*, a row **ORIG_YEAR** sits with the categories:
      the year each loan was made, read from that column, which can split, filter
      or both; a loan with no readable date is in *(no date)*, a value of its own
@@ -285,7 +290,10 @@ After that, the whole routine is:
      compared to the whole book that's just kind of the point"*); vs rest of
      band is the rest of the band among those loans; grey and the heat scale go
      by that view's own cells, and the columns' width fits the filtered values
-     too. With no Filter by picked it offers only All loans and says *Pick a
+     too. With Filter 2 picked, a second dropdown, **and** *(Filter 2 column)*
+     **is**, sits beside it: either one alone, or both for the loans with both
+     ("only loans where ORIG_YEAR is 2023 and SYS_FLAG is Y"), still against the
+     whole book. With no Filter by picked it offers only All loans and says *Pick a
      Filter by in the launcher.* Record's *Grids filter* row and the Run's line
      name the column and each value's loans. **Loan size**, in
      the Measure list when a booked amount is set: booked dollars per loan (the
@@ -299,7 +307,8 @@ After that, the whole routine is:
      loan amounts, % of units, % of loan amounts, charged off dollars, ratio"*;
      the ratio *"Charged off / booked"*): a **Band column** dropdown picks any
      column the Run cut into bands, and, when the launcher picked a Filter by,
-     **Only loans where** *(that column)* **is** narrows it to one value. Down
+     **Only loans where** *(that column)* **is** narrows it to one value (and
+     Filter 2's dropdown beside it, to the loans with both). Down
      the side: the bands in order, then (blank), (not a number) and (marked
      missing) where the column has them, then **All**. Across: Loans, % of
      loans, Bad loans, Bad loans %, Booked $, % of booked, GCOs ($),
@@ -314,6 +323,27 @@ After that, the whole routine is:
      grey and nothing else. A column whose source the Run hasn't got is left
      off and the note says so. Dollars show in thousands ($1,234k) only when
      the largest would not fit the column.
+   - **Compare** (the firm, 30 Sep 2026: *"can we make it so they can be
+     visually compared in a graph? Like if we used origination date as a filter
+     it would essentially be vintage years"*, and *"it should not be vintage
+     analysis only ... how would we show that say vintage analysis mixed with
+     like underwriter/system approved?"*; a line chart, chosen over bars): only
+     when the launcher picked a Filter by. **Across the bottom** is any band
+     column's bands, or either filter's values (Origination year there is the
+     vintage view); **Measure** is a rate (bad loans, charge-offs, kept after
+     losses ...); **Lines by** is Filter 1 or Filter 2, one line per value;
+     **Panels by** is the other filter, one small chart per value side by side
+     on **one y scale**, or None. With a filter across the bottom the lines are
+     by the other filter and one chart is drawn, and the tab says so. The
+     dashed grey line is the whole book. A point on fewer loans than *Fewest
+     loans in a pocket* on Control is **left off its line** (#N/A), and shown
+     in grey in the table under the charts, which lists every point's rate and
+     loans. Every number is the Run's (`engine.summaries`, the cells Summary
+     shows) and the dropdowns only pick them (`compare.py`), so the charts
+     redraw live; the charts are scatters with lines, since LibreOffice draws a
+     line chart's #N/A at zero, with the labels across drawn in the chart and
+     the key in cells above it. Nothing is tested. Pictures:
+     `docs/compare-chart-2026-09-30/`.
    - **Split:** only when a column splits the pockets (below). A Grid
      dropdown and a chip saying whether it holds the split's partner fixed; the
      summary for every measure; whether the gap is the same in every pocket; and

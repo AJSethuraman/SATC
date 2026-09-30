@@ -2697,6 +2697,35 @@ changed in the code.
   - **For the firm to confirm:** the launcher's plain line now reads *"Five measures: bad loans, bad dollars, GCOs
     ($), RANR, and RANR + GCOs"*; GCO and RANR are explained on the two lines above it. The historical documents
     (walkthroughs, audits, the redesign) keep the words they were written in.
+- **Built, 30 Sep 2026: two filters, and the Compare chart** (branch `pocketbook-compare-chart`). The firm: two
+  Filter by columns, *"independently and in conjunction with each other"*; then *"can we make it so they can be
+  visually compared in a graph? Like if we used origination date as a filter it would essentially be vintage
+  years"*, and *"if we are proving things exist across categories it should not be vintage analysis only so let's
+  make sure that is the case and how would we show that say vintage analysis mixed with like underwriter/system
+  approved?"* A line chart, chosen over bars.
+  - **Filter 2.** The launcher has Filter 1 and Filter 2 columns (a category of 6 values or fewer, or ORIG_YEAR).
+    Control carries it as *And filter them by*; the cube file as `filter_by2`. The engine builds every grid and
+    every Summary again on each value of either filter alone and on every pair (AND), skipping a pair no loan has.
+    Grids and Summary get a second dropdown, *and (column) is*, beside *Only loans where*; vs the book and × book
+    stay against the whole book. Refused in words: one column picked twice, and a pair making more than 49 views
+    of each grid (choices.FILTER_MOST_VIEWS). Filter 2 picked alone becomes the one filter.
+  - **Compare** (`compare.py`, after Summary, only with a Filter by). Dropdowns: *Across the bottom* (a band
+    column's bands, or either filter's values, so Origination year across is the vintage view), *Measure* (a
+    rate), *Lines by* (Filter 1 or 2), *Panels by* (the other, or None), *Whole book line*. Panels sit side by side
+    on one y scale; a point on fewer loans than *Fewest loans in a pocket* is #N/A, left off its line, and grey in
+    the table under the charts. The numbers are the Run's (the Summary cells) on _views; the formulas only pick
+    them, so the charts are live. Built as scatters with lines, not line charts: LibreOffice draws a line chart's
+    #N/A at zero. The labels across are one-point series named by their label cells; the key sits in cells.
+  - Tests: 9 in `tests/test_compare_2026_09_30.py`. Three tie every chart point, table cell and the shared scale to
+    the CSV with nothing imported from pocketbook: Origination year x SYS_FLAG, FICO x year in SYS_FLAG panels,
+    and FICO x CHANNEL in SYS_FLAG panels (not vintage at all). Grids and Summary with both filters, the Run's
+    line and Record, the launcher, and both refusals. Planted bugs: 12 added and 5 repointed (17 of 17 caught) in
+    `tools/mutation_check.py`. Pictures: `pocketbook/docs/compare-chart-2026-09-30/` (LibreOffice renders of
+    synthetic data). The bank checklist now counts 35 pasted files.
+  - **For the firm to confirm:** Compare's panel slots are fixed at the Run (the larger filter's value count), so
+    lines by the larger filter leave a slot empty, drawn blank on the same scale. With a filter across the bottom
+    the lines are by the other filter and there is one chart. (no date) and (blank) are lines or panels but never
+    a place across.
 
 ## 7 · Standing rules for new items
 
@@ -2711,6 +2740,7 @@ research pass before a spec, no exceptions.
 
 - 2026-09-30 -- **PocketBook: errors on the window, not in Notepad.** At the bank, Run with the extract open in Excel became a PermissionError traceback read in Notepad. The firm: *"It would be a lot easier if these kinds of errors just displayed on screen in the huge white space allotted"*. An extract that can't be read (open in Excel, OneDrive syncing, gone) is now a plain refusal naming the file, and the extract is read once per Run. Anything unexpected shows on the page with its type, its message and **Copy details**. 10 tests added and 2 changed; 8 planted bugs added, 8 caught, and 4 display-only ones caught by hand. §6d has the detail.
 - 2026-09-30 -- **PocketBook: a number column too few-valued to cut gets one band per value.** The firm, at the bank: *"So it refuses to run some stuff because it cannot band"*, then *"Yes that's fine"*. Major Derogatories (0 to 8, most loans at 0) no longer stops the Run: each value is its own band, labelled 0 to 8, and the Run says so; Columns suggests Category without changing the answer. More values that still collapse are cut as far as they go; a single value is refused, naming the two fixes; typed edges always win. §6d has the detail.
+- 2026-09-30 -- **PocketBook: two filters and the Compare chart.** The firm: two filters *"independently and in conjunction with each other"*, and a graph that is *"not vintage analysis only"*, e.g. *"vintage analysis mixed with like underwriter/system approved"*. Grids and Summary take a second filter (both at once is AND); a Compare tab draws each filter value as a line across a band column or the years, with panels by the other filter on one scale and thin points left off. §6d has the detail.
 - 2026-09-30 -- **PocketBook: Paid, cost, kept shows each pocket's gross booked, GCO and RANR.** The firm: *"so we can also see if pockets are straight negative on returns"*. Booked, GCO, RANR and RANR rate after Loans; a pocket losing money outright in red and counted beside the Grid dropdown; totals that add up to the whole book. 6 tests, 7 planted bugs caught, tie-out 481 of 481 TIED. §6d has the detail.
 
 - 2026-09-30 -- **PocketBook: the Summary tab.** The firm: *"a few matrices where it lists out a chosen band on the left and shows real calculated metrics ... Same with RANR. They'd be across the top"*; the ratio *"Charged off / booked"*; bad loans *"Yes do this"*. One band column down the side, with loans, bad loans, booked, charge-offs, × book and RANR across, plus each one's share. It can be filtered by the Filter by column. The engine does the arithmetic and ties it out; nothing is tested. 3 tests, 7 planted bugs, 7 caught; tie-out 1,274 of 1,274 cells TIED. Full suite in shards: 888 passed, 7 skipped, 0 failed. §6d has the detail and three points for the firm to confirm.
