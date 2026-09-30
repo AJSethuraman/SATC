@@ -1,0 +1,865 @@
+{
+ "before": 42,
+ "moved to Excel's block": 24,
+ "openpyxl alone sees after the save": 18,
+ "in Excel's block": 24,
+ "ran again": true,
+ "after": 42,
+ "dropdowns": [
+  {
+   "sheet": "Columns",
+   "cells": "C29 C30 C31 D29 D30 D31",
+   "formula": "'_options'!$J$2:$J$8",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "FICO",
+    "ORIG_BAL",
+    "BAD_FLAG",
+    "GCO_AMT",
+    "RANR_AMT",
+    "ASSET_CLASS",
+    "REV_DEBT"
+   ],
+   "there after": true,
+   "items after": [
+    "FICO",
+    "ORIG_BAL",
+    "BAD_FLAG",
+    "GCO_AMT",
+    "RANR_AMT",
+    "ASSET_CLASS",
+    "REV_DEBT"
+   ]
+  },
+  {
+   "sheet": "Columns",
+   "cells": "C3",
+   "formula": "\"Yes,No\"",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "Yes",
+    "No"
+   ],
+   "there after": true,
+   "items after": [
+    "Yes",
+    "No"
+   ]
+  },
+  {
+   "sheet": "Columns",
+   "cells": "D13 D14 D15 D16 D17 D18 D19 D20 D21 D22 D23",
+   "formula": "'_meanings'!$A$1:$A$19",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "Loan number (key)",
+    "Booked amount",
+    "Outcome (yes/no)",
+    "GCO dollars",
+    "RANR dollars",
+    "Origination date",
+    "FICO score",
+    "Other score",
+    "DTI-style ratio",
+    "LTV-style ratio",
+    "Rate or APR",
+    "Term",
+    "Credit product",
+    "Servicing data",
+    "Amount or number",
+    "Category",
+    "Other ID",
+    "Not used",
+    "Not sure yet"
+   ],
+   "there after": true,
+   "items after": [
+    "Loan number (key)",
+    "Booked amount",
+    "Outcome (yes/no)",
+    "GCO dollars",
+    "RANR dollars",
+    "Origination date",
+    "FICO score",
+    "Other score",
+    "DTI-style ratio",
+    "LTV-style ratio",
+    "Rate or APR",
+    "Term",
+    "Credit product",
+    "Servicing data",
+    "Amount or number",
+    "Category",
+    "Other ID",
+    "Not used",
+    "Not sure yet"
+   ]
+  },
+  {
+   "sheet": "Columns",
+   "cells": "H14 H19",
+   "formula": "\"Real,Missing\"",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "Real",
+    "Missing"
+   ],
+   "there after": true,
+   "items after": [
+    "Real",
+    "Missing"
+   ]
+  },
+  {
+   "sheet": "Columns",
+   "cells": "K13 K14 K15 K16 K17 K18 K19 K20 K21 K22 K23",
+   "formula": "\"No,Yes\"",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "No",
+    "Yes"
+   ],
+   "there after": true,
+   "items after": [
+    "No",
+    "Yes"
+   ]
+  },
+  {
+   "sheet": "Columns",
+   "cells": "N13 N14 N15 N16 N17 N18 N19 N20 N21 N22 N23",
+   "formula": "\"median,average\"",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "median",
+    "average"
+   ],
+   "there after": true,
+   "items after": [
+    "median",
+    "average"
+   ]
+  },
+  {
+   "sheet": "Columns",
+   "cells": "O13 O14 O15 O16 O17 O18 O19 O20 O21 O22 O23",
+   "formula": "\"per year,per month,one-time\"",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "per year",
+    "per month",
+    "one-time"
+   ],
+   "there after": true,
+   "items after": [
+    "per year",
+    "per month",
+    "one-time"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C15",
+   "formula": "'_options'!$C$35:$C$38",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "The smallest significant gap in a typical pocket (suggested)",
+    "1.25 times",
+    "1.5 times",
+    "2 times"
+   ],
+   "there after": true,
+   "items after": [
+    "The smallest significant gap in a typical pocket (suggested)",
+    "1.25 times",
+    "1.5 times",
+    "2 times"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C16",
+   "formula": "'_options'!$C$39:$C$42",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "The smallest significant gap in a typical pocket (suggested)",
+    "0.8 times",
+    "0.67 times",
+    "0.5 times"
+   ],
+   "there after": true,
+   "items after": [
+    "The smallest significant gap in a typical pocket (suggested)",
+    "0.8 times",
+    "0.67 times",
+    "0.5 times"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C17",
+   "formula": "'_options'!$C$43:$C$46",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "Each pocket's own test (suggested)",
+    "0.25 points either way",
+    "0.5 points either way",
+    "A gap as big as the materiality line"
+   ],
+   "there after": true,
+   "items after": [
+    "Each pocket's own test (suggested)",
+    "0.25 points either way",
+    "0.5 points either way",
+    "A gap as big as the materiality line"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C18",
+   "formula": "'_options'!$C$47:$C$49",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "90% sure",
+    "95% sure",
+    "99% sure"
+   ],
+   "there after": true,
+   "items after": [
+    "90% sure",
+    "95% sure",
+    "99% sure"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C19",
+   "formula": "'_options'!$C$27:$C$32",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "0.5% of the book's total losses",
+    "1% of the book's total losses",
+    "2% of the book's total losses",
+    "5% of the book's total losses",
+    "10% of the book's total losses",
+    "No floor"
+   ],
+   "there after": true,
+   "items after": [
+    "0.5% of the book's total losses",
+    "1% of the book's total losses",
+    "2% of the book's total losses",
+    "5% of the book's total losses",
+    "10% of the book's total losses",
+    "No floor"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C20",
+   "formula": "'_options'!$C$33:$C$34",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "The rest of its band",
+    "The rest of the book"
+   ],
+   "there after": true,
+   "items after": [
+    "The rest of its band",
+    "The rest of the book"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C24",
+   "formula": "'_options'!$C$20:$C$23",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "Enough for 5 expected losses (suggested)",
+    "30 loans",
+    "100 loans",
+    "300 loans"
+   ],
+   "there after": true,
+   "items after": [
+    "Enough for 5 expected losses (suggested)",
+    "30 loans",
+    "100 loans",
+    "300 loans"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C25",
+   "formula": "'_options'!$C$24:$C$26",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "5 losses",
+    "10 losses",
+    "20 losses"
+   ],
+   "there after": true,
+   "items after": [
+    "5 losses",
+    "10 losses",
+    "20 losses"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C26",
+   "formula": "'_options'!$C$14:$C$17",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "5 bands (recommended)",
+    "3 bands",
+    "10 bands",
+    "20 bands"
+   ],
+   "there after": true,
+   "items after": [
+    "5 bands (recommended)",
+    "3 bands",
+    "10 bands",
+    "20 bands"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C27",
+   "formula": "'_options'!$C$18:$C$19",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "Each band holds about the same number of loans (recommended)",
+    "The same, snapped to round numbers"
+   ],
+   "there after": true,
+   "items after": [
+    "Each band holds about the same number of loans (recommended)",
+    "The same, snapped to round numbers"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C28",
+   "formula": "'_options'!$C$50:$C$52",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "80% of the time (recommended)",
+    "90% of the time",
+    "50% of the time"
+   ],
+   "there after": true,
+   "items after": [
+    "80% of the time (recommended)",
+    "90% of the time",
+    "50% of the time"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C29",
+   "formula": "'_options'!$C$53:$C$55",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "No allowance",
+    "Hold down the share of false finds (Benjamini-Hochberg) (recommended)",
+    "Hold down the chance of any false find (Bonferroni)"
+   ],
+   "there after": true,
+   "items after": [
+    "No allowance",
+    "Hold down the share of false finds (Benjamini-Hochberg) (recommended)",
+    "Hold down the chance of any false find (Bonferroni)"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "C30",
+   "formula": "'_options'!$C$6:$C$7",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "The month start nearest 70% of the loans (suggested)",
+    "The month start nearest 80% of the loans"
+   ],
+   "there after": true,
+   "items after": [
+    "The month start nearest 70% of the loans (suggested)",
+    "The month start nearest 80% of the loans"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "D15",
+   "formula": "1.01",
+   "type": "decimal",
+   "operator": "between",
+   "formula2": "100",
+   "items before": [
+    "a number rule: 1.01"
+   ],
+   "there after": true,
+   "items after": [
+    "a number rule: 1.01"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "D16",
+   "formula": "0.01",
+   "type": "decimal",
+   "operator": "between",
+   "formula2": "0.99",
+   "items before": [
+    "a number rule: 0.01"
+   ],
+   "there after": true,
+   "items after": [
+    "a number rule: 0.01"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "D17",
+   "formula": "0.01",
+   "type": "decimal",
+   "operator": "between",
+   "formula2": "20",
+   "items before": [
+    "a number rule: 0.01"
+   ],
+   "there after": true,
+   "items after": [
+    "a number rule: 0.01"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "D18",
+   "formula": "0.5",
+   "type": "decimal",
+   "operator": "between",
+   "formula2": "0.999",
+   "items before": [
+    "a number rule: 0.5"
+   ],
+   "there after": true,
+   "items after": [
+    "a number rule: 0.5"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "D19",
+   "formula": "0",
+   "type": "decimal",
+   "operator": "between",
+   "formula2": "1000000000000",
+   "items before": [
+    "a number rule: 0"
+   ],
+   "there after": true,
+   "items after": [
+    "a number rule: 0"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "D24",
+   "formula": "2",
+   "type": "whole",
+   "operator": "between",
+   "formula2": "100000",
+   "items before": [
+    "a number rule: 2"
+   ],
+   "there after": true,
+   "items after": [
+    "a number rule: 2"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "D25",
+   "formula": "1",
+   "type": "whole",
+   "operator": "between",
+   "formula2": "100000",
+   "items before": [
+    "a number rule: 1"
+   ],
+   "there after": true,
+   "items after": [
+    "a number rule: 1"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "D26",
+   "formula": "2",
+   "type": "whole",
+   "operator": "between",
+   "formula2": "50",
+   "items before": [
+    "a number rule: 2"
+   ],
+   "there after": true,
+   "items after": [
+    "a number rule: 2"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "D28",
+   "formula": "0.5",
+   "type": "decimal",
+   "operator": "between",
+   "formula2": "0.99",
+   "items before": [
+    "a number rule: 0.5"
+   ],
+   "there after": true,
+   "items after": [
+    "a number rule: 0.5"
+   ]
+  },
+  {
+   "sheet": "Control",
+   "cells": "D30",
+   "formula": "1",
+   "type": "date",
+   "operator": "greaterThan",
+   "formula2": "",
+   "items before": [
+    "a number rule: 1"
+   ],
+   "there after": true,
+   "items after": [
+    "a number rule: 1"
+   ]
+  },
+  {
+   "sheet": "Grids",
+   "cells": "B13",
+   "formula": "'_choices'!$H$2:$H$9",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "FICO x CHANNEL",
+    "FICO x ASSET_CLASS",
+    "ORIG_BAL x CHANNEL",
+    "ORIG_BAL x ASSET_CLASS",
+    "FICO x CHANNEL / SYS_FLAG",
+    "FICO x ASSET_CLASS / SYS_FLAG",
+    "ORIG_BAL x CHANNEL / SYS_FLAG",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG"
+   ],
+   "there after": true,
+   "items after": [
+    "FICO x CHANNEL",
+    "FICO x ASSET_CLASS",
+    "ORIG_BAL x CHANNEL",
+    "ORIG_BAL x ASSET_CLASS",
+    "FICO x CHANNEL / SYS_FLAG",
+    "FICO x ASSET_CLASS / SYS_FLAG",
+    "ORIG_BAL x CHANNEL / SYS_FLAG",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG"
+   ]
+  },
+  {
+   "sheet": "Grids",
+   "cells": "F13",
+   "formula": "'_choices'!$I$2:$I$7",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "Bad loans",
+    "Bad dollars",
+    "Charge-offs",
+    "Kept after losses",
+    "Earned before losses",
+    "Loan size"
+   ],
+   "there after": true,
+   "items after": [
+    "Bad loans",
+    "Bad dollars",
+    "Charge-offs",
+    "Kept after losses",
+    "Earned before losses",
+    "Loan size"
+   ]
+  },
+  {
+   "sheet": "Grids",
+   "cells": "J13",
+   "formula": "'_choices'!$M$2:$M$5",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "All loans",
+    "N",
+    "Y",
+    "(blank)"
+   ],
+   "there after": true,
+   "items after": [
+    "All loans",
+    "N",
+    "Y",
+    "(blank)"
+   ]
+  },
+  {
+   "sheet": "Grids",
+   "cells": "N13",
+   "formula": "OFFSET($AM$13,0,0,MAX(1,$AO$13),1)",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "496 - 653",
+    "654 - 685",
+    "686 - 711",
+    "712 - 745",
+    "746 - 921",
+    "(blank)",
+    "(marked missing)"
+   ],
+   "there after": true,
+   "items after": [
+    "496 - 653",
+    "654 - 685",
+    "686 - 711",
+    "712 - 745",
+    "746 - 921",
+    "(blank)",
+    "(marked missing)"
+   ]
+  },
+  {
+   "sheet": "Grids",
+   "cells": "R13",
+   "formula": "OFFSET($AN$13,0,0,MAX(1,$AO$14),1)",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "Branch",
+    "Broker",
+    "Online"
+   ],
+   "there after": true,
+   "items after": [
+    "Branch",
+    "Broker",
+    "Online"
+   ]
+  },
+  {
+   "sheet": "Look",
+   "cells": "C20 C40 C60",
+   "formula": "\"10,20,50\"",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "10",
+    "20",
+    "50"
+   ],
+   "there after": true,
+   "items after": [
+    "10",
+    "20",
+    "50"
+   ]
+  },
+  {
+   "sheet": "Paid, cost, kept",
+   "cells": "B16",
+   "formula": "'_choices'!$G$2:$G$5",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "FICO x CHANNEL",
+    "FICO x ASSET_CLASS",
+    "ORIG_BAL x CHANNEL",
+    "ORIG_BAL x ASSET_CLASS"
+   ],
+   "there after": true,
+   "items after": [
+    "FICO x CHANNEL",
+    "FICO x ASSET_CLASS",
+    "ORIG_BAL x CHANNEL",
+    "ORIG_BAL x ASSET_CLASS"
+   ]
+  },
+  {
+   "sheet": "Pockets",
+   "cells": "C17",
+   "formula": "'_choices'!$A$2:$A$6",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "Bad loans",
+    "Bad dollars",
+    "Charge-offs",
+    "Kept after losses",
+    "Earned before losses"
+   ],
+   "there after": true,
+   "items after": [
+    "Bad loans",
+    "Bad dollars",
+    "Charge-offs",
+    "Kept after losses",
+    "Earned before losses"
+   ]
+  },
+  {
+   "sheet": "Pockets",
+   "cells": "D17",
+   "formula": "'_choices'!$E$2:$E$3",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "Two-way",
+    "Split by SYS_FLAG"
+   ],
+   "there after": true,
+   "items after": [
+    "Two-way",
+    "Split by SYS_FLAG"
+   ]
+  },
+  {
+   "sheet": "Pockets",
+   "cells": "E17",
+   "formula": "'_choices'!$F$2:$F$4",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "All",
+    "Worse and material",
+    "Worse or not sure"
+   ],
+   "there after": true,
+   "items after": [
+    "All",
+    "Worse and material",
+    "Worse or not sure"
+   ]
+  },
+  {
+   "sheet": "Split",
+   "cells": "B16",
+   "formula": "'_choices'!$N$2:$N$13",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "FICO x CHANNEL \u00b7 SYS_FLAG N vs rest",
+    "FICO x CHANNEL \u00b7 SYS_FLAG Y vs rest",
+    "FICO x CHANNEL \u00b7 SYS_FLAG (blank) vs rest",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG N vs rest",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG Y vs rest",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG (blank) vs rest",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG N vs rest",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG Y vs rest",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG (blank) vs rest",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG N vs rest",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG Y vs rest",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG (blank) vs rest"
+   ],
+   "there after": true,
+   "items after": [
+    "FICO x CHANNEL \u00b7 SYS_FLAG N vs rest",
+    "FICO x CHANNEL \u00b7 SYS_FLAG Y vs rest",
+    "FICO x CHANNEL \u00b7 SYS_FLAG (blank) vs rest",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG N vs rest",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG Y vs rest",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG (blank) vs rest",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG N vs rest",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG Y vs rest",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG (blank) vs rest",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG N vs rest",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG Y vs rest",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG (blank) vs rest"
+   ]
+  },
+  {
+   "sheet": "Split",
+   "cells": "B28",
+   "formula": "'_choices'!$O$2:$O$6",
+   "type": "list",
+   "operator": "",
+   "formula2": "",
+   "items before": [
+    "Bad loans",
+    "Bad dollars",
+    "Charge-offs",
+    "Kept after losses",
+    "Earned before losses"
+   ],
+   "there after": true,
+   "items after": [
+    "Bad loans",
+    "Bad dollars",
+    "Charge-offs",
+    "Kept after losses",
+    "Earned before losses"
+   ]
+  }
+ ],
+ "new after": [],
+ "views rows": 6687,
+ "views rows differing": []
+}

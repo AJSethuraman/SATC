@@ -1,0 +1,5 @@
+planted 200, caught 199, missed 1
+semantic plants 8519, caught 8519, missed 0
+  by kind (caught, missed): {'grid': (68, 0), 'grid-bound': (3, 0), 'grid-grey': (7127, 0), 'look': (8, 0), 'look-label': (50, 0), 'look-pline': (15, 0), 'panel': (47, 0), 'pk-border': (6, 0), 'pk-rule': (1195, 0)}
+  by kind (caught, missed): {'band-label': (3, 0), 'grid': (100, 0), 'grid-bookfig': (1, 0), 'grid-few': (1, 0), 'grid-grey': (30, 0), 'groups': (3, 0), 'panel': (5, 0), 'pck': (6, 0), 'pck-dot': (2, 0), 'pk-border': (12, 0), 'pocket': (27, 1), 'size-median': (6, 0), 'split-pocket': (3, 0)}
+  missed: Pockets L26 ['pocket', 'Split by REV_DEBT', 'Charge-offs', 'FICO 712 - 745', 'ASSET_CLASS 4', 'high', 'p'] 0.0151984801519848 0.0075992400759924
