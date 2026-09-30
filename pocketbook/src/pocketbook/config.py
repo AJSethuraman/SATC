@@ -143,6 +143,9 @@ class Band:
     edges: tuple[float, ...] = ()
     count: int | None = None
     cut: str | None = None           # equal_loans | round
+    # with count: a column with this many values or fewer that is too repeated to cut gets one band per value
+    # (Control's few_values; None is its default, 12. The firm, 30 Sep 2026)
+    few_values: int | None = None
 
 
 @dataclass(frozen=True)
@@ -687,9 +690,13 @@ def _parse_bands(node: Any, problems: list[str]) -> tuple[Band, ...]:
     out = []
     for i, e in enumerate(_entries(node, "bands", problems)):
         where = f"bands[{i}]"
-        _unknown(e, {"name", "field", "edges", "count", "cut"}, where, problems)
+        _unknown(e, {"name", "field", "edges", "count", "cut", "few_values"}, where, problems)
         name, fld = _name_field(e, where, problems)
         edges, count, cut = e.get("edges"), e.get("count"), e.get("cut")
+        few = e.get("few_values")
+        if few is not None and (not isinstance(few, int) or isinstance(few, bool) or few < 1 or edges is not None):
+            problems.append(f"{where}: `few_values:` goes with `count:`, a whole number 1 or more; got {few!r}")
+            continue
         if edges is not None and (count is not None or cut is not None):
             problems.append(f"{where}: give `edges:` or `count:` with `cut:`, not both")
             continue
@@ -701,7 +708,7 @@ def _parse_bands(node: Any, problems: list[str]) -> tuple[Band, ...]:
             if cut not in CUTS:
                 problems.append(f"{where}: `cut:` must be one of {', '.join(CUTS)}; got {cut!r}")
                 continue
-            out.append(Band(name=name, field=fld, count=count, cut=cut))
+            out.append(Band(name=name, field=fld, count=count, cut=cut, few_values=few))
             continue
         if not isinstance(edges, list) or not edges or not all(_num(x) for x in edges):
             problems.append(f"{where}: `edges:` must be a list of cut points, e.g. [620, 680, 740]")

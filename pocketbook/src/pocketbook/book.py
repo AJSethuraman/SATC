@@ -1294,6 +1294,10 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
             b = {"name": uniq(profile._slug(c)), "field": c}
             b.update({"edges": edges[c]} if c in edges else {"count": int(use["band_count"]),
                                                               "cut": use["band_cut"]})
+            few = use.get("few_values")
+            if "count" in b and isinstance(few, (int, float)) and not isinstance(few, bool):
+                # too repeated to cut and this few values: one band per value (the firm, 30 Sep 2026)
+                b["few_values"] = int(few)
             raw_bands.append(b)
         elif cat[m].cut == "dimension":
             raw_dims.append({"name": uniq(profile._slug(c)), "field": c})
@@ -1560,6 +1564,7 @@ def _band_widths(raw: dict, widths: dict[str, float], cfg, table, cells: dict[st
             continue
         b.pop("count", None)
         b.pop("cut", None)
+        b.pop("few_values", None)
         b["edges"] = pts or [round(first, 10)]
     return out
 
@@ -1922,6 +1927,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         raw["benchmark"].setdefault("shuffles", cfg.benchmark.shuffles)
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     lines = notes + [_ran_on(res, src) + _ran_words(res)]
+    each = getattr(res, "value_bands", {})
+    lines += [engine.EACH_VALUE_SAYS.format(b.field) + "." for b in res.config.bands if b.name in each]
     lines += _top_lines(res)
     lines += scout_tab.launcher_lines(res)
     lines += confirmatory.launcher_lines(res)
@@ -2275,6 +2282,31 @@ def _write_bleed(wb, res, stamp: str) -> None:
     results.write(wb, res, stamp)
 
 
+#: on Columns, beside a column the last Run gave one band per value (the firm, 30 Sep 2026). A suggestion only: what
+#: the column is stays as answered and remembered
+FEW_VALUES_WHY = " Few values ({} to {}): Category may read better."
+_FEW_VALUES_RE = re.compile(r" ?Few values \([^)]*\): Category may read better\.")
+
+
+def _few_values_words(cols, res) -> None:
+    """"Why we think so" on Columns: the suggestion for each column this Run gave one band per value, and none
+    beside a column it didn't (an earlier Run's taken off, so typed edges clear it at the next Run)."""
+    each = {b.field: getattr(res, "value_bands", {}).get(b.name) for b in res.config.bands}
+    for row in table_rows(cols):
+        name = row[C_NAME - 1].value
+        if not name:
+            continue
+        cell = row[C_WHY - 1]
+        why = _FEW_VALUES_RE.sub("", str(cell.value or ""))
+        vals = each.get(str(name))
+        if vals:
+            why = why.rstrip()
+            why = why + "." if why and why[-1] not in ".!?" else why
+            why += FEW_VALUES_WHY.format(engine.value_text(vals[0]), engine.value_text(vals[-1]))
+        if why != str(cell.value or ""):
+            cell.value = why.strip()
+
+
 def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, stamp: str) -> None:
     if control.SHEET in wb.sheetnames:
         _last_run_used(wb, res)
@@ -2313,6 +2345,7 @@ def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, s
                 why = str(row[C_WHY - 1].value or "")
                 if why.startswith("Remembered"):
                     row[C_WHY - 1].value = "Forgotten at the last Run; it was remembered before."
+        _few_values_words(cols, res)
     _write_found(wb, res, stamp)
     if "Start here" in wb.sheetnames:
         # the second walk, defect 9, and the third walk, defect 15: the counts went stale after a run

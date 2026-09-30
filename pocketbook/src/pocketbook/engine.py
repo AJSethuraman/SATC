@@ -213,6 +213,28 @@ def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | N
     return out
 
 
+#: Control's "Number columns: this many values or fewer is a category" (few_values), for a band that carries none
+FEW_VALUES = 12
+#: the Run's line when a column gets one band per value (the firm, 30 Sep 2026)
+EACH_VALUE_SAYS = "{}: too few values to cut into equal bands, so each value is its own band"
+
+
+def value_text(v: float) -> str:
+    """One value as a band's label: 0, 1, 2 for whole numbers (never 0.0); 0.5 or 1,250.75 otherwise."""
+    v = float(v)
+    if v.is_integer():
+        return f"{v:,.0f}"
+    return f"{v:,.6f}".rstrip("0").rstrip(".")
+
+
+def labels_for(edges: tuple[float, ...], seen: list[float], values=None) -> list[str]:
+    """A band column's labels as every tab names them: by the value when the Run gave each value its own band
+    (`values`, from Result.value_bands), else as ranges over the values read (band_labels)."""
+    if values:
+        return [value_text(v) for v in values]
+    return band_labels(edges, min(seen), max(seen), whole=all_whole(seen)) if seen else band_labels(edges)
+
+
 def band_of(v: float, edges: tuple[float, ...], labels: list[str]) -> str:
     for i, edge in enumerate(edges):
         if v < edge:
@@ -668,6 +690,8 @@ class Result:
     filter_values: list[str] = field(default_factory=list)  # the Filter by column's values, in order (Grids)
     # Summary: {(band name, None or a Filter by value): Summary}, every band column the Run cut
     summaries: dict[tuple[str, str | None], Summary] = field(default_factory=dict)
+    # band name -> its values, for a column too few-valued to cut: each value its own band, named by it (30 Sep 2026)
+    value_bands: dict[str, tuple[float, ...]] = field(default_factory=dict)
 
 
 # --------------------------------------------------------------------------
@@ -947,17 +971,23 @@ def run(config: Config, table: Table) -> Result:
     bands = {}
     band_edges: dict[str, tuple[float, ...]] = {}
     band_label_sets: dict[str, list[str]] = {}
+    value_bands: dict[str, tuple[float, ...]] = {}
     for b in config.bands:
         read = [classify_number(raw, rules.get(b.field)) for raw in col(b.field)]
-        edges = b.edges or cut_edges([v for v, why in read if why is None], b.count, b.cut)
+        seen = [v for v, why in read if why is None]
+        edges, each = b.edges, None            # typed edges are the analyst's: never replaced
+        if not edges:
+            edges, each = _cut_or_each_value(b, seen)
         if not edges:
             raise ColumnsMissing([(b.field, f"band {b.name}: no readable numbers to cut")], table.columns)
-        if b.count and len(edges) + 1 < b.count:
+        if each:
+            value_bands[b.name] = each
+            warnings.append(EACH_VALUE_SAYS.format(b.field))
+        elif b.count and len(edges) + 1 < b.count:
             warnings.append(f"band {b.name}: asked for {b.count} bands, got {len(edges) + 1} "
                             f"(`{b.field}` has too many repeated values to cut finer)")
         band_edges[b.name] = edges
-        seen = [v for v, why in read if why is None]
-        labels = band_labels(edges, min(seen), max(seen), whole=all_whole(seen)) if seen else band_labels(edges)
+        labels = labels_for(edges, seen, each)
         band_label_sets[b.name] = labels
         bands[b.name] = [band_of(v, edges, labels) if why is None else REASON_LABEL[why] for v, why in read]
     dims = {d.name: [classify_text(raw, rules.get(d.field)) for raw in col(d.field)]
@@ -1152,7 +1182,26 @@ def run(config: Config, table: Table) -> Result:
                   band_edges=band_edges, loans_needed=needed, min_units=min_units,
                   materiality_line=materiality_line, three_way=three_way,
                   split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
-                  book_size=book_size, filter_values=values, summaries=summaries)
+                  book_size=book_size, filter_values=values, summaries=summaries, value_bands=value_bands)
+
+
+def _cut_or_each_value(b: Band, seen: list[float]) -> tuple[tuple[float, ...], tuple[float, ...] | None]:
+    """A band column's edges when none are typed, and its values when each is its own band. The firm, 30 Sep 2026,
+    on a column like Major Derogatories (0 to 8, most loans at 0) whose equal-loan cuts all fell on the zeros, so
+    the Run refused it: "Yes that's fine" to a column with few values (Control's few_values, 12) getting one band
+    per value; one with more that still collapses is cut as far as it can be ("asked for N bands, got M"); one
+    with a single value is refused, in words that name the two fixes."""
+    edges = cut_edges(seen, b.count, b.cut)
+    if not seen or len(edges) + 1 >= b.count:
+        return edges, None
+    distinct = sorted(set(seen))
+    if len(distinct) < 2:
+        raise DataRefused(f"`{b.field}` reads {value_text(distinct[0])} on every loan, so there is nothing to cut "
+                          f"into bands. On Columns, set What it is to Category, or type Band edges like 1; 2; 5")
+    few = FEW_VALUES if b.few_values is None else b.few_values
+    if len(distinct) <= few:
+        return tuple(distinct[1:]), tuple(distinct)
+    return edges or (distinct[1],), None
 
 
 def _summary(band: str, measures, per_row, labels_of, booked, order, idx) -> Summary:

@@ -1916,9 +1916,12 @@ def test_whole_dollars_raising_an_edge_never_leaves_two_the_same_or_an_empty_ban
 
 
 def test_whole_dollars_a_run_whose_edges_meet_says_it_got_fewer_bands(tmp_path):
-    """Three equal-loan points between $100 and $101 are all raised to 101: two edges, and the Run's own warning."""
+    """Three equal-loan points between $100 and $101 are all raised to 101: two edges, and the Run's own warning.
+    The column has five values; few_values is set under that so the cut, not one band per value (few_values), is
+    what is tested here."""
     from pocketbook import engine
-    res, tbl = _dollar_run(tmp_path, {"name": "bal", "field": "ORIG_BAL", "count": 5, "cut": "equal_loans"},
+    res, tbl = _dollar_run(tmp_path, {"name": "bal", "field": "ORIG_BAL", "count": 5, "cut": "equal_loans",
+                                      "few_values": 4},
                            n=500, bal=lambda i, was: (100.1, 100.2, 100.6, 100.7, 900.5)[i % 5])
     vals = sorted(float(r["ORIG_BAL"]) for r in tbl.rows)
     assert len({engine._quantile(vals, k / 5) for k in range(1, 5)}) == 4        # four edges before raising
@@ -2242,8 +2245,10 @@ def _summary_label(v, labels) -> str:
     return got[0]
 
 
-def _road2(rows, field, labels, whole_rows) -> dict:
-    """Every Summary figure for `rows`, from the CSV's text alone: the bands, the special rows, then All."""
+def _road2(rows, field, labels, whole_rows, label_of=None) -> dict:
+    """Every Summary figure for `rows`, from the CSV's text alone: the bands, the special rows, then All. `label_of`
+    reads a loan's row from its text when the bands aren't ranges (one band per value)."""
+    label_of = label_of or _summary_label
     def f(v):
         try:
             return float(v)
@@ -2266,7 +2271,7 @@ def _road2(rows, field, labels, whole_rows) -> dict:
 
     by: dict = {}
     for r in rows:
-        by.setdefault(_summary_label(r[field], labels), []).append(r)
+        by.setdefault(label_of(r[field], labels), []).append(r)
     order = list(labels) + [s for s in SPECIAL if s in by]
     out = {lab: figures(by.get(lab, [])) for lab in order}
     out["All"] = figures(rows)
@@ -2385,3 +2390,265 @@ def test_summary_leaves_off_the_columns_a_run_has_no_source_for_and_says_so(tmp_
             assert "Not shown" not in note and "Only loans where" not in note     # no Filter by, no second dropdown
             with pytest.raises(KeyError):
                 tabs.dropdown(ws, "Only loans where")
+
+
+# ---- A number column too few-valued to cut: one band per value (30 Sep 2026, at the bank)
+# The firm: "So it refuses to run some stuff because it cannot band. Which makes sense for the examples so far - they
+# are things like major derogs which do not include too many numbers." And to the fix: "Yes that's fine". A column
+# like Major Derogatories (0 to 8, most loans at 0) marked Amount or number, cut into equal-loan bands, had every cut
+# fall on the zeros, and the Run refused it: "the extract has no column ... (a band: no readable numbers to cut)".
+# Now: with Control's few values (12) or fewer, each value is its own band, named by the value; with more, it is cut
+# as far as it can be; one value is refused in words naming the two fixes. Typed Band edges always win.
+
+DEROGS = "Major Derogatories"
+
+
+def _derog(i: int, rng) -> int:
+    return 0 if rng.random() < 0.85 else rng.randint(1, 8)
+
+
+def _with_derogs(src, out, value=_derog, seed=30):
+    """The loan file at `src` with a Major Derogatories column added: by default 85% zeros, the rest 1 to 8."""
+    rows = list(csv.DictReader(open(src, encoding="utf-8")))
+    rng = random.Random(seed)
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(list(rows[0]) + [DEROGS])
+        for i, r in enumerate(rows):
+            w.writerow(list(r.values()) + [value(i, rng)])
+    return out
+
+
+def _derog_run(tmp_path, band: dict, value=_derog, n=3000):
+    """The engine on the synthetic cube cut by one band on Major Derogatories: the result and the loan file's rows."""
+    import copy
+    from pocketbook import config as cfgmod, engine
+    from pocketbook.ingest import read_table
+    cfg, data = synth.write(tmp_path, n=n)
+    x = _with_derogs(data, tmp_path / "derogs.csv", value)
+    raw = copy.deepcopy(cfgmod.load(cfg).raw)
+    raw["bands"] = [{"name": "derogs", "field": DEROGS, **band}]
+    return engine.run(cfgmod.parse(raw), read_table(x)), _loans_file(x)
+
+
+EQUAL = {"count": 5, "cut": "equal_loans"}
+
+
+def _value_of(v, labels) -> str:
+    """A loan's row on a tab cut one band per value, from its text alone: the whole number itself."""
+    if v in ("", None):
+        return "(blank)"
+    return str(int(float(v)))
+
+
+def _derogs_workbook(d, value=_derog, n=3000, filt=ch.ORIG_YEAR, few=12):
+    """Set up on the loan file with Major Derogatories, marked Amount or number on Columns, and answered. `few`: the
+    launcher's "Number columns: this many values or fewer is a category"."""
+    from test_book import at
+    x = _with_derogs(synth.write_extract(d / "src", n=n), d / "derogs.csv", value)
+    out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=(DEROGS,), segments=("CHANNEL",), filter=filt,
+                                            outcome="BAD_FLAG", few_values=few))
+    wb = load_workbook(out.book)
+    wb["Columns"][at(wb, DEROGS, book.C_MEANS)] = "Amount or number"
+    wb.save(out.book)
+    _answer(out.book)
+    return out.book, x
+
+
+@pytest.fixture(scope="module")
+def derogs_book(tmp_path_factory):
+    """The bank's shape: Major Derogatories marked Amount or number and cut into bands, by CHANNEL, filtered by
+    ORIG_YEAR. The book, its loan file, and the Run."""
+    from pocketbook import perm
+    d = tmp_path_factory.mktemp("derogs")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 100)
+        b, x = _derogs_workbook(d)
+        ran = book.run(b)
+    return b, x, ran
+
+
+def test_few_values_the_bank_column_was_refused_before_and_runs_now_one_band_per_value(tmp_path):
+    from pocketbook import engine
+    res, rows = _derog_run(tmp_path, EQUAL)
+    vals = sorted(float(r[DEROGS]) for r in rows)
+    # the reproduction: every equal-loan cut falls on the zeros, which is what the Run refused
+    assert {engine._quantile(vals, k / 5) for k in range(1, 5)} == {0.0}
+    assert engine.cut_edges(vals, 5, "equal_loans") == ()
+    assert res.band_edges["derogs"] == (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)
+    assert res.value_bands["derogs"] == tuple(float(v) for v in range(9))
+    g = res.grids[0]
+    assert g.band_labels == [str(v) for v in range(9)]                     # "0", "1", ... never "0.0" or "0 - 0"
+    held = {lab: g.cell(lab, engine.ALL).rows for lab in g.band_labels}
+    assert held == {str(v): sum(1 for r in rows if int(r[DEROGS]) == v) for v in range(9)}
+    assert f"{DEROGS}: too few values to cut into equal bands, so each value is its own band" in res.warnings
+    assert not [w for w in res.warnings if "asked for" in w]
+
+
+def test_few_values_the_run_says_so_and_columns_suggests_category_while_the_answer_stays(derogs_book):
+    import tabs
+    from test_book import at
+    b, x, ran = derogs_book
+    said = f"{DEROGS}: too few values to cut into equal bands, so each value is its own band."
+    assert ran.ok, ran.lines
+    assert said in ran.lines                                              # the Run's own lines
+    rec = tabs.record(b)
+    warn = rec["Warning"] if isinstance(rec["Warning"], list) else [rec["Warning"]]
+    assert said[:-1] in warn                                              # and Record
+    wb = load_workbook(b)
+    why = wb["Columns"][at(wb, DEROGS, book.C_WHY)].value
+    assert why.endswith(" Few values (0 to 8): Category may read better.") and why.count("Few values") == 1
+    assert wb["Columns"][at(wb, DEROGS, book.C_MEANS)].value == "Amount or number"   # a suggestion, never a change
+    assert "Few values" not in str(wb["Columns"][at(wb, "FICO", book.C_WHY)].value)
+    # the setting the launcher chose rides with the band: Control's 12
+    raw = book.read_book(b)[0]
+    assert [x.get("few_values") for x in raw["bands"]] == [12]
+
+
+def test_few_values_grids_every_value_band_is_the_loan_files(derogs_book, tmp_path):
+    from pocketbook import results
+    import tabs
+    b, x, _ = derogs_book
+    rows = _loans_file(x)
+    grid = next(g for g in tabs.options(load_workbook(b), results.GRIDS, "Grid") if DEROGS in g)
+    for only in (None, "2023"):
+        picks = {"grid": grid, **({ONLY_YEAR: only} if only else {})}
+        ws, blocks, _ = _grids(b, tmp_path / f"g{only}.xlsx", **picks)
+        loans, rate = blocks["Loans"], blocks["Rate"]
+        mine = [r for r in rows if only is None or _year(r) == only]
+        assert 0 < len(mine) < len(rows) or only is None
+        want: dict = {}
+        for r in mine:
+            v = str(int(r[DEROGS]))
+            for k in {(v, r["CHANNEL"]), (v, "All"), ("All", r["CHANNEL"]), ("All", "All")}:
+                want.setdefault(k, []).append(r)
+        assert [k[0] for k in loans if k[1] == "All"] == [str(v) for v in range(9)] + ["All"]
+        assert {k: n for k, n in loans.items() if n} == {k: len(v) for k, v in want.items()}, only
+        for k, got in want.items():
+            assert rate[k] == pytest.approx(_bad_rate(got)), (only, k)
+
+
+def test_few_values_summary_every_value_band_is_the_loan_files(derogs_book, tmp_path):
+    b, x, _ = derogs_book
+    rows = _loans_file(x)
+    for only in (None, "2023"):
+        ws, heads, shown, head = _summary_tab(b, tmp_path / f"s{only}.xlsx", band=DEROGS, only=only)
+        assert head == DEROGS and heads == SUMMARY_HEADS
+        labels = [lab for lab in shown if lab != "All"]
+        assert labels == [str(v) for v in range(9)]
+        mine = [r for r in rows if only is None or _year(r) == only]
+        _check_summary(shown, _road2(mine, DEROGS, labels, rows, label_of=_value_of))
+
+
+def test_few_values_typed_edges_always_win(tmp_path):
+    res, rows = _derog_run(tmp_path, {"edges": [1, 2, 5]})
+    assert res.band_edges["derogs"] == (1.0, 2.0, 5.0) and not res.value_bands
+    assert res.grids[0].band_labels == ["0 - 0", "1 - 1", "2 - 4", "5 - 8"]
+    assert not [w for w in res.warnings if "its own band" in w]
+
+
+def test_few_values_typed_edges_on_columns_win_and_take_the_suggestion_off(derogs_book, tmp_path, monkeypatch):
+    import shutil
+    from pocketbook import perm
+    from test_book import at
+    b, x, _ = derogs_book
+    monkeypatch.setattr(perm, "SHUFFLES", 100)
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    mine = tmp_path / b.name
+    shutil.copy(b, mine)
+    wb = load_workbook(mine)
+    wb["Columns"][at(wb, DEROGS, book.C_EDGES)] = "1; 2; 5"
+    wb.save(mine)
+    ran = book.run(mine)
+    assert ran.ok, ran.lines
+    assert not [ln for ln in ran.lines if "its own band" in ln]
+    wb = load_workbook(mine)
+    assert "Few values" not in str(wb["Columns"][at(wb, DEROGS, book.C_WHY)].value)
+
+
+def test_few_values_a_single_value_is_refused_in_words_that_name_both_fixes(tmp_path):
+    from pocketbook import engine
+    with pytest.raises(engine.DataRefused) as got:
+        _derog_run(tmp_path, EQUAL, value=lambda i, rng: 0)
+    assert str(got.value) == (f"`{DEROGS}` reads 0 on every loan, so there is nothing to cut into bands. On Columns, "
+                              f"set What it is to Category, or type Band edges like 1; 2; 5")
+
+
+def test_few_values_a_single_value_column_in_the_workbook_says_the_two_fixes(tmp_path, monkeypatch):
+    from pocketbook import perm
+    monkeypatch.setattr(perm, "SHUFFLES", 100)
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    b, _ = _derogs_workbook(tmp_path, value=lambda i, rng: 3, n=1500, filt=None)
+    ran = book.run(b)
+    assert not ran.ok
+    assert ran.lines == [f'Couldn\'t run: "{DEROGS}" reads 3 on every loan, so there is nothing to cut into bands. '
+                         f'On Columns, set What it is to Category, or type Band edges like 1; 2; 5']
+
+
+def test_few_values_more_values_than_the_setting_cut_what_they_can(tmp_path):
+    """Twenty values, heavy at zero: more than 12, so no value bands. The equal-loan cuts that survive are kept and
+    the Run says it got fewer bands; when none survive, the zeros against the rest."""
+    from pocketbook import engine
+    res, rows = _derog_run(tmp_path, EQUAL, value=lambda i, rng: 0 if rng.random() < 0.7 else rng.randint(1, 20))
+    vals = sorted(float(r[DEROGS]) for r in rows)
+    assert len(set(vals)) > engine.FEW_VALUES and not res.value_bands
+    edges = res.band_edges["derogs"]
+    assert edges == engine.cut_edges(vals, 5, "equal_loans") and 1 <= len(edges) < 4
+    assert (f"band derogs: asked for 5 bands, got {len(edges) + 1} (`{DEROGS}` has too many repeated values to cut "
+            f"finer)") in res.warnings
+    res, rows = _derog_run(tmp_path / "b", EQUAL, value=lambda i, rng: 0 if rng.random() < 0.9 else rng.randint(1, 20))
+    assert engine.cut_edges([float(r[DEROGS]) for r in rows], 5, "equal_loans") == ()
+    assert res.band_edges["derogs"] == (1.0,) and not res.value_bands
+    assert res.grids[0].band_labels == ["0 - 0", "1 - 20"]
+    assert "band derogs: asked for 5 bands, got 2 (`Major Derogatories` has too many repeated values to cut finer)" \
+        in res.warnings
+
+
+def test_few_values_the_setting_is_the_threshold(tmp_path):
+    """Nine values: one band each at 9 or more; at 6 (the setting, not 12) cut as far as they go."""
+    res, _ = _derog_run(tmp_path, {**EQUAL, "few_values": 9})
+    assert len(res.value_bands["derogs"]) == 9
+    res, _ = _derog_run(tmp_path / "six", {**EQUAL, "few_values": 6})
+    assert not res.value_bands and res.band_edges["derogs"] == (1.0,)
+
+
+def test_few_values_the_launchers_setting_is_the_one_the_run_uses(tmp_path, monkeypatch):
+    """The launcher's 6: nine values are more than that, so the Run cuts what it can and says it got fewer bands."""
+    from pocketbook import perm
+    monkeypatch.setattr(perm, "SHUFFLES", 100)
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    b, _ = _derogs_workbook(tmp_path, n=1500, filt=None, few=6)
+    assert [x.get("few_values") for x in book.read_book(b)[0]["bands"]] == [6]
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    assert not [ln for ln in ran.lines if "its own band" in ln]
+    import tabs
+    rec = tabs.record(b)
+    warn = rec["Warning"] if isinstance(rec["Warning"], list) else [rec["Warning"]]
+    assert any("asked for 5 bands, got 2" in w for w in warn), warn
+
+
+def test_few_values_labels_are_the_values_themselves():
+    from pocketbook import engine
+    assert engine.labels_for((1.0, 2.0), [0.0, 1.0, 2.0], (0.0, 1.0, 2.0)) == ["0", "1", "2"]
+    assert engine.labels_for((1.5,), [0.5, 1.5], (0.5, 1.5)) == ["0.5", "1.5"]
+    assert engine.labels_for((2000.0,), [1000.0, 2000.0], (1000.0, 2000.0)) == ["1,000", "2,000"]
+    # a column cut into ranges reads as before, whole-number and whole-dollar rules included
+    assert engine.labels_for((620.0, 680.0), [500.0, 850.0]) == ["500 - 619", "620 - 679", "680 - 850"]
+    assert engine.labels_for((654.2,), [496.0, 850.0]) == ["496 - 654", "655 - 850"]
+
+
+def test_few_values_prevalence_counts_value_bands_as_the_grids_cut_them(tmp_path):
+    from pocketbook import prevalence
+    res, rows = _derog_run(tmp_path, EQUAL)
+    assert prevalence._labels_by_band(res, res.table.rows)["derogs"] == [str(int(r[DEROGS])) for r in rows]
+    # a subset keeps the same names whatever values it happens to hold (its smallest isn't 0)
+    some = [r for r in res.table.rows if int(r[DEROGS]) >= 3]
+    assert prevalence._labels_by_band(res, some)["derogs"] == [str(int(r[DEROGS])) for r in some]
+    got = prevalence.count(res, res.grids[0], prevalence.Grouping("ASSET_CLASS", "values", "t"))
+    assert got is not None                                                 # tied out to the grid's own pockets
+    order, out, shown = got
+    assert {k[0] for k in out} == set(res.grids[0].band_labels)
+    assert prevalence._bands_of([(float(r[DEROGS]), None) for r in rows], res.band_edges["derogs"],
+                                res.value_bands["derogs"])[1] == [str(v) for v in range(9)]
