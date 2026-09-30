@@ -59,7 +59,7 @@ INPUT_TABS = ("Start here", "Control", "Columns", "Look")
 #: tabs an older workbook carries that the redesign folded into others: taken off at Set up (and Materiality,
 #: now the panel on Control, at Run)
 FOLDED_TABS = ("Odd values", "Learned", "Materiality")
-RESULT_TABS = (scout.SHEET, confirm_tab.SHEET) + results.TABS + (record.SHEET,)
+RESULT_TABS = (scout.SHEET, confirm_tab.SHEET) + results.SHOWN_TABS + (record.SHEET,)
 #: tabs the redesign's phase 4 replaced: a Run takes them off an older workbook (the Log becomes the hidden _log)
 OLD_RESULT_TABS = (confirm_tab.OLD_SHEET, record.OLD_CHECK)
 LOG_FIRST = record.LOG_FIRST            # the newest line on the hidden _log (the Log tab it replaces)
@@ -1095,7 +1095,8 @@ TAB_GROUPS = [
                                ("Look", "each number column's shape")]),
     ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "paid against cost"),
                         (results.GRIDS, "one grid at a time, and how common"),
-                        (results.SUMMARY, "one band column's plain figures"), (results.SPLIT, "each pocket split"),
+                        (results.SUMMARY, "one band column's plain figures"),
+                        (results.COMPARE, "the filters' values as lines"), (results.SPLIT, "each pocket split"),
                         (scout.SHEET, "the candidates ranked, on development loans"),
                         (confirm_tab.SHEET, "the shortlist, confirmed")]),
     ("Record", "STONE", [(record.SHEET, "what ran, the tie-outs, every Run")]),

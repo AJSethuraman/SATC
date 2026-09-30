@@ -54,6 +54,11 @@ POCKETS, PCK, GRIDS, SUMMARY, SPLIT = "Pockets", "Paid, cost, kept", "Grids", "S
 #: Summary sits after Grids: both show one table at a time, picked by dropdown, as of the last Run, and Summary is the
 #: same band column's figures without the segments across
 TABS = (POCKETS, PCK, GRIDS, SUMMARY, SPLIT)
+#: Compare (the firm, 30 Sep 2026: "can we make it so they can be visually compared in a graph?"): the filters'
+#: values as lines, after Summary. Written only when the launcher picked a Filter by, so it isn't in TABS, which
+#: every bleed Run writes; SHOWN_TABS is every result tab in the order they sit
+COMPARE = "Compare"
+SHOWN_TABS = (POCKETS, PCK, GRIDS, SUMMARY, COMPARE, SPLIT)
 #: the tabs these replace; a workbook written before phase 3 has them, and a Run takes them off
 OLD_TABS = ("Where it bleeds", "Three-way", "Losses vs revenue", "Prevalence")
 CHOICES, LIST, VIEWS = "_choices", "_list", "_views"
@@ -2422,7 +2427,7 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
 def write(wb, res, stamp: str) -> None:
     """Every result tab this run has, and the hidden sheets they read, each written afresh. The tabs these replace
     in an older workbook are taken off by book._write_results, with every other result tab."""
-    for t in TABS + HIDDEN + (CHART,):                  # book._write_results takes off the ones replaced
+    for t in SHOWN_TABS + HIDDEN + (CHART,):            # book._write_results takes off the ones replaced
         if t in wb.sheetnames:
             del wb[t]
     for name in [n for n in wb.defined_names if n.startswith("pk_sel_")]:
@@ -2435,5 +2440,7 @@ def write(wb, res, stamp: str) -> None:
         write_pck(wb, res, choices, views, stamp)
     write_grids(wb, res, choices, views)
     write_summary(wb, res, choices, views)
+    from . import compare                               # compare.py reads this module's helpers
+    compare.write_compare(wb, res, choices, views)      # only with a Filter by
     if res.config.split:
         write_split(wb, res, choices, views, stamp)
