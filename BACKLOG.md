@@ -2748,8 +2748,9 @@ changed in the code.
     deletes and redraws Grids, so they come back. Until the next Run, a Set up or a refused Run on a workbook Excel
     saved leaves Grids without those four.
   - Tests: 7 in `tests/test_columns_launcher_2026_09_30.py` (one on a display); 1 in
-    `test_firm_answers_2026_09_29.py` and 1 in `test_answer_tabs.py` updated. Planted bugs: 6 added, 3 repointed, 9 of 9 caught (under xvfb; the wheel's and
-    the progress line's need a display). The nine files the change touches: 168 passed, 1 failed for
+    `test_firm_answers_2026_09_29.py` and 1 in `test_answer_tabs.py` updated. Planted bugs: 6 added, 3 repointed, 9 of 9 caught; the wheel's and the
+    progress line's plant into `launcher.wheel_target` and `Flow.progress_line`, caught with no display (CI has
+    none), and the window test holds the same two under xvfb. The nine files the change touches: 168 passed, 1 failed for
     scikit-learn not being installed here.
 
 ## 7 · Standing rules for new items

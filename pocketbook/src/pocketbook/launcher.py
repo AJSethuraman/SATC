@@ -997,6 +997,17 @@ def _money(v: float) -> str:
     return f"${v:,.0f}"
 
 
+def wheel_target(table, exists: bool, delta: int = 0, num=None) -> tuple[object | None, int]:
+    """What one turn of the mouse wheel scrolls, and by how many rows: the table on the page shown now, or nothing
+    when that page has none or has gone (at the bank, 30 Sep 2026: a wheel bound to Choose tests' own table raised
+    "invalid command name ...!canvas" after Next). `num` 4 and 5 are X11's wheel; `delta` Windows' (120 a notch)."""
+    if table is None or not exists:
+        return None, 0
+    if num in (4, 5):
+        return table, -1 if num == 4 else 1
+    return table, int(-delta / 120) or (-1 if delta > 0 else 1 if delta < 0 else 0)
+
+
 def relight(lit: str | None, hover: str | None, picked: str | None) -> tuple[str | None, dict[str, bool]]:
     """The Choose table's tinted row: the one pointed at, else the one last clicked. Returns that row and the rows
     to repaint, each True to tint it or False to put it back to white."""
@@ -1775,11 +1786,10 @@ def build(root) -> dict:
         """The mouse wheel scrolls the table on the page shown now, if it has one; never a page that has gone."""
         t = widgets.get("table")
         try:
-            if t is None or not t.winfo_exists():
-                return
-            step = -1 if getattr(e, "num", None) == 4 else 1 if getattr(e, "num", None) == 5 else \
-                int(-e.delta / 120) or (-1 if e.delta > 0 else 1 if e.delta < 0 else 0)
-            t.yview_scroll(step, "units")
+            t, step = wheel_target(t, t is not None and bool(t.winfo_exists()), getattr(e, "delta", 0) or 0,
+                                   getattr(e, "num", None))
+            if t is not None and step:
+                t.yview_scroll(step, "units")
         except tk.TclError:
             pass
     for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):

@@ -234,6 +234,19 @@ def test_set_up_and_run_say_each_stage_as_it_starts(tmp_path, monkeypatch):
     assert book.run(b, x).ok                                      # and without anyone listening
 
 
+def test_the_wheel_goes_to_the_table_on_screen_or_nowhere():
+    """No window needed: the decision the wheel's binding acts on."""
+    table = object()
+    assert launcher.wheel_target(None, False, -120) == (None, 0)          # a page with no table
+    assert launcher.wheel_target(table, False, -120) == (None, 0)         # the page it was on has gone
+    assert launcher.wheel_target(table, True, -120) == (table, 1)         # Windows: one notch down
+    assert launcher.wheel_target(table, True, 240) == (table, -2)
+    assert launcher.wheel_target(table, True, -30) == (table, 1)          # a small touchpad nudge still moves
+    assert launcher.wheel_target(table, True, 0, 4) == (table, -1)        # X11 up
+    assert launcher.wheel_target(table, True, 0, 5) == (table, 1)         # X11 down
+    assert launcher.wheel_target(table, True, 0) == (table, 0)
+
+
 # ---- on the window (needs a display: xvfb-run on Linux)
 
 
