@@ -42,6 +42,7 @@ class Grouping:
     title: str
     edges: tuple = ()              # bands only
     skip_band: str | None = None   # bands only: a grid cut by this column is its own grouping, so is left out
+    values: tuple = ()             # bands only: the column's values, when the Run gave each its own band
 
 
 def rows_run(res) -> list[dict]:
@@ -98,30 +99,32 @@ def groupings(res) -> tuple[list[Grouping], list[str]]:
             notes.append(f"{d.name} = {d.text()} has no band edges, so it isn't counted by band here. Type its "
                          f"edges on Columns to count it.")
             continue
-        shown = "; ".join(engine._fmt(x) for x in edges)
         band = next((b.name for b in cfg.bands if b.field == d.name), None)
+        each = (getattr(res, "value_bands", None) or {}).get(band) if band else None
+        shown = "each value its own band" if each else "; ".join(engine._fmt(x) for x in edges)
         out.append(Grouping(d.name, "bands", f"{d.name} = {d.text()}, by its bands ({shown}: {said})",
-                            edges=edges, skip_band=band))
+                            edges=edges, skip_band=band, values=tuple(each or ())))
     return out, notes
 
 
 def _labels_by_band(res, rows) -> dict[str, list[str]]:
     """Each band column's label on every loan, cut exactly as the grids cut it."""
     cfg, out = res.config, {}
+    each = getattr(res, "value_bands", None) or {}
     for b in cfg.bands:
         read = [engine.classify_number(r.get(b.field), cfg.missing.get(b.field)) for r in rows]
         edges = tuple(res.band_edges[b.name])
         seen = [v for v, why in read if why is None]
-        labels = engine.band_labels(edges, min(seen), max(seen), whole=engine.all_whole(seen)) if seen else engine.band_labels(edges)
+        labels = engine.labels_for(edges, seen, each.get(b.name))
         out[b.name] = [engine.band_of(v, edges, labels) if why is None else engine.REASON_LABEL[why]
                        for v, why in read]
     return out
 
 
-def _bands_of(values: list[tuple], edges: tuple) -> tuple[list[str], list[str]]:
-    """Each loan's band of a column, and the bands in order."""
+def _bands_of(values: list[tuple], edges: tuple, each: tuple = ()) -> tuple[list[str], list[str]]:
+    """Each loan's band of a column, and the bands in order. `each`: the column's values when each is its own band."""
     seen = [v for v, why in values if why is None]
-    labels = engine.band_labels(edges, min(seen), max(seen), whole=engine.all_whole(seen)) if seen else engine.band_labels(edges)
+    labels = engine.labels_for(edges, seen, each)
     got = [engine.band_of(v, edges, labels) if why is None else engine.REASON_LABEL[why] for v, why in values]
     present = set(got)
     return got, [x for x in labels if x in present] + [x for x in engine._order(got) if x not in labels]
@@ -156,7 +159,8 @@ def count(res, grid, grouping: Grouping, rows=None, bands=None) -> tuple[list, d
         order = engine._order(groups)
         shown = list(order)
     else:
-        groups, order = _bands_of([engine.classify_number(r.get(col), rule) for r in rows], grouping.edges)
+        groups, order = _bands_of([engine.classify_number(r.get(col), rule) for r in rows], grouping.edges,
+                                  grouping.values)
         shown = list(order)
     booked_rule = cfg.missing.get(cfg.booked)
     out: dict[tuple, dict] = {}

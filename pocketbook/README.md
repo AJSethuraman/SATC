@@ -143,6 +143,19 @@ After that, the whole routine is:
      other. Edges you type are kept exactly as typed; a whole-number column
      such as FICO, and a ratio, are cut as before. Scouting's suggested bins
      follow the same rule, and Record's *Band edges used* shows the edges cut.
+     A number column with few values, most of them the same (Major
+     Derogatories: 0 to 8, most loans at 0), can't be cut into equal bands:
+     every cut lands on the zeros. Rather than refuse the Run (the firm, 30
+     Sep 2026: *"So it refuses to run some stuff because it cannot band"*),
+     a column with Control's *few values* (12) or fewer gets **one band per
+     value**, named by the value (*0*, *1*, ... *8*), and the Run's lines and
+     Record say *"Major Derogatories: too few values to cut into equal bands,
+     so each value is its own band."* Its *Why we think so* adds *Few values
+     (0 to 8): Category may read better.*, a suggestion only: what it is stays
+     as you answered. A column with more values that still collapses is cut
+     as far as it can be (*asked for 5 bands, got 2*); one with a single value
+     is refused, naming the two fixes (set *What it is* to Category, or type
+     Band edges like 1; 2; 5). Band edges you type always win.
    - **Look:** each column that can be cut into bands (not GCO, RANR or the
      outcome): its loans, blanks, likely code (on a red bar
      of its own), smallest, median, mean and largest, and its bars. Pick 10,

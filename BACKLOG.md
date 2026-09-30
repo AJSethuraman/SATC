@@ -2522,6 +2522,39 @@ changed in the code.
     `test_bank_checklist.py` included.
   - The evening tie-out's band-label check, run again on this build (`recheck_whole_dollars.py`, addendum to
     the report): 60 of 60 labels tie on the six grid books, and the 18 band-label DIFFERS no longer differ.
+- **Decided and built, 30 Sep 2026: a number column too few-valued to cut gets one band per value** (branch
+  `pocketbook-few-values`). The firm, at the bank: *"So it refuses to run some stuff because it cannot band. Which
+  makes sense for the examples so far - they are things like major derogs which do not include too many numbers."*
+  To the fix below: *"Yes that's fine"*.
+  - **Before:** a column like Major Derogatories (0 to 8, 85% of loans at 0) marked Amount or number and cut into 5
+    equal-loan bands had all four cuts land on 0, and the Run stopped: *Couldn't run: the extract has no column
+    "Major Derogatories" (a band: no readable numbers to cut). Its columns are: ... If a column was renamed or
+    dropped, press Set up again.* (wrong on both counts: the column was there, and Set up wouldn't help).
+  - **Now** (`engine._cut_or_each_value`): when the equal-loan (or round) cut gives fewer bands than asked for and
+    the column has Control's *few values* (the launcher's "Number columns: this many values or fewer is a
+    category", 12 by default; it now rides with each band as `few_values:`) or fewer, **each value is its own
+    band**, labelled by the value (*0*, *1*, ... never *0.0*; blank and the other special rows as usual). The Run's
+    lines and Record say *"Major Derogatories: too few values to cut into equal bands, so each value is its own
+    band."* More values than that and still collapsing: cut as far as it can be, with the existing *asked for N
+    bands, got M* (when no cut survives at all, the lowest value against the rest). A single value: refused, *"Major
+    Derogatories" reads 0 on every loan, so there is nothing to cut into bands. On Columns, set What it is to
+    Category, or type Band edges like 1; 2; 5.* Band edges typed on Columns always win.
+  - **Columns:** *Why we think so* gains *Few values (0 to 8): Category may read better.* beside a column the last
+    Run gave value bands, and loses it at the next Run that doesn't. What it is, and what is remembered, stay as
+    answered.
+  - **Everywhere the labels are named:** `Result.value_bands` carries each such column's values, and
+    `engine.labels_for` names bands for the Run and for prevalence (Grids' groups, `_labels_by_band`, `_bands_of`),
+    so a subset of loans keeps the same names. Grids, its filter, Summary and the three-way pockets take the
+    Run's own labels. Look's red lines read only typed edges, so nothing there moves.
+  - Tests: 13 in `tests/test_firm_answers_2026_09_29.py` (few_values), Grids and Summary cell for cell against the
+    loan file, whole book and one year. Two existing tests moved with the rule: `test_engine.py`'s 600/700 score
+    column asked for 5 bands now gets one band per value (and still warns "asked for 5, got 2" at few_values 1), and
+    the whole-dollars test whose five dollar values meet sets few_values 4 so the cut is still what it tests.
+    Planted bugs: 9 added to `tools/mutation_check.py` and 2 repointed (the band loop moved), 11 of 11 caught. Full
+    suite in shards: 907 passed, 7 skipped, 0 failed (the two moved tests red on the first pass, green after),
+    `test_mutation_tool.py` and `test_bank_checklist.py` included.
+  - **For the firm:** a dollar column with 12 or fewer distinct amounts that can't be cut would also get one band
+    per amount, labelled with its cents (*100.1*); none of the books seen so far has one.
 - **Paid, cost, kept: gross booked, GCO and RANR, 30 Sep 2026** (branch `pocketbook-pck-gross`). The firm: *"On the
   paid cost kept tab I would like to work on gross GCO gross booked and gross RANR as well so we can also see if
   pockets are straight negative on returns"*.
@@ -2592,6 +2625,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-30 -- **PocketBook: a number column too few-valued to cut gets one band per value.** The firm, at the bank: *"So it refuses to run some stuff because it cannot band"*, then *"Yes that's fine"*. Major Derogatories (0 to 8, most loans at 0) no longer stops the Run: each value is its own band, labelled 0 to 8, and the Run says so; Columns suggests Category without changing the answer. More values that still collapse are cut as far as they go; a single value is refused, naming the two fixes; typed edges always win. §6d has the detail.
 - 2026-09-30 -- **PocketBook: Paid, cost, kept shows each pocket's gross booked, GCO and RANR.** The firm: *"so we can also see if pockets are straight negative on returns"*. Booked, GCO, RANR and RANR rate after Loans; a pocket losing money outright in red and counted beside the Grid dropdown; totals that add up to the whole book. 6 tests, 7 planted bugs caught, tie-out 481 of 481 TIED. §6d has the detail.
 
 - 2026-09-30 -- **PocketBook: the Summary tab.** The firm: *"a few matrices where it lists out a chosen band on the left and shows real calculated metrics ... Same with RANR. They'd be across the top"*; the ratio *"Charged off / booked"*; bad loans *"Yes do this"*. One band column down the side, with loans, bad loans, booked, charge-offs, × book and RANR across, plus each one's share. It can be filtered by the Filter by column. The engine does the arithmetic and ties it out; nothing is tested. 3 tests, 7 planted bugs, 7 caught; tie-out 1,274 of 1,274 cells TIED. Full suite in shards: 888 passed, 7 skipped, 0 failed. §6d has the detail and three points for the firm to confirm.
