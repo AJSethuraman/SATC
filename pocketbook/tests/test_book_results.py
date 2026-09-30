@@ -2,6 +2,7 @@
 against revenue, materiality) and the second walkthrough's defects, each held
 by a test that goes red if it comes back."""
 
+import math
 import shutil
 import pytest
 
@@ -152,13 +153,14 @@ def test_paid_cost_kept_follows_the_lines_on_control(tmp_path):
     assert tabs.dropdown(ws, "Grid").value == "FICO x CHANNEL"
     head = tabs.header_row(ws, results.C_TOG, "Together")
     assert tabs.heads(ws, head, results.C_BAND, results.C_TOG) == [
-        "Band", "Segment", "Loans", "Booked", "GCOs", "RANR", "RANR ÷ Booked", "Gap pts", "Dollars", "× band", "Dollars",
-        "Gap pts", "Dollars", "Together"]
+        "Band", "Segment", "Loans", "Booked", "GCOs", "RANR", "RANR ÷ Booked", "Gap pts", "Dollars", "Rest",
+        "× rest of band", "Dollars", "Rest", "Gap pts", "Dollars", "Rest", "Together"]
     assert [ws.cell(row=head - 1, column=c).value for c in (results.C_PAID, results.C_COST, results.C_KEPT)] == [
-        "RANR + GCOs · gap vs band", "GCOs · × band", "RANR · gap vs band"]
-    first = tabs.pck(ws)[0]
+        "RANR + GCOs · gap vs rest of band", "GCOs · × rest of band", "RANR · gap vs rest of band"]
     firsts = [int(str(x["band"]).split(" - ")[0]) for x in tabs.pck(ws) if str(x["band"])[0].isdigit()]
-    assert int(first["band"].split(" - ")[0]) == min(firsts) and first["seg"] == "Broker"
+    assert int(str(tabs.pck(ws)[0]["band"]).split(" - ")[0]) == min(firsts)     # band order, the lowest first
+    first = next(x for x in tabs.pck(ws) if int(str(x["band"]).split(" - ")[0]) == min(firsts)
+                 and x["seg"] == "Broker")
     assert first["flags"]["g"] == engine.WORSE and first["flags"]["r"] == engine.WORSE
     assert first["together"] == "Net drain"
     assert len(tabs.options(load_workbook(b), results.PCK, "Grid")) == 6
@@ -481,9 +483,9 @@ def test_paid_cost_kept_dollars_agree_with_the_flag_and_untested_pockets_get_non
     # untested on any side: no colour on any side, and nothing read together
     assert untested and all(x["c_fill"] is None and x["g_fill"] is None and x["r_fill"] is None
                             and not x["together"] for x in untested)
-    # and they sit at the foot of the grid
-    flags = [x in untested for x in rows]
-    assert flags == sorted(flags)
+    # and they sit where their band puts them, as every row does (the firm, 30 Sep 2026: band order)
+    lows = [float(str(x["band"]).split(" - ")[0]) if str(x["band"])[0].isdigit() else math.inf for x in rows]
+    assert lows == sorted(lows)
     note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 12)}
     assert "RANR already has the GCOs taken out, so this adds them back" in note["RANR + GCOs"]
 
@@ -557,8 +559,7 @@ def test_the_planted_pocket_is_a_net_drain(tmp_path):
     _set(b, "FICO", book.C_EDGES, "620; 680; 740")
     assert book.run(b).ok
     ws = tabs.calculated(b, results.PCK)
-    x = tabs.pck(ws)[0]
-    assert x["band"].endswith(" - 619") and x["seg"] == "Broker"
+    x = next(y for y in tabs.pck(ws) if str(y["band"]).endswith(" - 619") and y["seg"] == "Broker")
     assert x["flags"]["c"] in (engine.IN_LINE, engine.UNSURE_WORSE, engine.UNSURE_BETTER)     # not significant
     assert (x["flags"]["g"], x["flags"]["r"], x["together"]) == (engine.WORSE, engine.WORSE, "Net drain")
     assert x["kept"] < 0 and x["cost"] > 1.25
@@ -786,7 +787,8 @@ def test_a_real_loss_keeps_its_red_when_profit_is_not_significant(tmp_path):
     wb.save(b)
     assert book.run(b).ok
     rows = tabs.pck_all(b, tmp_path / "grids")                  # every grid, each picked in turn
-    assert rows[0]["seg"] == "Broker" and rows[0]["flags"]["g"] == engine.WORSE and rows[0]["g_fill"] == house.ALERT_FG
+    planted = next(x for x in rows if str(x["band"]).endswith(" - 619") and x["seg"] == "Broker")
+    assert planted["flags"]["g"] == engine.WORSE and planted["g_fill"] == house.ALERT_FG
     marked = [x for x in rows if x["flags"]["r"] in (engine.UNSURE_WORSE, engine.UNSURE_BETTER)]
     assert marked and all(x["r_fill"] is None for x in marked)            # the fixed line marks some
     # read together, a real loss beside a kept gap that could be chance is "Losing more, profit holding" (C, the

@@ -2726,6 +2726,30 @@ changed in the code.
     lines by the larger filter leave a slot empty, drawn blank on the same scale. With a filter across the bottom
     the lines are by the other filter and there is one chart. (no date) and (blank) are lines or panels but never
     a place across.
+- **Built, 30 Sep 2026: RANR vs GCOs in band order, sortable, headed against the rest** (branch
+  `pocketbook-pck-order`). The firm: *"it would be really nice if the bands could be sorted or at least make it
+  easier to look at what's happening on this tab. Hard to see these in a sensical order."*
+  - **Order.** Rows are by band, lowest first ("0 - 619" before "620 - 659"), (blank) and (marked missing) last,
+    then by segment, each in the grid's own order; they were by GCO dollars. Excel's sort and filter arrows sit on
+    the header row over the pockets only, never the totals. The hidden workings now sit just right of Together,
+    inside the arrows' range, so a sort in Excel moves each row's workings with it (outside it, a sort would have
+    left every row reading its old row's numbers). Every rule on the rows reads its own row. The chart numbers the
+    first 8 pockets read together down the table, whatever the order, and lists them under it.
+  - **Headings.** "gap vs book" and "× book" read as the whole book; the numbers are against the rest, the pocket
+    left out. Checked by hand on the firm's row, 720-739 Non-Customer/VLA: GCOs 12.85% ÷ the rest's 4.48% = 2.86×
+    (÷ the whole book's 4.61% would be 2.78×). Now *gap vs rest of book* / *× rest of book*, and *rest of band*
+    when Control judges against the band.
+  - **Rest.** Each side has a Rest column, the rate its gap is measured against (_pockets' rest that decides). On
+    the firm's row: RANR + GCOs 9.02%, GCOs 4.48%, RANR 4.54%.
+  - Tests: 10 in `tests/test_pck_order_2026_09_30.py`, on a synthetic book built to the firm's figures; every
+    rest is worked out from the loans with nothing from pocketbook, in both comparisons, and a sort done as Excel
+    does it (formulas moved row to row) keeps every row, its colours and the chart's numbers. 4 tests in
+    `test_book_results.py` found the planted pocket by being first and now look it up by name; headings updated in
+    5 files. Planted bugs: 4 added to `tools/mutation_check.py`, 4 caught. Runs: 9 files, 152 passed;
+    `test_book_results.py` and `test_firm_answers_2026_09_29.py -k pck`, 53 passed. Pictures (LibreOffice renders
+    of the synthetic book): `pocketbook/docs/pck-order-2026-09-30/`.
+  - **For the firm to confirm:** Rest sits last in each side (gap, dollars, rest). After a sort, picking another grid
+    fills the rows in the sorted positions, so its pockets are out of band order until sorted again (Data, Reapply).
 
 ## 7 · Standing rules for new items
 
