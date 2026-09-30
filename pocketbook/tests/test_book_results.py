@@ -152,7 +152,8 @@ def test_paid_cost_kept_follows_the_lines_on_control(tmp_path):
     assert tabs.dropdown(ws, "Grid").value == "FICO x CHANNEL"
     head = tabs.header_row(ws, results.C_TOG, "Together")
     assert tabs.heads(ws, head, results.C_BAND, results.C_TOG) == [
-        "Band", "Segment", "Loans", "Gap pts", "Dollars", "× band", "Dollars", "Gap pts", "Dollars", "Together"]
+        "Band", "Segment", "Loans", "Booked", "GCO", "RANR", "RANR rate", "Gap pts", "Dollars", "× band", "Dollars",
+        "Gap pts", "Dollars", "Together"]
     assert [ws.cell(row=head - 1, column=c).value for c in (results.C_PAID, results.C_COST, results.C_KEPT)] == [
         "Paid us · gap vs band", "Cost us · charge-offs", "Kept · gap vs band"]
     first = tabs.pck(ws)[0]

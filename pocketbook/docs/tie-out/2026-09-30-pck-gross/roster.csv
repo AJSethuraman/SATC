@@ -1,0 +1,482 @@
+grid,kind,band,segment,figure,pocketbook,loan file,verdict
+FICO x ASSET_CLASS,line,,,count line,"1 pocket lost money outright, totalling $15,350: RANR below zero, in red.","1 pocket lost money outright, totalling $15,350: RANR below zero, in red.",TIED
+FICO x ASSET_CLASS,line,,,count line red,True,True,TIED
+FICO x ASSET_CLASS,pocket,(blank),2,booked,30384.32,30384.32,TIED
+FICO x ASSET_CLASS,pocket,(blank),2,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(blank),2,gco,24305.86,24305.86,TIED
+FICO x ASSET_CLASS,pocket,(blank),2,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(blank),2,loans,1,1,TIED
+FICO x ASSET_CLASS,pocket,(blank),2,ranr,-15350.36,-15350.36,TIED
+FICO x ASSET_CLASS,pocket,(blank),2,ranr red,True,True,TIED
+FICO x ASSET_CLASS,pocket,(blank),2,ranr_rate,-0.505206632894862,-0.5052066328948616,TIED
+FICO x ASSET_CLASS,pocket,(blank),2,ranr_rate red,True,True,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),1,booked,1480345.03,1480345.03,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),1,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),1,gco,53488.4,53488.399999999994,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),1,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),1,loans,45,45,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),1,ranr,222144.9,222144.9,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),1,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),1,ranr_rate,0.150062921479866,0.15006292147986608,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),1,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),2,booked,1328417.6,1328417.6,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),2,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),2,gco,42696.55,42696.55,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),2,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),2,loans,39,39,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),2,ranr,233711.73,233711.73,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),2,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),2,ranr_rate,0.175932425165099,0.1759324251650987,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),2,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),3,booked,644263.79,644263.79,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),3,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),3,gco,17015.17,17015.17,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),3,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),3,loans,25,25,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),3,ranr,77256.43,77256.43,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),3,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),3,ranr_rate,0.119914282315944,0.1199142823159439,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),3,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),4,booked,1730677.05,1730677.05,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),4,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),4,gco,20215.99,20215.99,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),4,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),4,loans,51,51,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),4,ranr,303060,303060.0,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),4,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),4,ranr_rate,0.17511065972707,0.1751106597270704,TIED
+FICO x ASSET_CLASS,pocket,(marked missing),4,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,1,booked,13119689.07,13119689.07,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,1,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,1,gco,872578.42,872578.42,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,1,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,1,loans,408,408,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,1,ranr,2705864.6,2705864.6,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,1,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,1,ranr_rate,0.206244567654224,0.20624456765422414,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,1,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,2,booked,11467363.58,11467363.58,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,2,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,2,gco,881845.81,881845.81,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,2,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,2,loans,370,370,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,2,ranr,2232408.37,2232408.37,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,2,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,2,ranr_rate,0.194674944630996,0.194674944630996,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,2,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,3,booked,12249587.67,12249587.67,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,3,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,3,gco,844975.44,844975.4400000001,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,3,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,3,loans,384,384,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,3,ranr,2499747.17,2499747.17,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,3,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,3,ranr_rate,0.20406786231034,0.2040678623103401,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,3,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,4,booked,13236087.11,13236087.11,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,4,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,4,gco,1309063.92,1309063.92,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,4,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,4,loans,409,409,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,4,ranr,2349598.23,2349598.23,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,4,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,4,ranr_rate,0.177514563818854,0.17751456381885355,TIED
+FICO x ASSET_CLASS,pocket,478 - 652,4,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,1,booked,12427613.13,12427613.13,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,1,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,1,gco,461858.76,461858.76,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,1,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,1,loans,397,397,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,1,ranr,2038855.31,2038855.31,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,1,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,1,ranr_rate,0.16405847918441,0.16405847918440955,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,1,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,2,booked,12244420.97,12244420.97,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,2,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,2,gco,338117.13,338117.13,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,2,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,2,loans,378,378,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,2,ranr,2139870.86,2139870.86,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,2,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,2,ranr_rate,0.174762927968819,0.17476292796881843,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,2,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,3,booked,13721999.99,13721999.99,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,3,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,3,gco,642164.64,642164.64,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,3,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,3,loans,424,424,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,3,ranr,2104419.92,2104419.92,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,3,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,3,ranr_rate,0.1533610203712,0.15336102037120028,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,3,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,4,booked,11989399.12,11989399.12,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,4,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,4,gco,566913.82,566913.82,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,4,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,4,loans,385,385,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,4,ranr,1858958.33,1858958.33,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,4,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,4,ranr_rate,0.155050166517436,0.15505016651743597,TIED
+FICO x ASSET_CLASS,pocket,653 - 685,4,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,1,booked,12561750.83,12561750.83,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,1,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,1,gco,310078.07,310078.07,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,1,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,1,loans,404,404,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,1,ranr,1897221.39,1897221.39,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,1,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,1,ranr_rate,0.151031605042591,0.15103160504259103,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,1,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,2,booked,12335215.11,12335215.11,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,2,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,2,gco,451018.66,451018.66000000003,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,2,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,2,loans,388,388,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,2,ranr,1560365.72,1560365.72,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,2,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,2,ranr_rate,0.126496839016211,0.12649683901621073,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,2,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,3,booked,12747643.24,12747643.24,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,3,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,3,gco,413669.42,413669.42,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,3,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,3,loans,382,382,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,3,ranr,1775444.28,1775444.28,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,3,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,3,ranr_rate,0.139276276137769,0.13927627613776866,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,3,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,4,booked,13678421.81,13678421.81,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,4,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,4,gco,518494.86,518494.86,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,4,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,4,loans,414,414,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,4,ranr,1919917,1919917.0,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,4,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,4,ranr_rate,0.140361002655759,0.14036100265575885,TIED
+FICO x ASSET_CLASS,pocket,686 - 713,4,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,1,booked,12510674.45,12510674.45,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,1,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,1,gco,326655.03,326655.02999999997,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,1,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,1,loans,384,384,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,1,ranr,1313185.22,1313185.22,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,1,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,1,ranr_rate,0.10496518195308,0.10496518195308008,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,1,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,2,booked,13170356.58,13170356.58,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,2,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,2,gco,247466.08,247466.08,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,2,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,2,loans,405,405,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,2,ranr,1277357.9,1277357.9,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,2,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,2,ranr_rate,0.0969873436790426,0.09698734367904259,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,2,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,3,booked,13472426.17,13472426.17,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,3,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,3,gco,506912.17,506912.17,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,3,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,3,loans,424,424,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,3,ranr,1213165.86,1213165.86,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,3,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,3,ranr_rate,0.0900480614769627,0.09004806147696262,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,3,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,4,booked,12653592.78,12653592.78,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,4,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,4,gco,674133.6,674133.6,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,4,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,4,loans,383,383,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,4,ranr,906566.47,906566.47,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,4,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,4,ranr_rate,0.0716449854015296,0.07164498540152957,TIED
+FICO x ASSET_CLASS,pocket,714 - 745,4,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,1,booked,11951168.32,11951168.32,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,1,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,1,gco,256627.97,256627.97,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,1,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,1,loans,370,370,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,1,ranr,526960.71,526960.71,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,1,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,1,ranr_rate,0.0440928197051784,0.04409281970517841,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,1,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,2,booked,13325695.28,13325695.28,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,2,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,2,gco,462593.74,462593.74,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,2,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,2,loans,394,394,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,2,ranr,398838.47,398838.47000000003,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,2,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,2,ranr_rate,0.029930030787857,0.02993003078785695,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,2,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,3,booked,13927235.91,13927235.91,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,3,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,3,gco,236343.85,236343.84999999998,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,3,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,3,loans,423,423,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,3,ranr,638823.93,638823.93,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,3,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,3,ranr_rate,0.0458686801981514,0.04586868019815139,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,3,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,4,booked,12843142.13,12843142.13,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,4,booked red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,4,gco,335665.12,335665.12,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,4,gco red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,4,loans,403,403,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,4,ranr,524155.93,524155.93,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,4,ranr red,False,False,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,4,ranr_rate,0.0408121256227194,0.040812125622719395,TIED
+FICO x ASSET_CLASS,pocket,746 - 896,4,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,total,Pockets listed,,booked,260847571.04,260847571.04,TIED
+FICO x ASSET_CLASS,total,Pockets listed,,booked red,False,False,TIED
+FICO x ASSET_CLASS,total,Pockets listed,,gco,10814898.48,10814898.48,TIED
+FICO x ASSET_CLASS,total,Pockets listed,,gco red,False,False,TIED
+FICO x ASSET_CLASS,total,Pockets listed,,loans,8090,8090,TIED
+FICO x ASSET_CLASS,total,Pockets listed,,ranr,32702548.37,32702548.37,TIED
+FICO x ASSET_CLASS,total,Pockets listed,,ranr red,False,False,TIED
+FICO x ASSET_CLASS,total,Pockets listed,,ranr_rate,0.125370338851977,0.12537033885197724,TIED
+FICO x ASSET_CLASS,total,Pockets listed,,ranr_rate red,False,False,TIED
+FICO x ASSET_CLASS,total,Whole book,,booked,260847571.04,260847571.04,TIED
+FICO x ASSET_CLASS,total,Whole book,,booked red,False,False,TIED
+FICO x ASSET_CLASS,total,Whole book,,gco,10814898.48,10814898.48,TIED
+FICO x ASSET_CLASS,total,Whole book,,gco red,False,False,TIED
+FICO x ASSET_CLASS,total,Whole book,,loans,8090,8090,TIED
+FICO x ASSET_CLASS,total,Whole book,,ranr,32702548.37,32702548.37,TIED
+FICO x ASSET_CLASS,total,Whole book,,ranr red,False,False,TIED
+FICO x ASSET_CLASS,total,Whole book,,ranr_rate,0.125370338851977,0.12537033885197724,TIED
+FICO x ASSET_CLASS,total,Whole book,,ranr_rate red,False,False,TIED
+FICO x CHANNEL,line,,,count line,"6 pockets lost money outright, totalling $166,260: RANR below zero, in red.","6 pockets lost money outright, totalling $166,260: RANR below zero, in red.",TIED
+FICO x CHANNEL,line,,,count line red,True,True,TIED
+FICO x CHANNEL,pocket,(blank),Branch,booked,30384.32,30384.32,TIED
+FICO x CHANNEL,pocket,(blank),Branch,booked red,False,False,TIED
+FICO x CHANNEL,pocket,(blank),Branch,gco,24305.86,24305.86,TIED
+FICO x CHANNEL,pocket,(blank),Branch,gco red,False,False,TIED
+FICO x CHANNEL,pocket,(blank),Branch,loans,1,1,TIED
+FICO x CHANNEL,pocket,(blank),Branch,ranr,-15350.36,-15350.36,TIED
+FICO x CHANNEL,pocket,(blank),Branch,ranr red,True,True,TIED
+FICO x CHANNEL,pocket,(blank),Branch,ranr_rate,-0.505206632894862,-0.5052066328948616,TIED
+FICO x CHANNEL,pocket,(blank),Branch,ranr_rate red,True,True,TIED
+FICO x CHANNEL,pocket,(marked missing),Branch,booked,1810161.23,1810161.23,TIED
+FICO x CHANNEL,pocket,(marked missing),Branch,booked red,False,False,TIED
+FICO x CHANNEL,pocket,(marked missing),Branch,gco,18915.59,18915.59,TIED
+FICO x CHANNEL,pocket,(marked missing),Branch,gco red,False,False,TIED
+FICO x CHANNEL,pocket,(marked missing),Branch,loans,53,53,TIED
+FICO x CHANNEL,pocket,(marked missing),Branch,ranr,312727.83,312727.83,TIED
+FICO x CHANNEL,pocket,(marked missing),Branch,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,(marked missing),Branch,ranr_rate,0.172762417411846,0.1727624174118457,TIED
+FICO x CHANNEL,pocket,(marked missing),Branch,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,(marked missing),Broker,booked,1527724.26,1527724.26,TIED
+FICO x CHANNEL,pocket,(marked missing),Broker,booked red,False,False,TIED
+FICO x CHANNEL,pocket,(marked missing),Broker,gco,60713.37,60713.369999999995,TIED
+FICO x CHANNEL,pocket,(marked missing),Broker,gco red,False,False,TIED
+FICO x CHANNEL,pocket,(marked missing),Broker,loans,46,46,TIED
+FICO x CHANNEL,pocket,(marked missing),Broker,ranr,210102.96,210102.96,TIED
+FICO x CHANNEL,pocket,(marked missing),Broker,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,(marked missing),Broker,ranr_rate,0.137526754991768,0.13752675499176795,TIED
+FICO x CHANNEL,pocket,(marked missing),Broker,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,(marked missing),Online,booked,1845817.98,1845817.98,TIED
+FICO x CHANNEL,pocket,(marked missing),Online,booked red,False,False,TIED
+FICO x CHANNEL,pocket,(marked missing),Online,gco,53787.15,53787.15,TIED
+FICO x CHANNEL,pocket,(marked missing),Online,gco red,False,False,TIED
+FICO x CHANNEL,pocket,(marked missing),Online,loans,61,61,TIED
+FICO x CHANNEL,pocket,(marked missing),Online,ranr,313342.27,313342.27,TIED
+FICO x CHANNEL,pocket,(marked missing),Online,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,(marked missing),Online,ranr_rate,0.169757946555489,0.16975794655548865,TIED
+FICO x CHANNEL,pocket,(marked missing),Online,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Branch,booked,16252062.76,16252062.76,TIED
+FICO x CHANNEL,pocket,478 - 652,Branch,booked red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Branch,gco,1118304.31,1118304.31,TIED
+FICO x CHANNEL,pocket,478 - 652,Branch,gco red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Branch,loans,501,501,TIED
+FICO x CHANNEL,pocket,478 - 652,Branch,ranr,3516378.68,3516378.68,TIED
+FICO x CHANNEL,pocket,478 - 652,Branch,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Branch,ranr_rate,0.216365068971712,0.2163650689717125,TIED
+FICO x CHANNEL,pocket,478 - 652,Branch,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Broker,booked,16694974.45,16694974.45,TIED
+FICO x CHANNEL,pocket,478 - 652,Broker,booked red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Broker,gco,2094151.8,2094151.8,TIED
+FICO x CHANNEL,pocket,478 - 652,Broker,gco red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Broker,loans,528,528,TIED
+FICO x CHANNEL,pocket,478 - 652,Broker,ranr,2465300.43,2465300.43,TIED
+FICO x CHANNEL,pocket,478 - 652,Broker,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Broker,ranr_rate,0.147667217903409,0.14766721790340925,TIED
+FICO x CHANNEL,pocket,478 - 652,Broker,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Kiosk,booked,759409.61,759409.61,TIED
+FICO x CHANNEL,pocket,478 - 652,Kiosk,booked red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Kiosk,gco,23715.26,23715.260000000002,TIED
+FICO x CHANNEL,pocket,478 - 652,Kiosk,gco red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Kiosk,loans,36,36,TIED
+FICO x CHANNEL,pocket,478 - 652,Kiosk,ranr,-54091.64,-54091.64,TIED
+FICO x CHANNEL,pocket,478 - 652,Kiosk,ranr red,True,True,TIED
+FICO x CHANNEL,pocket,478 - 652,Kiosk,ranr_rate,-0.0712285429203352,-0.07122854292033517,TIED
+FICO x CHANNEL,pocket,478 - 652,Kiosk,ranr_rate red,True,True,TIED
+FICO x CHANNEL,pocket,478 - 652,Online,booked,16366280.61,16366280.61,TIED
+FICO x CHANNEL,pocket,478 - 652,Online,booked red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Online,gco,672292.22,672292.22,TIED
+FICO x CHANNEL,pocket,478 - 652,Online,gco red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Online,loans,506,506,TIED
+FICO x CHANNEL,pocket,478 - 652,Online,ranr,3860030.9,3860030.9,TIED
+FICO x CHANNEL,pocket,478 - 652,Online,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,478 - 652,Online,ranr_rate,0.235852665121816,0.23585266512181596,TIED
+FICO x CHANNEL,pocket,478 - 652,Online,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Branch,booked,16041471.16,16041471.16,TIED
+FICO x CHANNEL,pocket,653 - 685,Branch,booked red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Branch,gco,735066.91,735066.91,TIED
+FICO x CHANNEL,pocket,653 - 685,Branch,gco red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Branch,loans,526,526,TIED
+FICO x CHANNEL,pocket,653 - 685,Branch,ranr,2382945.7,2382945.7,TIED
+FICO x CHANNEL,pocket,653 - 685,Branch,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Branch,ranr_rate,0.148549074846824,0.14854907484682348,TIED
+FICO x CHANNEL,pocket,653 - 685,Branch,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Broker,booked,16800675.11,16800675.11,TIED
+FICO x CHANNEL,pocket,653 - 685,Broker,booked red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Broker,gco,437689.75,437689.75,TIED
+FICO x CHANNEL,pocket,653 - 685,Broker,gco red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Broker,loans,520,520,TIED
+FICO x CHANNEL,pocket,653 - 685,Broker,ranr,2980397.83,2980397.83,TIED
+FICO x CHANNEL,pocket,653 - 685,Broker,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Broker,ranr_rate,0.177397503998278,0.17739750399827833,TIED
+FICO x CHANNEL,pocket,653 - 685,Broker,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Kiosk,booked,234191.18,234191.18,TIED
+FICO x CHANNEL,pocket,653 - 685,Kiosk,booked red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Kiosk,gco,6904.45,6904.45,TIED
+FICO x CHANNEL,pocket,653 - 685,Kiosk,gco red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Kiosk,loans,10,10,TIED
+FICO x CHANNEL,pocket,653 - 685,Kiosk,ranr,-16272.11,-16272.11,TIED
+FICO x CHANNEL,pocket,653 - 685,Kiosk,ranr red,True,True,TIED
+FICO x CHANNEL,pocket,653 - 685,Kiosk,ranr_rate,-0.0694821641019957,-0.06948216410199565,TIED
+FICO x CHANNEL,pocket,653 - 685,Kiosk,ranr_rate red,True,True,TIED
+FICO x CHANNEL,pocket,653 - 685,Online,booked,17307095.76,17307095.76,TIED
+FICO x CHANNEL,pocket,653 - 685,Online,booked red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Online,gco,829393.24,829393.24,TIED
+FICO x CHANNEL,pocket,653 - 685,Online,gco red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Online,loans,528,528,TIED
+FICO x CHANNEL,pocket,653 - 685,Online,ranr,2795033,2795033.0,TIED
+FICO x CHANNEL,pocket,653 - 685,Online,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,653 - 685,Online,ranr_rate,0.16149636188296,0.16149636188295982,TIED
+FICO x CHANNEL,pocket,653 - 685,Online,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Branch,booked,16431822.94,16431822.94,TIED
+FICO x CHANNEL,pocket,686 - 713,Branch,booked red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Branch,gco,579829.82,579829.8200000001,TIED
+FICO x CHANNEL,pocket,686 - 713,Branch,gco red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Branch,loans,508,508,TIED
+FICO x CHANNEL,pocket,686 - 713,Branch,ranr,1968113.56,1968113.56,TIED
+FICO x CHANNEL,pocket,686 - 713,Branch,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Branch,ranr_rate,0.119774511153538,0.11977451115353852,TIED
+FICO x CHANNEL,pocket,686 - 713,Branch,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Broker,booked,17964420.02,17964420.02,TIED
+FICO x CHANNEL,pocket,686 - 713,Broker,booked red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Broker,gco,396978.96,396978.96,TIED
+FICO x CHANNEL,pocket,686 - 713,Broker,gco red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Broker,loans,549,549,TIED
+FICO x CHANNEL,pocket,686 - 713,Broker,ranr,2424872.8,2424872.8,TIED
+FICO x CHANNEL,pocket,686 - 713,Broker,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Broker,ranr_rate,0.134981969765813,0.13498196976581267,TIED
+FICO x CHANNEL,pocket,686 - 713,Broker,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Kiosk,booked,260930.91,260930.90999999997,TIED
+FICO x CHANNEL,pocket,686 - 713,Kiosk,booked red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Kiosk,gco,11921.83,11921.83,TIED
+FICO x CHANNEL,pocket,686 - 713,Kiosk,gco red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Kiosk,loans,10,10,TIED
+FICO x CHANNEL,pocket,686 - 713,Kiosk,ranr,-22359.05,-22359.05,TIED
+FICO x CHANNEL,pocket,686 - 713,Kiosk,ranr red,True,True,TIED
+FICO x CHANNEL,pocket,686 - 713,Kiosk,ranr_rate,-0.0856895413425723,-0.08568954134257226,TIED
+FICO x CHANNEL,pocket,686 - 713,Kiosk,ranr_rate red,True,True,TIED
+FICO x CHANNEL,pocket,686 - 713,Online,booked,16665857.12,16665857.12,TIED
+FICO x CHANNEL,pocket,686 - 713,Online,booked red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Online,gco,704530.4,704530.4,TIED
+FICO x CHANNEL,pocket,686 - 713,Online,gco red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Online,loans,521,521,TIED
+FICO x CHANNEL,pocket,686 - 713,Online,ranr,2782321.08,2782321.08,TIED
+FICO x CHANNEL,pocket,686 - 713,Online,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,686 - 713,Online,ranr_rate,0.166947373901403,0.16694737390140305,TIED
+FICO x CHANNEL,pocket,686 - 713,Online,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Branch,booked,17482428.52,17482428.52,TIED
+FICO x CHANNEL,pocket,714 - 745,Branch,booked red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Branch,gco,478962.33,478962.32999999996,TIED
+FICO x CHANNEL,pocket,714 - 745,Branch,gco red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Branch,loans,532,532,TIED
+FICO x CHANNEL,pocket,714 - 745,Branch,ranr,1474742.4,1474742.4,TIED
+FICO x CHANNEL,pocket,714 - 745,Branch,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Branch,ranr_rate,0.0843556945371111,0.08435569453711114,TIED
+FICO x CHANNEL,pocket,714 - 745,Branch,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Broker,booked,17626369.02,17626369.02,TIED
+FICO x CHANNEL,pocket,714 - 745,Broker,booked red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Broker,gco,349307.34,349307.33999999997,TIED
+FICO x CHANNEL,pocket,714 - 745,Broker,gco red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Broker,loans,553,553,TIED
+FICO x CHANNEL,pocket,714 - 745,Broker,ranr,1616696.07,1616696.07,TIED
+FICO x CHANNEL,pocket,714 - 745,Broker,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Broker,ranr_rate,0.0917203122302497,0.09172031223024968,TIED
+FICO x CHANNEL,pocket,714 - 745,Broker,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Kiosk,booked,264089.45,264089.45,TIED
+FICO x CHANNEL,pocket,714 - 745,Kiosk,booked red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Kiosk,gco,8950.44,8950.439999999999,TIED
+FICO x CHANNEL,pocket,714 - 745,Kiosk,gco red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Kiosk,loans,12,12,TIED
+FICO x CHANNEL,pocket,714 - 745,Kiosk,ranr,-19514.01,-19514.01,TIED
+FICO x CHANNEL,pocket,714 - 745,Kiosk,ranr red,True,True,TIED
+FICO x CHANNEL,pocket,714 - 745,Kiosk,ranr_rate,-0.0738916681450167,-0.07389166814501677,TIED
+FICO x CHANNEL,pocket,714 - 745,Kiosk,ranr_rate red,True,True,TIED
+FICO x CHANNEL,pocket,714 - 745,Online,booked,16434162.99,16434162.99,TIED
+FICO x CHANNEL,pocket,714 - 745,Online,booked red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Online,gco,917946.77,917946.77,TIED
+FICO x CHANNEL,pocket,714 - 745,Online,gco red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Online,loans,499,499,TIED
+FICO x CHANNEL,pocket,714 - 745,Online,ranr,1638350.99,1638350.99,TIED
+FICO x CHANNEL,pocket,714 - 745,Online,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,714 - 745,Online,ranr_rate,0.0996917817473832,0.09969178174738305,TIED
+FICO x CHANNEL,pocket,714 - 745,Online,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Branch,booked,18167357.88,18167357.88,TIED
+FICO x CHANNEL,pocket,746 - 896,Branch,booked red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Branch,gco,411475.72,411475.72,TIED
+FICO x CHANNEL,pocket,746 - 896,Branch,gco red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Branch,loans,553,553,TIED
+FICO x CHANNEL,pocket,746 - 896,Branch,ranr,741658.350000001,741658.35,TIED
+FICO x CHANNEL,pocket,746 - 896,Branch,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Branch,ranr_rate,0.0408236769979896,0.04082367699798954,TIED
+FICO x CHANNEL,pocket,746 - 896,Branch,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Broker,booked,17592806.01,17592806.01,TIED
+FICO x CHANNEL,pocket,746 - 896,Broker,booked red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Broker,gco,487709.24,487709.24,TIED
+FICO x CHANNEL,pocket,746 - 896,Broker,gco red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Broker,loans,541,541,TIED
+FICO x CHANNEL,pocket,746 - 896,Broker,ranr,703630.240000001,703630.24,TIED
+FICO x CHANNEL,pocket,746 - 896,Broker,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Broker,ranr_rate,0.0399953389811749,0.039995338981174834,TIED
+FICO x CHANNEL,pocket,746 - 896,Broker,ranr_rate red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Kiosk,booked,539201.54,539201.54,TIED
+FICO x CHANNEL,pocket,746 - 896,Kiosk,booked red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Kiosk,gco,17105.01,17105.010000000002,TIED
+FICO x CHANNEL,pocket,746 - 896,Kiosk,gco red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Kiosk,loans,22,22,TIED
+FICO x CHANNEL,pocket,746 - 896,Kiosk,ranr,-38673.07,-38673.07,TIED
+FICO x CHANNEL,pocket,746 - 896,Kiosk,ranr red,True,True,TIED
+FICO x CHANNEL,pocket,746 - 896,Kiosk,ranr_rate,-0.0717228478242106,-0.07172284782421058,TIED
+FICO x CHANNEL,pocket,746 - 896,Kiosk,ranr_rate red,True,True,TIED
+FICO x CHANNEL,pocket,746 - 896,Online,booked,15747876.21,15747876.209999999,TIED
+FICO x CHANNEL,pocket,746 - 896,Online,booked red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Online,gco,374940.71,374940.71,TIED
+FICO x CHANNEL,pocket,746 - 896,Online,gco red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Online,loans,474,474,TIED
+FICO x CHANNEL,pocket,746 - 896,Online,ranr,682163.519999999,682163.52,TIED
+FICO x CHANNEL,pocket,746 - 896,Online,ranr red,False,False,TIED
+FICO x CHANNEL,pocket,746 - 896,Online,ranr_rate,0.0433178106624195,0.04331781066241948,TIED
+FICO x CHANNEL,pocket,746 - 896,Online,ranr_rate red,False,False,TIED
+FICO x CHANNEL,total,Pockets listed,,booked,260847571.04,260847571.04,TIED
+FICO x CHANNEL,total,Pockets listed,,booked red,False,False,TIED
+FICO x CHANNEL,total,Pockets listed,,gco,10814898.48,10814898.48,TIED
+FICO x CHANNEL,total,Pockets listed,,gco red,False,False,TIED
+FICO x CHANNEL,total,Pockets listed,,loans,8090,8090,TIED
+FICO x CHANNEL,total,Pockets listed,,ranr,32702548.37,32702548.37,TIED
+FICO x CHANNEL,total,Pockets listed,,ranr red,False,False,TIED
+FICO x CHANNEL,total,Pockets listed,,ranr_rate,0.125370338851977,0.12537033885197724,TIED
+FICO x CHANNEL,total,Pockets listed,,ranr_rate red,False,False,TIED
+FICO x CHANNEL,total,Whole book,,booked,260847571.04,260847571.04,TIED
+FICO x CHANNEL,total,Whole book,,booked red,False,False,TIED
+FICO x CHANNEL,total,Whole book,,gco,10814898.48,10814898.48,TIED
+FICO x CHANNEL,total,Whole book,,gco red,False,False,TIED
+FICO x CHANNEL,total,Whole book,,loans,8090,8090,TIED
+FICO x CHANNEL,total,Whole book,,ranr,32702548.37,32702548.37,TIED
+FICO x CHANNEL,total,Whole book,,ranr red,False,False,TIED
+FICO x CHANNEL,total,Whole book,,ranr_rate,0.125370338851977,0.12537033885197724,TIED
+FICO x CHANNEL,total,Whole book,,ranr_rate red,False,False,TIED

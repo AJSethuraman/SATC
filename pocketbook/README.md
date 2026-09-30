@@ -191,6 +191,20 @@ After that, the whole routine is:
      losing more, profit holding. A
      scatter of the grid picked: charge-offs across on a log scale, what was
      kept up, lines at 1× and 0, the pockets read together named.
+     **Gross · this pocket alone** (the firm, 30 Sep 2026: *"I would like to
+     work on gross GCO gross booked and gross RANR as well so we can also see
+     if pockets are straight negative on returns"*), right after Loans: each
+     pocket's own **Booked**, **GCO** and **RANR** dollars and its **RANR
+     rate** (RANR ÷ booked), compared with nothing. A pocket whose RANR is
+     below zero lost money outright, before comparing it with anyone: its RANR
+     and RANR rate are red, and the line beside the Grid dropdown counts them
+     ("6 pockets lost money outright, totalling $166,260"). Under the table,
+     **Pockets listed**, **Not listed** (pockets with nothing to compare them
+     with, only when there are any) and **Whole book**, which the first two
+     add up to. Booked is the booked dollars under RANR (a loan with no
+     readable RANR is left out of both), so RANR rate is Kept's own rate. Every
+     figure is worked out in the Run; the dollars show in thousands only when
+     the whole book's booked would not fit the column, as on Grids.
    - **Grids:** a Grid and a Measure dropdown, and four blocks: the rate,
      against the book, against the rest of its band (heat in the redesign's
      tokens, 2× and over deepest) and the loans (shaded by share, no red or

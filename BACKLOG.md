@@ -2522,6 +2522,36 @@ changed in the code.
     `test_bank_checklist.py` included.
   - The evening tie-out's band-label check, run again on this build (`recheck_whole_dollars.py`, addendum to
     the report): 60 of 60 labels tie on the six grid books, and the 18 band-label DIFFERS no longer differ.
+- **Paid, cost, kept: gross booked, GCO and RANR, 30 Sep 2026** (branch `pocketbook-pck-gross`). The firm: *"On the
+  paid cost kept tab I would like to work on gross GCO gross booked and gross RANR as well so we can also see if
+  pockets are straight negative on returns"*.
+  - **Gross · this pocket alone**, four columns right after Loans (before the gaps: what the pocket did on its own
+    reads before how it compares): **Booked**, **GCO**, **RANR** and **RANR rate** (RANR ÷ booked), from the Run,
+    compared with nothing. **Decided here:** Booked is the booked dollars under RANR (Kept's bottom), so RANR rate is
+    Kept's own rate; a loan whose RANR doesn't read is out of both, and GCO is what the charge-off rate adds up (a
+    `#N/A` charge-off is out of GCO but its balance stays in Booked).
+  - A pocket whose RANR is below zero: its RANR and RANR rate in **red** (CRIMSON, the house alert text), and a line
+    beside the Grid dropdown, worked out in Python per grid: *"6 pockets lost money outright, totalling $166,260:
+    RANR below zero, in red."* (red when any), or *"No pocket listed lost money outright ..."*. The method note's
+    Kept item says *"Negative RANR: the pocket lost money outright, before comparing it with anyone."*, on the
+    same row, so no row of the tab moves.
+  - Under the table: **Pockets listed**, **Not listed** (pockets with nothing to compare them with, only when any)
+    and **Whole book**, the grid's own margin; the first two add up to the third.
+  - **Nothing named moves:** B16 (the Grid dropdown) and M13 (the waiting note) stay where the bank checklist sends
+    the analyst; the tiles keep C:K. Together moves from K to O and the chart from M to Q. Verdicts, colours, order,
+    borderline flag and chart are unchanged. Dollars switch to $k only when the whole book's booked would not fit
+    the widest data column (the Grids rule); widths fit every value the dropdown can show.
+  - Tests: 6 in `tests/test_firm_answers_2026_09_29.py` (Paid, cost, kept: gross), every gross cell of both grids
+    worked out again from the CSV; `tests/tabs.py` reads the four new columns and `test_book_results`' header
+    list grew by four. Planted bugs: 7 added to `tools/mutation_check.py` (RANR rate over loans; negative not red;
+    count line leaving out untested pockets; gross from the rest of the band; Not listed dropped; whole book from
+    the listed pockets; never thousands), 7 of 7 caught; *Together too narrow for the borderline flag* repointed
+    (the spacer after Together is now `C_TOG + 1`, not column 12) and caught. Full suite in four shards: 891
+    passed, 7 skipped (the window tests), 0 failed, `test_mutation_tool.py` and `test_bank_checklist.py` included.
+  - Tie-out `pocketbook/docs/tie-out/2026-09-30-pck-gross/`: a Kiosk book (8,090 loans), both grids, 481 figures,
+    **481 TIED, 0 DIFFERS**, Road 2 importing nothing from PocketBook.
+  - **For the firm:** the count includes a 1-loan pocket (the loan with a blank score that charged off); a pocket
+    under Fewest loans is still counted and red, since a loss is a loss, not a test. Say if it should be left out.
 
 ## 7 · Standing rules for new items
 
@@ -2534,6 +2564,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-30 -- **PocketBook: Paid, cost, kept shows each pocket's gross booked, GCO and RANR.** The firm: *"so we can also see if pockets are straight negative on returns"*. Booked, GCO, RANR and RANR rate after Loans; a pocket losing money outright in red and counted beside the Grid dropdown; totals that add up to the whole book. 6 tests, 7 planted bugs caught, tie-out 481 of 481 TIED. §6d has the detail.
 - 2026-09-30 -- **PocketBook: Filter by, apart from Split by.** The firm: *"Wait only works on split by? Isn't that for like above and below median"*, then *"Yes hoping to have this by morning"*. Grids' *Only loans where* now reads its own launcher pick (any category of 6 values or fewer, or ORIG_YEAR, the year of the Origination date column), whatever the split does; ORIG_YEAR can also split, for the consistency test across vintages. 6 tests, 13 planted bugs added and 4 repointed, all caught. §6d has the detail.
 - 2026-09-28 -- **PocketBook: every figure in both workbooks tied out to the loan file** (`pocketbook/docs/tie-out/2026-09-28-full/`, the PDF and `roster.csv`). The firm, on the first tie-out's 64 figures: *"That tie out covered 60 things? It's pretty small"*. 15,650 cells read out of the bleed workbook (all 40 dropdown views) and a Test-new-variables workbook (the test_scout book, two candidates shortlisted), each worked out again from the loan file with no PocketBook code: 13,403 tie, 1,030 tie within sampling error (shuffle and forest figures), 16 differ, 5 could not be checked, the rest names, echoed answers and words. Found: the Look chart counts a value exactly on a bar's edge in the bar below (`look.py:195`, `:209`: 12 x 0.1 = 1.2000000000000002; UTIL's bars off by 1 to 5 loans), and six verdicts rest on shuffled p-values either side of 5% within sampling error, one of them behind Start here's *4 short $3,248,654*. Not fixed here.
 - 2026-09-28 -- **PocketBook Goal 4: the tree is the main path, checked on later loans, and the shortlist regressed together** (OC-51; `pocketbook/docs/NEXT-GOAL.md` Goal 4, all seven ticked). The firm, 27 Sep 2026: *"shouldn't it regress all of those identified variables if it actually deems them important? import --> tree runs --> tree guesses on 2024 data if 2022-2023 are used to build branches --> regress shortlist?"*, then *"yes build it out"*. A cutoff date on Control replaces *Find on 70%* (suggested, never chosen); after the pre-spec is written the tree scores the held-back loans (*"Built on …: AUC 0.63. On …, unseen: 0.60."*, logged as a touch of the holdout); every shortlisted candidate goes into one logistic regression on the held-back loans with the pockets as control dummies (`joint.py`, statistics.md B10: a likelihood ratio test per candidate, the allowance across the shortlist, separation refused in words, correlated pairs named); New variables leads with both. 771 tests (15 new: `tests/test_together.py` and 7 in `tests/test_scout.py`), 766 passed and 5 skipped; 24 planted bugs added and 6 repointed (431 in all), each put back alone with every earlier one whose test was rewritten: 71 of 73 caught on the first pass, the 2 missed caught after their tests were strengthened. The walk's Part C pictures retaken and the procedure and checklist PDFs rebuilt. A scouting Run at 17,000 × 80: about 73 s before, 75–77 s after.
