@@ -688,24 +688,38 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
 SIDES = (("contribution_rate", PLAIN["contribution_rate"]), ("gco_rate", "GCOs"), ("ranr_rate", PLAIN["ranr_rate"]))
 # the gross block (the firm, 30 Sep 2026): the pocket's own booked, GCO and RANR dollars and RANR per booked dollar,
 # right after Loans, so what the pocket did on its own reads before how it compares with the rest
-(C_BAND, C_SEG, C_LOANS, C_BOOK, C_GCO, C_RANR, C_RATE, C_PAID, C_PAID_D, C_COST, C_COST_D, C_KEPT, C_KEPT_D,
- C_TOG) = range(2, 16)
+# each side's Rest (the firm, 30 Sep 2026): the rest's own rate, the rate its gap is measured against
+(C_BAND, C_SEG, C_LOANS, C_BOOK, C_GCO, C_RANR, C_RATE, C_PAID, C_PAID_D, C_PAID_R, C_COST, C_COST_D, C_COST_R,
+ C_KEPT, C_KEPT_D, C_KEPT_R, C_TOG) = range(2, 19)
+#: each side's columns, first to last: its gap, its dollars, the rest's rate
+BLOCKS = ((C_PAID, C_PAID_D, C_PAID_R), (C_COST, C_COST_D, C_COST_R), (C_KEPT, C_KEPT_D, C_KEPT_R))
 GROSS = (C_BOOK, C_GCO, C_RANR, C_RATE)
 GROSS_HEADS = ("Booked", "GCOs", "RANR", "RANR ÷ Booked")
 #: where the lines in use sit: the same cells as before the gross block (M13 is the bank checklist's), so the tiles
 #: stay over C:K and the waiting note in M, above the table
 PCK_TILES = ((3, 3), (4, 5), (6, 7), (8, 9), (10, 11))
 PCK_NOTE = 13
-C_H = 40                  # hidden: the _views row, untested, each side's _pockets row and flag
+#: hidden: the _views row, untested, each side's _pockets row and flag. Right of Together and inside the sort and
+#: filter arrows' range (the firm, 30 Sep 2026), so a sort in Excel moves each row's workings with it
+C_H = C_TOG + 2
 (C_H_ROW, C_H_UN, C_H_RC, C_H_RG, C_H_RR, C_H_FC, C_H_FG, C_H_FR) = range(C_H, C_H + 8)
 # Together's word alone (the chart and the colours read it), and each side's borderline p-value (live.P_BTXT)
 C_H_TOG, C_H_BG, C_H_BR = C_H + 8, C_H + 9, C_H + 10
-LABELLED = 8              # pockets numbered on the chart and named under it: the first rows, with a Together verdict
+#: the Rest columns' heading, and the multiple's against the rest of the book and of the band (the firm, 30 Sep
+#: 2026: "× book" read as the whole book, and the gap is against the rest, the pocket left out)
+REST_HEAD = "Rest"
+REST_TIMES = ("× rest of book", "× rest of band")
+C_CH = C_H_BR + 1         # the chart, its line above and the names under it: right of the hidden columns
+LABELLED = 8              # pockets numbered on the chart and named under it: the first down the table read together
 CHART_ROWS = 23           # rows the chart covers (11 cm at the tab's row height), so the names list starts under it
 #: the chart's own cells, on a hidden sheet (Excel leaves out a chart's points in hidden columns): each row's point,
 #: x then y, its name when it is read together and that point again, then the dashed lines and the corners
 CHART = "_chart"
 (H_X, H_Y, H_NAME, H_NX, H_NY, H_RX, H_RY, H_GX, H_GY, H_NUM) = range(1, 11)
+#: which named pocket each row is, counted down the table (H_SEQ), and the j-th named pocket's name (H_LNAME): the
+#: chart numbers the first LABELLED pockets read together whatever order the rows are in. H_NX, H_NY and H_NUM
+#: hold the j-th named pocket on rows 1 to LABELLED
+H_SEQ, H_LNAME = 11, 12
 
 
 def side_of(flag: str | None, higher: str) -> str | None:
@@ -754,9 +768,10 @@ def together_formula(g: str, k: str, untested: str) -> str:
 
 
 def pck_rows(res, g) -> list[dict]:
-    """One grid's pockets for RANR vs GCOs, in the last Run's order: every pocket with all three comparisons
-    against either comparison (below fewest loans a dollar rate is still shuffled, docs/statistics.md B2), those
-    read together first, then by GCO dollars; a row with a side untested last."""
+    """One grid's pockets for RANR vs GCOs: every pocket with all three comparisons against either comparison
+    (below fewest loans a dollar rate is still shuffled, docs/statistics.md B2), by band, lowest first, then by
+    segment, each in the grid's own order, so (blank) and (marked missing) come last as everywhere else (the firm,
+    30 Sep 2026: "Hard to see these in a sensical order"; they were by GCO dollars)."""
     mates: dict = {}
     for (bl, _), _c in g.inner():
         mates[bl] = mates.get(bl, 0) + 1
@@ -770,10 +785,10 @@ def pck_rows(res, g) -> list[dict]:
         untested = any(s.flag in (engine.THIN, engine.FEW) for s in ss.values())
         tog = "" if untested else together_of(ss["gco_rate"].flag, ss["ranr_rate"].flag)
         rows.append({"band": bl, "seg": dl, "units": c.rows, "untested": untested, "together": tog, **gross_of(c),
-                     "g_over": ss["gco_rate"].dollars or 0.0, "gaps": [(v, x) for v, x in
-                                                                     ((band["gco_rate"], band["ranr_rate"]),
-                                                                      (book["gco_rate"], book["ranr_rate"]))]})
-    rows.sort(key=lambda x: (x["untested"], x["together"] == "", -x["g_over"]))
+                     "gaps": [(v, x) for v, x in ((band["gco_rate"], band["ranr_rate"]),
+                                                  (book["gco_rate"], book["ranr_rate"]))]})
+    bands, segs = {b: i for i, b in enumerate(g.band_labels)}, {d: i for i, d in enumerate(g.dim_labels)}
+    rows.sort(key=lambda x: (bands.get(x["band"], len(bands)), segs.get(x["seg"], len(segs))))
     return rows
 
 
@@ -868,12 +883,14 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     # totals' labels
     _widths(ws, {1: 2, C_BAND: max(lw["band_only"], house.fit(["live from Control", PCK_LISTED, PCK_UNLISTED,
                                                                 PCK_BOOK], floor=0, cap=32, pad=3)),
-                 C_SEG: lw["seg_raw"], C_LOANS: 9, **gross_w, C_PAID: 11, C_PAID_D: 13, C_COST: 11, C_COST_D: 13,
+                 C_SEG: lw["seg_raw"], C_LOANS: 9, **gross_w, C_PAID: 11, C_PAID_D: 13,
+                 C_COST: house.fit([REST_TIMES[0], REST_TIMES[1]], floor=11, cap=DATA_CAP), C_COST_D: 13,
                  C_KEPT: 11, C_KEPT_D: 13,
+                 **{r_: house.fit([REST_HEAD, f"{-1:.2%}"], floor=DATA_FLOOR, cap=DATA_CAP) for *_, r_ in BLOCKS},
                  # the longest verdict with the borderline flag on one side; on both it runs on over the gap beside it
                  C_TOG: house.fit([f"{t} · {stats.borderline_words(0.048, 0.95)}" for t in TOGETHER.values()],
                                   floor=28, cap=56), C_TOG + 1: 3})
-    house.title_band(ws, PCK, "Each pocket's RANR + GCOs, GCOs and RANR, against the rest.", C_BAND, C_TOG + 8,
+    house.title_band(ws, PCK, "Each pocket's RANR + GCOs, GCOs and RANR, against the rest.", C_BAND, C_CH + 6,
                      tab=house.TAB_RESULT)
     line = bk.profit_line(res)
     r = house.method_note(ws, 3, C_BAND, C_TOG, [
@@ -887,7 +904,8 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                  "listed: pockets with nothing to compare them with."),
         ("The rest", live.text("Judged against on Control picks it: now ",
                                ('IF(judged_band,"the rest of its band","the rest of the book")',),
-                               ". A pocket alone in its band is compared with the rest of the book.")),
+                               ". A pocket alone in its band is compared with the rest of the book. Rest: the "
+                               "rest's own rate, the one each gap is measured against.")),
         ("Shading", live.text(
             "Pink: worse, and real. Green: better, and real. None: it could be chance (the p-value isn't under ",
             ('TEXT(significance_bar,"0%")',), "), or the pocket has too few losses to test. GCOs count at ",
@@ -900,13 +918,13 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                                "same. Losing more, profit holding: more GCOs while RANR is about the same. Blank: "
                                "nothing to read together.", *BORDER_WORDS,
                                " Together gives the p-value of each side that is, GCOs first.")),
-        ("Order and chart", "Rows are as of the last Run: the pockets read together first, then by GCO "
-                            "dollars; a pocket with too few losses last. The chart shows the grid picked above, "
-                            "live; the pockets read together are named on it."),
+        ("Order and chart", "Rows are by band, lowest first, then by segment; the arrows on the headings sort "
+                            "and filter by any column. The chart shows the grid picked above, live; the first "
+                            f"{LABELLED} pockets read together, down the table, are numbered on it."),
     ])
     g_rng, _ = choices.add(f"{PCK}: Grid", gnames)
     lines_in_use(ws, r, C_BAND, list(PCK_TILES), material_at(res), PCK_NOTE, PCK_NOTE + 7,
-                 f"The order is from the last Run, {stamp}.")
+                 f"The rows are from the last Run, {stamp}.")
     if CHART in wb.sheetnames:
         del wb[CHART]
     hs = wb.create_sheet(CHART)
@@ -940,19 +958,21 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     NEG = f"${col(C_H_ROW)}{s}"
     ws.cell(row=s, column=C_H_ROW, value="=" + match(xk("C|", (G,), "|neg")))
     ws.cell(row=s, column=C_H_UN, value=f"={pick(NEG, 2)}")
-    ws.merge_cells(start_row=s, start_column=C_LOANS, end_row=s, end_column=C_KEPT_D)
+    ws.merge_cells(start_row=s, start_column=C_LOANS, end_row=s, end_column=C_KEPT_R)
     _cell(ws, s, C_LOANS, f"={pick(NEG, 1)}", bold=True, size=10, color=SLATE, h="left", indent=1)
     cf(ws, f"{col(C_LOANS)}{s}", [(f'N(${col(C_H_UN)}${s})>0', None, Font(color=CRIMSON, bold=True), None)])
     for a, b_, words in ((C_BOOK, C_RATE, "Gross · this pocket alone"),
-                         (C_PAID, C_PAID_D, f'="{SIDES[0][1]} · gap vs "&IF({J},"band","book")'),
-                         (C_COST, C_COST_D, f'="{SIDES[1][1]} · × "&IF({J},"band","book")'),
-                         (C_KEPT, C_KEPT_D, f'="{SIDES[2][1]} · gap vs "&IF({J},"band","book")'), (C_TOG, C_TOG, "")):
+                         (C_PAID, C_PAID_R, f'="{SIDES[0][1]} · gap vs rest of "&IF({J},"band","book")'),
+                         (C_COST, C_COST_R, f'="{SIDES[1][1]} · × rest of "&IF({J},"band","book")'),
+                         (C_KEPT, C_KEPT_R, f'="{SIDES[2][1]} · gap vs rest of "&IF({J},"band","book")'),
+                         (C_TOG, C_TOG, "")):
         ws.merge_cells(start_row=h, start_column=a, end_row=h, end_column=b_)
         _cell(ws, h, a, words, bold=True, size=9, name="Arial")
         for c in range(a, b_ + 1):
             ws.cell(row=h, column=c).border = Border(bottom=Side(style="medium", color=INK))
-    house.header(ws, h + 1, C_BAND, ["Band", "Segment", "Loans", *GROSS_HEADS, "Gap pts", "Dollars",
-                                     f'=IF({J},"× band","× book")', "Dollars", "Gap pts", "Dollars", "Together"],
+    house.header(ws, h + 1, C_BAND, ["Band", "Segment", "Loans", *GROSS_HEADS, "Gap pts", "Dollars", REST_HEAD,
+                                     f'=IF({J},"{REST_TIMES[1]}","{REST_TIMES[0]}")', "Dollars", REST_HEAD,
+                                     "Gap pts", "Dollars", REST_HEAD, "Together"],
                  centre_from=2)
     first = h + 2
     gross_fmts = {C_BOOK: GROSS_K_FMT if thousands else GROSS_FMT, C_GCO: GROSS_K_FMT if thousands else GROSS_FMT,
@@ -978,9 +998,11 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                 **{c: f"={pick(V, 8 + j)}" for j, c in enumerate(GROSS)},
                 C_PAID: pts(RC), C_PAID_D: short(RC), C_COST: f"={at(live.P_GAP, RG)}",
                 C_COST_D: f"={at(live.P_DOLLARS, RG)}", C_KEPT: pts(RR), C_KEPT_D: short(RR),
+                # the rest's rate that decides, the side's own: the rest of the book, or of the band
+                **{r_: f"={at(live.P_REST, prow)}" for (*_, r_), prow in zip(BLOCKS, (RC, RG, RR))},
                 C_TOG: "=" + together_said_formula(TOG, f"${col(C_H_BG)}{rr}", f"${col(C_H_BR)}{rr}")}
         fmts = {C_LOANS: "#,##0", **gross_fmts, C_PAID: PTS_FMT, C_PAID_D: "#,##0", C_COST: X_FMT,
-                C_COST_D: "#,##0", C_KEPT: PTS_FMT, C_KEPT_D: "#,##0"}
+                C_COST_D: "#,##0", C_KEPT: PTS_FMT, C_KEPT_D: "#,##0", **{r_: RATE_FMT for *_, r_ in BLOCKS}}
         for c, v in vals.items():
             _cell(ws, rr, c, v, h="left" if c in (C_BAND, C_SEG, C_TOG) else "center", fmt=fmts.get(c),
                   indent=1 if c in (C_BAND, C_SEG, C_TOG) else 0, bold=c == C_TOG)
@@ -991,8 +1013,6 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         hs.cell(row=k, column=H_X, value=f'=IF(OR({un}<>0,{cost}="",{kept}=""),NA(),{cost})')
         hs.cell(row=k, column=H_Y, value=f"=IF(ISNA({col(H_X)}{k}),NA(),{kept})")
         hs.cell(row=k, column=H_NAME, value=f'=IF({tog}="","",{T}${col(C_BAND)}${rr}&" / "&{T}${col(C_SEG)}${rr})')
-        hs.cell(row=k, column=H_NX, value=f'=IF({tog}="",NA(),{cost})')
-        hs.cell(row=k, column=H_NY, value=f'=IF({tog}="",NA(),{kept})')
         # coloured by verdict, whatever the row (the firm, 29 Sep 2026: a Net drain drawn black read as nothing)
         bad = f'{tog}="{BAD_TOGETHER[0]}"'
         good = f'OR({tog}="{GOOD_TOGETHER[0]}",{tog}="{GOOD_TOGETHER[1]}")'
@@ -1000,11 +1020,22 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         hs.cell(row=k, column=H_RY, value=f"=IF(ISNA({col(H_RX)}{k}),NA(),{col(H_Y)}{k})")
         hs.cell(row=k, column=H_GX, value=f"=IF(AND(NOT(ISNA({col(H_X)}{k})),{good}),{col(H_X)}{k},NA())")
         hs.cell(row=k, column=H_GY, value=f"=IF(ISNA({col(H_GX)}{k}),NA(),{col(H_Y)}{k})")
-        hs.cell(row=k, column=H_NUM, value=f'=IF({col(H_NAME)}{k}="","",{k})')
+        # which pocket read together this row is, counting down the table: the chart numbers the first LABELLED
+        hs.cell(row=k, column=H_SEQ, value=(f'=IF({col(H_NAME)}{k}="","",SUMPRODUCT(--(LEN(${col(H_NAME)}$1:'
+                                            f'${col(H_NAME)}{k})>0)))'))
+    # the j-th pocket read together, on row j: its point, its number and its name, whatever order the rows are in
+    seq = f"${col(H_SEQ)}$1:${col(H_SEQ)}${most}"
+    for j in range(1, LABELLED + 1):
+        m = f"MATCH({j},{seq},0)"
+        for c, src in ((H_NX, H_X), (H_NY, H_Y)):
+            hs.cell(row=j, column=c, value=f"=IFERROR(INDEX(${col(src)}$1:${col(src)}${most},{m}),NA())")
+        hs.cell(row=j, column=H_NUM, value=f'=IF(ISNA({m}),"",{j})')
+        hs.cell(row=j, column=H_LNAME, value=f'=IFERROR(INDEX(${col(H_NAME)}$1:${col(H_NAME)}${most},{m}),"")')
     end = first + most - 1
     un = f"${col(C_H_UN)}{first}"
     line_on = f'${col(C_BAND)}{first}<>""'
-    for (a, b_), fc in (((C_PAID, C_PAID_D), C_H_FC), ((C_COST, C_COST_D), C_H_FG), ((C_KEPT, C_KEPT_D), C_H_FR)):
+    # shaded: each side's gap and dollars, not the rest's rate beside them
+    for (a, b_, _r), fc in zip(BLOCKS, (C_H_FC, C_H_FG, C_H_FR)):
         f = f"${col(fc)}{first}"
         cf(ws, f"{col(a)}{first}:{col(b_)}{end}", [(f'AND({un}=0,{f}="{engine.WORSE}")', ALERT, None, None),
                                                    (f'AND({un}=0,{f}="{engine.BETTER}")', POSITIVE_BG, None, None)],
@@ -1032,9 +1063,12 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     ws.cell(row=t0, column=C_SEG).border = Border(top=Side(style="thin", color=INK))
     tneg = f"AND(ISNUMBER(${col(C_RANR)}{t0}),${col(C_RANR)}{t0}<0)"
     cf(ws, f"{col(C_RANR)}{t0}:{col(C_RATE)}{t0 + 2}", [(tneg, None, Font(color=CRIMSON, bold=True), None)])
+    # Excel's sort and filter arrows on the headings (the firm, 30 Sep 2026), over the pockets and the hidden
+    # workings beside them, never the totals: every rule above reads its own row, so a sort keeps them right
+    ws.auto_filter.ref = f"{col(C_BAND)}{h + 1}:{col(C_H_BR)}{end}"
     if grids and bounds_x:
         _scatter(ws, hs, res, most, bounds_x, bounds_y, line, h)
-    _hide(ws, C_H, C_H + 20)
+    _hide(ws, C_H, C_H_BR)
     ws.freeze_panes = f"A{first}"
     _fit(ws)
 
@@ -1104,9 +1138,9 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
         c.dLbls = _labels(pos="ctr")
         chart.series.append(c)
         hr += 1
-    # the named pockets: the first rows, which are the ones read together at the last Run, numbered on the chart
-    # and named in the list beside it (their names overlapped when written on the chart); a row whose verdict has
-    # gone (a line changed on Control) drops its number
+    # the named pockets: the first pockets read together down the table (H_SEQ), numbered on the chart and named
+    # in the list beside it (their names overlapped when written on the chart); a row whose verdict has gone (a
+    # line changed on Control) drops out and the next one takes its number
     for k in range(min(LABELLED, n)):
         rr = 1 + k
         one = Series(Reference(hs, min_col=H_NY, min_row=rr, max_row=rr),
@@ -1127,15 +1161,15 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
     chart.x_axis.crosses = "min"
     chart.y_axis.crosses = "min"
     chart.width, chart.height = 17, 11
-    ws.add_chart(chart, f"{col(C_TOG + 2)}{anchor}")
+    ws.add_chart(chart, f"{col(C_CH)}{anchor}")
     # what the axes are, above the chart, and the numbered pockets' names under it
-    _cell(ws, anchor - 1, C_TOG + 2, "Across: GCOs × the rest, on a log scale. Up: RANR, as a gap in points. "
-                                     "Red: Net drain. Green: Strong or Priced for it.", size=9, name="Arial", h="left")
+    _cell(ws, anchor - 1, C_CH, "Across: GCOs × the rest, on a log scale. Up: RANR, as a gap in points. "
+                                "Red: Net drain. Green: Strong or Priced for it.", size=9, name="Arial", h="left")
     below = anchor + CHART_ROWS
-    _cell(ws, below, C_TOG + 2, "Numbered on the chart", bold=True, size=9, name="Arial", h="left")
+    _cell(ws, below, C_CH, "Numbered on the chart", bold=True, size=9, name="Arial", h="left")
     for k in range(min(LABELLED, n)):
-        _cell(ws, below + 1 + k, C_TOG + 2,
-              f"=IF('{CHART}'!${col(H_NAME)}${1 + k}=\"\",\"\",\"{1 + k}  \"&'{CHART}'!${col(H_NAME)}${1 + k})",
+        _cell(ws, below + 1 + k, C_CH,
+              f"=IF('{CHART}'!${col(H_LNAME)}${1 + k}=\"\",\"\",\"{1 + k}  \"&'{CHART}'!${col(H_LNAME)}${1 + k})",
               size=9, name="Arial", h="left")
 
 

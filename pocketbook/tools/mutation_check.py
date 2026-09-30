@@ -1509,6 +1509,17 @@ muts = [
   '                sfx, title = "", live.q(BOOK_LINE)',
   '                sfx, title = f\'&IF({PV(p)}="","",{live.q("|and ")}&{PV(p)})\', live.q(BOOK_LINE)',
   "one_scale"),
+ # RANR vs GCOs in band order, sortable, against the rest (the firm, 30 Sep 2026)
+ ("RANR vs GCOs by GCO dollars again", RS,
+  '    rows.sort(key=lambda x: (bands.get(x["band"], len(bands)), segs.get(x["seg"], len(segs))))',
+  '    rows.sort(key=lambda x: (x["untested"], x["together"] == "", -x["gco"]))', "rows_are_by_band_lowest_first"),
+ ("each side's Rest always the rest of the book", RS, '**{r_: f"={at(live.P_REST, prow)}"',
+  '**{r_: f"={at(live.P_REST_BOOK, prow)}"', "every_rows_rest_is_the_rest"),
+ ("the sort arrows leave each row's workings behind", RS,
+  '    ws.auto_filter.ref = f"{col(C_BAND)}{h + 1}:{col(C_H_BR)}{end}"',
+  '    ws.auto_filter.ref = f"{col(C_BAND)}{h + 1}:{col(C_TOG)}{end}"', "a_sort_in_excel_keeps_every_row_whole"),
+ ("the chart numbers the first rows, read together or not", RS, '        m = f"MATCH({j},{seq},0)"',
+  '        m = f"IF({j}<={most},{j},NA())"', "a_sort_in_excel_keeps_every_row_whole"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

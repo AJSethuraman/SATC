@@ -328,7 +328,7 @@ def test_paid_cost_kept_shows_one_grid_at_a_time_in_its_column_groups(ran, tmp_p
     ws = ran["values"][results.PCK]
     head = tabs.header_row(ws, results.C_TOG, "Together")
     assert [ws.cell(row=head - 1, column=c).value for c in (results.C_PAID, results.C_COST, results.C_KEPT)] == [
-        "RANR + GCOs · gap vs band", "GCOs · × band", "RANR · gap vs band"]
+        "RANR + GCOs · gap vs rest of band", "GCOs · × rest of band", "RANR · gap vs rest of band"]
     assert all(wb[results.PCK].cell(row=head - 1, column=c).border.bottom.style == "medium"
                for c in range(results.C_PAID, results.C_TOG + 1))
     # another grid picked: its own pockets, in its own last-Run order
@@ -407,7 +407,7 @@ def test_the_scatter_colours_by_verdict_numbers_its_named_pockets_and_lists_them
     assert named and all(s.tx.strRef.f.split("!")[1].startswith(f"${results.col(results.H_NUM)}$") for s in named)
     cells = [c.value for r in ws.iter_rows() for c in r if isinstance(c.value, str)]
     assert "Numbered on the chart" in cells
-    listed = [v for v in cells if v.startswith(f"=IF('{results.CHART}'!${results.col(results.H_NAME)}$")]
+    listed = [v for v in cells if v.startswith(f"=IF('{results.CHART}'!${results.col(results.H_LNAME)}$")]
     assert len(listed) == results.LABELLED
 
 

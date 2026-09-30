@@ -393,7 +393,7 @@ def test_the_tabs_say_what_stays_as_of_the_run(ran):
             for tab in (results.POCKETS, results.PCK)}
     assert 'Order and "Could have caught" are from the last Run, 20' in said[results.POCKETS]
     assert "not the order" in said[results.POCKETS]
-    assert "The order is from the last Run, 20" in said[results.PCK]
+    assert "The rows are from the last Run, 20" in said[results.PCK]
     wb = load_workbook(ran["book"])
     chart = wb[results.PCK]._charts[0]
     assert "the grid picked above" in chart.title.tx.rich.p[0].r[0].t

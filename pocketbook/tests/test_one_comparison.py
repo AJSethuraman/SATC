@@ -150,7 +150,7 @@ def test_pockets_ranks_by_the_deciding_dollars(compare_to, rest):
 def test_paid_cost_kept_dollars_are_the_engines():
     """Before, this tab worked out its own dollars against the rest of the book; it shows the engine's, so it
     can't disagree with Pockets or materiality."""
-    for compare_to, times in (("peers", "× band"), ("topline", "× book")):
+    for compare_to, times in (("peers", "× rest of band"), ("topline", "× rest of book")):
         res = _run(compare_to)
         ws = _tab(res, results.PCK)
         head = tabs.header_row(ws, results.C_TOG, "Together")
