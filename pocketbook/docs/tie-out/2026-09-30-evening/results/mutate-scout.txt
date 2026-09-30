@@ -1,0 +1,5 @@
+planted 200, caught 199, missed 1
+semantic plants 263, caught 263, missed 0
+  by kind (caught, missed): {'look': (28, 0), 'look-label': (175, 0), 'look-pline': (60, 0)}
+  by kind (caught, missed): {'columns': (5, 0), 'look': (27, 0), 'look-bar': (47, 0), 'look-end': (3, 0), 'look-label': (44, 0), 'look-pline': (12, 0), 'nv-conc': (3, 0), 'nv-group': (10, 0), 'nv-joint': (6, 0), 'nv-joint-found': (1, 0), 'nv-main': (2, 0), 'nv-test': (25, 0), 'nv-words': (3, 0), 'record': (7, 0), 'sc-prespec': (1, 0), 'st-row': (2, 0), 'st-text': (1, 1)}
+  missed: Start here C1 ['st-text', 'C1'] Scouting book.csv · 12,000 loans · 19 columns · last Run 2026-09-30 04:36 Scouting book.csv · 12,000 loans · 19 columns · last Run 2026-09-30 04:39

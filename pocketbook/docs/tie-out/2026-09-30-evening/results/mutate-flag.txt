@@ -1,0 +1,5 @@
+planted 200, caught 199, missed 1
+semantic plants 18832, caught 18832, missed 0
+  by kind (caught, missed): {'grid': (2636, 0), 'grid-bound': (32, 0), 'grid-grey': (14303, 0), 'grid-head': (144, 0), 'look': (8, 0), 'look-label': (50, 0), 'look-pline': (15, 0), 'panel': (87, 0), 'pk-border': (7, 0), 'pk-rule': (1550, 0)}
+  by kind (caught, missed): {'band-label': (2, 0), 'grid': (95, 0), 'grid-bookfig': (1, 0), 'grid-few': (2, 0), 'grid-grey': (40, 0), 'groups': (2, 0), 'look-pline': (1, 0), 'panel': (2, 0), 'pck': (2, 0), 'pck-dot': (1, 0), 'pk-border': (13, 0), 'pocket': (22, 0), 'record': (2, 0), 'size-median': (9, 0), 'split-pocket': (4, 1), 'split-sum': (1, 0)}
+  missed: Split K33 ['split-pocket', 'FICO x CHANNEL · SYS_FLAG Y vs rest', 'Kept after losses', '654 - 685', 'Online', 'p'] 0.0224977502249775 0.01124887511248875
