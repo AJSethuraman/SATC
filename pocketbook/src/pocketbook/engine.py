@@ -401,7 +401,7 @@ def adjust_se(ps: list[float | None], ses: list[float | None], how: str) -> list
     idx = [i for i, p in enumerate(ps) if p is not None]
     m = len(idx)
     out: list[float | None] = [None] * len(ps)
-    if how == "none" or m == 0:
+    if how == "none" or not m:
         return [ses[i] if ps[i] is not None else None for i in range(len(ps))]
     if how == "bonferroni":
         for i in idx:

@@ -1183,6 +1183,8 @@ def test_grids_loan_size_is_not_offered_without_a_booked_amount(tmp_path):
 # exact test's p-value is the same on every run, so it is never borderline.
 
 UNDER, OVER, FAR, NEAR_Z, TINY = 0.048, 0.052, 0.3, 0.049, 0.001
+BORDER_SAID = ("Borderline: the test's p-value is within the shuffle's own margin of the 5% bar, so another run "
+               "could read it the other way.")
 
 
 def test_borderline_is_two_of_the_shuffles_own_standard_errors_either_side_of_the_bar():
@@ -1386,11 +1388,11 @@ def test_borderline_pockets_worse_says_it_beside_the_word_and_keeps_the_words_co
     rules = [r.formula[0] for rng in written.conditional_formatting for r in rng.rules
              if str(rng.sqref).startswith(col) and f'="{live.YES}"' in r.formula[0]]
     assert rules and all(f'IFERROR(LEFT(${col}' in f and 'FIND(" · "' in f for f in rules), rules
-    # the method note says what it means, in the firm's plain words and under 25
+    # the method note says what it means, in the firm's plain words and under 25, at the end of its p-value item
+    # so that no row of the tab moves
     note = _note(calc[results.POCKETS])
-    assert note["Borderline"] == ("The test's p-value is within the shuffle's own margin of the 5% bar, so another "
-                                  "run could read it the other way.")
-    assert len(note["Borderline"].split()) <= 25
+    assert note["p-value"].endswith(" " + BORDER_SAID)
+    assert len(BORDER_SAID.split()) <= 25 + 1
 
 
 def test_borderline_paid_cost_kept_together_says_it_and_its_colour_and_chart_stay_the_words(border_book, tmp_path):
@@ -1419,8 +1421,8 @@ def test_borderline_paid_cost_kept_together_says_it_and_its_colour_and_chart_sta
     named = [f for f in tog if "Net drain" in f or "Strong" in f]
     assert named and all(results.col(results.C_H_TOG) in f for f in named)
     note = _note(ws)
-    assert "Borderline gives the p-value of each side that is, charge-offs first." in note["Together"]
-    assert note["Borderline"].startswith("The test's p-value is within the shuffle's own margin of the 5% bar")
+    assert note["Together"].endswith(f" {BORDER_SAID} Together gives the p-value of each side that is, charge-offs "
+                                     f"first.")
 
 
 def _summary_p(ws, measure: str):
@@ -1454,7 +1456,7 @@ def test_borderline_split_says_it_in_place_of_the_p_value_and_keeps_it_bold(bord
     rules = [r.formula[0] for rng in ws.formulas.conditional_formatting for r in rng.rules
              if "ISTEXT" in r.formula[0] and "significance_bar" in r.formula[0]]
     assert len(rules) >= len(ch_.dim_labels)
-    assert _note(ws)["Borderline"].startswith("The test's p-value is within the shuffle's own margin")
+    assert _note(ws)["p-value"].endswith(" " + BORDER_SAID)
 
 
 def test_borderline_start_here_record_and_the_launcher_count_and_name_them(border_book):

@@ -477,7 +477,10 @@ def test_split_shows_the_summary_and_the_two_grids_for_what_is_picked(ran, tmp_p
             for r in range(head + 1, head + 6)}
     p = g.split_pooled["gco_rate"]
     got = rows["Charge-offs"]
-    assert got[0] == p["pockets"] and got[2] == pytest.approx(p["ratio"]) and got[4] == pytest.approx(p["ratio_p"])
+    # a shuffled p-value near the bar prints as Borderline (29 Sep 2026): results.split_said
+    pooled_p = results.split_said(p["ratio_p"], p.get("ratio_se"), res.config.benchmark.confidence)
+    assert got[0] == p["pockets"] and got[2] == pytest.approx(p["ratio"])
+    assert got[4] == (pooled_p if isinstance(pooled_p, str) else pytest.approx(pooled_p))
     assert got[3].endswith("×") and " to " in got[3]
     said = next(c.value for row in ws.iter_rows() for c in row if str(c.value).startswith("Same in every pocket? "))
     assert said.startswith("Same in every pocket? Bad loans: ")
@@ -487,7 +490,9 @@ def test_split_shows_the_summary_and_the_two_grids_for_what_is_picked(ran, tmp_p
             continue
         gap, pval = x["gco_rate"][0], x["gco_rate"][1]
         assert (bl, str(d)) in pv, (sorted(pv)[:8], len(pv))
-        assert pv[(bl, str(d))] == pytest.approx(pval)
+        want = results.split_said(pval, g.split_se.get((bl, d), {}).get("gco_rate"),
+                                   res.config.benchmark.confidence)
+        assert pv[(bl, str(d))] == (want if isinstance(want, str) else pytest.approx(pval))
         shown = hl[(bl, str(d))]
         if pval < 0.05:
             assert shown == pytest.approx(gap)

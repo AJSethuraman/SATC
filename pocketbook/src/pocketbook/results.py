@@ -318,12 +318,11 @@ def _fit(ws) -> None:
     ws.sheet_properties.pageSetUpPr.fitToPage = True
 
 
-def border_note() -> tuple[str, str]:
-    """Each tab's method-note line on Borderline (the firm, 29 Sep 2026, by pop-up, choosing the word). Only a run
-    with a dollar rate has one: nothing else is shuffled, so nothing else can be borderline."""
-    return ("Borderline", live.text("The test's p-value is within the shuffle's own margin of the ",
-                                    ('TEXT(significance_bar,"0%")',),
-                                    " bar, so another run could read it the other way."))
+#: Each tab's method-note line on Borderline (the firm, 29 Sep 2026, by pop-up, choosing the word), as live.text
+#: parts: said at the end of the note's p-value item (Together's, on Paid, cost, kept), so no row of the tab moves.
+#: Only a run with a dollar rate says it: nothing else is shuffled, so nothing else can be borderline
+BORDER_WORDS = (" Borderline: the test's p-value is within the shuffle's own margin of the ",
+                ('TEXT(significance_bar,"0%")',), " bar, so another run could read it the other way.")
 
 
 def _allowance(b) -> str:
@@ -482,8 +481,7 @@ def _pockets_note(res) -> list[tuple[str, str]]:
             f"loans: the z test, or the exact test for a pocket under {b.min_units:,} loans."
             + (f" Dollar measures: the loans are shuffled {b.shuffles:,} times, within the band for the rest of "
                f"its band, and it is how often a gap as big turned up." if dollar_rates else ""),
-            " Under ", ('TEXT(significance_bar,"0%")',), " counts.")),
-        *([border_note()] if dollar_rates else []),
+            " Under ", ('TEXT(significance_bar,"0%")',), " counts.", *(BORDER_WORDS if dollar_rates else ()))),
         ("Material?", "Yes when the excess reaches the materiality line on Control (the Material at tile, in the "
                       "measure's own unit). It is judged apart from Worse?: a pocket can be one without the other."),
         ("Could have caught", f"The smallest gap a pocket this size would catch {b.power:.0%} of the time at the "
@@ -734,13 +732,12 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
             ('TEXT(worse_at,"0.00")',), "x or ", ('TEXT(better_at,"0.00")',), "x; profit ",
             ('IF(profit_kind="test","when its own test says so",IF(profit_kind="points","at "&TEXT(profit_line*100,'
              '"0.00")&" points either way","at a gap of $"&TEXT(profit_line,"#,##0")))',), ".")),
-        ("Together", "The two sides read at once. Priced for it: more charge-offs and more kept. Net drain: more "
-                     "charge-offs and less kept. Strong: fewer charge-offs and more kept. Safe but idle: fewer "
-                     "charge-offs and less kept. Earns less, not from losses: less kept while charge-offs are "
-                     "about the same. Losing more, profit holding: more charge-offs while what we kept is about "
-                     "the same. Blank: nothing to read together. Borderline gives the p-value of each side "
-                     "that is, charge-offs first."),
-        border_note(),
+        ("Together", live.text("The two sides read at once. Priced for it: more charge-offs and more kept. Net drain: "
+                               "more charge-offs and less kept. Strong: fewer charge-offs and more kept. Safe but "
+                               "idle: fewer charge-offs and less kept. Earns less, not from losses: less kept while "
+                               "charge-offs are about the same. Losing more, profit holding: more charge-offs while "
+                               "what we kept is about the same. Blank: nothing to read together.", *BORDER_WORDS,
+                               " Together gives the p-value of each side that is, charge-offs first.")),
         ("Order and chart", "Rows are as of the last Run: the pockets read together first, then by charge-off "
                             "dollars; a pocket with too few losses last. The chart shows the grid picked above, "
                             "live; the pockets read together are named on it."),
@@ -1557,8 +1554,7 @@ def _value_note(res, sf: str, b, dollar_rates: bool, profit: bool) -> list[tuple
             + f". The allowance for many tests ({_allowance(b)}) covers every value and pocket of one grid and "
               f"measure, and the summary's p-values across the values; a gap that is not significant is in "
               f"brackets, unshaded. A blank: the value or the rest has fewer loans or losses than the minimums "
-              f"({b.min_units:,} loans, {b.min_events:,} losses).")),
-        *([border_note()] if dollar_rates else []),
+              f"({b.min_units:,} loans, {b.min_events:,} losses).", *(BORDER_WORDS if dollar_rates else ()))),
         ("What it holds", f"A grid holds fixed only its band and segment. How closely {sf} moves with a band "
                           f"column isn't worked out for a category, so a gap here may partly be a column the grid "
                           f"doesn't hold fixed. Loans are treated as independent of each other."),
@@ -1650,8 +1646,7 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
             + f". The pockets are after the allowance for many tests ({_allowance(b)}, across one grid and one "
               f"measure); a gap that is not significant is in brackets, unshaded. The summary is one pooled test "
               f"per grid and measure, with no allowance. A blank: a half has fewer loans or losses than the "
-              f"minimums ({b.min_units:,} loans, {b.min_events:,} losses).")),
-        *([border_note()] if dollar_rates else []),
+              f"minimums ({b.min_units:,} loans, {b.min_events:,} losses).", *(BORDER_WORDS if dollar_rates else ()))),
         ("What it holds", (f"A grid holds fixed only its band and segment. {sf} moves with {pt[0]} (correlation "
                            f"{pt[1]:+.2f}), so in a grid that doesn't hold {pt[0]} fixed part of every gap may be "
                            f"{pt[0]}, not {sf}: the chip says which. Grids that hold it fixed come first in the "
