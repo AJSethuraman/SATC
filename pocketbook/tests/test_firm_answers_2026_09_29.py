@@ -1797,3 +1797,147 @@ def test_a_band_cut_between_whole_numbers_is_labelled_by_the_values_it_holds():
         label = engine.band_labels((edge,), 496, 850, whole=True)[0 if value < edge else 1]
         lo, hi = (float(x.replace(",", "")) for x in label.split(" - "))
         assert lo <= value <= hi, (edge, value, label)
+
+
+# ---- Cut at whole dollars (30 Sep 2026)
+# BACKLOG §6d, "Open, for the firm: a dollar band's label when its edge has cents": the evening tie-out found ORIG_BAL
+# cut at an equal-loan point of $37,950.548, its bands labelled "26,324 - 37,950" and "37,951 - 49,151", and a loan of
+# $37,950.99 in the second, whose label starts above it. The firm: "Cut at whole dollars is fine". The rule
+# (engine.whole_cut): an edge PocketBook cuts on a column whose labels read in whole units (every edge 100 or more
+# either way) and whose values carry cents is raised to the next whole number. A whole-unit label reads a value with
+# its cents dropped ($37,950.99 reads 37,950), so every loan's reading lies inside its own band's label and no other.
+# Typed edges are the analyst's and stay as typed; a column of whole numbers (FICO) and a ratio are left as they were.
+
+def _reading_in(label: str, v: float) -> bool:
+    import math
+    lo, hi = (float(x.replace(",", "")) for x in label.split(" - "))
+    return lo <= math.floor(v) <= hi
+
+
+def _dollar_file(tmp_path, n, bal=None):
+    """The synthetic book (ORIG_BAL in dollars and cents), each loan's ORIG_BAL replaced by `bal(i, as_read)`."""
+    cfg, data = synth.write(tmp_path, n=n)
+    if bal is not None:
+        rows = list(csv.DictReader(open(data, encoding="utf-8")))
+        for i, r in enumerate(rows):
+            r["ORIG_BAL"] = bal(i, r["ORIG_BAL"])
+        with open(data, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=list(rows[0]))
+            w.writeheader()
+            w.writerows(rows)
+    return cfg, data
+
+
+def _dollar_run(tmp_path, band, n=6000, bal=None):
+    import copy
+    from pocketbook import config as cfgmod, engine
+    from pocketbook.ingest import read_table
+    cfg, data = _dollar_file(tmp_path, n, bal)
+    raw = copy.deepcopy(cfgmod.load(cfg).raw)
+    raw["bands"] = [band]
+    tbl = read_table(data)
+    return engine.run(cfgmod.parse(raw), tbl), tbl
+
+
+def test_whole_dollars_the_firms_loan_of_37950_99_sits_under_the_label_that_names_it():
+    from pocketbook import engine
+    vals = [26324.50, 30001.25, 37950.10, 37950.99, 44000.00, 49151.40]
+    raw_edge = (37950.10 + 37950.99) / 2                                     # 37,950.545: the equal-loan point
+    edges = engine.cut_edges(vals, 2, "equal_loans")
+    assert edges == (37951.0,) and raw_edge < 37951
+    labels = engine.band_labels(edges, min(vals), max(vals), whole=engine.all_whole(vals))
+    assert labels == ["26,324 - 37,950", "37,951 - 49,151"]
+    assert engine.band_of(37950.99, edges, labels) == "26,324 - 37,950"
+    for v in vals:                                                            # inside its own label, no other
+        assert [lab for lab in labels if _reading_in(lab, v)] == [engine.band_of(v, edges, labels)], v
+    # the edge as the build before cut it: 37,950.99 sat in the band whose label starts at 37,951
+    old = engine.band_labels((raw_edge,), min(vals), max(vals))
+    assert old == labels and engine.band_of(37950.99, (raw_edge,), old) == "37,951 - 49,151"
+    assert not _reading_in(old[1], 37950.99)
+
+
+def test_whole_dollars_every_loan_reads_inside_its_bands_label_on_a_run(tmp_path):
+    import math
+    from pocketbook import engine
+    res, tbl = _dollar_run(tmp_path, {"name": "bal", "field": "ORIG_BAL", "count": 5, "cut": "equal_loans"})
+    vals = [float(r["ORIG_BAL"]) for r in tbl.rows if str(r.get("ORIG_BAL") or "").strip()]
+    assert not engine.all_whole(vals)                                          # the column carries cents
+    raw = [engine._quantile(sorted(vals), i / 5) for i in range(1, 5)]
+    edges = res.band_edges["bal"]
+    assert edges == tuple(float(math.ceil(e)) for e in raw) and any(not e.is_integer() for e in raw)
+    g = res.grids[0]
+    ranged = [lab for lab in g.band_labels if " - " in lab]                     # not "(blank)"
+    assert len(ranged) == 5
+    held = {lab: g.cell(lab, engine.ALL).rows for lab in ranged}
+    inside = {lab: sum(1 for v in vals if _reading_in(lab, v)) for lab in ranged}
+    assert inside == held and sum(held.values()) == len(vals)
+    for v in vals:
+        assert sum(1 for lab in ranged if _reading_in(lab, v)) == 1, v
+    assert all(f"{e:,.0f} - " in " ".join(ranged) for e in edges)              # each band starts at its edge
+    # and a loan planted a cent under each raised edge, where the build before cut, reads inside its label
+    plant = {i * 997: math.ceil(e) - 0.01 for i, e in enumerate(raw, 1)}
+    res, tbl = _dollar_run(tmp_path / "plant", {"name": "bal", "field": "ORIG_BAL", "count": 5, "cut": "equal_loans"},
+                           bal=lambda i, was: plant.get(i, was))
+    g = res.grids[0]
+    got = [float(r["ORIG_BAL"]) for r in tbl.rows if str(r.get("ORIG_BAL") or "").strip()]
+    assert all(v in got for v in plant.values())
+    ranged = [lab for lab in g.band_labels if " - " in lab]
+    held = {lab: g.cell(lab, engine.ALL).rows for lab in ranged}
+    assert held == {lab: sum(1 for v in got if _reading_in(lab, v)) for lab in ranged}
+
+
+def test_whole_dollars_typed_edges_with_cents_stay_exactly_as_typed(tmp_path):
+    typed = [26324.2, 37950.548, 49151.3]
+    res, _ = _dollar_run(tmp_path, {"name": "bal", "field": "ORIG_BAL", "edges": typed})
+    assert res.band_edges["bal"] == tuple(typed)
+
+
+def test_whole_dollars_leave_a_whole_number_column_and_a_ratio_as_they_were():
+    from pocketbook import engine
+    fico = [float(x) for x in range(600, 852)]                                  # whole scores, cut at 650.2 ...
+    raw = tuple(engine._quantile(sorted(fico), i / 5) for i in range(1, 5))
+    assert any(not e.is_integer() for e in raw) and engine.cut_edges(fico, 5, "equal_loans") == raw
+    ratio = [0.01 + (i * 0.7919) % 0.98 for i in range(997)]                   # under 100: read to its decimals
+    raw = tuple(engine._quantile(sorted(ratio), i / 5) for i in range(1, 5))
+    assert engine.cut_edges(ratio, 5, "equal_loans") == raw
+    small = [5.5 + (i * 7.31) % 90 for i in range(997)]                         # dollars under 100: not whole units
+    assert engine.cut_edges(small, 4, "equal_loans") == tuple(engine._quantile(sorted(small), i / 4) for i in (1, 2, 3))
+
+
+def test_whole_dollars_raising_an_edge_never_leaves_two_the_same_or_an_empty_band():
+    from pocketbook import engine
+    vals = [100.2, 100.4, 100.6, 100.8, 500.5]
+    assert engine.whole_cut((100.3, 100.5, 100.7), vals) == (101.0,)            # three raised onto one: kept once
+    assert engine.whole_cut((100.3, 500.1), vals) == (101.0,)                   # past the largest value: no band
+    assert engine.whole_cut((100.3, 250.5), vals) == (101.0, 251.0)
+    got = engine.whole_cut((150.2, 150.9, 151.0, 300.4), [100.5, 160.1, 220.7, 400.3])
+    assert got == (151.0, 301.0)
+
+
+def test_whole_dollars_a_run_whose_edges_meet_says_it_got_fewer_bands(tmp_path):
+    """Three equal-loan points between $100 and $101 are all raised to 101: two edges, and the Run's own warning."""
+    from pocketbook import engine
+    res, tbl = _dollar_run(tmp_path, {"name": "bal", "field": "ORIG_BAL", "count": 5, "cut": "equal_loans"},
+                           n=500, bal=lambda i, was: (100.1, 100.2, 100.6, 100.7, 900.5)[i % 5])
+    vals = sorted(float(r["ORIG_BAL"]) for r in tbl.rows)
+    assert len({engine._quantile(vals, k / 5) for k in range(1, 5)}) == 4        # four edges before raising
+    assert res.band_edges["bal"] == (101.0, 261.0)                              # three of them raised onto 101
+    assert any("band bal: asked for 5 bands, got 3" in w for w in res.warnings), res.warnings
+
+
+def test_whole_dollars_a_column_inside_one_dollar_keeps_its_cut_rather_than_losing_every_band():
+    """Every loan between $100 and $101 reads 100: raising would leave no edge at all, and the Run would refuse the
+    column as having nothing to cut. The cut is kept as it was."""
+    from pocketbook import engine
+    vals = [100.1, 100.2, 100.3, 100.6, 100.7, 100.8]
+    assert engine.cut_edges(vals, 2, "equal_loans") == (engine._quantile(vals, 0.5),)
+
+
+def test_whole_dollars_scoutings_suggested_bins_on_a_dollar_column_are_whole():
+    import numpy as np
+    from pocketbook import scout
+    v = np.array([37000.25 + i * 0.37 for i in range(2000)] + [float("nan")] * 5)
+    assert scout.bins_at([0], [(37300.55, 1.0)], [37300.2, 37300.9], v, [0.1, 0.3]) == [37301.0]
+    ratio = np.array([0.1 + i * 0.0004 for i in range(2000)])
+    assert scout.bins_at([0], [(0.4555, 1.0)], [0.455, 0.456], ratio, [0.1, 0.3]) == [
+        scout.edge([(0.4555, 1.0)], 0.455, 0.456)] == [0.456]                   # a ratio: as scouting rounds it

@@ -2494,12 +2494,34 @@ changed in the code.
   The DIFFERS: 104 are the one shuffle draw 29 Sep's million-shuffle run already settled; 254 are width
   measurements, of which four were real clips and are fixed (Split's borderline cells, Start here's segment
   with the flag, Look's P50 label, New variables' ranges) and the rest are headings that wrap or spill as
-  designed; 18 are the one open item below.
-- **Open, for the firm: a dollar band's label when its edge has cents.** An equal-loan cut at $37,950.548
-  reads "26,324 - 37,950" then "37,951 - 49,151"; a loan of $37,950.99 is in the second band but its whole-dollar
-  reading, 37,951, is right while the first band's "37,950" end is not strictly its last value. Choices: cut
-  dollar columns at whole dollars (the labels then hold exactly), or show edges to the cent. **Recommended:**
-  cut at whole dollars. Not changed without a yes: it moves loans between bands on every dollar column.
+  designed; 18 are the one item below (decided and built the same day: the 18 now tie).
+- **Decided and built, 30 Sep 2026: a dollar band's label when its edge has cents** (branch
+  `pocketbook-whole-dollar-edges`). Was open: an equal-loan cut at $37,950.548 read "26,324 - 37,950" then
+  "37,951 - 49,151", and a loan of $37,950.99 sat in the second. The firm: *"Cut at whole dollars is fine"*.
+  - **The rule** (`engine.whole_cut`): an edge PocketBook *cuts* on a column whose labels read in whole units
+    (`engine.reads_whole`, the test `band_labels` already used: every edge 100 or more either way) and whose values
+    carry cents is **raised** to the next whole number. **Decided: a whole-unit label reads a value with its cents
+    dropped** (floor: $37,950.99 reads 37,950), so a band [a, b) at whole a and b holds exactly the loans whose
+    reading is a to b - 1, which is its label. Raised rather than rounded because on a whole-number column raising
+    moves no loan. The top label now ends at the largest value's whole units (it rounded up). Edges that meet after
+    raising are kept once, and one past the largest loan is dropped: the Run's "asked for N bands, got M" says so. A
+    column whose loans all read the same dollar keeps its cut rather than losing every band.
+  - **Left alone:** edges typed on Columns (the analyst's, exactly as typed), a whole-number column such as FICO
+    (already labelled by the values it holds), and ratios (edges under 100).
+  - **Everywhere edges are cut:** the Run (`cut_edges`), and so Grids, prevalence, Record's *Band edges used* and
+    the CLI, which read `res.band_edges`; and scouting's suggested bins (`scout.bins_at`), which are the pre-spec's
+    suggested bins. Look's red lines read only edges typed on Columns, so nothing there moves.
+  - **Q3 book, ORIG_BAL:** edges 15,448.536 / 26,323.856 / 37,950.548 / 49,152.37 became 15,449 / 26,324 / 37,951 /
+    49,153. Labels were *5,005 - 15,448 · 15,449 - 26,323 · 26,324 - 37,950 (1,599) · 37,951 - 49,151 (1,600) ·
+    49,152 - 59,983*; they are now *... 26,324 - 37,950 (1,600) · 37,951 - 49,152 (1,599) · 49,153 - 59,983*. The
+    one loan that moved is L0001306 ($37,950.99).
+  - Tests: 9 in `tests/test_firm_answers_2026_09_29.py` (Cut at whole dollars). One existing test's expected label
+    moved: `tests/test_shortlist.py`, TENURE's top group over values to 61.3 now reads "10 - 61" (was "10 - 62"),
+    under the same cents-dropped reading. Planted bugs: 10 added to `tools/mutation_check.py`, 10 of 10 caught.
+    Full suite in shards: 885 passed, 7 skipped (the window tests), 0 failed, `test_mutation_tool.py` and
+    `test_bank_checklist.py` included.
+  - The evening tie-out's band-label check, run again on this build (`recheck_whole_dollars.py`, addendum to
+    the report): 60 of 60 labels tie on the six grid books, and the 18 band-label DIFFERS no longer differ.
 
 ## 7 · Standing rules for new items
 
