@@ -105,7 +105,7 @@ muts = [
   '                x = stats.smallest_gap_for(ln, s.units, b.confidence, b.power)', "luck_alone"),
  ("bands say up to", E, "        first = f(math.floor(lo / step) * step) if lo is not None and lo < edges[0] else None",
   "        first = None", "bands_read_as_ranges"),
- ("grids lose the data range", E, "        labels = band_labels(edges, min(seen), max(seen)) if seen else band_labels(edges)",
+ ("grids lose the data range", E, "        labels = band_labels(edges, min(seen), max(seen), whole=all_whole(seen)) if seen else band_labels(edges)",
   "        labels = band_labels(edges)", "smallest_to_its_largest"),
  ("in use refuses a number", "src/pocketbook/control.py",
   '        lookup = (f"IFERROR(MATCH({K}&\\"|\\"&{C},{OPTIONS_SHEET}!$A:$A,0),"\n                  f"MATCH({K}&\\"|\\"&IFERROR(VALUE({C}),{C}),{OPTIONS_SHEET}!$H:$H,0))")',
@@ -1306,6 +1306,8 @@ muts = [
   '                           fit, split)',
   '_grid_view(res, views, f"G|{gname}" + WHERE.format(v), g.filtered[v], g, names, rows_, cols_, ms,\n'
   '                           None, split)', "filter_by_grids_widths"),
+ ("a band between whole numbers labelled one short", E, '            return math.ceil(round(x / step, 9)) * step if whole else x',
+  '            return x', "labelled_by_the_values_it_holds"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

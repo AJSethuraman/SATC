@@ -2485,6 +2485,10 @@ changed in the code.
   - **Found, not fixed:** an equal-loans band edge that isn't a whole number is labelled one short: FICO cut at 654.2
     reads *"496 - 653"* but holds FICO 654 (`engine.band_labels`: the step is 1 for whole-number display, and the
     edge is not rounded). The test types whole edges to stay clear of it.
+- **Band labels one short on a whole-number column** (found 30 Sep 2026 building Filter by): FICO cut at an
+  equal-loan point of 654.2 read "496 - 653" and held 654. A column of whole numbers now labels each band from the
+  first value it holds (655) to the last (654); a column with cents keeps the nearest-dollar reading. Test and
+  planted bug in `tests/test_firm_answers_2026_09_29.py`.
 
 ## 7 · Standing rules for new items
 

@@ -1783,3 +1783,17 @@ def test_filter_by_origination_year_splits_too_with_each_year_against_the_rest(t
     # no column marked Origination date: refused in words, never guessed
     with pytest.raises(engine.DataRefused, match="no column in this extract is marked so"):
         engine.run(dataclasses.replace(cfgmod.parse(raw), origination_date=None), read_table(x))
+
+
+def test_a_band_cut_between_whole_numbers_is_labelled_by_the_values_it_holds():
+    """Found building Filter by, 30 Sep 2026: FICO cut at an equal-loan point of 654.2 read "496 - 653" and held
+    654. A band is labelled from the first shown value it holds to the last."""
+    from pocketbook import engine
+    assert engine.band_labels((654.2, 700.0), 496, 850, whole=True) == ["496 - 654", "655 - 699", "700 - 850"]
+    # dollars with cents read to the nearest dollar, as before: 26,803.10 is 26,803
+    assert engine.band_labels((26803.1, 38548.6), 5000, 90000) == ["5,000 - 26,802", "26,803 - 38,548", "38,549 - 90,000"]
+    assert engine.band_labels((620, 680, 740), 500, 850) == ["500 - 619", "620 - 679", "680 - 739", "740 - 850"]
+    for edge, value in ((654.2, 654), (654.2, 655), (700.0, 699), (700.0, 700)):
+        label = engine.band_labels((edge,), 496, 850, whole=True)[0 if value < edge else 1]
+        lo, hi = (float(x.replace(",", "")) for x in label.split(" - "))
+        assert lo <= value <= hi, (edge, value, label)

@@ -134,13 +134,20 @@ def classify_text(raw: Any, rule: MissingRule | None) -> str:
     return text
 
 
-def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | None = None) -> list[str]:
+def all_whole(values) -> bool:
+    """True when every value is a whole number: a score, a count, a term in months."""
+    return all(float(v).is_integer() for v in values)
+
+
+def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | None = None,
+                whole: bool = False) -> list[str]:
     """Bands as ranges: "620 - 679", with the lowest from the column's smallest
     value and the highest to its largest (the firm, 25 Sep 2026: "i want bands to
     be written in '0 - 660' form ... adding words over symbols makes a big
     difference to how cluttered it feels"). A band holds its first number and
     stops one step short of the next band's, the step being 1 for whole-number
-    edges and the edges' own last decimal place otherwise."""
+    edges and the edges' own last decimal place otherwise. `whole`: the column holds whole numbers only (a score),
+    so an edge between them (654.2) starts its band at the next whole number (655)."""
     dec = 0
     if min(abs(float(x)) for x in edges) < 100:          # scores and dollars read as whole numbers
         for x in edges:
@@ -157,11 +164,17 @@ def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | N
         def f(x, d=d):
             return f"{x:,.{d}f}"
 
+        def up(x, step=step):
+            # an edge finer than the step shown (a FICO cut at 654.2, read as whole numbers) starts its band at the
+            # first shown value in it, 655, and the band below ends at 654, which it holds (found 30 Sep 2026: it
+            # read "496 - 653" and held 654)
+            return math.ceil(round(x / step, 9)) * step if whole else x
+
         first = f(math.floor(lo / step) * step) if lo is not None and lo < edges[0] else None
         last = f(math.ceil(hi / step) * step) if hi is not None and hi >= edges[-1] else None
-        out = [f"{first} - {f(edges[0] - step)}" if first else f"up to {f(edges[0] - step)}"]
-        out += [f"{f(a)} - {f(b - step)}" for a, b in zip(edges, edges[1:])]
-        out.append(f"{f(edges[-1])} - {last}" if last else f"{f(edges[-1])} and up")
+        out = [f"{first} - {f(up(edges[0]) - step)}" if first else f"up to {f(up(edges[0]) - step)}"]
+        out += [f"{f(up(a))} - {f(up(b) - step)}" for a, b in zip(edges, edges[1:])]
+        out.append(f"{f(up(edges[-1]))} - {last}" if last else f"{f(up(edges[-1]))} and up")
         if len(set(out)) == len(out):
             return out
     return out
@@ -895,7 +908,7 @@ def run(config: Config, table: Table) -> Result:
                             f"(`{b.field}` has too many repeated values to cut finer)")
         band_edges[b.name] = edges
         seen = [v for v, why in read if why is None]
-        labels = band_labels(edges, min(seen), max(seen)) if seen else band_labels(edges)
+        labels = band_labels(edges, min(seen), max(seen), whole=all_whole(seen)) if seen else band_labels(edges)
         band_label_sets[b.name] = labels
         bands[b.name] = [band_of(v, edges, labels) if why is None else REASON_LABEL[why] for v, why in read]
     dims = {d.name: [classify_text(raw, rules.get(d.field)) for raw in col(d.field)]
