@@ -182,7 +182,7 @@ groups:
       # answered for them: blank changes nothing and the Run doesn't wait for it (optional). The line is
       # config.BUREAU_CODE_LINE. A column's own Treat as answer of Real on Columns keeps its codes.
       - key: bureau_codes
-        question: "Bureau missing codes: treat any value at or below -99,000,000 as missing, in every column?"
+        question: "Treat values ≤ -99,000,000 as missing in every column?"
         takes_effect: re-run
         override: null
         optional: true

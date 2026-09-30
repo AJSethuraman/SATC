@@ -163,10 +163,14 @@ def classify(table: Table, few_values: int, many_values: int,
     return out
 
 
+#: the most negative values Columns names one by one, each with its loans (the firm, 30 Sep 2026)
+SHOWN = 5
+
+
 def odd_values(col: str, numeric: list[float]) -> list[dict]:
     """The odd-value questions for one column of numbers. A negatives question also carries what Columns shows
     of it (the firm, 30 Sep 2026: "it's useful to see the value"): `shown`, its most common negative values with
-    their loans, three at most; `distinct`, how many different negatives there are; `highest`, the one nearest
+    their loans, five at most; `distinct`, how many different negatives there are; `highest`, the one nearest
     zero. None of these is part of its key, so a remembered answer still finds it."""
     qs = []
     if not numeric:
@@ -188,7 +192,7 @@ def odd_values(col: str, numeric: list[float]) -> list[dict]:
     if neg and len(neg) < NEGATIVE_SHARE * len(numeric):
         by = Counter(neg).most_common()
         qs.append({"column": col, "pattern": "negatives", "value": None, "rows": len(neg),
-                   "shown": [(v, n) for v, n in by[:3]], "distinct": len(by), "highest": max(neg)})
+                   "shown": [(v, n) for v, n in by[:SHOWN]], "distinct": len(by), "highest": max(neg)})
     return qs
 
 

@@ -157,8 +157,11 @@ def plain_value(x: Any) -> str:
         return str(x)
     if float(x).is_integer():
         return f"{int(x):,}"
-    t = f"{x:,.6f}".rstrip("0").rstrip(".")
-    return t if t not in ("0", "-0") else repr(x)
+    for places in (6, 12):
+        t = f"{x:,.{places}f}".rstrip("0").rstrip(".")
+        if t not in ("0", "-0"):
+            return t
+    return "0"
 
 
 def bureau_rules(columns, exempt=()) -> dict[str, MissingRule]:
@@ -530,7 +533,7 @@ def parse(raw: Any, source_path: str = "") -> Config:
         if rule is not None:
             missing[q.column] = missing.get(q.column, MissingRule()).merged(rule)
 
-    names =[b.name for b in bands] + [d.name for d in dims] + [m.name for m in measures]
+    names = [b.name for b in bands] + [d.name for d in dims] + [m.name for m in measures]
     dupes = sorted({n for n in names if names.count(n) > 1})
     for n in dupes:
         problems.append(f"the name `{n}` is used more than once; every band, dimension and measure needs its own")

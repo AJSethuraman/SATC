@@ -127,9 +127,21 @@ After that, the whole routine is:
      at, the value worked out from this extract ("suggested: 69, from this
      extract"). On the right, what each materiality level keeps, live. A test
      of a new variable isn't asked the profit line.
+     One question more, *Treat values ≤ -99,000,000 as missing in every
+     column?* (the firm, 30 Sep 2026: *"I can guarantee you that they are the
+     bureau missing codes"*). Yes makes every value at or below -99,000,000
+     missing in every column, bands and categories alike, with no Treat as
+     needed; a column answered Real on Columns keeps its values. The Run's
+     lines say how many loans it made missing in each column. No, or blank,
+     changes nothing.
    - **Columns:** one row per column: what it is, why it was suggested, its
      odd values with *Treat as* (Real or Missing) beside them, band edges, and
-     whether it is remembered, with *Forget?*. Set "Checked every column" (C3)
+     whether it is remembered, with *Forget?*. Odd values are looked for in
+     every column of numbers, a category's too, and name the values and their
+     loans as written: *-99,000,900 on 460 loans*, never *-9.90009e+07*. A
+     category answered Missing puts those loans in *(marked missing)*, as a
+     band does. A value missing, by either route, is in no band edge, rate,
+     percentile or Look chart. Set "Checked every column" (C3)
      to Yes; Run waits until it is. Under the table, *Add a column: one
      divided by another*. For a new variable, mark the date each loan was made
      *Origination date*: it splits development loans from the holdout.

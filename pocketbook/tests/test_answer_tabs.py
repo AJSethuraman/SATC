@@ -299,7 +299,7 @@ def test_columns_names_each_column_once_with_its_odd_values_and_memory_on_its_ro
     names = [r[book.C_NAME - 1].value for r in book.table_rows(ws) if r[book.C_NAME - 1].value]
     assert names == header
     fico = next(r for r in book.table_rows(ws) if r[book.C_NAME - 1].value == "FICO")
-    assert fico[book.C_ODD - 1].value == "-9999 on 80 loans"          # every 50th loan of 4,000
+    assert fico[book.C_ODD - 1].value == "-9,999 on 80 loans"         # every 50th loan of 4,000
     assert fico[book.C_TREAT - 1].value == "Missing" and fico[book.C_EDGES - 1].value == EDGES
     ranr = next(r for r in book.table_rows(ws) if r[book.C_NAME - 1].value == "RANR_AMT")
     assert ranr[book.C_ODD - 1].value.startswith("Negative on ") and ranr[book.C_TREAT - 1].value is None
@@ -420,7 +420,7 @@ def test_look_shows_the_mean_beside_the_median_and_the_code_on_a_red_bar_of_its_
     lines = {ws.cell(row=r + k, column=2).value: ws.cell(row=r + k, column=3).value for k in range(1, 9)}
     assert lines["Median"] == statistics.median(vals)
     assert lines["Mean"] == pytest.approx(statistics.fmean(vals))
-    assert lines["At -9999, likely a code"] == 80
+    assert lines["At -9,999, likely a code"] == 80
     # answered missing on Columns and Run (at the bank, 29 Sep 2026): counted as left out, the same spread, and
     # no red bar, since it is no longer a question
     run_ws = load_workbook(b)["Look"]

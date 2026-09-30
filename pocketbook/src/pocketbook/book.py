@@ -467,7 +467,7 @@ def _made_columns(table, cols, kept: dict, mem: dict):
     return made, reports, notes
 
 
-#: Control's key for "Bureau missing codes: treat any value at or below -99,000,000 as missing, in every column?"
+#: Control's key for "Treat values ≤ -99,000,000 as missing in every column?" (the firm's words, 30 Sep 2026)
 BUREAU = "bureau_codes"
 
 
@@ -710,7 +710,8 @@ REMOVED_MEANINGS = {"outcome_date": "Outcome date", "as_of_date": "As-of date"}
 
 
 #: what Columns adds to an odd value that Control's bureau codes answer of Yes already makes missing
-BUREAU_WORDS = " → missing (Control: bureau codes)"
+BUREAU_MARK = "Control: ≤ -99,000,000"
+BUREAU_WORDS = f" → missing ({BUREAU_MARK})"
 
 
 def _bureau_code(q: dict) -> bool:
@@ -725,18 +726,19 @@ def _bureau_code(q: dict) -> bool:
 
 def _odd_words(q: dict, bureau: bool = False) -> str:
     """An odd value as the Columns tab says it, the values themselves shown (the firm, 30 Sep 2026: "it's useful
-    to see the value"): "-9,999 on 60 loans"; negatives of up to three values each with its loans,
-    "-99,000,900 on 460 loans; -99,000,901 on 6"; more than three, "Negative on 595 loans (e.g. -99,000,900,
-    -99,000,901, -99,000,902, …)". Thousands separators, never scientific notation. `bureau`: Control's bureau
-    codes answer is Yes and this column keeps it, so its codes are missing already, and it says so."""
+    to see the value"): "-9,999 on 60 loans"; negatives of up to profile.SHOWN values, each with its loans,
+    "-99,000,900 on 460 loans; -99,000,901 on 6"; more than that (RANR's real negatives, every one different),
+    "Negative on 595 loans (e.g. -12.5, -3, …)". Thousands separators, never scientific notation. `bureau`:
+    Control's bureau codes answer is Yes and this column keeps it, so its codes are missing already, and it says
+    so."""
     plain = cfgmod.plain_value
     if q["pattern"] == "negatives":
         shown = q.get("shown") or []
-        if shown and q.get("distinct", len(shown)) <= 3:
-            words = "; ".join(f"{plain(v)} on {n:,}" + (" loans" if i == 0 else "")
+        if shown and q.get("distinct", len(shown)) <= len(shown):
+            words = "; ".join(f"{plain(v)} on {n:,}" + (f" loan{'' if n == 1 else 's'}" if i == 0 else "")
                               for i, (v, n) in enumerate(shown))
         elif shown:
-            words = f"Negative on {q['rows']:,} loans (e.g. {', '.join(plain(v) for v, _ in shown)}, …)"
+            words = f"Negative on {q['rows']:,} loans (e.g. {', '.join(plain(v) for v, _ in shown[:3])}, …)"
         else:
             words = f"Negative on {q['rows']:,} loans"
     else:
@@ -963,7 +965,7 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
     # a code Control's bureau codes answer already makes missing isn't shaded: it is answered (30 Sep 2026)
     ws.conditional_formatting.add(f"{treat}{COL_FIRST}:{treat}{r - 1}", house.still_needed(
         f'AND(${key}{COL_FIRST}<>"",${treat}{COL_FIRST}="",'
-        f'ISERROR(SEARCH("Control: bureau codes",${odd}{COL_FIRST})))'))
+        f'ISERROR(SEARCH("{BUREAU_MARK}",${odd}{COL_FIRST})))'))
     look = _col(C_LOOK)
     ws.conditional_formatting.add(f"{look}{COL_FIRST}:{look}{r - 1}", house.still_needed(f'{look}{COL_FIRST}<>""'))
     for col in (C_SUGG, C_MADE, C_QKEY):
@@ -974,7 +976,7 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
 
 def _bureau_on_columns(ws, rules: dict, table) -> None:
     """Each odd value on Columns says whether Control's bureau codes answer makes it missing, as this Run read
-    it: " → missing (Control: bureau codes)" added where the Run's rule for its column catches every value the
+    it: BUREAU_WORDS added where the Run's rule for its column catches every value the
     question is about, and taken off where it no longer does (Control answered No, or the column Real)."""
     for r in table_rows(ws):
         key = r[C_QKEY - 1].value if len(r) >= C_QKEY else None
@@ -1052,7 +1054,7 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
     tiles = [(NEEDED, f'=IFERROR(SUM(answers_needed),0){kind_blank}'
                       f'+IF(Columns!{CONFIRM_CELL.replace("C", "$C$")}="Yes",0,1)', "Control and Columns"),
              # a code Control's bureau codes answer already makes missing isn't one to answer (30 Sep 2026)
-             ("Odd values to answer", f'=COUNTIFS({keys},"?*",{treat},"",{odd},"<>*Control: bureau codes*")',
+             ("Odd values to answer", f'=COUNTIFS({keys},"?*",{treat},"",{odd},"<>*{BUREAU_MARK}*")',
               "Columns · Treat as"),
              ("Changes waiting for a Run", f'=IFERROR(COUNTIF(Status,"{house.WAITING}"),0)',
               "Control · Status")]
@@ -1584,6 +1586,30 @@ def what_was_run(used: dict) -> str | None:
     return f"{kind}: {step[0].lower() + step[1:]}" if step else kind
 
 
+def _bureau_lines(res, table) -> list[str]:
+    """What Control's answer of Yes to "Treat values ≤ -99,000,000 as missing in every column?" did, in the Run's
+    lines (the firm, 30 Sep 2026): each column this Run read that it caught codes in, with its loans, counted from
+    the extract itself."""
+    if (getattr(res, "control_used", None) or {}).get(BUREAU) != "yes":
+        return []
+    from .ingest import BLANK, Bad, parse_number
+    line = cfgmod.BUREAU_CODE_LINE
+    hit = []
+    read = set(res.config.referenced_columns()) | {res.config.filter_by} | {(res.config.split or (None,))[0]}
+    for c in table.columns:
+        rule = res.config.missing.get(c)
+        if c not in read or rule is None or rule.at_or_below is None:
+            continue
+        n = 0
+        for x in table.rows:
+            p = parse_number(x.get(c))
+            n += p is not BLANK and not isinstance(p, Bad) and p <= rule.at_or_below
+        if n:
+            hit.append(f"{c} on {_n(n, 'loan')}")
+    said = f"Values at or below {cfgmod.plain_value(line)} treated as missing (Control)"
+    return [f"{said}: {'; '.join(hit)}." if hit else f"{said}: none in any column."]
+
+
 def _ran_words(res) -> str:
     """" What was run: Where the book bleeds.", for the first line of a run's Log entry and the launcher."""
     ran = what_was_run(getattr(res, "control_used", None) or {})
@@ -1994,6 +2020,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     summary = _headline(res, wb)
     _log(wb, [_ran_on(res, src) + _ran_words(res)]
          + scout_tab.log_lines(res)             # Goal 2 item 9: what scouting wrote, before any held-back result
+         + _bureau_lines(res, res.table or table)   # Control's codes answer, per column (30 Sep 2026)
          + [f"Confirmation waits: {w}" for w in res.scout_waits]
          + confirmatory.log_lines(res)          # fix 3.15: held to a pre-spec, and whether it touched the holdout
          + scout_tab.held_back_lines(res)       # OC-51: the tree's out-of-time check read the held-back loans too
@@ -2016,6 +2043,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         raw["benchmark"].setdefault("shuffles", cfg.benchmark.shuffles)
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     lines = notes + [_ran_on(res, src) + _ran_words(res)]
+    lines += _bureau_lines(res, res.table or table)
     lines += _top_lines(res)
     lines += scout_tab.launcher_lines(res)
     lines += confirmatory.launcher_lines(res)
