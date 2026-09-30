@@ -2580,6 +2580,20 @@ changed in the code.
     reads something like 1.12× rather than 1.00×; the shares are of that year's loans. The Charged off $ column only
     counts loans that also have a booked amount, so it matches the rate. Summary offers band columns only, not
     segments.
+- **The firm's own terms, 30 Sep 2026** (branch `pocketbook-literal-names`). The firm: *"let's rename this list of
+  stuff for a couple things and be more literal - Charge-offs = GCOs ($), kept after losses = RANR, earned before
+  losses = RANR + GCOs"*, and then *"I want to use the terms I gave you out of the box so it can be understood by
+  insiders"*. Charge-offs is **GCOs ($)**, Kept after losses **RANR**, Earned before losses **RANR + GCOs**, on
+  every tab, the launcher, the README and the bank checklist (HTML and PDF rebuilt); the tab Paid, cost, kept is
+  **RANR vs GCOs**, its sides headed RANR + GCOs, GCOs and RANR; the Rate block on Grids says what it divides,
+  *Rate · GCOs ÷ Booked*, following the Measure dropdown. Only the words moved: the keys (`gco_rate`, `ranr_rate`,
+  `contribution_rate`) a workbook, a pre-spec and memory hold are unchanged. A workbook written before reads: Set
+  up links its Paid, cost, kept tab under that name, and the next Run takes it off and writes RANR vs GCOs (held on
+  the evening tie-out's own workbook, `tests/test_literal_names_2026_09_30.py`, 5 tests). Planted bugs: 5 added to
+  `tools/mutation_check.py`, 3 existing ones repointed at the new wording; the 8 run alone, 8 caught. Tests: the 6 files the change touches most, 136 passed; 10 more, 208 passed and 3 failed, each for scikit-learn not being installed in the test environment.
+  - **For the firm to confirm:** the launcher's plain line now reads *"Five measures: bad loans, bad dollars, GCOs
+    ($), RANR, and RANR + GCOs"*; GCO and RANR are explained on the two lines above it. The historical documents
+    (walkthroughs, audits, the redesign) keep the words they were written in.
 
 ## 7 · Standing rules for new items
 

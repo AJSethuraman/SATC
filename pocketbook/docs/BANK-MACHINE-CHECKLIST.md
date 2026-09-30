@@ -433,7 +433,7 @@ One row per loan, a header row first, as .csv or .xlsx.
 
 | To run | It needs a column for |
 |---|---|
-| **Where the book bleeds** | the loan or application number; the booked amount; a yes/no outcome (went bad or not); charge-off dollars (GCO); RANR dollars (RANR). It refuses without any of them. |
+| **Where the book bleeds** | the loan or application number; the booked amount; a yes/no outcome (went bad or not); GCO dollars (GCOs); RANR dollars (RANR). It refuses without any of them. |
 | **Test new variables** | the loan number; the outcome; the date each loan was made; the columns to test; the columns to hold fixed. The booked amount, GCO and RANR only if it has them. |
 
 Every loan in the extract is run. Choose the period before the extract is made.

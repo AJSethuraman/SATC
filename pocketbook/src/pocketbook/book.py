@@ -1114,6 +1114,8 @@ def _tab_groups(ws, wb, r: int) -> None:
         ws.cell(row=r + 1, column=first, value=title).font = Font(name="Arial", bold=True, size=10)
         k = r + 2
         for tab, what in tabs:
+            if tab == results.PCK and tab not in wb.sheetnames and results.OLD_PCK in wb.sheetnames:
+                tab = results.OLD_PCK   # a workbook run before 30 Sep 2026: its tab keeps the old name until a Run
             if tab not in wb.sheetnames and title == "Results":
                 continue
             c = ws.cell(row=k, column=first, value=f"{tab}: {what}")

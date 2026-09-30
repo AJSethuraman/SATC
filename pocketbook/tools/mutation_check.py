@@ -1382,6 +1382,21 @@ muts = [
  ("Summary's missing source column not said", RS,
   '        note.append(("Not shown", "This Run has no " + " and no ".join(left_off) + ", so those columns are left off."))',
   '        pass', "summary"),
+ # 30 Sep 2026: the firm's own terms ("I want to use the terms I gave you out of the box so it can be understood by
+ # insiders"; tests/test_literal_names_2026_09_30.py)
+ ("RANR vs GCOs back under its old name", RS, 'POCKETS, PCK, GRIDS, SUMMARY, SPLIT = "Pockets", "RANR vs GCOs",',
+  'POCKETS, PCK, GRIDS, SUMMARY, SPLIT = "Pockets", "Paid, cost, kept",', "no_tab_names_a_measure"),
+ ("GCOs named Charge-offs again", RS, '"gco_rate": "GCOs ($)",', '"gco_rate": "Charge-offs",',
+  "every_list_offers_the_new_names"),
+ ("an older workbook keeps Paid, cost, kept beside RANR vs GCOs", RS,
+  'OLD_TABS = ("Where it bleeds", "Three-way", "Losses vs revenue", "Prevalence", OLD_PCK)',
+  'OLD_TABS = ("Where it bleeds", "Three-way", "Losses vs revenue", "Prevalence")', "old_code_wrote"),
+ ("Start here drops the link to a tab still under its old name", B,
+  '            if tab == results.PCK and tab not in wb.sheetnames and results.OLD_PCK in wb.sheetnames:',
+  '            if False:', "old_code_wrote"),
+ ("the Rate heading names the option, not what is divided by what", RS,
+  """f'="Rate · "&IFERROR(INDEX({hd_rng},MATCH({M},{m_rng},0)),{M})'""", """f'="Rate · "&{M}'""",
+  "rate_heading_says"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

@@ -241,7 +241,12 @@ def test_the_launcher_says_what_each_term_means_where_it_first_uses_it(tmp_path,
     every = got + f.meanings() + launcher.plain_words("scouting")
     jargon = ("GCO", "RANR", "pocket", "multiple", "p-value", "significan", "topline", "holdout", "pre-spec", "×")
     long_ = [x for x in every if len(x.split()) > 15]
-    loose = [x for x in every if any(j in x.split(": ", 1)[1] for j in jargon)]
+    # the measures' own names are the firm's terms since 30 Sep 2026 ("I want to use the terms I gave you out of the
+    # box so it can be understood by insiders"), and GCO and RANR are explained on the lines above: the Five measures
+    # line may name them, and nothing else may use a term of art
+    names = sorted(results.PLAIN.values(), key=len, reverse=True)
+    bare = lambda s: [s := s.replace(m, "").replace(m.lower(), "") for m in names][-1]          # noqa: E731
+    loose = [x for x in every if any(j in bare(x.split(": ", 1)[1]) for j in jargon)]
     assert long_ == [] and loose == []
 
 

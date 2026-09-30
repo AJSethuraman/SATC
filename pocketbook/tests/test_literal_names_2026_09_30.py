@@ -163,6 +163,10 @@ def test_a_workbook_the_old_code_wrote_still_runs_and_comes_out_in_the_new_words
     start = load_workbook(b)["Start here"]
     tiles = [v for _, _, v in _strings(start.parent, {"Start here"})]
     assert "Pockets worse and material, GCOs" in tiles and not any("charge-offs" in v for v in tiles)
+    # the tab keeps its old name until the Run, and Start here's link still reaches it rather than dropping it
+    links = [c.hyperlink.location or c.hyperlink.target for row in start.iter_rows() for c in row
+             if c.hyperlink is not None]
+    assert f"#'{results.OLD_PCK}'!A1" in links and f"#'{results.PCK}'!A1" not in links, links
     out = book.run(b, x)
     assert out.ok, out.lines
     wb = load_workbook(b)
