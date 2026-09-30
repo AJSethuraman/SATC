@@ -577,6 +577,19 @@ class Size:
         return self.booked / self.loans if self.loans else None
 
 
+@dataclass
+class Summary:
+    """One band column on its own, for the Summary tab (the firm, 30 Sep 2026: "bands of FICO on the left and straight
+    up unit counts, loan amounts, % of units, % of loan amounts, charged off dollars, ratio"): each band's cell, added
+    up from the loans as a grid's are, and its booked dollars. `labels` are the bands in order, then (blank), (not a
+    number) and (marked missing) where the column has them, then ALL; a view on one value of the Filter by column
+    keeps the whole book's labels, so its rows stay put, and a band with none of its loans is an empty cell."""
+    band: str
+    labels: list[str]
+    cells: dict[str, Cell]
+    booked: dict[str, float] = field(default_factory=dict)     # empty without a booked amount
+
+
 ALL = "All"
 HIGH = "above its pocket's median"
 LOW = "at or below its pocket's median"
@@ -653,6 +666,8 @@ class Result:
     bleed: bool = True                          # False: a test of a new variable, which builds no grid (OC-42)
     book_size: Size | None = None               # what the whole book booked, per loan (Grids' Loan size)
     filter_values: list[str] = field(default_factory=list)  # the Filter by column's values, in order (Grids)
+    # Summary: {(band name, None or a Filter by value): Summary}, every band column the Run cut
+    summaries: dict[tuple[str, str | None], Summary] = field(default_factory=dict)
 
 
 # --------------------------------------------------------------------------
@@ -1116,6 +1131,15 @@ def run(config: Config, table: Table) -> Result:
                 if booked is not None:
                     fg.sizes = loan_sizes(sub, [booked[i] for i in idx])
                 g.filtered[v] = fg
+    summaries: dict[tuple[str, str | None], Summary] = {}
+    for b in config.bands if bleed else ():
+        whole = summaries[(b.name, None)] = _summary(b.name, measures, per_row, bands[b.name], booked,
+                                                     band_label_sets[b.name], range(n))
+        _tie_summary(whole, total, measures)
+        for v in values:
+            part = summaries[(b.name, v)] = _summary(b.name, measures, per_row, bands[b.name], booked, whole.labels,
+                                                     rows_of[v])
+            _tie_summary(part, part.cells[ALL], measures)
     moves_with: dict[str, float] = {}
     if bleed and config.split and config.split[1] == "own_median":
         for b in config.bands:
@@ -1128,7 +1152,102 @@ def run(config: Config, table: Table) -> Result:
                   band_edges=band_edges, loans_needed=needed, min_units=min_units,
                   materiality_line=materiality_line, three_way=three_way,
                   split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
-                  book_size=book_size, filter_values=values)
+                  book_size=book_size, filter_values=values, summaries=summaries)
+
+
+def _summary(band: str, measures, per_row, labels_of, booked, order, idx) -> Summary:
+    """The Summary of one band column over the loans at `idx`: each band's cell and booked dollars, and ALL. `order`
+    is the column's band labels in order; a label no loan here carries is an empty cell, and a special row ((blank)
+    and the others) comes after the bands."""
+    idx = list(idx)
+    cells = _accumulate(measures, {m: [vals[i] for i in idx] for m, vals in per_row.items()},
+                        [labels_of[i] for i in idx])
+    labels = [x for x in order if x != ALL]
+    labels += [x for x in _order(cells) if x not in labels]
+    out = {lab: cells.get(lab) or _merge([], measures) for lab in labels}
+    for c in out.values():
+        _finish_cell(c, measures)
+    out[ALL] = _merge(list(out.values()), measures)
+    dollars: dict[str, float] = {}
+    if booked is not None:
+        for lab in labels:
+            dollars[lab] = math.fsum(booked[i] for i in idx if labels_of[i] == lab and booked[i] is not None)
+        dollars[ALL] = math.fsum(booked[i] for i in idx if booked[i] is not None)
+    return Summary(band=band, labels=labels + [ALL], cells=out, booked=dollars)
+
+
+def _tie_summary(s: Summary, want: Cell, measures) -> None:
+    """Summary's bands, added up, against `want` (the book's totals, accumulated in their own pass, for the whole
+    book): the loans, and each rate's loans, top and bottom. Raises TieOutError, as a grid that doesn't add up does."""
+    parts = [s.cells[lab] for lab in s.labels if lab != ALL]
+    where = f"Summary of {s.band}"
+    got = sum(c.rows for c in parts)
+    if got != want.rows:
+        raise TieOutError(f"{where}: the bands hold {got} loans, but the book says {want.rows}")
+    for m in measures:
+        if not m.is_rate:
+            continue
+        t = want.rates[m.name]
+        for what, a, b in (("loans counted", sum(c.rates[m.name].units for c in parts), t.units),
+                           ("numerator", math.fsum(c.rates[m.name].num for c in parts), t.num),
+                           ("denominator", math.fsum(c.rates[m.name].den for c in parts), t.den)):
+            if not _close(a, b, b):
+                raise TieOutError(f"{where}: {m.name} {what} adds up to {a!r} across the bands, but the book says {b!r}")
+    if s.booked:
+        a, b = math.fsum(v for lab, v in s.booked.items() if lab != ALL), s.booked[ALL]
+        if not _close(a, b, b):
+            raise TieOutError(f"{where}: booked dollars add up to {a!r} across the bands, but the book says {b!r}")
+
+
+#: Summary's columns, in the firm's order (30 Sep 2026), each with what it needs: None, the booked amount (BOOKED) or
+#: the rate it is taken from. A column whose source this Run has not got is left off, and the tab says so
+BOOKED = "booked"
+SUMMARY_COLUMNS = (("loans", None), ("loans_share", None), ("bad", "outcome_loans"), ("bad_rate", "outcome_loans"),
+                   ("booked", BOOKED), ("booked_share", BOOKED), ("gco", "gco_rate"), ("gco_rate", "gco_rate"),
+                   ("gco_x", "gco_rate"), ("gco_share", "gco_rate"), ("ranr", "ranr_rate"),
+                   ("ranr_rate", "ranr_rate"), ("ranr_share", "ranr_rate"))
+
+
+def summary_columns(res) -> list[str]:
+    """The Summary columns this Run can fill, in order."""
+    have = {m.name for m in res.measures}
+    booked = any(s.booked for s in res.summaries.values())
+    return [k for k, need in SUMMARY_COLUMNS if need is None or (need == BOOKED and booked) or need in have]
+
+
+def summary_rows(res, band: str, value: str | None = None) -> list[tuple[str, dict[str, float | None]]]:
+    """Summary's rows for one band column (on only the loans with one value of the Filter by column, when `value`
+    is given): each label, and every column summary_columns gives, as arithmetic on the loans and never a test.
+    Loans and bad loans are counts; a share is the row's over the All row's, so the shares add to 100% over the
+    bands and the special rows; bad loans % is the Bad loans rate (bad loans over the loans whose outcome reads 0
+    or 1); a charge-off or RANR rate is that measure's rate (its dollars over the booked dollars of the loans with
+    both amounts), and x book is the charge-off rate over the whole book's, filter or none."""
+    s = res.summaries[(band, value)]
+    keys = summary_columns(res)
+    whole = res.total.rates.get("gco_rate")
+    top = s.cells[ALL]
+
+    def share(a, b):
+        return a / b if b else None
+
+    out = []
+    for lab in s.labels:
+        c = s.cells[lab]
+        row: dict[str, float | None] = {"loans": c.rows, "loans_share": share(c.rows, top.rows)}
+        if "outcome_loans" in c.rates:
+            o = c.rates["outcome_loans"]
+            row.update(bad=o.num, bad_rate=o.rate)
+        if s.booked:
+            row.update(booked=s.booked[lab], booked_share=share(s.booked[lab], s.booked[ALL]))
+        if "gco_rate" in c.rates:
+            g = c.rates["gco_rate"]
+            row.update(gco=g.num, gco_rate=g.rate, gco_x=index_of(g.rate, whole.rate if whole else None),
+                       gco_share=share(g.num, top.rates["gco_rate"].num))
+        if "ranr_rate" in c.rates:
+            r = c.rates["ranr_rate"]
+            row.update(ranr=r.num, ranr_rate=r.rate, ranr_share=share(r.num, top.rates["ranr_rate"].num))
+        out.append((lab, {k: row.get(k) for k in keys}))
+    return out
 
 
 def loan_sizes(keys, booked) -> dict[tuple[str, str], Size]:

@@ -335,7 +335,7 @@ def test_at_the_runs_settings_record_shows_no_line_changed(ran):
 RERUN = {"min_events": ("20 losses", None), "min_loans": ("300 loans", None), "many_tests": ("No allowance", None),
          "power": ("90% of the time", None), "band_count": ("3 bands", None),
          "band_cut": ("The same, snapped to round numbers", None)}
-RESULT = (results.POCKETS, results.PCK, results.GRIDS, results.SPLIT, "Record")
+RESULT = (results.POCKETS, results.PCK, results.GRIDS, results.SUMMARY, results.SPLIT, "Record")
 WAITS = "↻ 6 Control changes wait for a Run."
 
 

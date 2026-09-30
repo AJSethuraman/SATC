@@ -1941,3 +1941,216 @@ def test_whole_dollars_scoutings_suggested_bins_on_a_dollar_column_are_whole():
     ratio = np.array([0.1 + i * 0.0004 for i in range(2000)])
     assert scout.bins_at([0], [(0.4555, 1.0)], [0.455, 0.456], ratio, [0.1, 0.3]) == [
         scout.edge([(0.4555, 1.0)], 0.455, 0.456)] == [0.456]                   # a ratio: as scouting rounds it
+
+
+# ---- 30 Sep 2026: a Summary tab, one band column and the book's plain figures across
+# The firm: "I want to add some easy high value views as well. Like a few matrices where it lists out a chosen band on
+# the left and shows real calculated metrics... Maybe I want to see bands of FICO on the left and straight up unit
+# counts, loan amounts, % of units, % of loan amounts, charged off dollars, ratio, percentage of units. Same with RANR.
+# They'd be across the top." The ratio: "Charged off / booked". Bad loans columns: "Yes do this".
+
+SUMMARY_ONLY = f"Only loans where {ch.ORIG_YEAR} is"
+SUMMARY_HEADS = ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "% of booked", "Charged off $",
+                 "Charge-off rate", "× book", "% of charge-offs", "RANR $", "RANR rate", "% of RANR"]
+SHARES = ("% of loans", "% of booked", "% of charge-offs", "% of RANR")
+SPECIAL = ("(blank)", "(not a number)", "(marked missing)")
+
+
+@pytest.fixture(scope="module")
+def summary_book(tmp_path_factory):
+    """FICO and REV_DEBT (dollars) cut into bands, by CHANNEL, filtered by ORIG_YEAR: the book and its loan file."""
+    from pocketbook import perm
+    d = tmp_path_factory.mktemp("summary")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 100)
+        x = synth.write_extract(d / "src", n=4000)
+        out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO", "REV_DEBT"), segments=("CHANNEL",),
+                                                filter=ch.ORIG_YEAR, outcome="BAD_FLAG"))
+        _answer(out.book)
+        ran = book.run(out.book)
+        assert ran.ok, ran.lines
+    return out.book, x
+
+
+def _summary_tab(b, out, band=None, only=None):
+    """Summary with its dropdowns set, calculated: the sheet, the headings across, {row label: {heading: value}} in
+    the order shown, and the label column's heading."""
+    from pocketbook import results
+    import tabs
+    picks = {k: v for k, v in (("band column", band), (SUMMARY_ONLY, only)) if v}
+    ws = tabs.calculated(tabs.choose(b, out, results.SUMMARY, **picks), results.SUMMARY)
+    h = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=3).value == "Loans")
+    heads = []
+    c = 3
+    while ws.cell(row=h, column=c).value not in (None, ""):
+        heads.append(ws.cell(row=h, column=c).value)
+        c += 1
+    rows = {}
+    r = h + 1
+    while ws.cell(row=r, column=2).value not in (None, ""):
+        rows[ws.cell(row=r, column=2).value] = {hd: ws.cell(row=r, column=3 + j).value for j, hd in enumerate(heads)}
+        r += 1
+    return ws, heads, rows, ws.cell(row=h, column=2).value
+
+
+def _summary_label(v, labels) -> str:
+    """A loan's row on Summary, worked out here from the tab's own band labels ("496 - 653", read in whole units)
+    and the extract's text, not by the engine: a blank is (blank), text is (not a number), a FICO under -1000 was
+    answered missing."""
+    if v in ("", None):
+        return "(blank)"
+    try:
+        x = float(v)
+    except ValueError:
+        return "(not a number)"
+    if x < -1000:
+        return "(marked missing)"
+    got = [lab for lab in labels if _reading_in(lab, x)]
+    assert len(got) == 1, (v, got)
+    return got[0]
+
+
+def _road2(rows, field, labels, whole_rows) -> dict:
+    """Every Summary figure for `rows`, from the CSV's text alone: the bands, the special rows, then All."""
+    def f(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    def figures(rs):
+        read = [r for r in rs if r["BAD_FLAG"] in ("0", "1")]
+        bad = sum(1 for r in read if r["BAD_FLAG"] == "1")
+        booked = sum(f(r["ORIG_BAL"]) for r in rs if f(r["ORIG_BAL"]) is not None)
+        g = [(f(r["GCO_AMT"]), f(r["ORIG_BAL"])) for r in rs]
+        g = [(a, c) for a, c in g if a is not None and c is not None]
+        k = [(f(r["RANR_AMT"]), f(r["ORIG_BAL"])) for r in rs]
+        k = [(a, c) for a, c in k if a is not None and c is not None]
+        gco, gden = sum(a for a, _ in g), sum(c for _, c in g)
+        ranr, rden = sum(a for a, _ in k), sum(c for _, c in k)
+        return {"Loans": len(rs), "Bad loans": bad, "Bad loans %": bad / len(read) if read else None,
+                "Booked $": booked, "Charged off $": gco, "Charge-off rate": gco / gden if gden else None,
+                "RANR $": ranr, "RANR rate": ranr / rden if rden else None}
+
+    by: dict = {}
+    for r in rows:
+        by.setdefault(_summary_label(r[field], labels), []).append(r)
+    order = list(labels) + [s for s in SPECIAL if s in by]
+    out = {lab: figures(by.get(lab, [])) for lab in order}
+    out["All"] = figures(rows)
+    book_rate = figures(whole_rows)["Charge-off rate"]
+    top = out["All"]
+    for x in out.values():
+        x["% of loans"] = x["Loans"] / top["Loans"]
+        x["% of booked"] = x["Booked $"] / top["Booked $"]
+        x["% of charge-offs"] = x["Charged off $"] / top["Charged off $"]
+        x["% of RANR"] = x["RANR $"] / top["RANR $"]
+        x["× book"] = x["Charge-off rate"] / book_rate if x["Charge-off rate"] is not None else None
+    return out
+
+
+def _same(got, want) -> bool:
+    if want is None:
+        return got in (None, "")
+    return got == pytest.approx(want, rel=1e-9, abs=1e-9)
+
+
+def _check_summary(shown, want) -> None:
+    assert list(shown) == list(want)                                 # bands in order, the special rows, then All
+    for lab, cols in want.items():
+        for hd, v in cols.items():
+            assert _same(shown[lab][hd], v), (lab, hd, shown[lab][hd], v)
+
+
+def test_summary_every_cell_of_fico_and_a_dollar_band_column_is_the_loans_worked_out_again(summary_book, tmp_path):
+    """FICO, then REV_DEBT picked in the dropdown: every cell against the loan file, the shares adding to 100% over
+    the bands and the special rows, and All the book's own totals."""
+    from pocketbook import config as cfgmod, engine, house
+    from pocketbook.ingest import read_table
+    b, x = summary_book
+    rows = _loans_file(x)
+    seen = {}
+    for field in ("FICO", "REV_DEBT"):
+        ws, heads, shown, head = _summary_tab(b, tmp_path / f"{field}.xlsx", band=field)
+        assert head == field and heads == SUMMARY_HEADS                  # the dropdown switched the column
+        labels = [lab for lab in shown if lab != "All" and lab not in SPECIAL]
+        assert len(labels) == 5 and all(" - " in lab for lab in labels)
+        _check_summary(shown, _road2(rows, field, labels, rows))
+        for hd in SHARES:
+            assert sum(v[hd] for lab, v in shown.items() if lab != "All") == pytest.approx(1.0, rel=1e-9)
+        top = shown["All"]
+        assert top["Loans"] == len(rows) and top["× book"] == pytest.approx(1.0)
+        assert all(top[hd] == pytest.approx(1.0) for hd in SHARES)
+        seen[field] = shown
+    assert "(marked missing)" in seen["FICO"] and "(blank)" in seen["FICO"]
+    assert not set(SPECIAL) & set(seen["REV_DEBT"])
+    assert seen["FICO"]["All"] == pytest.approx(seen["REV_DEBT"]["All"])       # one book, however it is cut
+    # the book's totals, as the engine keeps them for every other tab
+    res = engine.run(cfgmod.parse(book.read_book(b)[0]), read_table(x))
+    t = res.total.rates
+    top = seen["FICO"]["All"]
+    assert top["Bad loans"] == t["outcome_loans"].num and top["Bad loans %"] == pytest.approx(t["outcome_loans"].rate)
+    assert top["Charged off $"] == pytest.approx(t["gco_rate"].num)
+    assert top["RANR $"] == pytest.approx(t["ranr_rate"].num)
+    assert top["Booked $"] == pytest.approx(res.book_size.booked)
+    # light neutral shading at most: the All row, CANVAS; nothing red or green
+    fills = {r.dxf.fill.fgColor.rgb[-6:] for rng in ws.formulas.conditional_formatting for r in rng.rules
+             if r.dxf is not None and r.dxf.fill is not None}
+    assert fills == {house.CANVAS}
+
+
+def test_summary_only_loans_where_a_year_is_that_years_loans_against_the_whole_book(summary_book, tmp_path):
+    from pocketbook import results
+    import tabs
+    b, x = summary_book
+    rows = _loans_file(x)
+    years = sorted({r["ORIG_DATE"][:4] for r in rows})
+    assert tabs.options(load_workbook(b), results.SUMMARY, SUMMARY_ONLY) == [results.ALL_LOANS] + years
+    _, _, whole, _ = _summary_tab(b, tmp_path / "all.xlsx", band="FICO")
+    labels = [lab for lab in whole if lab != "All" and lab not in SPECIAL]
+    for year in (years[0], years[len(years) // 2]):
+        mine = [r for r in rows if r["ORIG_DATE"][:4] == year]
+        assert 0 < len(mine) < len(rows)
+        _, heads, shown, head = _summary_tab(b, tmp_path / f"y{year}.xlsx", band="FICO", only=year)
+        assert head == "FICO" and heads == SUMMARY_HEADS
+        want = _road2(mine, "FICO", labels, rows)
+        # the whole book's rows stay put: a special row this year has no loans in shows none
+        for s in SPECIAL:
+            if s in whole and s not in want:
+                assert shown[s]["Loans"] == 0 and shown[s]["Bad loans %"] in (None, "")
+                del shown[s]
+        _check_summary(shown, want)
+        assert shown["All"]["Loans"] == len(mine) and shown["All"]["× book"] != pytest.approx(1.0)
+        for hd in SHARES:
+            assert sum(v[hd] for lab, v in shown.items() if lab != "All") == pytest.approx(1.0, rel=1e-9)
+
+
+def test_summary_leaves_off_the_columns_a_run_has_no_source_for_and_says_so(tmp_path):
+    import dataclasses
+    from openpyxl import Workbook
+    from pocketbook import config as cfgmod, engine, results
+    from pocketbook.ingest import read_table
+    import tabs
+    cfg, data = synth.write(tmp_path / "cube", n=2000)
+    c = cfgmod.load(cfg)
+    table = read_table(data)
+    bare = dataclasses.replace(c, booked="", measures=tuple(m for m in c.measures
+                                                          if m.name not in ("gco_rate", "contribution_rate")))
+    for conf, want in ((c, SUMMARY_HEADS), (bare, ["Loans", "% of loans", "Bad loans", "Bad loans %", "RANR $",
+                                                   "RANR rate", "% of RANR"])):
+        res = engine.run(conf, table)
+        wb = Workbook()
+        results.write_summary(wb, res, results.Choices(wb), results.Views(wb))
+        ws = wb[results.SUMMARY]
+        h = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=3).value == "Loans")
+        assert [ws.cell(row=h, column=j).value for j in range(3, 3 + len(want) + 1)] == want + [None]
+        note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, h)}
+        if conf is bare:
+            assert note["Not shown"] == ("This Run has no booked amount and no charge-off dollars, so those columns "
+                                         "are left off.")
+            assert "Charged off $" not in note and "Booked $" not in note
+        else:
+            assert "Not shown" not in note and "Only loans where" not in note     # no Filter by, no second dropdown
+            with pytest.raises(KeyError):
+                tabs.dropdown(ws, "Only loans where")

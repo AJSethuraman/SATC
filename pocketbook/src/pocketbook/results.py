@@ -50,8 +50,10 @@ from . import engine, house, live, prevalence, stats
 from .choices import NO_DATE, ORIG_YEAR
 from .config import PROFIT
 
-POCKETS, PCK, GRIDS, SPLIT = "Pockets", "Paid, cost, kept", "Grids", "Split"
-TABS = (POCKETS, PCK, GRIDS, SPLIT)
+POCKETS, PCK, GRIDS, SUMMARY, SPLIT = "Pockets", "Paid, cost, kept", "Grids", "Summary", "Split"
+#: Summary sits after Grids: both show one table at a time, picked by dropdown, as of the last Run, and Summary is the
+#: same band column's figures without the segments across
+TABS = (POCKETS, PCK, GRIDS, SUMMARY, SPLIT)
 #: the tabs these replace; a workbook written before phase 3 has them, and a Run takes them off
 OLD_TABS = ("Where it bleeds", "Three-way", "Losses vs revenue", "Prevalence")
 CHOICES, LIST, VIEWS = "_choices", "_list", "_views"
@@ -1728,6 +1730,161 @@ def _groups(ws, grp: dict, G: str, r: int, first: int, hid: int, dw: float) -> i
 
 
 # --------------------------------------------------------------------------
+# Summary (the firm, 30 Sep 2026: "a few matrices where it lists out a chosen band on the left and shows real calculated
+# metrics ... unit counts, loan amounts, % of units, % of loan amounts, charged off dollars, ratio, percentage of units.
+# Same with RANR. They'd be across the top." The ratio: "Charged off / booked". Bad loans: "Yes do this".)
+
+#: each column's heading and how its numbers show: n a count, share a share of the All row, pct a rate, x a multiple,
+#: usd dollars
+SUMMARY_HEADS = {"loans": ("Loans", "n"), "loans_share": ("% of loans", "share"), "bad": ("Bad loans", "n"),
+                 "bad_rate": ("Bad loans %", "pct"), "booked": ("Booked $", "usd"),
+                 "booked_share": ("% of booked", "share"), "gco": ("Charged off $", "usd"),
+                 "gco_rate": ("Charge-off rate", "pct"), "gco_x": ("× book", "x"),
+                 "gco_share": ("% of charge-offs", "share"), "ranr": ("RANR $", "usd"),
+                 "ranr_rate": ("RANR rate", "pct"), "ranr_share": ("% of RANR", "share")}
+SUMMARY_FMT = {"n": "#,##0", "share": "0.0%", "pct": "0.00%", "x": X_FMT, "usd": '"$"#,##0;-"$"#,##0'}
+SUMMARY_THOUSANDS = '"$"#,##0,"k";-"$"#,##0,"k"'
+#: what a column needs, in words, for the note when a Run has not got it
+SUMMARY_NEEDS = {"outcome_loans": "outcome", engine.BOOKED: "booked amount", "gco_rate": "charge-off dollars",
+                 "ranr_rate": "RANR dollars"}
+
+
+def _summary_shown(v, kind: str) -> str:
+    """A Summary number as its format shows it, for measuring the columns."""
+    if not isinstance(v, (int, float)):
+        return ""
+    return {"n": f"{v:,.0f}", "share": f"{v * 100:.1f}%", "pct": f"{v * 100:.2f}%", "x": f"{v:.2f}×",
+            "usd": f"${v:,.0f}" if v >= 0 else f"-${-v:,.0f}"}[kind]
+
+
+def summary_views(res, views: Views) -> dict:
+    """Every Summary view on _views, one row per band ("S|<band column>|<i>", and "S|<band column>|where <value>|<i>"
+    for each value of the Filter by column): the label, then each column's number, all from engine.summary_rows.
+    Returns the dropdown's options, the columns, the most rows any view has, and what the columns must fit."""
+    from . import book as bk
+    names = bk._names(res)
+    keys = engine.summary_columns(res)
+    bands = [b.name for b in res.config.bands if (b.name, None) in res.summaries]
+    shown = [names[b] for b in bands]
+    shown = [x if shown.count(x) == 1 else f"{x} ({b})" for x, b in zip(shown, bands)]
+    fit = {"labels": {"All"} | set(shown), "values": 0, "money": [0.0]}
+    most = 1
+    for b, opt in zip(bands, shown):
+        for v in [None] + list(res.filter_values):
+            if (b, v) not in res.summaries:
+                continue
+            rows = engine.summary_rows(res, b, v)
+            most = max(most, len(rows))
+            for i, (lab, vals) in enumerate(rows, start=1):
+                views.put(f"S|{opt}" + (WHERE.format(v) if v is not None else "") + f"|{i}",
+                          [lab] + [vals[k] for k in keys])
+                fit["labels"].add(str(lab))
+                for k in keys:
+                    kind = SUMMARY_HEADS[k][1]
+                    if kind == "usd":
+                        if isinstance(vals[k], (int, float)):
+                            fit["money"].append(vals[k])
+                    else:
+                        fit["values"] = max(fit["values"], len(_summary_shown(vals[k], kind)))
+    return {"options": shown, "keys": keys, "most": most, "fit": fit}
+
+
+def summary_widths(fit: dict, keys: list[str]) -> tuple[float, float, bool]:
+    """Summary's widths, as Grids' (G1, G2): one for every data column, the larger of the longest value + 2 and the
+    two-line width of the longest heading + 2, between DATA_FLOOR and DATA_CAP; one for the label column. Dollars
+    show in thousands ($1,234k) when the largest would not fit under the cap, the rule Grids' groups table keeps."""
+    ends = (min(fit["money"]), max(fit["money"]))
+    thousands = max(len(_summary_shown(v, "usd")) for v in ends) + 2 > DATA_CAP
+    money = max(len(_summary_shown(v / 1000 if thousands else v, "usd")) + thousands for v in ends)
+    need = [fit["values"] + 2, money + 2] + [house.two_line_width(SUMMARY_HEADS[k][0]) + 2 for k in keys]
+    dw = min(DATA_CAP, max([DATA_FLOOR] + need))
+    lw = house.fit(list(fit["labels"]), floor=LABEL_FLOOR, cap=LABEL_CAP, pad=3)
+    return dw, lw, thousands
+
+
+def write_summary(wb, res, choices: Choices, views: Views) -> None:
+    """Summary: one band column down the side and the book's plain figures across, picked by a dropdown, and by
+    "Only loans where" when the launcher picked a Filter by. Every number is worked out by the Run (engine.summary_rows)
+    and put on _views; the formulas here only pick the row. Nothing is tested and nothing is red or green."""
+    ws = wb.create_sheet(SUMMARY)
+    got = summary_views(res, views)
+    keys, most, fit = got["keys"], got["most"], got["fit"]
+    sf = (res.config.filter_by or None) if res.filter_values else None
+    left = 2
+    last = max(left + len(keys), left + 10)
+    hid = last + 2
+    dw, lw, thousands = summary_widths(fit, keys)
+    _widths(ws, {1: 2, left: lw, **{c: dw for c in range(left + 1, hid)}})
+    house.title_band(ws, SUMMARY, "One band column at a time: loans, bad loans, booked, charge-offs and RANR, band by "
+                                  "band.", left, last, tab=house.TAB_RESULT)
+    booked = res.config.booked or "booked amount"
+    gco = res.config.gco or "charge-offs"
+    ranr = next((m.value for m in res.measures if m.name == "ranr_rate"), "RANR")
+    note = [("What it is", "Pick a band column. Its bands run down the side, then any loans it couldn't place, then "
+                           "All. Every figure is counted or divided from the loans. Nothing is tested.")]
+    note.append(("Loans", "How many loans are in the band, and its share of all of them. The shares add to 100%."))
+    if "bad" in keys:
+        note.append(("Bad loans", f"How many loans went bad ({res.config.outcome}). Bad loans % is that over the "
+                                  f"band's loans whose outcome reads yes or no: the Bad loans rate on Grids."))
+    if "booked" in keys:
+        note.append(("Booked $", f"The band's {booked}, and its share of the book's."))
+    if "gco" in keys:
+        note.append(("Charged off $", f"The band's {gco}. Charge-off rate is that over its booked dollars: the "
+                                      f"Charge-offs rate on Grids. A loan missing either amount is left out of both."))
+        note.append(("× book", "The band's charge-off rate over the whole book's. 2.00× charges off twice as much "
+                               "per booked dollar."))
+    if "ranr" in keys:
+        note.append(("RANR $", f"The band's {ranr}, and that over its booked dollars. A share of RANR can pass 100% "
+                               f"or go below zero when some bands lose money."))
+    left_off = list(dict.fromkeys(SUMMARY_NEEDS[n] for k, n in engine.SUMMARY_COLUMNS
+                                  if n is not None and k not in keys))
+    if left_off:
+        note.append(("Not shown", "This Run has no " + " and no ".join(left_off) + ", so those columns are left off."))
+    if sf:
+        note.append(("Only loans where", f"Pick a value of {sf} to see only its loans. The shares are of those loans. "
+                                         f"× book is still against the whole book."
+                     + (YEAR_SAID.format(res.config.origination_date) if sf == ORIG_YEAR else "")))
+    note.append(("Shading", "The All row is shaded light grey. Nothing else is coloured. Everything here is as of "
+                            "the last Run."))
+    r = house.method_note(ws, 3, left, last, note)
+    b_rng, _ = choices.add("Summary: Band column", got["options"])
+    s = r + 1
+    B = dropdown(ws, s, left, "Band column", b_rng, got["options"][0] if got["options"] else "")
+    F = None
+    if sf:
+        f_rng, _ = choices.add("Summary: Only loans where", [ALL_LOANS] + list(res.filter_values))
+        F = dropdown(ws, s, left + 2, f"Only loans where {sf} is", f_rng, ALL_LOANS)
+        ws.merge_cells(start_row=s, start_column=left + 2, end_row=s, end_column=left + 4)
+    VW = f"${col(hid)}${s}"
+    where = f'&IF(OR({F}="",{F}="{ALL_LOANS}"),"",{live.q(WHERE.format(""))}&{F})' if F else ""
+    ws[VW.replace("$", "")] = f"={B}{where}"
+    h = s + 2
+    lines = max([house.lines_at(SUMMARY_HEADS[k][0], dw - 2) for k in keys] or [1])
+    hc = _cell(ws, h, left, f"={B}", bold=True, size=9, color=house.PAPER, h="left", name="Arial", indent=1)
+    hc.fill = house.fill(INK)
+    for j, k in enumerate(keys, start=1):
+        x = _cell(ws, h, left + j, SUMMARY_HEADS[k][0], bold=True, size=9, color=house.PAPER, name="Arial", wrap=True)
+        x.fill = house.fill(INK)
+    ws.row_dimensions[h].height = HEAD_LINE * lines + 4
+    for i in range(1, most + 1):
+        rr = h + i
+        RW = f"${col(hid)}{rr}"
+        ws[RW.replace("$", "")] = "=" + match(xk("S|", (VW,), f"|{i}"))
+        _cell(ws, rr, left, f"={pick(RW, 1)}", h="left", indent=1)
+        for j, k in enumerate(keys, start=1):
+            kind = SUMMARY_HEADS[k][1]
+            _cell(ws, rr, left + j, f"={pick(RW, j + 1)}",
+                  fmt=SUMMARY_THOUSANDS if kind == "usd" and thousands else SUMMARY_FMT[kind])
+        ws.row_dimensions[rr].height = 16
+    lab = f"${col(left)}{h + 1}"
+    cf(ws, f"{col(left)}{h + 1}:{col(left + len(keys))}{h + most}",
+       [(f'{lab}="All"', CANVAS, Font(bold=True), None)], f'{lab}<>""')
+    _hide(ws, hid, hid)
+    ws.freeze_panes = f"A{h + 1}"
+    _fit(ws)
+
+
+# --------------------------------------------------------------------------
 # Split
 
 
@@ -2116,5 +2273,6 @@ def write(wb, res, stamp: str) -> None:
         # a test of a new variable run without GCO and RANR has nothing to put on it, so there is no tab
         write_pck(wb, res, choices, views, stamp)
     write_grids(wb, res, choices, views)
+    write_summary(wb, res, choices, views)
     if res.config.split:
         write_split(wb, res, choices, views, stamp)
