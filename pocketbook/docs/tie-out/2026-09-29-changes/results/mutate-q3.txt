@@ -1,0 +1,3 @@
+planted 200, caught 199, missed 1
+  by kind (caught, missed): {'grid': (107, 0), 'groups': (8, 0), 'ladder': (1, 0), 'look': (1, 0), 'look-bar': (1, 0), 'panel': (4, 0), 'pck': (9, 0), 'pck-dot': (5, 0), 'pocket': (57, 0), 'split-pocket': (4, 1), 'split-sum': (1, 0), 'start-tile': (1, 0)}
+  missed: Split K34 ['split-pocket', 'ORIG_BAL x ASSET_CLASS', 'Kept after losses', '49,152 - 59,984', '3', 'p'] 0.03999600039996 0.01999800019998

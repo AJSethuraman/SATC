@@ -77,6 +77,7 @@ _THIS = ("Extract", "Loans run", "What was run", "Record of this run", "Originat
          "Differs from the pre-spec", "Scouting")
 _TESTS = ("Tests", "p-value", "Standard error", "The allowance for many tests covers", "Contribution before losses",
           "Decides each pocket", "Profit counts as more or less", "How profit reads", "Reading a single red",
+          "Borderline",
           "Families of tests")
 _LEFT = ("Left out of ", "Alone in its band")
 

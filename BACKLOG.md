@@ -2339,6 +2339,17 @@ changed in the code.
    out and counted; or a *Yes means* value typed on Columns) beside the column it proposes.
 7. **A verdict on a shuffled p-value near 5%** can fall either way with another seed (the full tie-out, *What
    it found* item 1). Either flag those "could fall either way", or shuffle more. **Recommended:** flag them.
+   **Built** (29 Sep 2026, branch `pocketbook-borderline-0929`). The firm, by pop-up: *"I don't like 'could fall
+   either way' but flag it somehow"*, and chose **Borderline**: *"Net drain · borderline (p 0.048)"*. The rule
+   (`docs/statistics.md` B2a): the p-value that decides a verdict, after the allowance, came from shuffling and sits
+   within 2 of its own standard errors of the bar, either side; SE = √(p(1 − p) / shuffles), times what the
+   allowance multiplied the p-value by (for Benjamini-Hochberg, the raw p that sets it, times m / j, as the tie-out
+   found). Only a verdict whose word turns on the p-value is flagged; a z or exact test never is. Shown on Pockets'
+   Worse?, Paid cost kept's Together, Split's p-values, Start here's five largest and tile, the launcher's tile,
+   the Run's *Worst for* line and Record (the rule, and a count per dollar rate), each tab's method note saying *"The
+   test's p-value is within the shuffle's own margin of the 5% bar, so another run could read it the other way."*
+   Colours, order and counts are unchanged. Tests: the Borderline section of `tests/test_firm_answers_2026_09_29.py`;
+   planted bugs in `tools/mutation_check.py`.
 
 - **Still at the bank, 29 Sep 2026, evening** (built, on PR #409):
   - *Dropdowns gone after an Excel save.* Excel keeps a dropdown whose list sits on another sheet in its
@@ -2353,15 +2364,142 @@ changed in the code.
   - *Decided:* **everything compares against the whole book.** The firm: *"we keep things compared to the
     whole book that's just kind of the point"*. So Grids' vs the book stays the whole book, and a filtered
     view (below) compares against the whole book too.
-- **Offered, waiting on a yes** (raised 29 Sep 2026 at the bank):
-  1. *Grey out Grids cells under the fewest-loans setting*: shown, not coloured, not setting the colour
-     scale. A 3-loan cell at -50 points was the deepest red on the grid and paled every real gap.
-  2. *"Only loans where" on Grids*: the blocks for one value of a category (*"it would be nice to be able to
-     filter by that category which would probably solve a lot of ... having multiway views"*). First by the
-     Split by column, whose parts are already worked out; any category later.
-  3. *A Loan size measure* for line assignment (*"we tend to give these loan amounts to these FICO scores
-     within this category"*): average and median booked per loan by cell, descriptive, no test.
-  4. *A number column as a segment* (FICO x asset bands in one Run).
+- **Later that evening, at the bank: Look** (built, branch `pocketbook-look-0929`):
+  - **Look percentile lines.** The firm: *"Shouldn't we have SD markings on the look tab? Our FICO seems fairly
+    distributed but other stuff is not"*. Offered standard deviations or percentiles by pop-up, they chose
+    percentiles (29 Sep 2026, evening). Each block lists the 10th, 25th, 50th (the median), 75th and 90th
+    percentile, and the chart draws them as thin grey solid lines labelled P10 to P90 at the top, under the red
+    dashed edges. Worked out in Python at draw time over the values the median uses (blanks, not a number, the
+    likely code and anything answered missing left out), as Excel's PERCENTILE.INC and numpy's default do
+    (`statistics.quantiles`, method "inclusive"); stored on `_look` and placed by the red lines' own formula, so
+    they follow Bars, From and To, and one outside From..To isn't drawn. On the synthetic book (3,000 loans)
+    FICO reads 629 · 665 · 701 · 738 · 774, numpy on the CSV the same. The method note says how they are worked out.
+    A block is now 20 rows (was 19); the first still starts at row 10, so Bars stays in C20 as the bank checklist
+    says. The method note's "Red dashed lines" line is now "The lines", red and grey.
+  - **x-axis labels.** The firm: Excel's labels wrapped, *"24,0/00 should read 24k"*. Labels under the bars are
+    now short: 1,000 and over read 24k, a million and over 1.2M, with the decimals the step between labels needs
+    (20.5k when they are 500 apart); under 1,000 the column's own format (FICO 620, a ratio 0.35). Built from
+    `ROUND(...)&"k"`, not a conditional number format, so negatives (-24k) come out the same in both programs. The
+    axis's text is set flat with "wrap text" off (`wrap="none"`). The scatters' axes get the same short numbers
+    as a number format, only where every tick is a whole thousand.
+  - Tests: 5 in `tests/test_look.py` (percentiles by hand from the CSV for FICO and ORIG_BAL; answered missing
+    left out; grey lines' x as LibreOffice calculates them, gone outside a narrower From..To; labels as
+    calculated: 550 ... 790, 0 / 12k / 24k ..., 20.5k, 600k / 1.2M, -24k; axis formats). 11 planted bugs, all
+    caught. Full suite: `828 passed, 7 skipped in 2167.70s`.
+  - **Not checked in real Excel:** that Excel honours `wrap="none"` on category labels (LibreOffice ignores
+    it), and where Excel puts the P10 to P90 labels (LibreOffice: right of each line's top).
+- **Answered by pop-up, 29 Sep 2026, evening** (the four Grids changes offered at the bank that day, all **yes**;
+  a number column as a segment, **Later**). Built on branch `pocketbook-grids-0929`
+  (`tests/test_firm_answers_2026_09_29.py`, the section that opens with the firm's words):
+  1. *Grey out Grids cells under the fewest-loans setting* (yes). A pocket with fewer loans than Fewest loans
+     in a pocket (the number the Run used; its suggestion worked out when that was picked) shows its number in
+     grey with no colour, in vs the book and vs rest of band, and is left out of the largest gap that sets the
+     scale. What one cell says: *"Grey: only 3 loans, fewer than the 30 set on Control, so not coloured."* The
+     photo's case, 620-659 · $20k-<$25k, 3 loans, Kept after losses -50.38 pts, is planted in the test book.
+  2. *The book's own rate in the vs the book heading* (yes): *"vs the book (book: 7.73%)"*, live as the
+     Measure changes; for a gap in points, the book's rate the gap is taken from. vs rest of band has none: its
+     rest differs by row.
+  3. *"Only loans where" on Grids* (yes; *"it would be nice to be able to filter by that category which would
+     probably solve a lot of ... having multiway views"*). By the Split by column when it is a category: the
+     engine builds each grid again on each value's loans (`Grid.filtered`), and every block and the one-cell
+     reading show it. vs the book stays the whole book, as decided; vs rest of band is the rest of the band
+     among those loans; grey and the heat scale go by that view's cells. Split in halves or not at all, the
+     dropdown offers only All loans and says filtering needs Split by a category. Any category, not only the
+     split column: later.
+  4. *A Loan size measure* (yes; *"we tend to give these loan amounts to these FICO scores within this
+     category"*): booked dollars per loan by cell, the average in Rate and as a multiple of the book's and the
+     rest of the band's, the median read out in words (*"These 207 loans averaged $32,626 booked, median
+     $34,127."*). Descriptive: no test, not on Pockets or Split, no red or green (one neutral hue, darker the
+     bigger). Offered only when a booked amount is set.
+  - Tests: 6 new (a 3-loan Kiosk pocket at -62 points planted in the test book, every count, rate and gap in a
+    filtered view and every loan size worked out again from the loan file); 16 planted bugs added and 4
+    repointed, all 23 put back one at a time and caught. Full suite 828 passed, 7 skipped. The note on Grids
+    keeps its rows, so the checklist's B13 and F13 still hold; F13 now lists 6 measures (the .md says so; the
+    checklist PDF was not rebuilt).
+  - *A number column as a segment* (FICO x asset bands in one Run): **Later**.
+  - *Pre-banded columns, "Treat as bands"*: parked. The firm: *"I don't know because I feel like there could be
+    a few different ways that they are formatted and I added the ad hoc"*.
+- **Column widths, 29–30 Sep 2026** (branch `pocketbook-widths-0929`). The firm: *"take a look at column spacing.
+  i prefer to have nice even layouts, or at least the column sizes should make sense for the data we see"*. The
+  survey, with before pictures and after pictures beside them, is `pocketbook/docs/column-widths-survey-2026-09-29.md`.
+  Every width is now worked out per Run from what that Run shows (`house.fit`, `house.two_line_width`), never
+  set per bank. Grids: one data width for every column of the four blocks and the groups table (9 to 16), one
+  label width for both label columns (12 to 28), headers that wrap with every block's the same height. Split,
+  Pockets, Paid cost kept, Start here, Look, Control and Columns fitted the same way. `tests/test_widths.py` and
+  ten planted bugs hold it.
+  - **Waiting for the firm:** the survey proposed wrapping Columns' *Check first* (prose up to 147 characters,
+    clipped at 60 wide). It was built, then taken back: `test_answer_tabs` holds the redesign's rule 5 on that
+    table (*"Every row is one line and every row in a table is the same height"*), and wrapping breaks it. The
+    call is the firm's: wrap it (and relax the test for that one column), or leave it clipped and readable in
+    the cell.
+  - **Decided for the firm, reversible** (each is one place in `results.py`):
+    - *G4: a split grid's header is two rows*: the segment merged over its parts, the parts ("high", "low", or
+      the category's values) beneath. So the merge is the same for every split grid the Grid dropdown picks,
+      every segment gets every part in one order, and a part a segment has no loans in is an empty column.
+      Reverse: `_split_layout` returning `[]` gives one row of "<segment> · <part>" labels again.
+    - *G6: booked dollars in the groups table under Grids show in thousands* (`$1,234k`) when the book's total
+      would not fit the widest data column; never `####`. Reverse: `THOUSANDS_FMT`.
+    - Beyond the plan: a label too long to fit two lines even at the cap (the survey's made-up
+      "Non-Customer/Online Direct") gets the header lines it needs rather than being clipped; Split's Grid
+      dropdown spans B:D and the partner chip moved from C:D to E:F (no checklist cell moved; two tests read
+      the chip by `results.SPLIT_CHIP`); Look's B is fitted at 0.9 a character to the labels as they are now
+      (the percentile rows, "50th percentile (P50), the median" at 33 characters, made it 32, not the survey's 30).
+  - Not changed: Record (it wraps by design), `live.py`, hidden columns, the checklist's named cells (Grids B13
+    and F13, Split B15 and B26, Look C20, Pockets C18 to E18 all stay where they were).
+- **Filter by, apart from Split by, 30 Sep 2026** (branch `pocketbook-filter-by-0930`). The firm found the Grids'
+  *Only loans where* worked only off Split by: *"Wait only works on split by? Isn't that for like above and below
+  median"*. Offered a separate Filter by, they answered *"Yes hoping to have this by morning"*; their use is 2022 to
+  2024 originations, flipped year by year to show the pockets hold across vintages.
+  - **Launcher:** a fourth column, **Filter by** (a radio), in the Choose tests table beside Split by: any category,
+    or **ORIG_YEAR**, a row that sits with the categories whenever a column is marked Origination date (*"Origination
+    year, from ORIG_DATE · 3 values · 27 with no date"*). One column or none; it never touches the split or the
+    segments (a category may segment and filter at once). More than 6 values (blanks and no-date loans aside,
+    `choices.FILTER_MOST_VALUES`) is refused in the launcher (Next stays off) and at the Run in the same words:
+    *"REGION has 7 values. The Grids can be filtered by a column of 6 values at most: with more, each value's loans are
+    too few to fill a grid. Filter by a column with fewer values, or by none."* Written to Control's *Chosen in the
+    launcher* as **Filter the Grids by** (one row more in that block, under *Split every pocket by*; no checklist cell
+    moves), read back by the next Set up, and passed to the Run as `filter_by:`.
+  - **ORIG_YEAR** is one definition (`engine.origination_years`), used by Split by and Filter by alike and by the
+    launcher's count: the year of the column marked Origination date, read as the Run reads that column (dates that
+    read two ways are refused). **Decided:** a loan with no readable date goes to **(no date)**, a value of its own
+    listed last, never put in a year and never dropped (every loan stays in view, as decided 26 Sep); it isn't
+    counted against the 6. No column marked Origination date: the Run refuses ORIG_YEAR in words.
+  - **Grids:** *Only loans where* reads the Filter by column, whatever Split by is doing (halves, a category, or
+    none). Every earlier rule holds: vs the book against the whole book, vs rest of band within the filtered loans,
+    grey and the heat scale by the view's own cells, Loan size filtered, and the one-cell reading ends *", only loans
+    where ORIG_YEAR is 2023"*. The one data width fits the filtered views' values too. No Filter by: the dropdown
+    offers All loans only, and the note under it reads *"Pick a Filter by in the launcher."* (it read *"Filtering needs
+    Split by a category."*). A category split no longer filters on its own.
+  - **Split by ORIG_YEAR:** each year against the rest of its pocket, and the Split tab's *Do the values of ORIG_YEAR
+    differ at all?* line (K-group Mantel-Haenszel; 3 degrees of freedom for 2022, 2023, 2024 and (no date)) is the
+    consistency test across vintages.
+  - **Record** has a *Grids filter* row (the column, where a year comes from, each value's loans); the Run's lines say
+    the same. Start here doesn't name the split, so it doesn't name the filter either.
+  - Tests: 6 in `tests/test_firm_answers_2026_09_29.py` (Filter by), on a synthetic book with origination dates
+    across 2022 to 2024 (every filtered block cell, for each year and (no date), worked out again from the CSV);
+    6 existing tests changed (the Grids fixture now picks Filter by as well as Split by; the no-filter note; the
+    launcher's four headings, twice; the Choose tests order, twice, now with ORIG_YEAR after the categories).
+    Planted bugs: 13 added and 4 repointed, put back one at a time with the 6 others on the lines touched: 23 of 23
+    caught. Full suite in shards (Python 3.11, LibreOffice, no tkinter here): 872 passed, 7 skipped (the window
+    tests), 0 failed. **Not checked:** the Tk window itself (no tkinter on this machine), real Excel, the bank.
+  - **Found, not fixed:** an equal-loans band edge that isn't a whole number is labelled one short: FICO cut at 654.2
+    reads *"496 - 653"* but holds FICO 654 (`engine.band_labels`: the step is 1 for whole-number display, and the
+    edge is not rounded). The test types whole edges to stay clear of it.
+- **Band labels one short on a whole-number column** (found 30 Sep 2026 building Filter by): FICO cut at an
+  equal-loan point of 654.2 read "496 - 653" and held 654. A column of whole numbers now labels each band from the
+  first value it holds (655) to the last (654); a column with cents keeps the nearest-dollar reading. Test and
+  planted bug in `tests/test_firm_answers_2026_09_29.py`.
+- **The evening tie-out, 30 Sep 2026** (`pocketbook/docs/tie-out/2026-09-30-evening/`, on build 44734da4): 281,421
+  cells TIED, 12,016 within sampling, 376 DIFFERS, 13 COULD NOT; every figure of the evening's changes ties.
+  The DIFFERS: 104 are the one shuffle draw 29 Sep's million-shuffle run already settled; 254 are width
+  measurements, of which four were real clips and are fixed (Split's borderline cells, Start here's segment
+  with the flag, Look's P50 label, New variables' ranges) and the rest are headings that wrap or spill as
+  designed; 18 are the one open item below.
+- **Open, for the firm: a dollar band's label when its edge has cents.** An equal-loan cut at $37,950.548
+  reads "26,324 - 37,950" then "37,951 - 49,151"; a loan of $37,950.99 is in the second band but its whole-dollar
+  reading, 37,951, is right while the first band's "37,950" end is not strictly its last value. Choices: cut
+  dollar columns at whole dollars (the labels then hold exactly), or show edges to the cent. **Recommended:**
+  cut at whole dollars. Not changed without a yes: it moves loans between bands on every dollar column.
 
 ## 7 · Standing rules for new items
 
@@ -2374,6 +2512,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-30 -- **PocketBook: Filter by, apart from Split by.** The firm: *"Wait only works on split by? Isn't that for like above and below median"*, then *"Yes hoping to have this by morning"*. Grids' *Only loans where* now reads its own launcher pick (any category of 6 values or fewer, or ORIG_YEAR, the year of the Origination date column), whatever the split does; ORIG_YEAR can also split, for the consistency test across vintages. 6 tests, 13 planted bugs added and 4 repointed, all caught. §6d has the detail.
 - 2026-09-28 -- **PocketBook: every figure in both workbooks tied out to the loan file** (`pocketbook/docs/tie-out/2026-09-28-full/`, the PDF and `roster.csv`). The firm, on the first tie-out's 64 figures: *"That tie out covered 60 things? It's pretty small"*. 15,650 cells read out of the bleed workbook (all 40 dropdown views) and a Test-new-variables workbook (the test_scout book, two candidates shortlisted), each worked out again from the loan file with no PocketBook code: 13,403 tie, 1,030 tie within sampling error (shuffle and forest figures), 16 differ, 5 could not be checked, the rest names, echoed answers and words. Found: the Look chart counts a value exactly on a bar's edge in the bar below (`look.py:195`, `:209`: 12 x 0.1 = 1.2000000000000002; UTIL's bars off by 1 to 5 loans), and six verdicts rest on shuffled p-values either side of 5% within sampling error, one of them behind Start here's *4 short $3,248,654*. Not fixed here.
 - 2026-09-28 -- **PocketBook Goal 4: the tree is the main path, checked on later loans, and the shortlist regressed together** (OC-51; `pocketbook/docs/NEXT-GOAL.md` Goal 4, all seven ticked). The firm, 27 Sep 2026: *"shouldn't it regress all of those identified variables if it actually deems them important? import --> tree runs --> tree guesses on 2024 data if 2022-2023 are used to build branches --> regress shortlist?"*, then *"yes build it out"*. A cutoff date on Control replaces *Find on 70%* (suggested, never chosen); after the pre-spec is written the tree scores the held-back loans (*"Built on …: AUC 0.63. On …, unseen: 0.60."*, logged as a touch of the holdout); every shortlisted candidate goes into one logistic regression on the held-back loans with the pockets as control dummies (`joint.py`, statistics.md B10: a likelihood ratio test per candidate, the allowance across the shortlist, separation refused in words, correlated pairs named); New variables leads with both. 771 tests (15 new: `tests/test_together.py` and 7 in `tests/test_scout.py`), 766 passed and 5 skipped; 24 planted bugs added and 6 repointed (431 in all), each put back alone with every earlier one whose test was rewritten: 71 of 73 caught on the first pass, the 2 missed caught after their tests were strengthened. The walk's Part C pictures retaken and the procedure and checklist PDFs rebuilt. A scouting Run at 17,000 × 80: about 73 s before, 75–77 s after.
 - 2026-09-27 -- **PocketBook: Choose tests in the order you work down it.** The firm, on the "What are you running?" table: *"it just isn't necessary to have anything there, really. i would prefer that screens are ordered more sensibly- this one seems all over the place"*. The outcome rows' "· every measure" is gone (their cells are empty), and the rows no longer follow the extract: number columns (bands, split), then categories (segment), then the outcome and dollar columns, then the key and date in grey, each group in the extract's order, with a small blank gap between groups and no headings. Same order for Test new variables, so the toggle never reshuffles. Also fixed: in Test new variables a table 251-280 px tall lost its last rows with no scroll bar. The other steps were checked and already in task order (Answers needed sorts by cell; the open questions by row). 3 tests, 6 planted bugs caught; steps 4, 5, 22, 23 and 24 retaken and the procedure PDF rebuilt.

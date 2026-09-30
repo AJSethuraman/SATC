@@ -1,0 +1,367 @@
+{
+ "bleed": {
+  "cells read on 28 Sep": 14488,
+  "tally": {
+   "same figure, same verdict": 14356,
+   "not read on this build": 10,
+   "same figure, NOT A FIGURE -> ECHO": 1,
+   "same figure, ECHO -> TIED": 2,
+   "figure moved, same verdict": 2,
+   "same figure, TIED-WITHIN-SAMPLING -> TIED": 117
+  },
+  "tied then, not now": [],
+  "figures that moved": [
+   [
+    "Record!E68",
+    "",
+    "2026-09-28 21:24",
+    "2026-09-29 21:04",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!E69",
+    "",
+    "2026-09-28 21:24",
+    "2026-09-29 21:04",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ]
+  ],
+  "not read now": [
+   [
+    "Start here!C1",
+    "",
+    "Consumer book Q3.csv \u00b7 8,000 loans \u00b7 10 columns \u00b7 last Run 2026-09-28 21:24",
+    "TIED"
+   ],
+   [
+    "Columns!E17",
+    "BAD_FLAG \u00b7 why",
+    "name contains 'bad'; 0 and 1 (7.7% are 1)",
+    "TIED"
+   ],
+   [
+    "Look!C14",
+    "FICO \u00b7 At -9999, likely a code \u00b7 3",
+    "160",
+    "TIED"
+   ],
+   [
+    "Look!D14",
+    "FICO \u00b7 At -9999, likely a code \u00b7 4",
+    "0.02",
+    "TIED"
+   ],
+   [
+    "Look!B14",
+    "",
+    "At -9999, likely a code",
+    "NOT A FIGURE"
+   ],
+   [
+    "Look!B23",
+    "",
+    "Answered on Columns: -9999 means missing.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Look!_look!F10",
+    "FICO \u00b7 at the code",
+    "160",
+    "TIED"
+   ],
+   [
+    "Pockets!K14 [view-00]",
+    "",
+    "Order and \"Could have caught\" are from the last Run, 2026-09-28 21:24.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C7 [view-00]",
+    "",
+    "Red is worse, green better, pale in line: 0.5\u00d7 and under the greenest, 2\u00d7 and over the deepest red; for a gap in points, the largest in the grid is the deepest. A blank: fewer losses than fewest losses on Control, so not compared (a setting for the next Run).",
+    "NOT A FIGURE"
+   ],
+   [
+    "Split!I11 [view-00]",
+    "",
+    "The numbers are from the last Run, 2026-09-28 21:24.",
+    "NOT A FIGURE"
+   ]
+  ],
+  "new cells on this build": 1325
+ },
+ "scout": {
+  "cells read on 28 Sep": 1192,
+  "tally": {
+   "figure moved, same verdict": 9,
+   "same figure, same verdict": 1155,
+   "not read on this build": 12,
+   "figure moved, DIFFERS -> TIED": 14,
+   "same figure, DIFFERS -> TIED": 2
+  },
+  "tied then, not now": [],
+  "figures that moved": [
+   [
+    "Start here!C1",
+    "C1",
+    "Scouting book.csv \u00b7 12,000 loans \u00b7 19 columns \u00b7 last Run 2026-09-28 21:30",
+    "Scouting book.csv \u00b7 12,000 loans \u00b7 19 columns \u00b7 last Run 2026-09-29 21:02",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Record!C21",
+    "C21",
+    "Written by this Run: Scouting book - pre-spec.yaml, beside the workbook, fingerprint a68a08988cf3, before any",
+    "Written by this Run: Scouting book - pre-spec.yaml, beside the workbook, fingerprint 5d4db8ba48be, before any",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!C27",
+    "C27",
+    "a68a08988cf3: the first 12 characters of the file's SHA-256, so any change to it shows",
+    "5d4db8ba48be: the first 12 characters of the file's SHA-256, so any change to it shows",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!C28",
+    "C28",
+    "written: 2026-09-28",
+    "written: 2026-09-29",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!C52",
+    "C52",
+    "In order: this run (a68a08988cf3).",
+    "In order: this run (5d4db8ba48be).",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!F86",
+    "F86",
+    "2026-09-28: fingerprint a68a08988cf3.",
+    "2026-09-29: fingerprint 5d4db8ba48be.",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!F89",
+    "F89",
+    "Pre-spec Scouting book - pre-spec.yaml written: fingerprint a68a08988cf3, dated 2026-09-28 in the file;",
+    "Pre-spec Scouting book - pre-spec.yaml written: fingerprint 5d4db8ba48be, dated 2026-09-29 in the file;",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!E82",
+    "",
+    "2026-09-28 21:30",
+    "2026-09-29 21:02",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Look!_look!BU4",
+    "UTIL \u00b7 0.0 \u00b7 0.06 \u00b7 False",
+    "632",
+    "631",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU6",
+    "UTIL \u00b7 0.12 \u00b7 0.06 \u00b7 False",
+    "555",
+    "556",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU7",
+    "UTIL \u00b7 0.18 \u00b7 0.06 \u00b7 False",
+    "543",
+    "538",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU8",
+    "UTIL \u00b7 0.24 \u00b7 0.06 \u00b7 False",
+    "609",
+    "613",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU9",
+    "UTIL \u00b7 0.3 \u00b7 0.06 \u00b7 False",
+    "589",
+    "587",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU10",
+    "UTIL \u00b7 0.36 \u00b7 0.06 \u00b7 False",
+    "592",
+    "593",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU11",
+    "UTIL \u00b7 0.42 \u00b7 0.06 \u00b7 False",
+    "657",
+    "656",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU12",
+    "UTIL \u00b7 0.48 \u00b7 0.06 \u00b7 False",
+    "568",
+    "570",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU15",
+    "UTIL \u00b7 0.66 \u00b7 0.06 \u00b7 False",
+    "546",
+    "547",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU17",
+    "UTIL \u00b7 0.78 \u00b7 0.06 \u00b7 False",
+    "569",
+    "568",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU18",
+    "UTIL \u00b7 0.84 \u00b7 0.06 \u00b7 False",
+    "576",
+    "575",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU19",
+    "UTIL \u00b7 0.9 \u00b7 0.06 \u00b7 False",
+    "626",
+    "627",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU20",
+    "UTIL \u00b7 0.96 \u00b7 0.06 \u00b7 False",
+    "639",
+    "640",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU21",
+    "UTIL \u00b7 1.02 \u00b7 0.06 \u00b7 False",
+    "633",
+    "632",
+    "DIFFERS",
+    "TIED"
+   ],
+   [
+    "Look!_look!BU23",
+    "UTIL \u00b7 1.14 \u00b7 0.06 \u00b7 True",
+    "624",
+    "625",
+    "DIFFERS",
+    "TIED"
+   ]
+  ],
+  "not read now": [
+   [
+    "Scouting!C16",
+    "",
+    "The last Run, 2026-09-28 21:30. Nothing here follows Control until the next Run.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Scouting!B21",
+    "",
+    "Worked out at the last Run, 2026-09-28 21:30, on the development loans. Ranked by the larger of the two importances.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Scouting!B39",
+    "",
+    "Written by this Run: Scouting book - pre-spec.yaml, beside the workbook, fingerprint a68a08988cf3, before any held-back loan was tested. Edit it if you like; Record logs every change.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Scouting!B41",
+    "",
+    "# Written by PocketBook's scouting on 2026-09-28, from 8,394 development loans made 2021-06-30 to 2024-10-31.",
+    "TIED"
+   ],
+   [
+    "Scouting!B44",
+    "",
+    "written: 2026-09-28",
+    "NOT A FIGURE"
+   ],
+   [
+    "New variables!C20",
+    "",
+    "The numbers are the last Run's, 2026-09-28 21:30. Holds up?, Still holds?, Material?, In words, every range and the chart's worse line follow Control.",
+    "NOT A FIGURE"
+   ],
+   [
+    "New variables!B25",
+    "",
+    "The numbers are from the last Run, 2026-09-28 21:30. The verdicts, the materiality line and the chart's worse line follow Control.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Look!C14",
+    "FICO \u00b7 At -9999, likely a code \u00b7 3",
+    "240",
+    "TIED"
+   ],
+   [
+    "Look!D14",
+    "FICO \u00b7 At -9999, likely a code \u00b7 4",
+    "0.02",
+    "TIED"
+   ],
+   [
+    "Look!B14",
+    "",
+    "At -9999, likely a code",
+    "NOT A FIGURE"
+   ],
+   [
+    "Look!B23",
+    "",
+    "Answered on Columns: -9999 means missing.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Look!_look!F10",
+    "FICO \u00b7 at the code",
+    "240",
+    "TIED"
+   ]
+  ],
+  "new cells on this build": 12
+ }
+}

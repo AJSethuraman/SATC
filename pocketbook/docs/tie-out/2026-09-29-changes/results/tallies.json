@@ -1,0 +1,1380 @@
+{
+ "total": 53514,
+ "by_verdict": {
+  "DIFFERS": 21,
+  "COULD NOT": 7,
+  "TIED-WITHIN-SAMPLING": 3285,
+  "TIED": 44902,
+  "NAME": 3071,
+  "ECHO": 241,
+  "NOT A FIGURE": 1987
+ },
+ "by_run": {
+  "q3": {
+   "DIFFERS": 0,
+   "COULD NOT": 1,
+   "TIED-WITHIN-SAMPLING": 839,
+   "TIED": 13425,
+   "NAME": 919,
+   "ECHO": 51,
+   "NOT A FIGURE": 568
+  },
+  "scout": {
+   "DIFFERS": 0,
+   "COULD NOT": 4,
+   "TIED-WITHIN-SAMPLING": 84,
+   "TIED": 912,
+   "NAME": 38,
+   "ECHO": 78,
+   "NOT A FIGURE": 76
+  },
+  "flag": {
+   "DIFFERS": 21,
+   "COULD NOT": 1,
+   "TIED-WITHIN-SAMPLING": 1206,
+   "TIED": 16539,
+   "NAME": 1180,
+   "ECHO": 49,
+   "NOT A FIGURE": 735
+  },
+  "two": {
+   "DIFFERS": 0,
+   "COULD NOT": 1,
+   "TIED-WITHIN-SAMPLING": 1156,
+   "TIED": 13801,
+   "NAME": 934,
+   "ECHO": 49,
+   "NOT A FIGURE": 602
+  },
+  "bureau": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 139,
+   "NAME": 0,
+   "ECHO": 14,
+   "NOT A FIGURE": 6
+  },
+  "excel": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 43,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel-flag": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 43,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  }
+ },
+ "by_change": {
+  "1": {
+   "DIFFERS": 21,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 1994,
+   "TIED": 19762,
+   "NAME": 56,
+   "ECHO": 6,
+   "NOT A FIGURE": 12
+  },
+  "2": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 1458,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "3": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 6,
+   "TIED": 978,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "4": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 153,
+   "NAME": 0,
+   "ECHO": 14,
+   "NOT A FIGURE": 6
+  },
+  "5": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 86,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "R": {
+   "DIFFERS": 0,
+   "COULD NOT": 7,
+   "TIED-WITHIN-SAMPLING": 1285,
+   "TIED": 22465,
+   "NAME": 3015,
+   "ECHO": 221,
+   "NOT A FIGURE": 1969
+  }
+ },
+ "by_change_run": {
+  "1": {
+   "q3": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "scout": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "flag": {
+    "DIFFERS": 21,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 1022,
+    "TIED": 11196,
+    "NAME": 28,
+    "ECHO": 3,
+    "NOT A FIGURE": 6
+   },
+   "two": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 972,
+    "TIED": 8566,
+    "NAME": 28,
+    "ECHO": 3,
+    "NOT A FIGURE": 6
+   },
+   "bureau": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "excel": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "excel-flag": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   }
+  },
+  "2": {
+   "q3": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 450,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "scout": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "flag": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 558,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "two": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 450,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "bureau": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "excel": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "excel-flag": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   }
+  },
+  "3": {
+   "q3": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 2,
+    "TIED": 326,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "scout": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "flag": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 2,
+    "TIED": 326,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "two": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 2,
+    "TIED": 326,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "bureau": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "excel": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "excel-flag": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   }
+  },
+  "4": {
+   "q3": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 5,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "scout": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 3,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "flag": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 3,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "two": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 3,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "bureau": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 139,
+    "NAME": 0,
+    "ECHO": 14,
+    "NOT A FIGURE": 6
+   },
+   "excel": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "excel-flag": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   }
+  },
+  "5": {
+   "q3": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "scout": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "flag": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "two": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "bureau": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "excel": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 43,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "excel-flag": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 43,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   }
+  },
+  "R": {
+   "q3": {
+    "DIFFERS": 0,
+    "COULD NOT": 1,
+    "TIED-WITHIN-SAMPLING": 837,
+    "TIED": 12644,
+    "NAME": 919,
+    "ECHO": 51,
+    "NOT A FIGURE": 568
+   },
+   "scout": {
+    "DIFFERS": 0,
+    "COULD NOT": 4,
+    "TIED-WITHIN-SAMPLING": 84,
+    "TIED": 909,
+    "NAME": 38,
+    "ECHO": 78,
+    "NOT A FIGURE": 76
+   },
+   "flag": {
+    "DIFFERS": 0,
+    "COULD NOT": 1,
+    "TIED-WITHIN-SAMPLING": 182,
+    "TIED": 4456,
+    "NAME": 1152,
+    "ECHO": 46,
+    "NOT A FIGURE": 729
+   },
+   "two": {
+    "DIFFERS": 0,
+    "COULD NOT": 1,
+    "TIED-WITHIN-SAMPLING": 182,
+    "TIED": 4456,
+    "NAME": 906,
+    "ECHO": 46,
+    "NOT A FIGURE": 596
+   },
+   "bureau": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "excel": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   },
+   "excel-flag": {
+    "DIFFERS": 0,
+    "COULD NOT": 0,
+    "TIED-WITHIN-SAMPLING": 0,
+    "TIED": 0,
+    "NAME": 0,
+    "ECHO": 0,
+    "NOT A FIGURE": 0
+   }
+  }
+ },
+ "by_tab": {
+  "q3|Start here": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 1,
+   "TIED": 15,
+   "NAME": 6,
+   "ECHO": 3,
+   "NOT A FIGURE": 0
+  },
+  "q3|Control": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 29,
+   "NAME": 0,
+   "ECHO": 13,
+   "NOT A FIGURE": 0
+  },
+  "q3|Columns": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 22,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 20
+  },
+  "q3|Look": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 104,
+   "NAME": 0,
+   "ECHO": 11,
+   "NOT A FIGURE": 6
+  },
+  "q3|Record": {
+   "DIFFERS": 0,
+   "COULD NOT": 1,
+   "TIED-WITHIN-SAMPLING": 1,
+   "TIED": 57,
+   "NAME": 0,
+   "ECHO": 21,
+   "NOT A FIGURE": 16
+  },
+  "q3|Pockets": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 533,
+   "TIED": 6395,
+   "NAME": 588,
+   "ECHO": 1,
+   "NOT A FIGURE": 5
+  },
+  "q3|Grids": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 5396,
+   "NAME": 197,
+   "ECHO": 0,
+   "NOT A FIGURE": 513
+  },
+  "q3|Split": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 300,
+   "TIED": 519,
+   "NAME": 28,
+   "ECHO": 1,
+   "NOT A FIGURE": 6
+  },
+  "q3|Paid, cost, kept": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 4,
+   "TIED": 888,
+   "NAME": 100,
+   "ECHO": 1,
+   "NOT A FIGURE": 2
+  },
+  "scout|Start here": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 30,
+   "NAME": 5,
+   "ECHO": 3,
+   "NOT A FIGURE": 0
+  },
+  "scout|Scouting": {
+   "DIFFERS": 0,
+   "COULD NOT": 3,
+   "TIED-WITHIN-SAMPLING": 84,
+   "TIED": 70,
+   "NAME": 4,
+   "ECHO": 6,
+   "NOT A FIGURE": 5
+  },
+  "scout|New variables": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 324,
+   "NAME": 21,
+   "ECHO": 6,
+   "NOT A FIGURE": 13
+  },
+  "scout|Control": {
+   "DIFFERS": 0,
+   "COULD NOT": 1,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 3,
+   "NAME": 0,
+   "ECHO": 12,
+   "NOT A FIGURE": 1
+  },
+  "scout|Columns": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 53,
+   "NAME": 4,
+   "ECHO": 0,
+   "NOT A FIGURE": 39
+  },
+  "scout|Look": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 386,
+   "NAME": 4,
+   "ECHO": 36,
+   "NOT A FIGURE": 10
+  },
+  "scout|Record": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 46,
+   "NAME": 0,
+   "ECHO": 15,
+   "NOT A FIGURE": 8
+  },
+  "flag|Start here": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 1,
+   "TIED": 15,
+   "NAME": 6,
+   "ECHO": 3,
+   "NOT A FIGURE": 0
+  },
+  "flag|Control": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 29,
+   "NAME": 0,
+   "ECHO": 13,
+   "NOT A FIGURE": 0
+  },
+  "flag|Columns": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 22,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 20
+  },
+  "flag|Look": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 98,
+   "NAME": 0,
+   "ECHO": 9,
+   "NOT A FIGURE": 4
+  },
+  "flag|Record": {
+   "DIFFERS": 0,
+   "COULD NOT": 1,
+   "TIED-WITHIN-SAMPLING": 1,
+   "TIED": 55,
+   "NAME": 0,
+   "ECHO": 21,
+   "NOT A FIGURE": 14
+  },
+  "flag|Pockets": {
+   "DIFFERS": 21,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 603,
+   "TIED": 7764,
+   "NAME": 856,
+   "ECHO": 1,
+   "NOT A FIGURE": 4
+  },
+  "flag|Grids": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 6582,
+   "NAME": 190,
+   "ECHO": 0,
+   "NOT A FIGURE": 685
+  },
+  "flag|Split": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 597,
+   "TIED": 1086,
+   "NAME": 28,
+   "ECHO": 1,
+   "NOT A FIGURE": 6
+  },
+  "flag|Paid, cost, kept": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 4,
+   "TIED": 888,
+   "NAME": 100,
+   "ECHO": 1,
+   "NOT A FIGURE": 2
+  },
+  "two|Start here": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 1,
+   "TIED": 15,
+   "NAME": 6,
+   "ECHO": 3,
+   "NOT A FIGURE": 0
+  },
+  "two|Control": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 29,
+   "NAME": 0,
+   "ECHO": 13,
+   "NOT A FIGURE": 0
+  },
+  "two|Columns": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 22,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 20
+  },
+  "two|Look": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 98,
+   "NAME": 0,
+   "ECHO": 9,
+   "NOT A FIGURE": 4
+  },
+  "two|Record": {
+   "DIFFERS": 0,
+   "COULD NOT": 1,
+   "TIED-WITHIN-SAMPLING": 1,
+   "TIED": 55,
+   "NAME": 0,
+   "ECHO": 21,
+   "NOT A FIGURE": 14
+  },
+  "two|Pockets": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 556,
+   "TIED": 6167,
+   "NAME": 643,
+   "ECHO": 1,
+   "NOT A FIGURE": 4
+  },
+  "two|Grids": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 5486,
+   "NAME": 157,
+   "ECHO": 0,
+   "NOT A FIGURE": 552
+  },
+  "two|Split": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 594,
+   "TIED": 1041,
+   "NAME": 28,
+   "ECHO": 1,
+   "NOT A FIGURE": 6
+  },
+  "two|Paid, cost, kept": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 4,
+   "TIED": 888,
+   "NAME": 100,
+   "ECHO": 1,
+   "NOT A FIGURE": 2
+  },
+  "bureau|Look": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 139,
+   "NAME": 0,
+   "ECHO": 14,
+   "NOT A FIGURE": 6
+  },
+  "excel|Columns": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 7,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel|Control": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 23,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel|Grids": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 4,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel|Look": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 1,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel|Paid, cost, kept": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 1,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel|Pockets": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 3,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel|Split": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 2,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel|(workbook)": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 1,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel|_views": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 1,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel-flag|Columns": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 7,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel-flag|Control": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 23,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel-flag|Grids": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 4,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel-flag|Look": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 1,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel-flag|Paid, cost, kept": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 1,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel-flag|Pockets": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 3,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel-flag|Split": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 2,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel-flag|(workbook)": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 1,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  },
+  "excel-flag|_views": {
+   "DIFFERS": 0,
+   "COULD NOT": 0,
+   "TIED-WITHIN-SAMPLING": 0,
+   "TIED": 1,
+   "NAME": 0,
+   "ECHO": 0,
+   "NOT A FIGURE": 0
+  }
+ },
+ "books": {
+  "bleed": "Consumer book Q3",
+  "q3": "Consumer book Q3",
+  "scout": "Scouting book",
+  "flag": "Flag book",
+  "two": "Two-flag book",
+  "bureau": "Bureau book",
+  "excel": "Consumer book Q3 (Excel-saved)",
+  "excel-flag": "Flag book (Excel-saved)"
+ },
+ "attention": [
+  {
+   "run": "q3",
+   "kind": "record",
+   "tab": "Record",
+   "cell": "Record!C25",
+   "figure": "C \u00b7 Tie-out checks \u00b7 0",
+   "ours": "702: every grid adds up to the book",
+   "source": "",
+   "diff": "",
+   "verdict": "COULD NOT",
+   "note": "702 counts the checks PocketBook ran on itself (every grid adding up to the book); nothing outside PocketBook says how many there should be. What they claim, that every grid adds up, is tested here directly: every loans and dollars cell of every grid ties.",
+   "change": "R"
+  },
+  {
+   "run": "scout",
+   "kind": "sc-text",
+   "tab": "Scouting",
+   "cell": "Scouting!C10",
+   "figure": "C10",
+   "ours": "0.0085: the largest importance any candidate reached in the same forests grown on the development loans with their outcomes shuffled among them, so that no column could matter (24 tries). It is what a column scores by chance.",
+   "source": "",
+   "diff": "",
+   "verdict": "COULD NOT",
+   "note": "the noise floor is the largest of 24 importances with the outcomes shuffled at random: one more draw of the same thing, on this road's own random numbers, gave 0.0090 against the workbook's 0.0085, but the largest of 24 random draws has no small sampling error to call a tie against",
+   "change": "R"
+  },
+  {
+   "run": "scout",
+   "kind": "sc-text",
+   "tab": "Scouting",
+   "cell": "Scouting!G19",
+   "figure": "G19",
+   "ours": "0.00847645775989",
+   "source": "",
+   "diff": "",
+   "verdict": "COULD NOT",
+   "note": "the noise floor again (see Scouting!C10): this road's one draw gave 0.0090",
+   "change": "R"
+  },
+  {
+   "run": "scout",
+   "kind": "sc-cand",
+   "tab": "Scouting",
+   "cell": "Scouting!F25",
+   "figure": "income_to_sales \u00b7 Suggested bins",
+   "ours": "0.02 - 0.09; 0.10 - 1.99; 2.00 - 8.30",
+   "source": "",
+   "diff": "",
+   "verdict": "COULD NOT",
+   "note": "income_to_sales's suggested bins: this road's reading of the rule the tab states in words (Scouting!C12) gave 0.1, 2 and 2.1 where the pre-spec has 0.1 and 2 (UTIL's 0.9 did land); the words don't say how two cuts that close are merged, so the rule could not be followed to the end from the tab alone",
+   "change": "R"
+  },
+  {
+   "run": "scout",
+   "kind": "control",
+   "tab": "Control",
+   "cell": "Control!I15",
+   "figure": "I15",
+   "ours": "suggested: 1.43x, from this extract at the last Run",
+   "source": "",
+   "diff": "",
+   "verdict": "COULD NOT",
+   "note": "the suggested worse-at line for a new variable: the workbook says it is the smallest odds ratio a group of typical size can call significant, on the loans the groups were found on, but not which groups are typical or at what power; one attempt (the median, over the non-reference groups, of the odds ratio a Wald test just calls significant) gives 1.40 against the workbook's 1.43",
+   "change": "R"
+  },
+  {
+   "run": "flag",
+   "kind": "record",
+   "tab": "Record",
+   "cell": "Record!C25",
+   "figure": "C \u00b7 Tie-out checks \u00b7 0",
+   "ours": "702: every grid adds up to the book",
+   "source": "",
+   "diff": "",
+   "verdict": "COULD NOT",
+   "note": "702 counts the checks PocketBook ran on itself (every grid adding up to the book); nothing outside PocketBook says how many there should be. What they claim, that every grid adds up, is tested here directly: every loans and dollars cell of every grid ties.",
+   "change": "R"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L82 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 686 - 711 \u00b7 ASSET_CLASS 3 \u00b7 N \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L89 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 654 - 685 \u00b7 ASSET_CLASS 2 \u00b7 Y \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L95 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 746 - 921 \u00b7 ASSET_CLASS 4 \u00b7 N \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L99 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 654 - 685 \u00b7 ASSET_CLASS 4 \u00b7 N \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L104 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 686 - 711 \u00b7 ASSET_CLASS 4 \u00b7 Y \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L106 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO (marked missing) \u00b7 ASSET_CLASS 2 \u00b7 N \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L109 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO (marked missing) \u00b7 ASSET_CLASS 4 \u00b7 N \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L111 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 496 - 653 \u00b7 ASSET_CLASS 2 \u00b7 N \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L119 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 746 - 921 \u00b7 ASSET_CLASS 4 \u00b7 Y \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L123 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 496 - 653 \u00b7 ASSET_CLASS 3 \u00b7 (blank) \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L126 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 496 - 653 \u00b7 ASSET_CLASS 2 \u00b7 (blank) \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L127 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO (marked missing) \u00b7 ASSET_CLASS 2 \u00b7 Y \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L133 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 654 - 685 \u00b7 ASSET_CLASS 3 \u00b7 (blank) \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L134 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 746 - 921 \u00b7 ASSET_CLASS 2 \u00b7 (blank) \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L137 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 746 - 921 \u00b7 ASSET_CLASS 1 \u00b7 Y \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L148 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 712 - 745 \u00b7 ASSET_CLASS 3 \u00b7 N \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L149 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 712 - 745 \u00b7 ASSET_CLASS 4 \u00b7 N \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L150 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 712 - 745 \u00b7 ASSET_CLASS 2 \u00b7 Y \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L151 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 712 - 745 \u00b7 ASSET_CLASS 1 \u00b7 N \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L163 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 746 - 921 \u00b7 ASSET_CLASS 3 \u00b7 (blank) \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "flag",
+   "kind": "pocket",
+   "tab": "Pockets",
+   "cell": "Pockets!L165 [view-09]",
+   "figure": "Split by SYS_FLAG \u00b7 Earned before losses \u00b7 FICO 712 - 745 \u00b7 ASSET_CLASS 2 \u00b7 (blank) \u00b7 p",
+   "ours": "0.981864500117",
+   "source": "0.992882801272",
+   "diff": "-0.011",
+   "verdict": "DIFFERS",
+   "note": "tolerance 0.011",
+   "change": "1"
+  },
+  {
+   "run": "two",
+   "kind": "record",
+   "tab": "Record",
+   "cell": "Record!C25",
+   "figure": "C \u00b7 Tie-out checks \u00b7 0",
+   "ours": "702: every grid adds up to the book",
+   "source": "",
+   "diff": "",
+   "verdict": "COULD NOT",
+   "note": "702 counts the checks PocketBook ran on itself (every grid adding up to the book); nothing outside PocketBook says how many there should be. What they claim, that every grid adds up, is tested here directly: every loans and dollars cell of every grid ties.",
+   "change": "R"
+  }
+ ]
+}

@@ -213,10 +213,13 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         used.sheet_state = "hidden"
 
     # each column fits its longest value and its header (the spec's rule 5: no wrapping in the rows)
-    fit_b = max(len(s.question) for s in settings) * 0.95 + 2
-    fit_c = max(len(o.shown) for s in settings for o in s.options) * 0.95 + 3
-    widths = {"A": 2, "B": min(fit_b, 80), "C": min(fit_c, 66), "D": 12, "E": 14, "F": 44, "G": 12, "H": 22,
-              "I": 50, "J": 4, "K": 4, "L": 3, "M": 12, "N": 14, "O": 10, "P": 11}
+    # T1 (docs/column-widths-survey-2026-09-29.md): 0.9 a character is what Calibri 10 takes of Excel's unit, so the
+    # longest question stays on one line; Last Run used fits the longest answer without "(recommended)"
+    fit_b = house.fit([s.question for s in settings], floor=40, cap=84, per_char=0.9)
+    fit_c = house.fit([o.shown for s in settings for o in s.options], floor=24, cap=66, pad=3, per_char=0.9)
+    fit_f = house.fit([o.shown.replace(" (recommended)", "") for s in settings for o in s.options], floor=44, cap=58)
+    widths = {"A": 2, "B": fit_b, "C": fit_c, "D": 12, "E": 14, "F": fit_f, "G": 12, "H": 22,
+              "I": 56, "J": 4, "K": 4, "L": 3, "M": 12, "N": 14, "O": 10, "P": 11}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
     house.title_band(ws, "Control", "The professional calls. The top block changes results now; the second waits "

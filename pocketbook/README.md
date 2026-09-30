@@ -83,7 +83,13 @@ After that, the whole routine is:
      **split every pocket by**: a number column halves each pocket at its own
      median; a category of 6 values or fewer splits it by each value (a
      category with more is refused). A column that splits isn't also cut or a
-     segment. Every number column and every category starts
+     segment. Separately, at most one column to **filter by**: a category of 6
+     values or fewer, whose values Grids' *Only loans where* offers, whatever the
+     split is doing (a category may segment and filter at once). When a column
+     is marked *Origination date*, a row **ORIG_YEAR** sits with the categories:
+     the year each loan was made, read from that column, which can split, filter
+     or both; a loan with no readable date is in *(no date)*, a value of its own
+     that isn't counted against the 6. Every number column and every category starts
      ticked. The outcome and dollar columns come after them, with no boxes:
      they go into every measure. It needs
      the five columns below and no date.
@@ -131,7 +137,12 @@ After that, the whole routine is:
      outcome): its loans, blanks, likely code (on a red bar
      of its own), smallest, median, mean and largest, and its bars. Pick 10,
      20 or 50 bars and a From and To, and the chart regroups live; the edges
-     typed on Columns show as red dashed lines as you type them. With a split,
+     typed on Columns show as red dashed lines as you type them. The 10th,
+     25th, 50th, 75th and 90th percentiles are listed under the block and
+     drawn as thin grey lines labelled P10 to P90 (worked out as Excel's
+     PERCENTILE.INC, over the same values as the median; a percentile
+     outside From and To isn't drawn). The labels under the bars are short:
+     24k, 1.2M, and a score or a ratio as it is (620, 0.35). With a split,
      a scatter of it against each band column.
 5. **Run.** Save, close the workbook, and press **Run**. If anything
    still needs an answer, the window lists each one by its tab and cell, with
@@ -185,6 +196,35 @@ After that, the whole routine is:
      its colour means. A blank says why: alone in its band, or fewer losses than the
      minimum. The sentences are fixed by measure (`results.SAY`); only the names
      and numbers change.
+     A pocket with fewer loans than **Fewest loans in a pocket** on Control (the
+     number the Run used, its suggestion worked out when that was picked) shows
+     its number in **grey**, with no colour, and is left out of the largest gap
+     that sets the scale for a gap in points: a 3-loan pocket at -50 points no
+     longer pales every real gap. What one cell says: "Grey: only 3 loans,
+     fewer than the 30 set on Control, so not coloured." The **vs the book**
+     heading carries the book's own figure for the measure picked ("vs the book
+     (book: 7.73%)"); vs rest of band has none, since its rest differs by row.
+     **Only loans where** *(Filter by column)* **is** (the firm, 30 Sep 2026: the
+     filter had worked only off Split by, *"Wait only works on split by? Isn't that
+     for like above and below median"*; a separate Filter by, *"Yes hoping to have
+     this by morning"*) shows every block and the one-cell reading on only the
+     loans with one value (`Grid.filtered`, built in the engine like any grid),
+     whatever Split by is doing: a number split into halves, a category, or none.
+     Filtered by ORIG_YEAR it reads "only loans where ORIG_YEAR is 2023", and the
+     note says the year comes from the Origination date column. vs
+     the book stays against the **whole book** (the firm: *"we keep things
+     compared to the whole book that's just kind of the point"*); vs rest of
+     band is the rest of the band among those loans; grey and the heat scale go
+     by that view's own cells, and the columns' width fits the filtered values
+     too. With no Filter by picked it offers only All loans and says *Pick a
+     Filter by in the launcher.* Record's *Grids filter* row and the Run's line
+     name the column and each value's loans. **Loan size**, in
+     the Measure list when a booked amount is set: booked dollars per loan (the
+     average in Rate, the median read out in words), and the average as a
+     multiple of the book's and of the rest of the band's. It is a
+     description, not a test: no p-value, not on Pockets or Split, and no red
+     or green, only one neutral hue, darker the bigger the loans against the
+     book's.
    - **Split:** only when a column splits the pockets (below). A Grid
      dropdown and a chip saying whether it holds the split's partner fixed; the
      summary for every measure; whether the gap is the same in every pocket; and
@@ -194,6 +234,26 @@ After that, the whole routine is:
      there is no partner chip (how a category moves with a band column isn't
      worked out), and one more line asks whether the values differ at all, for
      bad loans only (the K-group Mantel-Haenszel test).
+   - **Column widths** (the firm, 29 Sep 2026: *"i prefer to have nice even
+     layouts, or at least the column sizes should make sense for the data we
+     see"*; the survey is `docs/column-widths-survey-2026-09-29.md`). Every
+     width is worked out per Run from the labels and values that Run can show,
+     never set per bank (`house.fit`, `house.two_line_width`). On **Grids**
+     every data column of the four blocks and the groups table under them is
+     one width, wide enough for the longest value and for the longest column
+     label on two lines (9 to 16), and both label columns are one width (12 to
+     28), so the blocks line up. Headers wrap, and every block's header rows are
+     the same height. A **split grid's header is two rows**: the segment, merged
+     over its parts, then each part ("high", "low", or the category's values).
+     Every segment gets every part, in one order, so a part a segment has no
+     loans in is an empty column. Booked dollars in the groups table too long
+     for the widest column show in thousands ($1,234k). **Split**'s two grids
+     follow the same rules, and its Grid dropdown spans B:D with the chip
+     beside it. The label columns of **Pockets**, **Paid, cost, kept** and
+     **Start here** fit the Run's bands and segments (up to 32); **Look**'s
+     label column fits its longest label; **Control** and **Columns** fit
+     their questions, answers, names and samples. `tests/test_widths.py`
+     holds each rule.
    - **Record** (grey tab; it merges Check and the Log): six sections in three
      pairs, read across. *This Run*: the extract, the loans run, what was run,
      the band edges, the split, the range of origination dates (so a wrong
@@ -240,12 +300,27 @@ and what you're running. Control's last column says which.
   dropdowns show) and `_views` (every other number, one keyed row each). Unhide
   any of them to follow a reading back to Control.
 
+**Borderline** (the firm, 29 Sep 2026: *"I don't like 'could fall either way'
+but flag it somehow"*, and they chose the word). A dollar rate's p-value comes
+from shuffling, so another run could land it a little differently. When the
+p-value that decides a verdict is a shuffled one within 2 of its own standard
+errors of the bar, either side, the verdict says so: *Net drain · borderline
+(p 0.048)*, *Not sure · borderline (p 0.052)*. It shows on Pockets' Worse?,
+Paid, cost, kept's Together, the Split tab's p-values, Start here's five largest
+and tile, the Run's *Worst for* line and Record, which states the rule and
+counts them. The colour, order and counts stay the verdict's. A z test's or an
+exact test's p-value is the same on every run, so Bad loans are never
+borderline. The rule, and how the allowance for many tests scales the standard
+error, are in `docs/statistics.md` B2a.
+
 **Going a layer deeper.** In the launcher's Choose tests, pick one column
 under *Split pockets by*. A number (revolving debt, say) splits every FICO-by-asset-class pocket
 at that pocket's own median, and the Split tab compares the high half with the
 low half, pocket by pocket and pooled. Each grid says what it holds fixed:
 revolving debt moves with FICO, so a loan-size grid can't tell debt from score,
-and it says so with the number. A category repeats each grid once per value.
+and it says so with the number. A category repeats each grid once per value. ORIG_YEAR (the year of the
+Origination date column) splits too: each year against the rest of its pocket, and
+the Split tab's *Do the values differ at all?* line asks whether the vintages differ.
 Either way, every split pocket is tested and ranked on **Pockets** (pick
 *Split by* in its Pockets dropdown). *Show per pocket* puts a column's median or average in every pocket.
 The Look tab plots a split number against each band column, so you can see

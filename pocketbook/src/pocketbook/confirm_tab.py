@@ -54,7 +54,7 @@ P_FMT = '[<0.0001]"under 0.01%";[<0.01]0.00%;0.0%'         # book.P_FMT
 X_FMT = '0.00"×"'
 LIFT_TAIL = " times the holdout's bad rate"
 YES, NO = "Yes", "No"
-WIDTHS = {1: 2, N_CAND: 20, N_COMP: 30, N_FG: 10, N_FP: 11, N_CG: 12, N_CP: 12, N_HOLDS: 16, N_HG: 12, N_HP: 12,
+WIDTHS = {1: 2, N_CAND: 20, N_COMP: 30, N_FG: 10, N_FP: 11, N_CG: 16, N_CP: 12, N_HOLDS: 16, N_HG: 16, N_HP: 12,
           N_STILL: 16, N_EX: 14, N_MAT: 12, N_WORDS: 42}
 #: the tests in full keep their numbers in F to N, never in Found's two columns, which a saved shortlist hides
 DATA = N_CG
@@ -706,6 +706,8 @@ def _matters(ws, t, views, r: int) -> int:
         house.sub_header(ws, r, FIRST, [f"{where}: loans made {side.range.text()}"])
         for c in range(FIRST + 1, LAST + 1):
             ws.cell(row=r, column=c).fill = house.fill(house.CANVAS)
+        # N1: the caption runs across the table in one merged cell, rather than widening the first column
+        ws.merge_cells(start_row=r, start_column=FIRST, end_row=r, end_column=LAST)
         r += 1
         cells = []
         for label, get in tests:

@@ -11,6 +11,8 @@
 
 import csv
 import random
+import re
+import statistics
 
 import pytest
 from openpyxl import load_workbook
@@ -694,6 +696,12 @@ def _shade(v, kind: str, bound: float) -> str:
     return "pale"
 
 
+def _fewest(b) -> int:
+    """The fewest loans in a pocket the last Run used (Control's answer, as Record keeps it)."""
+    from pocketbook import config as cfgmod
+    return cfgmod.parse(book.read_book(b)[0]).benchmark.min_units
+
+
 def _min_losses(b) -> int:
     from pocketbook import config as cfgmod
     return cfgmod.parse(book.read_book(b)[0]).benchmark.min_events
@@ -726,9 +734,15 @@ def test_one_cell_reads_the_blocks_own_numbers_in_words_for_a_multiple_and_a_gap
             assert said["vs rest of band"] == (f"Kept {abs(w):.2f} points {side(w)} of their booked dollars than the "
                                                f"other loans in {bl}{named}.")
         assert said["Loans"] == f"{n:,} loans; {bl} has {loans[(bl, 'All')]:,} in all."
-        bound = max([abs(x) for blk in (bk, bd) for x in blk.values() if isinstance(x, (int, float))] + [0.01])
-        assert said["The colour"].startswith(f"vs the book is {_shade(v, kind, bound)}, vs rest of band "
-                                             f"{_shade(w, kind, bound)}.")
+        # the scale's bound leaves out the cells under the fewest loans, which are grey (the firm, 29 Sep 2026)
+        few = _fewest(b)
+        bound = max([abs(x) for blk in (bk, bd) for k, x in blk.items() if isinstance(x, (int, float))
+                     and isinstance(loans.get(k), (int, float)) and loans[k] >= few] + [0.01])
+        if n < few:
+            assert said["The colour"] == f"Grey: only {n:,} loans, fewer than the {few:,} set on Control, so not coloured."
+        else:
+            assert said["The colour"].startswith(f"vs the book is {_shade(v, kind, bound)}, vs rest of band "
+                                                 f"{_shade(w, kind, bound)}.")
 
 
 def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(one_cell_book, tmp_path):
@@ -804,3 +818,982 @@ def test_segments_read_their_numbers_as_numbers():
     from pocketbook import engine
     got = engine._order(["$40k+", "$5k–<$10k", "$0k–<$5k", "$10k–<$15k", engine.BLANK_LABEL, "Tier 10", "Tier 2"])
     assert got == ["$0k–<$5k", "$5k–<$10k", "$10k–<$15k", "$40k+", "Tier 2", "Tier 10", engine.BLANK_LABEL]
+
+
+# ---- that evening, by pop-up: four changes to Grids, each answered yes
+# Raised at the bank from a photo of Grids: 620-659 · $20k-<$25k, 3 loans, Kept after losses -50.38 pts against the
+# book, was the deepest red on the grid and paled every real gap. The firm on filtering: "it would be nice to be able
+# to filter by that category which would probably solve a lot of ... having multiway views", and, decided the same
+# day: "we keep things compared to the whole book that's just kind of the point". On loan size: "we tend to give
+# these loan amounts to these FICO scores within this category". Yes to all four; a number column as a segment was
+# answered "Later".
+
+KIOSK = "Kiosk"
+ONLY = "Only loans where SYS_FLAG is"
+
+
+def _grids_file(tmp_path, n=6000):
+    """The flagged book, and three loans through a channel of their own, in one score band, each keeping -50% of
+    what it booked: a 3-loan pocket far deeper than any real one, as on the bank's photo."""
+    src = _flag_file(tmp_path, n=n)
+    rows = list(csv.DictReader(open(src, encoding="utf-8")))
+    for k, fico in enumerate((641, 645, 649)):
+        bal = 20000.0 + 1000 * k
+        rows.append({**rows[10], "LOAN_NBR": f"K{k}", "FICO": fico, "CHANNEL": KIOSK, "ORIG_BAL": bal,
+                     "BAD_FLAG": 1, "GCO_AMT": bal * 0.5, "RANR_AMT": -bal * 0.5, "SYS_FLAG": "Y"})
+    out = tmp_path / "grids.csv"
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    return out
+
+
+@pytest.fixture(scope="module")
+def grids_book(tmp_path_factory):
+    """FICO x CHANNEL and FICO x ASSET_CLASS, split by SYS_FLAG, fewest loans 30: the book and its loan file."""
+    from pocketbook import perm
+    d = tmp_path_factory.mktemp("grids")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 200)
+        x = _grids_file(d)
+        # since 30 Sep 2026 the filter is its own pick (Filter by), not the split: this book picks both
+        out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL", "ASSET_CLASS"),
+                                                split="SYS_FLAG", filter="SYS_FLAG", outcome="BAD_FLAG"))
+        _answer(out.book)
+        ran = book.run(out.book)
+        assert ran.ok, ran.lines
+    return out.book, x
+
+
+def _loans_file(x) -> list[dict]:
+    return list(csv.DictReader(open(x, encoding="utf-8")))
+
+
+def _num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _band(fico, labels) -> str:
+    """A loan's FICO band, read from the grid's own labels ("496 - 653", both ends in the band), worked out here and
+    not by the engine: the -9999 code was answered missing, and a blank is its own row."""
+    if fico in ("", None):
+        return "(blank)"
+    v = float(fico)
+    if v < -1000:
+        return "(marked missing)"
+    for lab in labels:
+        lo, _, hi = lab.partition(" - ")
+        if hi and float(lo) <= v <= float(hi):
+            return lab
+    raise KeyError(fico)
+
+
+def _cells(rows, loans_block) -> dict:
+    """{(band, channel): [loans]}, margins included, over `rows`, for the cells the Loans block has."""
+    labels = [bl for bl, d in loans_block if d == "All" and bl not in ("All", "(blank)", "(marked missing)")]
+    out: dict = {}
+    for r in rows:
+        bl, d = _band(r["FICO"], labels), r["CHANNEL"]
+        for k in {(bl, d), (bl, "All"), ("All", d), ("All", "All")}:
+            out.setdefault(k, []).append(r)
+    return out
+
+
+def _bad_rate(rows):
+    read = [int(r["BAD_FLAG"]) for r in rows if r["BAD_FLAG"] in ("0", "1")]
+    return sum(read) / len(read) if read else None
+
+
+def _size(rows):
+    bals = [_num(r["ORIG_BAL"]) for r in rows if _num(r["ORIG_BAL"]) is not None]
+    return (sum(bals) / len(bals), statistics.median(bals)) if bals else (None, None)
+
+
+def _views_rows(b) -> dict:
+    from pocketbook import results
+    return {r[0]: list(r[1:]) for r in load_workbook(b)[results.VIEWS].iter_rows(values_only=True) if r[0]}
+
+
+def _below(ws) -> int:
+    """The row the blocks start under: the dropdowns', clear of the method note's labels."""
+    import tabs
+    return tabs.dropdown(ws, "Grid").row
+
+
+def _head(ws, title: str) -> str:
+    return next(c.value for row in ws.iter_rows(min_row=_below(ws)) for c in row if isinstance(c.value, str)
+                and c.value.startswith(title))
+
+
+def _inner(formula: str) -> str:
+    """A rule's own formula, without the row's divider every rule on a block carries (results.cf)."""
+    m = re.fullmatch(r'AND\(\$[A-Z]+\d+<>"",(.*)\)', formula)
+    return m.group(1) if m else formula
+
+
+GREY = re.compile(r"^AND\(ISNUMBER\(([A-Z]+)(\d+)\),ISNUMBER\(([A-Z]+)(\d+)\),ISNUMBER\((\$[A-Z]+\$\d+)\),"
+                  r"([A-Z]+)(\d+)<(\$[A-Z]+\$\d+)\)$")
+
+
+def _rules_at(ws, coord: str) -> list:
+    """The conditional formats over one cell of the sheet as written, in the order they are tried."""
+    from openpyxl.utils import range_boundaries
+    from openpyxl.utils.cell import coordinate_from_string, column_index_from_string
+    c, r = coordinate_from_string(coord)
+    c = column_index_from_string(c)
+    out = []
+    for rng in ws.formulas.conditional_formatting:
+        for bounds in str(rng.sqref).split():
+            c0, r0, c1, r1 = range_boundaries(bounds)
+            if c0 <= c <= c1 and r0 <= r <= r1:
+                out += [(x, c - c0, r - r0) for x in sorted(rng.rules, key=lambda x: x.priority)]
+    return out
+
+
+def _is_grey(ws, coord: str) -> bool:
+    """Whether a cell's grey rule holds (its second: the first is the same with a gap in points' number format),
+    worked out from the calculated sheet by moving its relative references as a spreadsheet does."""
+    from openpyxl.utils import get_column_letter
+    from openpyxl.utils.cell import column_index_from_string
+    from pocketbook import house
+    rule, dc, dr = _rules_at(ws, coord)[1]
+    m = GREY.match(_inner(rule.formula[0]))
+    assert m, rule.formula[0]
+    assert rule.dxf.fill is None and rule.dxf.font.color.rgb[-6:] == house.DISABLED_TEXT
+    at = lambda col, row: ws[f"{get_column_letter(column_index_from_string(col) + dc)}{int(row) + dr}"].value  # noqa
+    loans, few = at(m.group(3), m.group(4)), ws[m.group(5).replace("$", "")].value
+    return isinstance(at(m.group(1), m.group(2)), (int, float)) and isinstance(loans, (int, float)) and loans < few
+
+
+def _coord(ws, title: str, key) -> str:
+    """Where a block's cell is on the sheet: the block by its title, the cell by its row and column labels."""
+    for row in ws.iter_rows():
+        for c in row:
+            if isinstance(c.value, str) and c.value.startswith(title) and c.row > _below(ws):
+                import tabs
+                head, cols = tabs.header_of(ws, c.row, c.column)
+                rr = head + 1
+                while ws.cell(row=rr, column=c.column).value != key[0]:
+                    rr += 1
+                return ws.cell(row=rr, column=cols[key[1]]).coordinate
+    raise KeyError(title)
+
+
+def test_grids_grey_a_cell_under_the_fewest_loans_and_leave_it_out_of_the_scale(grids_book, tmp_path):
+    b, _ = grids_book
+    few = _fewest(b)
+    ws, blocks, _ = _grids(b, tmp_path / "k0.xlsx", measure="Kept after losses")
+    bk, bd, loans = blocks["vs the book"], blocks["vs rest of band"], blocks["Loans"]
+    kiosk = next(k for k, v in loans.items() if k[1] == KIOSK and k[0] != "All" and v)
+    assert loans[kiosk] == 3 and bk[kiosk] < -50                     # the photo: 3 loans, the deepest gap
+    real = [abs(v) for blk in (bk, bd) for k, v in blk.items() if isinstance(v, (int, float)) and loans[k] >= few]
+    assert abs(bk[kiosk]) > max(real)
+    # the colour scale's bound is the largest gap among the cells with enough loans
+    meta = _views_rows(b)["G|FICO x CHANNEL|ranr_rate|meta"]
+    assert meta[1] == pytest.approx(max(real)) and meta[4] == few
+    # every cell under the fewest loans is grey, with no colour; every other number is coloured as before
+    for title, blk in (("vs the book", bk), ("vs rest of band", bd)):
+        for k, v in blk.items():
+            if isinstance(v, (int, float)):
+                assert _is_grey(ws, _coord(ws, title, k)) == (loans[k] < few), (title, k)
+        rules = _rules_at(ws, _coord(ws, title, kiosk))
+        grey = _inner(rules[1][0].formula[0])
+        assert [r.dxf.fill for r, *_ in rules[:2]] == [None, None]
+        coloured = [_inner(r.formula[0]) for r, *_ in rules[2:] if r.dxf.fill is not None]
+        assert coloured and all(f.startswith(f"AND(NOT({grey})") for f in coloured)
+    # what one cell says, and the note
+    _, _, said = _grids(b, tmp_path / "k1.xlsx", measure="Kept after losses", row=kiosk[0], column=KIOSK)
+    assert said["The colour"] == f"Grey: only 3 loans, fewer than the {few} set on Control, so not coloured."
+    note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 16)}
+    assert note["Colour"].endswith(f"Grey: fewer loans than the {few} in Fewest loans in a pocket on Control, so "
+                                   f"not coloured, and left out of the largest gap.")
+
+
+def test_grids_fewest_loans_is_the_number_the_run_used_and_no_filter_by_offers_all_loans(tmp_path, monkeypatch):
+    """Fewest loans left at its suggestion: the grey line is the number the Run worked out, not the old 30. With no
+    Filter by picked in the launcher, nothing can be filtered, and the tab says where to pick one."""
+    import math
+    from pocketbook import control, perm, results
+    import tabs
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    monkeypatch.setattr(perm, "SHUFFLES", 100)
+    x = synth.write_extract(tmp_path / "src", n=4000)
+    out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL",),
+                                            split="REV_DEBT", outcome="BAD_FLAG"))
+    _answer(out.book)
+    wb = load_workbook(out.book)
+    for r in wb["Control"].iter_rows(min_row=control.FIRST_ROW):
+        if r[control.KEY_COL - 1].value == "min_loans":
+            r[control.CHOOSE_COL - 1].value = "Enough for 5 expected losses (suggested)"
+    wb.save(out.book)
+    assert book.run(out.book).ok
+    want = max(2, math.ceil(5 / _bad_rate(_loans_file(x))))
+    assert want != 30 and _views_rows(out.book)["G|fewest"][0] == want
+    wb = load_workbook(out.book)
+    assert tabs.options(wb, results.GRIDS, "Only loans where") == [results.ALL_LOANS]
+    ws = wb[results.GRIDS]
+    at = tabs.dropdown(ws, "Only loans where")
+    assert ws.cell(row=at.row + 1, column=at.column).value == "Pick a Filter by in the launcher."
+    ws, blocks, _ = _grids(out.book, tmp_path / "f0.xlsx")
+    thin = next(k for k, v in _pockets(blocks["Loans"]).items() if v < want)
+    _, _, said = _grids(out.book, tmp_path / "f1.xlsx", row=thin[0], column=thin[1])
+    n = blocks["Loans"][thin]
+    assert said["The colour"] == (f"Grey: only {n} loan{'' if n == 1 else 's'}, fewer than the {want} set on Control, "
+                                  f"so not coloured.")
+    assert f"Grey: fewer loans than the {want} in Fewest loans" in \
+        next(ws.cell(row=r, column=3).value for r in range(3, 16) if ws.cell(row=r, column=2).value == "Colour")
+
+
+def test_grids_the_books_own_figure_heads_vs_the_book(grids_book, tmp_path):
+    """The book's rate, worked out here from the loan file, in the heading, following the Measure picked; the same
+    with a value filtered, since the comparison stays the whole book."""
+    b, x = grids_book
+    rows = _loans_file(x)
+    both = [(_num(r["RANR_AMT"]), _num(r["ORIG_BAL"])) for r in rows]
+    kept = sum(a for a, c in both if a is not None and c is not None) / sum(c for a, c in both
+                                                                         if a is not None and c is not None)
+    want = {"Bad loans": f"{_bad_rate(rows) * 100:.2f}%", "Kept after losses": f"{kept * 100:.2f}%",
+            "Loan size": f"${_size(rows)[0]:,.0f}"}
+    for k, (measure, fig) in enumerate(want.items()):
+        for only in ("All loans", "Y"):
+            ws, _, _ = _grids(b, tmp_path / f"h{k}{only[0]}.xlsx", measure=measure, **{ONLY: only})
+            assert _head(ws, "vs the book") == f"vs the book (book: {fig})", (measure, only)
+            assert _head(ws, "vs rest of band") == "vs rest of band"
+
+
+def test_grids_only_loans_where_shows_one_values_grid_against_the_whole_book(grids_book, tmp_path):
+    """Y's loans only: every count, rate and gap worked out again from the loan file. vs the book is against the
+    whole book's rate; vs rest of band against the rest of the band among Y's loans."""
+    from pocketbook import results
+    import tabs
+    b, x = grids_book
+    rows = _loans_file(x)
+    assert tabs.options(load_workbook(b), results.GRIDS, ONLY) == [results.ALL_LOANS, "N", "Y", "(blank)"]
+    ws, blocks, said = _grids(b, tmp_path / "y.xlsx", **{ONLY: "Y"})
+    rate, bk, bd, loans = (blocks[t] for t in ("Rate", "vs the book", "vs rest of band", "Loans"))
+    cells = _cells([r for r in rows if r["SYS_FLAG"] == "Y"], loans)
+    book_rate = _bad_rate(rows)
+    min_events = _min_losses(b)
+    assert {k for k, v in loans.items() if v} == set(cells)
+    shown = 0
+    for k, got in cells.items():
+        assert loans[k] == len(got)
+        assert rate[k] == pytest.approx(_bad_rate(got))
+        bad = sum(1 for r in got if r["BAD_FLAG"] == "1")
+        if bad < min_events:
+            assert bk[k] is None and bd[k] is None
+            continue
+        assert bk[k] == pytest.approx(_bad_rate(got) / book_rate)                  # the whole book's rate
+        if "All" not in k:
+            rest = [r for kk, v in cells.items() if kk[0] == k[0] and "All" not in kk and kk != k for r in v]
+            if rest and _bad_rate(rest):
+                assert bd[k] == pytest.approx(_bad_rate(got) / _bad_rate(rest))
+                shown += 1
+    assert shown >= 3
+    assert said["name"].endswith(", Bad loans, only loans where SYS_FLAG is Y")
+    # its own heat scale, from its own cells with enough loans
+    few = _fewest(b)
+    v = _views_rows(b)
+    key = "G|FICO x CHANNEL|where Y|ranr_rate"
+    labels = v["G|FICO x CHANNEL|where Y|rows"]
+    got = [abs(g) for i in range(1, len([x for x in labels if x]) + 1) for what in ("book", "band")
+           for g, n in zip(v[f"{key}|{what}|{i}"], v[f"G|FICO x CHANNEL|where Y|loans|{i}"])
+           if isinstance(g, (int, float)) and isinstance(n, int) and n >= few]
+    assert v[f"{key}|meta"][1] == pytest.approx(max(got))
+    assert v[f"{key}|meta"][1] != v["G|FICO x CHANNEL|ranr_rate|meta"][1]
+    # the 3-loan pocket is grey here too, by its count among Y's loans
+    kiosk = next(k for k in cells if k[1] == KIOSK and k[0] != "All")
+    _, _, said = _grids(b, tmp_path / "y1.xlsx", measure="Kept after losses", row=kiosk[0], column=KIOSK,
+                        **{ONLY: "Y"})
+    assert said["The colour"].startswith("Grey: only 3 loans, ")
+
+
+def test_grids_loan_size_is_booked_per_loan_described_never_red_or_green(grids_book, tmp_path):
+    from pocketbook import results
+    import tabs
+    b, x = grids_book
+    rows = _loans_file(x)
+    wb = load_workbook(b)
+    assert results.SIZE_NAME in tabs.options(wb, results.GRIDS, "Measure")
+    assert results.SIZE_NAME not in tabs.options(wb, results.POCKETS, "Measure")          # never tested
+    assert results.SIZE_NAME not in tabs.options(wb, results.SPLIT, "Measure")
+    book_avg = _size(rows)[0]
+    for only, pick in (("All loans", rows), ("Y", [r for r in rows if r["SYS_FLAG"] == "Y"])):
+        ws, blocks, _ = _grids(b, tmp_path / f"s{only[0]}.xlsx", measure=results.SIZE_NAME, **{ONLY: only})
+        rate, bk, bd, loans = (blocks[t] for t in ("Rate", "vs the book", "vs rest of band", "Loans"))
+        cells = _cells(pick, loans)
+        for k, got in cells.items():
+            avg = _size(got)[0]
+            assert rate[k] == pytest.approx(avg) and bk[k] == pytest.approx(avg / book_avg)
+            rest = [r for kk, v in cells.items() if kk[0] == k[0] and "All" not in kk and kk != k for r in v]
+            assert bd[k] == (None if "All" in k or not rest else pytest.approx(avg / _size(rest)[0])), k
+    # one cell in words, with the median, and no red or green
+    k = next(k for k, v in _cells(rows, loans).items() if "All" not in k and len(v) > 100
+             and all(_num(r["ORIG_BAL"]) is not None for r in v))
+    got = _cells(rows, loans)[k]
+    ws, blocks, said = _grids(b, tmp_path / "s1.xlsx", measure=results.SIZE_NAME, row=k[0], column=k[1])
+    avg, med = _size(got)
+    assert said["Rate"] == f"These {len(got):,} loans averaged ${avg:,.0f} booked, median ${med:,.0f}."
+    assert said["vs the book"] == f"{avg / book_avg:.2f}× the average loan of the whole book."
+    assert said["The colour"] == results.SAY_SIZE
+    fills = {r.dxf.fill.fgColor.rgb[-6:] for r, *_ in _rules_at(ws, _coord(ws, "vs the book", k))
+             if r.dxf.fill is not None and '="size"' in r.formula[0]}
+    assert fills == {c for _, c in results.SIZE_STEPS}
+    heat = [r.formula[0] for r, *_ in _rules_at(ws, _coord(ws, "vs the book", k))
+            if r.dxf.fill is not None and "LOG(" in r.formula[0]]
+    assert heat and all('<>"size"' in f for f in heat)
+
+
+def test_grids_loan_size_is_not_offered_without_a_booked_amount(tmp_path):
+    import dataclasses
+    from openpyxl import Workbook
+    from pocketbook import config as cfgmod, engine, results
+    from pocketbook.ingest import read_table
+    cfg, _ = synth.write(tmp_path / "cube", n=3000)
+    raw = cfgmod.load(cfg).raw
+    raw["split"] = {"field": "SYS_FLAG", "how": "each_value"}
+    c = cfgmod.parse(raw)
+    table = read_table(_flag_file(tmp_path, n=3000))
+    res = engine.run(c, table)
+    assert res.book_size is not None and res.grids[0].sizes
+    bare = engine.run(dataclasses.replace(c, booked=""), table)
+    assert bare.book_size is None and not bare.grids[0].sizes
+    for r, offered in ((res, True), (bare, False)):
+        wb = Workbook()
+        results.write_grids(wb, r, results.Choices(wb), results.Views(wb))
+        ch_ = wb[results.CHOICES]
+        heads = {ch_.cell(row=1, column=j).value: j for j in range(1, ch_.max_column + 1)}
+        opts = [ch_.cell(row=i, column=heads["Grids: Measure"]).value for i in range(2, ch_.max_row + 1)]
+        assert (results.SIZE_NAME in opts) == offered
+
+
+# ---- Borderline: a verdict whose shuffled p-value sits near the bar
+# BACKLOG §6d item 7: "A verdict on a shuffled p-value near 5% can fall either way with another seed ... Recommended:
+# flag them." The firm, 29 Sep 2026, by pop-up: "I don't like 'could fall either way' but flag it somehow", and chose
+# "Borderline": "Net drain · borderline (p 0.048)". The tie-out of the same day found a shuffled p-value 3.5 standard
+# errors from where a million shuffles put it. The rule (docs/statistics.md B2a): the p-value that decides the verdict,
+# after the allowance, came from shuffling and sits within 2 of its own standard errors of the bar, either side; the
+# standard error is sqrt(p (1 - p) / shuffles), times what the allowance multiplied the p-value by. A z test's or an
+# exact test's p-value is the same on every run, so it is never borderline.
+
+UNDER, OVER, FAR, NEAR_Z, TINY = 0.048, 0.052, 0.3, 0.049, 0.001
+BORDER_SAID = ("Borderline: the test's p-value is within the shuffle's own margin of the 5% bar, so another run "
+               "could read it the other way.")
+
+
+def test_borderline_is_two_of_the_shuffles_own_standard_errors_either_side_of_the_bar():
+    import math
+    from pocketbook import stats
+    assert stats.BORDERLINE_SE == 2
+    assert stats.shuffle_se(0.05, 10_000) == pytest.approx(math.sqrt(0.05 * 0.95 / 10_000))       # 0.00218
+    assert stats.shuffle_se(0.05, None) is None and stats.shuffle_se(None, 2_000) is None
+    se = lambda p: stats.shuffle_se(p, 2_000)                                                 # noqa: E731
+    # both sides of the bar, a pass and a fail alike
+    assert stats.borderline(UNDER, se(UNDER), 0.95) and stats.borderline(OVER, se(OVER), 0.95)
+    # the edge: 1.5 standard errors in, 2.5 out, either side
+    s05 = se(0.05)
+    for k, want in ((1.5, True), (2.5, False)):
+        for p in (0.05 - k * s05, 0.05 + k * s05):
+            assert stats.borderline(p, se(p), 0.95) is want, (k, p)
+    # far from the bar, or with no standard error (a z or exact test), never
+    assert not stats.borderline(FAR, se(FAR), 0.95) and not stats.borderline(TINY, se(TINY), 0.95)
+    assert not stats.borderline(NEAR_Z, None, 0.95)
+    # at 10,000 shuffles the margin is narrower: 0.048 is 0.9 standard errors from 5%, 0.045 is 2.4
+    assert stats.borderline(0.048, stats.shuffle_se(0.048, 10_000), 0.95)
+    assert not stats.borderline(0.045, stats.shuffle_se(0.045, 10_000), 0.95)
+    # the bar follows the confidence: 0.098 is borderline at 90%, not at 95%
+    assert stats.borderline(0.098, se(0.098), 0.90) and not stats.borderline(0.098, se(0.098), 0.95)
+    assert stats.borderline_words(UNDER, 0.95) == "borderline (p 0.048)"
+    assert stats.p_text(0.0496, 0.95) == "0.0496"          # three decimals would print it on the bar, 0.050
+    # docs/statistics.md B2a's worked example
+    se10 = lambda p: stats.shuffle_se(p, 10_000)                                              # noqa: E731
+    assert round((0.05 - 0.048) / se10(0.048), 1) == 0.9 and round((0.05 - 0.045) / se10(0.045), 1) == 2.4
+    assert round(se10(0.0048) * 20 / 2, 4) == 0.0069
+
+
+def test_borderline_standard_error_follows_the_allowance_that_set_the_p_value():
+    """The tie-out of 29 Sep 2026: one pocket's raw p set 21 others' through Benjamini-Hochberg. The standard error
+    is the one of the raw p-value that sets each adjusted one, times the same m / j."""
+    from pocketbook import engine
+    a, b, c = 0.001, 0.002, 0.003
+    # every adjusted p is 0.03, set by the third (0.03 x 3 / 3): so is every standard error, at x 1
+    assert engine.adjust([0.01, 0.02, 0.03], "bh") == pytest.approx([0.03] * 3)
+    assert engine.adjust_se([0.01, 0.02, 0.03], [a, b, c], "bh") == pytest.approx([c, c, c])
+    # 0.01 sets its own (0.01 x 2 / 1 = 0.02): its error x 2; 0.5 sets its own at x 1
+    assert engine.adjust_se([0.01, 0.5], [a, b], "bh") == pytest.approx([2 * a, b])
+    assert engine.adjust_se([0.01, 0.2], [a, b], "bonferroni") == pytest.approx([2 * a, 2 * b])
+    # capped at 1, nowhere near the bar: no standard error, so never borderline
+    assert engine.adjust_se([0.01, 0.6], [a, b], "bonferroni")[1] is None
+    assert engine.adjust_se([0.7, 0.8], [a, b], "bh") == pytest.approx([b, b])       # both set by 0.8, x 1
+    assert engine.adjust_se([0.9, 1.0], [a, b], "bh") == [None, None]                # capped at 1
+    assert engine.adjust_se([0.01, None, 0.02], [a, None, b], "none") == [a, None, b]
+    # a p-value set by one that wasn't shuffled has none
+    assert engine.adjust_se([0.01, 0.02], [a, None], "bh") == [None, None]
+
+
+def _plant(real):
+    """engine._shuffle_tests, then every tested pocket's p-value in two grids planted (both comparisons), so each
+    grid's family is equal p-values and the allowance leaves them as they are: FICO x CHANNEL's charge-offs just
+    under the bar and what it kept far under it, with Bad loans' z and exact tests at 0.049; FICO x ASSET_CLASS's
+    charge-offs just over the bar and what it kept far over it. The split's halves of FICO x CHANNEL: charge-offs
+    just under, and the pooled figure just over."""
+
+    def planted(config, measures, per_row, n, built, halved):
+        real(config, measures, per_row, n, built, halved)
+        two = {g.dimension.lower(): g for g, _, _ in halved}
+        want = [(two["channel"], {"gco_rate": UNDER, "ranr_rate": TINY, "outcome_loans": NEAR_Z}),
+                (two["asset_class"], {"gco_rate": OVER, "ranr_rate": FAR})]
+        for g, ps in want:
+            for _, c in g.inner():
+                for m, p in ps.items():
+                    s = c.rates[m]
+                    if s.p_book is not None:
+                        s.p_book = p
+                    if s.p_band is not None:
+                        s.p_band = p
+        g = two["channel"]
+        for got in g.split_compare.values():
+            x = got.get("gco_rate")
+            if x is not None and x[1] is not None:
+                got["gco_rate"] = (x[0], UNDER, x[2], x[3])
+        if g.split_pooled.get("gco_rate", {}).get("ratio_p") is not None:
+            g.split_pooled["gco_rate"]["ratio_p"] = OVER
+    return planted
+
+
+@pytest.fixture(scope="module")
+def border_book(tmp_path_factory):
+    """The synthetic book, FICO by CHANNEL and by ASSET_CLASS, split in halves by REV_DEBT, with p-values planted
+    either side of the bar (_plant): the book, the engine's result for it, the Run's outcome, and the book
+    calculated."""
+    from pocketbook import engine, perm
+    from recalc import calculated_book
+    d = tmp_path_factory.mktemp("border")
+    got = {}
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 2_000)
+        mp.setattr(engine, "_shuffle_tests", _plant(engine._shuffle_tests))
+        run = engine.run
+
+        def kept(*a, **k):
+            got["res"] = run(*a, **k)
+            return got["res"]
+        mp.setattr(engine, "run", kept)
+        out = book.set_up(synth.write_extract(d / "src", n=8000),
+                          choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL", "ASSET_CLASS"),
+                                             split="REV_DEBT"))
+        _answer(out.book)
+        ran = book.run(out.book)
+        assert ran.ok, ran.lines
+    return {"b": out.book, "res": got["res"], "ran": ran, "calc": calculated_book(out.book)}
+
+
+def _two(res):
+    """The two two-way grids, FICO x CHANNEL and FICO x ASSET_CLASS."""
+    by = {g.dimension.lower(): g for g in res.grids}
+    return by["channel"], by["asset_class"]
+
+
+def _flagged(m: str, grid) -> list:
+    return [c.rates[m].borderline for _, c in grid.inner() if c.rates[m].borderline]
+
+
+def test_borderline_engine_flags_a_shuffled_verdict_just_either_side_of_the_bar_and_nothing_else(border_book):
+    from pocketbook import engine
+    res = border_book["res"]
+    ch_, ac = _two(res)
+    for grid, p, words in ((ch_, UNDER, "borderline (p 0.048)"), (ac, OVER, "borderline (p 0.052)")):
+        turned = 0
+        for _, c in grid.inner():
+            s = c.rates["gco_rate"]
+            if s.flag in (engine.WORSE, engine.BETTER, engine.UNSURE_WORSE, engine.UNSURE_BETTER):
+                assert s.borderline == words, (grid.dimension, s.flag)
+                assert (s.p_band if s.by_band else s.p_book) == pytest.approx(p)
+                assert (s.se_band if s.by_band else s.se_book) == pytest.approx((p * (1 - p) / 2_000) ** 0.5)
+                turned += 1
+            else:
+                assert s.borderline is None, (grid.dimension, s.flag)     # in line inside the loss line: not p's call
+            assert s.worse_borderline == (words if s.flag in (engine.WORSE, engine.UNSURE_WORSE) else None)
+        assert turned >= 3, grid.dimension
+    # a pass just under the bar reads worse, a fail just over reads not significant: both flagged
+    assert any(c.rates["gco_rate"].flag == engine.WORSE for _, c in ch_.inner())
+    assert any(c.rates["gco_rate"].flag == engine.UNSURE_WORSE for _, c in ac.inner())
+    # a z or exact test at 0.049 is never borderline; nor is a shuffled p-value far from the bar either side
+    zs = [c.rates["outcome_loans"] for _, c in ch_.inner() if c.rates["outcome_loans"].p_book is not None]
+    assert zs and all(s.p_book == pytest.approx(NEAR_Z) and s.test in (engine.Z_TEST, engine.EXACT_TEST)
+                      and s.se_book is None and s.borderline is None for s in zs)
+    assert any(s.flag == engine.WORSE for s in zs)                     # a real verdict, still not flagged
+    assert _flagged("ranr_rate", ch_) == [] and _flagged("ranr_rate", ac) == []
+    assert any(c.rates["ranr_rate"].flag == engine.WORSE for _, c in ch_.inner())
+
+
+def _pk_rows(res):
+    """(grid, band, segment, measure, RateStat) in _pockets' own order (live._write_pockets)."""
+    rates = [m for m in res.measures if m.is_rate]
+    for grids in (res.grids, res.three_way):
+        for g in grids:
+            for (bl, dl), c in g.inner():
+                for m in rates:
+                    yield g, bl, dl, m, c.rates[m.name]
+
+
+def _note(ws) -> dict:
+    """A tab's method note, {label: words}, from its calculated cells."""
+    out = {}
+    top = next(c.row for row in ws.iter_rows(max_row=40) for c in row if c.value == "How this tab works")
+    col = next(c.column for c in ws[top] if c.value == "How this tab works")
+    for r in range(top + 1, top + 20):
+        a, b = ws.cell(row=r, column=col).value, ws.cell(row=r, column=col + 1).value
+        if a is None:
+            break
+        out[a] = b
+    return out
+
+
+def test_borderline_pockets_worse_says_it_beside_the_word_and_keeps_the_words_colour(border_book, tmp_path):
+    import tabs
+    from pocketbook import live, results
+    res, calc = border_book["res"], border_book["calc"]
+    # every pocket on _pockets, as the tabs read it, against the engine's own flag
+    pk = calc[live.POCKETS]
+    n = 0
+    for r, (g, bl, dl, m, s) in enumerate(_pk_rows(res), start=live.P_FIRST):
+        assert (pk.cell(row=r, column=live.P_BAND).value, pk.cell(row=r, column=live.P_MEASURE).value) == (bl, m.name)
+        btxt = pk.cell(row=r, column=live.P_BTXT).value or None
+        assert btxt == (s.borderline[len("borderline (p "):-1] if s.borderline else None), (g.dimension, bl, dl,
+                                                                                               m.name)
+        worse = pk.cell(row=r, column=live.P_WORSE).value
+        assert pk.cell(row=r, column=live.P_WORSE_SAID).value == live.flagged(worse, s.worse_borderline)
+        n += bool(btxt)
+    assert n >= 6
+    # the Pockets tab: charge-offs, a pass and a fail, each flagged; Bad loans at 0.049 by the z test, never
+    ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "gco.xlsx", results.POCKETS,
+                                     measure="Charge-offs"), results.POCKETS)
+    said = {x["worse_said"] for x in tabs.pockets(ws)}
+    assert "Yes · borderline (p 0.048)" in said and "Not sure · borderline (p 0.052)" in said, said
+    ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "bad.xlsx", results.POCKETS,
+                                     measure="Bad loans"), results.POCKETS)
+    rows = tabs.pockets(ws)
+    assert any(x["worse"] == "Yes" for x in rows) and not any("borderline" in str(x["worse_said"]) for x in rows)
+    # its colour is the word's, borderline or not: every rule on Worse? compares the word without the flag
+    written = load_workbook(border_book["b"])[results.POCKETS]
+    col = results.col(results.K_WORSE)
+    rules = [r.formula[0] for rng in written.conditional_formatting for r in rng.rules
+             if str(rng.sqref).startswith(col) and f'="{live.YES}"' in r.formula[0]]
+    assert rules and all(f'IFERROR(LEFT(${col}' in f and 'FIND(" · "' in f for f in rules), rules
+    # the method note says what it means, in the firm's plain words and under 25, at the end of its p-value item
+    # so that no row of the tab moves
+    note = _note(calc[results.POCKETS])
+    assert note["p-value"].endswith(" " + BORDER_SAID)
+    assert len(BORDER_SAID.split()) <= 25 + 1
+
+
+def test_borderline_paid_cost_kept_together_says_it_and_its_colour_and_chart_stay_the_words(border_book, tmp_path):
+    import tabs
+    from pocketbook import results
+    res = border_book["res"]
+    ch_, _ = _two(res)
+    path = tabs.choose(border_book["b"], tmp_path / "pck.xlsx", results.PCK, grid="FICO x CHANNEL")
+    ws = tabs.calculated(path, results.PCK)
+    rows = tabs.pck(ws)
+    by = {(bl, dl): c for (bl, dl), c in ch_.inner()}
+    said = set()
+    for x in rows:
+        c = by[(x["band"], x["seg"])]
+        want = results.together_said(x["together"], c.rates["gco_rate"].borderline, c.rates["ranr_rate"].borderline)
+        assert x["together_said"] == want, x
+        said.add(x["together_said"])
+    assert "Net drain · borderline (p 0.048)" in said, said
+    # red and green follow the word: the Net drain rows' dots are the red ones
+    from recalc import recalc
+    chart = recalc(path, tmp_path / "pck-chart")[results.CHART]
+    drains = [k for k, x in enumerate(rows, start=1) if x["together"] == "Net drain"]
+    assert drains and all(isinstance(chart.cell(row=k, column=results.H_RX).value, (int, float)) for k in drains)
+    tog = [r.formula[0] for rng in ws.formulas.conditional_formatting for r in rng.rules
+           if str(rng.sqref).startswith(results.col(results.C_TOG))]
+    named = [f for f in tog if "Net drain" in f or "Strong" in f]
+    assert named and all(results.col(results.C_H_TOG) in f for f in named)
+    note = _note(ws)
+    assert note["Together"].endswith(f" {BORDER_SAID} Together gives the p-value of each side that is, charge-offs "
+                                     f"first.")
+
+
+def _summary_p(ws, measure: str):
+    h = next(c.row for row in ws.iter_rows() for c in row if c.value == "High half worse in")
+    for r in range(h + 1, h + 8):
+        if ws.cell(row=r, column=2).value == measure:
+            return ws.cell(row=r, column=7).value
+    raise KeyError(measure)
+
+
+def test_borderline_split_says_it_in_place_of_the_p_value_and_keeps_it_bold(border_book, tmp_path):
+    import tabs
+    from pocketbook import results
+    res = border_book["res"]
+    ch_, _ = _two(res)
+    ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "split.xlsx", results.SPLIT,
+                                     grid="FICO x CHANNEL", measure="Charge-offs"), results.SPLIT)
+    ps = tabs.block(ws, "p-value per pocket")
+    flagged = 0
+    for (bl, dl), c in ch_.inner():
+        x = ch_.split_compare.get((bl, dl), {}).get("gco_rate")
+        se = ch_.split_se.get((bl, dl), {}).get("gco_rate")
+        want = results.split_said(x[1] if x else None, se, 0.95)
+        got = ps[(bl, dl)]
+        assert got == (pytest.approx(want) if isinstance(want, float) else want), (bl, dl, got, want)
+        flagged += want == "borderline (p 0.048)"
+    assert flagged >= 3
+    assert _summary_p(ws, "Charge-offs") == "borderline (p 0.052)"
+    assert isinstance(_summary_p(ws, "Bad loans"), float)                    # the z test's: never
+    # the bold rule reads the number behind the words, one range per column
+    rules = [r.formula[0] for rng in ws.formulas.conditional_formatting for r in rng.rules
+             if "ISTEXT" in r.formula[0] and "significance_bar" in r.formula[0]]
+    assert len(rules) >= len(ch_.dim_labels)
+    assert _note(ws)["p-value"].endswith(" " + BORDER_SAID)
+
+
+def test_borderline_start_here_record_and_the_launcher_count_and_name_them(border_book):
+    import tabs
+    from pocketbook import engine, launcher, live
+    res, calc, ran = border_book["res"], border_book["calc"], border_book["ran"]
+    names = book._names(res)
+    gco = [(g, bl, dl, c.rates["gco_rate"]) for g in res.grids for (bl, dl), c in g.inner()]
+    worse = [x for x in gco if x[3].flag == engine.WORSE and x[3].material is not False and (x[3].dollars or 0) > 0]
+    border = [x for x in worse if x[3].worse_borderline]
+    assert border and len(border) < len(gco)
+    # the launcher's headline
+    assert ran.summary["borderline"] == len(border)
+    tiles = launcher.finished_tiles(ran.summary)
+    assert tiles[0][2].endswith(f" · {len(border):,} borderline")
+    # Start here: the tile, and each of the five largest that is borderline says so beside its segment
+    ws = calc["Start here"]
+    tile = next(ws.cell(row=c.row + 1, column=c.column).value for row in ws.iter_rows() for c in row
+                if c.value == "Pockets worse and material, charge-offs")
+    assert tile.endswith(f" · {len(border)} borderline"), tile
+    head = next(c.row for row in ws.iter_rows() for c in row if c.value == "Largest, worse and material")
+    listed = [(ws.cell(row=head + k, column=2).value, ws.cell(row=head + k, column=3).value)
+              for k in range(1, book.TOP_ROWS + 1)]
+    want = {(f"{names[g.band]} {bl}", str(dl)): s.worse_borderline for g, bl, dl, s in worse}
+    assert listed[0][0] and any("borderline (p 0.048)" in str(seg) for _, seg in listed), listed
+    for band, seg in (x for x in listed if x[0]):
+        assert seg == live.flagged(tabs.word(seg), want[(band, tabs.word(seg))]), (band, seg)
+    # Record: the rule, and the count now; the Run's line names the worst with its flag
+    rec = tabs.record(calc)
+    assert "within 2 of its own standard errors of the 5% bar" in rec["Borderline"]
+    assert "never borderline" in rec["Borderline"]
+    n = len(gco)
+    assert rec["Borderline now: Charge-offs"] == (f"{sum(1 for x in gco if x[3].borderline)} of {n:,} pockets on "
+                                                  f"the grids have a borderline verdict "
+                                                  f"({sum(1 for x in gco if x[3].worse_borderline)} on Worse?).")
+    assert not any(k.startswith("Borderline now: Bad loans") for k in rec)          # never shuffled
+    top = max(worse, key=lambda x: x[3].dollars)
+    title = next(m.title for m in res.measures if m.name == "gco_rate")
+    line = f"Worst for {title}: {names[top[0].band]} {top[1]} / {names[top[0].dimension]} {top[2]}"
+    assert top[3].worse_borderline and f"{line} · {top[3].worse_borderline}." in ran.lines, ran.lines
+
+
+# ---- Filter by, apart from Split by (30 Sep 2026)
+# The firm found the Grids' filter worked only off Split by: "Wait only works on split by? Isn't that for like above and
+# below median". Offered a separate Filter by (any category of six values or fewer, or the origination year), they
+# answered "Yes hoping to have this by morning". Their use: 2022 to 2024 originations, flipped year by year to show
+# the pockets hold across vintages. Every rule decided for a filtered view stays: vs the book is the whole book ("we
+# keep things compared to the whole book that's just kind of the point"), vs rest of band is within the filtered
+# loans, grey and the heat scale go by the view's own cells.
+
+ONLY_YEAR = "Only loans where ORIG_YEAR is"
+KIOSK_2024_RANR = -100000.0
+YEARS = ("2022", "2023", "2024", "(no date)")
+
+
+def _vintage_file(tmp_path, n=4000, first=2022, years=3):
+    """The synthetic book, its loans made from `first` over `years` years; every 151st has no origination date (a
+    blank), so it belongs to no year. A second date column, FIRST_PAY_DATE, sits beside it 400 days later, so a year
+    read from the wrong column lands in the wrong year. Three Kiosk loans at FICO 700: two booked $1,000,000 in 2022
+    keeping nothing, one booked $1,000 in 2024 losing $100,000, so the 2024 view shows a figure far wider than any
+    whole-book cell."""
+    from datetime import date, timedelta
+    src = synth.write_extract(tmp_path / "src", n=n)
+    rows = list(csv.DictReader(open(src, encoding="utf-8")))
+    rng = random.Random(30)
+    span = (date(first + years, 1, 1) - date(first, 1, 1)).days - 1
+    for i, r in enumerate(rows):
+        made = date(first, 1, 1) + timedelta(days=rng.randint(0, span))
+        r["ORIG_DATE"] = "" if i % 151 == 5 else made.isoformat()
+        r["FIRST_PAY_DATE"] = (made + timedelta(days=400)).isoformat()
+    for k, (bal, ranr, made) in enumerate(((1e6, 0.0, "2022-03-01"), (1e6, 0.0, "2022-06-01"),
+                                           (1000.0, KIOSK_2024_RANR, "2024-05-01"))):
+        rows.append({**rows[10], "LOAN_NBR": f"K{k}", "FICO": 700, "CHANNEL": KIOSK, "ORIG_BAL": bal, "BAD_FLAG": 0,
+                     "GCO_AMT": 0, "RANR_AMT": ranr, "ORIG_DATE": made, "FIRST_PAY_DATE": "2025-01-01"})
+    out = tmp_path / "vintages.csv"
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    return out
+
+
+def _year(r) -> str:
+    """A loan's origination year, worked out here from the loan file: its ORIG_DATE's first four characters."""
+    return r["ORIG_DATE"][:4] if r["ORIG_DATE"] else "(no date)"
+
+
+def test_filter_by_launcher_offers_every_category_and_the_origination_year(tmp_path, monkeypatch):
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    x = _vintage_file(tmp_path, n=1500)
+    loans = _loans_file(x)
+    f = _flow(x)
+    assert f.heads() == ("Cut into bands", "Segment by", "Split by", "Filter by")
+    rows = f.rows()
+    by = {r["name"]: r for r in rows}
+    for name in ("CHANNEL", "ASSET_CLASS"):                                  # every category can filter
+        assert by[name]["d"] == {"on": False, "radio": True}
+    for name in ("FICO", "ORIG_BAL", "REV_DEBT", "BAD_FLAG", "LOAN_NBR", "ORIG_DATE"):
+        assert by[name]["d"] is None, name
+    # ORIG_YEAR sits with the categories: it splits and filters, never segments
+    none = sum(1 for r in loans if not r["ORIG_DATE"])
+    yr = by[ch.ORIG_YEAR]
+    assert yr["what"] == f"Origination year, from ORIG_DATE · 3 values · {none} with no date"
+    assert yr["b"] is None and yr["c"] == {"on": False, "radio": True} and yr["d"] == {"on": False, "radio": True}
+    names = [r["name"] for r in rows]
+    assert names.index("ASSET_CLASS") < names.index(ch.ORIG_YEAR) < names.index("BAD_FLAG")
+    # Filter by is its own pick: the split and the segments stay as they are
+    f.click(ch.ORIG_YEAR, "d")
+    f.click("REV_DEBT", "c")
+    assert f.filter == ch.ORIG_YEAR and f.split == "REV_DEBT" and {"CHANNEL", "ASSET_CLASS"} <= f.seg
+    f.click("CHANNEL", "d")                                                  # one column filters, or none
+    assert f.filter == "CHANNEL" and "CHANNEL" in f.seg and f.split == "REV_DEBT"
+    f.click("CHANNEL", "d")
+    assert f.filter is None
+    f.click(ch.ORIG_YEAR, "d")
+    f.pick_outcome("BAD_FLAG")
+    f.answer_outcome(True)
+    got = f.choices()
+    assert got.filter == ch.ORIG_YEAR and got.split == "REV_DEBT"
+    ok, said = f.summary()
+    assert ok and said.endswith("adds 4 more. Grids can show only the loans of one ORIG_YEAR."), said
+    # written to Control beside the split, and read back by the next Set up
+    f.next()
+    assert f.page == "answer", f.message
+    ws = load_workbook(f.book())[control.SHEET]
+    shown = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=control.CHOOSE_COL).value
+             for r in range(control.FIRST_ROW, ws.max_row + 1)}
+    assert shown["Split every pocket by"] == "REV_DEBT" and shown["Filter the Grids by"] == ch.ORIG_YEAR
+    again = _flow(x)
+    assert again.filter == ch.ORIG_YEAR and again.split == "REV_DEBT"
+    # a test of a new variable has no Filter by; an extract with no origination date has no ORIG_YEAR row
+    f.set_mode("new")
+    assert all(r["d"] is None for r in f.rows()) and f.choices().filter is None
+    bare = tmp_path / "bare" / "nodate.csv"
+    bare.parent.mkdir()
+    with open(bare, "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=[c for c in loans[0] if not c.endswith("_DATE")])
+        w.writeheader()
+        w.writerows([{k: v for k, v in r.items() if not k.endswith("_DATE")} for r in loans])
+    assert ch.ORIG_YEAR not in [r["name"] for r in _flow(bare).rows()]
+
+
+def test_filter_by_refuses_more_than_six_values_in_the_launcher_and_at_the_run(tmp_path, monkeypatch):
+    assert ch.too_many_to_filter("X", ch.FILTER_MOST_VALUES) is None           # six values filter
+    said = ch.too_many_to_filter("REGION", 7)
+    assert said == ("REGION has 7 values. The Grids can be filtered by a column of 6 values at most: with more, each "
+                    "value's loans are too few to fill a grid. Filter by a column with fewer values, or by none.")
+    f = _flow(_flag_file(tmp_path))
+    f.pick_outcome("BAD_FLAG")
+    f.answer_outcome(True)
+    f.click("REGION", "d")
+    assert f.summary() == (False, said) and f.states()["next"] == "disabled"
+    f.click("SYS_FLAG", "d")                                                 # Y, N and a blank: two values
+    assert f.summary()[0]
+    # nine years of originations are too many too; the loans with no date aren't counted
+    many = _flow(_vintage_file(tmp_path / "nine", n=1500, first=2016, years=9))
+    many.pick_outcome("BAD_FLAG")
+    many.answer_outcome(True)
+    many.click(ch.ORIG_YEAR, "d")
+    assert many.summary() == (False, ch.too_many_to_filter(ch.ORIG_YEAR, 9))
+    # the Run refuses it too, in the same words, whatever wrote the workbook
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    out = book.set_up(f.extract, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL",),
+                                                    filter="REGION", outcome="BAD_FLAG"))
+    _answer(out.book)
+    ran = book.run(out.book)
+    assert not ran.ok and ran.lines == [f"Couldn't run: {said}"]
+
+
+@pytest.fixture(scope="module")
+def vintage_book(tmp_path_factory):
+    """FICO x CHANNEL on 2022 to 2024 originations, split in halves by REV_DEBT (a number) and filtered by ORIG_YEAR."""
+    from pocketbook import perm
+    d = tmp_path_factory.mktemp("vintage")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 200)
+        x = _vintage_file(d)
+        out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL",),
+                                                split="REV_DEBT", filter=ch.ORIG_YEAR, outcome="BAD_FLAG"))
+        _answer(out.book)
+        # edges typed at whole scores, so each band's label says exactly which loans it holds (an equal-loans edge
+        # such as 654.2 puts FICO 654 in a band labelled "... - 653")
+        from test_book import at
+        wb = load_workbook(out.book)
+        wb["Columns"][at(wb, "FICO", book.C_EDGES)] = "620; 680; 740"
+        wb.save(out.book)
+        ran = book.run(out.book)
+        assert ran.ok, ran.lines
+    return out.book, x, ran
+
+
+def test_filter_by_year_under_a_number_split_every_cell_from_the_loan_file(vintage_book, tmp_path):
+    """Filter by works whatever Split by is doing: here REV_DEBT halves every pocket, and ORIG_YEAR filters the Grids.
+    For every year, and the loans with no date, every count, rate and comparison worked out again from the loan
+    file: vs the book against the whole book's rate, vs rest of band against the rest of the band among that
+    year's loans; and each view's heat scale from its own cells."""
+    from pocketbook import results
+    import tabs
+    b, x, ran = vintage_book
+    rows = _loans_file(x)
+    wb = load_workbook(b)
+    assert tabs.options(wb, results.GRIDS, ONLY_YEAR) == [results.ALL_LOANS, *YEARS]
+    assert tabs.options(wb, results.POCKETS, "Pockets") == ["Two-way", "Split by REV_DEBT"]    # the split is its own
+    book_rate = _bad_rate(rows)
+    few, min_events = _fewest(b), _min_losses(b)
+    v = _views_rows(b)
+    bounds = []
+    for year in YEARS:
+        ws, blocks, said = _grids(b, tmp_path / f"y{year[:3]}.xlsx", **{ONLY_YEAR: year})
+        rate, bk, bd, loans = (blocks[t] for t in ("Rate", "vs the book", "vs rest of band", "Loans"))
+        cells = _cells([r for r in rows if _year(r) == year], loans)
+        assert {k for k, n in loans.items() if n} == set(cells), year
+        shown = 0
+        for k, got in cells.items():
+            assert loans[k] == len(got), (year, k)
+            assert rate[k] == pytest.approx(_bad_rate(got)), (year, k)
+            bad = sum(1 for r in got if r["BAD_FLAG"] == "1")
+            if bad < min_events:
+                if "All" not in k:                                          # a pocket; a total isn't held back
+                    assert bk[k] is None and bd[k] is None, (year, k)
+                continue
+            assert bk[k] == pytest.approx(_bad_rate(got) / book_rate), (year, k)            # the whole book
+            if "All" not in k:
+                rest = [r for kk, vv in cells.items() if kk[0] == k[0] and "All" not in kk and kk != k for r in vv]
+                if rest and _bad_rate(rest):
+                    assert bd[k] == pytest.approx(_bad_rate(got) / _bad_rate(rest)), (year, k)
+                    shown += 1
+        assert shown >= (3 if year != "(no date)" else 0), year
+        assert said["name"].endswith(f", Bad loans, only loans where ORIG_YEAR is {year}"), said["name"]
+        assert _head(ws, "vs the book") == f"vs the book (book: {book_rate * 100:.2f}%)"      # the whole book's
+        # its own heat scale: the largest gap in points among its own cells with enough loans
+        key = f"G|FICO x CHANNEL|where {year}"
+        labels = v[f"{key}|rows"]
+        gaps = [abs(g) for i in range(1, len([y for y in labels if y]) + 1) for what in ("book", "band")
+                for g, n in zip(v[f"{key}|ranr_rate|{what}|{i}"], v[f"{key}|loans|{i}"])
+                if isinstance(g, (int, float)) and isinstance(n, int) and n >= few]
+        if gaps:
+            assert v[f"{key}|ranr_rate|meta"][1] == pytest.approx(max(gaps)), year
+            bounds.append(v[f"{key}|ranr_rate|meta"][1])
+    assert len(set(bounds)) == len(bounds) >= 3                             # each year its own scale
+    # no note under the dropdown: a Filter by was picked; the method note says what ORIG_YEAR is
+    ws = wb[results.GRIDS]
+    at = tabs.dropdown(ws, ONLY_YEAR)
+    assert ws.cell(row=at.row + 1, column=at.column).value != results.SAY_NO_FILTER
+    note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 16)}
+    assert note["Only loans where"].endswith("ORIG_YEAR is the year in ORIG_DATE; (no date) holds the loans without "
+                                             "a readable date.")
+    # Record and the Run name the filter where they name the split
+    counts = {y: sum(1 for r in rows if _year(r) == y) for y in YEARS}
+    listed = ", ".join(f"{y} ({n:,} loans)" for y, n in counts.items())
+    rec = tabs.record(b)
+    assert rec["Grids filter"].startswith(f"ORIG_YEAR (the year in ORIG_DATE): {listed}. ")
+    assert rec["Split"].startswith("REV_DEBT, each pocket halved")
+    assert f"Grids filter by ORIG_YEAR (the year in ORIG_DATE): {listed}. Pick one in Grids' Only loans where." \
+        in ran.lines
+
+
+def test_filter_by_grids_widths_fit_the_filtered_values(vintage_book):
+    """The one data width fits every value any view shows, filtered ones too: the 2024 view's Kiosk pocket keeps
+    -10,000% of what it booked, far wider than any whole-book figure."""
+    import dataclasses
+    import math
+    from openpyxl import Workbook
+    from pocketbook import config as cfgmod, engine, results
+    from pocketbook.ingest import read_table
+    b, x, _ = vintage_book
+    cfg = cfgmod.parse(book.read_book(b)[0])
+    table = read_table(x)
+    widths = {}
+    for filt in (ch.ORIG_YEAR, None):
+        res = engine.run(dataclasses.replace(cfg, filter_by=filt), table)
+        _, _, _, _, fit = results.grid_views(res, results.Views(Workbook()))
+        widths[filt] = results.grid_widths(fit)[0]
+    kiosk = f"{KIOSK_2024_RANR / 1000 * 100:.2f}%"                          # the 2024 view's Kept after losses
+    assert widths[ch.ORIG_YEAR] >= min(results.DATA_CAP, len(kiosk) + 2)
+    assert widths[ch.ORIG_YEAR] > widths[None]                                # so the filtered views set it
+    got = load_workbook(b)[results.GRIDS].column_dimensions["C"].width
+    assert math.isclose(got, widths[ch.ORIG_YEAR], abs_tol=0.01)
+
+
+def test_filter_by_origination_year_splits_too_with_each_year_against_the_rest(tmp_path, monkeypatch):
+    """ORIG_YEAR as Split by: each year set against the rest of its pocket on the Split tab, and whether the years
+    differ at all, the consistency test across vintages. One definition of the year serves both picks. With no
+    Filter by, the Grids offer All loans only, though the split is a category."""
+    import dataclasses
+    from pocketbook import config as cfgmod, engine, perm, results
+    from pocketbook.ingest import read_table
+    import tabs
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    monkeypatch.setattr(perm, "SHUFFLES", 100)
+    x = _vintage_file(tmp_path, n=6000)
+    rows = _loans_file(x)
+    out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL",),
+                                            split=ch.ORIG_YEAR, outcome="BAD_FLAG"))
+    _answer(out.book)
+    raw = book.read_book(out.book)[0]
+    assert raw["split"] == {"field": ch.ORIG_YEAR, "how": "each_value"} and "filter_by" not in raw
+    ran = book.run(out.book)
+    assert ran.ok, ran.lines
+    wb = load_workbook(out.book)
+    split = tabs.options(wb, results.SPLIT, "Grid")
+    assert [s for s in split if s.startswith("FICO x CHANNEL · ")] == [
+        f"FICO x CHANNEL · ORIG_YEAR {y} vs rest" for y in YEARS]
+    assert tabs.options(wb, results.GRIDS, "Only loans where") == [results.ALL_LOANS]
+    at = tabs.dropdown(wb[results.GRIDS], "Only loans where")
+    assert wb[results.GRIDS].cell(row=at.row + 1, column=at.column).value == results.SAY_NO_FILTER
+    ws = tabs.calculated(tabs.choose(out.book, tmp_path / "s.xlsx", results.SPLIT,
+                                     grid="FICO x CHANNEL · ORIG_YEAR 2023 vs rest"), results.SPLIT)
+    text = [str(v) for row in ws.iter_rows(values_only=True) for v in row if v is not None]
+    differ = next(t for t in text if t.startswith("Do the values of ORIG_YEAR differ at all? Bad loans: "))
+    assert "on 3 degrees of freedom" in differ
+    assert any(t.startswith("Same in every pocket? Bad loans: ") for t in text)
+    assert tabs.record(out.book)["Split"].startswith("ORIG_YEAR (the year in ORIG_DATE), each pocket split by each")
+    # the engine's parts are the years of the loan file: every loan in one, a loan with no date in none of the years
+    res = engine.run(cfgmod.parse(raw), read_table(x))
+    g = res.grids[0]
+    assert g.split_parts == list(YEARS)
+    assert g.split_general["outcome_loans"]["df"] == 3
+    for y in YEARS:
+        n = sum(c.rows for (b_, d_, p), c in g.split_cells.items() if p == y and engine.ALL not in (b_, d_))
+        assert n == sum(1 for r in rows if _year(r) == y), y
+    assert [r[ch.ORIG_YEAR] for r in res.table.rows] == [_year(r) for r in rows]
+    assert engine.origination_years(read_table(x), "ORIG_DATE") == [_year(r) for r in rows]
+    # no column marked Origination date: refused in words, never guessed
+    with pytest.raises(engine.DataRefused, match="no column in this extract is marked so"):
+        engine.run(dataclasses.replace(cfgmod.parse(raw), origination_date=None), read_table(x))
+
+
+def test_a_band_cut_between_whole_numbers_is_labelled_by_the_values_it_holds():
+    """Found building Filter by, 30 Sep 2026: FICO cut at an equal-loan point of 654.2 read "496 - 653" and held
+    654. A band is labelled from the first shown value it holds to the last."""
+    from pocketbook import engine
+    assert engine.band_labels((654.2, 700.0), 496, 850, whole=True) == ["496 - 654", "655 - 699", "700 - 850"]
+    # dollars with cents read to the nearest dollar, as before: 26,803.10 is 26,803
+    assert engine.band_labels((26803.1, 38548.6), 5000, 90000) == ["5,000 - 26,802", "26,803 - 38,548", "38,549 - 90,000"]
+    assert engine.band_labels((620, 680, 740), 500, 850) == ["500 - 619", "620 - 679", "680 - 739", "740 - 850"]
+    for edge, value in ((654.2, 654), (654.2, 655), (700.0, 699), (700.0, 700)):
+        label = engine.band_labels((edge,), 496, 850, whole=True)[0 if value < edge else 1]
+        lo, hi = (float(x.replace(",", "")) for x in label.split(" - "))
+        assert lo <= value <= hi, (edge, value, label)

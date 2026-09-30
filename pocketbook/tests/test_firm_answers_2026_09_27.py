@@ -157,7 +157,8 @@ def _listed(values_wb) -> list[tuple]:
     ws = values_wb["Start here"]
     head = next(c.row for row in ws.iter_rows() for c in row if c.value == "Largest, worse and material")
     rows = [tuple(ws.cell(row=head + k, column=c).value for c in (2, 3, 6)) for k in range(1, book.TOP_ROWS + 1)]
-    return [r for r in rows if r[0]]
+    # a borderline pocket's segment carries its flag (29 Sep 2026); the pocket itself is what is compared here
+    return [(r[0], tabs.word(r[1]), r[2]) for r in rows if r[0]]
 
 
 def _worse_and_material_now(values_wb) -> list[tuple]:
@@ -362,6 +363,7 @@ def test_the_finished_window_draws_two_tiles_and_the_runs_first_two_lines(monkey
 
 ORDER = ["FICO", "ORIG_BAL", "REV_DEBT",          # cut into bands, or split by
          "CHANNEL", "ASSET_CLASS",                # segment by
+         "ORIG_YEAR",                             # the year of ORIG_DATE: split or filter by (30 Sep 2026)
          "BAD_FLAG", "GCO_AMT", "RANR_AMT",       # what is measured
          "LOAN_NBR", "ORIG_DATE"]                 # the key and the date, greyed
 
@@ -370,16 +372,16 @@ def test_choose_tests_rows_run_numbers_categories_outcomes_then_key_and_date(tmp
     """The extract reads LOAN_NBR, FICO, CHANNEL, ORIG_BAL, BAD_FLAG, ...: the table no longer does. The same order
     for both run kinds, so the toggle never reshuffles it; an outcome row carries no box and no words."""
     f = _read(tmp_path)
-    assert [c.name for c in f.read.columns] != ORDER
+    assert [c.name for c in f.read.columns] != [x for x in ORDER if x != "ORIG_YEAR"]
     for mode in ("bleed", "new", "bleed"):
         f.set_mode(mode)
         rows = f.rows()
         assert [r["name"] for r in rows] == ORDER, mode
-        assert [r["group"] for r in rows] == [0, 0, 0, 1, 1, 2, 2, 2, 3, 3]
+        assert [r["group"] for r in rows] == [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3]
         assert [r["name"] for r in rows if r["grey"]] == ["LOAN_NBR", "ORIG_DATE"]
         assert not any("every" in r for r in rows)
-    for r in f.rows()[5:]:
-        assert r["a"] is r["b"] is r["c"] is None
+    for r in f.rows()[6:]:
+        assert r["a"] is r["b"] is r["c"] is r["d"] is None
 
 
 def test_choose_tests_rows_keep_the_extracts_order_within_a_group(tmp_path):
@@ -393,7 +395,7 @@ def test_choose_tests_rows_keep_the_extracts_order_within_a_group(tmp_path):
     f.pick(str(back))
     f.set_up()
     assert f.screen() == "L2", f.message
-    assert [r["name"] for r in f.rows()] == ["REV_DEBT", "ORIG_BAL", "FICO", "ASSET_CLASS", "CHANNEL",
+    assert [r["name"] for r in f.rows()] == ["REV_DEBT", "ORIG_BAL", "FICO", "ASSET_CLASS", "CHANNEL", "ORIG_YEAR",
                                             "RANR_AMT", "GCO_AMT", "BAD_FLAG", "ORIG_DATE", "LOAN_NBR"]
 
 

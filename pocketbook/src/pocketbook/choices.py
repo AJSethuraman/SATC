@@ -19,13 +19,21 @@ from dataclasses import dataclass, replace
 BLEED, NEW_VARIABLE = "bleed", "new_variable"
 #: the Control rows the launcher writes that aren't settings, in the order they show, with their labels
 ROWS = (("bands", "Cut into bands"), ("segments", "Segment by"), ("split", "Split every pocket by"),
-        ("outcome", "Tested against"), ("test", "Inputs tested"), ("hold", "Held fixed"))
+        ("filter", "Filter the Grids by"), ("outcome", "Tested against"), ("test", "Inputs tested"),
+        ("hold", "Held fixed"))
 KEY = "launcher"                  # Control's key column reads "launcher|bands" and so on
 #: what the bands and segments rows read when nobody narrowed them: every column its meaning cuts
 EVERY = {"bands": "Every number column", "segments": "Every category"}
 #: the most values a category may split every pocket by (the firm, 29 Sep 2026: "I know it can't break down too
 #: far"), blanks aside: a blank is a part of its own, as it is a segment of its own
 SPLIT_MOST_VALUES = 6
+#: the most values the Grids' "Only loans where" may offer (the firm, 30 Sep 2026: a separate Filter by, "Yes hoping
+#: to have this by morning"), blanks and loans with no date aside: each value is every grid built again on its loans
+FILTER_MOST_VALUES = 6
+#: the one column the launcher offers that the extract doesn't have: the year each loan was made, read from the column
+#: marked Origination date (engine.origination_years works it out, for Split by and Filter by alike). A loan whose
+#: date can't be read is in NO_DATE, a value of its own, so every loan is still shown
+ORIG_YEAR, ORIG_YEAR_LABEL, NO_DATE = "ORIG_YEAR", "Origination year", "(no date)"
 
 
 def too_many_values(column: str, n: int) -> str | None:
@@ -35,6 +43,16 @@ def too_many_values(column: str, n: int) -> str | None:
         return None
     return (f"{column} has {n:,} values. A category can split the pockets by {SPLIT_MOST_VALUES} values at most: "
             f"with more, each pocket's parts are too thin to read. Split by a column with fewer values, or by none.")
+
+
+def too_many_to_filter(column: str, n: int) -> str | None:
+    """The refusal when a column has too many values to filter the Grids by, in the words the launcher and the Run
+    both give; None when it has few enough."""
+    if n <= FILTER_MOST_VALUES:
+        return None
+    return (f"{column} has {n:,} values. The Grids can be filtered by a column of {FILTER_MOST_VALUES} values at "
+            f"most: with more, each value's loans are too few to fill a grid. Filter by a column with fewer values, "
+            f"or by none.")
 
 
 def names(text) -> tuple[str, ...]:
@@ -52,6 +70,7 @@ class Choices:
     bands: tuple[str, ...] | None = None    # None: every column whose meaning cuts it into bands
     segments: tuple[str, ...] | None = None  # None: every column whose meaning makes it a segment
     split: str | None = None
+    filter: str | None = None               # the Grids' "Only loans where" column, whatever the split does
     outcome: str | None = None
     test: tuple[str, ...] = ()
     hold: tuple[str, ...] = ()
@@ -71,6 +90,7 @@ class Choices:
         out = {"bands": EVERY["bands"] if self.bands is None else ", ".join(self.bands) or "None",
                "segments": EVERY["segments"] if self.segments is None else ", ".join(self.segments) or "None",
                "split": self.split,
+               "filter": None if new else self.filter,
                "outcome": self.outcome if new else None,
                "test": ", ".join(self.test) if new and self.test else None,
                "hold": ", ".join(self.hold) if new and self.hold else None}
@@ -85,6 +105,7 @@ class Choices:
                 return None
             return () if v == "None" else names(v)
         return cls(bands=listed("bands"), segments=listed("segments"), split=got.get("split") or None,
+                   filter=got.get("filter") or None,
                    outcome=got.get("outcome") or None, test=names(got.get("test")), hold=names(got.get("hold")),
                    **settings)
 

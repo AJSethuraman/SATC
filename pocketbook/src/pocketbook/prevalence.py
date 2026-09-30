@@ -112,7 +112,7 @@ def _labels_by_band(res, rows) -> dict[str, list[str]]:
         read = [engine.classify_number(r.get(b.field), cfg.missing.get(b.field)) for r in rows]
         edges = tuple(res.band_edges[b.name])
         seen = [v for v, why in read if why is None]
-        labels = engine.band_labels(edges, min(seen), max(seen)) if seen else engine.band_labels(edges)
+        labels = engine.band_labels(edges, min(seen), max(seen), whole=engine.all_whole(seen)) if seen else engine.band_labels(edges)
         out[b.name] = [engine.band_of(v, edges, labels) if why is None else engine.REASON_LABEL[why]
                        for v, why in read]
     return out
@@ -121,7 +121,7 @@ def _labels_by_band(res, rows) -> dict[str, list[str]]:
 def _bands_of(values: list[tuple], edges: tuple) -> tuple[list[str], list[str]]:
     """Each loan's band of a column, and the bands in order."""
     seen = [v for v, why in values if why is None]
-    labels = engine.band_labels(edges, min(seen), max(seen)) if seen else engine.band_labels(edges)
+    labels = engine.band_labels(edges, min(seen), max(seen), whole=engine.all_whole(seen)) if seen else engine.band_labels(edges)
     got = [engine.band_of(v, edges, labels) if why is None else engine.REASON_LABEL[why] for v, why in values]
     present = set(got)
     return got, [x for x in labels if x in present] + [x for x in engine._order(got) if x not in labels]

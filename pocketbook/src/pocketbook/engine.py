@@ -41,7 +41,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import perm, stats
-from .choices import SPLIT_MOST_VALUES, too_many_values  # noqa: F401  (SPLIT_MOST_VALUES: the tabs say it)
+from .choices import NO_DATE, ORIG_YEAR, SPLIT_MOST_VALUES, too_many_to_filter, too_many_values  # noqa: F401
 from .config import EACH_LOAN, PERIOD_WORDS, PROFIT, Band, Config, Dimension, Measure, MissingRule
 from .ingest import BLANK, Bad, Table, cell_text, is_blank, parse_number
 
@@ -134,13 +134,20 @@ def classify_text(raw: Any, rule: MissingRule | None) -> str:
     return text
 
 
-def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | None = None) -> list[str]:
+def all_whole(values) -> bool:
+    """True when every value is a whole number: a score, a count, a term in months."""
+    return all(float(v).is_integer() for v in values)
+
+
+def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | None = None,
+                whole: bool = False) -> list[str]:
     """Bands as ranges: "620 - 679", with the lowest from the column's smallest
     value and the highest to its largest (the firm, 25 Sep 2026: "i want bands to
     be written in '0 - 660' form ... adding words over symbols makes a big
     difference to how cluttered it feels"). A band holds its first number and
     stops one step short of the next band's, the step being 1 for whole-number
-    edges and the edges' own last decimal place otherwise."""
+    edges and the edges' own last decimal place otherwise. `whole`: the column holds whole numbers only (a score),
+    so an edge between them (654.2) starts its band at the next whole number (655)."""
     dec = 0
     if min(abs(float(x)) for x in edges) < 100:          # scores and dollars read as whole numbers
         for x in edges:
@@ -157,11 +164,17 @@ def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | N
         def f(x, d=d):
             return f"{x:,.{d}f}"
 
+        def up(x, step=step):
+            # an edge finer than the step shown (a FICO cut at 654.2, read as whole numbers) starts its band at the
+            # first shown value in it, 655, and the band below ends at 654, which it holds (found 30 Sep 2026: it
+            # read "496 - 653" and held 654)
+            return math.ceil(round(x / step, 9)) * step if whole else x
+
         first = f(math.floor(lo / step) * step) if lo is not None and lo < edges[0] else None
         last = f(math.ceil(hi / step) * step) if hi is not None and hi >= edges[-1] else None
-        out = [f"{first} - {f(edges[0] - step)}" if first else f"up to {f(edges[0] - step)}"]
-        out += [f"{f(a)} - {f(b - step)}" for a, b in zip(edges, edges[1:])]
-        out.append(f"{f(edges[-1])} - {last}" if last else f"{f(edges[-1])} and up")
+        out = [f"{first} - {f(up(edges[0]) - step)}" if first else f"up to {f(up(edges[0]) - step)}"]
+        out += [f"{f(up(a))} - {f(up(b) - step)}" for a, b in zip(edges, edges[1:])]
+        out.append(f"{f(up(edges[-1]))} - {last}" if last else f"{f(up(edges[-1]))} and up")
         if len(set(out)) == len(out):
             return out
     return out
@@ -392,6 +405,52 @@ def adjust(ps: list[float | None], how: str) -> list[float | None]:
     return out
 
 
+def adjust_se(ps: list[float | None], ses: list[float | None], how: str) -> list[float | None]:
+    """The standard error of each p-value after the allowance (adjust), for Borderline (docs/statistics.md B2a).
+    The allowance multiplies a raw p-value, and its sampling error with it: Bonferroni's p x m carries SE x m; a
+    Benjamini-Hochberg p is the smallest p_(j) x m / j over the ranks j at or above its own, so it carries the SE
+    of the raw p-value that set it, times that same m / j (the tie-out of 29 Sep 2026 found one pocket's raw p
+    setting 21 others'). None where the p-value that sets it has none (it wasn't shuffled)."""
+    idx = [i for i, p in enumerate(ps) if p is not None]
+    m = len(idx)
+    out: list[float | None] = [None] * len(ps)
+    if how == "none" or not m:
+        return [ses[i] if ps[i] is not None else None for i in range(len(ps))]
+    if how == "bonferroni":
+        for i in idx:
+            out[i] = ses[i] * m if ses[i] is not None and ps[i] * m < 1.0 else None
+        return out
+    order = sorted(idx, key=lambda i: ps[i])
+    running, se = math.inf, None
+    for rank in range(m, 0, -1):
+        i = order[rank - 1]
+        v = ps[i] * m / rank
+        if v < running:
+            running, se = v, (ses[i] * m / rank if ses[i] is not None else None)
+        # a p-value the allowance capped at 1 is nowhere near the bar: scaling its error by m / j would say it was
+        out[i] = se if running < 1.0 else None
+    return out
+
+
+def p_decides(word: str | None, gap: float | None, line: "ProfitLine | None") -> bool:
+    """Whether a reading's word turns on its p-value, so a p-value on the other side of the bar reads another
+    word: worse against worse, not significant (and better likewise); for profit read by each pocket's own test,
+    worse or better against in line. A multiple inside the loss line reads in line whatever the p-value, and too
+    few to test was never tested."""
+    if word in (WORSE, BETTER, UNSURE_WORSE, UNSURE_BETTER):
+        return True
+    return word == IN_LINE and line is not None and line.kind == "test" and gap not in (None, 0)
+
+
+def worse_turns(word: str | None, gap: float | None, line: "ProfitLine | None") -> bool:
+    """Whether Worse? (Yes / Not sure / No) turns on the p-value: worse against worse, not significant; and, for
+    profit read by its own test, a shortfall in line (No) against worse (Yes). Better against better, not
+    significant is No either way."""
+    if word in (WORSE, UNSURE_WORSE):
+        return True
+    return word == IN_LINE and line is not None and line.kind == "test" and gap is not None and gap < 0
+
+
 # --------------------------------------------------------------------------
 # Result shapes
 
@@ -438,6 +497,14 @@ class RateStat:
     hits_book: int | None = None        # the shuffle test: shuffles with a gap at least as big, of `shuffles`
     hits_band: int | None = None
     shuffles: int | None = None
+    # Borderline (docs/statistics.md B2a): the shuffle's standard error of p_book and p_band, after the allowance
+    # (adjust_se); None for a test that isn't shuffled. `borderline` is the flag's "borderline (p 0.048)" when the
+    # p-value that decides it is that near the bar at the Run's confidence, and `worse_borderline` the same when it
+    # is Worse? (Yes / Not sure / No) that turns on it
+    se_book: float | None = None
+    se_band: float | None = None
+    borderline: str | None = None
+    worse_borderline: str | None = None
 
     def sums(self) -> tuple:
         return (self.units, self.num, self.den, self.syy, self.sxx, self.sxy)
@@ -460,6 +527,20 @@ class Cell:
     rows: int = 0
     rates: dict[str, RateStat] = field(default_factory=dict)
     medians: dict[str, MedianStat] = field(default_factory=dict)
+
+
+@dataclass
+class Size:
+    """What the loans in one cell booked (Grids' Loan size, the firm, 29 Sep 2026: "we tend to give these loan
+    amounts to these FICO scores within this category"): the loans with a booked amount, their booked dollars
+    added up, and the median. A description, never tested."""
+    loans: int = 0
+    booked: float = 0.0
+    median: float | None = None
+
+    @property
+    def average(self) -> float | None:
+        return self.booked / self.loans if self.loans else None
 
 
 ALL = "All"
@@ -491,6 +572,17 @@ class Grid:
     part_tested: dict[str, dict] = field(default_factory=dict, repr=False)
     # and, for a yes/no per loan, whether the values differ at all, pooled over the pockets (B3, on K - 1 df)
     split_general: dict[str, dict] = field(default_factory=dict)
+    # Borderline (docs/statistics.md B2a): each split pocket's p-value's standard error after the allowance, as
+    # split_compare and part_compare hold the p-values ({(band, seg): {measure: se}}); None where not shuffled
+    split_se: dict[tuple[str, str], dict[str, float | None]] = field(default_factory=dict, repr=False)
+    part_se: dict[str, dict] = field(default_factory=dict, repr=False)
+    # Grids' "Only loans where" (the firm, 29 Sep 2026; since 30 Sep by the Filter by column, whatever the split
+    # does): this grid again on only the loans with each value of that column, keyed by the value. Built like any grid, so "vs the book" is still against the whole
+    # book and "vs rest of band" is against the rest of the band among those loans. Shown on Grids only: never
+    # listed as pockets, counted in a family or tied out
+    filtered: dict[str, "Grid"] = field(default_factory=dict, repr=False)
+    # what each cell booked, margins included (Size); empty without a booked amount
+    sizes: dict[tuple[str, str], Size] = field(default_factory=dict, repr=False)
 
     def cell(self, band_label: str, dim_label: str) -> Cell:
         return self.cells[(band_label, dim_label)]
@@ -525,6 +617,8 @@ class Result:
     derived: list["DerivedReport"] = field(default_factory=list)
     table: Table | None = None                  # the extract as the run read it, new columns included
     bleed: bool = True                          # False: a test of a new variable, which builds no grid (OC-42)
+    book_size: Size | None = None               # what the whole book booked, per loan (Grids' Loan size)
+    filter_values: list[str] = field(default_factory=list)  # the Filter by column's values, in order (Grids)
 
 
 # --------------------------------------------------------------------------
@@ -705,6 +799,37 @@ def origination_dates(config: Config, table: Table, rows: list[dict]) -> Origina
     return out
 
 
+def origination_years(table: Table, col: str) -> list[str]:
+    """The year each loan was made, as text ("2023"), read from `col` (the column marked Origination date) the way
+    the Run reads that column's dates; NO_DATE for a loan whose date is blank or can't be read, so it is never put
+    in a year. The one definition of ORIG_YEAR: Split by and Filter by both use it (the firm, 30 Sep 2026). Dates
+    that read two ways are refused (DataRefused), never read one way by default."""
+    from datetime import date as _date
+    read = _date_reader(table, col, "when each loan was made")
+    out = []
+    for r in table.rows:
+        d = read(r.get(col))
+        out.append(str(d.year) if isinstance(d, _date) else NO_DATE)
+    return out
+
+
+def with_year(config: Config, table: Table) -> Table:
+    """The extract with ORIG_YEAR added when the split or the filter names it (and the extract has no column of
+    that name already): the year of the column marked Origination date. Refused, in words, when none is marked."""
+    wanted = {config.split[0] if config.split else None, config.filter_by}
+    if ORIG_YEAR not in wanted or ORIG_YEAR in table.columns:
+        return table
+    col = config.origination_date
+    if not col or col not in table.columns:
+        raise DataRefused(f"{ORIG_YEAR} is the year each loan was made, read from the column marked Origination "
+                          f"date on Columns, and no column in this extract is marked so. Mark it, or split and "
+                          f"filter by another column")
+    years = origination_years(table, col)
+    rows = [{**r, ORIG_YEAR: y} for r, y in zip(table.rows, years)]
+    return Table(path=table.path, sha256=table.sha256, columns=list(table.columns) + [ORIG_YEAR], rows=rows,
+                 kind=table.kind)
+
+
 def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
     """A band or dimension on a column that is the top of a rate would cut
     the book by its own outcome: every high-GCO band would show high GCO.
@@ -746,6 +871,7 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
 def run(config: Config, table: Table) -> Result:
     warnings: list[str] = []
     table, derived = derive(config, table, warnings)
+    table = with_year(config, table)
     measures = _resolve_columns(config, table, warnings)
     config = _drop_outcome_cuts(config, measures, warnings)
     rows = table.rows                          # every loan: nothing is left out for its age or dates
@@ -782,7 +908,7 @@ def run(config: Config, table: Table) -> Result:
                             f"(`{b.field}` has too many repeated values to cut finer)")
         band_edges[b.name] = edges
         seen = [v for v, why in read if why is None]
-        labels = band_labels(edges, min(seen), max(seen)) if seen else band_labels(edges)
+        labels = band_labels(edges, min(seen), max(seen), whole=all_whole(seen)) if seen else band_labels(edges)
         band_label_sets[b.name] = labels
         bands[b.name] = [band_of(v, edges, labels) if why is None else REASON_LABEL[why] for v, why in read]
     dims = {d.name: [classify_text(raw, rules.get(d.field)) for raw in col(d.field)]
@@ -890,6 +1016,15 @@ def run(config: Config, table: Table) -> Result:
     bleed = config.run_kind != "new_variable"
     if bleed and split_vals is not None and config.split[1] == "each_value":
         _few_enough(config.split[0], split_vals)
+    # Grids' "Only loans where" reads the Filter by column (the firm, 30 Sep 2026: "Wait only works on split by?"),
+    # never the split: a number split into halves, a category split, or none, the filter is the same
+    filter_vals = None
+    if bleed and config.filter_by:
+        ff = config.filter_by
+        if ff not in table.columns:
+            raise ColumnsMissing([(ff, "the Grids' filter")], table.columns)
+        filter_vals = [classify_text(raw, rules.get(ff)) for raw in col(ff)]
+        _few_enough_to_filter(ff, filter_vals)
     for b in config.bands if bleed else ():
         for d in config.dimensions:
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
@@ -920,6 +1055,33 @@ def run(config: Config, table: Table) -> Result:
         _judge(g, config, measures, min_units, materiality_line)
     for g, _, _ in halved:
         _finish_split(g, config, measures)
+    # Grids' Loan size and "Only loans where" (the firm, 29 Sep 2026): each grid's booked dollars per cell, and each
+    # grid again on only the loans with one value of the Filter by column
+    booked = None
+    if bleed and config.booked and config.booked in table.columns:
+        booked = [classify_number(raw, rules.get(config.booked))[0] for raw in col(config.booked)]
+    book_size = None
+    if booked is not None:
+        book_size = loan_sizes([(ALL, ALL)] * n, booked).get((ALL, ALL), Size())
+        for g, _, keys in built:
+            g.sizes = loan_sizes(keys, booked)
+    values: list[str] = []
+    if filter_vals is not None:
+        values = _order(filter_vals)
+        by_name = {b.name: b for b in config.bands}
+        rows_of = {v: [i for i, x in enumerate(filter_vals) if x == v] for v in values}
+        for g, bname, keys in built:
+            for v in values:
+                idx = rows_of[v]
+                sub = [keys[i] for i in idx]
+                fg = _build_grid(config, by_name[bname], Dimension(name=g.dimension, field=""), band_edges[bname],
+                                 [k[0] for k in sub], [k[1] for k in sub], measures,
+                                 {m: [vals[i] for i in idx] for m, vals in per_row.items()}, topline, min_units,
+                                 total, needed, materiality_line, band_label_sets[bname])
+                _judge(fg, config, measures, min_units, materiality_line)
+                if booked is not None:
+                    fg.sizes = loan_sizes(sub, [booked[i] for i in idx])
+                g.filtered[v] = fg
     moves_with: dict[str, float] = {}
     if bleed and config.split and config.split[1] == "own_median":
         for b in config.bands:
@@ -931,7 +1093,36 @@ def run(config: Config, table: Table) -> Result:
                   left_out=left_out, grids=grids, warnings=warnings, tie_outs=tie_outs,
                   band_edges=band_edges, loans_needed=needed, min_units=min_units,
                   materiality_line=materiality_line, three_way=three_way,
-                  split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed)
+                  split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
+                  book_size=book_size, filter_values=values)
+
+
+def loan_sizes(keys, booked) -> dict[tuple[str, str], Size]:
+    """Each cell's Size, margins included: `keys` each loan's (band, segment), `booked` its booked amount (None
+    when it has none, and then it is left out). The values are held only while one grid is worked out."""
+    groups: dict[tuple, list[float]] = {}
+    for (b, d), v in zip(keys, booked):
+        if v is None:
+            continue
+        for k in {(b, d), (b, ALL), (ALL, d), (ALL, ALL)}:
+            groups.setdefault(k, []).append(v)
+    return {k: Size(len(v), math.fsum(v), statistics.median(v)) for k, v in groups.items()}
+
+
+def size_vs(sizes: dict, b: str, d: str, book: Size | None) -> tuple:
+    """One cell's loan size as Grids shows it: the average booked per loan, the median, the average as a multiple
+    of the whole book's, and as a multiple of the rest of its band's (its row without it; None for a margin, or
+    a cell alone in its band). Every figure None where there is nothing to divide by."""
+    s = sizes.get((b, d))
+    if s is None or not s.loans:
+        return None, None, None, None
+    avg = s.average
+    vs_book = index_of(avg, book.average) if book is not None else None
+    vs_band = None
+    row = sizes.get((b, ALL))
+    if b != ALL and d != ALL and row is not None and row.loans > s.loans:
+        vs_band = index_of(avg, (row.booked - s.booked) / (row.loans - s.loans))
+    return avg, s.median, vs_book, vs_band
 
 
 def _correlation(xs, ys) -> float | None:
@@ -1060,7 +1251,7 @@ def _merge(parts: list[Cell], measures) -> Cell:
 
 
 def _order(labels) -> list[str]:
-    special = [BLANK_LABEL, NOT_NUMBER_LABEL, MISSING_RULE_LABEL]
+    special = [NO_DATE, BLANK_LABEL, NOT_NUMBER_LABEL, MISSING_RULE_LABEL]
     plain = sorted((x for x in set(labels) if x not in special), key=_natural)
     return plain + [x for x in special if x in set(labels)]
 
@@ -1196,9 +1387,15 @@ def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
                 s.p_book = s.p_band = None
                 s.test = None
         for attr in ("p_book", "p_band"):
-            adj = adjust([getattr(cells[k].rates[m.name], attr) for k in keys], bench.many_tests)
-            for k, p in zip(keys, adj):
+            raw = [getattr(cells[k].rates[m.name], attr) for k in keys]
+            # a shuffled p-value's own sampling error, before the allowance scales it (Borderline, B2a)
+            ses = [stats.shuffle_se(p, cells[k].rates[m.name].shuffles)
+                   if cells[k].rates[m.name].test == SHUFFLE_TEST else None for k, p in zip(keys, raw)]
+            adj = adjust(raw, bench.many_tests)
+            se_adj = adjust_se(raw, ses, bench.many_tests)
+            for k, p, se in zip(keys, adj, se_adj):
                 setattr(cells[k].rates[m.name], attr, p)
+                setattr(cells[k].rates[m.name], "se_" + attr[2:], se)
         mat = materiality_line.get(m.name)
         mates = Counter(b for b, d in cells if b != ALL and d != ALL)
         # profit is read in points by the profit line on Control, on every tab (OC-32; NEXT-GOAL 3.2)
@@ -1229,6 +1426,13 @@ def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
                         s.by_band, s.dollars = True, s.excess_band
             if mat is not None and s.dollars is not None:
                 s.material = s.dollars > 0 and s.dollars >= mat
+            s.borderline = s.worse_borderline = None
+            if (b, d) != (ALL, ALL):
+                p, se, gap = (s.p_band, s.se_band, s.vs_band) if s.by_band else (s.p_book, s.se_book, s.vs_rest)
+                if stats.borderline(p, se, bench.confidence) and p_decides(s.flag, gap, line):
+                    s.borderline = stats.borderline_words(p, bench.confidence)
+                    if worse_turns(s.flag, gap, line):
+                        s.worse_borderline = s.borderline
 
 
 def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
@@ -1380,7 +1584,21 @@ def _by_value(grid: Grid, config: Config, cells3, order, measures) -> None:
 def _few_enough(field_: str, labels) -> None:
     """A category splits every pocket by each of its values, so a column with many values cuts each pocket into
     parts too thin to read: refused, said in words, never run."""
-    said = too_many_values(field_, len({v for v in labels if v not in (BLANK_LABEL, MISSING_RULE_LABEL)}))
+    said = too_many_values(field_, _values_counted(labels))
+    if said:
+        raise DataRefused(said)
+
+
+def _values_counted(labels) -> int:
+    """How many values a category holds for the six-value limits: a blank, a value answered missing and a loan with
+    no date are parts of their own, never counted against the limit."""
+    return len({v for v in labels if v not in (BLANK_LABEL, MISSING_RULE_LABEL, NO_DATE)})
+
+
+def _few_enough_to_filter(field_: str, labels) -> None:
+    """The Grids' filter builds every grid again on each value's loans: a column with many values is refused, said
+    in words, never run."""
+    said = too_many_to_filter(field_, _values_counted(labels))
     if said:
         raise DataRefused(said)
 
@@ -1483,25 +1701,42 @@ def _finish_split(grid: Grid, config: Config, measures) -> None:
             continue
         # the same allowance for many tests as every other pocket test, within this grid and measure
         # (asked on 25 Sep 2026: the split's "Luck alone" figures were the only ones shown without it)
+        # a dollar rate's split p-values are shuffled (B2), bench.shuffles times: their own sampling error, before
+        # the allowance scales it (Borderline, B2a); a yes/no's are the z test's and have none
+        shuffled = bench is not None and not yes_no(m) and bool(bench.shuffles)
+        se_of = (lambda p: stats.shuffle_se(p, bench.shuffles) if shuffled else None)       # noqa: E731
         if bench is not None:
             keys = [k for k, got in grid.split_compare.items() if m.name in got and got[m.name][1] is not None]
-            adj = adjust([grid.split_compare[k][m.name][1] for k in keys], bench.many_tests)
-            for k, p in zip(keys, adj):
+            raw = [grid.split_compare[k][m.name][1] for k in keys]
+            adj = adjust(raw, bench.many_tests)
+            for k, p, se in zip(keys, adj, adjust_se(raw, [se_of(x) for x in raw], bench.many_tests)):
                 idx, _, nh, nl = grid.split_compare[k][m.name]
                 grid.split_compare[k][m.name] = (idx, p, nh, nl)
+                grid.split_se.setdefault(k, {})[m.name] = se
+            pooled = grid.split_pooled.get(m.name, {})
+            if pooled.get("ratio_p") is not None:
+                # one pooled test per grid and measure, no allowance (the tab says so)
+                pooled["ratio_se"] = stats.shuffle_se(pooled["ratio_p"], pooled.get("shuffles")) if shuffled else None
         if bench is not None and grid.split_parts:
             # a category: every value's pockets are one family, so a column with more values pays for more tests;
             # and each pooled figure is a family across the values, one test per value
             keys = [(v, k) for v in grid.split_parts for k, got in grid.part_compare[v].items()
                     if m.name in got and got[m.name][1] is not None]
-            adj = adjust([grid.part_compare[v][k][m.name][1] for v, k in keys], bench.many_tests)
-            for (v, k), p in zip(keys, adj):
+            raw = [grid.part_compare[v][k][m.name][1] for v, k in keys]
+            adj = adjust(raw, bench.many_tests)
+            for (v, k), p, se in zip(keys, adj, adjust_se(raw, [se_of(x) for x in raw], bench.many_tests)):
                 idx, _, nh, nl = grid.part_compare[v][k][m.name]
                 grid.part_compare[v][k][m.name] = (idx, p, nh, nl)
+                grid.part_se.setdefault(v, {}).setdefault(k, {})[m.name] = se
             for what in ("ratio_p", "odds_p", "steady_p"):
                 vs = [v for v in grid.split_parts if grid.part_pooled[v].get(m.name, {}).get(what) is not None]
-                for v, p in zip(vs, adjust([grid.part_pooled[v][m.name][what] for v in vs], bench.many_tests)):
+                raw = [grid.part_pooled[v][m.name][what] for v in vs]
+                ses = [stats.shuffle_se(x, grid.part_pooled[v][m.name].get("shuffles"))
+                       if shuffled and what == "ratio_p" else None for v, x in zip(vs, raw)]
+                for v, p, se in zip(vs, adjust(raw, bench.many_tests), adjust_se(raw, ses, bench.many_tests)):
                     grid.part_pooled[v][m.name][what] = p
+                    if what == "ratio_p":
+                        grid.part_pooled[v][m.name]["ratio_se"] = se
 
 
 # --------------------------------------------------------------------------
