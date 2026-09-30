@@ -368,3 +368,41 @@ Build runs A to C as above, then check:
 | B · split by SYS_FLAG | "Branch · (blank)" 16 | 8 | 10 | 12 | 19 | 2 |
 | C · long labels | "Non-Customer/Online Direct · high" 33 | 19 | 10 | 16 (capped). With G4(a): 14, and the segment gets 28 across its halves. | 19 | 2 with G4(a); 3 without |
 | The bank's photo | "Non-Customer/VLA A" 17 | 14 | ~10 | 16 | fit | 2 |
+
+---
+
+## After: what was built (30 Sep 2026)
+
+The plan above was built on branch `pocketbook-widths-0929`. The two calls the firm had not made were taken for
+them and recorded as reversible in `BACKLOG.md` §6d:
+
+- **G4(a):** a split grid's header is two rows.
+- **G6:** booked dollars show in thousands where they would overflow.
+
+The same runs were built again and rendered the same way. The after pictures sit beside the before ones:
+
+| Before | After |
+|---|---|
+| `grids-long-channel.png` | `after-grids-long-channel.png`: FICO x CHANNEL, run C. One data width (16, the cap, set by "Non-Customer/Online Direct"), with the labels on two lines. |
+| `grids-split-headers-zoom.png` | `after-grids-split-headers.png`: FICO x CHANNEL / REV_DEBT. Each segment is merged over its high and low halves. |
+| `split-sysflag.png` | `after-split-sysflag.png`: the Grid dropdown spans B:D, and the two grids share one width. |
+| `pockets-long.png` | `after-pockets-long.png`: Segment is 29 wide, so "Non-Customer/Online Direct" fits. |
+| `look.png` | `after-look.png`: B fits "50th percentile (P50), the median". |
+| `control.png`, `columns.png` | `after-control.png`, `after-columns.png`: Control's questions stay on one line, and Columns' *Check first* wraps. |
+
+| Tab · column | Before | After (runs A / B / C) |
+|---|---|---|
+| Grids data columns | 11 | 12 / 13 / 16 |
+| Grids label columns | 20 | 19 / 20 / 20 |
+| Split data columns | 12 | 13 / 13 / 16 (the summary columns keep what their headings and values need) |
+| Split B | 26 | 23 |
+| Pockets Band / Segment / Half | 24 / 20 / 18 | 27 / 16 to 29 / 21 |
+| Paid cost kept Band / Segment | 22 / 18 | 20 / 12 to 29 |
+| Start here B / C / D / E / F | 22 / 16 / 16 / 16 / 16 | 29 / 16 to 29 / 12 / 18 / 21 |
+| Look B | 26 | 32 |
+| Control B / C / F / I | 80 / 66 / 44 / 50 | 82 / 66 / 58 / 56 |
+| Columns Name / Samples / Odd values / Show per pocket | 22 / 26 / 20 / 15 | 24 / 36 to 40 / 23 / 19 |
+| Scouting Why | 22 | 24 |
+
+`tests/test_widths.py` holds each rule. Ten planted bugs in `tools/mutation_check.py` prove the tests can fail;
+one of them sets a Grids data column back to 11.
