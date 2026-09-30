@@ -908,6 +908,13 @@ def _money(v: float) -> str:
     return f"${v:,.0f}"
 
 
+def relight(lit: str | None, hover: str | None, picked: str | None) -> tuple[str | None, dict[str, bool]]:
+    """The Choose table's tinted row: the one pointed at, else the one last clicked. Returns that row and the rows
+    to repaint, each True to tint it or False to put it back to white."""
+    want = hover or picked
+    return want, {n: n == want for n in {lit, want} - {None}}
+
+
 def build(root) -> dict:
     """The window's widgets on `root`, drawn from a Flow. Split from main() so the
     harness in tools/shoot_launcher.py can press the buttons and photograph each state."""
@@ -1004,6 +1011,38 @@ def build(root) -> dict:
                                fill=(C["INK"] if on and enabled else C["STONE"] if on else C["WHITE"]))
             if on:
                 c.create_line(5, 9, 8, 12, 13, 5, fill=C["WHITE"], width=2)
+
+    def row_light(line, name):
+        """The firm, 30 Sep 2026: "it would be nice if it highlighted the row you're clicking in when the button is
+        far away from the column names". Pointing at any part of a row tints all of it, name through boxes; a click
+        keeps it tinted after the pointer leaves, until another row is clicked."""
+        def over(on):
+            widgets["hover_row"] = name if on else None
+            light_rows()
+
+        def click(e):
+            widgets["picked_row"] = name
+            light_rows()
+        todo = [line]
+        while todo:
+            w = todo.pop()
+            todo.extend(w.winfo_children())
+            w.bind("<Enter>", lambda e: over(True), add="+")
+            w.bind("<Leave>", lambda e: over(False), add="+")
+            w.bind("<Button-1>", click, add="+")
+
+    def light_rows():
+        want, paint_ = relight(widgets.get("lit_row"), widgets.get("hover_row"), widgets.get("picked_row"))
+        for name, on in paint_.items():
+            line = widgets.get(f"row_{name}")
+            if line is None or not line.winfo_exists():
+                continue
+            todo, bg = [line], C["CANVAS"] if on else C["WHITE"]
+            while todo:
+                w = todo.pop()
+                todo.extend(w.winfo_children())
+                w.configure(bg=bg)
+        widgets["lit_row"] = want
 
     # ---- the frame: banner (L4 only), then the rail and the page
     banner = tk.Frame(root, bg=C["INK"])
@@ -1294,8 +1333,11 @@ def build(root) -> dict:
                     b.place(relx=0.5, rely=0.5, anchor="center")
                     boxes[(r["name"], which)] = b
                     widgets[f"box_{r['name']}_{which}"] = b
+            row_light(line, r["name"])
             tk.Frame(inner, bg=C["RULE"], height=1).pack(fill="x")
         widgets["boxes"] = boxes
+        widgets["lit_row"] = widgets["hover_row"] = None        # a fresh table is all white; the clicked row stays
+        light_rows()
         inner.update_idletasks()
         need = inner.winfo_reqheight()
         holder.pack(side="left", fill="both", expand=True)
