@@ -85,7 +85,7 @@ def vintage(tmp_path_factory):
     return {"book": b, "csv": x, "ran": ran,
             "across_year": _calc(b, d / "year.xlsx", "Compare", **{"Across the bottom": "Origination year"}),
             "fico_panels": _calc(b, d / "fico.xlsx", "Compare", **{"Across the bottom": "FICO",
-                                                                    "Measure": "Charge-offs"})}
+                                                                    "Measure": "GCOs ($)"})}
 
 
 @pytest.fixture(scope="module")
