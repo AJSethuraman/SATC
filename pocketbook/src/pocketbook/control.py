@@ -114,6 +114,9 @@ class Setting:
     valid: dict | None = None        # {min, max, whole}: what a typed value may be
     only_when: dict | None = None    # {key: value}: asked only when another setting has that answer
     in_launcher: bool = False        # chosen in the launcher; Control shows it read-only (the redesign)
+    #: blank is an answer of its own: nothing is assumed and nothing changes, and the Run doesn't wait for it (the
+    #: bureau codes question, 30 Sep 2026: asked, never answered for the firm)
+    optional: bool = False
 
     def recommended(self) -> Option | None:
         return next((o for o in self.options if o.recommended), None)
@@ -170,7 +173,8 @@ def _read_settings(path: str | Path | None = None) -> list[Setting]:
             out.append(Setting(key=s["key"], question=s["question"], takes_effect=s["takes_effect"],
                                override=s.get("override"), options=opts, group=g["title"],
                                judgment=bool(s.get("judgment", False)), valid=s.get("valid"),
-                               only_when=s.get("only_when"), in_launcher=s.get("asked_in") == "launcher"))
+                               only_when=s.get("only_when"), in_launcher=s.get("asked_in") == "launcher",
+                               optional=bool(s.get("optional", False))))
     return out
 
 
@@ -316,9 +320,11 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
             style(own)
         C, D, K = f"$C${r}", f"$D${r}", f"${get_column_letter(KEY_COL)}${r}"
         asked, _ = _asked_formula(s, settings, row_of)
-        answered_blank = f'AND({asked},$C{r}="",OR($D{r}="",$D{r}="n/a"))'
-        ws.conditional_formatting.add(f"C{r}:D{r}" if s.override is not None else f"C{r}",
-                                      house.still_needed(answered_blank))
+        # an optional setting's blank is an answer: never shaded, never counted as needed
+        answered_blank = "FALSE" if s.optional else f'AND({asked},$C{r}="",OR($D{r}="",$D{r}="n/a"))'
+        if not s.optional:
+            ws.conditional_formatting.add(f"C{r}:D{r}" if s.override is not None else f"C{r}",
+                                          house.still_needed(answered_blank))
         ws.cell(row=r, column=NEED_COL, value=f"=IF({answered_blank},1,0)")
         own_set = f'AND({D}<>"",{D}<>"n/a")'
         lookup = (f"IFERROR(MATCH({K}&\"|\"&{C},{OPTIONS_SHEET}!$A:$A,0),"
@@ -746,6 +752,8 @@ def _take(row, s: Setting, found: dict[str, Any], problems: list[str]) -> None:
             found[key] = int(own) if (s.valid or {}).get("whole") else own
         return
     if chosen in (None, ""):
+        if s.optional:
+            return                          # not answered: nothing assumed, nothing changes
         if s.in_launcher:
             problems.append(f'{where}: "{s.question}" is chosen in the launcher. {LAUNCHER_NOTE}')
             return

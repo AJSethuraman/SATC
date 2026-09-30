@@ -160,7 +160,8 @@ def rows(mem: dict[str, Any]) -> list[dict]:
                     "last": e.get("last"), "times": e.get("times", 1)})
     for key, e in sorted(mem["answers"].items()):
         v = e.get("value")
-        v = f"{v:g}" if isinstance(v, float) else str(v)
+        from .config import plain_value
+        v = plain_value(v)                  # -99,000,900, never -9.90009e+07
         if e.get("pattern") == "negatives":
             said = "negative values are real" if e.get("answer") == "real" else "negative values mean missing"
         else:

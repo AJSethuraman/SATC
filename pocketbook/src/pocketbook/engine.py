@@ -114,6 +114,8 @@ def _caught(v: float, rule: MissingRule) -> bool:
         return True
     if rule.above is not None and v > rule.above:
         return True
+    if rule.at_or_below is not None and v <= rule.at_or_below:
+        return True                     # Control's bureau codes answer (config.BUREAU_CODE_LINE)
     for m in rule.values:
         if isinstance(m, (int, float)) and not isinstance(m, bool) and float(m) == v:
             return True
