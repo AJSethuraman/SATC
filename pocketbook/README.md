@@ -239,8 +239,8 @@ After that, the whole routine is:
      beside it. The label columns of **Pockets**, **Paid, cost, kept** and
      **Start here** fit the Run's bands and segments (up to 32); **Look**'s
      label column fits its longest label; **Control** and **Columns** fit
-     their questions, answers, names and samples, and Columns' *Check first*
-     wraps. `tests/test_widths.py` holds each rule.
+     their questions, answers, names and samples. `tests/test_widths.py`
+     holds each rule.
    - **Record** (grey tab; it merges Check and the Log): six sections in three
      pairs, read across. *This Run*: the extract, the loans run, what was run,
      the band edges, the split, the range of origination dates (so a wrong

@@ -2414,8 +2414,13 @@ changed in the code.
   Every width is now worked out per Run from what that Run shows (`house.fit`, `house.two_line_width`), never
   set per bank. Grids: one data width for every column of the four blocks and the groups table (9 to 16), one
   label width for both label columns (12 to 28), headers that wrap with every block's the same height. Split,
-  Pockets, Paid cost kept, Start here, Look, Control and Columns fitted the same way; Columns' *Check first*
-  wraps. `tests/test_widths.py` and ten planted bugs hold it.
+  Pockets, Paid cost kept, Start here, Look, Control and Columns fitted the same way. `tests/test_widths.py` and
+  ten planted bugs hold it.
+  - **Waiting for the firm:** the survey proposed wrapping Columns' *Check first* (prose up to 147 characters,
+    clipped at 60 wide). It was built, then taken back: `test_answer_tabs` holds the redesign's rule 5 on that
+    table (*"Every row is one line and every row in a table is the same height"*), and wrapping breaks it. The
+    call is the firm's: wrap it (and relax the test for that one column), or leave it clipped and readable in
+    the cell.
   - **Decided for the firm, reversible** (each is one place in `results.py`):
     - *G4: a split grid's header is two rows*: the segment merged over its parts, the parts ("high", "low", or
       the category's values) beneath. So the merge is the same for every split grid the Grid dropdown picks,

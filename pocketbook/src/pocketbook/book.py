@@ -697,9 +697,9 @@ def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
     return out
 
 
-#: Columns' Check first: its width, and the characters of Calibri 10 a line of it holds
+#: Columns' Check first: its width. It stays one line, as every row of the table does (the redesign's rule 5,
+#: held by test_answer_tabs); the survey's proposal to wrap it waits for the firm (BACKLOG §6d)
 LOOK_WIDTH = 60
-LOOK_CHARS = int(LOOK_WIDTH / 0.85) - 2
 
 
 def _samples_of(col, made) -> list[str]:
@@ -852,14 +852,11 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
                 if cell.border.left.style is None:
                     cell.border = thin
                 cell.alignment = Alignment(vertical="center", horizontal="center" if col in (
-                    C_BLANK, C_MEANS, C_TREAT, C_EDGES, C_REMEMBERED, C_FORGET, C_IS, C_SHOW, C_PERIOD) else "left",
-                    wrap_text=True if col == C_LOOK else None)
+                    C_BLANK, C_MEANS, C_TREAT, C_EDGES, C_REMEMBERED, C_FORGET, C_IS, C_SHOW, C_PERIOD) else "left")
                 if col != C_NAME:
                     cell.font = Font(name="Calibri", size=10, bold=cell.font.b,
                                      color=SLATE if col in (C_SAMPLES, C_WHY, C_LOOK) else house.INK_TEXT)
-            # T1: Check first is a question in prose, so it wraps, and its row grows to its lines
-            said = ws.cell(row=row, column=C_LOOK).value
-            ws.row_dimensions[row].height = max(18, 14 * house.lines_at(said, LOOK_CHARS) + 4) if said else 18
+            ws.row_dimensions[row].height = 18
             ws.row_dimensions[row].hidden = hide
         r += max(1, len(asked))
     ws.cell(row=r, column=C_QKEY, value=TABLE_END)

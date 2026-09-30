@@ -388,7 +388,7 @@ The same runs were built again and rendered the same way. The after pictures sit
 | `split-sysflag.png` | `after-split-sysflag.png`: the Grid dropdown spans B:D, and the two grids share one width. |
 | `pockets-long.png` | `after-pockets-long.png`: Segment is 29 wide, so "Non-Customer/Online Direct" fits. |
 | `look.png` | `after-look.png`: B fits "50th percentile (P50), the median". |
-| `control.png`, `columns.png` | `after-control.png`, `after-columns.png`: Control's questions stay on one line, and Columns' *Check first* wraps. |
+| `control.png`, `columns.png` | `after-control.png`, `after-columns.png`: Control's questions stay on one line; Columns' Name and Samples fit. *Check first* was not wrapped: an existing test holds the redesign's rule 5 on that table, so the call waits for the firm (`BACKLOG.md` §6d). |
 
 | Tab · column | Before | After (runs A / B / C) |
 |---|---|---|
