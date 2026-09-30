@@ -165,6 +165,7 @@ class Column:
     no: int = 0              # ... 0 (good)
     other: int = 0           # ... anything else, blanks included: left out of the outcome rates and counted
     values: int | None = None   # a category: how many values it holds, blanks aside
+    parts: int = 0              # ... and 1 when it has blanks (or loans with no date) too: a value of their own
 
 
 @dataclass
@@ -241,7 +242,8 @@ def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 5
         if kind == "cat":
             n = len({str(r.get(c)) for r in made_table.rows if r.get(c) not in (None, "")})
             what = f"Category · {n:,} values" if code == "category" else f"{what} · {n:,} values"
-        out.append(Column(c, what, kind, *_yes_no(made_table, c, kind), values=n))
+        blanks = int(kind == "cat" and any(r.get(c) in (None, "") for r in made_table.rows))
+        out.append(Column(c, what, kind, *_yes_no(made_table, c, kind), values=n, parts=blanks))
     chosen = None
     if _earlier(target).exists():
         try:
@@ -265,7 +267,7 @@ def _year_row(table: Table, columns: list[Column]) -> Column | None:
     n = len({y for y in years if y != ch.NO_DATE})
     none = years.count(ch.NO_DATE)
     return Column(ch.ORIG_YEAR, f"{ch.ORIG_YEAR_LABEL}, from {dated} · {n:,} values"
-                  + (f" · {none:,} with no date" if none else ""), "year", values=n)
+                  + (f" · {none:,} with no date" if none else ""), "year", values=n, parts=int(bool(none)))
 
 
 def _earlier(book: Path) -> Path:
@@ -710,7 +712,7 @@ def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
         elif new:
             if c in choices.test or c in choices.hold:
                 out.add(c)
-        elif code in ("booked", "gco", "ranr") or c in (choices.split, choices.filter) or \
+        elif code in ("booked", "gco", "ranr") or c in (choices.split, choices.filter, choices.filter2) or \
                 (c in choices.bands if choices.bands is not None else cut == "band") or \
                 (c in choices.segments if choices.segments is not None else cut == "dimension"):
             out.add(c)
@@ -1151,7 +1153,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
         gone = note[note.index("Forgotten"):] if "Forgotten" in note else ""
         problems.append(f"Columns!{CONFIRM_CELL}: set Checked every column to Yes once you've checked each "
                         f"column's meaning." + (f" {gone}" if gone else ""))
-    columns, edges, skip, show, split, filt = {}, {}, set(), {}, [], None
+    columns, edges, skip, show, split, filt, filt2 = {}, {}, set(), {}, [], None, None
     chosen, choice_cells = control.read_choices(wb[control.SHEET])
     if chosen is None:
         problems.append("Control: this workbook was set up before the launcher chose what to cut. Press Set up "
@@ -1249,7 +1251,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
             else:
                 show[name] = sh
     if chosen is not None:
-        split, skip, filt = _cuts_chosen(chosen, choice_cells, columns, row_of_col, cat, problems)
+        split, skip, filt, filt2 = _cuts_chosen(chosen, choice_cells, columns, row_of_col, cat, problems)
     derived = _read_made(wb, columns, made_rows, problems)
     held_to = _what_is_run(wb, book, use, columns, cat, problems, tuple(d["name"] for d in derived))
     scouting = bool(held_to and held_to.get(SCOUT_KEY))       # Goal 2 item 9: find first, then confirm
@@ -1324,6 +1326,8 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
         raw["split"] = {"field": name, "how": "each_value" if cat[code].cut == "dimension" else "own_median"}
     if filt:
         raw["filter_by"] = filt                     # Grids' Only loans where (the firm, 30 Sep 2026)
+        if filt2:
+            raw["filter_by2"] = filt2               # and Filter 2: "in conjunction with each other"
     if derived:
         raw["derived"] = derived                    # fix 3.9
     about = dict(about)
@@ -1375,26 +1379,31 @@ def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, prob
                             f'(Columns!{_col(C_MEANS)}{row_of_col[name]}), which can\'t split the pockets. Only a '
                             f"score, ratio, amount (the booked amount too) or category can. Choose another in the "
                             f"launcher, or fix what it is.")
-    filt = None
-    if chosen.filter and chosen.run_kind != ch.NEW_VARIABLE:
-        name = chosen.filter
+    got = {}
+    for key in ("filter", "filter2") if chosen.run_kind != ch.NEW_VARIABLE else ():
+        name = getattr(chosen, key)
+        if not name:
+            continue
         code = columns.get(name)
         code = code if code is None or isinstance(code, str) else code["means"]
-        where = cells.get("filter", "Control")
+        where = cells.get(key, "Control")
         if name == ch.ORIG_YEAR and code is None:
             if dated:
-                filt = name
+                got[key] = name
             else:
                 no_year(where, "the launcher filters the Grids")
         elif code is None:
             problems.append(f"{where}: {name} isn't a column in this extract. Choose again in the launcher.")
         elif cat[code].cut == "dimension":
-            filt = name
+            got[key] = name
         else:
             problems.append(f'{where}: "{name}" is marked {cat[code].label} on Columns '
                             f'(Columns!{_col(C_MEANS)}{row_of_col[name]}), and only a category (or '
                             f'{ch.ORIG_YEAR_LABEL}) can filter the Grids. Choose another in the launcher, or fix '
                             f'what it is.')
+    filt, filt2 = got.get("filter"), got.get("filter2")
+    if filt2 and not filt:
+        filt, filt2 = filt2, None                   # Filter 2 alone is the one filter
     if chosen.run_kind == ch.NEW_VARIABLE and chosen.outcome:
         code = columns.get(chosen.outcome)
         code = code if code is None or isinstance(code, str) else code["means"]
@@ -1404,7 +1413,7 @@ def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, prob
             problems.append(f"{cells['outcome']}: the launcher tests against {chosen.outcome}, and {where} doesn't "
                             f"mark it {cat['outcome'].label}. Mark it so, or choose the outcome again in the "
                             f"launcher.")
-    return split, skip, filt
+    return split, skip, filt, filt2
 
 
 def _what_is_run(wb, book: Path, use: dict, columns: dict, cat, problems: list[str], made: tuple = ()) -> dict | None:
@@ -1937,8 +1946,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                                            f"by {sf}.")
                      + f" {sf} isn't cut on its own while it splits.")
     if cfg.filter_by and bleed_tabs(res) and res.filter_values:
-        lines.append(f"Grids filter by {filter_words(res)}: {filter_counts(res)}. Pick one in Grids' Only loans "
-                     f"where.")
+        lines.append(f"Grids filter by {filter_words(res)}: {filter_counts(res)}.{filter2_said(res)} Pick one in "
+                     f"Grids' Only loans where.")
     if dropped:
         lines.append(f"Forgot {', '.join(sorted(dropped))}, as marked on Columns. Check "
                      f"{'it' if len(dropped) == 1 else 'them'} and set C3 to Yes before the next Run.")
@@ -2153,20 +2162,30 @@ def _plain(problem: str) -> str:
             .replace("`columns:`", "the Columns tab").replace("`", '"'))
 
 
-def filter_words(res) -> str:
-    """The Grids' filter column as Record and the Run name it: ORIG_YEAR says where its years come from."""
-    f = res.config.filter_by
+def filter_words(res, second: bool = False) -> str:
+    """The Grids' filter column (Filter 2's, `second`) as Record and the Run name it: ORIG_YEAR says where its years
+    come from."""
+    f = res.config.filter_by2 if second else res.config.filter_by
     return f"{f} (the year in {res.config.origination_date})" if f == ch.ORIG_YEAR else str(f)
 
 
-def filter_counts(res) -> str:
-    """Each value the Grids can be filtered to, with its loans: "2022 (1,012 loans), 2023 (998 loans)"."""
+def filter_counts(res, second: bool = False) -> str:
+    """Each value the Grids can be filtered to (Filter 2's, `second`), with its loans: "2022 (1,012 loans), 2023 (998
+    loans)"."""
     g = res.grids[0] if res.grids else None
     out = []
-    for v in res.filter_values:
-        n = g.filtered[v].cells[(engine.ALL, engine.ALL)].rows if g is not None and v in g.filtered else None
+    for v in (res.filter_values2 if second else res.filter_values):
+        key = (None, v) if second else (v, None)
+        n = g.filtered[key].cells[(engine.ALL, engine.ALL)].rows if g is not None and key in g.filtered else None
         out.append(v if n is None else f"{v} ({_n(n, 'loan')})")
     return ", ".join(out)
+
+
+def filter2_said(res) -> str:
+    """Filter 2 as the Run's line and Record add it after Filter 1's: blank with none."""
+    if not (res.config.filter_by2 and res.filter_values2):
+        return ""
+    return f" And by {filter_words(res, True)}: {filter_counts(res, True)}; the two together keep the loans with both."
 
 
 def _names(res) -> dict[str, str]:
@@ -2779,7 +2798,8 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
             if f != sf:
                 rows.append((f"How closely {sf} moves with {f}", f"correlation {r:+.2f}"))
     if res.config.filter_by and res.filter_values:
-        rows.append(("Grids filter", f"{filter_words(res)}: {filter_counts(res)}. Grids' Only loans where builds "
+        rows.append(("Grids filter", f"{filter_words(res)}: {filter_counts(res)}.{filter2_said(res)} Grids' Only "
+                                     f"loans where builds "
                                      f"each grid again on one value's loans, set against the whole book. Picked "
                                      f"in the launcher (Filter by), apart from the split."))
     sug = getattr(res, "suggested", None) or {}

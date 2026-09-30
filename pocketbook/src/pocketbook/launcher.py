@@ -330,7 +330,7 @@ GROUP = {"num": 0, "cat": 1, "year": 1, "out": 2, "outd": 2}
 LAST = 3
 ROW_H = 22          # px a table row is tall; each is ruled off below by 1 px
 NO_OUTCOME = "Pick the outcome: the yes/no column where 1 means the loan went bad. Nothing is picked for you."
-BASE_W = (104, 128, 84, 84, 70, 70)  # px the Choose tests columns start at; the word columns take any width more
+BASE_W = (104, 128, 84, 84, 70, 70, 70)  # px the Choose tests columns start at; the word columns take any width more
 GAP = 6             # px between two groups
 
 
@@ -360,6 +360,7 @@ class Flow:
         self.seg: set[str] = set()
         self.split: str | None = None
         self.filter: str | None = None   # Filter by: the Grids' Only loans where column (the firm, 30 Sep 2026)
+        self.filter2: str | None = None  # Filter 2: "and <column> is" (the firm, 30 Sep 2026: two filters)
         self.outcome: str | None = None
         self.asking: str | None = None  # a column picked as the outcome, waiting for the analyst's yes
         self.test: list[str] = []
@@ -471,7 +472,7 @@ class Flow:
         kind = self._kind()
         nums = {c for c, k in kind.items() if k == "num"}
         cats = {c for c, k in kind.items() if k == "cat"}
-        self.cut, self.seg, self.split, self.filter = set(nums), set(cats), None, None
+        self.cut, self.seg, self.split, self.filter, self.filter2 = set(nums), set(cats), None, None, None
         # never picked for the analyst, not even from a workbook an earlier build wrote (the firm, 29 Sep 2026:
         # "there's no reason for it to automatically assign something, especially when it's just wrong")
         self.outcome, self.asking = None, None
@@ -486,6 +487,7 @@ class Flow:
             self.split = chosen.split if chosen.split in set(kind) | year else None
             self.seg.discard(self.split)                  # a category that splits isn't a segment too
             self.filter = chosen.filter if chosen.filter in cats | year else None
+            self.filter2 = chosen.filter2 if chosen.filter2 in cats | year else None
         else:
             self.test = [c for c in chosen.test if c in kind]
             self.hold = [c for c in chosen.hold if c in kind]
@@ -515,7 +517,7 @@ class Flow:
                 share = f"1 on {c.yes / max(c.yes + c.no + c.other, 1):.1%} of loans"
                 what = f"The outcome · {share}" if c.name == self.outcome else f"Yes/no · {share}"
             row = {"name": c.name, "what": what, "grey": k in ("key", "date", "other", "none"), "a": None,
-                   "b": None, "c": None, "d": None, "locked": locked, "group": GROUP.get(k, LAST)}
+                   "b": None, "c": None, "d": None, "e": None, "locked": locked, "group": GROUP.get(k, LAST)}
             row["gap_before"] = bool(out) and out[-1]["group"] != row["group"]     # a new group starts here
             if c.name == self.outcome:
                 pass                                                  # the outcome is neither tested nor held
@@ -533,6 +535,8 @@ class Flow:
                 if k in ("cat", "year"):
                     # Filter by (the firm, 30 Sep 2026): the Grids' Only loans where, apart from the split
                     row["d"] = {"on": self.filter == c.name, "radio": True}
+                    # Filter 2 (the firm, 30 Sep 2026: "independently and in conjunction with each other")
+                    row["e"] = {"on": self.filter2 == c.name, "radio": True}
             else:
                 if k in ("num", "cat"):
                     row["b"] = {"on": c.name in self.test, "radio": False}
@@ -542,12 +546,12 @@ class Flow:
             out.append(row)
         return out
 
-    def heads(self) -> tuple[str, str, str, str]:
-        return ("Outcome", "Test it", "Hold fixed", "") if self.mode == "new" else \
-            ("Cut into bands", "Segment by", "Split by", "Filter by")
+    def heads(self) -> tuple[str, str, str, str, str]:
+        return ("Outcome", "Test it", "Hold fixed", "", "") if self.mode == "new" else \
+            ("Cut into bands", "Segment by", "Split by", "Filter 1", "Filter 2")
 
     def click(self, name: str, which: str) -> None:
-        """A box ticked or a radio picked on the row for `name` (which: a, b, c or d)."""
+        """A box ticked or a radio picked on the row for `name` (which: a, b, c, d or e)."""
         row = next((r for r in self.rows() if r["name"] == name), None)
         if row is None or row[which] is None or (row["locked"] and which != "a"):
             return
@@ -562,6 +566,8 @@ class Flow:
                     self.split = None
             elif which == "d":
                 self.filter = None if self.filter == name else name   # one column filters, or none; the split stays
+            elif which == "e":
+                self.filter2 = None if self.filter2 == name else name     # Filter 2: another column, or none
             else:
                 self.split = None if self.split == name else name     # one column splits, or none
                 self.cut.discard(name)
@@ -673,7 +679,8 @@ class Flow:
             return ch.Choices(run_kind=ch.BLEED, bands=tuple(c for c in order if c in self.cut and c not in
                                                              (self.split, o)),
                               segments=tuple(c for c in order if c in self.seg and c != o), split=self.split,
-                              filter=self.filter, outcome=self.outcome, **base)
+                              filter=self.filter or self.filter2, filter2=self.filter2 if self.filter else None,
+                              outcome=self.outcome, **base)
         test = [c for c in self.test]
         # the pockets hold the held-fixed columns fixed; one input splits every pocket, as a pre-spec tests it
         return ch.Choices(run_kind=ch.NEW_VARIABLE,
@@ -690,11 +697,22 @@ class Flow:
         return ch.too_many_values(c.name, c.values)
 
     def filter_refused(self) -> str | None:
-        """A Filter by with more values than the Grids' filter takes: the refusal, in the Run's words."""
-        c = next((c for c in self._columns() if c.name == self.filter), None)
-        if c is None or c.values is None:
-            return None
-        return ch.too_many_to_filter(c.name, c.values)
+        """A Filter by with more values than the Grids' filter takes, the same column picked twice, or two filters
+        making more views than a grid may have: the refusal, in the Run's words."""
+        if self.filter and self.filter == self.filter2:
+            return ch.same_filter_twice(self.filter)
+        picked = []
+        for name in (self.filter, self.filter2):
+            c = next((c for c in self._columns() if c.name == name), None)
+            if c is None or c.values is None:
+                continue
+            said = ch.too_many_to_filter(c.name, c.values)
+            if said:
+                return said
+            picked.append((c.name, c.values + getattr(c, "parts", 0)))
+        if len(picked) == 2:
+            return ch.too_many_views(picked[0][0], picked[0][1], picked[1][0], picked[1][1])
+        return None
 
     def summary(self) -> tuple[bool, str]:
         """The "This will run:" box, and whether Next can be pressed."""
@@ -713,7 +731,9 @@ class Flow:
                 return False, too_many
             return True, (f"{_s(nb, 'band column')} × {_s(ns, 'segment column')} = {_s(g, 'grid')}, five measures "
                           f"each" + (f"; split by {self.split} adds {g} more." if self.split else ".")
-                          + (f" Grids can show only the loans of one {self.filter}." if self.filter else ""))
+                          + (f" Grids can show only the loans of one {got.filter}"
+                             + (f", one {got.filter2}, or both at once." if got.filter2 else ".")
+                             if got.filter else ""))
         if self.shortlist:
             if self.spec is None:
                 return False, self.spec_problem or ""
@@ -1289,7 +1309,7 @@ def build(root) -> dict:
                     if i == 1:
                         widgets[f"what_{r['name']}"] = lab
                 else:
-                    which = "abcd"[i - 2]
+                    which = "abcde"[i - 2]
                     b = box(cell, False, False, lambda n=r["name"], w_=which: choose_click(n, w_))
                     b.place(relx=0.5, rely=0.5, anchor="center")
                     boxes[(r["name"], which)] = b
@@ -1332,7 +1352,7 @@ def build(root) -> dict:
         for r in rows:
             if f"what_{r['name']}" in widgets:
                 widgets[f"what_{r['name']}"].configure(text=r["what"])
-            for which in "abcd":
+            for which in "abcde":
                 b = boxes.get((r["name"], which))
                 ctl = r[which]
                 if b is None:

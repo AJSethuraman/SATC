@@ -19,7 +19,8 @@ from dataclasses import dataclass, replace
 BLEED, NEW_VARIABLE = "bleed", "new_variable"
 #: the Control rows the launcher writes that aren't settings, in the order they show, with their labels
 ROWS = (("bands", "Cut into bands"), ("segments", "Segment by"), ("split", "Split every pocket by"),
-        ("filter", "Filter the Grids by"), ("outcome", "Tested against"), ("test", "Inputs tested"),
+        ("filter", "Filter the Grids by"), ("filter2", "And filter them by"), ("outcome", "Tested against"),
+        ("test", "Inputs tested"),
         ("hold", "Held fixed"))
 KEY = "launcher"                  # Control's key column reads "launcher|bands" and so on
 #: what the bands and segments rows read when nobody narrowed them: every column its meaning cuts
@@ -34,6 +35,12 @@ FILTER_MOST_VALUES = 6
 #: marked Origination date (engine.origination_years works it out, for Split by and Filter by alike). A loan whose
 #: date can't be read is in NO_DATE, a value of its own, so every loan is still shown
 ORIG_YEAR, ORIG_YEAR_LABEL, NO_DATE = "ORIG_YEAR", "Origination year", "(no date)"
+#: the most views of each grid two Filter bys may make together (the firm, 30 Sep 2026: two filters, "independently
+#: and in conjunction with each other"), counting All loans in each and every value, blanks and (no date) too: two
+#: columns of six values give 7 x 7 = 49. Each view is every grid built again on its loans, so the Run's time and
+#: the workbook's size grow with the product; 49 is the most two columns inside the six-value limit make without a
+#: blank, and a pair past it is refused, never cut short
+FILTER_MOST_VIEWS = 49
 
 
 def too_many_values(column: str, n: int) -> str | None:
@@ -55,6 +62,24 @@ def too_many_to_filter(column: str, n: int) -> str | None:
             f"or by none.")
 
 
+def same_filter_twice(column: str) -> str:
+    """The refusal when Filter 1 and Filter 2 name one column, in the words the launcher and the Run both give."""
+    return (f"Filter 1 and Filter 2 are both {column}. The second filter narrows the first, so it must be another "
+            f"column. Pick a different one, or none.")
+
+
+def too_many_views(first: str, n1: int, second: str, n2: int) -> str | None:
+    """The refusal when two filters together make more views of each grid than FILTER_MOST_VIEWS: `n1` and `n2`
+    count every value each offers, blanks and (no date) included; All loans is added to each. None when few
+    enough."""
+    views = (n1 + 1) * (n2 + 1)
+    if views <= FILTER_MOST_VIEWS:
+        return None
+    return (f"{first} ({n1:,} values) and {second} ({n2:,} values) together make {n1 + 1} x {n2 + 1} = {views:,} "
+            f"views of every grid, counting All loans in each. Two filters can make {FILTER_MOST_VIEWS} at most. "
+            f"Filter by a column with fewer values, or by one.")
+
+
 def names(text) -> tuple[str, ...]:
     """'FICO, ORIG_BAL' as ('FICO', 'ORIG_BAL')."""
     return tuple(x.strip() for x in str(text or "").split(",") if x.strip())
@@ -71,6 +96,7 @@ class Choices:
     segments: tuple[str, ...] | None = None  # None: every column whose meaning makes it a segment
     split: str | None = None
     filter: str | None = None               # the Grids' "Only loans where" column, whatever the split does
+    filter2: str | None = None              # Filter 2: "and <column> is", with Filter 1 (the firm, 30 Sep 2026)
     outcome: str | None = None
     test: tuple[str, ...] = ()
     hold: tuple[str, ...] = ()
@@ -91,6 +117,7 @@ class Choices:
                "segments": EVERY["segments"] if self.segments is None else ", ".join(self.segments) or "None",
                "split": self.split,
                "filter": None if new else self.filter,
+               "filter2": None if new else self.filter2,
                "outcome": self.outcome if new else None,
                "test": ", ".join(self.test) if new and self.test else None,
                "hold": ", ".join(self.hold) if new and self.hold else None}
@@ -105,7 +132,7 @@ class Choices:
                 return None
             return () if v == "None" else names(v)
         return cls(bands=listed("bands"), segments=listed("segments"), split=got.get("split") or None,
-                   filter=got.get("filter") or None,
+                   filter=got.get("filter") or None, filter2=got.get("filter2") or None,
                    outcome=got.get("outcome") or None, test=names(got.get("test")), hold=names(got.get("hold")),
                    **settings)
 
