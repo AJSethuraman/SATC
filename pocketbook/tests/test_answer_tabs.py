@@ -365,7 +365,7 @@ def test_start_here_counts_what_is_left_and_what_the_last_run_found(ran, tmp_pat
     ws = got["Start here"]
     assert _tile(ws, book.NEEDED) == 0
     assert _tile(ws, "Odd values to answer") == 1                     # RANR_AMT's negatives
-    found = _tile(ws, "Pockets worse and material, charge-offs")
+    found = _tile(ws, "Pockets worse and material, GCOs")
     k, of = found.split(" · ")[0].split(" of ")          # " · 1 borderline" when one is (29 Sep 2026)
     dollars = [d for d in _pockets(got) if d is not None]
     assert int(of.replace(",", "")) == len(dollars)

@@ -364,8 +364,8 @@ muts = [
   'f"Cochran-Mantel-Haenszel, with no continuity correction."))', "split_test_asks"),
  ("steady pockets read as proof", B, '"no: bigger in some pockets","no sign they differ")\'',
   '"no: bigger in some pockets","yes")\'', "same_size_says"),
- ("ruling number back on Check", B, '"charge-offs taken out. If RANR nets recoveries instead, "',
-  '"charge-offs taken out (OC-35). If RANR nets recoveries instead, "', "no_ruling_number"),
+ ("ruling number back on Check", B, '"taken out. If RANR nets recoveries instead, RANR + GCOs is overstated by "',
+  '"taken out (OC-35). If RANR nets recoveries instead, RANR + GCOs is overstated by "', "no_ruling_number"),
  ("dollar rate answers same size", B, '        return "not tested: dollar rate"', '        return "yes/no outcome only"',
   "same_size_is or same_size_says"),
  ("D3 outlives the check", B, '        head, tail = (re.escape(x) for x in NEW_COLS_NOTE.split("{}"))',
@@ -697,7 +697,7 @@ muts = [
  ("an older workbook keeps the tabs the redesign replaced", B,
   '    for t in results.OLD_TABS + OLD_RESULT_TABS + results.HIDDEN + (results.CHART,):', '    for t in ():',
   "loses_the_tabs_the_redesign_replaced or takes_off_the_ones"),
- ("Paid cost kept reads the kept flag for charge-offs", RS,
+ ("RANR vs GCOs reads the RANR flag for GCOs", RS,
   '        for c, prow in ((C_H_FC, RC), (C_H_FG, RG), (C_H_FR, RR)):',
   '        for c, prow in ((C_H_FC, RC), (C_H_FG, RR), (C_H_FR, RG)):', "one_grid_at_a_time or every_live_reading"),
  ("a shortfall shown as a surplus", RS,
@@ -1178,8 +1178,8 @@ muts = [
   """                                f'IF({OTH}>=1,{fill_in(SAY_ALONE, row=R)},IF({untested},{not_},{few}))')),""",
   "one_cell_says_why"),
  ("one cell words a gap in points as a multiple", RS,
-  '                     "Kept {pts} points {more} of their booked dollars than {against}."),',
-  '                     "{x}× the kept rate of {against}."),', "one_cell_reads"),
+  '                     "RANR was {pts} points {more} of booked dollars than for {against}."),',
+  '                     "{x}× the RANR rate of {against}."),', "one_cell_reads"),
  ("one cell's Row list stuck on the first grid", RS,
   '    for c_, labels, n in ((RL, ROWS, nr), (CL, COLS, nc)):',
   '    for c_, labels, n in ((RL, match(xk("G|", (live.q(gnames[0]),), "|rows")), nr), (CL, COLS, nc)):',
@@ -1394,7 +1394,7 @@ muts = [
   "few_values"),
  ("few values: an earlier Run's suggestion kept", B, '        why = _FEW_VALUES_RE.sub("", str(cell.value or ""))',
   '        why = str(cell.value or "")', "few_values"),
- # 30 Sep 2026: Paid, cost, kept's gross booked, GCO and RANR (the firm: "so we can also see if pockets are straight
+ # 30 Sep 2026: RANR vs GCOs' (then Paid, cost, kept's) gross booked, GCO and RANR (the firm: "so we can also see if pockets are straight
  # negative on returns"; tests/test_firm_answers_2026_09_29.py, pck_gross)
  ("RANR rate over loans, not booked", RS, '"ranr_rate": k.num / k.den if k.den else None}',
   '"ranr_rate": k.num / c.rows if c.rows else None}', "pck_gross"),
@@ -1466,6 +1466,21 @@ muts = [
   "answered_real_keeps"),
  ("codes drawn in Look's percentiles", LK, '    kept_nums = [x for x in nums if not caught(x, rule)]',
   '    kept_nums = list(nums)', "looks_percentile_lines"),
+ # 30 Sep 2026: the firm's own terms ("I want to use the terms I gave you out of the box so it can be understood by
+ # insiders"; tests/test_literal_names_2026_09_30.py)
+ ("RANR vs GCOs back under its old name", RS, 'POCKETS, PCK, GRIDS, SUMMARY, SPLIT = "Pockets", "RANR vs GCOs",',
+  'POCKETS, PCK, GRIDS, SUMMARY, SPLIT = "Pockets", "Paid, cost, kept",', "no_tab_names_a_measure"),
+ ("GCOs named Charge-offs again", RS, '"gco_rate": "GCOs ($)",', '"gco_rate": "Charge-offs",',
+  "every_list_offers_the_new_names"),
+ ("an older workbook keeps Paid, cost, kept beside RANR vs GCOs", RS,
+  'OLD_TABS = ("Where it bleeds", "Three-way", "Losses vs revenue", "Prevalence", OLD_PCK)',
+  'OLD_TABS = ("Where it bleeds", "Three-way", "Losses vs revenue", "Prevalence")', "old_code_wrote"),
+ ("Start here drops the link to a tab still under its old name", B,
+  '            if tab == results.PCK and tab not in wb.sheetnames and results.OLD_PCK in wb.sheetnames:',
+  '            if False:', "old_code_wrote"),
+ ("the Rate heading names the option, not what is divided by what", RS,
+  """f'="Rate · "&IFERROR(INDEX({hd_rng},MATCH({M},{m_rng},0)),{M})'""", """f'="Rate · "&{M}'""",
+  "rate_heading_says"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

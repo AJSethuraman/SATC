@@ -8,7 +8,7 @@ buttons call the two functions here:
                       remembered), Look. Answers already given are kept, and so
                       are the results of the last run.
     run(book)         reads the answers, runs the engine, and writes the results
-                      into the same workbook: Pockets, Paid cost kept, Grids,
+                      into the same workbook: Pockets, RANR vs GCOs, Grids,
                       Split (results.py, the redesign's phase 3), or New
                       variables for a test from a pre-spec (confirm_tab.py),
                       Record (record.py: Check and the Log, phase 4), and Start
@@ -1148,7 +1148,10 @@ def _found_block(ws, wb, r: int) -> int:
                                                "launcher.")
         c.font = Font(name="Calibri", size=10, color=SLATE)
         return r + 3
-    m, title = _found_value(wb, "measure"), _found_value(wb, "measure_title")
+    m = _found_value(wb, "measure")
+    # the measure's name by its key, so a _found written before the firm's terms (30 Sep 2026: "charge-offs") reads
+    # in them too, until the next Run writes it again
+    title = FOUND_TITLE.get(m) or _found_value(wb, "measure_title")
     crit = f'pk_kind,"grids",pk_measure,"{m}",pk_flag,"{engine.WORSE}",pk_material,"yes"'
     dollar = m != "outcome_loans"
     # Borderline (the firm, 29 Sep 2026): how many of them turn on a shuffled p-value that near the bar
@@ -1161,7 +1164,7 @@ def _found_block(ws, wb, r: int) -> int:
     profit = _found_value(wb, "profit")
     if profit:
         pc = f'pk_kind,"grids",pk_measure,"{profit}",pk_flag,"{engine.WORSE}",pk_material,"yes"'
-        tiles.append(("Pockets keeping less, worse and material",
+        tiles.append(("Pockets short on RANR, worse and material",
                       f'=IFERROR(COUNTIFS({pc})&" short $"&TEXT(SUMIFS(pk_dollars,{pc}),"#,##0"),"")'))
     else:
         tiles.append(("Last Run", _found_value(wb, "stamp")))
@@ -1215,7 +1218,7 @@ def _found_block(ws, wb, r: int) -> int:
 TAB_GROUPS = [
     ("You answer", "KEY_RED", [("Control", "the professional calls"), ("Columns", "meanings, odd values, memory"),
                                ("Look", "each number column's shape")]),
-    ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "paid against cost"),
+    ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "GCOs against RANR"),
                         (results.GRIDS, "one grid at a time, and how common"),
                         (results.SUMMARY, "one band column's plain figures"), (results.SPLIT, "each pocket split"),
                         (scout.SHEET, "the candidates ranked, on development loans"),
@@ -1235,6 +1238,8 @@ def _tab_groups(ws, wb, r: int) -> None:
         ws.cell(row=r + 1, column=first, value=title).font = Font(name="Arial", bold=True, size=10)
         k = r + 2
         for tab, what in tabs:
+            if tab == results.PCK and tab not in wb.sheetnames and results.OLD_PCK in wb.sheetnames:
+                tab = results.OLD_PCK   # a workbook run before 30 Sep 2026: its tab keeps the old name until a Run
             if tab not in wb.sheetnames and title == "Results":
                 continue
             c = ws.cell(row=k, column=first, value=f"{tab}: {what}")
@@ -2213,7 +2218,7 @@ def _forget(wb, memory_path) -> list[str]:
 
 def _headline(res, wb) -> dict:
     """What the launcher's last step shows: how many pockets read worse and
-    material on charge-offs (the loss share of loans without them), what they
+    material on GCOs (the loss share of loans without them), what they
     lost above their share, the tie-outs, and every odd value still unanswered."""
     rates = [m for m in res.measures if m.is_rate]
     m = next((x for x in rates if x.name == "gco_rate"), rates[0] if rates else None)
@@ -2418,7 +2423,7 @@ def bleed_tabs(res) -> bool:
 
 
 def _write_bleed(wb, res, stamp: str) -> None:
-    """The bleed analysis's tabs, the redesign's phase 3: Pockets, Paid cost kept, Grids (with how common each
+    """The bleed analysis's tabs, the redesign's phase 3: Pockets, RANR vs GCOs, Grids (with how common each
     group is, fix 3.12) and Split (results.py)."""
     results.write(wb, res, stamp)
 
@@ -2502,6 +2507,10 @@ def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, s
 TOP_BAND, TOP_SEG, TOP_LOANS, TOP_PROW, TOP_SHOWN, TOP_CUM = range(2, 8)
 
 
+#: the measure Start here's tiles count, as they name it (the firm's terms, 30 Sep 2026)
+FOUND_TITLE = {"gco_rate": "GCOs", "outcome_loans": "bad loans", "outcome_booked": "bad dollars"}
+
+
 def _write_found(wb, res, stamp: str) -> None:
     """What the last Run found, kept on a hidden sheet so Start here can be written again at Set up: the measure
     its tiles count, the pockets, and every pocket losing more than its share on that measure against either
@@ -2519,9 +2528,8 @@ def _write_found(wb, res, stamp: str) -> None:
         return
     lv = live.ensure(wb, res)
     names = _names(res)
-    plain = {"gco_rate": "charge-offs", "outcome_loans": "bad loans", "outcome_dollars": "bad dollars"}
     ws.append(["measure", m.name])
-    ws.append(["measure_title", plain.get(m.name, m.title)])
+    ws.append(["measure_title", FOUND_TITLE.get(m.name, m.title)])
     ws.append(["pockets", sum(1 for g in res.grids for _ in g.inner())])
     if "ranr_rate" in {x.name for x in rates}:
         ws.append(["profit", "ranr_rate"])
@@ -2678,7 +2686,7 @@ def which_test(s, peers: bool = True) -> str:
 
 WARN_TEXT = "960019"
 
-#: Together, the two sides of Paid, cost, kept read at once (NEXT-GOAL 3.4; five verdicts since the redesign)
+#: Together, the two sides of RANR vs GCOs read at once (NEXT-GOAL 3.4; five verdicts since the redesign)
 TOGETHER, together_of = results.TOGETHER, results.together_of
 
 
@@ -2893,6 +2901,10 @@ def measure_name(m) -> str:
     return results.PLAIN.get(m.name, m.title)
 
 
+#: Record's line saying what RANR + GCOs rests on (OC-35); "Contribution before losses" until 30 Sep 2026
+CONTRIBUTION_SAID = "What RANR + GCOs assumes"
+
+
 def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
     """Every line Check carried, each in the Record section it belongs in (record.section_of), and Settings: one
     row per Control setting the run asked."""
@@ -3013,7 +3025,7 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                               + (f" Every dollar rate: the loans are shuffled {b.shuffles:,} times, within the band "
                                  f"for the rest of its band, and its p-value is how often a shuffle made a gap as "
                                  f"big." if dollar_rates else "")
-                              + (" Profit and contribution are compared as a gap in points, never a multiple."
+                              + (" RANR and RANR + GCOs are compared as a gap in points, never a multiple."
                                  if profit else "")
                               + (" A split by a category: each value against the rest of its pocket, as the "
                                  "halves are compared; and whether the values differ at all, every value at once, "
@@ -3047,9 +3059,9 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                      "each grid and measure on its own, one comparison at a time"))
     if "contribution_rate" in res.total.rates:
         # the definition the tabs rest on (OC-35): the losses inside RANR are GCO
-        rows.append(("Contribution before losses", "RANR + GCO, per booked dollar. This assumes RANR has gross "
-                                                   "charge-offs taken out. If RANR nets recoveries instead, "
-                                                   "contribution is overstated by the recoveries."))
+        rows.append((CONTRIBUTION_SAID, "RANR + GCOs, per booked dollar. This assumes RANR has the gross GCOs "
+                                        "taken out. If RANR nets recoveries instead, RANR + GCOs is overstated by "
+                                        "the recoveries."))
     if b is not None:
         rows.append(("Decides each pocket", decides(res)))
     if b is not None and profit:

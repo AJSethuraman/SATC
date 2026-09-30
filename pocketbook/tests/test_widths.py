@@ -6,7 +6,7 @@ Every width here is worked out from the Run's own labels and values, so the chec
 and hold the widths to them: Grids' data columns one width across all four blocks and wide enough for every label on
 two lines and every value on one (G1, G3, G5), its two label columns one width (G2), a split grid's segment over its
 parts (G4), the groups' booked dollars in thousands before they would overflow (G6), Split's two grids alike (S1),
-the label columns of Pockets, Paid cost kept and Start here fitted to the Run's labels (P1), and Look's labels (L1).
+the label columns of Pockets, RANR vs GCOs and Start here fitted to the Run's labels (P1), and Look's labels (L1).
 Each check reads the workbook as written; none needs LibreOffice."""
 
 from __future__ import annotations
@@ -261,7 +261,7 @@ def test_split_grids_share_one_data_width_and_the_dropdown_spans_three_columns(r
 
 
 # --------------------------------------------------------------------------
-# Pockets, Paid cost kept, Start here, Look
+# Pockets, RANR vs GCOs, Start here, Look
 
 
 @pytest.mark.parametrize("kind", KINDS)

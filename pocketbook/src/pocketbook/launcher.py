@@ -144,9 +144,9 @@ def waiting_words(missing: list[str]) -> str:
 #: 2026: "worse at 1.34x", "GCO dollars" and "scouting" were first read on the window, with the meaning only on a
 #: tab). A multiple is filled in from the words around it.
 TERMS = (("GCO dollars", "GCO dollars: what a loan charged off, in dollars."),
-         ("RANR dollars", "RANR dollars: what we kept from a loan after its losses, in dollars."),
+         ("RANR dollars", "RANR dollars: what a loan earned after its losses, in dollars."),
          ("grid", "A grid: every band of one column against every segment of another."),
-         ("measures", "Five measures: bad loans, bad dollars, charge-offs, earned before and kept after losses."),
+         ("measures", "Five measures: bad loans, bad dollars, GCOs ($), RANR, and RANR + GCOs."),
          ("worse at", "worse at {x}x: losing {x} times as much as the rest counts as worse."),
          ("better at", "better at {x}x: losing {x} times as much as the rest counts as better."),
          ("scouting", "Scouting: the tree's first look at loans before the cutoff, to pick what to test."))
@@ -913,12 +913,12 @@ def finished_tiles(h: dict) -> tuple:
         return confirm_tiles(h)
     gco = h.get("gco")
     worse = h.get("worse", 0)
-    what = "charge-offs" if gco else (h.get("measure") or "the outcome").lower()
+    what = "GCOs" if gco else (h.get("measure") or "the outcome").lower()
     # Borderline (the firm, 29 Sep 2026): how many of them turn on a shuffled p-value that near the bar
     near = h.get("borderline", 0)
     return (("Pockets worse and material", f"{worse:,}", f"{what}, of {h.get('pockets', 0):,}"
              + (f" · {near:,} borderline" if near else ""), "KEY_RED", "INK"),
-            ("Charge-offs above their share" if gco else "Losses above their share",
+            ("GCOs above their share" if gco else "Losses above their share",
              _money(h.get("dollars", 0)) if gco else f"{h.get('dollars', 0):,.1f}",
              f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"))
 
