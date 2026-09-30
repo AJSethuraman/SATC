@@ -83,7 +83,13 @@ After that, the whole routine is:
      **split every pocket by**: a number column halves each pocket at its own
      median; a category of 6 values or fewer splits it by each value (a
      category with more is refused). A column that splits isn't also cut or a
-     segment. Every number column and every category starts
+     segment. Separately, at most one column to **filter by**: a category of 6
+     values or fewer, whose values Grids' *Only loans where* offers, whatever the
+     split is doing (a category may segment and filter at once). When a column
+     is marked *Origination date*, a row **ORIG_YEAR** sits with the categories:
+     the year each loan was made, read from that column, which can split, filter
+     or both; a loan with no readable date is in *(no date)*, a value of its own
+     that isn't counted against the 6. Every number column and every category starts
      ticked. The outcome and dollar columns come after them, with no boxes:
      they go into every measure. It needs
      the five columns below and no date.
@@ -198,14 +204,21 @@ After that, the whole routine is:
      fewer than the 30 set on Control, so not coloured." The **vs the book**
      heading carries the book's own figure for the measure picked ("vs the book
      (book: 7.73%)"); vs rest of band has none, since its rest differs by row.
-     **Only loans where** *(split column)* **is**, with the Run split by a
-     category, shows every block and the one-cell reading on only the loans
-     with one value (`Grid.filtered`, built in the engine like any grid). vs
+     **Only loans where** *(Filter by column)* **is** (the firm, 30 Sep 2026: the
+     filter had worked only off Split by, *"Wait only works on split by? Isn't that
+     for like above and below median"*; a separate Filter by, *"Yes hoping to have
+     this by morning"*) shows every block and the one-cell reading on only the
+     loans with one value (`Grid.filtered`, built in the engine like any grid),
+     whatever Split by is doing: a number split into halves, a category, or none.
+     Filtered by ORIG_YEAR it reads "only loans where ORIG_YEAR is 2023", and the
+     note says the year comes from the Origination date column. vs
      the book stays against the **whole book** (the firm: *"we keep things
      compared to the whole book that's just kind of the point"*); vs rest of
      band is the rest of the band among those loans; grey and the heat scale go
-     by that view's own cells. Split in halves or not at all, it offers only
-     All loans and says filtering needs Split by a category. **Loan size**, in
+     by that view's own cells, and the columns' width fits the filtered values
+     too. With no Filter by picked it offers only All loans and says *Pick a
+     Filter by in the launcher.* Record's *Grids filter* row and the Run's line
+     name the column and each value's loans. **Loan size**, in
      the Measure list when a booked amount is set: booked dollars per loan (the
      average in Rate, the median read out in words), and the average as a
      multiple of the book's and of the rest of the band's. It is a
@@ -305,7 +318,9 @@ under *Split pockets by*. A number (revolving debt, say) splits every FICO-by-as
 at that pocket's own median, and the Split tab compares the high half with the
 low half, pocket by pocket and pooled. Each grid says what it holds fixed:
 revolving debt moves with FICO, so a loan-size grid can't tell debt from score,
-and it says so with the number. A category repeats each grid once per value.
+and it says so with the number. A category repeats each grid once per value. ORIG_YEAR (the year of the
+Origination date column) splits too: each year against the rest of its pocket, and
+the Split tab's *Do the values differ at all?* line asks whether the vintages differ.
 Either way, every split pocket is tested and ranked on **Pockets** (pick
 *Split by* in its Pockets dropdown). *Show per pocket* puts a column's median or average in every pocket.
 The Look tab plots a split number against each band column, so you can see

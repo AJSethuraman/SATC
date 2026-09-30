@@ -176,6 +176,9 @@ class Read:
     columns: list[Column]
     chosen: "ch.Choices | None" = None      # what the workbook beside it already shows, if there is one
     problem: str | None = None
+    # ORIG_YEAR, offered beside the categories when a column is marked Origination date (the firm, 30 Sep 2026):
+    # kind "year", or "none" (greyed, nothing to pick) when that column's dates can't be read
+    year: Column | None = None
 
 
 def _outcome_picked(picked: str, sugg: dict, kept: dict, cat, facts_of: dict, many: int) -> None:
@@ -245,7 +248,24 @@ def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 5
             chosen = control.read_choices(load_workbook(_earlier(target))[control.SHEET])[0]
         except Exception:
             chosen = None
-    return Read(extract, target, len(table.rows), out, chosen)
+    return Read(extract, target, len(table.rows), out, chosen, year=_year_row(made_table, out))
+
+
+def _year_row(table: Table, columns: list[Column]) -> Column | None:
+    """The launcher's Origination year row: ORIG_YEAR, the year of the column marked Origination date, as the Run
+    works it out (engine.origination_years); None when no column is marked so, or the extract has its own
+    ORIG_YEAR."""
+    dated = next((c.name for c in columns if c.kind == "date"), None)
+    if dated is None or ch.ORIG_YEAR in table.columns:
+        return None
+    try:
+        years = engine.origination_years(table, dated)
+    except engine.DataRefused as exc:
+        return Column(ch.ORIG_YEAR, f"{ch.ORIG_YEAR_LABEL}: can't be read. {exc}", "none")
+    n = len({y for y in years if y != ch.NO_DATE})
+    none = years.count(ch.NO_DATE)
+    return Column(ch.ORIG_YEAR, f"{ch.ORIG_YEAR_LABEL}, from {dated} · {n:,} values"
+                  + (f" · {none:,} with no date" if none else ""), "year", values=n)
 
 
 def _earlier(book: Path) -> Path:
@@ -690,7 +710,7 @@ def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
         elif new:
             if c in choices.test or c in choices.hold:
                 out.add(c)
-        elif code in ("booked", "gco", "ranr") or c == choices.split or \
+        elif code in ("booked", "gco", "ranr") or c in (choices.split, choices.filter) or \
                 (c in choices.bands if choices.bands is not None else cut == "band") or \
                 (c in choices.segments if choices.segments is not None else cut == "dimension"):
             out.add(c)
@@ -1128,7 +1148,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
         gone = note[note.index("Forgotten"):] if "Forgotten" in note else ""
         problems.append(f"Columns!{CONFIRM_CELL}: set Checked every column to Yes once you've checked each "
                         f"column's meaning." + (f" {gone}" if gone else ""))
-    columns, edges, skip, show, split = {}, {}, set(), {}, []
+    columns, edges, skip, show, split, filt = {}, {}, set(), {}, [], None
     chosen, choice_cells = control.read_choices(wb[control.SHEET])
     if chosen is None:
         problems.append("Control: this workbook was set up before the launcher chose what to cut. Press Set up "
@@ -1226,7 +1246,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
             else:
                 show[name] = sh
     if chosen is not None:
-        split, skip = _cuts_chosen(chosen, choice_cells, columns, row_of_col, cat, problems)
+        split, skip, filt = _cuts_chosen(chosen, choice_cells, columns, row_of_col, cat, problems)
     derived = _read_made(wb, columns, made_rows, problems)
     held_to = _what_is_run(wb, book, use, columns, cat, problems, tuple(d["name"] for d in derived))
     scouting = bool(held_to and held_to.get(SCOUT_KEY))       # Goal 2 item 9: find first, then confirm
@@ -1299,6 +1319,8 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
     if split:
         name, code = split[0]
         raw["split"] = {"field": name, "how": "each_value" if cat[code].cut == "dimension" else "own_median"}
+    if filt:
+        raw["filter_by"] = filt                     # Grids' Only loans where (the firm, 30 Sep 2026)
     if derived:
         raw["derived"] = derived                    # fix 3.9
     about = dict(about)
@@ -1313,17 +1335,30 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
 
 
 def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, problems: list[str]):
-    """The split, and the columns left uncut, from what the launcher chose. A
+    """The split, the columns left uncut and the Grids' filter column, from what the launcher chose. A
     column is cut when the launcher ticked it (or, with nothing narrowed, when
-    its meaning cuts it), as a band or a segment by its meaning on Columns."""
+    its meaning cuts it), as a band or a segment by its meaning on Columns. ORIG_YEAR, the year of the column
+    marked Origination date, can split and filter though it isn't a column of the extract."""
     split: list[tuple[str, str]] = []
+    dated = next((c for c, v in columns.items() if (v if isinstance(v, str) else v["means"]) == "origination_date"),
+                 None)
+
+    def no_year(cell: str, what: str) -> None:
+        problems.append(f"{cell}: {what} by {ch.ORIG_YEAR}, the year each loan was made, and no column on Columns "
+                        f"is marked {cat['origination_date'].label}. Mark the column that holds it, or choose again "
+                        f"in the launcher.")
     for key in ("bands", "segments"):
         for name in getattr(chosen, key) or ():
             if name not in columns:
                 problems.append(f"{cells[key]}: {name} isn't a column in this extract. Choose again in the launcher.")
     cut = chosen.cut()
     skip = {c for c in columns if cut is not None and c not in cut}
-    if chosen.split:
+    if chosen.split == ch.ORIG_YEAR and ch.ORIG_YEAR not in columns:
+        if dated:
+            split.append((ch.ORIG_YEAR, "category"))            # one value per year, each against the rest
+        else:
+            no_year(cells["split"], "the launcher splits the pockets")
+    elif chosen.split:
         name = chosen.split
         code = columns.get(name)
         code = code if code is None or isinstance(code, str) else code["means"]
@@ -1337,6 +1372,26 @@ def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, prob
                             f'(Columns!{_col(C_MEANS)}{row_of_col[name]}), which can\'t split the pockets. Only a '
                             f"score, ratio, amount (the booked amount too) or category can. Choose another in the "
                             f"launcher, or fix what it is.")
+    filt = None
+    if chosen.filter and chosen.run_kind != ch.NEW_VARIABLE:
+        name = chosen.filter
+        code = columns.get(name)
+        code = code if code is None or isinstance(code, str) else code["means"]
+        where = cells.get("filter", "Control")
+        if name == ch.ORIG_YEAR and code is None:
+            if dated:
+                filt = name
+            else:
+                no_year(where, "the launcher filters the Grids")
+        elif code is None:
+            problems.append(f"{where}: {name} isn't a column in this extract. Choose again in the launcher.")
+        elif cat[code].cut == "dimension":
+            filt = name
+        else:
+            problems.append(f'{where}: "{name}" is marked {cat[code].label} on Columns '
+                            f'(Columns!{_col(C_MEANS)}{row_of_col[name]}), and only a category (or '
+                            f'{ch.ORIG_YEAR_LABEL}) can filter the Grids. Choose another in the launcher, or fix '
+                            f'what it is.')
     if chosen.run_kind == ch.NEW_VARIABLE and chosen.outcome:
         code = columns.get(chosen.outcome)
         code = code if code is None or isinstance(code, str) else code["means"]
@@ -1346,7 +1401,7 @@ def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, prob
             problems.append(f"{cells['outcome']}: the launcher tests against {chosen.outcome}, and {where} doesn't "
                             f"mark it {cat['outcome'].label}. Mark it so, or choose the outcome again in the "
                             f"launcher.")
-    return split, skip
+    return split, skip, filt
 
 
 def _what_is_run(wb, book: Path, use: dict, columns: dict, cat, problems: list[str], made: tuple = ()) -> dict | None:
@@ -1872,11 +1927,15 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                          + "; ".join(usual) + ".")
     if cfg.split and bleed_tabs(res):
         sf, how = cfg.split
-        lines.append(f"Split by {sf}: " + ("each pocket halved at its own median. See the Split tab, and Pockets "
+        lines.append(f"Split by {sf}" + (f" (the year in {cfg.origination_date})" if sf == ch.ORIG_YEAR else "")
+                     + ": " + ("each pocket halved at its own median. See the Split tab, and Pockets "
                                            f"split by {sf}." if how == "own_median" else
                                            f"each pocket split by each value. See the Split tab, and Pockets split "
                                            f"by {sf}.")
                      + f" {sf} isn't cut on its own while it splits.")
+    if cfg.filter_by and bleed_tabs(res) and res.filter_values:
+        lines.append(f"Grids filter by {filter_words(res)}: {filter_counts(res)}. Pick one in Grids' Only loans "
+                     f"where.")
     if dropped:
         lines.append(f"Forgot {', '.join(sorted(dropped))}, as marked on Columns. Check "
                      f"{'it' if len(dropped) == 1 else 'them'} and set C3 to Yes before the next Run.")
@@ -2089,6 +2148,22 @@ def _plain(problem: str) -> str:
         problem = problem.replace(f"that means {code};", f"marked {m.label};")
     return (problem.replace("`columns:` needs exactly one column", "Columns: exactly one column must be")
             .replace("`columns:`", "the Columns tab").replace("`", '"'))
+
+
+def filter_words(res) -> str:
+    """The Grids' filter column as Record and the Run name it: ORIG_YEAR says where its years come from."""
+    f = res.config.filter_by
+    return f"{f} (the year in {res.config.origination_date})" if f == ch.ORIG_YEAR else str(f)
+
+
+def filter_counts(res) -> str:
+    """Each value the Grids can be filtered to, with its loans: "2022 (1,012 loans), 2023 (998 loans)"."""
+    g = res.grids[0] if res.grids else None
+    out = []
+    for v in res.filter_values:
+        n = g.filtered[v].cells[(engine.ALL, engine.ALL)].rows if g is not None and v in g.filtered else None
+        out.append(v if n is None else f"{v} ({_n(n, 'loan')})")
+    return ", ".join(out)
 
 
 def _names(res) -> dict[str, str]:
@@ -2691,7 +2766,8 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                          f'=IF({v}="","no line: the dollar line on Control is a GCO amount",{said})'))
     if res.config.split:
         sf, how = res.config.split
-        rows.append(("Split", f"{sf}, " + ("each pocket halved at its own median" if how == "own_median"
+        named = f"{sf} (the year in {res.config.origination_date})" if sf == ch.ORIG_YEAR else sf
+        rows.append(("Split", f"{named}, " + ("each pocket halved at its own median" if how == "own_median"
                                           else "each pocket split by each value, and each value set against the "
                                                "rest of its pocket") + f". {sf} isn't cut on its own while it "
                                                                         f"splits. Split pockets: "
@@ -2699,6 +2775,10 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
         for f, r in sorted(res.split_moves_with.items(), key=lambda t: -abs(t[1])):
             if f != sf:
                 rows.append((f"How closely {sf} moves with {f}", f"correlation {r:+.2f}"))
+    if res.config.filter_by and res.filter_values:
+        rows.append(("Grids filter", f"{filter_words(res)}: {filter_counts(res)}. Grids' Only loans where builds "
+                                     f"each grid again on one value's loans, set against the whole book. Picked "
+                                     f"in the launcher (Filter by), apart from the split."))
     sug = getattr(res, "suggested", None) or {}
     if sug:
         rate = res.total.rates["outcome_loans"].rate
@@ -2836,7 +2916,8 @@ def _settings_rows(wb, res) -> list[tuple]:
 NO_BLEED = ("Bleed tabs", "None: testing a new variable runs only the confirmatory test. Any left by an earlier "
                           "Run were taken off.")
 #: Check's lines about the bleed analysis's pockets, grids and tests, left off when it wasn't built
-BLEED_ROWS = ("Worse now: ", "Loans needed for ", "Smallest gap ", "Materiality line: ", "Split", "How closely ",
+BLEED_ROWS = ("Worse now: ", "Loans needed for ", "Smallest gap ", "Materiality line: ", "Split", "Grids filter",
+              "How closely ",
               "Pockets tested", "Tests", "The allowance for many tests", "Decides each pocket")
 
 

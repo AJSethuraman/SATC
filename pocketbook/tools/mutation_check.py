@@ -527,7 +527,7 @@ muts = [
   '            if False:', "finished_run_shows"),
  ("the launcher's column limits ignored", B, '            got = getattr(choices, key)             # chosen',
   '            pass             # chosen', "column_limits_are_chosen"),
- ("a saved shortlist's boxes move", LA, '"c": None, "locked": locked,', '"c": None, "locked": False,',
+ ("a saved shortlist's boxes move", LA, '"d": None, "locked": locked,', '"d": None, "locked": False,',
   "saved_shortlist"),
  ("the outcome tested against unchecked", B, '        if code != "outcome":', '        if False:',
   "outcome_the_launcher_tests"),
@@ -953,10 +953,10 @@ muts = [
  ("paste cut short accepted", "tools/bank_kit.py", 'if end is None or len(files) != end:', 'if False:', "cut_short"),
  # 27 Sep 2026: Choose tests in the order the analyst works down it, and nothing in an outcome row's boxes
  ("Choose tests in the extract's order", LA,
-  'for c in sorted(self.read.columns if self.read else (), key=lambda c: GROUP.get(c.kind, LAST)):',
-  'for c in (self.read.columns if self.read else ()):', "choose_tests_rows"),
- ("categories above the number columns", LA, 'GROUP = {"num": 0, "cat": 1, "out": 2, "outd": 2}',
-  'GROUP = {"num": 1, "cat": 0, "out": 2, "outd": 2}', "choose_tests_rows"),
+  'for c in sorted(self._columns(), key=lambda c: GROUP.get(c.kind, LAST)):',
+  'for c in self._columns():', "choose_tests_rows"),
+ ("categories above the number columns", LA, 'GROUP = {"num": 0, "cat": 1, "year": 1, "out": 2, "outd": 2}',
+  'GROUP = {"num": 1, "cat": 0, "year": 0, "out": 2, "outd": 2}', "choose_tests_rows"),
  ("a group sorted by name, not the extract's order", LA, 'key=lambda c: GROUP.get(c.kind, LAST)):',
   'key=lambda c: (GROUP.get(c.kind, LAST), c.name)):', "choose_tests_rows"),
  # headless on purpose: CI has no display, so a bug only the window test sees would read MISSED there
@@ -1181,9 +1181,12 @@ muts = [
   'GR: f"AND(ISNUMBER({LV}),ISNUMBER({FEW}),{LV}>{FEW})",', "grids_grey"),
  ("fewest loans the old 30 whatever Control says", RS, '    return b.min_units if b is not None else None',
   '    return 30 if b is not None else None', "grids_fewest"),
- ("halves offered as a filter", RS,
+ # repointed 30 Sep 2026: the Grids' filter is its own pick (Filter by), so the old "halves offered as a filter" is
+ # now the tab reading the split again, as it did before the firm asked
+ ("grids' filter read from the split again", RS,
+  'sf = res.config.filter_by if res.filter_values else None',
   'sf = res.config.split[0] if res.config.split and res.config.split[1] == "each_value" else None',
-  'sf = res.config.split[0] if res.config.split else None', "grids_fewest"),
+  "grids_fewest or filter_by"),
  ("the heading's figure from the view, not the whole book", RS, "res.total.rates[m.name].rate, few])",
   "g.cells[(engine.ALL, engine.ALL)].rates[m.name].rate, few])", "grids_the_books_own"),
  ("the heading stuck on the first measure", RS, 'ws[BOOK.replace("$", "")] = f"={pick(META, 4)}"',
@@ -1270,6 +1273,39 @@ muts = [
   '                                  floor=28, cap=28), 12: 3})', "fit_the_borderline"),
  ("Worse? too narrow for the borderline flag", RS, '                                 floor=11, cap=36),',
   '                                 floor=11, cap=20),', "fit_the_borderline"),
+ # 30 Sep 2026: Filter by, apart from Split by (the firm: "Wait only works on split by? Isn't that for like above and
+ # below median" ... "Yes hoping to have this by morning"; tests/test_firm_answers_2026_09_29.py, Filter by)
+ ("the engine's filter still reads the split", E, '    if bleed and config.filter_by:\n        ff = config.filter_by',
+  '    if bleed and config.split:\n        ff = config.split[0]', "filter_by"),
+ ("the year read from the wrong date column", E,
+  '    col = config.origination_date\n    if not col or col not in table.columns:',
+  '    col = next((c for c in reversed(table.columns) if c.endswith("_DATE")), None)\n'
+  '    if not col or col not in table.columns:', "filter_by"),
+ ("a loan with no date put in a year", E, 'out.append(str(d.year) if isinstance(d, _date) else NO_DATE)',
+  'out.append(str(d.year) if isinstance(d, _date) else "2024")', "filter_by"),
+ ("a filter of any size accepted", "src/pocketbook/choices.py", '    if n <= FILTER_MOST_VALUES:', '    if True:',
+  "filter_by_refuses"),
+ ("seven values let through the filter", "src/pocketbook/choices.py", '    if n <= FILTER_MOST_VALUES:',
+  '    if n <= FILTER_MOST_VALUES + 1:', "filter_by_refuses"),
+ ("the launcher counts no date as a year", B, '    n = len({y for y in years if y != ch.NO_DATE})',
+  '    n = len(set(years))', "filter_by_launcher"),
+ ("Origination year never offered", B, '    if dated is None or ch.ORIG_YEAR in table.columns:', '    if True:',
+  "filter_by_launcher"),
+ ("a category offered no Filter by", LA, '                if k in ("cat", "year"):', '                if k == "year":',
+  "filter_by_launcher"),
+ ("Filter by clears the split", LA,
+  '                self.filter = None if self.filter == name else name   # one column filters, or none; the split stays',
+  '                self.filter = self.split = None if self.filter == name else name', "filter_by_launcher"),
+ ("Filter by not written to Control", "src/pocketbook/choices.py", '        ("filter", "Filter the Grids by"), ',
+  '        ', "filter_by"),
+ ("the Run never told the filter", B, '        raw["filter_by"] = filt ', '        pass ', "filter_by"),
+ ("Origination year can't split", B, '            split.append((ch.ORIG_YEAR, "category"))',
+  '            no_year(cells["split"], "the launcher splits the pockets")', "filter_by_origination"),
+ ("filtered views left out of the widths", RS,
+  '_grid_view(res, views, f"G|{gname}" + WHERE.format(v), g.filtered[v], g, names, rows_, cols_, ms,\n'
+  '                           fit, split)',
+  '_grid_view(res, views, f"G|{gname}" + WHERE.format(v), g.filtered[v], g, names, rows_, cols_, ms,\n'
+  '                           None, split)', "filter_by_grids_widths"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

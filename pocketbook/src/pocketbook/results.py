@@ -47,6 +47,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 import zlib
 
 from . import engine, house, live, prevalence, stats
+from .choices import NO_DATE, ORIG_YEAR
 from .config import PROFIT
 
 POCKETS, PCK, GRIDS, SPLIT = "Pockets", "Paid, cost, kept", "Grids", "Split"
@@ -1093,7 +1094,7 @@ def _split_cols(g, tails: list[str]) -> list[str]:
 
 def grid_views(res, views: Views) -> tuple[list[str], list, int, int, dict]:
     """Every grid's four blocks on _views, two-way and split, and each again on only the loans with one value of a
-    category split (G|<grid>|where <value>|...); returns the grids' names, the measures, the most rows and
+    Filter by column's values (G|<grid>|where <value>|...); returns the grids' names, the measures, the most rows and
     columns any grid has, and what Grids' columns must fit (G1, G2): `heads`, every column label as the lower
     header row shows it; `segs`, every split grid's segment, shown over its parts; `parts`, how many parts each
     segment has (0 with no split grid) and `spans`, the most segments a split grid has; `rows`, every row label
@@ -1121,7 +1122,7 @@ def grid_views(res, views: Views) -> tuple[list[str], list, int, int, dict]:
         if split:
             fit["spans"] = max(fit["spans"], (len(cols_) - 1) // len(tails))
         _grid_view(res, views, f"G|{gname}", g, g, names, rows_, cols_, ms, fit, split)
-        for v in res.split_values:
+        for v in res.filter_values:
             if v in g.filtered:
                 _grid_view(res, views, f"G|{gname}" + WHERE.format(v), g.filtered[v], g, names, rows_, cols_, ms,
                            fit, split)
@@ -1247,8 +1248,11 @@ SAY_COLOUR = ("vs the book is {book}, vs rest of band {band}. Red is worse, gree
 SAY_GREY = "Grey: only {loans}, fewer than the {min} set on Control, so not coloured."
 SAY_SIZE = ("No red or green: loan size is a description, not a finding. Shaded darker the bigger the loans are "
             "against the book's.")
-#: filtering needs a category to filter by (Split by, in the launcher)
-SAY_NO_FILTER = "Filtering needs Split by a category."
+#: nothing to filter by: Filter by, in the launcher, picks the column (the firm, 30 Sep 2026: "Wait only works on
+#: split by? Isn't that for like above and below median")
+SAY_NO_FILTER = "Pick a Filter by in the launcher."
+#: said after the note's Only loans where when the filter is the origination year
+YEAR_SAID = f" {ORIG_YEAR} is the year in {{}}; {NO_DATE} holds the loans without a readable date."
 SAY_PICK = "Pick a Row and a Column above: their lists follow the Grid."
 SAY_EMPTY = "No loans in this pocket."
 SAY_NORATE = "No rate: these loans have nothing to divide by for this measure."
@@ -1291,7 +1295,8 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     grp = _group_tables(res, views)
     shows = [m for m in res.measures if m.mode == "median"]
     sized = res.book_size is not None and bool(res.book_size.loans)
-    sf = res.config.split[0] if res.config.split and res.config.split[1] == "each_value" else None
+    # the Filter by column (the firm, 30 Sep 2026), whatever Split by is doing; none picked, nothing to filter
+    sf = res.config.filter_by if res.filter_values else None
     w = nc + 1                          # a block: the band column, then the segments
     left, right = 2, 2 + w + 1
     last = right + w - 1
@@ -1332,6 +1337,7 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     note += [
         ("Only loans where", f"Pick a value of {sf} to see the grid on only its loans. vs the book is still against "
                              f"the whole book; vs rest of band, the rest of the band among those loans."
+                             + (YEAR_SAID.format(res.config.origination_date) if sf == ORIG_YEAR else "")
          if sf else SAY_NO_FILTER),
         ("Groups", "Under the blocks: how many loans" + (", and booked dollars," if res.config.booked else "")
                    + " fall in each group of the split column or a new column, pocket by pocket, for every loan "
@@ -1347,7 +1353,7 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     g_rng, _ = choices.add("Grids: Grid", gnames)
     m_rng, (k_rng, rs_rng, gs_rng) = choices.add("Grids: Measure", m_opts, m_keys, [x[0] for x in says],
                                                  [x[1] for x in says])
-    f_rng, _ = choices.add("Grids: Only loans where", [ALL_LOANS] + (list(res.split_values) if sf else []))
+    f_rng, _ = choices.add("Grids: Only loans where", [ALL_LOANS] + (list(res.filter_values) if sf else []))
     s = r + 1
     G = dropdown(ws, s, left, "Grid", g_rng, gnames[0] if gnames else "")
     ws.merge_cells(start_row=s, start_column=left, end_row=s, end_column=left + 2)

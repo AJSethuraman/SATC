@@ -41,7 +41,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import perm, stats
-from .choices import SPLIT_MOST_VALUES, too_many_values  # noqa: F401  (SPLIT_MOST_VALUES: the tabs say it)
+from .choices import NO_DATE, ORIG_YEAR, SPLIT_MOST_VALUES, too_many_to_filter, too_many_values  # noqa: F401
 from .config import EACH_LOAN, PERIOD_WORDS, PROFIT, Band, Config, Dimension, Measure, MissingRule
 from .ingest import BLANK, Bad, Table, cell_text, is_blank, parse_number
 
@@ -563,8 +563,8 @@ class Grid:
     # split_compare and part_compare hold the p-values ({(band, seg): {measure: se}}); None where not shuffled
     split_se: dict[tuple[str, str], dict[str, float | None]] = field(default_factory=dict, repr=False)
     part_se: dict[str, dict] = field(default_factory=dict, repr=False)
-    # Grids' "Only loans where" (the firm, 29 Sep 2026): for a split by a category, this grid again on only the
-    # loans with each value, keyed by the value. Built like any grid, so "vs the book" is still against the whole
+    # Grids' "Only loans where" (the firm, 29 Sep 2026; since 30 Sep by the Filter by column, whatever the split
+    # does): this grid again on only the loans with each value of that column, keyed by the value. Built like any grid, so "vs the book" is still against the whole
     # book and "vs rest of band" is against the rest of the band among those loans. Shown on Grids only: never
     # listed as pockets, counted in a family or tied out
     filtered: dict[str, "Grid"] = field(default_factory=dict, repr=False)
@@ -605,7 +605,7 @@ class Result:
     table: Table | None = None                  # the extract as the run read it, new columns included
     bleed: bool = True                          # False: a test of a new variable, which builds no grid (OC-42)
     book_size: Size | None = None               # what the whole book booked, per loan (Grids' Loan size)
-    split_values: list[str] = field(default_factory=list)   # a category split's values, in order
+    filter_values: list[str] = field(default_factory=list)  # the Filter by column's values, in order (Grids)
 
 
 # --------------------------------------------------------------------------
@@ -786,6 +786,37 @@ def origination_dates(config: Config, table: Table, rows: list[dict]) -> Origina
     return out
 
 
+def origination_years(table: Table, col: str) -> list[str]:
+    """The year each loan was made, as text ("2023"), read from `col` (the column marked Origination date) the way
+    the Run reads that column's dates; NO_DATE for a loan whose date is blank or can't be read, so it is never put
+    in a year. The one definition of ORIG_YEAR: Split by and Filter by both use it (the firm, 30 Sep 2026). Dates
+    that read two ways are refused (DataRefused), never read one way by default."""
+    from datetime import date as _date
+    read = _date_reader(table, col, "when each loan was made")
+    out = []
+    for r in table.rows:
+        d = read(r.get(col))
+        out.append(str(d.year) if isinstance(d, _date) else NO_DATE)
+    return out
+
+
+def with_year(config: Config, table: Table) -> Table:
+    """The extract with ORIG_YEAR added when the split or the filter names it (and the extract has no column of
+    that name already): the year of the column marked Origination date. Refused, in words, when none is marked."""
+    wanted = {config.split[0] if config.split else None, config.filter_by}
+    if ORIG_YEAR not in wanted or ORIG_YEAR in table.columns:
+        return table
+    col = config.origination_date
+    if not col or col not in table.columns:
+        raise DataRefused(f"{ORIG_YEAR} is the year each loan was made, read from the column marked Origination "
+                          f"date on Columns, and no column in this extract is marked so. Mark it, or split and "
+                          f"filter by another column")
+    years = origination_years(table, col)
+    rows = [{**r, ORIG_YEAR: y} for r, y in zip(table.rows, years)]
+    return Table(path=table.path, sha256=table.sha256, columns=list(table.columns) + [ORIG_YEAR], rows=rows,
+                 kind=table.kind)
+
+
 def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
     """A band or dimension on a column that is the top of a rate would cut
     the book by its own outcome: every high-GCO band would show high GCO.
@@ -827,6 +858,7 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
 def run(config: Config, table: Table) -> Result:
     warnings: list[str] = []
     table, derived = derive(config, table, warnings)
+    table = with_year(config, table)
     measures = _resolve_columns(config, table, warnings)
     config = _drop_outcome_cuts(config, measures, warnings)
     rows = table.rows                          # every loan: nothing is left out for its age or dates
@@ -971,6 +1003,15 @@ def run(config: Config, table: Table) -> Result:
     bleed = config.run_kind != "new_variable"
     if bleed and split_vals is not None and config.split[1] == "each_value":
         _few_enough(config.split[0], split_vals)
+    # Grids' "Only loans where" reads the Filter by column (the firm, 30 Sep 2026: "Wait only works on split by?"),
+    # never the split: a number split into halves, a category split, or none, the filter is the same
+    filter_vals = None
+    if bleed and config.filter_by:
+        ff = config.filter_by
+        if ff not in table.columns:
+            raise ColumnsMissing([(ff, "the Grids' filter")], table.columns)
+        filter_vals = [classify_text(raw, rules.get(ff)) for raw in col(ff)]
+        _few_enough_to_filter(ff, filter_vals)
     for b in config.bands if bleed else ():
         for d in config.dimensions:
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
@@ -1002,7 +1043,7 @@ def run(config: Config, table: Table) -> Result:
     for g, _, _ in halved:
         _finish_split(g, config, measures)
     # Grids' Loan size and "Only loans where" (the firm, 29 Sep 2026): each grid's booked dollars per cell, and each
-    # grid again on only the loans with one value of a category split
+    # grid again on only the loans with one value of the Filter by column
     booked = None
     if bleed and config.booked and config.booked in table.columns:
         booked = [classify_number(raw, rules.get(config.booked))[0] for raw in col(config.booked)]
@@ -1012,10 +1053,10 @@ def run(config: Config, table: Table) -> Result:
         for g, _, keys in built:
             g.sizes = loan_sizes(keys, booked)
     values: list[str] = []
-    if bleed and split_vals is not None and config.split[1] == "each_value":
-        values = _order(split_vals)
+    if filter_vals is not None:
+        values = _order(filter_vals)
         by_name = {b.name: b for b in config.bands}
-        rows_of = {v: [i for i, x in enumerate(split_vals) if x == v] for v in values}
+        rows_of = {v: [i for i, x in enumerate(filter_vals) if x == v] for v in values}
         for g, bname, keys in built:
             for v in values:
                 idx = rows_of[v]
@@ -1040,7 +1081,7 @@ def run(config: Config, table: Table) -> Result:
                   band_edges=band_edges, loans_needed=needed, min_units=min_units,
                   materiality_line=materiality_line, three_way=three_way,
                   split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
-                  book_size=book_size, split_values=values)
+                  book_size=book_size, filter_values=values)
 
 
 def loan_sizes(keys, booked) -> dict[tuple[str, str], Size]:
@@ -1197,7 +1238,7 @@ def _merge(parts: list[Cell], measures) -> Cell:
 
 
 def _order(labels) -> list[str]:
-    special = [BLANK_LABEL, NOT_NUMBER_LABEL, MISSING_RULE_LABEL]
+    special = [NO_DATE, BLANK_LABEL, NOT_NUMBER_LABEL, MISSING_RULE_LABEL]
     plain = sorted((x for x in set(labels) if x not in special), key=_natural)
     return plain + [x for x in special if x in set(labels)]
 
@@ -1530,7 +1571,21 @@ def _by_value(grid: Grid, config: Config, cells3, order, measures) -> None:
 def _few_enough(field_: str, labels) -> None:
     """A category splits every pocket by each of its values, so a column with many values cuts each pocket into
     parts too thin to read: refused, said in words, never run."""
-    said = too_many_values(field_, len({v for v in labels if v not in (BLANK_LABEL, MISSING_RULE_LABEL)}))
+    said = too_many_values(field_, _values_counted(labels))
+    if said:
+        raise DataRefused(said)
+
+
+def _values_counted(labels) -> int:
+    """How many values a category holds for the six-value limits: a blank, a value answered missing and a loan with
+    no date are parts of their own, never counted against the limit."""
+    return len({v for v in labels if v not in (BLANK_LABEL, MISSING_RULE_LABEL, NO_DATE)})
+
+
+def _few_enough_to_filter(field_: str, labels) -> None:
+    """The Grids' filter builds every grid again on each value's loans: a column with many values is refused, said
+    in words, never run."""
+    said = too_many_to_filter(field_, _values_counted(labels))
     if said:
         raise DataRefused(said)
 

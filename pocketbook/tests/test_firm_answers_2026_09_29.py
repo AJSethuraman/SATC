@@ -858,8 +858,9 @@ def grids_book(tmp_path_factory):
         mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
         mp.setattr(perm, "SHUFFLES", 200)
         x = _grids_file(d)
+        # since 30 Sep 2026 the filter is its own pick (Filter by), not the split: this book picks both
         out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL", "ASSET_CLASS"),
-                                                split="SYS_FLAG", outcome="BAD_FLAG"))
+                                                split="SYS_FLAG", filter="SYS_FLAG", outcome="BAD_FLAG"))
         _answer(out.book)
         ran = book.run(out.book)
         assert ran.ok, ran.lines
@@ -1013,9 +1014,9 @@ def test_grids_grey_a_cell_under_the_fewest_loans_and_leave_it_out_of_the_scale(
                                    f"not coloured, and left out of the largest gap.")
 
 
-def test_grids_fewest_loans_is_the_number_the_run_used_and_filtering_needs_a_category(tmp_path, monkeypatch):
-    """Fewest loans left at its suggestion: the grey line is the number the Run worked out, not the old 30. Split
-    in halves, nothing can be filtered, and the tab says why."""
+def test_grids_fewest_loans_is_the_number_the_run_used_and_no_filter_by_offers_all_loans(tmp_path, monkeypatch):
+    """Fewest loans left at its suggestion: the grey line is the number the Run worked out, not the old 30. With no
+    Filter by picked in the launcher, nothing can be filtered, and the tab says where to pick one."""
     import math
     from pocketbook import control, perm, results
     import tabs
@@ -1037,7 +1038,7 @@ def test_grids_fewest_loans_is_the_number_the_run_used_and_filtering_needs_a_cat
     assert tabs.options(wb, results.GRIDS, "Only loans where") == [results.ALL_LOANS]
     ws = wb[results.GRIDS]
     at = tabs.dropdown(ws, "Only loans where")
-    assert ws.cell(row=at.row + 1, column=at.column).value == "Filtering needs Split by a category."
+    assert ws.cell(row=at.row + 1, column=at.column).value == "Pick a Filter by in the launcher."
     ws, blocks, _ = _grids(out.book, tmp_path / "f0.xlsx")
     thin = next(k for k, v in _pockets(blocks["Loans"]).items() if v < want)
     _, _, said = _grids(out.book, tmp_path / "f1.xlsx", row=thin[0], column=thin[1])
@@ -1495,3 +1496,290 @@ def test_borderline_start_here_record_and_the_launcher_count_and_name_them(borde
     title = next(m.title for m in res.measures if m.name == "gco_rate")
     line = f"Worst for {title}: {names[top[0].band]} {top[1]} / {names[top[0].dimension]} {top[2]}"
     assert top[3].worse_borderline and f"{line} · {top[3].worse_borderline}." in ran.lines, ran.lines
+
+
+# ---- Filter by, apart from Split by (30 Sep 2026)
+# The firm found the Grids' filter worked only off Split by: "Wait only works on split by? Isn't that for like above and
+# below median". Offered a separate Filter by (any category of six values or fewer, or the origination year), they
+# answered "Yes hoping to have this by morning". Their use: 2022 to 2024 originations, flipped year by year to show
+# the pockets hold across vintages. Every rule decided for a filtered view stays: vs the book is the whole book ("we
+# keep things compared to the whole book that's just kind of the point"), vs rest of band is within the filtered
+# loans, grey and the heat scale go by the view's own cells.
+
+ONLY_YEAR = "Only loans where ORIG_YEAR is"
+KIOSK_2024_RANR = -100000.0
+YEARS = ("2022", "2023", "2024", "(no date)")
+
+
+def _vintage_file(tmp_path, n=4000, first=2022, years=3):
+    """The synthetic book, its loans made from `first` over `years` years; every 151st has no origination date (a
+    blank), so it belongs to no year. A second date column, FIRST_PAY_DATE, sits beside it 400 days later, so a year
+    read from the wrong column lands in the wrong year. Three Kiosk loans at FICO 700: two booked $1,000,000 in 2022
+    keeping nothing, one booked $1,000 in 2024 losing $100,000, so the 2024 view shows a figure far wider than any
+    whole-book cell."""
+    from datetime import date, timedelta
+    src = synth.write_extract(tmp_path / "src", n=n)
+    rows = list(csv.DictReader(open(src, encoding="utf-8")))
+    rng = random.Random(30)
+    span = (date(first + years, 1, 1) - date(first, 1, 1)).days - 1
+    for i, r in enumerate(rows):
+        made = date(first, 1, 1) + timedelta(days=rng.randint(0, span))
+        r["ORIG_DATE"] = "" if i % 151 == 5 else made.isoformat()
+        r["FIRST_PAY_DATE"] = (made + timedelta(days=400)).isoformat()
+    for k, (bal, ranr, made) in enumerate(((1e6, 0.0, "2022-03-01"), (1e6, 0.0, "2022-06-01"),
+                                           (1000.0, KIOSK_2024_RANR, "2024-05-01"))):
+        rows.append({**rows[10], "LOAN_NBR": f"K{k}", "FICO": 700, "CHANNEL": KIOSK, "ORIG_BAL": bal, "BAD_FLAG": 0,
+                     "GCO_AMT": 0, "RANR_AMT": ranr, "ORIG_DATE": made, "FIRST_PAY_DATE": "2025-01-01"})
+    out = tmp_path / "vintages.csv"
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    return out
+
+
+def _year(r) -> str:
+    """A loan's origination year, worked out here from the loan file: its ORIG_DATE's first four characters."""
+    return r["ORIG_DATE"][:4] if r["ORIG_DATE"] else "(no date)"
+
+
+def test_filter_by_launcher_offers_every_category_and_the_origination_year(tmp_path, monkeypatch):
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    x = _vintage_file(tmp_path, n=1500)
+    loans = _loans_file(x)
+    f = _flow(x)
+    assert f.heads() == ("Cut into bands", "Segment by", "Split by", "Filter by")
+    rows = f.rows()
+    by = {r["name"]: r for r in rows}
+    for name in ("CHANNEL", "ASSET_CLASS"):                                  # every category can filter
+        assert by[name]["d"] == {"on": False, "radio": True}
+    for name in ("FICO", "ORIG_BAL", "REV_DEBT", "BAD_FLAG", "LOAN_NBR", "ORIG_DATE"):
+        assert by[name]["d"] is None, name
+    # ORIG_YEAR sits with the categories: it splits and filters, never segments
+    none = sum(1 for r in loans if not r["ORIG_DATE"])
+    yr = by[ch.ORIG_YEAR]
+    assert yr["what"] == f"Origination year, from ORIG_DATE · 3 values · {none} with no date"
+    assert yr["b"] is None and yr["c"] == {"on": False, "radio": True} and yr["d"] == {"on": False, "radio": True}
+    names = [r["name"] for r in rows]
+    assert names.index("ASSET_CLASS") < names.index(ch.ORIG_YEAR) < names.index("BAD_FLAG")
+    # Filter by is its own pick: the split and the segments stay as they are
+    f.click(ch.ORIG_YEAR, "d")
+    f.click("REV_DEBT", "c")
+    assert f.filter == ch.ORIG_YEAR and f.split == "REV_DEBT" and {"CHANNEL", "ASSET_CLASS"} <= f.seg
+    f.click("CHANNEL", "d")                                                  # one column filters, or none
+    assert f.filter == "CHANNEL" and "CHANNEL" in f.seg and f.split == "REV_DEBT"
+    f.click("CHANNEL", "d")
+    assert f.filter is None
+    f.click(ch.ORIG_YEAR, "d")
+    f.pick_outcome("BAD_FLAG")
+    f.answer_outcome(True)
+    got = f.choices()
+    assert got.filter == ch.ORIG_YEAR and got.split == "REV_DEBT"
+    ok, said = f.summary()
+    assert ok and said.endswith("adds 4 more. Grids can show only the loans of one ORIG_YEAR."), said
+    # written to Control beside the split, and read back by the next Set up
+    f.next()
+    assert f.page == "answer", f.message
+    ws = load_workbook(f.book())[control.SHEET]
+    shown = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=control.CHOOSE_COL).value
+             for r in range(control.FIRST_ROW, ws.max_row + 1)}
+    assert shown["Split every pocket by"] == "REV_DEBT" and shown["Filter the Grids by"] == ch.ORIG_YEAR
+    again = _flow(x)
+    assert again.filter == ch.ORIG_YEAR and again.split == "REV_DEBT"
+    # a test of a new variable has no Filter by; an extract with no origination date has no ORIG_YEAR row
+    f.set_mode("new")
+    assert all(r["d"] is None for r in f.rows()) and f.choices().filter is None
+    bare = tmp_path / "bare" / "nodate.csv"
+    bare.parent.mkdir()
+    with open(bare, "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=[c for c in loans[0] if not c.endswith("_DATE")])
+        w.writeheader()
+        w.writerows([{k: v for k, v in r.items() if not k.endswith("_DATE")} for r in loans])
+    assert ch.ORIG_YEAR not in [r["name"] for r in _flow(bare).rows()]
+
+
+def test_filter_by_refuses_more_than_six_values_in_the_launcher_and_at_the_run(tmp_path, monkeypatch):
+    assert ch.too_many_to_filter("X", ch.FILTER_MOST_VALUES) is None           # six values filter
+    said = ch.too_many_to_filter("REGION", 7)
+    assert said == ("REGION has 7 values. The Grids can be filtered by a column of 6 values at most: with more, each "
+                    "value's loans are too few to fill a grid. Filter by a column with fewer values, or by none.")
+    f = _flow(_flag_file(tmp_path))
+    f.pick_outcome("BAD_FLAG")
+    f.answer_outcome(True)
+    f.click("REGION", "d")
+    assert f.summary() == (False, said) and f.states()["next"] == "disabled"
+    f.click("SYS_FLAG", "d")                                                 # Y, N and a blank: two values
+    assert f.summary()[0]
+    # nine years of originations are too many too; the loans with no date aren't counted
+    many = _flow(_vintage_file(tmp_path / "nine", n=1500, first=2016, years=9))
+    many.pick_outcome("BAD_FLAG")
+    many.answer_outcome(True)
+    many.click(ch.ORIG_YEAR, "d")
+    assert many.summary() == (False, ch.too_many_to_filter(ch.ORIG_YEAR, 9))
+    # the Run refuses it too, in the same words, whatever wrote the workbook
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    out = book.set_up(f.extract, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL",),
+                                                    filter="REGION", outcome="BAD_FLAG"))
+    _answer(out.book)
+    ran = book.run(out.book)
+    assert not ran.ok and ran.lines == [f"Couldn't run: {said}"]
+
+
+@pytest.fixture(scope="module")
+def vintage_book(tmp_path_factory):
+    """FICO x CHANNEL on 2022 to 2024 originations, split in halves by REV_DEBT (a number) and filtered by ORIG_YEAR."""
+    from pocketbook import perm
+    d = tmp_path_factory.mktemp("vintage")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 200)
+        x = _vintage_file(d)
+        out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL",),
+                                                split="REV_DEBT", filter=ch.ORIG_YEAR, outcome="BAD_FLAG"))
+        _answer(out.book)
+        # edges typed at whole scores, so each band's label says exactly which loans it holds (an equal-loans edge
+        # such as 654.2 puts FICO 654 in a band labelled "... - 653")
+        from test_book import at
+        wb = load_workbook(out.book)
+        wb["Columns"][at(wb, "FICO", book.C_EDGES)] = "620; 680; 740"
+        wb.save(out.book)
+        ran = book.run(out.book)
+        assert ran.ok, ran.lines
+    return out.book, x, ran
+
+
+def test_filter_by_year_under_a_number_split_every_cell_from_the_loan_file(vintage_book, tmp_path):
+    """Filter by works whatever Split by is doing: here REV_DEBT halves every pocket, and ORIG_YEAR filters the Grids.
+    For every year, and the loans with no date, every count, rate and comparison worked out again from the loan
+    file: vs the book against the whole book's rate, vs rest of band against the rest of the band among that
+    year's loans; and each view's heat scale from its own cells."""
+    from pocketbook import results
+    import tabs
+    b, x, ran = vintage_book
+    rows = _loans_file(x)
+    wb = load_workbook(b)
+    assert tabs.options(wb, results.GRIDS, ONLY_YEAR) == [results.ALL_LOANS, *YEARS]
+    assert tabs.options(wb, results.POCKETS, "Pockets") == ["Two-way", "Split by REV_DEBT"]    # the split is its own
+    book_rate = _bad_rate(rows)
+    few, min_events = _fewest(b), _min_losses(b)
+    v = _views_rows(b)
+    bounds = []
+    for year in YEARS:
+        ws, blocks, said = _grids(b, tmp_path / f"y{year[:3]}.xlsx", **{ONLY_YEAR: year})
+        rate, bk, bd, loans = (blocks[t] for t in ("Rate", "vs the book", "vs rest of band", "Loans"))
+        cells = _cells([r for r in rows if _year(r) == year], loans)
+        assert {k for k, n in loans.items() if n} == set(cells), year
+        shown = 0
+        for k, got in cells.items():
+            assert loans[k] == len(got), (year, k)
+            assert rate[k] == pytest.approx(_bad_rate(got)), (year, k)
+            bad = sum(1 for r in got if r["BAD_FLAG"] == "1")
+            if bad < min_events:
+                if "All" not in k:                                          # a pocket; a total isn't held back
+                    assert bk[k] is None and bd[k] is None, (year, k)
+                continue
+            assert bk[k] == pytest.approx(_bad_rate(got) / book_rate), (year, k)            # the whole book
+            if "All" not in k:
+                rest = [r for kk, vv in cells.items() if kk[0] == k[0] and "All" not in kk and kk != k for r in vv]
+                if rest and _bad_rate(rest):
+                    assert bd[k] == pytest.approx(_bad_rate(got) / _bad_rate(rest)), (year, k)
+                    shown += 1
+        assert shown >= (3 if year != "(no date)" else 0), year
+        assert said["name"].endswith(f", Bad loans, only loans where ORIG_YEAR is {year}"), said["name"]
+        assert _head(ws, "vs the book") == f"vs the book (book: {book_rate * 100:.2f}%)"      # the whole book's
+        # its own heat scale: the largest gap in points among its own cells with enough loans
+        key = f"G|FICO x CHANNEL|where {year}"
+        labels = v[f"{key}|rows"]
+        gaps = [abs(g) for i in range(1, len([y for y in labels if y]) + 1) for what in ("book", "band")
+                for g, n in zip(v[f"{key}|ranr_rate|{what}|{i}"], v[f"{key}|loans|{i}"])
+                if isinstance(g, (int, float)) and isinstance(n, int) and n >= few]
+        if gaps:
+            assert v[f"{key}|ranr_rate|meta"][1] == pytest.approx(max(gaps)), year
+            bounds.append(v[f"{key}|ranr_rate|meta"][1])
+    assert len(set(bounds)) == len(bounds) >= 3                             # each year its own scale
+    # no note under the dropdown: a Filter by was picked; the method note says what ORIG_YEAR is
+    ws = wb[results.GRIDS]
+    at = tabs.dropdown(ws, ONLY_YEAR)
+    assert ws.cell(row=at.row + 1, column=at.column).value != results.SAY_NO_FILTER
+    note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 16)}
+    assert note["Only loans where"].endswith("ORIG_YEAR is the year in ORIG_DATE; (no date) holds the loans without "
+                                             "a readable date.")
+    # Record and the Run name the filter where they name the split
+    counts = {y: sum(1 for r in rows if _year(r) == y) for y in YEARS}
+    listed = ", ".join(f"{y} ({n:,} loans)" for y, n in counts.items())
+    rec = tabs.record(b)
+    assert rec["Grids filter"].startswith(f"ORIG_YEAR (the year in ORIG_DATE): {listed}. ")
+    assert rec["Split"].startswith("REV_DEBT, each pocket halved")
+    assert f"Grids filter by ORIG_YEAR (the year in ORIG_DATE): {listed}. Pick one in Grids' Only loans where." \
+        in ran.lines
+
+
+def test_filter_by_grids_widths_fit_the_filtered_values(vintage_book):
+    """The one data width fits every value any view shows, filtered ones too: the 2024 view's Kiosk pocket keeps
+    -10,000% of what it booked, far wider than any whole-book figure."""
+    import dataclasses
+    import math
+    from openpyxl import Workbook
+    from pocketbook import config as cfgmod, engine, results
+    from pocketbook.ingest import read_table
+    b, x, _ = vintage_book
+    cfg = cfgmod.parse(book.read_book(b)[0])
+    table = read_table(x)
+    widths = {}
+    for filt in (ch.ORIG_YEAR, None):
+        res = engine.run(dataclasses.replace(cfg, filter_by=filt), table)
+        _, _, _, _, fit = results.grid_views(res, results.Views(Workbook()))
+        widths[filt] = results.grid_widths(fit)[0]
+    kiosk = f"{KIOSK_2024_RANR / 1000 * 100:.2f}%"                          # the 2024 view's Kept after losses
+    assert widths[ch.ORIG_YEAR] >= min(results.DATA_CAP, len(kiosk) + 2)
+    assert widths[ch.ORIG_YEAR] > widths[None]                                # so the filtered views set it
+    got = load_workbook(b)[results.GRIDS].column_dimensions["C"].width
+    assert math.isclose(got, widths[ch.ORIG_YEAR], abs_tol=0.01)
+
+
+def test_filter_by_origination_year_splits_too_with_each_year_against_the_rest(tmp_path, monkeypatch):
+    """ORIG_YEAR as Split by: each year set against the rest of its pocket on the Split tab, and whether the years
+    differ at all, the consistency test across vintages. One definition of the year serves both picks. With no
+    Filter by, the Grids offer All loans only, though the split is a category."""
+    import dataclasses
+    from pocketbook import config as cfgmod, engine, perm, results
+    from pocketbook.ingest import read_table
+    import tabs
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    monkeypatch.setattr(perm, "SHUFFLES", 100)
+    x = _vintage_file(tmp_path, n=6000)
+    rows = _loans_file(x)
+    out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",), segments=("CHANNEL",),
+                                            split=ch.ORIG_YEAR, outcome="BAD_FLAG"))
+    _answer(out.book)
+    raw = book.read_book(out.book)[0]
+    assert raw["split"] == {"field": ch.ORIG_YEAR, "how": "each_value"} and "filter_by" not in raw
+    ran = book.run(out.book)
+    assert ran.ok, ran.lines
+    wb = load_workbook(out.book)
+    split = tabs.options(wb, results.SPLIT, "Grid")
+    assert [s for s in split if s.startswith("FICO x CHANNEL · ")] == [
+        f"FICO x CHANNEL · ORIG_YEAR {y} vs rest" for y in YEARS]
+    assert tabs.options(wb, results.GRIDS, "Only loans where") == [results.ALL_LOANS]
+    at = tabs.dropdown(wb[results.GRIDS], "Only loans where")
+    assert wb[results.GRIDS].cell(row=at.row + 1, column=at.column).value == results.SAY_NO_FILTER
+    ws = tabs.calculated(tabs.choose(out.book, tmp_path / "s.xlsx", results.SPLIT,
+                                     grid="FICO x CHANNEL · ORIG_YEAR 2023 vs rest"), results.SPLIT)
+    text = [str(v) for row in ws.iter_rows(values_only=True) for v in row if v is not None]
+    differ = next(t for t in text if t.startswith("Do the values of ORIG_YEAR differ at all? Bad loans: "))
+    assert "on 3 degrees of freedom" in differ
+    assert any(t.startswith("Same in every pocket? Bad loans: ") for t in text)
+    assert tabs.record(out.book)["Split"].startswith("ORIG_YEAR (the year in ORIG_DATE), each pocket split by each")
+    # the engine's parts are the years of the loan file: every loan in one, a loan with no date in none of the years
+    res = engine.run(cfgmod.parse(raw), read_table(x))
+    g = res.grids[0]
+    assert g.split_parts == list(YEARS)
+    assert g.split_general["outcome_loans"]["df"] == 3
+    for y in YEARS:
+        n = sum(c.rows for (b_, d_, p), c in g.split_cells.items() if p == y and engine.ALL not in (b_, d_))
+        assert n == sum(1 for r in rows if _year(r) == y), y
+    assert [r[ch.ORIG_YEAR] for r in res.table.rows] == [_year(r) for r in rows]
+    assert engine.origination_years(read_table(x), "ORIG_DATE") == [_year(r) for r in rows]
+    # no column marked Origination date: refused in words, never guessed
+    with pytest.raises(engine.DataRefused, match="no column in this extract is marked so"):
+        engine.run(dataclasses.replace(cfgmod.parse(raw), origination_date=None), read_table(x))

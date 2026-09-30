@@ -2446,6 +2446,45 @@ changed in the code.
       (the percentile rows, "50th percentile (P50), the median" at 33 characters, made it 32, not the survey's 30).
   - Not changed: Record (it wraps by design), `live.py`, hidden columns, the checklist's named cells (Grids B13
     and F13, Split B15 and B26, Look C20, Pockets C18 to E18 all stay where they were).
+- **Filter by, apart from Split by, 30 Sep 2026** (branch `pocketbook-filter-by-0930`). The firm found the Grids'
+  *Only loans where* worked only off Split by: *"Wait only works on split by? Isn't that for like above and below
+  median"*. Offered a separate Filter by, they answered *"Yes hoping to have this by morning"*; their use is 2022 to
+  2024 originations, flipped year by year to show the pockets hold across vintages.
+  - **Launcher:** a fourth column, **Filter by** (a radio), in the Choose tests table beside Split by: any category,
+    or **ORIG_YEAR**, a row that sits with the categories whenever a column is marked Origination date (*"Origination
+    year, from ORIG_DATE · 3 values · 27 with no date"*). One column or none; it never touches the split or the
+    segments (a category may segment and filter at once). More than 6 values (blanks and no-date loans aside,
+    `choices.FILTER_MOST_VALUES`) is refused in the launcher (Next stays off) and at the Run in the same words:
+    *"REGION has 7 values. The Grids can be filtered by a column of 6 values at most: with more, each value's loans are
+    too few to fill a grid. Filter by a column with fewer values, or by none."* Written to Control's *Chosen in the
+    launcher* as **Filter the Grids by** (one row more in that block, under *Split every pocket by*; no checklist cell
+    moves), read back by the next Set up, and passed to the Run as `filter_by:`.
+  - **ORIG_YEAR** is one definition (`engine.origination_years`), used by Split by and Filter by alike and by the
+    launcher's count: the year of the column marked Origination date, read as the Run reads that column (dates that
+    read two ways are refused). **Decided:** a loan with no readable date goes to **(no date)**, a value of its own
+    listed last, never put in a year and never dropped (every loan stays in view, as decided 26 Sep); it isn't
+    counted against the 6. No column marked Origination date: the Run refuses ORIG_YEAR in words.
+  - **Grids:** *Only loans where* reads the Filter by column, whatever Split by is doing (halves, a category, or
+    none). Every earlier rule holds: vs the book against the whole book, vs rest of band within the filtered loans,
+    grey and the heat scale by the view's own cells, Loan size filtered, and the one-cell reading ends *", only loans
+    where ORIG_YEAR is 2023"*. The one data width fits the filtered views' values too. No Filter by: the dropdown
+    offers All loans only, and the note under it reads *"Pick a Filter by in the launcher."* (it read *"Filtering needs
+    Split by a category."*). A category split no longer filters on its own.
+  - **Split by ORIG_YEAR:** each year against the rest of its pocket, and the Split tab's *Do the values of ORIG_YEAR
+    differ at all?* line (K-group Mantel-Haenszel; 3 degrees of freedom for 2022, 2023, 2024 and (no date)) is the
+    consistency test across vintages.
+  - **Record** has a *Grids filter* row (the column, where a year comes from, each value's loans); the Run's lines say
+    the same. Start here doesn't name the split, so it doesn't name the filter either.
+  - Tests: 6 in `tests/test_firm_answers_2026_09_29.py` (Filter by), on a synthetic book with origination dates
+    across 2022 to 2024 (every filtered block cell, for each year and (no date), worked out again from the CSV);
+    6 existing tests changed (the Grids fixture now picks Filter by as well as Split by; the no-filter note; the
+    launcher's four headings, twice; the Choose tests order, twice, now with ORIG_YEAR after the categories).
+    Planted bugs: 13 added and 4 repointed, put back one at a time with the 6 others on the lines touched: 23 of 23
+    caught. Full suite in shards (Python 3.11, LibreOffice, no tkinter here): 872 passed, 7 skipped (the window
+    tests), 0 failed. **Not checked:** the Tk window itself (no tkinter on this machine), real Excel, the bank.
+  - **Found, not fixed:** an equal-loans band edge that isn't a whole number is labelled one short: FICO cut at 654.2
+    reads *"496 - 653"* but holds FICO 654 (`engine.band_labels`: the step is 1 for whole-number display, and the
+    edge is not rounded). The test types whole edges to stay clear of it.
 
 ## 7 · Standing rules for new items
 
@@ -2458,6 +2497,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-30 -- **PocketBook: Filter by, apart from Split by.** The firm: *"Wait only works on split by? Isn't that for like above and below median"*, then *"Yes hoping to have this by morning"*. Grids' *Only loans where* now reads its own launcher pick (any category of 6 values or fewer, or ORIG_YEAR, the year of the Origination date column), whatever the split does; ORIG_YEAR can also split, for the consistency test across vintages. 6 tests, 13 planted bugs added and 4 repointed, all caught. §6d has the detail.
 - 2026-09-28 -- **PocketBook: every figure in both workbooks tied out to the loan file** (`pocketbook/docs/tie-out/2026-09-28-full/`, the PDF and `roster.csv`). The firm, on the first tie-out's 64 figures: *"That tie out covered 60 things? It's pretty small"*. 15,650 cells read out of the bleed workbook (all 40 dropdown views) and a Test-new-variables workbook (the test_scout book, two candidates shortlisted), each worked out again from the loan file with no PocketBook code: 13,403 tie, 1,030 tie within sampling error (shuffle and forest figures), 16 differ, 5 could not be checked, the rest names, echoed answers and words. Found: the Look chart counts a value exactly on a bar's edge in the bar below (`look.py:195`, `:209`: 12 x 0.1 = 1.2000000000000002; UTIL's bars off by 1 to 5 loans), and six verdicts rest on shuffled p-values either side of 5% within sampling error, one of them behind Start here's *4 short $3,248,654*. Not fixed here.
 - 2026-09-28 -- **PocketBook Goal 4: the tree is the main path, checked on later loans, and the shortlist regressed together** (OC-51; `pocketbook/docs/NEXT-GOAL.md` Goal 4, all seven ticked). The firm, 27 Sep 2026: *"shouldn't it regress all of those identified variables if it actually deems them important? import --> tree runs --> tree guesses on 2024 data if 2022-2023 are used to build branches --> regress shortlist?"*, then *"yes build it out"*. A cutoff date on Control replaces *Find on 70%* (suggested, never chosen); after the pre-spec is written the tree scores the held-back loans (*"Built on …: AUC 0.63. On …, unseen: 0.60."*, logged as a touch of the holdout); every shortlisted candidate goes into one logistic regression on the held-back loans with the pockets as control dummies (`joint.py`, statistics.md B10: a likelihood ratio test per candidate, the allowance across the shortlist, separation refused in words, correlated pairs named); New variables leads with both. 771 tests (15 new: `tests/test_together.py` and 7 in `tests/test_scout.py`), 766 passed and 5 skipped; 24 planted bugs added and 6 repointed (431 in all), each put back alone with every earlier one whose test was rewritten: 71 of 73 caught on the first pass, the 2 missed caught after their tests were strengthened. The walk's Part C pictures retaken and the procedure and checklist PDFs rebuilt. A scouting Run at 17,000 × 80: about 73 s before, 75–77 s after.
 - 2026-09-27 -- **PocketBook: Choose tests in the order you work down it.** The firm, on the "What are you running?" table: *"it just isn't necessary to have anything there, really. i would prefer that screens are ordered more sensibly- this one seems all over the place"*. The outcome rows' "· every measure" is gone (their cells are empty), and the rows no longer follow the extract: number columns (bands, split), then categories (segment), then the outcome and dollar columns, then the key and date in grey, each group in the extract's order, with a small blank gap between groups and no headings. Same order for Test new variables, so the toggle never reshuffles. Also fixed: in Test new variables a table 251-280 px tall lost its last rows with no scroll bar. The other steps were checked and already in task order (Answers needed sorts by cell; the open questions by row). 3 tests, 6 planted bugs caught; steps 4, 5, 22, 23 and 24 retaken and the procedure PDF rebuilt.
