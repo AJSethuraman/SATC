@@ -1208,6 +1208,28 @@ muts = [
  ("loan size's median read from the average", RS, '"|median|", (RI,)', '"|rate|", (RI,)', "grids_loan_size"),
  ("loan size offered without a booked amount", RS,
   'sized = res.book_size is not None and bool(res.book_size.loans)', 'sized = True', "loan_size_is_not_offered"),
+ # 29 Sep 2026, column widths (the firm: "i prefer to have nice even layouts"; tests/test_widths.py)
+ ("a grids data column back to 11", RS, "left: lw, right: lw, right - 1: 3})",
+  "left: lw, right: lw, right - 1: 3, left + 1: 11})", "one_width_in_all_four_blocks"),
+ ("grids right label its own width", RS, "left: lw, right: lw, right - 1: 3})", "left: lw, right: lw + 1, right - 1: 3})",
+  "one_width_in_all_four_blocks"),
+ ("grids width ignores the labels", RS, "need += [house.two_line_width(h) + 2 for h in", "need += [0 for h in",
+  "grid_widths_follow"),
+ ("grids width ignores a segment's span", RS, "math.ceil((house.two_line_width(sg) + 2) / parts)",
+  "math.ceil((house.two_line_width(sg) + 2) / (2 * parts))", "grid_widths_follow"),
+ ("grids headers don't wrap", RS, 'hc = _cell(ws, t + 1, c0 + j, f"={pick(HEADS, j)}", bold=True, size=9, color=SLATE, '
+  'name="Arial",\n                       wrap=True)',
+  'hc = _cell(ws, t + 1, c0 + j, f"={pick(HEADS, j)}", bold=True, size=9, color=SLATE, '
+  'name="Arial",\n                       wrap=False)', "four_blocks_line_up"),
+ ("split grids' header one row", RS, 'parts, hdr = fit["parts"], (2 if fit["parts"] else 1)',
+  'parts, hdr = fit["parts"], 1', "four_blocks_line_up or split_grids_header"),
+ ("booked dollars never in thousands", RS, 'out["thousands"] = dollars and len(f"{top:,.0f}") + 2 > DATA_CAP',
+  'out["thousands"] = False', "thousands"),
+ ("pockets segment column fixed", RS, 'K_SEG: max(lw["seg"],', 'K_SEG: max(20,', "segment_and_band_columns_fit"),
+ ("split's right label its own width", RS, "widths[left] = widths[right] = lw", "widths[left] = lw",
+  "split_grids_share"),
+ ("look labels back to 26", LK, "return house.fit(list(STAT_LABELS) + codes, floor=20, cap=40, per_char=LOOK_PER_CHAR)",
+  "return 26", "look_labels_fit"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

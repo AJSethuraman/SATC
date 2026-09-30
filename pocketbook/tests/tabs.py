@@ -152,6 +152,21 @@ def _merged_value(ws, r: int, c: int):
     return ws.cell(row=r, column=c).value
 
 
+def header_of(ws, r: int, c: int) -> tuple[int, dict]:
+    """A block's column labels, the block's title at (r, c): the header's last row, and {label: column}. A split
+    grid's header on Grids is two rows (the widths change, 29 Sep 2026: G4), the segment merged over its parts and
+    then each part; its labels read back as the one label "<segment> · <part>", as before."""
+    two = any(m.min_row == r + 1 and m.min_col > c for m in ws.merged_cells.ranges)
+    head = r + 2 if two else r + 1
+    labels, j = {}, c + 1
+    while ws.cell(row=head, column=j).value not in (None, ""):
+        low = ws.cell(row=head, column=j).value
+        up = _merged_value(ws, r + 1, j) if two else None
+        labels[f"{up} · {low}" if up not in (None, "") else low] = j
+        j += 1
+    return head, labels
+
+
 def block(ws, title: str, start: int | None = None) -> dict:
     """A block on Grids or Split, by its title (the dark band): {(row label, column label): value}. It is looked
     for under the dropdowns, clear of the method note's labels."""
@@ -162,17 +177,9 @@ def block(ws, title: str, start: int | None = None) -> dict:
         for c in range(1, ws.max_column + 1):
             v = ws.cell(row=r, column=c).value
             if isinstance(v, str) and v.startswith(title):
-                cols, out = {}, {}
-                # a split grid's header is two rows (the widths change, 29 Sep 2026: G4): the segment merged over
-                # its parts, then each part; read back as the one label "<segment> · <part>"
-                two = any(m.min_row == r + 1 and m.min_col > c for m in ws.merged_cells.ranges)
-                head = r + 2 if two else r + 1
-                j = c + 1
-                while ws.cell(row=head, column=j).value not in (None, ""):
-                    low = ws.cell(row=head, column=j).value
-                    up = _merged_value(ws, r + 1, j) if two else None
-                    cols[j] = f"{up} · {low}" if up not in (None, "") else low
-                    j += 1
+                out = {}
+                head, labels = header_of(ws, r, c)
+                cols = {j: label for label, j in labels.items()}
                 rr = head + 1
                 while ws.cell(row=rr, column=c).value not in (None, ""):
                     for j, name in cols.items():

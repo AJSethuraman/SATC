@@ -221,6 +221,26 @@ After that, the whole routine is:
      there is no partner chip (how a category moves with a band column isn't
      worked out), and one more line asks whether the values differ at all, for
      bad loans only (the K-group Mantel-Haenszel test).
+   - **Column widths** (the firm, 29 Sep 2026: *"i prefer to have nice even
+     layouts, or at least the column sizes should make sense for the data we
+     see"*; the survey is `docs/column-widths-survey-2026-09-29.md`). Every
+     width is worked out per Run from the labels and values that Run can show,
+     never set per bank (`house.fit`, `house.two_line_width`). On **Grids**
+     every data column of the four blocks and the groups table under them is
+     one width, wide enough for the longest value and for the longest column
+     label on two lines (9 to 16), and both label columns are one width (12 to
+     28), so the blocks line up. Headers wrap, and every block's header rows are
+     the same height. A **split grid's header is two rows**: the segment, merged
+     over its parts, then each part ("high", "low", or the category's values).
+     Every segment gets every part, in one order, so a part a segment has no
+     loans in is an empty column. Booked dollars in the groups table too long
+     for the widest column show in thousands ($1,234k). **Split**'s two grids
+     follow the same rules, and its Grid dropdown spans B:D with the chip
+     beside it. The label columns of **Pockets**, **Paid, cost, kept** and
+     **Start here** fit the Run's bands and segments (up to 32); **Look**'s
+     label column fits its longest label; **Control** and **Columns** fit
+     their questions, answers, names and samples, and Columns' *Check first*
+     wraps. `tests/test_widths.py` holds each rule.
    - **Record** (grey tab; it merges Check and the Log): six sections in three
      pairs, read across. *This Run*: the extract, the loans run, what was run,
      the band edges, the split, the range of origination dates (so a wrong

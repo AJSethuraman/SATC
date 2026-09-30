@@ -113,6 +113,20 @@ def test_lines_break_as_excel_does_at_a_space_or_after_a_hyphen_never_inside_a_w
 # Grids
 
 
+def test_grid_widths_follow_the_longest_label_value_and_segment():
+    """G1 and G2 worked out by hand: the bank's "Non-Customer/VLA A" is 14 on two lines, so its column is 16; a
+    segment over two parts shares its width between them; a value's characters + 2; the cap and floor hold."""
+    fit = lambda **k: {"heads": set(), "segs": set(), "parts": 0, "rows": set(), "values": 0, **k}   # noqa: E731
+    assert results.grid_widths(fit(heads={"Non-Customer/VLA A"}))[0] == 16
+    assert results.grid_widths(fit(heads={"Branch", "All"}))[0] == 9                     # the floor
+    assert results.grid_widths(fit(heads={"high"}, values=9))[0] == 11                   # "+0.99 pts"
+    assert results.grid_widths(fit(segs={"Non-Customer/Online Direct"}, parts=2))[0] == 11   # 19 + 2 over two
+    assert results.grid_widths(fit(heads={"Non-Customer/Online Direct"}))[0] == results.DATA_CAP
+    assert results.grid_widths(fit(), {"values": 11})[0] == 13                           # the groups' "388,477,052"
+    assert results.grid_widths(fit(rows={"15,760 - 26,665", "(marked missing)"}))[1] == 19
+    assert results.grid_widths(fit(rows={"x" * 40}))[1] == results.LABEL_CAP
+
+
 @pytest.mark.parametrize("kind", KINDS)
 def test_grids_data_columns_are_one_width_in_all_four_blocks_and_the_label_columns_match(runs, kind):
     ws, _, _, _, right = _grids(runs[kind])
