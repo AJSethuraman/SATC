@@ -2489,6 +2489,17 @@ changed in the code.
   equal-loan point of 654.2 read "496 - 653" and held 654. A column of whole numbers now labels each band from the
   first value it holds (655) to the last (654); a column with cents keeps the nearest-dollar reading. Test and
   planted bug in `tests/test_firm_answers_2026_09_29.py`.
+- **The evening tie-out, 30 Sep 2026** (`pocketbook/docs/tie-out/2026-09-30-evening/`, on build 44734da4): 281,421
+  cells TIED, 12,016 within sampling, 376 DIFFERS, 13 COULD NOT; every figure of the evening's changes ties.
+  The DIFFERS: 104 are the one shuffle draw 29 Sep's million-shuffle run already settled; 254 are width
+  measurements, of which four were real clips and are fixed (Split's borderline cells, Start here's segment
+  with the flag, Look's P50 label, New variables' ranges) and the rest are headings that wrap or spill as
+  designed; 18 are the one open item below.
+- **Open, for the firm: a dollar band's label when its edge has cents.** An equal-loan cut at $37,950.548
+  reads "26,324 - 37,950" then "37,951 - 49,151"; a loan of $37,950.99 is in the second band but its whole-dollar
+  reading, 37,951, is right while the first band's "37,950" end is not strictly its last value. Choices: cut
+  dollar columns at whole dollars (the labels then hold exactly), or show edges to the cent. **Recommended:**
+  cut at whole dollars. Not changed without a yes: it moves loans between bands on every dollar column.
 
 ## 7 · Standing rules for new items
 
