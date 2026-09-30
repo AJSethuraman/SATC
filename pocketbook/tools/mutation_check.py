@@ -1414,6 +1414,9 @@ muts = [
  ("Summary's missing source column not said", RS,
   '        note.append(("Not shown", "This Run has no " + " and no ".join(left_off) + ", so those columns are left off."))',
   '        pass', "summary"),
+ # 30 Sep 2026: the Choose table tints the row being worked in; the row left behind must go white again
+ ("row highlight never cleared", LA, '    return want, {n: n == want for n in {lit, want} - {None}}',
+  '    return want, {n: True for n in {lit, want} - {None}}', "row_highlight"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

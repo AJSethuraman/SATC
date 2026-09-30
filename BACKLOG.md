@@ -2616,6 +2616,18 @@ changed in the code.
     the Windows clipboard. The lock was simulated by making every read of the extract raise PermissionError; the
     window was drawn under xvfb on Linux and photographed.
 
+- **Built, 30 Sep 2026: the Choose tests table tints the row you are in** (branch `pocketbook-row-highlight`). The
+  firm: *"In setup screens it would be nice if it highlighted the row you're clicking in when the button is far away
+  from the column names"*. Pointing at any part of a row (name, what it is, any box) tints the whole row CANVAS, the
+  colour of the All/None band. A click keeps it tinted after the pointer leaves, until another row is clicked. A
+  redraw keeps the clicked row. `launcher.relight` decides which row is tinted and which go back to white, and
+  `row_light` binds Enter, Leave and Button-1 on every widget in a row.
+  - Tests: 2 in `tests/test_row_highlight.py`. One checks `relight` with no window, so it runs in CI. The other builds
+    the window, points and clicks, and checks every background in the row; it skips without a display. Planted bug:
+    1 added (*row highlight never cleared*), caught with a display (2 failed) and without one (1 failed).
+  - Picture: `pocketbook/docs/row-highlight-2026-09-30/choose-row-highlighted.png` (REV_DEBT clicked at Split by,
+    the pointer off the table).
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
