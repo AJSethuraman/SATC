@@ -220,11 +220,11 @@ Compare as you go. Every number here came up on the walk and again on this check
 | Control C15 and C16, **Comes to** (Step 9) | **1.34×** and **0.75×**, before any Run |
 | Control C19, **Comes to** (after Step 12) | 1% of losses comes to **$107,354** |
 | Columns (Step 10) | FICO: **-9999 on 160 loans**; RANR: **negative on 595 loans** |
-| Run (Step 12) | **4** pockets worse and material, charge-offs, of 81 · **$3.09M**, and under them *Open … start with Pockets* |
+| Run (Step 12) | **4** pockets worse and material, GCOs, of 81 · **$3.09M**, and under them *Open … start with Pockets* |
 | Start here (Step 13) | **4 of 81** · **$3,094,991** · **4 short $3,248,654** |
 | Start here, the largest | FICO 496 - 653 / Broker: 523 loans, **2.62×**, **$1,494,129** · FICO 496 - 653 / ASSET_CLASS 4: 1.74×, $643,768 · ORIG_BAL 37,951 - 49,151 / ASSET_CLASS 4: 1.75×, $529,198 · FICO 712 - 745 / Online: 2.06×, $427,896 |
 | Pockets, as it opens | Bad loans · Two-way · All: **7 worse and material · 7 worse · 41 shown** |
-| Paid, cost, kept | FICO 496 - 653 / Broker reads **Net drain**; FICO 712 - 745 / Online reads **Losing more, profit holding** |
+| RANR vs GCOs | FICO 496 - 653 / Broker reads **Net drain**; FICO 712 - 745 / Online reads **Losing more, profit holding** |
 | Split | the high REV_DEBT half worse in **14 of 15** pockets, **2.02×** overall |
 
 ![What the Run should end on](walkthrough/2026-09-27/step-12-run-finished.png)
@@ -284,15 +284,17 @@ Click each cell. A small arrow should appear beside it; press it.
 | Tab and cell | The list should hold |
 |---|---|
 | Control C15 | 4 choices, from *The smallest significant gap in a typical pocket (suggested)* to *2 times* |
-| Pockets C18, D18, E18 | Measure (5: Bad loans … Earned before losses); Pockets (Two-way, Split by REV_DEBT); Show (All, Worse and material, Worse or not sure) |
-| Paid, cost, kept B16 | the 4 grids, from FICO x CHANNEL |
-| Grids B13 and F13 | 8 grids (4, then the same 4 / REV_DEBT); the 5 measures, then Loan size |
+| Pockets C18, D18, E18 | Measure (5: Bad loans, Bad dollars, GCOs ($), RANR, RANR + GCOs); Pockets (Two-way, Split by REV_DEBT); Show (All, Worse and material, Worse or not sure) |
+| RANR vs GCOs B16 | the 4 grids, from FICO x CHANNEL |
+| Grids B13 and F13 | 8 grids (4, then the same 4 / REV_DEBT); the 5 measures (Bad loans, Bad dollars, GCOs ($), RANR, RANR + GCOs), then Loan size |
 | Split B15 and B26 | the 4 grids; the 5 measures |
 | Look C20 | 10, 20, 50 |
 
-☐ On Pockets, pick **Charge-offs** in C18 and **Worse and material** in E18. The caption beside them reads **4 worse and material · 4 worse · 4 shown**, and the four rows are Start here's four.
+☐ On Pockets, pick **GCOs ($)** in C18 and **Worse and material** in E18. The caption beside them reads **4 worse and material · 4 worse · 4 shown**, and the four rows are Start here's four.
 
 ☐ On Grids, pick **FICO x ASSET_CLASS** in B13. The first block's FICO 496 - 653 row reads **20.4%** under 4, and the block beside it **2.64** against the book.
+
+☐ Still on Grids, pick **RANR** in F13. The first block's heading changes to **Rate · RANR ÷ Booked**; pick **GCOs ($)** and it reads **Rate · GCOs ÷ Booked**.
 
 ☐ **Check this:** on Control, type `0.9` in D15 (**Or your own**, beside *How much worse*). Excel should refuse it with **Out of range**: *Enter a multiple above 1, such as 1.4, from 1.01 to 100.* Press **Cancel**.
 
@@ -318,7 +320,7 @@ On Control, pick **100 loans** in C24. Press **Ctrl+S** to save.
 
 ☐ Start here: **Changes waiting for a Run** reads **1**, in red, and a pink line under it names the change and Control C24.
 
-☐ Pockets K15, Paid, cost, kept M13 and Split I12 read **↻ 1 Control change waits for a Run.**
+☐ Pockets K15, RANR vs GCOs M13 and Split I12 read **↻ 1 Control change waits for a Run.**
 
 ![Start here with a change waiting](walkthrough/2026-09-27/step-20-waiting-for-a-run.png)
 
@@ -358,7 +360,7 @@ Each tab opens with **How this tab works**.
 
 ### 4.9 The charts draw
 
-☐ **Paid, cost, kept:** a scatter of the grid picked, charge-offs across on a log scale, what was kept up, lines at 1× and 0, the pockets read together named. Pick another grid in B16: the dots move.
+☐ **RANR vs GCOs:** a scatter of the grid picked, GCOs across on a log scale, RANR up, lines at 1× and 0, the pockets read together named. Pick another grid in B16: the dots move.
 
 ☐ **Look:** a chart per number column that can be cut into bands (FICO, ORIG_BAL, REV_DEBT; not GCO_AMT or RANR_AMT), and a red bar on its own left of FICO's for the -9999s.
 
@@ -431,7 +433,7 @@ One row per loan, a header row first, as .csv or .xlsx.
 
 | To run | It needs a column for |
 |---|---|
-| **Where the book bleeds** | the loan or application number; the booked amount; a yes/no outcome (went bad or not); charge-off dollars (GCO); what the bank kept after losses (RANR). It refuses without any of them. |
+| **Where the book bleeds** | the loan or application number; the booked amount; a yes/no outcome (went bad or not); charge-off dollars (GCO); RANR dollars (RANR). It refuses without any of them. |
 | **Test new variables** | the loan number; the outcome; the date each loan was made; the columns to test; the columns to hold fixed. The booked amount, GCO and RANR only if it has them. |
 
 Every loan in the extract is run. Choose the period before the extract is made.

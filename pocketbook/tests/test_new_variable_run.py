@@ -23,7 +23,7 @@ from test_confirmatory import _held, _log, _ready, _spec, needs_git
 
 BLEED, NEW = "Where the book bleeds", "Finding and testing a new variable"
 FROM_SPEC = "Test from a pre-spec"
-BLEED_TABS = set(results.TABS)          # Pockets, Paid cost kept, Grids, Split (the redesign, phase 3)
+BLEED_TABS = set(results.TABS)          # Pockets, RANR vs GCOs, Grids, Split (the redesign, phase 3)
 
 
 def _counting(mp):

@@ -540,7 +540,7 @@ def test_category_split_workbook_carries_the_flag_through_every_tab(tmp_path, mo
     assert "Worse than the rest in" in text and "Value vs rest, all" in text
     assert "Bad loans, value vs rest" in text
     differ = next(t for t in text if t.startswith("Do the values of SYS_FLAG differ at all? Bad loans: "))
-    assert "degrees of freedom" in differ and "Charge-offs" in differ and "not tested: dollar rate" in differ
+    assert "degrees of freedom" in differ and "GCOs ($)" in differ and "not tested: dollar rate" in differ
     assert not [t for t in text if "high half" in t.lower() or "High vs low" in t]
     rec = {k: v for k, v, *_ in tabs.record_rows(b)}
     assert "each value set against the rest of its pocket" in rec["Split"]
@@ -710,7 +710,7 @@ def _min_losses(b) -> int:
 
 def test_one_cell_reads_the_blocks_own_numbers_in_words_for_a_multiple_and_a_gap_in_points(one_cell_book, tmp_path):
     b = one_cell_book
-    for measure, kind in (("Charge-offs", "x"), ("Kept after losses", "pts")):
+    for measure, kind in (("GCOs ($)", "x"), ("RANR", "pts")):
         _, blocks, _ = _grids(b, tmp_path / f"{kind}-0.xlsx", measure=measure)
         rate, bk, bd, loans = (blocks[t] for t in ("Rate", "vs the book", "vs rest of band", "Loans"))
         both = [k for k in _pockets(loans) if isinstance(bk[k], (int, float)) and isinstance(bd[k], (int, float))]
@@ -724,16 +724,16 @@ def test_one_cell_reads_the_blocks_own_numbers_in_words_for_a_multiple_and_a_gap
         named = f" (the {', '.join(others)} loans)" if 1 <= len(others) <= 3 else ""
         assert said["name"] == f"{bl} · {d}, {measure}"
         if kind == "x":
-            assert said["Rate"] == f"These {n:,} loans charged off {r} of their booked dollars."
-            assert said["vs the book"] == f"{v:.2f}× the charge-off rate of the whole book."
-            assert said["vs rest of band"] == f"{w:.2f}× the charge-off rate of the other loans in {bl}{named}."
+            assert said["Rate"] == f"These {n:,} loans: GCOs were {r} of their booked dollars."
+            assert said["vs the book"] == f"{v:.2f}× the GCO rate of the whole book."
+            assert said["vs rest of band"] == f"{w:.2f}× the GCO rate of the other loans in {bl}{named}."
         else:
             side = lambda g: "less" if g < 0 else "more"                                 # noqa: E731
-            assert said["Rate"] == f"These {n:,} loans kept {r} of their booked dollars after losses."
-            assert said["vs the book"] == (f"Kept {abs(v):.2f} points {side(v)} of their booked dollars than the "
+            assert said["Rate"] == f"These {n:,} loans: RANR was {r} of their booked dollars."
+            assert said["vs the book"] == (f"RANR was {abs(v):.2f} points {side(v)} of booked dollars than for the "
                                            "whole book.")
-            assert said["vs rest of band"] == (f"Kept {abs(w):.2f} points {side(w)} of their booked dollars than the "
-                                               f"other loans in {bl}{named}.")
+            assert said["vs rest of band"] == (f"RANR was {abs(w):.2f} points {side(w)} of booked dollars than for "
+                                               f"the other loans in {bl}{named}.")
         assert said["Loans"] == f"{n:,} loans; {bl} has {loans[(bl, 'All')]:,} in all."
         # the scale's bound leaves out the cells under the fewest loans, which are grey (the firm, 29 Sep 2026)
         few = _fewest(b)
@@ -750,24 +750,24 @@ def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(
     from pocketbook import results
     b = one_cell_book
     few = f"Blank: fewer losses than the minimum ({_min_losses(b)} losses), so not compared."
-    _, blocks, _ = _grids(b, tmp_path / "blank-0.xlsx", measure="Charge-offs")
+    _, blocks, _ = _grids(b, tmp_path / "blank-0.xlsx", measure="GCOs ($)")
     bk, bd, loans = blocks["vs the book"], blocks["vs rest of band"], blocks["Loans"]
     pockets = _pockets(loans)
     mates = lambda k: sum(1 for j in pockets if j[0] == k[0])                                  # noqa: E731
     alone = next(k for k in pockets if mates(k) == 1)
     thin = next(k for k in pockets if mates(k) > 1 and bk[k] is None and bd[k] is None)
     assert bd[alone] is None
-    for measure in ("Charge-offs", "Kept after losses"):
+    for measure in ("GCOs ($)", "RANR"):
         _, _, said = _grids(b, tmp_path / f"alone-{measure[0]}.xlsx", measure=measure, row=alone[0], column=alone[1])
         assert said["vs rest of band"] == f"Blank: alone in its band. Nothing else in {alone[0]} to compare with."
-    _, _, said = _grids(b, tmp_path / "alone.xlsx", measure="Charge-offs", row=alone[0], column=alone[1])
+    _, _, said = _grids(b, tmp_path / "alone.xlsx", measure="GCOs ($)", row=alone[0], column=alone[1])
     if loans[alone] == 1:                                         # one loan reads as one, not "1 loans"
-        assert said["Rate"].startswith("This one loan charged off ") and said["Rate"].endswith(" of its booked "
-                                                                                             "dollars.")
+        assert said["Rate"].startswith("This one loan: GCOs were ") and said["Rate"].endswith(" of its booked "
+                                                                                            "dollars.")
         assert said["Loans"].startswith("1 loan; ")
     if bk[alone] is None:
         assert said["vs the book"] == few                        # only one reason a comparison with the book is blank
-    _, _, said = _grids(b, tmp_path / "few.xlsx", measure="Charge-offs", row=thin[0], column=thin[1])
+    _, _, said = _grids(b, tmp_path / "few.xlsx", measure="GCOs ($)", row=thin[0], column=thin[1])
     assert said["vs the book"] == few and said["vs rest of band"] == few
     assert "alone" not in said["The colour"] and said["The colour"].startswith("vs the book is blank, vs rest of band "
                                                                                "blank.")
@@ -988,7 +988,7 @@ def _coord(ws, title: str, key) -> str:
 def test_grids_grey_a_cell_under_the_fewest_loans_and_leave_it_out_of_the_scale(grids_book, tmp_path):
     b, _ = grids_book
     few = _fewest(b)
-    ws, blocks, _ = _grids(b, tmp_path / "k0.xlsx", measure="Kept after losses")
+    ws, blocks, _ = _grids(b, tmp_path / "k0.xlsx", measure="RANR")
     bk, bd, loans = blocks["vs the book"], blocks["vs rest of band"], blocks["Loans"]
     kiosk = next(k for k, v in loans.items() if k[1] == KIOSK and k[0] != "All" and v)
     assert loans[kiosk] == 3 and bk[kiosk] < -50                     # the photo: 3 loans, the deepest gap
@@ -1008,7 +1008,7 @@ def test_grids_grey_a_cell_under_the_fewest_loans_and_leave_it_out_of_the_scale(
         coloured = [_inner(r.formula[0]) for r, *_ in rules[2:] if r.dxf.fill is not None]
         assert coloured and all(f.startswith(f"AND(NOT({grey})") for f in coloured)
     # what one cell says, and the note
-    _, _, said = _grids(b, tmp_path / "k1.xlsx", measure="Kept after losses", row=kiosk[0], column=KIOSK)
+    _, _, said = _grids(b, tmp_path / "k1.xlsx", measure="RANR", row=kiosk[0], column=KIOSK)
     assert said["The colour"] == f"Grey: only 3 loans, fewer than the {few} set on Control, so not coloured."
     note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 16)}
     assert note["Colour"].endswith(f"Grey: fewer loans than the {few} in Fewest loans in a pocket on Control, so "
@@ -1058,7 +1058,7 @@ def test_grids_the_books_own_figure_heads_vs_the_book(grids_book, tmp_path):
     both = [(_num(r["RANR_AMT"]), _num(r["ORIG_BAL"])) for r in rows]
     kept = sum(a for a, c in both if a is not None and c is not None) / sum(c for a, c in both
                                                                          if a is not None and c is not None)
-    want = {"Bad loans": f"{_bad_rate(rows) * 100:.2f}%", "Kept after losses": f"{kept * 100:.2f}%",
+    want = {"Bad loans": f"{_bad_rate(rows) * 100:.2f}%", "RANR": f"{kept * 100:.2f}%",
             "Loan size": f"${_size(rows)[0]:,.0f}"}
     for k, (measure, fig) in enumerate(want.items()):
         for only in ("All loans", "Y"):
@@ -1109,7 +1109,7 @@ def test_grids_only_loans_where_shows_one_values_grid_against_the_whole_book(gri
     assert v[f"{key}|meta"][1] != v["G|FICO x CHANNEL|ranr_rate|meta"][1]
     # the 3-loan pocket is grey here too, by its count among Y's loans
     kiosk = next(k for k in cells if k[1] == KIOSK and k[0] != "All")
-    _, _, said = _grids(b, tmp_path / "y1.xlsx", measure="Kept after losses", row=kiosk[0], column=KIOSK,
+    _, _, said = _grids(b, tmp_path / "y1.xlsx", measure="RANR", row=kiosk[0], column=KIOSK,
                         **{ONLY: "Y"})
     assert said["The colour"].startswith("Grey: only 3 loans, ")
 
@@ -1375,7 +1375,7 @@ def test_borderline_pockets_worse_says_it_beside_the_word_and_keeps_the_words_co
     assert n >= 6
     # the Pockets tab: charge-offs, a pass and a fail, each flagged; Bad loans at 0.049 by the z test, never
     ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "gco.xlsx", results.POCKETS,
-                                     measure="Charge-offs"), results.POCKETS)
+                                     measure="GCOs ($)"), results.POCKETS)
     said = {x["worse_said"] for x in tabs.pockets(ws)}
     assert "Yes · borderline (p 0.048)" in said and "Not sure · borderline (p 0.052)" in said, said
     ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "bad.xlsx", results.POCKETS,
@@ -1421,7 +1421,7 @@ def test_borderline_paid_cost_kept_together_says_it_and_its_colour_and_chart_sta
     named = [f for f in tog if "Net drain" in f or "Strong" in f]
     assert named and all(results.col(results.C_H_TOG) in f for f in named)
     note = _note(ws)
-    assert note["Together"].endswith(f" {BORDER_SAID} Together gives the p-value of each side that is, charge-offs "
+    assert note["Together"].endswith(f" {BORDER_SAID} Together gives the p-value of each side that is, GCOs "
                                      f"first.")
 
 
@@ -1439,7 +1439,7 @@ def test_borderline_split_says_it_in_place_of_the_p_value_and_keeps_it_bold(bord
     res = border_book["res"]
     ch_, _ = _two(res)
     ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "split.xlsx", results.SPLIT,
-                                     grid="FICO x CHANNEL", measure="Charge-offs"), results.SPLIT)
+                                     grid="FICO x CHANNEL", measure="GCOs ($)"), results.SPLIT)
     ps = tabs.block(ws, "p-value per pocket")
     flagged = 0
     for (bl, dl), c in ch_.inner():
@@ -1450,7 +1450,7 @@ def test_borderline_split_says_it_in_place_of_the_p_value_and_keeps_it_bold(bord
         assert got == (pytest.approx(want) if isinstance(want, float) else want), (bl, dl, got, want)
         flagged += want == "borderline (p 0.048)"
     assert flagged >= 3
-    assert _summary_p(ws, "Charge-offs") == "borderline (p 0.052)"
+    assert _summary_p(ws, "GCOs ($)") == "borderline (p 0.052)"
     assert isinstance(_summary_p(ws, "Bad loans"), float)                    # the z test's: never
     # the bold rule reads the number behind the words, one range per column
     rules = [r.formula[0] for rng in ws.formulas.conditional_formatting for r in rng.rules
@@ -1475,7 +1475,7 @@ def test_borderline_start_here_record_and_the_launcher_count_and_name_them(borde
     # Start here: the tile, and each of the five largest that is borderline says so beside its segment
     ws = calc["Start here"]
     tile = next(ws.cell(row=c.row + 1, column=c.column).value for row in ws.iter_rows() for c in row
-                if c.value == "Pockets worse and material, charge-offs")
+                if c.value == "Pockets worse and material, GCOs")
     assert tile.endswith(f" · {len(border)} borderline"), tile
     head = next(c.row for row in ws.iter_rows() for c in row if c.value == "Largest, worse and material")
     listed = [(ws.cell(row=head + k, column=2).value, ws.cell(row=head + k, column=3).value)
@@ -1489,7 +1489,7 @@ def test_borderline_start_here_record_and_the_launcher_count_and_name_them(borde
     assert "within 2 of its own standard errors of the 5% bar" in rec["Borderline"]
     assert "never borderline" in rec["Borderline"]
     n = len(gco)
-    assert rec["Borderline now: Charge-offs"] == (f"{sum(1 for x in gco if x[3].borderline)} of {n:,} pockets on "
+    assert rec["Borderline now: GCOs ($)"] == (f"{sum(1 for x in gco if x[3].borderline)} of {n:,} pockets on "
                                                   f"the grids have a borderline verdict "
                                                   f"({sum(1 for x in gco if x[3].worse_borderline)} on Worse?).")
     assert not any(k.startswith("Borderline now: Bad loans") for k in rec)          # never shuffled
@@ -1944,7 +1944,7 @@ def test_whole_dollars_scoutings_suggested_bins_on_a_dollar_column_are_whole():
         scout.edge([(0.4555, 1.0)], 0.455, 0.456)] == [0.456]                   # a ratio: as scouting rounds it
 
 
-# ---- Paid, cost, kept: gross booked, GCO and RANR (30 Sep 2026)
+# ---- RANR vs GCOs: gross booked, GCO and RANR (30 Sep 2026)
 # The firm: "On the paid cost kept tab I would like to work on gross GCO gross booked and gross RANR as well so we can
 # also see if pockets are straight negative on returns". Each pocket's own booked dollars, charge-offs and RANR, and
 # RANR per booked dollar, compared with nothing; a pocket whose RANR is below zero in red and counted above the table;
@@ -2021,7 +2021,7 @@ def _pck_labels(rows) -> set:
 
 
 def _pck_totals(ws) -> dict:
-    """The totals under Paid, cost, kept's table, {label: {row, loans, booked, gco, ranr, ranr_rate}}."""
+    """The totals under RANR vs GCOs' table, {label: {row, loans, booked, gco, ranr, ranr_rate}}."""
     from pocketbook import results as rs
     out = {}
     for r in range(1, ws.max_row + 1):
@@ -2040,8 +2040,8 @@ def test_pck_gross_every_pockets_booked_gco_ranr_and_rate_are_the_loan_files_for
     for grid, ws in gross_book["calc"].items():
         rows = tabs.pck(ws)
         head = tabs.header_row(ws, results.C_TOG, "Together")
-        assert tabs.heads(ws, head, results.C_LOANS, results.C_RATE) == ["Loans", "Booked", "GCO", "RANR",
-                                                                         "RANR rate"]
+        assert tabs.heads(ws, head, results.C_LOANS, results.C_RATE) == ["Loans", "Booked", "GCOs", "RANR",
+                                                                         "RANR ÷ Booked"]
         assert ws.cell(row=head - 1, column=results.C_BOOK).value == "Gross · this pocket alone"
         want = _gross_by_pocket(gross_book["x"], grid, _pck_labels(rows))
         assert len(rows) > 10, grid
@@ -2124,7 +2124,7 @@ def test_pck_gross_a_pocket_that_lost_money_outright_is_red_and_counted_above_th
         assert ws.cell(row=s, column=results.C_H_UN).value == n                # the rule's cell: red above 0
     assert kiosks >= 5                          # the planted Kiosk pockets, one in each score band
     note = _note(gross_book["calc"]["FICO x CHANNEL"])
-    assert "Negative RANR: the pocket lost money outright, before comparing it with anyone." in note["Kept"]
+    assert "Negative RANR: the pocket lost money outright, before comparing it with anyone." in note["RANR"]
 
 
 def test_pck_gross_a_pocket_not_listed_gets_its_own_total_and_the_three_still_add_up():
@@ -2181,9 +2181,9 @@ def test_pck_gross_dollars_fit_their_columns_and_turn_to_thousands_past_the_cap(
 # They'd be across the top." The ratio: "Charged off / booked". Bad loans columns: "Yes do this".
 
 SUMMARY_ONLY = f"Only loans where {ch.ORIG_YEAR} is"
-SUMMARY_HEADS = ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "% of booked", "Charged off $",
-                 "Charge-off rate", "× book", "% of charge-offs", "RANR $", "RANR rate", "% of RANR"]
-SHARES = ("% of loans", "% of booked", "% of charge-offs", "% of RANR")
+SUMMARY_HEADS = ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "% of booked", "GCOs ($)",
+                 "GCOs ÷ Booked", "× book", "% of GCOs", "RANR $", "RANR ÷ Booked", "% of RANR"]
+SHARES = ("% of loans", "% of booked", "% of GCOs", "% of RANR")
 SPECIAL = ("(blank)", "(not a number)", "(marked missing)")
 
 
@@ -2261,8 +2261,8 @@ def _road2(rows, field, labels, whole_rows) -> dict:
         gco, gden = sum(a for a, _ in g), sum(c for _, c in g)
         ranr, rden = sum(a for a, _ in k), sum(c for _, c in k)
         return {"Loans": len(rs), "Bad loans": bad, "Bad loans %": bad / len(read) if read else None,
-                "Booked $": booked, "Charged off $": gco, "Charge-off rate": gco / gden if gden else None,
-                "RANR $": ranr, "RANR rate": ranr / rden if rden else None}
+                "Booked $": booked, "GCOs ($)": gco, "GCOs ÷ Booked": gco / gden if gden else None,
+                "RANR $": ranr, "RANR ÷ Booked": ranr / rden if rden else None}
 
     by: dict = {}
     for r in rows:
@@ -2270,14 +2270,14 @@ def _road2(rows, field, labels, whole_rows) -> dict:
     order = list(labels) + [s for s in SPECIAL if s in by]
     out = {lab: figures(by.get(lab, [])) for lab in order}
     out["All"] = figures(rows)
-    book_rate = figures(whole_rows)["Charge-off rate"]
+    book_rate = figures(whole_rows)["GCOs ÷ Booked"]
     top = out["All"]
     for x in out.values():
         x["% of loans"] = x["Loans"] / top["Loans"]
         x["% of booked"] = x["Booked $"] / top["Booked $"]
-        x["% of charge-offs"] = x["Charged off $"] / top["Charged off $"]
+        x["% of GCOs"] = x["GCOs ($)"] / top["GCOs ($)"]
         x["% of RANR"] = x["RANR $"] / top["RANR $"]
-        x["× book"] = x["Charge-off rate"] / book_rate if x["Charge-off rate"] is not None else None
+        x["× book"] = x["GCOs ÷ Booked"] / book_rate if x["GCOs ÷ Booked"] is not None else None
     return out
 
 
@@ -2322,7 +2322,7 @@ def test_summary_every_cell_of_fico_and_a_dollar_band_column_is_the_loans_worked
     t = res.total.rates
     top = seen["FICO"]["All"]
     assert top["Bad loans"] == t["outcome_loans"].num and top["Bad loans %"] == pytest.approx(t["outcome_loans"].rate)
-    assert top["Charged off $"] == pytest.approx(t["gco_rate"].num)
+    assert top["GCOs ($)"] == pytest.approx(t["gco_rate"].num)
     assert top["RANR $"] == pytest.approx(t["ranr_rate"].num)
     assert top["Booked $"] == pytest.approx(res.book_size.booked)
     # light neutral shading at most: the All row, CANVAS; nothing red or green
@@ -2369,7 +2369,7 @@ def test_summary_leaves_off_the_columns_a_run_has_no_source_for_and_says_so(tmp_
     bare = dataclasses.replace(c, booked="", measures=tuple(m for m in c.measures
                                                           if m.name not in ("gco_rate", "contribution_rate")))
     for conf, want in ((c, SUMMARY_HEADS), (bare, ["Loans", "% of loans", "Bad loans", "Bad loans %", "RANR $",
-                                                   "RANR rate", "% of RANR"])):
+                                                   "RANR ÷ Booked", "% of RANR"])):
         res = engine.run(conf, table)
         wb = Workbook()
         results.write_summary(wb, res, results.Choices(wb), results.Views(wb))
@@ -2378,9 +2378,9 @@ def test_summary_leaves_off_the_columns_a_run_has_no_source_for_and_says_so(tmp_
         assert [ws.cell(row=h, column=j).value for j in range(3, 3 + len(want) + 1)] == want + [None]
         note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, h)}
         if conf is bare:
-            assert note["Not shown"] == ("This Run has no booked amount and no charge-off dollars, so those columns "
+            assert note["Not shown"] == ("This Run has no booked amount and no GCO dollars, so those columns "
                                          "are left off.")
-            assert "Charged off $" not in note and "Booked $" not in note
+            assert "GCOs ($)" not in note and "Booked $" not in note
         else:
             assert "Not shown" not in note and "Only loans where" not in note     # no Filter by, no second dropdown
             with pytest.raises(KeyError):

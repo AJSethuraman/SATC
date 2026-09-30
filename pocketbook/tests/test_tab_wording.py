@@ -66,9 +66,9 @@ def test_no_ruling_number_or_dated_call_on_any_tab(split_book):
     check = _check(split_book)
     # what each sentence told the reader is still there
     assert check["The allowance for many tests covers"] == "each grid and measure on its own, one comparison at a time"
-    assert check["Contribution before losses"] == ("RANR + GCO, per booked dollar. This assumes RANR has gross "
-                                                   "charge-offs taken out. If RANR nets recoveries instead, "
-                                                   "contribution is overstated by the recoveries.")
+    assert check["What RANR + GCOs assumes"] == ("RANR + GCOs, per booked dollar. This assumes RANR has the gross "
+                                                 "GCOs taken out. If RANR nets recoveries instead, RANR + GCOs is "
+                                                 "overstated by the recoveries.")
 
 
 def test_same_size_is_not_tested_for_a_dollar_rate(split_book):
@@ -81,8 +81,7 @@ def test_same_size_is_not_tested_for_a_dollar_rate(split_book):
     line = said[0]
     assert re.match(r"Same in every pocket\? Bad loans: (no sign the gap differs between pockets|bigger in some "
                     r"pockets than others); ", line), line
-    assert line.endswith("Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar "
-                         "rate."), line
+    assert line.endswith("Bad dollars, GCOs ($), RANR, RANR + GCOs: not tested: dollar rate."), line
     # the tab still says what the question is, once, in its note
     how = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(4, 11)}
     assert "Cochran's Q asks whether the gap is the same size in every pocket" in how["High vs low, all"]

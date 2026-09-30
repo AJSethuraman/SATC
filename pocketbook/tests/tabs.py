@@ -1,4 +1,4 @@
-"""Reading the result tabs as the analyst sees them (the redesign, phase 3: Pockets, Paid cost kept, Grids, Split).
+"""Reading the result tabs as the analyst sees them (the redesign, phase 3: Pockets, RANR vs GCOs, Grids, Split).
 
 Each tab shows what its dropdowns pick, by formulas, so a test reads it calculated (tests/recalc.py), and to see
 another measure, grid or view it sets the dropdown on a copy and calculates again, as a person would. The fill a
@@ -53,7 +53,7 @@ def dropdown(ws, label: str):
 
 
 def choose(path, out, tab: str, **picks) -> Path:
-    """A copy of the workbook with a tab's dropdowns set: choose(b, out, "Pockets", measure="Charge-offs")."""
+    """A copy of the workbook with a tab's dropdowns set: choose(b, out, "Pockets", measure="GCOs ($)")."""
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(path, out)
@@ -105,7 +105,7 @@ RULE = re.compile(r'^AND\(\$([A-Z]+)(\d+)<>"",AND\(\$([A-Z]+)(\d+)=0,\$([A-Z]+)(
 
 
 def pck(ws) -> list[dict]:
-    """Paid, cost, kept's rows as shown (calculated), with the fill each pair's rule gives it: the rules are
+    """RANR vs GCOs' rows as shown (calculated), with the fill each pair's rule gives it: the rules are
     conditional formats over each side's flag, so they are worked out here from the calculated flags."""
     h = header_row(ws, rs.C_TOG, "Together")
     out = []
@@ -124,7 +124,7 @@ def pck(ws) -> list[dict]:
 
 
 def pck_all(path, out) -> list[dict]:
-    """Paid, cost, kept's rows for every grid its dropdown offers, each grid picked in turn and calculated, as a
+    """RANR vs GCOs' rows for every grid its dropdown offers, each grid picked in turn and calculated, as a
     person would page through them. Each row says its grid."""
     rows = []
     for i, grid in enumerate(options(load_workbook(path), rs.PCK, "Grid")):
@@ -134,7 +134,7 @@ def pck_all(path, out) -> list[dict]:
 
 
 def cf_fill(ws, r: int, col: int) -> str | None:
-    """The fill Paid, cost, kept's rules give a cell: the first rule that holds (see results.cf)."""
+    """The fill RANR vs GCOs' rules give a cell: the first rule that holds (see results.cf)."""
     for rng in ws.formulas.conditional_formatting:
         for bounds in str(rng.sqref).split():
             c0, r0, c1, r1 = range_boundaries(bounds)

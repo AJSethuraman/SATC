@@ -198,8 +198,10 @@ class Measure:
     def title(self) -> str:
         """The measure as a person names it, on every screen a person reads."""
         return {"outcome_loans": "Outcome, share of loans", "outcome_booked": "Outcome, share of booked dollars",
-                "gco_rate": "GCO per booked dollar", "ranr_rate": "Profit after losses: RANR per booked dollar",
-                "contribution_rate": "Contribution before losses per booked dollar"}.get(self.name, self.name)
+                # the dollar three in the firm's terms (30 Sep 2026); they were "GCO per booked dollar", "Profit after
+                # losses: RANR per booked dollar" and "Contribution before losses per booked dollar"
+                "gco_rate": "GCOs per booked dollar", "ranr_rate": "RANR per booked dollar",
+                "contribution_rate": "RANR + GCOs per booked dollar"}.get(self.name, self.name)
 
     def columns(self) -> tuple[str, ...]:
         return tuple(c for c in (self.value, self.plus, self.flag, self.per) if c and c != EACH_LOAN)

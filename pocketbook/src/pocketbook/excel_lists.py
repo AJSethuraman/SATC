@@ -1,8 +1,8 @@
 """Open a workbook Excel has saved without losing its dropdowns.
 
 Excel saves a dropdown whose list sits on another sheet (every answer on
-Control, Meaning on Columns, the pickers on Grids, Pockets and Paid, cost,
-kept) in its 2010 extension block rather than beside the others. openpyxl
+Control, Meaning on Columns, the pickers on Grids, Pockets and RANR vs
+GCOs) in its 2010 extension block rather than beside the others. openpyxl
 reads that block, warns, and drops it, so the next save wrote the workbook
 back with none of those dropdowns. Found at the bank, 29 Sep 2026: "I have
 no drop downs in most places now", after an answer on Control was changed,

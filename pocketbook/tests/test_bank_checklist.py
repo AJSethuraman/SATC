@@ -16,13 +16,14 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from pocketbook import book, choices as ch, control, deps, synth
+from pocketbook import book, choices as ch, control, deps, results, synth
 
 ROOT = Path(__file__).resolve().parents[1]
 MD = ROOT / "docs" / "BANK-MACHINE-CHECKLIST.md"
 TEXT = MD.read_text(encoding="utf-8")
 sys.path.insert(0, str(ROOT / "tools"))
 import bank_kit  # noqa: E402
+import tabs  # noqa: E402
 
 
 def _blocks() -> list[str]:
@@ -153,18 +154,31 @@ def test_every_cell_the_checklist_names_holds_what_it_says(tmp_path):
     said("Control H24")
     assert ctl["H23"].value == "Status" and "Waiting for a Run" in ctl["H24"].value
 
-    for tab, cells, sizes in (("Pockets", ("C18", "D18", "E18"), (5, 2, 3)), ("Paid, cost, kept", ("B16",), (4,)),
+    for tab, cells, sizes in (("Pockets", ("C18", "D18", "E18"), (5, 2, 3)), (results.PCK, ("B16",), (4,)),
                               ("Grids", ("B13", "F13"), (8, 6)), ("Split", ("B15", "B26"), (4, 5))):
         lv = _lists(wb[tab])
         for cell, n in zip(cells, sizes):
             assert len(_listed(wb, lv[cell])) == n, (tab, cell)
     said("Pockets C18, D18, E18")
-    assert "Charge-offs" in _listed(wb, _lists(wb["Pockets"])["C18"])
+    # the five measures, named as the firm named them (30 Sep 2026), on every list the checklist says holds them
+    five = ["Bad loans", "Bad dollars", "GCOs ($)", "RANR", "RANR + GCOs"]
+    said("Measure (5: " + ", ".join(five) + ")")
+    said("the 5 measures (" + ", ".join(five) + "), then Loan size")
+    assert _listed(wb, _lists(wb["Pockets"])["C18"]) == five
+    assert _listed(wb, _lists(wb["Grids"])["F13"]) == five + ["Loan size"]
+    assert _listed(wb, _lists(wb["Split"])["B26"]) == five
     assert "Worse and material" in _listed(wb, _lists(wb["Pockets"])["E18"])
     assert "FICO x ASSET_CLASS" in _listed(wb, _lists(wb["Grids"])["B13"])
-    for tab, cell in (("Pockets", "K15"), ("Paid, cost, kept", "M13"), ("Split", "I12")):
+    for tab, cell in (("Pockets", "K15"), (results.PCK, "M13"), ("Split", "I12")):
         said(f"{tab} {cell}")
         assert "waits for a Run" in str(wb[tab][cell].value), (tab, cell)
+
+    # the Rate block's heading follows F13, literally (the firm, 30 Sep 2026), as the checklist says it does
+    said("pick **RANR** in F13. The first block's heading changes to **Rate · RANR ÷ Booked**; pick **GCOs ($)** "
+         "and it reads **Rate · GCOs ÷ Booked**")
+    for pick, head in (("RANR", "Rate · RANR ÷ Booked"), ("GCOs ($)", "Rate · GCOs ÷ Booked")):
+        picked = tabs.choose(out.book, tmp_path / f"f13-{len(head)}.xlsx", "Grids", measure=pick)
+        assert head in [c.value for c in tabs.calculated(picked, "Grids")["B"]], (pick, head)
 
     look = wb["Look"]
     said("In C20 (**Bars**)")

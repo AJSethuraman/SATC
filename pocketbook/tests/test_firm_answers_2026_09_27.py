@@ -119,7 +119,7 @@ def test_no_screen_shows_a_tie_out_figure_that_could_only_read_fine(bled):
     stops and writes nothing. Record keeps the check, as the number of checks."""
     h = bled["ran"].summary
     tiles = launcher.finished_tiles(h)
-    assert [t[0] for t in tiles] == ["Pockets worse and material", "Charge-offs above their share"]
+    assert [t[0] for t in tiles] == ["Pockets worse and material", "GCOs above their share"]
     wb = load_workbook(bled["b"])
     said = [c.coordinate for row in wb["Start here"].iter_rows() for c in row
             if isinstance(c.value, str) and ("tie-out check" in c.value.lower() or c.value.endswith(" agree"))]
@@ -351,7 +351,7 @@ def test_the_finished_window_draws_two_tiles_and_the_runs_first_two_lines(monkey
         w["render"]()
         root.update()
         heads = [t.winfo_children()[1].cget("text") for t in w["tiles"]]
-        assert heads == ["Pockets worse and material", "Charge-offs above their share"]
+        assert heads == ["Pockets worse and material", "GCOs above their share"]
         assert w["first"].cget("text") == "\n".join(first) and w["first"].winfo_manager() == "pack"
     finally:
         root.destroy()

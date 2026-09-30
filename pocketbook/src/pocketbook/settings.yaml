@@ -341,8 +341,8 @@ groups:
           - value: luck
             label: Each pocket's own test (suggested)
             explains: >-
-              Profit counts as keeping more or less only when the pocket's own test
-              calls the gap significant. A small pocket needs a bigger gap.
+              RANR and RANR + GCOs count as more or less only when the pocket's own
+              test calls the gap significant. A small pocket needs a bigger gap.
           - value: 0.25
             label: "0.25 points either way"
             explains: >-
@@ -354,8 +354,8 @@ groups:
           - value: materiality
             label: A gap as big as the materiality line
             explains: >-
-              Profit counts as keeping less when the pocket's shortfall against its
-              comparison reaches the dollar line above, and as more when its surplus does.
+              RANR and RANR + GCOs count as less when the pocket's shortfall against
+              its comparison reaches the dollar line above, and as more when its surplus does.
 
   - title: Is it real
     settings:

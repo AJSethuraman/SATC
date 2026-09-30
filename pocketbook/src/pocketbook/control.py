@@ -68,7 +68,7 @@ METHOD = [
                    "beside the setting. It is never picked for you."),
     ("Chosen in the launcher", "What you're running and how the pockets are cut. Change them in the launcher's "
                                "Choose tests, then press Next. They are shown here so a reviewer sees them."),
-    ("Materiality levels", "For each level: its dollar line, how many pockets have charge-offs above their share "
+    ("Materiality levels", "For each level: its dollar line, how many pockets have GCOs above their share "
                            "that reach it, and their part of all such dollars. It follows your answer live."),
 ]
 #: the two method lines a test of a new variable reads differently: it builds no pocket, so only worse at is worked
@@ -440,7 +440,7 @@ def _comes_to(key: str, plain: str, value: str = '""', worked: str = '""') -> st
 
 def _materiality_panel(ws, settings: list[Setting], top: int) -> None:
     """What each materiality level keeps, beside Block A (it absorbs the Materiality tab): for each share on
-    Control's list, the dollar line, the pockets whose charge-offs above their share reach it, and their part of
+    Control's list, the dollar line, the pockets whose GCOs above their share reach it, and their part of
     all such dollars. Live: formulas over the names each Run defines (book_gco, pk_kind, pk_measure, pk_dollars);
     before the first Run they show nothing."""
     from . import house
@@ -480,8 +480,8 @@ def _materiality_panel(ws, settings: list[Setting], top: int) -> None:
         f"{_letter(first)}{top + 2}:{_letter(last)}{r - 1}",
         FormulaRule(formula=[f'RIGHT(${_letter(first)}{top + 2},1)="◂"'], font=Font(bold=True),
                     fill=PatternFill("solid", fgColor=house.CANVAS, bgColor=house.CANVAS)))
-    for i, words in enumerate(("Charge-offs, every grid, against what each pocket is judged against.",
-                               "A profit shortfall is held to the same dollar line.")):
+    for i, words in enumerate(("GCOs, every grid, against what each pocket is judged against.",
+                               "A RANR shortfall is held to the same dollar line.")):
         note = ws.cell(row=r + i, column=first, value=words)
         note.font = Font(name="Calibri", size=9, color=SLATE)
 
