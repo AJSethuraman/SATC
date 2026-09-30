@@ -2580,6 +2580,41 @@ changed in the code.
     reads something like 1.12× rather than 1.00×; the shares are of that year's loans. The Charged off $ column only
     counts loans that also have a booked amount, so it matches the rate. Summary offers band columns only, not
     segments.
+- **Built, 30 Sep 2026: errors on the window, not in Notepad** (branch `pocketbook-errors-on-screen`). At the bank,
+  Run with the extract (`Test_Pop_DC.xlsx`, in OneDrive) open in Excel stopped. The window said "Something went
+  wrong while running. The details are in …\last-error.txt", and that file, opened in Notepad, held a
+  `PermissionError: [Errno 13]` traceback from Run's fingerprint check (`book.py:1804`,
+  `hashlib.sha256(src.read_bytes())`). PocketBook checked whether the *workbook* was open, never the *extract*. The
+  firm: *"It would be a lot easier if these kinds of errors just displayed on screen in the huge white space
+  allotted"*.
+  - **The extract** (`book.cant_read`): every place it is read (Run, Set up's column read `read_extract`, Next's
+    `set_up`) turns an OSError into a refusal naming the file. The bank's case now reads: *"Test_Pop_DC.xlsx can't
+    be read: it's open in Excel, or OneDrive is still syncing it. Close it in Excel (check for a hidden Excel
+    window), or right-click it in File Explorer and choose Always keep on this device. Then press Run again."*
+    Set up says "press Set up again". A missing extract says where it was looked for. Run now reads the extract
+    once and takes the fingerprint from those same bytes (`Table.sha256`); it used to read it twice, and the first
+    read is the one that raised. Set up's second read for the fingerprint is gone the same way. Scouting reads no
+    extract of its own (it works on the Run's table), and the launcher's pick reads nothing.
+  - **Anything unexpected** (`launcher.Crash`): it shows in the page's own space under a plain heading (*Run
+    stopped*, *Set up stopped*, *Writing the workbook stopped*): "Something went wrong that PocketBook didn't
+    expect.", then the error's type and message, then "Press Copy details and send what it copies, to get it
+    fixed." **Copy details** puts the full traceback on the clipboard. A copy is still written to
+    `.pocketbook/last-error.txt`, and the window no longer points at it. Nothing opens Notepad: no code ever did.
+    The analyst opened the file because the window said to. A Run that stopped for a reason other than an answer
+    now spans the page, not a 360 px list row. The window stays usable, so the analyst can fix the cause and press
+    Run again. `Flow.set_up`, `Flow.next` and `Flow.run` never raise; the window's thread keeps a last net for
+    anything a step didn't catch.
+  - Tests: `tests/test_errors_on_screen.py` (10: the bank's case through Flow and `book.run`, Set up and Next, a
+    gone extract, one read per Run with a changed extract still noticed, an unexpected error in Run and in Set
+    up/Next, the tie-out's own words kept with Copy details added, and 3 on a display: the panel in the page,
+    Copy details on the clipboard, the last net). 1 test each changed in `test_launcher.py` (the old sentence) and
+    added in `test_bank_checklist.py` (the checklist quotes the window's own words, and Part 7 no longer says
+    Notepad). Planted bugs: 8 added to `tools/mutation_check.py`, 8 of 8 caught; 4 display-only ones run by hand
+    under xvfb (CI has no display), 4 of 4 caught.
+  - The checklist (Part 7 and *If something goes wrong*) and its HTML/PDF rebuilt; README step 5.
+  - **Not exercised on a real screen:** Windows, Excel's real lock on the extract, OneDrive's online-only files, and
+    the Windows clipboard. The lock was simulated by making every read of the extract raise PermissionError; the
+    window was drawn under xvfb on Linux and photographed.
 
 ## 7 · Standing rules for new items
 
@@ -2592,6 +2627,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-09-30 -- **PocketBook: errors on the window, not in Notepad.** At the bank, Run with the extract open in Excel became a PermissionError traceback read in Notepad. The firm: *"It would be a lot easier if these kinds of errors just displayed on screen in the huge white space allotted"*. An extract that can't be read (open in Excel, OneDrive syncing, gone) is now a plain refusal naming the file, and the extract is read once per Run. Anything unexpected shows on the page with its type, its message and **Copy details**. 10 tests added and 2 changed; 8 planted bugs added, 8 caught, and 4 display-only ones caught by hand. §6d has the detail.
 - 2026-09-30 -- **PocketBook: Paid, cost, kept shows each pocket's gross booked, GCO and RANR.** The firm: *"so we can also see if pockets are straight negative on returns"*. Booked, GCO, RANR and RANR rate after Loans; a pocket losing money outright in red and counted beside the Grid dropdown; totals that add up to the whole book. 6 tests, 7 planted bugs caught, tie-out 481 of 481 TIED. §6d has the detail.
 
 - 2026-09-30 -- **PocketBook: the Summary tab.** The firm: *"a few matrices where it lists out a chosen band on the left and shows real calculated metrics ... Same with RANR. They'd be across the top"*; the ratio *"Charged off / booked"*; bad loans *"Yes do this"*. One band column down the side, with loans, bad loans, booked, charge-offs, × book and RANR across, plus each one's share. It can be filtered by the Filter by column. The engine does the arithmetic and ties it out; nothing is tested. 3 tests, 7 planted bugs, 7 caught; tie-out 1,274 of 1,274 cells TIED. Full suite in shards: 888 passed, 7 skipped, 0 failed. §6d has the detail and three points for the firm to confirm.

@@ -82,7 +82,8 @@ def test_an_unexpected_failure_is_a_sentence_not_a_traceback(tmp_path, monkeypat
     monkeypatch.setattr(book, "set_up", boom)
     x = synth.write_extract(tmp_path, n=100)
     lines = launcher.do_set_up(str(x))
-    assert len(lines) == 1 and "send that file over" in lines[0] and "Traceback" not in lines[0]
+    # on the window since the bank, 30 Sep 2026: the type and message, never a file to open in Notepad
+    assert lines[:2] == [launcher.UNEXPECTED, "ZeroDivisionError: inside"] and "Traceback" not in "".join(lines)
     assert "ZeroDivisionError" in (tmp_path / ".pocketbook" / "last-error.txt").read_text()
 
 

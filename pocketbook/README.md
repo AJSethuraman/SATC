@@ -157,7 +157,14 @@ After that, the whole routine is:
 5. **Run.** Save, close the workbook, and press **Run**. If anything
    still needs an answer, the window lists each one by its tab and cell, with
    the question in words and **Open at C23**, which opens the workbook at that
-   cell. While the workbook is open in Excel it says so, and Run waits. When
+   cell. While the workbook is open in Excel it says so, and Run waits. The
+   extract is checked too: open in Excel, or not yet brought down by OneDrive,
+   Run (and Set up) stop and say so by name, with what to do. Anything that
+   stops a Run for another reason is said on the page, under *Run stopped*;
+   something PocketBook didn't expect shows its error's name and message there,
+   with **Copy details** to put the full details on the clipboard to send (a
+   copy is kept in `.pocketbook/last-error.txt`). The window stays open: fix
+   the cause and press Run again. When
    the Run finishes, it shows how many pockets are worse and material on
    charge-offs, what they lost above their share, the Run's first two lines
    (where to start reading, and a changed pre-spec when there is one), and any
