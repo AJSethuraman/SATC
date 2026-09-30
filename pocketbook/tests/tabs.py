@@ -144,6 +144,14 @@ def cf_fill(ws, r: int, col: int) -> str | None:
     return None
 
 
+def _merged_value(ws, r: int, c: int):
+    """A cell's value, or its merged range's first cell's when it sits inside a merge."""
+    for rng in ws.merged_cells.ranges:
+        if rng.min_row <= r <= rng.max_row and rng.min_col <= c <= rng.max_col:
+            return ws.cell(row=rng.min_row, column=rng.min_col).value
+    return ws.cell(row=r, column=c).value
+
+
 def block(ws, title: str, start: int | None = None) -> dict:
     """A block on Grids or Split, by its title (the dark band): {(row label, column label): value}. It is looked
     for under the dropdowns, clear of the method note's labels."""
@@ -155,11 +163,17 @@ def block(ws, title: str, start: int | None = None) -> dict:
             v = ws.cell(row=r, column=c).value
             if isinstance(v, str) and v.startswith(title):
                 cols, out = {}, {}
+                # a split grid's header is two rows (the widths change, 29 Sep 2026: G4): the segment merged over
+                # its parts, then each part; read back as the one label "<segment> · <part>"
+                two = any(m.min_row == r + 1 and m.min_col > c for m in ws.merged_cells.ranges)
+                head = r + 2 if two else r + 1
                 j = c + 1
-                while ws.cell(row=r + 1, column=j).value not in (None, ""):
-                    cols[j] = ws.cell(row=r + 1, column=j).value
+                while ws.cell(row=head, column=j).value not in (None, ""):
+                    low = ws.cell(row=head, column=j).value
+                    up = _merged_value(ws, r + 1, j) if two else None
+                    cols[j] = f"{up} · {low}" if up not in (None, "") else low
                     j += 1
-                rr = r + 2
+                rr = head + 1
                 while ws.cell(row=rr, column=c).value not in (None, ""):
                     for j, name in cols.items():
                         out[(ws.cell(row=rr, column=c).value, name)] = blank(ws.cell(row=rr, column=j).value)

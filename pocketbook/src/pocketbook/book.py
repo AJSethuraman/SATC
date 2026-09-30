@@ -697,6 +697,19 @@ def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
     return out
 
 
+#: Columns' Check first: its width, and the characters of Calibri 10 a line of it holds
+LOOK_WIDTH = 60
+LOOK_CHARS = int(LOOK_WIDTH / 0.9) - 2
+
+
+def _samples_of(col, made) -> list[str]:
+    """A column's first three samples as Columns shows them: a made ratio to four figures, not seventeen."""
+    samples = col.samples[:3]
+    if any(m.name == col.name for m in made):
+        samples = [f"{float(v):.4g}" for v in samples]
+    return [str(v) for v in samples]
+
+
 def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, made, made_notes, new_cols, gone_cols,
                  qs, used: set[str] | None = None) -> tuple[int, set[str]]:
     """Columns, as the redesign draws it (section 3): the check at C3, the method note, then one row per extract
@@ -704,8 +717,12 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
     values are still unanswered, and the columns whose remembered edges were filled in."""
     from . import house
     last = C_DEFINE
-    widths = {1: 2, C_NAME: 22, C_SAMPLES: 26, C_MEANS: 20, C_WHY: 40, C_BLANK: 7, C_ODD: 20, C_TREAT: 11,
-              C_EDGES: 16, C_REMEMBERED: 13, C_FORGET: 9, C_LOOK: 60, C_IS: 12, C_SHOW: 15, C_PERIOD: 11,
+    # T1: the name and samples fit what the extract holds (the derived-column block's "New column name ↻" too);
+    # Odd values and Show per pocket their longest text + 2
+    widths = {1: 2, C_NAME: house.fit(list(table.columns) + ["New column name ↻"], floor=14, cap=32, pad=3),
+              C_SAMPLES: house.fit([", ".join(_samples_of(x, made)) for x in cols], floor=20, cap=40),
+              C_MEANS: 20, C_WHY: 40, C_BLANK: 7, C_ODD: 23, C_TREAT: 11,
+              C_EDGES: 16, C_REMEMBERED: 13, C_FORGET: 9, C_LOOK: LOOK_WIDTH, C_IS: 12, C_SHOW: 19, C_PERIOD: 11,
               C_DEFINE: 30}
     for col, w in widths.items():
         ws.column_dimensions[_col(col)].width = w
@@ -782,9 +799,7 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
         f = facts_of.get(c) or meanings.facts(table, c)
         blank = (f.rows - f.nonblank) / f.rows if f.rows else 0
         ws.cell(row=r, column=C_NAME, value=c).font = Font(name="Calibri", bold=True, size=10)
-        samples = classified[c].samples[:3] if c in classified else []
-        if any(m.name == c for m in made):
-            samples = [f"{float(v):.4g}" for v in samples]      # a ratio to four figures, not seventeen
+        samples = _samples_of(classified[c], made) if c in classified else []
         ws.cell(row=r, column=C_SAMPLES, value=", ".join(samples))
         means = ws.cell(row=r, column=C_MEANS, value=cat[code].label)
         house.needs_run(means)
@@ -836,11 +851,14 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
                 if cell.border.left.style is None:
                     cell.border = thin
                 cell.alignment = Alignment(vertical="center", horizontal="center" if col in (
-                    C_BLANK, C_MEANS, C_TREAT, C_EDGES, C_REMEMBERED, C_FORGET, C_IS, C_SHOW, C_PERIOD) else "left")
+                    C_BLANK, C_MEANS, C_TREAT, C_EDGES, C_REMEMBERED, C_FORGET, C_IS, C_SHOW, C_PERIOD) else "left",
+                    wrap_text=True if col == C_LOOK else None)
                 if col != C_NAME:
                     cell.font = Font(name="Calibri", size=10, bold=cell.font.b,
                                      color=SLATE if col in (C_SAMPLES, C_WHY, C_LOOK) else house.INK_TEXT)
-            ws.row_dimensions[row].height = 18
+            # T1: Check first is a question in prose, so it wraps, and its row grows to its lines
+            said = ws.cell(row=row, column=C_LOOK).value
+            ws.row_dimensions[row].height = max(18, 14 * house.lines_at(said, LOOK_CHARS) + 4) if said else 18
             ws.row_dimensions[row].hidden = hide
         r += max(1, len(asked))
     ws.cell(row=r, column=C_QKEY, value=TABLE_END)
@@ -876,7 +894,13 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
     Columns; the pending banner; what the last Run found (from _found, kept through Set up) with its five
     largest pockets; and the tabs in their three groups."""
     from . import house
-    for col, w in zip("ABCDEFGHI", (2, 22, 16, 16, 16, 16, 16, 16, 22)):
+    # P1, P2: B and C fit the largest pockets' bands and segments the last Run found, and the heading over them;
+    # D to F their headings ("× its comparison", "Dollars above share") + 2
+    tops = [r for r in wb[FOUND].iter_rows(values_only=True) if r and r[0] == "top"] if FOUND in wb.sheetnames \
+        else []
+    b_w = house.fit(["Largest, worse and material"] + [r[TOP_BAND - 1] for r in tops], floor=22, cap=32)
+    c_w = house.fit([r[TOP_SEG - 1] for r in tops], floor=16, cap=32, pad=3)
+    for col, w in zip("ABCDEFGHI", (2, b_w, c_w, 12, 18, 21, 16, 16, 22)):
         ws.column_dimensions[col].width = w
     stamp = _found_value(wb, "stamp")
     sub = f"{Path(extract).name} · {rows:,} loans · {ncols} columns" + (

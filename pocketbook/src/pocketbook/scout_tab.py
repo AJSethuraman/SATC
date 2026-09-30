@@ -23,7 +23,7 @@ INK, SLATE = house.INK_TEXT, house.SLATE
 FIRST, LAST = 2, 10
 (S_NAME, S_RANK, S_IMP, S_HELD, S_BINS, S_REF, S_PART, S_PROP, S_WHY) = range(2, 11)
 WIDTHS = {1: 2, S_NAME: 22, S_RANK: 6, S_IMP: 13, S_HELD: 17, S_BINS: 34, S_REF: 16, S_PART: 24, S_PROP: 11,
-          S_WHY: 22}
+          S_WHY: 24}
 IMP_FMT = "0.0000"
 YES, NO = "Yes", "No"
 

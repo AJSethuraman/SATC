@@ -133,6 +133,56 @@ def method_note(ws, top: int, first: int, last: int, items: list[tuple[str, str]
     return r + 1
 
 
+# --------------------------------------------------------------------------
+# Column widths (the firm, 29 Sep 2026: "i prefer to have nice even layouts, or at least the column sizes should make
+# sense for the data we see"; docs/column-widths-survey-2026-09-29.md). A width is in Excel's units, about one
+# character of Calibri 10 or Arial bold 9, so a width is worked out from the text the column shows, never set per
+# bank. A centred cell needs its characters + 2; a left label with indent 1, + 3.
+
+
+def _pieces(text) -> list[tuple[str, bool]]:
+    """Where Excel may break a line: at a space, or after a hyphen. Each piece, and whether a space comes before it."""
+    import re
+    out = []
+    for k, word in enumerate(str(text).split()):
+        for j, p in enumerate(re.findall(r"[^-]*-+|[^-]+", word)):
+            out.append((p, k > 0 and j == 0))
+    return out
+
+
+def lines_at(text, chars: int) -> int:
+    """How many lines `text` wraps to at `chars` characters a line, as Excel wraps: at a space or after a hyphen,
+    and inside a word only when the word is longer than a line."""
+    chars = max(1, int(chars))
+    lines = cur = 0
+    for p, spaced in _pieces(text):
+        add = len(p) + (1 if spaced else 0)
+        if cur and cur + add <= chars:
+            cur += add
+            continue
+        lines += 1 + (len(p) - 1) // chars
+        cur = len(p) - (len(p) - 1) // chars * chars
+    return max(lines, 1)
+
+
+def two_line_width(text) -> int:
+    """The fewest characters a line needs for `text` to fit on two lines, breaking as Excel does and never inside
+    a word."""
+    text = str(text if text is not None else "")
+    if not text.strip():
+        return 0
+    unbroken = max(len(p) for p, _ in _pieces(text))          # never inside a word
+    return next(w for w in range(unbroken, len(text) + 1) if lines_at(text, w) <= 2)
+
+
+def fit(texts, *, floor: float, cap: float, pad: float = 2, per_char: float = 1.0) -> float:
+    """A column width that fits the longest of `texts` (as displayed) on one line: characters x per_char + pad,
+    kept between floor and cap."""
+    import math
+    longest = max((len(str(t)) for t in texts if t is not None and str(t) != ""), default=0)
+    return min(cap, max(floor, math.ceil(longest * per_char + pad)))
+
+
 def section(ws, row: int, first: int, last: int, text: str, hex_: str = INK, rule: str | None = KEY_RED,
             color: str = PAPER) -> None:
     """A section's dark header band, one row, with its rule under it."""

@@ -470,7 +470,7 @@ def test_split_shows_the_summary_and_the_two_grids_for_what_is_picked(ran, tmp_p
     b = tabs.choose(ran["book"], tmp_path / "s.xlsx", results.SPLIT, grid=grids[-1], measure="Charge-offs")
     v = recalc(b, tmp_path / "rc")
     ws = v[results.SPLIT]
-    chip = tabs.dropdown(ws, "Grid").offset(column=1).value
+    chip = tabs.dropdown(ws, "Grid").offset(column=results.SPLIT_CHIP - 2).value
     assert chip == ("Holds FICO fixed" if book._holds_partner(res, g) else "Doesn't hold FICO fixed")
     head = tabs.header_row(ws, 2, "Measure")
     rows = {ws.cell(row=r, column=2).value: [ws.cell(row=r, column=c).value for c in range(3, 10)]
