@@ -517,6 +517,20 @@ def merge_small(bins: list[float], v, grid: list[float], pd: list[float]) -> lis
     return bins
 
 
+def bins_at(cut_at: list[int], splits: list[tuple[float, float]], grid: list[float], v, pd: list[float]) -> list[float]:
+    """The suggested bins: an edge at each step of the curve (edge), and on a dollar column with cents each raised to
+    a whole number, as the Run cuts its bands (engine.whole_cut: the firm, 30 Sep 2026, "Cut at whole dollars is
+    fine"), then any group too small merged away (merge_small)."""
+    import numpy as np
+    bins: list[float] = []
+    for i in cut_at:
+        e = edge(splits, grid[i], grid[i + 1])
+        if not bins or e > bins[-1]:
+            bins.append(e)
+    bins = list(engine.whole_cut(bins, v[~np.isnan(v)].tolist()))
+    return merge_small(bins, v, grid, pd)
+
+
 def _reference(v, bins: tuple[float, ...]) -> int:
     import numpy as np
     seen = v[~np.isnan(v)]
@@ -613,13 +627,7 @@ def run(res, chosen, confidence: float | None = None, cutoff: date | None = None
         pd = curve(rf, Xh, j, grid)
         c.curve = list(zip(grid, pd))
         cut_at = steps(pd, _shares(v, grid))
-        splits = forest_splits(rf, j)
-        bins = []
-        for i in cut_at:
-            e = edge(splits, grid[i], grid[i + 1])
-            if not bins or e > bins[-1]:
-                bins.append(e)
-        bins = merge_small(bins, v, grid, pd)
+        bins = bins_at(cut_at, forest_splits(rf, j), grid, v, pd)
         if bins:
             c.bins = tuple(bins)
             lo, hi = float(np.nanmin(v)), float(np.nanmax(v))

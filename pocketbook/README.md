@@ -133,6 +133,16 @@ After that, the whole routine is:
      to Yes; Run waits until it is. Under the table, *Add a column: one
      divided by another*. For a new variable, mark the date each loan was made
      *Origination date*: it splits development loans from the holdout.
+     Band edges left blank are cut at the Run, each band holding about the
+     same number of loans. On a dollar column (edges of 100 or more) whose
+     values carry cents, every edge PocketBook cuts is a whole number, raised
+     to the next dollar (the firm, 30 Sep 2026: *"Cut at whole dollars is
+     fine"*), and a band's label reads its loans in whole dollars with the
+     cents dropped: $37,950.99 reads 37,950 and sits in *26,324 - 37,950*.
+     So every loan's whole dollars lie inside its own band's label and no
+     other. Edges you type are kept exactly as typed; a whole-number column
+     such as FICO, and a ratio, are cut as before. Scouting's suggested bins
+     follow the same rule, and Record's *Band edges used* shows the edges cut.
    - **Look:** each column that can be cut into bands (not GCO, RANR or the
      outcome): its loans, blanks, likely code (on a red bar
      of its own), smallest, median, mean and largest, and its bars. Pick 10,

@@ -1313,6 +1313,31 @@ muts = [
  ("Start here's segment too narrow for the borderline flag", B,
   "for r in tops if r[TOP_SEG - 1]], floor=16, cap=44, pad=3)", "for r in tops if False], floor=16, cap=44, pad=3)",
   "clipped_cells_now_fit"),
+ # 30 Sep 2026: cut at whole dollars (the firm: "Cut at whole dollars is fine"; tests/test_firm_answers_2026_09_29.py)
+ ("cut edges not raised to whole dollars", E, '    return whole_cut(out, vals)', '    return tuple(out)',
+  "whole_dollars"),
+ ("typed edges raised too", E,
+  '        edges = b.edges or cut_edges([v for v, why in read if why is None], b.count, b.cut)',
+  '        edges = (whole_cut(b.edges, [v for v, why in read if why is None]) if b.edges\n'
+  '                 else cut_edges([v for v, why in read if why is None], b.count, b.cut))',
+  "typed_edges_with_cents"),
+ ("raised edges left the same twice", E, '        if lo < w <= hi and (not out or w > out[-1]):',
+  '        if lo < w <= hi:', "never_leaves_two_the_same or edges_meet"),
+ ("a raised edge past the largest loan kept", E, '        if lo < w <= hi and (not out or w > out[-1]):',
+  '        if lo < w and (not out or w > out[-1]):', "never_leaves_two_the_same"),
+ ("edges rounded, not raised", E, '        w = float(math.ceil(e))', '        w = float(round(e))',
+  "whole_dollars"),
+ ("a whole-number column raised too", E, '    if not edges or not vals or not reads_whole(edges) or all_whole(vals):',
+  '    if not edges or not vals or not reads_whole(edges):', "leave_a_whole_number_column"),
+ ("a ratio raised too", E, '    if not edges or not vals or not reads_whole(edges) or all_whole(vals):',
+  '    if not edges or not vals or all_whole(vals):', "leave_a_whole_number_column"),
+ ("a column inside one dollar loses every band", E, '    return tuple(out) or edges', '    return tuple(out)',
+  "inside_one_dollar"),
+ ("the top band ends at its largest value rounded up", E,
+  '        last = (f((math.floor(hi / step) if d == 0 else math.ceil(hi / step)) * step)',
+  '        last = (f(math.ceil(hi / step) * step)', "whole_dollars"),
+ ("scouting's bins not raised", SC, '    bins = list(engine.whole_cut(bins, v[~np.isnan(v)].tolist()))',
+  '    bins = list(bins)', "scoutings_suggested_bins"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

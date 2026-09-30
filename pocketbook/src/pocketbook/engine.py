@@ -139,6 +139,36 @@ def all_whole(values) -> bool:
     return all(float(v).is_integer() for v in values)
 
 
+def reads_whole(edges) -> bool:
+    """True when a column's band labels read in whole units: every edge 100 or more either way (dollars, scores).
+    Under that, a ratio or a rate, the labels carry the edges' own decimals. The one test band_labels and the cuts use."""
+    return bool(edges) and min(abs(float(x)) for x in edges) >= 100
+
+
+def whole_cut(edges, values) -> tuple[float, ...]:
+    """Edges PocketBook cut (never typed ones: those are the analyst's, kept exactly as typed) on a column whose labels
+    read in whole units and whose values carry cents, each raised to the next whole number. The firm, 30 Sep 2026, on
+    an equal-loan edge of $37,950.548 whose labels read "26,324 - 37,950" and "37,951 - 49,151" while a loan of
+    $37,950.99 sat in the second: "Cut at whole dollars is fine". A whole-unit label reads a value with its cents
+    dropped (the whole dollars at or below it: $37,950.99 reads 37,950), so a band [a, b) at whole a and b holds
+    exactly the values whose reading is a to b - 1, which is what its label says. Raised, never rounded: on a column
+    of whole numbers (a score) raising moves no value, which is why such a column is left as it is. An edge that
+    raising puts on the one before it, or past the column's largest value, is dropped (a band with no loans); the
+    caller's "asked for N bands, got M" says so. A column whose loans all read the same whole dollars (every one
+    between $100 and $101) can't be cut at a whole dollar at all; its cut is kept as it was rather than refused."""
+    edges = tuple(float(e) for e in edges)
+    vals = [float(v) for v in values]
+    if not edges or not vals or not reads_whole(edges) or all_whole(vals):
+        return edges
+    lo, hi = min(vals), max(vals)
+    out: list[float] = []
+    for e in edges:
+        w = float(math.ceil(e))
+        if lo < w <= hi and (not out or w > out[-1]):
+            out.append(w)
+    return tuple(out) or edges
+
+
 def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | None = None,
                 whole: bool = False) -> list[str]:
     """Bands as ranges: "620 - 679", with the lowest from the column's smallest
@@ -149,7 +179,7 @@ def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | N
     edges and the edges' own last decimal place otherwise. `whole`: the column holds whole numbers only (a score),
     so an edge between them (654.2) starts its band at the next whole number (655)."""
     dec = 0
-    if min(abs(float(x)) for x in edges) < 100:          # scores and dollars read as whole numbers
+    if not reads_whole(edges):                           # scores and dollars read as whole numbers
         for x in edges:
             t = f"{float(x):.4f}".rstrip("0").rstrip(".")
             if "." in t:
@@ -171,7 +201,10 @@ def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | N
             return math.ceil(round(x / step, 9)) * step if whole else x
 
         first = f(math.floor(lo / step) * step) if lo is not None and lo < edges[0] else None
-        last = f(math.ceil(hi / step) * step) if hi is not None and hi >= edges[-1] else None
+        # a whole-unit label reads a value with its cents dropped (the firm, 30 Sep 2026: "Cut at whole dollars is
+        # fine"), so the highest band ends at its largest value's whole dollars: $49,151.40 ends "... - 49,151"
+        last = (f((math.floor(hi / step) if d == 0 else math.ceil(hi / step)) * step)
+                if hi is not None and hi >= edges[-1] else None)
         out = [f"{first} - {f(up(edges[0]) - step)}" if first else f"up to {f(up(edges[0]) - step)}"]
         out += [f"{f(up(a))} - {f(up(b) - step)}" for a, b in zip(edges, edges[1:])]
         out.append(f"{f(up(edges[-1]))} - {last}" if last else f"{f(up(edges[-1]))} and up")
@@ -222,7 +255,8 @@ def cut_edges(values: list[float], count: int, cut: str) -> tuple[float, ...]:
     """Edges for `count` bands. equal_loans: each band holds about the same
     number of loans (the quantiles). round: those quantiles snapped to round
     numbers. A column with many repeats can give fewer bands than asked for;
-    the edges actually used are reported with the result."""
+    the edges actually used are reported with the result. On a column read in
+    whole dollars that carries cents, each edge is a whole number (whole_cut)."""
     vals = sorted(values)
     if not vals:
         return ()
@@ -233,7 +267,7 @@ def cut_edges(values: list[float], count: int, cut: str) -> tuple[float, ...]:
     for e in edges:
         if e > vals[0] and (not out or e > out[-1]):
             out.append(e)
-    return tuple(out)
+    return whole_cut(out, vals)
 
 
 # --------------------------------------------------------------------------

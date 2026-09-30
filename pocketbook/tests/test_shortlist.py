@@ -203,7 +203,8 @@ def test_a_shortlist_reads_each_input_with_its_bins_and_reference():
                    ("TENURE", (2.0, 5.0, 10.0), "2 - 4", 1)]
     named = prespec.named(ps, ranges={"UTIL": (0.0, 1.2), "TENURE": (0.0, 61.3)})
     assert [i.groups[0] for i in named.inputs] == ["up to 0.09", "0.0 - 0.2", "0 - 1"]
-    assert named.inputs[1].reference == "0.0 - 0.2" and named.inputs[2].groups[-1] == "10 - 62"
+    # a label read in whole units drops the fraction (30 Sep 2026, "Cut at whole dollars is fine"): 61.3 reads 61
+    assert named.inputs[1].reference == "0.0 - 0.2" and named.inputs[2].groups[-1] == "10 - 61"
 
 
 def test_the_one_column_pre_spec_still_reads_as_a_shortlist_of_one():
