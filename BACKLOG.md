@@ -2553,6 +2553,34 @@ changed in the code.
   - **For the firm:** the count includes a 1-loan pocket (the loan with a blank score that charged off); a pocket
     under Fewest loans is still counted and red, since a loss is a loss, not a test. Say if it should be left out.
 
+- **Built, 30 Sep 2026: the Summary tab** (branch `pocketbook-summary-tab`). The firm: *"I want to add some easy
+  high value views as well. Like a few matrices where it lists out a chosen band on the left and shows real
+  calculated metrics... Maybe I want to see bands of FICO on the left and straight up unit counts, loan amounts, % of
+  units, % of loan amounts, charged off dollars, ratio, percentage of units. Same with RANR. They'd be across the
+  top."* The ratio: *"Charged off / booked"*. Bad loans columns: *"Yes do this"*.
+  - **The tab** (`results.write_summary`, after Grids: both show one table at a time from dropdowns, as of the last
+    Run). A **Band column** dropdown lists every column the Run cut into bands. When the launcher picked a Filter by,
+    an **Only loans where** dropdown offers All loans and that column's values. Rows are the bands in order, then
+    (blank), (not a number) and (marked missing) where present, then All. Columns: Loans · % of loans · Bad loans ·
+    Bad loans % · Booked $ · % of booked · Charged off $ · Charge-off rate · × book · % of charge-offs · RANR $ ·
+    RANR rate · % of RANR. A column whose source the Run hasn't got is left off, and the note says which.
+  - **The numbers** (`engine.Summary`, `engine.summary_rows`): each band is accumulated from the loans as a grid
+    cell is, then tied out to the book before anything is written (`_tie_summary` raises TieOutError). Bad loans %
+    is the Bad loans rate. The charge-off and RANR rates are the Charge-offs and Kept after losses rates, so a loan
+    missing an amount is out of that rate's top and bottom, as on Grids. × book is against the whole book, even
+    under a filter. The shares are of the view's All row. The tab's formulas only pick a _views row. There is no
+    test and no red or green; only the All row is shaded (CANVAS). Widths use Grids' rule: one data width, headings
+    on two lines, and $k only when the largest dollar figure would not fit under 16.
+  - Tests: 3 in `tests/test_firm_answers_2026_09_29.py` (Summary). They check every cell of FICO and REV_DEBT
+    against the CSV, that the shares add to 100%, that All equals the book, the dropdown switch, each year's filtered
+    numbers, and that a missing source drops its columns with the note. 3 existing tests now expect Summary in the
+    tab order. Planted bugs: 7 added to `tools/mutation_check.py`, 7 of 7 caught.
+  - Tie-out (`pocketbook/docs/tie-out/2026-09-30-summary/`): 14 views, 1,274 cells, 1,274 TIED, 0 DIFFERS.
+  - **For the firm to confirm:** × book stays against the whole book under Only loans where, so a year's All row
+    reads something like 1.12× rather than 1.00×; the shares are of that year's loans. The Charged off $ column only
+    counts loans that also have a booked amount, so it matches the rate. Summary offers band columns only, not
+    segments.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -2565,6 +2593,8 @@ research pass before a spec, no exceptions.
 ## Done log
 
 - 2026-09-30 -- **PocketBook: Paid, cost, kept shows each pocket's gross booked, GCO and RANR.** The firm: *"so we can also see if pockets are straight negative on returns"*. Booked, GCO, RANR and RANR rate after Loans; a pocket losing money outright in red and counted beside the Grid dropdown; totals that add up to the whole book. 6 tests, 7 planted bugs caught, tie-out 481 of 481 TIED. §6d has the detail.
+
+- 2026-09-30 -- **PocketBook: the Summary tab.** The firm: *"a few matrices where it lists out a chosen band on the left and shows real calculated metrics ... Same with RANR. They'd be across the top"*; the ratio *"Charged off / booked"*; bad loans *"Yes do this"*. One band column down the side, with loans, bad loans, booked, charge-offs, × book and RANR across, plus each one's share. It can be filtered by the Filter by column. The engine does the arithmetic and ties it out; nothing is tested. 3 tests, 7 planted bugs, 7 caught; tie-out 1,274 of 1,274 cells TIED. Full suite in shards: 888 passed, 7 skipped, 0 failed. §6d has the detail and three points for the firm to confirm.
 - 2026-09-30 -- **PocketBook: Filter by, apart from Split by.** The firm: *"Wait only works on split by? Isn't that for like above and below median"*, then *"Yes hoping to have this by morning"*. Grids' *Only loans where* now reads its own launcher pick (any category of 6 values or fewer, or ORIG_YEAR, the year of the Origination date column), whatever the split does; ORIG_YEAR can also split, for the consistency test across vintages. 6 tests, 13 planted bugs added and 4 repointed, all caught. §6d has the detail.
 - 2026-09-28 -- **PocketBook: every figure in both workbooks tied out to the loan file** (`pocketbook/docs/tie-out/2026-09-28-full/`, the PDF and `roster.csv`). The firm, on the first tie-out's 64 figures: *"That tie out covered 60 things? It's pretty small"*. 15,650 cells read out of the bleed workbook (all 40 dropdown views) and a Test-new-variables workbook (the test_scout book, two candidates shortlisted), each worked out again from the loan file with no PocketBook code: 13,403 tie, 1,030 tie within sampling error (shuffle and forest figures), 16 differ, 5 could not be checked, the rest names, echoed answers and words. Found: the Look chart counts a value exactly on a bar's edge in the bar below (`look.py:195`, `:209`: 12 x 0.1 = 1.2000000000000002; UTIL's bars off by 1 to 5 loans), and six verdicts rest on shuffled p-values either side of 5% within sampling error, one of them behind Start here's *4 short $3,248,654*. Not fixed here.
 - 2026-09-28 -- **PocketBook Goal 4: the tree is the main path, checked on later loans, and the shortlist regressed together** (OC-51; `pocketbook/docs/NEXT-GOAL.md` Goal 4, all seven ticked). The firm, 27 Sep 2026: *"shouldn't it regress all of those identified variables if it actually deems them important? import --> tree runs --> tree guesses on 2024 data if 2022-2023 are used to build branches --> regress shortlist?"*, then *"yes build it out"*. A cutoff date on Control replaces *Find on 70%* (suggested, never chosen); after the pre-spec is written the tree scores the held-back loans (*"Built on …: AUC 0.63. On …, unseen: 0.60."*, logged as a touch of the holdout); every shortlisted candidate goes into one logistic regression on the held-back loans with the pockets as control dummies (`joint.py`, statistics.md B10: a likelihood ratio test per candidate, the allowance across the shortlist, separation refused in words, correlated pairs named); New variables leads with both. 771 tests (15 new: `tests/test_together.py` and 7 in `tests/test_scout.py`), 766 passed and 5 skipped; 24 planted bugs added and 6 repointed (431 in all), each put back alone with every earlier one whose test was rewritten: 71 of 73 caught on the first pass, the 2 missed caught after their tests were strengthened. The walk's Part C pictures retaken and the procedure and checklist PDFs rebuilt. A scouting Run at 17,000 × 80: about 73 s before, 75–77 s after.

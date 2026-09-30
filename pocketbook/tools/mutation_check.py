@@ -1356,6 +1356,32 @@ muts = [
   '    out.append(row(PCK_BOOK, [x for on, x in cells if on]))', "pck_gross"),
  ("gross dollars never in thousands", RS, '    thousands = len(gross_shown(-top, False)) + 2 > DATA_CAP',
   '    thousands = False', "pck_gross"),
+ # 30 Sep 2026: Summary, one band column and the book's plain figures (the firm: "Charged off / booked")
+ ("Summary's charge-off rate over loans, not booked", E,
+  'row.update(gco=g.num, gco_rate=g.rate, gco_x=index_of(g.rate, whole.rate if whole else None),',
+  'row.update(gco=g.num, gco_rate=share(g.num, c.rows), gco_x=index_of(g.rate, whole.rate if whole else None),',
+  "summary"),
+ ("Summary's % of loans leaves out the special rows", E,
+  '        row: dict[str, float | None] = {"loans": c.rows, "loans_share": share(c.rows, top.rows)}',
+  '        row: dict[str, float | None] = {"loans": c.rows, "loans_share": share(c.rows, top.rows - sum(\n'
+  '            s.cells[x].rows for x in s.labels if x in REASON_LABEL.values()))}',
+  "summary"),
+ ("Summary's x book against the band itself", E,
+  'gco_x=index_of(g.rate, whole.rate if whole else None),', 'gco_x=index_of(g.rate, g.rate),', "summary"),
+ ("Summary's x book against the filtered loans, not the book", E,
+  'gco_x=index_of(g.rate, whole.rate if whole else None),', 'gco_x=index_of(g.rate, top.rates["gco_rate"].rate),',
+  "summary"),
+ ("Summary's filter ignored", E,
+  '            part = summaries[(b.name, v)] = _summary(b.name, measures, per_row, bands[b.name], booked, whole.labels,\n'
+  '                                                     rows_of[v])',
+  '            part = summaries[(b.name, v)] = _summary(b.name, measures, per_row, bands[b.name], booked, whole.labels,\n'
+  '                                                     range(n))',
+  "summary"),
+ ("Summary's bad loans % over every loan", E, '            row.update(bad=o.num, bad_rate=o.rate)',
+  '            row.update(bad=o.num, bad_rate=share(o.num, c.rows))', "summary"),
+ ("Summary's missing source column not said", RS,
+  '        note.append(("Not shown", "This Run has no " + " and no ".join(left_off) + ", so those columns are left off."))',
+  '        pass', "summary"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

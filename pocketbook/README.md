@@ -249,6 +249,26 @@ After that, the whole routine is:
      description, not a test: no p-value, not on Pockets or Split, and no red
      or green, only one neutral hue, darker the bigger the loans against the
      book's.
+   - **Summary** (the firm, 30 Sep 2026: *"a few matrices where it lists out a
+     chosen band on the left and shows real calculated metrics ... unit counts,
+     loan amounts, % of units, % of loan amounts, charged off dollars, ratio"*;
+     the ratio *"Charged off / booked"*): a **Band column** dropdown picks any
+     column the Run cut into bands, and, when the launcher picked a Filter by,
+     **Only loans where** *(that column)* **is** narrows it to one value. Down
+     the side: the bands in order, then (blank), (not a number) and (marked
+     missing) where the column has them, then **All**. Across: Loans, % of
+     loans, Bad loans, Bad loans %, Booked $, % of booked, Charged off $,
+     Charge-off rate, × book, % of charge-offs, RANR $, RANR rate, % of RANR.
+     Bad loans % and the two rates are the same rates Grids shows (a loan
+     missing an amount is left out of that rate's top and bottom); × book is
+     the band's charge-off rate over the whole book's, filtered or not; the
+     shares are of the All row, so they add to 100% with the special rows in.
+     Every number is worked out by the Run (`engine.summary_rows`) and tied out
+     to the book before it is written; the tab's formulas only pick the row.
+     Nothing is tested: no p-value, no red or green, the All row shaded light
+     grey and nothing else. A column whose source the Run hasn't got is left
+     off and the note says so. Dollars show in thousands ($1,234k) only when
+     the largest would not fit the column.
    - **Split:** only when a column splits the pockets (below). A Grid
      dropdown and a chip saying whether it holds the split's partner fixed; the
      summary for every measure; whether the gap is the same in every pocket; and
@@ -416,7 +436,7 @@ reference group is the pre-spec's, and the holdout is the range the test held
 itself to, not the first and last loan in the extract.
 
 A test of a new variable builds none of the bleed analysis: no pocket grid, no
-shuffle test, and none of its tabs (Pockets, Paid cost kept, Grids, Split). It writes New variables
+shuffle test, and none of its tabs (Pockets, Paid cost kept, Grids, Summary, Split). It writes New variables
 and Record. If the workbook still has those tabs from an earlier bleed Run, they are
 taken off, and Record says so on one line. Control asks it only what it uses: worse at (the chart's
 line, suggested from the confirmation's own groups), materiality, confidence and the bands; the
