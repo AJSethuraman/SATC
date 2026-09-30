@@ -34,10 +34,12 @@ import threading
 from typing import Any
 
 import yaml
-from openpyxl import Workbook, load_workbook
+from openpyxl import Workbook
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.datavalidation import DataValidation
+
+from . import excel_lists       # a workbook opened without openpyxl's warnings about Excel's extension blocks
 
 SHEET = "Control"
 OPTIONS_SHEET = "_options"
@@ -688,7 +690,7 @@ def read_control(path, settings: list[Setting] | None = None) -> dict[str, Any]:
     workbook already open (a Run loads it once)."""
     settings = settings or load_settings()
     by_key = {s.key: s for s in settings}
-    ws = (path if isinstance(path, Workbook) else load_workbook(path))[SHEET]
+    ws = (path if isinstance(path, Workbook) else excel_lists.quiet(path))[SHEET]
     found: dict[str, Any] = {}
     seen: set[str] = set()
     problems: list[str] = []

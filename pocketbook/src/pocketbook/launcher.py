@@ -192,7 +192,13 @@ def do_run(extract: str) -> list[str]:
     return _run(extract).lines
 
 
-def _run(extract: str):
+def elapsed_words(seconds: float) -> str:
+    """How long a step has taken, as the progress line says it: "12 s", "1 min 40 s"."""
+    s = int(seconds)
+    return f"{s} s" if s < 60 else f"{s // 60} min {s % 60} s"
+
+
+def _run(extract: str, progress=None):
     from . import book
     target = book_for(extract) if extract else None
     if not extract:
@@ -204,7 +210,7 @@ def _run(extract: str):
                                             f"and press Next first."])
     from .engine import TieOutError
     try:
-        return book.run(target, extract)
+        return book.run(target, extract, **({"progress": progress} if progress else {}))
     except TieOutError as exc:
         # walk of 27 Sep 2026: the one check the finished screen shows, when it failed, read "Something went wrong"
         crash = _crash("Run stopped")
@@ -407,8 +413,21 @@ class Flow:
         self.message: list[str] = []  # a line or two for the current page: what went wrong, or what was done
         self.crash: Crash | None = None   # something PocketBook didn't expect: shown in the page's own space
         self.busy = ""
+        self.stage, self.began = "", 0.0     # the progress line while busy: what is being done, since when
 
     # ---- where things stand
+
+    def progress(self, stage: str) -> None:
+        """What Set up or Run is doing now. Called from the worker thread: it only sets a string the window reads."""
+        self.stage = stage
+
+    def progress_line(self, now: float | None = None) -> str:
+        """The line under a busy page: "Running the shuffle test… 1 min 40 s", the time since the button was
+        pressed (the firm, 30 Sep 2026: "it seemed pocketbook hanging")."""
+        if not self.busy:
+            return ""
+        took = (time.monotonic() if now is None else now) - self.began
+        return f"{self.stage or self.busy}… {elapsed_words(took)}"
 
     def book(self) -> Path | None:
         return book_for(self.extract) if self.extract else None
@@ -801,7 +820,7 @@ class Flow:
         from . import book
         self.crash = None
         try:
-            out = book.set_up(self.extract, choices=self.choices())
+            out = book.set_up(self.extract, choices=self.choices(), progress=self.progress)
         except Exception:
             self._stopped("Writing the workbook stopped")
             return
@@ -841,7 +860,7 @@ class Flow:
     def run(self) -> None:
         began = time.monotonic()
         self.crash = None
-        out = _run(self.extract)
+        out = _run(self.extract, self.progress)
         self.crash = getattr(out, "crash", None)
         if out.ok:
             self.finished, self.took = out, time.monotonic() - began
@@ -976,6 +995,17 @@ def _money(v: float) -> str:
     if a >= 1e4:
         return f"${v / 1e3:.0f}K"
     return f"${v:,.0f}"
+
+
+def wheel_target(table, exists: bool, delta: int = 0, num=None) -> tuple[object | None, int]:
+    """What one turn of the mouse wheel scrolls, and by how many rows: the table on the page shown now, or nothing
+    when that page has none or has gone (at the bank, 30 Sep 2026: a wheel bound to Choose tests' own table raised
+    "invalid command name ...!canvas" after Next). `num` 4 and 5 are X11's wheel; `delta` Windows' (120 a notch)."""
+    if table is None or not exists:
+        return None, 0
+    if num in (4, 5):
+        return table, -1 if num == 4 else 1
+    return table, int(-delta / 120) or (-1 if delta > 0 else 1 if delta < 0 else 0)
 
 
 def relight(lit: str | None, hover: str | None, picked: str | None) -> tuple[str | None, dict[str, bool]]:
@@ -1448,7 +1478,8 @@ def build(root) -> dict:
                 scroll.pack_forget()
                 holder.yview_moveto(0)
         holder.bind("<Configure>", fitted)
-        holder.bind_all("<MouseWheel>", lambda e: holder.yview_scroll(int(-e.delta / 120), "units"))
+        # the wheel is bound once, in build(), to whichever table is on screen: bound here to this canvas, it
+        # outlived the page and a scroll after Next raised "invalid command name ...!canvas" (at the bank, 30 Sep)
         repaint()
         at = widgets.pop("keep_scroll", None)
         if at:
@@ -1571,6 +1602,7 @@ def build(root) -> dict:
         room = 250 if flow.book_open else 300
         holder.configure(height=min(need_h, room), scrollregion=(0, 0, 478, need_h))
         holder.pack(side="left", fill="both", expand=True)
+        widgets["table"] = holder
         if need_h > room:
             sc = ttk.Scrollbar(box_, orient="vertical", command=holder.yview)
             holder.configure(yscrollcommand=sc.set)
@@ -1623,13 +1655,13 @@ def build(root) -> dict:
         draw_rail()
         clear(page)
         for k in ("setup", "next", "run", "open", "start", "open_banner", "summary", "install_optional", "tiles",
-                  "first", "meanings", "crash", "copy_details"):
+                  "first", "meanings", "crash", "copy_details", "table", "progress"):
             widgets.pop(k, None)
         {"extract": page_extract, "choose": page_choose, "answer": page_answer, "needs": page_needs,
          "done": page_done}["extract" if flow.gate.missing else flow.page]()
         if flow.busy:
-            label(page, f"{flow.busy}... this can take a minute on a large extract.", "small",
-                  fg="SLATE").pack(side="bottom", anchor="w")
+            widgets["progress"] = label(page, flow.progress_line(), "small", fg="SLATE")
+            widgets["progress"].pack(side="bottom", anchor="w")
         states = flow.states()
         for name in ("setup", "next", "run", "open"):
             if name in widgets:
@@ -1646,7 +1678,7 @@ def build(root) -> dict:
         # extract box itself). The Flow does the work in a thread; the window redraws when it comes back.
         flow.pick(extract.get())
         _save_prefs({"extract": flow.extract, "few": flow.few, "many": flow.many})
-        flow.busy = what
+        flow.busy, flow.stage, flow.began = what, "", time.monotonic()
         render()
         done: queue.Queue = queue.Queue()
 
@@ -1663,6 +1695,9 @@ def build(root) -> dict:
             try:
                 done.get_nowait()
             except queue.Empty:
+                p = widgets.get("progress")
+                if p is not None and p.winfo_exists():         # the stage and the seconds, live
+                    p.configure(text=flow.progress_line())
                 root.after(100, poll)
                 return
             flow.busy = ""
@@ -1746,6 +1781,20 @@ def build(root) -> dict:
             except Exception:
                 pass
         root.after(2000, watch)
+
+    def wheel(e):
+        """The mouse wheel scrolls the table on the page shown now, if it has one; never a page that has gone."""
+        t = widgets.get("table")
+        try:
+            t, step = wheel_target(t, t is not None and bool(t.winfo_exists()), getattr(e, "delta", 0) or 0,
+                                   getattr(e, "num", None))
+            if t is not None and step:
+                t.yview_scroll(step, "units")
+        except tk.TclError:
+            pass
+    for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+        root.bind_all(seq, wheel)
+    widgets["wheel"] = wheel
 
     widgets["render"] = render
     render()

@@ -571,7 +571,8 @@ muts = [
  # 26 Sep 2026: OC-42, a test of a new variable builds no bleed analysis (tests/test_new_variable_run.py)
  ("a new variable builds the grids again", E, '    bleed = config.run_kind != "new_variable"', '    bleed = True',
   "builds_no_grid"),
- ("a new variable runs the shuffle test", E, '    if bleed:\n        _shuffle_tests(', '    if True:\n        _shuffle_tests(',
+ ("a new variable runs the shuffle test", E, '    if bleed:\n        say("Running the shuffle test")\n        _shuffle_tests(',
+  '    if True:\n        say("Running the shuffle test")\n        _shuffle_tests(',
   "builds_no_grid"),
  ("a new variable writes the bleed tabs", B, '    if bleed_tabs(res):\n        _write_bleed(wb, res, stamp)',
   '    if True:\n        _write_bleed(wb, res, stamp)', "writes_no_bleed_tab"),
@@ -1114,10 +1115,11 @@ muts = [
  ("All ticks the split's column too", LA,
   '        names = {r["name"] for r in self.rows() if r[which] is not None} - {self.split}',
   '        names = {r["name"] for r in self.rows() if r[which] is not None}', "bleeds_bands"),
- ("every column shown on Columns again", B, '        hide = used is not None and c not in used', '        hide = False',
-  "hides_what"),
- ("a hidden column still asked about", B, '        asked = [] if hide else questions.get(c, [])',
-  '        asked = questions.get(c, [])', "hides_what"),
+ # (30 Sep 2026: shown greyed instead of hidden; these two repointed to test_columns_launcher_2026_09_30)
+ ("no column greyed on Columns", B, '        unused = used is not None and c not in used', '        unused = False',
+  "greys_the_ones"),
+ ("a greyed column still asked about", B, '        asked = [] if unused else questions.get(c, [])',
+  '        asked = questions.get(c, [])', "greys_the_ones or asks_nothing_about"),
  ("Look's axis title back over its numbers", "src/pocketbook/look.py",
   '    # title is out of place"); "The bars" above the charts says they count loans\n',
   '    # title is out of place"); "The bars" above the charts says they count loans\n    ch.y_axis.title = "Loans"\n',
@@ -1520,6 +1522,22 @@ muts = [
   '    ws.auto_filter.ref = f"{col(C_BAND)}{h + 1}:{col(C_TOG)}{end}"', "a_sort_in_excel_keeps_every_row_whole"),
  ("the chart numbers the first rows, read together or not", RS, '        m = f"MATCH({j},{seq},0)"',
   '        m = f"IF({j}<={most},{j},NA())"', "a_sort_in_excel_keeps_every_row_whole"),
+ # 30 Sep 2026, the firm: Columns shows every column, the wheel after a page change, openpyxl's warnings and a
+ # progress line (test_columns_launcher_2026_09_30)
+ ("a column this Run skips hidden again", B, '            ws.row_dimensions[row].height = 18\n',
+  '            ws.row_dimensions[row].height = 18\n            ws.row_dimensions[row].hidden = unused\n',
+  "greys_the_ones"),
+ ("a column this Run skips not greyed", B, '                if unused:                  # greyed, never hidden',
+  '                if False:                  # greyed, never hidden', "greys_the_ones"),
+ # headless on purpose: CI has no display (the window test, wheel_scrolls, holds the same two by hand)
+ ("the wheel scrolling a table that has gone", LA, '    if table is None or not exists:\n        return None, 0',
+  '    if table is None:\n        return None, 0', "wheel_goes_to"),
+ ("the progress line's seconds standing still", LA,
+  '        took = (time.monotonic() if now is None else now) - self.began', '        took = 0.0',
+  "progress_line_says"),
+ ("openpyxl's extension warnings back", "src/pocketbook/excel_lists.py",
+  '            warnings.filterwarnings("ignore", message=said)', '            pass', "extension_blocks"),
+ ("the shuffle test never said", E, '        say("Running the shuffle test")\n', '', "each_stage"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

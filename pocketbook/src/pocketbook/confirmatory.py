@@ -306,16 +306,17 @@ def run_range(res, ps: prespec.PreSpec):
 def holdout_runs(book, loaded=None) -> int:
     """How many runs this workbook's Log already records as touching the holdout. `loaded`: the workbook the Run
     already has open, so it isn't read from disk again (one load per Run)."""
-    from openpyxl import load_workbook
     from . import record
+    from .excel_lists import hushed, quiet
     try:
-        wb = loaded if loaded is not None else load_workbook(book, read_only=True)
+        wb = loaded if loaded is not None else quiet(book, read_only=True)
     except Exception:
         return 0
     try:
         # runs, not lines: one Run touches the holdout twice when it scouts (the tree's out-of-time check, then the
-        # test), and says each on a line of its own (OC-51)
-        return sum(1 for _, lines in record.entries(wb) if any(v.startswith(HOLDOUT_MARK) for v in lines))
+        # test), and says each on a line of its own (OC-51). Read only reads as it walks: hushed covers the walk
+        with hushed():
+            return sum(1 for _, lines in record.entries(wb) if any(v.startswith(HOLDOUT_MARK) for v in lines))
     finally:
         if loaded is None:
             wb.close()

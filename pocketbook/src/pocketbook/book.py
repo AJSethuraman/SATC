@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from openpyxl import Workbook, load_workbook
+from openpyxl import Workbook
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -46,7 +46,8 @@ from . import choices as ch                             # the redesign: what the
 from . import results                                   # the redesign, phase 3: the result tabs
 from . import record                                    # the redesign, phase 4: Check and the Log as Record
 from . import scout, scout_tab                          # Goal 2 item 9: scouting, then the confirmation
-from .excel_lists import load as _load                   # opens a workbook Excel saved with its dropdowns kept
+# _load opens a workbook Excel saved with its dropdowns kept; quiet_load without openpyxl's extension warnings
+from .excel_lists import load as _load, quiet as quiet_load
 from .house import MIST as READ_ONLY
 from .ingest import Table, read_table
 
@@ -70,9 +71,11 @@ CONFIRM_CELL = "C3"      # "Checked every column?"
 # Set up's note on Columns!D3 for columns the Yes in C3 doesn't cover yet; a Run takes it off again
 NEW_COLS_NOTE = "New since the last check: {}. Check them, then set C3 to Yes again."
 CONFIRM_NOTE = "Run won't start until this is Yes."
-#: the firm, 29 Sep 2026: "Why would we ever want to make it appear?" The columns not picked in the launcher are
-#: hidden rows, not asked about and not counted: they are kept, so picking one later needs no new answers
-HIDDEN_NOTE = "Only the columns this Run uses are shown; {} not picked in the launcher are hidden."
+#: The columns not picked in the launcher: not asked about and not counted, and kept, so picking one later needs no
+#: new answers. Hidden rows from 29 Sep 2026; shown again, greyed, from 30 Sep 2026 (the firm: "in my testing it is
+#: hiding random rows from the columns tab which makes it hard to make sure it's right")
+UNUSED_NOTE = "Grey rows ({}) weren't picked in the launcher: not used this Run, and nothing is asked about them."
+NOT_USED = "Not used this Run."      # Check first on a grey row, before anything else it says
 # Columns tab (the redesign, phase 2: Columns, Odd values and Learned on one tab), one column per thing said about
 # an extract column, in the spec's order, then the answers the spec has no place for, then hidden keys
 (C_NAME, C_SAMPLES, C_MEANS, C_WHY, C_BLANK, C_ODD, C_TREAT, C_EDGES, C_REMEMBERED, C_FORGET, C_LOOK, C_IS, C_SHOW,
@@ -261,7 +264,7 @@ def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 5
     chosen = None
     if _earlier(target).exists():
         try:
-            chosen = control.read_choices(load_workbook(_earlier(target))[control.SHEET])[0]
+            chosen = control.read_choices(quiet_load(_earlier(target))[control.SHEET])[0]
         except Exception:
             chosen = None
     return Read(extract, target, len(table.rows), out, chosen, year=_year_row(made_table, out))
@@ -398,7 +401,7 @@ def _answers(book: Path) -> dict[str, Any]:
                            "derived": {}}
     if not book.exists():
         return out
-    wb = load_workbook(book)
+    wb = quiet_load(book)
     if control.SHEET in wb.sheetnames:
         cws = wb[control.SHEET]
         old = cws["C4"].value == "Choose"                  # before the redesign: last Run used in H, not F
@@ -547,18 +550,24 @@ def _to_code(v: Any, cat) -> str | None:
 
 
 @control.settings_once
+def _quiet(stage: str) -> None:
+    """The default `progress`: Set up and Run say each stage to it, and nothing listens."""
+
+
 def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str | Path | None = None,
-           today: date | None = None, choices: "ch.Choices | None" = None) -> Outcome:
+           today: date | None = None, choices: "ch.Choices | None" = None, progress=_quiet) -> Outcome:
     """Write the workbook beside the extract. `choices` is what the launcher's
     Choose tests step picked; without it, what the workbook already shows is kept
     (or, the first time, every column its meaning cuts, and nothing split).
     The suggested Control answers are worked out here, from pockets cut at the
     default edges, and written beside their settings (never chosen for you)."""
     extract = Path(extract)
+    progress = progress or _quiet
     if workbook_picked(extract):
         # the third walk, defect 10: the workbook sits beside the extract and was picked by mistake
         return Outcome(False, extract, [workbook_picked(extract)])
     book = Path(book) if book else book_for(extract)
+    progress("Reading the extract")        # the launcher's progress line (the firm, 30 Sep 2026)
     try:
         table = read_table(extract)
     except OSError as exc:  # open in Excel, OneDrive still syncing it, or gone (the bank, 30 Sep 2026)
@@ -566,6 +575,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     except Exception as exc:  # the file itself: shown in words, never a traceback
         return Outcome(False, book, [f"Couldn't read {extract.name}: {exc}"])
     as_read = table
+    progress("Looking at each column")
     kept = _answers(_earlier(book))
     mem = memory.load(memory_path)
     cat = meanings.catalog()
@@ -660,6 +670,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     _fit(ws)
 
     from . import look                      # fix 3.8: each number column's shape, before its edges are chosen
+    progress("Drawing Look")
     shown = look.number_columns(table, cols, few, facts_of)
     edge_rows = {str(r[C_NAME - 1].value): r[0].row for r in table_rows(ws) if r[C_NAME - 1].value}
     banded = {str(r[C_NAME - 1].value) for r in table_rows(ws) if r[C_NAME - 1].value
@@ -687,9 +698,11 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     _order(wb)
     if not _writable(book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Set up again."])
+    progress("Working out the suggested settings")
     worked = _suggest_at_set_up(wb, book, as_read, memory_path, testing=kind_now == NEW_VARIABLE)
     _suggestions(wb[control.SHEET], *worked, when="from this extract")
     _cutoff_words(wb[control.SHEET], as_read, wb["Columns"], cat)          # OC-51
+    progress("Saving the workbook")
     try:
         wb.save(book)
     except PermissionError:
@@ -851,8 +864,8 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
     if gone_cols:
         notes.append(f"No longer in the extract: {', '.join(gone_cols)}.")
     notes += made_notes
-    hidden_n = 0 if used is None else sum(1 for c in table.columns if c not in used)
-    ws["D3"] = " ".join([CONFIRM_NOTE] + ([HIDDEN_NOTE.format(hidden_n)] if hidden_n else []) + notes)
+    unused_n = 0 if used is None else sum(1 for c in table.columns if c not in used)
+    ws["D3"] = " ".join([CONFIRM_NOTE] + ([UNUSED_NOTE.format(unused_n)] if unused_n else []) + notes)
     ws["D3"].font = Font(name="Calibri", bold=bool(notes), size=10, color=house.CRIMSON if notes else SLATE)
     ws["D3"].alignment = Alignment(vertical="center")
     ws.row_dimensions[3].height = 20
@@ -902,7 +915,7 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
         sg = sugg[c]
         prior = kept["columns"].get(c, {})
         code = _to_code(prior.get("means"), cat) or sg.means
-        hide = used is not None and c not in used
+        unused = used is not None and c not in used
         tag = "Remembered: " if sg.source == "remembered" else ""
         f = facts_of.get(c) or meanings.facts(table, c)
         blank = (f.rows - f.nonblank) / f.rows if f.rows else 0
@@ -932,7 +945,7 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
         dv_forget.add(forget)                   # every row: a Run remembers a column, and it can be forgotten
         if entry:
             house.needs_run(forget)
-        ws.cell(row=r, column=C_LOOK, value=" ".join(by_col.get(c, [])) or None)  # after the edges note
+        ws.cell(row=r, column=C_LOOK, value=" ".join(([NOT_USED] if unused else []) + by_col.get(c, [])) or None)
         ws.cell(row=r, column=C_IS, value=prior.get("is") if prior else sg.is_value)
         ws.cell(row=r, column=C_SHOW, value=prior.get("show"))
         dv_show.add(ws.cell(row=r, column=C_SHOW))
@@ -941,7 +954,7 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
         ws.cell(row=r, column=C_DEFINE, value=prior.get("define"))
         ws.cell(row=r, column=C_SUGG, value=sg.means)
         ws.cell(row=r, column=C_MADE, value=next((m.text() for m in made if m.name == c), None))
-        asked = [] if hide else questions.get(c, [])      # a column not in use: nothing asked, nothing counted
+        asked = [] if unused else questions.get(c, [])    # a column not in use: nothing asked, nothing counted
         answers = []
         for q in asked:
             key = f"{q['pattern']}|{q['value'] if q['value'] is not None else ''}"
@@ -969,9 +982,12 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
                     C_BLANK, C_MEANS, C_TREAT, C_EDGES, C_REMEMBERED, C_FORGET, C_IS, C_SHOW, C_PERIOD) else "left")
                 if col != C_NAME:
                     cell.font = Font(name="Calibri", size=10, bold=cell.font.b,
-                                     color=SLATE if col in (C_SAMPLES, C_WHY, C_LOOK) else house.INK_TEXT)
+                                     color=SLATE if unused or col in (C_SAMPLES, C_WHY, C_LOOK) else house.INK_TEXT)
+                if unused:                  # greyed, never hidden: every column stays in sight
+                    cell.fill = house.fill(house.CANVAS)
+                    if col == C_NAME:
+                        cell.font = Font(name="Calibri", bold=True, size=10, color=SLATE)
             ws.row_dimensions[row].height = 18
-            ws.row_dimensions[row].hidden = hide
         r += max(1, len(asked))
     ws.cell(row=r, column=C_QKEY, value=TABLE_END)
     # Odd values fits what it says on one line, now that the values are shown (30 Sep 2026)
@@ -985,7 +1001,8 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
         f'AND(${key}{COL_FIRST}<>"",${treat}{COL_FIRST}="",'
         f'ISERROR(SEARCH("{BUREAU_MARK}",${odd}{COL_FIRST})))'))
     look = _col(C_LOOK)
-    ws.conditional_formatting.add(f"{look}{COL_FIRST}:{look}{r - 1}", house.still_needed(f'{look}{COL_FIRST}<>""'))
+    ws.conditional_formatting.add(f"{look}{COL_FIRST}:{look}{r - 1}", house.still_needed(
+        f'AND({look}{COL_FIRST}<>"",LEFT({look}{COL_FIRST},{len(NOT_USED)})<>"{NOT_USED}")'))   # a grey row: nothing to do
     for col in (C_SUGG, C_MADE, C_QKEY):
         ws.column_dimensions[_col(col)].hidden = True
     ws.freeze_panes = f"C{COL_FIRST}"
@@ -1935,19 +1952,22 @@ def _save(wb, book: Path) -> bool:
 
 
 @control.settings_once
-def run(book: str | Path, extract: str | Path | None = None, memory_path: str | Path | None = None) -> Outcome:
+def run(book: str | Path, extract: str | Path | None = None, memory_path: str | Path | None = None,
+        progress=_quiet) -> Outcome:
     """Run from the workbook. `extract` is the file picked in the launcher; it
     wins over the path remembered at set up, so a workbook copied to another
     folder runs that folder's extract (second walk, defect 1).
 
     The workbook is loaded once and saved once (found 26 Sep 2026: a Run loaded
     it eight times and saved it three): every reader and writer below is handed
-    the open workbook."""
+    the open workbook. `progress` is told each stage as it starts (the launcher's progress line)."""
     book = Path(book)
+    progress = progress or _quiet
     if not book.exists():
         return Outcome(False, book, [f"Couldn't find {book.name}. Press Set up first."])
     if not _writable(book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
+    progress("Reading the workbook")
     try:
         wb = _load(book)
     except Exception as exc:  # the file itself: in words, never a traceback
@@ -1971,6 +1991,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
             beside = book.with_name(str(about["extract name"]))
             if beside.exists():
                 src = beside
+    progress("Reading the extract")
     try:
         # read once, and its fingerprint taken from the same bytes (the bank, 30 Sep 2026: the fingerprint's own
         # read raised PermissionError with the extract open in Excel, and a traceback opened in Notepad)
@@ -1995,6 +2016,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
             # first pass needs rates and pocket sizes only, so it runs no shuffle test
             first = cfg if cfg.benchmark is None else cfgmod.Config(**{
                 **cfg.__dict__, "benchmark": cfgmod.Benchmark(**{**cfg.benchmark.__dict__, "shuffles": 0})})
+            progress("Working out the suggested settings")
             res = engine.run(first, table)
             suggested = _suggested(res, about["_suggest"])
             bm = raw["benchmark"]
@@ -2005,10 +2027,10 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                 bm["better_at"] = round(1 / bm["worse_at"], 2)
             fallback = getattr(res, "suggest_fallback", set())
             cfg = cfgmod.parse(raw)
-            res = engine.run(cfg, table)
+            res = engine.run(cfg, table, progress=progress)
             res.suggest_fallback = fallback
         else:
-            res = engine.run(cfg, table)
+            res = engine.run(cfg, table, progress=progress)
         res.suggested = suggested
         res.control_used = about.get("_use") or {}
         if not testing:
@@ -2025,6 +2047,8 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         return _refused(wb, book, ["Couldn't run:", msg], Outcome(False, book, [f"Couldn't run: {msg}"]))
     except perm.NumpyMissing as exc:
         return _refused(wb, book, ["Couldn't run:", str(exc)], Outcome(False, book, [f"Couldn't run: {exc}"]))
+    if about.get("_scout") is not None:
+        progress("Scouting")
     waits = _scout(res, about, book)            # Goal 2 item 9: find on the development loans, write the pre-spec
     if isinstance(waits, Outcome):
         return _refused(wb, book, waits.lines, waits)
@@ -2042,6 +2066,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     cat = meanings.catalog()
     bands_only = {c for c, v in (cfg.columns or {}).items() if cat.get(v[0]) and cat[v[0]].cut == "band"}
     memory.remember_edges({c: typed.get(c) for c in bands_only if c not in dropped}, memory_path)
+    progress("Writing the workbook")
     _write_results(wb, book, res, memory_path, src, dropped, len(table.columns))
     from . import look                  # fix 3.8: the Look tab's scatters, only when the split or the bands moved
     split_col, band_cols = res.config.split and res.config.split[0], [b.field for b in res.config.bands]
@@ -2065,6 +2090,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
          + [f"Warning: {_plain_warning(w)}" for w in res.warnings], redraw=False)
     _record(wb, res, src, f"{book.stem} - what ran.yaml")     # Check and the Log, this Run's entry included
     _order(wb)
+    progress("Saving the workbook")
     if not _save(wb, book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
     audit = book.with_name(f"{book.stem} - what ran.yaml")
