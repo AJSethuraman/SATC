@@ -2408,6 +2408,28 @@ changed in the code.
   - *A number column as a segment* (FICO x asset bands in one Run): **Later**.
   - *Pre-banded columns, "Treat as bands"*: parked. The firm: *"I don't know because I feel like there could be
     a few different ways that they are formatted and I added the ad hoc"*.
+- **Column widths, 29–30 Sep 2026** (branch `pocketbook-widths-0929`). The firm: *"take a look at column spacing.
+  i prefer to have nice even layouts, or at least the column sizes should make sense for the data we see"*. The
+  survey, with before pictures and after pictures beside them, is `pocketbook/docs/column-widths-survey-2026-09-29.md`.
+  Every width is now worked out per Run from what that Run shows (`house.fit`, `house.two_line_width`), never
+  set per bank. Grids: one data width for every column of the four blocks and the groups table (9 to 16), one
+  label width for both label columns (12 to 28), headers that wrap with every block's the same height. Split,
+  Pockets, Paid cost kept, Start here, Look, Control and Columns fitted the same way; Columns' *Check first*
+  wraps. `tests/test_widths.py` and ten planted bugs hold it.
+  - **Decided for the firm, reversible** (each is one place in `results.py`):
+    - *G4: a split grid's header is two rows*: the segment merged over its parts, the parts ("high", "low", or
+      the category's values) beneath. So the merge is the same for every split grid the Grid dropdown picks,
+      every segment gets every part in one order, and a part a segment has no loans in is an empty column.
+      Reverse: `_split_layout` returning `[]` gives one row of "<segment> · <part>" labels again.
+    - *G6: booked dollars in the groups table under Grids show in thousands* (`$1,234k`) when the book's total
+      would not fit the widest data column; never `####`. Reverse: `THOUSANDS_FMT`.
+    - Beyond the plan: a label too long to fit two lines even at the cap (the survey's made-up
+      "Non-Customer/Online Direct") gets the header lines it needs rather than being clipped; Split's Grid
+      dropdown spans B:D and the partner chip moved from C:D to E:F (no checklist cell moved; two tests read
+      the chip by `results.SPLIT_CHIP`); Look's B is fitted at 0.9 a character to the labels as they are now
+      (the percentile rows, "50th percentile (P50), the median" at 33 characters, made it 32, not the survey's 30).
+  - Not changed: Record (it wraps by design), `live.py`, hidden columns, the checklist's named cells (Grids B13
+    and F13, Split B15 and B26, Look C20, Pockets C18 to E18 all stay where they were).
 
 ## 7 · Standing rules for new items
 
