@@ -113,6 +113,7 @@ S_NAME, S_LO, S_HI, S_BELOW, S_ABOVE, S_CODE, S_AT_CODE, S_MIN, S_MAX, S_N, S_FR
     S_LOWTAIL, S_HIGHTAIL, S_EDGES, S_FMT = range(DATA_TOP, DATA_TOP + 18)
 S_PCT = DATA_TOP + 18                               # the five percentiles, one a row, to S_PCT + 4
 S_LSTEP = S_PCT + len(PERCENTILES)                  # the step between two labels under the bars
+S_TALL = S_LSTEP + 1                                # the tallest bar: the top of every edge and percentile line
 PCT_TOP = DATA_TOP + 2 * EDGE_LINES                 # G_EX / G_EY: the grey lines' two points each, under the red
 
 METHOD = [
@@ -609,7 +610,9 @@ def _block(ws, hs, r: int, s: Shape, g: int, dv, edge_row: int | None, treat) ->
             S_HIGHTAIL: ("high end bar", f'={V(S_ABOVE)}+SUMIFS({cnt},{mid},">"&{V(S_TO)})'),
             S_EDGES: ("band edges on Columns", f'=Columns!$I${edge_row}&""' if edge_row else ""),
             S_FMT: ("format", s.fmt),
-            S_LSTEP: ("step between labels", f"=({V(S_TO)}-{V(S_FROM)})/{LABELS}")}
+            S_LSTEP: ("step between labels", f"=({V(S_TO)}-{V(S_FROM)})/{LABELS}"),
+            # worked out once, not in each of the 58 line ends (30 Sep 2026: the workbook was slow to open)
+            S_TALL: ("tallest bar", f"=MAX(${L(G_SLOT)}${DATA_TOP}:${L(G_SLOT)}${DATA_TOP + SLOTS - 1})")}
     for k, (p, v) in enumerate(zip(PERCENTILES, pcts)):
         scal[S_PCT + k] = (f"P{p}", v)
     for row, (label, v) in scal.items():
@@ -657,19 +660,17 @@ def _block(ws, hs, r: int, s: Shape, g: int, dv, edge_row: int | None, treat) ->
         x = (f"=IFERROR(IF(AND({e}>={F},{e}<={V(S_TO)}),{LOW}+0.5+{MIDDLE}*({e}-{F})/({V(S_TO)}-{F}),NA()),NA())")
         # from the floor to the tallest bar: LibreOffice draws the lines on the bars' own axis, Excel on the
         # lines' second one, and both then show a line the height of the chart
-        slots = f"${L(G_SLOT)}${DATA_TOP}:${L(G_SLOT)}${DATA_TOP + SLOTS - 1}"
-        for p, y in ((0, "0"), (1, f"MAX({slots})")):
+        for p, y in ((0, "0"), (1, V(S_TALL))):
             xr = DATA_TOP + 2 * (k - 1) + p
             hs.cell(row=xr, column=g + G_EX, value=x)
             # no edge: both ends not a number, so no program draws a stray point
             hs.cell(row=xr, column=g + G_EY, value=f"=IF(ISNA({_L(g + G_EX, xr)}),NA(),{y})")
     # the percentiles, placed as the edges are: the same mapping, so they follow Bars, From and To, and a
     # percentile outside From..To is not a number, so no line
-    slots = f"${L(G_SLOT)}${DATA_TOP}:${L(G_SLOT)}${DATA_TOP + SLOTS - 1}"
     for k in range(len(PERCENTILES)):
         pv = V(S_PCT + k)
         x = f"=IFERROR(IF(AND({pv}>={F},{pv}<={V(S_TO)}),{LOW}+0.5+{MIDDLE}*({pv}-{F})/({V(S_TO)}-{F}),NA()),NA())"
-        for p, y in ((0, "0"), (1, f"MAX({slots})")):
+        for p, y in ((0, "0"), (1, V(S_TALL))):
             xr = PCT_TOP + 2 * k + p
             hs.cell(row=xr, column=g + G_EX, value=x)
             hs.cell(row=xr, column=g + G_EY, value=f"=IF(ISNA({_L(g + G_EX, xr)}),NA(),{y})")

@@ -778,12 +778,14 @@ def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(
 
 
 def _listed(ws, label: str) -> list:
-    """A Row or Column dropdown's list as it stands (calculated): its OFFSET over the hidden labels, worked out."""
+    """A Row or Column dropdown's list as it stands (calculated): its first MAX(1, count) hidden labels, worked out
+    (OFFSET until 30 Sep 2026, INDEX:INDEX since, so Excel doesn't work it out again on every change)."""
     import re
     import tabs
     cell = tabs.dropdown(ws.formulas, label)
     dv = next(v for v in ws.formulas.data_validations.dataValidation if cell.coordinate in str(v.sqref))
-    m = re.fullmatch(r"=?OFFSET\(\$([A-Z]+)\$(\d+),0,0,MAX\(1,\$([A-Z]+)\$(\d+)\),1\)", dv.formula1)
+    m = re.fullmatch(r"=?\$([A-Z]+)\$(\d+):INDEX\(\$[A-Z]+\$\d+:\$[A-Z]+\$\d+,MAX\(1,\$([A-Z]+)\$(\d+)\)\)",
+                     dv.formula1)
     assert m, dv.formula1
     c, r, nc_, nr_ = m.groups()
     n = max(1, int(ws[f"{nc_}{nr_}"].value or 0))

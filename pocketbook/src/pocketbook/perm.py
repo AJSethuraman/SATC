@@ -282,10 +282,12 @@ def run(n: int, columns: list[Column], structures: list[Structure], shuffles: in
     if workers > 1:
         try:
             parts = _in_pool(n, work, shuffles, seed, chunk, workers)
-        except (OSError, BrokenProcessPool):
+        except (OSError, BrokenProcessPool) as exc:
             # a machine that will not start processes, or a worker that died (out of memory): nothing has
             # been counted yet, and the answer does not depend on the workers, so deal them all here instead
             parts = None
+            from . import timing                  # said on Record: the time is one process's (30 Sep 2026)
+            timing.note(pool_failed=f"{type(exc).__name__}: {exc}"[:200])
         if parts is not None:
             for part in parts:                                         # in shuffle order, so kept draws stay in order
                 for st, got in zip(_stats(work), part):

@@ -14,7 +14,9 @@ the sheets openpyxl opened, so whatever is saved next still has them.
 
 from __future__ import annotations
 
+import io
 import posixpath
+import re
 import warnings
 from contextlib import contextmanager
 import zipfile
@@ -60,8 +62,12 @@ def quiet(path, **kw):
 
 
 def load(path, **kw):
-    """load_workbook, with the dropdowns Excel kept in its extension block put back."""
-    wb = quiet(path, **kw)
+    """load_workbook, with the dropdowns Excel kept in its extension block put back. The file is read once and
+    both passes read those bytes (30 Sep 2026: the workbook sits in a OneDrive folder at the bank, where every
+    open of the file goes through the sync client and the virus scanner)."""
+    if isinstance(path, (str, Path)):
+        path = Path(path).read_bytes()
+    wb = quiet(io.BytesIO(path) if isinstance(path, bytes) else path, **kw)
     if kw.get("read_only"):
         return wb
     for sheet, dvs in extended(path).items():
@@ -77,20 +83,27 @@ def load(path, **kw):
 
 def extended(path) -> dict[str, list[DataValidation]]:
     """Every dropdown in Excel's extension block, by sheet name. Empty for a
-    workbook only openpyxl has written, or anything that is not a workbook."""
+    workbook only openpyxl has written, or anything that is not a workbook. `path` may be the file's bytes."""
     out: dict[str, list[DataValidation]] = {}
     try:
-        with zipfile.ZipFile(Path(path)) as z:
+        with zipfile.ZipFile(io.BytesIO(path) if isinstance(path, bytes) else Path(path)) as z:
             files = _sheet_files(z)
             for name, part in files.items():
                 if part not in z.namelist():
                     continue
-                dvs = _from_sheet(ET.fromstring(z.read(part)))
+                xml = z.read(part)
+                if not _HAS_EXT(xml):
+                    continue            # no extension block: nothing to put back, and the sheet isn't parsed twice
+                dvs = _from_sheet(ET.fromstring(xml))
                 if dvs:
                     out[name] = dvs
     except (zipfile.BadZipFile, KeyError, ET.ParseError, OSError):
         return {}
     return out
+
+
+#: whether a sheet's XML names the dropdowns' extension at all (its uri, any case), before it is parsed
+_HAS_EXT = re.compile(re.escape(DV_EXT).encode(), re.IGNORECASE).search
 
 
 def _sheet_files(z: zipfile.ZipFile) -> dict[str, str]:

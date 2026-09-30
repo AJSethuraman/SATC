@@ -40,7 +40,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import perm, stats
+from . import perm, stats, timing
 from .choices import (NO_DATE, ORIG_YEAR, SPLIT_MOST_VALUES, same_filter_twice, too_many_to_filter,  # noqa: F401
                       too_many_values, too_many_views)
 from .config import EACH_LOAN, PERIOD_WORDS, PROFIT, Band, Config, Dimension, Measure, MissingRule
@@ -952,6 +952,7 @@ def run(config: Config, table: Table, progress=None) -> Result:
     """`progress`, when given, is told "Cutting bands" and "Running the shuffle test" as each starts (the launcher's
     progress line, 30 Sep 2026)."""
     say = progress or (lambda stage: None)
+    timing.mark("Reading each loan's values")        # Record's "Where the time went" (the firm, 30 Sep 2026)
     warnings: list[str] = []
     table, derived = derive(config, table, warnings)
     table = with_year(config, table)
@@ -978,6 +979,7 @@ def run(config: Config, table: Table, progress=None) -> Result:
             warnings.append(f"open data question: {q.text()}. Used as recorded until answered "
                             f"(real, or missing) in `questions:`")
 
+    timing.mark("Cutting the bands")
     bands = {}
     band_edges: dict[str, tuple[float, ...]] = {}
     band_label_sets: dict[str, list[str]] = {}
@@ -1005,6 +1007,7 @@ def run(config: Config, table: Table, progress=None) -> Result:
             for d in config.dimensions}
 
     # Per measure, per row: (num, den) for a rate, value for a median, or a reason.
+    timing.mark("Reading each loan's values")
     per_row: dict[str, list] = {}
     left_out: dict[str, Counter] = {}
     for m in measures:
@@ -1129,6 +1132,7 @@ def run(config: Config, table: Table, progress=None) -> Result:
         said = too_many_views(config.filter_by, len(set(filter_vals)), ff2, len(set(filter_vals2)))
         if said:
             raise DataRefused(said)
+    timing.mark("Building the grids")
     for b in config.bands if bleed else ():
         for d in config.dimensions:
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
@@ -1153,9 +1157,14 @@ def run(config: Config, table: Table, progress=None) -> Result:
             grids.append(grid)
     # the dollar rates' shuffle test (B2), one random order per shuffle for every grid at once; then the
     # allowance for many tests and the words, which need every p-value in
+    if built:
+        nb, nd = len(config.bands), len(config.dimensions)
+        timing.note(f"{len(built):,} grids: {nb:,} banded column{'s' * (nb != 1)} by {nd:,} "
+                    f"segment{'s' * (nd != 1)}" + (", each split" if halved else ""), grids=len(built))
     if bleed:
         say("Running the shuffle test")
         _shuffle_tests(config, measures, per_row, n, built, halved)
+    timing.mark("Building the grids")
     for g, _, _ in built:
         _judge(g, config, measures, min_units, materiality_line)
     for g, _, _ in halved:
@@ -1174,6 +1183,7 @@ def run(config: Config, table: Table, progress=None) -> Result:
     values2: list[str] = _order(filter_vals2) if filter_vals2 is not None else []
     rows_of: dict[tuple, list[int]] = {}
     if filter_vals is not None:
+        timing.mark("Building each filter's grids")
         values = _order(filter_vals)
         by_name = {b.name: b for b in config.bands}
         # every view: each value of Filter 1 alone, each of Filter 2 alone, and every pair, both holding (AND)
@@ -1195,6 +1205,7 @@ def run(config: Config, table: Table, progress=None) -> Result:
                 if booked is not None:
                     fg.sizes = loan_sizes(sub, [booked[i] for i in idx])
                 g.filtered[v] = fg
+    timing.mark("Building the grids")
     summaries: dict[tuple[str, str | None], Summary] = {}
     for b in config.bands if bleed else ():
         whole = summaries[(b.name, None, None)] = _summary(b.name, measures, per_row, bands[b.name], booked,
@@ -1730,8 +1741,14 @@ def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
             for m in dollar:
                 s.stats[(li, m.name)] = perm.HalfGap(pooled={ids[k] for k in tested.get(m.name, [])})
         halves.append((s, ids, sets))
-    perm.run(n, columns, [book, *bands.values(), *(s for s, _, _ in halves)], bench.shuffles,
-             perm.seed_of("one order per shuffle, shared by every test in the run"))
+    timing.mark("The shuffle test")
+    workers = perm.run(n, columns, [book, *bands.values(), *(s for s, _, _ in halves)], bench.shuffles,
+                       perm.seed_of("one order per shuffle, shared by every test in the run"))
+    clock = timing.current()
+    failed = clock.facts.get("pool_failed") if clock is not None else None
+    timing.note(f"{bench.shuffles:,} shuffles of {n:,} loans on {_workers_said(workers)}"
+                + (f"; the worker processes didn't start ({failed})" if failed else ""),
+                shuffles=bench.shuffles, workers=workers)
     for grid, bi, sb, si in placed:
         for m in dollar:
             got_book, got_band = book.stats[(bi, m.name)].answers, sb.stats[(si, m.name)].answers
@@ -1756,6 +1773,10 @@ def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
                 if pooled is not None and ("ratio" in pooled or "gap" in pooled) and st.pooled is not None:
                     pooled["ratio_p"], pooled["ratio_hits"], pooled["shuffles"] = (st.pooled.p, st.pooled.hits,
                                                                                   st.pooled.shuffles)
+
+
+def _workers_said(workers: int) -> str:
+    return "1 process" if workers <= 1 else f"{workers} processes"
 
 
 # --------------------------------------------------------------------------

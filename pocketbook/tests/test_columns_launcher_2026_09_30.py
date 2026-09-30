@@ -21,7 +21,7 @@ import zipfile
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from pocketbook import book, choices as ch, control, excel_lists, house, ingest, launcher, memory, perm, synth
+from pocketbook import book, choices as ch, control, excel_lists, house, ingest, launcher, memory, perm, synth, timing
 from test_book import _answer
 from test_firm_answers_2026_09_29 import _bank_file
 
@@ -223,12 +223,13 @@ def test_set_up_and_run_say_each_stage_as_it_starts(tmp_path, monkeypatch):
     x = synth.write_extract(tmp_path, n=1500)
     said: list[str] = []
     b = book.set_up(x, choices=PICKED, progress=said.append).book
-    assert said == ["Reading the extract", "Looking at each column", "Drawing Look",
-                    "Working out the suggested settings", "Saving the workbook"]
+    at = [said.index(s) for s in ("Reading the extract", "Reading the columns", "Writing Look",
+                                  "Working out the suggestions", "Saving the workbook")]
+    assert at == sorted(at) and said[-1] == "Saving the workbook", said
     _answer(b)
     said.clear()
     assert book.run(b, x, progress=said.append).ok
-    at = [said.index(s) for s in ("Reading the workbook", "Reading the extract", "Cutting bands",
+    at = [said.index(s) for s in ("Opening the workbook", "Reading the extract", "Cutting bands",
                                   "Running the shuffle test", "Writing the workbook", "Saving the workbook")]
     assert at == sorted(at), said
     assert book.run(b, x).ok                                      # and without anyone listening
@@ -295,7 +296,7 @@ def test_the_wheel_scrolls_the_table_on_screen_and_never_a_page_that_has_gone(tm
         # Next, held part way: the progress line says the stage and counts the seconds
         go, real = threading.Event(), book.set_up
 
-        def held(*a, progress=book._quiet, **k):
+        def held(*a, progress=timing.no_progress, **k):
             progress("Working out the suggested settings")
             go.wait(20)
             return real(*a, progress=progress, **k)

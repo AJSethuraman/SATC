@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import math
 import re
 from dataclasses import dataclass
@@ -57,7 +58,7 @@ def read_table(path: str | Path, sheet: str | None = None) -> Table:
     if p.suffix.lower() in (".xlsx", ".xlsm"):
         from .excel_lists import hushed            # openpyxl's warnings about Excel's extension blocks (30 Sep 2026)
         with hushed():
-            return _read_xlsx(p, sheet, digest)
+            return _read_xlsx(p, sheet, digest, data)
     text = data.decode("utf-8-sig")
     reader = csv.DictReader(text.splitlines())
     columns = [c.strip() for c in (reader.fieldnames or [])]
@@ -66,9 +67,11 @@ def read_table(path: str | Path, sheet: str | None = None) -> Table:
     return Table(path=str(p), sha256=digest, columns=columns, rows=rows, kind="csv")
 
 
-def _read_xlsx(p: Path, sheet: str | None, digest: str) -> Table:
+def _read_xlsx(p: Path, sheet: str | None, digest: str, data: bytes) -> Table:
     import openpyxl
-    wb = openpyxl.load_workbook(p, read_only=True, data_only=True)
+    # from the bytes already read, never the file again (the bank, 30 Sep 2026: the extract sits in a OneDrive
+    # folder, where every read of the file is another trip through the sync client and the virus scanner)
+    wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     ws = wb[sheet] if sheet else wb.worksheets[0]
     it = ws.iter_rows(values_only=True)
     header = next(it, None)

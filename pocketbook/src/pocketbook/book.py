@@ -46,6 +46,7 @@ from . import choices as ch                             # the redesign: what the
 from . import results                                   # the redesign, phase 3: the result tabs
 from . import record                                    # the redesign, phase 4: Check and the Log as Record
 from . import scout, scout_tab                          # Goal 2 item 9: scouting, then the confirmation
+from . import bounds, timing                            # where the time goes, at a Run and in Excel (30 Sep 2026)
 # _load opens a workbook Excel saved with its dropdowns kept; quiet_load without openpyxl's extension warnings
 from .excel_lists import load as _load, quiet as quiet_load
 from .house import MIST as READ_ONLY
@@ -128,6 +129,7 @@ class Outcome:
     lines: list[str] = field(default_factory=list)      # what the launcher shows, in plain words
     problems: list[str] = field(default_factory=list)   # a refused Run's problems, each naming its tab and cell
     summary: dict = field(default_factory=dict)         # a finished Run's headline, for the launcher's last step
+    timings: list = field(default_factory=list)         # (stage, seconds) in order: where a Run's time went
 
 
 #: The product's name, and the workbook's: "loans - PocketBook.xlsx" beside "loans.csv" (the firm, 26 Sep 2026).
@@ -550,24 +552,29 @@ def _to_code(v: Any, cat) -> str | None:
 
 
 @control.settings_once
-def _quiet(stage: str) -> None:
-    """The default `progress`: Set up and Run say each stage to it, and nothing listens."""
-
-
 def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str | Path | None = None,
-           today: date | None = None, choices: "ch.Choices | None" = None, progress=_quiet) -> Outcome:
+           today: date | None = None, choices: "ch.Choices | None" = None, progress=timing.no_progress) -> Outcome:
+    """Set up, each stage timed as a Run's are (Outcome.timings); `progress(stage)` is called as each starts."""
+    with timing.running(timing.Clock(progress)) as clock:
+        out = _set_up(extract, book, memory_path, today, choices)
+    out.timings = clock.rows()
+    return out
+
+
+def _set_up(extract: str | Path, book: str | Path | None = None, memory_path: str | Path | None = None,
+            today: date | None = None, choices: "ch.Choices | None" = None) -> Outcome:
     """Write the workbook beside the extract. `choices` is what the launcher's
     Choose tests step picked; without it, what the workbook already shows is kept
     (or, the first time, every column its meaning cuts, and nothing split).
     The suggested Control answers are worked out here, from pockets cut at the
     default edges, and written beside their settings (never chosen for you)."""
     extract = Path(extract)
-    progress = progress or _quiet
+    progress = timing.mark                     # each stage both timed and said to the launcher's line
     if workbook_picked(extract):
         # the third walk, defect 10: the workbook sits beside the extract and was picked by mistake
         return Outcome(False, extract, [workbook_picked(extract)])
     book = Path(book) if book else book_for(extract)
-    progress("Reading the extract")        # the launcher's progress line (the firm, 30 Sep 2026)
+    timing.mark("Reading the extract")
     try:
         table = read_table(extract)
     except OSError as exc:  # open in Excel, OneDrive still syncing it, or gone (the bank, 30 Sep 2026)
@@ -575,7 +582,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     except Exception as exc:  # the file itself: shown in words, never a traceback
         return Outcome(False, book, [f"Couldn't read {extract.name}: {exc}"])
     as_read = table
-    progress("Looking at each column")
+    timing.mark("Reading the columns")
     kept = _answers(_earlier(book))
     mem = memory.load(memory_path)
     cat = meanings.catalog()
@@ -620,6 +627,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
 
     # Refresh in place: the input tabs are rebuilt, the results of the last run stay
     # (the second walk, defect 6: Set up again deleted them).
+    timing.mark("Writing Control and Columns")
     if book.exists():
         try:
             wb = _load(book)
@@ -670,7 +678,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     _fit(ws)
 
     from . import look                      # fix 3.8: each number column's shape, before its edges are chosen
-    progress("Drawing Look")
+    timing.mark("Writing Look")
     shown = look.number_columns(table, cols, few, facts_of)
     edge_rows = {str(r[C_NAME - 1].value): r[0].row for r in table_rows(ws) if r[C_NAME - 1].value}
     banded = {str(r[C_NAME - 1].value) for r in table_rows(ws) if r[C_NAME - 1].value
@@ -698,11 +706,11 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     _order(wb)
     if not _writable(book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Set up again."])
-    progress("Working out the suggested settings")
+    timing.mark("Working out the suggestions")
     worked = _suggest_at_set_up(wb, book, as_read, memory_path, testing=kind_now == NEW_VARIABLE)
     _suggestions(wb[control.SHEET], *worked, when="from this extract")
     _cutoff_words(wb[control.SHEET], as_read, wb["Columns"], cat)          # OC-51
-    progress("Saving the workbook")
+    timing.mark("Saving the workbook")
     try:
         wb.save(book)
     except PermissionError:
@@ -721,7 +729,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         lines.append(f"New columns since the last check: {', '.join(new_cols)}. Columns!C3 needs a Yes again.")
     # E, the firm's answer of 27 Sep 2026: one count of what is left, the Run's refusal's own. The window said "7
     # columns to look at first", Start here "Columns to confirm: 10", and the refusal listed 9
-    _, left, _ = read_book(book, memory_path)
+    timing.mark("Counting what is left to answer")
+    _, left, _ = read_book(book, memory_path, wb=wb)   # the workbook just saved, still open: not read again
     on = [t for t in ("Control", "Columns", "Look") if any(p.startswith(t) for p in left)]
     joined = ", ".join(on[:-1]) + (" and " if len(on) > 1 else "") + on[-1] if on else ""
     lines.append(f"Next: {_n(len(left), 'answer')} needed before Run" + (f", on {joined}" if on else "")
@@ -1953,25 +1962,36 @@ def _save(wb, book: Path) -> bool:
 
 @control.settings_once
 def run(book: str | Path, extract: str | Path | None = None, memory_path: str | Path | None = None,
-        progress=_quiet) -> Outcome:
+        progress=timing.no_progress) -> Outcome:
+    """Run from the workbook, each stage timed (Record's "Where the time went", and a line of the Run's: the firm,
+    30 Sep 2026, a Run of 578 s on the bank's laptop and nothing saying where it went). `progress(stage)` is
+    called as each stage starts, for the launcher to show; by default it does nothing."""
+    with timing.running(timing.Clock(progress)) as clock:
+        out = _run(book, extract, memory_path)
+    out.timings = clock.rows()
+    return out
+
+
+def _run(book: str | Path, extract: str | Path | None = None, memory_path: str | Path | None = None) -> Outcome:
     """Run from the workbook. `extract` is the file picked in the launcher; it
     wins over the path remembered at set up, so a workbook copied to another
     folder runs that folder's extract (second walk, defect 1).
 
     The workbook is loaded once and saved once (found 26 Sep 2026: a Run loaded
     it eight times and saved it three): every reader and writer below is handed
-    the open workbook. `progress` is told each stage as it starts (the launcher's progress line)."""
+    the open workbook. Each stage is timed as it starts and said to the launcher's progress line (run's `progress`)."""
     book = Path(book)
-    progress = progress or _quiet
+    progress = timing.mark                     # each stage both timed and said to the launcher's line
     if not book.exists():
         return Outcome(False, book, [f"Couldn't find {book.name}. Press Set up first."])
     if not _writable(book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
-    progress("Reading the workbook")
+    timing.mark("Opening the workbook")
     try:
         wb = _load(book)
     except Exception as exc:  # the file itself: in words, never a traceback
         return Outcome(False, book, [f"Couldn't open {book.name}: {exc}. Press Set up again."])
+    timing.mark("Reading the answers")
     raw, problems, about = read_book(book, memory_path, wb=wb)
     if raw is not None:
         try:
@@ -1991,13 +2011,15 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
             beside = book.with_name(str(about["extract name"]))
             if beside.exists():
                 src = beside
-    progress("Reading the extract")
+    timing.mark("Reading the extract")
     try:
         # read once, and its fingerprint taken from the same bytes (the bank, 30 Sep 2026: the fingerprint's own
         # read raised PermissionError with the extract open in Excel, and a traceback opened in Notepad)
         table = read_table(src)
     except OSError as exc:
         return Outcome(False, book, [cant_read(src, exc, "Run")])
+    timing.note(f"{src.name}: {table.kind}, {len(table.rows):,} rows x {len(table.columns):,} columns",
+                extract_kind=table.kind, extract_rows=len(table.rows), extract_columns=len(table.columns))
     if about.get("sha256") and table.sha256 != about["sha256"]:
         notes.append(f"{src.name} has changed since Set up. If columns were added or renamed, press Set up first.")
     far = _band_widths(raw, about.get("_widths") or {}, cfg, table, about.get("_edge_cells"))
@@ -2048,14 +2070,16 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     except perm.NumpyMissing as exc:
         return _refused(wb, book, ["Couldn't run:", str(exc)], Outcome(False, book, [f"Couldn't run: {exc}"]))
     if about.get("_scout") is not None:
-        progress("Scouting")
+        timing.mark("Scouting")
     waits = _scout(res, about, book)            # Goal 2 item 9: find on the development loans, write the pre-spec
     if isinstance(waits, Outcome):
         return _refused(wb, book, waits.lines, waits)
     about["_wb"] = wb
+    timing.mark("Confirmatory tests and checks")
     checks.attach(book, about, res)             # fixes 3.12, 3.15: the pre-spec's state and the edges on Columns
     if testing:
         _suggest_from_the_test(res, about.get("_suggest") or set())
+    timing.mark("Remembering the answers")
     forgotten = _forget(wb, memory_path)
     dropped = {g.split(" ", 1)[1] for g in forgotten if g.startswith("column ")}
     if dropped:
@@ -2069,6 +2093,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     progress("Writing the workbook")
     _write_results(wb, book, res, memory_path, src, dropped, len(table.columns))
     from . import look                  # fix 3.8: the Look tab's scatters, only when the split or the bands moved
+    timing.mark("Writing Look")
     split_col, band_cols = res.config.split and res.config.split[0], [b.field for b in res.config.bands]
     if look.answers_moved(wb, res.config.missing):
         # a Treat as answer changed since Look was drawn (at the bank, 29 Sep 2026: a -99,000,901 answered missing
@@ -2079,6 +2104,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                         treat_rows=_treat_rows(wb["Columns"]), rules=res.config.missing, keep_inputs=True)
     else:
         look.refresh(wb, res.table or table, split_col, band_cols, rules=res.config.missing)
+    timing.mark("Writing Record")
     _bureau_on_columns(wb["Columns"], res.config.missing, res.table or table)
     summary = _headline(res, wb)
     _log(wb, [_ran_on(res, src) + _ran_words(res)]
@@ -2090,9 +2116,11 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
          + [f"Warning: {_plain_warning(w)}" for w in res.warnings], redraw=False)
     _record(wb, res, src, f"{book.stem} - what ran.yaml")     # Check and the Log, this Run's entry included
     _order(wb)
-    progress("Saving the workbook")
+    timing.mark("Saving the workbook")
+    bounds.bound(wb)                            # whole columns of the Run's tables, ended at their last row
     if not _save(wb, book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
+    timing.mark("Writing the record file")
     audit = book.with_name(f"{book.stem} - what ran.yaml")
     head = "# Exactly what the last Run used.\n"
     if per_pocket(res):
@@ -2105,6 +2133,9 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     head += "".join(f"# {x}\n" for x in scout_tab.held_back_lines(res))
     if isinstance(raw.get("benchmark"), dict) and cfg.benchmark is not None:
         raw["benchmark"].setdefault("shuffles", cfg.benchmark.shuffles)
+    clock = timing.current()
+    if clock is not None:
+        head += "".join(f"# Took {timing.took(s)}: {k}\n" for k, s in clock.rows())
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     lines = notes + [_ran_on(res, src) + _ran_words(res)]
     each = getattr(res, "value_bands", {})
@@ -2154,6 +2185,9 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                     else "Pockets." if bleed_tabs(res) else f"{scout.SHEET}." if res.scout is not None
                     else f"{record.SHEET}."))
     summary["first"] = first_lines(lines)
+    if clock is not None:
+        clock.stop()
+        lines.insert(len(lines) - 1, timing.took_line(clock))     # "Open ...: start with" stays last
     if res.scout_waits:
         # found and written, not yet confirmed: the pre-spec asks for an answer first (OC-13)
         lines += ["The held-back loans weren't tested yet. The pre-spec scouting wrote waits for:"] + \
@@ -2456,8 +2490,13 @@ def _write_results(wb, book: Path, res, memory_path, src: Path, forgotten: set[s
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     if bleed_tabs(res):
         _write_bleed(wb, res, stamp)
+    if res.scout is not None:
+        timing.mark(f"Writing {scout.SHEET}")
     scout_tab.write(wb, res, stamp)             # Goal 2 item 9: only when this Run scouted (Scouting)
+    if getattr(res, "prespec", None) is not None:
+        timing.mark(f"Writing {confirm_tab.SHEET}")
     confirm_tab.write(wb, res, stamp)           # 4b and 4e: only when testing from a pre-spec (New variables)
+    timing.mark("Writing Control, Columns and Start here")
     live.ensure(wb, res)                        # the names Control's materiality panel reads, with no tab of its own
     _write_rest(wb, book, res, memory_path, src, forgotten, ncols, stamp)
 
@@ -3130,7 +3169,33 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
         out.setdefault(sec, []).append((k, v))
         before = sec
     out[record.SETTINGS] = _settings_rows(wb, res)
+    out.setdefault(record.THIS, []).extend(time_rows(timing.current()))
     return out
+
+
+#: Record's heading for the stage table, and its last row: what the table can't hold, as it is written before them
+TIME_HEAD, TIME_AFTER = "Where the time went", "Writing Record and saving"
+
+
+def time_rows(clock) -> list[tuple[str, str]]:
+    """Record's "Where the time went" (the firm, 30 Sep 2026: a Run of 578 s at the bank, nothing saying where):
+    each stage finished before Record was written, in the order it ran, its seconds and what it worked on. Record
+    and the save come after the tab is written, so their row says where to read them."""
+    if clock is None:
+        return []
+    done = [(k, v) for k, v in clock.rows() if k != clock._stage]
+    if not done:
+        return []
+    total = sum(v for _, v in done)
+    big = ", ".join(f"{k[0].lower() + k[1:]} {timing.took(v)}" for k, v in sorted(done, key=lambda kv: -kv[1])[:3])
+    rows = [(TIME_HEAD, f"{timing.took(total)} before Record was written. The biggest: {big}.")]
+    for k, v in done:
+        pct = f", {v / total:.0%}" if total > 0 else ""
+        note = clock.notes.get(k)
+        rows.append((f"  {k}", f"{timing.took(v)}{pct}" + (f" ({note})" if note else "")))
+    rows.append((f"  {TIME_AFTER}", "After this tab was written: the Run's Took line in the launcher, and the record "
+                                    "file beside this workbook, give every stage."))
+    return rows
 
 
 def _settings_rows(wb, res) -> list[tuple]:
