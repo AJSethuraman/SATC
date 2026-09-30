@@ -1282,10 +1282,11 @@ muts = [
  ("borderline not on the launcher's tile", LA, '+ (f" · {near:,} borderline" if near else "")', '+ ""',
   "borderline_start"),
  # 29 Sep 2026, column widths (the firm: "i prefer to have nice even layouts"; tests/test_widths.py)
- ("a grids data column back to 11", RS, "left: lw, right: lw, right - 1: 3})",
-  "left: lw, right: lw, right - 1: 3, left + 1: 11})", "one_width_in_all_four_blocks"),
- ("grids right label its own width", RS, "left: lw, right: lw, right - 1: 3})", "left: lw, right: lw + 1, right - 1: 3})",
+ # repointed 30 Sep 2026: the blocks are stacked, so there is one label column and no right-hand pair to plant into
+ ("a grids data column back to 11", RS, "range(2, hid)}, left: lw})", "range(2, hid)}, left: lw, left + 1: 11})",
   "one_width_in_all_four_blocks"),
+ ("Grids' vs the book back beside Rate", RS, '("vs the book", "book", left, top + down, True)',
+  '("vs the book", "book", left + w + 1, top, True)', "four_blocks_line_up or stacks_its_four_blocks"),
  ("grids width ignores the labels", RS, "need += [house.two_line_width(h) + 2 for h in", "need += [0 for h in",
   "grid_widths_follow"),
  ("grids width ignores a segment's span", RS, "math.ceil((house.two_line_width(sg) + 2) / parts)",
@@ -1435,6 +1436,17 @@ muts = [
  ("Summary's missing source column not said", RS,
   '        note.append(("Not shown", "This Run has no " + " and no ".join(left_off) + ", so those columns are left off."))',
   '        pass', "summary"),
+ # 30 Sep 2026: Grids stacked, Summary by a category too (tests/test_grids_summary_2026_09_30.py)
+ ("Grids' note and panel written over the stacked blocks", RS, "    r = top + 4 * down\n", "    r = top + 2 * down\n",
+  "stacks_its_four_blocks or four_segment_grid"),
+ ("Summary offers no category column", RS,
+  "    bands += [d.name for d in res.config.dimensions if (d.name, None, None) in res.summaries and d.name not in bands]",
+  "    pass", "grids_summary_2026_09_30"),
+ ("a category's values in the order the loans come", E, "booked,\n                                                     _order(dims[d.name]), range(n))",
+  "booked,\n                                                     list(dict.fromkeys(dims[d.name])), range(n))",
+  "grids_summary_2026_09_30"),
+ ("a category's Summary ignores the filter", E, "whole.labels,\n                                                        rows_of[(v, w)])",
+  "whole.labels,\n                                                        range(n))", "category_on_one_year"),
  # 30 Sep 2026: the Choose table tints the row being worked in; the row left behind must go white again
  ("row highlight never cleared", LA, '    return want, {n: n == want for n in {lit, want} - {None}}',
   '    return want, {n: True for n in {lit, want} - {None}}', "row_highlight"),

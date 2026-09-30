@@ -2726,6 +2726,28 @@ changed in the code.
     lines by the larger filter leave a slot empty, drawn blank on the same scale. With a filter across the bottom
     the lines are by the other filter and there is one chart. (no date) and (blank) are lines or panels but never
     a place across.
+- **Built, 30 Sep 2026: Grids stacked, and Summary by a category** (branch `pocketbook-grids-summary`).
+  - **Grids.** From the firm's photo of a 4-segment grid: the four blocks sat 2×2, and the right-hand pair started
+    after the *widest* grid's columns, so a narrow grid left a blank middle. Now they are stacked, one under another
+    from column B: Rate, vs the book, vs rest of band, Loans; the note, *What one cell says* and the Groups tables
+    follow under them. The dropdowns stay where the bank checklist sends the analyst (B13 Grid, F13 Measure), so
+    the checklist and its HTML/PDF are unchanged. Every formula that reads a block (the INDEX/MATCH views, the
+    grey and heat rules, the example-cell panel, the hidden helper cells) follows the block's new place; the
+    widths are one label width in B and one data width across.
+  - **Summary.** The firm: *"the band column should also allow for categories because we can still view it that
+    way, and the logic should still make sense"*. The left-column dropdown, now **Band or category column**,
+    lists the band columns, then the segment/category columns. The Run keeps a Summary for each category column
+    too, the whole book and every filter view (keys (column, filter 1 value, filter 2 value)), and ties each to its
+    All as the band columns do. Rows: each value in natural order, then (blank) / (marked missing), then All. The
+    header cell names the column picked. The arithmetic is unchanged (counts, shares of All, rates = dollars ÷
+    booked, × book against the whole book).
+  - Tests: 6 in `tests/test_grids_summary_2026_09_30.py` (Loans and Rate blocks of FICO x ASSET_CLASS, the
+    example-cell panel, and Summary by CHANNEL and by ASSET_CLASS on one year, all tied to the CSV with plain
+    arithmetic). `tests/test_widths.py`'s Grids tests rewritten for the stacked layout. Planted bugs: 4 added and 2
+    repointed in `tools/mutation_check.py` (the old right-hand label column is gone). Pictures (LibreOffice renders
+    of synthetic data): `pocketbook/docs/grids-summary-2026-09-30/`.
+  - **For the firm:** the title band and the note on Grids now run as wide as the dropdown row (to the Column
+    picker), not the width of two blocks.
 
 ## 7 · Standing rules for new items
 
