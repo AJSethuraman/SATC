@@ -2213,7 +2213,7 @@ def _summary_tab(b, out, band=None, only=None):
     the order shown, and the label column's heading."""
     from pocketbook import results
     import tabs
-    picks = {k: v for k, v in (("band column", band), (SUMMARY_ONLY, only)) if v}
+    picks = {k: v for k, v in (("band or category column", band), (SUMMARY_ONLY, only)) if v}
     ws = tabs.calculated(tabs.choose(b, out, results.SUMMARY, **picks), results.SUMMARY)
     h = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=3).value == "Loans")
     heads = []

@@ -608,7 +608,8 @@ class Summary:
     up unit counts, loan amounts, % of units, % of loan amounts, charged off dollars, ratio"): each band's cell, added
     up from the loans as a grid's are, and its booked dollars. `labels` are the bands in order, then (blank), (not a
     number) and (marked missing) where the column has them, then ALL; a view on one value of the Filter by column
-    keeps the whole book's labels, so its rows stay put, and a band with none of its loans is an empty cell."""
+    keeps the whole book's labels, so its rows stay put, and a band with none of its loans is an empty cell. A
+    segment/category column has one too, its values in the bands' place (the firm, 30 Sep 2026)."""
     band: str
     labels: list[str]
     cells: dict[str, Cell]
@@ -1204,6 +1205,21 @@ def run(config: Config, table: Table, progress=None) -> Result:
                 continue
             part = summaries[(b.name, v, w)] = _summary(b.name, measures, per_row, bands[b.name], booked,
                                                         whole.labels, rows_of[(v, w)])
+            _tie_summary(part, part.cells[ALL], measures)
+    # a segment/category column on its own too (the firm, 30 Sep 2026: "the band column should also allow for
+    # categories because we can still view it that way, and the logic should still make sense"): its values in
+    # natural order, then (blank) and (marked missing), then All; the arithmetic is the same as a band column's
+    for d in config.dimensions if bleed else ():
+        if (d.name, None, None) in summaries:
+            continue                            # a band column of the same name keeps its own
+        whole = summaries[(d.name, None, None)] = _summary(d.name, measures, per_row, dims[d.name], booked,
+                                                     _order(dims[d.name]), range(n))
+        _tie_summary(whole, total, measures)
+        for v, w in rows_of:
+            if not rows_of[(v, w)]:
+                continue
+            part = summaries[(d.name, v, w)] = _summary(d.name, measures, per_row, dims[d.name], booked, whole.labels,
+                                                        rows_of[(v, w)])
             _tie_summary(part, part.cells[ALL], measures)
     moves_with: dict[str, float] = {}
     if bleed and config.split and config.split[1] == "own_median":

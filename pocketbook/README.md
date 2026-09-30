@@ -250,7 +250,9 @@ After that, the whole routine is:
      readable RANR is left out of both), so RANR ÷ Booked is RANR's own rate. Every
      figure is worked out in the Run; the dollars show in thousands only when
      the whole book's booked would not fit the column, as on Grids.
-   - **Grids:** a Grid and a Measure dropdown, and four blocks: the rate,
+   - **Grids:** a Grid and a Measure dropdown, and four blocks one under
+     another from the left column (the firm, 30 Sep 2026: side by side, a
+     narrow grid left a blank middle): the rate,
      headed with what it divides by what and following the Measure (the firm,
      30 Sep 2026, asking for *"the COs/booked"* under charge-offs: the Rate
      block already was it, so its heading now says so): **Rate · GCOs ÷
@@ -305,8 +307,10 @@ After that, the whole routine is:
    - **Summary** (the firm, 30 Sep 2026: *"a few matrices where it lists out a
      chosen band on the left and shows real calculated metrics ... unit counts,
      loan amounts, % of units, % of loan amounts, charged off dollars, ratio"*;
-     the ratio *"Charged off / booked"*): a **Band column** dropdown picks any
-     column the Run cut into bands, and, when the launcher picked a Filter by,
+     the ratio *"Charged off / booked"*): a **Band or category column**
+     dropdown picks any column the Run cut into bands, or any segment column
+     (the firm, 30 Sep 2026: *"the band column should also allow for
+     categories"*; its values in natural order take the bands' place), and, when the launcher picked a Filter by,
      **Only loans where** *(that column)* **is** narrows it to one value (and
      Filter 2's dropdown beside it, to the loans with both). Down
      the side: the bands in order, then (blank), (not a number) and (marked

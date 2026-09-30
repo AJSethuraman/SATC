@@ -1492,15 +1492,17 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     sf = res.config.filter_by if res.filter_values else None
     sf2 = res.config.filter_by2 if sf and res.filter_values2 else None       # Filter 2, with Filter 1
     w = nc + 1                          # a block: the band column, then the segments
-    left, right = 2, 2 + w + 1
-    last = right + w - 1
+    # the four blocks one under another, every one from the left column (the firm, 30 Sep 2026: side by side, a
+    # narrow grid left a blank middle the width of the widest)
+    left = 2
     # Filter 2's dropdown sits beside Filter 1's, and Row and Column move right to make room
     at_row = left + (16 if sf2 else 12)
+    last = max(left + w - 1, at_row + 6)
     hid = max(last, at_row + 6) + 2                        # hidden cells: the keys and the heat's kind and bound
     dw, lw = grid_widths(fit, grp)
     parts, hdr = fit["parts"], (2 if fit["parts"] else 1)   # a split grid's header is two rows (G4)
     # G1, G2, G5: one width for every data column of the four blocks, and one for both label columns
-    _widths(ws, {1: 2, **{c: dw for c in range(2, hid)}, left: lw, right: lw, right - 1: 3})
+    _widths(ws, {1: 2, **{c: dw for c in range(2, hid)}, left: lw})
     house.title_band(ws, GRIDS, "One grid at a time: the rate, how it compares, and how many loans sit in each "
                                 "pocket.", 2, last, tab=house.TAB_RESULT)
     profit = any(m.name in PROFIT for m in ms)
@@ -1603,9 +1605,9 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     # the book's own figure in the heading of vs the book (the firm, 29 Sep 2026), as the Rate block shows it
     book_head = (f'=IF(ISNUMBER({BOOK}),"vs the book (book: "&IF({KIND}="size",TEXT({BOOK},"$#,##0"),'
                  f'TEXT({BOOK},"0.00%"))&")","vs the book")')
-    down = nr + 2 + hdr                 # the lower blocks start this far under the upper
-    blocks = (("Rate", "rate", left, top, False), ("vs the book", "book", right, top, True),
-              ("vs rest of band", "band", left, top + down, True), ("Loans", "loans", right, top + down, False))
+    down = nr + 2 + hdr                 # each block starts this far under the one above it
+    blocks = (("Rate", "rate", left, top, False), ("vs the book", "book", left, top + down, True),
+              ("vs rest of band", "band", left, top + 2 * down, True), ("Loans", "loans", left, top + 3 * down, False))
     # each block by its column and the row over its data's header, so its header is `t + 1` and its first data
     # row `t + 2` whether the header is one row or two
     at_ = {what: (c0, t + hdr - 1) for _, what, c0, t, _ in blocks}
@@ -1639,7 +1641,7 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
         for i in range(1, nr + 1):
             rr = t + 1 + i
             key = xk("G|", (VW,), f"|loans|{i}") if what == "loans" else xk("G|", (VW,), "|", (KEY,), f"|{what}|{i}")
-            hcell = f"${col(hid + 2 + (0 if c0 == left else 1))}{rr}"
+            hcell = f"${col(hid + 2)}{rr}"
             ws[hcell.replace("$", "")] = f"={match(key)}"
             _cell(ws, rr, c0, f"={pick(ROWS, i)}", h="left", indent=1)
             for j in range(1, nc + 1):
@@ -1671,7 +1673,7 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
             rules = [(f"AND(ISNUMBER({corner}),NOT({margin}),{corner}/{pick(TOTAL, 1)}>={lim})", colour, None, None)
                      for lim, colour in LOANS_STEPS]
         cf(ws, inner, rules, line_on)
-    r = top + 2 * down
+    r = top + 4 * down
     _cell(ws, r, left, "A blank: alone in its band, or fewer losses than the minimum, so not compared.", size=9,
           color=SLATE, h="left")
     r = _one_cell(ws, r + 2, left, last, nr, nc, at_, dict(M=M, R=R, C=C, F=F, sf=sf, F2=F2, sf2=sf2, KIND=KIND,
@@ -1969,13 +1971,16 @@ def _summary_shown(v, kind: str) -> str:
 
 
 def summary_views(res, views: Views) -> dict:
-    """Every Summary view on _views, one row per band ("S|<band column>|<i>", and "S|<band column>|where <value>|<i>"
-    for each value of the Filter by column): the label, then each column's number, all from engine.summary_rows.
+    """Every Summary view on _views, one row per band or category value ("S|<column>|<i>", and
+    "S|<column>|where <value>|<i>" for each value of the Filter by column): the label, then each column's number, all
+    from engine.summary_rows. The band columns come first in the dropdown, then the category columns (the firm, 30
+    Sep 2026: "the band column should also allow for categories").
     Returns the dropdown's options, the columns, the most rows any view has, and what the columns must fit."""
     from . import book as bk
     names = bk._names(res)
     keys = engine.summary_columns(res)
     bands = [b.name for b in res.config.bands if (b.name, None, None) in res.summaries]
+    bands += [d.name for d in res.config.dimensions if (d.name, None, None) in res.summaries and d.name not in bands]
     shown = [names[b] for b in bands]
     shown = [x if shown.count(x) == 1 else f"{x} ({b})" for x, b in zip(shown, bands)]
     fit = {"labels": {"All"} | set(shown), "values": 0, "money": [0.0]}
@@ -2011,9 +2016,10 @@ def summary_widths(fit: dict, keys: list[str]) -> tuple[float, float, bool]:
 
 
 def write_summary(wb, res, choices: Choices, views: Views) -> None:
-    """Summary: one band column down the side and the book's plain figures across, picked by a dropdown, and by
-    "Only loans where" when the launcher picked a Filter by. Every number is worked out by the Run (engine.summary_rows)
-    and put on _views; the formulas here only pick the row. Nothing is tested and nothing is red or green."""
+    """Summary: one band or category column down the side and the book's plain figures across, picked by a dropdown,
+    and by "Only loans where" when the launcher picked a Filter by. Every number is worked out by the Run
+    (engine.summary_rows) and put on _views; the formulas here only pick the row. Nothing is tested and nothing is red
+    or green."""
     ws = wb.create_sheet(SUMMARY)
     got = summary_views(res, views)
     keys, most, fit = got["keys"], got["most"], got["fit"]
@@ -2024,27 +2030,28 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
     hid = last + 2
     dw, lw, thousands = summary_widths(fit, keys)
     _widths(ws, {1: 2, left: lw, **{c: dw for c in range(left + 1, hid)}})
-    house.title_band(ws, SUMMARY, "One band column at a time: loans, bad loans, booked, GCOs and RANR, band by "
-                                  "band.", left, last, tab=house.TAB_RESULT)
+    house.title_band(ws, SUMMARY, "One column at a time: loans, bad loans, booked, GCOs and RANR, band by band or "
+                                  "category by category.", left, last, tab=house.TAB_RESULT)
     booked = res.config.booked or "booked amount"
     gco = res.config.gco or "GCOs"
     ranr = next((m.value for m in res.measures if m.name == "ranr_rate"), "RANR")
-    note = [("What it is", "Pick a band column. Its bands run down the side, then any loans it couldn't place, then "
-                           "All. Every figure is counted or divided from the loans. Nothing is tested.")]
-    note.append(("Loans", "How many loans are in the band, and its share of all of them. The shares add to 100%."))
+    note = [("What it is", "Pick a band or category column. Its bands or values run down the side, then any loans it "
+                           "couldn't place, then All. Every figure is counted or divided from the loans. Nothing is "
+                           "tested.")]
+    note.append(("Loans", "How many loans are in each row, and its share of all of them. The shares add to 100%."))
     if "bad" in keys:
         note.append(("Bad loans", f"How many loans went bad ({res.config.outcome}). Bad loans % is that over the "
-                                  f"band's loans whose outcome reads yes or no: the Bad loans rate on Grids."))
+                                  f"row's loans whose outcome reads yes or no: the Bad loans rate on Grids."))
     if "booked" in keys:
-        note.append(("Booked $", f"The band's {booked}, and its share of the book's."))
+        note.append(("Booked $", f"The row's {booked}, and its share of the book's."))
     if "gco" in keys:
-        note.append(("GCOs ($)", f"The band's {gco}. GCOs ÷ Booked is that over its booked dollars, as Grids "
+        note.append(("GCOs ($)", f"The row's {gco}. GCOs ÷ Booked is that over its booked dollars, as Grids "
                                  f"shows it for GCOs ($). A loan missing either amount is left out of both."))
-        note.append(("× book", "The band's GCOs ÷ Booked over the whole book's. 2.00× means twice the GCOs per "
+        note.append(("× book", "The row's GCOs ÷ Booked over the whole book's. 2.00× means twice the GCOs per "
                                "booked dollar."))
     if "ranr" in keys:
-        note.append(("RANR $", f"The band's {ranr}, and RANR ÷ Booked: that over its booked dollars. A share of RANR can pass 100% "
-                               f"or go below zero when some bands lose money."))
+        note.append(("RANR $", f"The row's {ranr}, and RANR ÷ Booked: that over its booked dollars. A share of RANR can pass 100% "
+                               f"or go below zero when some rows lose money."))
     left_off = list(dict.fromkeys(SUMMARY_NEEDS[n] for k, n in engine.SUMMARY_COLUMNS
                                   if n is not None and k not in keys))
     if left_off:
@@ -2059,7 +2066,7 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
     r = house.method_note(ws, 3, left, last, note)
     b_rng, _ = choices.add("Summary: Band column", got["options"])
     s = r + 1
-    B = dropdown(ws, s, left, "Band column", b_rng, got["options"][0] if got["options"] else "")
+    B = dropdown(ws, s, left, "Band or category column", b_rng, got["options"][0] if got["options"] else "")
     F = None
     if sf:
         f_rng, _ = choices.add("Summary: Only loans where", [ALL_LOANS] + list(res.filter_values))
