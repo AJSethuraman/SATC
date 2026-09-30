@@ -699,7 +699,7 @@ def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
 
 #: Columns' Check first: its width, and the characters of Calibri 10 a line of it holds
 LOOK_WIDTH = 60
-LOOK_CHARS = int(LOOK_WIDTH / 0.9) - 2
+LOOK_CHARS = int(LOOK_WIDTH / 0.85) - 2
 
 
 def _samples_of(col, made) -> list[str]:
@@ -719,7 +719,8 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
     last = C_DEFINE
     # T1: the name and samples fit what the extract holds (the derived-column block's "New column name ↻" too);
     # Odd values and Show per pocket their longest text + 2
-    widths = {1: 2, C_NAME: house.fit(list(table.columns) + ["New column name ↻"], floor=14, cap=32, pad=3),
+    widths = {1: 2, C_NAME: house.fit(list(table.columns) + ["New column name ↻", "Checked every column?"], floor=14,
+                                      cap=32, pad=3),
               C_SAMPLES: house.fit([", ".join(_samples_of(x, made)) for x in cols], floor=20, cap=40),
               C_MEANS: 20, C_WHY: 40, C_BLANK: 7, C_ODD: 23, C_TREAT: 11,
               C_EDGES: 16, C_REMEMBERED: 13, C_FORGET: 9, C_LOOK: LOOK_WIDTH, C_IS: 12, C_SHOW: 19, C_PERIOD: 11,
