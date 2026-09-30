@@ -471,7 +471,7 @@ Only from the practice and speed books, never the real extract. The practice wor
 | A screenshot of each check that differed | **Windows+Shift+S**, drag over the part to keep. It's in your clipboard, and saved in **Pictures\Screenshots** |
 | The practice workbook, after Excel has saved it | `%USERPROFILE%\PocketBook\practice\Consumer book Q3 - PocketBook.xlsx`. It shows exactly what Excel did to the file. |
 | Its Record tab, if the workbook can't be sent | a screenshot of Record |
-| If a Run stopped or something went wrong | `%USERPROFILE%\.pocketbook\last-error.txt`. Open it with `notepad "%USERPROFILE%\.pocketbook\last-error.txt"`. It should hold lines of program code and file names only. If it came from a real extract, read it first, and don't send it if any line shows a loan's values. |
+| If a Run stopped or something went wrong | The window says what stopped, on the page itself. Screenshot it. If it says *Something went wrong that PocketBook didn't expect*, press **Copy details** and paste into your email. It should hold lines of program code and file names only. If it came from a real extract, read it first, and don't send it if any line shows a loan's values. A copy is also in `%USERPROFILE%\.pocketbook\last-error.txt`. |
 | If pip failed | the Copy for IT note from 2.4 |
 
 ---
@@ -493,7 +493,9 @@ Only from the practice and speed books, never the real extract. The practice wor
 | Changing a Control answer moves nothing | Excel's calculation is on Manual. | **Formulas**, **Calculation Options**, **Automatic** (Part 4). |
 | No dashed lines on Look, or in the wrong place | The known difference between Excel and LibreOffice charts. | Screenshot the chart (4.7). |
 | The pink *open in Excel* bar stays after closing it | Excel still holds the file, or left its `~$` lock file behind. | Close Excel fully. If the bar stays, screenshot it and look for a file starting `~$` beside the workbook. |
-| *Run stopped* | Something went wrong inside PocketBook, not in your answers. | Send `last-error.txt` (Part 7). |
+| *… can't be read: it's open in Excel, or OneDrive is still syncing it* | The extract is open in Excel, maybe in a hidden Excel window, or OneDrive hasn't finished bringing it to this machine. | Close it in Excel. If it isn't open anywhere, check Task Manager for an Excel with no window. Or right-click the extract in File Explorer and choose **Always keep on this device**. Then press **Run** (or **Set up**) again. |
+| *Couldn't find … PocketBook looked for it in …* | The extract was moved, renamed or deleted since it was picked. | Put it back in that folder, or pick it again with **Browse…**. |
+| *Run stopped* and *Something went wrong that PocketBook didn't expect* | Something went wrong inside PocketBook, not in your answers. The error's name and message are under it. | Press **Copy details** and send what it copies (Part 7). The window still works: fix what it says, and press **Run** again. |
 | Only one Python in Task Manager during the Run | The shuffle test ran on one processor. | Still right, only slower. Send 5.3's details. |
 
 ---

@@ -22,7 +22,6 @@ nothing else (no memory, no record), so a refused run leaves no trace.
 
 from __future__ import annotations
 
-import hashlib
 import math
 import re
 import statistics
@@ -141,6 +140,19 @@ def book_for(extract: str | Path) -> Path:
     return p.with_name(f"{p.stem}{SUFFIX}")
 
 
+def cant_read(extract: str | Path, exc: OSError, again: str = "Run") -> str:
+    """The extract couldn't be read, in words that say what to do (the bank, 30 Sep 2026: Run opened a
+    PermissionError traceback in Notepad while the extract was open in Excel, or OneDrive was still syncing it).
+    `again` is the button to press once it's fixed."""
+    p = Path(extract)
+    if isinstance(exc, FileNotFoundError):
+        return (f"Couldn't find {p.name}. PocketBook looked for it in {p.parent}. Put it back there, or pick it "
+                f"again with Browse, then press {again} again.")
+    return (f"{p.name} can't be read: it's open in Excel, or OneDrive is still syncing it. Close it in Excel "
+            f"(check for a hidden Excel window), or right-click it in File Explorer and choose Always keep on this "
+            f"device. Then press {again} again.")
+
+
 def workbook_picked(extract: str | Path) -> str | None:
     """The refusal when the file picked as the extract is one of the cube's workbooks."""
     name = Path(extract).name
@@ -223,6 +235,8 @@ def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 5
         return Read(extract, extract, 0, [], problem=workbook_picked(extract))
     try:
         table = read_table(extract)
+    except OSError as exc:  # open in Excel, OneDrive still syncing it, or gone (the bank, 30 Sep 2026)
+        return Read(extract, target, 0, [], problem=cant_read(extract, exc, "Set up"))
     except Exception as exc:  # the file itself: shown in words, never a traceback
         return Read(extract, target, 0, [], problem=f"Couldn't read {extract.name}: {exc}")
     kept = _answers(_earlier(target))
@@ -512,6 +526,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     book = Path(book) if book else book_for(extract)
     try:
         table = read_table(extract)
+    except OSError as exc:  # open in Excel, OneDrive still syncing it, or gone (the bank, 30 Sep 2026)
+        return Outcome(False, book, [cant_read(extract, exc, "Set up")])
     except Exception as exc:  # the file itself: shown in words, never a traceback
         return Outcome(False, book, [f"Couldn't read {extract.name}: {exc}"])
     as_read = table
@@ -626,7 +642,7 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
 
     about = wb.create_sheet(ABOUT)
     about["A1"], about["B1"] = "extract", str(extract.resolve())
-    about["A2"], about["B2"] = "sha256", hashlib.sha256(extract.read_bytes()).hexdigest()
+    about["A2"], about["B2"] = "sha256", as_read.sha256        # the bytes read above: the extract is read once
     about["A3"], about["B3"] = "set up", (today or date.today()).isoformat()
     about["A4"], about["B4"] = "extract name", extract.name
     about.sheet_state = "hidden"
@@ -1798,12 +1814,14 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
             beside = book.with_name(str(about["extract name"]))
             if beside.exists():
                 src = beside
-    if not src.exists():
-        return Outcome(False, book, [f"Couldn't find the extract {src.name}. Put it beside the workbook, or pick "
-                                     f"it in the window."])
-    if about.get("sha256") and hashlib.sha256(src.read_bytes()).hexdigest() != about["sha256"]:
+    try:
+        # read once, and its fingerprint taken from the same bytes (the bank, 30 Sep 2026: the fingerprint's own
+        # read raised PermissionError with the extract open in Excel, and a traceback opened in Notepad)
+        table = read_table(src)
+    except OSError as exc:
+        return Outcome(False, book, [cant_read(src, exc, "Run")])
+    if about.get("sha256") and table.sha256 != about["sha256"]:
         notes.append(f"{src.name} has changed since Set up. If columns were added or renamed, press Set up first.")
-    table = read_table(src)
     far = _band_widths(raw, about.get("_widths") or {}, cfg, table, about.get("_edge_cells"))
     if about.get("_widths") and not far:
         cfg = cfgmod.parse(raw)

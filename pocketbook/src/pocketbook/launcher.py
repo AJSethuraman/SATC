@@ -20,7 +20,9 @@ openpyxl, PyYAML) are checked first, without loading them (ruling OC-34):
 while any is missing, a banner says which and offers Install now, and Set up
 and Run stay off. So nothing at the top of this file may import them; `book`
 is imported inside the steps that use it. Anything that goes wrong inside is
-a sentence with where to look, never a traceback.
+said on the page in words, never a traceback: what PocketBook didn't expect
+shows its type and message there too, with Copy details for the traceback
+(Crash; the bank, 30 Sep 2026).
 """
 
 from __future__ import annotations
@@ -182,7 +184,7 @@ def do_set_up(extract: str, choices: ch.Choices | None = None) -> list[str]:
     try:
         return book.set_up(extract, choices=choices).lines
     except Exception:
-        return _crash("setting up")
+        return _crash("Set up stopped").lines()
 
 
 def do_run(extract: str) -> list[str]:
@@ -205,25 +207,52 @@ def _run(extract: str):
         return book.run(target, extract)
     except TieOutError as exc:
         # walk of 27 Sep 2026: the one check the finished screen shows, when it failed, read "Something went wrong"
-        _crash("running")
-        return book.Outcome(False, target, [f"Run stopped: the grids didn't add up to the book, so nothing was "
-                                            f"written. {exc}.", f"That is a fault in PocketBook, not in your answers. "
-                                            f"The details are in {places.folder() / 'last-error.txt'}; send that "
-                                            f"file over to get it fixed."])
+        crash = _crash("Run stopped")
+        out = book.Outcome(False, target, [f"Run stopped: the grids didn't add up to the book, so nothing was "
+                                           f"written. {exc}.", "That is a fault in PocketBook, not in your answers. "
+                                           "Press Copy details and send what it copies, to get it fixed."])
     except Exception:
-        return book.Outcome(False, target, _crash("running"))
+        crash = _crash("Run stopped")
+        out = book.Outcome(False, target, crash.lines())
+    out.crash = crash           # the window's Copy details reads it; book.Outcome itself knows nothing of the window
+    return out
 
 
-def _crash(what: str) -> list[str]:
-    """Something the tool did not expect. Say so plainly and keep the detail for whoever fixes it."""
+#: The first line an unexpected error shows (the firm, 30 Sep 2026: "It would be a lot easier if these kinds of
+#: errors just displayed on screen in the huge white space allotted").
+UNEXPECTED = "Something went wrong that PocketBook didn't expect."
+
+
+@dataclass
+class Crash:
+    """Something PocketBook didn't expect, as the window shows it: a heading, the error's type and message, and
+    the full traceback for Copy details. It used to be a sentence pointing at last-error.txt, which the analyst
+    opened in Notepad (at the bank, 30 Sep 2026); the file is still written, but the window says it all."""
+    heading: str            # "Run stopped", "Set up stopped"
+    kind: str               # the exception's type, e.g. PermissionError
+    said: str               # its message
+    details: str            # the full traceback: what Copy details puts on the clipboard
+    log: Path | None        # where a copy was written, or None when it couldn't be
+
+    def lines(self) -> list[str]:
+        out = [UNEXPECTED, f"{self.kind}: {self.said}" if self.said else self.kind,
+               "Press Copy details and send what it copies, to get it fixed."]
+        if self.log is not None:
+            out.append(f"A copy is kept in {self.log}.")
+        return out
+
+
+def _crash(heading: str) -> Crash:
+    """The exception being handled, as the window shows it. A copy of the traceback goes to last-error.txt."""
+    kind, exc, _ = sys.exc_info()
     detail = traceback.format_exc()
-    log = places.folder() / "last-error.txt"
+    log: Path | None = places.folder() / "last-error.txt"
     try:
         log.parent.mkdir(parents=True, exist_ok=True)
         log.write_text(detail, encoding="utf-8")
     except OSError:
-        pass
-    return [f"Something went wrong while {what}. The details are in {log}; send that file over to get it fixed."]
+        log = None
+    return Crash(heading, kind.__name__ if kind else "Error", str(exc) if exc is not None else "", detail, log)
 
 
 def _open(path: Path) -> str:
@@ -375,6 +404,7 @@ class Flow:
         self.finished_at, self.took = "", 0.0
         self.book_open = False
         self.message: list[str] = []  # a line or two for the current page: what went wrong, or what was done
+        self.crash: Crash | None = None   # something PocketBook didn't expect: shown in the page's own space
         self.busy = ""
 
     # ---- where things stand
@@ -435,15 +465,23 @@ class Flow:
         if path != self.extract:
             self.extract = path
             self.read, self.written, self.finished, self.needs = None, None, None, []
-            self.page, self.message = "extract", []
+            self.page, self.message, self.crash = "extract", [], None
 
     def set_up(self) -> None:
         """Read the extract: what each column is. Nothing is written."""
         from . import book
-        if not self.extract or not Path(self.extract).is_file():
+        self.crash = None
+        if not self.extract:
             self.message = ["Pick the extract first (the loan file from the bank: .csv or .xlsx)."]
             return
-        got = book.read_extract(self.extract, self.few, self.many)
+        if not Path(self.extract).is_file():
+            self.message = [book.cant_read(self.extract, FileNotFoundError(), "Set up")]
+            return
+        try:
+            got = book.read_extract(self.extract, self.few, self.many)
+        except Exception:
+            self._stopped("Set up stopped")
+            return
         if got.problem:
             self.message = [got.problem]
             return
@@ -741,7 +779,12 @@ class Flow:
     def next(self) -> None:
         """Write the workbook with these choices (book.set_up keeps any answers already given)."""
         from . import book
-        out = book.set_up(self.extract, choices=self.choices())
+        self.crash = None
+        try:
+            out = book.set_up(self.extract, choices=self.choices())
+        except Exception:
+            self._stopped("Writing the workbook stopped")
+            return
         if not out.ok:
             self.message = out.lines
             return
@@ -770,9 +813,16 @@ class Flow:
         changed, self.book_open = now != self.book_open, now
         return changed
 
+    def _stopped(self, heading: str) -> None:
+        """The exception being handled, on the current page: in the page's own space, never in Notepad."""
+        self.crash = _crash(heading)
+        self.message = self.crash.lines()
+
     def run(self) -> None:
         began = time.monotonic()
+        self.crash = None
         out = _run(self.extract)
+        self.crash = getattr(out, "crash", None)
         if out.ok:
             self.finished, self.took = out, time.monotonic() - began
             self.finished_at = datetime.now().strftime("%H:%M")
@@ -811,7 +861,7 @@ class Flow:
         if page == "answer" and not (self.book() and self.book().exists()):
             return
         if page:
-            self.page, self.message = page, []
+            self.page, self.message, self.crash = page, [], None
 
     def needs_head(self) -> tuple[str, str]:
         """The L3 page's title and the line under it. A Run that stopped for a reason other than an answer (a
@@ -1101,8 +1151,26 @@ def build(root) -> dict:
             widgets[name].pack(side="right", padx=(8, 0))
 
     def message_lines(master, lines, fg="CRIMSON"):
-        if lines:
+        if lines and flow.crash is not None and lines == flow.crash.lines():
+            stopped(master, flow.crash.heading, lines)        # something unexpected: the panel, not a red line
+        elif lines:
             label(master, "\n".join(lines), "small", fg=fg, wrap=470).pack(anchor="w", pady=(8, 0))
+
+    def stopped(master, heading, lines):
+        """What stopped, in the page's own white space (the firm, 30 Sep 2026: "It would be a lot easier if these
+        kinds of errors just displayed on screen in the huge white space allotted"): a heading, the reason, and
+        Copy details, which puts the traceback on the clipboard to send. Never Notepad."""
+        panel = tk.Frame(master, bg=C["WHITE"], highlightbackground=C["KEY_RED"], highlightthickness=1, padx=12,
+                         pady=10)
+        panel.pack(fill="x", pady=(10, 0))
+        if heading:
+            label(panel, heading, "h2", fg="CRIMSON").pack(anchor="w")
+        widgets["crash"] = fit(label(panel, "\n".join(lines), "body"), 8)
+        widgets["crash"].pack(fill="x", anchor="w", pady=(6, 10))
+        if flow.crash is not None:
+            b = Button(panel, "Copy details", lambda: copy_details(b))
+            b.pack(anchor="w")
+            widgets["copy_details"] = b
 
     def page_extract():
         label(page, "Pick the loan extract", "title").pack(anchor="w")
@@ -1413,6 +1481,12 @@ def build(root) -> dict:
         label(page, under, "body", fg="SLATE", wrap=470).pack(anchor="w", pady=(6, 8))
         if flow.book_open:
             open_banner()
+        if flow.crash is not None or not flow.answers:
+            # a Run that stopped for a reason other than an answer (the extract open in Excel, or something
+            # PocketBook didn't expect): the reason across the page's space, not squeezed into a list row
+            stopped(page, "", [nd.says for nd in flow.needs])
+            buttons()
+            return
         box_ = tk.Frame(page, bg=C["WHITE"], highlightbackground=C["MIST"], highlightthickness=1)
         box_.pack(fill="x")
         holder = tk.Canvas(box_, bg=C["WHITE"], highlightthickness=0, bd=0)
@@ -1487,7 +1561,7 @@ def build(root) -> dict:
         draw_rail()
         clear(page)
         for k in ("setup", "next", "run", "open", "start", "open_banner", "summary", "install_optional", "tiles",
-                  "first", "meanings"):
+                  "first", "meanings", "crash", "copy_details"):
             widgets.pop(k, None)
         {"extract": page_extract, "choose": page_choose, "answer": page_answer, "needs": page_needs,
          "done": page_done}["extract" if flow.gate.missing else flow.page]()
@@ -1517,8 +1591,9 @@ def build(root) -> dict:
         def work():
             try:
                 fn()
-            except Exception:
-                flow.message = _crash(what.lower())
+            except Exception:           # anything a step didn't catch itself: on the page, never a traceback
+                flow._stopped({"Running": "Run stopped", "Reading the extract": "Set up stopped"}.get(
+                    what, f"{what} stopped"))
             done.put(True)
         threading.Thread(target=work, daemon=True).start()
 
@@ -1584,6 +1659,15 @@ def build(root) -> dict:
                 flow.after_install(optional)
             render()
         root.after(500, poll)
+
+    def copy_details(button) -> None:
+        """The traceback on the clipboard, to paste into an email (the file copy stays in last-error.txt)."""
+        if flow.crash is None:
+            return
+        root.clipboard_clear()
+        root.clipboard_append(flow.crash.details)
+        button.configure(text="Copied")
+        root.after(2000, lambda: button.winfo_exists() and button.configure(text="Copy details"))
 
     def copy_for_it() -> None:
         root.clipboard_clear()

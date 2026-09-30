@@ -227,7 +227,7 @@ hr { border: none; border-top: 1px solid #ddd; margin: 14pt 0; }
 <pre><code>cd /d &quot;%USERPROFILE%&quot;
 py PocketBook.py
 </code></pre>
-<p>☐ It prints <code>33 files, every one checked. Opening the window.</code> and the window opens. It has written the <code>PocketBook</code> folder beside the script; skip to 2.3. If it says <em>The paste stops early</em> or <em>didn't come through whole</em>, the copy missed something: copy the whole script again, to its last line.</p>
+<p>☐ It prints <code>34 files, every one checked. Opening the window.</code> and the window opens. It has written the <code>PocketBook</code> folder beside the script; skip to 2.3. If it says <em>The paste stops early</em> or <em>didn't come through whole</em>, the copy missed something: copy the whole script again, to its last line.</p>
 <p>Otherwise, with the zips:</p>
 <p>Copy both zips into your <strong>Downloads</strong> folder. Then, before unzipping, right-click each zip, choose <strong>Properties</strong>, and if there's an <strong>Unblock</strong> box at the bottom, tick it and press <strong>OK</strong>. (Windows marks files that came from outside, and may then refuse to run them.)</p>
 <p>Type:</p>
@@ -415,7 +415,7 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 </tr>
 <tr>
 <td>Grids B13 and F13</td>
-<td>8 grids (4, then the same 4 / REV_DEBT); the 5 measures</td>
+<td>8 grids (4, then the same 4 / REV_DEBT); the 5 measures, then Loan size</td>
 </tr>
 <tr>
 <td>Split B15 and B26</td>
@@ -578,7 +578,7 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 </tr>
 <tr>
 <td>If a Run stopped or something went wrong</td>
-<td><code>%USERPROFILE%\.pocketbook\last-error.txt</code>. Open it with <code>notepad "%USERPROFILE%\.pocketbook\last-error.txt"</code>. It should hold lines of program code and file names only. If it came from a real extract, read it first, and don't send it if any line shows a loan's values.</td>
+<td>The window says what stopped, on the page itself. Screenshot it. If it says <em>Something went wrong that PocketBook didn't expect</em>, press <strong>Copy details</strong> and paste into your email. It should hold lines of program code and file names only. If it came from a real extract, read it first, and don't send it if any line shows a loan's values. A copy is also in <code>%USERPROFILE%\.pocketbook\last-error.txt</code>.</td>
 </tr>
 <tr>
 <td>If pip failed</td>
@@ -663,9 +663,19 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 <td>Close Excel fully. If the bar stays, screenshot it and look for a file starting <code>~$</code> beside the workbook.</td>
 </tr>
 <tr>
-<td><em>Run stopped</em></td>
-<td>Something went wrong inside PocketBook, not in your answers.</td>
-<td>Send <code>last-error.txt</code> (Part 7).</td>
+<td><em>… can't be read: it's open in Excel, or OneDrive is still syncing it</em></td>
+<td>The extract is open in Excel, maybe in a hidden Excel window, or OneDrive hasn't finished bringing it to this machine.</td>
+<td>Close it in Excel. If it isn't open anywhere, check Task Manager for an Excel with no window. Or right-click the extract in File Explorer and choose <strong>Always keep on this device</strong>. Then press <strong>Run</strong> (or <strong>Set up</strong>) again.</td>
+</tr>
+<tr>
+<td><em>Couldn't find … PocketBook looked for it in …</em></td>
+<td>The extract was moved, renamed or deleted since it was picked.</td>
+<td>Put it back in that folder, or pick it again with <strong>Browse…</strong>.</td>
+</tr>
+<tr>
+<td><em>Run stopped</em> and <em>Something went wrong that PocketBook didn't expect</em></td>
+<td>Something went wrong inside PocketBook, not in your answers. The error's name and message are under it.</td>
+<td>Press <strong>Copy details</strong> and send what it copies (Part 7). The window still works: fix what it says, and press <strong>Run</strong> again.</td>
 </tr>
 <tr>
 <td>Only one Python in Task Manager during the Run</td>

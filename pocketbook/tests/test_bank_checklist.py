@@ -228,3 +228,24 @@ def test_the_checklist_says_how_many_files_the_paste_writes():
     """2.2 tells the analyst what a good paste prints; the count is the script's own."""
     said = re.search(r"`(\d+) files, every one checked\. Opening the window\.`", TEXT)
     assert said and int(said.group(1)) == len(bank_kit.paste_files())
+
+
+def test_what_the_checklist_says_a_stopped_run_shows_is_what_the_window_shows(tmp_path):
+    """At the bank, 30 Sep 2026: Run with the extract open in Excel put a traceback in Notepad, and Part 7 told the
+    analyst to open last-error.txt in Notepad. The window now says it on the page; the checklist quotes its words,
+    and they must still be the window's."""
+    from pocketbook import launcher
+    x = tmp_path / "Test_Pop_DC.xlsx"
+    locked = book.cant_read(x, PermissionError(13, "Permission denied"), "Run")
+    assert locked.startswith("Test_Pop_DC.xlsx can't be read: it's open in Excel, or OneDrive is still syncing it.")
+    assert "*… can't be read: it's open in Excel, or OneDrive is still syncing it*" in TEXT
+    assert "choose Always keep on this device" in locked and "choose **Always keep on this device**" in TEXT
+    gone = book.cant_read(x, FileNotFoundError(), "Run")
+    assert gone.startswith(f"Couldn't find Test_Pop_DC.xlsx. PocketBook looked for it in {tmp_path}.")
+    assert "*Couldn't find … PocketBook looked for it in …*" in TEXT
+    assert launcher.UNEXPECTED == "Something went wrong that PocketBook didn't expect."
+    assert f"*{launcher.UNEXPECTED[:-1]}*" in TEXT
+    crash = launcher.Crash("Run stopped", "KeyError", "'X'", "Traceback ...", None)
+    assert "Press Copy details" in " ".join(crash.lines()) and "press **Copy details**" in TEXT
+    part7 = TEXT.split("## Part 7")[1].split("## If something goes wrong")[0]
+    assert "notepad" not in part7.lower()
