@@ -20,7 +20,9 @@ openpyxl, PyYAML) are checked first, without loading them (ruling OC-34):
 while any is missing, a banner says which and offers Install now, and Set up
 and Run stay off. So nothing at the top of this file may import them; `book`
 is imported inside the steps that use it. Anything that goes wrong inside is
-a sentence with where to look, never a traceback.
+said on the page in words, never a traceback: what PocketBook didn't expect
+shows its type and message there too, with Copy details for the traceback
+(Crash; the bank, 30 Sep 2026).
 """
 
 from __future__ import annotations
@@ -142,9 +144,9 @@ def waiting_words(missing: list[str]) -> str:
 #: 2026: "worse at 1.34x", "GCO dollars" and "scouting" were first read on the window, with the meaning only on a
 #: tab). A multiple is filled in from the words around it.
 TERMS = (("GCO dollars", "GCO dollars: what a loan charged off, in dollars."),
-         ("RANR dollars", "RANR dollars: what we kept from a loan after its losses, in dollars."),
+         ("RANR dollars", "RANR dollars: what a loan earned after its losses, in dollars."),
          ("grid", "A grid: every band of one column against every segment of another."),
-         ("measures", "Five measures: bad loans, bad dollars, charge-offs, earned before and kept after losses."),
+         ("measures", "Five measures: bad loans, bad dollars, GCOs ($), RANR, and RANR + GCOs."),
          ("worse at", "worse at {x}x: losing {x} times as much as the rest counts as worse."),
          ("better at", "better at {x}x: losing {x} times as much as the rest counts as better."),
          ("scouting", "Scouting: the tree's first look at loans before the cutoff, to pick what to test."))
@@ -182,7 +184,7 @@ def do_set_up(extract: str, choices: ch.Choices | None = None) -> list[str]:
     try:
         return book.set_up(extract, choices=choices).lines
     except Exception:
-        return _crash("setting up")
+        return _crash("Set up stopped").lines()
 
 
 def do_run(extract: str) -> list[str]:
@@ -190,7 +192,13 @@ def do_run(extract: str) -> list[str]:
     return _run(extract).lines
 
 
-def _run(extract: str):
+def elapsed_words(seconds: float) -> str:
+    """How long a step has taken, as the progress line says it: "12 s", "1 min 40 s"."""
+    s = int(seconds)
+    return f"{s} s" if s < 60 else f"{s // 60} min {s % 60} s"
+
+
+def _run(extract: str, progress=None):
     from . import book
     target = book_for(extract) if extract else None
     if not extract:
@@ -202,28 +210,55 @@ def _run(extract: str):
                                             f"and press Next first."])
     from .engine import TieOutError
     try:
-        return book.run(target, extract)
+        return book.run(target, extract, **({"progress": progress} if progress else {}))
     except TieOutError as exc:
         # walk of 27 Sep 2026: the one check the finished screen shows, when it failed, read "Something went wrong"
-        _crash("running")
-        return book.Outcome(False, target, [f"Run stopped: the grids didn't add up to the book, so nothing was "
-                                            f"written. {exc}.", f"That is a fault in PocketBook, not in your answers. "
-                                            f"The details are in {places.folder() / 'last-error.txt'}; send that "
-                                            f"file over to get it fixed."])
+        crash = _crash("Run stopped")
+        out = book.Outcome(False, target, [f"Run stopped: the grids didn't add up to the book, so nothing was "
+                                           f"written. {exc}.", "That is a fault in PocketBook, not in your answers. "
+                                           "Press Copy details and send what it copies, to get it fixed."])
     except Exception:
-        return book.Outcome(False, target, _crash("running"))
+        crash = _crash("Run stopped")
+        out = book.Outcome(False, target, crash.lines())
+    out.crash = crash           # the window's Copy details reads it; book.Outcome itself knows nothing of the window
+    return out
 
 
-def _crash(what: str) -> list[str]:
-    """Something the tool did not expect. Say so plainly and keep the detail for whoever fixes it."""
+#: The first line an unexpected error shows (the firm, 30 Sep 2026: "It would be a lot easier if these kinds of
+#: errors just displayed on screen in the huge white space allotted").
+UNEXPECTED = "Something went wrong that PocketBook didn't expect."
+
+
+@dataclass
+class Crash:
+    """Something PocketBook didn't expect, as the window shows it: a heading, the error's type and message, and
+    the full traceback for Copy details. It used to be a sentence pointing at last-error.txt, which the analyst
+    opened in Notepad (at the bank, 30 Sep 2026); the file is still written, but the window says it all."""
+    heading: str            # "Run stopped", "Set up stopped"
+    kind: str               # the exception's type, e.g. PermissionError
+    said: str               # its message
+    details: str            # the full traceback: what Copy details puts on the clipboard
+    log: Path | None        # where a copy was written, or None when it couldn't be
+
+    def lines(self) -> list[str]:
+        out = [UNEXPECTED, f"{self.kind}: {self.said}" if self.said else self.kind,
+               "Press Copy details and send what it copies, to get it fixed."]
+        if self.log is not None:
+            out.append(f"A copy is kept in {self.log}.")
+        return out
+
+
+def _crash(heading: str) -> Crash:
+    """The exception being handled, as the window shows it. A copy of the traceback goes to last-error.txt."""
+    kind, exc, _ = sys.exc_info()
     detail = traceback.format_exc()
-    log = places.folder() / "last-error.txt"
+    log: Path | None = places.folder() / "last-error.txt"
     try:
         log.parent.mkdir(parents=True, exist_ok=True)
         log.write_text(detail, encoding="utf-8")
     except OSError:
-        pass
-    return [f"Something went wrong while {what}. The details are in {log}; send that file over to get it fixed."]
+        log = None
+    return Crash(heading, kind.__name__ if kind else "Error", str(exc) if exc is not None else "", detail, log)
 
 
 def _open(path: Path) -> str:
@@ -330,7 +365,7 @@ GROUP = {"num": 0, "cat": 1, "year": 1, "out": 2, "outd": 2}
 LAST = 3
 ROW_H = 22          # px a table row is tall; each is ruled off below by 1 px
 NO_OUTCOME = "Pick the outcome: the yes/no column where 1 means the loan went bad. Nothing is picked for you."
-BASE_W = (104, 128, 84, 84, 70, 70)  # px the Choose tests columns start at; the word columns take any width more
+BASE_W = (104, 128, 84, 84, 70, 70, 70)  # px the Choose tests columns start at; the word columns take any width more
 GAP = 6             # px between two groups
 
 
@@ -360,6 +395,7 @@ class Flow:
         self.seg: set[str] = set()
         self.split: str | None = None
         self.filter: str | None = None   # Filter by: the Grids' Only loans where column (the firm, 30 Sep 2026)
+        self.filter2: str | None = None  # Filter 2: "and <column> is" (the firm, 30 Sep 2026: two filters)
         self.outcome: str | None = None
         self.asking: str | None = None  # a column picked as the outcome, waiting for the analyst's yes
         self.test: list[str] = []
@@ -375,9 +411,23 @@ class Flow:
         self.finished_at, self.took = "", 0.0
         self.book_open = False
         self.message: list[str] = []  # a line or two for the current page: what went wrong, or what was done
+        self.crash: Crash | None = None   # something PocketBook didn't expect: shown in the page's own space
         self.busy = ""
+        self.stage, self.began = "", 0.0     # the progress line while busy: what is being done, since when
 
     # ---- where things stand
+
+    def progress(self, stage: str) -> None:
+        """What Set up or Run is doing now. Called from the worker thread: it only sets a string the window reads."""
+        self.stage = stage
+
+    def progress_line(self, now: float | None = None) -> str:
+        """The line under a busy page: "Running the shuffle test… 1 min 40 s", the time since the button was
+        pressed (the firm, 30 Sep 2026: "it seemed pocketbook hanging")."""
+        if not self.busy:
+            return ""
+        took = (time.monotonic() if now is None else now) - self.began
+        return f"{self.stage or self.busy}… {elapsed_words(took)}"
 
     def book(self) -> Path | None:
         return book_for(self.extract) if self.extract else None
@@ -435,15 +485,23 @@ class Flow:
         if path != self.extract:
             self.extract = path
             self.read, self.written, self.finished, self.needs = None, None, None, []
-            self.page, self.message = "extract", []
+            self.page, self.message, self.crash = "extract", [], None
 
     def set_up(self) -> None:
         """Read the extract: what each column is. Nothing is written."""
         from . import book
-        if not self.extract or not Path(self.extract).is_file():
+        self.crash = None
+        if not self.extract:
             self.message = ["Pick the extract first (the loan file from the bank: .csv or .xlsx)."]
             return
-        got = book.read_extract(self.extract, self.few, self.many)
+        if not Path(self.extract).is_file():
+            self.message = [book.cant_read(self.extract, FileNotFoundError(), "Set up")]
+            return
+        try:
+            got = book.read_extract(self.extract, self.few, self.many)
+        except Exception:
+            self._stopped("Set up stopped")
+            return
         if got.problem:
             self.message = [got.problem]
             return
@@ -471,7 +529,7 @@ class Flow:
         kind = self._kind()
         nums = {c for c, k in kind.items() if k == "num"}
         cats = {c for c, k in kind.items() if k == "cat"}
-        self.cut, self.seg, self.split, self.filter = set(nums), set(cats), None, None
+        self.cut, self.seg, self.split, self.filter, self.filter2 = set(nums), set(cats), None, None, None
         # never picked for the analyst, not even from a workbook an earlier build wrote (the firm, 29 Sep 2026:
         # "there's no reason for it to automatically assign something, especially when it's just wrong")
         self.outcome, self.asking = None, None
@@ -486,6 +544,7 @@ class Flow:
             self.split = chosen.split if chosen.split in set(kind) | year else None
             self.seg.discard(self.split)                  # a category that splits isn't a segment too
             self.filter = chosen.filter if chosen.filter in cats | year else None
+            self.filter2 = chosen.filter2 if chosen.filter2 in cats | year else None
         else:
             self.test = [c for c in chosen.test if c in kind]
             self.hold = [c for c in chosen.hold if c in kind]
@@ -515,7 +574,7 @@ class Flow:
                 share = f"1 on {c.yes / max(c.yes + c.no + c.other, 1):.1%} of loans"
                 what = f"The outcome · {share}" if c.name == self.outcome else f"Yes/no · {share}"
             row = {"name": c.name, "what": what, "grey": k in ("key", "date", "other", "none"), "a": None,
-                   "b": None, "c": None, "d": None, "locked": locked, "group": GROUP.get(k, LAST)}
+                   "b": None, "c": None, "d": None, "e": None, "locked": locked, "group": GROUP.get(k, LAST)}
             row["gap_before"] = bool(out) and out[-1]["group"] != row["group"]     # a new group starts here
             if c.name == self.outcome:
                 pass                                                  # the outcome is neither tested nor held
@@ -533,6 +592,8 @@ class Flow:
                 if k in ("cat", "year"):
                     # Filter by (the firm, 30 Sep 2026): the Grids' Only loans where, apart from the split
                     row["d"] = {"on": self.filter == c.name, "radio": True}
+                    # Filter 2 (the firm, 30 Sep 2026: "independently and in conjunction with each other")
+                    row["e"] = {"on": self.filter2 == c.name, "radio": True}
             else:
                 if k in ("num", "cat"):
                     row["b"] = {"on": c.name in self.test, "radio": False}
@@ -542,12 +603,12 @@ class Flow:
             out.append(row)
         return out
 
-    def heads(self) -> tuple[str, str, str, str]:
-        return ("Outcome", "Test it", "Hold fixed", "") if self.mode == "new" else \
-            ("Cut into bands", "Segment by", "Split by", "Filter by")
+    def heads(self) -> tuple[str, str, str, str, str]:
+        return ("Outcome", "Test it", "Hold fixed", "", "") if self.mode == "new" else \
+            ("Cut into bands", "Segment by", "Split by", "Filter 1", "Filter 2")
 
     def click(self, name: str, which: str) -> None:
-        """A box ticked or a radio picked on the row for `name` (which: a, b, c or d)."""
+        """A box ticked or a radio picked on the row for `name` (which: a, b, c, d or e)."""
         row = next((r for r in self.rows() if r["name"] == name), None)
         if row is None or row[which] is None or (row["locked"] and which != "a"):
             return
@@ -562,6 +623,8 @@ class Flow:
                     self.split = None
             elif which == "d":
                 self.filter = None if self.filter == name else name   # one column filters, or none; the split stays
+            elif which == "e":
+                self.filter2 = None if self.filter2 == name else name     # Filter 2: another column, or none
             else:
                 self.split = None if self.split == name else name     # one column splits, or none
                 self.cut.discard(name)
@@ -673,7 +736,8 @@ class Flow:
             return ch.Choices(run_kind=ch.BLEED, bands=tuple(c for c in order if c in self.cut and c not in
                                                              (self.split, o)),
                               segments=tuple(c for c in order if c in self.seg and c != o), split=self.split,
-                              filter=self.filter, outcome=self.outcome, **base)
+                              filter=self.filter or self.filter2, filter2=self.filter2 if self.filter else None,
+                              outcome=self.outcome, **base)
         test = [c for c in self.test]
         # the pockets hold the held-fixed columns fixed; one input splits every pocket, as a pre-spec tests it
         return ch.Choices(run_kind=ch.NEW_VARIABLE,
@@ -690,11 +754,22 @@ class Flow:
         return ch.too_many_values(c.name, c.values)
 
     def filter_refused(self) -> str | None:
-        """A Filter by with more values than the Grids' filter takes: the refusal, in the Run's words."""
-        c = next((c for c in self._columns() if c.name == self.filter), None)
-        if c is None or c.values is None:
-            return None
-        return ch.too_many_to_filter(c.name, c.values)
+        """A Filter by with more values than the Grids' filter takes, the same column picked twice, or two filters
+        making more views than a grid may have: the refusal, in the Run's words."""
+        if self.filter and self.filter == self.filter2:
+            return ch.same_filter_twice(self.filter)
+        picked = []
+        for name in (self.filter, self.filter2):
+            c = next((c for c in self._columns() if c.name == name), None)
+            if c is None or c.values is None:
+                continue
+            said = ch.too_many_to_filter(c.name, c.values)
+            if said:
+                return said
+            picked.append((c.name, c.values + getattr(c, "parts", 0)))
+        if len(picked) == 2:
+            return ch.too_many_views(picked[0][0], picked[0][1], picked[1][0], picked[1][1])
+        return None
 
     def summary(self) -> tuple[bool, str]:
         """The "This will run:" box, and whether Next can be pressed."""
@@ -713,7 +788,9 @@ class Flow:
                 return False, too_many
             return True, (f"{_s(nb, 'band column')} × {_s(ns, 'segment column')} = {_s(g, 'grid')}, five measures "
                           f"each" + (f"; split by {self.split} adds {g} more." if self.split else ".")
-                          + (f" Grids can show only the loans of one {self.filter}." if self.filter else ""))
+                          + (f" Grids can show only the loans of one {got.filter}"
+                             + (f", one {got.filter2}, or both at once." if got.filter2 else ".")
+                             if got.filter else ""))
         if self.shortlist:
             if self.spec is None:
                 return False, self.spec_problem or ""
@@ -741,7 +818,12 @@ class Flow:
     def next(self) -> None:
         """Write the workbook with these choices (book.set_up keeps any answers already given)."""
         from . import book
-        out = book.set_up(self.extract, choices=self.choices())
+        self.crash = None
+        try:
+            out = book.set_up(self.extract, choices=self.choices(), progress=self.progress)
+        except Exception:
+            self._stopped("Writing the workbook stopped")
+            return
         if not out.ok:
             self.message = out.lines
             return
@@ -770,9 +852,16 @@ class Flow:
         changed, self.book_open = now != self.book_open, now
         return changed
 
+    def _stopped(self, heading: str) -> None:
+        """The exception being handled, on the current page: in the page's own space, never in Notepad."""
+        self.crash = _crash(heading)
+        self.message = self.crash.lines()
+
     def run(self) -> None:
         began = time.monotonic()
-        out = _run(self.extract)
+        self.crash = None
+        out = _run(self.extract, self.progress)
+        self.crash = getattr(out, "crash", None)
         if out.ok:
             self.finished, self.took = out, time.monotonic() - began
             self.finished_at = datetime.now().strftime("%H:%M")
@@ -811,7 +900,7 @@ class Flow:
         if page == "answer" and not (self.book() and self.book().exists()):
             return
         if page:
-            self.page, self.message = page, []
+            self.page, self.message, self.crash = page, [], None
 
     def needs_head(self) -> tuple[str, str]:
         """The L3 page's title and the line under it. A Run that stopped for a reason other than an answer (a
@@ -863,12 +952,12 @@ def finished_tiles(h: dict) -> tuple:
         return confirm_tiles(h)
     gco = h.get("gco")
     worse = h.get("worse", 0)
-    what = "charge-offs" if gco else (h.get("measure") or "the outcome").lower()
+    what = "GCOs" if gco else (h.get("measure") or "the outcome").lower()
     # Borderline (the firm, 29 Sep 2026): how many of them turn on a shuffled p-value that near the bar
     near = h.get("borderline", 0)
     return (("Pockets worse and material", f"{worse:,}", f"{what}, of {h.get('pockets', 0):,}"
              + (f" · {near:,} borderline" if near else ""), "KEY_RED", "INK"),
-            ("Charge-offs above their share" if gco else "Losses above their share",
+            ("GCOs above their share" if gco else "Losses above their share",
              _money(h.get("dollars", 0)) if gco else f"{h.get('dollars', 0):,.1f}",
              f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"))
 
@@ -906,6 +995,24 @@ def _money(v: float) -> str:
     if a >= 1e4:
         return f"${v / 1e3:.0f}K"
     return f"${v:,.0f}"
+
+
+def wheel_target(table, exists: bool, delta: int = 0, num=None) -> tuple[object | None, int]:
+    """What one turn of the mouse wheel scrolls, and by how many rows: the table on the page shown now, or nothing
+    when that page has none or has gone (at the bank, 30 Sep 2026: a wheel bound to Choose tests' own table raised
+    "invalid command name ...!canvas" after Next). `num` 4 and 5 are X11's wheel; `delta` Windows' (120 a notch)."""
+    if table is None or not exists:
+        return None, 0
+    if num in (4, 5):
+        return table, -1 if num == 4 else 1
+    return table, int(-delta / 120) or (-1 if delta > 0 else 1 if delta < 0 else 0)
+
+
+def relight(lit: str | None, hover: str | None, picked: str | None) -> tuple[str | None, dict[str, bool]]:
+    """The Choose table's tinted row: the one pointed at, else the one last clicked. Returns that row and the rows
+    to repaint, each True to tint it or False to put it back to white."""
+    want = hover or picked
+    return want, {n: n == want for n in {lit, want} - {None}}
 
 
 def build(root) -> dict:
@@ -1005,6 +1112,38 @@ def build(root) -> dict:
             if on:
                 c.create_line(5, 9, 8, 12, 13, 5, fill=C["WHITE"], width=2)
 
+    def row_light(line, name):
+        """The firm, 30 Sep 2026: "it would be nice if it highlighted the row you're clicking in when the button is
+        far away from the column names". Pointing at any part of a row tints all of it, name through boxes; a click
+        keeps it tinted after the pointer leaves, until another row is clicked."""
+        def over(on):
+            widgets["hover_row"] = name if on else None
+            light_rows()
+
+        def click(e):
+            widgets["picked_row"] = name
+            light_rows()
+        todo = [line]
+        while todo:
+            w = todo.pop()
+            todo.extend(w.winfo_children())
+            w.bind("<Enter>", lambda e: over(True), add="+")
+            w.bind("<Leave>", lambda e: over(False), add="+")
+            w.bind("<Button-1>", click, add="+")
+
+    def light_rows():
+        want, paint_ = relight(widgets.get("lit_row"), widgets.get("hover_row"), widgets.get("picked_row"))
+        for name, on in paint_.items():
+            line = widgets.get(f"row_{name}")
+            if line is None or not line.winfo_exists():
+                continue
+            todo, bg = [line], C["CANVAS"] if on else C["WHITE"]
+            while todo:
+                w = todo.pop()
+                todo.extend(w.winfo_children())
+                w.configure(bg=bg)
+        widgets["lit_row"] = want
+
     # ---- the frame: banner (L4 only), then the rail and the page
     banner = tk.Frame(root, bg=C["INK"])
     body = tk.Frame(root, bg=C["WHITE"])
@@ -1101,8 +1240,26 @@ def build(root) -> dict:
             widgets[name].pack(side="right", padx=(8, 0))
 
     def message_lines(master, lines, fg="CRIMSON"):
-        if lines:
+        if lines and flow.crash is not None and lines == flow.crash.lines():
+            stopped(master, flow.crash.heading, lines)        # something unexpected: the panel, not a red line
+        elif lines:
             label(master, "\n".join(lines), "small", fg=fg, wrap=470).pack(anchor="w", pady=(8, 0))
+
+    def stopped(master, heading, lines):
+        """What stopped, in the page's own white space (the firm, 30 Sep 2026: "It would be a lot easier if these
+        kinds of errors just displayed on screen in the huge white space allotted"): a heading, the reason, and
+        Copy details, which puts the traceback on the clipboard to send. Never Notepad."""
+        panel = tk.Frame(master, bg=C["WHITE"], highlightbackground=C["KEY_RED"], highlightthickness=1, padx=12,
+                         pady=10)
+        panel.pack(fill="x", pady=(10, 0))
+        if heading:
+            label(panel, heading, "h2", fg="CRIMSON").pack(anchor="w")
+        widgets["crash"] = fit(label(panel, "\n".join(lines), "body"), 8)
+        widgets["crash"].pack(fill="x", anchor="w", pady=(6, 10))
+        if flow.crash is not None:
+            b = Button(panel, "Copy details", lambda: copy_details(b))
+            b.pack(anchor="w")
+            widgets["copy_details"] = b
 
     def page_extract():
         label(page, "Pick the loan extract", "title").pack(anchor="w")
@@ -1289,13 +1446,16 @@ def build(root) -> dict:
                     if i == 1:
                         widgets[f"what_{r['name']}"] = lab
                 else:
-                    which = "abcd"[i - 2]
+                    which = "abcde"[i - 2]
                     b = box(cell, False, False, lambda n=r["name"], w_=which: choose_click(n, w_))
                     b.place(relx=0.5, rely=0.5, anchor="center")
                     boxes[(r["name"], which)] = b
                     widgets[f"box_{r['name']}_{which}"] = b
+            row_light(line, r["name"])
             tk.Frame(inner, bg=C["RULE"], height=1).pack(fill="x")
         widgets["boxes"] = boxes
+        widgets["lit_row"] = widgets["hover_row"] = None        # a fresh table is all white; the clicked row stays
+        light_rows()
         inner.update_idletasks()
         need = inner.winfo_reqheight()
         holder.pack(side="left", fill="both", expand=True)
@@ -1318,7 +1478,8 @@ def build(root) -> dict:
                 scroll.pack_forget()
                 holder.yview_moveto(0)
         holder.bind("<Configure>", fitted)
-        holder.bind_all("<MouseWheel>", lambda e: holder.yview_scroll(int(-e.delta / 120), "units"))
+        # the wheel is bound once, in build(), to whichever table is on screen: bound here to this canvas, it
+        # outlived the page and a scroll after Next raised "invalid command name ...!canvas" (at the bank, 30 Sep)
         repaint()
         at = widgets.pop("keep_scroll", None)
         if at:
@@ -1332,7 +1493,7 @@ def build(root) -> dict:
         for r in rows:
             if f"what_{r['name']}" in widgets:
                 widgets[f"what_{r['name']}"].configure(text=r["what"])
-            for which in "abcd":
+            for which in "abcde":
                 b = boxes.get((r["name"], which))
                 ctl = r[which]
                 if b is None:
@@ -1413,6 +1574,12 @@ def build(root) -> dict:
         label(page, under, "body", fg="SLATE", wrap=470).pack(anchor="w", pady=(6, 8))
         if flow.book_open:
             open_banner()
+        if flow.crash is not None or not flow.answers:
+            # a Run that stopped for a reason other than an answer (the extract open in Excel, or something
+            # PocketBook didn't expect): the reason across the page's space, not squeezed into a list row
+            stopped(page, "", [nd.says for nd in flow.needs])
+            buttons()
+            return
         box_ = tk.Frame(page, bg=C["WHITE"], highlightbackground=C["MIST"], highlightthickness=1)
         box_.pack(fill="x")
         holder = tk.Canvas(box_, bg=C["WHITE"], highlightthickness=0, bd=0)
@@ -1435,6 +1602,7 @@ def build(root) -> dict:
         room = 250 if flow.book_open else 300
         holder.configure(height=min(need_h, room), scrollregion=(0, 0, 478, need_h))
         holder.pack(side="left", fill="both", expand=True)
+        widgets["table"] = holder
         if need_h > room:
             sc = ttk.Scrollbar(box_, orient="vertical", command=holder.yview)
             holder.configure(yscrollcommand=sc.set)
@@ -1487,13 +1655,13 @@ def build(root) -> dict:
         draw_rail()
         clear(page)
         for k in ("setup", "next", "run", "open", "start", "open_banner", "summary", "install_optional", "tiles",
-                  "first", "meanings"):
+                  "first", "meanings", "crash", "copy_details", "table", "progress"):
             widgets.pop(k, None)
         {"extract": page_extract, "choose": page_choose, "answer": page_answer, "needs": page_needs,
          "done": page_done}["extract" if flow.gate.missing else flow.page]()
         if flow.busy:
-            label(page, f"{flow.busy}... this can take a minute on a large extract.", "small",
-                  fg="SLATE").pack(side="bottom", anchor="w")
+            widgets["progress"] = label(page, flow.progress_line(), "small", fg="SLATE")
+            widgets["progress"].pack(side="bottom", anchor="w")
         states = flow.states()
         for name in ("setup", "next", "run", "open"):
             if name in widgets:
@@ -1510,15 +1678,16 @@ def build(root) -> dict:
         # extract box itself). The Flow does the work in a thread; the window redraws when it comes back.
         flow.pick(extract.get())
         _save_prefs({"extract": flow.extract, "few": flow.few, "many": flow.many})
-        flow.busy = what
+        flow.busy, flow.stage, flow.began = what, "", time.monotonic()
         render()
         done: queue.Queue = queue.Queue()
 
         def work():
             try:
                 fn()
-            except Exception:
-                flow.message = _crash(what.lower())
+            except Exception:           # anything a step didn't catch itself: on the page, never a traceback
+                flow._stopped({"Running": "Run stopped", "Reading the extract": "Set up stopped"}.get(
+                    what, f"{what} stopped"))
             done.put(True)
         threading.Thread(target=work, daemon=True).start()
 
@@ -1526,6 +1695,9 @@ def build(root) -> dict:
             try:
                 done.get_nowait()
             except queue.Empty:
+                p = widgets.get("progress")
+                if p is not None and p.winfo_exists():         # the stage and the seconds, live
+                    p.configure(text=flow.progress_line())
                 root.after(100, poll)
                 return
             flow.busy = ""
@@ -1585,6 +1757,15 @@ def build(root) -> dict:
             render()
         root.after(500, poll)
 
+    def copy_details(button) -> None:
+        """The traceback on the clipboard, to paste into an email (the file copy stays in last-error.txt)."""
+        if flow.crash is None:
+            return
+        root.clipboard_clear()
+        root.clipboard_append(flow.crash.details)
+        button.configure(text="Copied")
+        root.after(2000, lambda: button.winfo_exists() and button.configure(text="Copy details"))
+
     def copy_for_it() -> None:
         root.clipboard_clear()
         root.clipboard_append(deps.ask_it(flow.gate.missing))
@@ -1600,6 +1781,20 @@ def build(root) -> dict:
             except Exception:
                 pass
         root.after(2000, watch)
+
+    def wheel(e):
+        """The mouse wheel scrolls the table on the page shown now, if it has one; never a page that has gone."""
+        t = widgets.get("table")
+        try:
+            t, step = wheel_target(t, t is not None and bool(t.winfo_exists()), getattr(e, "delta", 0) or 0,
+                                   getattr(e, "num", None))
+            if t is not None and step:
+                t.yview_scroll(step, "units")
+        except tk.TclError:
+            pass
+    for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+        root.bind_all(seq, wheel)
+    widgets["wheel"] = wheel
 
     widgets["render"] = render
     render()

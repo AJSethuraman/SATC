@@ -15,7 +15,7 @@ The plants:
 - one pocket is priced for its risk: loans through the online channel with a
   score from 680 to 739 go bad twice as often as the rest of their band, and
   carry an interest rate 2 points higher (PREMIUM). It loses more (GCO) and keeps more
-  (RANR): "Priced for it" on Paid, cost, kept.
+  (RANR): "Priced for it" on RANR vs GCOs.
 
 RANR is profit after losses, as the firm defines it (NEXT-GOAL 3.5; OC-29,
 OC-35): contribution = interest on the balance over the months on book, at a

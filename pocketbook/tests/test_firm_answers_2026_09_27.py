@@ -119,7 +119,7 @@ def test_no_screen_shows_a_tie_out_figure_that_could_only_read_fine(bled):
     stops and writes nothing. Record keeps the check, as the number of checks."""
     h = bled["ran"].summary
     tiles = launcher.finished_tiles(h)
-    assert [t[0] for t in tiles] == ["Pockets worse and material", "Charge-offs above their share"]
+    assert [t[0] for t in tiles] == ["Pockets worse and material", "GCOs above their share"]
     wb = load_workbook(bled["b"])
     said = [c.coordinate for row in wb["Start here"].iter_rows() for c in row
             if isinstance(c.value, str) and ("tie-out check" in c.value.lower() or c.value.endswith(" agree"))]
@@ -241,7 +241,12 @@ def test_the_launcher_says_what_each_term_means_where_it_first_uses_it(tmp_path,
     every = got + f.meanings() + launcher.plain_words("scouting")
     jargon = ("GCO", "RANR", "pocket", "multiple", "p-value", "significan", "topline", "holdout", "pre-spec", "×")
     long_ = [x for x in every if len(x.split()) > 15]
-    loose = [x for x in every if any(j in x.split(": ", 1)[1] for j in jargon)]
+    # the measures' own names are the firm's terms since 30 Sep 2026 ("I want to use the terms I gave you out of the
+    # box so it can be understood by insiders"), and GCO and RANR are explained on the lines above: the Five measures
+    # line may name them, and nothing else may use a term of art
+    names = sorted(results.PLAIN.values(), key=len, reverse=True)
+    bare = lambda s: [s := s.replace(m, "").replace(m.lower(), "") for m in names][-1]          # noqa: E731
+    loose = [x for x in every if any(j in bare(x.split(": ", 1)[1]) for j in jargon)]
     assert long_ == [] and loose == []
 
 
@@ -351,7 +356,7 @@ def test_the_finished_window_draws_two_tiles_and_the_runs_first_two_lines(monkey
         w["render"]()
         root.update()
         heads = [t.winfo_children()[1].cget("text") for t in w["tiles"]]
-        assert heads == ["Pockets worse and material", "Charge-offs above their share"]
+        assert heads == ["Pockets worse and material", "GCOs above their share"]
         assert w["first"].cget("text") == "\n".join(first) and w["first"].winfo_manager() == "pack"
     finally:
         root.destroy()

@@ -111,7 +111,7 @@ def test_every_line_check_carried_is_on_record_in_its_section(ran):
     for label, kind in (("Extract", record.THIS), ("Band edges used: FICO", record.THIS),
                         ("Tie-out checks", record.ADDS), ("Pockets tested", record.ADDS),
                         ("Pocket budget", record.ADDS), ("Tests", record.TESTS), ("p-value", record.TESTS),
-                        ("Decides each pocket", record.TESTS), ("Left out of Charge-offs", record.LEFT)):
+                        ("Decides each pocket", record.TESTS), ("Left out of GCOs ($)", record.LEFT)):
         assert by.get(label) == kind, label
 
 

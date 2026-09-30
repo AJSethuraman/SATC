@@ -178,6 +178,25 @@ groups:
             label: The same, snapped to round numbers
             explains: Edges on round numbers, easier to quote. Bands hold uneven counts.
 
+      # The firm, 30 Sep 2026: "I can guarantee you that they are the bureau missing codes". Asked once, never
+      # answered for them: blank changes nothing and the Run doesn't wait for it (optional). The line is
+      # config.BUREAU_CODE_LINE. A column's own Treat as answer of Real on Columns keeps its codes.
+      - key: bureau_codes
+        question: "Treat values ≤ -99,000,000 as missing in every column?"
+        takes_effect: re-run
+        override: null
+        optional: true
+        options:
+          - value: "yes"
+            label: "Yes"
+            explains: >-
+              Every value at or below -99,000,000, in every column, is left out as missing. A column
+              answered Real under Treat as on Columns keeps its values.
+          - value: "no"
+            label: "No"
+            explains: >-
+              Nothing changes: each column's odd values are used as recorded until answered on Columns.
+
   - title: Is it enough loans to matter
     settings:
       - key: min_loans
@@ -341,8 +360,8 @@ groups:
           - value: luck
             label: Each pocket's own test (suggested)
             explains: >-
-              Profit counts as keeping more or less only when the pocket's own test
-              calls the gap significant. A small pocket needs a bigger gap.
+              RANR and RANR + GCOs count as more or less only when the pocket's own
+              test calls the gap significant. A small pocket needs a bigger gap.
           - value: 0.25
             label: "0.25 points either way"
             explains: >-
@@ -354,8 +373,8 @@ groups:
           - value: materiality
             label: A gap as big as the materiality line
             explains: >-
-              Profit counts as keeping less when the pocket's shortfall against its
-              comparison reaches the dollar line above, and as more when its surplus does.
+              RANR and RANR + GCOs count as less when the pocket's shortfall against
+              its comparison reaches the dollar line above, and as more when its surplus does.
 
   - title: Is it real
     settings:

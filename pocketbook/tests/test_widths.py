@@ -6,7 +6,7 @@ Every width here is worked out from the Run's own labels and values, so the chec
 and hold the widths to them: Grids' data columns one width across all four blocks and wide enough for every label on
 two lines and every value on one (G1, G3, G5), its two label columns one width (G2), a split grid's segment over its
 parts (G4), the groups' booked dollars in thousands before they would overflow (G6), Split's two grids alike (S1),
-the label columns of Pockets, Paid cost kept and Start here fitted to the Run's labels (P1), and Look's labels (L1).
+the label columns of Pockets, RANR vs GCOs and Start here fitted to the Run's labels (P1), and Look's labels (L1).
 Each check reads the workbook as written; none needs LibreOffice."""
 
 from __future__ import annotations
@@ -84,14 +84,18 @@ KINDS = ("long", "category", "plain")
 
 
 def _grids(run):
-    """Grids as written: the sheet, where its blocks sit, and what the Run's grids put on _views."""
+    """Grids as written: the sheet, the row each block's heading sits on (one under another in column B, the firm's
+    30 Sep 2026 layout), what the Run's grids put on _views, and the most columns any grid has (All included)."""
     ws = run["wb"][results.GRIDS]
     views = {r[0]: [v for v in r[1:] if v is not None] for r in run["wb"][results.VIEWS].iter_rows(values_only=True)
              if isinstance(r[0], str)}
-    low, right = next((c.row, x.column) for c in ws["B"] if c.value == "vs rest of band" for x in ws[c.row]
-                      if x.value == "Loans")
-    top = next(c.row for c in ws["B"] if isinstance(c.value, str) and c.value.startswith('="Rate · "'))
-    return ws, views, top, low, right
+    col_b = [(c.row, c.value) for c in ws["B"] if isinstance(c.value, str)]
+    rate = next(r for r, v in col_b if v.startswith('="Rate · "'))
+    tops = {"rate": rate, "book": next(r for r, v in col_b if r > rate and v.startswith("=IF(ISNUMBER(")),
+            "band": next(r for r, v in col_b if r > rate and v == "vs rest of band"),     # not the note's
+            "loans": next(r for r, v in col_b if r > rate and v == "Loans")}
+    nc = max(len(v) for k, v in views.items() if k.startswith("G|") and k.endswith("|cols"))
+    return ws, views, tops, nc
 
 
 # --------------------------------------------------------------------------
@@ -129,19 +133,20 @@ def test_grid_widths_follow_the_longest_label_value_and_segment():
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_grids_data_columns_are_one_width_in_all_four_blocks_and_the_label_columns_match(runs, kind):
-    ws, _, _, _, right = _grids(runs[kind])
-    left, nc = 2, right - 4
-    data = [_width(ws, c) for c in list(range(left + 1, left + nc + 1)) + list(range(right + 1, right + nc + 1))]
+    """The four blocks share their columns now they are stacked (the firm, 30 Sep 2026): one label width in B, one
+    data width over every column any grid can reach."""
+    ws, _, _, nc = _grids(runs[kind])
+    left = 2
+    data = [_width(ws, c) for c in range(left + 1, left + nc + 1)]
     assert len(set(data)) == 1, data                                     # G1, G5
-    assert _width(ws, left) == _width(ws, right)                         # G2
-    assert _width(ws, right - 1) == 3
+    assert _width(ws, 1) == 2                                            # the margin, as on every tab
     assert results.DATA_FLOOR <= data[0] <= results.DATA_CAP
     assert results.LABEL_FLOOR <= _width(ws, left) <= results.LABEL_CAP
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_grids_column_labels_fit_two_lines_or_the_width_is_at_its_cap(runs, kind):
-    ws, views, _, _, right = _grids(runs[kind])
+    ws, views, tops, _ = _grids(runs[kind])
     dw = _width(ws, 3)
     heads = {str(h) for k, v in views.items() if k.startswith("G|") and k.endswith("|heads") for h in v}
     segs = {str(s) for k, v in views.items() if k.startswith("G|") and k.endswith("|segs") for s in v if s}
@@ -159,15 +164,14 @@ def test_grids_column_labels_fit_two_lines_or_the_width_is_at_its_cap(runs, kind
     assert max(house.lines_at(h, dw - 2) for h in heads
                if house.two_line_width(h) + 2 <= results.DATA_CAP) <= 2
     lines = max(house.lines_at(h, dw - 2) for h in heads)
-    _, _, top, _, _ = _grids(runs[kind])
     hdr = 2 if parts else 1
-    assert ws.row_dimensions[top + hdr].height >= results.HEAD_LINE * lines
+    assert ws.row_dimensions[tops["rate"] + hdr].height >= results.HEAD_LINE * lines
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_no_grids_value_is_wider_than_its_column(runs, kind):
     """Every number a block shows, as its cell's format shows it, fits the data width with room to spare."""
-    ws, views, _, _, _ = _grids(runs[kind])
+    ws, views, _, _ = _grids(runs[kind])
     dw = _width(ws, 3)
     pts = {m.name for m in runs[kind]["res"].measures if m.in_points}
     longest = 0
@@ -187,23 +191,29 @@ def test_no_grids_value_is_wider_than_its_column(runs, kind):
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_the_four_blocks_line_up_and_their_headers_are_one_height(runs, kind):
-    ws, _, top, low, right = _grids(runs[kind])
+    ws, _, tops, nc = _grids(runs[kind])
     split = bool(results._split_layout(runs[kind]["res"]))
     hdr = 2 if split else 1
-    # side by side on the same rows, and the lower pair the same distance under the upper
-    assert str(ws.cell(row=top, column=right).value).startswith('=IF(ISNUMBER(')
-    assert ws.cell(row=low, column=right).value == "Loans"
+    # one under another, in the firm's order, each the same distance under the one above (30 Sep 2026)
+    order = [tops[k] for k in ("rate", "book", "band", "loans")]
+    assert order == sorted(order) and len({b - a for a, b in zip(order, order[1:])}) == 1
+    # nothing to the right of a block's heading and header: no second column of blocks (short of the hidden
+    # helper cells, which start past the dropdowns, at column 22 at the earliest)
+    for t in order:
+        assert all(ws.cell(row=t + k, column=c).value is None for k in range(0, hdr + 2)
+                   for c in range(2 + nc + 1, min(2 + 2 * nc + 3, 22))), t
     heights = []
-    for t in (top, low):
+    for t in order:
         heights.append([ws.row_dimensions[t + k].height for k in range(1, hdr + 1)])
-        assert all(ws.cell(row=t + hdr, column=c).alignment.wrap_text for c in (3, right + 1))
-    assert heights[0] == heights[1] and all(heights[0])
-    # G4: a split grid's segments are merged over their parts, in both columns of blocks
-    merged = [m for m in ws.merged_cells.ranges if m.min_row in (top + 1, low + 1) and m.max_col > m.min_col]
+        assert all(ws.cell(row=t + hdr, column=c).alignment.wrap_text for c in (3, 2 + nc))
+    assert all(h == heights[0] for h in heights) and all(heights[0])
+    # G4: a split grid's segments are merged over their parts, in every block
+    merged = [m for m in ws.merged_cells.ranges if m.min_row in [t + 1 for t in order] and m.max_col > m.min_col]
     assert bool(merged) == split
     if split:
         parts = len(results._split_layout(runs[kind]["res"]))
         assert all(m.max_col - m.min_col + 1 == parts for m in merged)
+        assert {m.min_row for m in merged} == {t + 1 for t in order}
 
 
 def test_a_split_grids_header_reads_back_as_its_segment_and_part(runs):
@@ -261,7 +271,7 @@ def test_split_grids_share_one_data_width_and_the_dropdown_spans_three_columns(r
 
 
 # --------------------------------------------------------------------------
-# Pockets, Paid cost kept, Start here, Look
+# Pockets, RANR vs GCOs, Start here, Look
 
 
 @pytest.mark.parametrize("kind", KINDS)

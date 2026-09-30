@@ -205,7 +205,7 @@ def _method(res, st, tests, excesses, stamp: str) -> list[tuple[str, object]]:
                                           "there is one confirmation."))
     ex = next((e for e in excesses if e is not None), None)
     if ex is not None:
-        what = "charge-offs" if ex.unit == "dollars" else "bad loans"
+        what = "GCOs" if ex.unit == "dollars" else "bad loans"
         out.append(("Material?", f"Excess is a group's {what} on the held-back loans above its share of them (its "
                                  f"share of the held-back loans), times the whole book's {what} over the held-back "
                                  f"loans', so it sits on the same scale as Control's materiality line. Material? is "

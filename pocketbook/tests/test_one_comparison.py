@@ -123,7 +123,7 @@ def test_pockets_ranks_by_the_deciding_dollars(compare_to, rest):
     against the other comparison (so a change of Judged against finds them). The other comparison's figure is
     no longer beside each row (the redesign's columns); it stays on _pockets and the command line."""
     res = _run(compare_to)
-    ws = _tab(res, results.POCKETS, measure="Charge-offs")
+    ws = _tab(res, results.POCKETS, measure="GCOs ($)")
     rows = tabs.pockets(ws)
     head = tabs.header_row(ws, results.K_NUM, "#")
     assert ws.cell(row=head, column=results.K_REST).value == rest
@@ -150,7 +150,7 @@ def test_pockets_ranks_by_the_deciding_dollars(compare_to, rest):
 def test_paid_cost_kept_dollars_are_the_engines():
     """Before, this tab worked out its own dollars against the rest of the book; it shows the engine's, so it
     can't disagree with Pockets or materiality."""
-    for compare_to, times in (("peers", "× band"), ("topline", "× book")):
+    for compare_to, times in (("peers", "× rest of band"), ("topline", "× rest of book")):
         res = _run(compare_to)
         ws = _tab(res, results.PCK)
         head = tabs.header_row(ws, results.C_TOG, "Together")
@@ -172,7 +172,7 @@ def test_a_pocket_alone_in_its_band_has_no_dollars_over_it_and_is_ranked_by_the_
     g = res.grids[0]
     s = g.cell(g.band_labels[-1], "A").rates["gco_rate"]
     assert s.alone and not s.by_band and s.excess_band is None and s.dollars == s.excess_rest > LINE and s.material
-    rows = tabs.pockets(_tab(res, results.POCKETS, measure="Charge-offs"))
+    rows = tabs.pockets(_tab(res, results.POCKETS, measure="GCOs ($)"))
     got = [x for x in rows if x["band"] == f"SCORE {g.band_labels[-1]}"]
     assert got and got[0]["excess"] == pytest.approx(s.excess_rest) and got[0]["material"] == "Yes"
 
@@ -257,7 +257,7 @@ def test_a_real_shortfall_is_pink_and_an_unsure_one_canvas():
     """Worse? is Yes on a shortfall past the line with a p-value under the bar, and pink with crimson words;
     Not sure is CANVAS (the redesign's Global rule 9)."""
     res = _run("peers", revenue_line=0.25)
-    ws = _tab(res, results.POCKETS, measure="Kept after losses")
+    ws = _tab(res, results.POCKETS, measure="RANR")
     rows = tabs.pockets(ws)
     assert any(x["worse"] == "Yes" and x["gap"] < 0 for x in rows)
     rules = [(r.formula[0], r.dxf) for rng in ws.formulas.conditional_formatting

@@ -40,8 +40,9 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import perm, stats
-from .choices import NO_DATE, ORIG_YEAR, SPLIT_MOST_VALUES, too_many_to_filter, too_many_values  # noqa: F401
+from . import perm, stats, timing
+from .choices import (NO_DATE, ORIG_YEAR, SPLIT_MOST_VALUES, same_filter_twice, too_many_to_filter,  # noqa: F401
+                      too_many_values, too_many_views)
 from .config import EACH_LOAN, PERIOD_WORDS, PROFIT, Band, Config, Dimension, Measure, MissingRule
 from .ingest import BLANK, Bad, Table, cell_text, is_blank, parse_number
 
@@ -114,6 +115,8 @@ def _caught(v: float, rule: MissingRule) -> bool:
         return True
     if rule.above is not None and v > rule.above:
         return True
+    if rule.at_or_below is not None and v <= rule.at_or_below:
+        return True                     # Control's bureau codes answer (config.BUREAU_CODE_LINE)
     for m in rule.values:
         if isinstance(m, (int, float)) and not isinstance(m, bool) and float(m) == v:
             return True
@@ -211,6 +214,28 @@ def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | N
         if len(set(out)) == len(out):
             return out
     return out
+
+
+#: Control's "Number columns: this many values or fewer is a category" (few_values), for a band that carries none
+FEW_VALUES = 12
+#: the Run's line when a column gets one band per value (the firm, 30 Sep 2026)
+EACH_VALUE_SAYS = "{}: too few values to cut into equal bands, so each value is its own band"
+
+
+def value_text(v: float) -> str:
+    """One value as a band's label: 0, 1, 2 for whole numbers (never 0.0); 0.5 or 1,250.75 otherwise."""
+    v = float(v)
+    if v.is_integer():
+        return f"{v:,.0f}"
+    return f"{v:,.6f}".rstrip("0").rstrip(".")
+
+
+def labels_for(edges: tuple[float, ...], seen: list[float], values=None) -> list[str]:
+    """A band column's labels as every tab names them: by the value when the Run gave each value its own band
+    (`values`, from Result.value_bands), else as ranges over the values read (band_labels)."""
+    if values:
+        return [value_text(v) for v in values]
+    return band_labels(edges, min(seen), max(seen), whole=all_whole(seen)) if seen else band_labels(edges)
 
 
 def band_of(v: float, edges: tuple[float, ...], labels: list[str]) -> str:
@@ -583,7 +608,8 @@ class Summary:
     up unit counts, loan amounts, % of units, % of loan amounts, charged off dollars, ratio"): each band's cell, added
     up from the loans as a grid's are, and its booked dollars. `labels` are the bands in order, then (blank), (not a
     number) and (marked missing) where the column has them, then ALL; a view on one value of the Filter by column
-    keeps the whole book's labels, so its rows stay put, and a band with none of its loans is an empty cell."""
+    keeps the whole book's labels, so its rows stay put, and a band with none of its loans is an empty cell. A
+    segment/category column has one too, its values in the bands' place (the firm, 30 Sep 2026)."""
     band: str
     labels: list[str]
     cells: dict[str, Cell]
@@ -624,7 +650,8 @@ class Grid:
     split_se: dict[tuple[str, str], dict[str, float | None]] = field(default_factory=dict, repr=False)
     part_se: dict[str, dict] = field(default_factory=dict, repr=False)
     # Grids' "Only loans where" (the firm, 29 Sep 2026; since 30 Sep by the Filter by column, whatever the split
-    # does): this grid again on only the loans with each value of that column, keyed by the value. Built like any grid, so "vs the book" is still against the whole
+    # does): this grid again on only the loans with each value of that column, keyed by (Filter 1's value, Filter 2's
+    # value), None for All loans, so (v, None), (None, w) and (v, w): both filters at once hold together (AND). Built like any grid, so "vs the book" is still against the whole
     # book and "vs rest of band" is against the rest of the band among those loans. Shown on Grids only: never
     # listed as pockets, counted in a family or tied out
     filtered: dict[str, "Grid"] = field(default_factory=dict, repr=False)
@@ -666,8 +693,12 @@ class Result:
     bleed: bool = True                          # False: a test of a new variable, which builds no grid (OC-42)
     book_size: Size | None = None               # what the whole book booked, per loan (Grids' Loan size)
     filter_values: list[str] = field(default_factory=list)  # the Filter by column's values, in order (Grids)
-    # Summary: {(band name, None or a Filter by value): Summary}, every band column the Run cut
-    summaries: dict[tuple[str, str | None], Summary] = field(default_factory=dict)
+    filter_values2: list[str] = field(default_factory=list)  # Filter 2's values, in order
+    # Summary: {(band name, Filter 1's value, Filter 2's value): Summary}, None for All loans, every band column the
+    # Run cut; (band, None, None) is the whole book
+    summaries: dict[tuple[str, str | None, str | None], Summary] = field(default_factory=dict)
+    # band name -> its values, for a column too few-valued to cut: each value its own band, named by it (30 Sep 2026)
+    value_bands: dict[str, tuple[float, ...]] = field(default_factory=dict)
 
 
 # --------------------------------------------------------------------------
@@ -865,7 +896,7 @@ def origination_years(table: Table, col: str) -> list[str]:
 def with_year(config: Config, table: Table) -> Table:
     """The extract with ORIG_YEAR added when the split or the filter names it (and the extract has no column of
     that name already): the year of the column marked Origination date. Refused, in words, when none is marked."""
-    wanted = {config.split[0] if config.split else None, config.filter_by}
+    wanted = {config.split[0] if config.split else None, config.filter_by, config.filter_by2}
     if ORIG_YEAR not in wanted or ORIG_YEAR in table.columns:
         return table
     col = config.origination_date
@@ -917,7 +948,11 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
     return replace(config, bands=keep_b, dimensions=keep_d)
 
 
-def run(config: Config, table: Table) -> Result:
+def run(config: Config, table: Table, progress=None) -> Result:
+    """`progress`, when given, is told "Cutting bands" and "Running the shuffle test" as each starts (the launcher's
+    progress line, 30 Sep 2026)."""
+    say = progress or (lambda stage: None)
+    timing.mark("Reading each loan's values")        # Record's "Where the time went" (the firm, 30 Sep 2026)
     warnings: list[str] = []
     table, derived = derive(config, table, warnings)
     table = with_year(config, table)
@@ -944,26 +979,35 @@ def run(config: Config, table: Table) -> Result:
             warnings.append(f"open data question: {q.text()}. Used as recorded until answered "
                             f"(real, or missing) in `questions:`")
 
+    timing.mark("Cutting the bands")
     bands = {}
     band_edges: dict[str, tuple[float, ...]] = {}
     band_label_sets: dict[str, list[str]] = {}
+    value_bands: dict[str, tuple[float, ...]] = {}
+    say("Cutting bands")
     for b in config.bands:
         read = [classify_number(raw, rules.get(b.field)) for raw in col(b.field)]
-        edges = b.edges or cut_edges([v for v, why in read if why is None], b.count, b.cut)
+        seen = [v for v, why in read if why is None]
+        edges, each = b.edges, None            # typed edges are the analyst's: never replaced
+        if not edges:
+            edges, each = _cut_or_each_value(b, seen)
         if not edges:
             raise ColumnsMissing([(b.field, f"band {b.name}: no readable numbers to cut")], table.columns)
-        if b.count and len(edges) + 1 < b.count:
+        if each:
+            value_bands[b.name] = each
+            warnings.append(EACH_VALUE_SAYS.format(b.field))
+        elif b.count and len(edges) + 1 < b.count:
             warnings.append(f"band {b.name}: asked for {b.count} bands, got {len(edges) + 1} "
                             f"(`{b.field}` has too many repeated values to cut finer)")
         band_edges[b.name] = edges
-        seen = [v for v, why in read if why is None]
-        labels = band_labels(edges, min(seen), max(seen), whole=all_whole(seen)) if seen else band_labels(edges)
+        labels = labels_for(edges, seen, each)
         band_label_sets[b.name] = labels
         bands[b.name] = [band_of(v, edges, labels) if why is None else REASON_LABEL[why] for v, why in read]
     dims = {d.name: [classify_text(raw, rules.get(d.field)) for raw in col(d.field)]
             for d in config.dimensions}
 
     # Per measure, per row: (num, den) for a rate, value for a median, or a reason.
+    timing.mark("Reading each loan's values")
     per_row: dict[str, list] = {}
     left_out: dict[str, Counter] = {}
     for m in measures:
@@ -1074,6 +1118,21 @@ def run(config: Config, table: Table) -> Result:
             raise ColumnsMissing([(ff, "the Grids' filter")], table.columns)
         filter_vals = [classify_text(raw, rules.get(ff)) for raw in col(ff)]
         _few_enough_to_filter(ff, filter_vals)
+    # Filter 2 (the firm, 30 Sep 2026: "independently and in conjunction with each other"): another column, its
+    # values offered beside Filter 1's, each alone or both at once
+    filter_vals2 = None
+    if bleed and config.filter_by and config.filter_by2:
+        ff2 = config.filter_by2
+        if ff2 == config.filter_by:
+            raise DataRefused(same_filter_twice(ff2))
+        if ff2 not in table.columns:
+            raise ColumnsMissing([(ff2, "the Grids' second filter")], table.columns)
+        filter_vals2 = [classify_text(raw, rules.get(ff2)) for raw in col(ff2)]
+        _few_enough_to_filter(ff2, filter_vals2)
+        said = too_many_views(config.filter_by, len(set(filter_vals)), ff2, len(set(filter_vals2)))
+        if said:
+            raise DataRefused(said)
+    timing.mark("Building the grids")
     for b in config.bands if bleed else ():
         for d in config.dimensions:
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
@@ -1098,8 +1157,14 @@ def run(config: Config, table: Table) -> Result:
             grids.append(grid)
     # the dollar rates' shuffle test (B2), one random order per shuffle for every grid at once; then the
     # allowance for many tests and the words, which need every p-value in
+    if built:
+        nb, nd = len(config.bands), len(config.dimensions)
+        timing.note(f"{len(built):,} grids: {nb:,} banded column{'s' * (nb != 1)} by {nd:,} "
+                    f"segment{'s' * (nd != 1)}" + (", each split" if halved else ""), grids=len(built))
     if bleed:
+        say("Running the shuffle test")
         _shuffle_tests(config, measures, per_row, n, built, halved)
+    timing.mark("Building the grids")
     for g, _, _ in built:
         _judge(g, config, measures, min_units, materiality_line)
     for g, _, _ in halved:
@@ -1115,13 +1180,22 @@ def run(config: Config, table: Table) -> Result:
         for g, _, keys in built:
             g.sizes = loan_sizes(keys, booked)
     values: list[str] = []
+    values2: list[str] = _order(filter_vals2) if filter_vals2 is not None else []
+    rows_of: dict[tuple, list[int]] = {}
     if filter_vals is not None:
+        timing.mark("Building each filter's grids")
         values = _order(filter_vals)
         by_name = {b.name: b for b in config.bands}
-        rows_of = {v: [i for i, x in enumerate(filter_vals) if x == v] for v in values}
+        # every view: each value of Filter 1 alone, each of Filter 2 alone, and every pair, both holding (AND)
+        for v, w in [(v, None) for v in values] + [(None, w) for w in values2] + [(v, w) for v in values
+                                                                                   for w in values2]:
+            rows_of[(v, w)] = [i for i in range(n) if (v is None or filter_vals[i] == v)
+                               and (w is None or filter_vals2[i] == w)]
         for g, bname, keys in built:
-            for v in values:
+            for v in rows_of:
                 idx = rows_of[v]
+                if not idx:
+                    continue                    # no loan has both values: nothing to build, the view is empty
                 sub = [keys[i] for i in idx]
                 fg = _build_grid(config, by_name[bname], Dimension(name=g.dimension, field=""), band_edges[bname],
                                  [k[0] for k in sub], [k[1] for k in sub], measures,
@@ -1131,14 +1205,32 @@ def run(config: Config, table: Table) -> Result:
                 if booked is not None:
                     fg.sizes = loan_sizes(sub, [booked[i] for i in idx])
                 g.filtered[v] = fg
+    timing.mark("Building the grids")
     summaries: dict[tuple[str, str | None], Summary] = {}
     for b in config.bands if bleed else ():
-        whole = summaries[(b.name, None)] = _summary(b.name, measures, per_row, bands[b.name], booked,
+        whole = summaries[(b.name, None, None)] = _summary(b.name, measures, per_row, bands[b.name], booked,
                                                      band_label_sets[b.name], range(n))
         _tie_summary(whole, total, measures)
-        for v in values:
-            part = summaries[(b.name, v)] = _summary(b.name, measures, per_row, bands[b.name], booked, whole.labels,
-                                                     rows_of[v])
+        for v, w in rows_of:
+            if not rows_of[(v, w)]:
+                continue
+            part = summaries[(b.name, v, w)] = _summary(b.name, measures, per_row, bands[b.name], booked,
+                                                        whole.labels, rows_of[(v, w)])
+            _tie_summary(part, part.cells[ALL], measures)
+    # a segment/category column on its own too (the firm, 30 Sep 2026: "the band column should also allow for
+    # categories because we can still view it that way, and the logic should still make sense"): its values in
+    # natural order, then (blank) and (marked missing), then All; the arithmetic is the same as a band column's
+    for d in config.dimensions if bleed else ():
+        if (d.name, None, None) in summaries:
+            continue                            # a band column of the same name keeps its own
+        whole = summaries[(d.name, None, None)] = _summary(d.name, measures, per_row, dims[d.name], booked,
+                                                     _order(dims[d.name]), range(n))
+        _tie_summary(whole, total, measures)
+        for v, w in rows_of:
+            if not rows_of[(v, w)]:
+                continue
+            part = summaries[(d.name, v, w)] = _summary(d.name, measures, per_row, dims[d.name], booked, whole.labels,
+                                                        rows_of[(v, w)])
             _tie_summary(part, part.cells[ALL], measures)
     moves_with: dict[str, float] = {}
     if bleed and config.split and config.split[1] == "own_median":
@@ -1152,7 +1244,27 @@ def run(config: Config, table: Table) -> Result:
                   band_edges=band_edges, loans_needed=needed, min_units=min_units,
                   materiality_line=materiality_line, three_way=three_way,
                   split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
-                  book_size=book_size, filter_values=values, summaries=summaries)
+                  book_size=book_size, filter_values=values, filter_values2=values2, summaries=summaries,
+                  value_bands=value_bands)
+
+
+def _cut_or_each_value(b: Band, seen: list[float]) -> tuple[tuple[float, ...], tuple[float, ...] | None]:
+    """A band column's edges when none are typed, and its values when each is its own band. The firm, 30 Sep 2026,
+    on a column like Major Derogatories (0 to 8, most loans at 0) whose equal-loan cuts all fell on the zeros, so
+    the Run refused it: "Yes that's fine" to a column with few values (Control's few_values, 12) getting one band
+    per value; one with more that still collapses is cut as far as it can be ("asked for N bands, got M"); one
+    with a single value is refused, in words that name the two fixes."""
+    edges = cut_edges(seen, b.count, b.cut)
+    if not seen or len(edges) + 1 >= b.count:
+        return edges, None
+    distinct = sorted(set(seen))
+    if len(distinct) < 2:
+        raise DataRefused(f"`{b.field}` reads {value_text(distinct[0])} on every loan, so there is nothing to cut "
+                          f"into bands. On Columns, set What it is to Category, or type Band edges like 1; 2; 5")
+    few = FEW_VALUES if b.few_values is None else b.few_values
+    if len(distinct) <= few:
+        return tuple(distinct[1:]), tuple(distinct)
+    return edges or (distinct[1],), None
 
 
 def _summary(band: str, measures, per_row, labels_of, booked, order, idx) -> Summary:
@@ -1215,14 +1327,15 @@ def summary_columns(res) -> list[str]:
     return [k for k, need in SUMMARY_COLUMNS if need is None or (need == BOOKED and booked) or need in have]
 
 
-def summary_rows(res, band: str, value: str | None = None) -> list[tuple[str, dict[str, float | None]]]:
+def summary_rows(res, band: str, value: str | None = None,
+                 value2: str | None = None) -> list[tuple[str, dict[str, float | None]]]:
     """Summary's rows for one band column (on only the loans with one value of the Filter by column, when `value`
-    is given): each label, and every column summary_columns gives, as arithmetic on the loans and never a test.
+    is given, and of Filter 2, when `value2` is; both given, only the loans with both): each label, and every column summary_columns gives, as arithmetic on the loans and never a test.
     Loans and bad loans are counts; a share is the row's over the All row's, so the shares add to 100% over the
     bands and the special rows; bad loans % is the Bad loans rate (bad loans over the loans whose outcome reads 0
     or 1); a charge-off or RANR rate is that measure's rate (its dollars over the booked dollars of the loans with
     both amounts), and x book is the charge-off rate over the whole book's, filter or none."""
-    s = res.summaries[(band, value)]
+    s = res.summaries[(band, value, value2)]
     keys = summary_columns(res)
     whole = res.total.rates.get("gco_rate")
     top = s.cells[ALL]
@@ -1628,8 +1741,14 @@ def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
             for m in dollar:
                 s.stats[(li, m.name)] = perm.HalfGap(pooled={ids[k] for k in tested.get(m.name, [])})
         halves.append((s, ids, sets))
-    perm.run(n, columns, [book, *bands.values(), *(s for s, _, _ in halves)], bench.shuffles,
-             perm.seed_of("one order per shuffle, shared by every test in the run"))
+    timing.mark("The shuffle test")
+    workers = perm.run(n, columns, [book, *bands.values(), *(s for s, _, _ in halves)], bench.shuffles,
+                       perm.seed_of("one order per shuffle, shared by every test in the run"))
+    clock = timing.current()
+    failed = clock.facts.get("pool_failed") if clock is not None else None
+    timing.note(f"{bench.shuffles:,} shuffles of {n:,} loans on {_workers_said(workers)}"
+                + (f"; the worker processes didn't start ({failed})" if failed else ""),
+                shuffles=bench.shuffles, workers=workers)
     for grid, bi, sb, si in placed:
         for m in dollar:
             got_book, got_band = book.stats[(bi, m.name)].answers, sb.stats[(si, m.name)].answers
@@ -1654,6 +1773,10 @@ def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
                 if pooled is not None and ("ratio" in pooled or "gap" in pooled) and st.pooled is not None:
                     pooled["ratio_p"], pooled["ratio_hits"], pooled["shuffles"] = (st.pooled.p, st.pooled.hits,
                                                                                   st.pooled.shuffles)
+
+
+def _workers_said(workers: int) -> str:
+    return "1 process" if workers <= 1 else f"{workers} processes"
 
 
 # --------------------------------------------------------------------------

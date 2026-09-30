@@ -160,7 +160,8 @@ def rows(mem: dict[str, Any]) -> list[dict]:
                     "last": e.get("last"), "times": e.get("times", 1)})
     for key, e in sorted(mem["answers"].items()):
         v = e.get("value")
-        v = f"{v:g}" if isinstance(v, float) else str(v)
+        from .config import plain_value
+        v = plain_value(v)                  # -99,000,900, never -9.90009e+07
         if e.get("pattern") == "negatives":
             said = "negative values are real" if e.get("answer") == "real" else "negative values mean missing"
         else:
@@ -209,8 +210,8 @@ def write_review(path: str | Path, mem_path: str | Path | None = None) -> Path:
 def apply_review(path, mem_path: str | Path | None = None) -> tuple[Path, list[str]]:
     """Drop every row the review sheet marks Forget. Nothing else changes. `path` is the review file, or its
     Learned sheet already open."""
-    from openpyxl import load_workbook
-    ws = load_workbook(path)["Learned"] if isinstance(path, (str, Path)) else path
+    from .excel_lists import quiet
+    ws = quiet(path)["Learned"] if isinstance(path, (str, Path)) else path
     mem = load(mem_path)
     gone = []
     for row in ws.iter_rows(min_row=4, values_only=True):

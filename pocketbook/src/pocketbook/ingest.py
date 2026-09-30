@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import math
 import re
 from dataclasses import dataclass
@@ -55,28 +56,36 @@ def read_table(path: str | Path, sheet: str | None = None) -> Table:
     data = p.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     if p.suffix.lower() in (".xlsx", ".xlsm"):
-        import openpyxl
-        wb = openpyxl.load_workbook(p, read_only=True, data_only=True)
-        ws = wb[sheet] if sheet else wb.worksheets[0]
-        it = ws.iter_rows(values_only=True)
-        header = next(it, None)
-        if header is None:
-            raise ValueError(f"{p}: the sheet has no header row")
-        columns = [str(h).strip() if h is not None else "" for h in header]
-        _refuse_duplicates(p, columns)
-        rows = []
-        for r in it:
-            if r is None or all(v is None for v in r):
-                continue
-            rows.append({columns[i]: (r[i] if i < len(r) else None) for i in range(len(columns))})
-        wb.close()
-        return Table(path=str(p), sha256=digest, columns=columns, rows=rows, kind="xlsx")
+        from .excel_lists import hushed            # openpyxl's warnings about Excel's extension blocks (30 Sep 2026)
+        with hushed():
+            return _read_xlsx(p, sheet, digest, data)
     text = data.decode("utf-8-sig")
     reader = csv.DictReader(text.splitlines())
     columns = [c.strip() for c in (reader.fieldnames or [])]
     _refuse_duplicates(p, columns)
     rows = [{k.strip() if k else k: v for k, v in row.items()} for row in reader]
     return Table(path=str(p), sha256=digest, columns=columns, rows=rows, kind="csv")
+
+
+def _read_xlsx(p: Path, sheet: str | None, digest: str, data: bytes) -> Table:
+    import openpyxl
+    # from the bytes already read, never the file again (the bank, 30 Sep 2026: the extract sits in a OneDrive
+    # folder, where every read of the file is another trip through the sync client and the virus scanner)
+    wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    ws = wb[sheet] if sheet else wb.worksheets[0]
+    it = ws.iter_rows(values_only=True)
+    header = next(it, None)
+    if header is None:
+        raise ValueError(f"{p}: the sheet has no header row")
+    columns = [str(h).strip() if h is not None else "" for h in header]
+    _refuse_duplicates(p, columns)
+    rows = []
+    for r in it:
+        if r is None or all(v is None for v in r):
+            continue
+        rows.append({columns[i]: (r[i] if i < len(r) else None) for i in range(len(columns))})
+    wb.close()
+    return Table(path=str(p), sha256=digest, columns=columns, rows=rows, kind="xlsx")
 
 
 def _refuse_duplicates(p: Path, columns: list[str]) -> None:

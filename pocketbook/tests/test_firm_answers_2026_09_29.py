@@ -239,25 +239,26 @@ def test_all_and_none_for_the_bleeds_bands_and_segments_leave_the_split_alone(tm
     assert f.split == "REV_DEBT"
 
 
-def test_columns_hides_what_the_launcher_didnt_pick_and_asks_nothing_about_it(tmp_path, monkeypatch):
+def test_columns_asks_nothing_about_what_the_launcher_didnt_pick(tmp_path, monkeypatch):
+    """29 Sep 2026 these rows were hidden; from 30 Sep they are shown greyed (test_columns_launcher_2026_09_30)."""
     monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
     x = synth.write_extract(tmp_path, n=1500)
     picked = ch.Choices(run_kind=ch.BLEED, bands=("ORIG_BAL",), segments=("CHANNEL",), outcome="BAD_FLAG")
     out = book.set_up(x, choices=picked)
     ws = load_workbook(out.book)["Columns"]
     rows = {r[book.C_NAME - 1].value: r for r in book.table_rows(ws) if r[book.C_NAME - 1].value}
-    hidden = {n for n, r in rows.items() if ws.row_dimensions[r[0].row].hidden}
-    assert "FICO" in hidden and "ASSET_CLASS" in hidden and "REV_DEBT" in hidden
-    assert not hidden & {"LOAN_NBR", "ORIG_BAL", "CHANNEL", "BAD_FLAG", "GCO_AMT", "RANR_AMT"}
+    unused = {n for n, r in rows.items() if str(r[book.C_LOOK - 1].value or "").startswith(book.NOT_USED)}
+    assert "FICO" in unused and "ASSET_CLASS" in unused and "REV_DEBT" in unused
+    assert not unused & {"LOAN_NBR", "ORIG_BAL", "CHANNEL", "BAD_FLAG", "GCO_AMT", "RANR_AMT"}
     keys = [r[book.C_QKEY - 1].value for r in ws.iter_rows(min_row=book.COL_FIRST) if len(r) >= book.C_QKEY]
     assert not [k for k in keys if k and str(k).startswith("FICO|")]  # FICO's -9999 isn't asked about
-    assert f"{len(hidden)} not picked in the launcher are hidden" in ws["D3"].value
+    assert book.UNUSED_NOTE.format(len(unused)) in ws["D3"].value
     _answer(out.book)
     _, problems, _ = book.read_book(out.book)
     assert not problems, problems
     # nothing picked (Set up without the launcher): every column shows, and FICO's code is asked about again
     ws = load_workbook(book.set_up(x).book)["Columns"]
-    assert not any(ws.row_dimensions[r[0].row].hidden for r in book.table_rows(ws))
+    assert not any(str(r[book.C_LOOK - 1].value or "").startswith(book.NOT_USED) for r in book.table_rows(ws))
     keys = [r[book.C_QKEY - 1].value for r in ws.iter_rows(min_row=book.COL_FIRST) if len(r) >= book.C_QKEY]
     assert [k for k in keys if k and str(k).startswith("FICO|")]
 
@@ -540,7 +541,7 @@ def test_category_split_workbook_carries_the_flag_through_every_tab(tmp_path, mo
     assert "Worse than the rest in" in text and "Value vs rest, all" in text
     assert "Bad loans, value vs rest" in text
     differ = next(t for t in text if t.startswith("Do the values of SYS_FLAG differ at all? Bad loans: "))
-    assert "degrees of freedom" in differ and "Charge-offs" in differ and "not tested: dollar rate" in differ
+    assert "degrees of freedom" in differ and "GCOs ($)" in differ and "not tested: dollar rate" in differ
     assert not [t for t in text if "high half" in t.lower() or "High vs low" in t]
     rec = {k: v for k, v, *_ in tabs.record_rows(b)}
     assert "each value set against the rest of its pocket" in rec["Split"]
@@ -710,7 +711,7 @@ def _min_losses(b) -> int:
 
 def test_one_cell_reads_the_blocks_own_numbers_in_words_for_a_multiple_and_a_gap_in_points(one_cell_book, tmp_path):
     b = one_cell_book
-    for measure, kind in (("Charge-offs", "x"), ("Kept after losses", "pts")):
+    for measure, kind in (("GCOs ($)", "x"), ("RANR", "pts")):
         _, blocks, _ = _grids(b, tmp_path / f"{kind}-0.xlsx", measure=measure)
         rate, bk, bd, loans = (blocks[t] for t in ("Rate", "vs the book", "vs rest of band", "Loans"))
         both = [k for k in _pockets(loans) if isinstance(bk[k], (int, float)) and isinstance(bd[k], (int, float))]
@@ -724,16 +725,16 @@ def test_one_cell_reads_the_blocks_own_numbers_in_words_for_a_multiple_and_a_gap
         named = f" (the {', '.join(others)} loans)" if 1 <= len(others) <= 3 else ""
         assert said["name"] == f"{bl} · {d}, {measure}"
         if kind == "x":
-            assert said["Rate"] == f"These {n:,} loans charged off {r} of their booked dollars."
-            assert said["vs the book"] == f"{v:.2f}× the charge-off rate of the whole book."
-            assert said["vs rest of band"] == f"{w:.2f}× the charge-off rate of the other loans in {bl}{named}."
+            assert said["Rate"] == f"These {n:,} loans: GCOs were {r} of their booked dollars."
+            assert said["vs the book"] == f"{v:.2f}× the GCO rate of the whole book."
+            assert said["vs rest of band"] == f"{w:.2f}× the GCO rate of the other loans in {bl}{named}."
         else:
             side = lambda g: "less" if g < 0 else "more"                                 # noqa: E731
-            assert said["Rate"] == f"These {n:,} loans kept {r} of their booked dollars after losses."
-            assert said["vs the book"] == (f"Kept {abs(v):.2f} points {side(v)} of their booked dollars than the "
+            assert said["Rate"] == f"These {n:,} loans: RANR was {r} of their booked dollars."
+            assert said["vs the book"] == (f"RANR was {abs(v):.2f} points {side(v)} of booked dollars than for the "
                                            "whole book.")
-            assert said["vs rest of band"] == (f"Kept {abs(w):.2f} points {side(w)} of their booked dollars than the "
-                                               f"other loans in {bl}{named}.")
+            assert said["vs rest of band"] == (f"RANR was {abs(w):.2f} points {side(w)} of booked dollars than for "
+                                               f"the other loans in {bl}{named}.")
         assert said["Loans"] == f"{n:,} loans; {bl} has {loans[(bl, 'All')]:,} in all."
         # the scale's bound leaves out the cells under the fewest loans, which are grey (the firm, 29 Sep 2026)
         few = _fewest(b)
@@ -750,24 +751,24 @@ def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(
     from pocketbook import results
     b = one_cell_book
     few = f"Blank: fewer losses than the minimum ({_min_losses(b)} losses), so not compared."
-    _, blocks, _ = _grids(b, tmp_path / "blank-0.xlsx", measure="Charge-offs")
+    _, blocks, _ = _grids(b, tmp_path / "blank-0.xlsx", measure="GCOs ($)")
     bk, bd, loans = blocks["vs the book"], blocks["vs rest of band"], blocks["Loans"]
     pockets = _pockets(loans)
     mates = lambda k: sum(1 for j in pockets if j[0] == k[0])                                  # noqa: E731
     alone = next(k for k in pockets if mates(k) == 1)
     thin = next(k for k in pockets if mates(k) > 1 and bk[k] is None and bd[k] is None)
     assert bd[alone] is None
-    for measure in ("Charge-offs", "Kept after losses"):
+    for measure in ("GCOs ($)", "RANR"):
         _, _, said = _grids(b, tmp_path / f"alone-{measure[0]}.xlsx", measure=measure, row=alone[0], column=alone[1])
         assert said["vs rest of band"] == f"Blank: alone in its band. Nothing else in {alone[0]} to compare with."
-    _, _, said = _grids(b, tmp_path / "alone.xlsx", measure="Charge-offs", row=alone[0], column=alone[1])
+    _, _, said = _grids(b, tmp_path / "alone.xlsx", measure="GCOs ($)", row=alone[0], column=alone[1])
     if loans[alone] == 1:                                         # one loan reads as one, not "1 loans"
-        assert said["Rate"].startswith("This one loan charged off ") and said["Rate"].endswith(" of its booked "
-                                                                                             "dollars.")
+        assert said["Rate"].startswith("This one loan: GCOs were ") and said["Rate"].endswith(" of its booked "
+                                                                                            "dollars.")
         assert said["Loans"].startswith("1 loan; ")
     if bk[alone] is None:
         assert said["vs the book"] == few                        # only one reason a comparison with the book is blank
-    _, _, said = _grids(b, tmp_path / "few.xlsx", measure="Charge-offs", row=thin[0], column=thin[1])
+    _, _, said = _grids(b, tmp_path / "few.xlsx", measure="GCOs ($)", row=thin[0], column=thin[1])
     assert said["vs the book"] == few and said["vs rest of band"] == few
     assert "alone" not in said["The colour"] and said["The colour"].startswith("vs the book is blank, vs rest of band "
                                                                                "blank.")
@@ -777,12 +778,14 @@ def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(
 
 
 def _listed(ws, label: str) -> list:
-    """A Row or Column dropdown's list as it stands (calculated): its OFFSET over the hidden labels, worked out."""
+    """A Row or Column dropdown's list as it stands (calculated): its first MAX(1, count) hidden labels, worked out
+    (OFFSET until 30 Sep 2026, INDEX:INDEX since, so Excel doesn't work it out again on every change)."""
     import re
     import tabs
     cell = tabs.dropdown(ws.formulas, label)
     dv = next(v for v in ws.formulas.data_validations.dataValidation if cell.coordinate in str(v.sqref))
-    m = re.fullmatch(r"=?OFFSET\(\$([A-Z]+)\$(\d+),0,0,MAX\(1,\$([A-Z]+)\$(\d+)\),1\)", dv.formula1)
+    m = re.fullmatch(r"=?\$([A-Z]+)\$(\d+):INDEX\(\$[A-Z]+\$\d+:\$[A-Z]+\$\d+,MAX\(1,\$([A-Z]+)\$(\d+)\)\)",
+                     dv.formula1)
     assert m, dv.formula1
     c, r, nc_, nr_ = m.groups()
     n = max(1, int(ws[f"{nc_}{nr_}"].value or 0))
@@ -988,7 +991,7 @@ def _coord(ws, title: str, key) -> str:
 def test_grids_grey_a_cell_under_the_fewest_loans_and_leave_it_out_of_the_scale(grids_book, tmp_path):
     b, _ = grids_book
     few = _fewest(b)
-    ws, blocks, _ = _grids(b, tmp_path / "k0.xlsx", measure="Kept after losses")
+    ws, blocks, _ = _grids(b, tmp_path / "k0.xlsx", measure="RANR")
     bk, bd, loans = blocks["vs the book"], blocks["vs rest of band"], blocks["Loans"]
     kiosk = next(k for k, v in loans.items() if k[1] == KIOSK and k[0] != "All" and v)
     assert loans[kiosk] == 3 and bk[kiosk] < -50                     # the photo: 3 loans, the deepest gap
@@ -1008,7 +1011,7 @@ def test_grids_grey_a_cell_under_the_fewest_loans_and_leave_it_out_of_the_scale(
         coloured = [_inner(r.formula[0]) for r, *_ in rules[2:] if r.dxf.fill is not None]
         assert coloured and all(f.startswith(f"AND(NOT({grey})") for f in coloured)
     # what one cell says, and the note
-    _, _, said = _grids(b, tmp_path / "k1.xlsx", measure="Kept after losses", row=kiosk[0], column=KIOSK)
+    _, _, said = _grids(b, tmp_path / "k1.xlsx", measure="RANR", row=kiosk[0], column=KIOSK)
     assert said["The colour"] == f"Grey: only 3 loans, fewer than the {few} set on Control, so not coloured."
     note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 16)}
     assert note["Colour"].endswith(f"Grey: fewer loans than the {few} in Fewest loans in a pocket on Control, so "
@@ -1058,7 +1061,7 @@ def test_grids_the_books_own_figure_heads_vs_the_book(grids_book, tmp_path):
     both = [(_num(r["RANR_AMT"]), _num(r["ORIG_BAL"])) for r in rows]
     kept = sum(a for a, c in both if a is not None and c is not None) / sum(c for a, c in both
                                                                          if a is not None and c is not None)
-    want = {"Bad loans": f"{_bad_rate(rows) * 100:.2f}%", "Kept after losses": f"{kept * 100:.2f}%",
+    want = {"Bad loans": f"{_bad_rate(rows) * 100:.2f}%", "RANR": f"{kept * 100:.2f}%",
             "Loan size": f"${_size(rows)[0]:,.0f}"}
     for k, (measure, fig) in enumerate(want.items()):
         for only in ("All loans", "Y"):
@@ -1109,7 +1112,7 @@ def test_grids_only_loans_where_shows_one_values_grid_against_the_whole_book(gri
     assert v[f"{key}|meta"][1] != v["G|FICO x CHANNEL|ranr_rate|meta"][1]
     # the 3-loan pocket is grey here too, by its count among Y's loans
     kiosk = next(k for k in cells if k[1] == KIOSK and k[0] != "All")
-    _, _, said = _grids(b, tmp_path / "y1.xlsx", measure="Kept after losses", row=kiosk[0], column=KIOSK,
+    _, _, said = _grids(b, tmp_path / "y1.xlsx", measure="RANR", row=kiosk[0], column=KIOSK,
                         **{ONLY: "Y"})
     assert said["The colour"].startswith("Grey: only 3 loans, ")
 
@@ -1375,7 +1378,7 @@ def test_borderline_pockets_worse_says_it_beside_the_word_and_keeps_the_words_co
     assert n >= 6
     # the Pockets tab: charge-offs, a pass and a fail, each flagged; Bad loans at 0.049 by the z test, never
     ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "gco.xlsx", results.POCKETS,
-                                     measure="Charge-offs"), results.POCKETS)
+                                     measure="GCOs ($)"), results.POCKETS)
     said = {x["worse_said"] for x in tabs.pockets(ws)}
     assert "Yes · borderline (p 0.048)" in said and "Not sure · borderline (p 0.052)" in said, said
     ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "bad.xlsx", results.POCKETS,
@@ -1421,7 +1424,7 @@ def test_borderline_paid_cost_kept_together_says_it_and_its_colour_and_chart_sta
     named = [f for f in tog if "Net drain" in f or "Strong" in f]
     assert named and all(results.col(results.C_H_TOG) in f for f in named)
     note = _note(ws)
-    assert note["Together"].endswith(f" {BORDER_SAID} Together gives the p-value of each side that is, charge-offs "
+    assert note["Together"].endswith(f" {BORDER_SAID} Together gives the p-value of each side that is, GCOs "
                                      f"first.")
 
 
@@ -1439,7 +1442,7 @@ def test_borderline_split_says_it_in_place_of_the_p_value_and_keeps_it_bold(bord
     res = border_book["res"]
     ch_, _ = _two(res)
     ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "split.xlsx", results.SPLIT,
-                                     grid="FICO x CHANNEL", measure="Charge-offs"), results.SPLIT)
+                                     grid="FICO x CHANNEL", measure="GCOs ($)"), results.SPLIT)
     ps = tabs.block(ws, "p-value per pocket")
     flagged = 0
     for (bl, dl), c in ch_.inner():
@@ -1450,7 +1453,7 @@ def test_borderline_split_says_it_in_place_of_the_p_value_and_keeps_it_bold(bord
         assert got == (pytest.approx(want) if isinstance(want, float) else want), (bl, dl, got, want)
         flagged += want == "borderline (p 0.048)"
     assert flagged >= 3
-    assert _summary_p(ws, "Charge-offs") == "borderline (p 0.052)"
+    assert _summary_p(ws, "GCOs ($)") == "borderline (p 0.052)"
     assert isinstance(_summary_p(ws, "Bad loans"), float)                    # the z test's: never
     # the bold rule reads the number behind the words, one range per column
     rules = [r.formula[0] for rng in ws.formulas.conditional_formatting for r in rng.rules
@@ -1475,7 +1478,7 @@ def test_borderline_start_here_record_and_the_launcher_count_and_name_them(borde
     # Start here: the tile, and each of the five largest that is borderline says so beside its segment
     ws = calc["Start here"]
     tile = next(ws.cell(row=c.row + 1, column=c.column).value for row in ws.iter_rows() for c in row
-                if c.value == "Pockets worse and material, charge-offs")
+                if c.value == "Pockets worse and material, GCOs")
     assert tile.endswith(f" · {len(border)} borderline"), tile
     head = next(c.row for row in ws.iter_rows() for c in row if c.value == "Largest, worse and material")
     listed = [(ws.cell(row=head + k, column=2).value, ws.cell(row=head + k, column=3).value)
@@ -1489,7 +1492,7 @@ def test_borderline_start_here_record_and_the_launcher_count_and_name_them(borde
     assert "within 2 of its own standard errors of the 5% bar" in rec["Borderline"]
     assert "never borderline" in rec["Borderline"]
     n = len(gco)
-    assert rec["Borderline now: Charge-offs"] == (f"{sum(1 for x in gco if x[3].borderline)} of {n:,} pockets on "
+    assert rec["Borderline now: GCOs ($)"] == (f"{sum(1 for x in gco if x[3].borderline)} of {n:,} pockets on "
                                                   f"the grids have a borderline verdict "
                                                   f"({sum(1 for x in gco if x[3].worse_borderline)} on Worse?).")
     assert not any(k.startswith("Borderline now: Bad loans") for k in rec)          # never shuffled
@@ -1549,7 +1552,7 @@ def test_filter_by_launcher_offers_every_category_and_the_origination_year(tmp_p
     x = _vintage_file(tmp_path, n=1500)
     loans = _loans_file(x)
     f = _flow(x)
-    assert f.heads() == ("Cut into bands", "Segment by", "Split by", "Filter by")
+    assert f.heads() == ("Cut into bands", "Segment by", "Split by", "Filter 1", "Filter 2")
     rows = f.rows()
     by = {r["name"]: r for r in rows}
     for name in ("CHANNEL", "ASSET_CLASS"):                                  # every category can filter
@@ -1916,9 +1919,12 @@ def test_whole_dollars_raising_an_edge_never_leaves_two_the_same_or_an_empty_ban
 
 
 def test_whole_dollars_a_run_whose_edges_meet_says_it_got_fewer_bands(tmp_path):
-    """Three equal-loan points between $100 and $101 are all raised to 101: two edges, and the Run's own warning."""
+    """Three equal-loan points between $100 and $101 are all raised to 101: two edges, and the Run's own warning.
+    The column has five values; few_values is set under that so the cut, not one band per value (few_values), is
+    what is tested here."""
     from pocketbook import engine
-    res, tbl = _dollar_run(tmp_path, {"name": "bal", "field": "ORIG_BAL", "count": 5, "cut": "equal_loans"},
+    res, tbl = _dollar_run(tmp_path, {"name": "bal", "field": "ORIG_BAL", "count": 5, "cut": "equal_loans",
+                                      "few_values": 4},
                            n=500, bal=lambda i, was: (100.1, 100.2, 100.6, 100.7, 900.5)[i % 5])
     vals = sorted(float(r["ORIG_BAL"]) for r in tbl.rows)
     assert len({engine._quantile(vals, k / 5) for k in range(1, 5)}) == 4        # four edges before raising
@@ -1944,7 +1950,7 @@ def test_whole_dollars_scoutings_suggested_bins_on_a_dollar_column_are_whole():
         scout.edge([(0.4555, 1.0)], 0.455, 0.456)] == [0.456]                   # a ratio: as scouting rounds it
 
 
-# ---- Paid, cost, kept: gross booked, GCO and RANR (30 Sep 2026)
+# ---- RANR vs GCOs: gross booked, GCO and RANR (30 Sep 2026)
 # The firm: "On the paid cost kept tab I would like to work on gross GCO gross booked and gross RANR as well so we can
 # also see if pockets are straight negative on returns". Each pocket's own booked dollars, charge-offs and RANR, and
 # RANR per booked dollar, compared with nothing; a pocket whose RANR is below zero in red and counted above the table;
@@ -2021,7 +2027,7 @@ def _pck_labels(rows) -> set:
 
 
 def _pck_totals(ws) -> dict:
-    """The totals under Paid, cost, kept's table, {label: {row, loans, booked, gco, ranr, ranr_rate}}."""
+    """The totals under RANR vs GCOs' table, {label: {row, loans, booked, gco, ranr, ranr_rate}}."""
     from pocketbook import results as rs
     out = {}
     for r in range(1, ws.max_row + 1):
@@ -2040,8 +2046,8 @@ def test_pck_gross_every_pockets_booked_gco_ranr_and_rate_are_the_loan_files_for
     for grid, ws in gross_book["calc"].items():
         rows = tabs.pck(ws)
         head = tabs.header_row(ws, results.C_TOG, "Together")
-        assert tabs.heads(ws, head, results.C_LOANS, results.C_RATE) == ["Loans", "Booked", "GCO", "RANR",
-                                                                         "RANR rate"]
+        assert tabs.heads(ws, head, results.C_LOANS, results.C_RATE) == ["Loans", "Booked", "GCOs", "RANR",
+                                                                         "RANR ÷ Booked"]
         assert ws.cell(row=head - 1, column=results.C_BOOK).value == "Gross · this pocket alone"
         want = _gross_by_pocket(gross_book["x"], grid, _pck_labels(rows))
         assert len(rows) > 10, grid
@@ -2124,7 +2130,7 @@ def test_pck_gross_a_pocket_that_lost_money_outright_is_red_and_counted_above_th
         assert ws.cell(row=s, column=results.C_H_UN).value == n                # the rule's cell: red above 0
     assert kiosks >= 5                          # the planted Kiosk pockets, one in each score band
     note = _note(gross_book["calc"]["FICO x CHANNEL"])
-    assert "Negative RANR: the pocket lost money outright, before comparing it with anyone." in note["Kept"]
+    assert "Negative RANR: the pocket lost money outright, before comparing it with anyone." in note["RANR"]
 
 
 def test_pck_gross_a_pocket_not_listed_gets_its_own_total_and_the_three_still_add_up():
@@ -2181,9 +2187,9 @@ def test_pck_gross_dollars_fit_their_columns_and_turn_to_thousands_past_the_cap(
 # They'd be across the top." The ratio: "Charged off / booked". Bad loans columns: "Yes do this".
 
 SUMMARY_ONLY = f"Only loans where {ch.ORIG_YEAR} is"
-SUMMARY_HEADS = ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "% of booked", "Charged off $",
-                 "Charge-off rate", "× book", "% of charge-offs", "RANR $", "RANR rate", "% of RANR"]
-SHARES = ("% of loans", "% of booked", "% of charge-offs", "% of RANR")
+SUMMARY_HEADS = ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "% of booked", "GCOs ($)",
+                 "GCOs ÷ Booked", "× book", "% of GCOs", "RANR $", "RANR ÷ Booked", "% of RANR"]
+SHARES = ("% of loans", "% of booked", "% of GCOs", "% of RANR")
 SPECIAL = ("(blank)", "(not a number)", "(marked missing)")
 
 
@@ -2209,7 +2215,7 @@ def _summary_tab(b, out, band=None, only=None):
     the order shown, and the label column's heading."""
     from pocketbook import results
     import tabs
-    picks = {k: v for k, v in (("band column", band), (SUMMARY_ONLY, only)) if v}
+    picks = {k: v for k, v in (("band or category column", band), (SUMMARY_ONLY, only)) if v}
     ws = tabs.calculated(tabs.choose(b, out, results.SUMMARY, **picks), results.SUMMARY)
     h = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=3).value == "Loans")
     heads = []
@@ -2242,8 +2248,10 @@ def _summary_label(v, labels) -> str:
     return got[0]
 
 
-def _road2(rows, field, labels, whole_rows) -> dict:
-    """Every Summary figure for `rows`, from the CSV's text alone: the bands, the special rows, then All."""
+def _road2(rows, field, labels, whole_rows, label_of=None) -> dict:
+    """Every Summary figure for `rows`, from the CSV's text alone: the bands, the special rows, then All. `label_of`
+    reads a loan's row from its text when the bands aren't ranges (one band per value)."""
+    label_of = label_of or _summary_label
     def f(v):
         try:
             return float(v)
@@ -2261,23 +2269,23 @@ def _road2(rows, field, labels, whole_rows) -> dict:
         gco, gden = sum(a for a, _ in g), sum(c for _, c in g)
         ranr, rden = sum(a for a, _ in k), sum(c for _, c in k)
         return {"Loans": len(rs), "Bad loans": bad, "Bad loans %": bad / len(read) if read else None,
-                "Booked $": booked, "Charged off $": gco, "Charge-off rate": gco / gden if gden else None,
-                "RANR $": ranr, "RANR rate": ranr / rden if rden else None}
+                "Booked $": booked, "GCOs ($)": gco, "GCOs ÷ Booked": gco / gden if gden else None,
+                "RANR $": ranr, "RANR ÷ Booked": ranr / rden if rden else None}
 
     by: dict = {}
     for r in rows:
-        by.setdefault(_summary_label(r[field], labels), []).append(r)
+        by.setdefault(label_of(r[field], labels), []).append(r)
     order = list(labels) + [s for s in SPECIAL if s in by]
     out = {lab: figures(by.get(lab, [])) for lab in order}
     out["All"] = figures(rows)
-    book_rate = figures(whole_rows)["Charge-off rate"]
+    book_rate = figures(whole_rows)["GCOs ÷ Booked"]
     top = out["All"]
     for x in out.values():
         x["% of loans"] = x["Loans"] / top["Loans"]
         x["% of booked"] = x["Booked $"] / top["Booked $"]
-        x["% of charge-offs"] = x["Charged off $"] / top["Charged off $"]
+        x["% of GCOs"] = x["GCOs ($)"] / top["GCOs ($)"]
         x["% of RANR"] = x["RANR $"] / top["RANR $"]
-        x["× book"] = x["Charge-off rate"] / book_rate if x["Charge-off rate"] is not None else None
+        x["× book"] = x["GCOs ÷ Booked"] / book_rate if x["GCOs ÷ Booked"] is not None else None
     return out
 
 
@@ -2322,7 +2330,7 @@ def test_summary_every_cell_of_fico_and_a_dollar_band_column_is_the_loans_worked
     t = res.total.rates
     top = seen["FICO"]["All"]
     assert top["Bad loans"] == t["outcome_loans"].num and top["Bad loans %"] == pytest.approx(t["outcome_loans"].rate)
-    assert top["Charged off $"] == pytest.approx(t["gco_rate"].num)
+    assert top["GCOs ($)"] == pytest.approx(t["gco_rate"].num)
     assert top["RANR $"] == pytest.approx(t["ranr_rate"].num)
     assert top["Booked $"] == pytest.approx(res.book_size.booked)
     # light neutral shading at most: the All row, CANVAS; nothing red or green
@@ -2369,7 +2377,7 @@ def test_summary_leaves_off_the_columns_a_run_has_no_source_for_and_says_so(tmp_
     bare = dataclasses.replace(c, booked="", measures=tuple(m for m in c.measures
                                                           if m.name not in ("gco_rate", "contribution_rate")))
     for conf, want in ((c, SUMMARY_HEADS), (bare, ["Loans", "% of loans", "Bad loans", "Bad loans %", "RANR $",
-                                                   "RANR rate", "% of RANR"])):
+                                                   "RANR ÷ Booked", "% of RANR"])):
         res = engine.run(conf, table)
         wb = Workbook()
         results.write_summary(wb, res, results.Choices(wb), results.Views(wb))
@@ -2378,10 +2386,272 @@ def test_summary_leaves_off_the_columns_a_run_has_no_source_for_and_says_so(tmp_
         assert [ws.cell(row=h, column=j).value for j in range(3, 3 + len(want) + 1)] == want + [None]
         note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, h)}
         if conf is bare:
-            assert note["Not shown"] == ("This Run has no booked amount and no charge-off dollars, so those columns "
+            assert note["Not shown"] == ("This Run has no booked amount and no GCO dollars, so those columns "
                                          "are left off.")
-            assert "Charged off $" not in note and "Booked $" not in note
+            assert "GCOs ($)" not in note and "Booked $" not in note
         else:
             assert "Not shown" not in note and "Only loans where" not in note     # no Filter by, no second dropdown
             with pytest.raises(KeyError):
                 tabs.dropdown(ws, "Only loans where")
+
+
+# ---- A number column too few-valued to cut: one band per value (30 Sep 2026, at the bank)
+# The firm: "So it refuses to run some stuff because it cannot band. Which makes sense for the examples so far - they
+# are things like major derogs which do not include too many numbers." And to the fix: "Yes that's fine". A column
+# like Major Derogatories (0 to 8, most loans at 0) marked Amount or number, cut into equal-loan bands, had every cut
+# fall on the zeros, and the Run refused it: "the extract has no column ... (a band: no readable numbers to cut)".
+# Now: with Control's few values (12) or fewer, each value is its own band, named by the value; with more, it is cut
+# as far as it can be; one value is refused in words naming the two fixes. Typed Band edges always win.
+
+DEROGS = "Major Derogatories"
+
+
+def _derog(i: int, rng) -> int:
+    return 0 if rng.random() < 0.85 else rng.randint(1, 8)
+
+
+def _with_derogs(src, out, value=_derog, seed=30):
+    """The loan file at `src` with a Major Derogatories column added: by default 85% zeros, the rest 1 to 8."""
+    rows = list(csv.DictReader(open(src, encoding="utf-8")))
+    rng = random.Random(seed)
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(list(rows[0]) + [DEROGS])
+        for i, r in enumerate(rows):
+            w.writerow(list(r.values()) + [value(i, rng)])
+    return out
+
+
+def _derog_run(tmp_path, band: dict, value=_derog, n=3000):
+    """The engine on the synthetic cube cut by one band on Major Derogatories: the result and the loan file's rows."""
+    import copy
+    from pocketbook import config as cfgmod, engine
+    from pocketbook.ingest import read_table
+    cfg, data = synth.write(tmp_path, n=n)
+    x = _with_derogs(data, tmp_path / "derogs.csv", value)
+    raw = copy.deepcopy(cfgmod.load(cfg).raw)
+    raw["bands"] = [{"name": "derogs", "field": DEROGS, **band}]
+    return engine.run(cfgmod.parse(raw), read_table(x)), _loans_file(x)
+
+
+EQUAL = {"count": 5, "cut": "equal_loans"}
+
+
+def _value_of(v, labels) -> str:
+    """A loan's row on a tab cut one band per value, from its text alone: the whole number itself."""
+    if v in ("", None):
+        return "(blank)"
+    return str(int(float(v)))
+
+
+def _derogs_workbook(d, value=_derog, n=3000, filt=ch.ORIG_YEAR, few=12):
+    """Set up on the loan file with Major Derogatories, marked Amount or number on Columns, and answered. `few`: the
+    launcher's "Number columns: this many values or fewer is a category"."""
+    from test_book import at
+    x = _with_derogs(synth.write_extract(d / "src", n=n), d / "derogs.csv", value)
+    out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=(DEROGS,), segments=("CHANNEL",), filter=filt,
+                                            outcome="BAD_FLAG", few_values=few))
+    wb = load_workbook(out.book)
+    wb["Columns"][at(wb, DEROGS, book.C_MEANS)] = "Amount or number"
+    wb.save(out.book)
+    _answer(out.book)
+    return out.book, x
+
+
+@pytest.fixture(scope="module")
+def derogs_book(tmp_path_factory):
+    """The bank's shape: Major Derogatories marked Amount or number and cut into bands, by CHANNEL, filtered by
+    ORIG_YEAR. The book, its loan file, and the Run."""
+    from pocketbook import perm
+    d = tmp_path_factory.mktemp("derogs")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 100)
+        b, x = _derogs_workbook(d)
+        ran = book.run(b)
+    return b, x, ran
+
+
+def test_few_values_the_bank_column_was_refused_before_and_runs_now_one_band_per_value(tmp_path):
+    from pocketbook import engine
+    res, rows = _derog_run(tmp_path, EQUAL)
+    vals = sorted(float(r[DEROGS]) for r in rows)
+    # the reproduction: every equal-loan cut falls on the zeros, which is what the Run refused
+    assert {engine._quantile(vals, k / 5) for k in range(1, 5)} == {0.0}
+    assert engine.cut_edges(vals, 5, "equal_loans") == ()
+    assert res.band_edges["derogs"] == (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)
+    assert res.value_bands["derogs"] == tuple(float(v) for v in range(9))
+    g = res.grids[0]
+    assert g.band_labels == [str(v) for v in range(9)]                     # "0", "1", ... never "0.0" or "0 - 0"
+    held = {lab: g.cell(lab, engine.ALL).rows for lab in g.band_labels}
+    assert held == {str(v): sum(1 for r in rows if int(r[DEROGS]) == v) for v in range(9)}
+    assert f"{DEROGS}: too few values to cut into equal bands, so each value is its own band" in res.warnings
+    assert not [w for w in res.warnings if "asked for" in w]
+
+
+def test_few_values_the_run_says_so_and_columns_suggests_category_while_the_answer_stays(derogs_book):
+    import tabs
+    from test_book import at
+    b, x, ran = derogs_book
+    said = f"{DEROGS}: too few values to cut into equal bands, so each value is its own band."
+    assert ran.ok, ran.lines
+    assert said in ran.lines                                              # the Run's own lines
+    rec = tabs.record(b)
+    warn = rec["Warning"] if isinstance(rec["Warning"], list) else [rec["Warning"]]
+    assert said[:-1] in warn                                              # and Record
+    wb = load_workbook(b)
+    why = wb["Columns"][at(wb, DEROGS, book.C_WHY)].value
+    assert why.endswith(" Few values (0 to 8): Category may read better.") and why.count("Few values") == 1
+    assert wb["Columns"][at(wb, DEROGS, book.C_MEANS)].value == "Amount or number"   # a suggestion, never a change
+    assert "Few values" not in str(wb["Columns"][at(wb, "FICO", book.C_WHY)].value)
+    # the setting the launcher chose rides with the band: Control's 12
+    raw = book.read_book(b)[0]
+    assert [x.get("few_values") for x in raw["bands"]] == [12]
+
+
+def test_few_values_grids_every_value_band_is_the_loan_files(derogs_book, tmp_path):
+    from pocketbook import results
+    import tabs
+    b, x, _ = derogs_book
+    rows = _loans_file(x)
+    grid = next(g for g in tabs.options(load_workbook(b), results.GRIDS, "Grid") if DEROGS in g)
+    for only in (None, "2023"):
+        picks = {"grid": grid, **({ONLY_YEAR: only} if only else {})}
+        ws, blocks, _ = _grids(b, tmp_path / f"g{only}.xlsx", **picks)
+        loans, rate = blocks["Loans"], blocks["Rate"]
+        mine = [r for r in rows if only is None or _year(r) == only]
+        assert 0 < len(mine) < len(rows) or only is None
+        want: dict = {}
+        for r in mine:
+            v = str(int(r[DEROGS]))
+            for k in {(v, r["CHANNEL"]), (v, "All"), ("All", r["CHANNEL"]), ("All", "All")}:
+                want.setdefault(k, []).append(r)
+        assert [k[0] for k in loans if k[1] == "All"] == [str(v) for v in range(9)] + ["All"]
+        assert {k: n for k, n in loans.items() if n} == {k: len(v) for k, v in want.items()}, only
+        for k, got in want.items():
+            assert rate[k] == pytest.approx(_bad_rate(got)), (only, k)
+
+
+def test_few_values_summary_every_value_band_is_the_loan_files(derogs_book, tmp_path):
+    b, x, _ = derogs_book
+    rows = _loans_file(x)
+    for only in (None, "2023"):
+        ws, heads, shown, head = _summary_tab(b, tmp_path / f"s{only}.xlsx", band=DEROGS, only=only)
+        assert head == DEROGS and heads == SUMMARY_HEADS
+        labels = [lab for lab in shown if lab != "All"]
+        assert labels == [str(v) for v in range(9)]
+        mine = [r for r in rows if only is None or _year(r) == only]
+        _check_summary(shown, _road2(mine, DEROGS, labels, rows, label_of=_value_of))
+
+
+def test_few_values_typed_edges_always_win(tmp_path):
+    res, rows = _derog_run(tmp_path, {"edges": [1, 2, 5]})
+    assert res.band_edges["derogs"] == (1.0, 2.0, 5.0) and not res.value_bands
+    assert res.grids[0].band_labels == ["0 - 0", "1 - 1", "2 - 4", "5 - 8"]
+    assert not [w for w in res.warnings if "its own band" in w]
+
+
+def test_few_values_typed_edges_on_columns_win_and_take_the_suggestion_off(derogs_book, tmp_path, monkeypatch):
+    import shutil
+    from pocketbook import perm
+    from test_book import at
+    b, x, _ = derogs_book
+    monkeypatch.setattr(perm, "SHUFFLES", 100)
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    mine = tmp_path / b.name
+    shutil.copy(b, mine)
+    wb = load_workbook(mine)
+    wb["Columns"][at(wb, DEROGS, book.C_EDGES)] = "1; 2; 5"
+    wb.save(mine)
+    ran = book.run(mine)
+    assert ran.ok, ran.lines
+    assert not [ln for ln in ran.lines if "its own band" in ln]
+    wb = load_workbook(mine)
+    assert "Few values" not in str(wb["Columns"][at(wb, DEROGS, book.C_WHY)].value)
+
+
+def test_few_values_a_single_value_is_refused_in_words_that_name_both_fixes(tmp_path):
+    from pocketbook import engine
+    with pytest.raises(engine.DataRefused) as got:
+        _derog_run(tmp_path, EQUAL, value=lambda i, rng: 0)
+    assert str(got.value) == (f"`{DEROGS}` reads 0 on every loan, so there is nothing to cut into bands. On Columns, "
+                              f"set What it is to Category, or type Band edges like 1; 2; 5")
+
+
+def test_few_values_a_single_value_column_in_the_workbook_says_the_two_fixes(tmp_path, monkeypatch):
+    from pocketbook import perm
+    monkeypatch.setattr(perm, "SHUFFLES", 100)
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    b, _ = _derogs_workbook(tmp_path, value=lambda i, rng: 3, n=1500, filt=None)
+    ran = book.run(b)
+    assert not ran.ok
+    assert ran.lines == [f'Couldn\'t run: "{DEROGS}" reads 3 on every loan, so there is nothing to cut into bands. '
+                         f'On Columns, set What it is to Category, or type Band edges like 1; 2; 5']
+
+
+def test_few_values_more_values_than_the_setting_cut_what_they_can(tmp_path):
+    """Twenty values, heavy at zero: more than 12, so no value bands. The equal-loan cuts that survive are kept and
+    the Run says it got fewer bands; when none survive, the zeros against the rest."""
+    from pocketbook import engine
+    res, rows = _derog_run(tmp_path, EQUAL, value=lambda i, rng: 0 if rng.random() < 0.7 else rng.randint(1, 20))
+    vals = sorted(float(r[DEROGS]) for r in rows)
+    assert len(set(vals)) > engine.FEW_VALUES and not res.value_bands
+    edges = res.band_edges["derogs"]
+    assert edges == engine.cut_edges(vals, 5, "equal_loans") and 1 <= len(edges) < 4
+    assert (f"band derogs: asked for 5 bands, got {len(edges) + 1} (`{DEROGS}` has too many repeated values to cut "
+            f"finer)") in res.warnings
+    res, rows = _derog_run(tmp_path / "b", EQUAL, value=lambda i, rng: 0 if rng.random() < 0.9 else rng.randint(1, 20))
+    assert engine.cut_edges([float(r[DEROGS]) for r in rows], 5, "equal_loans") == ()
+    assert res.band_edges["derogs"] == (1.0,) and not res.value_bands
+    assert res.grids[0].band_labels == ["0 - 0", "1 - 20"]
+    assert "band derogs: asked for 5 bands, got 2 (`Major Derogatories` has too many repeated values to cut finer)" \
+        in res.warnings
+
+
+def test_few_values_the_setting_is_the_threshold(tmp_path):
+    """Nine values: one band each at 9 or more; at 6 (the setting, not 12) cut as far as they go."""
+    res, _ = _derog_run(tmp_path, {**EQUAL, "few_values": 9})
+    assert len(res.value_bands["derogs"]) == 9
+    res, _ = _derog_run(tmp_path / "six", {**EQUAL, "few_values": 6})
+    assert not res.value_bands and res.band_edges["derogs"] == (1.0,)
+
+
+def test_few_values_the_launchers_setting_is_the_one_the_run_uses(tmp_path, monkeypatch):
+    """The launcher's 6: nine values are more than that, so the Run cuts what it can and says it got fewer bands."""
+    from pocketbook import perm
+    monkeypatch.setattr(perm, "SHUFFLES", 100)
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    b, _ = _derogs_workbook(tmp_path, n=1500, filt=None, few=6)
+    assert [x.get("few_values") for x in book.read_book(b)[0]["bands"]] == [6]
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    assert not [ln for ln in ran.lines if "its own band" in ln]
+    import tabs
+    rec = tabs.record(b)
+    warn = rec["Warning"] if isinstance(rec["Warning"], list) else [rec["Warning"]]
+    assert any("asked for 5 bands, got 2" in w for w in warn), warn
+
+
+def test_few_values_labels_are_the_values_themselves():
+    from pocketbook import engine
+    assert engine.labels_for((1.0, 2.0), [0.0, 1.0, 2.0], (0.0, 1.0, 2.0)) == ["0", "1", "2"]
+    assert engine.labels_for((1.5,), [0.5, 1.5], (0.5, 1.5)) == ["0.5", "1.5"]
+    assert engine.labels_for((2000.0,), [1000.0, 2000.0], (1000.0, 2000.0)) == ["1,000", "2,000"]
+    # a column cut into ranges reads as before, whole-number and whole-dollar rules included
+    assert engine.labels_for((620.0, 680.0), [500.0, 850.0]) == ["500 - 619", "620 - 679", "680 - 850"]
+    assert engine.labels_for((654.2,), [496.0, 850.0]) == ["496 - 654", "655 - 850"]
+
+
+def test_few_values_prevalence_counts_value_bands_as_the_grids_cut_them(tmp_path):
+    from pocketbook import prevalence
+    res, rows = _derog_run(tmp_path, EQUAL)
+    assert prevalence._labels_by_band(res, res.table.rows)["derogs"] == [str(int(r[DEROGS])) for r in rows]
+    # a subset keeps the same names whatever values it happens to hold (its smallest isn't 0)
+    some = [r for r in res.table.rows if int(r[DEROGS]) >= 3]
+    assert prevalence._labels_by_band(res, some)["derogs"] == [str(int(r[DEROGS])) for r in some]
+    got = prevalence.count(res, res.grids[0], prevalence.Grouping("ASSET_CLASS", "values", "t"))
+    assert got is not None                                                 # tied out to the grid's own pockets
+    order, out, shown = got
+    assert {k[0] for k in out} == set(res.grids[0].band_labels)
+    assert prevalence._bands_of([(float(r[DEROGS]), None) for r in rows], res.band_edges["derogs"],
+                                res.value_bands["derogs"])[1] == [str(v) for v in range(9)]

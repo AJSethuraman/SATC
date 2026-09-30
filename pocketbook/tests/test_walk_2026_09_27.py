@@ -112,7 +112,7 @@ def test_the_line_under_the_extract_counts_the_add_ons_missing():
 def test_record_names_each_measure_as_the_result_tabs_do(tmp_path, monkeypatch):
     """Defect 6: Record's "Does it add up" said "Outcome, share of loans", "GCO per booked dollar" and "Profit after
     losses: RANR per booked dollar" for what Pockets, Grids and Split call Bad loans, Charge-offs and Kept after
-    losses."""
+    losses (GCOs ($) and RANR since 30 Sep 2026)."""
     monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
     x = synth.write_extract(tmp_path, n=3000)
     b = book.set_up(x).book

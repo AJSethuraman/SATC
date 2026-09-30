@@ -82,7 +82,8 @@ def test_an_unexpected_failure_is_a_sentence_not_a_traceback(tmp_path, monkeypat
     monkeypatch.setattr(book, "set_up", boom)
     x = synth.write_extract(tmp_path, n=100)
     lines = launcher.do_set_up(str(x))
-    assert len(lines) == 1 and "send that file over" in lines[0] and "Traceback" not in lines[0]
+    # on the window since the bank, 30 Sep 2026: the type and message, never a file to open in Notepad
+    assert lines[:2] == [launcher.UNEXPECTED, "ZeroDivisionError: inside"] and "Traceback" not in "".join(lines)
     assert "ZeroDivisionError" in (tmp_path / ".pocketbook" / "last-error.txt").read_text()
 
 
@@ -178,7 +179,7 @@ def test_l2_key_and_date_columns_are_greyed_with_nothing_to_tick(tmp_path):
 
 def test_l2_bleed_starts_with_every_number_and_category_column_and_no_split(tmp_path):
     f = _read(tmp_path)
-    assert f.heads() == ("Cut into bands", "Segment by", "Split by", "Filter by")
+    assert f.heads() == ("Cut into bands", "Segment by", "Split by", "Filter 1", "Filter 2")
     rows = {r["name"]: r for r in f.rows()}
     assert rows["FICO"]["a"]["on"] and rows["ORIG_BAL"]["a"]["on"] and rows["REV_DEBT"]["a"]["on"]
     assert rows["CHANNEL"]["b"]["on"] and rows["ASSET_CLASS"]["b"]["on"]
@@ -209,7 +210,7 @@ def _outcome(f, name):
 def test_l2_test_it_and_hold_fixed_exclude_each_other_on_a_row(tmp_path):
     f = _read(tmp_path)
     f.set_mode("new")
-    assert f.heads() == ("Outcome", "Test it", "Hold fixed", "")
+    assert f.heads() == ("Outcome", "Test it", "Hold fixed", "", "")
     rows = {r["name"]: r for r in f.rows()}
     assert rows["BAD_FLAG"]["a"] == {"on": False, "radio": True}  # offered, never picked for you (29 Sep 2026)
     _outcome(f, "BAD_FLAG")

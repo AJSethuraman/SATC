@@ -23,7 +23,7 @@ from test_confirmatory import _held, _log, _ready, _spec, needs_git
 
 BLEED, NEW = "Where the book bleeds", "Finding and testing a new variable"
 FROM_SPEC = "Test from a pre-spec"
-BLEED_TABS = set(results.TABS)          # Pockets, Paid cost kept, Grids, Split (the redesign, phase 3)
+BLEED_TABS = set(results.TABS)          # Pockets, RANR vs GCOs, Grids, Split (the redesign, phase 3)
 
 
 def _counting(mp):
@@ -206,7 +206,7 @@ def test_the_engine_builds_no_grid_for_a_new_variable_and_the_same_grids_as_befo
 #: what a test of a new variable reads on Control: the worse line (the New variables chart), materiality,
 #: confidence, and how the held-fixed columns are banded
 #: and, since the shortlist (OC-49), the allowance for many tests: its groups are many tests at once
-USED = ("worse_at", "materiality", "confidence", "band_count", "band_cut", "many_tests")
+USED = ("worse_at", "materiality", "confidence", "band_count", "band_cut", "many_tests", "bureau_codes")
 UNUSED = ("min_loans", "min_events", "better_at", "compare_to", "power", "revenue_line")
 
 

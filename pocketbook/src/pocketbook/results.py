@@ -2,8 +2,8 @@
 
     Pockets           every pocket losing more than its share, for every measure, two-way or split (it merges
                       Where it bleeds and Three-way)
-    Paid, cost, kept  what each pocket paid us, cost us and what we kept, one grid at a time, and the two read
-                      together (it replaces Losses vs revenue)
+    RANR vs GCOs      each pocket's RANR + GCOs, GCOs and RANR, one grid at a time, and GCOs and RANR read
+                      together (it replaces Losses vs revenue; "Paid, cost, kept" until 30 Sep 2026)
     Grids             one grid and one measure at a time, in four blocks: the rate, against the book, against
                       the rest of its band, and the loans; then how common each group is (it absorbs Prevalence)
     Split             each pocket halved at its own median: the summary, and the two grids side by side
@@ -50,24 +50,39 @@ from . import engine, house, live, prevalence, stats
 from .choices import NO_DATE, ORIG_YEAR
 from .config import PROFIT
 
-POCKETS, PCK, GRIDS, SUMMARY, SPLIT = "Pockets", "Paid, cost, kept", "Grids", "Summary", "Split"
+POCKETS, PCK, GRIDS, SUMMARY, SPLIT = "Pockets", "RANR vs GCOs", "Grids", "Summary", "Split"
+#: the tab RANR vs GCOs was called until 30 Sep 2026 (the firm: "I want to use the terms I gave you out of the box
+#: so it can be understood by insiders"); a Run takes it off a workbook written before
+OLD_PCK = "Paid, cost, kept"
 #: Summary sits after Grids: both show one table at a time, picked by dropdown, as of the last Run, and Summary is the
 #: same band column's figures without the segments across
 TABS = (POCKETS, PCK, GRIDS, SUMMARY, SPLIT)
+#: Compare (the firm, 30 Sep 2026: "can we make it so they can be visually compared in a graph?"): the filters'
+#: values as lines, after Summary. Written only when the launcher picked a Filter by, so it isn't in TABS, which
+#: every bleed Run writes; SHOWN_TABS is every result tab in the order they sit
+COMPARE = "Compare"
+SHOWN_TABS = (POCKETS, PCK, GRIDS, SUMMARY, COMPARE, SPLIT)
 #: the tabs these replace; a workbook written before phase 3 has them, and a Run takes them off
-OLD_TABS = ("Where it bleeds", "Three-way", "Losses vs revenue", "Prevalence")
+OLD_TABS = ("Where it bleeds", "Three-way", "Losses vs revenue", "Prevalence", OLD_PCK)
 CHOICES, LIST, VIEWS = "_choices", "_list", "_views"
 HIDDEN = (CHOICES, LIST, VIEWS)
 
-#: the measures in the analyst's words (the redesign's plain-words table), in the Measure dropdown's order
-PLAIN = {"outcome_loans": "Bad loans", "outcome_booked": "Bad dollars", "gco_rate": "Charge-offs",
-         "ranr_rate": "Kept after losses", "contribution_rate": "Earned before losses"}
+#: the measures in the analyst's words, in the Measure dropdown's order. The dollar three are the firm's own terms
+#: since 30 Sep 2026 ("let's rename this list of stuff for a couple things and be more literal - Charge-offs = GCOs
+#: ($), kept after losses = RANR, earned before losses = RANR + GCOs"); they were Charge-offs, Kept after losses and
+#: Earned before losses. Only the words changed: the keys (m.name) are what a workbook, a pre-spec and memory hold
+PLAIN = {"outcome_loans": "Bad loans", "outcome_booked": "Bad dollars", "gco_rate": "GCOs ($)",
+         "ranr_rate": "RANR", "contribution_rate": "RANR + GCOs"}
+#: the Rate block's heading on Grids, literal (the firm, 30 Sep 2026: the Rate block already IS GCOs over booked):
+#: what is divided by what, by the measure's key
+RATE_HEAD = {"outcome_loans": "Bad loans ÷ Loans", "outcome_booked": "Bad dollars ÷ Booked",
+             "gco_rate": "GCOs ÷ Booked", "ranr_rate": "RANR ÷ Booked", "contribution_rate": "(RANR + GCOs) ÷ Booked"}
 SHOW = ("All", "Worse and material", "Worse or not sure")
 TWO_WAY = "Two-way"
-#: Together, the two sides read at once (Paid, cost, kept): charge-offs, then what we kept
+#: Together, the two sides read at once (RANR vs GCOs): GCOs, then RANR
 TOGETHER = {("more", "more"): "Priced for it", ("more", "less"): "Net drain", ("less", "more"): "Strong",
             ("less", "less"): "Safe but idle", ("same", "less"): "Earns less, not from losses",
-            # the mirror of the one before: charge-offs worse and real, what we kept no different (the firm, 27 Sep)
+            # the mirror of the one before: GCOs worse and real, RANR no different (the firm, 27 Sep)
             ("more", "same"): "Losing more, profit holding"}
 GOOD_TOGETHER, BAD_TOGETHER = ("Priced for it", "Strong"), ("Net drain",)
 
@@ -322,7 +337,7 @@ def _fit(ws) -> None:
 
 
 #: Each tab's method-note line on Borderline (the firm, 29 Sep 2026, by pop-up, choosing the word), as live.text
-#: parts: said at the end of the note's p-value item (Together's, on Paid, cost, kept), so no row of the tab moves.
+#: parts: said at the end of the note's p-value item (Together's, on RANR vs GCOs), so no row of the tab moves.
 #: Only a run with a dollar rate says it: nothing else is shuffled, so nothing else can be borderline
 BORDER_WORDS = (" Borderline: the test's p-value is within the shuffle's own margin of the ",
                 ('TEXT(significance_bar,"0%")',), " bar, so another run could read it the other way.")
@@ -470,11 +485,11 @@ def _pockets_note(res) -> list[tuple[str, str]]:
             "to compare with, so it is judged against the rest of the book, whatever Control says.")),
         ("Excess", "What the pocket lost above what it would have lost at the rest's rate: bad loans for Bad loans, "
                    "dollars for the dollar measures."
-                   + (" For Kept after losses and Earned before losses, the dollars it fell short of the rest, and "
-                      "the gap is in points of booked dollars." if profit else "")),
+                   + (" For RANR and RANR + GCOs, the dollars it fell short of the rest, and the gap is in points "
+                      "of booked dollars." if profit else "")),
         ("Worse?", live.text(
             "Yes: at least ", ('TEXT(worse_at,"0.00")',), "x the rest",
-            " (for profit, short of it" + (" by the profit line on Control)" if profit else ")")
+            " (for RANR and RANR + GCOs, short of it" + (" by the profit line on Control)" if profit else ")")
             if profit else "", ", with a p-value under ", ('TEXT(significance_bar,"0%")',),
             ". Not sure: the gap is there, but the p-value isn't under it. Too few losses: fewer than ",
             f"{b.min_events:,} (a setting for the next Run), so not tested. No: anything else.")),
@@ -502,15 +517,15 @@ def _pockets_note(res) -> list[tuple[str, str]]:
     return items
 
 
-#: the label columns on Pockets, Paid cost kept and Start here (P1): fitted to the Run's labels, between these
+#: the label columns on Pockets, RANR vs GCOs and Start here (P1): fitted to the Run's labels, between these
 LABELS_FLOOR, LABELS_CAP, HALF_FLOOR = 12, 32, 10
 
 
 def label_widths(res) -> dict[str, float]:
-    """The widths of the label columns Pockets, Paid cost kept and Start here show (P1), each the longest label the
+    """The widths of the label columns Pockets, RANR vs GCOs and Start here show (P1), each the longest label the
     Run can put in it + 3 (left, indent 1), between LABELS_FLOOR and LABELS_CAP: `band`, a band with its column's
-    name ("FICO 496 - 653", Pockets and Start here); `band_only`, without it (Paid cost kept); `seg`, a segment as
-    Pockets and Start here show it ("ASSET_CLASS 4"); `seg_raw`, as Paid cost kept does; `half`, the split's part
+    name ("FICO 496 - 653", Pockets and Start here); `band_only`, without it (RANR vs GCOs); `seg`, a segment as
+    Pockets and Start here show it ("ASSET_CLASS 4"); `seg_raw`, as RANR vs GCOs does; `half`, the split's part
     and its heading."""
     from . import book as bk
     names = bk._names(res)
@@ -665,36 +680,51 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
 
 
 # --------------------------------------------------------------------------
-# Paid, cost, kept
+# RANR vs GCOs ("Paid, cost, kept" until 30 Sep 2026)
 
 
-SIDES = (("contribution_rate", "Paid us", "gap vs"), ("gco_rate", "Cost us", "charge-offs"),
-         ("ranr_rate", "Kept", "gap vs"))
+#: the three sides, each headed by the measure's own name (the firm, 30 Sep 2026: "Paid us", "Cost us" and "Kept"
+#: were RANR + GCOs, GCOs and RANR under other words)
+SIDES = (("contribution_rate", PLAIN["contribution_rate"]), ("gco_rate", "GCOs"), ("ranr_rate", PLAIN["ranr_rate"]))
 # the gross block (the firm, 30 Sep 2026): the pocket's own booked, GCO and RANR dollars and RANR per booked dollar,
 # right after Loans, so what the pocket did on its own reads before how it compares with the rest
-(C_BAND, C_SEG, C_LOANS, C_BOOK, C_GCO, C_RANR, C_RATE, C_PAID, C_PAID_D, C_COST, C_COST_D, C_KEPT, C_KEPT_D,
- C_TOG) = range(2, 16)
+# each side's Rest (the firm, 30 Sep 2026): the rest's own rate, the rate its gap is measured against
+(C_BAND, C_SEG, C_LOANS, C_BOOK, C_GCO, C_RANR, C_RATE, C_PAID, C_PAID_D, C_PAID_R, C_COST, C_COST_D, C_COST_R,
+ C_KEPT, C_KEPT_D, C_KEPT_R, C_TOG) = range(2, 19)
+#: each side's columns, first to last: its gap, its dollars, the rest's rate
+BLOCKS = ((C_PAID, C_PAID_D, C_PAID_R), (C_COST, C_COST_D, C_COST_R), (C_KEPT, C_KEPT_D, C_KEPT_R))
 GROSS = (C_BOOK, C_GCO, C_RANR, C_RATE)
-GROSS_HEADS = ("Booked", "GCO", "RANR", "RANR rate")
+GROSS_HEADS = ("Booked", "GCOs", "RANR", "RANR ÷ Booked")
 #: where the lines in use sit: the same cells as before the gross block (M13 is the bank checklist's), so the tiles
 #: stay over C:K and the waiting note in M, above the table
 PCK_TILES = ((3, 3), (4, 5), (6, 7), (8, 9), (10, 11))
 PCK_NOTE = 13
-C_H = 40                  # hidden: the _views row, untested, each side's _pockets row and flag
+#: hidden: the _views row, untested, each side's _pockets row and flag. Right of Together and inside the sort and
+#: filter arrows' range (the firm, 30 Sep 2026), so a sort in Excel moves each row's workings with it
+C_H = C_TOG + 2
 (C_H_ROW, C_H_UN, C_H_RC, C_H_RG, C_H_RR, C_H_FC, C_H_FG, C_H_FR) = range(C_H, C_H + 8)
 # Together's word alone (the chart and the colours read it), and each side's borderline p-value (live.P_BTXT)
 C_H_TOG, C_H_BG, C_H_BR = C_H + 8, C_H + 9, C_H + 10
-LABELLED = 8              # pockets numbered on the chart and named under it: the first rows, with a Together verdict
+#: the Rest columns' heading, and the multiple's against the rest of the book and of the band (the firm, 30 Sep
+#: 2026: "× book" read as the whole book, and the gap is against the rest, the pocket left out)
+REST_HEAD = "Rest"
+REST_TIMES = ("× rest of book", "× rest of band")
+C_CH = C_H_BR + 1         # the chart, its line above and the names under it: right of the hidden columns
+LABELLED = 8              # pockets numbered on the chart and named under it: the first down the table read together
 CHART_ROWS = 23           # rows the chart covers (11 cm at the tab's row height), so the names list starts under it
 #: the chart's own cells, on a hidden sheet (Excel leaves out a chart's points in hidden columns): each row's point,
 #: x then y, its name when it is read together and that point again, then the dashed lines and the corners
 CHART = "_chart"
 (H_X, H_Y, H_NAME, H_NX, H_NY, H_RX, H_RY, H_GX, H_GY, H_NUM) = range(1, 11)
+#: which named pocket each row is, counted down the table (H_SEQ), and the j-th named pocket's name (H_LNAME): the
+#: chart numbers the first LABELLED pockets read together whatever order the rows are in. H_NX, H_NY and H_NUM
+#: hold the j-th named pocket on rows 1 to LABELLED
+H_SEQ, H_LNAME = 11, 12
 
 
 def side_of(flag: str | None, higher: str) -> str | None:
     """A side's word for Together: "more" or "less" when its flag is worse or better and significant, "same"
-    when it is tested and neither, None when untested. Charge-offs: worse is more; kept: worse is less."""
+    when it is tested and neither, None when untested. GCOs: worse is more; RANR: worse is less."""
     if flag in (engine.WORSE, engine.BETTER):
         worse_is = "more" if higher == "worse" else "less"
         return worse_is if flag == engine.WORSE else ("less" if worse_is == "more" else "more")
@@ -704,13 +734,13 @@ def side_of(flag: str | None, higher: str) -> str | None:
 
 
 def together_of(gco_flag: str | None, ranr_flag: str | None) -> str:
-    """Together, in Python: the engine's side of the formula on Paid, cost, kept."""
+    """Together, in Python: the engine's side of the formula on RANR vs GCOs."""
     return TOGETHER.get((side_of(gco_flag, "worse"), side_of(ranr_flag, "better")), "")
 
 
 def together_said(tog: str | None, gco_border: str | None, ranr_border: str | None) -> str | None:
     """Together as the tab prints it, in Python: the word, and " · borderline (p 0.048)" when a side it turns on is
-    borderline; with both, the two p-values, charge-offs first ("p 0.048 and 0.052"). The borderline words are
+    borderline; with both, the two p-values, GCOs first ("p 0.048 and 0.052"). The borderline words are
     each side's RateStat.borderline."""
     if not tog:
         return tog
@@ -738,9 +768,10 @@ def together_formula(g: str, k: str, untested: str) -> str:
 
 
 def pck_rows(res, g) -> list[dict]:
-    """One grid's pockets for Paid, cost, kept, in the last Run's order: every pocket with all three comparisons
-    against either comparison (below fewest loans a dollar rate is still shuffled, docs/statistics.md B2), those
-    read together first, then by charge-off dollars; a row with a side untested last."""
+    """One grid's pockets for RANR vs GCOs: every pocket with all three comparisons against either comparison
+    (below fewest loans a dollar rate is still shuffled, docs/statistics.md B2), by band, lowest first, then by
+    segment, each in the grid's own order, so (blank) and (marked missing) come last as everywhere else (the firm,
+    30 Sep 2026: "Hard to see these in a sensical order"; they were by GCO dollars)."""
     mates: dict = {}
     for (bl, _), _c in g.inner():
         mates[bl] = mates.get(bl, 0) + 1
@@ -754,28 +785,28 @@ def pck_rows(res, g) -> list[dict]:
         untested = any(s.flag in (engine.THIN, engine.FEW) for s in ss.values())
         tog = "" if untested else together_of(ss["gco_rate"].flag, ss["ranr_rate"].flag)
         rows.append({"band": bl, "seg": dl, "units": c.rows, "untested": untested, "together": tog, **gross_of(c),
-                     "g_over": ss["gco_rate"].dollars or 0.0, "gaps": [(v, x) for v, x in
-                                                                     ((band["gco_rate"], band["ranr_rate"]),
-                                                                      (book["gco_rate"], book["ranr_rate"]))]})
-    rows.sort(key=lambda x: (x["untested"], x["together"] == "", -x["g_over"]))
+                     "gaps": [(v, x) for v, x in ((band["gco_rate"], band["ranr_rate"]),
+                                                  (book["gco_rate"], book["ranr_rate"]))]})
+    bands, segs = {b: i for i, b in enumerate(g.band_labels)}, {d: i for i, d in enumerate(g.dim_labels)}
+    rows.sort(key=lambda x: (bands.get(x["band"], len(bands)), segs.get(x["seg"], len(segs))))
     return rows
 
 
 def gross_of(c) -> dict:
     """One cell's gross figures (the firm, 30 Sep 2026: "gross GCO gross booked and gross RANR ... so we can also see
     if pockets are straight negative on returns"): its own dollars added up, compared with nothing. Booked is the
-    booked dollars under its RANR (Kept's bottom), so RANR rate is Kept's own rate; GCO is what its charge-off rate
+    booked dollars under its RANR (RANR's bottom), so RANR ÷ Booked is RANR's own rate; GCO is what its GCO rate
     adds up."""
     k, g = c.rates["ranr_rate"], c.rates["gco_rate"]
     return {"booked": k.den, "gco": g.num, "ranr": k.num, "ranr_rate": k.num / k.den if k.den else None}
 
 
-#: the rows under Paid, cost, kept's table, which add up: the pockets listed, those not listed (nothing to compare
+#: the rows under RANR vs GCOs' table, which add up: the pockets listed, those not listed (nothing to compare
 #: them with), and the whole book
 PCK_LISTED, PCK_UNLISTED, PCK_BOOK = "Pockets listed", "Not listed", "Whole book"
 #: what a negative RANR means, on the method note (the firm's ask, 30 Sep 2026)
 NEGATIVE_SAID = ("Negative RANR: the pocket lost money outright, before comparing it with anyone. Its RANR and "
-                 "RANR rate are red.")
+                 "RANR ÷ Booked are red.")
 
 
 def pck_totals(g, rows: list[dict]) -> list[tuple]:
@@ -835,7 +866,7 @@ def gross_widths(values: list[tuple]) -> tuple[bool, dict[int, float]]:
 
 
 def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
-    """Paid, cost, kept (section 6): one grid at a time, three sides in column groups, Together, and the scatter."""
+    """RANR vs GCOs (section 6): one grid at a time, three sides in column groups, Together, and the scatter."""
     from . import book as bk
     ws = wb.create_sheet(PCK)
     lv = live.ensure(wb, res)
@@ -852,47 +883,48 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     # totals' labels
     _widths(ws, {1: 2, C_BAND: max(lw["band_only"], house.fit(["live from Control", PCK_LISTED, PCK_UNLISTED,
                                                                 PCK_BOOK], floor=0, cap=32, pad=3)),
-                 C_SEG: lw["seg_raw"], C_LOANS: 9, **gross_w, C_PAID: 11, C_PAID_D: 13, C_COST: 11, C_COST_D: 13,
+                 C_SEG: lw["seg_raw"], C_LOANS: 9, **gross_w, C_PAID: 11, C_PAID_D: 13,
+                 C_COST: house.fit([REST_TIMES[0], REST_TIMES[1]], floor=11, cap=DATA_CAP), C_COST_D: 13,
                  C_KEPT: 11, C_KEPT_D: 13,
+                 **{r_: house.fit([REST_HEAD, f"{-1:.2%}"], floor=DATA_FLOOR, cap=DATA_CAP) for *_, r_ in BLOCKS},
                  # the longest verdict with the borderline flag on one side; on both it runs on over the gap beside it
                  C_TOG: house.fit([f"{t} · {stats.borderline_words(0.048, 0.95)}" for t in TOGETHER.values()],
                                   floor=28, cap=56), C_TOG + 1: 3})
-    house.title_band(ws, PCK, "What each pocket paid us, what it cost us, and what we kept.", C_BAND, C_TOG + 8,
+    house.title_band(ws, PCK, "Each pocket's RANR + GCOs, GCOs and RANR, against the rest.", C_BAND, C_CH + 6,
                      tab=house.TAB_RESULT)
     line = bk.profit_line(res)
     r = house.method_note(ws, 3, C_BAND, C_TOG, [
-        ("Paid us", "Earned before losses: RANR + GCO per booked dollar. RANR already has the charge-offs taken "
-                    "out, so this adds them back. Gap: points of booked dollars ahead of (+) or short of (-) the "
-                    "rest; Dollars: what that comes to."),
-        ("Cost us", "Charge-offs (GCO) per booked dollar, as a multiple of the rest; Dollars: charge-offs above "
-                    "the rest's rate."),
-        # the gross block's words ride on Kept's item (the firm, 30 Sep 2026), so that no row of the tab moves
-        ("Kept", "Kept after losses: RANR per booked dollar, as a gap in points and dollars, like Paid us. "
-                 "Booked, GCO and RANR: the pocket's own dollars, added up and compared with nothing; RANR rate is "
-                 "RANR ÷ booked. " + NEGATIVE_SAID + " Under the table they add up to the whole book; Not "
+        ("RANR + GCOs", "(RANR + GCOs) ÷ Booked. RANR already has the GCOs taken out, so this adds them back. "
+                        "Gap: points of booked dollars ahead of (+) or short of (-) the rest; Dollars: what that "
+                        "comes to."),
+        ("GCOs", "GCOs ÷ Booked, as a multiple of the rest; Dollars: GCOs above the rest's rate."),
+        # the gross block's words ride on RANR's item (the firm, 30 Sep 2026), so that no row of the tab moves
+        ("RANR", "RANR ÷ Booked, as a gap in points and dollars, like RANR + GCOs. Booked, GCOs and RANR: the "
+                 "pocket's own dollars, added up and compared with nothing. " + NEGATIVE_SAID + " Under the table they add up to the whole book; Not "
                  "listed: pockets with nothing to compare them with."),
         ("The rest", live.text("Judged against on Control picks it: now ",
                                ('IF(judged_band,"the rest of its band","the rest of the book")',),
-                               ". A pocket alone in its band is compared with the rest of the book.")),
+                               ". A pocket alone in its band is compared with the rest of the book. Rest: the "
+                               "rest's own rate, the one each gap is measured against.")),
         ("Shading", live.text(
             "Pink: worse, and real. Green: better, and real. None: it could be chance (the p-value isn't under ",
-            ('TEXT(significance_bar,"0%")',), "), or the pocket has too few losses to test. Charge-offs count at ",
-            ('TEXT(worse_at,"0.00")',), "x or ", ('TEXT(better_at,"0.00")',), "x; profit ",
+            ('TEXT(significance_bar,"0%")',), "), or the pocket has too few losses to test. GCOs count at ",
+            ('TEXT(worse_at,"0.00")',), "x or ", ('TEXT(better_at,"0.00")',), "x; RANR and RANR + GCOs ",
             ('IF(profit_kind="test","when its own test says so",IF(profit_kind="points","at "&TEXT(profit_line*100,'
              '"0.00")&" points either way","at a gap of $"&TEXT(profit_line,"#,##0")))',), ".")),
-        ("Together", live.text("The two sides read at once. Priced for it: more charge-offs and more kept. Net drain: "
-                               "more charge-offs and less kept. Strong: fewer charge-offs and more kept. Safe but "
-                               "idle: fewer charge-offs and less kept. Earns less, not from losses: less kept while "
-                               "charge-offs are about the same. Losing more, profit holding: more charge-offs while "
-                               "what we kept is about the same. Blank: nothing to read together.", *BORDER_WORDS,
-                               " Together gives the p-value of each side that is, charge-offs first.")),
-        ("Order and chart", "Rows are as of the last Run: the pockets read together first, then by charge-off "
-                            "dollars; a pocket with too few losses last. The chart shows the grid picked above, "
-                            "live; the pockets read together are named on it."),
+        ("Together", live.text("GCOs and RANR read at once. Priced for it: more GCOs and more RANR. Net drain: "
+                               "more GCOs and less RANR. Strong: fewer GCOs and more RANR. Safe but idle: fewer "
+                               "GCOs and less RANR. Earns less, not from losses: less RANR while GCOs are about the "
+                               "same. Losing more, profit holding: more GCOs while RANR is about the same. Blank: "
+                               "nothing to read together.", *BORDER_WORDS,
+                               " Together gives the p-value of each side that is, GCOs first.")),
+        ("Order and chart", "Rows are by band, lowest first, then by segment; the arrows on the headings sort "
+                            "and filter by any column. The chart shows the grid picked above, live; the first "
+                            f"{LABELLED} pockets read together, down the table, are numbered on it."),
     ])
-    g_rng, _ = choices.add("Paid, cost, kept: Grid", gnames)
+    g_rng, _ = choices.add(f"{PCK}: Grid", gnames)
     lines_in_use(ws, r, C_BAND, list(PCK_TILES), material_at(res), PCK_NOTE, PCK_NOTE + 7,
-                 f"The order is from the last Run, {stamp}.")
+                 f"The rows are from the last Run, {stamp}.")
     if CHART in wb.sheetnames:
         del wb[CHART]
     hs = wb.create_sheet(CHART)
@@ -926,19 +958,21 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     NEG = f"${col(C_H_ROW)}{s}"
     ws.cell(row=s, column=C_H_ROW, value="=" + match(xk("C|", (G,), "|neg")))
     ws.cell(row=s, column=C_H_UN, value=f"={pick(NEG, 2)}")
-    ws.merge_cells(start_row=s, start_column=C_LOANS, end_row=s, end_column=C_KEPT_D)
+    ws.merge_cells(start_row=s, start_column=C_LOANS, end_row=s, end_column=C_KEPT_R)
     _cell(ws, s, C_LOANS, f"={pick(NEG, 1)}", bold=True, size=10, color=SLATE, h="left", indent=1)
     cf(ws, f"{col(C_LOANS)}{s}", [(f'N(${col(C_H_UN)}${s})>0', None, Font(color=CRIMSON, bold=True), None)])
     for a, b_, words in ((C_BOOK, C_RATE, "Gross · this pocket alone"),
-                         (C_PAID, C_PAID_D, f'="Paid us · gap vs "&IF({J},"band","book")'),
-                         (C_COST, C_COST_D, "Cost us · charge-offs"),
-                         (C_KEPT, C_KEPT_D, f'="Kept · gap vs "&IF({J},"band","book")'), (C_TOG, C_TOG, "")):
+                         (C_PAID, C_PAID_R, f'="{SIDES[0][1]} · gap vs rest of "&IF({J},"band","book")'),
+                         (C_COST, C_COST_R, f'="{SIDES[1][1]} · × rest of "&IF({J},"band","book")'),
+                         (C_KEPT, C_KEPT_R, f'="{SIDES[2][1]} · gap vs rest of "&IF({J},"band","book")'),
+                         (C_TOG, C_TOG, "")):
         ws.merge_cells(start_row=h, start_column=a, end_row=h, end_column=b_)
         _cell(ws, h, a, words, bold=True, size=9, name="Arial")
         for c in range(a, b_ + 1):
             ws.cell(row=h, column=c).border = Border(bottom=Side(style="medium", color=INK))
-    house.header(ws, h + 1, C_BAND, ["Band", "Segment", "Loans", *GROSS_HEADS, "Gap pts", "Dollars",
-                                     f'=IF({J},"× band","× book")', "Dollars", "Gap pts", "Dollars", "Together"],
+    house.header(ws, h + 1, C_BAND, ["Band", "Segment", "Loans", *GROSS_HEADS, "Gap pts", "Dollars", REST_HEAD,
+                                     f'=IF({J},"{REST_TIMES[1]}","{REST_TIMES[0]}")', "Dollars", REST_HEAD,
+                                     "Gap pts", "Dollars", REST_HEAD, "Together"],
                  centre_from=2)
     first = h + 2
     gross_fmts = {C_BOOK: GROSS_K_FMT if thousands else GROSS_FMT, C_GCO: GROSS_K_FMT if thousands else GROSS_FMT,
@@ -964,9 +998,11 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                 **{c: f"={pick(V, 8 + j)}" for j, c in enumerate(GROSS)},
                 C_PAID: pts(RC), C_PAID_D: short(RC), C_COST: f"={at(live.P_GAP, RG)}",
                 C_COST_D: f"={at(live.P_DOLLARS, RG)}", C_KEPT: pts(RR), C_KEPT_D: short(RR),
+                # the rest's rate that decides, the side's own: the rest of the book, or of the band
+                **{r_: f"={at(live.P_REST, prow)}" for (*_, r_), prow in zip(BLOCKS, (RC, RG, RR))},
                 C_TOG: "=" + together_said_formula(TOG, f"${col(C_H_BG)}{rr}", f"${col(C_H_BR)}{rr}")}
         fmts = {C_LOANS: "#,##0", **gross_fmts, C_PAID: PTS_FMT, C_PAID_D: "#,##0", C_COST: X_FMT,
-                C_COST_D: "#,##0", C_KEPT: PTS_FMT, C_KEPT_D: "#,##0"}
+                C_COST_D: "#,##0", C_KEPT: PTS_FMT, C_KEPT_D: "#,##0", **{r_: RATE_FMT for *_, r_ in BLOCKS}}
         for c, v in vals.items():
             _cell(ws, rr, c, v, h="left" if c in (C_BAND, C_SEG, C_TOG) else "center", fmt=fmts.get(c),
                   indent=1 if c in (C_BAND, C_SEG, C_TOG) else 0, bold=c == C_TOG)
@@ -977,8 +1013,6 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         hs.cell(row=k, column=H_X, value=f'=IF(OR({un}<>0,{cost}="",{kept}=""),NA(),{cost})')
         hs.cell(row=k, column=H_Y, value=f"=IF(ISNA({col(H_X)}{k}),NA(),{kept})")
         hs.cell(row=k, column=H_NAME, value=f'=IF({tog}="","",{T}${col(C_BAND)}${rr}&" / "&{T}${col(C_SEG)}${rr})')
-        hs.cell(row=k, column=H_NX, value=f'=IF({tog}="",NA(),{cost})')
-        hs.cell(row=k, column=H_NY, value=f'=IF({tog}="",NA(),{kept})')
         # coloured by verdict, whatever the row (the firm, 29 Sep 2026: a Net drain drawn black read as nothing)
         bad = f'{tog}="{BAD_TOGETHER[0]}"'
         good = f'OR({tog}="{GOOD_TOGETHER[0]}",{tog}="{GOOD_TOGETHER[1]}")'
@@ -986,11 +1020,22 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         hs.cell(row=k, column=H_RY, value=f"=IF(ISNA({col(H_RX)}{k}),NA(),{col(H_Y)}{k})")
         hs.cell(row=k, column=H_GX, value=f"=IF(AND(NOT(ISNA({col(H_X)}{k})),{good}),{col(H_X)}{k},NA())")
         hs.cell(row=k, column=H_GY, value=f"=IF(ISNA({col(H_GX)}{k}),NA(),{col(H_Y)}{k})")
-        hs.cell(row=k, column=H_NUM, value=f'=IF({col(H_NAME)}{k}="","",{k})')
+        # which pocket read together this row is, counting down the table: the chart numbers the first LABELLED
+        hs.cell(row=k, column=H_SEQ, value=(f'=IF({col(H_NAME)}{k}="","",SUMPRODUCT(--(LEN(${col(H_NAME)}$1:'
+                                            f'${col(H_NAME)}{k})>0)))'))
+    # the j-th pocket read together, on row j: its point, its number and its name, whatever order the rows are in
+    seq = f"${col(H_SEQ)}$1:${col(H_SEQ)}${most}"
+    for j in range(1, LABELLED + 1):
+        m = f"MATCH({j},{seq},0)"
+        for c, src in ((H_NX, H_X), (H_NY, H_Y)):
+            hs.cell(row=j, column=c, value=f"=IFERROR(INDEX(${col(src)}$1:${col(src)}${most},{m}),NA())")
+        hs.cell(row=j, column=H_NUM, value=f'=IF(ISNA({m}),"",{j})')
+        hs.cell(row=j, column=H_LNAME, value=f'=IFERROR(INDEX(${col(H_NAME)}$1:${col(H_NAME)}${most},{m}),"")')
     end = first + most - 1
     un = f"${col(C_H_UN)}{first}"
     line_on = f'${col(C_BAND)}{first}<>""'
-    for (a, b_), fc in (((C_PAID, C_PAID_D), C_H_FC), ((C_COST, C_COST_D), C_H_FG), ((C_KEPT, C_KEPT_D), C_H_FR)):
+    # shaded: each side's gap and dollars, not the rest's rate beside them
+    for (a, b_, _r), fc in zip(BLOCKS, (C_H_FC, C_H_FG, C_H_FR)):
         f = f"${col(fc)}{first}"
         cf(ws, f"{col(a)}{first}:{col(b_)}{end}", [(f'AND({un}=0,{f}="{engine.WORSE}")', ALERT, None, None),
                                                    (f'AND({un}=0,{f}="{engine.BETTER}")', POSITIVE_BG, None, None)],
@@ -1018,9 +1063,12 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     ws.cell(row=t0, column=C_SEG).border = Border(top=Side(style="thin", color=INK))
     tneg = f"AND(ISNUMBER(${col(C_RANR)}{t0}),${col(C_RANR)}{t0}<0)"
     cf(ws, f"{col(C_RANR)}{t0}:{col(C_RATE)}{t0 + 2}", [(tneg, None, Font(color=CRIMSON, bold=True), None)])
+    # Excel's sort and filter arrows on the headings (the firm, 30 Sep 2026), over the pockets and the hidden
+    # workings beside them, never the totals: every rule above reads its own row, so a sort keeps them right
+    ws.auto_filter.ref = f"{col(C_BAND)}{h + 1}:{col(C_H_BR)}{end}"
     if grids and bounds_x:
         _scatter(ws, hs, res, most, bounds_x, bounds_y, line, h)
-    _hide(ws, C_H, C_H + 20)
+    _hide(ws, C_H, C_H_BR)
     ws.freeze_panes = f"A{first}"
     _fit(ws)
 
@@ -1033,12 +1081,12 @@ def _nice_step(span: float) -> float:
 
 
 def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None:
-    """The scatter of the grid picked (section 6): charge-offs' multiple across on a log scale, the profit gap in
+    """The scatter of the grid picked (section 6): GCOs' multiple across on a log scale, the profit gap in
     points up, a dashed line at 1x and at 0, the four corners named, and the pockets read together named. Its
     points are the table's cells, so it follows the Grid dropdown and Control."""
     b = res.config.benchmark
     chart = ScatterChart()
-    chart.title = "Cost us against what we kept, the grid picked above"
+    chart.title = "GCOs against RANR, the grid picked above"
     chart.style = 13
     # no axis titles: Excel drew them over the axes' own numbers (the firm, 29 Sep 2026); the line above the chart
     # says what each axis is
@@ -1090,9 +1138,9 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
         c.dLbls = _labels(pos="ctr")
         chart.series.append(c)
         hr += 1
-    # the named pockets: the first rows, which are the ones read together at the last Run, numbered on the chart
-    # and named in the list beside it (their names overlapped when written on the chart); a row whose verdict has
-    # gone (a line changed on Control) drops its number
+    # the named pockets: the first pockets read together down the table (H_SEQ), numbered on the chart and named
+    # in the list beside it (their names overlapped when written on the chart); a row whose verdict has gone (a
+    # line changed on Control) drops out and the next one takes its number
     for k in range(min(LABELLED, n)):
         rr = 1 + k
         one = Series(Reference(hs, min_col=H_NY, min_row=rr, max_row=rr),
@@ -1113,15 +1161,15 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
     chart.x_axis.crosses = "min"
     chart.y_axis.crosses = "min"
     chart.width, chart.height = 17, 11
-    ws.add_chart(chart, f"{col(C_TOG + 2)}{anchor}")
+    ws.add_chart(chart, f"{col(C_CH)}{anchor}")
     # what the axes are, above the chart, and the numbered pockets' names under it
-    _cell(ws, anchor - 1, C_TOG + 2, "Across: charge-offs × the rest, on a log scale. Up: kept, as a gap in points. "
-                                     "Red: Net drain. Green: Strong or Priced for it.", size=9, name="Arial", h="left")
+    _cell(ws, anchor - 1, C_CH, "Across: GCOs × the rest, on a log scale. Up: RANR, as a gap in points. "
+                                "Red: Net drain. Green: Strong or Priced for it.", size=9, name="Arial", h="left")
     below = anchor + CHART_ROWS
-    _cell(ws, below, C_TOG + 2, "Numbered on the chart", bold=True, size=9, name="Arial", h="left")
+    _cell(ws, below, C_CH, "Numbered on the chart", bold=True, size=9, name="Arial", h="left")
     for k in range(min(LABELLED, n)):
-        _cell(ws, below + 1 + k, C_TOG + 2,
-              f"=IF('{CHART}'!${col(H_NAME)}${1 + k}=\"\",\"\",\"{1 + k}  \"&'{CHART}'!${col(H_NAME)}${1 + k})",
+        _cell(ws, below + 1 + k, C_CH,
+              f"=IF('{CHART}'!${col(H_LNAME)}${1 + k}=\"\",\"\",\"{1 + k}  \"&'{CHART}'!${col(H_LNAME)}${1 + k})",
               size=9, name="Arial", h="left")
 
 
@@ -1158,11 +1206,31 @@ def heat_kind(m) -> str:
 #: neutral hue by how many times the book's average a cell's loans are (darker is bigger, as the Loans block's
 #: darker is more): a description, not a finding, so never red or green
 SIZE, SIZE_NAME = "loan_size", "Loan size"
+SIZE_HEAD = "Average booked per loan"
 SIZE_STEPS = ((2.0, STONE), (1.5, "CFCAC2"), (1.25, MIST), (1.1, house.ROW_RULE))
 SIZE_FMT = '"$"#,##0'
-#: Grids' "Only loans where" (the firm, 29 Sep 2026): the option that filters nothing, and a filtered view's key
+#: Grids' "Only loans where" (the firm, 29 Sep 2026): the option that filters nothing, and a filtered view's key;
+#: AND is Filter 2's part of it (the firm, 30 Sep 2026: two filters, "independently and in conjunction with each
+#: other"): "|where 2023" is Filter 1 alone, "|and Y" Filter 2 alone, "|where 2023|and Y" both
 ALL_LOANS = "All loans"
 WHERE = "|where {}"
+AND = "|and {}"
+
+
+def view_key(v1: str | None, v2: str | None = None) -> str:
+    """A filtered view's key after the grid's or band column's: Filter 1's value (None for All loans), then Filter
+    2's. The workbook builds the same key from the two dropdowns (where_formula)."""
+    return (WHERE.format(v1) if v1 is not None else "") + (AND.format(v2) if v2 is not None else "")
+
+
+def where_formula(f1: str | None, f2: str | None) -> str:
+    """The Excel expression of view_key for the two dropdown cells (either None when the tab has no such dropdown):
+    blank for All loans."""
+    out = []
+    for cell, part in ((f1, WHERE), (f2, AND)):
+        if cell:
+            out.append(f'IF(OR({cell}="",{cell}="{ALL_LOANS}"),"",{live.q(part.format(""))}&{cell})')
+    return "&".join(out)
 
 
 def fewest(res) -> int | None:
@@ -1248,10 +1316,8 @@ def grid_views(res, views: Views) -> tuple[list[str], list, int, int, dict]:
         if split:
             fit["spans"] = max(fit["spans"], (len(cols_) - 1) // len(tails))
         _grid_view(res, views, f"G|{gname}", g, g, names, rows_, cols_, ms, fit, split)
-        for v in res.filter_values:
-            if v in g.filtered:
-                _grid_view(res, views, f"G|{gname}" + WHERE.format(v), g.filtered[v], g, names, rows_, cols_, ms,
-                           fit, split)
+        for (v1, v2), fg in g.filtered.items():
+            _grid_view(res, views, f"G|{gname}" + view_key(v1, v2), fg, g, names, rows_, cols_, ms, fit, split)
     views.put("G|fewest", [fewest(res)])
     return gnames, ms, most_r, most_c, fit
 
@@ -1351,12 +1417,13 @@ def _grid_view(res, views: Views, key: str, g, whole, names, rows_, cols_, ms, f
 SAY = {"outcome_loans": ("{these}: {r} went bad.", "{x}× the bad-loan rate of {against}."),
        "outcome_booked": ("{these}: {r} of {their} booked dollars were in loans that went bad.",
                           "{x}× the bad-dollar rate of {against}."),
-       "gco_rate": ("{these} charged off {r} of {their} booked dollars.",
-                    "{x}× the charge-off rate of {against}."),
-       "ranr_rate": ("{these} kept {r} of {their} booked dollars after losses.",
-                     "Kept {pts} points {more} of their booked dollars than {against}."),
-       "contribution_rate": ("{these} earned {r} of {their} booked dollars before losses.",
-                             "Earned {pts} points {more} of their booked dollars than {against}."),
+       # the dollar three in the firm's terms (30 Sep 2026): the measure named, then what it was of booked dollars
+       "gco_rate": ("{these}: GCOs were {r} of {their} booked dollars.",
+                    "{x}× the GCO rate of {against}."),
+       "ranr_rate": ("{these}: RANR was {r} of {their} booked dollars.",
+                     "RANR was {pts} points {more} of booked dollars than for {against}."),
+       "contribution_rate": ("{these}: RANR + GCOs came to {r} of {their} booked dollars.",
+                             "RANR + GCOs came to {pts} points {more} of booked dollars than for {against}."),
        # {med} the median booked per loan (the firm, 29 Sep 2026)
        SIZE: ("{these} averaged {r} booked, median {med}.", "{x}× the average loan of {against}.")}
 SAY_KIND = {"x": ("{these}: {measure} is {r}.", "{x}× the rate of {against}."),
@@ -1423,14 +1490,19 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     sized = res.book_size is not None and bool(res.book_size.loans)
     # the Filter by column (the firm, 30 Sep 2026), whatever Split by is doing; none picked, nothing to filter
     sf = res.config.filter_by if res.filter_values else None
+    sf2 = res.config.filter_by2 if sf and res.filter_values2 else None       # Filter 2, with Filter 1
     w = nc + 1                          # a block: the band column, then the segments
-    left, right = 2, 2 + w + 1
-    last = right + w - 1
-    hid = max(last, left + 18) + 2                         # hidden cells: the keys and the heat's kind and bound
+    # the four blocks one under another, every one from the left column (the firm, 30 Sep 2026: side by side, a
+    # narrow grid left a blank middle the width of the widest)
+    left = 2
+    # Filter 2's dropdown sits beside Filter 1's, and Row and Column move right to make room
+    at_row = left + (16 if sf2 else 12)
+    last = max(left + w - 1, at_row + 6)
+    hid = max(last, at_row + 6) + 2                        # hidden cells: the keys and the heat's kind and bound
     dw, lw = grid_widths(fit, grp)
     parts, hdr = fit["parts"], (2 if fit["parts"] else 1)   # a split grid's header is two rows (G4)
     # G1, G2, G5: one width for every data column of the four blocks, and one for both label columns
-    _widths(ws, {1: 2, **{c: dw for c in range(2, hid)}, left: lw, right: lw, right - 1: 3})
+    _widths(ws, {1: 2, **{c: dw for c in range(2, hid)}, left: lw})
     house.title_band(ws, GRIDS, "One grid at a time: the rate, how it compares, and how many loans sit in each "
                                 "pocket.", 2, last, tab=house.TAB_RESULT)
     profit = any(m.name in PROFIT for m in ms)
@@ -1440,7 +1512,7 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
                  "band's and the segment's totals in All."),
         ("vs the book", "The pocket's rate over the whole book's, which the heading gives: 2.00× goes bad twice as "
                         "often as the book."
-                        + (" Kept after losses and Earned before losses are a gap in points instead." if profit
+                        + (" RANR and RANR + GCOs are a gap in points instead." if profit
                            else "")),
         ("vs rest of band", "The pocket's rate over every other loan in its band, so a band that is bad all "
                             "through doesn't make each of its pockets look bad. No rate in its heading: the rest "
@@ -1461,8 +1533,10 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
                                         "finding: no red or green, only darker the bigger the loans against the "
                                         "book's.")
     note += [
-        ("Only loans where", f"Pick a value of {sf} to see the grid on only its loans. vs the book is still against "
-                             f"the whole book; vs rest of band, the rest of the band among those loans."
+        ("Only loans where", f"Pick a value of {sf} to see the grid on only its loans"
+                             + (f"; of {sf2} too, and it shows the loans with both" if sf2 else "")
+                             + ". vs the book is still against the whole book; vs rest of band, the rest of the band "
+                               "among those loans."
                              + (YEAR_SAID.format(res.config.origination_date) if sf == ORIG_YEAR else "")
          if sf else SAY_NO_FILTER),
         ("Groups", "Under the blocks: how many loans" + (", and booked dollars," if res.config.booked else "")
@@ -1476,9 +1550,12 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     m_keys = [m.name for m in ms] + ([SIZE] if sized else []) + [f"show_{sm.name}" for sm in shows]
     says = ([say_for(m.name, heat_kind(m)) for m in ms] + ([SAY[SIZE]] if sized else [])
             + [say_for("", "amt") for _ in shows])
+    # the Rate block's heading, literal, beside each option: what is divided by what (the firm, 30 Sep 2026)
+    heads = ([RATE_HEAD.get(m.name, plain(m)) for m in ms] + ([SIZE_HEAD] if sized else [])
+             + m_opts[len(ms) + (1 if sized else 0):])
     g_rng, _ = choices.add("Grids: Grid", gnames)
-    m_rng, (k_rng, rs_rng, gs_rng) = choices.add("Grids: Measure", m_opts, m_keys, [x[0] for x in says],
-                                                 [x[1] for x in says])
+    m_rng, (k_rng, rs_rng, gs_rng, hd_rng) = choices.add("Grids: Measure", m_opts, m_keys, [x[0] for x in says],
+                                                         [x[1] for x in says], heads)
     f_rng, _ = choices.add("Grids: Only loans where", [ALL_LOANS] + (list(res.filter_values) if sf else []))
     s = r + 1
     G = dropdown(ws, s, left, "Grid", g_rng, gnames[0] if gnames else "")
@@ -1487,6 +1564,11 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     ws.merge_cells(start_row=s, start_column=left + 4, end_row=s, end_column=left + 6)
     F = dropdown(ws, s, left + 8, f"Only loans where {sf} is" if sf else "Only loans where", f_rng, ALL_LOANS)
     ws.merge_cells(start_row=s, start_column=left + 8, end_row=s, end_column=left + 10)
+    F2 = None
+    if sf2:
+        f2_rng, _ = choices.add("Grids: and where", [ALL_LOANS] + list(res.filter_values2))
+        F2 = dropdown(ws, s, left + 12, f"and {sf2} is", f2_rng, ALL_LOANS)
+        ws.merge_cells(start_row=s, start_column=left + 12, end_row=s, end_column=left + 14)
     if not sf:
         _cell(ws, s + 1, left + 8, SAY_NO_FILTER, size=9, color=SLATE, h="left")
     # one cell to read out in words (the firm, 29 Sep 2026): a Row and a Column of the grid picked, each list the
@@ -1494,13 +1576,15 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     RL, CL, H2 = hid + 7, hid + 8, hid + 9
     RN, CN = f"${col(H2)}${s}", f"${col(H2)}${s + 1}"
     first_row, first_col = _first_pocket(res, ms)
-    R = dropdown(ws, s, left + 12, "Row", f"OFFSET(${col(RL)}${s},0,0,MAX(1,{RN}),1)", first_row)
-    ws.merge_cells(start_row=s, start_column=left + 12, end_row=s, end_column=left + 14)
-    C = dropdown(ws, s, left + 16, "Column", f"OFFSET(${col(CL)}${s},0,0,MAX(1,{CN}),1)", first_col)
-    ws.merge_cells(start_row=s, start_column=left + 16, end_row=s, end_column=left + 18)
+    # each list its first MAX(1, count) labels: INDEX:INDEX, not OFFSET, which Excel works out again on every change
+    # anywhere (the firm, 30 Sep 2026: the workbook "takes quite some time to open")
+    R = dropdown(ws, s, at_row, "Row", _first_n(RL, s, nr, RN), first_row)
+    ws.merge_cells(start_row=s, start_column=at_row, end_row=s, end_column=at_row + 2)
+    C = dropdown(ws, s, at_row + 4, "Column", _first_n(CL, s, nc, CN), first_col)
+    ws.merge_cells(start_row=s, start_column=at_row + 4, end_row=s, end_column=at_row + 6)
     # the view: the grid picked, or it on only the loans with the value picked
     VW = f"${col(hid + 1)}${s + 2}"
-    ws[VW.replace("$", "")] = f'={G}&IF(OR({F}="",{F}="{ALL_LOANS}"),"",{live.q(WHERE.format(""))}&{F})'
+    ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, F2)
     KEY = f"${col(hid)}${s}"
     ws[f"{col(hid)}{s}"] = f'=IFERROR(INDEX({k_rng},MATCH({M},{m_rng},0)),"")'
     META = f"${col(hid)}${s + 1}"
@@ -1523,9 +1607,9 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     # the book's own figure in the heading of vs the book (the firm, 29 Sep 2026), as the Rate block shows it
     book_head = (f'=IF(ISNUMBER({BOOK}),"vs the book (book: "&IF({KIND}="size",TEXT({BOOK},"$#,##0"),'
                  f'TEXT({BOOK},"0.00%"))&")","vs the book")')
-    down = nr + 2 + hdr                 # the lower blocks start this far under the upper
-    blocks = (("Rate", "rate", left, top, False), ("vs the book", "book", right, top, True),
-              ("vs rest of band", "band", left, top + down, True), ("Loans", "loans", right, top + down, False))
+    down = nr + 2 + hdr                 # each block starts this far under the one above it
+    blocks = (("Rate", "rate", left, top, False), ("vs the book", "book", left, top + down, True),
+              ("vs rest of band", "band", left, top + 2 * down, True), ("Loans", "loans", left, top + 3 * down, False))
     # each block by its column and the row over its data's header, so its header is `t + 1` and its first data
     # row `t + 2` whether the header is one row or two
     at_ = {what: (c0, t + hdr - 1) for _, what, c0, t, _ in blocks}
@@ -1534,7 +1618,8 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     lower = max(house.lines_at(h, dw - 2) for h in fit["heads"])
     upper = max([house.lines_at(sg, parts * dw - 2) for sg in fit["segs"]] or [1])
     for title, what, c0, t0, heated in blocks:
-        _block_head(ws, t0, c0, w, f'="Rate · "&{M}' if what == "rate" else book_head if what == "book" else title)
+        _block_head(ws, t0, c0, w, f'="Rate · "&IFERROR(INDEX({hd_rng},MATCH({M},{m_rng},0)),{M})'
+                    if what == "rate" else book_head if what == "book" else title)
         t = t0 + hdr - 1
         if hdr == 2:                    # G4: a split grid's segment, merged over its parts
             ws.cell(row=t0 + 1, column=c0).fill = house.fill(CANVAS)
@@ -1558,7 +1643,7 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
         for i in range(1, nr + 1):
             rr = t + 1 + i
             key = xk("G|", (VW,), f"|loans|{i}") if what == "loans" else xk("G|", (VW,), "|", (KEY,), f"|{what}|{i}")
-            hcell = f"${col(hid + 2 + (0 if c0 == left else 1))}{rr}"
+            hcell = f"${col(hid + 2)}{rr}"
             ws[hcell.replace("$", "")] = f"={match(key)}"
             _cell(ws, rr, c0, f"={pick(ROWS, i)}", h="left", indent=1)
             for j in range(1, nc + 1):
@@ -1590,16 +1675,23 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
             rules = [(f"AND(ISNUMBER({corner}),NOT({margin}),{corner}/{pick(TOTAL, 1)}>={lim})", colour, None, None)
                      for lim, colour in LOANS_STEPS]
         cf(ws, inner, rules, line_on)
-    r = top + 2 * down
+    r = top + 4 * down
     _cell(ws, r, left, "A blank: alone in its band, or fewer losses than the minimum, so not compared.", size=9,
           color=SLATE, h="left")
-    r = _one_cell(ws, r + 2, left, last, nr, nc, at_, dict(M=M, R=R, C=C, F=F, sf=sf, KIND=KIND, BOUND=BOUND,
+    r = _one_cell(ws, r + 2, left, last, nr, nc, at_, dict(M=M, R=R, C=C, F=F, sf=sf, F2=F2, sf2=sf2, KIND=KIND,
+                  BOUND=BOUND, end=at_row + 6,
                   META=META, FEW=FEW, VW=VW, KEY=KEY, RN=RN, CN=CN, RL=RL, CL=CL, H=hid + 10, s=s, rs=rs_rng,
                   gs=gs_rng, m=m_rng, COLS=COLS))
     r = _groups(ws, grp, G, r + 2, left, hid + 4, dw)
     _hide(ws, hid, hid + 10)
     ws.freeze_panes = f"A{s + 1}"
     _fit(ws)
+
+
+def _first_n(c: int, s: int, n: int, count: str) -> str:
+    """The first MAX(1, count) cells of column c's labels from row s (max(n - 1, 1) of them are laid out)."""
+    top = f"${col(c)}${s}"
+    return f"{top}:INDEX({top}:${col(c)}${s + max(n - 1, 1) - 1},MAX(1,{count}))"
 
 
 def _first_pocket(res, ms) -> tuple[str, str]:
@@ -1625,7 +1717,6 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
     F, FEW = x["F"], x["FEW"]
     rng = lambda what: (f"${col(at_[what][0] + 1)}${at_[what][1] + 2}:"          # noqa: E731
                         f"${col(at_[what][0] + nc)}${at_[what][1] + 1 + nr}")
-    lc, lt = at_["loans"]
     names = ["RI", "CJ", "RV", "BV", "NV", "LV", "MV", "OTH", "OTHN", "RT", "GT", "MIN", "MD", "GR"]
     h = {n: f"${col(H)}${s + k}" for k, n in enumerate(names)}
     RI, CJ, RV, BV, NV, LV, MV, OTH, OTHN, RT, GT, MIN, MD, GR = (h[n] for n in names)
@@ -1642,7 +1733,8 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
         LV: f'IF({none},"",INDEX({rng("loans")},{RI},{CJ}))',
         MV: f'IF({RI}="","",INDEX({rng("loans")},{RI},{x["CN"]}+1))',
         # the other pockets in the row with loans, and their columns' names
-        OTH: f'IF({none},"",COUNT(OFFSET(${col(lc + 1)}${lt + 2},{RI}-1,0,1,{x["CN"]}))-IF(ISNUMBER({LV}),1,0))',
+        OTH: f'IF({none},"",COUNT(INDEX({rng("loans")},{RI},1):INDEX({rng("loans")},{RI},{x["CN"]}))'
+             f'-IF(ISNUMBER({LV}),1,0))',
         OTHN: "IFERROR(MID(" + "&".join(
             f'IF(AND({j}<>{CJ},{j}<={x["CN"]},ISNUMBER(INDEX({rng("loans")},{RI},{j}))),", "&{pick(x["COLS"], j)},"")'
             for j in range(1, nc + 1)) + ',3,999),"")',
@@ -1669,6 +1761,11 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
     untested = f'OR({KIND}="pts",{KIND}="size")'                # blank for no want of losses
     band_against = (fill_in(SAY_BAND, row=R) + f'&IF(AND({OTH}>=1,{OTH}<={SAY_NAMED})," (the "&{OTHN}&" loans)","")')
     where = (f'IF(OR({F}="",{F}="{ALL_LOANS}"),"",", only loans where {x["sf"]} is "&{F})' if x["sf"] else '""')
+    if x.get("sf2"):
+        # both filters named (the firm, 30 Sep 2026: two filters "in conjunction with each other")
+        F2 = x["F2"]
+        where += (f'&IF(OR({F2}="",{F2}="{ALL_LOANS}"),"",IF(OR({F}="",{F}="{ALL_LOANS}"),", only loans where ",'
+                  f'" and ")&"{x["sf2"]} is "&{F2})')
     loans_ = f'{n}&IF({one}," loan"," loans")'
     lines = [
         (None, f'IF({none},{live.q(SAY_PICK)},{R}&" · "&{C}&", "&{M}&{where})'),
@@ -1686,7 +1783,7 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
                        + f',IF({KIND}="size",{live.q(SAY_SIZE)},'
                        + fill_in(SAY_COLOUR, book=shade_of(BV, KIND, BOUND), band=shade_of(NV, KIND, BOUND)) + "))))"),
     ]
-    end = max(last, left + 18)
+    end = max(last, x.get("end", left + 18))
     _block_head(ws, r, left, end - left + 1, "What one cell says")
     for k, (label, f) in enumerate(lines, start=1):
         rr = r + k
@@ -1862,14 +1959,14 @@ def _groups(ws, grp: dict, G: str, r: int, first: int, hid: int, dw: float) -> i
 #: usd dollars
 SUMMARY_HEADS = {"loans": ("Loans", "n"), "loans_share": ("% of loans", "share"), "bad": ("Bad loans", "n"),
                  "bad_rate": ("Bad loans %", "pct"), "booked": ("Booked $", "usd"),
-                 "booked_share": ("% of booked", "share"), "gco": ("Charged off $", "usd"),
-                 "gco_rate": ("Charge-off rate", "pct"), "gco_x": ("× book", "x"),
-                 "gco_share": ("% of charge-offs", "share"), "ranr": ("RANR $", "usd"),
-                 "ranr_rate": ("RANR rate", "pct"), "ranr_share": ("% of RANR", "share")}
+                 "booked_share": ("% of booked", "share"), "gco": ("GCOs ($)", "usd"),
+                 "gco_rate": ("GCOs ÷ Booked", "pct"), "gco_x": ("× book", "x"),
+                 "gco_share": ("% of GCOs", "share"), "ranr": ("RANR $", "usd"),
+                 "ranr_rate": ("RANR ÷ Booked", "pct"), "ranr_share": ("% of RANR", "share")}
 SUMMARY_FMT = {"n": "#,##0", "share": "0.0%", "pct": "0.00%", "x": X_FMT, "usd": '"$"#,##0;-"$"#,##0'}
 SUMMARY_THOUSANDS = '"$"#,##0,"k";-"$"#,##0,"k"'
 #: what a column needs, in words, for the note when a Run has not got it
-SUMMARY_NEEDS = {"outcome_loans": "outcome", engine.BOOKED: "booked amount", "gco_rate": "charge-off dollars",
+SUMMARY_NEEDS = {"outcome_loans": "outcome", engine.BOOKED: "booked amount", "gco_rate": "GCO dollars",
                  "ranr_rate": "RANR dollars"}
 
 
@@ -1882,26 +1979,26 @@ def _summary_shown(v, kind: str) -> str:
 
 
 def summary_views(res, views: Views) -> dict:
-    """Every Summary view on _views, one row per band ("S|<band column>|<i>", and "S|<band column>|where <value>|<i>"
-    for each value of the Filter by column): the label, then each column's number, all from engine.summary_rows.
+    """Every Summary view on _views, one row per band or category value ("S|<column>|<i>", and
+    "S|<column>|where <value>|<i>" for each value of the Filter by column): the label, then each column's number, all
+    from engine.summary_rows. The band columns come first in the dropdown, then the category columns (the firm, 30
+    Sep 2026: "the band column should also allow for categories").
     Returns the dropdown's options, the columns, the most rows any view has, and what the columns must fit."""
     from . import book as bk
     names = bk._names(res)
     keys = engine.summary_columns(res)
-    bands = [b.name for b in res.config.bands if (b.name, None) in res.summaries]
+    bands = [b.name for b in res.config.bands if (b.name, None, None) in res.summaries]
+    bands += [d.name for d in res.config.dimensions if (d.name, None, None) in res.summaries and d.name not in bands]
     shown = [names[b] for b in bands]
     shown = [x if shown.count(x) == 1 else f"{x} ({b})" for x, b in zip(shown, bands)]
     fit = {"labels": {"All"} | set(shown), "values": 0, "money": [0.0]}
     most = 1
     for b, opt in zip(bands, shown):
-        for v in [None] + list(res.filter_values):
-            if (b, v) not in res.summaries:
-                continue
-            rows = engine.summary_rows(res, b, v)
+        for bb, v1, v2 in [k for k in res.summaries if k[0] == b]:
+            rows = engine.summary_rows(res, b, v1, v2)
             most = max(most, len(rows))
             for i, (lab, vals) in enumerate(rows, start=1):
-                views.put(f"S|{opt}" + (WHERE.format(v) if v is not None else "") + f"|{i}",
-                          [lab] + [vals[k] for k in keys])
+                views.put(f"S|{opt}" + view_key(v1, v2) + f"|{i}", [lab] + [vals[k] for k in keys])
                 fit["labels"].add(str(lab))
                 for k in keys:
                     kind = SUMMARY_HEADS[k][1]
@@ -1910,7 +2007,7 @@ def summary_views(res, views: Views) -> dict:
                             fit["money"].append(vals[k])
                     else:
                         fit["values"] = max(fit["values"], len(_summary_shown(vals[k], kind)))
-    return {"options": shown, "keys": keys, "most": most, "fit": fit}
+    return {"options": shown, "keys": keys, "most": most, "fit": fit, "bands": bands}
 
 
 def summary_widths(fit: dict, keys: list[str]) -> tuple[float, float, bool]:
@@ -1927,60 +2024,69 @@ def summary_widths(fit: dict, keys: list[str]) -> tuple[float, float, bool]:
 
 
 def write_summary(wb, res, choices: Choices, views: Views) -> None:
-    """Summary: one band column down the side and the book's plain figures across, picked by a dropdown, and by
-    "Only loans where" when the launcher picked a Filter by. Every number is worked out by the Run (engine.summary_rows)
-    and put on _views; the formulas here only pick the row. Nothing is tested and nothing is red or green."""
+    """Summary: one band or category column down the side and the book's plain figures across, picked by a dropdown,
+    and by "Only loans where" when the launcher picked a Filter by. Every number is worked out by the Run
+    (engine.summary_rows) and put on _views; the formulas here only pick the row. Nothing is tested and nothing is red
+    or green."""
     ws = wb.create_sheet(SUMMARY)
     got = summary_views(res, views)
     keys, most, fit = got["keys"], got["most"], got["fit"]
     sf = (res.config.filter_by or None) if res.filter_values else None
+    sf2 = res.config.filter_by2 if sf and res.filter_values2 else None       # Filter 2, with Filter 1
     left = 2
     last = max(left + len(keys), left + 10)
     hid = last + 2
     dw, lw, thousands = summary_widths(fit, keys)
     _widths(ws, {1: 2, left: lw, **{c: dw for c in range(left + 1, hid)}})
-    house.title_band(ws, SUMMARY, "One band column at a time: loans, bad loans, booked, charge-offs and RANR, band by "
-                                  "band.", left, last, tab=house.TAB_RESULT)
+    house.title_band(ws, SUMMARY, "One column at a time: loans, bad loans, booked, GCOs and RANR, band by band or "
+                                  "category by category.", left, last, tab=house.TAB_RESULT)
     booked = res.config.booked or "booked amount"
-    gco = res.config.gco or "charge-offs"
+    gco = res.config.gco or "GCOs"
     ranr = next((m.value for m in res.measures if m.name == "ranr_rate"), "RANR")
-    note = [("What it is", "Pick a band column. Its bands run down the side, then any loans it couldn't place, then "
-                           "All. Every figure is counted or divided from the loans. Nothing is tested.")]
-    note.append(("Loans", "How many loans are in the band, and its share of all of them. The shares add to 100%."))
+    note = [("What it is", "Pick a band or category column. Its bands or values run down the side, then any loans it "
+                           "couldn't place, then All. Every figure is counted or divided from the loans. Nothing is "
+                           "tested.")]
+    note.append(("Loans", "How many loans are in each row, and its share of all of them. The shares add to 100%."))
     if "bad" in keys:
         note.append(("Bad loans", f"How many loans went bad ({res.config.outcome}). Bad loans % is that over the "
-                                  f"band's loans whose outcome reads yes or no: the Bad loans rate on Grids."))
+                                  f"row's loans whose outcome reads yes or no: the Bad loans rate on Grids."))
     if "booked" in keys:
-        note.append(("Booked $", f"The band's {booked}, and its share of the book's."))
+        note.append(("Booked $", f"The row's {booked}, and its share of the book's."))
     if "gco" in keys:
-        note.append(("Charged off $", f"The band's {gco}. Charge-off rate is that over its booked dollars: the "
-                                      f"Charge-offs rate on Grids. A loan missing either amount is left out of both."))
-        note.append(("× book", "The band's charge-off rate over the whole book's. 2.00× charges off twice as much "
-                               "per booked dollar."))
+        note.append(("GCOs ($)", f"The row's {gco}. GCOs ÷ Booked is that over its booked dollars, as Grids "
+                                 f"shows it for GCOs ($). A loan missing either amount is left out of both."))
+        note.append(("× book", "The row's GCOs ÷ Booked over the whole book's. 2.00× means twice the GCOs per "
+                               "booked dollar."))
     if "ranr" in keys:
-        note.append(("RANR $", f"The band's {ranr}, and that over its booked dollars. A share of RANR can pass 100% "
-                               f"or go below zero when some bands lose money."))
+        note.append(("RANR $", f"The row's {ranr}, and RANR ÷ Booked: that over its booked dollars. A share of RANR can pass 100% "
+                               f"or go below zero when some rows lose money."))
     left_off = list(dict.fromkeys(SUMMARY_NEEDS[n] for k, n in engine.SUMMARY_COLUMNS
                                   if n is not None and k not in keys))
     if left_off:
         note.append(("Not shown", "This Run has no " + " and no ".join(left_off) + ", so those columns are left off."))
     if sf:
-        note.append(("Only loans where", f"Pick a value of {sf} to see only its loans. The shares are of those loans. "
-                                         f"× book is still against the whole book."
+        note.append(("Only loans where", f"Pick a value of {sf} to see only its loans"
+                     + (f"; of {sf2} too, and it shows the loans with both" if sf2 else "")
+                     + ". The shares are of those loans. × book is still against the whole book."
                      + (YEAR_SAID.format(res.config.origination_date) if sf == ORIG_YEAR else "")))
     note.append(("Shading", "The All row is shaded light grey. Nothing else is coloured. Everything here is as of "
                             "the last Run."))
     r = house.method_note(ws, 3, left, last, note)
     b_rng, _ = choices.add("Summary: Band column", got["options"])
     s = r + 1
-    B = dropdown(ws, s, left, "Band column", b_rng, got["options"][0] if got["options"] else "")
+    B = dropdown(ws, s, left, "Band or category column", b_rng, got["options"][0] if got["options"] else "")
     F = None
     if sf:
         f_rng, _ = choices.add("Summary: Only loans where", [ALL_LOANS] + list(res.filter_values))
         F = dropdown(ws, s, left + 2, f"Only loans where {sf} is", f_rng, ALL_LOANS)
         ws.merge_cells(start_row=s, start_column=left + 2, end_row=s, end_column=left + 4)
+    F2 = None
+    if sf2:
+        f2_rng, _ = choices.add("Summary: and where", [ALL_LOANS] + list(res.filter_values2))
+        F2 = dropdown(ws, s, left + 6, f"and {sf2} is", f2_rng, ALL_LOANS)
+        ws.merge_cells(start_row=s, start_column=left + 6, end_row=s, end_column=left + 8)
     VW = f"${col(hid)}${s}"
-    where = f'&IF(OR({F}="",{F}="{ALL_LOANS}"),"",{live.q(WHERE.format(""))}&{F})' if F else ""
+    where = ("&" + where_formula(F, F2)) if F else ""
     ws[VW.replace("$", "")] = f"={B}{where}"
     h = s + 2
     lines = max([house.lines_at(SUMMARY_HEADS[k][0], dw - 2) for k in keys] or [1])
@@ -2028,8 +2134,8 @@ def _value_note(res, sf: str, b, dollar_rates: bool, profit: bool) -> list[tuple
                          f"own while it splits. At most {engine.SPLIT_MOST_VALUES} values."),
         ("Value vs rest", "The value's rate over the rest's: 2.00× means it goes bad"
                           + (", or loses," if dollar_rates else "") + " twice as often."
-                          + (" Kept after losses and Earned before losses are a gap in points instead: +0.30 pts "
-                             "means the value keeps 0.30 points more per booked dollar." if profit else "")),
+                          + (" RANR and RANR + GCOs are a gap in points instead: +0.30 pts means the value's "
+                             "RANR is 0.30 points more of its booked dollars." if profit else "")),
         ("Value vs rest, all", live.text(
             "The value's actual total against what it would be at the rest's rates, added over every pocket, with "
             "its range at ", ('TEXT(confidence,"0%")',), " sure. For Bad loans only, the odds are pooled too "
@@ -2172,8 +2278,8 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                          f"sides. {sf} isn't cut into bands of its own while it splits."),
         ("High vs low", "The high half's rate over the low half's: 2.00× means the high half goes bad"
                         + (", or loses," if dollar_rates else "") + " twice as often."
-                        + (" Kept after losses and Earned before losses are a gap in points instead: +0.30 pts "
-                           "means the high half keeps 0.30 points more per booked dollar." if profit else "")),
+                        + (" RANR and RANR + GCOs are a gap in points instead: +0.30 pts means the high half's "
+                           "RANR is 0.30 points more of its booked dollars." if profit else "")),
         ("High vs low, all", live.text(
             "The high halves' actual total against what it would be at their low halves' rates, added over every "
             "pocket, with its range at ", ('TEXT(confidence,"0%")',), " sure. For Bad loans only, the odds are "
@@ -2385,18 +2491,28 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
 def write(wb, res, stamp: str) -> None:
     """Every result tab this run has, and the hidden sheets they read, each written afresh. The tabs these replace
     in an older workbook are taken off by book._write_results, with every other result tab."""
-    for t in TABS + HIDDEN + (CHART,):                  # book._write_results takes off the ones replaced
+    for t in SHOWN_TABS + HIDDEN + (CHART,):            # book._write_results takes off the ones replaced
         if t in wb.sheetnames:
             del wb[t]
     for name in [n for n in wb.defined_names if n.startswith("pk_sel_")]:
         del wb.defined_names[name]
+    from .timing import mark                            # each tab's seconds on Record (the firm, 30 Sep 2026)
+    mark("Writing Pockets")
     choices, views = Choices(wb), Views(wb)
     write_pockets(wb, res, choices, stamp)
     have = {m.name for m in res.measures}
     if res.config.benchmark is not None and {"gco_rate", "ranr_rate", "contribution_rate"} <= have:
         # a test of a new variable run without GCO and RANR has nothing to put on it, so there is no tab
+        mark("Writing Paid cost kept")
         write_pck(wb, res, choices, views, stamp)
+    mark("Writing Grids")
     write_grids(wb, res, choices, views)
+    mark("Writing Summary")
     write_summary(wb, res, choices, views)
+    from . import compare                               # compare.py reads this module's helpers
+    if res.config.filter_by:
+        mark("Writing Compare")
+    compare.write_compare(wb, res, choices, views)      # only with a Filter by
     if res.config.split:
+        mark("Writing Split")
         write_split(wb, res, choices, views, stamp)

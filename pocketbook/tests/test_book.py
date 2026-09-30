@@ -99,7 +99,7 @@ def test_a_full_run_writes_results_into_the_workbook(tmp_path):
     # only ever read fine (tenet T2)
     assert [line for line in ran.lines if "tie-out" in line] == []
     assert tabs.record(out.book)["Tie-out checks"].endswith(": every grid adds up to the book")
-    assert any("Worst for GCO per booked dollar: FICO " in line and "Broker" in line for line in ran.lines)
+    assert any("Worst for GCOs per booked dollar: FICO " in line and "Broker" in line for line in ran.lines)
     wb = load_workbook(out.book)
     for t in (results.POCKETS, results.GRIDS, record.SHEET, record.LOG):
         assert t in wb.sheetnames

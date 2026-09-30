@@ -1,5 +1,5 @@
 """The result tabs as the firm's redesign draws them (docs/redesign-2026-09-26/README.md, sections 5 to 8; the
-redesign's phase 3): Pockets, Paid cost kept, Grids and Split, in place of Where it bleeds, Three-way, Losses vs
+redesign's phase 3): Pockets, RANR vs GCOs, Grids and Split, in place of Where it bleeds, Three-way, Losses vs
 revenue and Prevalence.
 
 Each tab's structure is held here, and its live behaviour through LibreOffice (tests/recalc.py): the dropdowns
@@ -148,8 +148,8 @@ def test_each_result_tab_opens_with_its_title_band_and_one_method_note_that_fold
 
 def test_pockets_offers_the_three_dropdowns_with_the_redesigns_options(ran):
     wb = load_workbook(ran["book"])
-    assert tabs.options(wb, results.POCKETS, "Measure") == ["Bad loans", "Bad dollars", "Charge-offs",
-                                                            "Kept after losses", "Earned before losses"]
+    assert tabs.options(wb, results.POCKETS, "Measure") == ["Bad loans", "Bad dollars", "GCOs ($)",
+                                                            "RANR", "RANR + GCOs"]
     assert tabs.options(wb, results.POCKETS, "Pockets") == ["Two-way", "Split by REV_DEBT"]
     assert tabs.options(wb, results.POCKETS, "Show") == ["All", "Worse and material", "Worse or not sure"]
     for label in ("Measure", "Pockets", "Show"):
@@ -179,8 +179,8 @@ def test_pockets_ranks_the_worse_pockets_first_by_their_dollars(ran):
     assert 'Order and "Could have caught" are from the last Run, 20' in said and "not the order" in said
 
 
-@pytest.mark.parametrize("measure, kind, show", [("Charge-offs", "Two-way", "Worse or not sure"),
-                                                 ("Kept after losses", "Split by REV_DEBT", "All"),
+@pytest.mark.parametrize("measure, kind, show", [("GCOs ($)", "Two-way", "Worse or not sure"),
+                                                 ("RANR", "Split by REV_DEBT", "All"),
                                                  ("Bad dollars", "Split by REV_DEBT", "Worse and material")])
 def test_the_dropdowns_pick_the_rows_and_the_caption_counts_them(ran, tmp_path, measure, kind, show):
     res = ran["res"]
@@ -212,7 +212,7 @@ def test_worse_and_material_leaves_out_a_worse_pocket_below_the_line(ran, tmp_pa
     assert len(worse) >= 2                                   # the split pockets: several worse on charge-offs
     line = (worse[0] + worse[-1]) / 2
     b = _set(ran["book"], tmp_path / "line.xlsx", {"materiality": (None, line)})
-    b = tabs.choose(b, tmp_path / "picked.xlsx", results.POCKETS, measure="Charge-offs", show="Worse and material",
+    b = tabs.choose(b, tmp_path / "picked.xlsx", results.POCKETS, measure="GCOs ($)", show="Worse and material",
                     pockets="Split by REV_DEBT")
     v = recalc(b, tmp_path / "rc")
     cfg = ran["cfg"]
@@ -232,7 +232,7 @@ def test_the_rows_verdicts_caption_and_colours_follow_control_without_a_run(ran,
     res0 = ran["res"]
     b = _set(ran["book"], tmp_path / "lines.xlsx", {"worse_at": ("2 times", None),
                                                     "compare_to": ("The rest of the book", None)})
-    b = tabs.choose(b, tmp_path / "picked.xlsx", results.POCKETS, measure="Charge-offs", show="Worse or not sure")
+    b = tabs.choose(b, tmp_path / "picked.xlsx", results.POCKETS, measure="GCOs ($)", show="Worse or not sure")
     v = recalc(b, tmp_path / "rc")
     cfg = ran["cfg"]
     res = engine.run(dataclasses.replace(cfg, benchmark=dataclasses.replace(cfg.benchmark, worse_at=2.0,
@@ -317,7 +317,7 @@ def test_the_rest_a_pocket_is_read_against_follows_judged_against(ran):
 
 
 # --------------------------------------------------------------------------
-# Paid, cost, kept
+# RANR vs GCOs
 
 
 def test_paid_cost_kept_shows_one_grid_at_a_time_in_its_column_groups(ran, tmp_path):
@@ -328,7 +328,7 @@ def test_paid_cost_kept_shows_one_grid_at_a_time_in_its_column_groups(ran, tmp_p
     ws = ran["values"][results.PCK]
     head = tabs.header_row(ws, results.C_TOG, "Together")
     assert [ws.cell(row=head - 1, column=c).value for c in (results.C_PAID, results.C_COST, results.C_KEPT)] == [
-        "Paid us · gap vs band", "Cost us · charge-offs", "Kept · gap vs band"]
+        "RANR + GCOs · gap vs rest of band", "GCOs · × rest of band", "RANR · gap vs rest of band"]
     assert all(wb[results.PCK].cell(row=head - 1, column=c).border.bottom.style == "medium"
                for c in range(results.C_PAID, results.C_TOG + 1))
     # another grid picked: its own pockets, in its own last-Run order
@@ -407,7 +407,7 @@ def test_the_scatter_colours_by_verdict_numbers_its_named_pockets_and_lists_them
     assert named and all(s.tx.strRef.f.split("!")[1].startswith(f"${results.col(results.H_NUM)}$") for s in named)
     cells = [c.value for r in ws.iter_rows() for c in r if isinstance(c.value, str)]
     assert "Numbered on the chart" in cells
-    listed = [v for v in cells if v.startswith(f"=IF('{results.CHART}'!${results.col(results.H_NAME)}$")]
+    listed = [v for v in cells if v.startswith(f"=IF('{results.CHART}'!${results.col(results.H_LNAME)}$")]
     assert len(listed) == results.LABELLED
 
 
@@ -422,10 +422,10 @@ def test_grids_fill_the_four_blocks_for_the_grid_and_measure_picked(ran, tmp_pat
     wb = load_workbook(ran["book"])
     grids = tabs.options(wb, results.GRIDS, "Grid")
     assert name in grids and any(x.endswith(" / REV_DEBT") for x in grids)        # two-way, then split
-    v = recalc(tabs.choose(ran["book"], tmp_path / "g.xlsx", results.GRIDS, grid=name, measure="Charge-offs"),
+    v = recalc(tabs.choose(ran["book"], tmp_path / "g.xlsx", results.GRIDS, grid=name, measure="GCOs ($)"),
                tmp_path / "rc")
     ws = v[results.GRIDS]
-    rate, book_, band, loans = (tabs.block(ws, t) for t in ("Rate · Charge-offs", "vs the book", "vs rest of band",
+    rate, book_, band, loans = (tabs.block(ws, t) for t in ("Rate · GCOs ÷ Booked", "vs the book", "vs rest of band",
                                                             "Loans"))
     few = (engine.THIN, engine.FEW)
     for (bl, d), c in g.inner():
@@ -437,7 +437,7 @@ def test_grids_fill_the_four_blocks_for_the_grid_and_measure_picked(ran, tmp_pat
     assert loans[("All", "All")] == res.rows
     # a pocket with no loans is blank, not nought (the first grid, as the tab opens)
     g0 = res.grids[0]
-    rate0 = tabs.block(ran["values"][results.GRIDS], "Rate · Bad loans")
+    rate0 = tabs.block(ran["values"][results.GRIDS], "Rate · Bad loans ÷ Loans")
     empty = [(bl, d) for bl in g0.band_labels for d in g0.dim_labels if (bl, d) not in g0.cells]
     assert empty and all(rate0[k] is None for k in empty)
     assert all(v_ is None for (bl, d), v_ in band.items() if "All" in (bl, d))
@@ -467,7 +467,7 @@ def test_split_shows_the_summary_and_the_two_grids_for_what_is_picked(ran, tmp_p
     wb = load_workbook(ran["book"])
     grids = tabs.options(wb, results.SPLIT, "Grid")
     g = next(x for x in res.grids if f"{_names(res)[x.band]} x {_names(res)[x.dimension]}" == grids[-1])
-    b = tabs.choose(ran["book"], tmp_path / "s.xlsx", results.SPLIT, grid=grids[-1], measure="Charge-offs")
+    b = tabs.choose(ran["book"], tmp_path / "s.xlsx", results.SPLIT, grid=grids[-1], measure="GCOs ($)")
     v = recalc(b, tmp_path / "rc")
     ws = v[results.SPLIT]
     chip = tabs.dropdown(ws, "Grid").offset(column=results.SPLIT_CHIP - 2).value
@@ -476,7 +476,7 @@ def test_split_shows_the_summary_and_the_two_grids_for_what_is_picked(ran, tmp_p
     rows = {ws.cell(row=r, column=2).value: [ws.cell(row=r, column=c).value for c in range(3, 10)]
             for r in range(head + 1, head + 6)}
     p = g.split_pooled["gco_rate"]
-    got = rows["Charge-offs"]
+    got = rows["GCOs ($)"]
     # a shuffled p-value near the bar prints as Borderline (29 Sep 2026): results.split_said
     pooled_p = results.split_said(p["ratio_p"], p.get("ratio_se"), res.config.benchmark.confidence)
     assert got[0] == p["pockets"] and got[2] == pytest.approx(p["ratio"])
@@ -484,7 +484,7 @@ def test_split_shows_the_summary_and_the_two_grids_for_what_is_picked(ran, tmp_p
     assert got[3].endswith("×") and " to " in got[3]
     said = next(c.value for row in ws.iter_rows() for c in row if str(c.value).startswith("Same in every pocket? "))
     assert said.startswith("Same in every pocket? Bad loans: ")
-    hl, pv = tabs.block(ws, "Charge-offs, high vs low"), tabs.block(ws, "p-value per pocket")
+    hl, pv = tabs.block(ws, "GCOs ($), high vs low"), tabs.block(ws, "p-value per pocket")
     for (bl, d), x in g.split_compare.items():
         if "gco_rate" not in x or x["gco_rate"][0] is None:
             continue

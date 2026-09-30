@@ -175,9 +175,15 @@ def test_bands_by_count(book):
 
 
 def test_asking_for_more_bands_than_the_values_allow_warns(book):
+    # two values: more than a few_values of 1, so cut as far as it goes and said
+    res = engine.run(cube(bands=[{"name": "score", "field": "SCORE", "count": 5, "cut": "equal_loans",
+                                  "few_values": 1}]), table(book))
+    assert any("asked for 5 bands, got" in w for w in res.warnings)
+    # at Control's 12 they are few, so each is its own band, and that is said instead (the firm, 30 Sep 2026)
     res = engine.run(cube(bands=[{"name": "score", "field": "SCORE", "count": 5, "cut": "equal_loans"}]),
                      table(book))
-    assert any("asked for 5 bands, got" in w for w in res.warnings)
+    assert "SCORE: too few values to cut into equal bands, so each value is its own band" in res.warnings
+    assert res.grids[0].band_labels == ["600", "700"]
 
 
 def test_round_cuts_are_round_and_keep_the_count():
