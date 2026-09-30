@@ -111,7 +111,7 @@ def test_the_old_result_tabs_are_gone_and_the_four_new_ones_sit_in_order(ran):
     assert not set(results.OLD_TABS) & set(names)
     visible = [ws.title for ws in wb.worksheets if ws.sheet_state == "visible"]
     assert visible == ["Start here", "Control", "Columns", "Look", results.POCKETS, results.PCK, results.GRIDS,
-                       results.SPLIT, "Record"]
+                       results.SUMMARY, results.SPLIT, "Record"]
     for t in results.TABS:
         assert wb[t].sheet_properties.tabColor.rgb.endswith(house.INK), t
         assert wb[t].sheet_view.showGridLines is False, t

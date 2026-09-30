@@ -1269,8 +1269,8 @@ muts = [
   "split_grids_share"),
  ("look labels back to 26", LK, "return house.fit(list(STAT_LABELS) + codes, floor=20, cap=40)",
   "return 26", "look_labels_fit"),
- ("Together too narrow for the borderline flag", RS, '                                  floor=28, cap=56), 12: 3})',
-  '                                  floor=28, cap=28), 12: 3})', "fit_the_borderline"),
+ ("Together too narrow for the borderline flag", RS, '                                  floor=28, cap=56), C_TOG + 1: 3})',
+  '                                  floor=28, cap=28), C_TOG + 1: 3})', "fit_the_borderline"),
  ("Worse? too narrow for the borderline flag", RS, '                                 floor=11, cap=36),',
   '                                 floor=11, cap=20),', "fit_the_borderline"),
  # 30 Sep 2026: Filter by, apart from Split by (the firm: "Wait only works on split by? Isn't that for like above and
@@ -1338,6 +1338,50 @@ muts = [
   '        last = (f(math.ceil(hi / step) * step)', "whole_dollars"),
  ("scouting's bins not raised", SC, '    bins = list(engine.whole_cut(bins, v[~np.isnan(v)].tolist()))',
   '    bins = list(bins)', "scoutings_suggested_bins"),
+ # 30 Sep 2026: Paid, cost, kept's gross booked, GCO and RANR (the firm: "so we can also see if pockets are straight
+ # negative on returns"; tests/test_firm_answers_2026_09_29.py, pck_gross)
+ ("RANR rate over loans, not booked", RS, '"ranr_rate": k.num / k.den if k.den else None}',
+  '"ranr_rate": k.num / c.rows if c.rows else None}', "pck_gross"),
+ ("a pocket losing money outright not red", RS,
+  '[(neg, None, Font(color=CRIMSON, bold=True), None)], line_on)', '[], line_on)', "pck_gross"),
+ ("count line leaves out the untested pockets", RS, '    neg = [x["ranr"] for x in rows if x["ranr"] < 0]',
+  '    neg = [x["ranr"] for x in rows if x["ranr"] < 0 and not x["untested"]]', "pck_gross"),
+ ("gross from the rest of the band, not the pocket", RS, '"together": tog, **gross_of(c),',
+  '"together": tog, **{k: (gross_of(g.cells[(bl, engine.ALL)])[k] or 0) - (v or 0) for k, v in '
+  'gross_of(c).items()},', "pck_gross"),
+ ("pockets not listed dropped from the totals", RS, '    if rest:\n        out.append(row(PCK_UNLISTED, rest))',
+  '    if False:\n        out.append(row(PCK_UNLISTED, rest))', "pck_gross"),
+ ("whole book added up from the pockets listed", RS,
+  '    out.append(row(PCK_BOOK, [{**gross_of(whole), "units": whole.rows}]))',
+  '    out.append(row(PCK_BOOK, [x for on, x in cells if on]))', "pck_gross"),
+ ("gross dollars never in thousands", RS, '    thousands = len(gross_shown(-top, False)) + 2 > DATA_CAP',
+  '    thousands = False', "pck_gross"),
+ # 30 Sep 2026: Summary, one band column and the book's plain figures (the firm: "Charged off / booked")
+ ("Summary's charge-off rate over loans, not booked", E,
+  'row.update(gco=g.num, gco_rate=g.rate, gco_x=index_of(g.rate, whole.rate if whole else None),',
+  'row.update(gco=g.num, gco_rate=share(g.num, c.rows), gco_x=index_of(g.rate, whole.rate if whole else None),',
+  "summary"),
+ ("Summary's % of loans leaves out the special rows", E,
+  '        row: dict[str, float | None] = {"loans": c.rows, "loans_share": share(c.rows, top.rows)}',
+  '        row: dict[str, float | None] = {"loans": c.rows, "loans_share": share(c.rows, top.rows - sum(\n'
+  '            s.cells[x].rows for x in s.labels if x in REASON_LABEL.values()))}',
+  "summary"),
+ ("Summary's x book against the band itself", E,
+  'gco_x=index_of(g.rate, whole.rate if whole else None),', 'gco_x=index_of(g.rate, g.rate),', "summary"),
+ ("Summary's x book against the filtered loans, not the book", E,
+  'gco_x=index_of(g.rate, whole.rate if whole else None),', 'gco_x=index_of(g.rate, top.rates["gco_rate"].rate),',
+  "summary"),
+ ("Summary's filter ignored", E,
+  '            part = summaries[(b.name, v)] = _summary(b.name, measures, per_row, bands[b.name], booked, whole.labels,\n'
+  '                                                     rows_of[v])',
+  '            part = summaries[(b.name, v)] = _summary(b.name, measures, per_row, bands[b.name], booked, whole.labels,\n'
+  '                                                     range(n))',
+  "summary"),
+ ("Summary's bad loans % over every loan", E, '            row.update(bad=o.num, bad_rate=o.rate)',
+  '            row.update(bad=o.num, bad_rate=share(o.num, c.rows))', "summary"),
+ ("Summary's missing source column not said", RS,
+  '        note.append(("Not shown", "This Run has no " + " and no ".join(left_off) + ", so those columns are left off."))',
+  '        pass', "summary"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

@@ -111,7 +111,8 @@ def test_grids_count_the_book_by_the_new_columns_bands(tmp_path):
     # the Prevalence tab is absorbed into Grids (the redesign, section 7): under the four blocks, for the grid
     # picked, how common each group is
     names = load_workbook(b).sheetnames
-    assert "Prevalence" not in names and names.index(results.GRIDS) + 1 == names.index(results.SPLIT)
+    assert "Prevalence" not in names                   # Summary (30 Sep 2026) is the one tab between Grids and Split
+    assert names[names.index(results.GRIDS) + 1:names.index(results.SPLIT)] == [results.SUMMARY]
     ws = recalc(b, tmp_path / "rc")[results.GRIDS]
     text = [ws.cell(row=r, column=2).value for r in range(1, ws.max_row + 1)]
     assert "How common each group is: a count, not a test" in text

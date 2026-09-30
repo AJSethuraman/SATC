@@ -10,6 +10,7 @@
 """
 
 import csv
+import math
 import random
 import re
 import statistics
@@ -1941,3 +1942,446 @@ def test_whole_dollars_scoutings_suggested_bins_on_a_dollar_column_are_whole():
     ratio = np.array([0.1 + i * 0.0004 for i in range(2000)])
     assert scout.bins_at([0], [(0.4555, 1.0)], [0.455, 0.456], ratio, [0.1, 0.3]) == [
         scout.edge([(0.4555, 1.0)], 0.455, 0.456)] == [0.456]                   # a ratio: as scouting rounds it
+
+
+# ---- Paid, cost, kept: gross booked, GCO and RANR (30 Sep 2026)
+# The firm: "On the paid cost kept tab I would like to work on gross GCO gross booked and gross RANR as well so we can
+# also see if pockets are straight negative on returns". Each pocket's own booked dollars, charge-offs and RANR, and
+# RANR per booked dollar, compared with nothing; a pocket whose RANR is below zero in red and counted above the table;
+# totals under it that add up to the whole book. Every figure is checked here against the loan file, read without the
+# engine, for every grid the dropdown offers.
+
+KIOSK_LOSS = 0.04          # the planted pocket keeps -4% of what it booked, before its charge-offs
+
+
+def _gross_file(tmp_path, n=6000):
+    """The synthetic book, and 60 loans through a Kiosk spread over every score band, each losing money outright."""
+    src = synth.write_extract(tmp_path / "src", n=n)
+    rows = list(csv.DictReader(open(src, encoding="utf-8")))
+    for k in range(60):
+        bal = 10000.0 + 250 * k
+        gco = round(bal * 0.3, 2) if k % 5 == 0 else 0.0
+        rows.append({**rows[10], "LOAN_NBR": f"K{k:03d}", "FICO": 560 + (k * 7) % 240, "CHANNEL": KIOSK,
+                     "ORIG_BAL": bal, "BAD_FLAG": 1 if gco else 0, "GCO_AMT": gco,
+                     "RANR_AMT": round(-KIOSK_LOSS * bal - gco, 2)})
+    out = tmp_path / "gross.csv"
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    return out
+
+
+@pytest.fixture(scope="module")
+def gross_book(tmp_path_factory):
+    """FICO x CHANNEL and FICO x ASSET_CLASS over the Kiosk book, each grid picked in turn and calculated."""
+    import tabs
+    from pocketbook import perm, results
+    d = tmp_path_factory.mktemp("gross")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 200)
+        x = _gross_file(d)
+        out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO",),
+                                                segments=("CHANNEL", "ASSET_CLASS")))
+        _answer(out.book)
+        ran = book.run(out.book)
+        assert ran.ok, ran.lines
+    grids = tabs.options(load_workbook(out.book), results.PCK, "Grid")
+    calc = {g: tabs.calculated(tabs.choose(out.book, d / f"grid{i}.xlsx", results.PCK, grid=g), results.PCK)
+            for i, g in enumerate(grids)}
+    return {"b": out.book, "x": x, "calc": calc}
+
+
+def _gross_sums(rows) -> dict:
+    """Loans, booked, GCO and RANR over loans, read from the file as the Run reads a dollar rate: a loan counts
+    towards one when its amount and its booked amount both read as numbers ("#N/A" and a blank don't). Booked is
+    under RANR, so RANR rate is RANR over it."""
+    def s(top):
+        return math.fsum(_num(r[top]) for r in rows if _num(r[top]) is not None and _num(r["ORIG_BAL"]) is not None)
+    booked = math.fsum(_num(r["ORIG_BAL"]) for r in rows if _num(r["ORIG_BAL"]) is not None
+                       and _num(r["RANR_AMT"]) is not None)
+    ranr = s("RANR_AMT")
+    return {"loans": len(rows), "booked": booked, "gco": s("GCO_AMT"), "ranr": ranr,
+            "ranr_rate": ranr / booked if booked else None}
+
+
+def _gross_by_pocket(x, grid: str, labels) -> dict:
+    """{(band, segment): sums} for one grid, and ("All", "All") for the book, from the loan file alone."""
+    seg = grid.split(" x ")[1]
+    cells: dict = {}
+    for r in _loans_file(x):
+        for k in ((_band(r["FICO"], labels), r[seg]), ("All", "All")):
+            cells.setdefault(k, []).append(r)
+    return {k: _gross_sums(v) for k, v in cells.items()}
+
+
+def _pck_labels(rows) -> set:
+    return {str(x["band"]) for x in rows if " - " in str(x["band"])}
+
+
+def _pck_totals(ws) -> dict:
+    """The totals under Paid, cost, kept's table, {label: {row, loans, booked, gco, ranr, ranr_rate}}."""
+    from pocketbook import results as rs
+    out = {}
+    for r in range(1, ws.max_row + 1):
+        label = ws.cell(row=r, column=rs.C_BAND).value
+        if label in (rs.PCK_LISTED, rs.PCK_UNLISTED, rs.PCK_BOOK):
+            out[label] = {"row": r, "loans": ws.cell(row=r, column=rs.C_LOANS).value,
+                          **{k: ws.cell(row=r, column=c).value
+                             for k, c in zip(("booked", "gco", "ranr", "ranr_rate"), rs.GROSS)}}
+    return out
+
+
+def test_pck_gross_every_pockets_booked_gco_ranr_and_rate_are_the_loan_files_for_every_grid(gross_book):
+    import tabs
+    from pocketbook import results
+    assert set(gross_book["calc"]) == {"FICO x CHANNEL", "FICO x ASSET_CLASS"}
+    for grid, ws in gross_book["calc"].items():
+        rows = tabs.pck(ws)
+        head = tabs.header_row(ws, results.C_TOG, "Together")
+        assert tabs.heads(ws, head, results.C_LOANS, results.C_RATE) == ["Loans", "Booked", "GCO", "RANR",
+                                                                         "RANR rate"]
+        assert ws.cell(row=head - 1, column=results.C_BOOK).value == "Gross · this pocket alone"
+        want = _gross_by_pocket(gross_book["x"], grid, _pck_labels(rows))
+        assert len(rows) > 10, grid
+        for x in rows:
+            w = want[(str(x["band"]), str(x["seg"]))]
+            assert x["loans"] == w["loans"], (grid, x)
+            for k in ("booked", "gco", "ranr"):
+                assert x[k] == pytest.approx(w[k], abs=0.005), (grid, x["band"], x["seg"], k)
+            assert x["ranr_rate"] == pytest.approx(w["ranr_rate"], abs=1e-12), (grid, x)
+
+
+def test_pck_gross_totals_add_up_to_the_whole_book_on_every_grid(gross_book):
+    import tabs
+    from pocketbook import results
+    for grid, ws in gross_book["calc"].items():
+        rows, tot = tabs.pck(ws), _pck_totals(ws)
+        whole, want = tot[results.PCK_BOOK], _gross_by_pocket(gross_book["x"], grid, _pck_labels(rows))[("All", "All")]
+        for k in ("loans", "booked", "gco", "ranr"):
+            assert whole[k] == pytest.approx(want[k], abs=0.01), (grid, k)
+            listed = tot[results.PCK_LISTED][k]
+            assert listed == pytest.approx(math.fsum(x[k] for x in rows), abs=0.01), (grid, k)
+            unlisted = tot.get(results.PCK_UNLISTED, {}).get(k) or 0
+            assert listed + unlisted == pytest.approx(whole[k], abs=0.01), (grid, k)
+        assert whole["ranr_rate"] == pytest.approx(want["ranr_rate"], abs=1e-12)
+        assert tot[results.PCK_LISTED]["row"] > rows[-1]["row"] + 1        # under the table, a row clear of it
+
+
+NEG_RULE = re.compile(r'^(?:AND\(\$[A-Z]+\d+<>"",)?AND\(ISNUMBER\(\$([A-Z]+)(\d+)\),\$[A-Z]+\d+<0\)\)?$')
+
+
+def _red(ws, r: int, c: int) -> bool:
+    """Whether a red-text rule holds on a cell: the RANR it reads below zero, its reference moved to the row as a
+    spreadsheet moves it."""
+    from openpyxl.utils import range_boundaries
+    from openpyxl.utils.cell import column_index_from_string
+    from pocketbook import house
+    for rng in ws.formulas.conditional_formatting:
+        for bounds in str(rng.sqref).split():
+            c0, r0, c1, r1 = range_boundaries(bounds)
+            if not (c0 <= c <= c1 and r0 <= r <= r1):
+                continue
+            for rule in sorted(rng.rules, key=lambda x: x.priority):
+                font = rule.dxf.font if rule.dxf is not None else None
+                if font is None or font.color is None or font.color.rgb[-6:] != house.CRIMSON:
+                    continue
+                m = NEG_RULE.match(rule.formula[0])
+                assert m, rule.formula[0]
+                v = ws.cell(row=int(m.group(2)) + r - r0, column=column_index_from_string(m.group(1))).value
+                if isinstance(v, (int, float)) and v < 0:
+                    return True
+    return False
+
+
+def test_pck_gross_a_pocket_that_lost_money_outright_is_red_and_counted_above_the_table(gross_book):
+    import tabs
+    from pocketbook import house, results
+    kiosks = 0
+    for grid, ws in gross_book["calc"].items():
+        rows = tabs.pck(ws)
+        want = _gross_by_pocket(gross_book["x"], grid, _pck_labels(rows))
+        neg = [x for x in rows if want[(str(x["band"]), str(x["seg"]))]["ranr"] < 0]
+        # the Kiosk's 60 loans sit in one asset class, among thousands that make money: that grid has none
+        assert bool(neg) is (grid == "FICO x CHANNEL"), grid
+        kiosks += sum(x["seg"] == KIOSK for x in neg)
+        for x in rows:
+            is_neg = x in neg
+            assert _red(ws, x["row"], results.C_RANR) is is_neg, (grid, x)
+            assert _red(ws, x["row"], results.C_RATE) is is_neg, (grid, x)
+            assert not _red(ws, x["row"], results.C_BOOK) and not _red(ws, x["row"], results.C_GCO)
+        # the count line beside the Grid dropdown, from the loan file: how many, and how much between them
+        lost = -math.fsum(want[(str(x["band"]), str(x["seg"]))]["ranr"] for x in neg)
+        s = tabs.dropdown(ws, "Grid").row
+        n = len(neg)
+        assert ws.cell(row=s, column=results.C_LOANS).value == (
+            f"{n} pocket{'s' if n != 1 else ''} lost money outright, totalling ${lost:,.0f}: RANR below zero, in red."
+            if n else "No pocket listed lost money outright: every one's RANR is zero or more.")
+        rules = [r for rng in ws.formulas.conditional_formatting
+                 if str(rng.sqref) == f"{results.col(results.C_LOANS)}{s}" for r in rng.rules]
+        assert rules and rules[0].dxf.font.color.rgb[-6:] == house.CRIMSON
+        assert ws.cell(row=s, column=results.C_H_UN).value == n                # the rule's cell: red above 0
+    assert kiosks >= 5                          # the planted Kiosk pockets, one in each score band
+    note = _note(gross_book["calc"]["FICO x CHANNEL"])
+    assert "Negative RANR: the pocket lost money outright, before comparing it with anyone." in note["Kept"]
+
+
+def test_pck_gross_a_pocket_not_listed_gets_its_own_total_and_the_three_still_add_up():
+    """A pocket with nothing to compare it with is not listed; its dollars go to Not listed, never lost from the
+    book. Neither synthetic grid has one, so the rows are stated here."""
+    from pocketbook import engine, results
+
+    def cell(n, booked, gco, ranr):
+        return engine.Cell(rows=n, rates={"ranr_rate": engine.RateStat(num=ranr, den=booked),
+                                          "gco_rate": engine.RateStat(num=gco, den=booked)})
+
+    class G:
+        cells = {("a", "x"): cell(3, 300.0, 10.0, 20.0), ("a", "y"): cell(2, 200.0, 50.0, -30.0),
+                 (engine.ALL, engine.ALL): cell(5, 500.0, 60.0, -10.0)}
+
+        def inner(self):
+            return [(k, c) for k, c in self.cells.items() if engine.ALL not in k]
+    got = results.pck_totals(G(), [{"band": "a", "seg": "x"}])
+    assert got == [(results.PCK_LISTED, 3, 300.0, 10.0, 20.0, 20.0 / 300), (results.PCK_UNLISTED, 2, 200.0, 50.0,
+                                                                            -30.0, -0.15),
+                   (results.PCK_BOOK, 5, 500.0, 60.0, -10.0, -0.02)]
+    assert [t[0] for t in results.pck_totals(G(), [{"band": "a", "seg": "x"}, {"band": "a", "seg": "y"}])] == [
+        results.PCK_LISTED, results.PCK_BOOK]
+
+
+def test_pck_gross_no_negative_pocket_says_so_and_one_says_it_in_the_singular():
+    from pocketbook import results
+    assert results.negative_line([{"ranr": 5.0}, {"ranr": 0.0}]) == (
+        "No pocket listed lost money outright: every one's RANR is zero or more.")
+    assert results.negative_line([{"ranr": -1234.4}, {"ranr": 3.0}]) == (
+        "1 pocket lost money outright, totalling $1,234: RANR below zero, in red.")
+
+
+def test_pck_gross_dollars_fit_their_columns_and_turn_to_thousands_past_the_cap(gross_book):
+    from pocketbook import results
+    ws = load_workbook(gross_book["b"])[results.PCK]
+    rows = [v for k, v in _views_rows(gross_book["b"]).items() if k.startswith("C|") and k.split("|")[-1].isdigit()]
+    for j, c in enumerate(results.GROSS):
+        vals = [v[7 + j] for v in rows if len(v) > 7 + j and v[7 + j] is not None]
+        assert vals, c
+        longest = max(len(f"{v:.2%}") if j == 3 else len(f"${abs(v):,.0f}") + (v < 0) for v in vals)
+        assert ws.column_dimensions[results.col(c)].width >= longest + 2, c
+    assert results.gross_widths([(1.9e8, 8e6, -2.4e7, 0.12)])[0] is False
+    k, w = results.gross_widths([(2.5e9, 8e7, -2.4e8, -0.12)])
+    assert k is True and results.gross_shown(-2.4e8, True) == "-$240,000k"
+    assert w[results.C_BOOK] >= len("$2,500,000k") + 2
+
+
+
+# ---- 30 Sep 2026: a Summary tab, one band column and the book's plain figures across
+# The firm: "I want to add some easy high value views as well. Like a few matrices where it lists out a chosen band on
+# the left and shows real calculated metrics... Maybe I want to see bands of FICO on the left and straight up unit
+# counts, loan amounts, % of units, % of loan amounts, charged off dollars, ratio, percentage of units. Same with RANR.
+# They'd be across the top." The ratio: "Charged off / booked". Bad loans columns: "Yes do this".
+
+SUMMARY_ONLY = f"Only loans where {ch.ORIG_YEAR} is"
+SUMMARY_HEADS = ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "% of booked", "Charged off $",
+                 "Charge-off rate", "× book", "% of charge-offs", "RANR $", "RANR rate", "% of RANR"]
+SHARES = ("% of loans", "% of booked", "% of charge-offs", "% of RANR")
+SPECIAL = ("(blank)", "(not a number)", "(marked missing)")
+
+
+@pytest.fixture(scope="module")
+def summary_book(tmp_path_factory):
+    """FICO and REV_DEBT (dollars) cut into bands, by CHANNEL, filtered by ORIG_YEAR: the book and its loan file."""
+    from pocketbook import perm
+    d = tmp_path_factory.mktemp("summary")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("POCKETBOOK_MEMORY", str(d / "memory.yaml"))
+        mp.setattr(perm, "SHUFFLES", 100)
+        x = synth.write_extract(d / "src", n=4000)
+        out = book.set_up(x, choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO", "REV_DEBT"), segments=("CHANNEL",),
+                                                filter=ch.ORIG_YEAR, outcome="BAD_FLAG"))
+        _answer(out.book)
+        ran = book.run(out.book)
+        assert ran.ok, ran.lines
+    return out.book, x
+
+
+def _summary_tab(b, out, band=None, only=None):
+    """Summary with its dropdowns set, calculated: the sheet, the headings across, {row label: {heading: value}} in
+    the order shown, and the label column's heading."""
+    from pocketbook import results
+    import tabs
+    picks = {k: v for k, v in (("band column", band), (SUMMARY_ONLY, only)) if v}
+    ws = tabs.calculated(tabs.choose(b, out, results.SUMMARY, **picks), results.SUMMARY)
+    h = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=3).value == "Loans")
+    heads = []
+    c = 3
+    while ws.cell(row=h, column=c).value not in (None, ""):
+        heads.append(ws.cell(row=h, column=c).value)
+        c += 1
+    rows = {}
+    r = h + 1
+    while ws.cell(row=r, column=2).value not in (None, ""):
+        rows[ws.cell(row=r, column=2).value] = {hd: ws.cell(row=r, column=3 + j).value for j, hd in enumerate(heads)}
+        r += 1
+    return ws, heads, rows, ws.cell(row=h, column=2).value
+
+
+def _summary_label(v, labels) -> str:
+    """A loan's row on Summary, worked out here from the tab's own band labels ("496 - 653", read in whole units)
+    and the extract's text, not by the engine: a blank is (blank), text is (not a number), a FICO under -1000 was
+    answered missing."""
+    if v in ("", None):
+        return "(blank)"
+    try:
+        x = float(v)
+    except ValueError:
+        return "(not a number)"
+    if x < -1000:
+        return "(marked missing)"
+    got = [lab for lab in labels if _reading_in(lab, x)]
+    assert len(got) == 1, (v, got)
+    return got[0]
+
+
+def _road2(rows, field, labels, whole_rows) -> dict:
+    """Every Summary figure for `rows`, from the CSV's text alone: the bands, the special rows, then All."""
+    def f(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    def figures(rs):
+        read = [r for r in rs if r["BAD_FLAG"] in ("0", "1")]
+        bad = sum(1 for r in read if r["BAD_FLAG"] == "1")
+        booked = sum(f(r["ORIG_BAL"]) for r in rs if f(r["ORIG_BAL"]) is not None)
+        g = [(f(r["GCO_AMT"]), f(r["ORIG_BAL"])) for r in rs]
+        g = [(a, c) for a, c in g if a is not None and c is not None]
+        k = [(f(r["RANR_AMT"]), f(r["ORIG_BAL"])) for r in rs]
+        k = [(a, c) for a, c in k if a is not None and c is not None]
+        gco, gden = sum(a for a, _ in g), sum(c for _, c in g)
+        ranr, rden = sum(a for a, _ in k), sum(c for _, c in k)
+        return {"Loans": len(rs), "Bad loans": bad, "Bad loans %": bad / len(read) if read else None,
+                "Booked $": booked, "Charged off $": gco, "Charge-off rate": gco / gden if gden else None,
+                "RANR $": ranr, "RANR rate": ranr / rden if rden else None}
+
+    by: dict = {}
+    for r in rows:
+        by.setdefault(_summary_label(r[field], labels), []).append(r)
+    order = list(labels) + [s for s in SPECIAL if s in by]
+    out = {lab: figures(by.get(lab, [])) for lab in order}
+    out["All"] = figures(rows)
+    book_rate = figures(whole_rows)["Charge-off rate"]
+    top = out["All"]
+    for x in out.values():
+        x["% of loans"] = x["Loans"] / top["Loans"]
+        x["% of booked"] = x["Booked $"] / top["Booked $"]
+        x["% of charge-offs"] = x["Charged off $"] / top["Charged off $"]
+        x["% of RANR"] = x["RANR $"] / top["RANR $"]
+        x["× book"] = x["Charge-off rate"] / book_rate if x["Charge-off rate"] is not None else None
+    return out
+
+
+def _same(got, want) -> bool:
+    if want is None:
+        return got in (None, "")
+    return got == pytest.approx(want, rel=1e-9, abs=1e-9)
+
+
+def _check_summary(shown, want) -> None:
+    assert list(shown) == list(want)                                 # bands in order, the special rows, then All
+    for lab, cols in want.items():
+        for hd, v in cols.items():
+            assert _same(shown[lab][hd], v), (lab, hd, shown[lab][hd], v)
+
+
+def test_summary_every_cell_of_fico_and_a_dollar_band_column_is_the_loans_worked_out_again(summary_book, tmp_path):
+    """FICO, then REV_DEBT picked in the dropdown: every cell against the loan file, the shares adding to 100% over
+    the bands and the special rows, and All the book's own totals."""
+    from pocketbook import config as cfgmod, engine, house
+    from pocketbook.ingest import read_table
+    b, x = summary_book
+    rows = _loans_file(x)
+    seen = {}
+    for field in ("FICO", "REV_DEBT"):
+        ws, heads, shown, head = _summary_tab(b, tmp_path / f"{field}.xlsx", band=field)
+        assert head == field and heads == SUMMARY_HEADS                  # the dropdown switched the column
+        labels = [lab for lab in shown if lab != "All" and lab not in SPECIAL]
+        assert len(labels) == 5 and all(" - " in lab for lab in labels)
+        _check_summary(shown, _road2(rows, field, labels, rows))
+        for hd in SHARES:
+            assert sum(v[hd] for lab, v in shown.items() if lab != "All") == pytest.approx(1.0, rel=1e-9)
+        top = shown["All"]
+        assert top["Loans"] == len(rows) and top["× book"] == pytest.approx(1.0)
+        assert all(top[hd] == pytest.approx(1.0) for hd in SHARES)
+        seen[field] = shown
+    assert "(marked missing)" in seen["FICO"] and "(blank)" in seen["FICO"]
+    assert not set(SPECIAL) & set(seen["REV_DEBT"])
+    assert seen["FICO"]["All"] == pytest.approx(seen["REV_DEBT"]["All"])       # one book, however it is cut
+    # the book's totals, as the engine keeps them for every other tab
+    res = engine.run(cfgmod.parse(book.read_book(b)[0]), read_table(x))
+    t = res.total.rates
+    top = seen["FICO"]["All"]
+    assert top["Bad loans"] == t["outcome_loans"].num and top["Bad loans %"] == pytest.approx(t["outcome_loans"].rate)
+    assert top["Charged off $"] == pytest.approx(t["gco_rate"].num)
+    assert top["RANR $"] == pytest.approx(t["ranr_rate"].num)
+    assert top["Booked $"] == pytest.approx(res.book_size.booked)
+    # light neutral shading at most: the All row, CANVAS; nothing red or green
+    fills = {r.dxf.fill.fgColor.rgb[-6:] for rng in ws.formulas.conditional_formatting for r in rng.rules
+             if r.dxf is not None and r.dxf.fill is not None}
+    assert fills == {house.CANVAS}
+
+
+def test_summary_only_loans_where_a_year_is_that_years_loans_against_the_whole_book(summary_book, tmp_path):
+    from pocketbook import results
+    import tabs
+    b, x = summary_book
+    rows = _loans_file(x)
+    years = sorted({r["ORIG_DATE"][:4] for r in rows})
+    assert tabs.options(load_workbook(b), results.SUMMARY, SUMMARY_ONLY) == [results.ALL_LOANS] + years
+    _, _, whole, _ = _summary_tab(b, tmp_path / "all.xlsx", band="FICO")
+    labels = [lab for lab in whole if lab != "All" and lab not in SPECIAL]
+    for year in (years[0], years[len(years) // 2]):
+        mine = [r for r in rows if r["ORIG_DATE"][:4] == year]
+        assert 0 < len(mine) < len(rows)
+        _, heads, shown, head = _summary_tab(b, tmp_path / f"y{year}.xlsx", band="FICO", only=year)
+        assert head == "FICO" and heads == SUMMARY_HEADS
+        want = _road2(mine, "FICO", labels, rows)
+        # the whole book's rows stay put: a special row this year has no loans in shows none
+        for s in SPECIAL:
+            if s in whole and s not in want:
+                assert shown[s]["Loans"] == 0 and shown[s]["Bad loans %"] in (None, "")
+                del shown[s]
+        _check_summary(shown, want)
+        assert shown["All"]["Loans"] == len(mine) and shown["All"]["× book"] != pytest.approx(1.0)
+        for hd in SHARES:
+            assert sum(v[hd] for lab, v in shown.items() if lab != "All") == pytest.approx(1.0, rel=1e-9)
+
+
+def test_summary_leaves_off_the_columns_a_run_has_no_source_for_and_says_so(tmp_path):
+    import dataclasses
+    from openpyxl import Workbook
+    from pocketbook import config as cfgmod, engine, results
+    from pocketbook.ingest import read_table
+    import tabs
+    cfg, data = synth.write(tmp_path / "cube", n=2000)
+    c = cfgmod.load(cfg)
+    table = read_table(data)
+    bare = dataclasses.replace(c, booked="", measures=tuple(m for m in c.measures
+                                                          if m.name not in ("gco_rate", "contribution_rate")))
+    for conf, want in ((c, SUMMARY_HEADS), (bare, ["Loans", "% of loans", "Bad loans", "Bad loans %", "RANR $",
+                                                   "RANR rate", "% of RANR"])):
+        res = engine.run(conf, table)
+        wb = Workbook()
+        results.write_summary(wb, res, results.Choices(wb), results.Views(wb))
+        ws = wb[results.SUMMARY]
+        h = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=3).value == "Loans")
+        assert [ws.cell(row=h, column=j).value for j in range(3, 3 + len(want) + 1)] == want + [None]
+        note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, h)}
+        if conf is bare:
+            assert note["Not shown"] == ("This Run has no booked amount and no charge-off dollars, so those columns "
+                                         "are left off.")
+            assert "Charged off $" not in note and "Booked $" not in note
+        else:
+            assert "Not shown" not in note and "Only loans where" not in note     # no Filter by, no second dropdown
+            with pytest.raises(KeyError):
+                tabs.dropdown(ws, "Only loans where")

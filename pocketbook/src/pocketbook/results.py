@@ -50,8 +50,10 @@ from . import engine, house, live, prevalence, stats
 from .choices import NO_DATE, ORIG_YEAR
 from .config import PROFIT
 
-POCKETS, PCK, GRIDS, SPLIT = "Pockets", "Paid, cost, kept", "Grids", "Split"
-TABS = (POCKETS, PCK, GRIDS, SPLIT)
+POCKETS, PCK, GRIDS, SUMMARY, SPLIT = "Pockets", "Paid, cost, kept", "Grids", "Summary", "Split"
+#: Summary sits after Grids: both show one table at a time, picked by dropdown, as of the last Run, and Summary is the
+#: same band column's figures without the segments across
+TABS = (POCKETS, PCK, GRIDS, SUMMARY, SPLIT)
 #: the tabs these replace; a workbook written before phase 3 has them, and a Run takes them off
 OLD_TABS = ("Where it bleeds", "Three-way", "Losses vs revenue", "Prevalence")
 CHOICES, LIST, VIEWS = "_choices", "_list", "_views"
@@ -668,7 +670,16 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
 
 SIDES = (("contribution_rate", "Paid us", "gap vs"), ("gco_rate", "Cost us", "charge-offs"),
          ("ranr_rate", "Kept", "gap vs"))
-(C_BAND, C_SEG, C_LOANS, C_PAID, C_PAID_D, C_COST, C_COST_D, C_KEPT, C_KEPT_D, C_TOG) = range(2, 12)
+# the gross block (the firm, 30 Sep 2026): the pocket's own booked, GCO and RANR dollars and RANR per booked dollar,
+# right after Loans, so what the pocket did on its own reads before how it compares with the rest
+(C_BAND, C_SEG, C_LOANS, C_BOOK, C_GCO, C_RANR, C_RATE, C_PAID, C_PAID_D, C_COST, C_COST_D, C_KEPT, C_KEPT_D,
+ C_TOG) = range(2, 16)
+GROSS = (C_BOOK, C_GCO, C_RANR, C_RATE)
+GROSS_HEADS = ("Booked", "GCO", "RANR", "RANR rate")
+#: where the lines in use sit: the same cells as before the gross block (M13 is the bank checklist's), so the tiles
+#: stay over C:K and the waiting note in M, above the table
+PCK_TILES = ((3, 3), (4, 5), (6, 7), (8, 9), (10, 11))
+PCK_NOTE = 13
 C_H = 40                  # hidden: the _views row, untested, each side's _pockets row and flag
 (C_H_ROW, C_H_UN, C_H_RC, C_H_RG, C_H_RR, C_H_FC, C_H_FG, C_H_FR) = range(C_H, C_H + 8)
 # Together's word alone (the chart and the colours read it), and each side's borderline p-value (live.P_BTXT)
@@ -742,12 +753,85 @@ def pck_rows(res, g) -> list[dict]:
             continue
         untested = any(s.flag in (engine.THIN, engine.FEW) for s in ss.values())
         tog = "" if untested else together_of(ss["gco_rate"].flag, ss["ranr_rate"].flag)
-        rows.append({"band": bl, "seg": dl, "units": c.rows, "untested": untested, "together": tog,
+        rows.append({"band": bl, "seg": dl, "units": c.rows, "untested": untested, "together": tog, **gross_of(c),
                      "g_over": ss["gco_rate"].dollars or 0.0, "gaps": [(v, x) for v, x in
                                                                      ((band["gco_rate"], band["ranr_rate"]),
                                                                       (book["gco_rate"], book["ranr_rate"]))]})
     rows.sort(key=lambda x: (x["untested"], x["together"] == "", -x["g_over"]))
     return rows
+
+
+def gross_of(c) -> dict:
+    """One cell's gross figures (the firm, 30 Sep 2026: "gross GCO gross booked and gross RANR ... so we can also see
+    if pockets are straight negative on returns"): its own dollars added up, compared with nothing. Booked is the
+    booked dollars under its RANR (Kept's bottom), so RANR rate is Kept's own rate; GCO is what its charge-off rate
+    adds up."""
+    k, g = c.rates["ranr_rate"], c.rates["gco_rate"]
+    return {"booked": k.den, "gco": g.num, "ranr": k.num, "ranr_rate": k.num / k.den if k.den else None}
+
+
+#: the rows under Paid, cost, kept's table, which add up: the pockets listed, those not listed (nothing to compare
+#: them with), and the whole book
+PCK_LISTED, PCK_UNLISTED, PCK_BOOK = "Pockets listed", "Not listed", "Whole book"
+#: what a negative RANR means, on the method note (the firm's ask, 30 Sep 2026)
+NEGATIVE_SAID = ("Negative RANR: the pocket lost money outright, before comparing it with anyone. Its RANR and "
+                 "RANR rate are red.")
+
+
+def pck_totals(g, rows: list[dict]) -> list[tuple]:
+    """The totals under one grid's table, each (label, loans, booked, GCO, RANR, RANR rate): the pockets listed,
+    the pockets not listed (only when there are any), and the whole book, the grid's own margin. The first two add
+    up to the third: the engine's tie-out holds every pocket's sums to the margin."""
+    def row(label, xs):
+        booked, ranr = math.fsum(x["booked"] for x in xs), math.fsum(x["ranr"] for x in xs)
+        return (label, sum(x["units"] for x in xs), booked, math.fsum(x["gco"] for x in xs), ranr,
+                ranr / booked if booked else None)
+    listed = {(x["band"], x["seg"]) for x in rows}
+    cells = [((bl, dl) in listed, {**gross_of(c), "units": c.rows}) for (bl, dl), c in g.inner()]
+    out = [row(PCK_LISTED, [x for on, x in cells if on])]
+    rest = [x for on, x in cells if not on]
+    if rest:
+        out.append(row(PCK_UNLISTED, rest))
+    whole = g.cells[(engine.ALL, engine.ALL)]
+    out.append(row(PCK_BOOK, [{**gross_of(whole), "units": whole.rows}]))
+    return out
+
+
+def negative_line(rows: list[dict]) -> str:
+    """The line above the table: how many of the pockets listed lost money outright (RANR below zero), and how much
+    between them, worked out here."""
+    neg = [x["ranr"] for x in rows if x["ranr"] < 0]
+    if not neg:
+        return "No pocket listed lost money outright: every one's RANR is zero or more."
+    n, lost = len(neg), -math.fsum(neg)
+    return f"{n} pocket{'s' if n != 1 else ''} lost money outright, totalling ${lost:,.0f}: RANR below zero, in red."
+
+
+#: the gross columns' number formats: whole dollars, or thousands when the largest (the whole book's booked) would
+#: not fit the widest data column, as on Grids (G6)
+GROSS_FMT = '"$"#,##0;-"$"#,##0'
+GROSS_K_FMT = '"$"#,##0,"k";-"$"#,##0,"k"'
+RATE_FMT = "0.00%"
+
+
+def gross_shown(v: float, thousands: bool) -> str:
+    """A gross dollar figure as its number format shows it."""
+    sign = "-" if round(v / 1000 if thousands else v) < 0 else ""
+    return f"{sign}${abs(v) / 1000:,.0f}k" if thousands else f"{sign}${abs(v):,.0f}"
+
+
+def gross_widths(values: list[tuple]) -> tuple[bool, dict[int, float]]:
+    """Whether the gross dollars show in thousands (the largest too long for DATA_CAP, the Grids rule), and each
+    gross column's width, fitted to its heading and every value the Grid dropdown can show in it. `values` are
+    (booked, GCO, RANR, RANR rate)."""
+    top = max((abs(v) for x in values for v in x[:3] if v is not None), default=0.0)
+    thousands = len(gross_shown(-top, False)) + 2 > DATA_CAP
+    out = {}
+    for j, (c, head) in enumerate(zip(GROSS, GROSS_HEADS)):
+        texts = [head] + [f"{x[j]:.2%}" if j == 3 else gross_shown(x[j], thousands) for x in values
+                          if x[j] is not None]
+        out[c] = house.fit(texts, floor=DATA_FLOOR, cap=DATA_CAP)
+    return thousands, out
 
 
 def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
@@ -757,13 +841,22 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     lv = live.ensure(wb, res)
     names = bk._names(res)
     lw = label_widths(res)
-    # P1: Band and Segment fit the Run's labels; Band also the "live from Control" under the lines in use
-    _widths(ws, {1: 2, C_BAND: max(lw["band_only"], house.fit(["live from Control"], floor=0, cap=32, pad=3)),
-                 C_SEG: lw["seg_raw"], C_LOANS: 9, C_PAID: 11, C_PAID_D: 13, C_COST: 11, C_COST_D: 13,
+    grids = res.grids
+    gnames = [f"{names[g.band]} x {names[g.dimension]}" for g in grids]
+    # every grid's rows and the totals under them, worked out once: the gross columns' widths fit all of them
+    listed = [pck_rows(res, g) for g in grids]
+    totals = [pck_totals(g, rows) for g, rows in zip(grids, listed)]
+    thousands, gross_w = gross_widths([(x["booked"], x["gco"], x["ranr"], x["ranr_rate"]) for rows in listed
+                                       for x in rows] + [t[2:] for tt in totals for t in tt])
+    # P1: Band and Segment fit the Run's labels; Band also the "live from Control" under the lines in use and the
+    # totals' labels
+    _widths(ws, {1: 2, C_BAND: max(lw["band_only"], house.fit(["live from Control", PCK_LISTED, PCK_UNLISTED,
+                                                                PCK_BOOK], floor=0, cap=32, pad=3)),
+                 C_SEG: lw["seg_raw"], C_LOANS: 9, **gross_w, C_PAID: 11, C_PAID_D: 13, C_COST: 11, C_COST_D: 13,
                  C_KEPT: 11, C_KEPT_D: 13,
                  # the longest verdict with the borderline flag on one side; on both it runs on over the gap beside it
                  C_TOG: house.fit([f"{t} · {stats.borderline_words(0.048, 0.95)}" for t in TOGETHER.values()],
-                                  floor=28, cap=56), 12: 3})
+                                  floor=28, cap=56), C_TOG + 1: 3})
     house.title_band(ws, PCK, "What each pocket paid us, what it cost us, and what we kept.", C_BAND, C_TOG + 8,
                      tab=house.TAB_RESULT)
     line = bk.profit_line(res)
@@ -773,7 +866,11 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                     "rest; Dollars: what that comes to."),
         ("Cost us", "Charge-offs (GCO) per booked dollar, as a multiple of the rest; Dollars: charge-offs above "
                     "the rest's rate."),
-        ("Kept", "Kept after losses: RANR per booked dollar, as a gap in points and dollars, like Paid us."),
+        # the gross block's words ride on Kept's item (the firm, 30 Sep 2026), so that no row of the tab moves
+        ("Kept", "Kept after losses: RANR per booked dollar, as a gap in points and dollars, like Paid us. "
+                 "Booked, GCO and RANR: the pocket's own dollars, added up and compared with nothing; RANR rate is "
+                 "RANR ÷ booked. " + NEGATIVE_SAID + " Under the table they add up to the whole book; Not "
+                 "listed: pockets with nothing to compare them with."),
         ("The rest", live.text("Judged against on Control picks it: now ",
                                ('IF(judged_band,"the rest of its band","the rest of the book")',),
                                ". A pocket alone in its band is compared with the rest of the book.")),
@@ -793,13 +890,9 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                             "dollars; a pocket with too few losses last. The chart shows the grid picked above, "
                             "live; the pockets read together are named on it."),
     ])
-    grids = res.grids
-    gnames = [f"{names[g.band]} x {names[g.dimension]}" for g in grids]
     g_rng, _ = choices.add("Paid, cost, kept: Grid", gnames)
-    lines_in_use(ws, r, C_BAND, [(C_SEG, C_SEG), (C_LOANS, C_PAID), (C_PAID_D, C_COST), (C_COST_D, C_KEPT),
-                                 (C_KEPT_D, C_TOG)],
-                 material_at(res),
-                 C_TOG + 2, C_TOG + 9, f"The order is from the last Run, {stamp}.")
+    lines_in_use(ws, r, C_BAND, list(PCK_TILES), material_at(res), PCK_NOTE, PCK_NOTE + 7,
+                 f"The order is from the last Run, {stamp}.")
     if CHART in wb.sheetnames:
         del wb[CHART]
     hs = wb.create_sheet(CHART)
@@ -810,12 +903,16 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     # the rows, every grid's, on _views
     most = 1
     bounds_x, bounds_y = [], []
-    for g, gname in zip(grids, gnames):
-        rows = pck_rows(res, g)
+    for g, gname, rows, tt in zip(grids, gnames, listed, totals):
         most = max(most, len(rows))
+        # the line above the table and the totals under it, worked out here (the firm, 30 Sep 2026)
+        views.put(f"C|{gname}|neg", [negative_line(rows), sum(1 for x in rows if x["ranr"] < 0)])
+        for j, t in enumerate(tt, start=1):
+            views.put(f"C|{gname}|total|{j}", list(t))
         for k, x in enumerate(rows, start=1):
             prows = [lv.rows.get(("grids", id(g), x["band"], x["seg"], m)) for m, *_ in SIDES]
-            views.put(f"C|{gname}|{k}", [x["band"], x["seg"], x["units"], 1 if x["untested"] else 0, *prows])
+            views.put(f"C|{gname}|{k}", [x["band"], x["seg"], x["units"], 1 if x["untested"] else 0, *prows,
+                                         x["booked"], x["gco"], x["ranr"], x["ranr_rate"]])
             if not x["untested"]:
                 for gx, gy in x["gaps"]:
                     if gx:
@@ -825,17 +922,27 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     # the column groups, each under a 2 px INK rule, then the headers
     h = s + 2
     J = "judged_band"
-    for a, b_, words in ((C_PAID, C_PAID_D, f'="Paid us · gap vs "&IF({J},"band","book")'),
+    # beside the dropdown: how many of the grid's pockets lost money outright, red when any did
+    NEG = f"${col(C_H_ROW)}{s}"
+    ws.cell(row=s, column=C_H_ROW, value="=" + match(xk("C|", (G,), "|neg")))
+    ws.cell(row=s, column=C_H_UN, value=f"={pick(NEG, 2)}")
+    ws.merge_cells(start_row=s, start_column=C_LOANS, end_row=s, end_column=C_KEPT_D)
+    _cell(ws, s, C_LOANS, f"={pick(NEG, 1)}", bold=True, size=10, color=SLATE, h="left", indent=1)
+    cf(ws, f"{col(C_LOANS)}{s}", [(f'N(${col(C_H_UN)}${s})>0', None, Font(color=CRIMSON, bold=True), None)])
+    for a, b_, words in ((C_BOOK, C_RATE, "Gross · this pocket alone"),
+                         (C_PAID, C_PAID_D, f'="Paid us · gap vs "&IF({J},"band","book")'),
                          (C_COST, C_COST_D, "Cost us · charge-offs"),
                          (C_KEPT, C_KEPT_D, f'="Kept · gap vs "&IF({J},"band","book")'), (C_TOG, C_TOG, "")):
         ws.merge_cells(start_row=h, start_column=a, end_row=h, end_column=b_)
         _cell(ws, h, a, words, bold=True, size=9, name="Arial")
         for c in range(a, b_ + 1):
             ws.cell(row=h, column=c).border = Border(bottom=Side(style="medium", color=INK))
-    house.header(ws, h + 1, C_BAND, ["Band", "Segment", "Loans", "Gap pts", "Dollars",
+    house.header(ws, h + 1, C_BAND, ["Band", "Segment", "Loans", *GROSS_HEADS, "Gap pts", "Dollars",
                                      f'=IF({J},"× band","× book")', "Dollars", "Gap pts", "Dollars", "Together"],
                  centre_from=2)
     first = h + 2
+    gross_fmts = {C_BOOK: GROSS_K_FMT if thousands else GROSS_FMT, C_GCO: GROSS_K_FMT if thousands else GROSS_FMT,
+                  C_RANR: GROSS_K_FMT if thousands else GROSS_FMT, C_RATE: RATE_FMT}
     for k in range(1, most + 1):
         rr = first + k - 1
         V = f"${col(C_H_ROW)}{rr}"
@@ -854,11 +961,12 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         pts = lambda prow: f'=IF({at(live.P_GAP, prow)}="","",{at(live.P_GAP, prow)}*100)'         # noqa: E731
         short = lambda prow: f'=IF({at(live.P_DOLLARS, prow)}="","",-{at(live.P_DOLLARS, prow)})'  # noqa: E731
         vals = {C_BAND: f"={pick(V, 1)}", C_SEG: f"={pick(V, 2)}", C_LOANS: f"={pick(V, 3)}",
+                **{c: f"={pick(V, 8 + j)}" for j, c in enumerate(GROSS)},
                 C_PAID: pts(RC), C_PAID_D: short(RC), C_COST: f"={at(live.P_GAP, RG)}",
                 C_COST_D: f"={at(live.P_DOLLARS, RG)}", C_KEPT: pts(RR), C_KEPT_D: short(RR),
                 C_TOG: "=" + together_said_formula(TOG, f"${col(C_H_BG)}{rr}", f"${col(C_H_BR)}{rr}")}
-        fmts = {C_LOANS: "#,##0", C_PAID: PTS_FMT, C_PAID_D: "#,##0", C_COST: X_FMT, C_COST_D: "#,##0",
-                C_KEPT: PTS_FMT, C_KEPT_D: "#,##0"}
+        fmts = {C_LOANS: "#,##0", **gross_fmts, C_PAID: PTS_FMT, C_PAID_D: "#,##0", C_COST: X_FMT,
+                C_COST_D: "#,##0", C_KEPT: PTS_FMT, C_KEPT_D: "#,##0"}
         for c, v in vals.items():
             _cell(ws, rr, c, v, h="left" if c in (C_BAND, C_SEG, C_TOG) else "center", fmt=fmts.get(c),
                   indent=1 if c in (C_BAND, C_SEG, C_TOG) else 0, bold=c == C_TOG)
@@ -891,7 +999,25 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     cf(ws, f"{col(C_TOG)}{first}:{col(C_TOG)}{end}",
        [(f'OR({T}="{GOOD_TOGETHER[0]}",{T}="{GOOD_TOGETHER[1]}")', None, Font(color=POSITIVE, bold=True), None),
         (f'{T}="{BAD_TOGETHER[0]}"', None, Font(color=CRIMSON, bold=True), None)], line_on)
-    cf(ws, f"{col(C_BAND)}{first}:{col(C_LOANS)}{end}", [], line_on)
+    cf(ws, f"{col(C_BAND)}{first}:{col(C_GCO)}{end}", [], line_on)
+    # a pocket that lost money outright: its RANR and RANR rate in red (the firm, 30 Sep 2026)
+    neg = f"AND(ISNUMBER(${col(C_RANR)}{first}),${col(C_RANR)}{first}<0)"
+    cf(ws, f"{col(C_RANR)}{first}:{col(C_RATE)}{end}", [(neg, None, Font(color=CRIMSON, bold=True), None)], line_on)
+    # the totals under the table, which add up to the whole book: the pockets listed, any not listed, the book
+    t0 = end + 2
+    for j in range(1, 4):
+        rr = t0 + j - 1
+        V = f"${col(C_H_ROW)}{rr}"
+        ws.cell(row=rr, column=C_H_ROW, value="=" + match(xk("C|", (G,), f"|total|{j}")))
+        for c, k in ((C_BAND, 1), (C_LOANS, 2), *((c, 3 + i) for i, c in enumerate(GROSS))):
+            x = _cell(ws, rr, c, f"={pick(V, k)}", bold=True, h="left" if c == C_BAND else "center",
+                      indent=1 if c == C_BAND else 0, fmt="#,##0" if c == C_LOANS else gross_fmts.get(c))
+            if j == 1:
+                x.border = Border(top=Side(style="thin", color=INK))
+        ws.row_dimensions[rr].height = 16
+    ws.cell(row=t0, column=C_SEG).border = Border(top=Side(style="thin", color=INK))
+    tneg = f"AND(ISNUMBER(${col(C_RANR)}{t0}),${col(C_RANR)}{t0}<0)"
+    cf(ws, f"{col(C_RANR)}{t0}:{col(C_RATE)}{t0 + 2}", [(tneg, None, Font(color=CRIMSON, bold=True), None)])
     if grids and bounds_x:
         _scatter(ws, hs, res, most, bounds_x, bounds_y, line, h)
     _hide(ws, C_H, C_H + 20)
@@ -1728,6 +1854,161 @@ def _groups(ws, grp: dict, G: str, r: int, first: int, hid: int, dw: float) -> i
 
 
 # --------------------------------------------------------------------------
+# Summary (the firm, 30 Sep 2026: "a few matrices where it lists out a chosen band on the left and shows real calculated
+# metrics ... unit counts, loan amounts, % of units, % of loan amounts, charged off dollars, ratio, percentage of units.
+# Same with RANR. They'd be across the top." The ratio: "Charged off / booked". Bad loans: "Yes do this".)
+
+#: each column's heading and how its numbers show: n a count, share a share of the All row, pct a rate, x a multiple,
+#: usd dollars
+SUMMARY_HEADS = {"loans": ("Loans", "n"), "loans_share": ("% of loans", "share"), "bad": ("Bad loans", "n"),
+                 "bad_rate": ("Bad loans %", "pct"), "booked": ("Booked $", "usd"),
+                 "booked_share": ("% of booked", "share"), "gco": ("Charged off $", "usd"),
+                 "gco_rate": ("Charge-off rate", "pct"), "gco_x": ("× book", "x"),
+                 "gco_share": ("% of charge-offs", "share"), "ranr": ("RANR $", "usd"),
+                 "ranr_rate": ("RANR rate", "pct"), "ranr_share": ("% of RANR", "share")}
+SUMMARY_FMT = {"n": "#,##0", "share": "0.0%", "pct": "0.00%", "x": X_FMT, "usd": '"$"#,##0;-"$"#,##0'}
+SUMMARY_THOUSANDS = '"$"#,##0,"k";-"$"#,##0,"k"'
+#: what a column needs, in words, for the note when a Run has not got it
+SUMMARY_NEEDS = {"outcome_loans": "outcome", engine.BOOKED: "booked amount", "gco_rate": "charge-off dollars",
+                 "ranr_rate": "RANR dollars"}
+
+
+def _summary_shown(v, kind: str) -> str:
+    """A Summary number as its format shows it, for measuring the columns."""
+    if not isinstance(v, (int, float)):
+        return ""
+    return {"n": f"{v:,.0f}", "share": f"{v * 100:.1f}%", "pct": f"{v * 100:.2f}%", "x": f"{v:.2f}×",
+            "usd": f"${v:,.0f}" if v >= 0 else f"-${-v:,.0f}"}[kind]
+
+
+def summary_views(res, views: Views) -> dict:
+    """Every Summary view on _views, one row per band ("S|<band column>|<i>", and "S|<band column>|where <value>|<i>"
+    for each value of the Filter by column): the label, then each column's number, all from engine.summary_rows.
+    Returns the dropdown's options, the columns, the most rows any view has, and what the columns must fit."""
+    from . import book as bk
+    names = bk._names(res)
+    keys = engine.summary_columns(res)
+    bands = [b.name for b in res.config.bands if (b.name, None) in res.summaries]
+    shown = [names[b] for b in bands]
+    shown = [x if shown.count(x) == 1 else f"{x} ({b})" for x, b in zip(shown, bands)]
+    fit = {"labels": {"All"} | set(shown), "values": 0, "money": [0.0]}
+    most = 1
+    for b, opt in zip(bands, shown):
+        for v in [None] + list(res.filter_values):
+            if (b, v) not in res.summaries:
+                continue
+            rows = engine.summary_rows(res, b, v)
+            most = max(most, len(rows))
+            for i, (lab, vals) in enumerate(rows, start=1):
+                views.put(f"S|{opt}" + (WHERE.format(v) if v is not None else "") + f"|{i}",
+                          [lab] + [vals[k] for k in keys])
+                fit["labels"].add(str(lab))
+                for k in keys:
+                    kind = SUMMARY_HEADS[k][1]
+                    if kind == "usd":
+                        if isinstance(vals[k], (int, float)):
+                            fit["money"].append(vals[k])
+                    else:
+                        fit["values"] = max(fit["values"], len(_summary_shown(vals[k], kind)))
+    return {"options": shown, "keys": keys, "most": most, "fit": fit}
+
+
+def summary_widths(fit: dict, keys: list[str]) -> tuple[float, float, bool]:
+    """Summary's widths, as Grids' (G1, G2): one for every data column, the larger of the longest value + 2 and the
+    two-line width of the longest heading + 2, between DATA_FLOOR and DATA_CAP; one for the label column. Dollars
+    show in thousands ($1,234k) when the largest would not fit under the cap, the rule Grids' groups table keeps."""
+    ends = (min(fit["money"]), max(fit["money"]))
+    thousands = max(len(_summary_shown(v, "usd")) for v in ends) + 2 > DATA_CAP
+    money = max(len(_summary_shown(v / 1000 if thousands else v, "usd")) + thousands for v in ends)
+    need = [fit["values"] + 2, money + 2] + [house.two_line_width(SUMMARY_HEADS[k][0]) + 2 for k in keys]
+    dw = min(DATA_CAP, max([DATA_FLOOR] + need))
+    lw = house.fit(list(fit["labels"]), floor=LABEL_FLOOR, cap=LABEL_CAP, pad=3)
+    return dw, lw, thousands
+
+
+def write_summary(wb, res, choices: Choices, views: Views) -> None:
+    """Summary: one band column down the side and the book's plain figures across, picked by a dropdown, and by
+    "Only loans where" when the launcher picked a Filter by. Every number is worked out by the Run (engine.summary_rows)
+    and put on _views; the formulas here only pick the row. Nothing is tested and nothing is red or green."""
+    ws = wb.create_sheet(SUMMARY)
+    got = summary_views(res, views)
+    keys, most, fit = got["keys"], got["most"], got["fit"]
+    sf = (res.config.filter_by or None) if res.filter_values else None
+    left = 2
+    last = max(left + len(keys), left + 10)
+    hid = last + 2
+    dw, lw, thousands = summary_widths(fit, keys)
+    _widths(ws, {1: 2, left: lw, **{c: dw for c in range(left + 1, hid)}})
+    house.title_band(ws, SUMMARY, "One band column at a time: loans, bad loans, booked, charge-offs and RANR, band by "
+                                  "band.", left, last, tab=house.TAB_RESULT)
+    booked = res.config.booked or "booked amount"
+    gco = res.config.gco or "charge-offs"
+    ranr = next((m.value for m in res.measures if m.name == "ranr_rate"), "RANR")
+    note = [("What it is", "Pick a band column. Its bands run down the side, then any loans it couldn't place, then "
+                           "All. Every figure is counted or divided from the loans. Nothing is tested.")]
+    note.append(("Loans", "How many loans are in the band, and its share of all of them. The shares add to 100%."))
+    if "bad" in keys:
+        note.append(("Bad loans", f"How many loans went bad ({res.config.outcome}). Bad loans % is that over the "
+                                  f"band's loans whose outcome reads yes or no: the Bad loans rate on Grids."))
+    if "booked" in keys:
+        note.append(("Booked $", f"The band's {booked}, and its share of the book's."))
+    if "gco" in keys:
+        note.append(("Charged off $", f"The band's {gco}. Charge-off rate is that over its booked dollars: the "
+                                      f"Charge-offs rate on Grids. A loan missing either amount is left out of both."))
+        note.append(("× book", "The band's charge-off rate over the whole book's. 2.00× charges off twice as much "
+                               "per booked dollar."))
+    if "ranr" in keys:
+        note.append(("RANR $", f"The band's {ranr}, and that over its booked dollars. A share of RANR can pass 100% "
+                               f"or go below zero when some bands lose money."))
+    left_off = list(dict.fromkeys(SUMMARY_NEEDS[n] for k, n in engine.SUMMARY_COLUMNS
+                                  if n is not None and k not in keys))
+    if left_off:
+        note.append(("Not shown", "This Run has no " + " and no ".join(left_off) + ", so those columns are left off."))
+    if sf:
+        note.append(("Only loans where", f"Pick a value of {sf} to see only its loans. The shares are of those loans. "
+                                         f"× book is still against the whole book."
+                     + (YEAR_SAID.format(res.config.origination_date) if sf == ORIG_YEAR else "")))
+    note.append(("Shading", "The All row is shaded light grey. Nothing else is coloured. Everything here is as of "
+                            "the last Run."))
+    r = house.method_note(ws, 3, left, last, note)
+    b_rng, _ = choices.add("Summary: Band column", got["options"])
+    s = r + 1
+    B = dropdown(ws, s, left, "Band column", b_rng, got["options"][0] if got["options"] else "")
+    F = None
+    if sf:
+        f_rng, _ = choices.add("Summary: Only loans where", [ALL_LOANS] + list(res.filter_values))
+        F = dropdown(ws, s, left + 2, f"Only loans where {sf} is", f_rng, ALL_LOANS)
+        ws.merge_cells(start_row=s, start_column=left + 2, end_row=s, end_column=left + 4)
+    VW = f"${col(hid)}${s}"
+    where = f'&IF(OR({F}="",{F}="{ALL_LOANS}"),"",{live.q(WHERE.format(""))}&{F})' if F else ""
+    ws[VW.replace("$", "")] = f"={B}{where}"
+    h = s + 2
+    lines = max([house.lines_at(SUMMARY_HEADS[k][0], dw - 2) for k in keys] or [1])
+    hc = _cell(ws, h, left, f"={B}", bold=True, size=9, color=house.PAPER, h="left", name="Arial", indent=1)
+    hc.fill = house.fill(INK)
+    for j, k in enumerate(keys, start=1):
+        x = _cell(ws, h, left + j, SUMMARY_HEADS[k][0], bold=True, size=9, color=house.PAPER, name="Arial", wrap=True)
+        x.fill = house.fill(INK)
+    ws.row_dimensions[h].height = HEAD_LINE * lines + 4
+    for i in range(1, most + 1):
+        rr = h + i
+        RW = f"${col(hid)}{rr}"
+        ws[RW.replace("$", "")] = "=" + match(xk("S|", (VW,), f"|{i}"))
+        _cell(ws, rr, left, f"={pick(RW, 1)}", h="left", indent=1)
+        for j, k in enumerate(keys, start=1):
+            kind = SUMMARY_HEADS[k][1]
+            _cell(ws, rr, left + j, f"={pick(RW, j + 1)}",
+                  fmt=SUMMARY_THOUSANDS if kind == "usd" and thousands else SUMMARY_FMT[kind])
+        ws.row_dimensions[rr].height = 16
+    lab = f"${col(left)}{h + 1}"
+    cf(ws, f"{col(left)}{h + 1}:{col(left + len(keys))}{h + most}",
+       [(f'{lab}="All"', CANVAS, Font(bold=True), None)], f'{lab}<>""')
+    _hide(ws, hid, hid)
+    ws.freeze_panes = f"A{h + 1}"
+    _fit(ws)
+
+
+# --------------------------------------------------------------------------
 # Split
 
 
@@ -2116,5 +2397,6 @@ def write(wb, res, stamp: str) -> None:
         # a test of a new variable run without GCO and RANR has nothing to put on it, so there is no tab
         write_pck(wb, res, choices, views, stamp)
     write_grids(wb, res, choices, views)
+    write_summary(wb, res, choices, views)
     if res.config.split:
         write_split(wb, res, choices, views, stamp)
