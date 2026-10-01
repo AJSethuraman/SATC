@@ -479,6 +479,12 @@ meanings:
   - {means: origination_date, label: "Origination date",
      says: "when the loan was made", cut: none,
      hints: [orig, open, book, fund, disb, note], test: "dates"}
+  # The firm, 1 Oct 2026: "We worked in calculating charge off months right? If the data is there". Optional: when an
+  # extract has it and an Origination date, Summary and Grids show the months from origination to charge-off
+  # (engine.chargeoff_months). Never cut by; nothing requires it.
+  - {means: chargeoff_date, label: "Charge-off date",
+     says: "when the loan charged off, blank if it never did", cut: none,
+     hints: [chargeoff, chgoff, chrgoff, codate, gcodate, writeoff, wrtoff, codt, gcodt], test: "dates"}
   - {means: fico, label: "FICO score",
      says: "a FICO score", cut: band,
      hints: [fico, bureau, cb, credit], test: {"range": [300, 850]}}

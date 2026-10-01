@@ -510,7 +510,8 @@ muts = [
   '    worked = _suggest_at_set_up(wb, book, as_read, memory_path, testing=kind_now == NEW_VARIABLE)',
   '    worked = ({}, set())', "suggested_value_is_on_control_before"),
  ("Run leaves the suggestion stale", B,
-  '            _suggestions(wb[control.SHEET], *res.suggest_all, when="from this extract at the last Run")',
+  '            _suggestions(wb[control.SHEET], *res.suggest_all, when="from this extract at the last Run",\n'
+  '                         quick=_quick_of(wb), used=getattr(res, "control_used", None))',
   '            pass', "run_refreshes_the_suggestion"),
  ("Excel's lock file unseen", B, ' or book.with_name(f"~${book.name}").exists())', ')',
   "while_the_workbook_is_open"),
@@ -936,8 +937,8 @@ muts = [
   '    for r in control.launcher_rows_of(ws):\n        own =', '    for r in []:\n        own =',
   'changed_in_the_launcher_waits'),
  ("B: the tie-out tile back on the finished screen", LA,
-  """             f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"))""",
-  """             f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"), ("Tie-out checks", "1 / 1", "", "INK", "POSITIVE"))""",
+  """             f"in those {_s(worse, 'pocket')}, each loan once", "KEY_RED", "INK"))""",
+  """             f"in those {_s(worse, 'pocket')}, each loan once", "KEY_RED", "INK"), ("Tie-out checks", "1 / 1", "", "INK", "POSITIVE"))""",
   'tie_out_figure_that_could_only'),
  ("B: Record's tie-outs as n of n", B, '            ("Tie-out checks", f"{res.tie_outs:,}: every grid adds up to the book")]',
   '            ("Tie-out checks", f"{res.tie_outs:,} of {res.tie_outs:,} agree: every grid adds up to the book")]',
@@ -1563,6 +1564,42 @@ muts = [
  ("an xlsx extract opened from the file again", I,
   "    wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)",
   "    wb = openpyxl.load_workbook(p, read_only=True, data_only=True)", "read_from_the_bytes_already_read"),
+ # 1 Oct 2026, the firm: months to charge-off from a Charge-off date column (tests/test_co_months_2026_10_01.py);
+ # each caught from _views and the Columns tab as written, with no LibreOffice and no display
+ ("a charge-off before origination counted", E, "        elif c < o:", "        elif False:",
+  "every_summary_view_on_the_views_sheet or left_out_loans_are_counted"),
+ ("months to charge-off counting the day of the month", E,
+  "    return (charged_off.year - made.year) * 12 + (charged_off.month - made.month)",
+  "    return (charged_off.year - made.year) * 12 + (charged_off.month - made.month)"
+  " - (1 if charged_off.day < made.day else 0)", "every_summary_view_on_the_views_sheet"),
+ ("the charge-off date greyed as unused", B, '"ranr", "chargeoff_date") or', '"ranr") or',
+  "charge_off_date_and_does_not_grey_it"),
+ # the firm's answer, 1 Oct 2026, on a bad loan with no charge-off date: "Leave out, count in a note"
+ ("bad loans with no charge-off date left out unsaid", E,
+  "    k = sum(1 for o, d in zip(outcome, raw_dates) if o is not None and o[0] == 1.0 and is_blank(d))",
+  "    k = 0", "no_charge_off_date_are_counted_in_a_note"),
+ # 1 Oct 2026, the firm on Set up's suggestions from a sample of the grids: "Will the quick estimates be as
+ # accurate? ... Test it and let's see" (tests/test_sampled_suggest_2026_10_01.py), each caught with no display
+ ("the sample balanced on band columns, not segments", B,
+  "    k = nd * math.ceil(max(SAMPLE_LEAST, rounds * max(nb, nd)) / nd)",
+  "    k = nb * math.ceil(max(SAMPLE_LEAST, rounds * max(nb, nd)) / nb)", "every_segment_column_equally_often"),
+ ("Set up building every grid for its suggestions", B,
+  "        values, fallback = _suggest_values(engine.run(first, table, pairs=pairs), set(SUGGEST_KEYS))",
+  "        values, fallback = _suggest_values(engine.run(first, table), set(SUGGEST_KEYS))",
+  "builds_only_the_sampled_grids"),
+ ("Run never checking Set up's quick estimate", B, "quick=_quick_of(wb), used=", "quick=None, used=",
+  "run_on_the_estimate_says_every_grid_disagrees"),
+ # the firm, 1 Oct 2026: Start here's total counts each loan once, and Filter 1 starts on Origination year
+ # (tests/test_distinct_total_2026_10_01.py); none needs a display
+ ("a loan counted once per pocket it sits in again", E,
+  "            if i not in best or e > best[i]:\n                best[i] = e",
+  "            if True:\n                best[i] = best.get(i, 0.0) + e", "each_loan_once_ties_to_the_loan_file"),
+ ("Start here shows the Run's total beside pockets Control has moved", B,
+  '    return repr(float(once)), f"AND(COUNTIFS({crit})={int(n)},', '    return repr(float(once)), "TRUE" or f"AND(COUNTIFS({crit})={int(n)},',
+  "run_again_when_control_has_moved"),
+ ("Filter 1 starts empty when there is an origination date", LA,
+  "        first = ch.ORIG_YEAR if year_row is not None", "        first = None if year_row is not None",
+  "filter_1_starts_on_origination_year"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

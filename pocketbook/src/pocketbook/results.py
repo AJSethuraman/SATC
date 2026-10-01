@@ -1425,7 +1425,10 @@ SAY = {"outcome_loans": ("{these}: {r} went bad.", "{x}× the bad-loan rate of {
        "contribution_rate": ("{these}: RANR + GCOs came to {r} of {their} booked dollars.",
                              "RANR + GCOs came to {pts} points {more} of booked dollars than for {against}."),
        # {med} the median booked per loan (the firm, 29 Sep 2026)
-       SIZE: ("{these} averaged {r} booked, median {med}.", "{x}× the average loan of {against}.")}
+       SIZE: ("{these} averaged {r} booked, median {med}.", "{x}× the average loan of {against}."),
+       # months to charge-off (the firm, 1 Oct 2026): an average over the loans that charged off, never compared
+       engine.CO_MONTHS: ("{these}: those that charged off did so {r} months after they were made, on average.",
+                          "Not compared: this figure is shown, not tested.")}
 SAY_KIND = {"x": ("{these}: {measure} is {r}.", "{x}× the rate of {against}."),
             "pts": ("{these}: {measure} is {r}.", "{pts} points {more} than {against}."),
             "amt": ("{these}: {measure} is {r}.", "Not compared: this figure is shown, not tested.")}
@@ -1526,6 +1529,12 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
         ("Loans", "How many loans are in each pocket, shaded by its share of the grid: darker is more. A count, "
                   "not a test, so no red or green."),
     ]
+    if any(sm.name == engine.CO_MONTHS for sm in shows):
+        # said inside Rate, as Loan size is, so the note keeps its rows and the dropdowns stay put
+        note[0] = ("Rate", note[0][1] + f" {CO_MONTHS_NAME}: among the pocket's loans with a "
+                                        f"{res.config.chargeoff_date}, the average months from "
+                                        f"{res.config.origination_date} to it. " + CO_MONTHS_SAID
+                   + " Shown, not compared.")
     if sized:
         # said inside Rate, so the note keeps its rows and the dropdowns stay where the bank's checklist says
         note[0] = ("Rate", note[0][1] + " Loan size: booked dollars per loan, the average; against the book's and "
@@ -1546,10 +1555,11 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     ]
     r = house.method_note(ws, 3, 2, last, note)
     m_opts = ([plain(m) for m in ms] + ([SIZE_NAME] if sized else [])
-              + [f"{'Average' if sm.show == 'average' else 'Median'} {sm.value} per pocket" for sm in shows])
+              + [CO_MONTHS_NAME if sm.name == engine.CO_MONTHS
+                 else f"{'Average' if sm.show == 'average' else 'Median'} {sm.value} per pocket" for sm in shows])
     m_keys = [m.name for m in ms] + ([SIZE] if sized else []) + [f"show_{sm.name}" for sm in shows]
     says = ([say_for(m.name, heat_kind(m)) for m in ms] + ([SAY[SIZE]] if sized else [])
-            + [say_for("", "amt") for _ in shows])
+            + [say_for(sm.name if sm.name == engine.CO_MONTHS else "", "amt") for sm in shows])
     # the Rate block's heading, literal, beside each option: what is divided by what (the firm, 30 Sep 2026)
     heads = ([RATE_HEAD.get(m.name, plain(m)) for m in ms] + ([SIZE_HEAD] if sized else [])
              + m_opts[len(ms) + (1 if sized else 0):])
@@ -1689,9 +1699,11 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
 
 
 def _first_n(c: int, s: int, n: int, count: str) -> str:
-    """The first MAX(1, count) cells of column c's labels from row s (max(n - 1, 1) of them are laid out)."""
-    top = f"${col(c)}${s}"
-    return f"{top}:INDEX({top}:${col(c)}${s + max(n - 1, 1) - 1},MAX(1,{count}))"
+    """The first MAX(1, count) cells of column c's labels from row s, as a dropdown's list. OFFSET, not
+    INDEX:INDEX: Excel removed the INDEX:INDEX list from Grids as unreadable on opening the bank's workbook
+    (1 Oct 2026, "Removed Feature: Data validation from /xl/worksheets/sheet7.xml"), and OFFSET had opened there
+    since 29 Sep. It is volatile, but in two dropdown lists only, which Excel works out when a list is opened."""
+    return f"OFFSET(${col(c)}${s},0,0,MAX(1,{count}),1)"
 
 
 def _first_pocket(res, ms) -> tuple[str, str]:
@@ -1962,12 +1974,21 @@ SUMMARY_HEADS = {"loans": ("Loans", "n"), "loans_share": ("% of loans", "share")
                  "booked_share": ("% of booked", "share"), "gco": ("GCOs ($)", "usd"),
                  "gco_rate": ("GCOs ÷ Booked", "pct"), "gco_x": ("× book", "x"),
                  "gco_share": ("% of GCOs", "share"), "ranr": ("RANR $", "usd"),
-                 "ranr_rate": ("RANR ÷ Booked", "pct"), "ranr_share": ("% of RANR", "share")}
-SUMMARY_FMT = {"n": "#,##0", "share": "0.0%", "pct": "0.00%", "x": X_FMT, "usd": '"$"#,##0;-"$"#,##0'}
+                 "ranr_rate": ("RANR ÷ Booked", "pct"), "ranr_share": ("% of RANR", "share"),
+                 # the firm, 1 Oct 2026: only when the extract has a Charge-off date and an Origination date
+                 "co_avg": ("Avg months to charge-off", "mo"), "co_median": ("Median months to charge-off", "mo")}
+SUMMARY_FMT = {"n": "#,##0", "share": "0.0%", "pct": "0.00%", "x": X_FMT, "usd": '"$"#,##0;-"$"#,##0', "mo": "0.0"}
 SUMMARY_THOUSANDS = '"$"#,##0,"k";-"$"#,##0,"k"'
 #: what a column needs, in words, for the note when a Run has not got it
 SUMMARY_NEEDS = {"outcome_loans": "outcome", engine.BOOKED: "booked amount", "gco_rate": "GCO dollars",
                  "ranr_rate": "RANR dollars"}
+
+
+#: Grids' Measure option for months to charge-off
+CO_MONTHS_NAME = "Months to charge-off (avg)"
+#: the rule for months to charge-off, as Summary and Grids say it (engine.months_between)
+CO_MONTHS_SAID = ("Months are calendar months, the day ignored: years apart × 12, plus months apart. 31 Jan to 1 Feb "
+                  "is 1; 1 Jan to 31 Jan is 0.")
 
 
 def _summary_shown(v, kind: str) -> str:
@@ -1975,7 +1996,7 @@ def _summary_shown(v, kind: str) -> str:
     if not isinstance(v, (int, float)):
         return ""
     return {"n": f"{v:,.0f}", "share": f"{v * 100:.1f}%", "pct": f"{v * 100:.2f}%", "x": f"{v:.2f}×",
-            "usd": f"${v:,.0f}" if v >= 0 else f"-${-v:,.0f}"}[kind]
+            "usd": f"${v:,.0f}" if v >= 0 else f"-${-v:,.0f}", "mo": f"{v:,.1f}"}[kind]
 
 
 def summary_views(res, views: Views) -> dict:
@@ -2060,8 +2081,12 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
     if "ranr" in keys:
         note.append(("RANR $", f"The row's {ranr}, and RANR ÷ Booked: that over its booked dollars. A share of RANR can pass 100% "
                                f"or go below zero when some rows lose money."))
+    if "co_avg" in keys:
+        note.append(("Months to charge-off", f"Among the row's loans with a {res.config.chargeoff_date}: the average "
+                                             f"and the median months from {res.config.origination_date} to it. "
+                                             + CO_MONTHS_SAID + " Blank: none in the row charged off."))
     left_off = list(dict.fromkeys(SUMMARY_NEEDS[n] for k, n in engine.SUMMARY_COLUMNS
-                                  if n is not None and k not in keys))
+                                  if n in SUMMARY_NEEDS and k not in keys))   # months to charge-off: optional
     if left_off:
         note.append(("Not shown", "This Run has no " + " and no ".join(left_off) + ", so those columns are left off."))
     if sf:

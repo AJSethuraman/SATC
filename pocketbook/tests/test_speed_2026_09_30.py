@@ -8,7 +8,7 @@ stretch of loading".
   three biggest"), the record file, and `Outcome.timings`; `progress(stage)` is told as each starts. No test here
   asserts a number of seconds: only that the table is there, in the Run's order, and adds up.
 - The extract and the workbook are each read from disk once (a OneDrive folder and a virus scanner at the bank).
-- The workbook: no OFFSET (Excel works it out again at every change), no whole column of the Run's hidden tables,
+- The workbook: no OFFSET outside two dropdown lists (Excel works it out again at every change), no whole column of the Run's hidden tables,
   and Look's line ends read one "tallest bar" cell; every number reads as it did, checked in a calculated copy.
 """
 
@@ -252,7 +252,9 @@ def test_no_offset_and_no_whole_column_of_the_runs_tables(ran):
     out, _, _, _ = ran
     wb = load_workbook(out.book)
     every = list(_formulas(wb))
-    assert not [f for f in every if "OFFSET(" in f[2].upper()]
+    # OFFSET only in the two dropdown lists on Grids: Excel removed the INDEX:INDEX lists as unreadable at the
+    # bank (1 Oct 2026); a cell or a format working it out on every change is still refused
+    assert not [f for f in every if "OFFSET(" in f[2].upper() and not f[1].startswith("DV ")]
     whole = re.compile(r"'?(_views|_pockets)'?!\$[A-Z]{1,3}:\$[A-Z]{1,3}(?![\w$])|\$1048576")
     wide = [f for f in every if whole.search(f[2]) and f[0] not in bounds.SKIP]
     assert not wide, wide[:5]

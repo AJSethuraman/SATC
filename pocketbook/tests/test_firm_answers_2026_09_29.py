@@ -779,13 +779,12 @@ def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(
 
 def _listed(ws, label: str) -> list:
     """A Row or Column dropdown's list as it stands (calculated): its first MAX(1, count) hidden labels, worked out
-    (OFFSET until 30 Sep 2026, INDEX:INDEX since, so Excel doesn't work it out again on every change)."""
+    (OFFSET; INDEX:INDEX for one day, 30 Sep 2026, until Excel removed it as unreadable at the bank)."""
     import re
     import tabs
     cell = tabs.dropdown(ws.formulas, label)
     dv = next(v for v in ws.formulas.data_validations.dataValidation if cell.coordinate in str(v.sqref))
-    m = re.fullmatch(r"=?\$([A-Z]+)\$(\d+):INDEX\(\$[A-Z]+\$\d+:\$[A-Z]+\$\d+,MAX\(1,\$([A-Z]+)\$(\d+)\)\)",
-                     dv.formula1)
+    m = re.fullmatch(r"=?OFFSET\(\$([A-Z]+)\$(\d+),0,0,MAX\(1,\$([A-Z]+)\$(\d+)\),1\)", dv.formula1)
     assert m, dv.formula1
     c, r, nc_, nr_ = m.groups()
     n = max(1, int(ws[f"{nc_}{nr_}"].value or 0))
@@ -1563,11 +1562,11 @@ def test_filter_by_launcher_offers_every_category_and_the_origination_year(tmp_p
     none = sum(1 for r in loans if not r["ORIG_DATE"])
     yr = by[ch.ORIG_YEAR]
     assert yr["what"] == f"Origination year, from ORIG_DATE · 3 values · {none} with no date"
-    assert yr["b"] is None and yr["c"] == {"on": False, "radio": True} and yr["d"] == {"on": False, "radio": True}
+    # Filter 1 starts on it (the firm, 1 Oct 2026)
+    assert yr["b"] is None and yr["c"] == {"on": False, "radio": True} and yr["d"] == {"on": True, "radio": True}
     names = [r["name"] for r in rows]
     assert names.index("ASSET_CLASS") < names.index(ch.ORIG_YEAR) < names.index("BAD_FLAG")
     # Filter by is its own pick: the split and the segments stay as they are
-    f.click(ch.ORIG_YEAR, "d")
     f.click("REV_DEBT", "c")
     assert f.filter == ch.ORIG_YEAR and f.split == "REV_DEBT" and {"CHANNEL", "ASSET_CLASS"} <= f.seg
     f.click("CHANNEL", "d")                                                  # one column filters, or none

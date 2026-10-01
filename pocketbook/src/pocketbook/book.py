@@ -23,6 +23,7 @@ nothing else (no memory, no record), so a refused run leaves no trace.
 from __future__ import annotations
 
 import math
+import random
 import re
 import statistics
 from dataclasses import dataclass, field
@@ -709,6 +710,9 @@ def _set_up(extract: str | Path, book: str | Path | None = None, memory_path: st
     timing.mark("Working out the suggestions")
     worked = _suggest_at_set_up(wb, book, as_read, memory_path, testing=kind_now == NEW_VARIABLE)
     _suggestions(wb[control.SHEET], *worked, when="from this extract")
+    if len(worked) > 2 and worked[2]:
+        # what the sample said, so Run can say where every grid says otherwise (_suggestions, quick=)
+        about["A5"], about["B5"] = QUICK, _quick_text(worked[0], worked[2])
     _cutoff_words(wb[control.SHEET], as_read, wb["Columns"], cat)          # OC-51
     timing.mark("Saving the workbook")
     try:
@@ -804,7 +808,8 @@ def _remembered_words(entry: dict | None) -> str:
 
 def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
     """The extract's columns this Run uses, as the launcher picked them: the key, the outcome, the date, and for
-    the bleed the booked and dollar columns, the bands, segments and split; for a new variable what is tested and
+    the bleed the booked and dollar columns, the charge-off date (months to charge-off on Summary and Grids, the
+    firm, 1 Oct 2026), the bands, segments and split; for a new variable what is tested and
     held fixed. Columns made under Add a column always count. None (every column) when nothing was picked."""
     if choices is None or choices.run_kind is None:
         return None
@@ -818,7 +823,8 @@ def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
         elif new:
             if c in choices.test or c in choices.hold:
                 out.add(c)
-        elif code in ("booked", "gco", "ranr") or c in (choices.split, choices.filter, choices.filter2) or \
+        elif code in ("booked", "gco", "ranr", "chargeoff_date") or \
+                c in (choices.split, choices.filter, choices.filter2) or \
                 (c in choices.bands if choices.bands is not None else cut == "band") or \
                 (c in choices.segments if choices.segments is not None else cut == "dimension"):
             out.add(c)
@@ -1078,7 +1084,9 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
     r = house.method_note(ws, 3, 2, 9, [
         ("Where things stand", "What is left before Run, counted live from Control and Columns as you fill them "
                                "in."),
-        ("What the last Run found", "Pockets worse and material at Control's lines, and the five largest."
+        ("What the last Run found", "Pockets worse and material at Control's lines, and the five largest. The "
+                                    "dollars count each loan once, in the pocket where it is furthest above its "
+                                    "share: every loan is in every grid, so a plain sum counts it once per grid."
          if _found_value(wb, "kind") != confirm_tab.FOUND_KIND else
          "Each group of the tested column on the holdout, against the reference group. Significant? follows the "
          "confidence on Control; the rest is as of the last Run."),
@@ -1153,6 +1161,17 @@ def _found_value(wb, key: str):
     return None
 
 
+def _once(wb, m: str, crit: str) -> tuple[str, str]:
+    """Each loan once on rate `m`, as the last Run worked it out (engine.Once), and a formula that is TRUE while the
+    pockets `crit` picks on _pockets are still the Run's: the same count and the same dollars added up. Control's
+    lines move the pockets live and a formula can't count a loan once, so a total from other pockets says to Run."""
+    got = [_found_value(wb, f"{k}:{m}") for k in (ONCE, ONCE_POCKETS, ONCE_SUM)]
+    if any(v is None for v in got):
+        return "0", "FALSE"                         # a _found from before 1 Oct 2026: Run again
+    once, n, total = got
+    return repr(float(once)), f"AND(COUNTIFS({crit})={int(n)},ABS(SUMIFS(pk_dollars,{crit})-({float(total)!r}))<0.01)"
+
+
 #: Start here's list of the largest pockets, worse and material: how many rows it shows
 TOP_ROWS = 5
 #: the hidden column on Start here holding which _found row each of those rows shows
@@ -1184,16 +1203,23 @@ def _found_block(ws, wb, r: int) -> int:
     dollar = m != "outcome_loans"
     # Borderline (the firm, 29 Sep 2026): how many of them turn on a shuffled p-value that near the bar
     bl = f'COUNTIFS({crit},pk_wborder,"?*")'
+    once, same = _once(wb, m, crit)
+    grids = _found_value(wb, f"{ONCE_GRIDS}:{m}")
+    in_grids = f'&IF({same}," · in {grids:,} grid{"s" * (grids != 1)}","")' if grids else ""
     tiles = [(f"Pockets worse and material, {title}",
-              f'=IFERROR(COUNTIFS({crit})&" of {_found_value(wb, "pockets"):,}"&IF({bl}>0," · "&{bl}&" borderline",'
-              f'""),"")'),
-             (f"{'Dollars' if dollar else 'Bad loans'} above their share, in those",
-              f'=IFERROR(SUMIFS(pk_dollars,{crit}),"")')]
+              f'=IFERROR(COUNTIFS({crit})&" of {_found_value(wb, "pockets"):,}"{in_grids}&IF({bl}>0," · "&{bl}&'
+              f'" borderline",""),"")'),
+             # each loan once (the firm, 1 Oct 2026): worked out at Run, so shown only while the pockets are the
+             # Run's; a sum over the grids counted a loan once per grid ($2,904,231,129 on a $37,767,925 book)
+             (f"{'Dollars' if dollar else 'Bad loans'} above share, each loan once",
+              f'=IFERROR(IF({same},{once},"{ONCE_STALE}"),"")')]
     profit = _found_value(wb, "profit")
     if profit:
         pc = f'pk_kind,"grids",pk_measure,"{profit}",pk_flag,"{engine.WORSE}",pk_material,"yes"'
-        tiles.append(("Pockets short on RANR, worse and material",
-                      f'=IFERROR(COUNTIFS({pc})&" short $"&TEXT(SUMIFS(pk_dollars,{pc}),"#,##0"),"")'))
+        p_once, p_same = _once(wb, profit, pc)
+        tiles.append(("Pockets short on RANR, each loan once",
+                      f'=IFERROR(COUNTIFS({pc})&IF({p_same}," short $"&TEXT({p_once},"#,##0"),'
+                      f'", {ONCE_STALE.lower()}"),"")'))
     else:
         tiles.append(("Last Run", _found_value(wb, "stamp")))
     for i, (label, f) in enumerate(tiles):
@@ -1783,6 +1809,57 @@ PROVISIONAL = {"min_events": "10 losses", "materiality": "No floor", "compare_to
                "confidence": "95%", "revenue_line": "Each pocket's own test (suggested)"}
 
 
+#: Set up's quick estimate (the firm, 1 Oct 2026, on 184,937 loans and 168 grids taking over 3.5 minutes: "Will the
+#: quick estimates be as accurate? ... Test it and let's see"). Worse at and better at read only how many loans each
+#: pocket holds, so on a big book they are worked out from a sample of the grids: every segment column the same
+#: number of times, every band column within one of equally often, chosen the same way on every Set up. Fewest
+#: loans reads the whole book's rate and is never sampled. Tested on ten synthetic books of 17,000 and 185,000
+#: loans x 12 band columns x 14 segment columns (BACKLOG.md 6d): 28 grids matched every grid to the 0.01x shown in
+#: every book; 14 was one step off in one book, and 24 and 40, which favour some segment columns, in three. Run
+#: works every suggestion out from every grid, and says so beside it where the estimate was different
+SAMPLE_ROUNDS = 2
+SAMPLE_LEAST = 28                         # never fewer grids than were tested: a book of this many or fewer reads all
+SAMPLE_SEED = 20261001
+SAMPLED_KEYS = ("worse_at", "better_at")
+QUICK = "quick estimate"                  # _about's A5: what Set up's sample said, for Run to check
+
+
+def suggest_pairs(bands: list[str], segments: list[str], rounds: int = SAMPLE_ROUNDS,
+                  seed: int = SAMPLE_SEED) -> set[tuple[str, str]] | None:
+    """The (band, segment) grids Set up's suggestions read: None, every grid, when the sample would be all of them.
+    The sample is a multiple of the segment columns, at least `rounds` x the larger count and at least SAMPLE_LEAST,
+    so every segment column comes up equally often and every band column within one of equally often. Grid t of the sample is band t mod
+    B and segment (t + t // lcm(B, D)) mod D, over orders shuffled by a fixed seed: no grid comes up twice."""
+    nb, nd = len(bands), len(segments)
+    if not nb or not nd:
+        return None
+    k = nd * math.ceil(max(SAMPLE_LEAST, rounds * max(nb, nd)) / nd)
+    if k >= nb * nd:
+        return None
+    rng = random.Random(seed)
+    bs, ds = list(bands), list(segments)
+    rng.shuffle(bs)
+    rng.shuffle(ds)
+    lcm = nb * nd // math.gcd(nb, nd)
+    return {(bs[t % nb], ds[(t + t // lcm) % nd]) for t in range(k)}
+
+
+def _quick_text(values: dict[str, float], sample: tuple[int, int]) -> str:
+    return ";".join([f"grids={sample[0]}/{sample[1]}"] + [f"{k}={values[k]}" for k in SAMPLED_KEYS if k in values])
+
+
+def _quick_of(wb) -> tuple[dict[str, float], tuple[int, int]] | None:
+    """Back from _about's A5: Set up's sampled values and (grids read, grids in all); None when it read every grid."""
+    if ABOUT not in wb.sheetnames or wb[ABOUT]["A5"].value != QUICK:
+        return None
+    try:
+        parts = dict(x.split("=", 1) for x in str(wb[ABOUT]["B5"].value).split(";"))
+        k, total = (int(x) for x in parts.pop("grids").split("/"))
+        return {key: float(v) for key, v in parts.items()}, (k, total)
+    except (ValueError, KeyError):
+        return None
+
+
 def _suggest_values(res, which: set[str]) -> tuple[dict[str, float], set[str]]:
     """_suggested without touching `res`: the values, and those with nothing to work them out from."""
     had = getattr(res, "suggest_fallback", None)
@@ -1796,7 +1873,7 @@ def _suggest_values(res, which: set[str]) -> tuple[dict[str, float], set[str]]:
 
 
 def _suggest_at_set_up(wb, book: Path, table, memory_path, testing: bool = False
-                       ) -> tuple[dict[str, float], set[str]]:
+                       ) -> tuple[dict[str, float], set[str]] | tuple[dict[str, float], set[str], tuple[int, int]]:
     """The suggested Control answers, before anyone has answered anything (the
     firm, 26 Sep 2026: "configure what you can, and then do the workbook config
     items so that there are suggestions to be made"). The pockets are cut as
@@ -1810,7 +1887,10 @@ def _suggest_at_set_up(wb, book: Path, table, memory_path, testing: bool = False
     A test of a new variable (`testing`) builds no pocket, so its one suggestion, worse at, comes from the
     confirmation's own groups instead (`test_gap`): the pre-spec's column cut into its groups on the loans they
     were found on. No bleed grid is built for it (found 27 Sep 2026: this first pass cut every column as a bleed
-    would, the grids a new variable never shows)."""
+    would, the grids a new variable never shows).
+
+    On a book of more grids than the sample (suggest_pairs), only the sampled grids are built, and a third value
+    says how many of how many: (grids read, grids in all)."""
     changed: list[tuple[Any, Any]] = []
 
     def put(cell, v) -> None:
@@ -1853,7 +1933,11 @@ def _suggest_at_set_up(wb, book: Path, table, memory_path, testing: bool = False
             named = prespec.named(ps, ranges={c: confirmatory.column_range(res, c) for c in ps.columns})
             gap = test_gap(confirmatory.run_tests(res, named), cfg.benchmark.confidence)
             return ({"worse_at": gap}, set()) if gap is not None else ({}, set())
-        return _suggest_values(engine.run(first, table), set(SUGGEST_KEYS))
+        pairs = suggest_pairs([b.name for b in first.bands], [d.name for d in first.dimensions])
+        values, fallback = _suggest_values(engine.run(first, table, pairs=pairs), set(SUGGEST_KEYS))
+        if pairs is None:
+            return values, fallback
+        return values, fallback, (len(pairs), len(first.bands) * len(first.dimensions))
     except Exception:
         # a book the first pass can't cut yet (no outcome marked, say): the Run works them out instead
         return {}, set()
@@ -1904,16 +1988,36 @@ def _suggest_from_the_test(res, picked: set[str]) -> None:
             **{**b.__dict__, "worse_at": value, "better_at": better})})
 
 
+def _said(key: str, v) -> str:
+    return f"{v:,.0f}" if key == "min_loans" else f"{v:.2f}x"
+
+
 def _suggestion_words(key: str, v: float, fallback: bool, when: str) -> str:
-    said = f"{v:,.0f}" if key == "min_loans" else f"{v:.2f}x"
+    said = _said(key, v)
     if fallback:
         return f"usual value: {said} (nothing in this extract to work it out from)"
     return f"suggested: {said}, {when}"
 
 
-def _suggestions(ws, values: dict[str, float], fallback: set[str], when: str) -> None:
+def _checked_words(key: str, v: float, quick, used) -> str:
+    """At Run, after the suggestion: where Set up's quick estimate (`quick`, from _quick_of) said something else at
+    the rounding shown, what it said, and whether that is the answer chosen (`used`, Control's answer as the run
+    read it). Empty where they agree, or Set up read every grid."""
+    if not quick or key not in quick[0] or _said(key, quick[0][key]) == _said(key, v):
+        return ""
+    est, (k, total) = _said(key, quick[0][key]), quick[1]
+    if isinstance(used, (int, float)) and not isinstance(used, bool) and _said(key, used) == est:
+        return (f". The answer chosen, {est}, is Set up's quick estimate from {k} of {total} grids: every grid "
+                f"says {_said(key, v)}")
+    return f". Set up's quick estimate, from {k} of {total} grids, was {est}"
+
+
+def _suggestions(ws, values: dict[str, float], fallback: set[str], sample: tuple[int, int] | None = None,
+                 when: str = "", quick=None, used: dict | None = None) -> None:
     """The worked-out value beside each suggested setting, so it is seen before
-    it is chosen. The answer cell is left alone (ruling OC-13)."""
+    it is chosen. The answer cell is left alone (ruling OC-13). `sample`: Set up read
+    only that many of the grids (suggest_pairs), said beside worse at and better at.
+    `quick` and `used`, at Run: where Set up's estimate differs from every grid's (_checked_words)."""
     for r in ws.iter_rows(min_row=control.FIRST_ROW):
         key = r[control.KEY_COL - 1].value
         if key not in SUGGEST_KEYS:
@@ -1922,9 +2026,15 @@ def _suggestions(ws, values: dict[str, float], fallback: set[str], when: str) ->
         if v is None and ws.row_dimensions[r[0].row].hidden:
             ws.cell(row=r[0].row, column=SUGGEST_COL).value = None      # not asked for this run (only_when)
             continue
-        c = ws.cell(row=r[0].row, column=SUGGEST_COL,
-                    value=_suggestion_words(key, v, key in fallback, when) if v is not None
-                    else "Worked out when you press Run")
+        words = "Worked out when you press Run"
+        if v is not None:
+            said_when = when
+            if sample and key in SAMPLED_KEYS and key not in fallback:
+                said_when = f"{when}: a quick estimate from {sample[0]} of its {sample[1]} grids, checked on all at Run"
+            words = _suggestion_words(key, v, key in fallback, said_when)
+            if key not in fallback:
+                words += _checked_words(key, v, quick, (used or {}).get(key))
+        c = ws.cell(row=r[0].row, column=SUGGEST_COL, value=words)
         c.font = Font(name="Calibri", size=10, bold=v is not None and key not in fallback,
                       color=INK if v is not None else SLATE)
         c.alignment = Alignment(horizontal="left", vertical="center")
@@ -2179,6 +2289,8 @@ def _run(book: str | Path, extract: str | Path | None = None, memory_path: str |
     if dropped:
         lines.append(f"Forgot {', '.join(sorted(dropped))}, as marked on Columns. Check "
                      f"{'it' if len(dropped) == 1 else 'them'} and set C3 to Yes before the next Run.")
+    # months to charge-off (the firm, 1 Oct 2026): what it left out, said on the Run's lines as on the Log and Check
+    lines += [w for w in res.warnings if w.startswith(engine.CO_SAID)]
     tested = getattr(getattr(res, "prespec", None), "tests", None) or []
     lines.append(f"Open {book.name}: start with "
                  + (f"{confirm_tab.SHEET}." if tested and all(x.problem is None for x in tested)
@@ -2289,7 +2401,7 @@ def _forget(wb, memory_path) -> list[str]:
 def _headline(res, wb) -> dict:
     """What the launcher's last step shows: how many pockets read worse and
     material on GCOs (the loss share of loans without them), what they
-    lost above their share, the tie-outs, and every odd value still unanswered."""
+    lost above their share with each loan counted once, the tie-outs, and every odd value still unanswered."""
     rates = [m for m in res.measures if m.is_rate]
     m = next((x for x in rates if x.name == "gco_rate"), rates[0] if rates else None)
     worse, pockets, borderline = [], 0, 0
@@ -2297,7 +2409,7 @@ def _headline(res, wb) -> dict:
         for _, c in g.inner():
             pockets += 1
             s = c.rates[m.name]
-            if s.flag == engine.WORSE and s.material is not False and s.dollars and s.dollars > 0:
+            if engine.worse_and_material(s):
                 worse.append(s.dollars)
                 borderline += s.worse_borderline is not None
     open_qs = []
@@ -2316,7 +2428,9 @@ def _headline(res, wb) -> dict:
     if not bleed_tabs(res):
         return {**confirmatory.headline(res), "open": open_qs}      # the confirmation's tiles (OC-42)
     return {"measure": m.title if m is not None else None, "gco": m is not None and m.name == "gco_rate",
-            "worse": len(worse), "pockets": pockets, "dollars": sum(worse), "tie_outs": res.tie_outs,
+            "worse": len(worse), "pockets": pockets, "tie_outs": res.tie_outs,
+            # each loan once (the firm, 1 Oct 2026); the pockets' own dollars added up counted a loan once per grid
+            "dollars": res.once[m.name].dollars if m is not None and m.name in res.once else sum(worse),
             "borderline": borderline, "open": open_qs}
 
 
@@ -2543,7 +2657,8 @@ def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, s
         _last_run_used(wb, res)
         control.fold_launcher_rows(wb[control.SHEET])     # the rows this kind of run asks, and only those
         if getattr(res, "suggest_all", None):
-            _suggestions(wb[control.SHEET], *res.suggest_all, when="from this extract at the last Run")
+            _suggestions(wb[control.SHEET], *res.suggest_all, when="from this extract at the last Run",
+                         quick=_quick_of(wb), used=getattr(res, "control_used", None))
     if "Columns" in wb.sheetnames:
         cols = wb["Columns"]
         # a Run needs C3 = Yes, so the new columns have been checked and the ask is spent (the final check, F9)
@@ -2592,6 +2707,12 @@ def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, s
 TOP_BAND, TOP_SEG, TOP_LOANS, TOP_PROW, TOP_SHOWN, TOP_CUM = range(2, 8)
 
 
+#: _found's keys for each loan once (engine.Once), each followed by ":" and the rate's name
+ONCE, ONCE_POCKETS, ONCE_SUM, ONCE_GRIDS, ONCE_LOANS = "once", "once_pockets", "once_sum", "once_grids", "once_loans"
+#: what a total of each loan once reads when Control has moved the pockets since the Run that worked it out
+ONCE_STALE = "Run again to total"
+
+
 #: the measure Start here's tiles count, as they name it (the firm's terms, 30 Sep 2026)
 FOUND_TITLE = {"gco_rate": "GCOs", "outcome_loans": "bad loans", "outcome_booked": "bad dollars"}
 
@@ -2618,6 +2739,13 @@ def _write_found(wb, res, stamp: str) -> None:
     ws.append(["pockets", sum(1 for g in res.grids for _ in g.inner())])
     if "ranr_rate" in {x.name for x in rates}:
         ws.append(["profit", "ranr_rate"])
+    # each loan once (the firm, 1 Oct 2026), worked out at Run: a formula can't tell one loan from another. The
+    # pockets' count and own dollars beside it, so Start here can tell when Control has moved the pockets since
+    for name in {m.name, "ranr_rate"} & set(getattr(res, "once", {}) or {}):
+        o = res.once[name]
+        for key, v in ((ONCE, o.dollars), (ONCE_POCKETS, o.pockets), (ONCE_SUM, o.pocket_sum),
+                       (ONCE_GRIDS, o.grids), (ONCE_LOANS, o.loans)):
+            ws.append([f"{key}:{name}", v])
     top = []
     for g in res.grids:
         for (b, d), c in g.inner():

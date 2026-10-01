@@ -699,6 +699,66 @@ class Result:
     summaries: dict[tuple[str, str | None, str | None], Summary] = field(default_factory=dict)
     # band name -> its values, for a column too few-valued to cut: each value its own band, named by it (30 Sep 2026)
     value_bands: dict[str, tuple[float, ...]] = field(default_factory=dict)
+    # per rate: what the pockets worse and material on the two-way grids come to with each loan counted once
+    # (Start here's tile and the launcher's, the firm, 1 Oct 2026); empty for a test of a new variable
+    once: dict[str, "Once"] = field(default_factory=dict)
+
+
+@dataclass
+class Once:
+    """The pockets worse and material on one rate, every two-way grid, with each loan counted once (the firm,
+    1 Oct 2026, choosing "distinct loans" over a sum that read $2,904,231,129 on a book whose GCOs were
+    $37,767,925: every loan sits in every grid, so a sum over the grids counts it once per grid).
+
+    The rule: a pocket's dollars above its share are its loans' own, each loan's GCO less its booked dollars at
+    the rate the pocket is compared with (the rest of the book, or of its band). A loan in several of those
+    pockets counts once, in the one where its own dollars above share are largest. On one grid each loan is in
+    one pocket, so the total is the pockets' sum; on many, for a loss compared at a rate of nought or more, it
+    can never exceed the GCOs of the loans counted, and so never the book's."""
+    dollars: float = 0.0                # each loan once: above share for a loss rate, short for profit
+    loans: int = 0                      # the distinct loans in at least one of the pockets
+    pockets: int = 0                    # the pockets worse and material
+    grids: int = 0                      # the grids holding at least one of them
+    pocket_sum: float = 0.0             # the pockets' own dollars added up, as a SUMIFS over _pockets gives them
+
+
+def worse_and_material(s: "RateStat") -> bool:
+    """A pocket Start here and the launcher count: worse, material, and losing (or short) dollars."""
+    return s.flag == WORSE and s.material is not False and s.dollars is not None and s.dollars > 0
+
+
+def once_over(grids: list[tuple["Grid", list]], per_row: dict, m: "Measure") -> Once:
+    """`Once` for rate `m` over `grids`, each (grid, every loan's (band, segment) in the extract's order), from
+    every loan's (top, bottom) in `per_row` (None: the loan didn't enter the rate)."""
+    out = Once()
+    best: dict[int, float] = {}
+    vals = per_row[m.name]
+    worse = m.higher_is == "worse"
+    for g, keys in grids:
+        at: dict[tuple, float] = {}
+        for k, c in g.inner():
+            s = c.rates[m.name]
+            if not worse_and_material(s) or not s.den:
+                continue
+            # the rate the pocket is compared with, from its own dollars: num - r * den for a loss, r * den - num
+            # for profit, so its loans' own dollars add up to exactly the pocket's
+            at[k] = (s.num - s.dollars) / s.den if worse else (s.dollars + s.num) / s.den
+            out.pockets += 1
+            out.pocket_sum += s.dollars
+        if not at:
+            continue
+        out.grids += 1
+        for i, k in enumerate(keys):
+            r = at.get(k)
+            if r is None or vals[i] is None:
+                continue
+            y, x = vals[i]
+            e = y - r * x if worse else r * x - y
+            if i not in best or e > best[i]:
+                best[i] = e
+    out.loans = len(best)
+    out.dollars = math.fsum(best.values())
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -879,6 +939,88 @@ def origination_dates(config: Config, table: Table, rows: list[dict]) -> Origina
     return out
 
 
+#: The measure that carries each charged-off loan's months to charge-off: shown, never tested (a median-mode measure,
+#: so every grid cell and every Summary row gets its average and median the way Show per pocket does)
+CO_MONTHS = "co_months"
+#: how every line about months to charge-off begins, so the Run's lines can carry them as the Log and Check do
+CO_SAID = "Months to charge-off"
+
+
+def no_chargeoff_date(outcome, raw_dates) -> str | None:
+    """The note for bad loans with no charge-off date (the firm, 1 Oct 2026: "Leave out, count in a note"): `outcome`
+    is each loan's outcome as the Run read it ((1.0, 1.0) bad, (0.0, 1.0) good, None unread), `raw_dates` its
+    charge-off date as written. None when every bad loan has one."""
+    k = sum(1 for o, d in zip(outcome, raw_dates) if o is not None and o[0] == 1.0 and is_blank(d))
+    if not k:
+        return None
+    return (f"{CO_SAID}: {k:,} bad loan{'s have' if k != 1 else ' has'} no charge-off date, so "
+            f"{'they are' if k != 1 else 'it is'} left out.")
+
+
+def months_between(made, charged_off) -> int:
+    """Whole calendar months from `made` to `charged_off`, days ignored: (y2 - y1) * 12 + (m2 - m1)."""
+    return (charged_off.year - made.year) * 12 + (charged_off.month - made.month)
+
+
+def chargeoff_months(config: Config, table: Table, rows: list[dict]) -> tuple[list[int | None] | None, str | None]:
+    """Each loan's months to charge-off (the firm, 1 Oct 2026: "We worked in calculating charge off months right? If
+    the data is there"), and the warning line that counts what was left out; (None, None) when no column in the
+    extract is marked Charge-off date, so nothing changes, and (None, a warning) when one is but none is marked
+    Origination date.
+
+    The rule: whole calendar months from origination to charge-off, (y2 - y1) * 12 + (m2 - m1), the day of the
+    month ignored. Only a loan with a charge-off date counts; a blank charge-off date is a loan that didn't charge
+    off, and is None. A loan with a charge-off date that is left out is None too, and counted in the warning, never
+    silently: a charge-off date that isn't a date, no readable origination date, or a charge-off before the loan
+    was made. A column whose dates read two ways is said in the warning, and nothing is worked out."""
+    from datetime import date as _date, datetime as _dt
+    oc, cc = config.origination_date, config.chargeoff_date
+    if not cc or cc not in table.columns:
+        return None, None
+    if not oc or oc not in table.columns:
+        # marked, so wanted: said rather than quietly not shown
+        return None, (f"Months to charge-off isn't worked out: {cc} is marked Charge-off date, but no column in "
+                      f"the extract is marked Origination date to count the months from")
+    try:
+        read_o = _date_reader(table, oc, "when each loan was made")
+        read_c = _date_reader(table, cc, "when each loan charged off")
+    except DataRefused as exc:
+        return None, f"Months to charge-off isn't worked out: {exc}"
+
+    def day(v):
+        return v.date() if isinstance(v, _dt) else v if isinstance(v, _date) else None
+
+    out: list[int | None] = []
+    odd = no_orig = before = 0
+    for r in rows:
+        raw_c = r.get(cc)
+        if is_blank(raw_c):
+            out.append(None)
+            continue
+        c = day(read_c(raw_c))
+        o = day(read_o(r.get(oc)))
+        if c is None:
+            odd += 1
+        elif o is None:
+            no_orig += 1
+        elif c < o:
+            before += 1
+        else:
+            out.append(months_between(o, c))
+            continue
+        out.append(None)
+    parts = [f"{k:,} {what}" for k, what in ((odd, f"with a {cc} that isn't a date"),
+                                              (no_orig, f"with no readable {oc}"),
+                                              (before, f"charged off before they were made ({cc} before {oc})"))
+             if k]
+    said = None
+    if parts:
+        n = odd + no_orig + before
+        said = (f"Months to charge-off: {n:,} loan{'s' * (n != 1)} with a charge-off date {'are' if n != 1 else 'is'}"
+                f" left out of it: " + "; ".join(parts) + ".")
+    return out, said
+
+
 def origination_years(table: Table, col: str) -> list[str]:
     """The year each loan was made, as text ("2023"), read from `col` (the column marked Origination date) the way
     the Run reads that column's dates; NO_DATE for a loan whose date is blank or can't be read, so it is never put
@@ -948,9 +1090,11 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
     return replace(config, bands=keep_b, dimensions=keep_d)
 
 
-def run(config: Config, table: Table, progress=None) -> Result:
+def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]] | None = None) -> Result:
     """`progress`, when given, is told "Cutting bands" and "Running the shuffle test" as each starts (the launcher's
-    progress line, 30 Sep 2026)."""
+    progress line, 30 Sep 2026). `pairs`, when given, is the (band name, segment name) grids to build, and no
+    others: Set up's suggestions read a sample of the grids on a big book (book.suggest_pairs). Everything else,
+    the whole book's rates and what a pocket needs among them, is the same as a run of every grid."""
     say = progress or (lambda stage: None)
     timing.mark("Reading each loan's values")        # Record's "Where the time went" (the firm, 30 Sep 2026)
     warnings: list[str] = []
@@ -960,6 +1104,16 @@ def run(config: Config, table: Table, progress=None) -> Result:
     config = _drop_outcome_cuts(config, measures, warnings)
     rows = table.rows                          # every loan: nothing is left out for its age or dates
     dates = origination_dates(config, table, rows)
+    # months to charge-off (the firm, 1 Oct 2026), only when the extract has both dates and the run is the bleed's:
+    # one more measure, shown and never tested, so Grids and Summary carry it as they carry Show per pocket
+    co_months = None
+    if config.run_kind != "new_variable":
+        co_months, said = chargeoff_months(config, table, rows)
+        if said:
+            warnings.append(said)
+        if co_months is not None:
+            measures = tuple(measures) + (Measure(name=CO_MONTHS, mode="median", value=config.chargeoff_date,
+                                                  show="average"),)
     n = len(rows)
     rules = config.missing
 
@@ -1015,6 +1169,8 @@ def run(config: Config, table: Table, progress=None) -> Result:
         vals: list = []
         if m.mode == "count":
             vals = [1] * n
+        elif m.name == CO_MONTHS:
+            vals = list(co_months)              # a loan that never charged off is None, and left out unsaid
         elif m.mode == "median":
             for raw in col(m.value):
                 v, why = classify_number(raw, rules.get(m.value))
@@ -1055,6 +1211,11 @@ def run(config: Config, table: Table, progress=None) -> Result:
                     vals.append((num, d))
         per_row[m.name] = vals
         left_out[m.name] = lo
+    if co_months is not None and "outcome_loans" in per_row:
+        # the firm, 1 Oct 2026, on a bad loan with no charge-off date: "Leave out, count in a note"
+        said = no_chargeoff_date(per_row["outcome_loans"], [r.get(config.chargeoff_date) for r in rows])
+        if said:
+            warnings.append(said)
 
     total = _accumulate(measures, per_row, [None] * n)[None]
     _finish_cell(total, measures)
@@ -1135,6 +1296,8 @@ def run(config: Config, table: Table, progress=None) -> Result:
     timing.mark("Building the grids")
     for b in config.bands if bleed else ():
         for d in config.dimensions:
+            if pairs is not None and (b.name, d.name) not in pairs:
+                continue
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
                                topline, min_units, total, needed, materiality_line, band_label_sets[b.name])
             built.append((grid, b.name, list(zip(bands[b.name], dims[d.name]))))
@@ -1169,6 +1332,10 @@ def run(config: Config, table: Table, progress=None) -> Result:
         _judge(g, config, measures, min_units, materiality_line)
     for g, _, _ in halved:
         _finish_split(g, config, measures)
+    # Start here's totals, each loan once (the firm, 1 Oct 2026): over the two-way grids, as its tiles count
+    two = {id(g) for g in grids}
+    once = {m.name: once_over([(g, keys) for g, _, keys in built if id(g) in two], per_row, m)
+            for m in measures if m.is_rate} if bench is not None else {}
     # Grids' Loan size and "Only loans where" (the firm, 29 Sep 2026): each grid's booked dollars per cell, and each
     # grid again on only the loans with one value of the Filter by column
     booked = None
@@ -1245,7 +1412,7 @@ def run(config: Config, table: Table, progress=None) -> Result:
                   materiality_line=materiality_line, three_way=three_way,
                   split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
                   book_size=book_size, filter_values=values, filter_values2=values2, summaries=summaries,
-                  value_bands=value_bands)
+                  value_bands=value_bands, once=once)
 
 
 def _cut_or_each_value(b: Band, seen: list[float]) -> tuple[tuple[float, ...], tuple[float, ...] | None]:
@@ -1317,7 +1484,9 @@ BOOKED = "booked"
 SUMMARY_COLUMNS = (("loans", None), ("loans_share", None), ("bad", "outcome_loans"), ("bad_rate", "outcome_loans"),
                    ("booked", BOOKED), ("booked_share", BOOKED), ("gco", "gco_rate"), ("gco_rate", "gco_rate"),
                    ("gco_x", "gco_rate"), ("gco_share", "gco_rate"), ("ranr", "ranr_rate"),
-                   ("ranr_rate", "ranr_rate"), ("ranr_share", "ranr_rate"))
+                   ("ranr_rate", "ranr_rate"), ("ranr_share", "ranr_rate"),
+                   # the firm, 1 Oct 2026: months to charge-off, among the row's charged-off loans
+                   ("co_avg", CO_MONTHS), ("co_median", CO_MONTHS))
 
 
 def summary_columns(res) -> list[str]:
@@ -1334,7 +1503,9 @@ def summary_rows(res, band: str, value: str | None = None,
     Loans and bad loans are counts; a share is the row's over the All row's, so the shares add to 100% over the
     bands and the special rows; bad loans % is the Bad loans rate (bad loans over the loans whose outcome reads 0
     or 1); a charge-off or RANR rate is that measure's rate (its dollars over the booked dollars of the loans with
-    both amounts), and x book is the charge-off rate over the whole book's, filter or none."""
+    both amounts), and x book is the charge-off rate over the whole book's, filter or none. Months to charge-off, when
+    the Run has it, is the average and the median over the row's loans that charged off (chargeoff_months), blank
+    where none did."""
     s = res.summaries[(band, value, value2)]
     keys = summary_columns(res)
     whole = res.total.rates.get("gco_rate")
@@ -1359,6 +1530,9 @@ def summary_rows(res, band: str, value: str | None = None,
         if "ranr_rate" in c.rates:
             r = c.rates["ranr_rate"]
             row.update(ranr=r.num, ranr_rate=r.rate, ranr_share=share(r.num, top.rates["ranr_rate"].num))
+        if CO_MONTHS in c.medians:
+            co = c.medians[CO_MONTHS]
+            row.update(co_avg=co.mean if co.values else None, co_median=co.median if co.values else None)
         out.append((lab, {k: row.get(k) for k in keys}))
     return out
 
