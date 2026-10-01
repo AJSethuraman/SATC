@@ -510,7 +510,8 @@ muts = [
   '    worked = _suggest_at_set_up(wb, book, as_read, memory_path, testing=kind_now == NEW_VARIABLE)',
   '    worked = ({}, set())', "suggested_value_is_on_control_before"),
  ("Run leaves the suggestion stale", B,
-  '            _suggestions(wb[control.SHEET], *res.suggest_all, when="from this extract at the last Run")',
+  '            _suggestions(wb[control.SHEET], *res.suggest_all, when="from this extract at the last Run",\n'
+  '                         quick=_quick_of(wb), used=getattr(res, "control_used", None))',
   '            pass', "run_refreshes_the_suggestion"),
  ("Excel's lock file unseen", B, ' or book.with_name(f"~${book.name}").exists())', ')',
   "while_the_workbook_is_open"),
@@ -1577,6 +1578,17 @@ muts = [
  ("bad loans with no charge-off date left out unsaid", E,
   "    k = sum(1 for o, d in zip(outcome, raw_dates) if o is not None and o[0] == 1.0 and is_blank(d))",
   "    k = 0", "no_charge_off_date_are_counted_in_a_note"),
+ # 1 Oct 2026, the firm on Set up's suggestions from a sample of the grids: "Will the quick estimates be as
+ # accurate? ... Test it and let's see" (tests/test_sampled_suggest_2026_10_01.py), each caught with no display
+ ("the sample balanced on band columns, not segments", B,
+  "    k = nd * math.ceil(max(SAMPLE_LEAST, rounds * max(nb, nd)) / nd)",
+  "    k = nb * math.ceil(max(SAMPLE_LEAST, rounds * max(nb, nd)) / nb)", "every_segment_column_equally_often"),
+ ("Set up building every grid for its suggestions", B,
+  "        values, fallback = _suggest_values(engine.run(first, table, pairs=pairs), set(SUGGEST_KEYS))",
+  "        values, fallback = _suggest_values(engine.run(first, table), set(SUGGEST_KEYS))",
+  "builds_only_the_sampled_grids"),
+ ("Run never checking Set up's quick estimate", B, "quick=_quick_of(wb), used=", "quick=None, used=",
+  "run_on_the_estimate_says_every_grid_disagrees"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

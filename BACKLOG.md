@@ -2887,6 +2887,69 @@ changed in the code.
     tied to the CSV (`test_bad_loans_with_no_charge_off_date_are_counted_in_a_note`); 1 planted bug added, 4 of 4
     of this feature's caught with no display; every entry's old string still occurs once (644 entries).
 
+- **Built, 1 Oct 2026: Set up's suggestions from a sample of the grids** (branch `pocketbook-sampled-suggest`). At
+  the bank, 184,937 loans and 12 band columns x 14 segment columns (168 grids): *Working out the suggestions* took
+  over 3.5 minutes. The firm: *"Will the quick estimates be as accurate? … Test it and let's see"*. Tested first;
+  built only because it passed.
+  - **What the suggestions read.** Fewest loans is `ceil(5 / the whole book's bad rate)`: no grid at all, so it
+    can't change. Worse at is the median, over every pocket of every grid at or above fewest loans, of the smallest
+    gap that pocket's test could call significant (`luck_gap`), and that gap depends only on how many loans the
+    pocket holds. Better at is `round(1 / worse at, 2)`. So a sample only has to get the spread of pocket sizes
+    right. The sample: every segment column equally often, every band column within one of equally often, the same
+    on every Set up (fixed seed).
+  - **The experiment.** Synthetic books shaped like the bank's (12 number columns of four shapes, 14 categories of
+    3 to 7 values in an uneven mix, the last skewed to about 88% one value, a missing code on one column, an
+    outcome leaning on some of each), Set up's own first pass (draft bands of 5, no shuffle test), every grid
+    against 14, 24, 28, 40 and 42 grids. Sizes 14, 28 and 42 are multiples of 14 (each segment column equally
+    often); 24 and 40 aren't. Worse at as Control shows it (better at follows it; fewest loans matched in every
+    book, every size). Seconds are the suggestion pass alone, on this container.
+
+    | Book | Fewest loans | Worse at, every grid | 14 | 24 | 28 | 40 | 42 | Secs, every grid | Secs at 14 / 24 / 28 / 40 / 42 |
+    |---|---|---|---|---|---|---|---|---|---|
+    | 17k, seed 1 | 69 | 1.32x | 1.32 | 1.32 | 1.32 | 1.32 | 1.32 | 27 | 5 / 6 / 8 / 9 / 9 |
+    | 17k, seed 2 | 151 | 1.45x | 1.45 | **1.44** | 1.45 | 1.45 | 1.45 | 25 | 5 / 6 / 7 / 8 / 9 |
+    | 17k, seed 3 | 245 | 1.58x | 1.58 | **1.59** | 1.58 | **1.59** | 1.58 | 26 | 5 / 6 / 7 / 8 / 9 |
+    | 17k, seed 4 | 21 | 1.15x | 1.15 | 1.15 | 1.15 | 1.15 | 1.15 | 27 | 5 / 7 / 7 / 10 / 9 |
+    | 17k, seed 5 | 113 | 1.41x | 1.41 | 1.41 | 1.41 | 1.41 | 1.41 | 27 | 5 / 7 / 7 / 9 / 9 |
+    | 17k, seed 6 | 36 | 1.22x (0.82x) | **1.23 (0.81)** | **1.23 (0.81)** | 1.22 | 1.22 | 1.22 | 27 | 5 / 7 / 7 / 8 / 10 |
+    | 185k, seed 11 | 124 | 1.13x | 1.13 | 1.13 | 1.13 | 1.13 | 1.13 | 264 | 56 / 73 / 82 / 91 / 98 |
+    | 185k, seed 12 | 105 | 1.12x | 1.12 | 1.12 | 1.12 | 1.12 | — | 262 | 56 / 71 / 83 / 93 / — |
+    | 185k, seed 13 | 167 | 1.15x | 1.15 | — | 1.15 | — | 1.15 | 279 | 63 / — / 80 / — / 90 |
+    | 185k, seed 14 | 123 | 1.12x | 1.12 | — | 1.12 | — | — | 256 | 63 / — / 79 / — / — |
+
+    Bold: one step (0.01x) off. Before rounding, 28 grids came within 0.0017 of every grid in every book (0.0003
+    at 185k); 14 within 0.0030; 24 and 40, which favour some segment columns, up to 0.0089.
+  - **The verdict.** 28 grids, the smallest size that matched every grid at Control's rounding in every book it
+    was run on (10 books, 4 of them 185k). 14 matched to within one step, but was off in one book (17k seed 6:
+    1.23x / 0.81x for 1.22x / 0.82x). A sample can still land one step off in some book: the median of the
+    sampled pockets sits within about 0.002 of every grid's, so a book whose answer sits that close to a rounding
+    line can round the other way. That is why Run checks it (below). At 185k: about 80 seconds against about 265,
+    three times faster. Most of what is left is reading every loan, cutting the bands and the Summary tables
+    (about 45 seconds), not the grids. For reference, counting every pocket of every grid exactly, without building
+    the grids, took about 126 seconds: exact, but slower than the sample.
+  - **Built.** `book.suggest_pairs` picks the grids: a multiple of the segment columns, at least twice the larger
+    column count and at least 28 (the size tested), so a book of 28 grids or fewer reads every grid as before.
+    `engine.run(..., pairs=)` builds only those grids; the whole book's rate and everything else is read as before.
+    Control says it beside worse at and better at: *"suggested: 1.32x, from this extract: a quick estimate from 28
+    of its 168 grids, checked on all at Run"*. Fewest loans is never called an estimate. What the sample said is
+    kept in `_about` (A5). At Run, which works every suggestion out from every grid as it always has, a
+    suggestion whose estimate rounded differently says so: *"… Set up's quick estimate, from 28 of 168 grids, was
+    1.32x"*. Where the answer typed on Control is that estimate: *"The answer chosen, 1.32x, is Set up's quick
+    estimate from 28 of 168 grids: every grid says 1.33x"*. Where they agree, the words are unchanged.
+  - **Not tested.** Shapes other than 12 x 14 at the bank's size (8 x 10 and 6 x 6 are tested below); a book
+    whose band columns are mostly one-band-per-value columns; a split or filter chosen at Set up (both are built
+    only for the sampled grids too).
+  - Tests: 7 in `tests/test_sampled_suggest_2026_10_01.py`. On 20,000 loans x 8 band columns x 10 segment
+    columns, 30 grids of 80 suggest what every grid does at the rounding shown. The sample builds only its grids
+    and reads every loan. Every segment column comes up equally often and every band column within one. A small
+    book reads every grid. Set up builds 30 of 36 grids and says so on Control and in `_about`. Run's words are
+    checked through `_suggestions`, and once through a real Run where the answer typed is the estimate. Run with
+    test_firm_answers (3 files), test_answer_tabs, test_control, test_book and test_mutation_tool: 167 passed, 3
+    skipped, 0 failed. Planted bugs: 3 added in `tools/mutation_check.py` (the sample balanced on band columns, Set
+    up building every grid, Run never checking the estimate) and 1 repointed (*Run leaves the suggestion stale*,
+    whose line this rewrote). 4 of 4 caught with no display; every entry's old string still occurs once (647
+    entries).
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -2898,6 +2961,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-01 -- **PocketBook: Set up's suggestions from a sample of the grids.** The firm, on Set up taking over 3.5 minutes at 184,937 loans and 168 grids: *"Will the quick estimates be as accurate? … Test it and let's see"*. Tested on ten synthetic books of 17,000 and 185,000 loans: a sample of 28 grids matched every grid at Control's rounding in every book, at about 80 seconds against 265. Fewest loans is never sampled. Run still works each suggestion out from every grid, and says so beside it where the estimate was different. 7 tests, 3 planted bugs added and 1 repointed, 4 of 4 caught. §6d has the table.
 - 2026-10-01 -- **PocketBook: the bank checklist says to save the extract as CSV first.** The firm, on reading an .xlsx being about 20 times slower than CSV (5.4 s against 0.3 s at 17,000 × 70, read at Set up and at every Run): *"Yes definitely csv first then"*. Step 6.1 says how (Excel, Save As, CSV UTF-8) and 6.2 marks .csv as best; .xlsx still works. Checklist HTML and PDF rebuilt; test_bank_checklist 10 passed.
 - 2026-09-30 -- **PocketBook: errors on the window, not in Notepad.** At the bank, Run with the extract open in Excel became a PermissionError traceback read in Notepad. The firm: *"It would be a lot easier if these kinds of errors just displayed on screen in the huge white space allotted"*. An extract that can't be read (open in Excel, OneDrive syncing, gone) is now a plain refusal naming the file, and the extract is read once per Run. Anything unexpected shows on the page with its type, its message and **Copy details**. 10 tests added and 2 changed; 8 planted bugs added, 8 caught, and 4 display-only ones caught by hand. §6d has the detail.
 - 2026-09-30 -- **PocketBook: a number column too few-valued to cut gets one band per value.** The firm, at the bank: *"So it refuses to run some stuff because it cannot band"*, then *"Yes that's fine"*. Major Derogatories (0 to 8, most loans at 0) no longer stops the Run: each value is its own band, labelled 0 to 8, and the Run says so; Columns suggests Category without changing the answer. More values that still collapse are cut as far as they go; a single value is refused, naming the two fixes; typed edges always win. §6d has the detail.
