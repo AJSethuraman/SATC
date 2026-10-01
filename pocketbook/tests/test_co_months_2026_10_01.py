@@ -26,6 +26,8 @@ PICKER = "band or category column"
 ONLY = f"Only loans where {ch.ORIG_YEAR} is"
 AVG, MED = "Avg months to charge-off", "Median months to charge-off"
 BEFORE, NOT_A_DATE, NO_ORIG, DAY_EDGE = 11, 23, 37, 41      # which bad loans are bent, by their place among them
+NO_CO = (5, 7, 9)                   # bad loans whose charge-off date is blanked: left out, counted in a note
+RAN = {}                            # the Run's lines, by workbook
 
 
 def _write(rows, path):
@@ -47,6 +49,7 @@ def _build(d, rows, name):
         _answer(out.book)
         ran = book.run(out.book)
         assert ran.ok, ran.lines
+    RAN[out.book] = ran.lines
     return out.book
 
 
@@ -64,6 +67,8 @@ def made(tmp_path_factory):
     bad[NOT_A_DATE]["CO_DATE"] = "pending"
     bad[NO_ORIG]["ORIG_DATE"] = ""
     bad[DAY_EDGE]["ORIG_DATE"], bad[DAY_EDGE]["CO_DATE"] = "2024-01-31", "2024-02-01"
+    for i in NO_CO:
+        bad[i]["CO_DATE"] = ""
     with_co = _build(d, rows, "with")
     without = _build(d, [{k: v for k, v in r.items() if k != "CO_DATE"} for r in rows], "without")
     return with_co, without, rows
@@ -144,7 +149,7 @@ def _text(b):
 def test_the_bent_loans_are_what_the_fixture_says(made):
     """The checks below lean on these four: say them from the CSV first."""
     _, _, rows = made
-    bad = [r for r in rows if r["CO_DATE"]]
+    bad = [r for r in rows if r["BAD_FLAG"] == "1"]          # the fixture's list: every bad loan had a CO_DATE
     assert _months(bad[BEFORE]) is None and _ymd(bad[BEFORE]["CO_DATE"]) < _ymd(bad[BEFORE]["ORIG_DATE"])
     assert _months(bad[NOT_A_DATE]) is None and _months(bad[NO_ORIG]) is None
     assert _months(bad[DAY_EDGE]) == 1
@@ -217,6 +222,19 @@ def test_the_left_out_loans_are_counted_in_a_warning(made):
     for part in ('1 with a CO_DATE that isn\'t a date', "1 with no readable ORIG_DATE",
                  "1 charged off before they were made (CO_DATE before ORIG_DATE)"):
         assert part in said, part
+
+
+def test_bad_loans_with_no_charge_off_date_are_counted_in_a_note(made):
+    """The firm, 1 Oct 2026, on a bad loan with no charge-off date: "Leave out, count in a note". The count, worked
+    out from the CSV (BAD_FLAG 1 and CO_DATE blank), on the Run's lines and on the Log and Check; none in the book
+    without the column."""
+    b, without, rows = made
+    k = sum(1 for r in rows if r["BAD_FLAG"] == "1" and not r["CO_DATE"])
+    assert k == len(NO_CO)
+    said = f"Months to charge-off: {k:,} bad loans have no charge-off date, so they are left out."
+    assert said in RAN[b]
+    assert said in _text(b)
+    assert not [x for x in RAN[without] if "charge-off" in x]
 
 
 def test_grids_offers_it_as_a_measure_and_it_ties_to_the_loan_file(made, tmp_path):

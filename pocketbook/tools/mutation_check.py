@@ -1573,6 +1573,10 @@ muts = [
   " - (1 if charged_off.day < made.day else 0)", "every_summary_view_on_the_views_sheet"),
  ("the charge-off date greyed as unused", B, '"ranr", "chargeoff_date") or', '"ranr") or',
   "charge_off_date_and_does_not_grey_it"),
+ # the firm's answer, 1 Oct 2026, on a bad loan with no charge-off date: "Leave out, count in a note"
+ ("bad loans with no charge-off date left out unsaid", E,
+  "    k = sum(1 for o, d in zip(outcome, raw_dates) if o is not None and o[0] == 1.0 and is_blank(d))",
+  "    k = 0", "no_charge_off_date_are_counted_in_a_note"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
