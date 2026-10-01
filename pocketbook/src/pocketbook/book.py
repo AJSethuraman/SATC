@@ -1080,7 +1080,9 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
     r = house.method_note(ws, 3, 2, 9, [
         ("Where things stand", "What is left before Run, counted live from Control and Columns as you fill them "
                                "in."),
-        ("What the last Run found", "Pockets worse and material at Control's lines, and the five largest."
+        ("What the last Run found", "Pockets worse and material at Control's lines, and the five largest. The "
+                                    "dollars count each loan once, in the pocket where it is furthest above its "
+                                    "share: every loan is in every grid, so a plain sum counts it once per grid."
          if _found_value(wb, "kind") != confirm_tab.FOUND_KIND else
          "Each group of the tested column on the holdout, against the reference group. Significant? follows the "
          "confidence on Control; the rest is as of the last Run."),
@@ -1155,6 +1157,17 @@ def _found_value(wb, key: str):
     return None
 
 
+def _once(wb, m: str, crit: str) -> tuple[str, str]:
+    """Each loan once on rate `m`, as the last Run worked it out (engine.Once), and a formula that is TRUE while the
+    pockets `crit` picks on _pockets are still the Run's: the same count and the same dollars added up. Control's
+    lines move the pockets live and a formula can't count a loan once, so a total from other pockets says to Run."""
+    got = [_found_value(wb, f"{k}:{m}") for k in (ONCE, ONCE_POCKETS, ONCE_SUM)]
+    if any(v is None for v in got):
+        return "0", "FALSE"                         # a _found from before 1 Oct 2026: Run again
+    once, n, total = got
+    return repr(float(once)), f"AND(COUNTIFS({crit})={int(n)},ABS(SUMIFS(pk_dollars,{crit})-({float(total)!r}))<0.01)"
+
+
 #: Start here's list of the largest pockets, worse and material: how many rows it shows
 TOP_ROWS = 5
 #: the hidden column on Start here holding which _found row each of those rows shows
@@ -1186,16 +1199,23 @@ def _found_block(ws, wb, r: int) -> int:
     dollar = m != "outcome_loans"
     # Borderline (the firm, 29 Sep 2026): how many of them turn on a shuffled p-value that near the bar
     bl = f'COUNTIFS({crit},pk_wborder,"?*")'
+    once, same = _once(wb, m, crit)
+    grids = _found_value(wb, f"{ONCE_GRIDS}:{m}")
+    in_grids = f'&IF({same}," · in {grids:,} grid{"s" * (grids != 1)}","")' if grids else ""
     tiles = [(f"Pockets worse and material, {title}",
-              f'=IFERROR(COUNTIFS({crit})&" of {_found_value(wb, "pockets"):,}"&IF({bl}>0," · "&{bl}&" borderline",'
-              f'""),"")'),
-             (f"{'Dollars' if dollar else 'Bad loans'} above their share, in those",
-              f'=IFERROR(SUMIFS(pk_dollars,{crit}),"")')]
+              f'=IFERROR(COUNTIFS({crit})&" of {_found_value(wb, "pockets"):,}"{in_grids}&IF({bl}>0," · "&{bl}&'
+              f'" borderline",""),"")'),
+             # each loan once (the firm, 1 Oct 2026): worked out at Run, so shown only while the pockets are the
+             # Run's; a sum over the grids counted a loan once per grid ($2,904,231,129 on a $37,767,925 book)
+             (f"{'Dollars' if dollar else 'Bad loans'} above share, each loan once",
+              f'=IFERROR(IF({same},{once},"{ONCE_STALE}"),"")')]
     profit = _found_value(wb, "profit")
     if profit:
         pc = f'pk_kind,"grids",pk_measure,"{profit}",pk_flag,"{engine.WORSE}",pk_material,"yes"'
-        tiles.append(("Pockets short on RANR, worse and material",
-                      f'=IFERROR(COUNTIFS({pc})&" short $"&TEXT(SUMIFS(pk_dollars,{pc}),"#,##0"),"")'))
+        p_once, p_same = _once(wb, profit, pc)
+        tiles.append(("Pockets short on RANR, each loan once",
+                      f'=IFERROR(COUNTIFS({pc})&IF({p_same}," short $"&TEXT({p_once},"#,##0"),'
+                      f'", {ONCE_STALE.lower()}"),"")'))
     else:
         tiles.append(("Last Run", _found_value(wb, "stamp")))
     for i, (label, f) in enumerate(tiles):
@@ -2293,7 +2313,7 @@ def _forget(wb, memory_path) -> list[str]:
 def _headline(res, wb) -> dict:
     """What the launcher's last step shows: how many pockets read worse and
     material on GCOs (the loss share of loans without them), what they
-    lost above their share, the tie-outs, and every odd value still unanswered."""
+    lost above their share with each loan counted once, the tie-outs, and every odd value still unanswered."""
     rates = [m for m in res.measures if m.is_rate]
     m = next((x for x in rates if x.name == "gco_rate"), rates[0] if rates else None)
     worse, pockets, borderline = [], 0, 0
@@ -2301,7 +2321,7 @@ def _headline(res, wb) -> dict:
         for _, c in g.inner():
             pockets += 1
             s = c.rates[m.name]
-            if s.flag == engine.WORSE and s.material is not False and s.dollars and s.dollars > 0:
+            if engine.worse_and_material(s):
                 worse.append(s.dollars)
                 borderline += s.worse_borderline is not None
     open_qs = []
@@ -2320,7 +2340,9 @@ def _headline(res, wb) -> dict:
     if not bleed_tabs(res):
         return {**confirmatory.headline(res), "open": open_qs}      # the confirmation's tiles (OC-42)
     return {"measure": m.title if m is not None else None, "gco": m is not None and m.name == "gco_rate",
-            "worse": len(worse), "pockets": pockets, "dollars": sum(worse), "tie_outs": res.tie_outs,
+            "worse": len(worse), "pockets": pockets, "tie_outs": res.tie_outs,
+            # each loan once (the firm, 1 Oct 2026); the pockets' own dollars added up counted a loan once per grid
+            "dollars": res.once[m.name].dollars if m is not None and m.name in res.once else sum(worse),
             "borderline": borderline, "open": open_qs}
 
 
@@ -2596,6 +2618,12 @@ def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, s
 TOP_BAND, TOP_SEG, TOP_LOANS, TOP_PROW, TOP_SHOWN, TOP_CUM = range(2, 8)
 
 
+#: _found's keys for each loan once (engine.Once), each followed by ":" and the rate's name
+ONCE, ONCE_POCKETS, ONCE_SUM, ONCE_GRIDS, ONCE_LOANS = "once", "once_pockets", "once_sum", "once_grids", "once_loans"
+#: what a total of each loan once reads when Control has moved the pockets since the Run that worked it out
+ONCE_STALE = "Run again to total"
+
+
 #: the measure Start here's tiles count, as they name it (the firm's terms, 30 Sep 2026)
 FOUND_TITLE = {"gco_rate": "GCOs", "outcome_loans": "bad loans", "outcome_booked": "bad dollars"}
 
@@ -2622,6 +2650,13 @@ def _write_found(wb, res, stamp: str) -> None:
     ws.append(["pockets", sum(1 for g in res.grids for _ in g.inner())])
     if "ranr_rate" in {x.name for x in rates}:
         ws.append(["profit", "ranr_rate"])
+    # each loan once (the firm, 1 Oct 2026), worked out at Run: a formula can't tell one loan from another. The
+    # pockets' count and own dollars beside it, so Start here can tell when Control has moved the pockets since
+    for name in {m.name, "ranr_rate"} & set(getattr(res, "once", {}) or {}):
+        o = res.once[name]
+        for key, v in ((ONCE, o.dollars), (ONCE_POCKETS, o.pockets), (ONCE_SUM, o.pocket_sum),
+                       (ONCE_GRIDS, o.grids), (ONCE_LOANS, o.loans)):
+            ws.append([f"{key}:{name}", v])
     top = []
     for g in res.grids:
         for (b, d), c in g.inner():

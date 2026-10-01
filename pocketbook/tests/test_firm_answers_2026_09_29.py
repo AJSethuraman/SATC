@@ -1562,11 +1562,11 @@ def test_filter_by_launcher_offers_every_category_and_the_origination_year(tmp_p
     none = sum(1 for r in loans if not r["ORIG_DATE"])
     yr = by[ch.ORIG_YEAR]
     assert yr["what"] == f"Origination year, from ORIG_DATE · 3 values · {none} with no date"
-    assert yr["b"] is None and yr["c"] == {"on": False, "radio": True} and yr["d"] == {"on": False, "radio": True}
+    # Filter 1 starts on it (the firm, 1 Oct 2026)
+    assert yr["b"] is None and yr["c"] == {"on": False, "radio": True} and yr["d"] == {"on": True, "radio": True}
     names = [r["name"] for r in rows]
     assert names.index("ASSET_CLASS") < names.index(ch.ORIG_YEAR) < names.index("BAD_FLAG")
     # Filter by is its own pick: the split and the segments stay as they are
-    f.click(ch.ORIG_YEAR, "d")
     f.click("REV_DEBT", "c")
     assert f.filter == ch.ORIG_YEAR and f.split == "REV_DEBT" and {"CHANNEL", "ASSET_CLASS"} <= f.seg
     f.click("CHANNEL", "d")                                                  # one column filters, or none

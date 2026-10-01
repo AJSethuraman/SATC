@@ -936,8 +936,8 @@ muts = [
   '    for r in control.launcher_rows_of(ws):\n        own =', '    for r in []:\n        own =',
   'changed_in_the_launcher_waits'),
  ("B: the tie-out tile back on the finished screen", LA,
-  """             f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"))""",
-  """             f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"), ("Tie-out checks", "1 / 1", "", "INK", "POSITIVE"))""",
+  """             f"in those {_s(worse, 'pocket')}, each loan once", "KEY_RED", "INK"))""",
+  """             f"in those {_s(worse, 'pocket')}, each loan once", "KEY_RED", "INK"), ("Tie-out checks", "1 / 1", "", "INK", "POSITIVE"))""",
   'tie_out_figure_that_could_only'),
  ("B: Record's tie-outs as n of n", B, '            ("Tie-out checks", f"{res.tie_outs:,}: every grid adds up to the book")]',
   '            ("Tie-out checks", f"{res.tie_outs:,} of {res.tie_outs:,} agree: every grid adds up to the book")]',
@@ -1577,6 +1577,17 @@ muts = [
  ("bad loans with no charge-off date left out unsaid", E,
   "    k = sum(1 for o, d in zip(outcome, raw_dates) if o is not None and o[0] == 1.0 and is_blank(d))",
   "    k = 0", "no_charge_off_date_are_counted_in_a_note"),
+ # the firm, 1 Oct 2026: Start here's total counts each loan once, and Filter 1 starts on Origination year
+ # (tests/test_distinct_total_2026_10_01.py); none needs a display
+ ("a loan counted once per pocket it sits in again", E,
+  "            if i not in best or e > best[i]:\n                best[i] = e",
+  "            if True:\n                best[i] = best.get(i, 0.0) + e", "each_loan_once_ties_to_the_loan_file"),
+ ("Start here shows the Run's total beside pockets Control has moved", B,
+  '    return repr(float(once)), f"AND(COUNTIFS({crit})={int(n)},', '    return repr(float(once)), "TRUE" or f"AND(COUNTIFS({crit})={int(n)},',
+  "run_again_when_control_has_moved"),
+ ("Filter 1 starts empty when there is an origination date", LA,
+  "        first = ch.ORIG_YEAR if year_row is not None", "        first = None if year_row is not None",
+  "filter_1_starts_on_origination_year"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

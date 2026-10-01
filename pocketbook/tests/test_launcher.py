@@ -229,8 +229,9 @@ def test_l2_the_summary_says_what_will_run_in_both_modes(tmp_path):
     assert f.summary() == (False, launcher.NO_OUTCOME)
     _outcome(f, "BAD_FLAG")
     ok, said = f.summary()
+    # Filter 1 starts on Origination year (the firm, 1 Oct 2026)
     assert ok and said == ("2 band columns × 2 segment columns = 4 grids, five measures each; split by REV_DEBT "
-                           "adds 4 more.")
+                           "adds 4 more. Grids can show only the loans of one ORIG_YEAR.")
     f.set_mode("new")
     assert f.summary() == (False, "Tick at least one input to test.")
     for c in ("CHANNEL", "ORIG_BAL", "ASSET_CLASS", "REV_DEBT"):

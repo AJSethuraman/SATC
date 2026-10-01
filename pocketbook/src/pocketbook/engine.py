@@ -699,6 +699,66 @@ class Result:
     summaries: dict[tuple[str, str | None, str | None], Summary] = field(default_factory=dict)
     # band name -> its values, for a column too few-valued to cut: each value its own band, named by it (30 Sep 2026)
     value_bands: dict[str, tuple[float, ...]] = field(default_factory=dict)
+    # per rate: what the pockets worse and material on the two-way grids come to with each loan counted once
+    # (Start here's tile and the launcher's, the firm, 1 Oct 2026); empty for a test of a new variable
+    once: dict[str, "Once"] = field(default_factory=dict)
+
+
+@dataclass
+class Once:
+    """The pockets worse and material on one rate, every two-way grid, with each loan counted once (the firm,
+    1 Oct 2026, choosing "distinct loans" over a sum that read $2,904,231,129 on a book whose GCOs were
+    $37,767,925: every loan sits in every grid, so a sum over the grids counts it once per grid).
+
+    The rule: a pocket's dollars above its share are its loans' own, each loan's GCO less its booked dollars at
+    the rate the pocket is compared with (the rest of the book, or of its band). A loan in several of those
+    pockets counts once, in the one where its own dollars above share are largest. On one grid each loan is in
+    one pocket, so the total is the pockets' sum; on many, for a loss compared at a rate of nought or more, it
+    can never exceed the GCOs of the loans counted, and so never the book's."""
+    dollars: float = 0.0                # each loan once: above share for a loss rate, short for profit
+    loans: int = 0                      # the distinct loans in at least one of the pockets
+    pockets: int = 0                    # the pockets worse and material
+    grids: int = 0                      # the grids holding at least one of them
+    pocket_sum: float = 0.0             # the pockets' own dollars added up, as a SUMIFS over _pockets gives them
+
+
+def worse_and_material(s: "RateStat") -> bool:
+    """A pocket Start here and the launcher count: worse, material, and losing (or short) dollars."""
+    return s.flag == WORSE and s.material is not False and s.dollars is not None and s.dollars > 0
+
+
+def once_over(grids: list[tuple["Grid", list]], per_row: dict, m: "Measure") -> Once:
+    """`Once` for rate `m` over `grids`, each (grid, every loan's (band, segment) in the extract's order), from
+    every loan's (top, bottom) in `per_row` (None: the loan didn't enter the rate)."""
+    out = Once()
+    best: dict[int, float] = {}
+    vals = per_row[m.name]
+    worse = m.higher_is == "worse"
+    for g, keys in grids:
+        at: dict[tuple, float] = {}
+        for k, c in g.inner():
+            s = c.rates[m.name]
+            if not worse_and_material(s) or not s.den:
+                continue
+            # the rate the pocket is compared with, from its own dollars: num - r * den for a loss, r * den - num
+            # for profit, so its loans' own dollars add up to exactly the pocket's
+            at[k] = (s.num - s.dollars) / s.den if worse else (s.dollars + s.num) / s.den
+            out.pockets += 1
+            out.pocket_sum += s.dollars
+        if not at:
+            continue
+        out.grids += 1
+        for i, k in enumerate(keys):
+            r = at.get(k)
+            if r is None or vals[i] is None:
+                continue
+            y, x = vals[i]
+            e = y - r * x if worse else r * x - y
+            if i not in best or e > best[i]:
+                best[i] = e
+    out.loans = len(best)
+    out.dollars = math.fsum(best.values())
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -1268,6 +1328,10 @@ def run(config: Config, table: Table, progress=None) -> Result:
         _judge(g, config, measures, min_units, materiality_line)
     for g, _, _ in halved:
         _finish_split(g, config, measures)
+    # Start here's totals, each loan once (the firm, 1 Oct 2026): over the two-way grids, as its tiles count
+    two = {id(g) for g in grids}
+    once = {m.name: once_over([(g, keys) for g, _, keys in built if id(g) in two], per_row, m)
+            for m in measures if m.is_rate} if bench is not None else {}
     # Grids' Loan size and "Only loans where" (the firm, 29 Sep 2026): each grid's booked dollars per cell, and each
     # grid again on only the loans with one value of the Filter by column
     booked = None
@@ -1344,7 +1408,7 @@ def run(config: Config, table: Table, progress=None) -> Result:
                   materiality_line=materiality_line, three_way=three_way,
                   split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
                   book_size=book_size, filter_values=values, filter_values2=values2, summaries=summaries,
-                  value_bands=value_bands)
+                  value_bands=value_bands, once=once)
 
 
 def _cut_or_each_value(b: Band, seen: list[float]) -> tuple[tuple[float, ...], tuple[float, ...] | None]:

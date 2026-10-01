@@ -525,11 +525,18 @@ class Flow:
 
     def _defaults(self, chosen: ch.Choices | None) -> None:
         """What the table starts on: what the workbook beside the extract already
-        shows, or every column its meaning cuts and nothing split."""
+        shows, or every column its meaning cuts, nothing split, and Filter 1 on the
+        origination year when a column is marked Origination date."""
         kind = self._kind()
         nums = {c for c, k in kind.items() if k == "num"}
         cats = {c for c, k in kind.items() if k == "cat"}
-        self.cut, self.seg, self.split, self.filter, self.filter2 = set(nums), set(cats), None, None, None
+        # Filter 1 starts on Origination year (the firm, 1 Oct 2026), cleared or changed like any pick; Filter 2 is
+        # left to the analyst. A workbook beside the extract shows what was picked before, a cleared Filter 1 too.
+        # Never a pick Next would refuse: years past the most a filter takes start with no filter
+        year_row = self.read.year if self._year() else None
+        first = ch.ORIG_YEAR if year_row is not None and not ch.too_many_to_filter(
+            year_row.name, (year_row.values or 0) + (year_row.parts or 0)) else None
+        self.cut, self.seg, self.split, self.filter, self.filter2 = set(nums), set(cats), None, first, None
         # never picked for the analyst, not even from a workbook an earlier build wrote (the firm, 29 Sep 2026:
         # "there's no reason for it to automatically assign something, especially when it's just wrong")
         self.outcome, self.asking = None, None
@@ -959,7 +966,7 @@ def finished_tiles(h: dict) -> tuple:
              + (f" · {near:,} borderline" if near else ""), "KEY_RED", "INK"),
             ("GCOs above their share" if gco else "Losses above their share",
              _money(h.get("dollars", 0)) if gco else f"{h.get('dollars', 0):,.1f}",
-             f"in those {_s(worse, 'pocket')}", "KEY_RED", "INK"))
+             f"in those {_s(worse, 'pocket')}, each loan once", "KEY_RED", "INK"))
 
 
 def confirm_tiles(h: dict) -> tuple:
