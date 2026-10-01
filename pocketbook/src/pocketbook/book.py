@@ -804,7 +804,8 @@ def _remembered_words(entry: dict | None) -> str:
 
 def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
     """The extract's columns this Run uses, as the launcher picked them: the key, the outcome, the date, and for
-    the bleed the booked and dollar columns, the bands, segments and split; for a new variable what is tested and
+    the bleed the booked and dollar columns, the charge-off date (months to charge-off on Summary and Grids, the
+    firm, 1 Oct 2026), the bands, segments and split; for a new variable what is tested and
     held fixed. Columns made under Add a column always count. None (every column) when nothing was picked."""
     if choices is None or choices.run_kind is None:
         return None
@@ -818,7 +819,8 @@ def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
         elif new:
             if c in choices.test or c in choices.hold:
                 out.add(c)
-        elif code in ("booked", "gco", "ranr") or c in (choices.split, choices.filter, choices.filter2) or \
+        elif code in ("booked", "gco", "ranr", "chargeoff_date") or \
+                c in (choices.split, choices.filter, choices.filter2) or \
                 (c in choices.bands if choices.bands is not None else cut == "band") or \
                 (c in choices.segments if choices.segments is not None else cut == "dimension"):
             out.add(c)

@@ -43,9 +43,10 @@ MODE_KEYS = {
 TOP_KEYS = {"name", "schema_version", "key", "booked", "outcome", "gco", "ranr", "columns", "columns_confirmed",
             "missing", "bands", "dimensions", "measures", "benchmark", "questions",
             "origination_date", "split", "filter_by", "filter_by2", "derived", "run_kind"}
-#: The dates a run can be told about, as meanings in `columns:`: each names at most one column. Only the
-#: origination date is left: it splits development loans from the holdout, and Check gives its range.
-DATE_ROLES = ("origination_date",)
+#: The dates a run can be told about, as meanings in `columns:`: each names at most one column. The origination
+#: date splits development loans from the holdout, and Check gives its range; the charge-off date, with it, gives
+#: each charged-off loan's months to charge-off (the firm, 1 Oct 2026; engine.chargeoff_months).
+DATE_ROLES = ("origination_date", "chargeoff_date")
 #: Lines and meanings a run no longer reads (OC-39, the firm, 26 Sep 2026: "when we are doing our bleed
 #: analysis and such I don't want to hide things from view"). Each hid loans, or relabelled them, in a run
 #: that should show every loan. An old file that still has one is refused by name, never quietly ignored.
@@ -242,7 +243,8 @@ class Measure:
                 # the dollar three in the firm's terms (30 Sep 2026); they were "GCO per booked dollar", "Profit after
                 # losses: RANR per booked dollar" and "Contribution before losses per booked dollar"
                 "gco_rate": "GCOs per booked dollar", "ranr_rate": "RANR per booked dollar",
-                "contribution_rate": "RANR + GCOs per booked dollar"}.get(self.name, self.name)
+                "contribution_rate": "RANR + GCOs per booked dollar",
+                "co_months": "Months to charge-off"}.get(self.name, self.name)
 
     def columns(self) -> tuple[str, ...]:
         return tuple(c for c in (self.value, self.plus, self.flag, self.per) if c and c != EACH_LOAN)
@@ -363,6 +365,7 @@ class Config:
     gco: str = ""                                     # blank only on a test of a new variable
     run_kind: str = "bleed"
     origination_date: str | None = None               # the column holding when each loan was made
+    chargeoff_date: str | None = None                 # the column marked Charge-off date, if any (optional)
     split: tuple | None = None                        # (column, own_median | each_value): the third layer
     filter_by: str | None = None                      # Grids' "Only loans where": a category, or ORIG_YEAR
     filter_by2: str | None = None                     # Filter 2, "and <column> is": with filter_by, never alone
@@ -554,7 +557,9 @@ def parse(raw: Any, source_path: str = "") -> Config:
     return Config(name=str(raw["name"]), key=key, missing=missing, bands=bands, dimensions=dims,
                   measures=measures, benchmark=bench, questions=questions, booked=cols["booked"], outcome=out_field,
                   gco=cols["gco"], run_kind=run_kind if run_kind in RUN_KINDS else "bleed",
-                  origination_date=orig_col, split=split, filter_by=filter_by, filter_by2=filter_by2,
+                  origination_date=orig_col,
+                  chargeoff_date=next((c for c, (m, _) in columns.items() if m == "chargeoff_date"), None),
+                  split=split, filter_by=filter_by, filter_by2=filter_by2,
                   columns=columns, not_cut=not_cut, derived=derived,
                   periods=periods, definitions=definitions, source_path=source_path, raw=raw)
 

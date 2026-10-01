@@ -1563,6 +1563,16 @@ muts = [
  ("an xlsx extract opened from the file again", I,
   "    wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)",
   "    wb = openpyxl.load_workbook(p, read_only=True, data_only=True)", "read_from_the_bytes_already_read"),
+ # 1 Oct 2026, the firm: months to charge-off from a Charge-off date column (tests/test_co_months_2026_10_01.py);
+ # each caught from _views and the Columns tab as written, with no LibreOffice and no display
+ ("a charge-off before origination counted", E, "        elif c < o:", "        elif False:",
+  "every_summary_view_on_the_views_sheet or left_out_loans_are_counted"),
+ ("months to charge-off counting the day of the month", E,
+  "    return (charged_off.year - made.year) * 12 + (charged_off.month - made.month)",
+  "    return (charged_off.year - made.year) * 12 + (charged_off.month - made.month)"
+  " - (1 if charged_off.day < made.day else 0)", "every_summary_view_on_the_views_sheet"),
+ ("the charge-off date greyed as unused", B, '"ranr", "chargeoff_date") or', '"ranr") or',
+  "charge_off_date_and_does_not_grey_it"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

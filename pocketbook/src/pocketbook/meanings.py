@@ -276,7 +276,8 @@ def suggest(table: Table, remembered: dict[str, dict] | None = None,
             dates_ok, _ = passes(cat["origination_date"].test, f)
             if dates_ok:
                 best = Suggestion(c, "unknown", "dates, but which date? Say Origination date if it is when the "
-                                               "loan was made; otherwise Not used", "structure")
+                                               "loan was made, Charge-off date if it is when it charged off; "
+                                               "otherwise Not used", "structure")
             elif passes("unique", f)[0]:
                 best = Suggestion(c, "id", "a different value on every row", "structure")
             elif f.numeric and len(set(f.numbers)) > few_values:

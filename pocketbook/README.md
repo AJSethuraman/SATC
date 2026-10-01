@@ -156,6 +156,13 @@ After that, the whole routine is:
      to Yes; Run waits until it is. Under the table, *Add a column: one
      divided by another*. For a new variable, mark the date each loan was made
      *Origination date*: it splits development loans from the holdout.
+     Mark the date a loan charged off *Charge-off date* (optional; blank on a
+     loan that never did): with an Origination date, Summary gains *Avg* and
+     *Median months to charge-off* and Grids the Measure *Months to charge-off
+     (avg)*, over each row's or pocket's charged-off loans. Months are calendar
+     months, the day ignored: (y2 - y1) x 12 + (m2 - m1). A charge-off before
+     origination or a date that can't be read is left out and counted in a
+     warning (the firm, 1 Oct 2026).
      Band edges left blank are cut at the Run, each band holding about the
      same number of loans. On a dollar column (edges of 100 or more) whose
      values carry cents, every edge PocketBook cuts is a whole number, raised

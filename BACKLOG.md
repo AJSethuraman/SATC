@@ -2844,6 +2844,42 @@ changed in the code.
     added in `tools/mutation_check.py`; with 8 existing ones near the change, 12 of 12 caught (1 after its test
     was strengthened). Already failing before this branch, at f2998527: `test_compare_...panels_by_system_approved`,
     `test_a_new_variable_run_is_asked_only_what_it_uses`, `test_l2_the_summary_says_what_will_run_in_both_modes`.
+- **Built, 1 Oct 2026: months to charge-off** (branch `pocketbook-co-months`). The firm: *"We worked in calculating
+  charge off months right? If the data is there"*. It hadn't been built. Chosen: the average months to charge-off,
+  from a charge-off date column in the extract.
+  - **Columns.** A new meaning, **Charge-off date** (`chargeoff_date` in `settings.yaml`: test *dates*, never cut
+    by, hints chargeoff, chgoff, chrgoff, codate, gcodate, writeoff, wrtoff, codt, gcodt). Optional: nothing
+    requires it. At most one column may carry it (`config.DATE_ROLES`). A bleed Run counts it as in use, so its row
+    isn't greyed. A date column nothing names is now asked *Origination date ... Charge-off date ... otherwise Not
+    used*.
+  - **The rule.** With both an Origination date and a Charge-off date, each loan with a charge-off date gets
+    whole calendar months, `(y2 - y1) x 12 + (m2 - m1)`, the day ignored (31 Jan to 1 Feb is 1; 1 Jan to 31 Jan
+    is 0). `engine.chargeoff_months`. A blank charge-off date is a loan that didn't charge off and is not counted.
+    Left out and counted in one warning on the Log and Check: a charge-off date that isn't a date, no readable
+    origination date, a charge-off before origination. A charge-off date with no Origination date marked is a
+    warning too. Dates that read two ways are said, not guessed. Only a bleed Run works it out.
+  - **Shown.** Summary gains **Avg months to charge-off** and **Median months to charge-off** (among the row's
+    charged-off loans; blank where none did), on every row, All and every filter view, with a note line stating
+    the rule. Grids gains the Measure **Months to charge-off (avg)**: it rides the existing Show-per-pocket
+    machinery (a median-mode measure, `show: average`), so every cell, margin and filter view has it, shown and
+    never compared or coloured; the rule is said inside Grids' Rate note, so the note keeps its rows and the
+    dropdowns stay where the bank checklist puts them (checklist unchanged). With no charge-off date column, no
+    column, measure, note or warning is added.
+  - Synthetic: `synth.write_extract(..., chargeoff=True)` adds CO_DATE on every BAD_FLAG 1 loan (1 to 36 months
+    after origination, never after AS_OF), from its own random stream; nothing else changes.
+  - Tests: 10 in `tests/test_co_months_2026_10_01.py`: Summary by CHANNEL, on one origination year, and every
+    Summary view on `_views`, tied to the CSV with plain arithmetic; Grids' measure tied to the CSV; the
+    warning's counts; Columns' suggestion and no grey; nothing changes without the column; the engine's months on a
+    six-loan book; the no-origination warning. Run with the seven neighbouring files: 106 passed; meanings,
+    config, engine, tab wording, columns/launcher, book, launcher: 108 passed, 2 skipped, 1 failed (scikit-learn
+    not installed). Planted bugs: 3 added in `tools/mutation_check.py` (a charge-off before origination counted,
+    the day of the month counted, the charge-off date greyed as unused), 3 of 3 caught with no LibreOffice and no
+    display. Pictures (LibreOffice renders of synthetic data): `pocketbook/docs/co-months-2026-10-01/`.
+  - **For the firm to decide:** (1) GCO_DT or CO_DT (two short words) isn't recognised by name, since a hint
+    under six letters must begin or end a word; it is offered as *dates, but which date?* and remembered once
+    confirmed. (2) A bad loan with no charge-off date isn't counted or warned about; say if it should be. (3)
+    Days-ignored means a loan made 31 Jan and charged off 1 Feb counts 1 month; whole elapsed months would count
+    0. (4) Summary doesn't show how many charged-off loans each average is over.
 
 ## 7 · Standing rules for new items
 
