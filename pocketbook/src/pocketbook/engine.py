@@ -1030,9 +1030,11 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
     return replace(config, bands=keep_b, dimensions=keep_d)
 
 
-def run(config: Config, table: Table, progress=None) -> Result:
+def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]] | None = None) -> Result:
     """`progress`, when given, is told "Cutting bands" and "Running the shuffle test" as each starts (the launcher's
-    progress line, 30 Sep 2026)."""
+    progress line, 30 Sep 2026). `pairs`, when given, is the (band name, segment name) grids to build, and no
+    others: Set up's suggestions read a sample of the grids on a big book (book.suggest_pairs). Everything else,
+    the whole book's rates and what a pocket needs among them, is the same as a run of every grid."""
     say = progress or (lambda stage: None)
     timing.mark("Reading each loan's values")        # Record's "Where the time went" (the firm, 30 Sep 2026)
     warnings: list[str] = []
@@ -1234,6 +1236,8 @@ def run(config: Config, table: Table, progress=None) -> Result:
     timing.mark("Building the grids")
     for b in config.bands if bleed else ():
         for d in config.dimensions:
+            if pairs is not None and (b.name, d.name) not in pairs:
+                continue
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
                                topline, min_units, total, needed, materiality_line, band_label_sets[b.name])
             built.append((grid, b.name, list(zip(bands[b.name], dims[d.name]))))
