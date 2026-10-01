@@ -1699,9 +1699,11 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
 
 
 def _first_n(c: int, s: int, n: int, count: str) -> str:
-    """The first MAX(1, count) cells of column c's labels from row s (max(n - 1, 1) of them are laid out)."""
-    top = f"${col(c)}${s}"
-    return f"{top}:INDEX({top}:${col(c)}${s + max(n - 1, 1) - 1},MAX(1,{count}))"
+    """The first MAX(1, count) cells of column c's labels from row s, as a dropdown's list. OFFSET, not
+    INDEX:INDEX: Excel removed the INDEX:INDEX list from Grids as unreadable on opening the bank's workbook
+    (1 Oct 2026, "Removed Feature: Data validation from /xl/worksheets/sheet7.xml"), and OFFSET had opened there
+    since 29 Sep. It is volatile, but in two dropdown lists only, which Excel works out when a list is opened."""
+    return f"OFFSET(${col(c)}${s},0,0,MAX(1,{count}),1)"
 
 
 def _first_pocket(res, ms) -> tuple[str, str]:
