@@ -425,11 +425,13 @@ ren "%USERPROFILE%\.pocketbook\memory.yaml" memory-practice.yaml
 
 (PocketBook remembers what you confirmed, such as "-9999 in FICO means missing", in `%USERPROFILE%\.pocketbook\memory.yaml`.)
 
+☐ Save the extract as **CSV** first: in Excel, *File → Save As → CSV UTF-8 (Comma delimited)*. PocketBook reads a CSV about 20 times faster than an .xlsx, at Set up and again at every Run.
+
 ☐ Put the extract where the bank keeps such files. The workbook, and any pre-spec file, are written beside it.
 
 ### 6.2 What the extract needs
 
-One row per loan, a header row first, as .csv or .xlsx.
+One row per loan, a header row first, as .csv (best) or .xlsx.
 
 | To run | It needs a column for |
 |---|---|
