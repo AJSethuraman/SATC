@@ -2867,7 +2867,7 @@ changed in the code.
     column, measure, note or warning is added.
   - Synthetic: `synth.write_extract(..., chargeoff=True)` adds CO_DATE on every BAD_FLAG 1 loan (1 to 36 months
     after origination, never after AS_OF), from its own random stream; nothing else changes.
-  - Tests: 10 in `tests/test_co_months_2026_10_01.py`: Summary by CHANNEL, on one origination year, and every
+  - Tests: 10 (11 with the answer below) in `tests/test_co_months_2026_10_01.py`: Summary by CHANNEL, on one origination year, and every
     Summary view on `_views`, tied to the CSV with plain arithmetic; Grids' measure tied to the CSV; the
     warning's counts; Columns' suggestion and no grey; nothing changes without the column; the engine's months on a
     six-loan book; the no-origination warning. Run with the seven neighbouring files: 106 passed; meanings,
@@ -2875,11 +2875,17 @@ changed in the code.
     not installed). Planted bugs: 3 added in `tools/mutation_check.py` (a charge-off before origination counted,
     the day of the month counted, the charge-off date greyed as unused), 3 of 3 caught with no LibreOffice and no
     display. Pictures (LibreOffice renders of synthetic data): `pocketbook/docs/co-months-2026-10-01/`.
-  - **For the firm to decide:** (1) GCO_DT or CO_DT (two short words) isn't recognised by name, since a hint
+  - **For the firm to decide** (2 answered below): (1) GCO_DT or CO_DT (two short words) isn't recognised by name, since a hint
     under six letters must begin or end a word; it is offered as *dates, but which date?* and remembered once
     confirmed. (2) A bad loan with no charge-off date isn't counted or warned about; say if it should be. (3)
     Days-ignored means a loan made 31 Jan and charged off 1 Feb counts 1 month; whole elapsed months would count
     0. (4) Summary doesn't show how many charged-off loans each average is over.
+  - **Answered, 1 Oct 2026 (decision 2):** a bad loan with no charge-off date. The firm: *"Leave out, count in a
+    note"*. It stays out of the averages, and when the Charge-off date column is in use the Run's lines, the Log
+    and Check say *"Months to charge-off: 37 bad loans have no charge-off date, so they are left out."*
+    (`engine.no_chargeoff_date`; the Run's lines now carry every months-to-charge-off warning). Test: the count
+    tied to the CSV (`test_bad_loans_with_no_charge_off_date_are_counted_in_a_note`); 1 planted bug added, 4 of 4
+    of this feature's caught with no display; every entry's old string still occurs once (644 entries).
 
 ## 7 · Standing rules for new items
 

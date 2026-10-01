@@ -882,6 +882,21 @@ def origination_dates(config: Config, table: Table, rows: list[dict]) -> Origina
 #: The measure that carries each charged-off loan's months to charge-off: shown, never tested (a median-mode measure,
 #: so every grid cell and every Summary row gets its average and median the way Show per pocket does)
 CO_MONTHS = "co_months"
+#: how every line about months to charge-off begins, so the Run's lines can carry them as the Log and Check do
+CO_SAID = "Months to charge-off"
+
+
+def no_chargeoff_date(outcome, raw_dates) -> str | None:
+    """The note for bad loans with no charge-off date (the firm, 1 Oct 2026: "Leave out, count in a note"): `outcome`
+    is each loan's outcome as the Run read it ((1.0, 1.0) bad, (0.0, 1.0) good, None unread), `raw_dates` its
+    charge-off date as written. None when every bad loan has one."""
+    k = sum(1 for o, d in zip(outcome, raw_dates) if o is not None and o[0] == 1.0 and is_blank(d))
+    if not k:
+        return None
+    return (f"{CO_SAID}: {k:,} bad loan{'s have' if k != 1 else ' has'} no charge-off date, so "
+            f"{'they are' if k != 1 else 'it is'} left out.")
+
+
 def months_between(made, charged_off) -> int:
     """Whole calendar months from `made` to `charged_off`, days ignored: (y2 - y1) * 12 + (m2 - m1)."""
     return (charged_off.year - made.year) * 12 + (charged_off.month - made.month)
@@ -1134,6 +1149,11 @@ def run(config: Config, table: Table, progress=None) -> Result:
                     vals.append((num, d))
         per_row[m.name] = vals
         left_out[m.name] = lo
+    if co_months is not None and "outcome_loans" in per_row:
+        # the firm, 1 Oct 2026, on a bad loan with no charge-off date: "Leave out, count in a note"
+        said = no_chargeoff_date(per_row["outcome_loans"], [r.get(config.chargeoff_date) for r in rows])
+        if said:
+            warnings.append(said)
 
     total = _accumulate(measures, per_row, [None] * n)[None]
     _finish_cell(total, measures)

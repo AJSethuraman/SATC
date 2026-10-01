@@ -2181,6 +2181,8 @@ def _run(book: str | Path, extract: str | Path | None = None, memory_path: str |
     if dropped:
         lines.append(f"Forgot {', '.join(sorted(dropped))}, as marked on Columns. Check "
                      f"{'it' if len(dropped) == 1 else 'them'} and set C3 to Yes before the next Run.")
+    # months to charge-off (the firm, 1 Oct 2026): what it left out, said on the Run's lines as on the Log and Check
+    lines += [w for w in res.warnings if w.startswith(engine.CO_SAID)]
     tested = getattr(getattr(res, "prespec", None), "tests", None) or []
     lines.append(f"Open {book.name}: start with "
                  + (f"{confirm_tab.SHEET}." if tested and all(x.problem is None for x in tested)
