@@ -879,6 +879,73 @@ def origination_dates(config: Config, table: Table, rows: list[dict]) -> Origina
     return out
 
 
+#: The measure that carries each charged-off loan's months to charge-off: shown, never tested (a median-mode measure,
+#: so every grid cell and every Summary row gets its average and median the way Show per pocket does)
+CO_MONTHS = "co_months"
+def months_between(made, charged_off) -> int:
+    """Whole calendar months from `made` to `charged_off`, days ignored: (y2 - y1) * 12 + (m2 - m1)."""
+    return (charged_off.year - made.year) * 12 + (charged_off.month - made.month)
+
+
+def chargeoff_months(config: Config, table: Table, rows: list[dict]) -> tuple[list[int | None] | None, str | None]:
+    """Each loan's months to charge-off (the firm, 1 Oct 2026: "We worked in calculating charge off months right? If
+    the data is there"), and the warning line that counts what was left out; (None, None) when no column in the
+    extract is marked Charge-off date, so nothing changes, and (None, a warning) when one is but none is marked
+    Origination date.
+
+    The rule: whole calendar months from origination to charge-off, (y2 - y1) * 12 + (m2 - m1), the day of the
+    month ignored. Only a loan with a charge-off date counts; a blank charge-off date is a loan that didn't charge
+    off, and is None. A loan with a charge-off date that is left out is None too, and counted in the warning, never
+    silently: a charge-off date that isn't a date, no readable origination date, or a charge-off before the loan
+    was made. A column whose dates read two ways is said in the warning, and nothing is worked out."""
+    from datetime import date as _date, datetime as _dt
+    oc, cc = config.origination_date, config.chargeoff_date
+    if not cc or cc not in table.columns:
+        return None, None
+    if not oc or oc not in table.columns:
+        # marked, so wanted: said rather than quietly not shown
+        return None, (f"Months to charge-off isn't worked out: {cc} is marked Charge-off date, but no column in "
+                      f"the extract is marked Origination date to count the months from")
+    try:
+        read_o = _date_reader(table, oc, "when each loan was made")
+        read_c = _date_reader(table, cc, "when each loan charged off")
+    except DataRefused as exc:
+        return None, f"Months to charge-off isn't worked out: {exc}"
+
+    def day(v):
+        return v.date() if isinstance(v, _dt) else v if isinstance(v, _date) else None
+
+    out: list[int | None] = []
+    odd = no_orig = before = 0
+    for r in rows:
+        raw_c = r.get(cc)
+        if is_blank(raw_c):
+            out.append(None)
+            continue
+        c = day(read_c(raw_c))
+        o = day(read_o(r.get(oc)))
+        if c is None:
+            odd += 1
+        elif o is None:
+            no_orig += 1
+        elif c < o:
+            before += 1
+        else:
+            out.append(months_between(o, c))
+            continue
+        out.append(None)
+    parts = [f"{k:,} {what}" for k, what in ((odd, f"with a {cc} that isn't a date"),
+                                              (no_orig, f"with no readable {oc}"),
+                                              (before, f"charged off before they were made ({cc} before {oc})"))
+             if k]
+    said = None
+    if parts:
+        n = odd + no_orig + before
+        said = (f"Months to charge-off: {n:,} loan{'s' * (n != 1)} with a charge-off date {'are' if n != 1 else 'is'}"
+                f" left out of it: " + "; ".join(parts) + ".")
+    return out, said
+
+
 def origination_years(table: Table, col: str) -> list[str]:
     """The year each loan was made, as text ("2023"), read from `col` (the column marked Origination date) the way
     the Run reads that column's dates; NO_DATE for a loan whose date is blank or can't be read, so it is never put
@@ -960,6 +1027,16 @@ def run(config: Config, table: Table, progress=None) -> Result:
     config = _drop_outcome_cuts(config, measures, warnings)
     rows = table.rows                          # every loan: nothing is left out for its age or dates
     dates = origination_dates(config, table, rows)
+    # months to charge-off (the firm, 1 Oct 2026), only when the extract has both dates and the run is the bleed's:
+    # one more measure, shown and never tested, so Grids and Summary carry it as they carry Show per pocket
+    co_months = None
+    if config.run_kind != "new_variable":
+        co_months, said = chargeoff_months(config, table, rows)
+        if said:
+            warnings.append(said)
+        if co_months is not None:
+            measures = tuple(measures) + (Measure(name=CO_MONTHS, mode="median", value=config.chargeoff_date,
+                                                  show="average"),)
     n = len(rows)
     rules = config.missing
 
@@ -1015,6 +1092,8 @@ def run(config: Config, table: Table, progress=None) -> Result:
         vals: list = []
         if m.mode == "count":
             vals = [1] * n
+        elif m.name == CO_MONTHS:
+            vals = list(co_months)              # a loan that never charged off is None, and left out unsaid
         elif m.mode == "median":
             for raw in col(m.value):
                 v, why = classify_number(raw, rules.get(m.value))
@@ -1317,7 +1396,9 @@ BOOKED = "booked"
 SUMMARY_COLUMNS = (("loans", None), ("loans_share", None), ("bad", "outcome_loans"), ("bad_rate", "outcome_loans"),
                    ("booked", BOOKED), ("booked_share", BOOKED), ("gco", "gco_rate"), ("gco_rate", "gco_rate"),
                    ("gco_x", "gco_rate"), ("gco_share", "gco_rate"), ("ranr", "ranr_rate"),
-                   ("ranr_rate", "ranr_rate"), ("ranr_share", "ranr_rate"))
+                   ("ranr_rate", "ranr_rate"), ("ranr_share", "ranr_rate"),
+                   # the firm, 1 Oct 2026: months to charge-off, among the row's charged-off loans
+                   ("co_avg", CO_MONTHS), ("co_median", CO_MONTHS))
 
 
 def summary_columns(res) -> list[str]:
@@ -1334,7 +1415,9 @@ def summary_rows(res, band: str, value: str | None = None,
     Loans and bad loans are counts; a share is the row's over the All row's, so the shares add to 100% over the
     bands and the special rows; bad loans % is the Bad loans rate (bad loans over the loans whose outcome reads 0
     or 1); a charge-off or RANR rate is that measure's rate (its dollars over the booked dollars of the loans with
-    both amounts), and x book is the charge-off rate over the whole book's, filter or none."""
+    both amounts), and x book is the charge-off rate over the whole book's, filter or none. Months to charge-off, when
+    the Run has it, is the average and the median over the row's loans that charged off (chargeoff_months), blank
+    where none did."""
     s = res.summaries[(band, value, value2)]
     keys = summary_columns(res)
     whole = res.total.rates.get("gco_rate")
@@ -1359,6 +1442,9 @@ def summary_rows(res, band: str, value: str | None = None,
         if "ranr_rate" in c.rates:
             r = c.rates["ranr_rate"]
             row.update(ranr=r.num, ranr_rate=r.rate, ranr_share=share(r.num, top.rates["ranr_rate"].num))
+        if CO_MONTHS in c.medians:
+            co = c.medians[CO_MONTHS]
+            row.update(co_avg=co.mean if co.values else None, co_median=co.median if co.values else None)
         out.append((lab, {k: row.get(k) for k in keys}))
     return out
 
