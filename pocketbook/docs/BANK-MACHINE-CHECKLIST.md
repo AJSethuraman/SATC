@@ -220,8 +220,8 @@ Compare as you go. Every number here came up on the walk and again on this check
 | Control C15 and C16, **Comes to** (Step 9) | **1.34×** and **0.75×**, before any Run |
 | Control C19, **Comes to** (after Step 12) | 1% of losses comes to **$107,354** |
 | Columns (Step 10) | FICO: **-9,999 on 160 loans**; RANR: **Negative on 595 loans (e.g. …)** |
-| Run (Step 12) | **4** pockets worse and material, GCOs, of 81 · **$3.09M**, and under them *Open … start with Pockets* |
-| Start here (Step 13) | **4 of 81** · **$3,094,991** · **4 short $3,248,654** |
+| Run (Step 12) | **4** pockets worse and material, GCOs, of 81 · **$2.29M** *in those 4 pockets, each loan once*, and under them *Open … start with Pockets* |
+| Start here (Step 13) | **4 of 81 · in 3 grids** · **$2,287,240** · **4 short $2,746,544** (each loan counted once, in the pocket where it is furthest above its share) |
 | Start here, the largest | FICO 496 - 653 / Broker: 523 loans, **2.62×**, **$1,494,129** · FICO 496 - 653 / ASSET_CLASS 4: 1.74×, $643,768 · ORIG_BAL 37,951 - 49,151 / ASSET_CLASS 4: 1.75×, $529,198 · FICO 712 - 745 / Online: 2.06×, $427,896 |
 | Pockets, as it opens | Bad loans · Two-way · All: **7 worse and material · 7 worse · 41 shown** |
 | RANR vs GCOs | FICO 496 - 653 / Broker reads **Net drain**; FICO 712 - 745 / Online reads **Losing more, profit holding** |
@@ -304,13 +304,13 @@ Put Pockets back to **Bad loans** and **All** when done.
 
 On Control, pick **2 times** in C15.
 
-☐ Start here, without pressing Run: **2 of 81** and **$1,922,025**. The largest are now two: FICO 496 - 653 / Broker and FICO 712 - 745 / Online. The two at 1.74× and 1.75× come off the list.
+☐ Start here, without pressing Run: **2 of 81**, and the dollars read **Run again to total**: each loan is counted once at a Run, so a total for other pockets waits for one. The largest are now two: FICO 496 - 653 / Broker and FICO 712 - 745 / Online. The two at 1.74× and 1.75× come off the list.
 
 ☐ Pockets' **Worse?** column follows the same way.
 
 ![Start here after the change: 2 of 81](walkthrough/2026-09-27/step-19-live-change-start-here.png)
 
-Put C15 back to *The smallest significant gap in a typical pocket (suggested)*. ☐ Start here reads 4 of 81 again.
+Put C15 back to *The smallest significant gap in a typical pocket (suggested)*. ☐ Start here reads 4 of 81 and $2,287,240 again.
 
 ### 4.5 A "Needs a Run" answer: the waiting banner
 
@@ -405,7 +405,7 @@ Press **Run** in PocketBook.
 
 ☐ While it runs, several `python.exe` or `pythonw.exe` lines appear (one per processor, up to 8), each using CPU, and go again when it finishes.
 
-☐ Start here reads **14 of 81** and **$23,486,197**. The answer is the same on any number of processors.
+☐ Start here reads **14 of 81 · in 4 grids** and **$11,609,786**. The answer is the same on any number of processors.
 
 ☐ Write down the time under **Run**. Here it took 31 seconds on 4 processors and 85 seconds on 1.
 

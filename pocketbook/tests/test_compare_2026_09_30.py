@@ -377,6 +377,8 @@ def test_filter_2_in_the_launcher_alone_together_refused_twice_and_written_to_co
     by = {r["name"]: r for r in f.rows()}
     assert by["SYS_FLAG"]["e"] == {"on": False, "radio": True} and by[ch.ORIG_YEAR]["e"] is not None
     assert by["FICO"]["e"] is None
+    assert f.filter == ch.ORIG_YEAR                    # Filter 1 starts on Origination year (the firm, 1 Oct 2026)
+    f.click(ch.ORIG_YEAR, "d")                                                # cleared
     f.click("SYS_FLAG", "e")                                                  # Filter 2 alone is the one filter
     got = f.choices()
     assert (got.filter, got.filter2) == ("SYS_FLAG", None)

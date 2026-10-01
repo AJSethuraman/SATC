@@ -2886,6 +2886,55 @@ changed in the code.
     (`engine.no_chargeoff_date`; the Run's lines now carry every months-to-charge-off warning). Test: the count
     tied to the CSV (`test_bad_loans_with_no_charge_off_date_are_counted_in_a_note`); 1 planted bug added, 4 of 4
     of this feature's caught with no display; every entry's old string still occurs once (644 entries).
+- **Built, 1 Oct 2026: Start here counts each loan once; Filter 1 starts on Origination year** (branch
+  `pocketbook-distinct-total`). Two choices the firm made the same day, as relayed to this session (the firm's own
+  words were not passed on beyond these): Start here's dollar total should count *"distinct loans"*, each loan
+  once; and Origination year should be Filter 1 by default.
+  - **The fault.** *Dollars above their share, in those* was `SUMIFS(pk_dollars, ...)` over every worse-and-material
+    pocket on every grid. Every loan sits in every grid, so a loan was counted once per grid it was flagged in. On
+    the bank's workbook, with 168 grids: **$2,904,231,129** above share on a book whose GCOs were **$37,767,925**.
+    The RANR tile (*N short $X*) and the launcher's finished tile added up the same way.
+  - **The rule chosen.** A pocket's dollars above share are its loans' own: each loan's GCO less its booked dollars
+    at the rate the pocket is compared with (the rest of the book, or the rest of its band). A loan in several
+    worse-and-material pockets counts once, in the one where its own dollars above share are largest. In a
+    sentence on Start here: *"The dollars count each loan once, in the pocket where it is furthest above its share:
+    every loan is in every grid, so a plain sum counts it once per grid."*
+  - **Why not the simpler one** (the union of those loans against the rest of the book). It doesn't tie to anything
+    the workbook already shows: on one grid it gives a different number from the pockets' own dollars, because each
+    pocket is compared with *its* rest (of the book or of its band) and the union with one rest. The rule chosen
+    does tie: a pocket's loans' own dollars add up to exactly its *Dollars that decide*, so on a one-grid book the
+    total is the old sum to the cent, and on many it is that sum with the repeats taken out. It also keeps
+    Control's *judged against*. For a loss compared at a rate of nought or more it can't exceed the GCOs of the
+    loans counted, so never the book's. RANR's shortfall is the same rule turned round (rate x booked less RANR).
+  - **Where.** Worked out in the engine at Run (`engine.Once`, `engine.once_over`), over the two-way grids only, as
+    the tiles count; written to `_found` as values (a formula can't tell one loan from another). Start here's tiles:
+    *Pockets worse and material, GCOs* keeps its live count and adds *· in N grids*; *Dollars above share, each loan
+    once*; *Pockets short on RANR, each loan once* (*N short $X*). The launcher's finished tile says *in those N
+    pockets, each loan once*. Materiality, judged against, worse at and confidence take effect live, and move the
+    pockets with no Run: the total is then the Run's for other pockets, so each tile checks that the live count and
+    the live sum of pocket dollars are still the Run's and otherwise reads **Run again to total** (also what a
+    workbook whose last Run predates this reads). Bank checklist: Step 12 $2.29M, Step 13 *4 of 81 · in 3 grids ·
+    $2,287,240 · 4 short $2,746,544*, Step 19 now reads *Run again to total*, 5.3 *14 of 81 · in 4 grids* and
+    $11,609,786; HTML and PDF rebuilt. The practice book's old sum is $3,100,042 today against the checklist's
+    $3,094,991 (and the speed book's $23,486,461 against $23,486,197): the pinned numbers had drifted before this
+    change, unexplained here; the other rows of that table were not re-measured.
+  - **Filter 1.** When the extract has a column marked Origination date (and its years are few enough to filter by),
+    Choose tests starts with Filter 1 on Origination year. It clears or changes like any pick; Filter 2 stays the
+    analyst's; a workbook beside the extract still shows what was picked before, a cleared Filter 1 too (so a
+    workbook written before today keeps no filter until it is picked).
+  - Tests: 10 in `tests/test_distinct_total_2026_10_01.py`. Each loan once on a four-grid book, tied to an
+    independent count from the CSV (plain Python; only which pockets the Run flagged and against what is taken
+    from it, and each pocket's loans are checked against its top and bottom): at most the GCOs of the loans
+    counted, at most the book's, and less than the old sum; the same for RANR; a one-grid book equals the old sum;
+    Start here's three tiles after LibreOffice; *Run again to total* after a live materiality change and on an
+    older `_found`; Filter 1's default, cleared and changed, kept cleared by the next Set up, none with no
+    origination date or too many years, and the window drawing it (display, guarded). Three existing tests follow
+    the default (the L2 summary, Filter 2 alone, the Filter by offer). 3 planted bugs added in
+    `tools/mutation_check.py` (a loan counted once per pocket again, Start here showing the Run's total beside moved
+    pockets, Filter 1 starting empty), 3 of 3 caught with no display; every entry's old string occurs once (647).
+    Run: the new file and the eight named neighbours, 161 passed, 1 failed (`test_l2_...`, scikit-learn not
+    installed, after the line this change touches); the eight other files that drive the launcher or read
+    `_pockets`, 165 passed, 2 failed (both scikit-learn).
 
 - **Built, 1 Oct 2026: Set up's suggestions from a sample of the grids** (branch `pocketbook-sampled-suggest`). At
   the bank, 184,937 loans and 12 band columns x 14 segment columns (168 grids): *Working out the suggestions* took
