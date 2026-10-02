@@ -699,7 +699,7 @@ GROSS_HEADS = ("Booked", "GCOs", "RANR", "RANR ÷ Booked")
 #: Avg line and × book (the firm, 2 Oct 2026: "booked dollar averages so more easily demonstrate how line assignments
 #: look in pockets"): Grids' Loan size for the pocket, shaded as Loan size is, never red or green
 AVG_COLS = (C_AVG, C_AVGX)
-AVG_HEADS = ("Avg line", "× book")
+AVG_HEADS = ("Avg line", "Line × book")
 AVG_FMT = '"$"#,##0'
 #: where the lines in use sit: the same cells as before the gross block (M13 is the bank checklist's), so the tiles
 #: stay over C:K and the waiting note in M, above the table
@@ -941,7 +941,7 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         ("GCOs", "GCOs ÷ Booked, as a multiple of the rest; Dollars: GCOs above the rest's rate."),
         # the gross block's words ride on RANR's item (the firm, 30 Sep 2026), so that no row of the tab moves
         ("RANR", "RANR ÷ Booked, as a gap in points and dollars, like RANR + GCOs. Booked, GCOs and RANR: the "
-                 "pocket's own dollars, added up and compared with nothing. " + NEGATIVE_SAID + " Avg line: booked dollars per loan, the pocket's average committed line; × book: that over the whole book's. "
+                 "pocket's own dollars, added up and compared with nothing. " + NEGATIVE_SAID + " Avg line: booked dollars per loan, the pocket's average committed line; Line × book: that over the whole book's. "
                  "Under the table they add up to the whole book; Not "
                  "listed: pockets with nothing to compare them with."),
         ("The rest", live.text("Judged against on Control picks it: now ",
@@ -2018,7 +2018,7 @@ SUMMARY_HEADS = {"loans": ("Loans", "n"), "loans_share": ("% of loans", "share")
                  "bad_rate": ("Bad loans %", "pct"), "booked": ("Booked $", "usd"),
                  # the firm, 2 Oct 2026: "booked dollar averages so more easily demonstrate how line assignments
                  # look in pockets"
-                 "avg_line": ("Avg line", "avg"), "avg_line_x": ("× book", "x"),
+                 "avg_line": ("Avg line", "avg"), "avg_line_x": ("Line × book", "x"),
                  "booked_share": ("% of booked", "share"), "gco": ("GCOs ($)", "usd"),
                  "gco_rate": ("GCOs ÷ Booked", "pct"), "gco_x": ("× book", "x"),
                  "gco_share": ("% of GCOs", "share"), "ranr": ("RANR $", "usd"),
@@ -2122,7 +2122,7 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
                                   f"row's loans whose outcome reads yes or no: the Bad loans rate on Grids."))
     if "booked" in keys:
         note.append(("Booked $", f"The row's {booked}, and its share of the book's."))
-        note.append(("Avg line", "The row's booked dollars per loan: its average committed line. × book beside it is "
+        note.append(("Avg line", "The row's booked dollars per loan: its average committed line. Line × book beside it is "
                                  "that over the whole book's average line, filtered or not."))
     if "gco" in keys:
         note.append(("GCOs ($)", f"The row's {gco}. GCOs ÷ Booked is that over its booked dollars, as Grids "

@@ -18,7 +18,7 @@ from pocketbook import book, choices as ch, glossary, house, perm, synth
 from test_book import _answer
 
 #: every term, in the firm's order (2 Oct 2026)
-TERMS = ["Booked / Booked $", "Avg line / × book", "GCOs ($)", "RANR", "RANR + GCOs", "Rate (GCOs ÷ Booked, RANR ÷ Booked)",
+TERMS = ["Booked / Booked $", "Avg line / Line × book", "GCOs ($)", "RANR", "RANR + GCOs", "Rate (GCOs ÷ Booked, RANR ÷ Booked)",
          "Points (pts)", "× book / × rest of book", "Rest of book / rest of band", "Bad loan", "Band", "Segment",
          "Pocket", "Grid", "Filter / Only loans where", "Origination year", "Worse and material", "Borderline",
          "Shuffle test / p-value", "Fewest loans in a pocket", "Worse at / Better at",
@@ -97,9 +97,12 @@ def test_the_glossary_sits_right_after_start_here_after_set_up_a_run_and_set_up_
 
 
 def test_every_glossary_term_is_there_once_in_the_firms_order(books):
+    """Before a Run every term shows. After it, Months to charge-off shows only for a book with a charge-off date
+    column, and this book has none: a Run that never works out the measure doesn't define it."""
     for when in ("set_up", "run"):
         got = list(_rows(books[when]))
-        assert got == TERMS, when
+        want = TERMS if when == "set_up" else [t for t in TERMS if t != "Months to charge-off"]
+        assert got == want, when
         for term, (means, example) in _rows(books[when]).items():
             assert means and example, (when, term)
 

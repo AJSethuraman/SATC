@@ -3046,7 +3046,7 @@ changed in the code.
     and up, darker the bigger), never red or green; each cell and rule reads its own row, inside the sort arrows'
     range, so a sort keeps them right. The words ride on RANR's note item, so no row of the tab moves (B16 and M13,
     the checklist's cells, stay put).
-  - **Glossary.** A 26th term, *Avg line / × book*, second after Booked, with an example in the book's own average
+  - **Glossary.** A 26th term, *Avg line / Line × book*, second after Booked, with an example in the book's own average
     line after a Run. Checklist 4.10 says 26 terms; HTML and PDF rebuilt.
   - **For the firm to confirm:** (1) Summary now has two columns headed *× book*: the new one after Avg line, and
     GCOs' after GCOs ÷ Booked; each sits beside what it multiplies, but say if the new one should read *Avg line ×

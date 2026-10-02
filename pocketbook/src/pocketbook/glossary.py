@@ -119,6 +119,7 @@ def figures(res, names: dict[str, str]) -> dict:
     dates = getattr(res, "dates", None)
     if dates is not None and getattr(dates.first, "year", None) and getattr(dates.last, "year", None):
         out["years"] = [dates.first.year, dates.last.year]
+    out["co_date"] = bool(getattr(res.config, "chargeoff_date", None))
     return out
 
 
@@ -148,12 +149,12 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     # the firm, 2 Oct 2026: "booked dollar averages so more easily demonstrate how line assignments look in pockets"
     bl = f.get("booked_loans") if run else None
     avg = f["booked"] / bl if bl and real("booked") else None
-    out.append(("Avg line / × book",
-                "Avg line: the average committed line per loan, booked dollars over loans. × book beside it compares "
-                "a pocket's average line with the whole book's.",
-                f"This book's average line is {_usd(avg)}. A pocket averaging {_usd(avg * 1.24)} is 1.24× book."
+    out.append(("Avg line / Line × book",
+                "Avg line: the average committed line per loan, booked dollars over the loans that have a "
+                "booked amount. Line × book beside it compares a pocket's average line with the whole book's.",
+                f"This book's average line is {_usd(avg)}. A pocket averaging {_usd(avg * 1.24)} reads 1.24× on Line × book."
                 if avg else
-                "A pocket averaging $6,200 a line, in a book averaging $5,000, is 1.24× book."))
+                "A pocket averaging $6,200 a line, in a book averaging $5,000, reads 1.24× on Line × book."))
     out.append(("GCOs ($)",
                 "Gross charge-off dollars: what was written off on a loan, before any recoveries.",
                 f"This book's GCOs came to {_usd(f['gco'])}: {per100(gco_r)} per $100 booked." if real("gco") else
@@ -280,10 +281,11 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 "in revenue and to charge off.",
                 f"So compare vintages within a year: a {yrs[0]} loan has had longer than a {yrs[1]} one." if yrs
                 else "So compare vintages within a year: a 2021 loan has had longer than a 2024 one."))
-    out.append(("Months to charge-off",
-                "For a loan that charged off, the calendar months from its origination date to its charge-off "
-                "date. The day of the month is ignored.",
-                "Made 15 Jan 2023, charged off 3 Mar 2024: 14 months. 31 Jan to 1 Feb is 1 month."))
+    if not run or f.get("co_date", True):   # a book with no charge-off date column never shows the measure
+        out.append(("Months to charge-off",
+                    "For a loan that charged off, the calendar months from its origination date to its charge-off "
+                    "date. The day of the month is ignored.",
+                    "Made 15 Jan 2023, charged off 3 Mar 2024: 14 months. 31 Jan to 1 Feb is 1 month."))
     out.append(("Odd values",
                 "Values that may be codes rather than real numbers: one value far more often than any other, or "
                 "negatives in a column that's mostly positive.",

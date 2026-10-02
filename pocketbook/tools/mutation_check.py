@@ -1619,6 +1619,9 @@ muts = [
   '    avg, _, x, _ = engine.size_vs(getattr(g, "sizes", {}) or {}, *key, book)',
   '    avg, _, _, x = engine.size_vs(getattr(g, "sizes", {}) or {}, *key, book)',
   "ranr_vs_gcos_every_pockets_avg_line"),
+ ("the Glossary defining Months to charge-off for a book with no charge-off date", GL,
+  '    if not run or f.get("co_date", True):', '    if True:',
+  "without_a_charge_off_date_nothing_changes or firms_order"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

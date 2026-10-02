@@ -2186,7 +2186,7 @@ def test_pck_gross_dollars_fit_their_columns_and_turn_to_thousands_past_the_cap(
 # They'd be across the top." The ratio: "Charged off / booked". Bad loans columns: "Yes do this".
 
 SUMMARY_ONLY = f"Only loans where {ch.ORIG_YEAR} is"
-SUMMARY_HEADS = ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "Avg line", "× book",
+SUMMARY_HEADS = ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "Avg line", "Line × book",
                  "% of booked", "GCOs ($)", "GCOs ÷ Booked", "× book", "% of GCOs", "RANR $", "RANR ÷ Booked",
                  "% of RANR"]
 SHARES = ("% of loans", "% of booked", "% of GCOs", "% of RANR")

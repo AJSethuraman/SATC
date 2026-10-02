@@ -137,7 +137,7 @@ def test_summary_puts_avg_line_and_x_book_right_after_booked(made):
     b, _ = made
     heads = _heads(b)
     i = heads.index("Booked $")
-    assert heads[i + 1:i + 3] == ["Avg line", "× book"]
+    assert heads[i + 1:i + 3] == ["Avg line", "Line × book"]
     assert heads[i + 3] == "% of booked"
 
 
@@ -220,7 +220,7 @@ def test_ranr_vs_gcos_shows_them_in_the_gross_block_from_its_own_row(made):
     ws = load_workbook(b)[results.PCK]
     head = tabs.header_row(ws, results.C_TOG, "Together")
     assert [ws.cell(row=head, column=c).value for c in (results.C_RATE, results.C_AVG, results.C_AVGX,
-                                                         results.C_PAID)] == ["RANR ÷ Booked", "Avg line", "× book",
+                                                         results.C_PAID)] == ["RANR ÷ Booked", "Avg line", "Line × book",
                                                                               "Gap pts"]
     group = [str(m) for m in ws.merged_cells.ranges if m.min_row == head - 1 and m.min_col == results.C_BOOK]
     assert group == [f"{results.col(results.C_BOOK)}{head - 1}:{results.col(results.C_AVGX)}{head - 1}"]
