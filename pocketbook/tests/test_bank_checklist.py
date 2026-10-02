@@ -188,8 +188,10 @@ def test_every_cell_the_checklist_names_holds_what_it_says(tmp_path):
     said("**Glossary** is the second tab, after Start here")
     terms = [r[0] for r in wb[glossary.SHEET].iter_rows(min_col=glossary.TERM, max_col=glossary.TERM,
                                                        values_only=True) if r[0]]
-    said(f"It lists {len(glossary.rows(None))} terms, one a row")
-    assert len(terms[terms.index("Term") + 1:]) == len(glossary.rows(None))
+    n = len(glossary.rows(None))
+    said(f"It lists {n} terms, one a row ({n - 1} when the book has no charge-off date column)")
+    # this book has no charge-off date column, so the Run's Glossary leaves Months to charge-off out
+    assert "Months to charge-off" not in terms and len(terms[terms.index("Term") + 1:]) == n - 1
     said(f"*{glossary.SHEET}: every term, with an example* opens it")
     assert any(c.value == f"{glossary.SHEET}: every term, with an example" and c.hyperlink
                for row in wb["Start here"].iter_rows() for c in row)

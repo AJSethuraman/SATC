@@ -371,7 +371,7 @@ Each tab opens with **How this tab works**.
 
 ### 4.10 The Glossary
 
-☐ **Glossary** is the second tab, after Start here. It lists 26 terms, one a row: what each means, and an example in the practice book's own figures from the Run. Its note says which Run.
+☐ **Glossary** is the second tab, after Start here. It lists 26 terms, one a row (25 when the book has no charge-off date column): what each means, and an example in the practice book's own figures from the Run. Its note says which Run.
 
 ☐ On Start here, under **The tabs**, *Glossary: every term, with an example* opens it.
 
