@@ -153,8 +153,8 @@ def test_paid_cost_kept_follows_the_lines_on_control(tmp_path):
     assert tabs.dropdown(ws, "Grid").value == "FICO x CHANNEL"
     head = tabs.header_row(ws, results.C_TOG, "Together")
     assert tabs.heads(ws, head, results.C_BAND, results.C_TOG) == [
-        "Band", "Segment", "Loans", "Booked", "GCOs", "RANR", "RANR ÷ Booked", "Gap pts", "Dollars", "Rest",
-        "× rest of band", "Dollars", "Rest", "Gap pts", "Dollars", "Rest", "Together"]
+        "Band", "Segment", "Loans", "Booked", "GCOs", "RANR", "RANR ÷ Booked", "Avg line", "Line × book", "Gap pts",
+        "Dollars", "Rest", "× rest of band", "Dollars", "Rest", "Gap pts", "Dollars", "Rest", "Together"]
     assert [ws.cell(row=head - 1, column=c).value for c in (results.C_PAID, results.C_COST, results.C_KEPT)] == [
         "RANR + GCOs · gap vs rest of band", "GCOs · × rest of band", "RANR · gap vs rest of band"]
     firsts = [int(str(x["band"]).split(" - ")[0]) for x in tabs.pck(ws) if str(x["band"])[0].isdigit()]

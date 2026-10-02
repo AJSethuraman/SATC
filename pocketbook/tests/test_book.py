@@ -57,7 +57,7 @@ def test_set_up_writes_every_tab_a_person_needs(tmp_path):
     out = book.set_up(synth.write_extract(tmp_path, n=3000))
     assert out.ok and out.book.exists()
     names = load_workbook(out.book).sheetnames
-    assert names[:4] == ["Start here", "Control", "Columns", "Look"]
+    assert names[:5] == ["Start here", "Glossary", "Control", "Columns", "Look"]   # the Glossary: 2 Oct 2026
     assert "Odd values" not in names and "Learned" not in names     # both on Columns since the redesign
 
 

@@ -614,6 +614,8 @@ class Summary:
     labels: list[str]
     cells: dict[str, Cell]
     booked: dict[str, float] = field(default_factory=dict)     # empty without a booked amount
+    # the loans under those dollars, each row's (a loan with no booked amount is left out of both): Avg line's bottom
+    booked_loans: dict[str, int] = field(default_factory=dict)
 
 
 ALL = "All"
@@ -1448,11 +1450,14 @@ def _summary(band: str, measures, per_row, labels_of, booked, order, idx) -> Sum
         _finish_cell(c, measures)
     out[ALL] = _merge(list(out.values()), measures)
     dollars: dict[str, float] = {}
+    under: dict[str, int] = {}
     if booked is not None:
         for lab in labels:
             dollars[lab] = math.fsum(booked[i] for i in idx if labels_of[i] == lab and booked[i] is not None)
+            under[lab] = sum(1 for i in idx if labels_of[i] == lab and booked[i] is not None)
         dollars[ALL] = math.fsum(booked[i] for i in idx if booked[i] is not None)
-    return Summary(band=band, labels=labels + [ALL], cells=out, booked=dollars)
+        under[ALL] = sum(1 for i in idx if booked[i] is not None)
+    return Summary(band=band, labels=labels + [ALL], cells=out, booked=dollars, booked_loans=under)
 
 
 def _tie_summary(s: Summary, want: Cell, measures) -> None:
@@ -1482,7 +1487,8 @@ def _tie_summary(s: Summary, want: Cell, measures) -> None:
 #: the rate it is taken from. A column whose source this Run has not got is left off, and the tab says so
 BOOKED = "booked"
 SUMMARY_COLUMNS = (("loans", None), ("loans_share", None), ("bad", "outcome_loans"), ("bad_rate", "outcome_loans"),
-                   ("booked", BOOKED), ("booked_share", BOOKED), ("gco", "gco_rate"), ("gco_rate", "gco_rate"),
+                   # the firm, 2 Oct 2026: booked dollars per loan, and that over the whole book's, beside Booked
+                   ("booked", BOOKED), ("avg_line", BOOKED), ("avg_line_x", BOOKED), ("booked_share", BOOKED), ("gco", "gco_rate"), ("gco_rate", "gco_rate"),
                    ("gco_x", "gco_rate"), ("gco_share", "gco_rate"), ("ranr", "ranr_rate"),
                    ("ranr_rate", "ranr_rate"), ("ranr_share", "ranr_rate"),
                    # the firm, 1 Oct 2026: months to charge-off, among the row's charged-off loans
@@ -1503,12 +1509,16 @@ def summary_rows(res, band: str, value: str | None = None,
     Loans and bad loans are counts; a share is the row's over the All row's, so the shares add to 100% over the
     bands and the special rows; bad loans % is the Bad loans rate (bad loans over the loans whose outcome reads 0
     or 1); a charge-off or RANR rate is that measure's rate (its dollars over the booked dollars of the loans with
-    both amounts), and x book is the charge-off rate over the whole book's, filter or none. Months to charge-off, when
+    both amounts), and x book is the charge-off rate over the whole book's, filter or none. Avg line is the row's booked
+    dollars over its loans with a booked amount (the firm, 2 Oct 2026: "booked dollar averages"), and its x book that
+    over the whole book's Avg line, filter or none; blank where the row has no such loan. Months to charge-off, when
     the Run has it, is the average and the median over the row's loans that charged off (chargeoff_months), blank
     where none did."""
     s = res.summaries[(band, value, value2)]
     keys = summary_columns(res)
     whole = res.total.rates.get("gco_rate")
+    size = getattr(res, "book_size", None)
+    line = size.average if size is not None else None             # the whole book's Avg line
     top = s.cells[ALL]
 
     def share(a, b):
@@ -1522,7 +1532,9 @@ def summary_rows(res, band: str, value: str | None = None,
             o = c.rates["outcome_loans"]
             row.update(bad=o.num, bad_rate=o.rate)
         if s.booked:
-            row.update(booked=s.booked[lab], booked_share=share(s.booked[lab], s.booked[ALL]))
+            avg = share(s.booked[lab], s.booked_loans.get(lab, 0))
+            row.update(booked=s.booked[lab], booked_share=share(s.booked[lab], s.booked[ALL]), avg_line=avg,
+                       avg_line_x=index_of(avg, line))
         if "gco_rate" in c.rates:
             g = c.rates["gco_rate"]
             row.update(gco=g.num, gco_rate=g.rate, gco_x=index_of(g.rate, whole.rate if whole else None),
