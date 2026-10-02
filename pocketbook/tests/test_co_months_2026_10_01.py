@@ -261,11 +261,12 @@ def test_columns_offers_charge_off_date_and_does_not_grey_it(made):
 
 
 def test_without_a_charge_off_date_nothing_changes(made):
-    """The same book without CO_DATE: Summary has its thirteen columns and no more, Grids no new Measure, and no
+    """The same book without CO_DATE: Summary has its fifteen columns and no more, Grids no new Measure, and no
     warning names months to charge-off."""
     _, b, _ = made
-    assert _heads(b) == ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "% of booked", "GCOs ($)",
-                         "GCOs ÷ Booked", "× book", "% of GCOs", "RANR $", "RANR ÷ Booked", "% of RANR"]
+    assert _heads(b) == ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "Avg line", "× book",
+                         "% of booked", "GCOs ($)", "GCOs ÷ Booked", "× book", "% of GCOs", "RANR $", "RANR ÷ Booked",
+                         "% of RANR"]
     assert results.CO_MONTHS_NAME not in tabs.options(load_workbook(b), results.GRIDS, "Measure")
     assert "months to charge-off" not in _text(b).lower()
 

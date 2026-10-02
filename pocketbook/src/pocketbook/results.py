@@ -689,12 +689,18 @@ SIDES = (("contribution_rate", PLAIN["contribution_rate"]), ("gco_rate", "GCOs")
 # the gross block (the firm, 30 Sep 2026): the pocket's own booked, GCO and RANR dollars and RANR per booked dollar,
 # right after Loans, so what the pocket did on its own reads before how it compares with the rest
 # each side's Rest (the firm, 30 Sep 2026): the rest's own rate, the rate its gap is measured against
-(C_BAND, C_SEG, C_LOANS, C_BOOK, C_GCO, C_RANR, C_RATE, C_PAID, C_PAID_D, C_PAID_R, C_COST, C_COST_D, C_COST_R,
- C_KEPT, C_KEPT_D, C_KEPT_R, C_TOG) = range(2, 19)
+# the firm, 2 Oct 2026: the gross block ends on each pocket's Avg line (booked dollars per loan) and that × the book's
+(C_BAND, C_SEG, C_LOANS, C_BOOK, C_GCO, C_RANR, C_RATE, C_AVG, C_AVGX, C_PAID, C_PAID_D, C_PAID_R, C_COST, C_COST_D,
+ C_COST_R, C_KEPT, C_KEPT_D, C_KEPT_R, C_TOG) = range(2, 21)
 #: each side's columns, first to last: its gap, its dollars, the rest's rate
 BLOCKS = ((C_PAID, C_PAID_D, C_PAID_R), (C_COST, C_COST_D, C_COST_R), (C_KEPT, C_KEPT_D, C_KEPT_R))
 GROSS = (C_BOOK, C_GCO, C_RANR, C_RATE)
 GROSS_HEADS = ("Booked", "GCOs", "RANR", "RANR ÷ Booked")
+#: Avg line and × book (the firm, 2 Oct 2026: "booked dollar averages so more easily demonstrate how line assignments
+#: look in pockets"): Grids' Loan size for the pocket, shaded as Loan size is, never red or green
+AVG_COLS = (C_AVG, C_AVGX)
+AVG_HEADS = ("Avg line", "× book")
+AVG_FMT = '"$"#,##0'
 #: where the lines in use sit: the same cells as before the gross block (M13 is the bank checklist's), so the tiles
 #: stay over C:K and the waiting note in M, above the table
 PCK_TILES = ((3, 3), (4, 5), (6, 7), (8, 9), (10, 11))
@@ -785,6 +791,7 @@ def pck_rows(res, g) -> list[dict]:
         untested = any(s.flag in (engine.THIN, engine.FEW) for s in ss.values())
         tog = "" if untested else together_of(ss["gco_rate"].flag, ss["ranr_rate"].flag)
         rows.append({"band": bl, "seg": dl, "units": c.rows, "untested": untested, "together": tog, **gross_of(c),
+                     **avg_of(g, (bl, dl), res.book_size),
                      "gaps": [(v, x) for v, x in ((band["gco_rate"], band["ranr_rate"]),
                                                   (book["gco_rate"], book["ranr_rate"]))]})
     bands, segs = {b: i for i, b in enumerate(g.band_labels)}, {d: i for i, d in enumerate(g.dim_labels)}
@@ -799,6 +806,34 @@ def gross_of(c) -> dict:
     adds up."""
     k, g = c.rates["ranr_rate"], c.rates["gco_rate"]
     return {"booked": k.den, "gco": g.num, "ranr": k.num, "ranr_rate": k.num / k.den if k.den else None}
+
+
+def avg_of(g, key, book) -> dict:
+    """One pocket's Avg line (the firm, 2 Oct 2026): its booked dollars over its loans with a booked amount, as
+    Grids' Loan size works it out (engine.size_vs), and that over the whole book's. None where there is nothing to
+    divide by."""
+    avg, _, x, _ = engine.size_vs(getattr(g, "sizes", {}) or {}, *key, book)
+    return {"avg": avg, "avg_x": x}
+
+
+def pck_avg_totals(g, rows: list[dict], book) -> list[tuple]:
+    """Avg line and × book for each row under the table, in pck_totals' order: the pockets listed, those not listed
+    (only when there are any), and the grid's whole book. Each is its pockets' booked dollars added up over their
+    loans with a booked amount, never an average of averages."""
+    sizes = getattr(g, "sizes", {}) or {}
+    listed = {(x["band"], x["seg"]) for x in rows}
+
+    def row(keys):
+        got = [sizes[k] for k in keys if k in sizes]
+        n, booked = sum(z.loans for z in got), math.fsum(z.booked for z in got)
+        avg = booked / n if n else None
+        return avg, engine.index_of(avg, book.average if book is not None else None)
+    inner = [k for k, _ in g.inner()]
+    out = [row([k for k in inner if k in listed])]
+    if any(k not in listed for k in inner):
+        out.append(row([k for k in inner if k not in listed]))
+    out.append(row([(engine.ALL, engine.ALL)]))
+    return out
 
 
 #: the rows under RANR vs GCOs' table, which add up: the pockets listed, those not listed (nothing to compare
@@ -877,13 +912,19 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     # every grid's rows and the totals under them, worked out once: the gross columns' widths fit all of them
     listed = [pck_rows(res, g) for g in grids]
     totals = [pck_totals(g, rows) for g, rows in zip(grids, listed)]
+    avg_tt = [pck_avg_totals(g, rows, res.book_size) for g, rows in zip(grids, listed)]
+    avgs = [(x["avg"], x["avg_x"]) for rows in listed for x in rows] + [t for tt in avg_tt for t in tt]
+    avg_w = {C_AVG: house.fit([AVG_HEADS[0]] + [f"${v:,.0f}" for v, _ in avgs if v is not None],
+                              floor=DATA_FLOOR, cap=DATA_CAP),
+             C_AVGX: house.fit([AVG_HEADS[1]] + [f"{v:.2f}×" for _, v in avgs if v is not None],
+                               floor=DATA_FLOOR, cap=DATA_CAP)}
     thousands, gross_w = gross_widths([(x["booked"], x["gco"], x["ranr"], x["ranr_rate"]) for rows in listed
                                        for x in rows] + [t[2:] for tt in totals for t in tt])
     # P1: Band and Segment fit the Run's labels; Band also the "live from Control" under the lines in use and the
     # totals' labels
     _widths(ws, {1: 2, C_BAND: max(lw["band_only"], house.fit(["live from Control", PCK_LISTED, PCK_UNLISTED,
                                                                 PCK_BOOK], floor=0, cap=32, pad=3)),
-                 C_SEG: lw["seg_raw"], C_LOANS: 9, **gross_w, C_PAID: 11, C_PAID_D: 13,
+                 C_SEG: lw["seg_raw"], C_LOANS: 9, **gross_w, **avg_w, C_PAID: 11, C_PAID_D: 13,
                  C_COST: house.fit([REST_TIMES[0], REST_TIMES[1]], floor=11, cap=DATA_CAP), C_COST_D: 13,
                  C_KEPT: 11, C_KEPT_D: 13,
                  **{r_: house.fit([REST_HEAD, f"{-1:.2%}"], floor=DATA_FLOOR, cap=DATA_CAP) for *_, r_ in BLOCKS},
@@ -900,7 +941,8 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         ("GCOs", "GCOs ÷ Booked, as a multiple of the rest; Dollars: GCOs above the rest's rate."),
         # the gross block's words ride on RANR's item (the firm, 30 Sep 2026), so that no row of the tab moves
         ("RANR", "RANR ÷ Booked, as a gap in points and dollars, like RANR + GCOs. Booked, GCOs and RANR: the "
-                 "pocket's own dollars, added up and compared with nothing. " + NEGATIVE_SAID + " Under the table they add up to the whole book; Not "
+                 "pocket's own dollars, added up and compared with nothing. " + NEGATIVE_SAID + " Avg line: booked dollars per loan, the pocket's average committed line; × book: that over the whole book's. "
+                 "Under the table they add up to the whole book; Not "
                  "listed: pockets with nothing to compare them with."),
         ("The rest", live.text("Judged against on Control picks it: now ",
                                ('IF(judged_band,"the rest of its band","the rest of the book")',),
@@ -935,16 +977,16 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     # the rows, every grid's, on _views
     most = 1
     bounds_x, bounds_y = [], []
-    for g, gname, rows, tt in zip(grids, gnames, listed, totals):
+    for g, gname, rows, tt, at_ in zip(grids, gnames, listed, totals, avg_tt):
         most = max(most, len(rows))
         # the line above the table and the totals under it, worked out here (the firm, 30 Sep 2026)
         views.put(f"C|{gname}|neg", [negative_line(rows), sum(1 for x in rows if x["ranr"] < 0)])
         for j, t in enumerate(tt, start=1):
-            views.put(f"C|{gname}|total|{j}", list(t))
+            views.put(f"C|{gname}|total|{j}", list(t) + list(at_[j - 1]))
         for k, x in enumerate(rows, start=1):
             prows = [lv.rows.get(("grids", id(g), x["band"], x["seg"], m)) for m, *_ in SIDES]
             views.put(f"C|{gname}|{k}", [x["band"], x["seg"], x["units"], 1 if x["untested"] else 0, *prows,
-                                         x["booked"], x["gco"], x["ranr"], x["ranr_rate"]])
+                                         x["booked"], x["gco"], x["ranr"], x["ranr_rate"], x["avg"], x["avg_x"]])
             if not x["untested"]:
                 for gx, gy in x["gaps"]:
                     if gx:
@@ -961,7 +1003,7 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     ws.merge_cells(start_row=s, start_column=C_LOANS, end_row=s, end_column=C_KEPT_R)
     _cell(ws, s, C_LOANS, f"={pick(NEG, 1)}", bold=True, size=10, color=SLATE, h="left", indent=1)
     cf(ws, f"{col(C_LOANS)}{s}", [(f'N(${col(C_H_UN)}${s})>0', None, Font(color=CRIMSON, bold=True), None)])
-    for a, b_, words in ((C_BOOK, C_RATE, "Gross · this pocket alone"),
+    for a, b_, words in ((C_BOOK, C_AVGX, "Gross · this pocket alone"),
                          (C_PAID, C_PAID_R, f'="{SIDES[0][1]} · gap vs rest of "&IF({J},"band","book")'),
                          (C_COST, C_COST_R, f'="{SIDES[1][1]} · × rest of "&IF({J},"band","book")'),
                          (C_KEPT, C_KEPT_R, f'="{SIDES[2][1]} · gap vs rest of "&IF({J},"band","book")'),
@@ -970,13 +1012,13 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         _cell(ws, h, a, words, bold=True, size=9, name="Arial")
         for c in range(a, b_ + 1):
             ws.cell(row=h, column=c).border = Border(bottom=Side(style="medium", color=INK))
-    house.header(ws, h + 1, C_BAND, ["Band", "Segment", "Loans", *GROSS_HEADS, "Gap pts", "Dollars", REST_HEAD,
+    house.header(ws, h + 1, C_BAND, ["Band", "Segment", "Loans", *GROSS_HEADS, *AVG_HEADS, "Gap pts", "Dollars", REST_HEAD,
                                      f'=IF({J},"{REST_TIMES[1]}","{REST_TIMES[0]}")', "Dollars", REST_HEAD,
                                      "Gap pts", "Dollars", REST_HEAD, "Together"],
                  centre_from=2)
     first = h + 2
     gross_fmts = {C_BOOK: GROSS_K_FMT if thousands else GROSS_FMT, C_GCO: GROSS_K_FMT if thousands else GROSS_FMT,
-                  C_RANR: GROSS_K_FMT if thousands else GROSS_FMT, C_RATE: RATE_FMT}
+                  C_RANR: GROSS_K_FMT if thousands else GROSS_FMT, C_RATE: RATE_FMT, C_AVG: AVG_FMT, C_AVGX: X_FMT}
     for k in range(1, most + 1):
         rr = first + k - 1
         V = f"${col(C_H_ROW)}{rr}"
@@ -995,7 +1037,7 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         pts = lambda prow: f'=IF({at(live.P_GAP, prow)}="","",{at(live.P_GAP, prow)}*100)'         # noqa: E731
         short = lambda prow: f'=IF({at(live.P_DOLLARS, prow)}="","",-{at(live.P_DOLLARS, prow)})'  # noqa: E731
         vals = {C_BAND: f"={pick(V, 1)}", C_SEG: f"={pick(V, 2)}", C_LOANS: f"={pick(V, 3)}",
-                **{c: f"={pick(V, 8 + j)}" for j, c in enumerate(GROSS)},
+                **{c: f"={pick(V, 8 + j)}" for j, c in enumerate(GROSS + AVG_COLS)},
                 C_PAID: pts(RC), C_PAID_D: short(RC), C_COST: f"={at(live.P_GAP, RG)}",
                 C_COST_D: f"={at(live.P_DOLLARS, RG)}", C_KEPT: pts(RR), C_KEPT_D: short(RR),
                 # the rest's rate that decides, the side's own: the rest of the book, or of the band
@@ -1045,6 +1087,9 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
        [(f'OR({T}="{GOOD_TOGETHER[0]}",{T}="{GOOD_TOGETHER[1]}")', None, Font(color=POSITIVE, bold=True), None),
         (f'{T}="{BAD_TOGETHER[0]}"', None, Font(color=CRIMSON, bold=True), None)], line_on)
     cf(ws, f"{col(C_BAND)}{first}:{col(C_GCO)}{end}", [], line_on)
+    AX = f"${col(C_AVGX)}{first}"
+    cf(ws, f"{col(C_AVG)}{first}:{col(C_AVGX)}{end}",
+       [(f"AND(ISNUMBER({AX}),{AX}>={lim})", colour, None, None) for lim, colour in SIZE_STEPS], line_on)
     # a pocket that lost money outright: its RANR and RANR rate in red (the firm, 30 Sep 2026)
     neg = f"AND(ISNUMBER(${col(C_RANR)}{first}),${col(C_RANR)}{first}<0)"
     cf(ws, f"{col(C_RANR)}{first}:{col(C_RATE)}{end}", [(neg, None, Font(color=CRIMSON, bold=True), None)], line_on)
@@ -1054,7 +1099,7 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         rr = t0 + j - 1
         V = f"${col(C_H_ROW)}{rr}"
         ws.cell(row=rr, column=C_H_ROW, value="=" + match(xk("C|", (G,), f"|total|{j}")))
-        for c, k in ((C_BAND, 1), (C_LOANS, 2), *((c, 3 + i) for i, c in enumerate(GROSS))):
+        for c, k in ((C_BAND, 1), (C_LOANS, 2), *((c, 3 + i) for i, c in enumerate(GROSS + AVG_COLS))):
             x = _cell(ws, rr, c, f"={pick(V, k)}", bold=True, h="left" if c == C_BAND else "center",
                       indent=1 if c == C_BAND else 0, fmt="#,##0" if c == C_LOANS else gross_fmts.get(c))
             if j == 1:
@@ -1971,13 +2016,17 @@ def _groups(ws, grp: dict, G: str, r: int, first: int, hid: int, dw: float) -> i
 #: usd dollars
 SUMMARY_HEADS = {"loans": ("Loans", "n"), "loans_share": ("% of loans", "share"), "bad": ("Bad loans", "n"),
                  "bad_rate": ("Bad loans %", "pct"), "booked": ("Booked $", "usd"),
+                 # the firm, 2 Oct 2026: "booked dollar averages so more easily demonstrate how line assignments
+                 # look in pockets"
+                 "avg_line": ("Avg line", "avg"), "avg_line_x": ("× book", "x"),
                  "booked_share": ("% of booked", "share"), "gco": ("GCOs ($)", "usd"),
                  "gco_rate": ("GCOs ÷ Booked", "pct"), "gco_x": ("× book", "x"),
                  "gco_share": ("% of GCOs", "share"), "ranr": ("RANR $", "usd"),
                  "ranr_rate": ("RANR ÷ Booked", "pct"), "ranr_share": ("% of RANR", "share"),
                  # the firm, 1 Oct 2026: only when the extract has a Charge-off date and an Origination date
                  "co_avg": ("Avg months to charge-off", "mo"), "co_median": ("Median months to charge-off", "mo")}
-SUMMARY_FMT = {"n": "#,##0", "share": "0.0%", "pct": "0.00%", "x": X_FMT, "usd": '"$"#,##0;-"$"#,##0', "mo": "0.0"}
+SUMMARY_FMT = {"n": "#,##0", "share": "0.0%", "pct": "0.00%", "x": X_FMT, "usd": '"$"#,##0;-"$"#,##0', "mo": "0.0",
+               "avg": '"$"#,##0'}
 SUMMARY_THOUSANDS = '"$"#,##0,"k";-"$"#,##0,"k"'
 #: what a column needs, in words, for the note when a Run has not got it
 SUMMARY_NEEDS = {"outcome_loans": "outcome", engine.BOOKED: "booked amount", "gco_rate": "GCO dollars",
@@ -1996,7 +2045,7 @@ def _summary_shown(v, kind: str) -> str:
     if not isinstance(v, (int, float)):
         return ""
     return {"n": f"{v:,.0f}", "share": f"{v * 100:.1f}%", "pct": f"{v * 100:.2f}%", "x": f"{v:.2f}×",
-            "usd": f"${v:,.0f}" if v >= 0 else f"-${-v:,.0f}", "mo": f"{v:,.1f}"}[kind]
+            "usd": f"${v:,.0f}" if v >= 0 else f"-${-v:,.0f}", "mo": f"{v:,.1f}", "avg": f"${v:,.0f}"}[kind]
 
 
 def summary_views(res, views: Views) -> dict:
@@ -2073,6 +2122,8 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
                                   f"row's loans whose outcome reads yes or no: the Bad loans rate on Grids."))
     if "booked" in keys:
         note.append(("Booked $", f"The row's {booked}, and its share of the book's."))
+        note.append(("Avg line", "The row's booked dollars per loan: its average committed line. × book beside it is "
+                                 "that over the whole book's average line, filtered or not."))
     if "gco" in keys:
         note.append(("GCOs ($)", f"The row's {gco}. GCOs ÷ Booked is that over its booked dollars, as Grids "
                                  f"shows it for GCOs ($). A loan missing either amount is left out of both."))
