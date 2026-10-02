@@ -29,6 +29,7 @@ Tick each box as you go. Where something differs, write down what you saw, take 
 | **Practice book** | A made-up book of 8,000 loans with known answers planted in it. It holds no bank data, so it can be screenshotted and sent. |
 | **Run** | The button that works everything out and writes the results into the workbook. |
 | **Tie-out** | Adding every grid back up and checking it comes to the book's totals. |
+| **Glossary** | The workbook's second tab: every term the tabs use (RANR, points, pocket and the rest), each with an example in the book's own figures. |
 
 ---
 
@@ -109,7 +110,7 @@ cd /d "%USERPROFILE%"
 py PocketBook.py
 ```
 
-☐ It prints `37 files, every one checked. Opening the window.` and the window opens. It has written the `PocketBook` folder beside the script; skip to 2.3. If it says *The paste stops early* or *didn't come through whole*, the copy missed something: copy the whole script again, to its last line.
+☐ It prints `38 files, every one checked. Opening the window.` and the window opens. It has written the `PocketBook` folder beside the script; skip to 2.3. If it says *The paste stops early* or *didn't come through whole*, the copy missed something: copy the whole script again, to its last line.
 
 Otherwise, with the zips:
 
@@ -271,7 +272,7 @@ Do these on the practice workbook, `%USERPROFILE%\PocketBook\practice\Consumer b
 2. Set **Within** to *Workbook* and **Look in** to *Values*.
 3. Type each of these in **Find what** and press **Find All**: `#NAME`, `#REF!`, `#VALUE!`, `#DIV/0!`, `#N/A`, `#NUM!`, `#SPILL!`.
 
-☐ Each one says *Excel cannot find the data you're searching for*. On LibreOffice, all nine tabs you can see are clear.
+☐ Each one says *Excel cannot find the data you're searching for*. On LibreOffice, all eleven tabs you can see are clear.
 
 The hidden tabs `_look` and `_chart` hold `#N/A` on purpose: it tells a chart to leave a gap. If Find lists cells on those two only, that's expected. **Check this:** whether Excel's Find looks inside hidden tabs at all.
 
@@ -367,6 +368,12 @@ Each tab opens with **How this tab works**.
 ☐ **Split** and **Grids:** the shaded tables have their colours (pink worse, green better, deeper for bigger gaps).
 
 **Check this** for all three: every chart has only been seen in LibreOffice.
+
+### 4.10 The Glossary
+
+☐ **Glossary** is the second tab, after Start here. It lists 25 terms, one a row: what each means, and an example in the practice book's own figures from the Run. Its note says which Run.
+
+☐ On Start here, under **The tabs**, *Glossary: every term, with an example* opens it.
 
 Save and close the workbook when done.
 
@@ -510,4 +517,4 @@ Only from the practice and speed books, never the real extract. The practice wor
 - **Through LibreOffice here, in place of Excel:** 4.2 (no error values on any tab you can see; `#N/A` on `_look` and `_chart` only), 4.3's lists, captions and grid values, 4.4 and 4.5's numbers and words, and 4.7's picture.
 - **The kit and the offline install:** `bank_kit.py --add-ons` fetched the Windows add-ons for Python 3.11 to 3.14 through this machine's proxy. The same command, fetching Linux add-ons, was unzipped into a fresh Python 3.12 with none installed; the install in 2.4's third step ran with `--user --no-index --find-links`, and the window opened from the unzipped folder.
 - **Not run here, Windows only, checked by reading:** `cd /d`, `tar -xf` on a zip, `dir`, `type`, `ren`, `certutil`, `echo %NUMBER_OF_PROCESSORS%`, `ver`, `notepad`, the two .bat files, Task Manager, and everything in Excel. Their Linux counterparts were run where one exists.
-- **Check this, the full list:** whether the bank lets Python be installed (1.2); how files get in (1.4); pip through the proxy (2.4); a workbook Excel has saved, then Run (3.2); the repair message (4.1); Find inside hidden tabs (4.2); the out-of-range message (4.3); the open-in-Excel bar (4.6); the dashed lines (4.7); the fold (4.8); the charts (4.9).
+- **Check this, the full list:** whether the bank lets Python be installed (1.2); how files get in (1.4); pip through the proxy (2.4); a workbook Excel has saved, then Run (3.2); the repair message (4.1); Find inside hidden tabs (4.2); the out-of-range message (4.3); the open-in-Excel bar (4.6); the dashed lines (4.7); the fold (4.8); the charts (4.9); the Glossary (4.10).

@@ -180,6 +180,20 @@ def test_every_cell_the_checklist_names_holds_what_it_says(tmp_path):
         picked = tabs.choose(out.book, tmp_path / f"f13-{len(head)}.xlsx", "Grids", measure=pick)
         assert head in [c.value for c in tabs.calculated(picked, "Grids")["B"]], (pick, head)
 
+    # 4.2 counts the tabs you can see, and 4.10 sends the analyst to the Glossary (the firm, 2 Oct 2026)
+    from pocketbook import glossary
+    visible = [ws.title for ws in wb.worksheets if ws.sheet_state == "visible"]
+    said(f"all {['nine', 'ten', 'eleven', 'twelve'][len(visible) - 9]} tabs you can see are clear")
+    assert visible[:2] == ["Start here", glossary.SHEET]
+    said("**Glossary** is the second tab, after Start here")
+    terms = [r[0] for r in wb[glossary.SHEET].iter_rows(min_col=glossary.TERM, max_col=glossary.TERM,
+                                                       values_only=True) if r[0]]
+    said(f"It lists {len(glossary.rows(None))} terms, one a row")
+    assert len(terms[terms.index("Term") + 1:]) == len(glossary.rows(None))
+    said(f"*{glossary.SHEET}: every term, with an example* opens it")
+    assert any(c.value == f"{glossary.SHEET}: every term, with an example" and c.hyperlink
+               for row in wb["Start here"].iter_rows() for c in row)
+
     look = wb["Look"]
     said("In C20 (**Bars**)")
     assert look["B10"].value == "FICO" and look["B20"].value == "Bars" and _lists(look)["C20"].formula1 == '"10,20,50"'

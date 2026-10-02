@@ -73,7 +73,8 @@ def _calc(path: Path, tmp: Path, edit=None):
 def test_the_four_tabs_you_fill_in_come_first_red_and_nothing_folded_is_left(ran):
     _, b = ran
     wb = load_workbook(b)
-    assert wb.sheetnames[:4] == list(ANSWER_TABS)
+    # the Glossary sits between Start here and Control (the firm, 2 Oct 2026); it is grey, filled in by no one
+    assert wb.sheetnames[:5] == [ANSWER_TABS[0], "Glossary", *ANSWER_TABS[1:]]
     for gone in ("Odd values", "Learned", "Materiality"):
         assert gone not in wb.sheetnames
     for t in ANSWER_TABS:
