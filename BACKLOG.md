@@ -2998,6 +2998,38 @@ changed in the code.
     up building every grid, Run never checking the estimate) and 1 repointed (*Run leaves the suggestion stale*,
     whose line this rewrote). 4 of 4 caught with no display; every entry's old string still occurs once (647
     entries).
+- **Built, 2 Oct 2026: a Glossary tab** (branch `pocketbook-glossary`). The firm, after explaining the grids'
+  figures to their boss: *"Maybe a nice glossary of terms in the workbook should be there"*. They keep "points" as
+  the unit.
+  - **What it is.** A grey tab right after Start here, written by every Set up and every Run
+    (`src/pocketbook/glossary.py`). One term a row: the term, what it means in one or two short sentences, and an
+    example. 25 terms, in the firm's order: Booked, GCOs ($), RANR, RANR + GCOs, Rate, Points, × book / × rest of
+    book, Rest of book / rest of band, Bad loan, Band, Segment, Pocket, Grid, Filter / Only loans where,
+    Origination year, Worse and material, Borderline, Shuffle test / p-value, Fewest loans in a pocket, Worse at /
+    Better at, Dollars above their share (each loan once), Lifetime-to-date, Months to charge-off, Odd values,
+    (marked missing) / (blank).
+  - **The examples.** After a Run, in the whole book's own figures: *"This book's RANR came to $33,030,193. The
+    book keeps $12.80 per $100 booked"* on the 8,000-loan practice book. Points and × book name a real pocket (the
+    one furthest short on RANR, and the one furthest above its share on GCOs, against the rest of the book). Worse
+    and material, and dollars above share, are Start here's figures at the Run (4 of 81, $2,287,240 on the
+    practice book). The figures are kept on `_found` as JSON, so Set up again keeps them. Before the first Run
+    the examples are made up (the firm's own "$4.45 per $100 booked") and the note says so. Not live: a line
+    changed on Control moves the result tabs, not the examples, and the note says that too.
+  - **Wording.** Where a tab already words a definition the Glossary reuses it (Pockets' rest of band and Worse?,
+    Summary's × book, Columns' odd values, the Borderline note). Every sentence is 28 words or fewer and carries
+    no contract-desk word (tested). Made-up examples use SCORE and SOURCE, never the synthetic book's columns,
+    so test_generic's no-leak check holds. "Earn" is not used (test_profit). The Glossary joins `_meanings` as a
+    sheet allowed to say "charge-off", since it is a definition (test_literal_names).
+  - **Start here** lists it under The tabs, in the grey group with Record (*Glossary: every term, with an
+    example*). Its note now reads "grey tabs are the glossary and the record".
+  - **Checklist.** A new 4.10 (the Glossary is second, 25 terms, Start here opens it). 4.2 counts eleven visible tabs
+    (it said nine, already stale since Summary). The paste now writes 38 files. HTML and PDF rebuilt.
+  - Picture (LibreOffice, practice book): `pocketbook/docs/glossary-2026-10-02/glossary-page-1.png` and `-2.png`.
+  - Tests: 8 in `tests/test_glossary_2026_10_02.py`. RANR, GCOs, booked and the rate tie to the CSV, worked out
+    without PocketBook. Tab order pinned in test_book, test_answer_tabs and test_result_tabs; test_bank_checklist
+    checks the count, the position, the terms and the link. Planted bugs: 2 added (the RANR example read from
+    RANR + GCOs; Set up writing the made-up examples over the Run's figures), 2 of 2 caught with no display;
+    every entry's old string still occurs once (652 entries).
 
 ## 7 · Standing rules for new items
 
@@ -3010,6 +3042,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-02 -- **PocketBook: a Glossary tab.** The firm: *"Maybe a nice glossary of terms in the workbook should be there"*. A grey tab right after Start here, written by every Set up and Run: 25 terms, each with what it means and an example in the book's own figures from the last Run (*"the book keeps $12.80 per $100 booked"*), made up before the first. Start here links to it; the bank checklist has a 4.10 for it. 8 tests; 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-01 -- **PocketBook: Set up's suggestions from a sample of the grids.** The firm, on Set up taking over 3.5 minutes at 184,937 loans and 168 grids: *"Will the quick estimates be as accurate? … Test it and let's see"*. Tested on ten synthetic books of 17,000 and 185,000 loans: a sample of 28 grids matched every grid at Control's rounding in every book, at about 80 seconds against 265. Fewest loans is never sampled. Run still works each suggestion out from every grid, and says so beside it where the estimate was different. 7 tests, 3 planted bugs added and 1 repointed, 4 of 4 caught. §6d has the table.
 - 2026-10-01 -- **PocketBook: the bank checklist says to save the extract as CSV first.** The firm, on reading an .xlsx being about 20 times slower than CSV (5.4 s against 0.3 s at 17,000 × 70, read at Set up and at every Run): *"Yes definitely csv first then"*. Step 6.1 says how (Excel, Save As, CSV UTF-8) and 6.2 marks .csv as best; .xlsx still works. Checklist HTML and PDF rebuilt; test_bank_checklist 10 passed.
 - 2026-09-30 -- **PocketBook: errors on the window, not in Notepad.** At the bank, Run with the extract open in Excel became a PermissionError traceback read in Notepad. The firm: *"It would be a lot easier if these kinds of errors just displayed on screen in the huge white space allotted"*. An extract that can't be read (open in Excel, OneDrive syncing, gone) is now a plain refusal naming the file, and the extract is read once per Run. Anything unexpected shows on the page with its type, its message and **Copy details**. 10 tests added and 2 changed; 8 planted bugs added, 8 caught, and 4 display-only ones caught by hand. §6d has the detail.

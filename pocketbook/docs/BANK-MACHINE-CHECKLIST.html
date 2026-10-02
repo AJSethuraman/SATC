@@ -123,6 +123,10 @@ hr { border: none; border-top: 1px solid #ddd; margin: 14pt 0; }
 <td><strong>Tie-out</strong></td>
 <td>Adding every grid back up and checking it comes to the book's totals.</td>
 </tr>
+<tr>
+<td><strong>Glossary</strong></td>
+<td>The workbook's second tab: every term the tabs use (RANR, points, pocket and the rest), each with an example in the book's own figures.</td>
+</tr>
 </tbody>
 </table>
 <hr />
@@ -227,7 +231,7 @@ hr { border: none; border-top: 1px solid #ddd; margin: 14pt 0; }
 <pre><code>cd /d &quot;%USERPROFILE%&quot;
 py PocketBook.py
 </code></pre>
-<p>☐ It prints <code>37 files, every one checked. Opening the window.</code> and the window opens. It has written the <code>PocketBook</code> folder beside the script; skip to 2.3. If it says <em>The paste stops early</em> or <em>didn't come through whole</em>, the copy missed something: copy the whole script again, to its last line.</p>
+<p>☐ It prints <code>38 files, every one checked. Opening the window.</code> and the window opens. It has written the <code>PocketBook</code> folder beside the script; skip to 2.3. If it says <em>The paste stops early</em> or <em>didn't come through whole</em>, the copy missed something: copy the whole script again, to its last line.</p>
 <p>Otherwise, with the zips:</p>
 <p>Copy both zips into your <strong>Downloads</strong> folder. Then, before unzipping, right-click each zip, choose <strong>Properties</strong>, and if there's an <strong>Unblock</strong> box at the bottom, tick it and press <strong>OK</strong>. (Windows marks files that came from outside, and may then refuse to run them.)</p>
 <p>Type:</p>
@@ -388,7 +392,7 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 <li>Set <strong>Within</strong> to <em>Workbook</em> and <strong>Look in</strong> to <em>Values</em>.</li>
 <li>Type each of these in <strong>Find what</strong> and press <strong>Find All</strong>: <code>#NAME</code>, <code>#REF!</code>, <code>#VALUE!</code>, <code>#DIV/0!</code>, <code>#N/A</code>, <code>#NUM!</code>, <code>#SPILL!</code>.</li>
 </ol>
-<p>☐ Each one says <em>Excel cannot find the data you're searching for</em>. On LibreOffice, all nine tabs you can see are clear.</p>
+<p>☐ Each one says <em>Excel cannot find the data you're searching for</em>. On LibreOffice, all eleven tabs you can see are clear.</p>
 <p>The hidden tabs <code>_look</code> and <code>_chart</code> hold <code>#N/A</code> on purpose: it tells a chart to leave a gap. If Find lists cells on those two only, that's expected. <strong>Check this:</strong> whether Excel's Find looks inside hidden tabs at all.</p>
 <p>☐ Clicking in a result cell may show <code>=@</code> in the formula bar. Excel adds the <code>@</code> to formulas written by other programs. It's expected if the value in the cell is right.</p>
 <h3>4.3 The dropdowns</h3>
@@ -466,6 +470,9 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 <p>☐ <strong>Look:</strong> a chart per number column that can be cut into bands (FICO, ORIG_BAL, REV_DEBT; not GCO_AMT or RANR_AMT), and a red bar on its own left of FICO's for the -9999s.</p>
 <p>☐ <strong>Split</strong> and <strong>Grids:</strong> the shaded tables have their colours (pink worse, green better, deeper for bigger gaps).</p>
 <p><strong>Check this</strong> for all three: every chart has only been seen in LibreOffice.</p>
+<h3>4.10 The Glossary</h3>
+<p>☐ <strong>Glossary</strong> is the second tab, after Start here. It lists 25 terms, one a row: what each means, and an example in the practice book's own figures from the Run. Its note says which Run.</p>
+<p>☐ On Start here, under <strong>The tabs</strong>, <em>Glossary: every term, with an example</em> opens it.</p>
 <p>Save and close the workbook when done.</p>
 <hr />
 <h2>Part 5 · Speed and the cores</h2>
@@ -693,5 +700,5 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 <li><strong>Through LibreOffice here, in place of Excel:</strong> 4.2 (no error values on any tab you can see; <code>#N/A</code> on <code>_look</code> and <code>_chart</code> only), 4.3's lists, captions and grid values, 4.4 and 4.5's numbers and words, and 4.7's picture.</li>
 <li><strong>The kit and the offline install:</strong> <code>bank_kit.py --add-ons</code> fetched the Windows add-ons for Python 3.11 to 3.14 through this machine's proxy. The same command, fetching Linux add-ons, was unzipped into a fresh Python 3.12 with none installed; the install in 2.4's third step ran with <code>--user --no-index --find-links</code>, and the window opened from the unzipped folder.</li>
 <li><strong>Not run here, Windows only, checked by reading:</strong> <code>cd /d</code>, <code>tar -xf</code> on a zip, <code>dir</code>, <code>type</code>, <code>ren</code>, <code>certutil</code>, <code>echo %NUMBER_OF_PROCESSORS%</code>, <code>ver</code>, <code>notepad</code>, the two .bat files, Task Manager, and everything in Excel. Their Linux counterparts were run where one exists.</li>
-<li><strong>Check this, the full list:</strong> whether the bank lets Python be installed (1.2); how files get in (1.4); pip through the proxy (2.4); a workbook Excel has saved, then Run (3.2); the repair message (4.1); Find inside hidden tabs (4.2); the out-of-range message (4.3); the open-in-Excel bar (4.6); the dashed lines (4.7); the fold (4.8); the charts (4.9).</li>
+<li><strong>Check this, the full list:</strong> whether the bank lets Python be installed (1.2); how files get in (1.4); pip through the proxy (2.4); a workbook Excel has saved, then Run (3.2); the repair message (4.1); Find inside hidden tabs (4.2); the out-of-range message (4.3); the open-in-Excel bar (4.6); the dashed lines (4.7); the fold (4.8); the charts (4.9); the Glossary (4.10).</li>
 </ul></body></html>

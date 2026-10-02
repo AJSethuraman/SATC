@@ -23,6 +23,7 @@ K="src/pocketbook/checks.py"; CF="src/pocketbook/confirmatory.py"; PV="src/pocke
 KG="src/pocketbook/kgroups.py"; CT="src/pocketbook/confirm_tab.py"; LA="src/pocketbook/launcher.py"
 I="src/pocketbook/ingest.py"; LK="src/pocketbook/look.py"; CO="src/pocketbook/control.py"
 HO="src/pocketbook/house.py"; Y="src/pocketbook/settings.yaml"; RS="src/pocketbook/results.py"
+GL="src/pocketbook/glossary.py"
 RC="src/pocketbook/record.py"; PS="src/pocketbook/prespec.py"; CMP="src/pocketbook/compare.py"
 SC="src/pocketbook/scout.py"; CFG="src/pocketbook/config.py"; JT="src/pocketbook/joint.py"
 muts = [
@@ -1600,6 +1601,15 @@ muts = [
  ("Filter 1 starts empty when there is an origination date", LA,
   "        first = ch.ORIG_YEAR if year_row is not None", "        first = None if year_row is not None",
   "filter_1_starts_on_origination_year"),
+ # the firm, 2 Oct 2026: "Maybe a nice glossary of terms in the workbook should be there"
+ # (tests/test_glossary_2026_10_02.py); neither needs a display
+ ("the Glossary's RANR example read from RANR + GCOs", GL,
+  '    for key, m in (("gco", "gco_rate"), ("ranr", "ranr_rate"), ("contrib", "contribution_rate")):',
+  '    for key, m in (("gco", "gco_rate"), ("ranr", "contribution_rate"), ("contrib", "contribution_rate")):',
+  "glossary_ranr_and_gco_examples_tie"),
+ ("Set up writing the made-up examples over the last Run's figures", B,
+  '    glossary.write(wb, glossary.stored(wb, FOUND), _found_value(wb, "stamp"))',
+  '    glossary.write(wb, None, _found_value(wb, "stamp"))', "set_up_again_keeps_the_last_runs_figures"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

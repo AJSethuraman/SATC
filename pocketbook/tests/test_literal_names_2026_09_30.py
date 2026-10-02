@@ -46,8 +46,9 @@ HEADS = {"Bad loans": "Rate · Bad loans ÷ Loans", "Bad dollars": "Rate · Bad 
          "GCOs ($)": "Rate · GCOs ÷ Booked", "RANR": "Rate · RANR ÷ Booked",
          "RANR + GCOs": "Rate · (RANR + GCOs) ÷ Booked", "Loan size": "Rate · Average booked per loan"}
 #: sheets the analyst never reads that still hold words, each with why its words may stay: the meanings'
-#: definitions ("gross charge-off dollars" says what GCO is, and is no measure's name)
-ALLOWED = {"_meanings"}
+#: definitions ("gross charge-off dollars" says what GCO is, and is no measure's name); and the Glossary, whose
+#: every row says what a term means (the firm, 2 Oct 2026), "GCOs ($)" as "gross charge-off dollars" among them
+ALLOWED = {"_meanings", "Glossary"}
 
 
 @pytest.fixture(scope="module")
