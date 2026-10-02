@@ -145,6 +145,15 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 f"This book booked {_usd(f['booked'])} over {f.get('booked_loans', f['loans']):,} loans."
                 if real("booked") else
                 "A $10,000 loan books $10,000. A card with a $5,000 line books $5,000."))
+    # the firm, 2 Oct 2026: "booked dollar averages so more easily demonstrate how line assignments look in pockets"
+    bl = f.get("booked_loans") if run else None
+    avg = f["booked"] / bl if bl and real("booked") else None
+    out.append(("Avg line / × book",
+                "Avg line: the average committed line per loan, booked dollars over loans. × book beside it compares "
+                "a pocket's average line with the whole book's.",
+                f"This book's average line is {_usd(avg)}. A pocket averaging {_usd(avg * 1.24)} is 1.24× book."
+                if avg else
+                "A pocket averaging $6,200 a line, in a book averaging $5,000, is 1.24× book."))
     out.append(("GCOs ($)",
                 "Gross charge-off dollars: what was written off on a loan, before any recoveries.",
                 f"This book's GCOs came to {_usd(f['gco'])}: {per100(gco_r)} per $100 booked." if real("gco") else

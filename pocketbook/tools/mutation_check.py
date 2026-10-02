@@ -1610,6 +1610,15 @@ muts = [
  ("Set up writing the made-up examples over the last Run's figures", B,
   '    glossary.write(wb, glossary.stored(wb, FOUND), _found_value(wb, "stamp"))',
   '    glossary.write(wb, None, _found_value(wb, "stamp"))', "set_up_again_keeps_the_last_runs_figures"),
+ # the firm, 2 Oct 2026: "booked dollar averages so more easily demonstrate how line assignments look in pockets"
+ # (tests/test_avg_line_2026_10_02.py); each caught from _views as written, with no LibreOffice and no display
+ ("Summary's Avg line over every loan, not the loans with a booked amount", E,
+  "            avg = share(s.booked[lab], s.booked_loans.get(lab, 0))",
+  "            avg = share(s.booked[lab], c.rows)", "every_summary_view_ties_avg_line"),
+ ("RANR vs GCOs' × book against the rest of the band, not the book", RS,
+  '    avg, _, x, _ = engine.size_vs(getattr(g, "sizes", {}) or {}, *key, book)',
+  '    avg, _, _, x = engine.size_vs(getattr(g, "sizes", {}) or {}, *key, book)',
+  "ranr_vs_gcos_every_pockets_avg_line"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
