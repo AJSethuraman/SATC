@@ -3242,6 +3242,55 @@ changed in the code.
     within the same vintage, because a 2021 loan has had more time on book than a 2024 loan"*; the old *"compare
     vintages within a year"* was read that way. (3) Spelling stays as the tabs have it (*grey*, *coloured*).
 
+- **Built, 3 Oct 2026: the audit workbook's tie-out findings fixed, and a random pocket** (branch
+  `pocketbook-audit-fixes`, on `pocketbook-voice` and `pocketbook-audit-tieout`). The tie-out
+  (`pocketbook/docs/audit-tieout-2026-10-03/TIEOUT.html`) found no arithmetic error and seven findings on what the
+  workbook says and shows. Then the firm: *"tying out one thing that should prove everything if you picked
+  randomly"*, chosen *"Random, seed stamped"*. Words follow `pocketbook/VOICE.md`.
+  - **The random pocket.** The audit opens on a pocket drawn uniformly from the tested pockets (every pocket of the
+    Run's grids with a GCO p-value on the comparison that decides it), not the top flagged one. Seed:
+    `perm.seed_of("the audit workbook's pocket, selected at random", <the file's SHA-256>)`; the pockets sorted by
+    their key (grid|band|segment, as text), numbered from 0; the pick is seed mod their number. Run stamp has a
+    section for it (the pocket, the population, the seed, how it was drawn), and One pocket's Selection note says
+    it at the top (*"FICO x CHANNEL: (marked missing), Online, selected at random from the 18 tested pockets ...;
+    seed 13751448919744042928"*). Shuffle test lists that pocket's shuffles. Dropdowns unchanged.
+  - **Findings fixed.** (1) Every By hand step now names exactly the loans its formula takes (`by_hand()`: scope,
+    the columns whose text entries are excluded, what the status bar shows); rest of its band, Loans' Count, Loans
+    with a loss and Rows in and out's "Less:" lines were short of a filter. (2) Definitions say what the formula
+    computes (*Avg line, whole book*: per loan with a booked amount). (3) New rows for every gap RANR vs GCOs shows:
+    RANR + GCOs for the pocket and the book, and RANR and RANR + GCOs against the rest of the book and of the band,
+    each rate, gap in points and dollars (the tab's sign), against the Run's. (4) Each booked total is named by its
+    population (*every loan with a booked amount*, *loans with a GCO*, *loans with a RANR*, *loans with a GCO and a
+    RANR*), with a reconciling row, *loans with no GCO amount*, tied to a billionth of the book. (5) Shuffle test
+    part D: the picked pocket's family (its grid, same comparison), the Run's count and p-value, rank, p × tests ÷
+    rank, the adjusted p-value in Excel beside the Run's, the rule written out; live with One pocket's pick through a
+    rank-ordered list on `_lists`. (6) The random default makes the listed shuffle test a sensitive one when the pick
+    is (this scenario's: p 0.52). (7) Every One pocket row is as tall as its longest wrapped cell, the step label
+    included; Run stamp, Rows in and out, Bands and Shuffle test likewise; Start here's title no longer clipped.
+    One pocket: 60 figure rows (was 37).
+  - **Tie-out re-run** (section 13 of `TIEOUT.html`; `compare_rerun.py`, `build_rerun.py`; `tieout.py` draws the pick
+    itself from the file's bytes): same 50,000-loan file (SHA-256 9b41…0681), 241 comparisons, 0 differ, 0 ✗ on
+    any sheet. The pick drawn independently is the workbook's; all 60 rows of the random pocket three ways (57 to
+    1E-9, 3 shuffle rows within Monte Carlo error); two more pockets on the dropdowns; part B's 10,000 listed
+    shuffles counted at the independent line (5,227 = Excel = the Run); part D's 18 adjusted p-values against
+    Benjamini-Hochberg worked out from the listed p-values (exact) and the independent shuffles (MC); RANR vs GCOs'
+    row and Whole book against the audit and the independent figures. Following finding 1's By hand now gives
+    Excel's $213,994,598.67 (the old words gave $214,034,283.10).
+  - **Tests:** `tests/test_audit_2026_10_03.py`, 17 (was 13): the default is the random pick, worked out in the test
+    from the file's SHA-256 and the hidden sheet; the pick is the same for the same file and moves with the seed;
+    every By hand step's population matches its formula's criteria (both parsed, 26 rows; the parser itself shown a
+    missing filter); part D ties to Benjamini-Hochberg worked out in the test; the new RANR / RANR + GCOs band gaps
+    and dollars and the booked totals worked out from the CSV. Planted bugs: 5 new in `tools/mutation_check.py`
+    (pick ignoring the seed; pick drawn from untested pockets; part D's rank one low; rest of band's By hand
+    without its GCO filter; RANR dollars against the band with the Run's sign), and the old "rest of the book
+    holding the pocket" repointed to the renamed test: 9 of 9 audit bugs caught with no display; every entry's old
+    string occurs once (672). Pictures: `pocketbook/docs/audit-2026-10-03/` replaced. Full suite, no display:
+    1,055 passed, 14 skipped (all tkinter missing, as before), 0 failed (78 min); the audit tests again on the final
+    code, 17 passed.
+  - **For the firm to decide:** (1) The pick is drawn from tested pockets only; an untested pocket (too few losses)
+    is never the default, since it has no shuffle test to show. (2) Part D follows One pocket's pick through its
+    grid and comparison; a pocket alone in its band is listed in the book-side family.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -3253,6 +3302,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-03 -- **PocketBook: the audit workbook's tie-out findings fixed, and a random pocket.** The firm: *"tying out one thing that should prove everything if you picked randomly"* (*"Random, seed stamped"*). The audit opens on a pocket drawn from the tested pockets, seeded from the file's SHA-256 and stamped; every By hand step filters what its formula takes (a test parses both); every gap RANR vs GCOs shows is proved; booked totals named by population; Benjamini-Hochberg worked out on a visible table; no overlapping rows. Tie-out re-run: 241 comparisons, 0 differ. 17 tests, 9 of 9 audit planted bugs caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: its voice.** The firm, on *"Every loan whose band and segment are the ones picked"*: *"it does not sound like something a human would type"*. `pocketbook/VOICE.md` sets the register (a credit-risk workpaper for analysts, managers, validators and auditors; the website's client-copy rules don't apply) with before and after patterns, the firm's own first. The audit workbook (203 strings) and the Glossary (74) are rewritten to it, wording only; `docs/voice-2026-10-03/REVIEW.html` numbers all 277 for the firm to mark. Full suite 1,051 passed, 14 skipped; 6 of 6 audit and Glossary planted bugs caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: the audit workbook.** The firm: *"show the calculations it makes on one set of things and prove out each one"*, and *"how to do them by hand"*. Control's *Also write the audit workbook?* makes the Run write `<book> - audit.xlsx`: Run stamp (file, SHA-256, settings, seed), Rows in and out, Bands, Loans (each band a formula), One pocket (a live Grid / Band / Segment pick, 37 figures each written out, worked out by COUNTIFS/SUMIFS on the loans, tied to the Run's, and how to do it by hand) and Shuffle test (a 10-loan example, and every shuffle of the default pocket whose COUNTIF gives its p-value). 33 s and 23.8 MB at 185,000 loans. 13 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: Summary's vintage chart and grey rows.** The firm: *"Could the summary tab have vintage graphs as well?"*, chosen *"Pocket vs rest vs book"*; and low unit counts *"grayed out to a degree"*, by a number of its own. Under the Summary table, one row against the rest of the book and the whole book by origination year, on any Summary measure, following Only loans where, thin points left off; at the top, Grey rows under [50] loans, read by nothing else. 5 tests, 4 planted bugs, 4 caught. §6d has the detail.

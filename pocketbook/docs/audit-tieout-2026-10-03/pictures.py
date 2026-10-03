@@ -82,6 +82,31 @@ def one_pocket_picture(run: Path, out: Path, work: Path) -> None:
     img.save(out)
 
 
+def sheet_picture(src: Path, sheet: str, area: str, out: Path, work: Path, dpi: int = 150) -> None:
+    """One sheet of a calculated workbook, values only, as LibreOffice prints the area `area`: used by the re-run
+    section (build_rerun.py)."""
+    work.mkdir(parents=True, exist_ok=True)
+    wb = load_workbook(src, data_only=True)
+    for name in list(wb.sheetnames):
+        if name != sheet:
+            del wb[name]
+    ws = wb[sheet]
+    ws.print_area = area
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 1
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    p = work / f"{out.stem}.xlsx"
+    wb.save(p)
+    subprocess.run(["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(work), str(p)],
+                   capture_output=True, timeout=300)
+    subprocess.run(["pdftoppm", "-png", "-r", str(dpi), "-singlefile", str(work / f"{out.stem}.pdf"),
+                    str(work / out.stem)], check=True)
+    img = Image.open(work / f"{out.stem}.png").convert("RGB")
+    box = Image.eval(img, lambda v: 255 - v).getbbox()
+    img.crop((box[0] - 10, box[1] - 10, box[2] + 10, box[3] + 10)).save(out)
+
+
 if __name__ == "__main__":
     run, outd = Path(sys.argv[1]), Path(sys.argv[2])
     outd.mkdir(parents=True, exist_ok=True)

@@ -15,6 +15,11 @@ figures, so they are typed here rather than read):
     missing rule   FICO = -9999 is "marked missing"
     comparison     each pocket is judged against the rest of its band; a pocket alone in its band against the book
     fewest losses  10 (a pocket with fewer loans with a non-zero GCO is not shuffled)
+    the audit's    seeded from SHA-256 over the text "origination-cube shuffle test, 25 Sep 2026", the text "the
+    random pick    audit workbook's pocket, selected at random" and the file's SHA-256 hex, joined by the unit
+                   separator (0x1F); the first 8 bytes read as a little-endian integer. The tested pockets, keyed
+                   "FICO x CHANNEL|band|segment" and sorted as text, numbered from 0; the pick is seed mod their
+                   number (as the Run stamp sheet states it)
     allowance      Benjamini-Hochberg, across the grid's tested pockets
     shuffles       10,000
 
@@ -35,6 +40,9 @@ from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 
 EDGES = (653, 686, 713, 746)
+GRID = "FICO x CHANNEL"
+PICK_BASE = "origination-cube shuffle test, 25 Sep 2026"
+PICK_NAME = "the audit workbook's pocket, selected at random"
 MISSING_FICO = Decimal("-9999")
 MIN_EVENTS = 10
 TIE = 1e-9
@@ -173,6 +181,27 @@ def figures(P, B, BD):
         f["both_band_gap"] = ((f["both_rate"] - f["both_band_rate"]) * 100
                               if None not in (f["both_rate"], f["both_band_rate"]) else None)
         f["both_band_dollars"] = (f["both_rate"] - f["both_band_rate"]) * P["both_bk"] if f["both_band_gap"] is not None else None
+        # the rows added after the tie-out (3 Oct 2026), under the audit workbook's own names
+        f["band_ranr_bk"], f["band_ranr"] = BD["ranr_bk"] - P["ranr_bk"], BD["ranr"] - P["ranr"]
+        f["band_ranr_rate"], f["ranr_gap_band"] = f["ranr_band_rate"], f["ranr_band_gap"]
+        f["ranr_usd_band"] = (P["ranr"] - f["ranr_band_rate"] * P["ranr_bk"]
+                              if f["ranr_band_rate"] is not None else None)
+        f["band_ctb_bk"], f["band_ctb"] = BD["both_bk"] - P["both_bk"], BD["both"] - P["both"]
+        f["band_ctb_rate"], f["ctb_gap_band"] = f["both_band_rate"], f["both_band_gap"]
+        f["ctb_usd_band"] = (P["both"] - f["both_band_rate"] * P["both_bk"]
+                             if f["both_band_rate"] is not None else None)
+    f["ctb_bk"], f["ctb"] = P["both_bk"], P["both"]
+    f["ctb_rate"] = ratio(P["both"], P["both_bk"])
+    f["book_all_bk"], f["book_nogco_bk"] = B["avg_bk"], B["avg_bk"] - B["gco_bk"]
+    f["book_ranr_bk"], f["book_ranr"] = B["ranr_bk"], B["ranr"]
+    f["book_ctb_bk"], f["book_ctb"] = B["both_bk"], B["both"]
+    f["ranr_usd_rest"] = (P["ranr"] - f["ranr_rest_rate"] * P["ranr_bk"]
+                          if f["ranr_rest_rate"] is not None else None)
+    f["ctb_rest_rate"] = ratio(B["both"] - P["both"], B["both_bk"] - P["both_bk"])
+    f["ctb_gap"] = ((f["ctb_rate"] - f["ctb_rest_rate"]) * 100
+                    if None not in (f["ctb_rate"], f["ctb_rest_rate"]) else None)
+    f["ctb_usd_rest"] = (P["both"] - f["ctb_rest_rate"] * P["both_bk"]
+                         if f["ctb_rest_rate"] is not None else None)
     f["by_band"] = by_band
     f["dollars"] = f.get("excess_band") if by_band else f["excess_rest"]
     f["avg_n"], f["avg_bk"] = P["avg_n"], P["avg_bk"]
@@ -265,6 +294,14 @@ def main(argv):
         band_rows = [x for x in loans if x["band"] == k[0]]
         pockets[k] = figures(totals(rows), B, totals(band_rows))
     tested = [k for k in keys if pockets[k]["events"] >= MIN_EVENTS and pockets[k]["by_band"]]
+    # the audit's random pick, from the tested pockets: every pocket with enough losses to test (each has a
+    # comparison: the rest of its band, or for a pocket alone in its band the rest of the book)
+    population = sorted(f"{GRID}|{k[0]}|{k[1]}" for k in keys if pockets[k]["events"] >= MIN_EVENTS)
+    pseed = int.from_bytes(hashlib.sha256("\x1f".join((PICK_BASE, PICK_NAME, sha)).encode("utf-8")).digest()[:8],
+                           "little")
+    chosen = population[pseed % len(population)]
+    pick = {"seed": pseed, "population": len(population), "index": pseed % len(population), "key": chosen,
+            "band": chosen.split("|")[1], "seg": chosen.split("|")[2], "keys": population}
     shuf = shuffle_test(loans, set(tested), shuffles, seed) if shuffles else {}
     adj = bh({k: v["p"] for k, v in shuf.items()})
     for k, v in shuf.items():
@@ -304,10 +341,11 @@ def main(argv):
     out = {"sha256": sha, "book": {a: js(b) for a, b in book.items()}, "labels": labels, "rows": rows_io, "bands": [x["band"] for x in loans],
            "pockets": [{"band": k[0], "seg": k[1], **{a: js(b) for a, b in f.items()},
                         **({"shuffle": shuf[k]} if k in shuf else {})} for k, f in pockets.items()],
-           "shuffles": shuffles, "seed": seed}
+           "shuffles": shuffles, "seed": seed, "pick": pick}
     with open(dst, "w", encoding="utf-8") as fh:
         json.dump(out, fh)
-    print(f"SHA-256 {sha}; {len(loans):,} loans; {len(keys)} pockets; {len(shuf)} shuffled")
+    print(f"SHA-256 {sha}; {len(loans):,} loans; {len(keys)} pockets; {len(shuf)} shuffled; the audit's pick "
+          f"{chosen}, number {pick['index']} of {pick['population']} (seed {pick['seed']})")
 
 
 if __name__ == "__main__":

@@ -1662,9 +1662,27 @@ muts = [
   "        lows = list(edges) + [HIGH]", "test_every_loans_band_by_formula_is_the_engines_band"),
  ("audit's rest of the book still holding the pocket", AU,
   "    rest = _rate(tg.num - gc.num, tg.den - gc.den)", "    rest = _rate(tg.num, tg.den)",
-  "test_every_figure_of_the_default_pocket_ties"),
+  "test_the_audit_opens_on_a_random_tested_pocket_and_every_figure_ties"),
  ("audit reading an outcome of 2 as a bad loan", AU, "            bad.append(NOT_01)",
   "            bad.append(int(v))", "test_rows_in_and_out_tie_to_the_run"),
+ # the tie-out of the audit workbook, 3 Oct 2026, and the firm: "tying out one thing that should prove everything if
+ # you picked randomly" (chosen "Random, seed stamped")
+ ("audit's random pick ignoring the seed", AU, "    index = pick_index(seed, len(pop))",
+  "    index = pick_index(0, len(pop))", "test_the_audit_opens_on_a_random_tested_pocket_and_every_figure_ties"),
+ ("audit's random pick drawn from untested pockets too", AU,
+  "            if (s.p_band if s.by_band else s.p_book) is not None:\n                out.append((f\"{name}|",
+  "            if True:\n                out.append((f\"{name}|",
+  "test_the_audit_opens_on_a_random_tested_pocket_and_every_figure_ties"),
+ ("audit's allowance table ranking each pocket one place low", AU,
+  """cv.put(r, 6, f'=IF({on},"",COUNTIF({D},"<="&D{r}))', "num", INT)""",
+  """cv.put(r, 6, f'=IF({on},"",COUNTIF({D},"<="&D{r})+1)', "num", INT)""",
+  "test_the_allowance_for_many_tests_is_worked_out_from_a_visible_table"),
+ ("audit's rest-of-band booked By hand without the GCO filter", AU,
+  'by_hand("band", ("GCO",), "Sum of the booked column"', 'by_hand("band", (), "Sum of the booked column"',
+  "test_every_by_hand_step_takes_the_loans_its_formula_takes"),
+ ("audit's RANR dollars against the band with the Run's sign", AU,
+  '        "ranr_usd_band": _neg(rn.excess_band),', '        "ranr_usd_band": rn.excess_band,',
+  "test_the_audit_opens_on_a_random_tested_pocket_and_every_figure_ties"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
