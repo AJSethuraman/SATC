@@ -14,6 +14,9 @@ this is not a port, and the workbook was designed from scratch.
 **Where it's going:** `docs/design.md` sets out the three stages (find, drill,
 prove) and the firm's rulings.
 
+**How it's written:** `VOICE.md` is the voice for everything PocketBook writes (tabs, notes, the Glossary,
+the audit workbook, launcher messages, docs): a credit-risk workpaper, not the website's client copy.
+
 **Status (26 Sep 2026):**
 - **Built:** the first stage, find. That means the engine, the launcher and the
   whole workbook: Set up, Control, Columns and every results tab below. Also the

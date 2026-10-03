@@ -6,6 +6,8 @@ whole book's figures from the last Run (`figures`, kept on _found so Set up can 
 Run they are made up, and the note says so. Where a tab already words a definition, the words here are that tab's.
 
 Nothing here is a formula: the figures are the Run's, so a line changed on Control since does not move them.
+
+Its words follow pocketbook/VOICE.md; the test keeps the contract-word list and the 28-word sentence cap here.
 """
 
 from __future__ import annotations
@@ -21,8 +23,8 @@ TERM, MEANS, EXAMPLE = 2, 3, 4
 HEADS = ("Term", "What it means", "Example")
 WIDTHS = {1: 2, TERM: 24, MEANS: 62, EXAMPLE: 62}
 #: the note's line, before and after the first Run
-MADE_UP = "Made up until the first Run. Each Run puts this book's own figures here."
-FROM_RUN = "This book's own figures, for the whole book, from the last Run ({stamp})."
+MADE_UP = "The examples are illustrative until the first Run. Each Run replaces them with this book's own figures."
+FROM_RUN = "The examples use this book's figures for the whole book, from the last Run ({stamp})."
 #: the generic book before the first Run (the firm's own example: "the book keeps $4.45 per $100 booked")
 GENERIC = {"booked": 40_000_000, "gco": 880_000, "ranr": 1_780_000, "contrib": 2_660_000, "loans": 3_000,
            "bad": 312, "bad_den": 3_000}
@@ -142,170 +144,181 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     out = []
 
     out.append(("Booked / Booked $",
-                "The dollars committed when the loan was made. For cards, the credit line.",
+                "The dollar amount committed at origination. For cards, this is the credit line.",
                 f"This book booked {_usd(f['booked'])} over {f.get('booked_loans', f['loans']):,} loans."
                 if real("booked") else
-                "A $10,000 loan books $10,000. A card with a $5,000 line books $5,000."))
+                "A $10,000 loan is booked at $10,000, and a card with a $5,000 line is booked at $5,000."))
     # the firm, 2 Oct 2026: "booked dollar averages so more easily demonstrate how line assignments look in pockets"
     bl = f.get("booked_loans") if run else None
     avg = f["booked"] / bl if bl and real("booked") else None
     out.append(("Avg line / Line × book",
-                "Avg line: the average committed line per loan, booked dollars over the loans that have a "
-                "booked amount. Line × book beside it compares a pocket's average line with the whole book's.",
-                f"This book's average line is {_usd(avg)}. A pocket averaging {_usd(avg * 1.24)} reads 1.24× on Line × book."
-                if avg else
-                "A pocket averaging $6,200 a line, in a book averaging $5,000, reads 1.24× on Line × book."))
+                "Avg line is the average committed line per loan: booked dollars divided by the number of loans "
+                "with a booked amount. Line × book compares a pocket's average line with the whole book's.",
+                f"This book's average line is {_usd(avg)}, so a pocket averaging {_usd(avg * 1.24)} shows 1.24× on "
+                f"Line × book." if avg else
+                "A pocket with an average line of $6,200, in a book averaging $5,000, shows 1.24× on Line × book."))
     out.append(("GCOs ($)",
-                "Gross charge-off dollars: what was written off on a loan, before any recoveries.",
-                f"This book's GCOs came to {_usd(f['gco'])}: {per100(gco_r)} per $100 booked." if real("gco") else
-                f"GCOs of {_usd(GENERIC['gco'])} on {_usd(GENERIC['booked'])} booked: {per100(gco_r)} per $100 "
+                "Gross charge-off dollars: the amount written off on a loan, before any recoveries.",
+                f"This book's GCOs totaled {_usd(f['gco'])}, or {per100(gco_r)} per $100 booked." if real("gco") else
+                f"GCOs of {_usd(GENERIC['gco'])} on {_usd(GENERIC['booked'])} booked equal {per100(gco_r)} per $100 "
                 f"booked."))
     out.append(("RANR",
-                "Risk-adjusted net revenue: what a loan kept after its losses. For cards: interest, fees and "
-                "interchange, less rewards and charge-offs.",
+                "Risk-adjusted net revenue: what a loan earned after its losses. For cards, this is interest, fees "
+                "and interchange, less rewards and charge-offs.",
                 f"This book's RANR came to {_usd(f['ranr'])}. The book {_keeps(ranr_r)} per $100 booked."
                 if real("ranr") else
-                f"RANR of {_usd(GENERIC['ranr'])} on {_usd(GENERIC['booked'])} booked: the book {_keeps(ranr_r)} "
-                f"per $100 booked."))
+                f"RANR of {_usd(GENERIC['ranr'])} on {_usd(GENERIC['booked'])} booked means the book "
+                f"{_keeps(ranr_r)} per $100 booked."))
     out.append(("RANR + GCOs",
-                "RANR with the GCOs added back: what the loans brought in before their losses.",
-                f"This book made {per100(contrib_r)} per $100 booked before losses, and {_keeps(ranr_r)} after "
+                "RANR with GCOs added back, which shows what the loans earned before losses.",
+                f"This book earned {per100(contrib_r)} per $100 booked before losses and {_keeps(ranr_r)} after "
                 f"them." if real("contrib", "ranr") else
-                f"A book making {per100(contrib_r)} per $100 booked before losses, and losing {per100(gco_r)}, "
+                f"A book that earns {per100(contrib_r)} per $100 booked before losses and loses {per100(gco_r)} "
                 f"{_keeps(ranr_r)}."))
     out.append(("Rate (GCOs ÷ Booked, RANR ÷ Booked)",
-                "Dollars per $100 booked, so a small pocket can sit beside a big one. A rate of 2.20% is $2.20 per "
-                "$100 booked.",
-                f"This book's GCOs ÷ Booked is {gco_r * 100:.2f}%: {per100(gco_r)} lost per $100 booked."
+                "Dollars per $100 booked, which allows a small pocket to be compared with a large one. A rate of "
+                "2.20% equals $2.20 per $100 booked.",
+                f"This book's GCOs ÷ Booked is {gco_r * 100:.2f}%, or {per100(gco_r)} lost per $100 booked."
                 if real("gco") else
-                f"GCOs ÷ Booked of {gco_r * 100:.2f}%: {per100(gco_r)} lost per $100 booked."))
+                f"GCOs ÷ Booked of {gco_r * 100:.2f}% means {per100(gco_r)} lost per $100 booked."))
     p = f.get("ranr_pocket") if run else None
     out.append(("Points (pts)",
-                "The gap between two rates, in percentage points. -3.00 pts keeps $3 less per $100 booked than "
-                "the comparison.",
-                f"{_pocket(p)} {_keeps(p['rate'])} per $100 booked; the rest of the book {_keeps(p['rest'])}. "
-                f"That is {(p['rate'] - p['rest']) * 100:+.2f} pts." if p else
-                "A pocket keeping $1.45 per $100 booked, beside a rest keeping $4.45, is -3.00 pts."))
+                "The difference between two rates, in percentage points. A pocket at -3.00 pts keeps $3 less per "
+                "$100 booked than its comparison.",
+                f"{_pocket(p)} {_keeps(p['rate'])} per $100 booked and the rest of the book {_keeps(p['rest'])}. "
+                f"The difference is {(p['rate'] - p['rest']) * 100:+.2f} pts." if p else
+                "A pocket that keeps $1.45 per $100 booked, against $4.45 for the rest of the book, is at -3.00 pts."))
     p = f.get("gco_pocket") if run else None
     out.append(("× book / × rest of book",
-                "A rate over its comparison's: × book over the whole book's, × rest of book over every other "
-                "loan's. 2.00× means twice the GCOs per booked dollar.",
-                f"{_pocket(p)} loses {per100(p['rate'])} per $100 booked: {p['rate'] / gco_r:.2f}× book and "
+                "A pocket's rate as a multiple of its comparison's: × book against the whole book, × rest of book "
+                "against all other loans. 2.00× means twice the GCOs per booked dollar.",
+                f"{_pocket(p)} loses {per100(p['rate'])} per $100 booked, which is {p['rate'] / gco_r:.2f}× book and "
                 f"{p['rate'] / p['rest']:.2f}× rest of book." if p and real("gco_rate") and p["rest"] else
-                "A pocket losing $4.40 per $100 booked, in a book losing $2.20, is 2.00× book."))
+                "A pocket that loses $4.40 per $100 booked, in a book that loses $2.20, is at 2.00× book."))
     out.append(("Rest of book / rest of band",
-                "What a pocket is compared with: every other loan in the book, or every other loan in its band. "
-                "Judged against on Control picks which.",
+                "The group a pocket is compared with: either every other loan in the book or every other loan in "
+                "its band. The Judged against setting on Control determines which.",
                 f"For {_pocket(p)}, the rest of band is every other {p['band']} loan. The rest of book is every "
-                f"other loan." if p else
+                f"other loan in the book." if p else
                 "For SCORE 620 - 679 / Direct, the rest of band is every other SCORE 620 - 679 loan."))
     out.append(("Bad loan",
-                "A loan whose outcome column reads yes, as Yes means on Columns sets it.",
-                f"{f['bad']:,} of this book's {f['bad_den']:,} loans went bad: {f['bad'] / f['bad_den']:.1%}."
-                if real("bad", "bad_den") else
-                f"{GENERIC['bad']:,} of {GENERIC['bad_den']:,} loans went bad: "
+                "A loan flagged as bad in the outcome column, according to the Yes means setting on Columns.",
+                f"{f['bad']:,} of this book's {f['bad_den']:,} loans went bad, a rate of "
+                f"{f['bad'] / f['bad_den']:.1%}." if real("bad", "bad_den") else
+                f"{GENERIC['bad']:,} of {GENERIC['bad_den']:,} loans went bad, a rate of "
                 f"{GENERIC['bad'] / GENERIC['bad_den']:.1%}."))
     out.append(("Band",
-                "A range of one number column. Band edges on Columns set where each starts; a column with few "
-                "values gets one band per value.",
+                "A range of values in a numeric column. Band edges on Columns set where each band starts; a column "
+                "with few distinct values gets one band per value.",
                 f"{p['band']} is one band of {p['band_col']}." if p else "SCORE 620 - 679 is one band of SCORE."))
     out.append(("Segment",
-                "One value of a category column, such as one channel.",
+                "A single value of a category column, such as one channel.",
                 f"{p['seg']} is one segment of {p['seg_col']}." if p else "Direct is one segment of SOURCE."))
     out.append(("Pocket",
-                "One band of one column within one segment of another: the loans in both.",
-                f"{_pocket(p)}: the {p['loans']:,} loans in {p['band']} that are also {p['seg']}." if p else
-                "SCORE 620 - 679 / Direct: the loans in SCORE 620 - 679 that are also Direct."))
+                "The loans that fall in both one band of a numeric column and one segment of a category column.",
+                f"{_pocket(p)} contains the {p['loans']:,} loans in {p['band']} that are also in {p['seg']}." if p
+                else "SCORE 620 - 679 / Direct contains the loans in SCORE 620 - 679 that are also in Direct."))
     gr = f.get("grid") if run else None
     out.append(("Grid",
-                "Every band of one column crossed with every segment of another: one pocket for each pair that has "
-                "loans.",
-                f"{gr['name']}: {gr['bands']} bands by {gr['segments']} segments, {gr['pockets']} pockets." if gr
-                else "SCORE x SOURCE: 5 bands by 3 segments, 15 pockets."))
+                "Every band of one column crossed with every segment of another, giving one pocket for each "
+                "combination that has loans.",
+                f"{gr['name']} has {gr['bands']} bands by {gr['segments']} segments, for {gr['pockets']} pockets."
+                if gr else "SCORE x SOURCE has 5 bands by 3 segments, for 15 pockets."))
     fl = f.get("filter") if run else None
     out.append(("Filter / Only loans where",
-                "Shows Grids and Summary on only the loans with one value of the Filter by column. Up to three "
-                "filters can be picked, and then only the loans with every value picked show. × book is still "
-                "against the whole book.",
-                (f"Only loans where {fl['col']} is {fl['value']}: the grid on those loans alone." if fl["picked"]
-                 else f"Filter by {fl['col']} in the launcher, then pick {fl['value']}: the grid on those loans "
-                      f"alone.") if fl else
-                "Filter by SOURCE in the launcher, then pick Direct: the grid on Direct loans alone."))
+                "Restricts Grids and Summary to the loans with one value of the Filter by column. Up to three "
+                "filters can be selected; only loans matching every selected value are then shown. × book is still "
+                "measured against the whole book.",
+                (f"With Only loans where {fl['col']} is {fl['value']}, the grid shows those loans alone."
+                 if fl["picked"] else
+                 f"Choose {fl['col']} as Filter by in the launcher, then select {fl['value']} to see the grid for "
+                 f"those loans alone.") if fl else
+                "Choose SOURCE as Filter by in the launcher, then select Direct to see the grid for Direct loans "
+                "alone."))
     yrs = f.get("years") if run else None
     out.append(("Origination year",
-                f"The year in the origination date column. {NO_DATE} holds the loans without a readable date.",
-                f"This book's loans were made from {yrs[0]} to {yrs[1]}. Pick one year under Only loans where to "
-                f"see it alone." if yrs else
-                "Pick 2023 under Only loans where to see only the loans made in 2023."))
+                f"The year of the loan's origination date. Loans without a readable date are grouped under "
+                f"{NO_DATE}.",
+                f"This book's loans were originated from {yrs[0]} to {yrs[1]}. Select a year under Only loans where "
+                f"to view that year alone." if yrs else
+                "Select 2023 under Only loans where to view only the loans originated in 2023."))
     # the firm, 3 Oct 2026: "Could the summary tab have vintage graphs as well?"; chosen: "Pocket vs rest vs book"
     out.append(("Vintage",
-                "The loans made in one year. Summary's vintage chart draws one row against the rest of the book and "
-                "the whole book, a point for each year.",
-                f"Pick a row on Summary: three lines, one point a year from {yrs[0]} to {yrs[1]}." if yrs else
-                "Pick SCORE 620 - 679 on Summary: its line, the rest of the book's and the whole book's, 2021 to "
-                "2024."))
+                "The loans originated in a given year. Summary's vintage chart plots one row against the rest of "
+                "the book and the whole book, with a point for each year.",
+                f"Selecting a row on Summary draws three lines, with one point per year from {yrs[0]} to {yrs[1]}."
+                if yrs else
+                "Selecting SCORE 620 - 679 on Summary draws its line, the rest of the book's and the whole book's, "
+                "from 2021 to 2024."))
     wm = f.get("worse_material") if run else None
     out.append(("Worse and material",
-                "Worse: at least Worse at times its comparison, with a p-value under the bar on Control. Material: "
-                "its dollars above share reach the materiality line on Control.",
+                "A pocket is worse when its rate is at least Worse at times its comparison's, with a p-value below "
+                "the threshold on Control. It is material when its dollars above share reach the materiality "
+                "threshold on Control.",
                 f"At the last Run, {wm['n']:,} of {wm['of']:,} pockets were worse and material on GCOs." if wm else
-                "4 of 81 pockets worse and material: those 4 pass both, and Start here lists them."))
+                "If 4 of 81 pockets are worse and material, those 4 meet both tests and are listed on Start here."))
     conf = g.get("confidence", 0.95)
     out.append(("Borderline",
-                "The p-value is within the shuffle's own margin of the bar, so another Run could read it the other "
-                "way. The verdict stands; the flag warns.",
-                f"Worse? reads Yes · {stats.borderline_words(0.048, conf)}: under the {1 - conf:.0%} bar, but close "
-                f"enough to turn on another Run."))
+                "The p-value is within the shuffle test's margin of error of the threshold, so another Run could "
+                "reach the opposite result. The reading stands, and the flag serves as a caution.",
+                f"A Worse? cell reading Yes · {stats.borderline_words(0.048, conf)} is under the {1 - conf:.0%} "
+                f"threshold, but close enough to change on another Run."))
     sh = int(g.get("shuffles") or 10_000)
     out.append(("Shuffle test / p-value",
-                "A p-value is how often chance alone would give a gap this big. The shuffle test deals the loans "
-                "out at random, many times, and counts.",
-                f"The loans are shuffled {sh:,} times. A p-value of 0.02 means about {round(sh * 0.02):,} of those "
-                f"shuffles gave a gap at least as big."))
+                "The p-value is how often chance alone would produce a gap this large. The shuffle test reassigns "
+                "loans at random many times and counts how often that happens.",
+                f"The loans are shuffled {sh:,} times. A p-value of 0.02 means that about {round(sh * 0.02):,} of "
+                f"those shuffles produced a gap at least as large."))
     mu = f.get("min_units") if run else None
     out.append(("Fewest loans in a pocket",
-                "A pocket with fewer loans gets the exact test instead of the usual one. On Grids its cells are "
-                "grey and not coloured.",
-                f"At the last Run it was {mu:,.0f}: a pocket of fewer loans is grey on Grids."
-                if isinstance(mu, (int, float)) else "Set at 30: a pocket of 20 loans is grey on Grids."))
+                "A pocket with fewer loans than this is tested with the exact test rather than the usual one. Its "
+                "cells on Grids are grey rather than coloured.",
+                f"At the last Run the minimum was {mu:,.0f}, so any pocket with fewer loans is grey on Grids."
+                if isinstance(mu, (int, float)) else
+                "With the minimum set at 30, a pocket of 20 loans is grey on Grids."))
     w = f.get("worse_at") if run else None
     b = f.get("better_at") if run else None
     out.append(("Worse at / Better at",
-                "Worse at: how many times its comparison's rate a pocket must reach to read worse. Better at: how low "
-                "it must fall to read better. Both are on Control.",
-                f"At the last Run, worse at {w:.2f}× and better at {b:.2f}×. Against the book's {per100(gco_r)} "
-                f"per $100 booked, worse needs {per100(gco_r * w)}." if w and b and real("gco_rate") else
-                f"Worse at 1.25×: against {per100(gco_r)} per $100 booked, a pocket needs {per100(gco_r * 1.25)} to "
-                f"read worse."))
+                "Worse at is the multiple of its comparison's rate a pocket must reach to be read as worse. Better "
+                "at is the multiple it must fall to in order to be read as better. Both are set on Control.",
+                f"At the last Run, Worse at was {w:.2f}× and Better at was {b:.2f}×. Against the book's "
+                f"{per100(gco_r)} per $100 booked, a pocket needed {per100(gco_r * w)} to be read as worse."
+                if w and b and real("gco_rate") else
+                f"With Worse at set to 1.25× and a comparison rate of {per100(gco_r)} per $100 booked, a pocket needs "
+                f"{per100(gco_r * 1.25)} to be read as worse."))
     o = f.get("once") if run else None
     out.append(("Dollars above their share (each loan once)",
-                "What pockets lost above their comparison's rate. Every loan sits in every grid, so each is counted "
-                "once, in the pocket where it is furthest above its share.",
-                f"At the last Run: {_usd(o['dollars'])} of GCOs above share, over {o['loans']:,} loans in "
-                f"{o['pockets']:,} pockets worse and material." if o else
-                "A loan in two worse pockets, $900 above share in one and $400 in the other, counts $900."))
+                "The losses pockets incurred above their comparison's rate. Because every loan appears in every "
+                "grid, each loan is counted once, in the pocket where it is furthest above its share.",
+                f"At the last Run, {_usd(o['dollars'])} of GCOs were above share, across {o['loans']:,} loans in "
+                f"{o['pockets']:,} pockets that were worse and material." if o else
+                "A loan in two worse pockets, $900 above share in one and $400 in the other, is counted at $900."))
     out.append(("Lifetime-to-date",
-                "RANR and GCOs are over each loan's life so far, not per year. An older loan has had longer to bring "
-                "in revenue and to charge off.",
-                f"So compare vintages within a year: a {yrs[0]} loan has had longer than a {yrs[1]} one." if yrs
-                else "So compare vintages within a year: a 2021 loan has had longer than a 2024 one."))
+                "RANR and GCOs are measured over each loan's life to date, not annualized. An older loan has had "
+                "more time to generate revenue and to charge off.",
+                f"Compare loans within the same vintage, because a {yrs[0]} loan has had more time on book than a "
+                f"{yrs[1]} loan." if yrs
+                else "Compare loans within the same vintage, because a 2021 loan has had more time on book than a 2024 "
+                     "loan."))
     if not run or f.get("co_date", True):   # a book with no charge-off date column never shows the measure
         out.append(("Months to charge-off",
-                    "For a loan that charged off, the calendar months from its origination date to its charge-off "
-                    "date. The day of the month is ignored.",
-                    "Made 15 Jan 2023, charged off 3 Mar 2024: 14 months. 31 Jan to 1 Feb is 1 month."))
+                    "For a loan that charged off, the number of calendar months from its origination date to its "
+                    "charge-off date, ignoring the day of the month.",
+                    "A loan originated on 15 Jan 2023 and charged off on 3 Mar 2024 counts 14 months. 31 Jan to 1 "
+                    "Feb counts as 1 month."))
     out.append(("Odd values",
-                "Values that may be codes rather than real numbers: one value far more often than any other, or "
-                "negatives in a column that's mostly positive.",
-                "A score of -9999 on many loans is a code for no score. Answer Missing under Treat as on Columns."))
+                "Values that may be codes rather than genuine numbers, such as one value far more frequent than any "
+                "other, or negative values in a mostly positive column.",
+                "A score of -9999 on many loans is usually a code for no score. Select Missing under Treat as on "
+                "Columns."))
     mi = f.get("missing") if run else None
     out.append((f"{engine.MISSING_RULE_LABEL} / {engine.BLANK_LABEL}",
-                f"Where a loan goes when it can't sit in a band. {engine.BLANK_LABEL}: the cell was empty. "
-                f"{engine.MISSING_RULE_LABEL}: a value answered Missing.",
-                f"{mi['loans']:,} loans sit in {mi['col']} {engine.MISSING_RULE_LABEL}: their value was answered "
-                f"Missing. They are still counted." if mi else
-                f"A score of -9999 answered Missing sits in SCORE {engine.MISSING_RULE_LABEL}, not in a band, and is "
-                f"still counted."))
+                f"Where a loan is placed when it cannot be assigned to a band. {engine.BLANK_LABEL} means the cell "
+                f"was empty, and {engine.MISSING_RULE_LABEL} means its value was set to Missing on Columns.",
+                f"{mi['loans']:,} loans are in {mi['col']} {engine.MISSING_RULE_LABEL} because their value was set "
+                f"to Missing. They are still counted." if mi else
+                f"A score of -9999 set to Missing is placed in SCORE {engine.MISSING_RULE_LABEL} rather than a band, "
+                f"and is still counted."))
     return out
 
 
@@ -331,12 +344,12 @@ def write(wb, f: dict | None, stamp: str | None = None) -> None:
     ws = wb.create_sheet(SHEET, at)
     for c, w in WIDTHS.items():
         ws.column_dimensions[house._letter(c)].width = w
-    house.title_band(ws, SHEET, "Every term the tabs use, in plain words, with an example.", TERM, EXAMPLE,
+    house.title_band(ws, SHEET, "Definitions of the terms used on the tabs, each with an example.", TERM, EXAMPLE,
                      tab=house.TAB_RECORD)
     r = house.method_note(ws, 3, TERM, EXAMPLE, [
         ("Examples", MADE_UP if f is None else FROM_RUN.format(stamp=stamp) if stamp else
          FROM_RUN.replace(" ({stamp})", "")),
-        ("Not live", "A line changed on Control after a Run moves the result tabs, not these examples."),
+        ("Not live", "A setting changed on Control after a Run updates the result tabs, but not these examples."),
     ])
     house.header(ws, r, TERM, list(HEADS), centre_from=len(HEADS))
     head = r

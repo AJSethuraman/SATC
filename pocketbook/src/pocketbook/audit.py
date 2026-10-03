@@ -1,5 +1,7 @@
 """The audit workbook: one pocket's every figure, worked out again by Excel from the loans, beside PocketBook's own.
 
+Its words follow pocketbook/VOICE.md (the firm, 3 Oct 2026: "it does not sound like something a human would type").
+
 The firm, 3 Oct 2026: "We will need to make this auditable... a demo output mode that would take a file and show the
 calculations it makes on one set of things and prove out each one so someone could take their current population run
 it and then independently understand the calculation and its steps." Then: "we definitely want to be able to
@@ -17,8 +19,8 @@ raw loans.
     Loans            one row per loan: only the columns the Run used, each band worked out by a formula from the raw
                      value and the edges, beside PocketBook's band; and two live columns, In this pocket and In this
                      band, that follow the picks
-    One pocket       a Grid, Band and Segment dropdown; one row per figure: Step | In words | Written out (live text)
-                     | Excel works it out (COUNTIFS / SUMIFS on Loans) | PocketBook's figure | Ties? | By hand
+    One pocket       a Grid, Band and Segment dropdown; one row per figure: Step | Definition | Calculation (live
+                     text) | Excel's figure (COUNTIFS / SUMIFS on Loans) | PocketBook's figure | Ties? | By hand
     Shuffle test     a 10-loan worked example; every shuffled gap of the default pocket, whose COUNTIF gives its
                      p-value; a two-proportion z-test beside it as a textbook cross-check
     _pocketbook      hidden: PocketBook's figures for EVERY pocket, so any pocket picked is compared
@@ -391,7 +393,7 @@ class Layout:
         for d in cfg.dimensions:
             cols.append((("seg", d.name), d.field))
         if values["date"] is not None:
-            cols.append(("date", f"{cfg.origination_date} (made)"))
+            cols.append(("date", f"{cfg.origination_date} (origination date)"))
         cols += [("in_pocket", "In this pocket"), ("in_band", "In this band")]
         self.cols = cols
         self.at = {k: i + 1 for i, (k, _) in enumerate(cols)}
@@ -455,40 +457,54 @@ def write(res, book: str | Path, src: str | Path, sha256: str, settings: list[tu
 # Start here, Run stamp
 
 
+#: Start here's heading over the list of sheets
+ORDER = "Suggested order of review:"
+
+
 def _start(res, book) -> Canvas:
     cv = Canvas(START)
     cv.tab = house.TAB_YOU
     cv.widths = {1: 2, 2: 4, 3: 100}
-    cv.title_band("Start here", "How to read this file.", 3)
+    cv.title_band("Start here", "The purpose of this workbook and the order in which to review it.", 3)
     lines = [
-        ("", f"This file checks PocketBook's figures for one pocket, step by step. It comes from the same Run as "
-             f"{Path(book).name}."),
-        ("", "Every figure is worked out again here by Excel, from the loans on the Loans sheet. Beside each one is "
-             "PocketBook's own figure. Ties? says whether the two agree."),
-        ("", "It opens on the top flagged pocket. Pick any other pocket at the top of One pocket and every figure "
-             "follows."),
-        ("", "Nothing here changes the main workbook. Change what you like."),
+        ("", f"This workbook recalculates PocketBook's figures for a single pocket, step by step. It was produced by "
+             f"the same Run as {Path(book).name}."),
+        ("", "Each figure is recalculated in Excel from the loan-level records on the Loans sheet and shown beside "
+             "the figure PocketBook reported. The Ties? column indicates whether the two agree."),
+        ("", "The workbook opens on the top flagged pocket. To review a different pocket, select it at the top of the "
+             "One pocket sheet; every figure updates accordingly."),
+        ("", "This workbook is independent of the main workbook, so it can be edited freely without affecting it."),
         (None, None),
-        ("", "Read it in this order:"),
-        ("1", "Run stamp. Which file ran, its fingerprint, and every setting the Run used."),
-        ("2", "Rows in and out. Which loans went into each rate, and why any were left out."),
-        ("3", "Bands. Where each band starts and stops."),
-        ("4", "Loans. The loans themselves, one row each, with only the columns the Run used. Each band is worked "
-              "out by a formula from the Bands sheet."),
-        ("5", "One pocket. Every figure for one pocket: what it is, the sum written out, and how to do it by hand."),
-        ("6", "Shuffle test. Where the p-value comes from, with a small example you can follow on paper."),
+        ("", ORDER),
+        ("1", "Run stamp — identifies the input file and its SHA-256 fingerprint, and lists every setting the Run "
+              "used."),
+        ("2", "Rows in and out — reconciles the rows read to the loans included in each rate, with the reason for "
+              "each exclusion."),
+        ("3", "Bands — shows where each band begins and ends."),
+        ("4", "Loans — lists every loan, one row each, with only the columns the Run used. Each loan's band is "
+              "assigned by formula from the edges on the Bands sheet."),
+        ("5", "One pocket — shows every figure for the selected pocket: its definition, the calculation with the "
+              "pocket's own numbers, and how to reproduce it by hand."),
+        ("6", "Shuffle test — explains how the p-value is derived, with a small example that can be followed on "
+              "paper."),
         (None, None),
-        ("", "To check a figure yourself: on Loans, filter In this pocket to 1. Select a column. Excel's status bar "
-             "shows its Count and Sum."),
-        ("", "Excel works the figures out when the file opens. If Ties? is blank, press F9."),
+        ("", "To verify a figure independently, filter the Loans sheet to the selected pocket (In this pocket = 1) "
+             "and select the relevant column; Excel's status bar shows its count and sum."),
+        ("", "Excel calculates the figures when the file is opened. If the Ties? column is blank, press F9 to "
+             "recalculate."),
     ]
     r = 3
     for num, text in lines:
         if num is not None:
             cv.put(r, 2, num or None, "bold")
-            cv.put(r, 3, text, "bold" if text.startswith("Read it") else "text")
+            cv.put(r, 3, text, "bold" if text == ORDER else "text")
         r += 1
     return cv
+
+
+#: how PocketBook placed a band column's edges, as the Run stamp says it (config.Band.cut)
+CUT_WORDS = {"equal_loans": "each with roughly the same number of loans",
+             "round": "each with roughly the same number of loans, edges rounded"}
 
 
 def _settings_lines(res) -> list[tuple[str, str]]:
@@ -500,10 +516,10 @@ def _settings_lines(res) -> list[tuple[str, str]]:
            ("GCO dollars", ms["gco_rate"].value), ("RANR dollars", ms["ranr_rate"].value)]
     for x in cfg.bands:
         edges = res.band_edges.get(x.name, ())
-        how = ("typed on Columns" if x.edges else
-               "each value its own band" if x.name in (res.value_bands or {}) else
-               f"cut by PocketBook into {x.count} bands ({x.cut.replace('_', ' ')})")
-        out.append((f"Band column {x.field}", f"edges {'; '.join(_g(e) for e in edges)} ({how})"))
+        how = ("entered on Columns" if x.edges else
+               "one band per distinct value" if x.name in (res.value_bands or {}) else
+               f"{x.count} bands set by PocketBook, " + CUT_WORDS.get(x.cut, x.cut.replace('_', ' ')))
+        out.append((f"Band column {x.field}", f"Edges {'; '.join(_g(e) for e in edges)} ({how})"))
     for d in cfg.dimensions:
         out.append(("Segment column", d.field))
     if cfg.split:
@@ -519,7 +535,7 @@ def _settings_lines(res) -> list[tuple[str, str]]:
                 f"at or below {_g(rule.at_or_below)}" if rule.at_or_below is not None else "",
                 ("the values " + ", ".join(_g(v) if isinstance(v, (int, float)) else str(v) for v in rule.values))
                 if rule.values else ""]
-        out.append((f"Missing in {col}", "; ".join(x for x in said if x)))
+        out.append((f"Treated as missing in {col}", "; ".join(x for x in said if x)))
     if b is not None:
         out += [("Fewest loans in a pocket", f"{b.min_units:,}"), ("Fewest losses to test", f"{b.min_events:,}"),
                 ("Worse at", f"{b.worse_at:g}×"), ("Better at", f"{b.better_at:g}×"),
@@ -549,7 +565,7 @@ def _stamp(res, src, sha256: str, settings, when: datetime) -> Canvas:
     cv = Canvas(STAMP)
     cv.tab = house.TAB_RECORD
     cv.widths = {1: 2, 2: 44, 3: 80}
-    cv.title_band("Run stamp", "What ran, on which file, with which settings.", 3)
+    cv.title_band("Run stamp", "The input file, the software version and the settings used for this Run.", 3)
     seed = perm.seed_of(engine.SHUFFLE_SEED_NAME)
     r = 3
     cv.section(r, "The Run", 3)
@@ -558,15 +574,15 @@ def _stamp(res, src, sha256: str, settings, when: datetime) -> Canvas:
             ("Run at", when.strftime("%Y-%m-%d %H:%M:%S")),
             ("Shuffles per test", res.config.benchmark.shuffles),
             ("Shuffle seed", str(seed)),
-            ("Where the seed comes from", f'A fixed name, "{engine.SHUFFLE_SEED_NAME}", hashed with SHA-256. The same '
-                                          f'extract deals the same shuffles every time.')]
+            ("Where the seed comes from", f'The seed is derived by hashing a fixed name, "{engine.SHUFFLE_SEED_NAME}", '
+                                          f'with SHA-256, so the same extract always produces the same shuffles.')]
     r += 1
     for label, v in rows:
         cv.put(r, 2, label, "bold")
         cv.put(r, 3, v, "num" if isinstance(v, int) else "text", INT if isinstance(v, int) else None)
         r += 1
     r += 1
-    cv.section(r, "What the Run used", 3)
+    cv.section(r, "Settings used by the Run", 3)
     r += 1
     for label, v in _settings_lines(res):
         cv.put(r, 2, label, "bold")
@@ -574,7 +590,7 @@ def _stamp(res, src, sha256: str, settings, when: datetime) -> Canvas:
         r += 1
     if settings:
         r += 1
-        cv.section(r, "Control's answers, as the Run read them", 3)
+        cv.section(r, "Answers on Control, as read by the Run", 3)
         r += 1
         for label, v in settings:
             cv.put(r, 2, label, "bold")
@@ -595,18 +611,19 @@ STAMP_SHA = f"'{STAMP}'!$C$5"
 def _rows(res, lay: Layout, values) -> Canvas:
     cv = Canvas(ROWS)
     cv.widths = {1: 2, 2: 58, 3: 16, 4: 16, 5: 8, 6: 60}
-    cv.title_band("Rows in and out", "Which loans went into each rate.", 6)
-    r = cv.note(3, [("How it works", "Every loan in the extract is in the Run. A loan with no number in a column is "
-                                     "left out of the rates that column is in, and only those. Excel counts the "
-                                     "Loans sheet; PocketBook's count is beside it.")], 2, 6, 120)
-    cv.header(r, ["", "Excel counts", "PocketBook", "Ties?", "By hand"])
+    cv.title_band("Rows in and out", "A reconciliation of the rows read to the loans included in each rate.", 6)
+    r = cv.note(3, [("How it works", "Every loan in the extract is included in the Run. A loan with no numeric value "
+                                     "in a column is excluded only from the rates that use that column. Excel's count "
+                                     "is taken from the Loans sheet and shown beside PocketBook's count.")],
+                2, 6, 120)
+    cv.header(r, ["", "Excel's count", "PocketBook's count", "Ties?", "By hand"])
     first = r + 1
     r += 1
     cv.put(r, 2, f"Rows read from {Path(res.source).name}", "bold")
     cv.put(r, 3, "=COUNT(Loan_Row)", "numb", INT)
     cv.put(r, 4, res.rows, "numb", INT)
     cv.put(r, 5, ties(f"C{r}", f"D{r}"), "tie")
-    cv.put(r, 6, "On Loans: the number of rows under the heading.", "grey")
+    cv.put(r, 6, "The number of data rows on the Loans sheet, excluding the header.", "grey")
     read_row = r
     r += 2
     ms = {m.name: m for m in res.measures}
@@ -631,29 +648,29 @@ def _rows(res, lay: Layout, values) -> Canvas:
             cv.put(r, 3, f, "num", INT)
             cv.put(r, 4, k, "num", INT)
             cv.put(r, 5, ties(f"C{r}", f"D{r}"), "tie")
-            cv.put(r, 6, f'On Loans, filter {column} to "{label}".', "grey")
+            cv.put(r, 6, f'Filter {column} on the Loans sheet to "{label}".', "grey")
             r += 1
-        cv.put(r, 2, "Left out, every reason")
+        cv.put(r, 2, "Total excluded")
         both = f"COUNTIFS({lay.rng(top)},{NUM}" + (f",{lay.rng(per)},{NUM})" if per else ")")
         cv.put(r, 3, f"=C{read_row}-{both}", "num", INT)
         cv.put(r, 4, sum(lo.values()), "num", INT)
         cv.put(r, 5, ties(f"C{r}", f"D{r}"), "tie")
-        cv.put(r, 6, "Rows read, less the loans with a number in every column of the rate. "
-                     + ("The lines above add up to it." if lo else "None was left out."), "grey")
+        cv.put(r, 6, "Rows read less the loans with a numeric value in every column the rate uses. "
+                     + ("The lines above sum to this total." if lo else "No loans were excluded."), "grey")
         r += 1
-        cv.put(r, 2, f"Loans in {title}", "bold")
+        cv.put(r, 2, f"Loans included in {title}", "bold")
         cv.put(r, 3, "=" + both, "numb", INT)
         cv.put(r, 4, res.total.rates[mname].units, "numb", INT)
         cv.put(r, 5, ties(f"C{r}", f"D{r}"), "tie")
         cols = [ms[mname].flag if per is None else ms[mname].value] + ([ms[mname].per] if per else [])
-        cv.put(r, 6, "On Loans, filter out the words in " + " and ".join(cols) + ": the count of what is left.",
-               "grey")
+        cv.put(r, 6, "On the Loans sheet, exclude text entries from " + " and ".join(cols)
+               + "; the count of the remaining rows is this figure.", "grey")
         r += 2
         del start
-    cv.section(r, "Band and segment columns: nothing is left out", 6)
+    cv.section(r, "Band and segment columns: no loans are excluded", 6)
     r += 1
-    cv.put(r, 2, "A loan with no number in a band column, or no value in a segment column, sits in a band or segment "
-                 "of its own, such as (blank). It is still in every rate.", "grey")
+    cv.put(r, 2, "A loan with no numeric value in a band column, or no value in a segment column, is assigned to a "
+                 "separate band or segment, such as (blank), and remains in every rate.", "grey")
     cv.merges.append(f"B{r}:F{r}")
     cv.heights[r] = 28
     r += 1
@@ -668,7 +685,7 @@ def _rows(res, lay: Layout, values) -> Canvas:
             cv.put(r, 3, f'=COUNTIF({lay.rng(("band", b.name))},{q(v)})', "num", INT)
             cv.put(r, 4, k, "num", INT)
             cv.put(r, 5, ties(f"C{r}", f"D{r}"), "tie")
-            cv.put(r, 6, f'On Loans, filter {b.field} band to "{v}".', "grey")
+            cv.put(r, 6, f'Filter {b.field} band on the Loans sheet to "{v}".', "grey")
             r += 1
     for d in res.config.dimensions:
         got = {}
@@ -680,7 +697,7 @@ def _rows(res, lay: Layout, values) -> Canvas:
             cv.put(r, 3, f'=COUNTIF({lay.rng(("seg", d.name))},{q(v)})', "num", INT)
             cv.put(r, 4, k, "num", INT)
             cv.put(r, 5, ties(f"C{r}", f"D{r}"), "tie")
-            cv.put(r, 6, f'On Loans, filter {d.field} to "{v}".', "grey")
+            cv.put(r, 6, f'Filter {d.field} on the Loans sheet to "{v}".', "grey")
             r += 1
     _tie_rules(cv, f"E{first}:E{r}")
     return cv
@@ -693,10 +710,11 @@ def _rows(res, lay: Layout, values) -> Canvas:
 def _bands(res, lay: Layout, values) -> tuple[Canvas, dict]:
     cv = Canvas(BANDS)
     cv.widths = {1: 2, 2: 26, 3: 18, 4: 18, 5: 16, 6: 16, 7: 8, 8: 50}
-    cv.title_band("Bands", "Where each band starts and stops.", 8)
-    r = cv.note(3, [("How it works", "A loan is in the band whose From it is at or above, and whose Up to it is "
-                                     "below. On Loans, each band column's band is worked out by a formula from the "
-                                     "loan's value and the From column here, beside the band PocketBook gave it.")],
+    cv.title_band("Bands", "The range of values each band covers.", 8)
+    r = cv.note(3, [("How it works", "A loan falls in the band where its value is at least the From value and below "
+                                     "the Up to value. On the Loans sheet, each loan's band is assigned by formula "
+                                     "from its value and the From column on this sheet, and shown beside the band "
+                                     "PocketBook assigned.")],
                 2, 8, 120)
     ranges = {}
     first_tie = r
@@ -707,18 +725,19 @@ def _bands(res, lay: Layout, values) -> tuple[Canvas, dict]:
         labels = engine.labels_for(edges, seen, each)
         cv.section(r, b.field, 8)
         r += 1
-        typed = "; ".join(_g(e) for e in b.edges) if b.edges else "none: PocketBook cut them"
-        how = ("Typed on Columns, used as typed." if b.edges else
-               "Each value is its own band: too few values to cut into equal bands." if each else
-               f"Cut by PocketBook into {b.count} bands, each about the same number of loans"
-               + (", snapped to round numbers." if b.cut == "round" else "."))
-        for label, v in (("Edges as typed", typed), ("Edges used", "; ".join(_full(e) for e in edges)),
-                         ("How", how)):
+        typed = "; ".join(_g(e) for e in b.edges) if b.edges else "None entered; PocketBook set the edges."
+        how = ("Entered on Columns and used as entered." if b.edges else
+               "One band per distinct value, because the column has too few values to divide into equal bands."
+               if each else
+               f"{b.count} bands set by PocketBook, each with roughly the same number of loans"
+               + (", with the edges rounded." if b.cut == "round" else "."))
+        for label, v in (("Edges as entered", typed), ("Edges used", "; ".join(_full(e) for e in edges)),
+                         ("Method", how)):
             cv.put(r, 2, label, "bold")
             cv.put(r, 3, v)
             cv.merges.append(f"C{r}:H{r}")
             r += 1
-        cv.header(r, ["Band", "From (at least)", "Up to (below)", "Loans, by formula", "PocketBook's loans",
+        cv.header(r, ["Band", "From (at least)", "Up to (below)", "Loans (Excel)", "Loans (PocketBook)",
                       "Ties?", "By hand"])
         r += 1
         top = r
@@ -736,27 +755,29 @@ def _bands(res, lay: Layout, values) -> tuple[Canvas, dict]:
             cv.put(r, 5, f"=COUNTIF({col},{q(lab)})", "num", INT)
             cv.put(r, 6, counts.get(lab, 0), "num", INT)
             cv.put(r, 7, ties(f"E{r}", f"F{r}"), "tie")
-            words = ("Filter " + b.field + (f" to below {_g(hi)}" if lo == LOW else
-                                            f" to at least {_g(lo)}" + ("" if hi == HIGH else f" and below {_g(hi)}")))
-            cv.put(r, 8, words + ", numbers only.", "grey")
+            words = ("Filter " + b.field + " on the Loans sheet to values "
+                     + (f"below {_g(hi)}" if lo == LOW else
+                        f"of at least {_g(lo)}" + ("" if hi == HIGH else f" and below {_g(hi)}")))
+            cv.put(r, 8, words + ", excluding text entries.", "grey")
             r += 1
         ranges[b.name] = (f"{BANDS}!$B${top}:$B${r - 1}", f"{BANDS}!$C${top}:$C${r - 1}")
         for lab in [x for x in REASON_LABEL.values() if counts.get(x)]:
             cv.put(r, 2, lab, "bold")
-            cv.put(r, 3, "no number", "grey")
+            cv.put(r, 3, "no numeric value", "grey")
             cv.put(r, 5, f"=COUNTIF({col},{q(lab)})", "num", INT)
             cv.put(r, 6, counts[lab], "num", INT)
             cv.put(r, 7, ties(f"E{r}", f"F{r}"), "tie")
-            cv.put(r, 8, f'Filter {b.field} to "{lab}".', "grey")
+            cv.put(r, 8, f'Filter {b.field} on the Loans sheet to "{lab}".', "grey")
             r += 1
         mine, theirs = lay.letter(("band", b.name)), lay.letter(("pb", b.name))
-        cv.put(r, 2, "Loans whose band by formula differs from PocketBook's", "bold")
+        cv.put(r, 2, "Loans where the formula band differs from PocketBook's band", "bold")
         cv.merges.append(f"B{r}:D{r}")
         cv.put(r, 5, f"=SUMPRODUCT(--({LOANS}!${mine}$2:${mine}${lay.last}<>{LOANS}!${theirs}$2:${theirs}${lay.last}))",
                "numb", INT)
         cv.put(r, 6, 0, "numb", INT)
         cv.put(r, 7, ties(f"E{r}", f"F{r}"), "tie")
-        cv.put(r, 8, f"On Loans, the column {b.field} band against {b.field} band, PocketBook's.", "grey")
+        cv.put(r, 8, f"On the Loans sheet, compare the {b.field} band column with the {b.field} band, PocketBook's "
+                     f"column.", "grey")
         r += 2
         del raw
     _tie_rules(cv, f"G{first_tie}:G{r}")
@@ -774,144 +795,178 @@ def _steps(res) -> list[tuple]:
     b = res.config.benchmark
     peers = b.compare_to == "peers"
     IP, IB = "Loan_InPocket,1", "Loan_InBand,1"
-    filt = "On Loans, filter In this pocket to 1"
+    filt = "Filter the Loans sheet to the selected pocket (In this pocket = 1)"
     return [
         "This pocket",
-        ("loans", "Loans", "Every loan whose band and segment are the ones picked.", "{loans|#,##0} loans",
-         f"=COUNTIFS({IP})", "loans", INT, f"{filt}. The status bar's Count, on the loan column."),
-        ("bad", "Bad loans", "Loans whose outcome is 1.", "{bad|#,##0} of {bad_n|#,##0} loans with an outcome",
-         f"=SUMIFS(Loan_Bad,{IP})", "bad", INT, f"{filt}. The status bar's Sum, on the bad column."),
-        ("bad_n", "Loans with an outcome", "Loans whose outcome is 0 or 1. Any other is left out of the rate.",
+        ("loans", "Loans", "Records from the population in the selected band and segment.", "{loans|#,##0} loans",
+         f"=COUNTIFS({IP})", "loans", INT, f"{filt}; the status bar shows the count of the loan number column."),
+        ("bad", "Bad loans", "Loans in the pocket with an outcome of 1 (bad).",
+         "{bad|#,##0} of {bad_n|#,##0} loans with an outcome",
+         f"=SUMIFS(Loan_Bad,{IP})", "bad", INT, f"{filt}; the status bar shows the sum of the bad column."),
+        ("bad_n", "Loans with an outcome", "Loans in the pocket with an outcome of 0 or 1. Loans with any other value "
+         "are excluded from the rate.",
          "{bad_n|#,##0} loans", f"=COUNTIFS({IP},Loan_Bad,{NUM})", "bad_n", INT,
-         f"{filt}. The status bar's Numerical Count, on the bad column."),
-        ("bad_rate", "Bad loan rate", "Bad loans ÷ loans with an outcome.",
+         f"{filt}; the status bar shows the Numerical Count of the bad column."),
+        ("bad_rate", "Bad loan rate", "Bad loans as a share of loans with an outcome.",
          "{bad|#,##0} ÷ {bad_n|#,##0} = {bad_rate|0.000%}", '=IFERROR({bad}/{bad_n},"")', "bad_rate", PCT,
-         "Divide the two rows above on a calculator."),
-        ("gco_bk", "Booked, loans with a GCO", "Booked dollars of the loans that have both a booked amount and a GCO "
-         "amount: the bottom of the GCO rate.", "{gco_bk|$#,##0.00}", f"=SUMIFS(Loan_Booked,{IP},Loan_GCO,{NUM})",
-         "gco_bk", USD, f"{filt} and filter the words out of the GCO column. Sum of the booked column."),
-        ("gco", "GCOs", "GCO dollars of the same loans.", "{gco|$#,##0.00}",
+         "Divide bad loans by loans with an outcome (the two rows above)."),
+        ("gco_bk", "Booked, loans with a GCO", "Booked dollars for loans in the pocket that have both a booked amount "
+         "and a GCO amount. This is the denominator of the GCO rate.", "{gco_bk|$#,##0.00}",
+         f"=SUMIFS(Loan_Booked,{IP},Loan_GCO,{NUM})", "gco_bk", USD, f"{filt} and exclude text entries from the GCO column; the status bar shows the sum of the "
+         "booked column."),
+        ("gco", "GCOs", "GCO dollars for the same loans.", "{gco|$#,##0.00}",
          f"=SUMIFS(Loan_GCO,{IP},Loan_Booked,{NUM})", "gco", USD,
-         f"{filt} and filter the words out of the booked column. Sum of the GCO column."),
-        ("gco_rate", "GCO rate", "GCOs ÷ Booked.", "{gco|$#,##0} ÷ {gco_bk|$#,##0} = {gco_rate|0.000%}",
-         '=IFERROR({gco}/{gco_bk},"")', "gco_rate", PCT, "Divide the two rows above."),
-        ("ranr_bk", "Booked, loans with a RANR", "Booked dollars of the loans with both a booked amount and a RANR "
-         "amount. RANR vs GCOs shows this as Booked.", "{ranr_bk|$#,##0.00}",
+         f"{filt} and exclude text entries from the booked column; the status bar shows the sum of the GCO "
+         "column."),
+        ("gco_rate", "GCO rate", "GCOs as a share of booked dollars.",
+         "{gco|$#,##0} ÷ {gco_bk|$#,##0} = {gco_rate|0.000%}",
+         '=IFERROR({gco}/{gco_bk},"")', "gco_rate", PCT, "Divide GCOs by booked dollars (the two rows above)."),
+        ("ranr_bk", "Booked, loans with a RANR", "Booked dollars for loans in the pocket that have both a booked "
+         "amount and a RANR amount. This is the Booked figure on the RANR vs GCOs tab.", "{ranr_bk|$#,##0.00}",
          f"=SUMIFS(Loan_Booked,{IP},Loan_RANR,{NUM})", "ranr_bk", USD,
-         f"{filt} and filter the words out of the RANR column. Sum of the booked column."),
-        ("ranr", "RANR", "RANR dollars of the same loans. Below 0, the pocket lost money outright.",
+         f"{filt} and exclude text entries from the RANR column; the status bar shows the sum of the booked "
+         "column."),
+        ("ranr", "RANR", "RANR dollars for the same loans. A negative figure means the pocket lost money overall.",
          "{ranr|$#,##0.00}", f"=SUMIFS(Loan_RANR,{IP},Loan_Booked,{NUM})", "ranr", USD,
-         f"{filt} and filter the words out of the booked column. Sum of the RANR column."),
-        ("ranr_rate", "RANR rate", "RANR ÷ Booked.", "{ranr|$#,##0} ÷ {ranr_bk|$#,##0} = {ranr_rate|0.000%}",
-         '=IFERROR({ranr}/{ranr_bk},"")', "ranr_rate", PCT, "Divide the two rows above."),
-        "The whole book, and the rest of it",
-        ("book_gco_bk", "Booked, whole book", "Booked dollars of every loan with a booked amount and a GCO amount.",
+         f"{filt} and exclude text entries from the booked column; the status bar shows the sum of the RANR "
+         "column."),
+        ("ranr_rate", "RANR rate", "RANR as a share of booked dollars.",
+         "{ranr|$#,##0} ÷ {ranr_bk|$#,##0} = {ranr_rate|0.000%}",
+         '=IFERROR({ranr}/{ranr_bk},"")', "ranr_rate", PCT, "Divide RANR by booked dollars (the two rows above)."),
+        "The whole book and the rest of the book",
+        ("book_gco_bk", "Booked, whole book", "Booked dollars for every loan in the book with both a booked amount and "
+         "a GCO amount.",
          "{book_gco_bk|$#,##0.00}", f"=SUMIFS(Loan_Booked,Loan_GCO,{NUM})", "book_gco_bk", USD,
-         "On Loans, filter the words out of the GCO column. Sum of the booked column."),
-        ("book_gco", "GCOs, whole book", "GCO dollars of the same loans.", "{book_gco|$#,##0.00}",
+         "With no pocket filter on the Loans sheet, exclude text entries from the GCO column; the status bar "
+         "shows the sum of the booked column."),
+        ("book_gco", "GCOs, whole book", "GCO dollars for the same loans.", "{book_gco|$#,##0.00}",
          f"=SUMIFS(Loan_GCO,Loan_Booked,{NUM})", "book_gco", USD,
-         "On Loans, filter the words out of the booked column. Sum of the GCO column."),
-        ("book_rate", "GCO rate, whole book", "The book's GCOs ÷ its booked.",
+         "With no pocket filter on the Loans sheet, exclude text entries from the booked column; the status bar "
+         "shows the sum of the GCO column."),
+        ("book_rate", "GCO rate, whole book", "The book's GCOs as a share of its booked dollars.",
          "{book_gco|$#,##0} ÷ {book_gco_bk|$#,##0} = {book_rate|0.000%}", '=IFERROR({book_gco}/{book_gco_bk},"")',
-         "book_rate", PCT, "Divide the two rows above."),
-        ("rest_gco_bk", "Booked, rest of the book", "The whole book less this pocket.",
+         "book_rate", PCT, "Divide the book's GCOs by its booked dollars (the two rows above)."),
+        ("rest_gco_bk", "Booked, rest of the book", "Booked dollars for the whole book, less this pocket's.",
          "{book_gco_bk|$#,##0} − {gco_bk|$#,##0} = {rest_gco_bk|$#,##0}", "={book_gco_bk}-{gco_bk}", "rest_gco_bk",
-         USD, "Subtract on a calculator."),
-        ("rest_gco", "GCOs, rest of the book", "The whole book less this pocket.",
+         USD, "Subtract the pocket's booked dollars from the book's."),
+        ("rest_gco", "GCOs, rest of the book", "GCOs for the whole book, less this pocket's.",
          "{book_gco|$#,##0} − {gco|$#,##0} = {rest_gco|$#,##0}", "={book_gco}-{gco}", "rest_gco", USD,
-         "Subtract on a calculator."),
-        ("rest_rate", "GCO rate, rest of the book", "The rest's GCOs ÷ its booked.",
+         "Subtract the pocket's GCOs from the book's."),
+        ("rest_rate", "GCO rate, rest of the book", "GCOs for the rest of the book as a share of its booked dollars.",
          "{rest_gco|$#,##0} ÷ {rest_gco_bk|$#,##0} = {rest_rate|0.000%}", '=IFERROR({rest_gco}/{rest_gco_bk},"")',
-         "rest_rate", PCT, "Divide the two rows above."),
-        ("x_book", "× book", "This pocket's GCO rate as a multiple of the whole book's.",
+         "rest_rate", PCT, "Divide the rest of the book's GCOs by its booked dollars (the two rows above)."),
+        ("x_book", "× book", "The pocket's GCO rate as a multiple of the whole book's GCO rate.",
          "{gco_rate|0.000%} ÷ {book_rate|0.000%} = {x_book|0.000}×", '=IFERROR({gco_rate}/{book_rate},"")',
-         "x_book", MULT, "Divide on a calculator."),
-        ("x_rest", "× rest of the book", "This pocket's GCO rate as a multiple of the rest of the book's.",
+         "x_book", MULT, "Divide the pocket's GCO rate by the book's."),
+        ("x_rest", "× rest of the book", "The pocket's GCO rate as a multiple of the rest of the book's GCO rate.",
          "{gco_rate|0.000%} ÷ {rest_rate|0.000%} = {x_rest|0.000}×", '=IFERROR({gco_rate}/{rest_rate},"")',
-         "x_rest", MULT, "Divide on a calculator."),
-        ("gco_gap", "Gap in points", "This pocket's GCO rate less the rest of the book's, in points (1 point is 1%).",
+         "x_rest", MULT, "Divide the pocket's GCO rate by the rest of the book's."),
+        ("gco_gap", "Gap in points", "The pocket's GCO rate less the rest of the book's, in percentage points (1 "
+         "point = 1%).",
          "({gco_rate|0.000%} − {rest_rate|0.000%}) × 100 = {gco_gap|+0.000;-0.000} points",
-         '=IFERROR(({gco_rate}-{rest_rate})*100,"")', "gco_gap", PTS, "Subtract, then multiply by 100."),
+         '=IFERROR(({gco_rate}-{rest_rate})*100,"")', "gco_gap", PTS,
+         "Subtract the rest of the book's GCO rate from the pocket's, then multiply by 100."),
         ("excess_rest", "Dollars above share, against the book",
-         "GCOs less what the pocket would have lost at the rest of the book's rate.",
+         "The pocket's GCOs less the GCOs it would have incurred at the rest of the book's rate.",
          "{gco|$#,##0} − {rest_rate|0.000%} × {gco_bk|$#,##0} = {excess_rest|$#,##0}",
          '=IFERROR({gco}-{rest_rate}*{gco_bk},"")', "excess_rest", USD,
-         "Multiply the rest's rate by the pocket's booked, then take it from the pocket's GCOs."),
-        ("ranr_rest_rate", "RANR rate, rest of the book", "The rest's RANR ÷ its booked, with RANR's own booked.",
+         "Multiply the rest of the book's GCO rate by the pocket's booked dollars, and subtract the result from "
+         "the pocket's GCOs."),
+        ("ranr_rest_rate", "RANR rate, rest of the book", "RANR for the rest of the book as a share of its booked "
+         "dollars, using the booked dollars of loans with a RANR amount.",
          "{ranr_rest_rate|0.000%}",
          f'=IFERROR((SUMIFS(Loan_RANR,Loan_Booked,{NUM})-{{ranr}})/(SUMIFS(Loan_Booked,Loan_RANR,{NUM})-{{ranr_bk}}),"")',
-         "ranr_rest_rate", PCT, "The book's RANR less the pocket's, over the book's booked less the pocket's."),
-        ("ranr_gap", "RANR gap in points", "This pocket's RANR rate less the rest of the book's, in points. Below 0, "
-         "it keeps less.", "({ranr_rate|0.000%} − {ranr_rest_rate|0.000%}) × 100 = {ranr_gap|+0.000;-0.000} points",
-         '=IFERROR(({ranr_rate}-{ranr_rest_rate})*100,"")', "ranr_gap", PTS, "Subtract, then multiply by 100."),
-        "The rest of its band" + ("" if peers else " (for reference: the Run judged against the book)"),
-        ("band_gco_bk", "Booked, rest of its band", "The other loans in the same band, every segment but this one.",
+         "ranr_rest_rate", PCT, "Take the book's RANR less the pocket's, and divide by the book's booked dollars "
+         "less the pocket's."),
+        ("ranr_gap", "RANR gap in points", "The pocket's RANR rate less the rest of the book's, in percentage points. "
+         "A negative figure means the pocket keeps less per booked dollar.",
+         "({ranr_rate|0.000%} − {ranr_rest_rate|0.000%}) × 100 = {ranr_gap|+0.000;-0.000} points",
+         '=IFERROR(({ranr_rate}-{ranr_rest_rate})*100,"")', "ranr_gap", PTS,
+         "Subtract the rest of the book's RANR rate from the pocket's, then multiply by 100."),
+        "The rest of its band" + ("" if peers else " (for reference only; the Run judged pockets against the book)"),
+        ("band_gco_bk", "Booked, rest of its band", "Booked dollars for the other loans in the same band, across every "
+         "segment except this one.",
          "{band_gco_bk|$#,##0.00}", f"=SUMIFS(Loan_Booked,{IB},Loan_GCO,{NUM})-{{gco_bk}}", "band_gco_bk", USD,
-         "Filter In this band to 1, less this pocket's booked."),
-        ("band_gco", "GCOs, rest of its band", "The same for GCO dollars.", "{band_gco|$#,##0.00}",
+         "Filter the Loans sheet to In this band = 1, take the sum of the booked column, and subtract the "
+         "pocket's booked dollars."),
+        ("band_gco", "GCOs, rest of its band", "GCO dollars for the same loans.", "{band_gco|$#,##0.00}",
          f"=SUMIFS(Loan_GCO,{IB},Loan_Booked,{NUM})-{{gco}}", "band_gco", USD,
-         "Filter In this band to 1, less this pocket's GCOs."),
-        ("band_rate", "GCO rate, rest of its band", "The rest of the band's GCOs ÷ its booked.",
+         "Filter the Loans sheet to In this band = 1, take the sum of the GCO column, and subtract the pocket's "
+         "GCOs."),
+        ("band_rate", "GCO rate, rest of its band", "GCOs for the rest of the band as a share of its booked dollars.",
          "{band_gco|$#,##0} ÷ {band_gco_bk|$#,##0} = {band_rate|0.000%}", '=IFERROR({band_gco}/{band_gco_bk},"")',
-         "band_rate", PCT, "Divide the two rows above. Blank when the pocket is alone in its band."),
-        ("x_band", "× rest of its band", "This pocket's GCO rate as a multiple of the rest of its band's.",
+         "band_rate", PCT, "Divide the two rows above. The cell is blank when the pocket is the only one in its "
+         "band."),
+        ("x_band", "× rest of its band", "The pocket's GCO rate as a multiple of the rest of its band's GCO rate.",
          "{gco_rate|0.000%} ÷ {band_rate|0.000%} = {x_band|0.000}×", '=IFERROR({gco_rate}/{band_rate},"")',
-         "x_band", MULT, "Divide on a calculator."),
+         "x_band", MULT, "Divide the pocket's GCO rate by the rest of its band's."),
         ("excess_band", "Dollars above share, against its band",
-         "GCOs less what the pocket would have lost at the rest of its band's rate.",
+         "The pocket's GCOs less the GCOs it would have incurred at the rest of its band's rate.",
          "{gco|$#,##0} − {band_rate|0.000%} × {gco_bk|$#,##0} = {excess_band|$#,##0}",
          '=IFERROR({gco}-{band_rate}*{gco_bk},"")', "excess_band", USD,
-         "Multiply the rest of the band's rate by the pocket's booked, then take it from the pocket's GCOs."),
+         "Multiply the rest of the band's GCO rate by the pocket's booked dollars, and subtract the result from "
+         "the pocket's GCOs."),
         ("dollars", "Dollars above share, as shown",
-         "The one PocketBook shows and ranks by: against its band, unless the Run judged against the book or the "
-         "pocket is alone in its band.", "{dollars|$#,##0}",
+         "The figure PocketBook reports and ranks pockets by. It is measured against the rest of the band, unless "
+         "the Run judged pockets against the book or the pocket is the only one in its band.", "{dollars|$#,##0}",
          f'=IFERROR(IF(INDEX({PBQ}!${pb_col("by_band")}:${pb_col("by_band")},$K$7),{{excess_band}},{{excess_rest}}),"")',
-         "dollars", USD, "One of the two rows of dollars above."),
+         "dollars", USD, "Equal to one of the two dollars-above-share rows above."),
         "Avg line",
-        ("avg_n", "Loans with a booked amount", "The loans Avg line divides by.", "{avg_n|#,##0} loans",
-         f"=COUNTIFS({IP},Loan_Booked,{NUM})", "avg_n", INT, f"{filt}. Numerical Count of the booked column."),
-        ("avg_bk", "Booked, every loan with a booked amount", "Not only those with a GCO or a RANR.",
-         "{avg_bk|$#,##0.00}", f"=SUMIFS(Loan_Booked,{IP})", "avg_bk", USD, f"{filt}. Sum of the booked column."),
-        ("avg", "Avg line", "Booked dollars per loan: the pocket's average committed line.",
+        ("avg_n", "Loans with a booked amount", "The number of loans used as the denominator of Avg line.",
+         "{avg_n|#,##0} loans", f"=COUNTIFS({IP},Loan_Booked,{NUM})", "avg_n", INT,
+         f"{filt}; the status bar shows the Numerical Count of the booked column."),
+        ("avg_bk", "Booked, every loan with a booked amount", "Booked dollars for every loan in the pocket with a "
+         "booked amount, including loans without a GCO or RANR amount.",
+         "{avg_bk|$#,##0.00}", f"=SUMIFS(Loan_Booked,{IP})", "avg_bk", USD,
+         f"{filt}; the status bar shows the sum of the booked column."),
+        ("avg", "Avg line", "The pocket's average committed line, calculated as booked dollars per loan.",
          "{avg_bk|$#,##0} ÷ {avg_n|#,##0} = {avg|$#,##0.00}", '=IFERROR({avg_bk}/{avg_n},"")', "avg", USD,
-         "The status bar's Average, on the booked column."),
-        ("book_avg", "Avg line, whole book", "The same over every loan.", "{book_avg|$#,##0.00}",
+         "With the pocket filter applied, the status bar shows the Average of the booked column."),
+        ("book_avg", "Avg line, whole book", "The same calculation across every loan in the book.",
+         "{book_avg|$#,##0.00}",
          "=SUM(Loan_Booked)/COUNT(Loan_Booked)", "book_avg", USD,
-         "On Loans, no filter: the status bar's Average on the booked column."),
-        ("avg_x", "Line × book", "This pocket's Avg line over the whole book's.",
+         "With no filter on the Loans sheet, the status bar shows the Average of the booked column."),
+        ("avg_x", "Line × book", "The pocket's Avg line as a multiple of the whole book's.",
          "{avg|$#,##0} ÷ {book_avg|$#,##0} = {avg_x|0.000}×", '=IFERROR({avg}/{book_avg},"")', "avg_x", MULT,
-         "Divide on a calculator."),
+         "Divide the pocket's Avg line by the book's."),
         "The shuffle test (GCO rate)",
-        ("events", "Loans with a loss", "Loans in the GCO rate whose GCO is not 0. Fewer than the Run's fewest losses "
-         f"({b.min_events}): not tested.", "{events|#,##0} loans",
+        ("events", "Loans with a loss", "Loans in the GCO rate with a GCO amount other than 0. A pocket with fewer "
+         f"such loans than the Run's minimum ({b.min_events}) is not tested.", "{events|#,##0} loans",
          f'=COUNTIFS({IP},Loan_GCO,">0",Loan_Booked,{NUM})+COUNTIFS({IP},Loan_GCO,"<0",Loan_Booked,{NUM})', "events",
-         INT, f"{filt}. Filter the GCO column to not 0; Count."),
-        ("hits", "Shuffles with a gap as big, either way",
-         "Of the Run's shuffles, how many gave a gap at least this far from 0. Listed on Shuffle test for the "
-         "default pocket only.", "{hits|#,##0} of " + f"{b.shuffles:,}",
-         f"=IF($K$8,'{SHUFFLE}'!$M$2,\"listed for the default pocket only\")", "hits", INT,
-         "On Shuffle test: count the gaps in the list at or past the line, either way."),
-        ("raw", "p-value", "(Shuffles as big + 1) ÷ (shuffles + 1). The +1 counts the real labelling as one of the "
-         "possible ones, so p is never 0.", "({hits|#,##0} + 1) ÷ " + f"({b.shuffles:,} + 1) = " + "{raw|0.00000}",
+         INT, f"{filt}, then filter the GCO column to exclude 0; the status bar shows the count."),
+        ("hits", "Shuffles with a gap at least as large, in either direction",
+         "The number of the Run's shuffles that produced a gap at least as far from 0 as the pocket's actual gap. "
+         "The shuffles are listed on the Shuffle test sheet for the default pocket only.",
+         "{hits|#,##0} of " + f"{b.shuffles:,}",
+         f"=IF($K$8,'{SHUFFLE}'!$M$2,\"Listed for the default pocket only\")", "hits", INT,
+         "On the Shuffle test sheet, count the gaps in the list that are at or beyond the line in either "
+         "direction."),
+        ("raw", "p-value", "(Shuffles with a gap at least as large + 1) ÷ (total shuffles + 1). Adding 1 counts the "
+         "actual assignment as one of the possible outcomes, so the p-value is never 0.",
+         "({hits|#,##0} + 1) ÷ " + f"({b.shuffles:,} + 1) = " + "{raw|0.00000}",
          f'=IF({{events}}<{b.min_events},"",IF(ISNUMBER(IF($K$8,{{hits}},F{{hits_row}})),'
-         f'(IF($K$8,{{hits}},F{{hits_row}})+1)/({STAMP_SHUFFLES}+1),""))', "raw", PV, "Add 1 to each, then divide."),
+         f'(IF($K$8,{{hits}},F{{hits_row}})+1)/({STAMP_SHUFFLES}+1),""))', "raw", PV,
+         "Add 1 to both counts, then divide."),
         ("p", "p-value after the allowance for many tests", _allowance_words(b.many_tests), "{p|0.00000}",
          _adjusted(b.many_tests), "p", PV, _allowance_hand(b.many_tests)),
     ]
 
 
 def _allowance_words(how: str) -> str:
-    return {"bh": "Benjamini-Hochberg, over this grid's tested pockets on the same comparison: the smallest "
-                  "p × tests ÷ rank among the pockets with this p-value or more, at most 1.",
-            "bonferroni": "Bonferroni: p × the number of pockets tested in this grid, at most 1.",
-            "none": "None: the p-value as it is."}[how]
+    return {"bh": "The Benjamini-Hochberg adjustment, applied across the pockets tested in this grid on the same "
+                  "comparison. It is the smallest value of p × tests ÷ rank among pockets with this p-value or "
+                  "higher, capped at 1.",
+            "bonferroni": "The Bonferroni adjustment, which multiplies p by the number of pockets tested in this "
+                          "grid, capped at 1.",
+            "none": "No adjustment was applied; this is the unadjusted p-value."}[how]
 
 
 def _allowance_hand(how: str) -> str:
-    return {"bh": "Sort the grid's p-values small to large and number them 1, 2, 3. For each, p × count ÷ its "
-                  "number. This pocket's is the smallest of those from its own number up.",
-            "bonferroni": "Multiply by the number of pockets tested in the grid; cap at 1.",
-            "none": "Nothing to do."}[how]
+    return {"bh": "Sort the grid's p-values from smallest to largest and rank them 1, 2, 3 and so on. For each, "
+                  "calculate p × the number tested ÷ its rank. This pocket's adjusted p-value is the smallest of "
+                  "those values from its own rank upward.",
+            "bonferroni": "Multiply the p-value by the number of pockets tested in the grid, capped at 1.",
+            "none": "No calculation is needed."}[how]
 
 
 def _adjusted(how: str) -> str:
@@ -957,14 +1012,16 @@ def _one_pocket(res, lay: Layout, dgrid: str, dk, figs) -> tuple[Canvas, dict]:
     cv.tab = house.TAB_YOU
     cv.widths = {1: 2, 2: 34, 3: 46, 4: 52, 5: 18, 6: 18, 7: 8, 8: 58, 10: 26, 11: 20}
     cv.hidden_cols = {10, 11}
-    cv.title_band("One pocket", "Every figure for one pocket, worked out again from the loans.", 8)
+    cv.title_band("One pocket", "Every figure for the selected pocket, recalculated from the loan-level data.", 8)
     r = cv.note(3, [
-        ("Pick", "A grid, then a band and a segment. Every figure below follows, and so does Loans' In this pocket."),
-        ("Columns", "Excel works it out: a formula over the Loans sheet. PocketBook's figure: what the Run worked "
-                    "out. Ties?: ✓ when they agree to a billionth of the figure. Written out: the same sum with this "
-                    "pocket's numbers."),
-        ("Words", '">-1E+307" in a formula means "is a number". A loan with no number in a column shows why in words, '
-                  "and is left out of the rates that column is in."),
+        ("Selection", "Select a grid, then a band and a segment. Every figure below updates, as does the In this "
+                      "pocket column on the Loans sheet."),
+        ("Columns", "Excel's figure is a formula over the Loans sheet, and PocketBook's figure is the value the Run "
+                    "produced. Ties? shows ✓ when the two agree to within one billionth of the figure. Calculation "
+                    "shows the same arithmetic with this pocket's numbers."),
+        ("Notation", 'In a formula, the criterion ">-1E+307" means "is a number". Where a loan has no numeric value in '
+                     "a column, the Loans sheet shows the reason in text, and the loan is excluded from the rates "
+                     "that use that column."),
     ], 2, 8, 150)
     n = len(figs) + 1
     lists = f"{LISTSQ}!"
@@ -981,7 +1038,7 @@ def _one_pocket(res, lay: Layout, dgrid: str, dk, figs) -> tuple[Canvas, dict]:
                     (band, f"=OFFSET({lists}$I$2,0,2*($K$1-1),MAX(1,$K$2),1)"),
                     (seg, f"=OFFSET({lists}$J$2,0,2*($K$1-1),MAX(1,$K$3),1)")):
         dv = DataValidation(type="list", formula1=f, allow_blank=False, showErrorMessage=True,
-                            errorTitle="Pick one", error="Pick one from the list.")
+                            errorTitle="Invalid selection", error="Select a value from the list.")
         dv.add(cell.replace("$", ""))
         cv.dvs.append(dv)
     # the helpers, hidden in J:K: rows 1 to 9
@@ -1000,20 +1057,20 @@ def _one_pocket(res, lay: Layout, dgrid: str, dk, figs) -> tuple[Canvas, dict]:
         cv.put(i, 10, label, "grey")
         cv.put(i, 11, f, "grey")
     r += 1
-    reading = (f'=IF($K$7="","No pocket has these loans in this grid.","At the Run, on GCOs: "&'
-               f'IF(INDEX({PBQ}!${pb_col("worse_material")}:${pb_col("worse_material")},$K$7),'
+    reading = (f'=IF($K$7="","No pocket in this grid matches the selection.","At the Run, on GCOs, this pocket '
+               f'was "&IF(INDEX({PBQ}!${pb_col("worse_material")}:${pb_col("worse_material")},$K$7),'
                f'"worse and material",'
-               f'"not both worse and material")&". Judged against the rest of "&'
+               f'"not both worse and material")&", judged against the rest of "&'
                f'IF(INDEX({PBQ}!${pb_col("by_band")}:${pb_col("by_band")},$K$7),"its band","the book")&".")')
     cv.put(r, 2, reading, "bold")
     cv.merges.append(f"B{r}:H{r}")
     r += 1
-    cv.put(r, 2, f'=IF($K$8,"This is the default pocket, the top flagged one. Its shuffles are listed on Shuffle '
-                 f'test.","The default pocket is {dgrid}: {dk[0]}, {dk[1]}. Only its shuffles are listed on Shuffle '
-                 f'test.")', "grey")
+    cv.put(r, 2, f'=IF($K$8,"This is the default pocket (the top flagged pocket); its shuffles are listed on the '
+                 f'Shuffle test sheet.","The default pocket is {dgrid}: {dk[0]}, {dk[1]}. The Shuffle test sheet lists '
+                 f'the shuffles for that pocket only.")', "grey")
     cv.merges.append(f"B{r}:H{r}")
     r += 2
-    cv.header(r, ["Step", "In words", "Written out", "Excel works it out", "PocketBook's figure", "Ties?", "By hand"])
+    cv.header(r, ["Step", "Definition", "Calculation", "Excel's figure", "PocketBook's figure", "Ties?", "By hand"])
     first = r + 1
     r += 1
     steps = _steps(res)
@@ -1051,8 +1108,9 @@ def _one_pocket(res, lay: Layout, dgrid: str, dk, figs) -> tuple[Canvas, dict]:
         r += 1
     _tie_rules(cv, f"G{first}:G{r}")
     r += 1
-    cv.put(r, 2, "Another pocket's shuffles: run again with that pocket at the top, or with the Run's seed (Run "
-                 "stamp) dealt again. The same extract deals the same shuffles every time.", "grey")
+    cv.put(r, 2, "To see another pocket's shuffles, rerun with that pocket as the top flagged pocket, or "
+                 "regenerate the shuffles from the Run's seed (on Run stamp). The same extract always produces the "
+                 "same shuffles.", "grey")
     cv.merges.append(f"B{r}:H{r}")
     return cv, {"grid": grid, "band": band, "seg": seg, "bandcol": "$K$4", "segcol": "$K$5", "rows": rows,
                 "hits": hits_cell, "default": "$K$8"}
@@ -1097,29 +1155,31 @@ EXAMPLE_SEED = 20261003
 def _shuffle(res, dg, dk, dgrid: str, one: dict, figs) -> Canvas:
     cv = Canvas(SHUFFLE)
     cv.widths = {1: 2, 2: 30, 3: 30, 4: 16, 5: 16, 6: 16, 7: 16, 8: 16, 9: 16, 10: 8, 11: 30}
-    cv.title_band("Shuffle test", "Where a pocket's p-value comes from.", 11)
+    cv.title_band("Shuffle test", "How a pocket's p-value is derived.", 11)
     b = res.config.benchmark
     r = cv.note(3, [
-        ("The question", "Could a pocket's gap be luck? Deal its label out again at random, many times, and see how "
-                         "often luck gives a gap this big."),
-        ("What is shuffled", "Which loans carry the pocket's label. The pocket keeps its number of loans. Judged "
-                             "against the book: every loan in the GCO rate is dealt. Judged against its band: only "
-                             "the loans in its band are dealt, so the pocket is never set against another band."),
-        ("The gap", "The pocket's GCOs ÷ Booked, less the rest's. The same gap the One pocket sheet shows, before it "
-                    "becomes a multiple."),
-        ("Either way", "A shuffle counts when its gap is at least as far from 0 as the real one, above or below "
-                       "(two-sided). A tiny allowance, a billionth of the rates' size, keeps an exact tie from being "
-                       "lost to rounding."),
-        ("p-value", "(Shuffles that count + 1) ÷ (shuffles + 1). The +1 counts the real labelling as one of the "
-                    "possible ones, so p is never 0."),
-        ("Then", "The allowance for many tests, on One pocket's last row: a grid tests many pockets at once."),
-        ("The seed", "Fixed (Run stamp), so the same extract deals the same shuffles every time."),
+        ("The question", "Could the pocket's gap have arisen by chance? The test reassigns the pocket's label to "
+                         "loans at random many times, and counts how often chance alone produces a gap this large."),
+        ("What is shuffled", "The assignment of loans to the pocket. The pocket keeps the same number of loans in "
+                             "every shuffle. When pockets are judged against the book, every loan in the GCO rate is "
+                             "reshuffled. When they are judged against their band, only the loans in the pocket's "
+                             "band are reshuffled, so the pocket is never compared with another band."),
+        ("The gap", "The pocket's GCO rate (GCOs ÷ booked) less the rate for the rest. This is the same gap shown on "
+                    "the One pocket sheet, before it is expressed as a multiple."),
+        ("Two-sided", "A shuffle counts when its gap is at least as far from 0 as the actual gap, in either "
+                      "direction. A small tolerance, one billionth of the rates' magnitude, ensures that an exact tie "
+                      "is not lost to rounding."),
+        ("p-value", "(Shuffles that count + 1) ÷ (total shuffles + 1). Adding 1 counts the actual assignment as one "
+                    "of the possible outcomes, so the p-value is never 0."),
+        ("Adjustment", "The adjustment for multiple tests is on the last row of the One pocket sheet, because each "
+                       "grid tests many pockets at once."),
+        ("The seed", "The seed is fixed (see Run stamp), so the same extract always produces the same shuffles."),
     ], 2, 11, 150)
     # (a) the worked example
-    cv.section(r, "A. Ten loans, by hand", 11)
+    cv.section(r, "A. Worked example: ten loans", 11)
     r += 1
-    cv.put(r, 2, f"Loans 1 to {EXAMPLE_IN} are the pocket. Each shuffle deals the pocket's label to "
-                 f"{EXAMPLE_IN} loans at random. Every number below is a formula you can check.", "grey")
+    cv.put(r, 2, f"Loans 1 to {EXAMPLE_IN} make up the pocket. Each shuffle assigns the pocket's label to "
+                 f"{EXAMPLE_IN} loans chosen at random. Every number below is a formula that can be checked.", "grey")
     cv.merges.append(f"B{r}:K{r}")
     r += 1
     cv.header(r, ["Loan", "In the pocket?", "Booked", "GCO"])
@@ -1140,18 +1200,19 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs) -> Canvas:
                                   shuffles=EXAMPLE_SHUFFLES, seed=EXAMPLE_SEED, keep=True)
     pb_gaps = np.concatenate([d[:, 0] for d in st.draws])
     r += 1
-    cv.put(r, 2, "Real gap", "bold")
+    cv.put(r, 2, "Actual gap", "bold")
     real = (f'=SUMIFS({GC},$C${top}:$C${bot},"Yes")/SUMIFS({BK},$C${top}:$C${bot},"Yes")'
             f'-SUMIFS({GC},$C${top}:$C${bot},"No")/SUMIFS({BK},$C${top}:$C${bot},"No")')
     REAL = cv.put(r, 4, real, "numb", PCT)
     cv.put(r, 5, ans.gap, "num", PCT)
     cv.put(r, 6, ties(f"D{r}", f"E{r}"), "tie")
-    cv.put(r, 7, "Pocket's GCOs ÷ booked, less the other six loans'. Left: Excel. Right: PocketBook.", "grey")
+    cv.put(r, 7, "The pocket's GCOs ÷ booked, less the same ratio for the other six loans. Excel's figure is on "
+                 "the left and PocketBook's on the right.", "grey")
     cv.merges.append(f"G{r}:K{r}")
     real_row = r
     r += 2
-    cv.header(r, ["Shuffle", "Loans dealt the label", "Pocket GCOs", "Pocket booked", "Pocket rate", "Rest rate",
-                  "Gap", "As big?", "PocketBook's gap", "Ties?"])
+    cv.header(r, ["Shuffle", "Loans assigned the label", "Pocket GCOs", "Pocket booked", "Pocket rate",
+                  "Rest rate", "Gap", "As large?", "PocketBook's gap", "Ties?"])
     r += 1
     s_top = r
     for i in range(EXAMPLE_SHUFFLES):
@@ -1172,7 +1233,7 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs) -> Canvas:
     cv.widths[11] = 8
     r += 1
     cv.put(r, 2, "Count", "bold")
-    cv.put(r, 3, "Shuffles as big, either way")
+    cv.put(r, 3, "Shuffles with a gap at least as large, in either direction")
     cv.put(r, 4, f'=COUNTIF($I${s_top}:$I${s_bot},"Yes")', "numb", INT)
     cv.put(r, 5, ans.hits, "num", INT)
     cv.put(r, 6, ties(f"D{r}", f"E{r}"), "tie")
@@ -1184,8 +1245,8 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs) -> Canvas:
     cv.put(r, 5, ans.p, "num", PV)
     cv.put(r, 6, ties(f"D{r}", f"E{r}"), "tie")
     r += 1
-    cv.put(r, 2, f"With only {EXAMPLE_SHUFFLES} shuffles the smallest p it can give is 1 ÷ {EXAMPLE_SHUFFLES + 1}. "
-                 f"The Run deals {b.shuffles:,}.", "grey")
+    cv.put(r, 2, f"With only {EXAMPLE_SHUFFLES} shuffles, the smallest possible p-value is 1 ÷ "
+                 f"{EXAMPLE_SHUFFLES + 1}. The Run uses {b.shuffles:,} shuffles.", "grey")
     cv.merges.append(f"B{r}:K{r}")
     ex_end = r
     del real_row
@@ -1200,8 +1261,8 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs) -> Canvas:
     cv.hidden_cols = {13}
     cv.put(1, 13, None, None)
     if not tested:
-        cv.put(r, 2, "This pocket wasn't shuffled (too few losses, or nothing to set it against), so it has no "
-                     "p-value. Pick another pocket on One pocket.", "text")
+        cv.put(r, 2, "This pocket was not tested (too few losses, or no comparison group), so it has no p-value. "
+                     "Select another pocket on the One pocket sheet.", "text")
         cv.merges.append(f"B{r}:K{r}")
         cv.put(2, 13, "none", None)
         _tie_rules(cv, f"F{top}:F{ex_end}")
@@ -1210,15 +1271,15 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs) -> Canvas:
     draws, g, thr, hits = _draws(res, dg, dk, by_band)
     want = s.hits_band if by_band else s.hits_book
     cv.put(r, 2, "Judged against", "bold")
-    cv.put(r, 3, "the rest of its band: only its band's loans are dealt" if by_band else
-           "the rest of the book: every loan in the GCO rate is dealt")
+    cv.put(r, 3, "The rest of its band; only the loans in its band are reshuffled." if by_band else
+           "The rest of the book; every loan in the GCO rate is reshuffled.")
     cv.merges.append(f"C{r}:K{r}")
     r += 1
     cv.header(r, ["", "", "Excel", "PocketBook", "Ties?"])
     r += 1
     first_tie = r
-    cv.put(r, 2, "Real gap", "bold")
-    cv.put(r, 3, "The pocket's GCO rate less the rest's")
+    cv.put(r, 2, "Actual gap", "bold")
+    cv.put(r, 3, "The pocket's GCO rate less the rate for the rest")
     gcell = f"'{ONE}'!$E${one['rows']['gco_rate']}"
     restc = f"'{ONE}'!$E${one['rows']['band_rate' if by_band else 'rest_rate']}"
     cv.put(r, 4, f"=IF('{ONE}'!{one['default']},{gcell}-{restc},\"\")", "numb", '0.000000%')
@@ -1227,7 +1288,7 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs) -> Canvas:
     real_at = r
     r += 1
     cv.put(r, 2, "The line", "bold")
-    cv.put(r, 3, "|real gap| less the tiny allowance")
+    cv.put(r, 3, "The absolute value of the actual gap, less the small tolerance")
     cv.put(r, 4, thr, "numb", '0.000000000%')
     line_at = r
     r += 1
@@ -1235,7 +1296,8 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs) -> Canvas:
     D1 = D0 + len(draws) - 1
     DR = f"$C${D0}:$C${max(D1, D0)}"
     cv.put(r, 2, "Shuffles that count", "bold")
-    cv.put(r, 3, "At or past the line, either way. A shuffle with no dollars in the pocket counts too.")
+    cv.put(r, 3, "Shuffles with a gap at or beyond the line in either direction. A shuffle that leaves the pocket "
+                 "with no dollars also counts.")
     cv.put(r, 4, f'=COUNTIF({DR},">="&$D${line_at})+COUNTIF({DR},"<="&-$D${line_at})+COUNTIF({DR},"no dollars*")',
            "numb", INT)
     cv.put(r, 5, want, "num", INT)
@@ -1254,25 +1316,27 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs) -> Canvas:
     cv.put(r, 5, (want + 1) / (b.shuffles + 1) if want is not None else None, "num", PV)
     cv.put(r, 6, ties(f"D{r}", f"E{r}"), "tie")
     r += 1
-    cv.put(r, 2, "Dealt again here", "bold")
-    cv.put(r, 3, f"This file dealt the {b.shuffles:,} shuffles again from the seed and counted {hits:,}; the Run "
-                 f"counted {want:,}.", "grey")
+    cv.put(r, 2, "Regenerated here", "bold")
+    cv.put(r, 3, f"This workbook regenerated the {b.shuffles:,} shuffles from the seed and counted {hits:,}; the "
+                 f"Run counted {want:,}.", "grey")
     cv.merges.append(f"C{r}:K{r}")
     r += 1
     cv.put(r, 2, "Other pockets", "bold")
-    cv.put(r, 3, "Only this pocket's shuffles are listed: every pocket's would be millions of rows. To see another "
-                 "pocket's, run again with it the top flagged pocket, or deal the Run's seed again: the same extract "
-                 "deals the same shuffles every time.", "grey")
+    cv.put(r, 3, "Only this pocket's shuffles are listed, because listing every pocket's would take millions of "
+                 "rows. To see another pocket's shuffles, rerun with that pocket as the top flagged pocket, or "
+                 "regenerate the shuffles from the Run's seed; the same extract always produces the same shuffles.",
+           "grey")
     cv.merges.append(f"C{r}:K{r}")
     cv.heights[r] = 30
     r += 2
     del real_at
     # (c) the textbook cross-check, live for the pocket picked
-    cv.section(r, "C. A textbook cross-check: the two-proportion z-test on bad loans", 11)
+    cv.section(r, "C. Cross-check: the two-proportion z-test on bad loans", 11)
     r += 1
-    cv.put(r, 2, "Not what PocketBook uses for GCOs: it counts loans, not dollars. It is the z-test PocketBook uses "
-                 "for the Bad loans rate when a pocket has at least the fewest loans. It follows One pocket's picks. "
-                 "If the two tests point opposite ways, look closer.", "grey")
+    cv.put(r, 2, "This is not the test PocketBook applies to GCOs, because it counts loans rather than dollars. It "
+                 "is the z-test PocketBook uses for the bad loan rate when a pocket meets the minimum number of "
+                 "loans, and it follows the selection on One pocket. If the two tests point in opposite directions, "
+                 "the pocket warrants a closer look.", "grey")
     cv.merges.append(f"B{r}:K{r}")
     cv.heights[r] = 30
     r += 1
@@ -1283,11 +1347,11 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs) -> Canvas:
 
     def pbv(k):
         return f'=IF({pick}="","",INDEX({PBQ}!${pb_col(k)}:${pb_col(k)},{pick}))'
-    zs = [("x1", "Pocket: bad loans", f"='{ONE}'!$E${OR['bad']}", None),
-          ("n1", "Pocket: loans with an outcome", f"='{ONE}'!$E${OR['bad_n']}", None),
-          ("x2", "Rest: bad loans", "=SUM(Loan_Bad)-D{x1}", None),
-          ("n2", "Rest: loans with an outcome", "=COUNT(Loan_Bad)-D{n1}", None),
-          ("pp", "Both together: bad loan rate", "=(D{x1}+D{x2})/(D{n1}+D{n2})", None),
+    zs = [("x1", "Bad loans, pocket", f"='{ONE}'!$E${OR['bad']}", None),
+          ("n1", "Loans with an outcome, pocket", f"='{ONE}'!$E${OR['bad_n']}", None),
+          ("x2", "Bad loans, rest of the book", "=SUM(Loan_Bad)-D{x1}", None),
+          ("n2", "Loans with an outcome, rest of the book", "=COUNT(Loan_Bad)-D{n1}", None),
+          ("pp", "Pooled bad loan rate", "=(D{x1}+D{x2})/(D{n1}+D{n2})", None),
           ("se", "Standard error", "=SQRT(D{pp}*(1-D{pp})*(1/D{n1}+1/D{n2}))", None),
           ("z", "z", '=IFERROR((D{x1}/D{n1}-D{x2}/D{n2})/D{se},"")', "z"),
           ("zp", "Two-sided p-value", '=IFERROR(2*_xlfn.NORM.S.DIST(-ABS(D{z}),TRUE),"")', "z_p")]
@@ -1312,7 +1376,7 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs) -> Canvas:
     _tie_rules(cv, f"K{s_top}:K{s_bot}")
     # every shuffled gap, under the rest
     r = D0 - 2
-    cv.section(r, f"Every shuffled gap for the default pocket ({len(draws):,})", 11)
+    cv.section(r, f"Every shuffled gap for the default pocket ({len(draws):,} shuffles)", 11)
     cv.header(r + 1, ["Shuffle", "Gap"])
     for i, v in enumerate(draws.tolist()):
         cv.put(D0 + i, 2, i + 1, "numc")

@@ -3213,6 +3213,34 @@ changed in the code.
   - **For the firm to decide:** (1) A loan marked missing shows *(marked missing)* on Loans, not its value
     (-9,999): the rule is on Run stamp. (2) openpyxl writes numbers to 16 significant digits, so a stored figure
     can differ from the Run's in the 17th; Ties? allows a billionth. (3) Other pockets' shuffles need a re-run.
+- **Built, 3 Oct 2026: PocketBook's voice** (branch `pocketbook-voice`). The firm, on the audit workbook's *"Loans —
+  Every loan whose band and segment are the ones picked."*: *"it just sounds weird. it does not sound like something
+  a human would type ... I'd want this explained like: Loans — Records from the population in the applicable band
+  and/or category."* And: *"there has to be a way to get you to be able to understand what i don't like about some
+  of the writing."* Diagnosis, agreed: the repo's copy rules (root `CLAUDE.md`'s client-facing section,
+  `website/TENETS.md`) were written for tax clients on the website; applied to a bank analyst's tool they strip out
+  the profession's vocabulary and produce spec-like sentences.
+  - **`pocketbook/VOICE.md`**: who reads PocketBook (analysts, managers, model validators, internal auditors); the
+    register (a credit-risk workpaper: full sentences, industry terms expected); what does not apply (the
+    client-facing rules, `website/TENETS.md`) and what still does (no filler, no self-protective sentences,
+    `pocketbook/TENETS.md` T1 and T2, and a test's existing rule on its own surface); seven patterns with before
+    and after pairs, the firm's own first; and a five-question check for a sentence. `pocketbook/README.md` points
+    to it; root `CLAUDE.md`'s PocketBook mention says its copy follows it.
+  - **Rewritten** (`src/pocketbook/audit.py`, `src/pocketbook/glossary.py`), wording only: no number, formula,
+    figure, cell position or meaning moved. Audit workbook 203 strings (Start here 14, Run stamp 7, Rows in and out
+    20, Bands 24, Loans 1, One pocket 89, Shuffle test 33, and 15 in branches the test book doesn't reach);
+    Glossary 74. One pocket's column headings are now Step | Definition | Calculation | Excel's figure |
+    PocketBook's figure | Ties? | By hand. The Glossary still meets its test's contract-word list and 28-word cap.
+  - **For the firm:** `pocketbook/docs/voice-2026-10-03/REVIEW.html`, every changed string numbered (277), Where |
+    Before | After, to mark by number.
+  - **Tests:** `test_glossary_2026_10_02.py` follows four reworded examples (the note, Rate, Points, × book); the
+    audit's tests look up labels that were kept. Audit and Glossary tests 21 passed. Every `tools/mutation_check.py` entry's old string still
+    occurs once (667), none repointed; the six for audit.py and glossary.py run again with no display, 6 of 6 caught.
+    Full suite, no display: 1,051 passed, 14 skipped, 0 failed (79 min).
+  - **For the firm to decide:** (1) Loans reads *"Records from the population in the selected band and segment"*,
+    not *"and/or category"*: a pocket is the loans in both. (2) Lifetime-to-date's example now reads *"Compare loans
+    within the same vintage, because a 2021 loan has had more time on book than a 2024 loan"*; the old *"compare
+    vintages within a year"* was read that way. (3) Spelling stays as the tabs have it (*grey*, *coloured*).
 
 ## 7 · Standing rules for new items
 
@@ -3225,6 +3253,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-03 -- **PocketBook: its voice.** The firm, on *"Every loan whose band and segment are the ones picked"*: *"it does not sound like something a human would type"*. `pocketbook/VOICE.md` sets the register (a credit-risk workpaper for analysts, managers, validators and auditors; the website's client-copy rules don't apply) with before and after patterns, the firm's own first. The audit workbook (203 strings) and the Glossary (74) are rewritten to it, wording only; `docs/voice-2026-10-03/REVIEW.html` numbers all 277 for the firm to mark. Full suite 1,051 passed, 14 skipped; 6 of 6 audit and Glossary planted bugs caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: the audit workbook.** The firm: *"show the calculations it makes on one set of things and prove out each one"*, and *"how to do them by hand"*. Control's *Also write the audit workbook?* makes the Run write `<book> - audit.xlsx`: Run stamp (file, SHA-256, settings, seed), Rows in and out, Bands, Loans (each band a formula), One pocket (a live Grid / Band / Segment pick, 37 figures each written out, worked out by COUNTIFS/SUMIFS on the loans, tied to the Run's, and how to do it by hand) and Shuffle test (a 10-loan example, and every shuffle of the default pocket whose COUNTIF gives its p-value). 33 s and 23.8 MB at 185,000 loans. 13 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: Summary's vintage chart and grey rows.** The firm: *"Could the summary tab have vintage graphs as well?"*, chosen *"Pocket vs rest vs book"*; and low unit counts *"grayed out to a degree"*, by a number of its own. Under the Summary table, one row against the rest of the book and the whole book by origination year, on any Summary measure, following Only loans where, thin points left off; at the top, Grey rows under [50] loans, read by nothing else. 5 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: Avg line and × book.** The firm: *"I want to start including and using booked dollar averages so more easily demonstrate how line assignments look in pockets"*. Summary gains Avg line (booked dollars per loan, the average committed line) and × book (that over the whole book's) right after Booked $, in every filter view; RANR vs GCOs' gross block ends on the same two, shaded as Grids' Loan size, never red or green; the Glossary gains the term. 8 tests, 2 planted bugs, 2 caught. §6d has the detail.
