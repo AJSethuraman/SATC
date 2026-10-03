@@ -224,7 +224,8 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 else "SCORE x SOURCE: 5 bands by 3 segments, 15 pockets."))
     fl = f.get("filter") if run else None
     out.append(("Filter / Only loans where",
-                "Shows Grids and Summary on only the loans with one value of the Filter by column. × book is still "
+                "Shows Grids and Summary on only the loans with one value of the Filter by column. Up to three "
+                "filters can be picked, and then only the loans with every value picked show. × book is still "
                 "against the whole book.",
                 (f"Only loans where {fl['col']} is {fl['value']}: the grid on those loans alone." if fl["picked"]
                  else f"Filter by {fl['col']} in the launcher, then pick {fl['value']}: the grid on those loans "

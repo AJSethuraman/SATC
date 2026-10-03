@@ -1256,23 +1256,26 @@ SIZE_STEPS = ((2.0, STONE), (1.5, "CFCAC2"), (1.25, MIST), (1.1, house.ROW_RULE)
 SIZE_FMT = '"$"#,##0'
 #: Grids' "Only loans where" (the firm, 29 Sep 2026): the option that filters nothing, and a filtered view's key;
 #: AND is Filter 2's part of it (the firm, 30 Sep 2026: two filters, "independently and in conjunction with each
-#: other"): "|where 2023" is Filter 1 alone, "|and Y" Filter 2 alone, "|where 2023|and Y" both
+#: other"): "|where 2023" is Filter 1 alone, "|and Y" Filter 2 alone, "|where 2023|and Y" both; AND3 is Filter 3's
+#: (the firm, 1 Oct 2026: "two filters plus date"), "|where 2023|and Y|and3 Z" all three
 ALL_LOANS = "All loans"
 WHERE = "|where {}"
 AND = "|and {}"
+AND3 = "|and3 {}"
 
 
-def view_key(v1: str | None, v2: str | None = None) -> str:
+def view_key(v1: str | None, v2: str | None = None, v3: str | None = None) -> str:
     """A filtered view's key after the grid's or band column's: Filter 1's value (None for All loans), then Filter
-    2's. The workbook builds the same key from the two dropdowns (where_formula)."""
-    return (WHERE.format(v1) if v1 is not None else "") + (AND.format(v2) if v2 is not None else "")
+    2's, then Filter 3's. The workbook builds the same key from the dropdowns (where_formula)."""
+    return ((WHERE.format(v1) if v1 is not None else "") + (AND.format(v2) if v2 is not None else "")
+            + (AND3.format(v3) if v3 is not None else ""))
 
 
-def where_formula(f1: str | None, f2: str | None) -> str:
-    """The Excel expression of view_key for the two dropdown cells (either None when the tab has no such dropdown):
+def where_formula(f1: str | None, f2: str | None, f3: str | None = None) -> str:
+    """The Excel expression of view_key for the dropdown cells (any None when the tab has no such dropdown):
     blank for All loans."""
     out = []
-    for cell, part in ((f1, WHERE), (f2, AND)):
+    for cell, part in ((f1, WHERE), (f2, AND), (f3, AND3)):
         if cell:
             out.append(f'IF(OR({cell}="",{cell}="{ALL_LOANS}"),"",{live.q(part.format(""))}&{cell})')
     return "&".join(out)
@@ -1361,8 +1364,8 @@ def grid_views(res, views: Views) -> tuple[list[str], list, int, int, dict]:
         if split:
             fit["spans"] = max(fit["spans"], (len(cols_) - 1) // len(tails))
         _grid_view(res, views, f"G|{gname}", g, g, names, rows_, cols_, ms, fit, split)
-        for (v1, v2), fg in g.filtered.items():
-            _grid_view(res, views, f"G|{gname}" + view_key(v1, v2), fg, g, names, rows_, cols_, ms, fit, split)
+        for (v1, v2, v3), fg in g.filtered.items():
+            _grid_view(res, views, f"G|{gname}" + view_key(v1, v2, v3), fg, g, names, rows_, cols_, ms, fit, split)
     views.put("G|fewest", [fewest(res)])
     return gnames, ms, most_r, most_c, fit
 
@@ -1539,12 +1542,14 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     # the Filter by column (the firm, 30 Sep 2026), whatever Split by is doing; none picked, nothing to filter
     sf = res.config.filter_by if res.filter_values else None
     sf2 = res.config.filter_by2 if sf and res.filter_values2 else None       # Filter 2, with Filter 1
+    sf3 = res.config.filter_by3 if sf2 and res.filter_values3 else None      # Filter 3, with Filter 2
     w = nc + 1                          # a block: the band column, then the segments
     # the four blocks one under another, every one from the left column (the firm, 30 Sep 2026: side by side, a
     # narrow grid left a blank middle the width of the widest)
     left = 2
-    # Filter 2's dropdown sits beside Filter 1's, and Row and Column move right to make room
-    at_row = left + (16 if sf2 else 12)
+    # Filter 2's dropdown sits beside Filter 1's, Filter 3's beside Filter 2's, and Row and Column move right to make
+    # room; Grid and Measure, which the bank's checklist names by cell, stay where they are
+    at_row = left + (20 if sf3 else 16 if sf2 else 12)
     last = max(left + w - 1, at_row + 6)
     hid = max(last, at_row + 6) + 2                        # hidden cells: the keys and the heat's kind and bound
     dw, lw = grid_widths(fit, grp)
@@ -1588,7 +1593,8 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
                                         "book's.")
     note += [
         ("Only loans where", f"Pick a value of {sf} to see the grid on only its loans"
-                             + (f"; of {sf2} too, and it shows the loans with both" if sf2 else "")
+                             + (f"; of {sf2} and {sf3} too, and it shows the loans with all of them" if sf3 else
+                                f"; of {sf2} too, and it shows the loans with both" if sf2 else "")
                              + ". vs the book is still against the whole book; vs rest of band, the rest of the band "
                                "among those loans."
                              + (YEAR_SAID.format(res.config.origination_date) if sf == ORIG_YEAR else "")
@@ -1624,6 +1630,11 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
         f2_rng, _ = choices.add("Grids: and where", [ALL_LOANS] + list(res.filter_values2))
         F2 = dropdown(ws, s, left + 12, f"and {sf2} is", f2_rng, ALL_LOANS)
         ws.merge_cells(start_row=s, start_column=left + 12, end_row=s, end_column=left + 14)
+    F3 = None
+    if sf3:
+        f3_rng, _ = choices.add("Grids: and also where", [ALL_LOANS] + list(res.filter_values3))
+        F3 = dropdown(ws, s, left + 16, f"and {sf3} is", f3_rng, ALL_LOANS)
+        ws.merge_cells(start_row=s, start_column=left + 16, end_row=s, end_column=left + 18)
     if not sf:
         _cell(ws, s + 1, left + 8, SAY_NO_FILTER, size=9, color=SLATE, h="left")
     # one cell to read out in words (the firm, 29 Sep 2026): a Row and a Column of the grid picked, each list the
@@ -1639,7 +1650,7 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     ws.merge_cells(start_row=s, start_column=at_row + 4, end_row=s, end_column=at_row + 6)
     # the view: the grid picked, or it on only the loans with the value picked
     VW = f"${col(hid + 1)}${s + 2}"
-    ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, F2)
+    ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, F2, F3)
     KEY = f"${col(hid)}${s}"
     ws[f"{col(hid)}{s}"] = f'=IFERROR(INDEX({k_rng},MATCH({M},{m_rng},0)),"")'
     META = f"${col(hid)}${s + 1}"
@@ -1733,7 +1744,8 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     r = top + 4 * down
     _cell(ws, r, left, "A blank: alone in its band, or fewer losses than the minimum, so not compared.", size=9,
           color=SLATE, h="left")
-    r = _one_cell(ws, r + 2, left, last, nr, nc, at_, dict(M=M, R=R, C=C, F=F, sf=sf, F2=F2, sf2=sf2, KIND=KIND,
+    r = _one_cell(ws, r + 2, left, last, nr, nc, at_, dict(M=M, R=R, C=C, F=F, sf=sf, F2=F2, sf2=sf2, F3=F3, sf3=sf3,
+                  KIND=KIND,
                   BOUND=BOUND, end=at_row + 6,
                   META=META, FEW=FEW, VW=VW, KEY=KEY, RN=RN, CN=CN, RL=RL, CL=CL, H=hid + 10, s=s, rs=rs_rng,
                   gs=gs_rng, m=m_rng, COLS=COLS))
@@ -1823,6 +1835,12 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
         F2 = x["F2"]
         where += (f'&IF(OR({F2}="",{F2}="{ALL_LOANS}"),"",IF(OR({F}="",{F}="{ALL_LOANS}"),", only loans where ",'
                   f'" and ")&"{x["sf2"]} is "&{F2})')
+    if x.get("sf3"):
+        # and the third (the firm, 1 Oct 2026): "only loans where" when neither before it is picked, else " and "
+        F2, F3 = x["F2"], x["F3"]
+        none_before = f'AND(OR({F}="",{F}="{ALL_LOANS}"),OR({F2}="",{F2}="{ALL_LOANS}"))'
+        where += (f'&IF(OR({F3}="",{F3}="{ALL_LOANS}"),"",IF({none_before},", only loans where ",'
+                  f'" and ")&"{x["sf3"]} is "&{F3})')
     loans_ = f'{n}&IF({one}," loan"," loans")'
     lines = [
         (None, f'IF({none},{live.q(SAY_PICK)},{R}&" · "&{C}&", "&{M}&{where})'),
@@ -2057,18 +2075,19 @@ def summary_views(res, views: Views) -> dict:
     from . import book as bk
     names = bk._names(res)
     keys = engine.summary_columns(res)
-    bands = [b.name for b in res.config.bands if (b.name, None, None) in res.summaries]
-    bands += [d.name for d in res.config.dimensions if (d.name, None, None) in res.summaries and d.name not in bands]
+    bands = [b.name for b in res.config.bands if (b.name, None, None, None) in res.summaries]
+    bands += [d.name for d in res.config.dimensions if (d.name, None, None, None) in res.summaries
+              and d.name not in bands]
     shown = [names[b] for b in bands]
     shown = [x if shown.count(x) == 1 else f"{x} ({b})" for x, b in zip(shown, bands)]
     fit = {"labels": {"All"} | set(shown), "values": 0, "money": [0.0]}
     most = 1
     for b, opt in zip(bands, shown):
-        for bb, v1, v2 in [k for k in res.summaries if k[0] == b]:
-            rows = engine.summary_rows(res, b, v1, v2)
+        for bb, v1, v2, v3 in [k for k in res.summaries if k[0] == b]:
+            rows = engine.summary_rows(res, b, v1, v2, v3)
             most = max(most, len(rows))
             for i, (lab, vals) in enumerate(rows, start=1):
-                views.put(f"S|{opt}" + view_key(v1, v2) + f"|{i}", [lab] + [vals[k] for k in keys])
+                views.put(f"S|{opt}" + view_key(v1, v2, v3) + f"|{i}", [lab] + [vals[k] for k in keys])
                 fit["labels"].add(str(lab))
                 for k in keys:
                     kind = SUMMARY_HEADS[k][1]
@@ -2103,8 +2122,9 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
     keys, most, fit = got["keys"], got["most"], got["fit"]
     sf = (res.config.filter_by or None) if res.filter_values else None
     sf2 = res.config.filter_by2 if sf and res.filter_values2 else None       # Filter 2, with Filter 1
+    sf3 = res.config.filter_by3 if sf2 and res.filter_values3 else None      # Filter 3, with Filter 2
     left = 2
-    last = max(left + len(keys), left + 10)
+    last = max(left + len(keys), left + (12 if sf3 else 10))                 # Filter 3's dropdown inside the tab
     hid = last + 2
     dw, lw, thousands = summary_widths(fit, keys)
     _widths(ws, {1: 2, left: lw, **{c: dw for c in range(left + 1, hid)}})
@@ -2142,7 +2162,8 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
         note.append(("Not shown", "This Run has no " + " and no ".join(left_off) + ", so those columns are left off."))
     if sf:
         note.append(("Only loans where", f"Pick a value of {sf} to see only its loans"
-                     + (f"; of {sf2} too, and it shows the loans with both" if sf2 else "")
+                     + (f"; of {sf2} and {sf3} too, and it shows the loans with all of them" if sf3 else
+                        f"; of {sf2} too, and it shows the loans with both" if sf2 else "")
                      + ". The shares are of those loans. × book is still against the whole book."
                      + (YEAR_SAID.format(res.config.origination_date) if sf == ORIG_YEAR else "")))
     note.append(("Shading", "The All row is shaded light grey. Nothing else is coloured. Everything here is as of "
@@ -2161,8 +2182,13 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
         f2_rng, _ = choices.add("Summary: and where", [ALL_LOANS] + list(res.filter_values2))
         F2 = dropdown(ws, s, left + 6, f"and {sf2} is", f2_rng, ALL_LOANS)
         ws.merge_cells(start_row=s, start_column=left + 6, end_row=s, end_column=left + 8)
+    F3 = None
+    if sf3:
+        f3_rng, _ = choices.add("Summary: and also where", [ALL_LOANS] + list(res.filter_values3))
+        F3 = dropdown(ws, s, left + 10, f"and {sf3} is", f3_rng, ALL_LOANS)
+        ws.merge_cells(start_row=s, start_column=left + 10, end_row=s, end_column=left + 12)
     VW = f"${col(hid)}${s}"
-    where = ("&" + where_formula(F, F2)) if F else ""
+    where = ("&" + where_formula(F, F2, F3)) if F else ""
     ws[VW.replace("$", "")] = f"={B}{where}"
     h = s + 2
     lines = max([house.lines_at(SUMMARY_HEADS[k][0], dw - 2) for k in keys] or [1])

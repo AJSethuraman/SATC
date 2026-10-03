@@ -3071,6 +3071,53 @@ changed in the code.
     Glossary merge 40abd906: the Glossary always defines *Months to charge-off*, and that test asserts the words
     appear nowhere in a book without a charge-off date column; left for the firm, not changed here).
 
+- **Built, 1 Oct 2026: a third filter, with a size limit** (branch `pocketbook-three-filters`). The firm: *"I thought
+  we discussed two filters plus date"*. Chosen: Origination year plus two more filters, with a size limit.
+  - **Filter 3.** Built exactly as Filter 2 is: a third launcher column (*Filter 3*), Control's *And then by*, the
+    cube file's `filter_by3`, and a third dropdown, *and (column) is*, on Grids and Summary. The engine builds every
+    view of the three: each value alone, each pair and each triple, all holding together (AND), skipping a view no
+    loan has. Views are keyed (Filter 1, Filter 2, Filter 3) in `Grid.filtered` and `Result.summaries`, and
+    `|and3 value` on `_views`. Filter 3 needs Filter 2, as Filter 2 needs Filter 1: a later filter with an earlier
+    one empty moves up, in the launcher and in Set up alike. Filter 3 must be another column than Filters 1 and 2,
+    refused in words (*"Filter 1 and Filter 3 are both REGION. The third filter narrows the other two, ..."*). Filter
+    1 still starts on Origination year. Compare: Lines by and Panels by each offer all three filters (the one in
+    neither is All loans), and any of them can go across the bottom.
+  - **Where the dropdowns sit.** Grids: Filter 3 right of Filter 2, Row and Column move four columns further right.
+    Summary: Filter 3 right of Filter 2. Grid (B13) and Measure (F13), which the bank checklist names, do not move;
+    the checklist was not changed and test_bank_checklist passes.
+  - **The size limit.** Each grid is built again for every view, so views = (n1 + 1) x (n2 + 1) x (n3 + 1), All
+    loans counted for each and blanks and (no date) counted as values. Three filters may make 150
+    (`choices.FILTER_MOST_VIEWS3`: 6 x 5 x 5 = 150 passes, three columns of six values, 7 x 7 x 7 = 343, do not);
+    two keep their 49 (`FILTER_MOST_VIEWS`, pinned by test_compare). Past it, the launcher refuses before Next and
+    the Run refuses, in the same words: *"FA (5 values), FB (4 values) and FC5 (5 values) together make 6 x 5 x 6 =
+    180 views of every grid, counting All loans in each. Three filters can make 150 at most. Drop a filter, or pick
+    a column with fewer values."* The launcher's *This will run* line now says the cost with any filter: *"Each grid
+    is built for 6 × 5 × 5 = 150 views, All loans counted: 8 grids × 150 = 1,200 to build."*
+  - Tests: 15 in `tests/test_three_filters_2026_10_01.py`. Grids (three picks, cell by cell, and one cell's words)
+    and Summary (two picks) tie to the CSV with nothing imported from pocketbook in the arithmetic; Compare with
+    Filter 3 as Panels by, as Lines by, and lines by it with Origination year across; the Run's line, Record and
+    Control; the limit at every combination of 0 to 8 values each, and 150 taken and 180 refused by the launcher
+    and by a real Run; the launcher's Filter 3 logic and refusals, and its column on screen (needs a display).
+    Changed: the launcher's heading tuples and three *This will run* assertions, which now end with the cost. Run
+    with test_compare, test_grids_summary, test_firm_answers_2026_09_29, test_launcher, test_bank_checklist,
+    test_distinct_total, test_mutation_tool, test_widths and test_result_tabs, no display: 209 passed, 4 skipped
+    (each a launcher check that needs a screen). The one failure seen first (`test_l2_the_summary_says_what_will_
+    run_in_both_modes`) was scikit-learn missing from that machine, not this change: it passes with it installed.
+    Planted bugs: 3 added in `tools/mutation_check.py` (Filter 3 ignored by the engine, three filters' views
+    unlimited, Filter 3 without Filter 2 kept third by the launcher), 13 repointed whose lines this rewrote.
+    All 16 (the 3 new and the 13 repointed) put back one at a time with no display: 16 of 16 caught; every entry's
+    old string occurs once (653 entries).
+  - **Merged with the Glossary and Avg line (3 Oct 2026).** Avg line and Line × book come from each view's own
+    Summary, so they move with Filter 3 as with the other two; `test_three_filters_summary_is_the_loans_with_all_
+    three` now ties both, on the All row and each band, to the CSV under three picks. The Glossary's *Filter / Only
+    loans where* now says up to three filters can be picked. Conflicts were only in this file's logs and in
+    `tools/mutation_check.py`'s list (both kept); every entry's old string occurs once (658 entries). Full suite
+    after the merge, no display: 1,032 passed, 14 skipped (all tkinter missing), 0 failed.
+  - **For the firm to decide:** (1) The two limits are separate, so a pair refused at 56 views (8 x 7) is taken
+    once a small third filter is added (8 x 7 x 2 = 112): the cost is still under 150, but it reads oddly. Holding
+    every pair to 49 as well would close it. (2) The refusal writes the product with `x`, as the two-filter one
+    always has; the launcher's cost line writes `×`.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -3084,6 +3131,7 @@ research pass before a spec, no exceptions.
 
 - 2026-10-02 -- **PocketBook: Avg line and × book.** The firm: *"I want to start including and using booked dollar averages so more easily demonstrate how line assignments look in pockets"*. Summary gains Avg line (booked dollars per loan, the average committed line) and × book (that over the whole book's) right after Booked $, in every filter view; RANR vs GCOs' gross block ends on the same two, shaded as Grids' Loan size, never red or green; the Glossary gains the term. 8 tests, 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: a Glossary tab.** The firm: *"Maybe a nice glossary of terms in the workbook should be there"*. A grey tab right after Start here, written by every Set up and Run: 25 terms, each with what it means and an example in the book's own figures from the last Run (*"the book keeps $12.80 per $100 booked"*), made up before the first. Start here links to it; the bank checklist has a 4.10 for it. 8 tests; 2 planted bugs, 2 caught. §6d has the detail.
+- 2026-10-01 -- **PocketBook: a third filter, with a size limit.** The firm: *"I thought we discussed two filters plus date"*; chosen, Origination year plus two more filters with a size limit. Filter 3 sits beside Filter 2 everywhere (launcher, Control, Grids, Summary, Compare's Lines by and Panels by, Record and the Run's line); every value alone, pair and triple holds together. Three filters may make 150 views of each grid (6 × 5 × 5), refused past it by the launcher and the Run; the launcher shows the cost. 15 tests, 3 planted bugs added and 13 repointed. §6d has the detail and two points for the firm.
 - 2026-10-01 -- **PocketBook: Set up's suggestions from a sample of the grids.** The firm, on Set up taking over 3.5 minutes at 184,937 loans and 168 grids: *"Will the quick estimates be as accurate? … Test it and let's see"*. Tested on ten synthetic books of 17,000 and 185,000 loans: a sample of 28 grids matched every grid at Control's rounding in every book, at about 80 seconds against 265. Fewest loans is never sampled. Run still works each suggestion out from every grid, and says so beside it where the estimate was different. 7 tests, 3 planted bugs added and 1 repointed, 4 of 4 caught. §6d has the table.
 - 2026-10-01 -- **PocketBook: the bank checklist says to save the extract as CSV first.** The firm, on reading an .xlsx being about 20 times slower than CSV (5.4 s against 0.3 s at 17,000 × 70, read at Set up and at every Run): *"Yes definitely csv first then"*. Step 6.1 says how (Excel, Save As, CSV UTF-8) and 6.2 marks .csv as best; .xlsx still works. Checklist HTML and PDF rebuilt; test_bank_checklist 10 passed.
 - 2026-09-30 -- **PocketBook: errors on the window, not in Notepad.** At the bank, Run with the extract open in Excel became a PermissionError traceback read in Notepad. The firm: *"It would be a lot easier if these kinds of errors just displayed on screen in the huge white space allotted"*. An extract that can't be read (open in Excel, OneDrive syncing, gone) is now a plain refusal naming the file, and the extract is read once per Run. Anything unexpected shows on the page with its type, its message and **Copy details**. 10 tests added and 2 changed; 8 planted bugs added, 8 caught, and 4 display-only ones caught by hand. §6d has the detail.

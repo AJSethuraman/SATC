@@ -828,7 +828,7 @@ def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
             if c in choices.test or c in choices.hold:
                 out.add(c)
         elif code in ("booked", "gco", "ranr", "chargeoff_date") or \
-                c in (choices.split, choices.filter, choices.filter2) or \
+                c in (choices.split, choices.filter, choices.filter2, choices.filter3) or \
                 (c in choices.bands if choices.bands is not None else cut == "band") or \
                 (c in choices.segments if choices.segments is not None else cut == "dimension"):
             out.add(c)
@@ -1340,7 +1340,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
         gone = note[note.index("Forgotten"):] if "Forgotten" in note else ""
         problems.append(f"Columns!{CONFIRM_CELL}: set Checked every column to Yes once you've checked each "
                         f"column's meaning." + (f" {gone}" if gone else ""))
-    columns, edges, skip, show, split, filt, filt2 = {}, {}, set(), {}, [], None, None
+    columns, edges, skip, show, split, filt, filt2, filt3 = {}, {}, set(), {}, [], None, None, None
     chosen, choice_cells = control.read_choices(wb[control.SHEET])
     if chosen is None:
         problems.append("Control: this workbook was set up before the launcher chose what to cut. Press Set up "
@@ -1438,7 +1438,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
             else:
                 show[name] = sh
     if chosen is not None:
-        split, skip, filt, filt2 = _cuts_chosen(chosen, choice_cells, columns, row_of_col, cat, problems)
+        split, skip, filt, filt2, filt3 = _cuts_chosen(chosen, choice_cells, columns, row_of_col, cat, problems)
     derived = _read_made(wb, columns, made_rows, problems)
     held_to = _what_is_run(wb, book, use, columns, cat, problems, tuple(d["name"] for d in derived))
     scouting = bool(held_to and held_to.get(SCOUT_KEY))       # Goal 2 item 9: find first, then confirm
@@ -1524,6 +1524,8 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
         raw["filter_by"] = filt                     # Grids' Only loans where (the firm, 30 Sep 2026)
         if filt2:
             raw["filter_by2"] = filt2               # and Filter 2: "in conjunction with each other"
+            if filt3:
+                raw["filter_by3"] = filt3           # and Filter 3 (the firm, 1 Oct 2026: "two filters plus date")
     if derived:
         raw["derived"] = derived                    # fix 3.9
     about = dict(about)
@@ -1576,7 +1578,7 @@ def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, prob
                             f"score, ratio, amount (the booked amount too) or category can. Choose another in the "
                             f"launcher, or fix what it is.")
     got = {}
-    for key in ("filter", "filter2") if chosen.run_kind != ch.NEW_VARIABLE else ():
+    for key in ("filter", "filter2", "filter3") if chosen.run_kind != ch.NEW_VARIABLE else ():
         name = getattr(chosen, key)
         if not name:
             continue
@@ -1597,9 +1599,9 @@ def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, prob
                             f'(Columns!{_col(C_MEANS)}{row_of_col[name]}), and only a category (or '
                             f'{ch.ORIG_YEAR_LABEL}) can filter the Grids. Choose another in the launcher, or fix '
                             f'what it is.')
-    filt, filt2 = got.get("filter"), got.get("filter2")
-    if filt2 and not filt:
-        filt, filt2 = filt2, None                   # Filter 2 alone is the one filter
+    # a later filter with an earlier one empty moves up: Filter 2 alone is the one filter, Filter 3 without Filter 2
+    # is the second (the filters narrow in order, and none stands alone after a gap)
+    filt, filt2, filt3 = ([got[k] for k in ("filter", "filter2", "filter3") if got.get(k)] + [None] * 3)[:3]
     if chosen.run_kind == ch.NEW_VARIABLE and chosen.outcome:
         code = columns.get(chosen.outcome)
         code = code if code is None or isinstance(code, str) else code["means"]
@@ -1609,7 +1611,7 @@ def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, prob
             problems.append(f"{cells['outcome']}: the launcher tests against {chosen.outcome}, and {where} doesn't "
                             f"mark it {cat['outcome'].label}. Mark it so, or choose the outcome again in the "
                             f"launcher.")
-    return split, skip, filt, filt2
+    return split, skip, filt, filt2, filt3
 
 
 def _what_is_run(wb, book: Path, use: dict, columns: dict, cat, problems: list[str], made: tuple = ()) -> dict | None:
@@ -2513,30 +2515,33 @@ def _plain(problem: str) -> str:
             .replace("`columns:`", "the Columns tab").replace("`", '"'))
 
 
-def filter_words(res, second: bool = False) -> str:
-    """The Grids' filter column (Filter 2's, `second`) as Record and the Run name it: ORIG_YEAR says where its years
-    come from."""
-    f = res.config.filter_by2 if second else res.config.filter_by
+def filter_words(res, which: int = 1) -> str:
+    """The Grids' filter column (Filter 2's or Filter 3's, by `which`) as Record and the Run name it: ORIG_YEAR says
+    where its years come from."""
+    f = {1: res.config.filter_by, 2: res.config.filter_by2, 3: res.config.filter_by3}[which]
     return f"{f} (the year in {res.config.origination_date})" if f == ch.ORIG_YEAR else str(f)
 
 
-def filter_counts(res, second: bool = False) -> str:
-    """Each value the Grids can be filtered to (Filter 2's, `second`), with its loans: "2022 (1,012 loans), 2023 (998
-    loans)"."""
+def filter_counts(res, which: int = 1) -> str:
+    """Each value the Grids can be filtered to (Filter 2's or Filter 3's, by `which`), with its loans: "2022 (1,012
+    loans), 2023 (998 loans)"."""
     g = res.grids[0] if res.grids else None
     out = []
-    for v in (res.filter_values2 if second else res.filter_values):
-        key = (None, v) if second else (v, None)
+    for v in {1: res.filter_values, 2: res.filter_values2, 3: res.filter_values3}[which]:
+        key = tuple(v if k == which else None for k in (1, 2, 3))
         n = g.filtered[key].cells[(engine.ALL, engine.ALL)].rows if g is not None and key in g.filtered else None
         out.append(v if n is None else f"{v} ({_n(n, 'loan')})")
     return ", ".join(out)
 
 
 def filter2_said(res) -> str:
-    """Filter 2 as the Run's line and Record add it after Filter 1's: blank with none."""
+    """Filter 2, and Filter 3 with it, as the Run's line and Record add them after Filter 1's: blank with none."""
     if not (res.config.filter_by2 and res.filter_values2):
         return ""
-    return f" And by {filter_words(res, True)}: {filter_counts(res, True)}; the two together keep the loans with both."
+    if res.config.filter_by3 and res.filter_values3:
+        return (f" And by {filter_words(res, 2)}: {filter_counts(res, 2)}. And by {filter_words(res, 3)}: "
+                f"{filter_counts(res, 3)}; the three together keep the loans with all three.")
+    return f" And by {filter_words(res, 2)}: {filter_counts(res, 2)}; the two together keep the loans with both."
 
 
 def _names(res) -> dict[str, str]:
