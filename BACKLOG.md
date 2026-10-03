@@ -3028,11 +3028,13 @@ changed in the code.
     and by a real Run; the launcher's Filter 3 logic and refusals, and its column on screen (needs a display).
     Changed: the launcher's heading tuples and three *This will run* assertions, which now end with the cost. Run
     with test_compare, test_grids_summary, test_firm_answers_2026_09_29, test_launcher, test_bank_checklist,
-    test_distinct_total, test_mutation_tool, test_widths and test_result_tabs: 212 passed, 1 failed (`test_l2_the_
-    summary_says_what_will_run_in_both_modes`, scikit-learn not installed, after the line this change touches).
+    test_distinct_total, test_mutation_tool, test_widths and test_result_tabs, no display: 209 passed, 4 skipped
+    (each a launcher check that needs a screen). The one failure seen first (`test_l2_the_summary_says_what_will_
+    run_in_both_modes`) was scikit-learn missing from that machine, not this change: it passes with it installed.
     Planted bugs: 3 added in `tools/mutation_check.py` (Filter 3 ignored by the engine, three filters' views
     unlimited, Filter 3 without Filter 2 kept third by the launcher), 13 repointed whose lines this rewrote.
-    MUTRESULT
+    All 16 (the 3 new and the 13 repointed) put back one at a time with no display: 16 of 16 caught; every entry's
+    old string occurs once (653 entries).
   - **For the firm to decide:** (1) The two limits are separate, so a pair refused at 56 views (8 x 7) is taken
     once a small third filter is added (8 x 7 x 2 = 112): the cost is still under 150, but it reads oddly. Holding
     every pair to 49 as well would close it. (2) The refusal writes the product with `x`, as the two-filter one
