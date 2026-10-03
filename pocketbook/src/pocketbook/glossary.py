@@ -294,12 +294,12 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 f"{o['pockets']:,} pockets that were worse and material." if o else
                 "A loan in two worse pockets, $900 above share in one and $400 in the other, is counted at $900."))
     out.append(("Lifetime-to-date",
-                "RANR and GCOs are measured over each loan's life to date, not annualized. An older loan has had "
-                "more time to generate revenue and to charge off.",
-                f"Compare loans within the same vintage, because a {yrs[0]} loan has had more time on book than a "
-                f"{yrs[1]} loan." if yrs
-                else "Compare loans within the same vintage, because a 2021 loan has had more time on book than a 2024 "
-                     "loan."))
+                "RANR and GCOs are totals from each loan's origination date to the date of the extract. They are "
+                "not annualized.",
+                f"A loan originated in {yrs[0]} carries every RANR and GCO dollar recorded from {yrs[0]} to the "
+                f"extract date." if yrs
+                else "A loan originated in 2021 carries every RANR and GCO dollar recorded from 2021 to the extract "
+                     "date."))
     if not run or f.get("co_date", True):   # a book with no charge-off date column never shows the measure
         out.append(("Months to charge-off",
                     "For a loan that charged off, the number of calendar months from its origination date to its "

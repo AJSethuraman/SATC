@@ -50,6 +50,15 @@ particular, there is no ban on terms a reader might look up, and no rule to "say
 
 - **No filler.** A sentence that tells the reader nothing comes out.
 - **No self-protective sentences.** Say what the figure is; don't hedge to protect the tool.
+- **Facts, calculations and rules only — no advice or interpretation.** The firm, 3 Oct 2026, on a Glossary line
+  telling the reader to compare loans within a vintage because older loans have had more time on book: *"this is
+  the kind of garbage i do not want at all. it should not saying things that imply seasoning and such because that
+  should not really be on the book to decide. literal facts, calculations, our rules around leaving comments are
+  fine. stuff like this i don't ask for"*. Say what a figure is and how it is calculated. Do not tell the reader
+  how to read it, what it implies, or what to compare it with.
+  - Before: *"Compare loans within the same vintage, because a 2021 loan has had more time on book than a 2024
+    loan."*
+  - After: *"A loan originated in 2021 carries every RANR and GCO dollar recorded from 2021 to the extract date."*
 - **`pocketbook/TENETS.md` binds.** T1: the method is described once, in one place, never beside every row. T2: a
   check figure appears only where it can fail.
 - **A test that already enforces a rule on a surface still holds there.** The Glossary's test keeps the

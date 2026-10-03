@@ -3291,6 +3291,19 @@ changed in the code.
     is never the default, since it has no shuffle test to show. (2) Part D follows One pocket's pick through its
     grid and comparison; a pocket alone in its band is listed in the book-side family.
 
+- **Docket answers, 3 Oct 2026** (the form at claude.ai/artifact/Sx6tUKKWYHHQhN9wN75jTV):
+  1. Merge the audit workbook (#418): *Merge it*.
+  2. While Codex is over its limit: *CI + independent review* counts as reviewed, noted on the PR.
+  3. The 277 rewrites: *"what are you asking"* — the question was unclear; re-asked in plain terms.
+  4. Lifetime-to-date: *"this is the kind of garbage i do not want at all ... literal facts, calculations, our rules
+     around leaving comments are fine. stuff like this i don't ask for"*. Rewritten to a literal definition; the rule
+     added to `pocketbook/VOICE.md` (facts, calculations and rules only; no advice or interpretation).
+  5. Random pick: *Tested only*, *"how will this work"* — explained in the session.
+  6. Look tab charts: *"show me the before and after of your rec"* — open; a before/after picture to follow.
+  7. Public-data rehearsal (#407): *Revive*.
+  8. Filter limits: *"hard to understand it just seems vague without context"* — open; to be re-asked with an example.
+  - **Next (agreed by silence):** ship #418, then revive #407.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
