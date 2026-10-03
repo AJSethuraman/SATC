@@ -1,0 +1,147 @@
+# SEASON SIMULATOR SCENARIO -- version 1
+#
+# EVERY NUMBER IN THIS FILE IS AN INVENTED SIMULATION PARAMETER.
+# None of it is a fact about the firm's clients, and none of it may be quoted
+# as one. It exists so the simulated season has realistic SHAPES (people who
+# send everything in February, people who go quiet, people who need an
+# extension) and so the same seed replays the same season.
+#
+# Where a date is anchored to something with authority, the anchor says so
+# (`source:`). Everything else is marked `source: unsourced` on purpose.
+# Principle 1 (docs/DESIGN-PRINCIPLES.md): never invent a value without
+# saying so -- this file is where the simulator says so.
+
+version: 1
+label: "INVENTED simulation parameters -- assumptions, not facts about any client"
+
+season:
+  tax_year: 2026                 # the returns filed in the 2027 season
+  start: 2027-01-01
+  end: 2027-10-15                # the extended individual deadline
+  prior_year: 2025               # history for returning clients, played in 2026
+
+clients: 60
+
+# How many of each behaviour, for 60 clients. Scaled proportionally for other
+# client counts (largest remainder), then shuffled by the seed.
+mix:
+  on_time: 16             # 1040, papers in by February, signs promptly
+  late_docs: 6            # 1040, papers arrive after the firm's cutoff
+  goes_quiet: 4           # 1040, signs the letter, sends half, stops answering
+  missing_8879: 3         # 1040, everything in, never signs the e-file authorization
+  joint_spouse_missing: 2 # 1040 joint, taxpayer signs the 8879, spouse never does
+  extension: 5            # 1040, one document arrives in the summer
+  k1_gated: 4             # 1040 waiting on a K-1 from a partnership the firm prepares
+  partnership: 2          # 1065, each feeding two of the k1_gated returns
+  scorp: 3                # 1120S
+  ccorp: 2                # 1120
+  disengages: 3           # 1040, ends the engagement in March
+  never_reengages: 3      # returning client with 2025 history and no 2026 engagement
+  amended: 2              # 1040, plus an amended 2025 return opened 1 February
+  requote: 2              # 1040, scope changes in February (a second brokerage)
+  rental: 3               # 1040 with a rental: also gets the Schedule E workflow
+
+# Share of 1040 clients (other than never_reengages, which always are) who
+# were clients last year and so carry 2025 history.
+returning_share: 0.4       # source: unsourced
+# Of the returning clients, the share whose 2025 file held a brokerage 1099
+# that this year's answers no longer mention (the prior-year question).
+prior_gap_share: 0.5       # source: unsourced
+joint_share: 0.2           # source: unsourced (1040s other than joint_spouse_missing)
+check_payer_share: 0.3     # source: unsourced (the rest pay by card)
+
+timing:
+  engage_window: [2027-01-04, 2027-02-12]        # source: unsourced
+  entity_engage_window: [2027-01-04, 2027-01-22] # source: unsourced
+  letter_sign_lag_days: [1, 10]                  # source: unsourced
+  doc_lag_days: [7, 40]                          # source: unsourced
+  entity_doc_window: [2027-01-15, 2027-02-26]    # source: unsourced
+  # Forms W-2 and 1099-NEC are furnished by 31 January; 31 January 2027 is a
+  # Sunday, so 1 February. Core income documents cannot arrive before then.
+  core_income_not_before: 2027-02-02
+  core_income_source: "satc_system/configs/obligations/federal.yaml (W-2 / 1099-NEC furnished by Jan 31; IRC 7503 moves it to Feb 1 2027)"
+  late_doc_window: [2027-03-02, 2027-04-09]      # source: unsourced
+  summer_doc_window: [2027-05-10, 2027-08-20]    # source: unsourced
+  quiet_share_sent: 0.5                          # source: unsourced
+  disengage_window: [2027-03-01, 2027-03-31]     # source: unsourced
+  k1_after_partnership_delivery_days: [2, 10]    # source: unsourced
+  sign_8879_lag_days: [1, 12]                    # source: unsourced
+  pay_lag_days: [3, 30]                          # source: unsourced
+  amended_opened: 2027-02-01                     # source: unsourced
+  requote_window: [2027-02-10, 2027-02-25]       # source: unsourced
+
+# THE OWNER. Explicit and minimal; every number an assumption.
+owner:
+  works: weekdays                  # Mon-Fri; holidays not modelled (assumption)
+  records_arrivals: same_business_day
+  prep_capacity_per_day: 4         # returns started per business day (assumption)
+  prep_days: 2                     # business days from start to delivery (assumption)
+  task_capacity_per_day: 6         # internal task toggles per business day (assumption)
+  # "We will file an extension on your behalf where one is needed, unless you
+  # instruct us otherwise in writing" -- the Tax Preparation engagement letter
+  # (satc-handoff/04-TEMPLATES/SATC Engagement Letter - Tax Preparation.html:83).
+  # WHEN the owner decides is an assumption: one week before the original date.
+  extension_lead_days: 7
+  signature_deadline_days: 10      # delivery letter's sign-by date (assumption)
+  bill_at: delivery                # the invoice is raised when the return goes out (assumption)
+  # Disengaged clients' open requests are closed as not-applicable WITH a
+  # reason, through the only door satc_system has for it (withdrawn is never
+  # set: models/evidence.py). Assumption about what a careful owner does.
+  on_disengage_mark_requests_na: true
+  onboarding_for_new_clients: true # new clients also get new_client_onboarding
+  # Transmitting. `cli.py close` does NOT call may_file (its only caller in
+  # cli.py is `sign`, cli.py:1929), so the gate is advisory. This owner chooses
+  # to wait until it is clear -- the letters' promise -- and that choice is an
+  # assumption, not something the code enforces.
+  transmit_when: may_file_clear
+  # What the owner types into client-documents' documents. All invented.
+  interview:
+    # The first-deliverable target promised at the interview, a DATE (the FIELDS
+    # spec asks for one; consistency.py:328-331 skips a phrase). Before this was
+    # labelled here it came silently from client-documents/exercise.py:76,94
+    # ("April 8, 2027" for every client, entities included).
+    first_deliverable_target:        # source: unsourced
+      "1040": 2027-04-08
+      "1065": 2027-03-08             # before the entity's own 15 March due date
+      "1120S": 2027-03-08
+      "1120": 2027-04-08
+  delivery_letter:
+    estimated_payments: "no"         # source: unsourced (estimates are not simulated)
+  extension_notice:
+    materials_days_before_extended: 60   # source: unsourced
+    payment_enclosed: "no"           # source: unsourced (the no-payment branch, L1)
+  disengagement_letter:
+    records_available_days: 90       # source: unsourced
+  amended:
+    deliver_after_days: 14           # from the day it is opened; source: unsourced
+    sign_after_delivery_days: 3      # source: unsourced
+  close_out:                         # what `cli.py close` is told was filed
+    filed_state_count: 1             # source: unsourced
+    filed_locality_count: 1          # source: unsourced
+    k1s_issued: {"1065": 2, "1120S": 3}  # source: unsourced
+  prior_history:                   # the 2025 cycle for returning clients
+    engaged: 2026-02-09
+    letter_signed: 2026-02-12
+    docs_in: 2026-02-20
+    delivered: 2026-03-16
+    signed_8879: 2026-03-18
+    filed: 2026-03-20
+
+# HOW CLIENTS PAY, drawn from its own random stream ("<seed>/money") so adding it
+# left every other draw of the world unchanged. Only a satc_system billing seed
+# can record any of it (client-documents settles only through Square, which the
+# simulator may not reach). The invoice is issued due in 30 days
+# (doors_satc.invoice), so a late payer's bill goes past due on Today.
+money:
+  late_payer_share: 0.15           # source: unsourced
+  late_pay_lag_days: [45, 90]      # source: unsourced
+  never_pays_share: 0.05           # source: unsourced
+  part_payer_share: 0.10           # source: unsourced: pays part on time, the rest late
+  part_first_fraction: 0.5         # source: unsourced
+  overpayer_share: 0.05            # source: unsourced
+  overpay_amount: "25.00"          # source: unsourced
+
+# Which billing door the owner uses. `auto` alternates by seed parity:
+# even seeds bill in satc_system, odd seeds in client-documents. The brief asks
+# for one seed per door, because each door leaves the other system blind.
+billing_door: auto
