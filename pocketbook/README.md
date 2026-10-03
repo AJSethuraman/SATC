@@ -431,6 +431,44 @@ After that, the whole routine is:
      are kept on the hidden `_log`, so a refusal shows at once; an older
      workbook's Log carries on there.
 
+**The audit workbook** (the firm, 3 Oct 2026: *"show the calculations it makes
+on one set of things and prove out each one"*, and *"demonstrate and explain
+what the formulas are and how to do them by hand"*). Control's *Also write the
+audit workbook?* (blank is No, so a normal Run is no slower) makes the Run
+write a second file beside the workbook, *loans - PocketBook - audit.xlsx*
+(`src/pocketbook/audit.py`). It proves every figure for one pocket, worked out
+again by Excel from the loans:
+- **Start here**, then **Run stamp** (the extract's name, its SHA-256, its rows,
+  every setting, the version, the time, the shuffle seed) and **Rows in and
+  out** (rows read, less each loan left out of each rate and why, = the loans in
+  it), each line beside PocketBook's own count with Ties? ✓ or ✗.
+- **Bands**: each band column's edges as typed and as used, and the range each
+  band covers. **Loans**: one row per loan, only the columns the Run used; each
+  band worked out by a formula from the loan's value and Bands, beside the band
+  PocketBook gave it (Bands counts the loans where they differ: 0).
+- **One pocket**: Grid, Band and Segment dropdowns, on the top flagged pocket to
+  start with. 37 rows, one per figure (loans, bad loans, booked, GCOs,
+  RANR, each rate, the rest of the book and of the band, × book, × rest, the
+  gaps in points, dollars above share, Avg line and Line × book, the shuffle
+  count and the p-value before and after the allowance for many tests), each
+  with what it is in words, the sum written out with the pocket's own numbers
+  (*$765,455 ÷ $6,779,970 = 11.290%*), Excel's COUNTIFS or SUMIFS on Loans,
+  PocketBook's figure (every pocket's is stored, hidden, so any pick compares),
+  Ties? to a billionth, and how to get it by hand with Excel's filter and status
+  bar. Loans' *In this pocket* column follows the picks, so the filter is one
+  click.
+- **Shuffle test**: what the test shuffles (which loans carry the pocket's
+  label; within its band when judged against its band), the gap, two-sided,
+  and p = (count + 1) ÷ (shuffles + 1), exactly as `perm.py` does it. A 10-loan
+  example to follow on paper, each shuffle tied to perm's own. Then every
+  shuffled gap of the default pocket, dealt again from the Run's seed, whose
+  COUNTIF gives its count and p-value, tied to the Run's. Another pocket's
+  shuffles aren't listed (10,000 per pocket for every pocket would be millions
+  of rows): run again with it at the top, or deal the seed again. Beside it, the
+  two-proportion z-test on bad loans, as a textbook cross-check.
+
+At 185,000 loans it adds about 35 seconds to a Run and is about 24 MB.
+
 **Changing the lines after a Run** (the firm, 26 Sep 2026: *"this is the stuff
 i want to be able to adjust in book on the fly ... i know it cannot reband and
 such"*). Five answers on Control only judge numbers the Run has already worked

@@ -3163,6 +3163,57 @@ changed in the code.
     every pair to 49 as well would close it. (2) The refusal writes the product with `x`, as the two-filter one
     always has; the launcher's cost line writes `×`.
 
+- **Built, 3 Oct 2026: the audit workbook** (branch `pocketbook-audit`). The firm: *"We will need to make this
+  auditable... a demo output mode that would take a file and show the calculations it makes on one set of things
+  and prove out each one so someone could take their current population run it and then independently understand
+  the calculation and its steps"*, then *"we definitely want to be able to demonstrate and explain what the
+  formulas are and how to do them by hand"*. Agreed: a separate workbook, one pocket, a live dropdown, recomputed
+  by Excel from the raw loans.
+  - **Where it's asked.** Control, Needs a Run, last row: *Also write the audit workbook?* (`audit_book`, optional
+    like the bureau codes: blank is No, so a normal Run writes nothing more; asked only for the bleed). Yes makes
+    the Run write `<book stem> - audit.xlsx` beside the workbook after it saves, and say so in its lines. An audit
+    file open in Excel is said in words; the Run itself still succeeds.
+  - **Sheets** (`src/pocketbook/audit.py`): Start here (what it is, the order to read it); Run stamp (file, SHA-256,
+    rows, every setting and Control answer, version, time, the shuffle seed and where it comes from); Rows in and
+    out (rows read, less each loan left out of each rate by column and reason, = the loans in it, each tied to the
+    Run's count); Bands (edges as typed and as used, each band's From and Up to, loans per band by formula against
+    the Run's, and how many loans' formula band differs from the Run's: 0); Loans (one row a loan, only the Run's
+    columns, a value or the reason it has none in words; each band a formula from the raw value and Bands, beside
+    the Run's band; *In this pocket* and *In this band* follow the picks); One pocket (Grid, Band and Segment
+    dropdowns, OFFSET lists, on the top flagged pocket: worse and material on GCOs, largest dollars above share;
+    37 figures, each Step | In words | Written out with the pocket's numbers (live TEXT) | Excel's COUNTIFS/SUMIFS
+    on Loans | PocketBook's figure | Ties? to a billionth | By hand); Shuffle test; hidden `_pocketbook` (the Run's
+    figures for every pocket, and Benjamini-Hochberg's ranks by shuffle count) and `_lists`.
+  - **The shuffle test, as perm.py does it.** What is shuffled: which loans carry the pocket's label, the pocket
+    keeping its size; against the book every loan in the GCO rate, against its band only the band's loans. The
+    statistic: pocket's GCOs ÷ Booked less the rest's. Two-sided: |g*| ≥ |g| less perm.TIE's allowance (1e-9 of
+    the rates' size); a shuffle with no dollars in the pocket counts. p = (count + 1) ÷ (B + 1). Then the
+    allowance for many tests over the grid's tested pockets on the same comparison. A 10-loan example (20 shuffles
+    from `perm.order_of`, each gap tied to `perm.pocket_vs_rest`'s own draw, count 5, p 6 ÷ 21). The default
+    pocket's B shuffles are dealt again from the Run's seed with `perm.run` on that one grid and comparison
+    (`RestGap(keep=True)`), all listed; COUNTIF at or past the line either way gives the count, tied to the Run's,
+    and so the p-value. The engine now keeps each loan's rate values and labels on `Result` (`per_row`,
+    `row_labels`) and names its seed (`engine.SHUFFLE_SEED_NAME`), so the audit proves the Run's own numbers. Other
+    pockets' shuffles are not listed (said on the sheet: re-run with that pocket on top, or deal the seed again).
+    Beside it, the two-proportion z-test on bad loans, live for the pocket picked, said to be a cross-check.
+  - **Fast.** Loans' rows go straight into the sheet's XML (openpyxl took 34 s for 185,000 rows of cells). At
+    185,000 synthetic loans, 10,000 shuffles, two band and two segment columns: 33 s added to the Run (reading
+    2.4 s, dealing the default pocket's shuffles again 22.5 s on 4 cores, sheets 1.4 s, loans 6.9 s), 23.8 MB.
+    LibreOffice calculates it in 45 s: One pocket 37 ✓, Rows in and out 13, Bands 14, Shuffle test 9, no ✗.
+  - **Tests:** 13 in `tests/test_audit_2026_10_03.py`, calculated by LibreOffice: every figure ties for the default
+    pocket and for three picked with the dropdowns (another grid, the smallest pocket, a (marked missing) band); the
+    default pocket's loans, GCOs, booked and bad loans from the CSV's text; rows in and out; every loan's formula
+    band is the engine's; the stamp's hash is the file's sha256; the COUNTIF reproduces the count exactly and the
+    p-value; the example is perm's; the option off (blank or No) writes nothing. Changed: test_answer_tabs (Block
+    B ends with `audit_book`) and test_control (two optional settings). Planted bugs: 4 in `tools/mutation_check.py`
+    (shuffles dealt across the book for a band pocket; band edges shifted; rest of the book holding the pocket; an
+    outcome of 2 read as bad), 4 of 4 caught with no display; every entry's old string occurs once (667 entries).
+    Pictures: `pocketbook/docs/audit-2026-10-03/`. Bank kit: the paste now writes 40 files (checklist 2.2 says so,
+    HTML and PDF rebuilt). Full suite, no display: 1,051 passed, 14 skipped, 0 failed (73 min).
+  - **For the firm to decide:** (1) A loan marked missing shows *(marked missing)* on Loans, not its value
+    (-9,999): the rule is on Run stamp. (2) openpyxl writes numbers to 16 significant digits, so a stored figure
+    can differ from the Run's in the 17th; Ties? allows a billionth. (3) Other pockets' shuffles need a re-run.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -3174,6 +3225,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-03 -- **PocketBook: the audit workbook.** The firm: *"show the calculations it makes on one set of things and prove out each one"*, and *"how to do them by hand"*. Control's *Also write the audit workbook?* makes the Run write `<book> - audit.xlsx`: Run stamp (file, SHA-256, settings, seed), Rows in and out, Bands, Loans (each band a formula), One pocket (a live Grid / Band / Segment pick, 37 figures each written out, worked out by COUNTIFS/SUMIFS on the loans, tied to the Run's, and how to do it by hand) and Shuffle test (a 10-loan example, and every shuffle of the default pocket whose COUNTIF gives its p-value). 33 s and 23.8 MB at 185,000 loans. 13 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: Summary's vintage chart and grey rows.** The firm: *"Could the summary tab have vintage graphs as well?"*, chosen *"Pocket vs rest vs book"*; and low unit counts *"grayed out to a degree"*, by a number of its own. Under the Summary table, one row against the rest of the book and the whole book by origination year, on any Summary measure, following Only loans where, thin points left off; at the top, Grey rows under [50] loans, read by nothing else. 5 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: Avg line and × book.** The firm: *"I want to start including and using booked dollar averages so more easily demonstrate how line assignments look in pockets"*. Summary gains Avg line (booked dollars per loan, the average committed line) and × book (that over the whole book's) right after Booked $, in every filter view; RANR vs GCOs' gross block ends on the same two, shaded as Grids' Loan size, never red or green; the Glossary gains the term. 8 tests, 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: a Glossary tab.** The firm: *"Maybe a nice glossary of terms in the workbook should be there"*. A grey tab right after Start here, written by every Set up and Run: 25 terms, each with what it means and an example in the book's own figures from the last Run (*"the book keeps $12.80 per $100 booked"*), made up before the first. Start here links to it; the bank checklist has a 4.10 for it. 8 tests; 2 planted bugs, 2 caught. §6d has the detail.

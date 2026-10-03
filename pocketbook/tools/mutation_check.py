@@ -27,6 +27,7 @@ GL="src/pocketbook/glossary.py"
 RC="src/pocketbook/record.py"; PS="src/pocketbook/prespec.py"; CMP="src/pocketbook/compare.py"
 SC="src/pocketbook/scout.py"; CFG="src/pocketbook/config.py"; JT="src/pocketbook/joint.py"
 SCH="src/pocketbook/summary_chart.py"
+AU="src/pocketbook/audit.py"
 muts = [
  ("1 blank->zero",       E, 'if p is BLANK:\n        return None, "blank"', 'if p is BLANK:\n        return 0.0, None', "test_finding_1"),
  ("2 empty->index 0",    E, 'if rate is None or base is None or base == 0:', 'if base is None or base == 0:\n        return None\n    if rate is None:\n        rate = 0.0\n    if False:', "test_finding_2"),
@@ -1652,6 +1653,18 @@ muts = [
  ("Summary's Grey rows under back to 50 at every Run", B,
   "    summary_chart.keep_grey(wb, grey)\n", "",
   "grey_number_typed_survives_the_next_run"),
+ # the firm, 3 Oct 2026: the audit workbook proves one pocket's every figure from the loans
+ # (tests/test_audit_2026_10_03.py)
+ ("audit dealing a band-judged pocket's shuffles across the whole book", AU,
+  "    if by_band:\n        codes = {lab", "    if False:\n        codes = {lab",
+  "test_the_shuffled_gaps_countif_reproduces_the_p_value_exactly"),
+ ("audit's band edges shifted one band up", AU, "        lows = [LOW] + list(edges)",
+  "        lows = list(edges) + [HIGH]", "test_every_loans_band_by_formula_is_the_engines_band"),
+ ("audit's rest of the book still holding the pocket", AU,
+  "    rest = _rate(tg.num - gc.num, tg.den - gc.den)", "    rest = _rate(tg.num, tg.den)",
+  "test_every_figure_of_the_default_pocket_ties"),
+ ("audit reading an outcome of 2 as a bad loan", AU, "            bad.append(NOT_01)",
+  "            bad.append(int(v))", "test_rows_in_and_out_tie_to_the_run"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
