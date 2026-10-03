@@ -704,6 +704,9 @@ class Result:
     # per rate: what the pockets worse and material on the two-way grids come to with each loan counted once
     # (Start here's tile and the launcher's, the firm, 1 Oct 2026); empty for a test of a new variable
     once: dict[str, "Once"] = field(default_factory=dict)
+    # Summary's vintage chart (the firm, 3 Oct 2026): each Summary row, the rest of the book and the whole book, per
+    # origination year (summary_chart.Vintage); None for a run that writes no Summary
+    vintage: Any = None
 
 
 @dataclass
@@ -1401,6 +1404,11 @@ def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]]
             part = summaries[(d.name, v, w)] = _summary(d.name, measures, per_row, dims[d.name], booked, whole.labels,
                                                         rows_of[(v, w)])
             _tie_summary(part, part.cells[ALL], measures)
+    vintage = None
+    if bleed:
+        from . import summary_chart                     # Summary's vintage chart, worked out here like Summary itself
+        vintage = summary_chart.vintage(config, table, measures, per_row, {**dims, **bands}, booked, summaries,
+                                        rows_of, total, book_size)
     moves_with: dict[str, float] = {}
     if bleed and config.split and config.split[1] == "own_median":
         for b in config.bands:
@@ -1414,7 +1422,7 @@ def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]]
                   materiality_line=materiality_line, three_way=three_way,
                   split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
                   book_size=book_size, filter_values=values, filter_values2=values2, summaries=summaries,
-                  value_bands=value_bands, once=once)
+                  value_bands=value_bands, once=once, vintage=vintage)
 
 
 def _cut_or_each_value(b: Band, seen: list[float]) -> tuple[tuple[float, ...], tuple[float, ...] | None]:

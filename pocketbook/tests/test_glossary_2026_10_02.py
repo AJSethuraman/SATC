@@ -20,7 +20,8 @@ from test_book import _answer
 #: every term, in the firm's order (2 Oct 2026)
 TERMS = ["Booked / Booked $", "Avg line / Line × book", "GCOs ($)", "RANR", "RANR + GCOs", "Rate (GCOs ÷ Booked, RANR ÷ Booked)",
          "Points (pts)", "× book / × rest of book", "Rest of book / rest of band", "Bad loan", "Band", "Segment",
-         "Pocket", "Grid", "Filter / Only loans where", "Origination year", "Worse and material", "Borderline",
+         "Pocket", "Grid", "Filter / Only loans where", "Origination year", "Vintage", "Worse and material",
+         "Borderline",
          "Shuffle test / p-value", "Fewest loans in a pocket", "Worse at / Better at",
          "Dollars above their share (each loan once)", "Lifetime-to-date", "Months to charge-off", "Odd values",
          "(marked missing) / (blank)"]
