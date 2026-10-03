@@ -94,6 +94,12 @@ def _flag(r) -> str:
     return r["SYS_FLAG"] or "(blank)"
 
 
+def _line(rows) -> float:
+    """Avg line: booked dollars (ORIG_BAL) over the loans that have them."""
+    have = [float(r["ORIG_BAL"]) for r in rows if r["ORIG_BAL"]]
+    return sum(have) / len(have)
+
+
 def _keep(rows, year, flag, region, all_="All loans"):
     return [r for r in rows if year in (all_, _year(r)) and flag in (all_, _flag(r))
             and region in (all_, r["REGION"])]
@@ -160,10 +166,15 @@ def test_three_filters_summary_is_the_loans_with_all_three(three, tmp_path):
         shown, r = {}, h + 1
         while ws.cell(row=r, column=2).value not in (None, ""):
             shown[ws.cell(row=r, column=2).value] = (ws.cell(row=r, column=heads["Loans"]).value,
-                                                     ws.cell(row=r, column=heads["Bad loans %"]).value)
+                                                     ws.cell(row=r, column=heads["Bad loans %"]).value,
+                                                     ws.cell(row=r, column=heads["Avg line"]).value,
+                                                     ws.cell(row=r, column=heads["Line × book"]).value)
             r += 1
         mine = _keep(rows, year, flag, region)
         assert shown["All"][0] == len(mine) and _close(shown["All"][1], _bad(mine))
+        # Avg line and Line × book (the firm, 2 Oct 2026) move with all three filters: the loans' booked dollars over
+        # those with a booked amount, and that over the whole book's, worked out from the CSV
+        assert _close(shown["All"][2], _line(mine)) and _close(shown["All"][3], _line(mine) / _line(rows))
         bands = [lab for lab in shown if " - " in lab]
         assert len(bands) == 4
         for lab in bands:
@@ -171,6 +182,7 @@ def test_three_filters_summary_is_the_loans_with_all_three(three, tmp_path):
             assert shown[lab][0] == len(pick), (year, flag, region, lab)
             if pick:
                 assert _close(shown[lab][1], _bad(pick)), (year, flag, region, lab)
+                assert _close(shown[lab][2], _line(pick)), (year, flag, region, lab)
 
 
 def test_three_filters_named_in_the_runs_lines_and_record(three):

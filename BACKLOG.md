@@ -2998,6 +2998,78 @@ changed in the code.
     up building every grid, Run never checking the estimate) and 1 repointed (*Run leaves the suggestion stale*,
     whose line this rewrote). 4 of 4 caught with no display; every entry's old string still occurs once (647
     entries).
+- **Built, 2 Oct 2026: a Glossary tab** (branch `pocketbook-glossary`). The firm, after explaining the grids'
+  figures to their boss: *"Maybe a nice glossary of terms in the workbook should be there"*. They keep "points" as
+  the unit.
+  - **What it is.** A grey tab right after Start here, written by every Set up and every Run
+    (`src/pocketbook/glossary.py`). One term a row: the term, what it means in one or two short sentences, and an
+    example. 25 terms, in the firm's order: Booked, GCOs ($), RANR, RANR + GCOs, Rate, Points, × book / × rest of
+    book, Rest of book / rest of band, Bad loan, Band, Segment, Pocket, Grid, Filter / Only loans where,
+    Origination year, Worse and material, Borderline, Shuffle test / p-value, Fewest loans in a pocket, Worse at /
+    Better at, Dollars above their share (each loan once), Lifetime-to-date, Months to charge-off, Odd values,
+    (marked missing) / (blank).
+  - **The examples.** After a Run, in the whole book's own figures: *"This book's RANR came to $33,030,193. The
+    book keeps $12.80 per $100 booked"* on the 8,000-loan practice book. Points and × book name a real pocket (the
+    one furthest short on RANR, and the one furthest above its share on GCOs, against the rest of the book). Worse
+    and material, and dollars above share, are Start here's figures at the Run (4 of 81, $2,287,240 on the
+    practice book). The figures are kept on `_found` as JSON, so Set up again keeps them. Before the first Run
+    the examples are made up (the firm's own "$4.45 per $100 booked") and the note says so. Not live: a line
+    changed on Control moves the result tabs, not the examples, and the note says that too.
+  - **Wording.** Where a tab already words a definition the Glossary reuses it (Pockets' rest of band and Worse?,
+    Summary's × book, Columns' odd values, the Borderline note). Every sentence is 28 words or fewer and carries
+    no contract-desk word (tested). Made-up examples use SCORE and SOURCE, never the synthetic book's columns,
+    so test_generic's no-leak check holds. "Earn" is not used (test_profit). The Glossary joins `_meanings` as a
+    sheet allowed to say "charge-off", since it is a definition (test_literal_names).
+  - **Start here** lists it under The tabs, in the grey group with Record (*Glossary: every term, with an
+    example*). Its note now reads "grey tabs are the glossary and the record".
+  - **Checklist.** A new 4.10 (the Glossary is second, 25 terms, Start here opens it). 4.2 counts eleven visible tabs
+    (it said nine, already stale since Summary). The paste now writes 38 files. HTML and PDF rebuilt.
+  - Picture (LibreOffice, practice book): `pocketbook/docs/glossary-2026-10-02/glossary-page-1.png` and `-2.png`.
+  - Tests: 8 in `tests/test_glossary_2026_10_02.py`. RANR, GCOs, booked and the rate tie to the CSV, worked out
+    without PocketBook. Tab order pinned in test_book, test_answer_tabs and test_result_tabs; test_bank_checklist
+    checks the count, the position, the terms and the link. Planted bugs: 2 added (the RANR example read from
+    RANR + GCOs; Set up writing the made-up examples over the Run's figures), 2 of 2 caught with no display;
+    every entry's old string still occurs once (652 entries).
+- **Built, 2 Oct 2026: Avg line and × book** (branch `pocketbook-avg-line`). The firm: *"I want to start including
+  and using booked dollar averages so more easily demonstrate how line assignments look in pockets and I think it
+  adds to the story if our basis is commitments would be stronger elsewhere"*. Booked is the committed line (cards
+  book their line), so booked dollars per loan is the average line. They chose where: Summary and RANR vs GCOs.
+  - **Summary.** Two columns right after Booked $: **Avg line**, the row's booked dollars over its loans with a
+    booked amount, and **× book**, that over the whole book's Avg line, filtered or not (as GCOs' × book is). Every
+    row, All and every filter view: worked out in the engine (`engine.summary_rows`, `Summary.booked_loans`) and
+    put on `_views` like every other Summary figure, so the dropdowns move them. Blank, never 0 or #DIV/0!, where a
+    row has no loans. A note line says what both are. Unshaded, as the rest of Summary.
+  - **RANR vs GCOs.** The gross block ends on **Avg line** and **× book** (after RANR ÷ Booked, so no existing
+    column of the block moves and `_views` rows keep their positions: the two ride at the end of each pocket's and
+    each total's row). The same figure as Grids' Loan size for the pocket (`engine.size_vs`); the totals under the
+    table carry them too (Whole book 1.00×). Shaded as Loan size is, `SIZE_STEPS` on the row's own × book (1.10×
+    and up, darker the bigger), never red or green; each cell and rule reads its own row, inside the sort arrows'
+    range, so a sort keeps them right. The words ride on RANR's note item, so no row of the tab moves (B16 and M13,
+    the checklist's cells, stay put).
+  - **Glossary.** A 26th term, *Avg line / Line × book*, second after Booked, with an example in the book's own average
+    line after a Run. Checklist 4.10 says 26 terms; HTML and PDF rebuilt.
+  - **For the firm to confirm:** (1) Summary now has two columns headed *× book*: the new one after Avg line, and
+    GCOs' after GCOs ÷ Booked; each sits beside what it multiplies, but say if the new one should read *Avg line ×
+    book*. (2) Avg line divides by the loans with a booked amount, as Grids' Loan size does, so where a loan has no
+    booked amount it is not exactly Booked $ ÷ Loans (Branch on the plain synthetic book: $31,963, against $31,483,638 ÷
+    986 = $31,931). (3) On RANR vs GCOs, Booked is the booked dollars under RANR while Avg line is over every loan
+    with a booked amount; they differ only where RANR is unreadable.
+  - Pictures (LibreOffice renders of synthetic data, ORIG_BAL scaled by FICO and channel for the pictures only so
+    the lines differ): `pocketbook/docs/avg-line-2026-10-02/` (Summary by CHANNEL; by FICO on 2022 alone, its
+    empty (blank) row blank; RANR vs GCOs whole and its gross block close up).
+  - Tests: 8 in `tests/test_avg_line_2026_10_02.py` (6 need no LibreOffice): every Summary view by CHANNEL and by
+    FICO band, All loans and each origination year, and every pocket and total of FICO x CHANNEL on RANR vs GCOs,
+    tied to the CSV with plain arithmetic; a Kiosk channel made only in the first year proves the empty rows blank;
+    the formulas pick the right `_views` positions and the shading is Loan size's hue on the row's own × book; and
+    both tabs calculated by LibreOffice. Headings updated in `test_co_months_2026_10_01.py` and
+    `test_firm_answers_2026_09_29.py`; the term list in `test_glossary_2026_10_02.py`; `tests/tabs.py` reads the
+    two columns. Planted bugs: 2 added (Summary's Avg line over every loan; RANR vs GCOs' × book against the rest
+    of the band), 2 of 2 caught with no display and no LibreOffice; every entry's old string still occurs once (654
+    entries). Full suite: 1,016 passed, 13 skipped, 2 failed; one was a heading list in `test_book_results.py`, updated
+    and passing on its own rerun; the other,
+    `test_co_months_2026_10_01.py::test_without_a_charge_off_date_nothing_changes`, was already failing at the
+    Glossary merge 40abd906: the Glossary always defines *Months to charge-off*, and that test asserts the words
+    appear nowhere in a book without a charge-off date column; left for the firm, not changed here).
 
 - **Built, 1 Oct 2026: a third filter, with a size limit** (branch `pocketbook-three-filters`). The firm: *"I thought
   we discussed two filters plus date"*. Chosen: Origination year plus two more filters, with a size limit.
@@ -3035,6 +3107,11 @@ changed in the code.
     unlimited, Filter 3 without Filter 2 kept third by the launcher), 13 repointed whose lines this rewrote.
     All 16 (the 3 new and the 13 repointed) put back one at a time with no display: 16 of 16 caught; every entry's
     old string occurs once (653 entries).
+  - **Merged with the Glossary and Avg line (3 Oct 2026).** Avg line and Line × book come from each view's own
+    Summary, so they move with Filter 3 as with the other two; `test_three_filters_summary_is_the_loans_with_all_
+    three` now ties both, on the All row and each band, to the CSV under three picks. The Glossary's *Filter / Only
+    loans where* now says up to three filters can be picked. Conflicts were only in this file's logs and in
+    `tools/mutation_check.py`'s list (both kept); every entry's old string occurs once (658 entries).
   - **For the firm to decide:** (1) The two limits are separate, so a pair refused at 56 views (8 x 7) is taken
     once a small third filter is added (8 x 7 x 2 = 112): the cost is still under 150, but it reads oddly. Holding
     every pair to 49 as well would close it. (2) The refusal writes the product with `x`, as the two-filter one
@@ -3051,6 +3128,8 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-02 -- **PocketBook: Avg line and × book.** The firm: *"I want to start including and using booked dollar averages so more easily demonstrate how line assignments look in pockets"*. Summary gains Avg line (booked dollars per loan, the average committed line) and × book (that over the whole book's) right after Booked $, in every filter view; RANR vs GCOs' gross block ends on the same two, shaded as Grids' Loan size, never red or green; the Glossary gains the term. 8 tests, 2 planted bugs, 2 caught. §6d has the detail.
+- 2026-10-02 -- **PocketBook: a Glossary tab.** The firm: *"Maybe a nice glossary of terms in the workbook should be there"*. A grey tab right after Start here, written by every Set up and Run: 25 terms, each with what it means and an example in the book's own figures from the last Run (*"the book keeps $12.80 per $100 booked"*), made up before the first. Start here links to it; the bank checklist has a 4.10 for it. 8 tests; 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-01 -- **PocketBook: a third filter, with a size limit.** The firm: *"I thought we discussed two filters plus date"*; chosen, Origination year plus two more filters with a size limit. Filter 3 sits beside Filter 2 everywhere (launcher, Control, Grids, Summary, Compare's Lines by and Panels by, Record and the Run's line); every value alone, pair and triple holds together. Three filters may make 150 views of each grid (6 × 5 × 5), refused past it by the launcher and the Run; the launcher shows the cost. 15 tests, 3 planted bugs added and 13 repointed. §6d has the detail and two points for the firm.
 - 2026-10-01 -- **PocketBook: Set up's suggestions from a sample of the grids.** The firm, on Set up taking over 3.5 minutes at 184,937 loans and 168 grids: *"Will the quick estimates be as accurate? … Test it and let's see"*. Tested on ten synthetic books of 17,000 and 185,000 loans: a sample of 28 grids matched every grid at Control's rounding in every book, at about 80 seconds against 265. Fewest loans is never sampled. Run still works each suggestion out from every grid, and says so beside it where the estimate was different. 7 tests, 3 planted bugs added and 1 repointed, 4 of 4 caught. §6d has the table.
 - 2026-10-01 -- **PocketBook: the bank checklist says to save the extract as CSV first.** The firm, on reading an .xlsx being about 20 times slower than CSV (5.4 s against 0.3 s at 17,000 × 70, read at Set up and at every Run): *"Yes definitely csv first then"*. Step 6.1 says how (Excel, Save As, CSV UTF-8) and 6.2 marks .csv as best; .xlsx still works. Checklist HTML and PDF rebuilt; test_bank_checklist 10 passed.

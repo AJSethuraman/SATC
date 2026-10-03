@@ -22,6 +22,7 @@ nothing else (no memory, no record), so a refused run leaves no trace.
 
 from __future__ import annotations
 
+import json
 import math
 import random
 import re
@@ -48,6 +49,7 @@ from . import results                                   # the redesign, phase 3:
 from . import record                                    # the redesign, phase 4: Check and the Log as Record
 from . import scout, scout_tab                          # Goal 2 item 9: scouting, then the confirmation
 from . import bounds, timing                            # where the time goes, at a Run and in Excel (30 Sep 2026)
+from . import glossary                                  # every term, with this book's figures (2 Oct 2026)
 # _load opens a workbook Excel saved with its dropdowns kept; quiet_load without openpyxl's extension warnings
 from .excel_lists import load as _load, quiet as quiet_load
 from .house import MIST as READ_ONLY
@@ -369,8 +371,8 @@ def _col(n: int) -> str:
 
 
 def _order(wb) -> None:
-    """Start here first, the inputs, then the results, then the hidden helpers."""
-    want = list(INPUT_TABS) + list(RESULT_TABS)
+    """Start here first, then the Glossary, the inputs, the results, and the hidden helpers."""
+    want = [INPUT_TABS[0], glossary.SHEET] + list(INPUT_TABS[1:]) + list(RESULT_TABS)
     wb._sheets.sort(key=lambda ws: (want.index(ws.title) if ws.title in want else len(want)))
     wb.active = 0
     for ws in wb.worksheets:
@@ -704,6 +706,8 @@ def _set_up(extract: str | Path, book: str | Path | None = None, memory_path: st
     settings = control.load_settings()
     given = {s.key: control.answer_of(s.key, *kept["control"].get(s.key, (None, None))) for s in settings}
     _start_here(start, wb, extract, len(table.rows), len(extract_cols))
+    # the Glossary (the firm, 2 Oct 2026): the last Run's figures, kept on _found, or made up before the first
+    glossary.write(wb, glossary.stored(wb, FOUND), _found_value(wb, "stamp"))
     _order(wb)
     if not _writable(book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Set up again."])
@@ -1090,7 +1094,7 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
          if _found_value(wb, "kind") != confirm_tab.FOUND_KIND else
          "Each group of the tested column on the holdout, against the reference group. Significant? follows the "
          "confidence on Control; the rest is as of the last Run."),
-        ("The tabs", "Red tabs you fill in; black tabs hold results; grey tabs are the record."),
+        ("The tabs", "Red tabs you fill in; black tabs hold results; grey tabs are the glossary and the record."),
     ])
     _heading(ws, r, "Where things stand")
     cols = wb["Columns"] if "Columns" in wb.sheetnames else None
@@ -1278,7 +1282,8 @@ TAB_GROUPS = [
                         (results.COMPARE, "the filters' values as lines"), (results.SPLIT, "each pocket split"),
                         (scout.SHEET, "the candidates ranked, on development loans"),
                         (confirm_tab.SHEET, "the shortlist, confirmed")]),
-    ("Record", "STONE", [(record.SHEET, "what ran, the tie-outs, every Run")]),
+    ("Record", "STONE", [(record.SHEET, "what ran, the tie-outs, every Run"),
+                         (glossary.SHEET, "every term, with an example")]),
 ]
 
 
@@ -2704,6 +2709,7 @@ def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, s
         del wb["Start here"]
         _start_here(wb.create_sheet("Start here", at), wb, src, res.rows,
                     ncols if ncols is not None else len(res.config.columns or {}))
+    glossary.write(wb, glossary.stored(wb, FOUND), stamp)        # this Run's figures (the firm, 2 Oct 2026)
     _order(wb)
 
 
@@ -2731,6 +2737,8 @@ def _write_found(wb, res, stamp: str) -> None:
     ws = wb.create_sheet(FOUND)
     ws.sheet_state = "hidden"
     ws.append(["stamp", stamp])
+    # the whole book's figures for the Glossary's examples, kept here so Set up can write them again
+    ws.append([glossary.FOUND_KEY, json.dumps(glossary.figures(res, _names(res)))])
     if not bleed_tabs(res):
         return confirm_tab.write_found(ws, res)     # no pocket was built: what the confirmation found (OC-42)
     rates = [m for m in res.measures if m.is_rate]

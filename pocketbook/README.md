@@ -256,7 +256,10 @@ After that, the whole routine is:
      add up to. Booked is the booked dollars under RANR (a loan with no
      readable RANR is left out of both), so RANR ÷ Booked is RANR's own rate. Every
      figure is worked out in the Run; the dollars show in thousands only when
-     the whole book's booked would not fit the column, as on Grids.
+     the whole book's booked would not fit the column, as on Grids. The block ends
+     on each pocket's **Avg line** and **× book**, as on Summary (2 Oct 2026), in
+     Loan size's one neutral hue, darker the bigger the line against the book's,
+     never red or green; the totals carry them too (Whole book 1.00×).
    - **Grids:** a Grid and a Measure dropdown, and four blocks one under
      another from the left column (the firm, 30 Sep 2026: side by side, a
      narrow grid left a blank middle): the rate,
@@ -322,12 +325,17 @@ After that, the whole routine is:
      Filter 2's dropdown beside it, to the loans with both). Down
      the side: the bands in order, then (blank), (not a number) and (marked
      missing) where the column has them, then **All**. Across: Loans, % of
-     loans, Bad loans, Bad loans %, Booked $, % of booked, GCOs ($),
+     loans, Bad loans, Bad loans %, Booked $, Avg line, × book, % of booked, GCOs ($),
      GCOs ÷ Booked, × book, % of GCOs, RANR $, RANR ÷ Booked, % of RANR.
      Bad loans % and the two rates are the same rates Grids shows (a loan
      missing an amount is left out of that rate's top and bottom); × book is
      the band's GCOs ÷ Booked over the whole book's, filtered or not; the
      shares are of the All row, so they add to 100% with the special rows in.
+     **Avg line** (the firm, 2 Oct 2026: *"booked dollar averages so more easily
+     demonstrate how line assignments look in pockets"*) is the row's booked dollars
+     over its loans with a booked amount, the average committed line, and the
+     **× book** beside it is that over the whole book's Avg line, filtered or not;
+     both blank where the row has no loans.
      Every number is worked out by the Run (`engine.summary_rows`) and tied out
      to the book before it is written; the tab's formulas only pick the row.
      Nothing is tested: no p-value, no red or green, the All row shaded light
