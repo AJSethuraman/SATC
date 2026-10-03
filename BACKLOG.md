@@ -3096,8 +3096,10 @@ changed in the code.
     Nothing else reads it: no formula, rule or name elsewhere (tested). The note's Shading line says so.
   - **Glossary.** A 27th term, *Vintage*, after Origination year. Checklist 4.10 says 27 terms, and 2.2 says the
     paste writes 39 files (`summary_chart.py` is one more); HTML and PDF rebuilt.
-  - **For the firm to confirm:** (1) A Run writes Summary afresh, so the grey number goes back to 50 after each Run,
-    as every dropdown on a result tab does; say if it should be kept across Runs. (2) The chart's axis has one plain
+  - **Kept across Runs (3 Oct 2026, at the merge).** The firm asked for the number to be "separately adjustable", so
+    a Run reads what was typed before it rewrites Summary and puts it back (`summary_chart.typed_grey`/`keep_grey`,
+    called in `book._write_results`); 1 test, 1 planted bug.
+  - **For the firm to confirm:** (2) The chart's axis has one plain
     number format for every measure (an axis can't take its format from a dropdown), so a rate or share is drawn in
     per cent (7.12, the caption says per cent), dollars and counts read 32,000.0 with one decimal; the table under
     the chart shows each in its own format. (3) The vintage helper roughly doubles `_views`: on 20,000 loans, three

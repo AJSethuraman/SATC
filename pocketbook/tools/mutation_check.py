@@ -1648,6 +1648,10 @@ muts = [
  ("Summary's vintage chart drawing each year's point from the year before", SCH,
   "value=f\"={pick(row, f'({MI}-1)*{Y}+{y + 1}')}\")", "value=f\"={pick(row, f'({MI}-1)*{Y}+{y}')}\")",
   "chart_redraws_with_the_dropdowns"),
+ # the firm, 2 Oct 2026: the grey number "separately adjustable" -- what was typed survives the next Run
+ ("Summary's Grey rows under back to 50 at every Run", B,
+  "    summary_chart.keep_grey(wb, grey)\n", "",
+  "grey_number_typed_survives_the_next_run"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
