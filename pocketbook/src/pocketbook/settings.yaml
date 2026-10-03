@@ -197,6 +197,26 @@ groups:
             explains: >-
               Nothing changes: each column's odd values are used as recorded until answered on Columns.
 
+      # The firm, 3 Oct 2026: "we definitely want to be able to demonstrate and explain what the formulas are and
+      # how to do them by hand". A separate workbook, so the main one doesn't get slower, written only when asked:
+      # blank is No, and the Run doesn't wait for it (optional). audit.py writes it.
+      - key: audit_book
+        question: Also write the audit workbook?
+        takes_effect: re-run
+        override: null
+        optional: true
+        only_when: {run_kind: bleed}
+        options:
+          - value: "yes"
+            label: "Yes"
+            explains: >-
+              A second file beside this one, ending "- audit.xlsx": one pocket's figures worked out again
+              from the loans, step by step. The Run takes longer.
+          - value: "no"
+            label: "No"
+            explains: >-
+              No audit workbook. Blank is the same.
+
   - title: Is it enough loans to matter
     settings:
       - key: min_loans

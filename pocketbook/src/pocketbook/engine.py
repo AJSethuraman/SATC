@@ -59,6 +59,9 @@ WORSE, BETTER, IN_LINE = "worse", "better", "in line"
 UNSURE_WORSE, UNSURE_BETTER = "worse, not significant", "better, not significant"
 THIN, FEW = "too few loans to test", "too few losses to test"
 UNSURE = UNSURE_WORSE
+#: the name the Run's shuffle seed is made from (perm.seed_of): fixed, so the same extract deals the same shuffles every
+#: time. The audit workbook names it, and deals one pocket's shuffles again from it (audit.py)
+SHUFFLE_SEED_NAME = "one order per shuffle, shared by every test in the run"
 # the test behind a pocket's p-value (RateStat.test), in the words the workbook uses
 Z_TEST, EXACT_TEST, SHUFFLE_TEST = "z", "exact", "shuffle"
 
@@ -709,6 +712,12 @@ class Result:
     # Summary's vintage chart (the firm, 3 Oct 2026): each Summary row, the rest of the book and the whole book, per
     # origination year (summary_chart.Vintage); None for a run that writes no Summary
     vintage: Any = None
+    # the audit workbook (the firm, 3 Oct 2026: "show the calculations it makes on one set of things and prove out
+    # each one"): every loan's (top, bottom) per rate as the Run read it (None: left out of that rate), and every
+    # loan's label in each band and segment column, in the extract's order. Kept so audit.py proves the Run's own
+    # figures rather than reading the loans a second way
+    per_row: dict = field(default_factory=dict, repr=False)
+    row_labels: dict = field(default_factory=dict, repr=False)
 
 
 @dataclass
@@ -1446,7 +1455,8 @@ def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]]
                   split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
                   book_size=book_size, filter_values=values, filter_values2=values2,
                   filter_values3=values3, summaries=summaries,
-                  value_bands=value_bands, once=once, vintage=vintage)
+                  value_bands=value_bands, once=once, vintage=vintage, per_row=per_row,
+                  row_labels={**dims, **bands})
 
 
 def _cut_or_each_value(b: Band, seen: list[float]) -> tuple[tuple[float, ...], tuple[float, ...] | None]:
@@ -1962,7 +1972,7 @@ def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
         halves.append((s, ids, sets))
     timing.mark("The shuffle test")
     workers = perm.run(n, columns, [book, *bands.values(), *(s for s, _, _ in halves)], bench.shuffles,
-                       perm.seed_of("one order per shuffle, shared by every test in the run"))
+                       perm.seed_of(SHUFFLE_SEED_NAME))
     clock = timing.current()
     failed = clock.facts.get("pool_failed") if clock is not None else None
     timing.note(f"{bench.shuffles:,} shuffles of {n:,} loans on {_workers_said(workers)}"
