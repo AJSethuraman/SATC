@@ -42,7 +42,7 @@ MODE_KEYS = {
 }
 TOP_KEYS = {"name", "schema_version", "key", "booked", "outcome", "gco", "ranr", "columns", "columns_confirmed",
             "missing", "bands", "dimensions", "measures", "benchmark", "questions",
-            "origination_date", "split", "filter_by", "filter_by2", "derived", "run_kind"}
+            "origination_date", "split", "filter_by", "filter_by2", "filter_by3", "derived", "run_kind"}
 #: The dates a run can be told about, as meanings in `columns:`: each names at most one column. The origination
 #: date splits development loans from the holdout, and Check gives its range; the charge-off date, with it, gives
 #: each charged-off loan's months to charge-off (the firm, 1 Oct 2026; engine.chargeoff_months).
@@ -369,6 +369,7 @@ class Config:
     split: tuple | None = None                        # (column, own_median | each_value): the third layer
     filter_by: str | None = None                      # Grids' "Only loans where": a category, or ORIG_YEAR
     filter_by2: str | None = None                     # Filter 2, "and <column> is": with filter_by, never alone
+    filter_by3: str | None = None                     # Filter 3, "and <column> is": with filter_by2, never alone
     columns: dict = field(default_factory=dict)       # column -> (meaning, is-value); from `columns:`
     not_cut: dict = field(default_factory=dict)       # column -> meaning, for meanings never cut by
     derived: tuple = ()                               # Derived columns, made in this order
@@ -539,6 +540,11 @@ def parse(raw: Any, source_path: str = "") -> Config:
         problems.append(f"`filter_by2:` must name a second category column (or ORIG_YEAR), beside a `filter_by:`; "
                         f"got {filter_by2!r}")
         filter_by2 = None
+    filter_by3 = raw.get("filter_by3")
+    if filter_by3 is not None and (not isinstance(filter_by3, str) or not filter_by3.strip() or not filter_by2):
+        problems.append(f"`filter_by3:` must name a third category column (or ORIG_YEAR), beside a `filter_by2:`; "
+                        f"got {filter_by3!r}")
+        filter_by3 = None
     measures = core + extras
     bench = _parse_benchmark(raw.get("benchmark"), problems) if "benchmark" in raw else None
     questions = _parse_questions(raw.get("questions") or [], problems)
@@ -559,7 +565,7 @@ def parse(raw: Any, source_path: str = "") -> Config:
                   gco=cols["gco"], run_kind=run_kind if run_kind in RUN_KINDS else "bleed",
                   origination_date=orig_col,
                   chargeoff_date=next((c for c, (m, _) in columns.items() if m == "chargeoff_date"), None),
-                  split=split, filter_by=filter_by, filter_by2=filter_by2,
+                  split=split, filter_by=filter_by, filter_by2=filter_by2, filter_by3=filter_by3,
                   columns=columns, not_cut=not_cut, derived=derived,
                   periods=periods, definitions=definitions, source_path=source_path, raw=raw)
 

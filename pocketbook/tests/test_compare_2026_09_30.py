@@ -386,7 +386,7 @@ def test_filter_2_in_the_launcher_alone_together_refused_twice_and_written_to_co
     assert f.summary() == (False, ch.same_filter_twice("SYS_FLAG")) and f.states()["next"] == "disabled"
     f.click(ch.ORIG_YEAR, "d")
     ok, said = f.summary()
-    assert ok and said.endswith("Grids can show only the loans of one ORIG_YEAR, one SYS_FLAG, or both at once."), said
+    assert ok and "Grids can show only the loans of one ORIG_YEAR, one SYS_FLAG, or both at once. " in said, said
     got = f.choices()
     assert (got.filter, got.filter2) == (ch.ORIG_YEAR, "SYS_FLAG")
     f.next()

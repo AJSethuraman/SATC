@@ -10,7 +10,8 @@ was chosen over bars.
 What is across the bottom: any band column the Run cut, or either filter picked in the launcher (Origination year
 across the bottom is the vintage view). The lines are by either filter (Filter 1 or Filter 2), one line per value;
 the panels by the other, or none. With a filter across the bottom, the lines are by the other filter and there is one
-chart. Every number is worked out in the Run (engine.summaries, the same cells Summary shows) and put on _views; the
+chart. A third filter (the firm, 1 Oct 2026: "I thought we discussed two filters plus date") joins both pickers:
+Lines by and Panels by each offer all three, and the filter picked in neither is All loans. Every number is worked out in the Run (engine.summaries, the same cells Summary shows) and put on _views; the
 tab's formulas only pick them, as every result tab's do, so the dropdowns redraw the charts live.
 
 How the charts are built, so they work alike in Excel and LibreOffice:
@@ -39,8 +40,8 @@ from openpyxl.styles import Font
 
 from . import engine, house, live
 from .choices import ORIG_YEAR, ORIG_YEAR_LABEL
-from .results import (CANVAS, COMPARE, Choices, Views, YEAR_SAID, _cell, _fit, _hide, _widths, cf, col, dropdown,
-                      fewest, match, pick, plain, rates, view_key, xk)
+from .results import (AND, AND3, CANVAS, COMPARE, WHERE, Choices, Views, YEAR_SAID, _cell, _fit, _hide, _widths, cf,
+                      col, dropdown, fewest, match, pick, plain, rates, view_key, xk)
 
 SHEET = COMPARE
 #: the rows that aren't bands on the x axis: loans the column couldn't place, and loans with no date
@@ -56,6 +57,7 @@ DATA_W = 11                 # the width of every column but the first
 ACROSS = "Across the bottom"
 SAY_THIN = "A point with fewer loans than the {few:,} in Fewest loans in a pocket on Control is left off its line."
 SAY_SAME = "Panels by is the filter the lines are by, so one chart is drawn. Pick the other filter, or None."
+SAY_SAME3 = "Panels by is the filter the lines are by, so one chart is drawn. Pick another filter, or None."
 SAY_ACROSS = "{x} is across the bottom, so the lines are by {other} and one chart is drawn."
 SAY_READ = "If the lines have the same shape in every panel, the pattern holds across both categories."
 #: the helper block's three columns for each line: its y, the same to scale by, its x
@@ -71,21 +73,32 @@ def band_options(res) -> tuple[list[str], list[str]]:
     """Every band column the Run cut (engine name) and how the dropdown names it: its column, as Summary does."""
     from . import book as bk
     names = bk._names(res)
-    bands = [b.name for b in res.config.bands if (b.name, None, None) in res.summaries]
+    bands = [b.name for b in res.config.bands if (b.name, None, None, None) in res.summaries]
     shown = [names[b] for b in bands]
     return bands, [x if shown.count(x) == 1 else f"{x} ({b})" for x, b in zip(shown, bands)]
 
 
+def filters(res) -> list[tuple[str, list[str]]]:
+    """The filters the Run used, in order, each (column, its values): Filter 1, then 2 and 3 when picked."""
+    out = []
+    for name, vals in ((res.config.filter_by, res.filter_values), (res.config.filter_by2, res.filter_values2),
+                       (res.config.filter_by3, getattr(res, "filter_values3", []))):
+        if not (name and vals):
+            break
+        out.append((name, list(vals)))
+    return out
+
+
 def filter_options(res) -> list[tuple[int, str]]:
-    """The filters that can go across the bottom, as (1 or 2, how the dropdown names it): both, when the launcher
-    picked two and the Run cut a band column; Origination year by its name. None with one filter: across the
-    bottom and as the lines too, it would be one line."""
-    sf, sf2 = res.config.filter_by, res.config.filter_by2
-    if not (sf and sf2 and res.filter_values and res.filter_values2 and band_options(res)[0]):
+    """The filters that can go across the bottom, as (1, 2 or 3, how the dropdown names it): every one, when the
+    launcher picked two or three and the Run cut a band column; Origination year by its name. None with one filter:
+    across the bottom and as the lines too, it would be one line."""
+    fs = filters(res)
+    if len(fs) < 2 or not band_options(res)[0]:
         return []
     taken = set(band_options(res)[1])
     out = []
-    for k, name in ((1, sf), (2, sf2)):
+    for k, (name, _) in enumerate(fs, start=1):
         shown = ORIG_YEAR_LABEL if name == ORIG_YEAR else name
         out.append((k, shown if shown not in taken else f"{shown} (filter)"))
     return out
@@ -93,18 +106,24 @@ def filter_options(res) -> list[tuple[int, str]]:
 
 def band_labels(res, band: str) -> list[str]:
     """The bands of one column in order: the x axis. The loans it couldn't place and All are left off."""
-    return [x for x in res.summaries[(band, None, None)].labels if x != engine.ALL and x not in SPECIAL]
+    return [x for x in res.summaries[(band, None, None, None)].labels if x != engine.ALL and x not in SPECIAL]
 
 
 def filter_labels(res, k: int) -> list[str]:
     """Filter k's values across the bottom, in order: (blank) and (no date) are left off, as a band column's are."""
-    return [v for v in (res.filter_values if k == 1 else res.filter_values2) if v not in SPECIAL]
+    return [v for v in filters(res)[k - 1][1] if v not in SPECIAL]
 
 
-def points(res, band: str, measure: str, v1: str | None, v2: str | None) -> list[tuple[float | None, int]]:
-    """Each band's (rate, loans) on the loans with Filter 1 = v1 and Filter 2 = v2 (None: All loans), as _views holds
-    them: (None, 0) where the view has no loans."""
-    s = res.summaries.get((band, v1, v2))
+def other(k: int) -> int:
+    """The filter the lines are by when filter k is across the bottom and the lines were picked by it too."""
+    return 2 if k == 1 else 1
+
+
+def points(res, band: str, measure: str, v1: str | None, v2: str | None,
+           v3: str | None = None) -> list[tuple[float | None, int]]:
+    """Each band's (rate, loans) on the loans with Filter 1 = v1, Filter 2 = v2 and Filter 3 = v3 (None: All loans),
+    as _views holds them: (None, 0) where the view has no loans."""
+    s = res.summaries.get((band, v1, v2, v3))
     out = []
     for lab in band_labels(res, band):
         c = s.cells.get(lab) if s is not None else None
@@ -112,13 +131,16 @@ def points(res, band: str, measure: str, v1: str | None, v2: str | None) -> list
     return out
 
 
-def filter_points(res, k: int, measure: str, w: str | None) -> list[tuple[float | None, int]]:
-    """Filter k across the bottom: each of its values' (rate, loans) on the loans with the other filter = w (None: All
-    loans). Read off any band column's Summary, whose All row is every loan of the view."""
+def filter_points(res, k: int, measure: str, w: str | None, j: int | None = None) -> list[tuple[float | None, int]]:
+    """Filter k across the bottom: each of its values' (rate, loans) on the loans with filter j (the other one when
+    there are two) = w (None: All loans), any third filter All loans. Read off any band column's Summary, whose All
+    row is every loan of the view."""
     b0 = band_options(res)[0][0]
+    j = other(k) if j is None else j
     out = []
     for v in filter_labels(res, k):
-        s = res.summaries.get((b0, v, w) if k == 1 else (b0, w, v))
+        at = {k: v, j: w}
+        s = res.summaries.get((b0, at.get(1), at.get(2), at.get(3)))
         c = s.cells[engine.ALL] if s is not None else None
         out.append((c.rates[measure].rate, c.rows) if c is not None and c.rows else (None, 0))
     return out
@@ -141,16 +163,21 @@ def compare_views(res, views: Views) -> dict:
         labels = band_labels(res, b)
         most = max(most, len(labels))
         views.put(f"C|{opt}|labels", labels)
-        for (bb, v1, v2) in [k for k in res.summaries if k[0] == b]:
-            put(opt, view_key(v1, v2), {m.name: points(res, b, m.name, v1, v2) for m in ms})
+        for (bb, v1, v2, v3) in [k for k in res.summaries if k[0] == b]:
+            put(opt, view_key(v1, v2, v3), {m.name: points(res, b, m.name, v1, v2, v3) for m in ms})
+    fs = filters(res)
     for k, opt in filter_options(res):
         labels = filter_labels(res, k)
         most = max(most, len(labels))
         views.put(f"C|{opt}|labels", labels)
-        other = res.filter_values2 if k == 1 else res.filter_values
-        for w in [None] + list(other):
-            key = view_key(None, w) if k == 1 else view_key(w, None)     # the lines by the other filter
-            put(opt, key, {m.name: filter_points(res, k, m.name, w) for m in ms})
+        put(opt, "", {m.name: filter_points(res, k, m.name, None) for m in ms})      # the whole book
+        for j in range(1, len(fs) + 1):
+            if j == k:
+                continue
+            for w in fs[j - 1][1]:                                  # the lines by another filter, one per value
+                at = {j: w}
+                put(opt, view_key(at.get(1), at.get(2), at.get(3)),
+                    {m.name: filter_points(res, k, m.name, w, j) for m in ms})
     return {"options": shown + [o for _, o in filter_options(res)], "most": most, "measures": ms}
 
 
@@ -158,15 +185,17 @@ def write_compare(wb, res, choices: Choices, views: Views) -> None:
     """Compare (after Summary): pickers for what is across the bottom, the measure, what the lines are by and what
     the panels are by; one small chart per panel, side by side on one scale; and under them every point's rate and
     loans. Written only when the launcher picked a Filter by and the Run cut a band column."""
-    sf, sf2 = res.config.filter_by, (res.config.filter_by2 if res.filter_values2 else None)
-    if not (sf and res.filter_values and band_options(res)[0]):
+    fs = filters(res)
+    if not (fs and band_options(res)[0]):
         return
+    names = [n for n, _ in fs]
+    sf, sf2 = names[0], (names[1] if len(fs) > 1 else None)
     got = compare_views(res, views)
     ms, MB = got["measures"], got["most"]
     xf = filter_options(res)
-    vals1, vals2 = list(res.filter_values), list(res.filter_values2) if sf2 else []
-    L = max(len(vals1), len(vals2))                         # line slots
-    P = max(len(vals1), len(vals2)) if sf2 else 1          # panel slots
+    vals = [v for _, v in fs]
+    L = max(len(v) for v in vals)                           # line slots
+    P = max(len(v) for v in vals) if sf2 else 1            # panel slots
     few = fewest(res)
     ws = wb.create_sheet(SHEET)
     left = 2
@@ -193,26 +222,30 @@ def write_compare(wb, res, choices: Choices, views: Views) -> None:
     _widths(ws, {1: 2, left: lw, **{c: DATA_W for c in range(left + 1, S0)}})
     house.title_band(ws, SHEET, "The filters' values as lines across the bands, side by side on one scale.", left,
                      last, tab=house.TAB_RESULT)
+    each = "either" if len(fs) == 2 else "any"
     note = [
         ("What it is", "Pick what goes across the bottom and a measure. Each line is one value of the filter picked "
                        "in Lines by. The dashed grey line is the whole book."),
-        ("Across", "A band column's bands" + (", or either filter's values: Origination year there is the vintage "
+        ("Across", "A band column's bands" + (f", or {each} filter's values: Origination year there is the vintage "
                                               "view" if any(n == ORIG_YEAR_LABEL for _, n in xf) else
-                                              ", or either filter's values" if xf else "") + "."),
+                                              f", or {each} filter's values" if xf else "") + "."),
         ("Panels", ("Panels by draws one small chart for each value of the other filter, side by side. Every panel "
-                    "has the same scale, so higher in one panel is higher in all.") if sf2 else
+                    "has the same scale, so higher in one panel is higher in all.") if len(fs) == 2 else
+                   ("Panels by draws one small chart for each value of another filter, side by side; the filter in "
+                    "neither Lines by nor Panels by is All loans. Every panel has the same scale, so higher in one "
+                    "panel is higher in all.") if sf2 else
                    "Pick a second filter in the launcher (Filter 2) to draw one small chart for each of its values."),
         ("Thin points", (SAY_THIN.format(few=few) if few is not None else "Every point is drawn.")
                         + " The table under the charts still shows it, in grey. A panel with nothing to show for "
                           "what is picked stays empty, on the same scale."),
         ("Reading it", SAY_READ + " Nothing here is tested. " + SAY_ASOF),
     ]
-    if ORIG_YEAR in (sf, sf2):
+    if ORIG_YEAR in names:
         note.append(("Years", YEAR_SAID.format(res.config.origination_date).strip()))
     r = house.method_note(ws, 3, left, last, note)
     across_opt = got["options"]
-    opt1, opt2 = f"Filter 1: {sf}", (f"Filter 2: {sf2}" if sf2 else None)
-    lines_opts = [opt1] + ([opt2] if sf2 else [])
+    lines_opts = [f"Filter {k}: {n}" for k, n in enumerate(names, start=1)]
+    opt1, opt2 = lines_opts[0], (lines_opts[1] if sf2 else None)
     panel_opts = [NONE] + lines_opts
     b_rng, _ = choices.add("Compare: Across the bottom", across_opt)
     m_rng, (k_rng,) = choices.add("Compare: Measure", [plain(m) for m in ms], [m.name for m in ms])
@@ -231,32 +264,50 @@ def write_compare(wb, res, choices: Choices, views: Views) -> None:
     hr = s
     at = lambda c, k: f"${col(c)}${hr + k}"                   # noqa: E731
     LB, PB, BAND, MKEY, FEW, SHOW, LABR, XF = (at(S0, k) for k in range(8))
-    X1, X2 = at(S0 + 6, 0), at(S0 + 6, 1)                    # the filters' names across the bottom, if offered
+    X = [at(S0 + 6, k) for k in range(3)]                   # the filters' names across the bottom, if offered
     for k, name in xf:
-        ws[(X1 if k == 1 else X2).replace("$", "")] = name
-    q2 = live.q(opt2) if opt2 else '""'
-    f = {XF: f'IF(AND({X1}<>"",{B}={X1}),1,IF(AND({X2}<>"",{B}={X2}),2,0))',
-         # a filter across the bottom: the lines are by the other one, and there are no panels
-         LB: f'IF({XF}=1,2,IF({XF}=2,1,IF({LB_}={q2},2,1)))',
-         PB: (f'IF({XF}>0,0,IF(OR({PB_}="",{PB_}="{NONE}"),0,IF({PB_}={live.q(opt1)},IF({LB}=1,0,1),'
-              f'IF({LB}=2,0,2))))'),
+        ws[X[k - 1].replace("$", "")] = name
+
+    def which(cell: str, start: int, none: str) -> str:
+        """The filter (start, start + 1, ...) whose option a dropdown cell reads, else `none`."""
+        out = none
+        for k in range(len(lines_opts), start - 1, -1):
+            out = f"IF({cell}={live.q(lines_opts[k - 1])},{k},{out})"
+        return out
+    xfs = "0"
+    for k in range(len(xf), 0, -1):
+        xfs = f'IF(AND({X[k - 1]}<>"",{B}={X[k - 1]}),{k},{xfs})'
+    LBP = which(LB_, 2, "1")                               # the filter Lines by names
+    f = {XF: xfs,
+         # a filter across the bottom: the lines are by the one picked, or another when it is the one across, and
+         # there are no panels
+         LB: f'IF({XF}=0,{LBP},IF({LBP}<>{XF},{LBP},IF({XF}=1,2,1)))',
+         PB: f'IF({XF}>0,0,IF({which(PB_, 1, "0")}={LB},0,{which(PB_, 1, "0")}))',
          BAND: f"{B}&\"\"", MKEY: f'IFERROR(INDEX({k_rng},MATCH({M},{m_rng},0)),"")',
          SHOW: f'{Y}="Yes"', LABR: match(xk("C|", (BAND,), "|labels"))}
     for cell, x in f.items():
         ws[cell.replace("$", "")] = f"={x}"
     ws[FEW.replace("$", "")] = few if few is not None else 0
-    for i in range(max(len(vals1), len(vals2), 1)):
-        ws.cell(row=hr + i, column=S0 + 4, value=str(vals1[i]) if i < len(vals1) else None)
-        ws.cell(row=hr + i, column=S0 + 5, value=str(vals2[i]) if i < len(vals2) else None)
-    V1 = lambda i: f"${col(S0 + 4)}${hr + i - 1}"            # noqa: E731
-    V2 = lambda i: f"${col(S0 + 5)}${hr + i - 1}"            # noqa: E731
+    VC = (S0 + 4, S0 + 5, S0 + 7)                           # each filter's values, down a hidden column
+    for i in range(max(L, 1)):
+        for k, vs in enumerate(vals):
+            ws.cell(row=hr + i, column=VC[k], value=str(vs[i]) if i < len(vs) else None)
+    V = lambda k, i: f"${col(VC[k - 1])}${hr + i - 1}"       # noqa: E731
+
+    def by(sel: str, cells: list[str]) -> str:
+        """The cell of filter `sel` (1, 2 or 3) from one per filter."""
+        out = cells[-1]
+        for k in range(len(cells) - 1, 0, -1):
+            out = f"IF({sel}={k},{cells[k - 1]},{out})"
+        return out
     LV = lambda j: f"${col(S0 + 1)}${hr + j - 1}"            # noqa: E731
     PV = lambda p: f"${col(S0 + 2)}${hr + p - 1}"            # noqa: E731
     USED = lambda p: f"${col(S0 + 3)}${hr + p - 1}"          # noqa: E731
     for j in range(1, L + 1):
-        ws[LV(j).replace("$", "")] = f'=IF({LB}=1,{V1(j)}&"",{V2(j)}&"")'
+        ws[LV(j).replace("$", "")] = "=" + by(LB, [f'{V(k, j)}&""' for k in range(1, len(fs) + 1)])
     for p in range(1, P + 1):
-        ws[PV(p).replace("$", "")] = f'=IF({PB}=0,"",IF({PB}=1,{V1(p)}&"",{V2(p)}&""))'
+        ws[PV(p).replace("$", "")] = (f'=IF({PB}=0,"",' + by(PB, [f'{V(k, p)}&""' for k in range(1, len(fs) + 1)])
+                                      + ")")
         ws[USED(p).replace("$", "")] = f'=IF({PB}=0,{p}=1,{PV(p)}<>"")'
     # the helper block: two key rows (the rate's _views row, the loans'), the series' names, then one row per point
     R_RATE, R_LOANS, R_TITLE, DR = hr, hr + 1, hr + 2, hr + 3
@@ -271,10 +322,11 @@ def write_compare(wb, res, choices: Choices, views: Views) -> None:
                 sfx, title = "", live.q(BOOK_LINE)
             else:
                 on = f'AND({USED(p)},{LV(j)}<>"")'
-                v1 = f"IF({LB}=1,{LV(j)},{PV(p)})"
-                v2 = f"IF({LB}=1,{PV(p)},{LV(j)})"
-                sfx = (f'&IF({v1}="","",{live.q("|where ")}&{v1})'
-                       f'&IF({v2}="","",{live.q("|and ")}&{v2})')
+                # each filter's value in the view's key: the line's, the panel's, or All loans (blank)
+                sfx = ""
+                for k, part in zip(range(1, len(fs) + 1), (WHERE, AND, AND3)):
+                    vk = f'IF({LB}={k},{LV(j)},IF({PB}={k},{PV(p)},""))'
+                    sfx += f'&IF({vk}="","",{live.q(part.format(""))}&{vk})'
                 title = LV(j)
             rk = f'"C|"&{BAND}&"|"&{MKEY}{sfx}'
             lk = f'"C|"&{BAND}&"|loans"{sfx}'
@@ -310,10 +362,13 @@ def write_compare(wb, res, choices: Choices, views: Views) -> None:
         ws.cell(row=rr, column=PHY, value=f"=IF(COUNT({clean})=0,NA(),{col(LY)}{rr})" if i == 1 else
                 f"=IF(COUNT({clean})=0,NA(),{hi})" if i == 2 else "=NA()")
     status = s + 1
-    say_x = {k: SAY_ACROSS.format(x=n, other=(sf2 if k == 1 else sf)) for k, n in xf}
-    _cell(ws, status, left, (f'=IF({XF}=1,{live.q(say_x.get(1, ""))},IF({XF}=2,{live.q(say_x.get(2, ""))},'
-                             f'IF(AND({PB_}<>"{NONE}",{PB}=0),{live.q(SAY_SAME)},"")))'), size=9,
-          color=house.CRIMSON, h="left")
+    lb_name = by(LB, [live.q(n) for n in names])
+    said = f'IF(AND({PB_}<>"{NONE}",{PB}=0),{live.q(SAY_SAME if len(fs) == 2 else SAY_SAME3)},"")'
+    for k, n in reversed(xf):
+        head, tail = SAY_ACROSS.split("{other}")
+        head = head.format(x=n)
+        said = f'IF({XF}={k},{live.q(head)}&{lb_name}&{live.q(tail)},{said})'
+    _cell(ws, status, left, f"={said}", size=9, color=house.CRIMSON, h="left")
     key = status + 1
     # the key, in cells so it names only the lines drawn now: the whole book dashed grey, then each line in its hue
     _cell(ws, key, left, f'=IF({SHOW},"- - {BOOK_LINE}","")', bold=True, size=9, color=house.SLATE, h="left",
@@ -324,15 +379,15 @@ def write_compare(wb, res, choices: Choices, views: Views) -> None:
               h="left", name="Arial")
         ws.merge_cells(start_row=key, start_column=c0, end_row=key, end_column=c0 + 1)
     top = key + 2
-    pb_name = f'IF({PB}=1,{live.q(sf)},{live.q(sf2 or "")})'
+    pb_name = by(PB, [live.q(n) for n in names])
     for p in range(1, P + 1):
         c0 = left + (p - 1) * PANEL_COLS
         _cell(ws, top, c0, f'=IF({USED(p)},IF({PB}=0,"All loans",{pb_name}&" is "&{PV(p)}),"")', bold=True,
               h="left", name="Arial")
         ws.merge_cells(start_row=top, start_column=c0, end_row=top, end_column=c0 + PANEL_COLS - 1)
         ws.add_chart(_chart(ws, p, L, MB, DR, (CATC, pcol(p, 0), pcol(p, 2), pcol(p, 1), pcol(p, 3)), scol, R_TITLE), f"{col(c0)}{top + 1}")
-    _cell(ws, top + CHART_ROWS + 1, left, f'="Across the bottom: "&{B}&" · "&{M}&" · lines by "&IF({LB}=1,'
-          f'{live.q(sf)},{live.q(sf2 or "")})&". "&' + live.q(SAY_READ), size=9, color=house.SLATE, h="left")
+    _cell(ws, top + CHART_ROWS + 1, left, f'="Across the bottom: "&{B}&" · "&{M}&" · lines by "&{lb_name}&". "&'
+          + live.q(SAY_READ), size=9, color=house.SLATE, h="left")
     r = top + CHART_ROWS + 3
     for p in range(1, P + 1):
         r = _table(ws, r, left, p, L, MB, USED(p), PV(p), PB, pb_name, B, FEW, CATC, DR, scol, R_TITLE, R_RATE,
