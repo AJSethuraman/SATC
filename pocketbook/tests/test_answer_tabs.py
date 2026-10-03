@@ -9,6 +9,7 @@ The live parts are proved by calculating the workbook through LibreOffice (tests
 with openpyxl, the copy recalculated, and the cells the charts and tiles read compared with a count by hand."""
 
 import csv
+import io
 import re
 import statistics
 from pathlib import Path
@@ -72,7 +73,8 @@ def _calc(path: Path, tmp: Path, edit=None):
 def test_the_four_tabs_you_fill_in_come_first_red_and_nothing_folded_is_left(ran):
     _, b = ran
     wb = load_workbook(b)
-    assert wb.sheetnames[:4] == list(ANSWER_TABS)
+    # the Glossary sits between Start here and Control (the firm, 2 Oct 2026); it is grey, filled in by no one
+    assert wb.sheetnames[:5] == [ANSWER_TABS[0], "Glossary", *ANSWER_TABS[1:]]
     for gone in ("Odd values", "Learned", "Materiality"):
         assert gone not in wb.sheetnames
     for t in ANSWER_TABS:
@@ -122,7 +124,9 @@ def test_control_holds_changes_now_then_needs_a_run_then_the_launchers_choices(r
     assert a < bb < c
     assert [k for k, r in sorted(rows.items(), key=lambda t: t[1]) if a < r < bb] == list(control.NOW_KEYS)
     # the cutoff (OC-51) closes Block B: asked only when scouting, it moves no row a bleed run reads
-    assert [k for k, r in sorted(rows.items(), key=lambda t: t[1]) if bb < r < c] == list(control.RUN_KEYS) + ["cutoff"]
+    # and the bureau codes question (30 Sep 2026) after it, the last row before the launcher's block
+    assert [k for k, r in sorted(rows.items(), key=lambda t: t[1]) if bb < r < c] == list(control.RUN_KEYS) + [
+        "cutoff", "bureau_codes"]
     assert "run_kind" in rows and rows["run_kind"] > c
     # the bands: INK with a red rule, SLATE with a STONE rule, MIST
     assert _hex(ws.cell(row=a, column=2).fill.fgColor) == house.INK
@@ -297,7 +301,7 @@ def test_columns_names_each_column_once_with_its_odd_values_and_memory_on_its_ro
     names = [r[book.C_NAME - 1].value for r in book.table_rows(ws) if r[book.C_NAME - 1].value]
     assert names == header
     fico = next(r for r in book.table_rows(ws) if r[book.C_NAME - 1].value == "FICO")
-    assert fico[book.C_ODD - 1].value == "-9999 on 80 loans"          # every 50th loan of 4,000
+    assert fico[book.C_ODD - 1].value == "-9,999 on 80 loans"         # every 50th loan of 4,000
     assert fico[book.C_TREAT - 1].value == "Missing" and fico[book.C_EDGES - 1].value == EDGES
     ranr = next(r for r in book.table_rows(ws) if r[book.C_NAME - 1].value == "RANR_AMT")
     assert ranr[book.C_ODD - 1].value.startswith("Negative on ") and ranr[book.C_TREAT - 1].value is None
@@ -363,8 +367,8 @@ def test_start_here_counts_what_is_left_and_what_the_last_run_found(ran, tmp_pat
     ws = got["Start here"]
     assert _tile(ws, book.NEEDED) == 0
     assert _tile(ws, "Odd values to answer") == 1                     # RANR_AMT's negatives
-    found = _tile(ws, "Pockets worse and material, charge-offs")
-    k, of = found.split(" of ")
+    found = _tile(ws, "Pockets worse and material, GCOs")
+    k, of = found.split(" · ")[0].split(" of ")          # " · 1 borderline" when one is (29 Sep 2026)
     dollars = [d for d in _pockets(got) if d is not None]
     assert int(of.replace(",", "")) == len(dollars)
     # the tie-out tile is gone: a Run that doesn't tie out stops, so it could only read fine (tenet T2)
@@ -407,16 +411,26 @@ def _block_row(ws, name) -> int:
     return next(c.row for c in ws["B"] if c.value == name and _hex(c.fill.fgColor) == house.INK)
 
 
-def test_look_shows_the_mean_beside_the_median_and_the_code_on_a_red_bar_of_its_own(ran):
+def test_look_shows_the_mean_beside_the_median_and_the_code_on_a_red_bar_of_its_own(ran, tmp_path, monkeypatch):
     x, b = ran
-    wb = load_workbook(b)
-    ws = wb["Look"]
+    # before anyone answers: the code on a line and a red bar of its own
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    fresh = book.set_up(x, book=tmp_path / "fresh.xlsx", choices=ch.Choices(run_kind=ch.BLEED, split="REV_DEBT")).book
+    ws = load_workbook(fresh)["Look"]
     r = _block_row(ws, "FICO")
     vals = _fico(x)
     lines = {ws.cell(row=r + k, column=2).value: ws.cell(row=r + k, column=3).value for k in range(1, 9)}
     assert lines["Median"] == statistics.median(vals)
     assert lines["Mean"] == pytest.approx(statistics.fmean(vals))
-    assert lines["At -9999, likely a code"] == 80
+    assert lines["At -9,999, likely a code"] == 80
+    # answered missing on Columns and Run (at the bank, 29 Sep 2026): counted as left out, the same spread, and
+    # no red bar, since it is no longer a question
+    run_ws = load_workbook(b)["Look"]
+    rr = _block_row(run_ws, "FICO")
+    after = {run_ws.cell(row=rr + k, column=2).value: run_ws.cell(row=rr + k, column=3).value for k in range(1, 10)}
+    assert after["Answered missing, left out"] == 80 and after["Median"] == lines["Median"]
+    assert not [c for c in run_ws._charts if isinstance(c, BarChart) and c.anchor._from.row + 1 == rr + 1
+                and c.anchor._from.col + 1 == 6]
     reds = [c for c in ws._charts if isinstance(c, BarChart) and c.anchor._from.row + 1 == r + 1
             and c.anchor._from.col + 1 == 6]
     assert len(reds) == 1
@@ -530,7 +544,8 @@ def test_a_run_loads_the_workbook_once_and_saves_it_once(ran, tmp_path, monkeypa
     real_load, real_save = openpyxl.load_workbook, openpyxl.Workbook.save
 
     def load(path, *a, **k):
-        if Path(str(path)).name == copy.name:
+        # the workbook's bytes, read once from the file and opened from memory (30 Sep 2026: OneDrive at the bank)
+        if Path(str(path)).name == copy.name or isinstance(path, io.BytesIO):
             loads.append(path)
         return real_load(path, *a, **k)
 
@@ -539,8 +554,10 @@ def test_a_run_loads_the_workbook_once_and_saves_it_once(ran, tmp_path, monkeypa
             saves.append(path)
         return real_save(self, path)
 
-    for mod in (openpyxl, book, control):
-        monkeypatch.setattr(mod, "load_workbook", load)
+    from pocketbook import excel_lists
+    for mod in (openpyxl, book, control, excel_lists):             # excel_lists: book opens it through there
+        if hasattr(mod, "load_workbook"):                   # book and control read through excel_lists (30 Sep 2026)
+            monkeypatch.setattr(mod, "load_workbook", load)
     monkeypatch.setattr(openpyxl.Workbook, "save", save)
     monkeypatch.setattr(perm, "SHUFFLES", 200)
     assert book.run(copy, extract=b.with_name("loans.csv")).ok

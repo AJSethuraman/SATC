@@ -34,12 +34,15 @@ book is an error, not a table.
 from __future__ import annotations
 
 import math
+import re
 import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import perm, stats
+from . import perm, stats, timing
+from .choices import (NO_DATE, ORIG_YEAR, SPLIT_MOST_VALUES, same_filter_twice, too_many_to_filter,  # noqa: F401
+                      too_many_values, too_many_views)
 from .config import EACH_LOAN, PERIOD_WORDS, PROFIT, Band, Config, Dimension, Measure, MissingRule
 from .ingest import BLANK, Bad, Table, cell_text, is_blank, parse_number
 
@@ -112,6 +115,8 @@ def _caught(v: float, rule: MissingRule) -> bool:
         return True
     if rule.above is not None and v > rule.above:
         return True
+    if rule.at_or_below is not None and v <= rule.at_or_below:
+        return True                     # Control's bureau codes answer (config.BUREAU_CODE_LINE)
     for m in rule.values:
         if isinstance(m, (int, float)) and not isinstance(m, bool) and float(m) == v:
             return True
@@ -132,15 +137,52 @@ def classify_text(raw: Any, rule: MissingRule | None) -> str:
     return text
 
 
-def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | None = None) -> list[str]:
+def all_whole(values) -> bool:
+    """True when every value is a whole number: a score, a count, a term in months."""
+    return all(float(v).is_integer() for v in values)
+
+
+def reads_whole(edges) -> bool:
+    """True when a column's band labels read in whole units: every edge 100 or more either way (dollars, scores).
+    Under that, a ratio or a rate, the labels carry the edges' own decimals. The one test band_labels and the cuts use."""
+    return bool(edges) and min(abs(float(x)) for x in edges) >= 100
+
+
+def whole_cut(edges, values) -> tuple[float, ...]:
+    """Edges PocketBook cut (never typed ones: those are the analyst's, kept exactly as typed) on a column whose labels
+    read in whole units and whose values carry cents, each raised to the next whole number. The firm, 30 Sep 2026, on
+    an equal-loan edge of $37,950.548 whose labels read "26,324 - 37,950" and "37,951 - 49,151" while a loan of
+    $37,950.99 sat in the second: "Cut at whole dollars is fine". A whole-unit label reads a value with its cents
+    dropped (the whole dollars at or below it: $37,950.99 reads 37,950), so a band [a, b) at whole a and b holds
+    exactly the values whose reading is a to b - 1, which is what its label says. Raised, never rounded: on a column
+    of whole numbers (a score) raising moves no value, which is why such a column is left as it is. An edge that
+    raising puts on the one before it, or past the column's largest value, is dropped (a band with no loans); the
+    caller's "asked for N bands, got M" says so. A column whose loans all read the same whole dollars (every one
+    between $100 and $101) can't be cut at a whole dollar at all; its cut is kept as it was rather than refused."""
+    edges = tuple(float(e) for e in edges)
+    vals = [float(v) for v in values]
+    if not edges or not vals or not reads_whole(edges) or all_whole(vals):
+        return edges
+    lo, hi = min(vals), max(vals)
+    out: list[float] = []
+    for e in edges:
+        w = float(math.ceil(e))
+        if lo < w <= hi and (not out or w > out[-1]):
+            out.append(w)
+    return tuple(out) or edges
+
+
+def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | None = None,
+                whole: bool = False) -> list[str]:
     """Bands as ranges: "620 - 679", with the lowest from the column's smallest
     value and the highest to its largest (the firm, 25 Sep 2026: "i want bands to
     be written in '0 - 660' form ... adding words over symbols makes a big
     difference to how cluttered it feels"). A band holds its first number and
     stops one step short of the next band's, the step being 1 for whole-number
-    edges and the edges' own last decimal place otherwise."""
+    edges and the edges' own last decimal place otherwise. `whole`: the column holds whole numbers only (a score),
+    so an edge between them (654.2) starts its band at the next whole number (655)."""
     dec = 0
-    if min(abs(float(x)) for x in edges) < 100:          # scores and dollars read as whole numbers
+    if not reads_whole(edges):                           # scores and dollars read as whole numbers
         for x in edges:
             t = f"{float(x):.4f}".rstrip("0").rstrip(".")
             if "." in t:
@@ -155,14 +197,45 @@ def band_labels(edges: tuple[float, ...], lo: float | None = None, hi: float | N
         def f(x, d=d):
             return f"{x:,.{d}f}"
 
+        def up(x, step=step):
+            # an edge finer than the step shown (a FICO cut at 654.2, read as whole numbers) starts its band at the
+            # first shown value in it, 655, and the band below ends at 654, which it holds (found 30 Sep 2026: it
+            # read "496 - 653" and held 654)
+            return math.ceil(round(x / step, 9)) * step if whole else x
+
         first = f(math.floor(lo / step) * step) if lo is not None and lo < edges[0] else None
-        last = f(math.ceil(hi / step) * step) if hi is not None and hi >= edges[-1] else None
-        out = [f"{first} - {f(edges[0] - step)}" if first else f"up to {f(edges[0] - step)}"]
-        out += [f"{f(a)} - {f(b - step)}" for a, b in zip(edges, edges[1:])]
-        out.append(f"{f(edges[-1])} - {last}" if last else f"{f(edges[-1])} and up")
+        # a whole-unit label reads a value with its cents dropped (the firm, 30 Sep 2026: "Cut at whole dollars is
+        # fine"), so the highest band ends at its largest value's whole dollars: $49,151.40 ends "... - 49,151"
+        last = (f((math.floor(hi / step) if d == 0 else math.ceil(hi / step)) * step)
+                if hi is not None and hi >= edges[-1] else None)
+        out = [f"{first} - {f(up(edges[0]) - step)}" if first else f"up to {f(up(edges[0]) - step)}"]
+        out += [f"{f(up(a))} - {f(up(b) - step)}" for a, b in zip(edges, edges[1:])]
+        out.append(f"{f(up(edges[-1]))} - {last}" if last else f"{f(up(edges[-1]))} and up")
         if len(set(out)) == len(out):
             return out
     return out
+
+
+#: Control's "Number columns: this many values or fewer is a category" (few_values), for a band that carries none
+FEW_VALUES = 12
+#: the Run's line when a column gets one band per value (the firm, 30 Sep 2026)
+EACH_VALUE_SAYS = "{}: too few values to cut into equal bands, so each value is its own band"
+
+
+def value_text(v: float) -> str:
+    """One value as a band's label: 0, 1, 2 for whole numbers (never 0.0); 0.5 or 1,250.75 otherwise."""
+    v = float(v)
+    if v.is_integer():
+        return f"{v:,.0f}"
+    return f"{v:,.6f}".rstrip("0").rstrip(".")
+
+
+def labels_for(edges: tuple[float, ...], seen: list[float], values=None) -> list[str]:
+    """A band column's labels as every tab names them: by the value when the Run gave each value its own band
+    (`values`, from Result.value_bands), else as ranges over the values read (band_labels)."""
+    if values:
+        return [value_text(v) for v in values]
+    return band_labels(edges, min(seen), max(seen), whole=all_whole(seen)) if seen else band_labels(edges)
 
 
 def band_of(v: float, edges: tuple[float, ...], labels: list[str]) -> str:
@@ -207,7 +280,8 @@ def cut_edges(values: list[float], count: int, cut: str) -> tuple[float, ...]:
     """Edges for `count` bands. equal_loans: each band holds about the same
     number of loans (the quantiles). round: those quantiles snapped to round
     numbers. A column with many repeats can give fewer bands than asked for;
-    the edges actually used are reported with the result."""
+    the edges actually used are reported with the result. On a column read in
+    whole dollars that carries cents, each edge is a whole number (whole_cut)."""
     vals = sorted(values)
     if not vals:
         return ()
@@ -218,7 +292,7 @@ def cut_edges(values: list[float], count: int, cut: str) -> tuple[float, ...]:
     for e in edges:
         if e > vals[0] and (not out or e > out[-1]):
             out.append(e)
-    return tuple(out)
+    return whole_cut(out, vals)
 
 
 # --------------------------------------------------------------------------
@@ -390,6 +464,52 @@ def adjust(ps: list[float | None], how: str) -> list[float | None]:
     return out
 
 
+def adjust_se(ps: list[float | None], ses: list[float | None], how: str) -> list[float | None]:
+    """The standard error of each p-value after the allowance (adjust), for Borderline (docs/statistics.md B2a).
+    The allowance multiplies a raw p-value, and its sampling error with it: Bonferroni's p x m carries SE x m; a
+    Benjamini-Hochberg p is the smallest p_(j) x m / j over the ranks j at or above its own, so it carries the SE
+    of the raw p-value that set it, times that same m / j (the tie-out of 29 Sep 2026 found one pocket's raw p
+    setting 21 others'). None where the p-value that sets it has none (it wasn't shuffled)."""
+    idx = [i for i, p in enumerate(ps) if p is not None]
+    m = len(idx)
+    out: list[float | None] = [None] * len(ps)
+    if how == "none" or not m:
+        return [ses[i] if ps[i] is not None else None for i in range(len(ps))]
+    if how == "bonferroni":
+        for i in idx:
+            out[i] = ses[i] * m if ses[i] is not None and ps[i] * m < 1.0 else None
+        return out
+    order = sorted(idx, key=lambda i: ps[i])
+    running, se = math.inf, None
+    for rank in range(m, 0, -1):
+        i = order[rank - 1]
+        v = ps[i] * m / rank
+        if v < running:
+            running, se = v, (ses[i] * m / rank if ses[i] is not None else None)
+        # a p-value the allowance capped at 1 is nowhere near the bar: scaling its error by m / j would say it was
+        out[i] = se if running < 1.0 else None
+    return out
+
+
+def p_decides(word: str | None, gap: float | None, line: "ProfitLine | None") -> bool:
+    """Whether a reading's word turns on its p-value, so a p-value on the other side of the bar reads another
+    word: worse against worse, not significant (and better likewise); for profit read by each pocket's own test,
+    worse or better against in line. A multiple inside the loss line reads in line whatever the p-value, and too
+    few to test was never tested."""
+    if word in (WORSE, BETTER, UNSURE_WORSE, UNSURE_BETTER):
+        return True
+    return word == IN_LINE and line is not None and line.kind == "test" and gap not in (None, 0)
+
+
+def worse_turns(word: str | None, gap: float | None, line: "ProfitLine | None") -> bool:
+    """Whether Worse? (Yes / Not sure / No) turns on the p-value: worse against worse, not significant; and, for
+    profit read by its own test, a shortfall in line (No) against worse (Yes). Better against better, not
+    significant is No either way."""
+    if word in (WORSE, UNSURE_WORSE):
+        return True
+    return word == IN_LINE and line is not None and line.kind == "test" and gap is not None and gap < 0
+
+
 # --------------------------------------------------------------------------
 # Result shapes
 
@@ -436,6 +556,14 @@ class RateStat:
     hits_book: int | None = None        # the shuffle test: shuffles with a gap at least as big, of `shuffles`
     hits_band: int | None = None
     shuffles: int | None = None
+    # Borderline (docs/statistics.md B2a): the shuffle's standard error of p_book and p_band, after the allowance
+    # (adjust_se); None for a test that isn't shuffled. `borderline` is the flag's "borderline (p 0.048)" when the
+    # p-value that decides it is that near the bar at the Run's confidence, and `worse_borderline` the same when it
+    # is Worse? (Yes / Not sure / No) that turns on it
+    se_book: float | None = None
+    se_band: float | None = None
+    borderline: str | None = None
+    worse_borderline: str | None = None
 
     def sums(self) -> tuple:
         return (self.units, self.num, self.den, self.syy, self.sxx, self.sxy)
@@ -460,6 +588,36 @@ class Cell:
     medians: dict[str, MedianStat] = field(default_factory=dict)
 
 
+@dataclass
+class Size:
+    """What the loans in one cell booked (Grids' Loan size, the firm, 29 Sep 2026: "we tend to give these loan
+    amounts to these FICO scores within this category"): the loans with a booked amount, their booked dollars
+    added up, and the median. A description, never tested."""
+    loans: int = 0
+    booked: float = 0.0
+    median: float | None = None
+
+    @property
+    def average(self) -> float | None:
+        return self.booked / self.loans if self.loans else None
+
+
+@dataclass
+class Summary:
+    """One band column on its own, for the Summary tab (the firm, 30 Sep 2026: "bands of FICO on the left and straight
+    up unit counts, loan amounts, % of units, % of loan amounts, charged off dollars, ratio"): each band's cell, added
+    up from the loans as a grid's are, and its booked dollars. `labels` are the bands in order, then (blank), (not a
+    number) and (marked missing) where the column has them, then ALL; a view on one value of the Filter by column
+    keeps the whole book's labels, so its rows stay put, and a band with none of its loans is an empty cell. A
+    segment/category column has one too, its values in the bands' place (the firm, 30 Sep 2026)."""
+    band: str
+    labels: list[str]
+    cells: dict[str, Cell]
+    booked: dict[str, float] = field(default_factory=dict)     # empty without a booked amount
+    # the loans under those dollars, each row's (a loan with no booked amount is left out of both): Avg line's bottom
+    booked_loans: dict[str, int] = field(default_factory=dict)
+
+
 ALL = "All"
 HIGH = "above its pocket's median"
 LOW = "at or below its pocket's median"
@@ -481,6 +639,27 @@ class Grid:
     split_pooled: dict[str, dict] = field(default_factory=dict)
     # per measure, the pockets whose halves both clear the floors: the only ones compared or pooled
     split_tested: dict[str, list] = field(default_factory=dict, repr=False)
+    # a split by a category: each value set against the rest of its pocket (the other values together), keyed by
+    # the value, each as split_compare, split_pooled and split_tested are for the halves
+    split_parts: list[str] = field(default_factory=list)
+    part_compare: dict[str, dict] = field(default_factory=dict)
+    part_pooled: dict[str, dict] = field(default_factory=dict)
+    part_tested: dict[str, dict] = field(default_factory=dict, repr=False)
+    # and, for a yes/no per loan, whether the values differ at all, pooled over the pockets (B3, on K - 1 df)
+    split_general: dict[str, dict] = field(default_factory=dict)
+    # Borderline (docs/statistics.md B2a): each split pocket's p-value's standard error after the allowance, as
+    # split_compare and part_compare hold the p-values ({(band, seg): {measure: se}}); None where not shuffled
+    split_se: dict[tuple[str, str], dict[str, float | None]] = field(default_factory=dict, repr=False)
+    part_se: dict[str, dict] = field(default_factory=dict, repr=False)
+    # Grids' "Only loans where" (the firm, 29 Sep 2026; since 30 Sep by the Filter by column, whatever the split
+    # does): this grid again on only the loans with each value of that column, keyed by (Filter 1's value, Filter 2's
+    # value, Filter 3's value), None for All loans, so (v, None, None), (None, w, None), (v, w, None), (v, w, u) and
+    # so on: filters picked at once hold together (AND). Built like any grid, so "vs the book" is still against the whole
+    # book and "vs rest of band" is against the rest of the band among those loans. Shown on Grids only: never
+    # listed as pockets, counted in a family or tied out
+    filtered: dict[str, "Grid"] = field(default_factory=dict, repr=False)
+    # what each cell booked, margins included (Size); empty without a booked amount
+    sizes: dict[tuple[str, str], Size] = field(default_factory=dict, repr=False)
 
     def cell(self, band_label: str, dim_label: str) -> Cell:
         return self.cells[(band_label, dim_label)]
@@ -515,6 +694,78 @@ class Result:
     derived: list["DerivedReport"] = field(default_factory=list)
     table: Table | None = None                  # the extract as the run read it, new columns included
     bleed: bool = True                          # False: a test of a new variable, which builds no grid (OC-42)
+    book_size: Size | None = None               # what the whole book booked, per loan (Grids' Loan size)
+    filter_values: list[str] = field(default_factory=list)  # the Filter by column's values, in order (Grids)
+    filter_values2: list[str] = field(default_factory=list)  # Filter 2's values, in order
+    filter_values3: list[str] = field(default_factory=list)  # Filter 3's values, in order (the firm, 1 Oct 2026)
+    # Summary: {(band name, Filter 1's value, Filter 2's value, Filter 3's value): Summary}, None for All loans,
+    # every band column the Run cut; (band, None, None, None) is the whole book
+    summaries: dict[tuple[str, str | None, str | None, str | None], Summary] = field(default_factory=dict)
+    # band name -> its values, for a column too few-valued to cut: each value its own band, named by it (30 Sep 2026)
+    value_bands: dict[str, tuple[float, ...]] = field(default_factory=dict)
+    # per rate: what the pockets worse and material on the two-way grids come to with each loan counted once
+    # (Start here's tile and the launcher's, the firm, 1 Oct 2026); empty for a test of a new variable
+    once: dict[str, "Once"] = field(default_factory=dict)
+    # Summary's vintage chart (the firm, 3 Oct 2026): each Summary row, the rest of the book and the whole book, per
+    # origination year (summary_chart.Vintage); None for a run that writes no Summary
+    vintage: Any = None
+
+
+@dataclass
+class Once:
+    """The pockets worse and material on one rate, every two-way grid, with each loan counted once (the firm,
+    1 Oct 2026, choosing "distinct loans" over a sum that read $2,904,231,129 on a book whose GCOs were
+    $37,767,925: every loan sits in every grid, so a sum over the grids counts it once per grid).
+
+    The rule: a pocket's dollars above its share are its loans' own, each loan's GCO less its booked dollars at
+    the rate the pocket is compared with (the rest of the book, or of its band). A loan in several of those
+    pockets counts once, in the one where its own dollars above share are largest. On one grid each loan is in
+    one pocket, so the total is the pockets' sum; on many, for a loss compared at a rate of nought or more, it
+    can never exceed the GCOs of the loans counted, and so never the book's."""
+    dollars: float = 0.0                # each loan once: above share for a loss rate, short for profit
+    loans: int = 0                      # the distinct loans in at least one of the pockets
+    pockets: int = 0                    # the pockets worse and material
+    grids: int = 0                      # the grids holding at least one of them
+    pocket_sum: float = 0.0             # the pockets' own dollars added up, as a SUMIFS over _pockets gives them
+
+
+def worse_and_material(s: "RateStat") -> bool:
+    """A pocket Start here and the launcher count: worse, material, and losing (or short) dollars."""
+    return s.flag == WORSE and s.material is not False and s.dollars is not None and s.dollars > 0
+
+
+def once_over(grids: list[tuple["Grid", list]], per_row: dict, m: "Measure") -> Once:
+    """`Once` for rate `m` over `grids`, each (grid, every loan's (band, segment) in the extract's order), from
+    every loan's (top, bottom) in `per_row` (None: the loan didn't enter the rate)."""
+    out = Once()
+    best: dict[int, float] = {}
+    vals = per_row[m.name]
+    worse = m.higher_is == "worse"
+    for g, keys in grids:
+        at: dict[tuple, float] = {}
+        for k, c in g.inner():
+            s = c.rates[m.name]
+            if not worse_and_material(s) or not s.den:
+                continue
+            # the rate the pocket is compared with, from its own dollars: num - r * den for a loss, r * den - num
+            # for profit, so its loans' own dollars add up to exactly the pocket's
+            at[k] = (s.num - s.dollars) / s.den if worse else (s.dollars + s.num) / s.den
+            out.pockets += 1
+            out.pocket_sum += s.dollars
+        if not at:
+            continue
+        out.grids += 1
+        for i, k in enumerate(keys):
+            r = at.get(k)
+            if r is None or vals[i] is None:
+                continue
+            y, x = vals[i]
+            e = y - r * x if worse else r * x - y
+            if i not in best or e > best[i]:
+                best[i] = e
+    out.loans = len(best)
+    out.dollars = math.fsum(best.values())
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -695,6 +946,120 @@ def origination_dates(config: Config, table: Table, rows: list[dict]) -> Origina
     return out
 
 
+#: The measure that carries each charged-off loan's months to charge-off: shown, never tested (a median-mode measure,
+#: so every grid cell and every Summary row gets its average and median the way Show per pocket does)
+CO_MONTHS = "co_months"
+#: how every line about months to charge-off begins, so the Run's lines can carry them as the Log and Check do
+CO_SAID = "Months to charge-off"
+
+
+def no_chargeoff_date(outcome, raw_dates) -> str | None:
+    """The note for bad loans with no charge-off date (the firm, 1 Oct 2026: "Leave out, count in a note"): `outcome`
+    is each loan's outcome as the Run read it ((1.0, 1.0) bad, (0.0, 1.0) good, None unread), `raw_dates` its
+    charge-off date as written. None when every bad loan has one."""
+    k = sum(1 for o, d in zip(outcome, raw_dates) if o is not None and o[0] == 1.0 and is_blank(d))
+    if not k:
+        return None
+    return (f"{CO_SAID}: {k:,} bad loan{'s have' if k != 1 else ' has'} no charge-off date, so "
+            f"{'they are' if k != 1 else 'it is'} left out.")
+
+
+def months_between(made, charged_off) -> int:
+    """Whole calendar months from `made` to `charged_off`, days ignored: (y2 - y1) * 12 + (m2 - m1)."""
+    return (charged_off.year - made.year) * 12 + (charged_off.month - made.month)
+
+
+def chargeoff_months(config: Config, table: Table, rows: list[dict]) -> tuple[list[int | None] | None, str | None]:
+    """Each loan's months to charge-off (the firm, 1 Oct 2026: "We worked in calculating charge off months right? If
+    the data is there"), and the warning line that counts what was left out; (None, None) when no column in the
+    extract is marked Charge-off date, so nothing changes, and (None, a warning) when one is but none is marked
+    Origination date.
+
+    The rule: whole calendar months from origination to charge-off, (y2 - y1) * 12 + (m2 - m1), the day of the
+    month ignored. Only a loan with a charge-off date counts; a blank charge-off date is a loan that didn't charge
+    off, and is None. A loan with a charge-off date that is left out is None too, and counted in the warning, never
+    silently: a charge-off date that isn't a date, no readable origination date, or a charge-off before the loan
+    was made. A column whose dates read two ways is said in the warning, and nothing is worked out."""
+    from datetime import date as _date, datetime as _dt
+    oc, cc = config.origination_date, config.chargeoff_date
+    if not cc or cc not in table.columns:
+        return None, None
+    if not oc or oc not in table.columns:
+        # marked, so wanted: said rather than quietly not shown
+        return None, (f"Months to charge-off isn't worked out: {cc} is marked Charge-off date, but no column in "
+                      f"the extract is marked Origination date to count the months from")
+    try:
+        read_o = _date_reader(table, oc, "when each loan was made")
+        read_c = _date_reader(table, cc, "when each loan charged off")
+    except DataRefused as exc:
+        return None, f"Months to charge-off isn't worked out: {exc}"
+
+    def day(v):
+        return v.date() if isinstance(v, _dt) else v if isinstance(v, _date) else None
+
+    out: list[int | None] = []
+    odd = no_orig = before = 0
+    for r in rows:
+        raw_c = r.get(cc)
+        if is_blank(raw_c):
+            out.append(None)
+            continue
+        c = day(read_c(raw_c))
+        o = day(read_o(r.get(oc)))
+        if c is None:
+            odd += 1
+        elif o is None:
+            no_orig += 1
+        elif c < o:
+            before += 1
+        else:
+            out.append(months_between(o, c))
+            continue
+        out.append(None)
+    parts = [f"{k:,} {what}" for k, what in ((odd, f"with a {cc} that isn't a date"),
+                                              (no_orig, f"with no readable {oc}"),
+                                              (before, f"charged off before they were made ({cc} before {oc})"))
+             if k]
+    said = None
+    if parts:
+        n = odd + no_orig + before
+        said = (f"Months to charge-off: {n:,} loan{'s' * (n != 1)} with a charge-off date {'are' if n != 1 else 'is'}"
+                f" left out of it: " + "; ".join(parts) + ".")
+    return out, said
+
+
+def origination_years(table: Table, col: str) -> list[str]:
+    """The year each loan was made, as text ("2023"), read from `col` (the column marked Origination date) the way
+    the Run reads that column's dates; NO_DATE for a loan whose date is blank or can't be read, so it is never put
+    in a year. The one definition of ORIG_YEAR: Split by and Filter by both use it (the firm, 30 Sep 2026). Dates
+    that read two ways are refused (DataRefused), never read one way by default."""
+    from datetime import date as _date
+    read = _date_reader(table, col, "when each loan was made")
+    out = []
+    for r in table.rows:
+        d = read(r.get(col))
+        out.append(str(d.year) if isinstance(d, _date) else NO_DATE)
+    return out
+
+
+def with_year(config: Config, table: Table) -> Table:
+    """The extract with ORIG_YEAR added when the split or the filter names it (and the extract has no column of
+    that name already): the year of the column marked Origination date. Refused, in words, when none is marked."""
+    wanted = {config.split[0] if config.split else None, config.filter_by, config.filter_by2,
+              config.filter_by3}
+    if ORIG_YEAR not in wanted or ORIG_YEAR in table.columns:
+        return table
+    col = config.origination_date
+    if not col or col not in table.columns:
+        raise DataRefused(f"{ORIG_YEAR} is the year each loan was made, read from the column marked Origination "
+                          f"date on Columns, and no column in this extract is marked so. Mark it, or split and "
+                          f"filter by another column")
+    years = origination_years(table, col)
+    rows = [{**r, ORIG_YEAR: y} for r, y in zip(table.rows, years)]
+    return Table(path=table.path, sha256=table.sha256, columns=list(table.columns) + [ORIG_YEAR], rows=rows,
+                 kind=table.kind)
+
+
 def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
     """A band or dimension on a column that is the top of a rate would cut
     the book by its own outcome: every high-GCO band would show high GCO.
@@ -733,13 +1098,30 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
     return replace(config, bands=keep_b, dimensions=keep_d)
 
 
-def run(config: Config, table: Table) -> Result:
+def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]] | None = None) -> Result:
+    """`progress`, when given, is told "Cutting bands" and "Running the shuffle test" as each starts (the launcher's
+    progress line, 30 Sep 2026). `pairs`, when given, is the (band name, segment name) grids to build, and no
+    others: Set up's suggestions read a sample of the grids on a big book (book.suggest_pairs). Everything else,
+    the whole book's rates and what a pocket needs among them, is the same as a run of every grid."""
+    say = progress or (lambda stage: None)
+    timing.mark("Reading each loan's values")        # Record's "Where the time went" (the firm, 30 Sep 2026)
     warnings: list[str] = []
     table, derived = derive(config, table, warnings)
+    table = with_year(config, table)
     measures = _resolve_columns(config, table, warnings)
     config = _drop_outcome_cuts(config, measures, warnings)
     rows = table.rows                          # every loan: nothing is left out for its age or dates
     dates = origination_dates(config, table, rows)
+    # months to charge-off (the firm, 1 Oct 2026), only when the extract has both dates and the run is the bleed's:
+    # one more measure, shown and never tested, so Grids and Summary carry it as they carry Show per pocket
+    co_months = None
+    if config.run_kind != "new_variable":
+        co_months, said = chargeoff_months(config, table, rows)
+        if said:
+            warnings.append(said)
+        if co_months is not None:
+            measures = tuple(measures) + (Measure(name=CO_MONTHS, mode="median", value=config.chargeoff_date,
+                                                  show="average"),)
     n = len(rows)
     rules = config.missing
 
@@ -759,26 +1141,35 @@ def run(config: Config, table: Table) -> Result:
             warnings.append(f"open data question: {q.text()}. Used as recorded until answered "
                             f"(real, or missing) in `questions:`")
 
+    timing.mark("Cutting the bands")
     bands = {}
     band_edges: dict[str, tuple[float, ...]] = {}
     band_label_sets: dict[str, list[str]] = {}
+    value_bands: dict[str, tuple[float, ...]] = {}
+    say("Cutting bands")
     for b in config.bands:
         read = [classify_number(raw, rules.get(b.field)) for raw in col(b.field)]
-        edges = b.edges or cut_edges([v for v, why in read if why is None], b.count, b.cut)
+        seen = [v for v, why in read if why is None]
+        edges, each = b.edges, None            # typed edges are the analyst's: never replaced
+        if not edges:
+            edges, each = _cut_or_each_value(b, seen)
         if not edges:
             raise ColumnsMissing([(b.field, f"band {b.name}: no readable numbers to cut")], table.columns)
-        if b.count and len(edges) + 1 < b.count:
+        if each:
+            value_bands[b.name] = each
+            warnings.append(EACH_VALUE_SAYS.format(b.field))
+        elif b.count and len(edges) + 1 < b.count:
             warnings.append(f"band {b.name}: asked for {b.count} bands, got {len(edges) + 1} "
                             f"(`{b.field}` has too many repeated values to cut finer)")
         band_edges[b.name] = edges
-        seen = [v for v, why in read if why is None]
-        labels = band_labels(edges, min(seen), max(seen)) if seen else band_labels(edges)
+        labels = labels_for(edges, seen, each)
         band_label_sets[b.name] = labels
         bands[b.name] = [band_of(v, edges, labels) if why is None else REASON_LABEL[why] for v, why in read]
     dims = {d.name: [classify_text(raw, rules.get(d.field)) for raw in col(d.field)]
             for d in config.dimensions}
 
     # Per measure, per row: (num, den) for a rate, value for a median, or a reason.
+    timing.mark("Reading each loan's values")
     per_row: dict[str, list] = {}
     left_out: dict[str, Counter] = {}
     for m in measures:
@@ -786,6 +1177,8 @@ def run(config: Config, table: Table) -> Result:
         vals: list = []
         if m.mode == "count":
             vals = [1] * n
+        elif m.name == CO_MONTHS:
+            vals = list(co_months)              # a loan that never charged off is None, and left out unsaid
         elif m.mode == "median":
             for raw in col(m.value):
                 v, why = classify_number(raw, rules.get(m.value))
@@ -826,6 +1219,11 @@ def run(config: Config, table: Table) -> Result:
                     vals.append((num, d))
         per_row[m.name] = vals
         left_out[m.name] = lo
+    if co_months is not None and "outcome_loans" in per_row:
+        # the firm, 1 Oct 2026, on a bad loan with no charge-off date: "Leave out, count in a note"
+        said = no_chargeoff_date(per_row["outcome_loans"], [r.get(config.chargeoff_date) for r in rows])
+        if said:
+            warnings.append(said)
 
     total = _accumulate(measures, per_row, [None] * n)[None]
     _finish_cell(total, measures)
@@ -871,21 +1269,66 @@ def run(config: Config, table: Table) -> Result:
             split_vals = [classify_number(raw, rules.get(sfield))[0] for raw in col(sfield)]
     grids, three_way = [], []
     built: list[tuple[Grid, str, list]] = []           # every grid, its band, and each row's pocket
-    halved: list[tuple[Grid, list, list]] = []         # grids split at each pocket's own median, and the labels
+    # every grid whose pockets are split in two sides and compared: the halves, or each value against the rest
+    halved: list[tuple[Grid, list, list]] = []
     tie_outs = 0
     # a test of a new variable builds no bleed analysis (OC-42; the firm, 26 Sep 2026: "They have entirely
     # different outputs generally"): no grid, no three-way or split grid, no shuffle test. The bands are still
     # cut above, since the pre-spec's strata are read in them (confirmatory._stratum_labels)
     bleed = config.run_kind != "new_variable"
+    if bleed and split_vals is not None and config.split[1] == "each_value":
+        _few_enough(config.split[0], split_vals)
+    # Grids' "Only loans where" reads the Filter by column (the firm, 30 Sep 2026: "Wait only works on split by?"),
+    # never the split: a number split into halves, a category split, or none, the filter is the same
+    filter_vals = None
+    if bleed and config.filter_by:
+        ff = config.filter_by
+        if ff not in table.columns:
+            raise ColumnsMissing([(ff, "the Grids' filter")], table.columns)
+        filter_vals = [classify_text(raw, rules.get(ff)) for raw in col(ff)]
+        _few_enough_to_filter(ff, filter_vals)
+    # Filter 2 (the firm, 30 Sep 2026: "independently and in conjunction with each other"): another column, its
+    # values offered beside Filter 1's, each alone or both at once
+    filter_vals2 = None
+    if bleed and config.filter_by and config.filter_by2:
+        ff2 = config.filter_by2
+        if ff2 == config.filter_by:
+            raise DataRefused(same_filter_twice(ff2))
+        if ff2 not in table.columns:
+            raise ColumnsMissing([(ff2, "the Grids' second filter")], table.columns)
+        filter_vals2 = [classify_text(raw, rules.get(ff2)) for raw in col(ff2)]
+        _few_enough_to_filter(ff2, filter_vals2)
+        said = too_many_views(config.filter_by, len(set(filter_vals)), ff2, len(set(filter_vals2)))
+        if said and not config.filter_by3:
+            raise DataRefused(said)
+    # Filter 3 (the firm, 1 Oct 2026: "I thought we discussed two filters plus date"): a third column, beside Filter 2
+    # as Filter 2 is beside Filter 1; each value alone, each pair and each triple, all holding together. The three
+    # are limited together (FILTER_MOST_VIEWS3), never two at a time
+    filter_vals3 = None
+    if filter_vals2 is not None and config.filter_by3:
+        ff3 = config.filter_by3
+        for k, other in ((1, config.filter_by), (2, config.filter_by2)):
+            if ff3 == other:
+                raise DataRefused(same_filter_twice(ff3, k, 3))
+        if ff3 not in table.columns:
+            raise ColumnsMissing([(ff3, "the Grids' third filter")], table.columns)
+        filter_vals3 = [classify_text(raw, rules.get(ff3)) for raw in col(ff3)]
+        _few_enough_to_filter(ff3, filter_vals3)
+        said = too_many_views(config.filter_by, len(set(filter_vals)), config.filter_by2, len(set(filter_vals2)),
+                              ff3, len(set(filter_vals3)))
+        if said:
+            raise DataRefused(said)
+    timing.mark("Building the grids")
     for b in config.bands if bleed else ():
         for d in config.dimensions:
+            if pairs is not None and (b.name, d.name) not in pairs:
+                continue
             grid = _build_grid(config, b, d, band_edges[b.name], bands[b.name], dims[d.name], measures, per_row,
                                topline, min_units, total, needed, materiality_line, band_label_sets[b.name])
             built.append((grid, b.name, list(zip(bands[b.name], dims[d.name]))))
             if split_vals is not None:
                 labels = _split(grid, config, bands[b.name], dims[d.name], split_vals, measures, per_row)
-                if config.split[1] == "own_median":
-                    halved.append((grid, list(zip(bands[b.name], dims[d.name])), labels))
+                halved.append((grid, list(zip(bands[b.name], dims[d.name])), _sides(grid, config, labels)))
                 # the three-way pockets go through the same machinery as any pocket: tested, flagged,
                 # given dollars and tied out (OC-27; the third walk, defect 3: they were pictures only)
                 sfield = config.split[0]
@@ -902,12 +1345,93 @@ def run(config: Config, table: Table) -> Result:
             grids.append(grid)
     # the dollar rates' shuffle test (B2), one random order per shuffle for every grid at once; then the
     # allowance for many tests and the words, which need every p-value in
+    if built:
+        nb, nd = len(config.bands), len(config.dimensions)
+        timing.note(f"{len(built):,} grids: {nb:,} banded column{'s' * (nb != 1)} by {nd:,} "
+                    f"segment{'s' * (nd != 1)}" + (", each split" if halved else ""), grids=len(built))
     if bleed:
+        say("Running the shuffle test")
         _shuffle_tests(config, measures, per_row, n, built, halved)
+    timing.mark("Building the grids")
     for g, _, _ in built:
         _judge(g, config, measures, min_units, materiality_line)
     for g, _, _ in halved:
         _finish_split(g, config, measures)
+    # Start here's totals, each loan once (the firm, 1 Oct 2026): over the two-way grids, as its tiles count
+    two = {id(g) for g in grids}
+    once = {m.name: once_over([(g, keys) for g, _, keys in built if id(g) in two], per_row, m)
+            for m in measures if m.is_rate} if bench is not None else {}
+    # Grids' Loan size and "Only loans where" (the firm, 29 Sep 2026): each grid's booked dollars per cell, and each
+    # grid again on only the loans with one value of the Filter by column
+    booked = None
+    if bleed and config.booked and config.booked in table.columns:
+        booked = [classify_number(raw, rules.get(config.booked))[0] for raw in col(config.booked)]
+    book_size = None
+    if booked is not None:
+        book_size = loan_sizes([(ALL, ALL)] * n, booked).get((ALL, ALL), Size())
+        for g, _, keys in built:
+            g.sizes = loan_sizes(keys, booked)
+    values: list[str] = []
+    values2: list[str] = _order(filter_vals2) if filter_vals2 is not None else []
+    values3: list[str] = _order(filter_vals3) if filter_vals3 is not None else []
+    rows_of: dict[tuple, list[int]] = {}
+    if filter_vals is not None:
+        timing.mark("Building each filter's grids")
+        values = _order(filter_vals)
+        by_name = {b.name: b for b in config.bands}
+        # every view: each value of each filter alone, every pair and every triple, all holding together (AND);
+        # All loans (None) in a filter's place is that filter left out. (None, None, None) is the whole book: no view
+        for v, w, u in [(v, w, u) for v in [None] + values for w in [None] + values2 for u in [None] + values3
+                        if (v, w, u) != (None, None, None)]:
+            rows_of[(v, w, u)] = [i for i in range(n) if (v is None or filter_vals[i] == v)
+                                  and (w is None or filter_vals2[i] == w)
+                                  and (u is None or filter_vals3[i] == u)]
+        for g, bname, keys in built:
+            for v in rows_of:
+                idx = rows_of[v]
+                if not idx:
+                    continue                    # no loan has both values: nothing to build, the view is empty
+                sub = [keys[i] for i in idx]
+                fg = _build_grid(config, by_name[bname], Dimension(name=g.dimension, field=""), band_edges[bname],
+                                 [k[0] for k in sub], [k[1] for k in sub], measures,
+                                 {m: [vals[i] for i in idx] for m, vals in per_row.items()}, topline, min_units,
+                                 total, needed, materiality_line, band_label_sets[bname])
+                _judge(fg, config, measures, min_units, materiality_line)
+                if booked is not None:
+                    fg.sizes = loan_sizes(sub, [booked[i] for i in idx])
+                g.filtered[v] = fg
+    timing.mark("Building the grids")
+    summaries: dict[tuple, Summary] = {}
+    for b in config.bands if bleed else ():
+        whole = summaries[(b.name, None, None, None)] = _summary(b.name, measures, per_row, bands[b.name],
+                                                           booked, band_label_sets[b.name], range(n))
+        _tie_summary(whole, total, measures)
+        for v in rows_of:
+            if not rows_of[v]:
+                continue
+            part = summaries[(b.name, *v)] = _summary(b.name, measures, per_row, bands[b.name], booked,
+                                                      whole.labels, rows_of[v])
+            _tie_summary(part, part.cells[ALL], measures)
+    # a segment/category column on its own too (the firm, 30 Sep 2026: "the band column should also allow for
+    # categories because we can still view it that way, and the logic should still make sense"): its values in
+    # natural order, then (blank) and (marked missing), then All; the arithmetic is the same as a band column's
+    for d in config.dimensions if bleed else ():
+        if (d.name, None, None, None) in summaries:
+            continue                            # a band column of the same name keeps its own
+        whole = summaries[(d.name, None, None, None)] = _summary(d.name, measures, per_row, dims[d.name], booked,
+                                                     _order(dims[d.name]), range(n))
+        _tie_summary(whole, total, measures)
+        for v in rows_of:
+            if not rows_of[v]:
+                continue
+            part = summaries[(d.name, *v)] = _summary(d.name, measures, per_row, dims[d.name], booked, whole.labels,
+                                                      rows_of[v])
+            _tie_summary(part, part.cells[ALL], measures)
+    vintage = None
+    if bleed:
+        from . import summary_chart                     # Summary's vintage chart, worked out here like Summary itself
+        vintage = summary_chart.vintage(config, table, measures, per_row, {**dims, **bands}, booked, summaries,
+                                        rows_of, total, book_size)
     moves_with: dict[str, float] = {}
     if bleed and config.split and config.split[1] == "own_median":
         for b in config.bands:
@@ -919,7 +1443,171 @@ def run(config: Config, table: Table) -> Result:
                   left_out=left_out, grids=grids, warnings=warnings, tie_outs=tie_outs,
                   band_edges=band_edges, loans_needed=needed, min_units=min_units,
                   materiality_line=materiality_line, three_way=three_way,
-                  split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed)
+                  split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
+                  book_size=book_size, filter_values=values, filter_values2=values2,
+                  filter_values3=values3, summaries=summaries,
+                  value_bands=value_bands, once=once, vintage=vintage)
+
+
+def _cut_or_each_value(b: Band, seen: list[float]) -> tuple[tuple[float, ...], tuple[float, ...] | None]:
+    """A band column's edges when none are typed, and its values when each is its own band. The firm, 30 Sep 2026,
+    on a column like Major Derogatories (0 to 8, most loans at 0) whose equal-loan cuts all fell on the zeros, so
+    the Run refused it: "Yes that's fine" to a column with few values (Control's few_values, 12) getting one band
+    per value; one with more that still collapses is cut as far as it can be ("asked for N bands, got M"); one
+    with a single value is refused, in words that name the two fixes."""
+    edges = cut_edges(seen, b.count, b.cut)
+    if not seen or len(edges) + 1 >= b.count:
+        return edges, None
+    distinct = sorted(set(seen))
+    if len(distinct) < 2:
+        raise DataRefused(f"`{b.field}` reads {value_text(distinct[0])} on every loan, so there is nothing to cut "
+                          f"into bands. On Columns, set What it is to Category, or type Band edges like 1; 2; 5")
+    few = FEW_VALUES if b.few_values is None else b.few_values
+    if len(distinct) <= few:
+        return tuple(distinct[1:]), tuple(distinct)
+    return edges or (distinct[1],), None
+
+
+def _summary(band: str, measures, per_row, labels_of, booked, order, idx) -> Summary:
+    """The Summary of one band column over the loans at `idx`: each band's cell and booked dollars, and ALL. `order`
+    is the column's band labels in order; a label no loan here carries is an empty cell, and a special row ((blank)
+    and the others) comes after the bands."""
+    idx = list(idx)
+    cells = _accumulate(measures, {m: [vals[i] for i in idx] for m, vals in per_row.items()},
+                        [labels_of[i] for i in idx])
+    labels = [x for x in order if x != ALL]
+    labels += [x for x in _order(cells) if x not in labels]
+    out = {lab: cells.get(lab) or _merge([], measures) for lab in labels}
+    for c in out.values():
+        _finish_cell(c, measures)
+    out[ALL] = _merge(list(out.values()), measures)
+    dollars: dict[str, float] = {}
+    under: dict[str, int] = {}
+    if booked is not None:
+        for lab in labels:
+            dollars[lab] = math.fsum(booked[i] for i in idx if labels_of[i] == lab and booked[i] is not None)
+            under[lab] = sum(1 for i in idx if labels_of[i] == lab and booked[i] is not None)
+        dollars[ALL] = math.fsum(booked[i] for i in idx if booked[i] is not None)
+        under[ALL] = sum(1 for i in idx if booked[i] is not None)
+    return Summary(band=band, labels=labels + [ALL], cells=out, booked=dollars, booked_loans=under)
+
+
+def _tie_summary(s: Summary, want: Cell, measures) -> None:
+    """Summary's bands, added up, against `want` (the book's totals, accumulated in their own pass, for the whole
+    book): the loans, and each rate's loans, top and bottom. Raises TieOutError, as a grid that doesn't add up does."""
+    parts = [s.cells[lab] for lab in s.labels if lab != ALL]
+    where = f"Summary of {s.band}"
+    got = sum(c.rows for c in parts)
+    if got != want.rows:
+        raise TieOutError(f"{where}: the bands hold {got} loans, but the book says {want.rows}")
+    for m in measures:
+        if not m.is_rate:
+            continue
+        t = want.rates[m.name]
+        for what, a, b in (("loans counted", sum(c.rates[m.name].units for c in parts), t.units),
+                           ("numerator", math.fsum(c.rates[m.name].num for c in parts), t.num),
+                           ("denominator", math.fsum(c.rates[m.name].den for c in parts), t.den)):
+            if not _close(a, b, b):
+                raise TieOutError(f"{where}: {m.name} {what} adds up to {a!r} across the bands, but the book says {b!r}")
+    if s.booked:
+        a, b = math.fsum(v for lab, v in s.booked.items() if lab != ALL), s.booked[ALL]
+        if not _close(a, b, b):
+            raise TieOutError(f"{where}: booked dollars add up to {a!r} across the bands, but the book says {b!r}")
+
+
+#: Summary's columns, in the firm's order (30 Sep 2026), each with what it needs: None, the booked amount (BOOKED) or
+#: the rate it is taken from. A column whose source this Run has not got is left off, and the tab says so
+BOOKED = "booked"
+SUMMARY_COLUMNS = (("loans", None), ("loans_share", None), ("bad", "outcome_loans"), ("bad_rate", "outcome_loans"),
+                   # the firm, 2 Oct 2026: booked dollars per loan, and that over the whole book's, beside Booked
+                   ("booked", BOOKED), ("avg_line", BOOKED), ("avg_line_x", BOOKED), ("booked_share", BOOKED), ("gco", "gco_rate"), ("gco_rate", "gco_rate"),
+                   ("gco_x", "gco_rate"), ("gco_share", "gco_rate"), ("ranr", "ranr_rate"),
+                   ("ranr_rate", "ranr_rate"), ("ranr_share", "ranr_rate"),
+                   # the firm, 1 Oct 2026: months to charge-off, among the row's charged-off loans
+                   ("co_avg", CO_MONTHS), ("co_median", CO_MONTHS))
+
+
+def summary_columns(res) -> list[str]:
+    """The Summary columns this Run can fill, in order."""
+    have = {m.name for m in res.measures}
+    booked = any(s.booked for s in res.summaries.values())
+    return [k for k, need in SUMMARY_COLUMNS if need is None or (need == BOOKED and booked) or need in have]
+
+
+def summary_rows(res, band: str, value: str | None = None,
+                 value2: str | None = None, value3: str | None = None) -> list[tuple[str, dict[str, float | None]]]:
+    """Summary's rows for one band column (on only the loans with one value of the Filter by column, when `value`
+    is given, of Filter 2, when `value2` is, and of Filter 3, when `value3` is; more than one given, only the loans
+    with all of them): each label, and every column summary_columns gives, as arithmetic on the loans and never a test.
+    Loans and bad loans are counts; a share is the row's over the All row's, so the shares add to 100% over the
+    bands and the special rows; bad loans % is the Bad loans rate (bad loans over the loans whose outcome reads 0
+    or 1); a charge-off or RANR rate is that measure's rate (its dollars over the booked dollars of the loans with
+    both amounts), and x book is the charge-off rate over the whole book's, filter or none. Avg line is the row's booked
+    dollars over its loans with a booked amount (the firm, 2 Oct 2026: "booked dollar averages"), and its x book that
+    over the whole book's Avg line, filter or none; blank where the row has no such loan. Months to charge-off, when
+    the Run has it, is the average and the median over the row's loans that charged off (chargeoff_months), blank
+    where none did."""
+    s = res.summaries[(band, value, value2, value3)]
+    keys = summary_columns(res)
+    whole = res.total.rates.get("gco_rate")
+    size = getattr(res, "book_size", None)
+    line = size.average if size is not None else None             # the whole book's Avg line
+    top = s.cells[ALL]
+
+    def share(a, b):
+        return a / b if b else None
+
+    out = []
+    for lab in s.labels:
+        c = s.cells[lab]
+        row: dict[str, float | None] = {"loans": c.rows, "loans_share": share(c.rows, top.rows)}
+        if "outcome_loans" in c.rates:
+            o = c.rates["outcome_loans"]
+            row.update(bad=o.num, bad_rate=o.rate)
+        if s.booked:
+            avg = share(s.booked[lab], s.booked_loans.get(lab, 0))
+            row.update(booked=s.booked[lab], booked_share=share(s.booked[lab], s.booked[ALL]), avg_line=avg,
+                       avg_line_x=index_of(avg, line))
+        if "gco_rate" in c.rates:
+            g = c.rates["gco_rate"]
+            row.update(gco=g.num, gco_rate=g.rate, gco_x=index_of(g.rate, whole.rate if whole else None),
+                       gco_share=share(g.num, top.rates["gco_rate"].num))
+        if "ranr_rate" in c.rates:
+            r = c.rates["ranr_rate"]
+            row.update(ranr=r.num, ranr_rate=r.rate, ranr_share=share(r.num, top.rates["ranr_rate"].num))
+        if CO_MONTHS in c.medians:
+            co = c.medians[CO_MONTHS]
+            row.update(co_avg=co.mean if co.values else None, co_median=co.median if co.values else None)
+        out.append((lab, {k: row.get(k) for k in keys}))
+    return out
+
+
+def loan_sizes(keys, booked) -> dict[tuple[str, str], Size]:
+    """Each cell's Size, margins included: `keys` each loan's (band, segment), `booked` its booked amount (None
+    when it has none, and then it is left out). The values are held only while one grid is worked out."""
+    groups: dict[tuple, list[float]] = {}
+    for (b, d), v in zip(keys, booked):
+        if v is None:
+            continue
+        for k in {(b, d), (b, ALL), (ALL, d), (ALL, ALL)}:
+            groups.setdefault(k, []).append(v)
+    return {k: Size(len(v), math.fsum(v), statistics.median(v)) for k, v in groups.items()}
+
+
+def size_vs(sizes: dict, b: str, d: str, book: Size | None) -> tuple:
+    """One cell's loan size as Grids shows it: the average booked per loan, the median, the average as a multiple
+    of the whole book's, and as a multiple of the rest of its band's (its row without it; None for a margin, or
+    a cell alone in its band). Every figure None where there is nothing to divide by."""
+    s = sizes.get((b, d))
+    if s is None or not s.loans:
+        return None, None, None, None
+    avg = s.average
+    vs_book = index_of(avg, book.average) if book is not None else None
+    vs_band = None
+    row = sizes.get((b, ALL))
+    if b != ALL and d != ALL and row is not None and row.loans > s.loans:
+        vs_band = index_of(avg, (row.booked - s.booked) / (row.loans - s.loans))
+    return avg, s.median, vs_book, vs_band
 
 
 def _correlation(xs, ys) -> float | None:
@@ -1048,9 +1736,15 @@ def _merge(parts: list[Cell], measures) -> Cell:
 
 
 def _order(labels) -> list[str]:
-    special = [BLANK_LABEL, NOT_NUMBER_LABEL, MISSING_RULE_LABEL]
-    plain = sorted((x for x in set(labels) if x not in special), key=lambda s: s.lower())
+    special = [NO_DATE, BLANK_LABEL, NOT_NUMBER_LABEL, MISSING_RULE_LABEL]
+    plain = sorted((x for x in set(labels) if x not in special), key=_natural)
     return plain + [x for x in special if x in set(labels)]
+
+
+def _natural(label: str) -> list:
+    """A label's sort key with its numbers read as numbers (at the bank, 29 Sep 2026: "$5k-<$10k" came after
+    "$40k+", as text sorts, on a loan amount bucket)."""
+    return [(0, int(t), "") if t.isdigit() else (1, 0, t) for t in re.split(r"(\d+)", str(label).lower()) if t]
 
 
 def _minus(a: tuple, b: tuple) -> tuple:
@@ -1178,9 +1872,15 @@ def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
                 s.p_book = s.p_band = None
                 s.test = None
         for attr in ("p_book", "p_band"):
-            adj = adjust([getattr(cells[k].rates[m.name], attr) for k in keys], bench.many_tests)
-            for k, p in zip(keys, adj):
+            raw = [getattr(cells[k].rates[m.name], attr) for k in keys]
+            # a shuffled p-value's own sampling error, before the allowance scales it (Borderline, B2a)
+            ses = [stats.shuffle_se(p, cells[k].rates[m.name].shuffles)
+                   if cells[k].rates[m.name].test == SHUFFLE_TEST else None for k, p in zip(keys, raw)]
+            adj = adjust(raw, bench.many_tests)
+            se_adj = adjust_se(raw, ses, bench.many_tests)
+            for k, p, se in zip(keys, adj, se_adj):
                 setattr(cells[k].rates[m.name], attr, p)
+                setattr(cells[k].rates[m.name], "se_" + attr[2:], se)
         mat = materiality_line.get(m.name)
         mates = Counter(b for b, d in cells if b != ALL and d != ALL)
         # profit is read in points by the profit line on Control, on every tab (OC-32; NEXT-GOAL 3.2)
@@ -1211,6 +1911,13 @@ def _judge(grid: Grid, config, measures, min_units, materiality_line) -> None:
                         s.by_band, s.dollars = True, s.excess_band
             if mat is not None and s.dollars is not None:
                 s.material = s.dollars > 0 and s.dollars >= mat
+            s.borderline = s.worse_borderline = None
+            if (b, d) != (ALL, ALL):
+                p, se, gap = (s.p_band, s.se_band, s.vs_band) if s.by_band else (s.p_book, s.se_book, s.vs_rest)
+                if stats.borderline(p, se, bench.confidence) and p_decides(s.flag, gap, line):
+                    s.borderline = stats.borderline_words(p, bench.confidence)
+                    if worse_turns(s.flag, gap, line):
+                        s.worse_borderline = s.borderline
 
 
 def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
@@ -1242,17 +1949,25 @@ def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
                 s.stats[(len(s.layouts) - 1, m.name)] = perm.RestGap()
         placed.append((grid, len(book.layouts) - 1, sb, len(sb.layouts) - 1))
     halves = []
-    for grid, keys, labels in halved:
+    for grid, keys, sets in halved:
+        # one structure per grid, shuffled within each pocket; one layout per comparison: the halves, or each
+        # value against the rest of its pocket (side 0 is pocket 2g, side 1 is 2g + 1)
         ids = {k: i for i, (k, _) in enumerate(grid.inner())}
-        group = [ids[k] if lab in (HIGH, LOW) else None for k, lab in zip(keys, labels)]
-        lay = [2 * g + (0 if lab == HIGH else 1) if g is not None else -1 for g, lab in zip(group, labels)]
-        s = perm.Structure(f"halves of {grid.band} x {grid.dimension}", group, [lay])
-        for m in dollar:
-            tested = {ids[k] for k in grid.split_tested.get(m.name, [])}
-            s.stats[(0, m.name)] = perm.HalfGap(pooled=tested)
-        halves.append((grid, s, ids))
-    perm.run(n, columns, [book, *bands.values(), *(s for _, s, _ in halves)], bench.shuffles,
-             perm.seed_of("one order per shuffle, shared by every test in the run"))
+        group = [ids[k] if any(sides[i] is not None for sides, *_ in sets) else None for i, k in enumerate(keys)]
+        s = perm.Structure(f"halves of {grid.band} x {grid.dimension}", group, [])
+        for li, (sides, _, _, tested) in enumerate(sets):
+            s.layouts.append([2 * g + sd if g is not None and sd is not None else -1 for g, sd in zip(group, sides)])
+            for m in dollar:
+                s.stats[(li, m.name)] = perm.HalfGap(pooled={ids[k] for k in tested.get(m.name, [])})
+        halves.append((s, ids, sets))
+    timing.mark("The shuffle test")
+    workers = perm.run(n, columns, [book, *bands.values(), *(s for s, _, _ in halves)], bench.shuffles,
+                       perm.seed_of("one order per shuffle, shared by every test in the run"))
+    clock = timing.current()
+    failed = clock.facts.get("pool_failed") if clock is not None else None
+    timing.note(f"{bench.shuffles:,} shuffles of {n:,} loans on {_workers_said(workers)}"
+                + (f"; the worker processes didn't start ({failed})" if failed else ""),
+                shuffles=bench.shuffles, workers=workers)
     for grid, bi, sb, si in placed:
         for m in dollar:
             got_book, got_band = book.stats[(bi, m.name)].answers, sb.stats[(si, m.name)].answers
@@ -1265,17 +1980,22 @@ def _shuffle_tests(config, measures, per_row, n, built, halved) -> None:
                     s.p_band, s.hits_band = got_band[i].p, got_band[i].hits
                 if s.p_book is None and s.p_band is None:
                     s.test = None           # nothing could be shuffled for this pocket (the adversarial pass)
-    for grid, s, ids in halves:
-        for m in dollar:
-            st = s.stats[(0, m.name)]
-            for k in grid.split_tested.get(m.name, []):
-                got = st.answers.get(ids[k])
-                idx, _, nh, nl = grid.split_compare[k][m.name]
-                grid.split_compare[k][m.name] = (idx, got.p if got else None, nh, nl)
-            pooled = grid.split_pooled.get(m.name)
-            if pooled is not None and ("ratio" in pooled or "gap" in pooled) and st.pooled is not None:
-                pooled["ratio_p"], pooled["ratio_hits"], pooled["shuffles"] = (st.pooled.p, st.pooled.hits,
-                                                                              st.pooled.shuffles)
+    for s, ids, sets in halves:
+        for li, (_, compare, pooled_by, tested) in enumerate(sets):
+            for m in dollar:
+                st = s.stats[(li, m.name)]
+                for k in tested.get(m.name, []):
+                    got = st.answers.get(ids[k])
+                    idx, _, nh, nl = compare[k][m.name]
+                    compare[k][m.name] = (idx, got.p if got else None, nh, nl)
+                pooled = pooled_by.get(m.name)
+                if pooled is not None and ("ratio" in pooled or "gap" in pooled) and st.pooled is not None:
+                    pooled["ratio_p"], pooled["ratio_hits"], pooled["shuffles"] = (st.pooled.p, st.pooled.hits,
+                                                                                  st.pooled.shuffles)
+
+
+def _workers_said(workers: int) -> str:
+    return "1 process" if workers <= 1 else f"{workers} processes"
 
 
 # --------------------------------------------------------------------------
@@ -1313,7 +2033,88 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
     grid.split_labels = order
     grid.split_cells = cells3
     if how != "own_median":
+        _by_value(grid, config, cells3, order, measures)
         return labels
+    grid.split_compare, grid.split_pooled, grid.split_tested = _compare(
+        grid, lambda b, d: (cells3.get((b, d, HIGH)), cells3.get((b, d, LOW))), config, measures)
+    return labels
+
+
+def _by_value(grid: Grid, config: Config, cells3, order, measures) -> None:
+    """A split by a category: each value of it set against the rest of its pocket (every other value there,
+    together), by the same comparison the halves get, so with two values it is one against the other. And for a
+    yes/no per loan, whether the values differ at all, pooled over the pockets: B3, the K-group Mantel-Haenszel
+    statistic on K - 1 degrees of freedom (docs/statistics.md; kgroups.association), which with two values is
+    the Cochran-Mantel-Haenszel test the halves get. No pocket is left out of it for being small (B3's rule)."""
+    parts = list(order)
+    grid.split_parts = parts
+    rest: dict[tuple, Cell] = {}
+    for (b, d), _ in grid.inner():
+        here = {p: cells3[(b, d, p)] for p in parts if (b, d, p) in cells3}
+        for p in here:
+            others = [c for q, c in here.items() if q != p]
+            if others:
+                rest[(b, d, p)] = _merge(others, measures)
+    for p in parts:
+        grid.part_compare[p], grid.part_pooled[p], grid.part_tested[p] = _compare(
+            grid, lambda b, d, p=p: (cells3.get((b, d, p)), rest.get((b, d, p))), config, measures)
+    if len(parts) < 2:
+        return
+    from . import kgroups
+    for m in measures:
+        if not (m.is_rate and yes_no(m)):
+            continue
+        pockets = [kgroups.Pocket([cells3[(b, d, p)].rates[m.name].units if (b, d, p) in cells3 else 0
+                                   for p in parts],
+                                  [cells3[(b, d, p)].rates[m.name].events if (b, d, p) in cells3 else 0
+                                   for p in parts]) for (b, d), _ in grid.inner()]
+        try:
+            a = kgroups.association(pockets, range(1, len(parts) + 1))
+        except Exception:                   # a singular variance: no statistic, never a made-up one
+            continue
+        if a.p_general is not None:
+            grid.split_general[m.name] = {"q": a.general, "df": a.df, "p": a.p_general, "pockets": a.pockets}
+
+
+def _few_enough(field_: str, labels) -> None:
+    """A category splits every pocket by each of its values, so a column with many values cuts each pocket into
+    parts too thin to read: refused, said in words, never run."""
+    said = too_many_values(field_, _values_counted(labels))
+    if said:
+        raise DataRefused(said)
+
+
+def _values_counted(labels) -> int:
+    """How many values a category holds for the six-value limits: a blank, a value answered missing and a loan with
+    no date are parts of their own, never counted against the limit."""
+    return len({v for v in labels if v not in (BLANK_LABEL, MISSING_RULE_LABEL, NO_DATE)})
+
+
+def _few_enough_to_filter(field_: str, labels) -> None:
+    """The Grids' filter builds every grid again on each value's loans: a column with many values is refused, said
+    in words, never run."""
+    said = too_many_to_filter(field_, _values_counted(labels))
+    if said:
+        raise DataRefused(said)
+
+
+def _sides(grid: Grid, config: Config, labels) -> list[tuple]:
+    """Each comparison a split makes, for the shuffle test: each row's side (0 or 1, None when it is in neither)
+    and where its figures go. The halves are one comparison; a category makes one per value."""
+    if config.split[1] == "own_median":
+        return [([0 if lab == HIGH else 1 if lab == LOW else None for lab in labels], grid.split_compare,
+                 grid.split_pooled, grid.split_tested)]
+    return [([0 if lab == p else 1 for lab in labels], grid.part_compare[p], grid.part_pooled[p],
+             grid.part_tested[p]) for p in grid.split_parts]
+
+
+def _compare(grid: Grid, sides, config: Config, measures) -> tuple[dict, dict, dict]:
+    """Two sides of every pocket compared, pocket by pocket and pooled: the high half against the low, or one
+    value against the rest of its pocket. `sides(b, d)` gives the two cells. Returns what split_compare,
+    split_pooled and split_tested hold."""
+    compare: dict = {}
+    pooled_by: dict = {}
+    tested_by: dict = {}
     bench = config.benchmark
     floor = bench.min_units if bench else 2
     min_events = bench.min_events if bench else 0
@@ -1321,9 +2122,9 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
         if not m.is_rate:
             continue
         strata, o_sum, e_sum, v_sum, pockets, high_worse, high_den = [], 0.0, 0.0, 0.0, 0, 0, 0.0
-        tested = grid.split_tested.setdefault(m.name, [])
+        tested = tested_by.setdefault(m.name, [])
         for (b, d), _ in grid.inner():
-            h, lo = cells3.get((b, d, HIGH)), cells3.get((b, d, LOW))
+            h, lo = sides(b, d)
             if h is None or lo is None:
                 continue
             sh, sl = h.rates[m.name], lo.rates[m.name]
@@ -1332,13 +2133,13 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             thin = sh.units < floor or sl.units < floor or sl.rate is None or sh.rate is None
             few = m.higher_is == "worse" and sh.events + sl.events < min_events
             if thin or few:
-                grid.split_compare.setdefault((b, d), {})[m.name] = (None, None, sh.units, sl.units)
+                compare.setdefault((b, d), {})[m.name] = (None, None, sh.units, sl.units)
                 continue
             # profit: the high half's rate less the low half's, in points, never a multiple (NEXT-GOAL 3.2)
             idx = sh.rate - sl.rate if m.in_points else stats.multiple(sh.rate, sl.rate)
             # a yes/no per loan: A1, pooled; a dollar rate's p comes from the shuffle test
             p = stats.two_prop_z(sh.num, sh.units, sl.num, sl.units)[1] if yes_no(m) else None
-            grid.split_compare.setdefault((b, d), {})[m.name] = (idx, p, sh.units, sl.units)
+            compare.setdefault((b, d), {})[m.name] = (idx, p, sh.units, sl.units)
             tested.append((b, d))
             pockets += 1
             # a high half with losses against a low half with none has no multiple, and is worse
@@ -1382,8 +2183,8 @@ def _split(grid: Grid, config: Config, bl, dl, split_vals, measures, per_row) ->
             orr, lo_ci, hi_ci = stats.mantel_haenszel(strata, z)
             out.update({"odds": orr, "odds_lo": lo_ci, "odds_hi": hi_ci, "odds_p": stats.cmh_p(strata)})
             out["steady_p"], out["steady_pockets"] = stats.steadiness_p(strata, orr)
-        grid.split_pooled[m.name] = out
-    return labels
+        pooled_by[m.name] = out
+    return compare, pooled_by, tested_by
 
 
 def _finish_split(grid: Grid, config: Config, measures) -> None:
@@ -1395,12 +2196,42 @@ def _finish_split(grid: Grid, config: Config, measures) -> None:
             continue
         # the same allowance for many tests as every other pocket test, within this grid and measure
         # (asked on 25 Sep 2026: the split's "Luck alone" figures were the only ones shown without it)
+        # a dollar rate's split p-values are shuffled (B2), bench.shuffles times: their own sampling error, before
+        # the allowance scales it (Borderline, B2a); a yes/no's are the z test's and have none
+        shuffled = bench is not None and not yes_no(m) and bool(bench.shuffles)
+        se_of = (lambda p: stats.shuffle_se(p, bench.shuffles) if shuffled else None)       # noqa: E731
         if bench is not None:
             keys = [k for k, got in grid.split_compare.items() if m.name in got and got[m.name][1] is not None]
-            adj = adjust([grid.split_compare[k][m.name][1] for k in keys], bench.many_tests)
-            for k, p in zip(keys, adj):
+            raw = [grid.split_compare[k][m.name][1] for k in keys]
+            adj = adjust(raw, bench.many_tests)
+            for k, p, se in zip(keys, adj, adjust_se(raw, [se_of(x) for x in raw], bench.many_tests)):
                 idx, _, nh, nl = grid.split_compare[k][m.name]
                 grid.split_compare[k][m.name] = (idx, p, nh, nl)
+                grid.split_se.setdefault(k, {})[m.name] = se
+            pooled = grid.split_pooled.get(m.name, {})
+            if pooled.get("ratio_p") is not None:
+                # one pooled test per grid and measure, no allowance (the tab says so)
+                pooled["ratio_se"] = stats.shuffle_se(pooled["ratio_p"], pooled.get("shuffles")) if shuffled else None
+        if bench is not None and grid.split_parts:
+            # a category: every value's pockets are one family, so a column with more values pays for more tests;
+            # and each pooled figure is a family across the values, one test per value
+            keys = [(v, k) for v in grid.split_parts for k, got in grid.part_compare[v].items()
+                    if m.name in got and got[m.name][1] is not None]
+            raw = [grid.part_compare[v][k][m.name][1] for v, k in keys]
+            adj = adjust(raw, bench.many_tests)
+            for (v, k), p, se in zip(keys, adj, adjust_se(raw, [se_of(x) for x in raw], bench.many_tests)):
+                idx, _, nh, nl = grid.part_compare[v][k][m.name]
+                grid.part_compare[v][k][m.name] = (idx, p, nh, nl)
+                grid.part_se.setdefault(v, {}).setdefault(k, {})[m.name] = se
+            for what in ("ratio_p", "odds_p", "steady_p"):
+                vs = [v for v in grid.split_parts if grid.part_pooled[v].get(m.name, {}).get(what) is not None]
+                raw = [grid.part_pooled[v][m.name][what] for v in vs]
+                ses = [stats.shuffle_se(x, grid.part_pooled[v][m.name].get("shuffles"))
+                       if shuffled and what == "ratio_p" else None for v, x in zip(vs, raw)]
+                for v, p, se in zip(vs, adjust(raw, bench.many_tests), adjust_se(raw, ses, bench.many_tests)):
+                    grid.part_pooled[v][m.name][what] = p
+                    if what == "ratio_p":
+                        grid.part_pooled[v][m.name]["ratio_se"] = se
 
 
 # --------------------------------------------------------------------------

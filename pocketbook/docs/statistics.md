@@ -312,6 +312,51 @@ the number can print, not a wrong answer.
 **Worked example.** A 40-loan pocket with GCO/$ of 2.11% against 400 loans at 5.07%, gap −2.96 points:
 3,497 of 10,000 shuffles produced a gap at least that large either way, p-value 0.35. In line.
 
+### B2a. Borderline — a shuffled verdict near the bar
+
+*(Added 29 Sep 2026. BACKLOG §6d item 7; the firm, by pop-up: "I don't like 'could fall either way' but flag it
+somehow", and chose the word **Borderline**, as in "Net drain · borderline (p 0.048)".)*
+
+**Why.** A shuffled p-value is itself an estimate: another seed, or more shuffles, gives a slightly different one.
+The tie-out of 29 Sep 2026 found one pocket's p-value from 10,000 shuffles 3.5 of its standard errors from where a
+million shuffles put it. Far from the bar that moves nothing; near it, another run could read the verdict the other
+way. A z test's or an exact test's p-value is worked out, not drawn, and is the same on every run: it is never
+borderline.
+
+**Arithmetic.** The standard error of a shuffled p-value, `B` shuffles:
+
+```
+SE(p) = √( p (1 − p) / B )                 (0.0022 at p = 0.05 and B = 10,000)
+```
+
+The allowance for many tests (A2) multiplies a raw p-value, and its standard error with it. Bonferroni's `p × m`
+carries `SE × m`. A Benjamini–Hochberg p-value is `p(j) × m / j` for the raw p-value `p(j)` that sets it — often not
+the pocket's own (the tie-out found one raw p setting 21 pockets) — so it carries `SE(p(j)) × m / j`. A p-value the
+allowance capped at 1 has none. Then:
+
+```
+borderline  ⇔  the p-value that decides the verdict came from shuffling, and |p − bar| ≤ 2 × SE
+```
+
+on either side of the bar: a verdict that just passed and one that just failed alike. The bar is Control's (5% at
+95% sure), so the flag follows the confidence live; the standard errors are the Run's.
+
+**Which verdicts.** Only one whose word turns on the p-value: worse against *worse, not significant* (and better
+likewise); for profit read by each pocket's own test, worse or better against *in line*. A multiple inside the loss
+line reads in line whatever its p-value, so it is never borderline. Worse? (Yes / Not sure / No) is flagged when it
+turns on the p-value; Together, when either side it is read from is borderline.
+
+**Gives.** The verdict, then " · borderline (p 0.048)": on Pockets' Worse?, Paid, cost, kept's Together (with both
+p-values when both sides are, charge-offs first), the Split tab's p-values, Start here's five largest and its tile,
+the Run's "Worst for" line and Record, which states this rule and counts them. The colour, the order and every count
+stay the verdict's: a borderline Net drain is still red.
+
+**Worked example.** At 10,000 shuffles, p = 0.048: `SE = √(0.048 × 0.952 / 10,000) = 0.0021`, 0.9 standard errors
+under 5%: borderline. p = 0.045: 2.4 standard errors under: not. After Benjamini–Hochberg in a family of 20, a pocket
+whose adjusted 0.048 was set by a raw 0.0048 at rank 2: `SE = √(0.0048 × 0.9952 / 10,000) × 20 / 2 = 0.0069`, so
+the margin is 0.014 either side, and 0.048 is well inside it. `tests/test_firm_answers_2026_09_29.py` (the
+Borderline section) checks the rule, the allowance's scaling and every place the words appear.
+
 ### B3. K-group Mantel–Haenszel, general association — does the ratio matter, any pattern?
 
 **Asks.** Within pockets, does the bad rate differ across the K ratio groups, in any shape?

@@ -209,7 +209,7 @@ def _agree(values, res) -> list[str]:
     caption = tabs.dropdown(ws, "Measure").offset(column=results.K_LOANS - results.K_BAND).value
     if not caption.startswith(f"{n_both} worse and material · {n_worse} worse · "):
         bad.append(f"Pockets caption: {caption!r}, the engine {n_both} worse and material, {n_worse} worse")
-    # Paid, cost, kept, the grid its dropdown picks: each side's flag, and the two read together
+    # RANR vs GCOs, the grid its dropdown picks: each side's flag, and the two read together
     if results.PCK in values.sheetnames:
         ws = values[results.PCK]
         grid = tabs.dropdown(ws, "Grid").value
@@ -220,13 +220,13 @@ def _agree(values, res) -> list[str]:
             gw, rw, cw = want[k("gco_rate")], want[k("ranr_rate")], want[k("contribution_rate")]
             if (x["flags"]["g"], x["flags"]["r"], x["flags"]["c"]) != (gw["flag"] or None, rw["flag"] or None,
                                                                       cw["flag"] or None):
-                bad.append(f"Paid, cost, kept {grid} row {x['row']}: flags {x['flags']}")
+                bad.append(f"RANR vs GCOs {grid} row {x['row']}: flags {x['flags']}")
             untested = any(w["flag"] in (engine.FEW, engine.THIN) for w in (gw, rw, cw))
             pair = "" if untested else results.together_of(gw["flag"], rw["flag"])
             if (x["together"] or "") != pair:
-                bad.append(f"Paid, cost, kept {grid} row {x['row']} Together: {x['together']!r}, the engine {pair!r}")
+                bad.append(f"RANR vs GCOs {grid} row {x['row']} Together: {x['together']!r}, the engine {pair!r}")
         if not n:
-            bad.append("Paid, cost, kept: no rows read")
+            bad.append("RANR vs GCOs: no rows read")
     # Check counts the pockets that read worse now
     check = tabs.record(values)
     for m in res.measures:
@@ -335,7 +335,7 @@ def test_at_the_runs_settings_record_shows_no_line_changed(ran):
 RERUN = {"min_events": ("20 losses", None), "min_loans": ("300 loans", None), "many_tests": ("No allowance", None),
          "power": ("90% of the time", None), "band_count": ("3 bands", None),
          "band_cut": ("The same, snapped to round numbers", None)}
-RESULT = (results.POCKETS, results.PCK, results.GRIDS, results.SPLIT, "Record")
+RESULT = (results.POCKETS, results.PCK, results.GRIDS, results.SUMMARY, results.SPLIT, "Record")
 WAITS = "↻ 6 Control changes wait for a Run."
 
 
@@ -387,13 +387,13 @@ def test_the_live_settings_are_the_ones_settings_yaml_marks_live():
 
 def test_the_tabs_say_what_stays_as_of_the_run(ran):
     """Once each, beside the tiles and in the method note: the order is the last Run's, the verdicts are live.
-    The chart on Paid, cost, kept is drawn from the table's own cells, so it follows the dropdown and Control."""
+    The chart on RANR vs GCOs is drawn from the table's own cells, so it follows the dropdown and Control."""
     v = ran["values"]
     said = {tab: " ".join(str(c.value) for row in v[tab].iter_rows(max_row=40) for c in row if c.value)
             for tab in (results.POCKETS, results.PCK)}
     assert 'Order and "Could have caught" are from the last Run, 20' in said[results.POCKETS]
     assert "not the order" in said[results.POCKETS]
-    assert "The order is from the last Run, 20" in said[results.PCK]
+    assert "The rows are from the last Run, 20" in said[results.PCK]
     wb = load_workbook(ran["book"])
     chart = wb[results.PCK]._charts[0]
     assert "the grid picked above" in chart.title.tx.rich.p[0].r[0].t

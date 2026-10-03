@@ -42,10 +42,11 @@ MODE_KEYS = {
 }
 TOP_KEYS = {"name", "schema_version", "key", "booked", "outcome", "gco", "ranr", "columns", "columns_confirmed",
             "missing", "bands", "dimensions", "measures", "benchmark", "questions",
-            "origination_date", "split", "derived", "run_kind"}
-#: The dates a run can be told about, as meanings in `columns:`: each names at most one column. Only the
-#: origination date is left: it splits development loans from the holdout, and Check gives its range.
-DATE_ROLES = ("origination_date",)
+            "origination_date", "split", "filter_by", "filter_by2", "filter_by3", "derived", "run_kind"}
+#: The dates a run can be told about, as meanings in `columns:`: each names at most one column. The origination
+#: date splits development loans from the holdout, and Check gives its range; the charge-off date, with it, gives
+#: each charged-off loan's months to charge-off (the firm, 1 Oct 2026; engine.chargeoff_months).
+DATE_ROLES = ("origination_date", "chargeoff_date")
 #: Lines and meanings a run no longer reads (OC-39, the firm, 26 Sep 2026: "when we are doing our bleed
 #: analysis and such I don't want to hide things from view"). Each hid loans, or relabelled them, in a run
 #: that should show every loan. An old file that still has one is refused by name, never quietly ignored.
@@ -92,7 +93,7 @@ CORE_NAMES = ("outcome_loans", "outcome_booked", "gco_rate", "ranr_rate", "contr
 #: The two core rates that are profit, not loss: compared as a difference in points, judged by the
 #: profit line on Control, and material at the loss side's dollar line (NEXT-GOAL 3.2 to 3.4).
 PROFIT = ("ranr_rate", "contribution_rate")
-MISSING_KEYS = {"below", "above", "values"}
+MISSING_KEYS = {"below", "above", "values", "at_or_below"}
 BENCHMARK_KEYS = ("min_units", "min_events", "worse_at", "better_at", "confidence", "power", "compare_to",
                   "many_tests", "materiality")
 # Optional. revenue_line: when profit (RANR, and contribution before losses) counts as more
@@ -130,6 +131,44 @@ class MissingRule:
     below: float | None = None
     above: float | None = None
     values: tuple[Any, ...] = ()
+    #: at or below this is missing: Control's bureau codes answer (BUREAU_CODE_LINE), in every column it covers
+    at_or_below: float | None = None
+
+    def merged(self, other: "MissingRule | None") -> "MissingRule":
+        """This rule and another on the same column, both applied: what either catches is missing."""
+        if other is None:
+            return self
+        return MissingRule(below=other.below if other.below is not None else self.below,
+                           above=other.above if other.above is not None else self.above,
+                           values=self.values + tuple(v for v in other.values if v not in self.values),
+                           at_or_below=other.at_or_below if other.at_or_below is not None else self.at_or_below)
+
+
+#: Control's "Bureau missing codes" answer of Yes makes any value at or below this missing, in every column
+#: (the firm, 30 Sep 2026: "I can guarantee you that they are the bureau missing codes"). The bureau's codes
+#: seen on the bank's extract and the synthetic books are -99,000,900 to -99,000,904; a real value never gets
+#: near it, and -1,000 is nowhere near it either.
+BUREAU_CODE_LINE = -99_000_000.0
+
+
+def plain_value(x: Any) -> str:
+    """A value as a person reads it: -99,000,900, 0.35, 12,410. Thousands separators, a whole number without
+    ".0", and never scientific notation (the firm's photo of 30 Sep 2026 read "-9.90009e+07 on 12,410 loans")."""
+    if isinstance(x, bool) or not isinstance(x, (int, float)):
+        return str(x)
+    if float(x).is_integer():
+        return f"{int(x):,}"
+    for places in (6, 12):
+        t = f"{x:,.{places}f}".rstrip("0").rstrip(".")
+        if t not in ("0", "-0"):
+            return t
+    return "0"
+
+
+def bureau_rules(columns, exempt=()) -> dict[str, MissingRule]:
+    """Control's bureau codes answer of Yes as a rule on each of `columns`, but not on those in `exempt`: a
+    column whose own Treat as answer on Columns says its codes are Real keeps them."""
+    return {c: MissingRule(at_or_below=BUREAU_CODE_LINE) for c in columns if c not in set(exempt)}
 
 
 @dataclass(frozen=True)
@@ -143,6 +182,9 @@ class Band:
     edges: tuple[float, ...] = ()
     count: int | None = None
     cut: str | None = None           # equal_loans | round
+    # with count: a column with this many values or fewer that is too repeated to cut gets one band per value
+    # (Control's few_values; None is its default, 12. The firm, 30 Sep 2026)
+    few_values: int | None = None
 
 
 @dataclass(frozen=True)
@@ -198,8 +240,11 @@ class Measure:
     def title(self) -> str:
         """The measure as a person names it, on every screen a person reads."""
         return {"outcome_loans": "Outcome, share of loans", "outcome_booked": "Outcome, share of booked dollars",
-                "gco_rate": "GCO per booked dollar", "ranr_rate": "Profit after losses: RANR per booked dollar",
-                "contribution_rate": "Contribution before losses per booked dollar"}.get(self.name, self.name)
+                # the dollar three in the firm's terms (30 Sep 2026); they were "GCO per booked dollar", "Profit after
+                # losses: RANR per booked dollar" and "Contribution before losses per booked dollar"
+                "gco_rate": "GCOs per booked dollar", "ranr_rate": "RANR per booked dollar",
+                "contribution_rate": "RANR + GCOs per booked dollar",
+                "co_months": "Months to charge-off"}.get(self.name, self.name)
 
     def columns(self) -> tuple[str, ...]:
         return tuple(c for c in (self.value, self.plus, self.flag, self.per) if c and c != EACH_LOAN)
@@ -297,7 +342,7 @@ class Question:
 
     def text(self) -> str:
         what = ("negative values in a column that is mostly positive" if self.pattern == "negatives"
-                else f"the value {_fmt_num(self.value)} repeated far more than any other")
+                else f"the value {plain_value(self.value)} repeated far more than any other")
         return f"`{self.column}`: {what} ({self.rows:,} rows)"
 
 
@@ -320,7 +365,11 @@ class Config:
     gco: str = ""                                     # blank only on a test of a new variable
     run_kind: str = "bleed"
     origination_date: str | None = None               # the column holding when each loan was made
+    chargeoff_date: str | None = None                 # the column marked Charge-off date, if any (optional)
     split: tuple | None = None                        # (column, own_median | each_value): the third layer
+    filter_by: str | None = None                      # Grids' "Only loans where": a category, or ORIG_YEAR
+    filter_by2: str | None = None                     # Filter 2, "and <column> is": with filter_by, never alone
+    filter_by3: str | None = None                     # Filter 3, "and <column> is": with filter_by2, never alone
     columns: dict = field(default_factory=dict)       # column -> (meaning, is-value); from `columns:`
     not_cut: dict = field(default_factory=dict)       # column -> meaning, for meanings never cut by
     derived: tuple = ()                               # Derived columns, made in this order
@@ -481,15 +530,28 @@ def parse(raw: Any, source_path: str = "") -> Config:
                             "{field: COLUMN, how: each_value} for a category")
         else:
             split = (sp["field"], sp["how"])
+    filter_by = raw.get("filter_by")
+    if filter_by is not None and (not isinstance(filter_by, str) or not filter_by.strip()):
+        problems.append(f"`filter_by:` must name one category column (or ORIG_YEAR), the column Grids' Only loans "
+                        f"where offers the values of; got {filter_by!r}")
+        filter_by = None
+    filter_by2 = raw.get("filter_by2")
+    if filter_by2 is not None and (not isinstance(filter_by2, str) or not filter_by2.strip() or not filter_by):
+        problems.append(f"`filter_by2:` must name a second category column (or ORIG_YEAR), beside a `filter_by:`; "
+                        f"got {filter_by2!r}")
+        filter_by2 = None
+    filter_by3 = raw.get("filter_by3")
+    if filter_by3 is not None and (not isinstance(filter_by3, str) or not filter_by3.strip() or not filter_by2):
+        problems.append(f"`filter_by3:` must name a third category column (or ORIG_YEAR), beside a `filter_by2:`; "
+                        f"got {filter_by3!r}")
+        filter_by3 = None
     measures = core + extras
     bench = _parse_benchmark(raw.get("benchmark"), problems) if "benchmark" in raw else None
     questions = _parse_questions(raw.get("questions") or [], problems)
     for q in questions:
         rule = q.as_rule()
         if rule is not None:
-            old = missing.get(q.column, MissingRule())
-            missing[q.column] = MissingRule(below=rule.below if rule.below is not None else old.below,
-                                            above=old.above, values=old.values + rule.values)
+            missing[q.column] = missing.get(q.column, MissingRule()).merged(rule)
 
     names = [b.name for b in bands] + [d.name for d in dims] + [m.name for m in measures]
     dupes = sorted({n for n in names if names.count(n) > 1})
@@ -501,7 +563,9 @@ def parse(raw: Any, source_path: str = "") -> Config:
     return Config(name=str(raw["name"]), key=key, missing=missing, bands=bands, dimensions=dims,
                   measures=measures, benchmark=bench, questions=questions, booked=cols["booked"], outcome=out_field,
                   gco=cols["gco"], run_kind=run_kind if run_kind in RUN_KINDS else "bleed",
-                  origination_date=orig_col, split=split,
+                  origination_date=orig_col,
+                  chargeoff_date=next((c for c, (m, _) in columns.items() if m == "chargeoff_date"), None),
+                  split=split, filter_by=filter_by, filter_by2=filter_by2, filter_by3=filter_by3,
                   columns=columns, not_cut=not_cut, derived=derived,
                   periods=periods, definitions=definitions, source_path=source_path, raw=raw)
 
@@ -639,8 +703,8 @@ def _parse_missing(node: Any, problems: list[str]) -> dict[str, MissingRule]:
             problems.append(f"{where}: give at least one of below / above / values")
             continue
         _unknown(rule, MISSING_KEYS, where, problems)
-        below, above = rule.get("below"), rule.get("above")
-        for k, v in (("below", below), ("above", above)):
+        below, above, floor = rule.get("below"), rule.get("above"), rule.get("at_or_below")
+        for k, v in (("below", below), ("above", above), ("at_or_below", floor)):
             if v is not None and not _num(v):
                 problems.append(f"{where}.{k} must be a number, not {v!r}")
         values = rule.get("values", [])
@@ -649,7 +713,7 @@ def _parse_missing(node: Any, problems: list[str]) -> dict[str, MissingRule]:
             values = []
         out[str(col)] = MissingRule(below=float(below) if _num(below) else None,
                                     above=float(above) if _num(above) else None,
-                                    values=tuple(values))
+                                    values=tuple(values), at_or_below=float(floor) if _num(floor) else None)
     return out
 
 
@@ -681,9 +745,13 @@ def _parse_bands(node: Any, problems: list[str]) -> tuple[Band, ...]:
     out = []
     for i, e in enumerate(_entries(node, "bands", problems)):
         where = f"bands[{i}]"
-        _unknown(e, {"name", "field", "edges", "count", "cut"}, where, problems)
+        _unknown(e, {"name", "field", "edges", "count", "cut", "few_values"}, where, problems)
         name, fld = _name_field(e, where, problems)
         edges, count, cut = e.get("edges"), e.get("count"), e.get("cut")
+        few = e.get("few_values")
+        if few is not None and (not isinstance(few, int) or isinstance(few, bool) or few < 1 or edges is not None):
+            problems.append(f"{where}: `few_values:` goes with `count:`, a whole number 1 or more; got {few!r}")
+            continue
         if edges is not None and (count is not None or cut is not None):
             problems.append(f"{where}: give `edges:` or `count:` with `cut:`, not both")
             continue
@@ -695,7 +763,7 @@ def _parse_bands(node: Any, problems: list[str]) -> tuple[Band, ...]:
             if cut not in CUTS:
                 problems.append(f"{where}: `cut:` must be one of {', '.join(CUTS)}; got {cut!r}")
                 continue
-            out.append(Band(name=name, field=fld, count=count, cut=cut))
+            out.append(Band(name=name, field=fld, count=count, cut=cut, few_values=few))
             continue
         if not isinstance(edges, list) or not edges or not all(_num(x) for x in edges):
             problems.append(f"{where}: `edges:` must be a list of cut points, e.g. [620, 680, 740]")

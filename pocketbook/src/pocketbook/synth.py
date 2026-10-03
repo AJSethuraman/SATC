@@ -15,7 +15,7 @@ The plants:
 - one pocket is priced for its risk: loans through the online channel with a
   score from 680 to 739 go bad twice as often as the rest of their band, and
   carry an interest rate 2 points higher (PREMIUM). It loses more (GCO) and keeps more
-  (RANR): "Priced for it" on Paid, cost, kept.
+  (RANR): "Priced for it" on RANR vs GCOs.
 
 RANR is profit after losses, as the firm defines it (NEXT-GOAL 3.5; OC-29,
 OC-35): contribution = interest on the balance over the months on book, at a
@@ -220,21 +220,48 @@ def add_shortlist(rows: list[dict], seed: int = 7) -> list[dict]:
     return rows
 
 
+# --------------------------------------------------------------------------
+# Months to charge-off (the firm, 1 Oct 2026): a charge-off date on every loan that went bad.
+#
+# One column, drawn after everything else from a stream of its own, so every value above is the same loan for loan
+# with or without it. A bad loan (BAD_FLAG 1) charges off 1 to 36 months after it was made, never after AS_OF;
+# every other loan is blank, the flag that is neither 0 nor 1 included.
+
+CHARGEOFF_COLUMNS = ["CO_DATE"]
+
+
+def add_chargeoff(rows: list[dict], seed: int = 7) -> list[dict]:
+    """CO_DATE on every loan with BAD_FLAG 1, blank on the rest (see above)."""
+    rng = random.Random(f"chargeoff-{seed}")
+    for r in rows:
+        if r.get("BAD_FLAG") != 1:
+            r["CO_DATE"] = ""
+            continue
+        made = date.fromisoformat(r["ORIG_DATE"])
+        k = rng.randint(1, max(1, min(36, months_on_book(made))))
+        y, m = divmod(made.month - 1 + k, 12)
+        when = min(date(made.year + y, m + 1, rng.randint(1, 28)), AS_OF)
+        r["CO_DATE"] = when.isoformat()
+    return rows
+
+
 def write_extract(out: str | Path, n: int = 20000, seed: int = 7, ratio: bool = False,
-                  shortlist: bool = False) -> Path:
+                  shortlist: bool = False, chargeoff: bool = False) -> Path:
     """The extract alone, for the demo: the analyst's route starts from
     `pocketbook init` on it, so no call is made for them (walkthrough defect 14).
     `ratio` adds INCOME and SALES (add_ratio); `shortlist` adds UTIL and TENURE
-    (add_shortlist)."""
+    (add_shortlist); `chargeoff` adds CO_DATE (add_chargeoff)."""
     d = Path(out)
     d.mkdir(parents=True, exist_ok=True)
     data = d / "loans.csv"
     rows = make_rows(n, seed, ratio)
     if shortlist:
         rows = add_shortlist(rows, seed)
+    if chargeoff:
+        rows = add_chargeoff(rows, seed)
     with data.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=COLUMNS + (RATIO_COLUMNS if ratio else [])
-                           + (SHORTLIST_COLUMNS if shortlist else []))
+                           + (SHORTLIST_COLUMNS if shortlist else []) + (CHARGEOFF_COLUMNS if chargeoff else []))
         w.writeheader()
         w.writerows(rows)
     return data

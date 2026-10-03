@@ -1,4 +1,4 @@
-"""Reading the result tabs as the analyst sees them (the redesign, phase 3: Pockets, Paid cost kept, Grids, Split).
+"""Reading the result tabs as the analyst sees them (the redesign, phase 3: Pockets, RANR vs GCOs, Grids, Split).
 
 Each tab shows what its dropdowns pick, by formulas, so a test reads it calculated (tests/recalc.py), and to see
 another measure, grid or view it sets the dropdown on a copy and calculates again, as a person would. The fill a
@@ -20,13 +20,21 @@ from recalc import recalc
 POCKET_KEYS = {rs.K_NUM: "num", rs.K_BAND: "band", rs.K_SEG: "seg", rs.K_HALF: "half", rs.K_LOANS: "loans",
                rs.K_THIS: "this", rs.K_REST: "rest", rs.K_GAP: "gap", rs.K_EX: "excess", rs.K_WORSE: "worse",
                rs.K_P: "p", rs.K_MAT: "material", rs.K_CAUGHT: "caught", rs.K_HOLDS: "holds"}
-PCK_KEYS = {rs.C_BAND: "band", rs.C_SEG: "seg", rs.C_LOANS: "loans", rs.C_PAID: "paid", rs.C_PAID_D: "paid_d",
+PCK_KEYS = {rs.C_BAND: "band", rs.C_SEG: "seg", rs.C_LOANS: "loans", rs.C_BOOK: "booked", rs.C_GCO: "gco",
+            rs.C_RANR: "ranr", rs.C_RATE: "ranr_rate", rs.C_AVG: "avg_line", rs.C_AVGX: "avg_x",
+            rs.C_PAID: "paid", rs.C_PAID_D: "paid_d",
             rs.C_COST: "cost", rs.C_COST_D: "cost_d", rs.C_KEPT: "kept", rs.C_KEPT_D: "kept_d",
             rs.C_TOG: "together"}
 
 
 def blank(v):
     return None if v == "" else v
+
+
+def word(v):
+    """A verdict without its borderline words ("Yes · borderline (p 0.048)" is Yes): what every test of the
+    verdict itself compares. The words are the Borderline tests' (test_firm_answers_2026_09_29), read from `*_said`."""
+    return v.split(" · borderline (", 1)[0] if isinstance(v, str) else v
 
 
 def calculated(path, name: str):
@@ -46,7 +54,7 @@ def dropdown(ws, label: str):
 
 
 def choose(path, out, tab: str, **picks) -> Path:
-    """A copy of the workbook with a tab's dropdowns set: choose(b, out, "Pockets", measure="Charge-offs")."""
+    """A copy of the workbook with a tab's dropdowns set: choose(b, out, "Pockets", measure="GCOs ($)")."""
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(path, out)
@@ -85,6 +93,7 @@ def pockets(ws) -> list[dict]:
             break
         x = {k: blank(ws.cell(row=r, column=c).value) for c, k in POCKET_KEYS.items()}
         x["row"] = r
+        x["worse_said"], x["worse"] = x["worse"], word(x["worse"])
         out.append(x)
     return out
 
@@ -97,7 +106,7 @@ RULE = re.compile(r'^AND\(\$([A-Z]+)(\d+)<>"",AND\(\$([A-Z]+)(\d+)=0,\$([A-Z]+)(
 
 
 def pck(ws) -> list[dict]:
-    """Paid, cost, kept's rows as shown (calculated), with the fill each pair's rule gives it: the rules are
+    """RANR vs GCOs' rows as shown (calculated), with the fill each pair's rule gives it: the rules are
     conditional formats over each side's flag, so they are worked out here from the calculated flags."""
     h = header_row(ws, rs.C_TOG, "Together")
     out = []
@@ -106,6 +115,7 @@ def pck(ws) -> list[dict]:
             break
         x = {k: blank(ws.cell(row=r, column=c).value) for c, k in PCK_KEYS.items()}
         x["row"] = r
+        x["together_said"], x["together"] = x["together"], word(x["together"])
         for k, c in (("c_fill", rs.C_PAID), ("g_fill", rs.C_COST), ("r_fill", rs.C_KEPT)):
             x[k] = cf_fill(ws, r, c) if hasattr(ws, "formulas") else None      # the rules ride on .formulas
         x["flags"] = {k: blank(ws.cell(row=r, column=c).value) for k, c in (("c", rs.C_H_FC), ("g", rs.C_H_FG),
@@ -115,7 +125,7 @@ def pck(ws) -> list[dict]:
 
 
 def pck_all(path, out) -> list[dict]:
-    """Paid, cost, kept's rows for every grid its dropdown offers, each grid picked in turn and calculated, as a
+    """RANR vs GCOs' rows for every grid its dropdown offers, each grid picked in turn and calculated, as a
     person would page through them. Each row says its grid."""
     rows = []
     for i, grid in enumerate(options(load_workbook(path), rs.PCK, "Grid")):
@@ -125,7 +135,7 @@ def pck_all(path, out) -> list[dict]:
 
 
 def cf_fill(ws, r: int, col: int) -> str | None:
-    """The fill Paid, cost, kept's rules give a cell: the first rule that holds (see results.cf)."""
+    """The fill RANR vs GCOs' rules give a cell: the first rule that holds (see results.cf)."""
     for rng in ws.formulas.conditional_formatting:
         for bounds in str(rng.sqref).split():
             c0, r0, c1, r1 = range_boundaries(bounds)
@@ -144,6 +154,29 @@ def cf_fill(ws, r: int, col: int) -> str | None:
     return None
 
 
+def _merged_value(ws, r: int, c: int):
+    """A cell's value, or its merged range's first cell's when it sits inside a merge."""
+    for rng in ws.merged_cells.ranges:
+        if rng.min_row <= r <= rng.max_row and rng.min_col <= c <= rng.max_col:
+            return ws.cell(row=rng.min_row, column=rng.min_col).value
+    return ws.cell(row=r, column=c).value
+
+
+def header_of(ws, r: int, c: int) -> tuple[int, dict]:
+    """A block's column labels, the block's title at (r, c): the header's last row, and {label: column}. A split
+    grid's header on Grids is two rows (the widths change, 29 Sep 2026: G4), the segment merged over its parts and
+    then each part; its labels read back as the one label "<segment> · <part>", as before."""
+    two = any(m.min_row == r + 1 and m.min_col > c for m in ws.merged_cells.ranges)
+    head = r + 2 if two else r + 1
+    labels, j = {}, c + 1
+    while ws.cell(row=head, column=j).value not in (None, ""):
+        low = ws.cell(row=head, column=j).value
+        up = _merged_value(ws, r + 1, j) if two else None
+        labels[f"{up} · {low}" if up not in (None, "") else low] = j
+        j += 1
+    return head, labels
+
+
 def block(ws, title: str, start: int | None = None) -> dict:
     """A block on Grids or Split, by its title (the dark band): {(row label, column label): value}. It is looked
     for under the dropdowns, clear of the method note's labels."""
@@ -154,12 +187,10 @@ def block(ws, title: str, start: int | None = None) -> dict:
         for c in range(1, ws.max_column + 1):
             v = ws.cell(row=r, column=c).value
             if isinstance(v, str) and v.startswith(title):
-                cols, out = {}, {}
-                j = c + 1
-                while ws.cell(row=r + 1, column=j).value not in (None, ""):
-                    cols[j] = ws.cell(row=r + 1, column=j).value
-                    j += 1
-                rr = r + 2
+                out = {}
+                head, labels = header_of(ws, r, c)
+                cols = {j: label for label, j in labels.items()}
+                rr = head + 1
                 while ws.cell(row=rr, column=c).value not in (None, ""):
                     for j, name in cols.items():
                         out[(ws.cell(row=rr, column=c).value, name)] = blank(ws.cell(row=rr, column=j).value)

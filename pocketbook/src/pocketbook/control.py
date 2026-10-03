@@ -34,10 +34,12 @@ import threading
 from typing import Any
 
 import yaml
-from openpyxl import Workbook, load_workbook
+from openpyxl import Workbook
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.datavalidation import DataValidation
+
+from . import excel_lists       # a workbook opened without openpyxl's warnings about Excel's extension blocks
 
 SHEET = "Control"
 OPTIONS_SHEET = "_options"
@@ -68,7 +70,7 @@ METHOD = [
                    "beside the setting. It is never picked for you."),
     ("Chosen in the launcher", "What you're running and how the pockets are cut. Change them in the launcher's "
                                "Choose tests, then press Next. They are shown here so a reviewer sees them."),
-    ("Materiality levels", "For each level: its dollar line, how many pockets have charge-offs above their share "
+    ("Materiality levels", "For each level: its dollar line, how many pockets have GCOs above their share "
                            "that reach it, and their part of all such dollars. It follows your answer live."),
 ]
 #: the two method lines a test of a new variable reads differently: it builds no pocket, so only worse at is worked
@@ -114,6 +116,9 @@ class Setting:
     valid: dict | None = None        # {min, max, whole}: what a typed value may be
     only_when: dict | None = None    # {key: value}: asked only when another setting has that answer
     in_launcher: bool = False        # chosen in the launcher; Control shows it read-only (the redesign)
+    #: blank is an answer of its own: nothing is assumed and nothing changes, and the Run doesn't wait for it (the
+    #: bureau codes question, 30 Sep 2026: asked, never answered for the firm)
+    optional: bool = False
 
     def recommended(self) -> Option | None:
         return next((o for o in self.options if o.recommended), None)
@@ -170,7 +175,8 @@ def _read_settings(path: str | Path | None = None) -> list[Setting]:
             out.append(Setting(key=s["key"], question=s["question"], takes_effect=s["takes_effect"],
                                override=s.get("override"), options=opts, group=g["title"],
                                judgment=bool(s.get("judgment", False)), valid=s.get("valid"),
-                               only_when=s.get("only_when"), in_launcher=s.get("asked_in") == "launcher"))
+                               only_when=s.get("only_when"), in_launcher=s.get("asked_in") == "launcher",
+                               optional=bool(s.get("optional", False))))
     return out
 
 
@@ -213,10 +219,13 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         used.sheet_state = "hidden"
 
     # each column fits its longest value and its header (the spec's rule 5: no wrapping in the rows)
-    fit_b = max(len(s.question) for s in settings) * 0.95 + 2
-    fit_c = max(len(o.shown) for s in settings for o in s.options) * 0.95 + 3
-    widths = {"A": 2, "B": min(fit_b, 80), "C": min(fit_c, 66), "D": 12, "E": 14, "F": 44, "G": 12, "H": 22,
-              "I": 50, "J": 4, "K": 4, "L": 3, "M": 12, "N": 14, "O": 10, "P": 11}
+    # T1 (docs/column-widths-survey-2026-09-29.md): 0.9 a character is what Calibri 10 takes of Excel's unit, so the
+    # longest question stays on one line; Last Run used fits the longest answer without "(recommended)"
+    fit_b = house.fit([s.question for s in settings], floor=40, cap=84, per_char=0.9)
+    fit_c = house.fit([o.shown for s in settings for o in s.options], floor=24, cap=66, pad=3, per_char=0.9)
+    fit_f = house.fit([o.shown.replace(" (recommended)", "") for s in settings for o in s.options], floor=44, cap=58)
+    widths = {"A": 2, "B": fit_b, "C": fit_c, "D": 12, "E": 14, "F": fit_f, "G": 12, "H": 22,
+              "I": 56, "J": 4, "K": 4, "L": 3, "M": 12, "N": 14, "O": 10, "P": 11}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
     house.title_band(ws, "Control", "The professional calls. The top block changes results now; the second waits "
@@ -313,9 +322,11 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
             style(own)
         C, D, K = f"$C${r}", f"$D${r}", f"${get_column_letter(KEY_COL)}${r}"
         asked, _ = _asked_formula(s, settings, row_of)
-        answered_blank = f'AND({asked},$C{r}="",OR($D{r}="",$D{r}="n/a"))'
-        ws.conditional_formatting.add(f"C{r}:D{r}" if s.override is not None else f"C{r}",
-                                      house.still_needed(answered_blank))
+        # an optional setting's blank is an answer: never shaded, never counted as needed
+        answered_blank = "FALSE" if s.optional else f'AND({asked},$C{r}="",OR($D{r}="",$D{r}="n/a"))'
+        if not s.optional:
+            ws.conditional_formatting.add(f"C{r}:D{r}" if s.override is not None else f"C{r}",
+                                          house.still_needed(answered_blank))
         ws.cell(row=r, column=NEED_COL, value=f"=IF({answered_blank},1,0)")
         own_set = f'AND({D}<>"",{D}<>"n/a")'
         lookup = (f"IFERROR(MATCH({K}&\"|\"&{C},{OPTIONS_SHEET}!$A:$A,0),"
@@ -437,7 +448,7 @@ def _comes_to(key: str, plain: str, value: str = '""', worked: str = '""') -> st
 
 def _materiality_panel(ws, settings: list[Setting], top: int) -> None:
     """What each materiality level keeps, beside Block A (it absorbs the Materiality tab): for each share on
-    Control's list, the dollar line, the pockets whose charge-offs above their share reach it, and their part of
+    Control's list, the dollar line, the pockets whose GCOs above their share reach it, and their part of
     all such dollars. Live: formulas over the names each Run defines (book_gco, pk_kind, pk_measure, pk_dollars);
     before the first Run they show nothing."""
     from . import house
@@ -477,8 +488,8 @@ def _materiality_panel(ws, settings: list[Setting], top: int) -> None:
         f"{_letter(first)}{top + 2}:{_letter(last)}{r - 1}",
         FormulaRule(formula=[f'RIGHT(${_letter(first)}{top + 2},1)="◂"'], font=Font(bold=True),
                     fill=PatternFill("solid", fgColor=house.CANVAS, bgColor=house.CANVAS)))
-    for i, words in enumerate(("Charge-offs, every grid, against what each pocket is judged against.",
-                               "A profit shortfall is held to the same dollar line.")):
+    for i, words in enumerate(("GCOs, every grid, against what each pocket is judged against.",
+                               "A RANR shortfall is held to the same dollar line.")):
         note = ws.cell(row=r + i, column=first, value=words)
         note.font = Font(name="Calibri", size=9, color=SLATE)
 
@@ -682,7 +693,7 @@ def read_control(path, settings: list[Setting] | None = None) -> dict[str, Any]:
     workbook already open (a Run loads it once)."""
     settings = settings or load_settings()
     by_key = {s.key: s for s in settings}
-    ws = (path if isinstance(path, Workbook) else load_workbook(path))[SHEET]
+    ws = (path if isinstance(path, Workbook) else excel_lists.quiet(path))[SHEET]
     found: dict[str, Any] = {}
     seen: set[str] = set()
     problems: list[str] = []
@@ -746,6 +757,8 @@ def _take(row, s: Setting, found: dict[str, Any], problems: list[str]) -> None:
             found[key] = int(own) if (s.valid or {}).get("whole") else own
         return
     if chosen in (None, ""):
+        if s.optional:
+            return                          # not answered: nothing assumed, nothing changes
         if s.in_launcher:
             problems.append(f'{where}: "{s.question}" is chosen in the launcher. {LAUNCHER_NOTE}')
             return

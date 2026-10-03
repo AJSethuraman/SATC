@@ -57,7 +57,7 @@ def test_set_up_writes_every_tab_a_person_needs(tmp_path):
     out = book.set_up(synth.write_extract(tmp_path, n=3000))
     assert out.ok and out.book.exists()
     names = load_workbook(out.book).sheetnames
-    assert names[:4] == ["Start here", "Control", "Columns", "Look"]
+    assert names[:5] == ["Start here", "Glossary", "Control", "Columns", "Look"]   # the Glossary: 2 Oct 2026
     assert "Odd values" not in names and "Learned" not in names     # both on Columns since the redesign
 
 
@@ -99,7 +99,7 @@ def test_a_full_run_writes_results_into_the_workbook(tmp_path):
     # only ever read fine (tenet T2)
     assert [line for line in ran.lines if "tie-out" in line] == []
     assert tabs.record(out.book)["Tie-out checks"].endswith(": every grid adds up to the book")
-    assert any("Worst for GCO per booked dollar: FICO " in line and "Broker" in line for line in ran.lines)
+    assert any("Worst for GCOs per booked dollar: FICO " in line and "Broker" in line for line in ran.lines)
     wb = load_workbook(out.book)
     for t in (results.POCKETS, results.GRIDS, record.SHEET, record.LOG):
         assert t in wb.sheetnames
@@ -192,7 +192,8 @@ def test_grids_are_heat_maps_against_the_book_and_against_peers(tmp_path):
     assert book.run(out.book).ok
     ws = load_workbook(out.book)[results.GRIDS]
     heads = {c.value for row in ws.iter_rows() for c in row if c.value}
-    assert {"vs the book", "vs rest of band", "Loans"} <= heads and any(str(h).startswith('="Rate · "') for h in heads)
+    assert {"vs rest of band", "Loans"} <= heads and any(str(h).startswith('="Rate · "') for h in heads)
+    assert any(str(h).startswith('=IF(ISNUMBER(') and '"vs the book (book: "' in str(h) for h in heads)
     fills = {r.dxf.fill.fgColor.rgb[-6:] for rng in ws.conditional_formatting for r in rng.rules
              if r.dxf is not None and r.dxf.fill is not None}
     assert {house.HEAT_GOOD, house.HEAT_MID, house.HEAT_BAD, house.HEAT_BAD2} <= fills

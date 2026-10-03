@@ -180,7 +180,8 @@ def report(res: engine.Result, top: int = 5) -> str:
                         judged = ("the rest of its band" if bench.compare_to == "peers" and not s.alone
                                   else "the rest of the book")
                         flag = engine.said(s, pline) if m.in_points else s.flag
-                        out.append(f"      flag (judged against {judged}): {_word(flag)}")
+                        out.append(f"      flag (judged against {judged}): {_word(flag)}"
+                                   + (f" · {s.borderline}" if s.borderline else ""))
                         if s.smallest_gap:
                             out.append(f"      this many loans can show a gap of {_gap(s.smallest_gap, m)} or more"
                                        if m.in_points else

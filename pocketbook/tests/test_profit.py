@@ -162,7 +162,7 @@ def test_test_2_on_the_workbook(tmp_path, option):
     assert pk.cell(row=prow, column=live.P_OTHER).value == pytest.approx(466_666.67, abs=0.01)
     # Pockets, Kept after losses: Broker 600 a positive shortfall, its band's; Branch 600, short of the book
     # and ahead of its band, listed after, as its band reads it
-    ws = tabs.calculated(tabs.choose(wb.path, tmp_path / "k.xlsx", results.POCKETS, measure="Kept after losses"),
+    ws = tabs.calculated(tabs.choose(wb.path, tmp_path / "k.xlsx", results.POCKETS, measure="RANR"),
                          results.POCKETS)
     got = {(x["band"], x["seg"]): x for x in tabs.pockets(ws)}
     b_, br = got[(f"SCORE {LOW}", "Broker")], got[(f"SCORE {LOW}", "Branch")]
@@ -310,10 +310,10 @@ def test_the_priced_pocket_reads_priced_for_it(walk_book):
 
 def test_profit_is_a_gap_in_points_on_every_tab(walk_book, tmp_path):
     """NEXT-GOAL 3.2: every profit comparison is pocket - rest in points, never a
-    multiple: Pockets, Paid cost kept, the Grids' heat scale, the Split tab's
+    multiple: Pockets, RANR vs GCOs, the Grids' heat scale, the Split tab's
     halves and its pooled figure."""
     b = walk_book.path
-    ws = tabs.calculated(tabs.choose(b, tmp_path / "p.xlsx", results.POCKETS, measure="Kept after losses"),
+    ws = tabs.calculated(tabs.choose(b, tmp_path / "p.xlsx", results.POCKETS, measure="RANR"),
                          results.POCKETS)
     head = tabs.header_row(ws, results.K_NUM, "#")
     assert ws.cell(row=head, column=results.K_GAP).value == "Gap in pts"
@@ -331,12 +331,12 @@ def test_profit_is_a_gap_in_points_on_every_tab(walk_book, tmp_path):
     assert meta["G|FICO x CHANNEL|ranr_rate|meta"] == "pts"
     split = walk_book[results.SPLIT]
     head = tabs.header_row(split, 2, "Measure")
-    r = next(r for r in range(head + 1, head + 8) if split.cell(row=r, column=2).value == "Kept after losses")
+    r = next(r for r in range(head + 1, head + 8) if split.cell(row=r, column=2).value == "RANR")
     assert split.cell(row=r, column=6).value.endswith(" pts") and "×" not in split.cell(row=r, column=6).value
     assert split.cell(row=r, column=5).value < 0          # the high-debt half loses more, at the same price
-    sp = tabs.calculated(tabs.choose(b, tmp_path / "s.xlsx", results.SPLIT, measure="Kept after losses"),
+    sp = tabs.calculated(tabs.choose(b, tmp_path / "s.xlsx", results.SPLIT, measure="RANR"),
                          results.SPLIT)
-    texts = [v for v in tabs.block(sp, "Kept after losses, high vs low").values() if isinstance(v, str)]
+    texts = [v for v in tabs.block(sp, "RANR, high vs low").values() if isinstance(v, str)]
     assert any(t.startswith("(") and t.endswith(" pts)") for t in texts)        # not significant: bracketed
 
 
@@ -399,13 +399,13 @@ def test_contribution_is_ranr_plus_gco():
     res = engine.run(cube(), table(rows))
     m = next(x for x in res.measures if x.name == "contribution_rate")
     assert m.higher_is == "better" and m.in_points and m.plus == "GCO" and m.value == "RANR"
-    assert m.title == "Contribution before losses per booked dollar"
+    assert m.title == "RANR + GCOs per booked dollar"
     c = res.total.rates["contribution_rate"]
     assert c.num == pytest.approx(8 * 50) and c.den == 8000                   # every good loan earned 50
     assert res.left_out["contribution_rate"][("GCO", "not a number")] == 1
     assert res.total.rates["ranr_rate"].num == pytest.approx(9 * 50 - 800)
     ranr = next(x for x in res.measures if x.name == "ranr_rate")
-    assert ranr.title == "Profit after losses: RANR per booked dollar"
+    assert ranr.title == "RANR per booked dollar"
 
 
 def test_profit_is_material_at_the_loss_sides_dollar_line():
@@ -449,7 +449,7 @@ def test_the_words_are_p_value_and_not_significant(walk_book):
     """NEXT-GOAL 3.1: "Luck alone" is "p-value" on every tab, Control and Check;
     "could be luck" is "not significant"; nothing says "wobble" or calls profit
     earnings; standard error is defined on Check. The redesign's own words for
-    contribution ("Earned before losses") and one Together verdict ("Earns less,
+    contribution ("RANR + GCOs") and one Together verdict ("Earns less,
     not from losses") are the firm's, and are the only ones allowed."""
     text = " ".join(str(c.value) for t in walk_book.sheetnames for row in walk_book[t].iter_rows() for c in row
                     if isinstance(c.value, str))
@@ -464,8 +464,8 @@ def test_the_words_are_p_value_and_not_significant(walk_book):
     check = tabs.record(walk_book)
     assert check["Standard error"].startswith("How far a rate worked out from this many loans typically lands")
     assert "Two-sided" in check["p-value"]
-    assert check["Contribution before losses"].startswith("RANR + GCO, per booked dollar. This assumes RANR has "
-                                                         "gross charge-offs taken out.")
+    assert check["What RANR + GCOs assumes"].startswith("RANR + GCOs, per booked dollar. This assumes RANR has "
+                                                       "the gross GCOs taken out.")
     options = [r[2] for r in walk_book["_options"].iter_rows(min_row=2, values_only=True)]
     assert not any("luck" in str(o).lower() for o in options)
 

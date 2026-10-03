@@ -119,6 +119,40 @@ def significant(p: float | None, confidence: float) -> bool:
     return p is not None and p < bar(confidence)
 
 
+#: Borderline (the firm, 29 Sep 2026, by pop-up: "I don't like 'could fall either way' but flag it somehow", and
+#: then "Borderline"): a verdict whose p-value came from shuffling and sits within this many of the shuffle's own
+#: standard errors of the bar, either side. docs/statistics.md B2a.
+BORDERLINE_SE = 2.0
+
+
+def shuffle_se(p: float | None, shuffles: int | None) -> float | None:
+    """The standard error of a shuffled p-value: how far another run's shuffles would typically move it,
+    sqrt(p (1 - p) / shuffles) (docs/statistics.md B2a). None when nothing was shuffled. A z test's or an exact
+    test's p-value has none: it is the same on every run."""
+    if p is None or not shuffles:
+        return None
+    return math.sqrt(max(p * (1.0 - p), 0.0) / shuffles)
+
+
+def borderline(p: float | None, se: float | None, confidence: float) -> bool:
+    """A p-value within BORDERLINE_SE of its own standard errors of the bar, on either side: a verdict that just
+    passed and one that just failed alike. False with no standard error (a test that isn't shuffled)."""
+    if p is None or se is None:
+        return False
+    return abs(p - bar(confidence)) <= BORDERLINE_SE * se
+
+
+def p_text(p: float, confidence: float) -> str:
+    """A borderline p-value as the tabs print it: three decimals ("0.048"), or four where three would round it
+    onto the bar and hide which side it is on ("0.0496", not "0.050")."""
+    return f"{p:.4f}" if round(p, 3) == round(bar(confidence), 3) else f"{p:.3f}"
+
+
+def borderline_words(p: float, confidence: float) -> str:
+    """"borderline (p 0.048)", the firm's words for the flag."""
+    return f"borderline (p {p_text(p, confidence)})"
+
+
 def z_for_confidence(confidence: float) -> float:
     """z such that the central interval covers `confidence`: NORM.S.INV(1-(1-c)/2)."""
     return norm_s_inv(1.0 - (1.0 - confidence) / 2.0)

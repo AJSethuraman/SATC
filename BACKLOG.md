@@ -2283,6 +2283,53 @@ fixed now so go ahead fix the changes"*. Items 1 and 7 stay open: neither stops 
 - Tests: `tests/test_firm_answers_2026_09_29.py` (10; 1 needs a display); 6 existing tests changed to pick and
   confirm the outcome. Planted bugs: 12 added to `tools/mutation_check.py`.
 - Not redone: the procedure's and the checklist's pictures of Choose tests show the old screen.
+- **Later the same day, at the bank** (the firm set up on the bank's file):
+  - *All · None* under Cut into bands and Segment by too (the firm: "Yes"). The split is never ticked by All.
+  - Columns shows only the columns the Run uses; the rest are hidden rows, not asked about and not counted in
+    Start here's *Odd values to answer* (the firm: *"considering the reason we reorganized the entire set up to
+    allow you to pick the workbook first ... Why would we ever want to make it appear?"*). Set up with nothing
+    picked still shows every column.
+  - Look's charts lose their "Loans" axis title, which Excel drew over the axis's numbers (*"The axis title is
+    out of place"*; LibreOffice had placed it clear).
+  - Tests: 3 more in `tests/test_firm_answers_2026_09_29.py`; 5 planted bugs, all caught.
+  - **A category splits the pockets too.** The firm: *"I kind of figured I'd be able to see a view with system
+    flag and origination FICO and asset segment somehow"* ... *"Like I know it can't break down too far but can we
+    not make something work?"* Split by now offers a radio on category rows as well as number rows (still one
+    column, or none); picking a category unticks it from Segment by, and ticking it as a segment again stops the
+    split. A category with more than 6 values (blanks aside; `choices.SPLIT_MOST_VALUES`) is refused in the same
+    words in the launcher (Next stays off) and at the Run: *"REGION has 7 values. A category can split the pockets
+    by 6 values at most: with more, each pocket's parts are too thin to read. ..."*. The engine already built the
+    per-value layers (Grids' "FICO x ASSET_CLASS / SYS_FLAG", columns "ASSET_CLASS 4 · Y"; Pockets' split list;
+    the tie-outs); what was missing was every comparison. Now each value is set against the rest of its pocket
+    (the other value, when there are two) by exactly the halves' machinery: per pocket, the z test for bad loans
+    and the within-pocket shuffle for the dollar rates; pooled, actual against expected with its range, and for
+    bad loans the Mantel-Haenszel odds, CMH and Cochran's Q. The allowance for many tests takes every value and
+    pocket of a grid and measure as one family, and the pooled p-values across the values. New, for bad loans
+    only: whether the values differ at all, B3's K-group Mantel-Haenszel test on K - 1 degrees of freedom
+    (`kgroups.association`, docs/statistics.md), which with two values is CMH's chi-square (a test holds them
+    equal). The Split tab's Grid dropdown picks a grid and a value ("FICO x ASSET_CLASS · SYS_FLAG Y vs rest").
+    **Left out, and said on the tab:** the partner chip (how a category moves with a band column isn't worked
+    out; the note says a gap may partly be a column the grid doesn't hold); and the differ-at-all test for the
+    dollar measures (no test of more than two groups at once exists here for a dollar rate). Paid, cost, kept and
+    Start here's five largest read the two-way grids only, for a number split too, so nothing changed there.
+    Record: the Split row, the Tests row and the Families row say what a category split does.
+    Tests: 5 more in `tests/test_firm_answers_2026_09_29.py`; 9 planted bugs (and one repointed).
+  - **One cell of a grid read out in words.** The firm: *"It would be useful to be able to maybe select a
+    particular line and say I want this as an example and it fills in the band saying what versus book means
+    what versus band means and what loans means ... the measures should be constant from run to run the grid
+    may change"*. Grids has a **Row** and a **Column** dropdown beside Grid and Measure; their lists are the
+    picked grid's own labels (hidden cells, offered by `OFFSET` over as many as there are), and they open on
+    the first pocket with a rate. **What one cell says**, under the blocks, reads that pocket from the same
+    cells the blocks show: its name, the rate, vs the book, vs rest of band, the loans (and its band's All), and
+    the colour each comparison takes on the heat scale. The sentences are fixed by measure (`results.SAY`),
+    so only names and numbers change. A blank says why: *alone in its band* when nothing else in the row has
+    loans, otherwise *fewer losses than the minimum (N losses)*; the note under the blocks now gives both.
+    A Row or Column left from another grid asks to be picked again rather than read a wrong cell.
+    **Said as it is, not as asked:** vs the book is the pocket over the *whole* book (these loans included),
+    as the block has always shown it, so it reads "the whole book", not "every other loan in the book"; and
+    the colour is the size of the gap only (the block's heat has no test in it), so it says that rather than
+    "unlikely to be chance".
+    Tests: 3 more in `tests/test_firm_answers_2026_09_29.py`; 4 planted bugs, all caught.
 
 The firm, 29 Sep 2026: *"make sure you're noting all of these so that we can go over them later for final
 decision."* Each item: what is true now, what would change it, and the recommendation. Nothing below has been
@@ -2350,6 +2397,829 @@ changed in the code.
    out and counted; or a *Yes means* value typed on Columns) beside the column it proposes.
 7. **A verdict on a shuffled p-value near 5%** can fall either way with another seed (the full tie-out, *What
    it found* item 1). Either flag those "could fall either way", or shuffle more. **Recommended:** flag them.
+   **Built** (29 Sep 2026, branch `pocketbook-borderline-0929`). The firm, by pop-up: *"I don't like 'could fall
+   either way' but flag it somehow"*, and chose **Borderline**: *"Net drain · borderline (p 0.048)"*. The rule
+   (`docs/statistics.md` B2a): the p-value that decides a verdict, after the allowance, came from shuffling and sits
+   within 2 of its own standard errors of the bar, either side; SE = √(p(1 − p) / shuffles), times what the
+   allowance multiplied the p-value by (for Benjamini-Hochberg, the raw p that sets it, times m / j, as the tie-out
+   found). Only a verdict whose word turns on the p-value is flagged; a z or exact test never is. Shown on Pockets'
+   Worse?, Paid cost kept's Together, Split's p-values, Start here's five largest and tile, the launcher's tile,
+   the Run's *Worst for* line and Record (the rule, and a count per dollar rate), each tab's method note saying *"The
+   test's p-value is within the shuffle's own margin of the 5% bar, so another run could read it the other way."*
+   Colours, order and counts are unchanged. Tests: the Borderline section of `tests/test_firm_answers_2026_09_29.py`;
+   planted bugs in `tools/mutation_check.py`.
+
+- **Still at the bank, 29 Sep 2026, evening** (built, on PR #409):
+  - *Dropdowns gone after an Excel save.* Excel keeps a dropdown whose list sits on another sheet in its
+    extension block, and openpyxl dropped that block, so the next Run saved the workbook without them
+    (*"I have no drop downs in most places now"*). `excel_lists.py` puts them back on every load.
+  - *Look ignored Treat as Missing* (*"This median call seems to ignore that I said the -99... values ... are
+    treating as missing. Look into this and see if this leaks elsewhere"*). Look is now drawn from the Run's
+    rules and drawn again when an answer changes. The leak was Look only: a scan of every calculated cell
+    after a Run finds the code only in Columns' sample values.
+  - *Segments sorted as text*: a loan amount bucket put $5k-<$10k after $40k+. Numbers in labels now sort as
+    numbers.
+  - *Decided:* **everything compares against the whole book.** The firm: *"we keep things compared to the
+    whole book that's just kind of the point"*. So Grids' vs the book stays the whole book, and a filtered
+    view (below) compares against the whole book too.
+- **Later that evening, at the bank: Look** (built, branch `pocketbook-look-0929`):
+  - **Look percentile lines.** The firm: *"Shouldn't we have SD markings on the look tab? Our FICO seems fairly
+    distributed but other stuff is not"*. Offered standard deviations or percentiles by pop-up, they chose
+    percentiles (29 Sep 2026, evening). Each block lists the 10th, 25th, 50th (the median), 75th and 90th
+    percentile, and the chart draws them as thin grey solid lines labelled P10 to P90 at the top, under the red
+    dashed edges. Worked out in Python at draw time over the values the median uses (blanks, not a number, the
+    likely code and anything answered missing left out), as Excel's PERCENTILE.INC and numpy's default do
+    (`statistics.quantiles`, method "inclusive"); stored on `_look` and placed by the red lines' own formula, so
+    they follow Bars, From and To, and one outside From..To isn't drawn. On the synthetic book (3,000 loans)
+    FICO reads 629 · 665 · 701 · 738 · 774, numpy on the CSV the same. The method note says how they are worked out.
+    A block is now 20 rows (was 19); the first still starts at row 10, so Bars stays in C20 as the bank checklist
+    says. The method note's "Red dashed lines" line is now "The lines", red and grey.
+  - **x-axis labels.** The firm: Excel's labels wrapped, *"24,0/00 should read 24k"*. Labels under the bars are
+    now short: 1,000 and over read 24k, a million and over 1.2M, with the decimals the step between labels needs
+    (20.5k when they are 500 apart); under 1,000 the column's own format (FICO 620, a ratio 0.35). Built from
+    `ROUND(...)&"k"`, not a conditional number format, so negatives (-24k) come out the same in both programs. The
+    axis's text is set flat with "wrap text" off (`wrap="none"`). The scatters' axes get the same short numbers
+    as a number format, only where every tick is a whole thousand.
+  - Tests: 5 in `tests/test_look.py` (percentiles by hand from the CSV for FICO and ORIG_BAL; answered missing
+    left out; grey lines' x as LibreOffice calculates them, gone outside a narrower From..To; labels as
+    calculated: 550 ... 790, 0 / 12k / 24k ..., 20.5k, 600k / 1.2M, -24k; axis formats). 11 planted bugs, all
+    caught. Full suite: `828 passed, 7 skipped in 2167.70s`.
+  - **Not checked in real Excel:** that Excel honours `wrap="none"` on category labels (LibreOffice ignores
+    it), and where Excel puts the P10 to P90 labels (LibreOffice: right of each line's top).
+- **Answered by pop-up, 29 Sep 2026, evening** (the four Grids changes offered at the bank that day, all **yes**;
+  a number column as a segment, **Later**). Built on branch `pocketbook-grids-0929`
+  (`tests/test_firm_answers_2026_09_29.py`, the section that opens with the firm's words):
+  1. *Grey out Grids cells under the fewest-loans setting* (yes). A pocket with fewer loans than Fewest loans
+     in a pocket (the number the Run used; its suggestion worked out when that was picked) shows its number in
+     grey with no colour, in vs the book and vs rest of band, and is left out of the largest gap that sets the
+     scale. What one cell says: *"Grey: only 3 loans, fewer than the 30 set on Control, so not coloured."* The
+     photo's case, 620-659 · $20k-<$25k, 3 loans, Kept after losses -50.38 pts, is planted in the test book.
+  2. *The book's own rate in the vs the book heading* (yes): *"vs the book (book: 7.73%)"*, live as the
+     Measure changes; for a gap in points, the book's rate the gap is taken from. vs rest of band has none: its
+     rest differs by row.
+  3. *"Only loans where" on Grids* (yes; *"it would be nice to be able to filter by that category which would
+     probably solve a lot of ... having multiway views"*). By the Split by column when it is a category: the
+     engine builds each grid again on each value's loans (`Grid.filtered`), and every block and the one-cell
+     reading show it. vs the book stays the whole book, as decided; vs rest of band is the rest of the band
+     among those loans; grey and the heat scale go by that view's cells. Split in halves or not at all, the
+     dropdown offers only All loans and says filtering needs Split by a category. Any category, not only the
+     split column: later.
+  4. *A Loan size measure* (yes; *"we tend to give these loan amounts to these FICO scores within this
+     category"*): booked dollars per loan by cell, the average in Rate and as a multiple of the book's and the
+     rest of the band's, the median read out in words (*"These 207 loans averaged $32,626 booked, median
+     $34,127."*). Descriptive: no test, not on Pockets or Split, no red or green (one neutral hue, darker the
+     bigger). Offered only when a booked amount is set.
+  - Tests: 6 new (a 3-loan Kiosk pocket at -62 points planted in the test book, every count, rate and gap in a
+    filtered view and every loan size worked out again from the loan file); 16 planted bugs added and 4
+    repointed, all 23 put back one at a time and caught. Full suite 828 passed, 7 skipped. The note on Grids
+    keeps its rows, so the checklist's B13 and F13 still hold; F13 now lists 6 measures (the .md says so; the
+    checklist PDF was not rebuilt).
+  - *A number column as a segment* (FICO x asset bands in one Run): **Later**.
+  - *Pre-banded columns, "Treat as bands"*: parked. The firm: *"I don't know because I feel like there could be
+    a few different ways that they are formatted and I added the ad hoc"*.
+- **Column widths, 29–30 Sep 2026** (branch `pocketbook-widths-0929`). The firm: *"take a look at column spacing.
+  i prefer to have nice even layouts, or at least the column sizes should make sense for the data we see"*. The
+  survey, with before pictures and after pictures beside them, is `pocketbook/docs/column-widths-survey-2026-09-29.md`.
+  Every width is now worked out per Run from what that Run shows (`house.fit`, `house.two_line_width`), never
+  set per bank. Grids: one data width for every column of the four blocks and the groups table (9 to 16), one
+  label width for both label columns (12 to 28), headers that wrap with every block's the same height. Split,
+  Pockets, Paid cost kept, Start here, Look, Control and Columns fitted the same way. `tests/test_widths.py` and
+  ten planted bugs hold it.
+  - **Waiting for the firm:** the survey proposed wrapping Columns' *Check first* (prose up to 147 characters,
+    clipped at 60 wide). It was built, then taken back: `test_answer_tabs` holds the redesign's rule 5 on that
+    table (*"Every row is one line and every row in a table is the same height"*), and wrapping breaks it. The
+    call is the firm's: wrap it (and relax the test for that one column), or leave it clipped and readable in
+    the cell.
+  - **Decided for the firm, reversible** (each is one place in `results.py`):
+    - *G4: a split grid's header is two rows*: the segment merged over its parts, the parts ("high", "low", or
+      the category's values) beneath. So the merge is the same for every split grid the Grid dropdown picks,
+      every segment gets every part in one order, and a part a segment has no loans in is an empty column.
+      Reverse: `_split_layout` returning `[]` gives one row of "<segment> · <part>" labels again.
+    - *G6: booked dollars in the groups table under Grids show in thousands* (`$1,234k`) when the book's total
+      would not fit the widest data column; never `####`. Reverse: `THOUSANDS_FMT`.
+    - Beyond the plan: a label too long to fit two lines even at the cap (the survey's made-up
+      "Non-Customer/Online Direct") gets the header lines it needs rather than being clipped; Split's Grid
+      dropdown spans B:D and the partner chip moved from C:D to E:F (no checklist cell moved; two tests read
+      the chip by `results.SPLIT_CHIP`); Look's B is fitted at 0.9 a character to the labels as they are now
+      (the percentile rows, "50th percentile (P50), the median" at 33 characters, made it 32, not the survey's 30).
+  - Not changed: Record (it wraps by design), `live.py`, hidden columns, the checklist's named cells (Grids B13
+    and F13, Split B15 and B26, Look C20, Pockets C18 to E18 all stay where they were).
+- **Filter by, apart from Split by, 30 Sep 2026** (branch `pocketbook-filter-by-0930`). The firm found the Grids'
+  *Only loans where* worked only off Split by: *"Wait only works on split by? Isn't that for like above and below
+  median"*. Offered a separate Filter by, they answered *"Yes hoping to have this by morning"*; their use is 2022 to
+  2024 originations, flipped year by year to show the pockets hold across vintages.
+  - **Launcher:** a fourth column, **Filter by** (a radio), in the Choose tests table beside Split by: any category,
+    or **ORIG_YEAR**, a row that sits with the categories whenever a column is marked Origination date (*"Origination
+    year, from ORIG_DATE · 3 values · 27 with no date"*). One column or none; it never touches the split or the
+    segments (a category may segment and filter at once). More than 6 values (blanks and no-date loans aside,
+    `choices.FILTER_MOST_VALUES`) is refused in the launcher (Next stays off) and at the Run in the same words:
+    *"REGION has 7 values. The Grids can be filtered by a column of 6 values at most: with more, each value's loans are
+    too few to fill a grid. Filter by a column with fewer values, or by none."* Written to Control's *Chosen in the
+    launcher* as **Filter the Grids by** (one row more in that block, under *Split every pocket by*; no checklist cell
+    moves), read back by the next Set up, and passed to the Run as `filter_by:`.
+  - **ORIG_YEAR** is one definition (`engine.origination_years`), used by Split by and Filter by alike and by the
+    launcher's count: the year of the column marked Origination date, read as the Run reads that column (dates that
+    read two ways are refused). **Decided:** a loan with no readable date goes to **(no date)**, a value of its own
+    listed last, never put in a year and never dropped (every loan stays in view, as decided 26 Sep); it isn't
+    counted against the 6. No column marked Origination date: the Run refuses ORIG_YEAR in words.
+  - **Grids:** *Only loans where* reads the Filter by column, whatever Split by is doing (halves, a category, or
+    none). Every earlier rule holds: vs the book against the whole book, vs rest of band within the filtered loans,
+    grey and the heat scale by the view's own cells, Loan size filtered, and the one-cell reading ends *", only loans
+    where ORIG_YEAR is 2023"*. The one data width fits the filtered views' values too. No Filter by: the dropdown
+    offers All loans only, and the note under it reads *"Pick a Filter by in the launcher."* (it read *"Filtering needs
+    Split by a category."*). A category split no longer filters on its own.
+  - **Split by ORIG_YEAR:** each year against the rest of its pocket, and the Split tab's *Do the values of ORIG_YEAR
+    differ at all?* line (K-group Mantel-Haenszel; 3 degrees of freedom for 2022, 2023, 2024 and (no date)) is the
+    consistency test across vintages.
+  - **Record** has a *Grids filter* row (the column, where a year comes from, each value's loans); the Run's lines say
+    the same. Start here doesn't name the split, so it doesn't name the filter either.
+  - Tests: 6 in `tests/test_firm_answers_2026_09_29.py` (Filter by), on a synthetic book with origination dates
+    across 2022 to 2024 (every filtered block cell, for each year and (no date), worked out again from the CSV);
+    6 existing tests changed (the Grids fixture now picks Filter by as well as Split by; the no-filter note; the
+    launcher's four headings, twice; the Choose tests order, twice, now with ORIG_YEAR after the categories).
+    Planted bugs: 13 added and 4 repointed, put back one at a time with the 6 others on the lines touched: 23 of 23
+    caught. Full suite in shards (Python 3.11, LibreOffice, no tkinter here): 872 passed, 7 skipped (the window
+    tests), 0 failed. **Not checked:** the Tk window itself (no tkinter on this machine), real Excel, the bank.
+  - **Found, not fixed:** an equal-loans band edge that isn't a whole number is labelled one short: FICO cut at 654.2
+    reads *"496 - 653"* but holds FICO 654 (`engine.band_labels`: the step is 1 for whole-number display, and the
+    edge is not rounded). The test types whole edges to stay clear of it.
+- **Band labels one short on a whole-number column** (found 30 Sep 2026 building Filter by): FICO cut at an
+  equal-loan point of 654.2 read "496 - 653" and held 654. A column of whole numbers now labels each band from the
+  first value it holds (655) to the last (654); a column with cents keeps the nearest-dollar reading. Test and
+  planted bug in `tests/test_firm_answers_2026_09_29.py`.
+- **The evening tie-out, 30 Sep 2026** (`pocketbook/docs/tie-out/2026-09-30-evening/`, on build 44734da4): 281,421
+  cells TIED, 12,016 within sampling, 376 DIFFERS, 13 COULD NOT; every figure of the evening's changes ties.
+  The DIFFERS: 104 are the one shuffle draw 29 Sep's million-shuffle run already settled; 254 are width
+  measurements, of which four were real clips and are fixed (Split's borderline cells, Start here's segment
+  with the flag, Look's P50 label, New variables' ranges) and the rest are headings that wrap or spill as
+  designed; 18 are the one item below (decided and built the same day: the 18 now tie).
+- **Decided and built, 30 Sep 2026: a dollar band's label when its edge has cents** (branch
+  `pocketbook-whole-dollar-edges`). Was open: an equal-loan cut at $37,950.548 read "26,324 - 37,950" then
+  "37,951 - 49,151", and a loan of $37,950.99 sat in the second. The firm: *"Cut at whole dollars is fine"*.
+  - **The rule** (`engine.whole_cut`): an edge PocketBook *cuts* on a column whose labels read in whole units
+    (`engine.reads_whole`, the test `band_labels` already used: every edge 100 or more either way) and whose values
+    carry cents is **raised** to the next whole number. **Decided: a whole-unit label reads a value with its cents
+    dropped** (floor: $37,950.99 reads 37,950), so a band [a, b) at whole a and b holds exactly the loans whose
+    reading is a to b - 1, which is its label. Raised rather than rounded because on a whole-number column raising
+    moves no loan. The top label now ends at the largest value's whole units (it rounded up). Edges that meet after
+    raising are kept once, and one past the largest loan is dropped: the Run's "asked for N bands, got M" says so. A
+    column whose loans all read the same dollar keeps its cut rather than losing every band.
+  - **Left alone:** edges typed on Columns (the analyst's, exactly as typed), a whole-number column such as FICO
+    (already labelled by the values it holds), and ratios (edges under 100).
+  - **Everywhere edges are cut:** the Run (`cut_edges`), and so Grids, prevalence, Record's *Band edges used* and
+    the CLI, which read `res.band_edges`; and scouting's suggested bins (`scout.bins_at`), which are the pre-spec's
+    suggested bins. Look's red lines read only edges typed on Columns, so nothing there moves.
+  - **Q3 book, ORIG_BAL:** edges 15,448.536 / 26,323.856 / 37,950.548 / 49,152.37 became 15,449 / 26,324 / 37,951 /
+    49,153. Labels were *5,005 - 15,448 · 15,449 - 26,323 · 26,324 - 37,950 (1,599) · 37,951 - 49,151 (1,600) ·
+    49,152 - 59,983*; they are now *... 26,324 - 37,950 (1,600) · 37,951 - 49,152 (1,599) · 49,153 - 59,983*. The
+    one loan that moved is L0001306 ($37,950.99).
+  - Tests: 9 in `tests/test_firm_answers_2026_09_29.py` (Cut at whole dollars). One existing test's expected label
+    moved: `tests/test_shortlist.py`, TENURE's top group over values to 61.3 now reads "10 - 61" (was "10 - 62"),
+    under the same cents-dropped reading. Planted bugs: 10 added to `tools/mutation_check.py`, 10 of 10 caught.
+    Full suite in shards: 885 passed, 7 skipped (the window tests), 0 failed, `test_mutation_tool.py` and
+    `test_bank_checklist.py` included.
+  - The evening tie-out's band-label check, run again on this build (`recheck_whole_dollars.py`, addendum to
+    the report): 60 of 60 labels tie on the six grid books, and the 18 band-label DIFFERS no longer differ.
+- **Decided and built, 30 Sep 2026: a number column too few-valued to cut gets one band per value** (branch
+  `pocketbook-few-values`). The firm, at the bank: *"So it refuses to run some stuff because it cannot band. Which
+  makes sense for the examples so far - they are things like major derogs which do not include too many numbers."*
+  To the fix below: *"Yes that's fine"*.
+  - **Before:** a column like Major Derogatories (0 to 8, 85% of loans at 0) marked Amount or number and cut into 5
+    equal-loan bands had all four cuts land on 0, and the Run stopped: *Couldn't run: the extract has no column
+    "Major Derogatories" (a band: no readable numbers to cut). Its columns are: ... If a column was renamed or
+    dropped, press Set up again.* (wrong on both counts: the column was there, and Set up wouldn't help).
+  - **Now** (`engine._cut_or_each_value`): when the equal-loan (or round) cut gives fewer bands than asked for and
+    the column has Control's *few values* (the launcher's "Number columns: this many values or fewer is a
+    category", 12 by default; it now rides with each band as `few_values:`) or fewer, **each value is its own
+    band**, labelled by the value (*0*, *1*, ... never *0.0*; blank and the other special rows as usual). The Run's
+    lines and Record say *"Major Derogatories: too few values to cut into equal bands, so each value is its own
+    band."* More values than that and still collapsing: cut as far as it can be, with the existing *asked for N
+    bands, got M* (when no cut survives at all, the lowest value against the rest). A single value: refused, *"Major
+    Derogatories" reads 0 on every loan, so there is nothing to cut into bands. On Columns, set What it is to
+    Category, or type Band edges like 1; 2; 5.* Band edges typed on Columns always win.
+  - **Columns:** *Why we think so* gains *Few values (0 to 8): Category may read better.* beside a column the last
+    Run gave value bands, and loses it at the next Run that doesn't. What it is, and what is remembered, stay as
+    answered.
+  - **Everywhere the labels are named:** `Result.value_bands` carries each such column's values, and
+    `engine.labels_for` names bands for the Run and for prevalence (Grids' groups, `_labels_by_band`, `_bands_of`),
+    so a subset of loans keeps the same names. Grids, its filter, Summary and the three-way pockets take the
+    Run's own labels. Look's red lines read only typed edges, so nothing there moves.
+  - Tests: 13 in `tests/test_firm_answers_2026_09_29.py` (few_values), Grids and Summary cell for cell against the
+    loan file, whole book and one year. Two existing tests moved with the rule: `test_engine.py`'s 600/700 score
+    column asked for 5 bands now gets one band per value (and still warns "asked for 5, got 2" at few_values 1), and
+    the whole-dollars test whose five dollar values meet sets few_values 4 so the cut is still what it tests.
+    Planted bugs: 9 added to `tools/mutation_check.py` and 2 repointed (the band loop moved), 11 of 11 caught. Full
+    suite in shards: 907 passed, 7 skipped, 0 failed (the two moved tests red on the first pass, green after),
+    `test_mutation_tool.py` and `test_bank_checklist.py` included.
+  - **For the firm:** a dollar column with 12 or fewer distinct amounts that can't be cut would also get one band
+    per amount, labelled with its cents (*100.1*); none of the books seen so far has one.
+- **Paid, cost, kept: gross booked, GCO and RANR, 30 Sep 2026** (branch `pocketbook-pck-gross`). The firm: *"On the
+  paid cost kept tab I would like to work on gross GCO gross booked and gross RANR as well so we can also see if
+  pockets are straight negative on returns"*.
+  - **Gross · this pocket alone**, four columns right after Loans (before the gaps: what the pocket did on its own
+    reads before how it compares): **Booked**, **GCO**, **RANR** and **RANR rate** (RANR ÷ booked), from the Run,
+    compared with nothing. **Decided here:** Booked is the booked dollars under RANR (Kept's bottom), so RANR rate is
+    Kept's own rate; a loan whose RANR doesn't read is out of both, and GCO is what the charge-off rate adds up (a
+    `#N/A` charge-off is out of GCO but its balance stays in Booked).
+  - A pocket whose RANR is below zero: its RANR and RANR rate in **red** (CRIMSON, the house alert text), and a line
+    beside the Grid dropdown, worked out in Python per grid: *"6 pockets lost money outright, totalling $166,260:
+    RANR below zero, in red."* (red when any), or *"No pocket listed lost money outright ..."*. The method note's
+    Kept item says *"Negative RANR: the pocket lost money outright, before comparing it with anyone."*, on the
+    same row, so no row of the tab moves.
+  - Under the table: **Pockets listed**, **Not listed** (pockets with nothing to compare them with, only when any)
+    and **Whole book**, the grid's own margin; the first two add up to the third.
+  - **Nothing named moves:** B16 (the Grid dropdown) and M13 (the waiting note) stay where the bank checklist sends
+    the analyst; the tiles keep C:K. Together moves from K to O and the chart from M to Q. Verdicts, colours, order,
+    borderline flag and chart are unchanged. Dollars switch to $k only when the whole book's booked would not fit
+    the widest data column (the Grids rule); widths fit every value the dropdown can show.
+  - Tests: 6 in `tests/test_firm_answers_2026_09_29.py` (Paid, cost, kept: gross), every gross cell of both grids
+    worked out again from the CSV; `tests/tabs.py` reads the four new columns and `test_book_results`' header
+    list grew by four. Planted bugs: 7 added to `tools/mutation_check.py` (RANR rate over loans; negative not red;
+    count line leaving out untested pockets; gross from the rest of the band; Not listed dropped; whole book from
+    the listed pockets; never thousands), 7 of 7 caught; *Together too narrow for the borderline flag* repointed
+    (the spacer after Together is now `C_TOG + 1`, not column 12) and caught. Full suite in four shards: 891
+    passed, 7 skipped (the window tests), 0 failed, `test_mutation_tool.py` and `test_bank_checklist.py` included.
+  - Tie-out `pocketbook/docs/tie-out/2026-09-30-pck-gross/`: a Kiosk book (8,090 loans), both grids, 481 figures,
+    **481 TIED, 0 DIFFERS**, Road 2 importing nothing from PocketBook.
+  - **For the firm:** the count includes a 1-loan pocket (the loan with a blank score that charged off); a pocket
+    under Fewest loans is still counted and red, since a loss is a loss, not a test. Say if it should be left out.
+
+- **Built, 30 Sep 2026: the Summary tab** (branch `pocketbook-summary-tab`). The firm: *"I want to add some easy
+  high value views as well. Like a few matrices where it lists out a chosen band on the left and shows real
+  calculated metrics... Maybe I want to see bands of FICO on the left and straight up unit counts, loan amounts, % of
+  units, % of loan amounts, charged off dollars, ratio, percentage of units. Same with RANR. They'd be across the
+  top."* The ratio: *"Charged off / booked"*. Bad loans columns: *"Yes do this"*.
+  - **The tab** (`results.write_summary`, after Grids: both show one table at a time from dropdowns, as of the last
+    Run). A **Band column** dropdown lists every column the Run cut into bands. When the launcher picked a Filter by,
+    an **Only loans where** dropdown offers All loans and that column's values. Rows are the bands in order, then
+    (blank), (not a number) and (marked missing) where present, then All. Columns: Loans · % of loans · Bad loans ·
+    Bad loans % · Booked $ · % of booked · Charged off $ · Charge-off rate · × book · % of charge-offs · RANR $ ·
+    RANR rate · % of RANR. A column whose source the Run hasn't got is left off, and the note says which.
+  - **The numbers** (`engine.Summary`, `engine.summary_rows`): each band is accumulated from the loans as a grid
+    cell is, then tied out to the book before anything is written (`_tie_summary` raises TieOutError). Bad loans %
+    is the Bad loans rate. The charge-off and RANR rates are the Charge-offs and Kept after losses rates, so a loan
+    missing an amount is out of that rate's top and bottom, as on Grids. × book is against the whole book, even
+    under a filter. The shares are of the view's All row. The tab's formulas only pick a _views row. There is no
+    test and no red or green; only the All row is shaded (CANVAS). Widths use Grids' rule: one data width, headings
+    on two lines, and $k only when the largest dollar figure would not fit under 16.
+  - Tests: 3 in `tests/test_firm_answers_2026_09_29.py` (Summary). They check every cell of FICO and REV_DEBT
+    against the CSV, that the shares add to 100%, that All equals the book, the dropdown switch, each year's filtered
+    numbers, and that a missing source drops its columns with the note. 3 existing tests now expect Summary in the
+    tab order. Planted bugs: 7 added to `tools/mutation_check.py`, 7 of 7 caught.
+  - Tie-out (`pocketbook/docs/tie-out/2026-09-30-summary/`): 14 views, 1,274 cells, 1,274 TIED, 0 DIFFERS.
+  - **For the firm to confirm:** × book stays against the whole book under Only loans where, so a year's All row
+    reads something like 1.12× rather than 1.00×; the shares are of that year's loans. The Charged off $ column only
+    counts loans that also have a booked amount, so it matches the rate. Summary offers band columns only, not
+    segments.
+- **Built, 30 Sep 2026: errors on the window, not in Notepad** (branch `pocketbook-errors-on-screen`). At the bank,
+  Run with the extract (`Test_Pop_DC.xlsx`, in OneDrive) open in Excel stopped. The window said "Something went
+  wrong while running. The details are in …\last-error.txt", and that file, opened in Notepad, held a
+  `PermissionError: [Errno 13]` traceback from Run's fingerprint check (`book.py:1804`,
+  `hashlib.sha256(src.read_bytes())`). PocketBook checked whether the *workbook* was open, never the *extract*. The
+  firm: *"It would be a lot easier if these kinds of errors just displayed on screen in the huge white space
+  allotted"*.
+  - **The extract** (`book.cant_read`): every place it is read (Run, Set up's column read `read_extract`, Next's
+    `set_up`) turns an OSError into a refusal naming the file. The bank's case now reads: *"Test_Pop_DC.xlsx can't
+    be read: it's open in Excel, or OneDrive is still syncing it. Close it in Excel (check for a hidden Excel
+    window), or right-click it in File Explorer and choose Always keep on this device. Then press Run again."*
+    Set up says "press Set up again". A missing extract says where it was looked for. Run now reads the extract
+    once and takes the fingerprint from those same bytes (`Table.sha256`); it used to read it twice, and the first
+    read is the one that raised. Set up's second read for the fingerprint is gone the same way. Scouting reads no
+    extract of its own (it works on the Run's table), and the launcher's pick reads nothing.
+  - **Anything unexpected** (`launcher.Crash`): it shows in the page's own space under a plain heading (*Run
+    stopped*, *Set up stopped*, *Writing the workbook stopped*): "Something went wrong that PocketBook didn't
+    expect.", then the error's type and message, then "Press Copy details and send what it copies, to get it
+    fixed." **Copy details** puts the full traceback on the clipboard. A copy is still written to
+    `.pocketbook/last-error.txt`, and the window no longer points at it. Nothing opens Notepad: no code ever did.
+    The analyst opened the file because the window said to. A Run that stopped for a reason other than an answer
+    now spans the page, not a 360 px list row. The window stays usable, so the analyst can fix the cause and press
+    Run again. `Flow.set_up`, `Flow.next` and `Flow.run` never raise; the window's thread keeps a last net for
+    anything a step didn't catch.
+  - Tests: `tests/test_errors_on_screen.py` (10: the bank's case through Flow and `book.run`, Set up and Next, a
+    gone extract, one read per Run with a changed extract still noticed, an unexpected error in Run and in Set
+    up/Next, the tie-out's own words kept with Copy details added, and 3 on a display: the panel in the page,
+    Copy details on the clipboard, the last net). 1 test each changed in `test_launcher.py` (the old sentence) and
+    added in `test_bank_checklist.py` (the checklist quotes the window's own words, and Part 7 no longer says
+    Notepad). Planted bugs: 8 added to `tools/mutation_check.py`, 8 of 8 caught; 4 display-only ones run by hand
+    under xvfb (CI has no display), 4 of 4 caught.
+  - The checklist (Part 7 and *If something goes wrong*) and its HTML/PDF rebuilt; README step 5.
+  - **Not exercised on a real screen:** Windows, Excel's real lock on the extract, OneDrive's online-only files, and
+    the Windows clipboard. The lock was simulated by making every read of the extract raise PermissionError; the
+    window was drawn under xvfb on Linux and photographed.
+
+- **Built, 30 Sep 2026: the Choose tests table tints the row you are in** (branch `pocketbook-row-highlight`). The
+  firm: *"In setup screens it would be nice if it highlighted the row you're clicking in when the button is far away
+  from the column names"*. Pointing at any part of a row (name, what it is, any box) tints the whole row CANVAS, the
+  colour of the All/None band. A click keeps it tinted after the pointer leaves, until another row is clicked. A
+  redraw keeps the clicked row. `launcher.relight` decides which row is tinted and which go back to white, and
+  `row_light` binds Enter, Leave and Button-1 on every widget in a row.
+  - Tests: 2 in `tests/test_row_highlight.py`. One checks `relight` with no window, so it runs in CI. The other builds
+    the window, points and clicks, and checks every background in the row; it skips without a display. Planted bug:
+    1 added (*row highlight never cleared*), caught with a display (2 failed) and without one (1 failed).
+  - Picture: `pocketbook/docs/row-highlight-2026-09-30/choose-row-highlighted.png` (REV_DEBT clicked at Split by,
+    the pointer off the table).
+- **Built, 30 Sep 2026: the bureau's missing codes, in every column** (branch `pocketbook-odd-values-all`). The
+  firm: *"still not seeming to identify that things that aren't recent delinquency have negative values ... it's
+  useful to see the value because they are generally just missing items"*, and *"I can guarantee you that they are
+  the bureau missing codes so I think it's just not working correctly."* The cause: a numeric column read as a
+  category (installment delinquencies of 0, 1, 2 and -99,000,900) was never asked about, and the one cell that was
+  asked read *-9.90009e+07 on 12,410 loans*.
+  - **Columns** now asks about every column of numbers, a category's too (`profile.classify`), and a 0/1 flag's 0,
+    one step from the 1s, is never asked. The Odd values cell names the values and their loans in plain numbers:
+    *-99,000,900 on 460 loans*; up to five negatives each with its count, more than five as *Negative on N loans
+    (e.g. ...)*. Never scientific notation (`config.plain_value`, also used by Look and the memory rows). A category
+    answered Missing puts those loans in *(marked missing)*, as a band does.
+  - **Control** asks one question more, in the firm's words: *"Treat values ≤ -99,000,000 as missing in every
+    column?"* (Yes/No; blank changes nothing and the Run doesn't wait for it). Yes makes every value at or below
+    -99,000,000 missing in every column, with no Treat as needed; a column answered Real on Columns keeps its
+    values. The Run's lines and the Log say how many loans it made missing in each column the Run read, and Columns
+    marks each code it covered *→ missing (Control: ≤ -99,000,000)*, which Start here no longer counts as open.
+  - A value missing by either route is in no band edge, rate, percentile or Look chart (`engine._caught`, which
+    Look reads too).
+  - Tests: 10 in `tests/test_firm_answers_2026_09_30.py`, on a synthetic extract, with counts tied to the
+    CSV; 3 existing tests now read -9,999 for -9999. Planted bugs: 9 added to `tools/mutation_check.py` and 2
+    repointed (their lines had moved), 11 of 11 caught. The bank checklist's Step 10 row reads the new cell text.
+  - **For the firm to confirm:** with the Control question unanswered or No, an unanswered code is still used as
+    recorded (odd values are asked, never acted on, OC-7), so it shows in Look until answered one way or the other.
+- **The firm's own terms, 30 Sep 2026** (branch `pocketbook-literal-names`). The firm: *"let's rename this list of
+  stuff for a couple things and be more literal - Charge-offs = GCOs ($), kept after losses = RANR, earned before
+  losses = RANR + GCOs"*, and then *"I want to use the terms I gave you out of the box so it can be understood by
+  insiders"*. Charge-offs is **GCOs ($)**, Kept after losses **RANR**, Earned before losses **RANR + GCOs**, on
+  every tab, the launcher, the README and the bank checklist (HTML and PDF rebuilt); the tab Paid, cost, kept is
+  **RANR vs GCOs**, its sides headed RANR + GCOs, GCOs and RANR; the Rate block on Grids says what it divides,
+  *Rate · GCOs ÷ Booked*, following the Measure dropdown. Only the words moved: the keys (`gco_rate`, `ranr_rate`,
+  `contribution_rate`) a workbook, a pre-spec and memory hold are unchanged. A workbook written before reads: Set
+  up links its Paid, cost, kept tab under that name, and the next Run takes it off and writes RANR vs GCOs (held on
+  the evening tie-out's own workbook, `tests/test_literal_names_2026_09_30.py`, 5 tests). Planted bugs: 5 added to
+  `tools/mutation_check.py`, 3 existing ones repointed at the new wording; the 8 run alone, 8 caught. Tests: the 6 files the change touches most, 136 passed; 10 more, 208 passed and 3 failed, each for scikit-learn not being installed in the test environment.
+  - **For the firm to confirm:** the launcher's plain line now reads *"Five measures: bad loans, bad dollars, GCOs
+    ($), RANR, and RANR + GCOs"*; GCO and RANR are explained on the two lines above it. The historical documents
+    (walkthroughs, audits, the redesign) keep the words they were written in.
+- **Built, 30 Sep 2026: two filters, and the Compare chart** (branch `pocketbook-compare-chart`). The firm: two
+  Filter by columns, *"independently and in conjunction with each other"*; then *"can we make it so they can be
+  visually compared in a graph? Like if we used origination date as a filter it would essentially be vintage
+  years"*, and *"if we are proving things exist across categories it should not be vintage analysis only so let's
+  make sure that is the case and how would we show that say vintage analysis mixed with like underwriter/system
+  approved?"* A line chart, chosen over bars.
+  - **Filter 2.** The launcher has Filter 1 and Filter 2 columns (a category of 6 values or fewer, or ORIG_YEAR).
+    Control carries it as *And filter them by*; the cube file as `filter_by2`. The engine builds every grid and
+    every Summary again on each value of either filter alone and on every pair (AND), skipping a pair no loan has.
+    Grids and Summary get a second dropdown, *and (column) is*, beside *Only loans where*; vs the book and × book
+    stay against the whole book. Refused in words: one column picked twice, and a pair making more than 49 views
+    of each grid (choices.FILTER_MOST_VIEWS). Filter 2 picked alone becomes the one filter.
+  - **Compare** (`compare.py`, after Summary, only with a Filter by). Dropdowns: *Across the bottom* (a band
+    column's bands, or either filter's values, so Origination year across is the vintage view), *Measure* (a
+    rate), *Lines by* (Filter 1 or 2), *Panels by* (the other, or None), *Whole book line*. Panels sit side by side
+    on one y scale; a point on fewer loans than *Fewest loans in a pocket* is #N/A, left off its line, and grey in
+    the table under the charts. The numbers are the Run's (the Summary cells) on _views; the formulas only pick
+    them, so the charts are live. Built as scatters with lines, not line charts: LibreOffice draws a line chart's
+    #N/A at zero. The labels across are one-point series named by their label cells; the key sits in cells.
+  - Tests: 9 in `tests/test_compare_2026_09_30.py`. Three tie every chart point, table cell and the shared scale to
+    the CSV with nothing imported from pocketbook: Origination year x SYS_FLAG, FICO x year in SYS_FLAG panels,
+    and FICO x CHANNEL in SYS_FLAG panels (not vintage at all). Grids and Summary with both filters, the Run's
+    line and Record, the launcher, and both refusals. Planted bugs: 12 added and 5 repointed (17 of 17 caught) in
+    `tools/mutation_check.py`. Pictures: `pocketbook/docs/compare-chart-2026-09-30/` (LibreOffice renders of
+    synthetic data). The bank checklist now counts 35 pasted files.
+  - **For the firm to confirm:** Compare's panel slots are fixed at the Run (the larger filter's value count), so
+    lines by the larger filter leave a slot empty, drawn blank on the same scale. With a filter across the bottom
+    the lines are by the other filter and there is one chart. (no date) and (blank) are lines or panels but never
+    a place across.
+- **Built, 30 Sep 2026: RANR vs GCOs in band order, sortable, headed against the rest** (branch
+  `pocketbook-pck-order`). The firm: *"it would be really nice if the bands could be sorted or at least make it
+  easier to look at what's happening on this tab. Hard to see these in a sensical order."*
+  - **Order.** Rows are by band, lowest first ("0 - 619" before "620 - 659"), (blank) and (marked missing) last,
+    then by segment, each in the grid's own order; they were by GCO dollars. Excel's sort and filter arrows sit on
+    the header row over the pockets only, never the totals. The hidden workings now sit just right of Together,
+    inside the arrows' range, so a sort in Excel moves each row's workings with it (outside it, a sort would have
+    left every row reading its old row's numbers). Every rule on the rows reads its own row. The chart numbers the
+    first 8 pockets read together down the table, whatever the order, and lists them under it.
+  - **Headings.** "gap vs book" and "× book" read as the whole book; the numbers are against the rest, the pocket
+    left out. Checked by hand on the firm's row, 720-739 Non-Customer/VLA: GCOs 12.85% ÷ the rest's 4.48% = 2.86×
+    (÷ the whole book's 4.61% would be 2.78×). Now *gap vs rest of book* / *× rest of book*, and *rest of band*
+    when Control judges against the band.
+  - **Rest.** Each side has a Rest column, the rate its gap is measured against (_pockets' rest that decides). On
+    the firm's row: RANR + GCOs 9.02%, GCOs 4.48%, RANR 4.54%.
+  - Tests: 10 in `tests/test_pck_order_2026_09_30.py`, on a synthetic book built to the firm's figures; every
+    rest is worked out from the loans with nothing from pocketbook, in both comparisons, and a sort done as Excel
+    does it (formulas moved row to row) keeps every row, its colours and the chart's numbers. 4 tests in
+    `test_book_results.py` found the planted pocket by being first and now look it up by name; headings updated in
+    5 files. Planted bugs: 4 added to `tools/mutation_check.py`, 4 caught. Runs: 9 files, 152 passed;
+    `test_book_results.py` and `test_firm_answers_2026_09_29.py -k pck`, 53 passed. Pictures (LibreOffice renders
+    of the synthetic book): `pocketbook/docs/pck-order-2026-09-30/`.
+  - **For the firm to confirm:** Rest sits last in each side (gap, dollars, rest). After a sort, picking another grid
+    fills the rows in the sorted positions, so its pockets are out of band order until sorted again (Data, Reapply).
+- **Built, 30 Sep 2026: Columns shows every column, the wheel never errors, a progress line** (branch
+  `pocketbook-columns-launcher`). The firm: *"for some reason in my testing it is hiding random rows from the
+  columns tab which makes it hard to make sure it's right"*; a wheel scroll at the bank raised *"_tkinter.TclError:
+  invalid command name ".!frame2.!frame3.!frame100.!frame3.!canvas""*; and *"it seemed pocketbook hanging and it
+  didn't before"*.
+  - **Columns** no longer hides the columns the launcher didn't pick (29 Sep's change). They are shown greyed
+    (CANVAS, SLATE text) and Check first opens *Not used this Run.*; D3 says how many. Still nothing asked about
+    them and nothing counted. Check first's shading leaves that note alone.
+  - **The wheel** is bound once, to whichever table is on screen (Choose tests, or the answers list), and does
+    nothing once that page has gone. It was bound to Choose tests' own canvas and outlived it. X11's Button-4/5 too.
+  - **Progress line**: under a busy page, the stage and the time since the button was pressed, e.g. *Running the
+    shuffle test… 1 min 40 s*, updated ten times a second. `book.set_up` and `book.run` take `progress(stage)`
+    (a no-op by default) and call it at their stage boundaries; `engine.run` says *Cutting bands* and *Running the
+    shuffle test*. The work already ran in a thread; the line is what shows it hasn't hung. Picture:
+    `pocketbook/docs/columns-launcher-2026-09-30/run-progress-line.png` (synthetic, xvfb).
+  - **openpyxl's warnings** about Excel's extension blocks (*Data Validation extension…*, *Conditional Formatting
+    extension…*) are filtered on every read of a workbook or an .xlsx extract (`excel_lists.quiet`/`hushed`).
+    Checked: the tabs a Run keeps (Control, Columns, Look, and Start here, which it redraws) have no shading rule
+    that reads another sheet, so Excel has nothing of theirs to move into that block. Grids has four; every Run
+    deletes and redraws Grids, so they come back. Until the next Run, a Set up or a refused Run on a workbook Excel
+    saved leaves Grids without those four.
+  - Tests: 7 in `tests/test_columns_launcher_2026_09_30.py` (one on a display); 1 in
+    `test_firm_answers_2026_09_29.py` and 1 in `test_answer_tabs.py` updated. Planted bugs: 6 added, 3 repointed, 9 of 9 caught; the wheel's and the
+    progress line's plant into `launcher.wheel_target` and `Flow.progress_line`, caught with no display (CI has
+    none), and the window test holds the same two under xvfb. The nine files the change touches: 168 passed, 1 failed for
+    scikit-learn not being installed here.
+- **Built, 30 Sep 2026: Grids stacked, and Summary by a category** (branch `pocketbook-grids-summary`).
+  - **Grids.** From the firm's photo of a 4-segment grid: the four blocks sat 2×2, and the right-hand pair started
+    after the *widest* grid's columns, so a narrow grid left a blank middle. Now they are stacked, one under another
+    from column B: Rate, vs the book, vs rest of band, Loans; the note, *What one cell says* and the Groups tables
+    follow under them. The dropdowns stay where the bank checklist sends the analyst (B13 Grid, F13 Measure), so
+    the checklist and its HTML/PDF are unchanged. Every formula that reads a block (the INDEX/MATCH views, the
+    grey and heat rules, the example-cell panel, the hidden helper cells) follows the block's new place; the
+    widths are one label width in B and one data width across.
+  - **Summary.** The firm: *"the band column should also allow for categories because we can still view it that
+    way, and the logic should still make sense"*. The left-column dropdown, now **Band or category column**,
+    lists the band columns, then the segment/category columns. The Run keeps a Summary for each category column
+    too, the whole book and every filter view (keys (column, filter 1 value, filter 2 value)), and ties each to its
+    All as the band columns do. Rows: each value in natural order, then (blank) / (marked missing), then All. The
+    header cell names the column picked. The arithmetic is unchanged (counts, shares of All, rates = dollars ÷
+    booked, × book against the whole book).
+  - Tests: 6 in `tests/test_grids_summary_2026_09_30.py` (Loans and Rate blocks of FICO x ASSET_CLASS, the
+    example-cell panel, and Summary by CHANNEL and by ASSET_CLASS on one year, all tied to the CSV with plain
+    arithmetic). `tests/test_widths.py`'s Grids tests rewritten for the stacked layout. Planted bugs: 4 added and 2
+    repointed in `tools/mutation_check.py` (the old right-hand label column is gone). Pictures (LibreOffice renders
+    of synthetic data): `pocketbook/docs/grids-summary-2026-09-30/`.
+  - **For the firm:** the title band and the note on Grids now run as wide as the dropdown row (to the Column
+    picker), not the width of two blocks.
+- **Built, 30 Sep 2026: where a Run's time goes, and what the workbook costs Excel to open** (branch
+  `pocketbook-speed`). The firm: a Run on about 17,000 loans x 70 columns took **578 s** on the bank's laptop
+  (Ryzen 9 PRO 7940HS, 32 GB, Windows, the extract an .xlsx in a OneDrive folder), and *"in excel it seems to work
+  quickly enough but it takes quite some time to open particularly in the last stretch of loading"*.
+  - **Seconds per stage.** `timing.py`: every stage of `book.run` and `book.set_up` is timed by the wall clock and
+    handed to a `progress(stage)` callback as it starts (default: nothing; for the launcher to wire). Record's This
+    Run gains *Where the time went*: each stage in order, its seconds and share, what it worked on (the extract's
+    kind and rows x columns, the grids, the shuffles and how many processes dealt them, or that the worker processes
+    didn't start); the Run's lines gain *"Took 12 s: the shuffle test 3.8 s, writing Look 3.3 s, saving the
+    workbook 1.3 s."* (above *Open ...: start with*, which stays last); the record file carries every stage.
+  - **Measured here** (Linux, 4 cores, synthetic 17,000 x 70: FICO in bands, CHANNEL, split by REV_DEBT, filter
+    SYS_FLAG, 10,000 shuffles; the .xlsx an Excel-style file with shared strings). Run, .csv / .xlsx: opening the
+    workbook 1.0 / 1.0 s, reading the extract **0.3 / 5.4 s**, the loans' values 0.7 / 0.4, grids 0.7 / 0.7, the
+    shuffle test 3.8 / 3.9 (4 processes), filter grids 0.3 / 0.3, result tabs 0.5 / 0.5, **Look 3.3 / 3.0**, saving
+    1.3 / 1.4; in all **12.3 / 16.9 s** (before these changes 12.2 / 16.6). Set up: 14.1 to 12.1 s (.csv), 18.6 to
+    17.3 s (.xlsx), from not reading back the workbook it had just saved. Nothing here explains 578 s: the table
+    will say where the bank's time goes. The likeliest, in order: many more grids than here (the shuffle test and
+    the grids grow with banded columns x segments; *Every number column* left chosen would do it); the worker
+    processes failing to start (Record now says so); OneDrive and the virus scanner on every file read and write
+    (each file is now read once: the extract's bytes and the workbook's bytes are opened from memory, and a sheet
+    without Excel's dropdown block is no longer parsed twice).
+  - **The workbook's open cost** (the same Run's workbook; LibreOffice headless as the stand-in for Excel: 6.3 s to
+    open and calculate, 1.6 s for an empty workbook). 31,350 formulas, 74% of them on the hidden `_look`; 231
+    conditional-format rules over 5,708 cells; 50 dropdowns; 1 volatile formula (OFFSET on Grids, plus 2 OFFSETs
+    in dropdown lists); about 4,500 whole-column references to `_views` and `_pockets`; 46 charts. Taken apart:
+    **Look is 4.0 s of the 4.7 s above an empty workbook** (without Look, `_look` and `_dots`: 2.3 s); its 44
+    charts (29 series each, 24 of them the red edge lines) are 2.5 s, `_look`'s formulas about 1.1 s (the 120
+    chart slots per column most of it), every result tab's formulas together about 0.6 s. Changed, every number
+    the same (LibreOffice-calculated copies compared cell by cell: 186,920 cells, differing only in the time
+    stamps, Record's timings and the new cells): no OFFSET (INDEX:INDEX); whole columns of `_views` and `_pockets`
+    ended at their last row (`bounds.py`, before the save; Record left word for word); Look's 58 line ends per
+    column read one *tallest bar* cell instead of each taking MAX over 120 slots. Measured: 6.3 s to 6.2 s, within
+    LibreOffice's noise. Not checked: real Excel.
+  - **For the firm to decide:** the open cost is Look's blocks, one per number column that can be cut (43 here).
+    Drawing blocks only for the columns chosen to band and the split, or fewer edge lines per chart, would take
+    most of it off; either changes what Look shows. Reading an .xlsx extract costs 5 s here against 0.3 s for the
+    same file as .csv, twice (Set up and Run): saving the extract as CSV before picking it is the cheapest win at
+    the bank.
+  - Tests: `tests/test_speed_2026_09_30.py` (12: the table there, in order, adding up, the Took line, progress,
+    a broken progress, the refused pool said, each file read once, no OFFSET or whole column, the calculated values
+    unchanged, the tallest bar). Two tests follow the change: the Row/Column list parser in
+    `test_firm_answers_2026_09_29.py`, and the load counter in `test_answer_tabs.py` (the workbook is opened from
+    its bytes). The bank checklist's paste count is 37 (two new modules); its PDF not rebuilt. 4 planted bugs
+    added in `tools/mutation_check.py`; with 8 existing ones near the change, 12 of 12 caught (1 after its test
+    was strengthened). Already failing before this branch, at f2998527: `test_compare_...panels_by_system_approved`,
+    `test_a_new_variable_run_is_asked_only_what_it_uses`, `test_l2_the_summary_says_what_will_run_in_both_modes`.
+- **Built, 1 Oct 2026: months to charge-off** (branch `pocketbook-co-months`). The firm: *"We worked in calculating
+  charge off months right? If the data is there"*. It hadn't been built. Chosen: the average months to charge-off,
+  from a charge-off date column in the extract.
+  - **Columns.** A new meaning, **Charge-off date** (`chargeoff_date` in `settings.yaml`: test *dates*, never cut
+    by, hints chargeoff, chgoff, chrgoff, codate, gcodate, writeoff, wrtoff, codt, gcodt). Optional: nothing
+    requires it. At most one column may carry it (`config.DATE_ROLES`). A bleed Run counts it as in use, so its row
+    isn't greyed. A date column nothing names is now asked *Origination date ... Charge-off date ... otherwise Not
+    used*.
+  - **The rule.** With both an Origination date and a Charge-off date, each loan with a charge-off date gets
+    whole calendar months, `(y2 - y1) x 12 + (m2 - m1)`, the day ignored (31 Jan to 1 Feb is 1; 1 Jan to 31 Jan
+    is 0). `engine.chargeoff_months`. A blank charge-off date is a loan that didn't charge off and is not counted.
+    Left out and counted in one warning on the Log and Check: a charge-off date that isn't a date, no readable
+    origination date, a charge-off before origination. A charge-off date with no Origination date marked is a
+    warning too. Dates that read two ways are said, not guessed. Only a bleed Run works it out.
+  - **Shown.** Summary gains **Avg months to charge-off** and **Median months to charge-off** (among the row's
+    charged-off loans; blank where none did), on every row, All and every filter view, with a note line stating
+    the rule. Grids gains the Measure **Months to charge-off (avg)**: it rides the existing Show-per-pocket
+    machinery (a median-mode measure, `show: average`), so every cell, margin and filter view has it, shown and
+    never compared or coloured; the rule is said inside Grids' Rate note, so the note keeps its rows and the
+    dropdowns stay where the bank checklist puts them (checklist unchanged). With no charge-off date column, no
+    column, measure, note or warning is added.
+  - Synthetic: `synth.write_extract(..., chargeoff=True)` adds CO_DATE on every BAD_FLAG 1 loan (1 to 36 months
+    after origination, never after AS_OF), from its own random stream; nothing else changes.
+  - Tests: 10 (11 with the answer below) in `tests/test_co_months_2026_10_01.py`: Summary by CHANNEL, on one origination year, and every
+    Summary view on `_views`, tied to the CSV with plain arithmetic; Grids' measure tied to the CSV; the
+    warning's counts; Columns' suggestion and no grey; nothing changes without the column; the engine's months on a
+    six-loan book; the no-origination warning. Run with the seven neighbouring files: 106 passed; meanings,
+    config, engine, tab wording, columns/launcher, book, launcher: 108 passed, 2 skipped, 1 failed (scikit-learn
+    not installed). Planted bugs: 3 added in `tools/mutation_check.py` (a charge-off before origination counted,
+    the day of the month counted, the charge-off date greyed as unused), 3 of 3 caught with no LibreOffice and no
+    display. Pictures (LibreOffice renders of synthetic data): `pocketbook/docs/co-months-2026-10-01/`.
+  - **For the firm to decide** (2 answered below): (1) GCO_DT or CO_DT (two short words) isn't recognised by name, since a hint
+    under six letters must begin or end a word; it is offered as *dates, but which date?* and remembered once
+    confirmed. (2) A bad loan with no charge-off date isn't counted or warned about; say if it should be. (3)
+    Days-ignored means a loan made 31 Jan and charged off 1 Feb counts 1 month; whole elapsed months would count
+    0. (4) Summary doesn't show how many charged-off loans each average is over.
+  - **Answered, 1 Oct 2026 (decision 2):** a bad loan with no charge-off date. The firm: *"Leave out, count in a
+    note"*. It stays out of the averages, and when the Charge-off date column is in use the Run's lines, the Log
+    and Check say *"Months to charge-off: 37 bad loans have no charge-off date, so they are left out."*
+    (`engine.no_chargeoff_date`; the Run's lines now carry every months-to-charge-off warning). Test: the count
+    tied to the CSV (`test_bad_loans_with_no_charge_off_date_are_counted_in_a_note`); 1 planted bug added, 4 of 4
+    of this feature's caught with no display; every entry's old string still occurs once (644 entries).
+- **Built, 1 Oct 2026: Start here counts each loan once; Filter 1 starts on Origination year** (branch
+  `pocketbook-distinct-total`). Two choices the firm made the same day, as relayed to this session (the firm's own
+  words were not passed on beyond these): Start here's dollar total should count *"distinct loans"*, each loan
+  once; and Origination year should be Filter 1 by default.
+  - **The fault.** *Dollars above their share, in those* was `SUMIFS(pk_dollars, ...)` over every worse-and-material
+    pocket on every grid. Every loan sits in every grid, so a loan was counted once per grid it was flagged in. On
+    the bank's workbook, with 168 grids: **$2,904,231,129** above share on a book whose GCOs were **$37,767,925**.
+    The RANR tile (*N short $X*) and the launcher's finished tile added up the same way.
+  - **The rule chosen.** A pocket's dollars above share are its loans' own: each loan's GCO less its booked dollars
+    at the rate the pocket is compared with (the rest of the book, or the rest of its band). A loan in several
+    worse-and-material pockets counts once, in the one where its own dollars above share are largest. In a
+    sentence on Start here: *"The dollars count each loan once, in the pocket where it is furthest above its share:
+    every loan is in every grid, so a plain sum counts it once per grid."*
+  - **Why not the simpler one** (the union of those loans against the rest of the book). It doesn't tie to anything
+    the workbook already shows: on one grid it gives a different number from the pockets' own dollars, because each
+    pocket is compared with *its* rest (of the book or of its band) and the union with one rest. The rule chosen
+    does tie: a pocket's loans' own dollars add up to exactly its *Dollars that decide*, so on a one-grid book the
+    total is the old sum to the cent, and on many it is that sum with the repeats taken out. It also keeps
+    Control's *judged against*. For a loss compared at a rate of nought or more it can't exceed the GCOs of the
+    loans counted, so never the book's. RANR's shortfall is the same rule turned round (rate x booked less RANR).
+  - **Where.** Worked out in the engine at Run (`engine.Once`, `engine.once_over`), over the two-way grids only, as
+    the tiles count; written to `_found` as values (a formula can't tell one loan from another). Start here's tiles:
+    *Pockets worse and material, GCOs* keeps its live count and adds *· in N grids*; *Dollars above share, each loan
+    once*; *Pockets short on RANR, each loan once* (*N short $X*). The launcher's finished tile says *in those N
+    pockets, each loan once*. Materiality, judged against, worse at and confidence take effect live, and move the
+    pockets with no Run: the total is then the Run's for other pockets, so each tile checks that the live count and
+    the live sum of pocket dollars are still the Run's and otherwise reads **Run again to total** (also what a
+    workbook whose last Run predates this reads). Bank checklist: Step 12 $2.29M, Step 13 *4 of 81 · in 3 grids ·
+    $2,287,240 · 4 short $2,746,544*, Step 19 now reads *Run again to total*, 5.3 *14 of 81 · in 4 grids* and
+    $11,609,786; HTML and PDF rebuilt. The practice book's old sum is $3,100,042 today against the checklist's
+    $3,094,991 (and the speed book's $23,486,461 against $23,486,197): the pinned numbers had drifted before this
+    change, unexplained here; the other rows of that table were not re-measured.
+  - **Filter 1.** When the extract has a column marked Origination date (and its years are few enough to filter by),
+    Choose tests starts with Filter 1 on Origination year. It clears or changes like any pick; Filter 2 stays the
+    analyst's; a workbook beside the extract still shows what was picked before, a cleared Filter 1 too (so a
+    workbook written before today keeps no filter until it is picked).
+  - Tests: 10 in `tests/test_distinct_total_2026_10_01.py`. Each loan once on a four-grid book, tied to an
+    independent count from the CSV (plain Python; only which pockets the Run flagged and against what is taken
+    from it, and each pocket's loans are checked against its top and bottom): at most the GCOs of the loans
+    counted, at most the book's, and less than the old sum; the same for RANR; a one-grid book equals the old sum;
+    Start here's three tiles after LibreOffice; *Run again to total* after a live materiality change and on an
+    older `_found`; Filter 1's default, cleared and changed, kept cleared by the next Set up, none with no
+    origination date or too many years, and the window drawing it (display, guarded). Three existing tests follow
+    the default (the L2 summary, Filter 2 alone, the Filter by offer). 3 planted bugs added in
+    `tools/mutation_check.py` (a loan counted once per pocket again, Start here showing the Run's total beside moved
+    pockets, Filter 1 starting empty), 3 of 3 caught with no display; every entry's old string occurs once (647).
+    Run: the new file and the eight named neighbours, 161 passed, 1 failed (`test_l2_...`, scikit-learn not
+    installed, after the line this change touches); the eight other files that drive the launcher or read
+    `_pockets`, 165 passed, 2 failed (both scikit-learn).
+
+- **Built, 1 Oct 2026: Set up's suggestions from a sample of the grids** (branch `pocketbook-sampled-suggest`). At
+  the bank, 184,937 loans and 12 band columns x 14 segment columns (168 grids): *Working out the suggestions* took
+  over 3.5 minutes. The firm: *"Will the quick estimates be as accurate? … Test it and let's see"*. Tested first;
+  built only because it passed.
+  - **What the suggestions read.** Fewest loans is `ceil(5 / the whole book's bad rate)`: no grid at all, so it
+    can't change. Worse at is the median, over every pocket of every grid at or above fewest loans, of the smallest
+    gap that pocket's test could call significant (`luck_gap`), and that gap depends only on how many loans the
+    pocket holds. Better at is `round(1 / worse at, 2)`. So a sample only has to get the spread of pocket sizes
+    right. The sample: every segment column equally often, every band column within one of equally often, the same
+    on every Set up (fixed seed).
+  - **The experiment.** Synthetic books shaped like the bank's (12 number columns of four shapes, 14 categories of
+    3 to 7 values in an uneven mix, the last skewed to about 88% one value, a missing code on one column, an
+    outcome leaning on some of each), Set up's own first pass (draft bands of 5, no shuffle test), every grid
+    against 14, 24, 28, 40 and 42 grids. Sizes 14, 28 and 42 are multiples of 14 (each segment column equally
+    often); 24 and 40 aren't. Worse at as Control shows it (better at follows it; fewest loans matched in every
+    book, every size). Seconds are the suggestion pass alone, on this container.
+
+    | Book | Fewest loans | Worse at, every grid | 14 | 24 | 28 | 40 | 42 | Secs, every grid | Secs at 14 / 24 / 28 / 40 / 42 |
+    |---|---|---|---|---|---|---|---|---|---|
+    | 17k, seed 1 | 69 | 1.32x | 1.32 | 1.32 | 1.32 | 1.32 | 1.32 | 27 | 5 / 6 / 8 / 9 / 9 |
+    | 17k, seed 2 | 151 | 1.45x | 1.45 | **1.44** | 1.45 | 1.45 | 1.45 | 25 | 5 / 6 / 7 / 8 / 9 |
+    | 17k, seed 3 | 245 | 1.58x | 1.58 | **1.59** | 1.58 | **1.59** | 1.58 | 26 | 5 / 6 / 7 / 8 / 9 |
+    | 17k, seed 4 | 21 | 1.15x | 1.15 | 1.15 | 1.15 | 1.15 | 1.15 | 27 | 5 / 7 / 7 / 10 / 9 |
+    | 17k, seed 5 | 113 | 1.41x | 1.41 | 1.41 | 1.41 | 1.41 | 1.41 | 27 | 5 / 7 / 7 / 9 / 9 |
+    | 17k, seed 6 | 36 | 1.22x (0.82x) | **1.23 (0.81)** | **1.23 (0.81)** | 1.22 | 1.22 | 1.22 | 27 | 5 / 7 / 7 / 8 / 10 |
+    | 185k, seed 11 | 124 | 1.13x | 1.13 | 1.13 | 1.13 | 1.13 | 1.13 | 264 | 56 / 73 / 82 / 91 / 98 |
+    | 185k, seed 12 | 105 | 1.12x | 1.12 | 1.12 | 1.12 | 1.12 | — | 262 | 56 / 71 / 83 / 93 / — |
+    | 185k, seed 13 | 167 | 1.15x | 1.15 | — | 1.15 | — | 1.15 | 279 | 63 / — / 80 / — / 90 |
+    | 185k, seed 14 | 123 | 1.12x | 1.12 | — | 1.12 | — | — | 256 | 63 / — / 79 / — / — |
+
+    Bold: one step (0.01x) off. Before rounding, 28 grids came within 0.0017 of every grid in every book (0.0003
+    at 185k); 14 within 0.0030; 24 and 40, which favour some segment columns, up to 0.0089.
+  - **The verdict.** 28 grids, the smallest size that matched every grid at Control's rounding in every book it
+    was run on (10 books, 4 of them 185k). 14 matched to within one step, but was off in one book (17k seed 6:
+    1.23x / 0.81x for 1.22x / 0.82x). A sample can still land one step off in some book: the median of the
+    sampled pockets sits within about 0.002 of every grid's, so a book whose answer sits that close to a rounding
+    line can round the other way. That is why Run checks it (below). At 185k: about 80 seconds against about 265,
+    three times faster. Most of what is left is reading every loan, cutting the bands and the Summary tables
+    (about 45 seconds), not the grids. For reference, counting every pocket of every grid exactly, without building
+    the grids, took about 126 seconds: exact, but slower than the sample.
+  - **Built.** `book.suggest_pairs` picks the grids: a multiple of the segment columns, at least twice the larger
+    column count and at least 28 (the size tested), so a book of 28 grids or fewer reads every grid as before.
+    `engine.run(..., pairs=)` builds only those grids; the whole book's rate and everything else is read as before.
+    Control says it beside worse at and better at: *"suggested: 1.32x, from this extract: a quick estimate from 28
+    of its 168 grids, checked on all at Run"*. Fewest loans is never called an estimate. What the sample said is
+    kept in `_about` (A5). At Run, which works every suggestion out from every grid as it always has, a
+    suggestion whose estimate rounded differently says so: *"… Set up's quick estimate, from 28 of 168 grids, was
+    1.32x"*. Where the answer typed on Control is that estimate: *"The answer chosen, 1.32x, is Set up's quick
+    estimate from 28 of 168 grids: every grid says 1.33x"*. Where they agree, the words are unchanged.
+  - **Not tested.** Shapes other than 12 x 14 at the bank's size (8 x 10 and 6 x 6 are tested below); a book
+    whose band columns are mostly one-band-per-value columns; a split or filter chosen at Set up (both are built
+    only for the sampled grids too).
+  - Tests: 7 in `tests/test_sampled_suggest_2026_10_01.py`. On 20,000 loans x 8 band columns x 10 segment
+    columns, 30 grids of 80 suggest what every grid does at the rounding shown. The sample builds only its grids
+    and reads every loan. Every segment column comes up equally often and every band column within one. A small
+    book reads every grid. Set up builds 30 of 36 grids and says so on Control and in `_about`. Run's words are
+    checked through `_suggestions`, and once through a real Run where the answer typed is the estimate. Run with
+    test_firm_answers (3 files), test_answer_tabs, test_control, test_book and test_mutation_tool: 167 passed, 3
+    skipped, 0 failed. Planted bugs: 3 added in `tools/mutation_check.py` (the sample balanced on band columns, Set
+    up building every grid, Run never checking the estimate) and 1 repointed (*Run leaves the suggestion stale*,
+    whose line this rewrote). 4 of 4 caught with no display; every entry's old string still occurs once (647
+    entries).
+- **Built, 2 Oct 2026: a Glossary tab** (branch `pocketbook-glossary`). The firm, after explaining the grids'
+  figures to their boss: *"Maybe a nice glossary of terms in the workbook should be there"*. They keep "points" as
+  the unit.
+  - **What it is.** A grey tab right after Start here, written by every Set up and every Run
+    (`src/pocketbook/glossary.py`). One term a row: the term, what it means in one or two short sentences, and an
+    example. 25 terms, in the firm's order: Booked, GCOs ($), RANR, RANR + GCOs, Rate, Points, × book / × rest of
+    book, Rest of book / rest of band, Bad loan, Band, Segment, Pocket, Grid, Filter / Only loans where,
+    Origination year, Worse and material, Borderline, Shuffle test / p-value, Fewest loans in a pocket, Worse at /
+    Better at, Dollars above their share (each loan once), Lifetime-to-date, Months to charge-off, Odd values,
+    (marked missing) / (blank).
+  - **The examples.** After a Run, in the whole book's own figures: *"This book's RANR came to $33,030,193. The
+    book keeps $12.80 per $100 booked"* on the 8,000-loan practice book. Points and × book name a real pocket (the
+    one furthest short on RANR, and the one furthest above its share on GCOs, against the rest of the book). Worse
+    and material, and dollars above share, are Start here's figures at the Run (4 of 81, $2,287,240 on the
+    practice book). The figures are kept on `_found` as JSON, so Set up again keeps them. Before the first Run
+    the examples are made up (the firm's own "$4.45 per $100 booked") and the note says so. Not live: a line
+    changed on Control moves the result tabs, not the examples, and the note says that too.
+  - **Wording.** Where a tab already words a definition the Glossary reuses it (Pockets' rest of band and Worse?,
+    Summary's × book, Columns' odd values, the Borderline note). Every sentence is 28 words or fewer and carries
+    no contract-desk word (tested). Made-up examples use SCORE and SOURCE, never the synthetic book's columns,
+    so test_generic's no-leak check holds. "Earn" is not used (test_profit). The Glossary joins `_meanings` as a
+    sheet allowed to say "charge-off", since it is a definition (test_literal_names).
+  - **Start here** lists it under The tabs, in the grey group with Record (*Glossary: every term, with an
+    example*). Its note now reads "grey tabs are the glossary and the record".
+  - **Checklist.** A new 4.10 (the Glossary is second, 25 terms, Start here opens it). 4.2 counts eleven visible tabs
+    (it said nine, already stale since Summary). The paste now writes 38 files. HTML and PDF rebuilt.
+  - Picture (LibreOffice, practice book): `pocketbook/docs/glossary-2026-10-02/glossary-page-1.png` and `-2.png`.
+  - Tests: 8 in `tests/test_glossary_2026_10_02.py`. RANR, GCOs, booked and the rate tie to the CSV, worked out
+    without PocketBook. Tab order pinned in test_book, test_answer_tabs and test_result_tabs; test_bank_checklist
+    checks the count, the position, the terms and the link. Planted bugs: 2 added (the RANR example read from
+    RANR + GCOs; Set up writing the made-up examples over the Run's figures), 2 of 2 caught with no display;
+    every entry's old string still occurs once (652 entries).
+- **Built, 2 Oct 2026: Avg line and × book** (branch `pocketbook-avg-line`). The firm: *"I want to start including
+  and using booked dollar averages so more easily demonstrate how line assignments look in pockets and I think it
+  adds to the story if our basis is commitments would be stronger elsewhere"*. Booked is the committed line (cards
+  book their line), so booked dollars per loan is the average line. They chose where: Summary and RANR vs GCOs.
+  - **Summary.** Two columns right after Booked $: **Avg line**, the row's booked dollars over its loans with a
+    booked amount, and **× book**, that over the whole book's Avg line, filtered or not (as GCOs' × book is). Every
+    row, All and every filter view: worked out in the engine (`engine.summary_rows`, `Summary.booked_loans`) and
+    put on `_views` like every other Summary figure, so the dropdowns move them. Blank, never 0 or #DIV/0!, where a
+    row has no loans. A note line says what both are. Unshaded, as the rest of Summary.
+  - **RANR vs GCOs.** The gross block ends on **Avg line** and **× book** (after RANR ÷ Booked, so no existing
+    column of the block moves and `_views` rows keep their positions: the two ride at the end of each pocket's and
+    each total's row). The same figure as Grids' Loan size for the pocket (`engine.size_vs`); the totals under the
+    table carry them too (Whole book 1.00×). Shaded as Loan size is, `SIZE_STEPS` on the row's own × book (1.10×
+    and up, darker the bigger), never red or green; each cell and rule reads its own row, inside the sort arrows'
+    range, so a sort keeps them right. The words ride on RANR's note item, so no row of the tab moves (B16 and M13,
+    the checklist's cells, stay put).
+  - **Glossary.** A 26th term, *Avg line / Line × book*, second after Booked, with an example in the book's own average
+    line after a Run. Checklist 4.10 says 26 terms; HTML and PDF rebuilt.
+  - **For the firm to confirm:** (1) Summary now has two columns headed *× book*: the new one after Avg line, and
+    GCOs' after GCOs ÷ Booked; each sits beside what it multiplies, but say if the new one should read *Avg line ×
+    book*. (2) Avg line divides by the loans with a booked amount, as Grids' Loan size does, so where a loan has no
+    booked amount it is not exactly Booked $ ÷ Loans (Branch on the plain synthetic book: $31,963, against $31,483,638 ÷
+    986 = $31,931). (3) On RANR vs GCOs, Booked is the booked dollars under RANR while Avg line is over every loan
+    with a booked amount; they differ only where RANR is unreadable.
+  - Pictures (LibreOffice renders of synthetic data, ORIG_BAL scaled by FICO and channel for the pictures only so
+    the lines differ): `pocketbook/docs/avg-line-2026-10-02/` (Summary by CHANNEL; by FICO on 2022 alone, its
+    empty (blank) row blank; RANR vs GCOs whole and its gross block close up).
+  - Tests: 8 in `tests/test_avg_line_2026_10_02.py` (6 need no LibreOffice): every Summary view by CHANNEL and by
+    FICO band, All loans and each origination year, and every pocket and total of FICO x CHANNEL on RANR vs GCOs,
+    tied to the CSV with plain arithmetic; a Kiosk channel made only in the first year proves the empty rows blank;
+    the formulas pick the right `_views` positions and the shading is Loan size's hue on the row's own × book; and
+    both tabs calculated by LibreOffice. Headings updated in `test_co_months_2026_10_01.py` and
+    `test_firm_answers_2026_09_29.py`; the term list in `test_glossary_2026_10_02.py`; `tests/tabs.py` reads the
+    two columns. Planted bugs: 2 added (Summary's Avg line over every loan; RANR vs GCOs' × book against the rest
+    of the band), 2 of 2 caught with no display and no LibreOffice; every entry's old string still occurs once (654
+    entries). Full suite: 1,016 passed, 13 skipped, 2 failed; one was a heading list in `test_book_results.py`, updated
+    and passing on its own rerun; the other,
+    `test_co_months_2026_10_01.py::test_without_a_charge_off_date_nothing_changes`, was already failing at the
+    Glossary merge 40abd906: the Glossary always defines *Months to charge-off*, and that test asserts the words
+    appear nowhere in a book without a charge-off date column; left for the firm, not changed here).
+- **Built, 3 Oct 2026: Summary's vintage chart and grey rows** (branch `pocketbook-summary-vintage`). Two firm
+  requests for Summary. The chart: *"Could the summary tab have vintage graphs as well? Showing our primary targeted
+  info, maybe an option for average booked, amount booked, basically whatever is there except graphed out"*; chosen:
+  *"Pocket vs rest vs book"*. The grey: *"make the really low unit counts grayed out to a degree... so it's easier to
+  spot quick trends and not look left at the unit count. However this count should be separately adjustable from all
+  other config items - no dependencies just a simple number for this view specifically"*.
+  - **Vintage chart.** Under the Summary table, a row clear of it, so nothing existing moves: a dark heading, one line
+    of what it is, **Vintage measure** (every Summary column, Loans to Median months to charge-off where the Run has
+    it) and **Vintage row** (one row of the column Summary's dropdown picked; its list follows that dropdown, via
+    OFFSET as Grids' Row does). Three lines across the origination years: the row, the rest of the book (every other
+    loan of the view), and the whole book, dashed grey. Summary's Only loans where applies to all three, and a live
+    caption says what is drawn and on which loans. Every point is worked out in the Run (`summary_chart.vintage`,
+    called from `engine.run` after the Summaries): one pass per Summary view groups its loans by (row, year), and each
+    point goes through `engine.summary_rows` itself, so it is the same arithmetic as a Summary row on that year's
+    loans. A share is of that year's loans; x book is still against the whole book. Put on `_views` as
+    `V|<column><view>|<i>`, `|<i>|rest` and `|book`, one flat row each (measure after measure, year after year);
+    the tab's hidden cells pick them, so both dropdowns redraw live. A point on fewer loans than the Run's Fewest
+    loans in a pocket is #N/A (not drawn) and grey in the table of points under the chart. A scatter with lines, as
+    Compare's (LibreOffice draws a line chart's #N/A at zero), its x the year itself. A loan with no readable date is
+    on no line. No column marked Origination date: one sentence in the chart's place, and in the note.
+  - **Grey rows under [50] loans.** C2, in the blank row between the title band and the note (no cell moves): a plain
+    50, styled as an answer that changes the tab now. One more rule in Summary's one conditional-format range (so
+    LibreOffice and Excel agree, as `results.cf` requires) greys the font of every row whose Loans is under it.
+    Nothing else reads it: no formula, rule or name elsewhere (tested). The note's Shading line says so.
+  - **Glossary.** A 27th term, *Vintage*, after Origination year. Checklist 4.10 says 27 terms, and 2.2 says the
+    paste writes 39 files (`summary_chart.py` is one more); HTML and PDF rebuilt.
+  - **Kept across Runs (3 Oct 2026, at the merge).** The firm asked for the number to be "separately adjustable", so
+    a Run reads what was typed before it rewrites Summary and puts it back (`summary_chart.typed_grey`/`keep_grey`,
+    called in `book._write_results`); 1 test, 1 planted bug.
+  - **For the firm to confirm:** (2) The chart's axis has one plain
+    number format for every measure (an axis can't take its format from a dropdown), so a rate or share is drawn in
+    per cent (7.12, the caption says per cent), dollars and counts read 32,000.0 with one decimal; the table under
+    the chart shows each in its own format. (3) The vintage helper roughly doubles `_views`: on 20,000 loans, three
+    band columns, two segments and two filters, a Run went 11.8 s to 17.7 s and the workbook 1.2 MB to 2.2 MB.
+  - Pictures (LibreOffice, synthetic book of 6,000 loans): `pocketbook/docs/summary-vintage-2026-10-03/` (GCOs ÷
+    Booked by FICO band; Avg line by CHANNEL; Bad loans % on Broker loans only, its 2026 point under 30 loans left
+    off; Grey rows under 1,100; the book with no origination date).
+  - Tests: 5 in `tests/test_summary_vintage_2026_10_03.py` (2 need no LibreOffice): every FICO row, the rest and the
+    book, every year, All loans and each CHANNEL, on Loans, Avg line and GCOs ÷ Booked, tied to the CSV with the csv
+    module (over 500 points); the tab calculated by LibreOffice with the dropdowns set, its points tied to the CSV and
+    the chart's three series reading #N/A exactly where a point is thin; the rows list following a category column;
+    the no-date sentence; the grey rule's formula, its 50, and nothing else reading C2. The term list in
+    `test_glossary_2026_10_02.py` gains Vintage. Planted bugs: 4 added (the rest counting the pocket; greying at the
+    number, not under it; a default other than 50; each year's point read from the year before), 4 of 4 caught with
+    DISPLAY unset; every entry's old string still occurs once (659 entries).
+
+- **Built, 1 Oct 2026: a third filter, with a size limit** (branch `pocketbook-three-filters`). The firm: *"I thought
+  we discussed two filters plus date"*. Chosen: Origination year plus two more filters, with a size limit.
+  - **Filter 3.** Built exactly as Filter 2 is: a third launcher column (*Filter 3*), Control's *And then by*, the
+    cube file's `filter_by3`, and a third dropdown, *and (column) is*, on Grids and Summary. The engine builds every
+    view of the three: each value alone, each pair and each triple, all holding together (AND), skipping a view no
+    loan has. Views are keyed (Filter 1, Filter 2, Filter 3) in `Grid.filtered` and `Result.summaries`, and
+    `|and3 value` on `_views`. Filter 3 needs Filter 2, as Filter 2 needs Filter 1: a later filter with an earlier
+    one empty moves up, in the launcher and in Set up alike. Filter 3 must be another column than Filters 1 and 2,
+    refused in words (*"Filter 1 and Filter 3 are both REGION. The third filter narrows the other two, ..."*). Filter
+    1 still starts on Origination year. Compare: Lines by and Panels by each offer all three filters (the one in
+    neither is All loans), and any of them can go across the bottom.
+  - **Where the dropdowns sit.** Grids: Filter 3 right of Filter 2, Row and Column move four columns further right.
+    Summary: Filter 3 right of Filter 2. Grid (B13) and Measure (F13), which the bank checklist names, do not move;
+    the checklist was not changed and test_bank_checklist passes.
+  - **The size limit.** Each grid is built again for every view, so views = (n1 + 1) x (n2 + 1) x (n3 + 1), All
+    loans counted for each and blanks and (no date) counted as values. Three filters may make 150
+    (`choices.FILTER_MOST_VIEWS3`: 6 x 5 x 5 = 150 passes, three columns of six values, 7 x 7 x 7 = 343, do not);
+    two keep their 49 (`FILTER_MOST_VIEWS`, pinned by test_compare). Past it, the launcher refuses before Next and
+    the Run refuses, in the same words: *"FA (5 values), FB (4 values) and FC5 (5 values) together make 6 x 5 x 6 =
+    180 views of every grid, counting All loans in each. Three filters can make 150 at most. Drop a filter, or pick
+    a column with fewer values."* The launcher's *This will run* line now says the cost with any filter: *"Each grid
+    is built for 6 × 5 × 5 = 150 views, All loans counted: 8 grids × 150 = 1,200 to build."*
+  - Tests: 15 in `tests/test_three_filters_2026_10_01.py`. Grids (three picks, cell by cell, and one cell's words)
+    and Summary (two picks) tie to the CSV with nothing imported from pocketbook in the arithmetic; Compare with
+    Filter 3 as Panels by, as Lines by, and lines by it with Origination year across; the Run's line, Record and
+    Control; the limit at every combination of 0 to 8 values each, and 150 taken and 180 refused by the launcher
+    and by a real Run; the launcher's Filter 3 logic and refusals, and its column on screen (needs a display).
+    Changed: the launcher's heading tuples and three *This will run* assertions, which now end with the cost. Run
+    with test_compare, test_grids_summary, test_firm_answers_2026_09_29, test_launcher, test_bank_checklist,
+    test_distinct_total, test_mutation_tool, test_widths and test_result_tabs, no display: 209 passed, 4 skipped
+    (each a launcher check that needs a screen). The one failure seen first (`test_l2_the_summary_says_what_will_
+    run_in_both_modes`) was scikit-learn missing from that machine, not this change: it passes with it installed.
+    Planted bugs: 3 added in `tools/mutation_check.py` (Filter 3 ignored by the engine, three filters' views
+    unlimited, Filter 3 without Filter 2 kept third by the launcher), 13 repointed whose lines this rewrote.
+    All 16 (the 3 new and the 13 repointed) put back one at a time with no display: 16 of 16 caught; every entry's
+    old string occurs once (653 entries).
+  - **Merged with the Glossary and Avg line (3 Oct 2026).** Avg line and Line × book come from each view's own
+    Summary, so they move with Filter 3 as with the other two; `test_three_filters_summary_is_the_loans_with_all_
+    three` now ties both, on the All row and each band, to the CSV under three picks. The Glossary's *Filter / Only
+    loans where* now says up to three filters can be picked. Conflicts were only in this file's logs and in
+    `tools/mutation_check.py`'s list (both kept); every entry's old string occurs once (658 entries). Full suite
+    after the merge, no display: 1,032 passed, 14 skipped (all tkinter missing), 0 failed.
+  - **For the firm to decide:** (1) The two limits are separate, so a pair refused at 56 views (8 x 7) is taken
+    once a small third filter is added (8 x 7 x 2 = 112): the cost is still under 150, but it reads oddly. Holding
+    every pair to 49 as well would close it. (2) The refusal writes the product with `x`, as the two-filter one
+    always has; the launcher's cost line writes `×`.
 
 ## 7 · Standing rules for new items
 
@@ -2362,6 +3232,19 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-03 -- **PocketBook: Summary's vintage chart and grey rows.** The firm: *"Could the summary tab have vintage graphs as well?"*, chosen *"Pocket vs rest vs book"*; and low unit counts *"grayed out to a degree"*, by a number of its own. Under the Summary table, one row against the rest of the book and the whole book by origination year, on any Summary measure, following Only loans where, thin points left off; at the top, Grey rows under [50] loans, read by nothing else. 5 tests, 4 planted bugs, 4 caught. §6d has the detail.
+- 2026-10-02 -- **PocketBook: Avg line and × book.** The firm: *"I want to start including and using booked dollar averages so more easily demonstrate how line assignments look in pockets"*. Summary gains Avg line (booked dollars per loan, the average committed line) and × book (that over the whole book's) right after Booked $, in every filter view; RANR vs GCOs' gross block ends on the same two, shaded as Grids' Loan size, never red or green; the Glossary gains the term. 8 tests, 2 planted bugs, 2 caught. §6d has the detail.
+- 2026-10-02 -- **PocketBook: a Glossary tab.** The firm: *"Maybe a nice glossary of terms in the workbook should be there"*. A grey tab right after Start here, written by every Set up and Run: 25 terms, each with what it means and an example in the book's own figures from the last Run (*"the book keeps $12.80 per $100 booked"*), made up before the first. Start here links to it; the bank checklist has a 4.10 for it. 8 tests; 2 planted bugs, 2 caught. §6d has the detail.
+- 2026-10-01 -- **PocketBook: a third filter, with a size limit.** The firm: *"I thought we discussed two filters plus date"*; chosen, Origination year plus two more filters with a size limit. Filter 3 sits beside Filter 2 everywhere (launcher, Control, Grids, Summary, Compare's Lines by and Panels by, Record and the Run's line); every value alone, pair and triple holds together. Three filters may make 150 views of each grid (6 × 5 × 5), refused past it by the launcher and the Run; the launcher shows the cost. 15 tests, 3 planted bugs added and 13 repointed. §6d has the detail and two points for the firm.
+- 2026-10-01 -- **PocketBook: Set up's suggestions from a sample of the grids.** The firm, on Set up taking over 3.5 minutes at 184,937 loans and 168 grids: *"Will the quick estimates be as accurate? … Test it and let's see"*. Tested on ten synthetic books of 17,000 and 185,000 loans: a sample of 28 grids matched every grid at Control's rounding in every book, at about 80 seconds against 265. Fewest loans is never sampled. Run still works each suggestion out from every grid, and says so beside it where the estimate was different. 7 tests, 3 planted bugs added and 1 repointed, 4 of 4 caught. §6d has the table.
+- 2026-10-01 -- **PocketBook: the bank checklist says to save the extract as CSV first.** The firm, on reading an .xlsx being about 20 times slower than CSV (5.4 s against 0.3 s at 17,000 × 70, read at Set up and at every Run): *"Yes definitely csv first then"*. Step 6.1 says how (Excel, Save As, CSV UTF-8) and 6.2 marks .csv as best; .xlsx still works. Checklist HTML and PDF rebuilt; test_bank_checklist 10 passed.
+- 2026-09-30 -- **PocketBook: errors on the window, not in Notepad.** At the bank, Run with the extract open in Excel became a PermissionError traceback read in Notepad. The firm: *"It would be a lot easier if these kinds of errors just displayed on screen in the huge white space allotted"*. An extract that can't be read (open in Excel, OneDrive syncing, gone) is now a plain refusal naming the file, and the extract is read once per Run. Anything unexpected shows on the page with its type, its message and **Copy details**. 10 tests added and 2 changed; 8 planted bugs added, 8 caught, and 4 display-only ones caught by hand. §6d has the detail.
+- 2026-09-30 -- **PocketBook: a number column too few-valued to cut gets one band per value.** The firm, at the bank: *"So it refuses to run some stuff because it cannot band"*, then *"Yes that's fine"*. Major Derogatories (0 to 8, most loans at 0) no longer stops the Run: each value is its own band, labelled 0 to 8, and the Run says so; Columns suggests Category without changing the answer. More values that still collapse are cut as far as they go; a single value is refused, naming the two fixes; typed edges always win. §6d has the detail.
+- 2026-09-30 -- **PocketBook: two filters and the Compare chart.** The firm: two filters *"independently and in conjunction with each other"*, and a graph that is *"not vintage analysis only"*, e.g. *"vintage analysis mixed with like underwriter/system approved"*. Grids and Summary take a second filter (both at once is AND); a Compare tab draws each filter value as a line across a band column or the years, with panels by the other filter on one scale and thin points left off. §6d has the detail.
+- 2026-09-30 -- **PocketBook: Paid, cost, kept shows each pocket's gross booked, GCO and RANR.** The firm: *"so we can also see if pockets are straight negative on returns"*. Booked, GCO, RANR and RANR rate after Loans; a pocket losing money outright in red and counted beside the Grid dropdown; totals that add up to the whole book. 6 tests, 7 planted bugs caught, tie-out 481 of 481 TIED. §6d has the detail.
+
+- 2026-09-30 -- **PocketBook: the Summary tab.** The firm: *"a few matrices where it lists out a chosen band on the left and shows real calculated metrics ... Same with RANR. They'd be across the top"*; the ratio *"Charged off / booked"*; bad loans *"Yes do this"*. One band column down the side, with loans, bad loans, booked, charge-offs, × book and RANR across, plus each one's share. It can be filtered by the Filter by column. The engine does the arithmetic and ties it out; nothing is tested. 3 tests, 7 planted bugs, 7 caught; tie-out 1,274 of 1,274 cells TIED. Full suite in shards: 888 passed, 7 skipped, 0 failed. §6d has the detail and three points for the firm to confirm.
+- 2026-09-30 -- **PocketBook: Filter by, apart from Split by.** The firm: *"Wait only works on split by? Isn't that for like above and below median"*, then *"Yes hoping to have this by morning"*. Grids' *Only loans where* now reads its own launcher pick (any category of 6 values or fewer, or ORIG_YEAR, the year of the Origination date column), whatever the split does; ORIG_YEAR can also split, for the consistency test across vintages. 6 tests, 13 planted bugs added and 4 repointed, all caught. §6d has the detail.
 - 2026-09-28 -- **PocketBook: every figure in both workbooks tied out to the loan file** (`pocketbook/docs/tie-out/2026-09-28-full/`, the PDF and `roster.csv`). The firm, on the first tie-out's 64 figures: *"That tie out covered 60 things? It's pretty small"*. 15,650 cells read out of the bleed workbook (all 40 dropdown views) and a Test-new-variables workbook (the test_scout book, two candidates shortlisted), each worked out again from the loan file with no PocketBook code: 13,403 tie, 1,030 tie within sampling error (shuffle and forest figures), 16 differ, 5 could not be checked, the rest names, echoed answers and words. Found: the Look chart counts a value exactly on a bar's edge in the bar below (`look.py:195`, `:209`: 12 x 0.1 = 1.2000000000000002; UTIL's bars off by 1 to 5 loans), and six verdicts rest on shuffled p-values either side of 5% within sampling error, one of them behind Start here's *4 short $3,248,654*. Not fixed here.
 - 2026-09-28 -- **PocketBook Goal 4: the tree is the main path, checked on later loans, and the shortlist regressed together** (OC-51; `pocketbook/docs/NEXT-GOAL.md` Goal 4, all seven ticked). The firm, 27 Sep 2026: *"shouldn't it regress all of those identified variables if it actually deems them important? import --> tree runs --> tree guesses on 2024 data if 2022-2023 are used to build branches --> regress shortlist?"*, then *"yes build it out"*. A cutoff date on Control replaces *Find on 70%* (suggested, never chosen); after the pre-spec is written the tree scores the held-back loans (*"Built on …: AUC 0.63. On …, unseen: 0.60."*, logged as a touch of the holdout); every shortlisted candidate goes into one logistic regression on the held-back loans with the pockets as control dummies (`joint.py`, statistics.md B10: a likelihood ratio test per candidate, the allowance across the shortlist, separation refused in words, correlated pairs named); New variables leads with both. 771 tests (15 new: `tests/test_together.py` and 7 in `tests/test_scout.py`), 766 passed and 5 skipped; 24 planted bugs added and 6 repointed (431 in all), each put back alone with every earlier one whose test was rewritten: 71 of 73 caught on the first pass, the 2 missed caught after their tests were strengthened. The walk's Part C pictures retaken and the procedure and checklist PDFs rebuilt. A scouting Run at 17,000 × 80: about 73 s before, 75–77 s after.
 - 2026-09-27 -- **PocketBook: Choose tests in the order you work down it.** The firm, on the "What are you running?" table: *"it just isn't necessary to have anything there, really. i would prefer that screens are ordered more sensibly- this one seems all over the place"*. The outcome rows' "· every measure" is gone (their cells are empty), and the rows no longer follow the extract: number columns (bands, split), then categories (segment), then the outcome and dollar columns, then the key and date in grey, each group in the extract's order, with a small blank gap between groups and no headings. Same order for Test new variables, so the toggle never reshuffles. Also fixed: in Test new variables a table 251-280 px tall lost its last rows with no scroll bar. The other steps were checked and already in task order (Answers needed sorts by cell; the open questions by row). 3 tests, 6 planted bugs caught; steps 4, 5, 22, 23 and 24 retaken and the procedure PDF rebuilt.

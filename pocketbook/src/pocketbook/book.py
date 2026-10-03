@@ -8,7 +8,7 @@ buttons call the two functions here:
                       remembered), Look. Answers already given are kept, and so
                       are the results of the last run.
     run(book)         reads the answers, runs the engine, and writes the results
-                      into the same workbook: Pockets, Paid cost kept, Grids,
+                      into the same workbook: Pockets, RANR vs GCOs, Grids,
                       Split (results.py, the redesign's phase 3), or New
                       variables for a test from a pre-spec (confirm_tab.py),
                       Record (record.py: Check and the Log, phase 4), and Start
@@ -22,8 +22,9 @@ nothing else (no memory, no record), so a refused run leaves no trace.
 
 from __future__ import annotations
 
-import hashlib
+import json
 import math
+import random
 import re
 import statistics
 from dataclasses import dataclass, field
@@ -32,7 +33,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from openpyxl import Workbook, load_workbook
+from openpyxl import Workbook
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -47,6 +48,11 @@ from . import choices as ch                             # the redesign: what the
 from . import results                                   # the redesign, phase 3: the result tabs
 from . import record                                    # the redesign, phase 4: Check and the Log as Record
 from . import scout, scout_tab                          # Goal 2 item 9: scouting, then the confirmation
+from . import bounds, timing                            # where the time goes, at a Run and in Excel (30 Sep 2026)
+from . import summary_chart                           # Summary's Grey rows under, kept across Runs (3 Oct 2026)
+from . import glossary                                  # every term, with this book's figures (2 Oct 2026)
+# _load opens a workbook Excel saved with its dropdowns kept; quiet_load without openpyxl's extension warnings
+from .excel_lists import load as _load, quiet as quiet_load
 from .house import MIST as READ_ONLY
 from .ingest import Table, read_table
 
@@ -58,7 +64,7 @@ INPUT_TABS = ("Start here", "Control", "Columns", "Look")
 #: tabs an older workbook carries that the redesign folded into others: taken off at Set up (and Materiality,
 #: now the panel on Control, at Run)
 FOLDED_TABS = ("Odd values", "Learned", "Materiality")
-RESULT_TABS = (scout.SHEET, confirm_tab.SHEET) + results.TABS + (record.SHEET,)
+RESULT_TABS = (scout.SHEET, confirm_tab.SHEET) + results.SHOWN_TABS + (record.SHEET,)
 #: tabs the redesign's phase 4 replaced: a Run takes them off an older workbook (the Log becomes the hidden _log)
 OLD_RESULT_TABS = (confirm_tab.OLD_SHEET, record.OLD_CHECK)
 LOG_FIRST = record.LOG_FIRST            # the newest line on the hidden _log (the Log tab it replaces)
@@ -70,6 +76,11 @@ CONFIRM_CELL = "C3"      # "Checked every column?"
 # Set up's note on Columns!D3 for columns the Yes in C3 doesn't cover yet; a Run takes it off again
 NEW_COLS_NOTE = "New since the last check: {}. Check them, then set C3 to Yes again."
 CONFIRM_NOTE = "Run won't start until this is Yes."
+#: The columns not picked in the launcher: not asked about and not counted, and kept, so picking one later needs no
+#: new answers. Hidden rows from 29 Sep 2026; shown again, greyed, from 30 Sep 2026 (the firm: "in my testing it is
+#: hiding random rows from the columns tab which makes it hard to make sure it's right")
+UNUSED_NOTE = "Grey rows ({}) weren't picked in the launcher: not used this Run, and nothing is asked about them."
+NOT_USED = "Not used this Run."      # Check first on a grey row, before anything else it says
 # Columns tab (the redesign, phase 2: Columns, Odd values and Learned on one tab), one column per thing said about
 # an extract column, in the spec's order, then the answers the spec has no place for, then hidden keys
 (C_NAME, C_SAMPLES, C_MEANS, C_WHY, C_BLANK, C_ODD, C_TREAT, C_EDGES, C_REMEMBERED, C_FORGET, C_LOOK, C_IS, C_SHOW,
@@ -122,6 +133,7 @@ class Outcome:
     lines: list[str] = field(default_factory=list)      # what the launcher shows, in plain words
     problems: list[str] = field(default_factory=list)   # a refused Run's problems, each naming its tab and cell
     summary: dict = field(default_factory=dict)         # a finished Run's headline, for the launcher's last step
+    timings: list = field(default_factory=list)         # (stage, seconds) in order: where a Run's time went
 
 
 #: The product's name, and the workbook's: "loans - PocketBook.xlsx" beside "loans.csv" (the firm, 26 Sep 2026).
@@ -135,6 +147,19 @@ def book_for(extract: str | Path) -> Path:
     """Where the workbook for an extract lives: beside it, named after it."""
     p = Path(extract)
     return p.with_name(f"{p.stem}{SUFFIX}")
+
+
+def cant_read(extract: str | Path, exc: OSError, again: str = "Run") -> str:
+    """The extract couldn't be read, in words that say what to do (the bank, 30 Sep 2026: Run opened a
+    PermissionError traceback in Notepad while the extract was open in Excel, or OneDrive was still syncing it).
+    `again` is the button to press once it's fixed."""
+    p = Path(extract)
+    if isinstance(exc, FileNotFoundError):
+        return (f"Couldn't find {p.name}. PocketBook looked for it in {p.parent}. Put it back there, or pick it "
+                f"again with Browse, then press {again} again.")
+    return (f"{p.name} can't be read: it's open in Excel, or OneDrive is still syncing it. Close it in Excel "
+            f"(check for a hidden Excel window), or right-click it in File Explorer and choose Always keep on this "
+            f"device. Then press {again} again.")
 
 
 def workbook_picked(extract: str | Path) -> str | None:
@@ -160,6 +185,8 @@ class Column:
     yes: int | None = None   # a column that could be the outcome: how many loans read 1 (bad); None if it couldn't
     no: int = 0              # ... 0 (good)
     other: int = 0           # ... anything else, blanks included: left out of the outcome rates and counted
+    values: int | None = None   # a category: how many values it holds, blanks aside
+    parts: int = 0              # ... and 1 when it has blanks (or loans with no date) too: a value of their own
 
 
 @dataclass
@@ -171,6 +198,9 @@ class Read:
     columns: list[Column]
     chosen: "ch.Choices | None" = None      # what the workbook beside it already shows, if there is one
     problem: str | None = None
+    # ORIG_YEAR, offered beside the categories when a column is marked Origination date (the firm, 30 Sep 2026):
+    # kind "year", or "none" (greyed, nothing to pick) when that column's dates can't be read
+    year: Column | None = None
 
 
 def _outcome_picked(picked: str, sugg: dict, kept: dict, cat, facts_of: dict, many: int) -> None:
@@ -215,6 +245,8 @@ def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 5
         return Read(extract, extract, 0, [], problem=workbook_picked(extract))
     try:
         table = read_table(extract)
+    except OSError as exc:  # open in Excel, OneDrive still syncing it, or gone (the bank, 30 Sep 2026)
+        return Read(extract, target, 0, [], problem=cant_read(extract, exc, "Set up"))
     except Exception as exc:  # the file itself: shown in words, never a traceback
         return Read(extract, target, 0, [], problem=f"Couldn't read {extract.name}: {exc}")
     kept = _answers(_earlier(target))
@@ -229,17 +261,36 @@ def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 5
             (sugg[c].means if c in sugg else "amount")
         kind = KIND_OF.get(code) or {"band": "num", "dimension": "cat"}.get(cat[code].cut, "other")
         what = cat[code].label
+        n = None
         if kind == "cat":
             n = len({str(r.get(c)) for r in made_table.rows if r.get(c) not in (None, "")})
             what = f"Category · {n:,} values" if code == "category" else f"{what} · {n:,} values"
-        out.append(Column(c, what, kind, *_yes_no(made_table, c, kind)))
+        blanks = int(kind == "cat" and any(r.get(c) in (None, "") for r in made_table.rows))
+        out.append(Column(c, what, kind, *_yes_no(made_table, c, kind), values=n, parts=blanks))
     chosen = None
     if _earlier(target).exists():
         try:
-            chosen = control.read_choices(load_workbook(_earlier(target))[control.SHEET])[0]
+            chosen = control.read_choices(quiet_load(_earlier(target))[control.SHEET])[0]
         except Exception:
             chosen = None
-    return Read(extract, target, len(table.rows), out, chosen)
+    return Read(extract, target, len(table.rows), out, chosen, year=_year_row(made_table, out))
+
+
+def _year_row(table: Table, columns: list[Column]) -> Column | None:
+    """The launcher's Origination year row: ORIG_YEAR, the year of the column marked Origination date, as the Run
+    works it out (engine.origination_years); None when no column is marked so, or the extract has its own
+    ORIG_YEAR."""
+    dated = next((c.name for c in columns if c.kind == "date"), None)
+    if dated is None or ch.ORIG_YEAR in table.columns:
+        return None
+    try:
+        years = engine.origination_years(table, dated)
+    except engine.DataRefused as exc:
+        return Column(ch.ORIG_YEAR, f"{ch.ORIG_YEAR_LABEL}: can't be read. {exc}", "none")
+    n = len({y for y in years if y != ch.NO_DATE})
+    none = years.count(ch.NO_DATE)
+    return Column(ch.ORIG_YEAR, f"{ch.ORIG_YEAR_LABEL}, from {dated} · {n:,} values"
+                  + (f" · {none:,} with no date" if none else ""), "year", values=n, parts=int(bool(none)))
 
 
 def _earlier(book: Path) -> Path:
@@ -262,7 +313,7 @@ def open_at(book: str | Path, sheet: str, cell: str) -> bool:
     book = Path(book)
     if not book.exists() or is_open(book):
         return False
-    wb = load_workbook(book)
+    wb = _load(book)
     if sheet not in wb.sheetnames or wb[sheet].sheet_state != "visible":
         return False
     ws = wb[sheet]
@@ -321,8 +372,8 @@ def _col(n: int) -> str:
 
 
 def _order(wb) -> None:
-    """Start here first, the inputs, then the results, then the hidden helpers."""
-    want = list(INPUT_TABS) + list(RESULT_TABS)
+    """Start here first, then the Glossary, the inputs, the results, and the hidden helpers."""
+    want = [INPUT_TABS[0], glossary.SHEET] + list(INPUT_TABS[1:]) + list(RESULT_TABS)
     wb._sheets.sort(key=lambda ws: (want.index(ws.title) if ws.title in want else len(want)))
     wb.active = 0
     for ws in wb.worksheets:
@@ -356,7 +407,7 @@ def _answers(book: Path) -> dict[str, Any]:
                            "derived": {}}
     if not book.exists():
         return out
-    wb = load_workbook(book)
+    wb = quiet_load(book)
     if control.SHEET in wb.sheetnames:
         cws = wb[control.SHEET]
         old = cws["C4"].value == "Choose"                  # before the redesign: last Run used in H, not F
@@ -437,19 +488,58 @@ def _made_columns(table, cols, kept: dict, mem: dict):
             names.add(name)
     if not defs:
         return table, [], notes
-    rules: dict = {}
+    made, reports = engine.derive_columns(table, defs, _odd_rules(cols, kept, mem))
+    return made, reports, notes
+
+
+#: Control's key for "Treat values ≤ -99,000,000 as missing in every column?" (the firm's words, 30 Sep 2026)
+BUREAU = "bureau_codes"
+
+
+def _bureau_exempt(questions) -> set[str]:
+    """The columns Control's bureau codes answer leaves alone: one whose own Treat as answer on Columns says its
+    codes are Real (its negatives, or a repeated value at or below the line). A column's own answer wins."""
+    out = set()
+    for q in questions:
+        if str(q.get("answer") or "").lower() != "real":
+            continue
+        if q["pattern"] == "negatives" or (q.get("value") is not None
+                                           and float(q["value"]) <= cfgmod.BUREAU_CODE_LINE):
+            out.add(q["column"])
+    return out
+
+
+def _bureau_yes(kept: dict) -> bool:
+    """Control's bureau codes answer, as this workbook holds it before a Run (Set up reads it to draw Columns and
+    Look as the Run will read them)."""
+    return control.answer_of(BUREAU, *kept["control"].get(BUREAU, (None, None))) == "yes"
+
+
+def _answered(cols, kept: dict, mem: dict) -> list[dict]:
+    """Every odd value's question with its Treat as answer: this workbook's, or remembered."""
+    out = []
     for c in cols:
         for q in c.questions:
             key = (q["column"], f"{q['pattern']}|{q['value'] if q['value'] is not None else ''}")
             known = memory.answer_for(mem, q["column"], q["pattern"], q["value"])
-            answer = kept["odd"].get(key) or (known["answer"] if known else None)
-            rule = cfgmod.Question(q["column"], q["pattern"], q["value"], q["rows"], answer).as_rule()
-            if rule is not None:
-                old = rules.get(q["column"], cfgmod.MissingRule())
-                rules[q["column"]] = cfgmod.MissingRule(below=rule.below if rule.below is not None else old.below,
-                                                        above=old.above, values=old.values + rule.values)
-    made, reports = engine.derive_columns(table, defs, rules)
-    return made, reports, notes
+            out.append({**q, "answer": kept["odd"].get(key) or (known["answer"] if known else None)})
+    return out
+
+
+def _odd_rules(cols, kept: dict, mem: dict) -> dict:
+    """Every Treat as answer of missing on Columns (this workbook's, or remembered), and Control's bureau codes
+    answer, as the Run's rules: what New columns and Look read before a Run, so neither shows a value the Run
+    will leave out."""
+    rules: dict = {}
+    qs = _answered(cols, kept, mem)
+    for q in qs:
+        rule = cfgmod.Question(q["column"], q["pattern"], q["value"], q["rows"], q["answer"]).as_rule()
+        if rule is not None:
+            rules[q["column"]] = rules.get(q["column"], cfgmod.MissingRule()).merged(rule)
+    if _bureau_yes(kept):
+        for c, rule in cfgmod.bureau_rules([c.name for c in cols], _bureau_exempt(qs)).items():
+            rules[c] = rule.merged(rules.get(c))
+    return rules
 
 
 def _to_code(v: Any, cat) -> str | None:
@@ -467,22 +557,36 @@ def _to_code(v: Any, cat) -> str | None:
 
 @control.settings_once
 def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str | Path | None = None,
-           today: date | None = None, choices: "ch.Choices | None" = None) -> Outcome:
+           today: date | None = None, choices: "ch.Choices | None" = None, progress=timing.no_progress) -> Outcome:
+    """Set up, each stage timed as a Run's are (Outcome.timings); `progress(stage)` is called as each starts."""
+    with timing.running(timing.Clock(progress)) as clock:
+        out = _set_up(extract, book, memory_path, today, choices)
+    out.timings = clock.rows()
+    return out
+
+
+def _set_up(extract: str | Path, book: str | Path | None = None, memory_path: str | Path | None = None,
+            today: date | None = None, choices: "ch.Choices | None" = None) -> Outcome:
     """Write the workbook beside the extract. `choices` is what the launcher's
     Choose tests step picked; without it, what the workbook already shows is kept
     (or, the first time, every column its meaning cuts, and nothing split).
     The suggested Control answers are worked out here, from pockets cut at the
     default edges, and written beside their settings (never chosen for you)."""
     extract = Path(extract)
+    progress = timing.mark                     # each stage both timed and said to the launcher's line
     if workbook_picked(extract):
         # the third walk, defect 10: the workbook sits beside the extract and was picked by mistake
         return Outcome(False, extract, [workbook_picked(extract)])
     book = Path(book) if book else book_for(extract)
+    timing.mark("Reading the extract")
     try:
         table = read_table(extract)
+    except OSError as exc:  # open in Excel, OneDrive still syncing it, or gone (the bank, 30 Sep 2026)
+        return Outcome(False, book, [cant_read(extract, exc, "Set up")])
     except Exception as exc:  # the file itself: shown in words, never a traceback
         return Outcome(False, book, [f"Couldn't read {extract.name}: {exc}"])
     as_read = table
+    timing.mark("Reading the columns")
     kept = _answers(_earlier(book))
     mem = memory.load(memory_path)
     cat = meanings.catalog()
@@ -527,9 +631,10 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
 
     # Refresh in place: the input tabs are rebuilt, the results of the last run stay
     # (the second walk, defect 6: Set up again deleted them).
+    timing.mark("Writing Control and Columns")
     if book.exists():
         try:
-            wb = load_workbook(book)
+            wb = _load(book)
         except Exception:
             wb = Workbook()
             wb.remove(wb.active)
@@ -570,12 +675,14 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     # ---- Columns: what each column is, its odd values and what is remembered about it, on one tab
     ws = wb.create_sheet("Columns")
     odd_open, edge_noted = _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, made,
-                                        made_notes, new_cols, gone_cols, qs)
+                                        made_notes, new_cols, gone_cols, qs,
+                                        _in_use(choices, table, sugg, kept, cat, made))
     control.write_derived(wb, number_cols, kept["derived"], sheet="Columns", top=ws.max_row + 2,
                           first=C_NAME, key_col=C_QKEY, last=C_WHY + 1)
     _fit(ws)
 
     from . import look                      # fix 3.8: each number column's shape, before its edges are chosen
+    timing.mark("Writing Look")
     shown = look.number_columns(table, cols, few, facts_of)
     edge_rows = {str(r[C_NAME - 1].value): r[0].row for r in table_rows(ws) if r[C_NAME - 1].value}
     banded = {str(r[C_NAME - 1].value) for r in table_rows(ws) if r[C_NAME - 1].value
@@ -589,23 +696,30 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
     look.write_look(wb, table, shown, known=facts_of,
                     edge_rows=edge_rows, split=chosen_now.split if chosen_now is not None else None,
                     bands=[c for c in shown if c in banded and (cut is None or c in cut)],
-                    treat_rows=_treat_rows(ws))
+                    treat_rows=_treat_rows(ws), rules=_odd_rules(cols, kept, mem))
 
     about = wb.create_sheet(ABOUT)
     about["A1"], about["B1"] = "extract", str(extract.resolve())
-    about["A2"], about["B2"] = "sha256", hashlib.sha256(extract.read_bytes()).hexdigest()
+    about["A2"], about["B2"] = "sha256", as_read.sha256        # the bytes read above: the extract is read once
     about["A3"], about["B3"] = "set up", (today or date.today()).isoformat()
     about["A4"], about["B4"] = "extract name", extract.name
     about.sheet_state = "hidden"
     settings = control.load_settings()
     given = {s.key: control.answer_of(s.key, *kept["control"].get(s.key, (None, None))) for s in settings}
     _start_here(start, wb, extract, len(table.rows), len(extract_cols))
+    # the Glossary (the firm, 2 Oct 2026): the last Run's figures, kept on _found, or made up before the first
+    glossary.write(wb, glossary.stored(wb, FOUND), _found_value(wb, "stamp"))
     _order(wb)
     if not _writable(book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Set up again."])
+    timing.mark("Working out the suggestions")
     worked = _suggest_at_set_up(wb, book, as_read, memory_path, testing=kind_now == NEW_VARIABLE)
     _suggestions(wb[control.SHEET], *worked, when="from this extract")
+    if len(worked) > 2 and worked[2]:
+        # what the sample said, so Run can say where every grid says otherwise (_suggestions, quick=)
+        about["A5"], about["B5"] = QUICK, _quick_text(worked[0], worked[2])
     _cutoff_words(wb[control.SHEET], as_read, wb["Columns"], cat)          # OC-51
+    timing.mark("Saving the workbook")
     try:
         wb.save(book)
     except PermissionError:
@@ -624,7 +738,8 @@ def set_up(extract: str | Path, book: str | Path | None = None, memory_path: str
         lines.append(f"New columns since the last check: {', '.join(new_cols)}. Columns!C3 needs a Yes again.")
     # E, the firm's answer of 27 Sep 2026: one count of what is left, the Run's refusal's own. The window said "7
     # columns to look at first", Start here "Columns to confirm: 10", and the refusal listed 9
-    _, left, _ = read_book(book, memory_path)
+    timing.mark("Counting what is left to answer")
+    _, left, _ = read_book(book, memory_path, wb=wb)   # the workbook just saved, still open: not read again
     on = [t for t in ("Control", "Columns", "Look") if any(p.startswith(t) for p in left)]
     joined = ", ".join(on[:-1]) + (" and " if len(on) > 1 else "") + on[-1] if on else ""
     lines.append(f"Next: {_n(len(left), 'answer')} needed before Run" + (f", on {joined}" if on else "")
@@ -643,12 +758,47 @@ def _answer_row(r) -> bool:
 REMOVED_MEANINGS = {"outcome_date": "Outcome date", "as_of_date": "As-of date"}
 
 
-def _odd_words(q: dict) -> str:
-    """An odd value as the Columns tab says it: "-9999 on 60 loans", "Negative on 595 loans"."""
+#: what Columns adds to an odd value that Control's bureau codes answer of Yes already makes missing
+BUREAU_MARK = "Control: ≤ -99,000,000"
+BUREAU_WORDS = f" → missing ({BUREAU_MARK})"
+
+
+def _bureau_code(q: dict) -> bool:
+    """True when every value of this odd value sits at or below the bureau codes line (cfgmod.BUREAU_CODE_LINE):
+    a repeated -99,000,900, or negatives that are all codes. A negatives question whose values aren't known is
+    never taken as one."""
+    line = cfgmod.BUREAU_CODE_LINE
     if q["pattern"] == "negatives":
-        return f"Negative on {q['rows']:,} loans"
-    v = q["value"]
-    return f"{int(v) if float(v).is_integer() else v:g} on {q['rows']:,} loans"
+        return q.get("highest") is not None and q["highest"] <= line
+    return q.get("value") is not None and float(q["value"]) <= line
+
+
+def _odd_words(q: dict, bureau: bool = False) -> str:
+    """An odd value as the Columns tab says it, the values themselves shown (the firm, 30 Sep 2026: "it's useful
+    to see the value"): "-9,999 on 60 loans"; negatives of up to profile.SHOWN values, each with its loans,
+    "-99,000,900 on 460 loans; -99,000,901 on 6"; more than that (RANR's real negatives, every one different),
+    "Negative on 595 loans (e.g. -12.5, -3, …)". Thousands separators, never scientific notation. `bureau`:
+    Control's bureau codes answer is Yes and this column keeps it, so its codes are missing already, and it says
+    so."""
+    plain = cfgmod.plain_value
+    if q["pattern"] == "negatives":
+        shown = q.get("shown") or []
+        if shown and q.get("distinct", len(shown)) <= len(shown):
+            words = "; ".join(f"{plain(v)} on {n:,}" + (f" loan{'' if n == 1 else 's'}" if i == 0 else "")
+                              for i, (v, n) in enumerate(shown))
+        elif shown:
+            words = f"Negative on {q['rows']:,} loans (e.g. {', '.join(plain(v) for v, _ in shown[:3])}, …)"
+        else:
+            words = f"Negative on {q['rows']:,} loans"
+    else:
+        words = f"{plain(q['value'])} on {q['rows']:,} loans"
+    return words + (BUREAU_WORDS if bureau and _bureau_code(q) else "")
+
+
+def _odd_rows(words: str) -> int:
+    """The loans an odd value's words on Columns count: every "on N" added up ("-99,000,900 on 460 loans;
+    -99,000,901 on 6" is 466). None of the values themselves is counted."""
+    return sum(int(n.replace(",", "")) for n in re.findall(r"\bon ([\d,]+)", words))
 
 
 def _remembered_words(entry: dict | None) -> str:
@@ -661,15 +811,58 @@ def _remembered_words(entry: dict | None) -> str:
     return f"Yes · {times} Run" + ("" if times == 1 else "s")
 
 
+def _in_use(choices, table, sugg, kept, cat, made) -> set[str] | None:
+    """The extract's columns this Run uses, as the launcher picked them: the key, the outcome, the date, and for
+    the bleed the booked and dollar columns, the charge-off date (months to charge-off on Summary and Grids, the
+    firm, 1 Oct 2026), the bands, segments and split; for a new variable what is tested and
+    held fixed. Columns made under Add a column always count. None (every column) when nothing was picked."""
+    if choices is None or choices.run_kind is None:
+        return None
+    new = choices.run_kind == NEW_VARIABLE
+    out = {m.name for m in made}
+    for c in table.columns:
+        code = _to_code((kept["columns"].get(c) or {}).get("means"), cat) or sugg[c].means
+        cut = cat[code].cut if code in cat else "none"
+        if code in ("key", "outcome", "origination_date") or c == choices.outcome:
+            out.add(c)
+        elif new:
+            if c in choices.test or c in choices.hold:
+                out.add(c)
+        elif code in ("booked", "gco", "ranr", "chargeoff_date") or \
+                c in (choices.split, choices.filter, choices.filter2, choices.filter3) or \
+                (c in choices.bands if choices.bands is not None else cut == "band") or \
+                (c in choices.segments if choices.segments is not None else cut == "dimension"):
+            out.add(c)
+    return out
+
+
+#: Columns' Check first: its width. It stays one line, as every row of the table does (the redesign's rule 5,
+#: held by test_answer_tabs); the survey's proposal to wrap it waits for the firm (BACKLOG §6d)
+LOOK_WIDTH = 60
+
+
+def _samples_of(col, made) -> list[str]:
+    """A column's first three samples as Columns shows them: a made ratio to four figures, not seventeen."""
+    samples = col.samples[:3]
+    if any(m.name == col.name for m in made):
+        samples = [f"{float(v):.4g}" for v in samples]
+    return [str(v) for v in samples]
+
+
 def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, made, made_notes, new_cols, gone_cols,
-                 qs) -> tuple[int, set[str]]:
+                 qs, used: set[str] | None = None) -> tuple[int, set[str]]:
     """Columns, as the redesign draws it (section 3): the check at C3, the method note, then one row per extract
     column (a second odd value in a column gets a row of its own under it, with no name). Returns how many odd
     values are still unanswered, and the columns whose remembered edges were filled in."""
     from . import house
     last = C_DEFINE
-    widths = {1: 2, C_NAME: 22, C_SAMPLES: 26, C_MEANS: 20, C_WHY: 40, C_BLANK: 7, C_ODD: 20, C_TREAT: 11,
-              C_EDGES: 16, C_REMEMBERED: 13, C_FORGET: 9, C_LOOK: 60, C_IS: 12, C_SHOW: 15, C_PERIOD: 11,
+    # T1: the name and samples fit what the extract holds (the derived-column block's "New column name ↻" too);
+    # Odd values and Show per pocket their longest text + 2
+    widths = {1: 2, C_NAME: house.fit(list(table.columns) + ["New column name ↻", "Checked every column?"], floor=14,
+                                      cap=32, pad=3),
+              C_SAMPLES: house.fit([", ".join(_samples_of(x, made)) for x in cols], floor=20, cap=40),
+              C_MEANS: 20, C_WHY: 40, C_BLANK: 7, C_ODD: 23, C_TREAT: 11,
+              C_EDGES: 16, C_REMEMBERED: 13, C_FORGET: 9, C_LOOK: LOOK_WIDTH, C_IS: 12, C_SHOW: 19, C_PERIOD: 11,
               C_DEFINE: 30}
     for col, w in widths.items():
         ws.column_dimensions[_col(col)].width = w
@@ -691,7 +884,8 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
     if gone_cols:
         notes.append(f"No longer in the extract: {', '.join(gone_cols)}.")
     notes += made_notes
-    ws["D3"] = " ".join([CONFIRM_NOTE] + notes)
+    unused_n = 0 if used is None else sum(1 for c in table.columns if c not in used)
+    ws["D3"] = " ".join([CONFIRM_NOTE] + ([UNUSED_NOTE.format(unused_n)] if unused_n else []) + notes)
     ws["D3"].font = Font(name="Calibri", bold=bool(notes), size=10, color=house.CRIMSON if notes else SLATE)
     ws["D3"].alignment = Alignment(vertical="center")
     ws.row_dimensions[3].height = 20
@@ -732,6 +926,7 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
     questions: dict[str, list[dict]] = {}
     for q in qs:
         questions.setdefault(q["column"], []).append(q)
+    bureau_yes = _bureau_yes(kept)
     edge_noted: set[str] = set()
     odd_open = 0
     thin = Border(bottom=Side(style="thin", color=house.ROW_RULE))
@@ -740,13 +935,12 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
         sg = sugg[c]
         prior = kept["columns"].get(c, {})
         code = _to_code(prior.get("means"), cat) or sg.means
+        unused = used is not None and c not in used
         tag = "Remembered: " if sg.source == "remembered" else ""
         f = facts_of.get(c) or meanings.facts(table, c)
         blank = (f.rows - f.nonblank) / f.rows if f.rows else 0
         ws.cell(row=r, column=C_NAME, value=c).font = Font(name="Calibri", bold=True, size=10)
-        samples = classified[c].samples[:3] if c in classified else []
-        if any(m.name == c for m in made):
-            samples = [f"{float(v):.4g}" for v in samples]      # a ratio to four figures, not seventeen
+        samples = _samples_of(classified[c], made) if c in classified else []
         ws.cell(row=r, column=C_SAMPLES, value=", ".join(samples))
         means = ws.cell(row=r, column=C_MEANS, value=cat[code].label)
         house.needs_run(means)
@@ -771,7 +965,7 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
         dv_forget.add(forget)                   # every row: a Run remembers a column, and it can be forgotten
         if entry:
             house.needs_run(forget)
-        ws.cell(row=r, column=C_LOOK, value=" ".join(by_col.get(c, [])) or None)  # after the edges note
+        ws.cell(row=r, column=C_LOOK, value=" ".join(([NOT_USED] if unused else []) + by_col.get(c, [])) or None)
         ws.cell(row=r, column=C_IS, value=prior.get("is") if prior else sg.is_value)
         ws.cell(row=r, column=C_SHOW, value=prior.get("show"))
         dv_show.add(ws.cell(row=r, column=C_SHOW))
@@ -780,18 +974,26 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
         ws.cell(row=r, column=C_DEFINE, value=prior.get("define"))
         ws.cell(row=r, column=C_SUGG, value=sg.means)
         ws.cell(row=r, column=C_MADE, value=next((m.text() for m in made if m.name == c), None))
-        for k, q in enumerate(questions.get(c, []) or [None]):
+        asked = [] if unused else questions.get(c, [])    # a column not in use: nothing asked, nothing counted
+        answers = []
+        for q in asked:
+            key = f"{q['pattern']}|{q['value'] if q['value'] is not None else ''}"
+            known = memory.answer_for(mem, q["column"], q["pattern"], q["value"])
+            answers.append(kept["odd"].get((c, key)) or (known["answer"] if known else None))
+        # Control's bureau codes answer of Yes already makes this column's codes missing, unless answered Real here
+        bureau = bureau_yes and c not in _bureau_exempt(
+            [{**q, "answer": a} for q, a in zip(asked, answers)])
+        for k, q in enumerate(asked or [None]):
             row = r + k
             if q is not None:
                 key = f"{q['pattern']}|{q['value'] if q['value'] is not None else ''}"
-                known = memory.answer_for(mem, q["column"], q["pattern"], q["value"])
-                answer = kept["odd"].get((c, key)) or (known["answer"] if known else None)
-                ws.cell(row=row, column=C_ODD, value=("and " if k else "") + _odd_words(q))
+                answer = answers[k]
+                ws.cell(row=row, column=C_ODD, value=("and " if k else "") + _odd_words(q, bureau))
                 treat = ws.cell(row=row, column=C_TREAT, value=str(answer).capitalize() if answer else None)
                 house.needs_run(treat)
                 dv_treat.add(treat)
                 ws.cell(row=row, column=C_QKEY, value=f"{c}|{key}")
-                odd_open += not answer
+                odd_open += not answer and not (bureau and _bureau_code(q))     # Control answered it
             for col in range(C_NAME, last + 1):
                 cell = ws.cell(row=row, column=col)
                 if cell.border.left.style is None:
@@ -800,20 +1002,54 @@ def _columns_tab(ws, wb, table, cols, sugg, facts_of, looks, kept, mem, cat, mad
                     C_BLANK, C_MEANS, C_TREAT, C_EDGES, C_REMEMBERED, C_FORGET, C_IS, C_SHOW, C_PERIOD) else "left")
                 if col != C_NAME:
                     cell.font = Font(name="Calibri", size=10, bold=cell.font.b,
-                                     color=SLATE if col in (C_SAMPLES, C_WHY, C_LOOK) else house.INK_TEXT)
+                                     color=SLATE if unused or col in (C_SAMPLES, C_WHY, C_LOOK) else house.INK_TEXT)
+                if unused:                  # greyed, never hidden: every column stays in sight
+                    cell.fill = house.fill(house.CANVAS)
+                    if col == C_NAME:
+                        cell.font = Font(name="Calibri", bold=True, size=10, color=SLATE)
             ws.row_dimensions[row].height = 18
-        r += max(1, len(questions.get(c, [])))
+        r += max(1, len(asked))
     ws.cell(row=r, column=C_QKEY, value=TABLE_END)
+    # Odd values fits what it says on one line, now that the values are shown (30 Sep 2026)
+    ws.column_dimensions[_col(C_ODD)].width = house.fit(
+        [ws.cell(row=x, column=C_ODD).value for x in range(COL_FIRST, r)], floor=23, cap=72)
     treat = _col(C_TREAT)
     key = _col(C_QKEY)
+    odd = _col(C_ODD)
+    # a code Control's bureau codes answer already makes missing isn't shaded: it is answered (30 Sep 2026)
     ws.conditional_formatting.add(f"{treat}{COL_FIRST}:{treat}{r - 1}", house.still_needed(
-        f'AND(${key}{COL_FIRST}<>"",${treat}{COL_FIRST}="")'))
+        f'AND(${key}{COL_FIRST}<>"",${treat}{COL_FIRST}="",'
+        f'ISERROR(SEARCH("{BUREAU_MARK}",${odd}{COL_FIRST})))'))
     look = _col(C_LOOK)
-    ws.conditional_formatting.add(f"{look}{COL_FIRST}:{look}{r - 1}", house.still_needed(f'{look}{COL_FIRST}<>""'))
+    ws.conditional_formatting.add(f"{look}{COL_FIRST}:{look}{r - 1}", house.still_needed(
+        f'AND({look}{COL_FIRST}<>"",LEFT({look}{COL_FIRST},{len(NOT_USED)})<>"{NOT_USED}")'))   # a grey row: nothing to do
     for col in (C_SUGG, C_MADE, C_QKEY):
         ws.column_dimensions[_col(col)].hidden = True
     ws.freeze_panes = f"C{COL_FIRST}"
     return odd_open, edge_noted
+
+
+def _bureau_on_columns(ws, rules: dict, table) -> None:
+    """Each odd value on Columns says whether Control's bureau codes answer makes it missing, as this Run read
+    it: BUREAU_WORDS added where the Run's rule for its column catches every value the
+    question is about, and taken off where it no longer does (Control answered No, or the column Real)."""
+    for r in table_rows(ws):
+        key = r[C_QKEY - 1].value if len(r) >= C_QKEY else None
+        if not (isinstance(key, str) and key.count("|") == 2):
+            continue
+        col, pattern, value = key.split("|")
+        rule = rules.get(col)
+        covered = rule is not None and rule.at_or_below is not None
+        if covered and pattern == "negatives":
+            from .ingest import BLANK, Bad, parse_number
+            read = (parse_number(x.get(col)) for x in table.rows)
+            neg = [p for p in read if p is not BLANK and not isinstance(p, Bad) and p < 0]
+            covered = bool(neg) and max(neg) <= rule.at_or_below
+        elif covered:
+            covered = value != "" and float(value) <= rule.at_or_below
+        cell = r[C_ODD - 1]
+        base = str(cell.value or "").replace(BUREAU_WORDS, "")
+        cell.value = base + (BUREAU_WORDS if covered else "")
 
 
 def _treat_rows(ws) -> dict[str, tuple[int, str]]:
@@ -836,7 +1072,15 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
     Columns; the pending banner; what the last Run found (from _found, kept through Set up) with its five
     largest pockets; and the tabs in their three groups."""
     from . import house
-    for col, w in zip("ABCDEFGHI", (2, 22, 16, 16, 16, 16, 16, 16, 22)):
+    # P1, P2: B and C fit the largest pockets' bands and segments the last Run found, and the heading over them;
+    # D to F their headings ("× its comparison", "Dollars above share") + 2
+    tops = [r for r in wb[FOUND].iter_rows(values_only=True) if r and r[0] == "top"] if FOUND in wb.sheetnames \
+        else []
+    b_w = house.fit(["Largest, worse and material"] + [r[TOP_BAND - 1] for r in tops], floor=22, cap=32)
+    # a segment can carry the borderline flag ("ASSET_CLASS 4 · borderline (p 0.036)", the evening tie-out, 30 Sep)
+    c_w = house.fit([r[TOP_SEG - 1] for r in tops] + [f"{r[TOP_SEG - 1]} · {stats.borderline_words(0.048, 0.95)}"
+                                                     for r in tops if r[TOP_SEG - 1]], floor=16, cap=44, pad=3)
+    for col, w in zip("ABCDEFGHI", (2, b_w, c_w, 12, 18, 21, 16, 16, 22)):
         ws.column_dimensions[col].width = w
     stamp = _found_value(wb, "stamp")
     sub = f"{Path(extract).name} · {rows:,} loans · {ncols} columns" + (
@@ -845,11 +1089,13 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
     r = house.method_note(ws, 3, 2, 9, [
         ("Where things stand", "What is left before Run, counted live from Control and Columns as you fill them "
                                "in."),
-        ("What the last Run found", "Pockets worse and material at Control's lines, and the five largest."
+        ("What the last Run found", "Pockets worse and material at Control's lines, and the five largest. The "
+                                    "dollars count each loan once, in the pocket where it is furthest above its "
+                                    "share: every loan is in every grid, so a plain sum counts it once per grid."
          if _found_value(wb, "kind") != confirm_tab.FOUND_KIND else
          "Each group of the tested column on the holdout, against the reference group. Significant? follows the "
          "confidence on Control; the rest is as of the last Run."),
-        ("The tabs", "Red tabs you fill in; black tabs hold results; grey tabs are the record."),
+        ("The tabs", "Red tabs you fill in; black tabs hold results; grey tabs are the glossary and the record."),
     ])
     _heading(ws, r, "Where things stand")
     cols = wb["Columns"] if "Columns" in wb.sheetnames else None
@@ -857,13 +1103,16 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
         else COL_FIRST
     keys, treat = f"Columns!${_col(C_QKEY)}${COL_FIRST}:${_col(C_QKEY)}${end}", \
         f"Columns!${_col(C_TREAT)}${COL_FIRST}:${_col(C_TREAT)}${end}"
+    odd = f"Columns!${_col(C_ODD)}${COL_FIRST}:${_col(C_ODD)}${end}"
     # the count the Run's refusal gives (E, the firm, 27 Sep 2026): each blank answer on Control, what is being run
     # when the launcher hasn't said, and Checked every column; "Columns to confirm" counted every column instead
     kind_row = control.row_of(wb[control.SHEET], RUN_KIND) if control.SHEET in wb.sheetnames else None
     kind_blank = f'+IF({control.SHEET}!$C${kind_row}="",1,0)' if kind_row else ""
     tiles = [(NEEDED, f'=IFERROR(SUM(answers_needed),0){kind_blank}'
                       f'+IF(Columns!{CONFIRM_CELL.replace("C", "$C$")}="Yes",0,1)', "Control and Columns"),
-             ("Odd values to answer", f'=COUNTIFS({keys},"?*",{treat},"")', "Columns · Treat as"),
+             # a code Control's bureau codes answer already makes missing isn't one to answer (30 Sep 2026)
+             ("Odd values to answer", f'=COUNTIFS({keys},"?*",{treat},"",{odd},"<>*{BUREAU_MARK}*")',
+              "Columns · Treat as"),
              ("Changes waiting for a Run", f'=IFERROR(COUNTIF(Status,"{house.WAITING}"),0)',
               "Control · Status")]
     for i, (label, f, where) in enumerate(tiles):
@@ -917,6 +1166,17 @@ def _found_value(wb, key: str):
     return None
 
 
+def _once(wb, m: str, crit: str) -> tuple[str, str]:
+    """Each loan once on rate `m`, as the last Run worked it out (engine.Once), and a formula that is TRUE while the
+    pockets `crit` picks on _pockets are still the Run's: the same count and the same dollars added up. Control's
+    lines move the pockets live and a formula can't count a loan once, so a total from other pockets says to Run."""
+    got = [_found_value(wb, f"{k}:{m}") for k in (ONCE, ONCE_POCKETS, ONCE_SUM)]
+    if any(v is None for v in got):
+        return "0", "FALSE"                         # a _found from before 1 Oct 2026: Run again
+    once, n, total = got
+    return repr(float(once)), f"AND(COUNTIFS({crit})={int(n)},ABS(SUMIFS(pk_dollars,{crit})-({float(total)!r}))<0.01)"
+
+
 #: Start here's list of the largest pockets, worse and material: how many rows it shows
 TOP_ROWS = 5
 #: the hidden column on Start here holding which _found row each of those rows shows
@@ -940,18 +1200,31 @@ def _found_block(ws, wb, r: int) -> int:
                                                "launcher.")
         c.font = Font(name="Calibri", size=10, color=SLATE)
         return r + 3
-    m, title = _found_value(wb, "measure"), _found_value(wb, "measure_title")
+    m = _found_value(wb, "measure")
+    # the measure's name by its key, so a _found written before the firm's terms (30 Sep 2026: "charge-offs") reads
+    # in them too, until the next Run writes it again
+    title = FOUND_TITLE.get(m) or _found_value(wb, "measure_title")
     crit = f'pk_kind,"grids",pk_measure,"{m}",pk_flag,"{engine.WORSE}",pk_material,"yes"'
     dollar = m != "outcome_loans"
+    # Borderline (the firm, 29 Sep 2026): how many of them turn on a shuffled p-value that near the bar
+    bl = f'COUNTIFS({crit},pk_wborder,"?*")'
+    once, same = _once(wb, m, crit)
+    grids = _found_value(wb, f"{ONCE_GRIDS}:{m}")
+    in_grids = f'&IF({same}," · in {grids:,} grid{"s" * (grids != 1)}","")' if grids else ""
     tiles = [(f"Pockets worse and material, {title}",
-              f'=IFERROR(COUNTIFS({crit})&" of {_found_value(wb, "pockets"):,}","")'),
-             (f"{'Dollars' if dollar else 'Bad loans'} above their share, in those",
-              f'=IFERROR(SUMIFS(pk_dollars,{crit}),"")')]
+              f'=IFERROR(COUNTIFS({crit})&" of {_found_value(wb, "pockets"):,}"{in_grids}&IF({bl}>0," · "&{bl}&'
+              f'" borderline",""),"")'),
+             # each loan once (the firm, 1 Oct 2026): worked out at Run, so shown only while the pockets are the
+             # Run's; a sum over the grids counted a loan once per grid ($2,904,231,129 on a $37,767,925 book)
+             (f"{'Dollars' if dollar else 'Bad loans'} above share, each loan once",
+              f'=IFERROR(IF({same},{once},"{ONCE_STALE}"),"")')]
     profit = _found_value(wb, "profit")
     if profit:
         pc = f'pk_kind,"grids",pk_measure,"{profit}",pk_flag,"{engine.WORSE}",pk_material,"yes"'
-        tiles.append(("Pockets keeping less, worse and material",
-                      f'=IFERROR(COUNTIFS({pc})&" short $"&TEXT(SUMIFS(pk_dollars,{pc}),"#,##0"),"")'))
+        p_once, p_same = _once(wb, profit, pc)
+        tiles.append(("Pockets short on RANR, each loan once",
+                      f'=IFERROR(COUNTIFS({pc})&IF({p_same}," short $"&TEXT({p_once},"#,##0"),'
+                      f'", {ONCE_STALE.lower()}"),"")'))
     else:
         tiles.append(("Last Run", _found_value(wb, "stamp")))
     for i, (label, f) in enumerate(tiles):
@@ -975,7 +1248,11 @@ def _found_block(ws, wb, r: int) -> int:
             got = lambda c: f"INDEX({F(c)},{idx})"                                 # noqa: E731
             P = lambda c: f"INDEX('{live.POCKETS}'!${live.col(c)}:${live.col(c)},{got(TOP_PROW)})"   # noqa: E731
             none = '"No pocket is worse and material."' if k == 1 else '""'
-            vals = [f'=IF({idx}="",{none},{got(TOP_BAND)})', f'=IF({idx}="","",{got(TOP_SEG)})',
+            # the pocket, and " · borderline (p 0.048)" when its Worse? is (the firm, 29 Sep 2026), as Record's
+            # "Worst for" line says it: no Worse? column, since every row listed is worse (tenet T2)
+            wb_ = P(live.P_WBTXT)
+            seg = live.said_formula(got(TOP_SEG), wb_)
+            vals = [f'=IF({idx}="",{none},{got(TOP_BAND)})', f'=IF({idx}="","",{seg})',
                     f'=IF({idx}="","",{got(TOP_LOANS)})',
                     f'=IF({idx}="","",IF({P(live.P_GAP)}="","",{P(live.P_GAP)}))',
                     f'=IF({idx}="","",IF({P(live.P_DOLLARS)}="","",{P(live.P_DOLLARS)}))']
@@ -1000,11 +1277,14 @@ def _found_block(ws, wb, r: int) -> int:
 TAB_GROUPS = [
     ("You answer", "KEY_RED", [("Control", "the professional calls"), ("Columns", "meanings, odd values, memory"),
                                ("Look", "each number column's shape")]),
-    ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "paid against cost"),
-                        (results.GRIDS, "one grid at a time, and how common"), (results.SPLIT, "each pocket halved"),
+    ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "GCOs against RANR"),
+                        (results.GRIDS, "one grid at a time, and how common"),
+                        (results.SUMMARY, "one band column's plain figures"),
+                        (results.COMPARE, "the filters' values as lines"), (results.SPLIT, "each pocket split"),
                         (scout.SHEET, "the candidates ranked, on development loans"),
                         (confirm_tab.SHEET, "the shortlist, confirmed")]),
-    ("Record", "STONE", [(record.SHEET, "what ran, the tie-outs, every Run")]),
+    ("Record", "STONE", [(record.SHEET, "what ran, the tie-outs, every Run"),
+                         (glossary.SHEET, "every term, with an example")]),
 ]
 
 
@@ -1019,6 +1299,8 @@ def _tab_groups(ws, wb, r: int) -> None:
         ws.cell(row=r + 1, column=first, value=title).font = Font(name="Arial", bold=True, size=10)
         k = r + 2
         for tab, what in tabs:
+            if tab == results.PCK and tab not in wb.sheetnames and results.OLD_PCK in wb.sheetnames:
+                tab = results.OLD_PCK   # a workbook run before 30 Sep 2026: its tab keeps the old name until a Run
             if tab not in wb.sheetnames and title == "Results":
                 continue
             c = ws.cell(row=k, column=first, value=f"{tab}: {what}")
@@ -1038,7 +1320,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
     named by tab and cell. Nothing is run. `wb`: the workbook already open (a
     Run loads it once)."""
     problems: list[str] = []
-    wb = wb if wb is not None else load_workbook(book)
+    wb = wb if wb is not None else _load(book)
     missing_tabs = [t for t in ("Control", "Columns", ABOUT) if t not in wb.sheetnames]
     if missing_tabs:
         return None, [f"This workbook is missing its {', '.join(missing_tabs)} tab. Press Set up again."], {}
@@ -1059,7 +1341,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
         gone = note[note.index("Forgotten"):] if "Forgotten" in note else ""
         problems.append(f"Columns!{CONFIRM_CELL}: set Checked every column to Yes once you've checked each "
                         f"column's meaning." + (f" {gone}" if gone else ""))
-    columns, edges, skip, show, split = {}, {}, set(), {}, []
+    columns, edges, skip, show, split, filt, filt2, filt3 = {}, {}, set(), {}, [], None, None, None
     chosen, choice_cells = control.read_choices(wb[control.SHEET])
     if chosen is None:
         problems.append("Control: this workbook was set up before the launcher chose what to cut. Press Set up "
@@ -1081,7 +1363,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
                 problems.append(f"Columns!{_col(C_TREAT)}{r[0].row}: Treat as takes Real or Missing, or blank.")
                 answer = None
             words = str(r[C_ODD - 1].value or "")
-            rows = int(re.sub(r"[^0-9]", "", words.rsplit(" on ", 1)[-1]) or 0) if " on " in words else 0
+            rows = _odd_rows(words)
             questions.append({"column": qcol, "pattern": pattern, "value": float(value) if value else None,
                               "rows": rows, "answer": answer})
         name = r[C_NAME - 1].value
@@ -1157,7 +1439,7 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
             else:
                 show[name] = sh
     if chosen is not None:
-        split, skip = _cuts_chosen(chosen, choice_cells, columns, row_of_col, cat, problems)
+        split, skip, filt, filt2, filt3 = _cuts_chosen(chosen, choice_cells, columns, row_of_col, cat, problems)
     derived = _read_made(wb, columns, made_rows, problems)
     held_to = _what_is_run(wb, book, use, columns, cat, problems, tuple(d["name"] for d in derived))
     scouting = bool(held_to and held_to.get(SCOUT_KEY))       # Goal 2 item 9: find first, then confirm
@@ -1186,6 +1468,10 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
             b = {"name": uniq(profile._slug(c)), "field": c}
             b.update({"edges": edges[c]} if c in edges else {"count": int(use["band_count"]),
                                                               "cut": use["band_cut"]})
+            few = use.get("few_values")
+            if "count" in b and isinstance(few, (int, float)) and not isinstance(few, bool):
+                # too repeated to cut and this few values: one band per value (the firm, 30 Sep 2026)
+                b["few_values"] = int(few)
             raw_bands.append(b)
         elif cat[m].cut == "dimension":
             raw_dims.append({"name": uniq(profile._slug(c)), "field": c})
@@ -1225,11 +1511,22 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
                       "materiality": use["materiality"], "revenue_line": use.get("revenue_line")},
         "questions": questions or [],
     }
+    if use.get(BUREAU) == "yes":
+        # Control's bureau codes answer (the firm, 30 Sep 2026): every column, a category's too, but one answered
+        # Real on Columns keeps its codes. The rule merges with the column's own Treat as answers (cfgmod.parse)
+        raw["missing"] = {c: {"at_or_below": cfgmod.BUREAU_CODE_LINE}
+                          for c in cfgmod.bureau_rules(columns, _bureau_exempt(questions))}
     if use.get(RUN_KIND) == NEW_VARIABLE:
         raw["run_kind"] = NEW_VARIABLE              # its dollar columns are optional (cfgmod.RUN_KINDS)
     if split:
         name, code = split[0]
         raw["split"] = {"field": name, "how": "each_value" if cat[code].cut == "dimension" else "own_median"}
+    if filt:
+        raw["filter_by"] = filt                     # Grids' Only loans where (the firm, 30 Sep 2026)
+        if filt2:
+            raw["filter_by2"] = filt2               # and Filter 2: "in conjunction with each other"
+            if filt3:
+                raw["filter_by3"] = filt3           # and Filter 3 (the firm, 1 Oct 2026: "two filters plus date")
     if derived:
         raw["derived"] = derived                    # fix 3.9
     about = dict(about)
@@ -1244,17 +1541,30 @@ def read_book(book: Path, memory_path=None, wb=None) -> tuple[dict | None, list[
 
 
 def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, problems: list[str]):
-    """The split, and the columns left uncut, from what the launcher chose. A
+    """The split, the columns left uncut and the Grids' filter column, from what the launcher chose. A
     column is cut when the launcher ticked it (or, with nothing narrowed, when
-    its meaning cuts it), as a band or a segment by its meaning on Columns."""
+    its meaning cuts it), as a band or a segment by its meaning on Columns. ORIG_YEAR, the year of the column
+    marked Origination date, can split and filter though it isn't a column of the extract."""
     split: list[tuple[str, str]] = []
+    dated = next((c for c, v in columns.items() if (v if isinstance(v, str) else v["means"]) == "origination_date"),
+                 None)
+
+    def no_year(cell: str, what: str) -> None:
+        problems.append(f"{cell}: {what} by {ch.ORIG_YEAR}, the year each loan was made, and no column on Columns "
+                        f"is marked {cat['origination_date'].label}. Mark the column that holds it, or choose again "
+                        f"in the launcher.")
     for key in ("bands", "segments"):
         for name in getattr(chosen, key) or ():
             if name not in columns:
                 problems.append(f"{cells[key]}: {name} isn't a column in this extract. Choose again in the launcher.")
     cut = chosen.cut()
     skip = {c for c in columns if cut is not None and c not in cut}
-    if chosen.split:
+    if chosen.split == ch.ORIG_YEAR and ch.ORIG_YEAR not in columns:
+        if dated:
+            split.append((ch.ORIG_YEAR, "category"))            # one value per year, each against the rest
+        else:
+            no_year(cells["split"], "the launcher splits the pockets")
+    elif chosen.split:
         name = chosen.split
         code = columns.get(name)
         code = code if code is None or isinstance(code, str) else code["means"]
@@ -1268,6 +1578,31 @@ def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, prob
                             f'(Columns!{_col(C_MEANS)}{row_of_col[name]}), which can\'t split the pockets. Only a '
                             f"score, ratio, amount (the booked amount too) or category can. Choose another in the "
                             f"launcher, or fix what it is.")
+    got = {}
+    for key in ("filter", "filter2", "filter3") if chosen.run_kind != ch.NEW_VARIABLE else ():
+        name = getattr(chosen, key)
+        if not name:
+            continue
+        code = columns.get(name)
+        code = code if code is None or isinstance(code, str) else code["means"]
+        where = cells.get(key, "Control")
+        if name == ch.ORIG_YEAR and code is None:
+            if dated:
+                got[key] = name
+            else:
+                no_year(where, "the launcher filters the Grids")
+        elif code is None:
+            problems.append(f"{where}: {name} isn't a column in this extract. Choose again in the launcher.")
+        elif cat[code].cut == "dimension":
+            got[key] = name
+        else:
+            problems.append(f'{where}: "{name}" is marked {cat[code].label} on Columns '
+                            f'(Columns!{_col(C_MEANS)}{row_of_col[name]}), and only a category (or '
+                            f'{ch.ORIG_YEAR_LABEL}) can filter the Grids. Choose another in the launcher, or fix '
+                            f'what it is.')
+    # a later filter with an earlier one empty moves up: Filter 2 alone is the one filter, Filter 3 without Filter 2
+    # is the second (the filters narrow in order, and none stands alone after a gap)
+    filt, filt2, filt3 = ([got[k] for k in ("filter", "filter2", "filter3") if got.get(k)] + [None] * 3)[:3]
     if chosen.run_kind == ch.NEW_VARIABLE and chosen.outcome:
         code = columns.get(chosen.outcome)
         code = code if code is None or isinstance(code, str) else code["means"]
@@ -1277,7 +1612,7 @@ def _cuts_chosen(chosen, cells: dict, columns: dict, row_of_col: dict, cat, prob
             problems.append(f"{cells['outcome']}: the launcher tests against {chosen.outcome}, and {where} doesn't "
                             f"mark it {cat['outcome'].label}. Mark it so, or choose the outcome again in the "
                             f"launcher.")
-    return split, skip
+    return split, skip, filt, filt2, filt3
 
 
 def _what_is_run(wb, book: Path, use: dict, columns: dict, cat, problems: list[str], made: tuple = ()) -> dict | None:
@@ -1344,6 +1679,30 @@ def what_was_run(used: dict) -> str | None:
         return None
     step = labels.get((STEP, used.get(STEP))) if used.get(RUN_KIND) == NEW_VARIABLE else None
     return f"{kind}: {step[0].lower() + step[1:]}" if step else kind
+
+
+def _bureau_lines(res, table) -> list[str]:
+    """What Control's answer of Yes to "Treat values ≤ -99,000,000 as missing in every column?" did, in the Run's
+    lines (the firm, 30 Sep 2026): each column this Run read that it caught codes in, with its loans, counted from
+    the extract itself."""
+    if (getattr(res, "control_used", None) or {}).get(BUREAU) != "yes":
+        return []
+    from .ingest import BLANK, Bad, parse_number
+    line = cfgmod.BUREAU_CODE_LINE
+    hit = []
+    read = set(res.config.referenced_columns()) | {res.config.filter_by} | {(res.config.split or (None,))[0]}
+    for c in table.columns:
+        rule = res.config.missing.get(c)
+        if c not in read or rule is None or rule.at_or_below is None:
+            continue
+        n = 0
+        for x in table.rows:
+            p = parse_number(x.get(c))
+            n += p is not BLANK and not isinstance(p, Bad) and p <= rule.at_or_below
+        if n:
+            hit.append(f"{c} on {_n(n, 'loan')}")
+    said = f"Values at or below {cfgmod.plain_value(line)} treated as missing (Control)"
+    return [f"{said}: {'; '.join(hit)}." if hit else f"{said}: none in any column."]
 
 
 def _ran_words(res) -> str:
@@ -1417,6 +1776,7 @@ def _band_widths(raw: dict, widths: dict[str, float], cfg, table, cells: dict[st
             continue
         b.pop("count", None)
         b.pop("cut", None)
+        b.pop("few_values", None)
         b["edges"] = pts or [round(first, 10)]
     return out
 
@@ -1457,6 +1817,57 @@ PROVISIONAL = {"min_events": "10 losses", "materiality": "No floor", "compare_to
                "confidence": "95%", "revenue_line": "Each pocket's own test (suggested)"}
 
 
+#: Set up's quick estimate (the firm, 1 Oct 2026, on 184,937 loans and 168 grids taking over 3.5 minutes: "Will the
+#: quick estimates be as accurate? ... Test it and let's see"). Worse at and better at read only how many loans each
+#: pocket holds, so on a big book they are worked out from a sample of the grids: every segment column the same
+#: number of times, every band column within one of equally often, chosen the same way on every Set up. Fewest
+#: loans reads the whole book's rate and is never sampled. Tested on ten synthetic books of 17,000 and 185,000
+#: loans x 12 band columns x 14 segment columns (BACKLOG.md 6d): 28 grids matched every grid to the 0.01x shown in
+#: every book; 14 was one step off in one book, and 24 and 40, which favour some segment columns, in three. Run
+#: works every suggestion out from every grid, and says so beside it where the estimate was different
+SAMPLE_ROUNDS = 2
+SAMPLE_LEAST = 28                         # never fewer grids than were tested: a book of this many or fewer reads all
+SAMPLE_SEED = 20261001
+SAMPLED_KEYS = ("worse_at", "better_at")
+QUICK = "quick estimate"                  # _about's A5: what Set up's sample said, for Run to check
+
+
+def suggest_pairs(bands: list[str], segments: list[str], rounds: int = SAMPLE_ROUNDS,
+                  seed: int = SAMPLE_SEED) -> set[tuple[str, str]] | None:
+    """The (band, segment) grids Set up's suggestions read: None, every grid, when the sample would be all of them.
+    The sample is a multiple of the segment columns, at least `rounds` x the larger count and at least SAMPLE_LEAST,
+    so every segment column comes up equally often and every band column within one of equally often. Grid t of the sample is band t mod
+    B and segment (t + t // lcm(B, D)) mod D, over orders shuffled by a fixed seed: no grid comes up twice."""
+    nb, nd = len(bands), len(segments)
+    if not nb or not nd:
+        return None
+    k = nd * math.ceil(max(SAMPLE_LEAST, rounds * max(nb, nd)) / nd)
+    if k >= nb * nd:
+        return None
+    rng = random.Random(seed)
+    bs, ds = list(bands), list(segments)
+    rng.shuffle(bs)
+    rng.shuffle(ds)
+    lcm = nb * nd // math.gcd(nb, nd)
+    return {(bs[t % nb], ds[(t + t // lcm) % nd]) for t in range(k)}
+
+
+def _quick_text(values: dict[str, float], sample: tuple[int, int]) -> str:
+    return ";".join([f"grids={sample[0]}/{sample[1]}"] + [f"{k}={values[k]}" for k in SAMPLED_KEYS if k in values])
+
+
+def _quick_of(wb) -> tuple[dict[str, float], tuple[int, int]] | None:
+    """Back from _about's A5: Set up's sampled values and (grids read, grids in all); None when it read every grid."""
+    if ABOUT not in wb.sheetnames or wb[ABOUT]["A5"].value != QUICK:
+        return None
+    try:
+        parts = dict(x.split("=", 1) for x in str(wb[ABOUT]["B5"].value).split(";"))
+        k, total = (int(x) for x in parts.pop("grids").split("/"))
+        return {key: float(v) for key, v in parts.items()}, (k, total)
+    except (ValueError, KeyError):
+        return None
+
+
 def _suggest_values(res, which: set[str]) -> tuple[dict[str, float], set[str]]:
     """_suggested without touching `res`: the values, and those with nothing to work them out from."""
     had = getattr(res, "suggest_fallback", None)
@@ -1470,7 +1881,7 @@ def _suggest_values(res, which: set[str]) -> tuple[dict[str, float], set[str]]:
 
 
 def _suggest_at_set_up(wb, book: Path, table, memory_path, testing: bool = False
-                       ) -> tuple[dict[str, float], set[str]]:
+                       ) -> tuple[dict[str, float], set[str]] | tuple[dict[str, float], set[str], tuple[int, int]]:
     """The suggested Control answers, before anyone has answered anything (the
     firm, 26 Sep 2026: "configure what you can, and then do the workbook config
     items so that there are suggestions to be made"). The pockets are cut as
@@ -1484,7 +1895,10 @@ def _suggest_at_set_up(wb, book: Path, table, memory_path, testing: bool = False
     A test of a new variable (`testing`) builds no pocket, so its one suggestion, worse at, comes from the
     confirmation's own groups instead (`test_gap`): the pre-spec's column cut into its groups on the loans they
     were found on. No bleed grid is built for it (found 27 Sep 2026: this first pass cut every column as a bleed
-    would, the grids a new variable never shows)."""
+    would, the grids a new variable never shows).
+
+    On a book of more grids than the sample (suggest_pairs), only the sampled grids are built, and a third value
+    says how many of how many: (grids read, grids in all)."""
     changed: list[tuple[Any, Any]] = []
 
     def put(cell, v) -> None:
@@ -1527,7 +1941,11 @@ def _suggest_at_set_up(wb, book: Path, table, memory_path, testing: bool = False
             named = prespec.named(ps, ranges={c: confirmatory.column_range(res, c) for c in ps.columns})
             gap = test_gap(confirmatory.run_tests(res, named), cfg.benchmark.confidence)
             return ({"worse_at": gap}, set()) if gap is not None else ({}, set())
-        return _suggest_values(engine.run(first, table), set(SUGGEST_KEYS))
+        pairs = suggest_pairs([b.name for b in first.bands], [d.name for d in first.dimensions])
+        values, fallback = _suggest_values(engine.run(first, table, pairs=pairs), set(SUGGEST_KEYS))
+        if pairs is None:
+            return values, fallback
+        return values, fallback, (len(pairs), len(first.bands) * len(first.dimensions))
     except Exception:
         # a book the first pass can't cut yet (no outcome marked, say): the Run works them out instead
         return {}, set()
@@ -1578,16 +1996,36 @@ def _suggest_from_the_test(res, picked: set[str]) -> None:
             **{**b.__dict__, "worse_at": value, "better_at": better})})
 
 
+def _said(key: str, v) -> str:
+    return f"{v:,.0f}" if key == "min_loans" else f"{v:.2f}x"
+
+
 def _suggestion_words(key: str, v: float, fallback: bool, when: str) -> str:
-    said = f"{v:,.0f}" if key == "min_loans" else f"{v:.2f}x"
+    said = _said(key, v)
     if fallback:
         return f"usual value: {said} (nothing in this extract to work it out from)"
     return f"suggested: {said}, {when}"
 
 
-def _suggestions(ws, values: dict[str, float], fallback: set[str], when: str) -> None:
+def _checked_words(key: str, v: float, quick, used) -> str:
+    """At Run, after the suggestion: where Set up's quick estimate (`quick`, from _quick_of) said something else at
+    the rounding shown, what it said, and whether that is the answer chosen (`used`, Control's answer as the run
+    read it). Empty where they agree, or Set up read every grid."""
+    if not quick or key not in quick[0] or _said(key, quick[0][key]) == _said(key, v):
+        return ""
+    est, (k, total) = _said(key, quick[0][key]), quick[1]
+    if isinstance(used, (int, float)) and not isinstance(used, bool) and _said(key, used) == est:
+        return (f". The answer chosen, {est}, is Set up's quick estimate from {k} of {total} grids: every grid "
+                f"says {_said(key, v)}")
+    return f". Set up's quick estimate, from {k} of {total} grids, was {est}"
+
+
+def _suggestions(ws, values: dict[str, float], fallback: set[str], sample: tuple[int, int] | None = None,
+                 when: str = "", quick=None, used: dict | None = None) -> None:
     """The worked-out value beside each suggested setting, so it is seen before
-    it is chosen. The answer cell is left alone (ruling OC-13)."""
+    it is chosen. The answer cell is left alone (ruling OC-13). `sample`: Set up read
+    only that many of the grids (suggest_pairs), said beside worse at and better at.
+    `quick` and `used`, at Run: where Set up's estimate differs from every grid's (_checked_words)."""
     for r in ws.iter_rows(min_row=control.FIRST_ROW):
         key = r[control.KEY_COL - 1].value
         if key not in SUGGEST_KEYS:
@@ -1596,9 +2034,15 @@ def _suggestions(ws, values: dict[str, float], fallback: set[str], when: str) ->
         if v is None and ws.row_dimensions[r[0].row].hidden:
             ws.cell(row=r[0].row, column=SUGGEST_COL).value = None      # not asked for this run (only_when)
             continue
-        c = ws.cell(row=r[0].row, column=SUGGEST_COL,
-                    value=_suggestion_words(key, v, key in fallback, when) if v is not None
-                    else "Worked out when you press Run")
+        words = "Worked out when you press Run"
+        if v is not None:
+            said_when = when
+            if sample and key in SAMPLED_KEYS and key not in fallback:
+                said_when = f"{when}: a quick estimate from {sample[0]} of its {sample[1]} grids, checked on all at Run"
+            words = _suggestion_words(key, v, key in fallback, said_when)
+            if key not in fallback:
+                words += _checked_words(key, v, quick, (used or {}).get(key))
+        c = ws.cell(row=r[0].row, column=SUGGEST_COL, value=words)
         c.font = Font(name="Calibri", size=10, bold=v is not None and key not in fallback,
                       color=INK if v is not None else SLATE)
         c.alignment = Alignment(horizontal="left", vertical="center")
@@ -1635,23 +2079,37 @@ def _save(wb, book: Path) -> bool:
 
 
 @control.settings_once
-def run(book: str | Path, extract: str | Path | None = None, memory_path: str | Path | None = None) -> Outcome:
+def run(book: str | Path, extract: str | Path | None = None, memory_path: str | Path | None = None,
+        progress=timing.no_progress) -> Outcome:
+    """Run from the workbook, each stage timed (Record's "Where the time went", and a line of the Run's: the firm,
+    30 Sep 2026, a Run of 578 s on the bank's laptop and nothing saying where it went). `progress(stage)` is
+    called as each stage starts, for the launcher to show; by default it does nothing."""
+    with timing.running(timing.Clock(progress)) as clock:
+        out = _run(book, extract, memory_path)
+    out.timings = clock.rows()
+    return out
+
+
+def _run(book: str | Path, extract: str | Path | None = None, memory_path: str | Path | None = None) -> Outcome:
     """Run from the workbook. `extract` is the file picked in the launcher; it
     wins over the path remembered at set up, so a workbook copied to another
     folder runs that folder's extract (second walk, defect 1).
 
     The workbook is loaded once and saved once (found 26 Sep 2026: a Run loaded
     it eight times and saved it three): every reader and writer below is handed
-    the open workbook."""
+    the open workbook. Each stage is timed as it starts and said to the launcher's progress line (run's `progress`)."""
     book = Path(book)
+    progress = timing.mark                     # each stage both timed and said to the launcher's line
     if not book.exists():
         return Outcome(False, book, [f"Couldn't find {book.name}. Press Set up first."])
     if not _writable(book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
+    timing.mark("Opening the workbook")
     try:
-        wb = load_workbook(book)
+        wb = _load(book)
     except Exception as exc:  # the file itself: in words, never a traceback
         return Outcome(False, book, [f"Couldn't open {book.name}: {exc}. Press Set up again."])
+    timing.mark("Reading the answers")
     raw, problems, about = read_book(book, memory_path, wb=wb)
     if raw is not None:
         try:
@@ -1671,12 +2129,17 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
             beside = book.with_name(str(about["extract name"]))
             if beside.exists():
                 src = beside
-    if not src.exists():
-        return Outcome(False, book, [f"Couldn't find the extract {src.name}. Put it beside the workbook, or pick "
-                                     f"it in the window."])
-    if about.get("sha256") and hashlib.sha256(src.read_bytes()).hexdigest() != about["sha256"]:
+    timing.mark("Reading the extract")
+    try:
+        # read once, and its fingerprint taken from the same bytes (the bank, 30 Sep 2026: the fingerprint's own
+        # read raised PermissionError with the extract open in Excel, and a traceback opened in Notepad)
+        table = read_table(src)
+    except OSError as exc:
+        return Outcome(False, book, [cant_read(src, exc, "Run")])
+    timing.note(f"{src.name}: {table.kind}, {len(table.rows):,} rows x {len(table.columns):,} columns",
+                extract_kind=table.kind, extract_rows=len(table.rows), extract_columns=len(table.columns))
+    if about.get("sha256") and table.sha256 != about["sha256"]:
         notes.append(f"{src.name} has changed since Set up. If columns were added or renamed, press Set up first.")
-    table = read_table(src)
     far = _band_widths(raw, about.get("_widths") or {}, cfg, table, about.get("_edge_cells"))
     if about.get("_widths") and not far:
         cfg = cfgmod.parse(raw)
@@ -1693,6 +2156,7 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
             # first pass needs rates and pocket sizes only, so it runs no shuffle test
             first = cfg if cfg.benchmark is None else cfgmod.Config(**{
                 **cfg.__dict__, "benchmark": cfgmod.Benchmark(**{**cfg.benchmark.__dict__, "shuffles": 0})})
+            progress("Working out the suggested settings")
             res = engine.run(first, table)
             suggested = _suggested(res, about["_suggest"])
             bm = raw["benchmark"]
@@ -1703,10 +2167,10 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                 bm["better_at"] = round(1 / bm["worse_at"], 2)
             fallback = getattr(res, "suggest_fallback", set())
             cfg = cfgmod.parse(raw)
-            res = engine.run(cfg, table)
+            res = engine.run(cfg, table, progress=progress)
             res.suggest_fallback = fallback
         else:
-            res = engine.run(cfg, table)
+            res = engine.run(cfg, table, progress=progress)
         res.suggested = suggested
         res.control_used = about.get("_use") or {}
         if not testing:
@@ -1723,13 +2187,17 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
         return _refused(wb, book, ["Couldn't run:", msg], Outcome(False, book, [f"Couldn't run: {msg}"]))
     except perm.NumpyMissing as exc:
         return _refused(wb, book, ["Couldn't run:", str(exc)], Outcome(False, book, [f"Couldn't run: {exc}"]))
+    if about.get("_scout") is not None:
+        timing.mark("Scouting")
     waits = _scout(res, about, book)            # Goal 2 item 9: find on the development loans, write the pre-spec
     if isinstance(waits, Outcome):
         return _refused(wb, book, waits.lines, waits)
     about["_wb"] = wb
+    timing.mark("Confirmatory tests and checks")
     checks.attach(book, about, res)             # fixes 3.12, 3.15: the pre-spec's state and the edges on Columns
     if testing:
         _suggest_from_the_test(res, about.get("_suggest") or set())
+    timing.mark("Remembering the answers")
     forgotten = _forget(wb, memory_path)
     dropped = {g.split(" ", 1)[1] for g in forgotten if g.startswith("column ")}
     if dropped:
@@ -1740,21 +2208,37 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     cat = meanings.catalog()
     bands_only = {c for c, v in (cfg.columns or {}).items() if cat.get(v[0]) and cat[v[0]].cut == "band"}
     memory.remember_edges({c: typed.get(c) for c in bands_only if c not in dropped}, memory_path)
+    progress("Writing the workbook")
     _write_results(wb, book, res, memory_path, src, dropped, len(table.columns))
     from . import look                  # fix 3.8: the Look tab's scatters, only when the split or the bands moved
-    look.refresh(wb, res.table or table, res.config.split and res.config.split[0],
-                 [b.field for b in res.config.bands])
+    timing.mark("Writing Look")
+    split_col, band_cols = res.config.split and res.config.split[0], [b.field for b in res.config.bands]
+    if look.answers_moved(wb, res.config.missing):
+        # a Treat as answer changed since Look was drawn (at the bank, 29 Sep 2026: a -99,000,901 answered missing
+        # still set Look's smallest and mean): the blocks are drawn again from what the Run reads
+        look.write_look(wb, res.table or table, look.drawn_columns(wb), split=split_col, bands=band_cols,
+                        edge_rows={str(r[C_NAME - 1].value): r[0].row for r in table_rows(wb["Columns"])
+                                   if r[C_NAME - 1].value},
+                        treat_rows=_treat_rows(wb["Columns"]), rules=res.config.missing, keep_inputs=True)
+    else:
+        look.refresh(wb, res.table or table, split_col, band_cols, rules=res.config.missing)
+    timing.mark("Writing Record")
+    _bureau_on_columns(wb["Columns"], res.config.missing, res.table or table)
     summary = _headline(res, wb)
     _log(wb, [_ran_on(res, src) + _ran_words(res)]
          + scout_tab.log_lines(res)             # Goal 2 item 9: what scouting wrote, before any held-back result
+         + _bureau_lines(res, res.table or table)   # Control's codes answer, per column (30 Sep 2026)
          + [f"Confirmation waits: {w}" for w in res.scout_waits]
          + confirmatory.log_lines(res)          # fix 3.15: held to a pre-spec, and whether it touched the holdout
          + scout_tab.held_back_lines(res)       # OC-51: the tree's out-of-time check read the held-back loans too
          + [f"Warning: {_plain_warning(w)}" for w in res.warnings], redraw=False)
     _record(wb, res, src, f"{book.stem} - what ran.yaml")     # Check and the Log, this Run's entry included
     _order(wb)
+    timing.mark("Saving the workbook")
+    bounds.bound(wb)                            # whole columns of the Run's tables, ended at their last row
     if not _save(wb, book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
+    timing.mark("Writing the record file")
     audit = book.with_name(f"{book.stem} - what ran.yaml")
     head = "# Exactly what the last Run used.\n"
     if per_pocket(res):
@@ -1767,8 +2251,14 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
     head += "".join(f"# {x}\n" for x in scout_tab.held_back_lines(res))
     if isinstance(raw.get("benchmark"), dict) and cfg.benchmark is not None:
         raw["benchmark"].setdefault("shuffles", cfg.benchmark.shuffles)
+    clock = timing.current()
+    if clock is not None:
+        head += "".join(f"# Took {timing.took(s)}: {k}\n" for k, s in clock.rows())
     audit.write_text(head + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     lines = notes + [_ran_on(res, src) + _ran_words(res)]
+    each = getattr(res, "value_bands", {})
+    lines += [engine.EACH_VALUE_SAYS.format(b.field) + "." for b in res.config.bands if b.name in each]
+    lines += _bureau_lines(res, res.table or table)
     lines += _top_lines(res)
     lines += scout_tab.launcher_lines(res)
     lines += confirmatory.launcher_lines(res)
@@ -1795,19 +2285,29 @@ def run(book: str | Path, extract: str | Path | None = None, memory_path: str | 
                          + "; ".join(usual) + ".")
     if cfg.split and bleed_tabs(res):
         sf, how = cfg.split
-        lines.append(f"Split by {sf}: " + ("each pocket halved at its own median. See the Split tab, and Pockets "
+        lines.append(f"Split by {sf}" + (f" (the year in {cfg.origination_date})" if sf == ch.ORIG_YEAR else "")
+                     + ": " + ("each pocket halved at its own median. See the Split tab, and Pockets "
                                            f"split by {sf}." if how == "own_median" else
-                                           f"one layer per value. See Pockets split by {sf}.")
+                                           f"each pocket split by each value. See the Split tab, and Pockets split "
+                                           f"by {sf}.")
                      + f" {sf} isn't cut on its own while it splits.")
+    if cfg.filter_by and bleed_tabs(res) and res.filter_values:
+        lines.append(f"Grids filter by {filter_words(res)}: {filter_counts(res)}.{filter2_said(res)} Pick one in "
+                     f"Grids' Only loans where.")
     if dropped:
         lines.append(f"Forgot {', '.join(sorted(dropped))}, as marked on Columns. Check "
                      f"{'it' if len(dropped) == 1 else 'them'} and set C3 to Yes before the next Run.")
+    # months to charge-off (the firm, 1 Oct 2026): what it left out, said on the Run's lines as on the Log and Check
+    lines += [w for w in res.warnings if w.startswith(engine.CO_SAID)]
     tested = getattr(getattr(res, "prespec", None), "tests", None) or []
     lines.append(f"Open {book.name}: start with "
                  + (f"{confirm_tab.SHEET}." if tested and all(x.problem is None for x in tested)
                     else "Pockets." if bleed_tabs(res) else f"{scout.SHEET}." if res.scout is not None
                     else f"{record.SHEET}."))
     summary["first"] = first_lines(lines)
+    if clock is not None:
+        clock.stop()
+        lines.insert(len(lines) - 1, timing.took_line(clock))     # "Open ...: start with" stays last
     if res.scout_waits:
         # found and written, not yet confirmed: the pre-spec asks for an answer first (OC-13)
         lines += ["The held-back loans weren't tested yet. The pre-spec scouting wrote waits for:"] + \
@@ -1908,24 +2408,26 @@ def _forget(wb, memory_path) -> list[str]:
 
 def _headline(res, wb) -> dict:
     """What the launcher's last step shows: how many pockets read worse and
-    material on charge-offs (the loss share of loans without them), what they
-    lost above their share, the tie-outs, and every odd value still unanswered."""
+    material on GCOs (the loss share of loans without them), what they
+    lost above their share with each loan counted once, the tie-outs, and every odd value still unanswered."""
     rates = [m for m in res.measures if m.is_rate]
     m = next((x for x in rates if x.name == "gco_rate"), rates[0] if rates else None)
-    worse, pockets = [], 0
+    worse, pockets, borderline = [], 0, 0
     for g in res.grids if m is not None else ():
         for _, c in g.inner():
             pockets += 1
             s = c.rates[m.name]
-            if s.flag == engine.WORSE and s.material is not False and s.dollars and s.dollars > 0:
+            if engine.worse_and_material(s):
                 worse.append(s.dollars)
+                borderline += s.worse_borderline is not None
     open_qs = []
     if "Columns" in wb.sheetnames:
         name = None
         for r in table_rows(wb["Columns"]):
             name = r[C_NAME - 1].value or name
             key = r[C_QKEY - 1].value if len(r) >= C_QKEY else None
-            if isinstance(key, str) and key.count("|") == 2 and not r[C_TREAT - 1].value:
+            if isinstance(key, str) and key.count("|") == 2 and not r[C_TREAT - 1].value \
+                    and BUREAU_WORDS not in str(r[C_ODD - 1].value or ""):     # answered on Control, not open
                 cell = f"{_col(C_TREAT)}{r[0].row}"
                 open_qs.append({"sheet": "Columns", "cell": cell,
                                 "says": f"{key.split('|')[0]}: {r[C_ODD - 1].value}, used as recorded. Answer it "
@@ -1934,8 +2436,10 @@ def _headline(res, wb) -> dict:
     if not bleed_tabs(res):
         return {**confirmatory.headline(res), "open": open_qs}      # the confirmation's tiles (OC-42)
     return {"measure": m.title if m is not None else None, "gco": m is not None and m.name == "gco_rate",
-            "worse": len(worse), "pockets": pockets, "dollars": sum(worse), "tie_outs": res.tie_outs,
-            "open": open_qs}
+            "worse": len(worse), "pockets": pockets, "tie_outs": res.tie_outs,
+            # each loan once (the firm, 1 Oct 2026); the pockets' own dollars added up counted a loan once per grid
+            "dollars": res.once[m.name].dollars if m is not None and m.name in res.once else sum(worse),
+            "borderline": borderline, "open": open_qs}
 
 
 def _edges_outside(wb, raw: dict, cfg, table) -> list[str]:
@@ -2012,6 +2516,35 @@ def _plain(problem: str) -> str:
             .replace("`columns:`", "the Columns tab").replace("`", '"'))
 
 
+def filter_words(res, which: int = 1) -> str:
+    """The Grids' filter column (Filter 2's or Filter 3's, by `which`) as Record and the Run name it: ORIG_YEAR says
+    where its years come from."""
+    f = {1: res.config.filter_by, 2: res.config.filter_by2, 3: res.config.filter_by3}[which]
+    return f"{f} (the year in {res.config.origination_date})" if f == ch.ORIG_YEAR else str(f)
+
+
+def filter_counts(res, which: int = 1) -> str:
+    """Each value the Grids can be filtered to (Filter 2's or Filter 3's, by `which`), with its loans: "2022 (1,012
+    loans), 2023 (998 loans)"."""
+    g = res.grids[0] if res.grids else None
+    out = []
+    for v in {1: res.filter_values, 2: res.filter_values2, 3: res.filter_values3}[which]:
+        key = tuple(v if k == which else None for k in (1, 2, 3))
+        n = g.filtered[key].cells[(engine.ALL, engine.ALL)].rows if g is not None and key in g.filtered else None
+        out.append(v if n is None else f"{v} ({_n(n, 'loan')})")
+    return ", ".join(out)
+
+
+def filter2_said(res) -> str:
+    """Filter 2, and Filter 3 with it, as the Run's line and Record add them after Filter 1's: blank with none."""
+    if not (res.config.filter_by2 and res.filter_values2):
+        return ""
+    if res.config.filter_by3 and res.filter_values3:
+        return (f" And by {filter_words(res, 2)}: {filter_counts(res, 2)}. And by {filter_words(res, 3)}: "
+                f"{filter_counts(res, 3)}; the three together keep the loans with all three.")
+    return f" And by {filter_words(res, 2)}: {filter_counts(res, 2)}; the two together keep the loans with both."
+
+
 def _names(res) -> dict[str, str]:
     """Grid band/dimension names back to the extract's own column names."""
     out = {b.name: b.field for b in res.config.bands}
@@ -2044,7 +2577,8 @@ def _top_lines(res) -> list[str]:
                 # the dollars of the comparison that decides the flag (the firm, 26 Sep 2026)
                 if s.dollars and s.dollars > 0 and s.flag == engine.WORSE and s.material is not False:
                     if best is None or s.dollars > best[0]:
-                        best = (s.dollars, f"{names[g.band]} {b} / {names[g.dimension]} {d}")
+                        best = (s.dollars, live.flagged(f"{names[g.band]} {b} / {names[g.dimension]} {d}",
+                                                        s.worse_borderline))
         tested = any(c.rates[m.name].reading_topline not in (engine.THIN, engine.FEW, None)
                      for g in res.grids for _, c in g.inner())
         if best:
@@ -2072,6 +2606,7 @@ def _log(wb, lines: list[str], redraw: bool = True) -> None:
 
 def _write_results(wb, book: Path, res, memory_path, src: Path, forgotten: set[str] | None = None,
                    ncols: int | None = None) -> None:
+    grey = summary_chart.typed_grey(wb)         # Summary's Grey rows under survives the Run (the firm, 2 Oct 2026)
     for t in RESULT_TABS[:-1] + ("Materiality", "Learned"):
         if t in wb.sheetnames:
             del wb[t]
@@ -2081,10 +2616,16 @@ def _write_results(wb, book: Path, res, memory_path, src: Path, forgotten: set[s
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     if bleed_tabs(res):
         _write_bleed(wb, res, stamp)
+    if res.scout is not None:
+        timing.mark(f"Writing {scout.SHEET}")
     scout_tab.write(wb, res, stamp)             # Goal 2 item 9: only when this Run scouted (Scouting)
+    if getattr(res, "prespec", None) is not None:
+        timing.mark(f"Writing {confirm_tab.SHEET}")
     confirm_tab.write(wb, res, stamp)           # 4b and 4e: only when testing from a pre-spec (New variables)
+    timing.mark("Writing Control, Columns and Start here")
     live.ensure(wb, res)                        # the names Control's materiality panel reads, with no tab of its own
     _write_rest(wb, book, res, memory_path, src, forgotten, ncols, stamp)
+    summary_chart.keep_grey(wb, grey)
 
 
 def bleed_tabs(res) -> bool:
@@ -2094,9 +2635,34 @@ def bleed_tabs(res) -> bool:
 
 
 def _write_bleed(wb, res, stamp: str) -> None:
-    """The bleed analysis's tabs, the redesign's phase 3: Pockets, Paid cost kept, Grids (with how common each
+    """The bleed analysis's tabs, the redesign's phase 3: Pockets, RANR vs GCOs, Grids (with how common each
     group is, fix 3.12) and Split (results.py)."""
     results.write(wb, res, stamp)
+
+
+#: on Columns, beside a column the last Run gave one band per value (the firm, 30 Sep 2026). A suggestion only: what
+#: the column is stays as answered and remembered
+FEW_VALUES_WHY = " Few values ({} to {}): Category may read better."
+_FEW_VALUES_RE = re.compile(r" ?Few values \([^)]*\): Category may read better\.")
+
+
+def _few_values_words(cols, res) -> None:
+    """"Why we think so" on Columns: the suggestion for each column this Run gave one band per value, and none
+    beside a column it didn't (an earlier Run's taken off, so typed edges clear it at the next Run)."""
+    each = {b.field: getattr(res, "value_bands", {}).get(b.name) for b in res.config.bands}
+    for row in table_rows(cols):
+        name = row[C_NAME - 1].value
+        if not name:
+            continue
+        cell = row[C_WHY - 1]
+        why = _FEW_VALUES_RE.sub("", str(cell.value or ""))
+        vals = each.get(str(name))
+        if vals:
+            why = why.rstrip()
+            why = why + "." if why and why[-1] not in ".!?" else why
+            why += FEW_VALUES_WHY.format(engine.value_text(vals[0]), engine.value_text(vals[-1]))
+        if why != str(cell.value or ""):
+            cell.value = why.strip()
 
 
 def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, stamp: str) -> None:
@@ -2104,7 +2670,8 @@ def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, s
         _last_run_used(wb, res)
         control.fold_launcher_rows(wb[control.SHEET])     # the rows this kind of run asks, and only those
         if getattr(res, "suggest_all", None):
-            _suggestions(wb[control.SHEET], *res.suggest_all, when="from this extract at the last Run")
+            _suggestions(wb[control.SHEET], *res.suggest_all, when="from this extract at the last Run",
+                         quick=_quick_of(wb), used=getattr(res, "control_used", None))
     if "Columns" in wb.sheetnames:
         cols = wb["Columns"]
         # a Run needs C3 = Yes, so the new columns have been checked and the ask is spent (the final check, F9)
@@ -2137,6 +2704,7 @@ def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, s
                 why = str(row[C_WHY - 1].value or "")
                 if why.startswith("Remembered"):
                     row[C_WHY - 1].value = "Forgotten at the last Run; it was remembered before."
+        _few_values_words(cols, res)
     _write_found(wb, res, stamp)
     if "Start here" in wb.sheetnames:
         # the second walk, defect 9, and the third walk, defect 15: the counts went stale after a run
@@ -2144,12 +2712,23 @@ def _write_rest(wb, book: Path, res, memory_path, src: Path, forgotten, ncols, s
         del wb["Start here"]
         _start_here(wb.create_sheet("Start here", at), wb, src, res.rows,
                     ncols if ncols is not None else len(res.config.columns or {}))
+    glossary.write(wb, glossary.stored(wb, FOUND), stamp)        # this Run's figures (the firm, 2 Oct 2026)
     _order(wb)
 
 
 #: _found's "top" rows: the word, band, segment, loans, the _pockets row, then 1 when Worse? and Material? both read
 #: Yes now, and the running count of those, which Start here's rows MATCH (as Pockets' rows MATCH _list's)
 TOP_BAND, TOP_SEG, TOP_LOANS, TOP_PROW, TOP_SHOWN, TOP_CUM = range(2, 8)
+
+
+#: _found's keys for each loan once (engine.Once), each followed by ":" and the rate's name
+ONCE, ONCE_POCKETS, ONCE_SUM, ONCE_GRIDS, ONCE_LOANS = "once", "once_pockets", "once_sum", "once_grids", "once_loans"
+#: what a total of each loan once reads when Control has moved the pockets since the Run that worked it out
+ONCE_STALE = "Run again to total"
+
+
+#: the measure Start here's tiles count, as they name it (the firm's terms, 30 Sep 2026)
+FOUND_TITLE = {"gco_rate": "GCOs", "outcome_loans": "bad loans", "outcome_booked": "bad dollars"}
 
 
 def _write_found(wb, res, stamp: str) -> None:
@@ -2161,6 +2740,8 @@ def _write_found(wb, res, stamp: str) -> None:
     ws = wb.create_sheet(FOUND)
     ws.sheet_state = "hidden"
     ws.append(["stamp", stamp])
+    # the whole book's figures for the Glossary's examples, kept here so Set up can write them again
+    ws.append([glossary.FOUND_KEY, json.dumps(glossary.figures(res, _names(res)))])
     if not bleed_tabs(res):
         return confirm_tab.write_found(ws, res)     # no pocket was built: what the confirmation found (OC-42)
     rates = [m for m in res.measures if m.is_rate]
@@ -2169,12 +2750,18 @@ def _write_found(wb, res, stamp: str) -> None:
         return
     lv = live.ensure(wb, res)
     names = _names(res)
-    plain = {"gco_rate": "charge-offs", "outcome_loans": "bad loans", "outcome_dollars": "bad dollars"}
     ws.append(["measure", m.name])
-    ws.append(["measure_title", plain.get(m.name, m.title)])
+    ws.append(["measure_title", FOUND_TITLE.get(m.name, m.title)])
     ws.append(["pockets", sum(1 for g in res.grids for _ in g.inner())])
     if "ranr_rate" in {x.name for x in rates}:
         ws.append(["profit", "ranr_rate"])
+    # each loan once (the firm, 1 Oct 2026), worked out at Run: a formula can't tell one loan from another. The
+    # pockets' count and own dollars beside it, so Start here can tell when Control has moved the pockets since
+    for name in {m.name, "ranr_rate"} & set(getattr(res, "once", {}) or {}):
+        o = res.once[name]
+        for key, v in ((ONCE, o.dollars), (ONCE_POCKETS, o.pockets), (ONCE_SUM, o.pocket_sum),
+                       (ONCE_GRIDS, o.grids), (ONCE_LOANS, o.loans)):
+            ws.append([f"{key}:{name}", v])
     top = []
     for g in res.grids:
         for (b, d), c in g.inner():
@@ -2328,7 +2915,7 @@ def which_test(s, peers: bool = True) -> str:
 
 WARN_TEXT = "960019"
 
-#: Together, the two sides of Paid, cost, kept read at once (NEXT-GOAL 3.4; five verdicts since the redesign)
+#: Together, the two sides of RANR vs GCOs read at once (NEXT-GOAL 3.4; five verdicts since the redesign)
 TOGETHER, together_of = results.TOGETHER, results.together_of
 
 
@@ -2543,6 +3130,10 @@ def measure_name(m) -> str:
     return results.PLAIN.get(m.name, m.title)
 
 
+#: Record's line saying what RANR + GCOs rests on (OC-35); "Contribution before losses" until 30 Sep 2026
+CONTRIBUTION_SAID = "What RANR + GCOs assumes"
+
+
 def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
     """Every line Check carried, each in the Record section it belongs in (record.section_of), and Settings: one
     row per Control setting the run asked."""
@@ -2570,6 +3161,14 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
             material = live.count_formula(m.name, [(live.P_FLAG, f'"{engine.WORSE}"'), (live.P_MATERIAL, '"yes"')])
             rows.append((f"Worse now: {title(m)}", f'={worse}&" of {n:,} pockets on the grids read worse; "&'
                                                    f'{material}&" of them are material."'))
+        for m in res.measures:
+            if not m.is_rate or engine.yes_no(m) or not res.config.benchmark.shuffles:
+                continue            # only a shuffled p-value can be borderline (docs/statistics.md B2a)
+            n = sum(1 for g in res.grids for _ in g.inner())
+            said = live.count_formula(m.name, [(live.P_BTXT, '"?*"')])
+            worse = live.count_formula(m.name, [(live.P_WBTXT, '"?*"')])
+            rows.append((f"Borderline now: {title(m)}", f'={said}&" of {n:,} pockets on the grids have a borderline '
+                                                        f'verdict ("&{worse}&" on Worse?)."'))
     rows += _origination_rows(res) + _column_rows(res)
     for m in res.measures:
         lo = res.left_out.get(m.name)
@@ -2603,13 +3202,20 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                          f'=IF({v}="","no line: the dollar line on Control is a GCO amount",{said})'))
     if res.config.split:
         sf, how = res.config.split
-        rows.append(("Split", f"{sf}, " + ("each pocket halved at its own median" if how == "own_median"
-                                          else "one layer per value") + f". {sf} isn't cut on its own while it "
+        named = f"{sf} (the year in {res.config.origination_date})" if sf == ch.ORIG_YEAR else sf
+        rows.append(("Split", f"{named}, " + ("each pocket halved at its own median" if how == "own_median"
+                                          else "each pocket split by each value, and each value set against the "
+                                               "rest of its pocket") + f". {sf} isn't cut on its own while it "
                                                                         f"splits. Split pockets: "
                                                                         f"{sum(1 for g in res.three_way for _ in g.inner()):,}."))
         for f, r in sorted(res.split_moves_with.items(), key=lambda t: -abs(t[1])):
             if f != sf:
                 rows.append((f"How closely {sf} moves with {f}", f"correlation {r:+.2f}"))
+    if res.config.filter_by and res.filter_values:
+        rows.append(("Grids filter", f"{filter_words(res)}: {filter_counts(res)}.{filter2_said(res)} Grids' Only "
+                                     f"loans where builds "
+                                     f"each grid again on one value's loans, set against the whole book. Picked "
+                                     f"in the launcher (Filter by), apart from the split."))
     sug = getattr(res, "suggested", None) or {}
     if sug:
         rate = res.total.rates["outcome_loans"].rate
@@ -2649,8 +3255,13 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                               + (f" Every dollar rate: the loans are shuffled {b.shuffles:,} times, within the band "
                                  f"for the rest of its band, and its p-value is how often a shuffle made a gap as "
                                  f"big." if dollar_rates else "")
-                              + (" Profit and contribution are compared as a gap in points, never a multiple."
+                              + (" RANR and RANR + GCOs are compared as a gap in points, never a multiple."
                                  if profit else "")
+                              + (" A split by a category: each value against the rest of its pocket, as the "
+                                 "halves are compared; and whether the values differ at all, every value at once, "
+                                 "by the K-group Mantel-Haenszel test (general association, on one fewer degrees "
+                                 "of freedom than there are values), bad loans only."
+                                 if res.config.split and res.config.split[1] == "each_value" else "")
                               + f" The split's odds: "
                               f"Cochran-Mantel-Haenszel, which asks whether an odds ratio this far from 1 could "
                               f"come from shuffling loans within their pockets. It has no continuity correction: "
@@ -2660,6 +3271,15 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                                           "after the allowance for many tests. Below ",
                                           ('TEXT(significance_bar,"0%")',), " is significant, at ",
                                           ('TEXT(confidence,"0%")',), " sure. Two-sided: a gap either way counts.")))
+        if dollar_rates:
+            rows.append(("Borderline", live.text(
+                "A verdict is borderline when the p-value that decides it came from shuffling and sits within "
+                f"{stats.BORDERLINE_SE:g} of its own standard errors of the ", ('TEXT(significance_bar,"0%")',),
+                " bar, either side, so another run of the shuffles could read it the other way. The standard error "
+                "is the square root of p (1 - p) / shuffles, times what the allowance for many tests multiplied "
+                "the p-value by. The tabs add \"borderline (p 0.048)\" to the verdict; its colour, order and "
+                "counts stay the verdict's. The z test and the exact test give the same p-value on every run, so "
+                "they are never borderline.")))
         rows.append(("Standard error", live.text("How far a rate worked out from this many loans typically lands "
                                                  "from its true value. A gap of ",
                                                  ('TEXT(NORMSINV(1-(1-confidence)/2),"0.00")',),
@@ -2669,9 +3289,9 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                      "each grid and measure on its own, one comparison at a time"))
     if "contribution_rate" in res.total.rates:
         # the definition the tabs rest on (OC-35): the losses inside RANR are GCO
-        rows.append(("Contribution before losses", "RANR + GCO, per booked dollar. This assumes RANR has gross "
-                                                   "charge-offs taken out. If RANR nets recoveries instead, "
-                                                   "contribution is overstated by the recoveries."))
+        rows.append((CONTRIBUTION_SAID, "RANR + GCOs, per booked dollar. This assumes RANR has the gross GCOs "
+                                        "taken out. If RANR nets recoveries instead, RANR + GCOs is overstated by "
+                                        "the recoveries."))
     if b is not None:
         rows.append(("Decides each pocket", decides(res)))
     if b is not None and profit:
@@ -2693,7 +3313,33 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
         out.setdefault(sec, []).append((k, v))
         before = sec
     out[record.SETTINGS] = _settings_rows(wb, res)
+    out.setdefault(record.THIS, []).extend(time_rows(timing.current()))
     return out
+
+
+#: Record's heading for the stage table, and its last row: what the table can't hold, as it is written before them
+TIME_HEAD, TIME_AFTER = "Where the time went", "Writing Record and saving"
+
+
+def time_rows(clock) -> list[tuple[str, str]]:
+    """Record's "Where the time went" (the firm, 30 Sep 2026: a Run of 578 s at the bank, nothing saying where):
+    each stage finished before Record was written, in the order it ran, its seconds and what it worked on. Record
+    and the save come after the tab is written, so their row says where to read them."""
+    if clock is None:
+        return []
+    done = [(k, v) for k, v in clock.rows() if k != clock._stage]
+    if not done:
+        return []
+    total = sum(v for _, v in done)
+    big = ", ".join(f"{k[0].lower() + k[1:]} {timing.took(v)}" for k, v in sorted(done, key=lambda kv: -kv[1])[:3])
+    rows = [(TIME_HEAD, f"{timing.took(total)} before Record was written. The biggest: {big}.")]
+    for k, v in done:
+        pct = f", {v / total:.0%}" if total > 0 else ""
+        note = clock.notes.get(k)
+        rows.append((f"  {k}", f"{timing.took(v)}{pct}" + (f" ({note})" if note else "")))
+    rows.append((f"  {TIME_AFTER}", "After this tab was written: the Run's Took line in the launcher, and the record "
+                                    "file beside this workbook, give every stage."))
+    return rows
 
 
 def _settings_rows(wb, res) -> list[tuple]:
@@ -2733,7 +3379,8 @@ def _settings_rows(wb, res) -> list[tuple]:
 NO_BLEED = ("Bleed tabs", "None: testing a new variable runs only the confirmatory test. Any left by an earlier "
                           "Run were taken off.")
 #: Check's lines about the bleed analysis's pockets, grids and tests, left off when it wasn't built
-BLEED_ROWS = ("Worse now: ", "Loans needed for ", "Smallest gap ", "Materiality line: ", "Split", "How closely ",
+BLEED_ROWS = ("Worse now: ", "Loans needed for ", "Smallest gap ", "Materiality line: ", "Split", "Grids filter",
+              "How closely ",
               "Pockets tested", "Tests", "The allowance for many tests", "Decides each pocket")
 
 

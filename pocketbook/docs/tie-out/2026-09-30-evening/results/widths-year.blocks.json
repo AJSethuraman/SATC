@@ -1,0 +1,37 @@
+[
+ {
+  "run": "year",
+  "blocks": {
+   "rate": [
+    15,
+    2
+   ],
+   "book": [
+    15,
+    13
+   ],
+   "band": [
+    27,
+    2
+   ],
+   "loans": [
+    27,
+    13
+   ]
+  },
+  "left": 2,
+  "right": 13,
+  "segments": 9,
+  "data widths": [
+   13.0
+  ],
+  "label widths": [
+   20.0,
+   20.0
+  ],
+  "gap": 3.0,
+  "same data width": true,
+  "same label width": true,
+  "band/loans under rate/book": true
+ }
+]

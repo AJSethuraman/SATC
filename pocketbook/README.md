@@ -42,9 +42,15 @@ choose the period before the extract reaches the cube. From the five it builds
 five core rates:
 - the outcome as a share of loans (straight)
 - the outcome as a share of booked dollars (weighted)
-- GCO per booked dollar
-- profit after losses: RANR per booked dollar
-- contribution before losses: RANR + GCO per booked dollar
+- GCOs per booked dollar: **GCOs ($)** on the tabs
+- RANR per booked dollar: **RANR** on the tabs (profit after losses)
+- RANR + GCOs per booked dollar: **RANR + GCOs** on the tabs (profit before losses)
+
+The tabs name these three in the firm's own terms (30 Sep 2026: *"let's rename this list of stuff for a couple
+things and be more literal - Charge-offs = GCOs ($), kept after losses = RANR, earned before losses = RANR +
+GCOs"*); until then they read Charge-offs, Kept after losses and Earned before losses. Only the words changed:
+the keys a workbook, a pre-spec and memory hold (`gco_rate`, `ranr_rate`, `contribution_rate`) did not, so a
+workbook set up before still runs (`tests/test_literal_names_2026_09_30.py`).
 
 ## Using it (no commands)
 
@@ -83,8 +89,22 @@ After that, the whole routine is:
    writes nothing.
 3. **Choose tests.** First, what you're running:
    - *Where the book bleeds:* tick the number columns to **cut into bands**,
-     the categories to **segment by**, and at most one number column to
-     **split every pocket by**. Every number column and every category starts
+     the categories to **segment by**, and at most one column to
+     **split every pocket by**: a number column halves each pocket at its own
+     median; a category of 6 values or fewer splits it by each value (a
+     category with more is refused). A column that splits isn't also cut or a
+     segment. Separately, at most one column to **filter by**: a category of 6
+     values or fewer, whose values Grids' *Only loans where* offers, whatever the
+     split is doing (a category may segment and filter at once), and a
+     second, **Filter 2** (the firm, 30 Sep 2026: two filters, *"independently
+     and in conjunction with each other"*): another such column, offered beside
+     the first, each alone or both at once (ORIG_YEAR = 2023 and SYS_FLAG = Y).
+     One column picked twice is refused, and so is a pair making more than 49
+     views of every grid (All loans and each value, counted on both). When a column
+     is marked *Origination date*, a row **ORIG_YEAR** sits with the categories:
+     the year each loan was made, read from that column, which can split, filter
+     or both; a loan with no readable date is in *(no date)*, a value of its own
+     that isn't counted against the 6. Every number column and every category starts
      ticked. The outcome and dollar columns come after them, with no boxes:
      they go into every measure. It needs
      the five columns below and no date.
@@ -122,24 +142,78 @@ After that, the whole routine is:
      at, the value worked out from this extract ("suggested: 69, from this
      extract"). On the right, what each materiality level keeps, live. A test
      of a new variable isn't asked the profit line.
+     One question more, *Treat values ≤ -99,000,000 as missing in every
+     column?* (the firm, 30 Sep 2026: *"I can guarantee you that they are the
+     bureau missing codes"*). Yes makes every value at or below -99,000,000
+     missing in every column, bands and categories alike, with no Treat as
+     needed; a column answered Real on Columns keeps its values. The Run's
+     lines say how many loans it made missing in each column. No, or blank,
+     changes nothing.
    - **Columns:** one row per column: what it is, why it was suggested, its
      odd values with *Treat as* (Real or Missing) beside them, band edges, and
-     whether it is remembered, with *Forget?*. Set "Checked every column" (C3)
+     whether it is remembered, with *Forget?*. Odd values are looked for in
+     every column of numbers, a category's too, and name the values and their
+     loans as written: *-99,000,900 on 460 loans*, never *-9.90009e+07*. A
+     category answered Missing puts those loans in *(marked missing)*, as a
+     band does. A value missing, by either route, is in no band edge, rate,
+     percentile or Look chart. Set "Checked every column" (C3)
      to Yes; Run waits until it is. Under the table, *Add a column: one
      divided by another*. For a new variable, mark the date each loan was made
      *Origination date*: it splits development loans from the holdout.
+     Mark the date a loan charged off *Charge-off date* (optional; blank on a
+     loan that never did): with an Origination date, Summary gains *Avg* and
+     *Median months to charge-off* and Grids the Measure *Months to charge-off
+     (avg)*, over each row's or pocket's charged-off loans. Months are calendar
+     months, the day ignored: (y2 - y1) x 12 + (m2 - m1). A charge-off before
+     origination or a date that can't be read is left out and counted in a
+     warning (the firm, 1 Oct 2026).
+     Band edges left blank are cut at the Run, each band holding about the
+     same number of loans. On a dollar column (edges of 100 or more) whose
+     values carry cents, every edge PocketBook cuts is a whole number, raised
+     to the next dollar (the firm, 30 Sep 2026: *"Cut at whole dollars is
+     fine"*), and a band's label reads its loans in whole dollars with the
+     cents dropped: $37,950.99 reads 37,950 and sits in *26,324 - 37,950*.
+     So every loan's whole dollars lie inside its own band's label and no
+     other. Edges you type are kept exactly as typed; a whole-number column
+     such as FICO, and a ratio, are cut as before. Scouting's suggested bins
+     follow the same rule, and Record's *Band edges used* shows the edges cut.
+     A number column with few values, most of them the same (Major
+     Derogatories: 0 to 8, most loans at 0), can't be cut into equal bands:
+     every cut lands on the zeros. Rather than refuse the Run (the firm, 30
+     Sep 2026: *"So it refuses to run some stuff because it cannot band"*),
+     a column with Control's *few values* (12) or fewer gets **one band per
+     value**, named by the value (*0*, *1*, ... *8*), and the Run's lines and
+     Record say *"Major Derogatories: too few values to cut into equal bands,
+     so each value is its own band."* Its *Why we think so* adds *Few values
+     (0 to 8): Category may read better.*, a suggestion only: what it is stays
+     as you answered. A column with more values that still collapses is cut
+     as far as it can be (*asked for 5 bands, got 2*); one with a single value
+     is refused, naming the two fixes (set *What it is* to Category, or type
+     Band edges like 1; 2; 5). Band edges you type always win.
    - **Look:** each column that can be cut into bands (not GCO, RANR or the
      outcome): its loans, blanks, likely code (on a red bar
      of its own), smallest, median, mean and largest, and its bars. Pick 10,
      20 or 50 bars and a From and To, and the chart regroups live; the edges
-     typed on Columns show as red dashed lines as you type them. With a split,
+     typed on Columns show as red dashed lines as you type them. The 10th,
+     25th, 50th, 75th and 90th percentiles are listed under the block and
+     drawn as thin grey lines labelled P10 to P90 (worked out as Excel's
+     PERCENTILE.INC, over the same values as the median; a percentile
+     outside From and To isn't drawn). The labels under the bars are short:
+     24k, 1.2M, and a score or a ratio as it is (620, 0.35). With a split,
      a scatter of it against each band column.
 5. **Run.** Save, close the workbook, and press **Run**. If anything
    still needs an answer, the window lists each one by its tab and cell, with
    the question in words and **Open at C23**, which opens the workbook at that
-   cell. While the workbook is open in Excel it says so, and Run waits. When
+   cell. While the workbook is open in Excel it says so, and Run waits. The
+   extract is checked too: open in Excel, or not yet brought down by OneDrive,
+   Run (and Set up) stop and say so by name, with what to do. Anything that
+   stops a Run for another reason is said on the page, under *Run stopped*;
+   something PocketBook didn't expect shows its error's name and message there,
+   with **Copy details** to put the full details on the clipboard to send (a
+   copy is kept in `.pocketbook/last-error.txt`). The window stays open: fix
+   the cause and press Run again. When
    the Run finishes, it shows how many pockets are worse and material on
-   charge-offs, what they lost above their share, the Run's first two lines
+   GCOs, what they lost above their share, the Run's first two lines
    (where to start reading, and a changed pre-spec when there is one), and any
    odd value still unanswered. The results land in the workbook:
    - **New variables:** only when testing from a pre-spec (below).
@@ -150,8 +224,7 @@ After that, the whole routine is:
    slicers (a spreadsheet written by Python can't keep a slicer); each picks
    what the tab shows by formula (design decision OC-43).
    - **Pockets:** every pocket losing more than its share. Pick the **Measure**
-     (Bad loans, Bad dollars, Charge-offs, Kept after losses, Earned before
-     losses), the **Pockets** (two-way, or split by the split column) and
+     (Bad loans, Bad dollars, GCOs ($), RANR, RANR + GCOs), the **Pockets** (two-way, or split by the split column) and
      **Show** (all, worse and material, worse or not sure); the caption counts
      "N worse and material · N worse · N shown". Each row: the pocket, its
      loans, its rate and the rest's, the gap, the excess, **Worse?** (Yes, Not
@@ -163,25 +236,186 @@ After that, the whole routine is:
      is the last Run's, the verdicts and dollars are live. On the split view,
      pockets from grids that don't hold the split's partner fixed come last, in
      grey, reading "No: may be mostly FICO".
-   - **Paid, cost, kept:** one grid at a time (a Grid dropdown). What each
-     pocket paid (earned before losses: RANR + GCO), what it cost (charge-offs)
-     and what was kept (RANR), each as its gap and dollars; pink where worse and
+   - **RANR vs GCOs** (*Paid, cost, kept* until 30 Sep 2026: the firm, *"I want to
+     use the terms I gave you out of the box so it can be understood by
+     insiders"*; a Run takes the old tab off a workbook written before): one grid
+     at a time (a Grid dropdown). Each pocket's **RANR + GCOs**, **GCOs** and
+     **RANR** (the column groups were Paid us, Cost us and Kept), each as its gap
+     and dollars; pink where worse and
      real, green where better and real. **Together** reads the pair: priced for
      it, net drain, strong, safe but idle, earns less, not from losses, or
      losing more, profit holding. A
-     scatter of the grid picked: charge-offs across on a log scale, what was
-     kept up, lines at 1× and 0, the pockets read together named.
-   - **Grids:** a Grid and a Measure dropdown, and four blocks: the rate,
-     against the book, against the rest of its band (heat in the redesign's
+     scatter of the grid picked: GCOs across on a log scale, RANR up, lines at
+     1× and 0, the pockets read together named.
+     **Gross · this pocket alone** (the firm, 30 Sep 2026: *"I would like to
+     work on gross GCO gross booked and gross RANR as well so we can also see
+     if pockets are straight negative on returns"*), right after Loans: each
+     pocket's own **Booked**, **GCOs** and **RANR** dollars and its **RANR ÷
+     Booked**, compared with nothing. A pocket whose RANR is
+     below zero lost money outright, before comparing it with anyone: its RANR
+     and RANR ÷ Booked are red, and the line beside the Grid dropdown counts them
+     ("6 pockets lost money outright, totalling $166,260"). Under the table,
+     **Pockets listed**, **Not listed** (pockets with nothing to compare them
+     with, only when there are any) and **Whole book**, which the first two
+     add up to. Booked is the booked dollars under RANR (a loan with no
+     readable RANR is left out of both), so RANR ÷ Booked is RANR's own rate. Every
+     figure is worked out in the Run; the dollars show in thousands only when
+     the whole book's booked would not fit the column, as on Grids. The block ends
+     on each pocket's **Avg line** and **× book**, as on Summary (2 Oct 2026), in
+     Loan size's one neutral hue, darker the bigger the line against the book's,
+     never red or green; the totals carry them too (Whole book 1.00×).
+   - **Grids:** a Grid and a Measure dropdown, and four blocks one under
+     another from the left column (the firm, 30 Sep 2026: side by side, a
+     narrow grid left a blank middle): the rate,
+     headed with what it divides by what and following the Measure (the firm,
+     30 Sep 2026, asking for *"the COs/booked"* under charge-offs: the Rate
+     block already was it, so its heading now says so): **Rate · GCOs ÷
+     Booked**, **Rate · RANR ÷ Booked**, **Rate · (RANR + GCOs) ÷ Booked**,
+     **Rate · Bad loans ÷ Loans**, **Rate · Bad dollars ÷ Booked**, **Rate ·
+     Average booked per loan**; against the book, against the rest of its band (heat in the redesign's
      tokens, 2× and over deepest) and the loans (shaded by share, no red or
      green). Under them, how many loans and booked dollars fall in each group
      of the split column or a new column, pocket by pocket: a count, not a test
      (it was the Prevalence tab). The split grids are in the Grid list too.
-   - **Split:** only when a number column splits the pockets (below). A Grid
+     A **Row** and a **Column** dropdown beside them (their lists follow the
+     Grid) pick one pocket, and **What one cell says**, under the blocks, reads
+     it out in words from the same cells the blocks show (the synthetic book,
+     Bad loans): "Of these 237 loans, 10.59% went bad", "1.38× the bad-loan
+     rate of the whole book", "0.59× ... of the other loans in 496 - 653 (the
+     Broker, Online loans)", "237 loans; 496 - 653 has 761 in all", and what
+     its colour means. A blank says why: alone in its band, or fewer losses than the
+     minimum. The sentences are fixed by measure (`results.SAY`); only the names
+     and numbers change.
+     A pocket with fewer loans than **Fewest loans in a pocket** on Control (the
+     number the Run used, its suggestion worked out when that was picked) shows
+     its number in **grey**, with no colour, and is left out of the largest gap
+     that sets the scale for a gap in points: a 3-loan pocket at -50 points no
+     longer pales every real gap. What one cell says: "Grey: only 3 loans,
+     fewer than the 30 set on Control, so not coloured." The **vs the book**
+     heading carries the book's own figure for the measure picked ("vs the book
+     (book: 7.73%)"); vs rest of band has none, since its rest differs by row.
+     **Only loans where** *(Filter by column)* **is** (the firm, 30 Sep 2026: the
+     filter had worked only off Split by, *"Wait only works on split by? Isn't that
+     for like above and below median"*; a separate Filter by, *"Yes hoping to have
+     this by morning"*) shows every block and the one-cell reading on only the
+     loans with one value (`Grid.filtered`, built in the engine like any grid),
+     whatever Split by is doing: a number split into halves, a category, or none.
+     Filtered by ORIG_YEAR it reads "only loans where ORIG_YEAR is 2023", and the
+     note says the year comes from the Origination date column. vs
+     the book stays against the **whole book** (the firm: *"we keep things
+     compared to the whole book that's just kind of the point"*); vs rest of
+     band is the rest of the band among those loans; grey and the heat scale go
+     by that view's own cells, and the columns' width fits the filtered values
+     too. With Filter 2 picked, a second dropdown, **and** *(Filter 2 column)*
+     **is**, sits beside it: either one alone, or both for the loans with both
+     ("only loans where ORIG_YEAR is 2023 and SYS_FLAG is Y"), still against the
+     whole book. With no Filter by picked it offers only All loans and says *Pick a
+     Filter by in the launcher.* Record's *Grids filter* row and the Run's line
+     name the column and each value's loans. **Loan size**, in
+     the Measure list when a booked amount is set: booked dollars per loan (the
+     average in Rate, the median read out in words), and the average as a
+     multiple of the book's and of the rest of the band's. It is a
+     description, not a test: no p-value, not on Pockets or Split, and no red
+     or green, only one neutral hue, darker the bigger the loans against the
+     book's.
+   - **Summary** (the firm, 30 Sep 2026: *"a few matrices where it lists out a
+     chosen band on the left and shows real calculated metrics ... unit counts,
+     loan amounts, % of units, % of loan amounts, charged off dollars, ratio"*;
+     the ratio *"Charged off / booked"*): a **Band or category column**
+     dropdown picks any column the Run cut into bands, or any segment column
+     (the firm, 30 Sep 2026: *"the band column should also allow for
+     categories"*; its values in natural order take the bands' place), and, when the launcher picked a Filter by,
+     **Only loans where** *(that column)* **is** narrows it to one value (and
+     Filter 2's dropdown beside it, to the loans with both). Down
+     the side: the bands in order, then (blank), (not a number) and (marked
+     missing) where the column has them, then **All**. Across: Loans, % of
+     loans, Bad loans, Bad loans %, Booked $, Avg line, × book, % of booked, GCOs ($),
+     GCOs ÷ Booked, × book, % of GCOs, RANR $, RANR ÷ Booked, % of RANR.
+     Bad loans % and the two rates are the same rates Grids shows (a loan
+     missing an amount is left out of that rate's top and bottom); × book is
+     the band's GCOs ÷ Booked over the whole book's, filtered or not; the
+     shares are of the All row, so they add to 100% with the special rows in.
+     **Avg line** (the firm, 2 Oct 2026: *"booked dollar averages so more easily
+     demonstrate how line assignments look in pockets"*) is the row's booked dollars
+     over its loans with a booked amount, the average committed line, and the
+     **× book** beside it is that over the whole book's Avg line, filtered or not;
+     both blank where the row has no loans.
+     Every number is worked out by the Run (`engine.summary_rows`) and tied out
+     to the book before it is written; the tab's formulas only pick the row.
+     Nothing is tested: no p-value, no red or green, the All row shaded light
+     grey and nothing else. A column whose source the Run hasn't got is left
+     off and the note says so. Dollars show in thousands ($1,234k) only when
+     the largest would not fit the column.
+     **Grey rows under [50] loans** (the firm, 3 Oct 2026: *"make the really low
+     unit counts grayed out to a degree ... this count should be separately
+     adjustable from all other config items"*), at the top of the tab (C2): every
+     row with fewer loans reads in light grey, at once, as you type another
+     number. Nothing else reads it: not Control, not Fewest loans, not the cube
+     file. A Run writes it back at 50.
+     **Vintage**, under the table (the firm, 3 Oct 2026: *"Could the summary tab
+     have vintage graphs as well? ... basically whatever is there except graphed
+     out"*; chosen: *"Pocket vs rest vs book"*): a line chart, the origination
+     year across the bottom. **Vintage measure** offers every Summary column;
+     **Vintage row** one row of the column picked above (its list follows that
+     dropdown). Three lines: that row, the rest of the book (every other loan),
+     and the whole book (dashed grey), each year's figure worked out by the Run
+     the way the Summary row is (`summary_chart.py`), on the loans Only loans
+     where shows. A share is of that year's loans; a rate or share is drawn in
+     per cent. A point on fewer loans than *Fewest loans in a pocket* is left
+     off its line and grey in the table under the chart. A loan with no
+     readable date is on no line. With no column marked Origination date, one
+     sentence says so in the chart's place. Pictures:
+     `docs/summary-vintage-2026-10-03/`.
+   - **Compare** (the firm, 30 Sep 2026: *"can we make it so they can be
+     visually compared in a graph? Like if we used origination date as a filter
+     it would essentially be vintage years"*, and *"it should not be vintage
+     analysis only ... how would we show that say vintage analysis mixed with
+     like underwriter/system approved?"*; a line chart, chosen over bars): only
+     when the launcher picked a Filter by. **Across the bottom** is any band
+     column's bands, or either filter's values (Origination year there is the
+     vintage view); **Measure** is a rate (bad loans, charge-offs, kept after
+     losses ...); **Lines by** is Filter 1 or Filter 2, one line per value;
+     **Panels by** is the other filter, one small chart per value side by side
+     on **one y scale**, or None. With a filter across the bottom the lines are
+     by the other filter and one chart is drawn, and the tab says so. The
+     dashed grey line is the whole book. A point on fewer loans than *Fewest
+     loans in a pocket* on Control is **left off its line** (#N/A), and shown
+     in grey in the table under the charts, which lists every point's rate and
+     loans. Every number is the Run's (`engine.summaries`, the cells Summary
+     shows) and the dropdowns only pick them (`compare.py`), so the charts
+     redraw live; the charts are scatters with lines, since LibreOffice draws a
+     line chart's #N/A at zero, with the labels across drawn in the chart and
+     the key in cells above it. Nothing is tested. Pictures:
+     `docs/compare-chart-2026-09-30/`.
+   - **Split:** only when a column splits the pockets (below). A Grid
      dropdown and a chip saying whether it holds the split's partner fixed; the
      summary for every measure; whether the gap is the same in every pocket; and
      two grids side by side for the measure picked: high against low, and its
-     p-value.
+     p-value. Split by a category, the Grid dropdown picks a grid and a value,
+     set against the rest of its pocket (the other value, when there are two);
+     there is no partner chip (how a category moves with a band column isn't
+     worked out), and one more line asks whether the values differ at all, for
+     bad loans only (the K-group Mantel-Haenszel test).
+   - **Column widths** (the firm, 29 Sep 2026: *"i prefer to have nice even
+     layouts, or at least the column sizes should make sense for the data we
+     see"*; the survey is `docs/column-widths-survey-2026-09-29.md`). Every
+     width is worked out per Run from the labels and values that Run can show,
+     never set per bank (`house.fit`, `house.two_line_width`). On **Grids**
+     every data column of the four blocks and the groups table under them is
+     one width, wide enough for the longest value and for the longest column
+     label on two lines (9 to 16), and both label columns are one width (12 to
+     28), so the blocks line up. Headers wrap, and every block's header rows are
+     the same height. A **split grid's header is two rows**: the segment, merged
+     over its parts, then each part ("high", "low", or the category's values).
+     Every segment gets every part, in one order, so a part a segment has no
+     loans in is an empty column. Booked dollars in the groups table too long
+     for the widest column show in thousands ($1,234k). **Split**'s two grids
+     follow the same rules, and its Grid dropdown spans B:D with the chip
+     beside it. The label columns of **Pockets**, **RANR vs GCOs** and
+     **Start here** fit the Run's bands and segments (up to 32); **Look**'s
+     label column fits its longest label; **Control** and **Columns** fit
+     their questions, answers, names and samples. `tests/test_widths.py`
+     holds each rule.
    - **Record** (grey tab; it merges Check and the Log): six sections in three
      pairs, read across. *This Run*: the extract, the loans run, what was run,
      the band edges, the split, the range of origination dates (so a wrong
@@ -220,7 +454,7 @@ and what you're running. Control's last column says which.
   smallest gap a pocket could have caught, the heat maps, Record's other counts,
   and a suggested line worked out from the book (it keeps the multiple the Run
   worked out; Run again to work it out at a new confidence level). The scatter
-  on Paid, cost, kept is drawn from the table's own cells, so it follows too.
+  on RANR vs GCOs is drawn from the table's own cells, so it follows too.
 - The formulas work in Excel 2016 and in LibreOffice: nothing needs Microsoft
   365's `SORT` or `FILTER`. They read hidden sheets: `_live` (each line as a
   number), `_pockets` (every pocket's numbers from the Run, and the formulas
@@ -228,12 +462,27 @@ and what you're running. Control's last column says which.
   dropdowns show) and `_views` (every other number, one keyed row each). Unhide
   any of them to follow a reading back to Control.
 
+**Borderline** (the firm, 29 Sep 2026: *"I don't like 'could fall either way'
+but flag it somehow"*, and they chose the word). A dollar rate's p-value comes
+from shuffling, so another run could land it a little differently. When the
+p-value that decides a verdict is a shuffled one within 2 of its own standard
+errors of the bar, either side, the verdict says so: *Net drain · borderline
+(p 0.048)*, *Not sure · borderline (p 0.052)*. It shows on Pockets' Worse?,
+RANR vs GCOs' Together, the Split tab's p-values, Start here's five largest
+and tile, the Run's *Worst for* line and Record, which states the rule and
+counts them. The colour, order and counts stay the verdict's. A z test's or an
+exact test's p-value is the same on every run, so Bad loans are never
+borderline. The rule, and how the allowance for many tests scales the standard
+error, are in `docs/statistics.md` B2a.
+
 **Going a layer deeper.** In the launcher's Choose tests, pick one column
 under *Split pockets by*. A number (revolving debt, say) splits every FICO-by-asset-class pocket
 at that pocket's own median, and the Split tab compares the high half with the
 low half, pocket by pocket and pooled. Each grid says what it holds fixed:
 revolving debt moves with FICO, so a loan-size grid can't tell debt from score,
-and it says so with the number. A category repeats each grid once per value.
+and it says so with the number. A category repeats each grid once per value. ORIG_YEAR (the year of the
+Origination date column) splits too: each year against the rest of its pocket, and
+the Split tab's *Do the values differ at all?* line asks whether the vintages differ.
 Either way, every split pocket is tested and ranked on **Pockets** (pick
 *Split by* in its Pockets dropdown). *Show per pocket* puts a column's median or average in every pocket.
 The Look tab plots a split number against each band column, so you can see
@@ -269,7 +518,7 @@ input is cut at its own bins, and each group is compared with its own reference 
 per candidate. Each row is one comparison, a group against the reference: **Found** (the development loans, where the groups came
 from), **Confirmed** on the held-back loans with *Holds up?*, **Confirmed with the held-fixed columns**
 (the pre-spec's strata: a loan is only compared with loans in its own pocket) with *Still holds?*, then
-**Excess** (the group's charge-offs on the held-back loans above its share, scaled to the whole book;
+**Excess** (the group's GCOs on the held-back loans above its share, scaled to the whole book;
 bad loans when the extract has no GCO), **Material?** against Control's line, and **In words** ("Holds
 up, and not just FICO and CHANNEL"). A saved shortlist was found elsewhere, so its Found columns are
 hidden. The p-values in the table allow for testing every candidate's groups at once, by the method
@@ -305,7 +554,7 @@ reference group is the pre-spec's, and the holdout is the range the test held
 itself to, not the first and last loan in the extract.
 
 A test of a new variable builds none of the bleed analysis: no pocket grid, no
-shuffle test, and none of its tabs (Pockets, Paid cost kept, Grids, Split). It writes New variables
+shuffle test, and none of its tabs (Pockets, RANR vs GCOs, Grids, Summary, Split). It writes New variables
 and Record. If the workbook still has those tabs from an earlier bleed Run, they are
 taken off, and Record says so on one line. Control asks it only what it uses: worse at (the chart's
 line, suggested from the confirmation's own groups), materiality, confidence and the bands; the
@@ -366,7 +615,7 @@ candidates the Run takes 64 s, 59 s of it scouting, under a 4 GB limit (0.56 GB 
 with the tree's check and the candidates together added: about 73 s before and 75 to 77 s after, on a machine
 shared with other work, 0.79 GB at its peak.)*
 
-![Paid, cost, kept: paid, cost and kept for the grid picked, and its chart](docs/paid-cost-kept.png)
+![RANR vs GCOs (then Paid, cost, kept): the three sides for the grid picked, and its chart](docs/paid-cost-kept.png)
 
 If something needs fixing, the window and Record's Every Run say what and where, in
 words, e.g. *Control!C19: "Smallest excess loss worth reporting" needs an answer.* The window lists each one
@@ -385,10 +634,10 @@ dollars (a test of a new variable needs less; above). From those, every such
 run builds:
 - the outcome as a share of loans (straight)
 - the outcome as a share of booked dollars (weighted)
-- GCO per booked dollar
-- profit after losses: RANR per booked dollar (less of it is the bleed)
-- contribution before losses: RANR + GCO per booked dollar (RANR already has
-  GCO taken out)
+- GCOs ($): GCO per booked dollar
+- RANR: RANR per booked dollar, profit after losses (less of it is the bleed)
+- RANR + GCOs: RANR + GCO per booked dollar, profit before losses (RANR already
+  has GCO taken out)
 
 **What each pocket carries:**
 - its rate
@@ -440,7 +689,7 @@ python tools/mutation_check.py     # puts 459 bugs back (29 Sep 2026; the VBA's 
   and at 40,000 loans from 1.4 s to 33 s. Each shuffle is one pass over the
   loans per dollar rate, for the rest of the book and once per band column, so
   by extrapolation, not measured, 200,000 loans would take about 3 minutes.
-- Contribution before losses (26 Sep 2026) is a fourth dollar rate to
+- RANR + GCOs (then called contribution before losses, 26 Sep 2026) is a fourth dollar rate to
   shuffle: the same whole Run on 8,000 loans now takes 9.9 s.
 - Set up on 17,000 loans by 80 columns (26 Sep 2026): 159.5 s, 84% of it
   trying every date pattern on every value, down to 9.5 s once a shape check
