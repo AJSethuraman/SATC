@@ -49,6 +49,7 @@ from . import results                                   # the redesign, phase 3:
 from . import record                                    # the redesign, phase 4: Check and the Log as Record
 from . import scout, scout_tab                          # Goal 2 item 9: scouting, then the confirmation
 from . import bounds, timing                            # where the time goes, at a Run and in Excel (30 Sep 2026)
+from . import summary_chart                           # Summary's Grey rows under, kept across Runs (3 Oct 2026)
 from . import glossary                                  # every term, with this book's figures (2 Oct 2026)
 # _load opens a workbook Excel saved with its dropdowns kept; quiet_load without openpyxl's extension warnings
 from .excel_lists import load as _load, quiet as quiet_load
@@ -2605,6 +2606,7 @@ def _log(wb, lines: list[str], redraw: bool = True) -> None:
 
 def _write_results(wb, book: Path, res, memory_path, src: Path, forgotten: set[str] | None = None,
                    ncols: int | None = None) -> None:
+    grey = summary_chart.typed_grey(wb)         # Summary's Grey rows under survives the Run (the firm, 2 Oct 2026)
     for t in RESULT_TABS[:-1] + ("Materiality", "Learned"):
         if t in wb.sheetnames:
             del wb[t]
@@ -2623,6 +2625,7 @@ def _write_results(wb, book: Path, res, memory_path, src: Path, forgotten: set[s
     timing.mark("Writing Control, Columns and Start here")
     live.ensure(wb, res)                        # the names Control's materiality panel reads, with no tab of its own
     _write_rest(wb, book, res, memory_path, src, forgotten, ncols, stamp)
+    summary_chart.keep_grey(wb, grey)
 
 
 def bleed_tabs(res) -> bool:

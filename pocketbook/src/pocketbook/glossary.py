@@ -237,6 +237,13 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 f"This book's loans were made from {yrs[0]} to {yrs[1]}. Pick one year under Only loans where to "
                 f"see it alone." if yrs else
                 "Pick 2023 under Only loans where to see only the loans made in 2023."))
+    # the firm, 3 Oct 2026: "Could the summary tab have vintage graphs as well?"; chosen: "Pocket vs rest vs book"
+    out.append(("Vintage",
+                "The loans made in one year. Summary's vintage chart draws one row against the rest of the book and "
+                "the whole book, a point for each year.",
+                f"Pick a row on Summary: three lines, one point a year from {yrs[0]} to {yrs[1]}." if yrs else
+                "Pick SCORE 620 - 679 on Summary: its line, the rest of the book's and the whole book's, 2021 to "
+                "2024."))
     wm = f.get("worse_material") if run else None
     out.append(("Worse and material",
                 "Worse: at least Worse at times its comparison, with a p-value under the bar on Control. Material: "

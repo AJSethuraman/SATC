@@ -342,6 +342,26 @@ After that, the whole routine is:
      grey and nothing else. A column whose source the Run hasn't got is left
      off and the note says so. Dollars show in thousands ($1,234k) only when
      the largest would not fit the column.
+     **Grey rows under [50] loans** (the firm, 3 Oct 2026: *"make the really low
+     unit counts grayed out to a degree ... this count should be separately
+     adjustable from all other config items"*), at the top of the tab (C2): every
+     row with fewer loans reads in light grey, at once, as you type another
+     number. Nothing else reads it: not Control, not Fewest loans, not the cube
+     file. A Run writes it back at 50.
+     **Vintage**, under the table (the firm, 3 Oct 2026: *"Could the summary tab
+     have vintage graphs as well? ... basically whatever is there except graphed
+     out"*; chosen: *"Pocket vs rest vs book"*): a line chart, the origination
+     year across the bottom. **Vintage measure** offers every Summary column;
+     **Vintage row** one row of the column picked above (its list follows that
+     dropdown). Three lines: that row, the rest of the book (every other loan),
+     and the whole book (dashed grey), each year's figure worked out by the Run
+     the way the Summary row is (`summary_chart.py`), on the loans Only loans
+     where shows. A share is of that year's loans; a rate or share is drawn in
+     per cent. A point on fewer loans than *Fewest loans in a pocket* is left
+     off its line and grey in the table under the chart. A loan with no
+     readable date is on no line. With no column marked Origination date, one
+     sentence says so in the chart's place. Pictures:
+     `docs/summary-vintage-2026-10-03/`.
    - **Compare** (the firm, 30 Sep 2026: *"can we make it so they can be
      visually compared in a graph? Like if we used origination date as a filter
      it would essentially be vintage years"*, and *"it should not be vintage

@@ -3070,6 +3070,49 @@ changed in the code.
     `test_co_months_2026_10_01.py::test_without_a_charge_off_date_nothing_changes`, was already failing at the
     Glossary merge 40abd906: the Glossary always defines *Months to charge-off*, and that test asserts the words
     appear nowhere in a book without a charge-off date column; left for the firm, not changed here).
+- **Built, 3 Oct 2026: Summary's vintage chart and grey rows** (branch `pocketbook-summary-vintage`). Two firm
+  requests for Summary. The chart: *"Could the summary tab have vintage graphs as well? Showing our primary targeted
+  info, maybe an option for average booked, amount booked, basically whatever is there except graphed out"*; chosen:
+  *"Pocket vs rest vs book"*. The grey: *"make the really low unit counts grayed out to a degree... so it's easier to
+  spot quick trends and not look left at the unit count. However this count should be separately adjustable from all
+  other config items - no dependencies just a simple number for this view specifically"*.
+  - **Vintage chart.** Under the Summary table, a row clear of it, so nothing existing moves: a dark heading, one line
+    of what it is, **Vintage measure** (every Summary column, Loans to Median months to charge-off where the Run has
+    it) and **Vintage row** (one row of the column Summary's dropdown picked; its list follows that dropdown, via
+    OFFSET as Grids' Row does). Three lines across the origination years: the row, the rest of the book (every other
+    loan of the view), and the whole book, dashed grey. Summary's Only loans where applies to all three, and a live
+    caption says what is drawn and on which loans. Every point is worked out in the Run (`summary_chart.vintage`,
+    called from `engine.run` after the Summaries): one pass per Summary view groups its loans by (row, year), and each
+    point goes through `engine.summary_rows` itself, so it is the same arithmetic as a Summary row on that year's
+    loans. A share is of that year's loans; x book is still against the whole book. Put on `_views` as
+    `V|<column><view>|<i>`, `|<i>|rest` and `|book`, one flat row each (measure after measure, year after year);
+    the tab's hidden cells pick them, so both dropdowns redraw live. A point on fewer loans than the Run's Fewest
+    loans in a pocket is #N/A (not drawn) and grey in the table of points under the chart. A scatter with lines, as
+    Compare's (LibreOffice draws a line chart's #N/A at zero), its x the year itself. A loan with no readable date is
+    on no line. No column marked Origination date: one sentence in the chart's place, and in the note.
+  - **Grey rows under [50] loans.** C2, in the blank row between the title band and the note (no cell moves): a plain
+    50, styled as an answer that changes the tab now. One more rule in Summary's one conditional-format range (so
+    LibreOffice and Excel agree, as `results.cf` requires) greys the font of every row whose Loans is under it.
+    Nothing else reads it: no formula, rule or name elsewhere (tested). The note's Shading line says so.
+  - **Glossary.** A 27th term, *Vintage*, after Origination year. Checklist 4.10 says 27 terms, and 2.2 says the
+    paste writes 39 files (`summary_chart.py` is one more); HTML and PDF rebuilt.
+  - **For the firm to confirm:** (1) A Run writes Summary afresh, so the grey number goes back to 50 after each Run,
+    as every dropdown on a result tab does; say if it should be kept across Runs. (2) The chart's axis has one plain
+    number format for every measure (an axis can't take its format from a dropdown), so a rate or share is drawn in
+    per cent (7.12, the caption says per cent), dollars and counts read 32,000.0 with one decimal; the table under
+    the chart shows each in its own format. (3) The vintage helper roughly doubles `_views`: on 20,000 loans, three
+    band columns, two segments and two filters, a Run went 11.8 s to 17.7 s and the workbook 1.2 MB to 2.2 MB.
+  - Pictures (LibreOffice, synthetic book of 6,000 loans): `pocketbook/docs/summary-vintage-2026-10-03/` (GCOs ÷
+    Booked by FICO band; Avg line by CHANNEL; Bad loans % on Broker loans only, its 2026 point under 30 loans left
+    off; Grey rows under 1,100; the book with no origination date).
+  - Tests: 5 in `tests/test_summary_vintage_2026_10_03.py` (2 need no LibreOffice): every FICO row, the rest and the
+    book, every year, All loans and each CHANNEL, on Loans, Avg line and GCOs ÷ Booked, tied to the CSV with the csv
+    module (over 500 points); the tab calculated by LibreOffice with the dropdowns set, its points tied to the CSV and
+    the chart's three series reading #N/A exactly where a point is thin; the rows list following a category column;
+    the no-date sentence; the grey rule's formula, its 50, and nothing else reading C2. The term list in
+    `test_glossary_2026_10_02.py` gains Vintage. Planted bugs: 4 added (the rest counting the pocket; greying at the
+    number, not under it; a default other than 50; each year's point read from the year before), 4 of 4 caught with
+    DISPLAY unset; every entry's old string still occurs once (659 entries).
 
 - **Built, 1 Oct 2026: a third filter, with a size limit** (branch `pocketbook-three-filters`). The firm: *"I thought
   we discussed two filters plus date"*. Chosen: Origination year plus two more filters, with a size limit.
@@ -3129,6 +3172,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-03 -- **PocketBook: Summary's vintage chart and grey rows.** The firm: *"Could the summary tab have vintage graphs as well?"*, chosen *"Pocket vs rest vs book"*; and low unit counts *"grayed out to a degree"*, by a number of its own. Under the Summary table, one row against the rest of the book and the whole book by origination year, on any Summary measure, following Only loans where, thin points left off; at the top, Grey rows under [50] loans, read by nothing else. 5 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: Avg line and × book.** The firm: *"I want to start including and using booked dollar averages so more easily demonstrate how line assignments look in pockets"*. Summary gains Avg line (booked dollars per loan, the average committed line) and × book (that over the whole book's) right after Booked $, in every filter view; RANR vs GCOs' gross block ends on the same two, shaded as Grids' Loan size, never red or green; the Glossary gains the term. 8 tests, 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: a Glossary tab.** The firm: *"Maybe a nice glossary of terms in the workbook should be there"*. A grey tab right after Start here, written by every Set up and Run: 25 terms, each with what it means and an example in the book's own figures from the last Run (*"the book keeps $12.80 per $100 booked"*), made up before the first. Start here links to it; the bank checklist has a 4.10 for it. 8 tests; 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-01 -- **PocketBook: a third filter, with a size limit.** The firm: *"I thought we discussed two filters plus date"*; chosen, Origination year plus two more filters with a size limit. Filter 3 sits beside Filter 2 everywhere (launcher, Control, Grids, Summary, Compare's Lines by and Panels by, Record and the Run's line); every value alone, pair and triple holds together. Three filters may make 150 views of each grid (6 × 5 × 5), refused past it by the launcher and the Run; the launcher shows the cost. 15 tests, 3 planted bugs added and 13 repointed. §6d has the detail and two points for the firm.

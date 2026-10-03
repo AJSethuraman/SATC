@@ -2166,8 +2166,11 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
                         f"; of {sf2} too, and it shows the loans with both" if sf2 else "")
                      + ". The shares are of those loans. × book is still against the whole book."
                      + (YEAR_SAID.format(res.config.origination_date) if sf == ORIG_YEAR else "")))
-    note.append(("Shading", "The All row is shaded light grey. Nothing else is coloured. Everything here is as of "
-                            "the last Run."))
+    note.append(("Shading", "The All row is shaded light grey. A row with fewer loans than Grey rows under, at the "
+                            "top, reads in light grey: type another number there and it changes at once. Nothing else "
+                            "reads that number, and nothing else is coloured. Everything here is as of the last Run."))
+    from . import summary_chart                     # the grey rows' number and the vintage chart (3 Oct 2026)
+    note.append(("Vintage", summary_chart.note_words(res)))
     r = house.method_note(ws, 3, left, last, note)
     b_rng, _ = choices.add("Summary: Band column", got["options"])
     s = r + 1
@@ -2187,6 +2190,7 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
         f3_rng, _ = choices.add("Summary: and also where", [ALL_LOANS] + list(res.filter_values3))
         F3 = dropdown(ws, s, left + 10, f"and {sf3} is", f3_rng, ALL_LOANS)
         ws.merge_cells(start_row=s, start_column=left + 10, end_row=s, end_column=left + 12)
+    GREY = summary_chart.grey_input(ws, left)
     VW = f"${col(hid)}${s}"
     where = ("&" + where_formula(F, F2, F3)) if F else ""
     ws[VW.replace("$", "")] = f"={B}{where}"
@@ -2210,7 +2214,10 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
         ws.row_dimensions[rr].height = 16
     lab = f"${col(left)}{h + 1}"
     cf(ws, f"{col(left)}{h + 1}:{col(left + len(keys))}{h + most}",
-       [(f'{lab}="All"', CANVAS, Font(bold=True), None)], f'{lab}<>""')
+       [(f'{lab}="All"', CANVAS, Font(bold=True), None),
+        summary_chart.grey_rule(GREY, f"${col(left + 1 + keys.index('loans'))}{h + 1}")], f'{lab}<>""')
+    summary_chart.write(ws, res, choices, views, got=got, left=left, last=last, hid=hid, top=h + most + 2, B=B, VW=VW,
+                        filters=[(n, c) for n, c in ((sf, F), (sf2, F2), (sf3, F3)) if c])
     _hide(ws, hid, hid)
     ws.freeze_panes = f"A{h + 1}"
     _fit(ws)

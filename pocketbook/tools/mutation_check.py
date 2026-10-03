@@ -26,6 +26,7 @@ HO="src/pocketbook/house.py"; Y="src/pocketbook/settings.yaml"; RS="src/pocketbo
 GL="src/pocketbook/glossary.py"
 RC="src/pocketbook/record.py"; PS="src/pocketbook/prespec.py"; CMP="src/pocketbook/compare.py"
 SC="src/pocketbook/scout.py"; CFG="src/pocketbook/config.py"; JT="src/pocketbook/joint.py"
+SCH="src/pocketbook/summary_chart.py"
 muts = [
  ("1 blank->zero",       E, 'if p is BLANK:\n        return None, "blank"', 'if p is BLANK:\n        return 0.0, None', "test_finding_1"),
  ("2 empty->index 0",    E, 'if rate is None or base is None or base == 0:', 'if base is None or base == 0:\n        return None\n    if rate is None:\n        rate = 0.0\n    if False:', "test_finding_2"),
@@ -1634,6 +1635,19 @@ muts = [
  ("the Glossary defining Months to charge-off for a book with no charge-off date", GL,
   '    if not run or f.get("co_date", True):', '    if True:',
   "without_a_charge_off_date_nothing_changes or firms_order"),
+ # the firm, 3 Oct 2026: Summary's vintage chart, "Pocket vs rest vs book", and its grey rows
+ # (tests/test_summary_vintage_2026_10_03.py); none needs a display, the third LibreOffice headless
+ ("Summary's vintage rest of the book counting the pocket's own loans too", SCH,
+  "    others = [x for x in s.labels if x not in (lab, engine.ALL)]",
+  "    others = [x for x in s.labels if x != engine.ALL]", "the_points_tie_to_the_loan_file"),
+ ("Summary greying a row at the number typed, not only under it", SCH,
+  '    return (f"AND(ISNUMBER({cut}),ISNUMBER({loans}),{loans}<{cut})"',
+  '    return (f"AND(ISNUMBER({cut}),ISNUMBER({loans}),{loans}<={cut})"', "grey_rows_read_their_own_number"),
+ ("Summary's grey rows starting at another number than 50", SCH, "GREY_DEFAULT = 50", "GREY_DEFAULT = 30",
+  "grey_rows_read_their_own_number"),
+ ("Summary's vintage chart drawing each year's point from the year before", SCH,
+  "value=f\"={pick(row, f'({MI}-1)*{Y}+{y + 1}')}\")", "value=f\"={pick(row, f'({MI}-1)*{Y}+{y}')}\")",
+  "chart_redraws_with_the_dropdowns"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

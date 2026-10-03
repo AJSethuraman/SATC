@@ -110,7 +110,7 @@ cd /d "%USERPROFILE%"
 py PocketBook.py
 ```
 
-☐ It prints `38 files, every one checked. Opening the window.` and the window opens. It has written the `PocketBook` folder beside the script; skip to 2.3. If it says *The paste stops early* or *didn't come through whole*, the copy missed something: copy the whole script again, to its last line.
+☐ It prints `39 files, every one checked. Opening the window.` and the window opens. It has written the `PocketBook` folder beside the script; skip to 2.3. If it says *The paste stops early* or *didn't come through whole*, the copy missed something: copy the whole script again, to its last line.
 
 Otherwise, with the zips:
 
@@ -371,7 +371,7 @@ Each tab opens with **How this tab works**.
 
 ### 4.10 The Glossary
 
-☐ **Glossary** is the second tab, after Start here. It lists 26 terms, one a row (25 when the book has no charge-off date column): what each means, and an example in the practice book's own figures from the Run. Its note says which Run.
+☐ **Glossary** is the second tab, after Start here. It lists 27 terms, one a row (26 when the book has no charge-off date column): what each means, and an example in the practice book's own figures from the Run. Its note says which Run.
 
 ☐ On Start here, under **The tabs**, *Glossary: every term, with an example* opens it.
 
