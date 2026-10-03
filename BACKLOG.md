@@ -3111,7 +3111,8 @@ changed in the code.
     Summary, so they move with Filter 3 as with the other two; `test_three_filters_summary_is_the_loans_with_all_
     three` now ties both, on the All row and each band, to the CSV under three picks. The Glossary's *Filter / Only
     loans where* now says up to three filters can be picked. Conflicts were only in this file's logs and in
-    `tools/mutation_check.py`'s list (both kept); every entry's old string occurs once (658 entries).
+    `tools/mutation_check.py`'s list (both kept); every entry's old string occurs once (658 entries). Full suite
+    after the merge, no display: 1,032 passed, 14 skipped (all tkinter missing), 0 failed.
   - **For the firm to decide:** (1) The two limits are separate, so a pair refused at 56 views (8 x 7) is taken
     once a small third filter is added (8 x 7 x 2 = 112): the cost is still under 150, but it reads oddly. Holding
     every pair to 49 as well would close it. (2) The refusal writes the product with `x`, as the two-filter one
