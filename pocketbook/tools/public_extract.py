@@ -34,6 +34,7 @@ import argparse
 import csv
 import hashlib
 import io
+import itertools
 import re
 import sys
 import zipfile
@@ -69,6 +70,7 @@ class Counts:
     blanked: dict[str, int] = field(default_factory=dict)       # a derived value left blank, by column and reason
     kept_by: dict[str, int] = field(default_factory=dict)       # rows kept, by the source status they were kept for
     terms: dict[str, list[int]] = field(default_factory=dict)   # outcome -> [loans with a term, of them whole years]
+    unpercented: dict[str, int] = field(default_factory=dict)   # values written without their % sign, by column
 
     def keep(self, status: str) -> None:
         self.kept += 1
@@ -388,9 +390,28 @@ LC_CUTS = ("grade", "sub_grade", "term", "home_ownership", "purpose", "verificat
            "inq_last_6mths")
 LC_CASH = ("funded_amnt", "total_pymnt", "total_rec_prncp", "collection_recovery_fee")
 LC_NEEDS = ("id", "loan_status", "issue_d") + LC_CASH + LC_CUTS
+#: the line LendingClub's own download (LoanStats3a.csv) carries above its header. Skipped and recorded, never read
+#: as the header (the revived rehearsal, 3 Oct 2026: the copy reachable from the sandbox was LendingClub's own file)
+LC_PREAMBLE = "Notes offered by Prospectus"
+#: columns LendingClub's own download writes as "10.65%" and the mirrors as 10.65. PocketBook reads a value with a %
+#: sign as not a number (ingest.parse_number), so the sign is taken off and every value so changed is counted; the
+#: number itself is not changed
+LC_PERCENT = ("int_rate", "revol_util")
 
 
-def lc_columns() -> list[Derived]:
+#: the key made when the file's own ids are blank (--row-key): LendingClub's later public downloads blank id and
+#: member_id on every row
+LC_ROW_KEY = Derived("ROW_KEY", "key", CONSTRUCTED, "'LC-' + the data row's number in the file (1 = first row "
+                     "under the header)", "This copy of the file has every id blank. A key made from the file and its "
+                     "row identifies the row for this rehearsal only; it is not LendingClub's loan id.")
+
+
+def lc_columns(absent: tuple[str, ...] = (), row_key: bool = False) -> list[Derived]:
+    cols = [c for c in _lc_columns() if c.name not in absent]
+    return [LC_ROW_KEY if row_key and c.name == "id" else c for c in cols]
+
+
+def _lc_columns() -> list[Derived]:
     return [
         Derived("id", "key", NATIVE, "id", "LendingClub's loan id."),
         Derived("funded_amnt", "booked", NATIVE, "funded_amnt", "The amount funded."),
@@ -420,12 +441,21 @@ def lc_window(text: str) -> tuple[date, date]:
     return a, b
 
 
-def lendingclub(rows: Iterator[dict], counts: Counts, term: int, window: tuple[date, date]) -> Iterator[dict]:
+def lendingclub(rows: Iterator[dict], counts: Counts, term: int, window: tuple[date, date],
+                absent: tuple[str, ...] = (), row_key: bool = False) -> Iterator[dict]:
     want_term = f"{term} months"
-    for r in rows:
+    for i, r in enumerate(rows, 1):
         counts.read += 1
-        if not (r.get("id") or "").strip().isdigit():
-            counts.drop("not a loan row (the file's summary lines)")
+        rid = (r.get("id") or "").strip()
+        if row_key:
+            # every id is blank in this copy: a loan row is one with a blank id and a status; a line of text in the
+            # id column ("Loans that do not meet the credit policy", the totals) is not a loan
+            if rid or not (r.get("loan_status") or "").strip():
+                counts.drop("not a loan row (the file's summary lines)")
+                continue
+        elif not rid.isdigit():
+            counts.drop("id blank: no key (if every id is blank, name --row-key)" if not rid and
+                        (r.get("loan_status") or "").strip() else "not a loan row (the file's summary lines)")
             continue
         try:
             issued = datetime.strptime((r.get("issue_d") or "").strip(), "%b-%Y").date()
@@ -452,10 +482,14 @@ def lendingclub(rows: Iterator[dict], counts: Counts, term: int, window: tuple[d
             continue
         gco = cash["funded_amnt"] - cash["total_rec_prncp"] if bad else 0.0
         ranr = cash["total_pymnt"] - cash["funded_amnt"] - cash["collection_recovery_fee"]
-        out = {"id": r["id"].strip(), "funded_amnt": (r.get("funded_amnt") or "").strip(), "BAD": str(bad),
+        out = {**({"ROW_KEY": f"LC-{i:07d}"} if row_key else {"id": rid}), "funded_amnt": (r.get("funded_amnt") or "").strip(), "BAD": str(bad),
                "GCO_APPROX": f"{gco:.2f}", "RANR_APPROX": f"{ranr:.2f}", "ISSUE_DATE": issued.isoformat()}
         for c in LC_CUTS:
-            out[c] = (r.get(c) or "").strip()
+            if c not in absent:
+                out[c] = (r.get(c) or "").strip()
+                if c in LC_PERCENT and out[c].endswith("%"):
+                    out[c] = out[c][:-1].strip()
+                    counts.unpercented[c] = counts.unpercented.get(c, 0) + 1
         counts.keep(f"loan_status {status}")
         yield out
 
@@ -472,8 +506,10 @@ def sha256_of(path: Path) -> str:
     return h.hexdigest()
 
 
-def open_rows(path: Path, member: str | None = None) -> tuple[list[str], Iterator[dict], Callable[[], None]]:
-    """The header and a row iterator over a CSV, or over one CSV inside a zip."""
+def open_rows(path: Path, member: str | None = None, preamble: str | None = None,
+              skipped: list[str] | None = None) -> tuple[list[str], Iterator[dict], Callable[[], None]]:
+    """The header and a row iterator over a CSV, or over one CSV inside a zip. A first line starting with
+    `preamble` is not the header: it is skipped, and appended to `skipped` so the manifest can say so."""
     if path.suffix.lower() == ".zip":
         z = zipfile.ZipFile(path)
         names = [n for n in z.namelist() if n.lower().endswith(".csv")]
@@ -485,12 +521,21 @@ def open_rows(path: Path, member: str | None = None) -> tuple[list[str], Iterato
     else:
         f = path.open(encoding="utf-8-sig", newline="")
         closer = f.close
-    reader = csv.DictReader(f)
+    lines: Iterator[str] = f
+    if preamble:
+        first = f.readline()
+        if first.startswith(preamble):
+            if skipped is not None:
+                skipped.append(first.strip())
+        else:
+            lines = itertools.chain([first], f)
+    reader = csv.DictReader(lines)
     return [c.strip() for c in (reader.fieldnames or [])], reader, closer
 
 
 def convert(source: str, raw: Path, out: Path, ranr: str | None = None, term: int | None = None,
-            issued: str | None = None, member: str | None = None) -> dict:
+            issued: str | None = None, member: str | None = None, absent: tuple[str, ...] = (),
+            row_key: bool = False) -> dict:
     """Write the extract and its manifest; return the manifest. Raises Refused, writing nothing, when a choice is
     missing or the raw file isn't there or isn't the source named."""
     raw = Path(raw)
@@ -506,7 +551,16 @@ def convert(source: str, raw: Path, out: Path, ranr: str | None = None, term: in
     if source == "lendingclub" and (term is None or issued is None):
         raise Refused("--term and --issued choose which loans run and are not defaulted (the paper used "
                       "--term 36 --issued 2008-01:2011-12).")
-    header, rows, close = open_rows(raw, member)
+    absent = tuple(absent or ())
+    if (absent or row_key) and source != "lendingclub":
+        raise Refused("--absent and --row-key are for the lendingclub source only")
+    off_list = [c for c in absent if c not in LC_CUTS]
+    if off_list:
+        raise Refused(f"--absent names only columns kept for cutting by ({', '.join(LC_CUTS)}), not "
+                      f"{', '.join(off_list)}: the key, the outcome and the cash flows are never optional")
+    skipped: list[str] = []
+    header, rows, close = open_rows(raw, member, preamble=LC_PREAMBLE if source == "lendingclub" else None,
+                                    skipped=skipped)
     counts = Counts()
     try:
         if source == "sba-foia":
@@ -514,7 +568,10 @@ def convert(source: str, raw: Path, out: Path, ranr: str | None = None, term: in
         elif source == "sba-national":
             needs, cols = NAT_NEEDS, nat_columns()
         elif source == "lendingclub":
-            needs, cols = LC_NEEDS, lc_columns()
+            there = [c for c in absent if c in header]
+            if there:
+                raise Refused(f"--absent {', '.join(there)}: {raw.name} has it; leave it off --absent")
+            needs, cols = tuple(c for c in LC_NEEDS if c not in absent), lc_columns(absent, row_key)
             window = lc_window(issued)
         else:
             raise Refused(f"unknown source {source!r}")
@@ -522,7 +579,7 @@ def convert(source: str, raw: Path, out: Path, ranr: str | None = None, term: in
         if missing:
             raise Refused(f"{raw.name} isn't a {source} file: it has no {', '.join(missing)}")
         it = (foia(rows, counts, foia_prefix(raw)) if source == "sba-foia" else national(rows, counts)
-              if source == "sba-national" else lendingclub(rows, counts, term, window))
+              if source == "sba-national" else lendingclub(rows, counts, term, window, absent, row_key))
         names = [c.name for c in cols]
         out.parent.mkdir(parents=True, exist_ok=True)
         tmp = out.with_name(out.name + ".part")
@@ -540,10 +597,17 @@ def convert(source: str, raw: Path, out: Path, ranr: str | None = None, term: in
     manifest = {
         "source": source, "raw_file": raw.name, "raw_sha256": sha256_of(raw), "raw_bytes": raw.stat().st_size,
         "extract": out.name, "extract_sha256": sha256_of(out), "written": datetime.now().isoformat(timespec="seconds"),
-        "choices": {k: v for k, v in (("ranr", ranr), ("term", term), ("issued", issued)) if v is not None},
+        "choices": {k: v for k, v in (("ranr", ranr), ("term", term), ("issued", issued),
+                                      ("absent", list(absent) or None), ("row_key", row_key or None))
+                    if v is not None},
+        **({"preamble_skipped": skipped} if skipped else {}),
+        **({"absent_from_raw": f"{', '.join(absent)}: not in this raw file, so not in the extract and not "
+                               f"offered for cutting by"} if absent else {}),
         "rows_read": counts.read, "rows_kept": counts.kept, "rows_kept_by_status": dict(sorted(counts.kept_by.items())),
         "rows_left_out_by_reason": dict(sorted(counts.dropped.items())),
         "derived_values_left_blank": dict(sorted(counts.blanked.items())),
+        **({"percent_sign_removed": {"rule": "a trailing % sign taken off; the number is not changed",
+                                     "values": dict(sorted(counts.unpercented.items()))}} if counts.unpercented else {}),
         "columns": [{"name": c.name, "read_as": c.means, "status": c.status, "rule": c.rule, "why": c.why,
                      **({"after_booking": c.after_booking} if c.after_booking else {})} for c in cols],
         "note": "Every column marked 'rehearsal approximation' or 'constructed' is a stand-in for the rehearsal, "
@@ -587,9 +651,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--term", type=int, help="LendingClub only: the term in months to keep (e.g. 36)")
     p.add_argument("--issued", help="LendingClub only: YYYY-MM:YYYY-MM, the issue months to keep")
     p.add_argument("--member", help="the CSV inside a zip, when it holds more than one")
+    p.add_argument("--absent", default="", help="LendingClub only: comma-separated columns kept for cutting by that "
+                   "this raw file does not carry (LendingClub's own LoanStats3a.csv has no fico_range_low); "
+                   "named, never assumed")
+    p.add_argument("--row-key", action="store_true", help="LendingClub only: this copy has every id blank; key "
+                   "each loan by its row in the file (ROW_KEY), as the SBA FOIA file is")
     a = p.parse_args(argv)
     try:
-        m = convert(a.source, a.raw, a.out, ranr=a.ranr, term=a.term, issued=a.issued, member=a.member)
+        m = convert(a.source, a.raw, a.out, ranr=a.ranr, term=a.term, issued=a.issued, member=a.member,
+                    absent=tuple(c.strip() for c in a.absent.split(",") if c.strip()), row_key=a.row_key)
     except Refused as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2

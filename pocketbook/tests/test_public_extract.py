@@ -277,6 +277,65 @@ def test_lendingclub_builds_gco_and_ranr_from_cash_flows(tmp_path):
     assert "Secret Agent" not in out.read_text(encoding="utf-8")
 
 
+def test_lendingclub_own_download_skips_its_notes_line_and_names_a_column_it_lacks(tmp_path):
+    # LendingClub's own LoanStats3a.csv: a "Notes offered by Prospectus" line above the header, and no fico_range_low
+    # (the revived rehearsal, 3 Oct 2026). Without --absent it is refused naming the column; with it, the column is
+    # left out of the extract and the manifest says so; the notes line is skipped and recorded, never the header
+    head = [h for h in _lc_head() if h != "fico_range_low"]
+    rows = [{k: v for k, v in {**_lc_row(1, "Fully Paid"), "int_rate": " 10.65%", "revol_util": "83.7%"}.items()
+             if k in head},
+            {k: v for k, v in {**_lc_row(2, "Charged Off", pymnt="4200.25", prncp="3500"), "int_rate": "7.5",
+                               "revol_util": ""}.items() if k in head}]
+    raw = _write_csv(tmp_path / "LoanStats3a.csv", head, rows)
+    raw.write_text('Notes offered by Prospectus (https://www.lendingclub.com/info/prospectus.action)\n'
+                   + raw.read_text(encoding="utf-8"), encoding="utf-8")
+    out = tmp_path / "lc-out.csv"
+    with pytest.raises(px.Refused, match="it has no fico_range_low$"):
+        px.convert("lendingclub", raw, out, term=36, issued="2008-01:2011-12")
+    m = px.convert("lendingclub", raw, out, term=36, issued="2008-01:2011-12", absent=("fico_range_low",))
+    got = _read(out)
+    assert [r["id"] for r in got] == ["1", "2"] and [r["BAD"] for r in got] == ["0", "1"]
+    assert "fico_range_low" not in got[0] and "grade" in got[0]
+    assert m["choices"]["absent"] == ["fico_range_low"] and "fico_range_low" in m["absent_from_raw"]
+    assert m["preamble_skipped"][0].startswith("Notes offered by Prospectus")
+    assert "fico_range_low" not in [c["name"] for c in m["columns"]]
+    # its rates are written "10.65%", which PocketBook reads as not a number: the sign comes off, counted
+    assert [(r["int_rate"], r["revol_util"]) for r in got] == [("10.65", "83.7"), ("7.5", "")]
+    assert m["percent_sign_removed"]["values"] == {"int_rate": 1, "revol_util": 1}
+    # a file that has the column refuses --absent for it; the key and the cash flows can never be absent
+    full = _write_csv(tmp_path / "lc.csv", _lc_head(), [_lc_row(1, "Fully Paid")])
+    with pytest.raises(px.Refused, match="has it"):
+        px.convert("lendingclub", full, tmp_path / "o.csv", term=36, issued="2008-01:2011-12",
+                   absent=("fico_range_low",))
+    with pytest.raises(px.Refused, match="never optional"):
+        px.convert("lendingclub", full, tmp_path / "o.csv", term=36, issued="2008-01:2011-12", absent=("total_pymnt",))
+    m2 = px.convert("lendingclub", full, tmp_path / "o.csv", term=36, issued="2008-01:2011-12")
+    assert "preamble_skipped" not in m2 and "absent_from_raw" not in m2 and "ROW_KEY" not in _read(tmp_path / "o.csv")[0]
+
+
+def test_lendingclub_with_every_id_blank_is_keyed_by_its_row_only_when_named(tmp_path):
+    # the copy of LoanStats3a.csv reachable on 3 Oct 2026 has id and member_id blank on every row, a text line between
+    # the policy sections and two totals at the end. Without --row-key nothing is kept and the reason says why
+    rows = [{**_lc_row(1, "Fully Paid"), "id": ""},
+            {**{h: "" for h in _lc_head()}, "id": "Loans that do not meet the credit policy"},
+            {**_lc_row(2, "Does not meet the credit policy. Status:Charged Off", pymnt="1000", prncp="800"), "id": ""},
+            {**{h: "" for h in _lc_head()}, "id": "Total amount funded in policy code 1: 1234"}]
+    raw = _write_csv(tmp_path / "lc.csv", _lc_head(), rows)
+    m = px.convert("lendingclub", raw, tmp_path / "a.csv", term=36, issued="2008-01:2011-12")
+    assert m["rows_kept"] == 0
+    assert m["rows_left_out_by_reason"] == {"id blank: no key (if every id is blank, name --row-key)": 2,
+                                            "not a loan row (the file's summary lines)": 2}
+    m = px.convert("lendingclub", raw, tmp_path / "b.csv", term=36, issued="2008-01:2011-12", row_key=True)
+    got = _read(tmp_path / "b.csv")
+    assert [r["ROW_KEY"] for r in got] == ["LC-0000001", "LC-0000003"] and "id" not in got[0]
+    assert [r["BAD"] for r in got] == ["0", "1"]
+    assert m["rows_left_out_by_reason"] == {"not a loan row (the file's summary lines)": 2}
+    key = next(c for c in m["columns"] if c["read_as"] == "key")
+    assert key["name"] == "ROW_KEY" and key["status"] == px.CONSTRUCTED
+    with pytest.raises(px.Refused, match="lendingclub source only"):
+        px.convert("sba-foia", raw, tmp_path / "c.csv", ranr="neg-gco", row_key=True)
+
+
 def test_lendingclub_term_and_window_are_refused_until_named(tmp_path):
     raw = _write_csv(tmp_path / "lc.csv", _lc_head(), [_lc_row(1, "Fully Paid")])
     for kw in ({}, {"term": 36}, {"issued": "2008-01:2011-12"}):
