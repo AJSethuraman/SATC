@@ -3070,6 +3070,98 @@ changed in the code.
     `test_co_months_2026_10_01.py::test_without_a_charge_off_date_nothing_changes`, was already failing at the
     Glossary merge 40abd906: the Glossary always defines *Months to charge-off*, and that test asserts the words
     appear nowhere in a book without a charge-off date column; left for the firm, not changed here).
+- **Built, 3 Oct 2026: Summary's vintage chart and grey rows** (branch `pocketbook-summary-vintage`). Two firm
+  requests for Summary. The chart: *"Could the summary tab have vintage graphs as well? Showing our primary targeted
+  info, maybe an option for average booked, amount booked, basically whatever is there except graphed out"*; chosen:
+  *"Pocket vs rest vs book"*. The grey: *"make the really low unit counts grayed out to a degree... so it's easier to
+  spot quick trends and not look left at the unit count. However this count should be separately adjustable from all
+  other config items - no dependencies just a simple number for this view specifically"*.
+  - **Vintage chart.** Under the Summary table, a row clear of it, so nothing existing moves: a dark heading, one line
+    of what it is, **Vintage measure** (every Summary column, Loans to Median months to charge-off where the Run has
+    it) and **Vintage row** (one row of the column Summary's dropdown picked; its list follows that dropdown, via
+    OFFSET as Grids' Row does). Three lines across the origination years: the row, the rest of the book (every other
+    loan of the view), and the whole book, dashed grey. Summary's Only loans where applies to all three, and a live
+    caption says what is drawn and on which loans. Every point is worked out in the Run (`summary_chart.vintage`,
+    called from `engine.run` after the Summaries): one pass per Summary view groups its loans by (row, year), and each
+    point goes through `engine.summary_rows` itself, so it is the same arithmetic as a Summary row on that year's
+    loans. A share is of that year's loans; x book is still against the whole book. Put on `_views` as
+    `V|<column><view>|<i>`, `|<i>|rest` and `|book`, one flat row each (measure after measure, year after year);
+    the tab's hidden cells pick them, so both dropdowns redraw live. A point on fewer loans than the Run's Fewest
+    loans in a pocket is #N/A (not drawn) and grey in the table of points under the chart. A scatter with lines, as
+    Compare's (LibreOffice draws a line chart's #N/A at zero), its x the year itself. A loan with no readable date is
+    on no line. No column marked Origination date: one sentence in the chart's place, and in the note.
+  - **Grey rows under [50] loans.** C2, in the blank row between the title band and the note (no cell moves): a plain
+    50, styled as an answer that changes the tab now. One more rule in Summary's one conditional-format range (so
+    LibreOffice and Excel agree, as `results.cf` requires) greys the font of every row whose Loans is under it.
+    Nothing else reads it: no formula, rule or name elsewhere (tested). The note's Shading line says so.
+  - **Glossary.** A 27th term, *Vintage*, after Origination year. Checklist 4.10 says 27 terms, and 2.2 says the
+    paste writes 39 files (`summary_chart.py` is one more); HTML and PDF rebuilt.
+  - **Kept across Runs (3 Oct 2026, at the merge).** The firm asked for the number to be "separately adjustable", so
+    a Run reads what was typed before it rewrites Summary and puts it back (`summary_chart.typed_grey`/`keep_grey`,
+    called in `book._write_results`); 1 test, 1 planted bug.
+  - **For the firm to confirm:** (2) The chart's axis has one plain
+    number format for every measure (an axis can't take its format from a dropdown), so a rate or share is drawn in
+    per cent (7.12, the caption says per cent), dollars and counts read 32,000.0 with one decimal; the table under
+    the chart shows each in its own format. (3) The vintage helper roughly doubles `_views`: on 20,000 loans, three
+    band columns, two segments and two filters, a Run went 11.8 s to 17.7 s and the workbook 1.2 MB to 2.2 MB.
+  - Pictures (LibreOffice, synthetic book of 6,000 loans): `pocketbook/docs/summary-vintage-2026-10-03/` (GCOs ÷
+    Booked by FICO band; Avg line by CHANNEL; Bad loans % on Broker loans only, its 2026 point under 30 loans left
+    off; Grey rows under 1,100; the book with no origination date).
+  - Tests: 5 in `tests/test_summary_vintage_2026_10_03.py` (2 need no LibreOffice): every FICO row, the rest and the
+    book, every year, All loans and each CHANNEL, on Loans, Avg line and GCOs ÷ Booked, tied to the CSV with the csv
+    module (over 500 points); the tab calculated by LibreOffice with the dropdowns set, its points tied to the CSV and
+    the chart's three series reading #N/A exactly where a point is thin; the rows list following a category column;
+    the no-date sentence; the grey rule's formula, its 50, and nothing else reading C2. The term list in
+    `test_glossary_2026_10_02.py` gains Vintage. Planted bugs: 4 added (the rest counting the pocket; greying at the
+    number, not under it; a default other than 50; each year's point read from the year before), 4 of 4 caught with
+    DISPLAY unset; every entry's old string still occurs once (659 entries).
+
+- **Built, 1 Oct 2026: a third filter, with a size limit** (branch `pocketbook-three-filters`). The firm: *"I thought
+  we discussed two filters plus date"*. Chosen: Origination year plus two more filters, with a size limit.
+  - **Filter 3.** Built exactly as Filter 2 is: a third launcher column (*Filter 3*), Control's *And then by*, the
+    cube file's `filter_by3`, and a third dropdown, *and (column) is*, on Grids and Summary. The engine builds every
+    view of the three: each value alone, each pair and each triple, all holding together (AND), skipping a view no
+    loan has. Views are keyed (Filter 1, Filter 2, Filter 3) in `Grid.filtered` and `Result.summaries`, and
+    `|and3 value` on `_views`. Filter 3 needs Filter 2, as Filter 2 needs Filter 1: a later filter with an earlier
+    one empty moves up, in the launcher and in Set up alike. Filter 3 must be another column than Filters 1 and 2,
+    refused in words (*"Filter 1 and Filter 3 are both REGION. The third filter narrows the other two, ..."*). Filter
+    1 still starts on Origination year. Compare: Lines by and Panels by each offer all three filters (the one in
+    neither is All loans), and any of them can go across the bottom.
+  - **Where the dropdowns sit.** Grids: Filter 3 right of Filter 2, Row and Column move four columns further right.
+    Summary: Filter 3 right of Filter 2. Grid (B13) and Measure (F13), which the bank checklist names, do not move;
+    the checklist was not changed and test_bank_checklist passes.
+  - **The size limit.** Each grid is built again for every view, so views = (n1 + 1) x (n2 + 1) x (n3 + 1), All
+    loans counted for each and blanks and (no date) counted as values. Three filters may make 150
+    (`choices.FILTER_MOST_VIEWS3`: 6 x 5 x 5 = 150 passes, three columns of six values, 7 x 7 x 7 = 343, do not);
+    two keep their 49 (`FILTER_MOST_VIEWS`, pinned by test_compare). Past it, the launcher refuses before Next and
+    the Run refuses, in the same words: *"FA (5 values), FB (4 values) and FC5 (5 values) together make 6 x 5 x 6 =
+    180 views of every grid, counting All loans in each. Three filters can make 150 at most. Drop a filter, or pick
+    a column with fewer values."* The launcher's *This will run* line now says the cost with any filter: *"Each grid
+    is built for 6 × 5 × 5 = 150 views, All loans counted: 8 grids × 150 = 1,200 to build."*
+  - Tests: 15 in `tests/test_three_filters_2026_10_01.py`. Grids (three picks, cell by cell, and one cell's words)
+    and Summary (two picks) tie to the CSV with nothing imported from pocketbook in the arithmetic; Compare with
+    Filter 3 as Panels by, as Lines by, and lines by it with Origination year across; the Run's line, Record and
+    Control; the limit at every combination of 0 to 8 values each, and 150 taken and 180 refused by the launcher
+    and by a real Run; the launcher's Filter 3 logic and refusals, and its column on screen (needs a display).
+    Changed: the launcher's heading tuples and three *This will run* assertions, which now end with the cost. Run
+    with test_compare, test_grids_summary, test_firm_answers_2026_09_29, test_launcher, test_bank_checklist,
+    test_distinct_total, test_mutation_tool, test_widths and test_result_tabs, no display: 209 passed, 4 skipped
+    (each a launcher check that needs a screen). The one failure seen first (`test_l2_the_summary_says_what_will_
+    run_in_both_modes`) was scikit-learn missing from that machine, not this change: it passes with it installed.
+    Planted bugs: 3 added in `tools/mutation_check.py` (Filter 3 ignored by the engine, three filters' views
+    unlimited, Filter 3 without Filter 2 kept third by the launcher), 13 repointed whose lines this rewrote.
+    All 16 (the 3 new and the 13 repointed) put back one at a time with no display: 16 of 16 caught; every entry's
+    old string occurs once (653 entries).
+  - **Merged with the Glossary and Avg line (3 Oct 2026).** Avg line and Line × book come from each view's own
+    Summary, so they move with Filter 3 as with the other two; `test_three_filters_summary_is_the_loans_with_all_
+    three` now ties both, on the All row and each band, to the CSV under three picks. The Glossary's *Filter / Only
+    loans where* now says up to three filters can be picked. Conflicts were only in this file's logs and in
+    `tools/mutation_check.py`'s list (both kept); every entry's old string occurs once (658 entries). Full suite
+    after the merge, no display: 1,032 passed, 14 skipped (all tkinter missing), 0 failed.
+  - **For the firm to decide:** (1) The two limits are separate, so a pair refused at 56 views (8 x 7) is taken
+    once a small third filter is added (8 x 7 x 2 = 112): the cost is still under 150, but it reads oddly. Holding
+    every pair to 49 as well would close it. (2) The refusal writes the product with `x`, as the two-filter one
+    always has; the launcher's cost line writes `×`.
 
 ## 7 · Standing rules for new items
 
@@ -3082,8 +3174,10 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-03 -- **PocketBook: Summary's vintage chart and grey rows.** The firm: *"Could the summary tab have vintage graphs as well?"*, chosen *"Pocket vs rest vs book"*; and low unit counts *"grayed out to a degree"*, by a number of its own. Under the Summary table, one row against the rest of the book and the whole book by origination year, on any Summary measure, following Only loans where, thin points left off; at the top, Grey rows under [50] loans, read by nothing else. 5 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: Avg line and × book.** The firm: *"I want to start including and using booked dollar averages so more easily demonstrate how line assignments look in pockets"*. Summary gains Avg line (booked dollars per loan, the average committed line) and × book (that over the whole book's) right after Booked $, in every filter view; RANR vs GCOs' gross block ends on the same two, shaded as Grids' Loan size, never red or green; the Glossary gains the term. 8 tests, 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: a Glossary tab.** The firm: *"Maybe a nice glossary of terms in the workbook should be there"*. A grey tab right after Start here, written by every Set up and Run: 25 terms, each with what it means and an example in the book's own figures from the last Run (*"the book keeps $12.80 per $100 booked"*), made up before the first. Start here links to it; the bank checklist has a 4.10 for it. 8 tests; 2 planted bugs, 2 caught. §6d has the detail.
+- 2026-10-01 -- **PocketBook: a third filter, with a size limit.** The firm: *"I thought we discussed two filters plus date"*; chosen, Origination year plus two more filters with a size limit. Filter 3 sits beside Filter 2 everywhere (launcher, Control, Grids, Summary, Compare's Lines by and Panels by, Record and the Run's line); every value alone, pair and triple holds together. Three filters may make 150 views of each grid (6 × 5 × 5), refused past it by the launcher and the Run; the launcher shows the cost. 15 tests, 3 planted bugs added and 13 repointed. §6d has the detail and two points for the firm.
 - 2026-10-01 -- **PocketBook: Set up's suggestions from a sample of the grids.** The firm, on Set up taking over 3.5 minutes at 184,937 loans and 168 grids: *"Will the quick estimates be as accurate? … Test it and let's see"*. Tested on ten synthetic books of 17,000 and 185,000 loans: a sample of 28 grids matched every grid at Control's rounding in every book, at about 80 seconds against 265. Fewest loans is never sampled. Run still works each suggestion out from every grid, and says so beside it where the estimate was different. 7 tests, 3 planted bugs added and 1 repointed, 4 of 4 caught. §6d has the table.
 - 2026-10-01 -- **PocketBook: the bank checklist says to save the extract as CSV first.** The firm, on reading an .xlsx being about 20 times slower than CSV (5.4 s against 0.3 s at 17,000 × 70, read at Set up and at every Run): *"Yes definitely csv first then"*. Step 6.1 says how (Excel, Save As, CSV UTF-8) and 6.2 marks .csv as best; .xlsx still works. Checklist HTML and PDF rebuilt; test_bank_checklist 10 passed.
 - 2026-09-30 -- **PocketBook: errors on the window, not in Notepad.** At the bank, Run with the extract open in Excel became a PermissionError traceback read in Notepad. The firm: *"It would be a lot easier if these kinds of errors just displayed on screen in the huge white space allotted"*. An extract that can't be read (open in Excel, OneDrive syncing, gone) is now a plain refusal naming the file, and the extract is read once per Run. Anything unexpected shows on the page with its type, its message and **Copy details**. 10 tests added and 2 changed; 8 planted bugs added, 8 caught, and 4 display-only ones caught by hand. §6d has the detail.

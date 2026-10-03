@@ -1551,7 +1551,7 @@ def test_filter_by_launcher_offers_every_category_and_the_origination_year(tmp_p
     x = _vintage_file(tmp_path, n=1500)
     loans = _loans_file(x)
     f = _flow(x)
-    assert f.heads() == ("Cut into bands", "Segment by", "Split by", "Filter 1", "Filter 2")
+    assert f.heads() == ("Cut into bands", "Segment by", "Split by", "Filter 1", "Filter 2", "Filter 3")
     rows = f.rows()
     by = {r["name"]: r for r in rows}
     for name in ("CHANNEL", "ASSET_CLASS"):                                  # every category can filter
@@ -1579,7 +1579,7 @@ def test_filter_by_launcher_offers_every_category_and_the_origination_year(tmp_p
     got = f.choices()
     assert got.filter == ch.ORIG_YEAR and got.split == "REV_DEBT"
     ok, said = f.summary()
-    assert ok and said.endswith("adds 4 more. Grids can show only the loans of one ORIG_YEAR."), said
+    assert ok and "adds 4 more. Grids can show only the loans of one ORIG_YEAR. Each grid is built for " in said, said
     # written to Control beside the split, and read back by the next Set up
     f.next()
     assert f.page == "answer", f.message

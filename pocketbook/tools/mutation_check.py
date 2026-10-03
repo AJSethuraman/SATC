@@ -26,6 +26,7 @@ HO="src/pocketbook/house.py"; Y="src/pocketbook/settings.yaml"; RS="src/pocketbo
 GL="src/pocketbook/glossary.py"
 RC="src/pocketbook/record.py"; PS="src/pocketbook/prespec.py"; CMP="src/pocketbook/compare.py"
 SC="src/pocketbook/scout.py"; CFG="src/pocketbook/config.py"; JT="src/pocketbook/joint.py"
+SCH="src/pocketbook/summary_chart.py"
 muts = [
  ("1 blank->zero",       E, 'if p is BLANK:\n        return None, "blank"', 'if p is BLANK:\n        return 0.0, None', "test_finding_1"),
  ("2 empty->index 0",    E, 'if rate is None or base is None or base == 0:', 'if base is None or base == 0:\n        return None\n    if rate is None:\n        rate = 0.0\n    if False:', "test_finding_2"),
@@ -529,7 +530,7 @@ muts = [
   '            if False \\\n', "finished_run_shows"),
  ("the launcher's column limits ignored", B, '            got = getattr(choices, key)             # chosen',
   '            pass             # chosen', "column_limits_are_chosen"),
- ("a saved shortlist's boxes move", LA, '"d": None, "e": None, "locked": locked,', '"d": None, "e": None, "locked": False,',
+ ("a saved shortlist's boxes move", LA, '"e": None, "f": None, "locked": locked,', '"e": None, "f": None, "locked": False,',
   "saved_shortlist"),
  ("the outcome tested against unchecked", B, '        if code != "outcome":', '        if False:',
   "outcome_the_launcher_tests"),
@@ -1234,11 +1235,11 @@ muts = [
   "m.is_rate}, min_units,", "grids_only_loans"),
  # repointed 30 Sep 2026: a filtered view is keyed by both filters' values now (results.view_key)
  ("the filter shows the whole grid", RS,
-  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2), fg, g, names, rows_, cols_, ms, fit, split)',
-  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2), g, g, names, rows_, cols_, ms, fit, split)',
+  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2, v3), fg, g, names, rows_, cols_, ms, fit, split)',
+  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2, v3), g, g, names, rows_, cols_, ms, fit, split)',
   "grids_only_loans"),
  ("the filter dropdown does nothing", RS,
-  """ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, F2)""",
+  """ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, F2, F3)""",
   """ws[VW.replace("$", "")] = f'={G}' + ''""", "grids_only_loans"),
  ("loan size the median, not the average", E, '    avg = s.average\n', '    avg = s.median\n', "grids_loan_size"),
  ("loan size's rest of band keeps the pocket", E,
@@ -1341,8 +1342,8 @@ muts = [
  ("Origination year can't split", B, '            split.append((ch.ORIG_YEAR, "category"))',
   '            no_year(cells["split"], "the launcher splits the pockets")', "filter_by_origination"),
  ("filtered views left out of the widths", RS,
-  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2), fg, g, names, rows_, cols_, ms, fit, split)',
-  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2), fg, g, names, rows_, cols_, ms, None, split)',
+  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2, v3), fg, g, names, rows_, cols_, ms, fit, split)',
+  '_grid_view(res, views, f"G|{gname}" + view_key(v1, v2, v3), fg, g, names, rows_, cols_, ms, None, split)',
   "filter_by_grids_widths"),
  ("a band between whole numbers labelled one short", E, '            return math.ceil(round(x / step, 9)) * step if whole else x',
   '            return x', "labelled_by_the_values_it_holds"),
@@ -1433,8 +1434,8 @@ muts = [
  ("Summary's x book against the filtered loans, not the book", E,
   'gco_x=index_of(g.rate, whole.rate if whole else None),', 'gco_x=index_of(g.rate, top.rates["gco_rate"].rate),',
   "summary"),
- ("Summary's filter ignored", E, '                                                        whole.labels, rows_of[(v, w)])',
-  '                                                        whole.labels, range(n))', "summary"),
+ ("Summary's filter ignored", E, '                                                      whole.labels, rows_of[v])',
+  '                                                      whole.labels, range(n))', "summary"),
  ("Summary's bad loans % over every loan", E, '            row.update(bad=o.num, bad_rate=o.rate)',
   '            row.update(bad=o.num, bad_rate=share(o.num, c.rows))', "summary"),
  ("Summary's missing source column not said", RS,
@@ -1444,13 +1445,14 @@ muts = [
  ("Grids' note and panel written over the stacked blocks", RS, "    r = top + 4 * down\n", "    r = top + 2 * down\n",
   "stacks_its_four_blocks or four_segment_grid"),
  ("Summary offers no category column", RS,
-  "    bands += [d.name for d in res.config.dimensions if (d.name, None, None) in res.summaries and d.name not in bands]",
+  "    bands += [d.name for d in res.config.dimensions if (d.name, None, None, None) in res.summaries\n"
+  "              and d.name not in bands]",
   "    pass", "grids_summary_2026_09_30"),
  ("a category's values in the order the loans come", E, "booked,\n                                                     _order(dims[d.name]), range(n))",
   "booked,\n                                                     list(dict.fromkeys(dims[d.name])), range(n))",
   "grids_summary_2026_09_30"),
- ("a category's Summary ignores the filter", E, "whole.labels,\n                                                        rows_of[(v, w)])",
-  "whole.labels,\n                                                        range(n))", "category_on_one_year"),
+ ("a category's Summary ignores the filter", E, "whole.labels,\n                                                      rows_of[v])",
+  "whole.labels,\n                                                      range(n))", "category_on_one_year"),
  # 30 Sep 2026: the Choose table tints the row being worked in; the row left behind must go white again
  ("row highlight never cleared", LA, '    return want, {n: n == want for n in {lit, want} - {None}}',
   '    return want, {n: True for n in {lit, want} - {None}}', "row_highlight"),
@@ -1496,15 +1498,16 @@ muts = [
   "rate_heading_says"),
  # 30 Sep 2026: two filters, and the Compare chart (the firm: two filters "independently and in conjunction with each
  # other"; "it should not be vintage analysis only"; tests/test_compare_2026_09_30.py)
- ("Filter 2 ignored by the engine", E, '                               and (w is None or filter_vals2[i] == w)]',
-  '                               and True]', "two_filters_grids or two_filters_summary"),
- ("Grids' view key without Filter 2", RS, """ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, F2)""",
-  """ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, None)""", "two_filters_grids"),
- ("Summary's view key without Filter 2", RS, '    where = ("&" + where_formula(F, F2)) if F else ""',
-  '    where = ("&" + where_formula(F, None)) if F else ""', "two_filters_summary"),
+ ("Filter 2 ignored by the engine", E, '                                  and (w is None or filter_vals2[i] == w)\n',
+  '                                  and True\n', "two_filters_grids or two_filters_summary"),
+ ("Grids' view key without Filter 2", RS, """ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, F2, F3)""",
+  """ws[VW.replace("$", "")] = f'={G}&' + where_formula(F, None, F3)""", "two_filters_grids"),
+ ("Summary's view key without Filter 2", RS, '    where = ("&" + where_formula(F, F2, F3)) if F else ""',
+  '    where = ("&" + where_formula(F, None, F3)) if F else ""', "two_filters_summary"),
+ # repointed 1 Oct 2026: the launcher moves every later filter up past an empty one (Filter 3 too)
  ("Filter 2 alone dropped by the launcher", LA,
-  'filter=self.filter or self.filter2, filter2=self.filter2 if self.filter else None,',
-  'filter=self.filter, filter2=self.filter2,', "filter_2_in_the_launcher"),
+  '            got = ([x for x in (self.filter, self.filter2, self.filter3) if x] + [None] * 3)[:3]',
+  '            got = [self.filter, self.filter2 if self.filter else None, self.filter3]', "filter_2_in_the_launcher"),
  ("one column as both filters accepted", E, '        if ff2 == config.filter_by:', '        if False:',
   "one_column_as_both"),
  ("two filters' views unlimited", "src/pocketbook/choices.py", '    if views <= FILTER_MOST_VIEWS:', '    if True:',
@@ -1517,10 +1520,10 @@ muts = [
  ("each panel on its own y scale", CMP, 'value=f"=IF(COUNT({clean})>0,{SCALE_X},NA())"',
   'value=f"=IF(AND({p}=1,COUNT({clean})>0),{SCALE_X},NA())"', "one_scale"),
  ("a filter across the bottom read the wrong way round", CMP,
-  '        s = res.summaries.get((b0, v, w) if k == 1 else (b0, w, v))',
-  '        s = res.summaries.get((b0, w, v) if k == 1 else (b0, v, w))', "compare_vintage_by_system"),
- ("lines by the filter that is across the bottom", CMP, "LB: f'IF({XF}=1,2,IF({XF}=2,1,",
-  "LB: f'IF({XF}=1,1,IF({XF}=2,2,", "compare_vintage_by_system"),
+  '        at = {k: v, j: w}',
+  '        at = {k: w, j: v}', "compare_vintage_by_system"),
+ ("lines by the filter that is across the bottom", CMP, "IF({LBP}<>{XF},{LBP},IF({XF}=1,2,1)))'",
+  "IF({LBP}<>{XF},{LBP},{XF}))'", "compare_vintage_by_system"),
  ("the whole book line drawn from the panel's loans", CMP,
   '                sfx, title = "", live.q(BOOK_LINE)',
   '                sfx, title = f\'&IF({PV(p)}="","",{live.q("|and ")}&{PV(p)})\', live.q(BOOK_LINE)',
@@ -1601,6 +1604,16 @@ muts = [
  ("Filter 1 starts empty when there is an origination date", LA,
   "        first = ch.ORIG_YEAR if year_row is not None", "        first = None if year_row is not None",
   "filter_1_starts_on_origination_year"),
+ # 1 Oct 2026: three filters, with a size limit (the firm: "I thought we discussed two filters plus date";
+ # tests/test_three_filters_2026_10_01.py). Each is caught without a display
+ ("Filter 3 ignored by the engine", E, '                                  and (u is None or filter_vals3[i] == u)]',
+  '                                  and True]', "three_filters_grids or three_filters_summary"),
+ ("three filters' views unlimited", "src/pocketbook/choices.py", '        if views <= FILTER_MOST_VIEWS3:',
+  '        if True:', "limit_is_the_product or refuses_180"),
+ ("Filter 3 without Filter 2 kept third by the launcher", LA,
+  '            got = ([x for x in (self.filter, self.filter2, self.filter3) if x] + [None] * 3)[:3]',
+  '            got = ([x for x in (self.filter, self.filter2) if x] + [None] * 2)[:2] + [self.filter3]',
+  "filter_3_in_the_launcher"),
  # the firm, 2 Oct 2026: "Maybe a nice glossary of terms in the workbook should be there"
  # (tests/test_glossary_2026_10_02.py); neither needs a display
  ("the Glossary's RANR example read from RANR + GCOs", GL,
@@ -1622,6 +1635,23 @@ muts = [
  ("the Glossary defining Months to charge-off for a book with no charge-off date", GL,
   '    if not run or f.get("co_date", True):', '    if True:',
   "without_a_charge_off_date_nothing_changes or firms_order"),
+ # the firm, 3 Oct 2026: Summary's vintage chart, "Pocket vs rest vs book", and its grey rows
+ # (tests/test_summary_vintage_2026_10_03.py); none needs a display, the third LibreOffice headless
+ ("Summary's vintage rest of the book counting the pocket's own loans too", SCH,
+  "    others = [x for x in s.labels if x not in (lab, engine.ALL)]",
+  "    others = [x for x in s.labels if x != engine.ALL]", "the_points_tie_to_the_loan_file"),
+ ("Summary greying a row at the number typed, not only under it", SCH,
+  '    return (f"AND(ISNUMBER({cut}),ISNUMBER({loans}),{loans}<{cut})"',
+  '    return (f"AND(ISNUMBER({cut}),ISNUMBER({loans}),{loans}<={cut})"', "grey_rows_read_their_own_number"),
+ ("Summary's grey rows starting at another number than 50", SCH, "GREY_DEFAULT = 50", "GREY_DEFAULT = 30",
+  "grey_rows_read_their_own_number"),
+ ("Summary's vintage chart drawing each year's point from the year before", SCH,
+  "value=f\"={pick(row, f'({MI}-1)*{Y}+{y + 1}')}\")", "value=f\"={pick(row, f'({MI}-1)*{Y}+{y}')}\")",
+  "chart_redraws_with_the_dropdowns"),
+ # the firm, 2 Oct 2026: the grey number "separately adjustable" -- what was typed survives the next Run
+ ("Summary's Grey rows under back to 50 at every Run", B,
+  "    summary_chart.keep_grey(wb, grey)\n", "",
+  "grey_number_typed_survives_the_next_run"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

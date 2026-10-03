@@ -365,7 +365,7 @@ GROUP = {"num": 0, "cat": 1, "year": 1, "out": 2, "outd": 2}
 LAST = 3
 ROW_H = 22          # px a table row is tall; each is ruled off below by 1 px
 NO_OUTCOME = "Pick the outcome: the yes/no column where 1 means the loan went bad. Nothing is picked for you."
-BASE_W = (104, 128, 84, 84, 70, 70, 70)  # px the Choose tests columns start at; the word columns take any width more
+BASE_W = (104, 128, 84, 84, 70, 70, 70, 70)  # px the Choose tests columns start at; the word columns take any width more
 GAP = 6             # px between two groups
 
 
@@ -396,6 +396,7 @@ class Flow:
         self.split: str | None = None
         self.filter: str | None = None   # Filter by: the Grids' Only loans where column (the firm, 30 Sep 2026)
         self.filter2: str | None = None  # Filter 2: "and <column> is" (the firm, 30 Sep 2026: two filters)
+        self.filter3: str | None = None  # Filter 3: "and <column> is" (the firm, 1 Oct 2026: "two filters plus date")
         self.outcome: str | None = None
         self.asking: str | None = None  # a column picked as the outcome, waiting for the analyst's yes
         self.test: list[str] = []
@@ -530,13 +531,14 @@ class Flow:
         kind = self._kind()
         nums = {c for c, k in kind.items() if k == "num"}
         cats = {c for c, k in kind.items() if k == "cat"}
-        # Filter 1 starts on Origination year (the firm, 1 Oct 2026), cleared or changed like any pick; Filter 2 is
-        # left to the analyst. A workbook beside the extract shows what was picked before, a cleared Filter 1 too.
+        # Filter 1 starts on Origination year (the firm, 1 Oct 2026), cleared or changed like any pick; Filters 2 and
+        # 3 are left to the analyst. A workbook beside the extract shows what was picked before, a cleared Filter 1 too.
         # Never a pick Next would refuse: years past the most a filter takes start with no filter
         year_row = self.read.year if self._year() else None
         first = ch.ORIG_YEAR if year_row is not None and not ch.too_many_to_filter(
             year_row.name, (year_row.values or 0) + (year_row.parts or 0)) else None
         self.cut, self.seg, self.split, self.filter, self.filter2 = set(nums), set(cats), None, first, None
+        self.filter3 = None
         # never picked for the analyst, not even from a workbook an earlier build wrote (the firm, 29 Sep 2026:
         # "there's no reason for it to automatically assign something, especially when it's just wrong")
         self.outcome, self.asking = None, None
@@ -552,6 +554,7 @@ class Flow:
             self.seg.discard(self.split)                  # a category that splits isn't a segment too
             self.filter = chosen.filter if chosen.filter in cats | year else None
             self.filter2 = chosen.filter2 if chosen.filter2 in cats | year else None
+            self.filter3 = chosen.filter3 if chosen.filter3 in cats | year else None
         else:
             self.test = [c for c in chosen.test if c in kind]
             self.hold = [c for c in chosen.hold if c in kind]
@@ -581,7 +584,7 @@ class Flow:
                 share = f"1 on {c.yes / max(c.yes + c.no + c.other, 1):.1%} of loans"
                 what = f"The outcome · {share}" if c.name == self.outcome else f"Yes/no · {share}"
             row = {"name": c.name, "what": what, "grey": k in ("key", "date", "other", "none"), "a": None,
-                   "b": None, "c": None, "d": None, "e": None, "locked": locked, "group": GROUP.get(k, LAST)}
+                   "b": None, "c": None, "d": None, "e": None, "f": None, "locked": locked, "group": GROUP.get(k, LAST)}
             row["gap_before"] = bool(out) and out[-1]["group"] != row["group"]     # a new group starts here
             if c.name == self.outcome:
                 pass                                                  # the outcome is neither tested nor held
@@ -601,6 +604,8 @@ class Flow:
                     row["d"] = {"on": self.filter == c.name, "radio": True}
                     # Filter 2 (the firm, 30 Sep 2026: "independently and in conjunction with each other")
                     row["e"] = {"on": self.filter2 == c.name, "radio": True}
+                    # Filter 3 (the firm, 1 Oct 2026: "I thought we discussed two filters plus date")
+                    row["f"] = {"on": self.filter3 == c.name, "radio": True}
             else:
                 if k in ("num", "cat"):
                     row["b"] = {"on": c.name in self.test, "radio": False}
@@ -610,12 +615,12 @@ class Flow:
             out.append(row)
         return out
 
-    def heads(self) -> tuple[str, str, str, str, str]:
-        return ("Outcome", "Test it", "Hold fixed", "", "") if self.mode == "new" else \
-            ("Cut into bands", "Segment by", "Split by", "Filter 1", "Filter 2")
+    def heads(self) -> tuple[str, str, str, str, str, str]:
+        return ("Outcome", "Test it", "Hold fixed", "", "", "") if self.mode == "new" else \
+            ("Cut into bands", "Segment by", "Split by", "Filter 1", "Filter 2", "Filter 3")
 
     def click(self, name: str, which: str) -> None:
-        """A box ticked or a radio picked on the row for `name` (which: a, b, c, d or e)."""
+        """A box ticked or a radio picked on the row for `name` (which: a, b, c, d, e or f)."""
         row = next((r for r in self.rows() if r["name"] == name), None)
         if row is None or row[which] is None or (row["locked"] and which != "a"):
             return
@@ -632,6 +637,8 @@ class Flow:
                 self.filter = None if self.filter == name else name   # one column filters, or none; the split stays
             elif which == "e":
                 self.filter2 = None if self.filter2 == name else name     # Filter 2: another column, or none
+            elif which == "f":
+                self.filter3 = None if self.filter3 == name else name     # Filter 3: a third column, or none
             else:
                 self.split = None if self.split == name else name     # one column splits, or none
                 self.cut.discard(name)
@@ -740,11 +747,13 @@ class Flow:
         base = dict(few_values=self.few, many_values=self.many)
         if self.mode == "bleed":
             o = self.outcome
+            # a later filter with an earlier one empty moves up: Filter 2 alone is the one filter, Filter 3 without
+            # Filter 2 is the second, as the Run reads them (book._cuts_chosen)
+            got = ([x for x in (self.filter, self.filter2, self.filter3) if x] + [None] * 3)[:3]
             return ch.Choices(run_kind=ch.BLEED, bands=tuple(c for c in order if c in self.cut and c not in
                                                              (self.split, o)),
                               segments=tuple(c for c in order if c in self.seg and c != o), split=self.split,
-                              filter=self.filter or self.filter2, filter2=self.filter2 if self.filter else None,
-                              outcome=self.outcome, **base)
+                              filter=got[0], filter2=got[1], filter3=got[2], outcome=self.outcome, **base)
         test = [c for c in self.test]
         # the pockets hold the held-fixed columns fixed; one input splits every pocket, as a pre-spec tests it
         return ch.Choices(run_kind=ch.NEW_VARIABLE,
@@ -761,22 +770,53 @@ class Flow:
         return ch.too_many_values(c.name, c.values)
 
     def filter_refused(self) -> str | None:
-        """A Filter by with more values than the Grids' filter takes, the same column picked twice, or two filters
-        making more views than a grid may have: the refusal, in the Run's words."""
+        """A Filter by with more values than the Grids' filter takes, the same column picked twice, or the filters
+        making more views than a grid may have (two or three of them): the refusal, in the Run's words."""
         if self.filter and self.filter == self.filter2:
             return ch.same_filter_twice(self.filter)
+        for k, other in ((1, self.filter), (2, self.filter2)):
+            if self.filter3 and self.filter3 == other:
+                return ch.same_filter_twice(self.filter3, k, 3)
+        picked = self._filter_values()
+        if picked is None:
+            return None
+        if isinstance(picked, str):
+            return picked
+        if len(picked) == 2:
+            return ch.too_many_views(picked[0][0], picked[0][1], picked[1][0], picked[1][1])
+        if len(picked) == 3:
+            return ch.too_many_views(picked[0][0], picked[0][1], picked[1][0], picked[1][1], picked[2][0],
+                                     picked[2][1])
+        return None
+
+    def _filter_values(self):
+        """Each filter picked, in order, as (column, its values with blanks and (no date)): the refusal instead when
+        one has too many to filter by; None when a picked column's values aren't known."""
         picked = []
-        for name in (self.filter, self.filter2):
+        for name in (self.filter, self.filter2, self.filter3):
+            if not name:
+                continue
             c = next((c for c in self._columns() if c.name == name), None)
             if c is None or c.values is None:
                 continue
             said = ch.too_many_to_filter(c.name, c.values)
             if said:
                 return said
-            picked.append((c.name, c.values + getattr(c, "parts", 0)))
-        if len(picked) == 2:
-            return ch.too_many_views(picked[0][0], picked[0][1], picked[1][0], picked[1][1])
-        return None
+            picked.append((c.name, c.values + (getattr(c, "parts", 0) or 0)))
+        return picked
+
+    def _cost(self, grids: int) -> str:
+        """What the filters cost (the firm, 1 Oct 2026: a size limit, so it shows): each grid is built again for
+        every view, All loans counted for each filter, "6 × 5 × 5 = 150 views". Blank with no filter, or when a
+        picked column's values aren't known."""
+        picked = self._filter_values()
+        if not picked or isinstance(picked, str) or len(picked) != len([x for x in (self.filter, self.filter2,
+                                                                                     self.filter3) if x]):
+            return ""
+        views = ch.views_of(*(n for _, n in picked))
+        sum_ = " × ".join(str(n + 1) for _, n in picked) + " = " if len(picked) > 1 else ""
+        return (f" Each grid is built for {sum_}{_s(views, 'view')}, All loans counted: {_s(grids, 'grid')} × "
+                f"{views:,} = {grids * views:,} to build.")
 
     def summary(self) -> tuple[bool, str]:
         """The "This will run:" box, and whether Next can be pressed."""
@@ -796,8 +836,10 @@ class Flow:
             return True, (f"{_s(nb, 'band column')} × {_s(ns, 'segment column')} = {_s(g, 'grid')}, five measures "
                           f"each" + (f"; split by {self.split} adds {g} more." if self.split else ".")
                           + (f" Grids can show only the loans of one {got.filter}"
-                             + (f", one {got.filter2}, or both at once." if got.filter2 else ".")
-                             if got.filter else ""))
+                             + (f", one {got.filter2}, one {got.filter3}, or any of them together."
+                                if got.filter3 else f", one {got.filter2}, or both at once." if got.filter2 else ".")
+                             if got.filter else "")
+                          + self._cost(g * (2 if self.split else 1)))
         if self.shortlist:
             if self.spec is None:
                 return False, self.spec_problem or ""
@@ -1453,7 +1495,7 @@ def build(root) -> dict:
                     if i == 1:
                         widgets[f"what_{r['name']}"] = lab
                 else:
-                    which = "abcde"[i - 2]
+                    which = "abcdef"[i - 2]
                     b = box(cell, False, False, lambda n=r["name"], w_=which: choose_click(n, w_))
                     b.place(relx=0.5, rely=0.5, anchor="center")
                     boxes[(r["name"], which)] = b
@@ -1500,7 +1542,7 @@ def build(root) -> dict:
         for r in rows:
             if f"what_{r['name']}" in widgets:
                 widgets[f"what_{r['name']}"].configure(text=r["what"])
-            for which in "abcde":
+            for which in "abcdef":
                 b = boxes.get((r["name"], which))
                 ctl = r[which]
                 if b is None:

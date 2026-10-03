@@ -224,7 +224,8 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 else "SCORE x SOURCE: 5 bands by 3 segments, 15 pockets."))
     fl = f.get("filter") if run else None
     out.append(("Filter / Only loans where",
-                "Shows Grids and Summary on only the loans with one value of the Filter by column. × book is still "
+                "Shows Grids and Summary on only the loans with one value of the Filter by column. Up to three "
+                "filters can be picked, and then only the loans with every value picked show. × book is still "
                 "against the whole book.",
                 (f"Only loans where {fl['col']} is {fl['value']}: the grid on those loans alone." if fl["picked"]
                  else f"Filter by {fl['col']} in the launcher, then pick {fl['value']}: the grid on those loans "
@@ -236,6 +237,13 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 f"This book's loans were made from {yrs[0]} to {yrs[1]}. Pick one year under Only loans where to "
                 f"see it alone." if yrs else
                 "Pick 2023 under Only loans where to see only the loans made in 2023."))
+    # the firm, 3 Oct 2026: "Could the summary tab have vintage graphs as well?"; chosen: "Pocket vs rest vs book"
+    out.append(("Vintage",
+                "The loans made in one year. Summary's vintage chart draws one row against the rest of the book and "
+                "the whole book, a point for each year.",
+                f"Pick a row on Summary: three lines, one point a year from {yrs[0]} to {yrs[1]}." if yrs else
+                "Pick SCORE 620 - 679 on Summary: its line, the rest of the book's and the whole book's, 2021 to "
+                "2024."))
     wm = f.get("worse_material") if run else None
     out.append(("Worse and material",
                 "Worse: at least Worse at times its comparison, with a p-value under the bar on Control. Material: "
