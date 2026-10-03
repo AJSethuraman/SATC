@@ -1093,6 +1093,13 @@ muts = [
  ("a blocked scikit-learn not loaded before finding", SC,
   '        import sklearn.ensemble  # noqa: F401\n        import sklearn.metrics  # noqa: F401',
   '        pass', "wont_load_is_said_in_words"),
+ # the public-data rehearsal revived, 3 Oct 2026 (tests/test_rehearsal_2026_10_03.py): a band column of "83.7%"
+ # text refused as a column the extract doesn't have
+ ("a band with no readable number said to be missing", E,
+  '            raise DataRefused(f"`{b.field}` is cut into bands, but none of its {len(read):,} values reads as a "',
+  '            raise ColumnsMissing([(b.field, f"band {b.name}: no readable numbers to cut")], table.columns)\n'
+  '            raise DataRefused(f"`{b.field}` is cut into bands, but none of its {len(read):,} values reads as a "',
+  "percent_text_is_refused_as_unreadable"),
  # the full tie-out of 28 Sep 2026: Look's slices on float edges
  ("Look's top a hair over its round number", LK,
   '    return float(step * math.floor(lo / unit)), float(step * math.ceil(hi / unit))',
