@@ -14,6 +14,9 @@ this is not a port, and the workbook was designed from scratch.
 **Where it's going:** `docs/design.md` sets out the three stages (find, drill,
 prove) and the firm's rulings.
 
+**How it's written:** `VOICE.md` is the voice for everything PocketBook writes (tabs, notes, the Glossary,
+the audit workbook, launcher messages, docs): a credit-risk workpaper, not the website's client copy.
+
 **Status (26 Sep 2026):**
 - **Built:** the first stage, find. That means the engine, the launcher and the
   whole workbook: Set up, Control, Columns and every results tab below. Also the
@@ -446,26 +449,34 @@ again by Excel from the loans:
   band covers. **Loans**: one row per loan, only the columns the Run used; each
   band worked out by a formula from the loan's value and Bands, beside the band
   PocketBook gave it (Bands counts the loans where they differ: 0).
-- **One pocket**: Grid, Band and Segment dropdowns, on the top flagged pocket to
-  start with. 37 rows, one per figure (loans, bad loans, booked, GCOs,
-  RANR, each rate, the rest of the book and of the band, × book, × rest, the
-  gaps in points, dollars above share, Avg line and Line × book, the shuffle
-  count and the p-value before and after the allowance for many tests), each
-  with what it is in words, the sum written out with the pocket's own numbers
-  (*$765,455 ÷ $6,779,970 = 11.290%*), Excel's COUNTIFS or SUMIFS on Loans,
-  PocketBook's figure (every pocket's is stored, hidden, so any pick compares),
-  Ties? to a billionth, and how to get it by hand with Excel's filter and status
-  bar. Loans' *In this pocket* column follows the picks, so the filter is one
-  click.
+- **One pocket**: Grid, Band and Segment dropdowns, opening on a pocket
+  selected at random from the pockets the Run tested (every pocket with a GCO
+  p-value), seeded from the extract's SHA-256, so the same file always opens on
+  the same pocket; Run stamp and the top of One pocket give the seed, the
+  number drawn from and the pick. About 70 rows, one per figure (loans, bad
+  loans, booked, GCOs, RANR and RANR + GCOs, each rate, the whole book with each
+  booked total named by the loans it covers, the rest of the book and of the
+  band, × book, × rest, every gap in points and dollars RANR vs GCOs shows,
+  dollars above share, Avg line and Line × book, the shuffle count and the
+  p-value before and after the allowance for many tests), each with what it is
+  in words, the sum written out with the pocket's own numbers (*$765,455 ÷
+  $6,779,970 = 11.290%*), Excel's COUNTIFS or SUMIFS on Loans, PocketBook's
+  figure (every pocket's is stored, hidden, so any pick compares), Ties? to a
+  billionth, and how to get it by hand with Excel's filter and status bar: each
+  By hand step filters exactly the loans its formula takes (a test reads both).
+  Loans' *In this pocket* column follows the picks, so the filter is one click.
 - **Shuffle test**: what the test shuffles (which loans carry the pocket's
   label; within its band when judged against its band), the gap, two-sided,
   and p = (count + 1) ÷ (shuffles + 1), exactly as `perm.py` does it. A 10-loan
   example to follow on paper, each shuffle tied to perm's own. Then every
-  shuffled gap of the default pocket, dealt again from the Run's seed, whose
+  shuffled gap of the random pocket, dealt again from the Run's seed, whose
   COUNTIF gives its count and p-value, tied to the Run's. Another pocket's
   shuffles aren't listed (10,000 per pocket for every pocket would be millions
-  of rows): run again with it at the top, or deal the seed again. Beside it, the
-  two-proportion z-test on bad loans, as a textbook cross-check.
+  of rows): deal the seed again. Beside it, the two-proportion z-test on bad
+  loans, as a textbook cross-check. Last, the allowance for many tests worked
+  out in the open: every pocket tested in the picked pocket's grid on the same
+  comparison, with the Run's count and p-value, its rank, p × tests ÷ rank and
+  the adjusted p-value, each tied to the Run's.
 
 At 185,000 loans it adds about 35 seconds to a Run and is about 24 MB.
 
