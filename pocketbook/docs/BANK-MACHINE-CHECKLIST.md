@@ -110,7 +110,7 @@ cd /d "%USERPROFILE%"
 py PocketBook.py
 ```
 
-☐ It prints `39 files, every one checked. Opening the window.` and the window opens. It has written the `PocketBook` folder beside the script; skip to 2.3. If it says *The paste stops early* or *didn't come through whole*, the copy missed something: copy the whole script again, to its last line.
+☐ It prints `40 files, every one checked. Opening the window.` and the window opens. It has written the `PocketBook` folder beside the script; skip to 2.3. If it says *The paste stops early* or *didn't come through whole*, the copy missed something: copy the whole script again, to its last line.
 
 Otherwise, with the zips:
 

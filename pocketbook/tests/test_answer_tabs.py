@@ -124,9 +124,10 @@ def test_control_holds_changes_now_then_needs_a_run_then_the_launchers_choices(r
     assert a < bb < c
     assert [k for k, r in sorted(rows.items(), key=lambda t: t[1]) if a < r < bb] == list(control.NOW_KEYS)
     # the cutoff (OC-51) closes Block B: asked only when scouting, it moves no row a bleed run reads
-    # and the bureau codes question (30 Sep 2026) after it, the last row before the launcher's block
+    # and the bureau codes question (30 Sep 2026) after it, then the audit workbook's (3 Oct 2026), the last row
+    # before the launcher's block
     assert [k for k, r in sorted(rows.items(), key=lambda t: t[1]) if bb < r < c] == list(control.RUN_KEYS) + [
-        "cutoff", "bureau_codes"]
+        "cutoff", "bureau_codes", "audit_book"]
     assert "run_kind" in rows and rows["run_kind"] > c
     # the bands: INK with a red rule, SLATE with a STONE rule, MIST
     assert _hex(ws.cell(row=a, column=2).fill.fgColor) == house.INK

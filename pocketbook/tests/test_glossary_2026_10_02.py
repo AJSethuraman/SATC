@@ -123,11 +123,12 @@ def test_glossary_ranr_and_gco_examples_tie_to_the_extract(books):
     assert f"The book keeps ${want['ranr_per100']:.2f} per $100 booked." in rows["RANR"][1], rows["RANR"]
     assert f"This book's RANR came to ${want['ranr']:,.0f}." in rows["RANR"][1]
     assert f"${want['gco_per100']:.2f} per $100 booked." in rows["GCOs ($)"][1], rows["GCOs ($)"]
-    assert f"is {want['gco_per100']:.2f}%: ${want['gco_per100']:.2f} lost per $100 booked." in \
+    assert f"is {want['gco_per100']:.2f}%, or ${want['gco_per100']:.2f} lost per $100 booked." in \
         rows["Rate (GCOs ÷ Booked, RANR ÷ Booked)"][1]
     assert f"This book booked ${want['booked']:,.0f} over" in rows["Booked / Booked $"][1]
     note = [c.value for row in books["run"][glossary.SHEET].iter_rows(max_col=3) for c in row]
-    assert any(isinstance(v, str) and v.startswith("This book's own figures, for the whole book, from the last Run")
+    assert any(isinstance(v, str)
+               and v.startswith("The examples use this book's figures for the whole book, from the last Run")
                for v in note)
 
 
@@ -135,13 +136,14 @@ def test_glossary_points_and_multiples_add_up_as_printed(books):
     """The Points example's gap is its two rates' difference, and × book is the pocket's rate over the book's."""
     rows = _rows(books["run"])
     pts = rows["Points (pts)"][1]
-    m = re.fullmatch(r".+ keeps \$(-?[\d.]+) per \$100 booked; the rest of the book keeps \$(-?[\d.]+)\. "
-                     r"That is ([+-][\d.]+) pts\.", pts)
+    m = re.fullmatch(r".+ keeps \$(-?[\d.]+) per \$100 booked and the rest of the book keeps \$(-?[\d.]+)\. "
+                     r"The difference is ([+-][\d.]+) pts\.", pts)
     assert m, pts
     a, b, gap = (float(x) for x in m.groups())
     assert abs((a - b) - gap) <= 0.011
     x = rows["× book / × rest of book"][1]
-    m = re.fullmatch(r".+ loses \$([\d.]+) per \$100 booked: ([\d.]+)× book and ([\d.]+)× rest of book\.", x)
+    m = re.fullmatch(r".+ loses \$([\d.]+) per \$100 booked, which is ([\d.]+)× book and ([\d.]+)× rest of book\.",
+                     x)
     assert m, x
     book_rate = _from_csv(books["extract"])["gco_per100"]
     assert abs(float(m.group(1)) / book_rate - float(m.group(2))) < 0.01

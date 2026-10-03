@@ -3163,6 +3163,147 @@ changed in the code.
     every pair to 49 as well would close it. (2) The refusal writes the product with `x`, as the two-filter one
     always has; the launcher's cost line writes `×`.
 
+- **Built, 3 Oct 2026: the audit workbook** (branch `pocketbook-audit`). The firm: *"We will need to make this
+  auditable... a demo output mode that would take a file and show the calculations it makes on one set of things
+  and prove out each one so someone could take their current population run it and then independently understand
+  the calculation and its steps"*, then *"we definitely want to be able to demonstrate and explain what the
+  formulas are and how to do them by hand"*. Agreed: a separate workbook, one pocket, a live dropdown, recomputed
+  by Excel from the raw loans.
+  - **Where it's asked.** Control, Needs a Run, last row: *Also write the audit workbook?* (`audit_book`, optional
+    like the bureau codes: blank is No, so a normal Run writes nothing more; asked only for the bleed). Yes makes
+    the Run write `<book stem> - audit.xlsx` beside the workbook after it saves, and say so in its lines. An audit
+    file open in Excel is said in words; the Run itself still succeeds.
+  - **Sheets** (`src/pocketbook/audit.py`): Start here (what it is, the order to read it); Run stamp (file, SHA-256,
+    rows, every setting and Control answer, version, time, the shuffle seed and where it comes from); Rows in and
+    out (rows read, less each loan left out of each rate by column and reason, = the loans in it, each tied to the
+    Run's count); Bands (edges as typed and as used, each band's From and Up to, loans per band by formula against
+    the Run's, and how many loans' formula band differs from the Run's: 0); Loans (one row a loan, only the Run's
+    columns, a value or the reason it has none in words; each band a formula from the raw value and Bands, beside
+    the Run's band; *In this pocket* and *In this band* follow the picks); One pocket (Grid, Band and Segment
+    dropdowns, OFFSET lists, on the top flagged pocket: worse and material on GCOs, largest dollars above share;
+    37 figures, each Step | In words | Written out with the pocket's numbers (live TEXT) | Excel's COUNTIFS/SUMIFS
+    on Loans | PocketBook's figure | Ties? to a billionth | By hand); Shuffle test; hidden `_pocketbook` (the Run's
+    figures for every pocket, and Benjamini-Hochberg's ranks by shuffle count) and `_lists`.
+  - **The shuffle test, as perm.py does it.** What is shuffled: which loans carry the pocket's label, the pocket
+    keeping its size; against the book every loan in the GCO rate, against its band only the band's loans. The
+    statistic: pocket's GCOs ÷ Booked less the rest's. Two-sided: |g*| ≥ |g| less perm.TIE's allowance (1e-9 of
+    the rates' size); a shuffle with no dollars in the pocket counts. p = (count + 1) ÷ (B + 1). Then the
+    allowance for many tests over the grid's tested pockets on the same comparison. A 10-loan example (20 shuffles
+    from `perm.order_of`, each gap tied to `perm.pocket_vs_rest`'s own draw, count 5, p 6 ÷ 21). The default
+    pocket's B shuffles are dealt again from the Run's seed with `perm.run` on that one grid and comparison
+    (`RestGap(keep=True)`), all listed; COUNTIF at or past the line either way gives the count, tied to the Run's,
+    and so the p-value. The engine now keeps each loan's rate values and labels on `Result` (`per_row`,
+    `row_labels`) and names its seed (`engine.SHUFFLE_SEED_NAME`), so the audit proves the Run's own numbers. Other
+    pockets' shuffles are not listed (said on the sheet: re-run with that pocket on top, or deal the seed again).
+    Beside it, the two-proportion z-test on bad loans, live for the pocket picked, said to be a cross-check.
+  - **Fast.** Loans' rows go straight into the sheet's XML (openpyxl took 34 s for 185,000 rows of cells). At
+    185,000 synthetic loans, 10,000 shuffles, two band and two segment columns: 33 s added to the Run (reading
+    2.4 s, dealing the default pocket's shuffles again 22.5 s on 4 cores, sheets 1.4 s, loans 6.9 s), 23.8 MB.
+    LibreOffice calculates it in 45 s: One pocket 37 ✓, Rows in and out 13, Bands 14, Shuffle test 9, no ✗.
+  - **Tests:** 13 in `tests/test_audit_2026_10_03.py`, calculated by LibreOffice: every figure ties for the default
+    pocket and for three picked with the dropdowns (another grid, the smallest pocket, a (marked missing) band); the
+    default pocket's loans, GCOs, booked and bad loans from the CSV's text; rows in and out; every loan's formula
+    band is the engine's; the stamp's hash is the file's sha256; the COUNTIF reproduces the count exactly and the
+    p-value; the example is perm's; the option off (blank or No) writes nothing. Changed: test_answer_tabs (Block
+    B ends with `audit_book`) and test_control (two optional settings). Planted bugs: 4 in `tools/mutation_check.py`
+    (shuffles dealt across the book for a band pocket; band edges shifted; rest of the book holding the pocket; an
+    outcome of 2 read as bad), 4 of 4 caught with no display; every entry's old string occurs once (667 entries).
+    Pictures: `pocketbook/docs/audit-2026-10-03/`. Bank kit: the paste now writes 40 files (checklist 2.2 says so,
+    HTML and PDF rebuilt). Full suite, no display: 1,051 passed, 14 skipped, 0 failed (73 min).
+  - **For the firm to decide:** (1) A loan marked missing shows *(marked missing)* on Loans, not its value
+    (-9,999): the rule is on Run stamp. (2) openpyxl writes numbers to 16 significant digits, so a stored figure
+    can differ from the Run's in the 17th; Ties? allows a billionth. (3) Other pockets' shuffles need a re-run.
+- **Built, 3 Oct 2026: PocketBook's voice** (branch `pocketbook-voice`). The firm, on the audit workbook's *"Loans —
+  Every loan whose band and segment are the ones picked."*: *"it just sounds weird. it does not sound like something
+  a human would type ... I'd want this explained like: Loans — Records from the population in the applicable band
+  and/or category."* And: *"there has to be a way to get you to be able to understand what i don't like about some
+  of the writing."* Diagnosis, agreed: the repo's copy rules (root `CLAUDE.md`'s client-facing section,
+  `website/TENETS.md`) were written for tax clients on the website; applied to a bank analyst's tool they strip out
+  the profession's vocabulary and produce spec-like sentences.
+  - **`pocketbook/VOICE.md`**: who reads PocketBook (analysts, managers, model validators, internal auditors); the
+    register (a credit-risk workpaper: full sentences, industry terms expected); what does not apply (the
+    client-facing rules, `website/TENETS.md`) and what still does (no filler, no self-protective sentences,
+    `pocketbook/TENETS.md` T1 and T2, and a test's existing rule on its own surface); seven patterns with before
+    and after pairs, the firm's own first; and a five-question check for a sentence. `pocketbook/README.md` points
+    to it; root `CLAUDE.md`'s PocketBook mention says its copy follows it.
+  - **Rewritten** (`src/pocketbook/audit.py`, `src/pocketbook/glossary.py`), wording only: no number, formula,
+    figure, cell position or meaning moved. Audit workbook 203 strings (Start here 14, Run stamp 7, Rows in and out
+    20, Bands 24, Loans 1, One pocket 89, Shuffle test 33, and 15 in branches the test book doesn't reach);
+    Glossary 74. One pocket's column headings are now Step | Definition | Calculation | Excel's figure |
+    PocketBook's figure | Ties? | By hand. The Glossary still meets its test's contract-word list and 28-word cap.
+  - **For the firm:** `pocketbook/docs/voice-2026-10-03/REVIEW.html`, every changed string numbered (277), Where |
+    Before | After, to mark by number.
+  - **Tests:** `test_glossary_2026_10_02.py` follows four reworded examples (the note, Rate, Points, × book); the
+    audit's tests look up labels that were kept. Audit and Glossary tests 21 passed. Every `tools/mutation_check.py` entry's old string still
+    occurs once (667), none repointed; the six for audit.py and glossary.py run again with no display, 6 of 6 caught.
+    Full suite, no display: 1,051 passed, 14 skipped, 0 failed (79 min).
+  - **For the firm to decide:** (1) Loans reads *"Records from the population in the selected band and segment"*,
+    not *"and/or category"*: a pocket is the loans in both. (2) Lifetime-to-date's example now reads *"Compare loans
+    within the same vintage, because a 2021 loan has had more time on book than a 2024 loan"*; the old *"compare
+    vintages within a year"* was read that way. (3) Spelling stays as the tabs have it (*grey*, *coloured*).
+
+- **Built, 3 Oct 2026: the audit workbook's tie-out findings fixed, and a random pocket** (branch
+  `pocketbook-audit-fixes`, on `pocketbook-voice` and `pocketbook-audit-tieout`). The tie-out
+  (`pocketbook/docs/audit-tieout-2026-10-03/TIEOUT.html`) found no arithmetic error and seven findings on what the
+  workbook says and shows. Then the firm: *"tying out one thing that should prove everything if you picked
+  randomly"*, chosen *"Random, seed stamped"*. Words follow `pocketbook/VOICE.md`.
+  - **The random pocket.** The audit opens on a pocket drawn uniformly from the tested pockets (every pocket of the
+    Run's grids with a GCO p-value on the comparison that decides it), not the top flagged one. Seed:
+    `perm.seed_of("the audit workbook's pocket, selected at random", <the file's SHA-256>)`; the pockets sorted by
+    their key (grid|band|segment, as text), numbered from 0; the pick is seed mod their number. Run stamp has a
+    section for it (the pocket, the population, the seed, how it was drawn), and One pocket's Selection note says
+    it at the top (*"FICO x CHANNEL: (marked missing), Online, selected at random from the 18 tested pockets ...;
+    seed 13751448919744042928"*). Shuffle test lists that pocket's shuffles. Dropdowns unchanged.
+  - **Findings fixed.** (1) Every By hand step now names exactly the loans its formula takes (`by_hand()`: scope,
+    the columns whose text entries are excluded, what the status bar shows); rest of its band, Loans' Count, Loans
+    with a loss and Rows in and out's "Less:" lines were short of a filter. (2) Definitions say what the formula
+    computes (*Avg line, whole book*: per loan with a booked amount). (3) New rows for every gap RANR vs GCOs shows:
+    RANR + GCOs for the pocket and the book, and RANR and RANR + GCOs against the rest of the book and of the band,
+    each rate, gap in points and dollars (the tab's sign), against the Run's. (4) Each booked total is named by its
+    population (*every loan with a booked amount*, *loans with a GCO*, *loans with a RANR*, *loans with a GCO and a
+    RANR*), with a reconciling row, *loans with no GCO amount*, tied to a billionth of the book. (5) Shuffle test
+    part D: the picked pocket's family (its grid, same comparison), the Run's count and p-value, rank, p × tests ÷
+    rank, the adjusted p-value in Excel beside the Run's, the rule written out; live with One pocket's pick through a
+    rank-ordered list on `_lists`. (6) The random default makes the listed shuffle test a sensitive one when the pick
+    is (this scenario's: p 0.52). (7) Every One pocket row is as tall as its longest wrapped cell, the step label
+    included; Run stamp, Rows in and out, Bands and Shuffle test likewise; Start here's title no longer clipped.
+    One pocket: 60 figure rows (was 37).
+  - **Tie-out re-run** (section 13 of `TIEOUT.html`; `compare_rerun.py`, `build_rerun.py`; `tieout.py` draws the pick
+    itself from the file's bytes): same 50,000-loan file (SHA-256 9b41…0681), 241 comparisons, 0 differ, 0 ✗ on
+    any sheet. The pick drawn independently is the workbook's; all 60 rows of the random pocket three ways (57 to
+    1E-9, 3 shuffle rows within Monte Carlo error); two more pockets on the dropdowns; part B's 10,000 listed
+    shuffles counted at the independent line (5,227 = Excel = the Run); part D's 18 adjusted p-values against
+    Benjamini-Hochberg worked out from the listed p-values (exact) and the independent shuffles (MC); RANR vs GCOs'
+    row and Whole book against the audit and the independent figures. Following finding 1's By hand now gives
+    Excel's $213,994,598.67 (the old words gave $214,034,283.10).
+  - **Tests:** `tests/test_audit_2026_10_03.py`, 17 (was 13): the default is the random pick, worked out in the test
+    from the file's SHA-256 and the hidden sheet; the pick is the same for the same file and moves with the seed;
+    every By hand step's population matches its formula's criteria (both parsed, 26 rows; the parser itself shown a
+    missing filter); part D ties to Benjamini-Hochberg worked out in the test; the new RANR / RANR + GCOs band gaps
+    and dollars and the booked totals worked out from the CSV. Planted bugs: 5 new in `tools/mutation_check.py`
+    (pick ignoring the seed; pick drawn from untested pockets; part D's rank one low; rest of band's By hand
+    without its GCO filter; RANR dollars against the band with the Run's sign), and the old "rest of the book
+    holding the pocket" repointed to the renamed test: 9 of 9 audit bugs caught with no display; every entry's old
+    string occurs once (672). Pictures: `pocketbook/docs/audit-2026-10-03/` replaced. Full suite, no display:
+    1,055 passed, 14 skipped (all tkinter missing, as before), 0 failed (78 min); the audit tests again on the final
+    code, 17 passed.
+  - **For the firm to decide:** (1) The pick is drawn from tested pockets only; an untested pocket (too few losses)
+    is never the default, since it has no shuffle test to show. (2) Part D follows One pocket's pick through its
+    grid and comparison; a pocket alone in its band is listed in the book-side family.
+
+- **Docket answers, 3 Oct 2026** (the form at claude.ai/artifact/Sx6tUKKWYHHQhN9wN75jTV):
+  1. Merge the audit workbook (#418): *Merge it*.
+  2. While Codex is over its limit: *CI + independent review* counts as reviewed, noted on the PR.
+  3. The 277 rewrites: *"what are you asking"* — the question was unclear; re-asked in plain terms.
+  4. Lifetime-to-date: *"this is the kind of garbage i do not want at all ... literal facts, calculations, our rules
+     around leaving comments are fine. stuff like this i don't ask for"*. Rewritten to a literal definition; the rule
+     added to `pocketbook/VOICE.md` (facts, calculations and rules only; no advice or interpretation).
+  5. Random pick: *Tested only*, *"how will this work"* — explained in the session.
+  6. Look tab charts: *"show me the before and after of your rec"* — open; a before/after picture to follow.
+  7. Public-data rehearsal (#407): *Revive*.
+  8. Filter limits: *"hard to understand it just seems vague without context"* — open; to be re-asked with an example.
+  - **Next (agreed by silence):** ship #418, then revive #407.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -3174,6 +3315,9 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-03 -- **PocketBook: the audit workbook's tie-out findings fixed, and a random pocket.** The firm: *"tying out one thing that should prove everything if you picked randomly"* (*"Random, seed stamped"*). The audit opens on a pocket drawn from the tested pockets, seeded from the file's SHA-256 and stamped; every By hand step filters what its formula takes (a test parses both); every gap RANR vs GCOs shows is proved; booked totals named by population; Benjamini-Hochberg worked out on a visible table; no overlapping rows. Tie-out re-run: 241 comparisons, 0 differ. 17 tests, 9 of 9 audit planted bugs caught. §6d has the detail.
+- 2026-10-03 -- **PocketBook: its voice.** The firm, on *"Every loan whose band and segment are the ones picked"*: *"it does not sound like something a human would type"*. `pocketbook/VOICE.md` sets the register (a credit-risk workpaper for analysts, managers, validators and auditors; the website's client-copy rules don't apply) with before and after patterns, the firm's own first. The audit workbook (203 strings) and the Glossary (74) are rewritten to it, wording only; `docs/voice-2026-10-03/REVIEW.html` numbers all 277 for the firm to mark. Full suite 1,051 passed, 14 skipped; 6 of 6 audit and Glossary planted bugs caught. §6d has the detail.
+- 2026-10-03 -- **PocketBook: the audit workbook.** The firm: *"show the calculations it makes on one set of things and prove out each one"*, and *"how to do them by hand"*. Control's *Also write the audit workbook?* makes the Run write `<book> - audit.xlsx`: Run stamp (file, SHA-256, settings, seed), Rows in and out, Bands, Loans (each band a formula), One pocket (a live Grid / Band / Segment pick, 37 figures each written out, worked out by COUNTIFS/SUMIFS on the loans, tied to the Run's, and how to do it by hand) and Shuffle test (a 10-loan example, and every shuffle of the default pocket whose COUNTIF gives its p-value). 33 s and 23.8 MB at 185,000 loans. 13 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: Summary's vintage chart and grey rows.** The firm: *"Could the summary tab have vintage graphs as well?"*, chosen *"Pocket vs rest vs book"*; and low unit counts *"grayed out to a degree"*, by a number of its own. Under the Summary table, one row against the rest of the book and the whole book by origination year, on any Summary measure, following Only loans where, thin points left off; at the top, Grey rows under [50] loans, read by nothing else. 5 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: Avg line and × book.** The firm: *"I want to start including and using booked dollar averages so more easily demonstrate how line assignments look in pockets"*. Summary gains Avg line (booked dollars per loan, the average committed line) and × book (that over the whole book's) right after Booked $, in every filter view; RANR vs GCOs' gross block ends on the same two, shaded as Grids' Loan size, never red or green; the Glossary gains the term. 8 tests, 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: a Glossary tab.** The firm: *"Maybe a nice glossary of terms in the workbook should be there"*. A grey tab right after Start here, written by every Set up and Run: 25 terms, each with what it means and an example in the book's own figures from the last Run (*"the book keeps $12.80 per $100 booked"*), made up before the first. Start here links to it; the bank checklist has a 4.10 for it. 8 tests; 2 planted bugs, 2 caught. §6d has the detail.
