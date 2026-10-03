@@ -118,7 +118,7 @@ sourced in `SOURCES.md`. Repeating it here would be tenet 5 across pages, which
 | A fund or another company cannot hold the stock | [S corporations](https://www.irs.gov/businesses/small-businesses-self-employed/s-corporations) — "May not be partnerships, corporations or non-resident alien shareholders". A fund is named in the guide because the common ones are partnerships; the page's own category is the partnership, not the fund. **The citizenship half of this rule is stated once, in section 03**, rather than twice — repeating it tripped the page's own no-repeated-phrase check, and saying it once where the eligibility list lives is the clearer place for it |
 | One class of stock leaves no room for investor terms | [S corporations](https://www.irs.gov/businesses/small-businesses-self-employed/s-corporations) — "Have only one class of stock". That a single class forecloses preferences and liquidation terms is the firm's own reading of the consequence, not a quotation |
 | Rental profit carries no self-employment tax to start with | **A REAL RULE, NOT A JUDGEMENT CALL — and not verifiable from here.** [Instructions for Schedule SE](https://www.irs.gov/instructions/i1040sse) fetches and does carry a "Rental real estate business" heading, but the body under it did not extract, so nothing here has read the exclusion in context. The rule is section 1402(a)(1): rents from real property are excluded from net earnings from self-employment. The guide's "to start with" is doing real work — the exclusion drops away where services are provided to occupants, as in a hotel or a bed and breakfast, and for a real estate dealer. **This row was previously filed under practice, which was the wrong bucket**: it is a statute, and it needs a citation someone can read |
-| Taking a property back out of a corporation later is taxed as though it had been sold | **UNVERIFIABLE FROM HERE, AND SAYING SO.** The cited [practice unit PDF](https://www.irs.gov/pub/fatca/int_practice_units/sco_t_010.pdf) extracts to 2,203 characters of unusable text. The rule the claim states is section 311(b), and **a practice unit is a training aid rather than authority** — if this stays in the guide it needs a citation that is both readable and primary |
+| Taking a property back out of a corporation later is taxed as though it had been sold | **CITATION REPLACED. THE PRACTICE UNIT IS OUT.** The row cited an [IRS practice unit PDF](https://www.irs.gov/pub/fatca/int_practice_units/sco_t_010.pdf) — training material rather than authority, and it extracted to 2,203 characters of unusable text, so it was never readable either. The rule is statutory and both halves of it fetch and read cleanly through this file's own `fetch()` and `strip_html()`. [26 U.S.C. § 311(b)(1)](https://www.law.cornell.edu/uscode/text/26/311): where a corporation distributes property to a shareholder and "the fair market value of such property exceeds its adjusted basis (in the hands of the distributing corporation)", then "gain shall be recognized to the distributing corporation as if such property were sold to the distributee at its fair market value". That section sits in subchapter C, and the bullet is about an S corporation, so the reach is [26 U.S.C. § 1371(a)](https://www.law.cornell.edu/uscode/text/26/1371): "subchapter C shall apply to an S corporation and its shareholders". **Two pages, both primary, both carrying the words attributed to them** — checked 7 September 2026 by fetching each with this file's own fetcher rather than by reading it in a browser |
 | Money the company borrows gives a shareholder no room to deduct losses; in a partnership it does | [S corporation stock and debt basis](https://www.irs.gov/businesses/small-businesses-self-employed/s-corporation-stock-and-debt-basis) — the excess is deductible only "up to the shareholder's basis in loans personally made to the S corporation". A loan the company took from a bank is not one the shareholder made, which is the distinction the guide draws |
 
 ## 08 · Undoing it is slow
@@ -139,27 +139,79 @@ sourced in `SOURCES.md`. Repeating it here would be tenet 5 across pages, which
    that gates the two records guides, and it gates this page harder.
 
 2. **`[CONFIRM: does the guide point at the fact that setting an owner's wage
-   is hourly work?]`** Section 05 ends "Nothing on this page sets one" and goes
-   no further. The price page already carries the line *"Setting what an S
-   corporation owner pays themselves."* Marked in the draft.
+   is hourly work?]`** — **ANSWERED 7 September 2026: yes, and it now does.**
+   Section 05 carries one more bullet after *"Nothing on this page sets one"*:
 
-3. **`[CONFIRM: Ohio's cities.]`** Section 04 says a city wants the wage side,
-   which is safe. What a city does with an S corporation owner's *share of the
-   profit* is not on the page: Ohio municipal law reaches net profit at the
-   business, and the treatment of a shareholder's distributive share turns on
-   the municipality. Verified for nothing here. Either confirm the silence or
-   supply the treatment for the firm's own catchment. Marked in the draft.
+   > If you want us to set one or check yours, it has [its own line on the price
+   > page](../pricing.html).
 
-4. **`[CONFIRM: the closing not-advice line.]`** The firm settled that there
-   should be one and how it should read — *"it should not be taken as advice on
-   a particular return, sure... this is a particular time we can deflect legal
-   assurance - it is just helpful free advice. make the wording fairly
-   generic."* No sentence was supplied, so one was written: **"This is general
-   information, not advice about a particular business."** Two questions on it.
-   Are those the words? And do the other two guides now carry the same sentence,
-   worded identically — tenet 4 says two things doing the same job look the
-   same, and open item 4 in `SOURCES.md` is the same question left open there.
-   Marked in the draft.
+   It names no figure and cannot: this page is downstream of
+   `fee-schedule.yaml`, and the line it points at is generated from
+   `assumed.officer_compensation` there. **Nineteen words, no amount, no
+   promise about who does it or how long it takes.**
+
+   The business guide deliberately does not carry the same bullet — see open
+   item 5 of `SOURCES.md`. This is the page that reader lands on.
+
+3. **`[CONFIRM: Ohio's cities.]`** — **RETIRED 7 September 2026. The premise
+   was cut out from under it and it was never re-marked.** The original text is
+   kept below, because a question that is deleted is a question nobody can
+   audit:
+
+   > Section 04 says a city wants the wage side, which is safe. What a city
+   > does with an S corporation owner's *share of the profit* is not on the
+   > page: Ohio municipal law reaches net profit at the business, and the
+   > treatment of a shareholder's distributive share turns on the
+   > municipality. Verified for nothing here. Either confirm the silence or
+   > supply the treatment for the firm's own catchment. Marked in the draft.
+
+   **Why it is retired, and not answered.** It asks the firm to confirm the
+   scope of a sentence that is no longer on the page. When it was written,
+   section 04 read *"Ohio and the city where the work happens want their share
+   of the wage — a registration each, and returns of their own."* The firm cut
+   that at C063 in `FIRM-REVIEW.md`:
+
+   > still need more context - honestly ohio-specific stuff should maybe be
+   > shelved for now. let's focus federal then go beyond
+
+   and, on this row itself (C064):
+
+   > RITA is really integral - i'd focus RITA before Ohio. i think this is
+   > likely true? like yeah a city wants to know how much money entities made?
+
+   The bullet was genericised to *"Wages bring state and local obligations too
+   — a registration and returns for each."* — true everywhere, naming no state
+   and no city. So the guide already does the thing the marker was asking the
+   firm to approve, on the firm's own instruction, and there is nothing
+   municipal left on the page for the question to be about. Answering it would
+   mean asking the firm to rule a second time on something they already ruled.
+
+   **What is still true, and where it now lives.** Ohio's municipal treatment
+   of a shareholder's distributive share is unverified, and the firm rates RITA
+   as the piece that matters. That is not a question about this page; it is
+   work that has to happen before any municipal sentence can be written. It is
+   recorded in the row for that bullet in the table above (*"the specific
+   municipal assertion is out until someone reads a RITA business page and
+   writes down what it says"*) and it stays there. **If Ohio comes back off the
+   shelf, this marker comes back with it.**
+
+4. **`[CONFIRM: the closing not-advice line.]`** — **ANSWERED 7 September 2026,
+   both halves.** The firm had settled that there should be one and how it
+   should read — *"it should not be taken as advice on a particular return,
+   sure... this is a particular time we can deflect legal assurance - it is just
+   helpful free advice. make the wording fairly generic."* — but supplied no
+   sentence, so one was written and shipped unapproved. It is approved now, and
+   the answer to the second half was **no, the three pages did not match**:
+
+   > This is general information, not advice about a particular return or
+   > business.
+
+   The words are the ones that were already live, with the noun opened out.
+   `build-guides.py` used to pick it from the page (*return* here, *business* on
+   the other two), so three pages carried two sentences. It no longer picks; the
+   sentence is one literal in the shell, and `tenets.spec.py`'s FURNITURE
+   exemption matches the settled form. Tenet 4 satisfied: two things doing the
+   same job now look the same.
 
 5. **`[CONFIRM: the deduction on business profit is still permanent.]`** Section
    06 leans on the fact that a wage does not qualify for it. The exclusion of

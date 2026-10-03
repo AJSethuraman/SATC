@@ -103,7 +103,8 @@ print("SATC — the copy tenets, over the guide drafts\n")
 
 for name in DRAFTS:
     path = HERE / name
-    text = visible_text(path.read_text(encoding="utf-8"))
+    raw = path.read_text(encoding="utf-8")
+    text = visible_text(raw)
     low = text.lower()
     sents = sentences(text)
 
@@ -130,6 +131,22 @@ for name in DRAFTS:
     hits = [w for w in BRITISH if w in low]
     check(not hits, f"American spelling throughout {hits or ''}")
 
+    # These are Markdown drafts, and build-guides.py escapes "&" to "&amp;"
+    # before anything else. So an HTML entity typed into a draft does not
+    # become the character it names -- it reaches the reader as the literal
+    # text "&mdash;". That shipped: good-records-business.md section 04 carried
+    # one from the day the guides went live on 7 September 2026 until it was
+    # found by reading the published page, not by any check. copy.spec.py did
+    # not catch it (it is not a banned word), build-guides.py --check did not
+    # (the built file faithfully reproduced the draft), and nothing else looks
+    # at the drafts as characters. Written against the raw draft, with the
+    # comments removed: an entity inside a [CONFIRM: note is addressed to the
+    # firm and never reaches a page.
+    entities = re.findall(r"&(?:[A-Za-z][A-Za-z0-9]{1,31}|#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6});",
+                          re.sub(r"<!--.*?-->", " ", raw, flags=re.S))
+    check(not entities,
+          f"no HTML entity in a draft -- it prints as itself {sorted(set(entities)) or ''}")
+
 # Tenet 5 across the set. Two guides that repeat each other are one guide split
 # in half, which is the failure the separate-pages decision has to survive. It
 # was written for a pair and now runs over every pair, because the third guide
@@ -144,10 +161,19 @@ print("--- the pages against each other")
 # it three times. So it is furniture, like a wordmark in a header and again in
 # a footer, and it comes out before the pages are compared.
 #
+# It really is word for word now. Until 7 September 2026 the builder picked the
+# noun from the page -- "a particular return" on the individual guide, "a
+# particular business" on the other two -- so the three pages carried two
+# sentences and this pattern was loose enough not to notice. The firm settled it
+# that day, choosing one sentence for all three; the alternation below keeps the
+# older single-noun forms matching so a draft that has not been through the
+# rewrite is still exempted rather than reported as repetition.
+#
 # Exempted by matching the sentence, not by skipping a trailing block: a real
 # repetition that happened to sit at the foot of a page would still be caught.
 FURNITURE = re.compile(
-    r"this is general information,? not advice about a particular [a-z]+\.?",
+    r"this is general information,? not advice about a particular "
+    r"(?:return or business|[a-z]+)\.?",
     re.I)
 
 grams = {}
