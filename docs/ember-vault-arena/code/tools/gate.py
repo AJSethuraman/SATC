@@ -95,6 +95,13 @@ def run(args) -> Path:
         engine = ArenaEngine(store, provider, max_rounds=args.rounds, parallel_agents=True)
         match_id = engine.run(manifests, seed)
         bundle = store.replay_bundle(match_id)
+        # The full record of each match (every event, every round's state)
+        # is kept beside the pack with the key, never inside it: it carries
+        # real names and would hand a reader the mapping. Kept so the firm can
+        # replay a gate match in full; the pack itself stays blind.
+        replays = replays_dir(out)
+        replays.mkdir(parents=True, exist_ok=True)
+        (replays / f"{seed}.json").write_text(json.dumps(bundle, ensure_ascii=False), encoding="utf-8")
         by_round: dict[int, list[dict]] = {}
         for ev in bundle["events"]:
             by_round.setdefault(ev["round_no"], []).append(ev)
@@ -162,13 +169,23 @@ def run(args) -> Path:
         "Each fills in `ANSWER_SHEET.md` and saves a JSON answer file. Then:\n\n"
         f"```\npython3 tools/score_gate.py gate/{run_id} reader_a.json reader_b.json\n```\n\n"
         f"The key is `gate/{run_id}.key.json`, beside this folder and outside source control: "
-        "keep it, hand it to nobody, and do not open it until both sheets are in.\n", encoding="utf-8")
+        "keep it, hand it to nobody, and do not open it until both sheets are in. "
+        f"The full record of each match is `gate/{run_id}.replays/<seed>.json`, also beside this folder "
+        "and also outside source control; `python3 tools/replay_page.py <that file> out.html` "
+        "shows a match in full, with names.\n", encoding="utf-8")
     return out
 
 
 def key_path(pack: Path) -> Path:
     """The key lives beside the pack, never in it."""
     return pack.parent / f"{pack.name}.key.json"
+
+
+def replays_dir(pack: Path) -> Path:
+    """The full match records live beside the pack too, one JSON per seed,
+    readable by ``tools/replay_page.py``. Real names inside, so never in the
+    pack and never on the branch."""
+    return pack.parent / f"{pack.name}.replays"
 
 
 def main() -> int:

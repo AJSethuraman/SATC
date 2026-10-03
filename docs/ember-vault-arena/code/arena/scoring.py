@@ -29,7 +29,7 @@ SCORING: Mapping[str, int] = MappingProxyType(
         "direct_elimination": 2,  # max once per victim
         "invalid_action": -2,
         "invalid_output": -2,
-        "extraction": 10,  # on top of first place, for display
+        "crown_held_at_end": 10,  # holding the Crown when the last round ends: the win, on top of first place
     }
 )
 
@@ -47,7 +47,7 @@ COLLATERAL_SCORES_NOTHING = True
 # flipping this to a first-take-only policy is a one-line change.
 CROWN_TAKE_FIRST_ONLY = False
 
-SURVIVAL_ACT = 2  # "survive through Act II" == alive at the end of round 7
+SURVIVAL_ACT = 2  # "survive through Act II" == alive at the end of rules.ACT_II_LAST_ROUND
 
 OBJECTIVE_DEFS: Mapping[str, Mapping[str, Any]] = MappingProxyType(
     {
@@ -206,16 +206,17 @@ def _tie_break_digest(seed: Any, agent_id: str) -> str:
 
 
 def placement_key(state: Mapping[str, Any], agent: Mapping[str, Any]) -> tuple:
-    """Sort ascending. Escaped winner first, then score desc, then the chain."""
+    """Sort ascending. The Crown's holder at the end first, then score desc, then the chain."""
     crown = state.get("crown", {})
     hold_rounds = crown.get("hold_rounds_by_agent", {}).get(agent["id"], 0)
-    max_rounds = state.get("max_rounds", 12)
+    max_rounds = state["max_rounds"]  # set by rules.new_match_state; the number lives there
     # Alive/escaped agents count as "eliminated after the last round" so that
     # "later elimination / still alive first" is one comparison, not two.
     eliminated_round = agent.get("eliminated_round")
     survival_rank = max_rounds + 1 if eliminated_round is None else eliminated_round
     return (
-        0 if agent["id"] == state.get("winner_agent_id") and agent.get("status") == "escaped" else 1,
+        0 if (agent["id"] == state.get("winner_agent_id") and crown.get("status") == "carried"
+              and crown.get("carrier_id") == agent["id"]) else 1,
         -agent.get("score", 0),
         -survival_rank,
         -hold_rounds,
@@ -227,7 +228,9 @@ def placement_key(state: Mapping[str, Any], agent: Mapping[str, Any]) -> tuple:
 
 
 def placement_order(state: Mapping[str, Any]) -> list[str]:
-    agents = [state["agents"][agent_id] for agent_id in sorted(state["agents"])]
+    """Contestants only: a talker (PRD §5.25) cannot place or win."""
+    agents = [state["agents"][agent_id] for agent_id in sorted(state["agents"])
+              if state["agents"][agent_id].get("kind", "character") == "character"]
     agents.sort(key=lambda agent: placement_key(state, agent))
     return [agent["id"] for agent in agents]
 

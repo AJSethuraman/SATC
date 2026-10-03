@@ -30,9 +30,11 @@ from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Any, Callable
 
-from . import combat, grid, items, rules, scoring
+from . import combat, deals, grid, items, rules, scoring, world
 from .models import (
     AgentAction,
+    Deal,
+    TALKERS_MAX,
     AgentManifest,
     Note,
     ProviderResult,
@@ -45,6 +47,8 @@ from .providers import (
     MockDecisionProvider,
     compile_narration_prompt,
     compile_prompt,
+    OPENING_CAP,
+    compile_opening_prompt,
 )
 from .rng import HashRNG
 from .rules import (
@@ -87,6 +91,7 @@ class FrozenDecision:
     legal_actions_hash: str
     validity: str
     fallback_reason: str | None
+    second_legal: bool = False   # the brain's second choice was in the frozen legal set (PRD §5.42)
 
 
 class ArenaEngine:
@@ -101,6 +106,10 @@ class ArenaEngine:
         self.store = store
         self.provider = provider
         self.max_rounds = max_rounds
+        self._second_pending: AgentAction | None = None
+        self._second_given = False
+        self._resolving_second = False
+        self._last_stale: str | None = None
         self.parallel_agents = parallel_agents
         self.autopilot = MockDecisionProvider()
         # PRD §5.18: one transport retry; §5.34: a pool as wide as the living.
@@ -111,6 +120,13 @@ class ArenaEngine:
         self.manifests: dict[str, AgentManifest] = {}
         self.rng = HashRNG(0)
         self.round_lines: list[str] = []
+        # PRD §5.35: the presenter hears each round the moment its end
+        # snapshot is committed, and the match id the moment it exists.
+        self.on_start: Callable[[str], None] | None = None
+        self.on_round: Callable[[int], None] | None = None
+        # This round's committed events, as written, for the deal settlement
+        # in upkeep (PRD §5.20: a break is judged against committed events).
+        self._round_events: list[dict[str, Any]] = []
 
     # ------------------------------------------------------------------
     # match loop
@@ -122,8 +138,12 @@ class ArenaEngine:
         seed: int = 20260724,
         match_id: str | None = None,
     ) -> str:
-        if not 4 <= len(manifests) <= 8:
-            raise ValueError("Ember Vault requires four to eight agents")
+        characters = [m for m in manifests if getattr(m, "kind", "character") == "character"]
+        talkers = [m for m in manifests if getattr(m, "kind", "character") == "talker"]
+        if not 4 <= len(characters) <= 8:
+            raise ValueError("Ember Vault requires four to eight contestants")
+        if len(talkers) > TALKERS_MAX:
+            raise ValueError(f"Ember Vault seats at most {TALKERS_MAX} talkers")
         if len({manifest.id for manifest in manifests}) != len(manifests):
             raise ValueError("agent IDs must be unique")
         self.match_id = match_id or f"ember-{seed}-{uuid.uuid4().hex[:8]}"
@@ -155,11 +175,16 @@ class ArenaEngine:
             },
         )
         self.store.save_snapshot(self.match_id, 0, "start", self.state)
+        self._narrate_opening()
+        if self.on_start:
+            self.on_start(self.match_id)
 
         for round_no in range(1, self.max_rounds + 1):
             if self._is_terminal():
                 break
             self._run_round(round_no)
+            if self.on_round:
+                self.on_round(round_no)
 
         self._finalize()
         return self.match_id
@@ -168,6 +193,7 @@ class ArenaEngine:
         # -- P0 ROUND OPEN --------------------------------------------------
         self.state["round"] = round_no
         self.round_lines = []
+        self._round_events = []
         round_resets: dict[str, Any] = {}
         for agent_id in sorted(self.state["agents"]):
             agent = self.state["agents"][agent_id]
@@ -252,7 +278,23 @@ class ArenaEngine:
                     "action was not in the frozen start-of-round legal_actions",
                 )
                 continue
+            # THE SECOND CHOICE (PRD §5.42, ruled 18 Sep 2026): the first choice
+            # resolves; if the board no longer allows it, the second choice, if
+            # the brain gave one and it was legal at the freeze, resolves once.
+            # A stale second is a stale turn. Neither is ever a penalty.
+            self._second_pending = decision.action.second() if decision.second_legal else None
+            self._second_given = decision.action.fallback is not None
+            self._last_stale = None
             self._resolve_action(agent_id, decision.action)
+            if self._last_stale and self._second_pending is not None:
+                second, self._second_pending = self._second_pending, None
+                self._last_stale = None
+                self._resolving_second = True
+                try:
+                    self._resolve_action(agent_id, second)
+                finally:
+                    self._resolving_second = False
+            self._second_pending = None
             if self.state.get("winner_agent_id"):
                 break
 
@@ -261,8 +303,8 @@ class ArenaEngine:
             self._monster_phase(round_no)
 
         # -- P5 END-OF-ROUND UPKEEP -----------------------------------------
-        # A legal escape ends the match IMMEDIATELY: no attunement tick, no
-        # contraction seal, no Act II bonus in the round someone extracted.
+        # Nothing ends a match mid-round since ruleset 0.3; the winner check
+        # in the loop is kept for a future rule that might.
         if not self.state.get("winner_agent_id"):
             self._end_round_upkeep(round_no)
 
@@ -305,6 +347,16 @@ class ArenaEngine:
                 "changes": {"act": [old_act, new_act]},
             },
         )
+        if new_act == rules.VAULT_OPENS_ACT and rules.vault_open(self.state):
+            self._event(
+                round_no,
+                "referee",
+                "vault_gate_opened",
+                None,
+                VAULT_ROOM,
+                "The last act opens and both seals burn: the Ember Vault stands open.",
+                {"reason": "last_act_with_seals_lit", "seals": dict(self.state["seals"])},
+            )
 
     def _flag_contracting_rooms(self, round_no: int) -> None:
         """A room is flagged for the FULL round whose END seals it, so the
@@ -504,6 +556,10 @@ class ArenaEngine:
                 )
             if action.speech.mode != "silent":
                 self._emit_speech(round_no, agent_id, action.speech)
+            # A promise is the character's own: the autopilot never deals on a
+            # brain's behalf, so a deal rides only on a valid decision.
+            if validity == "valid" and action.deal is not None:
+                self._emit_deal(round_no, agent_id, action.deal)
             self.store.log_decision(
                 self.match_id,
                 round_no,
@@ -536,6 +592,11 @@ class ArenaEngine:
                 legal_actions_hash=legal_hashes[agent_id],
                 validity=validity,
                 fallback_reason=fallback_reason,
+                # judged against the same captured oracle as the first choice
+                second_legal=bool(
+                    action.fallback is not None
+                    and rules.action_key(action.fallback.as_dict()) in legal_keys[agent_id]
+                ),
             )
         return frozen
 
@@ -593,6 +654,48 @@ class ArenaEngine:
                 "room": agent["room"],
                 "addressed_ids": addressed,
             },
+        )
+
+    def _emit_deal(self, round_no: int, agent_id: str, deal: Deal) -> None:
+        """Record an offer or an accept (PRD §5.19). What cannot be recorded is
+        ``deal_lost`` with the reason and no penalty, as a whisper to an empty
+        room is lost."""
+        raw = deal.as_dict()
+        agent = self.state["agents"][agent_id]
+        if deal.kind == "offer":
+            offer, reason = deals.record_offer(self.state, round_no, agent_id, raw)
+            if offer is None:
+                self._event(
+                    round_no, "dialogue", "deal_lost", agent_id, deal.to,
+                    f"{agent['name']}'s offer goes nowhere: {reason}.",
+                    {"kind": "offer", "deal": raw, "reason": reason},
+                )
+                return
+            other = self.state["agents"][offer["to"]]
+            self._event(
+                round_no, "dialogue", "offer_made", agent_id, offer["to"],
+                f"{agent['name']} offers {other['name']} {deals.describe_terms(self.state, offer)}; "
+                f"it stands until the end of round {offer['lapses_after_round']}.",
+                {"offer": deepcopy(offer), "parties": [offer["from"], offer["to"]],
+                 "changes": {f"deals.offers.{offer['id']}.status": [None, "open"]}},
+            )
+            return
+        struck, reason = deals.record_accept(self.state, round_no, agent_id, deal.offer_id, raw)
+        if struck is None:
+            self._event(
+                round_no, "dialogue", "deal_lost", agent_id, None,
+                f"{agent['name']}'s acceptance goes nowhere: {reason}.",
+                {"kind": "accept", "deal": raw, "reason": reason},
+            )
+            return
+        offerer = self.state["agents"][struck["from"]]
+        self._event(
+            round_no, "dialogue", "deal_struck", agent_id, struck["from"],
+            f"{agent['name']} accepts {offerer['name']}'s offer of {deals.describe_terms(self.state, struck)}. "
+            f"It stands through round {struck['term_end']}.",
+            {"deal": deepcopy(struck), "parties": list(struck["parties"]),
+             "changes": {f"deals.offers.{struck['id']}.status": ["open", "struck"],
+                         f"deals.struck.{struck['id']}.status": [None, "standing"]}},
         )
 
     def _addressed_ids(self, speaker_id: str, text: str) -> list[str]:
@@ -673,14 +776,9 @@ class ArenaEngine:
     def _move(self, agent_id: str, action: AgentAction) -> None:
         agent = self.state["agents"][agent_id]
         destination = action.destination or ""
-        if destination == EGRESS_ROOM:
-            # Resolution-time re-check: the carrier may have fumbled the Crown
-            # on an earlier initiative this round. STALE, never a penalty.
-            if not rules.escape_gate_ok(self.state, agent_id):
-                self._stale(agent_id, action, "the Crown is no longer attuned in hand")
-                return
-            self._crown_extract(agent_id)
-            return
+        # The Egress is a room like any other since ruleset 0.3 (PRD §5.4,
+        # ruled 12 Sep 2026, D8): nothing ends the match early. Whoever holds
+        # the Crown when the last round resolves wins; see _finalize.
         if rules.is_sealed(self.state, destination):
             self._stale(agent_id, action, "that room has sealed")
             return
@@ -791,46 +889,13 @@ class ArenaEngine:
             },
         )
 
-    def _crown_extract(self, agent_id: str) -> None:
-        agent = self.state["agents"][agent_id]
-        crown = self.state["crown"]
-        attunement = crown["attunement_rounds"]
-        before_room = agent["room"]
-        agent["room"] = EGRESS_ROOM
-        if EGRESS_ROOM not in agent["visited"]:
-            agent["visited"].append(EGRESS_ROOM)
-        agent["status"] = "escaped"
-        changes = rules.crown_extract(self.state, agent_id)
-        changes["room"] = [before_room, EGRESS_ROOM]
-        changes["status"] = ["active", "escaped"]
-        self.state["winner_agent_id"] = agent_id
-        self.state["status"] = "completed"
-        self.state["ended_reason"] = "extraction"
-        self._score(
-            agent_id,
-            "extraction",
-            scoring.SCORING["extraction"],
-            "Extracted with the Ember Crown",
-        )
-        self._event(
-            self.state["round"],
-            "referee",
-            "crown_extracted",
-            agent_id,
-            EGRESS_ROOM,
-            f"{agent['name']} walks out under open sky with the Ember Crown.",
-            {
-                "agent_id": agent_id,
-                "attunement_rounds": attunement,
-                "round": self.state["round"],
-                "winner_agent_id": agent_id,
-                "changes": changes,
-            },
-        )
-
     def _interact(self, agent_id: str, action: AgentAction) -> None:
         agent = self.state["agents"][agent_id]
         room_id = agent["room"]
+        site_id = world.site_of_hand(action.target or "")
+        if site_id is not None:
+            self._lend_hand(agent_id, action, site_id, action.target or "")
+            return
         if room_id not in SEAL_ROOMS:
             self._invalid_action(agent_id, action, "no seal here")
             return
@@ -873,6 +938,88 @@ class ArenaEngine:
                 VAULT_ROOM,
                 "Both seals burn. The Ember Vault stands open.",
                 {"reason": "seals_active", "seals": dict(self.state["seals"])},
+            )
+        elif rules.seals_lit(self.state):
+            self._event(
+                self.state["round"],
+                "referee",
+                "seals_lit",
+                None,
+                VAULT_ROOM,
+                f"Both seals burn. The Ember Vault waits for the last act: it opens at round {rules.vault_opens_at_round()}.",
+                {"reason": "seals_active_before_the_last_act", "seals": dict(self.state["seals"]),
+                 "opens_at_round": rules.vault_opens_at_round()},
+            )
+
+    def _lend_hand(self, agent_id: str, action: AgentAction, site_id: str, hand: str) -> None:
+        """A hand at a cooperative site (PRD §5.3). Legality was proved at the
+        freeze; what changed since (the site done, the hand taken, a monster
+        arrived) is stale, never a penalty. The site is judged in upkeep."""
+        agent = self.state["agents"][agent_id]
+        site = rules.SITES[site_id]
+        rec = self.state["sites"][site_id]
+        if site["room"] != agent["room"]:
+            self._invalid_action(agent_id, action, "that site is not in this room")
+            return
+        if rec["status"] != "waiting":
+            self._stale(agent_id, action, "the site is already done")
+            return
+        if hand in rec["hands"]:
+            self._stale(agent_id, action, "that hand is already taken this round")
+            return
+        if rules.room_has_living_monster(self.state, agent["room"]):
+            self._stale(agent_id, action, "a monster still holds the room")
+            return
+        rec["hands"][hand] = agent_id
+        lent = len(rec["hands"])
+        needs = len(site["hands"])
+        self._event(
+            self.state["round"],
+            "agent",
+            "site_hand",
+            agent_id,
+            hand,
+            f"{agent['name']} lends a hand at {hand.replace('_', ' ')} ({lent} of {needs} this round for {site['name']}).",
+            {"site": site_id, "hand": hand, "lent": lent, "needs": needs,
+             "changes": {f"sites.{site_id}.hands.{hand}": [None, agent_id]}},
+        )
+
+    def _settle_sites(self, round_no: int) -> None:
+        """P5: a site with every hand lent by a different character this round
+        is done and pays each of them; one with too few hands lapses, in
+        public, and the try is kept for next round's digest."""
+        names = self.state["agents"]
+        for site_id in sorted(self.state["sites"]):
+            rec = self.state["sites"][site_id]
+            site = rules.SITES[site_id]
+            hands = dict(rec["hands"])
+            if rec["status"] != "waiting" or not hands:
+                rec["hands"] = {}
+                continue
+            needs = len(site["hands"])
+            lenders = sorted(set(hands.values()))
+            if len(hands) == needs and len(lenders) == needs:
+                rec["status"] = "done"
+                rec["done_round"] = round_no
+                rec["done_by"] = lenders
+                rec["hands"] = {}
+                for i, agent_id in enumerate(lenders):
+                    self._score(agent_id, "site_done", site["points"], f"Lent a hand at {site['name']}")
+                    self._event(
+                        round_no, "referee", "site_done", agent_id, site_id,
+                        f"{site['done_text']} {', '.join(names[a]['name'] for a in lenders)} each take {site['points']}.",
+                        {"site": site_id, "parties": lenders, "hands": hands, "points": site["points"],
+                         "changes": {f"sites.{site_id}.status": ["waiting", "done"]}},
+                        include_in_narration=(i == 0),
+                    )
+                continue
+            rec["last_attempt"] = {"round": round_no, "hands": hands}
+            rec["hands"] = {}
+            who = ", ".join(f"{names[a]['name']} at {h.replace('_', ' ')}" for h, a in sorted(hands.items()))
+            self._event(
+                round_no, "referee", "site_lapsed", None, site_id,
+                f"{site['name'].capitalize()} wants {needs} hands in one round and had {len(hands)}: {who}. It goes cold again.",
+                {"site": site_id, "hands": hands, "needs": needs, "lent": len(hands)},
             )
 
     def _search(self, agent_id: str, action: AgentAction) -> None:
@@ -982,7 +1129,7 @@ class ArenaEngine:
         agent = self.state["agents"][agent_id]
         item_id = action.item or ""
         receiver = self.state["agents"].get(action.target or "")
-        if item_id not in agent["inventory"] or item_id == CROWN_ITEM_ID:
+        if item_id not in agent["inventory"]:
             self._stale(agent_id, action, "item no longer in hand")
             return
         if (
@@ -991,6 +1138,9 @@ class ArenaEngine:
             or receiver["room"] != agent["room"]
         ):
             self._stale(agent_id, action, "the receiver is no longer here")
+            return
+        if item_id == CROWN_ITEM_ID and receiver.get("kind") == "talker":
+            self._stale(agent_id, action, "a talker cannot carry the Crown")
             return
         rules.inventory_remove(self.state, agent_id, item_id)
         rules.inventory_add(self.state, receiver["id"], item_id)
@@ -1005,6 +1155,33 @@ class ArenaEngine:
                 "item": items.describe_item(item_id),
                 "to": receiver["id"],
                 "changes": {"inventory_removed": item_id, "inventory_added": item_id},
+            },
+        )
+        if item_id == CROWN_ITEM_ID:
+            self._crown_given(agent_id, receiver["id"])
+
+    def _crown_given(self, giver_id: str, receiver_id: str) -> None:
+        """The deal path (18 Sep 2026): a handed-over Crown is a transfer that
+        resets attunement and scores nothing for either hand, so a gift can
+        keep a promise and cannot farm the take."""
+        crown = self.state["crown"]
+        changes = rules.crown_to_carrier(self.state, receiver_id)
+        giver = self.state["agents"][giver_id]
+        receiver = self.state["agents"][receiver_id]
+        self._event(
+            self.state["round"],
+            "referee",
+            "crown_taken",
+            receiver_id,
+            CROWN_ITEM_ID,
+            f"{receiver['name']} takes the Ember Crown from {giver['name']}'s hands. Attunement resets to zero.",
+            {
+                "agent_id": receiver_id,
+                "from": giver_id,
+                "via": "given",
+                "points": 0,
+                "transfers": crown["transfers"],
+                "changes": changes,
             },
         )
 
@@ -1378,7 +1555,8 @@ class ArenaEngine:
             rules.floor_add(self.state, room_id, item_id)
         agent["inventory"] = []
         category, points = "collateral_kill_no_credit", 0
-        if credited_to and not collateral:
+        talker = agent.get("kind") == "talker"
+        if credited_to and not collateral and not talker:  # a talker's death pays nobody (PRD §5.8, §5.25)
             killer = self.state["agents"].get(credited_to)
             if killer is not None:
                 earned = scoring.register_direct_elimination(killer, agent_id)
@@ -1397,11 +1575,12 @@ class ArenaEngine:
             "agent_eliminated",
             credited_to,
             agent_id,
-            f"{agent['name']} is eliminated ({reason}).",
+            f"{agent['name']}{', a talker,' if talker else ''} is eliminated ({reason}).",
             {
                 "reason": reason,
                 "cause": reason,
                 "room": room_id,
+                "kind": "talker" if talker else "character",
                 "collateral": collateral,
                 "accident": collateral,
                 "credited_to": credited_to,
@@ -1415,6 +1594,28 @@ class ArenaEngine:
         )
         if CROWN_ITEM_ID in dropped:
             self._crown_dropped(room_id, "elimination", agent_id)
+        if not talker:
+            # PRD §5.7: a dead character's private objective is revealed to the
+            # audience at the moment of death; nothing in a digest carries it.
+            self._reveal_objective(agent_id, at="death")
+
+    def _reveal_objective(self, agent_id: str, *, at: str) -> bool:
+        agent = self.state["agents"][agent_id]
+        objective = self.manifests[agent_id].secret_objective
+        completed = scoring.objective_complete(self.state, agent_id, objective)
+        self._event(
+            self.state["round"],
+            "scoring",
+            "objective_reveal",
+            agent_id,
+            None,
+            (
+                f"{agent['name']}'s secret objective was {objective.replace('_', ' ')}"
+                + ("—completed." if completed else ("—unmet at death." if at == "death" else "—failed."))
+            ),
+            {"objective": objective, "completed": completed, "at": at},
+        )
+        return completed
 
     # ------------------------------------------------------------------
     # P4 monster phase — deterministic, no model call
@@ -1433,6 +1634,7 @@ class ArenaEngine:
                 if self.state["agents"][agent_id]["room"] == monster["room"]
                 and self.state["agents"][agent_id]["status"] == "active"
                 and self.state["agents"][agent_id]["hp"] > 0
+                and self.state["agents"][agent_id].get("kind", "character") == "character"  # a talker is nobody's target yet (PRD §5.8)
             ]
             if not present:
                 continue
@@ -1493,6 +1695,13 @@ class ArenaEngine:
                 roll=roll,
             )
             self._run_attack(monster, "monster", self.state["agents"][target_id])
+            # its line for the round (PRD §5.6, §5.27): from the table, by the round
+            line = world.monster_line(monster_id, round_no)
+            self._event(
+                round_no, "monster", "monster_line", monster_id, target_id,
+                f"{monster['name']}: \u201c{line}\u201d",
+                {"line": line, "round": round_no},
+            )
 
     # ------------------------------------------------------------------
     # P5 end-of-round upkeep
@@ -1525,10 +1734,10 @@ class ArenaEngine:
                 },
             )
 
-        # P5.b CONTRACTION
-        room_id = rules.sealing_room_for_round(round_no)
-        if room_id and not rules.is_sealed(self.state, room_id):
-            self._apply_contraction(round_no, room_id)
+        # P5.b CONTRACTION: every room the schedule closes this round, in order
+        for room_id in rules.sealing_rooms_for_round(round_no):
+            if not rules.is_sealed(self.state, room_id):
+                self._apply_contraction(round_no, room_id)
 
         # P5.c ACT II SURVIVAL
         if round_no == rules.ACT_II_LAST_ROUND:
@@ -1536,6 +1745,7 @@ class ArenaEngine:
                 agent_id
                 for agent_id in sorted(self.state["agents"])
                 if self.state["agents"][agent_id]["status"] == "active"
+                and self.state["agents"][agent_id].get("kind", "character") == "character"
             ]
             for agent_id in survivors:
                 self._score(
@@ -1555,6 +1765,33 @@ class ArenaEngine:
                     "survivors": survivors,
                     "points": scoring.SCORING["survived_act_ii"],
                 },
+            )
+
+        # P5.c2 COOPERATIVE SITES (PRD §5.3): every hand this round, or none
+        self._settle_sites(round_no)
+
+        # P5.d DEALS (PRD §5.20): breaks judged against this round's committed
+        # events, then offers nobody answered lapse. Nothing is prevented,
+        # nothing is scored; a kept deal is recorded and says nothing.
+        settled = deals.settle(self.state, round_no, self._round_events)
+        for deal, breaker in settled["broken"]:
+            wronged = [p for p in deal["parties"] if p != breaker]
+            names = self.state["agents"]
+            self._event(
+                round_no, "referee", "deal_broken", breaker, wronged[0] if wronged else None,
+                f"{names[breaker]['name']} breaks the deal with {names[wronged[0]]['name'] if wronged else 'nobody'}: "
+                f"{deal['how']} ({deals.describe_terms(self.state, deal)}).",
+                {"deal": deepcopy(deal), "parties": list(deal["parties"]), "broken_by": breaker, "how": deal["how"],
+                 "changes": {f"deals.struck.{deal['id']}.status": ["standing", "broken"]}},
+            )
+        for offer in deals.lapse_offers(self.state, round_no):
+            names = self.state["agents"]
+            self._event(
+                round_no, "referee", "offer_lapsed", offer["from"], offer["to"],
+                f"{names[offer['from']]['name']}'s offer to {names[offer['to']]['name']} lapses unanswered.",
+                {"offer": deepcopy(offer), "parties": [offer["from"], offer["to"]],
+                 "changes": {f"deals.offers.{offer['id']}.status": ["open", "lapsed"]}},
+                include_in_narration=False,
             )
 
         # P5.e TERMINAL CHECK
@@ -1791,17 +2028,37 @@ class ArenaEngine:
         )
 
     def _stale(self, agent_id: str, action: AgentAction, reason: str) -> None:
+        """No effect, no penalty, and the second choice follows when there is a
+        legal one (PRD §5.42). The event says which choice this was and what,
+        if anything, comes next, so a viewer can follow it."""
+        self._last_stale = reason
+        name = self.state["agents"][agent_id]["name"]
+        second = getattr(self, "_resolving_second", False)
+        pending = getattr(self, "_second_pending", None)
+        if second:
+            text, decision = f"{name}'s second choice finds nothing there either.", "no_effect_no_penalty"
+        elif pending is not None:
+            text, decision = f"{name}'s first choice finds nothing there; the second choice follows.", "second_choice_follows"
+        elif getattr(self, "_second_given", False):
+            text, decision = f"{name}'s action finds nothing there, and the second choice was never legal.", "no_effect_no_penalty"
+        else:
+            text, decision = f"{name}'s action finds nothing there.", "no_effect_no_penalty"
         self._event(
             self.state["round"],
             "referee",
             "stale_action",
             agent_id,
             action.target or action.destination or action.item,
-            f"{self.state['agents'][agent_id]['name']}'s action finds nothing there.",
+            text,
             {
                 "submitted_action": action.as_dict(),
                 "reason": reason,
-                "referee_decision": "no_effect_no_penalty",
+                "choice": "second" if second else "first",
+                "second_choice": (
+                    {k: pending.as_dict()[k] for k in ("action", "target", "destination", "item", "tile")}
+                    if pending is not None else None
+                ),
+                "referee_decision": decision,
                 "points": 0,
             },
         )
@@ -1828,6 +2085,8 @@ class ArenaEngine:
 
     def _score(self, agent_id: str, category: str, points: int, detail: str) -> None:
         agent = self.state["agents"][agent_id]
+        if agent.get("kind") == "talker":
+            return  # a talker cannot score (PRD §5.25), not even a penalty
         agent["score"] += points
         breakdown = agent["score_breakdown"]
         breakdown[category] = breakdown.get(category, 0) + points
@@ -1838,6 +2097,95 @@ class ArenaEngine:
             category,
             points,
             detail,
+        )
+
+    def opening_facts(self) -> dict[str, Any]:
+        """What the narrator may set the scene from: the public world and the
+        contestants by name and build. No secret aim, no brain text, no
+        note. A pure read of state."""
+        state = self.state
+        monsters = state["monsters"]
+        names = {room_id: room["name"] for room_id, room in state["rooms"].items()}
+        rooms = []
+        for room_id, room in state["rooms"].items():
+            guardian = monsters.get(room.get("guardian_id") or "")
+            rooms.append({"id": room_id, "name": room["name"], "description": room.get("description", ""),
+                          "guardian": guardian["name"] if guardian else None})
+        closes = [{"room": names.get(c["room"], c["room"]), "round": c["round"]}
+                  for c in state.get("contraction", {}).get("schedule", [])]
+        return {
+            "max_rounds": self.max_rounds,
+            "contestants": [{"name": a["name"], "build": a["build"], "hp": a["max_hp"]}
+                            for a in (state["agents"][aid] for aid in sorted(state["agents"]))
+                            if a.get("kind", "character") == "character"],
+            # the house voices (PRD §5.25): name and where each stands, never an agenda
+            "talkers": [{"name": a["name"], "room": names.get(a["room"], a["room"])}
+                        for a in (state["agents"][aid] for aid in sorted(state["agents"]))
+                        if a.get("kind") == "talker"],
+            "monsters": [{"name": m["name"], "room": names.get(m["room"], m["room"]), "hp": m["max_hp"],
+                          "power": m["power"], "armor": m["armor"], "reach": m["reach"]}
+                         for m in (monsters[mid] for mid in sorted(monsters))],
+            "rooms": rooms,
+            "closes": closes,
+            "rules": [
+                f"{self.max_rounds} rounds at most; every round all decide at once, the dice set the order, each acts in turn, then the monsters.",
+                f"Each gate holds a seal and a guardian; the Vault opens in the last act, from round {rules.vault_opens_at_round()}, and only if both seals are lit.",
+                "The Crown is locked inside its Warden and drops when the Warden falls; whoever holds it when the last round ends wins outright.",
+                "Some things take more than one pair of hands: "
+                + "; ".join(f"{s['name']} wakes only when {len(s['hands'])} characters lend a hand in the same round, {s['points']} points each"
+                            for s in rules.SITES.values())
+                + ".",
+            ],
+        }
+
+    @staticmethod
+    def validate_opening(text: str, facts: dict[str, Any]) -> str | None:
+        """The check PRD §5.26 asks for, applied to the opening: bounds, no
+        secret aim named, and at least the Crown and one room mentioned.
+        Returns the reason it fails, or None."""
+        if not text or not text.strip():
+            return "empty opening"
+        if len(text) > OPENING_CAP:
+            return f"opening longer than {OPENING_CAP:,} characters"
+        low = text.lower()
+        for word in ("monster hunter", "monster_hunter", "lorekeeper", "oathbreaker", "treasure hoarder", "treasure_hoarder", "secret objective", "secret aim"):
+            if word in low:
+                return f"opening names a secret aim: {word}"
+        if "crown" not in low:
+            return "opening never mentions the Crown"
+        if not any(r["name"].lower() in low for r in facts.get("rooms", [])):
+            return "opening names no room"
+        return None
+
+    def _narrate_opening(self) -> None:
+        """The narrator sets the scene before round 1 (PRD §5.26, asked by the
+        firm 14 Sep 2026). Outside the state hash like every narration; a
+        failed check substitutes the deterministic template and says why."""
+        facts = self.opening_facts()
+        prompt = compile_opening_prompt(facts)
+        fallback_reason = None
+        try:
+            result = self.provider.narrate(0, prompt, [])
+            opening = (result.raw_output or "").strip()
+            problem = self.validate_opening(opening, facts)
+            if problem:
+                raise ValueError(problem)
+        except Exception as exc:  # noqa: BLE001 - provider isolation
+            fallback_reason = f"{type(exc).__name__}: {str(exc)[:160]}"
+            result = self.autopilot.narrate(0, prompt, [])
+            opening = result.raw_output
+        self.store.append_audit(
+            self.match_id, "gm_opening",
+            {"round_no": 0, "prompt": prompt, "raw_output": opening,
+             "usage": {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens,
+                       "provider": result.provider, "model": result.model},
+             "fallback_reason": fallback_reason},
+        )
+        self._event(
+            0, "narration", "match_opening", None, None, opening,
+            {"facts": facts, "fallback_reason": fallback_reason,
+             "provider": result.provider, "model": result.model},
+            include_in_narration=False,
         )
 
     def _narrate(self, round_no: int) -> str:
@@ -1894,6 +2242,9 @@ class ArenaEngine:
             payload,
             self.state,
         )
+        self._round_events.append(
+            {"round_no": round_no, "event_type": event_type, "actor_id": actor_id, "target_id": target_id, "payload": payload}
+        )
         if include_in_narration and phase != "narration":
             self.round_lines.append(public_text)
 
@@ -1910,12 +2261,35 @@ class ArenaEngine:
 
     def _finalize(self) -> None:
         self.state["status"] = "completed"
+        # THE ENDING (ruleset 0.3, PRD §5.4, ruled 12 Sep 2026, D8): whoever
+        # holds the Crown when the final round has resolved wins outright.
+        # Nobody holding it: the highest score places first (below).
+        crown = self.state["crown"]
+        holder = crown.get("carrier_id") if crown.get("status") == "carried" else None
+        if holder and self.state["agents"].get(holder, {}).get("status") == "active" and not self.state["ended_reason"]:
+            self.state["winner_agent_id"] = holder
+            self.state["ended_reason"] = "crown_held"
+            self._score(
+                holder, "crown_held_at_end", scoring.SCORING["crown_held_at_end"],
+                "Held the Ember Crown when the last round ended",
+            )
+            self._event(
+                self.state["round"], "referee", "crown_held", holder, rules.CROWN_ITEM_ID,
+                f"{self.state['agents'][holder]['name']} holds the Ember Crown as the last round ends.",
+                {"agent_id": holder, "attunement_rounds": crown.get("attunement_rounds", 0),
+                 "round": self.state["round"], "winner_agent_id": holder},
+            )
         if not self.state["ended_reason"]:
             self.state["ended_reason"] = "rounds_exhausted"
         for agent_id in sorted(self.state["agents"]):
             agent = self.state["agents"][agent_id]
+            if agent.get("kind") == "talker":
+                continue  # no aim, no reveal, no place
             objective = self.manifests[agent_id].secret_objective
-            completed = scoring.objective_complete(self.state, agent_id, objective)
+            if agent["status"] == "active":
+                completed = self._reveal_objective(agent_id, at="end")
+            else:
+                completed = scoring.objective_complete(self.state, agent_id, objective)  # revealed at death
             if completed:
                 self._score(
                     agent_id,
@@ -1923,19 +2297,6 @@ class ArenaEngine:
                     scoring.SCORING["secret_objective"],
                     f"Completed {objective}",
                 )
-            self._event(
-                self.state["round"],
-                "scoring",
-                "objective_reveal",
-                agent_id,
-                None,
-                (
-                    f"{agent['name']}'s secret objective was "
-                    f"{objective.replace('_', ' ')}"
-                    + ("—completed." if completed else "—failed.")
-                ),
-                {"objective": objective, "completed": completed},
-            )
 
         placements = scoring.placements(self.state)
         order = scoring.placement_order(self.state)
@@ -1955,6 +2316,7 @@ class ArenaEngine:
                 "scores": {
                     agent_id: self.state["agents"][agent_id]["score"]
                     for agent_id in sorted(self.state["agents"])
+                    if self.state["agents"][agent_id].get("kind", "character") == "character"
                 },
             },
         )

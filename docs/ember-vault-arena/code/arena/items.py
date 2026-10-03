@@ -44,8 +44,8 @@ _REGISTRY: dict[str, ItemDef] = {
         name="Ember Crown",
         effect=(
             "Objective. While you carry it you gain +2 at the end of every full "
-            "round (attunement). At attunement 2 or more you may move to egress "
-            "and win the match outright. ANY transfer resets attunement to 0. It "
+            "round (attunement). Whoever carries it when the final round ends "
+            "wins the match outright. ANY transfer resets attunement to 0. It "
             "cannot be used. WARNING: it sorts first alphabetically, so a wild "
             "swing that makes you drop an item always drops the Crown."
         ),
@@ -74,6 +74,18 @@ _REGISTRY: dict[str, ItemDef] = {
         usable=True,
         droppable=True,
         value=3,
+    ),
+    "marrow_reliquary": ItemDef(
+        id="marrow_reliquary",
+        name="Marrow Reliquary",
+        effect=(
+            "Loot. Worth 10 to whoever carries it at the end; it does nothing "
+            "else. Can be dropped, taken and handed over."
+        ),
+        consumed_on_use=False,
+        usable=False,
+        droppable=True,
+        value=10,
     ),
     "veteran_blade": ItemDef(
         id="veteran_blade",

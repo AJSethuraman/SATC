@@ -41,7 +41,7 @@ PRIVATE_CHANGE_KEYS = ("note", "tokens_remaining")
 
 # The only parsed-action fields that describe a PUBLIC, observable act. The note
 # is the agent's private thinking; a whisper's words are private to two.
-PUBLIC_ACTION_KEYS = ("action", "target", "destination", "item", "speech")
+PUBLIC_ACTION_KEYS = ("action", "target", "destination", "item", "speech", "fallback", "deal")
 
 # Mid-match a die shows its face and nothing else: the seed/counter/digest are
 # the material that lets a rival precompute future rolls.
@@ -603,7 +603,7 @@ class ArenaStore:
                     """,
                     (
                         agent["score"],
-                        placements[agent_id],
+                        placements.get(agent_id),
                         agent["status"],
                         match_id,
                         agent_id,
@@ -736,14 +736,42 @@ class ArenaStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def replay_bundle(self, match_id: str) -> dict[str, Any]:
+    def rounds_complete(self, match_id: str) -> int:
+        """What a presenter may show (PRD §5.36–37, one round behind the
+        engine): while the match runs, the round before the one under way,
+        since a round's narration lands after its end snapshot and the last
+        round's finish lands after its narration; once the match is
+        completed, every round."""
+        with self.lock:
+            row = self.conn.execute(
+                "SELECT MAX(round_no) AS r FROM events WHERE match_id=? AND event_type='round_started'",
+                (match_id,),
+            ).fetchone()
+            status = self.conn.execute("SELECT status FROM matches WHERE id=?", (match_id,)).fetchone()
+        started = int(row["r"] or 0) if row else 0
+        if status and status["status"] == "completed":
+            return started
+        return max(0, started - 1)
+
+    def match_status(self, match_id: str) -> str:
+        with self.lock:
+            row = self.conn.execute("SELECT status FROM matches WHERE id=?", (match_id,)).fetchone()
+        if not row:
+            raise KeyError(match_id)
+        return str(row["status"])
+
+    def replay_bundle(self, match_id: str, reveal: bool | None = None) -> dict[str, Any]:
+        """The match as a bundle. Mid-match the published view is narrowed
+        (below) unless ``reveal`` is True: the loopback presenter's page
+        shows the audience every note the moment it is written (PRD §5.24),
+        and it is served only on the operator's own machine (PRD §5.38)."""
         with self.lock:
             match = self.conn.execute(
                 "SELECT * FROM matches WHERE id=?", (match_id,)
             ).fetchone()
             if not match:
                 raise KeyError(match_id)
-            reveal = match["status"] == "completed"
+            reveal = (match["status"] == "completed") if reveal is None else bool(reveal)
             participants = self.conn.execute(
                 """
                 SELECT p.*, a.name, a.manifest_json, a.prompt_hash
@@ -787,7 +815,7 @@ class ArenaStore:
                 "id": manifest["id"],
                 "name": manifest["name"],
                 "kind": manifest.get("kind", "character"),
-                "build": manifest["build"],
+                "build": manifest.get("build", ""),  # a talker has no build
             }
             if reveal or row["final_status"] == "eliminated":
                 public_manifest = manifest

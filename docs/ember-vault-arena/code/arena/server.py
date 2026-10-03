@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from .demo import PROJECT_ROOT, load_manifests
 from .engine import ArenaEngine
@@ -20,9 +21,12 @@ MAX_REQUEST_BYTES = 64 * 1024
 
 
 class ArenaHTTPServer(ThreadingHTTPServer):
-    def __init__(self, address: tuple[str, int], store: ArenaStore):
+    daemon_threads = True
+
+    def __init__(self, address: tuple[str, int], store: ArenaStore, *, stream_interval: float = 1.0):
         super().__init__(address, ArenaHandler)
         self.store = store
+        self.stream_interval = stream_interval  # how often the round stream looks at the store
 
 
 class ArenaHandler(BaseHTTPRequestHandler):
@@ -77,6 +81,20 @@ class ArenaHandler(BaseHTTPRequestHandler):
             if path.startswith("/api/matches/") and path.endswith("/audit"):
                 match_id = path.split("/")[3]
                 self._json(self.server.store.verify_audit(match_id))
+                return
+            # ---- the live page (PRD §5.35–38): loopback by default, one round behind ----
+            if path.startswith("/live/"):
+                match_id = path.split("/")[2]
+                self._html(self._live_page(match_id))
+                return
+            if path.startswith("/api/matches/") and path.endswith("/board"):
+                match_id = path.split("/")[3]
+                after = int((parse_qs(parsed.query).get("after") or ["0"])[0])
+                self._json(self._board_data(match_id, after))
+                return
+            if path.startswith("/api/matches/") and path.endswith("/live"):
+                match_id = path.split("/")[3]
+                self._round_stream(match_id)
                 return
             self._serve_static(path)
         except KeyError:
@@ -144,6 +162,67 @@ class ArenaHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.NOT_FOUND, str(exc))
         except Exception as exc:
             self._error(HTTPStatus.INTERNAL_SERVER_ERROR, str(exc))
+
+    def _html(self, page: str, status: int = 200) -> None:
+        encoded = page.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(encoded)
+
+    def _board_data(self, match_id: str, after: int) -> dict[str, Any]:
+        """The board's frames, cards and story for the completed rounds after
+        ``after`` (PRD §5.36). Unredacted: this is the audience's page and it
+        is served on the operator's own machine (PRD §5.24, §5.38)."""
+        from tools import replay_board  # the page builder lives with the tools; imported when asked for
+        bundle = self.server.store.replay_bundle(match_id, reveal=True)
+        return replay_board.live_data(bundle, after)
+
+    def _live_page(self, match_id: str) -> str:
+        from tools import replay_board
+        bundle = self.server.store.replay_bundle(match_id, reveal=True)
+        live = {"match_id": match_id, "board": f"/api/matches/{match_id}/board", "sse": f"/api/matches/{match_id}/live", "poll_ms": 5000}
+        return replay_board.build(bundle, live=live)
+
+    def _round_stream(self, match_id: str) -> None:
+        """Server-Sent Events (PRD §5.36): a ``round`` event each time a
+        round's end snapshot lands, ``done`` when the match completes. The
+        page pulls the board data on each; the stream carries no beat itself,
+        so a slow call never reaches the screen before its round has ended."""
+        store = self.server.store
+        last = store.rounds_complete(match_id)
+        status = store.match_status(match_id)
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+
+        def send(event: str, data: dict[str, Any]) -> None:
+            self.wfile.write(f"event: {event}\ndata: {json.dumps(data)}\n\n".encode("utf-8"))
+            self.wfile.flush()
+
+        try:
+            send("round", {"rounds_complete": last, "status": status})
+            waited = 0.0
+            while status != "completed":
+                time.sleep(self.server.stream_interval)
+                waited += self.server.stream_interval
+                now, status = store.rounds_complete(match_id), store.match_status(match_id)
+                if now > last or status == "completed":
+                    last = now
+                    send("round", {"rounds_complete": last, "status": status})
+                    waited = 0.0
+                elif waited >= 15.0:
+                    self.wfile.write(b": keep-alive\n\n")
+                    self.wfile.flush()
+                    waited = 0.0
+            send("done", {"rounds_complete": last, "status": status})
+        except (BrokenPipeError, ConnectionResetError):
+            return
 
     def _serve_static(self, request_path: str) -> None:
         relative = "index.html" if request_path in {"", "/"} else request_path.lstrip("/")
