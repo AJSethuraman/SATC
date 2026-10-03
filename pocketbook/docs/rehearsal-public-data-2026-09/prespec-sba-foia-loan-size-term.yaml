@@ -1,0 +1,29 @@
+# Pre-registered for the public-data rehearsal (docs/rehearsal-public-data-2026-09.md), written and committed before
+# any PocketBook run on the SBA 7(a) FOIA FY2000-FY2009 extract. The hypotheses are the paper's (Li, Mickel & Taylor
+# 2018, JSE 26(1)): smaller loans charge off more often (Table 4), and loans of 240 months or more, backed by real
+# estate, far less often (Table 5). The bins and references are chosen here from those published findings, not from
+# this extract: no development-loan scouting was done first, so the "Found" figures are the first look at this file.
+prespec: 1
+written: 2026-09-29
+
+outcome: CHGOFF_FLAG
+
+inputs:
+  # 5 groups: lowest - 24,999; 25,000 - 49,999; 50,000 - 149,999; 150,000 - 349,999; 350,000 - highest.
+  # Reference: group 2 (50,000 - 149,999), the middle. Expected: groups 0 and 1 worse, 3 and 4 better.
+  - column: GrossApproval
+    bins: [25000, 50000, 150000, 350000]
+    reference: 2
+  # 5 groups: lowest - 59; 60 - 83; 84 - 119; 120 - 239; 240 - highest (the paper's real-estate line).
+  # Reference: group 2 (84 - 119 months). Expected: group 4 far better.
+  - column: TermInMonths
+    bins: [60, 84, 120, 240]
+    reference: 2
+
+strata: [BusinessType]              # corporation, individual, partnership: held fixed
+
+confidence: 0.95
+
+# Approval dates (the US federal year runs October to September). Both ends included.
+development: {from: 1999-10-01, to: 2005-09-30}   # FY2000 - FY2005
+holdout: {from: 2005-10-01, to: 2009-09-30}       # FY2006 - FY2009
