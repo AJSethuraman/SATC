@@ -51,6 +51,7 @@ from . import scout, scout_tab                          # Goal 2 item 9: scoutin
 from . import bounds, timing                            # where the time goes, at a Run and in Excel (30 Sep 2026)
 from . import summary_chart                           # Summary's Grey rows under, kept across Runs (3 Oct 2026)
 from . import glossary                                  # every term, with this book's figures (2 Oct 2026)
+from . import audit                                     # one pocket proved from the loans (3 Oct 2026)
 # _load opens a workbook Excel saved with its dropdowns kept; quiet_load without openpyxl's extension warnings
 from .excel_lists import load as _load, quiet as quiet_load
 from .house import MIST as READ_ONLY
@@ -2238,6 +2239,7 @@ def _run(book: str | Path, extract: str | Path | None = None, memory_path: str |
     bounds.bound(wb)                            # whole columns of the Run's tables, ended at their last row
     if not _save(wb, book):
         return Outcome(False, book, [f"{book.name} is open in Excel. Close it, then press Run again."])
+    audit_said = _audit_book(res, book, src, table.sha256)
     timing.mark("Writing the record file")
     audit = book.with_name(f"{book.stem} - what ran.yaml")
     head = "# Exactly what the last Run used.\n"
@@ -2299,6 +2301,8 @@ def _run(book: str | Path, extract: str | Path | None = None, memory_path: str |
                      f"{'it' if len(dropped) == 1 else 'them'} and set C3 to Yes before the next Run.")
     # months to charge-off (the firm, 1 Oct 2026): what it left out, said on the Run's lines as on the Log and Check
     lines += [w for w in res.warnings if w.startswith(engine.CO_SAID)]
+    if audit_said:
+        lines.append(audit_said)
     tested = getattr(getattr(res, "prespec", None), "tests", None) or []
     lines.append(f"Open {book.name}: start with "
                  + (f"{confirm_tab.SHEET}." if tested and all(x.problem is None for x in tested)
@@ -2314,6 +2318,48 @@ def _run(book: str | Path, extract: str | Path | None = None, memory_path: str |
             [f"  - {w}" for w in res.scout_waits]
         return Outcome(False, book, lines, problems=list(res.scout_waits), summary=summary)
     return Outcome(True, book, lines, summary=summary)
+
+
+def _audit_book(res, book: Path, src: Path, sha256: str) -> str | None:
+    """The audit workbook (the firm, 3 Oct 2026: "show the calculations it makes on one set of things and prove out
+    each one"), written beside the workbook when Control's "Also write the audit workbook?" is Yes. A separate file,
+    so the main one doesn't get slower; never on a test of a new variable, which builds no pocket. Its words for the
+    Run's lines, or None when it wasn't asked for."""
+    if not bleed_tabs(res) or (getattr(res, "control_used", None) or {}).get(audit.KEY) != "yes" or not res.grids:
+        return None
+    if res.rows > audit.MOST_LOANS:
+        # its Loans sheet holds one loan a row, and an Excel sheet stops at 1,048,576 rows (the review of 3 Oct 2026)
+        _drop_old_audit(book)
+        return (f"Didn't write {audit.path_for(book).name}: the book has {res.rows:,} loans, and its Loans sheet "
+                f"holds at most {audit.MOST_LOANS:,}, one a row under the header.")
+    timing.mark("Writing the audit workbook")
+    words = _used_words(res)
+    settings = [(s.question, words[s.key]) for s in control.load_settings() if s.key in words]
+    try:
+        out = audit.write(res, book, src, sha256, settings=settings)
+    except PermissionError:
+        return (f"Couldn't write {audit.path_for(book).name}: it is open in Excel. Close it, then press Run "
+                f"again.")
+    except Exception as e:                      # noqa: BLE001
+        # the main workbook is saved by now: the Run still finishes, writes what ran.yaml and says what went wrong
+        # (the review of 3 Oct 2026)
+        gone = _drop_old_audit(book)
+        return (f"Couldn't write {audit.path_for(book).name}: {type(e).__name__}: {e}"
+                + (" The one from an earlier Run was removed, so it can't be mistaken for this Run's." if gone else ""))
+    return f"Wrote {out.name}: one pocket's figures worked out again from the loans, step by step."
+
+
+def _drop_old_audit(book) -> bool:
+    """Remove an audit workbook an earlier Run left beside the book, so one this Run didn't write is never read as
+    its own (the review of 4 Oct 2026). Whether there was one to remove."""
+    old = audit.path_for(book)
+    try:
+        old.unlink()
+        return True
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return False
 
 
 def first_lines(lines: list[str]) -> list[str]:

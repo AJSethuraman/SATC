@@ -28,8 +28,9 @@ def test_judgment_settings_recommend_nothing_and_method_settings_recommend_one()
     is the professional's judgment, never the tool's."""
     settings = control.load_settings()
     assert {s.key for s in settings if s.judgment} == JUDGMENT
-    # an optional setting (the bureau codes, 30 Sep 2026) is asked and never answered for the firm either
-    assert {s.key for s in settings if s.optional} == {"bureau_codes"}
+    # an optional setting (the bureau codes, 30 Sep 2026; the audit workbook, 3 Oct 2026) is asked and never
+    # answered for the firm either
+    assert {s.key for s in settings if s.optional} == {"bureau_codes", "audit_book"}
     for s in settings:
         assert sum(o.recommended for o in s.options) == (0 if s.judgment or s.optional else 1), s.key
 
