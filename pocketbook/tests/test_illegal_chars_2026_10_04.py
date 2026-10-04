@@ -185,3 +185,18 @@ def test_the_dirty_channel_and_column_are_segments_whose_loans_tie(dirty, tmp_pa
             mine = [x for x in rows if x[raw_col] == v]
             assert shown[lab][0] == len(mine), (col, v, shown)
             assert _close(shown[lab][1], _bad(mine)), (col, v)
+
+
+def test_a_control_character_that_python_counts_as_a_line_break_does_not_split_a_row(tmp_path):
+    """\\x0b, \\x0c and \\x1c to \\x1e end a line to str.splitlines(), so a CSV read through it split one loan in two
+    and shifted every field after it, with no error (the review of 4 Oct 2026). A CSV row ends only at its own line
+    break: three loans read as three, each value in its own column, the character shown as its control picture."""
+    from pocketbook import ingest
+    p = tmp_path / "breaks.csv"
+    p.write_text("ID,NOTE,FICO\nL1,a\x0bb,700\nL2,plain,720\x1c\nL3,x\x0cy\x1dz\x1e,690\n", encoding="utf-8")
+    t = ingest.read_table(p)
+    assert len(t.rows) == 3
+    assert [r["ID"] for r in t.rows] == ["L1", "L2", "L3"]
+    assert t.rows[0]["NOTE"] == "a␋b" and t.rows[0]["FICO"] == "700"
+    assert t.rows[1]["FICO"] == "720"                    # \x1c at the end is whitespace, trimmed like any other
+    assert t.rows[2]["NOTE"] == "x␌y␝z" and t.rows[2]["FICO"] == "690"

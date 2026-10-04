@@ -160,3 +160,24 @@ def test_look_banded_nothing_refers_to_a_missing_look_block(tmp_path):
     # the method note says which columns get a block, once
     note = [c.value for row in wb[look.LOOK].iter_rows(max_row=look.FIRST) for c in row if isinstance(c.value, str)]
     assert sum("band column chosen on Control" in t for t in note) == 1
+
+
+def test_look_banded_typed_bars_come_back_when_a_column_is_chosen_again(tmp_path):
+    """A Bars typed for a band column is kept even across a Run that leaves the column's block off, so when the
+    column is chosen again its block shows what was typed, not the default (the review of 4 Oct 2026)."""
+    x, out = _set_up(tmp_path, bands=("FICO", "REV_DEBT"))
+    b = out.book
+    _answer(b)
+    assert book.run(b).ok
+    wb = load_workbook(b)
+    r = look.FIRST + look.BLOCK * _block_names(wb[look.LOOK]).index("FICO")
+    wb[look.LOOK].cell(row=r + look.R_BARS, column=look.VALUE_COL).value = 50
+    wb.save(b)
+    _choose(b, bands=("REV_DEBT",))                      # FICO's block goes
+    assert book.run(b).ok
+    assert "FICO" not in look.drawn_columns(load_workbook(b))
+    _choose(b, bands=("FICO", "REV_DEBT"))               # and comes back
+    assert book.run(b).ok
+    wb = load_workbook(b)
+    r = look.FIRST + look.BLOCK * _block_names(wb[look.LOOK]).index("FICO")
+    assert wb[look.LOOK].cell(row=r + look.R_BARS, column=look.VALUE_COL).value == 50

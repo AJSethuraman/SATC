@@ -113,6 +113,7 @@ R_PCT = 14                                          # the five percentiles, one 
 PERCENTILES = (10, 25, 50, 75, 90)
 RULES_ROW = 4                                       # _look column A: the Treat as answers Look was drawn with
 ELIGIBLE_ROW = 5                                    # _look column A: every column that could have a block, as JSON
+TYPED_ROW = 6                                       # _look column A: every Bars, From and To typed, by column, as JSON
 STATS_COL, VALUE_COL, SHARE_COL = 2, 3, 4          # B, C, D
 CODE_AT, CHART_AT = "F", "H"
 
@@ -378,7 +379,9 @@ def write_look(wb, table, columns, split: str | None = None, bands=(), known: di
     answers of Missing, as the Run reads them. `keep_inputs`: a Bars, From or To the analyst typed stays.
     `eligible`: every column that could have a block, kept for the Run's redraw; None keeps what was recorded, or
     the columns shown when nothing was."""
-    typed = _typed_inputs(wb) if keep_inputs else {}
+    # a Bars, From or To typed for a column stays with it even across a Run that leaves its block out, so it is back
+    # when the column is chosen again (the review of 4 Oct 2026): what was remembered, then what is on Look now
+    typed = {**_remembered_inputs(wb), **_typed_inputs(wb)} if keep_inputs else {}
     if eligible is None:
         eligible = eligible_columns(wb) if DATA in wb.sheetnames else list(columns)
     eligible = [c for c in eligible if c in table.columns]
@@ -405,6 +408,8 @@ def write_look(wb, table, columns, split: str | None = None, bands=(), known: di
     assert top == FIRST, top
     hs.cell(row=RULES_ROW, column=1, value=rules_key(rules, columns) or None)
     hs.cell(row=ELIGIBLE_ROW, column=1, value=json.dumps(eligible))
+    kept = {c: {str(k): v for k, v in rows.items()} for c, rows in typed.items() if rows}
+    hs.cell(row=TYPED_ROW, column=1, value=json.dumps(kept) if kept else None)
     dv = DataValidation(type="list", formula1=f'"{",".join(str(b) for b in BARS)}"', allow_blank=False,
                         showErrorMessage=True)
     dv.error = "Pick 10, 20 or 50 bars."
@@ -425,6 +430,17 @@ def write_look(wb, table, columns, split: str | None = None, bands=(), known: di
     ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.freeze_panes = "A2"
+
+
+def _remembered_inputs(wb) -> dict[str, dict[int, object]]:
+    """The Bars, From and To kept on _look for every column, drawn now or not."""
+    if DATA not in wb.sheetnames:
+        return {}
+    got = wb[DATA].cell(row=TYPED_ROW, column=1).value
+    try:
+        return {c: {int(k): v for k, v in rows.items()} for c, rows in json.loads(got).items()} if got else {}
+    except (ValueError, AttributeError, TypeError):
+        return {}
 
 
 def _typed_inputs(wb) -> dict[str, dict[int, object]]:

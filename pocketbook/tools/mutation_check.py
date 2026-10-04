@@ -1731,6 +1731,13 @@ muts = [
  ("control characters deleted, merging two values into one", I,
   "    return ILLEGAL_CHARACTERS_RE.sub(_picture, value.strip())",
   '    return ILLEGAL_CHARACTERS_RE.sub("", value.strip())', "cleaning_keeps_values_apart"),
+ # the review of 4 Oct 2026: a CSV row ends only at its own line break; Look keeps typed inputs across Runs
+ ("a CSV read through splitlines, so \\x0b or \\x1c splits a loan in two", I,
+  '    reader = csv.DictReader(io.StringIO(text, newline=""))', "    reader = csv.DictReader(text.splitlines())",
+  "does_not_split_a_row"),
+ ("Look forgetting a Bars typed for a column whose block a Run left off", LK,
+  "    typed = {**_remembered_inputs(wb), **_typed_inputs(wb)} if keep_inputs else {}",
+  "    typed = _typed_inputs(wb) if keep_inputs else {}", "typed_bars_come_back"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

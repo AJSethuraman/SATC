@@ -82,7 +82,9 @@ def read_table(path: str | Path, sheet: str | None = None) -> Table:
             return _read_xlsx(p, sheet, digest, data)
     text = data.decode("utf-8-sig")
     clean = cleaned if ILLEGAL_CHARACTERS_RE.search(text) else (lambda v: v)    # most files: nothing to clean
-    reader = csv.DictReader(text.splitlines())
+    # a row ends only at \r or \n: str.splitlines() also breaks at \x0b, \x0c and \x1c to \x1e, which split one
+    # loan in two and shifted every field after it (the review of 4 Oct 2026)
+    reader = csv.DictReader(io.StringIO(text, newline=""))
     columns = [clean(c.strip()) for c in (reader.fieldnames or [])]
     _refuse_duplicates(p, columns)
     rows = [{clean(k.strip()) if k else k: clean(v) for k, v in row.items()} for row in reader]
