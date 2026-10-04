@@ -1,8 +1,9 @@
 """Check the checker: put each VBA bug back and prove its test goes red.
 
-Run from pocketbook/: python tools/mutation_check.py. Exits non-zero
-if any mutation survives."""
-import importlib.util, os, pathlib, subprocess, shutil, sys
+Run from pocketbook/: python tools/mutation_check.py [--files src/pocketbook/x.py ...] [--shard k/n].
+Exits non-zero if any mutation survives or is not checked. Each prints CAUGHT (a test failed), MISSED (every
+selected test passed) or NOT CHECKED (no test ran, or tests errored on the file without the bug as well)."""
+import importlib.util, os, pathlib, re, subprocess, shutil, sys
 
 # No bytecode is ever written from a mutated file, and any cached bytecode for the file is dropped before and
 # after each mutation. Found 26 Sep 2026: Python checks a cached .pyc against the source's size and its mtime in
@@ -1078,6 +1079,32 @@ muts = [
  # the tie-out of 28 Sep 2026: a pocket with too few losses given a p-value and counted in the allowance
  ("an untested pocket counted in the allowance", E, '            if hi == "worse" and s.events < bench.min_events:\n                s.p_book = s.p_band = None',
   '            if False:\n                s.p_book = s.p_band = None', "not_counted_in_the_allowance"),
+ # the public-data rehearsal, 29 Sep 2026: a category limit off the launcher's list written where only a listed
+ # option is read
+ ("a limit off the list written as a pick", CO,
+  '                r[OWN_COL - 1].value = None if listed[key] is not None else getattr(got, key)',
+  '                r[OWN_COL - 1].value = None\n                if listed[key] is None:\n'
+  '                    r[CHOOSE_COL - 1].value = getattr(got, key)', "off_the_launchers_list"),
+ # and the conditional likelihood multiplying out every coefficient, exact zeros and all (191 s a pocket)
+ ("the coefficient at m paired the wrong way round", KG, '    return float(np.dot(a[lo: hi + 1], b[s - hi: s - lo + 1][::-1]))',
+  '    return float(np.dot(a[lo: hi + 1], b[s - hi: s - lo + 1]))', "conditional_likelihood_is_unchanged"),
+ ("every coefficient multiplied out again", KG, '        o, pmf = _trim(0, np.exp(logpmf))',
+  '        o, pmf = 0, np.exp(logpmf)', "sba_stratum_takes_seconds or underflowed_zero"),
+ # and scikit-learn installed but blocked by the machine's policy: the Run crashed on the forest's import
+ ("a blocked scikit-learn not loaded before finding", SC,
+  '        import sklearn.ensemble  # noqa: F401\n        import sklearn.metrics  # noqa: F401',
+  '        pass', "wont_load_is_said_in_words"),
+ # the public-data rehearsal revived, 3 Oct 2026 (tests/test_rehearsal_2026_10_03.py): a band column of "45.5%"
+ # text refused as a column the extract doesn't have
+ ("a band with no readable number said to be missing", E,
+  '            raise DataRefused(f"`{b.field}` is cut into bands, but none of its {len(read):,} values reads as a "',
+  '            raise ColumnsMissing([(b.field, f"band {b.name}: no readable numbers to cut")], table.columns)\n'
+  '            raise DataRefused(f"`{b.field}` is cut into bands, but none of its {len(read):,} values reads as a "',
+  "percent_text_is_refused_as_unreadable"),
+ # and a held-back p-value of 2.5e-315 written into New variables' formula as a literal LibreOffice can't read
+ ("a subnormal number written into a formula as it is", "src/pocketbook/live.py",
+  '    return "0.0" if f != 0 and abs(f) < SMALLEST_NORMAL else repr(f)', '    return repr(f)',
+  "subnormal"),
  # the full tie-out of 28 Sep 2026: Look's slices on float edges
  ("Look's top a hair over its round number", LK,
   '    return float(step * math.floor(lo / unit)), float(step * math.ceil(hi / unit))',
@@ -1714,29 +1741,58 @@ muts = [
 LIMIT = 600                  # seconds one planted bug's tests may take
 
 
+def verdict(returncode: int, said: str) -> str:
+    """CAUGHT only when a test FAILED. Found in review, 29 Sep 2026: any exit but 0 or 5 used to read as caught, so
+    a machine whose temp folder pytest could not write (WinError 5: every tmp_path test ERRORS) reported planted bugs
+    as caught that no test had failed on. Errors alone are ERRORS, and main() settles them with a clean run; exit 2
+    to 5, a run with no summary (killed), or one whose every test skipped, show no test catching it: NOT CHECKED."""
+    if returncode == 0:
+        # every selected test skipped (LibreOffice absent, say): none ran, so none could miss it either
+        return "MISSED" if re.search(r"\b\d+ passed\b", said) else "NOT CHECKED"
+    if returncode == 1 and re.search(r"\b\d+ failed\b", said):
+        return "CAUGHT"
+    if returncode in (1, 2) and re.search(r"\b\d+ errors?\b", said):
+        return "ERRORS"
+    return "NOT CHECKED"
+
+
+def _pytest(sel: str):
+    """One pytest run over the tests `sel` selects: (exit code, its last line)."""
+    # a planted bug that makes its test hang is not caught: it would stall CI for hours instead
+    # --assert=plain: only pass or fail matters here. Under CI, pytest stops shortening a failure's
+    # explanation, and spelling out a big comparison took past ten minutes ("worker seeded by its share")
+    try:
+        r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "--assert=plain",
+                            "-k", sel],
+                           capture_output=True, text=True, env=ENV, timeout=LIMIT)
+    except subprocess.TimeoutExpired:
+        return None, f"still running after {LIMIT // 60} minutes, stopped"
+    return r.returncode, (r.stdout.strip().splitlines() or r.stderr.strip().splitlines()
+                          or ["(pytest said nothing)"])[-1]
+
+
 def main() -> int:
     bad = 0
     for name, f, old, new, sel in muts:
-        src = open(f).read(); assert src.count(old) == 1, name     # exactly the one place the bug went back
-        shutil.copy(f, f + ".bak"); open(f, "w").write(src.replace(old, new, 1))
+        # UTF-8 both ways: the platform's own encoding (cp1252 on Windows) missed every line with a character
+        # outside it, and the run died on that assert (the public-data rehearsal, 29 Sep 2026)
+        src = open(f, encoding="utf-8").read(); assert src.count(old) == 1, name     # exactly the one place
+        shutil.copy(f, f + ".bak"); open(f, "w", encoding="utf-8").write(src.replace(old, new, 1))
         _drop_cache(f)
         try:
-            # a planted bug that makes its test hang is not caught: it would stall CI for hours instead
-            # --assert=plain: only pass or fail matters here. Under CI, pytest stops shortening a failure's
-            # explanation, and spelling out a big comparison took past ten minutes ("worker seeded by its share")
-            r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "--assert=plain",
-                                "-k", sel],
-                               capture_output=True, text=True, env=ENV, timeout=LIMIT)
-            said = (r.stdout.strip().splitlines() or r.stderr.strip().splitlines() or ["(pytest said nothing)"])[-1]
-            # pytest exits 5 when the selector matched no test: nothing ran, so nothing was caught
-            caught = r.returncode not in (0, 5)
-        except subprocess.TimeoutExpired:
-            said, caught = f"still running after {LIMIT // 60} minutes, stopped", False
+            code, said = _pytest(sel)
         finally:
             shutil.move(f + ".bak", f)
             _drop_cache(f)
-        bad += not caught
-        print(("CAUGHT " if caught else "MISSED ") + name, "|", said, flush=True)
+        # pytest exits 5 when the selector matched no test: nothing ran, so nothing was caught (NOT CHECKED)
+        got = "NOT CHECKED" if code is None else verdict(code, said)
+        if got == "ERRORS":
+            # errors and no failure: the planted bug's, or the machine's? The same tests on the file as it is decide
+            clean, clean_said = _pytest(sel)
+            got = "CAUGHT" if clean == 0 else "NOT CHECKED"
+            said += f" (errors, no failure; without the bug: {clean_said})"
+        bad += got != "CAUGHT"
+        print(f"{got} {name} | {said}", flush=True)
     return bad
 
 
@@ -1751,7 +1807,21 @@ def shard(items: list, arg: str | None) -> list:
     return items[k::n]
 
 
+def only(items: list, files: list[str]) -> list:
+    """The planted bugs in the named files only (as the muts list spells them: src/pocketbook/x.py), for a run
+    aimed at what a branch changed; a name that plants nothing is refused rather than silently running none."""
+    unknown = [f for f in files if not any(m[1] == f for m in items)]
+    if unknown:
+        raise SystemExit(f"--files: no planted bug is in {', '.join(unknown)}")
+    return [m for m in items if m[1] in files]
+
+
 if __name__ == "__main__":
+    if "--files" in sys.argv:
+        i = sys.argv.index("--files")
+        named = [a for a in sys.argv[i + 1:] if not a.startswith("--")]
+        muts = only(muts, named)
+        print(f"putting back {len(muts)} of the bugs (those in {', '.join(named)})")
     if "--shard" in sys.argv:
         muts = shard(muts, sys.argv[sys.argv.index("--shard") + 1])
         print(f"putting back {len(muts)} of the bugs (shard {sys.argv[sys.argv.index('--shard') + 1]})")

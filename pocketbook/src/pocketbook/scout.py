@@ -548,6 +548,17 @@ def run(res, chosen, confidence: float | None = None, cutoff: date | None = None
     why = missing()
     if why:
         raise ScoutMissing(why)
+    try:
+        # loaded here, before anything is found, so an add-on that is there but can't load says so in words. The
+        # public-data rehearsal (29 Sep 2026): Windows' Smart App Control blocked newly installed compiled files of
+        # scikit-learn at first load (a block that later cleared, and not tied to one version); missing() looks
+        # without loading, so it read as there, and the Run crashed on the forest's import
+        import sklearn.ensemble  # noqa: F401
+        import sklearn.metrics  # noqa: F401
+    except ImportError as exc:
+        raise ScoutMissing(f"Finding new variables needs {PIP}, and {PIP} is installed but won't load on this "
+                           f"machine: {exc} A security policy that blocks add-on files is the usual cause: ask IT "
+                           f"to allow it, or confirm a saved shortlist instead.") from exc
     import numpy as np
     from . import confirmatory
     m = next((x for x in res.measures if x.name == "outcome_loans"), None)

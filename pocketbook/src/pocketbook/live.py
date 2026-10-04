@@ -133,8 +133,17 @@ def text(*parts) -> str:
     return "=" + "&".join(out or ['""'])
 
 
+#: the smallest normal double. Below it a float is subnormal, and written into a formula it is a number no spreadsheet
+#: takes: LibreOffice calculates the formula to #VALUE!. The public-data rehearsal (4 Oct 2026): a held-back p-value of
+#: 2.5e-315 on SBAnational, written into New variables' "What it found", left that line #VALUE!
+SMALLEST_NORMAL = 2.2250738585072014e-308
+
+
 def num(v) -> str:
-    return repr(float(v))
+    """A number as a formula literal. A subnormal one is written 0.0: the nearest number a spreadsheet holds, and
+    on the same side of every bar a p-value is compared with."""
+    f = float(v)
+    return "0.0" if f != 0 and abs(f) < SMALLEST_NORMAL else repr(f)
 
 
 def sig(p: str) -> str:

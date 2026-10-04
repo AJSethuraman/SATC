@@ -181,19 +181,49 @@ def _tilt(R: np.ndarray, b: np.ndarray, m: float) -> float:
     return lam
 
 
-def _mul(a: np.ndarray, b: np.ndarray, top: int) -> np.ndarray:
-    return np.convolve(a, b)[: top + 1]
+# A polynomial is (offset, coefficients): only its nonzero coefficients are held, the first of them standing for
+# t^offset. A tilted binomial's coefficients far from its middle underflow to exactly 0.0, and in a pocket of
+# 200,000 loans that is most of them; multiplying them out in full made one likelihood evaluation take 191 s
+# (the public-data rehearsal, 29 Sep 2026). Dropping exact zeros drops nothing from any sum.
+EMPTY = (0, np.zeros(0)) if np is not None else None       # np is None only when numpy is missing (OC-34)
 
 
-def _prod(polys: list[np.ndarray], top: int) -> np.ndarray:
-    out = np.ones(1)
+def _trim(offset: int, a: np.ndarray):
+    nz = np.flatnonzero(a)
+    if not len(nz):
+        return EMPTY
+    return offset + int(nz[0]), a[nz[0]: nz[-1] + 1]
+
+
+def _mul(pa, pb, top: int):
+    """The product of two polynomials, up to t^top."""
+    (oa, a), (ob, b) = pa, pb
+    o = oa + ob
+    if not len(a) or not len(b) or o > top:
+        return EMPTY
+    return _trim(o, np.convolve(a, b)[: top - o + 1])
+
+
+def _prod(polys: list, top: int):
+    out = (0, np.ones(1))
     for q in polys:
         out = _mul(out, q, top)
     return out
 
 
-def _coef(poly: np.ndarray, m: int) -> float:
-    return float(poly[m]) if m < len(poly) else 0.0
+def _coef(poly, m: int) -> float:
+    o, a = poly
+    return float(a[m - o]) if 0 <= m - o < len(a) else 0.0
+
+
+def _at(pa, pb, m: int) -> float:
+    """The coefficient of t^m in pa x pb, without the rest of the product: one dot product."""
+    (oa, a), (ob, b) = pa, pb
+    s = m - oa - ob                       # a[i] pairs with b[s - i]
+    lo, hi = max(0, s - (len(b) - 1)), min(len(a) - 1, s)
+    if hi < lo:
+        return 0.0
+    return float(np.dot(a[lo: hi + 1], b[s - hi: s - lo + 1][::-1]))
 
 
 def pocket_terms(p: Pocket, b: np.ndarray, second: bool = True):
@@ -212,26 +242,26 @@ def pocket_terms(p: Pocket, b: np.ndarray, second: bool = True):
         x = b[k] + lam
         log1p = math.log1p(math.exp(-abs(x))) + max(x, 0.0)        # log(1 + e^x)
         logpmf = _log_choose(R[k], top) + j * x - R[k] * log1p
-        pmf = np.exp(logpmf)
-        f.append(pmf)
-        g.append(j * pmf)
-        h.append(j * j * pmf)
-    full = _prod(f, m)
-    B = _coef(full, m)
+        o, pmf = _trim(0, np.exp(logpmf))           # only the coefficients that didn't underflow to 0.0
+        js = np.arange(o, o + len(pmf), dtype=float)
+        f.append((o, pmf))
+        g.append((o, js * pmf))
+        h.append((o, js * js * pmf))
+    others = [_prod([f[l] for l in range(K) if l != k], m) for k in range(K)]
+    B = _at(f[0], others[0], m)
     logD = math.log(B) + sum(float(R[k]) * (math.log1p(math.exp(-abs(b[k] + lam))) + max(b[k] + lam, 0.0))
                              for k in range(K)) - m * lam
     ll = float((p.bad * b).sum()) - logD
-    others = [_prod([f[l] for l in range(K) if l != k], m) for k in range(K)]
-    E = np.array([_coef(_mul(g[k], others[k], m), m) / B for k in range(K)])
+    E = np.array([_at(g[k], others[k], m) / B for k in range(K)])
     grad = p.bad - E
     if not second:
         return ll, grad, None
     cov = np.zeros((K, K))
     for k in range(K):
-        cov[k, k] = _coef(_mul(h[k], others[k], m), m) / B - E[k] ** 2
+        cov[k, k] = _at(h[k], others[k], m) / B - E[k] ** 2
         for l in range(k + 1, K):
             rest = _prod([f[q] for q in range(K) if q not in (k, l)], m)
-            e_kl = _coef(_mul(_mul(g[k], g[l], m), rest, m), m) / B
+            e_kl = _at(_mul(g[k], g[l], m), rest, m) / B
             cov[k, l] = cov[l, k] = e_kl - E[k] * E[l]
     return ll, grad, -cov
 

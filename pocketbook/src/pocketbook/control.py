@@ -589,8 +589,12 @@ def write_choices(ws, got, labels: dict[tuple[str, str], str]) -> None:
     step = None
     if got.run_kind == ch.NEW_VARIABLE:
         step = "prespec" if got.shortlist else "scout"
-    values = {"few_values": labels.get(("few_values", got.few_values), got.few_values),
-              "many_values": labels.get(("many_values", got.many_values), got.many_values),
+    # a limit on the list is picked from it (column C); one that isn't (Choices(many_values=60)) is the setting's own
+    # value (column D), which is where Control reads a number it has no option for. Written into C, the Run refused
+    # "60 is not an option" on the launcher's own row, and read_choices took the usual 50 back without a word
+    # (the public-data rehearsal, 29 Sep 2026: State has 51 values and a blank)
+    listed = {k: labels.get((k, getattr(got, k))) for k in ("few_values", "many_values")}
+    values = {**{k: v for k, v in listed.items()},
               **{f"{ch.KEY}|{k}": v for k, v in got.rows().items()}}
     if got.run_kind is not None:
         # what runs, and for a new variable whether a saved shortlist is confirmed; None leaves all three as they are
@@ -601,9 +605,8 @@ def write_choices(ws, got, labels: dict[tuple[str, str], str]) -> None:
         key = r[KEY_COL - 1].value
         if key in values:
             r[CHOOSE_COL - 1].value = values[key]
-            if key in ("few_values", "many_values") and answer_of(key, None, r[OWN_COL - 1].value) != \
-                    getattr(got, key):
-                r[OWN_COL - 1].value = None
+            if key in listed:
+                r[OWN_COL - 1].value = None if listed[key] is not None else getattr(got, key)
     fold_launcher_rows(ws)
 
 

@@ -1163,7 +1163,16 @@ def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]]
         if not edges:
             edges, each = _cut_or_each_value(b, seen)
         if not edges:
-            raise ColumnsMissing([(b.field, f"band {b.name}: no readable numbers to cut")], table.columns)
+            # the column is there (a missing one was refused above); none of its values reads as a number. Said as
+            # that, with why each value was not read: the public-data rehearsal (3 Oct 2026) had LendingClub's
+            # revol_util written with a % sign ("45.5%"), and the Run said "the extract has no column revol_util ...
+            # press Set up again" while listing revol_util among the extract's columns
+            why = Counter(w for _, w in read if w is not None)
+            said = {"not a number": "aren't numbers (a value with a % sign is not read as one)",
+                    "blank": "are blank", "missing by rule": "are missing by the column's answer on Columns"}
+            raise DataRefused(f"`{b.field}` is cut into bands, but none of its {len(read):,} values reads as a "
+                              f"number: " + ", ".join(f"{n:,} {said.get(w, w)}" for w, n in why.most_common())
+                              + ". Save it as plain numbers, or on Columns set What it is to Category")
         if each:
             value_bands[b.name] = each
             warnings.append(EACH_VALUE_SAYS.format(b.field))
