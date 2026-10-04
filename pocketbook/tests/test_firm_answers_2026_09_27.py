@@ -288,7 +288,8 @@ def test_look_draws_only_the_columns_that_can_be_cut_into_bands(tmp_path, monkey
     out = book.set_up(synth.write_extract(tmp_path, n=2000), choices=ch.Choices(**CUT))
     wb = load_workbook(out.book)
     drawn = [c for c in wb[look.DATA][1][1:] if c.value]
-    assert [c.value for c in drawn] == ["FICO", "ORIG_BAL", "REV_DEBT"]
+    # the band columns chosen (CUT): REV_DEBT, a band column not chosen, has none since 3 Oct 2026 ("Banded + split")
+    assert [c.value for c in drawn] == ["FICO", "ORIG_BAL"]
     named = [c.coordinate for row in wb[look.LOOK].iter_rows() for c in row
              if isinstance(c.value, str) and any(o in c.value for o in ("GCO_AMT", "RANR_AMT", "BAD_FLAG"))]
     assert named == []
