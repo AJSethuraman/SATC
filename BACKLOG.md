@@ -3370,6 +3370,26 @@ changed in the code.
   7. Public-data rehearsal (#407): *Revive*.
   8. Filter limits: *"hard to understand it just seems vague without context"* — open; to be re-asked with an example.
   - **Next (agreed by silence):** ship #418, then revive #407.
+- **A control character in the extract (4 Oct 2026).** Set up stopped with openpyxl's *IllegalCharacterError* (*"L5,
+  L0000001, L0000002 cannot be used in worksheets"*) when the first loan number carried \x01: Columns writes each
+  column's first values, and XML forbids the characters \x00-\x08, \x0b, \x0c and \x0e-\x1f in a worksheet.
+  - **Fixed once, where the extract is read** (`ingest.cleaned`, applied by `read_table` to every column name and
+    every value, CSV and XLSX): each forbidden character becomes its Unicode control picture (\x01 as U+2401), so
+    the workbook can hold it and two values differing only by one stay two values (deleting it would merge them,
+    and could make a loan number collide with another). Because Set up, the launcher's read and Run all read
+    through it, the label every tab shows (Columns samples and odd values, Grids, Pockets, RANR vs GCOs, Summary,
+    Compare, Look, Record, Start here), the `_choices` dropdown lists, the `_views` keys and the column names all
+    carry the one cleaned text, and a picked label still finds its loans. A file with no such character is read
+    exactly as before. The pattern is openpyxl's own `ILLEGAL_CHARACTERS_RE`, written out so reading a CSV needs
+    no openpyxl; a test holds the two the same.
+  - Tests: 7 in `tests/test_illegal_chars_2026_10_04.py`, written failing-first: the reproduction (\x01 in the
+    first loan number); \x02 in a channel, used as a segment and as the Grids' filter (its own dropdown value,
+    and Summary picked by it ties loans and bad-loan rate to the CSV); \x03 in a column's name, used as a segment
+    (offered by the launcher, listed on Columns, Summary by it ties); Set up and Run both succeed, the workbook
+    opens again, and no part of the saved file holds a forbidden character. 2 planted bugs (cleaning skipped;
+    characters deleted instead of shown), both caught with no display; every entry's old string occurs once (665).
+    With `-k "book or columns or summary or compare or filter"`: 257 passed, 3 skipped. Full suite, no display:
+    1,045 passed, 14 skipped, 0 failed.
 
 ## 7 · Standing rules for new items
 
@@ -3387,6 +3407,7 @@ research pass before a spec, no exceptions.
 - 2026-10-03 -- **PocketBook: its voice.** The firm, on *"Every loan whose band and segment are the ones picked"*: *"it does not sound like something a human would type"*. `pocketbook/VOICE.md` sets the register (a credit-risk workpaper for analysts, managers, validators and auditors; the website's client-copy rules don't apply) with before and after patterns, the firm's own first. The audit workbook (203 strings) and the Glossary (74) are rewritten to it, wording only; `docs/voice-2026-10-03/REVIEW.html` numbers all 277 for the firm to mark. Full suite 1,051 passed, 14 skipped; 6 of 6 audit and Glossary planted bugs caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: the audit workbook.** The firm: *"show the calculations it makes on one set of things and prove out each one"*, and *"how to do them by hand"*. Control's *Also write the audit workbook?* makes the Run write `<book> - audit.xlsx`: Run stamp (file, SHA-256, settings, seed), Rows in and out, Bands, Loans (each band a formula), One pocket (a live Grid / Band / Segment pick, 37 figures each written out, worked out by COUNTIFS/SUMIFS on the loans, tied to the Run's, and how to do it by hand) and Shuffle test (a 10-loan example, and every shuffle of the default pocket whose COUNTIF gives its p-value). 33 s and 23.8 MB at 185,000 loans. 13 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: Look draws the band columns and the split, and a Run redraws it.** The firm, shown 40 Look blocks on 22 pages against 4 on 4 for a 47-column book, chose *"Banded + split, redraw on Run"*. Set up draws a block for each band column chosen in the launcher and the split; a Run whose band columns or split changed on Control draws Look again, and one that changed nothing draws nothing. On a 47-column synthetic book: 34 blocks to 4, Set up's workbook 607 KB to 176 KB, the Run's 1,270 KB to 839 KB, LibreOffice open 16.2 s to 9.2 s. 7 tests, 4 planted bugs added and 2 repointed, 6 caught. §6d has the detail.
+- 2026-10-04 -- **PocketBook: a control character in the extract no longer stops Set up.** A loan number carrying \x01 stopped Set up with openpyxl's IllegalCharacterError. The extract's column names and values are now cleaned once as they are read, each forbidden character shown as its control picture, so every tab, dropdown and filter carries the same text and a picked value still finds its loans. 7 tests, 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: Summary's vintage chart and grey rows.** The firm: *"Could the summary tab have vintage graphs as well?"*, chosen *"Pocket vs rest vs book"*; and low unit counts *"grayed out to a degree"*, by a number of its own. Under the Summary table, one row against the rest of the book and the whole book by origination year, on any Summary measure, following Only loans where, thin points left off; at the top, Grey rows under [50] loans, read by nothing else. 5 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: Avg line and × book.** The firm: *"I want to start including and using booked dollar averages so more easily demonstrate how line assignments look in pockets"*. Summary gains Avg line (booked dollars per loan, the average committed line) and × book (that over the whole book's) right after Booked $, in every filter view; RANR vs GCOs' gross block ends on the same two, shaded as Grids' Loan size, never red or green; the Glossary gains the term. 8 tests, 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: a Glossary tab.** The firm: *"Maybe a nice glossary of terms in the workbook should be there"*. A grey tab right after Start here, written by every Set up and Run: 25 terms, each with what it means and an example in the book's own figures from the last Run (*"the book keeps $12.80 per $100 booked"*), made up before the first. Start here links to it; the bank checklist has a 4.10 for it. 8 tests; 2 planted bugs, 2 caught. §6d has the detail.

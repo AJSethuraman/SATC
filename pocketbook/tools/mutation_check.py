@@ -1724,6 +1724,13 @@ muts = [
  ("the split column left off Look when it is not a band column", LK,
   "    return [c for c in eligible if c in cut or c == split]", "    return [c for c in eligible if c in cut]",
   "look_banded_split"),
+ # 3 Oct 2026: a control character in the extract stopped Set up (openpyxl's IllegalCharacterError)
+ ("extract's control characters reaching the workbook", I,
+  "    clean = cleaned if ILLEGAL_CHARACTERS_RE.search(text) else (lambda v: v)",
+  "    clean = lambda v: v", "control_character_in_the_first_loan_number"),
+ ("control characters deleted, merging two values into one", I,
+  "    return ILLEGAL_CHARACTERS_RE.sub(_picture, value.strip())",
+  '    return ILLEGAL_CHARACTERS_RE.sub("", value.strip())', "cleaning_keeps_values_apart"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

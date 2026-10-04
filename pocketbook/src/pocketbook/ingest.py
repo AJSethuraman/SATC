@@ -25,6 +25,27 @@ from typing import Any
 
 BLANK_TOKENS = {"", "na", "n/a", "null", "none", "-"}
 
+#: the characters XML 1.0 forbids, so no worksheet can hold them: openpyxl's own ILLEGAL_CHARACTERS_RE, written out
+#: here so reading a CSV needs no openpyxl (a test holds the two the same). A bank's extract can carry one, a stray
+#: byte from the system that wrote it; Set up stopped on the first loan number's \x01 (3 Oct 2026).
+ILLEGAL_CHARACTERS_RE = re.compile(r'[\000-\010]|[\013-\014]|[\016-\037]')
+
+
+def _picture(m: re.Match) -> str:
+    return chr(0x2400 + ord(m.group()))
+
+
+def cleaned(value: Any) -> Any:
+    """Text as a worksheet can hold it: each forbidden control character shown as its Unicode control picture
+    (\x01 as U+2401), so the workbook can write it and two values differing only by one stay two values, which
+    deleting it would merge. Done once, as the extract is read, so a column's name and every value carry the same
+    text everywhere: the label a tab shows, the dropdown that picks it and the key it is looked up by all agree.
+    The ends are trimmed first, as every reader of a value already trims them (\x1c to \x1f are whitespace to
+    Python). Anything else is returned as it came."""
+    if not isinstance(value, str) or ILLEGAL_CHARACTERS_RE.search(value) is None:
+        return value
+    return ILLEGAL_CHARACTERS_RE.sub(_picture, value.strip())
+
 
 class Blank:
     """The single blank marker. Identity-compared."""
@@ -60,10 +81,11 @@ def read_table(path: str | Path, sheet: str | None = None) -> Table:
         with hushed():
             return _read_xlsx(p, sheet, digest, data)
     text = data.decode("utf-8-sig")
+    clean = cleaned if ILLEGAL_CHARACTERS_RE.search(text) else (lambda v: v)    # most files: nothing to clean
     reader = csv.DictReader(text.splitlines())
-    columns = [c.strip() for c in (reader.fieldnames or [])]
+    columns = [clean(c.strip()) for c in (reader.fieldnames or [])]
     _refuse_duplicates(p, columns)
-    rows = [{k.strip() if k else k: v for k, v in row.items()} for row in reader]
+    rows = [{clean(k.strip()) if k else k: clean(v) for k, v in row.items()} for row in reader]
     return Table(path=str(p), sha256=digest, columns=columns, rows=rows, kind="csv")
 
 
@@ -77,13 +99,13 @@ def _read_xlsx(p: Path, sheet: str | None, digest: str, data: bytes) -> Table:
     header = next(it, None)
     if header is None:
         raise ValueError(f"{p}: the sheet has no header row")
-    columns = [str(h).strip() if h is not None else "" for h in header]
+    columns = [cleaned(str(h).strip()) if h is not None else "" for h in header]
     _refuse_duplicates(p, columns)
     rows = []
     for r in it:
         if r is None or all(v is None for v in r):
             continue
-        rows.append({columns[i]: (r[i] if i < len(r) else None) for i in range(len(columns))})
+        rows.append({columns[i]: (cleaned(r[i]) if i < len(r) else None) for i in range(len(columns))})
     wb.close()
     return Table(path=str(p), sha256=digest, columns=columns, rows=rows, kind="xlsx")
 
