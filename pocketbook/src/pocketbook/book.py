@@ -2327,6 +2327,10 @@ def _audit_book(res, book: Path, src: Path, sha256: str) -> str | None:
     Run's lines, or None when it wasn't asked for."""
     if not bleed_tabs(res) or (getattr(res, "control_used", None) or {}).get(audit.KEY) != "yes" or not res.grids:
         return None
+    if res.rows > audit.MOST_LOANS:
+        # its Loans sheet holds one loan a row, and an Excel sheet stops at 1,048,576 rows (the review of 3 Oct 2026)
+        return (f"Didn't write {audit.path_for(book).name}: the book has {res.rows:,} loans, and its Loans sheet "
+                f"holds at most {audit.MOST_LOANS:,}, one a row under the header.")
     timing.mark("Writing the audit workbook")
     words = _used_words(res)
     settings = [(s.question, words[s.key]) for s in control.load_settings() if s.key in words]
@@ -2335,6 +2339,10 @@ def _audit_book(res, book: Path, src: Path, sha256: str) -> str | None:
     except PermissionError:
         return (f"Couldn't write {audit.path_for(book).name}: it is open in Excel. Close it, then press Run "
                 f"again.")
+    except Exception as e:                      # noqa: BLE001
+        # the main workbook is saved by now: the Run still finishes, writes what ran.yaml and says what went wrong
+        # (the review of 3 Oct 2026)
+        return f"Couldn't write the audit workbook: {type(e).__name__}: {e}"
     return f"Wrote {out.name}: one pocket's figures worked out again from the loans, step by step."
 
 

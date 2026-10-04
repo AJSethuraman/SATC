@@ -3291,6 +3291,28 @@ changed in the code.
     is never the default, since it has no shuffle test to show. (2) Part D follows One pocket's pick through its
     grid and comparison; a pocket alone in its band is listed in the book-side family.
 
+- **Built, 3 Oct 2026: the audit workbook's review fixes, and the advice sweep** (branch
+  `pocketbook-audit-review-fixes`, on `claude/keen-franklin-4l01un`). Four bugs found by reading the code, each
+  with a failing-first test in `tests/test_audit_review_2026_10_03.py` (6 tests) and a planted bug:
+  (1) pockets were found by MATCH on their names, which reads `~ * ?` as wildcards: a segment `Br~anch` left One
+  pocket's row blank (56 ✗), `<B*` and `On"line` sent part D to another pocket's row, and `=A` was written to the
+  hidden sheets as a formula. Names are now found with EXACT (`audit.find`), part D and the allowance's COUNTIFS go
+  by grid number and the pocket's row on `_pocketbook`, In this pocket / band compare with EXACT, every COUNTIF
+  criterion built from text is literal (`audit.crit`: `=` first, `~ * ?` escaped), and every name is written as
+  text. Tested on segments `Br~anch`, `On"line ` (quote, trailing space), `<B*`, `10`, `1?`, `=A`, `>500`: every
+  figure ✓ in LibreOffice. (2) control characters are stripped from the Loans sheet's hand-written XML (a loan number
+  `L\x015` made it unreadable). (3) any audit failure other than an open file is a Run line, *"Couldn't write the
+  audit workbook: <type>: <message>"*, and the Run finishes (it used to end before "what ran.yaml"). (4) more loans
+  than 1,048,575 skip the audit with a Run line saying why. Found on the way and left for its own task: Set up
+  itself refuses a control character in a column's first sample values (openpyxl, Columns tab).
+  - **Advice sweep** (the firm, 3 Oct 2026: *"literal facts, calculations, our rules around leaving comments are
+    fine. stuff like this i don't ask for"*): 15 strings in the audit workbook and the Glossary rewritten or cut,
+    each listed before and after in `pocketbook/docs/voice-2026-10-03/ADVICE-SWEEP.md` (e.g. *"If the two tests
+    point in opposite directions, the pocket warrants a closer look"* removed; Borderline now states the 2-standard-
+    error rule instead of *"the flag serves as a caution"*).
+  - **Checks:** every `tools/mutation_check.py` entry's old string occurs once (678); the 6 new planted bugs and the
+    11 earlier audit and Glossary ones, 17 of 17 caught with no display. Full suite, no display: 1,061 passed, 14 skipped (all tkinter missing, as before), 0 failed (82 min).
+
 - **Docket answers, 3 Oct 2026** (the form at claude.ai/artifact/Sx6tUKKWYHHQhN9wN75jTV):
   1. Merge the audit workbook (#418): *Merge it*.
   2. While Codex is over its limit: *CI + independent review* counts as reviewed, noted on the PR.
@@ -3315,6 +3337,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-03 -- **PocketBook: the audit workbook's review fixes, and no advice.** Pockets found by exact name, not by MATCH's wildcards (a segment `Br~anch` blanked every figure); control characters stripped from the Loans sheet; an audit failure no longer ends the Run; past Excel's row limit the audit is skipped with a reason. 15 strings of advice or interpretation cut from the audit workbook and the Glossary, under the firm's new rule. 6 tests, 6 planted bugs, all caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: the audit workbook's tie-out findings fixed, and a random pocket.** The firm: *"tying out one thing that should prove everything if you picked randomly"* (*"Random, seed stamped"*). The audit opens on a pocket drawn from the tested pockets, seeded from the file's SHA-256 and stamped; every By hand step filters what its formula takes (a test parses both); every gap RANR vs GCOs shows is proved; booked totals named by population; Benjamini-Hochberg worked out on a visible table; no overlapping rows. Tie-out re-run: 241 comparisons, 0 differ. 17 tests, 9 of 9 audit planted bugs caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: its voice.** The firm, on *"Every loan whose band and segment are the ones picked"*: *"it does not sound like something a human would type"*. `pocketbook/VOICE.md` sets the register (a credit-risk workpaper for analysts, managers, validators and auditors; the website's client-copy rules don't apply) with before and after patterns, the firm's own first. The audit workbook (203 strings) and the Glossary (74) are rewritten to it, wording only; `docs/voice-2026-10-03/REVIEW.html` numbers all 277 for the firm to mark. Full suite 1,051 passed, 14 skipped; 6 of 6 audit and Glossary planted bugs caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: the audit workbook.** The firm: *"show the calculations it makes on one set of things and prove out each one"*, and *"how to do them by hand"*. Control's *Also write the audit workbook?* makes the Run write `<book> - audit.xlsx`: Run stamp (file, SHA-256, settings, seed), Rows in and out, Bands, Loans (each band a formula), One pocket (a live Grid / Band / Segment pick, 37 figures each written out, worked out by COUNTIFS/SUMIFS on the loans, tied to the Run's, and how to do it by hand) and Shuffle test (a 10-loan example, and every shuffle of the default pocket whose COUNTIF gives its p-value). 33 s and 23.8 MB at 185,000 loans. 13 tests, 4 planted bugs, 4 caught. §6d has the detail.

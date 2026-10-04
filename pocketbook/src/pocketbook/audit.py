@@ -47,6 +47,7 @@ from xml.sax.saxutils import escape
 
 from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import column_index_from_string, get_column_letter
@@ -80,6 +81,8 @@ USD, USD0, PCT, MULT, PTS, PV, INT = ('$#,##0.00;-$#,##0.00', '$#,##0;-$#,##0', 
 LOW_FMT = '[<-1E+300]"lowest";General'
 HIGH_FMT = '[>1E+300]"and up";General'
 LOW, HIGH = -1e307, 1e307
+#: the most loans the Loans sheet holds: an Excel sheet's 1,048,576 rows, less the header
+MOST_LOANS = 1_048_575
 
 
 def path_for(book: str | Path) -> Path:
@@ -204,6 +207,8 @@ class Canvas:
                     continue
                 v, st, fmt = row[c]
                 cell = WriteOnlyCell(ws, value=v)
+                if isinstance(v, Lit):
+                    cell.data_type = "s"
                 for k, val in STYLES.get(st, {}).items():
                     setattr(cell, k, val)
                 if fmt:
@@ -235,8 +240,43 @@ def ties(e: str, f: str, scale: str | None = None) -> str:
             f'IF(AND(NOT(ISNUMBER({e})),NOT(ISNUMBER({f}))),"{TICK}","{CROSS}"))')
 
 
+def clean(s) -> str:
+    """Text as a cell can hold it: the control characters XML forbids removed (a loan number "L\\x015" written as it
+    is made the Loans sheet unreadable, the review of 3 Oct 2026)."""
+    return ILLEGAL_CHARACTERS_RE.sub("", str(s))
+
+
+class Lit(str):
+    """Text from the loan file, written as text: a segment "=A" is a value, not a formula (Canvas.emit)."""
+
+
+def lit(s) -> Lit:
+    return Lit(clean(s))
+
+
 def q(s) -> str:
-    return '"' + str(s).replace('"', '""') + '"'
+    """Text as a formula's string literal."""
+    return '"' + clean(s).replace('"', '""') + '"'
+
+
+def crit(s) -> str:
+    """A COUNTIF criterion that matches the text `s` exactly as written: "=" first, so a leading <, > or = is not
+    read as an operator, and ~ * ? escaped with ~, so none is read as a wildcard (the review of 3 Oct 2026)."""
+    return q("=" + clean(s).replace("~", "~~").replace("*", "~*").replace("?", "~?"))
+
+
+def find(value: str, rng: str, less: int = 0) -> str:
+    """The row of `rng` holding `value`, character for character (EXACT), less `less`; #N/A when none does. MATCH
+    is not used: it reads ~ * ? in the value as wildcards and ignores case: a segment "Br~anch" found no row, so every
+    figure read ✗, and "<B*" in part D found another pocket's row (the review of 3 Oct 2026)."""
+    return f"LOOKUP(2,1/EXACT({rng},{value}),ROW({rng})-{less})"
+
+
+def text_cell(ws, v) -> WriteOnlyCell:
+    """A write-only cell holding `v` as text, never as a formula."""
+    c = WriteOnlyCell(ws, value=clean(v))
+    c.data_type = "s"
+    return c
 
 
 # --------------------------------------------------------------------------
@@ -390,7 +430,10 @@ PB_KEYS = ["key", "grid", "band", "seg", "loans", "bad", "bad_n", "bad_rate", "g
            "ctb_rest_rate", "ctb_gap", "ctb_usd_rest", "band_ranr_bk", "band_ranr", "band_ranr_rate", "ranr_gap_band",
            "ranr_usd_band", "band_ctb_bk", "band_ctb", "band_ctb_rate", "ctb_gap_band", "ctb_usd_band",
            # formulas: the allowance for many tests, per grid and comparison (Benjamini-Hochberg's step-up)
-           "m_book", "rank_book", "q_book", "m_band", "rank_band", "q_band"]
+           "m_book", "rank_book", "q_book", "m_band", "rank_band", "q_band",
+           # the grid's number (its row on _lists less 1): a COUNTIFS matches a number exactly, while a grid's name
+           # can hold ~ * ? or begin with < > =, which COUNTIFS reads as wildcards and operators
+           "gridno"]
 PBC = {k: i + 1 for i, k in enumerate(PB_KEYS)}
 
 
@@ -497,13 +540,16 @@ def write(res, book: str | Path, src: str | Path, sha256: str, settings: list[tu
     pick = random_pocket(res, sha256)
     dg, dk = pick.grid, pick.key
     names = {id(g): grid_name(res, g) for g in res.grids}
-    figs = [(names[id(g)], k, _figures(res, g, k, c)) for g, k, c in pockets]
+    number = {id(g): i for i, g in enumerate(res.grids, start=1)}
+    figs = [(names[id(g)], k, {**_figures(res, g, k, c), "gridno": number[id(g)]}) for g, k, c in pockets]
+    # each pocket's row on _pocketbook, by its key: part D finds a pocket by its row, never by its name
+    pb_row = {f"{gname}|{k[0]}|{k[1]}": i for i, (gname, k, _) in enumerate(figs, start=2)}
 
     wb = Workbook(write_only=True)
     bands_cv, band_ranges = _bands(res, lay, values)
     one_cv, one = _one_pocket(res, lay, names[id(dg)], dk, figs, pick)
     timing.mark("Audit workbook: dealing the random pocket's shuffles again")
-    families = _families(res, names)
+    families = _families(res, names, number)
     shuffle_cv = _shuffle(res, dg, dk, names[id(dg)], one, figs, families)
     timing.mark("Audit workbook: writing the sheets")
     for cv in (_start(res, book), _stamp(res, src, sha256, settings or [], when, pick, names[id(dg)]),
@@ -513,11 +559,12 @@ def write(res, book: str | Path, src: str | Path, sha256: str, settings: list[tu
     one_cv.emit(wb)
     shuffle_cv.emit(wb)
     _pocketbook(len(figs)).emit_rows(wb, figs)
-    _lists(res, lay, families).emit(wb)
+    _lists(res, lay, families, pb_row).emit(wb)
     for name, ref in [("Loan_" + k, lay.rng(key)) for k, key in (
             ("Row", "row"), ("Booked", "booked"), ("GCO", "gco"), ("RANR", "ranr"), ("Bad", "bad"),
             ("InPocket", "in_pocket"), ("InBand", "in_band"))] + [
-            ("Pick_Grid", f"'{ONE}'!{one['grid']}"), ("Pick_Band", f"'{ONE}'!{one['band']}"),
+            ("Pick_Grid", f"'{ONE}'!{one['grid']}"), ("Pick_GridNo", f"'{ONE}'!$K$1"),
+            ("Pick_Band", f"'{ONE}'!{one['band']}"),
             ("Pick_Seg", f"'{ONE}'!{one['seg']}"), ("Pick_BandCol", f"'{ONE}'!{one['bandcol']}"),
             ("Pick_SegCol", f"'{ONE}'!{one['segcol']}")]:
         wb.defined_names.add(DefinedName(name, attr_text=ref))
@@ -671,7 +718,8 @@ def _stamp(res, src, sha256: str, settings, when: datetime, pick: Pick, dgrid: s
     r += 1
     for label, v in rows:
         cv.put(r, 2, label, "bold")
-        cv.put(r, 3, v, "num" if isinstance(v, int) else "text", INT if isinstance(v, int) else None)
+        cv.put(r, 3, lit(v) if isinstance(v, str) else v, "num" if isinstance(v, int) else "text",
+               INT if isinstance(v, int) else None)
         _fit_row(cv, r, v)
         r += 1
     r += 1
@@ -692,7 +740,7 @@ def _stamp(res, src, sha256: str, settings, when: datetime, pick: Pick, dgrid: s
                                                         f'fingerprint, so the same file always opens on the same '
                                                         f'pocket. {order}')):
         cv.put(r, 2, label, "bold")
-        cv.put(r, 3, v)
+        cv.put(r, 3, lit(v))
         _fit_row(cv, r, v)
         r += 1
     r += 1
@@ -700,7 +748,7 @@ def _stamp(res, src, sha256: str, settings, when: datetime, pick: Pick, dgrid: s
     r += 1
     for label, v in _settings_lines(res):
         cv.put(r, 2, label, "bold")
-        cv.put(r, 3, v)
+        cv.put(r, 3, lit(v))
         _fit_row(cv, r, v)
         r += 1
     if settings:
@@ -709,7 +757,7 @@ def _stamp(res, src, sha256: str, settings, when: datetime, pick: Pick, dgrid: s
         r += 1
         for label, v in settings:
             cv.put(r, 2, label, "bold")
-            cv.put(r, 3, v)
+            cv.put(r, 3, lit(v))
             _fit_row(cv, r, v)
             r += 1
     return cv
@@ -758,9 +806,9 @@ def _rows(res, lay: Layout, values) -> Canvas:
             label = NOT_01 if why == "flag not 0 or 1" else REASON_LABEL.get(why, f"({why})")
             cv.put(r, 2, f"Less: {column} {REASON_WORDS.get(why, why)}")
             if ck == top or per is None:
-                f = f'=COUNTIF({lay.rng(ck)},{q(label)})'
+                f = f'=COUNTIF({lay.rng(ck)},{crit(label)})'
             else:
-                f = f'=COUNTIFS({lay.rng(ck)},{q(label)},{lay.rng(top)},{NUM})'
+                f = f'=COUNTIFS({lay.rng(ck)},{crit(label)},{lay.rng(top)},{NUM})'
             cv.put(r, 3, f, "num", INT)
             cv.put(r, 4, k, "num", INT)
             cv.put(r, 5, ties(f"C{r}", f"D{r}"), "tie")
@@ -801,8 +849,8 @@ def _rows(res, lay: Layout, values) -> Canvas:
             if v in REASON_LABEL.values():
                 got[v] = got.get(v, 0) + 1
         for v, k in sorted(got.items()):
-            cv.put(r, 2, f"{b.field} {v}")
-            cv.put(r, 3, f'=COUNTIF({lay.rng(("band", b.name))},{q(v)})', "num", INT)
+            cv.put(r, 2, lit(f"{b.field} {v}"))
+            cv.put(r, 3, f'=COUNTIF({lay.rng(("band", b.name))},{crit(v)})', "num", INT)
             cv.put(r, 4, k, "num", INT)
             cv.put(r, 5, ties(f"C{r}", f"D{r}"), "tie")
             cv.put(r, 6, f'Filter {b.field} band on the Loans sheet to "{v}".', "grey")
@@ -813,8 +861,8 @@ def _rows(res, lay: Layout, values) -> Canvas:
             if v in REASON_LABEL.values():
                 got[v] = got.get(v, 0) + 1
         for v, k in sorted(got.items()):
-            cv.put(r, 2, f"{d.field} {v}")
-            cv.put(r, 3, f'=COUNTIF({lay.rng(("seg", d.name))},{q(v)})', "num", INT)
+            cv.put(r, 2, lit(f"{d.field} {v}"))
+            cv.put(r, 3, f'=COUNTIF({lay.rng(("seg", d.name))},{crit(v)})', "num", INT)
             cv.put(r, 4, k, "num", INT)
             cv.put(r, 5, ties(f"C{r}", f"D{r}"), "tie")
             cv.put(r, 6, f'Filter {d.field} on the Loans sheet to "{v}".', "grey")
@@ -844,7 +892,7 @@ def _bands(res, lay: Layout, values) -> tuple[Canvas, dict]:
         each = (res.value_bands or {}).get(b.name)
         seen = [v for v in values[("band", b.name)] if not isinstance(v, str)]
         labels = engine.labels_for(edges, seen, each)
-        cv.section(r, b.field, 8)
+        cv.section(r, lit(b.field), 8)
         r += 1
         typed = "; ".join(_g(e) for e in b.edges) if b.edges else "None entered; PocketBook set the edges."
         how = ("Entered on Columns and used as entered." if b.edges else
@@ -870,10 +918,10 @@ def _bands(res, lay: Layout, values) -> tuple[Canvas, dict]:
         col = lay.rng(("band", b.name))
         raw = lay.letter(("raw", b.name))
         for lab, lo, hi in zip(labels, lows, highs):
-            cv.put(r, 2, lab, "bold")
+            cv.put(r, 2, lit(lab), "bold")
             cv.put(r, 3, lo, "num", LOW_FMT)
             cv.put(r, 4, hi, "num", HIGH_FMT)
-            cv.put(r, 5, f"=COUNTIF({col},{q(lab)})", "num", INT)
+            cv.put(r, 5, f"=COUNTIF({col},{crit(lab)})", "num", INT)
             cv.put(r, 6, counts.get(lab, 0), "num", INT)
             cv.put(r, 7, ties(f"E{r}", f"F{r}"), "tie")
             words = ("Filter " + b.field + " on the Loans sheet to values "
@@ -883,9 +931,9 @@ def _bands(res, lay: Layout, values) -> tuple[Canvas, dict]:
             r += 1
         ranges[b.name] = (f"{BANDS}!$B${top}:$B${r - 1}", f"{BANDS}!$C${top}:$C${r - 1}")
         for lab in [x for x in REASON_LABEL.values() if counts.get(x)]:
-            cv.put(r, 2, lab, "bold")
+            cv.put(r, 2, lit(lab), "bold")
             cv.put(r, 3, "no numeric value", "grey")
-            cv.put(r, 5, f"=COUNTIF({col},{q(lab)})", "num", INT)
+            cv.put(r, 5, f"=COUNTIF({col},{crit(lab)})", "num", INT)
             cv.put(r, 6, counts[lab], "num", INT)
             cv.put(r, 7, ties(f"E{r}", f"F{r}"), "tie")
             cv.put(r, 8, f'Filter {b.field} on the Loans sheet to "{lab}".', "grey")
@@ -968,7 +1016,7 @@ def _steps(res) -> list[tuple]:
          "amount and a RANR amount. This is the Booked figure on the RANR vs GCOs tab.", "{ranr_bk|$#,##0.00}",
          f"=SUMIFS(Loan_Booked,{IP},Loan_RANR,{NUM})", "ranr_bk", USD,
          by_hand("pocket", ("RANR",), "Sum of the booked column")),
-        ("ranr", "RANR", "RANR dollars for the same loans. A negative figure means the pocket lost money overall.",
+        ("ranr", "RANR", "RANR dollars for the same loans.",
          "{ranr|$#,##0.00}", f"=SUMIFS(Loan_RANR,{IP},Loan_Booked,{NUM})", "ranr", USD,
          by_hand("pocket", ("booked",), "Sum of the RANR column")),
         ("ranr_rate", "RANR rate", "RANR as a share of booked dollars.",
@@ -1061,14 +1109,13 @@ def _steps(res) -> list[tuple]:
          "Subtract the pocket's RANR from the book's, and the pocket's booked dollars for loans with a RANR from "
          "the book's, then divide the first result by the second."),
         ("ranr_gap", "RANR gap in points, against the book", "The pocket's RANR rate less the rest of the book's, in "
-         "percentage points. A negative figure means the pocket keeps less per booked dollar. This is RANR's Gap pts "
+         "percentage points. This is RANR's Gap pts "
          "on RANR vs GCOs for a pocket judged against the book.",
          "({ranr_rate|0.000%} − {ranr_rest_rate|0.000%}) × 100 = {ranr_gap|+0.000;-0.000} points",
          '=IFERROR(({ranr_rate}-{ranr_rest_rate})*100,"")', "ranr_gap", PTS,
          "Subtract the rest of the book's RANR rate from the pocket's, then multiply by 100."),
         ("ranr_usd_rest", "RANR dollars, against the book", "The pocket's RANR less the RANR it would have earned at "
-         "the rest of the book's rate. A negative figure is a shortfall. This is RANR's Dollars on RANR vs GCOs for "
-         "a pocket judged against the book.",
+         "the rest of the book's rate. This is RANR's Dollars on RANR vs GCOs for a pocket judged against the book.",
          "{ranr|$#,##0} − {ranr_rest_rate|0.000%} × {ranr_bk|$#,##0} = {ranr_usd_rest|$#,##0}",
          '=IFERROR({ranr}-{ranr_rest_rate}*{ranr_bk},"")', "ranr_usd_rest", USD,
          "Multiply the rest of the book's RANR rate by the pocket's booked dollars for loans with a RANR, and "
@@ -1086,8 +1133,8 @@ def _steps(res) -> list[tuple]:
          '=IFERROR(({ctb_rate}-{ctb_rest_rate})*100,"")', "ctb_gap", PTS,
          "Subtract the rest of the book's RANR + GCOs rate from the pocket's, then multiply by 100."),
         ("ctb_usd_rest", "RANR + GCOs dollars, against the book", "The pocket's RANR + GCOs less what it would have "
-         "earned at the rest of the book's rate. A negative figure is a shortfall. This is RANR + GCOs' Dollars on "
-         "RANR vs GCOs for a pocket judged against the book.",
+         "earned at the rest of the book's rate. This is RANR + GCOs' Dollars on RANR vs GCOs for a pocket judged "
+         "against the book.",
          "{ctb|$#,##0} − {ctb_rest_rate|0.000%} × {ctb_bk|$#,##0} = {ctb_usd_rest|$#,##0}",
          '=IFERROR({ctb}-{ctb_rest_rate}*{ctb_bk},"")', "ctb_usd_rest", USD,
          "Multiply the rest of the book's RANR + GCOs rate by the pocket's booked dollars for loans with a GCO and "
@@ -1138,8 +1185,7 @@ def _steps(res) -> list[tuple]:
          '=IFERROR(({ranr_rate}-{band_ranr_rate})*100,"")', "ranr_gap_band", PTS,
          "Subtract the rest of the band's RANR rate from the pocket's, then multiply by 100."),
         ("ranr_usd_band", "RANR dollars, against its band", "The pocket's RANR less the RANR it would have earned at "
-         "the rest of its band's rate. A negative figure is a shortfall. This is RANR's Dollars on RANR vs GCOs for "
-         "a pocket judged against its band.",
+         "the rest of its band's rate. This is RANR's Dollars on RANR vs GCOs for a pocket judged against its band.",
          "{ranr|$#,##0} − {band_ranr_rate|0.000%} × {ranr_bk|$#,##0} = {ranr_usd_band|$#,##0}",
          '=IFERROR({ranr}-{band_ranr_rate}*{ranr_bk},"")', "ranr_usd_band", USD,
          "Multiply the rest of the band's RANR rate by the pocket's booked dollars for loans with a RANR, and "
@@ -1167,8 +1213,8 @@ def _steps(res) -> list[tuple]:
          '=IFERROR(({ctb_rate}-{band_ctb_rate})*100,"")', "ctb_gap_band", PTS,
          "Subtract the rest of the band's RANR + GCOs rate from the pocket's, then multiply by 100."),
         ("ctb_usd_band", "RANR + GCOs dollars, against its band", "The pocket's RANR + GCOs less what it would have "
-         "earned at the rest of its band's rate. A negative figure is a shortfall. This is RANR + GCOs' Dollars on "
-         "RANR vs GCOs for a pocket judged against its band.",
+         "earned at the rest of its band's rate. This is RANR + GCOs' Dollars on RANR vs GCOs for a pocket judged "
+         "against its band.",
          "{ctb|$#,##0} − {band_ctb_rate|0.000%} × {ctb_bk|$#,##0} = {ctb_usd_band|$#,##0}",
          '=IFERROR({ctb}-{band_ctb_rate}*{ctb_bk},"")', "ctb_usd_band", USD,
          "Multiply the rest of the band's RANR + GCOs rate by the pocket's booked dollars for loans with a GCO and "
@@ -1248,14 +1294,14 @@ def _adjusted(how: str) -> str:
     def one(side: str) -> str:
         if how == "none":
             return raw
-        m = f"COUNTIFS({rng('grid')},Pick_Grid,{rng('hits_' + side)},\">=0\")"
+        m = f"COUNTIFS({rng('gridno')},Pick_GridNo,{rng('hits_' + side)},\">=0\")"
         if how == "bonferroni":
             return f"MIN(1,{raw}*{m})"
         # Benjamini-Hochberg: the smallest p x m / rank from this pocket's own rank up. Pockets with the same count
         # share the highest rank among them, so this pocket's own term is p x m / (pockets at or under its count)
-        rank = f"COUNTIFS({rng('grid')},Pick_Grid,{rng('hits_' + side)},\"<=\"&{hits})"
-        above = f"COUNTIFS({rng('grid')},Pick_Grid,{rng('hits_' + side)},\">\"&{hits})"
-        mins = f"_xlfn.MINIFS({rng('q_' + side)},{rng('grid')},Pick_Grid,{rng('hits_' + side)},\">\"&{hits})"
+        rank = f"COUNTIFS({rng('gridno')},Pick_GridNo,{rng('hits_' + side)},\"<=\"&{hits})"
+        above = f"COUNTIFS({rng('gridno')},Pick_GridNo,{rng('hits_' + side)},\">\"&{hits})"
+        mins = f"_xlfn.MINIFS({rng('q_' + side)},{rng('gridno')},Pick_GridNo,{rng('hits_' + side)},\">\"&{hits})"
         return f"MIN(1,{raw}*{m}/{rank},IF({above}>0,{mins},1))"
     return f'=IFERROR(IF(NOT(ISNUMBER({raw})),"",IF({band},{one("band")},{one("book")})),"")'
 
@@ -1308,9 +1354,9 @@ def _one_pocket(res, lay: Layout, dgrid: str, dk, figs, pick: Pick) -> tuple[Can
     cv.put(r, 3, "BAND", "label")
     cv.put(r, 4, "SEGMENT", "label")
     r += 1
-    grid = cv.put(r, 2, dgrid, "pick")
-    band = cv.put(r, 3, dk[0], "pick")
-    seg = cv.put(r, 4, dk[1], "pick")
+    grid = cv.put(r, 2, lit(dgrid), "pick")
+    band = cv.put(r, 3, lit(dk[0]), "pick")
+    seg = cv.put(r, 4, lit(dk[1]), "pick")
     cv.heights[r] = 20
     ng = len(res.grids)
     for cell, f in ((grid, f"={lists}$A$2:$A${ng + 1}"),
@@ -1320,17 +1366,19 @@ def _one_pocket(res, lay: Layout, dgrid: str, dk, figs, pick: Pick) -> tuple[Can
                             errorTitle="Invalid selection", error="Select a value from the list.")
         dv.add(cell.replace("$", ""))
         cv.dvs.append(dv)
-    # the helpers, hidden in J:K: rows 1 to 9
+    # the helpers, hidden in J:K: rows 1 to 9. Every name is found character for character (find), and the pocket
+    # selected at random is recognised with EXACT: a band or segment can hold ~ * ? or begin with < > =
     helpers = [
-        ("Grid's number", f"=MATCH({grid},{lists}$A$2:$A${ng + 1},0)"),
+        ("Grid's number", "=" + find(grid, f"{lists}$A$2:$A${ng + 1}", 1)),
         ("Its bands", f"=INDEX({lists}$D$2:$D${ng + 1},$K$1)"),
         ("Its segments", f"=INDEX({lists}$E$2:$E${ng + 1},$K$1)"),
         ("Band column on Loans", f"=INDEX({lists}$F$2:$F${ng + 1},$K$1)"),
         ("Segment column on Loans", f"=INDEX({lists}$G$2:$G${ng + 1},$K$1)"),
         ("Pocket's key", f'={grid}&"|"&{band}&"|"&{seg}'),
-        ("Its row on _pocketbook", f"=IFERROR(MATCH($K$6,{PBQ}!$A:$A,0),\"\")"),
-        ("The pocket selected at random?", f'=AND({grid}={q(dgrid)},{band}&""={q(dk[0])},{seg}&""={q(dk[1])})'),
-        ("Selected at random", f"{dgrid}: {dk[0]}, {dk[1]}"),
+        ("Its row on _pocketbook", f'=IFERROR({find("$K$6", f"{PBQ}!$A$2:$A${n}")},"")'),
+        ("The pocket selected at random?", f'=AND(EXACT({grid}&"",{q(dgrid)}),EXACT({band}&"",{q(dk[0])}),'
+                                           f'EXACT({seg}&"",{q(dk[1])}))'),
+        ("Selected at random", lit(f"{dgrid}: {dk[0]}, {dk[1]}")),
     ]
     for i, (label, f) in enumerate(helpers, start=1):
         cv.put(i, 10, label, "grey")
@@ -1345,8 +1393,9 @@ def _one_pocket(res, lay: Layout, dgrid: str, dk, figs, pick: Pick) -> tuple[Can
     cv.merges.append(f"B{r}:H{r}")
     r += 1
     cv.put(r, 2, f'=IF($K$8,"This is the pocket selected at random; its shuffles are listed on the Shuffle test '
-                 f'sheet.","The pocket selected at random is {dgrid}: {dk[0]}, {dk[1]}. The Shuffle test sheet lists '
-                 f'the shuffles for that pocket only.")', "grey")
+                 f'sheet.",'
+                 + q(f"The pocket selected at random is {dgrid}: {dk[0]}, {dk[1]}. The Shuffle test sheet lists the "
+                     f"shuffles for that pocket only.") + ")", "grey")
     cv.merges.append(f"B{r}:H{r}")
     r += 2
     cv.header(r, ["Step", "Definition", "Calculation", "Excel's figure", "PocketBook's figure", "Ties?", "By hand"])
@@ -1442,8 +1491,8 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs, families: dict) -> Canvas
     cv.title_band("Shuffle test", "How a pocket's p-value is derived.", 11)
     b = res.config.benchmark
     r = cv.note(3, [
-        ("The question", "Could the pocket's gap have arisen by chance? The test reassigns the pocket's label to "
-                         "loans at random many times, and counts how often chance alone produces a gap this large."),
+        ("The test", "The test reassigns the pocket's label to loans at random many times, and counts the "
+                     "shuffles that produce a gap at least as large as the actual one."),
         ("What is shuffled", "The assignment of loans to the pocket. The pocket keeps the same number of loans in "
                              "every shuffle. When pockets are judged against the book, every loan in the GCO rate is "
                              "reshuffled. When they are judged against their band, only the loans in the pocket's "
@@ -1546,8 +1595,8 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs, families: dict) -> Canvas
     cv.hidden_cols = {13, 14}
     cv.put(1, 13, None, None)
     if not tested:
-        cv.put(r, 2, "This pocket was not tested (too few losses, or no comparison group), so it has no p-value. "
-                     "Select another pocket on the One pocket sheet.", "text")
+        cv.put(r, 2, "This pocket was not tested (too few losses, or no comparison group), so it has no p-value "
+                     "and no shuffles are listed.", "text")
         cv.merges.append(f"B{r}:K{r}")
         cv.put(2, 13, "none", None)
         _tie_rules(cv, f"F{top}:F{ex_end}")
@@ -1616,8 +1665,7 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs, families: dict) -> Canvas
     r += 1
     cv.put(r, 2, "This is not the test PocketBook applies to GCOs, because it counts loans rather than dollars. It "
                  "is the z-test PocketBook uses for the bad loan rate when a pocket meets the minimum number of "
-                 "loans, and it follows the selection on One pocket. If the two tests point in opposite directions, "
-                 "the pocket warrants a closer look.", "grey")
+                 "loans, and it follows the selection on One pocket.", "grey")
     cv.merges.append(f"B{r}:K{r}")
     cv.heights[r] = 30
     r += 1
@@ -1714,10 +1762,13 @@ def _many_tests(cv: Canvas, r: int, res, one: dict, families: dict) -> int:
                  f'&" tested against the rest of "&IF({side}="band","their band","the book")&".")', "bold")
     cv.merges.append(f"B{r}:K{r}")
     r += 1
-    keys, vals, sizes = fam_cols(len(res.grids))
+    keys, vals, sizes, rows = fam_cols(len(res.grids))
     L = f"{LISTSQ}!${keys}$2:${keys}${1 + sum(len(v) for v in families.values())}"
     V = L.replace(f"${keys}$", f"${vals}$")
     S = L.replace(f"${keys}$", f"${sizes}$")
+    R = L.replace(f"${keys}$", f"${rows}$")
+    # a family is found by the grid's number, never its name; a pocket by its row on _pocketbook
+    fam = f'Pick_GridNo&"|"&{side}&"|'
     cv.header(r, ["#", "Pocket (band, segment)", "Shuffles that count", "p-value", "Rank", "p × tests ÷ rank",
                   "Adjusted p-value, Excel", "Adjusted p-value, PocketBook", "Ties?"])
     cv.heights[r] = 28
@@ -1731,8 +1782,8 @@ def _many_tests(cv: Canvas, r: int, res, one: dict, families: dict) -> int:
                 f'INDEX({PBQ}!${pb_col(key + "_book")}:${pb_col(key + "_book")},$N{row}))')
     for i in range(1, most + 1):
         on = f'$M{r}=""'
-        cv.put(r, 13, f'=IFERROR(INDEX({V},MATCH(Pick_Grid&"|"&{side}&"|{i}",{L},0)),"")', None)
-        cv.put(r, 14, f'=IF({on},"",MATCH($M{r},{PBQ}!$A:$A,0))', None)
+        cv.put(r, 13, f'=IFERROR(INDEX({V},MATCH({fam}{i}",{L},0)),"")', None)
+        cv.put(r, 14, f'=IF({on},"",INDEX({R},MATCH({fam}{i}",{L},0)))', None)
         cv.put(r, 2, f'=IF({on},"",{i})', "numc")
         cv.put(r, 3, f'=IF({on},"",INDEX({PBQ}!${pb_col("band")}:${pb_col("band")},$N{r})&", "&'
                      f'INDEX({PBQ}!${pb_col("seg")}:${pb_col("seg")},$N{r}))', "text")
@@ -1745,7 +1796,7 @@ def _many_tests(cv: Canvas, r: int, res, one: dict, families: dict) -> int:
         cv.put(r, 8, f'=IF({on},"",{adj})', "numb", PV)
         cv.put(r, 9, f'=IF({on},"",{side_of("adj", r)})', "num", PV)
         cv.put(r, 10, f'=IF({on},"",{ties(f"H{r}", f"I{r}")[1:]})', "tie")
-        cv.put(r, 11, f"=IF(AND(NOT({on}),$M{r}='{ONE}'!$K$6),\"◀ selected pocket\",\"\")", "numb")
+        cv.put(r, 11, f"=IF(AND(NOT({on}),$N{r}={pickrow}),\"◀ selected pocket\",\"\")", "numb")
         r += 1
     _tie_rules(cv, f"J{top}:J{bot}")
     r += 1
@@ -1755,13 +1806,13 @@ def _many_tests(cv: Canvas, r: int, res, one: dict, families: dict) -> int:
     cv.put(r, 3, "The number of tests the allowance covers")
     cv.heights[r] = 28
     cv.put(r, 4, f"=COUNT({D})", "numb", INT)
-    cv.put(r, 5, f'=IFERROR(INDEX({S},MATCH(Pick_Grid&"|"&{side}&"|1",{L},0)),0)', "num", INT)
+    cv.put(r, 5, f'=IFERROR(INDEX({S},MATCH({fam}1",{L},0)),0)', "num", INT)
     cv.put(r, 6, ties(f"D{r}", f"E{r}"), "tie")
     r += 1
     cv.put(r, 2, "The selected pocket's adjusted p-value", "bold")
     cv.put(r, 3, "Excel's figure from this table, against the Run's. One pocket's last row shows the same figure.")
     cv.heights[r] = 54
-    cv.put(r, 4, f"=IFERROR(INDEX({H},MATCH('{ONE}'!$K$6,$M${top}:$M${bot},0)),\"\")", "numb", PV)
+    cv.put(r, 4, f"=IFERROR(INDEX({H},MATCH({pickrow},$N${top}:$N${bot},0)),\"\")", "numb", PV)
     cv.put(r, 5, f'=IF({pickrow}="","",INDEX({PBQ}!${pb_col("p")}:${pb_col("p")},{pickrow}))', "num", PV)
     cv.put(r, 6, ties(f"D{r}", f"E{r}"), "tie")
     _tie_rules(cv, f"F{m_at}:F{r}")
@@ -1784,26 +1835,26 @@ class _pocketbook:
         ws.sheet_state = "hidden"
         ws.append(PB_KEYS)
         last = len(figs) + 1
-        G = f"${pb_col('grid')}$2:${pb_col('grid')}${last}"
+        G = f"${pb_col('gridno')}$2:${pb_col('gridno')}${last}"
         for i, (gname, k, f) in enumerate(figs, start=2):
             row = []
             for key in PB_KEYS:
                 if key == "key":
-                    v = f"{gname}|{k[0]}|{k[1]}"
+                    v = text_cell(ws, f"{gname}|{k[0]}|{k[1]}")
                 elif key == "grid":
-                    v = gname
+                    v = text_cell(ws, gname)
                 elif key == "band":
-                    v = k[0]
+                    v = text_cell(ws, k[0])
                 elif key == "seg":
-                    v = k[1]
+                    v = text_cell(ws, k[1])
                 elif key.startswith(("m_", "rank_", "q_")):
                     side = key.split("_")[1]
                     raw, hits = f"{pb_col('raw_' + side)}{i}", f"{pb_col('hits_' + side)}{i}"
                     R = f"${pb_col('hits_' + side)}$2:${pb_col('hits_' + side)}${last}"
                     if key.startswith("m_"):
-                        v = f'=COUNTIFS({G},${pb_col("grid")}{i},{R},">=0")'
+                        v = f'=COUNTIFS({G},${pb_col("gridno")}{i},{R},">=0")'
                     elif key.startswith("rank_"):
-                        v = f'=IF(ISNUMBER({raw}),COUNTIFS({G},${pb_col("grid")}{i},{R},"<="&{hits}),"{NONE}")'
+                        v = f'=IF(ISNUMBER({raw}),COUNTIFS({G},${pb_col("gridno")}{i},{R},"<="&{hits}),"{NONE}")'
                     else:
                         v = (f'=IF(ISNUMBER({raw}),{raw}*{pb_col("m_" + side)}{i}/{pb_col("rank_" + side)}{i},'
                              f'"{NONE}")')
@@ -1815,16 +1866,18 @@ class _pocketbook:
             ws.append(row)
 
 
-def fam_cols(ng: int) -> tuple[str, str, str]:
+def fam_cols(ng: int) -> tuple[str, str, str, str]:
     """On _lists, after every grid's band and segment lists: each family's pockets in rank order, as
-    "grid|side|position" -> the pocket's key on _pocketbook, and the family's size."""
+    "grid's number|side|position" -> the pocket's key on _pocketbook, the family's size, and the pocket's row on
+    _pocketbook."""
     first = 2 * ng + 10
-    return tuple(get_column_letter(first + i) for i in range(3))
+    return tuple(get_column_letter(first + i) for i in range(4))
 
 
-def _families(res, names: dict) -> dict[tuple[str, str], list[str]]:
+def _families(res, names: dict, number: dict) -> dict[tuple[int, str], list[str]]:
     """Each grid's tested pockets on each comparison (the family the allowance for many tests covers), by the Run's
-    shuffle count, smallest first, then by key: (grid, "book" or "band") -> the pockets' keys on _pocketbook."""
+    shuffle count, smallest first, then by key: (grid's number, "book" or "band") -> the pockets' keys on
+    _pocketbook."""
     out = {}
     for g in res.grids:
         for side in ("book", "band"):
@@ -1835,11 +1888,11 @@ def _families(res, names: dict) -> dict[tuple[str, str], list[str]]:
                 if p is not None and hits is not None:
                     got.append((hits, f"{names[id(g)]}|{k[0]}|{k[1]}"))
             if got:
-                out[(names[id(g)], side)] = [key for _, key in sorted(got)]
+                out[(number[id(g)], side)] = [key for _, key in sorted(got)]
     return out
 
 
-def _lists(res, lay: Layout, families: dict) -> Canvas:
+def _lists(res, lay: Layout, families: dict, pb_row: dict) -> Canvas:
     cv = Canvas(LISTS)
     cv.hidden = True
     for i, h in enumerate(["Grid", "Band column", "Segment column", "Bands", "Segments", "Band column on Loans",
@@ -1849,27 +1902,28 @@ def _lists(res, lay: Layout, families: dict) -> Canvas:
         r = j + 2
         bl = [b for b in g.band_labels if b != ALL]
         dl = [d for d in g.dim_labels if d != ALL]
-        cv.put(r, 1, grid_name(res, g), None)
-        cv.put(r, 2, _names(res)[g.band], None)
-        cv.put(r, 3, _names(res)[g.dimension], None)
+        cv.put(r, 1, lit(grid_name(res, g)), None)
+        cv.put(r, 2, lit(_names(res)[g.band]), None)
+        cv.put(r, 3, lit(_names(res)[g.dimension]), None)
         cv.put(r, 4, len(bl), None)
         cv.put(r, 5, len(dl), None)
         cv.put(r, 6, lay.at[("band", g.band)], None)
         cv.put(r, 7, lay.at[("seg", g.dimension)], None)
         for i, v in enumerate(bl, start=2):
-            cv.put(i, 9 + 2 * j, str(v), None)
+            cv.put(i, 9 + 2 * j, lit(v), None)
         for i, v in enumerate(dl, start=2):
-            cv.put(i, 10 + 2 * j, str(v), None)
-    keys, _, _ = fam_cols(len(res.grids))
+            cv.put(i, 10 + 2 * j, lit(v), None)
+    keys, *_ = fam_cols(len(res.grids))
     at = column_index_from_string(keys)
-    for i, h in enumerate(("Family and position", "Pocket", "Family size")):
+    for i, h in enumerate(("Family and position", "Pocket", "Family size", "Row on _pocketbook")):
         cv.put(1, at + i, h, None)
     r = 2
-    for (gname, side), pockets in families.items():
+    for (gno, side), pockets in families.items():
         for i, key in enumerate(pockets, start=1):
-            cv.put(r, at, f"{gname}|{side}|{i}", None)
-            cv.put(r, at + 1, key, None)
+            cv.put(r, at, f"{gno}|{side}|{i}", None)
+            cv.put(r, at + 1, lit(key), None)
             cv.put(r, at + 2, len(pockets), None)
+            cv.put(r, at + 3, pb_row[key], None)
             r += 1
     return cv
 
@@ -1887,7 +1941,7 @@ def _loans_head(wb, lay: Layout) -> None:
     ws.auto_filter.ref = f"A1:{get_column_letter(lay.width)}{lay.last}"
     head = []
     for _, h in lay.cols:
-        c = WriteOnlyCell(ws, value=h)
+        c = text_cell(ws, h)                   # a column named "=A" is a name, not a formula
         for k, v in STYLES["head"].items():
             setattr(c, k, v)
         head.append(c)
@@ -1928,11 +1982,12 @@ def _with_loans(data: bytes, lay: Layout, values, res, band_ranges, _template) -
             labels, lows = band_ranges[k[1]]
             raw = lay.letter(("raw", k[1]))
             cols.append(("f", f"IF(ISNUMBER({raw}{{r}}),INDEX({labels},MATCH({raw}{{r}},{lows},1)),{raw}{{r}})"))
+        # EXACT, character for character: "=" ignores case, so a segment "a" would take segment "A"'s loans too
         elif k == "in_band":
-            cols.append(("f", f'IF(INDEX($A{{r}}:${lastc}{{r}},Pick_BandCol)&""=Pick_Band&"",1,0)'))
+            cols.append(("f", f'IF(EXACT(INDEX($A{{r}}:${lastc}{{r}},Pick_BandCol)&"",Pick_Band&""),1,0)'))
         elif k == "in_pocket":
-            cols.append(("f", f'IF(AND(INDEX($A{{r}}:${lastc}{{r}},Pick_BandCol)&""=Pick_Band&"",'
-                              f'INDEX($A{{r}}:${lastc}{{r}},Pick_SegCol)&""=Pick_Seg&""),1,0)'))
+            cols.append(("f", f'IF(AND(EXACT(INDEX($A{{r}}:${lastc}{{r}},Pick_BandCol)&"",Pick_Band&""),'
+                              f'EXACT(INDEX($A{{r}}:${lastc}{{r}},Pick_SegCol)&"",Pick_Seg&"")),1,0)'))
     cols = [(kind, escape(src) if kind == "f" else src) for kind, src in cols]
     sattr = [f' s="{styles[L]}"' if L in styles else "" for L in letters]
     out = []
@@ -1948,7 +2003,11 @@ def _with_loans(data: bytes, lay: Layout, values, res, band_ranges, _template) -
             if v is None or v == "":
                 continue
             if isinstance(v, str):
-                cells.append(f'<c r="{ref}"{sattr[j]} t="inlineStr"><is><t>{escape(v)}</t></is></c>')
+                # the control characters XML forbids are removed, or the sheet does not open (a loan number
+                # "L\x015", the review of 3 Oct 2026); a space at either end is kept as written
+                v = clean(v)
+                keep = ' xml:space="preserve"' if v != v.strip() else ""
+                cells.append(f'<c r="{ref}"{sattr[j]} t="inlineStr"><is><t{keep}>{escape(v)}</t></is></c>')
             else:
                 cells.append(f'<c r="{ref}"{sattr[j]}><v>{repr(float(v)) if isinstance(v, float) else v}</v></c>')
         out.append(f'<row r="{r}">' + "".join(cells) + "</row>")
