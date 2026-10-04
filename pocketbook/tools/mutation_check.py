@@ -1698,7 +1698,7 @@ muts = [
   '                if isinstance(v, Lit):\n                    cell.data_type = "s"',
   '                if False:\n                    cell.data_type = "s"', "odd_names_are_written_as_text"),
  ("audit's Loans sheet keeping a control character", AU, "                v = clean(v)\n", "",
-  "control_character_in_a_loan_number"),
+  "audit_cleans_a_control_character_itself"),
  ("Run ended by any audit failure but an open file", B,
   "    except Exception as e:                      # noqa: BLE001",
   "    except OSError as e:                      # noqa: BLE001", "audit_workbook_that_fails_does_not_end_the_run"),
