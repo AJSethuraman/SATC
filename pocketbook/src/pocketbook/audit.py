@@ -38,6 +38,7 @@ Run's own seed, with perm.run: listing 10,000 shuffles for every pocket would be
 from __future__ import annotations
 
 import io
+import os
 import re
 import zipfile
 from dataclasses import dataclass
@@ -254,9 +255,16 @@ def lit(s) -> Lit:
     return Lit(clean(s))
 
 
+#: Excel refuses a string constant longer than this inside a formula (LibreOffice takes it, so tests alone can't tell)
+MOST_IN_LITERAL = 255
+
+
 def q(s) -> str:
-    """Text as a formula's string literal."""
-    return '"' + clean(s).replace('"', '""') + '"'
+    """Text as a formula's string literal: in pieces of at most 255 characters joined with &, since Excel drops a
+    formula holding a longer one when it repairs the file (the review of 4 Oct 2026)."""
+    t = clean(s)
+    parts = [t[i:i + MOST_IN_LITERAL] for i in range(0, len(t), MOST_IN_LITERAL)] or [""]
+    return "&".join('"' + p.replace('"', '""') + '"' for p in parts)
 
 
 def crit(s) -> str:
@@ -572,7 +580,12 @@ def write(res, book: str | Path, src: str | Path, sha256: str, settings: list[tu
     wb.save(buf)
     timing.mark("Audit workbook: writing the loans")
     data = _with_loans(buf.getvalue(), lay, values, res, band_ranges, template)
-    out.write_bytes(data)
+    part = out.with_name(out.name + ".part")   # written whole, then put in place: a failed write leaves no half file
+    part.write_bytes(data)
+    try:
+        os.replace(part, out)
+    finally:
+        part.unlink(missing_ok=True)
     return out
 
 

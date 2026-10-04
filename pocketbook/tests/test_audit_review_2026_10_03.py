@@ -200,9 +200,11 @@ def test_an_audit_workbook_that_fails_does_not_end_the_run(tmp_path, monkeypatch
         raise RuntimeError("the disk is full")
     monkeypatch.setattr(perm, "SHUFFLES", SHUFFLES)
     monkeypatch.setattr(audit, "write", boom)
+    audit.path_for(b).write_bytes(b"an earlier Run's audit workbook")      # left beside the book by an earlier Run
     ran = book.run(b)
     assert ran.ok, ran.lines
-    assert "Couldn't write the audit workbook: RuntimeError: the disk is full" in ran.lines
+    assert (f"Couldn't write {audit.path_for(b).name}: RuntimeError: the disk is full The one from an earlier Run "
+            f"was removed, so it can't be mistaken for this Run's.") in ran.lines
     assert _record(b).exists()
     assert ran.lines[-1].startswith(f"Open {b.name}: start with")
     assert not audit.path_for(b).exists()
@@ -223,3 +225,17 @@ def test_more_loans_than_an_excel_sheet_holds_skips_the_audit_workbook(tmp_path,
     monkeypatch.setattr(audit, "MOST_LOANS", N)
     ran = book.run(b)
     assert ran.ok and audit.path_for(b).exists()
+
+
+def test_a_long_text_in_a_formula_is_split_into_pieces_excel_accepts():
+    """Excel drops a formula holding a string constant longer than 255 characters when it repairs the file, and
+    LibreOffice takes it, so the recalculated tests can't see it (the review of 4 Oct 2026). q() splits a long text
+    into pieces of at most 255 joined with &, and the pieces put back together are the text."""
+    import re as _re
+    text = 'A "quoted" segment, ' * 40                          # 800 characters, quotes included
+    lit = audit.q(text)
+    pieces = _re.findall(r'"((?:[^"]|"")*)"', lit)
+    assert len(pieces) == 4 and all(len(p.replace('""', '"')) <= 255 for p in pieces)
+    assert "".join(p.replace('""', '"') for p in pieces) == text
+    assert lit == "&".join('"' + p + '"' for p in pieces)
+    assert audit.q("short") == '"short"' and audit.q("") == '""'

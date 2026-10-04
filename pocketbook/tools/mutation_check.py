@@ -1703,6 +1703,13 @@ muts = [
   "    except OSError as e:                      # noqa: BLE001", "audit_workbook_that_fails_does_not_end_the_run"),
  ("audit written past an Excel sheet's last row", B, "    if res.rows > audit.MOST_LOANS:", "    if False:",
   "more_loans_than_an_excel_sheet_holds"),
+ # the review of 4 Oct 2026: a long text split for Excel's 255-character limit; an earlier Run's audit file removed
+ ("q() leaving a long text in one piece", AU,
+  "    parts = [t[i:i + MOST_IN_LITERAL] for i in range(0, len(t), MOST_IN_LITERAL)] or [\"\"]",
+  "    parts = [t]", "long_text_in_a_formula_is_split"),
+ ("a failed audit workbook leaving the earlier Run's file in place", B,
+  "        gone = _drop_old_audit(book)\n        return (f\"Couldn't write", "        gone = False\n        return (f\"Couldn't write",
+  "audit_workbook_that_fails_does_not_end_the_run"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

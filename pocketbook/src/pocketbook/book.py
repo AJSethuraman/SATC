@@ -2329,6 +2329,7 @@ def _audit_book(res, book: Path, src: Path, sha256: str) -> str | None:
         return None
     if res.rows > audit.MOST_LOANS:
         # its Loans sheet holds one loan a row, and an Excel sheet stops at 1,048,576 rows (the review of 3 Oct 2026)
+        _drop_old_audit(book)
         return (f"Didn't write {audit.path_for(book).name}: the book has {res.rows:,} loans, and its Loans sheet "
                 f"holds at most {audit.MOST_LOANS:,}, one a row under the header.")
     timing.mark("Writing the audit workbook")
@@ -2342,8 +2343,23 @@ def _audit_book(res, book: Path, src: Path, sha256: str) -> str | None:
     except Exception as e:                      # noqa: BLE001
         # the main workbook is saved by now: the Run still finishes, writes what ran.yaml and says what went wrong
         # (the review of 3 Oct 2026)
-        return f"Couldn't write the audit workbook: {type(e).__name__}: {e}"
+        gone = _drop_old_audit(book)
+        return (f"Couldn't write {audit.path_for(book).name}: {type(e).__name__}: {e}"
+                + (" The one from an earlier Run was removed, so it can't be mistaken for this Run's." if gone else ""))
     return f"Wrote {out.name}: one pocket's figures worked out again from the loans, step by step."
+
+
+def _drop_old_audit(book) -> bool:
+    """Remove an audit workbook an earlier Run left beside the book, so one this Run didn't write is never read as
+    its own (the review of 4 Oct 2026). Whether there was one to remove."""
+    old = audit.path_for(book)
+    try:
+        old.unlink()
+        return True
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return False
 
 
 def first_lines(lines: list[str]) -> list[str]:
