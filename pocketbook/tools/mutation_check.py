@@ -1652,6 +1652,13 @@ muts = [
  ("Summary's Grey rows under back to 50 at every Run", B,
   "    summary_chart.keep_grey(wb, grey)\n", "",
   "grey_number_typed_survives_the_next_run"),
+ # 3 Oct 2026: a control character in the extract stopped Set up (openpyxl's IllegalCharacterError)
+ ("extract's control characters reaching the workbook", I,
+  "    clean = cleaned if ILLEGAL_CHARACTERS_RE.search(text) else (lambda v: v)",
+  "    clean = lambda v: v", "control_character_in_the_first_loan_number"),
+ ("control characters deleted, merging two values into one", I,
+  "    return ILLEGAL_CHARACTERS_RE.sub(_picture, value.strip())",
+  '    return ILLEGAL_CHARACTERS_RE.sub("", value.strip())', "cleaning_keeps_values_apart"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
