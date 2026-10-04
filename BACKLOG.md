@@ -2261,6 +2261,39 @@ back.
     skipped of 850 (LibreOffice present), and the four mutation shards 459 of 459 caught.
   - **Not checked here:** any recalculation of the workbooks on this machine (CI's LibreOffice did), the Tk
     launcher driven by hand, a real extract, the bank machine.
+- **The public-data rehearsal revived (3-4 Oct 2026, same branch, draft #407; the firm: *"Revive"*).** origin/main
+  at 6a9aaafa merged in (no conflicts) and the rehearsal rerun on the merged code in a Linux sandbox (4 cores, shared
+  with other sessions' suites). Report: section 7 of `pocketbook/docs/rehearsal-public-data-2026-09.md`.
+  - **The three fixes of 29 Sep:** none had been made on main another way (`write_choices` still wrote an off-list
+    limit into the pick cell; `kgroups.py` unchanged since the merge base; `scout.run` still did not load
+    scikit-learn first). All kept, with their 9 tests and 4 planted bugs. Fix 1 was met again (`many_values: 60`, the
+    State grids ran); fix 2 carried a confirmatory fit over pockets of up to 459,927 loans in 3 min 34 s.
+  - **Data:** the SBA FOIA file could not be downloaded (the sandbox's proxy refuses data.sba.gov), so the FOIA bleed,
+    pre-spec and scouting Runs were not repeated. SBAnational (a GitHub copy of Kaggle's file) and LendingClub's own
+    `LoanStats3a.csv` gave the same extracts as 29 Sep (897,167 and 30,931 loans), and the answer key matches to the
+    hundredth. The converter now takes LendingClub's own file: a notes line above the header, every id blank
+    (`--row-key`), no `fico_range_low` (`--absent`), and rates written "10.65%" (the sign taken off and counted).
+  - **Defects fixed (2), each with tests (`tests/test_rehearsal_2026_10_03.py`, 4) and a planted bug, 2 of 2
+    caught:** (4) a band column with no value readable as a number (revol_util as "83.7%") was refused as a column
+    the extract does not have, while naming it among the extract's columns, and said to press Set up again; now
+    refused as unreadable, with counts by reason and the two fixes; (5) a held-back p-value of 2.5e-315 written into
+    New variables' "What it found" formula as a literal calculated to #VALUE! in LibreOffice; `live.num` now writes
+    a subnormal number as 0.0.
+  - **Runs:** SBAnational bleed (897,167 loans, 14 grids): Set up 129-131 s, Run 1,425-1,895 s, 3.6 GB.
+    LendingClub bleed (30,931, 30 grids): Set up 7 s, Run 72-85 s. Scouting on SBAnational in place of FOIA
+    (NewExist held fixed, term left out; a software exercise): Run 5,141 s, 81 minutes of it scouting, 7.1 GB; all
+    three candidates proposed and held up on 270,199 held-back loans. Every workbook calculated with LibreOffice: no
+    error value on a visible tab except defect 5's line; Pockets' calculated Worse? equals the Python reading (204
+    and 188 worse). The 29 Sep effects reproduce pocket for pocket on the loan-size grids.
+  - **Recorded, not changed:** a pocket whose rest of band has no bad loans (12 loans) gets no multiple, so Worse?
+    is blank while Material? reads Yes (one LendingClub row); two Pockets rows can carry the same label when a Y/N
+    segment comes from two grids; scouting at 627,000 development loans spends most of 81 minutes on the noise
+    floor; decision 4 (Excess $ against the share of loans) reproduces on SBAnational (+$4.06bn on a 0.50x group).
+  - **Suite:** 1,081 passed, 14 skipped (tkinter absent), 0 failed, in 81 min, on c3d77726; after defect 5, the
+    112 tests touching `live.num` and the confirmatory tab passed. 669 planted bugs, each original text found
+    exactly once.
+  - **Still open:** decisions 1, 2 and 4 to 7 of the report; decision 3 is answered for SBAnational and LendingClub
+    (LibreOffice). Not checked: the FOIA file, real Excel, the Tk launcher, the CLI on full files.
 
 ### Held for the firm's final decision (raised 29 Sep 2026)
 
@@ -3232,6 +3265,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-04 -- **PocketBook: the public-data rehearsal revived on current code** (draft #407). The firm: *"Revive"*. Main merged in without conflicts; the three 29 Sep fixes were not on main another way and are kept. Rerun on SBAnational and LendingClub's own file (the SBA FOIA file could not be downloaded from the sandbox), every workbook calculated with LibreOffice: Set up and Run complete, the 29 Sep effects reproduce, and Pockets' Worse? matches the Python reading. Two defects fixed with 4 tests and 2 planted bugs, both caught: a percent-text band column refused as missing, and a p-value of 2.5e-315 breaking a New variables formula. Suite 1,081 passed, 14 skipped. §6d has the detail.
 - 2026-10-03 -- **PocketBook: Summary's vintage chart and grey rows.** The firm: *"Could the summary tab have vintage graphs as well?"*, chosen *"Pocket vs rest vs book"*; and low unit counts *"grayed out to a degree"*, by a number of its own. Under the Summary table, one row against the rest of the book and the whole book by origination year, on any Summary measure, following Only loans where, thin points left off; at the top, Grey rows under [50] loans, read by nothing else. 5 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: Avg line and × book.** The firm: *"I want to start including and using booked dollar averages so more easily demonstrate how line assignments look in pockets"*. Summary gains Avg line (booked dollars per loan, the average committed line) and × book (that over the whole book's) right after Booked $, in every filter view; RANR vs GCOs' gross block ends on the same two, shaded as Grids' Loan size, never red or green; the Glossary gains the term. 8 tests, 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: a Glossary tab.** The firm: *"Maybe a nice glossary of terms in the workbook should be there"*. A grey tab right after Start here, written by every Set up and Run: 25 terms, each with what it means and an example in the book's own figures from the last Run (*"the book keeps $12.80 per $100 booked"*), made up before the first. Start here links to it; the bank checklist has a 4.10 for it. 8 tests; 2 planted bugs, 2 caught. §6d has the detail.

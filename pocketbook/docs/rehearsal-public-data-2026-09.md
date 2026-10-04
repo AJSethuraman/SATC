@@ -21,6 +21,11 @@ The answers given to every workbook, and the pre-registered pre-spec, are in `do
 **This report was corrected after two reviews on 29 Sep 2026.** The largest correction is the first section. Every
 other change is listed in section 6.
 
+**Rerun on current PocketBook, 3–4 Oct 2026: section 7.** The branch was merged with main as it stood on 3 Oct 2026
+and the rehearsal run again in a Linux sandbox. The SBA FOIA file could not be downloaded there, so only SBAnational
+and LendingClub were rerun. Every workbook was calculated with LibreOffice. Two new defects were found and fixed.
+Sections 0 to 6 are the record of 29 Sep 2026 and are unchanged except where section 7 says so.
+
 ## 0. Read this first: on both SBA files the term depends on the outcome
 
 The term as recorded does not behave like a fact fixed when the loan was made. Most paid loans' terms are whole
@@ -163,11 +168,14 @@ bank's laptop. It is recorded for main's launcher work and is not changed here.
    reads in full `license: cc0-1.0`). LendingClub's own terms are unknown. The builder called this "internal
    rehearsal only", but it is not: the repository is **public**, and this report and BACKLOG §6d, carrying
    LendingClub-derived rates, were pushed on this branch before the firm answered. Keep them, or remove them? Removing
-   them from the branch's history would need a force-push, which this session has not done.
+   them from the branch's history would need a force-push, which this session has not done. *Still open on
+   4 Oct 2026. Section 7 adds LendingClub-derived rates from LendingClub's own `LoanStats3a.csv`, whose terms of use
+   were not checked either.*
 3. **Reading the live cells.** The verdicts on every result tab are Excel formulas. Nothing here calculated them:
    LibreOffice is not installed, and Excel was not opened, because the recon brief records the firm saying *no Excel
    check until they say so*. The two ways to read them are installing LibreOffice (which the tests assume) or opening
-   a copy in Excel through COM.
+   a copy in Excel through COM. *4 Oct 2026: the SBAnational and LendingClub workbooks were calculated with
+   LibreOffice, and their verdicts match the Python reading (section 7.4). Excel was still not opened.*
 4. **The confirmatory test's "Excess $" rewards big loans.** `confirmatory.excess` compares a group's GCO dollars on
    the holdout with the group's share of the holdout's **loans**. When the candidate is loan size, the large-loan
    group always carries excess dollars, even when it loses less:
@@ -476,3 +484,171 @@ p-value. Their findings, and what was done:
 | Columns recorded after booking; the guard's false positive and negative | Labelled; recorded as observations |
 | Counts and overstatements ("ties out exactly"; alone-in-band pockets) | Corrected; `rehearsal_effects.py` marks them |
 | The mutation checker counts errors as catches | Fixed, with tests (section 1) |
+
+## 7. Rerun on current PocketBook, 3–4 Oct 2026
+
+The firm answered "Revive" on 3 Oct 2026. This branch was merged with origin/main at 6a9aaafa (the redesigned tabs,
+up to three filters, Summary with its Avg line and vintage chart, Compare, the Glossary). The merge had no conflicts.
+The rehearsal was then run again on the merged code, in a Linux sandbox: 4 cores, 15 GB, Python 3.11.15, numpy
+2.4.6, scikit-learn 1.9.1, LibreOffice 24.2.7. The machine was shared with up to three other sessions' test suites
+(load average 5 to 7 on 4 cores), so every time below is a single sample on a loaded machine.
+
+### 7.1 The three fixes of 29 Sep 2026, against current main
+
+None of the three had been made on main another way. Main's `control.write_choices` still wrote an off-list limit
+into the pick cell, `kgroups.py` was unchanged since the merge base (ab7ddde0), and `scout.run` still did not load
+scikit-learn before finding. All three are kept as they were, with their tests (`tests/test_rehearsal_2026_09_29.py`,
+9 passed on the merged code) and their four planted bugs.
+
+| Fix | Status on current code | Evidence from this rerun |
+|---|---|---|
+| 1. A category limit off the launcher's list (`control.write_choices`) | Still needed; kept | The SBAnational bleed Run with `many_values: 60` completed and wrote the `DisbursementGross x State` and `Term x State` grids. No "60 is not an option" refusal |
+| 2. The conditional likelihood multiplies only nonzero coefficients (`kgroups.pocket_terms`) | Still needed; kept | The scouting Run's confirmatory stage held NewExist fixed over pockets of up to 459,927 development loans and 183,474 held-back loans, and finished in 3 min 34 s. Before the fix, one evaluation of a 217,800-loan pocket took 191 s |
+| 3. scikit-learn that will not load is refused in words (`scout.run`) | Still needed; kept | Not met here: scikit-learn loaded. Its tests passed |
+
+### 7.2 What was rerun, and from where
+
+| File | 29 Sep 2026 | 3–4 Oct 2026 |
+|---|---|---|
+| SBA 7(a) FOIA FY2000–09 | Bleed, pre-registered pre-spec, scouting | **Not rerun.** data.sba.gov, sba.gov and the other hosts tried are refused by the sandbox's egress proxy (HTTP 403). No copy of the file was found elsewhere |
+| SBAnational.csv | Bleed | Bleed, and a scouting Run in place of the FOIA one (7.5). Source: a copy of Kaggle's file on GitHub (Git LFS, 179,430,516 bytes, SHA-256 0359128a…c522548). The same SHA-256 appears in two unrelated repositories |
+| LendingClub 36-month, 2008–11 | Bleed | Bleed. Source: LendingClub's own `LoanStats3a.csv` (2007–11) on GitHub (42,408,134 bytes, SHA-256 6519f7da…de0e3), not the Hugging Face copy used on 29 Sep |
+
+**Both extracts match 29 Sep.** SBAnational: 897,167 of 899,164 rows kept, with the same counts left out and left
+blank. LendingClub: 30,931 kept. The answer key's rates (`tools/rehearsal_answer_key.py`, sections for these two
+files) match the 29 Sep report to the hundredth on every figure quoted there: the 24 NAICS rates, real estate 1.63%
+against 20.81%, recession 31.21% against 16.38%, Florida 27.37%, the median loans $61,500 against $100,000, grades
+A 5.89% to G 33.51%, and the purpose, housing and employment rates.
+
+**LendingClub's own file differs from the mirror in four ways.** The converter now handles each one by a named
+choice, recorded in the manifest, with tests in `tests/test_public_extract.py`:
+
+- a line "Notes offered by Prospectus (…)" above the header, now skipped and recorded (`preamble_skipped`);
+- every `id` and `member_id` blank. `--row-key` keys each loan by its row (`ROW_KEY`, constructed), as the FOIA
+  file is. Without it, nothing is kept, and the reason given is "id blank: no key";
+- no `fico_range_low`. `--absent fico_range_low` leaves it out of the extract. The answers file
+  `answers-lendingclub-loanstats3a-bleed.yaml` is the 29 Sep answers without that band and with `ROW_KEY` as the key,
+  so the LendingClub Run has 30 grids, not 35;
+- `int_rate` and `revol_util` written as "10.65%". The converter takes the sign off and counts each value it
+  changes: 30,931 and 30,877 values (`percent_sign_removed`). The first Run, made before that change, found
+  defect 4 below.
+
+### 7.3 Defects found and fixed (2)
+
+Each has a regression test in `tests/test_rehearsal_2026_10_03.py` (4 tests) and a planted bug in
+`tools/mutation_check.py`. Each planted bug was put back alone and failed its tests (1 failed and 2 failed).
+
+4. **A band column with no value readable as a number was refused as a missing column** (`engine.run`). With
+   `revol_util` written as "83.7%" and answered Amount, the Run said: *"Couldn't run: the extract has no column
+   "revol_util" (a band: no readable numbers to cut). Its columns are: …, revol_util, … If a column was renamed or
+   dropped, press Set up again."* The column is named in the same sentence, and Set up again does not change it.
+   PocketBook reads a value with a % sign as not a number (`ingest.parse_number`), which is unchanged. The Run now
+   says: *"revol_util" is cut into bands, but none of its N values reads as a number: n aren't numbers (a value with a
+   % sign is not read as one), n are blank. Save it as plain numbers, or on Columns set What it is to Category.*
+5. **A p-value below the smallest normal double broke a formula on New variables** (`live.num`). On the scouting Run,
+   the GrAppv group 50,000–50,999 had a held-back p-value of 2.5e-315. The tab writes each
+   group's p-value into its "What it found" formula as a literal. LibreOffice calculated that line, and its helper
+   cell, as #VALUE!. These were the only error values on any visible tab in this rerun. `live.num` now writes a
+   number below 2.2250738585072014e-308 as 0.0. That is the value a spreadsheet holds, and on the same side of every
+   significance bar. Whether Excel accepts the old literal, or the same number stored as a cell value (Still holds?'s
+   p-value column shows 3.16e-315), was not checked.
+
+### 7.4 The bleed Runs, calculated
+
+Set up, the answers, and Run each completed on both files. Every workbook was calculated with LibreOffice through
+`tests/recalc.py` (the recalculate-always profile the tests use), and every formula's value was read.
+
+| Run | Loans | Grids | Set up | Run | Peak, main / with workers | Formulas | Calculation |
+|---|---|---|---|---|---|---|---|
+| SBAnational, bleed | 897,167 | 2 bands × 7 segments = 14 | 130.9 s; 129.1 s | 1,894.7 s; 1,425.1 s (shuffle test 27 min 15 s; 19 min 26 s) | 3.02 / 3.61 GB | 114,687 | 12.5 s |
+| LendingClub, bleed | 30,931 | 6 × 5 = 30 | 6.5 s; 7.1 s | 71.9 s; 85.3 s | 0.42 / 0.73 GB | 289,223 | 29.7 s |
+
+Each file was run twice on the same code. The first SBAnational workbook was lost when the sandbox's scratch folder
+was cleared, so its figures are from the second Run. The two Runs' lines, peak memory and formula counts are
+identical.
+
+- **Error values.** None on any visible tab of either bleed workbook. Every #N/A is a chart gap written as `NA()` on
+  purpose: `_look` (600 and 720), `_chart` (1,192 and 1,510), `_live` (2 each), and, on SBAnational, 86 in Summary's
+  hidden vintage-chart columns (Z to AI) for the years with too few loans to plot.
+- **The verdicts tie to the stored numbers.** On Pockets, the calculated Worse? reads Yes on 204 rows (SBAnational)
+  and 188 (LendingClub). `tools/rehearsal_effects.py` applies Control's rule in Python to the multiples and p-values
+  stored on `_pockets` and counts 204 and 188 worse pockets for the share of loans. This closes decision 3 for these
+  two workbooks: the live cells were calculated, and they agree with the Python reading.
+- **The effects reproduce 29 Sep (section 2).** On SBAnational's loan-size grid: 53 worse in 4 of 5 bands, 48 and 51
+  in 4, 52 in 3 and better in 1; 62 better in 5, 11 and 21 in 4; 55 none; real estate Y better and N worse in 5 of 5;
+  recession Y worse in 5 of 5 (and N better in 5 of 5, not quoted on 29 Sep); Florida worse in 5 of 5; NewExist 2
+  worse in 2 and better in 1. The loan-size margins are 25.32%, 21.63%, 18.16%, 13.50% and 9.26%. On LendingClub's
+  loan-size grid: grade A better in 5 of 5, C to G worse in 2 to 5 of 5 each, small business worse in 4 of 5, credit
+  card better in 5 of 5. Rent reads worse in 5 pockets across the dti, revol_util and int_rate grids, none on loan
+  size. The DTI, utilisation, inquiries, income and rate margins equal section 2's figures. Section 0 still applies:
+  every SBA result cut on the term is the paper's arithmetic, not evidence.
+- **The Run's lines name the measures as main now does**: *"Nothing is worse for RANR + GCOs per booked dollar"*
+  where 29 Sep read *"Contribution before losses"*. SBA's RANR is still −GCO (decision 1), so that line is still
+  correct and empty.
+
+### 7.5 Scouting on SBAnational, in place of FOIA
+
+The FOIA scouting and pre-spec Runs could not be repeated. A scouting Run on SBAnational exercises the same path on
+current code at a larger size (`answers-sba-national-scout.yaml`): candidates DisbursementGross, NoEmp and GrAppv;
+NewExist held fixed; the term left out (section 0); cutoff "the month start nearest 70% of the loans". It is a
+software exercise. It was not pre-registered, and its results are not evidence of a known effect.
+
+- **Completed.** Set up 126.9 s; Run 5,140.8 s (scouting 81 min 18 s, the confirmatory tests and checks 3 min 34 s);
+  peak 7.09 GB, all in the main process (the forest's threads). An earlier attempt was stopped after 49 minutes,
+  still in the noise floor, when its folder was deleted.
+- **Split.** 626,898 development loans approved 1966-05-18 to 2005-05-31, 69,129 bad (11.03%); 270,199 held back,
+  2005-06-01 to 2014-06-25, not read while finding.
+- **Proposed: all three.** Importance NoEmp 0.0156, GrAppv 0.0091, DisbursementGross 0.0058, against a noise floor of
+  0.0018. NewExist's own importance is 0.0191. GrAppv and DisbursementGross move together (+0.98).
+- **The tree.** AUC 0.52 built (cross-fitted on the development loans), 0.63 unseen. On the 29 Sep FOIA Run it was
+  0.93 and 0.92, mostly the term.
+- **Bins written to the pre-spec.** NoEmp at 30; GrAppv at 50,000, 51,000 and 153,000; DisbursementGross at 10,000.
+  GrAppv's 50,000–50,999 group holds the loans approved at exactly $50,000. On the holdout it reads 1.81× the
+  51,000–152,999 group, against 1.57× for 1,000–49,999.
+- **On the held-back loans.** Every group holds up, and still holds with NewExist fixed: NoEmp 30 and over 0.32×
+  (0.31× held fixed); GrAppv 1,000–49,999 1.57×, 50,000–50,999 1.81×, 153,000 and over 0.50×; DisbursementGross under
+  10,000 1.66×. All three add something in the joint regression.
+- **Decision 4 reproduces.** Excess $ compares a group's GCO dollars with its share of loans, so the better
+  large-loan groups read as material: GrAppv 153,000 and over, at 0.50×, reads +$4.06 billion and Material? Yes;
+  NoEmp 30 and over, at 0.32×, reads +$278 million and Yes.
+
+### 7.6 Findings recorded, not changed
+
+- **A pocket whose rest of band has no bad loans gets no multiple, and Worse? is left blank while Material? reads
+  Yes.** On LendingClub's `int_rate x grade` grid, band 5.42–7.65 holds 5,920 grade-A loans (294 bad) and 12 loans of
+  other grades (none bad). The rest-of-band rate is 0, so `engine.index_of` returns no multiple (the rule from
+  finding 2: no index against a zero base). The p-value is 0.43. Pockets shows the row with Worse? blank (the
+  legend's four words are Yes, Not sure, Too few losses and No), excess 294 bad loans, and Material? Yes, because the
+  excess is measured against a rate of 0 from 12 loans. One row in 1,349. Whether that row should read No, Not sure
+  or Too few loans to compare is a design call.
+- **Two pockets can carry the same label.** On SBAnational's Pockets, "DisbursementGross 4,000–34,999 / N" appears
+  twice: once from the REAL_ESTATE grid (178,900 loans) and once from RECESSION (154,640). A Y/N segment value is
+  shown without its column, while a number-like value carries one ("UrbanRural 1"). The Pockets row has no grid
+  column to tell them apart.
+- **Scouting is the slowest step on large files.** 81 minutes on 626,898 development loans, against 8.5 to 10.4 minutes
+  for FOIA's 426,772 on 12 cores on 29 Sep. Nearly all of it is the noise floor: `ceil(20 / 3) = 7` shuffled-outcome
+  repeats of the 3-fold importance, each fold a 200-tree forest. Memory peaked at 7.09 GB.
+
+### 7.7 The suite and the planted bugs
+
+- **Full suite**, on c3d77726 (the merge, defect 4 and the converter, before defect 5): `pytest -q -p
+  no:cacheprovider` read **1,081 passed, 14 skipped, 0 failed, in 81 min 16 s**. All 14 skips are tests that need
+  tkinter, which this sandbox's Python does not have. Every LibreOffice test ran. After defect 5, the files that
+  touch `live.num` or the confirmatory tab were run again (`test_confirm_test`, `test_shortlist`, `test_live`,
+  `test_together`, `test_mutation_tool` and both rehearsal test files): 112 passed.
+- **`tools/mutation_check.py`** holds 669 planted bugs. Each one's original text occurs exactly once in its file. One
+  name, "fallback called worked out", is used by two entries with different targets in `book.py`. That came from
+  main and is not changed here. The full mutation run was not repeated; the 2 added here were each run alone and
+  caught.
+
+### 7.8 Not checked in this rerun
+
+- The SBA FOIA file, and so the pre-registered pre-spec and the FOIA scouting Run.
+- Real Excel. LibreOffice calculated every workbook, and Excel's handling of the subnormal values in defect 5 is not
+  known.
+- The Tk launcher. This sandbox's Python has no tkinter.
+- The CLI route (`pocketbook run`) on the full files.
+- The scouting Run's timing on an unloaded machine.
+
+The data, extracts, workbooks and run logs were kept in a scratch folder outside git and deleted when the rerun was
+finished. No loan-level row is in git.
