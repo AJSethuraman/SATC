@@ -2203,6 +2203,103 @@ back.
     The one new window test was also planted by hand under xvfb (the Run's lines not packed): it went red.
 - **Not checked:** real Excel, a real extract, and the bank machine
   (Python and the add-ons installed, and .pyw files opening with Python).
+- **The public-data rehearsal (29 Sep 2026, branch `claude/pocketbook-public-rehearsal`; the firm: *"1 and 4
+  are good. Use workflow and whatever you need honestly"*).** PocketBook run end to end, headlessly, through the
+  workbook route on public loans: the SBA 7(a) FOIA file FY2000-09 (604,573 loans with an outcome), the JSE paper's
+  SBAnational.csv (897,167) and LendingClub 36-month loans of 2008-11 (30,931). Report:
+  `pocketbook/docs/rehearsal-public-data-2026-09.md` (corrected after two reviews the same day; its section 6 lists
+  every change); data (outside git, can be purged): `C:\Users\ajish\SATC-evidence\public-loans-2026-09-29\`.
+  - **Read first: on both SBA files the term depends on the outcome.** 86.6% of SBAnational's paid loans have a
+    whole-year term (a multiple of 12 months) against 10.6% of its charged-off loans; FOIA 82.0% against 8.9%. So
+    REAL_ESTATE (term 240+), RECESSION (disbursement + term), the Term bands, the confirmatory "term under 60" figure
+    and scouting's TermInMonths (AUC 0.93/0.92) are circular: PocketBook reproduces the paper's arithmetic, which
+    inherits the same dependence, and none of it is evidence of a known effect. The builder's narrower check (term
+    equal to months to charge-off, 0.8%) missed it. The converter's manifest now counts it (`term_check`).
+  - **Tools:** `tools/public_extract.py` (raw file to extract and a manifest of every filter and derived column,
+    each labelled native / constructed / rehearsal approximation, and `after_booking` where the value is not known
+    when the loan is booked; judgments refuse rather than default), `tools/rehearse.py` (Set up, answers from a
+    file, Run, timings, peak memory, a workbook check that can fail), `tools/rehearsal_effects.py`,
+    `tools/rehearsal_answer_key.py` (reads the extracts, so independent of PocketBook but not of the converter),
+    `tools/rehearsal_timing.py`. 26 tests on made-up rows (`tests/test_public_extract.py`).
+  - **Defects fixed, each with a regression test (`tests/test_rehearsal_2026_09_29.py`, 9 tests) and a planted bug,
+    4 of 4 caught:** (1) a category limit off the launcher's list (many_values=60 for State) written where only a
+    listed option is read: the Run refused on the launcher's own row and reading back gave 50; (2) the confirmatory
+    test's conditional likelihood multiplied every coefficient out: 191 s for one evaluation of a 217,800-loan pocket,
+    the pre-registered test stopped after 10.5 minutes in its first fit; now 0.25 s (log-likelihood equal to the old
+    code to 1e-12, gradient 1e-10, Hessian 1e-9), and a structural test so the planted bug is caught without a
+    stopwatch; (3) scikit-learn installed but blocked at first load by Smart App Control crashed a scouting Run; now
+    refused in words. The block cleared later and was not tied to a version.
+  - **Known effects:** on SBAnational every 2-digit NAICS rate rounds to the paper's Table 3 and recession-Y is 31.21%
+    (paper 31.21); other rates differ by up to 0.35 points; Florida highest; smaller loans worse on the margins.
+    Real estate and recession reproduce the paper's arithmetic only (the term). The "recession is term mix" finding
+    is **withdrawn**: both columns come from the term, and the band that went the other way was not quoted.
+    LendingClub: the bleed Run completed; figures derived from LendingClub data are not published in this
+    repository (the firm, 4 Oct 2026). Pre-registered on the FOIA holdout, five directions: larger loans better (2 of 2) held;
+    25,000-49,999 worse held on the workbook's rule at 1.09x, under the 1.25x line; the smallest loans worse and
+    240 months and up better missed, for reasons not settled (EXEMPT loans left out; the term).
+  - **Also fixed after review:** `tools/mutation_check.py` counted any pytest exit but 0 or 5 as a catch, so errors
+    (a temp folder pytest could not write) read as caught; now only a failed test is, errors are settled by a run
+    without the bug, and all-skipped reads NOT CHECKED (6 tests). `--files` runs only the named files' planted bugs.
+    `rehearsal_effects.py` says when a pocket alone in its band was judged against the book.
+  - **Waiting on the firm:** SBA's RANR stand-in (revenue set to zero: profit tabs not evidence); LendingClub-derived
+    figures already on this public repository's branch (answered 4 Oct 2026: dropped); how to read the live cells (LibreOffice
+    or Excel; Excel was not opened); the confirmatory "Excess $" measured against the share of loans (350,000-and-up
+    reads +$6.06bn at odds 0.79); equal-loan bands leaving a sliver (TermInMonths 82-83, 6,351 loans); whether the
+    bank's machine runs application control; rerun the SBA pre-spec and scouting without the term, or leave them as
+    software exercises.
+  - **The suite on Windows:** first read 2 failed, 703 passed, 115 skipped. Both failures were fixed in the tests
+    and the checker: `tools/mutation_check.py` and its test read files in cp1252, so four planted bugs could not
+    be found here; the checklist test's symlink is refused without Developer Mode, so it now copies `src`. On the
+    final code (origin/main ab7ddde0 merged in, fresh venv, scikit-learn 1.9.1): **1 failed, 734 passed, 115 skipped
+    (all LibreOffice) of 850**. The failure is main's #405 window test (the Choose tests table 215 px high, its rows
+    needing 248 at 1180 x 628); it fails the same way on main's own code here, and is left to the launcher work.
+  - **Planted bugs:** on the final code, the 76 in control, kgroups, scout and confirmatory (the 4 new ones
+    included): 68 caught, each by a failed test; 8 NOT CHECKED (their only tests need LibreOffice). 459 in all; the
+    other 383 not run here (CI ran all 459).
+  - **CI on the draft pull request (#407, e149a169):** every job passed; `pytest (pocketbook)` 843 passed, 7
+    skipped of 850 (LibreOffice present), and the four mutation shards 459 of 459 caught.
+  - **Not checked here:** any recalculation of the workbooks on this machine (CI's LibreOffice did), the Tk
+    launcher driven by hand, a real extract, the bank machine.
+- **The public-data rehearsal revived (3-4 Oct 2026, same branch, draft #407; the firm: *"Revive"*).** origin/main
+  at 6a9aaafa merged in (no conflicts) and the rehearsal rerun on the merged code in a Linux sandbox (4 cores, shared
+  with other sessions' suites). Report: section 7 of `pocketbook/docs/rehearsal-public-data-2026-09.md`.
+  - **The three fixes of 29 Sep:** none had been made on main another way (`write_choices` still wrote an off-list
+    limit into the pick cell; `kgroups.py` unchanged since the merge base; `scout.run` still did not load
+    scikit-learn first). All kept, with their 9 tests and 4 planted bugs. Fix 1 was met again (`many_values: 60`, the
+    State grids ran); fix 2 carried a confirmatory fit over pockets of up to 459,927 loans in 3 min 34 s.
+  - **Data:** the SBA FOIA file could not be downloaded (the sandbox's proxy refuses data.sba.gov), so the FOIA bleed,
+    pre-spec and scouting Runs were not repeated. SBAnational (a GitHub copy of Kaggle's file) and LendingClub's own
+    `LoanStats3a.csv` gave the same extracts as 29 Sep (897,167 and 30,931 loans), and on SBAnational the answer key
+    matches to the hundredth. The converter now takes LendingClub's own file: a notes line above the header, every id blank
+    (`--row-key`), no `fico_range_low` (`--absent`), and rates written with a % sign (the sign taken off and counted).
+  - **Defects fixed (2), each with tests (`tests/test_rehearsal_2026_10_03.py`, 4) and a planted bug, 2 of 2
+    caught:** (4) a band column with no value readable as a number (revol_util written with a % sign) was refused as a column
+    the extract does not have, while naming it among the extract's columns, and said to press Set up again; now
+    refused as unreadable, with counts by reason and the two fixes; (5) a held-back p-value of 2.5e-315 written into
+    New variables' "What it found" formula as a literal calculated to #VALUE! in LibreOffice; `live.num` now writes
+    a subnormal number as 0.0.
+  - **Runs:** SBAnational bleed (897,167 loans, 14 grids): Set up 129-131 s, Run 1,425-1,895 s, 3.6 GB.
+    LendingClub bleed (30,931, 30 grids): Set up 7 s, Run 72-85 s. Scouting on SBAnational in place of FOIA
+    (NewExist held fixed, term left out; a software exercise): Run 5,141 s, 81 minutes of it scouting, 7.1 GB; all
+    three candidates proposed and held up on 270,199 held-back loans. Every workbook calculated with LibreOffice: no
+    error value on a visible tab except defect 5's line; Pockets' calculated Worse? equals the Python reading on
+    both (204 worse on SBAnational). The 29 Sep SBAnational effects reproduce pocket for pocket on the loan-size grid.
+  - **Recorded, not changed:** a pocket whose rest of band has no bad loans gets no multiple, so Worse?
+    is blank while Material? reads Yes (one LendingClub row); two Pockets rows can carry the same label when a Y/N
+    segment comes from two grids; scouting at 627,000 development loans spends most of 81 minutes on the noise
+    floor; decision 4 (Excess $ against the share of loans) reproduces on SBAnational (+$4.06bn on a 0.50x group).
+  - **Suite:** 1,081 passed, 14 skipped (tkinter absent), 0 failed, in 81 min, on c3d77726; after defect 5, the
+    112 tests touching `live.num` and the confirmatory tab passed. 669 planted bugs, each original text found
+    exactly once.
+  - **Still open:** decisions 1 and 4 to 7 of the report; decision 3 is answered for SBAnational and LendingClub
+    (LibreOffice). Not checked: the FOIA file, real Excel, the Tk launcher, the CLI on full files.
+- **The firm, 4 Oct 2026, on publishing LendingClub-derived figures in this public repository: *"Drop LendingClub
+  figures"*.** Decision 2 of the report answered. The code fixes and the SBA results are kept; LendingClub-derived
+  rates and figures were taken out of the report, this section and the README, leaving only that the file ran
+  (30,931 loans after extraction, Set up and Run times, completed) and the defects it surfaced and how they were
+  fixed. The converter's LendingClub tests already used made-up rows; their two percent-text example values were
+  changed to plainly synthetic ones. Earlier commits on the branch still carry the figures; history was not
+  rewritten.
 
 ### Held for the firm's final decision (raised 29 Sep 2026)
 
@@ -3402,6 +3499,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-04 -- **PocketBook: the public-data rehearsal revived on current code** (draft #407). The firm: *"Revive"*. Main merged in without conflicts; the three 29 Sep fixes were not on main another way and are kept. Rerun on SBAnational and LendingClub's own file (the SBA FOIA file could not be downloaded from the sandbox), every workbook calculated with LibreOffice: Set up and Run complete, the 29 Sep effects reproduce, and Pockets' Worse? matches the Python reading. Two defects fixed with 4 tests and 2 planted bugs, both caught: a percent-text band column refused as missing, and a p-value of 2.5e-315 breaking a New variables formula. Suite 1,081 passed, 14 skipped. §6d has the detail.
 - 2026-10-03 -- **PocketBook: the audit workbook's review fixes, and no advice.** Pockets found by exact name, not by MATCH's wildcards (a segment `Br~anch` blanked every figure); control characters stripped from the Loans sheet; an audit failure no longer ends the Run; past Excel's row limit the audit is skipped with a reason. 15 strings of advice or interpretation cut from the audit workbook and the Glossary, under the firm's new rule. 6 tests, 6 planted bugs, all caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: the audit workbook's tie-out findings fixed, and a random pocket.** The firm: *"tying out one thing that should prove everything if you picked randomly"* (*"Random, seed stamped"*). The audit opens on a pocket drawn from the tested pockets, seeded from the file's SHA-256 and stamped; every By hand step filters what its formula takes (a test parses both); every gap RANR vs GCOs shows is proved; booked totals named by population; Benjamini-Hochberg worked out on a visible table; no overlapping rows. Tie-out re-run: 241 comparisons, 0 differ. 17 tests, 9 of 9 audit planted bugs caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: its voice.** The firm, on *"Every loan whose band and segment are the ones picked"*: *"it does not sound like something a human would type"*. `pocketbook/VOICE.md` sets the register (a credit-risk workpaper for analysts, managers, validators and auditors; the website's client-copy rules don't apply) with before and after patterns, the firm's own first. The audit workbook (203 strings) and the Glossary (74) are rewritten to it, wording only; `docs/voice-2026-10-03/REVIEW.html` numbers all 277 for the firm to mark. Full suite 1,051 passed, 14 skipped; 6 of 6 audit and Glossary planted bugs caught. §6d has the detail.

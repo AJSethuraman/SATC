@@ -1,0 +1,31 @@
+# The answers for scouting on the SBA 7(a) FOIA extract: the tree ranks the number columns on loans approved before
+# the cutoff, writes a pre-spec, and confirms it on the rest.
+kind: new_variable
+step: scout
+outcome: CHGOFF_FLAG
+test: [GrossApproval, TermInMonths, JobsSupported]
+hold: [BusinessType]
+bands: []
+segments: [BusinessType]
+split: null
+few_values: 12
+many_values: 50
+meanings:
+  ROW_KEY: key
+  GrossApproval: booked
+  CHGOFF_FLAG: outcome
+  GrossChargeOffAmount: gco
+  RANR_NEG_GCO: ranr
+  ApprovalDate: origination_date
+  BusinessType: category
+  TermInMonths: amount
+  JobsSupported: amount
+  NAICS2: category
+treat:
+  RANR_NEG_GCO: Real
+control:
+  cutoff: "The month start nearest 70% of the loans (suggested)"
+  worse_at: "1.25 times"
+  confidence: "95% sure"
+  materiality: "1% of the book's total losses"
+checked_every_column: Yes
