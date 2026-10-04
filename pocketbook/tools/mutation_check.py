@@ -27,6 +27,7 @@ GL="src/pocketbook/glossary.py"
 RC="src/pocketbook/record.py"; PS="src/pocketbook/prespec.py"; CMP="src/pocketbook/compare.py"
 SC="src/pocketbook/scout.py"; CFG="src/pocketbook/config.py"; JT="src/pocketbook/joint.py"
 SCH="src/pocketbook/summary_chart.py"
+AU="src/pocketbook/audit.py"
 muts = [
  ("1 blank->zero",       E, 'if p is BLANK:\n        return None, "blank"', 'if p is BLANK:\n        return 0.0, None', "test_finding_1"),
  ("2 empty->index 0",    E, 'if rate is None or base is None or base == 0:', 'if base is None or base == 0:\n        return None\n    if rate is None:\n        rate = 0.0\n    if False:', "test_finding_2"),
@@ -1652,6 +1653,63 @@ muts = [
  ("Summary's Grey rows under back to 50 at every Run", B,
   "    summary_chart.keep_grey(wb, grey)\n", "",
   "grey_number_typed_survives_the_next_run"),
+ # the firm, 3 Oct 2026: the audit workbook proves one pocket's every figure from the loans
+ # (tests/test_audit_2026_10_03.py)
+ ("audit dealing a band-judged pocket's shuffles across the whole book", AU,
+  "    if by_band:\n        codes = {lab", "    if False:\n        codes = {lab",
+  "test_the_shuffled_gaps_countif_reproduces_the_p_value_exactly"),
+ ("audit's band edges shifted one band up", AU, "        lows = [LOW] + list(edges)",
+  "        lows = list(edges) + [HIGH]", "test_every_loans_band_by_formula_is_the_engines_band"),
+ ("audit's rest of the book still holding the pocket", AU,
+  "    rest = _rate(tg.num - gc.num, tg.den - gc.den)", "    rest = _rate(tg.num, tg.den)",
+  "test_the_audit_opens_on_a_random_tested_pocket_and_every_figure_ties"),
+ ("audit reading an outcome of 2 as a bad loan", AU, "            bad.append(NOT_01)",
+  "            bad.append(int(v))", "test_rows_in_and_out_tie_to_the_run"),
+ # the tie-out of the audit workbook, 3 Oct 2026, and the firm: "tying out one thing that should prove everything if
+ # you picked randomly" (chosen "Random, seed stamped")
+ ("audit's random pick ignoring the seed", AU, "    index = pick_index(seed, len(pop))",
+  "    index = pick_index(0, len(pop))", "test_the_audit_opens_on_a_random_tested_pocket_and_every_figure_ties"),
+ ("audit's random pick drawn from untested pockets too", AU,
+  "            if (s.p_band if s.by_band else s.p_book) is not None:\n                out.append((f\"{name}|",
+  "            if True:\n                out.append((f\"{name}|",
+  "test_the_audit_opens_on_a_random_tested_pocket_and_every_figure_ties"),
+ ("audit's allowance table ranking each pocket one place low", AU,
+  """cv.put(r, 6, f'=IF({on},"",COUNTIF({D},"<="&D{r}))', "num", INT)""",
+  """cv.put(r, 6, f'=IF({on},"",COUNTIF({D},"<="&D{r})+1)', "num", INT)""",
+  "test_the_allowance_for_many_tests_is_worked_out_from_a_visible_table"),
+ ("audit's rest-of-band booked By hand without the GCO filter", AU,
+  'by_hand("band", ("GCO",), "Sum of the booked column"', 'by_hand("band", (), "Sum of the booked column"',
+  "test_every_by_hand_step_takes_the_loans_its_formula_takes"),
+ ("audit's RANR dollars against the band with the Run's sign", AU,
+  '        "ranr_usd_band": _neg(rn.excess_band),', '        "ranr_usd_band": rn.excess_band,',
+  "test_the_audit_opens_on_a_random_tested_pocket_and_every_figure_ties"),
+ # the audit workbook's review, 3 Oct 2026 (tests/test_audit_review_2026_10_03.py): each caught with no display, the
+ # first three through LibreOffice headless
+ ("audit finding its pocket by MATCH, which reads ~ * ? as wildcards", AU,
+  '    return f"LOOKUP(2,1/EXACT({rng},{value}),ROW({rng})-{less})"',
+  '    return f"(MATCH({value},{rng},0)+ROW({rng})-1-{less})"',
+  "a_segment_excel_reads_as_a_wildcard"),
+ ("audit's part D finding each pocket of the family by MATCH on its name", AU,
+  """        cv.put(r, 14, f'=IF({on},"",INDEX({R},MATCH({fam}{i}",{L},0)))', None)""",
+  """        cv.put(r, 14, f'=IF({on},"",MATCH($M{r},{PBQ}!$A:$A,0))', None)""",
+  "a_segment_excel_reads_as_a_wildcard"),
+ ("audit writing a segment \"=A\" as a formula", AU,
+  '                if isinstance(v, Lit):\n                    cell.data_type = "s"',
+  '                if False:\n                    cell.data_type = "s"', "odd_names_are_written_as_text"),
+ ("audit's Loans sheet keeping a control character", AU, "                v = clean(v)\n", "",
+  "control_character_in_a_loan_number"),
+ ("Run ended by any audit failure but an open file", B,
+  "    except Exception as e:                      # noqa: BLE001",
+  "    except OSError as e:                      # noqa: BLE001", "audit_workbook_that_fails_does_not_end_the_run"),
+ ("audit written past an Excel sheet's last row", B, "    if res.rows > audit.MOST_LOANS:", "    if False:",
+  "more_loans_than_an_excel_sheet_holds"),
+ # the review of 4 Oct 2026: a long text split for Excel's 255-character limit; an earlier Run's audit file removed
+ ("q() leaving a long text in one piece", AU,
+  "    parts = [t[i:i + MOST_IN_LITERAL] for i in range(0, len(t), MOST_IN_LITERAL)] or [\"\"]",
+  "    parts = [t]", "long_text_in_a_formula_is_split"),
+ ("a failed audit workbook leaving the earlier Run's file in place", B,
+  "        gone = _drop_old_audit(book)\n        return (f\"Couldn't write", "        gone = False\n        return (f\"Couldn't write",
+  "audit_workbook_that_fails_does_not_end_the_run"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

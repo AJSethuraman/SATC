@@ -28,7 +28,8 @@ collects/retains client info, and provides small services around Drake.
 `credit-review-os/`, `portfolio-analysis-pack/` *(v1 built 18–19 Sep 2026; its
 PRD is the spec and `BACKLOG.md` §6c the log)*, `pocketbook/` *(PocketBook,
 `origination-cube/` until 27 Sep 2026: where the book bleeds, pockets against
-the topline; slice 1 built 25 Sep 2026, log in `BACKLOG.md` §6d)*,
+the topline; slice 1 built 25 Sep 2026, log in `BACKLOG.md` §6d; its copy follows
+`pocketbook/VOICE.md`, not the client-facing copy rules below)*,
 `stock-helper/`, `fdic-peer-monitor/`,
 `cfpb-mortgage-monitor/`, `edgar-crit-class-tracker/`,
 `fred-credit-risk-dashboard/`, `bureau-credit-risk-dashboard/`,
