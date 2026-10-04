@@ -2233,9 +2233,8 @@ back.
     (paper 31.21); other rates differ by up to 0.35 points; Florida highest; smaller loans worse on the margins.
     Real estate and recession reproduce the paper's arithmetic only (the term). The "recession is term mix" finding
     is **withdrawn**: both columns come from the term, and the band that went the other way was not quoted.
-    LendingClub: grade, purpose, DTI, utilisation, inquiries, income and rate all in the published direction; rent
-    worse than mortgage in direction, flagged in 5 pockets on the dti, revol_util and int_rate grids but none on the
-    loan-size grid. Pre-registered on the FOIA holdout, five directions: larger loans better (2 of 2) held;
+    LendingClub: the bleed Run completed; figures derived from LendingClub data are not published in this
+    repository (the firm, 4 Oct 2026). Pre-registered on the FOIA holdout, five directions: larger loans better (2 of 2) held;
     25,000-49,999 worse held on the workbook's rule at 1.09x, under the 1.25x line; the smallest loans worse and
     240 months and up better missed, for reasons not settled (EXEMPT loans left out; the term).
   - **Also fixed after review:** `tools/mutation_check.py` counted any pytest exit but 0 or 5 as a catch, so errors
@@ -2243,7 +2242,7 @@ back.
     without the bug, and all-skipped reads NOT CHECKED (6 tests). `--files` runs only the named files' planted bugs.
     `rehearsal_effects.py` says when a pocket alone in its band was judged against the book.
   - **Waiting on the firm:** SBA's RANR stand-in (revenue set to zero: profit tabs not evidence); LendingClub-derived
-    figures already on this public repository's branch (keep or remove?); how to read the live cells (LibreOffice
+    figures already on this public repository's branch (answered 4 Oct 2026: dropped); how to read the live cells (LibreOffice
     or Excel; Excel was not opened); the confirmatory "Excess $" measured against the share of loans (350,000-and-up
     reads +$6.06bn at odds 0.79); equal-loan bands leaving a sliver (TermInMonths 82-83, 6,351 loans); whether the
     bank's machine runs application control; rerun the SBA pre-spec and scouting without the term, or leave them as
@@ -2270,11 +2269,11 @@ back.
     State grids ran); fix 2 carried a confirmatory fit over pockets of up to 459,927 loans in 3 min 34 s.
   - **Data:** the SBA FOIA file could not be downloaded (the sandbox's proxy refuses data.sba.gov), so the FOIA bleed,
     pre-spec and scouting Runs were not repeated. SBAnational (a GitHub copy of Kaggle's file) and LendingClub's own
-    `LoanStats3a.csv` gave the same extracts as 29 Sep (897,167 and 30,931 loans), and the answer key matches to the
-    hundredth. The converter now takes LendingClub's own file: a notes line above the header, every id blank
-    (`--row-key`), no `fico_range_low` (`--absent`), and rates written "10.65%" (the sign taken off and counted).
+    `LoanStats3a.csv` gave the same extracts as 29 Sep (897,167 and 30,931 loans), and on SBAnational the answer key
+    matches to the hundredth. The converter now takes LendingClub's own file: a notes line above the header, every id blank
+    (`--row-key`), no `fico_range_low` (`--absent`), and rates written with a % sign (the sign taken off and counted).
   - **Defects fixed (2), each with tests (`tests/test_rehearsal_2026_10_03.py`, 4) and a planted bug, 2 of 2
-    caught:** (4) a band column with no value readable as a number (revol_util as "83.7%") was refused as a column
+    caught:** (4) a band column with no value readable as a number (revol_util written with a % sign) was refused as a column
     the extract does not have, while naming it among the extract's columns, and said to press Set up again; now
     refused as unreadable, with counts by reason and the two fixes; (5) a held-back p-value of 2.5e-315 written into
     New variables' "What it found" formula as a literal calculated to #VALUE! in LibreOffice; `live.num` now writes
@@ -2283,17 +2282,24 @@ back.
     LendingClub bleed (30,931, 30 grids): Set up 7 s, Run 72-85 s. Scouting on SBAnational in place of FOIA
     (NewExist held fixed, term left out; a software exercise): Run 5,141 s, 81 minutes of it scouting, 7.1 GB; all
     three candidates proposed and held up on 270,199 held-back loans. Every workbook calculated with LibreOffice: no
-    error value on a visible tab except defect 5's line; Pockets' calculated Worse? equals the Python reading (204
-    and 188 worse). The 29 Sep effects reproduce pocket for pocket on the loan-size grids.
-  - **Recorded, not changed:** a pocket whose rest of band has no bad loans (12 loans) gets no multiple, so Worse?
+    error value on a visible tab except defect 5's line; Pockets' calculated Worse? equals the Python reading on
+    both (204 worse on SBAnational). The 29 Sep SBAnational effects reproduce pocket for pocket on the loan-size grid.
+  - **Recorded, not changed:** a pocket whose rest of band has no bad loans gets no multiple, so Worse?
     is blank while Material? reads Yes (one LendingClub row); two Pockets rows can carry the same label when a Y/N
     segment comes from two grids; scouting at 627,000 development loans spends most of 81 minutes on the noise
     floor; decision 4 (Excess $ against the share of loans) reproduces on SBAnational (+$4.06bn on a 0.50x group).
   - **Suite:** 1,081 passed, 14 skipped (tkinter absent), 0 failed, in 81 min, on c3d77726; after defect 5, the
     112 tests touching `live.num` and the confirmatory tab passed. 669 planted bugs, each original text found
     exactly once.
-  - **Still open:** decisions 1, 2 and 4 to 7 of the report; decision 3 is answered for SBAnational and LendingClub
+  - **Still open:** decisions 1 and 4 to 7 of the report; decision 3 is answered for SBAnational and LendingClub
     (LibreOffice). Not checked: the FOIA file, real Excel, the Tk launcher, the CLI on full files.
+- **The firm, 4 Oct 2026, on publishing LendingClub-derived figures in this public repository: *"Drop LendingClub
+  figures"*.** Decision 2 of the report answered. The code fixes and the SBA results are kept; LendingClub-derived
+  rates and figures were taken out of the report, this section and the README, leaving only that the file ran
+  (30,931 loans after extraction, Set up and Run times, completed) and the defects it surfaced and how they were
+  fixed. The converter's LendingClub tests already used made-up rows; their two percent-text example values were
+  changed to plainly synthetic ones. Earlier commits on the branch still carry the figures; history was not
+  rewritten.
 
 ### Held for the firm's final decision (raised 29 Sep 2026)
 

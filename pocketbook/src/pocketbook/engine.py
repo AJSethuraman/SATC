@@ -1156,8 +1156,8 @@ def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]]
         if not edges:
             # the column is there (a missing one was refused above); none of its values reads as a number. Said as
             # that, with why each value was not read: the public-data rehearsal (3 Oct 2026) had LendingClub's
-            # revol_util written "83.7%", and the Run said "the extract has no column revol_util ... press Set up
-            # again" while listing revol_util among the extract's columns
+            # revol_util written with a % sign ("45.5%"), and the Run said "the extract has no column revol_util ...
+            # press Set up again" while listing revol_util among the extract's columns
             why = Counter(w for _, w in read if w is not None)
             said = {"not a number": "aren't numbers (a value with a % sign is not read as one)",
                     "blank": "are blank", "missing by rule": "are missing by the column's answer on Columns"}

@@ -24,7 +24,8 @@ prove) and the firm's rulings.
 - **Not built:** drill-down and `pocketbook prove`.
 - **Not yet met:** a real extract. **Rehearsed on public loan data** (29 Sep 2026): the SBA's 7(a) FOIA file,
   the JSE paper's SBAnational.csv and LendingClub, up to 897,167 loans, headlessly through the workbook route; three
-  defects were found and fixed. The industry, loan-size, state and LendingClub effects surfaced. On both SBA files
+  defects were found and fixed. The industry, loan-size and state effects surfaced on the SBA files. Figures derived
+  from LendingClub data are not published in this repository (the firm, 4 Oct 2026). On both SBA files
   the recorded term depends on the outcome, so every SBA finding cut on term (real estate, recession, term bands)
   reproduces the paper's arithmetic and is not evidence. Rerun on current code (3-4 Oct 2026) on SBAnational and
   LendingClub, every workbook calculated with LibreOffice: two more defects found and fixed. The FOIA file was not

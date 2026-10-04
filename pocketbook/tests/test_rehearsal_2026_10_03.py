@@ -2,7 +2,7 @@
 section 7), each held here on a tiny synthetic book: no public row is read.
 
 1. A band column that is there but holds no value PocketBook reads as a number was refused as missing. LendingClub's
-   own LoanStats3a.csv writes revol_util as "83.7%"; marked Amount and cut into bands, the Run said "the extract has
+   own LoanStats3a.csv writes revol_util with a % sign ("45.5%"); marked Amount and cut into bands, the Run said "the extract has
    no column "revol_util" (a band: no readable numbers to cut). Its columns are: ..., revol_util, ... If a column
    was renamed or dropped, press Set up again." The column was listed in the same sentence, and Set up again would
    not have helped. Now it says none of the values reads as a number, how many of each kind, and the two fixes.

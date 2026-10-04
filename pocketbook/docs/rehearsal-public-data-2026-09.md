@@ -7,6 +7,11 @@ loans issued 2008–2011 (30,931). Everything below is an aggregate. No loan-lev
 extracts, the workbooks and each run's timings sit in `C:\Users\ajish\SATC-evidence\public-loans-2026-09-29\`,
 which can be purged (its `README.md` gives the sources, licences and SHA-256s).
 
+**LendingClub.** Figures derived from LendingClub data are not published in this repository (the firm,
+4 Oct 2026). The firm's answer to decision 2 was *"Drop LendingClub figures"*. For that file this report keeps only
+what ran: the loans after extraction, the Set up and Run times, whether the Runs completed, and the defects the file
+surfaced and how each was fixed. The SBA results are unchanged.
+
 Tools, all in this branch:
 
 - `tools/public_extract.py`: raw file to extract, plus a manifest of every filter and derived column. The manifest
@@ -165,12 +170,11 @@ bank's laptop. It is recorded for main's launcher work and is not changed here.
    proxy from it (`GrossApproval × rate × years × ½ − GCO`, FY2009 and later only) was not built.
 2. **LendingClub's licence, and figures already public.** The CC0 labels on the Hugging Face and Kaggle copies are
    the re-uploaders' (the Hugging Face README, https://huggingface.co/datasets/codesignal/lending-club-loan-accepted,
-   reads in full `license: cc0-1.0`). LendingClub's own terms are unknown. The builder called this "internal
-   rehearsal only", but it is not: the repository is **public**, and this report and BACKLOG §6d, carrying
-   LendingClub-derived rates, were pushed on this branch before the firm answered. Keep them, or remove them? Removing
-   them from the branch's history would need a force-push, which this session has not done. *Still open on
-   4 Oct 2026. Section 7 adds LendingClub-derived rates from LendingClub's own `LoanStats3a.csv`, whose terms of use
-   were not checked either.*
+   reads in full `license: cc0-1.0`). LendingClub's own terms are unknown, and the terms of LendingClub's own
+   `LoanStats3a.csv` (section 7) were not checked either. The repository is **public**. *Answered 4 Oct 2026: "Drop
+   LendingClub figures".* LendingClub-derived rates and figures were taken out of this report, BACKLOG §6d and the
+   README; what ran is kept. Earlier commits on this branch still carry them; the current tree does not, and the
+   history was not rewritten.
 3. **Reading the live cells.** The verdicts on every result tab are Excel formulas. Nothing here calculated them:
    LibreOffice is not installed, and Excel was not opened, because the recon brief records the firm saying *no Excel
    check until they say so*. The two ways to read them are installing LibreOffice (which the tests assume) or opening
@@ -236,9 +240,7 @@ bank's laptop. It is recorded for main's launcher work and is not changed here.
   - `RANR_APPROX` is total paid minus funded minus the collection fee. That is before LendingClub's servicing fee and
     any cost of funds, so it overstates a bank's RANR.
   - `ISSUE_DATE` puts every loan on the 1st of its month.
-  - The subset keeps 2,086 "Does not meet the credit policy" loans. The paper's N is 24,449 and this subset's is
-    30,931 (28,845 without those loans), so the LendingClub comparison is directional, not exact. The difference is
-    **not explained**.
+  - The subset keeps the "Does not meet the credit policy" loans, so its 30,931 loans are not the paper's population.
 - **Populations.** SBA FOIA FY2000–09 includes vintages whose outcomes were still open for years (FY2009 loans run to
   2019 and beyond). Keeping only terminal loans tilts late vintages toward early outcomes, which is the paper's own
   warning.
@@ -334,19 +336,13 @@ exercise only**: its main proposal is the term.
 - The builder ran scouting on scikit-learn 1.5.2, a reviewer and the final run on 1.9.1. All three wrote the same
   pre-spec, byte for byte, with the same AUCs.
 
-### LendingClub, 36-month loans issued 2008–2011 (directional: the population differs from the paper's)
+### LendingClub, 36-month loans issued 2008–2011
 
-The pocket counts are from the loan-size grid (`funded_amnt` × the segment) unless the row says otherwise.
+The bleed Run on 30,931 loans completed (section 3 has its times). Figures derived from LendingClub data are not
+published in this repository (the firm, 4 Oct 2026). So the effects it surfaced, and their comparison with
+Serrano-Cinca et al. (2015), are not given here.
 
-| Effect (Serrano-Cinca et al. 2015) | Paper | PocketBook (margin) | Pockets | Verdict |
-|---|---|---|---|---|
-| Grade, monotone | A 5.6 … G 38.2 | A 5.89, B 10.96, C 15.32, D 19.17, E 21.98, F 29.36, G 33.51 | A better in 5 of 5; C–G worse in 2–5 of 5 each | **Hit** |
-| Purpose | small business 21.9 highest; wedding 7.2, credit card 7.6, car 7.9 lowest | small business 23.31 highest; credit card 8.50, wedding 8.60, car 8.76 (major purchase 8.26) | small business worse in 4 of 5; credit card better in 5 of 5 | **Hit** |
-| Housing | rent 11.7, mortgage 9.9 (significant) | rent 12.93, own 11.48, mortgage 10.94 | none on the loan-size grid (1.18× at the book is under the 1.25× line). Across all seven grids, rent reads worse in 5 pockets (dti 2, revol_util 2, int_rate 1) and mortgage better in 6 | **Hit in direction**; flagged on some grids, not on loan size |
-| DTI, revolving utilisation, inquiries, income, rate (means) | higher for defaults (income lower) | every banded margin moves that way: DTI 10.16→13.74; utilisation 8.38→16.46; inquiries 9.23→16.68; income 15.87→8.97; rate 4.96→19.79 | band effects, as above | **Hit** |
-| Nulls: loan amount, employment length | not significant | amount 10.70–13.25, no order; employment 10.21–12.52 (blank 19.76) | none, but blank employment worse in 3 of 5 | **Hit** |
-
-**No known effect was missed because of a PocketBook defect.** What did not come out as expected:
+**No known effect on the SBA files was missed because of a PocketBook defect.** What did not come out as expected:
 
 - two of the five pre-registered directions (the smallest loans, and 240 months and up), for reasons not settled;
 - every SBA finding cut on the term, which cannot be read either way (section 0).
@@ -450,8 +446,7 @@ Nothing was **calculated**, so a formula that would evaluate to an error is not 
     same 8.
   - The other 383 of the 459 planted bugs were not run here. CI's mutation job ran all 459 on e149a169: every one
     CAUGHT.
-- **Two gaps not explained:** the paper's Table 5 population (877,428 loans against 897,167 in the file), and the
-  LendingClub N (24,449 against 30,931).
+- **A gap not explained:** the paper's Table 5 population (877,428 loans against 897,167 in the file).
 - **The term.** Whether SBA's TermInMonths is the term as approved.
 - **The bank machine.** Real Excel and the bank's machine are still not met.
 
@@ -467,14 +462,14 @@ p-value. Their findings, and what was done:
 | The SBA term depends on the outcome (blocker) | Section 0; results cut on the term restated; `term_check` and labels in the converter, with tests |
 | The recession "confound" is not supported | Withdrawn (section 1) |
 | The pre-registered test misreported | All five directions reported; term under 60 marked not pre-registered; causes of the 240+ miss left open |
-| LendingClub figures already on a public repository | Wording corrected; decision 2 asks keep or remove |
+| LendingClub figures already on a public repository | Decision 2; answered 4 Oct 2026: the figures were dropped |
 | scikit-learn: not version-specific | Defect 3 and decision 6 reworded; final runs on 1.9.1 |
 | Timings vary far more than "about 10%" | Three samples given (section 3) |
 | "Equal to 1e-12" overstated | Each tolerance stated |
 | "Up to about 400,000 loans" | 333,786 |
 | "10 tests" | 8 then; 9 now |
 | confirmatory.py "changed by this branch" | Corrected (section 5) |
-| LendingClub housing counted on one grid, unnamed | Grid named; the other grids' counts given |
+| LendingClub housing counted on one grid, unnamed | Grid named and the other grids' counts given; since dropped (decision 2) |
 | Answer key and timing scripts not in git | `tools/rehearsal_answer_key.py`, `tools/rehearsal_timing.py`, `--files` on the checker |
 | "CI runs them all" | Corrected (section 5) |
 | The "every coefficient" planted bug caught by wall time alone | A structural test added |
@@ -515,10 +510,10 @@ scikit-learn before finding. All three are kept as they were, with their tests (
 | LendingClub 36-month, 2008–11 | Bleed | Bleed. Source: LendingClub's own `LoanStats3a.csv` (2007–11) on GitHub (42,408,134 bytes, SHA-256 6519f7da…de0e3), not the Hugging Face copy used on 29 Sep |
 
 **Both extracts match 29 Sep.** SBAnational: 897,167 of 899,164 rows kept, with the same counts left out and left
-blank. LendingClub: 30,931 kept. The answer key's rates (`tools/rehearsal_answer_key.py`, sections for these two
-files) match the 29 Sep report to the hundredth on every figure quoted there: the 24 NAICS rates, real estate 1.63%
-against 20.81%, recession 31.21% against 16.38%, Florida 27.37%, the median loans $61,500 against $100,000, grades
-A 5.89% to G 33.51%, and the purpose, housing and employment rates.
+blank. LendingClub: 30,931 kept. On SBAnational the answer key's rates (`tools/rehearsal_answer_key.py`) match the
+29 Sep report to the hundredth on every figure quoted there: the 24 NAICS rates, real estate 1.63% against 20.81%,
+recession 31.21% against 16.38%, Florida 27.37%, and the median loans $61,500 against $100,000. The LendingClub
+figures were compared the same way and are not published here (the firm, 4 Oct 2026).
 
 **LendingClub's own file differs from the mirror in four ways.** The converter now handles each one by a named
 choice, recorded in the manifest, with tests in `tests/test_public_extract.py`:
@@ -529,9 +524,8 @@ choice, recorded in the manifest, with tests in `tests/test_public_extract.py`:
 - no `fico_range_low`. `--absent fico_range_low` leaves it out of the extract. The answers file
   `answers-lendingclub-loanstats3a-bleed.yaml` is the 29 Sep answers without that band and with `ROW_KEY` as the key,
   so the LendingClub Run has 30 grids, not 35;
-- `int_rate` and `revol_util` written as "10.65%". The converter takes the sign off and counts each value it
-  changes: 30,931 and 30,877 values (`percent_sign_removed`). The first Run, made before that change, found
-  defect 4 below.
+- `int_rate` and `revol_util` written with a % sign ("12.25%"). The converter takes the sign off and counts each
+  value it changes (`percent_sign_removed`). The first Run, made before that change, found defect 4 below.
 
 ### 7.3 Defects found and fixed (2)
 
@@ -539,7 +533,7 @@ Each has a regression test in `tests/test_rehearsal_2026_10_03.py` (4 tests) and
 `tools/mutation_check.py`. Each planted bug was put back alone and failed its tests (1 failed and 2 failed).
 
 4. **A band column with no value readable as a number was refused as a missing column** (`engine.run`). With
-   `revol_util` written as "83.7%" and answered Amount, the Run said: *"Couldn't run: the extract has no column
+   `revol_util` written with a % sign (such as "45.5%") and answered Amount, the Run said: *"Couldn't run: the extract has no column
    "revol_util" (a band: no readable numbers to cut). Its columns are: …, revol_util, … If a column was renamed or
    dropped, press Set up again."* The column is named in the same sentence, and Set up again does not change it.
    PocketBook reads a value with a % sign as not a number (`ingest.parse_number`), which is unchanged. The Run now
@@ -568,20 +562,19 @@ was cleared, so its figures are from the second Run. The two Runs' lines, peak m
 identical.
 
 - **Error values.** None on any visible tab of either bleed workbook. Every #N/A is a chart gap written as `NA()` on
-  purpose: `_look` (600 and 720), `_chart` (1,192 and 1,510), `_live` (2 each), and, on SBAnational, 86 in Summary's
-  hidden vintage-chart columns (Z to AI) for the years with too few loans to plot.
-- **The verdicts tie to the stored numbers.** On Pockets, the calculated Worse? reads Yes on 204 rows (SBAnational)
-  and 188 (LendingClub). `tools/rehearsal_effects.py` applies Control's rule in Python to the multiples and p-values
-  stored on `_pockets` and counts 204 and 188 worse pockets for the share of loans. This closes decision 3 for these
-  two workbooks: the live cells were calculated, and they agree with the Python reading.
+  purpose: on SBAnational, `_look` (600), `_chart` (1,192), `_live` (2), and 86 in Summary's hidden vintage-chart
+  columns (Z to AI) for the years with too few loans to plot; on LendingClub, the same kinds of chart gap.
+- **The verdicts tie to the stored numbers.** On Pockets, the calculated Worse? reads Yes on 204 rows (SBAnational).
+  `tools/rehearsal_effects.py` applies Control's rule in Python to the multiples and p-values stored on `_pockets`
+  and counts 204 worse pockets for the share of loans. On LendingClub the calculated Worse? and the Python reading
+  agree as well (the count is not published). This closes decision 3 for these two workbooks: the live cells were
+  calculated, and they agree with the Python reading.
 - **The effects reproduce 29 Sep (section 2).** On SBAnational's loan-size grid: 53 worse in 4 of 5 bands, 48 and 51
   in 4, 52 in 3 and better in 1; 62 better in 5, 11 and 21 in 4; 55 none; real estate Y better and N worse in 5 of 5;
   recession Y worse in 5 of 5 (and N better in 5 of 5, not quoted on 29 Sep); Florida worse in 5 of 5; NewExist 2
-  worse in 2 and better in 1. The loan-size margins are 25.32%, 21.63%, 18.16%, 13.50% and 9.26%. On LendingClub's
-  loan-size grid: grade A better in 5 of 5, C to G worse in 2 to 5 of 5 each, small business worse in 4 of 5, credit
-  card better in 5 of 5. Rent reads worse in 5 pockets across the dti, revol_util and int_rate grids, none on loan
-  size. The DTI, utilisation, inquiries, income and rate margins equal section 2's figures. Section 0 still applies:
-  every SBA result cut on the term is the paper's arithmetic, not evidence.
+  worse in 2 and better in 1. The loan-size margins are 25.32%, 21.63%, 18.16%, 13.50% and 9.26%. LendingClub's
+  effects were compared with 29 Sep's the same way; they are not published here (the firm, 4 Oct 2026). Section 0
+  still applies: every SBA result cut on the term is the paper's arithmetic, not evidence.
 - **The Run's lines name the measures as main now does**: *"Nothing is worse for RANR + GCOs per booked dollar"*
   where 29 Sep read *"Contribution before losses"*. SBA's RANR is still −GCO (decision 1), so that line is still
   correct and empty.
@@ -615,12 +608,12 @@ software exercise. It was not pre-registered, and its results are not evidence o
 ### 7.6 Findings recorded, not changed
 
 - **A pocket whose rest of band has no bad loans gets no multiple, and Worse? is left blank while Material? reads
-  Yes.** On LendingClub's `int_rate x grade` grid, band 5.42–7.65 holds 5,920 grade-A loans (294 bad) and 12 loans of
-  other grades (none bad). The rest-of-band rate is 0, so `engine.index_of` returns no multiple (the rule from
-  finding 2: no index against a zero base). The p-value is 0.43. Pockets shows the row with Worse? blank (the
-  legend's four words are Yes, Not sure, Too few losses and No), excess 294 bad loans, and Material? Yes, because the
-  excess is measured against a rate of 0 from 12 loans. One row in 1,349. Whether that row should read No, Not sure
-  or Too few loans to compare is a design call.
+  Yes.** On one LendingClub grid, a band held almost only one segment's loans, and the handful of other loans in
+  that band had no bad loans. The rest-of-band rate is 0, so `engine.index_of` returns no multiple (the rule from
+  finding 2: no index against a zero base). Pockets shows the row with Worse? blank (the legend's four words are
+  Yes, Not sure, Too few losses and No), and Material? Yes, because the excess is measured against a rate of 0 from
+  a handful of loans. One row on that workbook's Pockets. Whether that row should read No, Not sure or Too few loans
+  to compare is a design call. (The grid and its figures are LendingClub-derived and not published here.)
 - **Two pockets can carry the same label.** On SBAnational's Pockets, "DisbursementGross 4,000–34,999 / N" appears
   twice: once from the REAL_ESTATE grid (178,900 loans) and once from RECESSION (154,640). A Y/N segment value is
   shown without its column, while a number-like value carries one ("UrbanRural 1"). The Pockets row has no grid

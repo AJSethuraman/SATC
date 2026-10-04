@@ -7,7 +7,7 @@ bands: [funded_amnt, dti, revol_util, annual_inc, int_rate, inq_last_6mths]
 segments: [grade, purpose, home_ownership, emp_length, addr_state]
 split: null
 few_values: 12
-many_values: 50                             # the usual limit; addr_state has 48 values here
+many_values: 50                             # the usual limit
 meanings:
   ROW_KEY: key                              # constructed from the row: every id is blank in this copy (the manifest)
   funded_amnt: booked

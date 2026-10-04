@@ -282,7 +282,7 @@ def test_lendingclub_own_download_skips_its_notes_line_and_names_a_column_it_lac
     # (the revived rehearsal, 3 Oct 2026). Without --absent it is refused naming the column; with it, the column is
     # left out of the extract and the manifest says so; the notes line is skipped and recorded, never the header
     head = [h for h in _lc_head() if h != "fico_range_low"]
-    rows = [{k: v for k, v in {**_lc_row(1, "Fully Paid"), "int_rate": " 10.65%", "revol_util": "83.7%"}.items()
+    rows = [{k: v for k, v in {**_lc_row(1, "Fully Paid"), "int_rate": " 12.25%", "revol_util": "45.5%"}.items()
              if k in head},
             {k: v for k, v in {**_lc_row(2, "Charged Off", pymnt="4200.25", prncp="3500"), "int_rate": "7.5",
                                "revol_util": ""}.items() if k in head}]
@@ -299,8 +299,8 @@ def test_lendingclub_own_download_skips_its_notes_line_and_names_a_column_it_lac
     assert m["choices"]["absent"] == ["fico_range_low"] and "fico_range_low" in m["absent_from_raw"]
     assert m["preamble_skipped"][0].startswith("Notes offered by Prospectus")
     assert "fico_range_low" not in [c["name"] for c in m["columns"]]
-    # its rates are written "10.65%", which PocketBook reads as not a number: the sign comes off, counted
-    assert [(r["int_rate"], r["revol_util"]) for r in got] == [("10.65", "83.7"), ("7.5", "")]
+    # its rates are written "12.25%", which PocketBook reads as not a number: the sign comes off, counted
+    assert [(r["int_rate"], r["revol_util"]) for r in got] == [("12.25", "45.5"), ("7.5", "")]
     assert m["percent_sign_removed"]["values"] == {"int_rate": 1, "revol_util": 1}
     # a file that has the column refuses --absent for it; the key and the cash flows can never be absent
     full = _write_csv(tmp_path / "lc.csv", _lc_head(), [_lc_row(1, "Fully Paid")])

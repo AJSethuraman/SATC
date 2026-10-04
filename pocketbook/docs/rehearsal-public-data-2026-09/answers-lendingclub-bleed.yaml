@@ -6,7 +6,7 @@ bands: [funded_amnt, fico_range_low, dti, revol_util, annual_inc, int_rate, inq_
 segments: [grade, purpose, home_ownership, emp_length, addr_state]
 split: null
 few_values: 12
-many_values: 50                             # the usual limit; addr_state has 48 values here
+many_values: 50                             # the usual limit
 meanings:
   id: key
   funded_amnt: booked

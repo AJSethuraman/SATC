@@ -393,7 +393,7 @@ LC_NEEDS = ("id", "loan_status", "issue_d") + LC_CASH + LC_CUTS
 #: the line LendingClub's own download (LoanStats3a.csv) carries above its header. Skipped and recorded, never read
 #: as the header (the revived rehearsal, 3 Oct 2026: the copy reachable from the sandbox was LendingClub's own file)
 LC_PREAMBLE = "Notes offered by Prospectus"
-#: columns LendingClub's own download writes as "10.65%" and the mirrors as 10.65. PocketBook reads a value with a %
+#: columns LendingClub's own download writes as "12.25%" and the mirrors as 12.25. PocketBook reads a value with a %
 #: sign as not a number (ingest.parse_number), so the sign is taken off and every value so changed is counted; the
 #: number itself is not changed
 LC_PERCENT = ("int_rate", "revol_util")
