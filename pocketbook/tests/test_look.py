@@ -76,7 +76,8 @@ def test_set_up_writes_a_block_and_a_chart_for_every_number_column(tmp_path):
     assert wb.sheetnames.index("Look") == wb.sheetnames.index("Columns") + 1
     assert wb["_look"].sheet_state == "hidden"
     ws = wb["Look"]
-    assert ws["B1"].value == "Look" and "before you choose its band edges" in ws["C1"].value
+    # every band column and the split since 3 Oct 2026 ("Banded + split"); nothing narrowed here, so every band column
+    assert ws["B1"].value == "Look" and "before you choose band edges" in ws["C1"].value
     blocks = _blocks(ws)
     # the loan number, the channel, the 0/1 flag and the four asset classes have no edges to choose
     assert list(blocks) == NUMBER_COLUMNS

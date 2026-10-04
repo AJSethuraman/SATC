@@ -363,7 +363,7 @@ Each tab opens with **How this tab works**.
 
 ☐ **RANR vs GCOs:** a scatter of the grid picked, GCOs across on a log scale, RANR up, lines at 1× and 0, the pockets read together named. Pick another grid in B16: the dots move.
 
-☐ **Look:** a chart per number column that can be cut into bands (FICO, ORIG_BAL, REV_DEBT; not GCO_AMT or RANR_AMT), and a red bar on its own left of FICO's for the -9999s.
+☐ **Look:** a chart for each band column chosen in the launcher and for the split column (FICO and ORIG_BAL, then REV_DEBT; not GCO_AMT or RANR_AMT), and a red bar on its own left of FICO's for the -9999s. A band column or split changed on Control is drawn at the next Run.
 
 ☐ **Split** and **Grids:** the shaded tables have their colours (pink worse, green better, deeper for bigger gaps).
 
@@ -453,7 +453,7 @@ Set up guesses what each column is. Choose tests asks what to cut. Control and C
 
 Look at these first, before any result:
 1. **Columns**, each row's **What it is** and **Why we think so**. Fix any that's wrong. Then **Odd values** under **Treat as**: a value that looks like a code (such as 9999 in a score) is **Missing**, a real value is **Real**.
-2. **Look**: each number column's blanks, likely code, smallest, median and largest. A column with a surprise here will give a surprising result later.
+2. **Look**: each band column's and the split column's blanks, likely code, smallest, median and largest. A column with a surprise here will give a surprising result later.
 3. After the Run, **Record**, under **This Run**: the range of dates the loans were made. A wrong extract shows there first.
 
 ### 6.4 What must never leave the bank

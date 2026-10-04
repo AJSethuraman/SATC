@@ -3116,6 +3116,51 @@ changed in the code.
     number, not under it; a default other than 50; each year's point read from the year before), 4 of 4 caught with
     DISPLAY unset; every entry's old string still occurs once (659 entries).
 
+- **Built, 3 Oct 2026: Look draws the band columns and the split, and a Run redraws it** (branch
+  `pocketbook-look-banded`). The firm, shown a before/after of the Look tab (40 blocks on 22 pages against 4 on 4, on a
+  47-column synthetic book), chose *"Banded + split, redraw on Run"*.
+  - **Set up.** Look has a block for each band column chosen in the launcher (the Run's own reading of the choice:
+    a column whose meaning on Columns cuts it into bands, and ticked, or every one when nothing was narrowed) and
+    for the split column when it is a number column. Every number column is recorded on `_look` (A5, as JSON) as
+    eligible, in extract order. Category columns still get no block: a category split keeps its one sentence in the
+    scatter section, and a scatter is drawn of a numeric split against each band column, as before.
+  - **Run.** If the band columns or the split the Run reads from Control call for other blocks than Look has, or a
+    Treat as answer changed (as before), Look is drawn again for the current set, keeping any Bars, From or To typed.
+    A Run that changes neither redraws nothing; the scatters alone are redrawn when only their order or a category
+    split moved (`look.wanted`, `look.columns_moved`, `look.eligible_columns`). A workbook set up before this falls
+    back to the columns it drew.
+  - **Nothing points at a missing block.** Set up says *Made X = ... on Columns and Look* only when the made column
+    has a block, otherwise *on Columns*; Columns' *Band edges* note and the *Add a column* note say Look shows the
+    band columns chosen on Control and the split; Start here's tab list reads *the band and split columns' shape*;
+    Look's subtitle reads *Each band column and the split before you choose band edges.* Columns still lists every
+    column. Look's method note (one place, per T1) says which columns get a block in its *How it counts* line, so
+    no row moves and the first block's Bars stays at C20. Checklist 4.9 and 6.3 updated; HTML and PDF rebuilt.
+  - **Measured** (47 columns: `synth.write_extract(n=5000, ratio=True, shortlist=True)` plus 33 lognormal amount
+    columns; launcher: FICO, ORIG_BAL and REV_DEBT as bands, CHANNEL a segment, split by UTIL; two runs each, before
+    is `origin/main` at 6a9aaafa):
+
+    | | Before | After |
+    |---|---|---|
+    | Look blocks | 34 | 4 |
+    | Look printed pages | 19 | 4 |
+    | Workbook after Set up | 607 KB | 176 KB (−71%) |
+    | Workbook after Run | 1,270 KB | 839 KB (−34%) |
+    | Set up | 5.5 s | 4.2–4.3 s |
+    | First Run | 11.5–13.9 s | 10.8–11.1 s |
+    | Run again, nothing changed | 13.2–13.3 s | 11.8–12.3 s |
+    | LibreOffice headless open and save as .ods, median of 3 | 16.2 s | 9.2 s (−43%) |
+
+  - Tests: 7 in `tests/test_look_banded_2026_10_03.py`, none needing a display or LibreOffice: Set up draws only
+    the band columns and the split (and every band column with nothing narrowed); a numeric split not cut gets a
+    block and its scatters; band columns changed on Control redraw Look at the Run, the new block counted from the
+    CSV, and a band column taken off is dropped; an unchanged Run leaves a marker cell on Look in place; Columns
+    still lists every column; no formula anywhere reads a Look row outside a drawn block, Look names no column it
+    has no block for, and the made-column line says *on Columns* only. Updated: `test_look.py` (the subtitle) and
+    `test_firm_answers_2026_09_27.py` (H: REV_DEBT, not chosen, has no block). Planted bugs: 4 added (Look drawing
+    every number column; a Run not redrawing when the band columns change; every Run redrawing; the split left off)
+    and 2 repointed (H; a Run never drawing Look again), 6 of 6 caught with DISPLAY unset; every entry's old string
+    occurs once (667 entries). Full suite, DISPLAY unset: 1,045 passed, 14 skipped, 0 failed (78 min).
+
 - **Built, 1 Oct 2026: a third filter, with a size limit** (branch `pocketbook-three-filters`). The firm: *"I thought
   we discussed two filters plus date"*. Chosen: Origination year plus two more filters, with a size limit.
   - **Filter 3.** Built exactly as Filter 2 is: a third launcher column (*Filter 3*), Control's *And then by*, the
@@ -3174,6 +3219,7 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-10-03 -- **PocketBook: Look draws the band columns and the split, and a Run redraws it.** The firm, shown 40 Look blocks on 22 pages against 4 on 4 for a 47-column book, chose *"Banded + split, redraw on Run"*. Set up draws a block for each band column chosen in the launcher and the split; a Run whose band columns or split changed on Control draws Look again, and one that changed nothing draws nothing. On a 47-column synthetic book: 34 blocks to 4, Set up's workbook 607 KB to 176 KB, the Run's 1,270 KB to 839 KB, LibreOffice open 16.2 s to 9.2 s. 7 tests, 4 planted bugs added and 2 repointed, 6 caught. §6d has the detail.
 - 2026-10-03 -- **PocketBook: Summary's vintage chart and grey rows.** The firm: *"Could the summary tab have vintage graphs as well?"*, chosen *"Pocket vs rest vs book"*; and low unit counts *"grayed out to a degree"*, by a number of its own. Under the Summary table, one row against the rest of the book and the whole book by origination year, on any Summary measure, following Only loans where, thin points left off; at the top, Grey rows under [50] loans, read by nothing else. 5 tests, 4 planted bugs, 4 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: Avg line and × book.** The firm: *"I want to start including and using booked dollar averages so more easily demonstrate how line assignments look in pockets"*. Summary gains Avg line (booked dollars per loan, the average committed line) and × book (that over the whole book's) right after Booked $, in every filter view; RANR vs GCOs' gross block ends on the same two, shaded as Grids' Loan size, never red or green; the Glossary gains the term. 8 tests, 2 planted bugs, 2 caught. §6d has the detail.
 - 2026-10-02 -- **PocketBook: a Glossary tab.** The firm: *"Maybe a nice glossary of terms in the workbook should be there"*. A grey tab right after Start here, written by every Set up and Run: 25 terms, each with what it means and an example in the book's own figures from the last Run (*"the book keeps $12.80 per $100 booked"*), made up before the first. Start here links to it; the bank checklist has a 4.10 for it. 8 tests; 2 planted bugs, 2 caught. §6d has the detail.
