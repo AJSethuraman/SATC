@@ -164,8 +164,7 @@ def test_a_criterion_from_text_matches_that_text_only():
 def test_a_control_character_in_a_loan_number_leaves_the_loans_sheet_readable(tmp_path):
     need_soffice()
 
-    # a loan well down the file: Set up's Columns tab shows the first few values of each column, and openpyxl refuses
-    # a control character there, before any Run (the main workbook's own limit, outside the audit)
+    # a loan well down the file, past the first values Set up's Columns tab shows
     def edit(rows):
         rows[700]["LOAN_NBR"] = "L\x015"
     _, b = _build(tmp_path, "ctrl", edit=edit)
@@ -179,7 +178,9 @@ def test_a_control_character_in_a_loan_number_leaves_the_loans_sheet_readable(tm
     ET.fromstring(z.read(_sheet_files(z)[audit.LOANS]))          # parses: no character XML forbids
     calc = recalc(path, tmp_path / "rc")
     loans = calc[audit.LOANS]
-    assert loans.cell(row=702, column=2).value == "L5"
+    # read_table shows a forbidden character as its control picture (U+2401 for \x01), so two loan numbers differing
+    # only by one stay two (the main workbook's fix of 4 Oct 2026); the audit carries the same text
+    assert loans.cell(row=702, column=2).value == "L\u24015"
     assert len(_ties_in(calc[audit.ROWS], 5)) >= 10 and all(v == TICK for _, v in _ties_in(calc[audit.ROWS], 5))
     rows = _table(calc[audit.ONE])
     assert rows and all(r["ties"] == TICK for r in rows)
@@ -239,3 +240,21 @@ def test_a_long_text_in_a_formula_is_split_into_pieces_excel_accepts():
     assert "".join(p.replace('""', '"') for p in pieces) == text
     assert lit == "&".join('"' + p + '"' for p in pieces)
     assert audit.q("short") == '"short"' and audit.q("") == '""'
+
+
+def test_the_audit_cleans_a_control_character_itself_if_one_reaches_it(tmp_path, monkeypatch):
+    """The extract is cleaned as it is read (ingest.cleaned shows \\x01 as U+2401), so in a Run no control character
+    reaches the audit. The audit still cleans its own Loans sheet, so its XML stays readable whatever it is handed:
+    with the reader's cleaning switched off, the loan number "L\\x015" still leaves a sheet that parses."""
+    from pocketbook import ingest
+    monkeypatch.setattr(ingest, "cleaned", lambda v: v)
+
+    def edit(rows):
+        rows[700]["LOAN_NBR"] = "L\x015"
+    _, b = _build(tmp_path, "ctrl2", edit=edit)
+    monkeypatch.setattr(perm, "SHUFFLES", SHUFFLES)
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    z = zipfile.ZipFile(audit.path_for(b))
+    from pocketbook.excel_lists import _sheet_files
+    ET.fromstring(z.read(_sheet_files(z)[audit.LOANS]))

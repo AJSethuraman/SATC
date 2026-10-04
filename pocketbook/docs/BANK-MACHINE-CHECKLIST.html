@@ -467,7 +467,7 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 <p>☐ A <strong>−</strong> in the margin to the left of the row numbers folds it away, and a <strong>+</strong> brings it back. <strong>Check this:</strong> if there's no − anywhere, go to <strong>File</strong>, <strong>Options</strong>, <strong>Advanced</strong>, <em>Display options for this worksheet</em>, and tick <strong>Show outline symbols if an outline is applied</strong>.</p>
 <h3>4.9 The charts draw</h3>
 <p>☐ <strong>RANR vs GCOs:</strong> a scatter of the grid picked, GCOs across on a log scale, RANR up, lines at 1× and 0, the pockets read together named. Pick another grid in B16: the dots move.</p>
-<p>☐ <strong>Look:</strong> a chart per number column that can be cut into bands (FICO, ORIG_BAL, REV_DEBT; not GCO_AMT or RANR_AMT), and a red bar on its own left of FICO's for the -9999s.</p>
+<p>☐ <strong>Look:</strong> a chart for each band column chosen in the launcher and for the split column (FICO and ORIG_BAL, then REV_DEBT; not GCO_AMT or RANR_AMT), and a red bar on its own left of FICO's for the -9999s. A band column or split changed on Control is drawn at the next Run.</p>
 <p>☐ <strong>Split</strong> and <strong>Grids:</strong> the shaded tables have their colours (pink worse, green better, deeper for bigger gaps).</p>
 <p><strong>Check this</strong> for all three: every chart has only been seen in LibreOffice.</p>
 <h3>4.10 The Glossary</h3>
@@ -530,7 +530,7 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 <p>Look at these first, before any result:</p>
 <ol>
 <li><strong>Columns</strong>, each row's <strong>What it is</strong> and <strong>Why we think so</strong>. Fix any that's wrong. Then <strong>Odd values</strong> under <strong>Treat as</strong>: a value that looks like a code (such as 9999 in a score) is <strong>Missing</strong>, a real value is <strong>Real</strong>.</li>
-<li><strong>Look</strong>: each number column's blanks, likely code, smallest, median and largest. A column with a surprise here will give a surprising result later.</li>
+<li><strong>Look</strong>: each band column's and the split column's blanks, likely code, smallest, median and largest. A column with a surprise here will give a surprising result later.</li>
 <li>After the Run, <strong>Record</strong>, under <strong>This Run</strong>: the range of dates the loans were made. A wrong extract shows there first.</li>
 </ol>
 <h3>6.4 What must never leave the bank</h3>

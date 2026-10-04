@@ -13,6 +13,7 @@ from openpyxl import load_workbook
 
 import tabs
 from pocketbook import book, control, meanings, synth, results
+from pocketbook import look as look_tab
 from test_book import _answer
 
 
@@ -287,3 +288,27 @@ def test_a_remembered_outcome_date_is_not_suggested_and_is_said_to_be_unused(tmp
     assert means["BAD_DATE"] != "Outcome date"
     said = {r[book.C_NAME - 1].value: r[book.C_REMEMBERED - 1].value for r in book.table_rows(wb["Columns"])}
     assert said["BAD_DATE"] == "As Outcome date: no longer used. Forget it"
+
+
+def test_a_split_moved_to_a_band_column_redraws_looks_scatters_from_the_made_column(tmp_path):
+    """Since 3 Oct 2026 Look draws the band columns and the split. When the split moves to a column that already has
+    a block, the blocks stay and only the scatters are drawn again (look.refresh), so they must be drawn from the
+    loans with the new column made on them: FICO against INCOME_TO_SALES, a column made under Add a column."""
+    x, b = _dated(tmp_path)
+    _control(b, **{"derived|1": ("INCOME_TO_SALES", "INCOME", "SALES")})
+    book.set_up(x)
+    _columns(b, "INCOME_TO_SALES", C_EDGES="0.1; 0.25; 0.5; 1; 2")
+    _choose(b, bands=("FICO", "INCOME_TO_SALES"), segments=("CHANNEL",), split=None)
+    wb = load_workbook(b)
+    wb["Columns"][book.CONFIRM_CELL] = "Yes"
+    wb.save(b)
+    assert book.run(b).ok
+    drawn = look_tab.drawn_columns(load_workbook(b))
+    assert set(drawn) == {"FICO", "INCOME_TO_SALES"}
+    _choose(b, split="FICO")                            # a column that already has a block: the scatters only
+    ran = book.run(b)
+    assert ran.ok, ran.lines
+    wb = load_workbook(b)
+    assert look_tab.drawn_columns(wb) == drawn
+    titles = [c.title.tx.rich.p[0].r[0].t for c in wb["Look"]._charts if type(c).__name__ == "ScatterChart"]
+    assert titles == ["FICO against INCOME_TO_SALES"]

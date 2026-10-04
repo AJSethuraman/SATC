@@ -106,7 +106,7 @@ COLUMNS_METHOD = [
                    "negatives in a column that's mostly positive. Missing is treated as blank and counted."),
     ("Treat as", "Answer Real or Missing. One left blank is used as recorded."),
     ("Band edges", "Blank means Control's setting. Type edges as 620; 680; 740, or every 20. Look shows what each "
-                   "would cut, live."),
+                   "would cut, live, for the band columns chosen on Control."),
     ("Remembered", "Set Forget? to Yes to drop what was learned about a column at the next Run. It then waits here "
                    "for you to confirm it again. Answers marked ↻ take effect at the next Run."),
 ]
@@ -692,11 +692,16 @@ def _set_up(extract: str | Path, book: str | Path | None = None, memory_path: st
     chosen_now = choices or control.read_choices(cws)[0]
     cut = chosen_now.cut() if chosen_now is not None else None
     # H, the firm's answer of 27 Sep 2026: only a column that can be cut into bands gets a block. GCO and RANR drew a
-    # chart saying "no edges on Columns yet" ("Not sure why we even have the info? Like obviously we didn't band them")
-    shown = [c for c in shown + [m.name for m in made if m.name not in shown] if c in banded]
-    look.write_look(wb, table, shown, known=facts_of,
-                    edge_rows=edge_rows, split=chosen_now.split if chosen_now is not None else None,
-                    bands=[c for c in shown if c in banded and (cut is None or c in cut)],
+    # chart saying "no edges on Columns yet" ("Not sure why we even have the info? Like obviously we didn't band them").
+    # Narrowed on 3 Oct 2026 ("Banded + split, redraw on Run"): only the band columns chosen in the launcher, the
+    # Run's own reading of them (_cuts_chosen), and the split when it is a number column. Every number column is
+    # recorded as eligible, so a Run whose band columns or split changed on Control draws Look again to match
+    eligible = shown + [m.name for m in made if m.name not in shown]
+    split_now = chosen_now.split if chosen_now is not None else None
+    band_now = [c for c in eligible if c in banded and (cut is None or c in cut)]
+    drawn = look.wanted(eligible, band_now, split_now)
+    look.write_look(wb, table, drawn, known=facts_of,
+                    edge_rows=edge_rows, split=split_now, bands=band_now, eligible=eligible,
                     treat_rows=_treat_rows(ws), rules=_odd_rules(cols, kept, mem))
 
     about = wb.create_sheet(ABOUT)
@@ -728,7 +733,9 @@ def _set_up(extract: str | Path, book: str | Path | None = None, memory_path: st
     lines = [f"Set up {book.name} from {extract.name}: {len(table.rows):,} loans, {_n(len(extract_cols), 'column')}."]
     for m in made:
         why = "; ".join(f"{k:,} where {w}" for w, k in m.blank.items())
-        lines.append(f"Made {m.name} = {m.text()} on Columns and Look" + (f". Blank on {why}." if why else "."))
+        # on Look only when it has a block there: a band column chosen, or the split (3 Oct 2026)
+        lines.append(f"Made {m.name} = {m.text()} on Columns" + (" and Look" if m.name in drawn else "")
+                     + (f". Blank on {why}." if why else "."))
     lines += made_notes
     if given.get(RUN_KIND) is None and (choices is None or choices.run_kind is None):
         # the firm, 26 Sep 2026: ask which we are doing, so the run checks the minimum it needs
@@ -1277,7 +1284,7 @@ def _found_block(ws, wb, r: int) -> int:
 #: the tabs in their three groups, each with what it holds
 TAB_GROUPS = [
     ("You answer", "KEY_RED", [("Control", "the professional calls"), ("Columns", "meanings, odd values, memory"),
-                               ("Look", "each number column's shape")]),
+                               ("Look", "the band and split columns' shape")]),
     ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "GCOs against RANR"),
                         (results.GRIDS, "one grid at a time, and how common"),
                         (results.SUMMARY, "one band column's plain figures"),
@@ -2214,10 +2221,12 @@ def _run(book: str | Path, extract: str | Path | None = None, memory_path: str |
     from . import look                  # fix 3.8: the Look tab's scatters, only when the split or the bands moved
     timing.mark("Writing Look")
     split_col, band_cols = res.config.split and res.config.split[0], [b.field for b in res.config.bands]
-    if look.answers_moved(wb, res.config.missing):
+    if look.answers_moved(wb, res.config.missing) or look.columns_moved(wb, band_cols, split_col):
         # a Treat as answer changed since Look was drawn (at the bank, 29 Sep 2026: a -99,000,901 answered missing
-        # still set Look's smallest and mean): the blocks are drawn again from what the Run reads
-        look.write_look(wb, res.table or table, look.drawn_columns(wb), split=split_col, bands=band_cols,
+        # still set Look's smallest and mean), or the band columns or split on Control call for other blocks (the
+        # firm, 3 Oct 2026: "redraw on Run"): the blocks are drawn again from what the Run reads
+        look.write_look(wb, res.table or table, look.wanted(look.eligible_columns(wb), band_cols, split_col),
+                        split=split_col, bands=band_cols,
                         edge_rows={str(r[C_NAME - 1].value): r[0].row for r in table_rows(wb["Columns"])
                                    if r[C_NAME - 1].value},
                         treat_rows=_treat_rows(wb["Columns"]), rules=res.config.missing, keep_inputs=True)

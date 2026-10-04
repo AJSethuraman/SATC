@@ -5,7 +5,8 @@ blind. The redesign (docs/redesign-2026-09-26/README.md, section 4), with the
 firm's two additions of 26 Sep 2026 (the mean beside the median; live bars and
 range, "if truly cheap"):
 
-    each number column gets a block: loans, blank, not a number, a value that
+    each number column gets a block (since 3 Oct 2026, each band column and
+    the split; below): loans, blank, not a number, a value that
     looks like a code (profile.odd_values, the same detection Columns asks
     about) with its count, and the smallest, median, mean and largest of the
     other values; and a column chart of its counts, with the code on a red bar
@@ -42,10 +43,18 @@ column's own format (a FICO of 620, a ratio of 0.35).
     it: a correlation near zero misses a U, and a picture does not
     (docs/statistics.md A9).
 
+Which columns get a block (the firm, 3 Oct 2026, shown 40 blocks on 22 pages
+against 4 on 4 for a 47-column book, chose "Banded + split, redraw on Run"):
+the band columns chosen in the launcher, and the split column when it is a
+number. Set up records every number column that could have a block
+(`eligible`, on _look); the blocks drawn are those of them cut into bands or
+splitting the pockets (`wanted`).
+
 The shapes can't change on the same extract, so a Run doesn't redraw the blocks
-(found 26 Sep 2026: it did, every Run), unless a Treat as answer on Columns has
-changed since they were drawn: then the whole tab is drawn again from what the
-Run reads, keeping any Bars, From or To typed (at the bank, 29 Sep 2026: a
+(found 26 Sep 2026: it did, every Run), unless the band columns or the split it
+reads from Control differ from those Look was drawn for, or a Treat as answer on
+Columns has changed since: then the whole tab is drawn again from what the Run
+reads, keeping any Bars, From or To typed (at the bank, 29 Sep 2026: a
 -99,000,901 answered missing still set the smallest and the mean). Otherwise it
 redraws the scatters only when the split or the band columns differ.
 
@@ -57,6 +66,7 @@ there is counted on a row of its own and left out of everything else, dots inclu
 
 from __future__ import annotations
 
+import json
 import math
 import random
 import statistics
@@ -102,6 +112,8 @@ R_BARS, R_FROM, R_TO, R_TREAT = 10, 11, 12, 13
 R_PCT = 14                                          # the five percentiles, one a row, to R_PCT + 4
 PERCENTILES = (10, 25, 50, 75, 90)
 RULES_ROW = 4                                       # _look column A: the Treat as answers Look was drawn with
+ELIGIBLE_ROW = 5                                    # _look column A: every column that could have a block, as JSON
+TYPED_ROW = 6                                       # _look column A: every Bars, From and To typed, by column, as JSON
 STATS_COL, VALUE_COL, SHARE_COL = 2, 3, 4          # B, C, D
 CODE_AT, CHART_AT = "F", "H"
 
@@ -125,8 +137,10 @@ METHOD = [
                   "edges here before the next Run; blank edges are cut at the Run, so no lines show. Grey: the "
                   "10th, 25th, 50th, 75th and 90th percentile, P10 to P90. A tenth of the loans on the chart lie "
                   "below P10, half below P50 (the median). Worked out as Excel's PERCENTILE.INC does."),
-    ("How it counts", "Set up counts each column once, in 200 equal slices around its 1st to 99th percentile. A "
-                      "range you type is counted to the nearest slice."),
+    ("How it counts", "A block is drawn for each band column chosen on Control, and for the split column when it "
+                      "is numeric. A Run after either changes draws the tab again. Each column is counted once, in "
+                      "200 equal slices around its 1st to 99th percentile. A range you type is counted to the "
+                      "nearest slice."),
     ("The dots", "The split column against each band column: a random 2,000 loans, the same every time. If the "
                  "dots slope, the two move together, and part of a gap on Split may belong to the band column."),
 ]
@@ -234,6 +248,33 @@ def drawn_columns(wb) -> list[str]:
     return [str(hs.cell(row=1, column=i).value) for i in range(2, hs.max_column + 1) if hs.cell(row=1, column=i).value]
 
 
+def eligible_columns(wb) -> list[str]:
+    """Every column Set up found could have a block (a number column), in order. A workbook drawn before this was
+    recorded gives the columns drawn."""
+    if DATA not in wb.sheetnames:
+        return []
+    got = wb[DATA].cell(row=ELIGIBLE_ROW, column=1).value
+    try:
+        out = json.loads(got) if isinstance(got, str) else None
+    except ValueError:
+        out = None
+    return [str(c) for c in out] if isinstance(out, list) else drawn_columns(wb)
+
+
+def wanted(eligible, bands, split: str | None) -> list[str]:
+    """The columns that get a block (the firm, 3 Oct 2026, "Banded + split"): of the eligible, in their order,
+    those cut into bands and the one that splits the pockets."""
+    cut = set(bands or ())
+    return [c for c in eligible if c in cut or c == split]
+
+
+def columns_moved(wb, bands, split: str | None) -> bool:
+    """True when the band columns or the split call for blocks other than those Look has."""
+    if DATA not in wb.sheetnames or LOOK not in wb.sheetnames:
+        return False
+    return wanted(eligible_columns(wb), bands, split) != drawn_columns(wb)
+
+
 def answers_moved(wb, rules: dict | None) -> bool:
     """True when the Treat as answers differ from those Look was drawn with."""
     if DATA not in wb.sheetnames or LOOK not in wb.sheetnames:
@@ -330,13 +371,20 @@ def regroup(values: list[float], bars: int, lo: float, hi: float, frm: float, to
 
 def write_look(wb, table, columns, split: str | None = None, bands=(), known: dict | None = None,
                edge_rows: dict | None = None, treat_rows: dict | None = None, rules: dict | None = None,
-               keep_inputs: bool = False) -> None:
+               keep_inputs: bool = False, eligible=None) -> None:
     """Write (or write again) the Look tab and its hidden sheets. `columns` are the number columns to show,
     `split` the column that splits the pockets and `bands` the band columns it is plotted against. `known` is Set
     up's facts by column, so no column's numbers are read twice; `edge_rows` each column's row on Columns (its
     Band edges cell feeds the red lines), `treat_rows` each column's first odd value there. `rules` the Treat as
-    answers of Missing, as the Run reads them. `keep_inputs`: a Bars, From or To the analyst typed stays."""
-    typed = _typed_inputs(wb) if keep_inputs else {}
+    answers of Missing, as the Run reads them. `keep_inputs`: a Bars, From or To the analyst typed stays.
+    `eligible`: every column that could have a block, kept for the Run's redraw; None keeps what was recorded, or
+    the columns shown when nothing was."""
+    # a Bars, From or To typed for a column stays with it even across a Run that leaves its block out, so it is back
+    # when the column is chosen again (the review of 4 Oct 2026): what was remembered, then what is on Look now
+    typed = {**_remembered_inputs(wb), **_typed_inputs(wb)} if keep_inputs else {}
+    if eligible is None:
+        eligible = eligible_columns(wb) if DATA in wb.sheetnames else list(columns)
+    eligible = [c for c in eligible if c in table.columns]
     at = wb.sheetnames.index(LOOK) if LOOK in wb.sheetnames else (
         wb.sheetnames.index(AFTER) + 1 if AFTER in wb.sheetnames else None)
     for t in (LOOK, DATA, DOTS):
@@ -355,10 +403,13 @@ def write_look(wb, table, columns, split: str | None = None, bands=(), known: di
     # Calibri 10); the rest as drawn
     for col, w in zip("ABCDEFGH", (2, label_width(shapes.values()), value_width(shapes.values()), 9, 2, 13, 2, 10)):
         ws.column_dimensions[col].width = w
-    house.title_band(ws, "Look", "Each number column before you choose its band edges.", 2, 17)
+    house.title_band(ws, "Look", "Each band column and the split before you choose band edges.", 2, 17)
     top = house.method_note(ws, 3, 2, 17, METHOD)
     assert top == FIRST, top
     hs.cell(row=RULES_ROW, column=1, value=rules_key(rules, columns) or None)
+    hs.cell(row=ELIGIBLE_ROW, column=1, value=json.dumps(eligible))
+    kept = {c: {str(k): v for k, v in rows.items()} for c, rows in typed.items() if rows}
+    hs.cell(row=TYPED_ROW, column=1, value=json.dumps(kept) if kept else None)
     dv = DataValidation(type="list", formula1=f'"{",".join(str(b) for b in BARS)}"', allow_blank=False,
                         showErrorMessage=True)
     dv.error = "Pick 10, 20 or 50 bars."
@@ -379,6 +430,17 @@ def write_look(wb, table, columns, split: str | None = None, bands=(), known: di
     ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.freeze_panes = "A2"
+
+
+def _remembered_inputs(wb) -> dict[str, dict[int, object]]:
+    """The Bars, From and To kept on _look for every column, drawn now or not."""
+    if DATA not in wb.sheetnames:
+        return {}
+    got = wb[DATA].cell(row=TYPED_ROW, column=1).value
+    try:
+        return {c: {int(k): v for k, v in rows.items()} for c, rows in json.loads(got).items()} if got else {}
+    except (ValueError, AttributeError, TypeError):
+        return {}
 
 
 def _typed_inputs(wb) -> dict[str, dict[int, object]]:

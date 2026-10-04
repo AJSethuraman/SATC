@@ -130,8 +130,8 @@ class Setting:
 REMOVED_ROWS = ("min_age_months", "window_months", "as_of")
 DERIVED_KEY = "derived"
 DERIVED_ROWS = 3
-DERIVED_NOTE = ("Shows here and on Look, and in Choose tests, once you press Set up again. Blank where the bottom "
-                "is zero or blank.")
+DERIVED_NOTE = ("Shows here and in Choose tests once you press Set up again, and on Look as a band column or the "
+                "split. Blank where the bottom is zero or blank.")
 
 
 _ONCE = threading.local()
