@@ -1683,6 +1683,26 @@ muts = [
  ("audit's RANR dollars against the band with the Run's sign", AU,
   '        "ranr_usd_band": _neg(rn.excess_band),', '        "ranr_usd_band": rn.excess_band,',
   "test_the_audit_opens_on_a_random_tested_pocket_and_every_figure_ties"),
+ # the audit workbook's review, 3 Oct 2026 (tests/test_audit_review_2026_10_03.py): each caught with no display, the
+ # first three through LibreOffice headless
+ ("audit finding its pocket by MATCH, which reads ~ * ? as wildcards", AU,
+  '    return f"LOOKUP(2,1/EXACT({rng},{value}),ROW({rng})-{less})"',
+  '    return f"(MATCH({value},{rng},0)+ROW({rng})-1-{less})"',
+  "a_segment_excel_reads_as_a_wildcard"),
+ ("audit's part D finding each pocket of the family by MATCH on its name", AU,
+  """        cv.put(r, 14, f'=IF({on},"",INDEX({R},MATCH({fam}{i}",{L},0)))', None)""",
+  """        cv.put(r, 14, f'=IF({on},"",MATCH($M{r},{PBQ}!$A:$A,0))', None)""",
+  "a_segment_excel_reads_as_a_wildcard"),
+ ("audit writing a segment \"=A\" as a formula", AU,
+  '                if isinstance(v, Lit):\n                    cell.data_type = "s"',
+  '                if False:\n                    cell.data_type = "s"', "odd_names_are_written_as_text"),
+ ("audit's Loans sheet keeping a control character", AU, "                v = clean(v)\n", "",
+  "control_character_in_a_loan_number"),
+ ("Run ended by any audit failure but an open file", B,
+  "    except Exception as e:                      # noqa: BLE001",
+  "    except OSError as e:                      # noqa: BLE001", "audit_workbook_that_fails_does_not_end_the_run"),
+ ("audit written past an Excel sheet's last row", B, "    if res.rows > audit.MOST_LOANS:", "    if False:",
+  "more_loans_than_an_excel_sheet_holds"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

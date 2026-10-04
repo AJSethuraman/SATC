@@ -153,7 +153,7 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     avg = f["booked"] / bl if bl and real("booked") else None
     out.append(("Avg line / Line × book",
                 "Avg line is the average committed line per loan: booked dollars divided by the number of loans "
-                "with a booked amount. Line × book compares a pocket's average line with the whole book's.",
+                "with a booked amount. Line × book is a pocket's average line divided by the whole book's.",
                 f"This book's average line is {_usd(avg)}, so a pocket averaging {_usd(avg * 1.24)} shows 1.24× on "
                 f"Line × book." if avg else
                 "A pocket with an average line of $6,200, in a book averaging $5,000, shows 1.24× on Line × book."))
@@ -176,8 +176,8 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 f"A book that earns {per100(contrib_r)} per $100 booked before losses and loses {per100(gco_r)} "
                 f"{_keeps(ranr_r)}."))
     out.append(("Rate (GCOs ÷ Booked, RANR ÷ Booked)",
-                "Dollars per $100 booked, which allows a small pocket to be compared with a large one. A rate of "
-                "2.20% equals $2.20 per $100 booked.",
+                "Dollars per $100 booked: the dollar figure divided by booked dollars. A rate of 2.20% equals $2.20 "
+                "per $100 booked.",
                 f"This book's GCOs ÷ Booked is {gco_r * 100:.2f}%, or {per100(gco_r)} lost per $100 booked."
                 if real("gco") else
                 f"GCOs ÷ Booked of {gco_r * 100:.2f}% means {per100(gco_r)} lost per $100 booked."))
@@ -259,14 +259,14 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 "If 4 of 81 pockets are worse and material, those 4 meet both tests and are listed on Start here."))
     conf = g.get("confidence", 0.95)
     out.append(("Borderline",
-                "The p-value is within the shuffle test's margin of error of the threshold, so another Run could "
-                "reach the opposite result. The reading stands, and the flag serves as a caution.",
-                f"A Worse? cell reading Yes · {stats.borderline_words(0.048, conf)} is under the {1 - conf:.0%} "
-                f"threshold, but close enough to change on another Run."))
+                f"The shuffle test's p-value is within {stats.BORDERLINE_SE:g} standard errors of the threshold on "
+                f"Control, on either side. The reading is unchanged, and the flag is shown beside it.",
+                f"A Worse? cell reading Yes · {stats.borderline_words(0.048, conf)} has a p-value under the "
+                f"{1 - conf:.0%} threshold and within {stats.BORDERLINE_SE:g} standard errors of it."))
     sh = int(g.get("shuffles") or 10_000)
     out.append(("Shuffle test / p-value",
-                "The p-value is how often chance alone would produce a gap this large. The shuffle test reassigns "
-                "loans at random many times and counts how often that happens.",
+                "The shuffle test reassigns loans at random many times and counts the shuffles with a gap at least as "
+                "large as the actual one. The p-value is (that count + 1) ÷ (shuffles + 1).",
                 f"The loans are shuffled {sh:,} times. A p-value of 0.02 means that about {round(sh * 0.02):,} of "
                 f"those shuffles produced a gap at least as large."))
     mu = f.get("min_units") if run else None
@@ -309,8 +309,8 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     out.append(("Odd values",
                 "Values that may be codes rather than genuine numbers, such as one value far more frequent than any "
                 "other, or negative values in a mostly positive column.",
-                "A score of -9999 on many loans is usually a code for no score. Select Missing under Treat as on "
-                "Columns."))
+                f"A score of -9999 on many loans is shown as an odd value. Missing under Treat as on Columns places "
+                f"those loans in {engine.MISSING_RULE_LABEL}."))
     mi = f.get("missing") if run else None
     out.append((f"{engine.MISSING_RULE_LABEL} / {engine.BLANK_LABEL}",
                 f"Where a loan is placed when it cannot be assigned to a band. {engine.BLANK_LABEL} means the cell "
