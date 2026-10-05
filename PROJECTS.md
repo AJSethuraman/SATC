@@ -27,6 +27,8 @@ is just the map.
 
 **Same consulting line, not a template:** `portfolio-analysis-pack/` — a loan extract plus a question file in, one workbook out, laying the evidence for a flag in a fixed six-step order; v1 built 18–19 Sep 2026, log in `BACKLOG.md` §6c, spec in its `docs/`.
 
+**Same consulting line, not a template:** `excel-macros/`: Excel macros the firm keeps in their Personal Macro Workbook. First, Hygiene (5 Oct 2026): profile a population column by column, record a Keep/Drop, rename and flag decision per column, and build the population as stamped values. Tested in LibreOffice's Excel-compatible mode; log in `BACKLOG.md` Done log.
+
 **Same consulting line, not a template:** `pocketbook/` (PocketBook; the folder was `origination-cube/` until 27 Sep 2026): a loan extract plus a cube file in; every band crossed with every dimension, and each pocket's rate compared with the topline to find where the book bleeds. Replaces the firm's origination VBA. Slice 1 (the engine) was built 25 Sep 2026; the log is in `BACKLOG.md` §6d.
 
 ## Candidate pipeline (researched, not yet picked)

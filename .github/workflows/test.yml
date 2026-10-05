@@ -167,6 +167,28 @@ jobs:
       - name: Every mutation is caught
         run: python tools/mutation_check.py --shard ${{ matrix.shard }}/4
 
+  # The firm's Excel macros (excel-macros/), run in LibreOffice in its Excel-compatible mode. The harness drives
+  # LibreOffice through its Python bridge (uno), which only the system Python has, so this job uses /usr/bin/python3
+  # rather than setup-python. Then each planted bug must turn the tests red.
+  excel-macros:
+    name: macros in LibreOffice (excel-macros)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: excel-macros
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: LibreOffice and its Python bridge
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-calc python3-uno python3-pip
+          /usr/bin/python3 -m pip install --break-system-packages pytest openpyxl
+      - name: Run tests
+        run: /usr/bin/python3 -m pytest -q tests
+      - name: Every mutation is caught
+        run: /usr/bin/python3 tools/mutation_check.py
+
   # The website publishes prices. A number on satcllp.com is a commitment, and
   # the estimate a client gets later has to agree with it — so the page is
   # checked against client-documents/registry/fee-schedule.yaml on every push,
