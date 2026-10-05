@@ -37,6 +37,31 @@ from satc.persistence import export_mart_to_excel
 _LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
+def allowed_hosts() -> frozenset[str]:
+    """Every host name this app will answer to.
+
+    STILL AN ALLOWLIST, and that is the whole design. H2 below exists to stop
+    DNS rebinding -- a page the preparer visits resolving its own domain to
+    this machine and then reading /clients, /export and /source in the
+    background. Replacing the check with "allow anything" would hand that back.
+    Naming the extra hosts does not: an attacker's domain is still not on the
+    list, so it still gets 400.
+
+    `SATC_ALLOWED_HOSTS` is a comma-separated list, and the default is loopback
+    only -- so a machine that sets nothing behaves exactly as before.
+
+    THE FIRM, 5 October 2026, authorising this: "we are setting up bookkeeping
+    to work through tailscale and i can view it on the same network, this is a
+    control i'm comfortable with. leaving my environment is not conducive to it
+    leaving only the forge." The same position already recorded for the Occam
+    API: the tailnet is one owner and his own devices, key expiry on, Funnel
+    off.
+    """
+    extra = os.environ.get("SATC_ALLOWED_HOSTS", "")
+    names = {h.strip().strip("[]").lower() for h in extra.split(",") if h.strip()}
+    return frozenset({h.lower() for h in _LOCAL_HOSTS} | names)
+
+
 def _working_year_now() -> int:
     """The tax year the practice is on, derived rather than assumed.
 
@@ -85,18 +110,24 @@ def create_app() -> Flask:
     app.register_blueprint(autonomy_bp)
     app.register_blueprint(work_bp)
 
+    # Read once, at build time, so a test can set the variable and rebuild the
+    # app rather than depending on when the first request happens to arrive.
+    _allowed = allowed_hosts()
+
     @app.before_request
     def _local_only_guard():
-        # H2 — reject non-loopback Host headers (blocks DNS-rebinding, which would
-        # otherwise let a page the preparer visits read /clients, /export, /source).
-        if (request.host or "").split(":")[0] not in _LOCAL_HOSTS:
+        # H2 — reject Host headers this app does not answer to (blocks DNS
+        # rebinding, which would otherwise let a page the preparer visits read
+        # /clients, /export, /source). Loopback by default; `SATC_ALLOWED_HOSTS`
+        # adds names, and it stays an ALLOWLIST either way.
+        if (request.host or "").split(":")[0].lower() not in _allowed:
             return "Bad Host", 400
         # H3 — CSRF: reject a state-changing request a browser marks as cross-origin.
         # Local tools and the JSON API send no Origin/Referer and are allowed; a
         # cross-site attacker's browser always sends a foreign Origin.
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             src = request.headers.get("Origin") or request.headers.get("Referer")
-            if src and urlparse(src).hostname not in _LOCAL_HOSTS:
+            if src and (src_host := urlparse(src).hostname) and                     src_host.lower() not in _allowed:
                 return "Cross-origin request blocked", 403
         return None
 
@@ -443,6 +474,9 @@ def _pick_port(preferred: int) -> int:
 def main() -> None:
     app = create_app()
     port = _pick_port(int(os.environ.get("SATC_PORT", "5050")))
+    # Loopback unless told otherwise. A machine that sets nothing is unreachable
+    # from any other device, which is the state this app shipped in.
+    bind = os.environ.get("SATC_BIND", "127.0.0.1").strip() or "127.0.0.1"
     url = f"http://127.0.0.1:{port}"
 
     # Open the browser for the user a moment after the server starts.
@@ -456,7 +490,14 @@ def main() -> None:
     # Single-threaded: the store's SQLite connections are shared with
     # check_same_thread=False and aren't safe under concurrent request threads.
     # A local single-user app doesn't need threaded serving. (L9)
-    app.run(host="127.0.0.1", port=port, debug=False, threaded=False)
+    if bind not in _LOCAL_HOSTS:
+        # SAID OUT LOUD. The screens behind this hold real client names, and
+        # there is no login on any of them -- the network is the whole control.
+        names = ", ".join(sorted(allowed_hosts()))
+        print(f"  Reachable from other devices on: http://{bind}:{port}\n"
+              f"  Answering to: {names}\n"
+              f"  There is NO LOGIN. Whatever can reach this address is in.\n")
+    app.run(host=bind, port=port, debug=False, threaded=False)
 
 
 if __name__ == "__main__":
