@@ -13,10 +13,12 @@ that drifted from them.
 |---|---|
 | `HygieneProfile` | **Column Audit**: per column, the type found, blanks, distinct values (case counts), the three most common, numbers stored as text, dates stored as text, extra spaces, odd characters (control characters, no-break and zero-width spaces), a value repeated in every row, and a column that repeats another row for row. Then four columns for the analyst: Keep? (Keep/Drop), New name, Flag: 1 when (values separated by `;`), Notes. Rerunning keeps those, matched on the column's name. |
 | `HygieneBuild` | **Final Population** as plain values: kept columns, renamed, with flags made (1 when the value is in the list, 0 for any other value, blank stays blank). **Row Audit**: every row with a blank in a kept column, and every key value that appears more than once (the key is named on the Hygiene sheet). The **Hygiene** sheet's stamp: when, from which sheet, rows, columns kept and dropped, flags, rows with a blank, duplicate keys, and a status cell that reads *Out of date* once a decision changes after the Build. |
-| `HygieneSaveCopy` | Final Population alone, values only, as a new workbook beside this one. Refuses when the status is out of date, or when the workbook has never been saved. |
+| `HygieneSaveCopy` | Final Population alone, values only, as a new workbook beside this one (named to the second, so two in a minute do not collide). Refuses unless the status reads *Current*, or when the workbook has never been saved. |
 
 **Refuses rather than guesses:** Build does not run while any column has no decision, while two kept columns would
-share a name, or when a kept column is no longer on the source sheet; it lists every one. The source sheet is never
+share a name, when a kept column is no longer on the source sheet, or when a source column has no row on Column
+Audit; it lists every one. From its first write until it stamps itself, the status reads *Not built*, so a Build that
+stops part-way is never taken for a finished one. The source sheet is never
 written to. Every run, and every message shown, is logged on the Hygiene sheet.
 
 ## How it is tested, and what that does not prove
@@ -33,6 +35,10 @@ LibreOffice is not Excel. The tests prove the macros' logic; they cannot prove E
 - **Excel re-reads text a macro writes** ("00123" becomes 123, "2024-01" a date); LibreOffice does not. The macros
   write such text into cells formatted as Text, and the tests check the format, not the conversion. Found by an
   independent review, not by the tests.
+- **A mixed column's text held out of the bulk write.** In a column holding numbers and text, text Excel would re-read
+  ("#N/A", "=SUM(") is left out of the one write and written alone into a Text cell. The tests check the result's
+  format; that the bulk write would otherwise have failed or produced an error value is Excel's behaviour, not
+  LibreOffice's, so it is checked only by review.
 - **HygieneSaveCopy:** the tests show the copy is made beside the workbook under the right name, and nothing more.
   LibreOffice ignores Excel's FileFormat code and loses the active workbook after the copy closes, so the copy's
   contents and its "Saved copy" log line are first checked on the firm's machine.

@@ -63,6 +63,8 @@ Private Const DROP_WORD As String = "Drop"
 Private Const TOP_N As Long = 3
 ' Row Audit lists this many rows for one repeated key, then "... and N more": a cell holds at most 32,767 characters
 Private Const ROWS_LISTED As Long = 20
+Private Const CURRENT_WORD As String = "Current"
+Private Const NOT_BUILT As String = "Not built: the last Build did not finish. Run Build again."
 
 ' ---------------------------------------------------------------------------------------------------------------------
 ' Profile
@@ -149,13 +151,15 @@ Private Function DisplayNames(src As Worksheet, nCols As Long, blankNames As Lon
         If h = "" Then
             out(c) = "(no name, column " & c & ")"
             blankNames = blankNames + 1
-        ElseIf Lookup(seen, "t" & LCase(h)) <> 0 Then
+        ElseIf Has(seen, LCase(h)) Then
             out(c) = h & " (column " & c & ")"
             sharedNames = sharedNames + 1
         Else
             out(c) = h
-            seen.Add c, KeyOf("t" & LCase(h))
         End If
+        ' every name given joins the list, the marked ones too, so a heading that happens to read "A (column 2)" is
+        ' marked in turn rather than colliding with one
+        If Not Has(seen, LCase(out(c))) Then seen.Add c, KeyOf(LCase(out(c)))
     Next c
     DisplayNames = out
 End Function
@@ -376,12 +380,23 @@ Private Function KeyOf(ByVal s As String) As String
     KeyOf = "k" & s & ChrW(1) & m
 End Function
 
+' The Long a collection holds under s, or 0 when it holds nothing there. Only for collections of Longs: an array item
+' cannot go into a Long, so a collection of arrays is asked with Has.
 Private Function Lookup(col As Collection, ByVal s As String) As Long
     On Error GoTo none
     Lookup = col(KeyOf(s))
     Exit Function
 none:
     Lookup = 0
+End Function
+
+' Whether a collection holds anything under s, whatever the item is.
+Private Function Has(col As Collection, ByVal s As String) As Boolean
+    Dim x As Variant
+    On Error GoTo none
+    x = col(KeyOf(s))
+    Has = True
+none:
 End Function
 
 Private Sub WriteAuditHeads(aud As Worksheet)
@@ -429,7 +444,7 @@ Private Function KeptDecisions() As Collection
     For r = 2 To LastRow(aud)
         nm = CellText(aud.Cells(r, A_NAME).Value)
         If nm <> "" Then
-            If Lookup(out, nm) = 0 Then
+            If Not Has(out, nm) Then
                 out.Add Array(aud.Cells(r, A_KEEP).Value, aud.Cells(r, A_NEW_NAME).Value, _
                               aud.Cells(r, A_FLAG).Value, aud.Cells(r, A_NOTES).Value), KeyOf(nm)
             End If
@@ -476,8 +491,9 @@ Public Sub HygieneBuild()
     nSrcCols = LastCol(src)
     srcNames = DisplayNames(src, nSrcCols, nb, ns)
     For c = 1 To nSrcCols
-        byName.Add c, KeyOf(srcNames(c))
+        byName.Add c, KeyOf(CStr(srcNames(c)))
     Next c
+    Dim onAudit As New Collection
 
     ' the decisions, refused whole when any is missing or two kept columns would share a name
     Dim nAud As Long, r As Long, problems As String, nProblems As Long
@@ -490,6 +506,7 @@ Public Sub HygieneBuild()
     For r = 2 To nAud
         Dim nm As String, decision As String
         nm = CellText(aud.Cells(r, A_NAME).Value)
+        If Not Has(onAudit, nm) Then onAudit.Add r, KeyOf(nm)
         decision = Trim(CellText(aud.Cells(r, A_KEEP).Value))
         If StrComp(decision, KEEP_WORD, vbTextCompare) = 0 Then
             c = Lookup(byName, nm)
@@ -513,6 +530,14 @@ Public Sub HygieneBuild()
             problems = AddProblem(problems, nProblems, nm & ": no decision in Keep?")
         End If
     Next r
+    ' a column on the source with no row on Column Audit would be left out without a decision: added after Profile,
+    ' its row deleted, or a Profile that stopped part-way
+    For c = 1 To nSrcCols
+        If Not Has(onAudit, CStr(srcNames(c))) Then
+            problems = AddProblem(problems, nProblems, srcNames(c) & ": on " & srcName & _
+                                  " but not on Column Audit; run Profile again")
+        End If
+    Next c
     If nProblems > 0 Then
         AddLog "Build refused", nProblems & " to fix first. " & Replace(problems, vbLf, "; ")
         Say "Build did not run. " & nProblems & " to fix on Column Audit first:" & vbLf & vbLf & _
@@ -525,6 +550,9 @@ Public Sub HygieneBuild()
         Exit Sub
     End If
 
+    ' until this Build finishes and stamps itself, the status says so: a Build that stops part-way cannot leave an
+    ' earlier "Current" over a half-written Final Population
+    ctl.Cells(C_STATUS, 2).Value = NOT_BUILT
     Application.ScreenUpdating = False
     Dim nRows As Long
     nRows = LastRow(src)
@@ -645,25 +673,32 @@ Private Sub RowAudit(fin As Worksheet, nKeep As Long, nRows As Long, keyName As 
     ra.Cells(1, 8).Value = "Times"
     ra.Range("A1:H1").Font.Bold = True
     If nRows < 2 Then Exit Sub
-    Dim data As Variant, r As Long, out As Long, n As Long, which As String
-    data = BlockValues(fin, 2, 1, nRows, nKeep)
+    ' one column at a time: the whole population at once is millions of values, more than 32-bit Excel can hold
+    Dim r As Long, out As Long, col As Variant, nBlank() As Long, which() As String, nm As String
+    ReDim nBlank(1 To nRows - 1)
+    ReDim which(1 To nRows - 1)
+    For c = 1 To nKeep
+        Application.StatusBar = "Build: Row Audit, column " & c & " of " & nKeep
+        col = BlockValues(fin, 2, c, nRows, c)
+        nm = CellText(fin.Cells(1, c).Value)
+        For r = 1 To nRows - 1
+            If IsBlankValue(col(r, 1)) Then
+                nBlank(r) = nBlank(r) + 1
+                If nBlank(r) <= 5 Then which(r) = which(r) & IIf(nBlank(r) > 1, ", ", "") & nm
+            End If
+        Next r
+    Next c
+    Dim keys As Variant
+    If keyCol > 0 Then keys = BlockValues(fin, 2, keyCol, nRows, keyCol)
     out = 1
     For r = 1 To nRows - 1
-        n = 0
-        which = ""
-        For c = 1 To nKeep
-            If IsBlankValue(data(r, c)) Then
-                n = n + 1
-                If n <= 5 Then which = which & IIf(n > 1, ", ", "") & CellText(fin.Cells(1, c).Value)
-            End If
-        Next c
-        If n > 0 Then
+        If nBlank(r) > 0 Then
             out = out + 1
             blankRows = blankRows + 1
             ra.Cells(out, 1).Value = r + 1
-            If keyCol > 0 Then WriteCell ra.Cells(out, 2), data(r, keyCol)
-            ra.Cells(out, 3).Value = n
-            WriteCell ra.Cells(out, 4), which
+            If keyCol > 0 Then WriteCell ra.Cells(out, 2), keys(r, 1)
+            ra.Cells(out, 3).Value = nBlank(r)
+            WriteCell ra.Cells(out, 4), which(r)
         End If
     Next r
     If keyCol = 0 Then
@@ -677,8 +712,8 @@ Private Sub RowAudit(fin As Worksheet, nKeep As Long, nRows As Long, keyName As 
     ReDim rowsOf(1 To nRows)
     ReDim vals(1 To nRows)
     For r = 1 To nRows - 1
-        If Not IsBlankValue(data(r, keyCol)) Then
-            s = Trim(CellText(data(r, keyCol)))
+        If Not IsBlankValue(keys(r, 1)) Then
+            s = Trim(CellText(keys(r, 1)))
             k = Lookup(seen, s)
             If k = 0 Then
                 nDistinct = nDistinct + 1
@@ -737,14 +772,14 @@ Private Function StatusFormula(nAud As Long) As String
                     a & "$M$1:$M$" & nAud & "&""|""&" & a & "$N$1:$N$" & nAud & "&""|""&" & a & "$O$1:$O$" & nAud & _
                     "<>" & s & "$A$1:$A$" & nAud & "&""|""&" & s & "$B$1:$B$" & nAud & "&""|""&" & s & "$C$1:$C$" & _
                     nAud & "&""|""&" & s & "$D$1:$D$" & nAud & "))>0),""Out of date: a decision changed since this " & _
-                    "Build. Run Build again."",""Current"")"
+                    "Build. Run Build again."",""" & CURRENT_WORD & """)"
 End Function
 
 ' ---------------------------------------------------------------------------------------------------------------------
 ' Save a values-only copy
 
 Public Sub HygieneSaveCopy()
-    Dim copyBook As Workbook, wbk As Workbook
+    Dim copyBook As Workbook, wbk As Workbook, saved As Boolean, outPath As String
     On Error GoTo failed
     If Not SheetExists(FINAL) Then
         Say "There is no Final Population yet. Run Build first.", vbExclamation, "Save copy"
@@ -753,12 +788,11 @@ Public Sub HygieneSaveCopy()
     Dim ctl As Worksheet, stat As String
     Set ctl = ControlSheet()
     stat = CellText(ctl.Cells(C_STATUS, 2).Value)
-    If Left(stat, 11) = "Out of date" Then
-        Say "Final Population is out of date: a decision changed since it was built. Run Build, then save.", _
-               vbExclamation, "Save copy"
+    If stat <> CURRENT_WORD Then
+        Say "Final Population is not current (" & stat & "). Run Build, then save.", vbExclamation, "Save copy"
         Exit Sub
     End If
-    Dim outPath As String, stem As String, sep As String
+    Dim stem As String, sep As String
     Set wbk = ThisBook()
     If wbk.Path = "" Then
         Say "Save this workbook first: the copy is saved in the same folder.", vbExclamation, "Save copy"
@@ -768,12 +802,13 @@ Public Sub HygieneSaveCopy()
     If LCase(Left(wbk.Path, 4)) = "http" Then sep = "/" Else sep = Application.PathSeparator
     stem = wbk.Name
     If InStrRev(stem, ".") > 0 Then stem = Left(stem, InStrRev(stem, ".") - 1)
-    outPath = wbk.Path & sep & stem & " - Final Population " & Format(Now, "yyyy-mm-dd hhmm") & ".xlsx"
+    outPath = wbk.Path & sep & stem & " - Final Population " & Format(Now, "yyyy-mm-dd hhmmss") & ".xlsx"
     ' Final Population holds values only, so a copy of the sheet is already values only
     wbk.Worksheets(FINAL).Copy
     Set copyBook = ActiveWorkbook
     Application.DisplayAlerts = False
     copyBook.SaveAs Filename:=outPath, FileFormat:=51
+    saved = True
     Application.DisplayAlerts = True
     copyBook.Close SaveChanges:=False
     Set copyBook = Nothing
@@ -782,10 +817,19 @@ Public Sub HygieneSaveCopy()
     Say "Saved:" & vbLf & outPath, vbInformation, "Save copy"
     Exit Sub
 failed:
+    Dim num As Long, what As String
+    num = Err.Number
+    what = Err.Description
+    On Error Resume Next
     Application.DisplayAlerts = True
     If Not copyBook Is Nothing Then copyBook.Close SaveChanges:=False
     If Not wbk Is Nothing Then wbk.Activate
-    Recover "Save copy"
+    If saved Then
+        Say "The copy was saved (" & outPath & "), but Save copy stopped on an error after that: " & what & _
+            " (error " & num & ").", vbExclamation, "Save copy"
+    Else
+        RecoverWith "Save copy", num, what
+    End If
 End Sub
 
 ' ---------------------------------------------------------------------------------------------------------------------
@@ -853,9 +897,10 @@ End Sub
 
 ' An error part-way through: the screen and status bar put back, the error logged and shown.
 Private Sub Recover(action As String)
-    Dim num As Long, what As String
-    num = Err.Number
-    what = Err.Description
+    RecoverWith action, Err.Number, Err.Description
+End Sub
+
+Private Sub RecoverWith(action As String, num As Long, what As String)
     On Error Resume Next
     Application.StatusBar = False
     Application.ScreenUpdating = True
@@ -889,7 +934,7 @@ Private Function Reparsed(s As String) As Boolean
         Exit Function
     End If
     Select Case Left(t, 1)
-        Case "=", "+", "-", "@", "'"
+        Case "=", "+", "-", "@", "'", "#"
             Reparsed = True
             Exit Function
     End Select
@@ -934,16 +979,27 @@ Private Sub WriteColumn(ws As Worksheet, k As Long, v As Variant)
         End If
     Next i
     If allText Then ws.Range(ws.Cells(2, k), ws.Cells(n + 1, k)).NumberFormat = "@"
-    ws.Range(ws.Cells(2, k), ws.Cells(n + 1, k)).Value = v
-    If allText Then Exit Sub
+    If allText Then
+        ws.Range(ws.Cells(2, k), ws.Cells(n + 1, k)).Value = v
+        Exit Sub
+    End If
+    ' a mixed column: text Excel would re-read is held out of the one write ("=SUM(" there raises an error, "#N/A"
+    ' becomes an error value), then written alone into a cell formatted as Text
+    Dim held As New Collection, x As Variant
     For i = LBound(v, 1) To UBound(v, 1)
         If VarType(v(i, 1)) = vbString Then
             If Reparsed(CStr(v(i, 1))) Then
-                ws.Cells(i - LBound(v, 1) + 2, k).NumberFormat = "@"
-                ws.Cells(i - LBound(v, 1) + 2, k).Value = v(i, 1)
+                held.Add Array(i, v(i, 1))
+                v(i, 1) = Empty
             End If
         End If
     Next i
+    ws.Range(ws.Cells(2, k), ws.Cells(n + 1, k)).Value = v
+    For Each x In held
+        ws.Cells(x(0) - LBound(v, 1) + 2, k).NumberFormat = "@"
+        ws.Cells(x(0) - LBound(v, 1) + 2, k).Value = x(1)
+        v(x(0), 1) = x(1)
+    Next x
 End Sub
 
 ' A sheet emptied for writing: cleared when it exists, added after `after` when it does not.

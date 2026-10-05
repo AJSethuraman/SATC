@@ -447,7 +447,7 @@ def test_every_macro_a_person_runs_ends_in_the_error_path():
     for name in ("HygieneProfile", "HygieneBuild", "HygieneSaveCopy", "HygieneSelfTest"):
         body = re.search(rf"Public Sub {name}\(\)\n(.*?)\nEnd Sub", code, re.S).group(1)
         assert "On Error GoTo failed" in body.splitlines()[0] + body.splitlines()[1], name
-        assert re.search(r"failed:\n(?:.*\n)*?    Recover \"", body + "\n"), name
+        assert re.search(r"failed:\n(?:.*\n)*?\s+Recover(?:With)? \"", body + "\n"), name
 
 
 def test_save_copy_writes_final_population_alone_beside_the_workbook(office, tmp_path):
@@ -465,3 +465,68 @@ def test_save_copy_writes_final_population_alone_beside_the_workbook(office, tmp
     assert copies[0].stat().st_size > 0
     assert not any(x[1] == "Save copy said" and "stopped on an error" in x[2]
                    for x in log_lines(load_workbook(tmp_path / "save_b.xlsx")))
+
+
+# --------------------------------------------------------------------------
+# The second review of 5 Oct 2026, on the fixes above.
+
+
+def test_build_refuses_a_source_column_with_no_row_on_column_audit(office, tmp_path):
+    """A column added after Profile, or its row deleted, would otherwise be left out with no decision at all."""
+    small_book(tmp_path / "gap.xlsx", ["A", "B", "C"], [[1, 2, 3]])
+    office.run(tmp_path / "gap.xlsx", tmp_path / "gap_p.xlsx", [("use", "HygieneProfile")])
+    decide(tmp_path / "gap_p.xlsx", {"A": ("Keep", None, None), "B": ("Keep", None, None), "C": ("Drop", None, None)},
+           key=None)
+    wb = load_workbook(tmp_path / "gap_p.xlsx")
+    wb["Column Audit"].delete_rows(3)                                     # B's row
+    wb.save(tmp_path / "gap_p.xlsx")
+    office.run(tmp_path / "gap_p.xlsx", tmp_path / "gap_b.xlsx", [("use", "HygieneBuild")])
+    out = load_workbook(tmp_path / "gap_b.xlsx")
+    assert "Final Population" not in out.sheetnames
+    refused = [x for x in log_lines(out) if x[1] == "Build refused"]
+    assert refused and "B: on use but not on Column Audit; run Profile again" in refused[-1][2]
+
+
+def test_save_copy_needs_a_current_build(office, tmp_path):
+    """Build writes "Not built" before it touches Final Population and "Current" only when it has finished, and Save
+    copy saves only a Current one, so a Build that stopped part-way is never saved as if whole."""
+    small_book(tmp_path / "cur.xlsx", ["A"], [[1], [2]])
+    office.run(tmp_path / "cur.xlsx", tmp_path / "cur_p.xlsx", [("use", "HygieneProfile")])
+    decide(tmp_path / "cur_p.xlsx", {"A": ("Keep", None, None)}, key=None)
+    office.run(tmp_path / "cur_p.xlsx", tmp_path / "cur_b.xlsx", [("use", "HygieneBuild")])
+    wb = load_workbook(tmp_path / "cur_b.xlsx")
+    wb["Hygiene"]["B8"].value = "Not built: the last Build did not finish. Run Build again."
+    wb.save(tmp_path / "cur_half.xlsx")
+    office.run(tmp_path / "cur_half.xlsx", tmp_path / "cur_out.xlsx", [("use", "HygieneSaveCopy")])
+    log = log_lines(load_workbook(tmp_path / "cur_out.xlsx"))
+    assert log[-1][1] == "Save copy said" and log[-1][2].startswith("Final Population is not current (Not built")
+    assert not list(tmp_path.glob("cur_half - Final Population *"))
+
+
+def test_error_text_and_formula_text_in_a_mixed_column_stay_text(office, tmp_path):
+    """Text reading "#N/A" or "=SUM(" in a column that also holds numbers: kept as text, never an error or a
+    formula. openpyxl would store both as an error and a formula, so the source cells are set to text by hand."""
+    small_book(tmp_path / "errtext.xlsx", ["ID", "V"], [[1, "x"], [2, "x"], [3, 7], [4, "ok"]])
+    wb = load_workbook(tmp_path / "errtext.xlsx")
+    for ref, text in (("B2", "#N/A"), ("B3", "=SUM(")):
+        wb["use"][ref].value = text
+        wb["use"][ref].data_type = "s"
+    wb.save(tmp_path / "errtext.xlsx")
+    office.run(tmp_path / "errtext.xlsx", tmp_path / "errtext_p.xlsx", [("use", "HygieneProfile")])
+    decide(tmp_path / "errtext_p.xlsx", {"ID": ("Keep", None, None), "V": ("Keep", None, None)}, key=None)
+    office.run(tmp_path / "errtext_p.xlsx", tmp_path / "errtext_b.xlsx", [("use", "HygieneBuild")])
+    wb = load_workbook(tmp_path / "errtext_b.xlsx")
+    fin = wb["Final Population"]
+    assert (fin["B2"].value, fin["B2"].number_format) == ("#N/A", "@")
+    assert (fin["B3"].value, fin["B3"].number_format) == ("=SUM(", "@")
+    assert fin["B4"].value == 7 and fin["B5"].value == "ok"
+
+
+def test_a_heading_that_reads_like_a_marked_name_is_marked_in_turn(office, tmp_path):
+    header = ["A", "A", "A (column 2)"]
+    wb, _ = profile_then(office, tmp_path, "collide", header, [[1, 2, 3]],
+                         {"A": ("Keep", None, None), "A (column 2)": ("Keep", "A2", None),
+                          "A (column 2) (column 3)": ("Keep", "A3", None)})
+    assert [r[0] for r in wb["Column Audit"].iter_rows(min_row=2, values_only=True)] == \
+        ["A", "A (column 2)", "A (column 2) (column 3)"]
+    assert [[c.value for c in r] for r in wb["Final Population"].iter_rows()] == [["A", "A2", "A3"], [1, 2, 3]]
