@@ -460,7 +460,7 @@ def test_the_words_are_p_value_and_not_significant(walk_book):
     assert not found, found
     assert "p-value" in text and "not significant" in text
     ws = walk_book[results.POCKETS]
-    assert ws.cell(row=tabs.header_row(ws, results.K_NUM, "#"), column=results.K_P).value == "p-value"
+    assert ws.cell(row=tabs.header_row(ws, results.K_NUM, "#"), column=results.K_P).value == results.CHANCE_HEAD
     check = tabs.record(walk_book)
     assert check["Standard error"].startswith("How far a rate worked out from this many loans typically lands")
     assert "Two-sided" in check["p-value"]

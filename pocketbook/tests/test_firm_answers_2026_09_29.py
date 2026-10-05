@@ -1359,7 +1359,7 @@ def _note(ws) -> dict:
     return out
 
 
-def test_borderline_pockets_worse_says_it_beside_the_word_and_keeps_the_words_colour(border_book, tmp_path):
+def test_borderline_pockets_says_too_close_to_call_and_worse_keeps_the_words_colour(border_book, tmp_path):
     import tabs
     from pocketbook import live, results
     res, calc = border_book["res"], border_book["calc"]
@@ -1378,12 +1378,15 @@ def test_borderline_pockets_worse_says_it_beside_the_word_and_keeps_the_words_co
     # the Pockets tab: charge-offs, a pass and a fail, each flagged; Bad loans at 0.049 by the z test, never
     ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "gco.xlsx", results.POCKETS,
                                      measure="GCOs ($)"), results.POCKETS)
-    said = {x["worse_said"] for x in tabs.pockets(ws)}
-    assert "Yes · borderline (p 0.048)" in said and "Not sure · borderline (p 0.052)" in said, said
+    # 5 Oct 2026: Worse? is the word alone, and a borderline pocket reads "Too close to call" in How often by chance
+    rows = tabs.pockets(ws)
+    close = {x["worse"] for x in rows if x["chance"] == live.CLOSE}
+    assert close == {"Yes", "Not sure"}, close
+    assert not any("borderline" in str(x["worse_said"]) or " · " in str(x["worse_said"]) for x in rows)
     ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "bad.xlsx", results.POCKETS,
                                      measure="Bad loans"), results.POCKETS)
     rows = tabs.pockets(ws)
-    assert any(x["worse"] == "Yes" for x in rows) and not any("borderline" in str(x["worse_said"]) for x in rows)
+    assert any(x["worse"] == "Yes" for x in rows) and not any(x["chance"] == live.CLOSE for x in rows)
     # its colour is the word's, borderline or not: every rule on Worse? compares the word without the flag
     written = load_workbook(border_book["b"])[results.POCKETS]
     col = results.col(results.K_WORSE)
@@ -1393,8 +1396,8 @@ def test_borderline_pockets_worse_says_it_beside_the_word_and_keeps_the_words_co
     # the method note says what it means, in the firm's plain words and under 25, at the end of its p-value item
     # so that no row of the tab moves
     note = _note(calc[results.POCKETS])
-    assert note["p-value"].endswith(" " + BORDER_SAID)
-    assert len(BORDER_SAID.split()) <= 25 + 1
+    assert "Too close to call (the shuffled p-value is within the shuffle's own margin of the bar" in \
+        note[results.CHANCE_HEAD]
 
 
 def test_borderline_paid_cost_kept_together_says_it_and_its_colour_and_chart_stay_the_words(border_book, tmp_path):
@@ -2655,3 +2658,69 @@ def test_few_values_prevalence_counts_value_bands_as_the_grids_cut_them(tmp_path
     assert {k[0] for k in out} == set(res.grids[0].band_labels)
     assert prevalence._bands_of([(float(r[DEROGS]), None) for r in rows], res.band_edges["derogs"],
                                 res.value_bands["derogs"])[1] == [str(v) for v in range(9)]
+
+
+# --------------------------------------------------------------------------
+# How often by chance (the firm, 5 Oct 2026: "the p value stuff is not simple for a laymen's user" ... "it should
+# indicate a 1 in X number ... but if we can't rely on it it should say something instead of the 1 in X that
+# explains easily why it can't calculate"; approved: "I think that's more clear to a normal user")
+
+
+@pytest.mark.parametrize("p, said", [(0.0025, "1 in 400"), (0.00377, "1 in 270"), (0.04, "1 in 25"),
+                                     (0.0123, "1 in 81"), (0.000151, "1 in 6,600"), (0.0001, "1 in 10,000"),
+                                     (0.0000999, "Rarer than 1 in 10,000"), (0.0, "Rarer than 1 in 10,000")])
+def test_chance_one_in_x_is_two_significant_figures(p, said):
+    from pocketbook import live
+    assert live.one_in(p) == said
+
+
+def test_chance_says_why_there_is_no_number_for_every_reading():
+    from pocketbook import engine, live
+    said = live.chance_said
+    assert said(engine.WORSE, 1.6, 0.0025, None, False) == "1 in 400"
+    assert said(engine.WORSE, 1.6, 0.048, "0.048", False) == live.CLOSE
+    assert said(engine.UNSURE_WORSE, 1.6, 0.052, "0.052", False) == live.CLOSE
+    assert said(engine.UNSURE_WORSE, 1.6, 0.2, None, False) == live.CHANCE
+    assert said(engine.FEW, 3.0, None, None, False) == live.FEW_LOSSES
+    assert said(engine.THIN, 3.0, None, None, False) == live.FEW_LOANS
+    assert said(engine.IN_LINE, None, None, None, False) == live.NO_REST
+    assert said(engine.IN_LINE, 1.1, 0.001, None, False) == live.UNDER_WORSE
+    assert said(engine.IN_LINE, 0.9, 0.3, None, False) == live.NOT_MORE
+    assert said(engine.BETTER, 0.5, 0.001, None, False) == live.NOT_MORE
+    assert said(engine.UNSURE_BETTER, 0.8, 0.3, None, False) == live.NOT_MORE
+    # profit: the gap is in points, short of the rest when below 0
+    assert said(engine.IN_LINE, -0.002, 0.3, None, True, "test") == live.CHANCE
+    assert said(engine.IN_LINE, -0.002, 0.3, None, True, "points") == live.UNDER_PROFIT
+    assert said(engine.IN_LINE, 0.002, 0.3, None, True, "points") == live.NOT_MORE
+
+
+def test_chance_on_every_pocket_matches_the_python_reading_and_only_yes_gets_a_number(border_book, tmp_path):
+    """Every row of _pockets, calculated, against chance_said over the same row's flag, gap, p-value and borderline
+    words; then the Pockets tab: "1 in X" on Yes rows only, a reason everywhere else, and the header."""
+    import tabs
+    from pocketbook import live, results
+    pk = border_book["calc"][live.POCKETS]
+    seen = set()
+    for r in range(live.P_FIRST, pk.max_row + 1):
+        v = lambda c: pk.cell(row=r, column=c).value                        # noqa: E731
+        if v(live.P_MEASURE) in (None, ""):
+            continue
+        flag, gap, p, wb = v(live.P_FLAG), v(live.P_GAP), v(live.P_P), v(live.P_WBTXT)
+        profit = v(live.P_MEASURE) in ("ranr_rate", "contribution_rate")
+        want = live.chance_said(flag or None, gap if isinstance(gap, float | int) else None,
+                                p if isinstance(p, float | int) else None, wb or None, profit)
+        assert v(live.P_CHANCE) == want, (r, flag, gap, p, wb, v(live.P_CHANCE))
+        seen.add(want if not want.startswith("1 in") else "1 in")
+    assert {"1 in", live.CLOSE, live.CHANCE, live.NOT_MORE} <= seen, seen
+    for measure in ("GCOs ($)", "Bad loans"):
+        ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / f"{measure[:3]}.xlsx", results.POCKETS,
+                                         measure=measure), results.POCKETS)
+        assert ws.cell(row=tabs.header_row(ws, results.K_NUM, "#"), column=results.K_P).value == "How often by chance"
+        rows = tabs.pockets(ws)
+        assert rows and all(x["chance"] for x in rows)
+        for x in rows:
+            number = str(x["chance"]).startswith(("1 in", "Rarer than"))
+            if str(x["holds"] or "").startswith("No:"):
+                assert x["chance"].startswith(results.MIXED), x            # the gap may be the partner's
+            elif x["chance"] != live.CLOSE:
+                assert number == (x["worse"] == "Yes"), x
