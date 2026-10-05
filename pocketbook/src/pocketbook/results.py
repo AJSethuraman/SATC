@@ -493,13 +493,21 @@ def _pockets_note(res) -> list[tuple[str, str]]:
             if profit else "", ", with a p-value under ", ('TEXT(significance_bar,"0%")',),
             ". Not sure: the gap is there, but the p-value isn't under it. Too few losses: fewer than ",
             f"{b.min_events:,} (a setting for the next Run), so not tested. No: anything else.")),
-        ("p-value", live.text(
-            "The chance of a gap at least this big if the pocket were no different from the rest, after the "
-            f"allowance for testing many pockets at once ({_allowance(b)}, across one grid and one measure). Bad "
-            f"loans: the z test, or the exact test for a pocket under {b.min_units:,} loans."
+        (CHANCE_HEAD, live.text(
+            "A Yes pocket: how often a gap this big would turn up by chance if the pocket were no different from "
+            "the rest. 1 in 400 is a p-value of 0.25%. It allows for testing many pockets at once "
+            f"({_allowance(b)}, across one grid and one measure), so the pocket alone is rarer still. Bad loans: "
+            f"the z test, or the exact test for a pocket under {b.min_units:,} loans."
             + (f" Dollar measures: the loans are shuffled {b.shuffles:,} times, within the band for the rest of "
                f"its band, and it is how often a gap as big turned up." if dollar_rates else ""),
-            " Under ", ('TEXT(significance_bar,"0%")',), " counts.", *(BORDER_WORDS if dollar_rates else ()))),
+            " Every other pocket shows why there is no number: Could be chance (the p-value is not under ",
+            ('TEXT(significance_bar,"0%")',), ")"
+            + ("; Too close to call (the shuffled p-value is within the shuffle's own margin of the bar, so "
+               "another run could read it the other way)" if dollar_rates else "")
+            + f"; {live.FEW_LOSSES} or {live.FEW_LOANS}; {live.NO_REST} (the rest has no losses); "
+              f"{live.UNDER_WORSE}" + (f" or {live.UNDER_PROFIT}" if profit else "")
+            + f"; {live.NOT_MORE}"
+            + (f"; {MIXED}{pt[0]} (see Holds {pt[0]} fixed?)" if sf and pt else "") + ".")),
         ("Material?", "Yes when the excess reaches the materiality line on Control (the Material at tile, in the "
                       "measure's own unit). It is judged apart from Worse?: a pocket can be one without the other."),
         ("Could have caught", f"The smallest gap a pocket this size would catch {b.power:.0%} of the time at the "
@@ -515,6 +523,13 @@ def _pockets_note(res) -> list[tuple[str, str]]:
                                               f"showing {pt[0]}, not {sf}. Those rows come last, in grey, with no "
                                               f"verdict colour."))
     return items
+
+
+#: Pockets' p-value column, in words (the firm, 5 Oct 2026: "the p value stuff is not simple for a laymen's user"):
+#: "1 in X" for a Yes pocket, else the reason there is no number to rely on (live.chance_said)
+CHANCE_HEAD = "How often by chance"
+#: a split pocket whose grid doesn't hold the partner fixed: the gap may be the partner's, so no number
+MIXED = "Mixed with "
 
 
 #: the label columns on Pockets, RANR vs GCOs and Start here (P1): fitted to the Run's labels, between these
@@ -563,10 +578,11 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
               K_SEG: max(lw["seg"], house.fit(kinds_, floor=0, cap=LABELS_CAP, pad=3)),
               K_HALF: max(lw["half"], house.fit(SHOW, floor=0, cap=LABELS_CAP, pad=3)),
               K_LOANS: 9, K_THIS: 11, K_REST: 12, K_GAP: 14, K_EX: 22,
-              # the widest word Worse? can print, the borderline flag's included ("Not sure · borderline (p 0.052)")
-              K_WORSE: house.fit([live.TOO_FEW, "Worse?", f"{live.NOT_SURE} · {stats.borderline_words(0.052, 0.95)}"],
-                                 floor=11, cap=36),
-              K_P: SPLIT_FLOOR, K_MAT: 11, K_CAUGHT: house.fit(["Could have caught"], floor=11, cap=20),
+              # the widest word Worse? can print: borderline is said in How often by chance (5 Oct 2026)
+              K_WORSE: house.fit([live.TOO_FEW, "Worse?"], floor=11, cap=36),
+              K_P: house.fit([CHANCE_HEAD, live.FEW_LOSSES, live.NO_REST, "Rarer than 1 in 10,000",
+                              live.UNDER_WORSE] + ([MIXED + pt[0]] if pt else []), floor=11, cap=36),
+              K_MAT: 11, K_CAUGHT: house.fit(["Could have caught"], floor=11, cap=20),
               K_HOLDS: house.fit([f"No: may be mostly {pt[0]}", f"Holds {pt[0]} fixed?"] if pt else [],
                                  floor=12, cap=LABELS_CAP, pad=3)}
     _widths(ws, widths)
@@ -623,7 +639,7 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
              K_GAP: f'=IF({pts},"Gap in pts",IF({J},"× rest of band","× rest of book"))',
              K_EX: f'=IF({loans},"Bad loans above share",IF({pts},IF({J},"Dollars short of band","Dollars short of '
                    f'book"),"Dollars above share"))',
-             K_WORSE: "Worse?", K_P: "p-value", K_MAT: "Material?", K_CAUGHT: "Could have caught"}
+             K_WORSE: "Worse?", K_P: CHANCE_HEAD, K_MAT: "Material?", K_CAUGHT: "Could have caught"}
     pt = bk._partner(res) if res.config.split else None
     heads[K_HOLDS] = (f'=IF({sel["kind"]}="{TWO_WAY}","","Holds {pt[0]} fixed?")' if pt else "")
     house.header(ws, h, K_NUM, [heads[c] for c in range(K_NUM, K_HOLDS + 1)], centre_from=K_LOANS - K_NUM)
@@ -636,14 +652,21 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
         ws.cell(row=rr, column=K_IDX, value=f'=IFERROR(MATCH({k},{Lr(L_CUM)},0),"")')
         ws.cell(row=rr, column=K_ROW, value=f'=IF({I}="","",INDEX({Lr(L_ROW)},{I}))')
         lst = lambda c: f'IF({I}="","",IF(INDEX({Lr(c)},{I})="","",INDEX({Lr(c)},{I})))'     # noqa: E731
+
+        def chance(R, I):
+            """How often by chance, and for a split pocket whose grid doesn't hold the partner fixed, why not."""
+            words = at(live.P_CHANCE, R)
+            if not pt:
+                return words
+            return f'IF(LEFT({lst(L_HOLDS)},3)="No:",{live.q(MIXED + pt[0])},{words})'
         vals = {K_NUM: f'=IF({I}="","",{k})', K_BAND: f"={lst(L_BAND)}", K_SEG: f"={lst(L_SEG)}",
                 K_HALF: f"={lst(L_HALF)}", K_LOANS: f"={lst(L_LOANS)}", K_THIS: f"={at(live.P_RATE, R)}",
                 K_REST: f"={at(live.P_REST, R)}",
                 K_GAP: f'=IF({at(live.P_GAP, R)}="","",{at(live.P_GAP, R)}*IF({pts},100,1))',
-                # Worse? with its borderline words, when it turns on a shuffled p-value that near the bar
-                K_EX: f"={at(live.P_DOLLARS, R)}", K_WORSE: f"={at(live.P_WORSE_SAID, R)}", K_P: f"={at(live.P_P, R)}",
+                # Worse? as a word; a borderline one reads "Too close to call" in How often by chance
+                K_EX: f"={at(live.P_DOLLARS, R)}", K_WORSE: f"={at(live.P_WORSE, R)}", K_P: f"={chance(R, I)}",
                 K_MAT: f"={lst(L_MAT)}", K_CAUGHT: f"={lst(L_CAUGHT)}", K_HOLDS: f"={lst(L_HOLDS)}"}
-        fmts = {K_LOANS: "#,##0", K_THIS: "0.00%", K_REST: "0.00%", K_GAP: X_FMT, K_EX: "#,##0", K_P: P_FMT,
+        fmts = {K_LOANS: "#,##0", K_THIS: "0.00%", K_REST: "0.00%", K_GAP: X_FMT, K_EX: "#,##0",
                 K_CAUGHT: X_FMT}
         for c, v in vals.items():
             _cell(ws, rr, c, v, h="left" if c in (K_BAND, K_SEG, K_HALF, K_HOLDS) else "center", fmt=fmts.get(c),

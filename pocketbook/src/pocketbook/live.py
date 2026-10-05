@@ -33,6 +33,7 @@ Excel without dynamic arrays: no SORT, FILTER or LET, so Excel 2016 and LibreOff
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -63,6 +64,8 @@ P_RATE, P_WORSE, P_MAT = 34, 35, 36
 # shuffle standard error after the allowance (values; blank for a test that isn't shuffled), the p-value in words
 # when the flag turns on it and it is that near the bar, the same for Worse?, and Worse? as the tabs print it
 P_SE_BOOK, P_SE_BAND, P_BTXT, P_WBTXT, P_WORSE_SAID = 37, 38, 39, 40, 41
+#: How often by chance (the firm, 5 Oct 2026), as Pockets prints it
+P_CHANCE = 42
 #: what joins a verdict and its flag: "Yes · borderline (p 0.048)"
 JOIN = " · "
 #: Worse? in words: the flag that decides, as Yes / Not sure / No / Too few losses
@@ -87,6 +90,7 @@ POCKET_HEADS = {
     P_BTXT: "Borderline: the p-value that decides, when the flag turns on it and it is within 2 standard errors of "
             "the bar",
     P_WBTXT: "Borderline, for Worse?", P_WORSE_SAID: "Worse? as the tabs print it",
+    P_CHANCE: "How often by chance",
 }
 P_FIRST = 4               # the first pocket row on _pockets
 
@@ -517,6 +521,64 @@ def said_formula(word: str, ptext: str) -> str:
     return f'IF(OR({word}="",{ptext}=""),{word},{word}&{q(JOIN + "borderline (p ")}&{ptext}&")")'
 
 
+#: How often by chance (the firm, 5 Oct 2026: "it should indicate a 1 in X number ... but if we can't rely on it it
+#: should say something instead of the 1 in X that explains easily why"): a Yes pocket's p-value as "1 in X", and
+#: in its place, for every other pocket, the reason there is no number to rely on
+NO_REST, CLOSE, CHANCE = "Nothing to compare with", "Too close to call", "Could be chance"
+FEW_LOSSES, FEW_LOANS, NOT_MORE = "Too few losses to test", "Too few loans to test", "Not losing more"
+UNDER_WORSE, UNDER_PROFIT = "Under the Worse at line", "Within the profit line"
+#: under this the "1 in X" would print a number no Run can stand behind; it reads "Rarer than 1 in 10,000"
+RAREST = 0.0001
+
+
+def one_in(p: float) -> str:
+    """A p-value as the tabs say it: "1 in 400", X to two significant figures, or "Rarer than 1 in 10,000"."""
+    if p < RAREST:
+        return "Rarer than 1 in 10,000"
+    x = 1.0 / p
+    digits = max(0, int(math.floor(math.log10(x))) - 1)
+    return f"1 in {math.floor(x / 10 ** digits + 0.5) * 10 ** digits:,.0f}"
+
+
+def one_in_formula(p: str) -> str:
+    """one_in as a formula."""
+    x = f"(1/{p})"
+    return (f'IF({p}<{RAREST!r},"Rarer than 1 in 10,000","1 in "&TEXT(ROUND({x},'
+            f'-MAX(0,INT(LOG10({x}))-1)),"#,##0"))')
+
+
+def chance_said(word: str | None, gap: float | None, p: float | None, border: str | None, profit: bool,
+                profit_kind: str = "test") -> str:
+    """How often by chance, in Python: the reading (engine's word), the gap that decides (a multiple, or points
+    for profit), the p-value that decides and Worse?'s borderline words."""
+    if word in (engine.FEW, engine.THIN):
+        return FEW_LOSSES if word == engine.FEW else FEW_LOANS
+    if gap is None:
+        return NO_REST
+    if border:
+        return CLOSE
+    if word == engine.WORSE:
+        return one_in(p)
+    if word == engine.UNSURE_WORSE:
+        return CHANCE
+    more = gap < 0 if profit else gap > 1
+    if word == engine.IN_LINE and more:
+        if profit and profit_kind == "test":
+            return CHANCE
+        return UNDER_PROFIT if profit else UNDER_WORSE
+    return NOT_MORE
+
+
+def chance_words(f: str, gap: str, p: str, wbtxt: str, profit: bool) -> str:
+    """chance_said as a formula, from _pockets' flag, gap, p-value and Worse?'s borderline words."""
+    more = f"{gap}<0" if profit else f"{gap}>1"
+    under = (f'IF(profit_kind="test",{q(CHANCE)},{q(UNDER_PROFIT)})' if profit else q(UNDER_WORSE))
+    return (f'IF({f}={q(engine.FEW)},{q(FEW_LOSSES)},IF({f}={q(engine.THIN)},{q(FEW_LOANS)},'
+            f'IF({gap}="",{q(NO_REST)},IF({wbtxt}<>"",{q(CLOSE)},'
+            f'IF({f}={q(engine.WORSE)},{one_in_formula(p)},IF({f}={q(engine.UNSURE_WORSE)},{q(CHANCE)},'
+            f'IF(AND({f}={q(engine.IN_LINE)},{more}),{under},{q(NOT_MORE)})))))))')
+
+
 def base_word(cell: str) -> str:
     """A printed verdict without its borderline words, for a colour rule that compares the word itself."""
     return f'IFERROR(LEFT({cell},FIND({q(JOIN)},{cell})-1),{cell})'
@@ -626,6 +688,8 @@ def _write_pockets(wb, res, lv: Live) -> None:
                         ws.cell(row=r, column=cc, value="=" + border_text(R(P_FLAG), R(P_GAP), R(P_P), se,
                                                                            m.in_points, only))
                     ws.cell(row=r, column=P_WORSE_SAID, value="=" + said_formula(R(P_WORSE), R(P_WBTXT)))
+                    ws.cell(row=r, column=P_CHANCE, value="=" + chance_words(R(P_FLAG), R(P_GAP), R(P_P),
+                                                                             R(P_WBTXT), m.in_points))
                     ws.cell(row=r, column=P_MAT, value=(
                         f'=IF({R(P_MATERIAL)}="yes",{q(YES)},IF({R(P_MATERIAL)}="","",{q(NO)}))'))
                     lv.rows[(kind, id(g), bl, dl, m.name)] = r
