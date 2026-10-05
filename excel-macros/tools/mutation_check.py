@@ -65,9 +65,8 @@ MUTATIONS = [
     ("Save copy saves a Build that did not finish", H, "    If stat <> CURRENT_WORD Then",
      "    If Left(stat, 11) = \"Out of date\" Then", "needs_a_current_build"),
     ("a heading reading like a marked name collides", H,
-     "        If Not Has(seen, LCase(out(c))) Then seen.Add c, KeyOf(LCase(out(c)))",
-     "        If out(c) = h And Not Has(seen, LCase(out(c))) Then seen.Add c, KeyOf(LCase(out(c)))",
-     "marked_in_turn"),
+     "        Do While Has(seen, LCase(out(c)))", "        Do While False",
+     "marked_in_turn or would_collide"),
     ("the source sheet written to", H, "        WriteCell aud.Cells(r, A_NAME), names(c)\n",
      "        WriteCell aud.Cells(r, A_NAME), names(c)\n        src.Cells(2, 1).Value = 0\n", "source_alone"),
 ]

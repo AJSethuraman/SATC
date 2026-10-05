@@ -499,7 +499,8 @@ def test_save_copy_needs_a_current_build(office, tmp_path):
     wb.save(tmp_path / "cur_half.xlsx")
     office.run(tmp_path / "cur_half.xlsx", tmp_path / "cur_out.xlsx", [("use", "HygieneSaveCopy")])
     log = log_lines(load_workbook(tmp_path / "cur_out.xlsx"))
-    assert log[-1][1] == "Save copy said" and log[-1][2].startswith("Final Population is not current (Not built")
+    assert log[-1][1] == "Save copy said" and log[-1][2] == ("Final Population is not current. Its status reads: Not built: the last Build "
+                                                  "did not finish. Run Build again.")
     assert not list(tmp_path.glob("cur_half - Final Population *"))
 
 
@@ -530,3 +531,15 @@ def test_a_heading_that_reads_like_a_marked_name_is_marked_in_turn(office, tmp_p
     assert [r[0] for r in wb["Column Audit"].iter_rows(min_row=2, values_only=True)] == \
         ["A", "A (column 2)", "A (column 2) (column 3)"]
     assert [[c.value for c in r] for r in wb["Final Population"].iter_rows()] == [["A", "A2", "A3"], [1, 2, 3]]
+
+
+def test_three_headings_that_would_collide_get_three_names(office, tmp_path):
+    """The third review: "A (column 3)", "A", "A" gave column 3 the first column's heading."""
+    header = ["A (column 3)", "A", "A"]
+    wb, _ = profile_then(office, tmp_path, "collide3", header, [[1, 2, 3]],
+                         {"A (column 3)": ("Keep", None, None), "A": ("Keep", None, None),
+                          "A (column 3, 2)": ("Keep", "A3", None)})
+    names = [r[0] for r in wb["Column Audit"].iter_rows(min_row=2, values_only=True)]
+    assert names == ["A (column 3)", "A", "A (column 3, 2)"] and len(set(names)) == 3
+    assert [[c.value for c in r] for r in wb["Final Population"].iter_rows()] == \
+        [["A (column 3)", "A", "A3"], [1, 2, 3]]

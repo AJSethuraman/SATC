@@ -144,7 +144,7 @@ End Sub
 ' and Build finds the same column again. Profile and Build both name columns here. Returns a Variant holding the
 ' array: a function declared to return String() does not compile in LibreOffice, which the tests run on.
 Private Function DisplayNames(src As Worksheet, nCols As Long, blankNames As Long, sharedNames As Long) As Variant
-    Dim out() As String, c As Long, h As String, seen As New Collection
+    Dim out() As String, c As Long, h As String, seen As New Collection, n As Long
     ReDim out(1 To nCols)
     For c = 1 To nCols
         h = Trim(CellText(src.Cells(1, c).Value))
@@ -157,9 +157,14 @@ Private Function DisplayNames(src As Worksheet, nCols As Long, blankNames As Lon
         Else
             out(c) = h
         End If
-        ' every name given joins the list, the marked ones too, so a heading that happens to read "A (column 2)" is
-        ' marked in turn rather than colliding with one
-        If Not Has(seen, LCase(out(c))) Then seen.Add c, KeyOf(LCase(out(c)))
+        ' every name given joins the list, the marked ones too; a name already taken, even by a heading that happens
+        ' to read "A (column 3)", is counted on until it is not, so no two columns ever share one
+        n = 1
+        Do While Has(seen, LCase(out(c)))
+            n = n + 1
+            out(c) = h & " (column " & c & ", " & n & ")"
+        Loop
+        seen.Add c, KeyOf(LCase(out(c)))
     Next c
     DisplayNames = out
 End Function
@@ -789,7 +794,11 @@ Public Sub HygieneSaveCopy()
     Set ctl = ControlSheet()
     stat = CellText(ctl.Cells(C_STATUS, 2).Value)
     If stat <> CURRENT_WORD Then
-        Say "Final Population is not current (" & stat & "). Run Build, then save.", vbExclamation, "Save copy"
+        If stat = "" Then
+            Say "There is no finished Build yet. Run Build, then save.", vbExclamation, "Save copy"
+        Else
+            Say "Final Population is not current. Its status reads: " & stat, vbExclamation, "Save copy"
+        End If
         Exit Sub
     End If
     Dim stem As String, sep As String
