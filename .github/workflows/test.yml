@@ -86,6 +86,19 @@ jobs:
           # path runs in CI (canon S14: unreachable code is unchecked); its refusal without it is tested too.
           - project: pocketbook
             install: pip install -e ".[test,scout]"
+          # The season simulator drives the REAL satc_system routes and
+          # client-documents commands through a short simulated season under a
+          # frozen clock, in worker subprocesses. CI holds its MECHANICS only
+          # (S22): the isolation guard refuses live paths, the same seed writes
+          # byte-identical findings, every checker goes red on a planted
+          # violation, three real functions broken on purpose are caught, and
+          # the denominators are above a floor. It never asserts "zero findings"
+          # -- the full season is desk-run and its report is read, not asserted.
+          # satc_system[dev] because `satc.app.state` imports reportlab at module
+          # level, which the [app] extra alone does not install. No Chromium:
+          # every document event runs with --skip-render --no-pdf.
+          - project: season-simulator
+            install: pip install -e "../satc_system[dev]" -r ../client-documents/requirements.txt -e ".[test]"
     defaults:
       run:
         working-directory: ${{ matrix.project }}
