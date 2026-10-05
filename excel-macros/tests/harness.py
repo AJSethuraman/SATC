@@ -75,8 +75,12 @@ class Office:
             if not libs.hasByName("Standard"):
                 libs.createLibrary("Standard")
             lib = libs.getByName("Standard")
+            names = []
             for m in modules:
-                src = basic_source(MACROS / f"{m}.bas")
+                path = Path(m) if str(m).endswith(".bas") else MACROS / f"{m}.bas"
+                m = path.stem
+                names.append(m)
+                src = basic_source(path)
                 if lib.hasByName(m):
                     lib.replaceByName(m, src)
                 else:
@@ -84,9 +88,10 @@ class Office:
             sp = doc.getScriptProvider()
 
             def call(name):
-                sp.getScript(f"vnd.sun.star.script:Standard.{modules[0]}.{name}?language=Basic&location=document"
-                             ).invoke((), (), ())
-            if modules[0] == "Hygiene":
+                mod, _, name = name.rpartition(".")
+                sp.getScript(f"vnd.sun.star.script:Standard.{mod or names[0]}.{name}?language=Basic"
+                             f"&location=document").invoke((), (), ())
+            if names[0] == "Hygiene":
                 call("HygieneSetQuiet")
             for sheet, macro in steps:
                 if sheet:
