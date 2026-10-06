@@ -28,6 +28,7 @@ import json
 import sys
 
 from .engine import Measure, Refused, Settings, run
+from .backtest import backtest, report as backtest_report
 from .evidence import evidence, report as evidence_report
 from .profile import profile, report
 from .series import Point, SeriesError
@@ -72,6 +73,18 @@ def _parser():
                     metavar="YEARS", help="repeat scenario C with the normal level "
                     "weighted toward recent years at each half-life")
     ev.add_argument("--json", action="store_true")
+    bt = sub.add_parser("backtest", help="how predictive a percentile scale would "
+                        "have been, with and without recency weighting")
+    _measure_args(bt)
+    bt.add_argument("--floor-at-zero", required=True, type=_yes_no)
+    bt.add_argument("--percentiles", required=True, type=float, nargs="+",
+                    metavar="P", help="where scores 2, 3, ... begin, e.g. 50 75 90 95")
+    bt.add_argument("--horizon", required=True, type=int,
+                    help="periods ahead the score is judged against")
+    bt.add_argument("--min-history", required=True, type=int,
+                    help="periods of history before the first test")
+    bt.add_argument("--half-lives", type=float, nargs="+", default=[], metavar="YEARS")
+    bt.add_argument("--json", action="store_true")
     p = sub.add_parser("cutoffs", help="candidate cutoffs from the bank's stated settings")
     _measure_args(p)
     p.add_argument("--floor-at-zero", required=True, type=_yes_no)
@@ -137,6 +150,16 @@ def main(argv=None):
             print("REFUSED: %s" % exc, file=sys.stderr)
             return 2
         print(json.dumps(pr, indent=2) if a.json else report(pr))
+        return 0
+    if a.command == "backtest":
+        try:
+            r = backtest(_read(a.csv), a.name, a.unit, a.direction, a.frequency,
+                         a.smoothing, a.percentiles, a.horizon, a.min_history,
+                         a.floor_at_zero, a.half_lives)
+        except (SeriesError, ValueError) as exc:
+            print("REFUSED: %s" % exc, file=sys.stderr)
+            return 2
+        print(json.dumps(r, indent=2) if a.json else backtest_report(r))
         return 0
     if a.command == "evidence":
         try:

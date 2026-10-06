@@ -23,6 +23,12 @@ Iglewicz and Hoaglin, 1993).
 weighted toward recent years. The worst period stays at full weight, and a
 half-life that puts the normal level at or below zero is refused.
 
+**`backtest` measures how predictive a scale would have been.** At every
+period it rebuilds the scale from only the history available then, scores the
+period, and compares the score with what happened `--horizon` periods later.
+It repeats this with no weighting and at each `--half-lives`, so the effect of
+recency is measured rather than assumed.
+
 **`cutoffs` applies the bank's stated judgements.** It returns:
 
 - the series' **normal level**
@@ -102,11 +108,11 @@ charge-off history:
 python -m pytest -q
 ```
 
-86 tests: recency weights, evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
+101 tests: the backtest's no-lookahead rule, recency weights, evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
 on a bound, mirror symmetry, provenance, the command line, the public series,
 and an independent recomputation of the card cutoffs that uses only the
-standard library. Each of 38 hand-made mutants (14 in the cutoffs, 9 in the
-profile, 15 in the evidence) turns a test red.
+standard library. Each of 47 hand-made mutants (14 in the cutoffs, 9 in the
+profile, 15 in the evidence, 9 in the backtest) turns a test red.
 
 ## Not built yet
 
