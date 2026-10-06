@@ -136,7 +136,7 @@ charge-off history:
 python -m pytest -q
 ```
 
-117 tests: temporary departures, the workbook's live formulas, the backtest's no-lookahead rule, recency weights, evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
+116 tests: temporary departures, the workbook's live formulas, the backtest's no-lookahead rule, recency weights, evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
 on a bound, mirror symmetry, provenance, the command line, the public series,
 and an independent recomputation of the card cutoffs that uses only the
 standard library. Each of 59 hand-made mutants (14 in the cutoffs, 9 in the
