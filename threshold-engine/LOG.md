@@ -170,3 +170,49 @@ percentile down. Mortgage at the 33rd percentile starts score 2 at 0.08%, so
 - Score 2's percentile, per product. Recommended: 33 ("better than two-thirds
   of history"). The test: should cards' 2017-2020 stretch at 3.6-3.7% read
   Moderate-Low?
+
+## 6 October 2026, the scale centred on normal, and a glossary
+
+The bank: *"I would think median is a 3 if anything. I think it's not perfect
+because there's likely a range around it that represents the same risk as
+the center."* Moderate is now a band around the median of the quarters kept,
+plus or minus a stated number of typical yearly moves. A typical yearly move
+is 1.4826 x the MAD of every four-quarter change whose both ends are kept.
+Moderate-Low begins a stated number of moves below the median, and High
+begins a stated share of the way from Moderate-High's line to the worst kept.
+All three are Settings cells, and the CLI requires starting values.
+`scale.py` is the Python reference the workbook's formulas are tested
+against.
+
+Before building: a band of median +/- half a yearly move nearly matches the
+middle third of history (cards 3.48-4.03 vs 3.42-4.38), so the band is not
+arbitrary. Percentiles were rejected for the low end because mortgage's and
+home equity's 15th percentiles are at or below zero.
+
+Cards, both periods left out, 0.5 / 1.5 / 0.5: lines 2.879 / 3.464 / 4.050 /
+5.326. Today: cards Moderate, other consumer Moderate-High, mortgage and home
+equity Low, the same at every band width tried. The catch: cards then spend
+34% of the quarters kept in Moderate-High and 3% in Low.
+
+The Glossary tab has 33 terms, each with what it means and how it is
+calculated. A test fails if a heading has no entry.
+
+Found by mutation: the change-over-four-quarters formulas must not begin
+before the fifth row. The formulas engine tolerated a reference above row 1
+that Excel would report as a damaged file, so a test now scans every formula.
+
+### TTM, checked
+The firm asked whether the engine replicates TTM. Cards and mortgage come
+from the Federal Reserve as the mean of four seasonally adjusted annualised
+quarterly rates (all commercial banks). Home equity and other consumer are
+built from FDIC filings: twelve months of net charge-offs over the average of
+four quarter-end balances. For cards since 2006 the FDIC version runs a
+median of +0.05 points above the Fed one, +0.2 in 2019, and +0.77 at most.
+That is enough to move a rating near a line.
+
+### Waiting on the bank
+- Moderate's width. Does cards' 1996-2006 stretch read Moderate-High
+  (0.5) or Moderate (0.75-1.0)?
+- Moderate-Low's step: Low for cards is nearly empty at 1.5.
+- Cards and mortgage on the FDIC TTM definition (matches the bank's; shorter
+  history) or the Fed's (longer; a different definition)?

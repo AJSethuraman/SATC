@@ -46,17 +46,21 @@ Proposal*, section 3a.
 ## The workbook: one run, everything at once
 
 ```
-threshold-engine workbook consumer-thresholds.xlsx --series "Credit card=tests/data/cards_nco_ttm.csv" --series "Mortgage=tests/data/mortgage_nco_ttm.csv" --series "Home equity=tests/data/home_equity_nco_ttm.csv" --series "Other consumer=tests/data/other_consumer_as_filed_nco_ttm.csv" --name "Net charge-offs, trailing twelve months" --unit % --direction higher_is_worse --frequency quarterly --smoothing 1 --floor-at-zero yes --score2-percentile 50 --top-fraction 0.75 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 41 --half-lives 10 5
+threshold-engine workbook consumer-thresholds.xlsx --series "Credit card=tests/data/cards_nco_ttm.csv" --series "Mortgage=tests/data/mortgage_nco_ttm.csv" --series "Home equity=tests/data/home_equity_nco_ttm.csv" --series "Other consumer=tests/data/other_consumer_as_filed_nco_ttm.csv" --name "Net charge-offs, trailing twelve months" --unit % --direction higher_is_worse --frequency quarterly --smoothing 1 --floor-at-zero yes --moderate-halfwidth 0.5 --low-step 1.5 --high-fraction 0.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 41 --half-lives 10 5
 ```
 
 Python works out the statistics once. The cutoffs are live Excel formulas
-driven by the red **Settings** tab. Leave out a period, move where score 2
-begins (a percentile of the quarters kept), move where score 5 begins, or change which score a value on a line takes, and the **Thresholds**
+driven by the red **Settings** tab. The scale is centred on normal: Moderate
+is a band around the median of the quarters kept, as wide as the stated number
+of typical yearly moves. Moderate-Low and High are measured from it. Leave out
+a period, change any of the three distances, or change which score a value on a line takes, and the **Thresholds**
 and **Chart** tabs recalculate. Settings also shows what the evidence says
 and why, so each judgement is made next to its evidence. The **Chart** tab
 switches any combination of products onto one scale. **Evidence**,
 **Backtest**, **Data** and **Run** hold the statistics, the shared quarterly
 calendar, and every input file's SHA-256.
+
+The **Glossary** tab defines every term and exactly how it is calculated.
 
 The **Assess** tab is where thresholds get judged. Pick a product and its five
 score bands are shaded behind every quarter of its history. The quarters
@@ -142,12 +146,12 @@ charge-off history:
 python -m pytest -q
 ```
 
-122 tests: where score 2 begins, the Assess tab's live counts and left-out strip, temporary departures, the workbook's live formulas, the backtest's no-lookahead rule, recency weights, evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
-on a bound, mirror symmetry, provenance, the command line, the public series,
-and an independent recomputation of the card cutoffs that uses only the
-standard library. Each of 63 hand-made mutants (14 in the cutoffs, 9 in the
-profile, 21 in the evidence, 9 in the backtest, 10 in the workbook's formulas)
-turns a test red.
+133 tests. The workbook's live lines are recalculated with the `formulas`
+engine and must equal `scale.py`, the Python reference, for every product,
+as built and after each kind of Settings change. A test fails if any heading
+on Thresholds or Settings has no Glossary entry, or if any formula points at
+a row that doesn't exist. Hand-made mutants of each guard turn a test red;
+LOG.md records each round.
 
 ## Not built yet
 

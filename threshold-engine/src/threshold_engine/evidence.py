@@ -144,8 +144,10 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
                 "normal": sign * normal, "worst_kept": sign * anchor, "bounds": bounds,
                 "latest_score": score(last, bounds, direction, floor_at_zero)}
 
-    scenarios = [scenario("A. Keep everything", None)]
-    if largest:
+    # top_fraction None: the caller has its own scale (the workbook's) and wants
+    # only the evidence -- spells, departures -- not cutoffs on this one.
+    scenarios = [] if top_fraction is None else [scenario("A. Keep everything", None)]
+    if largest and top_fraction is not None:
         scenarios.append(scenario("B. Remove the largest spell", largest))
         c = largest if unusual_others else None
         scenarios.append(dict(scenario(
@@ -157,7 +159,7 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
     removed_c = largest if unusual_others else None
     kept_c = [p for p in work if removed_c is None or not _inside(removed_c, p.date)]
     recency = []
-    for hl in half_lives:
+    for hl in (half_lives if top_fraction is not None else ()):
         w = recency_weights([p.date for p in kept_c], hl)
         normal, anchor, b = _bounds([p.value for p in kept_c], scale_points,
                                     top_fraction, w)

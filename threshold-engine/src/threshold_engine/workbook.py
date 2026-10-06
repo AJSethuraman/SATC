@@ -37,6 +37,7 @@ from . import keybank_style as K
 from .backtest import backtest
 from .engine import VERSION
 from .evidence import evidence
+from .glossary import TERMS
 from .series import Point
 
 RATINGS = ("Low", "Moderate-Low", "Moderate", "Moderate-High", "High")
@@ -70,12 +71,13 @@ def _sha(path: Path) -> str:
 
 def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
           direction: str, frequency: str, smoothing: int, floor_at_zero: bool,
-          score2_percentile: float, top_fraction: float, on_the_line: str, half_lives: Sequence[float],
+          moderate_halfwidth: float, low_step: float, high_fraction: float, on_the_line: str,
+          half_lives: Sequence[float],
           percentiles: Sequence[float], horizon: int, min_history: int) -> dict:
     if frequency != "quarterly":
         raise ValueError("the workbook's calendar is quarterly; monthly series are not built yet")
-    if not 0 < score2_percentile < 100:
-        raise ValueError("score 2 must begin at a percentile above 0 and below 100")
+    if moderate_halfwidth < 0 or low_step <= moderate_halfwidth or not 0 < high_fraction <= 1:
+        raise ValueError("need 0 <= moderate_halfwidth < low_step, and 0 < high_fraction <= 1")
     if on_the_line not in ("worse", "better"):
         raise ValueError("on_the_line must be 'worse' or 'better'")
     if len({lbl for lbl, _ in series}) != len(series):
@@ -86,7 +88,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     for label, path in series:
         pts = read_series(Path(path))
         ev = evidence(pts, label, unit, direction, frequency, smoothing, 5,
-                      top_fraction, floor_at_zero, half_lives)
+                      None, floor_at_zero, ())
         bt = backtest(pts, label, unit, direction, frequency, smoothing, percentiles,
                       horizon, min_history, floor_at_zero, half_lives)
         by_q = {quarter(p.date): p.value for p in pts}
@@ -99,14 +101,17 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     wb = Workbook()
     th = wb.active
     th.title = "Thresholds"
-    st, asx, ch, evs, bts, da, run = (wb.create_sheet(t) for t in
-                                      ("Settings", "Assess", "Chart", "Evidence", "Backtest", "Data", "Run"))
+    st, asx, ch, evs, bts, gl, da, run = (wb.create_sheet(t) for t in
+                                          ("Settings", "Assess", "Chart", "Evidence", "Backtest", "Glossary",
+                                           "Data", "Run"))
     st.sheet_properties.tabColor = K.KEY_RED
-    for ws in (th, st, asx, ch, evs, bts, run):
+    for ws in (th, st, asx, ch, evs, bts, gl, run):
         K.hide_gridlines(ws)
 
     # ---- Data: one calendar, raw values, and the values each product keeps ----
-    da.append(["Quarter"] + [s["label"] for s in loaded] + ["%s, kept" % s["label"] for s in loaded])
+    da.append(["Quarter"] + [s["label"] for s in loaded] + ["%s, kept" % s["label"] for s in loaded]
+              + ["%s, change over 4 quarters kept" % s["label"] for s in loaded]
+              + ["%s, distance from the median change" % s["label"] for s in loaded])
     srow = {s["label"]: 6 + i for i, s in enumerate(loaded)}       # Settings row per product
     for r, q in enumerate(grid, start=2):
         da.cell(r, 1, q)
@@ -120,16 +125,26 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                 .format(a=a_, b=b_, sr=sr, r=r) for a_, b_ in (("B", "C"), ("E", "F")))
             da.cell(r, 2 + n + k,
                     '=IF({raw}{r}="","",IF(OR({lo}),"",{raw}{r}))'.format(raw=raw, r=r, lo=left_out))
+            kc = L(2 + n + k)
+            if r >= first + 4:
+                da.cell(r, 2 + 2 * n + k, '=IF(AND(ISNUMBER({c}{r}),ISNUMBER({c}{p})),{c}{r}-{c}{p},"")'
+                        .format(c=kc, r=r, p=r - 4))
+            else:
+                da.cell(r, 2 + 2 * n + k, "")
+            yc = L(2 + 2 * n + k)
+            da.cell(r, 2 + 3 * n + k, '=IF({y}{r}="","",ABS({y}{r}-Thresholds!$O${tr}))'
+                    .format(y=yc, r=r, tr=5 + k))
     K.freeze_below(da, 1)
 
     # ---- Settings (red): the bank's judgements ----
-    K.brand_banner(st, 1, 12, "Settings — the bank's judgements",
+    K.brand_banner(st, 1, 14, "Settings — the bank's judgements",
                    "Yellow cells are yours. The Thresholds and Chart tabs recalculate as you change them.")
     st.cell(4, 1, "Leave a period out by typing its first and last quarter (e.g. 2020Q3 and 2023Q1), and say "
                   "why: the data can find a departure but not its cause. Blank keeps every period.").font = NOTE
     K.header_row(st, 5, ["Product", "Leave out from", "Leave out to", "Reason", "Second leave-out from", "to",
-                         "Reason", "Score 2 begins at this percentile of the quarters kept",
-                         "Score 5 begins (share of the way from the score-2 line to worst)",
+                         "Reason", "Moderate: half-width, in typical yearly moves",
+                         "Moderate-Low begins this many typical yearly moves below the median",
+                         "High begins this share of the way from Moderate-High to the worst quarter kept",
                          "A value on a line takes the", "Largest spell: what the evidence says",
                          "Temporary departures the data found", "Why"])
     _wrap(st, 5, 58)
@@ -137,14 +152,13 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     st.add_data_validation(dv)
     for s in loaded:
         rr = srow[s["label"]]
-        c = s["ev"]["scenarios"][2]
-        lg = s["ev"]["largest"]
-        if c["removed"]:
-            end_ = c["removed"][1]
+        lg, nx = s["ev"]["largest"], s["ev"]["next_unusual"]
+        if lg and nx:
+            end_ = lg["end"]
             last_q = grid[grid.index(quarter(end_)) - 1] if end_ else grid[-1]
-            say = "Leave out %s to %s" % (quarter(c["removed"][0]), last_q)
-            why = ("Another spell is also unusual (%s), so the largest is not the only stress on record"
-                   % c["decided_by"])
+            say = "Leave out %s to %s" % (quarter(lg["start"]), last_q)
+            why = ("Another spell is also unusual (%s, z %.1f), so the largest is not the only stress on record"
+                   % (quarter(nx["start"]), nx["robust_z"]))
         else:
             say = "Keep every period"
             why = ("The largest spell (peak %s, z %.1f) is the only unusual one: it is the only evidence of stress"
@@ -152,20 +166,20 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         deps = "; ".join("%s to %s %s (z %+.1f)" % (quarter(d["first"]), quarter(d["last"]),
                                                     d["direction"], d["robust_z"])
                          for d in s["ev"]["departures"]) or "None found"
-        vals = [s["label"], None, None, None, None, None, None, score2_percentile, top_fraction, on_the_line,
-                say, deps, why]
+        vals = [s["label"], None, None, None, None, None, None, moderate_halfwidth, low_step, high_fraction,
+                on_the_line, say, deps, why]
         for col, v in enumerate(vals, start=1):
             cell = st.cell(rr, col, v)
-            if 2 <= col <= 10:
+            if 2 <= col <= 11:
                 cell.fill = INPUT
             cell.alignment = Alignment(wrap_text=True, vertical="top")
-        dv.add("J%d" % rr)
-    for col, w in zip("ABCDEFGHIJKLM", (18, 11, 11, 24, 11, 11, 24, 14, 16, 11, 22, 44, 44)):
+        dv.add("K%d" % rr)
+    for col, w in zip("ABCDEFGHIJKLMN", (18, 11, 11, 24, 11, 11, 24, 13, 15, 16, 11, 22, 44, 44)):
         st.column_dimensions[col].width = w
     st.cell(srow[loaded[-1]["label"]] + 2, 1,
-            "The cutoffs: score 2 begins at the stated percentile of the periods kept (50 is the median: Low "
-            "then covers half of history by construction); score 5 begins the stated share of the way from there "
-            "to the worst period kept; scores 3 and 4 are equal steps between. Temporary departures: "
+            "The scale is centred on normal: Moderate is a band around the median of the quarters kept, as wide "
+            "as the stated number of typical yearly moves; Moderate-Low and High are measured from it. The "
+            "Glossary tab defines every term and how it is calculated. Temporary departures: "
             "stretches that left the path between the quarters either side and came back, largest first, each "
             "ranked against every window of its length. A long, curved decline can read as a dip below a straight "
             "path.").font = NOTE
@@ -173,41 +187,52 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     # ---- Thresholds: live ----
     K.brand_banner(th, 1, 13, "%s — candidate thresholds" % name,
                    "Live: recalculates from the Settings tab. Candidates for the bank to accept, adjust or reject.")
-    K.header_row(th, 4, ["Product", "Score-2 line (percentile of kept)", "Worst kept", "2 Moderate-Low from", "3 Moderate from",
-                         "4 Moderate-High from", "5 High from", "Latest quarter", "Latest (%s)" % unit,
-                         "Score", "Rating", "Check"], right_from=1)
+    K.header_row(th, 4, ["Product", "Median kept", "Typical yearly move", "Worst kept", "2 Moderate-Low from",
+                         "3 Moderate from", "4 Moderate-High from", "5 High from", "Latest quarter",
+                         "Latest (%s)" % unit, "Score", "Rating", "Check"], right_from=1)
     _wrap(th, 4, 46)
+    sg = 1 if higher else -1
+    fz = "TRUE" if floor_at_zero and higher else "FALSE"
     for k, s in enumerate(loaded):
         r = 5 + k
         sr = srow[s["label"]]
-        kept = "Data!$%s$%d:$%s$%d" % (L(2 + n + k), first, L(2 + n + k), last)
+        col = lambda c_: "Data!$%s$%d:$%s$%d" % (L(c_), first, L(c_), last)        # noqa: E731
+        kept, yoy, dev = col(2 + n + k), col(2 + 2 * n + k), col(2 + 3 * n + k)
         th.cell(r, 1, s["label"])
-        th.cell(r, 2, "=PERCENTILE(%s,Settings!$H$%d/100)" % (kept, sr))
-        th.cell(r, 3, "=%s(%s)" % ("MAX" if higher else "MIN", kept))
-        th.cell(r, 12, '=IF(AND(%s,B{r}<=0),"Refused: normal level at or below zero",'
-                       'IF(C{r}=B{r},"Refused: nothing worse than normal",""))'.format(r=r)
-                       % ("TRUE" if floor_at_zero and higher else "FALSE"))
-        for i in range(4):
-            th.cell(r, 4 + i, '=IF($L{r}<>"","",$B{r}+{i}*Settings!$I${sr}*($C{r}-$B{r})/3)'
-                    .format(r=r, i=i, sr=sr))
+        th.cell(r, 2, "=MEDIAN(%s)" % kept)
+        th.cell(r, 15, "=MEDIAN(%s)" % yoy)                          # helper: the median four-quarter change
+        th.cell(r, 3, "=1.4826*MEDIAN(%s)" % dev)
+        th.cell(r, 4, "=%s(%s)" % ("MAX" if higher else "MIN", kept))
+        hw, ls, hf = ("Settings!$%s$%d" % (c_, sr) for c_ in "HIJ")
+        th.cell(r, 13, ('=IF(AND({fz},B{r}<=0),"Refused: the median is at or below zero",'
+                        'IF({ls}<={hw},"Refused: Moderate-Low must begin further from the median than Moderate",'
+                        'IF({sg}*(D{r}-G{r})<=0,"Refused: nothing kept is worse than the Moderate-High line",'
+                        'IF(AND({fz},E{r}<=0),"Refused: Moderate-Low would begin at or below zero",""))))')
+                .format(fz=fz, r=r, ls=ls, hw=hw, sg=sg))
+        th.cell(r, 7, "=$B{r}+{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
+        th.cell(r, 6, "=$B{r}-{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
+        th.cell(r, 5, "=$B{r}-{sg}*{ls}*$C{r}".format(r=r, sg=sg, ls=ls))
+        th.cell(r, 8, "=$G{r}+{hf}*($D{r}-$G{r})".format(r=r, hf=hf))
         lp = s["points"][-1]
-        th.cell(r, 8, quarter(lp.date))
-        th.cell(r, 9, lp.value)
+        th.cell(r, 9, quarter(lp.date))
+        th.cell(r, 10, lp.value)
         op_worse, op_better = ("<=", "<") if higher else (">=", ">")
-        bounds = "$D{r}:$G{r}".format(r=r)
-        floor = "AND(I{r}<=0,{f})".format(r=r, f="TRUE" if floor_at_zero and higher else "FALSE")
-        th.cell(r, 10, '=IF($L{r}<>"","",IF({floor},1,1+IF(Settings!$J${sr}="worse",'
-                       'COUNTIF({b},"{w}"&I{r}),COUNTIF({b},"{bt}"&I{r}))))'
+        bounds = "$E{r}:$H{r}".format(r=r)
+        floor = "AND(J{r}<=0,{f})".format(r=r, f=fz)
+        th.cell(r, 11, '=IF($M{r}<>"","",IF({floor},1,1+IF(Settings!$K${sr}="worse",'
+                       'COUNTIF({b},"{w}"&J{r}),COUNTIF({b},"{bt}"&J{r}))))'
                 .format(r=r, floor=floor, sr=sr, b=bounds, w=op_worse, bt=op_better))
-        th.cell(r, 11, '=IF(J{r}="","",CHOOSE(J{r},"{0}","{1}","{2}","{3}","{4}"))'.format(*RATINGS, r=r))
-        for col in range(2, 8):
-            th.cell(r, col).number_format = "0.000"
-        th.cell(r, 9).number_format = "0.000"
-    for col, w in zip("ABCDEFGHIJKL", (20, 12, 11, 12, 12, 12, 12, 10, 10, 7, 15, 34)):
-        th.column_dimensions[col].width = w
+        th.cell(r, 12, '=IF(K{r}="","",CHOOSE(K{r},"{0}","{1}","{2}","{3}","{4}"))'.format(*RATINGS, r=r))
+        for c_ in range(2, 9):
+            th.cell(r, c_).number_format = "0.000"
+        th.cell(r, 10).number_format = "0.000"
+    th.column_dimensions["O"].hidden = True
+    for c_, w in zip("ABCDEFGHIJKLM", (20, 10, 10, 10, 12, 12, 12, 12, 10, 10, 7, 15, 34)):
+        th.column_dimensions[c_].width = w
     th.cell(6 + n, 1, "Scores: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High. A loss at or below "
-                      "zero is always Low." if floor_at_zero and higher else
-                      "Scores: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High.").font = NOTE
+                      "zero is always Low. Every term is defined on the Glossary tab." if floor_at_zero and higher
+                      else "Scores: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High. Every term is "
+                      "defined on the Glossary tab.").font = NOTE
 
     # ---- Chart: switches, one scale, one product's cutoffs ----
     ch.cell(1, 1, "Show").font = Font(bold=True)
@@ -241,7 +266,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         for i in range(4):
             ch.cell(r, h0 + 1 + n + i,
                     '=IFERROR(INDEX(Thresholds!${c}$5:${c}${e},MATCH($B${p},Thresholds!$A$5:$A${e},0))+0,NA())'
-                    .format(c=L(4 + i), e=4 + n, p=lr))
+                    .format(c=L(5 + i), e=4 + n, p=lr))
     lc = LineChart()
     lc.title = "%s, %s (one scale)" % (name, unit)
     lc.height, lc.width = 12, 28
@@ -275,12 +300,12 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     av.add(apick.coordinate)
     tr = "MATCH($B$4,Thresholds!$A$5:$A${e},0)".format(e=4 + n)
     asx.cell(5, 1, "Check")
-    asx.cell(5, 2, "=INDEX(Thresholds!$L$5:$L${e},{m})".format(e=4 + n, m=tr))
+    asx.cell(5, 2, "=INDEX(Thresholds!$M$5:$M${e},{m})".format(e=4 + n, m=tr))
     K.header_row(asx, 7, ["Score", "Rating", "From", "To", "Quarters kept", "Share kept",
                           "Every quarter", "Share of every quarter"], right_from=2)
     _wrap(asx, 7, 48)
-    bnd = ["INDEX(Thresholds!${c}$5:${c}${e},{m})".format(c=c_, e=4 + n, m=tr) for c_ in "DEFG"]
-    online = "INDEX(Settings!$J$6:$J${e},{m})".format(e=5 + n, m=tr)
+    bnd = ["INDEX(Thresholds!${c}$5:${c}${e},{m})".format(c=c_, e=4 + n, m=tr) for c_ in "EFGH"]
+    online = "INDEX(Settings!$K$6:$K${e},{m})".format(e=5 + n, m=tr)
     hc = 12                                   # helper columns start at L
     rng = lambda c_: "${c}${a}:${c}${b}".format(c=L(c_), a=first, b=last)           # noqa: E731
     kept_r, raw_r = rng(hc + 1), rng(hc + 3)
@@ -424,19 +449,6 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                         sp["dip"]["in_sd_of_change"] if sp["dip"] else None, sp["note"]])
             for col, fmt in ((3, "0.000"), (4, "0.00"), (5, "0.0"), (6, "0.0"), (7, "0.0")):
                 evs.cell(evs.max_row, col).number_format = fmt
-        r = evs.max_row + 1
-        r = K.header_row(evs, r, ["Scenario", "Normal", "Worst kept", "2 from", "3 from", "4 from", "5 from",
-                                  "Latest score"])
-        for sc in ev["scenarios"]:
-            evs.append([sc["scenario"], sc["normal"], sc["worst_kept"], *sc["bounds"], sc["latest_score"]])
-        for rc in ev["recency"]:
-            evs.append(["C, normal weighted, %g-yr half-life (%.0f effective quarters)"
-                        % (rc["half_life_years"], rc["effective_quarters"]), rc["normal"],
-                        rc.get("worst_kept"), *(rc.get("bounds") or [None] * 4),
-                        rc.get("latest_score", rc.get("refused"))])
-        for row in evs.iter_rows(min_row=r, max_row=evs.max_row, min_col=2, max_col=7):
-            for cell in row:
-                cell.number_format = "0.000"
         r = K.header_row(evs, evs.max_row + 1, ["Temporary departure: first quarter", "Last quarter",
                                                 "Direction", "Mean off the path", "Robust z",
                                                 "Rank among windows of its length", "Window (quarters)", ""])
@@ -473,13 +485,28 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     for col in "BCDEFGHI":
         bts.column_dimensions[col].width = 15
 
+    # ---- Glossary ----
+    K.brand_banner(gl, 1, 3, "Glossary",
+                   "What each term means, and exactly how the workbook calculates it.")
+    K.header_row(gl, 4, ["Term", "What it means", "How it is calculated"])
+    for term, meaning, calc in TERMS:
+        gl.append([term, meaning, calc])
+        for c_ in range(1, 4):
+            gl.cell(gl.max_row, c_).alignment = Alignment(wrap_text=True, vertical="top")
+        gl.cell(gl.max_row, 1).font = Font(bold=True)
+    for c_, w in zip("ABC", (30, 60, 80)):
+        gl.column_dimensions[c_].width = w
+    K.freeze_below(gl, 4)
+
     # ---- Run ----
     run.append(["threshold-engine", VERSION])
     run.append(["Built", dt.datetime.now().isoformat(timespec="seconds")])
     run.append(["Measure", name, unit, direction, "smoothing %d" % smoothing,
                 "floor at zero" if floor_at_zero else "no floor"])
-    run.append(["Evidence settings", "top fraction %g" % top_fraction, "on the line: %s" % on_the_line,
-                "half-lives %s" % (", ".join("%g" % h for h in half_lives) or "none")])
+    run.append(["Scale, starting values", "Moderate half-width %g" % moderate_halfwidth,
+                "Moderate-Low step %g" % low_step, "High fraction %g" % high_fraction,
+                "on the line: %s" % on_the_line])
+    run.append(["Backtest half-lives", ", ".join("%g" % h for h in half_lives) or "none"])
     run.append(["Backtest settings", "percentiles %s" % "/".join("%g" % p for p in percentiles),
                 "horizon %d" % horizon, "min history %d" % min_history])
     run.append([])
