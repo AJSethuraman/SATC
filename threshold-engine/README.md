@@ -6,7 +6,7 @@ commands.
 
 **`profile` reports facts and decides nothing.** You get the distribution,
 every spell worse than the median (start, peak, end, length, rise and fall
-times, peak ÷ median), how often each upper percentile was reached, the
+times, peak Ã· median), how often each upper percentile was reached, the
 percentiles with the largest spell removed, and where the latest value ranks.
 It takes no judgement settings. What counts as stress is left to the expert
 reading it.
