@@ -44,6 +44,15 @@ INPUT = PatternFill("solid", fgColor="FFF2CC")
 NOTE = Font(name="Arial", size=9, italic=True, color=K.SLATE)
 
 
+def _wrap(ws, row, height=34):
+    """Header labels wrap in their column instead of being cut off."""
+    for cell in ws[row]:
+        if cell.value is not None:
+            cell.alignment = Alignment(wrap_text=True, vertical="center",
+                                       horizontal=cell.alignment.horizontal or "left")
+    ws.row_dimensions[row].height = height
+
+
 def quarter(date: str) -> str:
     """'2010-04-01' and '2010-06-30' are both 2010Q2."""
     return "%sQ%d" % (date[:4], (int(date[5:7]) - 1) // 3 + 1)
@@ -116,6 +125,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                   "Blank keeps every period.").font = NOTE
     K.header_row(st, 5, ["Product", "Leave out from", "Leave out to", "Score 5 begins (share of the way from normal to worst)",
                          "A value on a line takes the", "What the evidence says", "Why"])
+    _wrap(st, 5, 46)
     dv = DataValidation(type="list", formula1='"worse,better"', allow_blank=False)
     st.add_data_validation(dv)
     for s in loaded:
@@ -149,6 +159,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     K.header_row(th, 4, ["Product", "Normal (median kept)", "Worst kept", "2 Moderate-Low from", "3 Moderate from",
                          "4 Moderate-High from", "5 High from", "Latest quarter", "Latest (%s)" % unit,
                          "Score", "Rating", "Check"], right_from=1)
+    _wrap(th, 4, 46)
     for k, s in enumerate(loaded):
         r = 5 + k
         sr = srow[s["label"]]
@@ -241,6 +252,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         r = K.section_band(evs, r + 1, s["label"], 8)
         r = K.header_row(evs, r, ["Spell from", "Peak quarter", "Peak", "Peak ÷ median", "Robust z",
                                   "Years per spell this bad", "Deepest dip (sd of quarterly change)", "Note"])
+        _wrap(evs, r - 1, 46)
         for sp in ev["spells"]:
             evs.append([quarter(sp["start"]), quarter(sp["peak_date"]), sp["peak"],
                         sp["peak_over_median"], sp["robust_z"], sp["return_period_years"],
@@ -274,6 +286,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         r = K.section_band(bts, r + 1, s["label"], 9)
         r = K.header_row(bts, r, ["Weighting", "Spearman: score vs level ahead", "Spearman: score vs change ahead",
                                   "Change after 1", "after 2", "after 3", "after 4", "after 5", "Quarters tested"])
+        _wrap(bts, r - 1, 46)
         for run_ in s["bt"]["runs"]:
             bts.append(["none" if run_["half_life_years"] is None else "%g-yr half-life" % run_["half_life_years"],
                         run_["score_vs_level_ahead"], run_["score_vs_change_ahead"],
