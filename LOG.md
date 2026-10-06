@@ -17,6 +17,79 @@ This file is read by every session and shared with none of them.
 
 ---
 
+## Monday 5 October 2026 — the first real client, and what it asked
+
+**No client detail is in this file.** The engagement lives in the gitignored
+store; what follows is what the software got wrong when a real return finally
+went through it.
+
+### Four defects, and a live return found all four
+
+**1 · `per_form` could not count.** A ticked form fired once and billed once,
+from the day it was written. The suite had **seventeen** tests exercising counts
+on `per_unit` and **none** on `per_form` — not skipped, *impossible*: there was
+nothing to count. The tests proved the code did what the design said. Nobody
+asked whether the design matched a return, and a joint return where both spouses
+took money out early needs two Form 5329s. The firm: *"we need to be able to
+bill by form obviously."* And, on the gap: *"such an odd oversight... it's hard
+to believe this wasn't part of your tests."* It was not.
+
+**2 · Three forms were priced at the keyboard**, because the schedule carried
+only one of them. Two now fire from a **preparer gate** rather than a client
+tick — nobody knows they are in AMT until the return is computed, which is the
+earned-income-credit case exactly, and the schema already had the rule written
+down: every option in the client's multi-select names something that HAPPENED.
+
+**3 · `fees.py` matched a key as a substring.** `brokerage:` counted twice in a
+file with one `brokerage:` block, because `keyed_brokerage:` contains it. Latent
+since it was written; a third identical amount tipped it over.
+
+**4 · `capture.py` photographed half a screen.** Two different controls render
+for the same checkbox — enabled when a bill exists, disabled with its reason
+when none does — and only the second was ever seen, because the capture run
+reached that screen before raising the invoice. The walkthrough registry could
+describe one state or the other and was wrong either way.
+
+### A correction from the firm, and it was mine to take
+
+I reported a plan as underpricing a form because it charged below the $50
+`per_form` default. The firm: *"the standing rule was not meant to be $50 a form
+literally, this would conflict with market pricing and such."* **The default is a
+starting point, not a floor.** A test now asserts a form may be priced below it,
+so nobody later writes a guard that fires on a correct invoice.
+
+### What I did to the suite, twice
+
+`rm -rf out` to get a clean render — and `out/` is where both harnesses keep
+their evidence. Ten tests then skipped silently and the suite reported
+**1,524 passed** and looked fine. I read that number and moved on. Then did it
+again, having already written about the first time.
+
+Restoring it turned 2 skips into 2 **failures**, which is how defect 4 surfaced.
+So the harness evidence is not decoration: it is the only thing standing between
+a changed screen and a walkthrough that quietly lies.
+
+`CLAUDE.md` already warns about this exact trap, in those words. Knowing did not
+help. **A check that fails when the skip count exceeds its baseline of 2** would
+have caught both in seconds — proposed, not built, because it was late and
+nobody asked for it.
+
+### And one claim corrected in both directions
+
+`CLAUDE.md` said every client document passed a blocking pre-send gate. On
+4 September that was found false. The gap was closed on 7 September — and the
+warning stayed in the file for a month, understating the software to every
+session that loaded it. Verified two ways before changing it: sixteen tests, and
+watching `pre-send gate: 11 check(s), nothing blocking` on the real engagement.
+
+**A claim forecloses a look whichever way it points.**
+
+`client-documents`: 1,513 → **1,534 passing**, 2 skipped. Eight mutations, and
+the one that **survived** was worth the rest — a blank-count guard written twice,
+so neither half was tested.
+
+---
+
 ## Monday 7 September 2026, later still — main was red for two hours and it was mine
 
 > *"it is messing everything else up - main is red i need it cleared up"*
