@@ -19,7 +19,7 @@ from recalc import recalc
 
 POCKET_KEYS = {rs.K_NUM: "num", rs.K_BAND: "band", rs.K_SEG: "seg", rs.K_HALF: "half", rs.K_LOANS: "loans",
                rs.K_THIS: "this", rs.K_REST: "rest", rs.K_GAP: "gap", rs.K_EX: "excess", rs.K_WORSE: "worse",
-               rs.K_P: "p", rs.K_MAT: "material", rs.K_CAUGHT: "caught", rs.K_HOLDS: "holds"}
+               rs.K_P: "chance", rs.K_MAT: "material", rs.K_CAUGHT: "caught", rs.K_HOLDS: "holds"}
 PCK_KEYS = {rs.C_BAND: "band", rs.C_SEG: "seg", rs.C_LOANS: "loans", rs.C_BOOK: "booked", rs.C_GCO: "gco",
             rs.C_RANR: "ranr", rs.C_RATE: "ranr_rate", rs.C_AVG: "avg_line", rs.C_AVGX: "avg_x",
             rs.C_PAID: "paid", rs.C_PAID_D: "paid_d",
