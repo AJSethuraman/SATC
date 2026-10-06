@@ -117,3 +117,27 @@ not tuned. Home equity's second departure (2013-15) is the curved tail of its
 What the dip means for today: of cards' 2.2-point rise from the 2022 low,
 about 2.0 is a return to the pre-dip level and 0.26 is above it. For other
 consumer, 0.7 is the return and 0.44 is above it.
+
+## 6 October 2026, the Assess tab
+
+The bank: *"set credit card to ignore the periods for the crisis and covid and
+show me the actual graph output that helps assess thresholds after that's
+decided."* The Chart tab drew cutoff lines over series, which shows where the
+lines are but not how history falls between them. Assess shades the five
+bands behind one product's every quarter, marks the quarters left out as grey
+dots, and counts the quarters in each score. All of it is live.
+
+Cards, with 2007Q4-2012Q4 (financial crisis) and 2021Q3-2023Q1 (pandemic
+forbearance) left out: cutoffs 3.757 / 4.469 / 5.180 / 5.892. Of the 135
+quarters kept, 67 are Low, 29 Moderate-Low, 22 Moderate, 12 Moderate-High and
+5 High (2002Q1-2003Q1). These match an independent recount in Python. Today's
+3.98% is Moderate-Low, and the 2024-25 peak of 4.57% is Moderate.
+
+Found in Excel, three times over: Excel drew no tick labels when the area
+chart was the base of the combination, and giving the axes fonts didn't help.
+A line chart as the base fixed it. Excel also joins a line across #N/A, so
+left-out quarters are markers on the full line rather than a gapped line.
+
+### Waiting on the bank
+- Is High for cards right at once in about 33 years of kept history? If not,
+  move "Score 5 begins" below 0.75.

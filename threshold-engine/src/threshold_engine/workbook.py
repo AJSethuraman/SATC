@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Sequence, Tuple
 
 from openpyxl import Workbook
-from openpyxl.chart import LineChart, Reference
+from openpyxl.chart import AreaChart, LineChart, Reference
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter as L
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -97,10 +97,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     wb = Workbook()
     th = wb.active
     th.title = "Thresholds"
-    st, ch, evs, bts, da, run = (wb.create_sheet(t) for t in
-                                 ("Settings", "Chart", "Evidence", "Backtest", "Data", "Run"))
+    st, asx, ch, evs, bts, da, run = (wb.create_sheet(t) for t in
+                                      ("Settings", "Assess", "Chart", "Evidence", "Backtest", "Data", "Run"))
     st.sheet_properties.tabColor = K.KEY_RED
-    for ws in (th, st, ch, evs, bts, run):
+    for ws in (th, st, asx, ch, evs, bts, run):
         K.hide_gridlines(ws)
 
     # ---- Data: one calendar, raw values, and the values each product keeps ----
@@ -254,6 +254,124 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     ch.add_chart(lc, "A%d" % (lr + 3))
     for col in range(h0, h0 + n + 5):
         ch.column_dimensions[L(col)].hidden = True
+
+    # ---- Assess: one product, its score bands, and where history fell ----
+    # Live. Pick a product; the bands are its cutoffs from Thresholds, the line
+    # is the quarters kept, grey is what Settings leaves out, and the table
+    # counts the quarters kept in each score.
+    K.brand_banner(asx, 1, 9, "Assess one product's thresholds",
+                   "Shaded bands are the five scores; the line is the quarters kept; grey is what Settings "
+                   "leaves out. Live.")
+    asx.cell(4, 1, "Product").font = Font(bold=True)
+    apick = asx.cell(4, 2, loaded[0]["label"])
+    apick.fill = INPUT
+    av = DataValidation(type="list", formula1='"%s"' % ",".join(s["label"] for s in loaded))
+    asx.add_data_validation(av)
+    av.add(apick.coordinate)
+    tr = "MATCH($B$4,Thresholds!$A$5:$A${e},0)".format(e=4 + n)
+    asx.cell(5, 1, "Check")
+    asx.cell(5, 2, "=INDEX(Thresholds!$L$5:$L${e},{m})".format(e=4 + n, m=tr))
+    K.header_row(asx, 7, ["Score", "Rating", "From", "To", "Quarters kept", "Share kept",
+                          "Every quarter", "Share of every quarter"], right_from=2)
+    _wrap(asx, 7, 48)
+    bnd = ["INDEX(Thresholds!${c}$5:${c}${e},{m})".format(c=c_, e=4 + n, m=tr) for c_ in "DEFG"]
+    online = "INDEX(Settings!$I$6:$I${e},{m})".format(e=5 + n, m=tr)
+    hc = 12                                   # helper columns start at L
+    rng = lambda c_: "${c}${a}:${c}${b}".format(c=L(c_), a=first, b=last)           # noqa: E731
+    kept_r, raw_r = rng(hc + 1), rng(hc + 3)
+    for i in range(5):
+        r = 8 + i
+        asx.cell(r, 1, i + 1)
+        asx.cell(r, 2, RATINGS[i])
+        lo = "" if i == 0 else bnd[i - 1]
+        hi = "" if i == 4 else bnd[i]
+        asx.cell(r, 3, "=IFERROR(%s+0,\"\")" % lo if lo else "")
+        asx.cell(r, 4, "=IFERROR(%s+0,\"\")" % hi if hi else "")
+        for col, data in ((5, kept_r), (7, raw_r)):
+            # A value on a line takes the worse score, or the better, as Settings says.
+            if higher:
+                ge, lt = ('">="', '"<"'), ('">"', '"<="')
+            else:
+                ge, lt = ('"<="', '">"'), ('"<"', '">="')
+            def crit(op_pair_w, op_pair_b, ref):
+                return 'IF({o}="worse",{w},{b})&{ref}'.format(o=online, w=op_pair_w, b=op_pair_b, ref=ref)
+            parts = []
+            if lo:
+                parts.append('{d},{c}'.format(d=data, c=crit(ge[0], lt[0], lo)))
+            if hi:
+                parts.append('{d},{c}'.format(d=data, c=crit(ge[1], lt[1], hi)))
+            asx.cell(r, col, '=IF($B$5<>"","",COUNTIFS(%s))' % ",".join(parts))
+        asx.cell(r, 6, '=IF(E{r}="","",E{r}/SUM($E$8:$E$12))'.format(r=r))
+        asx.cell(r, 8, '=IF(G{r}="","",G{r}/SUM($G$8:$G$12))'.format(r=r))
+        for col in (3, 4):
+            asx.cell(r, col).number_format = "0.000"
+        for col in (6, 8):
+            asx.cell(r, col).number_format = "0%"
+    asx.cell(13, 1, "Counts use the same rule as the score: a value on a line takes the score Settings says. "
+                    "A loss at or below zero falls in score 1.").font = NOTE
+    for col, w in zip("ABCDEFGH", (10, 15, 10, 10, 10, 10, 10, 12)):
+        asx.column_dimensions[col].width = w
+    heads = ["Quarter", "Kept", "Left out by Settings", "Every quarter"] +         ["%d %s" % (i + 1, RATINGS[i]) for i in range(5)]
+    for j, h in enumerate(heads):
+        asx.cell(first - 1, hc + j, h)
+    asx.cell(first - 1, hc + 9, "Top")
+    pk = "MATCH($B$4,Data!$B$1:${c}$1,0)".format(c=L(1 + n))
+    for r in range(first, last + 1):
+        asx.cell(r, hc, "=Data!A%d" % r)
+        raw = "INDEX(Data!$B{r}:${c}{r},{m})".format(r=r, c=L(1 + n), m=pk)
+        kept = "INDEX(Data!${a}{r}:${b}{r},{m})".format(a=L(2 + n), b=L(1 + 2 * n), r=r, m=pk)
+        asx.cell(r, hc + 1, '=IF(ISNUMBER({k}),{k},NA())'.format(k=kept))
+        asx.cell(r, hc + 2, '=IF(AND(ISNUMBER({raw}),NOT(ISNUMBER({k}))),{raw},NA())'.format(raw=raw, k=kept))
+        asx.cell(r, hc + 3, '=IF(ISNUMBER({raw}),{raw},NA())'.format(raw=raw))
+        top = "${c}${r0}".format(c=L(hc + 9), r0=first)
+        b = ["$C$9", "$C$10", "$C$11", "$C$12"]
+        asx.cell(r, hc + 4, '=IF($B$5<>"",NA(),{b0})'.format(b0=b[0]))
+        for i in range(1, 4):
+            asx.cell(r, hc + 4 + i, '=IF($B$5<>"",NA(),{b1}-{b0})'.format(b1=b[i], b0=b[i - 1]))
+        asx.cell(r, hc + 8, '=IF($B$5<>"",NA(),MAX({t}-{b3},0))'.format(t=top, b3=b[3]))
+    asx.cell(first, hc + 9, "=MAX(%s)*1.08" % raw_r)
+    area = AreaChart()
+    area.grouping = "stacked"
+    area.title = None
+    area.height, area.width = 12, 26
+    area.add_data(Reference(asx, min_col=hc + 4, max_col=hc + 8, min_row=first - 1, max_row=last),
+                  titles_from_data=True)
+    area.set_categories(Reference(asx, min_col=hc, min_row=first, max_row=last))
+    for i, s_ in enumerate(area.series):
+        s_.graphicalProperties.solidFill = ("F4F1EC", "E4DFD5", "EFD7CF", "E0A6A6", "CC8080")[i]
+        s_.graphicalProperties.line.noFill = True
+    # Every quarter as one line, and the quarters left out as grey markers on
+    # it. Excel joins a line straight across #N/A, so a "kept" line would draw
+    # a false bridge over each period left out; markers are never joined.
+    line = LineChart()
+    line.add_data(Reference(asx, min_col=hc + 3, max_col=hc + 3, min_row=first - 1, max_row=last),
+                  titles_from_data=True)
+    line.add_data(Reference(asx, min_col=hc + 2, max_col=hc + 2, min_row=first - 1, max_row=last),
+                  titles_from_data=True)
+    every, gone = line.series
+    every.graphicalProperties.line.solidFill = K.INK
+    every.graphicalProperties.line.width = 19050
+    gone.graphicalProperties.line.noFill = True
+    gone.marker.symbol = "circle"
+    gone.marker.size = 5
+    gone.marker.graphicalProperties.solidFill = "8A857C"
+    gone.marker.graphicalProperties.line.solidFill = "8A857C"
+    for s_ in line.series:
+        s_.smooth = False
+    # The line chart is the base and the bands are added to it. With the area
+    # chart as the base, Excel 16 drew no tick labels at all, whatever the
+    # axes were given (6 Oct 2026); a line chart's axes draw as on the Chart tab.
+    line.height, line.width = 12, 26
+    line.x_axis.tickLblSkip = 20
+    line.x_axis.delete = False
+    line.y_axis.delete = False
+    line.y_axis.number_format = "0.0"
+    line.legend.position = "t"
+    line.visible_cells_only = False
+    line += area
+    asx.add_chart(line, "A15")
+    for col in range(hc, hc + 10):
+        asx.column_dimensions[L(col)].hidden = True
 
     # ---- Evidence (values) ----
     r = K.brand_banner(evs, 1, 8, "Evidence for each judgement",

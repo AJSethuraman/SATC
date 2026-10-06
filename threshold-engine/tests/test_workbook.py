@@ -148,3 +148,43 @@ def test_settings_lists_the_departures_the_data_found(built):
     st = load_workbook(p)["Settings"]
     assert "2021Q3 to 2023Q1 below the path" in st["K6"].value
     assert "2008" not in (st["L6"].value or "")
+
+
+def test_assess_counts_the_quarters_in_each_score_live(built, tmp_path):
+    import statistics
+    from conftest import load
+    p, _, _ = built
+    wb = load_workbook(p)
+    st = wb["Settings"]
+    st["B6"], st["C6"] = "2007Q4", "2012Q4"
+    st["E6"], st["F6"] = "2021Q3", "2023Q1"
+    q = tmp_path / "assess.xlsx"
+    wb.save(q)
+    vals = recalc(q)
+    pts = load("cards_nco_ttm.csv")
+    gone = lambda x: "2007Q4" <= quarter(x.date) <= "2012Q4" or "2021Q3" <= quarter(x.date) <= "2023Q1"  # noqa: E731
+    kept = [x.value for x in pts if not gone(x)]
+    n_, w_ = statistics.median(kept), max(kept)
+    b = [n_ + i * 0.75 * (w_ - n_) / 3 for i in range(4)]
+    score = lambda v: 1 + sum(1 for x in b if v >= x)                                        # noqa: E731
+    want_kept = [sum(1 for v in kept if score(v) == k) for k in range(1, 6)]
+    want_all = [sum(1 for x in pts if score(x.value) == k) for k in range(1, 6)]
+    assert [vals["ASSESS!E%d" % r] for r in range(8, 13)] == want_kept == [67, 29, 22, 12, 5]
+    assert [vals["ASSESS!G%d" % r] for r in range(8, 13)] == want_all
+    assert vals["ASSESS!F8"] == pytest.approx(67 / 135)
+
+
+def test_assess_follows_the_on_the_line_rule(built, tmp_path):
+    # As built, cards' median 3.978 is a recorded value and sits on the score-2
+    # line: "worse" counts it in score 2, "better" in score 1.
+    p, _, vals = built
+    worse = [vals["ASSESS!E%d" % r] for r in (8, 9)]
+    wb = load_workbook(p)
+    wb["Settings"]["I6"] = "better"
+    q = tmp_path / "line.xlsx"
+    wb.save(q)
+    v2 = recalc(q)
+    better = [v2["ASSESS!E%d" % r] for r in (8, 9)]
+    on_line = sum(1 for x in __import__("conftest").load("cards_nco_ttm.csv") if x.value == 3.978)
+    assert on_line >= 1
+    assert better[0] - worse[0] == on_line and worse[1] - better[1] == on_line
