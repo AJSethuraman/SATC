@@ -143,3 +143,35 @@ def test_the_live_plan_now_reconciles():
     )
     items = pricing.line_items(answers, pricing.load())
     assert pricing.estimate_total(items, pricing.load()) == "$525.00"
+
+
+# ── what the Codex review caught, and it caught both ─────────────────────────
+
+def test_the_count_is_an_answer_the_requote_offers():
+    """FOUND BY CODEX ON THE PULL REQUEST. `requote` reads
+    `pricing.answers_that_move_money` to decide what a preparer may change. A
+    count it does not name is a price only somebody who already knew the answer
+    id could move -- and `counted_by` was a new way to move money that the
+    function did not walk.
+
+    The function's own docstring warns about exactly this: read it out of the
+    schedule, because a hand-kept list "would be the one that went stale".
+    """
+    moving = pricing.answers_that_move_money(pricing.load())
+    assert "count_early_withdrawal" in moving
+
+
+@pytest.mark.parametrize("qid", ["amt_applies", "amt_credit_applies", "eic_claimed"])
+def test_individual_only_pricing_questions_are_gated_to_the_1040(qid):
+    """ALSO CODEX. An 1120, 1120-S or 1065 interview was being asked whether
+    the alternative minimum tax applies, and whether the earned income credit
+    is claimed. Neither prices anything on an entity return -- `per_form` is
+    reached through `extra_forms`, which is gated -- so the answer would have
+    looked like a control and done nothing.
+
+    `eic_claimed` had the gap before any of this and is fixed with them.
+    """
+    import interview as iv
+    q = next(q for _, q in iv.all_questions(iv.load_schema()) if q["id"] == qid)
+    assert q.get("showIf") == "federal_form == '1040'", (
+        f"{qid} is asked on entity returns, where it prices nothing")

@@ -465,7 +465,13 @@ def answers_that_move_money(schedule: dict | None = None) -> list[str]:
     def walk(node):
         if isinstance(node, dict):
             for key, value in node.items():
-                if key in ("count_from", "tier_from", "select_from"):
+                # `counted_by` joined this list on 5 October 2026, with
+                # per-form counts. Codex caught it on the pull request: the
+                # re-quote reads THIS function to decide what a preparer may
+                # change, so a count it did not name was a price that could
+                # only be moved by someone who already knew the answer id.
+                # Exactly the staleness the docstring above warns about.
+                if key in ("count_from", "tier_from", "select_from", "counted_by"):
                     if isinstance(value, str):
                         found.add(value)
                 elif key in ("answer_is", "answer_includes"):

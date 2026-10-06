@@ -727,6 +727,15 @@ sections:
       # count_brokerages_keyed and count_extension_estimates.
       - id: eic_claimed
         question: "Is the earned income credit being claimed?"
+        # 1040 ONLY, and this gap PREDATES the AMT questions below -- it was
+        # found 5 October 2026 while fixing the identical one on those. An
+        # entity interview was being asked whether the earned income credit
+        # applies, which is not a thing an 1120-S can claim, and the answer
+        # priced nothing because `per_form` is reached through `extra_forms`
+        # and that is gated. A control that appears to do something and does
+        # nothing is worse than one that is not there -- `requote.questions`
+        # says so about this exact class.
+        showIf: "federal_form == '1040'"
         help: >
           Leave blank until the return is computed. Eligibility turns on
           earned income, investment income, valid taxpayer identifiers,
@@ -760,6 +769,11 @@ sections:
       # the client would invite a wrong answer that priced a return.
       - id: amt_applies
         question: "Does the alternative minimum tax apply?"
+        # 1040 ONLY. Codex caught this on the pull request: an 1120, 1120-S or
+        # 1065 interview would have been asked it, and `per_form` is reached
+        # from `extra_forms`, which is itself gated to the 1040 -- so the
+        # answer would have priced nothing while looking like a control.
+        showIf: "federal_form == '1040'"
         help: >-
           Leave blank until the return is computed. It falls out of the
           figures, not out of anything the client can tell you.
