@@ -35,6 +35,15 @@ A. Keep everything.
 B. Remove the largest spell, whatever is left.
 C. Remove the largest spell only if another spell is unusual at the line;
    otherwise keep it.
+
+Recency. Scenario C is then repeated at each stated half-life: a period's
+weight halves for every ``half_life`` years of its age, counted back from the
+latest observation. Only the normal level is weighted, as a weighted median.
+The worst period kept stays the anchor at full weight, so the scale does not
+forget what stress looked like. Effective quarters, (sum w)^2 / sum w^2, say
+how much history a half-life really uses. A half-life that puts the normal
+level at or below zero on a floored measure is refused, not scaled: every
+positive loss would score 2 or worse.
 """
 from __future__ import annotations
 
@@ -63,15 +72,42 @@ def _inside(spell, date):
     return spell["start"] <= date and (spell["end"] is None or date < spell["end"])
 
 
-def _bounds(values, k, top_fraction):
-    normal, anchor = statistics.median(values), max(values)
+def weighted_median(values, weights):
+    """Midpoint of the lower and upper weighted medians: the first value at
+    which cumulative weight reaches half, and the first at which it passes
+    half. With equal weights this is the ordinary median."""
+    pairs = sorted(zip(values, weights))
+    half, cum, lower, upper = sum(weights) / 2, 0.0, None, None
+    for v, w in pairs:
+        cum += w
+        if lower is None and cum >= half:
+            lower = v
+        if cum > half:
+            upper = v
+            break
+    return (lower + upper) / 2
+
+
+def recency_weights(dates, half_life_years):
+    """0.5 ** (age in years / half-life), age counted back from the last date."""
+    def months(d):
+        return int(d[:4]) * 12 + int(d[5:7])
+    last = months(dates[-1])
+    return [0.5 ** ((last - months(d)) / 12 / half_life_years) for d in dates]
+
+
+def _bounds(values, k, top_fraction, weights=None):
+    normal = (statistics.median(values) if weights is None
+              else weighted_median(values, weights))
+    anchor = max(values)
     step = top_fraction * (anchor - normal) / (k - 2) if k > 2 else 0.0
     return normal, anchor, [normal + i * step for i in range(k - 1)]
 
 
 def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
              frequency: str, smoothing: int, scale_points: int,
-             top_fraction: float, floor_at_zero: bool) -> dict:
+             top_fraction: float, floor_at_zero: bool,
+             half_lives: Sequence[float] = ()) -> dict:
     pr = profile(points, name, unit, direction, frequency, smoothing)
     sign = 1.0 if direction == "higher_is_worse" else -1.0
     series = smooth(check(points, frequency), smoothing)
@@ -118,7 +154,27 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
                                               unusual_others[0]["robust_z"])
                         if unusual_others else "no other spell reaches z %g" % LINE)))
 
-    return {"profile": pr, "sd_of_change": sd_change, "spells": spells,
+    removed_c = largest if unusual_others else None
+    kept_c = [p for p in work if removed_c is None or not _inside(removed_c, p.date)]
+    recency = []
+    for hl in half_lives:
+        w = recency_weights([p.date for p in kept_c], hl)
+        normal, anchor, b = _bounds([p.value for p in kept_c], scale_points,
+                                    top_fraction, w)
+        row = {"half_life_years": hl,
+               "effective_quarters": sum(w) ** 2 / sum(x * x for x in w),
+               "normal": sign * normal}
+        if floor_at_zero and normal <= 0:
+            row["refused"] = ("the weighted normal level is %.3f, at or below zero:"
+                              " every positive loss would score 2 or worse" % normal)
+        else:
+            bounds = [sign * x for x in b]
+            row.update(bounds=bounds, worst_kept=sign * anchor,
+                       latest_score=score(series[-1].value, bounds, direction,
+                                          floor_at_zero))
+        recency.append(row)
+
+    return {"recency": recency, "profile": pr, "sd_of_change": sd_change, "spells": spells,
             "unusual_count": {str(l): sum(1 for s in spells if s["robust_z"] >= l)
                               for l in LINES},
             "largest": largest,
@@ -195,6 +251,14 @@ def report(ev: dict) -> str:
         out.append("      normal %s, worst kept %s, cutoffs %s, latest scores %d" % (
             f(sc["normal"]), f(sc["worst_kept"]),
             " / ".join("%.3f" % b for b in sc["bounds"]), sc["latest_score"]))
+    if ev["recency"]:
+        out += ["", "RECENCY (scenario C, normal level weighted by a half-life; worst kept at full weight)",
+                "   half-life  effective quarters  normal     cutoffs                          latest"]
+        for r in ev["recency"]:
+            out.append("   %5g yrs  %18.0f  %-9s  %s" % (
+                r["half_life_years"], r["effective_quarters"], f(r["normal"]),
+                "REFUSED: " + r["refused"] if "refused" in r else
+                "%-31s  %d" % (" / ".join("%.3f" % b for b in r["bounds"]), r["latest_score"])))
     out += ["", "These are statistics and their consequences, not a recommendation.",
             "The z-scores are distances from the bulk of history, not probabilities:",
             "neighbouring quarters of a trailing-twelve-month rate are not independent."]

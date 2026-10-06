@@ -19,6 +19,9 @@ each spell in standard deviations of the quarter-to-quarter change. It then
 shows the cutoffs under three scenarios: keep everything, remove the largest
 spell, or remove it only if another spell is unusual (z of 3.5 or more, per
 Iglewicz and Hoaglin, 1993).
+`--half-lives 20 10 5` repeats the third scenario with the normal level
+weighted toward recent years. The worst period stays at full weight, and a
+half-life that puts the normal level at or below zero is refused.
 
 **`cutoffs` applies the bank's stated judgements.** It returns:
 
@@ -99,11 +102,11 @@ charge-off history:
 python -m pytest -q
 ```
 
-78 tests: evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
+86 tests: recency weights, evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
 on a bound, mirror symmetry, provenance, the command line, the public series,
 and an independent recomputation of the card cutoffs that uses only the
-standard library. Each of 32 hand-made mutants (14 in the cutoffs, 9 in the
-profile, 9 in the evidence) turns a test red.
+standard library. Each of 38 hand-made mutants (14 in the cutoffs, 9 in the
+profile, 15 in the evidence) turns a test red.
 
 ## Not built yet
 

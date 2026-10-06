@@ -68,6 +68,9 @@ def _parser():
     ev.add_argument("--floor-at-zero", required=True, type=_yes_no)
     ev.add_argument("--scale-points", required=True, type=int)
     ev.add_argument("--top-fraction", required=True, type=float)
+    ev.add_argument("--half-lives", type=float, nargs="+", default=[],
+                    metavar="YEARS", help="repeat scenario C with the normal level "
+                    "weighted toward recent years at each half-life")
     ev.add_argument("--json", action="store_true")
     p = sub.add_parser("cutoffs", help="candidate cutoffs from the bank's stated settings")
     _measure_args(p)
@@ -138,7 +141,8 @@ def main(argv=None):
     if a.command == "evidence":
         try:
             ev = evidence(_read(a.csv), a.name, a.unit, a.direction, a.frequency,
-                          a.smoothing, a.scale_points, a.top_fraction, a.floor_at_zero)
+                          a.smoothing, a.scale_points, a.top_fraction, a.floor_at_zero,
+                          a.half_lives)
         except (SeriesError, ValueError) as exc:
             print("REFUSED: %s" % exc, file=sys.stderr)
             return 2

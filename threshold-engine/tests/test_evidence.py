@@ -110,3 +110,50 @@ def test_the_change_yardstick_is_the_sample_standard_deviation():
     assert ev(quarters([1, 2, 4, 7, 1]))["sd_of_change"] == pytest.approx(
         statistics.stdev([1, 2, 3, -6]))
     assert statistics.stdev([1, 2, 3, -6]) != pytest.approx(statistics.pstdev([1, 2, 3, -6]))
+
+
+# ---- recency ---------------------------------------------------------------
+from threshold_engine.evidence import recency_weights, weighted_median  # noqa: E402
+
+
+@pytest.mark.parametrize("values", [[5, 1, 3], [4, 1, 3, 2], [2, 2, 7, 9, 1, 0]])
+def test_equal_weights_give_the_ordinary_median(values):
+    assert weighted_median(values, [1] * len(values)) == statistics.median(values)
+
+
+def test_weighted_median_by_hand():
+    # Weights 1, 1, 4 on values 1, 2, 3: half the weight (3) is reached at 3.
+    assert weighted_median([1, 2, 3], [1, 1, 4]) == 3
+    # Weights 1, 1, 2: cumulative 1, 2, 4; half is 2, reached at 2, passed at 3.
+    assert weighted_median([1, 2, 3], [1, 1, 2]) == 2.5
+
+
+def test_a_weight_halves_every_half_life():
+    w = recency_weights(["2016-06-30", "2021-06-30", "2026-06-30"], 5)
+    assert w == pytest.approx([0.25, 0.5, 1.0])
+
+
+def test_recency_moves_the_normal_level_and_not_the_worst_kept():
+    calm_then_quiet = [2] * 20 + [9] + [2] * 20 + [1] * 20
+    e = evidence(quarters(calm_then_quiet, 1990), "t", "%", "higher_is_worse",
+                 "quarterly", 1, 5, 0.75, True, half_lives=(2,))
+    r = e["recency"][0]
+    assert r["normal"] == 1 and r["worst_kept"] == 9
+    assert e["scenarios"][0]["normal"] == 2
+    # Weights r**k, r = 0.5 ** (1/8) per quarter, over 61 quarters:
+    # (sum w)^2 / sum w^2, which tends to (1 + r) / (1 - r), about 23.
+    r8 = 0.5 ** (1 / 8)
+    w = [r8 ** k for k in range(61)]
+    assert r["effective_quarters"] == pytest.approx(sum(w) ** 2 / sum(x * x for x in w))
+    assert r["effective_quarters"] == pytest.approx((1 + r8) / (1 - r8), rel=0.02)
+
+
+def test_a_half_life_that_puts_normal_at_zero_is_refused():
+    e = evidence(load("mortgage_nco_ttm.csv"), "m", "%", "higher_is_worse",
+                 "quarterly", 1, 5, 0.75, True, half_lives=(10, 5))
+    assert "refused" not in e["recency"][0]
+    assert "refused" in e["recency"][1] and "bounds" not in e["recency"][1]
+
+
+def test_no_half_life_stated_means_no_recency_rows():
+    assert ev(quarters([1, 2, 1, 5, 1]))["recency"] == []
