@@ -1,6 +1,13 @@
-"""Run the engine on a CSV of dated values.
+"""Run the engine on a CSV of dated values. Two commands:
 
-    python -m threshold_engine SERIES.csv --name ... --unit ... --direction ...
+    python -m threshold_engine profile SERIES.csv --name ... --unit ...
+        --direction ... --frequency ... --smoothing ...
+
+reports facts about the series and decides nothing: its distribution, every
+spell worse than the median, how often each upper percentile was reached, the
+percentiles without the largest spell, and where the latest value ranks.
+
+    python -m threshold_engine cutoffs SERIES.csv --name ... --unit ... --direction ...
         --frequency ... --smoothing ... --floor-at-zero yes|no
         --scale-points ... --top-fraction ... --episode-height ...
         --materiality ...|none --outlier-ratio ... --min-other-episodes ...
@@ -21,7 +28,8 @@ import json
 import sys
 
 from .engine import Measure, Refused, Settings, run
-from .series import Point
+from .profile import profile, report
+from .series import Point, SeriesError
 
 
 def _yes_no(text):
@@ -34,9 +42,7 @@ def _materiality(text):
     return None if text == "none" else float(text)
 
 
-def _parser():
-    p = argparse.ArgumentParser(prog="python -m threshold_engine",
-                                description=__doc__.split("\n\n")[0])
+def _measure_args(p):
     p.add_argument("csv")
     req = p.add_argument_group("the measure, all required")
     req.add_argument("--name", required=True)
@@ -46,7 +52,18 @@ def _parser():
     req.add_argument("--frequency", required=True, choices=["quarterly", "monthly"])
     req.add_argument("--smoothing", required=True, type=int,
                      help="trailing periods averaged; 1 = none")
-    req.add_argument("--floor-at-zero", required=True, type=_yes_no)
+
+
+def _parser():
+    top = argparse.ArgumentParser(prog="python -m threshold_engine",
+                                  description=__doc__.split("\n\n")[0])
+    sub = top.add_subparsers(dest="command", required=True)
+    pr = sub.add_parser("profile", help="facts about the series; no judgement settings")
+    _measure_args(pr)
+    pr.add_argument("--json", action="store_true")
+    p = sub.add_parser("cutoffs", help="candidate cutoffs from the bank's stated settings")
+    _measure_args(p)
+    p.add_argument("--floor-at-zero", required=True, type=_yes_no)
     s = p.add_argument_group("the bank's settings, all required")
     s.add_argument("--scale-points", required=True, type=int)
     s.add_argument("--top-fraction", required=True, type=float)
@@ -59,7 +76,7 @@ def _parser():
     p.add_argument("--exclude", nargs=3, action="append", default=[],
                    metavar=("FIRST", "LAST", "REASON"))
     p.add_argument("--json", action="store_true", help="print the full result as JSON")
-    return p
+    return top
 
 
 def _read(path):
@@ -101,6 +118,15 @@ def _report(r):
 
 def main(argv=None):
     a = _parser().parse_args(argv)
+    if a.command == "profile":
+        try:
+            pr = profile(_read(a.csv), a.name, a.unit, a.direction, a.frequency,
+                         a.smoothing)
+        except (SeriesError, ValueError) as exc:
+            print("REFUSED: %s" % exc, file=sys.stderr)
+            return 2
+        print(json.dumps(pr, indent=2) if a.json else report(pr))
+        return 0
     m = Measure(a.name, a.unit, a.direction, a.frequency, a.smoothing, a.floor_at_zero)
     s = Settings(a.scale_points, a.top_fraction, a.episode_height, a.materiality,
                  a.outlier_ratio, a.min_other_episodes,
