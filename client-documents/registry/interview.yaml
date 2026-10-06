@@ -748,7 +748,64 @@ sections:
           Prices the earned income credit line. The client never sees this
           question; they see the line and its price on the estimate.
         feeds: LineItems
+
+      # THE SAME CASE AS THE EARNED INCOME CREDIT, and added 5 October 2026 for
+      # the same reason. Both were being priced "(market)" on a live plan
+      # because this interview could not reach them.
+      #
+      # Neither belongs in `extra_forms`. That multi-select keeps one rule --
+      # every option names something that HAPPENED and the client knows whether
+      # it did. Nobody knows they are in AMT until the return is computed, and
+      # the prior-year credit depends on a prior-year AMT computation. Asking
+      # the client would invite a wrong answer that priced a return.
+      - id: amt_applies
+        question: "Does the alternative minimum tax apply?"
+        help: >-
+          Leave blank until the return is computed. It falls out of the
+          figures, not out of anything the client can tell you.
+
+          Answering yes adds the Form 6251 line at $60.
+        type: single
+        options:
+          - { value: "yes", label: "Yes — Form 6251 applies" }
+          - { value: "no",  label: "No" }
+        supplies: []
+        internal: true
+        internal_reason: >-
+          Prices the alternative minimum tax line. The client never sees this
+          question; they see the line and its price on the estimate.
+        feeds: LineItems
+
+      - id: amt_credit_applies
+        question: "Is there a credit for prior-year minimum tax?"
+        help: >-
+          Leave blank until the prior year has been looked at. It needs that
+          year's Form 6251 and its carryforward.
+
+          Answering yes adds the Form 8801 line at $45.
+        type: single
+        options:
+          - { value: "yes", label: "Yes — Form 8801 applies" }
+          - { value: "no",  label: "No" }
+        supplies: []
+        internal: true
+        internal_reason: >-
+          Prices the prior-year minimum tax credit line. The client never sees
+          this question; they see the line and its price on the estimate.
+        feeds: LineItems
         showIf: "federal_form == '1040'"
+
+      - id: count_early_withdrawal
+        question: "How many Forms 5329?"
+        help: >
+          One per person, at $30 each. A joint return where both spouses took
+          money out early needs two -- each has its own exception to establish.
+
+          Leave it blank for one.
+        type: number
+        showIf: "'early_withdrawal' in extra_forms"
+        supplies: []
+        feeds: LineItems
 
       - id: count_foreign_accounts
         question: "How many foreign accounts?"
