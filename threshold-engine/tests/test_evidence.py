@@ -157,3 +157,71 @@ def test_a_half_life_that_puts_normal_at_zero_is_refused():
 
 def test_no_half_life_stated_means_no_recency_rows():
     assert ev(quarters([1, 2, 1, 5, 1]))["recency"] == []
+
+
+
+# ---- temporary departures ---------------------------------------------------
+from threshold_engine.evidence import departures  # noqa: E402
+
+
+def _wavy(n=80):
+    # a gentle, regular wave: every window departs a little, none stands out
+    return [2 + 0.05 * ((i % 6) - 2.5) for i in range(n)]
+
+
+def test_a_planted_dip_and_a_larger_planted_spike_are_found_largest_first():
+    v = _wavy()
+    for i, x in enumerate([1.2, 1.6, 1.0, 0.6, 1.0, 1.6, 1.2]):     # dip, quarters 50-56
+        v[50 + i] -= x
+    for i, x in enumerate([2, 3, 4, 3, 2]):                        # spike, quarters 15-19
+        v[15 + i] += x
+    d = departures(quarters(v), lengths=(8,), rounds=2)
+    assert d[0]["direction"] == "above the path" and d[1]["direction"] == "below the path"
+    q = quarters(v)
+    assert q[15].date <= d[0]["first"] <= d[0]["last"] <= q[19].date or         d[0]["first"] <= q[17].date <= d[0]["last"]
+    assert d[1]["first"] <= q[53].date <= d[1]["last"]
+
+
+def test_the_bridge_is_drawn_from_the_window_ends():
+    # One window of 4 over 1, 1, 1, 5, 1: bridge 1 -> 1; mean of 0, 4, 0 = 4/3.
+    d = departures(quarters([1, 1, 1, 5, 1]), lengths=(4,), rounds=1)
+    assert len(d) == 1 and d[0]["mean_departure"] == pytest.approx(4 / 3)
+    q = quarters([1, 1, 1, 5, 1])
+    assert (d[0]["bridge_from"], d[0]["first"], d[0]["last"], d[0]["bridge_to"]) == (
+        q[0].date, q[1].date, q[3].date, q[4].date)
+
+
+def test_after_the_largest_its_reach_is_set_aside():
+    v = _wavy()
+    for i, x in enumerate([2, 3, 4, 3, 2]):
+        v[30 + i] += x
+    d = departures(quarters(v), lengths=(8,), rounds=3)
+    q = quarters(v)
+    # nothing after the first may lie within one window-length of the spike
+    for x in d[1:]:
+        assert x["last"] < q[30 - 8].date or x["first"] > q[34 + 8].date
+
+
+def test_cards_departures_from_public_history():
+    e = ev(load("cards_nco_ttm.csv"))
+    got = [(d["first"][:4], d["direction"]) for d in e["departures"]]
+    assert got == [("2009", "above the path"), ("2001", "above the path"), ("2021", "below the path")]
+
+
+def test_other_consumer_finds_the_pandemic_dip_second():
+    e = ev(load("other_consumer_as_filed_nco_ttm.csv"))
+    d = e["departures"][1]
+    assert d["direction"] == "below the path" and d["first"].startswith("2021")
+
+
+
+def test_a_lower_is_worse_measure_reports_departures_in_its_own_units():
+    # A credit score falling below its path is the worse direction: reported as
+    # worse ("above the path" in the engine's worse-is-higher terms) with a
+    # negative change in score points.
+    cards = ev(load("cards_nco_ttm.csv"))["departures"][0]
+    from threshold_engine.series import Point
+    mirrored = [Point(p.date, -p.value) for p in load("cards_nco_ttm.csv")]
+    score = ev(mirrored, direction="lower_is_worse", floor=False)["departures"][0]
+    assert score["direction"] == cards["direction"]
+    assert score["mean_departure"] == pytest.approx(-cards["mean_departure"])

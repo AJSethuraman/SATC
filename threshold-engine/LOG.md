@@ -83,3 +83,37 @@ False`, and seen fixed in Excel.
 ### Next
 The window (`Thresholds.pyw`), PocketBook-style: pick the files, state the
 measure, run, and open the workbook.
+
+## 6 October 2026, temporary departures
+
+The bank: *"Is 2008 a specific thing in this book? ... Covid for instance had
+a huge dip in delinquency that obviously didn't sustain because it was just
+reporting differently than it did."* Then: *"you can literally see that dip
+happen in charge offs ... If you remove it it basically continues."*
+
+Two gaps it exposed:
+- "2008" was hardcoded into a Settings explanation. It now describes whatever
+  the data found.
+- The engine looked for unusual periods only on the bad side, and by level.
+  By level the pandemic dip is not unusual (cards z -2.3), because it sits
+  inside a long stretch below the median.
+
+What finds it is shape: a stretch that leaves the path between the quarters
+either side and comes back. The bridge test does this, largest event first,
+then sets that event aside with one window-length either side before looking
+again. Cards: 2008, 2002, then 2021Q3-2023Q1 below the path. Other consumer:
+2008, then the dip. Mortgage: no dip, because its losses were already near
+zero. On card 90+ delinquency (FDIC, every filer) the dip starts in 2020Q1,
+about a year before it shows in charge-offs, consistent with charge-off at
+180 days past due.
+
+Not hidden: the dip ranks deepest (1 of 91) but its z is -2.0, short of 3.5.
+The data finds it and cannot prove its cause, which is why each leave-out
+window now carries a Reason cell recorded on the Run tab. A first, naive
+reversal statistic found nothing and flagged 2008's slopes. It was dropped,
+not tuned. Home equity's second departure (2013-15) is the curved tail of its
+2008 run-off, which a straight bridge reads as a dip. The workbook says so.
+
+What the dip means for today: of cards' 2.2-point rise from the 2022 low,
+about 2.0 is a return to the pre-dip level and 0.26 is above it. For other
+consumer, 0.7 is the return and 0.44 is above it.

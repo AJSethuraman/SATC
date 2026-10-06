@@ -174,7 +174,11 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
                                           floor_at_zero))
         recency.append(row)
 
-    return {"recency": recency, "profile": pr, "sd_of_change": sd_change, "spells": spells,
+    deps = departures(work)
+    for d in deps:
+        d["mean_departure"] *= sign            # back to the measure's own units
+
+    return {"recency": recency, "departures": deps, "profile": pr, "sd_of_change": sd_change, "spells": spells,
             "unusual_count": {str(l): sum(1 for s in spells if s["robust_z"] >= l)
                               for l in LINES},
             "largest": largest,
@@ -182,6 +186,64 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
             "scenarios": scenarios,
             "settings": {"scale_points": scale_points, "top_fraction": top_fraction,
                          "floor_at_zero": floor_at_zero, "line": LINE}}
+
+
+BRIDGE_LENGTHS = (8, 12, 16)
+ROUNDS = 3
+
+
+def departures(work: Sequence[Point], lengths=BRIDGE_LENGTHS, rounds=ROUNDS):
+    """Temporary departures: stretches that leave the series' path and come back.
+
+    For a window of W periods, draw a straight bridge from its first value to
+    its last and take the mean of the series minus the bridge over the periods
+    in between. Negative is a dip below the path, positive a rise above it.
+    Each window is ranked, by robust z, against every window of the same length.
+
+    In sequence: the most extreme window, in either direction and at any of the
+    stated lengths, is reported and set aside, together with one window-length
+    either side of it, since a bridge anchored there still has an end inside the
+    event; then the next is found among the windows that touch nothing set
+    aside. One extreme event otherwise
+    hides the next: a bridge drawn across the start of a large rise always sits
+    above the series, so the shoulders of the largest event read as the deepest
+    dips. Rosner's generalised ESD test works one outlier at a time for the
+    same reason.
+
+    Values are in "higher is worse" space; a positive departure is worse than
+    the path around it. The data cannot say why a stretch departed. That is
+    the bank's to record.
+    """
+    v = [p.value for p in work]
+    pool = []
+    for w in lengths:
+        rows = []
+        for st in range(0, len(v) - w):
+            en = st + w
+            dev = [v[t] - (v[st] + (v[en] - v[st]) * (t - st) / w) for t in range(st + 1, en)]
+            rows.append((sum(dev) / len(dev), st, en, w))
+        if not rows:
+            continue
+        means = [r[0] for r in rows]
+        for r in rows:
+            pool.append((robust_z(r[0], means), r, len(rows)))
+    found, aside = [], []
+    for _ in range(rounds):
+        free = [x for x in pool if all(x[1][2] < a or x[1][1] > b for a, b in aside)]
+        if not free:
+            break
+        z, (mean, st, en, w), n = max(free, key=lambda x: abs(x[0]))
+        if not math.isfinite(z):
+            break
+        same_length = sorted((x for x in free if x[1][3] == w), key=lambda x: x[1][0],
+                             reverse=mean > 0)
+        found.append({"direction": "above the path" if mean > 0 else "below the path",
+                      "first": work[st + 1].date, "last": work[en - 1].date,
+                      "bridge_from": work[st].date, "bridge_to": work[en].date,
+                      "length": w, "mean_departure": mean, "robust_z": z,
+                      "rank": 1, "of": len(same_length)})
+        aside.append((st - w, en + w))
+    return found
 
 
 def _deepest_dip(inside, work):
@@ -259,6 +321,14 @@ def report(ev: dict) -> str:
                 r["half_life_years"], r["effective_quarters"], f(r["normal"]),
                 "REFUSED: " + r["refused"] if "refused" in r else
                 "%-31s  %d" % (" / ".join("%.3f" % b for b in r["bounds"]), r["latest_score"])))
+    if ev["departures"]:
+        out += ["", "4. TEMPORARY DEPARTURES (left the path and came back; the largest first, then set aside)",
+                "   first     last      direction        mean off the path  robust z  rank"]
+        for d in ev["departures"]:
+            out.append("   %s  %s  %-15s  %+17.3f  %8.1f  1 of %d (%d-quarter windows)" % (
+                d["first"], d["last"], d["direction"], d["mean_departure"], d["robust_z"],
+                d["of"], d["length"]))
+        out.append("   The data finds the departure; why it happened is the bank's to record.")
     out += ["", "These are statistics and their consequences, not a recommendation.",
             "The z-scores are distances from the bulk of history, not probabilities:",
             "neighbouring quarters of a trailing-twelve-month rate are not independent."]

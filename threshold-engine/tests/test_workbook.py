@@ -63,7 +63,7 @@ def test_typing_the_evidence_suggestion_reproduces_scenario_c(built, tmp_path):
     p, info, _ = built
     wb = load_workbook(p)
     st = wb["Settings"]
-    assert st["F6"].value == "Leave out 2007Q4 to 2012Q4"
+    assert st["J6"].value == "Leave out 2007Q4 to 2012Q4"
     st["B6"], st["C6"] = "2007Q4", "2012Q4"
     q = tmp_path / "c.xlsx"
     wb.save(q)
@@ -78,7 +78,7 @@ def test_the_on_the_line_rule_is_live(built, tmp_path):
     p, _, vals = built
     assert row(vals, 5)[6] == 2
     wb = load_workbook(p)
-    wb["Settings"]["E6"] = "better"
+    wb["Settings"]["I6"] = "better"
     q = tmp_path / "b.xlsx"
     wb.save(q)
     assert row(recalc(q), 5)[6] == 1
@@ -110,7 +110,8 @@ def test_the_run_tab_fingerprints_every_file(built):
     import hashlib
     p, _, _ = built
     run = load_workbook(p)["Run"]
-    rows = {r[0].value: r for r in run.iter_rows(min_row=8) if r[0].value}
+    rows = {r[0].value: r for r in run.iter_rows(min_row=8)
+            if r[0].value and len(str(r[2].value or "")) == 64}
     for label, path in SERIES:
         assert rows[label][2].value == hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -121,3 +122,29 @@ def test_mixed_or_duplicate_inputs_are_refused(tmp_path):
               0.75, "worse", (), (50, 75, 90, 95), 4, 41)
     with pytest.raises(ValueError):
         make(tmp_path / "y.xlsx", on_the_line="sometimes")
+
+
+def test_two_leave_out_windows_combine_and_each_carries_a_reason(built, tmp_path):
+    import statistics
+    from conftest import load
+    p, _, _ = built
+    wb = load_workbook(p)
+    st = wb["Settings"]
+    st["B6"], st["C6"], st["D6"] = "2007Q4", "2012Q4", "Largest spell; not the only stress"
+    st["E6"], st["F6"], st["G6"] = "2021Q3", "2023Q1", "Pandemic forbearance"
+    q = tmp_path / "two.xlsx"
+    wb.save(q)
+    vals = recalc(q)
+    kept = [x.value for x in load("cards_nco_ttm.csv")
+            if not ("2007Q4" <= quarter(x.date) <= "2012Q4" or "2021Q3" <= quarter(x.date) <= "2023Q1")]
+    assert vals["THRESHOLDS!B5"] == pytest.approx(statistics.median(kept))
+    assert vals["THRESHOLDS!C5"] == pytest.approx(max(kept))
+    run = {k: v for k, v in vals.items() if k.startswith("RUN!")}
+    assert "2021Q3 to 2023Q1" in run.values() and "Pandemic forbearance" in run.values()
+
+
+def test_settings_lists_the_departures_the_data_found(built):
+    p, info, _ = built
+    st = load_workbook(p)["Settings"]
+    assert "2021Q3 to 2023Q1 below the path" in st["K6"].value
+    assert "2008" not in (st["L6"].value or "")

@@ -113,19 +113,23 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             if q in s["by_q"]:
                 da.cell(r, 2 + k, s["by_q"][q])
             sr = srow[s["label"]]
+            left_out = ",".join(
+                'AND(Settings!${a}${sr}<>"",$A{r}>=Settings!${a}${sr},$A{r}<=Settings!${b}${sr})'
+                .format(a=a_, b=b_, sr=sr, r=r) for a_, b_ in (("B", "C"), ("E", "F")))
             da.cell(r, 2 + n + k,
-                    '=IF({raw}{r}="","",IF(AND(Settings!$B${sr}<>"",$A{r}>=Settings!$B${sr},'
-                    '$A{r}<=Settings!$C${sr}),"",{raw}{r}))'.format(raw=raw, r=r, sr=sr))
+                    '=IF({raw}{r}="","",IF(OR({lo}),"",{raw}{r}))'.format(raw=raw, r=r, lo=left_out))
     K.freeze_below(da, 1)
 
     # ---- Settings (red): the bank's judgements ----
-    r = K.brand_banner(st, 1, 7, "Settings — the bank's judgements",
-                       "Yellow cells are yours. The Thresholds and Chart tabs recalculate as you change them.")
-    st.cell(4, 1, "Leave a period out by typing its first and last quarter (e.g. 2007Q4 and 2012Q4). "
-                  "Blank keeps every period.").font = NOTE
-    K.header_row(st, 5, ["Product", "Leave out from", "Leave out to", "Score 5 begins (share of the way from normal to worst)",
-                         "A value on a line takes the", "What the evidence says", "Why"])
-    _wrap(st, 5, 46)
+    K.brand_banner(st, 1, 12, "Settings — the bank's judgements",
+                   "Yellow cells are yours. The Thresholds and Chart tabs recalculate as you change them.")
+    st.cell(4, 1, "Leave a period out by typing its first and last quarter (e.g. 2020Q3 and 2023Q1), and say "
+                  "why: the data can find a departure but not its cause. Blank keeps every period.").font = NOTE
+    K.header_row(st, 5, ["Product", "Leave out from", "Leave out to", "Reason", "Second leave-out from", "to",
+                         "Reason", "Score 5 begins (share of the way from normal to worst)",
+                         "A value on a line takes the", "Largest spell: what the evidence says",
+                         "Temporary departures the data found", "Why"])
+    _wrap(st, 5, 58)
     dv = DataValidation(type="list", formula1='"worse,better"', allow_blank=False)
     st.add_data_validation(dv)
     for s in loaded:
@@ -133,25 +137,33 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         c = s["ev"]["scenarios"][2]
         lg = s["ev"]["largest"]
         if c["removed"]:
-            end = c["removed"][1]
-            last_q = grid[grid.index(quarter(end)) - 1] if end else grid[-1]
+            end_ = c["removed"][1]
+            last_q = grid[grid.index(quarter(end_)) - 1] if end_ else grid[-1]
             say = "Leave out %s to %s" % (quarter(c["removed"][0]), last_q)
-            why = "Another spell is also unusual (%s); 2008-sized losses are not the only stress on record" % c["decided_by"]
+            why = ("Another spell is also unusual (%s), so the largest is not the only stress on record"
+                   % c["decided_by"])
         else:
             say = "Keep every period"
             why = ("The largest spell (peak %s, z %.1f) is the only unusual one: it is the only evidence of stress"
                    % (quarter(lg["peak_date"]), lg["robust_z"]) if lg else "No spell above the median")
-        vals = [s["label"], None, None, top_fraction, on_the_line, say, why]
+        deps = "; ".join("%s to %s %s (z %+.1f)" % (quarter(d["first"]), quarter(d["last"]),
+                                                    d["direction"], d["robust_z"])
+                         for d in s["ev"]["departures"]) or "None found"
+        vals = [s["label"], None, None, None, None, None, None, top_fraction, on_the_line, say, deps, why]
         for col, v in enumerate(vals, start=1):
             cell = st.cell(rr, col, v)
-            if col in (2, 3, 4, 5):
+            if 2 <= col <= 9:
                 cell.fill = INPUT
-        dv.add("E%d" % rr)
-    for col, w in zip("ABCDEFG", (22, 14, 14, 26, 14, 34, 70)):
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+        dv.add("I%d" % rr)
+    for col, w in zip("ABCDEFGHIJKL", (18, 11, 11, 24, 11, 11, 24, 16, 11, 22, 44, 44)):
         st.column_dimensions[col].width = w
     st.cell(srow[loaded[-1]["label"]] + 2, 1,
             "The cutoffs: score 2 begins at the median of the periods kept; score 5 begins the stated share of "
-            "the way to the worst period kept; scores 3 and 4 are equal steps between.").font = NOTE
+            "the way to the worst period kept; scores 3 and 4 are equal steps between. Temporary departures: "
+            "stretches that left the path between the quarters either side and came back, largest first, each "
+            "ranked against every window of its length. A long, curved decline can read as a dip below a straight "
+            "path.").font = NOTE
 
     # ---- Thresholds: live ----
     K.brand_banner(th, 1, 13, "%s — candidate thresholds" % name,
@@ -171,7 +183,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                        'IF(C{r}=B{r},"Refused: nothing worse than normal",""))'.format(r=r)
                        % ("TRUE" if floor_at_zero and higher else "FALSE"))
         for i in range(4):
-            th.cell(r, 4 + i, '=IF($L{r}<>"","",$B{r}+{i}*Settings!$D${sr}*($C{r}-$B{r})/3)'
+            th.cell(r, 4 + i, '=IF($L{r}<>"","",$B{r}+{i}*Settings!$H${sr}*($C{r}-$B{r})/3)'
                     .format(r=r, i=i, sr=sr))
         lp = s["points"][-1]
         th.cell(r, 8, quarter(lp.date))
@@ -179,7 +191,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         op_worse, op_better = ("<=", "<") if higher else (">=", ">")
         bounds = "$D{r}:$G{r}".format(r=r)
         floor = "AND(I{r}<=0,{f})".format(r=r, f="TRUE" if floor_at_zero and higher else "FALSE")
-        th.cell(r, 10, '=IF($L{r}<>"","",IF({floor},1,1+IF(Settings!$E${sr}="worse",'
+        th.cell(r, 10, '=IF($L{r}<>"","",IF({floor},1,1+IF(Settings!$I${sr}="worse",'
                        'COUNTIF({b},"{w}"&I{r}),COUNTIF({b},"{bt}"&I{r}))))'
                 .format(r=r, floor=floor, sr=sr, b=bounds, w=op_worse, bt=op_better))
         th.cell(r, 11, '=IF(J{r}="","",CHOOSE(J{r},"{0}","{1}","{2}","{3}","{4}"))'.format(*RATINGS, r=r))
@@ -272,10 +284,20 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         for row in evs.iter_rows(min_row=r, max_row=evs.max_row, min_col=2, max_col=7):
             for cell in row:
                 cell.number_format = "0.000"
+        r = K.header_row(evs, evs.max_row + 1, ["Temporary departure: first quarter", "Last quarter",
+                                                "Direction", "Mean off the path", "Robust z",
+                                                "Rank among windows of its length", "Window (quarters)", ""])
+        _wrap(evs, r - 1, 62)
+        for d in ev["departures"]:
+            evs.append([quarter(d["first"]), quarter(d["last"]), d["direction"], d["mean_departure"],
+                        d["robust_z"], "1 of %d" % d["of"], d["length"]])
+            evs.cell(evs.max_row, 4).number_format = "0.000"
+            evs.cell(evs.max_row, 5).number_format = "0.0"
         r = evs.max_row
     evs.column_dimensions["A"].width = 58
     for col in "BCDEFGH":
         evs.column_dimensions[col].width = 13
+    evs.column_dimensions["C"].width = 16
 
     # ---- Backtest (values) ----
     r = K.brand_banner(bts, 1, 9, "How predictive would the scale have been?",
@@ -312,9 +334,20 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     for s in loaded:
         run.append([s["label"], str(s["path"]), _sha(s["path"]), len(s["points"]),
                     s["points"][0].date, s["points"][-1].date])
-    run.column_dimensions["A"].width = 18
+    run.append([])
+    run.append(["As decided on Settings (live)", "Leave out", "Reason", "Second leave-out", "Reason"])
+    for s in loaded:
+        sr = srow[s["label"]]
+        run.append([s["label"],
+                    '=IF(Settings!B{0}="","none",Settings!B{0}&" to "&Settings!C{0})'.format(sr),
+                    "=IF(Settings!D{0}=\"\",\"\",Settings!D{0})".format(sr),
+                    '=IF(Settings!E{0}="","none",Settings!E{0}&" to "&Settings!F{0})'.format(sr),
+                    "=IF(Settings!G{0}=\"\",\"\",Settings!G{0})".format(sr)])
+    run.column_dimensions["A"].width = 30
     run.column_dimensions["B"].width = 60
     run.column_dimensions["C"].width = 66
+    run.column_dimensions["D"].width = 18
+    run.column_dimensions["E"].width = 60
 
     out = Path(out)
     wb.save(out)
