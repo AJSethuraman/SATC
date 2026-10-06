@@ -3,7 +3,12 @@ name = "threshold-engine"
 version = "0.1.0"
 description = "Candidate risk-rating cutoffs from any continuous signal, with its stress cycles and the evidence for each"
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "openpyxl>=3.1",   # writes the workbook
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.4", "formulas>=1.2"]   # formulas recalculates the workbook in tests
 
 [project.scripts]
 threshold-engine = "threshold_engine.cli:main"

@@ -43,6 +43,25 @@ It exists to set the thresholds a separate scoring file uses. It does not
 score a portfolio. The design is in the *Consumer Risk Thresholds: Design
 Proposal*, section 3a.
 
+## The workbook: one run, everything at once
+
+```
+threshold-engine workbook consumer-thresholds.xlsx --series "Credit card=tests/data/cards_nco_ttm.csv" --series "Mortgage=tests/data/mortgage_nco_ttm.csv" --series "Home equity=tests/data/home_equity_nco_ttm.csv" --series "Other consumer=tests/data/other_consumer_as_filed_nco_ttm.csv" --name "Net charge-offs, trailing twelve months" --unit % --direction higher_is_worse --frequency quarterly --smoothing 1 --floor-at-zero yes --top-fraction 0.75 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 41 --half-lives 10 5
+```
+
+Python works out the statistics once. The cutoffs are live Excel formulas
+driven by the red **Settings** tab. Leave out a period, move where score 5
+begins, or change which score a value on a line takes, and the **Thresholds**
+and **Chart** tabs recalculate. Settings also shows what the evidence says
+and why, so each judgement is made next to its evidence. The **Chart** tab
+switches any combination of products onto one scale. **Evidence**,
+**Backtest**, **Data** and **Run** hold the statistics, the shared quarterly
+calendar, and every input file's SHA-256.
+
+The tests recalculate the workbook with the `formulas` engine. As built, the
+live cutoffs must equal scenario A. With the evidence's suggested period left
+out, they must equal scenario C to the third decimal.
+
 ## Run it
 
 ```
@@ -108,15 +127,16 @@ charge-off history:
 python -m pytest -q
 ```
 
-101 tests: the backtest's no-lookahead rule, recency weights, evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
+108 tests: the workbook's live formulas, the backtest's no-lookahead rule, recency weights, evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
 on a bound, mirror symmetry, provenance, the command line, the public series,
 and an independent recomputation of the card cutoffs that uses only the
-standard library. Each of 47 hand-made mutants (14 in the cutoffs, 9 in the
-profile, 15 in the evidence, 9 in the backtest) turns a test red.
+standard library. Each of 52 hand-made mutants (14 in the cutoffs, 9 in the
+profile, 15 in the evidence, 9 in the backtest, 5 in the workbook's formulas)
+turns a test red.
 
 ## Not built yet
 
 - Stage 6: the peer-percentile comparison beside each scale
-- The audit workbook. Results are text or JSON for now
+- A window to run it from (PocketBook-style); for now it runs from the command line
 - Many-entity input weighted by balance, such as banks and their books
 - Spacing other than equal steps

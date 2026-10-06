@@ -85,6 +85,26 @@ def _parser():
                     help="periods of history before the first test")
     bt.add_argument("--half-lives", type=float, nargs="+", default=[], metavar="YEARS")
     bt.add_argument("--json", action="store_true")
+    wbp = sub.add_parser("workbook", help="one run, one Excel workbook: facts, evidence, "
+                         "backtest and live cutoffs for every product")
+    wbp.add_argument("out", help="the .xlsx to write")
+    wbp.add_argument("--series", required=True, action="append", metavar="LABEL=FILE",
+                     help="one per product, e.g. \"Credit card=cards.csv\"")
+    m = wbp.add_argument_group("the measure, shared by every product, all required")
+    m.add_argument("--name", required=True)
+    m.add_argument("--unit", required=True)
+    m.add_argument("--direction", required=True, choices=["higher_is_worse", "lower_is_worse"])
+    m.add_argument("--frequency", required=True, choices=["quarterly"])
+    m.add_argument("--smoothing", required=True, type=int)
+    m.add_argument("--floor-at-zero", required=True, type=_yes_no)
+    j = wbp.add_argument_group("starting values for the Settings tab, all required")
+    j.add_argument("--top-fraction", required=True, type=float)
+    j.add_argument("--on-the-line", required=True, choices=["worse", "better"])
+    b = wbp.add_argument_group("the backtest, all required")
+    b.add_argument("--percentiles", required=True, type=float, nargs="+", metavar="P")
+    b.add_argument("--horizon", required=True, type=int)
+    b.add_argument("--min-history", required=True, type=int)
+    wbp.add_argument("--half-lives", type=float, nargs="+", default=[], metavar="YEARS")
     p = sub.add_parser("cutoffs", help="candidate cutoffs from the bank's stated settings")
     _measure_args(p)
     p.add_argument("--floor-at-zero", required=True, type=_yes_no)
@@ -150,6 +170,24 @@ def main(argv=None):
             print("REFUSED: %s" % exc, file=sys.stderr)
             return 2
         print(json.dumps(pr, indent=2) if a.json else report(pr))
+        return 0
+    if a.command == "workbook":
+        pairs = []
+        for item in a.series:
+            label, sep, path = item.partition("=")
+            if not sep or not label or not path:
+                print("REFUSED: --series takes LABEL=FILE, not %r" % item, file=sys.stderr)
+                return 2
+            pairs.append((label, path))
+        try:
+            from .workbook import build
+            r = build(a.out, pairs, a.name, a.unit, a.direction, a.frequency, a.smoothing,
+                      a.floor_at_zero, a.top_fraction, a.on_the_line, a.half_lives,
+                      a.percentiles, a.horizon, a.min_history)
+        except (SeriesError, ValueError, OSError) as exc:
+            print("REFUSED: %s" % exc, file=sys.stderr)
+            return 2
+        print("Wrote %s: %s, %d quarters" % (r["path"], ", ".join(r["products"]), r["quarters"]))
         return 0
     if a.command == "backtest":
         try:

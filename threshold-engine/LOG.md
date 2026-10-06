@@ -61,3 +61,25 @@ One run from one screen. Point it at the series, state the settings once, and
 it runs profile, evidence, recency and backtest together. The output is one
 Excel workbook, PocketBook-style, with a run stamp and every number traceable
 to its source rows.
+
+## 6 October 2026, later
+
+**The workbook is built.** The bank: *"I expect this to move quickly because
+it's far simpler in nature."* `workbook` writes one Excel file covering every
+product: live cutoffs driven by a red Settings tab (the
+portfolio-analysis-pack pattern: statistics as values, judgements as cells,
+results as formulas), a chart with product switches on one scale, and the
+evidence, backtest, data and run stamp. Style is the suite's vendored
+`keybank_style.py`.
+
+Checked in real Excel 16 and, in tests, with the `formulas` engine. As built,
+the cutoffs equal scenario A. With the evidence's suggestion typed in (cards,
+2007Q4 to 2012Q4), they equal scenario C to the third decimal.
+
+Found while checking: the chart drew nothing, because Excel skips hidden
+columns and its helper columns were hidden. Fixed with `visible_cells_only =
+False`, and seen fixed in Excel.
+
+### Next
+The window (`Thresholds.pyw`), PocketBook-style: pick the files, state the
+measure, run, and open the workbook.
