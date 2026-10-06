@@ -70,10 +70,12 @@ def _sha(path: Path) -> str:
 
 def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
           direction: str, frequency: str, smoothing: int, floor_at_zero: bool,
-          top_fraction: float, on_the_line: str, half_lives: Sequence[float],
+          score2_percentile: float, top_fraction: float, on_the_line: str, half_lives: Sequence[float],
           percentiles: Sequence[float], horizon: int, min_history: int) -> dict:
     if frequency != "quarterly":
         raise ValueError("the workbook's calendar is quarterly; monthly series are not built yet")
+    if not 0 < score2_percentile < 100:
+        raise ValueError("score 2 must begin at a percentile above 0 and below 100")
     if on_the_line not in ("worse", "better"):
         raise ValueError("on_the_line must be 'worse' or 'better'")
     if len({lbl for lbl, _ in series}) != len(series):
@@ -126,7 +128,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     st.cell(4, 1, "Leave a period out by typing its first and last quarter (e.g. 2020Q3 and 2023Q1), and say "
                   "why: the data can find a departure but not its cause. Blank keeps every period.").font = NOTE
     K.header_row(st, 5, ["Product", "Leave out from", "Leave out to", "Reason", "Second leave-out from", "to",
-                         "Reason", "Score 5 begins (share of the way from normal to worst)",
+                         "Reason", "Score 2 begins at this percentile of the quarters kept",
+                         "Score 5 begins (share of the way from the score-2 line to worst)",
                          "A value on a line takes the", "Largest spell: what the evidence says",
                          "Temporary departures the data found", "Why"])
     _wrap(st, 5, 58)
@@ -149,18 +152,20 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         deps = "; ".join("%s to %s %s (z %+.1f)" % (quarter(d["first"]), quarter(d["last"]),
                                                     d["direction"], d["robust_z"])
                          for d in s["ev"]["departures"]) or "None found"
-        vals = [s["label"], None, None, None, None, None, None, top_fraction, on_the_line, say, deps, why]
+        vals = [s["label"], None, None, None, None, None, None, score2_percentile, top_fraction, on_the_line,
+                say, deps, why]
         for col, v in enumerate(vals, start=1):
             cell = st.cell(rr, col, v)
-            if 2 <= col <= 9:
+            if 2 <= col <= 10:
                 cell.fill = INPUT
             cell.alignment = Alignment(wrap_text=True, vertical="top")
-        dv.add("I%d" % rr)
-    for col, w in zip("ABCDEFGHIJKL", (18, 11, 11, 24, 11, 11, 24, 16, 11, 22, 44, 44)):
+        dv.add("J%d" % rr)
+    for col, w in zip("ABCDEFGHIJKLM", (18, 11, 11, 24, 11, 11, 24, 14, 16, 11, 22, 44, 44)):
         st.column_dimensions[col].width = w
     st.cell(srow[loaded[-1]["label"]] + 2, 1,
-            "The cutoffs: score 2 begins at the median of the periods kept; score 5 begins the stated share of "
-            "the way to the worst period kept; scores 3 and 4 are equal steps between. Temporary departures: "
+            "The cutoffs: score 2 begins at the stated percentile of the periods kept (50 is the median: Low "
+            "then covers half of history by construction); score 5 begins the stated share of the way from there "
+            "to the worst period kept; scores 3 and 4 are equal steps between. Temporary departures: "
             "stretches that left the path between the quarters either side and came back, largest first, each "
             "ranked against every window of its length. A long, curved decline can read as a dip below a straight "
             "path.").font = NOTE
@@ -168,7 +173,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     # ---- Thresholds: live ----
     K.brand_banner(th, 1, 13, "%s — candidate thresholds" % name,
                    "Live: recalculates from the Settings tab. Candidates for the bank to accept, adjust or reject.")
-    K.header_row(th, 4, ["Product", "Normal (median kept)", "Worst kept", "2 Moderate-Low from", "3 Moderate from",
+    K.header_row(th, 4, ["Product", "Score-2 line (percentile of kept)", "Worst kept", "2 Moderate-Low from", "3 Moderate from",
                          "4 Moderate-High from", "5 High from", "Latest quarter", "Latest (%s)" % unit,
                          "Score", "Rating", "Check"], right_from=1)
     _wrap(th, 4, 46)
@@ -177,13 +182,13 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         sr = srow[s["label"]]
         kept = "Data!$%s$%d:$%s$%d" % (L(2 + n + k), first, L(2 + n + k), last)
         th.cell(r, 1, s["label"])
-        th.cell(r, 2, "=MEDIAN(%s)" % kept)
+        th.cell(r, 2, "=PERCENTILE(%s,Settings!$H$%d/100)" % (kept, sr))
         th.cell(r, 3, "=%s(%s)" % ("MAX" if higher else "MIN", kept))
         th.cell(r, 12, '=IF(AND(%s,B{r}<=0),"Refused: normal level at or below zero",'
                        'IF(C{r}=B{r},"Refused: nothing worse than normal",""))'.format(r=r)
                        % ("TRUE" if floor_at_zero and higher else "FALSE"))
         for i in range(4):
-            th.cell(r, 4 + i, '=IF($L{r}<>"","",$B{r}+{i}*Settings!$H${sr}*($C{r}-$B{r})/3)'
+            th.cell(r, 4 + i, '=IF($L{r}<>"","",$B{r}+{i}*Settings!$I${sr}*($C{r}-$B{r})/3)'
                     .format(r=r, i=i, sr=sr))
         lp = s["points"][-1]
         th.cell(r, 8, quarter(lp.date))
@@ -191,7 +196,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         op_worse, op_better = ("<=", "<") if higher else (">=", ">")
         bounds = "$D{r}:$G{r}".format(r=r)
         floor = "AND(I{r}<=0,{f})".format(r=r, f="TRUE" if floor_at_zero and higher else "FALSE")
-        th.cell(r, 10, '=IF($L{r}<>"","",IF({floor},1,1+IF(Settings!$I${sr}="worse",'
+        th.cell(r, 10, '=IF($L{r}<>"","",IF({floor},1,1+IF(Settings!$J${sr}="worse",'
                        'COUNTIF({b},"{w}"&I{r}),COUNTIF({b},"{bt}"&I{r}))))'
                 .format(r=r, floor=floor, sr=sr, b=bounds, w=op_worse, bt=op_better))
         th.cell(r, 11, '=IF(J{r}="","",CHOOSE(J{r},"{0}","{1}","{2}","{3}","{4}"))'.format(*RATINGS, r=r))
@@ -275,7 +280,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                           "Every quarter", "Share of every quarter"], right_from=2)
     _wrap(asx, 7, 48)
     bnd = ["INDEX(Thresholds!${c}$5:${c}${e},{m})".format(c=c_, e=4 + n, m=tr) for c_ in "DEFG"]
-    online = "INDEX(Settings!$I$6:$I${e},{m})".format(e=5 + n, m=tr)
+    online = "INDEX(Settings!$J$6:$J${e},{m})".format(e=5 + n, m=tr)
     hc = 12                                   # helper columns start at L
     rng = lambda c_: "${c}${a}:${c}${b}".format(c=L(c_), a=first, b=last)           # noqa: E731
     kept_r, raw_r = rng(hc + 1), rng(hc + 3)

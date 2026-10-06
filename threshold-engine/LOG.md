@@ -148,3 +148,25 @@ displays them cut out?"* Each left-out period is now a dark strip under the
 axis, and its dates and reason are listed under the chart, live from Settings.
 The strip is an area: Excel drew 163 stacked columns on this shared axis as
 thin slivers whatever their gap width.
+
+## 6 October 2026, where score 2 begins
+
+The bank: *"I feel as though low is too generous. It may be factually
+reasonable but professional skepticism kicks in in thinking low is where the
+curve spends a lot of its time."* That was right by construction: score 2
+began at the median of the quarters kept, so Low covered half of history.
+Where score 2 begins is now a Settings cell per product, a percentile of the
+quarters kept, and the CLI requires a starting value.
+
+Tested before building: lowering it mostly moves quarters from Low into
+Moderate-Low, and High barely changes, because loss rates spend most of
+their time low and spike rarely. Cards at the 33rd percentile: Low 33%,
+Moderate-Low 27%, Moderate 26%, Moderate-High 9%, High 5%. Today's 3.98%
+stays Moderate-Low. Other consumer's 1.78% becomes Moderate from the 40th
+percentile down. Mortgage at the 33rd percentile starts score 2 at 0.08%, so
+"0.01% is not a 2" still holds; at the 25th it is 0.05%.
+
+### Waiting on the bank
+- Score 2's percentile, per product. Recommended: 33 ("better than two-thirds
+  of history"). The test: should cards' 2017-2020 stretch at 3.6-3.7% read
+  Moderate-Low?

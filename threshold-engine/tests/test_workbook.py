@@ -16,7 +16,7 @@ SERIES = [("Credit card", DATA / "cards_nco_ttm.csv"), ("Mortgage", DATA / "mort
 
 def make(path, **over):
     kw = dict(name="NCO", unit="%", direction="higher_is_worse", frequency="quarterly", smoothing=1,
-              floor_at_zero=True, top_fraction=0.75, on_the_line="worse", half_lives=(10,),
+              floor_at_zero=True, score2_percentile=50, top_fraction=0.75, on_the_line="worse", half_lives=(10,),
               percentiles=(50, 75, 90, 95), horizon=4, min_history=41)
     kw.update(over)
     return build(path, SERIES, **kw)
@@ -63,7 +63,7 @@ def test_typing_the_evidence_suggestion_reproduces_scenario_c(built, tmp_path):
     p, info, _ = built
     wb = load_workbook(p)
     st = wb["Settings"]
-    assert st["J6"].value == "Leave out 2007Q4 to 2012Q4"
+    assert st["K6"].value == "Leave out 2007Q4 to 2012Q4"
     st["B6"], st["C6"] = "2007Q4", "2012Q4"
     q = tmp_path / "c.xlsx"
     wb.save(q)
@@ -78,7 +78,7 @@ def test_the_on_the_line_rule_is_live(built, tmp_path):
     p, _, vals = built
     assert row(vals, 5)[6] == 2
     wb = load_workbook(p)
-    wb["Settings"]["I6"] = "better"
+    wb["Settings"]["J6"] = "better"
     q = tmp_path / "b.xlsx"
     wb.save(q)
     assert row(recalc(q), 5)[6] == 1
@@ -119,7 +119,7 @@ def test_the_run_tab_fingerprints_every_file(built):
 def test_mixed_or_duplicate_inputs_are_refused(tmp_path):
     with pytest.raises(ValueError):
         build(tmp_path / "x.xlsx", SERIES[:1] * 2, "NCO", "%", "higher_is_worse", "quarterly", 1, True,
-              0.75, "worse", (), (50, 75, 90, 95), 4, 41)
+              50, 0.75, "worse", (), (50, 75, 90, 95), 4, 41)
     with pytest.raises(ValueError):
         make(tmp_path / "y.xlsx", on_the_line="sometimes")
 
@@ -146,8 +146,8 @@ def test_two_leave_out_windows_combine_and_each_carries_a_reason(built, tmp_path
 def test_settings_lists_the_departures_the_data_found(built):
     p, info, _ = built
     st = load_workbook(p)["Settings"]
-    assert "2021Q3 to 2023Q1 below the path" in st["K6"].value
-    assert "2008" not in (st["L6"].value or "")
+    assert "2021Q3 to 2023Q1 below the path" in st["L6"].value
+    assert "2008" not in (st["M6"].value or "")
 
 
 def test_assess_counts_the_quarters_in_each_score_live(built, tmp_path):
@@ -180,7 +180,7 @@ def test_assess_follows_the_on_the_line_rule(built, tmp_path):
     p, _, vals = built
     worse = [vals["ASSESS!E%d" % r] for r in (8, 9)]
     wb = load_workbook(p)
-    wb["Settings"]["I6"] = "better"
+    wb["Settings"]["J6"] = "better"
     q = tmp_path / "line.xlsx"
     wb.save(q)
     v2 = recalc(q)
@@ -214,3 +214,32 @@ def test_the_strip_marks_exactly_the_quarters_left_out_and_the_caption_says_why(
 def test_with_nothing_left_out_the_caption_says_so(built):
     _, _, vals = built
     assert vals["ASSESS!A41"] == "" and vals["ASSESS!A43"] == "Nothing left out: every quarter counts."
+
+
+
+def test_score_2_can_begin_lower_and_assess_shows_what_that_does(built, tmp_path):
+    from conftest import load
+    from threshold_engine.profile import percentile
+    p, _, _ = built
+    wb = load_workbook(p)
+    st = wb["Settings"]
+    st["B6"], st["C6"] = "2007Q4", "2012Q4"
+    st["E6"], st["F6"] = "2021Q3", "2023Q1"
+    st["H6"] = 33
+    q = tmp_path / "p33.xlsx"
+    wb.save(q)
+    vals = recalc(q)
+    pts = load("cards_nco_ttm.csv")
+    gone = lambda x: "2007Q4" <= quarter(x.date) <= "2012Q4" or "2021Q3" <= quarter(x.date) <= "2023Q1"  # noqa: E731
+    kept = [x.value for x in pts if not gone(x)]
+    start = percentile(kept, 33)                     # Excel's PERCENTILE, same interpolation
+    assert vals["THRESHOLDS!B5"] == pytest.approx(start)
+    b = [start + i * 0.75 * (max(kept) - start) / 3 for i in range(4)]
+    want = [sum(1 for v in kept if 1 + sum(1 for x in b if v >= x) == k) for k in range(1, 6)]
+    assert [vals["ASSESS!E%d" % r] for r in range(8, 13)] == want
+    assert want[0] == 45                             # Low: a third of 135 quarters, not half
+
+
+def test_a_score_2_percentile_out_of_range_is_refused(tmp_path):
+    with pytest.raises(ValueError):
+        make(tmp_path / "bad.xlsx", score2_percentile=0)

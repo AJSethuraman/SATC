@@ -98,6 +98,8 @@ def _parser():
     m.add_argument("--smoothing", required=True, type=int)
     m.add_argument("--floor-at-zero", required=True, type=_yes_no)
     j = wbp.add_argument_group("starting values for the Settings tab, all required")
+    j.add_argument("--score2-percentile", required=True, type=float,
+                   help="score 2 begins at this percentile of the quarters kept (50 = the median)")
     j.add_argument("--top-fraction", required=True, type=float)
     j.add_argument("--on-the-line", required=True, choices=["worse", "better"])
     b = wbp.add_argument_group("the backtest, all required")
@@ -182,7 +184,7 @@ def main(argv=None):
         try:
             from .workbook import build
             r = build(a.out, pairs, a.name, a.unit, a.direction, a.frequency, a.smoothing,
-                      a.floor_at_zero, a.top_fraction, a.on_the_line, a.half_lives,
+                      a.floor_at_zero, a.score2_percentile, a.top_fraction, a.on_the_line, a.half_lives,
                       a.percentiles, a.horizon, a.min_history)
         except (SeriesError, ValueError, OSError) as exc:
             print("REFUSED: %s" % exc, file=sys.stderr)
