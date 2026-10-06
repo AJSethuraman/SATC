@@ -141,3 +141,10 @@ left-out quarters are markers on the full line rather than a gapped line.
 ### Waiting on the bank
 - Is High for cards right at once in about 33 years of kept history? If not,
   move "Score 5 begins" below 0.75.
+
+**Left-out periods, shown as cut.** The bank: *"I want a better way to show
+when we cut stuff out. Maybe on the bottom of the original chart it literally
+displays them cut out?"* Each left-out period is now a dark strip under the
+axis, and its dates and reason are listed under the chart, live from Settings.
+The strip is an area: Excel drew 163 stacked columns on this shared axis as
+thin slivers whatever their gap width.

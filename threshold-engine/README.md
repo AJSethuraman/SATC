@@ -60,7 +60,8 @@ calendar, and every input file's SHA-256.
 
 The **Assess** tab is where thresholds get judged. Pick a product and its five
 score bands are shaded behind every quarter of its history. The quarters
-Settings leaves out are marked as grey dots, and a table counts how many
+Settings leaves out are marked by a dark strip along the bottom and grey dots on
+the line, with what was cut and why listed under the chart. A table counts how many
 quarters, and what share of history, fell in each score. All of it is live.
 
 Each product has two leave-out windows on Settings, each with a Reason cell.
@@ -141,11 +142,11 @@ charge-off history:
 python -m pytest -q
 ```
 
-118 tests: the Assess tab's live counts, temporary departures, the workbook's live formulas, the backtest's no-lookahead rule, recency weights, evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
+120 tests: the Assess tab's live counts and left-out strip, temporary departures, the workbook's live formulas, the backtest's no-lookahead rule, recency weights, evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
 on a bound, mirror symmetry, provenance, the command line, the public series,
 and an independent recomputation of the card cutoffs that uses only the
-standard library. Each of 61 hand-made mutants (14 in the cutoffs, 9 in the
-profile, 21 in the evidence, 9 in the backtest, 8 in the workbook's formulas)
+standard library. Each of 62 hand-made mutants (14 in the cutoffs, 9 in the
+profile, 21 in the evidence, 9 in the backtest, 9 in the workbook's formulas)
 turns a test red.
 
 ## Not built yet

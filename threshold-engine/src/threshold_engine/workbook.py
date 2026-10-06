@@ -311,7 +311,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                     "A loss at or below zero falls in score 1.").font = NOTE
     for col, w in zip("ABCDEFGH", (10, 15, 10, 10, 10, 10, 10, 12)):
         asx.column_dimensions[col].width = w
-    heads = ["Quarter", "Kept", "Left out by Settings", "Every quarter"] +         ["%d %s" % (i + 1, RATINGS[i]) for i in range(5)]
+    heads = ["Quarter", "Kept", "Quarter left out", "Every quarter"] +         ["%d %s" % (i + 1, RATINGS[i]) for i in range(5)]
     for j, h in enumerate(heads):
         asx.cell(first - 1, hc + j, h)
     asx.cell(first - 1, hc + 9, "Top")
@@ -330,6 +330,16 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             asx.cell(r, hc + 4 + i, '=IF($B$5<>"",NA(),{b1}-{b0})'.format(b1=b[i], b0=b[i - 1]))
         asx.cell(r, hc + 8, '=IF($B$5<>"",NA(),MAX({t}-{b3},0))'.format(t=top, b3=b[3]))
     asx.cell(first, hc + 9, "=MAX(%s)*1.08" % raw_r)
+    # The strip that marks quarters left out: a bar under the data, below zero
+    # or below the lowest value if that is negative, 6% of the chart's height.
+    asx.cell(first - 1, hc + 11, "Period left out")
+    lo_c, top_c = "${c}${r}".format(c=L(hc + 9), r=first + 1), "${c}${r}".format(c=L(hc + 9), r=first)
+    h_c = "${c}${r}".format(c=L(hc + 9), r=first + 2)
+    asx.cell(first + 1, hc + 9, "=MIN(0,MIN(%s))" % raw_r)
+    asx.cell(first + 2, hc + 9, "=({t}-{lo})*0.06".format(t=top_c, lo=lo_c))
+    for r in range(first, last + 1):
+        gone_c = "{c}{r}".format(c=L(hc + 2), r=r)
+        asx.cell(r, hc + 11, '=IF(ISNUMBER({g}),{lo}-{h},0)'.format(g=gone_c, lo=lo_c, h=h_c))
     area = AreaChart()
     area.grouping = "stacked"
     area.title = None
@@ -368,9 +378,29 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     line.y_axis.number_format = "0.0"
     line.legend.position = "t"
     line.visible_cells_only = False
+    # The strip is an area, not columns: Excel drew 163 stacked columns sharing
+    # this axis as thin slivers whatever their gap width (Excel 16, 6 Oct 2026).
+    strip = AreaChart()
+    strip.grouping = "standard"
+    strip.add_data(Reference(asx, min_col=hc + 11, max_col=hc + 11, min_row=first - 1, max_row=last),
+                   titles_from_data=True)
+    cut = strip.series[0]
+    cut.graphicalProperties.solidFill = "57534B"
+    cut.graphicalProperties.line.noFill = True
+    line.y_axis.number_format = "0.0;;0.0"        # no labels on the strip's negative space
+    line.x_axis.tickLblPos = "low"                 # year labels below the strip, not on it
     line += area
+    line += strip
     asx.add_chart(line, "A15")
-    for col in range(hc, hc + 10):
+    # Under the chart, what was left out and why, live from Settings.
+    sr0 = "MATCH($B$4,Settings!$A$6:$A${e},0)".format(e=5 + n)
+    asx.cell(40, 1, "Left out, under the chart:").font = Font(bold=True)
+    for k, (a_, b_, c_) in enumerate((("B", "C", "D"), ("E", "F", "G"))):
+        f = lambda col: "INDEX(Settings!${c}$6:${c}${e},{m})".format(c=col, e=5 + n, m=sr0)   # noqa: E731
+        asx.cell(41 + k, 1, '=IF({a}="","",{a}&" to "&{b}&IF({c}="","",": "&{c}))'
+                 .format(a=f(a_), b=f(b_), c=f(c_)))
+    asx.cell(43, 1, '=IF(AND(A41="",A42=""),"Nothing left out: every quarter counts.","")')
+    for col in range(hc, hc + 12):
         asx.column_dimensions[L(col)].hidden = True
 
     # ---- Evidence (values) ----

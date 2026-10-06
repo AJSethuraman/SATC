@@ -188,3 +188,29 @@ def test_assess_follows_the_on_the_line_rule(built, tmp_path):
     on_line = sum(1 for x in __import__("conftest").load("cards_nco_ttm.csv") if x.value == 3.978)
     assert on_line >= 1
     assert better[0] - worse[0] == on_line and worse[1] - better[1] == on_line
+
+
+def test_the_strip_marks_exactly_the_quarters_left_out_and_the_caption_says_why(built, tmp_path):
+    from openpyxl.utils import get_column_letter
+    p, info, _ = built
+    wb = load_workbook(p)
+    st = wb["Settings"]
+    st["B6"], st["C6"], st["D6"] = "2007Q4", "2012Q4", "Financial crisis"
+    st["E6"], st["F6"], st["G6"] = "2021Q3", "2023Q1", "Pandemic forbearance"
+    q = tmp_path / "strip.xlsx"
+    wb.save(q)
+    vals = recalc(q)
+    qcol, scol = get_column_letter(12), get_column_letter(23)        # quarter, strip
+    marked = [vals["ASSESS!%s%d" % (qcol, r)] for r in range(2, info["quarters"] + 2)
+              if vals["ASSESS!%s%d" % (scol, r)] != 0]
+    want = [x for x in (vals["ASSESS!%s%d" % (qcol, r)] for r in range(2, info["quarters"] + 2))
+            if "2007Q4" <= x <= "2012Q4" or "2021Q3" <= x <= "2023Q1"]
+    assert marked == want and len(marked) == 21 + 7
+    assert vals["ASSESS!A41"] == "2007Q4 to 2012Q4: Financial crisis"
+    assert vals["ASSESS!A42"] == "2021Q3 to 2023Q1: Pandemic forbearance"
+    assert vals["ASSESS!A43"] == ""
+
+
+def test_with_nothing_left_out_the_caption_says_so(built):
+    _, _, vals = built
+    assert vals["ASSESS!A41"] == "" and vals["ASSESS!A43"] == "Nothing left out: every quarter counts."
