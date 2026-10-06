@@ -149,8 +149,7 @@ window.SATC_PRICING = {
     'Canceled debt',
     'Digital assets',
     'Marketplace health insurance',
-    'Health savings account',
-    'Early retirement withdrawal'
+    'Health savings account'
   ],
 
   /* Hourly is added to a fixed price or replaces it, depending on what
