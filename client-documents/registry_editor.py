@@ -86,6 +86,24 @@ def _walk(sched: dict) -> list[tuple[str, str, int, bool, str]]:
     if "amount" in per_form:
         out.append(("per_form", "One price for any named form", per_form["amount"],
                     str(per_form.get("publish", "")).lower() == "yes", "Named forms"))
+    # A FORM THAT SETS ITS OWN PRICE, which three of them now do. Caught by
+    # Codex on the pull request that added them: `/prices` showed only the
+    # parent amount, so the firm could not change Form 5329, 6251 or 8801 from
+    # the browser at all -- and editing "One price for any named form" no
+    # longer moved them, so a later price rise would have left three client
+    # charges quietly stale while the screen looked like it had covered
+    # everything. The whole point of this screen is that nobody edits YAML by
+    # hand.
+    for key, form in (per_form.get("forms") or {}).items():
+        if isinstance(form, dict) and "amount" in form:
+            # NO TRAILING `.amount`. Every other row here names the block
+            # that HOLDS the amount -- `per_unit.k1`, not `per_unit.k1.amount`
+            # -- and the resolver appends the key itself. Writing the full path
+            # raised at import: "does not name a price in fee-schedule.yaml".
+            out.append((f"per_form.forms.{key}",
+                        form.get("label", key), form["amount"],
+                        str(per_form.get("publish", "")).lower() == "yes",
+                        "Named forms"))
     basis = sched.get("basis") or {}
     if "rate" in basis:
         out.append(("basis.rate", "The hourly rate", basis["rate"], True, "Hourly"))

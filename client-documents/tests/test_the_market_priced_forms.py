@@ -110,3 +110,50 @@ def test_the_three_did_not_disturb_the_rest(forms):
             continue
         assert "amount" not in value, (
             f"{key} picked up a price it did not have before")
+
+
+# ── what the second Codex review caught ──────────────────────────────────────
+
+def test_every_form_price_can_be_changed_from_the_price_screen(forms):
+    """FOUND BY CODEX. `/prices` walked to the parent `per_form` amount and no
+    further, so a form carrying its own price could not be edited in the
+    browser at all \u2014 and changing "One price for any named form" no longer
+    moved it either. A later price rise would have left those client charges
+    quietly stale while the screen looked like it had covered everything.
+
+    THE GAP WAS OLDER THAN THE FORMS THAT EXPOSED IT. `earned_income_credit`
+    has carried its own $65 since 26 August 2026 and was unreachable the whole
+    time; it only surfaced when three more joined it.
+    """
+    import registry_editor
+
+    _, by_key = forms
+    reachable = {row[0] for row in registry_editor._walk(pricing.load())}
+    priced = {k for k, v in by_key.items() if isinstance(v, dict) and "amount" in v}
+    missing = sorted(k for k in priced
+                     if f"per_form.forms.{k}" not in reachable)
+    assert not missing, (
+        f"{len(missing)} form price(s) cannot be edited from /prices: {missing}")
+
+
+def test_the_interview_does_not_promise_one_price_for_all_of_them(forms):
+    """ALSO CODEX. The `extra_forms` help said each selection adds $50, which
+    stopped being true the moment one of them was priced at $30 \u2014 so a client
+    was shown guidance the estimate then contradicted.
+
+    Asserted as "does not state a single figure as though it covered them all"
+    rather than pinning the replacement wording, because the words are the
+    firm's and a test that pins copy becomes the reason copy cannot change.
+    """
+    import interview as iv
+
+    q = next(q for _, q in iv.all_questions(iv.load_schema())
+             if q["id"] == "extra_forms")
+    help_text = " ".join(str(q.get("help", "")).split())
+    per_form, by_key = forms
+    priced_differently = {v["amount"] for k, v in by_key.items()
+                          if isinstance(v, dict) and "amount" in v}
+    assert priced_differently, "no form carries its own price \u2014 re-read this test"
+    assert f"${per_form['amount']} to the fee" not in help_text, (
+        "the help still promises one price for every selection, and at least "
+        f"one of them is priced at {sorted(priced_differently)}")

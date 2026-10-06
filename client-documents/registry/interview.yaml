@@ -695,9 +695,9 @@ sections:
         showIf: "federal_form == '1040'"
         question: "Did any of these happen last year?"
         help: >
-          Each one adds a form to the return and $50 to the fee. Tick what
-          applies; the ones that do not apply cost nothing and are not asked
-          about again.
+          Each one adds a form to the return, and its own fee to the
+          estimate -- $50 for most of them. Tick what applies; the ones that
+          do not apply cost nothing and are not asked about again.
 
           These are deliberately all events, not judgements. The rule the
           whole schedule follows is that a gate keys on a fact the client
