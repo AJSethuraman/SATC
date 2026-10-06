@@ -1,8 +1,8 @@
 {
-  "$id": "https://ember-vault-arena.local/schemas/agent-action-1.0.json",
+  "$id": "https://ember-vault-arena.local/schemas/agent-action-1.2.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "agent-action-1.0",
+  "description": "agent-action-1.2",
   "properties": {
     "action": {
       "enum": [
@@ -20,12 +20,155 @@
       "type": "string"
     },
     "deal": {
-      "type": "null"
+      "additionalProperties": false,
+      "properties": {
+        "by_round": {
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "destination": {
+          "maxLength": 32,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "item": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "accept",
+            "offer"
+          ],
+          "type": "string"
+        },
+        "offer_id": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rounds": {
+          "maximum": 6,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "to": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "enum": [
+            "escort",
+            "share_item",
+            "truce",
+            null
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "to",
+        "type",
+        "rounds",
+        "item",
+        "destination",
+        "by_round",
+        "offer_id"
+      ],
+      "type": [
+        "object",
+        "null"
+      ]
     },
     "destination": {
       "maxLength": 32,
       "type": [
         "string",
+        "null"
+      ]
+    },
+    "fallback": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "attack",
+            "give",
+            "guard",
+            "interact",
+            "move",
+            "rest",
+            "search",
+            "step",
+            "take",
+            "use"
+          ],
+          "type": "string"
+        },
+        "destination": {
+          "maxLength": 32,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "item": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tile": {
+          "items": {
+            "maximum": 31,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "action",
+        "target",
+        "destination",
+        "item",
+        "tile"
+      ],
+      "type": [
+        "object",
         "null"
       ]
     },
@@ -141,7 +284,8 @@
     "tile",
     "speech",
     "note",
-    "deal"
+    "deal",
+    "fallback"
   ],
   "title": "Agent Action",
   "type": "object"

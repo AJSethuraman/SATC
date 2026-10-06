@@ -22,7 +22,7 @@ import json
 from typing import Any, Mapping, Sequence
 
 
-MEMORY_VERSION = "ember-vault-memory-0.2"
+MEMORY_VERSION = "ember-vault-memory-0.3"
 
 MEMORY_LIMIT = 6
 MEMORY_WINDOW_ROUNDS = 4  # current round + 4 prior
@@ -34,13 +34,14 @@ MEMORY_PRIORITY: tuple[str, ...] = (
     "damage_dealt",
     "elimination_involving_me",
     "crown_change",
+    "deal_change",
     "seal_change",
     "item_change",
     "speech_to_me",
     "observed_elimination",
 )
 
-START_ROOM = "threshold"
+from .world import START_ROOM  # noqa: E402  (the map is drawn once, in world.py)
 
 # event_type -> family. classify_event turns a family plus the agent's relation
 # to the event into exactly one MEMORY_PRIORITY class.
@@ -64,17 +65,20 @@ RELEVANT_EVENT_TYPES: Mapping[str, str] = {
     "crown_dropped": "crown",
     "crown_attuned": "crown",
     "crown_extracted": "crown",
+    "crown_held": "crown",
     "crown_escaped": "crown",
     # seals, contraction and forced relocation
     "seal_activated": "seal",
     "seal_voided": "seal",
     "vault_gate_opened": "seal",
+    "seals_lit": "seal",
     "vault_gate_permanently_closed": "seal",
     "vault_unlocked": "seal",
     "room_contracting": "seal",
     "room_sealing": "seal",
     "room_sealed": "seal",
     "agent_force_moved": "seal",
+    "site_done": "seal",  # a cooperative site waking is a room changing, remembered by all
     # items
     "item_taken": "item",
     "item_used": "item",
@@ -87,6 +91,12 @@ RELEVANT_EVENT_TYPES: Mapping[str, str] = {
     # speech
     "agent_speech": "speech",
     "whisper_lost": "speech",
+    # deals (PRD §5.19–21): a promise made, struck, lapsed, broken or lost
+    "offer_made": "deal",
+    "deal_struck": "deal",
+    "offer_lapsed": "deal",
+    "deal_broken": "deal",
+    "deal_lost": "deal",
 }
 
 IGNORED_EVENT_TYPES: frozenset[str] = frozenset(
@@ -104,6 +114,7 @@ IGNORED_EVENT_TYPES: frozenset[str] = frozenset(
         "initiative_order",
         "action_skipped",
         "match_started",
+        "match_opening",
         "act_started",
         "act_two_survival",
         "guard",
@@ -116,12 +127,15 @@ IGNORED_EVENT_TYPES: frozenset[str] = frozenset(
         "attack_miss",
         "wild_swing_no_bystander",
         "monster_guard",
+        "monster_line",
         "monster_defeated",
         "monster_entombed",
         "floor_items_relocated",
         "invalid_action_fallback",
         "invalid_output_fallback",
         "stale_action",
+        "site_hand",
+        "site_lapsed",
         "objective_reveal",
         "final_scores",
     }
@@ -263,6 +277,14 @@ def classify_event(
             return None
         addressed = payload.get("addressed_ids") or []
         return "speech_to_me" if agent_id in addressed else None
+
+    if family == "deal":
+        # A party remembers its promises; everyone else reads breaks in the
+        # digest's deals block, which is where public breaks live.
+        parties = payload.get("parties") or []
+        if actor_id == agent_id or target_id == agent_id or agent_id in parties:
+            return "deal_change"
+        return None
 
     return None
 

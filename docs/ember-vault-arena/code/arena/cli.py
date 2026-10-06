@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .demo import DEFAULT_AGENT_DIR, load_manifests
+from .demo import DEFAULT_AGENT_DIR, load_manifests, load_talkers
 from .engine import ArenaEngine
 from .brains import load_brains
 from .providers import PROVIDER_NAMES, provider_from_name
@@ -28,6 +28,8 @@ def parser() -> argparse.ArgumentParser:
     demo.add_argument("--brains", default=None,
                       help="folder of brain .md files; overrides --agents")
     demo.add_argument("--rounds", type=int, default=None)
+    demo.add_argument("--talkers", default=None,
+                      help="folder of talker JSON manifests (the house side characters); none by default")
 
     web = sub.add_parser("serve", help="start spectator UI and local API")
     web.add_argument("--host", default="127.0.0.1")
@@ -78,10 +80,38 @@ def print_ledger(store: ArenaStore, match_id: str) -> None:
     )
     totals = {k: sum(int(d.get(k) or 0) for d in decisions)
               for k in ("input_tokens", "cached_tokens", "cache_creation_tokens", "output_tokens")}
+    # The token columns are the primary model's. The SDK route also bills a
+    # helper model on every call (forge, 12 Sep 2026: a Haiku call, ~7%), which
+    # lives only in usage_json; a reader of the table alone could not reproduce
+    # a row's cost without this line.
+    helper = helper_cost(decisions)
     print(
         f"tokens: in {totals['input_tokens']}; cached {totals['cached_tokens']}; "
         f"cache written {totals['cache_creation_tokens']}; out {totals['output_tokens']}"
+        + (f"; other models billed: ${helper:.4f} (in usage_json)" if helper else "")
     )
+
+
+def helper_cost(decisions) -> float:
+    """Cost recorded for models other than the row's own, summed from each
+    row's usage_json (the SDK's per-model breakdown); 0 when absent."""
+    import json
+    total = 0.0
+    for d in decisions:
+        raw = d.get("usage_json")
+        if not raw:
+            continue
+        try:
+            usage = json.loads(raw)
+        except ValueError:
+            continue
+        if not isinstance(usage, dict):
+            continue
+        own = d.get("model")
+        for key, row in usage.items():
+            if isinstance(row, dict) and key != own and str(row.get("canonicalModel") or key) != own:
+                total += float(row.get("costUSD") or 0)
+    return total
 
 
 def main() -> None:
@@ -90,17 +120,22 @@ def main() -> None:
     try:
         if args.command == "demo":
             manifests = load_brains(args.brains) if args.brains else load_manifests(args.agents)
+            if args.talkers:
+                manifests = manifests + load_talkers(args.talkers)
             kwargs = {"max_rounds": args.rounds} if args.rounds else {}
-            match_id = ArenaEngine(
-                store, provider_from_name(args.provider), **kwargs
-            ).run(manifests, args.seed)
+            engine = ArenaEngine(store, provider_from_name(args.provider), **kwargs)
+            # PRD §5.35–38: the live page is served by `run.py serve` on the same --db
+            engine.on_start = lambda mid: print(f"watch it live: http://127.0.0.1:8787/live/{mid}  (with `run.py serve --db {args.db}`)")
+            match_id = engine.run(manifests, args.seed)
             result = store.replay_bundle(match_id)
             print(f"Completed {match_id}")
+            # a talker has no placement (PRD §5.25); it is listed after the contestants
             for participant in sorted(
-                result["participants"], key=lambda item: item["placement"]
+                result["participants"], key=lambda item: (item["placement"] is None, item["placement"] or 0)
             ):
+                place = f"#{participant['placement']}" if participant["placement"] is not None else "talker"
                 print(
-                    f"  #{participant['placement']} "
+                    f"  {place} "
                     f"{participant['manifest']['name']}: "
                     f"{participant['final_score']} points"
                 )
