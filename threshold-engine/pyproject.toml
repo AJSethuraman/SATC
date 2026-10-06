@@ -1,0 +1,19 @@
+[project]
+name = "threshold-engine"
+version = "0.1.0"
+description = "Candidate risk-rating cutoffs from any continuous signal, with its stress cycles and the evidence for each"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+threshold-engine = "threshold_engine.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
