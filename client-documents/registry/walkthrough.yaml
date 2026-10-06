@@ -161,15 +161,40 @@ engagement:
 
 package-before:
   "button:Build the pack": null
-  "checkbox:Put the invoice in too": >-
-    Only for work that is being billed now. The opening pack normally goes out
-    without one — the estimate says what it will cost, and the bill follows the
-    work.
+  # THE SAME CHECKBOX, IN THE STATE A NEW ENGAGEMENT IS ACTUALLY IN. `web.py`
+  # renders two different controls here: enabled when a bill exists, and
+  # disabled with its reason on the label when none does. The registry knew
+  # only the first, so a walkthrough captured on a fresh engagement — which is
+  # every first pack — refused to write itself.
+  #
+  # It went unnoticed because the ten tests that read these photographs skip
+  # when nobody has run `capture.py`, and the suite reports the skip without
+  # saying what is therefore unproven.
+  "checkbox:Put the invoice in too — no bill has been raised on this engagement yet, so there is nothing to put on one": >-
+    The same option, greyed out, because there is no bill yet. This is what you
+    see on a first pack: the estimate goes out, the work happens, the bill
+    follows. Raise an invoice on the engagement and the box becomes tickable.
   "checkbox:Also read the prose and tell me what it notices (nothing here can stop a pack)": >-
     A second, softer read of the writing: sentences that run long, a paragraph
     that has grown, a claim stated more firmly than we can stand behind. None
     of it stops anything. Worth ticking on the first pack of a season, or after
     someone has changed the wording.
+
+# THE SAME SCREEN, ONCE A BILL EXISTS. Added 5 October 2026. `web.py` renders
+# two different controls for the invoice checkbox and only the disabled one was
+# ever photographed, because the capture run reached this screen before raising
+# the invoice. The registry could therefore describe one state or the other and
+# was wrong either way -- and nobody saw it, because the tests that read these
+# photographs skip when `capture.py` has not been run.
+package-billed:
+  "button:Build the pack": null
+  "checkbox:Put the invoice in too": >-
+    Now tickable, because this engagement has a bill on it. Only for work being
+    billed now — the first pack normally goes out without one, since the
+    estimate says what it will cost and the bill follows the work.
+  "checkbox:Also read the prose and tell me what it notices (nothing here can stop a pack)": >-
+    The same softer read of the writing as on the unbilled pack. Nothing it
+    notices stops the build.
 
 package-blocked:
   "button:Send it past these checks": >-

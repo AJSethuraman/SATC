@@ -1154,7 +1154,35 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
                 f"per_form.forms.{value} has no label, so the line cannot be "
                 f"written. A $50 line reading '{value}' is not an estimate."
             )
-        items.append(_line(label, spec.get("detail", ""), amount, code))
+
+        # HOW MANY OF THEM. A form fired once and billed once until 5 October
+        # 2026, when a real joint return needed two Form 5329s -- one per
+        # spouse -- and the estimate could only say one. The firm: "we need to
+        # be able to bill by form obviously."
+        #
+        # The count comes TO `per_form` rather than the form moving out to
+        # `per_unit`, because what `per_form` gives a line is the printed
+        # `assumes` and `trigger`, and the schedule's own note on the earned
+        # income credit says a counted line "has nowhere to say that".
+        #
+        # A BLANK COUNT IS ONE, NOT NONE -- the same trap `per_unit` already
+        # guards: the form was ticked, so it is on the return, and a preparer
+        # who leaves the number alone must not have the line vanish.
+        detail = spec.get("detail", "")
+        counted_by = spec.get("counted_by")
+        total = amount
+        if counted_by and not is_open(amount):
+            # ONE GUARD, NOT TWO. This was written as `... or 1` AND a
+            # `if count < 1` below it, and a mutation that removed the first
+            # left every test passing -- the second caught it. Two guards for
+            # one rule means neither is tested and one is decoration.
+            count = max(1, _count(answers.get(counted_by), counted_by))
+            total = amount * count
+            if count > 1:
+                each = m.money(amount, code)
+                detail = (say(s, "multiplier", detail=detail, n=count, each=each)
+                          if detail else say(s, "multiplier_only", n=count, each=each))
+        items.append(_line(label, detail, total, code))
 
     # Nothing here for `assumed:` items. They carry no price, so they produce
     # no line: an estimate lists what is being charged for, and a line reading
