@@ -2,7 +2,8 @@
 
 Give it a dated series: a charge-off rate, a delinquency rate, a weighted
 average probability of default, any continuous signal. There are two
-commands.
+commands, and a third
+that links the two.
 
 **`profile` reports facts and decides nothing.** You get the distribution,
 every spell worse than the median (start, peak, end, length, rise and fall
@@ -10,6 +11,14 @@ times, peak ÷ median), how often each upper percentile was reached, the
 percentiles with the largest spell removed, and where the latest value ranks.
 It takes no judgement settings. What counts as stress is left to the expert
 reading it.
+
+**`evidence` puts numbers on each judgement.** For each spell it gives the
+robust z-score of the peak against the rest of history, plus how many years
+of history there are per spell that bad. It measures the deepest dip inside
+each spell in standard deviations of the quarter-to-quarter change. It then
+shows the cutoffs under three scenarios: keep everything, remove the largest
+spell, or remove it only if another spell is unusual (z of 3.5 or more, per
+Iglewicz and Hoaglin, 1993).
 
 **`cutoffs` applies the bank's stated judgements.** It returns:
 
@@ -34,6 +43,10 @@ python -m pip install -e .
 
 ```
 threshold-engine profile tests/data/mortgage_nco_ttm.csv --name "Mortgage net charge-offs, TTM" --unit % --direction higher_is_worse --frequency quarterly --smoothing 1
+```
+
+```
+threshold-engine evidence tests/data/cards_nco_ttm.csv --name "Card net charge-offs, TTM" --unit % --direction higher_is_worse --frequency quarterly --smoothing 1 --floor-at-zero yes --scale-points 5 --top-fraction 0.75
 ```
 
 ```
@@ -86,11 +99,11 @@ charge-off history:
 python -m pytest -q
 ```
 
-62 tests: profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
+78 tests: evidence statistics and profile figures checked against hand and Excel calculations, planted cycles, every refusal, the outlier rule both ways, scoring
 on a bound, mirror symmetry, provenance, the command line, the public series,
 and an independent recomputation of the card cutoffs that uses only the
-standard library. Each of 23 hand-made mutants (14 in the cutoffs, 9 in the
-profile) turns a test red.
+standard library. Each of 32 hand-made mutants (14 in the cutoffs, 9 in the
+profile, 9 in the evidence) turns a test red.
 
 ## Not built yet
 

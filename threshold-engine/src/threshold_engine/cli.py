@@ -28,6 +28,7 @@ import json
 import sys
 
 from .engine import Measure, Refused, Settings, run
+from .evidence import evidence, report as evidence_report
 from .profile import profile, report
 from .series import Point, SeriesError
 
@@ -61,6 +62,13 @@ def _parser():
     pr = sub.add_parser("profile", help="facts about the series; no judgement settings")
     _measure_args(pr)
     pr.add_argument("--json", action="store_true")
+    ev = sub.add_parser("evidence", help="statistics for each judgement point, "
+                        "and the cutoffs under each answer")
+    _measure_args(ev)
+    ev.add_argument("--floor-at-zero", required=True, type=_yes_no)
+    ev.add_argument("--scale-points", required=True, type=int)
+    ev.add_argument("--top-fraction", required=True, type=float)
+    ev.add_argument("--json", action="store_true")
     p = sub.add_parser("cutoffs", help="candidate cutoffs from the bank's stated settings")
     _measure_args(p)
     p.add_argument("--floor-at-zero", required=True, type=_yes_no)
@@ -126,6 +134,15 @@ def main(argv=None):
             print("REFUSED: %s" % exc, file=sys.stderr)
             return 2
         print(json.dumps(pr, indent=2) if a.json else report(pr))
+        return 0
+    if a.command == "evidence":
+        try:
+            ev = evidence(_read(a.csv), a.name, a.unit, a.direction, a.frequency,
+                          a.smoothing, a.scale_points, a.top_fraction, a.floor_at_zero)
+        except (SeriesError, ValueError) as exc:
+            print("REFUSED: %s" % exc, file=sys.stderr)
+            return 2
+        print(json.dumps(ev, indent=2, default=str) if a.json else evidence_report(ev))
         return 0
     m = Measure(a.name, a.unit, a.direction, a.frequency, a.smoothing, a.floor_at_zero)
     s = Settings(a.scale_points, a.top_fraction, a.episode_height, a.materiality,
