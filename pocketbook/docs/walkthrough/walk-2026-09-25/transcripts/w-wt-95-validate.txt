@@ -1,0 +1,4 @@
+$ cube validate wt-95.yaml --data demo/loans.csv
+REFUSED: wt-95.yaml has 1 problem(s):
+  - benchmark.confidence must be a share between 0.5 and 1, such as 0.95; got 95
+(exit code 2)

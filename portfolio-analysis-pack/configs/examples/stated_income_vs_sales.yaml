@@ -1,0 +1,56 @@
+# The first instance: stated obligor income above reported business sales, on
+# a small-business book. Column names are placeholders for the bank's own;
+# `pack inspect` lists the real ones. This file is data. The tool contains
+# none of these words.
+name: stated_income_vs_sales
+schema_version: 1
+rule_type: contradiction
+population:
+  loan_id: LOAN_NBR
+  origination_date: ORIG_DT
+  # date_format is optional: the pack detects it, and refuses if two patterns fit
+  filter:
+    PRODUCT: [SBL_LOC, SBL_TERM]
+fields:
+  LOAN_NBR:   {known: at_origination}
+  ORIG_DT:    {known: at_origination}
+  PRODUCT:    {known: at_origination}
+  STATED_INC: {known: at_origination, plausible: [1000, 50000000]}
+  RPT_SALES:  {known: at_origination, plausible: [1000, 500000000]}
+  ORIG_AMT:   {known: at_origination}
+  NAICS_CD:   {known: at_origination, derive: {kind: prefix, length: 2}}
+  ENTITY_TYP: {known: at_origination}
+  CO_DT:      {known: later}
+rule:
+  kind: ratio
+  field_a: STATED_INC
+  field_b: RPT_SALES
+  fires_when: {op: ">", value: 1.0}
+  buckets: [0.5, 1.0, 2.0, 5.0]
+outcome:
+  label: charge-off
+  date_field: CO_DT
+window_months: 24
+confounders:
+  - name: revenue_band
+    field: RPT_SALES
+    schemes:
+      by_loans: [250000, 1000000]
+      round:    [100000, 500000, 2000000]
+  - name: line_band
+    field: ORIG_AMT
+    edges: [50000, 150000, 500000]
+  - name: entity_type
+    field: ENTITY_TYP
+controls:
+  - {name: origination_year, derived: origination_year}
+  - {name: loan_size, field: ORIG_AMT, as: log}
+  - {name: industry, field: NAICS_CD}
+decompose_by: [industry, line_band, origination_year]
+existing_control: none
+drives:
+  field_a: "DTI — borrower qualifies"
+  field_b: "line assignment — smaller line"
+model: {tree_depth: 3, min_leaf_events: 10, min_leaf_loans: 100}
+intervals: {confidence: 0.95, method: wilson}
+survives_threshold: 0.5

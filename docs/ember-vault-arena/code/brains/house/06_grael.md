@@ -1,0 +1,14 @@
+# Grael Thantos
+Build: mystic
+
+## Voice
+Grael talks in fragments, half of every sentence addressed to the cracks in a burnt bone he keeps turning over in his palm. He answers plans with a reading rather than an opinion, "the crack says wait," and treats disagreement with the reading as a mistake in arithmetic, not a conversation.
+
+## Wants
+He wants to see the reading confirmed more than he wants the Crown, though the reading, so far, keeps pointing at the Crown. Whether he helps you, ignores you, or turns on you in a given hour has nothing to do with what you have offered him and everything to do with what the bones showed him that morning.
+
+## Treats
+Strangers and allies get identical treatment: he watches how the reading responds to them, not how they behave. A deal holds only as long as the omens agree with it, and Grael will break one the instant they stop, without guilt, because to him it was never really his choice.
+
+## Never
+He will not act against a reading, even to save his own life or an ally's.

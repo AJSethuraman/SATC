@@ -7,13 +7,14 @@ reason to trust all the others, so it is tested hardest and reported first.
 """
 from __future__ import annotations
 
+import re
 import socket
 
 import pytest
 
 import engine
 import record
-from conftest import DESKS, NetworkUsed
+from conftest import CORPUS, NetworkUsed
 from engine import (Answer, EngineError, Outcome, REASONS, Refusal, Served, grade, report,
                     serve, tally)
 
@@ -245,7 +246,10 @@ def _human_only_desk(tmp_path, *, position="not required to capitalize",
         "## POS1 · What we do here\n\n"
         "**Citation:** ASC 360-10 · **Recorded:** 2026-09-04\n\n"
         f"**Position:** {position}\n\n"
-        "**Ratified:** the firm, 4 September 2026\n", encoding="utf-8")
+        # A position on stored text has to quote the words it rests on
+        # (Sarcia pilot 3, 26 September 2026). The fixture rests on all of it.
+        + (f'**Rests on:** "{passage_text}"\n\n' if passage_text else "")
+        + "**Ratified:** the firm, 4 September 2026\n", encoding="utf-8")
     if passage_text is not None:
         (d / "extracted" / "p.md").write_text(
             "## ASC 360-10\n\n**Source:** S1 · **Checked:** 2026-09-04 · **Kind:** rule\n\n"
@@ -478,6 +482,23 @@ def test_a_desk_can_say_the_rule_is_clear_and_the_facts_are_not(fixed_assets, pr
     assert r.escalated_by == "desk", "the desk declined; the engine did not stop it"
 
 
+#: A FOURTH KIND, added 8 September 2026 with `not_judged` (#346), and it is a
+#: different question from every group below: those name what is MISSING and who
+#: has to go and get it — a client, a document, our own engagement file. This
+#: names something the CALLER did not do. Nothing is missing from the record,
+#: nothing is missing from the file, and the desk's answer is complete; a second
+#: reader was required by that desk's own declaration and none was supplied.
+#:
+#: It is separated rather than folded in because the groups exist to decide who
+#: has to move, and here it is neither the client, nor the preparer, nor the
+#: firm — it is whoever wired the caller. And it is the one refusal `ask.answer`
+#: does not file in `unsupported/`, for the same reason: that queue says the
+#: record is missing something, and the record is complete.
+CALLER_CONTRACT = {
+    "not_judged": "supply a second reader's judgment, from a party other than "
+                  "the one that answered",
+}
+
 #: The reasons that are about something OTHER than the authority, and what
 #: resolves each. The set is meant to stay legible in exactly these groups: a
 #: reason that fits none of them has been added without anyone deciding which
@@ -500,6 +521,13 @@ NOT_ABOUT_AUTHORITY = {
     # fix because the accountant or firm never assigned it up front ... What if
     # this mattered only sometimes and we never even made a field for it."
     "no_field_for_this_fact": "decide, as a firm, whether this fact is recorded at all",
+    # AND THE SIXTH IS ABOUT THE SECOND READING, NOT ABOUT THE RECORD. A judge
+    # handed the paragraph and the conclusion quoted words the paragraph does
+    # not contain, so the judgment is void -- which says nothing at all about
+    # whether the authority is any good. Filing it as an authority problem would
+    # put a defect in the reading into the queue that reads out what the RECORD
+    # is missing, and that queue is how the firm decides what to go and find.
+    "judgment_not_in_the_passage": "re-judge, quoting the passage that is there",
 }
 
 
@@ -518,10 +546,15 @@ def test_every_reason_is_legibly_about_authority_facts_or_a_document():
     So the assertion is no longer "one exception". It is that every reason falls
     in a named group, and that adding one forces a decision about which.
     """
+    assert set(CALLER_CONTRACT) <= set(REASONS), (
+        "a named caller-contract reason has been dropped from the engine")
+    assert not (set(CALLER_CONTRACT) & set(NOT_ABOUT_AUTHORITY)), (
+        "a reason cannot be in two groups; the groups decide who has to move")
     assert set(NOT_ABOUT_AUTHORITY) <= set(REASONS), (
         "a named non-authority reason has been dropped from the engine; the "
         "desk in that position can only guess or blame the record")
-    about_authority = set(REASONS) - set(NOT_ABOUT_AUTHORITY) - {"model_gave_up"}
+    about_authority = (set(REASONS) - set(NOT_ABOUT_AUTHORITY)
+                       - set(CALLER_CONTRACT) - {"model_gave_up"})
     for r in about_authority:
         assert any(w in r for w in ("authority", "citation", "source", "position")), (
             f"{r!r} is about neither the authority nor anything named in "
@@ -560,7 +593,7 @@ def test_a_served_answer_says_whether_its_subject_could_be_checked():
     `tier='primary'` was the whole story a caller got, and it reads as *this is
     solid* when all that was verified is that the authority exists and binds.
     """
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     p = desk.problems[0]
 
     on = serve(Answer(position=p.answer, citation=p.citation), desk,
@@ -600,7 +633,7 @@ def test_no_desks_problems_are_invisible_to_its_own_subjects():
     """
     touches = engine._canon_touches()
     blind = {}
-    for d in sorted(DESKS.iterdir()):
+    for d in [CORPUS]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)
@@ -622,7 +655,7 @@ def test_the_forge_answer_is_what_off_subject_catches(fixed_assets):
     answered by citing § 1.446-1(a)(4) — accounting records — by explicit
     "extension". Real, resolvable, primary, and served.
     """
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     p = next(q for q in desk.problems if q.id == "CB2")
     cited = next(x.citation for x in desk.passages
                  if x.citation.startswith("26 CFR 1.446-1(a)(4)"))
@@ -634,6 +667,46 @@ def test_the_forge_answer_is_what_off_subject_catches(fixed_assets):
     right, _ = engine.off_subject(
         Answer(position=p.answer, citation=p.citation), desk, p.facts)
     assert not right, "the correct citation must survive it"
+
+
+#: THE FALSE REFUSALS THIS GATE WOULD PRODUCE IF ANYBODY WIRED IT IN.
+#:
+#: MEASURED 5 SEPTEMBER 2026 on `fixed-assets` alone: 12 of that desk's 16
+#: problems. RE-MEASURED 10 SEPTEMBER 2026 over the ONE CORPUS: **36 of 98**,
+#: and the denominator changed with the record, so the two rates are what
+#: compare — 75% then, 37% now.
+#:
+#: THE RATE FELL AND THE GATE DID NOT IMPROVE. Word overlap refuses when the
+#: citation's text shares none of the question's declared subjects. One corpus
+#: means every question is measured against the union of seven vocabularies, so
+#: more questions touch SOMETHING and fewer are refused outright — the gate is
+#: being handed a bigger dictionary, not better judgement. Whole desks are still
+#: refused entire: every vehicle problem but four, seven of eight meals ones.
+#:
+#: Kept public, tested and unused, with the cost pinned, so nobody wires it in
+#: without watching this list.
+#:
+#: 36 -> 35 ON 18 SEPTEMBER 2026, AND NOBODY TOUCHED THIS GATE. `IR5` alone
+#: stopped being refused because `dec-whytrunc` fixed a PARSER: a position's
+#: `Why:` had been truncated at its first bolded paragraph, and `_text_of` feeds
+#: `off_subject` a position's `position` PLUS its `why`. Give the check the rest
+#: of the firm's reasoning and it finds subjects it could not previously see.
+#:
+#: THE GATE DID NOT GET SMARTER; IT GOT MORE TEXT, which is the same thing that
+#: happened in the other direction on 10 September and is worth saying twice.
+#: The direction is right — one fewer answer wrongly refused — and the
+#: mechanism is a coupling nobody chose: **how far this gate reaches depends on
+#: how much the firm happened to write under a position.** A position argued at
+#: length passes subjects a tersely argued one does not, and that is not a
+#: statement about the authority. It is recorded here rather than fixed, because
+#: fixing it means deciding what `off_subject` should read, and this gate is
+#: unused.
+OFF_SUBJECT = [
+    "CD8", "TP3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P12", "P13",
+    "P14", "P15", "P16", "M2", "M3", "M6", "M7", "M8", "M11", "M13", "PB1",
+    "PB6", "IR4", "VE1", "VE2", "VE3", "VE4", "VE5", "VE6", "VE7",
+    "VE8", "VE9", "VE10", "VE11",
+]
 
 
 def test_off_subject_is_measured_and_the_cost_is_pinned_here():
@@ -663,52 +736,98 @@ def test_off_subject_is_measured_and_the_cost_is_pinned_here():
     Kept public, tested and unused, with the cost pinned, so nobody wires it in
     without watching this number.
     """
-    desk = record.load(DESKS / "fixed-assets")
+    desk = record.load(CORPUS)
     refused = [p.id for p in desk.problems
                if engine.off_subject(
                    Answer(position=p.answer, citation=p.citation),
                    desk, p.facts)[0]]
-    assert refused == ["P4", "P5", "P6", "P7", "P8", "P9", "P10", "P12", "P13",
-                       "P14", "P15", "P16"], (
+    assert refused == OFF_SUBJECT, (
         f"the measured false-refusal set moved to {refused}. That is a finding "
         f"either way: the gate got better, or the record changed under it. "
         f"Re-measure before wiring it in."
     )
-    assert not any(
-        engine.off_subject(Answer(position=p.answer, citation=p.citation),
-                           desk, p.facts)[0]
-        for p in record.load(DESKS / "cash-and-bank").problems
-    ), "no cash-desk problem is falsely refused; the cost is on fixed-assets"
+    # AND IT IS NOT UNIFORM, which is the half that says it measures vocabulary
+    # rather than meaning. Every one of the eight bank-reconciliation problems
+    # passes — their questions say `bank` and the paragraph says `bank` — while
+    # eleven of the fifteen vehicle ones are refused on their own citation.
+    assert not [p.id for p in desk.problems if p.id.startswith("CB")
+                and engine.off_subject(
+                    Answer(position=p.answer, citation=p.citation),
+                    desk, p.facts)[0]], (
+        "the bank problems were the class this gate got right; if they are "
+        "refused now the measurement above is describing something else")
 
 
 # ── #266: the declared mapping, which is exact and therefore blocks ──────────
 
-def test_the_forge_answer_is_refused_by_serve_and_not_only_by_grade():
-    """THE POINT OF #266, and the path with a client on the end of it.
+def test_the_forge_answer_is_now_served_with_the_warning_and_the_judge_is_the_gate():
+    """#266 REVERSED ON THE SOURCE-LEVEL HALF, 8 September 2026. Read this.
 
-    qwen3:8b answered four bank-reconciliation questions by citing
-    § 1.446-1(a)(4) — accounting records — by explicit "extension". `grade()`
-    caught all four on `passage.citation != problem.citation`, a check it can
-    only make because it holds an answer key. `serve()` holds none and returned
-    the accounting conclusion stamped `tier='primary'`, so the scoreboard
-    reported `wrongly_absorbed = 0` while the shipping path let four through.
+    WHAT IT USED TO ASSERT. qwen3:8b answered four bank-reconciliation questions
+    by citing § 1.446-1(a)(4) — accounting records — by explicit "extension".
+    `grade()` caught all four on the answer key; `serve()` holds none and let
+    them out stamped `tier='primary'`. So the declared source map was allowed to
+    BLOCK, and this test pinned that.
+
+    WHY IT NO LONGER DOES, and the firm decided it:
+
+        "it is difficult to have multiple desks that are so silo'd when we can
+         have an agent tie things out and provide suggestions"
+        "We currently do not need to test against ollama. Stop trying to. This
+         can be a Claude code only thing ... Ollama is end game"
+
+    Two supports were removed at once. The block's own justification was that
+    `serve()` "had no key and no equivalent of `grade()`'s citation check" —
+    #346 built the judge, a second reader on the paragraph and the conclusion,
+    on every answer. And every measurement behind it is `qwen3:8b`, which is not
+    a model this repository targets any more.
+
+    WHAT IT COST, over all 98 recorded problems, asked whether it would refuse
+    each desk's OWN recorded citation:
+
+        phrased as the full fact pattern (~50 words)    0 of 98
+        phrased as its title (~8 words)                10 of 98
+
+    All ten are this source-level check; the per-citation narrowing costs zero
+    in both. It measures how many declared keywords the asker typed. And
+    `PROBLEMS.md` is written in the verbose style, which is the style that
+    scores zero — so the suite could never see it. Confirmed live the same day:
+    "How is the depreciation worked out?" refused § 1.263(a)-2(d)(1), the
+    acquisition rule, on a thing that had been bought.
+
+    WHAT STANDS BEHIND THE ANSWER NOW, AND WHAT IS NOT PROVEN HERE. The judge.
+    This suite CANNOT run it — it needs a model call, and that is the point of
+    Forge-Desk. **So this test asserts the warning is carried, and it does NOT
+    assert that anything catches the qwen3 answer.** If the judge turns out not
+    to refuse it, that is a real regression and this docstring is where to
+    start. The per-citation half still blocks, and
+    `test_the_wrong_paragraph_of_the_right_source_is_refused` proves it.
     """
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     p = next(q for q in desk.problems if q.id == "CB2")
     cited = next(x.citation for x in desk.passages
                  if x.citation.startswith("26 CFR 1.446-1(a)(4)"))
 
     out = serve(Answer(position=p.answer, citation=cited), desk,
                 question=p.facts)
-    assert isinstance(out, Refusal)
-    assert out.reason == "citation_does_not_support"
-    assert "S2" in out.detail and "S1" in out.detail, (
-        "the refusal must name what the desk declared and what was cited, so "
-        "the record says how to fix itself")
+    assert not isinstance(out, Refusal), (
+        "the source-level map advises now; only the per-citation narrowing "
+        "still refuses")
+    assert out.off_source, "served with the doubt dropped entirely"
+    # S5 AND S4, WHICH WERE S2 AND S1 UNTIL 10 SEPTEMBER 2026. `dec-kill`
+    # merged seven records that each numbered their own sources from S1, so
+    # every id moved; the SOURCES they name did not. S5 is Publication 583,
+    # which the record declares for `bank`; S4 is § 1.446-1, which it does not.
+    assert "S5" in out.off_source and "S4" in out.off_source, (
+        "the warning must name what the desk declared and what was cited, so "
+        "the record still says how to fix itself")
+    assert str(out).index(out.off_source) < str(out).index(out.position), (
+        "the warning must be read before the conclusion, not after it")
 
     right = serve(Answer(position=p.answer, citation=p.citation), desk,
                   question=p.facts)
     assert not isinstance(right, Refusal), "the correct citation must survive"
+    assert not right.off_source, "a declared citation carries no warning"
     assert right.checked_subject
 
 
@@ -717,22 +836,21 @@ def test_the_declared_mapping_refuses_nothing_that_is_right():
     answered with their OWN recorded citation (#266). A declared mapping refuses
     none, on either desk, because it compares a citation's SOURCE against what
     the firm said answers that subject rather than guessing from vocabulary."""
-    for name in ("fixed-assets", "cash-and-bank"):
-        desk = record.load(DESKS / name)
-        refused = [p.id for p in desk.problems
-                   if engine.cited_off_source(
-                       Answer(position=p.answer, citation=p.citation),
-                       desk, p.facts)[0]]
-        assert refused == [], (
-            f"{name}: {refused} answered with their own recorded citation and "
-            f"were refused. Either the declaration is wrong or the gate is.")
+    desk = record.load(CORPUS)
+    refused = [p.id for p in desk.problems
+               if engine.cited_off_source(
+                   Answer(position=p.answer, citation=p.citation),
+                   desk, p.facts)[0]]
+    assert refused == [], (
+        f"{refused} answered with their own recorded citation and were "
+        f"refused. Either the declaration is wrong or the gate is.")
 
 
 def test_it_refuses_only_when_it_could_look():
     """"I could not check" and "I checked and it is fine" must never be the
     same answer. A question touching no declared subject gives the gate nothing
     to compare, so it passes — and `checked_subject` records that it did."""
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     p = desk.problems[0]
     cited = next(x.citation for x in desk.passages
                  if x.citation.startswith("26 CFR"))
@@ -772,11 +890,10 @@ def test_a_mapping_to_a_source_that_does_not_exist_fails_the_load(tmp_path):
 def test_the_subjects_are_the_mapping_and_not_a_second_list():
     """`fires_on` is the union of what each source answers. There is no separate
     list to forget to update, which is how two lists of the same thing drift."""
-    for name in ("fixed-assets", "cash-and-bank"):
-        desk = record.load(DESKS / name)
-        declared = {t for terms in desk.answered_from.values() for t in terms}
-        assert set(desk.fires_on) == declared
-        assert len(desk.fires_on) == len(set(desk.fires_on)), "a subject twice"
+    desk = record.load(CORPUS)
+    declared = {t for terms in desk.answered_from.values() for t in terms}
+    assert set(desk.fires_on) == declared
+    assert len(desk.fires_on) == len(set(desk.fires_on)), "a subject twice"
 
 
 def _overlapping_desk(tmp_path, *, prefixes, passage_citation, passage_source,
@@ -859,7 +976,7 @@ def test_the_wrong_paragraph_of_the_right_source_is_refused():
     `serve()` returned "a reconciling item, no entry in the books" and stamped
     it `checked_subject=True`. Right source, wrong paragraph, opposite treatment.
     """
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     cb4 = next(p for p in desk.problems if p.id == "CB4")
     timing = next(c for c in desk.answered_by if "did not yet include" in c)
 
@@ -886,7 +1003,7 @@ def test_the_narrowing_costs_nothing_on_any_desk():
     98 problems, 0 refused, 5 September 2026.
     """
     refused = []
-    for d in sorted(DESKS.iterdir()):
+    for d in [CORPUS]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)
@@ -899,14 +1016,40 @@ def test_the_narrowing_costs_nothing_on_any_desk():
         f"Either the narrowing is wrong or the declaration is.")
 
 
-def test_a_desk_that_declares_no_narrowing_is_unaffected():
+def test_a_record_that_declares_no_narrowing_is_unaffected(tmp_path):
     """The property that makes this safe to add at all: it only ever removes.
-    A desk declaring none of these lines behaves exactly as it did, so the cost
-    can only be paid by a desk that opted in."""
-    plain = [d.name for d in sorted(DESKS.iterdir())
-             if (d / "SOURCES.md").is_file() and not record.load(d).answered_by]
-    assert plain, "no desk left to prove it on"
-    assert "cash-and-bank" not in plain, "the desk that opted in must be excluded"
+    A record declaring none of these lines behaves exactly as it did, so the
+    cost can only be paid by one that opted in.
+
+    IT USED TO PICK A DESK THAT HAPPENED NOT TO HAVE OPTED IN, and `dec-kill`
+    took that away: there is one record now and it declares two narrowings, so
+    there is no un-narrowed one left on disk to point at. A property proved on
+    whichever desk happened to satisfy it was always the weaker version — it
+    goes green the day the last such desk opts in, having checked nothing. So
+    the case is CONSTRUCTED: the real corpus with its `Answered by` lines
+    removed, and every problem must serve exactly as it does with them.
+    """
+    import shutil
+
+    dst = tmp_path / "corpus"
+    shutil.copytree(CORPUS, dst)
+    f = dst / "SUBJECTS.md"
+    text = f.read_text(encoding="utf-8")
+    assert "**Answered by " in text, "the fixture's premise moved"
+    f.write_text(re.sub(r"^\*\*Answered by .*?(?=\n\n|\n\*\*|\Z)", "", text,
+                        flags=re.M | re.S), encoding="utf-8")
+
+    narrowed, plain = record.load(CORPUS), record.load(dst)
+    assert narrowed.answered_by and not plain.answered_by, (
+        "the fixture did not actually opt out")
+
+    for p in narrowed.problems:
+        a = Answer(position=p.answer, citation=p.citation)
+        assert (engine.cited_off_source(a, plain, p.facts)[0]
+                == engine.cited_off_source(a, narrowed, p.facts)[0]), (
+            f"{p.id} is judged differently with the narrowing removed, and the "
+            f"narrowing may only ever REMOVE a citation from a subject it was "
+            f"already declared for")
 
 
 def test_a_narrowing_may_not_introduce_a_subject(tmp_path):

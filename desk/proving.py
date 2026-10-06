@@ -41,7 +41,9 @@ so rather than implying otherwise.
 """
 from __future__ import annotations
 
+import dataclasses
 import hashlib
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -60,6 +62,99 @@ def _host(url: str) -> str:
 #: The reason a refusal carries when the source has moved under us. Named in
 #: `engine.REASONS` so it can be counted like every other refusal.
 MOVED = "authority_has_moved"
+
+
+#: THE SHAPE OF A CITATION'S OWN IDENTIFIER. Anything beginning with a digit and
+#: carrying the punctuation citations use -- `1.263(a)-2`, `842-20-25-1`, `583`.
+#: Every citation has one and it needs no per-publisher knowledge, which is what
+#: makes this a general check rather than another blocklist.
+_MARK = __import__("re").compile(r"\d[\dA-Za-z().\-]*")
+
+
+def identifiers(citation: str) -> tuple:
+    """The distinctive tokens of a citation, longest first.
+
+    TRAILING GROUPS ARE TRIMMED OFF AS WELL AS KEPT, and that is not tidiness --
+    it is the difference between working and not. A desk cites the subparagraph
+    it relies on, `1.263(a)-2(d)(1)`; the page that carries it is headed with the
+    SECTION, `1.263(a)-2`, and contains the full path nowhere. Matching only the
+    citation as written finds nothing on the genuine document, so every
+    citation would look like an interstitial and DIFFERS would be unreachable.
+    Found by this returning False on a real page in the first version.
+
+    Only TRAILING groups come off. Removing `(a)` from the middle would leave
+    `1.263-2`, which is a different rule.
+
+    TWO CHARACTERS IS NOT AN IDENTIFIER -- a bare `2` is in every document ever
+    written -- so anything shorter than three is dropped.
+    """
+    import re
+    out = []
+    for m in _MARK.finditer(citation or ""):
+        seen = _balanced(m.group(0).strip(".-"))
+        while seen:
+            if len(seen) >= 3 and not _bare_year(seen) and seen not in out:
+                out.append(seen)
+            trimmed = _balanced(re.sub(r"\([^()]*\)$", "", seen).rstrip(".-"))
+            if trimmed == seen:
+                break
+            seen = trimmed
+    return tuple(sorted(set(out), key=len, reverse=True))
+
+
+def _balanced(token: str) -> str:
+    """Drop trailing `)` that closes nothing.
+
+    `1.263(a)-2(d)(1)` ends inside its own parentheses and a blanket `rstrip`
+    left `1.263(a)-2(d)(1` — after which the group-trimming regex, which needs a
+    closing paren, matched nothing and the section-level `1.263(a)-2` was never
+    produced. So the check returned False on the GENUINE page, which would have
+    made every real document look like an interstitial.
+    """
+    while token.endswith(")") and token.count(")") > token.count("("):
+        token = token[:-1]
+    return token
+
+
+def _bare_year(token: str) -> bool:
+    """A four-digit year is not a citation identifier.
+
+    `IRS Pub. 583 (12/2024)` yields `2024`, which appears in a great many
+    documents that are not that publication — including, plausibly, the
+    publisher's own refusal page. Dropping it costs nothing: `583` is the
+    identifier and it survives.
+    """
+    return bool(re.fullmatch(r"(19|20)\d\d", token))
+
+
+def about_this_citation(citation: str, text: str) -> bool:
+    """Does this document even mention the thing we asked for?
+
+    THE THIRD REFUSAL SHAPE, found on the Forge on 8 September 2026 and the
+    reason this function exists. eCFR served a real headless browser an HTTP 200
+    "Request Access" page -- 12,474 bytes, THE CORRECT HOST, no redirect, no
+    error token, no body class. Every guard in `browser.py` passed it, our
+    passage was not in it, and `prove` therefore said DIFFERS, which
+    `ask.answer` turns into `authority_has_moved`.
+
+        The product told a human to RETIRE A GOOD CITATION, on the strength of
+        our own client being refused.
+
+    The desk that found it named the general fix rather than another blocklist:
+
+        "DOES THE FETCHED DOCUMENT EVEN MENTION THE SECTION WE ASKED FOR? Every
+         citation carries its own identifier, so this needs no per-publisher
+         knowledge."
+
+    Measured against that interstitial: `1.263(a)-2` absent, `263(a)-2` absent,
+    `eCFR` PRESENT -- which is why a check on the publisher's name would have
+    missed it.
+    """
+    marks = identifiers(citation)
+    if not marks:
+        return False
+    live = comparing.normalise(text or "").lower()
+    return any(comparing.normalise(m).lower() in live for m in marks)
 
 
 @dataclass(frozen=True)
@@ -87,8 +182,19 @@ class Proof:
         return self.verdict == TIED
 
 
-def prove(served, desk, transport) -> Proof:
-    """Fetch the cited source and compare it with what was served.
+def prove_passage(citation: str, passage: str, source, transport) -> Proof:
+    """Is THIS passage in the document THIS source publishes, right now?
+
+    The core, and it knows nothing about a record. It is handed the citation to
+    name, the words to look for, the source to fetch and the transport to fetch
+    with — which is the whole of what a comparison needs. `prove` resolves those
+    four out of a served answer; the candidate path (#343) has a citation no desk
+    holds and constructs them instead, and neither one is the privileged caller.
+
+    THE SPLIT IS A PREFACTOR AND CHANGES NOTHING. Every property the docstring
+    above claims is a property of this function: the transport is a callable so
+    no configuration reaches the network by accident, the three verdicts keep
+    their meanings, and COULD NOT is never upgraded to TIED.
 
     The comparison comes from `comparing`, which the corpus tie-out uses too.
     One folding table, one meaning for a marked omission, no second copy to
@@ -98,21 +204,6 @@ def prove(served, desk, transport) -> Proof:
     inside `ssl.py` because the suite replaces the socket layer. The guard was
     right.
     """
-    citation = served.citation
-    backing = desk.authority_for(citation)
-    if backing is None:                                     # pragma: no cover
-        return Proof(COULD_NOT, citation,
-                     note="this citation is no longer in the desk's record")
-    kind, obj, source = backing
-    if kind == "position":
-        # A POSITION IS THE FIRM'S OWN WORDS AND HAS NO PUBLISHER TO ASK. What
-        # could be proved is the paragraph underneath it, which is a different
-        # claim from the one being served, and reporting that as a proof of the
-        # answer would be the mirror wearing a hat.
-        return Proof(COULD_NOT, citation, url=source.url if source else "",
-                     note="served from the firm's own position; there is no "
-                          "publisher to check it against, and the paragraph "
-                          "beneath it is not what was served")
     if source is None or not source.readable:               # pragma: no cover
         return Proof(COULD_NOT, citation,
                      note="this source may not be fetched at all")
@@ -155,13 +246,136 @@ def prove(served, desk, transport) -> Proof:
                           f"the passage moved. Most likely the source refused "
                           f"this client rather than the text changing.")
 
-    ours, live = comparing.normalise(obj.text), comparing.normalise(text)
-    if comparing.ELLIPSIS in obj.text:
+    ours, live = comparing.normalise(passage), comparing.normalise(text)
+    if comparing.ELLIPSIS in passage:
         ok, failed = comparing.elided_match(ours, live)
-        return Proof(TIED if ok else DIFFERS, matched_chars=len(ours) if ok else 0,
-                     note="" if ok else f"not found from {failed[:60]!r}", **here)
+        if ok:
+            return Proof(TIED, matched_chars=len(ours), **here)
+        return _absent(citation, text, f"not found from {failed[:60]!r}", here)
     if ours and ours in live:
         return Proof(TIED, matched_chars=len(ours), **here)
-    return Proof(DIFFERS, matched_chars=0,
-                 note="the stored passage is not in the document the publisher "
-                      "serves today", **here)
+    return _absent(citation, text,
+                   "the stored passage is not in the document the publisher "
+                   "serves today", here)
+
+
+def _absent(citation, text, why, here) -> Proof:
+    """Our passage is not in what came back. DIFFERS only with evidence.
+
+    DIFFERS IS A CLAIM ABOUT THE PUBLISHER AND IT WITHDRAWS A CITATION. Saying
+    it requires positive evidence that this IS the publisher's document for this
+    citation -- because from our own side "the text changed" and "we were
+    refused" are the same observation, and one of them is not the publisher's
+    fault.
+
+    ONE DIRECTION ONLY, WHICH IS WHY THIS IS SAFE TO ADD. It can turn a DIFFERS
+    into a COULD NOT and never the reverse, so the engine can only become more
+    cautious. The cost is real and is the right way round: a rule that genuinely
+    moved, on a page that does not name itself, is now reported as unchecked
+    rather than withdrawn -- and `staleness.py` reports drift separately. The
+    other error told a person to retire a rule that had not moved at all.
+    """
+    if about_this_citation(citation, text):
+        return Proof(DIFFERS, matched_chars=0, note=why, **here)
+    return Proof(COULD_NOT, matched_chars=0, **here,
+                 note=f"{why} — AND the document does not mention {citation!r} "
+                      f"at all, so nothing here says it is that document. From "
+                      f"this side a publisher that changed its text and a "
+                      f"publisher that refused us look the same, and only one "
+                      f"of those is a finding about the publisher.")
+
+
+def _once_per_source(transport):
+    kept = {}
+
+    def once(source, citation):
+        key = getattr(source, "id", None) or getattr(source, "url", "") or citation
+        if key not in kept:
+            try:
+                kept[key] = (True, transport(source, citation))
+            except Exception as exc:                     # replayed, not retried
+                kept[key] = (False, exc)
+        ok, got = kept[key]
+        if not ok:
+            raise got
+        return got
+    return once
+
+
+def prove(served, desk, transport, each=None) -> Proof:
+    """Prove a served answer: resolve its authority, then `prove_passage`.
+
+    THIS FUNCTION IS THE RECORD HALF and does nothing else. Two of its three
+    outcomes never reach a fetch, and both are about what the record holds
+    rather than about what a publisher serves -- which is exactly why they live
+    here and not in the core.
+    """
+    citation = served.citation
+    # `each`, when given, is filled with every paragraph's own proof, by
+    # citation: the judge may read a fetched page only where it TIED -- a 200
+    # that is a bot interstitial proves COULD NOT and is not the publisher's
+    # document (Codex on #403).
+    each = {} if each is None else each
+    # ONE FETCH PER DOCUMENT. A source is one publisher's document -- a Code
+    # section, a regulation section, a publication -- and every paragraph of it
+    # is in what comes back. Codex on #403: proving § 274(e)(1) with what is
+    # served beside it made sixteen requests to one House page, which is slow
+    # and is what throttling is made of. A failed fetch is kept too, not
+    # retried: a network that refused once is asked once.
+    transport = _once_per_source(transport)
+    backing = desk.authority_for(citation)
+    if backing is None:                                     # pragma: no cover
+        return Proof(COULD_NOT, citation,
+                     note="this citation is no longer in the desk's record")
+    kind, obj, source = backing
+    if kind == "position":
+        # A POSITION IS THE FIRM'S OWN WORDS AND HAS NO PUBLISHER TO ASK. What
+        # could be proved is the paragraph underneath it, which is a different
+        # claim from the one being served, and reporting that as a proof of the
+        # answer would be the mirror wearing a hat.
+        first = Proof(COULD_NOT, citation, url=source.url if source else "",
+                      note="served from the firm's own position; there is no "
+                           "publisher to check it against, and the paragraph "
+                           "beneath it is not what was served")
+        # ... BUT WHAT IS SERVED BESIDE IT DOES. Codex on #403: POS3 is served
+        # with six regulation paragraphs, and returning here left a changed one
+        # unchecked. Only a DIFFERS among them can make this verdict worse.
+        return _with_appended(first, citation, desk, transport, each)
+    first = each[citation] = prove_passage(citation, obj.text, source, transport)
+    # AND WHAT IS SERVED WITH IT. The served passage carries the paragraph's
+    # frame and its `Read with` limits; Codex on #403 found that a § 274(o)
+    # date note which had moved or gone was served on a TIED proof as current
+    # authority, because only (e)(1) was checked. Each appended paragraph is
+    # proved too, and the worst verdict stands: DIFFERS over COULD NOT over TIED
+    # -- COULD NOT is never upgraded, whichever paragraph it came from.
+    # DIFFERS on the cited paragraph is already the worst; anything else keeps
+    # going, because a paragraph of ANOTHER source can still differ (Codex on
+    # #403: a COULD NOT here returned before that source was ever fetched).
+    return _with_appended(first, citation, desk, transport, each)
+
+
+def _with_appended(first, citation, desk, transport, each) -> Proof:
+    """`first`, or worse: each paragraph served with `citation` proved too."""
+    if first.verdict == DIFFERS:
+        return first
+    whole = getattr(desk, "corpus", desk)
+    appended = whole.served_with(citation)
+    worst = first
+    for c in appended:
+        # THE STORED TEXT THAT WAS SERVED, never `authority_for`: that resolves
+        # a citation the firm took a position on to the POSITION, and the frame
+        # served the regulation's words (Codex on #403, § 1.263(a)-1(f)(1)(ii)(B)).
+        held = whole.passage(c)
+        src = whole.source(held.source_id) if held else None
+        if held is None or src is None:
+            continue
+        p = each[c] = prove_passage(c, held.text, src, transport)
+        if p.verdict == DIFFERS:
+            return dataclasses.replace(
+                p, citation=citation,
+                note=f"served with {c}, which {p.note or 'no longer ties'}")
+        if p.verdict == COULD_NOT and worst.verdict == TIED:
+            worst = dataclasses.replace(
+                p, citation=citation,
+                note=f"served with {c}, which could not be checked: {p.note}")
+    return worst

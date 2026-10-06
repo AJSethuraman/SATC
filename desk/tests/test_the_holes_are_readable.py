@@ -140,12 +140,12 @@ def test_a_missing_queue_says_so_and_fails(capsys, tmp_path):
 def test_a_placeholder_in_a_records_line_is_not_a_fact():
     import record as rec
     from pathlib import Path as _P
-    body = (_P(HERE / "desks" / "capitalization-and-de-minimis" / "SUBJECTS.md")
+    body = (_P(HERE / "corpus" / "SUBJECTS.md")
             .read_text(encoding="utf-8"))
     broken = body.replace("**Records:** capitalization_rule",
                           "**Records:** *(nothing)*")
     with pytest.raises(rec.RecordError) as e:
-        rec.parse_subjects(broken, 'capitalization-and-de-minimis')
+        rec.parse_subjects(broken, 'corpus')
     assert "not a fact name" in str(e.value)
 
 
@@ -153,19 +153,19 @@ def test_a_placeholder_in_a_records_line_is_not_a_fact():
 def test_only_a_name_gets_through(name):
     import record as rec
     from pathlib import Path as _P
-    body = (_P(HERE / "desks" / "capitalization-and-de-minimis" / "SUBJECTS.md")
+    body = (_P(HERE / "corpus" / "SUBJECTS.md")
             .read_text(encoding="utf-8"))
     with pytest.raises(rec.RecordError):
         rec.parse_subjects(body.replace("**Records:** capitalization_rule",
                                         f"**Records:** {name}"),
-                           'capitalization-and-de-minimis')
+                           'corpus')
 
 
 def test_the_real_records_lines_all_still_load():
     """The guard must not eat the record it is guarding."""
     import record as rec
     n = 0
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if (d / "SOURCES.md").is_file():
             n += len(rec.load(d).records)
     assert n >= 3, f"only {n} declared facts across every desk; the guard bit"
@@ -178,25 +178,55 @@ def test_case_is_normalised_rather_than_refused():
     matter, which is how guards get loosened later."""
     import record as rec
     from pathlib import Path as _P
-    body = (_P(HERE / "desks" / "capitalization-and-de-minimis" / "SUBJECTS.md")
+    body = (_P(HERE / "corpus" / "SUBJECTS.md")
             .read_text(encoding="utf-8"))
     reg = rec.parse_subjects(
         body.replace("**Records:** capitalization_rule",
                      "**Records:** CAPITALIZATION_RULE"),
-        "capitalization-and-de-minimis")
-    assert reg.records == ("capitalization_rule",)
+        "corpus")
+    assert "capitalization_rule" in reg.records
 
 
 # ---------------------------------------------------------------------------
 # READING ALL THREE STORES, and keeping the live run out of the durable count.
 
 
-def test_every_store_a_refusal_lands_in_is_read():
-    """The bug, stated as a property. `stores()` must find all three families,
-    because the version that found one printed a zero over five live refusals."""
-    kinds = {where.split("/")[0] for _, where, _ in holes.stores()}
-    assert kinds == {"unfiled", "desks", "runs"}, (
-        f"only {sorted(kinds)} read; a refusal filed anywhere else is invisible")
+def test_every_store_a_refusal_lands_in_is_read(tmp_path):
+    """The bug, stated as a property. `stores()` must find every family, because
+    the version that found one printed a zero over five live refusals.
+
+    IT USED TO PROVE THE WRONG THING, AND CLEARING THE QUEUE IS WHAT EXPOSED IT.
+    This read the kinds `stores()` returned and compared them to a fixed set. So
+    it passed whenever each family happened to have a file lying in it — which
+    conflates *this store is read* with *this store is not empty*. The firm
+    cleared the parked-question queue on 14 September 2026 to measure a fresh
+    pilot, `corpus/unsupported/` went empty, and this went red without anything
+    being broken: `holes.py` globs that path and would find the next refusal
+    filed there perfectly well.
+
+    A CLEARED QUEUE MUST NOT BE A BROKEN QUEUE, and the only way to say so is to
+    put a refusal in each store and watch it come back out. That is strictly
+    stronger than the old assertion — it survives an empty queue, and it would
+    catch a store that is listed and never actually read, which the old one
+    could not.
+    """
+    import unsupported
+
+    root = tmp_path / "desk"
+    for family in ("unfiled", "corpus/unsupported"):
+        (root / family).mkdir(parents=True)
+        # WRITTEN THROUGH `unsupported.append`, never typed as a fixture: a
+        # change to the queue's format then breaks this loudly instead of
+        # leaving a file nothing can parse and a test that still passes.
+        unsupported.append(
+            root / family / "asked.md",
+            unsupported.from_question("a question nobody has answered",
+                                      why="written by this test"))
+
+    seen = {where.split("/")[0] for _, where, _ in holes.stores(root)}
+    assert {"unfiled", "corpus"} <= seen, (
+        f"only {sorted(seen)} read; a refusal filed anywhere else is invisible. "
+        f"Each of these had a real entry written into it immediately above.")
 
 
 def test_only_the_latest_run_is_read():

@@ -1,0 +1,4 @@
+$ cube init demo/loans.csv -o wt-empty.yaml --control wt-empty.xlsx
+REFUSED: wt-empty.xlsx has 1 setting(s) to answer:
+  - Control!C24: `How sure a difference must be before it counts` needs an answer. Pick one, or enter your own in column D
+(exit code 2)

@@ -43,6 +43,11 @@ NEW_FIELDS = [
     "LNNDEPD",                                           # 10  lending to non-banks
     "RSLNLTOT", "RSLNREFM", "RSCI", "RSCONS",            # 12  restructured loans
     "RSMULT", "RSOTHER", "NARSNRES",
+    # 13  the income statement, added 8 Sep 2026 so the four FDIC-computed
+    #     ratios that were checked against nothing have their figures here
+    "NETINC", "NETINCQ", "NIM", "NIMQ", "INTINC", "EINTEXP",
+    "NONII", "NONIIQ", "NONIX", "NONIXQ", "ITAX", "ELNATR", "ELNATQ",
+    "NTLNLS", "NTLNLSQ", "AVASSET", "ERNAST", "LNLSGR5",
 ]
 
 API = "https://banks.data.fdic.gov/api/financials"

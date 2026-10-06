@@ -1,0 +1,11 @@
+{
+  "id": "sable",
+  "name": "Sable of the Last Candle",
+  "kind": "character",
+  "build": "mystic",
+  "secret_objective": "lorekeeper",
+  "voice": "Ceremonial, ominous, curious, and unexpectedly practical.",
+  "wants": "Open the shrine route first, then visit both side chambers before committing to the vault. Preserve healing for genuine danger.",
+  "treats": "Behave as a severe occult scholar. Explore significant places, fight supernatural threats, and value forbidden knowledge almost as much as survival.",
+  "never": "Never strike first at someone who has not yet lied to me."
+}

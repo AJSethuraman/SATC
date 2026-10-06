@@ -121,6 +121,32 @@ class Unsupported:
     #: Rendered as prose rather than a number so a reader does not have to know
     #: which source id is which regulation.
     showed: str = ""
+    #: WHAT THE FIRM SAID WHEN THEY ANSWERED IT, verbatim, and the day they did.
+    #:
+    #: THE OUTWARD HALF WAS BUILT FIRST AND THAT MADE THE GAP OBVIOUS. A parked
+    #: question now pushes the firm one line (`notifying.line`), so they learn
+    #: about it within seconds -- and there was nowhere for the reply to land, so
+    #: the entry stayed open however fast they answered. A queue that can only
+    #: grow is a queue nobody finishes reading.
+    #:
+    #: RECORDING AN ANSWER IS NOT RATIFYING A POSITION, and the two must not be
+    #: run together. This closes ONE question in ONE queue. A position is the
+    #: firm's standing rule, lives on a desk in `POSITIONS.md`, changes what the
+    #: engine will serve to everybody, and enters the record only through a pull
+    #: request the firm merges. Writing here changes no desk's authority and
+    #: never can -- which is exactly why it is safe to write from a chat message.
+    answer: str = ""
+    answered: str = ""
+
+    @property
+    def settled(self) -> bool:
+        """Whether the firm has answered this one.
+
+        THE DATE IS THE FLAG, not the text. An answer of "no" or "it does not
+        matter" is a real answer and is not empty; keying off `answer` would
+        leave those looking open forever.
+        """
+        return bool(self.answered)
 
     @property
     def near_miss(self) -> bool:
@@ -174,6 +200,14 @@ class Unsupported:
                       "", f"**Asked by:** {_oneline(self.asked_by)}"]
         if self.showed:
             lines += ["", f"**Desk showed:** {_oneline(self.showed)}"]
+        if self.answered:
+            # THE ANSWER IS QUOTED AND THE DATE IS NOT. The date is validated by
+            # the parser and cannot be arbitrary; the answer is the firm's own
+            # words arriving from a chat message, which is the most arbitrary
+            # text in this file. Everything this render learned the hard way
+            # about escaping applies to it first.
+            lines += ["", f"**Answered:** {self.answered}",
+                      "", "**Answer:**", "", *_quote(self.answer)]
         if self.model:
             lines += ["", f"**Model:** {_oneline(self.model)}"]
         if self.working:
@@ -201,10 +235,31 @@ def parse(text: str) -> list[Unsupported]:
             needs_field=_field(block, "Needs field", where, required=False),
             showed=_field(block, "Desk showed", where, required=False),
             asked_by=_field(block, "Asked by", where, required=False),
+            answered=(_date(_inline(block, "Answered", where), "answered", where)
+                      if _ANSWERED_FIELD.search(block) else ""),
+            answer=_quoted(block, "Answer"),
             model=_field(block, "Model", where, required=False),
             working=_quoted(block, "Working"),
         ))
     return out
+
+
+#: THE `Answered` FIELD, ANCHORED TO THE START OF A LINE.
+#:
+#: A SUBSTRING SEARCH LOST THE WHOLE QUEUE. `parse` asked `"**Answered:**" in
+#: block`, and every field in this file can contain arbitrary text -- the
+#: question is the caller's, the answer is the firm's. A parked question reading
+#: *"Should the report say **Answered:** here?"* matched, `_inline` then found no
+#: real field and read the prose after it as a date, and the RecordError that
+#: raised made EVERY entry in the file unreadable: not one bad row, the whole
+#: store. `holes.py` could not read it, `settle` could not read it, and nothing
+#: said which sentence did it.
+#:
+#: Found by a review of the commit that added the field, on the morning the firm
+#: was about to run a live close against it. Quoted bodies begin with "> ", so
+#: anchoring to the line start is exactly the difference between the FIELD and
+#: the same characters appearing inside a value.
+_ANSWERED_FIELD = re.compile(r"^\*\*Answered:\*\*", re.M)
 
 
 def _uncite(value: str) -> str:
@@ -218,8 +273,32 @@ def _oneline(value: str) -> str:
 
 
 def _quote(value: str) -> list[str]:
-    """Escape arbitrary text into lines that cannot be read as structure."""
-    return [f"> {ln}" if ln else ">" for ln in value.split("\n")]
+    """Escape arbitrary text into lines that cannot be read as structure.
+
+    EVERY LINE SEPARATOR, NOT ONLY `\n`. This split on `"\n"` alone, so a bare
+    carriage return sailed through unquoted -- and Python opens files with
+    universal newlines, which turns that `\r` into a line break on the way back
+    in. The text after it therefore arrived WITHOUT its `> ` prefix and was read
+    as structure.
+
+    A reply of `"U1 yes\r## X · injected\r\r**Failed because:** nonsense"`
+    inserted an entry called X into the queue and then made the whole file
+    unparsable -- the same total loss as the `_inline` shadowing fixed beside
+    it, reached by a different door. It is not exotic: a phone keyboard, a paste
+    out of a document and anything Windows-authored all produce lone `\r`.
+
+    LINES ARE PRESERVED; THE BYTES BETWEEN THEM ARE NOT, and they cannot be. The
+    file has no way to hold a bare `\r` -- the reader would convert it anyway --
+    so the honest thing is to write one `> ` line per line the READER will see.
+    `splitlines()` is deliberately a superset of the three separators universal
+    newlines recognises: splitting somewhere the reader would not merely yields
+    an extra quoted line, which is safe, while failing to split where it WOULD
+    is what put an entry in this file that nobody wrote.
+
+    Found by a review, on the day the firm began replying to the desk from a
+    phone.
+    """
+    return [f"> {ln}" if ln else ">" for ln in value.splitlines() or [""]]
 
 
 def _quoted(block: str, label: str, where: str = "") -> str:
@@ -293,6 +372,161 @@ def _refreshed(text: str) -> str:
     return PREAMBLE + entries
 
 
+#: Overrides `default_queue`. A deployment or a test points the queue somewhere
+#: of its own without editing anything.
+QUEUE_ENV = "SATC_DESK_QUEUE"
+
+
+def default_queue() -> Path:
+    """Where a parked question lives, and it is OUTSIDE the plugin.
+
+    THE QUEUE WAS INSIDE A VERSIONED CACHE, which is a durable store that is not
+    durable. `be-the-desk` told the reader to write it to `ROOT/unfiled/`, and in
+    an installed layout `ROOT` resolves to
+    `~/.claude/plugins/cache/satc/desk/<version>` -- the skill computes it by
+    picking the highest version directory it can find. So the queue lived inside
+    one release. Update the plugin and the new root is a different directory: the
+    skill and `tools/holes.py` both look there, find nothing, and every question
+    the firm was waiting to answer is gone with no error anywhere. Cache cleanup
+    could take it outright.
+
+    Found by a review of the commit that built the notification path, which is
+    what made it matter: the whole point of parking a question is that somebody
+    comes back to it.
+
+    IT IS ALSO THE WRONG PLACE FOR A SECOND REASON. A parked question is written
+    by a doer mid-close and can name anything about a client. `CLAUDE.md` is
+    clear that a client's affairs in a checkout are one `git add` from being
+    published, and the engagement reader was moved out of the plugin tree for
+    exactly that reason. This store belongs out with it.
+
+    NOT VERSIONED, NOT INSIDE THE REPOSITORY, and stable across upgrades --
+    so the answer to "where is the queue" does not depend on which release
+    happens to be installed.
+    """
+    import os
+    override = os.environ.get(QUEUE_ENV, "").strip()
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".satc" / "desk" / "unfiled" / "CLOSE.md"
+
+
+#: THE SAME BUG, IN THE STORE NEXT DOOR, AND IT OUTLIVED THE FIX BY TWO WEEKS.
+#: `default_queue` above moved the PARKED-QUESTION queue out of the plugin tree
+#: on 8 September, for reasons its docstring sets out in full. The REFUSAL store
+#: -- what `ask.answer` files every time the engine declines to serve -- was left
+#: where it was: `ask.CORPUS / "unsupported" / "asked.md"`, and `ask.CORPUS` is
+#: `HERE / "corpus"` where HERE is the package directory. Installed, that is
+#: `~/.claude/plugins/cache/satc/desk/<version>/corpus/unsupported/`.
+#:
+#: MEASURED ON THIS MACHINE, 25 September 2026, rather than reasoned about:
+#: `0.27.0/corpus/unsupported/` holds forge.md and frontier.md -- 22 refusals,
+#: 70KB, recorded 4 September. `0.28.0` and `0.34.0` have no such directory.
+#: Those 22 findings are stranded in a release nobody runs, and the desk that is
+#: installed cannot see one of them. Every upgrade since has done this silently.
+#:
+#: The second reason is the one `default_queue` gives and it applies here word
+#: for word: a refusal carries the question that was asked, which mid-close can
+#: name anything about a client, and `CLAUDE.md` is clear that a client's affairs
+#: inside a checkout are one `git add` from being published.
+STORE_ENV = "SATC_DESK_UNSUPPORTED"
+
+
+def default_store() -> Path:
+    """Where a refusal is filed, and it is OUTSIDE the plugin.
+
+    Same shape as `default_queue`, deliberately: two stores that answer "where
+    do I live" by different rules are two rules to get wrong, and this one was
+    already wrong for two weeks because only its sibling got fixed.
+    """
+    import os
+    override = os.environ.get(STORE_ENV, "").strip()
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".satc" / "desk" / "unsupported" / "asked.md"
+
+
+def _appended(text: str, entry: Unsupported) -> str:
+    """One entry onto the end of the queue's text, with the queue's own spacing.
+
+    ONE PLACE THAT KNOWS THE FILE FORMAT. `append` adds to the end and `settle`
+    rebuilds the whole file; written separately they are two opinions about
+    where the `---` goes and how many blank lines precede it, which is the
+    duplicate-rule fault this repository has already paid for in `domains._hits`.
+    """
+    sep = "" if text.endswith("\n\n") else ("\n" if text.endswith("\n") else "\n\n")
+    return text + sep + entry.render() + "\n---\n\n"
+
+
+def settle(path: Path, uid: str, answer: str, *, on: str = "") -> Unsupported:
+    """Record the firm's answer against one parked question and close it.
+
+    THIS IS THE HALF THAT DID NOT EXIST. `notifying.line` pushes the firm a
+    parked question within seconds of it being parked, and until now their reply
+    had nowhere to land: the entry stayed open however fast they answered, and
+    `tools/holes.py` went on reporting it as a hole. The outward half being built
+    first is what made the gap obvious.
+
+    IT CLOSES A QUESTION. IT DOES NOT RATIFY A POSITION. Those are different
+    things and running them together would be the worst bug this file could
+    have. A position is the firm's standing rule: it lives on a desk in
+    `POSITIONS.md`, it changes what the engine serves to everybody, and it
+    enters the record only through a pull request the firm merges. This writes
+    one line into one queue, changes no desk's authority, and cannot -- which is
+    precisely what makes it safe to write straight from a chat message. If the
+    answer deserves to become a position, that is a separate piece of work with
+    the firm's separate yes.
+
+    REFUSES RATHER THAN GUESSING WHICH ENTRY. An unknown id raises; so does an
+    empty answer, because a settled entry with nothing in it reads as answered
+    and tells the next reader nothing. Re-settling one that is already settled
+    raises too -- the second answer might be a correction or might be a stray
+    message repeating itself, and this cannot tell, so a person does.
+    """
+    path = Path(path)
+    if not path.exists():
+        raise RecordError(f"no queue at {path}: nothing to settle")
+    answer = answer.strip()
+    if not answer:
+        raise RecordError(
+            f"{uid}: an empty answer would mark this settled while telling the "
+            f"next reader nothing")
+    entries = parse(path.read_text(encoding="utf-8"))
+    known = {e.id: e for e in entries}
+    if uid not in known:
+        raise RecordError(
+            f"{uid} is not in {path.name}. It holds: "
+            f"{', '.join(sorted(known)) or 'nothing'}")
+    if known[uid].settled:
+        raise RecordError(
+            f"{uid} was already answered on {known[uid].answered}. If this is a "
+            f"correction rather than a repeat, edit the file -- this will not "
+            f"overwrite an answer it cannot tell apart from a duplicate.")
+    settled = replace(known[uid], answer=answer,
+                      answered=on or date.today().isoformat())
+    out = [settled if e.id == uid else e for e in entries]
+    # REBUILT THROUGH `_appended`, NOT JOINED. The first version wrote
+    # `_refreshed("\n".join(...))`, and `_refreshed` takes WHOLE-FILE text: it
+    # looks for the first "\n## " and keeps everything from there. Handed bare
+    # entries, the first one has no newline in front of it, so the search landed
+    # on the SECOND entry's heading and everything before it was discarded --
+    # settling U1 deleted U1. Silent, and only visible by running it.
+    text = PREAMBLE
+    for e in out:
+        text = _appended(text, e)
+    path.write_text(text, encoding="utf-8")
+    return settled
+
+
+def open_questions(path: Path) -> list[Unsupported]:
+    """The ones still waiting on the firm. Answered entries stay in the file --
+    the queue is the record of what was asked, not only of what is outstanding."""
+    path = Path(path)
+    if not path.exists():
+        return []
+    return [e for e in parse(path.read_text(encoding="utf-8")) if not e.settled]
+
+
 def append(path: Path, entry: Unsupported) -> Path:
     """Add one entry. Creates the file with its preamble if absent.
 
@@ -323,8 +557,7 @@ def append(path: Path, entry: Unsupported) -> Path:
     if any(u.id == entry.id for u in current):
         entry = replace(entry, id=next_id(current))
 
-    sep = "" if text.endswith("\n\n") else ("\n" if text.endswith("\n") else "\n\n")
-    path.write_text(text + sep + entry.render() + "\n---\n\n", encoding="utf-8")
+    path.write_text(_appended(text, entry), encoding="utf-8")
     return path
 
 

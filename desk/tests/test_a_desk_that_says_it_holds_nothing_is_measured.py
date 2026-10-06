@@ -31,7 +31,7 @@ import engine                                               # noqa: E402
 import record                                               # noqa: E402
 import unsupported                                          # noqa: E402
 
-MEALS = HERE / "desks" / "meals-and-entertainment"
+MEALS = HERE / "corpus"
 QUESTION = "Is streaming television ever a business subscription?"
 
 

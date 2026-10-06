@@ -935,3 +935,178 @@ and would have read as progress.
 184 → 187 passing. Mutation-checked three ways: strip 21's incident, remove 21
 entirely, and edit the record without regenerating the digest. Each goes red on
 its own guard.
+
+---
+
+## 18 September 2026 — two rulings for a project that is not the practice's
+
+The Portfolio Analysis Pack (`portfolio-analysis-pack/`, credit consulting
+line) was grilled from a handover. Two entries fired and were put to the firm
+before any design question, in the shape the record asks for — the quote, the
+decision, "has the reason changed?" — and the firm asked for the consequences
+laid out before ruling. Both rulings are in `CONVICTIONS.md` under *Rulings by
+project*, quoting the option they chose.
+
+**C11 struck for the project.** The handover deferred doors two and three
+("design for, do not build"); C11 fires on *defer*. The firm struck it, on the
+ground C11 itself names: *"when you know you will eventually do it anyway"* is
+a prediction, and neither door has a first instance.
+
+**C9 upheld on placement.** Raised by hand, as C9's own note says to: a second
+openpyxl builder beside `credit-review-os`'s is a mechanism added rather than
+extended. The firm chose a new folder that copies only the house-style module.
+
+One thing about the mechanism worth keeping: the grill's rule is *always
+recommend*, and Bassy's is *do not weigh the challenge*. They collided on the
+first question. What resolved it was the firm asking for the recommendation —
+which is C7's shape, a question handed back rather than a decision taken.
+
+---
+
+## 19 September 2026 — the tie-out skill gets a checker, and the measurement that argued for one
+
+**What the firm decided**, on five proposals put to them the same day:
+
+| | Proposal | The firm's answer |
+|---|---|---|
+| P1 | Canon ships a conformance checker; the skill's checkable half becomes its test suite | *"Agree — canon ships the checker"* |
+| P2 | Three refusals first: roster arithmetic, the three named sections, a marked source image | *"Agree — all three refusals"* |
+| P3 | No figure a document states about itself may be typed | *"Agree — computed at build time, with a test"* |
+| P4 | Split the skill into what is checked and what is judgement | *"Agree — split it into checked and judgement"* |
+| P5 | Every surviving instruction earns an incident or gets cut; the skill gets shorter | *"Agree — incident or cut, and make it shorter"* |
+
+On P5 they added, in their own words:
+
+> *"Fine if it is truly not helping it follow. It's just hard to understand…
+> because I'm human"*
+
+And on a divergence between the skill and the document built from it, as a
+standing preference:
+
+> *"I prefer spirit to be improved."*
+
+**The measurement, re-derived rather than adopted.** The brief that carried
+these decisions reported 19 promises extracted from `skills/tie-out/SKILL.md`,
+16 mechanically testable, 6 red. Re-extracted on 19 September against the same
+artifact — the covering document for the verified credit feed, as it stood on
+`main` — this session got **30 promises, 25 testable, 5 red**. The difference is
+granularity, not disagreement: three named sections counted as one promise there
+and three here, five links as one and five here.
+
+**The finding that matters replicated exactly.** Promises enforced by code: 1 of
+1 kept. Promises carrying a dated incident: 5 of 5 kept. Promises stated as an
+instruction and nothing else: **0 of 5 kept** — and the five that broke are the
+most specific sentences in the file. Precision is not what holds a promise.
+
+Four of the brief's six reds confirmed: no red ink in any source image, no *what
+I got wrong* section, the literal `COULD NOT` never used, and the roster adding
+to 156,767 under its own headline of 156,881. Two scored differently, both
+reported rather than quietly adopted: the citation IS broken into labelled parts
+in the delivered trace (schedule, code, units each labelled), and the diagram is
+on page one, third — which the brief itself said not to enforce. One red the
+brief did not have: no zoomed crop of the located row, anywhere.
+
+**What was built.** `canon/check_tie_out.py`, with three refusals, called by
+`credit-suite/tools/tieout/build_covering_document.py` before it renders. All
+three were watched red against the document as it stood and green after.
+
+**The stdlib fork, decided out loud.** The brief offered two options: leave the
+red-ink check in the project where `pymupdf` already is, or let canon take an
+optional dependency that announces when it skips. Neither was taken. canon
+decodes the PNG itself, in `zlib` and arithmetic — about seventy lines, the
+whole of the format this needs — so there is **no dependency to be missing and
+therefore no skip path to go quiet down**. An image it cannot read (a JPEG, an
+interlaced PNG, a truncated one) is refused and named. Unknown is not a pass.
+
+**P5: what was cut, so a later session can put it back rather than rediscover
+why it went.** Exactly one passage met all three conditions — no incident
+attached, not enforced by the checker, and a measured record of not being
+followed:
+
+* *"put a **zoomed crop of that row directly beneath it**, large enough to read
+  the digits without leaning in"*, from **Mark it, and enlarge it**. No exhibit
+  ever did this. Two did something better and smaller — cut the row out of the
+  page already enlarged, with the page's identity header cut from the same page
+  above it — which is what the instruction now asks for, under the firm's
+  *"I prefer spirit to be improved"*. `test_the_tie_out_skill_marks_and_enlarges
+  _the_source` moved with it and records why.
+
+Loosened rather than cut, on the same preference: the **closed three-verdict
+vocabulary**. The skill demanded every figure be `TIED`, `DIFFERS` or
+`COULD NOT`; the delivered roster invented six categories that each carry more
+information than the bucket they replaced. The three still always apply and a
+more specific verdict is now the better answer.
+
+**Nothing else qualified, and the file got longer.** The judgement half is about
+the length it was; the file grew by roughly a hundred lines because the enforced
+half is new. That is a departure from *"make it shorter"* and it is recorded as
+one rather than dressed up: on the evidence rule the firm set, one instruction
+earned a cut, and the "what not to do" list — five of whose eight bullets
+restate something said earlier — was followed every time it was measured, so
+none of it qualified. Cutting it would have been the editorial judgement P5
+explicitly forbids.
+
+1.18.0 → **1.19.0**. 190 → 221 passing.
+
+## 1.20.0 — the gate moved inside the door (23 September 2026)
+
+1.19.0 shipped `gate()` and asked each builder to call it before rendering. The
+firm read the hand-over and stopped on one sentence — *the next tie-out document
+in another project gets nothing until someone wires it up* — and asked what that
+meant. It meant the checking was held by one line somebody had to remember to
+write, and the skill asking for that line is prose. **Which is the thing this
+whole module exists because nobody follows: 0 of 5.** A builder that simply
+never called `gate` would produce an unchecked document indistinguishable from a
+checked one.
+
+*"Yes do that. I want it to be required."*
+
+So `render()` now gates and then drives Chrome, and it is the only door: a
+builder asks canon for a PDF and is checked on the way through. `gate()` stays
+for a builder with its own reason to render, and the skill names it as the
+weaker path rather than an equal one.
+
+Three things the render refuses that the gate could not: Chrome producing
+nothing; a stale PDF sitting where the new one goes, which would satisfy every
+later check and mean the render never ran; and pictures that were in the HTML
+and did not survive into the PDF. The last one is checked by counting
+`/Subtype /Image` in the file — stdlib, and enough to tell NONE from SOME, which
+is the only question being asked.
+
+`test_there_is_no_argument_that_skips_the_gate` asserts the signature never
+grows `skip`, `force` or `unchecked`. A flag that turns a check off is the check
+not existing.
+
+**Checked by mutation.** Deleting the `gate()` call from `render()` turns two
+tests red — and the mutant renders a real PDF from a document that should have
+been refused, which is exactly the failure being guarded.
+
+**What this still cannot do**, written down rather than implied: canon cannot
+stop a builder shelling out to Chrome itself. What it can do is make the honest
+path the short one and the other one visible in a grep for `print-to-pdf`
+outside this module. That is prevention where prevention reaches and detection
+where it does not, and the difference is stated rather than blurred.
+
+## 1.22.0 — S36, the first tenet added since the thirty-five (26 September 2026)
+
+The docket asked *"Add a tenet to canon: compare against a bar worked out
+once?"* and the firm answered *"Yes, add it."* **S36 · Compare against a bar
+computed once and rounded, never against 1 − confidence written inline.**
+
+It is cited to one incident, in `origination-cube`: the adversarial pass on the
+cube's statistics found that `1 - 0.95` is `0.050000000000000044`, so a p-value
+of exactly 0.05 read significant at 95% and not at 90%. Commit `da0271a` put the
+bar in one place, `stats.bar(confidence) = round(1.0 - confidence, 12)`, and the
+mutation check's *"the bar not rounded"* turns all four of the tests that hold
+it red — rerun for this entry, not taken from the commit message.
+
+It is also the first tenet whose evidence names a project other than SATC,
+which is what the evidence tally was built to show. The counts that meant the
+record's current size moved to thirty-six: the two tests that asserted 35,
+`skills/how-we-work`, the README's state line, and the canon row in the
+repo-root `CLAUDE.md`. The historical ones stay — the ratification on
+3 September was of thirty-five, and that is still what happened.
+
+**Released as 1.22.0** (1.21.0 went to C15 on main the same day) on the firm's go-ahead, the same day (*"Go ahead"*). The version
+moved in both manifests and `release.py` rewrote the digest. Without the bump, installed
+sessions would never have fetched S36: that is the C11 incident this check exists for.

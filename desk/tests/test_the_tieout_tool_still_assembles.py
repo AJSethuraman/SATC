@@ -34,7 +34,7 @@ sys.path.insert(0, str(HERE))
 import comparing                                            # noqa: E402
 import record                                               # noqa: E402
 import tieout                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
 
 def test_every_global_check_reaches_for_exists():
@@ -79,7 +79,7 @@ def test_comparing_reaches_nothing_that_reaches_the_network():
     fetches, so importing it pulls in `ssl`, and this suite replaces the socket
     layer — every test of `proving` failed inside `ssl.py` until the comparison
     moved somewhere that imports neither."""
-    src = (HERE / "comparing.py").read_text()
+    src = (HERE / "comparing.py").read_text(encoding="utf-8")
     for forbidden in ("import urllib", "import ssl", "import socket",
                       "import http", "import requests", "subprocess"):
         assert forbidden not in src, (
@@ -91,7 +91,7 @@ def test_the_brief_is_parsed_back_out_of_real_text():
     """`brief_passages` is the half of the tool with no network in it, and it is
     the half that decides what goes on the `ours` side of every comparison. A
     citation the brief does not carry is a finding in itself."""
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     parsed = tieout.brief_passages(desk)
     assert parsed, "the brief parsed to nothing"
     held = {p.citation for p in desk.passages}

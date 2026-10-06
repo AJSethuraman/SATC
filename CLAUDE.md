@@ -18,15 +18,21 @@ collects/retains client info, and provides small services around Drake.
 | `invoice-generator/` | "Invoicer" — self-hosted invoice web app (accounts, PDF, Stripe, email, JSON API) | Python / Flask + SQLAlchemy | `pytest` in `invoice-generator/tests`; run locally (`run.ps1`, `docker compose up`, or Render) |
 | `satc_system/` | The SATC practice-ops app: local Flask GUI, client intake, document readers, tax line-sheets, encrypted identity vault + de-identified data mart, Drake input/reconcile seam, withholding estimator | Python (`satc` package), Flask, SQLite | `cd satc_system && PYTHONPATH=src pytest -q`; run the app (`SATC.bat` / `satc-app`, default port 5050); `satc doctor` for a readiness check |
 | `cowork-plugin/` | Claude/Cowork plugin + MCP server (`mcp/satc_mcp.py`) to drive SATC's withholding API in plain language; **read-only by default** | Python MCP server + plugin manifest | Load the MCP; exercise against the local withholding API |
-| `client-documents/` | The document pipeline and the whole life of an engagement: interview → priced documents → billing → delivery, extension, disengagement → close-out and reconciliation. CLI **and** browser front doors over one core. **Most documents a client receives pass a blocking pre-send gate — NOT all of them.** The gate has exactly two callers, `sending.py:177` and `previewing.py:237`, and neither is on the path `cli.py event` takes: the delivery letter, the organizer cover, the extension notice, the disengagement letter and the invoice via `render` ship UNGATED. *(This line read "Every document" until 4 Sep 2026, when it was checked against the callers and found false. `docs/WHERE-THINGS-STAND.md` had the gap recorded as "the biggest hole still open"; this file asserted the opposite, and it is the file loaded into every session.)*; `docs/OPERATING-PROCEDURES.md` is generated from the software and must not be edited by hand | Python, Flask, YAML registries | `cd client-documents && python -m pytest -q` (**1,434 passed, 2 skipped**, ~8 min — measured 4 Sep 2026 in both checkouts), then `python exercise.py` — 29 real scenarios, **109 documents**, every one opened in a browser, and `python capture.py` — 22 screens, 97 controls, photographed. **Ten of those tests skip until the two harnesses have run**, silently, so a suite that has never seen them reports 1,424 / 12 and looks fine. *(This line said 190 documents until 4 Sep 2026; the run produced 109 and the difference is not explained — recorded rather than quietly corrected.)* `make web` for the browser front door |
+| `client-documents/` | The document pipeline and the whole life of an engagement: interview → priced documents → billing → delivery, extension, disengagement → close-out and reconciliation. CLI **and** browser front doors over one core. **Every document a client receives passes a blocking pre-send gate, and that is now true.** `render` and `event` route through it as well as `sending` and `previewing` — `tests/test_the_second_door_is_gated.py`, 16 tests including the control that the blocking stub would pass if it were not blocking. Watched on the first real engagement, 5 Oct 2026: `pre-send gate: 11 check(s), nothing blocking`. *(This line has now been wrong in BOTH directions. It read "Every document" until 4 Sep 2026, when the callers were counted and it was false — the delivery letter, organizer cover, extension notice, disengagement letter and the invoice via `render` all shipped unchecked. The gap was then closed, and this line went on warning about it for a month, understating the software to every session that loaded the file. A claim forecloses a look whichever way it points.)*; `docs/OPERATING-PROCEDURES.md` is generated from the software and must not be edited by hand | Python, Flask, YAML registries | `cd client-documents && python -m pytest -q` (**1,434 passed, 2 skipped**, ~8 min — measured 4 Sep 2026 in both checkouts), then `python exercise.py` — 29 real scenarios, **109 documents**, every one opened in a browser, and `python capture.py` — 22 screens, 97 controls, photographed. **Ten of those tests skip until the two harnesses have run**, silently, so a suite that has never seen them reports 1,424 / 12 and looks fine. *(This line said 190 documents until 4 Sep 2026; the run produced 109 and the difference is not explained — recorded rather than quietly corrected.)* `make web` for the browser front door |
 | `satc-handoff/` | Brand, the ten client document templates + their FIELDS specs, the authoring contract, the run log and the open-questions list | HTML/CSS/Markdown, no build | Read `satc-handoff/START-HERE.md`; templates render in a browser |
-| `canon/` | **The practice brain, and it is a plugin — installed, not imported.** Thirty-five tenets each cited to a real bug, the firm's convictions in their own words, and eighteen standing behaviours for how a session conducts itself. Count Bassy challenges a decision from that record and never from an opinion; `/canon:docket` hands back what is open as a form the firm fills in. Holds no client data and mirrors no project's code, deliberately — it has to lift out whole | Python, stdlib only | `cd canon && pytest -q` (138). Installed with `claude plugin update canon`; `marketplace update` refreshes the listing and does **not** install |
+| `canon/` | **The practice brain, and it is a plugin — installed, not imported.** Thirty-six tenets each cited to a real bug, the firm's convictions in their own words, and eighteen standing behaviours for how a session conducts itself. Count Bassy challenges a decision from that record and never from an opinion; `/canon:docket` hands back what is open as a form the firm fills in. Holds no client data and mirrors no project's code, deliberately — it has to lift out whole | Python, stdlib only | `cd canon && pytest -q` (138). Installed with `claude plugin update canon`; `marketplace update` refreshes the listing and does **not** install |
 | `desk/` | **⚠ UNDER ACTIVE DESIGN BY ANOTHER SESSION as of 4 Sep 2026 — read it before relying on it, and expect it to have moved.** Expert desks: what an agent consults so a question does not reach the firm. A desk answers only from authority it can cite, says how binding that authority is, and escalates rather than guesses; the citation rule is enforced in `engine.py` rather than asked for in a prompt, because the same policy written as skill prose was obeyed *"100%, 4%, 0% of runs"*. One desk exists so far: `fixed-assets`. Depends on `canon`; canon uses nothing from it. **This row is a pointer, not a specification** — it was written from the README by a session that does not own the design | Python, stdlib only | `cd desk && pytest -q` (174 at the time of writing). Offline by construction — `conftest.py` replaces the socket layer, and a test proves that guard can fail |
 | `threshold-engine/` | Candidate risk-rating cutoffs from any continuous signal (a charge-off rate, WAPD, a score): finds the normal level and the stress episodes, tests whether the worst is an outlier, proposes the bounds a separate scoring file uses. Every setting is required and none has a default; it refuses rather than fill a gap. Public data only in the repository — internal metrics are run on site. Design: the *Consumer Risk Thresholds: Design Proposal* doc, section 3a | Python, stdlib only | `cd threshold-engine && python -m pytest -q` (101). Front doors: `python -m threshold_engine profile SERIES.csv ...` (facts, no judgement), `... evidence ...` (statistics and scenarios per judgement), `... backtest ...` (how predictive, with and without recency) and `... cutoffs SERIES.csv ...` |
 | `docs/` | Specs and research that govern the above — including `prd-interview-and-field-registry.md`, which the interview is built to | Markdown | — |
 
-**The repo also holds nine credit and macro analytics projects** —
-`credit-review-os/`, `stock-helper/`, `fdic-peer-monitor/`,
+**The repo also holds twelve credit and macro analytics projects** —
+`credit-review-os/`, `portfolio-analysis-pack/` *(v1 built 18–19 Sep 2026; its
+PRD is the spec and `BACKLOG.md` §6c the log)*, `pocketbook/` *(PocketBook,
+`origination-cube/` until 27 Sep 2026: where the book bleeds, pockets against
+the topline; slice 1 built 25 Sep 2026, log in `BACKLOG.md` §6d; its copy follows
+`pocketbook/VOICE.md`, not the client-facing copy rules below; **taking it over? `pocketbook/HANDOFF.md` first**)*,
+`excel-macros/` *(the firm's own Excel macros, kept in PERSONAL.XLSB; tested in LibreOffice, not Excel)*,
+`stock-helper/`, `fdic-peer-monitor/`,
 `cfpb-mortgage-monitor/`, `edgar-crit-class-tracker/`,
 `fred-credit-risk-dashboard/`, `bureau-credit-risk-dashboard/`,
 `macro-early-warning-dashboard/`, `bls-laus-county-monitor/`. They belong to a
@@ -183,4 +189,32 @@ every one of them was unreadable.
 ## Git workflow
 
 - Develop on a feature branch; commit with clear messages.
-- Push and open a **draft PR** — don't push to `main` without explicit approval.
+- Push and open a **draft PR**. Never push straight to `main`.
+- **Then merge it yourself once it is green. Do not stop and wait to be told.**
+  The firm, 25 September 2026: *"stop leaving me to merge - i have basically
+  never not come back and told you to do it."* That is standing approval, and
+  it exists because the approval kept being given in a conversation that then
+  ended, so every new session stopped at the PR again. Mark it ready, merge
+  with a merge commit (the repo's convention) pinned to the head that went
+  green, and confirm `main` carries it — for a plugin, that the marketplace
+  version on `main` is the one you shipped.
+- **Marking it ready starts a Codex review — wait for it.** This repo runs
+  `chatgpt-codex-connector`, and "draft marked ready" is one of its triggers.
+  Its summary comment reads *Running*, then *Completed*; findings arrive as
+  review threads. Merge only after it reads *Completed*, and treat any thread
+  it opens as a bug report to verify and fix first. #395 was merged twenty
+  seconds after being marked ready, while this review was still running — it
+  came back clean, which was luck, not process.
+- **Green must be green against the `main` you are merging into.** `test.yml`
+  runs on `pull_request`, which tests the PR merged into whatever `main` was
+  *at that moment* — and a later push to `main` does not re-run it. So if
+  another PR landed after your CI finished, the merge you are about to make has
+  never been tested, and `pages.yml` deploys `main` the instant it moves. Pinning
+  the head stops one race and not this one. Before merging, check the branch
+  already contains current `main`:
+  `git fetch origin main && git merge-base --is-ancestor origin/main HEAD`.
+  If it does not, merge `main` into the branch, push, and wait for green again.
+  Found by Codex on #396, the PR that added this rule.
+- **Still hold a merge** when the firm has said to, when CI is red, or when the
+  PR carries a decision they have not answered yet. "Green" means green on the
+  head you are merging, not on an earlier one.

@@ -1,0 +1,186 @@
+"""How common each group is (fix 3.12): loans and booked dollars per group,
+pocket by pocket, with no test attached. Shown under the Grids tab's blocks
+since the redesign's phase 3 (it was the Prevalence tab; results._groups writes
+it). A test of a new variable run without a booked amount (Goal 2 item 2)
+counts loans alone, with no dollar column.
+
+docs/statistics.md B8: "Loans and dollars per group per pocket, with no p-value
+attached. A count of the book, so it needs no holdout and no confidence level.
+It is the first finding whenever the line of business believes a pattern is
+rare."
+
+Which groups:
+- the column that splits the pockets: its two halves (each pocket cut at its own
+  median, as the Split tab cuts it) or its values (a category);
+- each new column made on Control: its bands. The edges are the ones the Run cut
+  it at when it is a band column, else the ones typed on Columns ("every 0.5"
+  worked out over its values the way a band column's would be). A new column
+  with no edges anywhere is not counted by band, and the tab says so rather
+  than choosing edges for it.
+
+The pockets are the grids' own, counted again from the loans the Run used, and
+each pocket's count is tied out to the grid's before anything is written: a
+count that does not add up to the grid is not shown.
+"""
+
+from __future__ import annotations
+
+import math
+import statistics
+from dataclasses import dataclass
+
+from . import engine
+
+GROUP_COL = 6            # on Grids, the first group's column: band, segment, the pocket's loans and dollars first
+
+
+@dataclass
+class Grouping:
+    """One way of dividing every pocket."""
+    column: str
+    kind: str                      # "halves" | "values" | "bands"
+    title: str
+    edges: tuple = ()              # bands only
+    skip_band: str | None = None   # bands only: a grid cut by this column is its own grouping, so is left out
+    values: tuple = ()             # bands only: the column's values, when the Run gave each its own band
+
+
+def rows_run(res) -> list[dict]:
+    """The loans the Run counted: every loan in the extract, with any new columns."""
+    return res.table.rows if res.table is not None else []
+
+
+def edges_of(res, column: str) -> tuple[tuple[float, ...] | None, str]:
+    """A number column's band edges for this run, and where they came from: the
+    edges it was cut at, the edges typed on Columns, or None when there are none."""
+    cfg = res.config
+    band = next((b for b in cfg.bands if b.field == column), None)
+    if band is not None and band.name in res.band_edges:
+        return tuple(res.band_edges[band.name]), "the bands it was cut into"
+    typed = str((getattr(res, "typed_edges", None) or {}).get(column) or "").strip()
+    if not typed:
+        return None, ""
+    if typed.lower().startswith("every"):
+        try:
+            w = float(typed.lower().removeprefix("every").split()[0].replace(",", ""))
+        except (ValueError, IndexError):
+            return None, ""
+        rule = cfg.missing.get(column)
+        vals = [v for v in (engine.classify_number(r.get(column), rule)[0] for r in rows_run(res)) if v is not None]
+        if w <= 0 or not vals:
+            return None, ""
+        lo, hi = min(vals), max(vals)
+        pts, x = [], math.floor(lo / w) * w + w           # as a band column's "every" is cut (book._band_widths)
+        while x <= hi and len(pts) < 50:
+            pts.append(round(x, 10))
+            x += w
+        return tuple(pts) or (round(math.floor(lo / w) * w + w, 10),), f"{typed} on Columns"
+    try:
+        pts = tuple(float(x) for x in typed.replace(";", ",").split(",") if x.strip())
+    except ValueError:
+        return None, ""
+    if not pts or any(b <= a for a, b in zip(pts, pts[1:])):
+        return None, ""
+    return pts, "the band edges on Columns"
+
+
+def groupings(res) -> tuple[list[Grouping], list[str]]:
+    """Each grouping this run can be counted by, and a note for each new column
+    that can't be (no edges)."""
+    cfg = res.config
+    out, notes = [], []
+    if cfg.split:
+        sf, how = cfg.split
+        out.append(Grouping(sf, "halves", f"{sf}, each pocket cut at its own median") if how == "own_median"
+                   else Grouping(sf, "values", f"{sf}, by value"))
+    for d in res.derived:
+        edges, said = edges_of(res, d.name)
+        if edges is None:
+            notes.append(f"{d.name} = {d.text()} has no band edges, so it isn't counted by band here. Type its "
+                         f"edges on Columns to count it.")
+            continue
+        band = next((b.name for b in cfg.bands if b.field == d.name), None)
+        each = (getattr(res, "value_bands", None) or {}).get(band) if band else None
+        shown = "each value its own band" if each else "; ".join(engine._fmt(x) for x in edges)
+        out.append(Grouping(d.name, "bands", f"{d.name} = {d.text()}, by its bands ({shown}: {said})",
+                            edges=edges, skip_band=band, values=tuple(each or ())))
+    return out, notes
+
+
+def _labels_by_band(res, rows) -> dict[str, list[str]]:
+    """Each band column's label on every loan, cut exactly as the grids cut it."""
+    cfg, out = res.config, {}
+    each = getattr(res, "value_bands", None) or {}
+    for b in cfg.bands:
+        read = [engine.classify_number(r.get(b.field), cfg.missing.get(b.field)) for r in rows]
+        edges = tuple(res.band_edges[b.name])
+        seen = [v for v, why in read if why is None]
+        labels = engine.labels_for(edges, seen, each.get(b.name))
+        out[b.name] = [engine.band_of(v, edges, labels) if why is None else engine.REASON_LABEL[why]
+                       for v, why in read]
+    return out
+
+
+def _bands_of(values: list[tuple], edges: tuple, each: tuple = ()) -> tuple[list[str], list[str]]:
+    """Each loan's band of a column, and the bands in order. `each`: the column's values when each is its own band."""
+    seen = [v for v, why in values if why is None]
+    labels = engine.labels_for(edges, seen, each)
+    got = [engine.band_of(v, edges, labels) if why is None else engine.REASON_LABEL[why] for v, why in values]
+    present = set(got)
+    return got, [x for x in labels if x in present] + [x for x in engine._order(got) if x not in labels]
+
+
+def count(res, grid, grouping: Grouping, rows=None, bands=None) -> tuple[list, dict, list[str]] | None:
+    """Loans and booked dollars per pocket and group for one grid: (the groups in
+    order, {(band, segment): {group: [loans, dollars]}}, the words each group is
+    shown as), or None when the count does not tie out to the grid."""
+    cfg = res.config
+    rows = rows_run(res) if rows is None else rows
+    bands = _labels_by_band(res, rows) if bands is None else bands
+    bl = bands[grid.band]
+    dname = grid.dimension
+    dim = next(d for d in cfg.dimensions if d.name == dname)
+    dl = [engine.classify_text(r.get(dim.field), cfg.missing.get(dim.field)) for r in rows]
+    col, rule = grouping.column, cfg.missing.get(grouping.column)
+    if grouping.kind == "halves":
+        vals = [engine.classify_number(r.get(col), rule)[0] for r in rows]
+        pools: dict[tuple, list[float]] = {}
+        for b, d, v in zip(bl, dl, vals):
+            if v is not None:
+                pools.setdefault((b, d), []).append(v)
+        med = {k: statistics.median(v) for k, v in pools.items()}           # as engine._split cuts them
+        groups = [engine.NO_SPLIT_VALUE if v is None else engine.HIGH if v > med[(b, d)] else engine.LOW
+                  for b, d, v in zip(bl, dl, vals)]
+        order = [x for x in (engine.HIGH, engine.LOW, engine.NO_SPLIT_VALUE) if x in set(groups)]
+        words = {engine.HIGH: "High half", engine.LOW: "Low half", engine.NO_SPLIT_VALUE: f"No {col}"}
+        shown = [words[g] for g in order]
+    elif grouping.kind == "values":
+        groups = [engine.classify_text(r.get(col), rule) for r in rows]
+        order = engine._order(groups)
+        shown = list(order)
+    else:
+        groups, order = _bands_of([engine.classify_number(r.get(col), rule) for r in rows], grouping.edges,
+                                  grouping.values)
+        shown = list(order)
+    booked_rule = cfg.missing.get(cfg.booked)
+    out: dict[tuple, dict] = {}
+    for b, d, g, r in zip(bl, dl, groups, rows):
+        cell = out.setdefault((b, d), {})
+        got = cell.setdefault(g, [0, 0.0])
+        got[0] += 1
+        v = engine.classify_number(r.get(cfg.booked), booked_rule)[0]
+        if v is not None:
+            got[1] += v
+    # the tie-out: every pocket's groups add up to the grid's pocket, and the halves to the Split tab's
+    inner = dict(grid.inner())
+    if set(out) != set(inner):
+        return None
+    for k, c in inner.items():
+        if sum(x[0] for x in out[k].values()) != c.rows:
+            return None
+        if grouping.kind == "halves" and grid.split_cells:
+            for g, x in out[k].items():
+                sc = grid.split_cells.get((k[0], k[1], g))
+                if sc is None or sc.rows != x[0]:
+                    return None
+    return order, out, shown

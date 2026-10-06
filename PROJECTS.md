@@ -25,6 +25,12 @@ is just the map.
 | 5 | County Mortgage Delinquency Monitor | `cfpb-mortgage-monitor/` | CFPB Mortgage Performance Trends (NMDB 5% sample; county/state/national 30-89 + 90+ DPD, monthly, ~6-7 mo lag) | **OPEN** — `^county:[0-9]{5}$` [FOOTPRINT] slots; suppression rendered explicitly; vintage + continuity guarded | v1 done, PR #53 |
 | 6 | EDGAR Crit/Class Tracker | `edgar-crit-class-tracker/` | SEC EDGAR (extracted XBRL instances + submissions JSON; keyless, User-Agent required) | **OPEN (entity)** -- `^cik:[0-9]{1,10}$` [PEERS]; commercial criticized/classified by disclosure family + 8-K credit events | v1 done, PR #53; first live run validates family coverage |
 
+**Same consulting line, not a template:** `portfolio-analysis-pack/` — a loan extract plus a question file in, one workbook out, laying the evidence for a flag in a fixed six-step order; v1 built 18–19 Sep 2026, log in `BACKLOG.md` §6c, spec in its `docs/`.
+
+**Same consulting line, not a template:** `excel-macros/`: Excel macros the firm keeps in their Personal Macro Workbook. First, Hygiene (5 Oct 2026): profile a population column by column, record a Keep/Drop, rename and flag decision per column, and build the population as stamped values. Tested in LibreOffice's Excel-compatible mode; log in `BACKLOG.md` Done log.
+
+**Same consulting line, not a template:** `pocketbook/` (PocketBook; the folder was `origination-cube/` until 27 Sep 2026): a loan extract plus a cube file in; every band crossed with every dimension, and each pocket's rate compared with the topline to find where the book bleeds. Replaces the firm's origination VBA. Slice 1 (the engine) was built 25 Sep 2026; the log is in `BACKLOG.md` §6d.
+
 ## Candidate pipeline (researched, not yet picked)
 
 | Candidate | Angle | Join key | Why | Notes |

@@ -16,12 +16,31 @@ import sys
 
 import pytest
 
-from conftest import DESKS, ROOT
+from conftest import CORPUS, ROOT
 
 sys.path.insert(0, str(ROOT / "tools"))
 import extract_ecfr as ex          # noqa: E402
 
 XML = ROOT / "tools" / "fixtures" / "1.263a-3.xml"
+
+#: THE SECTION THIS FILE IS ABOUT. `dec-kill` put seven records into one corpus,
+#: so `record.load(CORPUS).problems` is now 98 problems from seven sources and
+#: only sixteen of them came out of this extractor. A test about the extractor
+#: that sweeps all 98 checks other people's hand-curated work against rules that
+#: were never applied to it — and it did: four hand-written problems mention
+#: "capitalize" in their facts, which is a leak for a machine-extracted problem
+#: and ordinary English for a curated one.
+#:
+#: DERIVED, NOT LISTED. The sixteen are found by their citation, so a seventeenth
+#: extracted problem joins them without anybody remembering to add it.
+SECTION = "26 CFR 1.263(a)-3"
+
+
+def _extracted(desk):
+    """The problems this extractor produced, out of everything the corpus holds."""
+    out = [p for p in desk.problems if p.citation.startswith(SECTION)]
+    assert out, f"no problem cites {SECTION}; this file would check nothing"
+    return out
 
 
 # ── ambiguity is never resolved into a guess ─────────────────────────────────
@@ -132,9 +151,8 @@ def test_no_problem_in_the_record_leans_on_an_example_not_shown():
     unchecked, for the third time in this plugin's short life.
     """
     import record
-    desk = record.load(DESKS / "fixed-assets")
-    assert desk.problems, "no problems loaded; this would pass vacuously"
-    leaning = [p.id for p in desk.problems
+    desk = record.load(CORPUS)
+    leaning = [p.id for p in _extracted(desk)
                if ex.DEPENDENT.search(p.facts)
                or re.search(r"(?:in|as) Example \d", p.facts)]
     assert not leaning, (
@@ -146,7 +164,7 @@ def test_no_problem_in_the_record_leans_on_an_example_not_shown():
 # ── the denominator is real ──────────────────────────────────────────────────
 
 def test_every_example_is_either_kept_or_counted_as_dropped():
-    all_ex, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
+    all_ex, kept, dropped, _, _ = ex.build(XML, CORPUS,
                                            checked="2026-09-04")
     assert len(kept) + len(dropped) == len(all_ex), "an example vanished"
     assert all(why for _, why in dropped), "something was dropped with no reason"
@@ -155,7 +173,7 @@ def test_every_example_is_either_kept_or_counted_as_dropped():
 def test_the_extraction_is_reproducible_from_the_committed_source():
     """The record can be rebuilt without a network. If eCFR is down, or the
     section is amended, this still runs and the diff shows what moved."""
-    _, kept, _, problems, passages = ex.build(XML, DESKS / "fixed-assets",
+    _, kept, _, problems, passages = ex.build(XML, CORPUS,
                                               checked="2026-09-04")
     assert len(problems) == len(kept)
     assert problems, "the fixture produced nothing; it is not the section"
@@ -176,15 +194,15 @@ def test_problems_md_cannot_lie_about_its_own_count():
     import re
 
     import record
-    desk = record.load(DESKS / "fixed-assets")
-    text = (DESKS / "fixed-assets" / "PROBLEMS.md").read_text(encoding="utf-8")
+    desk = record.load(CORPUS)
+    text = (CORPUS / "PROBLEMS.md").read_text(encoding="utf-8")
 
     stated = {m.group(1): int(m.group(2)) for m in
               re.finditer(r"\| ([^|]+?) \| \*\*(\d+)\*\* \|", text)}
     assert stated, "PROBLEMS.md no longer states its counts"
-    assert stated["Usable as problems"] == len(desk.problems), (
+    assert stated["Usable as problems"] == len(_extracted(desk)), (
         f"PROBLEMS.md says {stated['Usable as problems']} usable problems; the "
-        f"file actually contains {len(desk.problems)}"
+        f"file actually contains {len(_extracted(desk))} from {SECTION}"
     )
     assert stated["Examples in the section"] == (
         stated["Usable as problems"] + stated["Left out"]), (
@@ -193,9 +211,9 @@ def test_problems_md_cannot_lie_about_its_own_count():
 
 
 def test_every_exclusion_reason_is_named_in_the_document():
-    all_ex, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
+    all_ex, kept, dropped, _, _ = ex.build(XML, CORPUS,
                                            checked="2026-09-04")
-    text = (DESKS / "fixed-assets" / "PROBLEMS.md").read_text(encoding="utf-8")
+    text = (CORPUS / "PROBLEMS.md").read_text(encoding="utf-8")
     for _, why in dropped:
         assert why in text, f"examples were dropped for {why!r} and it is not stated"
 
@@ -209,10 +227,10 @@ def test_the_facts_are_verbatim_from_the_source_not_retyped():
     them still has to appear in the section exactly as the section wrote it.
     """
     import record
-    desk = record.load(DESKS / "fixed-assets")
-    _, kept, _, _, _ = ex.build(XML, DESKS / "fixed-assets", checked="2026-09-04")
+    desk = record.load(CORPUS)
+    _, kept, _, _, _ = ex.build(XML, CORPUS, checked="2026-09-04")
     from_source = "\n".join(e["text"] for e, _ in kept)
-    for p in desk.problems:
+    for p in _extracted(desk):
         for sentence in ex._SENTENCE.split(p.facts):
             assert sentence in from_source, (
                 f"problem {p.id} contains {sentence!r}, which the section does not"
@@ -228,14 +246,13 @@ def test_no_problem_hands_the_model_its_own_answer():
     what `build` just returned would pass against a leaking `PROBLEMS.md`.
     """
     import record
-    desk = record.load(DESKS / "fixed-assets")
-    assert desk.problems, "no problems loaded; this check would pass vacuously"
+    desk = record.load(CORPUS)
     # WRITTEN HERE, NOT IMPORTED. Asking `ex.DISCLOSES` whether the extractor
     # leaked is asking the extractor to mark its own work: narrow the module's
     # pattern and this check narrows with it, which is exactly how the leak
     # survived two commits that called it fixed. The stems live in the test.
     independent = re.compile(r"capitaliz|deduct", re.I)
-    leaking = [p.id for p in desk.problems if independent.search(p.facts)]
+    leaking = [p.id for p in _extracted(desk) if independent.search(p.facts)]
     assert not leaking, (
         f"{len(leaking)} problems state their own answer in the facts: {leaking}"
     )
@@ -255,7 +272,7 @@ def test_an_inseparable_conclusion_is_left_out_rather_than_leaked():
     monkey = lambda _t: (None, None, "conclusion cannot be separated from the facts")
     real, ex.split_conclusion = ex.split_conclusion, monkey
     try:
-        _, kept, dropped, _, _ = ex.build(XML, DESKS / "fixed-assets",
+        _, kept, dropped, _, _ = ex.build(XML, CORPUS,
                                           checked="2026-09-04")
     finally:
         ex.split_conclusion = real
@@ -280,15 +297,14 @@ def test_no_shipped_problem_rests_on_a_conditional_conclusion():
     """Asserted over the committed record, with the condition words written here
     rather than imported -- the same reason the disclosure stems are."""
     import record
-    desk = record.load(DESKS / "fixed-assets")
-    assert desk.problems, "no problems loaded; this would pass vacuously"
+    desk = record.load(CORPUS)
     hedged = re.compile(r"\b(?:if|unless|to the extent|only if)\b", re.I)
     # The stored passage is no longer the example, so the conclusion has to be
     # read from a rebuild: each problem is matched to its example by its facts.
-    _, kept, _, _, _ = ex.build(XML, DESKS / "fixed-assets", checked="2026-09-04")
+    _, kept, _, _, _ = ex.build(XML, CORPUS, checked="2026-09-04")
     example_of = {e["facts"]: e["text"] for e, _ in kept}
     bad = []
-    for p in desk.problems:
+    for p in _extracted(desk):
         text = example_of[p.facts]
         for s in ex._SENTENCE.split(text):
             if ex.CONNECTIVE.search(s.strip()) and ex.conclusions_in(s) \
@@ -309,10 +325,10 @@ def test_a_rebuild_is_not_a_re_verification():
     moment the live regulation had moved: the one signal designed to catch a
     stale record, silenced by rebuilding it."""
     with pytest.raises(ValueError, match="checked is required"):
-        ex.build(XML, DESKS / "fixed-assets")
+        ex.build(XML, CORPUS)
     with pytest.raises(ValueError, match="not a date"):
-        ex.build(XML, DESKS / "fixed-assets", checked="yesterday")
+        ex.build(XML, CORPUS, checked="yesterday")
     # And what it is given is what lands, rather than anything about now.
-    _, _, _, _, passages = ex.build(XML, DESKS / "fixed-assets",
+    _, _, _, _, passages = ex.build(XML, CORPUS,
                                     checked="2019-01-02")
     assert "**Checked:** 2019-01-02" in passages[0]

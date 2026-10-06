@@ -41,10 +41,17 @@ def counted():
 #: about itself, checked here against a copy of the previous docket -- and a
 #: POSITION cannot carry that flag at all, because positions come out of `desks/`.
 #: So POS3, which did not exist that morning, counted as old. The generator now
-#: derives "new" by difference against `SIXTH_DOCKET`, and this file asserts the
+#: derives "new" by difference against `ALREADY_OPEN`, and this file asserts the
 #: two sets agree, which is the same independence with the arithmetic in one
 #: place instead of two.
-SIXTH_DOCKET = {
+ALREADY_OPEN = {
+    # Open on the Desk Docket published 14 September 2026 (artifact 642c3276),
+    # read off that page. It carried them as D2, D3, D4 and F4.
+    "dec-caprule",
+    "dec-fasb",
+    "dec-tie",
+    "dec-unitcost",
+    # The sixth docket, 7 September 2026.
     "dec-courts-again",
     "dec-merge-300",
     "dec-parser",
@@ -63,7 +70,7 @@ def independent():
     it and proved only that the page agreed with itself: two mutations survived
     that way, including the hard-coded preface count this file exists to stop."""
     proposed, ratified = 0, 0
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         for q in record.load(d).positions:
@@ -104,33 +111,49 @@ def test_the_preface_counts_what_the_cards_actually_are(page, counted, independe
     on the run that wrote it -- the same drift the filter labels had."""
     n = independent["n"]
     fresh, from_tieout = counted["fresh"], counted["from_tieout"]
+    carried = n - fresh
+    # WIDENED 14 SEPTEMBER 2026, AND DELIBERATELY NOT WEAKENED. This pinned the
+    # exact sentence "<word> of them are new", which is a phrasing rather than
+    # the property -- and that phrasing was only ever true of a page where
+    # nothing was carried. Four of today's eight ARE carried, so the preface now
+    # states BOTH halves, and this asserts both AND that they add up to the rows.
+    # A literal typed into the preface still fails: it has to agree with two
+    # derived numbers that sum to a third.
     if n:
-        assert "%s of them are new" % df._word(fresh) in page
+        if carried:
+            assert "%s are new" % df._word(fresh).capitalize() in page, (
+                "the preface does not say how many cards are new")
+            assert "%s have been waiting" % df._word(carried) in page, (
+                "the preface does not say how many are carried from an earlier "
+                "docket, which is the more useful of the two numbers")
+        else:
+            assert "All %s are new" % df._word(n) in page
+        assert fresh + carried == n, "the split does not account for every card"
     else:
-        assert "of them are new" not in page, (
+        assert "are new" not in page, (
             "the preface counts how many matters are new on a page with none")
     assert from_tieout <= fresh
 
     # THE SET THE GENERATOR USES IS THE SET THIS FILE HOLDS. Two copies of a
     # thirteen-key list would drift; one copy checked from outside cannot.
-    assert df.SIXTH_DOCKET == SIXTH_DOCKET, (
+    assert df.ALREADY_OPEN == ALREADY_OPEN, (
         f"the generator and this test disagree about what the last docket "
-        f"carried: {sorted(df.SIXTH_DOCKET ^ SIXTH_DOCKET)}")
+        f"carried: {sorted(df.ALREADY_OPEN ^ ALREADY_OPEN)}")
 
     # AND "NEW" IS A DIFFERENCE, NOT A FLAG. Computed here from the rendered
     # rows rather than read off `counted`, so a generator that stopped
     # subtracting would go red.
     keys = {r["key"] for r in counted["rows"]}
-    assert fresh == len(keys - SIXTH_DOCKET), (
+    assert fresh == len(keys - ALREADY_OPEN), (
         f"the page says {fresh} are new; the ones absent from the fourth docket "
-        f"are {sorted(keys - SIXTH_DOCKET)}")
+        f"are {sorted(keys - ALREADY_OPEN)}")
     # A POSITION CAN BE NEW, which a `"new": True` flag could never express --
     # positions come out of `desks/`, not out of `OTHERS`. Asserted as the
     # DERIVATION rather than as a fact about any one docket: this one happens to
     # carry no new position, and the sixth would have gone red on a test that
     # demanded one.
-    assert all(k in keys for k in keys - SIXTH_DOCKET)
-    assert not any(r.get("new") and r["key"] in SIXTH_DOCKET for r in counted["rows"]), (
+    assert all(k in keys for k in keys - ALREADY_OPEN)
+    assert not any(r.get("new") and r["key"] in ALREADY_OPEN for r in counted["rows"]), (
         "a row is flagged new that the last docket already carried; new is a "
         "difference against that set, never a flag somebody typed")
     assert sum(r.get("shape") == "rule" for r in counted["rows"]) == counted["rules"]
@@ -170,7 +193,7 @@ def test_no_card_shows_a_position_its_desk_does_not_hold(counted):
     for row in counted["rows"]:
         if row["kind"] != "position":
             continue
-        desk = record.load(HERE / "desks" / row["group"])
+        desk = record.load(HERE / "corpus")
         held = [q for q in desk.positions if q.proposed and q.id == row["tag"].split(" · ")[1]]
         assert held, "%s is on the page and not in the record" % row["key"]
         assert held[0].position == row["position"]
@@ -390,3 +413,28 @@ def test_the_answered_read_back_survives_a_new_matter_arriving(page, monkeypatch
     for a in df.ANSWERED:
         assert a["said"] in with_open
         assert a["caused"] in with_open
+
+def test_no_outcome_block_carries_markup_the_page_will_print_literally(counted):
+    """FOUND BY OPENING THE PAGE IN A BROWSER, 14 September 2026, and findable no
+    other way.
+
+    The card's `context` is inserted as HTML; the two outcome blocks under it are
+    inserted as TEXT. Both are prose written in the same dict by the same hand, so
+    a `<code>` typed into an outcome renders to the firm as the literal characters
+    `<code>Unless:</code>`. Four such tags shipped into the eighth docket's first
+    card and every generator test passed: they check figures against rows, and
+    markup that prints as text is neither.
+
+    PREVENT RATHER THAN DETECT. The alternative was to make the outcomes accept
+    HTML too. Refused: escaping is what stops a card's prose becoming markup, and
+    the outcomes are one or two sentences where a tag earns nothing. So the rule
+    is that they are plain, and it is enforced here rather than remembered.
+    """
+    bad = []
+    for row in counted["rows"]:
+        for pick, text in (row.get("either") or []):
+            for tag in re.findall(r"<[A-Za-z/][^>]*>", text):
+                bad.append("%s / %s: %s" % (row["key"], pick, tag))
+    assert not bad, (
+        "an outcome block carries markup, which the page prints as literal "
+        "characters rather than rendering:\n  " + "\n  ".join(bad))

@@ -1,13 +1,13 @@
 ---
 name: be-the-desk
-description: You ARE the desk — a request has arrived from somebody doing the work and you answer it from recorded authority, then hand the answer back to them. Use when a message opens "DESK REQUEST", when this session is the one holding the desks, or when running the desks locally to test them. To ASK a desk rather than be one, use ask-desk.
+description: You ARE the desk — a request has arrived from somebody doing the work and you answer it from recorded authority, then hand the answer back to them. Use when a message opens "DESK REQUEST", when this session is the one holding the corpus, or when running it locally to test it. To ASK a desk rather than be one, use ask-desk.
 ---
 
 # Be the desk
 
 **Somebody else is doing the work. You are the authority they do not have.**
 A request has reached you — usually as a message opening `DESK REQUEST <ref>` —
-and your job is to answer it from what the desks actually record, then send the
+and your job is to answer it from what the corpus actually records, then send the
 answer back to whoever asked.
 
 **To ask a desk rather than be one, that is `ask-desk`, and it is a different
@@ -33,6 +33,16 @@ message cannot. Three things they will always say, and all three matter:
 - **`fire_trigger` returning success is not delivery.** Its `last_fired_at` is
   not corroborated by the durable record. Say what you sent and stop; do not
   chase your own message.
+- **No `create_trigger` / `fire_trigger` in your toolset? YOU ARE NOT STUCK.**
+  Return the whole reply as your final output to whoever invoked you — same
+  opening line, same content — and say in one sentence that the relay tools were
+  unavailable, so the asker knows why it arrived by hand. Never stay silent,
+  never invent another transport, and never treat the missing tools as a reason
+  to skip answering. On 9 September 2026 Forge-Occam ran a real close with
+  neither tool and improvised exactly this; their finding was that the protocol
+  itself did not say so, and *"an answerer that follows it literally, in an
+  environment without those tools, is stuck with no path and no diagnosis."* The
+  firm: **"Name the fallback."**
 
 ## The two calls
 
@@ -63,7 +73,7 @@ import os, sys
 # 7 September 2026, closing a set of books. Fall back to the installed tree.
 ROOT = os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.expanduser(
     "~/.claude/plugins/cache/satc/desk")
-if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "desks")):
+if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "corpus")):
     # NEWEST BY NUMBER, NEVER BY STRING. This read `sorted(...)[-1]` for one
     # release. It is correct today and through 0.9.x, and on the first bump past
     # .9 it silently picks 0.7.3 over 0.10.0 — an agent loading a stale plugin
@@ -77,18 +87,120 @@ if os.path.isdir(ROOT) and not os.path.isdir(os.path.join(ROOT, "desks")):
             return (0, ())                 # not a version dir; never the newest
     versions = sorted(os.listdir(ROOT), key=_release)        # a versioned cache
     ROOT = os.path.join(ROOT, versions[-1]) if versions else ROOT
-if not os.path.isdir(os.path.join(ROOT, "desks")):
+if not os.path.isdir(os.path.join(ROOT, "corpus")):
     raise SystemExit(
         f"no desk plugin at {ROOT}. Install it — `claude plugin marketplace "
         f"update satc && claude plugin update desk@satc` — or set "
         f"CLAUDE_PLUGIN_ROOT to where it lives. There is no desk to ask.")
 sys.path.insert(0, ROOT)
+from pathlib import Path
 import ask
+import unsupported
 
-for desk, brief in ask.consult("the bank statement shows a $10 service charge "
-                               "and nothing for it is in the books"):
-    ...  # read `brief`, then answer from it
+brief, filed = ask.consult_or_file(
+    "the bank statement shows a $10 service charge and nothing for it is in "
+    "the books",
+    queue=unsupported.default_queue())   # NOT Path(ROOT)/... — see below
+
+if brief:
+    ...  # read it, then answer from it
+
+if filed:                      # nothing on file held it; it is now in the queue
+    ...  # tell the asker so, and say the entry id
 ```
+
+**ONE BRIEF, NOT A LIST.** `consult` returned `[(desk name, brief)]` until
+10 September 2026, because a question reached one desk or several. `dec-kill`
+— *"Kill the desks; one pool"* — ended that: there is one corpus, addressed by
+citation, and one brief narrowed to what the question actually reaches. Nothing
+names a desk any more, because there is nothing to name.
+
+**SILENCE IS NEVER AN EMPTY STRING.** `dec-coverage`, 10 September 2026 — the
+firm: *"Both."* An empty return is ambiguous between *nothing here settles this*
+and *nothing here objects*, and Forge-Occam reported reading the second:
+*"silence is indistinguishable from 'there is nothing to say here.' A doer reads
+it as permission. I nearly did."* So `consult` always comes back with something
+readable — either the authority, or a page saying what was searched and that it
+is not permission. **Do not treat a short answer as a quiet yes.**
+
+**And a brief is not proof that anything in it is on point.** The passages are
+chosen by word overlap with your question. The corpus returns its closest text
+for every question, including questions it holds no authority on at all — a
+question about Shakespeare comes back with tax law, at length. If none of what
+you are shown reaches what you were asked, say so and escalate
+`authority_absent`. That is a finding, not a failure.
+
+**But first look at the shelf.** Every brief ends with every section on file.
+Retrieval is word overlap, and the law rarely uses the asker's words: in Sarcia
+pilot 4, § 1.6001-1(a) — the duty to keep records — ranked 442nd for a question
+about a commingled account, and § 1.263(a)-4(f)(1), the 12-month rule, ranked
+622nd for a prepaid subscription. Both were on file. So before you escalate
+`authority_absent`, read the list and open any section that could hold the rule:
+
+```python
+print(ask.read("26 CFR 1.263(a)-4"))        # its paragraphs, by their own headings
+print(ask.read("26 CFR 1.263(a)-4(f)(1)"))  # the words, with (i) and (ii) under it
+```
+
+Any paragraph on file may be cited, whether or not it was printed in the brief.
+`authority_absent` means **not on file**, not *not in the eight I was shown*.
+
+**Use `consult_or_file`, not `consult`, on a live request.** `consult` is the
+pure query; `consult_or_file` returns the same page AND writes the question into
+the queue when nothing holds it. To ask whether the corpus holds anything at all
+without rendering a brief, call `ask.looked(question)`. A desk that
+refuses leaves a refusal `tools/holes.py` reads out — a question nobody built a
+desk for used to leave nothing at all, which on a close is the worst of the
+three: the doer gets nothing back and the firm never learns it was asked.
+
+## When nothing is on file, GO AND LOOK — and hand what you find to the firm
+
+`dec-lookjoin`, 11 September 2026 — the firm: **"Run it by me — build it."**
+Their earlier words, which this is built to: *"if it is not directly
+authoritative it would run the opinion by me."*
+
+**Until now this was a tool somebody ran by hand.** `searching.py` has worked
+since 8 September and nothing on the answering path imported it, so a question
+asked during a close reached the parked hole and stopped. It does not now — but
+only if you pass a search engine, because two of the four steps are yours:
+
+```python
+brief, filed = ask.consult_or_file(
+    question,
+    queue=unsupported.default_queue(),
+    search=web_search,        # a callable: query -> [{"url", "title", "snippet"}]
+    transport=fetch_page,     # a callable: url   -> the page text
+    queries=["the words you would actually search"],          # YOUR judgement
+    proposals=[{"citation": "...",     # which paragraph these words ARE
+                "quoted": "...",       # the words EXACTLY as printed
+                "found_at": "https://...",
+                "kind": "rule"}],      # or "example"
+)
+```
+
+**`queries` and `proposals` are judgement and cannot be anything else** —
+turning a refused question into search terms, and reading a page to say which
+citation its words belong to. Everything after that is mechanical and cannot be
+talked out of: the words are re-fetched from the publisher (from the source the
+firm ADMITTED, where one covers the citation, not from the page you found), and
+a quote that appears zero times or four times is refused rather than stored.
+
+**NOTHING YOU FIND IS YOURS TO CITE. Not even a perfect find.** A passage that
+ties out against a source the firm already admits still comes back parked: the
+firm admits authority by merging a pull request after reading it, and a find
+that skipped that would be a model writing the record it then reads. The page
+you get back says this in as many words. Believe it.
+
+**Three things can come back, and the third is the most useful:**
+
+| | what it means | what the firm is told |
+|---|---|---|
+| something tied out | new authority, not yet admitted | `Desk found` — they rule on it |
+| **the record already holds it** | the authority was here; your question could not reach it | `Desk could not reach` — a retrieval defect, not a gap |
+| nothing tied out | searched and empty | `Desk parked` — a gap somebody has now examined |
+
+**A gap searched and found empty is a different fact from a gap nobody has
+searched.** It is filed either way.
 
 **Pass what your own file already says.** Some rules cannot be applied without a
 fact the engagement should already have recorded — what the client does, whose
@@ -97,10 +209,9 @@ return it is. Hand it over; the desk will not work it out, deliberately.
 ```python
 import record
 
-for desk, brief in ask.consult(
-        "they bought clothing at that store — is it a personal expense?",
-        context=record.Context(facts={"trade": "general contractor"})):
-    ...
+brief = ask.consult(
+    "they bought clothing at that store — is it a personal expense?",
+    context=record.Context(facts={"trade": "general contractor"}))
 ```
 
 **The caller passes what it already has.** There is no file to make and no place
@@ -119,12 +230,13 @@ refusals, and they are not the same:
 The second is a **hole in what the firm tracks**, found by real work rather than
 by an audit. `python3 $CLAUDE_PLUGIN_ROOT/tools/holes.py` reads them out.
 
-`consult` routes the question and hands back **everything that desk will let you
-answer from** — its sources, the firm's own ratified positions, and its stored
-authority. Nothing else.
+`consult` scores every citation in the corpus on the authority's own text and
+hands back **everything the top of that ranking will let you answer from** —
+those sources, the firm's own ratified positions on them, and their stored
+authority. Nothing else. There is no desk to reach and none to name.
 
 ```python
-out = ask.answer(question, desk,
+out = ask.answer(question,
                  position="an entry in the books",
                  citation='IRS Pub. 583 (12/2024), "Reconciling the checking '
                           'account" — what the books are updated for',
@@ -134,7 +246,7 @@ out = ask.answer(question, desk,
 Or, when nothing in the brief settles it — **and then you MUST say what to ask**:
 
 ```python
-out = ask.answer(question, desk, escalate="facts_not_established",
+out = ask.answer(question, escalate="facts_not_established",
                  working="§ 1.263(a)-2(d)(1) opens 'Except as provided in "
                          "§ 1.162-3 ... and in § 1.263(a)-1(f)', and this desk "
                          "holds neither exception's facts",
@@ -156,9 +268,23 @@ the others moot.
 
 ## Four things that will surprise you
 
-**1 · Silence is an answer.** `consult` returns an empty list when no desk
-answers on that subject. That is not a failure to route — it means no expert here
-holds the question, and inventing one is the thing this exists to stop.
+**1 · Silence is an answer — and it is FILED, not just returned.** `consult`
+returned an empty list per desk until `dec-kill`; it returns one brief now, and
+`ask.looked` is how you see whether the corpus reached anything at all. Nothing
+reached is not a failure to route — there is nothing left to route — it means
+the record does not hold the question, and inventing an answer is the thing this
+exists to stop.
+
+**But say it back, and let it be recorded.** `consult_or_file` writes the
+question into the unfiled queue where `tools/holes.py` reads it out, so the
+missing subject becomes visible instead of vanishing. The firm, 8 September
+2026: *"You do not prep it with information and if it can't get the information
+that means there's an actual hole."* Measured the same day on twenty month-end
+questions in a bookkeeper's own words, **five reached nothing** — and two of the
+five were subjects the record already held, missed on an inflection ("invoiced"
+does not fire where "invoice" does). That measurement is why the word list is
+gone; retrieval is over the authority's own text now. Silence that is filed is a finding;
+silence that is returned is a dead end.
 
 **2 · Escalating is a real answer, and often the right one.** Measured on eleven
 real questions from a close, thirteen of eighteen answers were escalations and
@@ -168,7 +294,7 @@ that was correct. The reasons:
 |---|---|---|
 | `facts_not_established` | the rule is clear; a fact about the client is missing | ask the client |
 | `authority_permits_choice` | the rule leaves a choice, or only non-binding authority reaches it | the firm, once |
-| `authority_absent` | nothing this desk holds reaches the question | a desk is missing |
+| `authority_absent` | nothing in the corpus reaches the question | authority is missing — run it down |
 | `document_not_requested` | a document that already exists settles it and nobody asked for it | request it by name |
 | `context_not_on_file` | the rule needs a fact there IS somewhere to record and nobody has | record it — and fix the intake that skipped it |
 
@@ -184,14 +310,15 @@ agent knew a retailer sells clothing, concluded *personal expense*, and was
 wrong — the regulation it should have reached has no vendor in it at all.
 
 **3 · Your citation is verified, and a wrong one is refused.** `answer()` does
-not take your word for it. The citation must resolve inside that desk's record,
-its source must be one the desk declares answers that subject, and where the
+not take your word for it. The citation must resolve inside the corpus, its
+source must be one the record declares answers that subject, and where the
 firm has ratified a position on it **you must return the firm's words, not your
 own restatement of them.** A real citation from the wrong paragraph of the right
 publication is refused too.
 
-**4 · A refusal is kept.** Every one lands in the desk's `unsupported/` queue
-with your reasoning intact. That queue is the only thing that tells the firm what
+**4 · A refusal is kept.** Every one lands in `~/.satc/desk/unsupported/asked.md`
+— outside the plugin, so it survives the next upgrade — with your reasoning
+intact. That queue is the only thing that tells the firm what
 authority is missing, so **write a real `working`** — "could not tell" helps
 nobody; "the rule turns on whether the item takes the place of ordinary civilian
 clothing, and nothing says what was bought" is a work item.
@@ -227,6 +354,35 @@ what it had. The rendering lives on the object now — `Served.__str__` — whic
 current whenever the code is. A skill can go stale; what it tells you to print
 cannot. Do not reassemble it field by field: anything added after the version of
 this file you are reading will be in the object and not in the list.
+
+**A request may carry several questions** — `DESK REQUEST` with numbered
+questions, each under its own `ref`. Answer EACH one separately: its own
+`consult`, its own `ask.answer`, its own second reader.
+
+**A request may carry the engagement's recorded facts** under `## On file for
+this engagement`. The firm records these in the engagement's setup; they are
+not the asker's description. Read them with the engine and pass them to every
+`consult` and `answer` for that request:
+
+```python
+ctx = relay.on_file(message)          # refuses an undeclared name or a blank
+brief = ask.consult(question, context=ctx)
+out = ask.answer(question, position=position, citation=citation,
+                 working=working, context=ctx, judged=judged)
+```
+
+Never add a fact that is not in that block, and never infer one from a vendor
+name. A fact the block does not list is NOT on file: escalate
+`context_not_on_file` for it, as before. Then send ONE reply in
+which every answer opens with its own `DESK ANSWER <ref>` line followed by that
+question's `print(out)`. Leave none out: a ref with no answer reaches the asker
+as unanswered, not as a no.
+
+**Send the printed output as it was printed — do not retype it.** In Sarcia
+pilot 2 every reply lost its em dashes and middle dots on the way out, because
+the console this session composed them in mangles UTF-8, and the asker's reader
+failed on all three. The lines it parses are plain ASCII now, so that no longer
+breaks it; a retyped reply can still drop what a copied one would not.
 
 `repr(out)` is a different thing and is for the log — it carries the counters
 (`showed`, `showed_by_source`) that exist to falsify a model's claim about its
@@ -267,3 +423,162 @@ you cannot miss it instead.
   a desk that answered would be inventing.
 - **A defect in the software.** If two legs of a payment do not agree because the
   matcher failed, that is a bug, not a question.
+
+## When nothing holds the question: park it, tell the firm, and let the close go on
+
+**The firm, 8 September 2026:** *"Nothing stops if it isn't a blocker. I'm
+addition, I want a good way for me to be directly notified so I can answer as
+quickly as I can"*.
+
+So a question no authority settles is **parked, not held**. `consult_or_file`
+files it and hands the entry back; the doer is told it is parked and carries on.
+Nothing waits on the firm unless there is genuinely nothing to serve and the
+close cannot proceed without it.
+
+```python
+briefs, filed = ask.consult_or_file(question, queue=QUEUE)
+if filed:
+    print(notifying.for_entry(filed))   # the exact characters to send
+```
+
+**Send what `for_entry` returns, verbatim, with `PushNotification`. Compose
+nothing.** Not a summary of it, not a tidied version, not the same thing in your
+own words. The line is built in the engine and held by tests for a reason this
+repository has already paid for: the same policy written as skill prose was
+obeyed *"100%, 4%, 0% of runs"*. A sentence you may not rewrite is a sentence a
+test can hold.
+
+**If `for_entry` raises, DO NOT send anything and do not work around it.** It
+refuses when the text carries something shaped like an SSN, an EIN or an account
+number, because a push leaves the machine and lands on a lock screen anyone
+nearby can read. The refusal names the queue id — the question is filed and
+safe. Say that it could not be notified and why, and move on. Re-wording the
+question to get past the guard is the one thing you must never do.
+
+**Then tell the doer.** They asked a question and are entitled to know it is
+parked, which reference it has, and that they should keep going.
+
+## Never put the queue inside the plugin
+
+`unsupported.default_queue()` decides where a parked question lives. **Call it.
+Do not build a path from `ROOT`,** which is what this file used to say and what
+a review caught:
+
+`ROOT` resolves to `~/.claude/plugins/cache/satc/desk/<version>` — the highest
+version directory this skill can find. A queue written there lives inside **one
+release**. Update the plugin and `ROOT` moves; this skill and `tools/holes.py`
+both look at the new root, find nothing, and every question the firm was waiting
+to answer is gone with no error raised anywhere. Cache cleanup could take it.
+
+There is a second reason and it is the harder one. A parked question is written
+by a doer mid-close and can name anything about a client. `CLAUDE.md`: a
+client's affairs in a checkout are one `git add` from being published. The
+engagement reader was moved out of the plugin tree for that reason; this store
+belongs out with it.
+
+`SATC_DESK_QUEUE` overrides it if a deployment needs somewhere else. Set that
+rather than hard-coding a path.
+
+## When the firm answers a parked question
+
+**They can reply to this session from the notification.** The firm, 9 September
+2026, asked exactly that: *"Of course I can, that's how I'm talking to you
+now."* So the push carries this session's name, they reply here, and the reply
+arrives as an ordinary message. There is no pipe to build and none to look for.
+
+**Do not work out which question they answered. Ask the engine.**
+
+```python
+uid, answer = notifying.reply_in(message, sent=the_line_you_sent)
+if uid:
+    unsupported.settle(unsupported.default_queue(), uid, answer)
+```
+
+`reply_in` returns `("", "")` for anything that is not an answer, and that is
+most of what you will be sent. It refuses two references in one message, a bare
+`[U1]`, and the notification quoted back with nothing added — **a question is
+not an answer to itself**, which is why `sent` matters. When it comes back
+empty, say so and ask; do not settle an entry on your own reading.
+
+**The answer stored is their message verbatim.** Do not summarise it, tidy it,
+or lift "the important part" out. It is the firm's ruling and the record's job
+is to show what they said.
+
+**`settle` closes a question. It does NOT ratify a position.** A parked
+question's answer changes nothing the desk holds. If the answer looks like it
+should become a position, say so and stop — that is a separate piece of work
+with a separate yes. **A ruling is different, and it is the next section.**
+
+**Then tell the doer**, if one is waiting: the question is answered, and here is
+what the firm said.
+
+## Ask the firm to rule — and record their answer yourself
+
+**The firm, 26 September 2026:** *"why wouldn't the desk send me a notification
+asking me to rule on something and record it itself"*. Until then a finding
+about the desk itself reached the firm only if a doer happened to report it, and
+their answer then had to be given twice: once in chat and again on a pull
+request.
+
+**When you start a session, and after any run, ask the record what needs ruling:**
+
+```python
+import rulings
+CORPUS = "<your SATC checkout>/desk/corpus"   # ONE corpus, start to finish
+for f in rulings.findings(CORPUS):
+    print(f.kind, f.subject, "—", f.why)
+```
+
+There are two kinds, and both come from the record alone:
+
+- **`reach`**: a paragraph admitted to answer a question that the question does
+  not bring up. `f.asked_by` is that question, verbatim. **Propose the words** a
+  question like it would use and the law does not. Every word of every phrase must
+  be in `f.asked_by`, and `rulings.ask` refuses one that is not.
+- **`position`**: a position stating a figure that none of the words it rests
+  on contain. **Propose the corrected wording.** If it needs different words to
+  rest on, add a line `Rests on:` and then the lines, in the form POSITIONS.md
+  uses. `rulings.ask` loads it on a copy and refuses anything that would not load,
+  or that still states an unsupported figure.
+
+**One finding at a time, then send exactly what `ask` returns:**
+
+```python
+entry, line = rulings.ask(f, proposed, queue=rulings.default_queue(),
+                          corpus=CORPUS)
+# PushNotification(line)  -- verbatim, as with a parked question
+```
+
+Then **print the whole ruling in this session**: the finding, `f.asked_by`
+where there is one, and your full proposal. The push is one line, and the firm
+will open this session to read what they are ruling on.
+
+**When they reply**, read it with `notifying.reply_in(message, sent=line)` as
+for a parked question. It knows `R<n>` references. Then:
+
+```python
+rid, answer = notifying.reply_in(message, sent=line)   # ("", "") if not an answer
+done = rulings.settle(rulings.default_queue(), rid, answer)
+rulings.record_ruling(CORPUS, done)   # writes the record
+```
+
+`record_ruling` takes **yes** as your proposal, **no** as the firm keeping
+things as they are (recorded, and not asked again), and **wording in quotes**
+as the firm's own words — the line asks for quotes. It **raises** on a yes or a
+no that goes on to say more ("No, make it 60 percent", "No, go ahead"), on an
+unquoted sentence ("Please leave the wording alone" is about the wording, not
+the wording), and on wording that would not load. Either way, ask them again
+and quote why. Never pick a reading for them.
+
+**Find, ask and record against the SAME corpus: a checkout of the
+repository.** A ruling is numbered against the corpus it is asked in; recording
+it into a different one can collide with a ruling that one already holds, and
+`record_ruling` refuses a collision rather than guess. Never the installed
+plugin either. A write
+into `~/.claude/plugins/cache/...` is gone at the next update. Commit on a
+branch named `desk-ruling-R<n>`. The message is the ruling and the firm's reply,
+verbatim. Push the branch, open a draft pull request, and send the link to the
+session that maintains the desk. It merges once the suite is green. If you have
+no checkout, send that session the settled entry (`rulings.queued(...)`) instead.
+Do not hand-edit POSITIONS.md, RULINGS.md or SOURCES.md to get round a refusal.
+

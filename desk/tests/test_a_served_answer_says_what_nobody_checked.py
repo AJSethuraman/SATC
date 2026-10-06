@@ -38,6 +38,7 @@ sys.path.insert(0, str(HERE))
 import ask                                                  # noqa: E402
 import engine                                               # noqa: E402
 import record                                               # noqa: E402
+import conftest                                             # noqa: E402
 
 TRAP_Q = "is the invoice price of a forklift deducted or capitalized?"
 TRAP_CITE = "26 CFR 1.263(a)-2(d)(1)"
@@ -49,7 +50,7 @@ def trap():
     Nothing here claims to have made it refuse; the domain guard cannot reach
     it, because a tax question cited to a tax regulation is in the right body of
     authority and simply says the opposite of what was claimed."""
-    out = ask.answer(TRAP_Q, "fixed-assets",
+    out = conftest.answer_judged(TRAP_Q, 
                      position="deducted, not capitalized",
                      citation=TRAP_CITE, model="the trap", keep=False)
     assert isinstance(out, engine.Served), (
@@ -103,7 +104,7 @@ def test_the_answer_therefore_refutes_itself_on_sight(trap):
 def test_it_cannot_be_left_off(trap):
     """Computed inside `serve`, never passed in — so no caller can omit it and
     no code path can produce a Served without it."""
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)
@@ -131,8 +132,8 @@ def test_binding_is_described_as_a_property_of_the_source(trap):
 def test_a_non_binding_answer_says_so_in_the_same_sentence():
     """The other branch, so the wording cannot quietly assert "binding" on an
     answer that does not bind."""
-    out = ask.answer("what do I do with a $10 service charge nobody entered?",
-                     "cash-and-bank",
+    out = conftest.answer_judged("what do I do with a $10 service charge nobody entered?",
+                     
                      position="an entry in the books",
                      citation='IRS Pub. 583 (12/2024), "Reconciling the '
                               'checking account" — what the books are updated for',
@@ -178,8 +179,8 @@ def test_a_position_backed_answer_has_something_to_read():
     the authority, so they are both the right thing to show and the only thing
     there is.
     """
-    out = ask.answer("what do I do with a $10 service charge nobody entered?",
-                     "cash-and-bank", position="an entry in the books",
+    out = conftest.answer_judged("what do I do with a $10 service charge nobody entered?",
+                      position="an entry in the books",
                      citation='IRS Pub. 583 (12/2024), "Reconciling the '
                               'checking account" — what the books are updated for',
                      model="m", keep=False)
@@ -191,7 +192,7 @@ def test_nothing_anywhere_serves_an_empty_thing_to_read():
     """The property, over every recorded answer on every desk — because the
     empty one was found by eye on three examples, and eye-checks do not scale."""
     empty = []
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)
@@ -211,8 +212,8 @@ def test_a_ratified_answer_does_not_claim_nobody_checked_it():
     restatement, so the words served are theirs. Saying "nobody checked" there
     is a lie in the safe direction, and a disclaimer that cries wolf on the
     safest answers teaches a reader to skip it on the dangerous ones."""
-    out = ask.answer("what do I do with a $10 service charge nobody entered?",
-                     "cash-and-bank", position="an entry in the books",
+    out = conftest.answer_judged("what do I do with a $10 service charge nobody entered?",
+                      position="an entry in the books",
                      citation='IRS Pub. 583 (12/2024), "Reconciling the '
                               'checking account" — what the books are updated for',
                      model="m", keep=False)
@@ -257,15 +258,15 @@ def test_a_ratified_answer_shows_the_AUTHORITY_not_itself():
     """
     cite = ('IRS Pub. 583 (12/2024), "Reconciling the checking account" '
             '— what the books are updated for')
-    out = ask.answer("what do I do with a $10 service charge nobody entered?",
-                     "cash-and-bank", position="an entry in the books",
+    out = conftest.answer_judged("what do I do with a $10 service charge nobody entered?",
+                      position="an entry in the books",
                      citation=cite, model="m", keep=False)
     assert isinstance(out, engine.Served)
     assert out.passage != out.position, "the passage is the answer restated"
     assert "reconcil" in out.passage.lower(), (
         "the passage is not the publication's own text")
     # And the desk really does hold it, so the fallback is never reached here.
-    desk = record.load(HERE / "desks" / "cash-and-bank")
+    desk = record.load(HERE / "corpus")
     assert desk.passage(cite).text in out.passage
 
 
@@ -284,9 +285,15 @@ def test_a_citation_only_source_still_falls_back_to_the_firms_words():
     So it exercises it instead: a desk stripped of its stored passages is
     exactly the `human_only` shape, and what comes out has to be readable."""
     import dataclasses
-    desk = record.load(HERE / "desks" / "cash-and-bank")
+    desk = record.load(HERE / "corpus")
     citation_only = dataclasses.replace(desk, passages=())
-    position = [q for q in citation_only.positions if not q.proposed][0]
+    # A POSITION THAT TURNS ON NO FACT. `positions[0]` was one until one corpus
+    # renumbered them and put a DEFAULT there — POS1, which holds unless the
+    # client is treated differently on `capitalization_rule`, so `serve` refuses
+    # `context_not_on_file` and this test was measuring the context gate rather
+    # than the fallback. Chosen by the property instead of by index.
+    position = next(q for q in citation_only.positions
+                    if not q.proposed and not q.unless and not q.needs)
     out = engine.serve(engine.Answer(position=position.position,
                                      citation=position.citation),
                        citation_only, question="what do I do with it")
@@ -301,7 +308,7 @@ def test_an_escalation_hands_back_the_askers_own_reasoning():
     where the agent has the most to say hands the caller the least… Meanwhile
     `showed_by_source` — pure instrumentation — does come back. That is exactly
     backwards for a human reader."*"""
-    out = ask.answer("does a widget purchase become an asset?", "fixed-assets",
+    out = conftest.answer_judged("does a widget purchase become an asset?", 
                      escalate="authority_absent",
                      working="the desk holds the improvement rules and nothing "
                              "on what a widget is",
@@ -314,7 +321,7 @@ def test_an_escalation_hands_back_the_askers_own_reasoning():
 def test_every_kind_of_refusal_carries_it_not_just_escalations():
     """Set once where all refusals pass through, so a refusal added later
     cannot quietly drop it."""
-    out = ask.answer("what do I do with a $10 service charge?", "cash-and-bank",
+    out = conftest.answer_judged("what do I do with a $10 service charge?", 
                      position="something else entirely",
                      citation="26 CFR 1.999-9(z)",
                      working="my reasoning, which the caller needs",
@@ -327,8 +334,8 @@ def test_the_unchecked_sentence_is_short_enough_to_survive_repetition():
     """*"At one answer it lands; at the fortieth of a close, the eye slides off
     the capitals."* The middle inventory of what WAS checked is cut — it is a
     property of the source and already printed beside the citation."""
-    out = ask.answer("is the invoice price of a forklift deducted or capitalized?",
-                     "fixed-assets", position="deducted, not capitalized",
+    out = conftest.answer_judged("is the invoice price of a forklift deducted or capitalized?",
+                      position="deducted, not capitalized",
                      citation="26 CFR 1.263(a)-2(d)(1)", model="m", keep=False)
     assert len(out.unchecked.split()) <= 32, (
         f"{len(out.unchecked.split())} words; it will be skimmed by the fortieth")
@@ -361,20 +368,41 @@ def test_the_skills_first_line_does_not_need_an_environment_variable():
     snippet = block.split("import ask")[0] + "print(sys.path[0])"
     base = {k: v for k, v in os.environ.items() if k != "CLAUDE_PLUGIN_ROOT"}
 
-    # 1 · where the plugin IS installed, it must resolve and say where.
-    here = subprocess.run([_sys.executable, "-c", snippet],
-                          capture_output=True, text=True, env=base)
-    if here.returncode:
-        assert "no desk plugin at" in here.stdout + here.stderr, (
-            f"raised something unreadable:\n{here.stderr}")
-    else:
-        assert here.stdout.strip(), "resolved silently to nothing"
+    # BOTH LEGS ARE MADE TRUE HERE RATHER THAN INHERITED FROM THE MACHINE, and
+    # that is the whole repair. Until 8 September leg 1 accepted either outcome
+    # and leg 2 emptied `HOME` alone. `os.path.expanduser` reads `HOME` on POSIX
+    # and `USERPROFILE` / `HOMEDRIVE`+`HOMEPATH` on Windows — so on the firm's
+    # own machine leg 2 found the REAL installed plugin, resolved it correctly,
+    # and the assertion failed. The desk that ran it named the class:
+    #
+    #   "A CONTROL WHOSE OUTCOME IS DECIDED BY THE ENVIRONMENT RATHER THAN BY
+    #    THE CODE. Mutation cannot catch these, and that is precisely why they
+    #    survive — you are mutating the code, and the code is not what is
+    #    deciding. THAT TEST CAN ONLY PASS ON A MACHINE WITH NO DESK INSTALLED.
+    #    It passes in CI because CI has none. It proves the error path and says
+    #    nothing about the path every real user takes."
+    #
+    # 1 · where the plugin IS there, it must resolve and say where. Pointed at
+    #     this checkout, so it is there on every machine.
+    here = subprocess.run([_sys.executable, "-c", snippet], capture_output=True,
+                          text=True, env=dict(base, CLAUDE_PLUGIN_ROOT=str(HERE)))
+    assert here.returncode == 0, (
+        f"could not resolve a plugin it was pointed straight at:\n{here.stderr}")
+    assert here.stdout.strip(), "resolved silently to nothing"
 
-    # 2 · where it is NOT, it must refuse in words a reader can act on —
-    #     never a traceback about a missing directory.
+    # 2 · where it is NOT. Every variable `expanduser` consults on any platform,
+    #     so the absence is real rather than assumed — and the error is checked
+    #     to NAME the redirected home, which is the positive precondition: proof
+    #     the leg ran against an empty tree instead of the machine's own.
+    empty = tempfile.mkdtemp()
+    nowhere = dict(base, HOME=empty, USERPROFILE=empty, HOMEDRIVE="",
+                   HOMEPATH=empty)
     away = subprocess.run([_sys.executable, "-c", snippet], capture_output=True,
-                          text=True, env=dict(base, HOME=tempfile.mkdtemp()))
+                          text=True, env=nowhere)
     out = away.stdout + away.stderr
+    assert empty.replace("\\", "/") in out.replace("\\", "/"), (
+        f"the home redirect did not take, so this leg tested the machine's own "
+        f"installation rather than an empty one:\n{out}")
     assert "Traceback" not in out, f"bare traceback on a clean machine:\n{out}"
     assert "no desk plugin at" in out and "claude plugin" in out, (
         f"does not say what is missing or how to get it:\n{out}")
@@ -406,8 +434,8 @@ def test_a_ratified_answer_with_no_sibling_still_names_it_in_unchecked():
     made every assertion vacuous — green with the change mutated out. Caught by
     mutation, not by reading. The position below is the firm's own words for
     this citation, so it serves."""
-    out = ask.answer(
-        "how should the vehicle costs be booked", "vehicle-expense",
+    out = conftest.answer_judged(
+        "how should the vehicle costs be booked", 
         position="book the components the actual-expense method itemises, and "
                  "answer with the reasoning rather than with a number of accounts",
         citation='IRS Pub. 463 (2025), "Actual Car Expenses"',
@@ -434,8 +462,8 @@ def test_the_header_never_says_a_source_binds_on_its_own_authority():
     checked" when none of them means that. A rendering that reproduces the
     misread its own documentation warns about is the defect, not the field.
     """
-    out = ask.answer("what do I do with a $10 service charge nobody entered?",
-                     "cash-and-bank", position="an entry in the books",
+    out = conftest.answer_judged("what do I do with a $10 service charge nobody entered?",
+                      position="an entry in the books",
                      citation='IRS Pub. 583 (12/2024), "Reconciling the '
                               'checking account" — what the books are updated for',
                      model="m", keep=False)

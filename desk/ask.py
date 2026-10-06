@@ -30,15 +30,18 @@ Retained is not accepted: nothing filed is ever returned to a caller.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import engine
 import record
-import routing
+import pool
 import unsupported
 
 HERE = Path(__file__).resolve().parent
-DESKS = HERE / "desks"
+#: One corpus. `dec-kill`, 8 September 2026 — "Kill the desks; one pool."
+#: `DESKS` sat here beside it for two days and is gone with the directory.
+CORPUS = HERE / "corpus"
 
 #: What an answerer may see, and the omission that matters. `PROBLEMS.md` is the
 #: answer key: a desk scored against problems its answerer could read measures
@@ -48,23 +51,519 @@ DESKS = HERE / "desks"
 SHOWN = ("sources", "ratified positions", "stored authority")
 
 
-def consult(question: str, desks: Path = DESKS,
-            context: record.Context | None = None) -> list[tuple[str, str]]:
-    """`[(desk name, everything it will let you answer from)]`. Possibly empty.
+#: The corpus is read once per process, not once per question. `pool.stats` is
+#: an O(corpus) pass and `record.load` parses every passage off disk; doing
+#: both per call turned a question into a full re-read of the record. Keyed by path so
+#: a test pointing at a fixture corpus is not served the production one.
+_LOADED: dict = {}
 
-    SILENCE IS A RESULT. A question touching no desk's subjects comes back empty
-    rather than routed to the nearest one — a router that always answers is one
-    whose answer means nothing.
+
+def _corpus(where: Path):
+    """`(record, pool, stats)` for a corpus directory, read once."""
+    key = str(Path(where).resolve())
+    if key not in _LOADED:
+        held = pool.assemble(where)
+        _LOADED[key] = (record.load(where), held, pool.stats(held))
+    return _LOADED[key]
+
+
+def looked(question: str, corpus: Path = CORPUS, *,
+           limit: int = 8) -> tuple:
+    """What the pool returns for this question, before any of it is rendered.
+
+    SPLIT OUT OF `consult` BY `dec-coverage`. `consult` used to return "" when
+    nothing was found, and callers tested that emptiness to decide whether the
+    corpus held anything. It no longer returns "" — silence is a document now,
+    for the reason below — so the question "did anything come back" needs an
+    answer that is not the brief's length.
     """
-    out = []
-    for r in routing.route(question, routing.registry(desks)):
-        out.append((r.desk, brief(question, record.load(desks / r.desk), context)))
+    held, stats = _corpus(corpus)[1], _corpus(corpus)[2]
+    return pool.look(question, held, limit=limit, known=stats)
+
+
+def with_a_rule(question: str, found: tuple, corpus: Path = CORPUS) -> tuple:
+    """`found`, with the top-ranked RULE appended when every hit is an example.
+
+    `dec-examples`, 14 September 2026 -- the firm: **"Label and never
+    examples-only."** The label is the first half and lives in `brief`; this is
+    the second, and it is the half that protects the answer.
+
+    WHY THE LABEL IS NOT ENOUGH ON ITS OWN. A worked example read BESIDE its
+    rule is useful -- it is the drafter showing the rule applied. An example
+    read INSTEAD of its rule is a confident wrong answer waiting to happen: the
+    answerer has been handed a conclusion about somebody else's facts and
+    nothing to test it against. Labelling says whose facts those are; it does
+    not give them the rule.
+
+    MEASURED BEFORE IT WAS BUILT: examples are 260 of 786 entries in the pool (a
+    third) and take 7 of 12 top slots on real working questions -- roughly twice
+    their share -- because they are narrative and concrete, and so share more
+    words with a bookkeeper's sentence than an abstract rule does.
+
+    IT ADDS AND NEVER REMOVES. The obvious alternative -- drop examples until a
+    rule appears -- would throw away the most on-point thing the pool found on a
+    question where the closest authority genuinely IS a fact pattern. The rule
+    joins them at the end, and the brief's existing order does the rest.
+
+    IT LOOKS DEEPER RATHER THAN WIDER. The rule is taken from the same ranking,
+    further down, so it is a rule THIS QUESTION reached -- never the corpus's
+    idea of a relevant rule, and never one chosen by any means other than the
+    score that was already computed.
+
+    AND NOTHING IS INVENTED. Where no rule anywhere in the pool shares a word
+    with the question, this returns what it was given, unchanged, and the brief
+    is examples only -- which is the honest outcome. `test_a_rule_that_does_not
+    _exist_is_not_invented` pins it.
+    """
+    if not found or any(f.held.kind != record.EXAMPLE for f in found):
+        return found
+    held, stats = _corpus(corpus)[1], _corpus(corpus)[2]
+    # THE WHOLE RANKING, not a wider net: `limit` is the only thing that changes.
+    for deeper in pool.look(question, held, limit=len(held), known=stats):
+        if deeper.held.kind != record.EXAMPLE:
+            return found + (deeper,)
+    return found
+
+
+def nothing_on_file(question: str, corpus: Path = CORPUS, *, looked=None) -> str:
+    """What comes back when the corpus holds nothing that shares this question's
+    language. A DOCUMENT, never an empty string.
+
+    `dec-coverage`, 10 September 2026 — the firm: **"Both."** Say why the
+    silence is silence, and build the missing coverage. Forge-Occam, reporting
+    the failure this closes:
+
+        "silence is indistinguishable from 'there is nothing to say here.'
+         A doer reads it as permission. I nearly did."
+
+    THAT IS THE WHOLE ARGUMENT AND IT IS NOT ABOUT POLITENESS. An empty return
+    is ambiguous between two opposite findings — *nothing here settles this, go
+    and ask* and *nothing here objects, carry on* — and a doer under time
+    pressure reads the second. A firm's record cannot afford a silence that
+    reads as approval, so there is no silence: there is a short paper saying
+    what was searched, what it holds, and what to do next.
+
+    IT SAYS WHAT WAS SEARCHED, WITH NUMBERS. "Nothing found" from a corpus of
+    twelve citations and from one of 785 are different findings, and only one of
+    them means the question is unusual.
+
+    AND IT NAMES THE ASKER'S OWN WORDS. Measured 11 September 2026: "what do i
+    do with it? we bought a forklift" reaches nothing, while the same
+    transaction as "is the invoice price deducted or capitalized?" reaches eight
+    passages including the firm's own $2,500 threshold. The cause is two words —
+    `bought` and `forklift` appear in none of the 1251 stored passages, while
+    `purchase` appears in 93. Told only that nothing was found, a doer concludes
+    the firm holds no authority on forklifts. They hold it under other words.
+
+    THE LIST IS EXHAUSTIVE AND THAT IS NOT A COINCIDENCE — it is every
+    substantive word in the question, necessarily, because the moment ONE of
+    them is on file some passage scores above zero and this page is never
+    reached. So naming them says exactly what the asker can act on (these are
+    the words that missed) and NOTHING about whether a rule exists. The page
+    says both halves. A version that named the words and implied the rule was
+    probably there would be guessing with evidence attached.
+
+    IT PROPOSES NOTHING. `pool.unseen` is a lookup against the word counts the
+    corpus already has; it never returns a word the asker did not type. The day
+    it suggests `purchase` it is the word list `dec-kill` deleted wearing a
+    kinder name.
+    """
+    desk, held, known = _corpus(corpus)
+    never = pool.unseen(question, known)
+    return "\n".join([
+        f"# {desk.name}{(' · desk ' + record.VERSION) if record.VERSION else ''}",
+        "",
+        f"**Asked:** {question}",
+        "",
+        "## Nothing on file addresses this",
+        "",
+        f"Searched every citation the firm has admitted — **{len(held)}** of "
+        f"them, across **{len(desk.sources)}** publications — and not one shares "
+        f"enough language with this question to be worth putting in front of "
+        f"you.",
+        "",
+        *(["**The words that missed: "
+           + ", ".join(f"`{w}`" for w in never)
+           + "** — every substantive word you used, and the record has never "
+             "seen any of them. That is always true when nothing comes back "
+             "here (one word on file and something would have), so it tells "
+             "you which words missed and it tells you nothing about whether a "
+             "rule exists. The authority writes in its own vocabulary and a "
+             "person writes in theirs, so saying the same thing the way a rule "
+             "would say it is worth one try before parking it — and if that "
+             "reaches nothing either, park it knowing the wording was not the "
+             "problem. Which words to try is yours; nothing here will suggest "
+             "one, because a list of what a word means instead is the list "
+             "`dec-kill` deleted.",
+           ""] if never else []),
+        "**This is not permission.** It does not mean the answer is no, and it "
+        "does not mean nobody objects. It means nothing on file reached this "
+        "question, so there is nothing here to be right or wrong with — and an "
+        "answer given anyway would be yours rather than the record's.",
+        "",
+        # THE INSTRUCTION HAS TO KNOW WHETHER IT ALREADY HAPPENED. Printed
+        # unconditionally, this told a doer to park a question three lines
+        # above the paragraph saying it had been parked -- found by printing
+        # the page rather than by reading the code that builds it.
+        ("**What to do.** Park it: the question goes to the firm with your "
+         "working, and their answer is what builds the coverage that is "
+         "missing. `ask.consult_or_file` does that in one call. Do not answer "
+         "from memory, and do not read this page as a quiet yes."
+         if looked is None else
+         "**What to do.** Nothing, on this question. It is already with the "
+         "firm — see below — and their answer is what builds the coverage "
+         "that is missing. Do not answer from memory, and do not read this "
+         "page as a quiet yes."),
+        "",
+        # `dec-lookjoin`. THE PAGE SAYS THE DESK WENT AND LOOKED, because the
+        # alternative is a doer reading "nothing on file" and concluding nobody
+        # tried. What it must NOT say is that anything found is usable: every
+        # disposition here is parked, including one that tied out against a
+        # source the firm already admits.
+        *_went_and_looked(looked),
+    ])
+
+
+def _went_and_looked(looked) -> list:
+    """The paragraph that says a search happened, and what came of it.
+
+    EMPTY WHERE NO SEARCH RAN, and that is the honest shape: a caller with no
+    browser gets the page it got on 10 September rather than a sentence
+    implying somebody looked.
+    """
+    if looked is None:
+        return []
+    s = looked.search
+    out = [f"## The desk went and looked", "",
+           f"Searched the open web on this question: **{len(s.queries)}** "
+           f"quer{'y' if len(s.queries) == 1 else 'ies'}, **{len(s.hits)}** "
+           f"result{'' if len(s.hits) == 1 else 's'}, **{len(s.findings)}** "
+           f"read against the publisher's own page.", ""]
+    # THREE OUTCOMES, NOT TWO, AND THE THIRD IS THE MOST USEFUL ONE.
+    # `worth_the_firms_time` counts STORE and PROPOSE, so a find that came back
+    # HELD -- the record already carries this citation -- rendered as "nothing
+    # tied out". Something tied out. What it found is that the authority was
+    # here all along and the question could not reach it, which is a defect in
+    # retrieval rather than a gap in the record, and it is the single most
+    # actionable thing a search can come back with.
+    import searching as _searching
+    already = [f for f in s.findings if f.disposition == _searching.HELD]
+    if looked.worth_the_firms_time:
+        out += ["**Something did, and it is with the firm — not with you.**",
+                ""]
+        for f in s.findings:
+            if f.candidate is not None:
+                out.append(f"- `{f.candidate.citation}` — {f.why}")
+        out += ["",
+                "**This is not authority yet and may not be cited.** The firm "
+                "admits a publisher, and they do it by merging a pull request "
+                "after reading the passage. Until then the record holds "
+                "nothing on this and so do you.", ""]
+    elif already:
+        out += ["**The record already holds what the search found.** So the "
+                "authority is not missing — the way to it is. Your question "
+                "reached nothing here and the same question, searched, landed "
+                "on a paragraph already on file:", ""]
+        out += [f"- `{f.candidate.citation}`" for f in already if f.candidate]
+        out += ["",
+                "**That does not make it yours to cite.** It was not served to "
+                "you, and reaching for it now would be answering from a "
+                "citation the desk refused to put in front of you. It is filed "
+                "as a retrieval defect, which is what it is.", ""]
+    else:
+        out += ["**Nothing tied out.** That is a real result and it is filed: a "
+                "gap somebody has searched and a gap nobody has searched are "
+                "the same hole in the record and call for opposite next steps. "
+                "It does not become an answer.", ""]
+    out += [f"Filed as **{looked.entry.id}**"
+            + (f", and the firm has been told: *{looked.told}*"
+               if looked.told else
+               ", and the notification was withheld because the question looks "
+               "like it carries a name or a figure — it is in the queue either "
+               "way"),
+            ""]
     return out
 
 
+def _ruled_for(question: str, corpus: Path = CORPUS) -> dict:
+    """`{citation: ruling}`: paragraphs the firm ruled this question reaches.
+
+    ONE PLACE, BECAUSE THERE ARE TWO FRONT DOORS. `consult` and
+    `consult_or_file` each decide whether anything is on file, and Codex on
+    #401 found the second still asking only the pool -- so a question the
+    firm's ruling answered was filed as a hole in the very authority the ruling
+    points at.
+    """
+    import rulings as _rulings
+    whole = _corpus(corpus)[0]
+    return {cit: r for r, cit in _rulings.brought_by(question,
+                                                     _rulings.load(corpus))
+            if whole.passage(cit)}
+
+
+def consult(question: str, corpus: Path = CORPUS,
+            context: record.Context | None = None, *, limit: int = 8) -> str:
+    """Everything the corpus will let you answer this from — or why it will not.
+
+    ONE CORPUS, ONE BRIEF. This returned `[(desk name, brief)]` until
+    10 September 2026, because a question reached one desk or several and each
+    got its own. `dec-kill` — *"Kill the desks; one pool"* — ends that: there is
+    no desk to name, and a list of one is a shape that only makes sense to
+    somebody who remembers the thing it replaced.
+
+    WHAT NARROWS IT. `pool.look` scores every citation in the corpus on the
+    authority's OWN TEXT and this brief is built from the top `limit`. Handing
+    over the whole corpus instead is two orders of magnitude more text — an
+    answerer given everything is an answerer given nothing, and a model with
+    an 8,192-token window (LOCAL-LLM-PATTERN rule 1) is given less than nothing.
+
+    IT NO LONGER RETURNS "". `dec-coverage`: an empty return is ambiguous
+    between *nothing settles this* and *nothing objects*, and a doer reads the
+    second. `nothing_on_file` says which, in words, with the size of what was
+    searched. Callers deciding whether the corpus HOLDS anything ask `looked`.
+
+    SILENCE IS STILL A RESULT and it is still the retriever's weakest claim.
+    A SCORE cannot tell you that nothing on file answers a question — measured,
+    and `test_a_score_cannot_tell_you_nothing_answers_this.py` holds the
+    numbers: the two populations overlap almost completely, and a question no
+    tax authority anywhere addresses outscores most of the ones the corpus
+    really answers. So this returns what it found and the ENGINE decides whether
+    any of it binds. That is `dec-books` — *"it looks for sources and conveys
+    and if it is not directly authoritative it would run the opinion by me"* —
+    and a threshold here would be this function deciding on a word count what
+    the whole engine exists to decide properly.
+    """
+    found = looked(question, corpus, limit=limit)
+    whole = _corpus(corpus)[0]
+    # THE FIRM'S RULINGS ON WHAT A QUESTION REACHES, read BEFORE the empty
+    # return. Codex on #401: a question whose only substantive word is the
+    # ruled one -- "commingling?" -- overlaps nothing on file, which is the
+    # mismatch rulings exist to repair, and returning "Nothing on file" first
+    # meant the firm's ruling could never fire where it was needed most.
+    # Added, never subtracted: nothing else moves. See `rulings`.
+    ruled = _ruled_for(question, corpus)
+    if not found and not ruled:
+        return nothing_on_file(question, corpus)
+    # `dec-examples`, second half: a brief is never worked examples alone.
+    widened = with_a_rule(question, found, corpus) if found else ()
+    added = widened[-1].held.citation if len(widened) > len(found) else ""
+    cited = [f.held.citation for f in widened]
+    ruled = {c: r for c, r in ruled.items() if c not in cited}
+    cited += list(ruled)
+    return brief(question, whole.narrowed_to(cited),
+                 context, rule_added=added, on_file=_shelf(whole),
+                 ruled=ruled, whole=whole)
+
+
+def consult_or_file(question: str, *, queue: Path, corpus: Path = CORPUS,
+                    context: record.Context | None = None,
+                    model: str = "",
+                    search=None, transport=None,
+                    queries=(), proposals=()) -> tuple[str, object]:
+    """`consult`, and FILE the question when no desk holds it.
+
+    SILENCE WAS THE ONE OUTCOME THAT LEFT NO RECORD. `consult` returning empty
+    is a real result -- no expert here holds the question, and inventing one is
+    what the routing exists to stop -- and `be-the-desk` says so. But a desk
+    that refuses leaves a refusal `tools/holes.py` reads out, while a question
+    that reached NO desk left nothing at all. On a close that is the worst of
+    the three: the doer gets nothing back, and the firm never learns the
+    question was asked.
+
+    The firm, 8 September 2026, setting exactly this expectation:
+
+        "You do not prep it with information and if it can't get the
+         information that means there's an actual hole."
+
+    MEASURED the same day, on twenty month-end questions in a bookkeeper's own
+    words: fifteen reached a desk and FIVE reached nothing. Two of the five were
+    subjects a desk already holds and the routing missed.
+
+    IN CODE RATHER THAN IN THE SKILL, for the reason the README already gives
+    about the citation rule: the same policy written as skill prose was obeyed
+    "100%, 4%, 0% of runs". `unsupported.from_question` existed and was reachable
+    only from a batch tool somebody runs by hand.
+
+    Returns `(briefs, filed)`. `filed` is None whenever a desk answered -- a
+    queue that grew a row per question would be a traffic log, and the count
+    would stop meaning anything.
+    """
+    # ASKED OF THE POOL, NOT OF THE BRIEF'S LENGTH. `consult` returns a
+    # document either way since `dec-coverage`, so testing it for emptiness
+    # would file every question ever asked.
+    if looked(question, corpus) or _ruled_for(question, corpus):
+        return consult(question, corpus, context), None
+    queue = Path(queue)
+    existing = (unsupported.parse(queue.read_text(encoding="utf-8"))
+                if queue.exists() else [])
+    # THE REASON CARRIES THE EVIDENCE OR IT IS A SHRUG. `tools/holes.py` reads
+    # this out to the firm, and "nothing shares a word with this question" is
+    # the same sentence on every row: it cannot be sorted, compared or acted on.
+    # The WORDS can: a row reading `bought, forklift` and one reading `crypto,
+    # staking` are a vocabulary gap and a coverage gap, and the firm can see
+    # which is which at a glance without being told by us -- which is the point,
+    # because telling them would be a judgement nothing here has earned.
+    #
+    # THE SECOND HALF OF THAT EXAMPLE STOPPED BEING FILED ON 11 SEPTEMBER.
+    # "how do we handle crypto staking rewards?" reached nothing until
+    # `dec-fullstop`, because Pub. 525's section opens "Rewards." and the pool
+    # held the full stop. It reaches that section now and is never filed. The
+    # example is kept because it is what the mechanism is FOR, and marked
+    # because an example that no longer happens should not read as one that
+    # does.
+    # `dec-lookjoin`, 11 September 2026 -- the firm: **"Run it by me -- build
+    # it."** THIS IS THE JOIN, and where it sits is the whole of it. `searching`
+    # has worked since 8 September and nothing on the answering path imported
+    # it; its only caller was a tool somebody runs by hand against a JSON file,
+    # so a question asked during a close reached this line and stopped. It now
+    # goes and looks from HERE, which is where the question is.
+    #
+    # ONLY WHERE A CALLER HANDED US ONE. A close run somewhere with no browser
+    # behaves exactly as it did rather than failing in a new way, and the two
+    # judgement steps -- what to search for, and which citation a page's words
+    # are -- come in as arguments because a model makes them and this file does
+    # not.
+    #
+    # NOTHING IT FINDS IS SERVED. `looking.run` returns a queue entry and the
+    # characters to send, and has no path to a `Served` at all. The firm admits
+    # a publisher by merging a pull request; that has not moved.
+    if search is not None:
+        import looking
+        # `went`, NOT `looked`. Assigning `looked` anywhere in this function
+        # makes the name local for the WHOLE of it, so the `if looked(question,
+        # corpus)` twenty lines above -- the test that decides whether to file
+        # at all -- raised `UnboundLocalError` on every call that got here. It
+        # was caught by a test on the first run rather than by reading.
+        went = looking.run(
+            question, corpus=corpus, queue=queue, queries=queries,
+            proposals=proposals, engine_=search, transport=transport,
+            model=model)
+        return nothing_on_file(question, corpus, looked=went), went.entry
+
+    never = pool.unseen(question, _corpus(corpus)[2])
+    why = "nothing in the corpus shares a word with this question"
+    if never:
+        why = ("the corpus has never seen any word in this question: "
+               + ", ".join(never))
+    entry = unsupported.from_question(
+        question,
+        why=why,
+        model=model,
+        existing=existing,
+    )
+    unsupported.append(queue, entry)
+    # THE EXPLANATION, NOT "". `dec-coverage`: the caller that just had its
+    # question parked is exactly the caller who must not read the result as
+    # permission, and returning an empty string here would have left that one
+    # path silent while every other path spoke.
+    return nothing_on_file(question, corpus), entry
+
+
+def against(position, corpus: Path = CORPUS, *, limit: int = 8) -> tuple:
+    """The authority nearest an uncited position, for somebody to read AGAINST it.
+
+    THE SECOND OF THE FIRM'S TWO CONDITIONS ON `dec-pos2`, and it is the risk
+    that arrives with the approval rather than an objection to it:
+
+        "I would also be remiss if something I said is my position blatantly
+         goes against a regulation or something. I would want the option to
+         review that too though"
+
+    THE INVERSE OF A CITATION CHECK. Every other gate here asks *what proves
+    this* — a citation resolves, a paragraph carries a conclusion, a second
+    reader quotes the words. An uncited position has nothing to run those on,
+    and the question that matters about it is the other one: **does anything on
+    file contradict it.** That is not answerable by lookup, so this does the
+    half that is — it finds what the corpus holds nearest the position's own
+    words and hands it over to be read.
+
+    THE POSITION'S OWN WORDS ARE THE QUERY. A hand-written list of what to check
+    a policy against is written by whoever is proposing the policy, which is the
+    preparer verifying their own work (C6). `pool.look` scores the corpus on the
+    position's title and text, so what comes back is what the RECORD says is
+    nearest, and a reviewer can disagree with it out loud.
+
+    IT DOES NOT DECIDE, AND NOTHING HERE PRETENDS OTHERWISE. Whether a paragraph
+    contradicts a policy is a reading, and readings in this operation are made
+    by a named party quoting words — `judging.read` for an answer, the firm for
+    a policy. A version of this that returned "contradicted: yes/no" would be
+    the thing `dec-books` says not to build.
+    """
+    return looked(f"{position.title} {position.position}", corpus, limit=limit)
+
+
+def review_brief(position, corpus: Path = CORPUS, *, limit: int = 8) -> str:
+    """What goes in front of whoever answers *does anything here contradict it*.
+
+    THE FIRM IS THE READER, so this is prose and not a list of citation labels:
+    the question is not answerable from a label. It prints the position in their
+    own words, then the paragraphs the record puts nearest it, then the one
+    question it is asking — and it says what a `yes` and a `no` each mean, so
+    the answer that comes back can be written into `Reviewed:` without anybody
+    interpreting it.
+    """
+    desk = _corpus(corpus)[0]
+    found = against(position, corpus, limit=limit)
+    out = [f"# Does anything on file contradict {position.id}?", "",
+           f"**{position.title}**", "",
+           f"> {position.position}", ""]
+    if position.why:
+        out += ["*Why the firm holds it:*", "", f"> {position.why}", ""]
+    out += [
+        f"This is **firm policy**. It rests on the firm rather than on a "
+        f"paragraph, and it is cited to nothing — which is why it is being put "
+        f"in front of you: an uncited position is the kind that can sit against "
+        f"authority with nothing noticing.", "",
+        "## The nearest authority on file", "",
+    ]
+    if not found:
+        out += ["Nothing in the record shares enough language with it to be "
+                "worth reading against it. **That is not a clean bill.** It "
+                "means the corpus holds nothing near this policy, so nobody "
+                "here can say whether authority contradicts it — which is a "
+                "coverage answer, not a review one.", ""]
+    else:
+        out += [f"Searched every citation the firm has admitted — "
+                f"**{len(desk.passages)}** of them — and these are the "
+                f"**{len(found)}** nearest this policy's own words. They were "
+                f"chosen by word overlap, not by anybody deciding they bear on "
+                f"it.", ""]
+        for hit in found:
+            out += [f"### {hit.held.citation}", "",
+                    f"*{hit.held.tier} · {hit.held.source_id}*", "",
+                    f"> {hit.held.text}", ""]
+    out += [
+        "## What is being asked", "",
+        "**Does any of that contradict the position above?**", "",
+        "- **No** — the policy stands as written, and this review is recorded "
+        "against it with the date. It can be asked again whenever the record "
+        "grows.",
+        "- **Yes, and here is the paragraph** — the policy is wrong, or it is "
+        "narrower than it reads, and either way it stops being served until you "
+        "have said which.",
+        "- **It is nearby and does not settle it** — the commonest answer, and "
+        "it is a real one. Recorded the same way.", "",
+        "Nothing is decided here. This is the material; the reading is yours.",
+        "",
+        "---",
+        "",
+        f"*Assembled by `ask.review_brief` from the corpus at desk "
+        f"{record.VERSION or 'unversioned'}. Not written by hand and not edited "
+        f"afterwards — re-run it and it comes back the same, or comes back "
+        f"different because the record moved.*",
+        "",
+    ]
+    return "\n".join(out)
+
+
 def brief(question: str, desk: record.Desk,
-          context: record.Context | None = None) -> str:
-    """Everything the desk will let an answerer see, and nothing else."""
+          context: record.Context | None = None, *,
+          rule_added: str = "", on_file: tuple = (),
+          ruled: dict | None = None, whole: record.Desk | None = None) -> str:
+    """Everything the desk will let an answerer see, and nothing else.
+
+    `whole` is the corpus `desk` was narrowed from: a lead-in above a printed
+    clause is structure, and a narrowed desk no longer holds it."""
     ratified = [q for q in desk.positions if not q.proposed]
     context = context or record.NOTHING_ON_FILE
     # THE RUNNING CODE SAYS WHAT IT IS, in the one artifact an answerer always
@@ -73,17 +572,123 @@ def brief(question: str, desk: record.Desk,
     # lives in the file that did not load. This line comes from the code doing
     # the work, so a skill claiming something else is visibly wrong.
     stamp = f" · desk {record.VERSION}" if record.VERSION else ""
+    # THE SECOND PARAGRAPH IS NEW AND THE FIRST IS NOT WEAKENED. Until 0.13.1
+    # this said only the first thing, and it was the whole ceiling: everything
+    # outside the stored corpus refused, the searcher found the rule, and the
+    # trail stopped at the firm because a source had to be admitted before any
+    # desk could cite it. Verification is the gate now (#343) -- but the gate is
+    # a FETCH, not the answerer's word, so the instruction has to be exact about
+    # what is being asked for. Quoting from memory is the failure this engine
+    # exists to stop and it must not read as newly permitted.
+    # THE FIRST SENTENCE WAS FALSE FOR A MONTH, and an answerer proved it.
+    # It said a citation to anything not printed here is refused. It is not:
+    # `answer` checks the whole corpus, not this brief. Sarcia pilot 4, 26
+    # September 2026 -- three of nine served answers cited a paragraph retrieval
+    # never surfaced, because the desk already knew where it was. So the
+    # authority was usable only by somebody who already knew where to look, and
+    # the brief told everybody else not to. What is refused is anything NOT ON
+    # FILE; `read` is how an answerer looks at the rest of what is.
     out = [f"# {desk.name}{stamp}", "", f"**Asked:** {question}", "",
-           "Answer ONLY from what follows. A citation to anything not printed",
-           "here is refused by the engine, however real it is.", ""]
-    if desk.records:
+           "Answer ONLY from authority on file. The paragraphs below are the",
+           "closest by word overlap; EVERY section on file is listed at the end,",
+           "and you may cite any paragraph of one. Read it first:",
+           '`ask.read("<citation or section>")` prints the stored words, or a',
+           "section's paragraphs. A citation to anything NOT on file is refused",
+           "by the engine, however real it is.", "",
+           "If the rule you need is in neither — not among these paragraphs,",
+           "and not in a section the list shows once you have read it — do not cite it",
+           "from memory: escalate `authority_absent`. If you have been given a way",
+           "to fetch, you may instead hand in the URL you found it at and the",
+           "exact words you are resting on: the engine will fetch that page and",
+           "serve only if those words are on it right now. It will not take",
+           "your word for what the page says.", ""]
+    # THE ANSWERING CONTRACT, AND IT USED TO LIVE SOMEWHERE ELSE.
+    #
+    # `tools/ask_the_desks.py` carried a SECOND brief with these lines in it,
+    # kept in step with this one by nobody. The tool was the only thing that
+    # ever told an answerer the shape to return or what `ask` is for; the live
+    # path said "escalate `authority_absent`" and left the rest to be guessed.
+    # `dec-kill` deleted the duplicate, so the instructions move here rather
+    # than going with it — a brief that is wrong now is wrong in production,
+    # where somebody sees it.
+    # HOW THESE WERE CHOSEN, SAID OUT LOUD. The other half of `dec-coverage`.
+    #
+    # The first half is `nothing_on_file`: an empty result must not read as
+    # permission. This is the case that is easier to miss and harder to fix —
+    # a result that is not empty and settles nothing. `pool.look` scores every
+    # citation on word overlap with the question, weighted by rarity, and it
+    # ALWAYS RETURNS SOMETHING when any word matches. Measured: *"Which sonnet
+    # did Shakespeare write about a summer day?"* comes back with 7,384
+    # characters of tax authority, more than the real prepaid-insurance
+    # question's 5,060, and
+    # `test_a_score_cannot_tell_you_nothing_answers_this.py` establishes that no
+    # score cutoff separates the two populations — five of six questions with no
+    # answer on file outscore the weakest question that has one.
+    #
+    # SO THE CUTOFF CANNOT BE HERE AND THE DISCLOSURE CAN. An answerer told
+    # nothing about how these arrived reads "here is the authority" as "here is
+    # the authority ON THIS", which is the same misreading as silence-as-
+    # permission, one step further in. The engine still decides what binds;
+    # this is what stops a model doing the engine's job badly first.
+    out += ["**These paragraphs were chosen by word overlap with your "
+            "question, not by anybody deciding they answer it.** Being shown a "
+            "passage is not evidence that it settles anything — the corpus "
+            "returns its closest text for every question, including questions "
+            "it holds no authority on at all. If none of it reaches what you "
+            "were asked, say so and escalate `authority_absent`; that is a "
+            "finding, not a failure.", ""]
+    out += ["## What you must return", "",
+            "```json",
+            '{"position": "<your conclusion, one short line>",',
+            ' "citation": "<one citation, copied EXACTLY from a heading below>",',
+            ' "working": "<why that paragraph settles it>"}',
+            "```", "",
+            "Or, if nothing below settles it:", "",
+            "```json",
+            '{"escalated": true, "reason": "<one of: authority_absent, '
+            'authority_permits_choice, facts_not_established>", "working": '
+            '"<what is missing>", "ask": "<the question a person must answer>"}',
+            "```", "",
+            "**`facts_not_established`** is the right answer when the rule is "
+            "clear and what you do not know is a fact about the client — what "
+            "was bought, which entity, which period. It is not a failure; it "
+            "is the answer that says who has to be asked.", "",
+            "**On that reason you MUST fill in `ask`, and the engine refuses "
+            "without it.** Name the fact and say what would settle it, in "
+            "words a preparer can act on — *\"What was the invoice amount? "
+            "Under $2,500 the safe harbour may reach it.\"* — not *\"more "
+            "information needed\"*. A refusal that names a gap and not the "
+            "question is a dead end wearing a reason code, and it is the "
+            "difference between a queue somebody can work and a count.", ""]
+    # WHICH FACTS BEAR ON THIS QUESTION, and it is not all of them any more.
+    #
+    # ONE CORPUS MADE THIS NECESSARY. Each of the seven records declared the
+    # facts ITS positions turned on -- `trade` on personal-or-business,
+    # `capitalization_rule` on capitalization-and-de-minimis, `taxpayer` on
+    # rewards -- and a question reaching one desk saw one field. `dec-kill`
+    # merged them, so `desk.records` is now the union and an unnarrowed brief
+    # announces all three on every question. That is not merely noisy: two of
+    # them come back "NOT ON FILE" on any given question, and the line beside
+    # them tells the answerer to escalate rather than answer from a rule that
+    # needs it. A hairstylist question would invite `context_not_on_file` about
+    # a capitalization threshold nothing shown turns on.
+    #
+    # SO A FIELD IS PRINTED WHEN IT BEARS ON WHAT IS SHOWN: we already know it
+    # (a fact on file is context whatever the question), or a position printed
+    # above needs it. Fields that are neither are silent -- not hidden, since
+    # `desk.records` is untouched and `unrecorded` still checks against the
+    # whole of it, so a fact with nowhere to live is still the hole it was.
+    needed = {f for q in ratified for f in getattr(q, "needs", ())}
+    bearing = [name for name in desk.records
+               if str(context.facts.get(name, "")).strip() or name in needed]
+    if bearing:
         # WHAT WE WERE TOLD, AND -- THE HALF THAT MATTERS -- WHAT WE WERE NOT.
         # Printing only the facts on file leaves an answerer to assume the rest
         # were not needed. Printing the gaps by name is what lets it escalate
         # `context_not_on_file` instead of reasoning from the vendor, which is
         # the failure this whole input exists to stop.
         out += ["## What the file already says", ""]
-        for name in desk.records:
+        for name in bearing:
             value = str(context.facts.get(name, "")).strip()
             out.append(f"- **{name}:** {value}" if value
                        else f"- **{name}:** NOT ON FILE — do not infer it, and do "
@@ -109,12 +714,60 @@ def brief(question: str, desk: record.Desk,
                 "escalate `no_field_for_this_fact` and name it — that is a "
                 "hole the firm has to decide about, and a preparer who had to "
                 "hand it over has just found it by doing the work.", ""]
-    out += ["## Sources this desk may rely on", ""]
-    out += [f"- **{s.id}** · {s.title} · tier **{s.tier}**" for s in desk.sources]
+    # ONE LIST OF SOURCES, NOT TWO. This printed the sources behind the shown
+    # passages with their tier, and `on_file_index` now prints every source on
+    # file; two lists cost the tokens twice on an 8,192-token window
+    # (LOCAL-LLM-PATTERN rule 1). The tier moves onto the index.
+    if not on_file:
+        out += ["## Sources this desk may rely on", ""]
+        out += [f"- **{s.id}** · {s.title} · tier **{s.tier}**"
+                for s in desk.sources]
     if ratified:
         out += ["", "## The firm's own positions — binding, and quoted exactly", ""]
+        # COPY THE POSITION, DO NOT RESTATE IT -- and the brief has to say so.
+        #
+        # `engine._same` compares a submitted position to the firm's word by
+        # EXACT string equality (case and surrounding space aside), on purpose:
+        # "a looser comparison here would quietly turn wrong answers into right
+        # ones, which is the one direction this code must never fail in."
+        #
+        # The header alone never carried it. On the 8 September pilot four of
+        # twelve answered attempts came back `contradicts_ratified_position`
+        # while AGREEING with the firm -- Q6, Q7, and Q31 on two desks --
+        # because an answerer told a position is "binding" naturally
+        # paraphrases it. Re-serving the same run with the four positions
+        # copied verbatim and nothing else changed took it from 3 served to 7.
+        # A third of the run was measuring this paragraph's absence.
+        out += ["**If you rely on one of these, copy its wording EXACTLY into "
+                "`position`.** The engine compares what you submit to the "
+                "firm's sentence character for character and refuses anything "
+                "else as a contradiction, however much you agree with it. Put "
+                "your own words in `working`, never in `position`.", ""]
         for q in ratified:
             out += [f"### {q.citation}", "", f"> {q.position}", ""]
+            # THE WORDS IT RESTS ON, where the second reader will look for them.
+            # Sarcia pilot 3: second readers refused 7 of 9 attempts, four on
+            # positions whose own paragraph did not carry them. A reader told
+            # which words, and which paragraph, reads the right one.
+            if getattr(q, "rests_on", ()):
+                out += ["Rests on: " + "; ".join(
+                    (f'{c} — "{w}"' if c != q.citation else f'"{w}"')
+                    for c, w in q.rests_on), ""]
+            # A POLICY SAYS WHAT IT IS WHERE IT IS READ. `dec-pos2`, the firm's
+            # first condition: *"I want this to be clearly marked as they may
+            # need to be reviewed/changed at some point."* `engine.serve` puts
+            # the same thing on the answer that leaves; this puts it in front of
+            # the answerer BEFORE they rely on it, which is the difference
+            # between a disclosure and a footnote.
+            if getattr(q, "is_policy", False):
+                out += ["**This is the firm's own standing policy, not "
+                        "authority.** It rests on the firm and there is no "
+                        "paragraph behind it to go and read. It binds — where "
+                        "the firm has spoken, their words are the answer — and "
+                        "it may be reviewed or changed. "
+                        + ("Nobody has yet read it against what is on file."
+                           if getattr(q, "unreviewed", False) else
+                           f"Read against the record: {q.reviewed}"), ""]
             # A DEFAULT SAYS SO, so an answerer is not told the firm's general
             # rule as though it were this client's. The firm, holding two
             # positions on 6 September 2026: "we shouldn't ignore client level
@@ -156,9 +809,241 @@ def brief(question: str, desk: record.Desk,
     # `record.shown` and not `desk.passages`: the engine counts the same call
     # when it reports how much a desk put in front of a model that then said the
     # desk held nothing. Two readings of "what was shown" is one too many.
+    in_brief = {p.citation for p in record.shown(desk)}
     for p in record.shown(desk):
-        out += [f"### {p.citation}", "", f"> {p.text}", ""]
+        out += [f"### {p.citation}", ""]
+        # SOMEBODY ELSE'S FACTS, SAID SO. `dec-examples`, 14 September 2026 --
+        # the firm: **"Label and never examples-only."**
+        #
+        # A worked example is a fact pattern the regulation prints to show a
+        # rule applied, and it is narrative and concrete -- so it shares more
+        # words with a bookkeeper's sentence than an abstract rule does, and the
+        # pool ranks it accordingly: examples are 260 of 786 entries and take 7
+        # of 12 top slots on real working questions, about twice their share.
+        #
+        # NOTHING IN THE ENGINE KNOWS THIS CLIENT'S PAINT BOOTH IS NOT EXAMPLE
+        # 11'S PAINT BOOTH, and nothing can -- that needs the facts. So it is
+        # said rather than decided, the same trade `passage`, `alongside` and
+        # `scoped` all make.
+        # AND WHY THIS ONE IS HERE, when it is only here because everything
+        # else was an example. Measured: on the six questions in 113 where the
+        # whole brief would otherwise be worked examples, the rule this pulls in
+        # scores as low as 3.2 -- on "A contractor paid by cheque" it is a MEALS
+        # rule, which is the honest top-ranked rule and is not about the
+        # question. Adding it silently would present it as the authority; a
+        # score cutoff would be picking a number by taste, which is the thing
+        # this retrieval was built not to do. So it says why it is here and
+        # leaves the judgement where judgement belongs.
+        if p.citation == rule_added:
+            out += ["**Every other passage this question reached is a worked "
+                    "example, so the highest-ranked RULE was added here — it "
+                    "was not among the closest matches.** It may not be the "
+                    "right rule. It is here so the answer is not built only "
+                    "out of somebody else's facts; if it does not bear on the "
+                    "question, the record may simply not hold a rule that "
+                    "does, and that is worth saying rather than working "
+                    "around.", ""]
+        # WHAT IT COMPLETES, NAMED: a clause printed without the lead-in it
+        # finishes -- a definition of "fine" without the denial it defines a
+        # word for -- is not the rule (Codex on #403). Named, not printed; what
+        # this brief already prints is not named again.
+        framed = [f for f in (whole or desk.corpus).frame(p.citation)
+                  if f not in in_brief]
+        unheld = (whole or desk.corpus).unheld(getattr(p, "text", "") or "",
+                                               within=p.citation)
+        if unheld:
+            out += [f"**Cites authority not on file: "
+                    f"{'; '.join(f'`{c}`' for c in unheld)}. Whatever turns on "
+                    f"it is not checked here -- escalate `authority_absent` "
+                    f"rather than assume it.**", ""]
+        if framed:
+            out += [f"**Read as one with {'; '.join(f'`{f}`' for f in framed)} "
+                    f"— a lead-in and the clauses that finish it. `ask.read` "
+                    f"it before relying on this.**", ""]
+        # THE WHOLE CORPUS, like the frame and the unheld check: the narrowed
+        # desk holds only this paragraph's source, and a Read-with chain that
+        # crosses into another stopped at its first link (Codex on #403).
+        # EVERYTHING THE SERVED ANSWER WOULD CARRY that the frame line has not
+        # named, from `served_with` itself: the brief on § 274(e) named no
+        # limit, though an answer citing (e) carries § 274(o) through (e)(1)
+        # (adversarial pass on #403).
+        w = whole or desk.corpus
+        limits = [o for o in w.served_with(p.citation)
+                  if o not in w.frame(p.citation)]
+        if limits:
+            names = "; ".join(f"`{o}`" for o in limits)
+            out += [f"**Read with {names} — the record says it changes what "
+                    f"this paragraph says. `ask.read` it before relying on "
+                    f"this.**", ""]
+        if ruled and p.citation in ruled:
+            r = ruled[p.citation]
+            out += [f"**Here because the firm ruled it ({r.id}, {r.ruled}): "
+                    f"a question saying \"{'; '.join(r.reaches_on)}\" reaches "
+                    f"this paragraph.** The firm ruled what it is FOUND by, "
+                    f"not what it says; read it as you would any other.", ""]
+        if p.kind == record.EXAMPLE:
+            out += ["**A worked example — another taxpayer's facts, not this "
+                    "client's.** It shows how the rule was applied to the "
+                    "situation described in it. Answer from the rule; cite an "
+                    "example only where the facts in front of you match the "
+                    "ones in it, and say which.", ""]
+        out += [f"> {p.text}", ""]
+    if on_file:
+        out += on_file_index(on_file)
     return "\n".join(out)
+
+
+def _shelf(desk) -> tuple:
+    """The sources an answerer can actually open with `read`: those holding a
+    stored paragraph. Independent review of #401: S34, the firm's own policy,
+    holds none -- its positions are printed where they apply -- and listing it
+    told the answerer to read something `read` refuses."""
+    held = {p.source_id for p in desk.passages}
+    return tuple(s for s in desk.sources if s.id in held)
+
+
+def on_file_index(sources) -> list:
+    """Every section on file, in one line: what an answerer may go and read.
+
+    THE SHELF, NOT THE BOOKS. Sarcia pilot 4 measured the gap this closes: of
+    five sections admitted because a question named them, the paragraph
+    carrying the rule reached the eight passages a brief prints ONCE. Two were
+    not in the top 300 of 1,171. Word overlap cannot bridge "recordkeeping" to
+    "books of account or records", and a bigger window only moves the cliff.
+
+    So the answerer is shown what is on file and reads what it needs with
+    `read`, which lists a section's paragraphs by their own run-in headings.
+    The model proposes where to look; the engine still decides whether what it
+    cites is there and what it is quoted as saying.
+
+    CITATIONS ONLY, AND THAT WAS MEASURED, NOT PREFERRED. The publisher's
+    headings cost 530 tokens at six words and 328 at two; the supporting-
+    documents brief had 273 left of the 7,616 an 8,192 window leaves
+    (LOCAL-LLM-PATTERN rule 1). Bare citations cost 186. The headings are one
+    `read` away.
+    """
+    out = ["## Everything on file — any paragraph of these may be cited", "",
+           'Read before citing: `ask.read("26 CFR 1.461-1")` lists a '
+           "section's paragraphs; a full citation prints its words.", ""]
+    out.append("; ".join(f"`{s.citation_prefix}`"
+                         + ("" if s.tier == "primary" else f" ({s.tier})")
+                         for s in sources) + ".")
+    return out + [""]
+
+
+def limits_on(desk, citation: str) -> list:
+    """`record.Desk.limits_on`, for callers holding a desk."""
+    return desk.limits_on(citation)
+
+
+def read(citation: str, corpus: Path = CORPUS) -> str:
+    """The stored words of a paragraph, or the paragraphs of a section.
+
+    The other half of `on_file_index`. A brief lists every section on file;
+    this is how an answerer reads one without being handed the whole corpus.
+    EXACT OR PREFIX, NEVER NEAREST: a lookup that returned the closest
+    citation would let an answer rest on a paragraph next to the one it named,
+    which is the failure the citation check exists to catch.
+    """
+    desk = _corpus(corpus)[0]
+    citation = " ".join(citation.split())
+    exact = desk.passage(citation)
+    # UNDER MEANS UNDER. A bare prefix test put § 1.61-10 under § 1.61-1 and
+    # § 1.274-5T under § 1.274-5; what follows the citation has to open a
+    # sub-paragraph, name an example, or -- for a publication cited
+    # 'IRS Pub. 463 (2025), "Actual Car Expenses"' -- a comma and a heading.
+    # The comma was missed, and five listed sources would not open
+    # (independent review of #401).
+    under = [p for p in desk.passages
+             if p.citation.startswith(citation)
+             and p.citation[len(citation):][:1] in ("(", " ", ",")]
+    # A CITATION WITH THE RECORD'S " — which rule" NOTE has its clauses under
+    # its stem: "(b) — how the examples are introduced" is a lead-in, and its
+    # clauses are "(b)(1) — life insurance premiums" and on (second
+    # adversarial pass on #403).
+    if record._stem(citation) != citation:
+        under = [p for p in desk.passages if record._clause_of(p.citation, citation)]
+    if exact:
+        out = [f"### {exact.citation}", "", f"> {exact.text}", ""]
+        # A LEAD-IN IS HALF A SENTENCE. § 1.263(a)-4(f)(1) ends "does not
+        # extend beyond the earlier of--" and its two limits are (f)(1)(i) and
+        # (ii). Printed alone it states no rule at all.
+        # ITS OWN CLAUSES, NOT ITS WHOLE SUBTREE. Codex on #401: § 1.263(a)-3(k)
+        # printed 55 passages and 52,915 characters, past the 8,192-token
+        # window before the brief was counted. The direct sub-paragraphs are
+        # what finish a lead-in; anything deeper is listed, one `read` away.
+        deeper = []
+        for p in under:
+            rest = p.citation[len(citation):]
+            if (re.fullmatch(r"\([^()]+\)", rest)
+                    or record._clause_of(p.citation, citation)
+                    and record._stem(citation) != citation):
+                out += [f"### {p.citation}", "", f"> {p.text}", ""]
+            elif rest.startswith("(") or re.match(r" Example \d", rest):
+                # WORKED EXAMPLES TOO. Codex on #401: § 1.263(a)-3(e)(6) printed
+                # a lead-in ending in a colon, and its 19 examples were neither
+                # printed nor listed.
+                deeper.append(p.citation)
+        if deeper:
+            out += ["Further down or worked examples, not printed -- "
+                    "`ask.read` any of these:", ""]
+            out += [f"- `{c}`" for c in deeper] + [""]
+        # WHAT CHANGES WHAT WAS JUST PRINTED. Codex on #403: reading § 274(e)
+        # printed (e)(1) and not the § 274(o) that takes it away from 2026.
+        # WHAT IT COMPLETES, OR WHAT COMPLETES IT: a clause printed without the
+        # lead-in it finishes -- § 1.162-21(a)(3)(i) without (a)'s "no deduction
+        # is allowed" -- is a definition served as a rule (Codex on #403).
+        shown = {l[4:] for l in out if l.startswith("### ")}
+        # What sits BELOW the cited paragraph keeps the read's own rule --
+        # direct clauses printed, deeper ones listed (Codex on #401: § 1.263(a)
+        # -3(k) was 52,915 characters) -- so the frame adds only what is above.
+        for f in desk.frame(citation):
+            if record.is_under(f, citation):
+                continue
+            if f not in shown and desk.passage(f):
+                out += [f"### {f}", "",
+                        f"**Read as one with `{citation}` — a lead-in and the "
+                        f"clauses that finish it.**", "",
+                        f"> {desk.passage(f).text}", ""]
+                shown.add(f)
+        printed = [l[4:] for l in out if l.startswith("### ")]
+        shown = set(printed)
+        # WHAT AN ANSWER CITING `citation` WOULD CARRY, from the one definition,
+        # and ONCE: not re-expanded from each printed paragraph. A copy of the
+        # expansion here printed every sibling of a limit it followed up to its
+        # parent (§ 274(o) reached (e) through (e)(8)); expanding each printed
+        # paragraph did the same to a leaf's own frame, § 274(e)(8)'s (e)
+        # (Codex on #403, twice). `served_with` already carries the limits of
+        # every paragraph it frames, and a limit's own clauses: (o) alone ends
+        # "for-", which states nothing.
+        carried = desk.served_with(citation)
+        limits = {o for c in [citation, *carried] for o in limits_on(desk, c)}
+        for o in carried:
+            if o in shown or record.is_under(o, citation) or not desk.passage(o):
+                continue
+            out += [f"### {o}", ""]
+            if o in limits:
+                out += [f"**Read with `{citation}` — the record says it changes "
+                        f"what it says.**", ""]
+            out += [f"> {desk.passage(o).text}", ""]
+            shown.add(o)
+        # WHAT IT CITES AND THE RECORD DOES NOT HOLD, said (Codex on #403).
+        unheld = desk.unheld("\n".join(out))
+        if unheld:
+            out += [f"**Cites authority not on file: "
+                    f"{'; '.join(f'`{c}`' for c in unheld)}. Whatever turns on "
+                    f"it is not checked here -- escalate `authority_absent` "
+                    f"rather than assume it.**", ""]
+        return "\n".join(out)
+    if under:
+        out = [f"## On file under {citation}", ""]
+        for p in under:
+            words = p.text.split()
+            head = " ".join(words[:14]) + (" …" if len(words) > 14 else "")
+            out.append(f"- `{p.citation}` — {head}")
+        return "\n".join(out + [""])
+    return (f"Nothing on file under {citation}. A citation to it is refused. "
+            f"If the rule exists, escalate `authority_absent` and say where it is.")
 
 
 def brief_for_grading(question: str, desk: record.Desk,
@@ -190,11 +1075,12 @@ def brief_for_grading(question: str, desk: record.Desk,
     return brief(question, desk.rules_only(), context)
 
 
-def answer(question: str, desk_name: str, *, position: str = "",
+def answer(question: str, *, position: str = "",
            citation: str = "", escalate: str = "", model: str = "",
-           working: str = "", ask: str = "", desks: Path = DESKS,
-           keep: bool = True,
-           context: record.Context | None = None, prove=None):
+           working: str = "", ask: str = "", corpus: Path = CORPUS,
+           keep: bool = True, queue: Path | None = None,
+           context: record.Context | None = None, prove=None, judged=None,
+           found_at: str = "", found_text: str = ""):
     """Put a proposed answer through the production path. Served, or refused.
 
     `keep` files a refusal in the desk's `unsupported/` queue. It defaults on
@@ -214,8 +1100,47 @@ def answer(question: str, desk_name: str, *, position: str = "",
     remove one. Where the publisher no longer carries the passage the answer is
     withdrawn (`authority_has_moved`); where the publisher could not be reached
     the answer stands and says the proof could not be taken.
+
+    `found_at` AND `found_text` ARE THE CANDIDATE PATH. Where the gate refuses
+    `authority_absent` -- the record does not hold this citation -- and the
+    caller has both a transport and a URL it found the rule at, the answer is
+    served if and only if `found_text` is on that page right now. `candidates.py`
+    is the whole of it, including the two checks that run before any fetch.
+
+    BOTH ARE REQUIRED, and passing neither leaves behaviour byte-identical to
+    before. A URL with no words is nothing to compare; words with no URL is the
+    model's own recollection, which is the thing this engine exists not to serve.
+
+    EVERY ATTEMPT IS RECORDED, WHATEVER IT DID, into the desk's `tie-outs/`
+    store, under `keep` like a refusal is. The firm asked for it in as many
+    words -- *"It should state what happened when trying to tie it out. I need
+    info to make decisions down the line."* -- and the decisions it is for are
+    about PUBLISHERS rather than about any one answer: one unreachable source is
+    a shrug, forty against the same host is a source to retire. `attempts.py`
+    says what is written and what is deliberately not.
+
+    `judged` IS A SECOND READER'S VERDICT, and it is the same trade as `prove`:
+    an input, never something this function goes and obtains. Pass a
+    `judging.Judgment` -- who read the passage, whether it carries the
+    conclusion, and the words they rest that on -- and the engine checks the one
+    thing about it that is checkable without reading: that those words are in
+    the passage. Pass nothing and nothing is checked, which is what the whole
+    suite passes today.
+
+    IT RUNS LAST, AFTER THE PROOF, and for the same reason the proof runs after
+    the gate: each stage may add a refusal and none may remove one. Judging an
+    answer whose passage the publisher no longer carries would be a second
+    reader confirming text that has already been withdrawn.
+
+    NOTHING REQUIRES A JUDGMENT. Which desks may not serve unjudged is the
+    firm's decision and is on the docket; a gate that turned itself on across
+    seven desks overnight would be this session making it.
     """
-    desk = record.load(desks / desk_name)
+    # ONE CORPUS. This took a `desk_name` until 10 September 2026 and loaded
+    # `desks/<name>/`; `dec-kill` deleted the desks, so there is nothing to name
+    # and nothing to choose between. The citation identifies the authority, which
+    # is what it always did — the desk was only ever the folder it sat in.
+    desk = _corpus(corpus)[0]
     # `working` REACHES THE ANSWER, and this front door dropped it. `Answer`
     # carries the field and `unsupported.from_refusal` persists it, so every
     # entry filed through here arrived with BLANK reasoning -- while the skill
@@ -230,12 +1155,57 @@ def answer(question: str, desk_name: str, *, position: str = "",
         proposed = engine.Answer(position=position, citation=citation,
                                  working=working)
 
+    # WHAT THE PUBLISHER ACTUALLY SERVED, held for the judge and for nothing
+    # else. It is captured through a WRAPPER rather than added to `Proof`,
+    # deliberately: `Proof` is evidence a reader re-checks by hand, every field
+    # of it is short, and the log takes the repr -- a whole fetched document on
+    # that object would end up in a log line the first time anything printed
+    # one. This lives for the duration of the call and is written nowhere.
+    fetched = {}
+
+    def _watching(source, citation):
+        raw = prove(source, citation)
+        # BY CITATION: a proof now fetches the paragraphs served WITH the
+        # answer too, and the judge must read the cited one's page, not
+        # whichever came back last.
+        fetched[citation] = raw.text if hasattr(raw, "text") else str(raw)
+        return raw
+
+    transport = _watching if prove is not None else None
+    proved = {}
+
     out = engine.serve(proposed, desk, question=question, context=context)
-    if prove is not None and isinstance(out, engine.Served):
+    # THE CANDIDATE PATH, and it sits exactly here for a reason: AFTER the gate
+    # has run and refused. It can therefore add a refusal and can never remove
+    # one, which is the property every stage in this function has.
+    #
+    # `authority_absent` ONLY. It is the one refusal that says "the record does
+    # not hold this", and the record not holding something is the whole of what
+    # a live proof answers. Every other refusal is a finding about the question,
+    # the client or the authority, and a fetch says nothing about any of them.
+    if (isinstance(out, engine.Refusal) and out.reason == "authority_absent"
+            and prove is not None and found_at and found_text):
+        import attempts
+        import candidates
+        out = candidates.consider(
+            question=question, position=position, citation=citation,
+            url=found_at, text=found_text, desk=desk,
+            transport=transport)
+        if keep and getattr(out, "proof", None) is not None:
+            attempts.record(corpus, out.proof)
+    # `out.proof is None` MEANS NOT YET PROVED, and it is what keeps the two
+    # paths from proving the same answer twice. A candidate arrives here already
+    # carrying its proof; running the stored path over it would resolve its
+    # citation in a record that does not hold it, get COULD NOT, and OVERWRITE
+    # a TIED proof with a failure — the served answer looked right and its
+    # evidence was replaced by the evidence of a lookup that could not have
+    # worked. `engine.serve` never sets this field, so the condition is exact.
+    if prove is not None and isinstance(out, engine.Served) and out.proof is None:
         import dataclasses
 
+        import attempts
         import proving
-        p = proving.prove(out, desk, prove)
+        p = proving.prove(out, desk, transport, each=proved)
         if p.verdict == proving.DIFFERS:
             out = engine.Refusal(
                 proving.MOVED,
@@ -244,16 +1214,180 @@ def answer(question: str, desk_name: str, *, position: str = "",
                 f"only witness to that text, which is not enough to serve it on",
                 ask=f"Re-read {p.url or out.citation} and bring the stored "
                     f"passage back into line with it, or retire the citation. "
-                    f"Until then this desk has no authority for the answer.")
+                    f"Until then this desk has no authority for the answer.",
+                # THE WITHDRAWAL CARRIES ITS OWN EVIDENCE. This refusal exists
+                # BECAUSE something was fetched, and before the field existed it
+                # was the one refusal in the engine nobody could re-run by hand:
+                # the note survived inside a sentence and the host, the moment
+                # and the digest did not.
+                proof=p, desk=desk.name)
         else:
             out = dataclasses.replace(out, proof=p)
-    if isinstance(out, engine.Refusal) and keep:
-        path = desks / desk_name / "unsupported" / "asked.md"
+        # RECORDED WHATEVER IT DID, and gated by `keep` for the same reason
+        # refusals are: `keep=False` means measuring. The firm asked for this in
+        # as many words -- *"It should state what happened when trying to tie it
+        # out. I need info to make decisions down the line."* -- and a decision
+        # about a PUBLISHER cannot be made from the one attempt in front of you.
+        # A TIED is kept too: a source that ties out for months and then stops is
+        # only visible if the months were written down.
+        if keep:
+            attempts.record(corpus, p)
+    if judged is not None and isinstance(out, engine.Served):
+        import dataclasses
+
+        import judging
+
+        # THE FETCHED DOCUMENT WHERE THERE IS ONE, our stored copy otherwise --
+        # the firm, 8 September 2026: *"it is handed in with the suggestion so
+        # the judge can actually assess it."* A judgment checked against our own
+        # copy establishes that the judge read what WE hold, which is a weaker
+        # claim than that they read what the PUBLISHER holds, and `Read.against`
+        # is what lets a reader tell the two apart afterwards.
+        # EVERY DOCUMENT THE ANSWER WAS PROVED AGAINST, the cited one first:
+        # the served passage carries paragraphs of other sources too, and a
+        # judge quoting one of those is quoting what they were handed (Codex
+        # on #403). One fetch per source, so no document appears twice.
+        # WHERE THE CITED FETCH FAILED, THE STORED PASSAGE STANDS IN FOR IT:
+        # that is what was served, and a judge quoting it must not be refused
+        # because only another source's page came back (Codex on #403).
+        # AND ONLY A PAGE THE PROOF FOUND ITS OWN PARAGRAPH ON. A 200 that is
+        # a bot interstitial, or a redirect to another host, proves COULD NOT
+        # and is not the publisher's document; the stored text stands (Codex
+        # on #403).
+        import proving
+        # A candidate was proved on its own path, and its proof is on `out`.
+        if getattr(out, "proof", None) is not None:
+            proved.setdefault(out.citation, out.proof)
+        fetched = {c: t for c, t in fetched.items()
+                   if getattr(proved.get(c), "verdict", None) == proving.TIED}
+        others = [t for c, t in fetched.items() if c != out.citation]
+        cited_live = out.citation in fetched
+        # AND THE STORED TEXT OF ANYTHING SERVED THAT DID NOT TIE: the cited
+        # page tying says nothing about a Read-with paragraph of another source
+        # whose fetch came back a bot page, and that paragraph WAS served
+        # (Codex on #403).
+        whole = getattr(desk, "corpus", desk)
+        unproved = any(
+            getattr(proved.get(c), "verdict", None) != proving.TIED
+            for c in whole.served_with(out.citation)
+            if c not in fetched)
+        live = "\n\n".join(
+            [fetched[out.citation] if cited_live else out.passage] + others
+            + ([out.passage] if cited_live and unproved else [])
+        ) if (cited_live or others) else ""
+        seen = judging.read(
+            judged, live or out.passage, answered_by=model,
+            against=("the document fetched from the publisher" if cited_live
+                     else "this desk's stored passage, and what else was "
+                          "fetched" if others
+                     else "this desk's stored passage"))
+        if seen.verdict == judging.SAYS_NO:
+            out = engine.Refusal(
+                "citation_does_not_support",
+                f"{out.citation!r} resolves and this desk does hold it, and a "
+                f"second reader ({seen.by}) says the paragraph does not carry "
+                f"{out.position!r}: {seen.because}. Real authority in front of "
+                f"the wrong question is the one error every exact check in this "
+                f"engine passes",
+                ask=f"Cite the paragraph that answers what was asked, or "
+                    f"escalate that no authority here reaches it. Do not re-run "
+                    f"this with a softer conclusion until it serves.",
+                desk=desk.name)
+        elif seen.verdict == judging.NOT_IN_THE_PASSAGE:
+            out = engine.Refusal(
+                "judgment_not_in_the_passage",
+                f"{seen.by} judged {out.citation!r} to support {out.position!r} "
+                f"and quoted {seen.missing!r}, which is not in the passage. The "
+                f"answer is not refused on its merits — nobody has read it. A "
+                f"judgment that quotes what is not there is not a second reading",
+                ask=f"Judge it again against the passage as stored, quoting "
+                    f"what it says. `[...]` marks a gap you are skipping.",
+                desk=desk.name)
+        else:
+            out = dataclasses.replace(out, judged=seen)
+    # THE DESK'S OWN DECLARATION, and the firm's answer on the docket: *"The
+    # judge can look at it all I guess?"* -- all seven. It runs LAST, after the
+    # proof and after a supplied judgment has been checked, because every stage
+    # here may add a refusal and none may remove one.
+    #
+    # `out.judged is None` MEANS NOBODY READ IT, and it is the exact condition
+    # for the same reason `out.proof is None` is: the engine never sets the
+    # field, so it is set if and only if a judgment came in and passed the
+    # check above. Written as `judged is None` -- the argument rather than the
+    # result -- this fired on answers a second reader HAD read, because a
+    # judgment that says SAYS_NO or NOT_IN_THE_PASSAGE has already refused by
+    # then and one that HOLDS is on the object, not in the argument.
+    # AND AN OFF-SOURCE ANSWER NEEDS ONE WHATEVER THE DESK DECLARED.
+    #
+    # The firm, 8 September 2026, choosing "leave it demoted, add the judgment
+    # requirement" after Forge-Desk measured that the judge does NOT by itself
+    # catch what the source map used to block. `Served.off_source` marks an
+    # answer whose citation came from a source this desk does not declare for
+    # this subject -- exactly the class that used to be refused outright. It is
+    # served now, so the one thing that must not also be optional is that
+    # somebody read the paragraph.
+    #
+    # THIS DOES NOT CLOSE MISJUDGMENT and nothing here pretends it does: a
+    # careless yes still serves. It closes OMISSION on the class where omission
+    # is least affordable, on every desk rather than only the ones that opted in.
+    needs = desk.needs_a_judge or bool(getattr(out, "off_source", ""))
+    if needs and isinstance(out, engine.Served) and out.judged is None:
+        out = engine.Refusal(
+            "not_judged",
+            (f"this answer cites a source {desk.name} does not declare for "
+             f"this subject, so it is not served until a second reader has "
+             f"looked at the paragraph, and none was supplied. "
+             if getattr(out, "off_source", "") and not desk.needs_a_judge else
+             f"{desk.name} does not serve an answer no second reader has "
+             f"looked at, and none was supplied. ")
+            + f"Nothing is wrong with the answer or with the record — the "
+              f"engine checked what it can check and the one thing it cannot "
+              f"is whether {out.citation!r} carries {out.position!r}",
+            ask=f"Have a party OTHER than the one that answered read the "
+                f"passage and say whether it carries the conclusion, quoting "
+                f"the words they rest that on. Pass it as "
+                f"`judged=judging.Judgment(by=..., supports=..., because=...)`. "
+                f"One model wearing both hats raises rather than serves.",
+            desk=desk.name)
+    # AND THIS ONE IS NOT FILED. `unsupported/` is what says the RECORD is
+    # missing something; a missing judgment is a caller contract and the record
+    # is complete. Filing it would put a work item in a queue nobody can act on
+    # and would inflate the one count that is supposed to mean something.
+    if isinstance(out, engine.Refusal) and keep and out.reason != "not_judged":
+        # NOT `corpus / "unsupported"`. That is inside the package, and
+        # installed the package is inside a VERSIONED plugin cache -- so every
+        # refusal the desk filed died at the next upgrade. Measured: 22 of them
+        # are stranded in `0.27.0` on this machine while `0.34.0` runs. The
+        # parked-question queue was moved out for this exact reason on
+        # 8 September and the refusal store was not; `unsupported.default_store`
+        # carries the whole account.
+        #
+        # `queue` is how a test (or a one-off run against a copied record) says
+        # where it wants them instead. It is a real argument rather than an
+        # environment variable at the call site because the destination of a
+        # finding should be readable where the finding is made.
+        path = Path(queue) if queue else unsupported.default_store()
         existing = (unsupported.parse(path.read_text(encoding="utf-8"))
                     if path.exists() else [])
+        # THE REFUSAL ITSELF, NOT A `Result` BUILT FROM THREE OF ITS FIELDS.
+        #
+        # `dec-fields`, 10 September 2026. `Unsupported` carries `needs_field`
+        # and `asked_by` — the fact that has nowhere to live and the position
+        # that asked for it — and `from_refusal` reads them off `result.fact`
+        # and `result.by_position`. `engine.Result` HAS NEITHER FIELD. So every
+        # `no_field_for_this_fact` ever filed on the live path landed with both
+        # empty: a field request with no field named and no chain back to the
+        # position behind it, which is exactly what the firm made the condition
+        # of approving field requests at all.
+        #
+        # The whole channel existed — the dataclass, the parser, the renderer,
+        # `tools/holes.py` reading it — and nothing had ever put anything in it.
+        # Verified before fixing, by filing one and reading the file back.
+        #
+        # `Refusal` already carries everything `from_refusal` reads: `reason`,
+        # `detail`, `ask`, `fact`, `by_position`. Handing it over directly is
+        # one fewer shape to keep in step, and the shape that was NOT kept in
+        # step is what this bug was.
         unsupported.append(path, unsupported.from_refusal(
-            question, proposed, engine.Result(
-                "asked", engine.Outcome.WRONG_CAUGHT, reason=out.reason,
-                detail=out.detail, ask=out.ask),
-            model=model, existing=existing, desk=desk))
+            question, proposed, out, model=model, existing=existing, desk=desk))
     return out

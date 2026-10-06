@@ -1,0 +1,1 @@
+18 pockets; statsmodels Cochran-Mantel-Haenszel chi2 46.137288, p 1.103e-11

@@ -21,6 +21,8 @@ difference between a field that was empty and a field that was never read.
 """
 from __future__ import annotations
 
+import decimal
+import functools
 import re
 from datetime import date as _date_cls
 from dataclasses import dataclass, field
@@ -76,6 +78,11 @@ ACCESS = ("public_fetch", "headless_browser", "signed_in_browser", "human_only")
 #: What may be copied into this repository from a source. `license_check` is the
 #: default and it stores nothing -- a licence the firm holds may permit an
 #: internal copy, which is why this is a fact about each source rather than one
+#: What a `Judged:` line may say. CLOSED, and unknown REFUSES rather than
+#: defaulting -- a desk whose declaration was misspelt would otherwise serve
+#: unjudged while its own file says it does not.
+OPTIONAL, REQUIRED = "optional", "required"
+JUDGED = (OPTIONAL, REQUIRED)
 #: policy over all of them.
 MAY_STORE = ("full_text", "citation_only", "license_check")
 
@@ -94,6 +101,45 @@ class Source:
     citation_prefix: str
     url: str = ""
     note: str = ""
+    #: `dec-reach`, 25 September 2026 -- the firm: **"Add plain words."**
+    #:
+    #: THE WORDS A PREPARER WOULD ASK THIS SOURCE IN, semicolon-separated, in
+    #: the firm's own phrasing. They WIDEN what the pool returns and can never
+    #: narrow it: `pool.look` adds a bonus and admits a passage the question's
+    #: own words missed, and it subtracts nothing from anything.
+    #:
+    #: WHY THIS IS NOT `fires_on` WEARING A HAT, and the difference is the whole
+    #: reason the firm said yes. `fires_on` decided WHICH DESK a question
+    #: reached, exclusively -- a wrong word sent the question elsewhere and the
+    #: right authority became unreachable, which is the measurement `dec-kill`
+    #: was decided on. This cannot exclude anything, by construction, and
+    #: `test_a_question_reaches_authority_that_does_not_use_its_words.py`
+    #: proves it over every one of the firm's 43 close questions rather than
+    #: asserting it here.
+    #:
+    #: NOR IS IT A SYNONYM TABLE. `pool.unseen` warns against one in as many
+    #: words -- "a hand-written list of what a word means would be the same
+    #: mechanism under a kinder name" -- and it is right. This maps no word to
+    #: any other word and rewrites no question. A SOURCE says what it answers;
+    #: nothing says what a word means.
+    asked_as: tuple[str, ...] = ()
+    #: WHY THIS SOURCE IS ON FILE, as `((citation, question), ...)`: the
+    #: paragraph that answers it and the question that asked for it, verbatim.
+    #:
+    #: Sarcia pilot 4, 26 September 2026: five sections were admitted because
+    #: pilot 3's refusals named them, and asked again, the paragraph carrying
+    #: the rule reached the brief for ONE. Nothing recorded which question each
+    #: was admitted to answer, so nothing could notice it still did not. With
+    #: this, `rulings.findings` can -- and asks the firm what should reach it.
+    admitted_for: tuple = ()
+    #: PARAGRAPHS THAT MUST BE READ TOGETHER, as `((citation, (other, ...)),
+    #: ...)`: whenever `citation` is printed, so are the others, because they
+    #: change what it says. Codex on #403: § 274(e)(1) excepts meals for
+    #: employees, § 274(o) takes that away from 2026, and (o) is not (e)(1)'s
+    #: child, so a read of the exception showed it without the limit. Which
+    #: paragraphs limit which is a fact about the law, recorded where the
+    #: source is, never inferred from how the citations are numbered.
+    read_with: tuple = ()
 
     @property
     def binding(self) -> bool:
@@ -277,6 +323,29 @@ def shown_by_source(desk) -> dict:
     return out
 
 
+#: An amount as a person writes one: optional `$`, optional thousands
+#: separators, at most two decimal places. Deliberately FORGIVING about how it
+#: is typed and strict about whether it is a number at all — `$2,500` is how the
+#: firm's own POS2 writes the de minimis ceiling, so refusing it would refuse
+#: the record's own spelling, while `one eighty five`, `about 200`, `185 each`
+#: and `100-200` are all values nobody can answer a threshold question from.
+_MONEY = re.compile(r"^\$?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?$")
+
+#: Facts whose VALUE has a shape, checked in `Context.__post_init__`.
+#:
+#: THE RECORD SAYS WHICH FACTS EXIST; THIS SAYS WHAT ONE OF THEM MAY LOOK LIKE.
+#: Same split as `_FACT_NAME`, which is here rather than in `SUBJECTS.md` for
+#: the same reason: a desk declares the facts it holds, and what counts as a
+#: well-formed name — or a well-formed amount — is not a per-desk choice.
+#:
+#: A fact absent from this table is free text and is not checked, which is every
+#: other fact: `trade` is "general contractor", `capitalization_rule` is a
+#: sentence. Adding a name here is a deliberate act with a test behind it.
+#: (A corpus may also declare facts that are LABELS -- `Labels:` in SUBJECTS.md
+#: -- which the relay checks; the names are the corpus's, not this layer's.)
+SHAPES = {"unit_cost": _MONEY}
+
+
 @dataclass(frozen=True)
 class Context:
     """What the CALLER already recorded about the matter. Never inferred here.
@@ -312,6 +381,66 @@ class Context:
     #: supplies. A name the desk does not declare is refused at load, not here,
     #: so a typo cannot become a fact nothing ever meets.
     facts: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Every fact with a declared SHAPE is checked here, at the point of
+        RECORDING, and this is the only place it can be.
+
+        `dec-unitcost`, 14 September 2026 — the firm: **"Add it, with a format
+        check."** The field itself was one word in `SUBJECTS.md`. The check is
+        the content of the answer, and the reason is in the card they answered:
+        fact values are free text, so `unit_cost` would otherwise accept `$185`,
+        `185.00` and *one eighty five* alike, and a threshold question answered
+        off a mistyped value is **a wrong answer with a real number under it** —
+        which is worse than a refusal, because it looks arithmetic.
+
+        WHY HERE AND NOT AT THE ANSWERING SIDE. Checking when a position needs
+        the fact would refuse at the moment somebody is waiting for an answer,
+        about a value typed hours earlier by somebody else, and would let a bad
+        value sit on file in the meantime looking recorded. `Context` is frozen,
+        so every path that builds one — the engagement file, a problem's `On
+        file` line, a caller in `ask` — goes through this constructor and cannot
+        route around it.
+
+        WHAT IT DOES NOT DO IS NORMALISE. It accepts what an accountant types
+        (`$2,500`, which is how the firm's own POS2 writes it) and stores the
+        string exactly as given, because *facts are recorded, not inferred* and
+        a value silently rewritten is a value nobody can check against the file
+        it came from. `money()` is how a caller gets the number.
+        """
+        for name, value in (self.facts or {}).items():
+            shape = SHAPES.get(str(name).strip().lower())
+            if shape is None:
+                continue
+            raw = str(value).strip()
+            # A FACT WITH NO VALUE IS NOT A BADLY SHAPED ONE. `missing()` and
+            # `standing_rule()` both read blank as "nobody said", and turning
+            # that into an exception here would refuse the ordinary case of a
+            # file that simply does not carry this fact yet.
+            if not raw:
+                continue
+            if not shape.match(raw):
+                raise RecordError(
+                    f"{name} is {value!r}, which is not an amount. Write it as "
+                    f"digits — 185, 185.00, 2500 or $2,500 — with no words, no "
+                    f"range and no 'each'. This is refused where the fact is "
+                    f"RECORDED rather than where it is answered, because a "
+                    f"threshold answered off a value nobody could read is a "
+                    f"wrong answer with a real number under it."
+                )
+
+    def money(self, fact: str) -> "decimal.Decimal | None":
+        """A shaped amount as a number, or `None` where the file does not carry
+        it. The stored string stays exactly as the caller wrote it.
+
+        Anything that COMPARES a fact to a threshold reads it through here.
+        Comparing the strings would make `$2,500` and `2500` two different
+        facts, which is the defect the shape check exists to keep out.
+        """
+        raw = str(self.facts.get(fact, "")).strip()
+        if not raw or SHAPES.get(fact) is None or not SHAPES[fact].match(raw):
+            return None
+        return decimal.Decimal(raw.lstrip("$").replace(",", ""))
 
     def known(self) -> tuple[str, ...]:
         return tuple(sorted(k for k, v in self.facts.items() if str(v).strip()))
@@ -398,6 +527,25 @@ ABSENT, NONE, RECORDED = "absent", "none_recorded", "recorded"
 #: and "somebody asked and the answer was no" is the whole point of the field.
 NO_STANDING_RULE = "none"
 
+#: WHAT A FIRM-POLICY POSITION'S REFERENCE BEGINS WITH.
+#:
+#: `dec-pos2`, 10 September 2026. A position may rest on the firm rather than on
+#: a paragraph, and the danger in that is not the missing citation — it is a
+#: reference a reader takes for one. Every lookup in this file is keyed on
+#: citation and none of them may be given an empty string, so a policy still
+#: carries a reference; it just has to be visibly the firm's.
+#:
+#: A LITERAL PREFIX RATHER THAN A FLAG, because the flag is on the position and
+#: the reference travels without it — into a refusal's sentence, into a brief,
+#: into a notification, into whatever a model quotes back. The words have to
+#: carry it.
+_POLICY_PREFIX = "SATC policy —"
+#: AN EM-DASH AND NOT A MIDDOT, and the reason is the parser. `Citation:` shares
+#: its line with `Recorded:` and `_inline` splits that line on ` · ` — so a
+#: reference containing a middot is read as two fields and the citation silently
+#: becomes `SATC policy`. It loaded, it matched no source, and `load` refused a
+#: record that was correct. Found on the first policy written.
+
 
 @dataclass(frozen=True)
 class Registration:
@@ -429,6 +577,22 @@ class Registration:
     #: it are the desk's own, so a second desk in another trade brings its own
     #: without touching any shared file.
     records: tuple = ()
+    #: The recorded facts that are LABELS -- a few words, never a sentence --
+    #: from a `Labels:` line. Each must be one of `records`. Checked where a
+    #: fact crosses a session boundary (`relay`), because that is where a value
+    #: arrives under "recorded by the firm" without the firm in the room.
+    labels: tuple = ()
+    #: `optional` or `required`, from a `Judged:` line. Whether this desk may
+    #: serve an answer NO SECOND READER HAS LOOKED AT.
+    #:
+    #: IT IS DECLARED PER DESK RATHER THAN WIRED INTO THE CODE, and that is the
+    #: whole point of putting it here. The firm answered *"The judge can look at
+    #: it all I guess?"* on 8 September 2026 -- all seven desks, and a hedge in
+    #: it. A requirement in the record is one they can lift from any desk by
+    #: editing that desk's own file; a requirement in `ask.py` is one that needs
+    #: a session. An answer with a question mark in it deserves the reversible
+    #: shape.
+    judged: str = OPTIONAL
 
 
 def parse_subjects(text: str, desk_name: str) -> Registration:
@@ -505,6 +669,27 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
             )
     if len(set(records)) != len(records):
         raise RecordError(f"{desk_name}: Records names the same fact twice")
+    _lab = re.search(r"^\*\*Labels:\*\*[ ]?(.*?)(?=\n\n|\n\*\*|\Z)",
+                     block, re.M | re.S)
+    labels = tuple(
+        t.strip().lower()
+        for t in " ".join((_lab.group(1) if _lab else "").split()).split(",")
+        if t.strip())
+    if stray := [n for n in labels if n not in records]:
+        raise RecordError(
+            f"{desk_name}: Labels names {', '.join(stray)}, which Records does "
+            f"not declare. A label is a recorded fact with a shape; a name "
+            f"nothing records has no value to shape.")
+
+    _jud = re.search(r"^\*\*Judged:\*\*[ ]?(.*?)$", block, re.M)
+    judged = (_jud.group(1).strip().lower() if _jud else OPTIONAL) or OPTIONAL
+    if judged not in JUDGED:
+        raise RecordError(
+            f"{desk_name}: Judged says {judged!r}; it may say {' or '.join(JUDGED)}. "
+            f"A misspelt requirement would leave this desk serving answers "
+            f"nobody read while its own file says it does not, which is the one "
+            f"way this declaration can do harm."
+        )
 
     answered_from, order = {}, []
     for source_id, listed in declared:
@@ -586,6 +771,8 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
         answered_from=answered_from,
         answered_by=answered_by,
         records=records,
+        labels=labels,
+        judged=judged,
     )
 
 
@@ -596,8 +783,25 @@ def parse_subjects(text: str, desk_name: str) -> Registration:
 _QUALIFIER = " \u2014 "
 
 
+#: `Desk._index`, by desk. Kept with the passages it was built from and checked
+#: by identity, so a reused id can never serve another record's index.
+_INDEXES: dict = {}
+
+
+@functools.lru_cache(maxsize=None)
 def _stem(citation: str) -> str:
-    """A citation with the firm's hand-written ` \u2014 which rule` note removed."""
+    """A citation with the firm's hand-written ` \u2014 which rule` note removed.
+
+    A FIRM POLICY IS ITS OWN STEM. `SATC policy — <which policy>` uses the same
+    dash, and with one policy in the record nothing noticed. With four (26
+    September 2026, three unpinned after Sarcia pilot 3) every policy became the
+    sibling of every other: `alongside` would have served all four as the
+    firm's opposite answers on one passage, and `narrowed_to` would have
+    carried all four into a brief that asked about one. A policy is not a
+    paragraph and has no neighbours.
+    """
+    if citation.startswith(_POLICY_PREFIX):
+        return citation.strip()
     return citation.split(_QUALIFIER, 1)[0].strip()
 
 
@@ -626,10 +830,28 @@ class Desk:
     answered_from: dict = field(default_factory=dict)
     #: The facts this desk expects on file — see `Registration.records`.
     records: tuple = field(default_factory=tuple)
+    #: Which of them are labels — see `Registration.labels`.
+    labels: tuple = field(default_factory=tuple)
     sources: tuple[Source, ...] = field(default_factory=tuple)
     passages: tuple[Passage, ...] = field(default_factory=tuple)
     problems: tuple[Problem, ...] = field(default_factory=tuple)
     positions: tuple = field(default_factory=tuple)
+    #: `optional` or `required` — see `Registration.judged`. Whether this desk
+    #: may serve an answer no second reader has looked at.
+    judged: str = OPTIONAL
+    #: The corpus a narrowed desk was cut from, or None for the whole one.
+    #: Structure and "is it on file" are questions about the whole record: a
+    #: brief from a narrowed desk called a held § 274(e)(2)(A) not on file.
+    whole: object = field(default=None, repr=False, compare=False)
+
+    @property
+    def corpus(self) -> "Desk":
+        """The whole record this desk is, or was cut from."""
+        return self.whole or self
+
+    @property
+    def needs_a_judge(self) -> bool:
+        return self.judged == REQUIRED
 
     def source(self, source_id: str) -> Source | None:
         return next((s for s in self.sources if s.id == source_id), None)
@@ -642,6 +864,169 @@ class Desk:
         citation check exists to catch.
         """
         return next((p for p in self.passages if p.citation == citation), None)
+
+    def limits_on(self, citation: str) -> list:
+        """What the record says to read with `citation`: its own `Read with`
+        line and every ancestor's, so a clause or a worked example carries its
+        parent's limit. Codex on #403: a limit keyed on § 274(o) did not reach
+        (o)(1) when the clause was printed alone. Never the paragraph itself --
+        § 1.162-21 is read with its own (g)."""
+        # AND WHAT THOSE ARE READ WITH, in turn: (e)(1) is read with (o), and
+        # (o) with (n)(2)(C), the exception it names. Stopping after one step
+        # served a denial without the exception to it (Codex, #403).
+        out, todo = [], [citation]
+        while todo:
+            at = todo.pop(0)
+            for s_ in self.sources:
+                for key, others in s_.read_with:
+                    if is_under(at, key):
+                        for o in others:
+                            if o != citation and o not in out:
+                                out.append(o)
+                                todo.append(o)
+        return out
+
+    def unheld(self, text: str, within: str = "") -> list:
+        """The Code sections `text` cites that the record holds nothing at, under
+        or above. Codex on #403: § 274(o) denies only what § 132(e)(2) and
+        § 119(a) describe, neither is on file, and nothing said so. Chasing
+        every cross-reference is endless -- 274 of 1,257 paragraphs cite one --
+        so the rule is to SAY it, and let the answerer escalate. Asked of the
+        WHOLE corpus whoever calls it: a narrowed desk no longer holds what it
+        was cut from (re-review of 3e7a1e98). `within` is the paragraph the
+        text opens with, for "subsection (d)" (`code_references`)."""
+        held = [p.citation for p in self.corpus.passages]
+        labels = _held_labels(tuple(held))
+        return [c for c in code_references(text, within=within, labels=labels)
+                if not any(h == c or is_under(h, c) or is_under(c, h)
+                           for h in held)]
+
+    def _index(self) -> tuple:
+        """(children, by_stem), built once per record: every direct clause of
+        each stem, and every passage by its stem. `frame` scanned all 1,257
+        passages per call and the brief calls it per paragraph for everything
+        an answer carries -- four seconds a brief (second adversarial pass)."""
+        kept = _INDEXES.get(id(self))
+        if kept is not None and kept[0] is self.passages:
+            return kept[1]
+        children, by_stem = {}, {}
+        for p in self.passages:
+            base = _stem(p.citation)
+            by_stem.setdefault(base, []).append(p)
+            m = re.fullmatch(r"(.+?)(\([^()]+\))", base)
+            if m:
+                children.setdefault(m.group(1), []).append(p)
+        if len(_INDEXES) > 64:              # narrowed desks come and go
+            _INDEXES.clear()
+        _INDEXES[id(self)] = (self.passages, (children, by_stem))
+        return children, by_stem
+
+    def _children(self, of: str) -> list:
+        return self._index()[0].get(_stem(of), [])
+
+    def _opens(self, p) -> bool:
+        """Does `p` state nothing without its clauses? A lead-in, a heading, or
+        a short full-stopped caption with clauses under it -- § 1.162-21(b)(2)
+        (iii), "Payment amount not identified." (Codex on #403)."""
+        if is_lead_in(p.text) or is_heading(p.text):
+            return True
+        return _short_phrase(p.text) and bool(self._children(p.citation))
+
+    def _clauses(self, of: str) -> list:
+        """`of`'s direct clauses, and a clause's own when it is a lead-in too."""
+        out = []
+        for p in self._children(of):
+            out.append(p.citation)
+            # DOWN THROUGH LEAD-INS AND HEADINGS ALIKE: a child heading alone
+            # is a caption, and the tests are beneath it (Codex on #403,
+            # § 1.162-21(b)(2) and (b)(3)).
+            if self._opens(p):
+                out += self._clauses(p.citation)
+        return out
+
+    def _joined(self, of: str) -> bool:
+        """Are `of`'s clauses one rule -- a list joined by "and"? Read off the
+        words: one of them ends ", and" or "; and"."""
+        return any(re.search(r"[;,]\s*and$", p.text.rstrip())
+                   for p in self._children(of))
+
+    def frame(self, citation: str, own: bool = True) -> list:
+        """What completes `citation` by its structure, read off the words: every
+        stored ancestor that is a lead-in, with that lead-in's clauses -- (a)(3)(i)
+        of § 1.162-21 means nothing without (a)'s "no deduction is allowed ... for
+        any amount" and the (a)(1)-(3) it joins -- and, when `citation` is itself
+        a lead-in, its own clauses: § 274(o) ends "for-". Codex on #403, twice."""
+        out = []
+        # ITS ANCESTORS' STEMS, read off the citation: drop a worked example's
+        # number, then one label at a time -- then look only those up.
+        by_stem, stems = self._index()[1], []
+        at = re.sub(r" Example \d+$", "", _stem(citation))
+        stems.append(_stem(citation))
+        while True:
+            stems.append(at)
+            m = re.fullmatch(r"(.+?)\([^()]+\)", at)
+            if not m:
+                break
+            at = m.group(1)
+        ancestors = sorted(
+            {id(p): p for st in stems for p in by_stem.get(st, [])
+             if p.citation != citation and is_under(citation, p.citation)
+             and is_lead_in(p.text)}.values(),
+            key=lambda p: len(p.citation))
+        for a in ancestors:
+            # ITS OTHER CLAUSES ONLY WHEN THEY ARE ONE RULE: § 1.162-21(a)'s end
+            # "; and", and all three must hold. § 274(e)'s are nine separate
+            # exceptions, and citing (e)(8) was served (e)(1)'s § 274(o) chain
+            # and eleven sections "not on file" it never turned on (Codex on
+            # #403).
+            joined = self._joined(a.citation)
+            for c in [a.citation, *(self._clauses(a.citation) if joined else ())]:
+                if c != citation and c not in out:
+                    out.append(c)
+        # AND A CITED HEADING, whose clauses are the whole of what it says.
+        # Headings ABOVE a clause are not added: the clause states its rule.
+        cited = self.passage(citation) if own else None
+        if cited and self._opens(cited):
+            out += [c for c in self._clauses(citation) if c not in out]
+        return out
+
+    def served_with(self, citation: str) -> list:
+        """EVERYTHING AN ANSWER CITING `citation` CARRIES, in order: its frame,
+        then what the record reads it -- and every framed paragraph -- with,
+        each with its clauses. One definition, because the served passage, the
+        second reader and the live proof must all check the same set (Codex
+        on #403: § 274(e) carried (e)(1) but not the § 274(o) it is read with)."""
+        order = list(self.frame(citation))
+        for c in [citation, *order]:
+            limits = self.limits_on(c)
+            for o in limits:
+                # A limit ABOVE what it is carried for is a frame by another
+                # route -- § 274(e) is read with (e) -- and brings its other
+                # clauses on the frame's terms: only when they are one rule.
+                # Checked against the whole chain, which `limits_on` walks
+                # transitively: (o)(1) reaches (e) through (e)(8).
+                above = any(x != o and is_under(x, o)
+                            for x in [c, citation, *limits])
+                clauses = (self._clauses(o) if not above or self._joined(o)
+                           else ())
+                # AND THE LEAD-IN IT COMPLETES: a limit that is a bare clause,
+                # "(2) any expense for a club.", states nothing without the
+                # "shall not apply to-" above it (adversarial pass on #403).
+                # Its ancestors only: its own clauses come on the terms above.
+                for x in [o, *self.frame(o, own=False), *clauses]:
+                    if x != citation and x not in order:
+                        order.append(x)
+        return order
+
+    def limits_text(self, citation: str) -> str:
+        """What the served answer carries after its own paragraph, and the second
+        reader is handed: its FRAME -- the lead-in it completes, or the clauses
+        that complete it -- then whatever the record reads it with, each with its
+        own clauses; § 274(o) alone ends "no deduction shall be allowed under
+        this chapter for-", which states nothing. Labelled, `""` when neither."""
+        order = self.served_with(citation)
+        return "\n\n".join(f"{c}: {self.passage(c).text}" for c in order
+                            if self.passage(c))
 
     def position(self, citation: str):
         """A ratified position resting on this citation, if the firm took one.
@@ -694,6 +1079,61 @@ class Desk:
         return tuple(p for p in self.positions
                      if not p.proposed and p.citation != citation
                      and _stem(p.citation) == stem)
+
+    def narrowed_to(self, citations) -> "Desk":
+        """This record holding only the citations named, and what they rest on.
+
+        WHY IT EXISTS. `ask.brief` prints EVERY passage the record holds, which
+        was reasonable when a question reached one desk of forty passages and is
+        useless over one corpus of 785: an answerer handed the whole corpus is
+        an answerer handed nothing, and a model with an 8,192-token window
+        (LOCAL-LLM-PATTERN rule 1) is handed less than nothing.
+
+        So the pool narrows and this applies the narrowing. `pool.look` says
+        which citations speak to the question; this returns the record as if it
+        held only those, and every existing reader -- the brief, the positions
+        block, `alongside`, the sources list -- goes on working unchanged. That
+        is the point: NOTHING about how a brief is rendered changes, only how
+        much of the record reaches it.
+
+        SOURCES AND POSITIONS FOLLOW THE PASSAGES, and both directions matter.
+        A source nothing cites is noise in the brief. A POSITION whose citation
+        was not selected is worse than noise -- it is the firm's answer to a
+        different question, printed as though it bore on this one.
+
+        `alongside` IS DELIBERATELY NOT NARROWED. Where the firm holds two
+        positions on one passage with opposite answers -- `cash-and-bank` did,
+        and serving one without the other is the 7 September incident -- both
+        must travel with the answer even though only one citation was retrieved.
+        `Desk.alongside` matches on the citation STEM, so keeping every position
+        whose stem is selected is what preserves it.
+        """
+        import dataclasses
+        wanted = {c for c in citations}
+        stems = {_stem(c) for c in wanted}
+        positions = tuple(q for q in self.positions
+                          if q.citation in wanted or _stem(q.citation) in stems
+                          or wanted & set(getattr(q, "applies_at", ())))
+        # A KEPT POSITION KEEPS WHAT IT NEEDS TO BE SERVED. Codex on #398, both
+        # found the day `Rests on:` and `Applies at:` landed: narrowed to POS7's
+        # own citation, the paragraph it rests on was dropped and the second
+        # reader was handed (b)(1)(i) again; narrowed to where POS15 applies,
+        # the firm's policy row was dropped and serving it raised. So the
+        # paragraphs a kept position rests on come with it, and so does every
+        # source a kept passage OR position resolves to.
+        resting = {c for q in positions for c in getattr(q, "rests_at", ())}
+        passages = tuple(p for p in self.passages
+                         if p.citation in wanted or p.citation in resting)
+        used = {p.source_id for p in passages} | {
+            s.id for q in positions for s in self.sources
+            if from_source(q.citation, s.citation_prefix)}
+        return dataclasses.replace(
+            self,
+            passages=passages,
+            positions=positions,
+            sources=tuple(s for s in self.sources if s.id in used),
+            whole=self.corpus,
+        )
 
     def rules_only(self) -> "Desk":
         """This desk with its worked examples withheld. FOR GRADING ONLY.
@@ -784,12 +1224,99 @@ def _field(block: str, label: str, where: str, *, required: bool = True) -> str:
     return ""
 
 
-def _inline(block: str, label: str, where: str) -> str:
-    """A field sharing a line with others, separated by ' · '."""
-    m = re.search(rf"\*\*{re.escape(label)}:\*\*[ ]?([^·\n]+)", block)
-    if not m or not m.group(1).strip():
+def _prose(block: str, label: str, where: str, *, fields: tuple,
+           required: bool = False) -> str:
+    """A field whose value is PROSE, read to the end of its entry.
+
+    `dec-whytrunc`, 18 September 2026 \u2014 the firm: **"Read the whole thing,
+    folded."**
+
+    WHAT `_field` DOES AND WHY IT IS RIGHT EVERYWHERE ELSE. It stops at
+    `_FIELD_END`, which is any line starting `**`. That is correct for a value
+    that happens to wrap. It is wrong for prose, because **a paragraph written
+    to be read starts with its point in bold** \u2014 and the reader stopped
+    there.
+
+    MEASURED BEFORE IT WAS PUT TO THE FIRM, across the twenty ratified
+    positions: **23,044 characters reached nothing.** POS13 lost 6,364 of its
+    6,658; every single position lost something. The field feeds the
+    RATIFICATION CARD, so the card POS2 was ratified from showed 429 characters
+    of about 2,270 \u2014 and the part that did not arrive contains *"$2,500 is
+    a ceiling, not the number"*, which is exactly the caveat that makes the
+    firm's own capitalisation default something to be careful with.
+
+    Sources lose another 1,802 the same way. A source's `Why` reaches only
+    `guards.py`, which checks it is non-empty, so nothing a reader sees moved
+    \u2014 but the defect is the same one in a second place and is fixed here
+    rather than left to be found again.
+
+    THE END IS EXACT AND NOT A HEURISTIC, which is the whole of the design. The
+    parser knows which labels its own entries carry, so prose ends at the next
+    line opening one of THOSE, or at a new entry. Nothing guesses what a field
+    looks like.
+
+    The heuristic considered and rejected was `**Word:**` \u2014 bold text
+    ending in a colon. `POSITIONS.md` contains the paragraph *"**What this
+    position does NOT settle, and why it is a position at all:**"*, which would
+    have been read as a field and truncated the prose at exactly the sentence a
+    reader most needs. One instance in one file, found by looking rather than by
+    reasoning about it.
+    """
+    m = re.search(rf"^\*\*{re.escape(label)}:\*\*[ ]?(.*)$", block, re.M)
+    if not m:
+        if required:
+            raise RecordError(f"{where}: no '{label}' field")
+        return ""
+    rest = block[m.end():]
+    ends = re.compile(
+        r"^(?:%s|## |---\s*$)"
+        % "|".join(r"\*\*%s:\*\*" % re.escape(f) for f in fields if f != label),
+        re.M)
+    stop = ends.search(rest)
+    value = (m.group(1) + (rest[:stop.start()] if stop else rest)).strip()
+    if not value and required:
         raise RecordError(f"{where}: no '{label}' field")
-    return m.group(1).strip()
+    return value
+
+
+#: The labels a SOURCE entry carries, so `_prose` knows where one ends.
+SOURCE_FIELDS = ("Tier", "Access", "May store", "Checked", "Citation prefix",
+                 "Url", "Asked as", "Admitted for", "Read with", "Why")
+
+
+def _inline(block: str, label: str, where: str) -> str:
+    """A field sharing a line with others, separated by ' · '.
+
+    A QUOTED BODY CANNOT SHADOW A FIELD, and until 9 September 2026 it could.
+    This searched the whole block, so the same characters appearing INSIDE a
+    value were indistinguishable from the field itself. A parked question
+    reading *"Should the report say **Answered:** here?"* was read as the
+    `Answered` field, `here?` was handed to the date parser, and the RecordError
+    that raised made EVERY entry in the file unreadable -- not one bad row, the
+    whole store, with nothing saying which sentence did it.
+
+    Every value in these files is arbitrary text from outside: a question is the
+    caller's, an answer is the firm's, a conclusion is a model's. So this is not
+    about one field. `Failed because`, `Recorded` and the rest were shadowable
+    the same way and nobody had tried.
+
+    THE LINE START IS NOT THE TEST, because `render` writes
+    `**Failed because:** x · **Recorded:** y` and the second field is genuinely
+    mid-line. What separates a field from a look-alike is that every free-form
+    value is written by `_quote`, which prefixes `> `. So a candidate on a
+    quoted line is not a field, and that is the whole rule.
+
+    Found by a review of the commit that added `Answered`, on the morning the
+    firm was about to run a live close against it.
+    """
+    pattern = re.compile(rf"\*\*{re.escape(label)}:\*\*[ ]?([^·\n]+)")
+    for line in block.split("\n"):
+        if line.lstrip().startswith(">"):
+            continue
+        m = pattern.search(line)
+        if m and m.group(1).strip():
+            return m.group(1).strip()
+    raise RecordError(f"{where}: no '{label}' field")
 
 
 def _one_of(value: str, allowed: tuple[str, ...], label: str, where: str) -> str:
@@ -820,6 +1347,328 @@ def _date(value: str, label: str, where: str) -> str:
     return value
 
 
+def _asked_as(block: str, where: str) -> tuple[str, ...]:
+    """The firm's own phrasings for this source, or nothing.
+
+    OPTIONAL BY DESIGN. A source that declares none behaves exactly as it did
+    before `dec-reach`, which is what makes the change additive at the level of
+    the record as well as of the score: adding the field to one source cannot
+    affect any other.
+
+    SEMICOLONS, NOT COMMAS. "tool, fixed asset or supply" is one phrasing with a
+    comma in it, and splitting on commas would silently turn it into three.
+    """
+    raw = _field(block, "Asked as", where, required=False)
+    return tuple(p.strip() for p in raw.split(";") if p.strip())
+
+
+def _admitted_for(block: str, where: str) -> tuple:
+    """`Admitted for:` lines -- `citation — "the question"` -- or nothing.
+
+    REFUSES A LINE IT CANNOT READ, like `Rests on:` does: a question silently
+    dropped here is an admission nobody will ever check was answered.
+    """
+    out = []
+    for line in (l.strip() for l in _field(block, "Admitted for", where,
+                                           required=False).splitlines()):
+        if not line:
+            continue
+        at = line.find(' — "')
+        if at <= 0 or not line.endswith('"'):
+            raise RecordError(
+                f'{where}: an Admitted for line reads {line!r}. Each line is a '
+                f'citation, " — ", then the question in double quotes.')
+        out.append((line[:at].strip(), line[at + 4:-1].strip()))
+    return tuple(out)
+
+
+#: A subsection label -- "(d)", "(aa)", "(2)", "(B)", "(iii)", "(IV)" -- and
+#: never a word: § 1.262-1(c) writes "Section 163 (interest)", which was read
+#: as a citation to 26 USC 163(interest) (Codex on #403).
+_LABEL = (r"\((?:\d+|[A-Z]+|[a-z]|" + "|".join(c * 2 for c in "abcdefghijklmnopqrstuvwxyz")
+          + r"|(?=[ivx])x{0,3}(?:ix|iv|v?i{0,3}))\)")
+#: One Code section number: "132(e)(2)", "263A", "1400Z-2(d)" -- a hyphen only
+#: after a letter, so "261-276" is not read as a section. Never a regulation
+#: ("1.263(a)-3" stops at its decimal point), never cut short before a digit,
+#: and never the first end of a range ("261-276", "1 through 5"), which names
+#: sections the reader cannot list -- nor a range ending in labels, "168(g)(1)
+#: (A) through (D)", which the engine read as 168(g)(1) by backing off the
+#: labels; a match may not stop before a label (Codex on #403).
+_SECTION_NO = (r"\d+(?:[A-Z]+(?:-\d+)?)?(?:\s?" + _LABEL + r")*"
+               r"(?!\.?\d|\s*[-\u2013]\s*\d|[-\u2013]\(|\s+through\b|\s?"
+               + _LABEL + r")")
+#: An explanatory aside between items of a list -- "sections 469 (the "passive
+#: loss limitation") and 163 (d)", § 1.163-8T(a)(1), Codex on #403. It holds a
+#: space or a quote, which a subsection label like "(d)" or "(iii)" never does.
+_EXPLAINED = r"(?:\s*(?!" + _LABEL + r")\([^()]*\))?"
+#: "section", "Sections", "§" or "§§", then one number or a list of them:
+#: "sections 179, 179B, or 179C". A second reviewer on 5b762a5b found the first
+#: reader took only the first of a list and missed a capitalised "Section".
+_CODE_REF = re.compile(
+    r"(?:\b[Ss]ections?\s+|\u00a7\u00a7?\s*)(" + _SECTION_NO
+    + r"(?:" + _EXPLAINED + r"(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)"
+    + _SECTION_NO + r")*)")
+#: SOMEBODY ELSE'S SECTION, named after it -- checked after the whole match,
+#: not inside it, where the engine backtracked ("552(b)(3) of title 5" matched
+#: as 552(b)). Only a named owner excludes: "of the person receiving such tips"
+#: and "of $100x" are English, and the re-review of 3e7a1e98 found an exclusion
+#: on every "of" dropping § 224(d)(1).
+_OWNED_AFTER = re.compile(
+    r"\s*of\s+(?:title\s+(?!26\b)\d+"
+    r"|(?:the|such|this)\s+(?:[A-Z][\w.,'-]*\s+"
+    r"(?:(?:and|of|for|on|the|from|to|in|with|by|at|a|an)\s+)*)*"
+    r"(?:Act|Law)\b"
+    r"|Public\s+Law|Pub\.\s*L\.|Rev\.\s*(?:Proc|Rul)\.|Notice\s+\d"
+    r"|this\s+(?:revenue\s+(?:procedure|ruling)|notice)\b)")
+#: A subparagraph the reference shares before its owner is named: "section
+#: 13261(g)(2) or (3) of the Revenue Reconciliation Act of 1993" (§ 1.446-1(e)
+#: (3)(iii); Codex on #403). Skipped before the owner is looked for.
+#: A label that opens a capitalised item -- "or (4) Any listed property", in
+#: § 1.274-5T(a) -- is the paragraph's own list, not shared; so is one that
+#: opens a lower-case clause, "section 274(d), (i) the taxpayer must". A "(" straight
+#: after a chain is refused too, so the engine cannot back off to a shorter
+#: one; a spaced aside, "(h) (the ...)", is still an aside.
+_SHARED_TAIL = re.compile(
+    r"(?:\s*(?:,\s*(?:or\s+|and\s+)?|\s+(?:or|and)\s+)(?:" + _LABEL + r")+"
+    r"(?![A-Z(]|\s+[A-Z]|\s+(?:the|a|an|any|each|every|such|all|no|if|it|"
+    r"that|this|there|in|to)\b))*")
+#: ... and named BEFORE it: "Pub. L. 115-97, § 13304(e)(2)".
+_OWNED_BEFORE = re.compile(
+    r"(?:Pub\.\s*L\.|Public\s+Law|Rev\.\s*(?:Proc|Rul)\.|Notice)"
+    r"\s*[\d-]+,?\s*$")
+
+
+#: A paragraph's own label where a served passage or `ask.read` carries it:
+#: "26 USC 274(e)(3): ..." or "### 26 USC 274(e)(3)" -- or a publication's,
+#: a ruling's: every label starts a new owner (a Pub. 463 paragraph after a
+#: Code one had its "subsection (q)" read as § 274(q); adversarial pass on
+#: #403). `Desk.unheld` adds every citation the record holds; only a Code paragraph's resolves anything -- a regulation's "paragraph
+#: (e)(5)" is its own, and a note, "26 USC 274 note, Pub. L. ...", speaks of the
+#: enacting law's sections.
+_LABEL_HEADS = (r"(?:26 (?:USC|CFR) |IRS |Instr\. |Rev\. (?:Rul|Proc)\. |PLR "
+                r"|Announcement |Notice |TAM |Treas\. )")
+
+
+def _label_pattern(heads: str) -> "re.Pattern":
+    """A label is "### <citation>" on a line of its own -- how `ask.read`
+    prints one -- or "<citation>: " -- how a served passage does. A line that
+    only BEGINS like one ("Notice of the election is filed ...") is words, not
+    a label (second adversarial pass: the owner was reset by ordinary English)."""
+    return re.compile(r"^(?:###\s+(" + heads + r"[^\n]*?)\s*$|(" + heads
+                      + r"[^\n:]*?):\s)", re.M)
+
+
+_LABELLED = _label_pattern(_LABEL_HEADS + r"[^\n:]")
+
+
+@functools.lru_cache(maxsize=8)
+def _held_labels(held: tuple) -> "re.Pattern | None":
+    """Every held citation as a label, compiled once per record -- compiled on
+    every call it made the whole-corpus brief six times slower (second
+    adversarial pass). None for a record holding nothing: an empty alternation
+    matches every blank line."""
+    if not held:
+        return None
+    return _label_pattern("(?:" + "|".join(
+        re.escape(h) for h in sorted(held, key=len, reverse=True)) + ")")
+_CODE_CITATION = re.compile(r"26 USC (\d+[A-Z]*(?:-\d+)?)((?:\([a-z]+\))?)"
+                            r"(?:\([A-Za-z0-9]+\))*$")
+#: "subsection (d)", "subsections (a) and (c)(1)", "paragraph (2)" -- a place in
+#: the paragraph's OWN section, unless another is named after it ("of section
+#: 162"). § 274(e)(3) excepts a nonemployee's reimbursement only "to the extent
+#: provided by subsection (d)", and § 274(d) was not on file (Codex on #403).
+_RELATIVE = re.compile(
+    r"\b(subsection|paragraph)s?\s+((?:" + _LABEL + r")+"
+    r"(?:(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)(?:" + _LABEL + r")+)*)")
+#: ... checked after the WHOLE match, never inside it, where the engine would
+#: back off "(a)(1) of section 162" to "(a)" and find no "of" after it.
+_OWNED_ELSEWHERE = re.compile(r"\s*of\s+(?!this\s+(?:section|subsection)\b)")
+
+
+def _kind(label: str) -> str:
+    inner = label.strip("()")
+    return "digit" if inner.isdigit() else "upper" if inner.isupper() else "lower"
+
+
+def _share(prev: str, chain: str) -> str:
+    """`chain` -- "(3)", "(2)(A)", "(c)" -- written after `prev` in a list, as
+    "section 1221(a)(1), (3), (4), or (5)" writes it: it replaces the last
+    label of `prev` of its own kind, and whatever followed that (Codex on #403:
+    § 1.263(a)-3(h)(3)(iv) names four paragraphs of § 1221(a), and only the
+    first was read)."""
+    labels = re.findall(_LABEL, chain)
+    base, own = re.match(r"(.*?)((?:" + _LABEL + r")*)$", prev).groups()
+    have = re.findall(_LABEL, own)
+    for i in range(len(have) - 1, -1, -1):
+        if _kind(have[i]) == _kind(labels[0]):
+            return base + "".join(have[:i]) + "".join(labels)
+    return prev + "".join(labels)
+
+
+def _items(first_kind: str, listed: str, prev: str = "") -> list:
+    """Each label chain in `listed`, whole -- or shared from the one before it
+    when it opens with a label of another kind than the list's own."""
+    out = []
+    for chain in re.findall(r"(?:" + _LABEL + r")+", listed):
+        head = re.match(_LABEL, chain).group(0)
+        out.append(_share(out[-1] if out else prev, chain)
+                   if (out or prev) and _kind(head) != first_kind
+                   else chain)
+    return out
+
+
+def _relative(text: str, within: str) -> list:
+    """What `text`'s relative references name, read against `within`."""
+    m = _CODE_CITATION.match(within or "")
+    if not m:
+        return []
+    section, subsection = m.groups()
+    out = []
+    for r in _RELATIVE.finditer(text):
+        # ... NOR A RANGE, as for section numbers: "subsections (a) through
+        # (c)" was read as (a) alone (adversarial pass on #403).
+        if _OWNED_ELSEWHERE.match(text, r.end()):
+            continue
+        base = f"26 USC {section}" + ("" if r.group(1) == "subsection"
+                                      else subsection)
+        if r.group(1) == "paragraph" and not subsection:
+            continue
+        kind = "lower" if r.group(1) == "subsection" else "digit"
+        items = _items(kind, r.group(2))
+        # ONLY THE LAST MEMBER can be a range's first end: "subsections (a)
+        # and (b) through (d)" still names (a). And a dash with a space after
+        # it opens a sub-list -- § 274(a)(2)'s "paragraph (1)- (A) Dues" --
+        # which is not a range (second adversarial pass).
+        if re.match(r"\s+through\b|[-\u2013]\(", text[r.end():]):
+            items = items[:-1]
+        out += [base + item for item in items]
+    return out
+
+
+def code_references(text: str, within: str = "", labels=None) -> list:
+    """The Code sections a paragraph's own words cite, as citations, in order.
+    A section owned by something else -- another Act, another title, a public
+    law, a revenue procedure or notice, named before or after it -- is not.
+    `within` is the Code paragraph the words are from, which "subsection (d)"
+    is read against; a labelled paragraph in `text` is read against its own
+    label instead."""
+    out = []
+    found_at = {m.start(): m.group(1) or m.group(2)
+                for m in _LABELLED.finditer(text)}
+    if labels is not None:
+        found_at.update({m.start(): m.group(1) or m.group(2)
+                         for m in labels.finditer(text)})
+    starts = [(0, within)] + sorted(found_at.items())
+    for (at, owner), (end, _) in zip(starts, starts[1:] + [(len(text), "")]):
+        for c in _relative(text[at:end], owner):
+            if c not in out:
+                out.append(c)
+    for m in _CODE_REF.finditer(text):
+        tail = _SHARED_TAIL.match(text, m.end()).end()
+        if (_OWNED_AFTER.match(text, tail)
+                or _OWNED_BEFORE.search(text[max(0, m.start() - 40):m.start()])):
+            continue
+        # THE LIST'S OWN ITEMS, never a number inside an aside: "sections 162
+        # (amended in 2017) and 212" named a § 2017 (Codex on #403).
+        items = re.sub(r"\s*(?!" + _LABEL + r")\([^()]*\)", " ", m.group(1))
+        found = [f"26 USC {n.replace(' ', '')}"
+                 for n in re.findall(_SECTION_NO, items)]
+        # AND WHAT THE LIST SHARES AFTER IT: "(a)(1), (3), (4), or (5)".
+        shared = text[m.end():tail]
+        if found and shared:
+            prev = found[-1]
+            for chain in re.findall(r"(?:" + _LABEL + r")+", shared):
+                prev = _share(prev, chain)
+                found.append(prev)
+        for c in found:
+            if c not in out:
+                out.append(c)
+    return out
+
+
+def is_lead_in(text: str) -> bool:
+    """A paragraph that states nothing until its clauses finish it: it ends in
+    a dash or a colon, or its first piece does where a marked omission joins it
+    to a closing sentence (§ 274(e), § 274(n)(2)). Read off the words, never
+    decided per subsection -- Codex on #403 found a line per subsection leaked."""
+    first = text.split("[...]", 1)[0].rstrip()
+    return first.endswith(("-", "\u2014", ":"))
+
+
+def is_heading(text: str) -> bool:
+    """A paragraph that is only a caption -- "Exception for restitution,
+    remediation, and amounts paid to come into compliance with a law" -- read
+    off its words: no closing punctuation, and not a lead-in. Cited alone it
+    states nothing; its clauses are the rule (Codex on #403, § 1.162-21(b))."""
+    t = text.rstrip()
+    if not t or is_lead_in(text):
+        return False
+    # "?" and "!" close a sentence too: Rev. Rul. 2005-28's ISSUE is a whole
+    # question, not a caption (adversarial pass on #403).
+    return not t.endswith((".", ";", ",", ")", "]", '"', "\u201d", "'", "\u2019",
+                           "?", "!"))
+
+
+def _short_phrase(text: str) -> bool:
+    """"Payment amount not identified." -- one short phrase ending in a full
+    stop. From the words alone that is also "It is not deductible.", so it
+    counts as a caption only where clauses are stored under it (`Desk._opens`)."""
+    t = text.rstrip()
+    body = t[:-1]
+    return (t.endswith(".") and len(body.split()) <= 8
+            and not re.search(r"[.;:,]", body))
+
+
+def is_under(citation: str, key: str) -> bool:
+    """`citation` is `key` or a paragraph or worked example beneath it:
+    `26 CFR 1.162-21(f)(10) Example 10` is under `26 CFR 1.162-21`, and
+    `26 USC 274(e)(10)` is not under `26 USC 274(e)(1)`."""
+    # THE RECORD'S OWN " — which rule" SUFFIX is the same paragraph: every
+    # stored paragraph of § 1.262-1 is cited so, and none was under its
+    # section (adversarial pass on #403).
+    # ON BOTH SIDES (second adversarial pass): "(b) — how the examples are
+    # introduced" is a lead-in whose clauses are "(b)(1) — life insurance
+    # premiums" and eight more, and it had none. Two rules written on ONE
+    # paragraph -- same stem, different note -- are siblings, not containment.
+    if citation == key:
+        return True
+    base, kbase = _stem(citation), _stem(key)
+    if base == kbase:
+        return key == kbase
+    return bool(base.startswith(kbase) and re.fullmatch(
+        r"(\([^()]+\))*( Example \d+)?", base[len(kbase):]))
+
+
+def _clause_of(citation: str, of: str) -> bool:
+    """`citation` is a direct clause of `of`, reading through the record's
+    " — which rule" note on either side."""
+    obase = _stem(of)
+    if not citation.startswith(obase):      # cheap, and true of every clause
+        return False
+    base = _stem(citation)
+    return (base != obase and base.startswith(obase)
+            and bool(re.fullmatch(r"\([^()]+\)", base[len(obase):])))
+
+
+def _read_with(block: str, where: str) -> tuple:
+    """`Read with:` lines -- `citation — other; other` -- or nothing. Refuses a
+    line it cannot read, as `Admitted for` does."""
+    out = []
+    for line in (l.strip() for l in _field(block, "Read with", where,
+                                           required=False).splitlines()):
+        if not line:
+            continue
+        at = line.find(" — ")
+        others = tuple(o.strip() for o in line[at + 3:].split(";") if o.strip())
+        if at <= 0 or not others:
+            raise RecordError(
+                f"{where}: a Read with line reads {line!r}. Each line is a "
+                f"citation, \" — \", then the paragraphs to read with it, "
+                f"separated by semicolons.")
+        out.append((line[:at].strip(), others))
+    return tuple(out)
+
+
 def parse_sources(text: str) -> list[Source]:
     out = []
     for head, block in _blocks(text, _HEAD):
@@ -835,7 +1684,10 @@ def parse_sources(text: str) -> list[Source]:
             checked=_date(_inline(block, "Checked", where), "checked", where),
             citation_prefix=_field(block, "Citation prefix", where),
             url=_field(block, "Url", where, required=False),
-            note=_field(block, "Why", where, required=False),
+            asked_as=_asked_as(block, where),
+            admitted_for=_admitted_for(block, where),
+            read_with=_read_with(block, where),
+            note=_prose(block, "Why", where, fields=SOURCE_FIELDS),
         ))
     if not out:
         raise RecordError("no sources found; a desk with no authority cannot answer")
@@ -950,6 +1802,35 @@ def load(desk_dir: Path) -> Desk:
             )
         seen_citations.add(p.citation)
 
+    # AN ADMISSION NAMES A PARAGRAPH THIS SOURCE HOLDS, or the check it exists
+    # for -- does the question that asked for it reach it? -- measures nothing.
+    held_by = {}
+    for p in passages:
+        held_by.setdefault(p.source_id, set()).add(p.citation)
+    for s_ in sources:
+        for cit, _q in s_.admitted_for:
+            if cit not in held_by.get(s_.id, set()):
+                raise RecordError(
+                    f"{s_.id} says it was admitted for {cit!r}, which it does "
+                    f"not hold. Name a stored paragraph of this source.")
+    # AND WHAT IS READ WITH WHAT IS ON FILE, both ends: a limit naming a
+    # paragraph nobody holds would be printed as nothing, silently.
+    every = {p.citation for p in passages}
+    for s_ in sources:
+        for cit, others in s_.read_with:
+            # A paragraph, or a section whose every paragraph the limit
+            # reaches: § 1.162-21(g) dates all sixty-eight of the others.
+            if not any(is_under(h, cit) for h in held_by.get(s_.id, set())):
+                raise RecordError(
+                    f"{s_.id} says {cit!r} is read with others, and it holds "
+                    f"nothing at or under {cit!r}. Name a stored paragraph of "
+                    f"this source, or the section it is cut from.")
+            for o in others:
+                if o not in every:
+                    raise RecordError(
+                        f"{s_.id} says {cit!r} is read with {o!r}, which is "
+                        f"not on file.")
+
     known = seen_ids
     for p in passages:
         if p.source_id not in known:
@@ -993,10 +1874,14 @@ def load(desk_dir: Path) -> Desk:
 
     subjects = desk_dir / "SUBJECTS.md"
     fires_on, answered_from, answered_by, records = (), {}, {}, ()
+    labels = ()
+    judged = OPTIONAL
     if subjects.is_file():
         reg = parse_subjects(subjects.read_text(encoding="utf-8"), desk_dir.name)
         fires_on, answered_from = reg.fires_on, reg.answered_from
         answered_by, records = reg.answered_by, reg.records
+        labels = reg.labels
+        judged = reg.judged
         # A NARROWING TO A CITATION THE DESK DOES NOT HOLD refuses every answer
         # for those subjects and reads as a strict desk -- the same failure the
         # source-level check was given, for the same reason.
@@ -1046,12 +1931,150 @@ def load(desk_dir: Path) -> Desk:
                 f"could ever meet it."
             )
 
+    # A FIRM POLICY MUST NOT LOOK LIKE AUTHORITY, AND IT MUST BE MARKED.
+    #
+    # `dec-pos2`, 10 September 2026 — the firm: "Firm policy, no citation — with
+    # two conditions." Three ways that could go wrong silently, refused here
+    # where the sources are in hand:
+    #
+    #   A policy citing a paragraph of a source the record holds. That is the
+    #   mis-pin the decision was made about, wearing the label that is supposed
+    #   to say it is not one — worse than the original, because the label reads
+    #   as a disclosure.
+    #
+    #   A policy with an empty citation. Every lookup in this file is keyed on
+    #   citation; an empty one collides with the next empty one and
+    #   `authority_for` returns whichever sorted first. The reference must be
+    #   real and must be the firm's, not a publisher's.
+    #
+    #   `Reviewed:` on an ordinary cited position. It would read as a general
+    #   review log, and the one thing it records — that somebody checked an
+    #   UNCITED position against the authority on file — is not a claim an
+    #   ordinary position can make.
+    for q in pos:
+        if q.is_policy:
+            if not q.citation.strip():
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} is firm policy and cites "
+                    f"nothing at all. It still needs a reference the firm can "
+                    f"name it by — every lookup here is keyed on it — and "
+                    f"{_POLICY_PREFIX!r} is what that reference begins with.")
+            if not q.citation.startswith(_POLICY_PREFIX):
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} is firm policy and its "
+                    f"Citation is {q.citation!r}. A policy's reference must "
+                    f"begin {_POLICY_PREFIX!r}, so nothing can read it as a "
+                    f"paragraph somebody could go and check.")
+            # AND THERE IS NO THIRD CHECK HERE, DELIBERATELY. The first draft
+            # added one: "the citation must fall under the policy source and no
+            # other". It was dead code. A reference beginning `SATC policy —`
+            # cannot also resolve to a publisher unless some source registers a
+            # prefix under it, and the uniqueness check below already refuses a
+            # citation matching more than one source, by name and by count. A
+            # guard that can never fire reads like protection and is not, which
+            # is worse than the gap it pretends to close.
+        else:
+            if q.citation.startswith(_POLICY_PREFIX):
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} cites {q.citation!r} and "
+                    f"does not declare `Kind: firm policy`. A reference "
+                    f"beginning {_POLICY_PREFIX!r} points at nothing anybody "
+                    f"can read.")
+            if q.reviewed.strip().lower() != _positions.OPEN:
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} records a Reviewed line "
+                    f"and rests on authority. `Reviewed:` says an UNCITED "
+                    f"position was checked against what is on file; on a cited "
+                    f"one it would read as a general review log and claim "
+                    f"something this record does not check.")
+
+        # A POSITION QUOTES THE WORDS IT RESTS ON, AND THE WORDS MUST BE THERE.
+        #
+        # Sarcia pilot 3: five of twenty ratified positions cited a paragraph
+        # that did not carry them, and every one passed this loader, because it
+        # checked that a citation RESOLVED and never that the paragraph SAID the
+        # thing. The same containment check the second reader faces at answer
+        # time (`comparing.elided_match`), moved to the moment a position is
+        # written. It proves the words are real, not that they carry the
+        # position -- the writer still has to choose words that do, and a
+        # reader of `Rests on:` can now see in one line whether they did.
+        if q.applies_at and not q.is_policy:
+            raise RecordError(
+                f"{desk_dir.name}/position {q.id} declares `Applies at:` and is "
+                f"not firm policy. A cited position is shown wherever its own "
+                f"citation is; the line is for a policy, which has none.")
+        for cit in q.applies_at:
+            if not any(p.citation == cit for p in passages):
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} applies at {cit!r}, which "
+                    f"the record does not store, so nothing could ever show it.")
+        if q.is_policy:
+            if q.rests_on:
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} is firm policy and quotes "
+                    f"words it rests on. A policy rests on the firm; a quotation "
+                    f"beside it reads as authority it does not have.")
+        elif any(p.citation == q.citation for p in passages) or q.rests_on:
+            import comparing as _comparing   # local, like positions
+            if not q.rests_on:
+                raise RecordError(
+                    f"{desk_dir.name}/position {q.id} cites {q.citation!r} "
+                    f"and does not say which words it rests on. Add `Rests on:` "
+                    f"with them, quoted exactly, `[...]` for anything left out, "
+                    f"and the paragraph's citation first if it is not this one. "
+                    f"If no stored words carry it, it is firm policy.")
+            for cit, quote in q.rests_on:
+                # A QUOTATION HAS TO CARRY WORDS. Codex on #398: `"[...]"`
+                # elides everything, so `elided_match` has no segment to find
+                # and passes on any paragraph. Five words is a floor, not a
+                # reading: the shortest real quotation here is fourteen.
+                said = _comparing.normalise(quote).replace(
+                    _comparing.ELLIPSIS, " ").split()
+                if len(said) < 5:
+                    raise RecordError(
+                        f"{desk_dir.name}/position {q.id} rests on {quote!r}, "
+                        f"which carries {len(said)} word(s). Quote the words a "
+                        f"reader can weigh -- five at least.")
+                held = [p for p in passages if p.citation == cit]
+                if not held:
+                    raise RecordError(
+                        f"{desk_dir.name}/position {q.id} rests on {cit!r}, "
+                        f"which the record does not store. Words nobody can "
+                        f"read are not words anybody checked.")
+                ours = _comparing.normalise(quote)
+                if not any(_comparing.elided_match(
+                        ours, _comparing.normalise(p.text))[0] for p in held):
+                    missing = _comparing.elided_match(
+                        ours, _comparing.normalise(held[0].text))[1]
+                    raise RecordError(
+                        f"{desk_dir.name}/position {q.id} rests on words "
+                        f"{cit!r} does not contain: {missing!r}. A position "
+                        f"that quotes its paragraph wrongly cites it wrongly.")
+
+        # A DEFAULT IS AN ANSWER TO AN `Unless:` AND MEANS NOTHING WITHOUT ONE.
+        #
+        # `dec-caprule`, 14 September 2026. `Default:` says what a preparer
+        # should record when the file is silent on the fact that would displace
+        # this position. On a position with no `Unless:` there is no such fact,
+        # so the line would sit in the record looking like firm policy and be
+        # read by nobody -- the same shape as the `Reviewed:` line above, and
+        # refused for the same reason.
+        if q.default and not q.unless:
+            raise RecordError(
+                f"{desk_dir.name}/position {q.id} records a Default line and "
+                f"declares no `Unless:`. A default is what to record when the "
+                f"displacing fact is missing; with no such fact the line "
+                f"answers a question nothing asks, and the engine will never "
+                f"print it.")
+
     return Desk(
         name=desk_dir.name,
         fires_on=fires_on,
         answered_from=answered_from,
         answered_by=answered_by,
         records=records,
+        labels=labels,
+        judged=judged,
         sources=tuple(sources),
         passages=tuple(passages),
         problems=tuple(problems),

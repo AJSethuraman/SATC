@@ -1,0 +1,38 @@
+# The answers the rehearsal gave the workbook for SBAnational.csv (Li, Mickel & Taylor 2018), where the book bleeds.
+# Every judgment is written here and nothing is picked by the harness (OC-13). Why each: the rehearsal report.
+kind: bleed
+bands: [DisbursementGross, Term]          # loan size (the paper's Table 4) and term
+segments: [NAICS2, REAL_ESTATE, RECESSION, NewExist, State, UrbanRural, LowDoc]
+split: null
+few_values: 12                            # the usual limit
+many_values: 60                           # raised from 50 so State (51 values and a blank) can be cut by
+meanings:
+  LoanNr_ChkDgt: key
+  DisbursementGross: booked               # not recognised from its name
+  CHGOFF_FLAG: outcome
+  ChgOffPrinGr: gco
+  RANR_NEG_GCO: ranr
+  APPROVAL_DATE: origination_date
+  NAICS2: category                        # a number with 24 values would otherwise be banded
+  REAL_ESTATE: category
+  RECESSION: category
+  NewExist: category
+  State: category
+  UrbanRural: category
+  LowDoc: category
+  Term: amount
+  NoEmp: amount
+  GrAppv: amount
+  RevLineCr: category
+treat:
+  RANR_NEG_GCO: Real                      # every value is -GCO by construction, so its negatives are real
+control:
+  worse_at: "1.25 times"
+  better_at: "0.8 times"
+  revenue_line: "Each pocket's own test (suggested)"
+  confidence: "95% sure"
+  materiality: "1% of the book's total losses"
+  compare_to: "The rest of its band"
+  min_loans: "100 loans"
+  min_events: "10 losses"
+checked_every_column: Yes

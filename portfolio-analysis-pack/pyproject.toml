@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "portfolio-analysis-pack"
+version = "0.1.0"
+description = "A loan extract plus a question file in, one self-contained analysis workbook out. Python does the work; the workbook shows it and recalculates."
+requires-python = ">=3.10"
+dependencies = [
+    "openpyxl>=3.1",   # the workbook is the deliverable
+    "PyYAML>=6.0",     # the question file, and the wording the notes are built from
+]
+
+[project.scripts]
+pack = "analysis_pack.cli:main"
+
+[project.optional-dependencies]
+# Verification only. None of these reaches the bank desk: the bundle carries
+# the package and the config, and the desk needs openpyxl and PyYAML alone.
+test = [
+    "pytest>=7.4",
+    "formulas>=1.2",   # recalculates the workbook so Excel's answer is compared with Python's
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+analysis_pack = ["wording.yaml"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]

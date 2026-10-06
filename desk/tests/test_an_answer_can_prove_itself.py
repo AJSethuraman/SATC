@@ -20,6 +20,7 @@ the network by accident, and this suite's socket layer would raise if there were
 from __future__ import annotations
 
 import pathlib
+import unsupported
 import shutil
 import sys
 
@@ -33,9 +34,9 @@ import ask as front                                         # noqa: E402
 import engine                                               # noqa: E402
 import proving                                              # noqa: E402
 import record                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS, publisher_document                          # noqa: E402
 
-DESK = "fixed-assets"
+DESK = "corpus"
 
 
 class _Page:
@@ -58,13 +59,17 @@ class _Page:
 
 
 def _desk():
-    return record.load(DESKS / DESK)
+    return record.load(CORPUS)
 
 
 def _passage(desk):
-    """A passage backed by a fetchable source, not a position."""
+    """A passage backed by a fetchable source, not a position -- and one served
+    ALONE: since #403 a proof also checks each paragraph served with it (its
+    lead-in, its clauses, its `Read with` limits), and these tests hand every
+    citation the same one page. The appended case has its own tests."""
     for p in desk.passages:
-        if desk.position(p.citation) is None:
+        if (desk.position(p.citation) is None and not desk.frame(p.citation)
+                and not desk.limits_on(p.citation)):
             return p
     raise AssertionError("no passage on this desk is backed by a source")
 
@@ -91,8 +96,9 @@ def test_a_passage_still_in_the_document_ties_out():
 def test_a_passage_the_publisher_no_longer_carries_differs():
     desk = _desk()
     p = _passage(desk)
-    proof = proving.prove(_serve(desk, p), desk,
-                          lambda s, c: _Page("the page says something else now"))
+    proof = proving.prove(
+        _serve(desk, p), desk,
+        lambda s, c: _Page(f"{p.citation} says something else now"))
     assert proof.verdict == proving.DIFFERS and not proof.held
     assert proof.note
 
@@ -115,7 +121,7 @@ def test_a_position_has_no_publisher_and_says_so():
     """The firm's own words are not the publisher's, and the paragraph beneath
     them is a different claim from the one being served. Reporting that as a
     proof of the answer would be the mirror wearing a hat."""
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     q = next(p for p in desk.positions if not p.proposed)
     served = engine.Served(position=q.position, citation=q.citation,
                            tier="secondary", checked=q.recorded)
@@ -127,8 +133,15 @@ def test_a_position_has_no_publisher_and_says_so():
 def test_a_marked_omission_is_proved_segment_by_segment():
     """`prove` owns no second copy of the comparison. A passage carrying
     `[...]` is checked the way the corpus tie-out checks it, in order."""
-    desk = record.load(DESKS / "cash-and-bank")
-    p = next(x for x in desk.passages if "[...]" in x.text)
+    desk = record.load(CORPUS)
+    # NAMED, NOT "THE FIRST MARKED ONE". Seven records' marks live in one corpus
+    # now — `test_a_marked_omission_is_still_checked.py` pins that at seven — and
+    # `next(...)` picked whichever sorted first, which stopped being the passage
+    # `whole` below is the publisher's text for.
+    p = next(x for x in desk.passages
+             if "[...]" in x.text
+             and "Reconciling the checking account" in x.citation
+             and "Includes bank charges" in x.text)
     whole = ("When you receive your bank statement, make sure the statement, "
              "your checkbook, and your books agree. The statement balance may "
              "not agree with the balance in your checkbook and books if the "
@@ -140,17 +153,28 @@ def test_a_marked_omission_is_proved_segment_by_segment():
                          lambda s, c: _Page(whole)).verdict == proving.TIED
     # AND THE MARK IS NOT AN EXEMPTION.
     assert proving.prove(_serve(desk, p), desk,
-                         lambda s, c: _Page("unrelated text")
+                         lambda s, c: _Page(f"{p.citation} unrelated text")
                          ).verdict == proving.DIFFERS
 
 
 # ── what the front door does with each ───────────────────────────────────────
 
 def _copy(tmp_path):
-    desks = tmp_path / "desks"
-    desks.mkdir()
-    shutil.copytree(DESKS / DESK, desks / DESK)
+    desks = tmp_path / "corpus"
+    shutil.copytree(CORPUS, desks)
     return desks
+
+
+def _judged(text):
+    """A real second reader, because every desk now requires one (#346).
+
+    Quoting the text the judge is HANDED — the fetched page where one was
+    fetched, our stored passage otherwise. The engine's containment check runs
+    for real on every call here; a canned sentence would pass only because the
+    check was not running.
+    """
+    from conftest import a_judgment
+    return a_judgment(text)
 
 
 def test_off_by_default_means_no_transport_and_no_proof(tmp_path):
@@ -158,24 +182,31 @@ def test_off_by_default_means_no_transport_and_no_proof(tmp_path):
     could be true somewhere. With none passed, nothing is fetched — and this
     whole suite passes none."""
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False)
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False,
+                       judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served)
     assert out.proof is None, "None means NOT ASKED FOR, never asked-and-fine"
 
 
 def test_a_tied_answer_is_served_carrying_its_proof(tmp_path):
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
     passage = desk.passage(p.citation)
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False,
-                       prove=lambda s, c: _Page(passage.text))
+    page = _Page(publisher_document(desk, passage.source_id))
+    # THE SOURCE'S WHOLE DOCUMENT, as a publisher serves it: since #403 the
+    # proof checks every paragraph served with the answer against it.
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False,
+                       prove=lambda s, c: page,
+                       judged=_judged(page.text))
     assert isinstance(out, engine.Served)
     assert out.proof.verdict == proving.TIED
+    # AND THE JUDGE READ THE FETCHED DOCUMENT, not our copy of it (#346).
+    assert out.judged.against == "the document fetched from the publisher"
 
 
 def test_a_moved_source_withdraws_the_answer(tmp_path):
@@ -183,11 +214,12 @@ def test_a_moved_source_withdraws_the_answer(tmp_path):
     there any more, and OUR RECORD IS THE ONLY WITNESS to it — which is not
     enough to serve a client on."""
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False,
-                       prove=lambda s, c: _Page("this page was rewritten"))
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False,
+                       prove=lambda s, c: _Page(
+                           f"{p.citation} — this page was rewritten"))
     assert isinstance(out, engine.Refusal)
     assert out.reason == "authority_has_moved"
     assert out.ask and "?" not in out.ask[:0] or True
@@ -202,11 +234,16 @@ def test_an_unreachable_publisher_does_not_withdraw_the_answer(tmp_path):
         raise TimeoutError("no route to host")
 
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
-    out = front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                       desks=desks, keep=False, prove=refuses)
+    out = front.answer(p.facts,  position=p.answer, citation=p.citation,
+                       corpus=desks, keep=False, prove=refuses,
+                       judged=_judged(desk.passage(p.citation).text))
     assert isinstance(out, engine.Served), "an outage withdrew a good answer"
+    # AND THE JUDGE FELL BACK TO OUR COPY, because nothing was fetched. The
+    # weaker claim, and the `Read` says which one it is rather than leaving a
+    # reader to assume the stronger.
+    assert out.judged.against == "this desk's stored passage"
     assert out.proof.verdict == proving.COULD_NOT
     assert not out.proof.held
 
@@ -215,8 +252,8 @@ def test_proving_can_only_add_a_refusal_and_never_remove_one(tmp_path):
     """The gate is unchanged and runs first. A transport that returns the whole
     world cannot rescue an answer the engine already refused."""
     desks = _copy(tmp_path)
-    out = front.answer("what is the threshold?", DESK, position="anything",
-                       citation="26 CFR 9.999(z)", desks=desks, keep=False,
+    out = front.answer("what is the threshold?",  position="anything",
+                       citation="26 CFR 9.999(z)", corpus=desks, keep=False,
                        prove=lambda s, c: _Page("everything imaginable"))
     assert isinstance(out, engine.Refusal)
     assert out.reason == "authority_absent"
@@ -226,11 +263,12 @@ def test_the_withdrawal_is_filed_like_any_other_refusal(tmp_path):
     """A source that moved is a finding about the record, and the queue is where
     findings about the record accumulate."""
     desks = _copy(tmp_path)
-    desk = record.load(desks / DESK)
+    desk = record.load(desks)
     p = desk.problems[0]
-    front.answer(p.facts, DESK, position=p.answer, citation=p.citation,
-                 desks=desks, prove=lambda s, c: _Page("rewritten"))
-    filed = (desks / DESK / "unsupported" / "asked.md").read_text()
+    front.answer(p.facts,  position=p.answer, citation=p.citation,
+                 corpus=desks,
+                 prove=lambda s, c: _Page(f"{p.citation} rewritten"))
+    filed = unsupported.default_store().read_text(encoding="utf-8")
     assert "authority_has_moved" in filed
     assert "**Asked:**" in filed
 

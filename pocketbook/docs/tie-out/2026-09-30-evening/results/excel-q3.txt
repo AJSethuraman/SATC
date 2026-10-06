@@ -1,0 +1,12 @@
+ran
+{
+ "before": 42,
+ "moved to Excel's block": 24,
+ "openpyxl alone sees after the save": 18,
+ "in Excel's block": 24,
+ "ran again": true,
+ "after": 42,
+ "new after": [],
+ "views rows": 1915,
+ "views rows differing": []
+}

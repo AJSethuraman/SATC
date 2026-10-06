@@ -1094,11 +1094,49 @@ per_form:
       assumes: "contributions and distributions are on a 5498-SA and a 1099-SA"
       trigger: "an excess contribution has to be worked out, or eligibility changed during the year"
 
+    # THE $50 DEFAULT IS NOT A FLOOR, and reading it as one was my mistake.
+    # The firm, 5 October 2026, correcting it: "the standing rule was not meant
+    # to be $50 a form literally, this would conflict with market pricing and
+    # such. use the prices i gave you and add them to pricing engine."
+    #
+    # So `per_form.amount` is where a form lands when nobody has priced it
+    # against the market -- a starting point, not a minimum. A form priced
+    # BELOW it is not an error.
     early_withdrawal:
       label: "Early retirement withdrawal"
       detail: "Form 5329"
+      # $30 EACH, and the arithmetic is what settles it rather than a guess:
+      # the plan quoted "Form 5329 x2 (market) $60" and totalled $525, which
+      # only reconciles at $30 apiece. Two of them because each spouse files
+      # their own 5329 on a joint return.
+      amount: 30
+      # EACH. A joint return commonly needs two -- one per spouse - and each
+      # is its own form with its own exception to work out.
+      counted_by: count_early_withdrawal
       assumes: "the 1099-R coding is right and any exception is a plain one"
       trigger: "the coding is wrong, or the exception has to be substantiated"
+
+    # ADDED 5 October 2026, from a live client's plan. Both were being priced
+    # "(market)" at the keyboard because this file did not carry them -- which
+    # is the thing the standing rule exists to stop: "the goal would be to
+    # establish a price". Now the next client gets the same number.
+    amt:
+      label: "Alternative minimum tax"
+      detail: "Form 6251"
+      # FIRED BY THE PREPARER, not by a client's tick -- see `eic_claimed`.
+      when: { answer_is: { amt_applies: "yes" } }
+      amount: 60
+      assumes: "the AMT falls out of the figures already gathered for the return"
+      trigger: "a prior-year carryforward has to be reconstructed"
+
+    amt_credit:
+      label: "Credit for prior-year minimum tax"
+      detail: "Form 8801"
+      # FIRED BY THE PREPARER, not by a client's tick -- see `eic_claimed`.
+      when: { answer_is: { amt_credit_applies: "yes" } }
+      amount: 45
+      assumes: "the prior year's Form 6251 is available and its carryforward is stated"
+      trigger: "the carryforward has to be rebuilt from returns we did not prepare"
 
     # THE NAMED EXCEPTION to the one-price rule, and the first line on this
     # sheet the firm set by moving TOWARD the market rather than away from it.

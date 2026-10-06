@@ -11,7 +11,7 @@ import pytest
 
 import record
 import unsupported
-from conftest import DESKS
+from conftest import CORPUS
 from record import RecordError
 from engine import Answer, Outcome, Refusal, Result, Served, grade, serve
 
@@ -564,7 +564,7 @@ def test_a_field_request_never_arrives_without_the_position_that_asked():
     """
     import dataclasses
     import engine
-    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    desk = record.load(CORPUS)
     # The state a NEWLY ratified position lands in: it names a fact the record
     # has no field for. Reproduced by removing the field rather than by writing
     # a fixture, so this asks the real position against the real engine.
@@ -598,7 +598,7 @@ def test_only_the_no_field_refusal_becomes_a_field_request():
     """
     import dataclasses
     import engine
-    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    desk = record.load(CORPUS)
     ruling = next(p for p in desk.positions if not p.proposed)
     answer = engine.Answer(position=ruling.position, citation=ruling.citation)
     refusal = engine.serve(answer, desk, question="what is the threshold?")
@@ -631,7 +631,7 @@ def test_every_refusal_that_turns_on_a_fact_names_it():
     """
     import dataclasses
     import engine
-    desk = record.load(DESKS / "capitalization-and-de-minimis")
+    desk = record.load(CORPUS)
     ruling = next(p for p in desk.positions if not p.proposed)
     answer = engine.Answer(position=ruling.position, citation=ruling.citation)
     fact = ruling.unless[0]

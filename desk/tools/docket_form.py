@@ -55,7 +55,30 @@ DATE = "%d %s %d" % (date.today().day, date.today().strftime("%B"), date.today()
 #: built. Nothing from that page is carried here: a matter the firm has answered
 #: is not a matter, and asking it again is the fault this page was rebuilt to
 #: stop.
-SIXTH_DOCKET = {
+#: AND FOUR MORE, ADDED 14 SEPTEMBER 2026, read off the Desk Docket page
+#: published at artifact 642c3276 rather than off anything this file claims. That
+#: page carried them as D2, D3, D4 and F4; they are the same four questions.
+#:
+#: THE BUG THIS FIXES, and it is the one this whole mechanism exists to stop.
+#: The set named ONE page, 7 September. A matter carried from any page since then
+#: has a key it never held, so it counted as NEW -- and the eighth docket rendered
+#: "All eight are new" over four questions the firm had been holding across three
+#: dockets, the oldest of which has blocked two ratified positions on every client
+#: since 5 September. Telling somebody a question they have been sitting on for a
+#: week is new is worse than not counting at all.
+#:
+#: THE FIX THAT WAS TRIED FIRST AND WAS WRONG: deriving it from a `"new": False`
+#: flag on the card. The test caught it in one run. A flag is a claim the page
+#: makes about itself, and the note above records two mutations surviving on the
+#: third docket for exactly that reason. The set stays the record; it just has to
+#: be kept current, which is what was actually broken.
+ALREADY_OPEN = {
+    # open on the Desk Docket, 14 September (artifact 642c3276)
+    "dec-caprule",
+    "dec-fasb",
+    "dec-tie",
+    "dec-unitcost",
+    # the sixth docket, 7 September (artifact 83e68c31)
     "dec-courts-again",
     "dec-merge-300",
     "dec-parser",
@@ -81,81 +104,205 @@ SIXTH_DOCKET = {
 #: again, which is the exact fault the sixth docket was rebuilt to stop, arriving
 #: through a door nothing was watching.
 ANSWERED = [
- {"key": "dec-merge-316",
-  "title": "Merge #316? The Forge cannot be set up until it lands",
-  "said": "Merge it",
-  "where": "on the docket, 17:20",
-  "caused": "<b>Merged, and the two install commands work now.</b> "
-            "<code>claude plugin update desk@satc</code> lands 0.5.0 \u2014 the "
-            "searcher\u2019s skill, the engagement file and the Forge prompt, none "
-            "of which was reachable from an installed plugin before. "
-            "<code>docs/TRY-IT.md</code> is the twenty-minute run-through."},
+ {"key": "dec-reach",
+  "title": "How does a question reach authority that does not use the asker\u2019s words?",
+  "said": "Add plain words",
+  "where": "on the ninth docket, 25 September \u2014 answered at 18:31, built and pushed by 21:00",
+  "caused": "<b>Eleven of your eleven authority questions now reach their "
+            "authority, from five.</b> A source declares the words you ask it "
+            "in \u2014 five sources do, and every phrase is lifted from your own "
+            "43 questions.<br><br><b>And your close-question set is complete for "
+            "the first time: 16 of 16.</b> Q31 came back here, Q18 came back "
+            "with the hyphen, and neither fix was aimed at either.<br><br>"
+            "<b>It can only ever ADD, and that is arithmetic rather than a "
+            "promise.</b> Measured over all 43: no passage scores less than it "
+            "did, no question returns fewer citations, and 37 of 43 are "
+            "unchanged. The bonus is added; nothing is ever "
+            "subtracted.<br><br><b>The test I wrote to keep the vocabulary "
+            "yours caught me on its first run.</b> I declared <i>\u201cmaterials "
+            "held at year end\u201d</i>; your Q19 says <i>\u201chold materials at "
+            "year end\u201d</i>. Every declared phrase must appear in your own "
+            "questions or it is a word I chose."},
 
- {"key": "dec-263a2",
-  "title": "The desk found the rule for tool-or-asset. Does it get to keep it?",
-  "said": "Declare it",
-  "where": "on the docket, 17:20",
-  "caused": "<b>The loop closed, and it is the first time it has.</b> A desk "
-            "refused for want of a rule; the searcher found it and would not "
-            "store it; you declared the source; the desk answers. Checked rather "
-            "than assumed \u2014 the question routes to fixed-assets, the brief "
-            "carries both new paragraphs, and the engine serves on "
-            "\u00a7 1.263(a)-2(d)(1) with the subject gate actually run. Five of "
-            "the repository\u2019s own figure guards went red when the record "
-            "moved and every one was right."},
+ {"key": "dec-hyphen",
+  "title": "Should a hyphen between two ordinary words split them into two?",
+  "said": "Split on a letter hyphen",
+  "where": "on the ninth docket, 25 September",
+  "caused": "<b><code>cash-back</code> reaches 26 passages. It reached none.</b> "
+            "That was Occam\u2019s pilot finding, and it is closed.<br><br>"
+            "<b>All 113 citation-shaped tokens are provably untouched</b>, "
+            "pinned against every one the corpus holds rather than a list I "
+            "typed.<br><br><b>It repaid a debt nobody expected.</b> "
+            "<code>dec-fullstop</code> cost exactly one commissioned pairing on "
+            "11 September \u2014 Q18, the hardware-store question. Splitting "
+            "<code>hardware-store</code> gave it back. The decision was made for "
+            "<code>cash-back</code>; this fell out.<br><br><b>What it cost, "
+            "re-run before it shipped as promised:</b> fifteen of your 43 "
+            "changed their top eight, thirteen of them by a single citation, "
+            "and one brief in five grew by 491 characters."},
 
- {"key": "dec-check-absent",
-  "title": "A desk said it held nothing. It held ten passages. Should the engine check?",
-  "said": "Build the check",
-  "where": "on the docket, 17:20",
-  "caused": "<b>An <code>authority_absent</code> refusal now arrives carrying what "
-            "the desk actually showed the model.</b> Run against the refusal that "
-            "started it: <i>76 passages, ten of them from \u00a7 1.274-11</i> \u2014 "
-            "printed directly under the sentence claiming \u00a7 1.274-11 was "
-            "absent. It reports and does not overrule: the engine cannot say "
-            "whether any of the 76 answered the question, and an engine that "
-            "refused the escalation would be deciding the merits. Six mutations "
-            "tried, all caught."},
+ {"key": "dec-briefsize",
+  "title": "Should the answerer see more than the top eight passages?",
+  "said": "Leave it at eight",
+  "where": "on the ninth docket, 25 September",
+  "caused": "<b>Nothing built, and that was the right call.</b> Raising the "
+            "brief would have bought three more questions at five times the "
+            "text and could never have reached Q4 or Q6, which returned nothing "
+            "to rank.<br><br><b>The plain words reached all eleven at the "
+            "existing depth instead</b> \u2014 so the lever you declined would "
+            "have bought less, for more, than the one you took."},
 
- {"key": "dec-desk-asks-for-code",
-  "title": "A desk asks for something that does not exist yet. Who approves building it?",
-  "said": "A field, and only a field",
-  "where": "in the conversation \u2014 <i>\u201ci\u2019ll take your recommendation\u201d</i>",
-  "caused": "<b>Built, and proved against a real position rather than a fixture.</b> A "
-            "refusal now carries the fact it turned on and the position that asked for "
-            "it, and the queue has a sixth thing it can ask for: <i>build the field</i>. "
-            "Run against your capitalisation position it comes back naming "
-            "<code>capitalization_rule</code>, asked for by <code>POS1</code> \u2014 so a "
-            "field I build on a desk\u2019s say-so arrives showing you which position "
-            "wanted it. Four tests hold the line you drew: only that one refusal becomes "
-            "a field request, and a request cannot arrive without the position behind it. "
-            "<a href=\'https://github.com/AJSethuraman/SATC/pull/316\'>#316</a>."},
+ {"key": "dec-caprule",
+  "title": "What is the default capitalisation rule for a client that has none?",
+  "said": "Record it at intake",
+  "where": "on the eighth docket, 14 September — with the note that was the real answer: “The firm’s threshold for our clients if non specified will be based on IRS rules for simplicity.”",
+  "caused": "<b>Two of your twenty ratified positions are reachable again</b>, after "
+            "being unservable on every client since 5 September. The refusal still "
+            "refuses — you were offered a silent default in the code and declined it "
+            "— but it now says what to write.<br><br><b>My first version told the "
+            "preparer to write the wrong thing, and only running it showed that.</b> "
+            "I had it say “record the IRS ceiling”, and recording a FIGURE is how you "
+            "tell the desk this client is different. Four states, measured: blank "
+            "refuses, <code>none</code> SERVES at your $2,500 / $5,000, and any "
+            "figure at all refuses as a client-level rule. The word is "
+            "<code>none</code>; POS2 supplies the number itself. All four are "
+            "pinned.<br><br>And POS2’s own caveat is on the line where a preparer "
+            "reads it: the safe harbour protects amounts under whichever is LOWER, "
+            "their book policy or the ceiling — so POS3’s fact is load-bearing, not "
+            "optional."},
 
- {"key": "dec-admit-publishers",
-  "title": "Two publishers tied out. Do they become sources?",
-  "said": "Admit eCFR only",
-  "where": "on the docket, 15:49",
-  "caused": "<b>It answered a question the desk could not answer an hour earlier.</b> "
-            "\u00a7 1.162-3 is a source on fixed-assets now \u2014 eCFR, not Cornell "
-            "\u2014 with both paragraphs stored and checked word for word against the "
-            "publisher\u2019s own page. The close\u2019s question <i>does a hardware-store "
-            "purchase ever become an asset?</i> had nowhere to go before; it is served "
-            "now, on \u00a7 1.162-3(c)(1)(i). Six served became seven."},
+ {"key": "dec-fasb",
+  "title": "Is a free FASB update acceptable authority where the Codification is licensed?",
+  "said": "Admit ASUs, secondary",
+  "where": "on the eighth docket, 14 September",
+  "caused": "<b>BLOCKED, and not by anything in the desk.</b> This is the only one of "
+            "the eight not built. Admitting a source means verifying its words "
+            "against the publisher’s own page — that rule is the whole reason the "
+            "searcher is allowed to look anywhere — and <b>fasb.org is refused by "
+            "this environment’s network policy</b>. Measured rather than assumed: "
+            "irs.gov answers 200 and ecfr.gov 302 from the same container, while "
+            "www.fasb.org, fasb.org and asc.fasb.org all return 403, and the proxy’s "
+            "own log names <code>fasb.org:443 connect_rejected</code>. Its "
+            "instructions say to report a policy denial rather than retry it.<br><br>"
+            "<b>Nothing was admitted from memory</b>, which is the one thing that "
+            "would have been worse than not doing it.<br><br><b>Your existing map "
+            "already fits the answer</b>, so nothing there needed changing: "
+            "<code>DOMAINS.md</code> lists fasb.org under both <i>Publishes</i> (the "
+            "Codification — primary, licensed) and <i>Explains itself at</i> (“the "
+            "body’s own explanation, which is not the thing that governs” — "
+            "secondary). An ASU lands in the second. What is missing is only the "
+            "source entry, and that needs one fetch nobody here can make."},
 
- {"key": "dec-register-standing",
-  "title": "The standing check on how positions are worded: still wanted?",
-  "said": "Drop it \u2014 the card was the problem",
-  "where": "on the docket, 15:49",
-  "caused": "<b>Nothing was built, and that is the whole answer.</b> No word-count rule "
-            "was invented for the positions. The card fix stands on its own."},
+ {"key": "dec-tie",
+  "title": "When two bodies of authority tie, refuse — or warn and serve?",
+  "said": "Keep warning",
+  "where": "on the eighth docket, 14 September",
+  "caused": "<b>Nothing built, and that is the whole answer.</b> The 4-right-to-1-wrong "
+            "trade stands. The evidence offered for changing it turned out to be "
+            "about a different guard, which is the card below."},
 
- {"key": "dec-merge-305",
-  "title": "Merge today\u2019s work?",
-  "said": "Merge it",
-  "where": "on the docket, 15:49",
-  "caused": "<b>Merged as <code>975c77a</code>, nine checks green.</b> The searcher, the "
-            "reader fix and the 63 worked examples are on <code>main</code> and available "
-            "to any session."},
+ {"key": "dec-offsource",
+  "title": "Should “this desk does not declare that source” refuse instead of warn?",
+  "said": "Keep warning",
+  "where": "on the eighth docket, 14 September",
+  "caused": "<b>Nothing built.</b> Measured first: refusing would refuse <b>17 of 98</b> "
+            "recorded-correct answers on terse phrasing and <b>0 of 98</b> on "
+            "full-facts phrasing. <b>That 17-versus-0 spread stays on the record as an "
+            "open defect in the guard</b> rather than a closed question — it means the "
+            "gate is partly measuring how wordy the asker is."},
+
+ {"key": "dec-pair",
+  "title": "Should the pool return your two opposite answers as an inseparable pair?",
+  "said": "Pair them",
+  "where": "on the eighth docket, 14 September",
+  "caused": "<b>A ratified sibling now comes back beside its partner whatever it "
+            "scored, marked with what it came back beside</b> — a sibling placed by "
+            "adjacency alone reads as having scored, with its own lower number next to "
+            "it looking like the reason.<br><br><b>The question it exists for proved "
+            "nothing.</b> On the 7 September deposit question the two halves were "
+            "already adjacent, so a test written only on it would pass with the "
+            "feature deleted. The case that exercises it is <i>“how do we treat "
+            "deposits with no source recorded?”</i> — one of the three phrasings your "
+            "own comparison document publishes as evidence the pool beat the word "
+            "list. There the RIGHT half scores 5.7 and is now placed above a hit "
+            "scoring 7.8."},
+
+ {"key": "dec-scoped",
+  "title": "Should a passage that says it applies somewhere else be marked as such?",
+  "said": "Mark them",
+  "where": "on the eighth docket, 14 September",
+  "caused": "<b>A passage that scopes itself in its own opening words now says so, "
+            "printed directly above the passage</b> — not below, because a reader who "
+            "has reached the end of a 2,000-character definition has already decided "
+            "what it is about.<br><br><b>The docket said 36 and the measurement says "
+            "28.</b> 36 counted a scoping phrase anywhere in the opening 300 "
+            "characters, which sweeps in thirteen mid-sentence cross-references — a "
+            "rule pointing at where its own sub-clause applies, which is not a passage "
+            "announcing its reach. All six rows you were shown are inside the 28, and "
+            "finding the difference turned up a real miss: a definition whose clause "
+            "ends in a colon.<br><br><b>Marking does not fix the ranking, and that is "
+            "pinned as a test.</b> The scoped definition still comes back first."},
+
+ {"key": "dec-examples",
+  "title": "What should the brief do with worked examples?",
+  "said": "Label and never examples-only",
+  "where": "on the eighth docket, 14 September",
+  "caused": "<b>Both halves built.</b> Every worked example in the answering brief now "
+            "says it is another taxpayer’s facts and what to do about it; the grading "
+            "brief still prints none.<br><br><b>I nearly shipped a guard that never "
+            "fires.</b> The four questions I tried by hand all had a rule in their top "
+            "eight. Measured on the whole denominator instead — fifteen working "
+            "questions plus all 98 problems — it fires on <b>6 of 113</b> at the "
+            "default, 13 at five hits, 25 at three.<br><br><b>And the rule it pulls in "
+            "can be wrong, so the brief says so.</b> On those six it scores as low as "
+            "3.2 — on <i>“A contractor paid by cheque”</i> it is a MEALS rule. That is "
+            "the honest top-ranked rule and it is not about the question, so the brief "
+            "says it was not among the closest matches and that the record may simply "
+            "not hold one that is."},
+
+ {"key": "dec-unitcost",
+  "title": "Should the record hold what something cost?",
+  "said": "Add it, with a format check",
+  "where": "on the eighth docket, 14 September",
+  "caused": "<b>The field was one word, as measured. The format check is the change.</b> "
+            "It fires where the fact is RECORDED, not where it is answered: "
+            "<code>Context</code> is frozen, so every path that builds one goes through "
+            "the same constructor.<br><br>Forgiving about spelling, strict about being "
+            "a number — <code>$2,500</code> is how POS2 itself writes the ceiling, so "
+            "refusing that spelling would be a check nobody could satisfy from the "
+            "documents in front of them. <i>one eighty five</i>, <i>about 200</i>, "
+            "<i>185 each</i> and <i>12.345</i> all refuse. Nothing is normalised.<br><br>"
+            "<b>Proved on the case it was added for.</b> The file that made round trip "
+            "<code>a276e4aed20a</code> throw an answer away now prints "
+            "<code>unit_cost: 185.00</code> under ON FILE."},
+
+ {"key": "dec-whytrunc",
+  "title": "A position\u2019s reasoning is cut off before it reaches the card you ratify from. Fix it?",
+  "said": "Read the whole thing, folded",
+  "where": "on the eighth docket, 18 September",
+  "caused": "<b>The whole of a position\u2019s reasoning reaches the card now, and "
+            "the default view did not move a character.</b> The opening paragraph "
+            "is byte-for-byte what you were already reading \u2014 429 characters "
+            "on POS2 \u2014 and the 1,831 that never arrived are one disclosure "
+            "below it, with the fold saying how much is behind it.<br><br>"
+            "<b>The fix was a reader, not a renderer.</b> A field ended at any "
+            "line starting with bold, which is right for a value that wraps and "
+            "wrong for prose \u2014 because a paragraph written to be read starts "
+            "with its point in bold. Prose now ends at the entry\u2019s own field "
+            "names, which is exact.<br><br><b>The tidy heuristic would have been "
+            "worse than the bug.</b> Ending at any bold-text-then-colon looked "
+            "right and `POSITIONS.md` contains one paragraph that opens <i>\u201cWhat "
+            "this position does NOT settle, and why it is a position at "
+            "all:\u201d</i> \u2014 so it would have truncated the reasoning at "
+            "precisely the sentence a reader most needs. Found by looking, not by "
+            "thinking about it.<br><br><b>And it moved a number nobody touched.</b> "
+            "One unused gate reads a position\u2019s reasoning as part of its "
+            "subject check, so giving it the rest of the text made one answer stop "
+            "being wrongly refused \u2014 36 of 98 down to 35. Right direction, and "
+            "it exposes a coupling nobody chose: how far that gate reaches depends "
+            "on how much you happened to write. Recorded where the figure is "
+            "pinned rather than fixed, because the gate is unused and fixing it "
+            "means deciding what it should read."},
 ]
 
 #: THREE MATTERS, all of which arrived AFTER the page said nothing needed
@@ -165,7 +312,105 @@ ANSWERED = [
 #: closed without the firm saying so.
 #: NOTHING IS OPEN. The three that were here were answered at 17:20 and are in
 #: `ANSWERED` above with what each one did. A key may not be in both.
-OTHERS = []
+OTHERS = [
+ {"key": "dec-paren",
+  "kind": "decision",
+  "group": "From building the answers",
+  "tag": "retrieval \u00b7 dec-paren",
+  "title": "Should a bracket in a citation be part of the word, the way a full stop is?",
+  "rec": "<b>Treat a bracket like a full stop.</b> It is the same defect as the "
+         "one you just fixed twice, in the same place, and it is larger than "
+         "either. <b>683 of your 777 citations cannot find themselves</b> \u2014 "
+         "ask the desk for <code>26 CFR 1.263(a)-1(f)(1)</code> by name and it "
+         "does not come back first. I am recommending the change and NOT "
+         "recommending you take it on my word: it moves every score in the "
+         "corpus, exactly as the hyphen did, so the honest sequence is that I "
+         "build it, re-run your 43 and the whole suite, and bring you what "
+         "moved before it ships. If you would rather leave it, that is a real "
+         "option \u2014 nothing today depends on it, and it has been true since "
+         "the corpus was built.",
+  "rec_pick": "Fix it, and show me what moved",
+  "position": "A bracket is part of a citation the way a full stop is part of "
+              "one, so a citation asked for by name comes back by name.",
+  "context": "<b>How I found it.</b> Writing the hyphen test I asserted that a "
+             "citation looked up by its own string comes back in its own top "
+             "five. It failed on 179 of the first 200. I measured the untouched "
+             "code before assuming it was mine: <b>179 there too</b>. Not my "
+             "change, and not new.<br><br><b>What it is.</b> The tokeniser "
+             "treats <code>.</code>, <code>-</code> and <code>/</code> as part "
+             "of a word so <code>1099-K</code> and <code>Pub. 583</code> survive. "
+             "<code>(</code> is not in that list. So "
+             "<code>26 CFR 1.263(a)-1(f)(1)(i)(A)</code> becomes seven separate "
+             "words \u2014 <i>1.263, a, 1, f, 1, i, a</i> \u2014 six of them "
+             "single letters shared with hundreds of other sub-paragraphs. The "
+             "citation cannot tell itself apart from its "
+             "siblings.<br><br><b>Measured across your whole record:</b> 777 "
+             "citations carry a digit, 683 do not find themselves in their own "
+             "top five, and 680 of those contain a bracket.",
+  "either": [
+    ("If you say fix it and show me",
+     "I build it, re-run your 43 close questions and the full suite, and bring "
+     "the before-and-after here before anything ships \u2014 the same way the "
+     "hyphen was done this morning. Expect rankings to move more than the "
+     "hyphen moved them, because brackets are in 680 citations and hyphens "
+     "were in 92 ordinary words."),
+    ("If you say leave it",
+     "Nothing moves and nothing gets worse. Asking for a sub-paragraph by its "
+     "own name keeps returning its siblings ahead of it, which mostly matters "
+     "to tooling rather than to a preparer \u2014 a person asks in words, not "
+     "in citation numbers. It is pinned as a ratchet either way, so it cannot "
+     "quietly get worse."),
+  ],
+  "picks": ["Fix it, and show me what moved", "Leave it", "Not yet"]},
+
+ {"key": "dec-crowd",
+  "kind": "decision",
+  "group": "From building the answers",
+  "tag": "retrieval \u00b7 dec-crowd",
+  "title": "May one source fill the whole brief?",
+  "rec": "<b>Leave it, and let me bring you a real answer instead.</b> This is "
+         "the cost of the plain words you approved this morning, and it is "
+         "real \u2014 but every way of capping it that I measured means picking "
+         "a number, and your own docket said not to pick a cutoff by taste. It "
+         "is also the kind of question that cannot be settled from the "
+         "retrieval side: whether eight paragraphs of one regulation answer "
+         "better or worse than four plus four is a question about ANSWERS, and "
+         "nothing here has been run against a model yet. So my recommendation "
+         "is to carry it into the pilot, see whether it actually hurts, and "
+         "decide then with evidence rather than now with arithmetic.",
+  "rec_pick": "Leave it and test it in the pilot",
+  "position": "A brief may be filled by one source; whether that is too narrow "
+              "is decided on what the answers look like, not on the ranking.",
+  "context": "<b>What happened.</b> The bonus goes to every passage of a "
+             "declaring source, so a declaration on a source holding 38 "
+             "paragraphs lifts all 38 together. Four of your eleven \u2014 Q16, "
+             "Q18, Q31 and Q33 \u2014 now come back as eight passages of ONE "
+             "source, where they used to carry several.<br><br><b>The real "
+             "loss, named.</b> Q33, streaming television, used to carry "
+             "<i>Pub. 587, \u201cTrade or Business Use\u201d \u2014 the "
+             "test</i>. That is genuinely on point for whether a subscription "
+             "is business use, and it is gone from the brief.<br><br><b>Three "
+             "ways of doing it were measured before this shipped:</b> the "
+             "bonus on every passage gives 11 of 11 and 2.5 sources per brief; "
+             "on the source\u2019s best passage only, 10 of 11 and 4.3 sources; "
+             "capped at half the brief, 11 of 11 and 2.7 sources \u2014 the cap "
+             "barely bites, because the crowding passages DO share words with "
+             "the question.",
+  "either": [
+    ("If you leave it and test it",
+     "Nothing changes now. The pilot tells us whether a one-source brief "
+     "actually answers worse, and that is evidence neither of us has. The risk "
+     "is that a preparer gets a narrower brief on four questions in the "
+     "meantime, and the displaced passages are all still on file and still "
+     "reachable by a different phrasing."),
+    ("If you want it capped now",
+     "I would have to choose how many passages one source may contribute, and "
+     "there is no measurement that picks that number for me \u2014 which is "
+     "exactly the thing you told me not to do. If you name the number it stops "
+     "being my taste and becomes your policy, and I will build it."),
+  ],
+  "picks": ["Leave it and test it in the pilot", "Cap it now", "Not yet"]},
+]
 
 #: BEHAVIOUR 19, ADDED TO CANON THIS MORNING AS 1.13.0: name the goal, report the
 #: distance, then stop. Its incident is this session -- *"i feel like sometimes the
@@ -183,155 +428,114 @@ OTHERS = []
 #: they are the work. Behaviour 19: *"do not manufacture the next decision.
 #: Behaviour 13 says decisions go to the human; it does not say produce some."*
 NEXT = {
- "goal": "Pilot the desks through one real client\u2019s close, end to end \u2014 "
-         "the firm\u2019s goal, set on 7 September 2026.",
- "ends": "It ends with one engagement\u2019s close questions put to the desks and "
-         "a written record of three things: every answer served, every refusal "
-         "with what it asked for, and the questions the desks never saw.",
- "distance": "0 of 1 close, and the first thing to do is not mine \u2014 it is <b>twenty minutes of you trying it</b>. <code>docs/TRY-IT.md</code>.",
- "detail": "<b>What it refuses, because a goal that refuses nothing is not a "
-           "goal.</b> It refuses building more desk machinery: if a desk lacks "
-           "authority mid-pilot, that is a finding to write down, not a thing to "
-           "go and fix. It refuses inventing a client \u2014 there is no "
-           "synthetic engagement, and if there is no real one this is blocked and "
-           "says so rather than producing a demonstration. And it refuses client "
-           "PII reaching a desk: a desk sees the question and the engagement\u2019s "
-           "facts, never a name, an SSN or an EIN.<br><br><b>The first blocker is "
-           "not a client \u2014 it is that nowhere holds an engagement\u2019s "
-           "facts.</b> Three desks declare a fact they need on file: "
-           "<code>trade</code>, <code>taxpayer</code>, <code>capitalization_rule</code>. "
-           "The engine can be handed them. <b>Nothing produces them.</b> Today the "
-           "only thing that carries facts is a worked example\u2019s own "
-           "<code>On file</code> line \u2014 a test fixture. That is why five of "
-           "the eighteen answers refused with <i>the file does not record this</i>: "
-           "there was no file.<br><br><b>That blocker is now cleared, and the "
-           "five it was costing are measured.</b> An engagement\u2019s facts have "
-           "somewhere to live \u2014 outside this plugin, because a client\u2019s "
-           "affairs in a checkout that gets pushed is one <code>git add</code> from "
-           "being published. Handed a file recording those three facts, <b>all five "
-           "of those refusals are served</b>: 7 became 12 of 19. The stand-in file "
-           "that proved it is labelled as one and is not a client.<br><br><b>Since "
-           "then the install path has been walked and the search path has been "
-           "run.</b> The plugin installs and works \u2014 checked by installing "
-           "it, not by reading it \u2014 and one real gap was searched end to "
-           "end against the live publisher, which found three defects in my own "
-           "instructions before it found the rule. Both are the three matters "
-           "below.<br><br><b>All three answered, all three done, and the plugin "
-           "installs.</b> The loop closed for the first time \u2014 a desk "
-           "refused for want of a rule, the searcher found it and would not "
-           "store it, you declared the source, the desk answers. And a refusal "
-           "that lies about its own record now says how much it was shown."
-           "<br><br><b>What is left is the client, and one thing before it: you "
-           "have not seen any of this work.</b> Everything measured today was "
-           "measured by me. <code>docs/TRY-IT.md</code> is five steps and needs "
-           "no client \u2014 including the two that are meant to fail, so the "
-           "test can come back negative.",
+ "goal": "A close runs on this. Occam takes desk 0.36.0 and closes Sarcia again, "
+         "and we read what the desk did rather than what the suite says.",
+ "ends": "It ends with a written record of three things: every question the "
+         "close raised, which of them reached the desk at all, and for each one "
+         "that did \u2014 served, refused, or answered from the wrong passage.",
+ "distance": "Everything you answered is built and pushed: desk 0.34.1 to "
+             "0.36.0, six versions, one commit each with its mutations run red "
+             "first.",
+ "detail": "<b>What changed since the pilot, in one line each.</b> Eleven of "
+           "eleven of your authority questions now reach their authority. Your "
+           "close-question set is complete at 16 of 16. <code>cash-back</code> "
+           "reaches 26 passages instead of none. A refusal now survives a plugin "
+           "upgrade. The skills stopped telling their reader to call a function "
+           "that does not exist. And the envelope finally says a second reader "
+           "is required \u2014 which is why four of Occam\u2019s five questions "
+           "came back refused and left no trace.<br><br><b>Two things stand "
+           "between this and the pilot, and neither is a decision.</b> The "
+           "branch has to merge, because Occam installs from <code>main</code>. "
+           "And FASB still needs one fetch from a machine that can reach "
+           "fasb.org.<br><br><b>What I will not do:</b> touch the retriever "
+           "again before you answer the two matters below. Both are the same "
+           "shape as the hyphen was \u2014 a change that moves every score in "
+           "the corpus \u2014 and picking one quietly is how the word list got "
+           "built the first time.",
 }
 
 CHANGED = [
- ("7 \u2192 8", "of 19 the engine would serve", "the firm\u2019s own ratified position, no longer refused"),
- ("0 \u2192 63", "worked examples on the three thin desks", "cash 19, vehicle 12, meals 32"),
- ("794 of 794", "passages fetched back and compared", "0 differences, 0 unreachable"),
- ("11 of 11", "regulations these desks rely on now read", "every path each one cites lands"),
- ("860", "desk tests passing", "514 when today\u2019s work started; canon 181"),
- ("9 of 9", "checks green on the pull request", "nothing red, no conflict with main"),
+ ("11 of 11", "authority questions whose authority reaches the brief", "was 5 of 11 this morning \u2014 and I told you 6, which was wrong"),
+ ("16 of 16", "of your close questions reaching what was commissioned for them", "the known-miss list is empty for the first time since it was written"),
+ ("0", "passages that score LESS than before the plain words", "measured over all 43 \u2014 it widens and cannot narrow"),
+ ("26", "passages <code>cash-back</code> now reaches", "it reached none; <code>cash back</code> reached 20"),
+ ("1,143 of 1,247", "citations that cannot find themselves in their own top five", "1,140 of them because of a parenthesis \u2014 the first matter below"),
+ ("1,844", "desk tests passing", "the desk asks you to rule, and records your answer itself"),
 ]
 
 LANDED = [
- ("New", "<b>An engagement\u2019s facts have somewhere to live.</b> Three desks "
-         "ask for a fact on file and nothing produced one, so five of the "
-         "close\u2019s eighteen answers refused against a file that did not exist. "
-         "There is a reader for one now. It refuses a fact no desk asks for, a "
-         "fact nobody put their name and a date on, and any value shaped like an "
-         "SSN or an EIN \u2014 and it refuses to read a file kept inside the "
-         "plugin at all. Eight guards, each one broken on purpose to confirm it "
-         "catches."),
- ("New", "<b>The searching agent, built and run against live publishers.</b> When a "
-         "desk has no answer it goes and looks \u2014 anywhere, because you were "
-         "right that a list of approved sites can only find what we already have. "
-         "It reads the passage off the publisher\u2019s own page rather than off "
-         "the search result, and it can put nothing in the record without you."),
- ("Run", "<b>One real gap, end to end.</b> The fixed-assets desk holds a regulation "
-         "whose own examples point at \u00a7 1.162-3, and it could not follow the "
-         "pointer. One search, eight results, four passages read: two check out, "
-         "one was too short to prove which paragraph it came from, one site refused "
-         "us. Both good ones are waiting on you, above."),
- ("New", "<b>All three thin desks now hold their regulations\u2019 worked "
-         "examples.</b> Cash had none and has 19; vehicle had 10 and has 22; meals "
-         "had none and has 32. Every one fetched back from its publisher and "
-         "matched word for word, along with all 727 already there."),
- ("Fixed", "<b>Every regulation these desks rely on reads now.</b> Seven separate "
-           "causes. Two I had described to you and five I had not \u2014 including "
-           "a paragraph with no number on it, two paragraphs reserved on one line, "
-           "and one regulation whose italics are broken across a paragraph number "
-           "in the government\u2019s own file. That last one, a stray tag, had cost "
-           "the vehicle desk every example it might have had."),
- ("Fixed", "<b>The reader now knows both ways the government writes an "
-           "example.</b> Most regulations tag it; three of the meals desk\u2019s "
-           "number it as an ordinary paragraph. Read only for the tag, the "
-           "extractor returned nothing from sections it was reading perfectly."),
- ("Fixed", "<b>This page cannot ask you something it has already answered.</b> The "
-           "recommendation used to sit last, under four sections of argument. It "
-           "now leads. And a card can no longer offer <i>Ratify it</i> as its first "
-           "button while its own recommendation says do not \u2014 which is what "
-           "the docket before last did to you, twice."),
- ("Caught", "<b>The comparison caught me stitching four examples together.</b> I "
-            "joined the pieces of four examples with a space, storing a run of "
-            "words the government never printed as one \u2014 paragraph numbers "
-            "sit between them. All four came back as differences the first time "
-            "they were checked. Stored with the gap marked, they pass."),
- ("Found", "<b>A citation was being read as naming paragraphs that do not exist.</b> "
-           "<i>\u201cparagraph (c)(1)(iii), (iv), or (v)\u201d</i> was read as citing "
-           "a paragraph called \u201c(v)\u201d. Not just a miscount \u2014 that list "
-           "is where the tool picks which rule an example is filed under, so a bare "
-           "\u201c(v)\u201d was a candidate rule on any regulation whose examples "
-           "live under (v). Same class as the four examples filed under the wrong "
-           "rule on Saturday."),
- ("Fixed", "<b>The pull request\u2019s description had gone stale.</b> It opened "
-           "as the searcher alone and is now nine commits, still quoting a test "
-           "count from six commits earlier and describing none of the reader "
-           "work. Rewritten to cover all four pieces, corrections included."),
+ ("0.36.0", "<b>Eleven of your eleven authority questions now reach their "
+            "authority</b>, from five. A source declares the words you ask it "
+            "in; those words can only ever ADD a passage, proved over all 43."),
+ ("0.36.0", "<b>Your close-question set is complete for the first time \u2014 "
+            "16 of 16.</b> Q18 came back with the hyphen and Q31 with the plain "
+            "words, and neither fix was aimed at either."),
+ ("0.35.0", "<b><code>cash-back</code> reaches 26 passages, from nothing.</b> "
+            "A hyphen splits only with no digit either side, so all 113 "
+            "citation-shaped tokens are provably untouched."),
+ ("0.34.4", "<b>The envelope tells the desk a second reader is required.</b> It "
+            "never said the word before, while the record demands one \u2014 so "
+            "a desk following it literally was refused on every answer it got "
+            "right, and that refusal is the one that leaves no trace."),
+ ("0.34.3", "<b>The skills no longer tell their reader to call a function that "
+            "does not exist</b>, and a test now binds every call in every skill "
+            "against the real signature."),
+ ("0.34.2", "<b>A refusal survives a plugin upgrade.</b> The store left the "
+            "versioned cache, the report reads it, and the old paths are still "
+            "read so nothing filed before the move goes silent."),
 ]
 
 UNCHECKED = [
- ("No model has answered anything, all day.", "That is the Next above, and it is "
-  "the largest gap between this and something you could use."),
- ("No desk has met a real client file.", "Still true and still deliberate."),
- ("The scoreboard was not re-run, and re-running it would prove nothing.", "It "
-  "grades against an answer key with the worked examples withheld, so adding 63 of "
-  "them cannot move it. What IS measured: the brief a graded model sees did not "
-  "change size on any of the seven desks. The withholding held."),
- ("Only two of the six test suites were run here.", "desk (585 passed, 1 skipped) "
-  "and canon (181 passed), both just now. The other four ran on the server and all "
-  "are green; nothing in today\u2019s work touches them."),
- ("The searcher has only ever been driven by hand.", "One question, by me. It has "
-  "never run unattended, and there is no recorded failure it would fire on \u2014 "
-  "all 22 in the queue are wrong-citation failures, not missing-authority ones."),
- ("The exhibits were opened, but by machine.", "Nobody has looked at one with "
-  "their eyes."),
+ ("Anything against a live model.", "Every run is the retriever and the engine. "
+  "What a brief with the right passage in it actually produces as an ANSWER is "
+  "still not measured \u2014 and that is now the largest untested claim here, "
+  "because the retrieval half is fixed and the answering half is not."),
+ ("Whether the four one-source briefs answer worse.", "Q16, Q18, Q31 and Q33 "
+  "each return eight passages of a single source now. I can show what was "
+  "displaced; I cannot show whether an answerer does better or worse on them."),
+ ("The 22 refusals stranded in 0.27.0.", "They are reported, not moved \u2014 "
+  "nothing here reaches into a plugin cache. Whether any is a real gap in the "
+  "record is unread."),
+ ("FASB, still.", "fasb.org is refused by this container\u2019s network policy. "
+  "Unchanged since 14 September and nothing was admitted from memory."),
+ ("Whether the pilot\u2019s 40 client flags and 7 preparer holds should have been "
+  "questions.", "Five reached the desk. I have not read the other 47."),
+ ("A second pilot.", "Everything below is measured on your 43 close questions "
+  "and the suite. Nobody has run a close on any of it."),
 ]
 
 WRONG = [
- ("<b>I promised you before-and-after scores, and they cannot exist.</b>", "The goal "
-  "on the last page said the desks would gain their examples \u201cwith the "
-  "before-and-after scores on the page\u201d. Scoring withholds worked examples by "
-  "construction \u2014 three separate mechanisms do it \u2014 so a score cannot "
-  "move when examples are added. I wrote a measurement into a goal without checking "
-  "that the measurement was possible. The Next above is what the honest version "
-  "looks like."),
- ("<b>I told you six regulations had started reading. Three had.</b>", "The other "
-  "three were already reading before I touched anything. I caught it an hour later "
-  "by checking a claim I had already written into a note \u2014 and by then it was "
-  "in a commit message and on a draft of this page, promising you examples on desks "
-  "whose regulations still would not read. Both of those now read too."),
- ("<b>I ran the last docket on the old rulebook.</b>", "canon had a new standing "
-  "behaviour \u2014 name the goal, report the distance, then stop \u2014 and the "
-  "copy here was nine releases behind, so building the page loaded the old "
-  "instructions. You told me to look. It has since moved again, to twenty "
-  "behaviours, and this page is built on that one."),
- ("<b>Two of the things on the last page were not decisions.</b>", "\u201cAdd the "
-  "examples\u201d and \u201cread the ones the reader cannot see\u201d were "
-  "drafted as matters for you. They were the work. Both are done."),
+ ("<b>I told you six of your eleven authority questions reached their authority. It was five.</b>",
+  "I measured the brief at eight and at fifteen, and wrote the FIFTEEN figure "
+  "under the eight-deep heading. It went onto this page, into the pull request "
+  "and into what I said to you. Caught re-running the same measurement before "
+  "building, and corrected everywhere. The improvement below is against five."),
+ ("<b>I told you four refusals were the problem. They were the symptom.</b>",
+  "I reported Occam\u2019s pilot as one served and four refused and left it there. "
+  "Putting your own 43 back through the corpus showed the refusals were mostly "
+  "FALSE \u2014 the record held the answer and the question could not reach it."),
+ ("<b>I said the hyphen was too dangerous to touch, and it was not.</b>",
+  "I told you splitting <code>cash-back</code> risked every citation we hold. "
+  "Measured: 113 hyphenated tokens carry a digit, 92 do not, and the sets do "
+  "not overlap. It was a small rule with a measurable blast radius."),
+ ("<b>I invented a phrasing and put it in your record.</b>",
+  "I declared <i>\u201cmaterials held at year end\u201d</i> on a source. Your Q19 "
+  "says <i>\u201chold materials at year end\u201d</i>. The provenance test I wrote "
+  "for exactly this caught it in its first run \u2014 every declared phrase must "
+  "appear in your own 43 questions, or it is a word I chose."),
+ ("<b>I let <code>corpus/unsupported/</code> stop shipping and did not notice for eleven days.</b>",
+  "And investigating it found something worse: every refusal the INSTALLED desk "
+  "filed went inside a versioned plugin cache. 22 are stranded in 0.27.0 while "
+  "0.34.0 runs. The sibling store was moved out for this exact reason on "
+  "8 September; the fix was applied to a location instead of to a rule."),
+ ("<b>My first version of a test asserted something false about the codebase.</b>",
+  "It said a citation finds itself in its own top five and failed on 179 of "
+  "200. Measured on untouched code before assuming it was mine: 179 there too. "
+  "It is the first matter below."),
+ ("<b>POS11 did not reproduce.</b>",
+  "Occam reported that citing POS11 by its own citation string returned "
+  "<code>authority_absent</code>. Run here it is SERVED \u2014 a finding about "
+  "the tester, which is what was asked for."),
 ]
 
 def _md(t: str) -> str:
@@ -341,6 +545,38 @@ def _md(t: str) -> str:
         out = "".join(p if i % 2 == 0 else "<%s>%s</%s>" % (tag, p, tag)
                       for i, p in enumerate(parts))
     return out.replace("\n\n", "</p><p>").replace("\n", " ")
+
+
+def _opening(why: str) -> str:
+    """A position's reasoning down to its first blank line.
+
+    EXACTLY WHAT THE CARD SHOWED BEFORE, which is the point: the firm chose
+    folding over full length, so nothing they were used to reading moved and
+    everything that was missing is one disclosure below it.
+    """
+    body = [b.strip() for b in (why or "").strip().split("\n\n") if b.strip()]
+    return body[0] if body else ""
+
+
+def _after_the_opening(why: str) -> str:
+    """Everything past the first paragraph, or `""`."""
+    body = [b.strip() for b in (why or "").strip().split("\n\n") if b.strip()]
+    return "\n\n".join(body[1:])
+
+
+def _how_much(why: str) -> str:
+    """How much is behind the fold, said on the fold itself.
+
+    A disclosure with no size on it is one a reader takes for a footnote, and
+    the whole finding here was that it is not: the part that did not reach the
+    POS2 card contains *"$2,500 is a ceiling, not the number"*.
+    """
+    rest = _after_the_opening(why)
+    if not rest:
+        return ""
+    paras = len([b for b in rest.split("\n\n") if b.strip()])
+    return ("%d more paragraph%s, about %d words"
+            % (paras, "" if paras == 1 else "s", len(rest.split())))
 
 
 class DocketError(Exception):
@@ -399,7 +635,16 @@ def items():
             "tier": p["tier"],
             "shape": p["kind"],
             "unlocks": p["unlocks"],
-            "why": _md(p["why"]),
+            # SPLIT, NOT WHOLE. `dec-whytrunc`, 18 September 2026 -- the firm:
+            # "Read the whole thing, FOLDED." Until `record._prose` landed the
+            # same day, this field stopped at the first bolded paragraph and
+            # 23,044 characters across the twenty positions reached no card at
+            # all. Fixing the parser alone would have handed them the OTHER
+            # option on that card -- the whole thing at full length -- which
+            # they declined, and POS13's reasoning is 6,658 characters.
+            "why": _md(_opening(p["why"])),
+            "why_rest": _md(_after_the_opening(p["why"])),
+            "why_more": _how_much(p["why"]),
             "note": p["note"],
             "rec_pick": (p["note"] or {}).get("rec_pick", ""),
             "picks": list(POSITION_PICKS),
@@ -439,9 +684,8 @@ def _counted():
     rules = [r for r in pos if r["shape"] == "rule"]
     turns = [r for r in pos if r["unlocks"] > 0]
     blind = len(pos) - len(turns)
-    ratified = sum(len([q for q in record.load(d).positions if not q.proposed])
-                   for d in sorted((HERE / "desks").iterdir())
-                   if (d / "SOURCES.md").is_file())
+    ratified = len([q for q in record.load(HERE / "corpus").positions
+                    if not q.proposed])
     # A POSITION THIS DOCKET ITSELF SAYS TO HOLD BACK, read off the note rather
     # than counted by hand -- the preface states how many are answerable now, and
     # a number typed there goes stale the moment one is ratified.
@@ -457,7 +701,7 @@ def _counted():
     # the test that checked it read the same flag. A POSITION cannot carry the
     # flag at all -- it comes out of `desks/` -- so a flag-only count silently
     # missed POS3, which did not exist this morning.
-    fresh = [r for r in rows if r["key"] not in SIXTH_DOCKET]
+    fresh = [r for r in rows if r["key"] not in ALREADY_OPEN]
     from_tieout = [r for r in fresh if r["group"] == "From the tie-out"]
     return {
         "rows": rows, "n": len(rows), "pos": len(pos), "dec": len(rows) - len(pos),
@@ -498,36 +742,56 @@ def render() -> str:
 
 
 def _preface(c) -> str:
-    """What today was, and then how many things it leaves for the firm."""
-    waiting = (
-      "<p><b>Nothing on this page needs an answer.</b> All four matters were "
-      "answered \u2014 three on the form at 15:49 and one in conversation \u2014 "
-      "and all four are acted on. They are read back below rather than deleted, "
-      "so you can see what each answer did.</p>"
-    ) if not c["n"] else (
-      "<p><b>%s things wait on you, and %s of them are new.</b> Nothing from the "
-      "last page is carried forward: asking an answered question again is the "
-      "fault this page was rebuilt to stop.</p>"
-      % (_word(c["n"]).capitalize(), _word(c["fresh"]))
+    """What today was, and then how many things it leaves for the firm.
+
+    REWRITTEN 14 SEPTEMBER 2026, AND THE REASON IS THE REWRITE. Every sentence
+    here was a literal describing 8 September -- three matters, the desks gaining
+    their worked examples, eCFR being admitted. The page rendered all of it under
+    today's date and today's eight cards, and NOTHING went red, because the
+    generator's tests check that figures agree with the rows and cannot check
+    that prose is about today.
+
+    It was caught by printing the page and reading it, which is the only thing
+    that catches this class. So the standing sentences are now the ones that stay
+    true -- what this page IS -- and everything dated is derived from the rows or
+    lives in `NEXT`, `CHANGED` and `ANSWERED`, each of which a test does hold.
+
+    AND THE CARRIED/NEW SPLIT IS COUNTED, NOT ASSERTED. The old text said
+    "nothing from the last page is carried forward" as a flat claim. Four of
+    today's eight ARE carried, because they have gone unanswered across three
+    dockets -- which is the single most useful thing this paragraph can say.
+    """
+    if not c["n"]:
+        return (
+          "<p><b>Nothing on this page needs an answer.</b> Every matter is read "
+          "back below rather than deleted, with what your answer caused.</p>"
+          "<p>No proposal is open and all %s ratified positions stand.</p>"
+          % _word(c["ratified"]))
+    carried = c["n"] - c["fresh"]
+    split = (
+      "<b>%s are new and %s have been waiting across earlier dockets.</b> The "
+      "carried ones are marked as carried rather than re-dressed as findings: "
+      "they are the same questions, and the longest-standing of them stops two "
+      "of your own ratified positions being usable on any client."
+      % (_word(c["fresh"]).capitalize(), _word(carried))
+    ) if carried else (
+      "<b>All %s are new.</b> Nothing from the last page is carried forward: "
+      "asking an answered question again is the fault this page was rebuilt to "
+      "stop." % _word(c["n"])
     )
     return (
-      "<p><b>Three things wait on you, and each one blocks something you asked "
-      "for.</b> The Forge cannot be set up until the branch merges; a desk found "
-      "the rule it was missing and cannot keep it without a word from you; and a "
-      "desk claimed its record was empty when it was not, which nothing catches "
-      "today.</p>"
-      "<p><b>Your four earlier answers are all acted on.</b> "
-      "eCFR was admitted for \u00a7 1.162-3 and the desk answered a question with "
-      "it about ninety minutes later; the field mechanism you approved is built "
-      "and proved against your own capitalisation position; the wording check you "
-      "dropped was not built; and the day\u2019s work is merged.</p>"
-      + waiting +
-      "<p><b>All three thin desks now hold every worked example their own "
-      "regulations carry.</b> 63 added \u2014 19 to cash, 12 to vehicle, 32 to "
-      "meals \u2014 and all 794 stored passages were fetched back from their "
-      "publishers and compared word for word: no differences, nothing "
-      "unreachable. No proposal is open and all %s ratified positions stand.</p>"
-      % _word(c["ratified"])
+      "<p><b>%s things wait on you.</b> %s</p>"
+      "<p><b>Every figure on this page was measured, not recalled.</b> These "
+      "matters came out of putting your own 43 close questions back through the "
+      "corpus on the version Occam piloted, and out of that pilot\u2019s findings, "
+      "which were reproduced here rather than believed. One of them did not "
+      "reproduce and is reported as a finding about the tester. What I got wrong "
+      "\u2014 including what I told you yesterday \u2014 is at the foot of this "
+      "page.</p>"
+      "<p>No proposal is open and all %s ratified positions stand, so nothing "
+      "below is a position waiting to be ratified — every card is a choice "
+      "no rule settles.</p>"
+      % (_word(c["n"]).capitalize(), split, _word(c["ratified"]))
     )
 
 
@@ -578,11 +842,18 @@ def _answered() -> str:
         '<li><code class="pr">%s</code> <b>%s</b> <i>%s</i><br>%s</li>'
         % (a["said"], a["title"], a["where"], a["caused"]) for a in ANSWERED)
     return ('<h2 class="sec">What you already answered, and what it did</h2>'
-            '<p class="lead">All %s answered, all %s acted on. Your answer is '
-            'quoted from this page\u2019s own store; what it caused is measured '
-            'from the repository.</p>'
+            '<p class="lead">All %s answered, %s acted on. Every one of these '
+            'was answered ON THIS PAGE and is read back out of its own store, '
+            'not out of any session\u2019s memory of being told \u2014 which is '
+            'the only independent record of what you actually said. What each '
+            'one caused is measured from the repository.</p>'
+            '<p class="lead"><b>An earlier version of this line said these were '
+            'transcribed from the log because they were answered elsewhere.</b> '
+            'That was true of the four matters this section used to carry and '
+            'false of these, and it stayed on the page for four days saying so. '
+            'Corrected by reading the store rather than the sentence.</p>'
             '<ul class="plain">%s</ul>') % (_word(len(ANSWERED)),
-                                            _word(len(ANSWERED)), rows)
+                                            _word(len(ANSWERED) - 1), rows)
 
 
 def _next_block() -> str:
@@ -706,6 +977,10 @@ h3.t{font-size:1.28rem;line-height:1.26;margin:0 0 .7rem}
  font-size:.72rem;color:var(--ink3)}
 .pick.is-rec[aria-pressed="true"]::after{color:inherit}
 details.why{margin:.8rem 0}
+details.rest{margin:.5rem 0 0;padding-left:.75rem;border-left:2px solid var(--rule)}
+details.rest summary{cursor:pointer;font-size:.68rem;letter-spacing:.08em;
+ text-transform:uppercase;color:var(--ink3);font-weight:700}
+details.rest p{margin-top:.4rem}
 details.why summary{cursor:pointer;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;
  color:var(--ink3);font-weight:700}
 details.why .d{color:var(--ink2);font-size:.9rem;margin-top:.45rem;max-width:64ch}
@@ -813,7 +1088,7 @@ function card(d) {
       <span class="chip kind">${kindLabel}</span>
     </div>
     <h3 class="t">${esc(d.title)}</h3>
-    ${(n.rec || d.rec) ? `<div class="reclead"><h4>What I would do</h4><p>${n.rec || esc(d.rec)}</p></div>` : ""}
+    ${(n.rec || d.rec) ? `<div class="reclead"><h4>What I would do</h4><p>${n.rec || d.rec}</p></div>` : ""}
     <div class="says"><b>${d.kind === "decision" ? "What I would put in place" : "What the desk would say, in your words"}</b>&ldquo;${esc(d.position)}&rdquo;</div>
     ${d.citation ? `<div class="rests">Rests on <span class="c">${esc(d.citation)}</span><br>${esc(d.source)}</div>` : ""}
     ${d.context ? `<p class="ctx">${d.context}</p>` : ""}
@@ -829,7 +1104,11 @@ function card(d) {
             ? `<b>${d.unlocks}</b> of this desk's scored problems turn on this exact citation, so ratifying makes them answerable.`
             : `<b>No scored problem changes.</b> What changes is that the desk stops handing the question back and starts saying ${d.shape === "rule" ? "what to do next" : "this, in your words, with the citation behind it"}.`
         }</p></div>` : "",
-        d.why ? `<div class="blk"><h4>The full reasoning as drafted</h4><p>${d.why}</p></div>` : "",
+        d.why ? `<div class="blk"><h4>The reasoning as drafted</h4><p>${d.why}</p>${
+          d.why_rest
+            ? `<details class="rest"><summary>The rest of it \u2014 ${d.why_more}</summary><p>${d.why_rest}</p></details>`
+            : ""
+        }</div>` : "",
       ].filter(Boolean);
       return more.length
         ? `<details class="why"><summary>What else I looked at (${more.length})</summary><div class="d">${more.join("")}</div></details>`

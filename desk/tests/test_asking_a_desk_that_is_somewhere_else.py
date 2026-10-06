@@ -136,11 +136,28 @@ def test_the_envelope_tells_the_desk_to_reply_poke_only():
 
 
 def test_it_warns_that_a_send_is_not_a_delivery():
-    """The other half of the same defect: `fire_trigger`'s `last_fired_at` is
-    not corroborated by the durable record, so a desk that trusts it reports
-    success early, and an asker that chases cannot tell early from failed."""
+    """The other half of the same defect: a 200 from `fire_trigger` is not
+    delivery, so a desk that trusts it reports success early, and an asker that
+    chases cannot tell early from failed."""
     body = relay.as_prompt(relay.ask(Q, reply_to=ME))
-    assert "is NOT delivery" in body
+    assert "is not delivery" in body
+
+
+def test_and_that_the_durable_record_is_not_the_fallback_either():
+    """MEASURED BOTH WAYS ON 8 SEPTEMBER, on the reply to this very envelope.
+
+    The desk fired, went to the durable record to check itself — the right
+    instinct — and found no `last_fired_at`, no run row, and `updated_at` equal
+    to `created_at`. It reported a delivery failure. The message had arrived
+    five seconds after the fire and was sitting undelivered in the asker's
+    notification queue.
+
+    So the rule is not "trust the record instead of the return value". Neither
+    one knows. An envelope that warned about the 200 and stopped there sends a
+    careful desk to the second wrong oracle, which is what happened."""
+    body = relay.as_prompt(relay.ask(Q, reply_to=ME))
+    assert "not evidence of non-delivery" in body.replace("\n", " ")
+    assert "Only the recipient knows" in body
 
 
 def test_it_tells_the_desk_to_open_with_the_ref():
@@ -154,9 +171,9 @@ def test_it_says_a_refusal_is_a_finding():
     assert "a refusal is a finding" in body
 
 
-def test_it_forbids_writing_to_a_desk():
+def test_it_forbids_writing_to_the_record():
     body = relay.as_prompt(relay.ask(Q, reply_to=ME))
-    assert "Do not write to a desk" in body
+    assert "Do not write to the record" in body
 
 
 # ------------------------------------------------------------ the two skills
@@ -224,13 +241,44 @@ def test_the_headings_survive_as_headings():
         assert heading in lines, f"{heading!r} is not on a line of its own"
 
 
+def _fenced(body: str) -> list[list[str]]:
+    """Every fenced block in the envelope, in order.
+
+    IT USED TO TAKE THE FIRST ONE AND REQUIRE THERE BE EXACTLY TWO FENCES. That
+    held while the envelope carried one snippet, and broke the day it carried
+    two — on 25 September 2026, when the judging snippet was added ahead of the
+    reply snippet and this test failed reporting that `create_trigger` was not
+    fenced. It was; it was second.
+
+    The assertion was right and the way it found its block was not, so the
+    finding moves rather than relaxes: EVERY block must be closed, and the
+    reply snippet must be one of them.
+    """
+    lines = body.splitlines()
+    fences = [i for i, l in enumerate(lines) if l == "```"]
+    assert len(fences) % 2 == 0, (
+        "an unclosed fence: everything after it renders as code to the desk")
+    return [lines[a + 1:b] for a, b in zip(fences[::2], fences[1::2])]
+
+
 def test_the_reply_snippet_is_a_fenced_block_a_desk_can_copy():
-    lines = relay.as_prompt(relay.ask(Q, reply_to=ME)).splitlines()
-    assert lines.count("```") == 2, "the create_trigger snippet is not fenced"
-    opened = lines.index("```")
-    block = lines[opened + 1:lines.index("```", opened + 1)]
-    assert any(l.startswith("create_trigger(") for l in block)
-    assert any(l.startswith("fire_trigger(") for l in block)
+    blocks = _fenced(relay.as_prompt(relay.ask(Q, reply_to=ME)))
+    assert any(any(l.startswith("create_trigger(") for l in b)
+               and any(l.startswith("fire_trigger(") for l in b)
+               for b in blocks), (
+        "no fenced block carries both create_trigger and fire_trigger, so the "
+        "reply instruction is not something a desk can copy")
+
+
+def test_the_judging_snippet_is_fenced_too():
+    """Added with the judge, 25 September 2026. The envelope now tells the desk
+    to build a `judging.Judgment`, and an instruction to write code is only
+    followable if the code is copyable — the same property the reply snippet has
+    been held to since the envelope existed."""
+    blocks = _fenced(relay.as_prompt(relay.ask(Q, reply_to=ME)))
+    assert any(any("judging.Judgment(" in l for l in b) for b in blocks), (
+        "the envelope names `judging.Judgment` but not inside a fenced block, "
+        "so the desk is told to write code it has to reconstruct from prose")
 
 
 # ------------------------------------------------------- where the desk lives
@@ -279,22 +327,63 @@ def test_the_address_is_not_committed_anywhere_in_this_repository():
         + f". It is deployment state — read it from ${relay.DESK}")
 
 
-def test_the_envelope_asks_the_desk_to_name_the_desks_it_reached():
-    """ROUTING IS INVISIBLE TO THE ASKER AND VISIBLE TO THE DESK.
+def test_the_envelope_asks_the_desk_to_say_what_the_phrasing_reached():
+    """WHAT THE RETRIEVAL DID IS INVISIBLE TO THE ASKER AND VISIBLE TO THE DESK.
 
     On 8 September a doer asked "what do I do with it" about a forklift and
     reached ONE desk. The same transaction phrased as "is the invoice price
-    deducted or capitalized?" reaches TWO — and the one dropped, `fixed-assets`,
-    holds the most on-point paragraph. The doer: *"My phrasing was the natural
+    deducted or capitalized?" reached TWO — and the one dropped, `fixed-assets`,
+    held the most on-point paragraph. The doer: *"My phrasing was the natural
     working one and it got strictly less authority. I did not know that when I
     wrote it, and a doer has no way to tell."*
 
-    Nothing in the engine is wrong here — `routing.route` is a comparison and it
-    compared correctly. What was missing is that the only party who can see the
-    routing was not asked to report it."""
+    Nothing in the engine was wrong there — `routing.route` was a comparison and
+    it compared correctly. What was missing is that the only party who can see
+    what the question reached was not asked to report it. That is still true
+    with the desks gone, and `test_the_envelopes_measurement_is_still_the_truth`
+    is what stops the envelope's own numbers going stale."""
     body = relay.as_prompt(relay.ask(Q, reply_to=ME))
-    assert "Name every desk" in body
-    assert "fewer desks than an obvious rephrasing" in body
+    assert "Name the citations it came back with" in body
+    assert "reaches authority this one did not" in body
+
+
+def test_the_measurement_behind_the_phrasing_rule_is_still_the_truth():
+    """THE MEASUREMENT BEHIND "SAY WHAT THE PHRASING REACHED", RECOMPUTED.
+
+    THE ENVELOPE STOPPED QUOTING IT ON 25 SEPTEMBER 2026. The message was cut to
+    its rules — 6,082 characters to 2,990 — because it cost the asking session
+    about 20,000 characters of context per question and Occam stopped sending
+    after three in Sarcia pilot 2. The number was the story of how the rule was
+    learned, not part of the rule. It stays pinned here, because a rule whose
+    evidence has quietly stopped being true is a rule nobody should trust.
+
+    WHAT IT WAS WHEN THE ENVELOPE QUOTED IT:
+
+    It tells the answerer that the forklift asked the natural way now reaches
+    NOTHING while the explicit phrasing reaches eight — measured 11 September
+    2026, and worse than the one-desk-of-two it replaced. A figure in a message
+    an agent reads at runtime is the worst place for a stale one: it is quoted
+    as evidence and nobody re-checks it.
+
+    IF THIS GOES RED THE RETRIEVAL MOVED. Down to a smaller gap is the pool
+    learning the natural phrasing — good, and the envelope's sentence has to
+    move with it. Anything else is a regression nobody asked for.
+    """
+    import ask
+    from conftest import CORPUS
+
+    natural = "what do i do with it? we bought a forklift"
+    explicit = ("we bought a forklift - is the invoice price deducted or "
+                "capitalized?")
+    body = relay.as_prompt(relay.ask(Q, reply_to=ME))
+
+    assert len(ask.looked(natural, CORPUS)) == 0, (
+        "the natural phrasing reaches something now; the envelope still says "
+        "it reaches NOTHING AT ALL. The rule stands either way; update this.")
+    assert len(ask.looked(explicit, CORPUS)) == 8
+    # and the envelope must NOT carry the number any more: a figure in a
+    # message read at runtime is the worst place for one to go stale.
+    assert "0 passages against 8" not in body
 
 
 def test_and_says_why_the_asker_cannot_do_it_themselves():

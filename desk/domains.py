@@ -80,6 +80,9 @@ class Verdict:
     domain: object = None
     matched: tuple = field(default_factory=tuple)
     also: tuple = field(default_factory=tuple)
+    #: The question, kept so `tied` can re-score the runners-up. Not part of the
+    #: verdict a caller reads; it is what makes `tied` answerable at all.
+    _question: str = ""
 
     def __bool__(self) -> bool:
         return self.domain is not None
@@ -100,6 +103,94 @@ class Verdict:
         is surfaced for the caller to refuse on rather than resolved here.
         """
         return bool(self.domain is not None and self.also)
+
+    @property
+    def tied(self) -> tuple:
+        """The runners-up that fired on exactly as many words as the winner.
+
+        A STRADDLE THAT IS ALSO A TIE WAS DECIDED BY THE SORT AND NOTHING ELSE.
+        `classify` orders by hit count and then BY NAME, for determinism -- and
+        on 8 September the Forge desk found what that costs: *"we signed a
+        36-month lease on a piece of equipment. does the equipment go on our
+        books as an asset?"* fires `lease` in `federal-tax` and `lease` in
+        `us-gaap`, one each. `federal-tax` sorts first alphabetically, wins, and
+        irs.gov becomes competent to answer a balance-sheet question. Shorten
+        the same sentence to *"is the leased equipment booked as an asset?"* and
+        it classifies `us-gaap` and the gate holds.
+
+        The word `books` is deliberately not GAAP vocabulary (see `DOMAINS.md`),
+        and should stay that way -- it swallowed eleven of the desks' own
+        problems the hour it was in the list. So this is not a vocabulary bug to
+        patch: it is the sort quietly deciding which body of authority governs.
+
+        MEASURED BEFORE ANYTHING WAS BUILT ON IT: of the 98 problems the seven
+        desks record, 28 fire on any domain, 5 straddle, and all 5 of those are
+        exact ties -- every one `federal-tax` against `us-gaap` on lease
+        vocabulary. So a refusal here would cost four correct tax answers to
+        catch one wrong recognition answer, which is why the engine says so
+        rather than refusing. Whether it should refuse instead is the firm's.
+        """
+        if self.domain is None:
+            return ()
+        top = len(self.matched)
+        return tuple(d for d in self.also if len(_hits(self._question, d)) == top) \
+            if self._question else self.also
+
+    @property
+    def apart(self) -> tuple:
+        """`((domain, the words only IT fired on), ...)` for every losing body
+        the question did not actually rule out. Empty when the winner's own
+        words did the deciding.
+
+        THE FLAGSHIP CASE IS NOT A TIE, and the Forge desk found that after this
+        first shipped as one:
+
+            the 36-month lease question   shared ['lease']   own: tax [] gaap []
+            "the lease liability on the balance sheet - deductible?"
+                                          shared ['lease']   own: tax ['deductible']
+                                                                  gaap ['balance sheet']
+
+        *"THE FLAGSHIP HAS NO DISCRIMINATING WORD AT ALL. Both sides scored 1 on
+        the SAME token, 'lease', which is in both vocabularies. Nothing in that
+        question tells the two bodies apart. The other two are genuine ties: one
+        real signal each side, pulling opposite ways. […] They were not weighed;
+        there was nothing to weigh."*
+
+        Two states, and a note that called both a tie told the reader evidence
+        had been balanced when none existed. `only_shared_words` separates them,
+        because the fix differs: nothing-told-them-apart is fixed in the ASKER'S
+        WORDING, and a genuine split is not.
+
+        AND IT IS BROADER THAN A TIE, which is the other half of the same
+        finding. *"operating lease with a purchase option, capitalize or deduct
+        the rent?"* loses 4-2 — so the old tie rule was silent — while `us-gaap`
+        holds `operating lease`, the exact ASC 842 vocabulary, and the question
+        is squarely a book question. A losing body with a word of its own was
+        not ruled out; it was outvoted by count.
+
+        MEASURED BEFORE THE RULE WIDENED: on the 98 recorded problems this fires
+        on the SAME FIVE the tie rule fired on, so the wider rule costs nothing
+        on the record and catches a case the narrow one missed.
+        """
+        if self.domain is None or not self.also:
+            return ()
+        own = self._own
+        if not any(own.values()):
+            return tuple((d, ()) for d in self.also)      # nothing told them apart
+        return tuple((d, tuple(sorted(own[d.name]))) for d in self.also
+                     if own[d.name])
+
+    @property
+    def only_shared_words(self) -> bool:
+        """Every word that fired is in every body's vocabulary. Nothing to weigh."""
+        return bool(self.also) and not any(self._own.values())
+
+    @property
+    def _own(self) -> dict:
+        """`{domain name: the words only that body fired on}`."""
+        per = {d.name: frozenset(_hits(self._question, d)) for d in self.bodies}
+        shared = frozenset.intersection(*per.values()) if per else frozenset()
+        return {n: per[n] - shared for n in per}
 
     @property
     def bodies(self) -> tuple:
@@ -196,18 +287,40 @@ def load(path=None) -> tuple:
     return parse(path.read_text(encoding="utf-8"))
 
 
-_WORD = re.compile(r"[a-z0-9]+(?:[-'][a-z0-9]+)*")
+# THE SECOND MATCHER USED TO LIVE HERE — a `_WORD` regex this module
+# tokenised with itself. It is gone rather than kept-and-unused: an unused
+# copy of a rule is the same hazard one call away, and the next session to
+# need a tokeniser would have reached for the one already in the file.
+
+
+def _matcher():
+    """Canon's `touches`, and it is the ONLY matcher this module may use."""
+    from _canon import load_record
+    return load_record().touches
 
 
 def _hits(question: str, domain: Domain) -> tuple:
-    """WHOLE WORDS AND WHOLE PHRASES, the same rule `SUBJECTS.md` matches on and
-    for the same recorded reason: substring matching once made *"extension"*
-    fire on *"extensive"*. A multi-word entry is matched as a phrase on the same
-    normalised text, so `balance sheet` fires and `balance` alone does not."""
-    words = _WORD.findall(question.lower())
-    padded = " " + " ".join(words) + " "
-    return tuple(t for t in domain.fires_on
-                 if (t in words if " " not in t else f" {t} " in padded))
+    """WHOLE WORDS AND WHOLE PHRASES, matched by CANON'S `touches` rather than
+    by a copy of its rule.
+
+    IT USED TO RE-IMPLEMENT IT, and the docstring asserted the equivalence:
+    *"the same rule `SUBJECTS.md` matches on and for the same recorded reason:
+    substring matching once made 'extension' fire on 'extensive'."* Same rule,
+    second implementation, nothing holding them together.
+
+    THE PATTERN THAT CONDEMNED IT, 8 September 2026. The desk reported its FIFTH
+    self-correction of the week and named the cause: *"the fifth time this week
+    that approximating your matching code instead of calling it would have
+    handed you a confident falsehood ... I am reporting it because the pattern
+    is now the finding."* Its recommendation was to make the real matcher the
+    only reachable one, and the first place to look was here.
+
+    MEASURED BEFORE CHANGING IT: the two agreed, ten probes across both domains,
+    zero divergences. This was never a live bug. It was the state every one of
+    those five near-misses started from.
+    """
+    touches = _matcher()
+    return tuple(t for t in domain.fires_on if touches(question, t))
 
 
 def classify(question: str, domains=None) -> Verdict:
@@ -228,13 +341,29 @@ def classify(question: str, domains=None) -> Verdict:
         return Verdict()
     scored.sort(key=lambda s: (-s[0], s[1]))
     return Verdict(domain=scored[0][2], matched=scored[0][3],
-                   also=tuple(s[2] for s in scored[1:]))
+                   also=tuple(s[2] for s in scored[1:]), _question=question)
 
 
 def tier_for(url: str, domain) -> str:
     """The tier a publisher gets in a domain. TERTIARY where nothing matches --
     an unknown host helps you find the authority and is never the authority."""
     return domain.tier(_registered(url)) if domain else TERTIARY
+
+
+def reachable(candidates, desk) -> tuple:
+    """Which of these domains this desk actually holds a source competent for.
+
+    READ OFF THE RECORD, NEVER ASSERTED. A straddle note that said "no desk
+    holds US GAAP" would be a claim about the record written into a string, and
+    the record moves -- the firm admits a publisher and the sentence is silently
+    wrong. This asks the desk's own sources the same question `governs` asks of
+    any url, so the note follows the record on the day it is printed.
+    """
+    out = []
+    for d in candidates:
+        if any(s.url and governs(s.url, d) for s in getattr(desk, "sources", ())):
+            out.append(d.name)
+    return tuple(out)
 
 
 def governs(url: str, domain) -> bool:

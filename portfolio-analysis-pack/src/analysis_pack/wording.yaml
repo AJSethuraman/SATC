@@ -1,0 +1,141 @@
+# Every sentence the pack writes lives here, as a template with {placeholders}.
+# Code fills a template; it never assembles a sentence from pieces (tenet S10).
+# The placeholders are counts and config values; a missing one is an error,
+# never a blank.
+
+cover:
+  question: "Loans where {rule_sentence}: is {outcome_label} more common among them than among loans where it is not, and is that real or something else in disguise?"
+  rule:
+    ratio: "{field_a} divided by {field_b} is {fires_op} {fires_value:g}"
+    difference: "{field_a} minus {field_b} is {fires_op} {fires_value:g}"
+  answer_gradient:
+    monotonic increasing: "Gradient: yes. As the ratio rises, the {outcome_label} rate rises at every step."
+    monotonic decreasing: "Gradient: falls. As the ratio rises, the {outcome_label} rate falls at every step."
+    not monotonic: "Gradient: not one-directional. The {outcome_label} rate does not rise at every step of the ratio."
+    no data: "Gradient: fewer than two buckets hold loans, so there is no gradient to read."
+    flat: "Gradient: flat. The {outcome_label} rate is the same in every bucket that holds loans, so there is no gradient to read."
+  not_built: "{step}: not built in this version."
+  answer_stratified_none: "Survives or collapses (step 4): the question file lists nothing to compare within, so the flag was not tested against anything. List confounders and build again."
+  answer_stratified_empty: "Survives or collapses (step 4): no seasoned loan carries a value for any confounder listed, so there is nothing to compare within."
+  answer_model:
+    both: "Model (step 6): the flag's odds ratio is {m1:.2f} [{m1lo:.2f}, {m1hi:.2f}] with the controls (M1) and {m2:.2f} [{m2lo:.2f}, {m2hi:.2f}] with the confounders added (M2), on {events:,} events."
+    m1_only: "Model (step 6): the flag's odds ratio is {m1:.2f} [{m1lo:.2f}, {m1hi:.2f}] with the controls (M1); M2 is {m2_reason}."
+    no_confounders: "Model (step 6): the flag's odds ratio is {m1:.2f} [{m1lo:.2f}, {m1hi:.2f}] with the controls (M1), on {events:,} events. There is no M2: the question file lists no confounders to add."
+    unknown: "Model (step 6): unknown — {reason}."
+  answer_stratified_prefix: "Survives or collapses (step 4), for {outcome_label}: "
+  check_moved: "The live knobs have been moved from the settings this pack was built with (confidence {confidence:.0%}, method {method}, survives threshold {threshold:g}). The Python column on _check was computed at those settings, so the formula check applies there only; set the knobs back to compare."
+  answer_stratified_item: "{confounder} ({scheme}) — {word}"
+  denominator: "{seasoned:,} seasoned loans, {events:,} events ({outcome_label}). {unseasoned:,} loans younger than {window_months} months are excluded from every rate."
+
+notes:
+  helper_columns: "Columns headed chart: feed the chart beside the table and are not results."
+  working_columns: "Columns headed working: carry the pooling arithmetic and columns headed chart: feed the chart; neither is a result."
+  population: >-
+    Population: {rows_read:,} rows read from {source_name}{filter_sentence}. {loans:,} loans after typing.
+    As-of date {asof}. A loan is seasoned when it has at least {window_months} whole months on book at
+    the as-of date; {seasoned:,} are seasoned and {unseasoned:,} are not. Only seasoned loans enter a rate.
+  filter_none: ""
+  filter_some: ", keeping rows where {filter_text} ({rows_after_filter:,} kept)"
+  outcome_event_date: >-
+    Outcome: "{outcome_label}", taken from {date_field}. A loan is an event when that date falls within
+    {window_months} months of origination; a later date is not an event in the window; a blank is not an
+    event. A loan paid off inside the window without an event is not an event.
+  outcome_flag: >-
+    Outcome: "{outcome_label}", taken from {field} where {field} {op} {value:g}. The bank applied the window
+    before the extract; the pack did not enforce it and only excluded loans younger than {window_months}
+    months.
+  outcome_snapshot: >-
+    Outcome: "{outcome_label}", measured at the as-of date as {measure_text} {op} {value:g}. Months on book
+    vary across the base from {window_months} to the oldest seasoned loan; read the decomposition by
+    origination year with that in mind.
+  outcome_snapshot_bands: >-
+    Outcome: "{outcome_label}", measured at the as-of date as {measure_text}, read at each of the edges
+    {edges}: a loan counts at an edge when the measure is at or above it, so every step below is shown once
+    per edge and no single cut was chosen. Months on book vary across the base from {window_months} to the
+    oldest seasoned loan; read the decomposition by origination year with that in mind.
+  dates: >-
+    Dates: {date_text}. A typed date cell needs no pattern; text was parsed with the pattern shown, which is
+    the one common pattern that fit every value in the column unless the question file declared one.
+  bands_table: >-
+    Where the measure sits, by bucket: the share of each bucket's loans in each band of the measure at the
+    as-of date, with the counts beside them.
+  capture: >-
+    Step 1, capture. Before a field is trended it has to exist. For every origination quarter: loans
+    originated, how many are still younger than the {window_months}-month window at the as-of date, how
+    many carry a blank in {field_a}, how many in {field_b}, and how many carry both. Blank is a state, not
+    dirt: a quarter where a field was rarely captured is a finding about the field, and any trend in that
+    quarter is a trend in capture, not in behaviour. Values the pack will not accept never reach this tab;
+    the build refuses on them and lists the loans.
+  capture_bands: >-
+    Bands by scheme: how many seasoned loans land in each band of each confounder, so an empty band is
+    visible before step 4 stratifies on it.
+  prevalence: >-
+    Step 2, prevalence. Two series by origination quarter, on seasoned loans only, never merged: the
+    capture rate is the share of seasoned loans with both {field_a} and {field_b} present; the flag rate is
+    the share of those with both present where {fires_text}. Each carries a {confidence:.0%} {method}
+    interval. The span runs from {first_quarter} to {last_quarter}: a change in the flag rate across those
+    years is not on its own a read of underwriting drift, because the years a span covers can move either
+    field for reasons of their own.
+  stratified: >-
+    Step 4, stratified. The question is whether the flag still matters once loans are compared only with
+    loans of similar {confounder_list}. For each confounder and each band scheme: a 2x2 per band (flagged and
+    unflagged loans, events in each), the flagged and unflagged rates with {confidence:.0%} {method} intervals
+    and their gap in percentage points, and the gradient inside the band. Beneath each block: the crude odds
+    ratio over the whole population with a Woolf interval, the Mantel-Haenszel pooled odds ratio across the
+    bands with the Robins-Breslow-Greenland interval, the share of the crude log-odds the pooled ratio kept,
+    and one word. An odds ratio of 2.0 means flagged loans carry twice the odds of the outcome. The word:
+    "no crude effect" when the crude interval contains 1; "collapses" when the pooled ratio has lost more
+    than the survives threshold ({threshold:.0%}, a knob on _config) of the crude log-odds; "survives" when it
+    kept it and the pooled interval excludes 1; "unknown" when the interval is too wide to say either.
+  decomposition: >-
+    Step 5, decomposition. Where the flag's effect sits: for each dimension listed in the question file, the
+    flagged and unflagged rates per level with {confidence:.0%} {method} intervals, the gap in percentage
+    points, the multiple, and the share of all flagged events that fall in the level. Rows are sorted by
+    flagged events, most first, so a pattern that is all in one level is read off the top row. A dimension
+    with a band scheme uses the scheme's first set of edges.
+  stratified_empty: "No seasoned loan with both rule fields carries a value for {confounder}, so there is nothing to stratify on."
+  control: >-
+    Step 7, the observation that stands regardless of what steps 3 to 6 found. It rests on the counts alone:
+    how often the two fields disagree in the seasoned book, and what the question file says reacts to that
+    today. The tool asserts nothing of its own about how either field is verified or used; the two lines
+    under the share are the question file's words.
+  model: >-
+    Step 6, model. Two logistic regressions side by side, values only (a regression cannot be written as a
+    cell formula, so this tab does not recalculate and its numbers have no check-tab twin). M1 has the flag
+    plus the controls; M2 adds every confounder that is not already a control. A term's odds ratio says how
+    the odds of the outcome move with that term, everything else held fixed: 2.0 on the flag means flagged
+    loans carry twice the odds. The interval is the {confidence:.0%} range it plausibly sits in. If the flag's
+    ratio falls from M1 to M2, what was lost is explained by the confounders. Categorical terms are measured
+    against a reference level, the one with the most loans. A continuous control marked log enters as its
+    natural logarithm. The tree beneath is a search for the two- or three-way combination with the most
+    contrast, printed as rules with the loans, events and rate in each leaf; a lead to check, not a proof.
+  gradient: >-
+    Step 3, gradient. Rule value = {rule_text}, computed for the {with_both:,} seasoned loans where both
+    fields are present ({blank_either:,} seasoned loans have a blank in one or both and are outside this
+    table). Buckets are left-closed at the edges {edges}; the bottom and top buckets are open. The base row
+    is the {base_n:,} loans where the rule does not fire ({fires_text}). Each rate carries a {confidence:.0%}
+    {method} interval; gap is the bucket rate minus the base rate in percentage points; multiple is the
+    bucket rate divided by the base rate. Monotonic is read on the point estimates, comparing each pair of
+    adjacent buckets that both hold loans.
+  check: >-
+    Every rate, interval, gap, multiple and word on the results tabs is an Excel formula over the _cube
+    tab. This tab holds Python's own value for each one and asks Excel whether they agree, to the
+    tolerance shown. The cover reports how many agree out of how many. A build at the desk cannot run
+    this check itself; Excel runs it when the file is opened.
+  config: >-
+    Live knobs recalculate the workbook when changed: the confidence level and the interval method.
+    Rebuild knobs are shown for the record and take effect only when the pack is built again.
+
+control:
+  share: "In {share:.1%} of the {both:,} seasoned loans where both {field_a} and {field_b} are present, {fires_text}."
+  share_none: "No seasoned loan carries both {field_a} and {field_b}, so the share where {fires_text} cannot be read."
+  drives_line: "{field}: {text}"
+  none: "Nothing in the process reacts to it."
+  some: "What reacts to it today, as the question file states it: {text}"
+  cover_heading: "Regardless of the above"
+
+labels:
+  fires: "{field_a} {kind_word} {field_b} {fires_op} {fires_value:g}"
+  kind_word:
+    ratio: "÷"
+    difference: "−"

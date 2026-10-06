@@ -349,10 +349,18 @@ def _sub_once(text: str, needle: str, value: str, path: str) -> str:
         return re.compile(rf"({re.escape(k)}\s*:[ \t]*){re.escape(v)}(?=\s|$)")
 
     if len(parts) > 1:
-        for anchor in (f"{parts[-2]}:", f'"{parts[-2]}":', f"'{parts[-2]}':"):
-            if text.count(anchor) != 1:
+        # THE ANCHOR IS A WHOLE KEY, NOT A SUBSTRING. `text.count("brokerage:")`
+        # was 2 in a file with ONE `brokerage:` block, because `keyed_brokerage:`
+        # contains it -- so the precise pass silently gave up and the blunt pass
+        # below refused the write. Found 5 October 2026 when adding a third
+        # `amount: 45` to the schedule tipped the fallback from one match to two;
+        # the bug was already there, waiting for a collision.
+        for anchor in (parts[-2], f'"{parts[-2]}"', f"'{parts[-2]}'"):
+            at_key = re.compile(rf"^[ 	]*{re.escape(anchor)}[ 	]*:", re.M)
+            hits = list(at_key.finditer(text))
+            if len(hits) != 1:
                 continue
-            at = text.index(anchor)
+            at = hits[0].start()
             for k in keys:
                 for v in values:
                     m = pattern(k, v).search(text, at)

@@ -21,7 +21,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
 import record                                               # noqa: E402
 import scoreboard                                           # noqa: E402
 import scoreboard_run as sr                                 # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                 # noqa: E402
 
 
 # -- the window ---------------------------------------------------------------
@@ -62,82 +62,86 @@ def test_the_refusal_says_what_to_do_about_it():
     assert "--corpus index" in said and "--num-ctx" in said
 
 
-def test_the_index_shape_fits_every_desk_and_the_full_text_fits_one():
-    """The measurement, kept as a test so it cannot rot quietly.
+def test_neither_shape_fits_the_window_any_more_and_the_size_is_pinned():
+    """The measurement, kept as a test so it cannot rot quietly — AND IT WENT
+    THE WRONG WAY ON 10 SEPTEMBER 2026.
 
-    IT SAID "FITS NONE" FOR AN HOUR AND THAT WAS WRONG. It was measured while
-    four desks could not be prompted at all -- the leak check was refusing them
-    -- so their full-text size was never taken. With that fixed, one desk's full
-    text does fit: `personal-or-business`, at 4,388 against 7,616 of room. A
-    denominator taken over the rows that happened to be readable is the failure
-    this repository is named for, and it caught me on the same afternoon I wrote
-    the guard.
+    WHAT IT USED TO SAY. Seven desks, and the `index` shape fitted every one of
+    them: the largest was under 7,616 tokens of room. The `text` shape fitted
+    exactly one, `personal-or-business` at 4,388. That pair of facts is what
+    `docs/CONTEXT-ON-FILE.md` is built on and it is why the harness defaults to
+    `--corpus index`.
 
-    AND ON 6 SEPTEMBER 2026 THE DENOMINATOR BECAME WHOLE. The last blocked desk,
-    `rewards-and-information-returns`, was 0 of 19 promptable while two worked
-    examples sat in its corpus; it is 19 of 19, and every one of the seven desks
-    now contributes a real size in both shapes. Nothing is being measured over
-    the rows that happened to be readable any more, because every row is.
+    WHAT ONE CORPUS DID TO IT. `dec-kill` merged the seven, so the index a
+    graded prompt shows is every RULE the record holds — 525 citations, up from
+    176 on the largest desk — and the prompt is **25,622 tokens against 7,616 of
+    room**. Full text is 91,067. NEITHER SHAPE FITS ANY MORE, and the shape that
+    was chosen precisely because it fitted now overruns by three and a half
+    times.
 
-    THE FULL-TEXT ANSWER DID NOT CHANGE WHEN THE MISSING ROW ARRIVED, and that
-    is worth one line: rewards comes in at 9,953 against 7,616 of room, so it
-    joins the five that do not fit rather than the one that does. The earlier
-    correction stands on its own now instead of on an incomplete set.
+    THIS IS NOT THE ANSWERING PATH AND THE DIFFERENCE IS THE WHOLE POINT.
+    `ask.consult` narrows through the pool to the eight citations a question
+    actually reaches, and comes in at five to sixteen thousand CHARACTERS. The
+    grading path has no narrowing: `scoreboard_run.build_prompt` shows the
+    index, and the index is now the corpus. So `dec-kill` did not make the
+    answering brief bigger — it made the GRADED one unusable on a small model,
+    which is a real cost of the decision and is recorded here rather than
+    smoothed over.
+
+    IT IS NOT URGENT AND IT IS NOT NOTHING. The firm, 8 September 2026: *"We
+    currently do not need to test against ollama. Stop trying to."* So nothing
+    is scored against an 8k window today. The day something is, this is what it
+    will hit, and the fix is to narrow the graded prompt the way the answering
+    one is narrowed — which is a decision about how a score is taken, not a
+    thing to do quietly inside a test.
     """
     room = 8192 - sr.NUM_PREDICT - sr.OVERHEAD
-    index, text = {}, {}
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
-        desk = record.load(d)
-        for shape, into in (("index", index), ("text", text)):
-            sizes = []
-            for problem in desk.problems:
-                try:
-                    sizes.append(sr.estimate_tokens(
-                        sr.build_prompt(problem, desk, shape=shape)))
-                except sr.Leak:
-                    pass                 # that desk's own, separate defect
-            if sizes:
-                into[desk.name] = max(sizes)
+    desk = record.load(CORPUS)
+    biggest = {}
+    for shape in ("index", "text"):
+        sizes = []
+        for problem in desk.problems:
+            try:
+                sizes.append(sr.estimate_tokens(
+                    sr.build_prompt(problem, desk, shape=shape)))
+            except sr.Leak:
+                pass                     # a separate defect, checked below
+        assert len(sizes) == len(desk.problems), (
+            f"{len(desk.problems) - len(sizes)} problems could not be prompted "
+            f"in the {shape} shape, so this is measured over the rows that "
+            f"happened to be readable — the failure this file is named for")
+        biggest[shape] = max(sizes)
 
-    # SEVEN, AND IT WAS SIX UNTIL 6 SEPTEMBER 2026. This assertion is the reason
-    # anyone noticed: `rewards-and-information-returns` contributed no size at
-    # all while its corpus carried two worked examples, and the comment here
-    # predicted that fixing them would turn this line red. It did, on the commit
-    # that fixed them -- the two tests holding hands rather than a nuisance.
-    #
-    # NAMED, NOT COUNTED. `len(index) == 7` would pass while a desk silently
-    # swapped places with another, which is the same failure as measuring over
-    # the readable rows.
-    assert sorted(index) == [
-        "capitalization-and-de-minimis", "cash-and-bank", "fixed-assets",
-        "meals-and-entertainment", "personal-or-business",
-        "rewards-and-information-returns", "vehicle-expense",
-    ], f"the set of promptable desks moved: {sorted(index)}"
-    # AND EVERY DESK CONTRIBUTES TO BOTH SHAPES, which is the claim the docstring
-    # above actually rests on. A desk blocked in `text` but not `index` would
-    # leave the full-text finding measured over six again, silently.
-    assert sorted(text) == sorted(index), (
-        f"a desk is promptable in one shape and not the other: "
-        f"{sorted(set(index) ^ set(text))}")
-    assert not [d for d, n in index.items() if n > room], \
-        f"the index shape no longer fits: {[(d, n) for d, n in index.items() if n > room]}"
-
-    fits = sorted(d for d, n in text.items() if n <= room)
-    assert fits == ["personal-or-business"], (
-        f"the full-text shape now fits {fits}. It fitted exactly one desk when "
-        f"this was measured; if that changed, say so in the docs rather than "
-        f"here — the number is quoted in docs/CONTEXT-ON-FILE.md."
-    )
+    # Up 30 on 10 September 2026: `dec-pos2` added the firm's own standing
+    # policy as a source row, and the index a graded prompt shows lists every
+    # source the record holds.
+    # Up to 38,234 / 132,100 on 26 September 2026: five sections admitted after
+    # Sarcia pilot 3 add 382 rule paragraphs, and the graded prompt lists them.
+    # And +1 / +4 after Codex on #398: two passages carry a `[...]` gap mark.
+    # And +355 text: four flush paragraphs owed to sections already on file.
+    # Up to 41,970 / 140,081 on 27 September 2026: § 1.162-21 and § 274(a) and
+    # (e), admitted after Sarcia pilot 5 and desk trial 1, add 71 rule
+    # paragraphs (56 and 15), and the graded prompt lists them. § 1.162-21's
+    # thirteen examples are not in it -- a graded prompt prints no example.
+    # +234 / +237 the same day for § 274(o), its two paragraphs and the note
+    # that dates it -- Codex on #403: (e)(1) stored without its 2026 limit.
+    # +470 / +509 for § 274(n)(2) and (n)(2)(C), the exception (o) names
+    # -- Codex on #403 again: the denial was stored without the exception to it.
+    assert biggest == {"index": 42674, "text": 140827}, (
+        f"the graded prompt changed size: {biggest}, and this file says "
+        f"{{'index': 42674, 'text': 140827}}. That is allowed — it is what "
+        f"storing authority does — but it is quoted in docs/CONTEXT-ON-FILE.md "
+        f"and must move deliberately.")
+    assert biggest["index"] > room, (
+        "the index shape fits an 8k window again. That is good news and this "
+        "test is now wrong: rewrite it, and correct CONTEXT-ON-FILE.md, rather "
+        "than deleting the assertion.")
 
 
 # -- the leak that read as a careful desk -------------------------------------
 
 def _leaking_desk():
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
+    for d in [CORPUS]:
         desk = record.load(d)
         for p in desk.problems:
             try:
@@ -174,7 +178,7 @@ def test_a_desk_the_harness_cannot_prompt_does_not_publish_as_a_careful_one():
 def test_a_brain_giving_up_is_still_counted_as_a_denominator():
     """The other half, so the fix does not take rule 9 with it: a failure that
     really is the brain's still produces a row rather than stopping the run."""
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
 
     def ask(problem):
         raise RuntimeError("the model said something unparseable")
@@ -188,9 +192,7 @@ def test_a_brain_giving_up_is_still_counted_as_a_denominator():
 
 def _promptable():
     """A desk and problem the harness can currently build a prompt for."""
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
+    for d in [CORPUS]:
         desk = record.load(d)
         for problem in desk.problems:
             try:
@@ -249,9 +251,7 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
     """Four problems were refused for this and none of them leaked: `an
     allowable deduction` occurs inside `not an allowable deduction`, so the old
     at-most-one count saw two. The list is now cut out, not budgeted for."""
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
+    for d in [CORPUS]:
         desk = record.load(d)
         listed = sr.admissible(desk)
         nested = [a for a in listed if any(a != b and a in b for b in listed)]
@@ -324,59 +324,265 @@ def test_a_conclusion_that_contains_another_is_not_a_leak():
 #: the file that does not load. A check cannot detect its own staleness, so the
 #: stamp had to come from the code doing the work — and the brief is the one
 #: artifact an answerer always reads.
-ANSWERING_BRIEF = {
-    "capitalization-and-de-minimis":     (8_553, 19_420),
-    "cash-and-bank":                     (15_147, 20_690),
-    "fixed-assets":                      (22_971, 75_803),
-    "meals-and-entertainment":           (11_754, 20_738),
-    "personal-or-business":              (3_612, 4_116),
-    "rewards-and-information-returns":   (9_436, 20_127),
-    "vehicle-expense":                   (20_893, 26_387),
+#: AND AGAIN on 8 September 2026, at 0.13.1 — **+113 tokens on every desk and
+#: both sides**, which is the largest FLAT move this roster has recorded and the
+#: one with the most behind it. The brief said, and had always said, *"A citation
+#: to anything not printed here is refused by the engine, however real it is."*
+#: That sentence was the ceiling: everything outside the stored corpus refused,
+#: the searcher found the rule, and the trail stopped at the firm because a
+#: source had to be admitted before any desk could cite it. Verification is the
+#: gate now (#343), so the brief has to say what an answerer may do instead —
+#: hand in the URL and the exact words, and let the engine fetch the page.
+#:
+#: THE OLD SENTENCE IS STILL THERE, UNWEAKENED, and the six lines added are
+#: spent almost entirely on why: the gate is a FETCH and not the answerer's
+#: word, so "you may cite something not printed here" must never read as "you
+#: may quote it from memory". Identical on every desk because it is one fixed
+#: paragraph, and identical on both sides because it is not authority.
+#: WHAT A REAL QUESTION ACTUALLY SENDS, in tokens, at `limit=8`.
+#:
+#: THIS ROSTER USED TO BE PER DESK AND MEASURED THE WHOLE RECORD. Seven rows,
+#: `ask.brief(question, desk)` over everything the desk held — 3,725 tokens on
+#: `personal-or-business` up to 23,085 on `fixed-assets`, and six of the seven
+#: overran an 8B window. `dec-kill` makes the unnarrowed figure meaningless:
+#: the whole corpus is 91,497 tokens of rules and 185,571 with the worked
+#: examples, and nothing sends it. `ask.consult` scores every citation against
+#: the question and builds the brief from the top eight.
+#:
+#: SO THE MEASUREMENT MOVED TO THE PATH A QUESTION TAKES, and the answer is the
+#: best news in this file: every one of these fits the 7,616 tokens of room,
+#: where six of seven desks did not. Narrowing by what the question reaches
+#: beats narrowing by which folder it landed in, on the dimension a small model
+#: cares about.
+#:
+#: The four questions are real: two of Forge-Occam's from their field report,
+#: and two from the working vernacular of a close.
+#: AND AGAIN on 25 September 2026, at 0.36.0 — the brewery row, +13 characters,
+#: when `dec-reach` let § 1.274-11 declare *"is a brewery a meal"* and the
+#: brief pulled a slightly longer passage. The smallest move this roster has
+#: recorded since the version stamp.
+#: AND on 25 September 2026, at 0.35.0 — ONE question, +491 characters,
+#: and it is the only row `dec-hyphen` moved. *"hand tools bought for the trade -
+#: deducted or capitalized?"* carries a spaced hyphen, and splitting letter
+#: compounds changed which passages its words reach, so the brief pulled longer
+#: ones. The other four rows did not move at all, which is the useful half: a
+#: tokeniser change that reordered fifteen of the firm's 43 close questions
+#: changed the SIZE of one brief in five. Still 3,493 of the roster's room, so
+#: nothing came near the window.
+NARROWED = {
+    # Each up 125 tokens on 10 September 2026, and deliberately: `dec-coverage`
+    # added the paragraph telling an answerer that these passages were chosen by
+    # word overlap and that being shown one is not evidence it settles anything.
+    # A fixed cost on every brief, and the cheapest of the three places that
+    # warning could have gone.
+    #
+    # TWO MOVED AGAIN ON 11 SEPTEMBER AND IT IS NOT A COST OF A LONGER BRIEF.
+    # `dec-fullstop` stopped a word at the end of a sentence being a different
+    # word, so both questions now reach DIFFERENT passages — Pub. 583's
+    # "Supporting Documents" among them — and a brief is as long as what it
+    # carries. Same count of passages, different passages, more words in them.
+    # The other two are unchanged, which is what says this is retrieval moving
+    # rather than a fixed cost added to every brief.
+    #
+    # AND THREE OF THE FOUR MOVED ON 14 SEPTEMBER 2026: `dec-examples` -- the
+    # firm, **"Label and never examples-only."** Every worked example printed in
+    # the answering brief now carries a line saying it is another taxpayer's
+    # facts, so the cost is per EXAMPLE rather than per brief, and it is exactly
+    # visible in which rows moved:
+    #
+    #     brewery tab          2,582 -> 2,737   (+155, four examples)
+    #     supporting documents 7,044 -> 7,122   (+78,  two examples)
+    #     hand tools           2,846 -> 3,002   (+156, four examples)
+    #     mileage / van        2,420 -> 2,420   (unchanged -- NO examples)
+    #
+    # THE FOURTH ROW IS THE ONE WORTH READING. It did not move, which is what
+    # says this is a label on examples and not a paragraph added to every brief.
+    # The graded figures below are likewise untouched: `brief_for_grading`
+    # prints no example, so there is nothing there to label.
+    "is a brewery tab a business meal?": 3_058,
+    # +64 when § 1.162-21(b)(1) came to be read with its two tests (Codex on
+    # #403): this brief prints (b)(3)(ii), which now names (b)(2) as well.
+    "what supporting documents does the client have to keep?": 6_797,
+    #
+    # TWO MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 3, for two reasons that
+    # are both visible in the diff. Every position a brief carries now prints
+    # the words it rests on (`Rests on:`), so the van brief gains POS16's one
+    # line and nothing else (+43). The hand-tools brief gains POS7's one line
+    # (+57), checked by diffing the brief. Nothing else in either brief moved.
+    # AND AGAIN THE SAME DAY (+18): the admitted § 1.461-1 put its (c)(3)(ii)(f)
+    # into this brief in place of a § 1.263(a)-3(k)(1)(i) passage, with S37 in
+    # the sources list. Retrieval moving, checked by diffing the brief.
+    # AND +445 AFTER CODEX ON #398: a narrowed brief now keeps the paragraph
+    # each kept position rests on, so POS7 brings § 1.274-11(b)(1)(ii) with it.
+    # That is the fix working -- without it the second reader was handed the
+    # wrong paragraph.
+    #
+    # ALL FOUR MOVED ON 26 SEPTEMBER 2026, after Sarcia pilot 4, and it is one
+    # change priced two ways. The brief's first sentence said a citation to
+    # anything not printed is refused; the engine checks the whole corpus, so
+    # three of nine served answers in pilot 4 cited paragraphs retrieval never
+    # surfaced. The sentence now says what is true, and every brief ends with
+    # every section on file (`ask.on_file_index`) -- replacing the list of the
+    # shown sources rather than sitting beside it. Net +171 to +364: a brief
+    # showing more sources lost more of the old list. The index is citations
+    # only because headings did not fit the supporting-documents brief under
+    # 7,616 tokens; its docstring has the measurement. And +26 on all four
+    # after Codex on #401: the line telling an answerer to escalate on anything
+    # "NOT printed here" contradicted the shelf, so it now says to escalate only
+    # when the rule is in neither the brief nor a section on the list. And -9
+    # on all four after an independent review of #401: S34, the firm's own
+    # policy, holds no paragraph `read` could open, so it left the list.
+    #
+    # ALL FOUR MOVED ON 27 SEPTEMBER 2026, when § 1.162-21 and § 274 were
+    # admitted after Sarcia pilot 5 and desk trial 1, checked by diffing each
+    # brief against the record before them. +11 on every one is the on-file
+    # index gaining `26 CFR 1.162-21` and `26 USC 274`. Two also changed a
+    # passage, and that is retrieval moving, not a choice: the supporting-
+    # documents brief shows § 1.162-21(b)(3)(ii) -- "documentary evidence
+    # [...] includes [...] receipts" -- where it showed Pub. 583's "Bookkeeping
+    # System" (-805 net, the Pub. 583 passage being the longer); the hand-tools
+    # brief shows § 1.162-21(d)(2)(ii) where it showed § 1.461-1(c)(3)(ii)(f),
+    # neither of them about hand tools (-10 net).
+    # And +41 on both of those two: the § 1.162-21 paragraph each now shows
+    # names (g), the applicability date that confines the whole section
+    # to taxable years from 19 January 2021 (Codex on #403).
+    # And +52 on hand tools: § 1.162-21(d)(2)(ii) now names the lead-in it
+    # finishes and that lead-in's other clauses (`frame`, Codex on #403).
+    # AND THREE MOVED AGAIN, +98 brewery, +90 hand tools, +44 van: a printed
+    # paragraph citing a Code section the record does not hold now says so,
+    # and to escalate rather than assume (`unheld`, Codex on #403 -- § 274(o)
+    # turns on § 132(e)(2) and § 119(a), neither on file). Supporting
+    # documents did not move: nothing it prints cites an unheld section.
+    # THEN +44 supporting documents and +15 hand tools when the reader was
+    # rewritten after a second review: it now reads every section of a list
+    # and a capitalised "Section", and drops other Acts and titles.
+    # +8 supporting documents: its § 1.162-21(b)(3)(ii) now names (b)(1),
+    # which everything under (b) is read with (Codex on #403).
+    "hand tools bought for the trade - deducted or capitalized?": 4_400,
+    "mileage or actual expenses for the van?": 2_899,
 }
+
+#: The whole corpus, unnarrowed, in tokens: `(rules only, with examples)`.
+#: NOTHING SENDS THIS. It is here as the denominator the narrowing works
+#: against, and so that a change in what the corpus holds is visible.
+#: Up 118 on 10 September 2026: `dec-pos2` added S34, the firm's own standing
+#: policy, and the paragraph that marks POS11 as resting on the firm rather than
+#: on a paragraph. The narrowed briefs above are unchanged, because none of
+#: those four questions reaches POS11.
+# +67 tokens on 11 September 2026: `dec-pos11-review` wrote the firm's answer
+# onto POS11 — "nearby, doesn't settle it", with what the search actually found
+# under it. A review that records only that somebody looked is the one a reader
+# learns the wrong thing from, so the words are the cost and they are cheap.
+# +20,232 tokens on the EXAMPLES side on 14 September 2026, and none at all on
+# the rules side: `dec-examples` labels every worked example, and this figure
+# prints all 260 of them. The rules-only figure is unchanged to the token, which
+# is the check that the label went on examples and nowhere else.
+# +1,371 on BOTH sides on 26 September 2026, equal to the token, which says it
+# is all position text and no example: sixteen `Rests on:` quotations, the
+# notes on POS7 and POS8, and three positions unpinned to firm policy with the
+# note saying why (Sarcia pilot 3).
+# +41,201 on both sides the same day: 382 rule paragraphs of §§ 1.6001-1,
+# 1.164-1, 1.461-1, 1.263(a)-4 and 1.163-8T, and no example -- theirs are not
+# stored (S37-S39 say why), which is why the two sides moved equally.
+# And +3 / +4 after Codex on #398: two passages joined across a gap now mark it.
+# And +355 on both sides: the four flush paragraphs the old reader dropped from
+# § 1.274-5T, § 1.280F-6 and § 1.62-2, now on their parents.
+# And +75 on both sides for the same pilot-4 sentence: what is refused is a
+# citation to anything NOT ON FILE, not anything not printed. The unnarrowed
+# brief carries no on-file index -- it already prints everything. +26/+25
+# more for the escalation line Codex on #401 found contradicting the shelf.
+# +7,652 rules-only and +13,402 with examples on 27 September 2026: 71 rule
+# paragraphs of § 1.162-21 and § 274(a) and (e) on both sides, and § 1.162-21's
+# thirteen worked examples (+5,750) on the examples side only.
+# +239 / +240 for § 274(o) and its dating note (Codex on #403).
+# +54 on both sides for the one `Read with` line under § 274(e)(1), which the
+# unnarrowed brief prints because it prints every paragraph, and +49 for the
+# second, under § 274(o) itself, which carries the date (Codex on #403 again).
+# +2,314 / +2,838 because a limit now reaches a paragraph's clauses and
+# examples: § 1.162-21(g) dates the whole section, so each of its other 68
+# paragraphs names it, and the (o) clauses name the date (Codex, #403).
+# +564 / +564 for § 274(n)(2) and (n)(2)(C), and for the read-with lines that
+# now follow (o) on to them from (e)(1) as well.
+# +407 / +407 for the read-with notes when (o), (e) and (n)(2) are read with
+# themselves -- each clause names its parent -- and (o) with (e)(8).
+# +9,208 / +12,781 for the same line under every paragraph citing a Code
+# section not on file -- 264 of 1,257 -- which the unnarrowed brief prints
+# all of. The narrowed briefs above moved by tens, not thousands.
+# +865 / +877 when the reader was rewritten (lists, "Section", § ; other
+# Acts and titles dropped): 274 paragraphs cite an unheld section, not 264.
+# +8 / +7 after the re-review of 3e7a1e98: § 224(d)(1) back, the bogus
+# "261-276" gone, and owners named before a number respected.
+# -7 / -7 when a shared "or (3)" before an Act's name stopped hiding the
+# owner: § 1.446-1(e)(3)(iii) no longer names a nonexistent 26 USC 13261.
+# +29 / +29 when an explanatory aside inside a list stopped ending it:
+# § 1.163-8T(a)(1) now names § 163(d) as well as § 469 (Codex on #403).
+# +78 / +78 for the notes naming § 1.162-21(b)(1) under every paragraph of (b).
+# -8 / -8 when a one-word aside stopped being read as a subsection: § 1.262-1(c)
+# names 26 USC 163, not 26 USC 163(interest) (Codex on #403).
+# +150 / +150 when "subsection (d)" and "paragraph (2)" were read against their
+# own section: § 274(d), § 274(m), § 6041(b) and § 6050W(a) are named not on
+# file in the paragraphs that cite them that way (Codex on #403).
+# +77 / +100 when a list's shared labels were read -- "section 1221(a)(1), (3),
+# (4), or (5)" names four paragraphs, not one; eleven paragraphs gain the
+# shared ones in their not-on-file lines (Codex on #403).
+# -281 / -281 when the brief's Read-with line came from `served_with` itself
+# (adversarial pass on #403): it stops re-naming what its "Read as one with"
+# line already names -- § 274(e) under each of its own clauses -- and § 274(e)
+# now names the § 274(o) an answer citing it carries.
+# -0 / -6 when a range ending in labels stopped being read as its first end:
+# § 1.446-1(e)(2)(iii) Example 17 no longer names 26 USC 168(g)(1) (Codex).
+# +457 / +457 for the same record line, named under every paragraph of (b).
+# +178 / +890 when every § 1.162-21 paragraph invoking the restitution tests
+# ((e)(4)(i)(B)-(C) and eight examples) came to be read with (b)(1) (Codex).
+WHOLE = (156_871, 281_764)
 
 
 def _answering_sizes():
     import ask
-    out = {}
-    for d in sorted(DESKS.iterdir()):
-        if not (d / "SOURCES.md").is_file():
-            continue
-        desk = record.load(d)
-        out[desk.name] = (sr.estimate_tokens(ask.brief("a question", desk.rules_only())),
-                          sr.estimate_tokens(ask.brief("a question", desk)))
-    return out
+    return {q: sr.estimate_tokens(ask.consult(q)) for q in NARROWED}
 
 
 def test_the_answering_brief_is_the_size_the_roster_says():
     got = _answering_sizes()
-    assert got == ANSWERING_BRIEF, (
+    assert got == NARROWED, (
         "the answering brief changed size. That is allowed -- it is what "
         "storing authority does -- but the figure is published and must move "
         "deliberately:\n"
-        + "\n".join(f"  {k}: roster {ANSWERING_BRIEF.get(k)} measured {v}"
-                    for k, v in got.items() if ANSWERING_BRIEF.get(k) != v))
+        + "\n".join(f"  {k!r}: roster {NARROWED.get(k)} measured {v}"
+                     for k, v in got.items() if NARROWED.get(k) != v))
 
 
-def test_storing_the_examples_moved_no_desk_out_of_the_window():
-    """The claim that matters about today, asserted rather than argued.
+def test_the_whole_corpus_is_what_the_narrowing_works_against():
+    """The denominator, so the win above is not measured against nothing."""
+    import ask
 
-    Six desks already overflowed an 8B window this morning. If storing the
-    examples had pushed a SEVENTH over, that would be a cost of this change; it
-    did not, and the one desk that fits still fits.
+    desk = record.load(CORPUS)
+    got = (sr.estimate_tokens(ask.brief("a question", desk.rules_only())),
+           sr.estimate_tokens(ask.brief("a question", desk)))
+    assert got == WHOLE, f"the corpus changed size: {got}, roster says {WHOLE}"
+
+
+def test_every_narrowed_brief_fits_the_window():
+    """THE THING ONE CORPUS BOUGHT, and it is worth stating plainly.
+
+    Six of seven desks overran an 8,192-token window on their own record. Every
+    one of these questions fits, because the brief is now built from what the
+    question reaches rather than from what a folder holds. It is the same
+    mechanism that killed the word list, measured on the other axis.
+
+    NOT A GUARANTEE, and this does not pretend to be one. Four questions is
+    four questions; nothing here says the ninth citation of some other question
+    could not push it over, and nothing in `ask.brief` checks — see the test
+    below, which pins that absence.
     """
     room = 8192 - sr.NUM_PREDICT - sr.OVERHEAD
-    for name, (before, after) in _answering_sizes().items():
-        assert not (before <= room < after), (
-            f"{name} fitted the window before the worked examples were stored "
-            f"({before:,}) and does not now ({after:,}). That is a desk this "
-            f"change broke.")
-
-
-def test_at_least_one_desk_fits_so_the_measurement_is_not_vacuous():
-    """Narrowing. A room of zero would satisfy everything above."""
-    room = 8192 - sr.NUM_PREDICT - sr.OVERHEAD
-    fits = [n for n, (_, a) in _answering_sizes().items() if a <= room]
-    assert fits == ["personal-or-business"], fits
+    over = {q: n for q, n in _answering_sizes().items() if n > room}
+    assert not over, (
+        f"a narrowed brief no longer fits {room} tokens of room: {over}. "
+        f"Either the corpus grew under a question or `limit` moved.")
+    assert max(_answering_sizes().values()) > room // 4, (
+        "every brief is now tiny, which usually means the narrowing found "
+        "almost nothing rather than that it worked")
 
 
 def test_nothing_checks_this_window_on_the_answering_path():
@@ -391,7 +597,7 @@ def test_nothing_checks_this_window_on_the_answering_path():
     rather than being closed by accident and never noticed.
     """
     import ask
-    src = (pathlib.Path(__file__).resolve().parents[1] / "ask.py").read_text()
+    src = (pathlib.Path(__file__).resolve().parents[1] / "ask.py").read_text(encoding="utf-8")
     body = src.split("def brief(")[1].split("\ndef ")[0]
     assert "fits_window" not in body and "num_ctx" not in body, (
         "`ask.brief` now checks the window. Good -- update this test and the "

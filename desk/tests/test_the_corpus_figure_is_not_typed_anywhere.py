@@ -30,7 +30,7 @@ HERE = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE))
 
 import record                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                 # noqa: E402
 
 #: "533 passages", "533 stored passages", "531 of 533 passages". Three digits,
 #: because a two-digit count is almost always a per-desk figure and a per-desk
@@ -42,9 +42,7 @@ _DATED = ("tie-outs", "runs", "docs")
 
 
 def _corpus_size() -> int:
-    return sum(len(record.load(d).passages)
-               for d in sorted(DESKS.iterdir())
-               if (d / "SOURCES.md").is_file())
+    return len(record.load(CORPUS).passages)
 
 
 def _files():

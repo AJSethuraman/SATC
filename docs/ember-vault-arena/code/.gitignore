@@ -1,0 +1,13 @@
+# match databases and the outputs the demo builders regenerate from them
+data/
+demo/replay.json
+demo/summary.json
+demo/story.html
+demo/viewer.html
+demo/arena.html
+__pycache__/
+*.pyc
+# players' brains never enter source control; house brains under brains/house do
+brains/players/
+# a gate run's answer key stays beside its pack on the machine that ran it, never on the branch
+gate/*.key.json

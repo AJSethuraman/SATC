@@ -1,0 +1,4 @@
+planted 141, caught 139, missed 2
+  by kind (caught, missed): {'look': (48, 2), 'look-bar': (80, 0), 'look-dots': (2, 0), 'look-end': (8, 0), 'low-values': (1, 0)}
+  missed: Look C89 ['look', 'REV_DEBT against FICO', 'Moves together (correlation)', 3] -0.53 -0.53265
+  missed: Look C108 ['look', 'REV_DEBT against SHORT_HIST', 'Moves together (correlation)', 3] -0.01 -0.01005

@@ -1,0 +1,4 @@
+planted 200, caught 200, missed 0
+semantic plants 20690, caught 20690, missed 0
+  by kind (caught, missed): {'band-label': (78, 0), 'grid': (4122, 0), 'grid-bound': (65, 0), 'grid-grey': (14783, 0), 'grid-head': (192, 0), 'look': (8, 0), 'look-label': (50, 0), 'look-pline': (15, 0), 'panel': (89, 0), 'pk-border': (8, 0), 'pk-rule': (1280, 0)}
+  by kind (caught, missed): {'grid': (123, 0), 'grid-bookfig': (1, 0), 'grid-few': (1, 0), 'grid-grey': (35, 0), 'grid-head': (1, 0), 'groups': (2, 0), 'panel': (5, 0), 'pck': (1, 0), 'pk-border': (8, 0), 'pocket': (17, 0), 'pockets-count': (1, 0), 'record': (1, 0), 'size-median': (3, 0), 'split-pocket': (1, 0)}

@@ -38,7 +38,7 @@ sys.path.insert(0, str(HERE))
 
 import record                                               # noqa: E402
 import tieout                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
 LIVE = ("when you receive your bank statement, make sure the statement, your "
         "checkbook, and your books agree. the statement balance may not agree "
@@ -92,15 +92,42 @@ def test_an_unmarked_passage_is_unaffected():
     assert tieout._segments(ours) == [ours]
 
 
-def test_the_two_passages_in_the_record_actually_carry_the_mark():
+#: EVERY PASSAGE IN THE CORPUS THAT MARKS AN OMISSION. It was 2 — the pair the
+#: firm answered about, both on Pub. 583's reconciliation section — because that
+#: was all `cash-and-bank` held and a question only ever reached one desk. One
+#: corpus holds all seven records' marks, so it is 7, and the other five were
+#: always there and were never checked by this guard.
+#: NINE SINCE 26 SEPTEMBER 2026: § 1.164-1(a) and § 1.461-1(e)(3)(ii), each a
+#: parent joined to the flush paragraph the publisher prints after its
+#: children -- the gap marked so a tie-out does not read them as adjacent
+#: (Codex on #398).
+#: AND THIRTEEN: four flush paragraphs the old reader dropped from sections
+#: already on file, now on their parents -- § 1.274-5T(b)(6), (c)(3)(i),
+#: § 1.280F-6(d)(2)(ii)(A) and § 1.62-2(b).
+#: TWENTY-SEVEN SINCE 27 SEPTEMBER 2026, after Sarcia pilot 5 and desk trial 1:
+#: § 1.162-21's thirteen worked examples, each its Facts and its Analysis with
+#: the paragraph labels between them marked -- the way § 1.274-12's four are --
+#: and § 274(e), whose closing flush sentence is its own and follows its nine
+#: paragraphs, so the gap is marked rather than the two read as adjacent.
+#: And § 274(n)(2), stored as its lead-in and the closing sentence that narrows
+#: (n)(2)(C), the exception § 274(o) names (Codex on #403).
+MARKED = 28
+
+
+def test_the_passages_in_the_record_actually_carry_the_mark():
     """The record, not the mechanism. A guard for an omission nobody marked is
-    a guard for nothing, and this is the pair the firm answered about."""
-    desk = record.load(DESKS / "cash-and-bank")
+    a guard for nothing, and the pair the firm answered about must be in it."""
+    desk = record.load(CORPUS)
     marked = [p for p in desk.passages if tieout.ELLIPSIS in p.text]
-    assert len(marked) == 2, (
-        f"{len(marked)} passages carry a marked omission, not 2: "
+    assert len(marked) == MARKED, (
+        f"{len(marked)} passages carry a marked omission, not {MARKED}: "
         f"{[p.citation for p in marked]}")
-    assert all("Reconciling the checking account" in p.citation for p in marked)
+    pair = [p for p in marked
+            if "Reconciling the checking account" in p.citation]
+    assert len(pair) == 2, (
+        "the two passages the firm answered about are the reason this guard "
+        "exists; they are no longer both marked")
+    marked = pair
     # AND THE TWO HALVES BETWEEN THEM CARRY THE WHOLE SENTENCE. Marking an
     # omission is honest; losing the branch entirely is not, and the mark would
     # hide that just as well.
@@ -128,7 +155,7 @@ def test_no_marked_passage_leaves_nothing_to_check():
     nothing left to check it against.
     """
     seen = 0
-    for d in sorted(DESKS.iterdir()):
+    for d in [CORPUS]:
         if not (d / "SOURCES.md").is_file():
             continue
         for p in record.load(d).passages:
@@ -155,4 +182,4 @@ def test_no_marked_passage_leaves_nothing_to_check():
     # one: the labels "(ii)" and "(iii)" sit between the segments. All four came
     # back DIFFERS on their first check against eCFR. Marked, each segment is
     # found in order and only the labels go unchecked.
-    assert seen == 7, f"{seen} marked passages across every desk, not 7"
+    assert seen == MARKED, f"{seen} marked passages across every desk, not {MARKED}"

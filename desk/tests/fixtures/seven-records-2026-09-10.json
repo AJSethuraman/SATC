@@ -1,0 +1,4100 @@
+{
+ "what": "The seven desk records as they stood on 10 September 2026, the day `dec-kill` deleted them. Written by tests/fixtures/build_seven.py from the working tree, immediately before `git rm -r desks/`.",
+ "why": "test_the_seven_records_became_one_corpus.py asserts that nothing the firm wrote was lost in the merge. Its subject is a directory that no longer exists, so the inventory it compares against is frozen here rather than re-derived. A frozen inventory is honest where a frozen assertion would be a test nobody can fail: this is a record of what was, and the corpus is checked against it.",
+ "commit": "the working tree at desk 0.21.0 + the one-corpus migration",
+ "records": [
+  {
+   "name": "capitalization-and-de-minimis",
+   "passages": [
+    {
+     "citation": "26 CFR 1.263(a)-1(a)",
+     "chars": 133
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(a)(1)",
+     "chars": 139
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(a)(2)",
+     "chars": 126
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)",
+     "chars": 855
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(i)",
+     "chars": 320
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(i)(A)",
+     "chars": 104
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(i)(B)",
+     "chars": 132
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(i)(B)(1)",
+     "chars": 77
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(i)(B)(2)",
+     "chars": 112
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(i)(C)",
+     "chars": 166
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(i)(D)",
+     "chars": 275
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(ii)",
+     "chars": 324
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(ii)(A)",
+     "chars": 114
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(ii)(B)",
+     "chars": 124
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(ii)(B)(1)",
+     "chars": 77
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(ii)(B)(2)",
+     "chars": 112
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(ii)(C)",
+     "chars": 147
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(ii)(D)",
+     "chars": 273
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(1)(iii)",
+     "chars": 493
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(2)",
+     "chars": 137
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(2)(i)",
+     "chars": 90
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(2)(ii)",
+     "chars": 27
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(2)(iii)",
+     "chars": 154
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(2)(iv)",
+     "chars": 170
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(3)(i)",
+     "chars": 1633
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(3)(ii)",
+     "chars": 419
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(3)(iii)",
+     "chars": 271
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(3)(iv)",
+     "chars": 486
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(3)(v)",
+     "chars": 506
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(3)(vi)",
+     "chars": 657
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(3)(vii)",
+     "chars": 615
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(4)",
+     "chars": 377
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(5)",
+     "chars": 1824
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(6)",
+     "chars": 486
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(6)(i)",
+     "chars": 283
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(6)(ii)",
+     "chars": 209
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(e)(3) Example 1",
+     "chars": 313
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(e)(3) Example 2",
+     "chars": 231
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(e)(3) Example 3",
+     "chars": 392
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(e)(3) Example 4",
+     "chars": 400
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(e)(3) Example 5",
+     "chars": 323
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(e)(3) Example 6",
+     "chars": 476
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(7) Example 1",
+     "chars": 1059
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(7) Example 2",
+     "chars": 796
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(7) Example 3",
+     "chars": 1282
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(7) Example 4",
+     "chars": 890
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(7) Example 5",
+     "chars": 1649
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(7) Example 6",
+     "chars": 2227
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(7) Example 7",
+     "chars": 1826
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(7) Example 8",
+     "chars": 406
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(7) Example 9",
+     "chars": 1429
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(7) Example 10",
+     "chars": 1226
+    },
+    {
+     "citation": "26 CFR 1.263(a)-1(f)(7) Example 11",
+     "chars": 1536
+    },
+    {
+     "citation": "26 CFR 1.162-3(a)(1)",
+     "chars": 390
+    },
+    {
+     "citation": "26 CFR 1.162-3(a)(2)",
+     "chars": 432
+    },
+    {
+     "citation": "26 CFR 1.162-3(a)(3)",
+     "chars": 415
+    },
+    {
+     "citation": "26 CFR 1.162-3(c)(1)",
+     "chars": 206
+    },
+    {
+     "citation": "26 CFR 1.162-3(c)(1)(i)",
+     "chars": 242
+    },
+    {
+     "citation": "26 CFR 1.162-3(c)(1)(ii)",
+     "chars": 167
+    },
+    {
+     "citation": "26 CFR 1.162-3(c)(1)(iii)",
+     "chars": 196
+    },
+    {
+     "citation": "26 CFR 1.162-3(c)(1)(iv)",
+     "chars": 323
+    },
+    {
+     "citation": "26 CFR 1.162-3(c)(1)(v)",
+     "chars": 223
+    },
+    {
+     "citation": "26 CFR 1.162-3(c)(2)",
+     "chars": 591
+    },
+    {
+     "citation": "26 CFR 1.162-3(d)(1)",
+     "chars": 776
+    },
+    {
+     "citation": "26 CFR 1.162-3(f)",
+     "chars": 1001
+    },
+    {
+     "citation": "26 CFR 1.162-3(g)",
+     "chars": 557
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 1",
+     "chars": 941
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 2",
+     "chars": 1519
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 3",
+     "chars": 2644
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 4",
+     "chars": 1273
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 5",
+     "chars": 857
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 6",
+     "chars": 868
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 7",
+     "chars": 748
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 8",
+     "chars": 565
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 9",
+     "chars": 934
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 10",
+     "chars": 998
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 11",
+     "chars": 1032
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 12",
+     "chars": 1024
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 13",
+     "chars": 1738
+    },
+    {
+     "citation": "26 CFR 1.162-3(h) Example 14",
+     "chars": 1919
+    },
+    {
+     "citation": "IRS Tangible Property Final Regulations, \"A de minimis safe harbor election\" — Note on Notice 2015-82 (sentence rejoined across the page's inline link)",
+     "chars": 530
+    },
+    {
+     "citation": "IRS Tangible Property Final Regulations, \"What is the de minimis safe harbor election?\"",
+     "chars": 617
+    },
+    {
+     "citation": "IRS Tangible Property Final Regulations, \"If you use the de minimis safe harbor, do you have to capitalize all expenses that exceed the limitations?\"",
+     "chars": 896
+    },
+    {
+     "citation": "IRS Tangible Property Final Regulations, \"If you don't have an AFS, are you required to have a written accounting procedure at the beginning of your taxable year?\"",
+     "chars": 345
+    },
+    {
+     "citation": "IRS Tangible Property Final Regulations, \"What if your book policy exceeds the de minimis safe harbor ceiling?\"",
+     "chars": 282
+    },
+    {
+     "citation": "IRS Tangible Property Final Regulations, \"How do you elect to use the de minimis safe harbor?\"",
+     "chars": 556
+    },
+    {
+     "citation": "IRS Tangible Property Final Regulations, \"How does the de minimis safe harbor affect the deductions you typically take for materials and supplies or repairs and maintenance?\"",
+     "chars": 399
+    },
+    {
+     "citation": "IRS Tangible Property Final Regulations, \"When can you deduct the costs of materials and supplies?\" — non-incidental",
+     "chars": 728
+    },
+    {
+     "citation": "IRS Tangible Property Final Regulations, \"When can you deduct the costs of materials and supplies?\" — incidental",
+     "chars": 407
+    }
+   ],
+   "positions": [
+    [
+     "26 CFR 1.263(a)-1(f)(5)",
+     "elect the de minimis safe harbor; attach the election statement to the timely filed original return"
+    ],
+    [
+     "IRS Tangible Property Final Regulations, \"What is the de minimis safe harbor election?\"",
+     "$2,500 per invoice or per item; $5,000 where the client has an applicable financial statement"
+    ],
+    [
+     "26 CFR 1.263(a)-1(f)(1)(ii)(B)",
+     "record the client's expensing policy and its effective date at engagement; a policy first written during the close does not support the safe harbour for that year"
+    ]
+   ],
+   "problems": [
+    "CD1",
+    "CD2",
+    "CD3",
+    "CD4",
+    "CD5",
+    "CD6",
+    "CD7",
+    "CD8",
+    "MS1",
+    "MS2",
+    "MS3",
+    "MS4",
+    "MS5",
+    "TP1",
+    "TP2",
+    "TP3"
+   ],
+   "sources": [
+    "Treasury Regulation § 1.263(a)-1 — Capital expenditures; in general",
+    "Treasury Regulation § 1.162-3 — Materials and supplies",
+    "IRS, \"Tangible property final regulations\" (irs.gov), page last reviewed or updated 04-Aug-2026"
+   ],
+   "answered_by": {},
+   "answered_from": {
+    "S1": [
+     "de minimis",
+     "de minimis safe harbor",
+     "de minimis safe harbour safe harbor election",
+     "safe harbour election",
+     "capitalization threshold",
+     "capitalisation threshold",
+     "capitalize",
+     "capitalise",
+     "capitalized",
+     "capitalised",
+     "capitalization",
+     "capitalisation",
+     "capital expenditure",
+     "capital expenditures",
+     "expense",
+     "expensed",
+     "expensing",
+     "applicable financial statement",
+     "afs",
+     "invoice",
+     "invoices",
+     "per invoice",
+     "per item",
+     "accounting procedures",
+     "accounting procedure",
+     "accounting policy",
+     "book policy",
+     "anti-abuse",
+     "componentize",
+     "1.263(a)-1",
+     "263(a)-1",
+     "tool",
+     "tools",
+     "asset",
+     "assets",
+     "fixed asset",
+     "fixed assets",
+     "equipment"
+    ],
+    "S2": [
+     "materials and supplies",
+     "material or supply",
+     "materials or supplies",
+     "supply",
+     "supplies",
+     "tool",
+     "tools",
+     "asset",
+     "assets",
+     "incidental",
+     "non-incidental",
+     "rotable",
+     "spare part",
+     "spare parts",
+     "standby emergency spare part",
+     "consumable",
+     "consumables",
+     "consumed",
+     "economic useful life",
+     "fuel",
+     "lubricants",
+     "toner",
+     "cartridge",
+     "cartridges",
+     "1.162-3",
+     "162-3"
+    ],
+    "S3": [
+     "threshold",
+     "thresholds",
+     "ceiling",
+     "audit protection",
+     "notice 2015-82",
+     "final tangibles regulations",
+     "tangible property regulations",
+     "form 3115"
+    ]
+   }
+  },
+  {
+   "name": "cash-and-bank",
+   "passages": [
+    {
+     "citation": "26 CFR 1.446-1(a)(1)",
+     "chars": 1163
+    },
+    {
+     "citation": "26 CFR 1.446-1(a)(2)",
+     "chars": 683
+    },
+    {
+     "citation": "26 CFR 1.446-1(a)(3)",
+     "chars": 353
+    },
+    {
+     "citation": "26 CFR 1.446-1(a)(4)",
+     "chars": 598
+    },
+    {
+     "citation": "26 CFR 1.446-1(a)(4)(i)",
+     "chars": 551
+    },
+    {
+     "citation": "26 CFR 1.446-1(a)(4)(ii)",
+     "chars": 307
+    },
+    {
+     "citation": "26 CFR 1.446-1(a)(4)(iii)",
+     "chars": 308
+    },
+    {
+     "citation": "26 CFR 1.446-1(b)(1)",
+     "chars": 251
+    },
+    {
+     "citation": "26 CFR 1.446-1(b)(2)",
+     "chars": 292
+    },
+    {
+     "citation": "26 CFR 1.446-1(c)(1)",
+     "chars": 200
+    },
+    {
+     "citation": "26 CFR 1.446-1(c)(1)(i)",
+     "chars": 586
+    },
+    {
+     "citation": "26 CFR 1.446-1(c)(1)(ii)",
+     "chars": 1784
+    },
+    {
+     "citation": "26 CFR 1.446-1(c)(1)(iii)",
+     "chars": 672
+    },
+    {
+     "citation": "26 CFR 1.446-1(c)(1)(iv)",
+     "chars": 1034
+    },
+    {
+     "citation": "26 CFR 1.446-1(c)(2)",
+     "chars": 169
+    },
+    {
+     "citation": "26 CFR 1.446-1(c)(3)",
+     "chars": 525
+    },
+    {
+     "citation": "26 CFR 1.446-1(d)(1)",
+     "chars": 870
+    },
+    {
+     "citation": "26 CFR 1.446-1(d)(2)",
+     "chars": 189
+    },
+    {
+     "citation": "26 CFR 1.446-1(d)(3)",
+     "chars": 393
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(1)",
+     "chars": 608
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)",
+     "chars": 442
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(i)",
+     "chars": 129
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(ii)",
+     "chars": 1262
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii)",
+     "chars": 1570
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iv)",
+     "chars": 641
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(v)",
+     "chars": 342
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(vi)",
+     "chars": 261
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(vii)",
+     "chars": 658
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(viii)",
+     "chars": 200
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(3)",
+     "chars": 335
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(3)(i)",
+     "chars": 1121
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(3)(ii)",
+     "chars": 213
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(3)(iii)",
+     "chars": 904
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(3)(iv)",
+     "chars": 207
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(3)(v)",
+     "chars": 1478
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(3)(vi)",
+     "chars": 198
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(4)",
+     "chars": 1282
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(5)",
+     "chars": 122
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(5)(i)",
+     "chars": 1074
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(5)(ii)",
+     "chars": 830
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(5)(iii)",
+     "chars": 1348
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(5)(iv)",
+     "chars": 2032
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(5)(v)",
+     "chars": 954
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 1",
+     "chars": 424
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 2",
+     "chars": 546
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 3",
+     "chars": 810
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 4",
+     "chars": 517
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 5",
+     "chars": 272
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 6",
+     "chars": 651
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 7",
+     "chars": 605
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 8",
+     "chars": 442
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 9",
+     "chars": 1559
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 10",
+     "chars": 1193
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 11",
+     "chars": 575
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 12",
+     "chars": 682
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 13",
+     "chars": 1134
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 14",
+     "chars": 1157
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 15",
+     "chars": 967
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 16",
+     "chars": 1457
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 17",
+     "chars": 2014
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 18",
+     "chars": 1110
+    },
+    {
+     "citation": "26 CFR 1.446-1(e)(2)(iii) Example 19",
+     "chars": 757
+    },
+    {
+     "citation": "IRS Pub. 583 (12/2024), \"Kinds of Records To Keep\"",
+     "chars": 3109
+    },
+    {
+     "citation": "IRS Pub. 583 (12/2024), \"Supporting Documents\"",
+     "chars": 6809
+    },
+    {
+     "citation": "IRS Pub. 583 (12/2024), \"Reconciling the checking account\" — a bank charge the books do not have",
+     "chars": 301
+    },
+    {
+     "citation": "IRS Pub. 583 (12/2024), \"Reconciling the checking account\" — what the statement did not yet include",
+     "chars": 333
+    },
+    {
+     "citation": "IRS Pub. 583 (12/2024), \"Reconciling the checking account\" — what the books are updated for",
+     "chars": 2683
+    },
+    {
+     "citation": "IRS Pub. 583 (12/2024), \"Bookkeeping System\"",
+     "chars": 3453
+    }
+   ],
+   "positions": [
+    [
+     "IRS Pub. 583 (12/2024), \"Reconciling the checking account\" — what the statement did not yet include",
+     "a reconciling item, no entry in the books"
+    ],
+    [
+     "IRS Pub. 583 (12/2024), \"Reconciling the checking account\" — what the books are updated for",
+     "an entry in the books"
+    ]
+   ],
+   "problems": [
+    "CB1",
+    "CB2",
+    "CB3",
+    "CB4"
+   ],
+   "sources": [
+    "Treasury Regulation § 1.446-1 — General rule for methods of accounting",
+    "IRS Publication 583 (12/2024) — Starting a Business and Keeping Records"
+   ],
+   "answered_by": {
+    "IRS Pub. 583 (12/2024), \"Reconciling the checking account\" — what the statement did not yet include": [
+     "outstanding check",
+     "outstanding checks",
+     "deposit in transit",
+     "deposits in transit",
+     "uncleared",
+     "cleared"
+    ],
+    "IRS Pub. 583 (12/2024), \"Reconciling the checking account\" — what the books are updated for": [
+     "service charge",
+     "bank charge"
+    ]
+   },
+   "answered_from": {
+    "S1": [
+     "1.446-1",
+     "method of accounting",
+     "clearly reflect income"
+    ],
+    "S2": [
+     "cash",
+     "bank",
+     "bank statement",
+     "reconcile",
+     "reconciled",
+     "reconciles",
+     "reconciling",
+     "reconciliation",
+     "outstanding check",
+     "outstanding checks",
+     "deposit in transit",
+     "deposits in transit",
+     "uncleared",
+     "cleared",
+     "checkbook",
+     "service charge",
+     "bank charge",
+     "petty cash"
+    ]
+   }
+  },
+  {
+   "name": "fixed-assets",
+   "passages": [
+    {
+     "citation": "26 CFR 1.162-3(c)(1)(i)",
+     "chars": 238
+    },
+    {
+     "citation": "26 CFR 1.162-3(c)(2)",
+     "chars": 333
+    },
+    {
+     "citation": "26 CFR 1.263(a)-2(d)(1)",
+     "chars": 945
+    },
+    {
+     "citation": "26 CFR 1.263(a)-2(c)(1)",
+     "chars": 506
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(a)",
+     "chars": 1902
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(b)",
+     "chars": 75
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(b)(1)",
+     "chars": 310
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(b)(2)",
+     "chars": 77
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(b)(3)",
+     "chars": 511
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(b)(4)",
+     "chars": 128
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(c)",
+     "chars": 46
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(c)(1)",
+     "chars": 398
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(c)(2)",
+     "chars": 226
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(c)(3)",
+     "chars": 75
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(d)",
+     "chars": 935
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(d)(1)",
+     "chars": 81
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(d)(2)",
+     "chars": 68
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(d)(3)",
+     "chars": 89
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)",
+     "chars": 32
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(1)",
+     "chars": 1220
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)",
+     "chars": 8
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(i)",
+     "chars": 533
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)",
+     "chars": 249
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)(A)",
+     "chars": 272
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)(B)",
+     "chars": 254
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)(B)(1)",
+     "chars": 145
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)(B)(2)",
+     "chars": 270
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)(B)(3)",
+     "chars": 246
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)(B)(4)",
+     "chars": 15
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)(B)(5)",
+     "chars": 14
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)(B)(6)",
+     "chars": 362
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)(B)(7)",
+     "chars": 276
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)(B)(8)",
+     "chars": 170
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(ii)(B)(9)",
+     "chars": 329
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(iii)",
+     "chars": 11
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(iii)(A)",
+     "chars": 306
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(iii)(B)",
+     "chars": 706
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(iv)",
+     "chars": 11
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(iv)(A)",
+     "chars": 383
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(iv)(B)",
+     "chars": 787
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(v)",
+     "chars": 15
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(v)(A)",
+     "chars": 359
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(v)(B)",
+     "chars": 276
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(v)(B)(1)",
+     "chars": 283
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(2)(v)(B)(2)",
+     "chars": 384
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(3)",
+     "chars": 28
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(3)(i)",
+     "chars": 499
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(3)(ii)",
+     "chars": 14
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(3)(ii)(A)",
+     "chars": 338
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(3)(ii)(B)",
+     "chars": 372
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(3)(iii)",
+     "chars": 14
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(3)(iii)(A)",
+     "chars": 674
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(3)(iii)(B)",
+     "chars": 442
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(3)(iv)",
+     "chars": 454
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(4)",
+     "chars": 649
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(5)",
+     "chars": 16
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(5)(i)",
+     "chars": 688
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(5)(ii)",
+     "chars": 1027
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6)",
+     "chars": 381
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)",
+     "chars": 31
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(1)",
+     "chars": 880
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(2)",
+     "chars": 19
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(2)(i)",
+     "chars": 1054
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(2)(ii)",
+     "chars": 736
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(3)",
+     "chars": 19
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(3)(i)",
+     "chars": 1253
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(3)(ii)",
+     "chars": 524
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(4)",
+     "chars": 359
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)",
+     "chars": 47
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(1)",
+     "chars": 44
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(1)(i)",
+     "chars": 492
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(1)(ii)",
+     "chars": 386
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(2)",
+     "chars": 13
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(2)(i)",
+     "chars": 1272
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(2)(ii)",
+     "chars": 408
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(3)",
+     "chars": 298
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(4)",
+     "chars": 319
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)",
+     "chars": 31
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(1)",
+     "chars": 421
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(1)(i)",
+     "chars": 123
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(1)(ii)",
+     "chars": 8
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(2)",
+     "chars": 446
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(3)",
+     "chars": 19
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(3)(i)",
+     "chars": 247
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(3)(ii)",
+     "chars": 284
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(3)(iii)",
+     "chars": 154
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(3)(iii)(A)",
+     "chars": 62
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(3)(iii)(B)",
+     "chars": 120
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(3)(iv)",
+     "chars": 2047
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(4)",
+     "chars": 398
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(5)",
+     "chars": 16
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(5)(i)",
+     "chars": 693
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(5)(ii)",
+     "chars": 636
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(6)",
+     "chars": 1489
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(7)",
+     "chars": 574
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(8)",
+     "chars": 788
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(9)",
+     "chars": 281
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(10)",
+     "chars": 134
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)",
+     "chars": 47
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(1)",
+     "chars": 377
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(1)(i)",
+     "chars": 1853
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(1)(ii)",
+     "chars": 1707
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(2)",
+     "chars": 278
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(3)",
+     "chars": 63
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(3)(i)",
+     "chars": 88
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(3)(ii)",
+     "chars": 228
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(3)(iii)",
+     "chars": 283
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(3)(iv)",
+     "chars": 341
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(3)(v)",
+     "chars": 240
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(3)(vi)",
+     "chars": 103
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(3)(vii)",
+     "chars": 132
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(3)(viii)",
+     "chars": 212
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(4)",
+     "chars": 602
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(5)",
+     "chars": 472
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6)",
+     "chars": 375
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)",
+     "chars": 29
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(1)",
+     "chars": 180
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(1)(i)",
+     "chars": 285
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(1)(ii)",
+     "chars": 301
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(1)(iii)",
+     "chars": 129
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(2)",
+     "chars": 31
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(2)(i)",
+     "chars": 477
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(2)(ii)",
+     "chars": 595
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(2)(iii)",
+     "chars": 364
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(2)(iv)",
+     "chars": 22
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(2)(iv)(A)",
+     "chars": 463
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(2)(iv)(B)",
+     "chars": 615
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(2)(iv)(C)",
+     "chars": 312
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3)",
+     "chars": 400
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)",
+     "chars": 30
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(1)",
+     "chars": 249
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(1)(i)",
+     "chars": 175
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(1)(ii)",
+     "chars": 230
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(1)(iii)",
+     "chars": 287
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(1)(iv)",
+     "chars": 183
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(1)(v)",
+     "chars": 209
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(1)(vi)",
+     "chars": 197
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(2)",
+     "chars": 696
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(3)",
+     "chars": 333
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(4)",
+     "chars": 35
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(4)(i)",
+     "chars": 220
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(4)(i)(A)",
+     "chars": 189
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(4)(i)(B)",
+     "chars": 209
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(4)(ii)",
+     "chars": 531
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(5)",
+     "chars": 453
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(6)",
+     "chars": 65
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(6)(i)",
+     "chars": 454
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(6)(i)(A)",
+     "chars": 378
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(6)(i)(B)",
+     "chars": 174
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(6)(ii)",
+     "chars": 214
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(6)(ii)(A)",
+     "chars": 437
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(6)(ii)(B)",
+     "chars": 347
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7)",
+     "chars": 480
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(l)",
+     "chars": 69
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(l)(1)",
+     "chars": 361
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(l)(2)",
+     "chars": 550
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(l)(3)",
+     "chars": 429
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(m)",
+     "chars": 37
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(m)(1)",
+     "chars": 961
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(m)(2)",
+     "chars": 495
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(m)(3)",
+     "chars": 1165
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(m)(4)",
+     "chars": 82
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(n)",
+     "chars": 51
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(n)(1)",
+     "chars": 879
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(n)(2)",
+     "chars": 1965
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(n)(3)",
+     "chars": 245
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(n)(4)",
+     "chars": 82
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(o)",
+     "chars": 301
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(p)",
+     "chars": 398
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(q)",
+     "chars": 538
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(r)",
+     "chars": 28
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(r)(1)",
+     "chars": 475
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(r)(2)",
+     "chars": 33
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(r)(2)(i)",
+     "chars": 316
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(r)(2)(ii)",
+     "chars": 1103
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(r)(3)",
+     "chars": 218
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(c)(3) Example 1",
+     "chars": 305
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 1",
+     "chars": 1127
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 2",
+     "chars": 935
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 3",
+     "chars": 1375
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 4",
+     "chars": 1394
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 5",
+     "chars": 1665
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 6",
+     "chars": 1560
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 7",
+     "chars": 1052
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 8",
+     "chars": 612
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 9",
+     "chars": 694
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 10",
+     "chars": 1172
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 11",
+     "chars": 755
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 12",
+     "chars": 423
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 13",
+     "chars": 1781
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 14",
+     "chars": 429
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 15",
+     "chars": 1603
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 16",
+     "chars": 1406
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 17",
+     "chars": 924
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 18",
+     "chars": 773
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(e)(6) Example 19",
+     "chars": 1139
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(4) Example 1",
+     "chars": 3783
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(4) Example 2",
+     "chars": 2513
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(4) Example 3",
+     "chars": 1628
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(4) Example 4",
+     "chars": 763
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(4) Example 5",
+     "chars": 1405
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(f)(4) Example 6",
+     "chars": 1065
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(2)(ii) Example 1",
+     "chars": 961
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(2)(ii) Example 2",
+     "chars": 732
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(2)(ii) Example 3",
+     "chars": 1255
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(g)(2)(ii) Example 4",
+     "chars": 981
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(10) Example 1",
+     "chars": 1312
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(10) Example 2",
+     "chars": 772
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(10) Example 3",
+     "chars": 2264
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(h)(10) Example 4",
+     "chars": 1478
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 1",
+     "chars": 2613
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 2",
+     "chars": 626
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 3",
+     "chars": 1807
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 4",
+     "chars": 1665
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 5",
+     "chars": 1156
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 6",
+     "chars": 2197
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 7",
+     "chars": 1092
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 8",
+     "chars": 1827
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 9",
+     "chars": 1994
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 10",
+     "chars": 1833
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 11",
+     "chars": 1229
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 12",
+     "chars": 1770
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 13",
+     "chars": 1651
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 14",
+     "chars": 865
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(i)(6) Example 15",
+     "chars": 1988
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 1",
+     "chars": 624
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 2",
+     "chars": 1931
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 3",
+     "chars": 2198
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 4",
+     "chars": 1771
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 5",
+     "chars": 2308
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 6",
+     "chars": 2861
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 7",
+     "chars": 2257
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 8",
+     "chars": 4420
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 9",
+     "chars": 843
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 10",
+     "chars": 1138
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 11",
+     "chars": 1604
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 12",
+     "chars": 1820
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 13",
+     "chars": 1941
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 14",
+     "chars": 968
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 15",
+     "chars": 715
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 16",
+     "chars": 1190
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 17",
+     "chars": 951
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 18",
+     "chars": 1203
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 19",
+     "chars": 956
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 20",
+     "chars": 2147
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 21",
+     "chars": 1124
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 22",
+     "chars": 1405
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(j)(3) Example 23",
+     "chars": 1455
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 1",
+     "chars": 940
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 2",
+     "chars": 460
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 3",
+     "chars": 992
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 4",
+     "chars": 823
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 5",
+     "chars": 1954
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 6",
+     "chars": 1279
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 7",
+     "chars": 1726
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 8",
+     "chars": 372
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 9",
+     "chars": 2889
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 10",
+     "chars": 1123
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 11",
+     "chars": 1574
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 12",
+     "chars": 2986
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 13",
+     "chars": 1225
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 14",
+     "chars": 1353
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 15",
+     "chars": 1664
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 16",
+     "chars": 1348
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 17",
+     "chars": 1388
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 18",
+     "chars": 1851
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 19",
+     "chars": 1102
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 20",
+     "chars": 1162
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 21",
+     "chars": 1253
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 22",
+     "chars": 1480
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 23",
+     "chars": 848
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 24",
+     "chars": 2894
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 25",
+     "chars": 1511
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 26",
+     "chars": 893
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 27",
+     "chars": 1169
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 28",
+     "chars": 1551
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 29",
+     "chars": 1367
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 30",
+     "chars": 1713
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(k)(7) Example 31",
+     "chars": 1032
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(l)(3) Example 1",
+     "chars": 1247
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(l)(3) Example 2",
+     "chars": 1151
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(l)(3) Example 3",
+     "chars": 789
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(l)(3) Example 4",
+     "chars": 1386
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(l)(3) Example 5",
+     "chars": 2162
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(l)(3) Example 6",
+     "chars": 2005
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(l)(3) Example 7",
+     "chars": 1637
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(m)(4) Example 1",
+     "chars": 662
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(m)(4) Example 2",
+     "chars": 307
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(m)(4) Example 3",
+     "chars": 538
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(m)(4) Example 4",
+     "chars": 400
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(n)(4) Example 1",
+     "chars": 1600
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(n)(4) Example 2",
+     "chars": 805
+    },
+    {
+     "citation": "26 CFR 1.263(a)-3(n)(4) Example 3",
+     "chars": 1168
+    }
+   ],
+   "positions": [],
+   "problems": [
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6",
+    "P7",
+    "P8",
+    "P9",
+    "P10",
+    "P11",
+    "P12",
+    "P13",
+    "P14",
+    "P15",
+    "P16"
+   ],
+   "sources": [
+    "Treasury Regulation § 1.263(a)-3 — Amounts paid to improve tangible property",
+    "Treasury Regulation § 1.162-3 — Materials and supplies",
+    "Treasury Regulation § 1.263(a)-2 — Amounts paid to acquire or produce tangible property"
+   ],
+   "answered_by": {},
+   "answered_from": {
+    "S1": [
+     "capitalize",
+     "capitalise",
+     "capitalized",
+     "capitalised",
+     "capitalization",
+     "depreciate",
+     "depreciation",
+     "depreciable",
+     "improvement",
+     "improvements",
+     "betterment",
+     "restoration",
+     "repair",
+     "repairs",
+     "adaptation",
+     "basis",
+     "useful life",
+     "unit of property",
+     "placed in service",
+     "routine maintenance",
+     "263(a)",
+     "1.263(a)-3",
+     "building",
+     "buildings",
+     "building structure",
+     "building systems",
+     "hvac",
+     "escalator",
+     "escalators",
+     "elevator",
+     "elevators",
+     "roof",
+     "structural",
+     "leasehold",
+     "machinery"
+    ],
+    "S3": [
+     "acquire",
+     "acquired",
+     "acquisition",
+     "purchase",
+     "purchased",
+     "tool",
+     "tools",
+     "equipment",
+     "furniture",
+     "fixtures",
+     "invoice price",
+     "transaction costs",
+     "produce tangible property",
+     "1.263(a)-2"
+    ],
+    "S2": [
+     "materials and supplies",
+     "materials or supplies",
+     "material or supply",
+     "rotable",
+     "rotable spare parts",
+     "spare part",
+     "spare parts",
+     "consumable",
+     "consumables",
+     "1.162-3"
+    ]
+   }
+  },
+  {
+   "name": "meals-and-entertainment",
+   "passages": [
+    {
+     "citation": "26 CFR 1.274-12(a)(1)",
+     "chars": 475
+    },
+    {
+     "citation": "26 CFR 1.274-12(a)(2)",
+     "chars": 311
+    },
+    {
+     "citation": "26 CFR 1.274-12(a)(4)(i)",
+     "chars": 450
+    },
+    {
+     "citation": "26 CFR 1.274-12(a)(4)(ii)",
+     "chars": 280
+    },
+    {
+     "citation": "26 CFR 1.274-12(a)(4)(iii)",
+     "chars": 725
+    },
+    {
+     "citation": "26 CFR 1.274-12(b)(1)",
+     "chars": 272
+    },
+    {
+     "citation": "26 CFR 1.274-12(b)(2)",
+     "chars": 430
+    },
+    {
+     "citation": "26 CFR 1.274-12(b)(3)",
+     "chars": 318
+    },
+    {
+     "citation": "26 CFR 1.274-12(b)(8)",
+     "chars": 173
+    },
+    {
+     "citation": "26 CFR 1.274-12(b)(9)",
+     "chars": 410
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(1)",
+     "chars": 295
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(i)(A)",
+     "chars": 814
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(i)(B)",
+     "chars": 920
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(i)(D)",
+     "chars": 954
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(ii)(A)",
+     "chars": 872
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(iii)(A)",
+     "chars": 1752
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(iv)(A)",
+     "chars": 552
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(v)(A)",
+     "chars": 1036
+    },
+    {
+     "citation": "26 CFR 1.274-12(a)(3)(i) Example 1",
+     "chars": 161
+    },
+    {
+     "citation": "26 CFR 1.274-12(a)(3)(ii) Example 2",
+     "chars": 163
+    },
+    {
+     "citation": "26 CFR 1.274-12(a)(3)(iii) Example 3",
+     "chars": 448
+    },
+    {
+     "citation": "26 CFR 1.274-12(a)(3)(iv) Example 4",
+     "chars": 597
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(i)(E)(1) Example 1",
+     "chars": 687
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(i)(E)(2) Example 2",
+     "chars": 665
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(i)(E)(3) Example 3",
+     "chars": 1326
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(ii)(E)(1) Example 1",
+     "chars": 2555
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(ii)(E)(2) Example 2",
+     "chars": 864
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(ii)(E)(3) Example 3",
+     "chars": 637
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(ii)(E)(4) Example 4",
+     "chars": 500
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(iii)(B)(1) Example 1",
+     "chars": 521
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(iii)(B)(2) Example 2",
+     "chars": 1206
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(iii)(B)(3) Example 3",
+     "chars": 820
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(iii)(B)(4) Example 4",
+     "chars": 1367
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(iii)(B)(5) Example 5",
+     "chars": 778
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(iv)(B)(1) Example 1",
+     "chars": 1078
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(iv)(B)(2) Example 2",
+     "chars": 577
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(iv)(B)(3) Example 3",
+     "chars": 834
+    },
+    {
+     "citation": "26 CFR 1.274-12(c)(2)(iv)(B)(4) Example 4",
+     "chars": 853
+    },
+    {
+     "citation": "26 CFR 1.274-11(a)",
+     "chars": 716
+    },
+    {
+     "citation": "26 CFR 1.274-11(b)(1)(i)",
+     "chars": 1591
+    },
+    {
+     "citation": "26 CFR 1.274-11(b)(1)(ii)",
+     "chars": 1388
+    },
+    {
+     "citation": "26 CFR 1.274-11(b)(1)(iii)",
+     "chars": 1226
+    },
+    {
+     "citation": "26 CFR 1.274-11(b)(2)",
+     "chars": 194
+    },
+    {
+     "citation": "26 CFR 1.274-11(c)",
+     "chars": 154
+    },
+    {
+     "citation": "26 CFR 1.274-11(d)(1) Example 1",
+     "chars": 317
+    },
+    {
+     "citation": "26 CFR 1.274-11(d)(2) Example 2",
+     "chars": 546
+    },
+    {
+     "citation": "26 CFR 1.274-11(d)(3) Example 3",
+     "chars": 849
+    },
+    {
+     "citation": "26 CFR 1.274-11(d)(4) Example 4",
+     "chars": 1040
+    },
+    {
+     "citation": "26 CFR 1.162-2(a)",
+     "chars": 840
+    },
+    {
+     "citation": "26 CFR 1.162-2(b)(1)",
+     "chars": 667
+    },
+    {
+     "citation": "26 CFR 1.162-2(b)(2)",
+     "chars": 764
+    },
+    {
+     "citation": "26 CFR 1.162-2(c)",
+     "chars": 446
+    },
+    {
+     "citation": "26 CFR 1.162-2(d)",
+     "chars": 901
+    },
+    {
+     "citation": "26 CFR 1.162-2(e)",
+     "chars": 84
+    },
+    {
+     "citation": "26 CFR 1.274-5(c)(2)(iii)(A)",
+     "chars": 418
+    },
+    {
+     "citation": "26 CFR 1.274-5(c)(2)(iii)(B)",
+     "chars": 1357
+    },
+    {
+     "citation": "26 CFR 1.274-5(f)(4)(i)",
+     "chars": 1362
+    },
+    {
+     "citation": "26 CFR 1.274-5(j)(1)",
+     "chars": 529
+    },
+    {
+     "citation": "26 CFR 1.274-5(k)(9)(i) Example 1",
+     "chars": 949
+    },
+    {
+     "citation": "26 CFR 1.274-5(k)(9)(ii) Example 2",
+     "chars": 990
+    },
+    {
+     "citation": "26 CFR 1.274-5(k)(9)(iii) Example 3",
+     "chars": 1219
+    },
+    {
+     "citation": "26 CFR 1.274-5(k)(9)(iv) Example 4",
+     "chars": 1111
+    },
+    {
+     "citation": "26 CFR 1.274-5(k)(9)(v) Example 5",
+     "chars": 1018
+    },
+    {
+     "citation": "26 CFR 1.274-5T(a)",
+     "chars": 1466
+    },
+    {
+     "citation": "26 CFR 1.274-5T(b)(1)",
+     "chars": 332
+    },
+    {
+     "citation": "26 CFR 1.274-5T(b)(2)",
+     "chars": 862
+    },
+    {
+     "citation": "26 CFR 1.274-5T(b)(3)",
+     "chars": 998
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(3)(ii)(C) Example 1",
+     "chars": 990
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(3)(ii)(C) Example 2",
+     "chars": 576
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(3)(ii)(C) Example 3",
+     "chars": 981
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"50% Limit\" — the general rule",
+     "chars": 496
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"50% Limit\" — costs to include or exclude",
+     "chars": 240
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"50% Limit\" — taking turns paying for meals",
+     "chars": 235
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Exception to the 50% Limit for Meals\"",
+     "chars": 2568
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"What Are Adequate Records?\"",
+     "chars": 1616
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Proving business purpose\"",
+     "chars": 806
+    }
+   ],
+   "positions": [
+    [
+     "26 CFR 1.274-12(c)(1)",
+     "three accounts at least, split by the answer and not by the vendor: food or beverages at 50 percent, food or beverages at 100 percent under a named exception, and entertainment at nothing. A charge goes to the 100 percent account only where the record names which exception in § 1.274-12(c)(2) is being claimed. A single \"Meals and Entertainment\" account is refused, because the two halves of its name now have different answers."
+    ],
+    [
+     "26 CFR 1.274-11(b)(1)(i)",
+     "a charge at a bar, brewery or taproom is a food or beverage expense at 50 percent unless the record shows the drink was provided at or during an entertainment activity, in which case it follows the entertainment. Where the record shows neither, the line is held for the client to answer and is not booked to owner's draws on the strength of the vendor's name."
+    ],
+    [
+     "26 CFR 1.274-12(a)(1)",
+     "groceries bought on a business card are food or beverages under § 1.274-12(b)(1) and are 50 percent at most, and 100 percent only where the record names the § 1.274-12(c)(2) exception relied on. Where nothing in the record establishes that the taxpayer or an employee was present and that the food went to the taxpayer or a business associate, the line is flagged for the client and is not booked either way."
+    ],
+    [
+     "26 CFR 1.162-2(a)",
+     "an airline charge is held until the business reason for the trip is recorded. Booking it to Travel with the purpose still missing records a conclusion the file does not support, and the four elements § 1.274-5T(b)(2) requires — amount, time, place, business purpose — are cheap to get in the week of the trip and expensive to reconstruct in March."
+    ]
+   ],
+   "problems": [
+    "M1",
+    "M2",
+    "M3",
+    "M4",
+    "M5",
+    "M6",
+    "M7",
+    "M8",
+    "M9",
+    "M10",
+    "M11",
+    "M12",
+    "M13",
+    "M14",
+    "M15",
+    "M16"
+   ],
+   "sources": [
+    "Treasury Regulation § 1.274-12 — Limitation on deductions for certain food or beverage expenses paid or incurred after December 31, 2017",
+    "Treasury Regulation § 1.274-11 — Disallowance of deductions for certain entertainment, amusement, or recreation expenditures paid or incurred after December 31, 2017",
+    "Treasury Regulation § 1.162-2 — Traveling expenses",
+    "Treasury Regulation § 1.274-5 — Substantiation requirements",
+    "Treasury Regulation § 1.274-5T — Substantiation requirements (temporary)",
+    "IRS Publication 463 (2025) — Travel, Gift, and Car Expenses"
+   ],
+   "answered_by": {},
+   "answered_from": {
+    "S1": [
+     "meal",
+     "meals",
+     "food",
+     "beverage",
+     "beverages",
+     "drink",
+     "drinks",
+     "lunch",
+     "dinner",
+     "breakfast",
+     "snack",
+     "snacks",
+     "coffee",
+     "refreshments",
+     "groceries",
+     "grocery",
+     "supermarket",
+     "cafeteria",
+     "restaurant",
+     "catering",
+     "buffet",
+     "break room",
+     "holiday party",
+     "picnic",
+     "per diem"
+    ],
+    "S2": [
+     "entertainment",
+     "entertaining",
+     "amusement",
+     "recreation",
+     "ticket",
+     "tickets",
+     "game",
+     "concert",
+     "theater",
+     "theatre",
+     "golf",
+     "country club",
+     "club dues",
+     "sporting event",
+     "suite",
+     "bar",
+     "taproom",
+     "brewery",
+     "nightclub"
+    ],
+    "S3": [
+     "travel",
+     "traveling",
+     "travelling",
+     "trip",
+     "airfare",
+     "air fare",
+     "fare",
+     "fares",
+     "lodging",
+     "hotel",
+     "motel",
+     "convention",
+     "commuting",
+     "commute",
+     "vacation",
+     "destination",
+     "away from home"
+    ],
+    "S4": [
+     "documentary evidence",
+     "receipt",
+     "receipts",
+     "paid bill",
+     "paid bills",
+     "canceled check",
+     "cancelled check",
+     "adequate accounting"
+    ],
+    "S5": [
+     "substantiation",
+     "substantiate",
+     "substantiated",
+     "adequate records",
+     "account book",
+     "diary",
+     "log",
+     "business purpose",
+     "business relationship",
+     "elements"
+    ],
+    "S6": [
+     "take turns",
+     "takes turns",
+     "taking turns",
+     "picking up",
+     "hours of service",
+     "standard meal allowance",
+     "lavish",
+     "extravagant"
+    ]
+   }
+  },
+  {
+   "name": "personal-or-business",
+   "passages": [
+    {
+     "citation": "26 CFR 1.262-1(a) — the general rule",
+     "chars": 167
+    },
+    {
+     "citation": "26 CFR 1.262-1(b) — how the examples are introduced",
+     "chars": 80
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(1) — life insurance premiums",
+     "chars": 120
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(2) — insuring a personal residence",
+     "chars": 109
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(3) — maintaining a household",
+     "chars": 139
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(3) — business conducted incidentally at a residence",
+     "chars": 177
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(3) — part of the house used as the place of business",
+     "chars": 207
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(4) — losses on property held for personal purposes",
+     "chars": 276
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(5) — travelling away from home",
+     "chars": 510
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(5) — commuting",
+     "chars": 137
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(5) — local lodging",
+     "chars": 201
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(5) — meals not incurred away from home",
+     "chars": 155
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(8) — the test for a serviceman's equipment",
+     "chars": 307
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(8) — the sword and the uniform",
+     "chars": 121
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(8) — a reservist's uniforms",
+     "chars": 335
+    },
+    {
+     "citation": "26 CFR 1.262-1(b)(9) — education",
+     "chars": 201
+    },
+    {
+     "citation": "26 CFR 1.262-1(c) — where a personal item is deductible anyway",
+     "chars": 630
+    },
+    {
+     "citation": "26 CFR 1.162-1(a) — what a business expense is",
+     "chars": 286
+    },
+    {
+     "citation": "26 CFR 1.162-1(a) — the items business expenses include",
+     "chars": 547
+    },
+    {
+     "citation": "26 CFR 1.162-1(a) — an expense exceeding the income of the business",
+     "chars": 221
+    },
+    {
+     "citation": "26 CFR 1.162-1(b)(2) — items not deductible",
+     "chars": 90
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Qualifying for a Deduction\" — the six ways to qualify",
+     "chars": 642
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Exclusive Use\" — the test",
+     "chars": 399
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Exclusive Use\" — the den the family also uses",
+     "chars": 281
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Exceptions to Exclusive Use\" — storage of inventory, the tests",
+     "chars": 562
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Exceptions to Exclusive Use\" — the basement",
+     "chars": 367
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Regular Use\" — the test",
+     "chars": 272
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Trade or Business Use\" — the test",
+     "chars": 253
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Trade or Business Use\" — the taxpayer's own investments",
+     "chars": 362
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Principal Place of Business\" — when a home office qualifies",
+     "chars": 343
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Separate Structure\" — the rule",
+     "chars": 293
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Separate Structure\" — the greenhouse",
+     "chars": 297
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Actual Expenses\" — utilities and services",
+     "chars": 348
+    },
+    {
+     "citation": "IRS Pub. 587 (2025), \"Actual Expenses\" — rent",
+     "chars": 238
+    }
+   ],
+   "positions": [
+    [
+     "26 CFR 1.262-1(b)(8) — the test for a serviceman's equipment",
+     "ask what the item is and what the profession requires; who sold it is evidence about what was bought and never the answer"
+    ],
+    [
+     "26 CFR 1.262-1(a) — the general rule",
+     "flag it for attention and ask the client what was bought; do not book it to owner draws on the seller's name"
+    ],
+    [
+     "IRS Pub. 587 (2025), \"Actual Expenses\" — utilities and services",
+     "treat it as the owner's household expense, and ask whether any part of the home is used regularly and exclusively for the business before treating any part of it as the business's"
+    ]
+   ],
+   "problems": [
+    "PB1",
+    "PB2",
+    "PB3",
+    "PB4",
+    "PB5",
+    "PB6",
+    "PB7",
+    "PB8",
+    "PH1",
+    "PH2",
+    "PH3",
+    "PH4"
+   ],
+   "sources": [
+    "Treasury Regulation § 1.262-1 — Personal, living, and family expenses",
+    "Treasury Regulation § 1.162-1 — Business expenses",
+    "IRS Publication 587 (2025) — Business Use of Your Home"
+   ],
+   "answered_by": {},
+   "answered_from": {
+    "S1": [
+     "personal",
+     "personal expense",
+     "personal expenses",
+     "living expenses",
+     "family",
+     "household",
+     "housekeeping",
+     "domestic service",
+     "residential",
+     "residence",
+     "dwelling",
+     "commute",
+     "commuting",
+     "commuter",
+     "life insurance",
+     "clothing",
+     "clothes",
+     "workwear",
+     "uniform",
+     "uniforms",
+     "sword",
+     "armed services",
+     "education",
+     "groceries",
+     "grocery",
+     "supermarket",
+     "meals",
+     "lodging",
+     "rent",
+     "vendor",
+     "merchant",
+     "retailer",
+     "outfitter",
+     "store",
+     "subscription",
+     "streaming"
+    ],
+    "S2": [
+     "subscription",
+     "streaming",
+     "business expense",
+     "business expenses",
+     "ordinary and necessary",
+     "trade or business",
+     "management expenses",
+     "commissions",
+     "supplies",
+     "incidental repairs",
+     "advertising",
+     "selling expenses",
+     "insurance premiums",
+     "rental"
+    ],
+    "S3": [
+     "home",
+     "home office",
+     "business use of the home",
+     "exclusive use",
+     "exclusively",
+     "regular use",
+     "regularly",
+     "principal place of business",
+     "separate structure",
+     "greenhouse",
+     "studio",
+     "workshop",
+     "barn",
+     "den",
+     "basement",
+     "storage",
+     "inventory",
+     "product samples",
+     "utilities",
+     "trash removal",
+     "cleaning service",
+     "cleaning services",
+     "daycare"
+    ]
+   }
+  },
+  {
+   "name": "rewards-and-information-returns",
+   "passages": [
+    {
+     "citation": "26 CFR 1.61-1(a)",
+     "chars": 619
+    },
+    {
+     "citation": "IRS Pub. 334 (2025), \"Trade discounts\"",
+     "chars": 435
+    },
+    {
+     "citation": "IRS Pub. 334 (2025), \"Cash discounts\"",
+     "chars": 716
+    },
+    {
+     "citation": "Instr. 1099-MISC/NEC (Rev. 12-2026), \"Increase in threshold\"",
+     "chars": 387
+    },
+    {
+     "citation": "Instr. 1099-MISC/NEC (Rev. 12-2026), \"Filing dates\"",
+     "chars": 512
+    },
+    {
+     "citation": "Instr. 1099-MISC/NEC (Rev. 12-2026), \"Form 1099-K\"",
+     "chars": 343
+    },
+    {
+     "citation": "Instr. 1099-MISC/NEC (Rev. 12-2026), Specific Instructions for Form 1099-NEC",
+     "chars": 858
+    },
+    {
+     "citation": "Instr. 1099-MISC/NEC (Rev. 12-2026), \"Reportable payments to corporations\"",
+     "chars": 249
+    },
+    {
+     "citation": "Instr. 1099-MISC/NEC (Rev. 12-2026), \"Payments to corporations for legal services\"",
+     "chars": 336
+    },
+    {
+     "citation": "Instr. 1099-MISC/NEC (Rev. 12-2026), \"Exceptions\"",
+     "chars": 1901
+    },
+    {
+     "citation": "Instr. 1099-MISC/NEC (Rev. 12-2026), \"Statements to Recipients\"",
+     "chars": 442
+    },
+    {
+     "citation": "PLR 201027015, LAW AND ANALYSIS",
+     "chars": 408
+    },
+    {
+     "citation": "PLR 201027015, Ruling request (1)",
+     "chars": 738
+    },
+    {
+     "citation": "PLR 201027015, precedential value",
+     "chars": 147
+    },
+    {
+     "citation": "26 USC 6041A(a)",
+     "chars": 946
+    },
+    {
+     "citation": "26 USC 6050W(e)",
+     "chars": 452
+    },
+    {
+     "citation": "26 USC 6071(c)",
+     "chars": 311
+    },
+    {
+     "citation": "26 USC 6041(a)",
+     "chars": 1380
+    },
+    {
+     "citation": "26 USC 6041(d)",
+     "chars": 1145
+    },
+    {
+     "citation": "26 USC 6041(h)",
+     "chars": 382
+    },
+    {
+     "citation": "26 CFR 1.6041-1(a)(1)(i)",
+     "chars": 785
+    },
+    {
+     "citation": "26 CFR 1.6041-1(a)(1)(iv)",
+     "chars": 995
+    },
+    {
+     "citation": "26 CFR 1.6041-1(b)(1)",
+     "chars": 678
+    },
+    {
+     "citation": "26 CFR 1.6041-1(d)(2)",
+     "chars": 271
+    },
+    {
+     "citation": "26 CFR 1.6041-1(a)(1)(v) Example 1",
+     "chars": 744
+    },
+    {
+     "citation": "26 CFR 1.6041-1(a)(1)(v) Example 2",
+     "chars": 942
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 1",
+     "chars": 779
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 2",
+     "chars": 766
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 3",
+     "chars": 826
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 4",
+     "chars": 451
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 5",
+     "chars": 870
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 6",
+     "chars": 1101
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 7",
+     "chars": 731
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 8",
+     "chars": 866
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 9",
+     "chars": 625
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 10",
+     "chars": 577
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 11",
+     "chars": 415
+    },
+    {
+     "citation": "26 CFR 1.6041-1(e)(5) Example 12",
+     "chars": 775
+    },
+    {
+     "citation": "26 CFR 1.6041-1(f)(2) Example 1",
+     "chars": 537
+    },
+    {
+     "citation": "26 CFR 1.6041-1(f)(2) Example 2",
+     "chars": 345
+    },
+    {
+     "citation": "26 CFR 1.6041-3 (introductory text)",
+     "chars": 236
+    },
+    {
+     "citation": "26 CFR 1.6041-3(c)",
+     "chars": 99
+    },
+    {
+     "citation": "26 CFR 1.6041-3(p)",
+     "chars": 975
+    },
+    {
+     "citation": "26 CFR 1.6041-6(a)",
+     "chars": 764
+    },
+    {
+     "citation": "26 CFR 1.6041-6(b)",
+     "chars": 184
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(a)(3)",
+     "chars": 249
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(a)(5)(i)",
+     "chars": 513
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(c)(2)",
+     "chars": 524
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(c)(3)",
+     "chars": 973
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(c)(4)",
+     "chars": 444
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 1",
+     "chars": 744
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 2",
+     "chars": 1591
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 3",
+     "chars": 736
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 4",
+     "chars": 1514
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 5",
+     "chars": 661
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 6",
+     "chars": 1282
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 7",
+     "chars": 602
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 8",
+     "chars": 1097
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 9",
+     "chars": 1131
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 10",
+     "chars": 739
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 11",
+     "chars": 681
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 12",
+     "chars": 804
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 13",
+     "chars": 1181
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 14",
+     "chars": 405
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 15",
+     "chars": 400
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 16",
+     "chars": 630
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 17",
+     "chars": 686
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 18",
+     "chars": 1088
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 19",
+     "chars": 1669
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 20",
+     "chars": 1201
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 21",
+     "chars": 791
+    },
+    {
+     "citation": "26 CFR 1.6050W-1(e) Example 22",
+     "chars": 1692
+    },
+    {
+     "citation": "Rev. Rul. 2005-28, ISSUE",
+     "chars": 288
+    },
+    {
+     "citation": "Rev. Rul. 2005-28, Pittsburgh Milk",
+     "chars": 1522
+    },
+    {
+     "citation": "Rev. Rul. 2005-28, United Draperies",
+     "chars": 701
+    },
+    {
+     "citation": "Rev. Rul. 2005-28, Rev. Rul. 76-96",
+     "chars": 586
+    },
+    {
+     "citation": "Rev. Rul. 2005-28, HOLDING",
+     "chars": 166
+    },
+    {
+     "citation": "Rev. Rul. 2005-28, EFFECT ON OTHER DOCUMENTS",
+     "chars": 658
+    },
+    {
+     "citation": "Announcement 2002-18, the unresolved issues",
+     "chars": 701
+    },
+    {
+     "citation": "Announcement 2002-18, the relief",
+     "chars": 365
+    },
+    {
+     "citation": "Announcement 2002-18, what the relief does not cover",
+     "chars": 260
+    },
+    {
+     "citation": "IRS Pub. 525 (2025), \"Cash rebates\"",
+     "chars": 162
+    },
+    {
+     "citation": "IRS Pub. 525 (2025), \"Rewards\"",
+     "chars": 86
+    }
+   ],
+   "positions": [
+    [
+     "PLR 201027015, LAW AND ANALYSIS",
+     "an adjustment to the price paid, booked against the cost it arose from, and not income"
+    ],
+    [
+     "26 CFR 1.6041-1(a)(1)(iv)",
+     "the payor is not required to file an information return under section 6041"
+    ],
+    [
+     "26 CFR 1.6050W-1(c)(3)",
+     "where a payment for services shows no evidence it settled through a third party payment network, treat it as outside section 6050W and count it toward the $2,000 threshold"
+    ]
+   ],
+   "problems": [
+    "RW1",
+    "RW2",
+    "RW3",
+    "RW4",
+    "RW5",
+    "RW6",
+    "RW7",
+    "RW8",
+    "RW9",
+    "IR1",
+    "IR2",
+    "IR3",
+    "IR4",
+    "IR5",
+    "IR6",
+    "IR7",
+    "IR8",
+    "IR9",
+    "IR10"
+   ],
+   "sources": [
+    "Treasury Regulation § 1.61-1 — Gross income",
+    "Internal Revenue Code § 6041 — Information at source",
+    "Internal Revenue Code § 6041A — Returns regarding remuneration for services and direct sales",
+    "Internal Revenue Code § 6050W — Returns relating to payments made in settlement of payment card and third party network transactions",
+    "Internal Revenue Code § 6071 — Time for filing returns and other documents",
+    "Treasury Regulation § 1.6041-1 — Return of information as to payments of $600 or more",
+    "Treasury Regulation § 1.6041-3 — Payments for which no return of information is required",
+    "Treasury Regulation § 1.6041-6 — Time and place for filing",
+    "Treasury Regulation § 1.6050W-1 — Payment card and third party network transactions",
+    "Revenue Ruling 2005-28, 2005-19 I.R.B. 997",
+    "IRS Announcement 2002-18, 2002-10 I.R.B. 621",
+    "IRS Publication 525 (2025) — Taxable and Nontaxable Income",
+    "IRS Publication 334 (2025) — Tax Guide for Small Business",
+    "Instructions for Forms 1099-MISC and 1099-NEC (Rev. December 2026)",
+    "Private Letter Ruling 201027015 (released 9 July 2010)"
+   ],
+   "answered_by": {},
+   "answered_from": {
+    "S1": [
+     "gross income",
+     "accession to wealth",
+     "income from whatever source derived"
+    ],
+    "S2": [
+     "1099-nec",
+     "1099-nec",
+     "information return",
+     "information returns",
+     "section 6041",
+     "written statement",
+     "payee statement",
+     "reporting threshold",
+     "calendar year",
+     "nonemployee compensation"
+    ],
+    "S13": [
+     "information return",
+     "information returns",
+     "section 6041a",
+     "nonemployee compensation",
+     "remuneration",
+     "direct sales",
+     "calendar year"
+    ],
+    "S14": [
+     "section 6050w",
+     "third party settlement organization",
+     "third party network transactions",
+     "participating payee",
+     "payment card",
+     "calendar year"
+    ],
+    "S15": [
+     "section 6071",
+     "nonemployee compensation",
+     "calendar year",
+     "filing date",
+     "filing dates",
+     "time for filing",
+     "information return",
+     "information returns"
+    ],
+    "S3": [
+     "1.6041-1",
+     "payor",
+     "payment card",
+     "credit card",
+     "credit cards",
+     "third party payment network",
+     "payment app",
+     "payment apps",
+     "peer-to-peer",
+     "repairman",
+     "information return",
+     "information returns"
+    ],
+    "S4": [
+     "1.6041-3",
+     "corporation",
+     "corporations",
+     "attorneys",
+     "attorney",
+     "legal services",
+     "medical and health care services",
+     "merchandise",
+     "return of information",
+     "information return",
+     "information returns"
+    ],
+    "S5": [
+     "1.6041-6",
+     "form 1099",
+     "nonemployee compensation",
+     "filing date",
+     "filing dates"
+    ],
+    "S6": [
+     "1.6050w-1",
+     "participating payee",
+     "payment settlement entity",
+     "third party network transaction",
+     "third party network transactions",
+     "third party settlement organization",
+     "third party payment network",
+     "payment card",
+     "payment app",
+     "payment apps",
+     "peer-to-peer",
+     "venmo",
+     "paypal",
+     "cash app"
+    ],
+    "S7": [
+     "rebate",
+     "rebates",
+     "purchase price",
+     "purchase price adjustment",
+     "kickbacks",
+     "medicaid",
+     "gross receipts",
+     "discounts"
+    ],
+    "S8": [
+     "frequent flyer miles",
+     "miles",
+     "promotional benefits",
+     "promotional items",
+     "in-kind",
+     "business travel"
+    ],
+    "S9": [
+     "rebate",
+     "rebates",
+     "cash rebate",
+     "basis",
+     "reward",
+     "rewards"
+    ],
+    "S10": [
+     "trade discount",
+     "trade discounts",
+     "cash discount",
+     "cash discounts",
+     "discount",
+     "discounts",
+     "inventory",
+     "cost of goods sold"
+    ],
+    "S11": [
+     "form 1099-nec",
+     "form 1099-misc",
+     "form 1099-k",
+     "1099-nec",
+     "1099-misc",
+     "1099-k",
+     "box 1a",
+     "legal services",
+     "attorneys",
+     "corporation",
+     "corporations"
+    ],
+    "S12": [
+     "credit card",
+     "credit cards",
+     "rebate",
+     "rebates",
+     "reward",
+     "rewards",
+     "points",
+     "cash back"
+    ]
+   }
+  },
+  {
+   "name": "vehicle-expense",
+   "passages": [
+    {
+     "citation": "26 CFR 1.280F-6(a)(1)",
+     "chars": 373
+    },
+    {
+     "citation": "26 CFR 1.280F-6(a)(2)(i)",
+     "chars": 293
+    },
+    {
+     "citation": "26 CFR 1.280F-6(a)(2)(ii)",
+     "chars": 506
+    },
+    {
+     "citation": "26 CFR 1.280F-6(a)(3)",
+     "chars": 158
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(1)",
+     "chars": 109
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(1)(i)",
+     "chars": 71
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(1)(ii)",
+     "chars": 102
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(1)(iii)",
+     "chars": 98
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(1)(iv)",
+     "chars": 78
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(1)(v)",
+     "chars": 65
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(2)(i)",
+     "chars": 245
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(2)(ii)",
+     "chars": 157
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(3)",
+     "chars": 37
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(3)(i)",
+     "chars": 201
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(3)(ii)",
+     "chars": 300
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(3)(iii)",
+     "chars": 347
+    },
+    {
+     "citation": "26 CFR 1.280F-6(b)(5)",
+     "chars": 383
+    },
+    {
+     "citation": "26 CFR 1.280F-6(c)(1)",
+     "chars": 135
+    },
+    {
+     "citation": "26 CFR 1.280F-6(c)(1)(i)",
+     "chars": 74
+    },
+    {
+     "citation": "26 CFR 1.280F-6(c)(1)(ii)",
+     "chars": 51
+    },
+    {
+     "citation": "26 CFR 1.280F-6(c)(2)",
+     "chars": 318
+    },
+    {
+     "citation": "26 CFR 1.280F-6(c)(3)",
+     "chars": 84
+    },
+    {
+     "citation": "26 CFR 1.280F-6(c)(3)(i)",
+     "chars": 104
+    },
+    {
+     "citation": "26 CFR 1.280F-6(c)(3)(ii)",
+     "chars": 127
+    },
+    {
+     "citation": "26 CFR 1.280F-6(c)(3)(iii)",
+     "chars": 88
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(1)",
+     "chars": 181
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(2)(i)",
+     "chars": 508
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(2)(ii)(A)",
+     "chars": 62
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(2)(ii)(A)(1)",
+     "chars": 58
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(2)(ii)(A)(2)",
+     "chars": 115
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(2)(ii)(A)(3)",
+     "chars": 286
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(2)(ii)(B)",
+     "chars": 268
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(2)(ii)(C)",
+     "chars": 44
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(2)(ii)(C)(1)",
+     "chars": 154
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(2)(ii)(C)(2)",
+     "chars": 120
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(3)(i)",
+     "chars": 805
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(3)(ii)",
+     "chars": 281
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(3)(iii)",
+     "chars": 174
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(3)(iv)",
+     "chars": 219
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(3)(iv)(A)",
+     "chars": 56
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(3)(iv)(B)",
+     "chars": 130
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(3)(iv)(C)",
+     "chars": 41
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(4)(i)",
+     "chars": 199
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(4)(ii)",
+     "chars": 147
+    },
+    {
+     "citation": "26 CFR 1.280F-6(e)(1)",
+     "chars": 254
+    },
+    {
+     "citation": "26 CFR 1.280F-6(e)(2)",
+     "chars": 486
+    },
+    {
+     "citation": "26 CFR 1.280F-6(e)(3)",
+     "chars": 518
+    },
+    {
+     "citation": "26 CFR 1.280F-6(f)(1)",
+     "chars": 361
+    },
+    {
+     "citation": "26 CFR 1.280F-6(f)(2)",
+     "chars": 345
+    },
+    {
+     "citation": "26 CFR 1.280F-6(f)(2)(i)",
+     "chars": 182
+    },
+    {
+     "citation": "26 CFR 1.280F-6(f)(2)(ii)",
+     "chars": 263
+    },
+    {
+     "citation": "26 CFR 1.280F-6(f)(2)(iii)",
+     "chars": 1616
+    },
+    {
+     "citation": "26 CFR 1.280F-6(f)(2)(iv)",
+     "chars": 1071
+    },
+    {
+     "citation": "26 CFR 1.280F-6(a)(4) Example 1",
+     "chars": 425
+    },
+    {
+     "citation": "26 CFR 1.280F-6(a)(4) Example 2",
+     "chars": 529
+    },
+    {
+     "citation": "26 CFR 1.280F-6(a)(4) Example 3",
+     "chars": 264
+    },
+    {
+     "citation": "26 CFR 1.280F-6(a)(4) Example 4",
+     "chars": 482
+    },
+    {
+     "citation": "26 CFR 1.280F-6(a)(4) Example 5",
+     "chars": 387
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(5) Example 1",
+     "chars": 571
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(5) Example 2",
+     "chars": 350
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(5) Example 3",
+     "chars": 371
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(5) Example 4",
+     "chars": 366
+    },
+    {
+     "citation": "26 CFR 1.280F-6(d)(5) Example 5",
+     "chars": 453
+    },
+    {
+     "citation": "26 CFR 1.62-2(b)",
+     "chars": 589
+    },
+    {
+     "citation": "26 CFR 1.62-2(b)(1)",
+     "chars": 119
+    },
+    {
+     "citation": "26 CFR 1.62-2(b)(2)",
+     "chars": 140
+    },
+    {
+     "citation": "26 CFR 1.62-2(c)(1)",
+     "chars": 533
+    },
+    {
+     "citation": "26 CFR 1.62-2(c)(2)(i)",
+     "chars": 249
+    },
+    {
+     "citation": "26 CFR 1.62-2(c)(2)(ii)",
+     "chars": 461
+    },
+    {
+     "citation": "26 CFR 1.62-2(c)(3)(i)",
+     "chars": 470
+    },
+    {
+     "citation": "26 CFR 1.62-2(c)(3)(ii)",
+     "chars": 454
+    },
+    {
+     "citation": "26 CFR 1.62-2(c)(4)",
+     "chars": 522
+    },
+    {
+     "citation": "26 CFR 1.62-2(c)(5)",
+     "chars": 1020
+    },
+    {
+     "citation": "26 CFR 1.62-2(d)(1)",
+     "chars": 1135
+    },
+    {
+     "citation": "26 CFR 1.62-2(d)(2)",
+     "chars": 964
+    },
+    {
+     "citation": "26 CFR 1.62-2(d)(3)(i)",
+     "chars": 418
+    },
+    {
+     "citation": "26 CFR 1.62-2(d)(3)(ii)",
+     "chars": 908
+    },
+    {
+     "citation": "26 CFR 1.62-2(e)(1)",
+     "chars": 295
+    },
+    {
+     "citation": "26 CFR 1.62-2(e)(2)",
+     "chars": 1381
+    },
+    {
+     "citation": "26 CFR 1.62-2(e)(3)",
+     "chars": 712
+    },
+    {
+     "citation": "26 CFR 1.62-2(f)",
+     "chars": 1152
+    },
+    {
+     "citation": "26 CFR 1.62-2(f)(2)",
+     "chars": 1259
+    },
+    {
+     "citation": "26 CFR 1.62-2(g)(1)",
+     "chars": 104
+    },
+    {
+     "citation": "26 CFR 1.62-2(g)(2)(i)",
+     "chars": 331
+    },
+    {
+     "citation": "26 CFR 1.62-2(g)(2)(ii)",
+     "chars": 741
+    },
+    {
+     "citation": "26 CFR 1.62-2(g)(3)",
+     "chars": 451
+    },
+    {
+     "citation": "26 CFR 1.62-2(h)(1)",
+     "chars": 831
+    },
+    {
+     "citation": "26 CFR 1.62-2(h)(2)(i)(A)",
+     "chars": 929
+    },
+    {
+     "citation": "26 CFR 1.62-2(h)(2)(i)(B)(1)",
+     "chars": 795
+    },
+    {
+     "citation": "26 CFR 1.62-2(h)(2)(i)(B)(2)",
+     "chars": 581
+    },
+    {
+     "citation": "26 CFR 1.62-2(h)(2)(i)(B)(3)",
+     "chars": 794
+    },
+    {
+     "citation": "26 CFR 1.62-2(h)(2)(ii)",
+     "chars": 259
+    },
+    {
+     "citation": "26 CFR 1.62-2(i)",
+     "chars": 448
+    },
+    {
+     "citation": "26 CFR 1.62-2(k)",
+     "chars": 257
+    },
+    {
+     "citation": "26 CFR 1.62-2(j) Example 1",
+     "chars": 809
+    },
+    {
+     "citation": "26 CFR 1.62-2(j) Example 2",
+     "chars": 1102
+    },
+    {
+     "citation": "26 CFR 1.62-2(j) Example 3",
+     "chars": 1131
+    },
+    {
+     "citation": "26 CFR 1.62-2(j) Example 4",
+     "chars": 1047
+    },
+    {
+     "citation": "26 CFR 1.62-2(j) Example 5",
+     "chars": 1106
+    },
+    {
+     "citation": "26 CFR 1.62-2(j) Example 6",
+     "chars": 1231
+    },
+    {
+     "citation": "26 CFR 1.62-2(j) Example 7",
+     "chars": 1252
+    },
+    {
+     "citation": "26 CFR 1.62-2(j) Example 8",
+     "chars": 985
+    },
+    {
+     "citation": "26 CFR 1.62-2(j) Example 9",
+     "chars": 1294
+    },
+    {
+     "citation": "26 CFR 1.274-5T(a)",
+     "chars": 125
+    },
+    {
+     "citation": "26 CFR 1.274-5T(b)(1)",
+     "chars": 290
+    },
+    {
+     "citation": "26 CFR 1.274-5T(b)(6)",
+     "chars": 83
+    },
+    {
+     "citation": "26 CFR 1.274-5T(b)(6)(i)(A)",
+     "chars": 244
+    },
+    {
+     "citation": "26 CFR 1.274-5T(b)(6)(i)(B)",
+     "chars": 348
+    },
+    {
+     "citation": "26 CFR 1.274-5T(b)(6)(ii)",
+     "chars": 73
+    },
+    {
+     "citation": "26 CFR 1.274-5T(b)(6)(iii)",
+     "chars": 325
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(1)",
+     "chars": 1556
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(2)(i)",
+     "chars": 718
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(2)(ii)",
+     "chars": 266
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(2)(ii)(A)",
+     "chars": 1084
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(2)(ii)(B)",
+     "chars": 1009
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(3)(i)",
+     "chars": 350
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(3)(ii)(A)",
+     "chars": 455
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(3)(ii)(B)",
+     "chars": 299
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(4)",
+     "chars": 127
+    },
+    {
+     "citation": "26 CFR 1.274-5T(d)(2)",
+     "chars": 629
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(3)(ii)(C) Example 1",
+     "chars": 990
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(3)(ii)(C) Example 2",
+     "chars": 576
+    },
+    {
+     "citation": "26 CFR 1.274-5T(c)(3)(ii)(C) Example 3",
+     "chars": 981
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Standard Mileage Rate\"",
+     "chars": 718
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Choosing the standard mileage rate\"",
+     "chars": 1076
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Standard mileage rate not allowed\"",
+     "chars": 708
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Five or more cars\"",
+     "chars": 601
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Interest\"",
+     "chars": 932
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Parking fees and tolls\"",
+     "chars": 207
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Actual Car Expenses\"",
+     "chars": 432
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Business and personal use\"",
+     "chars": 197
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Employer-provided vehicle\"",
+     "chars": 216
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Interest on car loans\"",
+     "chars": 290
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Depreciation and section 179 deductions\"",
+     "chars": 1191
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Car defined\"",
+     "chars": 645
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Leasing a Car\"",
+     "chars": 241
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Deductible payments\"",
+     "chars": 574
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Inclusion Amounts\"",
+     "chars": 759
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"What Are Adequate Records?\"",
+     "chars": 872
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Adequate evidence\"",
+     "chars": 724
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Timely kept records\"",
+     "chars": 731
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Proving business purpose\"",
+     "chars": 300
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"What if I Have Incomplete Records?\"",
+     "chars": 1055
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Table 5-1. How To Prove Certain Business Expenses — Transportation\"",
+     "chars": 377
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Sampling\"",
+     "chars": 294
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Reimbursements\"",
+     "chars": 604
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Accountable Plans\"",
+     "chars": 1494
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Adequate Accounting\"",
+     "chars": 1223
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Per Diem and Car Allowances\"",
+     "chars": 1278
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Nonaccountable Plans\"",
+     "chars": 935
+    },
+    {
+     "citation": "IRS Pub. 463 (2025), \"Accounting to Your Client\"",
+     "chars": 648
+    }
+   ],
+   "positions": [
+    [
+     "IRS Pub. 463 (2025), \"Actual Car Expenses\"",
+     "book the components the actual-expense method itemises, and answer with the reasoning rather than with a number of accounts"
+    ],
+    [
+     "26 CFR 1.280F-6(d)(2)(i)",
+     "ask who owns the vehicle, in whose name it is, and on what terms, before booking any vehicle cost"
+    ],
+    [
+     "IRS Pub. 463 (2025), \"What Are Adequate Records?\"",
+     "request the title or registration, the loan or lease agreement with its statements, the insurance declarations page, and the mileage log — before answering how the vehicle is treated"
+    ],
+    [
+     "26 CFR 1.280F-6(e)(2)",
+     "obtain the mileage figures; where they are absent, record the business-use percentage as unknown rather than expensing at 100%, and mark the line for the reviewer so the question is put to the client rather than left implicit"
+    ],
+    [
+     "26 CFR 1.62-2(c)(1)",
+     "treat twelve months of vehicle costs with no vehicle and no vehicle loan as an unanswered ownership question: assemble what the file already shows about the vehicle, put the ownership question to the client, and set the treatment on their answer rather than booking one now and correcting it later"
+    ]
+   ],
+   "problems": [
+    "VE1",
+    "VE2",
+    "VE3",
+    "VE4",
+    "VE5",
+    "VE6",
+    "VE7",
+    "VE8",
+    "VE9",
+    "VE10",
+    "VE11",
+    "VE12",
+    "VE13",
+    "VE14",
+    "VE15"
+   ],
+   "sources": [
+    "Treasury Regulation § 1.280F-6 — Special rules and definitions (listed property, business use percentage)",
+    "Treasury Regulation § 1.62-2 — Reimbursements and other expense allowance arrangements",
+    "Treasury Regulation § 1.274-5T — Substantiation requirements (temporary)",
+    "IRS Publication 463 (2025) — Travel, Gift, and Car Expenses"
+   ],
+   "answered_by": {},
+   "answered_from": {
+    "S1": [
+     "listed property",
+     "passenger automobile",
+     "automobile",
+     "automobiles",
+     "motorcycle",
+     "motorcycles",
+     "business use percentage",
+     "qualified business use",
+     "business/investment use",
+     "predominantly",
+     "condition of employment",
+     "convenience of the employer",
+     "employee use",
+     "5-percent owner",
+     "related person",
+     "280f",
+     "1.280f-6"
+    ],
+    "S2": [
+     "accountable plan",
+     "accountable plans",
+     "nonaccountable plan",
+     "nonaccountable plans",
+     "reimbursement",
+     "reimbursements",
+     "reimburse",
+     "reimburses",
+     "reimbursed",
+     "allowance",
+     "allowances",
+     "advance",
+     "advances",
+     "mileage allowance",
+     "car allowance",
+     "per diem",
+     "business connection",
+     "returning amounts in excess of expenses",
+     "62(c)",
+     "1.62-2"
+    ],
+    "S3": [
+     "substantiation",
+     "substantiate",
+     "substantiates",
+     "substantiated",
+     "adequate record",
+     "adequate records",
+     "corroborative evidence",
+     "documentary evidence",
+     "mileage log",
+     "trip sheet",
+     "trip sheets",
+     "account book",
+     "odometer",
+     "records",
+     "274(d)",
+     "1.274-5t"
+    ],
+    "S4": [
+     "standard mileage rate",
+     "mileage rate",
+     "actual expenses",
+     "actual car expenses",
+     "car",
+     "cars",
+     "truck",
+     "trucks",
+     "van",
+     "vans",
+     "vehicle",
+     "vehicles",
+     "mileage",
+     "miles",
+     "lease",
+     "leased",
+     "leases",
+     "leasing",
+     "lease payment",
+     "lease payments",
+     "inclusion amount",
+     "fuel",
+     "gas",
+     "gasoline",
+     "oil",
+     "tires",
+     "repairs",
+     "registration",
+     "tolls",
+     "parking",
+     "commuting",
+     "car loan",
+     "loan interest"
+    ]
+   }
+  }
+ ]
+}

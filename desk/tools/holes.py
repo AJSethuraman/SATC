@@ -28,9 +28,17 @@ and nothing else. It therefore printed **Gaps (0), None recorded** on an evening
 when five `context_not_on_file` refusals stood in the latest run, and the
 document pointing the firm at it quoted that zero as a finding. The three:
 
-    unfiled/*.md                  filed by hand at close. Durable
-    desks/*/unsupported/*.md      filed by `ask.answer` as it refuses. Durable
-    runs/<latest>/served.json     the last measured run. LIVE, and it moves
+    ~/.satc/desk/unfiled/CLOSE.md     parked by hand at close. Durable
+    ~/.satc/desk/unsupported/asked.md filed by `ask.answer` as it refuses. Durable
+    unfiled/*.md                      the same, written before the queue moved out
+    corpus/unsupported/*.md           the same, written before the store moved out
+    runs/<latest>/served.json         the last measured run. LIVE, and it moves
+
+BOTH DURABLE STORES LIVE OUTSIDE THE PLUGIN, and both got there the hard way.
+The queue moved on 8 September; the refusal store was left behind and moved on
+25 September, after 22 refusals were found stranded in `0.27.0` while `0.34.0`
+was the installed release. The in-tree paths are still read, because anything
+filed before either move is exactly what somebody is still waiting on.
 
 THE DURABLE QUEUES AND THE LIVE RUN ARE NOT SUMMED, and the separation is the
 same one `run-down-a-question` already draws: the queue is every hole ever
@@ -123,17 +131,107 @@ def stores(root: pathlib.Path | None = None) -> list[tuple[str, str, object]]:
     """
     root = root or HERE
     found: list[tuple[str, str, object]] = []
+    # THE STABLE QUEUE FIRST, and it is outside `root` on purpose. A parked
+    # question used to be written to `root/unfiled/`, where `root` is the
+    # INSTALLED PLUGIN -- so the store died with the release that wrote it and
+    # this report went quietly blank after an upgrade. `unsupported`
+    # decides where it lives now; this reads from there rather than
+    # re-deriving a path, because two opinions about one location is the
+    # duplicate-matcher fault in a different file.
+    stable = _stable_queue()
+    if stable is not None and stable.is_file():
+        found.append((DURABLE, _outside(stable), stable))
+    # AND THE IN-TREE PATH IS STILL READ, because a queue written before the
+    # move is exactly the queue somebody is still waiting on an answer for.
+    # Aggregating beats migrating: nothing is moved, nothing is lost, and the
+    # report says which file each entry came from.
     for p in sorted((root / "unfiled").glob("*.md")):
-        found.append((DURABLE, str(p.relative_to(root)), p))
-    for d in sorted((root / "desks").iterdir()) if (root / "desks").is_dir() else []:
-        for p in sorted((d / "unsupported").glob("*.md")):
-            found.append((DURABLE, str(p.relative_to(root)), p))
+        found.append((DURABLE, _where(p, root), p))
+    # ONE QUEUE, NOT SEVEN. This walked `desks/*/unsupported/`; `dec-kill`
+    # deleted the desks and `ask.answer` files into `corpus/unsupported/`.
+    # The loop shape is kept rather than collapsed to one path because what
+    # this function promises is EVERY place a refusal can land, and a glob
+    # says that where a hardcoded filename asserts it.
+    # THE DURABLE REFUSAL STORE, outside the plugin for the same reason the
+    # parked queue is. Read before the in-tree path because it is where refusals
+    # land now; the in-tree glob below stays for the ones filed before the move.
+    store = _stable_store()
+    if store is not None and store.is_file():
+        found.append((DURABLE, _outside(store), store))
+    for p in sorted((root / "corpus" / "unsupported").glob("*.md")):
+        found.append((DURABLE, _where(p, root), p))
     runs = sorted(p for p in (root / "runs").glob("*asked-*")
                   if (p / "served.json").is_file())
     if runs:
         p = runs[-1] / "served.json"
-        found.append((LIVE, str(p.relative_to(root)), p))
+        found.append((LIVE, _where(p, root), p))
     return found
+
+
+def _stable_store():
+    """The refusal store `unsupported` owns, or None if it cannot be asked.
+
+    Asked rather than re-derived: two opinions about one location is how the
+    refusal store came to be read from a path nothing wrote to.
+    """
+    try:
+        import unsupported
+    except ImportError:
+        try:
+            sys.path.insert(0, str(HERE))
+            import unsupported
+        except ImportError:
+            return None
+    return unsupported.default_store()
+
+
+def _stable_queue():
+    """The queue location `unsupported` owns, or None if it cannot be asked.
+
+    IMPORTED LATE AND FORGIVINGLY. This tool is run from a checkout, from an
+    installed plugin, and from a session that has only added `tools/` to the
+    path; a hard import at module scope would turn "the report cannot find the
+    package" into "the report will not start".
+    """
+    try:
+        import unsupported
+    except Exception:
+        try:
+            import sys
+            sys.path.insert(0, str(HERE))
+            import unsupported
+        except Exception:
+            return None
+    try:
+        return unsupported.default_queue()
+    except Exception:
+        return None
+
+
+def _outside(path) -> str:
+    """A path that is NOT under `root`, written so a person can find it.
+
+    `_where` calls `relative_to(root)` and raises for anything outside the
+    tree, which is now the normal case for the durable queue.
+    """
+    try:
+        return "~/" + pathlib.Path(path).relative_to(pathlib.Path.home()).as_posix()
+    except ValueError:
+        return pathlib.Path(path).as_posix()
+
+
+def _where(path, root) -> str:
+    """A path as it appears IN A DOCUMENT A PERSON READS. Forward slashes, on
+    every platform.
+
+    `str(Path)` uses the platform separator, and on the firm's own Windows
+    machine this report printed `desks\\fixed-assets\\unsupported\\forge.md`
+    and a line reading `runs\\...` where the prose says `runs/`. Found by the
+    desk running this suite there on 8 September 2026 -- six failures, three of
+    them this one cause. `os.sep` leaking into a human's document is not a test
+    problem; the test was reporting a real defect in what the reader sees.
+    """
+    return pathlib.Path(path).relative_to(root).as_posix()
 
 
 def read(paths) -> list[Entry]:
@@ -141,7 +239,7 @@ def read(paths) -> list[Entry]:
     already know what they want; `stores()` is the front door."""
     out: list[Entry] = []
     for p in paths:
-        out.extend(_read_one(p, str(p)))
+        out.extend(_read_one(p, pathlib.Path(p).as_posix()))
     return out
 
 
@@ -151,7 +249,15 @@ def _read_one(path, where: str) -> list[Entry]:
         rows = json.loads(path.read_text(encoding="utf-8"))
         return [_from_run(r, where) for r in rows if not r.get("served")]
     return [_from_queue(u, where)
-            for u in unsupported.parse(path.read_text(encoding="utf-8"))]
+            for u in unsupported.parse(path.read_text(encoding="utf-8"))
+            # ANSWERED IS NOT OUTSTANDING. `settle` closes an entry and the
+            # entry STAYS in the file -- the queue records what was asked, not
+            # only what is left -- so the reader has to do the filtering the
+            # store deliberately does not. Without this the report went on
+            # naming a hole the firm had already answered, which is the whole
+            # thing settling was built to stop. Caught by a review of the
+            # commit that added it.
+            if not u.settled]
 
 
 def _entries(items) -> list[Entry]:
@@ -236,9 +342,9 @@ def main(argv: list[str]) -> int:
         paths = [pathlib.Path(a) for a in argv]
         missing = [p for p in paths if not p.is_file()]
         if missing:
-            print("no queue at " + ", ".join(str(p) for p in missing))
+            print("no queue at " + ", ".join(x.as_posix() for x in missing))
             return 1
-        found = [(LIVE if p.suffix == ".json" else DURABLE, str(p), p)
+        found = [(LIVE if p.suffix == ".json" else DURABLE, p.as_posix(), p)
                  for p in paths]
     else:
         found = stores()

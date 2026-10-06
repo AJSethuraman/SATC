@@ -13,13 +13,17 @@ import sys
 import time
 
 CS = pathlib.Path(r"C:\Users\ajish\SATC-cs\credit-suite")
-OUT = SB / "filings"
-OUT.mkdir(exist_ok=True)
 sys.path.insert(0, str(CS / "src"))
 
 from credit_suite.workdir import workdir        # noqa: E402
 
 SB = workdir()
+# Moved below `SB = workdir()`. These sat ABOVE it from the move to the
+# Forge on 7 September 2026, so this tool raised NameError on import and
+# could not be run at all. Nine tools carried the same break and nothing
+# caught it: the standing run starts downstream of every one of them.
+OUT = SB / "filings"
+OUT.mkdir(exist_ok=True)
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 from credit_suite.sources.fdic import filing as F                # noqa: E402

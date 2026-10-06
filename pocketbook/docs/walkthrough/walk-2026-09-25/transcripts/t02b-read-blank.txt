@@ -1,0 +1,11 @@
+$ cube control --read control-blank.xlsx
+REFUSED: 8 setting(s) to fix:
+  - Control!C8: `How old a loan must be to count` needs an answer. Pick one, or enter your own in column D
+  - Control!C15: `Fewest loans in a pocket before it is tested` needs an answer. Pick one, or enter your own in column D
+  - Control!C16: `Fewest loans with a loss before a loss rate is tested` needs an answer. Pick one, or enter your own in column D
+  - Control!C18: `Smallest excess loss worth reporting` needs an answer. Pick one, or enter your own in column D
+  - Control!C20: `What a pocket is judged against` needs an answer. Pick one, or enter your own in column D
+  - Control!C21: `How much worse than its comparison a pocket must be` needs an answer. Pick one, or enter your own in column D
+  - Control!C22: `How much better than its comparison a pocket must be` needs an answer. Pick one, or enter your own in column D
+  - Control!C24: `How sure a difference must be before it counts` needs an answer. Pick one, or enter your own in column D
+(exit code 2)
