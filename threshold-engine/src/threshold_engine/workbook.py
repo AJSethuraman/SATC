@@ -71,13 +71,13 @@ def _sha(path: Path) -> str:
 
 def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
           direction: str, frequency: str, smoothing: int, floor_at_zero: bool,
-          moderate_halfwidth: float, low_step: float, high_fraction: float, on_the_line: str,
+          moderate_halfwidth: float, low_step: float, high_z: float, on_the_line: str,
           half_lives: Sequence[float],
           percentiles: Sequence[float], horizon: int, min_history: int) -> dict:
     if frequency != "quarterly":
         raise ValueError("the workbook's calendar is quarterly; monthly series are not built yet")
-    if moderate_halfwidth < 0 or low_step <= moderate_halfwidth or not 0 < high_fraction <= 1:
-        raise ValueError("need 0 <= moderate_halfwidth < low_step, and 0 < high_fraction <= 1")
+    if moderate_halfwidth < 0 or low_step <= moderate_halfwidth or high_z <= 0:
+        raise ValueError("need 0 <= moderate_halfwidth < low_step, and high_z above 0")
     if on_the_line not in ("worse", "better"):
         raise ValueError("on_the_line must be 'worse' or 'better'")
     if len({lbl for lbl, _ in series}) != len(series):
@@ -111,7 +111,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     # ---- Data: one calendar, raw values, and the values each product keeps ----
     da.append(["Quarter"] + [s["label"] for s in loaded] + ["%s, kept" % s["label"] for s in loaded]
               + ["%s, change over 4 quarters kept" % s["label"] for s in loaded]
-              + ["%s, distance from the median change" % s["label"] for s in loaded])
+              + ["%s, distance from the median change" % s["label"] for s in loaded]
+              + ["%s, distance from the median kept" % s["label"] for s in loaded])
     srow = {s["label"]: 6 + i for i, s in enumerate(loaded)}       # Settings row per product
     for r, q in enumerate(grid, start=2):
         da.cell(r, 1, q)
@@ -134,6 +135,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             yc = L(2 + 2 * n + k)
             da.cell(r, 2 + 3 * n + k, '=IF({y}{r}="","",ABS({y}{r}-Thresholds!$O${tr}))'
                     .format(y=yc, r=r, tr=5 + k))
+            da.cell(r, 2 + 4 * n + k, '=IF({c}{r}="","",ABS({c}{r}-Thresholds!$B${tr}))'
+                    .format(c=kc, r=r, tr=5 + k))
     K.freeze_below(da, 1)
 
     # ---- Settings (red): the bank's judgements ----
@@ -144,7 +147,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     K.header_row(st, 5, ["Product", "Leave out from", "Leave out to", "Reason", "Second leave-out from", "to",
                          "Reason", "Moderate: half-width, in typical yearly moves",
                          "Moderate-Low begins this many typical yearly moves below the median",
-                         "High begins this share of the way from Moderate-High to the worst quarter kept",
+                         "High begins at this z: median + z x spread of levels",
                          "A value on a line takes the", "Largest spell: what the evidence says",
                          "Temporary departures the data found", "Why"])
     _wrap(st, 5, 58)
@@ -166,7 +169,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         deps = "; ".join("%s to %s %s (z %+.1f)" % (quarter(d["first"]), quarter(d["last"]),
                                                     d["direction"], d["robust_z"])
                          for d in s["ev"]["departures"]) or "None found"
-        vals = [s["label"], None, None, None, None, None, None, moderate_halfwidth, low_step, high_fraction,
+        vals = [s["label"], None, None, None, None, None, None, moderate_halfwidth, low_step, high_z,
                 on_the_line, say, deps, why]
         for col, v in enumerate(vals, start=1):
             cell = st.cell(rr, col, v)
@@ -198,21 +201,24 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         sr = srow[s["label"]]
         col = lambda c_: "Data!$%s$%d:$%s$%d" % (L(c_), first, L(c_), last)        # noqa: E731
         kept, yoy, dev = col(2 + n + k), col(2 + 2 * n + k), col(2 + 3 * n + k)
+        levdev = col(2 + 4 * n + k)
         th.cell(r, 1, s["label"])
         th.cell(r, 2, "=MEDIAN(%s)" % kept)
         th.cell(r, 15, "=MEDIAN(%s)" % yoy)                          # helper: the median four-quarter change
         th.cell(r, 3, "=1.4826*MEDIAN(%s)" % dev)
         th.cell(r, 4, "=%s(%s)" % ("MAX" if higher else "MIN", kept))
-        hw, ls, hf = ("Settings!$%s$%d" % (c_, sr) for c_ in "HIJ")
+        th.cell(r, 16, "=1.4826*MEDIAN(%s)" % levdev)                 # helper: the spread of levels
+        hw, ls, hz = ("Settings!$%s$%d" % (c_, sr) for c_ in "HIJ")
         th.cell(r, 13, ('=IF(AND({fz},B{r}<=0),"Refused: the median is at or below zero",'
                         'IF({ls}<={hw},"Refused: Moderate-Low must begin further from the median than Moderate",'
-                        'IF({sg}*(D{r}-G{r})<=0,"Refused: nothing kept is worse than the Moderate-High line",'
-                        'IF(AND({fz},E{r}<=0),"Refused: Moderate-Low would begin at or below zero",""))))')
+                        'IF({sg}*(H{r}-G{r})<=0,"Refused: High must begin beyond Moderate-High\'s line",'
+                        'IF({sg}*(D{r}-H{r})<0,"Refused: High would begin beyond the worst quarter kept",'
+                        'IF(AND({fz},E{r}<=0),"Refused: Moderate-Low would begin at or below zero","")))))')
                 .format(fz=fz, r=r, ls=ls, hw=hw, sg=sg))
         th.cell(r, 7, "=$B{r}+{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
         th.cell(r, 6, "=$B{r}-{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
         th.cell(r, 5, "=$B{r}-{sg}*{ls}*$C{r}".format(r=r, sg=sg, ls=ls))
-        th.cell(r, 8, "=$G{r}+{hf}*($D{r}-$G{r})".format(r=r, hf=hf))
+        th.cell(r, 8, "=$B{r}+{sg}*{hz}*$P{r}".format(r=r, sg=sg, hz=hz))
         lp = s["points"][-1]
         th.cell(r, 9, quarter(lp.date))
         th.cell(r, 10, lp.value)
@@ -227,6 +233,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             th.cell(r, c_).number_format = "0.000"
         th.cell(r, 10).number_format = "0.000"
     th.column_dimensions["O"].hidden = True
+    th.column_dimensions["P"].hidden = True
     for c_, w in zip("ABCDEFGHIJKLM", (20, 10, 10, 10, 12, 12, 12, 12, 10, 10, 7, 15, 34)):
         th.column_dimensions[c_].width = w
     th.cell(6 + n, 1, "Scores: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High. A loss at or below "
@@ -341,6 +348,78 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                     "A loss at or below zero falls in score 1.").font = NOTE
     for col, w in zip("ABCDEFGH", (10, 15, 10, 10, 10, 10, 10, 12)):
         asx.column_dimensions[col].width = w
+
+    # ---- Assess: dials. For the product shown, what each setting would do at
+    # other values, the others held as on Settings. Live, like everything else.
+    ix = lambda sheet, c_, top: "INDEX({s}!${c}${t}:${c}${e},{m})".format(                    # noqa: E731
+        s=sheet, c=c_, t=top, e=top - 1 + n, m=tr)
+    asx.cell(45, 1, "What it rests on").font = Font(bold=True)
+    base = [("Median kept", ix("Thresholds", "B", 5)), ("Typical yearly move", ix("Thresholds", "C", 5)),
+            ("Spread of levels", ix("Thresholds", "P", 5)), ("Worst kept", ix("Thresholds", "D", 5)),
+            ("Half-width now", ix("Settings", "H", 6)), ("Moderate-Low step now", ix("Settings", "I", 6)),
+            ("High z now", ix("Settings", "J", 6))]
+    for j, (lbl, f) in enumerate(base):
+        lc = asx.cell(46, 1 + j, lbl)
+        lc.font = Font(bold=True, size=9)
+        lc.alignment = Alignment(wrap_text=True, vertical="bottom")
+        c = asx.cell(47, 1 + j, "=" + f)
+        c.number_format = "0.000"
+    asx.row_dimensions[46].height = 26
+    MED, MOVE, SPREAD, WORST, HW, LS, HZ = ("$%s$47" % L(1 + j) for j in range(7))
+    sgn = "1" if higher else "-1"
+    if higher:
+        ge, lt = ('">="', '"<"'), ('">"', '"<="')
+    else:
+        ge, lt = ('"<="', '">"'), ('"<"', '">="')
+
+    def counts(r, cols):
+        """Quarters kept in each score, for the four lines in this row's columns."""
+        b = ["%s%d" % (c_, r) for c_ in cols]
+        for k in range(5):
+            parts = []
+            if k > 0:
+                parts.append('{d},IF({o}="worse",{w},{bt})&{ref}'.format(d=kept_r, o=online, w=ge[0], bt=lt[0],
+                                                                          ref=b[k - 1]))
+            if k < 4:
+                parts.append('{d},IF({o}="worse",{w},{bt})&{ref}'.format(d=kept_r, o=online, w=ge[1], bt=lt[1],
+                                                                          ref=b[k]))
+            asx.cell(r, 6 + k, '=IF($B$5<>"","",COUNTIFS(%s))' % ",".join(parts))
+
+    dials = [("High's z", HZ, (2.0, 2.5, 3.0, 3.5)),
+             ("Moderate's half-width, in typical yearly moves", HW, (0.25, 0.5, 0.75, 1.0)),
+             ("Moderate-Low step, in typical yearly moves", LS, (0.75, 1.0, 1.5, 2.0))]
+    r = 49
+    for title, now, values in dials:
+        K.section_band(asx, r, "Dial: " + title + " (the other settings as on Settings)", 11)
+        K.header_row(asx, r + 1, ["Value", "2 from", "3 from", "4 from", "5 from",
+                                  "Low", "Mod-Low", "Moderate", "Mod-High", "High", ""], right_from=0)
+        r += 2
+        for v in list(values) + [None]:
+            val = now if v is None else repr(v)
+            asx.cell(r, 1, "=" + now if v is None else v)
+            hw_, ls_, hz_ = (val if now == x else x for x in (HW, LS, HZ))
+            asx.cell(r, 2, "={m}-{s}*{ls}*{mv}".format(m=MED, s=sgn, ls=ls_, mv=MOVE))
+            asx.cell(r, 3, "={m}-{s}*{hw}*{mv}".format(m=MED, s=sgn, hw=hw_, mv=MOVE))
+            asx.cell(r, 4, "={m}+{s}*{hw}*{mv}".format(m=MED, s=sgn, hw=hw_, mv=MOVE))
+            asx.cell(r, 5, "={m}+{s}*{hz}*{sp}".format(m=MED, s=sgn, hz=hz_, sp=SPREAD))
+            counts(r, "BCDE")
+            asx.cell(r, 11, ('=IF({ls}<={hw},"refused: Moderate-Low inside Moderate",'
+                             'IF({s}*(E{r}-D{r})<=0,"refused: High inside Moderate-High",'
+                             'IF({s}*({w}-E{r})<0,"refused: High beyond the worst kept",{now})))')
+                     .format(ls=ls_, hw=hw_, s=sgn, r=r, w=WORST, now='"<- now"' if v is None else '""'))
+            for c_ in range(2, 6):
+                asx.cell(r, c_).number_format = "0.000"
+            if v is None:
+                for c_ in range(1, 12):
+                    asx.cell(r, c_).fill = INPUT
+            r += 1
+        r += 1
+    asx.cell(r, 1, "Each dial changes one setting and holds the others as they are on Settings. The highlighted "
+                   "row is the current setting and matches the table above. Change a setting on Settings and "
+                   "every row follows.").font = NOTE
+    asx.column_dimensions["I"].width = 10
+    asx.column_dimensions["J"].width = 10
+    asx.column_dimensions["K"].width = 34       # column L onward holds the chart's hidden helpers
     heads = ["Quarter", "Kept", "Quarter left out", "Every quarter"] +         ["%d %s" % (i + 1, RATINGS[i]) for i in range(5)]
     for j, h in enumerate(heads):
         asx.cell(first - 1, hc + j, h)
@@ -504,7 +583,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     run.append(["Measure", name, unit, direction, "smoothing %d" % smoothing,
                 "floor at zero" if floor_at_zero else "no floor"])
     run.append(["Scale, starting values", "Moderate half-width %g" % moderate_halfwidth,
-                "Moderate-Low step %g" % low_step, "High fraction %g" % high_fraction,
+                "Moderate-Low step %g" % low_step, "High z %g" % high_z,
                 "on the line: %s" % on_the_line])
     run.append(["Backtest half-lives", ", ".join("%g" % h for h in half_lives) or "none"])
     run.append(["Backtest settings", "percentiles %s" % "/".join("%g" % p for p in percentiles),

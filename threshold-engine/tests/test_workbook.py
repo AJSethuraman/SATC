@@ -19,13 +19,13 @@ SERIES = [("Credit card", DATA / "cards_nco_ttm.csv"), ("Mortgage", DATA / "mort
           ("Home equity", DATA / "home_equity_nco_ttm.csv"),
           ("Other consumer", DATA / "other_consumer_as_filed_nco_ttm.csv")]
 CARD_CUTS = (("2007Q4", "2012Q4"), ("2021Q3", "2023Q1"))
-SET = dict(halfwidth=0.5, low_step=1.5, high_fraction=0.5)
+SET = dict(halfwidth=0.5, low_step=1.0, high_z=2.5)
 
 
 def make(path, **over):
     kw = dict(name="NCO", unit="%", direction="higher_is_worse", frequency="quarterly", smoothing=1,
               floor_at_zero=True, moderate_halfwidth=SET["halfwidth"], low_step=SET["low_step"],
-              high_fraction=SET["high_fraction"], on_the_line="worse", half_lives=(10,),
+              high_z=SET["high_z"], on_the_line="worse", half_lives=(10,),
               percentiles=(50, 75, 90, 95), horizon=4, min_history=41)
     kw.update(over)
     return build(path, SERIES, **kw)
@@ -56,7 +56,7 @@ def reference(file, cuts=(), **over):
     pts = load(file)
     kept = [None if any(a <= quarter(p.date) <= b for a, b in cuts) else p.value for p in pts]
     kw = dict(SET, **over)
-    ref = scale(kept, "higher_is_worse", kw["halfwidth"], kw["low_step"], kw["high_fraction"], True)
+    ref = scale(kept, "higher_is_worse", kw["halfwidth"], kw["low_step"], kw["high_z"], True)
     return pts, kept, ref
 
 
@@ -95,14 +95,14 @@ def test_cards_with_both_periods_left_out_equal_the_reference(built, tmp_path):
     got = row(vals, 5)
     assert got[1] == pytest.approx(ref["typical_yearly_move"])
     assert got[3:7] == pytest.approx(ref["bounds"])
-    assert [round(x, 3) for x in got[3:7]] == [2.879, 3.464, 4.050, 5.326]
+    assert [round(x, 3) for x in got[3:7]] == [3.171, 3.464, 4.050, 5.981]
     assert got[7] == 3                                 # today's 3.98% is Moderate
 
 
 def test_each_multiplier_on_settings_is_live(built, tmp_path):
     p, _, _ = built
-    vals = with_settings(p, tmp_path, "mult.xlsx", {"H6": 0.25, "I6": 1.0, "J6": 0.75})
-    _, _, ref = reference("cards_nco_ttm.csv", halfwidth=0.25, low_step=1.0, high_fraction=0.75)
+    vals = with_settings(p, tmp_path, "mult.xlsx", {"H6": 0.25, "I6": 1.5, "J6": 3.0})
+    _, _, ref = reference("cards_nco_ttm.csv", halfwidth=0.25, low_step=1.5, high_z=3.0)
     assert row(vals, 5)[3:7] == pytest.approx(ref["bounds"])
 
 
@@ -150,8 +150,8 @@ def test_the_run_tab_fingerprints_every_file(built):
 def test_mixed_duplicate_or_impossible_inputs_are_refused(tmp_path):
     with pytest.raises(ValueError):
         build(tmp_path / "x.xlsx", SERIES[:1] * 2, "NCO", "%", "higher_is_worse", "quarterly", 1, True,
-              0.5, 1.5, 0.5, "worse", (), (50, 75, 90, 95), 4, 41)
-    for bad in (dict(on_the_line="sometimes"), dict(low_step=0.5), dict(high_fraction=0)):
+              0.5, 1.0, 2.5, "worse", (), (50, 75, 90, 95), 4, 41)
+    for bad in (dict(on_the_line="sometimes"), dict(low_step=0.5), dict(high_z=0)):
         with pytest.raises(ValueError):
             make(tmp_path / "y.xlsx", **bad)
 
@@ -227,8 +227,7 @@ DEFINED_BY = {
     "Latest quarter": "Latest", "Latest (%)": "Latest", "Score": "Score", "Rating": "Rating", "Check": "Check",
     "Moderate: half-width, in typical yearly moves": "Moderate: half-width",
     "Moderate-Low begins this many typical yearly moves below the median": "Moderate-Low begins",
-    "High begins this share of the way from Moderate-High to the worst quarter kept":
-        "High begins (share of the way)",
+    "High begins at this z: median + z x spread of levels": "High begins at this z",
     "A value on a line takes the": "A value on a line takes the",
 }
 
@@ -266,3 +265,54 @@ def test_no_formula_refers_to_a_row_that_does_not_exist(built):
                         if int(m.group(1)) < 1:
                             bad.append((ws.title, c.coordinate, c.value))
     assert bad == []
+
+
+
+def test_high_beyond_everything_kept_is_refused(built, tmp_path):
+    # Cards with the crisis left out: z 3.5 puts High above the worst quarter kept.
+    p, _, _ = built
+    vals = with_settings(p, tmp_path, "z35.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "E6": "2021Q3", "F6": "2023Q1",
+                                                   "J6": 3.5})
+    assert vals["THRESHOLDS!M5"] == "Refused: High would begin beyond the worst quarter kept"
+    _, _, ref = reference("cards_nco_ttm.csv", CARD_CUTS, high_z=3.5)
+    assert ref["bounds"] is None and "beyond the worst" in ref["refused"]
+
+
+def test_every_dial_row_equals_the_reference_scale(built, tmp_path):
+    p, _, _ = built
+    vals = with_settings(p, tmp_path, "dial.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "E6": "2021Q3", "F6": "2023Q1"})
+    pts, kept, _ = reference("cards_nco_ttm.csv", CARD_CUTS)
+    rows = {}
+    r = 51
+    for name, values in (("high_z", (2.0, 2.5, 3.0, 3.5)), ("halfwidth", (0.25, 0.5, 0.75, 1.0)),
+                         ("low_step", (0.75, 1.0, 1.5, 2.0))):
+        for v in list(values) + [None]:
+            rows[(name, v)] = r
+            r += 1
+        r += 3
+    for (name, v), r in rows.items():
+        kw = dict(SET)
+        if v is not None:
+            kw[name] = v
+        ref = scale(kept, "higher_is_worse", kw["halfwidth"], kw["low_step"], kw["high_z"], True)
+        note = vals["ASSESS!K%d" % r]
+        if ref["bounds"] is None:
+            assert str(note).startswith("refused"), (name, v, note)
+            continue
+        assert [vals["ASSESS!%s%d" % (c, r)] for c in "BCDE"] == pytest.approx(ref["bounds"]), (name, v)
+        want = [sum(1 for x in kept if x is not None and score(x, ref["bounds"], "higher_is_worse", "worse", True) == k)
+                for k in range(1, 6)]
+        assert [vals["ASSESS!%s%d" % (c, r)] for c in "FGHIJ"] == want, (name, v)
+        assert note == ("<- now" if v is None else ""), (name, v, note)
+
+
+@pytest.mark.parametrize("rule", ["worse", "better"])
+def test_the_dials_current_row_counts_exactly_as_the_main_table(built, tmp_path, rule):
+    # Half-width 0 puts two lines on the median, 3.978, a value cards actually
+    # took: counts then depend on the on-the-line rule, in the dial as above.
+    p, _, _ = built
+    vals = with_settings(p, tmp_path, "dl-%s.xlsx" % rule, {"H6": 0, "K6": rule})
+    main = [vals["ASSESS!E%d" % r] for r in range(8, 13)]
+    for now_row in (55, 63, 71):
+        assert [vals["ASSESS!%s%d" % (c, now_row)] for c in "FGHIJ"] == main
+        assert vals["ASSESS!K%d" % now_row] == "<- now"

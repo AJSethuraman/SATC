@@ -59,11 +59,24 @@ TERMS = [
      "Worse than normal by more than ordinary movement, but short of stress.",
      "From the top of Moderate (median plus half-width times the typical yearly move) up to where High begins."),
     ("High",
-     "Stress: levels approaching the worst quarters kept.",
-     "From the Moderate-High line plus the stated share of the distance to the worst kept."),
-    ("High begins (share of the way)",
-     "Where High starts between Moderate-High's line and the worst quarter kept.",
-     "A Settings cell between 0 and 1. 0.5 starts High halfway from Moderate-High's line to the worst kept."),
+     "Stress: a level far enough above normal to count as unusual for this product.",
+     "From the median plus the High z times the spread of levels. It is the same robust z the evidence uses to "
+     "call a level unusual, so High and stress mean one thing."),
+    ("High begins at this z",
+     "How many spreads of levels above the median High starts. The same number means the same rarity on "
+     "every product.",
+     "A Settings cell. 3.5 is the usual line for an outlier (Iglewicz and Hoaglin, 1993). With a crisis left "
+     "out it can sit beyond everything kept, which the workbook refuses. The Dial on Assess shows 2.0 to 3.5 "
+     "side by side."),
+    ("Spread of levels",
+     "How widely the quarters kept range around their median, measured so that one extreme stretch cannot "
+     "inflate it. The unit High is measured in.",
+     "1.4826 x the median of each kept quarter's distance from the median kept (the median absolute "
+     "deviation, MAD)."),
+    ("Dial",
+     "A table on Assess showing what one setting would do at other values, before you change it.",
+     "For each value: the four lines with that setting changed and the others as on Settings, and how many "
+     "quarters kept fall in each score. The highlighted row is the current setting."),
     ("2 Moderate-Low from, 3 Moderate from, 4 Moderate-High from, 5 High from",
      "The four lines the scoring file uses. Each is where that score begins.",
      "As defined under Moderate-Low, Moderate, Moderate-High and High above."),
@@ -81,8 +94,9 @@ TERMS = [
      "Read from the source, not recalculated."),
     ("Check",
      "Says why the workbook will not draw a scale, rather than drawing one that cannot be right.",
-     "Refuses when the median is at or below zero, when Moderate-Low would not begin below Moderate, when nothing "
-     "kept is worse than the Moderate-High line, or when Moderate-Low would begin at or below zero."),
+     "Refuses when the median is at or below zero, when Moderate-Low would not begin below Moderate, when High "
+     "would not begin beyond Moderate-High, when High would begin beyond the worst quarter kept (nothing could "
+     "rate High), or when Moderate-Low would begin at or below zero."),
     ("Spell",
      "An unbroken stretch of quarters worse than the median.",
      "From the first quarter worse than the median to the last before it returns."),

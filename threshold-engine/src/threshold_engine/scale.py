@@ -12,12 +12,16 @@ are measured from it:
     3 Moderate from       median - halfwidth x typical yearly move
     4 Moderate-High from  median + halfwidth x typical yearly move
     2 Moderate-Low from   median - low_step x typical yearly move
-    5 High from           Moderate-High's line + high_fraction x (worst kept
-                          - Moderate-High's line)
+    spread of levels      1.4826 x the median absolute deviation of the quarters
+                          kept from their median
+    5 High from           median + high_z x spread of levels: the same robust z
+                          the evidence uses to call a level unusual. One number
+                          with one meaning on every product, and it rests on the
+                          bulk of history, not on the single worst quarter.
 
 For a measure where lower is worse (a credit score), "-" and "+" swap and the
-worst kept is the lowest. The three multipliers are the bank's; nothing here
-has a default.
+worst kept is the lowest. The three settings are the bank's; nothing here has a
+default.
 """
 from __future__ import annotations
 
@@ -37,25 +41,34 @@ def typical_yearly_move(kept: Sequence[Optional[float]], lag: int = 4) -> Option
     return ROBUST_SCALE * statistics.median([abs(c - m) for c in changes])
 
 
+def level_spread(vals: Sequence[float]) -> float:
+    med = statistics.median(vals)
+    return ROBUST_SCALE * statistics.median([abs(v - med) for v in vals])
+
+
 def scale(kept: Sequence[Optional[float]], direction: str, halfwidth: float, low_step: float,
-          high_fraction: float, floor_at_zero: bool) -> dict:
+          high_z: float, floor_at_zero: bool) -> dict:
     """Lines where scores 2, 3, 4 and 5 begin, or a refusal saying why not."""
     vals = [v for v in kept if v is not None]
     s = 1.0 if direction == "higher_is_worse" else -1.0
     med = statistics.median(vals)
     move = typical_yearly_move(kept)
     worst = max(vals) if s > 0 else min(vals)
-    out = {"median": med, "typical_yearly_move": move, "worst": worst, "bounds": None, "refused": None}
+    spread = level_spread(vals)
+    out = {"median": med, "typical_yearly_move": move, "spread_of_levels": spread, "worst": worst,
+           "bounds": None, "refused": None}
     b3 = med - s * halfwidth * move
     b4 = med + s * halfwidth * move
     b2 = med - s * low_step * move
-    b5 = b4 + high_fraction * (worst - b4)
+    b5 = med + s * high_z * spread
     if floor_at_zero and s > 0 and med <= 0:
         out["refused"] = "the median is at or below zero"
     elif low_step <= halfwidth:
         out["refused"] = "Moderate-Low must begin further from the median than Moderate"
-    elif s * (worst - b4) <= 0:
-        out["refused"] = "nothing kept is worse than Moderate-High's line"
+    elif s * (b5 - b4) <= 0:
+        out["refused"] = "High must begin beyond Moderate-High's line"
+    elif s * (worst - b5) < 0:
+        out["refused"] = "High would begin beyond the worst quarter kept: nothing kept could rate High"
     elif floor_at_zero and s > 0 and b2 <= 0:
         out["refused"] = "Moderate-Low would begin at or below zero"
     else:

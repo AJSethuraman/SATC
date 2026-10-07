@@ -102,8 +102,8 @@ def _parser():
                    help="Moderate's half-width around the median, in typical yearly moves")
     j.add_argument("--low-step", required=True, type=float,
                    help="Moderate-Low begins this many typical yearly moves below the median")
-    j.add_argument("--high-fraction", required=True, type=float,
-                   help="High begins this share of the way from Moderate-High to the worst kept")
+    j.add_argument("--high-z", required=True, type=float,
+                   help="High begins at the median plus this many robust spreads of the quarters kept")
     j.add_argument("--on-the-line", required=True, choices=["worse", "better"])
     b = wbp.add_argument_group("the backtest, all required")
     b.add_argument("--percentiles", required=True, type=float, nargs="+", metavar="P")
@@ -187,7 +187,7 @@ def main(argv=None):
         try:
             from .workbook import build
             r = build(a.out, pairs, a.name, a.unit, a.direction, a.frequency, a.smoothing,
-                      a.floor_at_zero, a.moderate_halfwidth, a.low_step, a.high_fraction, a.on_the_line,
+                      a.floor_at_zero, a.moderate_halfwidth, a.low_step, a.high_z, a.on_the_line,
                       a.half_lives,
                       a.percentiles, a.horizon, a.min_history)
         except (SeriesError, ValueError, OSError) as exc:

@@ -247,3 +247,41 @@ data: nothing has adopted it yet.
 ### Waiting on the bank
 - Add the Fed's other consumer to the workbook as a reference row, for its
   cycles and departures beside the FDIC line?
+
+## 7 October 2026, High on a z, and dials on Assess
+
+**Cards' settings agreed:** Moderate half-width 0.5, Moderate-Low step 1.0.
+The bank: *"I think that makes sense. Unsure about High being arbitrary."*
+Before agreeing, seven options were compared on the same tests: whether
+the median is Moderate, spread across scores, real-time predictiveness, and
+benchmark periods. 0.5 / 1.0 was the only option to pass all four (spread
+0.95, Spearman 0.80; the range across options, 0.75-0.82, is within noise).
+That comparison also corrected an earlier claim: widening Moderate to 0.75
+does not pull cards' 1996-2006 stretch into Moderate. Only 1.0 does, and
+only partly.
+
+**High is now a robust z of levels:** median + z x 1.4826 x MAD of the
+quarters kept. Halfway-to-worst moved 2.1 points for cards when 2008 was
+kept or left out; z 2.5 moves 0.75. On cards with the crisis left out, the
+textbook 3.5 puts High above everything kept, so the workbook refuses it.
+
+**The bank, on how to choose it:** *"Can we just make this part of what we
+do in the book to assess it? ... then they can be sort of dialed."* Assess
+now has a dial for each of the three settings. Each row shows the four lines
+and the kept quarters in each score at another value, the others as on
+Settings, and the current setting is highlighted. Every row is tested
+against `scale.py`.
+
+Cards at 0.5 / 1.0 / 2.5: lines 3.171 / 3.464 / 4.050 / 5.981. Kept
+quarters: Low 25, Moderate-Low 22, Moderate 29, Moderate-High 55, High 4
+(2002 only). Today is Moderate.
+
+Found while building: the dials first wrote into column L, where the Assess
+chart's hidden helpers start. The dials now stop at K. A mutant that made
+the dials ignore the on-the-line rule survived until a test put quarters on
+a line.
+
+### Waiting on the bank
+- High's z for cards (2.5 recommended), and whether 41% in Moderate-High is
+  acceptable. At z 2.0 it is 36%, and High is 7%.
+- The same comparison for other consumer before reusing cards' settings.

@@ -46,13 +46,14 @@ Proposal*, section 3a.
 ## The workbook: one run, everything at once
 
 ```
-threshold-engine workbook consumer-thresholds.xlsx --series "Credit card=tests/data/cards_nco_ttm.csv" --series "Mortgage=tests/data/mortgage_nco_ttm.csv" --series "Home equity=tests/data/home_equity_nco_ttm.csv" --series "Other consumer=tests/data/other_consumer_as_filed_nco_ttm.csv" --name "Net charge-offs, trailing twelve months" --unit % --direction higher_is_worse --frequency quarterly --smoothing 1 --floor-at-zero yes --moderate-halfwidth 0.5 --low-step 1.5 --high-fraction 0.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 41 --half-lives 10 5
+threshold-engine workbook consumer-thresholds.xlsx --series "Credit card=tests/data/cards_nco_ttm.csv" --series "Mortgage=tests/data/mortgage_nco_ttm.csv" --series "Home equity=tests/data/home_equity_nco_ttm.csv" --series "Other consumer=tests/data/other_consumer_as_filed_nco_ttm.csv" --name "Net charge-offs, trailing twelve months" --unit % --direction higher_is_worse --frequency quarterly --smoothing 1 --floor-at-zero yes --moderate-halfwidth 0.5 --low-step 1.0 --high-z 2.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 41 --half-lives 10 5
 ```
 
 Python works out the statistics once. The cutoffs are live Excel formulas
 driven by the red **Settings** tab. The scale is centred on normal: Moderate
 is a band around the median of the quarters kept, as wide as the stated number
-of typical yearly moves. Moderate-Low and High are measured from it. Leave out
+of typical yearly moves. Moderate-Low is measured below it, and High begins a
+stated robust z above the median. Leave out
 a period, change any of the three distances, or change which score a value on a line takes, and the **Thresholds**
 and **Chart** tabs recalculate. Settings also shows what the evidence says
 and why, so each judgement is made next to its evidence. The **Chart** tab
@@ -66,7 +67,9 @@ The **Assess** tab is where thresholds get judged. Pick a product and its five
 score bands are shaded behind every quarter of its history. The quarters
 Settings leaves out are marked by a dark strip along the bottom and grey dots on
 the line, with what was cut and why listed under the chart. A table counts how many
-quarters, and what share of history, fell in each score. All of it is live.
+quarters, and what share of history, fell in each score. All of it is live. Below it, a **Dial** for
+each setting shows the lines and counts at other values before you change
+anything.
 
 Each product has two leave-out windows on Settings, each with a Reason cell.
 The Run tab records what was left out and why. Settings also lists the
@@ -146,7 +149,7 @@ charge-off history:
 python -m pytest -q
 ```
 
-133 tests. The workbook's live lines are recalculated with the `formulas`
+138 tests. The workbook's live lines (and every row of the dials) are recalculated with the `formulas`
 engine and must equal `scale.py`, the Python reference, for every product,
 as built and after each kind of Settings change. A test fails if any heading
 on Thresholds or Settings has no Glossary entry, or if any formula points at
