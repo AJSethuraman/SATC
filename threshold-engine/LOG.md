@@ -216,3 +216,34 @@ That is enough to move a rating near a line.
 - Moderate-Low's step: Low for cards is nearly empty at 1.5.
 - Cards and mortgage on the FDIC TTM definition (matches the bank's; shorter
   history) or the Fed's (longer; a different definition)?
+
+## 6 October 2026, TTM basis kept; the Fed's other consumer explored
+
+**Decided.** Cards and mortgage stay on the Federal Reserve's definition for
+now. The bank: *"I'm fine with leaving it as is for now knowing that it's
+unlikely huge spikes are happening across all banks at all times unless for a
+common reason it should be relatively stable."* Consistent with the check:
+median gap +0.05 points against an FDIC TTM built the bank's way.
+
+**Explored: the Fed's "consumer loans: other"** (charge-off release
+chgallsa, 1985-2026, all commercial banks, SA; read from the HTML table,
+with the card column tying to the engine's card series within 0.0005 over
+163 quarters). "Other" is consumer less credit cards, so it includes auto
+in every year. It tracks the FDIC series with auto added back (median gap
+-0.08 before 2011, -0.09 after) and departs from the as-filed line after the
+2011 split (-0.40). One definition from 1985, but half auto: right for
+counting cycles, wrong for levels on a mostly unsecured book.
+
+What it shows: 2008 is the only clearly unusual episode (z 12.1). The
+early-2000s cycle peaked at 1.465% in 2003Q2, z 3.3 against quarters outside
+both cycles: real, but under 3.5. 1990-91 barely registers (z 0.6). The
+pandemic dip is clearer here (departure z -2.7, against -2.2 on FDIC as
+filed). Under the 3.5 rule other consumer keeps 2008, the same answer the
+FDIC series gave, now from two sources.
+
+Saved with the evidence pack (fedco/), not added to the repository's test
+data: nothing has adopted it yet.
+
+### Waiting on the bank
+- Add the Fed's other consumer to the workbook as a reference row, for its
+  cycles and departures beside the FDIC line?
