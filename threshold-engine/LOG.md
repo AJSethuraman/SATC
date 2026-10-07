@@ -285,3 +285,43 @@ a line.
 - High's z for cards (2.5 recommended), and whether 41% in Moderate-High is
   acceptable. At z 2.0 it is 36%, and High is 7%.
 - The same comparison for other consumer before reusing cards' settings.
+
+## 7 October 2026, peers, and KeyBank's other consumer mix
+
+**Peers.** Gross and net TTM charge-offs by product for credit-suite's 15
+verified peers plus KeyBank, 2007-2026, from the FDIC pulls (evidence pack,
+peers-gross-net/). A bank-product window is left out if it touches a quarter
+where the book moved more than 25% (merger, sale, reclassification): 128
+such quarters on books over $1bn. Books under $1bn are left out too, except
+KeyBank's. Shown on a page where the pack is chosen bank by bank (the bank:
+*"some peers like citi are not really peers"*), with two peers or the best
+and worst at once. "Regionals only" is my grouping, not a definition.
+
+**KeyBank's other consumer is held down by mix.** The bank: *"key's other
+consumer is likely being held very down in charge offs by the laurel road
+portfolio."* Public filings agree. The balance went from $2.3bn (end 2018) to
+$6.5bn (2022) while net charge-off dollars stayed $25-60m a year. Against
+every FDIC filer, KeyBank's rate tracked the industry until 2018 and then sat
+at 0.4-0.5x of it from 2019 through 2025, after the pandemic had unwound for
+the industry (1.49x its 2018 level by 2025). Year by year that factor matches
+1 / KeyBank's balance growth: dilution by a book that loses next to nothing.
+The 2021 low splits about 40% pandemic (shared by all banks) and 60%
+KeyBank-specific, on a log scale. KeyCorp's 4Q20 release: consumer direct
+loans averaged $3.13bn in 4Q19 and $4.58bn in 4Q20, yield 6.45% to 4.93%,
+growth attributed to Laurel Road. Public data does not split out the student
+loans.
+
+Bounded: the book without student loans lost about 1.9-3.0% in 2024,
+against a regional median of 1.56% and the industry's 1.63%. The blended
+1.11% looks better than the pack.
+
+The bank: *"private lenders offered plenty of forbearance by request ...
+Laurel road never had a high charge off rate. It's a bad business model as
+opposed to poor strategy."* So the student loans' issue is economics (yield,
+margin), not credit. That belongs to an earnings or strategic assessment, not
+to these thresholds.
+
+### Decided, for the thresholds
+- Other consumer is two books: student loans (Laurel Road) and the rest.
+  Each gets its own scale, from internal data on site. A blended scale would
+  rate the riskiest consumer book on a number held down by the safest.
