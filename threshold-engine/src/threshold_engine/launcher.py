@@ -11,17 +11,24 @@ imported, so this project lifts out whole):
                   Moderate-Low step, High's z, which score a value on a line
                   takes) and the backtest's (percentiles, horizon, history)
     4. Build      where the workbook goes; Run writes it and opens it
-    5. Peers      not in the window yet: the peer workbook is built from the
-                  command line (`peers pull`, then `peers build`), and the
-                  spec makes this step optional
+    5. Peers      optional: the cache folder, the roster, the quarters, the
+                  products, whether delinquency and nonaccrual are included,
+                  and every rule `peers build` requires. Pull fills the cache
+                  from the FDIC; Build writes the peer workbook and its series
+                  CSVs. Both call ``peers/run.py``, the same two functions
+                  `peers pull` and `peers build` call, so the window and the
+                  command line cannot drift (docs/V1-ROUND2-SPEC.md, section C)
 
 Every field the bank must state starts EMPTY. The window fills in nothing:
 Run stays off, and says which fields are still wanted, until every one is
-stated. Everything the window decides -- what is missing, what each field
+stated; so do Pull and Build on the Peers step, each over the fields it uses.
+A long operation runs on a worker thread with a status line, and a second
+press while one runs is refused in words. Everything the window decides -- what is missing, what each field
 turns into, what Run says -- is a plain function over a `Form`, so the tests
 drive it without a display. `window()` only draws a Form.
 
-The build calls `threshold_engine.workbook.build` directly, in this process.
+The build calls `threshold_engine.workbook.build` directly, in this process;
+Pull and Build call `threshold_engine.peers.run.pull` and `.build`.
 Nothing at the top of this file imports openpyxl: the window opens without it
 and says so (PocketBook's add-on check, ruling OC-34 there), rather than
 failing with a traceback before anything is on screen.
@@ -30,20 +37,24 @@ from __future__ import annotations
 
 import csv
 import importlib.util
+import datetime as dt
 import math
 import os
+import re
 import subprocess
 import sys
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
+
+# books.py is plain Python (no openpyxl), so the product names come from the
+# one place the peer build reads them, and the window still opens without
+# openpyxl. peers/run.py does import openpyxl, so it is loaded only on a press.
+from .peers.books import PRODUCTS as _PEER_PRODUCTS
 
 TITLE = "Thresholds"
 STEPS = ("Series", "Measure", "Settings", "Build", "Peers")
-#: The step that is shown but not yet usable, and what it says.
-COMING = {"Peers": "Not in the window yet. The peer workbook is built from the command line: "
-                   "python -m threshold_engine peers pull, then python -m threshold_engine peers build."}
 
 #: Colours, the same tokens as keybank_style (a test holds them equal). Copied,
 #: not imported, because keybank_style imports openpyxl and the window must
@@ -309,18 +320,16 @@ def arguments(form: Form) -> dict:
 @dataclass
 class Step:
     name: str
-    mark: str        # done, todo, coming
+    mark: str        # done, todo
     sub: str = ""
 
 
-def steps(form: Form) -> List[Step]:
-    """The rail: each step done or with how many things it still wants."""
-    wanted = problems(form)
+def steps(form: Form, peers: "PeerForm") -> List[Step]:
+    """The rail: each step done or with how many things it still wants. Peers
+    counts what Pull and Build still want between them, each field once."""
+    wanted = problems(form) + peer_problems(peers, "both")
     out = []
     for name in STEPS:
-        if name in COMING:
-            out.append(Step(name, "coming", "Coming next"))
-            continue
         n = sum(1 for p in wanted if p.startswith(name + ":"))
         out.append(Step(name, "done" if n == 0 else "todo",
                         "Complete" if n == 0 else "%d to fill in" % n))
@@ -408,6 +417,457 @@ def open_workbook(path: Path) -> str:
 
 
 # --------------------------------------------------------------------------
+# Peers: the form, what Pull and Build each want, and the two presses
+#
+# Pull and Build call peers/run.py's ``pull`` and ``build``: the functions
+# `peers pull` and `peers build` call. The window checks that every field is
+# stated and readable, and says so in words; run.py checks every stated
+# setting again before it reads anything, and what it refuses comes back here
+# as words too.
+
+#: The products the peer build knows, in its order (peers/books.py).
+PEER_PRODUCTS = tuple(_PEER_PRODUCTS)
+PEER_DELINQUENCY = (("yes", "Yes: also delinquency and nonaccrual, by product"),
+                    ("no", "No: charge-offs only"))
+PEER_MERGERS = (("yes", "Yes: also the FDIC's merger record, from the date below"),
+                ("no", "No merger record"))
+PEER_REFRESH = (("yes", "Yes: fetch every quarter again, even those in the cache"),
+                ("no", "No: fetch only the quarters not in the cache"))
+PEER_EXEMPT = (("yes", "Yes: the bank itself is drawn whatever its size"),
+               ("no", "No: the bank itself meets the minimum like any other"))
+PEER_PACK = (("all", "All peers"), ("regionals", "Regionals only"))
+PEER_RANK_BY = (("gross", "Gross charge-offs"), ("net", "Net charge-offs"))
+#: What each press is called, and what it is doing while it runs.
+PRESSES = {"pull": ("Pull", "Pulling from the FDIC"),
+           "build": ("Build", "Building the peer workbook")}
+#: The word that states an empty list, where the build needs one stated.
+NONE_WORD = "none"
+
+_QUARTER = re.compile(r"\d{4}Q[1-4]")
+_EXTRA = re.compile(r"\d+=\d{4}Q[1-4]")
+
+
+@dataclass
+class PeerForm:
+    """Everything the Peers step holds, as text exactly as entered, and the
+    products ticked. Every field starts empty, the yes/no choices and the
+    lists included: an empty list is stated by writing ``none``, because a
+    blank field would not say whether there are none or nobody has looked."""
+    cache: str = ""
+    roster: str = ""
+    first: str = ""                # YYYYQn
+    last: str = ""
+    products: List[str] = field(default_factory=list)
+    delinquency: str = ""          # yes | no
+    mergers_pull: str = ""         # yes | no: Pull also fetches the merger record
+    mergers_since: str = ""        # YYYY-MM-DD, when mergers_pull is yes
+    refresh: str = ""              # yes | no
+    out: str = ""                  # the peer workbook, .xlsx
+    series_dir: str = ""
+    mergers_file: str = ""         # {cert: [quarter-end dates]}, as Pull writes it
+    extra_acquisitions: str = ""   # CERT=YYYYQn ..., or none
+    industry_combined: str = ""    # PRODUCT+PRODUCT; ..., or none
+    jump: str = ""
+    min_book: str = ""
+    exempt_self: str = ""          # yes | no
+    pack: str = ""                 # all | regionals
+    min_banks: str = ""
+    rank_by: str = ""              # gross | net
+    last_n: str = ""
+    min_obs: str = ""
+    base_quarter: str = ""         # YYYYQn
+    index_min_book: str = ""
+    lagged_years: str = ""         # whole years
+    lag_years: str = ""
+    normalisation_years: str = ""  # two years: base and end
+    mix_base_year: str = ""
+
+
+def tick(pf: PeerForm, product: str, on: bool) -> None:
+    """Tick or untick a product; the list stays in the build's product order."""
+    if product not in PEER_PRODUCTS:
+        raise ValueError("%r is not one of the products: %s" % (product, ", ".join(PEER_PRODUCTS)))
+    chosen = (set(pf.products) | {product}) if on else (set(pf.products) - {product})
+    pf.products[:] = [p for p in PEER_PRODUCTS if p in chosen]
+
+
+def _peer_path(text, what, out, kind, must_exist):
+    """A stated path, or None with the reason. ``kind`` is 'folder' or 'file'.
+    A folder Pull may create need not exist; one Build reads must."""
+    t = text.strip()
+    if not t:
+        out.append("Peers: %s is empty." % what)
+        return None
+    p = Path(t)
+    if kind == "folder":
+        if p.exists() and not p.is_dir():
+            out.append("Peers: %s, %s, is a file, not a folder." % (what, t))
+            return None
+        if must_exist and not p.is_dir():
+            out.append("Peers: %s, %s, is not there; Pull fills it first." % (what, t))
+            return None
+    elif not p.is_file():
+        out.append("Peers: %s, %s, is not there." % (what, t))
+        return None
+    return p
+
+
+def _peer_xlsx(text, what, out):
+    """Where an .xlsx goes, by the same rules as the Build step's."""
+    t = text.strip()
+    if not t:
+        out.append("Peers: choose where %s goes." % what)
+    elif not t.lower().endswith(".xlsx"):
+        out.append("Peers: %s must be an .xlsx file." % what)
+    elif Path(t).is_dir():
+        out.append("Peers: %s is a folder; give %s a file name." % (t, what))
+    elif not Path(t).parent.is_dir():
+        out.append("Peers: the folder %s is not there." % Path(t).parent)
+    else:
+        return Path(t)
+    return None
+
+
+def _peer_quarter(text, what, out):
+    t = text.strip()
+    if not t:
+        out.append("Peers: %s is empty." % what)
+    elif not _QUARTER.fullmatch(t):
+        out.append("Peers: %s must be a quarter written like 2006Q1, not %r." % (what, t))
+    else:
+        return t
+    return None
+
+
+def _peer_years(text, what, out, count=None):
+    """Whole years separated by spaces or commas; exactly ``count`` when given.
+    A year is the digits 0-9 and nothing else: ``str.isdigit`` also passes
+    '²' and other characters ``int`` cannot read, and a raise here would
+    reach the window's field trace instead of coming back as words."""
+    t = text.replace(",", " ").split()
+    if not t:
+        out.append("Peers: nothing is stated for %s." % what)
+        return None
+    if not all(re.fullmatch(r"[0-9]+", x) for x in t):
+        out.append("Peers: %s must be whole years separated by spaces, not %r." % (what, text.strip()))
+        return None
+    if count is not None and len(t) != count:
+        out.append("Peers: %s needs exactly %d years, not %d." % (what, count, len(t)))
+        return None
+    return [int(x) for x in t]
+
+
+def _peer_list(text, what, out, split, ok, form_words):
+    """A stated list: ``none`` for an empty one, else items split by ``split``,
+    each passing ``ok``. Blank is wanted, never read as none."""
+    t = text.strip()
+    if not t:
+        out.append("Peers: nothing is stated for %s; write %s if there are none." % (what, NONE_WORD))
+        return None
+    if t.lower() == NONE_WORD:
+        return []
+    items = [x.strip() for x in split(t) if x.strip()]
+    bad = [x for x in items if not ok(x)]
+    if bad or not items:
+        out.append("Peers: %s takes %s, or %s; %s is not one." % (
+            what, form_words, NONE_WORD, ", ".join(repr(x) for x in bad) or repr(t)))
+        return None
+    return items
+
+
+def _combined_ok(item: str) -> bool:
+    names = [n.strip() for n in item.split("+")]
+    return len(names) >= 2 and len(set(names)) == len(names) and all(n in PEER_PRODUCTS for n in names)
+
+
+#: Which press uses which field. ``cache`` is read differently by the two:
+#: Pull may create the folder, Build reads only what is already in it.
+_PULL = ("cache_pull", "first", "last", "products", "delinquency", "mergers_pull", "mergers_since",
+         "refresh")
+_BUILD = ("cache_build", "roster", "first", "last", "products", "delinquency", "out", "series_dir",
+          "mergers_file", "extra_acquisitions", "industry_combined", "jump", "min_book", "exempt_self",
+          "pack", "min_banks", "rank_by", "last_n", "min_obs", "base_quarter", "index_min_book",
+          "lagged_years", "lag_years", "normalisation_years", "mix_base_year")
+#: Every field in the order the page shows it.
+_PAGE_ORDER = ("cache_pull", "cache_build", "roster", "first", "last", "products", "delinquency",
+               "mergers_pull", "mergers_since", "refresh") + _BUILD[6:]
+
+
+def _peer_fields(pf: PeerForm) -> Dict[str, Tuple[object, List[str]]]:
+    """``{key: (value, problems)}`` for every Peers field: the value run.py
+    takes, or None while it is wanted or wrong. Each problem names the field
+    by the words the page shows and by its command-line flag, which is how
+    run.py names it when it refuses."""
+    f: Dict[str, Tuple[object, List[str]]] = {}
+
+    def put(key, read):
+        out: List[str] = []
+        f[key] = (read(out), out)
+
+    def num(attr, what, **kw):
+        put(attr, lambda o: _number(getattr(pf, attr), what, "Peers", o, **kw))
+
+    def yes_no(attr, options, what):
+        put(attr, lambda o: _choice(getattr(pf, attr), options, what, "Peers", o))
+
+    put("cache_pull", lambda o: _peer_path(pf.cache, "the cache folder (--cache)", o, "folder", False))
+    put("cache_build", lambda o: _peer_path(pf.cache, "the cache folder (--cache)", o, "folder", True))
+    put("roster", lambda o: _peer_path(pf.roster, "the roster file (--roster)", o, "file", True))
+    put("first", lambda o: _peer_quarter(pf.first, "the first quarter (--first)", o))
+    put("last", lambda o: _peer_quarter(pf.last, "the last quarter (--last)", o))
+    first, last = f["first"][0], f["last"][0]
+    if first and last and first > last:          # YYYYQn sorts as it reads
+        f["last"] = (None, ["Peers: the last quarter (--last), %s, comes before the first, %s."
+                            % (last, first)])
+
+    def products(o):
+        if not pf.products:
+            o.append("Peers: tick at least one product (--products).")
+            return None
+        if any(p not in PEER_PRODUCTS for p in pf.products) or len(set(pf.products)) != len(pf.products):
+            o.append("Peers: the products (--products) must be distinct, from %s, not %r."
+                     % (", ".join(PEER_PRODUCTS), pf.products))
+            return None
+        return list(pf.products)
+    put("products", products)
+    yes_no("delinquency", PEER_DELINQUENCY,
+           "whether delinquency and nonaccrual are included (--delinquency)")
+    yes_no("mergers_pull", PEER_MERGERS, "whether Pull also fetches the merger record (--mergers)")
+
+    def since(o):
+        t = pf.mergers_since.strip()
+        if pf.mergers_pull == "no":
+            if t:
+                o.append("Peers: a date for the merger record is given, but No merger record is "
+                         "chosen; choose Yes or clear the date.")
+            return None
+        if pf.mergers_pull != "yes":
+            return None             # the choice is what is wanted, and it is said once
+        if not t:
+            o.append("Peers: the date the merger record starts (--mergers) is empty.")
+            return None
+        try:
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", t):
+                raise ValueError(t)
+            dt.date.fromisoformat(t)
+        except ValueError:
+            o.append("Peers: the date the merger record starts (--mergers) must be a date written "
+                     "like 2005-10-01, not %r." % t)
+            return None
+        return t
+    put("mergers_since", since)
+    yes_no("refresh", PEER_REFRESH, "whether quarters already in the cache are fetched again (--refresh)")
+    put("out", lambda o: _peer_xlsx(pf.out, "the peer workbook", o))
+    put("series_dir", lambda o: _peer_path(pf.series_dir, "the series folder (--series-dir)", o,
+                                           "folder", False))
+    put("mergers_file", lambda o: _peer_path(pf.mergers_file, "the merger file (--mergers)", o, "file", True))
+    put("extra_acquisitions", lambda o: _peer_list(
+        pf.extra_acquisitions, "the extra acquisitions (--extra-acquisitions)", o,
+        lambda t: t.replace(",", " ").replace(";", " ").split(), _EXTRA.fullmatch, "CERT=YYYYQn items"))
+    put("industry_combined", lambda o: _peer_list(
+        pf.industry_combined, "the combined industry series (--industry-combined)", o,
+        lambda t: t.split(";"), _combined_ok,
+        "two or more products joined by +, one series from the next by ;"))
+    num("jump", "the jump (--jump)", least=0)
+    num("min_book", "the minimum book (--min-book)", least=0)
+    yes_no("exempt_self", PEER_EXEMPT, "whether the bank itself is exempt from the minimum (--exempt-self)")
+    yes_no("pack", PEER_PACK, "the pack (--pack)")
+    num("min_banks", "the number of banks a composite needs (--min-banks)", whole=True, least=1)
+    yes_no("rank_by", PEER_RANK_BY, "what best and worst are ranked by (--rank-by)")
+    num("last_n", "the number of quarters best and worst are ranked over (--last-n)", whole=True, least=1)
+    num("min_obs", "the number of kept quarters a bank needs to be ranked (--min-obs)", whole=True, least=1)
+    put("base_quarter", lambda o: _peer_quarter(pf.base_quarter,
+                                                "the balance index's base quarter (--base-quarter)", o))
+    num("index_min_book", "the smallest book indexed (--index-min-book)", least=0)
+    put("lagged_years", lambda o: _peer_years(pf.lagged_years, "the lagged years (--lagged-years)", o))
+    num("lag_years", "the lag in years (--lag-years)", whole=True, least=0)
+    put("normalisation_years", lambda o: _peer_years(
+        pf.normalisation_years, "the normalisation years (--normalisation-years)", o, 2))
+    num("mix_base_year", "the mix base year (--mix-base-year)", whole=True, least=0)
+    return f
+
+
+def _peer_keys(action: str):
+    if action == "pull":
+        return set(_PULL)
+    if action == "build":
+        return set(_BUILD)
+    if action == "both":
+        return set(_PULL) | set(_BUILD)
+    raise ValueError("action is pull, build or both, not %r" % (action,))
+
+
+def peer_problems(pf: PeerForm, action: str) -> List[str]:
+    """Every field ``action`` ('pull', 'build' or 'both') still wants or finds
+    wrong, in words, in the order of the page, each said once. Empty means
+    that press may go."""
+    keys, f, out = _peer_keys(action), _peer_fields(pf), []
+    for k in _PAGE_ORDER:
+        if k in keys:
+            out += [p for p in f[k][1] if p not in out]
+    return out
+
+
+def peer_arguments(pf: PeerForm, action: str) -> dict:
+    """The keyword arguments for ``peers.run.pull`` ('pull') or
+    ``peers.run.build`` ('build'), converted from the form. Refuses (raises
+    ``Refused``) while anything that press uses is wanted: nothing is filled
+    in for the bank."""
+    if action not in ("pull", "build"):
+        raise ValueError("action is pull or build, not %r" % (action,))
+    wanted = peer_problems(pf, action)
+    if wanted:
+        raise Refused(wanted)
+    v = {k: val for k, (val, _) in _peer_fields(pf).items()}
+
+    def yes(attr):
+        return getattr(pf, attr) == "yes"
+    if action == "pull":
+        return dict(cache=v["cache_pull"], first=v["first"], last=v["last"], products=v["products"],
+                    delinquency=yes("delinquency"),
+                    mergers_since=v["mergers_since"] if yes("mergers_pull") else None,
+                    refresh=yes("refresh"))
+    return dict(out=v["out"], cache=v["cache_build"], roster=v["roster"], series_dir=v["series_dir"],
+                first=v["first"], last=v["last"], products=v["products"], mergers=v["mergers_file"],
+                extra_acquisitions=v["extra_acquisitions"], industry_combined=v["industry_combined"],
+                jump=v["jump"], min_book=v["min_book"], exempt_self=yes("exempt_self"), pack=v["pack"],
+                min_banks=v["min_banks"], rank_by=v["rank_by"], last_n=v["last_n"], min_obs=v["min_obs"],
+                base_quarter=v["base_quarter"], index_min_book=v["index_min_book"],
+                lagged_years=v["lagged_years"], lag_years=v["lag_years"],
+                normalisation_years=v["normalisation_years"], mix_base_year=v["mix_base_year"],
+                delinquency=yes("delinquency"))
+
+
+def peer_refusal(busy: Optional[str], action: str) -> Optional[str]:
+    """A press while Pull or Build is running is refused, in words; None when
+    nothing is running. ``busy`` is the press running, or None."""
+    if action not in PRESSES or (busy is not None and busy not in PRESSES):
+        raise ValueError("a press is pull or build, not %r" % ((busy, action),))
+    if busy is None:
+        return None
+    return ("%s is still running. Wait for it to finish before pressing %s."
+            % (PRESSES[busy][0], PRESSES[action][0]))
+
+
+def status_words(action: str, said: Sequence[str]) -> str:
+    """The status line while ``action`` runs: what it is doing, and the last
+    thing it has said, once it has said something."""
+    doing = PRESSES[action][1] + "... this takes a little while."
+    return doing if not said else "%s Latest: %s" % (doing, said[-1])
+
+
+def finished_words(action: str, outcome: "Outcome") -> str:
+    """The status line once ``action`` has finished."""
+    name = PRESSES[action][0]
+    return ("%s finished." % name) if outcome.ok else ("%s did not finish; the reason is below." % name)
+
+
+def _same_path(a, b) -> bool:
+    return os.path.normcase(os.path.abspath(str(a))) == os.path.normcase(os.path.abspath(str(b)))
+
+
+def _denied_words(action: str, exc: PermissionError, args: dict) -> List[str]:
+    """A PermissionError from Pull or Build, in words that name the file it
+    was about, never one it was not. ``os.replace`` names the file it was
+    moving (``filename``, the .part) and the one it was moving onto
+    (``filename2``); the second is the one the bank has open.
+
+    ``peers.run.build`` puts every file in place together or not at all
+    (``run._commit``); a file it could not replace arrives as an OSError
+    carrying ``not_replaced`` and is worded by ``_not_replaced_words``."""
+    target = exc.filename2 or exc.filename
+    if action == "pull":
+        return ["The pull couldn't write to %s: permission was denied. Choose a cache folder you can "
+                "write to and press Pull again." % (target or args["cache"])]
+    out = args["out"]
+    out_part = out.with_name(out.stem + ".part" + out.suffix)
+    if target is None:
+        return ["Couldn't write %s or a file in the series folder %s: one may be open in Excel. Close it "
+                "and press Build again." % (out.name, args["series_dir"])]
+    p = Path(str(target))
+    if _same_path(p, out) or _same_path(p, out_part):
+        return ["Couldn't write %s: it may be open in Excel. Close it and press Build again." % out.name]
+    if _same_path(p.parent, args["series_dir"]):
+        name = p.name[:-len(".part")] if p.name.endswith(".part") else p.name
+        return ["Couldn't write the series file %s: it may be open in Excel. Close it and press Build again."
+                % name]
+    return ["The build was denied access to %s. Check that it can be read and written from here, "
+            "and press Build again." % p]
+
+
+def _not_replaced_words(exc: OSError, args: dict) -> List[str]:
+    """The file ``run._commit`` could not replace, named, and whether the
+    earlier files were all put back (``stuck`` empty) or which were not."""
+    denied = PermissionError(13, "denied")
+    denied.filename = str(exc.not_replaced)
+    words = _denied_words("build", denied, args)
+    if exc.stuck:
+        return words + ["These could not be put back as they were, so check them before using them: %s"
+                        % ", ".join(str(f) for f in exc.stuck)]
+    return words + ["Nothing was changed: %s and the series files are as they were." % args["out"].name]
+
+
+def _peer_press(action: str, pf: PeerForm, fn: Optional[Callable], say: Optional[Callable],
+                open_after: bool) -> "Outcome":
+    gone = missing_addons()
+    if gone:
+        return Outcome(False, [addon_words(gone)])
+    name = PRESSES[action][0]
+    try:
+        args = peer_arguments(pf, action)
+    except Refused as exc:
+        return Outcome(False, ["%s is waiting for:" % name] + exc.problems)
+    if fn is None:
+        from .peers import run as peers_run
+        fn = peers_run.pull if action == "pull" else peers_run.build
+    said: List[str] = []
+
+    def tell(line):
+        said.append(str(line))
+        if say is not None:
+            say(str(line))
+    try:
+        fn(say=tell, **args)
+    except PermissionError as exc:
+        return Outcome(False, said + _denied_words(action, exc, args))
+    except ValueError as exc:
+        return Outcome(False, said + ["The %s refused: %s" % (action, exc)])
+    except OSError as exc:
+        if getattr(exc, "not_replaced", None) is not None:
+            return Outcome(False, said + _not_replaced_words(exc, args))
+        return Outcome(False, said + ["The %s stopped: %s" % (action, exc)])
+    except RuntimeError as exc:
+        return Outcome(False, said + ["The %s stopped: %s" % (action, exc)])
+    if action == "pull":
+        return Outcome(True, said, args["cache"])
+    if open_after:
+        could_not = open_workbook(args["out"])
+        if could_not:
+            said.append(could_not)
+    return Outcome(True, said, args["out"])
+
+
+def peer_pull(pf: PeerForm, pull: Optional[Callable] = None,
+              say: Optional[Callable[[str], None]] = None) -> "Outcome":
+    """Pull pressed: refuse in words while a field Pull uses is wanted, else
+    call ``peers.run.pull`` (``pull`` replaces it in a test) with the form's
+    arguments. Each line it says goes to ``say`` as it is said (the status
+    line) and into the outcome. A refusal (ValueError) or a failed fetch or
+    write (OSError, RuntimeError) comes back as words, never a traceback."""
+    return _peer_press("pull", pf, pull, say, open_after=False)
+
+
+def peer_build(pf: PeerForm, build: Optional[Callable] = None,
+               say: Optional[Callable[[str], None]] = None, open_after: bool = True) -> "Outcome":
+    """Build pressed: refuse in words while a field Build uses is wanted, else
+    call ``peers.run.build`` (``build`` replaces it in a test), the function
+    `peers build` calls, and open the peer workbook. A file open in Excel
+    (named: the workbook or the series file it was), a refusal from the
+    build, or a failed read comes back as words."""
+    return _peer_press("build", pf, build, say, open_after=open_after)
+
+
+# --------------------------------------------------------------------------
 # The window: draws a Form; decides nothing
 
 
@@ -417,8 +877,9 @@ def window(root) -> dict:
     import tkinter as tk
     from tkinter import filedialog
 
-    form = Form()
-    w: Dict[str, object] = {"form": form, "page": "Series", "busy": False, "said": []}
+    form, pf = Form(), PeerForm()
+    w: Dict[str, object] = {"form": form, "peers": pf, "page": "Series", "busy": False, "said": [],
+                            "peer_busy": None, "peer_status_text": "", "peer_lines": []}
     root.title(TITLE)
     root.geometry("940x640")
     root.minsize(760, 520)
@@ -443,6 +904,8 @@ def window(root) -> dict:
         draw_rail()
         if w["page"] == "Build":
             draw_wanted()
+        if w["page"] == "Peers":
+            draw_peer_state()
 
     def text_field(master, title, attr, hint=""):
         """A labelled entry that writes straight into the form."""
@@ -471,20 +934,17 @@ def window(root) -> dict:
         clear(rail)
         label(rail, TITLE, size=16, bold=True).pack(anchor="w", padx=16, pady=(18, 4))
         tk.Frame(rail, bg=KEY_RED, height=3, width=160).pack(anchor="w", padx=16, pady=(0, 14))
-        for i, st in enumerate(steps(form)):
+        for i, st in enumerate(steps(form, pf)):
             row = tk.Frame(rail, bg=CANVAS)
             row.pack(anchor="w", fill="x", padx=14, pady=5)
             here = st.name == w["page"]
-            fg = STONE if st.mark == "coming" else INK
-            name = label(row, "%d. %s" % (i + 1, st.name), bold=here, fg=KEY_RED if here else fg, wrap=170)
+            name = label(row, "%d. %s" % (i + 1, st.name), bold=here, fg=KEY_RED if here else INK, wrap=170)
             name.pack(anchor="w")
-            label(row, st.sub, size=11, fg=STONE if st.mark == "coming" else
-                  (SLATE if st.mark == "done" else CRIMSON), wrap=170).pack(anchor="w")
+            label(row, st.sub, size=11, fg=SLATE if st.mark == "done" else CRIMSON, wrap=170).pack(anchor="w")
             w["step_" + st.name] = name
-            if st.mark != "coming":
-                for x in (row, name):
-                    x.bind("<Button-1>", lambda e, n=st.name: show(n))
-                    x.configure(cursor="hand2")
+            for x in (row, name):
+                x.bind("<Button-1>", lambda e, n=st.name: show(n))
+                x.configure(cursor="hand2")
 
     def heading(text, note=""):
         label(page, text, size=18, bold=True).pack(anchor="w")
@@ -588,8 +1048,218 @@ def window(root) -> dict:
         w["result"].pack(anchor="w", pady=(10, 0))
         draw_wanted()
 
+    # ---- Peers: the fields scroll; Pull, Build and the status line stay put
+
+    def peer_text(master, title, attr, hint="", browse=None):
+        """A labelled entry writing into the PeerForm; ``browse`` adds a
+        Choose... button ('folder', 'file' or 'save')."""
+        label(master, title, bold=True).pack(anchor="w", pady=(8, 2))
+        row = tk.Frame(master, bg=PAPER)
+        row.pack(anchor="w")
+        var = tk.StringVar(value=getattr(pf, attr))
+        var.trace_add("write", lambda *_: (setattr(pf, attr, var.get()), changed()))
+        tk.Entry(row, textvariable=var, font=("Arial", -13), relief="solid", bd=1, width=52).pack(side="left")
+        if browse:
+            def choose():
+                if browse == "folder":
+                    got = filedialog.askdirectory(title=title)
+                elif browse == "save":
+                    got = filedialog.asksaveasfilename(title=title, defaultextension=".xlsx",
+                                                       filetypes=[("Excel workbook", "*.xlsx")])
+                else:
+                    got = filedialog.askopenfilename(title=title, filetypes=[("JSON files", "*.json")])
+                if got:
+                    var.set(got)
+            tk.Button(row, text="Choose...", command=choose).pack(side="left", padx=8)
+        if hint:
+            label(master, hint, size=11, fg=SLATE).pack(anchor="w")
+        w["peer_var_" + attr] = var
+
+    def peer_choice(master, title, attr, options):
+        """Radio buttons with none picked until the bank picks one."""
+        label(master, title, bold=True).pack(anchor="w", pady=(8, 2))
+        var = tk.StringVar(value=getattr(pf, attr))
+        var.trace_add("write", lambda *_: (setattr(pf, attr, var.get()), changed()))
+        for key, words in options:
+            tk.Radiobutton(master, text=words, value=key, variable=var, bg=PAPER, anchor="w",
+                           font=("Arial", -13)).pack(anchor="w")
+        w["peer_var_" + attr] = var
+
+    def section(master, text):
+        label(master, text, size=14, bold=True).pack(anchor="w", pady=(16, 0))
+
+    def draw_peer_state():
+        """The buttons, the status line, the last outcome and what each press
+        still wants: all from the functions above."""
+        box = w.get("peer_wanted")
+        if box is None or not box.winfo_exists():
+            return
+        gone = missing_addons()
+        wants = {a: peer_problems(pf, a) for a in PRESSES}
+        for a in PRESSES:
+            w[a].configure(state="normal" if not wants[a] and not gone and w["peer_busy"] is None
+                           else "disabled")
+        w["peer_status"].configure(text=w["peer_status_text"])
+        w["peer_result"].configure(text="\n".join(w["peer_lines"]))
+        clear(box)
+        if gone:
+            label(box, addon_words(gone), fg=CRIMSON).pack(anchor="w")
+            return
+        for a in PRESSES:
+            if wants[a]:
+                label(box, "%s is waiting for:" % PRESSES[a][0], bold=True, fg=CRIMSON).pack(
+                    anchor="w", pady=(6, 0))
+                for p in wants[a]:
+                    label(box, "  " + p, size=12, fg=CRIMSON).pack(anchor="w")
+        if not any(wants.values()):
+            label(box, "Everything is stated. Pull fills the cache; Build writes the peer workbook "
+                       "and opens it.", fg=SLATE).pack(anchor="w")
+
     def draw_peers():
-        heading("Peers", COMING["Peers"])
+        heading("Peers", "Optional. The bank against its peers, from public FDIC Call Reports. Pull "
+                         "fills the cache folder from the FDIC; Build reads only the cache.")
+        bar = tk.Frame(page, bg=PAPER)
+        bar.pack(anchor="w", fill="x", pady=(4, 0))
+        for a in PRESSES:
+            w[a] = tk.Button(bar, text=PRESSES[a][0], command=lambda a=a: press_peer(a), bg=KEY_RED,
+                             fg=PAPER, font=("Arial", -13, "bold"), disabledforeground=STONE, width=8)
+            w[a].pack(side="left", padx=(0, 10))
+        w["peer_status"] = label(page, "", size=12, fg=SLATE)
+        w["peer_status"].pack(anchor="w", pady=(6, 0))
+        w["peer_result"] = label(page, "", size=12)
+        w["peer_result"].pack(anchor="w")
+
+        holder = tk.Frame(page, bg=PAPER)
+        holder.pack(fill="both", expand=True, pady=(8, 0))
+        canvas = tk.Canvas(holder, bg=PAPER, highlightthickness=0)
+        scroll = tk.Scrollbar(holder, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scroll.set)
+        scroll.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        body = tk.Frame(canvas, bg=PAPER)
+        canvas.create_window((0, 0), window=body, anchor="nw")
+        body.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        def wheel(e):
+            canvas.yview_scroll(-1 if e.delta > 0 else 1, "units")
+        canvas.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", wheel))
+        canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
+        w["peer_canvas"] = canvas
+
+        section(body, "Where, and what")
+        peer_text(body, "Cache folder (--cache)", "cache", "Pull writes one file per quarter here; "
+                  "Build reads only these.", browse="folder")
+        peer_text(body, "Roster file (--roster)", "roster", "Which banks are peers, and which is the bank "
+                  "itself, e.g. config/peers.json.", browse="file")
+        peer_text(body, "First quarter (--first)", "first", "Written like 2006Q1.")
+        peer_text(body, "Last quarter (--last)", "last", "Written like 2026Q2.")
+        label(body, "Products (--products)", bold=True).pack(anchor="w", pady=(8, 2))
+        for p in PEER_PRODUCTS:
+            var = tk.BooleanVar(value=p in pf.products)
+            var.trace_add("write", lambda *_, p=p, v=var: (tick(pf, p, v.get()), changed()))
+            tk.Checkbutton(body, text=p, variable=var, bg=PAPER, anchor="w",
+                           font=("Arial", -13)).pack(anchor="w")
+            w["peer_product_" + p] = var
+        peer_choice(body, "Delinquency and nonaccrual (--delinquency)", "delinquency", PEER_DELINQUENCY)
+
+        section(body, "Pull")
+        peer_choice(body, "Merger record (--mergers)", "mergers_pull", PEER_MERGERS)
+        peer_text(body, "Merger record from", "mergers_since", "A date written like 2005-10-01; Pull "
+                  "writes the record into the cache folder as mergers.json.")
+        peer_choice(body, "Quarters already in the cache (--refresh)", "refresh", PEER_REFRESH)
+
+        section(body, "Build")
+        peer_text(body, "Peer workbook", "out", "The .xlsx Build writes.", browse="save")
+        peer_text(body, "Series folder (--series-dir)", "series_dir", "Where the date,value CSVs go, for "
+                  "the Series step.", browse="folder")
+        peer_text(body, "Merger file (--mergers)", "mergers_file", "{cert: [quarter-end dates]}, as Pull "
+                  "writes it.", browse="file")
+        peer_text(body, "Extra acquisitions (--extra-acquisitions)", "extra_acquisitions",
+                  "Acquisitions the FDIC record does not show, as CERT=YYYYQn separated by spaces; "
+                  "write none if there are none.")
+        peer_text(body, "Combined industry series (--industry-combined)", "industry_combined",
+                  "Products summed together, joined by +, one series from the next by ; "
+                  "(e.g. Other consumer+Auto); write none if there are none.")
+
+        section(body, "The rules")
+        peer_text(body, "Jump (--jump)", "jump", "A quarter-on-quarter balance move above this is "
+                  "structural (0.25 is 25%). Under delinquency it blanks a four-quarter average, never "
+                  "a quarter-end rate.")
+        peer_text(body, "Minimum book (--min-book)", "min_book", "The smallest average balance ($000) "
+                  "whose rate is kept; for delinquency, the quarter-end balance.")
+        peer_choice(body, "Is the bank itself exempt from the minimum? (--exempt-self)", "exempt_self",
+                    PEER_EXEMPT)
+        peer_choice(body, "Pack (--pack)", "pack", PEER_PACK)
+        peer_text(body, "Banks a composite needs (--min-banks)", "min_banks", "Kept banks a composite or "
+                  "band needs; a whole number.")
+        peer_choice(body, "Best and worst are ranked by (--rank-by)", "rank_by", PEER_RANK_BY)
+        peer_text(body, "Ranked over (--last-n)", "last_n", "Quarters best and worst are ranked over.")
+        peer_text(body, "Quarters to be ranked (--min-obs)", "min_obs", "Kept quarters a bank needs to "
+                  "be ranked.")
+
+        section(body, "The side analyses")
+        peer_text(body, "Balance index base (--base-quarter)", "base_quarter", "Written like 2019Q4.")
+        peer_text(body, "Smallest book indexed (--index-min-book)", "index_min_book", "In $000, at the base.")
+        peer_text(body, "Lagged years (--lagged-years)", "lagged_years", "Whole years separated by spaces.")
+        peer_text(body, "Lag (--lag-years)", "lag_years", "In whole years.")
+        peer_text(body, "Normalisation years (--normalisation-years)", "normalisation_years",
+                  "Two years: the base, then the end.")
+        peer_text(body, "Mix base year (--mix-base-year)", "mix_base_year", "A whole year.")
+
+        w["peer_wanted"] = tk.Frame(body, bg=PAPER)
+        w["peer_wanted"].pack(anchor="w", fill="x", pady=(16, 8))
+        draw_peer_state()
+
+    def press_peer(action):
+        """Pull or Build pressed: refused in words while either is running,
+        else run on a worker thread, with a status line while it runs.
+        ``peer_busy`` is set before anything that can raise, so anything
+        that raises before the worker has started clears it again: a busy
+        mark with no worker behind it would refuse every press until the
+        window is closed."""
+        refusal = peer_refusal(w["peer_busy"], action)
+        if refusal:
+            w["peer_status_text"] = refusal
+            draw_peer_state()
+            return
+        w["peer_busy"] = action
+        said: List[str] = []
+        done: dict = {}
+        press = peer_pull if action == "pull" else peer_build
+
+        def work():
+            try:
+                done["out"] = press(pf, say=said.append)
+            except Exception as exc:          # noqa: BLE001 -- said on the page, never a traceback
+                done["out"] = Outcome(False, ["Something went wrong that the window didn't expect: %s: %s"
+                                              % (type(exc).__name__, exc)])
+        try:
+            w["peer_status_text"], w["peer_lines"] = status_words(action, said), []
+            draw_peer_state()
+            t = threading.Thread(target=work, daemon=True)
+            t.start()
+        except Exception as exc:              # noqa: BLE001 -- said on the page, and the press freed
+            w["peer_busy"] = None
+            w["peer_outcome"] = Outcome(False, ["Something went wrong that the window didn't expect: %s: %s"
+                                                % (type(exc).__name__, exc)])
+            w["peer_status_text"] = finished_words(action, w["peer_outcome"])
+            w["peer_lines"] = w["peer_outcome"].lines
+            draw_peer_state()
+            return
+
+        def wait():
+            if t.is_alive():
+                w["peer_status_text"] = status_words(action, list(said))
+                draw_peer_state()
+                root.after(200, wait)
+                return
+            w["peer_busy"] = None
+            w["peer_outcome"] = done["out"]
+            w["peer_status_text"] = finished_words(action, done["out"])
+            w["peer_lines"] = done["out"].lines
+            draw_rail()
+            draw_peer_state()
+        root.after(200, wait)
 
     def press_run():
         if w["busy"]:
@@ -622,8 +1292,6 @@ def window(root) -> dict:
              "Build": draw_build, "Peers": draw_peers}
 
     def show(name):
-        if name in COMING:
-            return
         w["page"] = name
         clear(page)
         pages[name]()
@@ -631,6 +1299,7 @@ def window(root) -> dict:
 
     w["show"] = show
     w["press_run"] = press_run
+    w["press_peer"] = press_peer
     show("Series")
     return w
 

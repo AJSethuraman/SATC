@@ -74,7 +74,8 @@ def books(data, roster):
 
 def make(path, data, roster, pack, products=FOUR, base="2019Q4", **over):
     kw = dict(exempt_self=True, min_banks=MIN_BANKS, index_min_book=500_000, lagged_years=(2019, 2025),
-              lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None, **RANK)
+              lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None,
+              delinquency=None, **RANK)
     kw.update(over)
     return build_peers_workbook(path, data, roster, products, JUMP, MIN_BOOK, pack, MERGERS(), EXTRAS, base, **kw)
 
@@ -707,3 +708,338 @@ def test_judgements_are_required_and_bad_ones_refused(tmp_path, data, roster):
         make(tmp_path / "x.xlsx", data, roster, "all", rank_by="mean")
     with pytest.raises(ValueError, match="peer pick"):
         make(tmp_path / "x.xlsx", data, roster, "all", peer_a="KeyBank")
+
+
+# --- delinquency and nonaccrual (docs/V1-ROUND2-SPEC.md, section A) ------------
+#
+# Built over tests/data/peers/delinquency_roster.json (the 16 roster banks,
+# 2017Q1 to 2026Q2, pulled once from the public FDIC API on 12 Oct 2026) with
+# two products, so the product-and-measure picker's offset is exercised while
+# each recalculation stays near a minute. The live lines must equal
+# peers.delinquency, which is itself checked against arithmetic on the filing.
+
+from openpyxl.utils import column_index_from_string, get_column_letter  # noqa: E402
+
+from threshold_engine.peers import delinquency as D                     # noqa: E402
+
+TWO = ("Credit card", "Mortgage")
+DQ_RULES = dict(jump=0.25, min_book=1_000_000, exempt_self=True)
+
+
+@pytest.fixture(scope="module")
+def dl_data():
+    return json.loads((PEERS / "delinquency_roster.json").read_text())
+
+
+def dq_spec(dl_data, **over):
+    spec = dict(data=dl_data, products=TWO, measure="90+ accruing", basis="quarter-end", **DQ_RULES)
+    spec.update(over)
+    return spec
+
+
+def dl_books(dl_data, roster, product, measure):
+    return {b["cert"]: D.bank_delinquency(dl_data, b["cert"], product, measure, DQ_RULES["jump"],
+                                          DQ_RULES["min_book"], DQ_RULES["exempt_self"] and b["cert"] == KEYBANK)
+            for b in roster}
+
+
+@pytest.fixture(scope="module")
+def dlq(tmp_path_factory, recent, dl_data, roster):
+    """The all-peers pack with delinquency, as built: card, 90+ accruing, quarter-end."""
+    p = tmp_path_factory.mktemp("delinquency") / "dlq.xlsx"
+    info = make(p, recent, roster, "all", products=("Credit card",), delinquency=dq_spec(dl_data))
+    return p, info, recalc(p)
+
+
+def dcol(vals, info, name, offset=0):
+    """A live helper column on Delinquency, one value per quarter-end."""
+    d = info["delinquency"]
+    c = get_column_letter(column_index_from_string(d["helpers"][name]) + offset)
+    return [vals.get("DELINQUENCY!%s%d" % (c, d["first_row"] + k)) for k in range(len(d["quarters"]))]
+
+
+def assert_delinquency(vals, info, books, certs, basis, what, min_banks=MIN_BANKS):
+    """Composite, both bank counts and the band on ``basis`` equal peers.delinquency."""
+    comp = D.composite_delinquency(books, certs, min_banks)
+    assert [r["q"] for r in comp] == info["delinquency"]["quarters"]
+    assert [num(v) for v in dcol(vals, info, "banks")] == [r["banks"] for r in comp], what
+    key = D.basis_key(basis)
+    assert_series(dcol(vals, info, "c"), [r[key] for r in comp], what + " composite")
+    want = D.band_delinquency(books, certs, basis, min_banks=min_banks)
+    assert [num(v) for v in dcol(vals, info, "bandn")] == [r["banks"] for r in want], what + " band count"
+    for pct in (10, 25, 75, 90):
+        assert_series(dcol(vals, info, "p%d" % pct), [r["p%d" % pct] for r in want], "%s p%d" % (what, pct))
+    return comp, want
+
+
+def assert_lines(vals, info, books, roster, basis):
+    """KeyBank, Peer A and Peer B are their own rows on ``basis``, whoever A and B resolve to."""
+    key = D.basis_key(basis)
+    cert = {b["short"]: b["cert"] for b in roster}
+    for name, who in (("k", KEYBANK), ("a", cert[vals["PACK!C5"]]), ("bb", cert[vals["PACK!C6"]])):
+        assert_series(dcol(vals, info, name), [r[key] for r in books[who]], name)
+
+
+def test_delinquency_composite_and_band_equal_the_module(dlq, dl_data, roster):
+    _, info, vals = dlq
+    books = dl_books(dl_data, roster, "Credit card", "90+ accruing")
+    certs = [b["cert"] for b in R.peers(roster)]
+    comp, band_ = assert_delinquency(vals, info, books, certs, "quarter-end", "card 90+")
+    assert len(info["delinquency"]["quarters"]) == 38
+    assert sum(r["rate"] is not None for r in comp) == 38 and all(r["p10"] is not None for r in band_)
+    assert_lines(vals, info, books, roster, "quarter-end")
+    assert vals["DELINQUENCY!B4"] == "Credit card" and vals["DELINQUENCY!B5"] == "90+ accruing"
+
+
+def test_delinquency_follows_one_include_flipped(dlq, dl_data, roster, tmp_path):
+    p, info, before = dlq
+    peers = R.peers(roster)
+    j = [b["cert"] for b in peers].index(JPMORGAN)
+    wb = load_workbook(p)
+    assert wb["Pack"].cell(FIRST_PEER + j, 1).value == "JPMorgan"
+    wb["Pack"].cell(FIRST_PEER + j, 4).value = False
+    q = tmp_path / "flip.xlsx"
+    wb.save(q)
+    after = recalc(q)
+    books = dl_books(dl_data, roster, "Credit card", "90+ accruing")
+    without = [b["cert"] for b in peers if b["cert"] != JPMORGAN]
+    assert_delinquency(after, info, books, without, "quarter-end", "after the flip")
+    moved = [k for k, (a, b) in enumerate(zip(dcol(before, info, "c"), dcol(after, info, "c")))
+             if abs(num(a) - num(b)) > 1e-6]
+    assert len(moved) == 38                         # JPMorgan's card book moves every quarter-end
+
+
+def test_delinquency_pickers_move_product_measure_and_basis(dlq, dl_data, roster, tmp_path):
+    """Mortgage (the second product), 30+ incl. nonaccrual (the last measure),
+    four-quarter average: the composite is the mean of four composite
+    quarter-ends, the band is over the banks' four-quarter averages, and
+    the first three quarter-ends have neither."""
+    p, info, _ = dlq
+    wb = load_workbook(p)
+    ws = wb["Delinquency"]
+    ws["B4"], ws["B5"], ws["B6"] = "Mortgage", "30+ incl. nonaccrual", "four-quarter average"
+    q = tmp_path / "pick.xlsx"
+    wb.save(q)
+    vals = recalc(q)
+    books = dl_books(dl_data, roster, "Mortgage", "30+ incl. nonaccrual")
+    certs = [b["cert"] for b in R.peers(roster)]
+    comp, band_ = assert_delinquency(vals, info, books, certs, "four-quarter average", "mortgage 30+ avg")
+    assert [r["avg4"] is None for r in comp[:4]] == [True, True, True, False]
+    assert sum(r["avg4"] is not None for r in comp) == 35
+    assert_lines(vals, info, books, roster, "four-quarter average")
+    # The table counts the composite's banks and the band's separately: on
+    # this basis they differ, and one "Banks in" said 11 over a blank band.
+    differ = 0
+    for k, (c, b) in enumerate(zip(comp, band_)):
+        r = 39 + k
+        assert num(vals["DELINQUENCY!B%d" % r]) == c["banks"] and num(vals["DELINQUENCY!G%d" % r]) == b["banks"]
+        differ += c["banks"] != b["banks"]
+    assert differ >= 10, differ
+
+
+def test_the_visible_delinquency_table_reads_the_live_lines(dlq):
+    p, info, vals = dlq
+    ws = load_workbook(p)["Delinquency"]
+    heads = [ws.cell(38, c).value for c in range(1, 10)]
+    assert heads == ["Quarter-end", "Banks in the quarter-end composite", "Pack composite", "KeyBank", "Peer A",
+                     "Peer B", "Banks in the band", "10th", "90th"]
+    for c, h in enumerate(heads, 1):
+        # A header wraps between words, never inside one ('Pack composi/te', 'KeyBan/k' in Excel).
+        width = ws.column_dimensions[get_column_letter(c)].width
+        assert width >= max(len(w) for w in h.split()) + 3, (h, width)
+    for k, q in enumerate(info["delinquency"]["quarters"]):
+        r = 39 + k
+        assert vals["DELINQUENCY!A%d" % r] == q
+        assert num(vals["DELINQUENCY!B%d" % r]) == num(dcol(vals, info, "banks")[k])
+        assert num(vals["DELINQUENCY!G%d" % r]) == num(dcol(vals, info, "bandn")[k])
+        for c_, name in zip("CDEFHI", ("c", "k", "a", "bb", "p10", "p90")):
+            want = num(dcol(vals, info, name)[k])
+            got = vals["DELINQUENCY!%s%d" % (c_, r)]
+            assert (num(got) is None) if want is None else num(got) == pytest.approx(want), (q, name)
+
+
+def test_delinquency_banks_needed_is_met_at_exactly_that_many(dlq, dl_data, roster, tmp_path):
+    """Pack's banks needed set to 15 on mortgage, four-quarter average: the
+    composite and the band are drawn with exactly 15 banks in (>=, not >),
+    and the composite's average is blank wherever one of its four
+    quarter-ends had fewer, though the others have a rate."""
+    p, info, _ = dlq
+    wb = load_workbook(p)
+    wb["Pack"]["B10"] = 15
+    ws = wb["Delinquency"]
+    ws["B4"], ws["B5"], ws["B6"] = "Mortgage", "30-89", "four-quarter average"
+    q = tmp_path / "fifteen.xlsx"
+    wb.save(q)
+    vals = recalc(q)
+    books = dl_books(dl_data, roster, "Mortgage", "30-89")
+    certs = [b["cert"] for b in R.peers(roster)]
+    comp, band_ = assert_delinquency(vals, info, books, certs, "four-quarter average", "mortgage at 15",
+                                     min_banks=15)
+    assert max(r["banks"] for r in comp) == 15                           # 15 is the most there ever are
+    assert sum(r["avg4"] is not None for r in comp) == 2                  # four straight quarter-ends at 15
+    assert [r["banks"] for r in band_ if r["p10"] is not None] == [15, 15]
+    partial = [r["q"] for i, r in enumerate(comp) if i >= 3 and r["avg4"] is None
+               and any(x["rate"] is not None for x in comp[i - 3:i + 1])]
+    assert len(partial) == 8, partial
+
+
+def test_delinquency_average_needs_four_consecutive_quarter_ends(tmp_path, recent, roster, dl_data):
+    """2020Q2 missing from the data: the four rows before 2020Q3 hold four
+    quarter-ends, but not consecutive ones, so the composite's and the
+    banks' averages are blank at 2020Q3 to 2021Q1, as in the module."""
+    gap = {q: rows for q, rows in dl_data.items() if q != "20200630"}
+    p = tmp_path / "gap.xlsx"
+    info = make(p, recent, roster, "all", products=("Credit card",),
+                delinquency=dq_spec(gap, products=("Credit card",), basis="four-quarter average"))
+    vals = recalc(p)
+    books = dl_books(gap, roster, "Credit card", "90+ accruing")
+    certs = [b["cert"] for b in R.peers(roster)]
+    comp, band_ = assert_delinquency(vals, info, books, certs, "four-quarter average", "card, 2020Q2 gone")
+    assert len(comp) == 37 and "2020Q2" not in [r["q"] for r in comp]
+    blank = [r["q"] for r in comp[3:] if r["avg4"] is None]
+    assert blank == ["2020Q3", "2020Q4", "2021Q1"]
+    assert all(r["rate"] is not None for r in comp)                      # every quarter-end has a composite
+    assert [r["q"] for r in band_[3:] if r["p10"] is None] == blank
+    assert_lines(vals, info, books, roster, "four-quarter average")
+
+
+def test_delinquency_peer_note_names_the_product_best_and_worst_are_ranked_on(dlq):
+    """Peer A and B's best and worst are ranked on the Pack tab's charge-off
+    product, which need not be the delinquency product: the note says which."""
+    _, _, vals = dlq
+    assert vals["PACK!B4"] == "Credit card"
+    assert "ranked there on credit card charge-offs" in vals["DELINQUENCY!C7"]
+
+
+def test_delinquency_data_tab_holds_the_module_rows(dlq, dl_data, roster):
+    p, info, _ = dlq
+    ws = load_workbook(p)["DelinquencyData"]
+    nq, nb, nm = 38, len(roster), len(D.MEASURES)
+    assert info["delinquency"]["data_rows"] == len(TWO) * nm * nb * nq == ws.max_row - 1
+    rows = rows_of(ws)
+    for pi, product in enumerate(TWO):
+        for mi, measure in enumerate(D.MEASURES):
+            books = dl_books(dl_data, roster, product, measure)
+            for bi, b in enumerate(roster):
+                at = 1 + ((pi * nm + mi) * nb + bi) * nq
+                for k, want in enumerate(books[b["cert"]]):
+                    got = rows[at + k]
+                    assert got[:5] == [product, measure, b["short"], b["cert"], want["q"]]
+                    # Numbers to the precision the file keeps (openpyxl writes 15-16 digits).
+                    assert got[5:] == pytest.approx([want["numerator"], want["balance"], want["rate"],
+                                                     want["kept"], want["why"], want["avg4"],
+                                                     want["avg4"] is not None, want["why_avg4"]],
+                                                    rel=1e-14, abs=1e-14)
+
+
+def test_delinquency_chart_is_drawn_as_the_peers_charts(dlq):
+    """Up-down bars between invisible 10th/90th and 25th/75th lines, then the
+    composite, KeyBank, Peer A and Peer B, on a LineChart base; #N/A a gap."""
+    p, info, _ = dlq
+    h = info["delinquency"]["helpers"]
+    with zipfile.ZipFile(p) as z:
+        charts = [n for n in sorted(z.namelist()) if re.match(r"xl/charts/chart\d+\.xml$", n)
+                  and "'Delinquency'!" in z.read(n).decode("utf-8")]
+        assert len(charts) == 1
+        xml = z.read(charts[0]).decode("utf-8")
+    assert "<areaChart>" not in xml and "<barChart>" not in xml
+    assert 'dispNaAsBlank val="1"' in xml and '<dispBlanksAs val="gap"' in xml and '<plotVisOnly val="0"' in xml
+    groups = re.findall(r"<lineChart>.*?</lineChart>", xml)
+    assert len(groups) == 3
+    for g, (lo, hi) in zip(groups[:2], ((10, 90), (25, 75))):
+        assert "<upDownBars>" in g
+        assert re.findall(r"<val><numRef><f>'Delinquency'!\$([A-Z]+)\$", g) == [h["p%d" % lo], h["p%d" % hi]]
+        assert all("<a:ln><a:noFill />" in x for x in re.findall(r"<ser>.*?</ser>", g))
+    lines = re.findall(r"<val><numRef><f>'Delinquency'!\$([A-Z]+)\$", groups[2])
+    assert lines == [h[n] for n in ("c", "k", "a", "bb")]
+    ws = load_workbook(p)["Delinquency"]
+    for c in range(column_index_from_string(h["uk"]) - 2, column_index_from_string(h["lb"]) + 1):
+        assert ws.column_dimensions[get_column_letter(c)].hidden
+    pickers = {str(r) for d in ws.data_validations.dataValidation for r in d.sqref.ranges}
+    assert pickers == {"B4", "B5", "B6"}
+
+
+def test_no_delinquency_formula_refers_above_row_1(dlq):
+    p, _, _ = dlq
+    bad = formulas_reaching_above_row_1(load_workbook(p))
+    assert not bad, bad[:3]
+
+
+def test_not_built_the_tabs_say_so(all_peers):
+    p, info, _ = all_peers
+    wb = load_workbook(p)
+    assert info["delinquency"] is None
+    for name in ("Delinquency", "DelinquencyData"):
+        assert "Delinquency was not built" in wb[name]["A1"].value
+    run = {r[0]: r for r in rows_of(wb["Run"]) if r and r[0]}
+    assert run["Delinquency"][1] == "not built"
+
+
+def test_delinquency_is_a_required_argument(tmp_path, recent, roster):
+    kw = dict(exempt_self=True, min_banks=MIN_BANKS, index_min_book=500_000, lagged_years=(2019, 2025),
+              lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None, **RANK)
+    with pytest.raises(TypeError, match="delinquency"):
+        build_peers_workbook(tmp_path / "x.xlsx", recent, roster, ("Credit card",), JUMP, MIN_BOOK, "all",
+                             MERGERS(), EXTRAS, "2019Q4", **kw)
+
+
+def test_delinquency_run_tab_and_glossary(dlq):
+    p, _, _ = dlq
+    wb = load_workbook(p)
+    run = {r[0]: r for r in rows_of(wb["Run"]) if r and r[0]}
+    assert run["Delinquency"][1:3] == ["Credit card, Mortgage", "quarter-ends 2017Q1 to 2026Q2"]
+    assert run["Delinquency jump"][1] == 0.25
+    assert run["Delinquency minimum book ($000)"][1:3] == [1_000_000, "KeyBank exempt"]
+    terms = [t for t, _, _ in PEER_TERMS]
+    for must in ["Delinquency rate", "Measure", "Basis", "Quarter-end rate", "Four-quarter average",
+                 "Not filed", "Delinquency composite", "Delinquency band", "Banks in the quarter-end composite",
+                 "Banks in the band"] + list(D.MEASURES):
+        assert must.lower() in [t.lower() for t in terms], must
+    assert set(terms) <= {r[0] for r in rows_of(wb["Glossary"])}
+
+
+@pytest.mark.parametrize("over, why", [
+    (dict(measure=None), "missing: measure"),
+    (dict(measure="60+"), "measure must be one of"),
+    (dict(basis="annual"), "basis must be one of"),
+    (dict(products=("Credit card", "Credit card")), "distinct"),
+    (dict(products=("Cars",)), "distinct"),
+    (dict(products=()), "distinct"),
+    (dict(exempt_self="yes"), "exempt_self must be True or False"),
+    (dict(jump=-0.1), "jump"),
+    (dict(min_book=-1), "min_book"),
+    (dict(data={}), "no quarter-ends"),
+    (dict(cutoff=3), "not known: cutoff"),
+    (dict(measure=["30-89"]), "measure must be one of"),
+    (dict(basis=["quarter-end"]), "basis must be one of"),
+    (dict(jump="0.25"), "jump must be a number"),
+    (dict(jump=True), "jump must be a number"),
+    (dict(min_book="1"), "min_book must be a number"),
+    (dict(data=[{}]), r"data must be \{REPDTE: \[rows\]\}.*not a list"),
+])
+def test_a_bad_delinquency_setting_is_refused(tmp_path, recent, roster, dl_data, over, why):
+    spec = dq_spec(dl_data)
+    for k, v in over.items():
+        if v is None:
+            spec.pop(k)
+        else:
+            spec[k] = v
+    with pytest.raises(ValueError, match=why):
+        make(tmp_path / "x.xlsx", recent, roster, "all", products=("Credit card",), delinquency=spec)
+    assert not (tmp_path / "x.xlsx").exists()
+
+
+def test_delinquency_refuses_a_field_that_was_not_pulled(tmp_path, recent, roster, dl_data):
+    """A field absent from every row of a quarter was not asked for: refused,
+    not read as 'not filed'. Anything but None or a dict is refused too."""
+    gap = {q: [{k: v for k, v in r.items() if k != "P9RERSFM"} if q == "20200630" else r for r in rows]
+           for q, rows in dl_data.items()}
+    with pytest.raises(ValueError, match="P9RERSFM.*1 quarter.*20200630"):
+        make(tmp_path / "x.xlsx", recent, roster, "all", products=("Credit card",), delinquency=dq_spec(gap))
+    with pytest.raises(ValueError, match="None .not built. or a dict"):
+        make(tmp_path / "x.xlsx", recent, roster, "all", products=("Credit card",), delinquency=[dl_data])
+    # A quarter with no rows: nobody filed, not a field left out of the pull.
+    with pytest.raises(ValueError, match="no rows .no filer. in 1 quarter.*20200630"):
+        make(tmp_path / "x.xlsx", recent, roster, "all", products=("Credit card",),
+             delinquency=dq_spec(dict(dl_data, **{"20200630": []})))
+    assert not (tmp_path / "x.xlsx").exists()

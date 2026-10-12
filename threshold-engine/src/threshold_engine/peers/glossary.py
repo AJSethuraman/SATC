@@ -103,4 +103,72 @@ PEER_TERMS = [
     ("Balance factor",
      "The pull of a growing or shrinking book on its rate.",
      "The base year's mean balance / this year's: below 1 the book has grown since the base year."),
+    # Delinquency and nonaccrual (docs/V1-ROUND2-SPEC.md, section A; peers/delinquency.py).
+    ("Delinquency rate",
+     "The share of a book that is behind on its payments, or no longer accruing interest, on the day the "
+     "quarter ends.",
+     "100 x the measure's past-due or nonaccrual amount / the balance, both from the same quarter-end filing "
+     "($ thousands as filed). Nothing is differenced between quarters: these amounts are what was owed on "
+     "that day."),
+    ("Measure",
+     "Which loans count as delinquent. All five are built; which one the bank reports is its choice, made "
+     "with the Measure picker on the Delinquency tab.",
+     "30-89, 90+ accruing, nonaccrual, 90+ incl. nonaccrual or 30+ incl. nonaccrual, each defined below."),
+    ("30-89",
+     "Loans 30 to 89 days past due and still accruing interest.",
+     "The Call Report's 30-89 days past due field for the product (P3CRCD, P3RERSFM, P3RELOC, P3CONOTH, "
+     "P3AUTO)."),
+    ("90+ accruing",
+     "Loans 90 days or more past due that the bank still accrues interest on.",
+     "The 90 days and over past due field for the product (P9CRCD, P9RERSFM, P9RELOC, P9CONOTH, P9AUTO)."),
+    ("Nonaccrual",
+     "Loans the bank has stopped accruing interest on, because full payment is not expected.",
+     "The nonaccrual field for the product (NACRCD, NARERSFM, NARELOC, NACONOTH, NAAUTO)."),
+    ("90+ incl. nonaccrual",
+     "Loans 90 days or more past due, whether or not the bank still accrues on them.",
+     "90+ accruing + nonaccrual, from the same filing."),
+    ("30+ incl. nonaccrual",
+     "Every loan 30 days or more past due, and every nonaccrual loan.",
+     "30-89 + 90+ accruing + nonaccrual, from the same filing."),
+    ("Basis",
+     "Whether a delinquency rate is one quarter-end's or smoothed over a year. Picked on the Delinquency tab.",
+     "Quarter-end or four-quarter average, each defined below."),
+    ("Quarter-end rate",
+     "A bank's delinquency rate on one filing.",
+     "100 x numerator / balance from that quarter-end's filing. Blank when the bank did not file that quarter, "
+     "the balance is 0 or below or under the minimum book (unless the bank is exempt), or a field the measure "
+     "needs was not filed. An acquisition does not blank it: the ratio is from one filing, so the jump rule "
+     "does not apply."),
+    ("Four-quarter average",
+     "A delinquency rate smoothed over the last year.",
+     "The mean of the four quarter-end rates of this quarter and the three before, only when all four exist "
+     "on consecutive quarter-ends. For a bank it is also blank when the book moved by more than the jump in "
+     "any of the last three quarters against the one before: four filings across an acquisition describe "
+     "different books. For the composite and the industry it is the mean of their four quarter-end rates."),
+    ("Not filed",
+     "A Call Report field with no value for that quarter. The 30-89 day fields are blank before 2001 for "
+     "cards, home equity and other consumer and before 2002 for mortgages, and every auto field before 2011 "
+     "(the FDIC API, probed 12 Oct 2026).",
+     "A blank field, never read as 0. A rate that needs it is blank, and the DelinquencyData tab names the "
+     "field."),
+    ("Delinquency composite",
+     "The pack's delinquency rate as if its banks were one bank, so a large book weighs more than a small one.",
+     "Quarter-end: 100 x the summed numerators of the included peers kept that quarter-end / their summed "
+     "balances. A bank not kept, or missing, is in neither sum, never counted as 0. Four-quarter average: the "
+     "mean of the four composite quarter-end rates. Blank when fewer banks than the Pack tab asks for are kept."),
+    ("Delinquency band",
+     "How spread out the pack's delinquency rates were, each bank counting once whatever its size.",
+     "The 10th, 25th, 75th and 90th percentiles (PERCENTILE, interpolating as PERCENTILE.INC) of the included "
+     "peers' rates on the basis picked, leaving out a bank with no rate. Not drawn when fewer banks than the "
+     "Pack tab asks for have one."),
+    ("Banks in the quarter-end composite",
+     "How many of the pack's banks are in the delinquency composite at a quarter-end.",
+     "The count of included peers kept that quarter-end. On the four-quarter average the composite is the mean "
+     "of four quarter-end composites, each with its own count, so this is that quarter-end's count, not the "
+     "band's."),
+    ("Banks in the band",
+     "How many of the pack's banks the delinquency band is drawn from.",
+     "The count of included peers with a rate on the basis picked. On the four-quarter average a bank needs "
+     "four consecutive quarter-ends kept and no jump, so this can be fewer than the composite's count; the "
+     "band is blank while it is under what the Pack tab asks for."),
 ]

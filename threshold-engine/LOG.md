@@ -365,3 +365,45 @@ worst in pack is Citizens and best is JPMorgan (net, last 20 quarters).
 Not done yet: the window's Peers step (command line only for now). The
 KeyBank peer CSVs start in 2018Q1, because the First Niagara window breaks
 everything before it, so on their own they cannot carry the 2008 crisis.
+
+## 12 October 2026, round 2: delinquency, templates, the window's Peers step
+
+Built to `docs/V1-ROUND2-SPEC.md` by a second multi-agent run: one builder
+per part, one reviewer per part trying to break it, then fixes. 28 findings,
+each reproduced; the fixes carry tests that fail without them.
+
+- **Delinquency and nonaccrual by product** (`peers/delinquency.py`): five
+  measures (30-89, 90+ accruing, nonaccrual, 90+ incl. nonaccrual, 30+ incl.
+  nonaccrual) on two bases (quarter-end, four-quarter average), per bank, pack
+  composite, band and industry. First filed quarter of each field recorded in
+  the module (probed 12 Oct). A blank field is "not filed", never 0.
+- **Templates** (`templates.py`, `template list|write|check`): seven, each a
+  `date,value` file whose `#` notes ask what the bank must state. A third
+  column is refused, so no account-level data can travel in one.
+- **The window's Peers step** calls `peers/run.py`, which the command line
+  also calls. A build puts its files in place together or not at all; a file
+  open in Excel is named and nothing changes.
+
+Run end to end on public data. Pull with `--delinquency yes --refresh`: 82
+quarters fetched, 6 minutes; an old cache without the fields is refused by
+name. Build: 11½ minutes, 180 series CSVs (30 charge-off, 150 delinquency).
+Opened in Excel 16: the Delinquency chart draws under three settings with no
+formula error. Opening it found the DelinquencyData headers clipped; columns
+widened.
+
+**Tied out:** KeyBank card 90+ days past due and still accruing, 2026Q2, read
+from the workbook in Excel: 9,346 ($000). KeyBank's filed Call Report, RC-N
+line 5.a column B (RCFDB576): 9,346, on the page and in the XBRL fetched
+today. Balance and rate tie too. Exhibit:
+`docs/tie-out/keybank-card-90plus-2026-10-12/`.
+
+Found on the way, recorded not changed: Citizens files zero card 90+ accruing
+in all 82 quarters, so that measure alone does not compare banks like for
+like; KeyBank's card 90+ accruing is 0 in 2012Q3–2013Q2 on a ~$700m book.
+
+Open, for the bank: whether the pack composite's four-quarter average applies
+the jump rule (NEXT-GOAL section 1). Not done: `ssn`-shaped numbers pass
+`template check` when the stated scale is wide enough to hold them; the
+stated scale is the bank's own.
+
+Suite: 675 passed (15 min).

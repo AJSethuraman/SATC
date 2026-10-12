@@ -37,16 +37,32 @@ KeyBank against a 16-bank roster (`config/peers.json`), from public FDIC Call
 Reports. Pull once into a cache folder, then build from the cache:
 
 ```
-threshold-engine peers pull --cache fdic-cache --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" --mergers 2005-10-01
+threshold-engine peers pull --cache fdic-cache --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" --mergers 2005-10-01 --delinquency yes
 ```
 
 ```
-threshold-engine peers build peers.xlsx --cache fdic-cache --roster config/peers.json --series-dir peer-series --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" --mergers fdic-cache/mergers.json --extra-acquisitions 6672=2022Q2 --industry-combined --jump 0.25 --min-book 1000000 --exempt-self yes --pack all --min-banks 5 --rank-by net --last-n 20 --min-obs 12 --base-quarter 2019Q4 --index-min-book 500000 --lagged-years 2019 2025 --lag-years 2 --normalisation-years 2019 2025 --mix-base-year 2019
+threshold-engine peers build peers.xlsx --cache fdic-cache --roster config/peers.json --series-dir peer-series --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" --mergers fdic-cache/mergers.json --extra-acquisitions 6672=2022Q2 --delinquency yes --industry-combined --jump 0.25 --min-book 1000000 --exempt-self yes --pack all --min-banks 5 --rank-by net --last-n 20 --min-obs 12 --base-quarter 2019Q4 --index-min-book 500000 --lagged-years 2019 2025 --lag-years 2 --normalisation-years 2019 2025 --mix-base-year 2019
 ```
 
 `6672=2022Q2` is Fifth Third's purchase of Dividend Finance, a nonbank the FDIC
 record does not show. The build writes the peer workbook and, in
-`peer-series`, `date,value` CSVs the `workbook` command reads.
+`peer-series`, `date,value` CSVs the `workbook` command reads: charge-offs
+and, with `--delinquency yes`, five delinquency and nonaccrual measures per
+product on two bases (quarter-end and four-quarter average). A cache pulled
+without `--delinquency yes` is refused for a delinquency build; pull again
+with `--refresh`.
+
+## Templates for internal data
+
+Internal measures are run on site and nothing internal comes back. A template
+is an empty `date,value` file whose `#` notes ask what the bank must state;
+`check` refuses a file that does not match, before a build:
+
+```
+threshold-engine template list
+threshold-engine template write wapd wapd.csv
+threshold-engine template check wapd wapd.csv
+```
 
 ## The other commands
 

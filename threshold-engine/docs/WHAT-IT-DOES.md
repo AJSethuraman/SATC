@@ -1,11 +1,11 @@
-# What threshold-engine does, piece by piece (12 Oct 2026, peers built)
+# What threshold-engine does, piece by piece (12 Oct 2026, v1 round 2 built)
 
 Written so it can be checked against the code. Each part names its file, what
 goes in, what comes out, and what proves it. Where something was run only as a
 one-off analysis rather than built into the tool, the last section says so.
 
 **State of the code:** branch `threshold-engine`, draft pull request #426.
-423 tests pass (12 Oct 2026). Nothing has been run on KeyBank's internal data.
+675 tests pass (12 Oct 2026). Nothing has been run on KeyBank's internal data.
 Nothing internal is in the repository, by rule.
 
 ## The job
@@ -96,8 +96,11 @@ values), **Build** (where the workbook goes; Run writes it and opens it). Every
 field starts empty and Run stays off, naming what is missing, until each is
 stated. It refuses what the builder would refuse (a label Excel would read as a
 formula, two labels differing only in capitals, nan, a file without the
-`date,value` header) before it builds. **Peers** is shown but not usable yet:
-the peer workbook is built from the command line.
+`date,value` header) before it builds. **Peers** pulls and builds the peer
+workbook, through `peers/run.py`, the same function `peers pull` and `peers
+build` call, so the two cannot drift. Every rule starts empty. Pull and Build
+run on a worker thread with a status line; a second press while one runs is
+refused.
 
 **What proves it:** 60 tests drive every decision the window makes without a
 display; one opens the real window and presses Run.
@@ -110,9 +113,21 @@ Public FDIC Call Report data for KeyBank and a 16-bank roster
 | Part | What it does |
 |---|---|
 | `peers pull` (`fdic.py`) | Fetches every filer's quarter into a cache folder, only quarters not already there. Refuses a quarter the FDIC has not published (0 filers), a page count that does not match the API's own total, or a row that arrives twice. With `--mergers`, the FDIC's acquisition record, classified; a change code nobody has classified stops the pull and is named |
-| `peers build` (`books.py`, `analyses.py`, `peers_workbook.py`) | Reads the cache only. Per bank, product and quarter: TTM gross and net charge-off rates, with a window left out when the book moved more than the stated jump (an acquisition) or was under the stated minimum. Writes the peer workbook and, per product, `date,value` CSVs the main workbook reads: pack composite, KeyBank, industry |
+| `peers pull --delinquency yes` | Also the 30-89, 90+ accruing and nonaccrual fields per product. A cache pulled without them is refused by name for a delinquency build |
+| `peers build` (`books.py`, `analyses.py`, `delinquency.py`, `peers_workbook.py`, through `run.py`) | Reads the cache only. Per bank, product and quarter: TTM gross and net charge-off rates, with a window left out when the book moved more than the stated jump (an acquisition) or was under the stated minimum. Writes the peer workbook and, per product, `date,value` CSVs the main workbook reads: pack composite, KeyBank, industry |
 
-Every rule is a required flag (`peers build --help` lists 23).
+With `--delinquency yes` it also writes, per product, measure and basis,
+the delinquency CSVs for the pack composite, KeyBank and the industry: 150
+for five products. Every rule is a required flag (`peers build --help`
+lists 24).
+
+**Delinquency** (`peers/delinquency.py`): five measures, `30-89`, `90+
+accruing`, `nonaccrual`, `90+ incl. nonaccrual` and `30+ incl. nonaccrual`,
+each on two bases: the quarter-end rate (numerator over balance, one filing)
+and the four-quarter average (the mean of four quarter-end rates). The
+jump rule applies to the average, which spans four filings, and not to a
+quarter-end rate. A blank field is "not filed", never 0. The first quarter
+each field was filed is recorded in the module.
 
 **The peer workbook:**
 
@@ -124,6 +139,8 @@ Every rule is a required flag (`peers build --help` lists 23).
 | **Lagged** | A year's losses over the book lent two years earlier (the runoff question) | No |
 | **Normalisation** | How far each rate moved between two years (post-Covid) | No |
 | **Mix** | KeyBank's move against the industry's (the Laurel Road question) | No |
+| **Delinquency** | Pickers for product, measure and basis; the pack band, composite, KeyBank, Peer A and Peer B, from the same Include cells as Peers | Yes |
+| **DelinquencyData** | Every bank, product, measure and quarter: numerator, balance, rate, four-quarter average, and why a value is missing | No |
 | **Glossary**, **Data**, **Run** | Terms; every bank's flows and rates with why a quarter was left out; sources, pull dates, fingerprints, rules | — |
 
 **What proves it:**
@@ -136,11 +153,42 @@ Every rule is a required flag (`peers build --help` lists 23).
 - Each module was reviewed by two agents who tried to break it. Every finding
   was reproduced, fixed, and given a test that fails without the fix.
   Mutation runs found no surviving mutant that can be reached.
+- **Tied to a filing:** KeyBank card 90+ accruing 2026Q2, read from
+  DelinquencyData in Excel, is 9,346 ($000), the same as RC-N line 5.a column
+  B on KeyBank's filed Call Report (page and XBRL). Balance and rate tie.
+  `docs/tie-out/keybank-card-90plus-2026-10-12/`.
 - Run end to end on 12 Oct 2026 against the real cache. Pull: 82 quarters
   cached, 0 fetched. The live merger record matched the test fixture for all
   16 roster banks. Build: 4½ minutes. Opened in Excel 16: every chart draws,
   and no cell holds a formula error. The CSVs it writes load straight into
   the `workbook` command.
+
+Round 2 end to end (12 Oct): pull with `--delinquency yes --refresh`, 82
+quarters in 6 minutes; build 11½ minutes, 180 CSVs; the Delinquency chart
+opened in Excel under three settings with no formula error.
+
+**Open:** whether the pack composite's four-quarter average should leave out
+banks the jump rule blanked, as the band does. Each composite row names them
+(`avg4_jumped`) until the bank decides.
+
+## Templates for internal data (`templates.py`, command `template`)
+
+Internal measures are run on site; nothing internal comes back. Seven
+templates: `wapd`, `refreshed-score` (lower is worse), `epd`,
+`student-loans`, `other-consumer-ex-student`, `card-rewards`,
+`card-non-rewards`. `template write KEY OUT.csv` writes an empty file whose
+`#` notes ask what the bank must state (measure, numerator and denominator
+or the score's scale, as-of, basis, source, who prepared it and when), plus
+a checklist. `template check KEY FILE.csv` lists every problem at once and
+exits 2: a note missing or still a placeholder, any column besides `date`
+and `value` (so no account-level data can travel), a date not a quarter-end,
+a gap or a repeat, a value not a finite number, a % outside 0–100, a score
+outside the stated scale, fewer than 9 quarters. A checked file is an
+ordinary series for `workbook` and the window.
+
+**What proves it:** each template is written, filled with synthetic values,
+checked and built through the workbook in a test; each refusal has a test
+with its exact words.
 
 ## What was run outside the tool
 

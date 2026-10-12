@@ -9,6 +9,8 @@ every setting a person states is refused when it is missing or out of range."""
 import argparse
 import csv
 import json
+import re
+import sys
 import urllib.parse
 
 import pytest
@@ -33,7 +35,8 @@ BUILD = ["--roster", str(ROOT / "config" / "peers.json"), "--first", "2006Q1", "
     "--industry-combined", "--jump", "0.25", "--min-book", "1000000", "--exempt-self", "yes", "--pack", "all",
     "--min-banks", "5", "--rank-by", "net", "--last-n", "20", "--min-obs", "12",
     "--base-quarter", "2019Q4", "--index-min-book", "500000", "--lagged-years", "2019", "2025",
-    "--lag-years", "2", "--normalisation-years", "2019", "2025", "--mix-base-year", "2019"]
+    "--lag-years", "2", "--normalisation-years", "2019", "2025", "--mix-base-year", "2019",
+    "--delinquency", "no"]
 
 MEASURE = ["--name", "Net charge-offs", "--unit", "%", "--direction", "higher_is_worse",
            "--frequency", "quarterly", "--smoothing", "1", "--floor-at-zero", "yes",
@@ -203,7 +206,7 @@ BUILD_FLAGS = ["--cache", "--series-dir", "--roster", "--first", "--last", "--pr
                "--extra-acquisitions", "--industry-combined", "--jump", "--min-book", "--exempt-self",
                "--pack", "--min-banks", "--rank-by", "--last-n", "--min-obs", "--base-quarter",
                "--index-min-book", "--lagged-years", "--lag-years", "--normalisation-years",
-               "--mix-base-year"]
+               "--mix-base-year", "--delinquency"]
 
 
 def without(args, flag):
@@ -276,7 +279,7 @@ def test_pull_fills_the_cache_then_fetches_only_what_is_missing(data, tmp_path, 
     fake = FakeFDIC(data)
     monkeypatch.setattr(fdic, "urllib_fetch", fake)
     cache = tmp_path / "cache"
-    pull = ["peers", "pull", "--cache", str(cache), "--products", "Credit card", "Mortgage"]
+    pull = ["peers", "pull", "--delinquency", "no", "--cache", str(cache), "--products", "Credit card", "Mortgage"]
     assert main(pull + ["--first", "2025Q1", "--last", "2025Q4"]) == 0
     assert len(fake.urls) == 4 and "fetched" in capsys.readouterr().out
     assert sorted(p.name for p in cache.glob("q*.json")) == [
@@ -300,7 +303,7 @@ def test_pull_with_mergers_writes_the_classified_record(data, tmp_path, monkeypa
     fake = FakeFDIC({"20260630": data["20260630"]}, history)
     monkeypatch.setattr(fdic, "urllib_fetch", fake)
     cache = tmp_path / "cache"
-    rc = main(["peers", "pull", "--cache", str(cache), "--first", "2026Q2", "--last", "2026Q2",
+    rc = main(["peers", "pull", "--delinquency", "no", "--cache", str(cache), "--first", "2026Q2", "--last", "2026Q2",
                "--products", "Credit card", "--mergers", "2005-10-01"])
     assert rc == 0
     assert json.loads((cache / "mergers.json").read_text()) == {"6672": ["2019-03-31"]}
@@ -311,7 +314,7 @@ def test_pull_with_mergers_writes_the_classified_record(data, tmp_path, monkeypa
 
 def test_pull_refuses_a_bad_quarter_and_a_failed_fetch(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(fdic, "urllib_fetch", no_network)
-    rc = main(["peers", "pull", "--cache", str(tmp_path), "--first", "2026-06", "--last", "2026Q2",
+    rc = main(["peers", "pull", "--delinquency", "no", "--cache", str(tmp_path), "--first", "2026-06", "--last", "2026Q2",
                "--products", "Auto"])
     assert rc == 2 and "2006Q1" in capsys.readouterr().err
 
@@ -320,7 +323,7 @@ def test_pull_refuses_a_bad_quarter_and_a_failed_fetch(tmp_path, monkeypatch, ca
     monkeypatch.setattr(fdic, "urllib_fetch", broken)
     real_pull = fdic.pull                                   # the 5, 10, 15 s waits, skipped
     monkeypatch.setattr(fdic, "pull", lambda *a, **k: real_pull(*a, sleep=lambda s: None, **k))
-    rc = main(["peers", "pull", "--cache", str(tmp_path / "c"), "--first", "2026Q2", "--last", "2026Q2",
+    rc = main(["peers", "pull", "--delinquency", "no", "--cache", str(tmp_path / "c"), "--first", "2026Q2", "--last", "2026Q2",
                "--products", "Auto"])
     assert rc == 2 and "connection refused" in capsys.readouterr().err
     assert not list((tmp_path / "c").glob("q*.json"))
@@ -589,7 +592,7 @@ def test_a_combination_the_cache_was_not_pulled_for_is_refused(built, tmp_path, 
 def test_pull_refuses_a_bad_mergers_date_before_fetching_anything(data, tmp_path, monkeypatch, capsys):
     fake = FakeFDIC(data)
     monkeypatch.setattr(fdic, "urllib_fetch", fake)
-    rc = main(["peers", "pull", "--cache", str(tmp_path / "c"), "--first", "2025Q1", "--last", "2026Q2",
+    rc = main(["peers", "pull", "--delinquency", "no", "--cache", str(tmp_path / "c"), "--first", "2025Q1", "--last", "2026Q2",
                "--products", "Credit card", "--mergers", "2005/10/01"])
     assert rc == 2 and "2005/10/01" in capsys.readouterr().err
     assert fake.urls == [] and not list(tmp_path.glob("c/q*.json"))
@@ -601,7 +604,7 @@ def test_pull_refuses_a_quarter_not_yet_published(data, tmp_path, monkeypatch, c
     fake = FakeFDIC({"20260630": data["20260630"], "20260930": []})
     monkeypatch.setattr(fdic, "urllib_fetch", fake)
     cache = tmp_path / "c"
-    rc = main(["peers", "pull", "--cache", str(cache), "--first", "2026Q2", "--last", "2026Q3",
+    rc = main(["peers", "pull", "--delinquency", "no", "--cache", str(cache), "--first", "2026Q2", "--last", "2026Q3",
                "--products", "Credit card"])
     assert rc == 2 and "not published" in capsys.readouterr().err
     assert not (cache / "q20260930.json").exists()
@@ -613,6 +616,484 @@ def test_an_incomplete_pull_is_refused_not_a_traceback(tmp_path, monkeypatch, ca
     def short(*a, **k):
         raise RuntimeError("the FDIC stated 10 rows but 9 arrived")
     monkeypatch.setattr(fdic, "pull", short)
-    rc = main(["peers", "pull", "--cache", str(tmp_path), "--first", "2026Q2", "--last", "2026Q2",
+    rc = main(["peers", "pull", "--delinquency", "no", "--cache", str(tmp_path), "--first", "2026Q2", "--last", "2026Q2",
                "--products", "Auto"])
     assert rc == 2 and "REFUSED: the FDIC stated 10 rows but 9 arrived" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------- delinquency (V1-ROUND2-SPEC.md, A)
+
+FIVE = FOUR + ["Auto"]
+
+
+@pytest.fixture(scope="module")
+def dq_cache(tmp_path_factory):
+    """delinquency_roster.json laid out as a pull's cache, q{YYYYMMDD}.json,
+    2017Q1-2026Q2, each row merged with the same bank's charge-off fields from
+    roster_2006.json (cards, mortgage, home equity, other consumer) and
+    roster_1992.json (auto): the cache 'peers pull' over all five products
+    with '--delinquency yes' writes. Public data only."""
+    dq = json.loads((PEERS / "delinquency_roster.json").read_text())
+    co = [json.loads((PEERS / n).read_text()) for n in ("roster_2006.json", "roster_1992.json")]
+    cache = tmp_path_factory.mktemp("dq_cache")
+    for q, rows in dq.items():
+        merged = []
+        for r in rows:
+            row = dict(r)
+            for d in co:
+                row.update(next(x for x in d[q] if x["CERT"] == r["CERT"]))
+            merged.append(row)
+        (cache / ("q%s.json" % q)).write_text(json.dumps(merged), encoding="utf-8")
+    return cache, dq
+
+
+@pytest.fixture(scope="module")
+def dq_built(tmp_path_factory, dq_cache):
+    """`peers build --delinquency yes` over that cache, never the network."""
+    cache, dq = dq_cache
+    base = tmp_path_factory.mktemp("dq_build")
+    mp = pytest.MonkeyPatch()
+    mp.setattr(fdic, "urllib_fetch", no_network)
+    try:
+        args = BUILD
+        for flag, values in (("--first", ["2017Q1"]), ("--products", FIVE), ("--delinquency", ["yes"])):
+            args = with_value(args, flag, *values)
+        rc = main(["peers", "build", str(base / "p.xlsx"), "--cache", str(cache),
+                   "--series-dir", str(base / "s")] + args)
+    finally:
+        mp.undo()
+    return dict(rc=rc, out=base / "p.xlsx", series=base / "s", base=base, data=dq)
+
+
+DQ_MEASURES = {"30-89": "30-89", "90+ accruing": "90-plus-accruing", "nonaccrual": "nonaccrual",
+               "90+ incl. nonaccrual": "90-plus-incl-nonaccrual",
+               "30+ incl. nonaccrual": "30-plus-incl-nonaccrual"}
+DQ_BASES = {"quarter-end": "quarter-end", "four-quarter average": "four-quarter-average"}
+
+
+def test_delinquency_yes_writes_every_product_measure_basis_and_series(dq_built):
+    """5 products x 5 measures x 2 bases x 3 series = 150, beside the 30
+    charge-off CSVs, every one named."""
+    assert dq_built["rc"] == 0
+    names = {p.name for p in dq_built["series"].glob("*.csv")}
+    dq = {n for n in names if "_delinquency-" in n}
+    want = {"%s_%s_delinquency-%s_%s.csv" % (p, who, m, b)
+            for p in ("credit-card", "mortgage", "home-equity", "other-consumer", "auto")
+            for who in ("pack-composite", "keybank", "industry")
+            for m in DQ_MEASURES.values() for b in DQ_BASES.values()}
+    assert dq == want and len(dq) == 150
+    assert len(names - dq) == 5 * 3 * 2
+    wb = load_workbook(dq_built["out"])
+    assert "Delinquency" in wb.sheetnames and "DelinquencyData" in wb.sheetnames
+
+
+def test_a_delinquency_csv_is_the_module_over_the_cache(dq_built):
+    """KeyBank, the pack composite and the industry, card 90+ accruing, both
+    bases: each CSV equals peers.delinquency run straight over the fixture
+    under the stated rules (jump 0.25, minimum 1,000,000, KeyBank exempt,
+    5 banks), and its notes name the measure, the basis and the rules."""
+    from threshold_engine.peers import delinquency as D
+    data, s = dq_built["data"], dq_built["series"]
+    roster = R.load(ROOT / "config" / "peers.json")
+    banks = {b["cert"]: D.bank_delinquency(data, b["cert"], "Credit card", "90+ accruing", 0.25,
+                                           1_000_000, b["cert"] == KEYBANK) for b in roster}
+    comp = D.composite_delinquency(banks, [b["cert"] for b in R.peers(roster)], 5)
+    ind = D.industry_delinquency(data, "Credit card", "90+ accruing")
+    for who, rows in (("keybank", banks[KEYBANK]), ("pack-composite", comp), ("industry", ind)):
+        for basis, b in DQ_BASES.items():
+            notes, got = read_csv(s / ("credit-card_%s_delinquency-90-plus-accruing_%s.csv" % (who, b)))
+            tail, _, _ = cli._unbroken_tail(D.values(rows, basis))
+            assert [d for d, _ in got] == [quarter_end(q) for q, _ in tail], (who, basis)
+            assert [v for _, v in got] == pytest.approx([v for _, v in tail], abs=1e-12), (who, basis)
+            assert got[-1][0] == "2026-06-30"
+            assert notes[0].startswith("Credit card, delinquency: 90+ accruing, %s" % basis)
+            assert "P9CRCD / LNCRCD" in notes[0]
+            ruled = [n for n in notes if n.startswith("Rules:")]
+            if who == "industry":
+                assert not ruled and any("every filer in the cache (16 in 2026Q2)" in n for n in notes)
+            elif who == "keybank":
+                assert ruled and "minimum book 1,000,000" in ruled[0] and "KeyBank exempt" in ruled[0]
+                assert "jump 0.25" in ruled[0] and "never a quarter-end rate" in ruled[0]
+            else:
+                # The composite does not take the jump; its note must not say it does.
+                assert ruled and "minimum book 1,000,000" in ruled[0] and "KeyBank exempt" in ruled[0]
+                assert "The jump 0.25 is not applied to the composite" in ruled[0]
+                assert "blanks a four-quarter average when" not in ruled[0]
+            jumped = [n for n in notes if "the jump blanked their own" in n or "had its own" in n]
+            assert len(jumped) == (who == "pack-composite" and basis == "four-quarter average"), (who, basis)
+    # The quarter-end rate is the filing's own ratio, and the average is not a copy of it.
+    _, qe = read_csv(s / "credit-card_keybank_delinquency-90-plus-accruing_quarter-end.csv")
+    _, av = read_csv(s / "credit-card_keybank_delinquency-90-plus-accruing_four-quarter-average.csv")
+    filed = next(r for r in data["20260630"] if str(r["CERT"]) == KEYBANK)
+    assert dict(qe)["2026-06-30"] == pytest.approx(100 * filed["P9CRCD"] / filed["LNCRCD"], abs=1e-12)
+    assert dict(qe)["2026-06-30"] != pytest.approx(dict(av)["2026-06-30"], abs=1e-9)
+
+
+def test_the_workbook_command_takes_a_delinquency_csv(dq_built, capsys):
+    """The round trip: build's delinquency CSVs feed the main workbook as they are."""
+    s = dq_built["series"]
+    labels = [("Card KeyBank 90+", "credit-card_keybank_delinquency-90-plus-accruing_quarter-end.csv"),
+              ("Mortgage pack 30+", "mortgage_pack-composite_delinquency-30-plus-incl-nonaccrual_quarter-end.csv"),
+              ("Auto industry NA avg", "auto_industry_delinquency-nonaccrual_four-quarter-average.csv")]
+    out = dq_built["base"] / "thresholds.xlsx"
+    measure = with_value(with_value(MEASURE, "--name", "Delinquency"), "--min-history", "8")
+    capsys.readouterr()
+    rc = main(["workbook", str(out)] + [a for lbl, f in labels for a in ("--series", "%s=%s" % (lbl, s / f))]
+              + measure)
+    printed = capsys.readouterr()
+    assert rc == 0, printed.err
+    assert "Card KeyBank 90+, Mortgage pack 30+, Auto industry NA avg" in printed.out
+    da = load_workbook(out)["Data"]
+    head = [c.value for c in da[1]]
+    _, card = read_csv(s / labels[0][1])
+    col = head.index("Card KeyBank 90+")
+    by_q = {r[0].value: r[col].value for r in da.iter_rows(min_row=2)}
+    got = [by_q["%sQ%d" % (d[:4], (int(d[5:7]) - 1) // 3 + 1)] for d, _ in card]
+    assert got == pytest.approx([v for _, v in card], abs=1e-12)
+
+
+def test_the_workbook_is_given_the_stated_delinquency_rules(dq_cache, tmp_path, monkeypatch, capsys):
+    """The delinquency rules reaching the workbook are the build's own stated
+    ones (values unlike BUILD's, so a constant cannot pass by coinciding); the
+    pickers start at the first measure and basis; the data carries the fields."""
+    from threshold_engine.peers import delinquency as D
+    cache, _ = dq_cache
+    seen = {}
+    real = peers_workbook.build_peers_workbook
+
+    def record(*args, **kwargs):
+        seen.update(kwargs)
+        return real(*args, **kwargs)
+    monkeypatch.setattr(peers_workbook, "build_peers_workbook", record)
+    args = BUILD
+    for flag, values in (("--first", ["2017Q1"]), ("--products", ["Auto", "Mortgage"]),
+                         ("--delinquency", ["yes"]), ("--jump", ["0.4"]), ("--min-book", ["250000"]),
+                         ("--exempt-self", ["no"]), ("--extra-acquisitions", [])):
+        args = with_value(args, flag, *values)
+    rc, _, series = build_into(tmp_path, cache, args)
+    assert rc == 0, capsys.readouterr().err
+    dq = seen["delinquency"]
+    assert sorted(dq) == sorted(peers_workbook.D_KEYS)
+    assert dq["products"] == ["Auto", "Mortgage"] and dq["jump"] == 0.4 and dq["min_book"] == 250000.0
+    assert dq["exempt_self"] is False
+    assert (dq["measure"], dq["basis"]) == (next(iter(D.MEASURES)), next(iter(D.BASES)))
+    assert all(f in dq["data"]["20260630"][0] for f in D.fields_for(["Auto", "Mortgage"]))
+    assert 0 < len(list(series.glob("*_delinquency-*.csv"))) <= 2 * 5 * 2 * 3
+    assert not list(series.glob("credit-card_*"))
+
+
+def test_delinquency_no_writes_none_and_the_tab_says_so(dq_cache, tmp_path, capsys):
+    cache, _ = dq_cache
+    args = with_value(with_value(BUILD, "--first", "2017Q1"), "--products", "Credit card")
+    rc, out, series = build_into(tmp_path, cache, args)
+    assert rc == 0, capsys.readouterr().err
+    assert not list(series.glob("*_delinquency-*")) and len(list(series.glob("*.csv"))) == 6
+    cells = [str(c.value) for row in load_workbook(out)["Delinquency"].iter_rows() for c in row if c.value]
+    assert any(peers_workbook.NOT_BUILT in c for c in cells)
+
+
+def test_delinquency_yes_over_a_cache_pulled_without_it_is_refused(built, tmp_path, capsys):
+    """roster_2006 holds no delinquency fields: refused by name, never read as zero."""
+    rc, out, series = build_into(tmp_path, built["cache"], with_value(BUILD, "--delinquency", "yes"))
+    err = capsys.readouterr().err
+    assert rc == 2 and "REFUSED" in err and "P3CRCD" in err and "pulled with other fields" in err
+    assert not out.exists() and not series.exists()
+
+
+@pytest.mark.parametrize("value", ["maybe", "Yes", ""])
+def test_delinquency_must_be_yes_or_no(built, tmp_path, capsys, value):
+    with pytest.raises(SystemExit) as stop:
+        build_into(tmp_path, built["cache"], with_value(BUILD, "--delinquency", value))
+    assert stop.value.code == 2 and "--delinquency" in capsys.readouterr().err
+
+
+def test_pull_asks_for_the_delinquency_fields_only_when_told(dq_cache, tmp_path, monkeypatch, capsys):
+    from threshold_engine.peers.delinquency import fields_for
+    cache, _ = dq_cache
+    rows = {q: json.loads((cache / ("q%s.json" % q)).read_text()) for q in ("20260331", "20260630")}
+
+    class Fields(FakeFDIC):
+        """Answers with only the fields asked for, as the API does."""
+        def __call__(self, url):
+            asked = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)["fields"][0].split(",")
+            page = FakeFDIC.__call__(self, url)
+            page["data"] = [{"data": {k: v for k, v in d["data"].items() if k in asked + ["CERT", "REPDTE"]}}
+                            for d in page["data"]]
+            return page
+    fake = Fields(rows)
+    monkeypatch.setattr(fdic, "urllib_fetch", fake)
+    base = ["peers", "pull", "--first", "2026Q1", "--last", "2026Q2", "--products", "Credit card", "Auto"]
+    assert main(base + ["--cache", str(tmp_path / "yes"), "--delinquency", "yes"]) == 0
+    asked = urllib.parse.unquote_plus(fake.urls[0])
+    assert all(f in asked for f in fields_for(["Credit card", "Auto"]) + ["DRCRCD", "CRAUTO"])
+    assert "With the delinquency and nonaccrual fields of Credit card, Auto" in capsys.readouterr().out
+    fake.urls.clear()
+    assert main(base + ["--cache", str(tmp_path / "no"), "--delinquency", "no"]) == 0
+    asked = urllib.parse.unquote_plus(fake.urls[0])
+    assert "LNCRCD" in asked and not any(f in asked for f in ("P3CRCD", "P9AUTO", "NACRCD"))
+    # A cache pulled without them is refused when they are asked for, not read as zeros.
+    assert main(base + ["--cache", str(tmp_path / "no"), "--delinquency", "yes"]) == 2
+    assert "pulled with other fields" in capsys.readouterr().err
+    with pytest.raises(SystemExit):
+        main(base + ["--cache", str(tmp_path / "x")])                  # not stated
+
+
+# ---------------------------------------------------------------- one body for the command line and the window
+
+def test_build_and_pull_are_peers_run(monkeypatch):
+    """cli.py hands every stated flag to peers.run.build / peers.run.pull and
+    does nothing else, so the window, calling the same functions, cannot
+    drift from the command line."""
+    import inspect
+    from threshold_engine.peers import run
+    params = set(inspect.signature(run.build).parameters)
+    calls = []
+    monkeypatch.setattr(run, "build", lambda *a, **k: calls.append((a, k)))
+    monkeypatch.setattr(run, "pull", lambda **k: calls.append(((), k)))
+    assert main(["peers", "build", "o.xlsx", "--cache", "c", "--series-dir", "s"] + BUILD) == 0
+    assert main(["peers", "pull", "--cache", "c", "--first", "2026Q1", "--last", "2026Q2",
+                 "--products", "Auto", "--delinquency", "yes", "--mergers", "2005-10-01"]) == 0
+    (a, k), (_, kp) = calls
+    assert a == ("o.xlsx",)
+    assert k["delinquency"] is False and k["exempt_self"] is True and k["jump"] == 0.25
+    assert k["extra_acquisitions"] == ["6672=2022Q2"] and k["industry_combined"] == []
+    assert set(k) == params - {"out", "say"}
+    assert kp == dict(cache="c", first="2026Q1", last="2026Q2", products=["Auto"], delinquency=True,
+                      mergers_since="2005-10-01", refresh=False)
+
+
+def test_the_shared_body_defaults_nothing_but_where_lines_go():
+    """Every setting of run.build and run.pull is required: the window cannot
+    fall back on a value nobody stated."""
+    import inspect
+    from threshold_engine.peers import run
+    for fn in (run.build, run.pull):
+        defaulted = [n for n, p in inspect.signature(fn).parameters.items()
+                     if p.default is not inspect.Parameter.empty]
+        assert defaulted == ["say"], fn.__name__
+
+
+@pytest.mark.parametrize("key,value,says", [
+    ("pack", "most", "--pack must be all or regionals"),
+    ("rank_by", "both", "--rank-by must be gross or net"),
+    ("delinquency", "yes", "--delinquency must be stated, yes or no"),
+    ("exempt_self", None, "--exempt-self must be stated"),
+    ("min_banks", 2.5, "--min-banks must be a whole number"),
+    ("jump", "0.25", "--jump must be a number"),
+    ("products", ["Card"], "--products takes"),
+    ("extra_acquisitions", "6672=2022Q2", "--extra-acquisitions takes a list"),
+    ("normalisation_years", [2019], "--normalisation-years needs 2 year(s)"),
+])
+def test_the_window_gets_the_same_refusals_as_the_flags(built, tmp_path, key, value, says):
+    """What argparse refuses on the command line, run.build refuses for the
+    window, by the same name, before anything is written."""
+    from threshold_engine.peers import run
+    stated = dict(cache=built["cache"], roster=ROOT / "config" / "peers.json", series_dir=tmp_path / "s",
+                  first="2006Q1", last="2026Q2", products=FOUR, mergers=PEERS / "mergers_roster.json",
+                  extra_acquisitions=["6672=2022Q2"], industry_combined=[], jump=0.25, min_book=1e6,
+                  exempt_self=True, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
+                  base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
+                  normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False)
+    stated[key] = value
+    with pytest.raises(ValueError, match=re.escape(says)):
+        run.build(tmp_path / "p.xlsx", say=lambda line: None, **stated)
+    assert not (tmp_path / "p.xlsx").exists() and not (tmp_path / "s").exists()
+
+
+# ---------------------------------------------------------------- delinquency under rules unlike BUILD's
+
+#: Every delinquency rule set away from BUILD's, each to a value that changes
+#: the CSVs in this fixture: home equity and auto at a $5bn minimum keep 4 to 8
+#: regionals a quarter, so 6 banks is binding; KeyBank's home-equity book is
+#: under $5bn in some quarters, so the exemption shows; jump 5% blanks some of
+#: its averages that 25% keeps; the regionals are 10 of the 15 peers.
+ODD_RULES = (("--first", ["2017Q1"]), ("--products", ["Home equity", "Auto"]), ("--delinquency", ["yes"]),
+             ("--jump", ["0.05"]), ("--min-book", ["5000000"]), ("--min-banks", ["6"]),
+             ("--exempt-self", ["no"]), ("--pack", ["regionals"]), ("--extra-acquisitions", []))
+
+
+@pytest.fixture(scope="module")
+def dq_odd(tmp_path_factory, dq_cache):
+    cache, dq = dq_cache
+    base = tmp_path_factory.mktemp("dq_odd")
+    args = BUILD
+    for flag, values in ODD_RULES:
+        args = with_value(args, flag, *values)
+    mp = pytest.MonkeyPatch()
+    mp.setattr(fdic, "urllib_fetch", no_network)
+    try:
+        rc = main(["peers", "build", str(base / "p.xlsx"), "--cache", str(cache),
+                   "--series-dir", str(base / "s")] + args)
+    finally:
+        mp.undo()
+    return dict(rc=rc, series=base / "s", data=dq)
+
+
+def test_every_delinquency_csv_follows_the_stated_rules(dq_odd):
+    """Every delinquency file the build writes, and every one it does not,
+    against peers.delinquency run straight over the fixture with the stated
+    jump, minimum, exemption, minimum banks and pack. A rule fixed in the code,
+    or a pack ignored, changes a value or a file here."""
+    from threshold_engine.peers import delinquency as D
+    from threshold_engine.peers.run import slug
+    assert dq_odd["rc"] == 0
+    data, s = dq_odd["data"], dq_odd["series"]
+    roster = R.load(ROOT / "config" / "peers.json")
+    regionals = [b["cert"] for b in R.regionals(roster)]
+    compared = absent = 0
+    for p in ("Home equity", "Auto"):
+        for m, ms in DQ_MEASURES.items():
+            banks = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, 0.05, 5_000_000, False)
+                     for b in roster}
+            comp = D.composite_delinquency(banks, regionals, 6)
+            for who, rows in (("keybank", banks[KEYBANK]), ("pack-composite", comp),
+                              ("industry", D.industry_delinquency(data, p, m))):
+                for basis, b in DQ_BASES.items():
+                    path = s / ("%s_%s_delinquency-%s_%s.csv" % (slug(p), who, ms, b))
+                    tail, _, _ = cli._unbroken_tail(D.values(rows, basis))
+                    if not tail:
+                        assert not path.exists(), path.name
+                        absent += 1
+                        continue
+                    notes, got = read_csv(path)
+                    assert [d for d, _ in got] == [quarter_end(q) for q, _ in tail], path.name
+                    assert [v for _, v in got] == pytest.approx([v for _, v in tail], abs=1e-12), path.name
+                    compared += 1
+                    if who == "pack-composite":
+                        assert any("10 regionals" in n for n in notes)
+                        rule = next(n for n in notes if n.startswith("Rules:"))
+                        assert "minimum book 5,000,000" in rule and "at least 6 banks" in rule
+                        assert "exempt" not in rule and "jump 0.05 is not applied" in rule
+                    if who == "pack-composite" and basis == "four-quarter average":
+                        written = {q for q, _ in tail}
+                        want = {c for r in comp if r["q"] in written for c in r["avg4_jumped"]}
+                        line = next(n for n in notes if "the jump blanked their own" in n
+                                    or "had its own" in n)
+                        assert set(re.findall(r"\((\d+)\)", line)) == want, (p, m, line)
+    assert compared > 20 and absent > 0
+
+
+def test_the_composite_average_names_the_banks_the_jump_blanked(dq_built):
+    """The composite's four-quarter average keeps banks whose own average the
+    jump blanked (an open rule); its notes name them, by short name and
+    certificate, with the quarters, so it is shown rather than hidden."""
+    notes, _ = read_csv(dq_built["series"] / "credit-card_pack-composite_delinquency-30-89_four-quarter-average.csv")
+    line = next(n for n in notes if n.startswith("Inside this average although the jump blanked"))
+    assert "open, and the bank's to decide" in line
+    assert re.search(r"[A-Za-z][^;(]* \(\d+\) \d{4}Q[1-4]", line)
+
+
+# ---------------------------------------------------------------- build: all files change together, or none
+
+def snapshot(*folders):
+    return {p: p.read_bytes() for f in folders for p in sorted(f.iterdir()) if p.is_file()}
+
+
+def test_a_workbook_that_cannot_be_replaced_leaves_every_earlier_file(built, tmp_path, monkeypatch, capsys):
+    """The workbook is open (on Windows, os.replace onto it fails): refused
+    with the reason, and the earlier workbook and every earlier CSV are left
+    exactly as they were, the files this run would remove included. Before
+    the fix the new CSVs were already in place beside the old workbook."""
+    from threshold_engine.peers import run
+    args = with_value(BUILD, "--products", "Credit card")
+    rc, out, series = build_into(tmp_path, built["cache"], args)
+    assert rc == 0
+    before = snapshot(tmp_path, series)
+    real = run.os.replace
+
+    def locked(src, dst):
+        if str(src) == str(out):
+            raise PermissionError(13, "Access is denied")
+        return real(src, dst)
+    monkeypatch.setattr(run.os, "replace", locked)
+    capsys.readouterr()
+    rc, _, _ = build_into(tmp_path, built["cache"], with_value(with_value(args, "--min-banks", "99"),
+                                                               "--jump", "0.5"), series)
+    err = capsys.readouterr().err
+    assert rc == 2 and "REFUSED: %s could not be replaced (Access is denied)" % out in err
+    assert "close it and build again. Nothing was changed." in err
+    assert snapshot(tmp_path, series) == before
+
+
+def test_a_failure_while_placing_puts_every_earlier_file_back(built, tmp_path, monkeypatch, capsys):
+    """A CSV fails to go into place after the workbook and others have: the
+    new files come out and the earlier ones go back, removals included."""
+    from threshold_engine.peers import run
+    args = with_value(BUILD, "--products", "Credit card")
+    rc, out, series = build_into(tmp_path, built["cache"], args)
+    assert rc == 0
+    before = snapshot(tmp_path, series)
+    real = run.os.replace
+
+    def fails(src, dst):
+        if str(src).endswith("credit-card_industry_net.csv.part"):
+            raise OSError(28, "No space left on device")
+        return real(src, dst)
+    monkeypatch.setattr(run.os, "replace", fails)
+    capsys.readouterr()
+    rc, _, _ = build_into(tmp_path, built["cache"], with_value(args, "--min-banks", "99"), series)
+    err = capsys.readouterr().err
+    assert rc == 2 and "No space left on device" in err and "Nothing was changed." in err
+    assert snapshot(tmp_path, series) == before
+
+
+@pytest.mark.skipif(not sys.platform.startswith("win"), reason="Windows file locking")
+def test_a_workbook_held_open_on_windows_changes_nothing(built, tmp_path, capsys):
+    """The reviewer's case, as it happens: a handle held on the workbook."""
+    args = with_value(BUILD, "--products", "Credit card")
+    rc, out, series = build_into(tmp_path, built["cache"], args)
+    assert rc == 0
+    before = snapshot(tmp_path, series)
+    capsys.readouterr()
+    with open(out, "rb"):
+        rc, _, _ = build_into(tmp_path, built["cache"], with_value(args, "--jump", "0.5"), series)
+    assert rc == 2 and "close it and build again" in capsys.readouterr().err
+    assert snapshot(tmp_path, series) == before
+
+
+@pytest.mark.parametrize("items", [["Other consumer+Auto", "Other consumer+Auto"],
+                                   ["Other consumer+Auto", "Auto+Other consumer"]])
+def test_the_same_combination_twice_is_refused_before_anything_is_written(cache_1992, tmp_path, capsys,
+                                                                          items):
+    cache, _ = cache_1992
+    args = with_value(with_value(with_value(with_value(
+        BUILD, "--first", "1992Q1"), "--products", "Other consumer"),
+        "--industry-combined", *items), "--extra-acquisitions")
+    rc, out, series = build_into(tmp_path, cache, args)
+    err = capsys.readouterr().err
+    assert rc == 2 and ("REFUSED: --industry-combined gives %r and %r, the same products summed"
+                        % tuple(items)) in err
+    assert not out.exists() and not series.exists()
+
+
+def test_a_product_named_twice_is_refused(built, tmp_path, capsys):
+    rc, out, series = build_into(tmp_path, built["cache"],
+                                 with_value(BUILD, "--products", "Credit card", "Credit card"))
+    assert rc == 2 and "--products takes one or more distinct products" in capsys.readouterr().err
+    assert not out.exists() and not series.exists()
+
+
+@pytest.mark.parametrize("key,value,says", [
+    ("lagged_years", [2019.5], "--lagged-years must be a whole number"),
+    ("mix_base_year", 2019.5, "--mix-base-year must be a whole number"),
+])
+def test_the_window_gets_the_whole_year_refusals(built, tmp_path, key, value, says):
+    from threshold_engine.peers import run
+    stated = dict(cache=built["cache"], roster=ROOT / "config" / "peers.json", series_dir=tmp_path / "s",
+                  first="2006Q1", last="2026Q2", products=FOUR, mergers=PEERS / "mergers_roster.json",
+                  extra_acquisitions=[], industry_combined=[], jump=0.25, min_book=1e6,
+                  exempt_self=True, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
+                  base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
+                  normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False)
+    stated[key] = value
+    with pytest.raises(ValueError, match=re.escape(says)):
+        run.build(tmp_path / "p.xlsx", say=lambda line: None, **stated)
+    assert not (tmp_path / "p.xlsx").exists() and not (tmp_path / "s").exists()
+
+
+def test_the_window_must_state_refresh(tmp_path, monkeypatch):
+    from threshold_engine.peers import run
+    monkeypatch.setattr(fdic, "urllib_fetch", no_network)
+    with pytest.raises(ValueError, match=re.escape("--refresh must be stated, yes or no")):
+        run.pull(cache=tmp_path, first="2026Q1", last="2026Q2", products=["Auto"], delinquency=False,
+                 mergers_since=None, refresh="yes", say=lambda line: None)

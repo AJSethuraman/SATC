@@ -33,7 +33,7 @@ arithmetic checked by running it, and the workbook checked by opening it.
 - [x] **Cards' settings** for the rehearsal: 0.5 / 1.0 / z 2.5, crisis and
   pandemic periods left out. The bank: *"That works."*
 - [x] **Other consumer as two books**, from internal data (7 Oct).
-- [ ] **Delinquency and nonaccrual by product, for every peer.** The bank, 12
+- [x] **Delinquency and nonaccrual by product, for every peer.** The bank, 12
   Oct: *"1 and 2 are good for v1."* FDIC fields confirmed to exist on 12 Oct
   against JPMorgan's 2026Q2 data (all 15 returned values): `P3` (30-89 days),
   `P9` (90+ days, still accruing) and `NA` (nonaccrual), for `CRCD`, `RERSFM`,
@@ -41,12 +41,25 @@ arithmetic checked by running it, and the workbook checked by opening it.
   TTM average of the four quarter-end rates, and "90+ including nonaccrual"
   (P9 + NA). All of them are built; the bank picks per measure. The bank: *"It
   depends and you don't need to know, if you're making all 3 it shouldn't
-  matter."* Still to do: tie one figure to a filed Call Report (RC-N).
-- [ ] **Templates for internal data on site.** The bank, 12 Oct: *"1 and 2 are
+  matter."* Built 12 Oct to `docs/V1-ROUND2-SPEC.md`: `peers/delinquency.py`,
+  the Delinquency and DelinquencyData tabs, `--delinquency yes|no`, 150
+  series CSVs. Tied to the filing: KeyBank card 90+ accruing 2026Q2, read
+  from the workbook in Excel, is 9,346 ($000), the same as RC-N 5.a column B
+  (`docs/tie-out/keybank-card-90plus-2026-10-12/`).
+- [x] **Templates for internal data on site.** The bank, 12 Oct: *"1 and 2 are
   good for v1."* One CSV layout plus a checklist per internal measure (WAPD,
   refreshed credit score as lower-is-worse, early payment default, and the
   two-book splits: student loans vs the rest, rewards vs non-rewards cards), and
   a command that checks a file against its template before a build.
+  Built 12 Oct: `templates.py`, `template list|write|check`, seven templates.
+- [ ] **Pack composite, four-quarter average: does the jump rule apply?** The
+  band and each bank's own average leave out a bank mid-acquisition; the
+  composite's average (the mean of four composite quarter-end rates) keeps
+  it. On the fixture that is 9–43 bank-quarters per product (e.g. JPMorgan
+  mortgage in 2023Q2–Q4, the First Republic quarters). Recommended: yes,
+  apply it, so composite and band are built from the same banks. Until the
+  bank answers, each composite row names the banks concerned
+  (`avg4_jumped`) and the CSV notes say so.
 
 ## 2. Fix before the walkthrough
 
@@ -60,8 +73,8 @@ arithmetic checked by running it, and the workbook checked by opening it.
 - [x] ~~Save the inline analyses as scripts.~~ Superseded: they are in the
   tool now (Mix, Lagged, Normalisation and Balances tabs), with the spec's
   numbers as acceptance tests.
-- [ ] The window's **Peers** step: pull and build from the window, the same
-  way the command line does.
+- [x] The window's **Peers** step: pull and build from the window, through
+  `peers/run.py`, the same function the command line calls (12 Oct).
 - [ ] Code 215 ("Failure Multiple Acquirer") counted as an acquisition,
   decided without the bank (LOG.md, 12 Oct). Open to its veto.
 
