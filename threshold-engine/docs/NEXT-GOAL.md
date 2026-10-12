@@ -18,13 +18,18 @@ arithmetic checked by running it, and the workbook checked by opening it.
 
 - [x] **One scale.** The bank: take the recommendation. `cutoffs` and the first
   engine retired; `evidence` reports its scenarios and recency on `scale.py`.
-- [ ] **A window to run it from**, PocketBook-style. The bank: *"Yes."*
-- [ ] **Version 1 includes all of the side analyses, built into the tool and
+- [x] **A window to run it from**, PocketBook-style. The bank: *"Yes."*
+  `Thresholds.pyw` / `launcher.py`, 60 tests (12 Oct). Its Peers step is
+  not wired yet: peers run from the command line. See section 2.
+- [x] **Version 1 includes all of the side analyses, built into the tool and
   tested.** The bank: *"Nope, all of it. Test it and make sure it works."*
   That means FDIC pulls and caching, the peer roster, gross and net rates by
   bank and product with the structural-jump rule, the pack composite with
   best and worst, balance trends, growth without acquisitions, lagged rates,
   normalisation against a baseline year, and mix against the industry.
+  Built 12 Oct: `peers pull`, `peers build` and the peer workbook (see
+  WHAT-IT-DOES.md, "Peers"). Run end to end on the real cache and opened in
+  Excel the same day.
 - [x] **Cards' settings** for the rehearsal: 0.5 / 1.0 / z 2.5, crisis and
   pandemic periods left out. The bank: *"That works."*
 - [x] **Other consumer as two books**, from internal data (7 Oct).
@@ -52,9 +57,13 @@ arithmetic checked by running it, and the workbook checked by opening it.
   open it once in Excel.
 - [ ] A monthly series is refused by the workbook ("the calendar is
   quarterly"). Confirm that's acceptable for version 1, or build it.
-- [ ] Save the inline analyses (Laurel Road mix, lagged rates, post-Covid,
-  growth without acquisitions) as scripts in the evidence pack, so every number
-  shown can be re-run.
+- [x] ~~Save the inline analyses as scripts.~~ Superseded: they are in the
+  tool now (Mix, Lagged, Normalisation and Balances tabs), with the spec's
+  numbers as acceptance tests.
+- [ ] The window's **Peers** step: pull and build from the window, the same
+  way the command line does.
+- [ ] Code 215 ("Failure Multiple Acquirer") counted as an acquisition,
+  decided without the bank (LOG.md, 12 Oct). Open to its veto.
 
 ## 3. The walkthrough (rehearsal on public data)
 

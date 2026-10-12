@@ -65,3 +65,13 @@ def test_a_profile_takes_no_judgement_settings(capsys):
 def test_a_profile_refuses_a_judgement_setting():
     with pytest.raises(SystemExit):
         main(["profile", str(DATA / "mortgage_nco_ttm.csv")] + PROFILE + ["--high-z", "2.5"])
+
+
+@pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
+def test_a_setting_that_is_not_a_number_is_refused(value):
+    # argparse's float takes 'nan' and 'inf'; nothing is above NaN, so a NaN
+    # High z would switch a check off rather than fail it.
+    args = list(SCALE)
+    args[args.index("--high-z") + 1] = value
+    with pytest.raises(SystemExit):
+        main(["evidence", str(DATA / "cards_nco_ttm.csv")] + MEASURE + args)

@@ -151,7 +151,9 @@ def test_mixed_duplicate_or_impossible_inputs_are_refused(tmp_path):
     with pytest.raises(ValueError):
         build(tmp_path / "x.xlsx", SERIES[:1] * 2, "NCO", "%", "higher_is_worse", "quarterly", 1, True,
               0.5, 1.0, 2.5, "worse", (), (50, 75, 90, 95), 4, 41)
-    for bad in (dict(on_the_line="sometimes"), dict(low_step=0.5), dict(high_z=0)):
+    nan, inf = float("nan"), float("inf")
+    for bad in (dict(on_the_line="sometimes"), dict(low_step=0.5), dict(high_z=0),
+                dict(high_z=nan), dict(high_z=inf), dict(moderate_halfwidth=nan), dict(low_step=inf)):
         with pytest.raises(ValueError):
             make(tmp_path / "y.xlsx", **bad)
 

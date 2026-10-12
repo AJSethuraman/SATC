@@ -1,0 +1,384 @@
+"""Per-bank books, the pack composite, the band and the industry, from FDIC
+Call Report rows. docs/PEERS-SPEC.md, "books.py", is the contract.
+
+Input is ``{REPDTE: [rows]}`` as ``fdic.pull`` returns it: one list of rows per
+quarter-end (``YYYYMMDD``), each row a dict with ``CERT``, ``REPDTE`` and the
+fields. Amounts are $ thousands. Charge-offs (``DR*``) and recoveries
+(``CR*``) are year-to-date; balances (``LN*``) are quarter-end. A field filed
+as blank counts as 0, as the earlier build counted it; a bank with no row in a
+quarter is missing, never 0.
+
+The rule, as ``build_peers.py`` applied it (6 Oct 2026):
+
+- quarterly flow: Q1 is its year-to-date; a later quarter is its year-to-date
+  less the previous quarter's, or missing if the bank is absent from either;
+- TTM: the four quarters i-3 to i; the average balance is the mean of their
+  four quarter-end balances;
+- a bank-quarter is kept only if the average balance is at least the minimum
+  book (unless the bank is exempt) and above 0, all four flows are present,
+  and no quarter k in i-4 to i moved its balance by more than the jump
+  (``|b_k / b_(k-1) - 1| > jump``) or from 0 to above 0. Quarter i-4 is in the
+  test because the first flow in the window is measured from its year-to-date;
+- gross rate = 100 x TTM gross / average balance; net rate = 100 x (TTM gross
+  - TTM recoveries) / average balance; both None when not kept.
+
+The jump and the minimum book are judgements, so they are required arguments
+with no default. So is the minimum number of banks a composite or band needs:
+the spec's draft default of 3 does not reproduce the earlier build, which
+required 5.
+
+A TTM is four consecutive calendar quarters. Where the data skips a
+quarter-end, or holds a quarter with no filer at all (a quarter the FDIC has
+not published yet), the windows that touch it are refused as missing rather
+than built from whatever quarters sit next to each other in the data.
+"""
+from __future__ import annotations
+
+import csv
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+
+from ..profile import percentile
+
+#: Product -> (balance, gross charge-offs YTD, recoveries YTD) field names.
+PRODUCTS = {
+    "Credit card": ("LNCRCD", "DRCRCD", "CRCRCD"),
+    "Mortgage": ("LNRERSFM", "DRRERSFM", "CRRERSFM"),
+    "Home equity": ("LNRELOC", "DRRELOC", "CRRELOC"),
+    "Other consumer": ("LNCONOTH", "DRCONOTH", "CRCONOTH"),
+    "Auto": ("LNAUTO", "DRAUTO", "CRAUTO"),
+}
+
+WHY_JUMP = "book moved more than the jump in this window"
+WHY_SMALL = "book under the minimum"
+WHY_MISSING = "a quarter is missing"
+
+_QUARTER_ENDS = ("0331", "0630", "0930", "1231")
+
+
+def _month_quarter(q, month: str) -> int:
+    """A month '01'-'12' -> its quarter 1-4; anything else is refused."""
+    if not (len(month) == 2 and month.isdigit() and 1 <= int(month) <= 12):
+        raise ValueError("not a quarter: %r (the month must be 01 to 12)" % (q,))
+    return (int(month) - 1) // 3 + 1
+
+
+def label(repdte: str) -> str:
+    """'20260630' -> '2026Q2'. Only a YYYYMMDD date with a month 01-12 is
+    labelled; anything else is refused rather than called 'Q0'."""
+    if not (isinstance(repdte, str) and len(repdte) == 8 and repdte.isdigit()):
+        raise ValueError("not a YYYYMMDD quarter-end: %r" % (repdte,))
+    return "%sQ%d" % (repdte[:4], _month_quarter(repdte, repdte[4:6]))
+
+
+def quarter_end(q: str) -> str:
+    """A quarter as 'YYYYQn', 'YYYYMMDD' or an ISO date -> its quarter-end ISO
+    date. A quarter outside 1-4 or a month outside 01-12 is refused
+    (``ValueError``), never turned into some other date."""
+    if not isinstance(q, str):
+        raise ValueError("not a quarter: %r" % (q,))
+    if len(q) == 6 and q[:4].isdigit() and q[4] == "Q" and q[5] in "1234":
+        y, n = int(q[:4]), int(q[5])
+    elif len(q) == 8 and q.isdigit():
+        y, n = int(q[:4]), _month_quarter(q, q[4:6])
+    elif len(q) == 10 and q[:4].isdigit() and q[4] == "-" and q[7] == "-":
+        y, n = int(q[:4]), _month_quarter(q, q[5:7])
+    else:
+        raise ValueError("not a quarter: %r" % (q,))
+    return "%d-%s" % (y, ("03-31", "06-30", "09-30", "12-31")[n - 1])
+
+
+def _fields(product: str) -> Tuple[str, str, str]:
+    if product not in PRODUCTS:
+        raise ValueError("product must be one of %s, not %r" % (sorted(PRODUCTS), product))
+    return PRODUCTS[product]
+
+
+def _num(row: dict, field: str) -> float:
+    """A filed amount; blank counts as 0, as the earlier build counted it."""
+    return float(row.get(field) or 0)
+
+
+def _at_least(name: str, value, low) -> None:
+    """Refuse a judgement setting below its floor (NaN is refused too)."""
+    if isinstance(value, bool) or not value >= low:
+        raise ValueError("%s must be at least %s, not %r" % (name, low, value))
+
+
+def _follows(prev: str, q: str) -> bool:
+    """True when quarter-end ``q`` is the one straight after ``prev``."""
+    a = int(prev[:4]) * 4 + (int(prev[4:6]) - 1) // 3
+    b = int(q[:4]) * 4 + (int(q[4:6]) - 1) // 3
+    return b == a + 1
+
+
+def _contiguous(qs: Sequence[str]) -> List[bool]:
+    """Per position, True when that quarter-end straight follows the one before
+    it in the data. The first position has nothing before it, so False."""
+    return [False] + [_follows(a, b) for a, b in zip(qs, qs[1:])]
+
+
+def _by_cert(data: Dict[str, list]) -> Tuple[List[str], Dict[str, Dict[str, dict]]]:
+    """Quarter-ends in order, and each quarter's rows keyed by certificate.
+    The keys must be REPDTE quarter-ends (``YYYYMMDD`` ending 0331, 0630, 0930
+    or 1231) as ``fdic.pull`` returns them; any other key is refused, because
+    the Q1 test reads the month from the key."""
+    for q in data:
+        if not (isinstance(q, str) and len(q) == 8 and q.isdigit() and q[4:] in _QUARTER_ENDS):
+            raise ValueError("data must be keyed by YYYYMMDD quarter-ends, not %r" % (q,))
+    qs = sorted(data)
+    return qs, {q: {str(r["CERT"]): r for r in data[q]} for q in qs}
+
+
+def quarterly_flows(data: Dict[str, list], cert, product: str) -> List[tuple]:
+    """``(q, gross, recoveries, balance)`` per quarter-end ``q`` in the data.
+
+    A Q1 flow is its year-to-date. A later quarter's flow is its year-to-date
+    less the previous quarter's, or None if the bank is missing from either
+    quarter (or the previous quarter-end is not in the data). The balance is
+    the quarter-end figure, None when the bank did not file that quarter."""
+    ln, dr, cr = _fields(product)
+    cert = str(cert)
+    qs, snap = _by_cert(data)
+    out = []
+    for i, q in enumerate(qs):
+        r = snap[q].get(cert)
+        p = snap[qs[i - 1]].get(cert) if i and _follows(qs[i - 1], q) else None
+        bal = _num(r, ln) if r else None
+        if r and q[4:6] == "03":
+            out.append((q, _num(r, dr), _num(r, cr), bal))
+        elif r and p:
+            out.append((q, _num(r, dr) - _num(p, dr), _num(r, cr) - _num(p, cr), bal))
+        else:
+            out.append((q, None, None, bal))
+    return out
+
+
+def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: float,
+              exempt_min_book: bool = False) -> List[dict]:
+    """One row per TTM quarter, from the fifth quarter in the data, labelled
+    ``YYYYQn``: ``{quarter, gross_rate, net_rate, gross, recoveries,
+    avg_balance, kept, why}``.
+
+    ``jump`` is the largest quarter-on-quarter balance move (0.25 = 25%) that
+    is still credit rather than a merger, sale or reclassification;
+    ``min_book`` is the smallest average balance ($ thousands) whose rate is
+    kept. Either below 0 is refused. ``exempt_min_book`` lifts the minimum for
+    the bank drawn as itself. A quarter with no filing counts as a balance of
+    0 in the jump and average tests, as the earlier build counted it. ``why``
+    names the first reason a quarter is not kept, in the order: jump, minimum,
+    missing. Ahead of all three, a window whose quarters i-4 to i are not
+    consecutive quarter-ends in the data is missing: neither the jump nor a
+    TTM can be measured across a quarter the data does not hold."""
+    _at_least("jump", jump, 0)
+    _at_least("min_book", min_book, 0)
+    flows = quarterly_flows(data, cert, product)
+    follows = _contiguous([q for q, _, _, _ in flows])
+    bal = [0.0 if b is None else b for _, _, _, b in flows]
+    moved = [False] + [bool(a > 0 and abs(b / a - 1) > jump) or (a == 0 and b > 0)
+                       for a, b in zip(bal, bal[1:])]
+    out = []
+    for i in range(4, len(flows)):
+        win = range(i - 3, i + 1)
+        avg = sum(bal[k] for k in win) / 4
+        unbroken = all(follows[k] for k in win)
+        complete = unbroken and all(flows[k][1] is not None for k in win)
+        g = sum(flows[k][1] for k in win) if complete else None
+        rc = sum(flows[k][2] for k in win) if complete else None
+        if not unbroken:
+            why = WHY_MISSING
+        elif any(moved[k] for k in range(i - 4, i + 1)):
+            why = WHY_JUMP
+        elif not ((avg >= min_book or exempt_min_book) and avg > 0):
+            why = WHY_SMALL
+        elif not complete:
+            why = WHY_MISSING
+        else:
+            why = None
+        kept = why is None
+        out.append({
+            "quarter": label(flows[i][0]),
+            "gross_rate": 100 * g / avg if kept else None,
+            "net_rate": 100 * (g - rc) / avg if kept else None,
+            "gross": g, "recoveries": rc, "avg_balance": avg,
+            "kept": kept, "why": why,
+        })
+    return out
+
+
+def _quarters(books: Dict[str, List[dict]], certs: Sequence) -> List[str]:
+    return sorted({r["quarter"] for c in certs for r in books[str(c)]})
+
+
+def _index(books: Dict[str, List[dict]], certs: Sequence) -> Dict[str, Dict[str, dict]]:
+    return {str(c): {r["quarter"]: r for r in books[str(c)]} for c in certs}
+
+
+def composite(books: Dict[str, List[dict]], certs: Sequence, min_banks: int) -> List[dict]:
+    """Per quarter, ``{quarter, gross_rate, net_rate, banks}``: the kept flows
+    of the named banks summed, over their kept average balances summed, in %.
+    Every dollar counts once, so a large book weighs more than a small one.
+    The rates are None when fewer than ``min_banks`` banks are kept that
+    quarter; ``min_banks`` below 1 is refused. ``books`` is
+    ``{cert: bank_book(...)}``."""
+    _at_least("min_banks", min_banks, 1)
+    idx = _index(books, certs)
+    out = []
+    for q in _quarters(books, certs):
+        rows = [idx[str(c)][q] for c in certs if q in idx[str(c)] and idx[str(c)][q]["kept"]]
+        if len(rows) >= min_banks:
+            G = sum(r["gross"] for r in rows)
+            R = sum(r["recoveries"] for r in rows)
+            B = sum(r["avg_balance"] for r in rows)
+            g, n = 100 * G / B, 100 * (G - R) / B
+        else:
+            g = n = None
+        out.append({"quarter": q, "gross_rate": g, "net_rate": n, "banks": len(rows)})
+    return out
+
+
+def _rate_key(kind: str) -> str:
+    if kind not in ("gross", "net"):
+        raise ValueError("kind must be 'gross' or 'net', not %r" % (kind,))
+    return kind + "_rate"
+
+
+def band(books: Dict[str, List[dict]], certs: Sequence, kind: str,
+         pcts: Sequence[float] = (10, 25, 75, 90), *, min_banks: int) -> List[dict]:
+    """Per quarter, ``{quarter, banks, p10, p25, ...}``: percentiles of the named
+    banks' kept rates (``kind`` 'gross' or 'net'), each bank once, interpolated
+    as Excel's PERCENTILE.INC does. None below ``min_banks`` kept banks.
+    ``min_banks`` is required: how many banks make a band is a judgement, and
+    below 1 it is refused."""
+    _at_least("min_banks", min_banks, 1)
+    key = _rate_key(kind)
+    idx = _index(books, certs)
+    out = []
+    for q in _quarters(books, certs):
+        vals = [idx[str(c)][q][key] for c in certs
+                if q in idx[str(c)] and idx[str(c)][q]["kept"]]
+        row = {"quarter": q, "banks": len(vals)}
+        for p in pcts:
+            row["p%g" % p] = percentile(vals, p) if len(vals) >= min_banks else None
+        out.append(row)
+    return out
+
+
+def best_worst(books: Dict[str, List[dict]], certs: Sequence, kind: str,
+               last_n: int = 20, min_obs: int = 12) -> Tuple[Optional[str], Optional[str]]:
+    """``(best_cert, worst_cert)``: the lowest and the highest mean kept rate
+    over the last ``last_n`` quarters, among banks with at least ``min_obs``
+    kept values in those quarters. A tie goes to the bank named first. None
+    for both when no bank qualifies. ``last_n`` or ``min_obs`` below 1 is
+    refused (a ``last_n`` of 0 would otherwise read as every quarter)."""
+    _at_least("last_n", last_n, 1)
+    _at_least("min_obs", min_obs, 1)
+    key = _rate_key(kind)
+    idx = _index(books, certs)
+    window = _quarters(books, certs)[-last_n:]
+    means = []
+    for c in certs:
+        vals = [idx[str(c)][q][key] for q in window
+                if q in idx[str(c)] and idx[str(c)][q]["kept"]]
+        if len(vals) >= min_obs:
+            means.append((sum(vals) / len(vals), str(c)))
+    if not means:
+        return None, None
+    best = min(means, key=lambda m: m[0])[1]
+    worst = max(means, key=lambda m: m[0])[1]
+    return best, worst
+
+
+def industry(data: Dict[str, list], product: str,
+             products: Optional[Sequence[str]] = None) -> List[dict]:
+    """Per TTM quarter, the aggregate of every bank in ``data``:
+    ``{quarter, date, gross_rate, net_rate, gross, recoveries, avg_balance}``.
+
+    Each quarter's flow is summed bank by bank: a Q1 flow is its year-to-date;
+    a later quarter counts only banks present in both it and the quarter
+    before, so a bank that did not file is left out rather than counted as a
+    negative. Balances are the quarter-end sums over every bank filing. TTM is
+    100 x the sum of four flows / the mean of four balance sums, gross and net;
+    the first TTM quarter is the fourth with a flow. ``products`` adds further
+    products into the same sums (other consumer plus auto); ``product`` is
+    always included, and a product named twice still counts once.
+
+    A quarter with no filer at all has no flow (it is not a quarter of zero
+    charge-offs), and neither has a later quarter measured from it; a window
+    that is not four consecutive quarter-ends is not written."""
+    names = []
+    for p in [product] + list(products or ()):
+        if p not in names:
+            names.append(p)
+    cols = [_fields(p) for p in names]
+    qs, snap = _by_cert(data)
+    follows = _contiguous(qs)
+
+    def amount(row, which):
+        return sum(_num(row, c[which]) for c in cols)
+
+    flows, bals = [], []
+    for i, q in enumerate(qs):
+        cur = snap[q]
+        bals.append(sum(amount(r, 0) for r in cur.values()))
+        if not cur:
+            g = rc = None
+        elif q[4:6] == "03":
+            g = sum(amount(r, 1) for r in cur.values())
+            rc = sum(amount(r, 2) for r in cur.values())
+        elif follows[i] and snap[qs[i - 1]]:
+            prev = snap[qs[i - 1]]
+            both = [c for c in cur if c in prev]
+            g = sum(amount(cur[c], 1) - amount(prev[c], 1) for c in both)
+            rc = sum(amount(cur[c], 2) - amount(prev[c], 2) for c in both)
+        else:
+            g = rc = None
+        flows.append((g, rc))
+    out = []
+    for i in range(3, len(qs)):
+        win = range(i - 3, i + 1)
+        if any(flows[k][0] is None for k in win) or not all(follows[k] for k in win[1:]):
+            continue
+        avg = sum(bals[k] for k in win) / 4
+        g = sum(flows[k][0] for k in win)
+        rc = sum(flows[k][1] for k in win)
+        out.append({
+            "quarter": label(qs[i]), "date": quarter_end(qs[i]),
+            "gross_rate": 100 * g / avg if avg > 0 else None,
+            "net_rate": 100 * (g - rc) / avg if avg > 0 else None,
+            "gross": g, "recoveries": rc, "avg_balance": avg,
+        })
+    return out
+
+
+def write_series(rows: Iterable[tuple], path, note) -> Path:
+    """Write ``(quarter, value)`` pairs as the ``date,value`` CSV the workbook
+    reads: quarter-end ISO dates, the note as ``#`` lines first. A quarter
+    whose value is None is not written and is named in a closing note line,
+    so a gap is stated rather than filled. Every line of the note is a ``#``
+    line, a line break inside one note item included. The same quarter given
+    twice, in any spelling, is refused. Returns the path."""
+    path = Path(path)
+    items = note if isinstance(note, (list, tuple)) else [note]
+    lines = [ln for item in items for ln in str(item).splitlines()]
+    kept, left_out, seen = [], [], set()
+    for q, v in rows:
+        d = quarter_end(q)
+        if d in seen:
+            raise ValueError("quarter %s is given twice (as %r)" % (d, q))
+        seen.add(d)
+        if v is None:
+            left_out.append(d)
+        else:
+            kept.append((d, float(v)))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        for line in lines:
+            fh.write("# %s\n" % line)
+        if left_out:
+            fh.write("# no value, so not written: %s\n" % ", ".join(left_out))
+        w = csv.writer(fh, lineterminator="\n")
+        w.writerow(["date", "value"])
+        for d, v in kept:
+            w.writerow([d, repr(v)])
+    return path

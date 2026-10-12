@@ -91,10 +91,11 @@ Inputs are `{q: rows}` as `pull` returns, and a product name from the table.
     sum(recoveries)) / avg_balance`, or `None` when not kept;
   - `why` is one of `"book moved more than the jump in this window"`, `"book
     under the minimum"`, `"a quarter is missing"`, or `None`.
-- `composite(books, certs, min_banks=3)` → per quarter: summed kept flows over
+- `composite(books, certs, min_banks)` → per quarter: summed kept flows over
   summed kept average balances (gross and net %), with the number of banks in.
-  `None` below `min_banks`.
-- `band(books, certs, kind, pcts=(10, 25, 75, 90), min_banks=3)` → per quarter,
+  `None` below `min_banks`. `min_banks` is required, with no default; 5 is
+  what reproduces the earlier build (`build_peers.py`), and 3 does not.
+- `band(books, certs, kind, pcts=(10, 25, 75, 90), min_banks)` → per quarter,
   the percentiles of the kept rates (`profile.percentile`, which works like
   Excel's PERCENTILE.INC).
 - `best_worst(books, certs, kind, last_n=20, min_obs=12)` → `(best_cert,
@@ -202,6 +203,11 @@ live cells and the results are formulas wherever practical.
   --jump 0.25 --min-book 1000000 --pack all|regionals --series-dir DIR` writes the
   peer workbook and, per product, series CSVs for the main workbook: pack
   composite gross and net, KeyBank gross and net, and the industry.
+  *As built (12 Oct 2026):* every rule and side-analysis setting is a required
+  flag (`--help` lists 23), including `--industry-combined PRODUCT+PRODUCT`
+  for an industry series of products summed (other consumer with auto), and
+  `--extra-acquisitions CERT=QUARTER` for an acquisition the FDIC record does
+  not show. Either may be given bare to state there are none.
 
 ### Window (`launcher.py` and `Thresholds.pyw`)
 Tkinter, PocketBook's pattern (`pocketbook/src/pocketbook/launcher.py` to read,

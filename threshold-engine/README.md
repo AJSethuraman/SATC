@@ -28,6 +28,26 @@ threshold-engine workbook consumer-thresholds.xlsx --series "Credit card=tests/d
 A CSV has a `date,value` header; lines starting with `#` are notes. Every
 setting that is a judgement must be stated: nothing has a default.
 
+Or double-click `Thresholds.pyw` for a window that asks for the same things
+and builds the same workbook.
+
+## Peers
+
+KeyBank against a 16-bank roster (`config/peers.json`), from public FDIC Call
+Reports. Pull once into a cache folder, then build from the cache:
+
+```
+threshold-engine peers pull --cache fdic-cache --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" --mergers 2005-10-01
+```
+
+```
+threshold-engine peers build peers.xlsx --cache fdic-cache --roster config/peers.json --series-dir peer-series --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" --mergers fdic-cache/mergers.json --extra-acquisitions 6672=2022Q2 --industry-combined --jump 0.25 --min-book 1000000 --exempt-self yes --pack all --min-banks 5 --rank-by net --last-n 20 --min-obs 12 --base-quarter 2019Q4 --index-min-book 500000 --lagged-years 2019 2025 --lag-years 2 --normalisation-years 2019 2025 --mix-base-year 2019
+```
+
+`6672=2022Q2` is Fifth Third's purchase of Dividend Finance, a nonbank the FDIC
+record does not show. The build writes the peer workbook and, in
+`peer-series`, `date,value` CSVs the `workbook` command reads.
+
 ## The other commands
 
 | Command | What it does |

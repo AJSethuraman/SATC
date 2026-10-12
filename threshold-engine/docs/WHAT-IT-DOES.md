@@ -1,14 +1,12 @@
-# What threshold-engine does, piece by piece (12 Oct 2026)
+# What threshold-engine does, piece by piece (12 Oct 2026, peers built)
 
 Written so it can be checked against the code. Each part names its file, what
 goes in, what comes out, and what proves it. Where something was run only as a
 one-off analysis rather than built into the tool, the last section says so.
 
 **State of the code:** branch `threshold-engine`, draft pull request #426.
-138 tests pass, run twice on 12 Oct 2026: once on the working copy, and once
-on a fresh clone with a fresh Python environment and only the declared
-dependencies (`pip install ".[test]"`). Nothing has been run on KeyBank's
-internal data. Nothing internal is in the repository, by rule.
+423 tests pass (12 Oct 2026). Nothing has been run on KeyBank's internal data.
+Nothing internal is in the repository, by rule.
 
 ## The job
 
@@ -90,22 +88,76 @@ kept (nothing could rate High); or Moderate-Low would begin at or below zero.
 | `evidence` | `evidence.py` | The statistics behind each judgement (robust z of each spell, return periods, deepest dips, temporary departures), then the lines under three scenarios and at stated half-lives | On the workbook's scale (`scale.py`) since 12 Oct |
 | `backtest` | `backtest.py` | Rebuilds a percentile scale each quarter from only the history before it, and reports how well scores predicted the level and the change a stated number of quarters ahead, with and without recency weighting | Uses a percentile scale, not the workbook's |
 
+## The window (`launcher.py`, `Thresholds.pyw`)
+
+Double-click `Thresholds.pyw`. Steps down the left: **Series** (the CSVs, each
+with its product label), **Measure**, **Settings** (the scale's starting
+values), **Build** (where the workbook goes; Run writes it and opens it). Every
+field starts empty and Run stays off, naming what is missing, until each is
+stated. It refuses what the builder would refuse (a label Excel would read as a
+formula, two labels differing only in capitals, nan, a file without the
+`date,value` header) before it builds. **Peers** is shown but not usable yet:
+the peer workbook is built from the command line.
+
+**What proves it:** 60 tests drive every decision the window makes without a
+display; one opens the real window and presses Run.
+
+## Peers (`peers/`, commands `peers pull` and `peers build`)
+
+Public FDIC Call Report data for KeyBank and a 16-bank roster
+(`config/peers.json`), so the bank can see where it sits.
+
+| Part | What it does |
+|---|---|
+| `peers pull` (`fdic.py`) | Fetches every filer's quarter into a cache folder, only quarters not already there. Refuses a quarter the FDIC has not published (0 filers), a page count that does not match the API's own total, or a row that arrives twice. With `--mergers`, the FDIC's acquisition record, classified; a change code nobody has classified stops the pull and is named |
+| `peers build` (`books.py`, `analyses.py`, `peers_workbook.py`) | Reads the cache only. Per bank, product and quarter: TTM gross and net charge-off rates, with a window left out when the book moved more than the stated jump (an acquisition) or was under the stated minimum. Writes the peer workbook and, per product, `date,value` CSVs the main workbook reads: pack composite, KeyBank, industry |
+
+Every rule is a required flag (`peers build --help` lists 23).
+
+**The peer workbook:**
+
+| Tab | What it holds | Live? |
+|---|---|---|
+| **Pack** (red) | Which peers are in (Include), the product, Peer A and Peer B (any peer, or best/worst in pack), how best and worst are ranked, how many banks a composite needs | Inputs |
+| **Peers** | Gross and net charts: pack band (10th–90th, 25th–75th), pack composite, KeyBank, Peer A, Peer B | Yes |
+| **Balances** | Each bank's book as an index, with and without acquisitions | No |
+| **Lagged** | A year's losses over the book lent two years earlier (the runoff question) | No |
+| **Normalisation** | How far each rate moved between two years (post-Covid) | No |
+| **Mix** | KeyBank's move against the industry's (the Laurel Road question) | No |
+| **Glossary**, **Data**, **Run** | Terms; every bank's flows and rates with why a quarter was left out; sources, pull dates, fingerprints, rules | — |
+
+**What proves it:**
+- `books.py` matches the earlier build to 4 decimals on 9,984 values (every
+  bank, product and quarter) and on the composite.
+- The industry series matches the repository's other consumer CSVs (as filed,
+  and with auto added) on all 135 quarters, at most 0.00005 apart. That check
+  needs the evidence pack, so it is run by hand and is not in the suite.
+- The live formulas are recalculated with `formulas` and must equal the Python.
+- Each module was reviewed by two agents who tried to break it. Every finding
+  was reproduced, fixed, and given a test that fails without the fix.
+  Mutation runs found no surviving mutant that can be reached.
+- Run end to end on 12 Oct 2026 against the real cache. Pull: 82 quarters
+  cached, 0 fetched. The live merger record matched the test fixture for all
+  16 roster banks. Build: 4½ minutes. Opened in Excel 16: every chart draws,
+  and no cell holds a formula error. The CSVs it writes load straight into
+  the `workbook` command.
+
 ## What was run outside the tool
 
-All public data. Scripts are kept with the evidence pack at
-`C:\Users\ajish\SATC-evidence\threshold-analysis-2026-10-06`. None of these is
-part of the tool, and none is tested.
+All public data. These were first run as one-off scripts, kept with the
+evidence pack at `C:\Users\ajish\SATC-evidence\threshold-analysis-2026-10-06`.
+On 12 Oct 2026 the bank said *"all of it"*, so every row marked "in the tool"
+is now built in and tested. The last two rows are still one-offs.
 
 | Analysis | Kept as | Reproducible? |
 |---|---|---|
-| FDIC pulls: every filer, 2006–2026 (cards, mortgage, home equity, other consumer) and 1992–2026 (home equity, other consumer, auto); merger history | `pull_peers_2006.py`, `pull_peers_1992.py`, `pull_mergers_2006.py` and their data | Yes |
-| Industry series built from the pulls, and the 2008 test | `analyse_peers.py`, `test_2008_rule.py` | Yes |
-| Federal Reserve "other consumer" series, read from the charge-off release | `fedco/` (pages and output). The parsing was run inline, with no script kept | Partly |
-| Peer gross and net rates, composite and page | `peers-gross-net/build_peers.py`, `make_peers.py` | Yes |
-| Balance trends page | `peers-gross-net/make_balances.py` | Yes |
-| KeyBank other consumer mix (Laurel Road), against the industry | Inline only. The numbers and method are in LOG.md, 7 Oct | **No script** |
-| Card post-Covid normalisation, lagged rates, runoff | Inline only. Numbers in the conversation | **No script** |
-| Growth without acquisitions | Inline only (`organic.json` kept in the scratch folder) | **No script** |
+| FDIC pulls 2006–2026 and 1992–2026; merger history | Now `peers pull`. The evidence-pack scripts remain as the earlier record | Yes, in the tool |
+| Peer gross and net rates, composite, best and worst | Now `peers build`, Peers tab | Yes, in the tool |
+| Balance trends, growth without acquisitions | Now the Balances tab | Yes, in the tool |
+| KeyBank other consumer mix (Laurel Road) | Now the Mix tab | Yes, in the tool |
+| Card post-Covid normalisation, lagged rates | Now the Normalisation and Lagged tabs | Yes, in the tool |
+| Industry series (other consumer as filed and with auto) | Now `peers build --industry-combined` | Yes, in the tool |
+| Federal Reserve "other consumer" series, read from the charge-off release | `fedco/`. Parsed inline, with no script kept | Partly |
 | Seven-option comparison of card scales, High before and after | Inline only, `make_high.py` for the page | Partly |
 
 *12 Oct 2026: the first engine (`engine.py`, `episodes.py`) and its `cutoffs`

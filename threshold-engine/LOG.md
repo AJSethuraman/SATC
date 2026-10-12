@@ -325,3 +325,43 @@ to these thresholds.
 - Other consumer is two books: student loans (Laurel Road) and the rest.
   Each gets its own scale, from internal data on site. A blended scale would
   rate the riskiest consumer book on a number held down by the safest.
+
+## 12 October 2026, one scale, and all of it built in
+
+The bank's answers to the release docket: *"1. Take recommendation 2. Yes 3.
+Nope, all of it. Test it and make sure it works. 4. That works I mean what
+else can we do"*, then *"1 and 2 are good for v1"*.
+
+- **One scale.** The first engine and `cutoffs` retired; `evidence` now
+  reports on the workbook's scale (`scale.py`).
+- **A window.** `Thresholds.pyw` builds the workbook without a command line.
+- **All of it.** Every side analysis run inline since 6 October is now in the
+  tool: `peers pull`, `peers build`, and a peer workbook with the Pack, Peers,
+  Balances, Lagged, Normalisation and Mix tabs. They were built to
+  `docs/PEERS-SPEC.md` by a multi-agent run. Each module was then reviewed by
+  two agents trying to break it: 71 findings, all reproduced and all fixed,
+  each with a test that fails without its fix.
+- **Card settings** 0.5 / 1.0 / z 2.5, with the crisis and the pandemic left
+  out, accepted for the rehearsal.
+- **Next in v1:** delinquency and nonaccrual by product, and templates for
+  the internal data. On the 90+ definition: *"It depends and you don't need
+  to know, if you're making all 3 it shouldn't matter."* So every variant is
+  built, and the bank picks one per measure.
+
+Decided here without the bank, and open to its veto:
+- **FDIC change code 215, "Failure Multiple Acquirer", counts as an
+  acquisition.** The pull's own refusal caught it live: two rows in 2008,
+  neither acquirer on the roster. A failed bank was split between buyers, so
+  each buyer's next filing carries part of a bank it did not have. Marking it
+  can only leave a quarter out of a window. It never adds a number.
+- `min_banks` has no default. 5 reproduces the earlier build.
+
+Run end to end against the real cache. Pull: 82 quarters, 0 fetched. The live
+merger record matched the fixture for all 16 roster banks. Build: 4½ minutes.
+Opened in Excel 16: every chart draws and no cell holds a formula error. The
+CSVs it writes load into `workbook` unchanged. On the card settings above,
+worst in pack is Citizens and best is JPMorgan (net, last 20 quarters).
+
+Not done yet: the window's Peers step (command line only for now). The
+KeyBank peer CSVs start in 2018Q1, because the First Niagara window breaks
+everything before it, so on their own they cannot carry the 2008 crisis.

@@ -24,6 +24,7 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import hashlib
+import math
 from pathlib import Path
 from typing import Sequence, Tuple
 
@@ -76,6 +77,9 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
           percentiles: Sequence[float], horizon: int, min_history: int) -> dict:
     if frequency != "quarterly":
         raise ValueError("the workbook's calendar is quarterly; monthly series are not built yet")
+    if not all(math.isfinite(v) for v in
+               (moderate_halfwidth, low_step, high_z, *half_lives, *percentiles)):
+        raise ValueError("every setting must be a number, not nan or infinity")
     if moderate_halfwidth < 0 or low_step <= moderate_halfwidth or high_z <= 0:
         raise ValueError("need 0 <= moderate_halfwidth < low_step, and high_z above 0")
     if on_the_line not in ("worse", "better"):
