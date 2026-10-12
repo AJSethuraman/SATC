@@ -1,17 +1,17 @@
 """Stage 1: a series is checked as declared, and never repaired."""
 import pytest
 
-from conftest import NCO, quarters, settings
-from threshold_engine import Point, Refused, run
+from conftest import quarters
+from threshold_engine import Point
 from threshold_engine.series import SeriesError, check, smooth
 
 
 def test_a_missing_quarter_is_refused_not_filled():
     pts = quarters([1, 2, 3, 4, 5])
     del pts[2]
-    r = run(NCO, settings(), pts)
-    assert isinstance(r, Refused) and r.code == "gap"
-    assert pts[1].date in r.reason
+    with pytest.raises(SeriesError) as exc:
+        check(pts, "quarterly")
+    assert exc.value.code == "gap" and pts[1].date in str(exc.value)
 
 
 def test_a_duplicated_quarter_is_refused():

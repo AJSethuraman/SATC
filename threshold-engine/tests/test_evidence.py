@@ -4,14 +4,15 @@ import statistics
 
 import pytest
 
-from conftest import load, quarters
+from conftest import SCALE, load, quarters
+from threshold_engine.scale import scale
 from threshold_engine.evidence import _deepest_dip, evidence, robust_z
 from threshold_engine.series import Point
 
 
 def ev(points, **kw):
     return evidence(points, "test", "%", kw.get("direction", "higher_is_worse"),
-                    "quarterly", 1, 5, 0.75, kw.get("floor", True))
+                    "quarterly", 1, SCALE, kw.get("floor", True))
 
 
 def test_robust_z_by_hand():
@@ -49,16 +50,21 @@ def test_scenario_c_removes_the_largest_only_when_another_is_unusual():
     one = calm + [1.2] + calm + [9] + calm
     a, b = ev(quarters(two)), ev(quarters(one))
     assert a["scenarios"][2]["removed"] is not None
-    assert a["scenarios"][2]["worst_kept"] == 5
+    assert a["scenarios"][2]["worst"] == 5
     assert b["scenarios"][2]["removed"] is None
-    assert b["scenarios"][2]["worst_kept"] == 9
+    assert b["scenarios"][2]["worst"] == 9
 
 
-def test_scenario_bounds_are_median_to_the_fraction_of_the_worst_kept():
-    v = [1, 1.1, 0.9, 1, 3, 1, 0.95, 1.05, 8, 1]
+def test_scenario_lines_are_the_workbooks_scale():
+    v = [1, 1.1, 0.9, 1, 3, 1, 0.95, 1.05, 8, 1, 1.2, 0.8, 1, 1.1]
     sc = ev(quarters(v))["scenarios"][0]
-    m = statistics.median(v)
-    assert sc["bounds"] == pytest.approx([m + i * 0.75 * (8 - m) / 3 for i in range(4)])
+    ref = scale(v, "higher_is_worse", 0.5, 1.0, 2.5, True)
+    assert sc["bounds"] == pytest.approx(ref["bounds"]) and sc["median"] == statistics.median(v)
+
+
+def test_no_scale_means_evidence_only():
+    e = evidence(quarters([1, 2, 1, 5, 1, 1, 2, 1]), "t", "%", "higher_is_worse", "quarterly", 1, None, True)
+    assert e["scenarios"] == [] and e["recency"] == [] and e["spells"]
 
 
 def test_lower_is_worse_measures_mirror():
@@ -136,10 +142,10 @@ def test_a_weight_halves_every_half_life():
 def test_recency_moves_the_normal_level_and_not_the_worst_kept():
     calm_then_quiet = [2] * 20 + [9] + [2] * 20 + [1] * 20
     e = evidence(quarters(calm_then_quiet, 1990), "t", "%", "higher_is_worse",
-                 "quarterly", 1, 5, 0.75, True, half_lives=(2,))
+                 "quarterly", 1, SCALE, True, half_lives=(2,))
     r = e["recency"][0]
-    assert r["normal"] == 1 and r["worst_kept"] == 9
-    assert e["scenarios"][0]["normal"] == 2
+    assert r["median"] == 1 and r["worst"] == 9
+    assert e["scenarios"][0]["median"] == 2
     # Weights r**k, r = 0.5 ** (1/8) per quarter, over 61 quarters:
     # (sum w)^2 / sum w^2, which tends to (1 + r) / (1 - r), about 23.
     r8 = 0.5 ** (1 / 8)
@@ -150,9 +156,12 @@ def test_recency_moves_the_normal_level_and_not_the_worst_kept():
 
 def test_a_half_life_that_puts_normal_at_zero_is_refused():
     e = evidence(load("mortgage_nco_ttm.csv"), "m", "%", "higher_is_worse",
-                 "quarterly", 1, 5, 0.75, True, half_lives=(10, 5))
-    assert "refused" not in e["recency"][0]
-    assert "refused" in e["recency"][1] and "bounds" not in e["recency"][1]
+                 "quarterly", 1, SCALE, True, half_lives=(10, 5))
+    # On the centred scale a 10-year half-life already pulls Moderate-Low to zero
+    # (median 0.053, typical yearly move 0.058); 5 years pulls the median there.
+    assert e["recency"][0]["refused"] == "Moderate-Low would begin at or below zero"
+    assert e["recency"][1]["refused"] == "the median is at or below zero"
+    assert e["recency"][1]["bounds"] is None
 
 
 def test_no_half_life_stated_means_no_recency_rows():

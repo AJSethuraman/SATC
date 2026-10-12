@@ -94,7 +94,7 @@ TERMS = [
      "Read from the source, not recalculated."),
     ("Check",
      "Says why the workbook will not draw a scale, rather than drawing one that cannot be right.",
-     "Refuses when the median is at or below zero, when Moderate-Low would not begin below Moderate, when High "
+     "Refuses when too little history is kept for a typical yearly move, when the median is at or below zero, when Moderate-Low would not begin below Moderate, when High "
      "would not begin beyond Moderate-High, when High would begin beyond the worst quarter kept (nothing could "
      "rate High), or when Moderate-Low would begin at or below zero."),
     ("Spell",

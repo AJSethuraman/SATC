@@ -59,3 +59,21 @@ def test_on_the_line():
     assert score(2, b, "higher_is_worse", "worse", True) == 3
     assert score(2, b, "higher_is_worse", "better", True) == 2
     assert score(0, b, "higher_is_worse", "worse", True) == 1
+
+
+
+def test_weights_move_the_median_only():
+    # Recency: a weighted median, with the move, spread and worst at full weight.
+    v = [0, 0, 0, 0, 1, 3, 2, 6, 2]
+    plain = scale(v, "higher_is_worse", 0.5, 1.5, 2.0, False)
+    w = [1, 1, 1, 1, 1, 1, 1, 1, 100]                 # the last quarter dominates
+    tilted = scale(v, "higher_is_worse", 0.5, 1.5, 2.0, False, weights=w)
+    assert tilted["median"] == 2 and plain["median"] == 1
+    for k in ("typical_yearly_move", "spread_of_levels", "worst"):
+        assert tilted[k] == plain[k]
+
+
+
+def test_too_little_history_for_a_yearly_move_is_refused_not_crashed():
+    r = scale([1, 2, 3, 2, 1], "higher_is_worse", 0.5, 1.0, 2.5, True)
+    assert r["bounds"] is None and "too little history" in r["refused"]

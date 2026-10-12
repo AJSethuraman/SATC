@@ -27,9 +27,9 @@ What these numbers are not: probabilities. A trailing-twelve-month rate moves
 slowly, so neighbouring quarters are not independent draws, and a z-score here
 says how far a level sits from the bulk of history, not how likely it was.
 
-The scenarios, all on the same scale (normal level = median of the periods
-kept; the top score begins ``top_fraction`` of the way to the worst period
-kept, in equal steps):
+The scenarios, on the workbook's scale (threshold_engine.scale: Moderate a band
+around the median of the periods kept, Moderate-Low below it, High at a robust
+z), with the bank's stated settings:
 
 A. Keep everything.
 B. Remove the largest spell, whatever is left.
@@ -38,20 +38,20 @@ C. Remove the largest spell only if another spell is unusual at the line;
 
 Recency. Scenario C is then repeated at each stated half-life: a period's
 weight halves for every ``half_life`` years of its age, counted back from the
-latest observation. Only the normal level is weighted, as a weighted median.
-The worst period kept stays the anchor at full weight, so the scale does not
-forget what stress looked like. Effective quarters, (sum w)^2 / sum w^2, say
-how much history a half-life really uses. A half-life that puts the normal
-level at or below zero on a floored measure is refused, not scaled: every
-positive loss would score 2 or worse.
+latest observation. Only the median is weighted. The typical yearly move, the
+spread of levels and the worst kept stay at full weight. Effective quarters,
+(sum w)^2 / sum w^2, say how much history a half-life really uses. The scale's
+own refusals apply: a weighted median at or below zero on a floored measure is
+refused, not scaled.
 """
 from __future__ import annotations
 
 import math
 import statistics
-from typing import Sequence
+from typing import Optional, Sequence
 
-from .engine import score
+from .scale import scale as scale_lines, score as scale_score
+from .scale import recency_weights, weighted_median  # noqa: F401
 from .profile import profile
 from .series import STEP_MONTHS, Point, check, smooth
 
@@ -72,42 +72,11 @@ def _inside(spell, date):
     return spell["start"] <= date and (spell["end"] is None or date < spell["end"])
 
 
-def weighted_median(values, weights):
-    """Midpoint of the lower and upper weighted medians: the first value at
-    which cumulative weight reaches half, and the first at which it passes
-    half. With equal weights this is the ordinary median."""
-    pairs = sorted(zip(values, weights))
-    half, cum, lower, upper = sum(weights) / 2, 0.0, None, None
-    for v, w in pairs:
-        cum += w
-        if lower is None and cum >= half:
-            lower = v
-        if cum > half:
-            upper = v
-            break
-    return (lower + upper) / 2
-
-
-def recency_weights(dates, half_life_years):
-    """0.5 ** (age in years / half-life), age counted back from the last date."""
-    def months(d):
-        return int(d[:4]) * 12 + int(d[5:7])
-    last = months(dates[-1])
-    return [0.5 ** ((last - months(d)) / 12 / half_life_years) for d in dates]
-
-
-def _bounds(values, k, top_fraction, weights=None):
-    normal = (statistics.median(values) if weights is None
-              else weighted_median(values, weights))
-    anchor = max(values)
-    step = top_fraction * (anchor - normal) / (k - 2) if k > 2 else 0.0
-    return normal, anchor, [normal + i * step for i in range(k - 1)]
-
-
 def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
-             frequency: str, smoothing: int, scale_points: int,
-             top_fraction: float, floor_at_zero: bool,
-             half_lives: Sequence[float] = ()) -> dict:
+             frequency: str, smoothing: int, scale: Optional[dict],
+             floor_at_zero: bool, half_lives: Sequence[float] = ()) -> dict:
+    """``scale``: dict(halfwidth, low_step, high_z, on_the_line), the workbook's
+    settings, or None for the evidence alone (no scenario or recency lines)."""
     pr = profile(points, name, unit, direction, frequency, smoothing)
     sign = 1.0 if direction == "higher_is_worse" else -1.0
     series = smooth(check(points, frequency), smoothing)
@@ -134,47 +103,38 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
     largest = ranked[0] if ranked else None
     unusual_others = [s for s in ranked[1:] if s["robust_z"] >= LINE]
 
+    def kept_list(removed):
+        return [None if removed is not None and _inside(removed, p.date) else p.value for p in series]
+
+    def lines(kept, weights=None):
+        r = scale_lines(kept, direction, scale["halfwidth"], scale["low_step"], scale["high_z"],
+                    floor_at_zero, weights)
+        latest = series[-1].value
+        r["latest_score"] = (None if r["bounds"] is None else
+                             scale_score(latest, r["bounds"], direction, scale["on_the_line"], floor_at_zero))
+        return r
+
     def scenario(label, removed):
-        kept = [p for p in work if removed is None or not _inside(removed, p.date)]
-        normal, anchor, b = _bounds([p.value for p in kept], scale_points, top_fraction)
-        bounds = [sign * x for x in b]
-        last = series[-1].value
-        return {"scenario": label,
-                "removed": None if removed is None else (removed["start"], removed["end"]),
-                "normal": sign * normal, "worst_kept": sign * anchor, "bounds": bounds,
-                "latest_score": score(last, bounds, direction, floor_at_zero)}
+        return dict(lines(kept_list(removed)), scenario=label,
+                    removed=None if removed is None else (removed["start"], removed["end"]))
 
-    # top_fraction None: the caller has its own scale (the workbook's) and wants
-    # only the evidence -- spells, departures -- not cutoffs on this one.
-    scenarios = [] if top_fraction is None else [scenario("A. Keep everything", None)]
-    if largest and top_fraction is not None:
-        scenarios.append(scenario("B. Remove the largest spell", largest))
-        c = largest if unusual_others else None
-        scenarios.append(dict(scenario(
-            "C. Remove it only if another spell is unusual (z >= %g)" % LINE, c),
-            decided_by=("%s spell, z %.1f" % (unusual_others[0]["start"],
-                                              unusual_others[0]["robust_z"])
-                        if unusual_others else "no other spell reaches z %g" % LINE)))
-
-    removed_c = largest if unusual_others else None
-    kept_c = [p for p in work if removed_c is None or not _inside(removed_c, p.date)]
-    recency = []
-    for hl in (half_lives if top_fraction is not None else ()):
-        w = recency_weights([p.date for p in kept_c], hl)
-        normal, anchor, b = _bounds([p.value for p in kept_c], scale_points,
-                                    top_fraction, w)
-        row = {"half_life_years": hl,
-               "effective_quarters": sum(w) ** 2 / sum(x * x for x in w),
-               "normal": sign * normal}
-        if floor_at_zero and normal <= 0:
-            row["refused"] = ("the weighted normal level is %.3f, at or below zero:"
-                              " every positive loss would score 2 or worse" % normal)
-        else:
-            bounds = [sign * x for x in b]
-            row.update(bounds=bounds, worst_kept=sign * anchor,
-                       latest_score=score(series[-1].value, bounds, direction,
-                                          floor_at_zero))
-        recency.append(row)
+    scenarios, recency = [], []
+    if scale is not None:
+        scenarios.append(scenario("A. Keep everything", None))
+        if largest:
+            scenarios.append(scenario("B. Remove the largest spell", largest))
+            c = largest if unusual_others else None
+            scenarios.append(dict(scenario(
+                "C. Remove it only if another spell is unusual (z >= %g)" % LINE, c),
+                decided_by=("%s spell, z %.1f" % (unusual_others[0]["start"],
+                                                  unusual_others[0]["robust_z"])
+                            if unusual_others else "no other spell reaches z %g" % LINE)))
+        kept_c = kept_list(largest if unusual_others else None)
+        for hl in half_lives:
+            w = recency_weights([p.date for p in series], hl)
+            kw = [x for v, x in zip(kept_c, w) if v is not None]
+            recency.append(dict(lines(kept_c, w), half_life_years=hl,
+                                effective_quarters=sum(kw) ** 2 / sum(x * x for x in kw)))
 
     deps = departures(work)
     for d in deps:
@@ -186,8 +146,7 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
             "largest": largest,
             "next_unusual": unusual_others[0] if unusual_others else None,
             "scenarios": scenarios,
-            "settings": {"scale_points": scale_points, "top_fraction": top_fraction,
-                         "floor_at_zero": floor_at_zero, "line": LINE}}
+            "settings": {"scale": scale, "floor_at_zero": floor_at_zero, "line": LINE}}
 
 
 BRIDGE_LENGTHS = (8, 12, 16)
@@ -307,22 +266,26 @@ def report(ev: dict) -> str:
                    "dip of %s at %s = %.1f sd" % (f(d["depth"]), d["date"], d["in_sd_of_change"])))
     out.append("   This choice changes how many cycles are counted, not the cutoffs below.")
 
-    st = ev["settings"]
-    out += ["", "SCENARIOS (scale 1-%d; top score begins %g of the way to the worst kept)"
-            % (st["scale_points"], st["top_fraction"])]
+    sc_ = ev["settings"]["scale"]
+    if sc_:
+        out += ["", "SCENARIOS, on the workbook's scale (Moderate half-width %g, Moderate-Low step %g, "
+                "High z %g; a value on a line takes the %s score)"
+                % (sc_["halfwidth"], sc_["low_step"], sc_["high_z"], sc_["on_the_line"])]
+
+    def row(r):
+        if r["bounds"] is None:
+            return "REFUSED: " + r["refused"]
+        return "median %s, typical yearly move %s, worst kept %s, lines %s, latest scores %d" % (
+            f(r["median"]), f(r["typical_yearly_move"]), f(r["worst"]),
+            " / ".join("%.3f" % b for b in r["bounds"]), r["latest_score"])
     for sc in ev["scenarios"]:
         out.append("   %s" % sc["scenario"] + ("  [%s]" % sc["decided_by"] if "decided_by" in sc else ""))
-        out.append("      normal %s, worst kept %s, cutoffs %s, latest scores %d" % (
-            f(sc["normal"]), f(sc["worst_kept"]),
-            " / ".join("%.3f" % b for b in sc["bounds"]), sc["latest_score"]))
+        out.append("      " + row(sc))
     if ev["recency"]:
-        out += ["", "RECENCY (scenario C, normal level weighted by a half-life; worst kept at full weight)",
-                "   half-life  effective quarters  normal     cutoffs                          latest"]
+        out += ["", "RECENCY (scenario C, the median weighted by a half-life; everything else at full weight)"]
         for r in ev["recency"]:
-            out.append("   %5g yrs  %18.0f  %-9s  %s" % (
-                r["half_life_years"], r["effective_quarters"], f(r["normal"]),
-                "REFUSED: " + r["refused"] if "refused" in r else
-                "%-31s  %d" % (" / ".join("%.3f" % b for b in r["bounds"]), r["latest_score"])))
+            out.append("   %g-yr half-life, %.0f effective quarters: %s" % (
+                r["half_life_years"], r["effective_quarters"], row(r)))
     if ev["departures"]:
         out += ["", "4. TEMPORARY DEPARTURES (left the path and came back; the largest first, then set aside)",
                 "   first     last      direction        mean off the path  robust z  rank"]

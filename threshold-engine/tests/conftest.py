@@ -5,7 +5,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from threshold_engine import Measure, Point, Settings  # noqa: E402
+from threshold_engine import Point  # noqa: E402
 
 DATA = ROOT / "tests" / "data"
 
@@ -26,15 +26,6 @@ def quarters(values, first_year=2000):
     return out
 
 
-NCO = Measure(name="net charge-off rate, trailing twelve months", unit="%",
-              direction="higher_is_worse", frequency="quarterly",
-              smoothing=1, floor_at_zero=True)
 
-
-def settings(**over):
-    """Settings for tests. Every field is still stated; tests override."""
-    base = dict(scale_points=5, top_fraction=0.75, episode_height=0.25,
-                materiality=None, outlier_ratio=2.0, min_other_episodes=1,
-                window=None, exclusions=())
-    base.update(over)
-    return Settings(**base)
+#: The workbook's scale at the settings agreed for cards (7 Oct 2026).
+SCALE = dict(halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse")

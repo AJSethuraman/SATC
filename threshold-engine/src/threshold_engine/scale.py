@@ -41,22 +41,55 @@ def typical_yearly_move(kept: Sequence[Optional[float]], lag: int = 4) -> Option
     return ROBUST_SCALE * statistics.median([abs(c - m) for c in changes])
 
 
+def weighted_median(values, weights):
+    """Midpoint of the lower and upper weighted medians: the first value at
+    which cumulative weight reaches half, and the first at which it passes
+    half. With equal weights this is the ordinary median."""
+    pairs = sorted(zip(values, weights))
+    half, cum, lower, upper = sum(weights) / 2, 0.0, None, None
+    for v, w in pairs:
+        cum += w
+        if lower is None and cum >= half:
+            lower = v
+        if cum > half:
+            upper = v
+            break
+    return (lower + upper) / 2
+
+
+def recency_weights(dates, half_life_years):
+    """0.5 ** (age in years / half-life), age counted back from the last date."""
+    def months(d):
+        return int(d[:4]) * 12 + int(d[5:7])
+    last = months(dates[-1])
+    return [0.5 ** ((last - months(d)) / 12 / half_life_years) for d in dates]
+
+
 def level_spread(vals: Sequence[float]) -> float:
     med = statistics.median(vals)
     return ROBUST_SCALE * statistics.median([abs(v - med) for v in vals])
 
 
 def scale(kept: Sequence[Optional[float]], direction: str, halfwidth: float, low_step: float,
-          high_z: float, floor_at_zero: bool) -> dict:
-    """Lines where scores 2, 3, 4 and 5 begin, or a refusal saying why not."""
+          high_z: float, floor_at_zero: bool,
+          weights: Optional[Sequence[float]] = None) -> dict:
+    """Lines where scores 2, 3, 4 and 5 begin, or a refusal saying why not.
+
+    ``weights``, one per entry of ``kept``, weight the median only (recency):
+    the typical yearly move, the spread of levels and the worst kept stay at
+    full weight, so the scale does not forget what stress looked like."""
     vals = [v for v in kept if v is not None]
     s = 1.0 if direction == "higher_is_worse" else -1.0
-    med = statistics.median(vals)
+    med = (statistics.median(vals) if weights is None else
+           weighted_median(vals, [w for v, w in zip(kept, weights) if v is not None]))
     move = typical_yearly_move(kept)
     worst = max(vals) if s > 0 else min(vals)
     spread = level_spread(vals)
     out = {"median": med, "typical_yearly_move": move, "spread_of_levels": spread, "worst": worst,
            "bounds": None, "refused": None}
+    if move is None:
+        out["refused"] = "too little history kept for a typical yearly move (two four-quarter changes needed)"
+        return out
     b3 = med - s * halfwidth * move
     b4 = med + s * halfwidth * move
     b2 = med - s * low_step * move

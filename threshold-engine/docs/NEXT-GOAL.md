@@ -14,25 +14,20 @@ expected answers written down first; and a final check has been done by an
 agent that has not seen the work, with the facts checked against sources, the
 arithmetic checked by running it, and the workbook checked by opening it.
 
-## 1. Decisions waiting on the bank (each with a recommendation)
+## 1. Decisions (answered 12 Oct 2026)
 
-- [ ] **The two scales.** The `cutoffs` command and the scenario cutoffs in
-  `evidence` use the first scale; the workbook uses the centred one.
-  *Recommend:* retire `cutoffs`, and have `evidence` report scenarios on the
-  workbook's scale (`scale.py`), so there is one answer.
-- [ ] **A window to run it from**, PocketBook-style, or the command line for
-  version 1. *Recommend:* a small window (pick the CSVs, set the measure, run,
-  open the workbook). The bank runs it on site, and a command line is a step
-  someone gets wrong.
-- [ ] **What version 1 includes from the side analyses.** *Recommend:*
-  version 1 is the workbook from series files. The peer composite (pick a pack,
-  gross and net) becomes version 2, built as a command that writes series files
-  the workbook already takes. The inline analyses are saved as scripts in the
-  evidence pack either way.
-- [ ] **Cards' settings** (0.5 / 1.0 / z 2.5) and the leave-out windows as
-  the starting point for the rehearsal: confirm.
-- [ ] **Other consumer as two books** (student loans and the rest), from
-  internal data: confirmed 7 Oct. Nothing to build; it is two input files.
+- [x] **One scale.** The bank: take the recommendation. `cutoffs` and the first
+  engine retired; `evidence` reports its scenarios and recency on `scale.py`.
+- [ ] **A window to run it from**, PocketBook-style. The bank: *"Yes."*
+- [ ] **Version 1 includes all of the side analyses, built into the tool and
+  tested.** The bank: *"Nope, all of it. Test it and make sure it works."*
+  That means FDIC pulls and caching, the peer roster, gross and net rates by
+  bank and product with the structural-jump rule, the pack composite with
+  best and worst, balance trends, growth without acquisitions, lagged rates,
+  normalisation against a baseline year, and mix against the industry.
+- [x] **Cards' settings** for the rehearsal: 0.5 / 1.0 / z 2.5, crisis and
+  pandemic periods left out. The bank: *"That works."*
+- [x] **Other consumer as two books**, from internal data (7 Oct).
 
 ## 2. Fix before the walkthrough
 

@@ -87,9 +87,8 @@ kept (nothing could rate High); or Moderate-Low would begin at or below zero.
 | Command | File | What it does | Note |
 |---|---|---|---|
 | `profile` | `profile.py` | Facts only, no judgement settings: distribution, every spell above the median, how often each upper percentile was reached, percentiles without the largest spell, where the latest value ranks | Consistent with the workbook |
-| `evidence` | `evidence.py` | The statistics behind each judgement (robust z of each spell, return periods, deepest dips, temporary departures), then cutoffs under three scenarios and at stated half-lives | **The scenario cutoffs use the first scale, not the workbook's** |
+| `evidence` | `evidence.py` | The statistics behind each judgement (robust z of each spell, return periods, deepest dips, temporary departures), then the lines under three scenarios and at stated half-lives | On the workbook's scale (`scale.py`) since 12 Oct |
 | `backtest` | `backtest.py` | Rebuilds a percentile scale each quarter from only the history before it, and reports how well scores predicted the level and the change a stated number of quarters ahead, with and without recency weighting | Uses a percentile scale, not the workbook's |
-| `cutoffs` | `engine.py` | The first engine: stress episodes, an outlier rule, and cutoffs from median to a fraction of the worst | **Superseded by the workbook's scale; gives different lines** |
 
 ## What was run outside the tool
 
@@ -108,3 +107,6 @@ part of the tool, and none is tested.
 | Card post-Covid normalisation, lagged rates, runoff | Inline only. Numbers in the conversation | **No script** |
 | Growth without acquisitions | Inline only (`organic.json` kept in the scratch folder) | **No script** |
 | Seven-option comparison of card scales, High before and after | Inline only, `make_high.py` for the page | Partly |
+
+*12 Oct 2026: the first engine (`engine.py`, `episodes.py`) and its `cutoffs`
+command were retired, on the bank's decision, so the tool has one scale.*

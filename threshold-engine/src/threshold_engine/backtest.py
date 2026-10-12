@@ -34,8 +34,7 @@ from __future__ import annotations
 import math
 from typing import Optional, Sequence
 
-from .engine import score
-from .evidence import recency_weights
+from .scale import recency_weights, score
 from .series import Point, check, smooth
 
 
@@ -104,7 +103,7 @@ def backtest(points: Sequence[Point], name: str, unit: str, direction: str,
             hist = [sign * v for v in vals[:i + 1]]
             w = [1.0] * (i + 1) if hl is None else recency_weights(dates[:i + 1], hl)
             bounds = [sign * weighted_percentile(hist, w, p) for p in percentiles]
-            scores.append(score(vals[i], bounds, direction, floor_at_zero))
+            scores.append(score(vals[i], bounds, direction, "worse", floor_at_zero))
             tested.append({"date": dates[i], "value": vals[i], "bounds": bounds,
                            "score": scores[-1]})
             ahead.append(sign * vals[i + horizon])

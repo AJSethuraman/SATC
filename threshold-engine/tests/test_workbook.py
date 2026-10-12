@@ -316,3 +316,13 @@ def test_the_dials_current_row_counts_exactly_as_the_main_table(built, tmp_path,
     for now_row in (55, 63, 71):
         assert [vals["ASSESS!%s%d" % (c, now_row)] for c in "FGHIJ"] == main
         assert vals["ASSESS!K%d" % now_row] == "<- now"
+
+
+
+def test_too_little_history_kept_is_refused_in_the_workbook(built, tmp_path):
+    # Leave out everything but the last four quarters of cards: no four-quarter
+    # change has both ends kept, so there is no typical yearly move.
+    p, _, _ = built
+    vals = with_settings(p, tmp_path, "short.xlsx", {"B6": "1985Q4", "C6": "2025Q2"})
+    assert vals["THRESHOLDS!M5"] == "Refused: too little history kept for a typical yearly move"
+    assert vals["THRESHOLDS!K5"] == ""

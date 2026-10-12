@@ -35,7 +35,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from . import keybank_style as K
 from .backtest import backtest
-from .engine import VERSION
+from . import VERSION
 from .evidence import evidence
 from .glossary import TERMS
 from .series import Point
@@ -87,8 +87,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     loaded = []
     for label, path in series:
         pts = read_series(Path(path))
-        ev = evidence(pts, label, unit, direction, frequency, smoothing, 5,
-                      None, floor_at_zero, ())
+        ev = evidence(pts, label, unit, direction, frequency, smoothing, None, floor_at_zero)
         bt = backtest(pts, label, unit, direction, frequency, smoothing, percentiles,
                       horizon, min_history, floor_at_zero, half_lives)
         by_q = {quarter(p.date): p.value for p in pts}
@@ -209,11 +208,12 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         th.cell(r, 4, "=%s(%s)" % ("MAX" if higher else "MIN", kept))
         th.cell(r, 16, "=1.4826*MEDIAN(%s)" % levdev)                 # helper: the spread of levels
         hw, ls, hz = ("Settings!$%s$%d" % (c_, sr) for c_ in "HIJ")
-        th.cell(r, 13, ('=IF(AND({fz},B{r}<=0),"Refused: the median is at or below zero",'
+        th.cell(r, 13, ('=IF(ISERROR(C{r}),"Refused: too little history kept for a typical yearly move",'
+                        'IF(AND({fz},B{r}<=0),"Refused: the median is at or below zero",'
                         'IF({ls}<={hw},"Refused: Moderate-Low must begin further from the median than Moderate",'
                         'IF({sg}*(H{r}-G{r})<=0,"Refused: High must begin beyond Moderate-High\'s line",'
                         'IF({sg}*(D{r}-H{r})<0,"Refused: High would begin beyond the worst quarter kept",'
-                        'IF(AND({fz},E{r}<=0),"Refused: Moderate-Low would begin at or below zero","")))))')
+                        'IF(AND({fz},E{r}<=0),"Refused: Moderate-Low would begin at or below zero",""))))))')
                 .format(fz=fz, r=r, ls=ls, hw=hw, sg=sg))
         th.cell(r, 7, "=$B{r}+{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
         th.cell(r, 6, "=$B{r}-{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
