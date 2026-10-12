@@ -34,8 +34,9 @@ arithmetic checked by running it, and the workbook checked by opening it.
   `P9` (90+ days, still accruing) and `NA` (nonaccrual), for `CRCD`, `RERSFM`,
   `RELOC`, `CONOTH` and `AUTO`. Built as rates on the quarter-end balance, the
   TTM average of the four quarter-end rates, and "90+ including nonaccrual"
-  (P9 + NA). **Waiting on the bank:** which of these matches KeyBank's internal
-  90+ definition. Still to do: tie one figure to a filed Call Report (RC-N).
+  (P9 + NA). All of them are built; the bank picks per measure. The bank: *"It
+  depends and you don't need to know, if you're making all 3 it shouldn't
+  matter."* Still to do: tie one figure to a filed Call Report (RC-N).
 - [ ] **Templates for internal data on site.** The bank, 12 Oct: *"1 and 2 are
   good for v1."* One CSV layout plus a checklist per internal measure (WAPD,
   refreshed credit score as lower-is-worse, early payment default, and the
