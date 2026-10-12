@@ -39,6 +39,9 @@ recency is measured rather than assumed.
 - **candidate cutoffs** for a rating scale, plus the score the latest value
   takes on them
 
+**Start with `docs/WHAT-IT-DOES.md`** (what each part does and what proves it) and
+`docs/NEXT-GOAL.md` (what is left before it goes out).
+
 It exists to set the thresholds a separate scoring file uses. It does not
 score a portfolio. The design is in the *Consumer Risk Thresholds: Design
 Proposal*, section 3a.

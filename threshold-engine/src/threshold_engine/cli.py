@@ -1,4 +1,6 @@
-"""Run the engine on a CSV of dated values. Two commands:
+"""Run the engine on CSVs of dated values. Five commands: workbook (the
+deliverable: every product in one Excel file with live lines), profile,
+evidence, backtest and cutoffs. docs/WHAT-IT-DOES.md says what each does.
 
     python -m threshold_engine profile SERIES.csv --name ... --unit ...
         --direction ... --frequency ... --smoothing ...
