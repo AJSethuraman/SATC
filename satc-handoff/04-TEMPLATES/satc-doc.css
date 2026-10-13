@@ -86,11 +86,17 @@ h1,h2,h3,p{margin:0}
 
 /* ---------- ledger ---------- */
 /* Figures follow the house conventions in SATC Figures and Tables.html:
-   tabular numerals, right-aligned, total ruled above and double-ruled below. */
-.led{width:100%;border-collapse:collapse;margin-top:16pt}
+   tabular numerals, right-aligned, total ruled above and double-ruled below.
+   THE SPACING IS THE TIGHT SET, FOR EVERY DOCUMENT. It was first written as
+   an `.invoice`-only block, after a five-line invoice ran to two pages -- the
+   firm, 13 Oct 2026: "spacing is annoying on this" -- and then, the same day:
+   "scope that tightening to all documents." So the ledger, the amount-due box,
+   the detail strip, the notes and the sign-off below each carry the tighter
+   value in their own rule, once, and no document overrides it. */
+.led{width:100%;border-collapse:collapse;margin-top:11pt}
 .led th{font-family:var(--mono);font-size:7pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-2);font-weight:400;text-align:left;padding:0 0 6pt;border-bottom:0.8pt solid var(--navy)}
 .led th.r{text-align:right}
-.led td{font-size:9.5pt;padding:7pt 0;border-bottom:0.5pt solid var(--hairline-2);color:var(--ink);vertical-align:top}
+.led td{font-size:9.5pt;padding:4.5pt 0;border-bottom:0.5pt solid var(--hairline-2);color:var(--ink);vertical-align:top}
 .led td.r{text-align:right}
 .led .desc b{color:var(--navy);font-weight:600;display:block}
 .led .desc>span{font-size:8.5pt;color:var(--ink-2);display:block;margin-top:1pt}
@@ -102,12 +108,12 @@ h1,h2,h3,p{margin:0}
 .led .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:9.5pt;color:var(--navy);white-space:nowrap}
 .led tr.sub td{border-bottom:0.5pt solid var(--hairline);font-weight:500;color:var(--ink-2)}
 .led tr.credit .num{color:var(--oxblood)}
-.led tr.tot td{border-top:0.8pt solid var(--navy);border-bottom:2.5pt double var(--navy);padding:6pt 0;font-weight:600;color:var(--navy);font-size:11pt}
+.led tr.tot td{border-top:0.8pt solid var(--navy);border-bottom:2.5pt double var(--navy);padding:5pt 0;font-weight:600;color:var(--navy);font-size:11pt}
 .led tr.tot .num{font-size:11pt}
 .led tr.mark td{border-bottom:0;padding:5pt 0 2pt}
 
 /* ---------- amount-due emphasis (invoice) ---------- */
-.duebox{display:flex;justify-content:space-between;align-items:flex-end;gap:0.3in;margin-top:16pt;padding:10pt 12pt;background:rgba(19,36,55,0.04);border-left:2pt solid var(--navy)}
+.duebox{display:flex;justify-content:space-between;align-items:flex-end;gap:0.3in;margin-top:11pt;padding:8pt 12pt;background:rgba(19,36,55,0.04);border-left:2pt solid var(--navy)}
 .duebox .k{font-family:var(--mono);font-size:7pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-2)}
 .duebox .amt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:20pt;font-weight:500;color:var(--navy);line-height:1;letter-spacing:-0.02em;margin-top:5pt}
 .duebox .amt .f{font-size:0.92em}
@@ -122,7 +128,7 @@ h1,h2,h3,p{margin:0}
 .duebox .terms b{color:var(--navy);font-weight:600}
 
 /* ---------- three-up detail strip (payment, remit, contact) ---------- */
-.pay{display:flex;gap:0.34in;margin-top:18pt;padding-top:10pt;border-top:0.5pt solid var(--hairline);break-inside:avoid;page-break-inside:avoid}
+.pay{display:flex;gap:0.34in;margin-top:12pt;padding-top:8pt;border-top:0.5pt solid var(--hairline);break-inside:avoid;page-break-inside:avoid}
 .pay>div{flex:1}
 .paylink{margin-top:5pt;font-family:var(--mono);font-size:8pt;line-height:1.45;word-break:break-all}
 .paylink a{color:var(--navy);text-decoration:underline;text-underline-offset:2pt}
@@ -131,10 +137,10 @@ h1,h2,h3,p{margin:0}
 .pay b{color:var(--navy);font-weight:600}
 
 /* ---------- notes block ---------- */
-.notes{margin-top:18pt}
+.notes{margin-top:12pt}
 .notes .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);padding-bottom:5pt;border-bottom:0.5pt solid var(--hairline);margin-bottom:8pt}
 .notes ul{list-style:none;margin:0;padding:0}
-.notes li{font-size:9pt;line-height:1.5;padding:3pt 0 3pt 20pt;position:relative;color:var(--ink-2)}
+.notes li{font-size:9pt;line-height:1.5;padding:1.5pt 0 1.5pt 20pt;position:relative;color:var(--ink-2)}
 .notes li::before{content:"";position:absolute;left:0;top:8.5pt;width:8pt;height:0.8pt;background:var(--mute)}
 .notes li b{color:var(--navy);font-weight:600}
 
@@ -182,13 +188,8 @@ h1,h2,h3,p{margin:0}
    room, the section above comes with it, which is the right answer. Measured
    before and after by printing to PDF and counting characters on the last
    page. */
-.signoff{margin-top:16pt;break-inside:avoid;break-before:avoid;
+.signoff{margin-top:12pt;break-inside:avoid;break-before:avoid;
          page-break-before:avoid}
-/* A ledger document's sign-off follows a .notes block rather than the .sp
-   signature gap, and sits 20pt clear of it. Promoted here from the invoice and
-   the fee estimate, which had each declared it separately -- two documents
-   needing the same rule is the definition of one that belongs in this file. */
-.doc .signoff{margin-top:20pt}
 .signoff .sp{height:26pt}
 .signoff .nm{font-weight:600;color:var(--navy)}
 .signoff .ti{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);margin-top:3pt}
@@ -230,19 +231,3 @@ a:hover{color:var(--navy)}
 .scope li{font-size:9.5pt;line-height:1.5;margin-bottom:2pt}
 .scope li b{color:var(--navy);font-weight:600}
 .scope>p{font-size:8pt;color:var(--mute);margin:8pt 0 0}
-
-/* ---------- the invoice, on one page ---------- */
-/* SCOPED TO `.invoice` ON PURPOSE. This stylesheet dresses all ten client
-   documents; the engagement letter and the estimate keep their own rhythm.
-   A five-line invoice ran to two pages with page 2 mostly empty -- the firm,
-   13 Oct 2026: "spacing is annoying on this". Every rule here trims space
-   the invoice did not need; none of them touches another document. */
-.invoice .led{margin-top:11pt}
-.invoice .led td{padding:4.5pt 0}
-.invoice .led tr.tot td{padding:5pt 0}
-.invoice .duebox{margin-top:11pt;padding:8pt 12pt}
-.invoice .pay{margin-top:12pt;padding-top:8pt}
-.invoice .notes{margin-top:12pt}
-.invoice .notes li{padding:1.5pt 0 1.5pt 20pt}
-.invoice .signoff{margin-top:12pt}
-
