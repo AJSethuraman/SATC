@@ -20,7 +20,7 @@ The attached invoice has a line-item breakdown of your total bill.
 
 To file, we need two things from you:
 
-  1. Pay the invoice using the link or code above.
+  1. Pay the invoice using the link[[scan]] or code[[/scan]] above.
   2. Sign Form 8879 — the form that lets us file your return electronically. It comes in
      a separate email from Encyro, the service we use for signatures. To sign, Encyro
      texts a code to your phone; enter it when asked.

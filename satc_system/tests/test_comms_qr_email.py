@@ -32,6 +32,23 @@ def test_plain_text_never_shows_the_marker_or_promises_a_picture():
     assert "scan this code" not in body
     assert f"here: {LINK}." in body
     assert "[[scan]]" not in body and "[[noscan]]" not in body
+    # ALSO CODEX, second pass: step 1 still said "the link or code above" in
+    # a draft that has no code.
+    assert "code above" not in body
+    assert "using the link above" in body
+
+
+def test_the_html_body_still_points_at_the_code():
+    assert "using the link or code above" in _draft().html
+
+
+def test_the_app_declares_what_draws_the_code():
+    """ALSO CODEX: segno was declared only in client-documents, so a clean
+    install of this app could not draw the code at all."""
+    import pathlib
+    toml = (pathlib.Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    deps = toml.split("[project.optional-dependencies]")[0]
+    assert '"segno' in deps
 
 
 def test_the_html_body_embeds_the_code_and_keeps_the_firms_format():
