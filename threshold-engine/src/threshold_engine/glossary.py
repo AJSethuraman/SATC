@@ -124,7 +124,8 @@ TERMS = [
      "Whether a departure was worse or better than the path around it.",
      "The sign of the average distance from the straight line."),
     ("Backtest",
-     "How well a scale would have predicted what came next, using only history available at the time.",
+     "How well a scale would have predicted what came next, using only history available at the time: the "
+     "quarter scored and those before it, never one after.",
      "Every quarter is scored on lines built from the quarters before it, then compared with the value four "
      "quarters later."),
     ("Spearman",

@@ -71,13 +71,17 @@ def load(path: Union[str, Path]) -> List[dict]:
                     "short": bank["short"].strip(), "group": bank["group"],
                     "regional": bank["regional"]})
 
+    # Shorts are compared without capitals: the workbooks find a bank by
+    # Excel's MATCH, which ignores them, so 'Alpha' and 'alpha' are one bank.
     for key in ("cert", "short"):
         seen = set()
         for bank in out:
-            if bank[key] in seen:
-                raise ValueError("%s: %s %r appears more than once"
-                                 % (path, key, bank[key]))
-            seen.add(bank[key])
+            k = bank[key].casefold()
+            if k in seen:
+                raise ValueError("%s: %s %r appears more than once%s"
+                                 % (path, key, bank[key],
+                                    " (Excel ignores capitals)" if key == "short" else ""))
+            seen.add(k)
 
     selves = [b["short"] for b in out if b["group"] == "self"]
     if len(selves) != 1:

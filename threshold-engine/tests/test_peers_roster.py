@@ -79,3 +79,14 @@ def test_whitespace_around_cert_name_and_short_is_trimmed(tmp_path):
 def test_regionals_never_include_the_bank_itself(tmp_path):
     r = roster.load(write(tmp_path, changed(lambda b: b[8].update(regional=True))))
     assert "17534" not in {b["cert"] for b in roster.regionals(r)}
+
+
+def test_two_shorts_differing_only_in_capitals_are_one_bank_to_excel(tmp_path):
+    """The Codex review (13 Oct 2026): the peer workbooks find a bank by
+    Excel's MATCH, which ignores capitals, so 'Huntington' and 'HUNTINGTON'
+    would plot the first for both."""
+    doc = real()
+    peers_ = [b for b in doc["banks"] if b["group"] == "peer"]
+    peers_[1]["short"] = peers_[0]["short"].upper()
+    with pytest.raises(ValueError, match=r"appears more than once \(Excel ignores capitals\)"):
+        roster.load(write(tmp_path, doc))

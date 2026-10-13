@@ -239,16 +239,17 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                         'in order, and a reason",'
                         'IF(OR(NOT(ISNUMBER({hw})),{hw}<0),"Refused: Moderate\'s half-width must be 0 or more",'
                         'IF(OR(NOT(ISNUMBER({hz})),{hz}<=0),"Refused: High\'s z must be above 0",'
+                        'IF(NOT(ISNUMBER({ls})),"Refused: Moderate-Low\'s step must be a number",'
                         'IF(ISERROR(C{r}),"Refused: too little history kept for a typical yearly move",'
                         'IF(AND({fz},B{r}<=0),"Refused: the median is at or below zero",'
                         'IF({ls}<={hw},"Refused: Moderate-Low must begin further from the median than Moderate",'
                         'IF({sg}*(H{r}-G{r})<=0,"Refused: High must begin beyond Moderate-High\'s line",'
                         'IF({sg}*(D{r}-H{r})<0,"Refused: High would begin beyond the worst quarter kept",'
-                        'IF(AND({fz},E{r}<=0),"Refused: Moderate-Low would begin at or below zero",""))))))))))')
+                        'IF(AND({fz},E{r}<=0),"Refused: Moderate-Low would begin at or below zero","")))))))))))')
                 .format(fz=fz, r=r, ls=ls, hw=hw, hz=hz, sg=sg, lo1=bad_lo[0], lo2=bad_lo[1]))
         th.cell(r, 7, "=$B{r}+{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
         th.cell(r, 6, "=$B{r}-{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
-        th.cell(r, 5, "=$B{r}-{sg}*{ls}*$C{r}".format(r=r, sg=sg, ls=ls))
+        th.cell(r, 5, "=IF(ISNUMBER({ls}),$B{r}-{sg}*{ls}*$C{r},\"\")".format(r=r, sg=sg, ls=ls))
         th.cell(r, 8, "=$B{r}+{sg}*{hz}*$P{r}".format(r=r, sg=sg, hz=hz))
         lp = s["points"][-1]
         th.cell(r, 9, quarter(lp.date))
@@ -285,7 +286,13 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     ch.cell(lr, 1, "Draw cutoffs for").font = Font(bold=True)
     pick = ch.cell(lr, 2, loaded[0]["label"])
     pick.fill = INPUT
-    pv = DataValidation(type="list", formula1='"(none),%s"' % ",".join(s["label"] for s in loaded))
+    # The pickers read their choices from cells: an inline list longer than
+    # 255 characters is one Excel drops or repairs on open.
+    lists_col = 4 + n + 6
+    for i, v in enumerate(["(none)"] + [s["label"] for s in loaded]):
+        ch.cell(1 + i, lists_col, v)
+    ch.column_dimensions[L(lists_col)].hidden = True
+    pv = DataValidation(type="list", formula1="=$%s$1:$%s$%d" % (L(lists_col), L(lists_col), 1 + n))
     ch.add_data_validation(pv)
     pv.add(pick.coordinate)
     ch.column_dimensions["A"].width = 18
@@ -333,7 +340,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     asx.cell(4, 1, "Product").font = Font(bold=True)
     apick = asx.cell(4, 2, loaded[0]["label"])
     apick.fill = INPUT
-    av = DataValidation(type="list", formula1='"%s"' % ",".join(s["label"] for s in loaded))
+    av = DataValidation(type="list", formula1="=Chart!$A$2:$A$%d" % (1 + n))
     asx.add_data_validation(av)
     av.add(apick.coordinate)
     tr = "MATCH($B$4,Thresholds!$A$5:$A${e},0)".format(e=4 + n)
@@ -602,7 +609,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     n_scores = len(percentiles) + 1
     width = 4 + n_scores
     r = K.brand_banner(bts, 1, width, "How predictive would the scale have been?",
-                       "Each quarter scored on cutoffs at percentiles %s of only the history before it, then "
+                       "Each quarter scored on cutoffs at percentiles %s of the history up to and including it "
+                       "(nothing after it), then "
                        "compared with %d quarters later. Change after a score: the mean change over those "
                        "quarters, in the measure's own units. Overlapping windows: description, not proof."
                        % ("/".join("%g" % p for p in percentiles), horizon))

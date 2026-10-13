@@ -5,7 +5,7 @@ goes in, what comes out, and what proves it. Where something was run only as a
 one-off analysis rather than built into the tool, the last section says so.
 
 **State of the code:** branch `threshold-engine`, draft pull request #426.
-763 tests pass (13 Oct 2026). Nothing has been run on KeyBank's internal data.
+768 tests pass (13 Oct 2026). Nothing has been run on KeyBank's internal data.
 Nothing internal is in the repository, by rule.
 
 ## The job
@@ -41,7 +41,7 @@ bank changes a setting.
 | **Assess** | For one product picked from a list: the five score bands shaded behind every quarter, left-out periods as a dark strip under the chart, a count of quarters in each score, and a **dial** for each setting showing the lines and counts at other values | Yes |
 | **Chart** | Any combination of products on one scale, switched on and off, with one product's lines drawn | Yes |
 | **Evidence** | Per product: each spell above the median with its robust z, how often history was that bad, its deepest dip, and the temporary departures (stretches that left their path and came back) | No, written at build |
-| **Backtest** | How predictive a percentile scale would have been, rebuilt each quarter from only the history before it | No |
+| **Backtest** | How predictive a percentile scale would have been, rebuilt each quarter from the history up to and including that quarter, never after | No |
 | **Glossary** | 33 terms: what each means and exactly how it is calculated | No |
 | **Data** | Every series on one quarterly calendar, the quarters kept, and the working columns behind the live formulas | Yes |
 | **Run** | Engine version, build time, every setting's starting value, each input file's SHA-256 fingerprint, and the leave-out decisions and reasons, live | Partly |
@@ -86,7 +86,7 @@ kept (nothing could rate High); or Moderate-Low would begin at or below zero.
 |---|---|---|---|
 | `profile` | `profile.py` | Facts only, no judgement settings: distribution, every spell above the median, how often each upper percentile was reached, percentiles without the largest spell, where the latest value ranks | Consistent with the workbook |
 | `evidence` | `evidence.py` | The statistics behind each judgement (robust z of each spell, return periods, deepest dips, temporary departures), then the lines under three scenarios and at stated half-lives | On the workbook's scale (`scale.py`) since 12 Oct |
-| `backtest` | `backtest.py` | Rebuilds a percentile scale each quarter from only the history before it, and reports how well scores predicted the level and the change a stated number of quarters ahead, with and without recency weighting | Uses a percentile scale, not the workbook's |
+| `backtest` | `backtest.py` | Rebuilds a percentile scale each quarter from the history up to and including that quarter (never after), and reports how well scores predicted the level and the change a stated number of quarters ahead, with and without recency weighting | Uses a percentile scale, not the workbook's |
 
 ## The window (`launcher.py`, `Thresholds.pyw`)
 

@@ -564,3 +564,21 @@ message and the spec, which gave the old reason, now give the true one. The
 Assess axis change came after the full run began, so test_workbook.py and
 the template tests were rerun whole (113 and 99 passed). Suite: 762 in the
 full run plus the one fixed: 763.
+
+## 13 October 2026, the sixth Codex pass
+
+On 4903237, four, no P1, all real:
+- **Text in the Moderate-Low step** gave `#VALUE!` in the line, the score
+  and Assess. The Check column now refuses it ("must be a number") and the
+  line is blank, as the half-width and z already were.
+- **Two peer shorts differing only in capitals** ('Alpha', 'alpha') loaded,
+  and Excel's MATCH would plot the first for both. The roster refuses them.
+- **The product pickers were inline lists**, which Excel drops or repairs
+  past 255 characters. They read from cells now. Opened in Excel 16 with
+  four long labels (over 255 together): no repair, and picking one works.
+  (This also closes the 255-character item noted on 12 Oct.)
+- **The Backtest tab said "only the history before it"**; the history runs
+  up to and including the quarter scored, never after. Kept as built (a
+  quarter's own value is known when it is scored) and the words corrected
+  on the tab, in the Glossary and in WHAT-IT-DOES.
+Suite: 768 passed (18 min).

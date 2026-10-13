@@ -475,3 +475,36 @@ def test_the_assess_axis_labels_negative_numbers_only_when_they_are_real(built, 
           smoothing=1, floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5,
           on_the_line="worse", half_lives=(), percentiles=(50,), horizon=4, min_history=41)
     assert fmt(p) == "0.0"
+
+
+def test_text_in_the_moderate_low_step_is_refused_not_an_error(built, tmp_path):
+    p, _, _ = built
+    vals = with_settings(p, tmp_path, "ls.xlsx", {"I6": "one"})
+    assert vals["THRESHOLDS!M5"] == "Refused: Moderate-Low's step must be a number"
+    assert vals["THRESHOLDS!K5"] == "" and vals["THRESHOLDS!E5"] == ""
+
+
+def test_the_pickers_read_their_choices_from_cells_so_long_labels_survive(tmp_path):
+    """The Codex review (13 Oct 2026): an inline dropdown list over 255
+    characters is one Excel drops or repairs. The choices are cells now."""
+    labels = ["%s, a long product label to push the list well past Excel's limit" % k
+              for k in ("Cards", "Mortgage", "Home equity", "Other consumer")]
+    labels = [l.replace(",", "") for l in labels]
+    assert len(",".join(labels)) > 255
+    p = tmp_path / "long.xlsx"
+    build(p, list(zip(labels, [s for _, s in SERIES])), name="NCO", unit="%", direction="higher_is_worse",
+          frequency="quarterly", smoothing=1, floor_at_zero=True, moderate_halfwidth=0.5, low_step=1.0,
+          high_z=2.5, on_the_line="worse", half_lives=(), percentiles=(50,), horizon=4, min_history=41)
+    wb = load_workbook(p)
+    for sheet in ("Chart", "Assess"):
+        for dv in wb[sheet].data_validations.dataValidation:
+            assert len(dv.formula1) < 255 and not dv.formula1.startswith('"' + labels[0][:5]), (sheet, dv.formula1)
+    chart = wb["Chart"]
+    col = next(c for c in range(1, chart.max_column + 1) if chart.cell(1, c).value == "(none)")
+    assert [chart.cell(1 + i, col).value for i in range(5)] == ["(none)"] + labels
+    assert chart.column_dimensions[get_column_letter(col)].hidden
+
+
+def test_the_backtest_tab_says_the_scored_quarter_is_in_its_own_history(built):
+    banner = " ".join(str(c.value) for row in load_workbook(built[0])["Backtest"].iter_rows(max_row=3) for c in row if c.value)
+    assert "up to and including it" in banner and "history before it" not in banner
