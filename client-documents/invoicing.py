@@ -274,6 +274,12 @@ def _check_variance(out: dict, subtotal: float, estimate: str, currency: str):
     # bill. `consistency.py` has rounded to integer cents for exactly this
     # reason since it was written; this is the one place on the money path that
     # did not.
+    if round(subtotal * 100) > round(quoted * 100):
+        # THE ONE CASE THE "QUOTED SEPARATELY" NOTE IS TRUE OF. Billing above
+        # the estimate means work beyond it, and that is the only bill on which
+        # telling a client the extra was quoted first means anything. The firm,
+        # 13 Oct 2026: "quoted separately should only be there if required."
+        out["BilledAboveEstimate"] = True
     if round(subtotal * 100) > round(quoted * 100) and not out["VarianceNote"]:
         raise InvoiceError(
             f"this invoice bills {m.money(subtotal, currency)} against an "

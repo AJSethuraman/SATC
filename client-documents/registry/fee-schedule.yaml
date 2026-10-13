@@ -435,12 +435,12 @@ base:
 
       standard:
         label: "Standard"
-        # WAS "Schedules, but nothing that scales" -- internal shorthand for "has
-        # forms beyond the 1040, none that grow with volume", printed on every
-        # estimate and invoice. The firm, 13 Oct 2026: "absolutely not, what is
-        # this wording?" Now it says what the package covers, in words the
-        # client already has -- the same register as "You work for yourself".
-        detail: "Itemized deductions, investments or a side business"
+        # WAS "Schedules, but nothing that scales" -- internal shorthand printed
+        # on every estimate and invoice. The firm, 13 Oct 2026: "absolutely not,
+        # what is this wording?" and "it's literally part of our pricing? what's
+        # in standard". So it is the `covers:` list below, as the price page
+        # publishes it -- not new words.
+        detail: "Itemized deductions, one brokerage statement, up to two K-1s, one gig Schedule C"
         # Signed 25 Aug 2026. The workbook's own Schedule C price.
         # The first full one is inside Property & Business.
         amount: 325

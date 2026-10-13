@@ -414,6 +414,14 @@ flags:
     label: "A credit is being applied"
     source: invoice
     templates: [invoice]
+  - flag: BilledAboveEstimate
+    label: "The bill is above the estimate"
+    source: invoice
+    templates: [invoice]
+    notes: >-
+      Set by `invoicing.py` when the subtotal exceeds the estimate. Gates the
+      "quoted separately" note, which is only true -- and only needed -- on a
+      bill that went past what was quoted.
   - flag: EFiled
     inverse_of: PaperFiled
     label: "Filed electronically"
