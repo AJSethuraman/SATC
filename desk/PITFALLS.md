@@ -59,7 +59,7 @@ firm has never ruled between them. **Don't settle it yourself.**
 ## 2. The work went where the session could act, not where the goal was stuck
 
 **The goal**, in the firm's words: *"run a close from start to finish on
-Sarcia Services"* (8 September 2026).
+[the pilot client]"* (8 September 2026).
 
 **Where pilot 5 left it** (27 September, from the pilot's own ledger): 44 of
 485 rows done, 441 open, every open row with a named reason. Here is who held
@@ -84,9 +84,9 @@ lacked:
 - 90 new passages (1,167 to 1,257), carried on 758 lines of new desk code,
   180 of tools and 1,673 of tests.
 
-No run afterwards measured what it moved. The five Sarcia decisions behind 216
-of the firm's 228 rows went on the docket on 29 September. As of 13 October,
-**0 of 5 are answered**.
+No run afterwards measured what it moved. The five decisions about the
+client's books behind 216 of the firm's 228 rows went on the docket on 29
+September. As of 13 October, **0 of 5 are answered**.
 
 Rows done went *down* between pilots, **61 in pilot 4 and 44 in pilot 5**, and
 nobody established why.

@@ -28,8 +28,8 @@ These are the firm's words. Where you're unsure what to build, they decide it.
 > able to actually help the agent answer stuff"* — 29 September 2026
 
 > *"the final check for this for V1 will be to have Forge - Occam install the
-> new plugin we are designing and run a close from start to finish on Sarcia
-> Services [...] this implies that the skill is able to call for questions and
+> new plugin we are designing and run a close from start to finish on [the
+> pilot client] [...] this implies that the skill is able to call for questions and
 > receive back answers from Forge - Desk"* — 8 September 2026
 
 What that means, **in my reading** (the session that wrote this brief, not the
@@ -54,7 +54,7 @@ firm). Where it and the quotes above disagree, the quotes win:
 
 ## 2. The test that says it works
 
-**Forge-Occam runs a month-end close on Sarcia Services from start to finish,
+**Forge-Occam runs a month-end close for the pilot client from start to finish,
 asking Forge-Desk whatever it can't settle, with no human changing the desk
 between the start and the end of the run.**
 
@@ -75,9 +75,10 @@ them before you rely on it.
 - **For comparison:** the last run, pilot 5 on 27 September, answered 14 of 17
   questions with a citation. It needed hand-fixes to the desk before and after.
   Ledger: <https://claude.ai/artifact/MAKMAVLQ7iFqDeexSWH79H>.
-- **Sarcia** is a real client engagement (an LLC, a general contractor), and
-  this is its FY2025 close: 485 bank and card rows in Occam. Occam is the
-  firm's bookkeeping app; it lives in its own repository, not this one.
+- **The pilot client** is a real engagement, so its name and details are not
+  written here (section 3). Occam and the firm know which client it is. The run
+  is its FY2025 close: 485 bank and card rows in Occam. Occam is the firm's
+  bookkeeping app; it lives in its own repository, not this one.
 
 ## 3. The firm's standing rules for the desk
 
@@ -146,7 +147,7 @@ network, and a test proves that block can fail.
 
 ## 6. Open items that aren't the desk's
 
-Five decisions about **Sarcia's books** wait on the firm. They stand whatever
+Five decisions about **the pilot client's books** wait on the firm. They stand whatever
 happens to the desk:
 
 1. Let Occam post 27 rows its safety check stopped.
