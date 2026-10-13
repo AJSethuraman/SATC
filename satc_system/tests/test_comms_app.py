@@ -524,3 +524,24 @@ def test_no_module_anywhere_has_a_send_path():
                 func = node.func
                 name = getattr(func, "attr", None) or getattr(func, "id", None)
                 assert name not in banned_calls, f"{path.name} calls {name}"
+
+
+def test_the_outlook_button_hands_over_the_html_and_the_code(client, demo_client_id, monkeypatch):
+    """The route, not just the function: pressing "Open an Outlook draft" on the
+    invoice email passes the HTML body and the QR image along."""
+    from satc.comms.html import QR_CID
+    from satc.comms.render import QR_MARKER
+    from satc.intake import email_draft
+    LINK = "https://square.link/u/EXAMPLE1"
+    seen = {}
+
+    def _record(**kw):
+        seen.update(kw)
+        return email_draft.DraftResult(False, "unavailable", "recorded by the test")
+
+    monkeypatch.setattr(email_draft, "open_outlook_draft", _record)
+    client.post("/comms/outlook", data={
+        "client": demo_client_id, "template": "invoice_cover", "fill_payment_link": LINK})
+    assert 'src="cid:payqr"' in seen.get("html_body", "")
+    assert set(seen.get("inline_images", {})) == {QR_CID}
+    assert QR_MARKER not in seen["body"]

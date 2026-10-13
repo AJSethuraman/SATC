@@ -1091,3 +1091,27 @@ def test_a_reused_key_says_what_it_means(monkeypatch, approved):
     assert link is None and not steps[-1].ok
     assert "already made today" in steps[-1].detail
     assert "Nothing is wrong with the payment path" in steps[-1].detail
+
+
+def test_the_filing_note_is_only_on_a_bill_for_a_return():
+    """FOUND BY CODEX ON PR #430. "We file your return once your authorization
+    to file is signed and this invoice is paid" printed on every invoice,
+    including recurring bookkeeping bills that have no return to file."""
+    import merge
+    import settings as firm
+
+    base = json.loads((ROOT / "samples" / "tax-opening-package.json")
+                      .read_text(encoding="utf-8"))
+    fields = {**firm.firm_fields("2026"), **base,
+              "InvoiceNumber": "2027-0001", "InvoiceDate": "March 2, 2027",
+              "PeriodLabel": "March 2027", "Subtotal": "$300.00",
+              "AmountDue": "$300.00", "VarianceNote": "",
+              "PaymentInstruction": "Pay online by card.",
+              "BillingContactName": "A", "BillingContactEmail": "a@b.c"}
+    template = cli.TEMPLATE_DIR / cli.DOCUMENTS["invoice"][0]
+    note = "We file your return once"
+
+    tax = merge.render_file(template, {**fields, "ReturnScope": True}).html
+    books = merge.render_file(template, {**fields, "ReturnScope": False}).html
+    assert note in tax
+    assert note not in books

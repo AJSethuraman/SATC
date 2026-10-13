@@ -15,6 +15,7 @@ instead of breaking.
 from __future__ import annotations
 
 import os
+import tempfile
 import sys
 from dataclasses import dataclass
 from urllib.parse import quote
@@ -27,6 +28,10 @@ class DraftResult:
     ok: bool
     method: str           # "outlook" when a draft opened; "unavailable" otherwise
     detail: str = ""      # human-readable reason when ``ok`` is False
+
+
+#: MAPI property: the Content-ID an inline image is referred to by (``cid:...``).
+_PR_ATTACH_CONTENT_ID = "http://schemas.microsoft.com/mapi/proptag/0x3712001F"
 
 
 def outlook_available() -> bool:
@@ -43,6 +48,7 @@ def outlook_available() -> bool:
 def open_outlook_draft(
     *, to: str = "", subject: str = "", body: str = "",
     attachments: list[str] | None = None,
+    html_body: str = "", inline_images: dict[str, bytes] | None = None,
 ) -> DraftResult:
     """Pop a pre-filled Outlook compose window (Windows + classic Outlook).
 
@@ -68,7 +74,21 @@ def open_outlook_draft(
         if to:
             mail.To = to
         mail.Subject = subject
-        mail.Body = body
+        if html_body:
+            # AN HTML DRAFT CARRIES PICTURES -- the invoice email's payment QR
+            # code (found by Codex on PR #430: as plain text the client saw the
+            # marker, not a code). Each image is attached and given the
+            # Content-ID the HTML points at, which is what makes Outlook show
+            # it in the body instead of listing it as an attachment.
+            for cid, data in (inline_images or {}).items():
+                fd, tmp = tempfile.mkstemp(suffix=".png", prefix=f"{cid}-")
+                with os.fdopen(fd, "wb") as fh:
+                    fh.write(data)
+                att = mail.Attachments.Add(tmp, 1, 0)
+                att.PropertyAccessor.SetProperty(_PR_ATTACH_CONTENT_ID, cid)
+            mail.HTMLBody = html_body
+        else:
+            mail.Body = body
         for path in attachments:
             if path and os.path.exists(path):
                 mail.Attachments.Add(os.path.abspath(path))

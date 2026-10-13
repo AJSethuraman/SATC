@@ -110,7 +110,7 @@
   <ul>
     <span class="cond">[[IF BilledAboveEstimate]]</span><li>Anything outside the scope of the engagement letter was quoted separately before it began.</li><span class="cond end">[[END IF]]</span>
     <span class="cond">[[IF EstimateReference]]</span><li>Estimated at <b><span class="f">&lt;&lt;EstimateTotal&gt;&gt;</span></b> on <span class="f">&lt;&lt;EstimateDate&gt;&gt;</span>. <span class="f">&lt;&lt;VarianceNote&gt;&gt;</span></li><span class="cond end">[[END IF]]</span>
-    <li>We file your return once your authorization to file is signed and this invoice is paid.</li>
+    <span class="cond">[[IF ReturnScope]]</span><li>We file your return once your authorization to file is signed and this invoice is paid.</li><span class="cond end">[[END IF]]</span>
   </ul>
 </div>
 

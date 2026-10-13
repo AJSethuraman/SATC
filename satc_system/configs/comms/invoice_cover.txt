@@ -11,8 +11,8 @@ What we calculated:
 
 {jurisdiction_summary}
 
-You can pay your invoice amount of {fee_amount_text} here: {payment_link}, or scan this code
-with your phone camera:
+You can pay your invoice amount of {fee_amount_text} here: {payment_link}[[scan]], or scan this code
+with your phone camera:[[/scan]][[noscan]].[[/noscan]]
 
 [[ QR code ]]
 

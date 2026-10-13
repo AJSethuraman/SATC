@@ -269,3 +269,7 @@ a:hover{color:var(--navy)}
 .invoice .notes li{padding:1.5pt 0 1.5pt 20pt}
 .invoice .signoff{margin-top:12pt}
 
+/* A NOTES HEADING WITH NO NOTES UNDER IT. Every note on the invoice is now
+   conditional, so a bookkeeping bill billed at its estimate has none; the
+   heading alone reads like something was left out. */
+.notes:not(:has(li)){display:none}

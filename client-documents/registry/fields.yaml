@@ -509,7 +509,7 @@ flags:
   - flag: ReturnScope
     label: "This engagement prepares returns"
     source: engagement
-    templates: [fee-estimate]
+    templates: [fee-estimate, invoice]
     notes: >-
       Does this engagement prepare returns? Turns on the estimate's scope
       block, which repeats the engagement letter's four scope lines word for
@@ -517,6 +517,8 @@ flags:
       `interview.compose` from the federal form; never asked. A bookkeeping
       engagement is the case it is off for -- its scope is ScopeItems, a
       list, and it has no interview yet.
+      On the invoice it gates "We file your return once..." -- a bookkeeping
+      bill has no return to file (found by Codex on PR #430).
   - flag: EntityIssuesK1s
     label: "The entity issues Schedules K-1"
     source: engagement

@@ -395,7 +395,12 @@ def comms_outlook():
     from satc.intake.email_draft import mailto_url, open_outlook_draft
 
     to = STATE.client_email(client_id)
-    result = open_outlook_draft(to=to, subject=draft.subject, body=draft.body)
+    html_body, images = "", {}
+    if draft.html:
+        from satc.comms.html import QR_CID, qr_png
+        html_body, images = draft.html, {QR_CID: qr_png(draft.qr_url)}
+    result = open_outlook_draft(to=to, subject=draft.subject, body=draft.body,
+                                html_body=html_body, inline_images=images)
     return render_template(
         "draft_result.html", title="Client comms", result=result, what=draft.name.lower(),
         to=to, subject=draft.subject, body=draft.body,
