@@ -364,6 +364,14 @@ fields:
     label: "Taxpayer"
     source: interview
     templates: [records-release, tax-letter]
+  - field: PaymentQr
+    label: "The payment link as a QR code"
+    source: computed
+    templates: [invoice]
+    notes: >-
+      Drawn from `PaymentUrl` by `invoicing.payment_qr` when the invoice is
+      rendered, never stored -- a second copy of the link could disagree with
+      the first. Used only as an image source, inside the PaymentLink block.
   - field: VarianceNote
     label: "Why the bill differs from the estimate"
     source: invoice

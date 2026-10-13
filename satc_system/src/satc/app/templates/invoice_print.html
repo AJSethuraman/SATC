@@ -42,7 +42,6 @@
   <div class="head">
     <div>
       <div class="firm">{{ firm.firm_name or 'Invoice' }}</div>
-      {% if firm.firm_tagline %}<div class="tagline">{{ firm.firm_tagline }}</div>{% endif %}
       {% if firm.firm_email %}<div class="tagline">{{ firm.firm_email }}</div>{% endif %}
     </div>
     <div class="meta">

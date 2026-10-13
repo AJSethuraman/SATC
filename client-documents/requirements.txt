@@ -36,3 +36,4 @@ openpyxl
 # is the honest message and the wrong outcome: a check that never runs unless
 # the box was built for something else is not a check the suite owns.
 pypdf
+segno  # the payment link as a QR code on the invoice (invoicing.payment_qr). Pure Python, no dependencies.

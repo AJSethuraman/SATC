@@ -28,7 +28,6 @@
 firm:
   name: "Sethuraman Accounting, Tax & Consulting"
   short_name: "SATC"
-  tagline: "Complex work, made clear."
   email: "arjun_sethuraman@satcllp.com"
   # FULL NAME, matching `client-documents/registry/firm-settings.yaml`, which
   # signs every letter. The emails signed "A. Sethuraman" while the letters in
@@ -46,6 +45,10 @@ placeholders:
     label: "Salutation"
     source: state
     note: "First name for a person; the entity name for a business."
+  primary_first_name:
+    label: "Primary taxpayer's first name"
+    source: state
+    note: "First word of the client's legal name -- the first person on the return. Individuals only."
   client_id:
     label: "Client ID"
     source: state
@@ -169,9 +172,6 @@ placeholders:
     source: config
   firm_short_name:
     label: "Firm short name"
-    source: config
-  firm_tagline:
-    label: "Firm tagline"
     source: config
   firm_email:
     label: "Firm email"
@@ -304,6 +304,12 @@ templates:
       The note that accompanies an invoice. Fee prefills from the engagement
       record; the invoice number and payment instructions are typed until
       invoicing is folded into the app (BACKLOG §6).
+      SENT AS HTML, NOT PLAIN TEXT -- it carries the QR code. As the firm set
+      it in Outlook, 13 Oct 2026: body in Arial 12pt; "What we calculated" a
+      bulleted list; the two steps a numbered list; the signature block left
+      in Outlook's own smaller signature font. [[ QR code ]] marks where the
+      code goes. The password line describes Drake's default rule and never
+      carries a digit of anyone's number.
     subject: "Your {tax_year} return is ready to review, sign and pay"
     body_file: invoice_cover.txt
 

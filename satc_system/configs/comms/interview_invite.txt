@@ -18,6 +18,5 @@ Looking forward to it,
 {preparer_name}
 {firm_name}
 {firm_email}
-"{firm_tagline}"
 
 — DRAFT for preparer review. Not sent automatically. —

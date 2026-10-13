@@ -24,12 +24,22 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
 
 
-def test_every_part_of_the_standard_detail_is_something_standard_covers():
+def test_the_standard_line_names_each_thing_the_package_covers():
+    """Every item on the `covers:` list shows up on the line, by its key word."""
     std = pricing.load()["base"]["1040"]["tiers"]["standard"]
-    covers = " | ".join(_norm(c) for c in std["covers"])
-    parts = [_norm(p) for p in std["detail"].split(",")]
-    strays = [p for p in parts if p not in covers]
-    assert not strays, f"the Standard line names things its covers list does not: {strays}"
+    detail = _norm(std["detail"])
+    for key in ("itemized", "brokerage", "k 1", "gig"):
+        assert key in " ".join(_norm(c) for c in std["covers"]), f"{key!r} left the covers list -- re-read this test"
+        assert key in detail, f"the Standard line no longer mentions {key!r}"
+
+
+def test_the_standard_line_names_no_schedule():
+    """FOUND BY THE PACKAGE CHECK. "one gig Schedule C" printed on every
+    Standard return, so a client with no Schedule C was told the work included
+    one -- outside the engagement letter's scope. The package describes; the
+    schedules a return actually has are listed by the letter."""
+    std = pricing.load()["base"]["1040"]["tiers"]["standard"]
+    assert "schedule" not in std["detail"].lower()
 
 
 def test_the_quoted_separately_note_is_conditional():

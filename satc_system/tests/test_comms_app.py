@@ -7,6 +7,7 @@ state, surfaces what it couldn't fill, and never acquires a send path.
 
 from __future__ import annotations
 
+from satc.comms.context import bill_money
 import pytest
 
 from satc.app.server import create_app
@@ -78,7 +79,9 @@ def test_a_genuine_unknown_fact_is_still_marked(client, demo_client_id):
         "client": demo_client_id, "template": "invoice_cover"})
     body = resp.data.decode("utf-8")
     assert "fill in ]]" in body
-    assert "Invoice number" in body
+    # The email no longer carries the invoice number; the payment link is
+    # the fact a preparer still has to supply.
+    assert "Square payment link" in body
 
 
 def test_preparer_typed_values_are_merged_in(client, demo_client_id):
@@ -178,8 +181,8 @@ def test_the_draft_quotes_the_invoice_the_row_named_not_the_newest(
     _with_invoices(monkeypatch, [older, newer])
 
     body = _draft(client, demo_client_id, invoice=older.invoice_id)
-    assert f"${older.total:,.2f}" in body
-    assert f"${newer.total:,.2f}" not in body, (
+    assert bill_money(older.total) in body
+    assert bill_money(newer.total) not in body, (
         "the row said 2026-9001; the client must not read 2026-9002's amount")
 
 
@@ -191,7 +194,7 @@ def test_with_no_invoice_named_the_newest_is_still_what_a_cold_start_gets(
     _with_invoices(monkeypatch, [older, newer])
 
     body = _draft(client, demo_client_id)
-    assert f"${newer.total:,.2f}" in body
+    assert bill_money(newer.total) in body
 
 
 def test_an_invoice_that_is_not_on_file_refuses_instead_of_quoting_another(
@@ -205,7 +208,7 @@ def test_an_invoice_that_is_not_on_file_refuses_instead_of_quoting_another(
     body = _draft(client, demo_client_id, invoice="2026-0000")
     assert "No invoice 2026-0000 is on file" in body
     assert "Copy the draft" not in body
-    assert f"${newer.total:,.2f}" not in body
+    assert bill_money(newer.total) not in body
 
 
 def test_another_clients_invoice_is_refused_rather_than_merged(
@@ -358,7 +361,7 @@ def test_an_invoice_total_is_never_the_fee_this_engagement_agreed(
     _with_jobs(monkeypatch, [_job()])                     # fallback plan: no fee
     body = _letter(client)
 
-    assert f"${newer.total:,.2f}" not in body, "a bill stood where the agreed fee goes"
+    assert bill_money(newer.total) not in body, "a bill stood where the agreed fee goes"
     assert "Fee for the work described above: [[ Fee: fill in ]]" in body
 
 
@@ -372,7 +375,7 @@ def test_the_covering_email_still_quotes_the_bill_it_is_about(
     _with_jobs(monkeypatch, [_job()])
 
     body = _draft(client, ENGAGED)
-    assert f"${newer.total:,.2f}" in body
+    assert bill_money(newer.total) in body
 
 
 def test_a_document_out_of_scope_is_not_requested_in_the_letter(
@@ -458,7 +461,7 @@ def test_the_outlook_route_states_the_same_fee_the_screen_does(
         "client": ENGAGED, "template": "engagement_letter", "tax_year": str(YEAR)})
     body = resp.data.decode("utf-8")
     assert "Self-employment income and expenses" in body
-    assert f"${newer.total:,.2f}" not in body
+    assert bill_money(newer.total) not in body
     assert "[[ Fee: fill in ]]" in body
 
 

@@ -299,7 +299,7 @@ def test_firm_values_come_from_config(lib):
     assert firm["firm_name"] == "Sethuraman Accounting, Tax & Consulting"
     assert firm["preparer_name"]
     values = build_context(firm_values=firm)
-    assert values["firm_tagline"] == "Complex work, made clear."
+    assert "firm_tagline" not in values   # retired by the firm, 13 Oct 2026
 
 
 # --- the PII boundary --------------------------------------------------------

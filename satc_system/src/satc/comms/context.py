@@ -49,6 +49,23 @@ def _salutation(client_name: str, entity_type: str = "") -> str:
     return name.split()[0]
 
 
+def bill_money(amount) -> str:
+    """What a bill says it is for: whole dollars when it is, cents when not.
+
+    ``_money`` rounds to the dollar, which suits an estimate and is wrong for a
+    bill -- the invoice email's line-item list hid that, because the list
+    carried the cents. When the firm cut the list (13 Oct 2026), an invoice for
+    $275.08 would have been quoted in the email as "$275".
+    """
+    if amount is None:
+        return ""
+    try:
+        value = Decimal(str(amount))
+    except (ValueError, ArithmeticError):
+        return ""
+    return f"${value:,.0f}" if value == value.to_integral_value() else f"${value:,.2f}"
+
+
 def _bullets(lines) -> str:
     """A bullet block, or ``""`` when there's nothing to list."""
     items = [str(line).strip() for line in lines if str(line).strip()]
@@ -158,6 +175,13 @@ def build_context(
     if client_name:
         values["client_name"] = client_name
         values["salutation"] = _salutation(client_name, entity_type)
+        # THE PRIMARY TAXPAYER, BY NAME. `client_name` is the legal name of the
+        # first person on the return, so its first word is who Drake builds the
+        # PDF password from. The firm, 13 Oct 2026: "everything here needs to be
+        # made via the compilation of our data". A business has no first name;
+        # the key is left out and the draft shows the gap instead of guessing.
+        if not entity_type or entity_type == "INDIVIDUAL":
+            values["primary_first_name"] = client_name.split()[0]
     masked = str(getattr(public_client, "tin_masked", "") or "")
     if masked:
         values["tin_masked"] = masked
@@ -237,6 +261,6 @@ def build_context(
         values["invoice_number"] = invoice.invoice_id
         values["invoice_breakdown"] = invoice.summary_block()
         values["invoice_summary_sentence"] = invoice.client_sentence()
-        values["fee_amount_text"] = _money(invoice.total)
+        values["fee_amount_text"] = bill_money(invoice.total)
 
     return values

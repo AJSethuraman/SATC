@@ -1,6 +1,6 @@
 # SATC System — Tax Line-Sheet, Client Data Mart & Drake-Adjacent Tooling
 
-**Sethuraman Accounting, Tax & Consulting (SATC)** — *Complex work, made clear.*
+**Sethuraman Accounting, Tax & Consulting (SATC)**
 
 ## Get started (Windows)
 

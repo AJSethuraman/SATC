@@ -260,6 +260,20 @@ def _retitle(text: str, record: dict) -> str:
         text, count=1)
 
 
+def _derived(record: dict) -> dict:
+    """Fields that are pictures of other fields, made here so every door has them.
+
+    `PaymentQr` is the payment link drawn as a QR code. It was first made in
+    `invoicing.fold_in`, which only the `render` command passes through; an
+    invoice merged any other way carried a link and no code, and the merge
+    refused it. This function is the one place every rendering goes through.
+    """
+    if record.get("PaymentUrl") and "PaymentQr" not in record:
+        import invoicing
+        record = {**record, "PaymentQr": invoicing.payment_qr(record["PaymentUrl"])}
+    return record
+
+
 def render(template_html: str, record: dict, *, strict: bool = True,
            required_lists: "tuple[str, ...] | list[str]" = (),
            inverse_flags: "tuple[tuple[str, str], ...]" = ()) -> MergeResult:
@@ -285,6 +299,7 @@ def render(template_html: str, record: dict, *, strict: bool = True,
     not decided in this module.
     """
     text = _REF_BLOCK.sub("", template_html)     # screen-only docs never ship
+    record = _derived(record)
     text = _retitle(text, record)
 
     kept: set = set()
