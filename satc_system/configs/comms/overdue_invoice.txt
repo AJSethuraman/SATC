@@ -1,0 +1,14 @@
+Dear {salutation},
+
+Invoice {invoice_number} for {fee_amount_text} is past due. You can pay it here: {payment_link}
+
+If you've already paid, thank you, and please disregard this.
+
+If you have any questions, reach out.
+
+Thank you,
+{preparer_name}
+{firm_name}
+{firm_email}
+
+— DRAFT for preparer review. Not sent automatically. —

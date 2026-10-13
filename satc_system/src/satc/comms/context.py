@@ -244,7 +244,9 @@ def build_context(
 
     # -- the finished return --------------------------------------------------
     if returns:
-        values["jurisdiction_summary"] = "\n".join(_jurisdiction_lines(returns))
+        # BULLETED, so the HTML email renders it as a list (Codex on PR #430:
+        # bare lines ran together into one paragraph).
+        values["jurisdiction_summary"] = _bullets(_jurisdiction_lines(returns))
     net = _net_sentence(returns)
     if net:
         values["net_result_sentence"] = net
