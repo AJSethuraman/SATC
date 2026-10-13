@@ -5,9 +5,9 @@ Dear {salutation},
 Your {tax_year} return is prepared. A draft copy is attached for you to review before
 anything is filed.
 
-The draft copy is password-protected. The password is the first four letters of
+[[if primary_first_name]]The draft copy is password-protected. The password is the first four letters of
 {primary_first_name}'s last name and the last five digits of {primary_first_name}'s Social
-Security number, all lowercase.
+Security number, all lowercase.[[else]]{entity_password_note}[[/if]]
 
 What we calculated:
 

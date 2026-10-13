@@ -134,6 +134,13 @@ placeholders:
     label: "Invoice number"
     source: preparer
     note: "Until invoicing is folded in (BACKLOG §6), this is typed by hand."
+  entity_password_note:
+    label: "Password instructions (business returns)"
+    source: preparer
+    note: >-
+      Used only when the client is not an individual. The individual line is
+      built from the primary taxpayer's name; a business has none, and its
+      PDF password rule is the preparer's to state (found by Codex, PR #430).
   payment_link:
     label: "Square payment link"
     source: preparer

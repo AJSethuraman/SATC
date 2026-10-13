@@ -99,6 +99,7 @@ def test_outlook_gets_the_html_and_the_image_under_its_content_id(monkeypatch):
     class _Attachments:
         def Add(self, path, *args):
             calls.setdefault("attached", []).append(open(path, "rb").read())
+            calls.setdefault("paths", []).append(path)
             return _Att()
 
     class _Mail:
@@ -135,3 +136,26 @@ def test_outlook_gets_the_html_and_the_image_under_its_content_id(monkeypatch):
     assert calls["attached"] == [png]
     assert calls["props"][0][1] == QR_CID
     assert calls["props"][0][0].endswith("0x3712001F")
+    # ALSO CODEX: each draft left a QR image of a client's payment link in the
+    # temp folder. Outlook keeps its own copy; the file must be gone.
+    import os
+    assert calls["paths"] and not any(os.path.exists(p) for p in calls["paths"])
+
+
+def test_a_business_draft_asks_the_preparer_for_the_password_wording():
+    """FOUND BY CODEX ON PR #430. A business has no first name, so the
+    individual password line left a marker no screen field could clear."""
+    lib = load_library()
+    values = {"fee_amount_text": "$900", "payment_link": LINK, "salutation": "Acme Widgets LLC",
+              "tax_year": "2025", "jurisdiction_summary": "\u2022 Federal: nothing due"}
+    values.update(lib.firm_values())
+    d = render(lib.template("invoice_cover"), values, library=lib)
+    assert "primary_first_name" not in d.unfilled
+    assert "entity_password_note" in d.unfilled
+    assert "entity_password_note" in [p.name for p in lib.preparer_fields(lib.template("invoice_cover"))]
+
+
+def test_an_individual_draft_is_not_asked_for_it():
+    d = _draft()
+    assert "entity_password_note" not in d.unfilled
+    assert "Pat's last name" in d.body

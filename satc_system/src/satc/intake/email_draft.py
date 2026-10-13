@@ -68,6 +68,9 @@ def open_outlook_draft(
                            f"The Outlook integration (pywin32) isn't installed ({exc}).")
 
     pythoncom.CoInitialize()
+    # A QR image of a client's payment link, written only so Outlook can take a
+    # copy. Deleted on every path (found by Codex on PR #430: they piled up).
+    temp_files: list[str] = []
     try:
         outlook = win32com.client.Dispatch("Outlook.Application")
         mail = outlook.CreateItem(0)  # 0 = olMailItem
@@ -82,6 +85,7 @@ def open_outlook_draft(
             # it in the body instead of listing it as an attachment.
             for cid, data in (inline_images or {}).items():
                 fd, tmp = tempfile.mkstemp(suffix=".png", prefix=f"{cid}-")
+                temp_files.append(tmp)
                 with os.fdopen(fd, "wb") as fh:
                     fh.write(data)
                 att = mail.Attachments.Add(tmp, 1, 0)
@@ -98,6 +102,11 @@ def open_outlook_draft(
         return DraftResult(False, "unavailable",
                            f"Couldn't reach the Outlook desktop app ({exc}).")
     finally:
+        for tmp in temp_files:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
         try:
             pythoncom.CoUninitialize()
         except Exception:  # noqa: BLE001

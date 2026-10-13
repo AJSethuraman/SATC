@@ -175,7 +175,16 @@ def test_every_template_renders_with_nothing_on_file(lib):
         draft = render(tpl, {}, library=lib)
         assert draft.body.strip()
         assert "{" not in draft.subject
-        assert set(draft.unfilled) == set(placeholder_names(tpl))
+        # A slot inside an `[[if value]]` branch that is not taken is never
+        # asked for -- with nothing on file the `[[else]]` side renders (PR
+        # #430: a business gets a preparer field, not the first-name line).
+        # Every other slot is marked.
+        import re
+        untaken = set(re.findall(r"\[\[if [a-z0-9_]+\]\](.*?)\[\[else\]\]", tpl.body or "", re.S))
+        only_there = {n for block in untaken for n in re.findall(r"\{([a-z][a-z0-9_]*)\}", block)}
+        expected = set(placeholder_names(tpl)) - (only_there - set(re.findall(
+            r"\{([a-z][a-z0-9_]*)\}", re.sub(r"\[\[if [a-z0-9_]+\]\].*?\[\[else\]\]", "", tpl.body or "", flags=re.S))))
+        assert set(draft.unfilled) == expected
 
 
 # --- prefill from real state -------------------------------------------------

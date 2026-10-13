@@ -28,6 +28,9 @@ QR_MARKER = "[[ QR code ]]"
 # Text that reads true only beside the picture, and its plain-text stand-in.
 _SCAN = re.compile(r"\[\[scan\]\](.*?)\[\[/scan\]\]", re.S)
 _NOSCAN = re.compile(r"\[\[noscan\]\](.*?)\[\[/noscan\]\]", re.S)
+# Wording that applies only when a value is on file, with what to say otherwise.
+_IF_VALUE = re.compile(
+    r"\[\[if ([a-z][a-z0-9_]*)\]\](.*?)(?:\[\[else\]\](.*?))?\[\[/if\]\]", re.S)
 
 
 def placeholder_names(template: CommsTemplate) -> list[str]:
@@ -130,7 +133,14 @@ def render(template: CommsTemplate, values: dict[str, str], *,
         return unfilled_marker(name, label_for(name))
 
     subject = _SLOT.sub(substitute, template.subject or "")
-    merged = _SLOT.sub(substitute, template.body or "")
+    # Choose each [[if value]] branch BEFORE substituting, so a slot in the
+    # branch not taken is never reported as unfilled. Found by Codex on PR
+    # #430: a business has no first name, and the individual password line
+    # left every business draft with a marker no screen field could clear.
+    body_src = _IF_VALUE.sub(
+        lambda m: m.group(2) if _merge_text(values.get(m.group(1))) else (m.group(3) or ""),
+        template.body or "")
+    merged = _SLOT.sub(substitute, body_src)
     # THE QR CODE EXISTS ONLY WHERE A PICTURE CAN BE SHOWN. Found by Codex on
     # PR #430: the app opened Outlook drafts as plain text, so a client would
     # have read "[[ QR code ]]" under a sentence promising a code. The plain
