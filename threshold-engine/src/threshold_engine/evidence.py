@@ -108,7 +108,7 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
 
     def lines(kept, weights=None):
         r = scale_lines(kept, direction, scale["halfwidth"], scale["low_step"], scale["high_z"],
-                    floor_at_zero, weights)
+                        floor_at_zero, weights, periods_per_year=12 // STEP_MONTHS[frequency])
         latest = series[-1].value
         r["latest_score"] = (None if r["bounds"] is None else
                              scale_score(latest, r["bounds"], direction, scale["on_the_line"], floor_at_zero))

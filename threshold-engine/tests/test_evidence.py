@@ -234,3 +234,22 @@ def test_a_lower_is_worse_measure_reports_departures_in_its_own_units():
     score = ev(mirrored, direction="lower_is_worse", floor=False)["departures"][0]
     assert score["direction"] == cards["direction"]
     assert score["mean_departure"] == pytest.approx(-cards["mean_departure"])
+
+
+def test_monthly_evidence_measures_the_yearly_move_over_twelve_months():
+    """The Codex review (13 Oct 2026): monthly evidence used the quarterly
+    lag of four, so its "typical yearly move" was a four-month move."""
+    from threshold_engine.scale import typical_yearly_move
+    vals = [2 + math.sin(i / 5) + 0.01 * i * (i % 3) for i in range(60)]
+    pts = [Point("%d-%02d-28" % (2015 + i // 12, i % 12 + 1), v) for i, v in enumerate(vals)]
+    r = evidence(pts, "m", "%", "higher_is_worse", "monthly", 1, SCALE, True)
+    got = r["scenarios"][0]["typical_yearly_move"]
+    assert got == pytest.approx(typical_yearly_move(vals, 12))
+    assert got != pytest.approx(typical_yearly_move(vals, 4))
+    assert got == pytest.approx(scale(vals, "higher_is_worse", 0.5, 1.0, 2.5, True,
+                                      periods_per_year=12)["typical_yearly_move"])
+
+
+def test_the_scale_refuses_a_year_it_does_not_know():
+    with pytest.raises(ValueError, match="periods_per_year must be 4"):
+        scale([1.0] * 20, "higher_is_worse", 0.5, 1.0, 2.5, True, periods_per_year=6)

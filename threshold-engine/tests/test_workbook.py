@@ -328,3 +328,28 @@ def test_too_little_history_kept_is_refused_in_the_workbook(built, tmp_path):
     vals = with_settings(p, tmp_path, "short.xlsx", {"B6": "1985Q4", "C6": "2025Q2"})
     assert vals["THRESHOLDS!M5"] == "Refused: too little history kept for a typical yearly move"
     assert vals["THRESHOLDS!K5"] == ""
+
+
+def test_a_smoothed_workbook_builds_its_live_lines_from_the_smoothed_series(tmp_path):
+    """The Codex review (13 Oct 2026): with smoothing above 1 the evidence and
+    backtest used the smoothed series while Data, Thresholds and the score
+    used the raw file, so the workbook disagreed with itself. Now every line
+    is built from the smoothed values, and Excel's equal Python's on them."""
+    from threshold_engine.series import check, smooth
+    p = tmp_path / "s.xlsx"
+    make(p, smoothing=4)
+    vals = recalc(p)
+    da = load_workbook(p)["Data"]
+    for r, (label, path) in enumerate(SERIES, start=5):
+        sm = smooth(check(load(path.name), "quarterly"), 4)
+        k = [c.value for c in da[1]].index(label) + 1
+        col = {da.cell(i, 1).value: da.cell(i, k).value for i in range(2, da.max_row + 1)}
+        assert [col[quarter(x.date)] for x in sm] == pytest.approx([x.value for x in sm])
+        assert sum(v is not None for v in col.values()) == len(sm)
+        ref = scale([x.value for x in sm], "higher_is_worse", SET["halfwidth"], SET["low_step"], SET["high_z"], True)
+        got = row(vals, r)
+        assert got[0] == pytest.approx(ref["median"]) and got[3:7] == pytest.approx(ref["bounds"])
+        assert vals["THRESHOLDS!J%d" % r] == pytest.approx(sm[-1].value)
+        assert got[7] == score(sm[-1].value, ref["bounds"], "higher_is_worse", "worse", True)
+    run = [r for r in load_workbook(p)["Run"].iter_rows(values_only=True) if r and r[0] == "Smoothing"]
+    assert run and "trailing mean over 4 quarters" in run[0][1]

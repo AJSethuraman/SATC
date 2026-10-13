@@ -35,6 +35,7 @@ than built from whatever quarters sit next to each other in the data.
 from __future__ import annotations
 
 import csv
+import math
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -95,8 +96,16 @@ def _fields(product: str) -> Tuple[str, str, str]:
 
 
 def _num(row: dict, field: str) -> float:
-    """A filed amount; blank counts as 0, as the earlier build counted it."""
-    return float(row.get(field) or 0)
+    """A filed amount; blank counts as 0, as the earlier build counted it.
+    An amount that is not a finite number (``json.loads`` reads a bare NaN,
+    and ``float`` reads "inf") is refused, naming the bank, the quarter and the
+    field, as ``delinquency`` refuses it: kept, it would carry through every
+    rate and composite and be written to Excel as a blank."""
+    x = float(row.get(field) or 0)
+    if not math.isfinite(x):
+        raise ValueError("certificate %s, %s: %s is %r, not a number"
+                         % (row.get("CERT"), row.get("REPDTE"), field, row.get(field)))
+    return x
 
 
 def _at_least(name: str, value, low) -> None:

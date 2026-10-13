@@ -79,23 +79,31 @@ def level_spread(vals: Sequence[float]) -> float:
 
 def scale(kept: Sequence[Optional[float]], direction: str, halfwidth: float, low_step: float,
           high_z: float, floor_at_zero: bool,
-          weights: Optional[Sequence[float]] = None) -> dict:
+          weights: Optional[Sequence[float]] = None, periods_per_year: int = 4) -> dict:
     """Lines where scores 2, 3, 4 and 5 begin, or a refusal saying why not.
 
     ``weights``, one per entry of ``kept``, weight the median only (recency):
     the typical yearly move, the spread of levels and the worst kept stay at
-    full weight, so the scale does not forget what stress looked like."""
+    full weight, so the scale does not forget what stress looked like.
+
+    ``periods_per_year`` is the lag of the typical yearly move: 4 for a
+    quarterly series (the workbook's calendar), 12 for a monthly one. It
+    follows from the declared frequency and is not a judgement; a caller with
+    a monthly series must pass 12, or the move measures four months."""
+    if periods_per_year not in (4, 12):
+        raise ValueError("periods_per_year must be 4 (quarterly) or 12 (monthly), not %r" % (periods_per_year,))
     vals = [v for v in kept if v is not None]
     s = 1.0 if direction == "higher_is_worse" else -1.0
     med = (statistics.median(vals) if weights is None else
            weighted_median(vals, [w for v, w in zip(kept, weights) if v is not None]))
-    move = typical_yearly_move(kept)
+    move = typical_yearly_move(kept, periods_per_year)
     worst = max(vals) if s > 0 else min(vals)
     spread = level_spread(vals)
     out = {"median": med, "typical_yearly_move": move, "spread_of_levels": spread, "worst": worst,
            "bounds": None, "refused": None}
     if move is None:
-        out["refused"] = "too little history kept for a typical yearly move (two four-quarter changes needed)"
+        out["refused"] = ("too little history kept for a typical yearly move (two %s changes needed)"
+                          % ("four-quarter" if periods_per_year == 4 else "twelve-month"))
         return out
     b3 = med - s * halfwidth * move
     b4 = med + s * halfwidth * move

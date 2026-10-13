@@ -38,7 +38,7 @@ from .backtest import backtest
 from . import VERSION
 from .evidence import evidence
 from .glossary import TERMS
-from .series import LABEL_RULE, label_ok, read_csv
+from .series import LABEL_RULE, check, label_ok, read_csv, smooth
 
 RATINGS = ("Low", "Moderate-Low", "Moderate", "Moderate-High", "High")
 INPUT = PatternFill("solid", fgColor="FFF2CC")
@@ -96,10 +96,14 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         ev = evidence(pts, label, unit, direction, frequency, smoothing, None, floor_at_zero)
         bt = backtest(pts, label, unit, direction, frequency, smoothing, percentiles,
                       horizon, min_history, floor_at_zero, half_lives)
-        by_q = {quarter(p.date): p.value for p in pts}
-        if len(by_q) != len(pts):
+        # Smoothing comes before anything else, as the window says: the live
+        # lines, the latest value and the score are built from the series the
+        # evidence and backtest use, never from the raw file beside it.
+        used = smooth(check(pts, frequency), smoothing)
+        by_q = {quarter(p.date): p.value for p in used}
+        if len(by_q) != len(used):
             raise ValueError("%s has two observations in one quarter" % label)
-        loaded.append(dict(label=label, path=Path(path), points=pts, ev=ev, bt=bt, by_q=by_q))
+        loaded.append(dict(label=label, path=Path(path), raw=pts, points=used, ev=ev, bt=bt, by_q=by_q))
     grid = sorted(set().union(*(s["by_q"] for s in loaded)))
     n, first, last = len(loaded), 2, len(grid) + 1
 
@@ -591,6 +595,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     # ---- Run ----
     run.append(["threshold-engine", VERSION])
     run.append(["Built", dt.datetime.now().isoformat(timespec="seconds")])
+    if smoothing > 1:
+        run.append(["Smoothing", "The Data tab holds each file's values as a trailing mean over %d quarters, "
+                    "dated at the last; the first %d quarters of each file have no full window and are not "
+                    "used. Every line, score and test is built from those values." % (smoothing, smoothing - 1)])
     run.append(["Measure", name, unit, direction, "smoothing %d" % smoothing,
                 "floor at zero" if floor_at_zero else "no floor"])
     run.append(["Scale, starting values", "Moderate half-width %g" % moderate_halfwidth,
@@ -602,8 +610,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     run.append([])
     run.append(["Product", "File", "SHA-256", "Rows", "First", "Last"])
     for s in loaded:
-        run.append([s["label"], str(s["path"]), _sha(s["path"]), len(s["points"]),
-                    s["points"][0].date, s["points"][-1].date])
+        run.append([s["label"], str(s["path"]), _sha(s["path"]), len(s["raw"]),
+                    s["raw"][0].date, s["raw"][-1].date])
     run.append([])
     run.append(["As decided on Settings (live)", "Leave out", "Reason", "Second leave-out", "Reason"])
     for s in loaded:

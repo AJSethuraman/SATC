@@ -494,3 +494,21 @@ Two template tests had asserted that the build crashes (`KeyError`) on a bad
 header, to show why `template check` refuses it; the build now refuses in
 words, and they assert that instead. Suite: 714 passed in the full run, and
 the two rewritten tests pass, 716 in all.
+
+## 13 October 2026, the third Codex pass
+
+On 90995b5, three more, each in code written before today and each real:
+- **P1: smoothing above 1 split the workbook in two.** Evidence and backtest
+  used the smoothed series; Data, Thresholds, the latest value and the score
+  used the raw file. The workbook now builds every line from the smoothed
+  series (the window already said smoothing comes "before anything else");
+  the Run tab says so and keeps the file's own row count. A test with
+  smoothing 4 checks Excel's live lines against `scale()` on the smoothed
+  values. Every workbook built so far used smoothing 1, so none is affected.
+- **A NaN or "inf" charge-off in the cache** was kept and carried into every
+  rate. `books._num` refuses it, naming the bank, quarter and field, as
+  delinquency already did.
+- **Monthly evidence measured a four-month "yearly" move.** `scale()` takes
+  `periods_per_year` (4 or 12, from the declared frequency, not a judgement)
+  and evidence passes it. The workbook stays quarterly-only.
+Suite: 731 passed (14 min).

@@ -385,3 +385,16 @@ def test_write_series_comments_every_note_line_and_refuses_a_repeat(tmp_path):
         write_series([("2020Q1", 1.0), ("20200331", 2.0)], tmp_path / "d.csv", "x")
     with pytest.raises(ValueError):
         write_series([("2020Q1", None), ("2020-03-31", 2.0)], tmp_path / "d.csv", "x")
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), "inf", "-Infinity"])
+@pytest.mark.parametrize("field", ["DRCRCD", "CRCRCD", "LNCRCD"])
+def test_an_amount_that_is_not_a_number_is_refused_by_bank_quarter_and_field(bad, field):
+    """The Codex review (13 Oct 2026): a cached NaN or "inf" charge-off was
+    kept and carried into every rate; it is refused, as delinquency refuses it."""
+    data = card_data(EIGHT)
+    data["20200930"][0][field] = bad
+    with pytest.raises(ValueError, match=r"certificate 1, 20200930: %s is .*, not a number" % field):
+        bank_book(data, 1, "Credit card", JUMP, 0)
+    with pytest.raises(ValueError, match="not a number"):
+        industry(data, "Credit card")
