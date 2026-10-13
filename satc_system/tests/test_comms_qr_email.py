@@ -38,6 +38,16 @@ def test_plain_text_never_shows_the_marker_or_promises_a_picture():
     assert "using the link above" in body
 
 
+def test_the_draft_says_the_attachments_are_still_to_add():
+    """FOUND BY CODEX ON PR #430. The email tells the client the return and the
+    invoice are attached; the app attaches neither (the return comes out of
+    Drake). The draft opens with a reminder a preparer cannot miss, in the
+    same loud form as an unfilled field, in both the plain and HTML bodies."""
+    d = _draft()
+    assert d.body.lstrip().startswith("[[ Before sending: attach the draft return")
+    assert "Before sending: attach the draft return" in d.html
+
+
 def test_the_html_body_still_points_at_the_code():
     assert "using the link or code above" in _draft().html
 

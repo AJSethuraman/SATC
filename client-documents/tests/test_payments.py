@@ -1115,3 +1115,51 @@ def test_the_filing_note_is_only_on_a_bill_for_a_return():
     books = merge.render_file(template, {**fields, "ReturnScope": False}).html
     assert note in tax
     assert note not in books
+
+
+def _invoice_fields(**over):
+    import settings as firm
+    base = json.loads((ROOT / "samples" / "tax-opening-package.json").read_text(encoding="utf-8"))
+    fields = {**firm.firm_fields("2026"), **base,
+              "InvoiceNumber": "2027-0001", "InvoiceDate": "March 2, 2027",
+              "PeriodLabel": "2026 tax year", "Subtotal": "$470.00",
+              "AmountDue": "$470.00", "EstimateTotal": "$470.00", "VarianceNote": "",
+              "PaymentInstruction": "Pay online by card.",
+              "BillingContactName": "A", "BillingContactEmail": "a@b.c", "ReturnScope": True}
+    fields.update(over)
+    return fields
+
+
+def test_a_credited_bill_keeps_its_subtotal_credit_and_total():
+    """FOUND BY CODEX ON PR #430. The subtotal, credit and total rows were made
+    conditional on `CreditsApplied`, which `build()` never set -- so every
+    credited invoice showed only an unexplained lower amount."""
+    import merge
+    import test_invoicing as ti
+    inv = ti._build(credits=[{"label": "Retainer held", "detail": "paid 1 Feb", "amount": 200}])
+    assert inv.get("CreditsApplied") is True
+    template = cli.TEMPLATE_DIR / cli.DOCUMENTS["invoice"][0]
+    html = merge.render_file(template, _invoice_fields(**inv)).html
+    assert "Subtotal" in html and "Retainer held" in html and inv["CreditAmount"] in html
+
+
+def test_a_credited_bill_written_before_the_flag_still_shows_it():
+    import merge
+    template = cli.TEMPLATE_DIR / cli.DOCUMENTS["invoice"][0]
+    html = merge.render_file(template, _invoice_fields(
+        CreditLabel="Retainer held", CreditDetail="paid 1 Feb", CreditAmount="\u2212$200.00",
+        AmountDue="$270.00")).html
+    assert "Retainer held" in html and "Subtotal" in html
+
+
+def test_an_over_estimate_bill_on_disk_keeps_its_scope_note():
+    """ALSO CODEX. A bill written before `BilledAboveEstimate` existed has the
+    figures but not the flag; re-rendering it must not drop the note."""
+    import merge
+    template = cli.TEMPLATE_DIR / cli.DOCUMENTS["invoice"][0]
+    over = merge.render_file(template, _invoice_fields(
+        Subtotal="$560.00", AmountDue="$560.00", EstimateTotal="$470.00",
+        VarianceNote="A second state return was added.")).html
+    at = merge.render_file(template, _invoice_fields()).html
+    assert "quoted separately" in over
+    assert "quoted separately" not in at

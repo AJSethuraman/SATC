@@ -244,6 +244,7 @@ def build(record: dict, *, number: str, billed: str, today: date | None = None,
         out["CreditLabel"] = "; ".join(c.get("label", "Credit") for c in credits)
         out["CreditDetail"] = "; ".join(c.get("detail", "") for c in credits).strip("; ")
         out["CreditAmount"] = MINUS + m.money(credit_total, currency)
+        out["CreditsApplied"] = True
 
     _check_variance(out, subtotal, estimate, currency)
     return out

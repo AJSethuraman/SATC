@@ -271,6 +271,19 @@ def _derived(record: dict) -> dict:
     if record.get("PaymentUrl") and "PaymentQr" not in record:
         import invoicing
         record = {**record, "PaymentQr": invoicing.payment_qr(record["PaymentUrl"])}
+    # TWO FLAGS AN OLDER BILL ON DISK DOES NOT CARRY. Found by Codex on PR
+    # #430: the invoice's subtotal/credit rows and its "quoted separately" note
+    # were made conditional on these, and `build()` set neither for credits
+    # (it does now) while bills written before the change have no overage flag.
+    # Derived from what the bill does carry, so a re-render prints what the
+    # bill printed before.
+    if record.get("CreditAmount") and "CreditsApplied" not in record:
+        record = {**record, "CreditsApplied": True}
+    if "BilledAboveEstimate" not in record and record.get("Subtotal") and record.get("EstimateTotal"):
+        import money
+        billed, quoted = money.parse(record["Subtotal"]), money.parse(record["EstimateTotal"])
+        if billed is not None and quoted is not None and round(billed * 100) > round(quoted * 100):
+            record = {**record, "BilledAboveEstimate": True}
     return record
 
 
