@@ -186,3 +186,16 @@ def test_an_overdue_reminder_asks_for_no_signature_and_names_no_draft():
     assert "8879" not in tpl.body and "draft copy" not in tpl.body.lower()
     assert "{payment_link}" in tpl.body and "{invoice_number}" in tpl.subject + tpl.body
 
+
+def test_a_business_is_not_told_to_sign_an_individual_form():
+    """FOUND BY CODEX ON PR #430. Entities sign 8879-CORP or 8879-PE, and have
+    no taxpayer refund or direct deposit to check; the individual wording is
+    kept for individuals only."""
+    lib = load_library()
+    biz = {"fee_amount_text": "$900", "payment_link": LINK, "salutation": "Acme Widgets LLC",
+           "tax_year": "2025", "jurisdiction_summary": "\u2022 Federal: nothing due"}
+    biz.update(lib.firm_values())
+    body = render(lib.template("invoice_cover"), biz, library=lib).body
+    assert "8879" not in body and "direct deposit" not in body
+    assert "8879" in _draft().body
+
