@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — re-issue email (template)</title>
+</head>
+<body>
+
+<div class="email" style="font-family:Arial,sans-serif;font-size:12pt;color:#242C36">
+
+<div class="subject">Your updated <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> returns, please review and sign</div>
+
+<p>Hi <span class="f">&lt;&lt;ContactFirstName&gt;&gt;</span>,</p>
+
+<p><span class="cond">[[IF RaisedAndRight]]</span>Thanks for catching <span class="f">&lt;&lt;IssueRaised&gt;&gt;</span>. You were reading it right, and I've fixed it. <span class="cond end">[[END IF]]</span><span class="cond">[[IF RaisedAndNotRight]]</span>Thanks for asking about <span class="f">&lt;&lt;IssueRaised&gt;&gt;</span>. I checked it, and the earlier return had that right. <span class="cond end">[[END IF]]</span><span class="cond">[[IF NotRaised]]</span>I've made changes to your <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> returns. <span class="cond end">[[END IF]]</span><span class="cond">[[IF AlsoUpdated]]</span>While I was in there I also made the other updates listed below. <span class="cond end">[[END IF]]</span><span data-encl="attachment:revised-returns">I've attached a revised set of returns.</span> Please use these and set the earlier copies aside.</p>
+
+<p><span data-encl="attachment:revised-returns">The attached returns are password protected, with the same password as the first set.</span></p>
+
+<p><b>What changed</b></p>
+
+<span class="cond">[[IF FreehandExplanation]]</span><p><span class="f">&lt;&lt;FreehandNote&gt;&gt;</span></p><span class="cond end">[[END IF]]</span>
+
+<ul>
+  <li class="mark"><span class="cond">[[EACH ResultChanges]]</span></li>
+  <li><b><span class="f">&lt;&lt;Item.Return&gt;&gt;</span></b>: <span class="f">&lt;&lt;Item.Reason&gt;&gt;</span> Before: <span class="f">&lt;&lt;Item.Before&gt;&gt;</span>. Now: <span class="f">&lt;&lt;Item.After&gt;&gt;</span>.</li>
+  <li class="mark"><span class="cond">[[END EACH]]</span></li>
+  <li class="mark"><span class="cond">[[EACH OtherChanges]]</span></li>
+  <li><b><span class="f">&lt;&lt;Item.Label&gt;&gt;</span></b>: <span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></li>
+  <li class="mark"><span class="cond">[[END EACH]]</span></li>
+</ul>
+
+<p>Below is the updated summary of your <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> tax year:</p>
+
+<ul>
+  <li class="mark"><span class="cond">[[EACH ReturnsDelivered]]</span></li>
+  <li><span class="f">&lt;&lt;Item.Return&gt;&gt;</span>: <span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></li>
+  <li class="mark"><span class="cond">[[END EACH]]</span></li>
+</ul>
+
+<p><b>What I need from you</b></p>
+
+<ul>
+  <span class="cond">[[IF ResignBoth]]</span><li>Please both sign the new e-file authorization. Even if you signed the earlier one, these changes are large enough that the IRS needs a new signature. I can't file until it's back, and everything is due <span class="f">&lt;&lt;FilingDeadline&gt;&gt;</span>.</li><span class="cond end">[[END IF]]</span>
+  <span class="cond">[[IF ResignOne]]</span><li>Please sign the new e-file authorization. Even if you signed the earlier one, these changes are large enough that the IRS needs a new signature. I can't file until it's back, and everything is due <span class="f">&lt;&lt;FilingDeadline&gt;&gt;</span>.</li><span class="cond end">[[END IF]]</span>
+  <span class="cond">[[IF SignIfNotYetBoth]]</span><li>If you haven't signed the e-file authorization yet, please both sign it. If you already have, you don't need to sign again. I can't file until it's back, and everything is due <span class="f">&lt;&lt;FilingDeadline&gt;&gt;</span>.</li><span class="cond end">[[END IF]]</span>
+  <span class="cond">[[IF SignIfNotYetOne]]</span><li>If you haven't signed the e-file authorization yet, please sign it. If you already have, you don't need to sign again. I can't file until it's back, and everything is due <span class="f">&lt;&lt;FilingDeadline&gt;&gt;</span>.</li><span class="cond end">[[END IF]]</span>
+  <li class="mark"><span class="cond">[[EACH ChecksDue]]</span></li>
+  <li>Please mail the <span class="f">&lt;&lt;Item.Amount&gt;&gt;</span> check to <span class="f">&lt;&lt;Item.PayTo&gt;&gt;</span> by <span class="f">&lt;&lt;Item.DueDate&gt;&gt;</span>. Signing the authorization doesn't send the payment.</li>
+  <li class="mark"><span class="cond">[[END EACH]]</span></li>
+  <li class="mark"><span class="cond">[[EACH WithdrawalsDue]]</span></li>
+  <li>The <span class="f">&lt;&lt;Item.Amount&gt;&gt;</span> owed to <span class="f">&lt;&lt;Item.PayTo&gt;&gt;</span> comes out of the account ending <span class="f">&lt;&lt;Item.Account&gt;&gt;</span> on <span class="f">&lt;&lt;Item.DueDate&gt;&gt;</span>. Please make sure it's there.</li>
+  <li class="mark"><span class="cond">[[END EACH]]</span></li>
+</ul>
+
+<p>If anything looks off, let me know before you sign and we'll go through it.</p>
+
+<p>Thanks,<br/><span class="f">&lt;&lt;PreparerFirstName&gt;&gt;</span></p>
+
+</div>
+
+<div class="ref">
+  <h3>Merge fields</h3>
+  <p>The email sent when a return changes after it has gone to the client, with the revised returns attached. The follow-up to the delivery letter. Built by <code>python cli.py reissue</code>, which compares the earlier results summary with the new one and writes an unsent <code>.eml</code>. Full field list in <code>FIELDS - Re-issue Email.md</code>.</p>
+  <p><b>6 fields + 5 repeating lists + 9 flags.</b></p>
+  <h3>Deliberately not here</h3>
+  <ol>
+    <li><b>No attachments inside the email.</b> The preparer attaches the revised returns; the email refers to them.</li>
+    <li><b>No fee.</b> The invoice owns it.</li>
+    <li><b>No masthead or legal footer.</b> This is an email from a person, signed with a first name, like the firm's other client emails.</li>
+    <li><b>No password.</b> The email says the password is unchanged and never carries any part of it.</li>
+  </ol>
+</div>
+
+</body>
+</html>

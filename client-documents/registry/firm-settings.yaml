@@ -41,8 +41,10 @@ firm:
   jurisdiction: "Ohio"
 
 preparer:
-  # Fields: PreparerName, PreparerTitle, PreparerEmail.
+  # Fields: PreparerName, PreparerFirstName, PreparerTitle, PreparerEmail.
   name: "Arjun Sethuraman, CPA"
+  # PreparerFirstName: the sign-off on client emails ("Thanks," then this).
+  first_name: "Arjun"
   title: "Managing Partner"
   email: "arjun_sethuraman@satcllp.com"
   # Held, not printed. Decided 26 Aug 2026: no phone number goes on a client
