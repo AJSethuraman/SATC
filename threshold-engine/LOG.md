@@ -596,3 +596,19 @@ consequences, answered "Agree" to both:
   containing main. This skips the merge rule's Codex step, by the firm's
   decision. #426 merged as a26a20a. **Open:** run Codex on main when its
   limit resets, and fix what it finds in a new PR.
+
+## 13 October 2026, Codex on #426 after the merge
+
+Its quota back, Codex reviewed 604e92d (asked for on the merged #426). Two
+P2, both real:
+- **The Assess dials multiplied a setting that was text** and showed
+  `#VALUE!`, while the Thresholds tab refused it. Codex named the low step;
+  the half-width and z did the same. A dial row is now blank when a setting
+  it uses is not a number, and its last column says "refused: a setting is
+  not a number". Opened in Excel 16 with text in each of the three: no
+  error on Assess, 11 rows refused (the 4 that put their own value in place
+  of the text still compute), and the numbers return when it is restored.
+- **The Backtest glossary entry** said the scored quarter is included and,
+  one sentence on, "built from the quarters before it". Both now say up to
+  and including the quarter scored.
+Suite: 772 passed (18 min).
