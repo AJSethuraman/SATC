@@ -11,14 +11,17 @@ Overall: {net_result_sentence}
 
 Next steps:
   1. Review the enclosed return.
-  2. Sign Form 8879 (e-file authorization) for each jurisdiction we are e-filing — we cannot
-     transmit until we receive your signed 8879.
+  2. Sign Form 8879 — the form that lets us file your return electronically. It comes in
+     a separate email from Encyro, the service we use for signatures. To sign, Encyro texts
+     a code to your phone; enter it when asked. Filing jointly? Each of you gets your own
+     email and your own text. Reply if your mobile number has changed. We can't file until
+     it's signed.
   3. Pay any balances due by the dates above (payment options are listed per jurisdiction).
   4. Reach out with any questions — we are glad to walk through anything.
 
 We appreciate your business.
 
-Warm regards,
+Thank you,
 {preparer_name}
 Sethuraman Accounting, Tax & Consulting
 "Complex work, made clear."

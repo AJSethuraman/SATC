@@ -30,7 +30,11 @@ firm:
   short_name: "SATC"
   tagline: "Complex work, made clear."
   email: "arjun_sethuraman@satcllp.com"
-  preparer_name: "A. Sethuraman"
+  # FULL NAME, matching `client-documents/registry/firm-settings.yaml`, which
+  # signs every letter. The emails signed "A. Sethuraman" while the letters in
+  # the same package signed "Arjun Sethuraman, CPA" -- two projects, two names,
+  # nothing comparing them. The firm, 13 Oct 2026: "full name too".
+  preparer_name: "Arjun Sethuraman, CPA"
 
 placeholders:
   # -- who the client is (vault-side; masked identifiers only) ---------------
@@ -127,6 +131,14 @@ placeholders:
     label: "Invoice number"
     source: preparer
     note: "Until invoicing is folded in (BACKLOG §6), this is typed by hand."
+  payment_link:
+    label: "Square payment link"
+    source: preparer
+    note: >-
+      In the email itself, not left on the invoice. The firm, 13 Oct 2026: "the
+      email should include the link as well. why do they have to go to the
+      invoice to pay?" `cli.py invoice --link` creates it in client-documents;
+      pasted here until invoicing is folded in (BACKLOG §6).
   payment_instructions:
     label: "How to pay"
     source: firm
@@ -285,14 +297,14 @@ templates:
     body_file: signature_request.txt
 
   - key: invoice_cover
-    name: "Invoice cover email"
+    name: "Draft return, invoice and signing email"
     kind: email
     stage: "4 · Billing"
     description: >-
       The note that accompanies an invoice. Fee prefills from the engagement
       record; the invoice number and payment instructions are typed until
       invoicing is folded into the app (BACKLOG §6).
-    subject: "Invoice {invoice_number} for your {tax_year} tax preparation"
+    subject: "Your {tax_year} return is ready to review, sign and pay"
     body_file: invoice_cover.txt
 
   - key: season_thanks
