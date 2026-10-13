@@ -59,7 +59,12 @@ Each is reported on two bases:
   `min_book` and the exemption are required arguments, as in `bank_book`.
 - **Composite** over a set of certs: the summed numerators over the summed
   balances of the banks kept that quarter, with the number of banks in. It is
-  `None` below `min_banks`, which is required.
+  `None` below `min_banks`, which is required. Its four-quarter average at i
+  is the mean of the four composite quarter-end rates i−3..i, each recomputed
+  without the banks whose own four-quarter average at i the jump blanked, so
+  the composite and the band on that basis hold the same banks. Decided by
+  the bank on 12 Oct 2026 (LOG.md), which also asked that everything left out,
+  and why, be listed on the Glossary tab ("Left out, and why").
 - **Band:** percentiles 10/25/75/90 of the kept bank rates, using
   `profile.percentile`.
 - **Industry:** every filer in `data`, summed numerators over summed balances

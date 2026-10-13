@@ -715,12 +715,12 @@ def test_a_delinquency_csv_is_the_module_over_the_cache(dq_built):
                 assert ruled and "minimum book 1,000,000" in ruled[0] and "KeyBank exempt" in ruled[0]
                 assert "jump 0.25" in ruled[0] and "never a quarter-end rate" in ruled[0]
             else:
-                # The composite does not take the jump; its note must not say it does.
+                # The composite's average leaves out the banks the jump blanked; the note says so.
                 assert ruled and "minimum book 1,000,000" in ruled[0] and "KeyBank exempt" in ruled[0]
-                assert "The jump 0.25 is not applied to the composite" in ruled[0]
-                assert "blanks a four-quarter average when" not in ruled[0]
-            jumped = [n for n in notes if "the jump blanked their own" in n or "had its own" in n]
-            assert len(jumped) == (who == "pack-composite" and basis == "four-quarter average"), (who, basis)
+                assert "The jump 0.25 never touches a quarter-end rate" in ruled[0]
+                assert "each without the banks whose own four-quarter average the jump blanked" in ruled[0]
+            left = [n for n in notes if n.startswith(("Left out of this average", "No bank was left out"))]
+            assert len(left) == (who == "pack-composite" and basis == "four-quarter average"), (who, basis)
     # The quarter-end rate is the filing's own ratio, and the average is not a copy of it.
     _, qe = read_csv(s / "credit-card_keybank_delinquency-90-plus-accruing_quarter-end.csv")
     _, av = read_csv(s / "credit-card_keybank_delinquency-90-plus-accruing_four-quarter-average.csv")
@@ -963,23 +963,24 @@ def test_every_delinquency_csv_follows_the_stated_rules(dq_odd):
                         assert any("10 regionals" in n for n in notes)
                         rule = next(n for n in notes if n.startswith("Rules:"))
                         assert "minimum book 5,000,000" in rule and "at least 6 banks" in rule
-                        assert "exempt" not in rule and "jump 0.05 is not applied" in rule
+                        assert "exempt" not in rule and "jump 0.05 never touches" in rule
                     if who == "pack-composite" and basis == "four-quarter average":
                         written = {q for q, _ in tail}
-                        want = {c for r in comp if r["q"] in written for c in r["avg4_jumped"]}
-                        line = next(n for n in notes if "the jump blanked their own" in n
-                                    or "had its own" in n)
+                        want = {c for r in comp if r["q"] in written for c in r["avg4_left_out"]}
+                        line = next(n for n in notes if n.startswith(("Left out of this average",
+                                                                      "No bank was left out")))
                         assert set(re.findall(r"\((\d+)\)", line)) == want, (p, m, line)
     assert compared > 20 and absent > 0
 
 
-def test_the_composite_average_names_the_banks_the_jump_blanked(dq_built):
-    """The composite's four-quarter average keeps banks whose own average the
-    jump blanked (an open rule); its notes name them, by short name and
-    certificate, with the quarters, so it is shown rather than hidden."""
+def test_the_composite_average_names_the_banks_it_left_out(dq_built):
+    """The composite's four-quarter average leaves out banks whose own average
+    the jump blanked (the bank's decision, 12 Oct 2026); its notes name them,
+    by short name and certificate, with the quarters, so what was left out is
+    shown rather than hidden."""
     notes, _ = read_csv(dq_built["series"] / "credit-card_pack-composite_delinquency-30-89_four-quarter-average.csv")
-    line = next(n for n in notes if n.startswith("Inside this average although the jump blanked"))
-    assert "open, and the bank's to decide" in line
+    line = next(n for n in notes if n.startswith("Left out of this average because the jump blanked"))
+    assert "usually an acquisition" in line
     assert re.search(r"[A-Za-z][^;(]* \(\d+\) \d{4}Q[1-4]", line)
 
 

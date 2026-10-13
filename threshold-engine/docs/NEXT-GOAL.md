@@ -52,14 +52,13 @@ arithmetic checked by running it, and the workbook checked by opening it.
   two-book splits: student loans vs the rest, rewards vs non-rewards cards), and
   a command that checks a file against its template before a build.
   Built 12 Oct: `templates.py`, `template list|write|check`, seven templates.
-- [ ] **Pack composite, four-quarter average: does the jump rule apply?** The
-  band and each bank's own average leave out a bank mid-acquisition; the
-  composite's average (the mean of four composite quarter-end rates) keeps
-  it. On the fixture that is 9–43 bank-quarters per product (e.g. JPMorgan
-  mortgage in 2023Q2–Q4, the First Republic quarters). Recommended: yes,
-  apply it, so composite and band are built from the same banks. Until the
-  bank answers, each composite row names the banks concerned
-  (`avg4_jumped`) and the CSV notes say so.
+- [x] **Pack composite, four-quarter average: does the jump rule apply?**
+  Yes (the bank, 12 Oct: *"removing them makes sense"*). A bank whose own
+  average the jump blanked is left out of the composite's average for that
+  quarter, as the band leaves it out; `avg4_left_out` and the CSV notes name
+  each one. The bank also asked that what is omitted, and why, be clear: the
+  Glossary's **Left out, and why** rows give each reason, one row each, and
+  where each omission is recorded.
 
 ## 2. Fix before the walkthrough
 
@@ -75,8 +74,8 @@ arithmetic checked by running it, and the workbook checked by opening it.
   numbers as acceptance tests.
 - [x] The window's **Peers** step: pull and build from the window, through
   `peers/run.py`, the same function the command line calls (12 Oct).
-- [ ] Code 215 ("Failure Multiple Acquirer") counted as an acquisition,
-  decided without the bank (LOG.md, 12 Oct). Open to its veto.
+- [x] Code 215 ("Failure Multiple Acquirer") counted as an acquisition.
+  Confirmed by the bank, 12 Oct: *"sure"*.
 
 ## 3. The walkthrough (rehearsal on public data)
 

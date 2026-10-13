@@ -407,3 +407,35 @@ the jump rule (NEXT-GOAL section 1). Not done: `ssn`-shaped numbers pass
 stated scale is the bank's own.
 
 Suite: 675 passed (15 min).
+
+## 12 October 2026, round 2 answers: the composite's average, code 215
+
+The bank's answers to the two questions round 2 left open:
+- **The pack composite's four-quarter average leaves out a bank the jump
+  blanked.** *"yeah i think removing them makes sense - i want it to be clear
+  though. like in the glossary or something it should list what we are
+  omitting and why."* Each of the four composite quarter-end rates in the
+  average at i is recomputed without the banks whose own four-quarter average
+  at i the jump blanked, so the composite and the band are built from the
+  same banks. The quarter-end composite is unchanged: one filing per bank,
+  no jump. The same rule is in `delinquency.composite_delinquency` and in the
+  live formula on the Delinquency tab (DelinquencyData gains a last column
+  marking each bank left out); the workbook tests check one against the
+  other. `avg4_jumped` is now `avg4_left_out`, and each composite CSV's note
+  names the banks left out, by quarter.
+- **What is omitted, and why:** the Glossary gains **Left out, and why**
+  and under it one row per reason, seven in all: an acquisition (the jump), a
+  small book, not filed, fewer than four quarters, not included, too few
+  banks, and before a gap. Each says why, the rule, and where each omission
+  is recorded (Data, DelinquencyData, the series notes). A test holds it to
+  that list. The Delinquency tab's note points to it. A first draft put all
+  of it in one cell; opened in Excel it was a wall of text, so it was split.
+- **Code 215 counts as an acquisition.** *"sure"*. The Glossary's
+  Acquisition quarter entry now names it.
+
+Checked: the live Delinquency formula, opened in Excel 16 on mortgage
+nonaccrual, four-quarter average, equals `composite_delinquency` in all 38
+quarters (22 with a bank left out, e.g. JPMorgan, Flagstar and Citizens in
+2023Q2), with no formula errors; the Glossary rows were read in Excel too.
+Suite: 677 passed (14 min); the 88 affected tests rerun after the Glossary
+was split into rows.

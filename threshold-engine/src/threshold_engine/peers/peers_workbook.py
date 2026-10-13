@@ -275,8 +275,9 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
     DelinquencyData holds one row per product, measure (``delinquency.MEASURES``
     order), bank (roster order) and quarter-end, in that order: the live
     formulas find a row by position, so the order is load-bearing. Each row is
-    ``bank_delinquency``'s, plus whether the four-quarter average was kept, so
-    no formula has to read a blank cell (Excel reads one as 0).
+    ``bank_delinquency``'s, plus whether the four-quarter average was kept and
+    whether the jump blanked it, so no formula has to read a blank cell (Excel
+    reads one as 0).
 
     On Delinquency, three yellow pickers (product, measure, basis) and the
     Pack tab's Include cells, Peer A and Peer B and banks needed drive hidden
@@ -287,9 +288,11 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
     - per peer, filtered by Include: the numerator and balance when kept
       (for the composite) and the value on the basis (for the band);
     - the composite: summed numerators / summed balances of the included
-      peers kept, #N/A below the banks needed; its four-quarter average is the
-      mean of the four composite quarter-end rates i-3..i, only when all four
-      exist on consecutive quarter-ends (``composite_delinquency``);
+      peers kept, #N/A below the banks needed; its four-quarter average at i
+      is the mean of the four composite quarter-end rates i-3..i, each
+      recomputed without the peers whose own four-quarter average at i the
+      jump blanked, only when all four exist on consecutive quarter-ends and
+      each has the banks needed (``composite_delinquency``);
     - the band: PERCENTILE of the included peers' values on the basis, #N/A
       below the banks needed (``band_delinquency``);
     - KeyBank, Peer A and Peer B: their values on the basis.
@@ -306,7 +309,8 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
     # ---- DelinquencyData ----
     K.header_row(dd, 1, ["Product", "Measure", "Bank", "Certificate", "Quarter-end", "Numerator ($000)",
                          "Balance ($000)", "Quarter-end rate (%)", "Kept", "Why not kept",
-                         "Four-quarter average (%)", "Four-quarter average kept", "Why no four-quarter average"],
+                         "Four-quarter average (%)", "Four-quarter average kept", "Why no four-quarter average",
+                         "Left out of the composite's four-quarter average (jump)"],
                  right_from=5)
     _wrap(dd, 1, 46)
     for p in products:
@@ -314,7 +318,8 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
             for b in roster:
                 for r in books[p][m][b["cert"]]:
                     dd.append([p, m, b["short"], b["cert"], r["q"], r["numerator"], r["balance"], r["rate"],
-                               r["kept"], r["why"], r["avg4"], r["avg4"] is not None, r["why_avg4"]])
+                               r["kept"], r["why"], r["avg4"], r["avg4"] is not None, r["why_avg4"],
+                               (r["why_avg4"] or "").startswith(D.WHY_JUMP_PREFIX)])
     nrow = 1 + len(products) * NM * NB * DQ
     for row in dd.iter_rows(min_row=2, max_row=nrow, min_col=6, max_col=11):
         for c in row:
@@ -322,7 +327,7 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
                 c.number_format = "#,##0"
             elif c.column in (8, 11):
                 c.number_format = "0.0000"
-    for c_, w in zip("ABCDEFGHIJKLM", (14, 20, 16, 13, 12, 14, 16, 14, 8, 40, 16, 16, 60)):
+    for c_, w in zip("ABCDEFGHIJKLMN", (14, 20, 16, 13, 12, 14, 16, 14, 8, 40, 16, 16, 60, 18)):
         dd.column_dimensions[c_].width = w
     K.freeze_below(dd, 1)
 
@@ -332,13 +337,13 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
     # ---- Delinquency: hidden helpers ----
     first, last = H_HEAD + 1, H_HEAD + DQ
     col, x = {}, H0 + 2
-    for name, width in (("uk", NB), ("uv", NB), ("ok", NP), ("n", NP), ("b", NP), ("v", NP),
+    for name, width in (("uk", NB), ("uv", NB), ("ok", NP), ("n", NP), ("b", NP), ("v", NP), ("s", NP),
                         ("banks", 1), ("cq", 1), ("ca", 1), ("c", 1), ("bandn", 1),
                         ("p10", 1), ("p25", 1), ("p75", 1), ("p90", 1), ("k", 1), ("a", 1), ("bb", 1),
                         ("lp", 1), ("lm", 1), ("lb", 1)):
         col[name] = x
         x += width
-    width_of = {"uk": NB, "uv": NB, "ok": NP, "n": NP, "b": NP, "v": NP}
+    width_of = {"uk": NB, "uv": NB, "ok": NP, "n": NP, "b": NP, "v": NP, "s": NP}
     rng = lambda name, r: "${a}{r}:${z}{r}".format(                                          # noqa: E731
         a=L(col[name]), z=L(col[name] + width_of.get(name, 1) - 1), r=r)
     ref = lambda name, r, j=0: "{c}{r}".format(c=L(col[name] + j), r=r)                    # noqa: E731
@@ -374,7 +379,8 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
 
     de.cell(H_HEAD, H0, "Quarter-end")
     de.cell(H_HEAD, H0 + 1, "Four consecutive quarter-ends")
-    for name, banks in (("uk", roster), ("uv", roster), ("ok", peers), ("n", peers), ("b", peers), ("v", peers)):
+    for name, banks in (("uk", roster), ("uv", roster), ("ok", peers), ("n", peers), ("b", peers), ("v", peers),
+                        ("s", peers)):
         for j, b in enumerate(banks):
             de.cell(H_HEAD, col[name] + j, "%s %s" % (b["short"], name))
     for name, h in (("banks", "Banks in the quarter-end composite"), ("cq", "Composite, quarter-end"), ("ca", "Composite, four-quarter average"),
@@ -404,13 +410,22 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
             de.cell(r, col["n"] + j, '=IF(%s,%s,"")' % (ok, pick("F", i, k)))
             de.cell(r, col["b"] + j, '=IF(%s,%s,"")' % (ok, pick_balance(i, k)))
             de.cell(r, col["v"] + j, '=IF(AND(%s,ISNUMBER(%s)),%s,"")' % (inc, uv, uv))
+            # 1 when this peer stays in the composite's four-quarter average
+            # at this quarter-end, 0 when the jump blanked its own.
+            de.cell(r, col["s"] + j, "=IF(%s,0,1)" % pick("N", i, k))
         banks, bandn = ref("banks", r), ref("bandn", r)
         de.cell(r, col["banks"], "=COUNT(%s)" % rng("n", r))
         de.cell(r, col["cq"], "=IF({n}>={mb},100*SUM({x})/SUM({b}),NA())"
                 .format(n=banks, mb=mb, x=rng("n", r), b=rng("b", r)))
         if four:
-            window = "{c}{a}:{c}{z}".format(c=L(col["cq"]), a=r - 3, z=r)
-            de.cell(r, col["ca"], "=IF(COUNT({w})=4,AVERAGE({w}),NA())".format(w=window))
+            # Each of the four quarter-ends recomputed over the peers kept
+            # there that stay at this one (``s`` on this row).
+            stay = rng("s", r)
+            cnt = ["COUNTIFS(%s,1,%s,TRUE)" % (stay, rng("ok", w)) for w in range(r - 3, r + 1)]
+            rate = ["100*SUMIFS(%s,%s,1)/SUMIFS(%s,%s,1)" % (rng("n", w), stay, rng("b", w), stay)
+                    for w in range(r - 3, r + 1)]
+            de.cell(r, col["ca"], "=IF(AND(%s),AVERAGE(%s),NA())"
+                    % (",".join("%s>=%s" % (c, mb) for c in cnt), ",".join(rate)))
         else:
             de.cell(r, col["ca"], "=NA()")
         de.cell(r, col["c"], "=IF(%s=1,%s,%s)" % (basis_at, ref("cq", r), ref("ca", r)))
@@ -447,8 +462,9 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
     de.cell(9, 1, "Light band: 10th to 90th percentile of the included peers' rates on the basis picked; dark "
                   "band: 25th to 75th. Each is blank when fewer banks than the Pack tab asks for are in it: "
                   "the table counts both.").font = NOTE
-    de.cell(10, 1, "A gap in a line: no rate that quarter-end (DelinquencyData says why). Every term is on the "
-                   "Glossary tab.").font = NOTE
+    de.cell(10, 1, "A gap in a line: no rate that quarter-end (DelinquencyData says why). On the four-quarter "
+                   "average the composite leaves out a bank mid-acquisition, as the band does. Every term, and "
+                   "everything left out and why, is on the Glossary tab.").font = NOTE
     de.column_dimensions["A"].width = 14            # "Quarter-end" heads the table under the chart
     de.column_dimensions["B"].width = 30
     lc = _band(de, col["p10"], col["p90"], first, last, K.MIST, (" ", "10th to 90th (light band)"))

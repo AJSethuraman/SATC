@@ -73,18 +73,13 @@ The rules:
 - Composite over a set of certs: the summed numerators over the summed
   balances of the banks kept that quarter, with the number of banks in; None
   below ``min_banks``. A bank not kept, or missing, is left out of both sums,
-  never counted as 0. Its four-quarter average is the mean of the four
-  composite quarter-end rates i-3..i, the rule the spec gives the industry.
-  **That rule is open, and is the bank's to decide.** The spec does not state
-  one for the composite, and this one does not apply the jump rule: a bank
-  whose own four-quarter average the jump blanked (an acquirer mid-merger)
-  stays in the composite's average while the band on the same basis leaves it
-  out, so on that basis the composite and the band are built from different
-  banks. The alternative, the jump rule applied to the composite, changes the
-  live formulas on the Delinquency tab (``peers_workbook.py``) and the notes
-  ``peers build`` writes, so it is not made here without the bank's answer.
-  Until then each composite row names the banks this concerns, in
-  ``avg4_jumped``, so the difference is shown rather than hidden.
+  never counted as 0. Its four-quarter average at i is the mean of four
+  composite quarter-end rates i-3..i, each recomputed **without the banks
+  whose own four-quarter average at i the jump blanked** (an acquirer
+  mid-merger), so on that basis the composite and the band are built from
+  the same banks. Decided by the bank, 12 Oct 2026 (LOG.md): *"removing them
+  makes sense"*. Each composite row names the banks this left out, in
+  ``avg4_left_out``, and the notes and the Glossary say so.
 - A composite or band takes each cert once: a cert named twice is refused, not
   counted twice. A band percentile outside 0..100 is refused.
 - An amount that is not a finite number (NaN, infinity: ``json.loads`` reads a
@@ -312,48 +307,55 @@ def _index(books: Dict[str, List[dict]], certs: Sequence) -> Dict[str, Dict[str,
 
 def composite_delinquency(books: Dict[str, List[dict]], certs: Sequence,
                           min_banks: int) -> List[dict]:
-    """Per quarter, ``{q, numerator, balance, rate, banks, avg4}`` for the named
-    banks. ``books`` is ``{cert: bank_delinquency(...)}``, every bank on the
-    same product and measure; ``certs`` names each bank once (a cert named
-    twice is refused).
+    """Per quarter, ``{q, numerator, balance, rate, banks, avg4, avg4_left_out}``
+    for the named banks. ``books`` is ``{cert: bank_delinquency(...)}``, every
+    bank on the same product and measure; ``certs`` names each bank once (a
+    cert named twice is refused).
 
     ``rate`` is the kept banks' numerators summed over their balances summed,
     in %, so a large book weighs more than a small one; a bank not kept that
     quarter (missing, under the minimum, a blank field) is in neither sum.
     ``banks`` is how many were in. None below ``min_banks``, which is required
-    and refused below 1. ``avg4`` is the mean of the four composite rates
-    i-3..i, None unless all four are present on consecutive quarters.
+    and refused below 1.
 
-    ``avg4_jumped`` lists, in ``certs`` order, the banks kept in any of the
-    composite quarters i-3..i whose own four-quarter average at i the jump
-    rule blanked: they are inside the composite's average and outside the
-    band's on that basis. Whether they should be is the bank's decision (see
-    the module docstring); the list shows it either way."""
+    ``avg4`` at i is the mean of four composite rates i-3..i, only on four
+    consecutive quarters, each rate recomputed over the banks kept that
+    quarter less those whose own four-quarter average at i the jump blanked,
+    and each needing ``min_banks``. ``avg4_left_out`` lists, in ``certs``
+    order, the banks that took out: blanked by the jump at i and kept in at
+    least one of the four quarters (a bank kept in none was never in)."""
     _at_least("min_banks", min_banks, 1)
     _distinct(certs)
     idx = _index(books, certs)
+
+    def summed(q, leave_out=()):
+        rows = [idx[str(c)][q] for c in certs
+                if str(c) not in leave_out and q in idx[str(c)] and idx[str(c)][q]["kept"]]
+        if len(rows) < min_banks:
+            return None, None, None, len(rows)
+        N = sum(r["numerator"] for r in rows)
+        B = sum(r["balance"] for r in rows)
+        return N, B, 100 * N / B, len(rows)
+
     out = []
     for q in _quarters(books, certs):
-        rows = [idx[str(c)][q] for c in certs if q in idx[str(c)] and idx[str(c)][q]["kept"]]
-        if len(rows) >= min_banks:
-            N = sum(r["numerator"] for r in rows)
-            B = sum(r["balance"] for r in rows)
-            rate = 100 * N / B
-        else:
-            N = B = rate = None
+        N, B, rate, n = summed(q)
         out.append({"q": q, "numerator": N, "balance": B, "rate": rate,
-                    "banks": len(rows), "avg4": None, "avg4_jumped": []})
+                    "banks": n, "avg4": None, "avg4_left_out": []})
     follows = _consecutive([r["q"] for r in out])
-    rates = [r["rate"] for r in out]
     for i, r in enumerate(out):
-        r["avg4"] = _avg4(rates, follows, i)
         win = [o["q"] for o in out[max(0, i - 3):i + 1]]
         for c in certs:
             own = idx[str(c)]
             mine = own.get(r["q"])
             if (mine and (mine["why_avg4"] or "").startswith(WHY_JUMP_PREFIX)
                     and any(w in own and own[w]["kept"] for w in win)):
-                r["avg4_jumped"].append(str(c))
+                r["avg4_left_out"].append(str(c))
+        if i < 3 or not all(follows[k] for k in range(i - 2, i + 1)):
+            continue
+        rates = [summed(w, set(r["avg4_left_out"]))[2] for w in win]
+        if all(x is not None for x in rates):
+            r["avg4"] = sum(rates) / 4
     return out
 
 

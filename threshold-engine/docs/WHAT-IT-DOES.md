@@ -5,7 +5,7 @@ goes in, what comes out, and what proves it. Where something was run only as a
 one-off analysis rather than built into the tool, the last section says so.
 
 **State of the code:** branch `threshold-engine`, draft pull request #426.
-675 tests pass (12 Oct 2026). Nothing has been run on KeyBank's internal data.
+677 tests pass (12 Oct 2026). Nothing has been run on KeyBank's internal data.
 Nothing internal is in the repository, by rule.
 
 ## The job
@@ -126,7 +126,8 @@ accruing`, `nonaccrual`, `90+ incl. nonaccrual` and `30+ incl. nonaccrual`,
 each on two bases: the quarter-end rate (numerator over balance, one filing)
 and the four-quarter average (the mean of four quarter-end rates). The
 jump rule applies to the average, which spans four filings, and not to a
-quarter-end rate. A blank field is "not filed", never 0. The first quarter
+quarter-end rate; a bank it blanks is left out of the pack composite's
+average too. A blank field is "not filed", never 0. The first quarter
 each field was filed is recorded in the module.
 
 **The peer workbook:**
@@ -140,8 +141,8 @@ each field was filed is recorded in the module.
 | **Normalisation** | How far each rate moved between two years (post-Covid) | No |
 | **Mix** | KeyBank's move against the industry's (the Laurel Road question) | No |
 | **Delinquency** | Pickers for product, measure and basis; the pack band, composite, KeyBank, Peer A and Peer B, from the same Include cells as Peers | Yes |
-| **DelinquencyData** | Every bank, product, measure and quarter: numerator, balance, rate, four-quarter average, and why a value is missing | No |
-| **Glossary**, **Data**, **Run** | Terms; every bank's flows and rates with why a quarter was left out; sources, pull dates, fingerprints, rules | — |
+| **DelinquencyData** | Every bank, product, measure and quarter: numerator, balance, rate, four-quarter average, why a value is missing, and whether the composite's average left the bank out | No |
+| **Glossary**, **Data**, **Run** | Terms, including **Left out, and why**: one row per reason a number is kept out, saying why and where each is recorded; every bank's flows and rates with why a quarter was left out; sources, pull dates, fingerprints, rules | — |
 
 **What proves it:**
 - `books.py` matches the earlier build to 4 decimals on 9,984 values (every
@@ -167,9 +168,13 @@ Round 2 end to end (12 Oct): pull with `--delinquency yes --refresh`, 82
 quarters in 6 minutes; build 11½ minutes, 180 CSVs; the Delinquency chart
 opened in Excel under three settings with no formula error.
 
-**Open:** whether the pack composite's four-quarter average should leave out
-banks the jump rule blanked, as the band does. Each composite row names them
-(`avg4_jumped`) until the bank decides.
+The pack composite's four-quarter average leaves out a bank whose own
+average the jump blanked (usually mid-acquisition), as the band does, so both
+are built from the same banks (the bank's decision, 12 Oct). Each composite
+row names them (`avg4_left_out`), the CSV notes list them by bank and
+quarter, and DelinquencyData marks them in its last column. The Glossary's
+**Left out, and why** rows list every reason a number is kept out, one row
+each, and where each is recorded.
 
 ## Templates for internal data (`templates.py`, command `template`)
 

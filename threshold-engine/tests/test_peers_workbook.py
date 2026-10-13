@@ -928,7 +928,8 @@ def test_delinquency_data_tab_holds_the_module_rows(dlq, dl_data, roster):
                     # Numbers to the precision the file keeps (openpyxl writes 15-16 digits).
                     assert got[5:] == pytest.approx([want["numerator"], want["balance"], want["rate"],
                                                      want["kept"], want["why"], want["avg4"],
-                                                     want["avg4"] is not None, want["why_avg4"]],
+                                                     want["avg4"] is not None, want["why_avg4"],
+                                                     (want["why_avg4"] or "").startswith(D.WHY_JUMP_PREFIX)],
                                                     rel=1e-14, abs=1e-14)
 
 
@@ -996,6 +997,31 @@ def test_delinquency_run_tab_and_glossary(dlq):
                  "Banks in the band"] + list(D.MEASURES):
         assert must.lower() in [t.lower() for t in terms], must
     assert set(terms) <= {r[0] for r in rows_of(wb["Glossary"])}
+
+
+def test_glossary_lists_everything_left_out_and_why(dlq):
+    """The bank asked (12 Oct 2026) that what is omitted, and why, be stated
+    plainly: one Glossary row per reason, each saying why, the rule, and where
+    each omission is recorded."""
+    p, _, _ = dlq
+    rows = [r for r in rows_of(load_workbook(p)["Glossary"]) if r and r[0]]
+    left = {r[0]: r for r in rows if r[0].startswith("Left out:")}
+    assert sorted(left) == sorted([
+        "Left out: an acquisition (the jump)", "Left out: a small book (the minimum book)",
+        "Left out: not filed", "Left out: fewer than four quarters", "Left out: not included",
+        "Left out: too few banks", "Left out: before a gap (series files)"])
+    terms = [r[0] for r in rows]
+    first = terms.index("Left out, and why")
+    assert set(terms[first + 1:first + 1 + len(left)]) == set(left)       # together, under the heading
+    assert "counted as 0" in rows[first][1]
+    assert all(r[1] and r[2] for r in left.values())
+    jump = left["Left out: an acquisition (the jump)"][2]
+    assert "left out of the pack composite's four-quarter average" in jump and "last column" in jump
+    for term, where in (("an acquisition (the jump)", "Why not kept"), ("a small book (the minimum book)", "Why not kept"),
+                        ("not filed", "Why not kept"), ("fewer than four quarters", "Why no four-quarter average"),
+                        ("not included", "Include is FALSE"), ("too few banks", "never drawn from fewer"),
+                        ("before a gap (series files)", "note names")):
+        assert where in left["Left out: " + term][2], term
 
 
 @pytest.mark.parametrize("over, why", [

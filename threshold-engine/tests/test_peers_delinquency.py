@@ -352,27 +352,52 @@ def test_composite_four_quarter_average_is_the_mean_of_its_quarter_end_rates():
     assert all(comp[q]["avg4"] is None for q in ("2020Q4", "2021Q1", "2021Q2"))
 
 
-def test_composite_names_the_banks_its_average_holds_that_the_band_leaves_out():
+def test_composite_average_leaves_out_the_banks_the_band_leaves_out():
     """Bank 2 grows 40% into 2020Q4: its own four-quarter average is blanked
     there and in the two quarters after, so the band on that basis leaves it
-    out; the composite's average (the mean of its quarter-end rates) still
-    holds it. Which is right is the bank's decision; ``avg4_jumped`` shows it."""
+    out, and so does the composite's average (the bank's decision, 12 Oct
+    2026): each of the four quarter-end rates is recomputed without it, and
+    ``avg4_left_out`` names it."""
     data = flat([1, 2, 3], bal=1000, p9=10)
+    for c in (1, 3):                                   # bank 2's rate differs from the others'
+        for q in data:
+            data[q][c - 1]["P9CRCD"] = 10 * c
     for q in ("20201231", "20210331", "20210630"):
         data[q][1]["LNCRCD"] = 1400
     books = {str(c): book(data, c) for c in (1, 2, 3)}
     comp = by_q(composite_delinquency(books, ["1", "2", "3"], 1))
-    assert [comp[q]["avg4_jumped"] for q in sorted(comp)] == [[], [], [], ["2"], ["2"], ["2"]]
-    assert comp["2020Q4"]["avg4"] is not None
+    assert [comp[q]["avg4_left_out"] for q in sorted(comp)] == [[], [], [], ["2"], ["2"], ["2"]]
+    without = by_q(composite_delinquency(books, ["1", "3"], 1))
+    with_ = [r["rate"] for r in composite_delinquency(books, ["1", "2", "3"], 1)]
+    for q in ("2020Q4", "2021Q1", "2021Q2"):
+        assert comp[q]["avg4"] == pytest.approx(without[q]["avg4"]), q
+        assert comp[q]["avg4"] != pytest.approx(sum(with_[:4]) / 4), q
+    # outside the jump the average is the plain mean of the composite rates, bank 2 in
+    assert comp["2020Q3"]["avg4"] is None                       # only three quarters by then
+    # the quarter-end composite is never touched by the jump
+    assert comp["2020Q4"]["rate"] == pytest.approx(with_[3]) and comp["2020Q4"]["banks"] == 3
     band = by_q(band_delinquency(books, ["1", "2", "3"], "four-quarter average", min_banks=1))
     assert band["2020Q4"]["banks"] == 2
-    # kept only at i-3 of 2021Q1's window (2020Q2) is still in that average
+    # leaving a bank out can take a quarter below the banks needed: then no average
+    assert by_q(composite_delinquency(books, ["1", "2", "3"], 3))["2020Q4"]["avg4"] is None
+    # kept only at i-3 of 2021Q1's window (2020Q2) still counts as left out there
     gone = ("2020Q3", "2020Q4", "2021Q1")
     books["2"] = [dict(r, kept=False, rate=None) if r["q"] in gone else r for r in books["2"]]
-    assert by_q(composite_delinquency(books, ["1", "2", "3"], 1))["2021Q1"]["avg4_jumped"] == ["2"]
-    # a bank kept in none of the four composite quarters is not in the average, so not named
-    books["2"] =[dict(r, kept=False, rate=None) for r in books["2"]]
-    assert all(r["avg4_jumped"] == [] for r in composite_delinquency(books, ["1", "2", "3"], 1))
+    assert by_q(composite_delinquency(books, ["1", "2", "3"], 1))["2021Q1"]["avg4_left_out"] == ["2"]
+    # a bank kept in none of the four composite quarters was never in, so is not named
+    books["2"] = [dict(r, kept=False, rate=None) for r in books["2"]]
+    assert all(r["avg4_left_out"] == [] for r in composite_delinquency(books, ["1", "2", "3"], 1))
+
+
+def test_composite_average_with_no_jump_is_the_mean_of_its_quarter_end_rates():
+    data = flat([1, 2], bal=1000, p9=10)
+    for q in data:
+        data[q][1]["P9CRCD"] = 30
+    books = {str(c): book(data, c) for c in (1, 2)}
+    comp = composite_delinquency(books, ["1", "2"], 2)
+    rates = [r["rate"] for r in comp]
+    assert comp[3]["avg4"] == pytest.approx(sum(rates[:4]) / 4)
+    assert all(r["avg4_left_out"] == [] for r in comp)
 
 
 def test_band_is_percentile_inc_of_the_kept_rates_on_each_basis():
@@ -489,19 +514,21 @@ def test_fixture_composite_band_and_industry_hold_together(roster_data):
                 / sum(by_q(r)["2026Q2"]["balance"] for r in books.values()))
 
 
-def test_fixture_composite_names_jpmorgan_through_first_republic(roster_data):
+def test_fixture_composite_leaves_jpmorgan_out_through_first_republic(roster_data):
     """JPMorgan's mortgage book in 2023Q2-Q4, the First Republic quarters: its
-    own four-quarter average is blanked by the jump, and the composite's,
-    which is computed, holds it."""
+    own four-quarter average is blanked by the jump, and the composite's
+    average leaves it out: where it is the only bank left out, the average
+    equals the composite of the pack without it."""
     books = {c: bank_delinquency(roster_data, c, "Mortgage", "nonaccrual", 0.25, 1_000_000, False)
              for c in PEER_CERTS}
     comp = by_q(composite_delinquency(books, PEER_CERTS, 5))
+    rest = by_q(composite_delinquency(books, [c for c in PEER_CERTS if c != "628"], 5))
     for q in ("2023Q2", "2023Q3", "2023Q4"):
         assert by_q(books["628"])[q]["why_avg4"].startswith(WHY_JUMP_PREFIX), q
-        assert comp[q]["avg4"] is not None and "628" in comp[q]["avg4_jumped"], q
-    jumped = [(c, q) for q, r in comp.items() if r["avg4"] is not None for c in r["avg4_jumped"]]
-    kept_jumped = [(c, r["q"]) for c in PEER_CERTS for r in books[c]
-                   if r["kept"] and (r["why_avg4"] or "").startswith(WHY_JUMP_PREFIX)
-                   and comp[r["q"]]["avg4"] is not None]
-    assert set(kept_jumped) <= set(jumped)
-    assert len(kept_jumped) == 28         # the count the review's probe found for mortgage
+        assert "628" in comp[q]["avg4_left_out"], q
+        if comp[q]["avg4_left_out"] == ["628"]:
+            assert comp[q]["avg4"] == pytest.approx(rest[q]["avg4"]), q
+    left = {(c, q) for q, r in comp.items() for c in r["avg4_left_out"]}
+    kept_jumped = {(c, r["q"]) for c in PEER_CERTS for r in books[c]
+                   if r["kept"] and (r["why_avg4"] or "").startswith(WHY_JUMP_PREFIX)}
+    assert kept_jumped <= left

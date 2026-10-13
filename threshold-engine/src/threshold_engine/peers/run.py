@@ -29,9 +29,9 @@ setting by its command-line flag, which is also the window's label.
 The delinquency rules are the build's own stated rules, not a second set:
 ``jump``, ``min_book`` and ``exempt_self`` mean for delinquency what they mean
 for charge-offs, as section A states them ("as in ``bank_book``"). Under
-delinquency, ``jump`` blanks a bank's own four-quarter average only, never a
-quarter-end rate, and is not applied to the pack composite (an open rule, the
-bank's to decide: see ``delinquency.composite_delinquency``); each file's
+delinquency, ``jump`` blanks a bank's own four-quarter average, never a
+quarter-end rate, and leaves that bank out of the pack composite's
+four-quarter average too (``delinquency.composite_delinquency``); each file's
 notes say which. ``min_book`` is read against the quarter-end balance. The workbook's
 measure and basis pickers start at the first measure and basis in
 ``delinquency.MEASURES`` and ``delinquency.BASES`` order (``30-89``,
@@ -292,23 +292,22 @@ def quarter_runs(labels):
     return ", ".join(a if a == b else "%s to %s" % (a, b) for a, b in runs)
 
 
-def jumped_note(jumped, tail, names):
+def left_out_note(left_out, tail, names):
     """The note line on a pack composite's four-quarter average naming, over
-    the quarters written (``tail``), the banks inside the average whose own
-    four-quarter average the jump blanked. ``jumped`` is ``{YYYYQn: [cert]}``
-    (``composite_delinquency``'s ``avg4_jumped``), ``names`` ``{cert: label}``.
-    Shown either way, so the difference from the band is never hidden."""
+    the quarters written (``tail``), the banks left out of it because the jump
+    blanked their own four-quarter average. ``left_out`` is ``{YYYYQn: [cert]}``
+    (``composite_delinquency``'s ``avg4_left_out``), ``names`` ``{cert: label}``.
+    Written either way, so what was left out is never hidden."""
     written = {q for q, _ in tail}
     by_bank = {}
-    for q, certs in jumped.items():
+    for q, certs in left_out.items():
         if q in written:
             for c in certs:
                 by_bank.setdefault(c, []).append(q)
     if not by_bank:
-        return ("No bank inside this average had its own four-quarter average blanked by the jump in "
-                "the quarters written.")
-    return ("Inside this average although the jump blanked their own four-quarter average: %s. "
-            "Whether they should be is open, and the bank's to decide."
+        return "No bank was left out of this average by the jump in the quarters written."
+    return ("Left out of this average because the jump blanked their own four-quarter average (the "
+            "book moved by more than the jump, usually an acquisition): %s."
             % "; ".join("%s %s" % (names.get(c, c), quarter_runs(sorted(qs)))
                         for c, qs in by_bank.items()))
 
@@ -316,16 +315,14 @@ def jumped_note(jumped, tail, names):
 def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_book, exempt_self,
                         min_banks, source, every, out_dir):
     """Per product, measure and basis, the pack composite, the bank itself and
-    the industry, as ``(path, rows, note, product, jumped)``: the delinquency
-    CSVs. ``jumped`` is ``{YYYYQn: [cert]}`` for a pack composite's
+    the industry, as ``(path, rows, note, product, left_out)``: the delinquency
+    CSVs. ``left_out`` is ``{YYYYQn: [cert]}`` for a pack composite's
     four-quarter average and None for every other file.
 
     The rules note says what each series was built under, and no more. The
-    jump blanks the bank's own four-quarter average. It is not applied to the
-    composite (``delinquency.composite_delinquency``: the mean of four
-    composite quarter-end rates, an open rule that is the bank's to decide),
-    so the composite's note says the jump is not applied, and its
-    four-quarter average names the banks this concerns."""
+    jump blanks a bank's own four-quarter average, and a bank so blanked is
+    left out of the composite's four-quarter average for that quarter
+    (``delinquency.composite_delinquency``), which names the banks."""
     exempt = ", %s exempt" % me["short"] if exempt_self else ""
     book = "{:,.0f}".format(min_book)
     rule = ("Rules: minimum book %s ($000), read against the quarter-end balance%s; the jump %g "
@@ -333,10 +330,10 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
             "three quarters, and never a quarter-end rate, which is one filing's; at least %d banks "
             "in a composite." % (book, exempt, jump, min_banks))
     comp_rule = ("Rules: minimum book %s ($000), read against each bank's quarter-end balance%s; at "
-                 "least %d banks in a composite. The jump %g is not applied to the composite: a "
-                 "quarter-end rate is one filing per bank, and the four-quarter average is the mean "
-                 "of four composite quarter-end rates, so a bank whose own average the jump blanks "
-                 "stays in it." % (book, exempt, min_banks, jump))
+                 "least %d banks in a composite. The jump %g never touches a quarter-end rate, which is "
+                 "one filing per bank; the four-quarter average is the mean of four composite "
+                 "quarter-end rates, each without the banks whose own four-quarter average the jump "
+                 "blanked that quarter." % (book, exempt, min_banks, jump))
     certs = [b["cert"] for b in pack]
     made = []
     for p in products:
@@ -361,10 +358,10 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                             "Amounts are $ thousands at quarter-end, as filed; a field not filed is "
                             "never read as 0.",
                             words[0].upper() + words[1:] + ".", source] + ([ruled] if ruled else [])
-                    jumped = ({r["q"]: r["avg4_jumped"] for r in comp}
-                              if rows is comp and basis == "four-quarter average" else None)
+                    left_out = ({r["q"]: r["avg4_left_out"] for r in comp}
+                                if rows is comp and basis == "four-quarter average" else None)
                     made.append((out_dir / ("%s_%s_delinquency-%s_%s.csv" % (slug(p), who, slug(m), slug(basis))),
-                                 D.values(rows, basis), note, p, jumped))
+                                 D.values(rows, basis), note, p, left_out))
     return made
 
 
@@ -522,12 +519,12 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     dq_spec = None
     if delinquency:
         names = {b["cert"]: "%s (%s)" % (b["short"], b["cert"]) for b in roster_}
-        for path, rows, note, p, jumped in _delinquency_series(
+        for path, rows, note, p, left_out in _delinquency_series(
                 data, roster_, me, pack_, pack_words, products, jump, min_book, exempt_self,
                 min_banks, source, every, out_dir):
             tail, before, after = unbroken_tail(rows)
-            if jumped is not None and tail:
-                note = note + [jumped_note(jumped, tail, names)]
+            if left_out is not None and tail:
+                note = note + [left_out_note(left_out, tail, names)]
             series.append((path, tail, series_note(note, tail, before, after), before, after, p))
         dq_spec = dict(data=data, products=list(products), jump=jump, min_book=min_book,
                        exempt_self=exempt_self, measure=START_MEASURE, basis=START_BASIS)

@@ -51,6 +51,49 @@ PEER_TERMS = [
      "TRUE when the average balance is at least the minimum book and above zero, all four quarters' flows "
      "were filed, and there was no structural move. Why says the first reason it is not, in that order: "
      "the jump, the minimum, a missing quarter."),
+    # What is left out, and why: one row per reason, as the bank asked
+    # (12 Oct 2026): "it should list what we are omitting and why".
+    ("Left out, and why",
+     "The rows below starting \"Left out:\" are every reason a bank's number is kept out of a line, a "
+     "composite or a band. Nothing left out is ever counted as 0.",
+     "Each row says why the number is left out, the rule, and where each one is recorded, so every omission "
+     "can be found by bank and quarter."),
+    ("Left out: an acquisition (the jump)",
+     "When a bank buys, merges with or sells a book, its numbers over the next few quarters describe two "
+     "different books, so they say nothing about how its loans performed.",
+     "A quarter whose balance moved by more than the jump from the one before, or rose from zero. "
+     "Charge-offs: the rate is not kept if this happened in its window or the quarter before (the Data tab, "
+     "Why not kept). Delinquency: the bank's four-quarter average is blank if it happened in the last three "
+     "quarters (DelinquencyData, Why no four-quarter average); a quarter-end rate is one filing and is never "
+     "left out for this. That bank is also left out of the pack composite's four-quarter average for that "
+     "quarter, so the composite and the band are built from the same banks (the bank's decision, 12 Oct "
+     "2026): DelinquencyData's last column marks it, and the composite's series file names each bank and "
+     "quarter."),
+    ("Left out: a small book (the minimum book)",
+     "A few bad loans on a tiny book make a rate that swings wildly and means nothing.",
+     "Charge-offs: the average balance is under the minimum book. Delinquency: the quarter-end balance is "
+     "under it. KeyBank can be exempt, so its own line is never blank for size. Recorded in Why not kept "
+     "(the Data tab, DelinquencyData)."),
+    ("Left out: not filed",
+     "There is no number to use, and a blank is never read as 0.",
+     "The bank did not file that quarter; a field the measure needs was not filed; or the balance is 0 or "
+     "below (no book). Recorded in Why not kept (the Data tab, DelinquencyData), naming the field."),
+    ("Left out: fewer than four quarters",
+     "A trailing-four-quarter rate or a four-quarter average needs a whole year.",
+     "Four consecutive quarter-ends in the data, each with a rate. Recorded in Why not kept (charge-offs) and "
+     "Why no four-quarter average (delinquency)."),
+    ("Left out: not included",
+     "A peer someone has taken out of the pack.",
+     "Include is FALSE on the Pack tab: left out of the composite, the band and best and worst in pack. It "
+     "can still be drawn as Peer A or Peer B."),
+    ("Left out: too few banks",
+     "A composite or band drawn from two or three banks is not the pack's.",
+     "A quarter with fewer kept banks than the Pack tab asks for is blank, never drawn from fewer. The table "
+     "under each chart counts the banks in."),
+    ("Left out: before a gap (series files)",
+     "The thresholds workbook needs an unbroken run of quarters and never fills a gap.",
+     "A series file is written from the first quarter after its last gap; its note names the quarters left "
+     "out before and after."),
     ("Composite",
      "The pack's rate as if its banks were one bank: every dollar counts once, so a large book weighs more "
      "than a small one.",
@@ -88,8 +131,9 @@ PEER_TERMS = [
      "quarter, where the growth is set to 1. As reported is the plain balance / the base balance x 100."),
     ("Acquisition quarter",
      "A quarter in which the bank took over another institution or a book of loans.",
-     "The bank's mergers in the FDIC structure-change record (an allowlist of change codes, counted at the "
-     "quarter-end on or after the effective date), plus any purchase declared at the build, such as one of a "
+     "The bank's mergers in the FDIC structure-change record (an allowlist of change codes: mergers, "
+     "absorptions and consolidations, and failed banks taken over whole or split between several buyers, "
+     "code 215; counted at the quarter-end on or after the effective date), plus any purchase declared at the build, such as one of a "
      "nonbank the FDIC record does not show."),
     ("Industry",
      "Every FDIC-insured filer's book taken together.",
@@ -144,7 +188,9 @@ PEER_TERMS = [
      "The mean of the four quarter-end rates of this quarter and the three before, only when all four exist "
      "on consecutive quarter-ends. For a bank it is also blank when the book moved by more than the jump in "
      "any of the last three quarters against the one before: four filings across an acquisition describe "
-     "different books. For the composite and the industry it is the mean of their four quarter-end rates."),
+     "different books. For the composite it is the mean of four composite quarter-end rates, each without "
+     "the banks whose own four-quarter average that rule blanked; for the industry, the mean of its four "
+     "quarter-end rates."),
     ("Not filed",
      "A Call Report field with no value for that quarter. The 30-89 day fields are blank before 2001 for "
      "cards, home equity and other consumer and before 2002 for mortgages, and every auto field before 2011 "
@@ -155,7 +201,9 @@ PEER_TERMS = [
      "The pack's delinquency rate as if its banks were one bank, so a large book weighs more than a small one.",
      "Quarter-end: 100 x the summed numerators of the included peers kept that quarter-end / their summed "
      "balances. A bank not kept, or missing, is in neither sum, never counted as 0. Four-quarter average: the "
-     "mean of the four composite quarter-end rates. Blank when fewer banks than the Pack tab asks for are kept."),
+     "mean of the four composite quarter-end rates, each recomputed without the peers whose own four-quarter "
+     "average the jump blanked at this quarter-end (see Left out, and why). Blank when fewer banks than the "
+     "Pack tab asks for are kept in any of the four."),
     ("Delinquency band",
      "How spread out the pack's delinquency rates were, each bank counting once whatever its size.",
      "The 10th, 25th, 75th and 90th percentiles (PERCENTILE, interpolating as PERCENTILE.INC) of the included "
@@ -164,8 +212,8 @@ PEER_TERMS = [
     ("Banks in the quarter-end composite",
      "How many of the pack's banks are in the delinquency composite at a quarter-end.",
      "The count of included peers kept that quarter-end. On the four-quarter average the composite is the mean "
-     "of four quarter-end composites, each with its own count, so this is that quarter-end's count, not the "
-     "band's."),
+     "of four quarter-end composites, each with its own count and without the banks the jump took out, so "
+     "this is that quarter-end's count before any are taken out, not the band's."),
     ("Banks in the band",
      "How many of the pack's banks the delinquency band is drawn from.",
      "The count of included peers with a rate on the basis picked. On the four-quarter average a bank needs "
