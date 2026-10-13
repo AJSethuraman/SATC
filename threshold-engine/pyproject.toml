@@ -1,6 +1,7 @@
 [project]
 name = "threshold-engine"
-version = "0.1.0"
+# One version: threshold_engine.VERSION, which the workbooks write on their Run tab.
+dynamic = ["version"]
 description = "Candidate risk-rating cutoffs from any continuous signal, with its stress cycles and the evidence for each"
 requires-python = ">=3.9"
 dependencies = [
@@ -16,6 +17,9 @@ threshold-engine = "threshold_engine.cli:main"
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {attr = "threshold_engine.VERSION"}
 
 [tool.setuptools.packages.find]
 where = ["src"]

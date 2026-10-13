@@ -15,7 +15,7 @@ from threshold_engine.workbook import build
 ENDS = ("03-31", "06-30", "09-30", "12-31")
 SPEC = {   # spec B's table, key -> (title, unit, direction)
     "wapd": ("Weighted average probability of default", "%", "higher_is_worse"),
-    "refreshed-score": ("Refreshed credit score, portfolio average", "score", "lower_is_worse"),
+    "refreshed-score": ("Refreshed credit score (portfolio average)", "score", "lower_is_worse"),
     "epd": ("Early payment default rate", "%", "higher_is_worse"),
     "student-loans": ("Other consumer: student loans only (Laurel Road)", "%", "higher_is_worse"),
     "other-consumer-ex-student": ("Other consumer without student loans", "%", "higher_is_worse"),
@@ -155,6 +155,14 @@ def test_filled_template_passes_and_builds(tmp_path, key):
     info = build(tmp_path / "w.xlsx", [(t.title, p)], t.title, t.unit, t.direction, "quarterly", 1,
                  t.unit == "%", 0.5, 1.0, 2.5, "worse", (10,), (50, 75, 90, 95), 4, 12)
     assert info["quarters"] == 24 and (tmp_path / "w.xlsx").exists()
+
+
+def test_every_template_title_can_be_a_product_label():
+    """A bank will reach for the title as the workbook label; one holding a
+    comma would split in Excel's product dropdown (the Codex review, 12 Oct
+    2026, made the build refuse it, and this title was the first caught)."""
+    from threshold_engine.series import label_ok
+    assert all(label_ok(t.title) for t in TEMPLATES.values())
 
 
 def test_exactly_nine_quarters_passes_and_builds(tmp_path):

@@ -5,7 +5,10 @@ interpolated, because a filled-in quarter is a number nobody published.
 """
 from __future__ import annotations
 
+import csv
+import math
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Sequence
 
 #: Months between consecutive observations, by declared frequency.
@@ -24,6 +27,37 @@ class SeriesError(ValueError):
     def __init__(self, code: str, message: str):
         super().__init__(message)
         self.code = code
+
+
+def read_csv(path) -> List[Point]:
+    """The ``date,value`` rows of a series file, lines starting with '#'
+    skipped. A value that is not a finite number (``nan``, ``inf``: Python's
+    ``float`` reads both) is refused, naming the file and the date: it is not
+    an observation, and the calculations would carry it through silently.
+    Every front door (the command line, the workbook, the window) reads here."""
+    with open(path, encoding="utf-8") as fh:
+        rows = csv.DictReader(line for line in fh if not line.startswith("#"))
+        out = []
+        for r in rows:
+            v = float(r["value"])
+            if not math.isfinite(v):
+                raise ValueError("%s, %s: the value %r is not a number; a series holds only numbers"
+                                 % (Path(path).name, r["date"], r["value"]))
+            out.append(Point(r["date"], v))
+        return out
+
+
+#: What a product label may not hold. The workbook lists the products in a
+#: dropdown written as one quoted, comma-separated list, so a comma splits a
+#: label in two and a double quote breaks the list (Excel will not open the
+#: file); a label beginning with '=' is written as a formula, not as text.
+#: And Excel's MATCH ignores capitals, so labels that differ only in capitals
+#: are one label. The window and ``workbook.build`` both apply these.
+LABEL_RULE = "a label may not begin with '=' or hold a comma or a double quote"
+
+
+def label_ok(label: str) -> bool:
+    return not label.startswith("=") and "," not in label and '"' not in label
 
 
 def _months(date: str) -> int:

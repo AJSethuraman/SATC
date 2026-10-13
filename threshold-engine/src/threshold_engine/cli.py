@@ -58,7 +58,7 @@ import sys
 from .backtest import backtest, report as backtest_report
 from .evidence import evidence, report as evidence_report
 from .profile import profile, report
-from .series import Point, SeriesError
+from .series import SeriesError, read_csv
 # The bodies of `peers pull` and `peers build` live in peers/run.py, which the
 # window calls too, so the two cannot drift. These names stay for the tests.
 from .peers.run import series_note as _series_note  # noqa: F401
@@ -299,10 +299,7 @@ def _template(a):
     return 0
 
 
-def _read(path):
-    with open(path, encoding="utf-8") as fh:
-        rows = csv.DictReader(line for line in fh if not line.startswith("#"))
-        return [Point(r["date"], float(r["value"])) for r in rows]
+_read = read_csv
 
 
 def _refused(exc):

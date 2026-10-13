@@ -439,3 +439,28 @@ quarters (22 with a bank left out, e.g. JPMorgan, Flagstar and Citizens in
 2023Q2), with no formula errors; the Glossary rows were read in Excel too.
 Suite: 677 passed (14 min); the 88 affected tests rerun after the Glossary
 was split into rows.
+
+## 12 October 2026, the Codex review of PR #426: four findings, all real
+
+Marking the PR ready started the Codex review. It found four things, none in
+the day's change, each verified against the code before it was fixed:
+- **Labels.** The window refused a product label Excel cannot hold (a comma,
+  a double quote, a leading `=`, or two labels differing only in capitals,
+  which `MATCH` treats as one); `workbook.build`, which the command line
+  calls, did not. The rule now lives once, in `series.LABEL_RULE` /
+  `label_ok`, and both apply it.
+- **A value that is not a number.** `float()` reads `nan` and `inf`, so a CSV
+  holding one reached the calculations. One reader, `series.read_csv`, now
+  serves every front door and refuses it, naming the file and the date.
+- **A half-life of 0 or below.** The window refused it; the command line let
+  0 crash with a division error and a negative one quietly weigh old
+  observations above new ones. `scale.recency_weights` refuses both.
+- **Two versions.** `pyproject.toml` said 0.1.0 while the workbooks' Run tab
+  writes 0.11.0. The package now takes its version from
+  `threshold_engine.VERSION`; a wheel built from it reads 0.11.0.
+Each has tests (28 new cases), at the command line and on `build` itself.
+The full suite then caught one more: a test built a workbook labelled with
+the template title "Refreshed credit score, portfolio average", which the new
+label rule refuses (the comma would split it in Excel's dropdown). The title
+is now "Refreshed credit score (portfolio average)", and a test holds every
+template title to the label rule. Suite: 706 passed.

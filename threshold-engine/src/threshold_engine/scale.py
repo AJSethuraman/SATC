@@ -25,6 +25,7 @@ default.
 """
 from __future__ import annotations
 
+import math
 import statistics
 from typing import Optional, Sequence
 
@@ -58,7 +59,13 @@ def weighted_median(values, weights):
 
 
 def recency_weights(dates, half_life_years):
-    """0.5 ** (age in years / half-life), age counted back from the last date."""
+    """0.5 ** (age in years / half-life), age counted back from the last date.
+
+    A half-life must be a number above 0 years: 0 cannot be divided by, and a
+    negative one would weigh old observations above recent ones, the reverse
+    of what recency means. Refused here, so every front door refuses it."""
+    if isinstance(half_life_years, bool) or not isinstance(half_life_years, (int, float))             or not half_life_years > 0 or not math.isfinite(half_life_years):
+        raise ValueError("a half-life must be a number of years above 0, not %r" % (half_life_years,))
     def months(d):
         return int(d[:4]) * 12 + int(d[5:7])
     last = months(dates[-1])

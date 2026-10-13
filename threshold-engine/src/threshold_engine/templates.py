@@ -114,7 +114,7 @@ TEMPLATES = {t.key: t for t in (
     Template("wapd", "Weighted average probability of default", "%", "higher_is_worse",
              _common("%", (("pd-horizon", "the period each probability of default covers, "
                                           "e.g. the next twelve months"),))),
-    Template("refreshed-score", "Refreshed credit score, portfolio average", "score", "lower_is_worse",
+    Template("refreshed-score", "Refreshed credit score (portfolio average)", "score", "lower_is_worse",
              _common("score", (("refresh", "how often scores are refreshed, and how the "
                                            "average is weighted"),))),
     Template("epd", "Early payment default rate", "%", "higher_is_worse",

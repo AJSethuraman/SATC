@@ -75,3 +75,91 @@ def test_a_setting_that_is_not_a_number_is_refused(value):
     args[args.index("--high-z") + 1] = value
     with pytest.raises(SystemExit):
         main(["evidence", str(DATA / "cards_nco_ttm.csv")] + MEASURE + args)
+
+
+# ---- Found by the Codex review of PR #426 (12 Oct 2026): each a rule the
+# window enforced and the command line did not, or a value no front door caught.
+
+WB = SCALE + ["--percentiles", "50", "75", "90", "95", "--horizon", "4", "--min-history", "41"]
+BT = ["--floor-at-zero", "yes", "--percentiles", "50", "75", "90", "95", "--horizon", "4",
+      "--min-history", "41"]
+CARDS = DATA / "cards_nco_ttm.csv"
+
+
+@pytest.mark.parametrize("labels, why", [
+    (("Cards", "cards"), "Excel ignores capitals"),
+    (("Cards, US", "Mortgage"), "comma"),
+    (('Cards "US"', "Mortgage"), "double quote"),
+    ((" ", "Mortgage"), "needs a product label"),
+])
+def test_the_command_line_refuses_a_label_excel_cannot_hold(tmp_path, capsys, labels, why):
+    out = tmp_path / "t.xlsx"
+    args = []
+    for lbl in labels:
+        args += ["--series", "%s=%s" % (lbl, CARDS)]
+    assert main(["workbook", str(out)] + args + MEASURE + WB) == 2
+    assert why in capsys.readouterr().err and not out.exists()
+
+
+def test_the_build_itself_refuses_a_label_that_excel_would_read_as_a_formula(tmp_path):
+    """The command line's LABEL=FILE parse already stops '=Cards=...' (an empty
+    label); ``build`` refuses it too, for every other caller."""
+    from threshold_engine.workbook import build
+    out = tmp_path / "t.xlsx"
+    with pytest.raises(ValueError, match="begin with '='"):
+        build(out, [("=Cards", CARDS)], name="NCO", unit="%", direction="higher_is_worse",
+              frequency="quarterly", smoothing=1, floor_at_zero=True, moderate_halfwidth=0.5,
+              low_step=1.0, high_z=2.5, on_the_line="worse", half_lives=(), percentiles=(50,),
+              horizon=4, min_history=41)
+    assert not out.exists()
+
+
+@pytest.mark.parametrize("bad", ["nan", "inf", "-inf", "NaN"])
+@pytest.mark.parametrize("command", ["profile", "evidence", "backtest", "workbook"])
+def test_a_value_that_is_not_a_number_is_refused_at_every_front_door(tmp_path, capsys, bad, command):
+    rows = CARDS.read_text(encoding="utf-8").splitlines()
+    i = next(k for k, r in enumerate(rows) if r[:1].isdigit())
+    date = rows[i + 10].split(",")[0]
+    rows[i + 10] = "%s,%s" % (date, bad)
+    p = tmp_path / "with_nan.csv"
+    p.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    out = tmp_path / "t.xlsx"
+    if command == "profile":
+        argv = ["profile", str(p)] + MEASURE
+    elif command == "workbook":
+        argv = ["workbook", str(out), "--series", "Credit card=%s" % p] + MEASURE + WB
+    elif command == "backtest":
+        argv = ["backtest", str(p)] + MEASURE + BT
+    else:
+        argv = ["evidence", str(p)] + MEASURE + SCALE
+    assert main(argv) == 2
+    err = capsys.readouterr().err
+    assert "with_nan.csv, %s" % date in err and "not a number" in err
+    assert not out.exists()
+
+
+@pytest.mark.parametrize("life", ["0", "-5"])
+@pytest.mark.parametrize("command", ["evidence", "backtest", "workbook"])
+def test_a_half_life_of_zero_or_below_is_refused(tmp_path, capsys, life, command):
+    out = tmp_path / "t.xlsx"
+    if command == "workbook":
+        argv = ["workbook", str(out), "--series", "Credit card=%s" % CARDS] + MEASURE + WB
+    elif command == "backtest":
+        argv = ["backtest", str(CARDS)] + MEASURE + BT
+    else:
+        argv = ["evidence", str(CARDS)] + MEASURE + SCALE
+    assert main(argv + ["--half-lives", "10", life]) == 2
+    assert "half-life must be a number of years above 0" in capsys.readouterr().err
+    assert not out.exists()
+
+
+def test_the_package_has_one_version_the_workbooks_write():
+    """pyproject.toml takes its version from threshold_engine.VERSION, the one
+    the Run tabs write, so an installed package and its workbooks agree."""
+    tomllib = pytest.importorskip("tomllib")
+    from pathlib import Path
+    from threshold_engine import VERSION
+    meta = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8"))
+    assert "version" not in meta["project"] and "version" in meta["project"]["dynamic"]
+    assert meta["tool"]["setuptools"]["dynamic"]["version"] == {"attr": "threshold_engine.VERSION"}
+    assert VERSION.count(".") == 2

@@ -52,6 +52,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 # one place the peer build reads them, and the window still opens without
 # openpyxl. peers/run.py does import openpyxl, so it is loaded only on a press.
 from .peers.books import PRODUCTS as _PEER_PRODUCTS
+from .series import LABEL_RULE, label_ok
 
 TITLE = "Thresholds"
 STEPS = ("Series", "Measure", "Settings", "Build", "Peers")
@@ -184,15 +185,9 @@ def _choice(text: str, options, what: str, step: str, out: list):
     return None
 
 
-#: Characters a product label may not hold. The workbook lists the products in
-#: a dropdown written as one quoted, comma-separated list, so a comma splits a
-#: label in two and a double quote breaks the list (Excel will not open the
-#: file); a label beginning with '=' is written as a formula, not as text.
-_LABEL_RULE = "a label may not begin with '=' or hold a comma or a double quote"
-
-
-def _label_ok(label: str) -> bool:
-    return not label.startswith("=") and "," not in label and '"' not in label
+#: What a product label may not hold: ``series.LABEL_RULE``, which
+#: ``workbook.build`` applies too, so the window and the command line agree.
+_LABEL_RULE, _label_ok = LABEL_RULE, label_ok
 
 
 def _header_problem(path: str) -> Optional[str]:

@@ -141,7 +141,7 @@ answer in the file's `#` notes. None of them supplies an answer.
 | Key | Title | Unit | Direction |
 |---|---|---|---|
 | `wapd` | Weighted average probability of default | % | higher_is_worse |
-| `refreshed-score` | Refreshed credit score, portfolio average | score | lower_is_worse |
+| `refreshed-score` | Refreshed credit score (portfolio average) | score | lower_is_worse |
 | `epd` | Early payment default rate | % | higher_is_worse |
 | `student-loans` | Other consumer: student loans only (Laurel Road) | % | higher_is_worse |
 | `other-consumer-ex-student` | Other consumer without student loans | % | higher_is_worse |

@@ -21,7 +21,6 @@ and a loss rate do not belong on one scale or one chart.
 """
 from __future__ import annotations
 
-import csv
 import datetime as dt
 import hashlib
 import math
@@ -39,7 +38,7 @@ from .backtest import backtest
 from . import VERSION
 from .evidence import evidence
 from .glossary import TERMS
-from .series import Point
+from .series import LABEL_RULE, label_ok, read_csv
 
 RATINGS = ("Low", "Moderate-Low", "Moderate", "Moderate-High", "High")
 INPUT = PatternFill("solid", fgColor="FFF2CC")
@@ -60,10 +59,8 @@ def quarter(date: str) -> str:
     return "%sQ%d" % (date[:4], (int(date[5:7]) - 1) // 3 + 1)
 
 
-def read_series(path: Path):
-    with open(path, encoding="utf-8") as fh:
-        rows = csv.DictReader(line for line in fh if not line.startswith("#"))
-        return [Point(r["date"], float(r["value"])) for r in rows]
+#: One reader for every front door (``series.read_csv``).
+read_series = read_csv
 
 
 def _sha(path: Path) -> str:
@@ -84,8 +81,13 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         raise ValueError("need 0 <= moderate_halfwidth < low_step, and high_z above 0")
     if on_the_line not in ("worse", "better"):
         raise ValueError("on_the_line must be 'worse' or 'better'")
-    if len({lbl for lbl, _ in series}) != len(series):
-        raise ValueError("two series share a label")
+    for lbl, _ in series:
+        if not lbl.strip():
+            raise ValueError("every series needs a product label")
+        if not label_ok(lbl):
+            raise ValueError("the label %r can't be used: %s" % (lbl, LABEL_RULE))
+    if len({lbl.casefold() for lbl, _ in series}) != len(series):
+        raise ValueError("two series share a label (Excel ignores capitals, so 'Cards' and 'cards' are one)")
     higher = direction == "higher_is_worse"
 
     loaded = []
