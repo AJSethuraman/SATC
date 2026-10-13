@@ -32,6 +32,14 @@
   <div>
     <h1>Invoice</h1>
     <div class="kind"><span class="f">&lt;&lt;InvoiceNumber&gt;&gt;</span></div>
+    <div class="prepared">
+      <div class="h">Billed to</div>
+      <div class="nm"><span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></div>
+      <div class="ad">
+        <span class="f">&lt;&lt;ClientAddress1&gt;&gt;</span><br/>
+        <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
+      </div>
+    </div>
   </div>
   <table class="smeta">
     <tr><td class="k">Date</td><td class="v"><span class="f">&lt;&lt;InvoiceDate&gt;&gt;</span></td></tr>
@@ -40,14 +48,6 @@
   </table>
 </div>
 
-<div class="prepared">
-  <div class="h">Billed to</div>
-  <div class="nm"><span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></div>
-  <div class="ad">
-    <span class="f">&lt;&lt;ClientAddress1&gt;&gt;</span><br/>
-    <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
-  </div>
-</div>
 
 <table class="led">
   <tr><th>Service</th><th class="r">Amount</th></tr>
@@ -66,21 +66,25 @@
     <td class="desc"><b><span class="f">&lt;&lt;CreditLabel&gt;&gt;</span></b><span><span class="f">&lt;&lt;CreditDetail&gt;&gt;</span></span></td>
     <td class="r num"><span class="f">&lt;&lt;CreditAmount&gt;&gt;</span></td>
   </tr>
-  <tr class="mark"><td colspan="2"><span class="cond inline">[[END IF]]</span></td></tr>
   <tr class="tot">
     <td>Amount due</td>
     <td class="r num"><span class="f">&lt;&lt;AmountDue&gt;&gt;</span></td>
   </tr>
+  <tr class="mark"><td colspan="2"><span class="cond inline">[[END IF]]</span></td></tr>
 </table>
 
 <div class="duebox">
   <div>
     <div class="k">Amount due</div>
-    <div class="amt"><span class="f">&lt;&lt;AmountDue&gt;&gt;</span></div>
-    <span class="cond">[[IF PaymentLink]]</span>
-    <a class="paynow" href="&lt;&lt;PaymentUrl&gt;&gt;">Pay online</a>
-    <div class="payurl"><span class="f">&lt;&lt;PaymentUrl&gt;&gt;</span></div>
-    <span class="cond end">[[END IF]]</span>
+    <div class="dueline">
+      <div class="amt"><span class="f">&lt;&lt;AmountDue&gt;&gt;</span></div>
+      <span class="cond">[[IF PaymentLink]]</span>
+      <div class="payblk">
+        <a class="paynow" href="&lt;&lt;PaymentUrl&gt;&gt;">Pay online</a>
+        <div class="payurl"><span class="f">&lt;&lt;PaymentUrl&gt;&gt;</span></div>
+      </div>
+      <span class="cond end">[[END IF]]</span>
+    </div>
   </div>
   <p class="terms"><b>Due on presentation.</b> Balances unpaid after thirty (30) days carry interest at the maximum rate Ohio law permits, per the <b>Fees and billing</b> section of your engagement letter.</p>
 </div>
