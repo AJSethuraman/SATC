@@ -459,6 +459,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     for j, h in enumerate(heads):
         asx.cell(first - 1, hc + j, h)
     asx.cell(first - 1, hc + 9, "Top")
+    asx.cell(first - 1, hc + 10, " ")         # the invisible base the bands stack on
     pk = "MATCH($B$4,Data!$B$1:${c}$1,0)".format(c=L(1 + n))
     for r in range(first, last + 1):
         asx.cell(r, hc, "=Data!A%d" % r)
@@ -471,17 +472,26 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         b = ["$C$9", "$C$10", "$C$11", "$C$12"]
         if not higher:
             b = b[::-1]
-        asx.cell(r, hc + 4, '=IF($B$5<>"",NA(),{b0})'.format(b0=b[0]))
+        # The stack starts at the chart's floor (the base, invisible), so the
+        # first band is its distance from there, never a cut-off read as a
+        # width: below zero a cut-off is negative and a band is not.
+        base = "${c}${r0}".format(c=L(hc + 9), r0=first + 1)
+        asx.cell(r, hc + 10, '=IF($B$5<>"",NA(),{lo})'.format(lo=base))
+        asx.cell(r, hc + 4, '=IF($B$5<>"",NA(),{b0}-{lo})'.format(b0=b[0], lo=base))
         for i in range(1, 4):
             asx.cell(r, hc + 4 + i, '=IF($B$5<>"",NA(),{b1}-{b0})'.format(b1=b[i], b0=b[i - 1]))
         asx.cell(r, hc + 8, '=IF($B$5<>"",NA(),MAX({t}-{b3},0))'.format(t=top, b3=b[3]))
-    asx.cell(first, hc + 9, "=MAX(%s)*1.08" % raw_r)
+    # Top and floor take in the cut-offs as well as the data, and the top sits
+    # 8% of the whole range above the highest, which works below zero too.
+    cuts = "$C$9:$C$12"
+    asx.cell(first, hc + 9, "=MAX(MAX({r}),MAX({c}))+0.08*(MAX(MAX({r}),MAX({c}))-{lo})"
+             .format(r=raw_r, c=cuts, lo="${c}${r}".format(c=L(hc + 9), r=first + 1)))
     # The strip that marks quarters left out: a bar under the data, below zero
     # or below the lowest value if that is negative, 6% of the chart's height.
     asx.cell(first - 1, hc + 11, "Period left out")
     lo_c, top_c = "${c}${r}".format(c=L(hc + 9), r=first + 1), "${c}${r}".format(c=L(hc + 9), r=first)
     h_c = "${c}${r}".format(c=L(hc + 9), r=first + 2)
-    asx.cell(first + 1, hc + 9, "=MIN(0,MIN(%s))" % raw_r)
+    asx.cell(first + 1, hc + 9, "=MIN(0,MIN(%s),MIN(%s))" % (raw_r, cuts))
     asx.cell(first + 2, hc + 9, "=({t}-{lo})*0.06".format(t=top_c, lo=lo_c))
     for r in range(first, last + 1):
         gone_c = "{c}{r}".format(c=L(hc + 2), r=r)
@@ -490,10 +500,14 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     area.grouping = "stacked"
     area.title = None
     area.height, area.width = 12, 26
+    area.add_data(Reference(asx, min_col=hc + 10, max_col=hc + 10, min_row=first - 1, max_row=last),
+                  titles_from_data=True)
     area.add_data(Reference(asx, min_col=hc + 4, max_col=hc + 8, min_row=first - 1, max_row=last),
                   titles_from_data=True)
     area.set_categories(Reference(asx, min_col=hc, min_row=first, max_row=last))
-    for i, s_ in enumerate(area.series):
+    area.series[0].graphicalProperties.noFill = True
+    area.series[0].graphicalProperties.line.noFill = True
+    for i, s_ in enumerate(area.series[1:]):
         s_.graphicalProperties.solidFill = ("F4F1EC", "E4DFD5", "EFD7CF", "E0A6A6", "CC8080")[order[i]]
         s_.graphicalProperties.line.noFill = True
     # Every quarter as one line, and the quarters left out as grey markers on
@@ -533,7 +547,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     cut = strip.series[0]
     cut.graphicalProperties.solidFill = "57534B"
     cut.graphicalProperties.line.noFill = True
-    line.y_axis.number_format = "0.0;;0.0"        # no labels on the strip's negative space
+    # No labels on the strip's negative space, unless the measure itself can
+    # go below zero: then those numbers are real and must be labelled.
+    below_zero = not floor_at_zero or any(p.value < 0 for s in loaded for p in s["points"])
+    line.y_axis.number_format = "0.0" if below_zero else "0.0;;0.0"
     line.x_axis.tickLblPos = "low"                 # year labels below the strip, not on it
     line += area
     line += strip

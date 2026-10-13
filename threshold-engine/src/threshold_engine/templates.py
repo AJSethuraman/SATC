@@ -26,10 +26,9 @@ The rules ``check`` applies:
 - dates are quarter-ends (``YYYY-03-31``, ``YYYY-06-30``, ``YYYY-09-30``,
   ``YYYY-12-31``), oldest first, contiguous, and never repeated. The spec
   also names ``YYYYQn``; it is recognised and refused with the quarter-end
-  date to write instead, because ``workbook.read_series`` reads a date by its
-  characters 5-6 as a month, so ``2020Q2`` would land in 2020Q1 and the build
-  would refuse the series as having gaps. A check that passes a file the
-  build cannot read would be a check that lies;
+  date to write instead, because the build reads only calendar dates written
+  YYYY-MM-DD and refuses ``2020Q2`` (``series.check``). A check that passes a
+  file the build cannot read would be a check that lies;
 - every value is a finite number; a ``%`` value lies within 0-100, and a
   ``score`` value within the scale the file states in its ``scale`` note;
 - at least ``MIN_QUARTERS`` (9) quarters. ``scale.py`` refuses a series
@@ -208,7 +207,7 @@ def _date(text: str):
     m = _YQ.match(text)
     if m:
         iso = "%s-%s" % (m.group(1), ("03-31", "06-30", "09-30", "12-31")[int(m.group(2)) - 1])
-        return ("date %r: write it as %s; the workbook reads YYYYQn as the wrong quarter"
+        return ("date %r: write it as %s; the workbook reads only dates written YYYY-MM-DD"
                 % (text, iso))
     return ("date %r is not a quarter-end (YYYY-03-31, YYYY-06-30, YYYY-09-30 or YYYY-12-31)"
             % text)

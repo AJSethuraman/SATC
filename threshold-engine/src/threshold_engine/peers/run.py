@@ -427,6 +427,20 @@ def _commit(moves, removals, say):
     return gone
 
 
+def _check_out(out, *, roster, mergers) -> None:
+    """Refuse a workbook path that would replace a file the build reads,
+    before anything is read or written. It must be a .xlsx file: the series
+    are .csv and the cache .json, so it can never be one of them, and it must
+    not be the roster or the merger record, whatever they are named."""
+    out = Path(out)
+    if out.suffix.lower() != ".xlsx":
+        raise ValueError("the peer workbook must be written to a .xlsx file, not %s" % out.name)
+    for name, path in (("the roster", roster), ("the merger record", mergers)):
+        if path is not None and out.resolve() == Path(path).resolve():
+            raise ValueError("the peer workbook would be written over %s, %s; write it elsewhere"
+                             % (name, Path(path).name))
+
+
 def build(out, *, cache, roster, series_dir, first: str, last: str, products: Sequence[str],
           mergers, extra_acquisitions: Sequence[str], industry_combined: Sequence[str],
           jump: float, min_book: float, exempt_self: bool, pack: str, min_banks: int, rank_by: str,
@@ -459,6 +473,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     written, left out before, left out after)`` (0 quarters: not written)."""
     s = dict(locals())
     products = _check_build(s)
+    _check_out(out, roster=roster, mergers=mergers)
     quarters = fdic.quarter_ends(first, last)
     roster_ = R.load(roster)
     me = R.self_bank(roster_)

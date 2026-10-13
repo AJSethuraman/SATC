@@ -5,7 +5,7 @@ goes in, what comes out, and what proves it. Where something was run only as a
 one-off analysis rather than built into the tool, the last section says so.
 
 **State of the code:** branch `threshold-engine`, draft pull request #426.
-752 tests pass (13 Oct 2026). Nothing has been run on KeyBank's internal data.
+763 tests pass (13 Oct 2026). Nothing has been run on KeyBank's internal data.
 Nothing internal is in the repository, by rule.
 
 ## The job

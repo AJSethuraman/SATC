@@ -292,15 +292,16 @@ def test_date_not_a_quarter_end(tmp_path):
 def test_yyyyqn_is_refused_with_the_date_to_write(tmp_path):
     p = raw(tmp_path, "wapd", rows_text().replace("2015-03-31", "2015Q1", 1))
     assert check("wapd", p) == [
-        "line 12: date '2015Q1': write it as 2015-03-31; the workbook reads YYYYQn as the wrong quarter"]
+        "line 12: date '2015Q1': write it as 2015-03-31; the workbook reads only dates written YYYY-MM-DD"]
 
 
 def test_yyyyqn_really_does_not_build(tmp_path):
-    """Why YYYYQn is refused: the workbook reads it as monthly steps and refuses it."""
+    """Why YYYYQn is refused: the workbook does not read it as a date. (It used
+    to read it as monthly steps; since 13 Oct 2026 the date itself is refused.)"""
     p = tmp_path / "q.csv"
     p.write_text("date,value\n" + "".join("%dQ%d,%s\n" % (2015 + i // 4, i % 4 + 1, v)
                                           for i, v in enumerate(synthetic("%", 12))), encoding="utf-8")
-    with pytest.raises(ValueError, match="expected one quarterly step"):
+    with pytest.raises(ValueError, match="'2015Q1' is not a calendar date written YYYY-MM-DD"):
         build(tmp_path / "w.xlsx", [("A", p)], "A", "%", "higher_is_worse", "quarterly", 1, True,
               0.5, 1.0, 2.5, "worse", (10,), (50, 75, 90, 95), 1, 8)
 

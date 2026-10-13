@@ -427,3 +427,51 @@ def test_the_workbook_is_never_written_over_its_own_input(tmp_path):
               frequency="quarterly", smoothing=1, floor_at_zero=True, moderate_halfwidth=0.5, low_step=1.0,
               high_z=2.5, on_the_line="worse", half_lives=(), percentiles=(50,), horizon=4, min_history=41)
     assert src.read_bytes() == before and alias.read_bytes() == before
+
+
+def test_the_assess_bands_stack_from_the_floor_when_values_go_below_zero(tmp_path):
+    """The Codex review (13 Oct 2026): with cut-offs below zero the first band
+    was the cut-off itself, a negative width. The stack now starts at an
+    invisible base, the chart's floor, and every band is a gap >= 0."""
+    src = tmp_path / "neg.csv"
+    src.write_text("date,value\n" + "".join("%s,%r\n" % (p.date, p.value - 6) for p in load("cards_nco_ttm.csv")),
+                   encoding="utf-8")
+    p = tmp_path / "neg.xlsx"
+    build(p, [("Net", src)], name="Net", unit="%", direction="higher_is_worse", frequency="quarterly",
+          smoothing=1, floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5,
+          on_the_line="worse", half_lives=(), percentiles=(50, 75, 90, 95), horizon=4, min_history=41)
+    vals = recalc(p)
+    lines = [vals["THRESHOLDS!%s5" % c] for c in "EFGH"]
+    assert vals["THRESHOLDS!M5"] == "" and lines[0] < 0
+    ws = load_workbook(p)["Assess"]
+    first = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 12).value == "Quarter") + 1
+    floor = vals["ASSESS!U%d" % (first + 1)]
+    top = vals["ASSESS!U%d" % first]
+    data = [v for v in (vals.get("ASSESS!O%d" % r) for r in range(first, ws.max_row + 1)) if isinstance(v, float)]
+    assert floor == pytest.approx(min(0, min(data), min(lines))) and top > max(max(data), max(lines))
+    assert vals["ASSESS!V%d" % first] == pytest.approx(floor)                  # the base
+    widths = [vals["ASSESS!%s%d" % (get_column_letter(c), first)] for c in range(16, 21)]
+    assert all(w >= 0 for w in widths)
+    assert floor + sum(widths) == pytest.approx(top)
+    assert floor + widths[0] == pytest.approx(lines[0])
+
+
+def test_the_assess_axis_labels_negative_numbers_only_when_they_are_real(built, tmp_path):
+    """Mortgage and home equity net charge-offs go below zero (net recoveries),
+    and the axis used to hide every negative label; now it hides them only
+    when nothing real can be negative (floored, and no value below zero)."""
+    fmt = lambda p: load_workbook(p)["Assess"]._charts[0].y_axis.number_format.formatCode     # noqa: E731
+    assert fmt(built[0]) == "0.0"                          # mortgage and home equity dip below zero
+    cards = tmp_path / "cards.xlsx"
+    build(cards, SERIES[:1], name="NCO", unit="%", direction="higher_is_worse", frequency="quarterly",
+          smoothing=1, floor_at_zero=True, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5,
+          on_the_line="worse", half_lives=(), percentiles=(50,), horizon=4, min_history=41)
+    assert fmt(cards) == "0.0;;0.0"                        # nothing below zero: the strip is unlabelled
+    src = tmp_path / "neg.csv"
+    src.write_text("date,value\n" + "".join("%s,%r\n" % (p.date, p.value - 6) for p in load("cards_nco_ttm.csv")),
+                   encoding="utf-8")
+    p = tmp_path / "neg.xlsx"
+    build(p, [("Net", src)], name="Net", unit="%", direction="higher_is_worse", frequency="quarterly",
+          smoothing=1, floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5,
+          on_the_line="worse", half_lives=(), percentiles=(50,), horizon=4, min_history=41)
+    assert fmt(p) == "0.0"

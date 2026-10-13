@@ -178,7 +178,7 @@ Template-specific notes are added where the measure needs one, e.g.
     (refusing anything that could carry account-level data or PII);
   - dates are quarter-ends (`YYYY-03-31` and so on), contiguous, and never
     repeated. *As built:* `YYYYQn` is refused, naming the quarter-end date to
-    write instead, because `workbook.quarter` reads it as the wrong quarter;
+    write instead, because the build reads only dates written YYYY-MM-DD (since 13 Oct 2026 it refuses `YYYYQn` outright);
   - *As built:* the `# template: KEY` line `write` puts first must name the
     template being checked, and every `#` line must be one of its notes;
   - every value is a finite number;

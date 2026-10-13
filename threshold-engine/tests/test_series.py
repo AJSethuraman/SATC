@@ -48,3 +48,13 @@ def test_monthly_series_are_checked_monthly():
     assert len(check(pts, "monthly")) == 12
     with pytest.raises(SeriesError):
         check(pts, "quarterly")
+
+
+@pytest.mark.parametrize("bad", ["2020-13-31", "2020-03-99", "2021-02-29", "2020-3-31", "20200331", "2020-03-31T00"])
+def test_a_date_that_is_not_on_the_calendar_is_refused(bad):
+    """The Codex review (13 Oct 2026): 2020-13-31 passed the step test and
+    became 2020Q5 in the workbook."""
+    from threshold_engine.series import SeriesError, check
+    pts = [Point(bad, 1.0), Point("2021-06-30", 2.0)]
+    with pytest.raises(SeriesError, match="not a calendar date written YYYY-MM-DD"):
+        check(pts, "quarterly")

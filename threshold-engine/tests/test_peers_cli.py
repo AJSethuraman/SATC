@@ -1098,3 +1098,27 @@ def test_the_window_must_state_refresh(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match=re.escape("--refresh must be stated, yes or no")):
         run.pull(cache=tmp_path, first="2026Q1", last="2026Q2", products=["Auto"], delinquency=False,
                  mergers_since=None, refresh="yes", say=lambda line: None)
+
+
+@pytest.mark.parametrize("name", ["peers.csv", "peers", "roster", "mergers"])
+def test_the_peer_workbook_never_replaces_an_input(built, tmp_path, capsys, name):
+    """The Codex review (13 Oct 2026): a workbook path equal to the roster or
+    the merger record replaced it, and one not ending .xlsx could be a series
+    CSV. Refused before anything is read or written."""
+    roster = tmp_path / "roster.xlsx"
+    roster.write_bytes((ROOT / "config" / "peers.json").read_bytes())
+    mergers = tmp_path / "mergers.xlsx"
+    mergers.write_bytes((PEERS / "mergers_roster.json").read_bytes())
+    out = {"peers.csv": tmp_path / "peers.csv", "peers": tmp_path / "peers",
+           "roster": roster, "mergers": mergers}[name]
+    before = {p: p.read_bytes() for p in (roster, mergers)}
+    args = list(BUILD)
+    args[args.index("--roster") + 1] = str(roster)
+    args[args.index("--mergers") + 1] = str(mergers)
+    rc = main(["peers", "build", str(out), "--cache", str(built["cache"]), "--series-dir", str(tmp_path / "s")]
+              + args)
+    err = capsys.readouterr().err
+    assert rc == 2
+    assert ("must be written to a .xlsx file" in err) if name.startswith("peers") else ("would be written over" in err)
+    assert {p: p.read_bytes() for p in (roster, mergers)} == before
+    assert not (tmp_path / "s").exists()

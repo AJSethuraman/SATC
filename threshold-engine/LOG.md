@@ -536,3 +536,31 @@ On 022b898, seven, all in code older than this week, all checked and fixed:
 Six workbook tests had set leave-outs without a reason, which is now
 refused; they state one. Suite: 746 in the full run, then test_workbook.py
 rerun whole (34 passed): 752.
+
+## 13 October 2026, the fifth Codex pass
+
+On 04905ef, three, all real:
+- **P1: the peer build could replace its own inputs.** A workbook path equal
+  to the roster or merger record replaced it; one not ending `.xlsx` could
+  be a series CSV, which then replaced the workbook. `peers build` now
+  refuses both before anything is read or written.
+- **Impossible dates passed.** `2020-13-31` cleared the step test and
+  became 2020Q5. `series.check` now requires a real calendar date written
+  YYYY-MM-DD.
+- **The Assess bands below zero.** The first band was the cut-off itself, a
+  negative width. The stack now starts at an invisible base, the chart's
+  floor (the lowest of 0, the data and the cut-offs), and the top takes in
+  the cut-offs too. Opened in Excel on a series shifted below zero: five
+  bands, each between its own lines.
+
+Opening it found one more: the Assess axis hid every negative label (a
+format that keeps the grey strip unlabelled). The public mortgage and home
+equity series go below zero (net recoveries), so the chart already hid real
+values for them. Negative labels now show whenever the measure is not
+floored or any value is below zero.
+The full run then had one failure: a template test expected `2015Q1` to be
+refused as a gap; it is now refused as not a date, and the template check's
+message and the spec, which gave the old reason, now give the true one. The
+Assess axis change came after the full run began, so test_workbook.py and
+the template tests were rerun whole (113 and 99 passed). Suite: 762 in the
+full run plus the one fixed: 763.

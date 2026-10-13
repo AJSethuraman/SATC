@@ -6,6 +6,7 @@ interpolated, because a filled-in quarter is a number nobody published.
 from __future__ import annotations
 
 import csv
+import datetime as dt
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -80,6 +81,15 @@ def check(points: Sequence[Point], frequency: str) -> List[Point]:
                           % (sorted(STEP_MONTHS), frequency))
     if not points:
         raise SeriesError("empty", "the series has no observations")
+    for p in points:
+        # A real calendar date, written YYYY-MM-DD: 2020-13-31 or 2020-03-99
+        # would otherwise pass the step test and become a quarter like 2020Q5.
+        try:
+            ok = len(p.date) == 10 and dt.date.fromisoformat(p.date).isoformat() == p.date
+        except (TypeError, ValueError):
+            ok = False
+        if not ok:
+            raise SeriesError("date", "%r is not a calendar date written YYYY-MM-DD" % (p.date,))
     pts = sorted(points, key=lambda p: p.date)
     step = STEP_MONTHS[frequency]
     for a, b in zip(pts, pts[1:]):
