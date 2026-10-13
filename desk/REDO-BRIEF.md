@@ -8,9 +8,10 @@ on this repository. Everything after the line below is the brief.*
 You are taking over **the desk**: what an agent doing a client's books consults
 when it hits a tax or accounting question it can't settle itself. The firm has
 judged the current version a failure, and you are free to redo it. Read this
-brief, then `CLAUDE.md` at the repository root, then decide what to build. Don't
-read the desk's history first. It records the approach that failed, and it will
-pull you back into it.
+brief, then `desk/PITFALLS.md` (short, and the one piece of the desk's history
+written for you), then `CLAUDE.md` at the repository root, then decide what to
+build. Don't read the rest of the history first. It records the
+approach that failed, and it will pull you back into it.
 
 ## 1. The goal, in the firm's words
 
@@ -31,11 +32,15 @@ These are the firm's words. Where you're unsure what to build, they decide it.
 > Services [...] this implies that the skill is able to call for questions and
 > receive back answers from Forge - Desk"* — 8 September 2026
 
-What that means:
+What that means, **in my reading** (the session that wrote this brief, not the
+firm). Where it and the quotes above disagree, the quotes win:
 
 - **An agent asks, and the desk finds the answer itself.** When the desk
   doesn't already hold the law a question needs, it goes and gets it from the
-  official source, checks it word for word, and answers from it.
+  official source and checks it word for word. **Whether it may then answer
+  from it in the same run is open.** The firm has never ruled on it, and the
+  last version said no, which is how a person came to sit between every run.
+  Ask the firm before you build (`desk/PITFALLS.md`, pitfall 1).
 - **Binding authority gets used. Anything else goes to the firm.** The Internal
   Revenue Code and Treasury regulations bind. IRS publications, rulings and
   guidance don't bind in the same way: the desk brings what it found, and how
@@ -53,9 +58,18 @@ What that means:
 asking Forge-Desk whatever it can't settle, with no human changing the desk
 between the start and the end of the run.**
 
+That sentence is **my shaping** of the firm's bar quoted in section 1, and the
+firm hasn't confirmed it. The part about no human changing the desk comes from
+their 29 September words; the rest is theirs from 8 September. Confirm it with
+them before you rely on it.
+
 - **What to report:** of the questions Occam asked, how many the desk answered
   correctly with a citation, how many it correctly brought to the firm, and how
   many it got wrong or couldn't handle. Give the counts, not percentages alone.
+- **Also report the rows:** how many of the 485 are done, and who holds each
+  one still open (the firm, the client, the preparer, or the desk). In pilot 5,
+  none of the 441 open rows was waiting on law the desk lacked
+  (`desk/PITFALLS.md`, pitfall 2).
 - **Who decides "correct":** the firm. If you want a grading key, write it and
   seal it (commit it before the run) so the run can't shape it.
 - **For comparison:** the last run, pilot 5 on 27 September, answered 14 of 17
