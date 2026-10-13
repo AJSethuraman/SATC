@@ -1,6 +1,6 @@
 Dear {salutation},
 
-Invoice {invoice_number} for {fee_amount_text} is past due. You can pay it here: {payment_link}
+{amount_owed_text} is past due on invoice {invoice_number}. You can pay it here: {payment_link}
 
 If you've already paid, thank you, and please disregard this.
 

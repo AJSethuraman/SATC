@@ -545,3 +545,27 @@ def test_the_outlook_button_hands_over_the_html_and_the_code(client, demo_client
     assert 'src="cid:payqr"' in seen.get("html_body", "")
     assert set(seen.get("inline_images", {})) == {QR_CID}
     assert QR_MARKER not in seen["body"]
+
+
+def test_an_overdue_reminder_asks_for_the_balance_not_the_total(
+        client, demo_client_id, monkeypatch):
+    """FOUND BY CODEX ON PR #430. The reminder quoted the invoice total, so a
+    client who had paid $300 of $450 was told $450 was past due. It now quotes
+    what the payments ledger says is still owed -- the Today row's number."""
+    from datetime import date
+    from decimal import Decimal
+
+    from satc.billing.payment import MatchBasis, Payment
+
+    older, _, _ = _two_issued_invoices(demo_client_id)          # $450.00
+    _with_invoices(monkeypatch, [older])
+    paid = Payment(client_id=demo_client_id, amount=Decimal("300"), received_on=date(2026, 2, 1),
+                   invoice_id=older.invoice_id, basis=MatchBasis.REFERENCE)
+    monkeypatch.setattr(STATE.store, "load_payments", lambda client_id="": [paid])
+
+    resp = client.get("/comms", query_string={
+        "client": demo_client_id, "template": "overdue_invoice", "tax_year": 2025,
+        "invoice": older.invoice_id})
+    body = resp.data.decode("utf-8")
+    assert bill_money(older.total - Decimal("300")) in body
+    assert f"{bill_money(older.total)} is past due" not in body

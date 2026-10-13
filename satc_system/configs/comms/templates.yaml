@@ -118,6 +118,10 @@ placeholders:
       promptly and NOT withholding them over a fee dispute — so this text is
       firm-standing and deliberately not per-client wording anyone can soften.
 
+  amount_owed_text:
+    label: "Still owed on the invoice"
+    source: state
+    note: "From the payments ledger (balance_owed), not the invoice total -- a part-paid bill is chased for its balance."
   invoice_breakdown:
     label: "Invoice breakdown"
     source: state

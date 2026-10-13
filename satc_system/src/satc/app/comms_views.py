@@ -218,6 +218,7 @@ def _context(client_id: str, tax_year: int | None, invoice_id: str = "", *,
     lib = library()
     engagement = _newest_engagement(client_id, tax_year)
     year = tax_year if tax_year is not None else getattr(engagement, "tax_year", None)
+    invoice = _latest_invoice(client_id, year, invoice_id)
     values = build_context(
         client_id=client_id,
         client_name=STATE.name(client_id),
@@ -227,7 +228,7 @@ def _context(client_id: str, tax_year: int | None, invoice_id: str = "", *,
         received=[d for d in STATE.received_documents() if d.client_id == client_id],
         engagement=engagement,
         fee_record=_fee_record(client_id, year),
-        invoice=_latest_invoice(client_id, year, invoice_id),
+        invoice=invoice,
         engagement_name=_workflow_name(engagement),
         standing_text=firm_policy().standing_text,
         tax_year=tax_year,
@@ -237,6 +238,15 @@ def _context(client_id: str, tax_year: int | None, invoice_id: str = "", *,
         prior_year=(year - 1) if year else None,
         firm_values=lib.firm_values(),
     )
+    if invoice is not None:
+        # WHAT IS STILL OWED, FROM THE LEDGER -- the same balance the Today row
+        # states. Found by Codex on PR #430: the overdue reminder quoted the
+        # invoice TOTAL, so a client who had paid $300 of $450 was told $450 was
+        # past due.
+        from satc.actions.propose import balance_owed
+        from satc.comms.context import bill_money
+        owed = balance_owed(invoice, STATE.store.load_payments(client_id))
+        values["amount_owed_text"] = bill_money(owed)
 
     # -- what this engagement agreed, LAYERED OVER the generic prefill --------
     #
