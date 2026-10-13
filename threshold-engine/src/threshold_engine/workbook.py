@@ -410,8 +410,9 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     else:
         ge, lt = ('"<="', '">"'), ('"<"', '">="')
 
-    def counts(r, cols):
-        """Quarters kept in each score, for the four lines in this row's columns."""
+    def counts(r, cols, num="TRUE"):
+        """Quarters kept in each score, for the four lines in this row's columns;
+        blank when ``num`` (the row's settings are numbers) is false."""
         b = ["%s%d" % (c_, r) for c_ in cols]
         for k in range(5):
             parts = []
@@ -421,7 +422,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             if k < 4:
                 parts.append('{d},IF({o}="worse",{w},{bt})&{ref}'.format(d=kept_r, o=online, w=ge[1], bt=lt[1],
                                                                           ref=b[k]))
-            asx.cell(r, 6 + k, '=IF($B$5<>"","",COUNTIFS(%s))' % ",".join(parts))
+            asx.cell(r, 6 + k, '=IF(OR($B$5<>"",NOT(%s)),"",COUNTIFS(%s))' % (num, ",".join(parts)))
 
     dials = [("High's z", HZ, (2.0, 2.5, 3.0, 3.5)),
              ("Moderate's half-width, in typical yearly moves", HW, (0.25, 0.5, 0.75, 1.0)),
@@ -436,15 +437,19 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             val = now if v is None else repr(v)
             asx.cell(r, 1, "=" + now if v is None else v)
             hw_, ls_, hz_ = (val if now == x else x for x in (HW, LS, HZ))
-            asx.cell(r, 2, "={m}-{s}*{ls}*{mv}".format(m=MED, s=sgn, ls=ls_, mv=MOVE))
-            asx.cell(r, 3, "={m}-{s}*{hw}*{mv}".format(m=MED, s=sgn, hw=hw_, mv=MOVE))
-            asx.cell(r, 4, "={m}+{s}*{hw}*{mv}".format(m=MED, s=sgn, hw=hw_, mv=MOVE))
-            asx.cell(r, 5, "={m}+{s}*{hz}*{sp}".format(m=MED, s=sgn, hz=hz_, sp=SPREAD))
-            counts(r, "BCDE")
-            asx.cell(r, 11, ('=IF({ls}<={hw},"refused: Moderate-Low inside Moderate",'
+            # Text in a setting is refused on Thresholds; here it would be
+            # multiplied into #VALUE!, so the row is blank and says why.
+            num = "AND(ISNUMBER({}),ISNUMBER({}),ISNUMBER({}))".format(hw_, ls_, hz_)
+            asx.cell(r, 2, '=IF({n},{m}-{s}*{ls}*{mv},"")'.format(n=num, m=MED, s=sgn, ls=ls_, mv=MOVE))
+            asx.cell(r, 3, '=IF({n},{m}-{s}*{hw}*{mv},"")'.format(n=num, m=MED, s=sgn, hw=hw_, mv=MOVE))
+            asx.cell(r, 4, '=IF({n},{m}+{s}*{hw}*{mv},"")'.format(n=num, m=MED, s=sgn, hw=hw_, mv=MOVE))
+            asx.cell(r, 5, '=IF({n},{m}+{s}*{hz}*{sp},"")'.format(n=num, m=MED, s=sgn, hz=hz_, sp=SPREAD))
+            counts(r, "BCDE", num)
+            asx.cell(r, 11, ('=IF(NOT({n}),"refused: a setting is not a number",'
+                             'IF({ls}<={hw},"refused: Moderate-Low inside Moderate",'
                              'IF({s}*(E{r}-D{r})<=0,"refused: High inside Moderate-High",'
-                             'IF({s}*({w}-E{r})<0,"refused: High beyond the worst kept",{now})))')
-                     .format(ls=ls_, hw=hw_, s=sgn, r=r, w=WORST, now='"<- now"' if v is None else '""'))
+                             'IF({s}*({w}-E{r})<0,"refused: High beyond the worst kept",{now}))))')
+                     .format(n=num, ls=ls_, hw=hw_, s=sgn, r=r, w=WORST, now='"<- now"' if v is None else '""'))
             for c_ in range(2, 6):
                 asx.cell(r, c_).number_format = "0.000"
             if v is None:
