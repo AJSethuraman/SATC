@@ -582,3 +582,17 @@ On 4903237, four, no P1, all real:
   quarter's own value is known when it is scored) and the words corrected
   on the tab, in the Glossary and in WHAT-IT-DOES.
 Suite: 768 passed (18 min).
+
+## 13 October 2026, merged without a final Codex review
+
+Codex answered the sixth pass's fixes (604e92d) with its usage limit, so
+they have no Codex review. The firm, asked for recommendations and
+consequences, answered "Agree" to both:
+- **Keep credit-suite's SEPARATE_PRODUCTS exemption** for threshold-engine,
+  which keeps its own copy of keybank_style.py so it lifts out whole. The
+  copy does not follow credit-suite's styling; a change there is copied by
+  hand.
+- **Merge without that review**, CI 18 of 18 green on 604e92d and the branch
+  containing main. This skips the merge rule's Codex step, by the firm's
+  decision. #426 merged as a26a20a. **Open:** run Codex on main when its
+  limit resets, and fix what it finds in a new PR.
