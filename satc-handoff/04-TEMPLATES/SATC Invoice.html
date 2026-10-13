@@ -13,7 +13,7 @@
 
 <doc-page size="letter" margin="0.7in">
 
-<div class="doc">
+<div class="doc invoice">
 
 <div class="mast">
   <div class="lock">
@@ -57,11 +57,11 @@
     <td class="r num"><span class="f">&lt;&lt;Item.Amount&gt;&gt;</span></td>
   </tr>
   <tr class="mark"><td colspan="2"><span class="cond inline">[[END EACH]]</span></td></tr>
+  <tr class="mark"><td colspan="2"><span class="cond inline">[[IF CreditsApplied]]</span></td></tr>
   <tr class="sub">
     <td>Subtotal</td>
     <td class="r num"><span class="f">&lt;&lt;Subtotal&gt;&gt;</span></td>
   </tr>
-  <tr class="mark"><td colspan="2"><span class="cond inline">[[IF CreditsApplied]]</span></td></tr>
   <tr class="credit">
     <td class="desc"><b><span class="f">&lt;&lt;CreditLabel&gt;&gt;</span></b><span><span class="f">&lt;&lt;CreditDetail&gt;&gt;</span></span></td>
     <td class="r num"><span class="f">&lt;&lt;CreditAmount&gt;&gt;</span></td>
@@ -77,6 +77,10 @@
   <div>
     <div class="k">Amount due</div>
     <div class="amt"><span class="f">&lt;&lt;AmountDue&gt;&gt;</span></div>
+    <span class="cond">[[IF PaymentLink]]</span>
+    <a class="paynow" href="&lt;&lt;PaymentUrl&gt;&gt;">Pay online</a>
+    <div class="payurl"><span class="f">&lt;&lt;PaymentUrl&gt;&gt;</span></div>
+    <span class="cond end">[[END IF]]</span>
   </div>
   <p class="terms"><b>Due on presentation.</b> Balances unpaid after thirty (30) days carry interest at the maximum rate Ohio law permits, per the <b>Fees and billing</b> section of your engagement letter.</p>
 </div>
@@ -85,9 +89,6 @@
   <div>
     <div class="h">How to pay</div>
     <p><span class="f">&lt;&lt;PaymentInstruction&gt;&gt;</span></p>
-    <span class="cond">[[IF PaymentLink]]</span>
-    <p class="paylink"><a href="&lt;&lt;PaymentUrl&gt;&gt;"><span class="f">&lt;&lt;PaymentUrl&gt;&gt;</span></a></p>
-    <span class="cond end">[[END IF]]</span>
   </div>
   <div>
     <div class="h">Remit to</div>
