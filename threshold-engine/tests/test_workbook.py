@@ -385,6 +385,34 @@ def test_a_lower_is_worse_workbook_shades_five_bands_of_positive_width(tmp_path)
     assert all(x >= 0 for x in widths)
 
 
+@pytest.mark.parametrize("rule", ["worse", "better"])
+def test_a_lower_is_worse_workbook_equals_the_reference_scale(tmp_path, rule):
+    """NEXT-GOAL section 2: a lower-is-worse measure (a credit score) was
+    tested in scale.py and never through the workbook's lines and score. A
+    mirrored cards series, built, recalculated, and held to scale() and
+    score() with the direction reversed, under each on-the-line rule."""
+    src = tmp_path / "score.csv"
+    pts = load("cards_nco_ttm.csv")
+    src.write_text("date,value\n" + "".join("%s,%r\n" % (x.date, 800 - 40 * x.value) for x in pts),
+                   encoding="utf-8")
+    p = tmp_path / ("low-%s.xlsx" % rule)
+    build(p, [("Score", src)], name="Score", unit="", direction="lower_is_worse", frequency="quarterly",
+          smoothing=1, floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5,
+          on_the_line=rule, half_lives=(), percentiles=(50, 75, 90, 95), horizon=4, min_history=41)
+    vals = recalc(p)
+    mirrored = [800 - 40 * x.value for x in pts]
+    ref = scale(mirrored, "lower_is_worse", 0.5, 1.0, 2.5, False)
+    got = row(vals, 5)
+    assert vals["THRESHOLDS!M5"] == "" and ref["refused"] is None
+    assert got[0] == pytest.approx(ref["median"]) and got[3:7] == pytest.approx(ref["bounds"])
+    assert ref["bounds"] == sorted(ref["bounds"], reverse=True)          # lower is worse: lines fall
+    assert vals["THRESHOLDS!J5"] == pytest.approx(mirrored[-1])
+    assert got[7] == score(mirrored[-1], ref["bounds"], "lower_is_worse", rule, False)
+    want = [sum(1 for x in mirrored if score(x, ref["bounds"], "lower_is_worse", rule, False) == k)
+            for k in range(1, 6)]
+    assert [vals["ASSESS!E%d" % r] for r in range(8, 13)] == want
+
+
 @pytest.mark.parametrize("cells, which", [
     ({"B6": "2008Q1"}, "first"),                                        # a start and nothing else
     ({"B6": "2012Q4", "C6": "2008Q1", "D6": "x"}, "first"),              # reversed
