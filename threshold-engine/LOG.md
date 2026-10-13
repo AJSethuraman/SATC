@@ -512,3 +512,27 @@ On 90995b5, three more, each in code written before today and each real:
   `periods_per_year` (4 or 12, from the declared frequency, not a judgement)
   and evidence passes it. The workbook stays quarterly-only.
 Suite: 731 passed (14 min).
+
+## 13 October 2026, the fourth Codex pass
+
+On 022b898, seven, all in code older than this week, all checked and fixed:
+- **P1: the workbook could be written over its own input.** `build` now
+  refuses an output that is not `.xlsx` or that resolves to any input file.
+- **The Assess chart, lower-is-worse:** the lines fall, so the stacked bands
+  had negative widths. The stack now starts at score 5. Opened in Excel 16 on
+  a mirrored score series: five bands, High at the bottom, no formula error.
+- **Leave-outs are checked live.** Half a range, a reversed one, one off the
+  calendar, or one with no reason silently kept every quarter. The Check
+  column now refuses each, ahead of every other check (seen in Excel too).
+  It also refuses a negative half-width or a z at or below 0, and `scale()`
+  refuses both, in the same words, for the command line.
+- **A row without a value** was a `TypeError` traceback; the shared reader
+  refuses it naming the file and row.
+- **A missing file** was a traceback for `profile`, `evidence` and
+  `backtest`; it is refused, as the workbook and templates already did.
+- **Monthly evidence spoke in quarters**, and its departure windows were 8,
+  12 and 16 months. Labels follow the frequency, and windows are 2, 3 and 4
+  years either way.
+Six workbook tests had set leave-outs without a reason, which is now
+refused; they state one. Suite: 746 in the full run, then test_workbook.py
+rerun whole (34 passed): 752.

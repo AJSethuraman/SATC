@@ -74,6 +74,14 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
           percentiles: Sequence[float], horizon: int, min_history: int) -> dict:
     if frequency != "quarterly":
         raise ValueError("the workbook's calendar is quarterly; monthly series are not built yet")
+    out = Path(out)
+    if out.suffix.lower() != ".xlsx":
+        raise ValueError("the workbook must be written to a .xlsx file, not %s" % out.name)
+    for lbl, path in series:
+        # Saving over an input would destroy the data it was built from.
+        if out.resolve() == Path(path).resolve():
+            raise ValueError("the workbook would be written over %s, the series for %s; write it elsewhere"
+                             % (Path(path).name, lbl))
     if not all(math.isfinite(v) for v in
                (moderate_halfwidth, low_step, high_z, *half_lives, *percentiles)):
         raise ValueError("every setting must be a number, not nan or infinity")
@@ -218,13 +226,26 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         th.cell(r, 4, "=%s(%s)" % ("MAX" if higher else "MIN", kept))
         th.cell(r, 16, "=1.4826*MEDIAN(%s)" % levdev)                 # helper: the spread of levels
         hw, ls, hz = ("Settings!$%s$%d" % (c_, sr) for c_ in "HIJ")
-        th.cell(r, 13, ('=IF(ISERROR(C{r}),"Refused: too little history kept for a typical yearly move",'
+        # A leave-out used at all must be whole: two quarters on the calendar,
+        # in order, and a reason. Half of one silently keeps every quarter.
+        cal = "Data!$A$%d:$A$%d" % (first, last)
+        bad_lo = ['AND(OR(Settings!${a}${sr}<>"",Settings!${b}${sr}<>"",Settings!${w}${sr}<>""),'
+                  'NOT(AND(COUNTIF({cal},Settings!${a}${sr})=1,COUNTIF({cal},Settings!${b}${sr})=1,'
+                  'Settings!${a}${sr}<=Settings!${b}${sr},TRIM(Settings!${w}${sr})<>"")))'
+                  .format(a=a_, b=b_, w=w_, sr=sr, cal=cal) for a_, b_, w_ in (("B", "C", "D"), ("E", "F", "G"))]
+        th.cell(r, 13, ('=IF({lo1},"Refused: the first leave-out needs a first and a last quarter from the data, '
+                        'in order, and a reason",'
+                        'IF({lo2},"Refused: the second leave-out needs a first and a last quarter from the data, '
+                        'in order, and a reason",'
+                        'IF(OR(NOT(ISNUMBER({hw})),{hw}<0),"Refused: Moderate\'s half-width must be 0 or more",'
+                        'IF(OR(NOT(ISNUMBER({hz})),{hz}<=0),"Refused: High\'s z must be above 0",'
+                        'IF(ISERROR(C{r}),"Refused: too little history kept for a typical yearly move",'
                         'IF(AND({fz},B{r}<=0),"Refused: the median is at or below zero",'
                         'IF({ls}<={hw},"Refused: Moderate-Low must begin further from the median than Moderate",'
                         'IF({sg}*(H{r}-G{r})<=0,"Refused: High must begin beyond Moderate-High\'s line",'
                         'IF({sg}*(D{r}-H{r})<0,"Refused: High would begin beyond the worst quarter kept",'
-                        'IF(AND({fz},E{r}<=0),"Refused: Moderate-Low would begin at or below zero",""))))))')
-                .format(fz=fz, r=r, ls=ls, hw=hw, sg=sg))
+                        'IF(AND({fz},E{r}<=0),"Refused: Moderate-Low would begin at or below zero",""))))))))))')
+                .format(fz=fz, r=r, ls=ls, hw=hw, hz=hz, sg=sg, lo1=bad_lo[0], lo2=bad_lo[1]))
         th.cell(r, 7, "=$B{r}+{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
         th.cell(r, 6, "=$B{r}-{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
         th.cell(r, 5, "=$B{r}-{sg}*{ls}*$C{r}".format(r=r, sg=sg, ls=ls))
@@ -430,7 +451,11 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     asx.column_dimensions["I"].width = 10
     asx.column_dimensions["J"].width = 10
     asx.column_dimensions["K"].width = 34       # column L onward holds the chart's hidden helpers
-    heads = ["Quarter", "Kept", "Quarter left out", "Every quarter"] +         ["%d %s" % (i + 1, RATINGS[i]) for i in range(5)]
+    # The bands stack upward from the lowest line. Higher-is-worse lines rise
+    # (score 1 at the bottom); lower-is-worse lines fall, so the stack starts
+    # at score 5 and the line order, headings and colours are reversed.
+    order = list(range(5)) if higher else list(range(4, -1, -1))
+    heads = ["Quarter", "Kept", "Quarter left out", "Every quarter"] + ["%d %s" % (i + 1, RATINGS[i]) for i in order]
     for j, h in enumerate(heads):
         asx.cell(first - 1, hc + j, h)
     asx.cell(first - 1, hc + 9, "Top")
@@ -444,6 +469,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         asx.cell(r, hc + 3, '=IF(ISNUMBER({raw}),{raw},NA())'.format(raw=raw))
         top = "${c}${r0}".format(c=L(hc + 9), r0=first)
         b = ["$C$9", "$C$10", "$C$11", "$C$12"]
+        if not higher:
+            b = b[::-1]
         asx.cell(r, hc + 4, '=IF($B$5<>"",NA(),{b0})'.format(b0=b[0]))
         for i in range(1, 4):
             asx.cell(r, hc + 4 + i, '=IF($B$5<>"",NA(),{b1}-{b0})'.format(b1=b[i], b0=b[i - 1]))
@@ -467,7 +494,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                   titles_from_data=True)
     area.set_categories(Reference(asx, min_col=hc, min_row=first, max_row=last))
     for i, s_ in enumerate(area.series):
-        s_.graphicalProperties.solidFill = ("F4F1EC", "E4DFD5", "EFD7CF", "E0A6A6", "CC8080")[i]
+        s_.graphicalProperties.solidFill = ("F4F1EC", "E4DFD5", "EFD7CF", "E0A6A6", "CC8080")[order[i]]
         s_.graphicalProperties.line.noFill = True
     # Every quarter as one line, and the quarters left out as grey markers on
     # it. Excel joins a line straight across #N/A, so a "kept" line would draw

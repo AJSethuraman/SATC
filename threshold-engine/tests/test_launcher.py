@@ -286,7 +286,10 @@ def test_a_row_missing_its_value_is_words_from_run_not_a_traceback(tmp_path):
     assert launcher.problems(f) == []
     out = launcher.run(f, open_after=False)                          # the real build
     assert not out.ok and len(out.lines) == 1
-    assert out.lines[0].startswith("The build couldn't read a series (TypeError") and "every row" in out.lines[0]
+    # The shared reader now refuses the row in words, naming the file and row
+    # (the Codex review, 13 Oct 2026); before, the window caught a TypeError.
+    assert out.lines == ["The build refused: short.csv, row 2: a row needs both a date and a value "
+                         "(it has: 2020-01-01)"]
 
 
 def test_a_missing_column_raised_inside_the_build_is_words(tmp_path):

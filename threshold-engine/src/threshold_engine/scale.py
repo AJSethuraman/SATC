@@ -90,6 +90,9 @@ def scale(kept: Sequence[Optional[float]], direction: str, halfwidth: float, low
     quarterly series (the workbook's calendar), 12 for a monthly one. It
     follows from the declared frequency and is not a judgement; a caller with
     a monthly series must pass 12, or the move measures four months."""
+    for nm, v in (("halfwidth", halfwidth), ("low_step", low_step), ("high_z", high_z)):
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+            raise ValueError("%s must be a number, not %r" % (nm, v))
     if periods_per_year not in (4, 12):
         raise ValueError("periods_per_year must be 4 (quarterly) or 12 (monthly), not %r" % (periods_per_year,))
     vals = [v for v in kept if v is not None]
@@ -109,14 +112,20 @@ def scale(kept: Sequence[Optional[float]], direction: str, halfwidth: float, low
     b4 = med + s * halfwidth * move
     b2 = med - s * low_step * move
     b5 = med + s * high_z * spread
-    if floor_at_zero and s > 0 and med <= 0:
+    # The same refusals, in the same order, as the workbook's Check column.
+    if halfwidth < 0:
+        out["refused"] = "Moderate's half-width must be 0 or more"
+    elif high_z <= 0:
+        out["refused"] = "High's z must be above 0"
+    elif floor_at_zero and s > 0 and med <= 0:
         out["refused"] = "the median is at or below zero"
     elif low_step <= halfwidth:
         out["refused"] = "Moderate-Low must begin further from the median than Moderate"
     elif s * (b5 - b4) <= 0:
         out["refused"] = "High must begin beyond Moderate-High's line"
     elif s * (worst - b5) < 0:
-        out["refused"] = "High would begin beyond the worst quarter kept: nothing kept could rate High"
+        out["refused"] = ("High would begin beyond the worst %s kept: nothing kept could rate High"
+                          % ("quarter" if periods_per_year == 4 else "month"))
     elif floor_at_zero and s > 0 and b2 <= 0:
         out["refused"] = "Moderate-Low would begin at or below zero"
     else:

@@ -41,8 +41,14 @@ def read_csv(path) -> List[Point]:
             raise ValueError("%s must begin with the header line date,value (it has: %s)"
                              % (Path(path).name, ",".join(rows.fieldnames or ()) or "nothing"))
         out = []
-        for r in rows:
-            v = float(r["value"])
+        for n, r in enumerate(rows, start=2):
+            if not (r["date"] or "").strip() or not (r["value"] or "").strip():
+                raise ValueError("%s, row %d: a row needs both a date and a value (it has: %s)"
+                                 % (Path(path).name, n, ",".join(x for x in (r["date"], r["value"]) if x) or "nothing"))
+            try:
+                v = float(r["value"])
+            except ValueError:
+                raise ValueError("%s, %s: the value %r is not a number" % (Path(path).name, r["date"], r["value"])) from None
             if not math.isfinite(v):
                 raise ValueError("%s, %s: the value %r is not a number; a series holds only numbers"
                                  % (Path(path).name, r["date"], r["value"]))

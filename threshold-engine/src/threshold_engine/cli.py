@@ -322,7 +322,7 @@ def main(argv=None):
     if a.command == "profile":
         try:
             pr = profile(_read(a.csv), a.name, a.unit, a.direction, a.frequency, a.smoothing)
-        except (SeriesError, ValueError) as exc:
+        except (SeriesError, ValueError, OSError) as exc:
             return _refused(exc)
         print(json.dumps(pr, indent=2) if a.json else report(pr))
         return 0
@@ -347,7 +347,7 @@ def main(argv=None):
             r = backtest(_read(a.csv), a.name, a.unit, a.direction, a.frequency,
                          a.smoothing, a.percentiles, a.horizon, a.min_history,
                          a.floor_at_zero, a.half_lives)
-        except (SeriesError, ValueError) as exc:
+        except (SeriesError, ValueError, OSError) as exc:
             return _refused(exc)
         print(json.dumps(r, indent=2) if a.json else backtest_report(r))
         return 0
@@ -356,7 +356,7 @@ def main(argv=None):
                       dict(halfwidth=a.moderate_halfwidth, low_step=a.low_step,
                            high_z=a.high_z, on_the_line=a.on_the_line),
                       a.floor_at_zero, a.half_lives)
-    except (SeriesError, ValueError) as exc:
+    except (SeriesError, ValueError, OSError) as exc:
         return _refused(exc)
     print(json.dumps(ev, indent=2, default=str) if a.json else evidence_report(ev))
     return 0

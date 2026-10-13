@@ -47,6 +47,9 @@ def test_lower_is_worse_mirrors():
     (dict(hw=1.0, ls=0.5), "Moderate-Low must begin"),
     (dict(z=0.2), "High must begin beyond Moderate-High"),
     (dict(z=4.0), "beyond the worst quarter kept"),
+    (dict(hw=-1.0, ls=1.0, z=2.5), "half-width must be 0 or more"),      # Codex, 13 Oct 2026
+    (dict(z=0.0), "High's z must be above 0"),
+    (dict(z=-2.5), "High's z must be above 0"),
 ])
 def test_refusals(args, why):
     v = args.get("v", [0, 0, 0, 0, 1, 3, 2, 6, 2])

@@ -209,3 +209,40 @@ def test_the_backtest_tab_has_one_change_column_per_score(tmp_path):
     want = backtest(read_csv(CARDS), "c", "%", "higher_is_worse", "quarterly", 1, (50, 75, 90), 4, 41, True)
     assert rows[i + 1][len(head) - 1] == want["runs"][0]["periods_tested"]
     assert rows[i + 1][3:7] == pytest.approx([b["mean_change_ahead"] for b in want["runs"][0]["by_score"]])
+
+
+@pytest.mark.parametrize("command", ["profile", "evidence", "backtest"])
+def test_a_series_file_that_is_not_there_is_refused_not_a_traceback(tmp_path, capsys, command):
+    p = tmp_path / "no_such.csv"
+    argv = {"profile": ["profile", str(p)] + MEASURE, "evidence": ["evidence", str(p)] + MEASURE + SCALE,
+            "backtest": ["backtest", str(p)] + MEASURE + BT}[command]
+    assert main(argv) == 2
+    assert "REFUSED" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("command", ["profile", "evidence", "backtest", "workbook"])
+def test_a_row_without_a_value_is_refused_not_a_traceback(tmp_path, capsys, command):
+    p = tmp_path / "short.csv"
+    p.write_text("date,value\n2020-03-31\n", encoding="utf-8")
+    out = tmp_path / "t.xlsx"
+    argv = {"profile": ["profile", str(p)] + MEASURE, "evidence": ["evidence", str(p)] + MEASURE + SCALE,
+            "backtest": ["backtest", str(p)] + MEASURE + BT,
+            "workbook": ["workbook", str(out), "--series", "Cards=%s" % p] + MEASURE + WB}[command]
+    assert main(argv) == 2
+    assert "short.csv, row 2: a row needs both a date and a value" in capsys.readouterr().err
+
+
+def test_monthly_evidence_speaks_in_months(capsys):
+    """The Codex review (13 Oct 2026): monthly evidence was labelled in
+    quarters, and its departure windows were 8/12/16 months, not 2/3/4 years."""
+    from threshold_engine.evidence import evidence, report
+    from threshold_engine.series import Point
+    import math as _m
+    vals = [2 + _m.sin(i / 7) + 0.3 * _m.sin(i / 2) for i in range(120)]
+    pts = [Point("%d-%02d-28" % (2010 + i // 12, i % 12 + 1), v) for i, v in enumerate(vals)]
+    ev = evidence(pts, "m", "%", "higher_is_worse", "monthly", 1,
+                  dict(halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse"), True, (5,))
+    text = report(ev)
+    assert "quarter" not in text.lower(), [l for l in text.splitlines() if "quarter" in l.lower()]
+    assert "month-to-month change" in text and "effective months" in text
+    assert all(d["length"] in (24, 36, 48) for d in ev["departures"])

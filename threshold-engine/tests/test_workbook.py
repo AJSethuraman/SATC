@@ -90,7 +90,8 @@ def test_as_built_every_product_equals_the_reference_scale(built):
 
 def test_cards_with_both_periods_left_out_equal_the_reference(built, tmp_path):
     p, _, _ = built
-    vals = with_settings(p, tmp_path, "cuts.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "E6": "2021Q3", "F6": "2023Q1"})
+    vals = with_settings(p, tmp_path, "cuts.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "D6": "Financial crisis",
+        "E6": "2021Q3", "F6": "2023Q1", "G6": "Pandemic forbearance"})
     _, _, ref = reference("cards_nco_ttm.csv", CARD_CUTS)
     got = row(vals, 5)
     assert got[1] == pytest.approx(ref["typical_yearly_move"])
@@ -118,7 +119,7 @@ def test_the_on_the_line_rule_is_live(built, tmp_path):
 
 def test_a_median_at_or_below_zero_is_refused(built, tmp_path):
     p, _, _ = built
-    vals = with_settings(p, tmp_path, "z.xlsx", {"B7": "1991Q4", "C7": "2017Q4"})
+    vals = with_settings(p, tmp_path, "z.xlsx", {"B7": "1991Q4", "C7": "2017Q4", "D7": "test"})
     assert vals["THRESHOLDS!B6"] <= 0
     assert vals["THRESHOLDS!M6"] == "Refused: the median is at or below zero"
     assert vals["THRESHOLDS!K6"] == ""
@@ -176,7 +177,8 @@ def test_settings_says_what_the_evidence_found(built):
 
 def test_assess_counts_the_quarters_in_each_score(built, tmp_path):
     p, _, _ = built
-    vals = with_settings(p, tmp_path, "assess.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "E6": "2021Q3", "F6": "2023Q1"})
+    vals = with_settings(p, tmp_path, "assess.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "D6": "Financial crisis",
+        "E6": "2021Q3", "F6": "2023Q1", "G6": "Pandemic forbearance"})
     pts, kept, ref = reference("cards_nco_ttm.csv", CARD_CUTS)
     sc = lambda v: score(v, ref["bounds"], "higher_is_worse", "worse", True)      # noqa: E731
     want_kept = [sum(1 for v in kept if v is not None and sc(v) == k) for k in range(1, 6)]
@@ -273,7 +275,8 @@ def test_no_formula_refers_to_a_row_that_does_not_exist(built):
 def test_high_beyond_everything_kept_is_refused(built, tmp_path):
     # Cards with the crisis left out: z 3.5 puts High above the worst quarter kept.
     p, _, _ = built
-    vals = with_settings(p, tmp_path, "z35.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "E6": "2021Q3", "F6": "2023Q1",
+    vals = with_settings(p, tmp_path, "z35.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "D6": "Financial crisis",
+        "E6": "2021Q3", "F6": "2023Q1", "G6": "Pandemic forbearance",
                                                    "J6": 3.5})
     assert vals["THRESHOLDS!M5"] == "Refused: High would begin beyond the worst quarter kept"
     _, _, ref = reference("cards_nco_ttm.csv", CARD_CUTS, high_z=3.5)
@@ -282,7 +285,8 @@ def test_high_beyond_everything_kept_is_refused(built, tmp_path):
 
 def test_every_dial_row_equals_the_reference_scale(built, tmp_path):
     p, _, _ = built
-    vals = with_settings(p, tmp_path, "dial.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "E6": "2021Q3", "F6": "2023Q1"})
+    vals = with_settings(p, tmp_path, "dial.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "D6": "Financial crisis",
+        "E6": "2021Q3", "F6": "2023Q1", "G6": "Pandemic forbearance"})
     pts, kept, _ = reference("cards_nco_ttm.csv", CARD_CUTS)
     rows = {}
     r = 51
@@ -325,7 +329,7 @@ def test_too_little_history_kept_is_refused_in_the_workbook(built, tmp_path):
     # Leave out everything but the last four quarters of cards: no four-quarter
     # change has both ends kept, so there is no typical yearly move.
     p, _, _ = built
-    vals = with_settings(p, tmp_path, "short.xlsx", {"B6": "1985Q4", "C6": "2025Q2"})
+    vals = with_settings(p, tmp_path, "short.xlsx", {"B6": "1985Q4", "C6": "2025Q2", "D6": "test"})
     assert vals["THRESHOLDS!M5"] == "Refused: too little history kept for a typical yearly move"
     assert vals["THRESHOLDS!K5"] == ""
 
@@ -353,3 +357,73 @@ def test_a_smoothed_workbook_builds_its_live_lines_from_the_smoothed_series(tmp_
         assert got[7] == score(sm[-1].value, ref["bounds"], "higher_is_worse", "worse", True)
     run = [r for r in load_workbook(p)["Run"].iter_rows(values_only=True) if r and r[0] == "Smoothing"]
     assert run and "trailing mean over 4 quarters" in run[0][1]
+
+
+def test_a_lower_is_worse_workbook_shades_five_bands_of_positive_width(tmp_path):
+    """The Codex review (13 Oct 2026): for a lower-is-worse measure the lines
+    fall, and the Assess chart's stacked bands came out with negative widths.
+    The stack now starts at score 5 and every band is the gap between two
+    lines, in the measure's own order."""
+    src = tmp_path / "score.csv"
+    rows = ["date,value"] + ["%s,%r" % (p.date, 800 - 40 * p.value) for p in load("cards_nco_ttm.csv")]
+    src.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    p = tmp_path / "low.xlsx"
+    build(p, [("Score", src)], name="Score", unit="", direction="lower_is_worse", frequency="quarterly",
+          smoothing=1, floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5,
+          on_the_line="worse", half_lives=(), percentiles=(50, 75, 90, 95), horizon=4, min_history=41)
+    vals = recalc(p)
+    lines = [vals["THRESHOLDS!%s5" % c] for c in "EFGH"]            # 2..5 begin, falling
+    assert lines == sorted(lines, reverse=True) and vals["THRESHOLDS!M5"] == ""
+    heads = [vals.get("ASSESS!%s%d" % (L, 15)) for L in ("P", "Q", "R", "S", "T")]
+    ws = load_workbook(p)["Assess"]
+    first = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 12).value == "Quarter") + 1
+    names = [ws.cell(first - 1, c).value for c in range(16, 21)]
+    assert names == ["5 High", "4 Moderate-High", "3 Moderate", "2 Moderate-Low", "1 Low"]
+    widths = [vals["ASSESS!%s%d" % (get_column_letter(c), first)] for c in range(16, 21)]
+    assert widths[0] == pytest.approx(lines[3])                         # up to where High begins
+    assert widths[1:4] == pytest.approx([lines[2] - lines[3], lines[1] - lines[2], lines[0] - lines[1]])
+    assert all(x >= 0 for x in widths)
+
+
+@pytest.mark.parametrize("cells, which", [
+    ({"B6": "2008Q1"}, "first"),                                        # a start and nothing else
+    ({"B6": "2012Q4", "C6": "2008Q1", "D6": "x"}, "first"),              # reversed
+    ({"B6": "2008Q1", "C6": "2012Q4"}, "first"),                         # no reason
+    ({"B6": "2008-Q1", "C6": "2012Q4", "D6": "x"}, "first"),             # not a quarter on the calendar
+    ({"E6": "2020Q1", "F6": "2021Q1"}, "second"),
+])
+def test_a_leave_out_that_is_not_whole_is_refused_live(built, tmp_path, cells, which):
+    p, _, _ = built
+    vals = with_settings(p, tmp_path, "lo.xlsx", cells)
+    assert vals["THRESHOLDS!M5"] == ("Refused: the %s leave-out needs a first and a last quarter from the data, "
+                                     "in order, and a reason" % which)
+    assert vals["THRESHOLDS!K5"] == ""
+
+
+def test_a_whole_leave_out_is_not_refused(built, tmp_path):
+    p, _, _ = built
+    vals = with_settings(p, tmp_path, "ok.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "D6": "the 2008 crisis"})
+    assert vals["THRESHOLDS!M5"] == ""
+
+
+@pytest.mark.parametrize("cells, why", [({"H6": -0.5}, "Moderate's half-width must be 0 or more"),
+                                        ({"J6": 0}, "High's z must be above 0")])
+def test_the_workbook_refuses_a_negative_half_width_or_z_live(built, tmp_path, cells, why):
+    p, _, _ = built
+    assert with_settings(p, tmp_path, "neg.xlsx", cells)["THRESHOLDS!M5"] == "Refused: " + why
+
+
+def test_the_workbook_is_never_written_over_its_own_input(tmp_path):
+    src = tmp_path / "cards.csv"
+    src.write_bytes((DATA / "cards_nco_ttm.csv").read_bytes())
+    before = src.read_bytes()
+    for out in (src, tmp_path / "x" / ".." / "cards.csv"):
+        with pytest.raises(ValueError, match="must be written to a .xlsx file"):
+            make(out)
+    alias = tmp_path / "cards.xlsx"
+    alias.write_bytes(before)
+    with pytest.raises(ValueError, match="would be written over cards.xlsx"):
+        build(alias, [("Cards", alias)], name="NCO", unit="%", direction="higher_is_worse",
+              frequency="quarterly", smoothing=1, floor_at_zero=True, moderate_halfwidth=0.5, low_step=1.0,
+              high_z=2.5, on_the_line="worse", half_lives=(), percentiles=(50,), horizon=4, min_history=41)
+    assert src.read_bytes() == before and alias.read_bytes() == before

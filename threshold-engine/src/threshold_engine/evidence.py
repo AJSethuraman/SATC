@@ -136,7 +136,9 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
             recency.append(dict(lines(kept_c, w), half_life_years=hl,
                                 effective_quarters=sum(kw) ** 2 / sum(x * x for x in kw)))
 
-    deps = departures(work)
+    # Departure windows are 2, 3 and 4 years whatever the frequency.
+    per_year = 12 // STEP_MONTHS[frequency]
+    deps = departures(work, tuple(L * per_year // 4 for L in BRIDGE_LENGTHS))
     for d in deps:
         d["mean_departure"] *= sign            # back to the measure's own units
 
@@ -146,7 +148,8 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
             "largest": largest,
             "next_unusual": unusual_others[0] if unusual_others else None,
             "scenarios": scenarios,
-            "settings": {"scale": scale, "floor_at_zero": floor_at_zero, "line": LINE}}
+            "settings": {"scale": scale, "floor_at_zero": floor_at_zero, "line": LINE,
+                         "frequency": frequency}}
 
 
 BRIDGE_LENGTHS = (8, 12, 16)
@@ -227,6 +230,7 @@ def report(ev: dict) -> str:
     pr, u = ev["profile"], ev["profile"]["measure"]["unit"]
     sign = 1.0 if pr["measure"]["direction"] == "higher_is_worse" else -1.0
     f = lambda x: "%.3f%s" % (x, u)                                # noqa: E731
+    per = "month" if pr["measure"]["frequency"] == "monthly" else "quarter"
     out = [pr["measure"]["name"], "",
            "1. WHICH SPELLS WERE STRESS",
            "   Robust z of each spell's peak against every period outside it.",
@@ -259,7 +263,7 @@ def report(ev: dict) -> str:
 
     out += ["", "3. ONE CYCLE OR TWO",
             "   Deepest dip inside each spell, in standard deviations of the"
-            " quarter-to-quarter change (%s)." % f(ev["sd_of_change"])]
+            " %s-to-%s change (%s)." % (per, per, f(ev["sd_of_change"]))]
     for s in ev["spells"]:
         d = s["dip"]
         out.append("   %s  %s" % (s["start"], "no dip" if not d else
@@ -284,17 +288,17 @@ def report(ev: dict) -> str:
     if ev["recency"]:
         out += ["", "RECENCY (scenario C, the median weighted by a half-life; everything else at full weight)"]
         for r in ev["recency"]:
-            out.append("   %g-yr half-life, %.0f effective quarters: %s" % (
-                r["half_life_years"], r["effective_quarters"], row(r)))
+            out.append("   %g-yr half-life, %.0f effective %ss: %s" % (
+                r["half_life_years"], r["effective_quarters"], per, row(r)))
     if ev["departures"]:
         out += ["", "4. TEMPORARY DEPARTURES (left the path and came back; the largest first, then set aside)",
                 "   first     last      direction        mean off the path  robust z  rank"]
         for d in ev["departures"]:
-            out.append("   %s  %s  %-15s  %+17.3f  %8.1f  1 of %d (%d-quarter windows)" % (
+            out.append("   %s  %s  %-15s  %+17.3f  %8.1f  1 of %d (%d-%s windows)" % (
                 d["first"], d["last"], d["direction"], d["mean_departure"], d["robust_z"],
-                d["of"], d["length"]))
+                d["of"], d["length"], per))
         out.append("   The data finds the departure; why it happened is the bank's to record.")
     out += ["", "These are statistics and their consequences, not a recommendation.",
             "The z-scores are distances from the bulk of history, not probabilities:",
-            "neighbouring quarters of a trailing-twelve-month rate are not independent."]
+            "neighbouring %ss of a trailing-twelve-month rate are not independent." % per]
     return "\n".join(out)
