@@ -37,6 +37,9 @@ def read_csv(path) -> List[Point]:
     Every front door (the command line, the workbook, the window) reads here."""
     with open(path, encoding="utf-8") as fh:
         rows = csv.DictReader(line for line in fh if not line.startswith("#"))
+        if not {"date", "value"} <= set(rows.fieldnames or ()):
+            raise ValueError("%s must begin with the header line date,value (it has: %s)"
+                             % (Path(path).name, ",".join(rows.fieldnames or ()) or "nothing"))
         out = []
         for r in rows:
             v = float(r["value"])
@@ -92,6 +95,9 @@ def smooth(points: Sequence[Point], periods: int) -> List[Point]:
     """
     if periods < 1:
         raise SeriesError("smoothing", "smoothing must be 1 or more periods")
+    if periods > len(points):
+        raise SeriesError("smoothing", "smoothing over %d periods needs at least %d observations; the "
+                          "series has %d" % (periods, periods, len(points)))
     out = []
     for i in range(periods - 1, len(points)):
         window = points[i - periods + 1:i + 1]

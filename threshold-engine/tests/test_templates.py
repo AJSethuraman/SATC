@@ -435,7 +435,7 @@ def test_a_vertical_tab_before_the_header_is_refused_as_the_build_refuses_it(tmp
     p = raw(tmp_path, "wapd", rows_text())
     p.write_text(p.read_text(encoding="utf-8").replace("\ndate,value\n", "\x0bdate,value\n"),
                  encoding="utf-8", newline="")
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError, match=r"must begin with the header line date,value \(it has: 2015-03-31,2.0\)"):
         _build(tmp_path, p)
     # 'date,value' rides on the last note's line, so the first row is read as the header.
     assert check("wapd", p) == [
@@ -524,7 +524,7 @@ def test_a_scale_with_no_width_is_refused(tmp_path):
 def test_a_header_with_a_space_is_refused_because_it_does_not_build(tmp_path):
     p = raw(tmp_path, "wapd", rows_text().replace("date,value", "date, value", 1))
     assert check("wapd", p) == ["line 11: the header must be exactly 'date,value'; found 'date, value'"]
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError, match=r"must begin with the header line date,value \(it has: date, value\)"):
         _build(tmp_path, p)
 
 

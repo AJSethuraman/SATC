@@ -63,9 +63,18 @@ UNMIGRATED_FOLDERS: Dict[str, str] = {
 #: that it lives in its own folder, copies only the house-style module, and
 #: imports nothing across folders -- it must lift out whole to a bank desk as
 #: an ASCII bundle. The copy is that ruling, not a leftover.
+#:
+#: `threshold-engine` is the same case: it is run on the bank's own machines
+#: against internal data, so it imports nothing from this suite. Its spec says
+#: so in those words (threshold-engine/docs/PEERS-SPEC.md: "Do not import
+#: credit-suite, because each project must lift out whole"), and its
+#: `keybank_style.py` has been the suite's vendored copy since 6 Oct 2026
+#: (threshold-engine/LOG.md). Added 13 Oct 2026, when this check first ran
+#: against that copy on PR #426.
 SEPARATE_PRODUCTS: Dict[str, str] = {
     "credit-review-os": "a separate product (PRD non-goal), not a monitor",
     "portfolio-analysis-pack": "a separate product (C9 ruling, 18 Sep 2026), not a monitor",
+    "threshold-engine": "a separate product run on a bank's own machines, not a monitor",
 }
 
 #: The one Python file a migrated folder may keep: the generated ASCII bundle,

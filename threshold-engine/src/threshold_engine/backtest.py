@@ -140,7 +140,7 @@ def report(bt: dict) -> str:
            " the time." % (len(s["percentiles"]) + 1, "/".join("%g" % p for p in s["percentiles"])),
            "Horizon %d periods; first test after %d periods of history; %d tested."
            % (s["horizon"], s["min_history"], bt["runs"][0]["periods_tested"]), "",
-           "                  Spearman: score vs     Mean change ahead by score (periods)",
+           "                  Spearman: score vs     Mean change ahead by score, in %s (periods)" % u,
            "weighting         level    change"]
     for r in bt["runs"]:
         out.append("%-16s  %6s   %6s    %s" % (
@@ -152,5 +152,7 @@ def report(bt: dict) -> str:
     out += ["",
             "Level: does a higher score mean worse %d periods later? (1 = perfectly)" % s["horizon"],
             "Change: positive = a higher score came before deterioration; negative = before easing.",
+            "Mean change ahead is in the measure's own units, as filed: a lower-is-worse measure that "
+            "fell shows a negative change.",
             "Periods overlap, so these describe the history; they are not significance tests."]
     return "\n".join(out)

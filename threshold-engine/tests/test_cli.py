@@ -163,3 +163,49 @@ def test_the_package_has_one_version_the_workbooks_write():
     assert "version" not in meta["project"] and "version" in meta["project"]["dynamic"]
     assert meta["tool"]["setuptools"]["dynamic"]["version"] == {"attr": "threshold_engine.VERSION"}
     assert VERSION.count(".") == 2
+
+
+@pytest.mark.parametrize("command", ["profile", "evidence", "backtest", "workbook"])
+def test_a_file_without_the_date_value_header_is_refused_not_a_traceback(tmp_path, capsys, command):
+    p = tmp_path / "amount.csv"
+    p.write_text("date,amount\n2020-03-31,1\n", encoding="utf-8")
+    out = tmp_path / "t.xlsx"
+    argv = {"profile": ["profile", str(p)] + MEASURE,
+            "evidence": ["evidence", str(p)] + MEASURE + SCALE,
+            "backtest": ["backtest", str(p)] + MEASURE + BT,
+            "workbook": ["workbook", str(out), "--series", "Cards=%s" % p] + MEASURE + WB}[command]
+    assert main(argv) == 2
+    assert "amount.csv must begin with the header line date,value (it has: date,amount)" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("command", ["profile", "evidence", "backtest", "workbook"])
+def test_smoothing_longer_than_the_series_is_refused_not_a_traceback(tmp_path, capsys, command):
+    p = tmp_path / "two.csv"
+    p.write_text("date,value\n2020-03-31,1\n2020-06-30,2\n", encoding="utf-8")
+    out = tmp_path / "t.xlsx"
+    m = MEASURE[:-1] + ["3"]                                           # --smoothing 3
+    argv = {"profile": ["profile", str(p)] + m,
+            "evidence": ["evidence", str(p)] + m + SCALE,
+            "backtest": ["backtest", str(p)] + m + BT,
+            "workbook": ["workbook", str(out), "--series", "Cards=%s" % p] + m + WB}[command]
+    assert main(argv) == 2
+    assert "smoothing over 3 periods needs at least 3 observations; the series has 2" in capsys.readouterr().err
+
+
+def test_the_backtest_tab_has_one_change_column_per_score(tmp_path):
+    """Three percentiles make four scores: four change columns, then Quarters
+    tested under its own heading (it used to sit under a fixed fifth)."""
+    from openpyxl import load_workbook
+    from threshold_engine.backtest import backtest
+    from threshold_engine.series import read_csv
+    out = tmp_path / "t.xlsx"
+    assert main(["workbook", str(out), "--series", "Credit card=%s" % CARDS] + MEASURE
+                + SCALE + ["--percentiles", "50", "75", "90", "--horizon", "4", "--min-history", "41"]) == 0
+    rows = [list(r) for r in load_workbook(out)["Backtest"].iter_rows(values_only=True)]
+    i = next(k for k, r in enumerate(rows) if r[0] == "Weighting")
+    head = [c for c in rows[i] if c is not None]
+    assert head == ["Weighting", "Spearman: score vs level ahead", "Spearman: score vs change ahead",
+                    "Change after 1", "after 2", "after 3", "after 4", "Quarters tested"]
+    want = backtest(read_csv(CARDS), "c", "%", "higher_is_worse", "quarterly", 1, (50, 75, 90), 4, 41, True)
+    assert rows[i + 1][len(head) - 1] == want["runs"][0]["periods_tested"]
+    assert rows[i + 1][3:7] == pytest.approx([b["mean_change_ahead"] for b in want["runs"][0]["by_score"]])

@@ -4,7 +4,7 @@ import statistics
 import pytest
 
 from conftest import load, quarters
-from threshold_engine.backtest import backtest, spearman, weighted_percentile
+from threshold_engine.backtest import backtest, report, spearman, weighted_percentile
 from threshold_engine.evidence import weighted_median
 
 
@@ -100,3 +100,20 @@ def test_public_cards_long_history_is_the_most_predictive_of_level():
 def test_values_and_weights_must_be_the_same_length():
     with pytest.raises(ValueError):
         weighted_percentile([1, 2, 3, 4], [1, 1, 1], 50)
+
+
+def test_mean_change_is_in_the_measures_own_units_whichever_way_is_worse():
+    """The Codex review (12 Oct 2026) read a falling score's negative mean
+    change as a sign error. It is the measure's own units, as the mean level
+    beside it is, and the report says so: mirrored, every mean change flips
+    sign and the Spearman, which is oriented (positive = deterioration), does
+    not."""
+    v = [1, 3, 2, 5, 1, 4, 2, 6, 3, 2, 5, 1]
+    up, down = bt(v), bt([-x for x in v], direction="lower_is_worse")
+    for a, b in zip(up["runs"][0]["by_score"], down["runs"][0]["by_score"]):
+        assert a["periods"] == b["periods"]
+        if a["mean_change_ahead"] is not None:
+            assert b["mean_change_ahead"] == pytest.approx(-a["mean_change_ahead"])
+            assert b["mean_level_ahead"] == pytest.approx(-a["mean_level_ahead"])
+    assert down["runs"][0]["score_vs_change_ahead"] == pytest.approx(up["runs"][0]["score_vs_change_ahead"])
+    assert "in the measure's own units" in report(down)

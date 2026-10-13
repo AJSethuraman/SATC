@@ -550,25 +550,30 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     evs.column_dimensions["C"].width = 16
 
     # ---- Backtest (values) ----
-    r = K.brand_banner(bts, 1, 9, "How predictive would the scale have been?",
+    # One mean-change column per score: one more score than percentiles.
+    n_scores = len(percentiles) + 1
+    width = 4 + n_scores
+    r = K.brand_banner(bts, 1, width, "How predictive would the scale have been?",
                        "Each quarter scored on cutoffs at percentiles %s of only the history before it, then "
-                       "compared with %d quarters later. Overlapping windows: description, not proof."
+                       "compared with %d quarters later. Change after a score: the mean change over those "
+                       "quarters, in the measure's own units. Overlapping windows: description, not proof."
                        % ("/".join("%g" % p for p in percentiles), horizon))
     for s in loaded:
-        r = K.section_band(bts, r + 1, s["label"], 9)
+        r = K.section_band(bts, r + 1, s["label"], width)
         r = K.header_row(bts, r, ["Weighting", "Spearman: score vs level ahead", "Spearman: score vs change ahead",
-                                  "Change after 1", "after 2", "after 3", "after 4", "after 5", "Quarters tested"])
+                                  "Change after 1"] + ["after %d" % k for k in range(2, n_scores + 1)]
+                         + ["Quarters tested"])
         _wrap(bts, r - 1, 46)
         for run_ in s["bt"]["runs"]:
             bts.append(["none" if run_["half_life_years"] is None else "%g-yr half-life" % run_["half_life_years"],
                         run_["score_vs_level_ahead"], run_["score_vs_change_ahead"],
                         *[b["mean_change_ahead"] for b in run_["by_score"]], run_["periods_tested"]])
-            for col in range(2, 9):
+            for col in range(2, 4 + n_scores):
                 bts.cell(bts.max_row, col).number_format = "0.00"
         r = bts.max_row
     bts.column_dimensions["A"].width = 18
-    for col in "BCDEFGHI":
-        bts.column_dimensions[col].width = 15
+    for col in range(2, width + 1):
+        bts.column_dimensions[L(col)].width = 15
 
     # ---- Glossary ----
     K.brand_banner(gl, 1, 3, "Glossary",

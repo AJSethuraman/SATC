@@ -464,3 +464,33 @@ the template title "Refreshed credit score, portfolio average", which the new
 label rule refuses (the comma would split it in Excel's dropdown). The title
 is now "Refreshed credit score (portfolio average)", and a test holds every
 template title to the label rule. Suite: 706 passed.
+
+## 13 October 2026, the second Codex pass, and a CI failure missed
+
+Codex's review of the fixes (1722a00) found four more; each checked:
+- **A file without the `date,value` header** crashed with a `KeyError`
+  traceback instead of a refusal. `series.read_csv` now refuses it, naming
+  what the header holds.
+- **Smoothing longer than the series** returned nothing, and the commands
+  crashed further on. `series.smooth` refuses it.
+- **The Backtest tab always labelled five change columns**, so with three
+  percentiles "Quarters tested" sat under "after 5". The columns now follow
+  the number of scores.
+- **"The mean change is sign-flipped for lower-is-worse."** Not changed: it is
+  in the measure's own units, as the mean level beside it is, so a score that
+  fell 50 points shows -50. The "positive = deterioration" line Codex quoted
+  is about the Spearman column, which is oriented. Nothing said which units,
+  so the report and the Backtest tab now say so, and a test holds it.
+
+**A CI failure I had not looked at:** `pytest (credit-suite)` had failed on
+this branch since 1bc8905. credit-suite's conformance check forbids a
+byte-identical copy of its `engine/style.py`, and `keybank_style.py` is one,
+deliberately: this project imports nothing from credit-suite so it can lift
+out whole (docs/PEERS-SPEC.md). The check already exempts separate products
+for that reason (credit-review-os, portfolio-analysis-pack); threshold-engine
+is added to that list, citing the spec. My earlier note that only Cloudflare
+was pending was wrong: the PR's red check was never read.
+Two template tests had asserted that the build crashes (`KeyError`) on a bad
+header, to show why `template check` refuses it; the build now refuses in
+words, and they assert that instead. Suite: 714 passed in the full run, and
+the two rewritten tests pass, 716 in all.
