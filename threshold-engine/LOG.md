@@ -679,3 +679,18 @@ v1: every source v1 reads is quarterly, and every template asks for
 quarter-end dates.
 
 Suite: 778 passed (23 min).
+
+## 13 October 2026, Codex on #432's fix
+
+Two P2, both real:
+- **The fixed axis minimum held only the starting settings.** A measure not
+  floored at zero gets a fixed minimum at build (Excel starts an automatic
+  axis at zero), and an axis cannot follow a cell, so raising Moderate-Low's
+  step later could push score 2's line off the bottom. The minimum now sits
+  under every line the dials offer (width to 1, step to 2, z from 2 to 3.5)
+  as well as the starting ones. A setting beyond the dials' range can still
+  run off it; the Check and the numbers are unaffected. Test: a noisy series
+  whose step-2 line falls below every value it took; it fails on the old code.
+- **compare.py zipped expected and observed readings**, so a stale
+  observed.json from before a step gained readings passed them silently. A
+  missing or misplaced reading is now a difference.
