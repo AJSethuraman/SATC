@@ -60,6 +60,10 @@ def reference(file, cuts=(), **over):
     return pts, kept, ref
 
 
+def top_of(vals, first):
+    return vals["ASSESS!U%d" % first]
+
+
 def with_settings(p, tmp_path, name, cells):
     wb = load_workbook(p)
     for ref, v in cells.items():
@@ -380,7 +384,20 @@ def test_a_lower_is_worse_workbook_shades_five_bands_of_positive_width(tmp_path)
     names = [ws.cell(first - 1, c).value for c in range(16, 21)]
     assert names == ["5 High", "4 Moderate-High", "3 Moderate", "2 Moderate-Low", "1 Low"]
     widths = [vals["ASSESS!%s%d" % (get_column_letter(c), first)] for c in range(16, 21)]
-    assert widths[0] == pytest.approx(lines[3])                         # up to where High begins
+    floor = vals["ASSESS!U%d" % (first + 1)]
+    mn = min(min(lines), min(800 - 40 * x.value for x in load("cards_nco_ttm.csv")))
+    assert 0 < floor < mn                     # not floored at zero: the axis starts just below the data
+    # Nothing the chart plots sits at zero, or Excel stretches the axis down to it (the walkthrough, 13 Oct
+    # 2026): the strip stands on an invisible base under the floor and is 0 high where nothing is left out.
+    h = vals["ASSESS!U%d" % (first + 2)]
+    rows = range(first, first + len(load("cards_nco_ttm.csv")))
+    assert all(vals["ASSESS!Y%d" % r] == pytest.approx(floor - h) for r in rows) and floor - h > 0
+    assert all(vals["ASSESS!W%d" % r] == 0 for r in rows)                   # nothing left out here
+    assert all(vals["ASSESS!V%d" % r] == pytest.approx(floor) for r in rows)
+    # and the axis itself starts at a round number just under that, not at Excel's automatic zero
+    y_min = load_workbook(p)["Assess"]._charts[0].y_axis.scaling.min
+    assert y_min is not None and 0 < y_min <= floor - h and floor - y_min < 0.2 * (top_of(vals, first) - floor)
+    assert floor + widths[0] == pytest.approx(lines[3])                 # up to where High begins
     assert widths[1:4] == pytest.approx([lines[2] - lines[3], lines[1] - lines[2], lines[0] - lines[1]])
     assert all(x >= 0 for x in widths)
 
@@ -476,7 +493,8 @@ def test_the_assess_bands_stack_from_the_floor_when_values_go_below_zero(tmp_pat
     floor = vals["ASSESS!U%d" % (first + 1)]
     top = vals["ASSESS!U%d" % first]
     data = [v for v in (vals.get("ASSESS!O%d" % r) for r in range(first, ws.max_row + 1)) if isinstance(v, float)]
-    assert floor == pytest.approx(min(0, min(data), min(lines))) and top > max(max(data), max(lines))
+    mn, mx = min(min(data), min(lines)), max(max(data), max(lines))
+    assert floor == pytest.approx(mn - 0.08 * (mx - mn)) and top > mx        # not floored: 8% below the lowest
     assert vals["ASSESS!V%d" % first] == pytest.approx(floor)                  # the base
     widths = [vals["ASSESS!%s%d" % (get_column_letter(c), first)] for c in range(16, 21)]
     assert all(w >= 0 for w in widths)
@@ -495,6 +513,7 @@ def test_the_assess_axis_labels_negative_numbers_only_when_they_are_real(built, 
           smoothing=1, floor_at_zero=True, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5,
           on_the_line="worse", half_lives=(), percentiles=(50,), horizon=4, min_history=41)
     assert fmt(cards) == "0.0;;0.0"                        # nothing below zero: the strip is unlabelled
+    assert load_workbook(cards)["Assess"]._charts[0].y_axis.scaling.min is None      # floored: Excel's own
     src = tmp_path / "neg.csv"
     src.write_text("date,value\n" + "".join("%s,%r\n" % (p.date, p.value - 6) for p in load("cards_nco_ttm.csv")),
                    encoding="utf-8")
@@ -530,6 +549,37 @@ def test_text_in_a_setting_leaves_no_error_on_the_assess_dials(built, tmp_path, 
             assert not (isinstance(v, str) and v.startswith("#")), (c, r, v)
     refused = [vals["ASSESS!K%d" % r] for r in rows]
     assert any(v == "refused: a setting is not a number" for v in refused)
+
+
+@pytest.mark.parametrize("product", ["Mortgage", "Home equity", "Other consumer"])
+def test_assess_draws_every_band_for_a_product_that_starts_after_the_calendar(built, tmp_path, product):
+    """The walkthrough (13 Oct 2026), in Excel: for a product whose data starts
+    after the first quarter on the calendar, the chart's top and floor were
+    MAX and MIN over a column holding #N/A, so both were #N/A, and Low and
+    High vanished while the other bands were drawn from zero."""
+    p = built[0]
+    wb = load_workbook(p)
+    wb["Assess"]["B4"] = product
+    q = tmp_path / ("assess-%s.xlsx" % product.replace(" ", "-"))
+    wb.save(q)
+    vals = recalc(q)
+    ws = wb["Assess"]
+    first = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 12).value == "Quarter") + 1
+    top, floor = vals["ASSESS!U%d" % first], vals["ASSESS!U%d" % (first + 1)]
+    assert all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (top, floor)), (top, floor)
+    lines = [vals["ASSESS!C%d" % r] for r in (9, 10, 11, 12)]
+    data = [v for v in (vals.get("ASSESS!O%d" % r) for r in range(first, ws.max_row + 1)) if isinstance(v, float)]
+    assert floor == pytest.approx(min(0, min(data), min(lines))) and top > max(max(data), max(lines))
+    widths = [vals["ASSESS!%s%d" % (get_column_letter(c), first)] for c in range(16, 21)]
+    assert all(isinstance(w, (int, float)) and w >= 0 for w in widths), widths
+    assert floor + widths[0] == pytest.approx(lines[0]) and floor + sum(widths) == pytest.approx(top)
+
+
+def test_the_chart_tabs_legend_sits_below_the_plot(built):
+    """The walkthrough (13 Oct 2026): in Excel 16 the legend on the right was
+    drawn over the right-hand ends of the cutoff lines."""
+    lc = load_workbook(built[0])["Chart"]._charts[0]
+    assert lc.legend.position == "b" and not lc.legend.overlay
 
 
 def test_the_backtest_glossary_entry_says_one_thing_about_the_history_used():

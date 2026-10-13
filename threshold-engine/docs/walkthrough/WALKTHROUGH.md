@@ -39,7 +39,7 @@ without saving and reopen).
 
 | Step | What you do | What it shows |
 |---|---|---|
-| W1 | Open the workbook | Nine tabs, four products, 163 quarters, 33 Glossary terms |
+| W1 | Open the workbook | Nine tabs, four products, 163 quarters, 35 Glossary terms |
 | W2 | Read Thresholds | Every product's median, typical yearly move, worst, four lines, latest value, score and rating, and a blank Check |
 | W3.1–W3.4 | On Assess, pick each product in B4 | The quarters in each score, kept and in all, and the lines |
 | W4 | Leave out the financial crisis on Credit card | The lines and counts move as the reference says |
@@ -50,6 +50,7 @@ without saving and reopen).
 | W11 | Read the Run tab | Fingerprints equal the files' SHA-256 (`certutil -hashfile FILE SHA256`) |
 | W12 | Switch Mortgage off on Chart | Mortgage disappears from the chart; cards stays |
 | W13 | Read Evidence and Backtest | The same numbers as the `evidence` and `backtest` reference |
+| W14a, W14b | A second workbook: cards mirrored as a credit score (800 − 40 × rate), lower is worse | The lines fall; score, counts and the chart's floor equal the reference under each on-the-line rule |
 
 A step passes when every cell it lists says what EXPECTED.md says: a number to
 within 1e-9 of it, and text exactly.
@@ -65,7 +66,13 @@ expected and writes the result: `RESULT.md` and the exhibit PDF.
 
 ```
 python docs/walkthrough/expected.py
-python -m threshold_engine workbook docs/walkthrough/out/rehearsal.xlsx ...   (the command above)
+python -m threshold_engine workbook docs/walkthrough/out/rehearsal.xlsx ...   (the command in section 1)
+python -m threshold_engine workbook docs/walkthrough/out/score.xlsx --series "Score=docs/walkthrough/out/score.csv" --name "Score" --unit "points" --direction lower_is_worse --frequency quarterly --smoothing 1 --floor-at-zero no --moderate-halfwidth 0.5 --low-step 1.0 --high-z 2.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 41
 powershell -NoProfile -ExecutionPolicy Bypass -File docs/walkthrough/walk.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File docs/walkthrough/walk.ps1 -Workbook docs/walkthrough/out/score.xlsx -StepsFile steps-low.json -ObservedFile observed-low.json
 python docs/walkthrough/compare.py
+python docs/walkthrough/build_exhibit.py
 ```
+
+`expected.py` writes `out/score.csv` (the mirrored series) before the second build. The result is
+`RESULT.md` and `WALKTHROUGH-2026-10-13.pdf`, which also says what the run found and fixed.

@@ -12,7 +12,7 @@ Run the build command (section 1), then open the file in Excel.
 | Data!A2 | `1985Q4` |
 | INDEX(Data!A2:A1000,163) | `2026Q2` |
 | COUNTA(Thresholds!A5:A8) | `4` |
-| COUNTA(Glossary!A5:A200) | `33` |
+| COUNTA(Glossary!A5:A200) | `35` |
 | Thresholds!A5 | `Credit card` |
 | Thresholds!A6 | `Mortgage` |
 | Thresholds!A7 | `Home equity` |
@@ -94,6 +94,10 @@ Type: Assess!B4 = Credit card
 | Assess!G12 | `9` |
 | Assess!C9 | 3.2115 |
 | Assess!C12 | 6.6837 |
+| Assess!U3 | `0` |
+| Assess!U2 | 11.2590 |
+| Assess!V2 | `0` |
+| Assess!P2 | 3.2115 |
 
 ## W3.2. Assess: pick Mortgage
 
@@ -116,6 +120,10 @@ Type: Assess!B4 = Mortgage
 | Assess!G12 | `24` |
 | Assess!C9 | 0.0642 |
 | Assess!C12 | 0.5001 |
+| Assess!U3 | -0.0370 |
+| Assess!U2 | 2.6922 |
+| Assess!V2 | -0.0370 |
+| Assess!P2 | 0.1012 |
 
 ## W3.3. Assess: pick Home equity
 
@@ -138,6 +146,10 @@ Type: Assess!B4 = Home equity
 | Assess!G12 | `26` |
 | Assess!C9 | 0.0869 |
 | Assess!C12 | 0.6847 |
+| Assess!U3 | -0.1815 |
+| Assess!U2 | 3.4052 |
+| Assess!V2 | -0.1815 |
+| Assess!P2 | 0.2684 |
 
 ## W3.4. Assess: pick Other consumer
 
@@ -160,6 +172,10 @@ Type: Assess!B4 = Other consumer
 | Assess!G12 | `15` |
 | Assess!C9 | 0.9946 |
 | Assess!C12 | 2.2217 |
+| Assess!U3 | `0` |
+| Assess!U2 | 3.6019 |
+| Assess!V2 | `0` |
+| Assess!P2 | 0.9946 |
 
 ## W4. Leave out the financial crisis on Credit card
 
@@ -411,7 +427,7 @@ Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis
 
 ## W10.1. Refused: a leave-out with a start and nothing else
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!B6 2008Q1; read the Check column and Assess.
 
 Type: Settings!B6 = 2008Q1
 
@@ -423,7 +439,7 @@ Type: Settings!B6 = 2008Q1
 
 ## W10.2. Refused: a second leave-out in reverse order
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!E6 2021Q1; Settings!F6 2020Q1; Settings!G6 x; read the Check column and Assess.
 
 Type: Settings!E6 = 2021Q1; Settings!F6 = 2020Q1; Settings!G6 = x
 
@@ -435,7 +451,7 @@ Type: Settings!E6 = 2021Q1; Settings!F6 = 2020Q1; Settings!G6 = x
 
 ## W10.3. Refused: a leave-out with no reason
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!B6 2008Q1; Settings!C6 2012Q4; read the Check column and Assess.
 
 Type: Settings!B6 = 2008Q1; Settings!C6 = 2012Q4
 
@@ -447,7 +463,7 @@ Type: Settings!B6 = 2008Q1; Settings!C6 = 2012Q4
 
 ## W10.4. Refused: a half-width below 0
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!H6 -0.1; read the Check column and Assess.
 
 Type: Settings!H6 = -0.1
 
@@ -459,7 +475,7 @@ Type: Settings!H6 = -0.1
 
 ## W10.5. Refused: a z of 0
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!J6 0; read the Check column and Assess.
 
 Type: Settings!J6 = 0
 
@@ -471,7 +487,7 @@ Type: Settings!J6 = 0
 
 ## W10.6. Refused: a step typed as text
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!I6 one; read the Check column and Assess.
 
 Type: Settings!I6 = one
 
@@ -483,7 +499,7 @@ Type: Settings!I6 = one
 
 ## W10.7. Refused: too little history kept
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!B6 1985Q4; Settings!C6 2025Q2; Settings!D6 test; read the Check column and Assess.
 
 Type: Settings!B6 = 1985Q4; Settings!C6 = 2025Q2; Settings!D6 = test
 
@@ -495,7 +511,7 @@ Type: Settings!B6 = 1985Q4; Settings!C6 = 2025Q2; Settings!D6 = test
 
 ## W10.8. Refused: the median at or below zero (Mortgage, keeping 2011Q4 to 2026Q2)
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!B7 1985Q4; Settings!C7 2011Q3; Settings!D7 test; Assess!B4 Mortgage; read the Check column and Assess.
 
 Type: Settings!B7 = 1985Q4; Settings!C7 = 2011Q3; Settings!D7 = test; Assess!B4 = Mortgage
 
@@ -507,7 +523,7 @@ Type: Settings!B7 = 1985Q4; Settings!C7 = 2011Q3; Settings!D7 = test; Assess!B4 
 
 ## W10.9. Refused: Moderate-Low inside Moderate
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!I6 0.4; read the Check column and Assess.
 
 Type: Settings!I6 = 0.4
 
@@ -519,7 +535,7 @@ Type: Settings!I6 = 0.4
 
 ## W10.10. Refused: High inside Moderate-High (z 0.3)
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!J6 0.3; read the Check column and Assess.
 
 Type: Settings!J6 = 0.3
 
@@ -531,7 +547,7 @@ Type: Settings!J6 = 0.3
 
 ## W10.11. Refused: High beyond the worst quarter kept (z 8)
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!J6 8; read the Check column and Assess.
 
 Type: Settings!J6 = 8
 
@@ -543,7 +559,7 @@ Type: Settings!J6 = 8
 
 ## W10.12. Refused: Moderate-Low at or below zero (step 6)
 
-Type the cells listed, read the Check column and Assess.
+Type Settings!I6 6; read the Check column and Assess.
 
 Type: Settings!I6 = 6
 
@@ -600,3 +616,57 @@ Read Evidence rows 6-9 (spells) and Backtest row 6.
 | Backtest!B6 | 0.8042 |
 | Backtest!C6 | -0.1838 |
 | Backtest!I6 | `119` |
+
+## W14a. A lower-is-worse score, on the line takes the worse score
+
+Build the score workbook (cards mirrored as 800 - 40 x rate), open it, K6 'worse'. Its lines fall: worst is lowest.
+
+Type: Settings!K6 = worse
+
+| Read | Expected |
+|---|---|
+| Thresholds!B5 | 640.8800 |
+| Thresholds!C5 | 30.6602 |
+| Thresholds!D5 | 383.0000 |
+| Thresholds!E5 | 671.5402 |
+| Thresholds!F5 | 656.2101 |
+| Thresholds!G5 | 625.5499 |
+| Thresholds!H5 | 532.6502 |
+| Thresholds!J5 | 640.8800 |
+| Thresholds!K5 | `3` |
+| Thresholds!L5 | `Moderate` |
+| Thresholds!M5 | (blank) |
+| Assess!E8 | `36` |
+| Assess!E9 | `24` |
+| Assess!E10 | `41` |
+| Assess!E11 | `53` |
+| Assess!E12 | `9` |
+| Assess!U3 | 355.2656 |
+| Assess!U2 | 759.6332 |
+
+## W14b. A lower-is-worse score, on the line takes the better score
+
+Build the score workbook (cards mirrored as 800 - 40 x rate), open it, K6 'better'. Its lines fall: worst is lowest.
+
+Type: Settings!K6 = better
+
+| Read | Expected |
+|---|---|
+| Thresholds!B5 | 640.8800 |
+| Thresholds!C5 | 30.6602 |
+| Thresholds!D5 | 383.0000 |
+| Thresholds!E5 | 671.5402 |
+| Thresholds!F5 | 656.2101 |
+| Thresholds!G5 | 625.5499 |
+| Thresholds!H5 | 532.6502 |
+| Thresholds!J5 | 640.8800 |
+| Thresholds!K5 | `3` |
+| Thresholds!L5 | `Moderate` |
+| Thresholds!M5 | (blank) |
+| Assess!E8 | `36` |
+| Assess!E9 | `24` |
+| Assess!E10 | `41` |
+| Assess!E11 | `53` |
+| Assess!E12 | `9` |
+| Assess!U3 | 355.2656 |
+| Assess!U2 | 759.6332 |

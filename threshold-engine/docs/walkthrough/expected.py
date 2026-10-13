@@ -121,11 +121,13 @@ step("W1", "Build the four-product workbook and open it",
      "Run the build command (section 1), then open the file in Excel.",
      [], [("=", "COUNTA(Data!A2:A1000)", len(CAL)), ("=", "Data!A2", CAL[0]),
           ("=", "INDEX(Data!A2:A1000,%d)" % len(CAL), CAL[-1]),
-          ("=", "COUNTA(Thresholds!A5:A8)", 4), ("=", "COUNTA(Glossary!A5:A200)", 33)]
+          ("=", "COUNTA(Thresholds!A5:A8)", 4), ("=", "COUNTA(Glossary!A5:A200)", 35)]
      + [("Thresholds", "A%d" % (5 + i), lbl) for i, (lbl, _) in enumerate(PRODUCTS)],
      picture=[{"sheet": "Thresholds", "range": "A1:M10", "file": "w1-thresholds.png"},
               {"sheet": "Settings", "range": "A1:N11", "file": "w1-settings.png"}],
-     note="Sheets, in order: Thresholds, Settings, Assess, Chart, Evidence, Backtest, Glossary, Data, Run.")
+     note="Sheets, in order: Thresholds, Settings, Assess, Chart, Evidence, Backtest, Glossary, Data, Run. "
+          "The Glossary count was 33 when first written, from WHAT-IT-DOES.md; the first run found 35, and "
+          "the document was out of date (two terms added since 6 Oct). Corrected here and there.")
 
 # W2 every product as built
 reads = []
@@ -141,6 +143,12 @@ for i, (lbl, _) in enumerate(PRODUCTS):
     rr = [("Assess", "B5", "")] + [("Assess", "E%d" % (8 + j), n) for j, n in enumerate(cnt[0])] \
         + [("Assess", "G%d" % (8 + j), n) for j, n in enumerate(cnt[1])] \
         + [("Assess", "C9", exp["E"]), ("Assess", "C12", exp["H"])]
+    # The chart's floor and top (added after the first run, which found them #N/A in Excel for every product
+    # whose data starts after the calendar): floor = MIN(0, data, lines); top 8% of the range above the highest.
+    vals = [p.value for p in PTS[lbl]] + [exp[c] for c in "EFGH"]
+    lo = min(0, min(vals))
+    rr += [("Assess", "U3", lo), ("Assess", "U2", max(vals) + 0.08 * (max(vals) - lo)),
+           ("Assess", "V2", lo), ("Assess", "P2", exp["E"] - lo)]
     step("W3.%d" % (i + 1), "Assess: pick %s" % lbl, "On Assess, pick %s in B4." % lbl,
          [("Assess", "B4", lbl)], rr, product=lbl,
          picture=[{"sheet": "Assess", "chart": 1, "file": "w3-assess-%d.png" % (i + 1)}] if i in (0, 2) else [])
@@ -158,7 +166,8 @@ step("W5", "Add the second leave-out: the pandemic (the rehearsal settings)",
      settings_actions(6, REH), reads_for("Credit card", 5, exp, cnt)
      + [("Run", "B15", "2007Q4 to 2012Q4"), ("Run", "C15", "financial crisis"),
         ("Run", "D15", "2021Q3 to 2023Q1"), ("Run", "E15", "pandemic forbearance")],
-     picture=[{"sheet": "Assess", "chart": 1, "file": "w5-assess-cards-rehearsal.png"},
+     picture=[{"sheet": "Thresholds", "range": "A1:M10", "file": "w5-thresholds.png"},
+              {"sheet": "Assess", "chart": 1, "file": "w5-assess-cards-rehearsal.png"},
               {"sheet": "Assess", "range": "A1:H13", "file": "w5-assess-counts.png"}])
 LOG_7OCT = {"E": 3.171, "F": 3.464, "G": 4.050, "H": 5.981}
 assert all(abs(exp[c] - v) < 0.0005 for c, v in LOG_7OCT.items()), "scale.py no longer gives the 7 Oct lines"
@@ -193,7 +202,9 @@ LO = "Refused: the %s leave-out needs a first and a last quarter from the data, 
 
 def refuse(sid, title, acts, text, lbl="Credit card"):
     r = 5 + [p for p, _ in PRODUCTS].index(lbl)
-    step(sid, "Refused: " + title, "Type the cells listed, read the Check column and Assess.",
+    full = acts + ([("Assess", "B4", lbl)] if lbl != "Credit card" else [])
+    typed = "; ".join("%s!%s %s" % (sh, c, v) for sh, c, v in full)
+    step(sid, "Refused: " + title, "Type %s; read the Check column and Assess." % typed,
          acts + ([("Assess", "B4", lbl)] if lbl != "Credit card" else []),
          [("Thresholds", "M%d" % r, text), ("Thresholds", "K%d" % r, ""), ("Assess", "B5", text)], product=lbl)
 
@@ -285,6 +296,39 @@ step("W13", "Evidence and Backtest for Credit card",
         ("Backtest", "I6", res["periods_tested"])])
 
 json.dump({"build": BUILD, "products": PRODUCTS, "steps": STEPS}, open(HERE / "steps.json", "w"), indent=1)
+
+# W14 a lower-is-worse measure (a credit score), in its own workbook: cards mirrored, 800 - 40 x rate
+(HERE / "out").mkdir(exist_ok=True)
+SCORE = HERE / "out" / "score.csv"
+SCORE.write_text("date,value\n" + "".join("%s,%r\n" % (p.date, 800 - 40 * p.value) for p in PTS["Credit card"]),
+                 encoding="utf-8")
+BUILD_LOW = ('python -m threshold_engine workbook "{out}" --series "Score=docs/walkthrough/out/score.csv" --name "Score"'
+             ' --unit "points" --direction lower_is_worse --frequency quarterly --smoothing 1 --floor-at-zero no'
+             ' --moderate-halfwidth 0.5 --low-step 1.0 --high-z 2.5 --on-the-line worse --percentiles 50 75 90 95'
+             ' --horizon 4 --min-history 41')
+mir = [800 - 40 * p.value for p in PTS["Credit card"]]
+LOW = []
+for sid, rule in (("W14a", "worse"), ("W14b", "better")):
+    ref = scale(mir, "lower_is_worse", 0.5, 1.0, 2.5, False)
+    assert ref["bounds"] == sorted(ref["bounds"], reverse=True)
+    sc = score(mir[-1], ref["bounds"], "lower_is_worse", rule, False)
+    cnt = [sum(1 for x in mir if score(x, ref["bounds"], "lower_is_worse", rule, False) == k) for k in range(1, 6)]
+    reads = [("Thresholds", "B5", ref["median"]), ("Thresholds", "C5", ref["typical_yearly_move"]),
+             ("Thresholds", "D5", min(mir))] + [("Thresholds", c + "5", b) for c, b in zip("EFGH", ref["bounds"])]         + [("Thresholds", "J5", mir[-1]), ("Thresholds", "K5", sc), ("Thresholds", "L5", RATINGS[sc - 1]),
+           ("Thresholds", "M5", "")] + [("Assess", "E%d" % (8 + i), n) for i, n in enumerate(cnt)]
+    # The chart's floor: not floored at zero, so 8% of the range below the lowest value or line (added after
+    # the first run, which showed the score squeezed into the top of a chart that started at zero).
+    mn, mx = min(mir + ref["bounds"]), max(mir + ref["bounds"])
+    reads += [("Assess", "U3", mn - 0.08 * (mx - mn)), ("Assess", "U2", mx + 0.08 * (mx - (mn - 0.08 * (mx - mn))))]
+    LOW.append({"id": sid, "title": "A lower-is-worse score, on the line takes the %s score" % rule,
+                "how": "Build the score workbook (cards mirrored as 800 - 40 x rate), open it, K6 '%s'. Its lines "
+                       "fall: worst is lowest." % rule, "product": "Score", "note": "",
+                "actions": [{"sheet": "Settings", "cell": "K6", "value": rule}],
+                "reads": [{"sheet": a, "cell": b, "expected": c} for a, b, c in reads],
+                "picture": [{"sheet": "Thresholds", "range": "A1:M8", "file": "w14-thresholds.png"},
+                            {"sheet": "Assess", "chart": 1, "file": "w14-assess.png"}] if rule == "worse" else []})
+json.dump({"build": BUILD_LOW, "steps": LOW}, open(HERE / "steps-low.json", "w"), indent=1)
+STEPS += LOW
 
 
 def fmt(v):

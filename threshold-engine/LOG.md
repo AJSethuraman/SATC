@@ -612,3 +612,70 @@ P2, both real:
   one sentence on, "built from the quarters before it". Both now say up to
   and including the quarter scored.
 Suite: 772 passed (18 min).
+
+## 13 October 2026, the walkthrough, the card tie-out and the site kit
+
+The bank: *"come on finish this out - walk it, tie it, etc. i want this done
+until you need me."*
+
+**The walkthrough** (`docs/walkthrough/`, one PDF). The expected answer for
+every cell was written first by `expected.py` and committed (6f3505d) before
+Excel was opened. `walk.ps1` then built the workbooks with the command a
+person types, typed each step into Excel 16 through its automation
+interface, and read every cell back from Excel. 30 steps, 407 cells, all as
+expected in the final run. The card lines under the rehearsal settings equal
+the 7 Oct record, 3.171 / 3.464 / 4.050 / 5.981 and 25 / 22 / 29 / 55 / 4.
+The script first took the 6 Oct figures, which belong to the scale retired
+that evening; it stopped on the mismatch before anything ran.
+
+What it found, all fixed with a test each:
+- **Assess drew wrong bands for mortgage, home equity and other consumer.**
+  The chart's top and floor were MAX and MIN over a column holding #N/A for
+  quarters before a product's data begins, so both were #N/A: Low and High
+  vanished and the rest were drawn from zero. Every count was right. The
+  tests charted cards only, whose data covers the whole calendar.
+- **A credit score's chart started at zero**, the bands crowded into the top
+  half. Excel starts an automatic axis at zero unless the data sits within
+  about a sixth of its top; a measure not floored at zero now gets a fixed
+  round minimum at build, under the floor and the left-out strip, and the
+  strip stands on an invisible base so it no longer pulls the axis down.
+- **The Chart tab's legend covered the cutoff lines' right-hand ends**; it
+  sits below the plot.
+- **WHAT-IT-DOES.md said 33 Glossary terms; there are 35.** The script's
+  expected answer came from that document and Excel disagreed.
+Four readings failed on the first run because of the runner (a formula that
+returns a cell, and #N/A in a hidden column reading as blank text). Steps W3
+and W14 gained readings of the chart's floor and top after the first run,
+because every cell read was right while the pictures were wrong.
+
+**The tie-out** (`docs/tie-out/cards-moderate-line-2026-10-13/`). Credit card,
+3 Moderate from, rehearsal settings: 3.4641865 in Excel against 3.4646865
+recomputed by hand from the Federal Reserve Board's own table (Charge-Off
+Rates, All Banks, SA, last update 25 Aug 2026), with exact decimals and
+nothing from the tool. DIFFERS by 0.0005, cause found: the repository's
+`cards_nco_ttm.csv` holds each four-quarter mean to three decimals, and in 80
+of 163 quarters the exact mean ends in 5 (43 saved up, 37 down). 2020Q2,
+3.7575 saved as 3.757, is the median kept, so all four lines sit 0.0005 low.
+No kept quarter and not the latest changes score. The file is left as it is.
+FRED could not be reached from this machine for a second reading.
+
+**The site kit.** `docs/ON-SITE-CHECKLIST.md` (and `.pdf`) and
+`tools/bank_kit.py`: one zip with the code, the window, the public practice
+files and the two add-ons as wheels (openpyxl, et-xmlfile). Dry-run on a
+fresh Python with neither installed: unzipped with Windows' tar, installed
+offline from the kit, every command run as written in Command Prompt, the
+practice numbers and the rehearsal lines read in Excel, a made-up score file
+taken through `template write`, `check` and a build. Found: the template's
+message told the user to run `threshold-engine template check`, a command
+that exists only once the package is installed; it now says `python -m
+threshold_engine`.
+
+**Lower-is-worse through the workbook** (NEXT-GOAL section 2): a mirrored
+series is held to `scale()` and `score()` under each on-the-line rule, and
+walked in Excel as W14.
+
+**Handed back:** monthly series in the workbook. Recommended acceptable for
+v1: every source v1 reads is quarterly, and every template asks for
+quarter-end dates.
+
+Suite: 778 passed (23 min).
