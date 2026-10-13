@@ -140,13 +140,13 @@ start practice.xlsx
 
 ### 3.3 One judgement, by hand
 
-On the **Settings** tab, row 6 (Credit card), type: B6 `2007Q4`, C6 `2012Q4`, D6 `financial crisis`, E6 `2021Q3`, F6 `2023Q1`, G6 `pandemic forbearance`.
+The workbook opens on the **Assess** tab (red). Under the chart, in **Periods left out**, fill the first two rows from the lists: Product `Credit card`, From `2007Q4`, To `2012Q4`, Reason `financial crisis`; then Product `Credit card`, From `2021Q3`, To `2023Q1`, Reason `pandemic forbearance`. Each Status reads `Left out: 21 quarters` and `Left out: 7 quarters`.
 
 ☐ Thresholds, Credit card now reads: median 3.757, move 0.586, worst 6.603, lines **3.171 / 3.464 / 4.050 / 5.981**, latest 3.978, **3 Moderate**. These are the card rehearsal settings the bank accepted; the lines were first recorded on 7 Oct 2026.
 
-☐ On **Assess** (Credit card picked in B4), the quarters kept in each score read 25 / 22 / 29 / 55 / 4, and the chart shades five bands with two dark strips under the periods left out.
+☐ At the top of Assess (Credit card picked in B4), Latest reads `2026Q2: 3.978  ->  3 Moderate`; the quarters kept in each score read 25 / 22 / 29 / 55 / 4; and the chart shades five bands with two dark strips under the periods left out.
 
-☐ Type `0` in J6 (High's z). The Check column reads `Refused: High's z must be above 0` and the score goes blank. Type `2.5` back.
+☐ In **Your settings**, type `0` as Credit card's How rare High is (z). Check reads `Refused: High's z must be above 0` and Latest says there is no score. Type `2.5` back.
 
 ### 3.4 The window
 
@@ -191,7 +191,7 @@ py -m threshold_engine template check refreshed-score "%USERPROFILE%\refreshed-s
 
 ### 5.4 Build the workbook
 
-Every setting is yours; none has a default. For the refreshed score, lower is worse and it is not floored at zero. The starting values below are the card rehearsal's; change them on the Settings tab after the build.
+Every setting is yours; none has a default. For the refreshed score, lower is worse and it is not floored at zero. The starting values below are the card rehearsal's; change them in Your settings on the Assess tab after the build.
 
 ```
 py -m threshold_engine workbook "%USERPROFILE%\refreshed-score.xlsx" --series "Refreshed score=%USERPROFILE%\refreshed-score.csv" --name "Refreshed credit score" --unit "score" --direction lower_is_worse --frequency quarterly --smoothing 1 --floor-at-zero no --moderate-halfwidth 0.5 --low-step 1.0 --high-z 2.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 9

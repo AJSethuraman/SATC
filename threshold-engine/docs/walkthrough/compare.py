@@ -15,7 +15,7 @@ low = json.load(open(HERE / "out" / "observed-low.json", encoding="utf-8-sig"))
 exp["steps"] += json.load(open(HERE / "steps-low.json", encoding="utf-8"))["steps"]
 obs["steps"] += low["steps"]
 restored_low = all(t == "" for t in low.get("check_after", []))
-SHEETS = ["Thresholds", "Settings", "Assess", "Chart", "Evidence", "Backtest", "Glossary", "Data", "Run"]
+SHEETS = ["Thresholds", "Assess", "Chart", "Evidence", "Backtest", "Glossary", "Data", "Run"]
 
 
 def same(want, got):

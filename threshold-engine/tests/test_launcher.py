@@ -15,6 +15,8 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
+from threshold_engine.workbook import SET_TOP
+
 from conftest import DATA, ROOT
 from threshold_engine import keybank_style as K
 from threshold_engine import launcher
@@ -265,7 +267,7 @@ def test_a_label_may_hold_other_punctuation(tmp_path, opened):
     assert launcher.problems(f) == []
     out = launcher.run(f)
     assert out.ok, out.lines
-    assert load_workbook(out.path)["Settings"].cell(7, 1).value == "Mortgage (1st lien) - US & PR"
+    assert load_workbook(out.path)["Assess"].cell(SET_TOP + 1, 1).value == "Mortgage (1st lien) - US & PR"
 
 
 def test_a_csv_without_the_date_value_header_is_refused_before_run(tmp_path):
@@ -348,10 +350,10 @@ def test_run_writes_the_workbook_with_workbook_build_and_opens_it(tmp_path, open
                         out.lines[0]) and len(out.lines) == 1
     assert opened == [out.path]
     wb = load_workbook(out.path)
-    assert wb.sheetnames[:2] == ["Thresholds", "Settings"]
-    st = wb["Settings"]
-    assert [st.cell(6, 1).value, st.cell(7, 1).value] == ["Credit card", "Mortgage"]
-    assert [st.cell(6, c).value for c in (8, 9, 10, 11)] == [0.5, 1.0, 2.5, "worse"]
+    assert wb.sheetnames[:2] == ["Thresholds", "Assess"]
+    st = wb["Assess"]
+    assert [st.cell(SET_TOP, 1).value, st.cell(SET_TOP + 1, 1).value] == ["Credit card", "Mortgage"]
+    assert [st.cell(SET_TOP, c).value for c in (2, 3, 4, 5)] == [0.5, 1.0, 2.5, "worse"]
 
 
 def test_run_hands_the_build_exactly_the_forms_arguments(tmp_path, opened):

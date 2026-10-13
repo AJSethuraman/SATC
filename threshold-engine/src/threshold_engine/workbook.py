@@ -2,11 +2,12 @@
 
 Python does the statistics once -- spells, robust z-scores, scenarios, recency,
 the backtest -- and writes their results as values. The cutoffs are Excel
-formulas over the data, driven by the red Settings tab, so the bank's
+formulas over the data, driven by the red Assess tab, so the bank's
 judgements are made in the workbook and the thresholds move as they are made:
 
-    Settings (red)  which periods to leave out, where score 5 begins, and
-                    whether a value on a line takes the worse or better score
+    Assess (red)    pick a product and see where its history falls; pick the
+                    periods to leave out from lists of real quarters, and set
+                    the scale's three distances and the on-the-line rule
     Thresholds      median and worst of the periods kept, the four cutoffs,
                     the latest value's score and rating -- all live
     Chart           any combination of products on one scale, with one
@@ -28,7 +29,8 @@ from pathlib import Path
 from typing import Sequence, Tuple
 
 from openpyxl import Workbook
-from openpyxl.chart import AreaChart, LineChart, Reference
+from openpyxl.chart import AreaChart, BarChart, LineChart, Reference
+from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter as L
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -43,6 +45,16 @@ from .series import LABEL_RULE, check, label_ok, read_csv, smooth
 
 RATINGS = ("Low", "Moderate-Low", "Moderate", "Moderate-High", "High")
 INPUT = PatternFill("solid", fgColor="FFF2CC")
+# A conditional format's fill is read from its background colour, so both
+# are set (with fgColor alone Excel drew the highlighted row white).
+PICKED = PatternFill("solid", fgColor="F6D9A8", bgColor="F6D9A8")
+# The Assess tab's inputs. Leave-outs are a list under the chart: any product,
+# any number of periods up to LO_ROWS, each picked from the calendar. Excel
+# without macros cannot let one cell follow the product picker and still keep
+# a value per product, so the settings are a table, one row per product, with
+# the picked product's row highlighted (the bank's choice, 13 Oct 2026).
+LO_TOP, LO_ROWS = 42, 12            # Assess rows 42-53: Product, From, To, Reason, Status
+SET_TOP = 58                        # Assess rows 58...: one per product, columns B-E
 NOTE = Font(name="Arial", size=9, italic=True, color=K.SLATE)
 
 
@@ -77,6 +89,22 @@ def _axis_floor(loaded, direction, halfwidth, low_step, high_z):
         return None
     unit = 10 ** math.floor(math.log10(hi - lo)) / 2
     return math.floor(target / unit) * unit
+
+
+def assess_layout(n: int) -> dict:
+    """Where things sit on Assess for n products, one place for the builder,
+    the tests and the walkthrough: the leave-out rows, the settings rows, the
+    notes, the evidence, the scenarios, what the lines rest on, and the first
+    value row of each dial (High's z, the width, the Moderate-Low step)."""
+    set_end = SET_TOP + n - 1
+    expl_top = set_end + 2
+    ev_top = expl_top + 8
+    scen_top = ev_top + 5
+    base_row = scen_top + 43
+    dial = base_row + 6
+    return dict(lo_top=LO_TOP, lo_end=LO_TOP + LO_ROWS - 1, set_top=SET_TOP, set_end=set_end, expl_top=expl_top,
+                ev_top=ev_top, scen_top=scen_top, base_row=base_row,
+                dials={"high_z": dial, "halfwidth": dial + 8, "low_step": dial + 16})
 
 
 def quarter(date: str) -> str:
@@ -143,31 +171,43 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     wb = Workbook()
     th = wb.active
     th.title = "Thresholds"
-    st, asx, ch, evs, bts, gl, da, run = (wb.create_sheet(t) for t in
-                                          ("Settings", "Assess", "Chart", "Evidence", "Backtest", "Glossary",
-                                           "Data", "Run"))
-    st.sheet_properties.tabColor = K.KEY_RED
-    for ws in (th, st, asx, ch, evs, bts, gl, run):
+    asx, ch, evs, bts, gl, da, run = (wb.create_sheet(t) for t in
+                                      ("Assess", "Chart", "Evidence", "Backtest", "Glossary", "Data", "Run"))
+    asx.sheet_properties.tabColor = K.KEY_RED
+    wb.active = 1                        # it opens where the bank works: Assess
+    for ws in (th, asx, ch, evs, bts, gl, run):
         K.hide_gridlines(ws)
+    lo_end = LO_TOP + LO_ROWS - 1
+    set_end = SET_TOP + n - 1
+    # The leave-out list, as ranges: the product typed, the calendar positions
+    # of From and To (hidden helpers), whether the row is whole, and whether it
+    # is in use at all.
+    lo_rng = lambda c_: "Assess!${c}${a}:${c}${b}".format(c=c_, a=LO_TOP, b=lo_end)     # noqa: E731
+    LO_PROD, LO_FROM, LO_TO, LO_OK, LO_USED = (lo_rng(c_) for c_ in ("A", "Z", "AA", "AB", "AC"))
 
     # ---- Data: one calendar, raw values, and the values each product keeps ----
     da.append(["Quarter"] + [s["label"] for s in loaded] + ["%s, kept" % s["label"] for s in loaded]
               + ["%s, change over 4 quarters kept" % s["label"] for s in loaded]
               + ["%s, distance from the median change" % s["label"] for s in loaded]
-              + ["%s, distance from the median kept" % s["label"] for s in loaded])
-    srow = {s["label"]: 6 + i for i, s in enumerate(loaded)}       # Settings row per product
+              + ["%s, distance from the median kept" % s["label"] for s in loaded]
+              + ["%s, change over 4 quarters, every quarter" % s["label"] for s in loaded]
+              + ["%s, distance from the median change, every quarter" % s["label"] for s in loaded]
+              + ["%s, distance from the median, every quarter" % s["label"] for s in loaded])
+    srow = {s["label"]: SET_TOP + i for i, s in enumerate(loaded)}      # Your settings row per product
     for r, q in enumerate(grid, start=2):
         da.cell(r, 1, q)
         for k, s in enumerate(loaded):
             raw = L(2 + k)
             if q in s["by_q"]:
                 da.cell(r, 2 + k, s["by_q"][q])
-            sr = srow[s["label"]]
-            left_out = ",".join(
-                'AND(Settings!${a}${sr}<>"",$A{r}>=Settings!${a}${sr},$A{r}<=Settings!${b}${sr})'
-                .format(a=a_, b=b_, sr=sr, r=r) for a_, b_ in (("B", "C"), ("E", "F")))
+            # Left out when a whole row of the list names this product and its
+            # From..To takes in this quarter's place on the calendar. An exact
+            # match on the product (SUMPRODUCT, not COUNTIFS, which would read
+            # * and ? in a label as wildcards).
+            left_out = ('SUMPRODUCT(({p}=Thresholds!$A${t})*({f}<={pos})*({to}>={pos})*({ok}=1))>0'
+                        .format(p=LO_PROD, f=LO_FROM, to=LO_TO, ok=LO_OK, t=5 + k, pos=r - 1))
             da.cell(r, 2 + n + k,
-                    '=IF({raw}{r}="","",IF(OR({lo}),"",{raw}{r}))'.format(raw=raw, r=r, lo=left_out))
+                    '=IF({raw}{r}="","",IF({lo},"",{raw}{r}))'.format(raw=raw, r=r, lo=left_out))
             kc = L(2 + n + k)
             if r >= first + 4:
                 da.cell(r, 2 + 2 * n + k, '=IF(AND(ISNUMBER({c}{r}),ISNUMBER({c}{p})),{c}{r}-{c}{p},"")'
@@ -179,59 +219,20 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                     .format(y=yc, r=r, tr=5 + k))
             da.cell(r, 2 + 4 * n + k, '=IF({c}{r}="","",ABS({c}{r}-Thresholds!$B${tr}))'
                     .format(c=kc, r=r, tr=5 + k))
+            # The same three, with nothing left out: the Scenarios on Assess
+            # set them beside the lines as the bank has them.
+            if r >= first + 4:
+                da.cell(r, 2 + 5 * n + k, '=IF(AND(ISNUMBER({c}{r}),ISNUMBER({c}{p})),{c}{r}-{c}{p},"")'
+                        .format(c=raw, r=r, p=r - 4))
+            ac = L(2 + 5 * n + k)
+            da.cell(r, 2 + 6 * n + k, '=IF({a}{r}="","",ABS({a}{r}-Thresholds!$R${tr}))'.format(a=ac, r=r, tr=5 + k))
+            da.cell(r, 2 + 7 * n + k, '=IF({c}{r}="","",ABS({c}{r}-Thresholds!$Q${tr}))'.format(c=raw, r=r, tr=5 + k))
     K.freeze_below(da, 1)
-
-    # ---- Settings (red): the bank's judgements ----
-    K.brand_banner(st, 1, 14, "Settings — the bank's judgements",
-                   "Yellow cells are yours. The Thresholds and Chart tabs recalculate as you change them.")
-    st.cell(4, 1, "Leave a period out by typing its first and last quarter (e.g. 2020Q3 and 2023Q1), and say "
-                  "why: the data can find a departure but not its cause. Blank keeps every period.").font = NOTE
-    K.header_row(st, 5, ["Product", "Leave out from", "Leave out to", "Reason", "Second leave-out from", "to",
-                         "Reason", "Moderate: half-width, in typical yearly moves",
-                         "Moderate-Low begins this many typical yearly moves below the median",
-                         "High begins at this z: median + z x spread of levels",
-                         "A value on a line takes the", "Largest spell: what the evidence says",
-                         "Temporary departures the data found", "Why"])
-    _wrap(st, 5, 58)
-    dv = DataValidation(type="list", formula1='"worse,better"', allow_blank=False)
-    st.add_data_validation(dv)
-    for s in loaded:
-        rr = srow[s["label"]]
-        lg, nx = s["ev"]["largest"], s["ev"]["next_unusual"]
-        if lg and nx:
-            end_ = lg["end"]
-            last_q = grid[grid.index(quarter(end_)) - 1] if end_ else grid[-1]
-            say = "Leave out %s to %s" % (quarter(lg["start"]), last_q)
-            why = ("Another spell is also unusual (%s, z %.1f), so the largest is not the only stress on record"
-                   % (quarter(nx["start"]), nx["robust_z"]))
-        else:
-            say = "Keep every period"
-            why = ("The largest spell (peak %s, z %.1f) is the only unusual one: it is the only evidence of stress"
-                   % (quarter(lg["peak_date"]), lg["robust_z"]) if lg else "No spell above the median")
-        deps = "; ".join("%s to %s %s (z %+.1f)" % (quarter(d["first"]), quarter(d["last"]),
-                                                    d["direction"], d["robust_z"])
-                         for d in s["ev"]["departures"]) or "None found"
-        vals = [s["label"], None, None, None, None, None, None, moderate_halfwidth, low_step, high_z,
-                on_the_line, say, deps, why]
-        for col, v in enumerate(vals, start=1):
-            cell = st.cell(rr, col, v)
-            if 2 <= col <= 11:
-                cell.fill = INPUT
-            cell.alignment = Alignment(wrap_text=True, vertical="top")
-        dv.add("K%d" % rr)
-    for col, w in zip("ABCDEFGHIJKLMN", (18, 11, 11, 24, 11, 11, 24, 13, 15, 16, 11, 22, 44, 44)):
-        st.column_dimensions[col].width = w
-    st.cell(srow[loaded[-1]["label"]] + 2, 1,
-            "The scale is centred on normal: Moderate is a band around the median of the quarters kept, as wide "
-            "as the stated number of typical yearly moves; Moderate-Low and High are measured from it. The "
-            "Glossary tab defines every term and how it is calculated. Temporary departures: "
-            "stretches that left the path between the quarters either side and came back, largest first, each "
-            "ranked against every window of its length. A long, curved decline can read as a dip below a straight "
-            "path.").font = NOTE
 
     # ---- Thresholds: live ----
     K.brand_banner(th, 1, 13, "%s — candidate thresholds" % name,
-                   "Live: recalculates from the Settings tab. Candidates for the bank to accept, adjust or reject.")
+                   "Live: recalculates from your choices on the Assess tab. Candidates for the bank to accept, "
+                   "adjust or reject.")
     K.header_row(th, 4, ["Product", "Median kept", "Typical yearly move", "Worst kept", "2 Moderate-Low from",
                          "3 Moderate from", "4 Moderate-High from", "5 High from", "Latest quarter",
                          "Latest (%s)" % unit, "Score", "Rating", "Check"], right_from=1)
@@ -250,18 +251,20 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         th.cell(r, 3, "=1.4826*MEDIAN(%s)" % dev)
         th.cell(r, 4, "=%s(%s)" % ("MAX" if higher else "MIN", kept))
         th.cell(r, 16, "=1.4826*MEDIAN(%s)" % levdev)                 # helper: the spread of levels
-        hw, ls, hz = ("Settings!$%s$%d" % (c_, sr) for c_ in "HIJ")
-        # A leave-out used at all must be whole: two quarters on the calendar,
-        # in order, and a reason. Half of one silently keeps every quarter.
-        cal = "Data!$A$%d:$A$%d" % (first, last)
-        bad_lo = ['AND(OR(Settings!${a}${sr}<>"",Settings!${b}${sr}<>"",Settings!${w}${sr}<>""),'
-                  'NOT(AND(COUNTIF({cal},Settings!${a}${sr})=1,COUNTIF({cal},Settings!${b}${sr})=1,'
-                  'Settings!${a}${sr}<=Settings!${b}${sr},TRIM(Settings!${w}${sr})<>"")))'
-                  .format(a=a_, b=b_, w=w_, sr=sr, cal=cal) for a_, b_, w_ in (("B", "C", "D"), ("E", "F", "G"))]
-        th.cell(r, 13, ('=IF({lo1},"Refused: the first leave-out needs a first and a last quarter from the data, '
-                        'in order, and a reason",'
-                        'IF({lo2},"Refused: the second leave-out needs a first and a last quarter from the data, '
-                        'in order, and a reason",'
+        # Helpers for the Scenarios: the same, keeping every quarter.
+        raw_all, chg_all = col(2 + k), col(2 + 5 * n + k)
+        th.cell(r, 17, "=MEDIAN(%s)" % raw_all)                         # Q: median, every quarter
+        th.cell(r, 18, "=MEDIAN(%s)" % chg_all)                         # R: median change, every quarter
+        th.cell(r, 19, "=1.4826*MEDIAN(%s)" % col(2 + 6 * n + k))       # S: typical yearly move, every quarter
+        th.cell(r, 20, "=1.4826*MEDIAN(%s)" % col(2 + 7 * n + k))       # T: spread of levels, every quarter
+        hw, ls, hz = ("Assess!$%s$%d" % (c_, sr) for c_ in "BCD")
+        # A period left out for this product must be whole: two quarters from
+        # the calendar, in order, and a reason. Half of one would silently keep
+        # every quarter, so the product is refused until the row is fixed.
+        bad_lo = ('SUMPRODUCT(({p}=$A{r})*({u}=1)*({ok}=0))>0'
+                  .format(p=LO_PROD, u=LO_USED, ok=LO_OK, r=r))
+        th.cell(r, 13, ('=IF({lo},"Refused: a period left out for this product is not whole; its Status on Assess '
+                        'says what is missing",'
                         'IF(OR(NOT(ISNUMBER({hw})),{hw}<0),"Refused: Moderate\'s half-width must be 0 or more",'
                         'IF(OR(NOT(ISNUMBER({hz})),{hz}<=0),"Refused: High\'s z must be above 0",'
                         'IF(NOT(ISNUMBER({ls})),"Refused: Moderate-Low\'s step must be a number",'
@@ -270,8 +273,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                         'IF({ls}<={hw},"Refused: Moderate-Low must begin further from the median than Moderate",'
                         'IF({sg}*(H{r}-G{r})<=0,"Refused: High must begin beyond Moderate-High\'s line",'
                         'IF({sg}*(D{r}-H{r})<0,"Refused: High would begin beyond the worst quarter kept",'
-                        'IF(AND({fz},E{r}<=0),"Refused: Moderate-Low would begin at or below zero","")))))))))))')
-                .format(fz=fz, r=r, ls=ls, hw=hw, hz=hz, sg=sg, lo1=bad_lo[0], lo2=bad_lo[1]))
+                        'IF(AND({fz},E{r}<=0),"Refused: Moderate-Low would begin at or below zero",""))))))))))')
+                .format(fz=fz, r=r, ls=ls, hw=hw, hz=hz, sg=sg, lo=bad_lo))
         th.cell(r, 7, "=$B{r}+{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
         th.cell(r, 6, "=$B{r}-{sg}*{hw}*$C{r}".format(r=r, sg=sg, hw=hw))
         th.cell(r, 5, "=IF(ISNUMBER({ls}),$B{r}-{sg}*{ls}*$C{r},\"\")".format(r=r, sg=sg, ls=ls))
@@ -282,7 +285,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         op_worse, op_better = ("<=", "<") if higher else (">=", ">")
         bounds = "$E{r}:$H{r}".format(r=r)
         floor = "AND(J{r}<=0,{f})".format(r=r, f=fz)
-        th.cell(r, 11, '=IF($M{r}<>"","",IF({floor},1,1+IF(Settings!$K${sr}="worse",'
+        th.cell(r, 11, '=IF($M{r}<>"","",IF({floor},1,1+IF(Assess!$E${sr}="worse",'
                        'COUNTIF({b},"{w}"&J{r}),COUNTIF({b},"{bt}"&J{r}))))'
                 .format(r=r, floor=floor, sr=sr, b=bounds, w=op_worse, bt=op_better))
         th.cell(r, 12, '=IF(K{r}="","",CHOOSE(K{r},"{0}","{1}","{2}","{3}","{4}"))'.format(*RATINGS, r=r))
@@ -290,7 +293,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             th.cell(r, c_).number_format = "0.000"
         th.cell(r, 10).number_format = "0.000"
     th.column_dimensions["O"].hidden = True
-    th.column_dimensions["P"].hidden = True
+    for c_ in "PQRST":
+        th.column_dimensions[c_].hidden = True
     for c_, w in zip("ABCDEFGHIJKLM", (20, 10, 10, 10, 12, 12, 12, 12, 10, 10, 7, 15, 34)):
         th.column_dimensions[c_].width = w
     th.cell(6 + n, 1, "Scores: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High. A loss at or below "
@@ -361,11 +365,11 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
 
     # ---- Assess: one product, its score bands, and where history fell ----
     # Live. Pick a product; the bands are its cutoffs from Thresholds, the line
-    # is the quarters kept, grey is what Settings leaves out, and the table
+    # is the quarters kept, grey is what the list under it leaves out, and the table
     # counts the quarters kept in each score.
-    K.brand_banner(asx, 1, 9, "Assess one product's thresholds",
-                   "Shaded bands are the five scores; the line is the quarters kept; grey is what Settings "
-                   "leaves out. Live.")
+    K.brand_banner(asx, 1, 11, "Assess and set one product's thresholds",
+                   "Pick a product. The bands are its five scores and the line is its history. Leave periods out "
+                   "and change your settings below the chart; everything here follows as you type.")
     asx.cell(4, 1, "Product").font = Font(bold=True)
     apick = asx.cell(4, 2, loaded[0]["label"])
     apick.fill = INPUT
@@ -375,11 +379,17 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     tr = "MATCH($B$4,Thresholds!$A$5:$A${e},0)".format(e=4 + n)
     asx.cell(5, 1, "Check")
     asx.cell(5, 2, "=INDEX(Thresholds!$M$5:$M${e},{m})".format(e=4 + n, m=tr))
+    # The latest quarter's score, here, so nothing needs the Thresholds tab
+    # while working (the bank: "i dont want to flip back and forth").
+    ix_th = lambda c_: "INDEX(Thresholds!${c}$5:${c}${e},{m})".format(c=c_, e=4 + n, m=tr)   # noqa: E731
+    asx.cell(4, 4, "Latest").font = Font(bold=True)
+    asx.cell(4, 5, '={q}&": "&TEXT({v},"0.000")&"  ->  "&IF({k}="","no score: see Check",{k}&" "&{lb})'
+             .format(q=ix_th("I"), v=ix_th("J"), k=ix_th("K"), lb=ix_th("L"))).font = Font(bold=True)
     K.header_row(asx, 7, ["Score", "Rating", "From", "To", "Quarters kept", "Share kept",
                           "Every quarter", "Share of every quarter"], right_from=2)
     _wrap(asx, 7, 48)
     bnd = ["INDEX(Thresholds!${c}$5:${c}${e},{m})".format(c=c_, e=4 + n, m=tr) for c_ in "EFGH"]
-    online = "INDEX(Settings!$K$6:$K${e},{m})".format(e=5 + n, m=tr)
+    online = "INDEX(Assess!$E${a}:$E${b},{m})".format(a=SET_TOP, b=set_end, m=tr)
     hc = 12                                   # helper columns start at L
     rng = lambda c_: "${c}${a}:${c}${b}".format(c=L(c_), a=first, b=last)           # noqa: E731
     kept_r, raw_r = rng(hc + 1), rng(hc + 3)
@@ -392,7 +402,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         asx.cell(r, 3, "=IFERROR(%s+0,\"\")" % lo if lo else "")
         asx.cell(r, 4, "=IFERROR(%s+0,\"\")" % hi if hi else "")
         for col, data in ((5, kept_r), (7, raw_r)):
-            # A value on a line takes the worse score, or the better, as Settings says.
+            # A value on a line takes the worse score, or the better, as Your settings says.
             if higher:
                 ge, lt = ('">="', '"<"'), ('">"', '"<="')
             else:
@@ -404,35 +414,40 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                 parts.append('{d},{c}'.format(d=data, c=crit(ge[0], lt[0], lo)))
             if hi:
                 parts.append('{d},{c}'.format(d=data, c=crit(ge[1], lt[1], hi)))
-            asx.cell(r, col, '=IF($B$5<>"","",COUNTIFS(%s))' % ",".join(parts))
+            asx.cell(r, col, '=IF($U$5<>1,"",COUNTIFS(%s))' % ",".join(parts))
         asx.cell(r, 6, '=IF(E{r}="","",E{r}/SUM($E$8:$E$12))'.format(r=r))
         asx.cell(r, 8, '=IF(G{r}="","",G{r}/SUM($G$8:$G$12))'.format(r=r))
         for col in (3, 4):
             asx.cell(r, col).number_format = "0.000"
         for col in (6, 8):
             asx.cell(r, col).number_format = "0%"
-    asx.cell(13, 1, "Counts use the same rule as the score: a value on a line takes the score Settings says. "
+    asx.cell(13, 1, "Counts use the same rule as the score: a value on a line takes the score Your settings "
+                    "says. "
                     "A loss at or below zero falls in score 1.").font = NOTE
     for col, w in zip("ABCDEFGH", (10, 15, 10, 10, 10, 10, 10, 12)):
         asx.column_dimensions[col].width = w
 
     # ---- Assess: dials. For the product shown, what each setting would do at
-    # other values, the others held as on Settings. Live, like everything else.
+    # other values, the others held as in Your settings. Live, like everything else.
     ix = lambda sheet, c_, top: "INDEX({s}!${c}${t}:${c}${e},{m})".format(                    # noqa: E731
         s=sheet, c=c_, t=top, e=top - 1 + n, m=tr)
-    asx.cell(45, 1, "What it rests on").font = Font(bold=True)
+    # Below the chart: the inputs (rows LO_TOP..), then what the settings mean
+    # and what the evidence says, then what the lines rest on, then the dials.
+    lay = assess_layout(n)
+    expl_top, ev_top, scen_top, base_row = lay["expl_top"], lay["ev_top"], lay["scen_top"], lay["base_row"]
+    asx.cell(base_row, 1, "What it rests on").font = Font(bold=True)
     base = [("Median kept", ix("Thresholds", "B", 5)), ("Typical yearly move", ix("Thresholds", "C", 5)),
             ("Spread of levels", ix("Thresholds", "P", 5)), ("Worst kept", ix("Thresholds", "D", 5)),
-            ("Half-width now", ix("Settings", "H", 6)), ("Moderate-Low step now", ix("Settings", "I", 6)),
-            ("High z now", ix("Settings", "J", 6))]
+            ("Half-width now", ix("Assess", "B", SET_TOP)), ("Moderate-Low step now", ix("Assess", "C", SET_TOP)),
+            ("High z now", ix("Assess", "D", SET_TOP))]
     for j, (lbl, f) in enumerate(base):
-        lc = asx.cell(46, 1 + j, lbl)
+        lc = asx.cell(base_row + 1, 1 + j, lbl)
         lc.font = Font(bold=True, size=9)
         lc.alignment = Alignment(wrap_text=True, vertical="bottom")
-        c = asx.cell(47, 1 + j, "=" + f)
+        c = asx.cell(base_row + 2, 1 + j, "=" + f)
         c.number_format = "0.000"
-    asx.row_dimensions[46].height = 26
-    MED, MOVE, SPREAD, WORST, HW, LS, HZ = ("$%s$47" % L(1 + j) for j in range(7))
+    asx.row_dimensions[base_row + 1].height = 26
+    MED, MOVE, SPREAD, WORST, HW, LS, HZ = ("$%s$%d" % (L(1 + j), base_row + 2) for j in range(7))
     sgn = "1" if higher else "-1"
     if higher:
         ge, lt = ('">="', '"<"'), ('">"', '"<="')
@@ -451,17 +466,19 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             if k < 4:
                 parts.append('{d},IF({o}="worse",{w},{bt})&{ref}'.format(d=kept_r, o=online, w=ge[1], bt=lt[1],
                                                                           ref=b[k]))
-            asx.cell(r, 6 + k, '=IF(OR($B$5<>"",NOT(%s)),"",COUNTIFS(%s))' % (num, ",".join(parts)))
+            asx.cell(r, 6 + k, '=IF(NOT(%s),"",COUNTIFS(%s))' % (num, ",".join(parts)))
 
     dials = [("High's z", HZ, (2.0, 2.5, 3.0, 3.5)),
              ("Moderate's half-width, in typical yearly moves", HW, (0.25, 0.5, 0.75, 1.0)),
              ("Moderate-Low step, in typical yearly moves", LS, (0.75, 1.0, 1.5, 2.0))]
-    r = 49
+    r = base_row + 4
+    dial_rows = []
     for title, now, values in dials:
-        K.section_band(asx, r, "Dial: " + title + " (the other settings as on Settings)", 11)
+        K.section_band(asx, r, "Dial: " + title + " (the other settings as in Your settings)", 11)
         K.header_row(asx, r + 1, ["Value", "2 from", "3 from", "4 from", "5 from",
                                   "Low", "Mod-Low", "Moderate", "Mod-High", "High", ""], right_from=0)
         r += 2
+        dial_rows.append((title, r))
         for v in list(values) + [None]:
             val = now if v is None else repr(v)
             asx.cell(r, 1, "=" + now if v is None else v)
@@ -486,8 +503,9 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                     asx.cell(r, c_).fill = INPUT
             r += 1
         r += 1
-    asx.cell(r, 1, "Each dial changes one setting and holds the others as they are on Settings. The highlighted "
-                   "row is the current setting and matches the table above. Change a setting on Settings and "
+    asx.cell(r, 1, "Each dial changes one setting and holds the others as they are in Your settings. The "
+                   "highlighted row is the current setting and matches the table above. Change a setting in Your "
+                   "settings and "
                    "every row follows.").font = NOTE
     asx.column_dimensions["I"].width = 10
     asx.column_dimensions["J"].width = 10
@@ -522,11 +540,11 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         # first band is its distance from there, never a cut-off read as a
         # width: below zero a cut-off is negative and a band is not.
         base = "${c}${r0}".format(c=L(hc + 9), r0=first + 1)
-        asx.cell(r, hc + 10, '=IF($B$5<>"",NA(),{lo})'.format(lo=base))
-        asx.cell(r, hc + 4, '=IF($B$5<>"",NA(),{b0}-{lo})'.format(b0=b[0], lo=base))
+        asx.cell(r, hc + 10, '=IF($U$5<>1,NA(),{lo})'.format(lo=base))
+        asx.cell(r, hc + 4, '=IF($U$5<>1,NA(),{b0}-{lo})'.format(b0=b[0], lo=base))
         for i in range(1, 4):
-            asx.cell(r, hc + 4 + i, '=IF($B$5<>"",NA(),{b1}-{b0})'.format(b1=b[i], b0=b[i - 1]))
-        asx.cell(r, hc + 8, '=IF($B$5<>"",NA(),MAX({t}-{b3},0))'.format(t=top, b3=b[3]))
+            asx.cell(r, hc + 4 + i, '=IF($U$5<>1,NA(),{b1}-{b0})'.format(b1=b[i], b0=b[i - 1]))
+        asx.cell(r, hc + 8, '=IF($U$5<>1,NA(),MAX({t}-{b3},0))'.format(t=top, b3=b[3]))
     # Top and floor take in the cut-offs as well as the data, and the top sits
     # 8% of the whole range above the highest, which works below zero too.
     cuts, axis_r = "$C$9:$C$12", rng(hc + 12)
@@ -548,6 +566,13 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         mn, mx = "MIN(MIN(%s),MIN(%s))" % (axis_r, cuts), "MAX(MAX(%s),MAX(%s))" % (axis_r, cuts)
         asx.cell(first + 1, hc + 9, "=%s-0.08*(%s-%s)" % (mn, mx, mn))
     asx.cell(first + 2, hc + 9, "=({t}-{lo})*0.06".format(t=top_c, lo=lo_c))
+    # Whether the bands and counts can be drawn: the four lines are numbers in
+    # their order. Not whether the product is refused: a refused product still
+    # shows where its lines fall, which is how the bank sees why (13 Oct 2026:
+    # other consumer refused at z 2.5 drew no colour at all, and the dials hid
+    # the way out).
+    asx.cell(5, hc + 9, "=IF(AND(ISNUMBER(C9),ISNUMBER(C10),ISNUMBER(C11),ISNUMBER(C12),"
+                        "{s}*(C10-C9)>=0,{s}*(C11-C10)>=0,{s}*(C12-C11)>=0),1,0)".format(s=sgn))
     for r in range(first, last + 1):
         gone_c = "{c}{r}".format(c=L(hc + 2), r=r)
         # The strip stands on an invisible base just under the floor, and is
@@ -628,16 +653,205 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     line += area
     line += strip
     asx.add_chart(line, "A15")
-    # Under the chart, what was left out and why, live from Settings.
-    sr0 = "MATCH($B$4,Settings!$A$6:$A${e},0)".format(e=5 + n)
-    asx.cell(40, 1, "Left out, under the chart:").font = Font(bold=True)
-    for k, (a_, b_, c_) in enumerate((("B", "C", "D"), ("E", "F", "G"))):
-        f = lambda col: "INDEX(Settings!${c}$6:${c}${e},{m})".format(c=col, e=5 + n, m=sr0)   # noqa: E731
-        asx.cell(41 + k, 1, '=IF({a}="","",{a}&" to "&{b}&IF({c}="","",": "&{c}))'
-                 .format(a=f(a_), b=f(b_), c=f(c_)))
-    asx.cell(43, 1, '=IF(AND(A41="",A42=""),"Nothing left out: every quarter counts.","")')
-    for col in range(hc, hc + 14):
+    # ---- Assess: the inputs, under the chart ----
+    # Periods left out: pick the product and two quarters from lists, say why.
+    # Any product, any number of periods up to LO_ROWS. A row that is in use
+    # but not whole refuses its product on Thresholds, and its Status says why.
+    K.section_band(asx, LO_TOP - 2, "Periods left out: pick the product, the first and last quarter, and say why",
+                   11)
+    # No merged cells: a row is cleared by selecting it and pressing Delete,
+    # which Excel refuses over a merge. Reason and Status run into the empty
+    # cells beside them.
+    K.header_row(asx, LO_TOP - 1, ["Product", "From", "To", "Reason", "", "", "", "Status", "", "", ""])
+    cal = "Data!$A${a}:$A${b}".format(a=first, b=last)
+    prod_list = DataValidation(type="list", formula1="=Chart!$A$2:$A$%d" % (1 + n))
+    q_list = DataValidation(type="list", formula1="=" + cal)
+    for dv_ in (prod_list, q_list):
+        asx.add_data_validation(dv_)
+    names = "Thresholds!$A$5:$A${e}".format(e=4 + n)
+    for r in range(LO_TOP, lo_end + 1):
+        for c_ in (1, 2, 3, 4):
+            asx.cell(r, c_).fill = INPUT
+        prod_list.add("A%d" % r)
+        q_list.add("B%d:C%d" % (r, r))
+        asx.cell(r, hc + 14, '=IFERROR(MATCH(B{r},{cal},0),"")'.format(r=r, cal=cal))       # Z: From's place
+        asx.cell(r, hc + 15, '=IFERROR(MATCH(C{r},{cal},0),"")'.format(r=r, cal=cal))       # AA: To's place
+        asx.cell(r, hc + 16, '=IF(AND(ISNUMBER(MATCH(A{r},{nm},0)),ISNUMBER(Z{r}),ISNUMBER(AA{r}),'
+                             'Z{r}<=AA{r},TRIM(D{r})<>""),1,0)'.format(r=r, nm=names))       # AB: whole
+        asx.cell(r, hc + 17, '=IF(OR(A{r}<>"",B{r}<>"",C{r}<>"",TRIM(D{r})<>""),1,0)'.format(r=r))   # AC: in use
+        asx.cell(r, 8, '=IF(AC{r}=0,"",IF(AB{r}=1,"Left out: "&(AA{r}-Z{r}+1)&" quarters",'
+                       'IF(NOT(ISNUMBER(MATCH(A{r},{nm},0))),"Pick a product",'
+                       'IF(OR(NOT(ISNUMBER(Z{r})),NOT(ISNUMBER(AA{r}))),'
+                       '"Pick a first and a last quarter from the list",'
+                       'IF(Z{r}>AA{r},"The first quarter must come before the last","Say why")))))'
+                 .format(r=r, nm=names))
+    asx.cell(lo_end + 1, 1, "Left-out quarters stay on the chart as grey dots over a dark strip; the lines are set "
+                            "from the rest. Clear a row (all four cells) to put its quarters back.").font = NOTE
+    for c_ in "BCDE":
+        asx.column_dimensions[c_].width = max(asx.column_dimensions[c_].width or 0, 12)
+
+    # Your settings: one row per product, the picked one highlighted.
+    K.section_band(asx, SET_TOP - 2, "Your settings: one row per product (the product picked above is highlighted)",
+                   11)
+    K.header_row(asx, SET_TOP - 1, ["Product", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)",
+                                    "A value on a line takes the", "", "", "", "", "", ""], right_from=1)
+    _wrap(asx, SET_TOP - 1, 46)
+    rule_list = DataValidation(type="list", formula1='"worse,better"', allow_blank=False)
+    asx.add_data_validation(rule_list)
+    for s in loaded:
+        rr = srow[s["label"]]
+        lg, nx = s["ev"]["largest"], s["ev"]["next_unusual"]
+        if lg and nx:
+            end_ = lg["end"]
+            last_q = grid[grid.index(quarter(end_)) - 1] if end_ else grid[-1]
+            say = "Leave out %s to %s" % (quarter(lg["start"]), last_q)
+            why = ("Another spell is also unusual (%s, z %.1f), so the largest is not the only stress on record"
+                   % (quarter(nx["start"]), nx["robust_z"]))
+        else:
+            say = "Keep every period"
+            why = ("The largest spell (peak %s, z %.1f) is the only unusual one: it is the only evidence of stress"
+                   % (quarter(lg["peak_date"]), lg["robust_z"]) if lg else "No spell above the median")
+        deps = "; ".join("%s to %s %s (z %+.1f)" % (quarter(d["first"]), quarter(d["last"]),
+                                                    d["direction"], d["robust_z"])
+                         for d in s["ev"]["departures"]) or "None found"
+        asx.cell(rr, 1, s["label"])
+        for c_, v in ((2, moderate_halfwidth), (3, low_step), (4, high_z), (5, on_the_line)):
+            asx.cell(rr, c_, v).fill = INPUT
+        rule_list.add("E%d" % rr)
+        for c_, v in ((hc + 18, say), (hc + 19, deps), (hc + 20, why)):             # AD, AE, AF: the evidence
+            asx.cell(rr, c_, v)
+    asx.conditional_formatting.add("A{a}:E{b}".format(a=SET_TOP, b=set_end),
+                                   FormulaRule(formula=["$A{a}=$B$4".format(a=SET_TOP)], fill=PICKED))
+    good, bad = ("below", "above") if higher else ("above", "below")
+    expl = [
+        "What each setting does",
+        "Width of Moderate: how far either side of the middle of history counts as normal, in typical yearly "
+        "moves (how much the measure ordinarily changes in a year). 0.5 is half a year's movement each way. "
+        "Raise it and more quarters rate Moderate.",
+        "Moderate-Low begins: how far %s the middle score 2 starts, in the same units; it must be more than the "
+        "width. Raise it and fewer quarters rate Low." % good,
+        "How rare High is: High begins this many spreads %s the middle (a robust z: 2.5 is rare, 3.5 is the "
+        "usual line for an outlier). Raise it and fewer quarters rate High." % bad,
+        "A value on a line: whether a quarter exactly on a line takes the worse score or the better.",
+        "Leaving a period out takes it out of the middle, the typical move and the spread, so the lines come "
+        "from the quarters you count as representative. The dials further down show each setting at other values.",
+    ]
+    # Each note spans the tab's width and wraps, rather than running off it.
+    for i, t in enumerate(expl):
+        c = asx.cell(expl_top + i, 1, t)
+        c.font = Font(bold=True) if i == 0 else NOTE
+        if i:
+            asx.merge_cells(start_row=expl_top + i, start_column=1, end_row=expl_top + i, end_column=11)
+            c.alignment = Alignment(wrap_text=True, vertical="top")
+            asx.row_dimensions[expl_top + i].height = 26
+    ev_row = "MATCH($B$4,$A${a}:$A${b},0)".format(a=SET_TOP, b=set_end)
+    asx.cell(ev_top, 1, '="What the evidence says about "&$B$4').font = Font(bold=True)
+    for i, (lbl, col) in enumerate((("Suggested", hc + 18), ("Temporary departures", hc + 19), ("Why", hc + 20))):
+        asx.cell(ev_top + 1 + i, 1, lbl).font = Font(bold=True, size=9)
+        asx.cell(ev_top + 1 + i, 2, '=IFERROR(INDEX(${c}${a}:${c}${b},{m}),"")'
+                 .format(c=L(col), a=SET_TOP, b=set_end, m=ev_row)).font = NOTE
+
+    # ---- Assess: scenarios. What changes as quarters are left out or a
+    # setting moves, side by side and live (the bank, 13 Oct 2026: "a few
+    # different views in assess for charts that show what changes", and "i
+    # dont want to flip back and forth"). Nothing here is an input.
+    K.section_band(asx, scen_top, "Scenarios: what your choices change, for the product picked above", 11)
+    K.header_row(asx, scen_top + 1, ["", "2 from", "3 from", "4 from", "5 from",
+                                      "Low", "Mod-Low", "Moderate", "Mod-High", "High", ""], right_from=1)
+    th_all = lambda c_: "INDEX(Thresholds!${c}$5:${c}${e},{m})".format(c=c_, e=4 + n, m=tr)   # noqa: E731
+    med_a, move_a, spread_a = th_all("Q"), th_all("S"), th_all("T")
+    all_lines = ["{m}-{s}*{ls}*{mv}".format(m=med_a, s=sgn, ls=LS, mv=move_a),
+                 "{m}-{s}*{hw}*{mv}".format(m=med_a, s=sgn, hw=HW, mv=move_a),
+                 "{m}+{s}*{hw}*{mv}".format(m=med_a, s=sgn, hw=HW, mv=move_a),
+                 "{m}+{s}*{hz}*{sp}".format(m=med_a, s=sgn, hz=HZ, sp=spread_a)]
+    ra, rb = scen_top + 2, scen_top + 3
+    asx.cell(ra, 1, "As you have it")
+    asx.cell(rb, 1, "Keeping every quarter")
+    for i in range(4):
+        asx.cell(ra, 2 + i, "=IFERROR(C%d+0,\"\")" % (9 + i))
+        asx.cell(rb, 2 + i, '=IFERROR(%s,"")' % all_lines[i])
+    for i in range(5):
+        asx.cell(ra, 6 + i, "=E%d" % (8 + i))
+    # Every quarter scored on the every-quarter lines, under the same on-the-line rule.
+    b_ = ["%s%d" % (c_, rb) for c_ in "BCDE"]
+    for k in range(5):
+        parts = []
+        if k > 0:
+            parts.append('{d},IF({o}="worse",{w},{bt})&{ref}'.format(d=raw_r, o=online, w=ge[0], bt=lt[0],
+                                                                      ref=b_[k - 1]))
+        if k < 4:
+            parts.append('{d},IF({o}="worse",{w},{bt})&{ref}'.format(d=raw_r, o=online, w=ge[1], bt=lt[1],
+                                                                      ref=b_[k]))
+        asx.cell(rb, 6 + k, '=IF(COUNT(B{r}:E{r})<4,"",COUNTIFS({p}))'.format(r=rb, p=",".join(parts)))
+    for rr_ in (ra, rb):
+        for c_ in range(2, 6):
+            asx.cell(rr_, c_).number_format = "0.000"
+    asx.cell(rb + 1, 1, "Keeping every quarter: the same settings, with nothing left out. Counts are quarters "
+                        "kept (as you have it) and every quarter (keeping every quarter).").font = NOTE
+
+    # Chart: the history, with the lines both ways. Solid: as you have it.
+    # Dashed: keeping every quarter. Eight flat series in hidden columns.
+    sc0 = hc + 21                                          # AG onward
+    names_ = ["2 from", "3 from", "4 from", "5 from"]
+    for i in range(4):
+        asx.cell(first - 1, sc0 + i, "%s (yours)" % names_[i])
+        asx.cell(first - 1, sc0 + 4 + i, "%s (all kept)" % names_[i])
+    for r in range(first, last + 1):
+        for i in range(4):
+            asx.cell(r, sc0 + i, '=IF(ISNUMBER($%s$%d),$%s$%d,NA())' % (L(2 + i), ra, L(2 + i), ra))
+            asx.cell(r, sc0 + 4 + i, '=IF(ISNUMBER($%s$%d),$%s$%d,NA())' % (L(2 + i), rb, L(2 + i), rb))
+    cmp_ = LineChart()
+    cmp_.title = "Your leave-outs against keeping every quarter"
+    cmp_.add_data(Reference(asx, min_col=hc + 3, max_col=hc + 3, min_row=first - 1, max_row=last),
+                  titles_from_data=True)
+    cmp_.add_data(Reference(asx, min_col=sc0, max_col=sc0 + 7, min_row=first - 1, max_row=last),
+                  titles_from_data=True)
+    cmp_.set_categories(Reference(asx, min_col=hc, min_row=first, max_row=last))
+    hues = ("8A857C", "C9A227", "D9822B", "B03A2E")      # one colour per line, both ways
+    cmp_.series[0].graphicalProperties.line.solidFill = K.INK
+    cmp_.series[0].graphicalProperties.line.width = 19050
+    for i, s_ in enumerate(cmp_.series[1:]):
+        s_.graphicalProperties.line.solidFill = hues[i % 4]
+        s_.graphicalProperties.line.width = 15875
+        if i >= 4:
+            s_.graphicalProperties.line.dashStyle = "dash"
+    for s_ in cmp_.series:
+        s_.smooth = False
+    cmp_.height, cmp_.width = 10, 26
+    cmp_.x_axis.tickLblSkip = 20
+    cmp_.x_axis.delete = False
+    cmp_.y_axis.delete = False
+    cmp_.y_axis.number_format = "0.0"
+    cmp_.legend.position = "r"
+    cmp_.legend.overlay = False
+    cmp_.visible_cells_only = False
+    if line.y_axis.scaling.min is not None:
+        cmp_.y_axis.scaling.min = line.y_axis.scaling.min
+    asx.add_chart(cmp_, "A%d" % (scen_top + 6))
+
+    # One chart per setting: how many quarters kept fall in each score at each
+    # value the dial tries. Read from the dial tables further down.
+    for j, (title, first_row) in enumerate(dial_rows):
+        bc = BarChart()
+        bc.type = "col"
+        bc.grouping = "stacked"
+        bc.overlap = 100
+        bc.title = "Quarters in each score, by " + title.split(",")[0].replace("'s", "") + " (last bar: yours)"
+        bc.add_data(Reference(asx, min_col=6, max_col=10, min_row=first_row - 1, max_row=first_row + 4),
+                    titles_from_data=True)
+        bc.set_categories(Reference(asx, min_col=1, min_row=first_row, max_row=first_row + 4))
+        for i, s_ in enumerate(bc.series):
+            s_.graphicalProperties.solidFill = ("F4F1EC", "E4DFD5", "EFD7CF", "E0A6A6", "CC8080")[i]
+            s_.graphicalProperties.line.solidFill = "8A857C"
+        bc.height, bc.width = 8.5, 7.9
+        bc.legend.position = "b"
+        bc.legend.overlay = False
+        bc.x_axis.delete = False
+        bc.y_axis.delete = False
+        asx.add_chart(bc, "%s%d" % (("A", "E", "I")[j], scen_top + 25))
+    for col in range(hc, hc + 29):
         asx.column_dimensions[L(col)].hidden = True
+    asx.column_dimensions["A"].width = 21
 
     # ---- Evidence (values) ----
     r = K.brand_banner(evs, 1, 8, "Evidence for each judgement",
@@ -731,14 +945,15 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         run.append([s["label"], str(s["path"]), _sha(s["path"]), len(s["raw"]),
                     s["raw"][0].date, s["raw"][-1].date])
     run.append([])
-    run.append(["As decided on Settings (live)", "Leave out", "Reason", "Second leave-out", "Reason"])
+    run.append(["Periods left out, as on Assess (live)", "Product", "From", "To", "Reason", "Status"])
+    for r in range(LO_TOP, lo_end + 1):
+        run.append([""] + ['=IF(Assess!{c}{r}="","",Assess!{c}{r})'.format(c=c_, r=r) for c_ in "ABCD"]
+                   + ["=Assess!H%d" % r])
+    run.append([])
+    run.append(["Your settings, as on Assess (live)", "Width of Moderate", "Moderate-Low begins",
+                "How rare High is (z)", "A value on a line takes the"])
     for s in loaded:
-        sr = srow[s["label"]]
-        run.append([s["label"],
-                    '=IF(Settings!B{0}="","none",Settings!B{0}&" to "&Settings!C{0})'.format(sr),
-                    "=IF(Settings!D{0}=\"\",\"\",Settings!D{0})".format(sr),
-                    '=IF(Settings!E{0}="","none",Settings!E{0}&" to "&Settings!F{0})'.format(sr),
-                    "=IF(Settings!G{0}=\"\",\"\",Settings!G{0})".format(sr)])
+        run.append([s["label"]] + ["=Assess!%s%d" % (c_, srow[s["label"]]) for c_ in "BCDE"])
     run.column_dimensions["A"].width = 30
     run.column_dimensions["B"].width = 60
     run.column_dimensions["C"].width = 66
