@@ -3487,6 +3487,29 @@ changed in the code.
     characters deleted instead of shown), both caught with no display; every entry's old string occurs once (665).
     With `-k "book or columns or summary or compare or filter"`: 257 passed, 3 skipped. Full suite, no display:
     1,045 passed, 14 skipped, 0 failed.
+- **Built, 14 Oct 2026: the two column limits follow the extract's workbook** (branch
+  `claude/pocketbook-limits-from-workbook`; HANDOFF.md open item *"The launcher's Next overwrites a category limit
+  typed on Control"*). Confirmed against the code first: the launcher kept its own last choice of the two limits
+  (*Number columns* and *Text columns*, saved with the launcher), and Set up took the launcher's choice over Control's
+  answer (`book.set_up`, the limits loop), so a value picked or typed on Control was replaced at Next without a word.
+  Reopening an extract already restored its bands, segments, split and filters from the workbook, but not the limits.
+  - **The firm's call (14 Oct 2026), offered three ways** (the workbook's, shown in the launcher; Next refuses on a
+    mismatch; the launcher wins and says so): *the workbook's, shown in the launcher*. Picking an extract whose
+    workbook exists loads Control's two limits into the launcher's dropdowns (`Flow.limits_from_book`, also when the
+    window opens on the last extract), and Next writes back what the dropdowns show. A value typed on Control
+    survives, including a number of the analyst's own off the list (60); a change made in the launcher replaces it.
+    An extract with no workbook, a workbook that can't be read, or a blank limit leaves the launcher's own.
+  - **Said on the screen:** under the two dropdowns, while they are the workbook's: *"These are the limits on Control
+    in this extract's workbook. A change here replaces them when you press Next."* Gone once either is changed in the
+    launcher. The dropdowns update in place when the extract is picked (no redraw while the path is typed), and a
+    number off the list is offered beside the options.
+  - **Where:** `control.read_limits` (Control's two limits, read-only worksheet too; `read_choices` now uses it),
+    `book.limits_in` (the workbook beside an extract, Control alone, opened read-only), `launcher.Flow.limits_from_book`
+    and `Flow.choose_limit`.
+  - Tests: 9 in `tests/test_limits_from_workbook_2026_10_14.py`, written failing-first (the reproduction read
+    `(6, 50)` for `(24, 50)`). With `test_launcher`, `test_rehearsal_2026_09_29` and `test_control`: 70 passed, 1
+    skipped, 1 failed for scikit-learn not being installed (passes with it). Planted bugs: 4 added to
+    `tools/mutation_check.py`.
 
 ## 7 · Standing rules for new items
 

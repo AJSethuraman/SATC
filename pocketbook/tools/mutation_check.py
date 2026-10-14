@@ -1783,6 +1783,19 @@ muts = [
  ("Look forgetting a Bars typed for a column whose block a Run left off", LK,
   "    typed = {**_remembered_inputs(wb), **_typed_inputs(wb)} if keep_inputs else {}",
   "    typed = _typed_inputs(wb) if keep_inputs else {}", "typed_bars_come_back"),
+ # 14 Oct 2026: the two column limits follow the workbook beside the extract (HANDOFF.md open item: Next wrote the
+ # launcher's own last choice over a limit typed on Control; test_limits_from_workbook_2026_10_14.py)
+ ("Next writing the launcher's limits over Control's again", LA,
+  '            self.page, self.message, self.crash = "extract", [], None\n            self.limits_from_book()',
+  '            self.page, self.message, self.crash = "extract", [], None', "survives_next"),
+ ("the launcher opening on the last extract without its workbook's limits", LA,
+  "        self.limits_from_book()       # the window opens on the last extract", "        pass",
+  "opens_on_the_last_extract"),
+ ("a limit changed in the launcher still said to be the workbook's", LA,
+  '        setattr(self, key, n)\n        self.limits_said = ""', "        setattr(self, key, n)",
+  "changed_in_the_launcher"),
+ ("Control's limits read only from a full-width row", CO,
+  "        row = tuple(row) + (None,) * (KEY_COL - len(row))", "        row = tuple(row)", "read_only_worksheet"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
