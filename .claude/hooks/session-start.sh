@@ -39,16 +39,6 @@ if [ -f "$CLAUDE_PROJECT_DIR/canon/skills/bassy/SKILL.md" ]; then
   cat "$CLAUDE_PROJECT_DIR/canon/CONVICTIONS.md"
 fi
 
-# HOW TO TALK TO THE FIRM, from the same file canon's own plugin hook prints.
-# The plugin hook covers every other repository; here, the session that
-# installs canon is the one session whose plugin hooks may not run, so the text
-# is printed from the working tree as well. If both fire it appears twice,
-# identical, which is cheaper than a session that never got it.
-if [ -f "$CLAUDE_PROJECT_DIR/canon/hooks/session-start.md" ]; then
-  echo
-  cat "$CLAUDE_PROJECT_DIR/canon/hooks/session-start.md"
-fi
-
 # THE ROLE, read out of the repository rather than pasted into a prompt.
 #
 # A session starts blank, so everything it knows about its job arrives in a

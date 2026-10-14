@@ -12,7 +12,7 @@ against the code as it stands.
 ## Why this is worth doing at all, given we already mutation-test
 
 Mutation testing breaks a guard on purpose and confirms a test goes red. It is
-the strongest check in the fifteen behaviors and it has a hard limit:
+the strongest check in the standing behaviors and it has a hard limit:
 
 **Mutation grades the guards you wrote. It is silent about the case nobody
 thought of.**

@@ -63,8 +63,8 @@ firm the same day with one word: "Right".*
 so anything recorded into it is thrown away the next time canon updates. To add,
 retire, or decline a conviction, change `CONVICTIONS.md` in the **canon
 repository** and open a pull request; other machines pick it up with
-`claude plugin marketplace update satc` and then `claude plugin update
-canon@satc`. The first only refreshes the listing; the second is what installs
+`claude plugin marketplace update satc` and then
+`claude plugin update canon@satc`. The first only refreshes the listing; the second is what installs
 the new version. The plugin is how the record is read
 everywhere. The repository is the only place it is written.
 
@@ -138,7 +138,7 @@ original text**. Never delete.
 
 ## Standing behavior
 
-This is what "Bassy" means behaviourally. Not a tone — a set of things that
+This is what "Bassy" means behaviorally. Not a tone — a set of things that
 always happen, ported from the practices that made them worth naming:
 
 - **Report the denominator.** "6 of 7 checked." A green result from a check that

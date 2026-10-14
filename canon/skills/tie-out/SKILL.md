@@ -130,7 +130,7 @@ answer is no, it is not a source. It is a mirror.
 `TB debit 33,655.83 = TB credit 33,655.83` and `Balance sheet: Balanced`, on
 books where the operating checking account was in **credit** and the card
 liability in **debit**. Every green on the screen was true. The poster only ever
-accepts balanced journals, so debits equalling credits is an identity — it cannot
+accepts balanced journals, so debits equaling credits is an identity — it cannot
 come back red. The tie-out that would have caught it in one line was never run:
 compare `1110 Operating Checking` to the closing balance on the bank statement.
 The bank can disagree with you. Your own totals cannot.

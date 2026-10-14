@@ -551,7 +551,7 @@ work is generally better at writing 'professionally' in the sense that it
 sounds reasonably human and i don't generally need to edit it for tone as so
 much as content."* Each fix went into that project's own file, so the next
 project started from nothing. They had also asked for American spelling during
-the August price-page build, and canon's own prose still carried 84 British
+the August price-page build, and canon's own prose still carried 82 British
 spellings on 14 October. That day: *"Bassy I want to make an update to canon. I
 want you to talk to me like me and I want things drafted for me to sound like
 me"*.

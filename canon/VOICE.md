@@ -25,8 +25,8 @@ here.
 
 One thing is checkable today. The firm asked for American spelling during the
 price-page build in August 2026. Canon's own prose, which every session reads,
-still had 84 British spellings in it on the day this file was written
-(`voice.py` over `CONVICTIONS.md`, `TENETS.md`, `README.md` and the eight
+still had 82 British spellings in it on the day this file was written,
+counted by the first version of `voice.py` over `CONVICTIONS.md`, `TENETS.md`, `README.md` and the eight
 skills). The firm said yes to fixing it
 that day, and a test now holds canon's own prose to American spelling.
 
@@ -141,7 +141,8 @@ From two of their own: a 2024 testing procedure and a 2025 methodology guide.
   Steps B and C, answer the question as outlined in…"
 - **"Note:" carries the exception,** including what a step does *not* mean.
 - **Every acronym is spelled out the first time,** then used.
-- **Materiality gets a number where one exists,** such as a variance over 3%.
+- **Materiality gets a number where one exists,** stated as a threshold rather
+  than left to the reader.
 - **Judgment is admitted and bounded, not hidden.** The examples don't cover
   everything, the tester uses judgment, and a departure from the procedure is
   documented.
@@ -179,8 +180,9 @@ word. The checker flags it in a draft. It isn't a word they never use.
 
 ## Their sentences
 
-Sentences the firm wrote for other people to read. Colleagues' names and the
-employer's name are replaced with a bracket. `voice.py` is tested against every
+Sentences the firm wrote for other people to read. Colleagues' names, the
+employer's name and the names of internal tools and steps are replaced with a
+bracket. `voice.py` is tested against every
 quoted line in this section and must find nothing; a tell that fires on the
 firm's own writing is checking the wrong thing.
 
@@ -210,7 +212,7 @@ firm's own writing is checking the wrong thing.
 
 > Is the three years of income conducive to [the bank]? The regulators? Should it be that prescriptive?
 
-> When you hit an error, it should log that error in the _ERROR_LOG tab and a pop-up will give you the option to send a pre-filled out E-mail directly to [the support team].
+> When you hit an error, it should log that error in the [error log] tab and a pop-up will give you the option to send a pre-filled out E-mail directly to [the support team].
 
 > Please review it and let me know if anything seems off to you. Feel free to try and break it and ensure it works.
 
@@ -234,7 +236,7 @@ firm's own writing is checking the wrong thing.
 
 > When answering "No", or determining a "Yes" requires further explanation, a tester should provide information sufficient for a third party to (1) identify applicable issues/mitigants as necessary and (2) follow the tester's methodology by identifying the departure from applicable policies, procedures, and/or guidelines.
 
-> Note: This step does not indicate the question should be answered Yes, however it is used to gather information related to client asset segmentation.
+> Note: This step does not indicate the question should be answered Yes, however it is used to gather information related to [a separate review step].
 
 > Two borrowers with the same profile regarding income ratios and credit scores have different risk levels if one has $50,000 in the bank after closing and the other has $50.
 
@@ -242,7 +244,6 @@ firm's own writing is checking the wrong thing.
 
 > Avoid referencing actual names. Use terms like "borrower", "underwriter", etc.
 
-> In the unlikely event wholesale changes to indicators are made, changes will be made proactively and not impact the assessment of prior quarters.
 
 ## Their rewrites
 

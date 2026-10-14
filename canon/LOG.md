@@ -1136,8 +1136,8 @@ over. This puts it in canon so it travels.
   British spelling, "honestly", lines about how upfront we are, padding before
   the point, ceremonial courtesy.
 - `skills/voice/`: the drafting procedure.
-- Behaviour 23 in `how-we-work`, and a talking-to-the-firm list in Bassy's
-  standing behaviour, which the SATC session-start hook prints every session.
+- Behavior 23 in `how-we-work`, and a talking-to-the-firm list in Bassy's
+  standing behavior, which the SATC session-start hook prints every session.
 
 **Kept out on purpose.** The photos, colleagues' names, the employer's name,
 figures, system names and anything marked internal. About thirty short
@@ -1192,11 +1192,12 @@ firm believes, and the reading hasn't had their yes.
    `voice.py --write-hook`, and a test fails if the two differ, so there is
    still one source. It runs `cat`, not Python, because which Python name
    exists differs by machine, and `cat` works in sh, Git Bash and PowerShell.
-   It's 2,117 characters, well under the 10,000 Claude Code shows in full.
-   SATC's own session-start script prints the same file, because the session
-   that installs canon may not run canon's hooks. If both fire, the text
-   appears twice, identical. Bassy's skill and the voice skill now point at
-   `VOICE.md` instead of carrying their own copies of the list.
+   It's 2,120 characters, well under the 10,000 Claude Code shows in full.
+   SATC prints the same file from its own hook command,
+   `.claude/hooks/talking.sh`, because the session that installs canon may
+   not run canon's hooks. If both fire, the text appears twice, identical.
+   Bassy's skill and the voice skill now point at `VOICE.md` instead of
+   carrying their own copies of the list.
 
 **Codex on the first push:** `claude plugin marketplace update satc` only
 refreshes the listing. Every skill that told another machine how to pick up a
@@ -1204,11 +1205,54 @@ change named only that command. All five places now name
 `claude plugin update canon@satc` as the step that installs, and the tests
 require it.
 
-**Checked by mutation, the whole release: 11 planted, 11 killed.** The six on
+**Checked by mutation, before the review: 11 planted, 11 killed.** The six on
 `voice.py` above, plus: the install command dropped from the voice skill, the
 spelling guard's exemptions widened to swallow ordinary prose, a hand edit to
 the generated hook text, the hook file stripped of its `hooks` wrapper (caught
 by the test, and separately by `claude plugin validate`), and a matcher put
 back on the hook.
 
-1.22.0 → **1.23.0**. 228 → 256 passing.
+**A stand-in review, because Codex was out of usage** (the firm: *"Skip codex
+it's out of usage right now. Spawn a sonnet agent stand in for quick
+review"*). It found nothing blocking. What it did find, and what changed:
+
+- **SATC's session-start output is mostly unseen.** Claude Code shows a hook's
+  stdout in full only up to 10,000 characters; past that it saves the output
+  and shows a 2,000-character preview. `session-start.sh` prints Bassy and the
+  whole of `CONVICTIONS.md`, about 37,000 characters, so the talking rules
+  first appended there could never be read. This session started exactly that
+  way. They now come from their own command, `.claude/hooks/talking.sh`, with
+  their own cap. **Bassy and the record are still cut to the preview**, and
+  that was true before this release; fixing it changes what every SATC session
+  loads, so it went to the firm as a question.
+- **The British list missed derived forms:** "behaviourally" in Bassy's own
+  skill, plus organiser, enrolment, practising, centred and others. The
+  families now take their suffixes, and the list says it is closed.
+- **Phrases wrapped across a line, and curly apostrophes, slipped through.**
+  The checker now searches the whole text and reads ’ as '.
+- **"are transparent" flagged ordinary tax sentences,** like "pass-through
+  entities are transparent for tax purposes." The tell now needs us as the
+  subject.
+- **A wrong path or a UTF-16 file came back as findings, with a traceback.**
+  An empty draft beside a full one came back clean. Both now report "not a
+  clean result" and exit 2, per source. `--help` works.
+- **The hook text pointed at `${CLAUDE_PLUGIN_ROOT}/VOICE.md`,** which `cat`
+  prints literally. It now names canon's `VOICE.md` and `/canon:voice`.
+- **"84 British spellings" was wrong.** The first checker found 82 British
+  spellings and two "honestly"s, and 84 was the total. Corrected everywhere it
+  was quoted.
+- **`VOICE.md` lost four borderline details:** a materiality threshold, a tool's
+  tab name and a review step's name (bracketed now), and one sentence from the
+  2025 guide, which was marked internal.
+- **The test that keeps the employer's name out named it.** It checks hashes
+  now.
+- The install command no longer breaks across a line inside backticks, and the
+  adversarial skill's "fifteen behaviors" no longer gives a count.
+
+**Checked by mutation after the review: 6 more planted, 6 killed:** the
+per-line search restored, curly quotes not normalized, an unreadable file
+crashing, an empty source counted, the British tell made case-sensitive (the
+review's one surviving mutant), and the open tell widened back to "are".
+**The whole release: 17 planted, 17 killed.**
+
+1.22.0 → **1.23.0**. 228 → 266 passing.

@@ -57,6 +57,11 @@ def test_no_tell_fires_on_the_firms_own_writing():
 
 @pytest.mark.parametrize("label, sample", [
     ("British spelling", "The behaviour of the colour grey was analysed."),
+    ("British spelling", "Behaviour first. Organise the file."),
+    ("British spelling", "It was behaviourally odd; the organiser's enrolment lapsed."),
+    ("saying you're being honest", "This is, to be\nhonest, the right call."),
+    ("a sentence about how open we are", "We\u2019re upfront about the fee."),
+    ("ceremonial courtesy", "Please don\u2019t hesitate\nto call."),
     ("saying you're being honest", "Honestly, this is the right call."),
     ("a sentence about how open we are", "We want to be upfront about the fee."),
     ("padding before the point", "I wanted to take a moment to raise this."),
@@ -76,6 +81,8 @@ def test_every_tell_fires_on_what_it_names(label, sample):
     "Doing the work upfront is simpler.",
     "Testers should use their best judgment.",
     "Organize the file and recognize the gap.",
+    "Pass-through entities are transparent for tax purposes.",
+    "Fees are upfront and the cancellation is free.",
 ])
 def test_american_and_ordinary_words_pass(clean):
     """Whole words only, and American spellings stay clean."""
@@ -104,12 +111,23 @@ def test_the_result_carries_its_denominator():
     assert "<stdin>:1: saying you're being honest" in got.stdout
 
 
+#: SHA-256 of the employer's names, lowercased. Hashed so that the test which
+#: keeps the name out of this plugin does not itself carry it into every
+#: repository canon is installed in.
+_KEPT_OUT = {
+    "d9efbc5cf78207796c6cab21e53fbc13baa12924294fe27cd28c5cfa5c9ad3ca",
+    "da4fd7e81f2723c5ece785a094142ec0ba2426e00b8b9685097d0a13a419612e",
+}
+
+
 def test_the_record_keeps_out_what_it_promised_to():
     """VOICE.md says the employer's documents stay with the employer. The
     employer's name is the cheapest proof that promise was kept."""
-    lowered = VOICE.lower()
-    for name in ("keybank", "keycorp", "internal use"):
-        assert name not in lowered, f"VOICE.md carries {name!r}"
+    import hashlib
+    words = set(re.findall(r"[a-z]+", VOICE.lower()))
+    leaked = [w for w in words if hashlib.sha256(w.encode()).hexdigest() in _KEPT_OUT]
+    assert not leaked, "VOICE.md carries the employer's name"
+    assert "internal use" not in VOICE.lower()
 
 
 def test_the_profile_is_labeled_as_another_ais_reading():
@@ -174,7 +192,7 @@ def _prose_hits(text: str) -> list[str]:
 
 def test_canons_own_prose_is_spelled_the_way_the_firm_asked():
     """The firm asked for American spelling in August 2026, and on 14 October
-    canon's own prose still carried 84 British spellings that every session
+    canon's own prose still carried 82 British spellings that every session
     read and copied. They said yes to fixing it; this keeps it fixed."""
     assert len(PROSE) >= 12, "the skills moved; this check would cover less than it claims"
     for name in PROSE:
@@ -245,3 +263,36 @@ def test_a_stale_hook_text_is_caught(tmp_path, monkeypatch):
     assert voice.main(["--check-hook"]) == 1
     stale.write_text(voice.session_start_text(), encoding="utf-8")
     assert voice.main(["--check-hook"]) == 0
+
+
+
+def test_a_source_that_could_not_be_read_is_not_a_finding_or_a_pass(tmp_path):
+    """A wrong path came back as exit 1, "tells found", with a traceback, and a
+    UTF-16 file from PowerShell's `>` did the same. Neither was checked."""
+    missing = tmp_path / "nope.md"
+    utf16 = tmp_path / "ps.md"
+    utf16.write_text("Honestly, fine.", encoding="utf-16")
+    for path in (missing, utf16):
+        got = subprocess.run([sys.executable, str(CANON / "voice.py"), str(path)],
+                             capture_output=True, text=True, cwd=CANON)
+        assert got.returncode == 2, got.stdout + got.stderr
+        assert "not a clean result" in got.stdout
+        assert "Traceback" not in got.stderr
+
+
+def test_an_empty_draft_beside_a_clean_one_is_not_clean(tmp_path):
+    """Words were summed across sources, so an empty file hid behind a full one."""
+    empty, clean = tmp_path / "empty.md", tmp_path / "clean.md"
+    empty.write_text("", encoding="utf-8")
+    clean.write_text("Please try again, this should be fixed.", encoding="utf-8")
+    got = subprocess.run([sys.executable, str(CANON / "voice.py"), str(empty), str(clean)],
+                         capture_output=True, text=True, cwd=CANON)
+    assert got.returncode == 2, got.stdout
+    assert "empty.md: has 0 words" in got.stdout
+    assert "across 1 of 2 source(s)" in got.stdout
+
+
+def test_help_is_help():
+    got = subprocess.run([sys.executable, str(CANON / "voice.py"), "--help"],
+                         capture_output=True, text=True, cwd=CANON)
+    assert got.returncode == 0 and "Run:" in got.stdout

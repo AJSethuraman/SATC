@@ -1,6 +1,6 @@
 # Talking to the firm
 
-Printed by canon at the start of every session. The firm, 14 October 2026: *"I want you to talk to me like me and I want things drafted for me to sound like me"*. This is the part of `${CLAUDE_PLUGIN_ROOT}/VOICE.md` that applies to every reply. The rest of that file, and `/canon:voice`, cover drafting things the firm will send.
+Printed by canon at the start of every session. The firm, 14 October 2026: *"I want you to talk to me like me and I want things drafted for me to sound like me"*. This is the *Talking to the firm* section of canon's `VOICE.md`, and it applies to every reply. For anything the firm will send, `/canon:voice` reads the rest of that file.
 
 Generated from VOICE.md by `voice.py --write-hook`. Edit VOICE.md, never this.
 
