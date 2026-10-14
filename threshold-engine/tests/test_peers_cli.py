@@ -1144,3 +1144,227 @@ def test_the_peer_workbook_never_replaces_an_input(built, tmp_path, capsys, name
     assert ("must be written to a .xlsx file" in err) if name.startswith("peers") else ("would be written over" in err)
     assert {p: p.read_bytes() for p in (roster, mergers)} == before
     assert not (tmp_path / "s").exists()
+
+
+# ---------------------------------------------------------------- review findings 19 and 20 (14 Oct 2026)
+
+SLUGS = ("credit-card", "mortgage", "home-equity", "other-consumer")
+
+
+def test_the_pack_median_series_are_the_bands_median_gross_and_net(built, data):
+    """Review finding 19: each pack-median CSV, gross and net, every product,
+    is books.band's median over the 15 peers under the stated rules, quarter
+    by quarter; net is never the gross median written again."""
+    from threshold_engine.peers.books import band
+    from threshold_engine.peers.run import unbroken_tail
+    roster = R.load(ROOT / "config" / "peers.json")
+    pack = [b["cert"] for b in R.peers(roster)]
+    for p, slug in zip(FOUR, SLUGS):
+        bks = {b["cert"]: bank_book(data, b["cert"], p, 0.25, 1_000_000,
+                                    exempt_min_book=b["cert"] == KEYBANK, acquired=()) for b in roster}
+        files = {}
+        for kind in ("gross", "net"):
+            tail, _, _ = unbroken_tail([(r["quarter"], r["p50"])
+                                        for r in band(bks, pack, kind, (50,), min_banks=5)])
+            _, got = read_csv(built["series"] / ("%s_pack-median_%s.csv" % (slug, kind)))
+            assert tail and [d for d, _ in got] == [quarter_end(q) for q, _ in tail], (p, kind)
+            assert [v for _, v in got] == pytest.approx([v for _, v in tail], abs=1e-12), (p, kind)
+            files[kind] = dict(got)
+        assert any(abs(files["gross"][d] - v) > 1e-6 for d, v in files["net"].items() if d in files["gross"]), p
+
+
+def test_each_peers_banks_file_is_its_own_book_for_that_product(built, data):
+    """Review finding 20: every banks/ CSV, each peer, product and kind, is
+    books.bank_book for that peer and that product, quarter by quarter; a
+    product with no value for a peer has no file."""
+    from threshold_engine.peers.run import slug as slug_of, unbroken_tail
+    roster = R.load(ROOT / "config" / "peers.json")
+    compared = absent = 0
+    for p, slug in zip(FOUR, SLUGS):
+        for b in R.peers(roster):
+            rows = bank_book(data, b["cert"], p, 0.25, 1_000_000, acquired=())
+            for kind in ("gross", "net"):
+                path = built["series"] / "banks" / ("%s_%s_%s.csv" % (slug, slug_of(b["short"]), kind))
+                tail, _, _ = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
+                if not tail:
+                    assert not path.exists(), path.name
+                    absent += 1
+                    continue
+                _, got = read_csv(path)
+                assert [d for d, _ in got] == [quarter_end(q) for q, _ in tail], path.name
+                assert [v for _, v in got] == pytest.approx([v for _, v in tail], abs=1e-12), path.name
+                compared += 1
+    assert compared > 100
+
+
+def test_a_delinquency_pack_median_is_the_band_median_on_each_basis(dq_built, dq_cache):
+    """Review finding 19: every delinquency pack-median CSV, each product,
+    measure and basis, is band_delinquency's median over the 15 peers on that
+    basis, quarter by quarter, from the cache the build read; the
+    four-quarter average is never the quarter-end median written again."""
+    from threshold_engine.peers import delinquency as D
+    from threshold_engine.peers.run import slug, unbroken_tail
+    cache, _ = dq_cache
+    data = {f.stem[1:]: json.loads(f.read_text(encoding="utf-8")) for f in sorted(cache.glob("q*.json"))}
+    roster = R.load(ROOT / "config" / "peers.json")
+    pack = [b["cert"] for b in R.peers(roster)]
+    compared = differ = 0
+    for p in FIVE:
+        for m, ms in DQ_MEASURES.items():
+            banks = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, 0.25, 1_000_000,
+                                                   b["cert"] == KEYBANK, acquired=()) for b in roster}
+            got_by_basis = {}
+            for basis, bs in DQ_BASES.items():
+                band = D.band_delinquency(banks, pack, basis, (50,), min_banks=5)
+                tail, _, _ = unbroken_tail([(r["q"], r["p50"]) for r in band])
+                path = dq_built["series"] / ("%s_pack-median_delinquency-%s_%s.csv" % (slug(p), ms, bs))
+                if not tail:
+                    assert not path.exists(), path.name
+                    continue
+                _, got = read_csv(path)
+                assert [d for d, _ in got] == [quarter_end(q) for q, _ in tail], path.name
+                assert [v for _, v in got] == pytest.approx([v for _, v in tail], abs=1e-12), path.name
+                got_by_basis[basis] = dict(got)
+                compared += 1
+            if len(got_by_basis) == 2:
+                qe, av = got_by_basis["quarter-end"], got_by_basis["four-quarter average"]
+                differ += any(abs(qe[d] - v) > 1e-9 for d, v in av.items() if d in qe)
+    assert compared > 40 and differ > 20
+
+
+# ---------------------------------------------------------------- review finding 17: a build that sees a combination
+#
+# Every build above passes absorptions_none.json, so no build has ever seen a
+# link. This one is made up and small enough to work by hand, on cards only,
+# 2018Q1 to 2021Q4. Every row carries RSSDHCR (books.PARENT). Per quarter:
+#
+#   KeyBank 17534  parent 9000  book 10,000  charges off 100, recovers 10
+#   Affiliate 200  parent 9000  book    300  charges off   6, recovers  1
+#   P1 1           parent 8001  book  5,000  charges off  50, recovers  5
+#   Target 300     parent 8002  book    500  charges off  10, recovers  1
+#   P2 2           parent 8003  book  4,000  charges off  20, recovers  2
+#   P3 3           parent 8004  book  6,000  charges off  90, recovers  9
+#   P4 4           parent 8005  book  3,000  charges off  45, recovers  3
+#
+# KeyBank absorbs its affiliate in 2019Q3, under common control: the
+# affiliate last files 2019Q2, and KeyBank's 2019Q3 year to date restates its
+# first half (12 charged off, 2 recovered), as the Call Report instructions
+# require. 300 is 3% of KeyBank's book, under the 5% share and the 25% jump.
+# P1 buys the target from outside its group in 2020Q2: 500 is 10% of its
+# book, at least the 5% share and under the jump, so only the acquisition
+# rule leaves its windows out.
+
+MERGER_ROSTER = {"banks": [
+    {"cert": "17534", "name": "KeyBank NA", "short": "KeyBank", "group": "self", "regional": True},
+    {"cert": "1", "name": "Peer One NA", "short": "P1", "group": "peer", "regional": True},
+    {"cert": "2", "name": "Peer Two NA", "short": "P2", "group": "peer", "regional": True},
+    {"cert": "3", "name": "Peer Three NA", "short": "P3", "group": "peer", "regional": True},
+    {"cert": "4", "name": "Peer Four NA", "short": "P4", "group": "peer", "regional": True}]}
+MERGER_BANKS = {17534: ("9000", 10000.0, 100.0, 10.0), 200: ("9000", 300.0, 6.0, 1.0),
+                1: ("8001", 5000.0, 50.0, 5.0), 300: ("8002", 500.0, 10.0, 1.0),
+                2: ("8003", 4000.0, 20.0, 2.0), 3: ("8004", 6000.0, 90.0, 9.0),
+                4: ("8005", 3000.0, 45.0, 3.0)}
+#: survivor -> (absorbed, merger quarter, under common control)
+MERGER_LINKS = {17534: (200, "20190930", True), 1: (300, "20200630", False)}
+
+
+def merger_cache():
+    """``{REPDTE: rows}`` for the table above, year-to-date as filed."""
+    ytd, data = {}, {}
+    for q in fdic.quarter_ends("2018Q1", "2021Q4"):
+        if q[4:6] == "03":
+            ytd = {c: (0.0, 0.0) for c in MERGER_BANKS}
+        absorbed = {b: mq for b, mq, _ in MERGER_LINKS.values()}
+        rows = []
+        for c, (parent, bal, g, r) in MERGER_BANKS.items():
+            if c in absorbed and q >= absorbed[c]:
+                continue                                    # stopped filing at the merger
+            yg, yr = ytd[c]
+            if c in MERGER_LINKS and q >= MERGER_LINKS[c][1]:
+                b, mq, common = MERGER_LINKS[c]
+                _, bb, bg, br = MERGER_BANKS[b]
+                if q == mq and common:                      # the restated year to date
+                    yg, yr = yg + ytd[b][0], yr + ytd[b][1]
+                bal, g, r = bal + bb, g + bg, r + br
+            ytd[c] = (yg + g, yr + r)
+            rows.append({"CERT": c, "REPDTE": q, "LNCRCD": bal, "DRCRCD": ytd[c][0],
+                         "CRCRCD": ytd[c][1], "RSSDHCR": parent})
+        data[q] = rows
+    return data
+
+
+MERGER_BUILD = [("--roster", None), ("--first", ["2018Q1"]), ("--last", ["2021Q4"]),
+                ("--products", ["Credit card"]), ("--mergers", None), ("--absorptions", None),
+                ("--extra-acquisitions", []), ("--min-book", ["1000"]), ("--min-banks", ["3"]),
+                ("--last-n", ["4"]), ("--min-obs", ["2"]), ("--base-quarter", ["2019Q4"]),
+                ("--index-min-book", ["0"]), ("--lagged-years", ["2019", "2021"]), ("--lag-years", ["1"]),
+                ("--normalisation-years", ["2019", "2021"]), ("--mix-base-year", ["2019"])]
+
+
+@pytest.fixture(scope="module")
+def merger_built(tmp_path_factory):
+    base = tmp_path_factory.mktemp("merger_build")
+    cache = base / "cache"
+    cache.mkdir()
+    for q, rows in merger_cache().items():
+        (cache / ("q%s.json" % q)).write_text(json.dumps(rows), encoding="utf-8")
+    files = {"--roster": (base / "roster.json", MERGER_ROSTER),
+             "--mergers": (base / "mergers.json", {"17534": ["2019-09-30"], "1": ["2020-06-30"]}),
+             "--absorptions": (base / "absorptions.json",
+                               [{"acquirer": "17534", "absorbed": "200", "quarter": "2019-09-30"},
+                                {"acquirer": "1", "absorbed": "300", "quarter": "2020-06-30"}])}
+    for path, doc in files.values():
+        path.write_text(json.dumps(doc), encoding="utf-8")
+    args = BUILD
+    for flag, values in MERGER_BUILD:
+        args = with_value(args, flag, *(values if values is not None else [str(files[flag][0])]))
+    mp = pytest.MonkeyPatch()
+    mp.setattr(fdic, "urllib_fetch", no_network)
+    try:
+        rc = main(["peers", "build", str(base / "p.xlsx"), "--cache", str(cache),
+                   "--series-dir", str(base / "s")] + args)
+    finally:
+        mp.undo()
+    return dict(rc=rc, out=base / "p.xlsx", series=base / "s")
+
+
+def test_a_merger_quarter_counts_the_affiliates_year_to_date_once(merger_built):
+    """KeyBank, 2019Q3, the window 2018Q4 to 2019Q3: 100 + 100 + 100 + 106
+    charged off and 10 + 10 + 10 + 11 recovered, over (3 x 10,000 + 10,300) / 4
+    = 10,075. Read straight from the filed year to date, 2019Q3 would be 318 -
+    200 = 118 and 33 - 20 = 13: the affiliate's first half twice.
+    The industry, same window: every filer charges off 321 a quarter and
+    recovers 31 (the affiliate's own filings carry its first half), over
+    28,800 each quarter-end."""
+    assert merger_built["rc"] == 0
+    s = merger_built["series"]
+    want = {("keybank", "gross"): 100 * 406 / 10075, ("keybank", "net"): 100 * (406 - 41) / 10075,
+            ("industry", "gross"): 100 * 1284 / 28800, ("industry", "net"): 100 * (1284 - 124) / 28800}
+    for (who, kind), v in want.items():
+        _, rows = read_csv(s / ("credit-card_%s_%s.csv" % (who, kind)))
+        assert dict(rows)["2019-09-30"] == pytest.approx(v, abs=1e-12), (who, kind)
+    notes, _ = read_csv(s / "credit-card_keybank_net.csv")
+    line = next(n for n in notes if n.startswith("Absorptions under common control"))
+    assert "1 survivor-quarter" in line and "absorptions.json" in line
+    assert "on the roster: KeyBank in 2019Q3." in line
+
+
+def test_an_acquisition_at_the_share_leaves_its_windows_out(merger_built):
+    """P1's 2020Q2 purchase brings in 10% of its book: the four windows
+    holding it, 2020Q2 to 2021Q1, are left out of its own series and of the
+    pack. Pack composite, 2020Q2, without P1: P2, P3 and P4 charge off
+    80 + 360 + 180 = 620 and recover 8 + 36 + 12 = 56 over 13,000."""
+    from threshold_engine.peers.books import WHY_ACQUIRED
+    s = merger_built["series"]
+    for kind in ("gross", "net"):
+        notes, rows = read_csv(s / "banks" / ("credit-card_p1_%s.csv" % kind))
+        assert rows[0][0] == "2021-06-30", kind
+        assert any(n.startswith("Written from 2021Q2") and "(2019Q1 to 2021Q1)" in n for n in notes), kind
+    _, comp = read_csv(s / "credit-card_pack-composite_gross.csv")
+    assert dict(comp)["2020-06-30"] == pytest.approx(100 * 620 / 13000, abs=1e-12)
+    _, comp = read_csv(s / "credit-card_pack-composite_net.csv")
+    assert dict(comp)["2020-06-30"] == pytest.approx(100 * (620 - 56) / 13000, abs=1e-12)
+    da = load_workbook(merger_built["out"])["Data"]
+    why = {r[3]: r[10] for r in da.iter_rows(min_row=2, values_only=True) if r[1] == "P1"}
+    assert {q for q, w in why.items() if w == WHY_ACQUIRED} == {"2020Q2", "2020Q3", "2020Q4", "2021Q1"}
+    assert {q for q, w in why.items() if w is not None} == {"2020Q2", "2020Q3", "2020Q4", "2021Q1"}

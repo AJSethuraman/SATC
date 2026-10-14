@@ -234,3 +234,58 @@ def test_a_year_to_date_restarted_under_a_new_parent_is_the_quarters_flow():
     assert [r for r in industry({"20080331": [dict(prev, REPDTE="20080331", DRCRCD=30000, CRCRCD=2000)],
                                  "20080630": [dict(prev, REPDTE="20080630", DRCRCD=60000, CRCRCD=4000)],
                                  **data}, "Credit card")][0]["gross"] == 30000 + 30000 + 34608 + 0
+
+
+# ---------------------------------------------------------------- review findings 27, 28 and 21 (14 Oct 2026)
+
+def test_an_absorbed_bank_still_filing_the_merger_quarter_repeats_nothing():
+    """Review finding 27: the survivor's filing can only hold the absorbed
+    bank's year to date once that bank has stopped filing. Bank 2 still files
+    2011Q3, so nothing is taken off bank 1."""
+    data = books()
+    data["20110930"].append({"CERT": 2, "REPDTE": "20110930", "LNCRCD": 60.0, "DRCRCD": 15.0,
+                             "CRCRCD": 0.0, PARENT: "100"})
+    assert repeated_ytd(data, LINK, ["Credit card"]) == []
+
+
+def test_no_quarter_before_in_the_data_repeats_nothing():
+    """Review finding 27: with 2011Q2 not in the data, 2011Q1 is not the
+    quarter before 2011Q3, and its year to date (bank 2's 5) is not the
+    absorbed bank's last one."""
+    data = books()
+    del data["20110630"]
+    assert repeated_ytd(data, LINK, ["Credit card"]) == []
+
+
+def test_the_absorbed_banks_book_is_read_at_its_last_filing():
+    """Review finding 28: bank 2 last filed in 2011Q1, two quarters before the
+    merger; its 60 is still 6% of bank 1's 1,000 and counts towards the share."""
+    data = books()
+    data["20110630"] = [r for r in data["20110630"] if r["CERT"] != 2]
+    assert acquired_quarters(data, LINK, "Credit card", 0.05) == {"1": ["20110930"]}
+
+
+def test_an_acquirer_with_no_book_before_takes_the_book_in_whole():
+    """Review finding 28: bank 1 holds no cards the quarter before, so bank
+    2's 60 is all of its book, whatever the share."""
+    assert acquired_quarters(books(bal_a=0.0), LINK, "Credit card", 0.05) == {"1": ["20110930"]}
+    assert acquired_quarters(books(bal_a=0.0), LINK, "Credit card", 50.0) == {"1": ["20110930"]}
+
+
+def test_the_composite_leaves_out_a_bank_an_acquisition_blanked():
+    """Review finding 21: bank 1's 2012Q2 acquisition blanks its own
+    four-quarter average at 2012Q2, Q3 and Q4, so the composite's average
+    leaves it out there and names it. Worked by hand: every quarter-end the
+    three banks hold 1%, 3% and 2% of 1,000 each, 60 / 3,000 = 2%; without
+    bank 1, 50 / 2,000 = 2.5%."""
+    from threshold_engine.peers import delinquency as D
+    data = {q: [{"CERT": c, "REPDTE": q, "LNCRCD": 1000.0, "P3CRCD": p3, "P9CRCD": 0.0, "NACRCD": 0.0}
+                for c, p3 in ((1, 10.0), (2, 30.0), (3, 20.0))] for q in QUARTERS}
+    banks = {str(c): D.bank_delinquency(data, str(c), "Credit card", "30-89", 1.0, 0, False,
+                                        acquired=["20120630"] if c == 1 else ())
+             for c in (1, 2, 3)}
+    comp = D.composite_delinquency(banks, ["1", "2", "3"], 2)
+    assert [r["q"] for r in comp] == ["2011Q%d" % n for n in range(1, 5)] + ["2012Q%d" % n for n in range(1, 5)]
+    assert [r["avg4_left_out"] for r in comp] == [[]] * 5 + [["1"]] * 3
+    assert [r["rate"] for r in comp] == pytest.approx([2.0] * 8)
+    assert [r["avg4"] for r in comp[3:]] == pytest.approx([2.0, 2.0, 2.5, 2.5, 2.5])

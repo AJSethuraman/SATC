@@ -132,3 +132,79 @@ def test_the_command(tmp_path, capsys):
 def test_a_line_the_source_cannot_draw_cannot_be_led_from_it():
     with pytest.raises(ValueError, match="line 5 High is led by internal, which has no such line: line 5"):
         run(["internal"] * 4)
+
+
+# ---------------------------------------------------------------- lower is worse, and the internal window
+# Review finding 25 (14 Oct 2026): every test above is higher_is_worse, and
+# its peers and filed series cover exactly the internal window.
+
+LOW = dict(SETTINGS, direction="lower_is_worse", floor_at_zero=False)
+#: KeyBank's filed median over the internal window: the filed series is
+#: exactly twice the internal one there, so the reconciling ratio is 0.5.
+KB = 2 * statistics.median(p.value for p in INTERNAL)
+#: Filed: 2 x internal over 2014-2025, and 96 quarters at 100 before it, so
+#: its median over every quarter it holds would be 100, not KB.
+FILED_LONG = series(1990, [100.0] * 96) + [Point(p.date, 2 * p.value) for p in INTERNAL]
+#: Six peers, each flat at a multiple of KB inside the window. "long" holds
+#: only 2023-2025 of the window, and 96 quarters at 100 before 2014: its
+#: median over every quarter would be 100, over the window 0.25 x KB.
+PEERS_LONG = {"p%d" % k: series(2014, [m * KB] * 48) for k, m in enumerate([0.5, 1.0, 1.5, 2.0, 3.0])}
+PEERS_LONG["long"] = series(1990, [100.0] * 96) + series(2023, [0.25 * KB] * 12)
+#: The industry for a lower-is-worse measure: about 10, a dip in 2009-10.
+INDUSTRY_LOW = series(2006, [10.0 - WAVE[i % 8] - (2.5 if 12 <= i < 20 else 0.0) for i in range(80)])
+
+
+def run_low(leads):
+    return synthesize(INTERNAL, INDUSTRY_LOW, FILED_LONG, PEERS_LONG, translation="none",
+                      peer_percentiles=PCT, leads=leads, **LOW)
+
+
+def test_lower_is_worse_takes_the_peer_lines_from_the_low_end_over_the_window():
+    """Worked by hand. Peer medians over the internal window are 0.25, 0.5, 1,
+    1.5, 2 and 3 x KB. Lower is worse, so line 2 sits at the 80th percentile
+    and line 5 at the 5th: PERCENTILE.INC over six values puts 80 at the fifth
+    (2 x KB), 60 at the fourth (1.5 x KB), 25 a quarter of the way from 0.5 to
+    1 (0.625 x KB) and 5 a quarter of the way from 0.25 to 0.5 (0.3125 x KB).
+    Carried by 0.5: KB, 0.75, 0.3125 and 0.15625 x KB, falling from 2 to 5."""
+    r = run_low(["peers"] * 4)
+    p = r["candidates"]["peers"]
+    assert p["medians"] == pytest.approx({"p0": 0.5 * KB, "p1": KB, "p2": 1.5 * KB, "p3": 2 * KB,
+                                          "p4": 3 * KB, "long": 0.25 * KB})
+    assert p["ratio"] == 0.5
+    assert p["untranslated"] == pytest.approx([2 * KB, 1.5 * KB, 0.625 * KB, 0.3125 * KB])
+    assert r["chosen"] == pytest.approx([KB, 0.75 * KB, 0.3125 * KB, 0.15625 * KB])
+    last = INTERNAL[-1].value
+    assert r["rating"] == score(last, r["chosen"], "lower_is_worse", "worse", False) == 3
+
+
+def test_lower_is_worse_counts_the_peers_above_keybank_as_better():
+    """KeyBank's filed median over the window is KB, not the 100 its earlier
+    quarters would make it. Lower is worse: it is worse than the three peers
+    above it (1.5, 2, 3 x KB), not the two below, and the one level with it
+    is neither."""
+    ch = run_low(["peers"] * 4)["check"]
+    assert ch["filed_median"] == pytest.approx(KB)
+    assert (ch["peers"], ch["below"], ch["worse_than"]) == (6, 2, 3)
+
+
+def test_lower_is_worse_internal_lines_swap_sides_when_high_cannot_be_drawn():
+    """The calm internal history cannot say where High begins; lines 2-4
+    still stand, worked from scale's median and typical yearly move, with
+    "-" and "+" swapped: 2 at median + move, 3 at median + half, 4 at
+    median - half."""
+    ref = scale([p.value for p in INTERNAL], "lower_is_worse", 0.5, 1.0, 2.5, False)
+    assert ref["bounds"] is None and ref["refused"].startswith("High would begin beyond the worst")
+    med, move = ref["median"], ref["typical_yearly_move"]
+    r = run_low(["internal", "internal", "internal", "peers"])
+    assert r["candidates"]["internal"]["lines"][:3] == pytest.approx([med + move, med + 0.5 * move,
+                                                                      med - 0.5 * move])
+    assert r["candidates"]["internal"]["lines"][3] is None
+    assert r["chosen"] == pytest.approx([med + move, med + 0.5 * move, med - 0.5 * move, 0.15625 * KB])
+
+
+def test_lower_is_worse_refuses_lines_that_rise():
+    """Industry's High line (about 9.6) sits above the peers' Moderate-High
+    (0.3125 x KB): for a lower-is-worse measure that is out of order."""
+    with pytest.raises(ValueError, match=r"out of order: 5 High \(industry, .*does not begin beyond "
+                                         r"4 Moderate-High \(peers"):
+        run_low(["peers", "peers", "peers", "industry"])
