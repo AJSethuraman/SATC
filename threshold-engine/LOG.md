@@ -935,3 +935,11 @@ The firm, 14 Oct: "Build until you cannot." The approved items, in order.
   own series to `banks/` for it.
 - **Built in parallel:** the internal import, by a separate agent on its
   own branch (`threshold-engine-internal-import`), to INTERNAL-IMPORT.md.
+- **The FDIC industry files in the workbook** (README's command, all five
+  products, opened in Excel 16): every tab recalculates with no formula
+  error. Under the card settings applied to every product, card, home
+  equity and other consumer rate (3, 1, 4 at 2026Q2); mortgage is refused
+  ("Moderate-Low would begin at or below zero") and auto too ("High would
+  begin beyond the worst quarter kept": auto's own line starts in 2011, so
+  its history holds no crisis). Each refusal says what would clear it; the
+  settings per product are the firm's.
