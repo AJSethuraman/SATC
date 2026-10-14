@@ -71,8 +71,8 @@ METHOD = [
                    "beside the setting. The value is never entered as your answer."),
     ("Chosen in the launcher", "What you're running and how the pockets are cut. Change them in the launcher's "
                                "Choose tests, then press Next. They are shown here so a reviewer sees them."),
-    ("Materiality levels", "For each level, the panel shows the dollar line, the number of pockets whose GCOs "
-                           "above their share reach it, and the portion of all such dollars those pockets hold. "
+    ("Materiality levels", "For each level, the panel shows the dollar line, the number of pockets whose gross "
+                           "charge-offs (GCOs) above their share reach it, and the portion of all such dollars those pockets hold. "
                            "It updates live with your answer."),
 ]
 #: the two method lines a test of a new variable reads differently: it builds no pocket, so only worse at is worked
@@ -492,7 +492,8 @@ def _materiality_panel(ws, settings: list[Setting], top: int) -> None:
         FormulaRule(formula=[f'RIGHT(${_letter(first)}{top + 2},1)="◂"'], font=Font(bold=True),
                     fill=PatternFill("solid", fgColor=house.CANVAS, bgColor=house.CANVAS)))
     for i, words in enumerate(("GCOs, every grid, against what each pocket is judged against.",
-                               "A RANR shortfall is held to the same dollar line.")):
+                               "A risk-adjusted net revenue (RANR) shortfall is held to the same "
+                               "dollar line.")):
         note = ws.cell(row=r + i, column=first, value=words)
         note.font = Font(name="Calibri", size=9, color=SLATE)
 

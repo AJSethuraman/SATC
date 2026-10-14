@@ -79,7 +79,7 @@ def _method(sc, stamp: str) -> list[tuple[str, str]]:
                        f"best separates bad from good, and the forest averages their votes. It writes no formula and "
                        f"assumes no shape. The same extract gives the same forest; another version of scikit-learn "
                        f"may not."),
-        ("Importance", f"How far the forest's AUC drops when the column is shuffled, on loans it did not train on. "
+        ("Importance", f"How far the forest's area under the curve (AUC) drops when the column is shuffled, on loans it did not train on. "
                        f"AUC is the probability that a random bad loan scores above a random good one; 0.5 is no "
                        f"better than chance. The development loans are cut into {scout.FOLDS} folds by date; each "
                        f"fold is scored by a forest grown on the other two, with {scout.REPEATS} shuffles of each "

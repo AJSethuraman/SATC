@@ -3338,8 +3338,8 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                               + (f" For each dollar rate, the loans are shuffled {b.shuffles:,} times (within the "
                                  f"band when the comparison is the rest of its band), and the p-value is how often a "
                                  f"shuffle produced a gap at least as large." if dollar_rates else "")
-                              + (" RANR and RANR + GCOs are compared as a gap in points, never a multiple."
-                                 if profit else "")
+                              + (" Risk-adjusted net revenue (RANR) and RANR + GCOs (RANR plus gross "
+                                 "charge-offs) are compared as a gap in points, never a multiple." if profit else "")
                               + (" For a split by a category, each value is compared with the rest of its pocket, "
                                  "as the halves are. Whether the values differ at all is tested on every value at "
                                  "once by the K-group Mantel-Haenszel test (general association, on one fewer "
@@ -3373,7 +3373,11 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                      "each grid and measure on its own, one comparison at a time"))
     if "contribution_rate" in res.total.rates:
         # the definition the tabs rest on (OC-35): the losses inside RANR are GCO
-        rows.append((CONTRIBUTION_SAID, "RANR + GCOs, per booked dollar. This assumes RANR has the gross GCOs "
+        # the acronyms are spelled out here when Tests, above, has not already (VOICE.md: on first use); a test of a
+        # new variable leaves Tests off (_without_bleed)
+        lead = "RANR + GCOs" if b is not None and profit and bleed_tabs(res) else \
+            "Risk-adjusted net revenue (RANR) plus gross charge-offs (GCOs)"
+        rows.append((CONTRIBUTION_SAID, f"{lead}, per booked dollar. This assumes RANR has the gross GCOs "
                                         "taken out. If RANR nets recoveries instead, RANR + GCOs is overstated by "
                                         "the recoveries."))
     if b is not None:

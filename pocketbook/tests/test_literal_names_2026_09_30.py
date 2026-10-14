@@ -36,8 +36,9 @@ OLD_BOOK, OLD_EXTRACT = OLD / "Bureau book - PocketBook.xlsx", OLD / "Bureau boo
 
 #: the three measures' old names, and the stand-ins for them the tabs used; none may name a measure any more
 OLD_NAMES = ("Charge-offs", "Kept after losses", "Earned before losses", "Paid us", "Cost us", "Paid, cost, kept")
-#: the same, in any case, read inside a sentence ("pockets have charge-offs above their share")
-OLD_WORDS = re.compile(r"charge-off|charged off|charges off|kept after losses|earned before losses|paid us|cost us"
+#: the same, in any case, read inside a sentence ("pockets have charge-offs above their share"). "Gross charge-offs
+#: (GCOs)" is not the old name: it is the acronym spelled out on first use (VOICE.md, the firm, 14 Oct 2026)
+OLD_WORDS = re.compile(r"(?<!gross )charge-off|charged off|charges off|kept after losses|earned before losses|paid us|cost us"
                        r"|paid, cost, kept|profit after losses|contribution before losses|Kept ·|keeping (less|more)",
                        re.I)
 NEW = {"gco_rate": "GCOs ($)", "ranr_rate": "RANR", "contribution_rate": "RANR + GCOs"}

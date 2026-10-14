@@ -207,7 +207,8 @@ def _method(res, st, tests, excesses, stamp: str) -> list[tuple[str, object]]:
     ex = next((e for e in excesses if e is not None), None)
     if ex is not None:
         what = "GCOs" if ex.unit == "dollars" else "bad loans"
-        out.append(("Material?", f"Excess is a group's {what} on the held-back loans above its share of them (its "
+        first = "gross charge-offs (GCOs)" if ex.unit == "dollars" else what       # spelled out on first use
+        out.append(("Material?", f"Excess is a group's {first} on the held-back loans above its share of them (its "
                                  f"share of the held-back loans), scaled by the whole book's {what} divided by the "
                                  f"held-back loans' {what}. This puts it on the same scale as Control's materiality "
                                  f"line. Material? is Yes when the excess reaches the line."))
@@ -288,7 +289,8 @@ def _method_lead(res, st) -> list[tuple[str, object]]:
         held = " and ".join(sc.hold)
         out.append(("The tree, unseen", "The random forest from the Scouting tab, grown on every loan made before the "
                                         f"cutoff ({sc.cutoff.isoformat()}), scores the loans made on or after it, "
-                                        "which it never saw. AUC is the probability that a random bad loan scores "
+                                        "which it never saw. The area under the curve (AUC) is the probability that a "
+                                        "random bad loan scores "
                                         "above a random good one; 0.5 is no better than chance and 1 is perfect "
                                         "separation. Built is the forest's AUC on the development loans, each scored "
                                         "by a forest grown on the others (the Scouting tab); unseen is the AUC on "
@@ -327,7 +329,7 @@ def _unseen(ws, res, r: int) -> int:
     if o is None:
         return r
     house.section(ws, r, FIRST, LAST, "The tree on loans it never saw")
-    said = scout.auc_words(sc) or f"The tree couldn't be checked on the held-back loans: {o.problem}."
+    said = scout.auc_words(sc, spell=False) or f"The tree couldn't be checked on the held-back loans: {o.problem}."
     r = _line(ws, r + 1, "What it found", said)
     return r + 1
 

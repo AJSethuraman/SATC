@@ -486,7 +486,8 @@ def _pockets_note(res) -> list[tuple[str, str]]:
             "in its band is judged against the rest of the book, whatever Control says.")),
         ("Excess", "The pocket's losses above what it would have lost at the rest's rate, in bad loans for Bad loans "
                    "and in dollars for the dollar measures."
-                   + (" For RANR and RANR + GCOs, it is the dollars by which the pocket fell short of the rest, and "
+                   + (" For risk-adjusted net revenue (RANR) and RANR + GCOs (RANR plus gross charge-offs), it is the "
+                      "dollars by which the pocket fell short of the rest, and "
                       "the gap is in points of booked dollars." if profit else "")),
         ("Worse?", live.text(
             "Yes: at least ", ('TEXT(worse_at,"0.00")',), "x the rest",
@@ -959,7 +960,8 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                  # the longest verdict with the borderline flag on one side; on both it runs on over the gap beside it
                  C_TOG: house.fit([f"{t} · {stats.borderline_words(0.048, 0.95)}" for t in TOGETHER.values()],
                                   floor=28, cap=56), C_TOG + 1: 3})
-    house.title_band(ws, PCK, "Each pocket's RANR + GCOs, GCOs and RANR, against the rest.", C_BAND, C_CH + 6,
+    house.title_band(ws, PCK, "Each pocket's RANR + GCOs, gross charge-offs (GCOs) and risk-adjusted net revenue "
+                                  "(RANR), against the rest.", C_BAND, C_CH + 6,
                      tab=house.TAB_RESULT)
     line = bk.profit_line(res)
     r = house.method_note(ws, 3, C_BAND, C_TOG, [
@@ -1596,7 +1598,8 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
                  "band's and the segment's totals in All."),
         ("vs the book", "The pocket's rate as a multiple of the whole book's rate, which the heading shows. A "
                         "pocket at 2.00× goes bad twice as often as the book."
-                        + (" RANR and RANR + GCOs are a gap in points instead." if profit
+                        + (" Risk-adjusted net revenue (RANR) and RANR + GCOs (RANR plus gross charge-offs) are a gap in "
+                           "points instead." if profit
                            else "")),
         ("vs rest of band", "The pocket's rate as a multiple of the rate for every other loan in its band. The "
                             "heading shows no rate, because the rest of the band differs in every row."),
@@ -2160,8 +2163,8 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
     hid = last + 2
     dw, lw, thousands = summary_widths(fit, keys)
     _widths(ws, {1: 2, left: lw, **{c: dw for c in range(left + 1, hid)}})
-    house.title_band(ws, SUMMARY, "One column at a time: loans, bad loans, booked, GCOs and RANR, band by band or "
-                                  "category by category.", left, last, tab=house.TAB_RESULT)
+    house.title_band(ws, SUMMARY, "One column at a time: loans, bad loans, booked, gross charge-offs (GCOs) and "
+                                  "risk-adjusted net revenue (RANR), band by band or category by category.", left, last, tab=house.TAB_RESULT)
     booked = res.config.booked or "booked amount"
     gco = res.config.gco or "GCOs"
     ranr = next((m.value for m in res.measures if m.name == "ranr_rate"), "RANR")
@@ -2281,7 +2284,8 @@ def _value_note(res, sf: str, b, dollar_rates: bool, profit: bool) -> list[tuple
                          f"values."),
         ("Value vs rest", "The value's rate as a multiple of the rest's; 2.00× means it goes bad"
                           + (", or loses," if dollar_rates else "") + " twice as often."
-                          + (" RANR and RANR + GCOs are a gap in points instead; +0.30 pts means the value's "
+                          + (" Risk-adjusted net revenue (RANR) and RANR + GCOs (RANR plus gross charge-offs) are a gap in "
+                             "points instead; +0.30 pts means the value's "
                              "RANR is 0.30 points higher as a share of its booked dollars." if profit else "")),
         ("Value vs rest, all", live.text(
             "The value's actual total compared with its total at the rest's rates, summed over every pocket, with "
@@ -2427,7 +2431,8 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                          f"sides. {sf} isn't cut into bands of its own while it splits."),
         ("High vs low", "The high half's rate as a multiple of the low half's; 2.00× means the high half goes bad"
                         + (", or loses," if dollar_rates else "") + " twice as often."
-                        + (" RANR and RANR + GCOs are a gap in points instead; +0.30 pts means the high half's "
+                        + (" Risk-adjusted net revenue (RANR) and RANR + GCOs (RANR plus gross charge-offs) are a gap in "
+                           "points instead; +0.30 pts means the high half's "
                            "RANR is 0.30 points higher as a share of its booked dollars." if profit else "")),
         ("High vs low, all", live.text(
             "The high halves' actual total compared with their total at the low halves' rates, summed over every "
