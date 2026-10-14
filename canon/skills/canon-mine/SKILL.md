@@ -66,10 +66,10 @@ many answers were typed — then two lists that are **never merged**:
 
 **The certain half.** Every typed answer, surfaced unconditionally. An
 interview offered options and the firm rejected the framing and wrote their
-own; that rejection *is* the signal, and detecting it takes no judgement.
+own; that rejection *is* the signal, and detecting it takes no judgment.
 
 **The guessed half.** Turns carrying a marker word. This is a guess about
-relevance and is labelled as one everywhere it appears. Read it with that in
+relevance and is labeled as one everywhere it appears. Read it with that in
 mind and dismiss freely — a marker hit is an invitation to look, not a claim.
 
 ## Propose one at a time

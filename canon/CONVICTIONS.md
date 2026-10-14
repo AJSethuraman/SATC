@@ -19,7 +19,7 @@ A conviction is examined at the moment it bites, which is the only moment anyone
 has the context to judge it.
 
 **`Fires on`** is what makes selection deterministic: the subjects that bring a
-conviction into play. Code narrows to candidates; the judgement of whether a
+conviction into play. Code narrows to candidates; the judgment of whether a
 candidate is really a contradiction is made in the open, by a person reading.
 
 ---
@@ -31,7 +31,7 @@ candidate is really a contradiction is made in the open, by a person reading.
 > *you know the reasons I wanted to charge people less if they are themselves in college and working. I just don't think it's right to fuck them over, basically.*
 > — the firm, 3 September 2026
 
-**Why:** It is a judgement about who the practice is willing to make money from, not a pricing tactic. It costs revenue on purpose.
+**Why:** It is a judgment about who the practice is willing to make money from, not a pricing tactic. It costs revenue on purpose.
 
 **Fires on:** student, students, college, discount, rate, pricing, fee schedule
 
@@ -135,13 +135,13 @@ candidate is really a contradiction is made in the open, by a person reading.
 > *this is meant to be an automated engine, which is deterministic. AI, in my view, assists in testing those engines by ensuring it can work in the real world*
 > — the firm, 4 September 2026
 
-**Why:** It draws the line C6 could not, and it was settled the moment C6 was misapplied: a challenge fired at a scheduled disposal engine on the grounds that one brain was both preparing and verifying. An engine applying a rule is not a brain making a judgement, so the separation has nothing to say about it. It also says what AI is *for* here — proving the engine survives contact with the real world, which is testing, not deciding.
+**Why:** It draws the line C6 could not, and it was settled the moment C6 was misapplied: a challenge fired at a scheduled disposal engine on the grounds that one brain was both preparing and verifying. An engine applying a rule is not a brain making a judgment, so the separation has nothing to say about it. It also says what AI is *for* here — proving the engine survives contact with the real world, which is testing, not deciding.
 
-**Fires on:** deterministic, engine, automated, automation, unattended, schedule, disposal, destroy, judgement
+**Fires on:** deterministic, engine, automated, automation, unattended, schedule, disposal, destroy, judgment, judgement
 
-**A challenge looks like:** demanding human sign-off on every run of a deterministic process because its effects are serious, or the reverse — calling something an engine when a model is making the call. The test is whether a rule is being applied or a judgement is being made.
+**A challenge looks like:** demanding human sign-off on every run of a deterministic process because its effects are serious, or the reverse — calling something an engine when a model is making the call. The test is whether a rule is being applied or a judgment is being made.
 
-**How it could be wrong:** "deterministic" can be claimed for a process whose inputs are judgements. An engine fed a date somebody guessed is only as deterministic as the guess, and this entry would wave it through.
+**How it could be wrong:** "deterministic" can be claimed for a process whose inputs are judgments. An engine fed a date somebody guessed is only as deterministic as the guess, and this entry would wave it through.
 
 ---
 
@@ -186,13 +186,13 @@ candidate is really a contradiction is made in the open, by a person reading.
 > *i am a firm believer in the simplest answer being doing the work upfront and testing to ensure it works when you know you will eventually do it anyway. that's what makes AI so useful as a tool, it wildly changes my view of complexity*
 > — the firm, 4 September 2026
 
-**Why:** It reads at first like a second belief beside C9 and it is not — it says how C9 is *measured*. "Simplest" is total work, not work-today. Deferring something you know is coming does not remove it; it moves it somewhere more expensive and adds the seam you will have to unpick. Two things follow that the plain reading loses. The test is part of the claim: work done upfront and unverified is not the simplest answer, it is a larger unproven one. And the calibration is deliberately not the conventional one, because the firm says why — AI moved the cost of thoroughness, so advice written when that cost was high does not transfer. It was recorded the same day the firm chose to build against a licence they did not yet hold: *"i will get a paid sub build as though we have it."*
+**Why:** It reads at first like a second belief beside C9 and it is not — it says how C9 is *measured*. "Simplest" is total work, not work-today. Deferring something you know is coming does not remove it; it moves it somewhere more expensive and adds the seam you will have to unpick. Two things follow that the plain reading loses. The test is part of the claim: work done upfront and unverified is not the simplest answer, it is a larger unproven one. And the calibration is deliberately not the conventional one, because the firm says why — AI moved the cost of thoroughness, so advice written when that cost was high does not transfer. It was recorded the same day the firm chose to build against a license they did not yet hold: *"i will get a paid sub build as though we have it."*
 
 **Fires on:** simplest, simpler, simplicity, complexity, complicated, scope, defer, deferred, later, v2, minimal, premature, over-engineer, over-engineering, hardcode, hardcoded, prototype, throwaway, scale, future-proof, upfront
 
 **A challenge looks like:** deferring work the design already implies will be needed, on the grounds that it is not needed *yet* — or building the thorough version and not testing it, which this entry does not license. Bassy names this entry, quotes it, and asks whether the reason has changed.
 
-**How it could be wrong:** *"when you know you will eventually do it anyway"* is a prediction, and it carries the whole entry. Work done upfront for a future that never arrives is waste, and a lowered cost of building makes it easier to build the wrong thing thoroughly rather than harder. The check is whether the need is genuinely known or merely imagined, and that is a judgement the firm makes — not one this entry settles. C9 is where the answer lands when it turns out not to be known.
+**How it could be wrong:** *"when you know you will eventually do it anyway"* is a prediction, and it carries the whole entry. Work done upfront for a future that never arrives is waste, and a lowered cost of building makes it easier to build the wrong thing thoroughly rather than harder. The check is whether the need is genuinely known or merely imagined, and that is a judgment the firm makes — not one this entry settles. C9 is where the answer lands when it turns out not to be known.
 
 ---
 
@@ -205,11 +205,11 @@ candidate is really a contradiction is made in the open, by a person reading.
 
 **Why:** It settles what C8 left open. C8 says a deterministic engine is not a brain; it does not say where the engine stops. This does: **the boundary is the difficulty of the call, not the size of its consequence.** Asked whether closing an accounting period — irreversible, on a client's books — should require a human, the firm did not weigh the stakes. They tiered the work, the way a credit file is tiered: clean ones go through, hard ones get looked at. So "this is serious, therefore a human" is not a reason on its own, and neither is "the checks passed, therefore automatic" — what decides is whether anything genuinely had to be judged.
 
-**Fires on:** autonomous, unattended, sign-off, approval, gate, escalate, review, judgement, threshold, exception, close, post, irreversible, underwriting, tier
+**Fires on:** autonomous, unattended, sign-off, approval, gate, escalate, review, judgment, judgement, threshold, exception, close, post, irreversible, underwriting, tier
 
-**A challenge looks like:** requiring a human on a step because its effects are serious, when nothing about it required judgement — or letting a process run unattended because its checks passed, when the checks were fed answers somebody guessed. Both are the same error: reading the consequence instead of the call.
+**A challenge looks like:** requiring a human on a step because its effects are serious, when nothing about it required judgment — or letting a process run unattended because its checks passed, when the checks were fed answers somebody guessed. Both are the same error: reading the consequence instead of the call.
 
-**How it could be wrong:** the tiering only works if the engine can tell which case it is in. An engine that cannot recognise a hard call will confidently route it down the simple path, and the tier boundary becomes the place bad work escapes rather than the place it is caught. Deciding "is this one simple?" is itself a judgement. This is not hypothetical in the practice's own software: Occam's period close runs sixteen deterministic checks over a review queue built from human categorisation decisions, so the engine's confidence is bounded by inputs it cannot audit — which is C8's recorded caveat arriving from the other direction.
+**How it could be wrong:** the tiering only works if the engine can tell which case it is in. An engine that cannot recognize a hard call will confidently route it down the simple path, and the tier boundary becomes the place bad work escapes rather than the place it is caught. Deciding "is this one simple?" is itself a judgment. This is not hypothetical in the practice's own software: Occam's period close runs sixteen deterministic checks over a review queue built from human categorization decisions, so the engine's confidence is bounded by inputs it cannot audit — which is C8's recorded caveat arriving from the other direction.
 
 ---
 
@@ -220,7 +220,7 @@ candidate is really a contradiction is made in the open, by a person reading.
 > *there is a difference between tax and something like GAAP. i account like an accountant, even in cash basis though we would record what happened. cash in and cash out. cash balance doesn't change for tax purposes.*
 > — the firm, 5 September 2026
 
-**Why:** The books are a record of transactions that occurred; tax is a question about when income and expense are recognised. Cash basis does not mean the books pretend a check that was written was not written. Where the two disagree the difference is explained rather than booked — which is why a difference against a bank statement is a reconciling item and not an entry, and why the cash balance does not move to match a statement, a return or a tax position.
+**Why:** The books are a record of transactions that occurred; tax is a question about when income and expense are recognized. Cash basis does not mean the books pretend a check that was written was not written. Where the two disagree the difference is explained rather than booked — which is why a difference against a bank statement is a reconciling item and not an entry, and why the cash balance does not move to match a statement, a return or a tax position.
 Recorded because the firm has had to explain it more than once: "i feel like i'm going crazy here having to explain this. it's not just bull shit i'm making up." Removing that cost is what this file is for.
 
 **Fires on:** cash, cash basis, gaap, book, books, bookkeeping, reconcile, reconciling, reconciliation, adjust cash, tax basis, accrual, bank statement, outstanding check
@@ -241,9 +241,9 @@ And where a book figure is simply an error, correcting it IS the right move. Thi
 
 **Why:** It says where C14's line falls, which C14 did not. C14 — tax treatment does not move the books — was recorded about *bending a figure*: a cash balance made to match a statement or a return. It does not reach the choice of *method* for an entry the books must make anyway. Depreciation is that second kind: there is no single right answer, and on cash basis the tax figure exists regardless because a return is being produced. A second book number beside it manufactures a book/tax difference nobody reads and somebody maintains. The standard set here is not GAAP compliance but GAAP *convertibility* — close enough that moving a client to accrual later is work rather than a rebuild.
 
-**Scope, narrowed on purpose.** A wider version was drafted — *"the rules are the default, depart only where it costs more long-run"* — and the firm declined it the same day: *"i'm good with this narrower scope, i don't want to risk losing sight something i should have thought about."* The wide form would wave through cases that ought to reach them. This entry fires only where the tax figure is being produced anyway; everything else is a judgement, not a default. **Do not re-propose the wider scope.**
+**Scope, narrowed on purpose.** A wider version was drafted — *"the rules are the default, depart only where it costs more long-run"* — and the firm declined it the same day: *"i'm good with this narrower scope, i don't want to risk losing sight something i should have thought about."* The wide form would wave through cases that ought to reach them. This entry fires only where the tax figure is being produced anyway; everything else is a judgment, not a default. **Do not re-propose the wider scope.**
 
-**Fires on:** gaap, accrual, cash basis, depreciation, amortisation, method, convention, book/tax, tax basis, two sets, conform, convert
+**Fires on:** gaap, accrual, cash basis, depreciation, amortization, amortisation, method, convention, book/tax, tax basis, two sets, conform, convert
 
 **A challenge looks like:** carrying a second book figure beside a tax one where no reader needs the difference — or the reverse, a shortcut adopted because tax allows it that would have to be unpicked to produce accrual accounts later. Also reading this as "always follow tax" on a basis where the tax number is not being produced anyway, which is the scope the firm declined.
 

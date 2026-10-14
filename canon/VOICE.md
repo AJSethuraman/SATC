@@ -27,8 +27,8 @@ One thing is checkable today. The firm asked for American spelling during the
 price-page build in August 2026. Canon's own prose, which every session reads,
 still had 84 British spellings in it on the day this file was written
 (`voice.py` over `CONVICTIONS.md`, `TENETS.md`, `README.md` and the eight
-skills). That isn't fixed here. It's
-a separate decision, and it's waiting on the firm.
+skills). The firm said yes to fixing it
+that day, and a test now holds canon's own prose to American spelling.
 
 ## What counts as evidence
 
@@ -77,7 +77,7 @@ every day.
 - **Short when short is enough.** "Please try again, this should be fixed." is
   a whole message.
 
-*This session's reading, 14 October 2026, not the firm's words:* their messages
+*A session's reading, 14 October 2026, not the firm's words:* their messages
 to agents are lowercase and fast. Don't mirror that back. Write the way they
 write an email to a colleague, which is what Copilot's profile recommends for
 anything other than a quick chat. Also, canon's own house style leans on short

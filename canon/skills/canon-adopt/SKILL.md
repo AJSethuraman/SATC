@@ -56,9 +56,9 @@ never found out whether a single test passes.
 Then two lists that are never merged:
 
 - **Commits that changed a test and a source file together.** A mistake
-  somebody thought worth pinning. A fact about the commit, not a judgement.
+  somebody thought worth pinning. A fact about the commit, not a judgment.
 - **Commits whose subject carries a fix-word.** A guess about relevance,
-  labelled as one.
+  labeled as one.
 
 ## Two things the first real run taught
 
@@ -74,7 +74,7 @@ that team writes commits, not a clean bill of health.
 
 ## Propose, one at a time
 
-A candidate's text is the **commit's own subject**. Generalising it into a rule
+A candidate's text is the **commit's own subject**. Generalizing it into a rule
 is the step that turns *"this repo fixed a thing"* into *"this repo proves a
 law"*, and that step belongs to a person — it is exactly where a plausible,
 wrong tenet would enter the record and never leave.

@@ -20,6 +20,8 @@ It also can't tell a word used from a word quoted: a draft that quotes somebody
 saying "honestly" is flagged, and that hit is a line to read, not to fix.
 
 Run:  python voice.py DRAFT.md [MORE.md ...]     or pipe a draft on stdin
+      python voice.py --write-hook    regenerate hooks/session-start.md from VOICE.md
+      python voice.py --check-hook    exit 1 if it has drifted
 Exit 0 when nothing is found, 1 when something is, 2 when there was nothing to read.
 """
 from __future__ import annotations
@@ -31,15 +33,22 @@ from pathlib import Path
 
 # The British spellings agents keep reaching for. Whole words only, so
 # "realistically" and "programmer" are left alone.
+_IZE_STEMS = (
+    "organ|recogn|real|summar|priorit|apolog|emphas|minim|maxim|categor|standard"
+    "|final|util|amort|optim|mechan|item|general|parameter|capital|normal|canonical"
+    "|author|character|special|critic|visual|memor|custom|initial|serial|sanit|token"
+    "|digit|synthes|formal|central|local|stabil|neutral|legal|emphas|familiar|subsid"
+)
 _BRITISH = (
-    r"behaviours?|colour(?:s|ed|ing)?|favour(?:s|ed|ite)?|honour(?:s|ed)?|labour(?:s|ed)?|neighbours?"
-    r"|organis(?:e|ed|es|ing|ation|ations)|recognis(?:e|ed|es|ing)|realis(?:e|ed|es|ing|ation)"
-    r"|summaris(?:e|ed|es|ing)|prioritis(?:e|ed|es|ing)|apologis(?:e|ed|es|ing)|emphasis(?:e|ed|es|ing)"
-    r"|minimis(?:e|ed|es|ing)|maximis(?:e|ed|es|ing)|categoris(?:e|ed|es|ing)|standardis(?:e|ed|es|ing)"
-    r"|finalis(?:e|ed|es|ing)|utilis(?:e|ed|es|ing)|analys(?:e|ed|ing)|amortis(?:e|ed|es|ing|ation)"
-    r"|centres?|licence|defence|offence|judgements?|cheques?|grey|programmes?|catalogues?"
+    rf"(?:{_IZE_STEMS})is(?:e|ed|es|ing|ation|ations)"
+    r"|analys(?:e|ed|ing)|paralys(?:e|ed|ing)|catalys(?:e|ed|ing)"
+    r"|behaviours?|colour(?:s|ed|ing)?|favour(?:s|ed|ite|able)?|honour(?:s|ed)?|labour(?:s|ed)?"
+    r"|neighbours?|rigour|humour|endeavour(?:s|ed)?|flavour(?:s|ed)?"
+    r"|centres?|theatres?|fibres?|litres?|calibre|licence|defence|offence|pretence"
+    r"|judgements?|acknowledgements?|ageing|practise[sd]?|cheques?|grey|programmes?|catalogues?|analogue"
     r"|travelled|travelling|cancelled|cancelling|modelled|modelling|labelled|labelling"
-    r"|fulfil|enrol|whilst|amongst|learnt|spelt"
+    r"|signalled|signalling|totalled|totalling"
+    r"|fulfil|enrol|instil|whilst|amongst|learnt|spelt"
 )
 
 
@@ -98,11 +107,56 @@ def check(text: str, where: str = "<draft>") -> list[Finding]:
     return found
 
 
+HERE = Path(__file__).resolve().parent
+VOICE_MD = HERE / "VOICE.md"
+#: Printed at the start of every session by `hooks/hooks.json`. GENERATED from
+#: VOICE.md, never edited: a second copy of the talking rules written by hand
+#: is a second account that will drift from the first.
+HOOK_TEXT = HERE / "hooks" / "session-start.md"
+
+
+def talking_section(voice_md: str) -> str:
+    """The body of VOICE.md's "Talking to the firm" section, without its heading."""
+    head = "## Talking to the firm\n"
+    if head not in voice_md:
+        raise ValueError("VOICE.md has no 'Talking to the firm' section")
+    body = voice_md.split(head, 1)[1]
+    return body.split("\n## ", 1)[0].strip()
+
+
+def session_start_text(voice_md: str | None = None) -> str:
+    """What every session is told before its first reply."""
+    if voice_md is None:
+        voice_md = VOICE_MD.read_text(encoding="utf-8")
+    return (
+        "# Talking to the firm\n\n"
+        "Printed by canon at the start of every session. The firm, 14 October 2026: "
+        '*"I want you to talk to me like me and I want things drafted for me to sound '
+        'like me"*. This is the part of `${CLAUDE_PLUGIN_ROOT}/VOICE.md` that applies '
+        "to every reply. The rest of that file, and `/canon:voice`, cover drafting "
+        "things the firm will send.\n\n"
+        "Generated from VOICE.md by `voice.py --write-hook`. Edit VOICE.md, never this.\n\n"
+        + talking_section(voice_md) + "\n"
+    )
+
+
 def _words(text: str) -> int:
     return len(text.split())
 
 
 def main(argv: list[str]) -> int:
+    if argv == ["--write-hook"]:
+        HOOK_TEXT.parent.mkdir(exist_ok=True)
+        HOOK_TEXT.write_text(session_start_text(), encoding="utf-8")
+        print(f"wrote {HOOK_TEXT.name} from VOICE.md")
+        return 0
+    if argv == ["--check-hook"]:
+        current = HOOK_TEXT.read_text(encoding="utf-8") if HOOK_TEXT.is_file() else ""
+        if current != session_start_text():
+            print(f"{HOOK_TEXT.name} is out of date with VOICE.md. Run: python voice.py --write-hook")
+            return 1
+        print(f"{HOOK_TEXT.name} matches VOICE.md")
+        return 0
     if argv:
         sources = [(a, Path(a).read_text(encoding="utf-8")) for a in argv]
     else:

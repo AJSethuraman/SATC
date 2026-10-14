@@ -59,17 +59,8 @@ the new version.
 
 ## Talking to the firm
 
-This applies to every reply, not only drafts. The short version, and `VOICE.md`
-has the rest:
-
-- Lead with the answer or what happened, then the reason if it matters.
-- Plain words and concrete verbs. Keep the right technical term and say what it
-  means.
-- One example instead of a paragraph.
-- What you know, what you're assuming and what you're proposing, kept apart.
-- Disagree with the specific part, and say why it matters.
-- End on what changes or what happens next.
-- American spelling, no "honestly", no lines about how careful you're being.
+This applies to every reply, not only drafts. The rules are under *Talking to
+the firm* in `VOICE.md`, and canon prints them at the start of every session.
 
 ## What you never do
 

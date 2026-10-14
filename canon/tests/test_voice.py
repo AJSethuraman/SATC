@@ -122,7 +122,7 @@ def test_the_profile_is_labeled_as_another_ais_reading():
 
 def test_a_sessions_own_reading_is_labeled_as_one():
     talking = " ".join(_section("Talking to the firm").split())
-    assert "This session's reading, 14 October 2026, not the firm's words" in talking
+    assert "A session's reading, 14 October 2026, not the firm's words" in talking
 
 
 def test_the_standing_role_carries_the_request_in_their_words():
@@ -144,5 +144,101 @@ def test_bassy_holds_the_firms_rules_loosely_outside_the_practice():
                      .read_text(encoding="utf-8").split())
     assert ("Also Bassy should understand that if it is not a SATC project we "
             "don't as critically apply our firm's rules") in bassy
-    assert "This session's reading of that, 14 October 2026, not the firm's words" in bassy
+    assert ("A session's reading of that, written on 14 October 2026 and confirmed "
+            'by the firm the same day with one word: "Right"') in bassy
     assert "The firm's voice is not one of these rules" in bassy
+
+
+# ── canon holds itself to the spelling the firm asked for ────────────────
+
+#: What sessions read, and what the firm reads in a plugin listing.
+PROSE = (["CONVICTIONS.md", "TENETS.md", "README.md", "VOICE.md"]
+         + sorted(str(p.relative_to(CANON)) for p in CANON.glob("skills/*/SKILL.md")))
+
+# QUOTED TEXT IS LEFT AS IT WAS WRITTEN. A blockquote, anything in double
+# quotes and inline code are somebody's words or a literal, and respelling them
+# is paraphrase. "Fires on" lines are selectors: they carry both spellings on
+# purpose, so a decision written either way still brings the entry into play.
+_PROTECTED = re.compile(r'"[^"\n]*"|“[^”\n]*”|`[^`\n]*`')
+
+
+def _prose_hits(text: str) -> list[str]:
+    hits = []
+    for line in text.splitlines():
+        if line.lstrip().startswith(">") or line.startswith("**Fires on:**"):
+            continue
+        hits += [f.text for f in voice.check(_PROTECTED.sub("", line))
+                 if f.label == "British spelling"]
+    return hits
+
+
+def test_canons_own_prose_is_spelled_the_way_the_firm_asked():
+    """The firm asked for American spelling in August 2026, and on 14 October
+    canon's own prose still carried 84 British spellings that every session
+    read and copied. They said yes to fixing it; this keeps it fixed."""
+    assert len(PROSE) >= 12, "the skills moved; this check would cover less than it claims"
+    for name in PROSE:
+        hits = _prose_hits((CANON / name).read_text(encoding="utf-8"))
+        assert not hits, f"{name} spells {sorted(set(hits))} the British way"
+
+
+def test_the_spelling_guard_still_sees_a_british_word():
+    """Check the checker: the exemptions must not swallow ordinary prose."""
+    assert _prose_hits("The behaviour was recognised.") == ["behaviour", "recognised"]
+    assert _prose_hits('He wrote "the behaviour" and left.') == []
+    assert _prose_hits("> the behaviour, quoted") == []
+
+
+def test_the_manifests_are_spelled_the_way_the_firm_asked():
+    import json
+    texts = [json.loads((CANON / ".claude-plugin" / "plugin.json")
+                        .read_text(encoding="utf-8"))["description"]]
+    market = CANON.parent / ".claude-plugin" / "marketplace.json"
+    if market.is_file():
+        texts += [p["description"] for p in json.loads(market.read_text(encoding="utf-8"))["plugins"]
+                  if p["name"] == "canon"]
+    for text in texts:
+        assert not [f for f in voice.check(text) if f.label == "British spelling"], text[:80]
+
+
+# ── the talking rules reach every session ────────────────────────────────
+
+HOOKS = CANON / "hooks" / "hooks.json"
+
+
+def test_the_session_start_text_is_generated_from_voice_md():
+    """One source. A hand-kept copy of the talking rules is a second account of
+    them, and the two would disagree within a release."""
+    assert voice.HOOK_TEXT.read_text(encoding="utf-8") == voice.session_start_text(), \
+        "hooks/session-start.md is stale. Run: python voice.py --write-hook"
+
+
+def test_the_session_start_text_fits_under_the_cap():
+    """Over 10,000 characters, Claude Code saves the output to a file and shows
+    only a preview, and nothing asks the session to read the rest."""
+    assert len(voice.session_start_text()) < 10_000
+
+
+def test_the_plugin_declares_the_hook_the_way_the_loader_reads_it():
+    """A hooks file without the top-level "hooks" wrapper fails to load, and
+    an unquoted plugin root breaks on a path with a space in it. `cat` rather
+    than Python, because which Python name exists differs by machine and `cat`
+    works in sh, Git Bash and PowerShell alike."""
+    import json
+    spec = json.loads(HOOKS.read_text(encoding="utf-8"))
+    entries = spec["hooks"]["SessionStart"]
+    commands = [h["command"] for e in entries for h in e["hooks"] if h["type"] == "command"]
+    assert commands == ['cat "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.md"']
+    matcher = entries[0].get("matcher", "")
+    assert "startup" in matcher and "compact" in matcher, \
+        "a new session, and one whose context was just compacted, must both get it"
+
+
+def test_a_stale_hook_text_is_caught(tmp_path, monkeypatch):
+    """Check the checker: --check-hook has to fail when the file drifts."""
+    stale = tmp_path / "session-start.md"
+    stale.write_text("an old copy\n", encoding="utf-8")
+    monkeypatch.setattr(voice, "HOOK_TEXT", stale)
+    assert voice.main(["--check-hook"]) == 1
+    stale.write_text(voice.session_start_text(), encoding="utf-8")
+    assert voice.main(["--check-hook"]) == 0

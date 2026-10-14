@@ -189,7 +189,7 @@ def read_repo(repo: Path, *, limit: int = 400, within: str = "") -> Reading:
     ).splitlines() if l.strip()])
 
     unread = [
-        "the code itself — adoption reads history and documents, never behaviour",
+        "the code itself — adoption reads history and documents, never behavior",
         "anything not in git: untracked files, ignored files, local data",
         f"commits beyond the most recent {limit}" if len(commits) >= limit
         else "nothing was truncated by the commit limit",
@@ -295,7 +295,7 @@ def report(reading: Reading, pinned: list[CandidateTenet],
     lines = [reading.say(), ""]
     lines.append(f"— {len(pinned)} commit(s) changed a test and something else "
                  f"together. That is a mistake somebody thought worth pinning; "
-                 f"no judgement in this list.")
+                 f"no judgment in this list.")
     for cand in pinned:
         lines.append(f"\n  {cand.commit.when}  {cand.commit.sha}  {cand.rule}")
     lines.append(f"\n\n— {len(guessed)} commit(s) whose subject carries a "

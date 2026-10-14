@@ -12,7 +12,7 @@ against the code as it stands.
 ## Why this is worth doing at all, given we already mutation-test
 
 Mutation testing breaks a guard on purpose and confirms a test goes red. It is
-the strongest check in the fifteen behaviours and it has a hard limit:
+the strongest check in the fifteen behaviors and it has a hard limit:
 
 **Mutation grades the guards you wrote. It is silent about the case nobody
 thought of.**
@@ -43,7 +43,7 @@ it, and reports. Whatever else the branch carries — scratch harnesses, fixture
 an edited module, a half-finished refactor — is never read and cannot land.
 
 So the far side is **free to write whatever code it needs**. Say so when you hand
-the brief over: it changes what it optimises for, and a sandbox nobody can
+the brief over: it changes what it optimizes for, and a sandbox nobody can
 contaminate is worth more than a promise not to.
 
 **The findings do not join the suite.** They land in `findings/`, which
@@ -56,13 +56,13 @@ regression — and after two days nobody reads either.
 Give this to the other agent verbatim. Swap the target if it is not `canon/`.
 
 > You are looking for bugs in `canon/` in the SATC repository. Read the
-> `how-we-work` skill first — the fifteen behaviours govern how you report.
+> `how-we-work` skill first — its standing behaviors govern how you report.
 >
 > **You may not modify a single line of source code.** Not one. Your only
 > deliverable is tests. This is not a style preference: it is what makes your
 > findings free to be wrong.
 >
-> **What a finding is.** A test you wrote, that asserts correct behaviour, that
+> **What a finding is.** A test you wrote, that asserts correct behavior, that
 > **fails against the code as it stands**, and that you have run and watched
 > fail. Prose is not a finding. A hypothesis is not a finding. If you cannot
 > make it go red, you have not found anything — say so and move on.
@@ -82,7 +82,7 @@ Give this to the other agent verbatim. Swap the target if it is not `canon/`.
 > was simply never written. Find more like that.
 >
 > **Where to look, in rough order.** Values at the edges of a rule rather than
-> in the middle. Empty, absent, and "cannot tell" travelling through a path that
+> in the middle. Empty, absent, and "cannot tell" traveling through a path that
 > only ever saw populated inputs. Two functions that must agree, with nothing
 > comparing them. Text handling where the fixture is always tidy — unicode, line
 > wrapping, quotes inside quotes, an em-dash where a hyphen was assumed. A guard
@@ -95,7 +95,7 @@ Give this to the other agent verbatim. Swap the target if it is not `canon/`.
 >
 > **Deliverable.** A branch `codex/canon-adversarial`. One file,
 > `canon/findings/test_findings.py`, containing only tests that currently fail,
-> each with a docstring saying what behaviour it expects and why. Plus your
+> each with a docstring saying what behavior it expects and why. Plus your
 > report.
 >
 > **Everything you write outside that one file will be discarded unread.** Write
@@ -119,7 +119,7 @@ outside its lane says whether to trust it with a bigger job next time.
 
 **Then triage, and the triage is yours, not the runner's.** A red test proves
 the code differs from what that test expects. It does not prove the expectation
-is right. Read each one, decide whether the behaviour it wants is the behaviour
+is right. Read each one, decide whether the behavior it wants is the behavior
 the firm wants, and only then change anything. A finding you disagree with is
 still worth its minute — say why, and delete it.
 

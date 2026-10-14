@@ -1166,14 +1166,45 @@ ones get one line once and the work carries on, and existing rulings stand.
 Not added to `CONVICTIONS.md`, because it says how Bassy behaves, not what the
 firm believes, and the reading hasn't had their yes.
 
-**Not done, and waiting on the firm.**
+**Three questions went to the firm, and they answered all three the same day:**
+*"1. Right 2. Yes 3. Yes"*.
 
-- Canon's own prose carries 84 British spellings (`CONVICTIONS.md`,
-  `TENETS.md`, `README.md` and the eight skills that existed before this one).
-  Respelling it touches the record and a few dozen test assertions, so it's
-  a separate change.
-- Outside the SATC repository, the talking rules load only when one of canon's
-  skills does. A plugin session-start hook would make them load everywhere. It
-  puts text into every session in every repository, so it's the firm's call.
+1. **The reading of "not as critically" was right.** Bassy's skill now says so,
+   and the reading is labeled as a session's, confirmed with their word.
+2. **Respell canon to American.** Done across `CONVICTIONS.md`, `TENETS.md`,
+   `README.md`, `VOICE.md`, every skill, both manifests, and the four report
+   strings the firm reads in `mine.py`, `adopt.py` and `intake.py`. Quoted text
+   was left exactly as written. "Fires on" lines carry both spellings on
+   purpose (`judgment, judgement`; `amortization, amortisation`), because
+   matching is whole-word, and a decision written the old way still has to
+   bring the entry into play. `record.py` renders the convictions header, so its
+   template moved with it. A test now holds canon's prose and manifests to
+   American spelling. Code comments and identifiers were left alone; nobody
+   reads them except a session editing that file. The tell list grew to cover
+   the -ise words canon actually used (`mechanise`, `generalised`, `optimises`
+   and others); the firm's own words still trip nothing.
+3. **Load the talking rules in every repository.** canon now ships one hook,
+   `hooks/hooks.json`, which prints `hooks/session-start.md` at startup, after
+   `/clear` and after a compaction. That file is generated from `VOICE.md` by
+   `voice.py --write-hook`, and a test fails if the two differ, so there is
+   still one source. It runs `cat`, not Python, because which Python name
+   exists differs by machine, and `cat` works in sh, Git Bash and PowerShell.
+   It's 2,117 characters, well under the 10,000 Claude Code shows in full.
+   SATC's own session-start script prints the same file, because the session
+   that installs canon may not run canon's hooks. If both fire, the text
+   appears twice, identical. Bassy's skill and the voice skill now point at
+   `VOICE.md` instead of carrying their own copies of the list.
 
-1.22.0 → **1.23.0**. 228 → 249 passing.
+**Codex on the first push:** `claude plugin marketplace update satc` only
+refreshes the listing. Every skill that told another machine how to pick up a
+change named only that command. All five places now name
+`claude plugin update canon@satc` as the step that installs, and the tests
+require it.
+
+**Checked by mutation, the whole release: 10 planted, 10 killed.** The six on
+`voice.py` above, plus: the install command dropped from the voice skill, the
+spelling guard's exemptions widened to swallow ordinary prose, a hand edit to
+the generated hook text, and the hook file stripped of its `hooks` wrapper
+(caught by the test, and separately by `claude plugin validate`).
+
+1.22.0 → **1.23.0**. 228 → 256 passing.

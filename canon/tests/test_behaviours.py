@@ -45,7 +45,7 @@ def test_all_twenty_three_are_here_and_numbered_without_a_gap():
     that compares the claim to the content."""
     got = _behaviours()
     assert [n for n, _, _ in got] == [str(i) for i in range(1, 24)]
-    assert "Twenty-three behaviours" in TEXT
+    assert "Twenty-three behaviors" in TEXT
 
 
 def test_every_behaviour_says_what_to_do():
@@ -90,7 +90,7 @@ def test_the_file_separates_what_is_available_from_what_is_loaded():
 
 
 def test_voice_is_named_as_a_behaviour_not_a_personality():
-    assert "Voice is a standing behaviour, not a personality" in FLAT
+    assert "Voice is a standing behavior, not a personality" in FLAT
     assert "perform certainty it does not have" in FLAT
 
 
@@ -286,7 +286,7 @@ def test_the_tie_out_skill_makes_you_look_at_the_source():
     what make the mismatch impossible to write past."""
     flat = " ".join((CANON / "skills" / "tie-out" / "SKILL.md")
                     .read_text(encoding="utf-8").split())
-    assert "Capture it. Do not summarise it" in flat,         "the source may still be described rather than captured"
+    assert "Capture it. Do not summarize it" in flat,         "the source may still be described rather than captured"
     assert "Screenshot the page" in flat, "no image of the source is required"
     assert "is not locating a figure" in flat,         "nothing rules out a vague citation of the source"
     assert "before** writing any verdict" in flat,         "the verdict may still be written ahead of the comparison"
@@ -306,7 +306,7 @@ def test_the_tie_out_deliverable_is_one_document_that_shows_the_mechanism():
     assert "single self-contained file" in flat, \
         "the exhibit may still be handed over as a note plus a folder"
     assert "embedded in it" in flat, "the images may still be referenced by path"
-    assert "travelling **two roads**" in flat, \
+    assert "traveling **two roads**" in flat, \
         "nothing requires the diagram of how the fact reaches the screen twice"
     assert "before reading a word" in flat, \
         "the mechanism need not be visible ahead of the prose"

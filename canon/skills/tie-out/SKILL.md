@@ -21,8 +21,8 @@ The sample of one is the point, not a limitation. Coverage is a different job.
 inside of that door: ask it for a PDF and you are checked on the way through.
 It refuses on three things. Not warns.
 
-**Part two is judgement, permanently.** No engine will ever hold it, and saying
-so protects it: an instruction filed under judgement is not a rule somebody
+**Part two is judgment, permanently.** No engine will ever hold it, and saying
+so protects it: an instruction filed under judgment is not a rule somebody
 quietly failed — it is the part where thinking is the job.
 
 **Why the file is laid out this way, and why part one exists at all.** On
@@ -109,7 +109,7 @@ had been in this file, in those words, the whole time.
 
 ---
 
-# Part two — what is judgement, permanently
+# Part two — what is judgment, permanently
 
 ## The rule everything else serves
 
@@ -153,7 +153,7 @@ is the mirror problem wearing a third hat: instead of checking yourself against
 yourself, you have checked the source against something that is not the answer.
 
 **Incident:** on 5 September 2026 a roster reported 53 of 53 lines tied against a
-bank's filed Call Report. The column was labelled *landed*. It was not: the tool
+bank's filed Call Report. The column was labeled *landed*. It was not: the tool
 had re-fetched each value from the data provider's API at the moment it ran, and
 never opened the workbook. The firm: *"ok, here is the thing - your doc here
 needs to prove the external source to your workbook values not what you said
@@ -196,7 +196,7 @@ Render it, and keep it beside its evidence:
 chrome.exe --headless=new --no-pdf-header-footer --print-to-pdf=docs/tie-out/<figure>-<date>/TIE-OUT-<figure>-<date>.pdf file:///<absolute path to the html>
 ```
 
-Then **open the rendered file and look at every page.** Behaviour 11 applies to
+Then **open the rendered file and look at every page.** Behavior 11 applies to
 your own output: an exhibit whose images failed to embed is indistinguishable
 from one whose images embedded, until somebody opens it — and the first person to
 open it should not be the auditor.
@@ -204,7 +204,7 @@ open it should not be the auditor.
 ### What the document carries, in this order
 
 **1 · A picture of the mechanism, before any prose.** Draw the same fact
-travelling **two roads**: the production path — the authority's feed, into the
+traveling **two roads**: the production path — the authority's feed, into the
 raw block, into the cell a person reads — and the check — the authority's own
 document, the filed lines, divided by hand — meeting at **difference 0**. Label
 every arrow with what happens along it (`one request`, `= X164/AM164*100`,
@@ -221,7 +221,7 @@ numbers adjacent.
 
 **4 · How to run it yourself** — numbered steps, each copy-pastable, **with the
 real values already in it**, so the reader reproduces the whole thing without
-you. Not `<your-cert>`; the cert. Behaviour 15 is the rule, and this is the
+you. Not `<your-cert>`; the cert. Behavior 15 is the rule, and this is the
 section where a document stops being a claim and becomes a tool.
 
 **5 · What it found**, **6 · What I got wrong**, and **7 · What this does not
@@ -253,7 +253,7 @@ derivation** — it is the exact gap this document exists to close.
 which statement, which publication, which series, as at what date. Say how they
 get it themselves. A source only you can see is not independent of you.
 
-**Capture it. Do not summarise it.** Screenshot the page, the statement, the
+**Capture it. Do not summarize it.** Screenshot the page, the statement, the
 filing — with the figure visible in the shot — and file it beside the exhibit:
 
 ```
@@ -478,7 +478,7 @@ the citation** — which is what this skill is.
   the mirror, and it is the commonest way this goes wrong.
 - **Do not put an intermediate on the `ours` side.** A re-fetched value, a cache,
   a dataframe, or the number the code would produce is not the number the reader
-  opens, and a column labelled `landed` that was never read out of the artifact
+  opens, and a column labeled `landed` that was never read out of the artifact
   is a label doing the work of a check.
 - **Do not stop at the match.** Record what you had to *know* to make the right
   call — which endpoint, which period convention, which sign. That knowledge is

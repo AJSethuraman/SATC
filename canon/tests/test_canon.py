@@ -337,7 +337,7 @@ def test_a_count_stated_in_a_manifest_is_a_count_somebody_made():
     # not parse, which is the one way a check must never fail.
     stated = 0
     for where, text in texts.items():
-        for m in re.finditer(r"\b([\w-]+) standing behaviours\b", text, re.I):
+        for m in re.finditer(r"\b([\w-]+) standing behaviou?rs\b", text, re.I):
             said = m.group(1).lower()
             stated += 1
             n = NUMBER_WORDS.get(said, int(said) if said.isdigit() else None)

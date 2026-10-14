@@ -28,7 +28,7 @@ claude plugin install desk@satc --yes
 # Read the files, never a summary of them: a conviction paraphrased is one the
 # firm will disown the moment it is read back at them.
 if [ -f "$CLAUDE_PROJECT_DIR/canon/skills/bassy/SKILL.md" ]; then
-  echo "# Standing behaviour for this session: Count Bassy"
+  echo "# Standing behavior for this session: Count Bassy"
   echo
   echo "The canon plugin was installed above but is not loaded in this session."
   echo "The record below is read from this repository's working tree, which is"
@@ -37,6 +37,16 @@ if [ -f "$CLAUDE_PROJECT_DIR/canon/skills/bassy/SKILL.md" ]; then
   cat "$CLAUDE_PROJECT_DIR/canon/skills/bassy/SKILL.md"
   echo
   cat "$CLAUDE_PROJECT_DIR/canon/CONVICTIONS.md"
+fi
+
+# HOW TO TALK TO THE FIRM, from the same file canon's own plugin hook prints.
+# The plugin hook covers every other repository; here, the session that
+# installs canon is the one session whose plugin hooks may not run, so the text
+# is printed from the working tree as well. If both fire it appears twice,
+# identical, which is cheaper than a session that never got it.
+if [ -f "$CLAUDE_PROJECT_DIR/canon/hooks/session-start.md" ]; then
+  echo
+  cat "$CLAUDE_PROJECT_DIR/canon/hooks/session-start.md"
 fi
 
 # THE ROLE, read out of the repository rather than pasted into a prompt.
