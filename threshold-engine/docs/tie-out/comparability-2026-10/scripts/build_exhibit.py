@@ -617,7 +617,7 @@ It returns <code>P9GTYPAR 69414, P9GTY 0, P9GTYGNM 69414, P9RERSFM 15000</code>.
 It prints <code>figures: 147  {'TIED': 131, 'DIFFERS': 13, 'COULD NOT': 3}</code> and lists the 16 that are not TIED.</li>
 <li>The photographs, then this document (canon checks it on the way through and refuses an unmarked source picture):
 <pre>python docs/tie-out/comparability-2026-10/scripts/capture.py --sources work/sources --out work/images --chrome "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-python docs/tie-out/comparability-2026-10/scripts/build_exhibit.py --figures work/figures.json --images work/images --series work/peer-series --qbp work/qbp-card.json --canon %%USERPROFILE%%\\.claude\\plugins\\cache\\satc\\canon\\1.22.0 --chrome "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --out work/TIE-OUT-comparability-2026-10.pdf</pre>
+python docs/tie-out/comparability-2026-10/scripts/build_exhibit.py --figures work/figures.json --images work/images --series work/peer-series --qbp work/qbp-card.json --canon %USERPROFILE%\\.claude\\plugins\\cache\\satc\\canon\\1.22.0 --chrome "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --out work/TIE-OUT-comparability-2026-10.pdf</pre>
 <code>work/qbp-card.json</code> is written by <code>collect.py</code> beside <code>work/figures.json</code>.</li>
 <li>Check one KeyCorp figure by hand: in the 10-K at <code>https://www.sec.gov/Archives/edgar/data/91576/000162828026010546/key-20251231.htm</code>, find
 "Figure 9. Composition of Loans": other consumer loans 4,644. Add footnote (c)'s $205 million: 4,849. KeyBank's 31 Dec 2025 Call Report, RC-C 6.b + 6.c + 6.d:
