@@ -25,7 +25,7 @@ The 2026 supervisory scenarios use 28 variables, 16 of them domestic (6 activity
   - House prices: Z.1 Price Index for Owner-Occupied Real Estate, FL075035243.Q.
   - CRE prices: Z.1 Commercial Real Estate Price Index, FL075035503.Q.
   - VIX: the **maximum** daily close in the quarter, CBOE via Bloomberg.
-- The Z.1 CRE price index used by the stress test "is based on quarterly change of the Value Weighted Costar U.S. Composite Index Excluding Multifamily". — [Fed final rule, 91 FR (2 Oct 2026), FR Doc. 2026-20247, fn. 118](https://www.govinfo.gov/content/pkg/FR-2026-10-02/html/2026-20247.htm)
+- The Z.1 CRE price index used by the stress test "is based on quarterly change of the Value Weighted Costar U.S. Composite Index Excluding Multifamily". — [Fed final rule, FR Doc. 2026-20247 (2 Oct 2026), fn. 118](https://www.govinfo.gov/content/pkg/FR-2026-10-02/html/2026-20247.htm)
 - 2026 severely adverse paths:
   - Unemployment rises 5.5 points from a 4.5% jump-off to a 10% peak in 2027:Q3, the seventh quarter, the midpoint of the 6-to-8-quarter guide.
   - Nominal house prices fall 30% and CRE prices 39%, both troughing in 2027:Q4.
