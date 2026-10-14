@@ -222,15 +222,55 @@ def test_a_year_to_date_restarted_under_a_new_parent_is_the_quarters_flow():
     from threshold_engine.peers.books import flow, quarterly_flows, restarted
     prev = {"CERT": 6557, "REPDTE": "20080930", "LNCRCD": 1.0, "DRCRCD": 94608, "CRCRCD": 6221, PARENT: "1069125"}
     now = dict(prev, REPDTE="20081231", DRCRCD=0, CRCRCD=0, **{PARENT: "1069778"})
-    assert restarted(now, prev, "DRCRCD") and flow(now, prev, "DRCRCD") == 0
+    assert restarted(now, prev) and flow(now, prev, "DRCRCD") == 0
     same = dict(now, **{PARENT: "1069125"})
-    assert not restarted(same, prev, "DRCRCD") and flow(same, prev, "DRCRCD") == -94608
-    rose = dict(now, DRCRCD=100000)
-    assert not restarted(rose, prev, "DRCRCD") and flow(rose, prev, "DRCRCD") == 100000 - 94608
+    assert not restarted(same, prev) and flow(same, prev, "DRCRCD") == -94608
+    rose = dict(now, DRCRCD=100000, CRCRCD=7000)
+    assert not restarted(rose, prev) and flow(rose, prev, "DRCRCD") == 100000 - 94608
+    level = dict(now, DRCRCD=94608, CRCRCD=6221)
+    assert not restarted(level, prev)                   # nothing fell: differenced
     for blank in ("", None, "0"):
-        assert not restarted(dict(now, **{PARENT: blank}), prev, "DRCRCD")
+        assert not restarted(dict(now, **{PARENT: blank}), prev)
+        assert not restarted(now, dict(prev, **{PARENT: blank}))
     data = {"20080930": [prev], "20081231": [now]}
     assert quarterly_flows(data, "6557", "Credit card")[1][1:3] == (0, 0)
     assert [r for r in industry({"20080331": [dict(prev, REPDTE="20080331", DRCRCD=30000, CRCRCD=2000)],
                                  "20080630": [dict(prev, REPDTE="20080630", DRCRCD=60000, CRCRCD=4000)],
                                  **data}, "Credit card")][0]["gross"] == 30000 + 30000 + 34608 + 0
+
+
+
+def test_a_restart_is_one_decision_per_filing():
+    """Push-down accounting restarts every year to date together. Card
+    charge-offs fell (100 to 60) as the parent changed; recoveries rose (5 to
+    8) but are the restarted quarter's too: 8, not 8 - 5 (review, 14 Oct)."""
+    from threshold_engine.peers.books import flow
+    prev = {"CERT": 1, "REPDTE": "20080930", "DRCRCD": 100, "CRCRCD": 5, PARENT: "P1"}
+    now = {"CERT": 1, "REPDTE": "20081231", "DRCRCD": 60, "CRCRCD": 8, PARENT: "P2"}
+    assert (flow(now, prev, "DRCRCD"), flow(now, prev, "CRCRCD")) == (60, 8)
+
+
+def test_an_absorption_then_a_restart_in_the_same_year():
+    """Bank 1 absorbs bank 2 (same parent) in Q3 and repeats its 40; in Q4
+    bank 1 is sold to a new parent and restarts its year to date at 25. The
+    40 comes off Q3 only: Q4's restarted figure never held it (review, 14
+    Oct: it read -15)."""
+    from threshold_engine.peers.books import quarterly_flows, without_repeats
+    def row(c, q, dr, cr, parent, bal=1000.0):
+        return {"CERT": c, "REPDTE": q, "LNCRCD": bal, "DRCRCD": dr, "CRCRCD": cr, PARENT: parent}
+    data = {"20160331": [row(1, "20160331", 20, 1, "P1"), row(2, "20160331", 20, 1, "P1", 100)],
+            "20160630": [row(1, "20160630", 40, 2, "P1"), row(2, "20160630", 40, 3, "P1", 100)],
+            "20160930": [row(1, "20160930", 120, 6, "P1")],
+            "20161231": [row(1, "20161231", 25, 2, "P2")]}
+    link = [{"acquirer": "1", "absorbed": "2", "quarter": "2016-09-30"}]
+    reps = repeated_ytd(data, link, ["Credit card"])
+    assert {(r["field"], r["amount"]) for r in reps} == {("DRCRCD", 40.0), ("CRCRCD", 3.0)}
+    fixed = without_repeats(data, reps)
+    flows = [(q, g, rc) for q, g, rc, _ in quarterly_flows(fixed, "1", "Credit card")]
+    assert flows == [("20160331", 20, 1), ("20160630", 20, 1), ("20160930", 40, 1), ("20161231", 25, 2)]
+    # restarted in the merger quarter itself: nothing is taken off
+    data["20160930"] = [row(1, "20160930", 30, 1, "P2")]
+    data["20161231"] = [row(1, "20161231", 70, 2, "P2")]
+    fixed = without_repeats(data, repeated_ytd(data, link, ["Credit card"]))
+    flows = [(q, g) for q, g, _, _ in quarterly_flows(fixed, "1", "Credit card")]
+    assert flows[2:] == [("20160930", 30), ("20161231", 40)]

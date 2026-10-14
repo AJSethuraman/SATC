@@ -461,8 +461,10 @@ def test_fixture_holds_every_roster_bank_every_quarter_and_field(roster_data):
     for q, rows in roster_data.items():
         assert sorted(str(r["CERT"]) for r in rows) == sorted(b["cert"] for b in ROSTER), q
         for r in rows:
-            assert set(r) == want and r["REPDTE"] == q
+            assert set(r) == want | {"RSSDHCR"} and r["REPDTE"] == q
             assert all(r[f] is not None for f in want), (q, r["CERT"])
+            # the parent is blank only for Zions, after its holding company merged into the bank
+            assert r["RSSDHCR"] is not None or (str(r["CERT"]) == "2270" and q >= "20180930"), (q, r["CERT"])
 
 
 def test_keybank_2026q2_against_the_filed_amounts(roster_data):
@@ -534,3 +536,17 @@ def test_fixture_composite_leaves_jpmorgan_out_through_first_republic(roster_dat
     kept_jumped = {(c, r["q"]) for c in PEER_CERTS for r in books[c]
                    if r["kept"] and (r["why_avg4"] or "").startswith(WHY_JUMP_PREFIX)}
     assert kept_jumped <= left
+
+
+
+def test_other_consumer_before_2001_names_the_line_not_filed():
+    """6.b (LNCONRP) is blank before 2001Q1: the balance is not filed, and
+    the reason names LNCONRP, not the sum (review, 14 Oct 2026)."""
+    from threshold_engine.peers.delinquency import DEFINITIONS, bank_delinquency
+    row = {"CERT": 1, "LNCONOTH": 500.0, "LNCONRP": None, "P3CONOTH": 5.0, "P9CONOTH": 1.0, "NACONOTH": 1.0}
+    data = {"20001231": [dict(row, REPDTE="20001231")],
+            "20010331": [dict(row, REPDTE="20010331", LNCONRP=100.0)]}
+    rows = bank_delinquency(data, "1", "Other consumer", "30-89", 1.0, 0, False, acquired=())
+    assert rows[0]["rate"] is None and rows[0]["why"] == "not filed this quarter: LNCONRP is blank"
+    assert rows[1]["rate"] == 100 * 5 / 600
+    assert "no other consumer delinquency rate is written before then" in DEFINITIONS["Other consumer"]

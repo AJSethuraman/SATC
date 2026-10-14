@@ -494,6 +494,8 @@ def main(argv=None):
                 name, sep, path = item.partition("=")
                 if not sep or not name or not path:
                     return _refused("--peer takes NAME=FILE, not %r" % item)
+                if name in peers:
+                    return _refused("--peer names %s twice; each peer once" % name)
                 peers[name] = read_csv(path)
             r = synthesize(read_csv(a.internal), read_csv(a.industry), read_csv(a.filed) if a.filed else None,
                            peers, direction=a.direction, halfwidth=a.moderate_halfwidth, low_step=a.low_step,

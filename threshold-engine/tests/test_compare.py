@@ -36,3 +36,9 @@ def test_the_command_prints_facts_and_refuses_cleanly(capsys, tmp_path):
     other = tmp_path / "y.csv"
     other.write_text("date,value\n1900-03-31,1\n", encoding="utf-8")
     assert main(["compare", str(f), str(other)]) == 2
+
+
+@pytest.mark.parametrize("date", ["2020-13-31", "20240331", "2024-3-31"])
+def test_a_date_that_is_not_a_calendar_date_is_refused(date):
+    with pytest.raises(ValueError, match="is not a calendar date written YYYY-MM-DD"):
+        by_quarter([Point(date, 1.0)], "x")

@@ -109,6 +109,38 @@ def test_each_peers_own_book_is_written_to_banks_with_its_notes(built):
     assert any("6.b, other revolving credit plans" in n for n in notes)
 
 
+def test_a_cache_without_the_parent_is_refused_by_build(data, tmp_path, monkeypatch, capsys):
+    """Every flow reads RSSDHCR to tell a restarted year to date; a cache
+    without it would turn that rule off without a word (review, 14 Oct 2026)."""
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for q, rows in data.items():
+        (cache / ("q%s.json" % q)).write_text(json.dumps([{k: v for k, v in r.items() if k != "RSSDHCR"}
+                                                          for r in rows]), encoding="utf-8")
+    monkeypatch.setattr(fdic, "urllib_fetch", no_network)
+    assert main(["peers", "build", str(tmp_path / "p.xlsx"), "--cache", str(cache),
+                 "--series-dir", str(tmp_path / "s")] + BUILD) == 2
+    err = capsys.readouterr().err
+    assert "has no RSSDHCR" in err and "refresh" in err
+
+
+def test_a_former_peers_file_is_removed_on_the_next_build(built, tmp_path, monkeypatch):
+    """banks/ files for a bank this run does not draw are removed with the
+    build's other files (review, 14 Oct 2026), and another product's are not."""
+    import shutil
+    base = tmp_path / "again"
+    shutil.copytree(built["series"], base / "series")
+    old = base / "series" / "banks" / "credit-card_gone-bank_net.csv"
+    other = base / "series" / "banks" / "auto_gone-bank_net.csv"
+    for f in (old, other):
+        f.write_text("date,value\n2020-03-31,1\n", encoding="utf-8")
+    monkeypatch.setattr(fdic, "urllib_fetch", no_network)
+    assert main(["peers", "build", str(base / "peers.xlsx"), "--cache", str(built["cache"]),
+                 "--series-dir", str(base / "series")] + BUILD) == 0
+    assert not old.exists() and other.exists()
+    assert (base / "series" / "banks" / "credit-card_jpmorgan_net.csv").exists()
+
+
 def test_the_pack_composite_series_ties_out_to_the_earlier_build(built):
     """Acceptance 2, through the CLI and a CSV: the all-15-peer composite."""
     expected = json.loads((PEERS / "expected_books.json").read_text())
@@ -303,7 +335,7 @@ def test_pull_fills_the_cache_then_fetches_only_what_is_missing(data, tmp_path, 
     assert len(fake.urls) == 4 and "fetched" in capsys.readouterr().out
     assert sorted(p.name for p in cache.glob("q*.json")) == [
         "q20250331.json", "q20250630.json", "q20250930.json", "q20251231.json"]
-    assert json.loads((cache / "q20251231.json").read_text()) == [dict(r, RSSDHCR=None) for r in data["20251231"]]
+    assert json.loads((cache / "q20251231.json").read_text()) == data["20251231"]
     assert "RSSDHCR" in fake.urls[0]                      # the parent, for common control
     assert "LNCRCD" in fake.urls[0] and "DRRERSFM" in fake.urls[0]
 
@@ -738,7 +770,7 @@ def test_a_delinquency_csv_is_the_module_over_the_cache(dq_built):
                 # The composite's average leaves out the banks the jump blanked; the note says so.
                 assert ruled and "minimum book 1,000,000" in ruled[0] and "KeyBank exempt" in ruled[0]
                 assert "The jump 0.25 never touches a quarter-end rate" in ruled[0]
-                assert "each without the banks whose own four-quarter average the jump blanked" in ruled[0]
+                assert "each without the banks whose own four-quarter average the jump or the acquisition share (0.05) blanked" in ruled[0]
             left = [n for n in notes if n.startswith(("Left out of this average", "No bank was left out"))]
             assert len(left) == (who == "pack-composite" and basis == "four-quarter average"), (who, basis)
     # The quarter-end rate is the filing's own ratio, and the average is not a copy of it.
@@ -1000,9 +1032,22 @@ def test_the_composite_average_names_the_banks_it_left_out(dq_built):
     by short name and certificate, with the quarters, so what was left out is
     shown rather than hidden."""
     notes, _ = read_csv(dq_built["series"] / "credit-card_pack-composite_delinquency-30-89_four-quarter-average.csv")
-    line = next(n for n in notes if n.startswith("Left out of this average because the jump blanked"))
-    assert "usually an acquisition" in line
+    line = next(n for n in notes if n.startswith("Left out of this average because their own four-quarter "
+                                                 "average was blanked by the jump"))
+    assert "the book moved by more than the jump" in line
     assert re.search(r"[A-Za-z][^;(]* \(\d+\) \d{4}Q[1-4]", line)
+
+
+def test_the_left_out_note_names_each_banks_own_reason():
+    """A bank left out by the acquisition share is not said to be left out by
+    the jump (review, 14 Oct 2026: a flat book was blamed on the jump)."""
+    from threshold_engine.peers.run import left_out_note
+    line = left_out_note({"2021Q2": [("1", "the acquisition share")], "2021Q3": [("2", "the jump")]},
+                         [("2021Q2", 1.0), ("2021Q3", 1.0)], {"1": "Bank One (1)", "2": "Bank Two (2)"})
+    assert line == ("Left out of this average because their own four-quarter average was blanked by the "
+                    "jump (the book moved by more than the jump): Bank Two (2) 2021Q3; and blanked by the "
+                    "acquisition share (recorded acquisitions brought in at least that share of the book): "
+                    "Bank One (1) 2021Q2.")
 
 
 # ---------------------------------------------------------------- build: all files change together, or none

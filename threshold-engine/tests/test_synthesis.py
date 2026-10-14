@@ -132,3 +132,45 @@ def test_the_command(tmp_path, capsys):
 def test_a_line_the_source_cannot_draw_cannot_be_led_from_it():
     with pytest.raises(ValueError, match="line 5 High is led by internal, which has no such line: line 5"):
         run(["internal"] * 4)
+
+
+def test_a_line_2_at_or_below_zero_is_refused_under_the_floor():
+    """scale.py checks High beyond the worst before Moderate-Low at or below
+    zero; the partial lines must still refuse a line 2 at or below zero
+    (review, 14 Oct 2026: it chose -0.156)."""
+    calm = series(2014, [0.3, 0.6, 0.2, 0.7, 0.25, 0.65, 0.3, 0.6, 0.2, 0.7, 0.3, 0.5])
+    args = dict(SETTINGS, low_step=5.0, high_z=3.0, translation="median ratio", peer_percentiles=None,
+                leads=["internal", "internal", "internal", "industry"])
+    with pytest.raises(ValueError, match="led by internal, which has no such line: Moderate-Low would "
+                                         "begin at or below zero"):
+        synthesize(calm, INDUSTRY, None, {}, **args)
+
+
+def test_a_gap_or_a_bad_date_is_refused_by_name():
+    gapped = INTERNAL[:10] + INTERNAL[12:]
+    with pytest.raises(ValueError, match="the internal series: .*A missing period is refused"):
+        synthesize(gapped, INDUSTRY, FILED, PEERS, translation="median ratio", peer_percentiles=PCT,
+                   leads=["internal", "internal", "internal", "industry"], **SETTINGS)
+    bad = dict(PEERS, p0=[Point("2014-13-31", 1.0)] + PEERS["p0"][1:])
+    with pytest.raises(ValueError, match="peer p0: '2014-13-31' is not a calendar date"):
+        synthesize(INTERNAL, INDUSTRY, FILED, bad, translation="median ratio", peer_percentiles=PCT,
+                   leads=["internal", "internal", "internal", "industry"], **SETTINGS)
+
+
+def test_peers_without_the_filed_series_say_so():
+    with pytest.raises(ValueError, match=r"give it \(--filed\)"):
+        synthesize(INTERNAL, INDUSTRY, None, PEERS, translation="median ratio", peer_percentiles=PCT,
+                   leads=["internal", "internal", "internal", "industry"], **SETTINGS)
+
+
+def test_a_peer_named_twice_is_refused(tmp_path, capsys):
+    f = tmp_path / "p.csv"
+    f.write_text("date,value\n" + "".join("%s,%r\n" % (p.date, p.value) for p in PEERS["p0"]), encoding="utf-8")
+    i = tmp_path / "i.csv"
+    i.write_text("date,value\n" + "".join("%s,%r\n" % (p.date, p.value) for p in INTERNAL), encoding="utf-8")
+    args = ["synthesize", "--internal", str(i), "--industry", str(i), "--filed", str(i),
+            "--peer", "a=%s" % f, "--peer", "a=%s" % f, "--unit", "%", "--direction", "higher_is_worse",
+            "--moderate-halfwidth", "0.5", "--low-step", "1.0", "--high-z", "2.5", "--on-the-line", "worse",
+            "--floor-at-zero", "yes", "--translation", "none", "--peer-percentiles", "20", "40", "75", "95",
+            "--leads", "internal", "internal", "internal", "internal"]
+    assert main(args) == 2 and "names a twice" in capsys.readouterr().err

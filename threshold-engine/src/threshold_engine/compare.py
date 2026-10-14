@@ -10,6 +10,7 @@ decides how close is close enough: no tolerance, no verdict.
 """
 from __future__ import annotations
 
+import datetime as dt
 from typing import Dict, List, Sequence
 
 from .series import Point, read_csv
@@ -21,6 +22,12 @@ def by_quarter(points: Sequence[Point], name: str) -> Dict[str, float]:
     points in one quarter are refused: the series is not quarterly."""
     out: Dict[str, float] = {}
     for p in points:
+        try:
+            ok = len(p.date) == 10 and dt.date.fromisoformat(p.date).isoformat() == p.date
+        except (TypeError, ValueError):
+            ok = False
+        if not ok:
+            raise ValueError("%s: %r is not a calendar date written YYYY-MM-DD" % (name, p.date))
         y, m = int(p.date[:4]), int(p.date[5:7])
         q = "%dQ%d" % (y, (m - 1) // 3 + 1)
         if q in out:

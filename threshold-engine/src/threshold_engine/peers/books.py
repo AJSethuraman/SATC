@@ -189,24 +189,40 @@ def _parent(row: dict) -> str:
     return "" if v == "0" else v
 
 
-def restarted(row: dict, prev: dict, field: str) -> bool:
-    """True when a bank's year-to-date ``field`` started again mid-year: it
-    fell below the quarter before's, and the bank's parent (``PARENT``)
-    changed between the two filings. A bank bought by a new holding company
-    can restart its year to date from the acquisition (push-down accounting),
-    so its filed year-to-date is the quarter's flow; differencing would read
-    a negative one. Found on 14 Oct 2026 against the FDIC's Quarterly Banking
-    Profile: National City under PNC, 2008Q4, -$94.6m of card charge-offs,
-    and four quarters like it. Both parents must be filed: an unknown parent
-    is never read as a change."""
+#: Set by ``without_repeats`` on the rows it touches: whether that filing
+#: restarted, decided on the filings as filed. A row it changed holds a
+#: reduced year to date, which must not be read as a fall.
+_RESTARTED = "_restarted"
+
+
+def _ytd_fields(row: dict, prev: dict) -> List[str]:
+    """The year-to-date fields (charge-offs ``DR*``, recoveries ``CR*``) both
+    filings carry."""
+    return [k for k in row if k[:2] in ("DR", "CR") and k in prev]
+
+
+def restarted(row: dict, prev: dict) -> bool:
+    """True when a bank's year to date started again mid-year: its parent
+    (``PARENT``) changed between the two filings and at least one of its
+    year-to-date fields fell. A bank bought by a new holding company can
+    restart its year to date from the acquisition (push-down accounting), and
+    then every year-to-date field restarts together, so the decision is one
+    per filing, never one per field: the filed year-to-date is the quarter's
+    flow for charge-offs and recoveries alike. Found on 14 Oct 2026 against
+    the FDIC's Quarterly Banking Profile: National City under PNC, 2008Q4,
+    -$94.6m of card charge-offs, and four quarters like it. Both parents must
+    be filed: an unknown parent is never read as a change."""
+    if _RESTARTED in row:
+        return row[_RESTARTED]
     a, b = _parent(row), _parent(prev)
-    return bool(a and b and a != b) and _num(row, field) < _num(prev, field)
+    return bool(a and b and a != b) and any(_num(row, f) < _num(prev, f) for f in _ytd_fields(row, prev))
 
 
 def flow(row: dict, prev: dict, field: str) -> float:
     """A non-Q1 quarter's flow: year-to-date less the quarter before's, or
-    the year-to-date itself where it ``restarted``."""
-    return _num(row, field) if restarted(row, prev, field) else _num(row, field) - _num(prev, field)
+    the year-to-date itself where the filing ``restarted``. ``field`` may be
+    a sum (``"A+B"``)."""
+    return _num(row, field) if restarted(row, prev) else _num(row, field) - _num(prev, field)
 
 
 def quarterly_flows(data: Dict[str, list], cert, product: str) -> List[tuple]:
@@ -377,19 +393,43 @@ def without_repeats(data: Dict[str, list], repeats: Sequence[dict]) -> Dict[str,
     """``data`` with each repeated amount taken off the survivor's
     year-to-date, in the merger quarter and every later quarter of the same
     calendar year, so every flow measured from it counts each dollar once.
-    The rows changed are copies; ``data`` itself is not touched."""
+
+    Where the survivor's own year to date ``restarted`` (a new parent), the
+    restarted figure never held the absorbed bank's amounts: nothing is taken
+    off from that quarter on, and nothing at all when it restarted in the
+    merger quarter itself. Whether a filing restarted is decided on the
+    filings as filed and kept on the rows changed, so a reduced year to date
+    is never read as a fall. The rows changed are copies; ``data`` itself is
+    not touched."""
     if not repeats:
         return data
+    qs, snap = _by_cert(data)
     out = {q: list(rows) for q, rows in data.items()}
+    pos = {q: {str(r["CERT"]): k for k, r in enumerate(rows)} for q, rows in data.items()}
+
+    def raw_restart(cert, i):
+        if i == 0 or not _follows(qs[i - 1], qs[i]) or qs[i][4:6] == "03":
+            return False
+        row, prev = snap[qs[i]].get(cert), snap[qs[i - 1]].get(cert)
+        return bool(row and prev) and restarted(row, prev)
+
     for rp in repeats:
-        for q in sorted(out):
+        cert = rp["acquirer"]
+        for i, q in enumerate(qs):
             if q[:4] != rp["quarter"][:4] or q < rp["quarter"]:
                 continue
-            for k, r in enumerate(out[q]):
-                if str(r["CERT"]) == rp["acquirer"]:
-                    r = dict(r)
-                    r[rp["field"]] = _num(r, rp["field"]) - rp["amount"]
-                    out[q][k] = r
+            if raw_restart(cert, i):
+                k = pos[q].get(cert)
+                if k is not None:
+                    out[q][k] = dict(out[q][k], **{_RESTARTED: True})
+                break
+            k = pos[q].get(cert)
+            if k is None:
+                continue
+            r = dict(out[q][k])
+            r[rp["field"]] = _num(r, rp["field"]) - rp["amount"]
+            r[_RESTARTED] = False           # raw_restart said no, for this quarter
+            out[q][k] = r
     return out
 
 

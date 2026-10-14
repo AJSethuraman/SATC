@@ -20,11 +20,14 @@ the same banks.
 |---|---|---|
 | Year-to-date differenced, as before 14 Oct | 52 of 82 | $14,683.2m |
 | With the absorption fix (`repeated_ytd`) | 70 of 82 | $151.1m |
-| With the restart rule too (the tool now) | 75 of 82 | $14.3m |
+| With the restart rule too (the tool now) | 76 of 82 | $5.6m |
 
-**The restart rule** (`books.restarted`): a bank's year-to-date that falls
-while its parent changes restarted under the new owner, so it is the
-quarter's flow. It closed National City under PNC (2008Q4, -$94.6m), BBVA
+**The restart rule** (`books.restarted`): when a bank's parent changes and
+any of its year-to-date figures falls, the filing restarted under the new
+owner, and its year to date is the quarter's flow, for charge-offs and
+recoveries alike (one decision per filing: a review on 14 Oct found the first
+version deciding field by field, and that the absorption fix kept
+subtracting after a restart; both fixed). It closed National City under PNC (2008Q4, -$94.6m), BBVA
 USA under PNC (2021Q2, -$20.4m), First Niagara under KeyCorp (2016Q3,
 -$6.4m) and two smaller quarters, and 2007Q3 from -$14.0m to -$0.1m. The rule
 is read from the numbers and the Call Report's push-down accounting, not from
@@ -34,7 +37,6 @@ an FDIC statement of its method; the QBP's Notes to Users do not describe it.
 
 | Quarter | $m | What is known |
 |---|---|---|
-| 2022Q4 | -8.7 | Not explained |
 | 2018Q4 | +4.4 | Bank 25894 absorbed 15432 under a *different* parent; QBP takes off 15432's year-to-date (4.364), the tool does not (it does so only under common control) |
 | 2011Q2 | +0.7 | The restart rule fired on bank 680 (year-to-date 709 to 0, new parent); QBP differenced it. The rule overshoots here |
 | 2015Q3 | +0.1 | The same, bank 58978 |
@@ -59,10 +61,10 @@ fields), and gross and net charge-offs (the tool's flow). It writes
 
 | Product | Balance | 30-89 | 90+ | Nonaccrual | Gross | Net |
 |---|---|---|---|---|---|---|
-| Credit card | 82/82 | 82/82 | 82/82 | 82/82 | 79/82 | 79/82 |
+| Credit card | 82/82 | 82/82 | 82/82 | 82/82 | 80/82 | 80/82 |
 | Auto (QBP from 2013Q3) | 52/52 | 52/52 | 52/52 | 52/52 | 52/52 | 52/52 |
-| Other consumer + auto (6.b + 6.c + 6.d) | 80/82 | 80/82 | 82/82 | 80/82 | 73/82 | 74/82 |
-| Home equity lines | 35/82 | 80/82 | 82/82 | 80/82 | 77/82 | 76/82 |
+| Other consumer + auto (6.b + 6.c + 6.d) | 80/82 | 80/82 | 82/82 | 80/82 | 73/82 | 76/82 |
+| Home equity lines | 35/82 | 80/82 | 82/82 | 80/82 | 76/82 | 77/82 |
 | First-lien mortgage | 78/82 | 79/82 | 81/82 | 79/82 | 66/82 | 51/82 |
 
 - **Other consumer:** the QBP's "Other Loans to Individuals" is 6.b + 6.c +

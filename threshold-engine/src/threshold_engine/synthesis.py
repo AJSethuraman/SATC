@@ -43,7 +43,7 @@ from typing import Dict, List, Optional, Sequence
 
 from .scale import scale as _scale, score as _score
 from .compare import by_quarter
-from .series import Point
+from .series import Point, SeriesError, check as _check_series
 
 SOURCES = ("internal", "industry", "peers")
 TRANSLATIONS = ("median ratio", "none")
@@ -68,10 +68,25 @@ def _lines(values: Sequence[float], direction, halfwidth, low_step, high_z, floo
     if out["refused"] and out["refused"].startswith(HIGH_BEYOND_WORST):
         sgn = 1 if direction == "higher_is_worse" else -1
         med, move = out["median"], out["typical_yearly_move"]
-        out["bounds"] = [med - sgn * low_step * move, med - sgn * halfwidth * move,
-                         med + sgn * halfwidth * move, None]
+        b2 = med - sgn * low_step * move
+        if floor_at_zero and sgn > 0 and b2 <= 0:
+            # scale.py checks this after High, so it never got to say it
+            out["refused"] = "Moderate-Low would begin at or below zero"
+            return out
+        out["bounds"] = [b2, med - sgn * halfwidth * move, med + sgn * halfwidth * move, None]
         out["refused"] = "line 5: " + out["refused"]
     return out
+
+
+def _quarterly(points: Sequence[Point], name: str) -> Sequence[Point]:
+    """The series as ``series.check`` takes it: real dates, one a quarter, no
+    gap, no repeat, at least one. A missing quarter is refused, never closed
+    up: the typical yearly move compares each quarter with the one four
+    before, and a closed-up gap would compare the wrong ones."""
+    try:
+        return _check_series(list(points), "quarterly")
+    except SeriesError as exc:
+        raise ValueError("%s: %s" % (name, exc)) from None
 
 
 def _ratio(num: Dict[str, float], den: Dict[str, float]) -> dict:
@@ -123,7 +138,15 @@ def synthesize(internal: Sequence[Point], industry: Sequence[Point], filed: Opti
     if (peer_percentiles is None) != (not peers):
         raise ValueError("peer percentiles and peer series go together: give both, or neither "
                          "(then no line can be led by peers)")
+    if peers and filed is None:
+        raise ValueError("peers are carried to the internal level by KeyBank's filed series: give it "
+                         "(--filed), or give no peers")
     scale_args = (direction, halfwidth, low_step, high_z, floor_at_zero)
+    internal = _quarterly(internal, "the internal series")
+    industry = _quarterly(industry, "the industry series")
+    if filed is not None:
+        filed = _quarterly(filed, "KeyBank's filed series")
+    peers = {name: _quarterly(pts, "peer %s" % name) for name, pts in (peers or {}).items()}
     qi, qx = by_quarter(internal, "the internal series"), by_quarter(industry, "the industry series")
     if not qi:
         raise ValueError("the internal series is empty")

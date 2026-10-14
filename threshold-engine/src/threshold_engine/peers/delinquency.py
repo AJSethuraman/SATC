@@ -110,6 +110,16 @@ FIELDS = {
     "Auto": ("LNAUTO", "P3AUTO", "P9AUTO", "NAAUTO"),
 }
 
+#: What a product's delinquency notes must say about its definition, where
+#: it differs from the charge-off series' (``books.DEFINITIONS``).
+DEFINITIONS = {
+    "Other consumer": ("Other consumer's balance is RC-C 6.b, other revolving credit plans (LNCONRP), plus "
+                       "6.d (LNCONOTH), matching its past-due lines (RC-N 5.c), which include those plans. "
+                       "The FDIC data has no 6.b before 2001Q1, so no other consumer delinquency rate is "
+                       "written before then. Auto was inside 6.d until 2011Q1, when it got its own line "
+                       "(6.c)."),
+}
+
 #: Measure key -> which of (p3, p9, na) make its numerator.
 MEASURES = {
     "30-89": ("p3",),
@@ -193,8 +203,8 @@ def _amounts(row: dict, balance: str, nums: Sequence[str]):
     vals = [_filed(row, f) for f in nums]
     blank = next((f for f, v in zip(nums, vals) if v is None), None)
     num = None if blank else sum(vals)
-    if bal is None:
-        blank = balance
+    if bal is None:                 # name the part not filed, not the sum
+        blank = next((f for f in parts(balance) if _filed(row, f) is None), balance)
     return num, bal, blank
 
 
@@ -252,8 +262,8 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
             why = WHY_ABSENT
         else:
             num, bal, blank = _amounts(r, balance_field, nums)
-            if blank == balance_field:
-                why = WHY_BLANK % balance_field
+            if bal is None:                 # the balance, or a part of it, not filed
+                why = WHY_BLANK % blank
             elif bal <= 0:
                 why = WHY_NO_BOOK
             elif bal < min_book and not exempt_min_book:

@@ -995,3 +995,47 @@ been run on KeyBank's data.
   internal series yet.
 - `tests/test_internal.py`: 86 passed. Full suite: 914 passed, 0 failed
   (49 minutes).
+
+## 14 October 2026, an independent review of the day's code (Codex still over its limit)
+
+Codex has been over its usage limit since #432. In its place, four review
+agents, one angle each (arithmetic, the no-default rule, input edges, tests
+that would not catch a bug), each followed by an agent told to refute what
+it found by running the code. 30 raised, 30 reproduced. Fixed:
+
+- **The absorption fix kept subtracting after a restart.** A bank that
+  absorbed an affiliate and was then sold, the same year, read a negative
+  flow (-15 for 25). `without_repeats` now stops at the first quarter the
+  survivor's year to date restarted, and takes nothing off when it
+  restarted in the merger quarter itself.
+- **A restart was decided field by field.** Push-down accounting restarts
+  every year to date together; one filing could be read as restarted for
+  charge-offs and differenced for recoveries. Now one decision per filing
+  (parent changed, and any year-to-date field fell), for the public series
+  and internal reconcile alike. With both fixes the card industry series
+  ties to the QBP in 76 of 82 quarters, total gap $5.6m (from $14.3m);
+  2022Q4's -$8.7m, unexplained this morning, closed.
+- **`peers build` now requires each filer's parent (RSSDHCR)** in the cache:
+  without it the restart rule was off without a word. A cache pulled
+  before today is refused and says to pull again with refresh. The three
+  peers fixtures gained RSSDHCR from the public API (blank only for Zions
+  from 2018Q3, when its holding company merged into the bank).
+- **Synthesis:** a line 2 at or below zero is refused under the floor
+  (scale.py checks it after High, so it never got to); every series is
+  checked as the workbook checks it (real dates, no gap, no repeat); peers
+  without `--filed`, and a peer named twice, are refused by name.
+  `compare` refuses a date that is not a calendar date.
+- **Internal import:** `internal pull` records absorptions back to the
+  earliest quarter in its cache, so a later short pull drops none; two
+  segments whose series files would share a name are refused.
+- **Notes:** the composite's four-quarter average names each bank's own
+  reason (the jump or the acquisition share), and its rule line names the
+  share; other consumer delinquency says no rate is written before 2001Q1
+  and names LNCONRP as the line not filed. Per-peer files for a bank no
+  longer drawn are removed with the build's other files.
+- **Tests that would not have caught a bug** (pack median, per-peer
+  values, the build's absorption and acquisition wiring, the composite's
+  acquisition left-outs, synthesis lower-is-worse, guards in
+  `repeated_ytd_fields` and `acquired_quarters`): given to a separate
+  agent, each to be proved by applying the mutation and watching it fail.
+  Recorded below when merged.

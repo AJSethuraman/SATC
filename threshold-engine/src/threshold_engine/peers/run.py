@@ -328,22 +328,30 @@ def quarter_runs(labels):
 
 def left_out_note(left_out, tail, names):
     """The note line on a pack composite's four-quarter average naming, over
-    the quarters written (``tail``), the banks left out of it because the jump
-    blanked their own four-quarter average. ``left_out`` is ``{YYYYQn: [cert]}``
-    (``composite_delinquency``'s ``avg4_left_out``), ``names`` ``{cert: label}``.
-    Written either way, so what was left out is never hidden."""
+    the quarters written (``tail``), the banks left out of it and why: their
+    own four-quarter average was blanked by the jump or by the acquisition
+    share. ``left_out`` is ``{YYYYQn: [(cert, reason)]}``, the reason "the
+    jump" or "the acquisition share" (``composite_delinquency``'s
+    ``avg4_left_out`` with each bank's own ``why_avg4``), ``names`` ``{cert:
+    label}``. Written either way, so what was left out is never hidden."""
     written = {q for q, _ in tail}
     by_bank = {}
-    for q, certs in left_out.items():
+    for q, items in left_out.items():
         if q in written:
-            for c in certs:
-                by_bank.setdefault(c, []).append(q)
+            for c, why in items:
+                by_bank.setdefault((why, c), []).append(q)
     if not by_bank:
-        return "No bank was left out of this average by the jump in the quarters written."
-    return ("Left out of this average because the jump blanked their own four-quarter average (the "
-            "book moved by more than the jump, usually an acquisition): %s."
-            % "; ".join("%s %s" % (names.get(c, c), quarter_runs(sorted(qs)))
-                        for c, qs in by_bank.items()))
+        return ("No bank was left out of this average by the jump or the acquisition share in the "
+                "quarters written.")
+    parts_ = []
+    for why in ("the jump", "the acquisition share"):
+        banks = [(c, qs) for (w, c), qs in by_bank.items() if w == why]
+        if banks:
+            parts_.append("blanked by %s (%s): %s" % (
+                why, "the book moved by more than the jump" if why == "the jump" else
+                "recorded acquisitions brought in at least that share of the book",
+                "; ".join("%s %s" % (names.get(c, c), quarter_runs(sorted(qs))) for c, qs in banks)))
+    return "Left out of this average because their own four-quarter average was " + "; and ".join(parts_) + "."
 
 
 def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_book, exempt_self,
@@ -368,7 +376,8 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                  "least %d banks in a composite. The jump %g never touches a quarter-end rate, which is "
                  "one filing per bank; the four-quarter average is the mean of four composite "
                  "quarter-end rates, each without the banks whose own four-quarter average the jump "
-                 "blanked that quarter." % (book, exempt, min_banks, jump))
+                 "or the acquisition share (%g) blanked that quarter." % (book, exempt, min_banks, jump,
+                                                                          acquisition_share))
     certs = [b["cert"] for b in pack]
     made = []
     for p in products:
@@ -403,8 +412,12 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                             "never read as 0.",
                             words[0].upper() + words[1:] + ".", source] + ([ruled] if ruled else [])
                     note += D.comparability(p, m)
-                    note += [books.DEFINITIONS[p]] if p in books.DEFINITIONS else []
-                    left_out = ({r["q"]: r["avg4_left_out"] for r in comp}
+                    said = D.DEFINITIONS.get(p, books.DEFINITIONS.get(p))
+                    note += [said] if said else []
+                    own = {c: {x["q"]: x["why_avg4"] or "" for x in banks_[c]} for c in certs}
+                    left_out = ({r["q"]: [(c, "the jump" if own[c].get(r["q"], "").startswith(D.WHY_JUMP_PREFIX)
+                                           else "the acquisition share") for c in r["avg4_left_out"]]
+                                 for r in comp}
                                 if rows is comp and basis == "four-quarter average" else None)
                     made.append((out_dir / ("%s_%s_delinquency-%s_%s.csv" % (slug(p), who, slug(m), slug(basis))),
                                  D.values(rows, basis), note, p, left_out))
@@ -546,9 +559,11 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     def no_fetch(url):
         raise ValueError("build reads the cache only and never fetches")
     flow_products = list(products) + [p for c in combined_ for p in c if p not in products]
-    # The parent (books.PARENT) is not asked for here: repeated_ytd refuses,
-    # naming the banks, only where an absorption needs it and it is missing.
-    fields = charge_off_fields(flow_products)
+    # The parent (books.PARENT) is required: every flow reads it to tell a
+    # year to date restarted under a new owner (books.restarted), and without
+    # it that rule would be off without a word. A cache pulled without it is
+    # refused by fdic.pull, which says to pull again with refresh.
+    fields = charge_off_fields(flow_products) + [books.PARENT]
     if delinquency:
         fields += [f for f in D.fields_for(products) if f not in fields]
     data = fdic.pull(quarters, fields, cache, fetch=no_fetch)
@@ -670,7 +685,13 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                 parts.append(part)
                 books.write_series(tail, part, lines)
                 moves.append((part, path))
-        gone = _commit(moves, [path for path, tail, *_ in series if not tail], say)
+        # A peer's file from an earlier run whose bank this run does not draw
+        # (it left the roster, or its short name changed) is removed too, so
+        # the synthesis is never fed a bank that is no longer a peer.
+        planned = {str(path).lower() for path, *_ in series}
+        stale = [f for f in sorted((out_dir / "banks").glob("*.csv"))
+                 if f.name.split("_")[0] in {slug(p) for p in products} and str(f).lower() not in planned]
+        gone = _commit(moves, [path for path, tail, *_ in series if not tail] + stale, say)
         parts = []
     finally:
         for f in parts + [part_out]:

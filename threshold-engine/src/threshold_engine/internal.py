@@ -486,6 +486,17 @@ def _parse(path):
         if name not in seg_lines and not unreadable:
             problems.append("line %d: segment '%s' is described but no row holds it; remove the note, "
                             "or check the name matches the rows exactly" % (n, name))
+    # Two segments of one product whose series files would share a name
+    # (they differ only in case or punctuation) would overwrite each other.
+    from .peers.run import slug
+    named: Dict[tuple, str] = {}
+    for r in out_rows:
+        k = (r.product, slug(r.segment))
+        if named.setdefault(k, r.segment) != r.segment:
+            problems.append("segments '%s' and '%s' of %s differ only in case or punctuation, so their "
+                            "series files would have the same name; rename one"
+                            % (named[k], r.segment, r.product))
+            named[k] = r.segment
     if problems:
         return None, problems
     ordered = tuple(sorted(out_rows, key=lambda r: (PRODUCTS.index(r.product), r.segment, qindex(r.quarter))))
@@ -859,8 +870,7 @@ def _filed_flow(filed, present, cert, repdte, field):
     prev, why = _filed_amount(filed, present, cert, before, field)
     if prev is None:
         return None, why
-    a, b = books._parent(filed[repdte][cert]), books._parent(filed[before][cert])
-    if a and b and a != b and now < prev:
+    if books.restarted(filed[repdte][cert], filed[before][cert]):
         return now, None
     return now - prev, None
 
@@ -1091,7 +1101,10 @@ def pull(cache, first: str, last: str, fetch=None) -> Dict[str, list]:
     import json
     from .peers import fdic
     data = fdic.pull(fdic.quarter_ends(first, last), FIELDS + [books.PARENT], cache, fetch=fetch)
-    rows = fdic.history("%s-01-01" % first[:4], fetch=fetch)
+    # The record covers every quarter in the cache, not only this pull's, so
+    # a later, shorter pull never drops an earlier absorption.
+    held = sorted(f.name[1:9] for f in Path(cache).glob("q*.json") if f.name[1:9].isdigit())
+    rows = fdic.history("%s-01-01" % min([first[:4]] + [h[:4] for h in held]), fetch=fetch)
     (Path(cache) / ABSORPTIONS).write_text(json.dumps(fdic.absorptions(rows), indent=1), encoding="utf-8")
     return data
 

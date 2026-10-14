@@ -609,24 +609,26 @@ def test_reconcile_refuses_without_the_absorption_record(tmp_path):
         I.read_absorptions(d)
 
 
-def _card_gross_q2(tmp_path, filed, links):
+def _card_gross_q2(tmp_path, filed, links, measure="gross_charge_offs"):
     data = [x for x in INTERNAL if x[1] == "Credit card"]
     internal = I.read(internal_file(tmp_path, data))
     ex = I.read_exclusions(exclusions_file(tmp_path, EXCLUSIONS[:2]))
     rows = I.reconcile(internal, filed, ex, 0.01, bank=BANK, absorptions=links)
     return next(r for r in rows if r["comparison"] == "Credit card" and r["quarter"] == "2025Q2"
-                and r["measure"] == "gross_charge_offs")
+                and r["measure"] == measure)
 
 
 def test_a_repeated_year_to_date_is_taken_off_the_filing_as_the_public_series_do(tmp_path):
     """KeyBank absorbs bank 999 under the same parent in 2025Q2; 999 filed a
     Q1 year to date of 4, which KeyBank's Q2 year to date repeats (25 + 4)."""
     filed = {Q1: [dict(CERT=int(KEY), REPDTE=Q1, RSSDHCR="1", **FILED[Q1]),
-                  dict(CERT=999, REPDTE=Q1, RSSDHCR="1", **dict(FILED[Q1], DRCRCD=4))],
-             Q2: [dict(CERT=int(KEY), REPDTE=Q2, RSSDHCR="1", **dict(FILED[Q2], DRCRCD=29))]}
+                  dict(CERT=999, REPDTE=Q1, RSSDHCR="1", **dict(FILED[Q1], DRCRCD=4, CRCRCD=1))],
+             Q2: [dict(CERT=int(KEY), REPDTE=Q2, RSSDHCR="1", **dict(FILED[Q2], DRCRCD=29, CRCRCD=6))]}
     link = [{"acquirer": KEY, "absorbed": "999", "quarter": "2025-06-30"}]
     assert float(_card_gross_q2(tmp_path, filed, [])["filed"]) == 19
     assert float(_card_gross_q2(tmp_path, filed, link)["filed"]) == 15
+    # recoveries too: net is (29 - 4 - 10) - (6 - 1 - 2) = 12, not 15 or 11
+    assert float(_card_gross_q2(tmp_path, filed, link, "net_charge_offs")["filed"]) == 12
 
 
 def test_a_year_to_date_restarted_under_a_new_parent_is_the_quarters(tmp_path):
@@ -690,3 +692,31 @@ def test_cli_reconcile(tmp_path, capsys):
     (d / ("q%s.json" % Q2)).unlink()
     assert main(args + ["--tolerance", "0.01"]) == 2
     assert "first missing 2025Q2" in capsys.readouterr().err
+
+
+
+def test_segments_whose_files_would_share_a_name_are_refused(tmp_path):
+    """'Prime' and 'PRIME' would both write internal_credit-card_prime_*.csv
+    (review, 14 Oct 2026: one segment's series were lost)."""
+    rows = [",".join([q, "Credit card", seg, "100", "1", "", "0", "4", "2", "1"])
+            for seg in ("Prime", "PRIME") for q in ("2025Q1", "2025Q2")]
+    problems = I.check(write(tmp_path, rows))
+    assert any("segments 'Prime' and 'PRIME' of Credit card differ only in case or punctuation" in x
+               for x in problems), problems
+
+
+def test_pull_records_absorptions_for_every_cached_quarter(tmp_path):
+    asked = []
+
+    def fake(url):
+        asked.append(url)
+        if "/history" in url:
+            return {"meta": {"total": 0}, "data": []}
+        return {"meta": {"total": 1}, "data": [{"data": dict(CERT=int(KEY), REPDTE="20250630",
+                                                             RSSDHCR="1", **FILED[Q2])}]}
+    c = tmp_path / "c"
+    c.mkdir()
+    (c / "q20160331.json").write_text(json.dumps([dict(CERT=int(KEY), REPDTE="20160331", RSSDHCR="1",
+                                                       **FILED[Q1])]), encoding="utf-8")
+    I.pull(c, "2025Q2", "2025Q2", fetch=fake)
+    assert any("/history" in u and "2016-01-01" in u for u in asked)
