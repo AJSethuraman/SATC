@@ -18,7 +18,7 @@ rec = set()
 for pk, tr in (("1990Q3", "1991Q1"), ("2001Q1", "2001Q4"), ("2007Q4", "2009Q2"), ("2019Q4", "2020Q2")):
     rec.update(qs(i) for i in range(qi(pk), qi(tr) + 1))
 with open(OUT + "/card_losses_and_unemployment_change.csv", "w", newline="") as f:
-    w = csv.writer(f)
+    w = csv.writer(f, lineterminator="\n")
     w.writerow(["quarter", "card_nco_ttm_pct", "unemployment_change_4q_pts", "nber_recession"])
     for q in sorted(card, key=qi):
         if qi(q) < qi("1986Q1"):
@@ -26,7 +26,7 @@ with open(OUT + "/card_losses_and_unemployment_change.csv", "w", newline="") as 
         prev = qs(qi(q) - 4)
         w.writerow([q, card[q], round(UR[q] - UR[prev], 2) if q in UR and prev in UR else "", 1 if q in rec else 0])
 with open(OUT + "/unemployment_bands_card_losses_1985_2019.csv", "w", newline="") as f:
-    w = csv.writer(f)
+    w = csv.writer(f, lineterminator="\n")
     w.writerow(["unemployment_band", "quarters", "card_nco_4q_later_min", "card_nco_4q_later_median", "card_nco_4q_later_max"])
     for b in A["bands"]:
         if b["window"] != "to 2019":
