@@ -1,87 +1,50 @@
 # Household cost pressure and the insurance market: US public indicators for a lending macro-risk narrative
 
-_Status: IN PROGRESS. Started 2026-10-14. Notes are saved incrementally; anything not yet verified is marked as a gap._
+_Status: IN PROGRESS (saved incrementally). Started 2026-10-14. Series values quoted below were read from the BLS's own data pages (data.bls.gov/timeseries/<id>, "Data extracted on: October 14, 2026") unless another source is named. Anything not verified against a publisher page is in a Gaps list._
+
+**Cross-cutting break to flag for every BLS CPI series below:** the BLS data pages show October 2025 as "X : Data unavailable due to the 2025 lapse in appropriations" (seen on CUUR0000SEHD, CUSR0000SA0, CUSR0000SA0L1E, CUSR0000SAF11, CUSR0000SEHA, CUSR0000SEHC, CUSR0000SETE, CUSR0000SETD, CUSR0000SEHF01, CUSR0000SEHF02, APU000074714's sister average-price series APU000072610 and APU000072620). Motor vehicle insurance (SETE) is also blank for November 2025. Used cars (SETA02) and new vehicles (SETA01) and gasoline (SETB01) do have an October 2025 value. Any outlier/normal-level routine must treat October 2025 as missing, not zero, and must not difference across the hole without care. — [BLS CPI-U All items SA, CUSR0000SA0](https://data.bls.gov/timeseries/CUSR0000SA0); [BLS motor vehicle insurance SA, CUSR0000SETE](https://data.bls.gov/timeseries/CUSR0000SETE)
 
 ## Home insurance: what public series exist, what they measure, and the evidence linking premiums to mortgage stress
 
 ### Takeaway
-(pending)
+There is no free, monthly, public series that measures what US homeowners actually pay for insurance. The BLS CPI "tenants' and household insurance" index prices renters' policies only and rose ~5% from 2019 to 2024 while mortgage-escrow data show homeowners premiums up ~62%; the best free monthly proxy is the BLS PPI for homeowner's insurance premiums (PCU9241269241262 / PCU5241265241262, from June 1998), which tracks insurer pricing rather than household outlay. Causal evidence that premium increases raise mortgage (and credit card) delinquency exists (Dallas Fed WP 2505, 2025), but it rests on licensed ICE McDash escrow data, not on any public series.
 
 ### Cited Findings
-(pending)
+
+**A. BLS CPI — Tenants' and household insurance (item SEHD)**
+- Series id CUUR0000SEHD: "Tenants' and household insurance in U.S. city average, all urban consumers, not seasonally adjusted"; base period December 1997=100; monthly from December 1997 (first value 100.0, Dec 1997). A seasonally adjusted version CUSR0000SEHD does not exist ("ERROR: Invalid Series ID: CUSR0000SEHD"), and a South-region version CUUR0300SEHD also returns "Invalid Series ID" — i.e. this item is published only as a US city average, NSA. — [BLS data, CUUR0000SEHD](https://data.bls.gov/timeseries/CUUR0000SEHD); [BLS, CUSR0000SEHD invalid](https://data.bls.gov/timeseries/CUSR0000SEHD)
+- Latest values: Sep 2025 169.935; Oct 2025 missing (lapse in appropriations); Nov 2025 170.366; Dec 2025 172.129; Jan 2026 171.940 … Sep 2026 175.093. 2024 annual path roughly 157–159. — [BLS data, CUUR0000SEHD](https://data.bls.gov/timeseries/CUUR0000SEHD)
+- What it measures: per BLS's factsheet (as summarised by search; the factsheet page itself returned HTTP 403 to automated fetch), the index "is contents coverage insurance for tenants of rental housing and households", only renters' insurance policies are sampled and priced, and under BLS's rental-equivalence treatment of owner-occupied housing, insurance on physical damage to structures and liability coverage in homeowners' policies are excluded. — [BLS CPI factsheet: Tenants' and household insurance](https://www.bls.gov/cpi/factsheets/tenants-household-insurance.htm) (not fetched directly; see Gaps)
+- Dallas Fed (Jones, Taylor and Tzur-Ilan, 9 Apr 2026): "The CPI tenants and homeowners insurance component is measured using premiums for renters insurance policies, which primarily cover personal belongings"; "The tenant and household insurance component of CPI increased by just 5 percent" 2019–2024, versus 62% for homeowners premiums in ICE McDash and 35% for the PCE "net household insurance" component. — [Dallas Fed, "Measures of inflation misalign with pricier home insurance"](https://www.dallasfed.org/research/economics/2026/0409)
+- PCE "net household insurance" (BEA) = premiums minus expected losses (long-run average), weighted to personal belongings and liability; it "made up just 0.1 percent of overall PCE consumption in 2024"; PCE gross premiums rose 64% 2019–24 while insurer losses doubled. — [Dallas Fed, 9 Apr 2026](https://www.dallasfed.org/research/economics/2026/0409)
+
+**B. BLS PPI — homeowner's insurance (free, monthly, national, NSA)**
+- PCU9241269241262 — "PPI industry data for Premiums for property and casualty insurance-Premiums for homeowner's insurance, not seasonally adjusted"; base date 199806 (June 1998=100); first value June 1998. Latest: Aug 2025 265.926 → Sep 2025 277.777; Dec 2025 278.411; Apr 2026 278.821; May–Aug 2026 279.185(P), 279.358(P), 279.395(P), 279.164(P). BLS: "All indexes are subject to monthly revisions up to four months after original publication." — [BLS data, PCU9241269241262](https://data.bls.gov/timeseries/PCU9241269241262)
+- PCU5241265241262 — "PPI industry data for Direct property and casualty insurers-Homeowner's insurance, not seasonally adjusted"; base 199806; Aug 2025 275.894 → Sep 2025 287.991; Aug 2026 290.436(P). — [BLS data, PCU5241265241262](https://data.bls.gov/timeseries/PCU5241265241262)
+- Both PPI homeowner's series show an annual step in September rather than a smooth path: Aug→Sep 2024 248.489→260.238 (PCU9241269241262) and 253.938→269.396 (PCU5241265241262); Aug→Sep 2025 265.926→277.777 and 275.894→287.991. — [BLS data, PCU9241269241262](https://data.bls.gov/timeseries/PCU9241269241262); [BLS data, PCU5241265241262](https://data.bls.gov/timeseries/PCU5241265241262)
+- FRED distributes the same ids (e.g. PCU9241269241262, PCU5241265241262, PCU924126924126 "Premiums for Property and Casualty Insurance"); the FRED CSV endpoint for PCU9241269241262 starts 1998-06-01 = 100.000. — [FRED PCU9241269241262](https://fred.stlouisfed.org/series/PCU9241269241262); [FRED PCU5241265241262](https://fred.stlouisfed.org/series/PCU5241265241262)
+- Sister PPI series (all base 199806 unless noted, NSA, monthly, from BLS data pages): PCU524126524126 Direct property and casualty insurers (Aug 2026 200.665(P)); PCU524126524126P Primary services; PCU5241265241261 Private passenger auto insurance (Dec 2025 243.455; Aug 2026 244.051(P)); PCU5241265241263 Commercial auto insurance; PCU5241265241264 Non-auto liability; PCU5241265241265 Commercial multiple peril insurance (Dec 2024 185.675; Dec 2025 198.651); PCU5241265241266 Workers' compensation; PCU5241265241267 Other P&C (base 200312); PCU524210524210 Insurance agencies and brokerages (base 200212). PCU524127524127 and PCU524130524130 return "Invalid Series ID". — [BLS data, PCU524126524126](https://data.bls.gov/timeseries/PCU524126524126); [BLS data, PCU5241265241261](https://data.bls.gov/timeseries/PCU5241265241261); [BLS data, PCU5241265241265](https://data.bls.gov/timeseries/PCU5241265241265)
+
+**C. Treasury Federal Insurance Office (FIO), January 2025 report and ZIP data**
+- Title: "Analyses of U.S. Homeowners Insurance Markets, 2018-2022: Climate-Related Risks and Other Factors" (FIO, January 2025). Data: NAIC Property and Casualty Market Intelligence (PCMI) Data Call on behalf of state regulators; "more than 246 million policies from 2018 through 2022, aggregated to the ZIP Code level, or an annual average of 49.3 million policies", "an estimated 80 percent of total HO-3 and HO-5 homeowners insurance direct premiums nationwide, and at least 50 percent ... in every state but Florida"; about 33,000 residential ZIP codes; values in real terms; not all states participated; territories excluded. — [FIO report, copy hosted by Consumer Federation of America](https://consumerfed.org/news/blogs/download-analyses-of-us-homeowners-insurance-markets-2018-2022-climate-related-risks-and-other-factors-report-and-data-from-federal-insurance-office-fio/)
+- Findings: national premiums per policy averaged $1,663 (2018–2022); real premiums per policy rose 8.7% 2018→2022 to $1,737; top-quintile ZIPs saw real increases of at least 14.7%; top-climate-risk quintile ZIPs paid $2,321 on average, 82% more than lowest-risk quintile; nonrenewal rates ~80% higher in highest-risk ZIPs. — [FIO report via CFA](https://consumerfed.org/news/blogs/download-analyses-of-us-homeowners-insurance-markets-2018-2022-climate-related-risks-and-other-factors-report-and-data-from-federal-insurance-office-fio/); [Treasury press release jy2791](https://home.treasury.gov/news/press-releases/jy2791)
+- FIO recommended that the PCMI Data Call continue annually and that "The NAIC should take additional steps to make the data from their PCMI Data Call available to policymakers and researchers". — [FIO report via CFA](https://consumerfed.org/news/blogs/download-analyses-of-us-homeowners-insurance-markets-2018-2022-climate-related-risks-and-other-factors-report-and-data-from-federal-insurance-office-fio/)
+- **Availability flag:** Consumer Federation of America states: "In fall 2025, the Trump administration deleted this report from FIO's website ... Other insurance reports were deleted as well", and re-hosts the report and the ZIP-level data. The FIO landing page saved on 14 Oct 2026 contains no occurrence of the word "homeowner". Treat this as a one-off 2018–2022 cross-section, not a maintained time series. — [CFA](https://consumerfed.org/news/blogs/download-analyses-of-us-homeowners-insurance-markets-2018-2022-climate-related-risks-and-other-factors-report-and-data-from-federal-insurance-office-fio/); [Treasury FIO landing page](https://home.treasury.gov/policy-issues/financial-markets-financial-institutions-and-fiscal-service/federal-insurance-office)
+
+**D. Mortgage-escrow-based premium data (licensed) and research linking premiums to loan performance**
+- ICE McDash "captures actual homeowner insurance payments for mortgagees, covering roughly two-thirds of the U.S. mortgage market"; average insured mortgagor paid about $2,300 in 2024, ~2.7% of median household income (≈2% pre-pandemic); premiums +62% nationally 2019–2024; +73% TX, +78% FL, +84% ID, +90% UT; US reinsurance rates +107% 2019–2024 and "have begun decreasing"; Dallas Fed expects premium growth "likely to ease through year-end 2026". ICE McDash is a commercial (licensed) dataset. — [Dallas Fed, 9 Apr 2026](https://www.dallasfed.org/research/economics/2026/0409)
+- Dallas Fed WP 2505 (Ge, Johnson, Tzur-Ilan, 16 Jan 2025), "Climate Risk, Insurance Premiums and the Effects on Mortgage and Credit Outcomes": 6.7 million borrowers; data from CoreLogic, ICE McDash (servicing + Property Insurance Module) and Equifax CRISM; outcome is 30+ days delinquent within 12 months of policy renewal, renewals July 2022–June 2023, ZIP fixed effects plus instrumental variables. "When premiums increase by one standard deviation, the probability of delinquency rises by 0.6 percentage points, representing a 16% increase relative to the mean probability (3.7%)"; larger for high-DTI/high-LTV borrowers; "three times larger for non-jumbo compared to jumbo"; present in GSE, bank-held and private-label loans; higher premiums "significantly raise the probability of credit card delinquency and worsen borrowers' creditworthiness"; prepayment effect mostly relocation. — [Dallas Fed WP 2505 landing page](https://www.dallasfed.org/research/papers/2025/wp2505); [WP 2505 PDF](https://www.dallasfed.org/-/media/documents/research/papers/2025/wp2505.pdf)
+- A widely repeated figure — "for every $500 in annual increased homeowners insurance cost, a borrower is 20 percent more likely to become delinquent" — comes from advocacy-group summaries (Public Citizen / Americans for Financial Reform) and was not found in the WP 2505 January 2025 text read here; treat as unverified secondary. — [Public Citizen](https://www.citizen.org/article/rising-property-insurance-premiums-the-uneven-risks-to-household-and-systemic-financial-stability/); [Americans for Financial Reform](https://ourfinancialsecurity.org/resources/propertyinsurancepremiums2025report/)
+- Chicago Fed WP 2026-01 (Meisenzahl, Polacek, Ramnath, Yudhishthu, Jan 2026): "increases in property insurance premiums reduce mortgage originations. The effect is strongest for the rate refinancing and cash-out refinancing segments"; denials linked to premium increases are more often attributed to high DTI and insufficient collateral; concentrated among highly levered borrowers; may "attenuate the refinancing channel of monetary policy". — [Chicago Fed WP 2026-01](https://www.chicagofed.org/-/media/publications/working-papers/2026/wp2026-01.pdf)
+- Keys and Mulder, NBER WP 32579 (June 2024, revised Nov 2025): "over 74 million premiums from 2014–2024 inferred from mortgage escrow payments"; "a doubling of the pass-through from disaster risk into premiums"; premium increases capitalised into home values, "reducing home price growth by over $40,000 in the most exposed zipcodes". — [NBER w32579](https://www.nber.org/papers/w32579)
+- Philadelphia Fed (Zhang and Aglar, May 2026), "The Rising Burden of Homeowners Insurance in the Third District States", using ICE McDash: real average premium Dec 2021→Jun 2025 +28.9% PA, +26.1% NJ, +25.4% DE; LMI neighbourhoods saw larger increases in premium per $1,000 coverage; "The larger increase in insurance premiums is positively correlated with a higher likelihood of mortgage delinquency across all three states, although this correlation does not necessarily represent a causal relationship." — Philadelphia Fed Community Development & Regional Outreach brief (PDF read locally; publisher URL not confirmed — see Gaps)
 
 ### Inferences
-(pending)
+- For a model that rates "where a series stands today", the PPI homeowner's premium index is the only free, monthly, long (June 1998–) national series that moves with homeowners premiums. Its September step pattern means month-on-month changes are mostly noise outside September; a year-over-year transform is the natural input. This is my reading of the data pages, not a BLS statement about methodology.
+- The CPI SEHD index should be presented in the narrative as a renters'-insurance index; using it as "home insurance prices" would understate the 2019–2024 shock by an order of magnitude (5% vs 62%).
+- FIO/NAIC ZIP data is suited to a static geographic exposure map (which ZIPs/states are high-premium, high-nonrenewal) rather than to a time-series outlier model; it covers 2018–2022 only.
 
 ### Gaps
-(pending)
-
-## Auto costs: motor vehicle insurance, repair, new and used vehicle prices
-
-### Takeaway
-(pending)
-
-### Cited Findings
-(pending)
-
-### Inferences
-(pending)
-
-### Gaps
-(pending)
-
-## Shelter, utilities, gasoline, food and headline/core CPI
-
-### Takeaway
-(pending)
-
-### Cited Findings
-(pending)
-
-### Inferences
-(pending)
-
-### Gaps
-(pending)
-
-## Property tax and HOA costs
-
-### Takeaway
-(pending)
-
-### Cited Findings
-(pending)
-
-### Inferences
-(pending)
-
-### Gaps
-(pending)
-
-## Climate and catastrophe exposure as a cost driver (FEMA, NOAA, NFIP)
-
-### Takeaway
-(pending)
-
-### Cited Findings
-(pending)
-
-### Inferences
-(pending)
-
-### Gaps
-(pending)
-
-## Which indicators have documented links to delinquency or default, and which are only plausible
-
-### Takeaway
-(pending)
-
-### Cited Findings
-(pending)
-
-### Inferences
-(pending)
-
-### Gaps
-(pending)
+- The BLS factsheet page (bls.gov/cpi/factsheets/tenants-household-insurance.htm) returned HTTP 403 to automated fetch; the description above is from the search-engine summary of that page plus the Dallas Fed's description. Relative importance weight of SEHD was not verified on a BLS page (a secondary source said 0.4%; not used).
+- Not verified: the BLS methodology reason for the September step in the PPI homeowner's series.
+- The Philadelphia Fed brief's public URL was not confirmed.
