@@ -1184,8 +1184,11 @@ firm believes, and the reading hasn't had their yes.
    the -ise words canon actually used (`mechanise`, `generalised`, `optimises`
    and others); the firm's own words still trip nothing.
 3. **Load the talking rules in every repository.** canon now ships one hook,
-   `hooks/hooks.json`, which prints `hooks/session-start.md` at startup, after
-   `/clear` and after a compaction. That file is generated from `VOICE.md` by
+   `hooks/hooks.json`, which prints `hooks/session-start.md` at every session
+   start: a new one, a resumed or forked one, after `/clear`, and after a
+   compaction. It first skipped resumed and forked chats, to avoid printing
+   twice; Codex pointed out that a chat begun before canon was installed then
+   never sees it, so the matcher went. That file is generated from `VOICE.md` by
    `voice.py --write-hook`, and a test fails if the two differ, so there is
    still one source. It runs `cat`, not Python, because which Python name
    exists differs by machine, and `cat` works in sh, Git Bash and PowerShell.
@@ -1201,10 +1204,11 @@ change named only that command. All five places now name
 `claude plugin update canon@satc` as the step that installs, and the tests
 require it.
 
-**Checked by mutation, the whole release: 10 planted, 10 killed.** The six on
+**Checked by mutation, the whole release: 11 planted, 11 killed.** The six on
 `voice.py` above, plus: the install command dropped from the voice skill, the
 spelling guard's exemptions widened to swallow ordinary prose, a hand edit to
-the generated hook text, and the hook file stripped of its `hooks` wrapper
-(caught by the test, and separately by `claude plugin validate`).
+the generated hook text, the hook file stripped of its `hooks` wrapper (caught
+by the test, and separately by `claude plugin validate`), and a matcher put
+back on the hook.
 
 1.22.0 → **1.23.0**. 228 → 256 passing.

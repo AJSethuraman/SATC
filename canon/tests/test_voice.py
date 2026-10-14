@@ -229,9 +229,12 @@ def test_the_plugin_declares_the_hook_the_way_the_loader_reads_it():
     entries = spec["hooks"]["SessionStart"]
     commands = [h["command"] for e in entries for h in e["hooks"] if h["type"] == "command"]
     assert commands == ['cat "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.md"']
-    matcher = entries[0].get("matcher", "")
-    assert "startup" in matcher and "compact" in matcher, \
-        "a new session, and one whose context was just compacted, must both get it"
+    # NO MATCHER, SO EVERY SOURCE FIRES: startup, resume, clear, compact, fork.
+    # It was "startup|clear|compact" to keep a resumed chat from seeing the
+    # text twice. Codex on #439: a chat begun before canon was installed or
+    # updated then never sees it at all. Twice is cheaper than never.
+    assert all("matcher" not in e for e in entries), \
+        "a matcher narrows which sessions are told how to talk to the firm"
 
 
 def test_a_stale_hook_text_is_caught(tmp_path, monkeypatch):
