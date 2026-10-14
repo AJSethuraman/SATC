@@ -129,20 +129,22 @@ S_TALL = S_LSTEP + 1                                # the tallest bar: the top o
 PCT_TOP = DATA_TOP + 2 * EDGE_LINES                 # G_EX / G_EY: the grey lines' two points each, under the red
 
 METHOD = [
-    ("The bars", "How many loans fall in each step between From and To. Pick 10, 20 or 50 bars and change the "
-                 "range; the chart follows. The grey bar at each end holds the loans outside the range."),
-    ("The red bar", "A value that looks like a code, such as a score of -9999, gets a red bar of its own left of "
-                    "the chart, so it doesn't flatten the rest. Columns asks whether it means missing."),
-    ("The lines", "Red dashed: the band edges typed on Columns. They follow that tab as you type, so you can try "
-                  "edges here before the next Run; blank edges are cut at the Run, so no lines show. Grey: the "
-                  "10th, 25th, 50th, 75th and 90th percentile, P10 to P90. A tenth of the loans on the chart lie "
-                  "below P10, half below P50 (the median). Worked out as Excel's PERCENTILE.INC does."),
+    ("The bars", "The number of loans in each interval between From and To. Pick 10, 20 or 50 bars and change the "
+                 "range; the chart updates. The grey bar at each end holds the loans outside the range."),
+    ("The red bar", "A value that looks like a code, such as a score of -9999, is shown as a separate red bar to "
+                    "the left of the chart, so it does not compress the scale for the other values. Columns asks "
+                    "whether it means missing."),
+    ("The lines", "Red dashed lines are the band edges typed on Columns. They update as you type, so edges can be "
+                  "tried here before the next Run; edges left blank are set at the Run, so no lines show for them. "
+                  "Grey lines are the 10th, 25th, 50th, 75th and 90th percentiles (P10 to P90), calculated as "
+                  "Excel's PERCENTILE.INC. A tenth of the loans on the chart lie below P10, and half below P50 (the "
+                  "median)."),
     ("How it counts", "A block is drawn for each band column chosen on Control, and for the split column when it "
-                      "is numeric. A Run after either changes draws the tab again. Each column is counted once, in "
-                      "200 equal slices around its 1st to 99th percentile. A range you type is counted to the "
-                      "nearest slice."),
-    ("The dots", "The split column against each band column: a random 2,000 loans, the same every time. If the "
-                 "dots slope, the two move together, and part of a gap on Split may belong to the band column."),
+                      "is numeric. The next Run after either changes redraws the tab. Each column is counted once, "
+                      "in 200 equal intervals between round numbers around its 1st and 99th percentiles. A typed "
+                      "range is rounded to the nearest interval."),
+    ("The dots", "A scatter of the split column against each band column, for a fixed random sample of 2,000 "
+                 "loans."),
 ]
 
 
@@ -403,7 +405,7 @@ def write_look(wb, table, columns, split: str | None = None, bands=(), known: di
     # Calibri 10); the rest as drawn
     for col, w in zip("ABCDEFGH", (2, label_width(shapes.values()), value_width(shapes.values()), 9, 2, 13, 2, 10)):
         ws.column_dimensions[col].width = w
-    house.title_band(ws, "Look", "Each band column and the split before you choose band edges.", 2, 17)
+    house.title_band(ws, "Look", "The distribution of each band column and the split column, before you choose band edges.", 2, 17)
     top = house.method_note(ws, 3, 2, 17, METHOD)
     assert top == FIRST, top
     hs.cell(row=RULES_ROW, column=1, value=rules_key(rules, columns) or None)

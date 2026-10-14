@@ -232,7 +232,7 @@ def test_l2_the_summary_says_what_will_run_in_both_modes(tmp_path):
     # Filter 1 starts on Origination year (the firm, 1 Oct 2026)
     assert ok and said == ("2 band columns × 2 segment columns = 4 grids, five measures each; split by REV_DEBT "
                            "adds 4 more. Grids can show only the loans of one ORIG_YEAR. Each grid is built for 7 "
-                           "views, All loans counted: 8 grids × 7 = 56 to build.")       # the cost (1 Oct 2026)
+                           "views, including All loans, so 8 grids × 7 = 56 grids are built.")       # the cost (1 Oct 2026)
     f.set_mode("new")
     assert f.summary() == (False, "Tick at least one input to test.")
     for c in ("CHANNEL", "ORIG_BAL", "ASSET_CLASS", "REV_DEBT"):
@@ -240,8 +240,9 @@ def test_l2_the_summary_says_what_will_run_in_both_modes(tmp_path):
     f.click("FICO", "c")
     # OC-51: the line between found and held back is the cutoff on Control, no longer a share picked here
     assert f.summary() == (True, "4 inputs (CHANNEL, ORIG_BAL, ASSET_CLASS, REV_DEBT) against BAD_FLAG, with and "
-                                 "without FICO held fixed: found on the loans made before the cutoff you pick on "
-                                 "Control, then tested together and one by one on the rest.")
+                                 "without FICO held fixed. Scouting ranks them on the loans made before the cutoff set "
+                                 "on Control. The candidates it proposes are then tested together and one at a time "
+                                 "on the loans made on or after the cutoff.")
 
 
 def test_l2_next_is_off_until_there_is_a_grid_to_run(tmp_path):
@@ -308,8 +309,8 @@ def test_l2_a_saved_shortlist_fills_test_it_and_hold_fixed_from_the_file(tmp_pat
     f.click("ORIG_BAL", "b")                                      # the file decides: the boxes don't move
     assert f.test == ["INCOME_TO_SALES"]
     ok, said = f.summary()
-    assert ok and said == ("the saved shortlist prespec.yaml: INCOME_TO_SALES against BAD_FLAG, with FICO and CHANNEL "
-                           "held fixed, confirmed on the loans it held back.")
+    assert ok and said == ("the saved shortlist prespec.yaml, confirming INCOME_TO_SALES against BAD_FLAG on the loans it held "
+                           "back, with FICO and CHANNEL held fixed.")
     got = f.choices()
     assert got.run_kind == choices.NEW_VARIABLE and got.shortlist == str(spec) and got.split == "INCOME_TO_SALES"
     assert got.bands == ("FICO",) and got.segments == ("CHANNEL",)

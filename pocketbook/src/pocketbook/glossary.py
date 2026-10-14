@@ -158,13 +158,12 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 f"Line × book." if avg else
                 "A pocket with an average line of $6,200, in a book averaging $5,000, shows 1.24× on Line × book."))
     out.append(("GCOs ($)",
-                "Gross charge-off dollars: the amount written off on a loan, before any recoveries.",
+                "Gross charge-off dollars.",
                 f"This book's GCOs totaled {_usd(f['gco'])}, or {per100(gco_r)} per $100 booked." if real("gco") else
                 f"GCOs of {_usd(GENERIC['gco'])} on {_usd(GENERIC['booked'])} booked equal {per100(gco_r)} per $100 "
                 f"booked."))
     out.append(("RANR",
-                "Risk-adjusted net revenue: what a loan earned after its losses. For cards, this is interest, fees "
-                "and interchange, less rewards and charge-offs.",
+                "Risk-adjusted net revenue: interest income and fees, less cost of funds and losses.",
                 f"This book's RANR came to {_usd(f['ranr'])}. The book {_keeps(ranr_r)} per $100 booked."
                 if real("ranr") else
                 f"RANR of {_usd(GENERIC['ranr'])} on {_usd(GENERIC['booked'])} booked means the book "

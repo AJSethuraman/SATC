@@ -339,8 +339,8 @@ def _fit(ws) -> None:
 #: Each tab's method-note line on Borderline (the firm, 29 Sep 2026, by pop-up, choosing the word), as live.text
 #: parts: said at the end of the note's p-value item (Together's, on RANR vs GCOs), so no row of the tab moves.
 #: Only a run with a dollar rate says it: nothing else is shuffled, so nothing else can be borderline
-BORDER_WORDS = (" Borderline: the test's p-value is within the shuffle's own margin of the ",
-                ('TEXT(significance_bar,"0%")',), " bar, so another run could read it the other way.")
+BORDER_WORDS = (f" Borderline: the shuffle test's p-value is within {stats.BORDERLINE_SE:g} standard errors of the ",
+                ('TEXT(significance_bar,"0%")',), " threshold, on either side.")
 
 
 def _allowance(b) -> str:
@@ -460,8 +460,8 @@ def _write_list(wb, res, lv, kinds, sel: dict) -> tuple[int, dict]:
     return r - 1, most
 
 
-POCKETS_NOTE_ORDER = ("Sorted as of the last Run: worse pockets first, largest excess first, then the rest by "
-                      "their excess.")
+POCKETS_NOTE_ORDER = ("Sorted as of the last Run: worse pockets first, largest excess first, then the remaining "
+                      "pockets by excess.")
 
 
 def _pockets_note(res) -> list[tuple[str, str]]:
@@ -473,20 +473,21 @@ def _pockets_note(res) -> list[tuple[str, str]]:
     profit = bk._has_profit(res)
     items = [
         ("A pocket", "One band of one column crossed with one segment of another, in every grid chosen in the "
-                     "launcher. Loans: how many are in it."
-                     + (f" Split by {sf}: each pocket halved at its own median {sf}, each half tested like any "
-                        f"other pocket." if sf and res.config.split[1] == "own_median" else
-                        f" Split by {sf}: each pocket split by each value of {sf}, each part tested like any other "
-                        f"pocket." if sf else "")),
+                     "launcher. Loans is the number of loans in the pocket."
+                     + (f" Split by {sf}: each pocket is halved at its own median {sf}, and each half is tested "
+                        f"like any other pocket." if sf and res.config.split[1] == "own_median" else
+                        f" Split by {sf}: each pocket is split by each value of {sf}, and each part is tested like "
+                        f"any other pocket." if sf else "")),
         ("Rest of band", live.text(
-            "Every other loan in the same band. Judged against on Control picks it or the rest of the book (every "
-            "other loan in the book); now ", ('IF(judged_band,"the rest of its band","the rest of the book")',),
-            ". It decides the gap, the excess and both verdicts. A pocket alone in its band has nothing beside it "
-            "to compare with, so it is judged against the rest of the book, whatever Control says.")),
-        ("Excess", "What the pocket lost above what it would have lost at the rest's rate: bad loans for Bad loans, "
-                   "dollars for the dollar measures."
-                   + (" For RANR and RANR + GCOs, the dollars it fell short of the rest, and the gap is in points "
-                      "of booked dollars." if profit else "")),
+            "Every other loan in the same band. Judged against on Control selects this or the rest of the book "
+            "(every other loan in the book); it is currently ",
+            ('IF(judged_band,"the rest of its band","the rest of the book")',),
+            ". The selected comparison decides the gap, the excess and both verdicts. A pocket that is the only one "
+            "in its band is judged against the rest of the book, whatever Control says.")),
+        ("Excess", "The pocket's losses above what it would have lost at the rest's rate, in bad loans for Bad loans "
+                   "and in dollars for the dollar measures."
+                   + (" For RANR and RANR + GCOs, it is the dollars by which the pocket fell short of the rest, and "
+                      "the gap is in points of booked dollars." if profit else "")),
         ("Worse?", live.text(
             "Yes: at least ", ('TEXT(worse_at,"0.00")',), "x the rest",
             " (for RANR and RANR + GCOs, short of it" + (" by the profit line on Control)" if profit else ")")
@@ -494,34 +495,38 @@ def _pockets_note(res) -> list[tuple[str, str]]:
             ". Not sure: the gap is there, but the p-value isn't under it. Too few losses: fewer than ",
             f"{b.min_events:,} (a setting for the next Run), so not tested. No: anything else.")),
         (CHANCE_HEAD, live.text(
-            "A Yes pocket: how often a gap this big would turn up by chance if the pocket were no different from "
-            "the rest. 1 in 400 is a p-value of 0.25%. It allows for testing many pockets at once "
-            f"({_allowance(b)}, across one grid and one measure), so the pocket alone is rarer still. Bad loans: "
-            f"the z test, or the exact test for a pocket under {b.min_units:,} loans."
-            + (f" Dollar measures: the loans are shuffled {b.shuffles:,} times, within the band for the rest of "
-               f"its band, and it is how often a gap as big turned up." if dollar_rates else ""),
+            "For a Yes pocket, how often a gap this large would arise by chance if the pocket were no different "
+            "from the rest; 1 in 400 is a p-value of 0.25%. The figure allows for testing many pockets at once "
+            f"({_allowance(b)}, across one grid and one measure), so the pocket's raw p-value, before that "
+            f"allowance, is smaller still. Bad loans use the z test, or the exact test for a pocket under "
+            f"{b.min_units:,} loans."
+            + (f" For the dollar measures, the loans are shuffled {b.shuffles:,} times (within the band when the "
+               f"comparison is the rest of its band), and the figure is how often a gap as large occurred."
+               if dollar_rates else ""),
             " Every other pocket shows why there is no number: Could be chance (the p-value is not under ",
             ('TEXT(significance_bar,"0%")',), ")"
-            + ("; Too close to call (the shuffled p-value is within the shuffle's own margin of the bar, so "
-               "another run could read it the other way)" if dollar_rates else "")
+            + (f"; Too close to call (the shuffled p-value is within {stats.BORDERLINE_SE:g} standard errors of "
+               f"the threshold, on either side)" if dollar_rates else "")
             + f"; {live.FEW_LOSSES} or {live.FEW_LOANS}; {live.NO_REST} (the rest has no losses); "
               f"{live.UNDER_WORSE}" + (f" or {live.UNDER_PROFIT}" if profit else "")
             + f"; {live.NOT_MORE}"
             + (f"; {MIXED}{pt[0]} (see Holds {pt[0]} fixed?)" if sf and pt else "") + ".")),
         ("Material?", "Yes when the excess reaches the materiality line on Control (the Material at tile, in the "
-                      "measure's own unit). It is judged apart from Worse?: a pocket can be one without the other."),
-        ("Could have caught", f"The smallest gap a pocket this size would catch {b.power:.0%} of the time at the "
-                              f"last Run's confidence. As of the last Run."),
-        ("Order", POCKETS_NOTE_ORDER + " Last come pockets losing more only against the other comparison, so "
-                                       "that changing Judged against on Control finds them here. A change on "
-                                       "Control updates Worse?, Material?, the dollars and the colours at once, "
-                                       "not the order. The caption counts what the dropdowns pick."),
+                      "measure's own unit). It is assessed separately from Worse?, so a pocket can be material "
+                      "without being worse, or worse without being material."),
+        ("Could have caught", f"The smallest gap a pocket of this size would detect {b.power:.0%} of the time, at "
+                              f"the confidence level the last Run used."),
+        ("Order", POCKETS_NOTE_ORDER + " Pockets that lose more only against the other comparison come last, so "
+                                       "they are already listed if Judged against is changed on Control. A change "
+                                       "on Control updates Worse?, Material?, the dollars and the colours "
+                                       "immediately, but not the order. The caption counts the rows the dropdowns "
+                                       "select."),
     ]
     if sf and pt:
-        items.append((f"Holds {pt[0]} fixed?", f"Split only. {sf} moves with {pt[0]} (correlation {pt[1]:+.2f}), so "
-                                              f"a split pocket in a grid that doesn't hold {pt[0]} fixed may be "
-                                              f"showing {pt[0]}, not {sf}. Those rows come last, in grey, with no "
-                                              f"verdict colour."))
+        items.append((f"Holds {pt[0]} fixed?", f"Applies to split pockets only. {sf} moves with {pt[0]} "
+                                              f"(correlation {pt[1]:+.2f}), so in a grid that does not hold "
+                                              f"{pt[0]} fixed, a split pocket's gap may reflect {pt[0]} rather "
+                                              f"than {sf}. Those rows come last, in grey, with no verdict colour."))
     return items
 
 
@@ -586,8 +591,8 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
               K_HOLDS: house.fit([f"No: may be mostly {pt[0]}", f"Holds {pt[0]} fixed?"] if pt else [],
                                  floor=12, cap=LABELS_CAP, pad=3)}
     _widths(ws, widths)
-    house.title_band(ws, POCKETS, "Which pockets lose more than their share, how much, and whether it's real "
-                                  "and big enough to matter.", K_BAND, K_HOLDS, tab=house.TAB_RESULT)
+    house.title_band(ws, POCKETS, "The pockets that lose more than their share, by how much, and whether the "
+                                  "gap is significant and material.", K_BAND, K_HOLDS, tab=house.TAB_RESULT)
     ws.cell(row=1, column=K_NUM).fill = house.fill(INK)             # the band runs over the # column too
     ws.cell(row=1, column=K_NUM).border = Border(bottom=Side(style="thick", color=house.KEY_RED))
     if b is None or not rates(res):
@@ -675,7 +680,7 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
         ws.row_dimensions[rr].height = 16
     end = first + n - 1
     if not any(most.values()):
-        _cell(ws, first, K_BAND, "Nothing is losing more than its share at the last Run's settings.", h="left")
+        _cell(ws, first, K_BAND, "No pocket loses more than its share at the last Run's settings.", h="left")
     rng = lambda *cs: " ".join(f"{col(c)}{first}:{col(c)}{end}" for c in cs)     # noqa: E731
     # the colours, one set of rules per column (see cf): a split pocket whose grid doesn't hold the partner fixed
     # is grey, with no verdict colour; Worse? and Material? in the spec's verdict colours; a gap in points and
@@ -863,8 +868,7 @@ def pck_avg_totals(g, rows: list[dict], book) -> list[tuple]:
 #: them with), and the whole book
 PCK_LISTED, PCK_UNLISTED, PCK_BOOK = "Pockets listed", "Not listed", "Whole book"
 #: what a negative RANR means, on the method note (the firm's ask, 30 Sep 2026)
-NEGATIVE_SAID = ("Negative RANR: the pocket lost money outright, before comparing it with anyone. Its RANR and "
-                 "RANR ÷ Booked are red.")
+NEGATIVE_SAID = "Negative RANR: a pocket with RANR below zero shows its RANR and RANR ÷ Booked in red."
 
 
 def pck_totals(g, rows: list[dict]) -> list[tuple]:
@@ -891,9 +895,10 @@ def negative_line(rows: list[dict]) -> str:
     between them, worked out here."""
     neg = [x["ranr"] for x in rows if x["ranr"] < 0]
     if not neg:
-        return "No pocket listed lost money outright: every one's RANR is zero or more."
+        return "No pocket listed has RANR below zero."
     n, lost = len(neg), -math.fsum(neg)
-    return f"{n} pocket{'s' if n != 1 else ''} lost money outright, totalling ${lost:,.0f}: RANR below zero, in red."
+    return (f"{n} pocket{'s' if n != 1 else ''} listed {'have' if n != 1 else 'has'} RANR below zero, with combined "
+            f"RANR of -${lost:,.0f}, shown in red.")
 
 
 #: the gross columns' number formats: whole dollars, or thousands when the largest (the whole book's booked) would
@@ -959,33 +964,36 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     line = bk.profit_line(res)
     r = house.method_note(ws, 3, C_BAND, C_TOG, [
         ("RANR + GCOs", "(RANR + GCOs) ÷ Booked. RANR already has the GCOs taken out, so this adds them back. "
-                        "Gap: points of booked dollars ahead of (+) or short of (-) the rest; Dollars: what that "
-                        "comes to."),
-        ("GCOs", "GCOs ÷ Booked, as a multiple of the rest; Dollars: GCOs above the rest's rate."),
+                        "Gap is the difference from the rest in points of booked dollars, positive when ahead and "
+                        "negative when short. Dollars is that gap in dollars."),
+        ("GCOs", "GCOs ÷ Booked, shown as a multiple of the rest's rate. Dollars is the pocket's GCOs above what it "
+                 "would have lost at the rest's rate."),
         # the gross block's words ride on RANR's item (the firm, 30 Sep 2026), so that no row of the tab moves
-        ("RANR", "RANR ÷ Booked, as a gap in points and dollars, like RANR + GCOs. Booked, GCOs and RANR: the "
-                 "pocket's own dollars, added up and compared with nothing. " + NEGATIVE_SAID + " Avg line: booked dollars per loan, the pocket's average committed line; Line × book: that over the whole book's. "
-                 "Under the table they add up to the whole book; Not "
-                 "listed: pockets with nothing to compare them with."),
-        ("The rest", live.text("Judged against on Control picks it: now ",
+        ("RANR", "RANR ÷ Booked, shown as a gap in points and dollars, as for RANR + GCOs. Booked, GCOs and RANR "
+                 "are the pocket's own totals, not compared with anything. " + NEGATIVE_SAID + " Avg line is the "
+                 "pocket's average committed line (booked dollars per loan), and Line × book is that divided by the "
+                 "whole book's. Under the table, Pockets listed and Not listed add up to the whole book; Not listed "
+                 "covers pockets with no comparison group."),
+        ("The rest", live.text("Judged against on Control sets the comparison; it is currently ",
                                ('IF(judged_band,"the rest of its band","the rest of the book")',),
-                               ". A pocket alone in its band is compared with the rest of the book. Rest: the "
-                               "rest's own rate, the one each gap is measured against.")),
+                               ". A pocket that is the only one in its band is compared with the rest of the book. "
+                               "Rest is the comparison group's own rate, against which each gap is measured.")),
         ("Shading", live.text(
-            "Pink: worse, and real. Green: better, and real. None: it could be chance (the p-value isn't under ",
+            "Pink: worse and significant. Green: better and significant. No shading: the gap could be chance (the "
+            "p-value is not under ",
             ('TEXT(significance_bar,"0%")',), "), or the pocket has too few losses to test. GCOs count at ",
             ('TEXT(worse_at,"0.00")',), "x or ", ('TEXT(better_at,"0.00")',), "x; RANR and RANR + GCOs ",
-            ('IF(profit_kind="test","when its own test says so",IF(profit_kind="points","at "&TEXT(profit_line*100,'
+            ('IF(profit_kind="test","when the pocket\'s own test finds the gap significant",IF(profit_kind="points","at "&TEXT(profit_line*100,'
              '"0.00")&" points either way","at a gap of $"&TEXT(profit_line,"#,##0")))',), ".")),
-        ("Together", live.text("GCOs and RANR read at once. Priced for it: more GCOs and more RANR. Net drain: "
+        ("Together", live.text("GCOs and RANR read together. Priced for it: more GCOs and more RANR. Net drain: "
                                "more GCOs and less RANR. Strong: fewer GCOs and more RANR. Safe but idle: fewer "
                                "GCOs and less RANR. Earns less, not from losses: less RANR while GCOs are about the "
                                "same. Losing more, profit holding: more GCOs while RANR is about the same. Blank: "
                                "nothing to read together.", *BORDER_WORDS,
-                               " Together gives the p-value of each side that is, GCOs first.")),
+                               " Where a side is borderline, Together gives its p-value, GCOs first.")),
         ("Order and chart", "Rows are by band, lowest first, then by segment; the arrows on the headings sort "
-                            "and filter by any column. The chart shows the grid picked above, live; the first "
-                            f"{LABELLED} pockets read together, down the table, are numbered on it."),
+                            "and filter by any column. The chart shows the grid picked above and updates live. The "
+                            f"first {LABELLED} pockets with a Together reading, in table order, are numbered on it."),
     ])
     g_rng, _ = choices.add(f"{PCK}: Grid", gnames)
     lines_in_use(ws, r, C_BAND, list(PCK_TILES), material_at(res), PCK_NOTE, PCK_NOTE + 7,
@@ -1231,8 +1239,8 @@ def _scatter(ws, hs, res, n: int, xs: list, ys: list, line, anchor: int) -> None
     chart.width, chart.height = 17, 11
     ws.add_chart(chart, f"{col(C_CH)}{anchor}")
     # what the axes are, above the chart, and the numbered pockets' names under it
-    _cell(ws, anchor - 1, C_CH, "Across: GCOs × the rest, on a log scale. Up: RANR, as a gap in points. "
-                                "Red: Net drain. Green: Strong or Priced for it.", size=9, name="Arial", h="left")
+    _cell(ws, anchor - 1, C_CH, "Horizontal axis: GCOs × the rest, on a log scale. Vertical axis: RANR, as a gap "
+                                "in points. Red: Net drain. Green: Strong or Priced for it.", size=9, name="Arial", h="left")
     below = anchor + CHART_ROWS
     _cell(ws, below, C_CH, "Numbered on the chart", bold=True, size=9, name="Arial", h="left")
     for k in range(min(LABELLED, n)):
@@ -1498,31 +1506,31 @@ SAY = {"outcome_loans": ("{these}: {r} went bad.", "{x}× the bad-loan rate of {
        # {med} the median booked per loan (the firm, 29 Sep 2026)
        SIZE: ("{these} averaged {r} booked, median {med}.", "{x}× the average loan of {against}."),
        # months to charge-off (the firm, 1 Oct 2026): an average over the loans that charged off, never compared
-       engine.CO_MONTHS: ("{these}: those that charged off did so {r} months after they were made, on average.",
+       engine.CO_MONTHS: ("{these}: those that charged off did so an average of {r} months after origination.",
                           "Not compared: this figure is shown, not tested.")}
 SAY_KIND = {"x": ("{these}: {measure} is {r}.", "{x}× the rate of {against}."),
             "pts": ("{these}: {measure} is {r}.", "{pts} points {more} than {against}."),
             "amt": ("{these}: {measure} is {r}.", "Not compared: this figure is shown, not tested.")}
 SAY_BOOK = "the whole book"
 SAY_BAND = "the other loans in {row}"
-SAY_ALONE = "Blank: alone in its band. Nothing else in {row} to compare with."
+SAY_ALONE = "Blank: this is the only pocket in its band, so there is nothing else in {row} to compare with."
 SAY_FEW = "Blank: fewer losses than the minimum ({min} losses), so not compared."
 SAY_NOT = "Blank: not compared."
 SAY_LOANS = "{loans}; {row} has {m} in all."
-SAY_COLOUR = ("vs the book is {book}, vs rest of band {band}. Red is worse, green better, deeper a bigger gap. "
-              "It is the size of the gap, not a test.")
+SAY_COLOUR = ("vs the book is {book} and vs rest of band is {band}. Red is worse and green is better, deeper for a "
+              "larger gap. The colour shows the size of the gap, not a test result.")
 #: a cell under the fewest loans (the firm, 29 Sep 2026: "grey out cells with too few loans")
 SAY_GREY = "Grey: only {loans}, fewer than the {min} set on Control, so not coloured."
-SAY_SIZE = ("No red or green: loan size is a description, not a finding. Shaded darker the bigger the loans are "
-            "against the book's.")
+SAY_SIZE = ("No red or green, because loan size is descriptive. The shading is darker the larger the loans are "
+            "relative to the book's.")
 #: nothing to filter by: Filter by, in the launcher, picks the column (the firm, 30 Sep 2026: "Wait only works on
 #: split by? Isn't that for like above and below median")
 SAY_NO_FILTER = "Pick a Filter by in the launcher."
 #: said after the note's Only loans where when the filter is the origination year
 YEAR_SAID = f" {ORIG_YEAR} is the year in {{}}; {NO_DATE} holds the loans without a readable date."
-SAY_PICK = "Pick a Row and a Column above: their lists follow the Grid."
+SAY_PICK = "Pick a Row and a Column above; their lists update with the Grid."
 SAY_EMPTY = "No loans in this pocket."
-SAY_NORATE = "No rate: these loans have nothing to divide by for this measure."
+SAY_NORATE = "No rate: this measure has no denominator for these loans."
 #: other columns named after "the other loans in <row>" when there are this many or fewer
 SAY_NAMED = 3
 
@@ -1586,46 +1594,47 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
     note = [
         ("Rate", "The measure picked above, in every pocket: one band (down) by one segment (across), with the "
                  "band's and the segment's totals in All."),
-        ("vs the book", "The pocket's rate over the whole book's, which the heading gives: 2.00× goes bad twice as "
-                        "often as the book."
+        ("vs the book", "The pocket's rate as a multiple of the whole book's rate, which the heading shows. A "
+                        "pocket at 2.00× goes bad twice as often as the book."
                         + (" RANR and RANR + GCOs are a gap in points instead." if profit
                            else "")),
-        ("vs rest of band", "The pocket's rate over every other loan in its band, so a band that is bad all "
-                            "through doesn't make each of its pockets look bad. No rate in its heading: the rest "
-                            "of the band is different in every row."),
-        ("Colour", "Red is worse, green better, pale in line: 0.5× and under the greenest, 2× and over the "
-                   "deepest red; for a gap in points, the largest in the grid is the deepest. A blank: alone in "
-                   "its band, or fewer losses than fewest losses on Control, so not compared (a setting for the "
-                   "next Run)."
-                   + (f" Grey: fewer loans than the {few:,} in Fewest loans in a pocket on Control, so not "
-                      f"coloured, and left out of the largest gap." if few is not None else "")),
-        ("Loans", "How many loans are in each pocket, shaded by its share of the grid: darker is more. A count, "
-                  "not a test, so no red or green."),
+        ("vs rest of band", "The pocket's rate as a multiple of the rate for every other loan in its band. The "
+                            "heading shows no rate, because the rest of the band differs in every row."),
+        ("Colour", "Red is worse, green is better and pale is in line. The scale runs from 0.5× or below (deepest "
+                   "green) to 2× or above (deepest red); for a gap in points, the largest gap in the grid is the "
+                   "deepest. A cell is blank when its pocket is the only one in its band, or has fewer losses than "
+                   "fewest losses on Control; it is then not compared (a setting for the next Run)."
+                   + (f" Grey cells have fewer loans than the {few:,} set in Fewest loans in a pocket on Control; "
+                      f"they are not coloured and are left out of the largest gap." if few is not None else "")),
+        ("Loans", "The number of loans in each pocket, shaded darker for a larger share of the grid. It is a "
+                  "count, not a test, so it has no red or green."),
     ]
     if any(sm.name == engine.CO_MONTHS for sm in shows):
         # said inside Rate, as Loan size is, so the note keeps its rows and the dropdowns stay put
-        note[0] = ("Rate", note[0][1] + f" {CO_MONTHS_NAME}: among the pocket's loans with a "
-                                        f"{res.config.chargeoff_date}, the average months from "
-                                        f"{res.config.origination_date} to it. " + CO_MONTHS_SAID
-                   + " Shown, not compared.")
+        note[0] = ("Rate", note[0][1] + f" {CO_MONTHS_NAME}: the average number of months from "
+                                        f"{res.config.origination_date} to {res.config.chargeoff_date}, among the "
+                                        f"pocket's loans with a {res.config.chargeoff_date}. " + CO_MONTHS_SAID
+                   + " It is shown, not compared.")
     if sized:
         # said inside Rate, so the note keeps its rows and the dropdowns stay where the bank's checklist says
-        note[0] = ("Rate", note[0][1] + " Loan size: booked dollars per loan, the average; against the book's and "
-                                        "the rest of the band's average as a multiple. It is a description, not a "
-                                        "finding: no red or green, only darker the bigger the loans against the "
-                                        "book's.")
+        note[0] = ("Rate", note[0][1] + " Loan size: the average booked dollars per loan, and that average as a "
+                                        "multiple of the book's and of the rest of the band's. It is descriptive, "
+                                        "so it has no red or green; shading is darker the larger the loans are "
+                                        "relative to the book's.")
     note += [
-        ("Only loans where", f"Pick a value of {sf} to see the grid on only its loans"
-                             + (f"; of {sf2} and {sf3} too, and it shows the loans with all of them" if sf3 else
-                                f"; of {sf2} too, and it shows the loans with both" if sf2 else "")
-                             + ". vs the book is still against the whole book; vs rest of band, the rest of the band "
-                               "among those loans."
+        ("Only loans where", f"Pick a value of {sf} to show the grid on those loans only"
+                             + (f"; pick values of {sf2} and {sf3} as well to show the loans with all of them"
+                                if sf3 else
+                                f"; pick a value of {sf2} as well to show the loans with both" if sf2 else "")
+                             + ". vs the book is still measured against the whole book; vs rest of band uses the "
+                               "rest of the band among the selected loans."
                              + (YEAR_SAID.format(res.config.origination_date) if sf == ORIG_YEAR else "")
          if sf else SAY_NO_FILTER),
-        ("Groups", "Under the blocks: how many loans" + (", and booked dollars," if res.config.booked else "")
+        ("Groups", "The table under the blocks shows how many loans"
+                   + (", and how many booked dollars," if res.config.booked else "")
                    + " fall in each group of the split column or a new column, pocket by pocket, for every loan "
                      "in the grid. The count is checked against the grid's before it is shown. Everything on this "
-                     "tab is as of the last Run: no line on Control changes it."),
+                     "tab is as of the last Run; no line on Control changes it."),
     ]
     r = house.method_note(ws, 3, 2, last, note)
     m_opts = ([plain(m) for m in ms] + ([SIZE_NAME] if sized else [])
@@ -1931,7 +1940,7 @@ def _group_tables(res, views: Views) -> dict:
                 continue
             got = prevalence.count(res, g, grouping, rows, bands)
             if got is None:
-                views.put(f"P|{gi}|{gname}|say", ["Not shown: the count didn't add up to this grid's loans."])
+                views.put(f"P|{gi}|{gname}|say", ["Not shown: the count did not reconcile to this grid's loans."])
                 continue
             order, per, shown = got
             widest = max(widest, len(shown))
@@ -2077,8 +2086,8 @@ SUMMARY_NEEDS = {"outcome_loans": "outcome", engine.BOOKED: "booked amount", "gc
 #: Grids' Measure option for months to charge-off
 CO_MONTHS_NAME = "Months to charge-off (avg)"
 #: the rule for months to charge-off, as Summary and Grids say it (engine.months_between)
-CO_MONTHS_SAID = ("Months are calendar months, the day ignored: years apart × 12, plus months apart. 31 Jan to 1 Feb "
-                  "is 1; 1 Jan to 31 Jan is 0.")
+CO_MONTHS_SAID = ("Months are calendar months, ignoring the day: the difference in years × 12, plus the difference "
+                  "in months. 31 Jan to 1 Feb counts as 1; 1 Jan to 31 Jan counts as 0.")
 
 
 def _summary_shown(v, kind: str) -> str:
@@ -2156,29 +2165,33 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
     booked = res.config.booked or "booked amount"
     gco = res.config.gco or "GCOs"
     ranr = next((m.value for m in res.measures if m.name == "ranr_rate"), "RANR")
-    note = [("What it is", "Pick a band or category column. Its bands or values run down the side, then any loans it "
-                           "couldn't place, then All. Every figure is counted or divided from the loans. Nothing is "
-                           "tested.")]
-    note.append(("Loans", "How many loans are in each row, and its share of all of them. The shares add to 100%."))
+    note = [("What it is", "Pick a band or category column. Its bands or values are listed down the side, followed by "
+                           "any loans it could not place, then All. Every figure is a count or a ratio calculated "
+                           "from the loans; nothing is tested.")]
+    note.append(("Loans", "The number of loans in each row, and its share of all loans."))
     if "bad" in keys:
-        note.append(("Bad loans", f"How many loans went bad ({res.config.outcome}). Bad loans % is that over the "
-                                  f"row's loans whose outcome reads yes or no: the Bad loans rate on Grids."))
+        note.append(("Bad loans", f"The number of loans that went bad ({res.config.outcome}). Bad loans % divides "
+                                  f"that by the row's loans with an outcome of yes or no, and equals the Bad loans "
+                                  f"rate on Grids."))
     if "booked" in keys:
         note.append(("Booked $", f"The row's {booked}, and its share of the book's."))
-        note.append(("Avg line", "The row's booked dollars per loan: its average committed line. Line × book beside it is "
-                                 "that over the whole book's average line, filtered or not."))
+        note.append(("Avg line", "The row's average committed line: booked dollars per loan. Line × book beside it "
+                                 "divides that by the whole book's average line, whether or not a filter is "
+                                 "applied."))
     if "gco" in keys:
-        note.append(("GCOs ($)", f"The row's {gco}. GCOs ÷ Booked is that over its booked dollars, as Grids "
-                                 f"shows it for GCOs ($). A loan missing either amount is left out of both."))
+        note.append(("GCOs ($)", f"The row's {gco}. GCOs ÷ Booked divides that by the row's booked dollars, as Grids "
+                                 f"shows it for GCOs ($). A loan missing either amount is excluded from both."))
         note.append(("× book", "The row's GCOs ÷ Booked over the whole book's. 2.00× means twice the GCOs per "
                                "booked dollar."))
     if "ranr" in keys:
-        note.append(("RANR $", f"The row's {ranr}, and RANR ÷ Booked: that over its booked dollars. A share of RANR can pass 100% "
-                               f"or go below zero when some rows lose money."))
+        note.append(("RANR $", f"The row's {ranr}, and RANR ÷ Booked, which divides it by the row's booked dollars. "
+                               f"A row's share of RANR can exceed 100% or fall below zero when some rows have "
+                               f"negative RANR."))
     if "co_avg" in keys:
-        note.append(("Months to charge-off", f"Among the row's loans with a {res.config.chargeoff_date}: the average "
-                                             f"and the median months from {res.config.origination_date} to it. "
-                                             + CO_MONTHS_SAID + " Blank: none in the row charged off."))
+        note.append(("Months to charge-off", f"The average and median months from {res.config.origination_date} to "
+                                             f"{res.config.chargeoff_date}, among the row's loans with a "
+                                             f"{res.config.chargeoff_date}. "
+                                             + CO_MONTHS_SAID + " Blank: no loan in the row charged off."))
     left_off = list(dict.fromkeys(SUMMARY_NEEDS[n] for k, n in engine.SUMMARY_COLUMNS
                                   if n in SUMMARY_NEEDS and k not in keys))   # months to charge-off: optional
     if left_off:
@@ -2189,9 +2202,10 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
                         f"; of {sf2} too, and it shows the loans with both" if sf2 else "")
                      + ". The shares are of those loans. × book is still against the whole book."
                      + (YEAR_SAID.format(res.config.origination_date) if sf == ORIG_YEAR else "")))
-    note.append(("Shading", "The All row is shaded light grey. A row with fewer loans than Grey rows under, at the "
-                            "top, reads in light grey: type another number there and it changes at once. Nothing else "
-                            "reads that number, and nothing else is coloured. Everything here is as of the last Run."))
+    note.append(("Shading", "The All row is shaded light grey. A row with fewer loans than the number beside Grey "
+                            "rows under, at the top, is shown in light grey; typing another number there updates it "
+                            "immediately. No other cell uses that number, and nothing else is coloured. Everything "
+                            "here is as of the last Run."))
     from . import summary_chart                     # the grey rows' number and the vintage chart (3 Oct 2026)
     note.append(("Vintage", summary_chart.note_words(res)))
     r = house.method_note(ws, 3, left, last, note)
@@ -2260,37 +2274,40 @@ def _value_note(res, sf: str, b, dollar_rates: bool, profit: bool) -> list[tuple
     """The Split tab's note for a category split: each value against the rest of its pocket. The halves' note
     says the same things of the high half against the low."""
     return [
-        ("What it does", f"Inside each pocket the loans are split by their {sf}. Pick a grid and a value: that "
-                         f"value's loans are compared with the rest of the pocket (the other value, when there are "
-                         f"two), so the band and segment are the same on both sides. {sf} isn't a segment of its "
-                         f"own while it splits. At most {engine.SPLIT_MOST_VALUES} values."),
-        ("Value vs rest", "The value's rate over the rest's: 2.00× means it goes bad"
+        ("What it does", f"Inside each pocket the loans are split by their {sf}. Pick a grid and a value to compare "
+                         f"that value's loans with the rest of the pocket (the other value, when there are two), so "
+                         f"the band and segment are the same on both sides. While {sf} splits the pockets, it is not "
+                         f"a segment of its own. A split column can have at most {engine.SPLIT_MOST_VALUES} "
+                         f"values."),
+        ("Value vs rest", "The value's rate as a multiple of the rest's; 2.00× means it goes bad"
                           + (", or loses," if dollar_rates else "") + " twice as often."
-                          + (" RANR and RANR + GCOs are a gap in points instead: +0.30 pts means the value's "
-                             "RANR is 0.30 points more of its booked dollars." if profit else "")),
+                          + (" RANR and RANR + GCOs are a gap in points instead; +0.30 pts means the value's "
+                             "RANR is 0.30 points higher as a share of its booked dollars." if profit else "")),
         ("Value vs rest, all", live.text(
-            "The value's actual total against what it would be at the rest's rates, added over every pocket, with "
-            "its range at ", ('TEXT(confidence,"0%")',), " sure. For Bad loans only, the odds are pooled too "
-            "(Mantel-Haenszel), with their p-value (Cochran-Mantel-Haenszel), and Cochran's Q asks whether the gap "
-            "is the same size in every pocket.")),
+            "The value's actual total compared with its total at the rest's rates, summed over every pocket, with "
+            "its range at ", ('TEXT(confidence,"0%")',), " confidence. For Bad loans only, the odds ratios are also "
+            "pooled (Mantel-Haenszel) and given a p-value (Cochran-Mantel-Haenszel). Cochran's Q tests whether the "
+            "gap is the same size in every pocket.")),
         ("Do the values differ?", "For Bad loans, one test of every value at once, pooled over the grid's pockets "
                                   "(the K-group Mantel-Haenszel test, on one fewer degrees of freedom than there "
-                                  "are values). Every pocket counts here, however small, so with two values it can "
-                                  "differ a little from the odds' p-value, which uses only pockets above the "
-                                  "minimums. Not worked out for the dollar measures: the tool has no test of more "
-                                  "than two groups at once for a dollar rate."),
+                                  "are values). Every pocket counts here, however small, so with two values the "
+                                  "result can differ slightly from the pooled odds' p-value, which uses only "
+                                  "pockets above the minimums. It is not calculated for the dollar measures, "
+                                  "because PocketBook has no test of more than two groups at once for a dollar "
+                                  "rate."),
         ("p-value", live.text(
-            "The chance of a gap at least this big if the value were no different from the rest. Under ",
-            ('TEXT(significance_bar,"0%")',), " counts, and is bold. Bad loans: the gap in standard errors"
-            + (f"; a dollar measure: the loans dealt at random inside their pocket, {b.shuffles:,} times"
+            "The probability of a gap at least this large if the value were no different from the rest. A p-value "
+            "under ", ('TEXT(significance_bar,"0%")',), " is significant and shown in bold. Bad loans use the gap "
+            "in standard errors"
+            + (f"; a dollar measure reshuffles the loans at random within their pocket {b.shuffles:,} times"
                if dollar_rates else "")
             + f". The allowance for many tests ({_allowance(b)}) covers every value and pocket of one grid and "
               f"measure, and the summary's p-values across the values; a gap that is not significant is in "
               f"brackets, unshaded. A blank: the value or the rest has fewer loans or losses than the minimums "
               f"({b.min_units:,} loans, {b.min_events:,} losses).", *(BORDER_WORDS if dollar_rates else ()))),
-        ("What it holds", f"A grid holds fixed only its band and segment. How closely {sf} moves with a band "
-                          f"column isn't worked out for a category, so a gap here may partly be a column the grid "
-                          f"doesn't hold fixed. Loans are treated as independent of each other."),
+        ("What it holds", f"A grid holds fixed only its band and segment. The correlation of {sf} with a band "
+                          f"column is not calculated for a category, so a gap here may partly reflect a column the "
+                          f"grid does not hold fixed. Loans are treated as independent of each other."),
         ("As of", "The numbers are the last Run's. The range, the brackets and the bold follow the confidence on "
                   "Control."),
     ]
@@ -2408,29 +2425,30 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         ("What it does", f"Inside each pocket the loans are sorted by {sf} and cut at that pocket's own median. The "
                          f"high half is compared with the low half, so the band and segment are the same on both "
                          f"sides. {sf} isn't cut into bands of its own while it splits."),
-        ("High vs low", "The high half's rate over the low half's: 2.00× means the high half goes bad"
+        ("High vs low", "The high half's rate as a multiple of the low half's; 2.00× means the high half goes bad"
                         + (", or loses," if dollar_rates else "") + " twice as often."
-                        + (" RANR and RANR + GCOs are a gap in points instead: +0.30 pts means the high half's "
-                           "RANR is 0.30 points more of its booked dollars." if profit else "")),
+                        + (" RANR and RANR + GCOs are a gap in points instead; +0.30 pts means the high half's "
+                           "RANR is 0.30 points higher as a share of its booked dollars." if profit else "")),
         ("High vs low, all", live.text(
-            "The high halves' actual total against what it would be at their low halves' rates, added over every "
-            "pocket, with its range at ", ('TEXT(confidence,"0%")',), " sure. For Bad loans only, the odds are "
-            "pooled too (Mantel-Haenszel: a standard way to combine pockets without mixing their loans), with "
-            "their p-value (Cochran-Mantel-Haenszel), and Cochran's Q asks whether the gap is the same size in "
-            "every pocket.")),
+            "The high halves' actual total compared with their total at the low halves' rates, summed over every "
+            "pocket, with its range at ", ('TEXT(confidence,"0%")',), " confidence. For Bad loans only, the odds "
+            "ratios are also pooled (Mantel-Haenszel, a standard way to combine pockets without mixing their "
+            "loans) and given a p-value (Cochran-Mantel-Haenszel). Cochran's Q tests whether the gap is the same "
+            "size in every pocket.")),
         ("p-value", live.text(
-            "The chance of a gap at least this big if the two halves were no different. Under ",
-            ('TEXT(significance_bar,"0%")',), " counts, and is bold. Bad loans: the gap in standard errors"
-            + (f"; a dollar measure: the loans dealt into the two halves at random inside their pocket, "
+            "The probability of a gap at least this large if the two halves were no different. A p-value under ",
+            ('TEXT(significance_bar,"0%")',), " is significant and shown in bold. Bad loans use the gap in standard "
+            "errors"
+            + (f"; a dollar measure reassigns the loans to the two halves at random within their pocket "
                f"{b.shuffles:,} times" if dollar_rates else "")
             + f". The pockets are after the allowance for many tests ({_allowance(b)}, across one grid and one "
               f"measure); a gap that is not significant is in brackets, unshaded. The summary is one pooled test "
               f"per grid and measure, with no allowance. A blank: a half has fewer loans or losses than the "
               f"minimums ({b.min_units:,} loans, {b.min_events:,} losses).", *(BORDER_WORDS if dollar_rates else ()))),
         ("What it holds", (f"A grid holds fixed only its band and segment. {sf} moves with {pt[0]} (correlation "
-                           f"{pt[1]:+.2f}), so in a grid that doesn't hold {pt[0]} fixed part of every gap may be "
-                           f"{pt[0]}, not {sf}: the chip says which. Grids that hold it fixed come first in the "
-                           f"list." if pt else f"A grid holds fixed only its band and segment.")
+                           f"{pt[1]:+.2f}), so in a grid that does not hold {pt[0]} fixed, part of every gap may "
+                           f"reflect {pt[0]} rather than {sf}. The chip shows whether a grid holds it fixed, and "
+                           f"grids that do come first in the list." if pt else f"A grid holds fixed only its band and segment.")
          + " Loans are treated as independent of each other."),
         ("As of", "The numbers are the last Run's. The range, the brackets and the bold follow the confidence on "
                   "Control."),

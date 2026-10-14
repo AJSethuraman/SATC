@@ -341,8 +341,8 @@ def test_the_launcher_refuses_180_views_before_next_and_takes_150(sized, tmp_pat
     ok, said = f.summary()
     g = int(re.search(r"= ([\d,]+) grids?, five measures", said).group(1).replace(",", ""))
     assert ok and said.endswith("Grids can show only the loans of one FA, one FB, one FC4, or any of them "
-                                "together. Each grid is built for 6 × 5 × 5 = 150 views, All loans counted: "
-                                f"{g:,} grid{'s' * (g != 1)} × 150 = {g * 150:,} to build."), said
+                                "together. Each grid is built for 6 × 5 × 5 = 150 views, including All loans, so "
+                                f"{g:,} grid{'s' * (g != 1)} × 150 = {g * 150:,} grids are built."), said
     assert f.states()["next"] != "disabled"
 
 

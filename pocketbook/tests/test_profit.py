@@ -462,7 +462,8 @@ def test_the_words_are_p_value_and_not_significant(walk_book):
     ws = walk_book[results.POCKETS]
     assert ws.cell(row=tabs.header_row(ws, results.K_NUM, "#"), column=results.K_P).value == results.CHANCE_HEAD
     check = tabs.record(walk_book)
-    assert check["Standard error"].startswith("How far a rate worked out from this many loans typically lands")
+    assert check["Standard error"].startswith("The typical distance between a rate calculated from this many loans "
+                                              "and its true value.")
     assert "Two-sided" in check["p-value"]
     assert check["What RANR + GCOs assumes"].startswith("RANR + GCOs, per booked dollar. This assumes RANR has "
                                                        "the gross GCOs taken out.")

@@ -60,27 +60,30 @@ RUN_KEYS = ("min_loans", "min_events", "band_count", "band_cut", "power", "many_
 BLOCK_NOW, BLOCK_RUN, BLOCK_LAUNCHER = "block|now", "block|run", "block|launcher"
 NEEDS = "F7DEDE"          # ALERT_FG: the shade on a cell that still needs an answer
 METHOD = [
-    ("Changes now", "The result tabs read these answers with formulas. Change one and every reading, dollar figure, "
-                    "colour and verdict follows at once. The order of rows stays as the last Run left it."),
+    ("Changes now", "The result tabs read these answers through formulas, so changing one updates every reading, "
+                    "dollar figure, colour and verdict immediately. The rows stay in the order the last Run left "
+                    "them."),
     ("Needs a Run", "These decide which pockets exist and which test each one gets, so they take effect when you "
                     "press Run again. Status says when an answer differs from what the last Run used."),
-    ("Your answer", "Pick from the list, or type a number under Or your own: a number there wins. A shaded answer "
-                    "still needs one. Comes to shows what the answer amounts to now."),
-    ("Worked out", "Fewest loans, worse at and better at each have a value worked out from this extract, shown "
-                   "beside the setting. It is never picked for you."),
+    ("Your answer", "Pick from the list, or type a number under Or your own; a number there takes precedence. A "
+                    "shaded cell still needs an answer. Comes to shows the value the answer currently produces."),
+    ("Worked out", "Fewest loans, worse at and better at each have a value calculated from this extract, shown "
+                   "beside the setting. The value is never entered as your answer."),
     ("Chosen in the launcher", "What you're running and how the pockets are cut. Change them in the launcher's "
                                "Choose tests, then press Next. They are shown here so a reviewer sees them."),
-    ("Materiality levels", "For each level: its dollar line, how many pockets have GCOs above their share "
-                           "that reach it, and their part of all such dollars. It follows your answer live."),
+    ("Materiality levels", "For each level, the panel shows the dollar line, the number of pockets whose GCOs "
+                           "above their share reach it, and the portion of all such dollars those pockets hold. "
+                           "It updates live with your answer."),
 ]
 #: the two method lines a test of a new variable reads differently: it builds no pocket, so only worse at is worked
 #: out (from the confirmation's own groups), and the levels panel, which counts pockets, is hidden (phase 4's loose
 #: ends, closed with Goal 2 item 3). The bleed reads METHOD's
 METHOD_NEW = {
-    "Worked out": "Worse at has a value worked out from this extract, from the groups being confirmed, shown beside "
-                  "the setting. It is never picked for you.",
-    "Materiality levels": "Material? on New variables compares each group's excess with the level you pick, live. "
-                          "The panel of levels counts pockets, so it is hidden on this run, which builds none.",
+    "Worked out": "Worse at has a value calculated from this extract, using the groups being confirmed, shown "
+                  "beside the setting. The value is never entered as your answer.",
+    "Materiality levels": "Material? on New variables compares each group's excess with the selected level, and "
+                          "updates live. The panel of levels counts pockets, and this kind of Run builds none, so "
+                          "the panel is hidden.",
 }
 
 INK, CANVAS, MIST, SLATE, PAPER, KEY_RED = "16130F", "F4F1EC", "E4DFD5", "57534B", "FFFFFF", "CC0000"
@@ -130,8 +133,8 @@ class Setting:
 REMOVED_ROWS = ("min_age_months", "window_months", "as_of")
 DERIVED_KEY = "derived"
 DERIVED_ROWS = 3
-DERIVED_NOTE = ("Shows here and in Choose tests once you press Set up again, and on Look as a band column or the "
-                "split. Blank where the bottom is zero or blank.")
+DERIVED_NOTE = ("A new column appears here and under Choose tests after you press Set up again, and on Look once "
+                "it is a band column or the split. It is blank on loans where the denominator is zero or blank.")
 
 
 _ONCE = threading.local()
@@ -228,8 +231,8 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
               "I": 56, "J": 4, "K": 4, "L": 3, "M": 12, "N": 14, "O": 10, "P": 11}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
-    house.title_band(ws, "Control", "The professional calls. The top block changes results now; the second waits "
-                                    "for a Run.", 2, PANEL_COL + 3)
+    house.title_band(ws, "Control", "The professional calls. Answers in the top block change the results "
+                                    "immediately; answers in the second block take effect at the next Run.", 2, PANEL_COL + 3)
     r = house.method_note(ws, 3, 2, LAST_VISIBLE, METHOD)
     # the legend: the three input styles, drawn as they appear
     for col, (text, style) in zip((2, 3, 6), (("Changes now", house.changes_now), ("Needs a Run", house.needs_run),

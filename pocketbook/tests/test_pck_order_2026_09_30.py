@@ -276,7 +276,7 @@ def test_a_sort_in_excel_keeps_every_row_whole_its_colours_and_the_chart(made, t
         b = before[(x["band"], x["seg"])]
         assert {k: x[k] for k in keys} == {k: b[k] for k in keys}, (x["band"], x["seg"])
     # the red line above and the totals under the table are untouched
-    assert any("1 pocket lost money outright" in str(c.value) for r in after_ws.iter_rows(max_row=40) for c in r)
+    assert any("1 pocket listed has RANR below zero" in str(c.value) for r in after_ws.iter_rows(max_row=40) for c in r)
     # the chart numbers the first pockets read together in the new order, and names them under it
     named = [f"{x['band']} / {x['seg']}" for x in after if x["together"]][:results.LABELLED]
     hs = v[results.CHART]

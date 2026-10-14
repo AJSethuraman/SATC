@@ -193,8 +193,8 @@ def note_words(res) -> str:
     v = getattr(res, "vintage", None)
     if v is None or v.said is not None:
         return v.said if v is not None else SAY_NO_DATE
-    return ("Under the table: one row against the rest of the book and the whole book, by the year each loan was made "
-            f"({res.config.origination_date}).")
+    return ("The chart under the table compares one row with the rest of the book and the whole book, by the year each "
+            f"loan was made ({res.config.origination_date}).")
 
 
 def grey_input(ws, left: int) -> str:
@@ -285,11 +285,11 @@ def write(ws, res, choices, views, *, got: dict, left: int, last: int, hid: int,
     heads = [SUMMARY_HEADS[k][0] for k in keys]
     kinds = [SUMMARY_HEADS[k][1] for k in keys]
     scales = [100 if k in PER_CENT else 1 for k in kinds]
-    words = (f"Pick a measure and one row of the column above. Its line is that row's loans; {REST_LINE} is every "
-             f"other loan; the dashed grey line is all of them. Each point is the loans made that year ({oc}): the "
-             f"same figure as the table above, on those loans only. A share is of that year's loans. × book is still "
-             f"against the whole book. Loans with no readable date are left out. A rate or a share is drawn in per "
-             f"cent.")
+    words = (f"Pick a measure and one row of the column above. That row's loans form one line, {REST_LINE} covers "
+             f"every other loan, and the dashed grey line covers all loans. Each point is the figure from the table "
+             f"above, calculated on the loans made that year ({oc}) only. A share is of that year's loans, and × book "
+             f"is still measured against the whole book. Loans with no readable date are excluded. Rates and shares "
+             f"are plotted as percentages.")
     if few is not None:
         words += (f" A point with fewer loans than the {few:,} in Fewest loans in a pocket on Control is left off its "
                   f"line; the table under the chart shows it in grey.")
