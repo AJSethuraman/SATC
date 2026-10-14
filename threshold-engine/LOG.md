@@ -790,3 +790,13 @@ Found while reading them back, from KeyBank's 30 June 2026 filing:
 - Auto: the filing's auto loans (RC-C 6.c) are 62,212 ($000). If KeyBank's
   direct auto book is larger than that, part of it is filed elsewhere, and
   that goes into the "which entity / which line" check.
+
+### The goal, in the firm's words (13 Oct 2026)
+
+"i still want the first part to exist. so i want to get an industry
+perspective, competitive perspective, and internal. all of this to somehow
+synthesize reasonable thresholds." Also: internal metrics "may exclude
+certain things because they were not credit related", so the internal-to-
+filed check is a reconciliation (filed, less named exclusions, against
+internal; only the unexplained remainder flagged against a tolerance the
+firm sets), not an equality. How the three perspectives combine is open.
