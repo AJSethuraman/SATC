@@ -720,3 +720,21 @@ def test_pull_records_absorptions_for_every_cached_quarter(tmp_path):
                                                        **FILED[Q1])]), encoding="utf-8")
     I.pull(c, "2025Q2", "2025Q2", fetch=fake)
     assert any("/history" in u and "2016-01-01" in u for u in asked)
+
+
+
+def test_each_series_states_the_books_path(tmp_path):
+    """A shrinking book can raise a rate with no more loss (home equity
+    loans, "just discontinued"): the path is stated, no run-off line drawn."""
+    qs = labels(2022, 1, 12)
+    rows = [(q, "Home equity", "Home equity loans", 1000 - 50 * i, 2, 0) for i, q in enumerate(qs)]
+    internal = I.read(internal_file(tmp_path, rows))
+    line = I.book_path(internal, "Home equity", "Home equity loans")
+    # windows end 2022Q4..2024Q4; first average (1000+950+900+850)/4 = 925, last (600+550+500+450)/4 = 525
+    assert line.startswith("Book: four-quarter average balance 925 ($000) at 2022Q4, 525 at 2024Q4 (-43.2%)")
+    assert "fell in 8 of the 8 quarters since" in line
+    I.write_all_series(internal, tmp_path / "s")
+    text = (tmp_path / "s" / I.series_file_name("Home equity", "Home equity loans", "net-charge-off-rate")).read_text()
+    assert "# Book: four-quarter average balance 925" in text
+    short = I.read(internal_file(tmp_path, rows[:8]))
+    assert "fewer than nine" in I.book_path(short, "Home equity", "Home equity loans")

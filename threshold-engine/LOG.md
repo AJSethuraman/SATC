@@ -1041,3 +1041,7 @@ it found by running the code. 30 raised, 30 reproduced. Fixed:
   and watching that test fail; none needed the code changed. Its
   window-restriction peer had a gap, which synthesis now refuses; made
   unbroken, and the mutation still fails it.
+- **Then:** every internal series states its book's path (the four-quarter
+  average balance over the last nine windows, and in how many it fell), as
+  KeyBank's public series do: home equity loans were "just discontinued", so
+  a rate can rise as the book shrinks. Facts only; no run-off line drawn.

@@ -721,6 +721,20 @@ def series_file_name(product: str, segment: str, measure: str) -> str:
     return "internal_%s_%s_%s.csv" % (slug(product), slug(segment), measure)
 
 
+def book_path(internal: Internal, product: str, segment: str) -> str:
+    """One note line on where the segment's book has gone: the four-quarter
+    average balance over its last nine windows (``books.balance_path``), as
+    KeyBank's public series state it. A shrinking book (home equity loans,
+    "just discontinued", the firm 14 Oct 2026) can raise a rate with no more
+    loss. Facts only: no line is drawn for what counts as run-off."""
+    rows = internal.rows_for(product, segment)
+    by_q = {qindex(r.quarter): r for r in rows}
+    windows = [{"quarter": r.quarter, "avg_balance": float(sum(by_q[i].balance for i in range(k - 3, k + 1)) / 4)}
+               for k, r in sorted(by_q.items()) if all(i in by_q for i in range(k - 3, k + 1))]
+    return books.balance_path(windows, 9) or ("Book: fewer than nine four-quarter windows held, so its path "
+                                              "is not stated")
+
+
 def write_all_series(internal: Internal, out_dir) -> List[dict]:
     """Every product, segment and measure as a ``date,value`` CSV in
     ``out_dir``. A series is written from its latest unbroken run (the
@@ -735,7 +749,7 @@ def write_all_series(internal: Internal, out_dir) -> List[dict]:
             full = _series(internal, product, segment, key)
             tail, before, after = unbroken_tail([(q, v) for q, v, _ in full])
             path = out_dir / series_file_name(product, segment, key)
-            note = series_notes(internal, product, segment, key)
+            note = series_notes(internal, product, segment, key) + [book_path(internal, product, segment)]
             why: Dict[str, List[str]] = {}
             for q, v, w in full:
                 if v is None:
