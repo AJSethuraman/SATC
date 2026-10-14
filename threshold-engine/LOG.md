@@ -989,7 +989,8 @@ Built on branch `threshold-engine-synthesis-tab` (from `e401c5be`), in
   a line-5 refusal dropping lines 2-4, translation none ignored, percentiles
   allowed to tie, on-the-line ignored, synthesis series left unsmoothed):
   all nine turn a test red. The on-the-line fault survived the first round;
-  the test for a value exactly on a line was added for it.
+  the test for a value exactly on a line was added for it. Full suite on
+  this branch: 889 passed, none failed or skipped (53 min).
 - **Opened in Excel 16** on public files: KeyBank's filed card series
   standing in for internal (and as filed, so peers are carried by exactly
   1.000), the FDIC industry card series, and the 11 peers `peers build` wrote
