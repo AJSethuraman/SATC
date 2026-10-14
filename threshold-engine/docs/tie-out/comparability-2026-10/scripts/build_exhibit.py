@@ -243,13 +243,13 @@ def main():
          "At 30 Jun 2026, 10 of 16 banks file zero card nonaccrual; Citizens has filed zero card 90+ accruing in every one of its 76 quarters and puts it all in nonaccrual.",
          "Compare cards across banks on 90+ including nonaccrual (and 30+ including nonaccrual). Show nonaccrual alone and 90+ accruing alone only for KeyBank's own history."],
         ["3 · Card securitizations back on balance sheet, 2010Q1",
-         "<b>Real in the industry card series; not visible in the roster banks' own series.</b>",
+         "<b>Real in the industry card series. Among the roster banks only PNC's card book jumps (+67%), and the jump rule already leaves it out.</b>",
          "Industry card balances +%s in one quarter ($%sbn to $%sbn). About +%.1f pts on the industry card rate from the change in mix alone." % (
              pct(g3["qbp"]["2010Q1"]["bal"] - g3["qbp"]["2009Q4"]["bal"], g3["qbp"]["2009Q4"]["bal"], 1), n1(g3["qbp"]["2009Q4"]["bal"] / 1000),
              n1(g3["qbp"]["2010Q1"]["bal"] / 1000), g3["mix_effect"]),
          "Treat 2010Q1 as a break in the industry card series: use it from 2010Q4, or label 2006 to 2010Q3 as excluding securitized cards. The pack composite already starts at 2010Q4."],
         ["4 · Industry total against peer median",
-         "<b>Real, and it depends on the product.</b> The tool's industry total is the FDIC's own (ties to the QBP).",
+         "<b>Real, and it depends on the product.</b> The tool's industry total is the FDIC's own at 2026Q2 (ties to the QBP); over the full history it strays in some quarters, mainly around affiliate mergers and in 2008–09 (gap 5).",
          "Card and other consumer: within about 0.15 pts on average, but up to 1.3 pts apart in the 2009–11 stress. Auto: the industry is higher in every quarter, typically twice the median (1.3 to 2.9 times; %.2f%% against %.2f%% now). Home equity: 2.2 times the median at the 2009 peak." % (
              g4["products"]["Auto"]["rows"]["2026Q2"]["ind"], g4["products"]["Auto"]["rows"]["2026Q2"]["med"]),
          "Show both, as decided. For auto, anchor on the peer median and say why. Build the median in the tool: the band has no p50 yet."],
@@ -393,7 +393,8 @@ def main():
     d.add("<p><b>The question.</b> From 2010Q1, accounting standards FAS 166 and 167 brought securitized card receivables back onto banks' balance "
           "sheets. Is there a break in card balances or rates, for the industry and the peers?</p>")
     q3 = g3["qbp"]
-    d.add('<div class="answer"><b>Yes in the industry series; not in the roster banks\' own series.</b> Industry card balances rose from $%sbn to $%sbn '
+    d.add('<div class="answer"><b>Yes in the industry series. In the roster banks\' own series only PNC\'s card book jumps, and the jump rule '
+          'already leaves it out.</b> Industry card balances rose from $%sbn to $%sbn '
           'in one quarter (+%s). %s of the rise came in four separate card charters that are not on the roster: Citibank (South Dakota), '
           'FIA Card Services, Chase Bank USA and Capital One Bank (USA). Each was later merged into its roster parent (2011, 2014, 2019 and 2022).</div>'
           % (n1(q3["2009Q4"]["bal"] / 1000), n1(q3["2010Q1"]["bal"] / 1000), pct(q3["2010Q1"]["bal"] - q3["2009Q4"]["bal"], q3["2009Q4"]["bal"], 1),
@@ -434,9 +435,10 @@ def main():
     # ------------------------------------------------------------------ gap 4
     d.add('<h2 class="gap">Gap 4 · The dollar-weighted industry total against the peer median</h2>')
     d.add("<p><b>The question.</b> How far apart are the industry total and the peer median, product by product?</p>")
-    d.add('<div class="answer"><b>First, the industry total is right.</b> The tool\'s cache, summed over every filer, gives the FDIC\'s own published '
+    d.add('<div class="answer"><b>First, the industry total is right at 2026Q2.</b> The tool\'s cache, summed over every filer, gives the FDIC\'s own published '
           'figures: card balances, card delinquency and charge-off rates, home equity, 1-4 family and other consumer balances (8 figures). The tool\'s '
-          'TTM industry series also equals a TTM built from the QBP alone at 2026Q2, for card, mortgage, home equity and auto. <b>Then, the gap is real '
+          'TTM industry series also equals a TTM built from the QBP alone at 2026Q2, for card, mortgage, home equity and auto. Over 2006–2026 the card, '
+          'mortgage and home equity series stray from it in some quarters (figures G4-10, G4-12, G4-14), for the reasons set out in gap 5, not all of them traced. <b>Then, the gap is real '
           'and it depends on the product.</b></div>')
     d.img("g4-qbp-table-va", "QBP Table V-A", ["FDIC Quarterly Banking Profile, 2026 Q2", "Table V-A, Loan Performance", "All FDIC-Insured Institutions",
           "June 30, 2026", "rates %; balances $bn"], width="60%")
@@ -505,10 +507,15 @@ def main():
         i = qq.index(at)
         w = qq[i - 3:i + 1]
         qbp_full[at] = 100 * sum(q["card"][x][0] for x in w) / (sum(q["card"][x][1] for x in w) / 4)
+    qn = lambda x: int(x[:4]) * 4 + int(x[-1]) - 1
+    windows = {qn(e["q"]) + k for e in g5["events"] for k in range(4)}
+    stray = sorted((x for x in off if qn(x) not in windows), key=qn)
     d.add("<figure>%s<figcaption>Industry card net charge-off rate, trailing four quarters, %%. Blue: the tool's series "
           "(credit-card_industry_net.csv). Orange: the same arithmetic on the QBP's published quarterly charge-offs and balances. "
-          "The lines part for four quarters after each affiliated-charter merger. %d of %d quarters differ by 0.01 pts or more.</figcaption></figure>"
-          % (ttm_chart(off, tool_full, qbp_full), len(off), hist4["credit-card"]["n"]))
+          "The lines part for four quarters after each affiliated-charter merger: %d of the %d quarters (of %d) that differ by 0.01 pts or more. "
+          "The other %d (%s to %s) differ by at most %.2f pts; their cause was not traced.</figcaption></figure>"
+          % (ttm_chart(off, tool_full, qbp_full), len(off) - len(stray), len(off), hist4["credit-card"]["n"], len(stray), stray[0], stray[-1],
+             max(abs(off[x][0] - off[x][1]) for x in stray)))
     d.add("<p>Mortgage and home equity run the other way in 2008–09 (up to %.2f and %.2f pts low): the WaMu and Wachovia acquisitions fit by size and "
           "date, but that cause was not traced here. Auto agrees in all %d quarters compared.</p>"
           % (min(v[0] - v[1] for v in hist4["mortgage"]["off"].values()), min(v[0] - v[1] for v in hist4["home-equity"]["off"].values()), hist4["auto"]["n"]))
@@ -547,7 +554,9 @@ def main():
     d.add("<h3>The definition gap: home equity</h3>")
     d.add(table(["Date", "KeyCorp home equity ($m)", "Call Report home equity lines, 1.c.(1) ($000)", "Difference ($m)", "Call Report junior liens, 1.c.(2)(b)"],
                 [[k, n0(v["he"]), n0(v["heloc"]), n1(v["he"] - v["heloc"] / 1000), n0(v["junior"])] for k, v in (("31 Dec 2025", e25), ("30 Jun 2026", e26))]))
-    d.add("<p>The difference is closed-end home equity loans. Junior liens on the whole Call Report are only $%sm, so at least $%sbn of KeyCorp's home equity "
+    d.add("<p>The difference is closed-end home equity loans. Mortgage and home equity together tie at both dates (figures G6-08, G6-18), and "
+          "1.c.(1) holds every revolving home equity line whatever its lien, so what KeyCorp counts as home equity beyond 1.c.(1) is loans "
+          "the Call Report files in 1.c.(2). Junior liens on the whole Call Report are only $%sm, so at least $%sbn of KeyCorp's home equity "
           "loans are first liens, filed in 1.c.(2)(a) with residential mortgages. The tool's \"Home equity\" is lines only, and its \"Mortgage\" is first liens "
           "including those loans. Internal home equity on KeyCorp's definition will not match either public series.</p>"
           % (n0(e26["junior"] / 1000), n2((e26["he"] * 1000 - e26["heloc"] - e26["junior"]) / 1e6)))
@@ -577,7 +586,7 @@ def main():
                 [[r["q"][:4] + "Q%d" % ((int(r["q"][4:6]) - 1) // 3 + 1), n0(r["auto"]), n0(r["other"]), n0(r["rev"]), n0(r["con"])] for r in kh]))
     d.add("<p>The auto line ran from $2.7bn (2016, after First Niagara) to $5.1bn, then fell from $3.80bn to $0.15bn in 2021Q3. KeyBank securitized and "
           "sold the indirect book and kept $%sbn of the asset-backed notes as held-to-maturity securities. The 10-K's \"senior notes from a securitization "
-          "collateralized by sold indirect auto loans\" are down to $74m (Dec 2025) and $16m (Jun 2026). What is left in 6.c is a run-off book of $62m.</p>"
+          "collateralized by sold indirect auto loans\" are down to $74m (Dec 2025) and $16m (Jun 2026). What is left in 6.c is $62m: the line grew to $180m by mid-2022 and has fallen in every quarter since.</p>"
           % n2(g7["abs_auto_2021q3"] / 1e6))
     d.img("g7-keybank-rcc-6c-jun21", "KeyBank RC-C 6.c June 2021", ["KeyBank", "Report date 6/30/2021", "6.c = 3,804,433"])
     d.img("g7-keybank-rcc-6c-sep21", "KeyBank RC-C 6.c September 2021", ["KeyBank", "Report date 9/30/2021", "6.c = 152,093"])
@@ -591,7 +600,7 @@ def main():
           "and neither filing splits it, so the share is an upper bound on auto leasing. The other 14 file zero, and since consumer auto leases belong in 10.a, "
           "they have none. The auto rate stays internally consistent: lease charge-offs are on RI-B 8.a, "
           "outside the rate's top line, just as leases are outside its bottom line. The FDIC API has no field for 10.a (searched: 2,378 fields), so the tool "
-          "cannot carry it. Separately, KeyBank's filed auto is a $62m run-off book, while 12 of the 15 peers hold auto books of $1.3bn to $89bn (Regions, Zions and Citi hold little or none). Peer "
+          "cannot carry it. Separately, KeyBank's filed auto is a shrinking $62m book, while 12 of the 15 peers hold auto books of $1.3bn to $89bn (Regions, Zions and Citi hold little or none). Peer "
           "and industry auto rates describe a different business from KeyBank's direct auto, and KeyBank's own filed auto history is three different books "
           "in sequence.</p>")
     d.add('<div class="fix"><b>Recommended fix.</b> On site, put internal direct auto at 30 Jun 2026 beside 62,212. If it is larger, list what the internal segment holds '
@@ -638,18 +647,20 @@ python docs/tie-out/comparability-2026-10/scripts/build_exhibit.py --figures wor
     d.add("""<ul>
 <li><b>A defect in the tool's industry series.</b> Year-to-date differencing counts an absorbed affiliate's charge-offs twice in the merger quarter: six card
 quarters, $74m to $4.8bn each, and the industry card rate up to 0.71 pts high for four quarters after each. The same mechanism lifts
-Wells Fargo's own card rate by about 0.4 pts for four quarters of 2010–11, inside the pack composite. No test could catch it, because every input value is right. Only putting the series beside the
+Wells Fargo's own card rate by about 0.4 pts for four quarters of 2010–11, inside the pack composite. No check of the inputs could catch it, because every input value is right. Only putting the series beside the
 FDIC's own totals showed it.</li>
-<li><b>The jump rule misses 60 material acquisition quarters</b>, up to 27% of a book. The merger record is pulled but used only for the Balances index.</li>
+<li><b>The jump rule misses 60 material acquisitions</b> (counted by acquirer, quarter and product), up to 27% of a book. The merger record is pulled but used only for the Balances index.</li>
 <li><b>Right value, wrong citation, twice.</b> The government-guaranteed lines are RC-N items 11 to 11.b, not 10 and 10.a. The FDIC's field names for them read
 the wrong way round (P9GTYPAR is item 11; P9GTY is 11.a).</li>
 <li><b>KeyCorp counts rebooked GNMA loans as current; the Call Report counts them as 90+ accruing.</b> Internal and filed 90+ differ by design, by about $5m
 for residential at June 2026.</li>
 <li><b>KeyCorp's "home equity" is not the Call Report's.</b> About $2.5bn of closed-end home equity loans are filed with mortgages, so the internal import cannot
 map home equity one-to-one.</li>
-<li><b>KeyBank's filed auto line was emptied by a sale in 2021Q3</b> (6.c down $3.65bn in the quarter; $2.82bn of auto asset-backed notes kept). 62,212 is a run-off book.</li>
-<li><b>The tool's industry total is the FDIC's own</b>, to the published precision on every figure tried, and the tool reads every filed value it was set beside
-correctly: 131 of 131 TIED figures.</li>
+<li><b>KeyBank's filed auto line was emptied by a sale in 2021Q3</b> (6.c down $3.65bn in the quarter; $2.82bn of auto asset-backed notes kept). 62,212 is what remains: the line grew to $180m by mid-2022 and has fallen in every quarter since.</li>
+<li><b>The tool's industry balances are the FDIC's own</b>, to the published precision on every figure tried, and so are its industry rates at 2026Q2.
+Its charge-off rates stray from the QBP's in some quarters: after affiliate mergers (card, up to 0.71 pts), in 2008–09 (mortgage and home
+equity, up to 0.14 pts), and by under 0.05 pts in eight other card quarters of 2007–10. Every filed value the tool's cache was set
+beside, it holds correctly.</li>
 </ul>""")
     d.add('<h2 data-tieout="what-i-got-wrong">What I got wrong</h2>')
     d.add("""<ul>
