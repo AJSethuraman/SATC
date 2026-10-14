@@ -7,6 +7,9 @@ Control holds into the launcher's two dropdowns, as bands, segments and filters 
 what the dropdowns show. A value typed on Control survives; a change made in the launcher replaces it.
 """
 
+import json
+
+import pytest
 from openpyxl import load_workbook
 
 from pocketbook import book, control, launcher
@@ -82,7 +85,7 @@ def test_the_launcher_says_where_the_limits_came_from(tmp_path):
     assert f.limits_said == launcher.LIMITS_FROM_BOOK
     (tmp_path / "other").mkdir()
     f.pick(str(_graded(tmp_path / "other")))              # an extract with no workbook beside it
-    assert f.limits_said == "" and (f.few, f.many) == (6, 50)
+    assert f.limits_said == "" and (f.few, f.many) == (12, 50)   # the launcher's own, not the last workbook's
 
 
 def test_an_extract_with_no_workbook_keeps_the_launchers_limits(tmp_path):
@@ -114,12 +117,123 @@ def test_an_unreadable_workbook_leaves_the_launchers_limits(tmp_path):
     assert (f.few, f.limits_said) == (24, "")
 
 
+def _without_dimension(b):
+    """The workbook as a writer that records no sheet size leaves it: openpyxl then reads each row of a read-only sheet
+    only as far as its last filled cell (review of #437: with the size recorded, every row is padded to it)."""
+    import re
+    import zipfile
+    parts = {}
+    with zipfile.ZipFile(b) as z:
+        for i in z.infolist():
+            data = z.read(i.filename)
+            if i.filename.startswith("xl/worksheets/") and i.filename.endswith(".xml"):
+                data = re.sub(rb"<dimension [^>]*/>", b"", data)
+            parts[i.filename] = data
+    with zipfile.ZipFile(b, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, data in parts.items():
+            z.writestr(name, data)
+
+
 def test_read_limits_reads_a_read_only_worksheet(tmp_path):
-    """book.limits_in opens the workbook read-only, whose rows stop at their last filled cell."""
-    _, b = _written(tmp_path, few=6, many=25)
+    """book.limits_in opens the workbook read-only: rows padded to the sheet's recorded size, or, with none recorded,
+    rows of different lengths, some shorter than the hidden key column."""
+    x, b = _written(tmp_path, few=6, many=25)
     _type_on_control(b, "many_values", own=60)
-    wb = load_workbook(b, read_only=True)
+    for strip in (False, True):
+        if strip:
+            _without_dimension(b)
+        wb = load_workbook(b, read_only=True)
+        try:
+            ws = wb[control.SHEET]
+            if strip:
+                assert min(len(r) for r in ws.iter_rows(min_row=control.FIRST_ROW, values_only=True)) < control.KEY_COL
+            assert control.read_limits(ws) == {"few_values": 6, "many_values": 60}
+        finally:
+            wb.close()
+        assert book.limits_in(x) == {"few_values": 6, "many_values": 60}
+
+
+def test_a_limit_typed_on_control_while_the_launcher_left_open_survives_next(tmp_path):
+    """The launcher stays open while the analyst edits Control in Excel; Set up and Next read Control again."""
+    x, b = _written(tmp_path)
+    f = _flow(x)
+    f.set_up()
+    _type_on_control(b, "few_values", choose="24 values")
+    f.next()                                              # straight from Choose tests, no Set up in between
+    assert _limits(b) == {"few_values": 24, "many_values": 50}
+    _type_on_control(b, "many_values", choose="100 values")
+    f.set_up()
+    assert (f.few, f.many) == (24, 100)
+    f.next()
+    assert _limits(b) == {"few_values": 24, "many_values": 100}
+
+
+def test_a_launcher_change_wins_once_then_control_is_read_again_launcher_left_open(tmp_path):
+    x, b = _written(tmp_path)
+    f = _flow(x)
+    f.choose_limit("few", 24)
+    _type_on_control(b, "few_values", choose="12 values")  # Control edited after the launcher's change
+    f.set_up()
+    f.next()
+    assert _limits(b)["few_values"] == 24                 # the launcher's change was made last here, and is written
+    _type_on_control(b, "few_values", choose="12 values")  # after that Next, Control is the record again
+    f.next()
+    assert _limits(b)["few_values"] == 12
+
+
+def test_a_path_being_typed_never_takes_another_extracts_limits(tmp_path):
+    """Typing ".../loans2.csv" passes through ".../loans", whose workbook name is loans.csv's."""
+    x, b = _written(tmp_path)
+    _type_on_control(b, "few_values", choose="24 values")
+    _type_on_control(b, "many_values", choose="25 values")
+    other = tmp_path / "loans2.csv"
+    other.write_bytes(x.read_bytes())
+    stem = str(x.with_suffix(""))
+    assert launcher.book_for(stem) == b                   # the trap: a prefix maps to loans.csv's workbook
+    f = _flow(few=6, many=50)
+    for i in range(len(stem) - 3, len(str(other)) + 1):
+        f.pick(str(other)[:i])
+        assert (f.few, f.many, f.limits_said) == (6, 50, ""), str(other)[:i]
+    assert f.limit_prefs() == {"few": 6, "many": 50}
+    f.pick(str(x))                                        # the extract itself does take them
+    assert (f.few, f.many) == (24, 25)
+    assert f.limit_prefs() == {"few": 6, "many": 50}      # and the launcher keeps its own for the next extract
+
+
+def test_the_window_shows_the_workbooks_limits_and_drops_the_line_on_a_change(tmp_path, monkeypatch):
+    """The dropdowns and the line under them, in the window (needs a display; CI has none, so Flow's tests above
+    carry the planted bugs)."""
+    tk = pytest.importorskip("tkinter")
     try:
-        assert control.read_limits(wb[control.SHEET]) == {"few_values": 6, "many_values": 60}
+        root = tk.Tk()
+    except tk.TclError:
+        pytest.skip("no display to open a window on")
+    x, b = _written(tmp_path)
+    _type_on_control(b, "many_values", own=60)            # off the list: offered beside the options
+    monkeypatch.setattr(launcher, "PREFS", tmp_path / "launcher.json")
+    monkeypatch.setattr(launcher, "open_file", lambda p: None)
+    # the window opens on the last extract, from its prefs: the first drawing, before any pick
+    (tmp_path / "launcher.json").write_text(json.dumps({"extract": str(x), "few": 12, "many": 50}))
+    try:
+        w = launcher.build(root)
+        flow = w["flow"]
+        root.update()
+        assert (w["few"].get(), w["many"].get()) == ("6 values", "60 values")
+        assert "60 values" in w["many"].cget("values")
+        assert w["limits_said"].winfo_ismapped()
+        w["extract"].set(str(x) + "~")                    # a path being typed: no file, the launcher's own
+        root.update()
+        assert (w["few"].get(), w["many"].get()) == ("12 values", "50 values")
+        assert not w["limits_said"].winfo_ismapped()
+        w["extract"].set(str(x))
+        root.update()
+        assert (w["few"].get(), w["many"].get()) == ("6 values", "60 values")
+        assert "60 values" in w["many"].cget("values")
+        assert w["limits_said"].winfo_ismapped() and w["limits_said"].cget("text") == launcher.LIMITS_FROM_BOOK
+        w["few"].set("24 values")
+        w["few"].event_generate("<<ComboboxSelected>>")
+        root.update()
+        assert flow.few == 24 and not w["limits_said"].winfo_ismapped()
+        assert json.loads((tmp_path / "launcher.json").read_text())["few"] == 24
     finally:
-        wb.close()
+        root.destroy()

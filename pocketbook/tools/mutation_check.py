@@ -1786,14 +1786,21 @@ muts = [
  # 14 Oct 2026: the two column limits follow the workbook beside the extract (HANDOFF.md open item: Next wrote the
  # launcher's own last choice over a limit typed on Control; test_limits_from_workbook_2026_10_14.py)
  ("Next writing the launcher's limits over Control's again", LA,
-  '            self.page, self.message, self.crash = "extract", [], None\n            self.limits_from_book()',
-  '            self.page, self.message, self.crash = "extract", [], None', "survives_next"),
+  '            self.chose_limit = False\n            self.limits_from_book()', '            self.chose_limit = False',
+  "survives_next"),
  ("the launcher opening on the last extract without its workbook's limits", LA,
-  "        self.limits_from_book()       # the window opens on the last extract", "        pass",
+  "        self.limits_from_book()       # the window opens on the last extract, which may have its workbook "
+  "already", "        pass",
   "opens_on_the_last_extract"),
  ("a limit changed in the launcher still said to be the workbook's", LA,
-  '        setattr(self, key, n)\n        self.limits_said = ""', "        setattr(self, key, n)",
+  '        self.chose_limit = True\n        self.limits_said = ""', "        self.chose_limit = True",
   "changed_in_the_launcher"),
+ ("the launcher not reading Control again before Next", LA,
+  "        self.crash = None\n        self.fresh_limits()\n        try:\n            out = book.set_up(",
+  "        self.crash = None\n        try:\n            out = book.set_up(", "launcher_left_open"),
+ ("a path being typed taking another extract's limits", LA,
+  "        if self.gate.missing or not self.extract or not Path(self.extract).is_file():",
+  "        if self.gate.missing or not self.extract:", "path_being_typed"),
  ("Control's limits read only from a full-width row", CO,
   "        row = tuple(row) + (None,) * (KEY_COL - len(row))", "        row = tuple(row)", "read_only_worksheet"),
 ]

@@ -3506,10 +3506,24 @@ changed in the code.
   - **Where:** `control.read_limits` (Control's two limits, read-only worksheet too; `read_choices` now uses it),
     `book.limits_in` (the workbook beside an extract, Control alone, opened read-only), `launcher.Flow.limits_from_book`
     and `Flow.choose_limit`.
-  - Tests: 9 in `tests/test_limits_from_workbook_2026_10_14.py`, written failing-first (the reproduction read
-    `(6, 50)` for `(24, 50)`). With `test_launcher`, `test_rehearsal_2026_09_29` and `test_control`: 70 passed, 1
-    skipped, 1 failed for scikit-learn not being installed (passes with it). Planted bugs: 4 added to
-    `tools/mutation_check.py`.
+  - **The independent review's findings, all fixed** (an agent that had not seen the work, reading the branch only):
+    (1) the planted bug on `read_limits`' row padding could not be caught, since openpyxl pads a read-only sheet's
+    rows to its recorded size; its test now also reads a sheet with no size recorded, whose short rows the padding is
+    for. (2) Left open, the launcher still wrote its stale limits over Control: 24 picked on Control in Excel, then
+    Next wrote 6. Set up and Next now read Control again (`Flow.fresh_limits`) unless a limit was changed in the
+    launcher since the workbook was last read or written. (3) A path typed character by character passes through
+    names whose workbook is another extract's (`.../loans` on the way to `.../loans2.csv`) and kept its limits; only
+    a path that is a file is looked at now, and moving to an extract with no workbook goes back to the launcher's own
+    choice, which alone is kept in its preferences (`Flow.own`, `Flow.limit_prefs`). (4) HANDOFF.md's open item
+    updated. (5) One planted bug matched only part of its line, so the mutant was a syntax error that read as caught;
+    it now replaces the whole line. Left as is: a workbook that exists but can't be read is treated as no workbook
+    (Set up then reports the workbook itself).
+  - Tests: 13 in `tests/test_limits_from_workbook_2026_10_14.py`, written failing-first (the reproduction read
+    `(6, 50)` for `(24, 50)`); one draws the window (needs a display), run under xvfb with Python 3.12 and 4 window
+    bugs planted by hand, 4 caught. With `test_launcher`, `test_rehearsal_2026_09_29`, `test_control`,
+    `test_mutation_tool`, `test_errors_on_screen` and `test_columns_launcher_2026_09_30`, no display: 97 passed, 5
+    skipped (the window tests). Planted bugs: 6 added to `tools/mutation_check.py`, 6 of 6 caught, each by a failed
+    test, with DISPLAY unset; every entry's old string occurs once (707).
 
 ## 7 · Standing rules for new items
 

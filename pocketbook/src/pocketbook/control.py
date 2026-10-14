@@ -684,8 +684,8 @@ LIMITS = ("few_values", "many_values")
 
 def read_limits(ws) -> dict[str, int]:
     """The two column limits as Control holds them, by key: the option picked or a number typed in its own cell.
-    A limit with no usable answer is left out. Reads a read-only worksheet too, whose rows end at their last filled
-    cell (book.limits_in)."""
+    A limit with no usable answer is left out. Reads a read-only worksheet too (book.limits_in): openpyxl pads its
+    rows to the sheet's recorded size, and a sheet written without one has rows that end at their last filled cell."""
     got = {}
     for row in ws.iter_rows(min_row=FIRST_ROW, values_only=True):
         row = tuple(row) + (None,) * (KEY_COL - len(row))

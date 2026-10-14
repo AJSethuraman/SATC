@@ -44,12 +44,11 @@ pocket step by step. The analyst runs it on a bank machine from one pasted scrip
 - **Run targeted tests locally;** the full suite and the planted bugs run in CI.
 - **Watch a PR only while it is yours to merge.**
 
-## Open items (4 Oct 2026)
+## Open items (14 Oct 2026)
 
 - **First Run with the new kit:** compare Record's rows read with the source system's loan count. Before 4 Oct, certain control characters could split one CSV row into two without warning. Fixed; the comparison confirms whether earlier Runs were affected.
 - **Excel itself is unverified.** Every check used LibreOffice. Ask the firm to report any "Excel repaired this file" message.
-- **The launcher's Next overwrites a category limit typed on Control.** Existing behaviour, not yet fixed.
 - **Only the audit workbook and Glossary are rewritten to `VOICE.md`.** The other tabs still need the same pass. Show the firm a numbered before/after page first.
-- **The Summary vintage chart breaks past about 42 distinct origination years.** Not a card-book concern.
+- **The Summary vintage chart breaks past about 42 distinct origination years.** Not a card-book concern. Not confirmed: the 4 Oct handoff gives no source for the figure, and reading `summary_chart.py` did not show the cause (14 Oct 2026). Reproduce it on a synthetic book before fixing or dropping it.
 - **The filter view limits can be bypassed:** a pair refused at 49 views is accepted with a small third filter. The firm chose to leave it.
-- **Proposed next project:** a tool that sets objective, product-specific thresholds for inherent (gross charge-offs) and residual (net charge-offs) risk ratings. Design first; the firm holds the brief.
+- **The thresholds tool proposed on 4 Oct is built** as its own project, `threshold-engine/` (root `CLAUDE.md`). Nothing of it is open here.
