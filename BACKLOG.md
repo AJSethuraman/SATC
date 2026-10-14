@@ -3560,6 +3560,9 @@ changed in the code.
   count against Start here's; 3, any Excel "repaired" message; 4, accept the eleven older "for the firm to confirm"
   notes as built. **Next (silence approves):** build the wording pass on #440 once item 1 is answered; until then,
   reproduce or retract the Summary vintage chart's "breaks past about 42 years".
+  - **Answered the same day:** 1, *"Yes, build them all"*: every unmarked proposal is built as Use it. 2, *"Figure out
+    after we are ready to ship"*: the loan-count check waits for the next kit that goes to the bank. 3 (Excel) not
+    answered; it stays open. 4, *"Yes, they stand"*: the eleven older notes are accepted as built and come off the list.
 
 ## 7 · Standing rules for new items
 
