@@ -111,11 +111,41 @@ h1,h2,h3,p{margin:0}
 .duebox .k{font-family:var(--mono);font-size:7pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-2)}
 .duebox .amt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:20pt;font-weight:500;color:var(--navy);line-height:1;letter-spacing:-0.02em;margin-top:5pt}
 .duebox .amt .f{font-size:0.92em}
+/* THE PAYMENT LINK, IN THE BOX THAT SAYS WHAT IS OWED. It used to sit inside
+   "How to pay", which comes after this box -- so on a five-line invoice it fell
+   to page 2, wrapped mid-URL, with its heading stranded at the foot of page 1.
+   The firm, 13 Oct 2026: "page 2 has the link and it isn't obvious." A button
+   for the screen, and the URL spelled out beneath it for anyone holding paper. */
+.duebox .dueline{display:flex;align-items:center;gap:16pt;margin-top:5pt}
+.duebox .dueline .amt{margin-top:0}
+/* THE QR SITS BESIDE ITS LABEL, NOT ABOVE IT: under it, the box grew 20pt and
+   pushed the notes and signature onto a second page. */
+.duebox .payqr{display:flex;flex-direction:row;align-items:center;gap:6pt;text-decoration:none}
+.duebox .payqr img{width:46pt;height:46pt;display:block;image-rendering:pixelated}
+.duebox .payqr span{width:30pt;font-family:var(--mono);font-size:6.5pt;line-height:1.4;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-2)}
+.duebox .paynow{display:inline-block;margin-top:0;padding:5pt 14pt;background:var(--navy);color:#fff;font-size:9pt;font-weight:600;text-decoration:none;border-radius:2pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.duebox .payurl{margin-top:4pt;font-family:var(--mono);font-size:7.5pt;color:var(--ink-2);white-space:nowrap}
+/* BILLED TO, BESIDE THE TITLE. It had a band of its own while the left side of
+   the title row sat empty under a two-line heading; moving it up is what puts
+   a five-line invoice on one page. Invoice only -- the estimate shares these
+   classes and keeps its layout. */
+.invoice .doctitle{align-items:flex-start}
+.invoice .doctitle .prepared{margin-top:12pt;padding-top:0;border-top:0}
+/* HOW TO PAY IS THE LONGEST OF THE THREE COLUMNS -- six lines beside two and
+   four -- so it alone set the block's height. Wider, it wraps to four. */
+.invoice .pay>div:first-child{flex:1.7}
+.invoice .notes .h{margin-bottom:5pt}
+/* THE LAST 16pt, as `.doc.invoice` so these hold on top of whatever spacing the
+   other nine documents settle on rather than fighting it for the same line. */
+.doc.invoice .led td{padding:3.5pt 0}
+.doc.invoice .duebox{margin-top:9pt}
+.doc.invoice .pay{margin-top:10pt}
+.doc.invoice .notes{margin-top:10pt}
 .duebox .terms{font-size:8.5pt;color:var(--ink-2);text-align:right;max-width:2.9in;line-height:1.45}
 .duebox .terms b{color:var(--navy);font-weight:600}
 
 /* ---------- three-up detail strip (payment, remit, contact) ---------- */
-.pay{display:flex;gap:0.34in;margin-top:18pt;padding-top:10pt;border-top:0.5pt solid var(--hairline)}
+.pay{display:flex;gap:0.34in;margin-top:18pt;padding-top:10pt;border-top:0.5pt solid var(--hairline);break-inside:avoid;page-break-inside:avoid}
 .pay>div{flex:1}
 .paylink{margin-top:5pt;font-family:var(--mono);font-size:8pt;line-height:1.45;word-break:break-all}
 .paylink a{color:var(--navy);text-decoration:underline;text-underline-offset:2pt}
@@ -223,3 +253,23 @@ a:hover{color:var(--navy)}
 .scope li{font-size:9.5pt;line-height:1.5;margin-bottom:2pt}
 .scope li b{color:var(--navy);font-weight:600}
 .scope>p{font-size:8pt;color:var(--mute);margin:8pt 0 0}
+
+/* ---------- the invoice, on one page ---------- */
+/* SCOPED TO `.invoice` ON PURPOSE. This stylesheet dresses all ten client
+   documents; the engagement letter and the estimate keep their own rhythm.
+   A five-line invoice ran to two pages with page 2 mostly empty -- the firm,
+   13 Oct 2026: "spacing is annoying on this". Every rule here trims space
+   the invoice did not need; none of them touches another document. */
+.invoice .led{margin-top:11pt}
+.invoice .led td{padding:4.5pt 0}
+.invoice .led tr.tot td{padding:5pt 0}
+.invoice .duebox{margin-top:11pt;padding:8pt 12pt}
+.invoice .pay{margin-top:12pt;padding-top:8pt}
+.invoice .notes{margin-top:12pt}
+.invoice .notes li{padding:1.5pt 0 1.5pt 20pt}
+.invoice .signoff{margin-top:12pt}
+
+/* A NOTES HEADING WITH NO NOTES UNDER IT. Every note on the invoice is now
+   conditional, so a bookkeeping bill billed at its estimate has none; the
+   heading alone reads like something was left out. */
+.notes:not(:has(li)){display:none}

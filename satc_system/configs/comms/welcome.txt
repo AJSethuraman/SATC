@@ -16,6 +16,5 @@ fix, not yours to decipher.
 Looking forward to working with you,
 {preparer_name}
 {firm_name}
-"{firm_tagline}"
 
 — DRAFT for preparer review. Not sent automatically. —

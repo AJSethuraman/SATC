@@ -84,6 +84,9 @@
       <input type="hidden" name="client" value="{{ client_id }}">
       <input type="hidden" name="template" value="{{ template.key }}">
       <input type="hidden" name="tax_year" value="{{ tax_year }}">
+      {# The invoice a Today row named. Without it, filling in a field re-rendered
+         against the NEWEST invoice and its balance (Codex on PR #430). #}
+      <input type="hidden" name="invoice" value="{{ invoice_id or '' }}">
 
       {% if preparer_fields %}
       <div class="well" style="margin-bottom:12px">

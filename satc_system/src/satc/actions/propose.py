@@ -648,7 +648,9 @@ def invoice_overdue(invoices, payments=(), *, client_id: str, today: date,
             action_id=action_id("invoice_overdue", client_id, str(inv.invoice_id)),
             kind="invoice_overdue", client_id=client_id,
             title=title, why=why,
-            urgency=urgency, due=inv.due_on, template_key="invoice_cover",
+            # A REMINDER, not the delivery email: an overdue bill's return may be
+            # filed already (Codex on PR #430).
+            urgency=urgency, due=inv.due_on, template_key="overdue_invoice",
             # The draft has to be about THIS invoice. Handing the comms screen
             # only the client and the year lets it pick the newest bill, and a
             # client then reads a covering note whose number and amount are not

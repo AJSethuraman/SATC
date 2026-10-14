@@ -364,6 +364,14 @@ fields:
     label: "Taxpayer"
     source: interview
     templates: [records-release, tax-letter]
+  - field: PaymentQr
+    label: "The payment link as a QR code"
+    source: computed
+    templates: [invoice]
+    notes: >-
+      Drawn from `PaymentUrl` by `invoicing.payment_qr` when the invoice is
+      rendered, never stored -- a second copy of the link could disagree with
+      the first. Used only as an image source, inside the PaymentLink block.
   - field: VarianceNote
     label: "Why the bill differs from the estimate"
     source: invoice
@@ -414,6 +422,14 @@ flags:
     label: "A credit is being applied"
     source: invoice
     templates: [invoice]
+  - flag: BilledAboveEstimate
+    label: "The bill is above the estimate"
+    source: invoice
+    templates: [invoice]
+    notes: >-
+      Set by `invoicing.py` when the subtotal exceeds the estimate. Gates the
+      "quoted separately" note, which is only true -- and only needed -- on a
+      bill that went past what was quoted.
   - flag: EFiled
     inverse_of: PaperFiled
     label: "Filed electronically"
@@ -493,7 +509,7 @@ flags:
   - flag: ReturnScope
     label: "This engagement prepares returns"
     source: engagement
-    templates: [fee-estimate]
+    templates: [fee-estimate, invoice]
     notes: >-
       Does this engagement prepare returns? Turns on the estimate's scope
       block, which repeats the engagement letter's four scope lines word for
@@ -501,6 +517,8 @@ flags:
       `interview.compose` from the federal form; never asked. A bookkeeping
       engagement is the case it is off for -- its scope is ScopeItems, a
       list, and it has no interview yet.
+      On the invoice it gates "We file your return once..." -- a bookkeeping
+      bill has no return to file (found by Codex on PR #430).
   - flag: EntityIssuesK1s
     label: "The entity issues Schedules K-1"
     source: engagement
