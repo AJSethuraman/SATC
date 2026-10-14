@@ -768,3 +768,25 @@ Suite: 783 passed (28 min).
 - **Next** (silence approves only this): merge #432, #434 and this branch in
   order, then start the purpose-built data layer with whatever the docket
   approves.
+
+### The firm's answers to the docket (13 Oct 2026)
+
+| Decision | Answer | Their words |
+|---|---|---|
+| Other consumer balance = 6.b + 6.d | Yes, fix it | "fix it but what can we get from the LOC info then - at least balances compared to PLs or something? commitments?" |
+| FDIC for every industry series | Yes, FDIC for all | Fed kept as a cross-check |
+| The seven comparability gaps | Yes, all seven | "this has to be well-documented and tied out" |
+| One import for internal data | Yes, one import | "i need this to be able to accept like-data - so internal data i will give the tool in a form it wants. so let's discuss the structure of what we have i cannot give you real numbers" |
+| Auto | Set thresholds | "we have auto in the bank it's just direct" |
+| Industry figure | Both: total and peer median | |
+| Merge order | Merge as is, purpose-built on top | |
+
+Found while reading them back, from KeyBank's 30 June 2026 filing:
+- Lines of credit: public data gives the balance only (RC-C 6.b, about
+  268,825). Unused commitments are filed for home equity lines (RC-L 1.a,
+  7,581,816) and credit cards (1.b, 5,750,823) but not for other consumer
+  lines, which fall into "all other" with commercial (1.e). So the public
+  LOC view is balance and its share against installment (6.d), not usage.
+- Auto: the filing's auto loans (RC-C 6.c) are 62,212 ($000). If KeyBank's
+  direct auto book is larger than that, part of it is filed elsewhere, and
+  that goes into the "which entity / which line" check.
