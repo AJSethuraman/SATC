@@ -23,6 +23,15 @@ from satc.comms.library import CommsLibrary, CommsTemplate
 # ordinary prose braces in a body are never mistaken for a slot.
 _SLOT = re.compile(r"\{([a-z][a-z0-9_]*)\}")
 
+#: Where the payment QR code goes in an HTML draft.
+QR_MARKER = "[[ QR code ]]"
+# Text that reads true only beside the picture, and its plain-text stand-in.
+_SCAN = re.compile(r"\[\[scan\]\](.*?)\[\[/scan\]\]", re.S)
+_NOSCAN = re.compile(r"\[\[noscan\]\](.*?)\[\[/noscan\]\]", re.S)
+# Wording that applies only when a value is on file, with what to say otherwise.
+_IF_VALUE = re.compile(
+    r"\[\[if ([a-z][a-z0-9_]*)\]\](.*?)(?:\[\[else\]\](.*?))?\[\[/if\]\]", re.S)
+
 
 def placeholder_names(template: CommsTemplate) -> list[str]:
     """Every merge field used by a template's subject + body, first-seen order."""
@@ -50,6 +59,25 @@ class RenderedDraft:
     body: str
     filled: list[str] = field(default_factory=list)
     unfilled: list[str] = field(default_factory=list)
+    #: The payment link the QR code encodes; ``""`` when the draft has none.
+    qr_url: str = ""
+    #: The body with the scan wording kept and the marker in place, for ``html``.
+    html_source: str = ""
+
+    @property
+    def html(self) -> str:
+        """The draft as an HTML email, or ``""`` when plain text says it all.
+
+        Built only for a draft that carries a QR code -- the one thing plain
+        text cannot show. Formatted as the firm set the invoice email in
+        Outlook, 13 Oct 2026: Arial 12pt, results as a bulleted list, steps as
+        a numbered list, the signature in the smaller signature font. The image
+        is referenced as ``cid:payqr``; the caller attaches it under that id.
+        """
+        if not self.html_source:
+            return ""
+        from satc.comms.html import to_html
+        return to_html(self.html_source, qr_url=self.qr_url)
 
     @property
     def is_complete(self) -> bool:
@@ -105,9 +133,27 @@ def render(template: CommsTemplate, values: dict[str, str], *,
         return unfilled_marker(name, label_for(name))
 
     subject = _SLOT.sub(substitute, template.subject or "")
-    body = _SLOT.sub(substitute, template.body or "")
+    # Choose each [[if value]] branch BEFORE substituting, so a slot in the
+    # branch not taken is never reported as unfilled. Found by Codex on PR
+    # #430: a business has no first name, and the individual password line
+    # left every business draft with a marker no screen field could clear.
+    body_src = _IF_VALUE.sub(
+        lambda m: m.group(2) if _merge_text(values.get(m.group(1))) else (m.group(3) or ""),
+        template.body or "")
+    merged = _SLOT.sub(substitute, body_src)
+    # THE QR CODE EXISTS ONLY WHERE A PICTURE CAN BE SHOWN. Found by Codex on
+    # PR #430: the app opened Outlook drafts as plain text, so a client would
+    # have read "[[ QR code ]]" under a sentence promising a code. The plain
+    # body drops the promise; the HTML body (``html``) carries the image.
+    link = _merge_text(values.get("payment_link"))
+    qr_url = link if QR_MARKER in merged and link else ""
+    plain = _SCAN.sub("", merged)
+    plain = _NOSCAN.sub(r"\1", plain)
+    plain = re.sub(r"\n?[ \t]*" + re.escape(QR_MARKER) + r"[ \t]*\n?", "", plain)
+    html_source = _NOSCAN.sub("", _SCAN.sub(r"\1", merged)) if qr_url else ""
     return RenderedDraft(key=template.key, name=template.name, kind=template.kind,
-                         subject=subject, body=body, filled=filled, unfilled=unfilled)
+                         subject=subject, body=plain, filled=filled, unfilled=unfilled,
+                         qr_url=qr_url, html_source=html_source)
 
 
 def render_key(key: str, values: dict[str, str], *,

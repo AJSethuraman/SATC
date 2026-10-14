@@ -7,6 +7,7 @@ state, surfaces what it couldn't fill, and never acquires a send path.
 
 from __future__ import annotations
 
+from satc.comms.context import bill_money
 import pytest
 
 from satc.app.server import create_app
@@ -78,7 +79,9 @@ def test_a_genuine_unknown_fact_is_still_marked(client, demo_client_id):
         "client": demo_client_id, "template": "invoice_cover"})
     body = resp.data.decode("utf-8")
     assert "fill in ]]" in body
-    assert "Invoice number" in body
+    # The email no longer carries the invoice number; the payment link is
+    # the fact a preparer still has to supply.
+    assert "Square payment link" in body
 
 
 def test_preparer_typed_values_are_merged_in(client, demo_client_id):
@@ -178,8 +181,8 @@ def test_the_draft_quotes_the_invoice_the_row_named_not_the_newest(
     _with_invoices(monkeypatch, [older, newer])
 
     body = _draft(client, demo_client_id, invoice=older.invoice_id)
-    assert f"${older.total:,.2f}" in body
-    assert f"${newer.total:,.2f}" not in body, (
+    assert bill_money(older.total) in body
+    assert bill_money(newer.total) not in body, (
         "the row said 2026-9001; the client must not read 2026-9002's amount")
 
 
@@ -191,7 +194,7 @@ def test_with_no_invoice_named_the_newest_is_still_what_a_cold_start_gets(
     _with_invoices(monkeypatch, [older, newer])
 
     body = _draft(client, demo_client_id)
-    assert f"${newer.total:,.2f}" in body
+    assert bill_money(newer.total) in body
 
 
 def test_an_invoice_that_is_not_on_file_refuses_instead_of_quoting_another(
@@ -205,7 +208,7 @@ def test_an_invoice_that_is_not_on_file_refuses_instead_of_quoting_another(
     body = _draft(client, demo_client_id, invoice="2026-0000")
     assert "No invoice 2026-0000 is on file" in body
     assert "Copy the draft" not in body
-    assert f"${newer.total:,.2f}" not in body
+    assert bill_money(newer.total) not in body
 
 
 def test_another_clients_invoice_is_refused_rather_than_merged(
@@ -358,7 +361,7 @@ def test_an_invoice_total_is_never_the_fee_this_engagement_agreed(
     _with_jobs(monkeypatch, [_job()])                     # fallback plan: no fee
     body = _letter(client)
 
-    assert f"${newer.total:,.2f}" not in body, "a bill stood where the agreed fee goes"
+    assert bill_money(newer.total) not in body, "a bill stood where the agreed fee goes"
     assert "Fee for the work described above: [[ Fee: fill in ]]" in body
 
 
@@ -372,7 +375,7 @@ def test_the_covering_email_still_quotes_the_bill_it_is_about(
     _with_jobs(monkeypatch, [_job()])
 
     body = _draft(client, ENGAGED)
-    assert f"${newer.total:,.2f}" in body
+    assert bill_money(newer.total) in body
 
 
 def test_a_document_out_of_scope_is_not_requested_in_the_letter(
@@ -458,7 +461,7 @@ def test_the_outlook_route_states_the_same_fee_the_screen_does(
         "client": ENGAGED, "template": "engagement_letter", "tax_year": str(YEAR)})
     body = resp.data.decode("utf-8")
     assert "Self-employment income and expenses" in body
-    assert f"${newer.total:,.2f}" not in body
+    assert bill_money(newer.total) not in body
     assert "[[ Fee: fill in ]]" in body
 
 
@@ -521,3 +524,73 @@ def test_no_module_anywhere_has_a_send_path():
                 func = node.func
                 name = getattr(func, "attr", None) or getattr(func, "id", None)
                 assert name not in banned_calls, f"{path.name} calls {name}"
+
+
+def test_the_outlook_button_hands_over_the_html_and_the_code(client, demo_client_id, monkeypatch):
+    """The route, not just the function: pressing "Open an Outlook draft" on the
+    invoice email passes the HTML body and the QR image along."""
+    from satc.comms.html import QR_CID
+    from satc.comms.render import QR_MARKER
+    from satc.intake import email_draft
+    LINK = "https://square.link/u/EXAMPLE1"
+    seen = {}
+
+    def _record(**kw):
+        seen.update(kw)
+        return email_draft.DraftResult(False, "unavailable", "recorded by the test")
+
+    monkeypatch.setattr(email_draft, "open_outlook_draft", _record)
+    client.post("/comms/outlook", data={
+        "client": demo_client_id, "template": "invoice_cover", "fill_payment_link": LINK})
+    assert 'src="cid:payqr"' in seen.get("html_body", "")
+    assert set(seen.get("inline_images", {})) == {QR_CID}
+    assert QR_MARKER not in seen["body"]
+
+
+def test_an_overdue_reminder_asks_for_the_balance_not_the_total(
+        client, demo_client_id, monkeypatch):
+    """FOUND BY CODEX ON PR #430. The reminder quoted the invoice total, so a
+    client who had paid $300 of $450 was told $450 was past due. It now quotes
+    what the payments ledger says is still owed -- the Today row's number."""
+    from datetime import date
+    from decimal import Decimal
+
+    from satc.billing.payment import MatchBasis, Payment
+
+    older, _, _ = _two_issued_invoices(demo_client_id)          # $450.00
+    _with_invoices(monkeypatch, [older])
+    paid = Payment(client_id=demo_client_id, amount=Decimal("300"), received_on=date(2026, 2, 1),
+                   invoice_id=older.invoice_id, basis=MatchBasis.REFERENCE)
+    monkeypatch.setattr(STATE.store, "load_payments", lambda client_id="": [paid])
+
+    resp = client.get("/comms", query_string={
+        "client": demo_client_id, "template": "overdue_invoice", "tax_year": 2025,
+        "invoice": older.invoice_id})
+    body = resp.data.decode("utf-8")
+    assert bill_money(older.total - Decimal("300")) in body
+    assert f"{bill_money(older.total)} is past due" not in body
+
+
+def test_filling_in_a_field_keeps_the_invoice_the_row_named(client, demo_client_id, monkeypatch):
+    """FOUND BY CODEX ON PR #430. The fill-in form did not carry the invoice, so
+    typing the payment link re-rendered the reminder against the NEWEST bill."""
+    older, newer, _ = _two_issued_invoices(demo_client_id)
+    _with_invoices(monkeypatch, [older, newer])
+    monkeypatch.setattr(STATE.store, "load_payments", lambda client_id="": [])
+
+    page = client.get("/comms", query_string={
+        "client": demo_client_id, "template": "overdue_invoice", "tax_year": 2025,
+        "invoice": older.invoice_id}).data.decode("utf-8")
+    import re
+    forms = re.findall(r'<form method="post" action="/comms">(.*?)</form>', page, re.S)
+    assert forms, "the fill-in form is missing"
+    fill_form = forms[0]
+    assert f'name="invoice" value="{older.invoice_id}"' in fill_form
+
+    # Submit exactly what that form carries, as the browser would.
+    data = dict(re.findall(r'<input type="hidden" name="([^"]+)" value="([^"]*)"', fill_form))
+    data["fill_payment_link"] = "https://square.link/u/EXAMPLE1"
+    resp = client.post("/comms", data=data)
+    body = resp.data.decode("utf-8")
+    assert older.invoice_id in body and bill_money(older.total) in body
+    assert newer.invoice_id not in body

@@ -126,8 +126,8 @@ TERMS = [
     ("Backtest",
      "How well a scale would have predicted what came next, using only history available at the time: the "
      "quarter scored and those before it, never one after.",
-     "Every quarter is scored on lines built from the quarters before it, then compared with the value four "
-     "quarters later."),
+     "Every quarter is scored on lines built from that quarter and the quarters before it, then compared with "
+     "the value four quarters later."),
     ("Spearman",
      "How consistently a higher score came before a higher value (1 is perfect, 0 is none, negative is reverse).",
      "The correlation of the ranks of the two lists."),

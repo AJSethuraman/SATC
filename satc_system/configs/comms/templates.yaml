@@ -28,7 +28,6 @@
 firm:
   name: "Sethuraman Accounting, Tax & Consulting"
   short_name: "SATC"
-  tagline: "Complex work, made clear."
   email: "arjun_sethuraman@satcllp.com"
   # FULL NAME, matching `client-documents/registry/firm-settings.yaml`, which
   # signs every letter. The emails signed "A. Sethuraman" while the letters in
@@ -46,6 +45,10 @@ placeholders:
     label: "Salutation"
     source: state
     note: "First name for a person; the entity name for a business."
+  primary_first_name:
+    label: "Primary taxpayer's first name"
+    source: state
+    note: "First word of the client's legal name -- the first person on the return. Individuals only."
   client_id:
     label: "Client ID"
     source: state
@@ -115,6 +118,10 @@ placeholders:
       promptly and NOT withholding them over a fee dispute — so this text is
       firm-standing and deliberately not per-client wording anyone can soften.
 
+  amount_owed_text:
+    label: "Still owed on the invoice"
+    source: state
+    note: "From the payments ledger (balance_owed), not the invoice total -- a part-paid bill is chased for its balance."
   invoice_breakdown:
     label: "Invoice breakdown"
     source: state
@@ -131,6 +138,13 @@ placeholders:
     label: "Invoice number"
     source: preparer
     note: "Until invoicing is folded in (BACKLOG §6), this is typed by hand."
+  entity_password_note:
+    label: "Password instructions (business returns)"
+    source: preparer
+    note: >-
+      Used only when the client is not an individual. The individual line is
+      built from the primary taxpayer's name; a business has none, and its
+      PDF password rule is the preparer's to state (found by Codex, PR #430).
   payment_link:
     label: "Square payment link"
     source: preparer
@@ -169,9 +183,6 @@ placeholders:
     source: config
   firm_short_name:
     label: "Firm short name"
-    source: config
-  firm_tagline:
-    label: "Firm tagline"
     source: config
   firm_email:
     label: "Firm email"
@@ -296,16 +307,35 @@ templates:
     subject: "One signature needed on your {tax_year} return"
     body_file: signature_request.txt
 
+  # SENT AS HTML, NOT PLAIN TEXT -- it carries the QR code. As the firm set it
+  # in Outlook, 13 Oct 2026: body in Arial 12pt; "What we calculated" a
+  # bulleted list; the two steps a numbered list; the signature in Outlook's
+  # smaller signature font. [[ QR code ]] marks where the code goes. The
+  # password line describes Drake's default rule and never carries a digit of
+  # anyone's number. (Kept out of `description`, which the app hands its small
+  # local model in full.)
   - key: invoice_cover
     name: "Draft return, invoice and signing email"
     kind: email
     stage: "4 · Billing"
     description: >-
-      The note that accompanies an invoice. Fee prefills from the engagement
-      record; the invoice number and payment instructions are typed until
-      invoicing is folded into the app (BACKLOG §6).
+      Sends the draft return for review with the fee, the payment link and
+      QR code, and how to sign the 8879 in Encyro.
     subject: "Your {tax_year} return is ready to review, sign and pay"
     body_file: invoice_cover.txt
+
+  # Its own template since the invoice email became the draft-return note:
+  # found by Codex on PR #430, the overdue action was still drafting that
+  # one, which asks for an 8879 on a bill whose return may be filed already.
+  # DRAFT WORDING, for the firm to approve.
+  - key: overdue_invoice
+    name: "Overdue invoice reminder"
+    kind: email
+    stage: "4 · Billing"
+    description: >-
+      A reminder that an invoice is past due, with the payment link.
+    subject: "Invoice {invoice_number} is past due"
+    body_file: overdue_invoice.txt
 
   - key: season_thanks
     name: "Season thank-you"

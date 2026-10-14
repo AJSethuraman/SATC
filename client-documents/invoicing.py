@@ -151,7 +151,33 @@ def fold_in(record: dict, docs, store: Path, ref: str,
     # The invoice's own fields win where they overlap: `PeriodLabel` is the
     # engagement's period on the estimate and the period BILLED here, which is
     # the one value the two documents must NOT share.
+    # `PaymentQr` is drawn in `merge._derived`, which every rendering passes.
     return {**record, **bill}
+
+
+def payment_qr(url: str) -> str:
+    """The payment link as a QR code, ready for an `<img src>`.
+
+    The firm, 13 Oct 2026: "can't it generate a qr code for the link". A
+    printed invoice has a link nobody can click; a phone camera can read this.
+
+    MADE AT RENDER TIME, NOT STORED. It is a picture of `PaymentUrl` and
+    nothing else, so keeping it in the bill would be a second copy of the link
+    that could disagree with the first. An invoice raised before this existed
+    gets one the next time it is rendered.
+
+    SVG, so it stays sharp in the PDF at any zoom; error correction "M" so a
+    crease or a smudge on paper still scans.
+    """
+    import base64
+    import io
+
+    import segno
+    buf = io.BytesIO()
+    segno.make(url, error="m", micro=False).save(
+        buf, kind="svg", scale=1, border=0, xmldecl=False, svgns=True,
+        dark="#132437")
+    return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 def build(record: dict, *, number: str, billed: str, today: date | None = None,
@@ -218,6 +244,7 @@ def build(record: dict, *, number: str, billed: str, today: date | None = None,
         out["CreditLabel"] = "; ".join(c.get("label", "Credit") for c in credits)
         out["CreditDetail"] = "; ".join(c.get("detail", "") for c in credits).strip("; ")
         out["CreditAmount"] = MINUS + m.money(credit_total, currency)
+        out["CreditsApplied"] = True
 
     _check_variance(out, subtotal, estimate, currency)
     return out
@@ -274,6 +301,12 @@ def _check_variance(out: dict, subtotal: float, estimate: str, currency: str):
     # bill. `consistency.py` has rounded to integer cents for exactly this
     # reason since it was written; this is the one place on the money path that
     # did not.
+    if round(subtotal * 100) > round(quoted * 100):
+        # THE ONE CASE THE "QUOTED SEPARATELY" NOTE IS TRUE OF. Billing above
+        # the estimate means work beyond it, and that is the only bill on which
+        # telling a client the extra was quoted first means anything. The firm,
+        # 13 Oct 2026: "quoted separately should only be there if required."
+        out["BilledAboveEstimate"] = True
     if round(subtotal * 100) > round(quoted * 100) and not out["VarianceNote"]:
         raise InvoiceError(
             f"this invoice bills {m.money(subtotal, currency)} against an "

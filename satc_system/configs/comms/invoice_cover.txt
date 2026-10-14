@@ -1,40 +1,43 @@
+[[ Before sending: attach the draft return from Drake and the invoice, then delete this line. ]]
+
 Dear {salutation},
 
 Your {tax_year} return is prepared. A draft copy is attached for you to review before
 anything is filed.
 
+[[if primary_first_name]]The draft copy is password-protected. The password is the first four letters of
+{primary_first_name}'s last name and the last five digits of {primary_first_name}'s Social
+Security number, all lowercase.[[else]]{entity_password_note}[[/if]]
+
 What we calculated:
 
 {jurisdiction_summary}
 
-Our fee is {fee_amount_text}:
+You can pay your invoice amount of {fee_amount_text} here: {payment_link}[[scan]], or scan this code
+with your phone camera:[[/scan]][[noscan]].[[/noscan]]
 
-{invoice_breakdown}
+[[ QR code ]]
 
-Pay by card or bank transfer here: {payment_link}
-If you would rather pay another way, tell us and we will arrange it.
+The attached invoice has a line-item breakdown of your total bill.
 
 To file, we need two things from you:
 
-  1. Pay the invoice using the link above.
-  2. Sign Form 8879 — the form that lets us file your return electronically. It comes in
+  1. Pay the invoice using the link[[scan]] or code[[/scan]] above.
+  2. [[if primary_first_name]]Sign Form 8879 — the form that lets us file your return electronically.[[else]]Sign the e-file authorization — the form that lets us file your return electronically.[[/if]] It comes in
      a separate email from Encyro, the service we use for signatures. To sign, Encyro
-     texts a code to your phone; enter it when asked. Filing jointly? Each of you gets
-     your own email and your own text. Reply if your mobile number has changed.
+     texts a code to your phone; enter it when asked.
 
-Before you sign, check the 8879. The refund or balance should match the summary above,
-and the direct deposit details should be correct.
+[[if primary_first_name]]Before you sign, check the 8879. The refund or balance should match the summary above,
+and the direct deposit details should be correct.[[else]]Before you sign, check that the amounts on the authorization match the summary above.[[/if]]
 
 Once you've paid and signed, we file your return. You'll then receive a final copy for
 your records.
 
-If anything looks wrong, or you'd like me to walk through any part of it, just reply —
-I'd rather explain it than have you wondering.
+If you have any questions, reach out.
 
 Thank you,
 {preparer_name}
 {firm_name}
 {firm_email}
-"{firm_tagline}"
 
 — DRAFT for preparer review. Not sent automatically. —

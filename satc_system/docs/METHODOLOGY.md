@@ -1,6 +1,6 @@
 # SATC System — Methodology
 
-*Sethuraman Accounting, Tax & Consulting — "Complex work, made clear."*
+*Sethuraman Accounting, Tax & Consulting*
 
 ## What this is (and is not)
 
