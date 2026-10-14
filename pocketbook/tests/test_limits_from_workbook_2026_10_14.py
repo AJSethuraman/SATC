@@ -154,16 +154,40 @@ def test_read_limits_reads_a_read_only_worksheet(tmp_path):
 
 
 def test_a_limit_typed_on_control_while_the_launcher_left_open_survives_next(tmp_path):
-    """The launcher stays open while the analyst edits Control in Excel; Set up and Next read Control again."""
+    """The launcher stays open while the analyst edits Control in Excel. Set up reads Control again, and Next refuses
+    rather than write limits the columns were not read with (Codex on #437)."""
     x, b = _written(tmp_path)
     f = _flow(x)
     f.set_up()
     _type_on_control(b, "few_values", choose="24 values")
+    before = b.read_bytes()
     f.next()                                              # straight from Choose tests, no Set up in between
+    assert f.page == "extract" and f.message == [launcher.limits_moved((6, 50), (24, 50))]
+    assert b.read_bytes() == before                       # nothing written: Control keeps the 24
+    f.set_up()
+    assert (f.few, f.many) == (24, 50)
+    f.next()
+    assert f.page == "answer", f.message
     assert _limits(b) == {"few_values": 24, "many_values": 50}
+
+
+def test_the_limits_moved_after_set_up_refusal_names_each_change():
+    assert launcher.limits_moved((6, 50), (6, 50)) is None
+    assert launcher.limits_moved(None, (6, 50)) is None
+    said = launcher.limits_moved((6, 50), (24, 100))
+    assert "(Number columns: 6 to 24 values; Text columns: 50 to 100 values)" in said
+    assert said.endswith("press Set up.")
+
+
+def test_a_launcher_change_to_one_limit_still_reads_the_other_limit_launcher_left_open(tmp_path):
+    """Codex on #437: one flag for both limits let a launcher change to Number columns hide an edit to Text columns
+    made on Control."""
+    x, b = _written(tmp_path)
+    f = _flow(x)
+    f.choose_limit("few", 24)
     _type_on_control(b, "many_values", choose="100 values")
     f.set_up()
-    assert (f.few, f.many) == (24, 100)
+    assert (f.few, f.many) == (24, 100)                   # the launcher's change, and Control's other limit
     f.next()
     assert _limits(b) == {"few_values": 24, "many_values": 100}
 
@@ -177,6 +201,8 @@ def test_a_launcher_change_wins_once_then_control_is_read_again_launcher_left_op
     f.next()
     assert _limits(b)["few_values"] == 24                 # the launcher's change was made last here, and is written
     _type_on_control(b, "few_values", choose="12 values")  # after that Next, Control is the record again
+    f.set_up()
+    assert f.few == 12
     f.next()
     assert _limits(b)["few_values"] == 12
 

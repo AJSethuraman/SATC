@@ -55,6 +55,18 @@ MODES = {"bleed": "Where the book bleeds", "new": "Test new variables"}
 FEW = (12, 6, 24)          # the options settings.yaml offers for the two limits, first the recommended one
 MANY = (50, 25, 100)
 # the two limits as the workbook beside the extract holds them (the firm, 14 Oct 2026): said under the dropdowns
+LIMIT_NAMES = {"few": "Number columns", "many": "Text columns"}
+
+
+def limits_moved(before: tuple | None, now: tuple) -> str | None:
+    """The refusal when the two limits differ from those Set up read the extract with; None when they don't."""
+    if before is None or tuple(before) == tuple(now):
+        return None
+    what = "; ".join(f"{LIMIT_NAMES[k]}: {b} to {n} values" for k, b, n in zip(("few", "many"), before, now) if b != n)
+    return (f"The column limits on Control changed after Set up read the extract ({what}). The columns have to be "
+            f"read again with them: press Set up.")
+
+
 LIMITS_FROM_BOOK = ("These are the limits on Control in this extract's workbook. A change here replaces them when "
                     "you press Next.")
 
@@ -392,7 +404,8 @@ class Flow:
         self.extract = extract
         self.few, self.many = few, many
         self.own = {"few": few, "many": many}   # the launcher's own choice of the two limits, kept in its prefs
-        self.chose_limit = False      # a limit changed in the launcher since the workbook was last read or written
+        self.chosen: set[str] = set()  # limits changed in the launcher since the workbook was last read or written
+        self.read_with: tuple | None = None   # the two limits Set up read the extract with
         self.limits_said = ""         # LIMITS_FROM_BOOK while the two limits are the workbook's
         self.page = "extract"         # extract, choose, answer, needs, done
         self.read = None              # book.Read, once Set up has read the extract
@@ -494,35 +507,41 @@ class Flow:
             self.extract = path
             self.read, self.written, self.finished, self.needs = None, None, None, []
             self.page, self.message, self.crash = "extract", [], None
-            self.chose_limit = False
+            self.chosen = set()
             self.limits_from_book()
 
-    def limits_from_book(self) -> None:
+    def limits_from_book(self, keep: set[str] | frozenset = frozenset()) -> None:
         """The two limits as Control holds them in the workbook beside the extract, when there is one; otherwise the
         launcher's own. The launcher kept its own last choice and Next wrote it over a limit typed on Control without
         a word (HANDOFF.md, 4 Oct 2026); the firm, 14 Oct 2026, chose the workbook's, shown in the dropdowns, as the
         other choices are. Only a path that is a file is looked at: a path being typed passes through names whose
-        workbook is another extract's (review of #437: "loans" on the way to "loans2.csv")."""
-        self.few, self.many, self.limits_said = self.own["few"], self.own["many"], ""
+        workbook is another extract's (review of #437: "loans" on the way to "loans2.csv"). A limit in `keep` was
+        changed in the launcher and stays as it is; the other is still read (Codex on #437: one flag for both let a
+        launcher change to one limit hide an edit to the other on Control)."""
+        for k in ("few", "many"):
+            if k not in keep:
+                setattr(self, k, self.own[k])
+        self.limits_said = ""
         if self.gate.missing or not self.extract or not Path(self.extract).is_file():
             return
         from . import book
         got = book.limits_in(self.extract)
-        if got:
-            self.few, self.many = got.get("few_values", self.few), got.get("many_values", self.many)
+        for k, key in (("few", "few_values"), ("many", "many_values")):
+            if k not in keep and key in got:
+                setattr(self, k, got[key])
+        if got and not keep:
             self.limits_said = LIMITS_FROM_BOOK
 
     def fresh_limits(self) -> None:
         """Before Set up and Next: Control again, unless a limit was changed here since. The launcher stays open
         while the analyst edits the workbook in Excel (review of #437: 24 typed on Control, then Next wrote 6)."""
-        if not self.chose_limit:
-            self.limits_from_book()
+        self.limits_from_book(keep=self.chosen)
 
     def choose_limit(self, key: str, n: int) -> None:
         """A limit picked in the launcher's dropdown ("few" or "many"): the launcher's own choice, which Next writes."""
         setattr(self, key, n)
         self.own[key] = n
-        self.chose_limit = True
+        self.chosen.add(key)
         self.limits_said = ""
 
     def limit_prefs(self) -> dict:
@@ -549,6 +568,7 @@ class Flow:
             self.message = [got.problem]
             return
         self.read, self.message, self.note = got, [], []
+        self.read_with = (self.few, self.many)
         self._defaults(got.chosen)
         self.page = "choose"
 
@@ -911,6 +931,12 @@ class Flow:
         from . import book
         self.crash = None
         self.fresh_limits()
+        moved = limits_moved(self.read_with, (self.few, self.many)) if self.read is not None else None
+        if moved:
+            # the columns were read with the old limits, so what was chosen on them may no longer hold (Codex on
+            # #437: a number column picked as a band, read as a category under the new limit); read them again
+            self.message, self.page = [moved], "extract"
+            return
         try:
             out = book.set_up(self.extract, choices=self.choices(), progress=self.progress)
         except Exception:
@@ -919,7 +945,7 @@ class Flow:
         if not out.ok:
             self.message = out.lines
             return
-        self.chose_limit = False                      # written: Control holds them now, and is read again next time
+        self.chosen = set()                           # written: Control holds them now, and is read again next time
         self.written, self.message, self.needs, self.finished, self.note = out, [], [], None, []
         self.page = "answer"
         self.refresh()

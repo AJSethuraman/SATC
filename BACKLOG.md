@@ -3518,6 +3518,13 @@ changed in the code.
     updated. (5) One planted bug matched only part of its line, so the mutant was a syntax error that read as caught;
     it now replaces the whole line. Left as is: a workbook that exists but can't be read is treated as no workbook
     (Set up then reports the workbook itself).
+  - **Codex's two findings (P1, on `da2e6c6`), both fixed:** (1) one flag for both limits meant a launcher change to
+    Number columns stopped an edit to Text columns on Control being read; each limit is now tracked on its own
+    (`Flow.chosen`), and the one not changed in the launcher is still read from Control. (2) Limits read again at Next
+    could differ from those Set up read the extract with, so a column chosen as a band could become a category under
+    the new limit; Next now refuses, names each change and returns to the first page: *"The column limits on Control
+    changed after Set up read the extract (Number columns: 6 to 24 values). The columns have to be read again with
+    them: press Set up."* (`launcher.limits_moved`). 2 planted bugs added, 3 repointed; 8 of 8 caught.
   - Tests: 13 in `tests/test_limits_from_workbook_2026_10_14.py`, written failing-first (the reproduction read
     `(6, 50)` for `(24, 50)`); one draws the window (needs a display), run under xvfb with Python 3.12 and 4 window
     bugs planted by hand, 4 caught. With `test_launcher`, `test_rehearsal_2026_09_29`, `test_control`,
