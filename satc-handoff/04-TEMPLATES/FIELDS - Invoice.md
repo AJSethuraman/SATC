@@ -55,10 +55,12 @@ Clauses in the engagement letter are referenced **by name** — the fees clause 
 | `<<EstimateTotal>>` | If flag | $785 | Pulled from the estimate record, not retyped |
 | `<<EstimateDate>>` | If flag | February 3, 2027 | |
 | `<<PaymentUrl>>` | Optional | https://square.link/u/xxxxxxxx | The link the client pays at. **Issued per invoice and never for an estimate** — a quote is what the work will cost and is not yet owed, and this engine can re-quote, so the figure moves. Created by `payments.py` from `registry/payments.yaml`; the whole block drops when there is none, so an invoice raised before this existed still renders. |
+| `<<PaymentQr>>` | Computed | data:image/svg+xml;base64,… | The payment link as a QR code, so a printed invoice can be paid with a phone camera. Drawn from `PaymentUrl` at render time by `merge._derived` and never stored. Used only as an image source inside the `PaymentLink` block. |
 | `<<VarianceNote>>` | If flag | The difference is the additional state return added at your request on March 8. | **If the invoice exceeds the estimate this is not optional.** An unexplained overage is the most common billing dispute there is. |
 | `[[IF EstimateReference]]` | Flag | Boolean | Off for recurring bookkeeping invoices, where restating the estimate monthly is noise |
+| `[[IF ReturnScope]]` | Flag | Boolean | On when the engagement prepares returns. Gates the note "We file your return once your authorization to file is signed and this invoice is paid" -- a recurring bookkeeping invoice has no return to file |
 
-**Total: 31 fields + 1 repeating list of 3 + 2 flags.**
+**Total: 32 fields + 1 repeating list of 3 + 2 flags.**
 
 Not variables: the due-on-presentation terms, the interest language, and the three notes.
 

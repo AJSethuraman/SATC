@@ -56,7 +56,7 @@ ITEMS: list[tuple[str, str]] = [
     ("base.1040.tiers.essentials.amount",
      "an Essentials return — no schedules"),
     ("base.1040.tiers.standard.amount",
-     "a Standard return — schedules, but nothing that scales"),
+     "a Standard return — itemized deductions, one brokerage statement, up to two K-1s, a side gig"),
     ("base.1040.tiers.business.amount",
      "a Business return — a full Schedule C, or a farm"),
     ("base.1120S", "a plain Form 1120-S"),
