@@ -6,22 +6,26 @@ book with a Charge-off date marked. From 42 years the last measures' later years
 #REF!, the drawn point became #N/A and the table under the chart showed a blank, with nothing said. At 100 years
 whole measures went.
 
-Fixed: one _views row per line and measure, so a row is as wide as the years. A book with more years than a row
-holds gets one plain sentence where the chart would be, as a book with no Origination date does.
+Fixed: one _views row per line and year, every measure across, so a row is as wide as Summary and the years are
+rows. The review of the first fix (a row per line and measure) found it multiplied the rows by the measures, toward
+Excel's 1,048,576 at the bank's size; so _views is also kept under results.MOST_VIEWS_ROWS: past it the vintage chart
+is one sentence, and if the rest alone would pass it the Run refuses and saves nothing.
 
 The figures checked against the loan file are worked out here from the CSV's text with plain arithmetic, as
 test_summary_vintage_2026_10_03 and test_co_months_2026_10_01 do: nothing in the checks is imported from pocketbook."""
 
 import csv
 import re
+import shutil
 import statistics
+from collections import Counter
 from datetime import date
 
 import pytest
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
 
-from pocketbook import results, summary_chart, synth
+from pocketbook import book, results, summary_chart, synth
 from test_firm_answers_2026_09_29 import _summary_label
 from test_summary_vintage_2026_10_03 import _build, _measures, _views
 
@@ -67,62 +71,96 @@ def _area_width(area: str) -> int:
 
 def test_no_views_row_is_wider_than_the_lookups_read(made):
     """Every row on _views fits in the columns every lookup reads (B to ZZ, 701), on a book whose 17 Summary measures
-    over 42 years would not fit on one row."""
+    over 42 years would not fit on one row; and no key is on _views twice, since a lookup finds only the first."""
     b, _ = made
     wide = _area_width(results.AREA)
     assert wide == 701
     heads = _measures(b)
     assert heads[-1] == MED and len(heads) * YEARS > wide      # the book the flat rows broke on
-    over = {}
+    over, keys = {}, []
     for row in load_workbook(b)[results.VIEWS].iter_rows(values_only=True):
+        keys.append(row[0])
         last = max((j for j, x in enumerate(row) if x is not None), default=0)     # column A is j = 0
         if last > wide:
             over[row[0]] = last
     assert over == {}, f"{len(over)} rows wider than {wide}, e.g. {next(iter(over.items()))}"
+    assert None not in keys and [k for k, n in Counter(keys).items() if n > 1] == []
 
 
-def test_no_vintage_row_is_wider_than_the_years_whatever_the_rows(monkeypatch):
-    """The vintage block alone, no Run: 41 years, 17 measures and a column of 800 rows (a long category list). Every
-    row it puts on _views is as wide as the years at most, the rows' labels included, and holds what the Run worked
-    out for that line, measure and year."""
+def test_the_vintage_rows_are_a_line_and_year_each_as_wide_as_summary():
+    """The vintage block alone, no Run: 120 years, 17 measures and a column of 300 rows (a long category list). Each
+    row is one line in one year, as wide as Summary, the rows' labels one a row; each holds what the Run worked out
+    for that line and year, measure by measure; no key twice; and a line with nothing in a year has no row."""
     from types import SimpleNamespace
-    years = [str(1985 + y) for y in range(41)]
+    years = [str(1900 + y) for y in range(120)]
     keys = [f"m{k}" for k in range(17)]
-    labels = [f"row {i}" for i in range(800)]
-    Y = len(years)
-    flat = lambda tag: [f"{tag}{k}/{y}" for k in range(len(keys)) for y in range(Y)]     # noqa: E731
+    labels = [f"row {i}" for i in range(300)]
+    Y, K = len(years), len(keys)
+    flat = lambda tag: [f"{tag}{k}/{y}" for k in range(K) for y in range(Y)]     # noqa: E731
+    book_ = flat("b")
+    for k in range(K):
+        book_[k * Y + 5] = None                         # 1905: nothing on the whole book's line
     key = ("COL", None, None, None)
-    v = summary_chart.Vintage(years=years, keys=keys, book={key: flat("b")},
+    v = summary_chart.Vintage(years=years, keys=keys, book={key: book_},
                               rows={key: [(flat(f"p{i}."), flat(f"r{i}.")) for i in range(len(labels))]})
     res = SimpleNamespace(vintage=v, summaries={key: SimpleNamespace(labels=labels + ["All"])})
-    put = {}
-    views = SimpleNamespace(put=lambda k, vals: put.setdefault(k, list(vals)))
-    summary_chart.vintage_views(res, views, ["COL"], ["Col"])
-    assert max(len(x) for x in put.values()) <= min(Y, results.VIEWS_WIDTH)
-    assert put["V|Col|rows"] == [800] and [put[f"V|Col|rows|{i}"][0] for i in range(1, 801)] == labels
-    for k in (1, 9, 17):
-        assert put[f"V|Col|book|{k}"] == [f"b{k - 1}/{y}" for y in range(Y)]
-        assert put[f"V|Col|800|{k}"] == [f"p799.{k - 1}/{y}" for y in range(Y)]
-        assert put[f"V|Col|800|rest|{k}"] == [f"r799.{k - 1}/{y}" for y in range(Y)]
+    put = []
+    n = summary_chart.vintage_views(res, SimpleNamespace(put=lambda k, vals: put.append((k, list(vals)))),
+                                    ["COL"], ["Col"])
+    got = dict(put)
+    assert n == len(put) == len(got) == 1 + len(labels) + (1 + 2 * len(labels)) * Y - 1
+    assert max(len(x) for x in got.values()) == K
+    assert got["V|Col|rows"] == [300] and [got[f"V|Col|rows|{i}"][0] for i in range(1, 301)] == labels
+    assert "V|Col|book|y1905" not in got
+    for y in (0, 41, 119):
+        assert got[f"V|Col|book|y{1900 + y}"] == [f"b{k}/{y}" for k in range(K)]
+        assert got[f"V|Col|300|y{1900 + y}"] == [f"p299.{k}/{y}" for k in range(K)]
+        assert got[f"V|Col|300|rest|y{1900 + y}"] == [f"r299.{k}/{y}" for k in range(K)]
 
 
-def test_a_book_with_more_years_than_a_row_holds_says_so(tmp_path, monkeypatch):
-    """No chart, and one plain sentence in its place, when there are more origination years than a _views row holds
-    (701; a card book has a few dozen). Tried with the limit set to 3 on the synthetic book, which has more."""
-    assert results.VIEWS_WIDTH == _area_width(results.AREA)     # the limit is what every lookup reads
-    monkeypatch.setattr(results, "VIEWS_WIDTH", 3)
+def _run_again(b, out, tmp_path, monkeypatch, most):
+    """The book run again with _views allowed `most` rows: (the Run's outcome, the copy)."""
+    from pocketbook import perm
+    shutil.copy(b, out)
+    monkeypatch.setattr(results, "MOST_VIEWS_ROWS", most)
+    monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / f"memory-{out.stem}.yaml"))
+    monkeypatch.setattr(perm, "SHUFFLES", 100)
+    return book.run(out), out
+
+
+def test_views_past_its_most_rows_drops_the_vintage_chart_then_refuses(tmp_path, monkeypatch):
+    """_views is never written past results.MOST_VIEWS_ROWS (1,000,000; Excel opens 1,048,576). Tried on the
+    synthetic book with the most set low. Room for every row but the vintage chart's: the Run completes, and the chart
+    is one sentence, in the note and where it would be, its rows left off and every other row as it was. Room for
+    fewer: the Run refuses in words and the workbook is not saved, so it keeps the last Run's results."""
+    assert results.MOST_VIEWS_ROWS == 1_000_000
     src = synth.write_extract(tmp_path / "src", n=3000)
-    rows = list(csv.DictReader(open(src, encoding="utf-8")))
-    n = len({r["ORIG_DATE"][:4] for r in rows})
-    assert n > 3
-    b = _build(tmp_path, rows, "many", None)
-    ws = load_workbook(b)[results.SUMMARY]
-    want = f"No vintage chart: the loans span {n} origination years, and the chart holds at most 3."
+    b = _build(tmp_path, list(csv.DictReader(open(src, encoding="utf-8"))), "rows", "CHANNEL")
+    keys = [r[0] for r in load_workbook(b)[results.VIEWS].iter_rows(values_only=True)]
+    vint = [k for k in keys if k.startswith("V|")]
+    rest = [k for k in keys if not k.startswith("V|")]
+    assert len(vint) > 100 and len(rest) > 100
+
+    ran, b2 = _run_again(b, tmp_path / "no chart.xlsx", tmp_path, monkeypatch, len(rest))
+    assert ran.ok, ran.lines
+    wb = load_workbook(b2)
+    assert [r[0] for r in wb[results.VIEWS].iter_rows(values_only=True)] == rest
+    ws = wb[results.SUMMARY]
+    want = (f"No vintage chart: its points would need {len(vint):,} more rows on the hidden _views sheet, taking it "
+            f"past the {len(rest):,} this workbook writes (Excel opens at most 1,048,576).")
     said = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)
             and c.value.startswith("No vintage chart")]
     assert said == [want] * 2                                  # the note, and the block
-    assert ws._charts == []
-    assert not any(isinstance(k, str) and k.startswith("V|") for k in _views(b))
+    assert ws._charts == [] and wb[results.COMPARE]._charts          # Compare, written after Summary, is still there
+
+    before = b.read_bytes()
+    ran, b3 = _run_again(b, tmp_path / "refused.xlsx", tmp_path, monkeypatch, len(rest) - 1)
+    assert not ran.ok
+    assert ran.lines == [f"Couldn't write the results: they need {len(keys):,} rows on the hidden _views sheet, and "
+                         f"the most this workbook writes is {len(rest) - 1:,} (Excel opens at most 1,048,576). "
+                         f"Nothing was written, so the workbook still has the last Run's results. Fewer filters, "
+                         f"filter values, or band and category columns need fewer rows."]
+    assert b3.read_bytes() == before
 
 
 # --------------------------------------------------------------------------

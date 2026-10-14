@@ -98,10 +98,19 @@ P_FMT = '[<0.0001]"under 0.01%";[<0.01]0.00%;0.0%'
 PTS_FMT = '+0.00" pts";-0.00" pts";0.00" pts"'
 X_FMT = '0.00"×"'
 AREA, KEYS = f"'{VIEWS}'!$B:$ZZ", f"'{VIEWS}'!$A:$A"
-#: the most numbers a _views row can hold: every lookup reads AREA, columns B to ZZ. A number past ZZ reads #REF!,
-#: which a tab shows as a blank, so nothing is ever put further out (14 Oct 2026: the vintage chart's rows, 17 measures
-#: by the years on one row, lost their last years from 42 years; tests/test_vintage_years_2026_10_14.py)
-VIEWS_WIDTH = 701
+#: the most rows _views is written with, under Excel's 1,048,576 (openpyxl writes past it, and Excel then has to
+#: repair the file). Past it Summary's vintage chart is left off, said in one sentence; if the rest alone would pass
+#: it, the Run refuses (14 Oct 2026, tests/test_vintage_years_2026_10_14.py)
+MOST_VIEWS_ROWS = 1_000_000
+SAY_TOO_MANY_ROWS = ("Couldn't write the results: they need {n:,} rows on the hidden _views sheet, and the most this "
+                     "workbook writes is {most:,} (Excel opens at most 1,048,576). Nothing was written, so the "
+                     "workbook still has the last Run's results. Fewer filters, filter values, or band and category "
+                     "columns need fewer rows.")
+
+
+class TooManyRows(engine.DataRefused):
+    """The results would take _views past MOST_VIEWS_ROWS, even without the vintage chart: the Run refuses, in
+    SAY_TOO_MANY_ROWS's words, and the workbook is not saved."""
 
 
 def col(n: int) -> str:
@@ -172,6 +181,9 @@ class Views:
         self.ws = wb.create_sheet(VIEWS)
         self.ws.sheet_state = "hidden"
         self.r = 0
+        #: rows put last, once every other row is counted: (how many, the call that puts them). Summary's vintage
+        #: chart (summary_chart.write)
+        self.later = None
 
     def put(self, key: str, values: list) -> int:
         self.r += 1
@@ -2652,3 +2664,14 @@ def write(wb, res, stamp: str) -> None:
     if res.config.split:
         mark("Writing Split")
         write_split(wb, res, choices, views, stamp)
+    n, put_later = views.later or (0, None)
+    if views.r + n <= MOST_VIEWS_ROWS:
+        if put_later is not None:
+            put_later()
+        return
+    if n and views.r <= MOST_VIEWS_ROWS:
+        # the vintage chart's rows alone would take _views past the most: every tab again, the chart one sentence
+        from . import summary_chart
+        res.vintage = summary_chart.Vintage(said=summary_chart.SAY_TOO_MANY_ROWS.format(n=n, most=MOST_VIEWS_ROWS))
+        return write(wb, res, stamp)
+    raise TooManyRows(SAY_TOO_MANY_ROWS.format(n=views.r + n, most=MOST_VIEWS_ROWS))

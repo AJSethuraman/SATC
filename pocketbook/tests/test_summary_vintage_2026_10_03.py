@@ -133,10 +133,12 @@ def _labels(v, opt):
 
 
 def _point(v, line, heads, years, head, y):
-    """One measure's value in one year: _views holds a row per line and measure (its number from 1, in the Vintage
-    measure dropdown's order), a year a number (14 Oct 2026; one flat row of every measure lost years past ZZ)."""
-    row = v[f"{line}|{heads.index(head) + 1}"]
-    j = years.index(y)
+    """One measure's value in one year: _views holds a row per line and year, every measure across in the Vintage
+    measure dropdown's order, and none for a year with nothing on the line (14 Oct 2026: one row of every measure by
+    every year lost its last years past ZZ)."""
+    assert y in years
+    row = v.get(f"{line}|y{int(y)}", [])
+    j = heads.index(head)
     return row[j] if j < len(row) else None
 
 
