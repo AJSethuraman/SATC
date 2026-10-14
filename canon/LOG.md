@@ -1266,4 +1266,10 @@ review's one surviving mutant), and the open tell widened back to "are".
 **The whole release: 18 planted, 18 killed**, the last being the Bassy size
 guard set below Bassy's own size.
 
+**The two readings in VOICE.md were confirmed.** *Talking to the firm* carried
+two lines labeled as a session's reading, not the firm's words: don't mirror
+their lowercase chat back at them, and don't talk to them in canon's slogan
+style. Asked to strike either if wrong, the firm: *"I’m good with those"*. The
+label now says confirmed, with their words.
+
 1.22.0 → **1.23.0**. 228 → 267 passing.

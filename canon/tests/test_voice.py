@@ -140,7 +140,8 @@ def test_the_profile_is_labeled_as_another_ais_reading():
 
 def test_a_sessions_own_reading_is_labeled_as_one():
     talking = " ".join(_section("Talking to the firm").split())
-    assert "A session's reading, 14 October 2026, not the firm's words" in talking
+    assert ("A session's reading, written 14 October 2026 and confirmed by the firm "
+            'the same day: "I\u2019m good with those"') in talking
 
 
 def test_the_standing_role_carries_the_request_in_their_words():

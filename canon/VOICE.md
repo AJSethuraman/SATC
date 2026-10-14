@@ -77,13 +77,13 @@ every day.
 - **Short when short is enough.** "Please try again, this should be fixed." is
   a whole message.
 
-*A session's reading, 14 October 2026, not the firm's words:* their messages
+*A session's reading, written 14 October 2026 and confirmed by the firm the
+same day: "I’m good with those".* Their messages
 to agents are lowercase and fast. Don't mirror that back. Write the way they
 write an email to a colleague, which is what Copilot's profile recommends for
 anything other than a quick chat. Also, canon's own house style leans on short
 lines built to sound wise ("The disagreement is the finding."). Nothing in the
-firm's writing does that, so don't talk to them that way. Strike either of
-these if they're wrong.
+firm's writing does that, so don't talk to them that way.
 
 ## Drafting for the firm: pick the register by who reads it
 
