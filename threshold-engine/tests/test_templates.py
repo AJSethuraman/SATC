@@ -112,7 +112,9 @@ def test_write_holds_questions_header_and_no_rows(tmp_path, key):
     text = md.read_text(encoding="utf-8")
     for k, _ in TEMPLATES[key].notes:
         assert "`%s`" % k in text
-    assert "template check %s x.csv" % key in text
+    # The command that works from the kit, where nothing is installed but openpyxl (the on-site dry run,
+    # 13 Oct 2026: `threshold-engine` exists only once the package is installed).
+    assert "python -m threshold_engine template check %s x.csv" % key in text
     # An unanswered template is refused: every placeholder, and no history.
     problems = check(key, csv_path)
     for k, q in TEMPLATES[key].notes:
