@@ -1036,6 +1036,8 @@ it found by running the code. 30 raised, 30 reproduced. Fixed:
 - **Tests that would not have caught a bug** (pack median, per-peer
   values, the build's absorption and acquisition wiring, the composite's
   acquisition left-outs, synthesis lower-is-worse, guards in
-  `repeated_ytd_fields` and `acquired_quarters`): given to a separate
-  agent, each to be proved by applying the mutation and watching it fail.
-  Recorded below when merged.
+  `repeated_ytd_fields` and `acquired_quarters`): 14 tests by a separate
+  agent, each proved by applying the finding's mutation to a scratch copy
+  and watching that test fail; none needed the code changed. Its
+  window-restriction peer had a gap, which synthesis now refuses; made
+  unbroken, and the mutation still fails it.

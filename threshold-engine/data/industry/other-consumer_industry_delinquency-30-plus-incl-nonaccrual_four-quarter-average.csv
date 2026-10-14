@@ -2,7 +2,7 @@
 # Amounts are $ thousands at quarter-end, as filed; a field not filed is never read as 0.
 # Industry: every filer in the cache (4313 in 2026Q2), no jump or minimum rule.
 # Source: FDIC BankFind financials, 2006Q1 to 2026Q2, from the cache ind_cache.
-# Other consumer's balance is RC-C 6.b, other revolving credit plans (LNCONRP), plus 6.d (LNCONOTH), matching its charge-offs (RI-B 5.c) and past-due lines (RC-N 5.c), which both include those plans. The FDIC data has no 6.b before 2001Q1: before it the balance is 6.d alone, so a series reaching back past 2001 breaks there. Auto was inside 6.d until 2011Q1, when it got its own line (6.c).
+# Other consumer's balance is RC-C 6.b, other revolving credit plans (LNCONRP), plus 6.d (LNCONOTH), matching its past-due lines (RC-N 5.c), which include those plans. The FDIC data has no 6.b before 2001Q1, so no other consumer delinquency rate is written before then. Auto was inside 6.d until 2011Q1, when it got its own line (6.c).
 # Written from 2006Q4, the first quarter after the last break; 3 earlier quarters (2006Q1 to 2006Q3) are left out, because the workbook refuses a gap and a gap is not filled.
 date,value
 2006-12-31,2.243882161647127
