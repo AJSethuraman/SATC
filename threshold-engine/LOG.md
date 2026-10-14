@@ -800,3 +800,32 @@ certain things because they were not credit related", so the internal-to-
 filed check is a reconciliation (filed, less named exclusions, against
 internal; only the unexplained remainder flagged against a tolerance the
 firm sets), not an equality. How the three perspectives combine is open.
+
+### The comparability tie-out, and the firm's answers (14 Oct 2026)
+
+A separate session tied out the seven gaps: 147 figures against documents
+the firm does not control, 131 TIED, 13 DIFFERS, 3 COULD NOT
+(docs/tie-out/comparability-2026-10/ on its own branch). It found a defect in
+the tool: the industry series counts an absorbed affiliate's year-to-date
+charge-offs twice in the merger quarter (six card quarters, $74m to $4.8bn;
+the industry card rate up to 0.71 pts high for four quarters). The firm's
+answers:
+
+- **A. Card industry series and the 2010Q1 securitization break:** "Label".
+  Keep 2006-2010Q3, marked "excludes securitized cards".
+- **B. Home equity:** internal lines and loans as separate segments. Lines
+  check against RC-C 1.c.(1); loans plus mortgage against 1.c.(2)(a) +
+  (b). Peer comparison stays first-lien. The firm: "We have some second
+  liens but mostly first"; "Loans were just discontinued". Internal figures
+  to look for at 30 Jun 2026: lines about $2,930m, loans about $2,478m,
+  second-lien loans at most $276m (all junior liens at the bank). The
+  $2,478m is inferred by elimination, not published.
+- **C. Acquisition leave-out:** 5% ("good on the merger thing"): leave out
+  the four quarters after any quarter whose recorded acquisitions together
+  add 5% or more to a product's book. A required setting; 5% is the firm's.
+- To build: the merger double-count fix (tested against the FDIC's QBP
+  totals), the peer median, cross-bank delinquency on 90+ and 30+ including
+  nonaccrual only, mortgage compared on nonaccrual and charge-offs (not 90+
+  accruing, because of rebooked GNMA), a run-off flag for shrinking books,
+  and the import's two named exclusions (education loans in discontinued
+  operations; residential loans held for sale).

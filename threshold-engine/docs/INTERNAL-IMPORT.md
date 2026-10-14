@@ -23,6 +23,28 @@ consumer loans less credit cards**:
 | Internal other consumer, all segments | 6.b + 6.c + 6.d | 5.b + 5.c | 5.b + 5.c |
 | Lines of credit, installment, auto, student, each alone | no public split | no public split | no public split |
 
+## Home equity: lines and loans, separately
+
+The Call Report sorts by structure, not product name: revolving home equity
+lines are RC-C 1.c.(1); closed-end home equity loans are filed with
+mortgages, first liens in 1.c.(2)(a) and second liens in 1.c.(2)(b). So the
+file gives `Home equity lines` and `Home equity loans` as separate segments.
+Lines check against 1.c.(1). Loans plus mortgage check against 1.c.(2)(a) +
+(b). Home equity loans were discontinued in 2026, so the book runs off from
+here and the run-off flag applies.
+
+At 30 Jun 2026 (KeyCorp 10-Q against KeyBank's Call Report): lines about
+$2,930m, loans about $2,478m (inferred by elimination, not published), of
+which second liens at most $276m.
+
+## Named exclusions
+
+The check is filed, less named exclusions, against internal. Two are known
+from the tie-out (KeyCorp against KeyBank, which ties within $1m once both
+are added): education loans in discontinued operations, and residential
+loans held for sale. The file lists any others it leaves out, with amounts
+where known.
+
 ## The file
 
 One row per segment per quarter. Amounts in $ thousands.
