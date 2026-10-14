@@ -151,5 +151,42 @@ TERMS = [
     ("SHA-256",
      "A fingerprint of a source file. Any change to the file, however small, changes it.",
      "Computed over the file's bytes and recorded on the Run tab."),
+    ("Synthesis",
+     "Where each colour starts, from three views side by side: KeyBank's own history, the industry's and the "
+     "peers'. You choose which view each line is taken from. Only in a workbook built with synthesis inputs.",
+     "On the Synthesis tab, one block per series; the series showing on Assess has its four lines and Check "
+     "under What each setting does. Every number follows Your settings on Assess."),
+    ("Internal",
+     "The lines from KeyBank's own series: the ones on Thresholds.",
+     "Your settings and the periods left out on Assess, on the series' own quarters. A history with no stress "
+     "in it can place lines 2 to 4 and not line 5 (High would begin beyond the worst quarter kept); it says so."),
+    ("Industry",
+     "The lines from the industry's series (every FDIC filer), which holds the 2008-10 crisis.",
+     "The same scale and settings as Internal, on every quarter of the industry series, then carried to the "
+     "internal level as Industry carried by says."),
+    ("Industry carried by (yours)",
+     "How the industry's lines are moved to KeyBank's level, which can sit above or below the industry's.",
+     "'median ratio': each line times the median, over the quarters both series hold, of the internal value "
+     "divided by the industry value. 'none': the industry's lines as they are. Picked on the Synthesis tab."),
+    ("Peers",
+     "The lines from KeyBank's peers: where a stated share of the peers sits.",
+     "For each peer, the median of its values over the quarters the internal series holds. The line is the "
+     "percentile of those medians you state (Excel's PERCENTILE, linear between ranked values), times the "
+     "median, over the quarters both hold, of the internal value divided by KeyBank's filed value. For a "
+     "measure where lower is worse, 100 minus the percentile is taken."),
+    ("Peers at percentile (yours)",
+     "The percentile across the peers' medians each line is drawn at.",
+     "Four numbers from 0 to 100, rising from line 2 to line 5, typed on the Synthesis tab."),
+    ("Taken from (yours)",
+     "Which view a line is taken from: internal, industry or peers.",
+     "Picked for each line on the Synthesis tab. A line can only be taken from a view that has it, and the four "
+     "chosen lines must still run in order; otherwise the Check refuses and says which."),
+    ("Chosen line",
+     "Where the rating begins once each line is taken from the view you chose.",
+     "The internal, industry or peers value on the same row, as Taken from says."),
+    ("Competitive check",
+     "How KeyBank's filed figures compare with each peer's, as a count. It does not say how bad is bad enough.",
+     "KeyBank's filed median over the quarters the internal series holds, and how many peers' medians over "
+     "the same quarters are better than it (below it, or above it when lower is worse)."),
 ]
 

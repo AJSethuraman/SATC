@@ -54,9 +54,11 @@ bank changes a setting.
 | **Evidence** | Per product: each spell above the median with its robust z, how often history was that bad, its deepest dip, and the temporary departures (stretches that left their path and came back) | No, written at build |
 | **Backtest** | How predictive a percentile scale would have been, rebuilt each quarter from the history up to and including that quarter, never after | No |
 | **Sources** | What each series' file says about itself, printed as written: what is measured, who is in it, the Call Report lines where they apply, numerator, denominator, basis, period and source. A key every file should give (measure, as of, basis, source) and this one does not is marked *Not stated in the file*, never filled in. The same for public files and the bank's template files | No |
-| **Glossary** | 36 terms: what each means and exactly how it is calculated | No |
+| **Synthesis** (red; only when built with `--synthesis`) | Per series given synthesis inputs: where each colour starts according to internal, industry and peers, side by side; which one each line is taken from (yours); the chosen lines; the latest quarter rated on them; the competitive check; and a Check that refuses in `synthesis.py`'s words. Section "Synthesis" below | Inputs, and live |
+| **Glossary** | 45 terms: what each means and exactly how it is calculated | No |
 | **Data** | Every series on one quarterly calendar, the quarters kept, and the working columns behind the live formulas | Yes |
-| **Run** | Engine version, build time, every setting's starting value, each input file's SHA-256 fingerprint, and the leave-out decisions and reasons, live | Partly |
+| **SynthesisData** (only with `--synthesis`) | The industry, KeyBank filed and peer series on one unbroken quarterly calendar, with the working columns the Synthesis formulas read | Yes |
+| **Run** | Engine version, build time, every setting's starting value, each input file's SHA-256 fingerprint, and the leave-out decisions and reasons, live (and the synthesis choices, when built with them) | Partly |
 
 **The scale** (`scale.py` is the Python reference the formulas are tested
 against):
@@ -145,6 +147,63 @@ pair. Beside them it states the latest internal quarter's rating and how
 many peers KeyBank's filed median is worse than: facts, no alarm level.
 `peers build` writes each peer's own charge-off series to
 `SERIES-DIR/banks/` for `--peer NAME=FILE`.
+
+**In the workbook (14 Oct 2026, `synthesis_tab.py`).** The firm agreed the
+synthesis belongs on Assess, *where each colour starts*. The `workbook`
+command takes, per series, the same inputs, and the series' own `--series`
+file is the internal one:
+
+    --synthesis "Credit card=industry:FILE;filed:FILE;peers:FOLDER-OR-PATTERN"
+    --translation "Credit card=median ratio"
+    --peer-percentiles "Credit card=20,40,75,95"
+    --leads "Credit card=internal,internal,internal,industry"
+
+`industry` is required, `filed` and `peers` are optional (`peers`: a folder
+means every `.csv` in it; a pattern such as `banks/credit-card_*_net.csv`
+the files it matches; each peer is named by its file). A series given
+`--synthesis` needs `--translation` and `--leads`, and `--peer-percentiles`
+when it has peers; each is stated for that series, and there is no set that
+applies to every series, because a lead that is right for cards (whose
+industry history holds 2008) was not chosen for a series whose does not. Any
+of them missing, or given for a series without `--synthesis`, is refused by
+name. Without any synthesis flag the command and the workbook are as before.
+
+The **Synthesis** tab (red, beside Thresholds) has a block per series: the
+four lines from internal, industry and peers side by side, **Taken from
+(yours)** per line, **Peers at percentile (yours)** per line, **Industry
+carried by (yours)**, each a yellow cell starting from what the command said;
+the **chosen line**; the latest quarter rated on the chosen lines; the
+**competitive check** as a sentence; and a **Check** that says OK or why it
+refuses, in `synthesis.py`'s words: a line taken from a view that does not
+have it (naming the line, the view and why), lines out of order (naming the
+pair and their values), peers without KeyBank's filed series, percentiles
+that are not four numbers from 0 to 100 or do not rise, a lead or translation
+typed outside its list. Below that, what each view rests on (quarters held,
+the ratios and over how many quarters) and each peer's median.
+
+Every number is a formula and follows **Your settings on Assess**. The
+internal lines **are** Thresholds' lines, so periods left out on Assess move
+them; the translations and the peer window use every quarter the internal
+series holds, as `synthesis.py` does. The industry, filed and peer series are
+smoothed as the measure says, like the internal ones. Their `#` notes are
+printed on Sources and their SHA-256 on Run, each under its own name
+(*Credit card · industry*, *· KeyBank filed*, *· peer NAME*), and Run shows
+the choices live.
+
+On **Assess**, under What each setting does, *Where each colour starts* shows
+the series in B5: the three views and the chosen line for each of the four
+lines, the latest rating on them and the Synthesis Check, with a link to the
+tab. A series built without a synthesis says so there.
+
+**What proves it** (`tests/test_workbook_synthesis.py`): the workbook is
+recalculated with the `formulas` engine and every candidate, chosen line,
+rating and Check must equal `synthesis.synthesize` on the same inputs: all
+internal but High from the industry; a line led by peers; translation none;
+percentiles changed on the tab; Your settings changed on Assess; a period
+left out (internal moves, the others do not); lower is worse; smoothing; a
+latest value exactly on a chosen line under worse and better; and each
+refusal. Nine hand-made faults in the tab's formulas each turn a test red. The command's refusals when a flag is missing. Opened in Excel
+16 on the public card files (LOG.md, 14 Oct 2026).
 
 ## Peers (`peers/`, commands `peers pull` and `peers build`)
 

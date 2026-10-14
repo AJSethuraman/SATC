@@ -10,7 +10,11 @@ judgements are made in the workbook and the thresholds move as they are made:
                     the scale's three distances and the on-the-line rule
     Thresholds      median and worst of the periods kept, the four cutoffs,
                     the latest value's score and rating -- all live
-    Chart           any combination of products on one scale, with one
+    Synthesis       only with synthesis inputs (synthesis_tab.py): internal,
+                    industry and peers side by side for each line, which one
+                    each line is taken from, the chosen lines -- live, with
+                    the series it reads on SynthesisData
+    Chart          any combination of products on one scale, with one
                     product's cutoffs drawn, switched on the tab itself
     Evidence        spells, robust z, scenarios, recency (values)
     Backtest        how predictive the scale would have been (values)
@@ -26,7 +30,7 @@ import datetime as dt
 import hashlib
 import math
 from pathlib import Path
-from typing import Sequence, Tuple
+from typing import Dict, Optional, Sequence, Tuple
 
 from openpyxl import Workbook
 from openpyxl.chart import AreaChart, BarChart, LineChart, Reference
@@ -37,6 +41,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from . import assess_tab as AT
 from . import keybank_style as K
+from . import synthesis_tab as ST
 from .backtest import backtest
 from . import VERSION
 from .evidence import evidence
@@ -112,7 +117,13 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
           direction: str, frequency: str, smoothing: int, floor_at_zero: bool,
           moderate_halfwidth: float, low_step: float, high_z: float, on_the_line: str,
           half_lives: Sequence[float],
-          percentiles: Sequence[float], horizon: int, min_history: int) -> dict:
+          percentiles: Sequence[float], horizon: int, min_history: int,
+          synthesis: Optional[Dict[str, dict]] = None) -> dict:
+    """``synthesis``, when given, adds the Synthesis tab (synthesis_tab.py):
+    ``{label: {industry: PATH, filed: PATH or None, peers: [(NAME, PATH)],
+    translation, peer_percentiles (four, or None without peers), leads
+    (four)}}``, every choice stated; ``synthesis_tab.from_flags`` reads the
+    command line's flags into it. Without it the workbook is as before."""
     if frequency != "quarterly":
         raise ValueError("the workbook's calendar is quarterly; monthly series are not built yet")
     out = Path(out)
@@ -137,6 +148,15 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             raise ValueError("the label %r can't be used: %s" % (lbl, LABEL_RULE))
     if len({lbl.casefold() for lbl, _ in series}) != len(series):
         raise ValueError("two series share a label (Excel ignores capitals, so 'Cards' and 'cards' are one)")
+    if synthesis:
+        ST.validate(synthesis, [lbl for lbl, _ in series], direction, on_the_line)
+        for lbl, s_ in synthesis.items():
+            for what, path in ([("the industry series", s_["industry"])]
+                               + ([("KeyBank's filed series", s_["filed"])] if s_.get("filed") else [])
+                               + [("the peer %s" % nm, p_) for nm, p_ in s_.get("peers") or []]):
+                if out.resolve() == Path(path).resolve():
+                    raise ValueError("the workbook would be written over %s, %s for %s; write it elsewhere"
+                                     % (Path(path).name, what, lbl))
     higher = direction == "higher_is_worse"
 
     loaded = []
@@ -153,6 +173,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         if len(by_q) != len(used):
             raise ValueError("%s has two observations in one quarter" % label)
         loaded.append(dict(label=label, path=Path(path), raw=pts, points=used, ev=ev, bt=bt, by_q=by_q))
+    syn_loaded = ST.load(synthesis, smoothing) if synthesis else None
     grid = sorted(set().union(*(s["by_q"] for s in loaded)))
     # Decimals to suit the values: 3.978 (a rate) keeps three, 714.5 (a score)
     # one; three decimals on a credit score read as false precision.
@@ -166,6 +187,12 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     th, ch, evs, bts, srcs, gl, da, run = (wb.create_sheet(t) for t in
                                            ("Thresholds", "Chart", "Evidence", "Backtest", "Sources", "Glossary",
                                             "Data", "Run"))
+    sy = sd = None
+    if synthesis:
+        # Beside Thresholds, the other live tab; its data beside Data.
+        sy = wb.create_sheet("Synthesis", wb.sheetnames.index("Thresholds") + 1)
+        sd = wb.create_sheet("SynthesisData", wb.sheetnames.index("Data") + 1)
+        K.hide_gridlines(sy)
     for ws in (th, asx, ch, evs, bts, srcs, gl, run):
         K.hide_gridlines(ws)
     lay = assess_layout(n)
@@ -440,6 +467,14 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
              y_min=None if floor_at_zero else _axis_floor(loaded, direction, moderate_halfwidth, low_step, high_z),
              nf=NF)
 
+    # ---- Synthesis: internal, industry and peers, where each colour starts ----
+    syn_at = {}
+    if synthesis:
+        syn_at = ST.build(wb, sy, sd, asx, loaded=loaded, syn=synthesis, syn_loaded=syn_loaded, grid=grid, n=n,
+                          higher=higher, floor_at_zero=floor_at_zero, unit=unit, nf=NF, srow=srow,
+                          quarter=quarter, assess_lay=lay)
+        sd.sheet_properties.tabColor = K.STONE
+
     # ---- The reference tabs: one quiet pattern (the hand-off). A title on
     # paper over a stone rule, section names over an ink rule, canvas
     # headers, hairline rows. Red is kept for the two live tabs. ----
@@ -537,7 +572,11 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
              "as-of": "As of", "source": "Source", "checked": "Checked", "prepared-by": "Prepared by",
              "prepared-on": "Prepared on", "note": "Note"}
     r = 4
-    for s in loaded:
+    # The synthesis' files (industry, KeyBank filed, each peer) follow the
+    # series, each under its own name, by the same rule.
+    described = [dict(label=s["label"], path=s["path"], raw=s["raw"]) for s in loaded]
+    described += [dict(label=t_, path=p_, raw=raw_) for t_, p_, raw_ in (ST.files(syn_loaded) if synthesis else [])]
+    for s in described:
         notes = read_notes(s["path"])
         r = K.quiet_section(srcs, r, s["label"], 2)
         rows_ = [("File", "%s (%d rows, %s to %s; its SHA-256 is on Run)"
@@ -625,9 +664,9 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     r = K.quiet_section(run, r + 1, "Files", 6)
     files_head = r
     r = K.canvas_header(run, r, ["Series", "File", "Rows", "First", "Last", "SHA-256"])
-    for s in loaded:
+    for s in described:
         for col, v in enumerate([s["label"], str(s["path"]), len(s["raw"]), s["raw"][0].date, s["raw"][-1].date,
-                                 _sha(s["path"])], start=1):
+                                 _sha(Path(s["path"]))], start=1):
             run.cell(r, col, v).font = DATA_F
         run.cell(r, 6).font = Font(name="Consolas", size=9, color=K.SLATE)
         K.hairlines(run, r, 1, 6)
@@ -648,10 +687,23 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         for col, c_ in enumerate("OPQR", start=2):
             run.cell(r, col, "=Assess!%s%d" % (c_, srow[s["label"]])).font = DATA_F
         r += 1
+    if synthesis:
+        r = K.quiet_section(run, r + 1, "Synthesis choices, as on Synthesis (live)", 6)
+        r = K.canvas_header(run, r, ["Series", "Industry carried by", "Taken from: lines 2, 3, 4, 5",
+                                     "Peers at percentile: lines 2, 3, 4, 5", "Check", ""])
+        for lbl, at in syn_at.items():
+            lr = at["lines"]
+            run.cell(r, 1, lbl).font = DATA_F
+            run.cell(r, 2, "=Synthesis!B%d&\"\"" % at["translation"]).font = DATA_F
+            run.cell(r, 3, "=" + '&", "&'.join("Synthesis!F%d" % x for x in lr)).font = DATA_F
+            run.cell(r, 4, ("=" + '&", "&'.join("Synthesis!D%d" % x for x in lr))
+                     if synthesis[lbl].get("peers") else "no peers").font = DATA_F
+            run.cell(r, 5, "=Synthesis!B%d" % at["check"]).font = DATA_F
+            r += 1
     for c_, w in zip("ABCDEF", (24, 52, 12, 26, 30, 70)):
         run.column_dimensions[c_].width = w
 
     out = Path(out)
     wb.save(out)
     return {"path": out, "products": [s["label"] for s in loaded], "quarters": len(grid),
-            "evidence": {s["label"]: s["ev"] for s in loaded}}
+            "evidence": {s["label"]: s["ev"] for s in loaded}, "synthesis": syn_at}

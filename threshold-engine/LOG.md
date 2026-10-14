@@ -943,3 +943,66 @@ The firm, 14 Oct: "Build until you cannot." The approved items, in order.
   begin beyond the worst quarter kept": auto's own line starts in 2011, so
   its history holds no crisis). Each refusal says what would clear it; the
   settings per product are the firm's.
+
+## 14 October 2026, the synthesis in the workbook
+
+The firm agreed the synthesis goes on Assess: *where each colour starts*.
+Built on branch `threshold-engine-synthesis-tab` (from `e401c5be`), in
+`synthesis_tab.py`; `synthesis.py` stays the arithmetic and the reference.
+
+- **What it is.** `workbook --synthesis "LABEL=industry:FILE;filed:FILE;
+  peers:FOLDER-OR-PATTERN"` adds a red **Synthesis** tab beside Thresholds:
+  per series, the four lines from internal, industry and peers side by side,
+  which one each line is taken from, the chosen lines, the latest quarter
+  rated on them, the competitive check and a Check; its series on
+  **SynthesisData**. Every number is a live formula on Your settings on
+  Assess. On Assess, under What each setting does, *Where each colour starts*
+  shows the series in B5 with a link to the tab. Without a synthesis flag the
+  command and the workbook are unchanged (the existing tests pass as they
+  were).
+- **Choices, none defaulted.** Per series `--translation`, `--leads`, and
+  `--peer-percentiles` when it has peers; each starts its yellow cell. Stated
+  per series, not one set for all: a lead chosen for cards, whose industry
+  history holds 2008, was not chosen for a series whose does not. A series
+  given `--synthesis` without one of them, or one of them without
+  `--synthesis`, is refused by name.
+- **Decided while building, to be confirmed.** (1) The internal lines are
+  Thresholds' lines, so periods left out on Assess move them; the
+  translations and the peer window use every quarter the internal series
+  holds, as `synthesis.py` does. (2) The industry, filed and peer series are
+  smoothed as the measure says, like the internal one. (3) Each peer is named
+  by its file (`credit-card_bank-of-america_net`); nothing is read out of the
+  file to name it.
+- **Refusals in the Check, in synthesis.py's words:** a line taken from a
+  view without it, lines out of order (the pair and their values), peers
+  without KeyBank's filed series, percentiles that are not four numbers 0-100
+  or do not rise, a lead or translation typed outside its list.
+- **Proof.** `tests/test_workbook_synthesis.py`: recalculated with `formulas`,
+  every candidate, chosen line, rating and Check equal to
+  `synthesis.synthesize` on the same inputs (all internal but High from the
+  industry; peers leading lines; translation none; percentiles and Your
+  settings changed in the workbook; a period left out; lower is worse;
+  smoothing; a latest value exactly on a chosen line under worse and better;
+  each refusal), plus the command's refusals. 42 tests. Nine hand-made
+  faults in `synthesis_tab.py` (percentile not flipped when lower is worse,
+  peer and filed medians over every quarter, order check blind to direction,
+  a line-5 refusal dropping lines 2-4, translation none ignored, percentiles
+  allowed to tie, on-the-line ignored, synthesis series left unsmoothed):
+  all nine turn a test red. The on-the-line fault survived the first round;
+  the test for a value exactly on a line was added for it.
+- **Opened in Excel 16** on public files: KeyBank's filed card series
+  standing in for internal (and as filed, so peers are carried by exactly
+  1.000), the FDIC industry card series, and the 11 peers `peers build` wrote
+  to `banks/`; leads internal x3 and High from industry, median ratio,
+  percentiles 20/40/75/95 (stand-in choices for the mechanics, not a
+  recommendation). Excel's numbers equal `synthesize`'s: internal 2.657 /
+  3.016 / 3.735 and no High; industry 2.749 / 3.116 / 3.850 / 5.625 (x 0.922
+  over 34 quarters); peers 3.464 / 3.795 / 3.985 / 4.921; 2026Q2 rated 4;
+  KeyBank's filed median 3.376%, worse than 2 of 11 peers. No #VALUE!,
+  #REF!, #DIV/0!, #NUM! or #NAME? on any tab; 67 #N/A on Assess, all in its
+  hidden chart helpers (the NA() that keeps a chart from drawing a point),
+  none visible. Changing line 4 to peers and High's z to 2.0 moved the chosen
+  lines and the rating (4 to 3); taking High from internal showed the
+  refusal on the tab and on Assess.
+- **Not done:** the window (`Thresholds.pyw`) does not offer the synthesis
+  inputs yet; the command line does.
