@@ -657,7 +657,7 @@ def read_choices(ws):
     from . import choices as ch
     got, cells = {}, {}
     run_kind = shortlist = None
-    limits = {"few_values": 12, "many_values": 50}
+    limits = {"few_values": 12, "many_values": 50, **read_limits(ws)}
     for r in ws.iter_rows(min_row=FIRST_ROW):
         key = r[KEY_COL - 1].value
         if not isinstance(key, str):
@@ -674,13 +674,27 @@ def read_choices(ws):
         elif key == PRESPEC_KEY:
             shortlist = str(v).strip() if v not in (None, "") else None
             cells[key] = f"{SHEET}!C{r[0].row}"
-        elif key in limits:
-            n = answer_of(key, v, r[OWN_COL - 1].value)
-            if isinstance(n, (int, float)) and not isinstance(n, bool):
-                limits[key] = int(n)
     if got.get("bands") is None and got.get("segments") is None:
         return None, cells              # nothing written yet, or a workbook set up before the launcher chose
     return ch.Choices.from_rows(got, run_kind=run_kind, shortlist=shortlist, **limits), cells
+
+
+LIMITS = ("few_values", "many_values")
+
+
+def read_limits(ws) -> dict[str, int]:
+    """The two column limits as Control holds them, by key: the option picked or a number typed in its own cell.
+    A limit with no usable answer is left out. Reads a read-only worksheet too (book.limits_in): openpyxl pads its
+    rows to the sheet's recorded size, and a sheet written without one has rows that end at their last filled cell."""
+    got = {}
+    for row in ws.iter_rows(min_row=FIRST_ROW, values_only=True):
+        row = tuple(row) + (None,) * (KEY_COL - len(row))
+        key = row[KEY_COL - 1]
+        if key in LIMITS:
+            n = answer_of(key, row[CHOOSE_COL - 1], row[OWN_COL - 1])
+            if isinstance(n, (int, float)) and not isinstance(n, bool):
+                got[key] = int(n)
+    return got
 
 
 # --------------------------------------------------------------------------
