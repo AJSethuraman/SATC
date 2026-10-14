@@ -233,8 +233,8 @@ def main():
     d.add("<h2>The answer, gap by gap</h2>")
     d.add(table(["Gap", "Verdict on the gap", "How big", "What to do"], [
         ["1 · Government-guaranteed loans in 90+",
-         "<b>Real, large for mortgage at most peers.</b> The lines are RC-N items 11, 11.a and 11.b on today's form, not 10 and 10.a.",
-         "Rebooked GNMA loans 90+ equal %s of first-lien 90+ accruing at U.S. Bank, %s at Citizens, %s at Wells Fargo; %s industry-wide. KeyBank: about $%dm of its $15.0m (one third), from KeyCorp's 10-Q." % (
+         "<b>Real at KeyBank, about a third of its first-lien 90+. At the peers it could be most of mortgage 90+, but the filings only bound it.</b> The lines are RC-N items 11, 11.a and 11.b on today's form, not 10 and 10.a.",
+         "Rebooked GNMA loans 90+ come to %s of first-lien 90+ accruing at U.S. Bank, %s at Citizens, %s at Wells Fargo; %s industry-wide. These are upper bounds: the GNMA line also holds commercial loans. KeyBank, the one split that is public: about $%dm of its $15.0m (one third), from KeyCorp's 10-Q." % (
              pct(bank["U.S. Bank"]["gnma_90"], bank["U.S. Bank"]["first_90"]), pct(bank["Citizens"]["gnma_90"], bank["Citizens"]["first_90"]),
              pct(bank["Wells Fargo"]["gnma_90"], bank["Wells Fargo"]["first_90"]), pct(g1["industry_gnma_90"], g1["industry_first_90"]), kq[1]),
          "Compare mortgage across banks on nonaccrual and charge-offs, not 90+ accruing. Do not subtract rebooked GNMA from a peer's mortgage 90+: the line is not split by loan type and can hold commercial loans. Where a 90+ figure is shown, put the GNMA share beside it as an upper bound."],
@@ -266,7 +266,7 @@ def main():
          "In the internal import, name the two items as exclusions, and either split internal home equity into lines and loans or compare mortgage plus home equity together."],
         ["7 · Auto",
          "<b>RC-C 6.c ties at 62,212; where the rest of direct auto is filed COULD NOT be settled from public data.</b>",
-         "6.c holds every consumer car-purchase loan, direct or indirect. KeyBank sold its indirect book in 2021Q3 (6.c fell from $3.80bn to $0.15bn; it kept $2.82bn of the notes). Leases matter for two peers: U.S. Bank (leases %s of its consumer auto) and Bank of America (%s)." % (
+         "6.c holds every consumer car-purchase loan, direct or indirect. KeyBank sold its indirect book in 2021Q3 (6.c fell from $3.80bn to $0.15bn; it kept $2.82bn of the notes). Only two peers file consumer leases: U.S. Bank (at most %s of its consumer auto) and Bank of America (at most %s); the lease line is not split by asset, so these are upper bounds." % (
              pct([x for x in g7["leases"] if x["bank"] == "U.S. Bank"][0]["leases"], [x for x in g7["leases"] if x["bank"] == "U.S. Bank"][0]["leases"] + [x for x in g7["leases"] if x["bank"] == "U.S. Bank"][0]["auto"]),
              pct([x for x in g7["leases"] if x["bank"] == "Bank of America"][0]["leases"], [x for x in g7["leases"] if x["bank"] == "Bank of America"][0]["leases"] + [x for x in g7["leases"] if x["bank"] == "Bank of America"][0]["auto"])),
          "On site, compare internal direct auto at 30 Jun 2026 with 62,212. If it is larger, map the internal segment's composition and entity before assigning the difference to any filed line: it may be loans the Call Report files in 6.d (boats, RVs, cash loans against a car already owned), or a difference of entity or internal definition. Set direct auto's thresholds on internal data, with peers as context only."],
@@ -298,7 +298,8 @@ def main():
     d.add('<h2 class="gap">Gap 1 · Government-guaranteed loans counted as 90+ days late</h2>')
     d.add('<p><b>The question.</b> FHA and VA mortgages and federally guaranteed student loans can sit 90+ days late with little '
           'loss to the bank, because the government pays. Does that inflate the 90+ measures, and by how much?</p>')
-    d.add('<div class="answer"><b>Real, and large for mortgage at most peers.</b> On today\'s form the lines are RC-N <b>item 11</b> '
+    d.add('<div class="answer"><b>Real. At KeyBank about a third of first-lien 90+ is government-insured; at the peers it could be most of it, but the '
+          'filings give only an upper bound.</b> On today\'s form the lines are RC-N <b>item 11</b> '
           '(loans wholly or partially guaranteed by the U.S. Government), <b>11.a</b> (the guaranteed portion, excluding rebooked GNMA '
           'loans) and <b>11.b</b> (rebooked GNMA loans: Ginnie Mae pool loans the bank may buy back, which come back onto its books). '
           'Item 10 is now "Debt securities and other assets". The brief\'s "items 10 and 10.a" is the older numbering.</div>')
@@ -324,12 +325,14 @@ def main():
                      n0(b["first_30"]), n0(b["gnma_30"]), pct(b["gnma_30"], b["first_30"]) if b["first_30"] else "n/a", n0(b["part_90"])])
     rows.append(["<b>Industry (4,313 filers)</b>", n0(g1["industry_first_90"]), n0(g1["industry_gnma_90"]),
                  pct(g1["industry_gnma_90"], g1["industry_first_90"]), "", "", "", ""])
-    d.add(table(["Bank", "First-lien 90+ (1.c.(2)(a) B)", "Rebooked GNMA 90+ (11.b B)", "GNMA ÷ first-lien", "First-lien 30–89",
+    d.add(table(["Bank", "First-lien 90+ (1.c.(2)(a) B)", "Rebooked GNMA 90+ (11.b B)", "GNMA ÷ first-lien (upper bound)", "First-lien 30–89",
                  "GNMA 30–89 (11.b A)", "GNMA ÷ 30–89", "Guaranteed portion 90+ (11.a B)"], rows))
     d.add("<p>Item 11 is not split by loan type, so \"GNMA ÷ first-lien\" is an upper bound: a ratio over 100%% (KeyBank, Wells Fargo) means some "
           "GNMA loans are commercial (FHA multifamily) rather than 1-4 family. The FDIC's QBP files rebooked GNMA loans under closed-end first liens, "
-          "and its industry figure ties to the FDIC API to the dollar (figure G1-35). At most mortgage lenders on the roster, the 90+ accruing "
-          "mortgage measure is mostly government-insured loans. On the 90+ including nonaccrual measure the industry share is %s.</p>"
+          "and its industry figure ties to the FDIC API to the dollar (figure G1-35), but that is the same unsplit item 11.b. So the filings show that "
+          "government-insured loans <i>could</i> be most of the 90+ accruing mortgage measure at most mortgage lenders on the roster, not that they are: "
+          "KeyBank, the one bank whose split is public, has most of its GNMA in commercial loans. A split for each peer would need its own holding-company "
+          "filings, which were not read here. On the 90+ including nonaccrual measure the industry share is at most %s.</p>"
           % pct(g1["industry_gnma_90"], g1["industry_first_90"] + g1["industry_first_na"]))
     d.img("g1-usbank-rcn-11", "U.S. Bank RC-N rows", ["U.S. Bank National Association", "Report date 6/30/2026", "1.c.(2)(a) col B = 4,181,884",
                                                     "11.b col B = 3,945,459"])
@@ -579,12 +582,14 @@ def main():
     d.img("g7-keybank-rcc-6c-jun21", "KeyBank RC-C 6.c June 2021", ["KeyBank", "Report date 6/30/2021", "6.c = 3,804,433"])
     d.img("g7-keybank-rcc-6c-sep21", "KeyBank RC-C 6.c September 2021", ["KeyBank", "Report date 9/30/2021", "6.c = 152,093"])
     d.img("g7-keybank-rcb-m5c-sep21", "KeyBank RC-B M.5.c", ["KeyBank", "Report date 9/30/2021", "Schedule RC-B Memoranda 5.c", "ABS: automobile loans, HTM = 2,824,525"])
-    d.add("<h3>Auto leases (RC-C 10.a) across the roster, 30 June 2026 ($000, as filed)</h3>")
-    d.add(table(["Bank", "Auto loans 6.c", "Consumer leases 10.a", "Leases ÷ (loans + leases)", "Lease charge-offs YTD (RI-B 8.a)", "Auto charge-offs YTD (RI-B 5.b)"],
+    d.add("<h3>Consumer leases (RC-C 10.a) across the roster, 30 June 2026 ($000, as filed)</h3>")
+    d.add(table(["Bank", "Auto loans 6.c", "Consumer leases 10.a", "Leases ÷ (loans + leases), upper bound", "Lease charge-offs YTD (RI-B 8.a)", "Auto charge-offs YTD (RI-B 5.b)"],
                 [[x["bank"], n0(x["auto"]), n0(x["leases"]), pct(x["leases"], x["auto"] + x["leases"]) if x["auto"] + x["leases"] else "n/a",
                   n0(x["lease_co"]), n0(x["auto_co"])] for x in g7["leases"]]))
     d.img("g7-usbank-rcc-6c-10a", "U.S. Bank RC-C 6.c and 10.a", ["U.S. Bank", "Report date 6/30/2026", "6.c = 3,248,165", "10.a = 4,087,388"])
-    d.add("<p>Only U.S. Bank and Bank of America file consumer leases. The auto rate stays internally consistent: lease charge-offs are on RI-B 8.a, "
+    d.add("<p>Only U.S. Bank and Bank of America file consumer leases. Item 10.a holds every lease to an individual for personal use, not only cars, "
+          "and neither filing splits it, so the share is an upper bound on auto leasing. The other 14 file zero, and since consumer auto leases belong in 10.a, "
+          "they have none. The auto rate stays internally consistent: lease charge-offs are on RI-B 8.a, "
           "outside the rate's top line, just as leases are outside its bottom line. The FDIC API has no field for 10.a (searched: 2,378 fields), so the tool "
           "cannot carry it. Separately, KeyBank's filed auto is a $62m run-off book, while 12 of the 15 peers hold auto books of $1.3bn to $89bn (Regions, Zions and Citi hold little or none). Peer "
           "and industry auto rates describe a different business from KeyBank's direct auto, and KeyBank's own filed auto history is three different books "
@@ -593,7 +598,7 @@ def main():
           '(car-purchase loans, boats and RVs, cash loans against owned cars, anything booked outside KeyBank, N.A.) before assigning the difference to a filed line; '
           'only the car-purchase loans of KeyBank, N.A. belong in 6.c. Set direct auto\'s thresholds on internal data, '
           'with peers and industry as context only, and do not use KeyBank\'s filed auto history before 2021Q4. Note on the peer view that U.S. Bank\'s and Bank '
-          'of America\'s auto figures exclude their lease books.</div>')
+          'of America\'s auto figures leave out any car leases, which sit in their consumer lease lines (10.a, not split by asset).</div>')
     d.add("<h3>Figures</h3>" + figtable(by_gap[7][:3] + by_gap[7][18:]))
     d.add("<p>The other 15 gap-7 figures are the peers' auto loans, the tool's cache against each filing: all TIED.</p>")
 
@@ -671,6 +676,7 @@ cells in <code>peers.xlsx</code> or the main workbook. The CSVs are what <code>w
 figure, and is assumed here. The build ran in a Linux container, not on the firm's Windows machine with Excel.</li>
 <li><b>The guaranteed-loan fields (P9GTY…) are not in the tool's cache.</b> Those comparisons are FDIC API against filing, because the tool does not pull them.</li>
 <li><b>Item 11 is not split by loan type</b>, so the peers' GNMA share of mortgage 90+ is an upper bound. Only KeyBank's split is known, from KeyCorp's 10-Q.</li>
+<li><b>Item 10.a is not split by asset</b>, so U.S. Bank's and Bank of America's lease shares are upper bounds on auto leasing, not measures of it.</li>
 <li><b>Nonaccrual practice was measured for cards only.</b> The same exception covers every consumer product and 1-4 family mortgage; other consumer, auto and
 mortgage nonaccrual may be just as policy-driven, and were not tested.</li>
 <li><b>The 2010 mix effect (+%.2f pts) is an estimate</b> on quarterly, quarter-end balances. It holds each group's rate fixed, which is a modelling choice.</li>
