@@ -163,6 +163,18 @@ def test_views_past_its_most_rows_drops_the_vintage_chart_then_refuses(tmp_path,
     assert b3.read_bytes() == before
 
 
+def test_views_past_its_most_rows_are_counted_not_written(monkeypatch):
+    """Rows past results.MOST_VIEWS_ROWS are counted and not written, so the refusal above is reached with every row
+    counted even when the rows without the vintage chart's pass Excel's 1,048,576, where openpyxl stops with a
+    ValueError (Codex on #441). Tried with the most set at 5 and 8 rows put."""
+    from openpyxl import Workbook
+    monkeypatch.setattr(results, "MOST_VIEWS_ROWS", 5)
+    views = results.Views(Workbook())
+    assert [views.put(f"k{i}", [i, i + 1]) for i in range(8)] == list(range(1, 9))
+    assert views.r == 8
+    assert [r for r in views.ws.iter_rows(values_only=True)] == [(f"k{i}", i, i + 1) for i in range(5)]
+
+
 # --------------------------------------------------------------------------
 # LibreOffice
 

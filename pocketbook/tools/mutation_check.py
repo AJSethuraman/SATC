@@ -1833,6 +1833,8 @@ muts = [
   "rows_dropdown_follows_the_column or chart_redraws_with_the_dropdowns"),
  ("_views written past its most rows with the vintage chart's", RS,
   "    if views.r + n <= MOST_VIEWS_ROWS:", "    if True:", "past_its_most_rows"),
+ ("_views rows past its most written to the sheet", RS,
+  "        if self.r > MOST_VIEWS_ROWS:", "        if False:", "counted_not_written"),
  ("_views written past its most rows when the rest alone passes it", RS,
   "    raise TooManyRows(SAY_TOO_MANY_ROWS", "    return TooManyRows(SAY_TOO_MANY_ROWS", "past_its_most_rows"),
  ("the refusal counting the vintage chart's rows it would have left off", RS,

@@ -187,6 +187,10 @@ class Views:
 
     def put(self, key: str, values: list) -> int:
         self.r += 1
+        if self.r > MOST_VIEWS_ROWS:
+            # counted, not written: write() refuses in words once every row is counted, rather than openpyxl
+            # stopping the Run at Excel's 1,048,576 with a ValueError (Codex on #441, 14 Oct 2026)
+            return self.r
         self.ws.cell(row=self.r, column=1, value=key)
         for j, v in enumerate(values, start=2):
             if v is not None and v != "":
