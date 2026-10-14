@@ -54,6 +54,21 @@ PREFS: Path | None = None   # the launcher's last choices; None: launcher.json i
 MODES = {"bleed": "Where the book bleeds", "new": "Test new variables"}
 FEW = (12, 6, 24)          # the options settings.yaml offers for the two limits, first the recommended one
 MANY = (50, 25, 100)
+# the two limits as the workbook beside the extract holds them (the firm, 14 Oct 2026): said under the dropdowns
+LIMIT_NAMES = {"few": "Number columns", "many": "Text columns"}
+
+
+def limits_moved(before: tuple | None, now: tuple) -> str | None:
+    """The refusal when the two limits differ from those Set up read the extract with; None when they don't."""
+    if before is None or tuple(before) == tuple(now):
+        return None
+    what = "; ".join(f"{LIMIT_NAMES[k]}: {b} to {n} values" for k, b, n in zip(("few", "many"), before, now) if b != n)
+    return (f"The column limits on Control changed after Set up read the extract ({what}). The columns have to be "
+            f"read again with them: press Set up.")
+
+
+LIMITS_FROM_BOOK = ("These are the limits on Control in this extract's workbook. A change here replaces them when "
+                    "you press Next.")
 
 
 def book_for(extract: str | Path) -> Path:
@@ -388,6 +403,10 @@ class Flow:
         self.gate = gate or AddOns()
         self.extract = extract
         self.few, self.many = few, many
+        self.own = {"few": few, "many": many}   # the launcher's own choice of the two limits, kept in its prefs
+        self.chosen: set[str] = set()  # limits changed in the launcher since the workbook was last read or written
+        self.read_with: tuple | None = None   # the two limits Set up read the extract with
+        self.limits_said = ""         # LIMITS_FROM_BOOK while the two limits are the workbook's
         self.page = "extract"         # extract, choose, answer, needs, done
         self.read = None              # book.Read, once Set up has read the extract
         self.mode = "bleed"
@@ -415,6 +434,7 @@ class Flow:
         self.crash: Crash | None = None   # something PocketBook didn't expect: shown in the page's own space
         self.busy = ""
         self.stage, self.began = "", 0.0     # the progress line while busy: what is being done, since when
+        self.limits_from_book()       # the window opens on the last extract, which may have its workbook already
 
     # ---- where things stand
 
@@ -487,6 +507,46 @@ class Flow:
             self.extract = path
             self.read, self.written, self.finished, self.needs = None, None, None, []
             self.page, self.message, self.crash = "extract", [], None
+            self.chosen = set()
+            self.limits_from_book()
+
+    def limits_from_book(self, keep: set[str] | frozenset = frozenset()) -> None:
+        """The two limits as Control holds them in the workbook beside the extract, when there is one; otherwise the
+        launcher's own. The launcher kept its own last choice and Next wrote it over a limit typed on Control without
+        a word (HANDOFF.md, 4 Oct 2026); the firm, 14 Oct 2026, chose the workbook's, shown in the dropdowns, as the
+        other choices are. Only a path that is a file is looked at: a path being typed passes through names whose
+        workbook is another extract's (review of #437: "loans" on the way to "loans2.csv"). A limit in `keep` was
+        changed in the launcher and stays as it is; the other is still read (Codex on #437: one flag for both let a
+        launcher change to one limit hide an edit to the other on Control)."""
+        for k in ("few", "many"):
+            if k not in keep:
+                setattr(self, k, self.own[k])
+        self.limits_said = ""
+        if self.gate.missing or not self.extract or not Path(self.extract).is_file():
+            return
+        from . import book
+        got = book.limits_in(self.extract)
+        for k, key in (("few", "few_values"), ("many", "many_values")):
+            if k not in keep and key in got:
+                setattr(self, k, got[key])
+        if got and not keep:
+            self.limits_said = LIMITS_FROM_BOOK
+
+    def fresh_limits(self) -> None:
+        """Before Set up and Next: Control again, unless a limit was changed here since. The launcher stays open
+        while the analyst edits the workbook in Excel (review of #437: 24 typed on Control, then Next wrote 6)."""
+        self.limits_from_book(keep=self.chosen)
+
+    def choose_limit(self, key: str, n: int) -> None:
+        """A limit picked in the launcher's dropdown ("few" or "many"): the launcher's own choice, which Next writes."""
+        setattr(self, key, n)
+        self.own[key] = n
+        self.chosen.add(key)
+        self.limits_said = ""
+
+    def limit_prefs(self) -> dict:
+        """The two limits as the launcher keeps them for the next extract: its own choice, never a workbook's."""
+        return {"few": self.own["few"], "many": self.own["many"]}
 
     def set_up(self) -> None:
         """Read the extract: what each column is. Nothing is written."""
@@ -498,6 +558,7 @@ class Flow:
         if not Path(self.extract).is_file():
             self.message = [book.cant_read(self.extract, FileNotFoundError(), "Set up")]
             return
+        self.fresh_limits()
         try:
             got = book.read_extract(self.extract, self.few, self.many)
         except Exception:
@@ -507,6 +568,7 @@ class Flow:
             self.message = [got.problem]
             return
         self.read, self.message, self.note = got, [], []
+        self.read_with = (self.few, self.many)
         self._defaults(got.chosen)
         self.page = "choose"
 
@@ -868,6 +930,13 @@ class Flow:
         """Write the workbook with these choices (book.set_up keeps any answers already given)."""
         from . import book
         self.crash = None
+        self.fresh_limits()
+        moved = limits_moved(self.read_with, (self.few, self.many)) if self.read is not None else None
+        if moved:
+            # the columns were read with the old limits, so what was chosen on them may no longer hold (Codex on
+            # #437: a number column picked as a band, read as a category under the new limit); read them again
+            self.message, self.page = [moved], "extract"
+            return
         try:
             out = book.set_up(self.extract, choices=self.choices(), progress=self.progress)
         except Exception:
@@ -876,6 +945,7 @@ class Flow:
         if not out.ok:
             self.message = out.lines
             return
+        self.chosen = set()                           # written: Control holds them now, and is read again next time
         self.written, self.message, self.needs, self.finished, self.note = out, [], [], None, []
         self.page = "answer"
         self.refresh()
@@ -962,6 +1032,8 @@ class Flow:
     def after_install(self, optional: bool) -> None:
         """What the page says once an install ends and nothing the cube needs is missing: an optional add-on that
         didn't install is the note for IT, in red; one that did is good news, never in the red of a refusal."""
+        # the window opened without the add-ons, so the workbook's limits could not be read then (Codex on #437)
+        self.limits_from_book(keep=self.chosen)
         if optional and self.gate.optional:
             self.message = [f"Couldn't install {_names(self.gate.optional)} from here.", deps.ask_it(self.gate.optional)]
             self.note = []
@@ -1310,6 +1382,22 @@ def build(root) -> dict:
             b.pack(anchor="w")
             widgets["copy_details"] = b
 
+    def limit_options(key, opts):
+        """A limit's dropdown: the options, and the value in use when it is a number of the analyst's own."""
+        now = getattr(flow, key)
+        return [f"{o} values" for o in opts] + ([f"{now} values"] if now not in opts else [])
+
+    def show_limits_said():
+        """The line under the two limits: shown while they are the workbook's, gone once one is changed here."""
+        w = widgets.get("limits_said")
+        if w is None or not w.winfo_exists():
+            return
+        w.configure(text=flow.limits_said)
+        if flow.limits_said:
+            w.pack(fill="x", padx=8, pady=(0, 6))
+        else:
+            w.pack_forget()
+
     def page_extract():
         label(page, "Pick the loan extract", "title").pack(anchor="w")
         if flow.gate.missing:
@@ -1342,15 +1430,19 @@ def build(root) -> dict:
                 line.pack(fill="x", padx=8, pady=4)
                 label(line, text, "body", wrap=320).pack(side="left")
                 var = tk.StringVar(value=f"{getattr(flow, key)} values")
-                pickb = ttk.Combobox(line, textvariable=var, values=[f"{o} values" for o in opts], width=11,
+                pickb = ttk.Combobox(line, textvariable=var, values=limit_options(key, opts), width=11,
                                      state="readonly", font=F["body"])
                 pickb.pack(side="right")
 
                 def chosen(e, key=key, var=var):
-                    setattr(flow, key, int(var.get().split()[0]))
-                    _save_prefs({"extract": extract.get(), "few": flow.few, "many": flow.many})
+                    flow.choose_limit(key, int(var.get().split()[0]))
+                    _save_prefs({"extract": extract.get(), **flow.limit_prefs()})
+                    show_limits_said()
                 pickb.bind("<<ComboboxSelected>>", chosen)
                 widgets[key] = pickb
+            # where the two came from, when the workbook beside the extract set them (the firm, 14 Oct 2026)
+            widgets["limits_said"] = label(how, flow.limits_said, "small", fg="SLATE", wrap=440)
+            show_limits_said()
         message_lines(page, flow.note, fg="INK")
         message_lines(page, flow.message)
         setup = ("setup", "Set up from this extract", lambda: background(flow.set_up, "Reading the extract"),
@@ -1726,7 +1818,7 @@ def build(root) -> dict:
         # Tk may only be touched from the main thread (found by tools/shoot_launcher.py: the worker read the
         # extract box itself). The Flow does the work in a thread; the window redraws when it comes back.
         flow.pick(extract.get())
-        _save_prefs({"extract": flow.extract, "few": flow.few, "many": flow.many})
+        _save_prefs({"extract": flow.extract, **flow.limit_prefs()})
         flow.busy, flow.stage, flow.began = what, "", time.monotonic()
         render()
         done: queue.Queue = queue.Queue()
@@ -1776,11 +1868,18 @@ def build(root) -> dict:
         # redrawn only when the page changes: a redraw while someone types would take the box away from them
         before = flow.page
         flow.pick(extract.get())
-        _save_prefs({"extract": flow.extract, "few": flow.few, "many": flow.many})
+        _save_prefs({"extract": flow.extract, **flow.limit_prefs()})
         if flow.page != before:
             render()
         elif "setup" in widgets:
             widgets["setup"].configure(state=flow.states()["setup"])
+            # the limits follow the extract's workbook, in place: a redraw would take the box away from the typist
+            for key, opts in (("few", FEW), ("many", MANY)):
+                w = widgets.get(key)
+                if w is not None and w.winfo_exists():
+                    w.configure(values=limit_options(key, opts))
+                    w.set(f"{getattr(flow, key)} values")
+            show_limits_said()
 
     extract.trace_add("write", on_extract)
 
