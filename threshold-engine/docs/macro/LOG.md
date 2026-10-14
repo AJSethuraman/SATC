@@ -125,3 +125,29 @@ the Claude Doc and its copy here. The ones that changed a figure or a claim:
 
 Every other change was wording: plain terms defined once, a neutral decision
 table, chart captions naming their files.
+
+## 14 October 2026, docket
+
+The firm asked for a docket. Published as a form:
+https://claude.ai/artifact/LDbs7AsXfZ732TurabevcP. Answers save to its
+`decisions` collection, one document per decision; read them back from there
+and record them here.
+
+**Next, which silence approves:** check the proposal's seven headline figures
+against the publishers' own pages (canon:tie-out). It ends when each has the
+publisher's number beside ours, or a stated reason it could not be checked.
+0 of 7 done. Silence approves this checking only: not building anything, not
+choosing an option or a setting, not merging #436.
+
+**Ten decisions open**, each with a recommendation on the form: which option
+(C recommended); the size of the recession (the Fed's, yearly); which past
+recessions (all four, 2020 marked); where C starts (the middle of the kept
+history); add or scale (show both); where rating 5 begins (about a
+2001-sized recession, as now); products (all, marked by evidence); auto
+(borrow other consumer's rates, labelled); A later (yes, after C); merge
+#436 now (yes: it decides nothing).
+
+**Measured for the docket:** threshold-engine's suite, run in this session on
+899043e: 767 passed, 5 skipped, of 772. The 5: two Windows-only, three that
+open a window. The repository's CI does not run this suite at all; its
+test workflow covers nine other projects.
