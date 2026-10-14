@@ -484,6 +484,35 @@ def test_text_in_the_moderate_low_step_is_refused_not_an_error(built, tmp_path):
     assert vals["THRESHOLDS!K5"] == "" and vals["THRESHOLDS!E5"] == ""
 
 
+@pytest.mark.parametrize("cell", ["H6", "I6", "J6"])
+def test_text_in_a_setting_leaves_no_error_on_the_assess_dials(built, tmp_path, cell):
+    """The Codex review (13 Oct 2026, on #426 after merge): the Thresholds tab
+    refused text in the low step, but the Assess dials multiplied it and
+    showed #VALUE!. Every dial row is now blank, and says why, when a setting
+    it uses is not a number; the same holds for the half-width and z."""
+    p, _, _ = built
+    vals = with_settings(p, tmp_path, "t%s.xlsx" % cell, {cell: "one"})
+    ws = load_workbook(p)["Assess"]
+    rows = [r for r in range(49, ws.max_row + 1) if isinstance(ws.cell(r, 2).value, str)
+            and ws.cell(r, 2).value.startswith("=") and ws.cell(r, 11).value]
+    assert rows
+    for r in rows:
+        for c in "ABCDEFGHIJK":
+            v = vals.get("ASSESS!%s%d" % (c, r))
+            assert not (isinstance(v, str) and v.startswith("#")), (c, r, v)
+    refused = [vals["ASSESS!K%d" % r] for r in rows]
+    assert any(v == "refused: a setting is not a number" for v in refused)
+
+
+def test_the_backtest_glossary_entry_says_one_thing_about_the_history_used():
+    """The Codex review (13 Oct 2026, on #426 after merge): the meaning said
+    the scored quarter is included and the calculation said 'before it'."""
+    from threshold_engine.glossary import TERMS
+    entry = next(t for t in TERMS if t[0] == "Backtest")
+    assert "the quarter scored and those before it" in entry[1]
+    assert "that quarter and the quarters before it" in entry[2]
+
+
 def test_the_pickers_read_their_choices_from_cells_so_long_labels_survive(tmp_path):
     """The Codex review (13 Oct 2026): an inline dropdown list over 255
     characters is one Excel drops or repairs. The choices are cells now."""

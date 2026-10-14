@@ -159,3 +159,43 @@ def test_an_individual_draft_is_not_asked_for_it():
     d = _draft()
     assert "entity_password_note" not in d.unfilled
     assert "Pat's last name" in d.body
+
+
+def test_the_apps_own_results_summary_renders_as_a_list():
+    """FOUND BY CODEX ON PR #430. build_context supplied the summary as bare
+    lines, so the HTML email ran every jurisdiction into one paragraph."""
+    from types import SimpleNamespace
+    from satc.comms.context import build_context
+
+    returns = [SimpleNamespace(jurisdiction="US", return_type="1040", tax_year=2025,
+                               refund_amount=225, balance_due_amount=None),
+               SimpleNamespace(jurisdiction="OH", return_type="IT 1040", tax_year=2025,
+                               refund_amount=None, balance_due_amount=47)]
+    values = build_context(client_name="Pat Example", returns=returns, tax_year=2025)
+    lib = load_library()
+    values.update({"fee_amount_text": "$480", "payment_link": LINK}, **lib.firm_values())
+    html = render(lib.template("invoice_cover"), values, library=lib).html
+    summary = html.split("<ul>")[1].split("</ul>")[0]
+    assert summary.count("<li>") == 2
+
+
+def test_an_overdue_reminder_asks_for_no_signature_and_names_no_draft():
+    """The reminder is about money only."""
+    lib = load_library()
+    tpl = lib.template("overdue_invoice")
+    assert "8879" not in tpl.body and "draft copy" not in tpl.body.lower()
+    assert "{payment_link}" in tpl.body and "{invoice_number}" in tpl.subject + tpl.body
+
+
+def test_a_business_is_not_told_to_sign_an_individual_form():
+    """FOUND BY CODEX ON PR #430. Entities sign 8879-CORP or 8879-PE, and have
+    no taxpayer refund or direct deposit to check; the individual wording is
+    kept for individuals only."""
+    lib = load_library()
+    biz = {"fee_amount_text": "$900", "payment_link": LINK, "salutation": "Acme Widgets LLC",
+           "tax_year": "2025", "jurisdiction_summary": "\u2022 Federal: nothing due"}
+    biz.update(lib.firm_values())
+    body = render(lib.template("invoice_cover"), biz, library=lib).body
+    assert "8879" not in body and "direct deposit" not in body
+    assert "8879" in _draft().body
+

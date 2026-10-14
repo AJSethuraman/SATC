@@ -30,7 +30,7 @@ EXPECTED_KEYS = [
     "document_request", "missing_items", "organizer_send", "status_update",
     "extension_request", "prior_year_check",
     "return_delivery", "cover_letter", "signature_request",
-    "invoice_cover",
+    "invoice_cover", "overdue_invoice",
     "season_thanks", "year_end_planning", "referral_thanks", "birthday",
     "disengagement",
 ]

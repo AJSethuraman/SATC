@@ -545,3 +545,52 @@ def test_the_outlook_button_hands_over_the_html_and_the_code(client, demo_client
     assert 'src="cid:payqr"' in seen.get("html_body", "")
     assert set(seen.get("inline_images", {})) == {QR_CID}
     assert QR_MARKER not in seen["body"]
+
+
+def test_an_overdue_reminder_asks_for_the_balance_not_the_total(
+        client, demo_client_id, monkeypatch):
+    """FOUND BY CODEX ON PR #430. The reminder quoted the invoice total, so a
+    client who had paid $300 of $450 was told $450 was past due. It now quotes
+    what the payments ledger says is still owed -- the Today row's number."""
+    from datetime import date
+    from decimal import Decimal
+
+    from satc.billing.payment import MatchBasis, Payment
+
+    older, _, _ = _two_issued_invoices(demo_client_id)          # $450.00
+    _with_invoices(monkeypatch, [older])
+    paid = Payment(client_id=demo_client_id, amount=Decimal("300"), received_on=date(2026, 2, 1),
+                   invoice_id=older.invoice_id, basis=MatchBasis.REFERENCE)
+    monkeypatch.setattr(STATE.store, "load_payments", lambda client_id="": [paid])
+
+    resp = client.get("/comms", query_string={
+        "client": demo_client_id, "template": "overdue_invoice", "tax_year": 2025,
+        "invoice": older.invoice_id})
+    body = resp.data.decode("utf-8")
+    assert bill_money(older.total - Decimal("300")) in body
+    assert f"{bill_money(older.total)} is past due" not in body
+
+
+def test_filling_in_a_field_keeps_the_invoice_the_row_named(client, demo_client_id, monkeypatch):
+    """FOUND BY CODEX ON PR #430. The fill-in form did not carry the invoice, so
+    typing the payment link re-rendered the reminder against the NEWEST bill."""
+    older, newer, _ = _two_issued_invoices(demo_client_id)
+    _with_invoices(monkeypatch, [older, newer])
+    monkeypatch.setattr(STATE.store, "load_payments", lambda client_id="": [])
+
+    page = client.get("/comms", query_string={
+        "client": demo_client_id, "template": "overdue_invoice", "tax_year": 2025,
+        "invoice": older.invoice_id}).data.decode("utf-8")
+    import re
+    forms = re.findall(r'<form method="post" action="/comms">(.*?)</form>', page, re.S)
+    assert forms, "the fill-in form is missing"
+    fill_form = forms[0]
+    assert f'name="invoice" value="{older.invoice_id}"' in fill_form
+
+    # Submit exactly what that form carries, as the browser would.
+    data = dict(re.findall(r'<input type="hidden" name="([^"]+)" value="([^"]*)"', fill_form))
+    data["fill_payment_link"] = "https://square.link/u/EXAMPLE1"
+    resp = client.post("/comms", data=data)
+    body = resp.data.decode("utf-8")
+    assert older.invoice_id in body and bill_money(older.total) in body
+    assert newer.invoice_id not in body
