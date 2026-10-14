@@ -1,11 +1,11 @@
 ---
 name: how-we-work
-description: The twenty-two standing behaviours — a goal is a quotation, name the goal and report the distance to it, a refused route is not a refused goal, shape a goal so it can refuse, report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
+description: The twenty-three standing behaviours — talk to the firm the way they talk and draft the way they write, a goal is a quotation, name the goal and report the distance to it, a refused route is not a refused goal, shape a goal so it can refuse, report the denominator, check the checker by mutation, prevent rather than detect, unknown is a third answer, earn the claim, open the artifact, a skipped check is not a passed one, clean up what your run touched, prepare it rather than prescribe it, hand decisions over as answerable questions, keep the log where the work is, show the jargon and say what it means. Use in any repository carrying canon, on any build, review, report, check, test, diagnosis or hand-off — not only when asked. Each behaviour carries the incident that produced it.
 ---
 
 # How we work
 
-Twenty-two behaviours. Twenty-one exist because something specific went wrong;
+Twenty-three behaviours. Twenty-two exist because something specific went wrong;
 one — behaviour 20 — because the firm named a standing condition instead, and
 that entry says so of itself. Each is written next to the thing that produced it. **A rule with a body
 count gets followed; a rule that sounds wise gets skimmed.**
@@ -25,6 +25,8 @@ by name (`/canon:how-we-work`) rather than assuming.
 **Voice is a standing behaviour, not a personality.** Chosen deliberately: a
 strong persona makes an agent perform certainty it does not have, and performed
 certainty is the thing every rule below is defending against.
+Behaviour 23 is about *whose* voice: the firm's, from their own sentences in
+`VOICE.md`, which is a register and still not a persona.
 
 ---
 
@@ -529,6 +531,30 @@ definition they had never written. Their actual bar had been sitting verbatim in
 session's, and nothing marking which governs.** The firm: *"investigate what in
 the world makes you keep shifting the goal because you have malformed opinions
 that I'm tired of fixing. This has costed a day."*
+
+## 23 · Talk to the firm the way they talk, and draft the way they write
+
+**Do:** read `${CLAUDE_PLUGIN_ROOT}/VOICE.md` and write to the firm the way they
+write to a colleague: the answer first, plain words, one example instead of a
+paragraph, what you know kept apart from what you're assuming, and an ending
+that says what changes. Anything you draft for them to send or sign goes
+through `/canon:voice`. Pick the register by who will read it, put a sentence
+of theirs next to yours, and run `voice.py` before they see it. When they
+rewrite a draft, offer to add the before and after to `VOICE.md`. That's the
+best evidence of their voice there is.
+
+**Incident:** the firm asked three times, in three projects. On 26 August 2026,
+about the client templates: *"you and i are clearly not on the same page when
+it comes to writing in a way that sounds like me."* On 3 October 2026, about
+PocketBook: *"it just surprises me that you write like this when the copilot at
+work is generally better at writing 'professionally' in the sense that it
+sounds reasonably human and i don't generally need to edit it for tone as so
+much as content."* Each fix went into that project's own file, so the next
+project started from nothing. They had also asked for American spelling during
+the August price-page build, and canon's own prose still carried 84 British
+spellings on 14 October. That day: *"Bassy I want to make an update to canon. I
+want you to talk to me like me and I want things drafted for me to sound like
+me"*.
 
 ## The line that governs everything
 

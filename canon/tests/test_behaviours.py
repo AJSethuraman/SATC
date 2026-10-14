@@ -40,12 +40,12 @@ def _behaviours() -> list[tuple[str, str, str]]:
     return out
 
 
-def test_all_twenty_two_are_here_and_numbered_without_a_gap():
+def test_all_twenty_three_are_here_and_numbered_without_a_gap():
     """The count is stated in the file's own first line. This is the thing
     that compares the claim to the content."""
     got = _behaviours()
-    assert [n for n, _, _ in got] == [str(i) for i in range(1, 23)]
-    assert "Twenty-two behaviours" in TEXT
+    assert [n for n, _, _ in got] == [str(i) for i in range(1, 24)]
+    assert "Twenty-three behaviours" in TEXT
 
 
 def test_every_behaviour_says_what_to_do():
@@ -119,6 +119,11 @@ RUNS_AGAINST_A_CHECKOUT = ("adversarial",)
 # two documents land in whatever repository it was pointed at. It never reads
 # the record, so the plugin-root rule has nothing to bite on here either.
 RUNS_AGAINST_THE_PRODUCT = ("walk", "tie-out")
+# `voice` reads the plugin's copy of the firm's voice rather than the record of
+# convictions, and is held to the same three rules as the record's readers:
+# name the plugin root, never write there, say how a change reaches other
+# machines. Its own list so the rule says which file it reads.
+READS_THE_VOICE = ("voice",)
 # `tie-out` sits here with `walk` for the same reason and one more: it runs
 # against the product AND against something outside it entirely -- a statement,
 # a publication, a filed return. The record is not what it reads and not what
@@ -176,7 +181,8 @@ def test_the_skill_that_reads_no_record_is_named_rather_than_forgotten():
     every = {p.name for p in (CANON / "skills").iterdir() if p.is_dir()}
     assert every == (set(READS_THE_RECORD) | set(RUNS_NO_RECORD)
                      | set(RUNS_AGAINST_A_CHECKOUT)
-                     | set(RUNS_AGAINST_THE_PRODUCT))
+                     | set(RUNS_AGAINST_THE_PRODUCT)
+                     | set(READS_THE_VOICE))
     for name in RUNS_NO_RECORD:
         text = (CANON / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
         assert "CONVICTIONS.md" not in text, \
@@ -411,7 +417,7 @@ def test_the_one_behaviour_without_an_incident_says_so():
     rules exist to catch."""
     text = (CANON / "skills" / "how-we-work" / "SKILL.md").read_text(encoding="utf-8")
     flat = " ".join(text.split())
-    assert "Twenty-one exist because something specific went wrong" in flat,         "the count line still claims every behaviour came from an incident"
+    assert "Twenty-two exist because something specific went wrong" in flat,         "the count line still claims every behaviour came from an incident"
     body = text.split("## 20 · ", 1)[1]
     assert "**Incident:** none, and stated rather than implied" in body,         "behaviour 20 does not admit it has no incident"
 
@@ -443,3 +449,30 @@ def test_behaviour_19_closes_the_goal_shrinking_loophole():
     assert "Do not shrink the goal to the chunk you just finished" in flat,         "the goal-shrinking loophole is open"
     assert "A goal met is the thing the firm would call done" in flat,         "nothing says whose definition of done counts"
     assert "The denominator does not reset" in flat,         "a distance can still be restarted on a new count each turn"
+
+
+def test_the_voice_skill_reads_the_plugin_copy_and_never_writes_there():
+    """The same bug as the record's readers, one file over: a skill that reads
+    `VOICE.md` from wherever the repository happens to be cloned works on one
+    machine and finds nothing on the rest."""
+    for name in READS_THE_VOICE:
+        text = (CANON / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        flat = " ".join(text.split())
+        assert "${CLAUDE_PLUGIN_ROOT}/VOICE.md" in text, f"{name} never says where the voice is"
+        assert "not from a copy you happened to find" in flat
+        assert "Never write there" in flat
+        assert "claude plugin marketplace update satc" in flat
+        for line in text.splitlines():
+            bare = line.strip()
+            if bare.startswith("python ") and ".py" in bare:
+                assert "CLAUDE_PLUGIN_ROOT" in bare, f"{name} runs a bare script path: {bare!r}"
+
+
+def test_behaviour_23_points_at_the_voice_and_the_skill():
+    """The behaviour is only as good as the two things it sends a session to."""
+    body = dict((n, b) for n, _, b in _behaviours())["23"]
+    flat = " ".join(body.split())
+    assert "${CLAUDE_PLUGIN_ROOT}/VOICE.md" in flat
+    assert "/canon:voice" in flat
+    assert "voice.py" in flat
+    assert "I want you to talk to me like me" in flat, "the firm's request is not quoted"

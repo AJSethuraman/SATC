@@ -1110,3 +1110,70 @@ repo-root `CLAUDE.md`. The historical ones stay — the ratification on
 **Released as 1.22.0** (1.21.0 went to C15 on main the same day) on the firm's go-ahead, the same day (*"Go ahead"*). The version
 moved in both manifests and `release.py` rewrote the digest. Without the bump, installed
 sessions would never have fetched S36: that is the C11 incident this check exists for.
+
+## 1.23.0 — the firm's voice, and a lighter hand outside the practice (14 October 2026)
+
+The firm: *"Bassy I want to make an update to canon. I want you to talk to me
+like me and I want things drafted for me to sound like me"*. With it they sent
+a writing profile Microsoft Copilot built from their work email, and photos of
+two procedures they wrote: a 2024 testing procedure and a 2025 methodology
+guide.
+
+They'd asked before. On 26 August about the client templates, and on
+3 October about PocketBook, where they compared agents' writing to Copilot's
+and found ours worse. Both fixes went into that project's own file
+(`website/TENETS.md`, `pocketbook/VOICE.md`), so every new project started
+over. This puts it in canon so it travels.
+
+**What was built.**
+
+- `VOICE.md`: how they talk and write. Evidence is ranked: their sentences,
+  then their rewrites of a draft, then Copilot's profile (kept and labeled as
+  another AI's reading), and never a session's impression. A register table
+  says how a draft should read by who reads it. Client copy still follows the
+  project's own rules, and this file never overrides them.
+- `voice.py`: five mechanical tells, each carrying the quote it rests on.
+  British spelling, "honestly", lines about how upfront we are, padding before
+  the point, ceremonial courtesy.
+- `skills/voice/`: the drafting procedure.
+- Behaviour 23 in `how-we-work`, and a talking-to-the-firm list in Bassy's
+  standing behaviour, which the SATC session-start hook prints every session.
+
+**Kept out on purpose.** The photos, colleagues' names, the employer's name,
+figures, system names and anything marked internal. About thirty short
+sentences with none of that in them are quoted to show the shape. Their own
+procedure has the rule: "Avoid referencing actual names."
+
+**The firm's own words are the test fixture.** `voice.py` has to find nothing
+in the sentences quoted under *Their sentences*. That guard earned its place
+before it was written: "frankly" and "upfront" both looked like obvious tells
+and both turn up in the firm's own writing. "honestly" turns up too, twice, in
+their messages to agents. It stays a tell because their objection was to
+drafts using it to sound candid, and `VOICE.md` says that.
+
+**Checked by mutation. 6 planted, 6 killed:** word boundaries removed, the
+honesty tell deleted, empty input read as clean, "frankly" banned, a source
+reworded so it no longer matches `VOICE.md`, and the denominator dropped from
+the output.
+
+**Mid-session, a second instruction.** *"Also Bassy should understand that if
+it is not a SATC project we don't as critically apply our firm's rules"*. It's
+in Bassy's skill beside the 11 September case-by-case mechanism, quoted, with
+this session's reading of it labeled as such: the practice's own software is
+what counts as a SATC project (the line the record already drew for Portfolio
+Analysis Pack), practice-specific entries don't come up elsewhere, general
+ones get one line once and the work carries on, and existing rulings stand.
+Not added to `CONVICTIONS.md`, because it says how Bassy behaves, not what the
+firm believes, and the reading hasn't had their yes.
+
+**Not done, and waiting on the firm.**
+
+- Canon's own prose carries 84 British spellings (`CONVICTIONS.md`,
+  `TENETS.md`, `README.md` and the eight skills that existed before this one).
+  Respelling it touches the record and a few dozen test assertions, so it's
+  a separate change.
+- Outside the SATC repository, the talking rules load only when one of canon's
+  skills does. A plugin session-start hook would make them load everywhere. It
+  puts text into every session in every repository, so it's the firm's call.
+
+1.22.0 → **1.23.0**. 228 → 249 passing.
