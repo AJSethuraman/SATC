@@ -151,3 +151,18 @@ history); add or scale (show both); where rating 5 begins (about a
 899043e: 767 passed, 5 skipped, of 772. The 5: two Windows-only, three that
 open a window. The repository's CI does not run this suite at all; its
 test workflow covers nine other projects.
+
+## 14 October 2026, redirected
+
+The firm, mid-way through the tie-out: *"Hold on you are not actually going to
+supplement the data with things like unemployment data. The idea is to use
+separate separately, unemployment data, and a tool that's very similar to it
+and other data such as maybe home insurance prices. Reassess what we're
+thinking here this really doesn't have anything to do with the KeyBank
+itself."*
+
+So the proposal's frame was wrong: economic data is not a fourth helper to
+KeyBank's loss thresholds. It is its own subject, rated by a tool like this
+one. The tie-out of the proposal's seven figures is stopped (the figures it
+had checked all agreed with the publishers; nothing committed from it), the
+docket's ten decisions are on hold, and #436 stays open. Nothing is built.
