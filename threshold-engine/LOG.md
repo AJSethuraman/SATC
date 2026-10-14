@@ -882,3 +882,56 @@ The comparability tie-out's gap 5, built.
   state the book's path over nine quarters (balance at both ends, quarters
   it fell): facts, no line drawn for "run-off". Full suite before these:
   825 passed; the peers CLI and combination tests after: 142 passed.
+
+## 14 October 2026, the purpose-built data layer: other consumer, FDIC industry, QBP, synthesis
+
+The firm, 14 Oct: "Build until you cannot." The approved items, in order.
+
+- **Other consumer divides by RC-C 6.b + 6.d** (approved 13 Oct, "Yes, fix
+  it"). Its charge-offs (RI-B 5.c) and past-due lines (RC-N 5.c) include
+  other revolving credit plans; the balance now does too (LNCONOTH +
+  LNCONRP; KeyBank 30 Jun 2026: 4,200,208 + 268,825 = 4,469,033, confirmed
+  live on the FDIC API). The FDIC data has no 6.b before 2001Q1 (industry sum
+  0 in 2000Q4, $24.7bn in 2001Q1); every other consumer series says so. The
+  industry other consumer net rate is 0.246 points lower on average than the
+  earlier as-filed file, 2006-2026 (this fix and the merger fixes together). The QBP's "Other Loans to Individuals" (6.b + 6.c + 6.d)
+  equals ours in 80 of 82 quarters.
+- **The industry series are the FDIC's** (approved 13 Oct, "FDIC for all").
+  `data/industry/`: 62 files, every filer 2006-2026, all five products,
+  charge-offs and delinquency, from a fresh pull of 14 Oct. README points
+  the workbook at them. Card quarters before 2010 are labelled as excluding
+  securitized cards (the firm's "Label"). `compare` puts two series side by
+  side by calendar quarter: the FDIC card series against the Fed's, 79
+  quarters, mean difference 0.000 points, largest 0.229 (2011Q3).
+- **Every industry quarter against the FDIC's own totals** (the QBP time
+  series, 2Q 2026). A separate agent checked card; it found two defects
+  beyond the merger double count:
+  - A bank bought by a new holding company can restart its year to date
+    (push-down accounting); differencing read a negative flow. National
+    City under PNC, 2008Q4: -$94.6m. Now `books.restarted`: a year-to-date
+    that falls while the parent changes is the quarter's flow. Card: 75 of
+    82 quarters within $0.05m (70 with the absorption fix alone, 52 before
+    either); total gap $14,683m -> $151m -> $14m. The rule overshoots in two
+    small cases (2011Q2 +$0.7m, 2015Q3 +$0.1m); 2022Q4 -$8.7m and 2018Q4
+    +$4.4m remain (one unexplained, one an absorption across parents).
+  - The FDIC record names Capital One N.A. as absorbing 34191 in 2007Q3; the
+    book went to its sister, Capital One Bank (USA). The industry total is
+    right; no drawn number moves (those windows are already left out).
+  - All products (`check_all.py`): card, auto and other consumer tie;
+    home equity and mortgage tie outside 2008Q3-Q4 (balances 0.4-0.65%
+    larger, cause not identified) and small pre-2012 mortgage recovery
+    differences (up to 4.3% of a quarter's net charge-offs). Recorded in
+    `docs/tie-out/industry-qbp-2026-10-14/`.
+- **The synthesis** (`synthesize`, `synthesis.py`): for one product and
+  measure, internal, industry and peers each propose the four lines; the
+  firm names which source leads each line (`--leads`, no default). Industry
+  is translated by the median internal/industry ratio (or not, the firm's
+  choice); peers are the stated percentiles of each peer's median, carried
+  by internal/filed. A calm history places lines 2-4 and refuses line 5,
+  saying so, which is the gap the industry fills. Run on public card data
+  with KeyBank's filed series standing in for internal (mechanics only, not
+  a recommendation): internal lines 2.657 / 3.016 / 3.735 and no High;
+  industry's High, translated, 5.625. `peers build` now writes each peer's
+  own series to `banks/` for it.
+- **Built in parallel:** the internal import, by a separate agent on its
+  own branch (`threshold-engine-internal-import`), to INTERNAL-IMPORT.md.

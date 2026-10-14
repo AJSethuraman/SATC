@@ -34,9 +34,11 @@ CSV goes a short description that has no defaults: name, unit, direction
 (higher or lower is worse), smoothing, and whether a value at or below zero is
 always Low.
 
-The repository holds five public series to test and rehearse with: Federal
-Reserve card and mortgage rates, and FDIC home equity and other consumer
-rates, as filed and with auto added back (`tests/data/`).
+The industry series are the FDIC's, every filer summed, for all five
+products, charge-offs and delinquency (`data/industry/`, built 14 Oct 2026;
+the firm: "FDIC for all", the Fed kept as a cross-check). The tests rehearse
+with five older public series (`tests/data/`): Federal Reserve card and
+mortgage rates, and FDIC home equity and other consumer rates.
 
 ## The workbook: the deliverable (`workbook.py`, command `workbook`)
 

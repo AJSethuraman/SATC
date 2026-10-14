@@ -556,10 +556,16 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     data = books.without_repeats(data, repeats)
     acquired = {p: books.acquired_quarters(data, links_, p, acquisition_share) for p in products}
     merged = sorted({(r["acquirer"], r["quarter"]) for r in repeats})
+    names_ = {b["cert"]: b["short"] for b in roster_}
+    on_roster = [(c, q) for c, q in merged if c in names_]
     repeat_note = ("Absorptions under common control: the absorbed bank's year-to-date charge-offs and "
                    "recoveries, which the survivor's filing repeats, are taken off the survivor's for the "
-                   "rest of that year (%s)." % (", ".join("%s in %s" % (c, books.label(q)) for c, q in merged)
-                                                if merged else "none in these quarters"))
+                   "rest of that year. %s" % (
+                       "None in these quarters." if not merged else
+                       "%d survivor-quarters across every filer (each in %s); on the roster: %s."
+                       % (len(merged), Path(absorptions).name,
+                          ", ".join("%s in %s" % (names_[c], books.label(q)) for c, q in on_roster)
+                          if on_roster else "none")))
 
     filers = len(data[quarters[-1]])
     ind = {p: books.industry(data, p) for p in products}

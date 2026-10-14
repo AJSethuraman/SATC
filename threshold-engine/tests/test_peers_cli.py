@@ -95,6 +95,20 @@ def test_build_writes_the_workbook_and_six_series_per_product(built):
                 assert "%s_%s_%s.csv" % (slug, who, kind) in names
 
 
+def test_each_peers_own_book_is_written_to_banks_with_its_notes(built):
+    """For the synthesis's peer percentiles: every peer, product and kind
+    with a value, under banks/, never KeyBank; the notes say the absorption
+    rule and, for other consumer, the balance's definition."""
+    banks = sorted(p.name for p in (built["series"] / "banks").glob("*.csv"))
+    assert banks and not any("keybank" in n for n in banks)
+    assert "credit-card_jpmorgan_net.csv" in banks
+    notes = [l for l in (built["series"] / "banks" / "other-consumer_jpmorgan_net.csv")
+             .read_text(encoding="utf-8").splitlines() if l.startswith("#")]
+    assert any("JPMorgan (certificate 628), its own book, a peer." in n for n in notes)
+    assert any("Absorptions under common control" in n and "None in these quarters." in n for n in notes)
+    assert any("6.b, other revolving credit plans" in n for n in notes)
+
+
 def test_the_pack_composite_series_ties_out_to_the_earlier_build(built):
     """Acceptance 2, through the CLI and a CSV: the all-15-peer composite."""
     expected = json.loads((PEERS / "expected_books.json").read_text())
