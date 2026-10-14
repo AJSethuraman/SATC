@@ -403,7 +403,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     ch.column_dimensions[L(pc)].width = 18
     # The pickers read their choices from cells: an inline list longer than
     # 255 characters is one Excel drops or repairs on open.
-    h0 = 40                                               # hidden helpers from column AN
+    # Hidden helpers from column AN, or past the last series' switch, the
+    # picker and the chart when there are more than 30 series: at a fixed AN
+    # the title over 36 series ran into them and the build failed.
+    h0 = max(40, n + 10)
     lists_col = h0 + n + 16
     for i, v in enumerate(["(none)"] + [s["label"] for s in loaded]):
         ch.cell(1 + i, lists_col, v)

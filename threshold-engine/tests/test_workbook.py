@@ -869,3 +869,22 @@ def test_a_line_below_the_fixed_axis_is_said_not_clipped_in_silence(tmp_path):
     assert recalc(p)["ASSESS!B7"] == ""
     vals = with_settings(p, tmp_path, "far.xlsx", {"I6": 6})
     assert "below the axis of this chart" in vals["ASSESS!B7"]
+
+
+def test_many_series_build_with_the_chart_helpers_clear_of_the_title(tmp_path):
+    """14 Oct 2026, one workbook holding every product, measure and source (95
+    series): with the Chart tab's hidden helpers fixed at column AN, the title
+    over 36 or more series ran into them and the build failed. Each helper
+    column now holds what it says, the switch row stays visible."""
+    n = 40
+    p = tmp_path / "many.xlsx"
+    build(p, [("Series %d" % k, DATA / "cards_nco_ttm.csv") for k in range(n)], name="N", unit="%",
+          direction="higher_is_worse", frequency="quarterly", smoothing=1, floor_at_zero=True,
+          moderate_halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse", half_lives=(),
+          percentiles=(50,), horizon=4, min_history=41)
+    ch = load_workbook(p)["Chart"]
+    q = next(c for c in range(1, ch.max_column + 1) if ch.cell(1, c).value == "Quarter")
+    assert q > 2 + n + 6                                          # past the switches, the picker and the chart
+    assert [ch.cell(1, q + 1 + k).value for k in range(n)] == ["Series %d" % k for k in range(n)]
+    assert [ch.cell(4, 2 + k).value for k in range(n)] == ["Series %d" % k for k in range(n)]
+    assert not any(ch.column_dimensions[get_column_letter(2 + k)].hidden for k in range(n))
