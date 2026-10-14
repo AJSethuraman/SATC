@@ -42,9 +42,10 @@ rows, fails = [], []
 by_id = {s["id"]: s for s in obs["steps"]}
 for s in exp["steps"]:
     got = by_id.get(s["id"])
-    if not got:
-        fails.append((s["id"], "not run", "", ""))
-        rows.append((s, None, 0))
+    if not got:                                   # every reading of a step not run is a cell not checked
+        for want in s["reads"]:
+            fails.append((s["id"], "%s!%s" % (want["sheet"], want["cell"]), show(want["expected"]), "step not run"))
+        rows.append((s, None, len(s["reads"])))
         continue
     bad = 0
     # Every expected reading must have been read: a stale observed.json from

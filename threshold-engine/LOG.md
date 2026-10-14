@@ -694,3 +694,17 @@ Two P2, both real:
 - **compare.py zipped expected and observed readings**, so a stale
   observed.json from before a step gained readings passed them silently. A
   missing or misplaced reading is now a difference.
+
+## 13 October 2026, Codex on e703a86
+
+Three P2, all real:
+- **The axis floor could not follow leave-outs.** Leaving out a calm stretch
+  widens the spread and can push a line below the fixed minimum. No fixed
+  axis can follow every edit, and one loose enough to try would flatten the
+  chart, so the cell over the chart now says, in red, when a line or the
+  left-out strip falls below the axis ("the numbers are right, the picture is
+  cut off"). Checked in Excel 16 on a noisy series at step 6.
+- **compare.py counted a step that never ran as one failure**; it now counts
+  every reading in it, so the headline cannot overstate what Excel checked.
+- **The walkthrough's build command wrote the workbook where the runner does
+  not look**; it now writes to docs/walkthrough/out/.

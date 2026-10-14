@@ -637,6 +637,12 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         y_min = _axis_floor(loaded, direction, moderate_halfwidth, low_step, high_z)
         if y_min is not None:
             line.y_axis.scaling.min = y_min
+            # No fixed axis can follow every leave-out (Codex on #432): leaving
+            # out a calm stretch can widen the spread and push a line below it.
+            # Say so, in the cell over the chart, rather than clip in silence.
+            asx.cell(14, 1, '=IF({f}-{h}<{m},"Part of a line or the left-out strip is below the axis of this chart '
+                            '(fixed at build at {m}): the numbers are right, the picture is cut off.","")'
+                     .format(f=lo_c, h=h_c, m=y_min)).font = Font(bold=True, color=K.CRIMSON)
     line.x_axis.tickLblPos = "low"                 # year labels below the strip, not on it
     line += area
     line += strip
