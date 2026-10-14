@@ -3548,9 +3548,13 @@ changed in the code.
     does not mean (proposal 114 cuts *"That is not proof there is none."*): *"keep this as we have it"*, so PocketBook's
     no-self-protective-sentences rule holds. Acronyms spelled out on first use: *"Add this"*. Both are in
     `pocketbook/VOICE.md`.
-  - **Still open:** S, American spelling in PocketBook (canon says American; `VOICE.md` says *grey*/*coloured* until
-    the firm says otherwise; 13 proposals and some tab names); G, what RANR stands for and whether GCOs are before or
-    after recoveries; 69, keep *"lost money outright"* or say only *"RANR below zero"*; and the marks.
+  - **The firm's answers on the page (14 Oct 2026):** S, American spelling: yes, everywhere, tab names included. G:
+    *"Ranr is risk adjusted net revenue. The audience knows what they mean they don't need to be spelled out like
+    'this is what we keep'"*: RANR is spelled out on first use, and key terms get their full name rather than an
+    everyday gloss, so the GCO line makes no claim about recoveries. 69 read from the same answer: the tab says only
+    that RANR is below zero, *"lost money outright"* goes. All in `pocketbook/VOICE.md`.
+  - **Still open:** proposal 3, the launcher's term lines (the firm asked for a plain line under each term on 27 Sep;
+    the G answer says the audience knows the terms): keep or drop. And the marks on the rest.
 
 ## 7 · Standing rules for new items
 
