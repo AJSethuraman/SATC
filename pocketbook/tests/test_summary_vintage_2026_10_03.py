@@ -127,9 +127,16 @@ def _measures(b):
     return heads
 
 
-def _flat(row, heads, years, head, y):
-    """One measure's value in one year on a flat _views row: measure after measure, year after year."""
-    j = heads.index(head) * len(years) + years.index(y)
+def _labels(v, opt):
+    """A column's rows as _views lists them for the Vintage row dropdown: how many, then their labels, one a row."""
+    return [v[f"V|{opt}|rows|{i}"][0] for i in range(1, v[f"V|{opt}|rows"][0] + 1)]
+
+
+def _point(v, line, heads, years, head, y):
+    """One measure's value in one year: _views holds a row per line and measure (its number from 1, in the Vintage
+    measure dropdown's order), a year a number (14 Oct 2026; one flat row of every measure lost years past ZZ)."""
+    row = v[f"{line}|{heads.index(head) + 1}"]
+    j = years.index(y)
     return row[j] if j < len(row) else None
 
 
@@ -144,20 +151,19 @@ def test_the_points_tie_to_the_loan_file(made):
                      "% of RANR"]                       # every Summary column, in Summary's order
     years = sorted({_year(r) for r in rows if _year(r)})
     assert len(years) >= 4
-    labels = v["V|FICO|rows"][1:1 + v["V|FICO|rows"][0]]
+    labels = _labels(v, "FICO")
     assert labels[-1] == "(marked missing)" and "All" not in labels
     bands = [x for x in labels if not x.startswith("(")]
     checked = 0
     for only in [None, "Branch", "Broker", "Online"]:
         view = [r for r in rows if only is None or r[FILTER] == only]
         pre = "V|FICO" + (f"|where {only}" if only else "")
-        book_row = v[f"{pre}|book"]
         for y in years:
             want = _figures([r for r in view if _year(r) == y])
             for head in ("Loans", "Avg line", "GCOs ÷ Booked"):
-                assert _same(_flat(book_row, heads, years, head, y), want[head]), (only, y, head)
+                assert _same(_point(v, f"{pre}|book", heads, years, head, y), want[head]), (only, y, head)
         for i, lab in enumerate(labels, start=1):
-            pocket, rest = v[f"{pre}|{i}"], v[f"{pre}|{i}|rest"]
+            pocket, rest = f"{pre}|{i}", f"{pre}|{i}|rest"
             for y in years:
                 yr = [r for r in view if _year(r) == y]
                 mine = [r for r in yr if _summary_label(r["FICO"], bands) == lab]
@@ -165,11 +171,11 @@ def test_the_points_tie_to_the_loan_file(made):
                 assert len(mine) + len(others) == len(yr)
                 for got_row, want in ((pocket, _figures(mine)), (rest, _figures(others))):
                     for head in ("Loans", "Avg line", "GCOs ÷ Booked"):
-                        assert _same(_flat(got_row, heads, years, head, y), want[head]), (only, lab, y, head)
+                        assert _same(_point(v, got_row, heads, years, head, y), want[head]), (only, lab, y, head)
                         checked += 1
     assert checked > 500
     # a loan with no origination date is on no line: the years' loans add up to the dated loans only
-    total = sum(_flat(v["V|FICO|book"], heads, years, "Loans", y) for y in years)
+    total = sum(_point(v, "V|FICO|book", heads, years, "Loans", y) for y in years)
     assert total == sum(1 for r in rows if _year(r)) < len(rows)
 
 
@@ -185,8 +191,7 @@ def test_the_chart_redraws_with_the_dropdowns_and_leaves_thin_points_off(made, t
     in a pocket is #N/A, and the rest are the points shown."""
     need_soffice()
     b, _, rows = made
-    got = _views(b)["V|FICO|rows"]
-    labels = got[1:1 + got[0]]
+    labels = _labels(_views(b), "FICO")
     band = labels[0]
     bands = [x for x in labels if not x.startswith("(")]
     ws = _tab(b, tmp_path / "pick.xlsx", measure="GCOs ÷ Booked", row=band, only="Broker")

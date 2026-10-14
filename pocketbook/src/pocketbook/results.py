@@ -98,6 +98,10 @@ P_FMT = '[<0.0001]"under 0.01%";[<0.01]0.00%;0.0%'
 PTS_FMT = '+0.00" pts";-0.00" pts";0.00" pts"'
 X_FMT = '0.00"×"'
 AREA, KEYS = f"'{VIEWS}'!$B:$ZZ", f"'{VIEWS}'!$A:$A"
+#: the most numbers a _views row can hold: every lookup reads AREA, columns B to ZZ. A number past ZZ reads #REF!,
+#: which a tab shows as a blank, so nothing is ever put further out (14 Oct 2026: the vintage chart's rows, 17 measures
+#: by the years on one row, lost their last years from 42 years; tests/test_vintage_years_2026_10_14.py)
+VIEWS_WIDTH = 701
 
 
 def col(n: int) -> str:

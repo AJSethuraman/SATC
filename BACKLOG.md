@@ -3534,6 +3534,43 @@ changed in the code.
     skipped (the window tests). Planted bugs: 6 added to `tools/mutation_check.py`, 6 of 6 caught, each by a failed
     test, with DISPLAY unset; every entry's old string occurs once (707).
 
+- **Fixed, 14 Oct 2026: Summary's vintage chart lost points past 41 origination years** (branch
+  `claude/pocketbook-vintage-years`; HANDOFF.md open item *"The Summary vintage chart breaks past about 42 distinct
+  origination years"*). Reproduced first on synthetic books: with a Charge-off date marked (17 Summary measures) the
+  chart broke at 42 years, without one (15 measures) at 47; at 100 years whole measures were gone.
+  - **Cause:** every `_views` lookup reads `results.AREA`, columns B to ZZ (701 numbers a row). The vintage block kept
+    each line (the row picked, the rest of the book, the whole book) as one row of every measure, measure after
+    measure, year after year: 17 x 42 = 714. The helper cell for a measure's later years read past ZZ, got `#REF!`,
+    the drawn point became `#N/A` and the table under the chart showed a blank. Nothing said so.
+  - **Fix:** a `_views` row per line and measure, as wide as the years: `V|<column><view>|book|<k>`, `|<i>|<k>` and
+    `|<i>|rest|<k>`, k the Vintage measure dropdown's number. The helper cells find the measure's row and the Loans
+    row, and read year y at column y + 1. The Vintage row dropdown's labels are now one a row under `V|<column>|rows`,
+    so a long category list fits too. `results.VIEWS_WIDTH` (701) names what AREA reads. A book with more years than
+    that gets one sentence where the chart would be: *"No vintage chart: the loans span 750 origination years, and the
+    chart holds at most 701."*
+  - **Same figures below the old limit:** a 10-year and a 41-year book, Summary calculated through LibreOffice
+    before and after, at five dropdown picks each (three measures, a CHANNEL filter, the CHANNEL column with Avg
+    line). Every visible cell, every helper value and the chart's references are the same. The only differences are
+    the hidden cells holding `_views` row numbers, and the three new ones for the Loans rows. A 100-year book now
+    ties to the loan file every year.
+  - **`_views` size** (synthetic book, 3,000 loans, CHANNEL filter): 910 rows to 2,328; the vintage rows 90 to
+    1,508; 1,418 more cells (the new rows' keys) on 57,778 at 41 years; the workbook 652,095 bytes to 653,786. The
+    widest row was 698 columns at 41 years, and is now 42.
+  - **Tests**, written failing first, in `tests/test_vintage_years_2026_10_14.py`: no `_views` row wider than AREA
+    reads, on a 42-year book with a charge-off date (71 rows were 714 wide); the vintage block alone, with 41 years
+    and 800 rows, puts no row wider than the years; the sentence at more years than a row holds (the limit set to 3);
+    and through LibreOffice, Median months to charge-off (the last measure) on the 42-year book: every year of all
+    three lines ties to the loan file, no cell reads an error but `#N/A`, and the chart reads the same points. All
+    four failed on main. `test_summary_vintage_2026_10_03` reads the new rows; its figures are unchanged.
+  - **Planted bugs:** 7 added and 1 repointed in `tools/mutation_check.py` (the measures back on one flat row; the
+    row labels back on the count's row; a line's loans read from its value row; Loans read whatever the measure; the
+    Vintage row list a row early; the year limit not applied; `VIEWS_WIDTH` past ZZ; and the existing "each year's
+    point from the year before"). 8 of 8 caught by a failed test, with DISPLAY unset.
+  - **Not fixed, recorded in HANDOFF.md:** Grids, Compare and Split also put a row per column's values on
+    `_views`. None exceeds 701 at the default Text columns limit (50), or at 100 with a split. Control allows up to
+    1,000; above about 700 values, or about 100 with a split, those columns would show blank too. Found by reading,
+    not run.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson

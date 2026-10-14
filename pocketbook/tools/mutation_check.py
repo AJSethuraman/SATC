@@ -1693,7 +1693,7 @@ muts = [
  ("Summary's grey rows starting at another number than 50", SCH, "GREY_DEFAULT = 50", "GREY_DEFAULT = 30",
   "grey_rows_read_their_own_number"),
  ("Summary's vintage chart drawing each year's point from the year before", SCH,
-  "value=f\"={pick(row, f'({MI}-1)*{Y}+{y + 1}')}\")", "value=f\"={pick(row, f'({MI}-1)*{Y}+{y}')}\")",
+  "value=f\"={pick(row, y + 1)}\")", "value=f\"={pick(row, y)}\")",
   "chart_redraws_with_the_dropdowns"),
  # the firm, 2 Oct 2026: the grey number "separately adjustable" -- what was typed survives the next Run
  ("Summary's Grey rows under back to 50 at every Run", B,
@@ -1810,6 +1810,30 @@ muts = [
   "        if optional and self.gate.optional:", "once_the_add_ons_are_installed"),
  ("Control's limits read only from a full-width row", CO,
   "        row = tuple(row) + (None,) * (KEY_COL - len(row))", "        row = tuple(row)", "read_only_worksheet"),
+ # 14 Oct 2026: the vintage chart lost its last years from 42 origination years, each line one _views row of every
+ # measure, wider than the B:ZZ every lookup reads (tests/test_vintage_years_2026_10_14.py); the third LibreOffice
+ # headless, none needs a display
+ ("Summary's vintage line back on one flat row of every measure", SCH,
+  '                views.put(f"{pre}|{at}|{k + 1}", flat[k * Y:(k + 1) * Y])',
+  '                views.put(f"{pre}|{at}|{k + 1}", flat[k * Y:])',
+  "no_views_row_is_wider or no_vintage_row_is_wider"),
+ ("Summary's vintage rows' labels back on the one row with their count", SCH,
+  '        views.put(f"V|{opt}|rows", [len(labels)])', '        views.put(f"V|{opt}|rows", [len(labels)] + labels)',
+  "no_vintage_row_is_wider"),
+ ("Summary's vintage chart reading every line's loans as its value", SCH,
+  "value=f\"={pick(loans_row, y + 1)}\")", "value=f\"={pick(row, y + 1)}\")",
+  "chart_redraws_with_the_dropdowns or every_year_of_the_last_measure"),
+ ("Summary's vintage chart reading Loans whatever the Vintage measure", SCH,
+  """        ws[cell.replace("$", "")] = "=" + match(f'"V|"&{VW}&{line}&"|"&{MI}')""",
+  """        ws[cell.replace("$", "")] = "=" + match(f'"V|"&{VW}&{line}&"|1"')""",
+  "chart_redraws_with_the_dropdowns or every_year_of_the_last_measure"),
+ ("Summary's Vintage row list starting a row early", SCH,
+  """value=f'=IF({i}>{RN},"",{pick(f"{RK}+{i}", 1)})')""", """value=f'=IF({i}>{RN},"",{pick(f"{RK}+{i - 1}", 1)})')""",
+  "rows_dropdown_follows_the_column or chart_redraws_with_the_dropdowns"),
+ ("Summary drawing a vintage chart with more years than a _views row holds", SCH,
+  "    if len(years) > results.VIEWS_WIDTH:", "    if False:", "more_years_than_a_row_holds"),
+ ("_views' width said to be more than the B:ZZ every lookup reads", RS, "VIEWS_WIDTH = 701", "VIEWS_WIDTH = 1000",
+  "more_years_than_a_row_holds"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

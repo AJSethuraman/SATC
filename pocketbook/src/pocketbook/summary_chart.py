@@ -8,8 +8,10 @@ origination year: that row, the rest of the book (every loan in the view not in 
 Summary's "Only loans where" applies to all three, as it does to the table.
 
 Every number is worked out in the Run (`vintage`, called from engine.run, by engine.summary_rows, so a point is the
-same arithmetic as a Summary row on the loans made that year) and put on _views; the tab's cells only pick them, so
-the dropdowns redraw the chart live, as Compare's do. A point on a line with fewer loans that year than the Run's
+same arithmetic as a Summary row on the loans made that year) and put on _views, a row per line and measure, so a row
+is as wide as the years; the tab's cells only pick them, so the dropdowns redraw the chart live, as Compare's do. A
+book with more years than a _views row holds (results.VIEWS_WIDTH, 701) gets one plain sentence instead of the chart
+(14 Oct 2026: when each line was one row of every measure, a book of 42 years lost its last points without a word). A point on a line with fewer loans that year than the Run's
 Fewest loans in a pocket is #N/A, so it is not drawn; the table under the chart still shows it, in grey. A book with no
 column marked Origination date gets one plain sentence where the chart would be.
 
@@ -47,6 +49,7 @@ SAY_NO_DATE = ("No vintage chart: no column in this extract is marked Originatio
 SAY_NOT_IN = "No vintage chart: {col} is marked Origination date, but it isn't in this extract."
 SAY_UNREAD = "No vintage chart: {why}."
 SAY_NO_YEARS = "No vintage chart: no loan has a readable date in {col}."
+SAY_TOO_MANY_YEARS = "No vintage chart: the loans span {n:,} origination years, and the chart holds at most {most:,}."
 #: the label the rest of the book carries while its row is worked out (never shown)
 _REST = "\x00rest"
 
@@ -83,6 +86,9 @@ def vintage(config, table, measures, per_row, labels_of: dict[str, list], booked
     years = sorted({y for y in years_of if y != engine.NO_DATE}, key=int)
     if not years:
         return Vintage(said=SAY_NO_YEARS.format(col=col))
+    from . import results
+    if len(years) > results.VIEWS_WIDTH:            # a line's row on _views holds this many years at most
+        return Vintage(said=SAY_TOO_MANY_YEARS.format(n=len(years), most=results.VIEWS_WIDTH))
     n = len(years_of)
     keys = engine.summary_columns(SimpleNamespace(measures=measures, summaries=summaries))
     out = Vintage(years=years, keys=keys)
@@ -244,8 +250,10 @@ def grey_rule(cut: str, loans: str) -> tuple:
 
 
 def vintage_views(res, views, bands: list[str], shown: list[str]) -> None:
-    """Every vintage point on _views: "V|<column>|rows" (how many rows, then their labels), and for each view
-    "V|<column><view>|book", "V|<column><view>|<i>" (row i, the pocket) and "V|<column><view>|<i>|rest"."""
+    """Every vintage point on _views, no row wider than the years (results.VIEWS_WIDTH): "V|<column>|rows" (how many
+    rows), its labels on the rows straight under it ("V|<column>|rows|<i>"), and for each view and Summary column k
+    (from 1, the Vintage measure dropdown's order) a year a number: "V|<column><view>|book|<k>",
+    "V|<column><view>|<i>|<k>" (row i, the pocket) and "V|<column><view>|<i>|rest|<k>"."""
     from .results import view_key
     v = getattr(res, "vintage", None)
     if v is None or v.said is not None:
@@ -253,15 +261,18 @@ def vintage_views(res, views, bands: list[str], shown: list[str]) -> None:
     opt_of = dict(zip(bands, shown))
     for b, opt in opt_of.items():
         labels = [x for x in res.summaries[(b, None, None, None)].labels if x != engine.ALL]
-        views.put(f"V|{opt}|rows", [len(labels)] + labels)
+        views.put(f"V|{opt}|rows", [len(labels)])
+        for i, lab in enumerate(labels, start=1):          # one a row: a column of many values fits too
+            views.put(f"V|{opt}|rows|{i}", [lab])
+    Y = len(v.years)
     for key, book in v.book.items():
         if key[0] not in opt_of:
             continue
         pre = f"V|{opt_of[key[0]]}" + view_key(*key[1:])
-        views.put(f"{pre}|book", book)
-        for i, (pocket, rest) in enumerate(v.rows[key], start=1):
-            views.put(f"{pre}|{i}", pocket)
-            views.put(f"{pre}|{i}|rest", rest)
+        for at, flat in [("book", book)] + [(x, line) for i, (pocket, rest) in enumerate(v.rows[key], start=1)
+                                            for x, line in ((f"{i}", pocket), (f"{i}|rest", rest))]:
+            for k in range(len(v.keys)):
+                views.put(f"{pre}|{at}|{k + 1}", flat[k * Y:(k + 1) * Y])
 
 
 def write(ws, res, choices, views, *, got: dict, left: int, last: int, hid: int, top: int, B: str, VW: str,
@@ -279,7 +290,6 @@ def write(ws, res, choices, views, *, got: dict, left: int, last: int, hid: int,
         return
     vintage_views(res, views, got["bands"], got["options"])
     keys, years = v.keys, v.years
-    Y = len(years)
     few = fewest(res)
     oc = res.config.origination_date
     heads = [SUMMARY_HEADS[k][0] for k in keys]
@@ -305,11 +315,13 @@ def write(ws, res, choices, views, *, got: dict, left: int, last: int, hid: int,
     most = max((len(r) for r in v.rows.values()), default=1)
     at = lambda k: f"${col(H)}${s + k}"             # noqa: E731
     RK, RN, MI, KIND, SCALE, I, NAME, FEW = (at(k) for k in range(8))
-    PR, RR, BR = at(8), at(9), at(10)
+    # each line's row on _views: its value for the measure picked (number MI), and its loans (Loans, always)
+    nloans = keys.index("loans") + 1
+    PR, RR, BR, PN, RN_, BN = (at(k) for k in range(8, 14))
     ws[RK.replace("$", "")] = "=" + match(f'"V|"&{B}&"|rows"')
     ws[RN.replace("$", "")] = f'=IF({RK}="",0,{pick(RK, 1)})'
-    for i in range(1, most + 1):
-        ws.cell(row=s + i - 1, column=RL, value=f'=IF({i}>{RN},"",{pick(RK, i + 1)})')
+    for i in range(1, most + 1):                    # the labels sit on the rows under RK's, one a row
+        ws.cell(row=s + i - 1, column=RL, value=f'=IF({i}>{RN},"",{pick(f"{RK}+{i}", 1)})')
     rl = f"${col(RL)}${s}:${col(RL)}${s + most - 1}"
     first_label = next((x for x in res.summaries[(got["bands"][0], None, None, None)].labels if x != engine.ALL), "") \
         if got["bands"] else ""
@@ -322,9 +334,10 @@ def write(ws, res, choices, views, *, got: dict, left: int, last: int, hid: int,
     ws[I.replace("$", "")] = f"=IFERROR(MATCH({R},{rl},0),1)"
     ws[NAME.replace("$", "")] = f"=INDEX({rl},{I})&\"\""
     ws[FEW.replace("$", "")] = few if few is not None else 0
-    ws[PR.replace("$", "")] = "=" + match(f'"V|"&{VW}&"|"&{I}')
-    ws[RR.replace("$", "")] = "=" + match(f'"V|"&{VW}&"|"&{I}&"|rest"')
-    ws[BR.replace("$", "")] = "=" + match(f'"V|"&{VW}&"|book"')
+    for cell, line in ((PR, f'"|"&{I}'), (RR, f'"|"&{I}&"|rest"'), (BR, '"|book"')):
+        ws[cell.replace("$", "")] = "=" + match(f'"V|"&{VW}&{line}&"|"&{MI}')
+    for cell, line in ((PN, f'"|"&{I}'), (RN_, f'"|"&{I}&"|rest"'), (BN, '"|book"')):
+        ws[cell.replace("$", "")] = "=" + match(f'"V|"&{VW}&{line}&"|{nloans}"')
     # the caption, live: what is drawn, on which loans
     where = "".join(f'&IF(OR({c}="",{c}="All loans"),"",{live.q(f" · only loans where {name} is ")}&{c})'
                     for name, c in filters)
@@ -335,8 +348,7 @@ def write(ws, res, choices, views, *, got: dict, left: int, last: int, hid: int,
     # the helper block: per year, a row; per line, its value, its loans, the value drawn (or #N/A) and its x
     D0 = s + 1
     YC = H + 2                                      # the year, as a number
-    lines = ((PR, "pocket"), (RR, "rest"), (BR, "book"))
-    nloans = keys.index("loans")
+    lines = ((PR, PN), (RR, RN_), (BR, BN))
     hc = {}
     for j, (row, _) in enumerate(lines):
         c = YC + 1 + 4 * j
@@ -347,10 +359,10 @@ def write(ws, res, choices, views, *, got: dict, left: int, last: int, hid: int,
     for y, yr in enumerate(years):
         r = D0 + y
         ws.cell(row=r, column=YC, value=int(yr))
-        for j, (row, _) in enumerate(lines):
+        for j, (row, loans_row) in enumerate(lines):
             val, n_, dy, dx = hc[j]
-            ws.cell(row=r, column=val, value=f"={pick(row, f'({MI}-1)*{Y}+{y + 1}')}")
-            ws.cell(row=r, column=n_, value=f"={pick(row, nloans * Y + y + 1)}")
+            ws.cell(row=r, column=val, value=f"={pick(row, y + 1)}")
+            ws.cell(row=r, column=n_, value=f"={pick(loans_row, y + 1)}")
             V, N = f"{col(val)}{r}", f"{col(n_)}{r}"
             ws.cell(row=r, column=dy, value=f'=IF(OR(NOT(ISNUMBER({V})),NOT(ISNUMBER({N}))),NA(),'
                                             f'IF({N}<{FEW},NA(),{V}*{SCALE}))')
