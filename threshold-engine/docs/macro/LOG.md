@@ -166,3 +166,20 @@ KeyBank's loss thresholds. It is its own subject, rated by a tool like this
 one. The tie-out of the proposal's seven figures is stopped (the figures it
 had checked all agreed with the publishers; nothing committed from it), the
 docket's ten decisions are on hold, and #436 stays open. Nothing is built.
+
+## 14 October 2026, the firm's answers on the reframed tool
+
+Asked: same engine or a separate tool; who reads it; which series first.
+
+- **Tool:** *"it would still be time series data, and we might want to find
+  outliers in that data. However, it will be a separate tool and the sense
+  that we may make specific to it modifications."* A separate tool, built on
+  the same idea (time series, normal level, outliers), free to change where
+  economic data needs it.
+- **Readers:** *"I will read it along with the consumer team and possibly the
+  commercial team and it's meant to help drive a macro economic narrative
+  that is essentially outside of the control of management."*
+- **Series:** not chosen yet. The firm: *"Maybe spawn a deep researcher to see
+  what things similar to unemployment and home insurance prices you can find
+  that would be used for this sort of analysis."* Research started; nothing is
+  built.
