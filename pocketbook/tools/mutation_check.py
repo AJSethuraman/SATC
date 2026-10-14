@@ -1783,6 +1783,33 @@ muts = [
  ("Look forgetting a Bars typed for a column whose block a Run left off", LK,
   "    typed = {**_remembered_inputs(wb), **_typed_inputs(wb)} if keep_inputs else {}",
   "    typed = _typed_inputs(wb) if keep_inputs else {}", "typed_bars_come_back"),
+ # 14 Oct 2026: the two column limits follow the workbook beside the extract (HANDOFF.md open item: Next wrote the
+ # launcher's own last choice over a limit typed on Control; test_limits_from_workbook_2026_10_14.py)
+ ("Next writing the launcher's limits over Control's again", LA,
+  '            self.chosen = set()\n            self.limits_from_book()', '            self.chosen = set()',
+  "survives_next"),
+ ("the launcher opening on the last extract without its workbook's limits", LA,
+  "        self.limits_from_book()       # the window opens on the last extract, which may have its workbook "
+  "already", "        pass",
+  "opens_on_the_last_extract"),
+ ("a limit changed in the launcher still said to be the workbook's", LA,
+  '        self.chosen.add(key)\n        self.limits_said = ""', "        self.chosen.add(key)",
+  "changed_in_the_launcher"),
+ ("the launcher not reading Control again before Next", LA,
+  "        self.crash = None\n        self.fresh_limits()\n        moved = ",
+  "        self.crash = None\n        moved = ", "launcher_left_open"),
+ ("a launcher change to one limit hiding an edit to the other on Control", LA,
+  "            if k not in keep and key in got:", "            if key in got:", "other_limit"),
+ ("Next writing limits the columns were not read with", LA,
+  "        if moved:\n", "        if False:\n", "while_the_launcher_left_open"),
+ ("a path being typed taking another extract's limits", LA,
+  "        if self.gate.missing or not self.extract or not Path(self.extract).is_file():",
+  "        if self.gate.missing or not self.extract:", "path_being_typed"),
+ ("the workbook's limits never read once the add-ons are installed", LA,
+  "        self.limits_from_book(keep=self.chosen)\n        if optional and self.gate.optional:",
+  "        if optional and self.gate.optional:", "once_the_add_ons_are_installed"),
+ ("Control's limits read only from a full-width row", CO,
+  "        row = tuple(row) + (None,) * (KEY_COL - len(row))", "        row = tuple(row)", "read_only_worksheet"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
