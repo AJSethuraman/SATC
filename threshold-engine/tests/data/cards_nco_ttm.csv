@@ -1,5 +1,12 @@
-# Federal Reserve CORCCACBS, all commercial banks, credit card; 4-quarter mean
-# trailing-twelve-month net charge-off rate, percent; already smoothed
+# measure: Net charge-off rate on credit card loans, all banks (Federal Reserve series CORCCACBS)
+# population: All banks: "Banks are insured U.S.-chartered commercial banks" (the release's notes)
+# call-report: Credit cards: balances RC-C Part I line 6.a "Credit cards"; charge-offs and recoveries RI-B Part I line 5.a "Credit cards". The release does not name the lines it uses; these are the Call Report's credit card lines
+# numerator: Net charge-offs: "gross charge-offs minus recoveries" during the quarter (the release)
+# denominator: "the average level of its loans outstanding over that quarter"; each quarter's rate is multiplied by 400 to be an annual percentage rate (the release)
+# basis: Trailing twelve months: the mean of the four latest quarterly rates, saved to 3 decimals. Seasonally adjusted. Dated at the first day of the quarter
+# as-of: Each quarter, 1985Q4 to 2026Q2
+# source: Board of Governors of the Federal Reserve System, Charge-Off and Delinquency Rates on Loans and Leases at Commercial Banks, Charge-Off Rates, All Banks, SA: https://www.federalreserve.gov/releases/chargeoff/chgallsa.htm (also FRED, series CORCCACBS). Compiled from the FFIEC Consolidated Reports of Condition and Income (Call Reports)
+# checked: Tied out 13 Oct 2026 against the release: every quarter equals the mean of the four published rates once rounded to 3 decimals (docs/tie-out/cards-moderate-line-2026-10-13)
 date,value
 1985-10-01,2.435
 1986-01-01,2.742

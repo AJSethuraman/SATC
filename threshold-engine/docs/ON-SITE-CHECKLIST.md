@@ -140,13 +140,13 @@ start practice.xlsx
 
 ### 3.3 One judgement, by hand
 
-The workbook opens on the **Assess** tab (red). Under the chart, in **Periods left out**, fill the first two rows from the lists: Product `Credit card`, From `2007Q4`, To `2012Q4`, Reason `financial crisis`; then Product `Credit card`, From `2021Q3`, To `2023Q1`, Reason `pandemic forbearance`. Each Status reads `Left out: 21 quarters` and `Left out: 7 quarters`.
+The workbook opens on the **Assess** tab (red). On the right, in **Periods left out**, fill the first two rows from the lists: Product `Credit card`, From `2007Q4`, To `2012Q4`, Reason `financial crisis`; then Product `Credit card`, From `2021Q3`, To `2023Q1`, Reason `pandemic forbearance`. Each Status reads `Left out: 21 quarters` and `Left out: 7 quarters`.
 
 ☐ Thresholds, Credit card now reads: median 3.757, move 0.586, worst 6.603, lines **3.171 / 3.464 / 4.050 / 5.981**, latest 3.978, **3 Moderate**. These are the card rehearsal settings the bank accepted; the lines were first recorded on 7 Oct 2026.
 
-☐ At the top of Assess (Credit card picked in B4), Latest reads `2026Q2: 3.978  ->  3 Moderate`; the quarters kept in each score read 25 / 22 / 29 / 55 / 4; and the chart shades five bands with two dark strips under the periods left out.
+☐ At the top of Assess (Credit card picked in B5): Latest quarter `2026Q2`, Latest value `3.978`, Latest rating `3 Moderate`, and the Check reads `Check: OK.` In **Ratings for Credit card**, the quarters kept read 25 / 22 / 29 / 55 / 4; the chart shades five bands with two dark strips under the periods left out.
 
-☐ In **Your settings**, type `0` as Credit card's How rare High is (z). Check reads `Refused: High's z must be above 0` and Latest says there is no score. Type `2.5` back.
+☐ In **Your settings**, type `0` as Credit card's How rare High is (z). The Check turns red and reads `Refused: High's z must be above 0. To fix: Type a number above 0 in How rare High is.`, and Latest rating reads `No rating: see Check`. Type `2.5` back.
 
 ### 3.4 The window
 

@@ -740,3 +740,31 @@ command needs min-history + horizon = 13. Checked both ways and fixed on
 #432: a nine-quarter file builds with `--min-history 5`.
 
 Suite: 783 passed (28 min).
+
+## 13 October 2026, the redesign, the readability pass and a docket
+
+- **Redesign** from the Claude Design hand-off (docs/design/): Assess is
+  one tab with the list of periods left out, your settings, scenarios and
+  the chart; reference tabs restyled; a **Sources** tab that prints what
+  each file says about itself and marks a missing key "Not stated in the
+  file", never filling it in.
+- **Readability pass** for a reader who did not build it: "product"
+  became "series", the 1-5 result a "rating", plain Check and status
+  wording, number formats that fit the measure. Two wrong headings fixed
+  (Backtest's "quarters" over rating columns; Sources asking a score for
+  a numerator). The backtest note had dropped "and including it"; restored.
+- **Suite:** 788 passed, 9 failed of 797 on the first run, all nine tests
+  expecting the old tab order or wording; fixed, the nine rerun green.
+  Walkthrough in Excel: 433 of 433.
+- **The firm turned the tool purpose-built** (13 Oct): industry, peers and
+  KeyBank's filed figures; charge-offs and delinquency; generic pieces
+  removed. Mortgage stays first-lien only ("we have hardly any junior
+  liens"). Other consumer shown two ways side by side: blended, where
+  every source meets, and split on KeyBank's own data. Comparability
+  report: 30 of 30 fields matched to KeyBank's 30 June 2026 Call Report.
+- **Docket** published with seven open decisions (other consumer balance,
+  FDIC industry series, the seven gaps, one internal import, auto scope,
+  total vs peer median, merge order).
+- **Next** (silence approves only this): merge #432, #434 and this branch in
+  order, then start the purpose-built data layer with whatever the docket
+  approves.
