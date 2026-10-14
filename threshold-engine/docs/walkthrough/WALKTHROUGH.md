@@ -28,7 +28,7 @@ From `threshold-engine/`, in a terminal:
 python -m threshold_engine workbook docs/walkthrough/out/rehearsal.xlsx --series "Credit card=tests/data/cards_nco_ttm.csv" --series "Mortgage=tests/data/mortgage_nco_ttm.csv" --series "Home equity=tests/data/home_equity_nco_ttm.csv" --series "Other consumer=tests/data/other_consumer_as_filed_nco_ttm.csv" --name "Net charge-off rate (TTM)" --unit "%" --direction higher_is_worse --frequency quarterly --smoothing 1 --floor-at-zero yes --moderate-halfwidth 0.5 --low-step 1.0 --high-z 2.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 41
 ```
 
-Expected: `Wrote docs\walkthrough\outehearsal.xlsx: Credit card, Mortgage, Home equity, Other
+Expected: `Wrote docs\walkthrough\out\rehearsal.xlsx: Credit card, Mortgage, Home equity, Other
 consumer, 163 quarters`.
 
 ## 2. The steps
