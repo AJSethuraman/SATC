@@ -277,6 +277,25 @@ def read_extract(extract: str | Path, few_values: int = 12, many_values: int = 5
     return Read(extract, target, len(table.rows), out, chosen, year=_year_row(made_table, out))
 
 
+def limits_in(extract: str | Path) -> dict[str, int]:
+    """The two column limits on Control in the workbook beside the extract, so the launcher shows them and Next
+    writes them back rather than its own last choice (the firm, 14 Oct 2026). {} when there is no workbook, or it
+    can't be read: the launcher then keeps its own. Opened read-only, Control alone."""
+    from .excel_lists import hushed
+    try:
+        target = _earlier(book_for(Path(extract)))
+        if not target.is_file():
+            return {}
+        with hushed():
+            wb = quiet_load(target, read_only=True)
+            try:
+                return control.read_limits(wb[control.SHEET]) if control.SHEET in wb.sheetnames else {}
+            finally:
+                wb.close()
+    except Exception:
+        return {}
+
+
 def _year_row(table: Table, columns: list[Column]) -> Column | None:
     """The launcher's Origination year row: ORIG_YEAR, the year of the column marked Origination date, as the Run
     works it out (engine.origination_years); None when no column is marked so, or the extract has its own

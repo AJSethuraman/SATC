@@ -1,5 +1,4 @@
 SETHURAMAN  ·  Accounting · Tax · Consulting
-"{firm_tagline}"
 
 {date}
 
