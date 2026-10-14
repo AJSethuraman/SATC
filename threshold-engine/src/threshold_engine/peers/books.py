@@ -42,12 +42,28 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from ..profile import percentile
 
 #: Product -> (balance, gross charge-offs YTD, recoveries YTD) field names.
+#: A name joined by "+" is the sum of those filed fields (``parts``). Other
+#: consumer's balance is RC-C 6.d (LNCONOTH) plus 6.b, other revolving credit
+#: plans (LNCONRP), because its charge-offs (RI-B 5.c) and past-due lines
+#: (RC-N 5.c) both include those plans: 6.d alone left the numerator covering
+#: more loans than the denominator (the firm, 13 Oct 2026: "Yes, fix it").
+#: KeyBank, 30 Jun 2026: 4,200,208 + 268,825 = 4,469,033.
 PRODUCTS = {
     "Credit card": ("LNCRCD", "DRCRCD", "CRCRCD"),
     "Mortgage": ("LNRERSFM", "DRRERSFM", "CRRERSFM"),
     "Home equity": ("LNRELOC", "DRRELOC", "CRRELOC"),
-    "Other consumer": ("LNCONOTH", "DRCONOTH", "CRCONOTH"),
+    "Other consumer": ("LNCONOTH+LNCONRP", "DRCONOTH", "CRCONOTH"),
     "Auto": ("LNAUTO", "DRAUTO", "CRAUTO"),
+}
+
+#: What a product's series notes must say about its definition. Stated in
+#: every file built for the product, so the Sources tab carries it.
+DEFINITIONS = {
+    "Other consumer": ("Other consumer's balance is RC-C 6.b, other revolving credit plans (LNCONRP), plus "
+                       "6.d (LNCONOTH), matching its charge-offs (RI-B 5.c) and past-due lines (RC-N 5.c), "
+                       "which both include those plans. The FDIC data has no 6.b before 2001Q1: before it "
+                       "the balance is 6.d alone, so a series reaching back past 2001 breaks there. Auto "
+                       "was inside 6.d until 2011Q1, when it got its own line (6.c)."),
 }
 
 WHY_JUMP = "book moved more than the jump in this window"
@@ -94,6 +110,21 @@ def quarter_end(q: str) -> str:
     return "%d-%s" % (y, ("03-31", "06-30", "09-30", "12-31")[n - 1])
 
 
+def parts(name: str) -> List[str]:
+    """The filed fields a field name stands for: ``"A+B"`` -> ``["A", "B"]``."""
+    return name.split("+")
+
+
+def raw_fields(names: Iterable[str]) -> List[str]:
+    """The filed fields to pull for ``names``, in order, each once."""
+    out: List[str] = []
+    for n in names:
+        for f in parts(n):
+            if f not in out:
+                out.append(f)
+    return out
+
+
 def _fields(product: str) -> Tuple[str, str, str]:
     if product not in PRODUCTS:
         raise ValueError("product must be one of %s, not %r" % (sorted(PRODUCTS), product))
@@ -106,6 +137,8 @@ def _num(row: dict, field: str) -> float:
     and ``float`` reads "inf") is refused, naming the bank, the quarter and the
     field, as ``delinquency`` refuses it: kept, it would carry through every
     rate and composite and be written to Excel as a blank."""
+    if "+" in field:
+        return sum(_num(row, f) for f in parts(field))
     x = float(row.get(field) or 0)
     if not math.isfinite(x):
         raise ValueError("certificate %s, %s: %s is %r, not a number"

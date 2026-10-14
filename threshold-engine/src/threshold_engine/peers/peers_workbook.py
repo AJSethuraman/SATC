@@ -73,7 +73,7 @@ from .. import keybank_style as K
 from . import roster as R
 from .analyses import calendar_year, lagged_rate, normalisation, organic_index, mix_factor
 from . import delinquency as D
-from .books import PRODUCTS, _fields, bank_book, composite, label, quarter_end
+from .books import PRODUCTS, _fields, bank_book, composite, label, quarter_end, raw_fields
 from .glossary import PEER_TERMS
 
 INPUT = PatternFill("solid", fgColor="FFF2CC")
@@ -259,7 +259,7 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
         raise ValueError("delinquency data has no rows (no filer) in %d quarter(s), first %s: a quarter-end "
                          "nobody filed cannot be drawn; pull it again or leave it out" % (len(empty), empty[0]))
     for p in products:
-        for f in D.FIELDS[p]:
+        for f in D.fields_for([p]):
             lacking = [q for q in sorted(data) if not any(f in row for row in data[q])]
             if lacking:
                 raise ValueError("delinquency for %s needs %s, which the data does not carry in %d quarter(s), "
@@ -603,7 +603,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     # A field absent from a quarter's every row would be read as 0 for every
     # bank: an empty book, not a missing one. fdic.pull refuses the same.
     for p in products:
-        for f in _fields(p):
+        for f in raw_fields(_fields(p)):
             lacking = [q for q in sorted(data) if not any(f in row for row in data[q])]
             if lacking:
                 raise ValueError("%s needs %s, which the data does not carry in %d quarter(s), first %s: "

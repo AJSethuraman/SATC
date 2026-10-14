@@ -13,7 +13,7 @@ import zipfile
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from conftest import DATA, ROOT
+from conftest import DATA, as_earlier_build, ROOT
 from threshold_engine.peers import roster as R
 from threshold_engine.peers.analyses import calendar_year, lagged_rate, mix_factor, normalisation, organic_index
 from threshold_engine.peers.books import band, bank_book, best_worst, composite, industry
@@ -57,7 +57,7 @@ def num(v):
 
 @pytest.fixture(scope="module")
 def data():
-    return json.loads((PEERS / "roster_2006.json").read_text())
+    return as_earlier_build(json.loads((PEERS / "roster_2006.json").read_text()))
 
 
 @pytest.fixture(scope="module")

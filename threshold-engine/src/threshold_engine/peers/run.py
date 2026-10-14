@@ -64,7 +64,7 @@ def slug(text: str) -> str:
 
 def charge_off_fields(products: Sequence[str]) -> List[str]:
     """The balance, charge-off and recovery fields of the products named."""
-    return [f for p in products for f in books.PRODUCTS[p]]
+    return books.raw_fields(f for p in products for f in books.PRODUCTS[p])
 
 
 def _products(products) -> List[str]:
@@ -373,6 +373,7 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
     made = []
     for p in products:
         balance = D.FIELDS[p][0]
+        balance = "(%s)" % " + ".join(books.parts(balance)) if "+" in balance else balance
         for m in D.MEASURES:
             nums = " + ".join(D._numerator_fields(p, m))
             banks_ = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, jump, min_book,
@@ -402,6 +403,7 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                             "never read as 0.",
                             words[0].upper() + words[1:] + ".", source] + ([ruled] if ruled else [])
                     note += D.comparability(p, m)
+                    note += [books.DEFINITIONS[p]] if p in books.DEFINITIONS else []
                     left_out = ({r["q"]: r["avg4_left_out"] for r in comp}
                                 if rows is comp and basis == "four-quarter average" else None)
                     made.append((out_dir / ("%s_%s_delinquency-%s_%s.csv" % (slug(p), who, slug(m), slug(basis))),
@@ -603,6 +605,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
             note = ["%s, %s charge-off rate, trailing four quarters, %%." % (words_p, kind),
                     words[0].upper() + words[1:] + ".", source] + ([rule] if ruled else []) + [repeat_note]
+            note += [books.DEFINITIONS[n] for n in words_p.split(" plus ") if n in books.DEFINITIONS]
             series.append((out_dir / ("%s_%s_%s.csv" % (slug_, who, kind)), tail,
                            series_note(note, tail, before, after), before, after, None))
     dq_spec = None

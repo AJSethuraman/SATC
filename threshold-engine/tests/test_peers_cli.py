@@ -16,7 +16,7 @@ import urllib.parse
 import pytest
 from openpyxl import load_workbook
 
-from conftest import DATA, ROOT
+from conftest import DATA, as_earlier_build, ROOT
 from threshold_engine import cli
 from threshold_engine.cli import main
 from threshold_engine.peers import fdic
@@ -61,7 +61,7 @@ def read_csv(path):
 
 @pytest.fixture(scope="module")
 def data():
-    return json.loads((PEERS / "roster_2006.json").read_text())
+    return as_earlier_build(json.loads((PEERS / "roster_2006.json").read_text()))
 
 
 @pytest.fixture(scope="module")

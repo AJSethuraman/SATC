@@ -17,7 +17,7 @@ from openpyxl import load_workbook
 
 from threshold_engine.workbook import SET_TOP
 
-from conftest import DATA, ROOT
+from conftest import DATA, as_earlier_build, ROOT
 from threshold_engine import keybank_style as K
 from threshold_engine import launcher
 from threshold_engine.launcher import Form, PeerForm
@@ -92,7 +92,7 @@ class FakeFDIC:
 
 @pytest.fixture(scope="module")
 def roster_2006():
-    return json.loads((PEERS / "roster_2006.json").read_text())
+    return as_earlier_build(json.loads((PEERS / "roster_2006.json").read_text()))
 
 
 def lay_out_cache(folder, data):
@@ -680,13 +680,13 @@ def test_a_real_build_through_run_writes_the_peer_workbook_and_opens_it(tmp_path
     wb = load_workbook(out.path)
     assert wb.sheetnames[:2] == ["Pack", "Peers"]
     assert sorted(p.name for p in (tmp_path / "series").glob("*.csv")) == sorted(
-        "credit-card_%s_%s.csv" % (who, kind) for who in ("pack-composite", "keybank", "industry")
+        "credit-card_%s_%s.csv" % (who, kind) for who in ("pack-composite", "pack-median", "keybank", "industry")
         for kind in ("gross", "net"))
 
 
 def test_build_with_delinquency_yes_writes_the_delinquency_series(tmp_path, monkeypatch, opened, roster_2006):
     """The window's yes reaches run.build: per measure and basis, the pack
-    composite, the bank and the industry. The cache joins the two public
+    composite, the pack median, the bank and the industry. The cache joins the two public
     fixtures, 2017Q1 to 2026Q2, card only."""
     monkeypatch.setattr(fdic, "urllib_fetch", no_network)
     dq = json.loads((PEERS / "delinquency_roster.json").read_text())
@@ -698,7 +698,7 @@ def test_build_with_delinquency_yes_writes_the_delinquency_series(tmp_path, monk
     out = launcher.peer_build(peers_filled(tmp_path, first="2017Q1", delinquency="yes"), open_after=False)
     assert out.ok, out.lines
     names = {p.name for p in (tmp_path / "series").glob("credit-card_*_delinquency-*.csv")}
-    assert names and all(n.split("_")[1] in ("pack-composite", "keybank", "industry") for n in names)
+    assert names and all(n.split("_")[1] in ("pack-composite", "pack-median", "keybank", "industry") for n in names)
     for m in ("30-89", "90-plus-accruing", "nonaccrual", "90-plus-incl-nonaccrual", "30-plus-incl-nonaccrual"):
         assert "credit-card_industry_delinquency-%s_quarter-end.csv" % m in names, m
     assert any(x.startswith("Delinquency, Credit card:") for x in out.lines)
@@ -942,7 +942,7 @@ def test_the_window_presses_through_the_peers_step_with_a_fake_pull(tmp_path, op
         settle(w)
         assert w["peer_outcome"].ok, w["peer_outcome"].lines
         assert (tmp_path / "peers.xlsx").is_file() and opened == [tmp_path / "peers.xlsx"]
-        assert len(list((tmp_path / "series").glob("*.csv"))) == 6
+        assert len(list((tmp_path / "series").glob("*.csv"))) == 8         # composite, median, KeyBank, industry; gross and net
         assert w["peer_status"].cget("text") == "Build finished."
         assert w["peer_result"].cget("text").startswith("Wrote %s" % (tmp_path / "peers.xlsx"))
     finally:

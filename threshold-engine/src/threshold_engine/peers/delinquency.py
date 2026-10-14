@@ -98,7 +98,7 @@ import math
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from ..profile import percentile
-from .books import _at_least, _by_cert, _contiguous, label, quarter_end
+from .books import _at_least, _by_cert, _contiguous, label, parts, quarter_end, raw_fields
 
 #: Product -> (balance, 30-89 days past due, 90+ days still accruing,
 #: nonaccrual) field names. All quarter-end, $ thousands.
@@ -106,7 +106,7 @@ FIELDS = {
     "Credit card": ("LNCRCD", "P3CRCD", "P9CRCD", "NACRCD"),
     "Mortgage": ("LNRERSFM", "P3RERSFM", "P9RERSFM", "NARERSFM"),
     "Home equity": ("LNRELOC", "P3RELOC", "P9RELOC", "NARELOC"),
-    "Other consumer": ("LNCONOTH", "P3CONOTH", "P9CONOTH", "NACONOTH"),
+    "Other consumer": ("LNCONOTH+LNCONRP", "P3CONOTH", "P9CONOTH", "NACONOTH"),
     "Auto": ("LNAUTO", "P3AUTO", "P9AUTO", "NAAUTO"),
 }
 
@@ -143,12 +143,7 @@ def fields_for(products: Iterable[str]) -> List[str]:
     """Every delinquency field (balance, P3, P9, NA) of the products named, in
     table order, each once, so ``peers pull`` can add them to its request.
     An unknown product is refused."""
-    out: List[str] = []
-    for p in products:
-        for f in _fields(p):
-            if f not in out:
-                out.append(f)
-    return out
+    return raw_fields(f for p in products for f in _fields(p))
 
 
 def _fields(product: str) -> Tuple[str, str, str, str]:
@@ -176,7 +171,12 @@ def basis_key(basis: str) -> str:
 def _filed(row: dict, field: str) -> Optional[float]:
     """A filed amount, or None when the field is absent or blank (not filed).
     An amount that is not a finite number (NaN, infinity) is refused: it is
-    neither a filing nor a blank, and NaN passes every comparison guard."""
+    neither a filing nor a blank, and NaN passes every comparison guard.
+    A sum of fields (``"A+B"``) is filed when every part is; one blank part
+    makes it blank, since the sum would be part of a book."""
+    if "+" in field:
+        vals = [_filed(row, f) for f in parts(field)]
+        return None if any(v is None for v in vals) else sum(vals)
     v = row.get(field)
     if v is None or v == "":
         return None

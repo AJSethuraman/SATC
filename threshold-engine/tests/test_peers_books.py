@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from conftest import DATA
+from conftest import DATA, as_earlier_build
 from threshold_engine.peers.books import (
     WHY_JUMP, WHY_MISSING, WHY_SMALL, band, bank_book, best_worst, composite, industry,
     label, quarter_end, quarterly_flows, write_series)
@@ -27,7 +27,7 @@ JUMP, MIN_BOOK, MIN_BANKS = 0.25, 1_000_000, 5
 
 @pytest.fixture(scope="module")
 def data():
-    return json.loads((PEERS / "roster_2006.json").read_text())
+    return as_earlier_build(json.loads((PEERS / "roster_2006.json").read_text()))
 
 
 @pytest.fixture(scope="module")
@@ -398,3 +398,18 @@ def test_an_amount_that_is_not_a_number_is_refused_by_bank_quarter_and_field(bad
         bank_book(data, 1, "Credit card", JUMP, 0, acquired=())
     with pytest.raises(ValueError, match="not a number"):
         industry(data, "Credit card")
+
+
+def test_other_consumer_divides_by_6b_plus_6d():
+    """RI-B 5.c and RC-N 5.c include other revolving credit plans, so the
+    balance is 6.b + 6.d. KeyBank, 30 Jun 2026: 4,200,208 + 268,825."""
+    from threshold_engine.peers.books import PRODUCTS, _num, raw_fields
+    raw = json.loads((PEERS / "roster_2006.json").read_text())
+    kb = next(r for r in raw["20260630"] if str(r["CERT"]) == KEYBANK)
+    assert (kb["LNCONOTH"], kb["LNCONRP"]) == (4200208, 268825)
+    assert _num(kb, PRODUCTS["Other consumer"][0]) == 4469033
+    assert raw_fields(PRODUCTS["Other consumer"]) == ["LNCONOTH", "LNCONRP", "DRCONOTH", "CRCONOTH"]
+    now = bank_book(raw, KEYBANK, "Other consumer", JUMP, MIN_BOOK, exempt_min_book=True, acquired=())[-1]
+    then = bank_book(as_earlier_build(raw), KEYBANK, "Other consumer", JUMP, MIN_BOOK,
+                     exempt_min_book=True, acquired=())[-1]
+    assert now["avg_balance"] > then["avg_balance"] and now["net_rate"] < then["net_rate"]

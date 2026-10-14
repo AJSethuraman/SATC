@@ -62,7 +62,7 @@ def test_fields_are_the_spec_table():
         "Credit card": ("LNCRCD", "P3CRCD", "P9CRCD", "NACRCD"),
         "Mortgage": ("LNRERSFM", "P3RERSFM", "P9RERSFM", "NARERSFM"),
         "Home equity": ("LNRELOC", "P3RELOC", "P9RELOC", "NARELOC"),
-        "Other consumer": ("LNCONOTH", "P3CONOTH", "P9CONOTH", "NACONOTH"),
+        "Other consumer": ("LNCONOTH+LNCONRP", "P3CONOTH", "P9CONOTH", "NACONOTH"),
         "Auto": ("LNAUTO", "P3AUTO", "P9AUTO", "NAAUTO"),
     }
     assert list(MEASURES) == ["30-89", "90+ accruing", "nonaccrual",
@@ -473,7 +473,9 @@ def test_keybank_2026q2_against_the_filed_amounts(roster_data):
         "Credit card": (926589, 8528, 9346, 6401),
         "Mortgage": (20584113, 23309, 15000, 120395),
         "Home equity": (2929570, 15639, 2072, 54307),
-        "Other consumer": (4200208, 27723, 21007, 4680),
+        # RC-C 6.d 4,200,208 plus 6.b 268,825: RC-N 5.c's past-due lines
+        # include other revolving credit plans, so the balance does too
+        "Other consumer": (4469033, 27723, 21007, 4680),
         "Auto": (62212, 302, 23, 371),
     }
     for product, (bal, p3, p9, na) in filed.items():
