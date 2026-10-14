@@ -64,11 +64,17 @@ arithmetic checked by running it, and the workbook checked by opening it.
 
 - [x] The command's help said "Two commands"; there are five. (Found on the
   clean install, 12 Oct; fixed the same day.)
-- [ ] Lower-is-worse measures (a credit score) are tested in `scale.py` but
+- [x] Lower-is-worse measures (a credit score) are tested in `scale.py` but
   never through the workbook. Add a workbook test with a mirrored series, and
-  open it once in Excel.
+  open it once in Excel. Done 13 Oct: `test_a_lower_is_worse_workbook_equals_the_reference_scale`
+  (both on-the-line rules), and walkthrough step W14 in Excel 16, which also
+  found the chart starting at zero for a score (fixed).
 - [ ] A monthly series is refused by the workbook ("the calendar is
   quarterly"). Confirm that's acceptable for version 1, or build it.
+  **Handed back, 13 Oct:** recommended acceptable for v1. Every source v1
+  reads is quarterly (Federal Reserve, FDIC), and all seven internal templates
+  ask for quarter-end dates. A monthly internal measure would be cut to
+  quarter-ends by the bank, which is the bank's choice of basis.
 - [x] ~~Save the inline analyses as scripts.~~ Superseded: they are in the
   tool now (Mix, Lagged, Normalisation and Balances tabs), with the spec's
   numbers as acceptance tests.
@@ -85,26 +91,32 @@ and every answer is read off the workbook, not off Python.
 
 - [x] **Clean install.** Fresh clone, fresh Python, `pip install .`, workbook
   built; `pip install ".[test]"`, 138 tests pass. (12 Oct 2026)
-- [ ] **Build** the four-product workbook from `tests/data/`. Expected: four
-  rows on Thresholds, Check blank, 163 quarters on Data.
-- [ ] **Each tab opened in Excel** and read against the script: Thresholds,
+- [x] **Build** the four-product workbook from `tests/data/`. Expected: four
+  rows on Thresholds, Check blank, 163 quarters on Data. (13 Oct, W1–W2.)
+- [x] **Each tab opened in Excel** and read against the script: Thresholds,
   Settings, Assess (each product), Chart, Evidence, Backtest, Glossary, Data,
-  Run.
-- [ ] **Each kind of Settings change** made by hand, with the expected effect
+  Run. (13 Oct, W1–W3, W11–W13.)
+- [x] **Each kind of Settings change** made by hand, with the expected effect
   written beside it: a leave-out window, a second window with a reason, each
   of the three distances, the on-the-line rule, a z that is refused. Each
-  answer read off Thresholds, Assess and the dials.
-- [ ] **A refusal of each kind** triggered on purpose, with the Check text
-  read off.
-- [ ] **Run tab** checked: fingerprints match the input files; decisions and
-  reasons follow Settings.
-- [ ] **The card scale tied out** to the public source: one line recomputed by
-  hand from the Federal Reserve series, in a short tie-out exhibit.
+  answer read off Thresholds, Assess and the dials. (13 Oct, W4–W9; typed
+  through Excel's automation interface, not by a person's hands.)
+- [x] **A refusal of each kind** triggered on purpose, with the Check text
+  read off. (13 Oct, W10.1–W10.12: all twelve.)
+- [x] **Run tab** checked: fingerprints match the input files; decisions and
+  reasons follow Settings. (13 Oct, W5 and W11.)
+- [x] **The card scale tied out** to the public source: one line recomputed by
+  hand from the Federal Reserve series, in a short tie-out exhibit. (13 Oct:
+  DIFFERS by 0.0005, cause found: the repository's card file is rounded to
+  three decimals; no score changes. `docs/tie-out/cards-moderate-line-2026-10-13/`.)
 
 ## 4. On site (the bank)
 
-- [ ] A bank-machine checklist: what Python and add-ons are needed, how to
-  install without internet if blocked, how to run. (PocketBook has one to copy.)
+- [x] A bank-machine checklist: what Python and add-ons are needed, how to
+  install without internet if blocked, how to run. (13 Oct:
+  `docs/ON-SITE-CHECKLIST.md` and `.pdf`, the kit from `tools/bank_kit.py`;
+  dry-run on a fresh Python with no add-ons, offline install, every command
+  as written, the practice numbers read in Excel.)
 - [ ] One internal series run on site, nothing brought back but the result's
   shape (whether it built, any refusal, anything unclear).
 

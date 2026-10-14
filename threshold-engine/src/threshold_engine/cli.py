@@ -278,7 +278,7 @@ def _template(a):
     if a.template_command == "write":
         csv_path, md = T.write_template(a.key, a.out)
         print("Wrote %s and %s: template %s (%s). Answer every [STATE: ...] line, add the "
-              "quarters, then run: threshold-engine template check %s %s"
+              "quarters, then run: python -m threshold_engine template check %s %s"
               % (csv_path, md, a.key, T.TEMPLATES[a.key].title, a.key, csv_path))
         return 0
     problems = T.check(a.key, a.file)

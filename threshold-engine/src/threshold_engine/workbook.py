@@ -38,6 +38,7 @@ from .backtest import backtest
 from . import VERSION
 from .evidence import evidence
 from .glossary import TERMS
+from .scale import scale as _scale
 from .series import LABEL_RULE, check, label_ok, read_csv, smooth
 
 RATINGS = ("Low", "Moderate-Low", "Moderate", "Moderate-High", "High")
@@ -52,6 +53,43 @@ def _wrap(ws, row, height=34):
             cell.alignment = Alignment(wrap_text=True, vertical="center",
                                        horizontal=cell.alignment.horizontal or "left")
     ws.row_dimensions[row].height = height
+
+
+def _axis_floor(loaded, direction, halfwidth, low_step, high_z):
+    """A round number under every product's lowest value and line, and under
+    the strip that marks quarters left out, or None if that is not above zero
+    (then the axis starts at zero anyway). Rounded down to a half of the
+    range's order of magnitude.
+
+    The axis cannot follow a cell, so its minimum has to hold for the
+    settings the bank may still type, not only the starting ones (Codex on
+    #432: raising Moderate-Low's step pushed score 2's line off the bottom).
+    It covers every value the dials offer as well as the starting values:
+    a width up to 1, a Moderate-Low step up to 2, a z from 2 to 3.5."""
+    s_ = 1.0 if direction == "higher_is_worse" else -1.0
+    lows, highs = [], []
+    for s in loaded:
+        vals = [p.value for p in s["points"]]
+        ref = _scale(vals, direction, halfwidth, low_step, high_z, False)
+        med, move, spread = ref["median"], ref["typical_yearly_move"] or 0.0, ref["spread_of_levels"]
+        lines = []
+        for hw in {halfwidth, 0.25, 1.0}:
+            for ls in {low_step, 0.75, 2.0}:
+                for z in {high_z, 2.0, 3.5}:
+                    lines += [med - s_ * ls * move, med - s_ * hw * move, med + s_ * hw * move, med + s_ * z * spread]
+        both = vals + lines
+        lows.append(min(both))
+        highs.append(max(both))
+    lo, hi = min(lows), max(highs)
+    # As the sheet works them out: the floor, the top, and the strip under the
+    # floor for quarters left out, which must stay on the chart.
+    floor = lo - 0.08 * (hi - lo)
+    top = hi + 0.08 * (hi - floor)
+    target = floor - 0.06 * (top - floor)
+    if hi <= lo or target <= 0:
+        return None
+    unit = 10 ** math.floor(math.log10(hi - lo)) / 2
+    return math.floor(target / unit) * unit
 
 
 def quarter(date: str) -> str:
@@ -325,6 +363,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     lc.x_axis.tickLblSkip = 20
     lc.x_axis.delete = False
     lc.y_axis.delete = False
+    # Below the plot: on the right, Excel 16 drew the legend over the cutoff
+    # lines' right-hand ends (seen in the walkthrough, 13 Oct 2026).
+    lc.legend.position = "b"
+    lc.legend.overlay = False
     lc.visible_cells_only = False      # its helper columns are hidden; plot them anyway
     ch.add_chart(lc, "A%d" % (lr + 3))
     for col in range(h0, h0 + n + 5):
@@ -480,6 +522,11 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         asx.cell(r, hc + 1, '=IF(ISNUMBER({k}),{k},NA())'.format(k=kept))
         asx.cell(r, hc + 2, '=IF(AND(ISNUMBER({raw}),NOT(ISNUMBER({k}))),{raw},NA())'.format(raw=raw, k=kept))
         asx.cell(r, hc + 3, '=IF(ISNUMBER({raw}),{raw},NA())'.format(raw=raw))
+        # The same, blank instead of #N/A, for the chart's top and floor: MAX
+        # and MIN over a range holding #N/A give #N/A, and a product whose
+        # data starts after the calendar lost its Low and High bands (Excel
+        # 16, the walkthrough, 13 Oct 2026).
+        asx.cell(r, hc + 12, '=IF(ISNUMBER({raw}),{raw},"")'.format(raw=raw))
         top = "${c}${r0}".format(c=L(hc + 9), r0=first)
         b = ["$C$9", "$C$10", "$C$11", "$C$12"]
         if not higher:
@@ -495,19 +542,32 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         asx.cell(r, hc + 8, '=IF($B$5<>"",NA(),MAX({t}-{b3},0))'.format(t=top, b3=b[3]))
     # Top and floor take in the cut-offs as well as the data, and the top sits
     # 8% of the whole range above the highest, which works below zero too.
-    cuts = "$C$9:$C$12"
+    cuts, axis_r = "$C$9:$C$12", rng(hc + 12)
+    asx.cell(first - 1, hc + 12, "For the axis")
     asx.cell(first, hc + 9, "=MAX(MAX({r}),MAX({c}))+0.08*(MAX(MAX({r}),MAX({c}))-{lo})"
-             .format(r=raw_r, c=cuts, lo="${c}${r}".format(c=L(hc + 9), r=first + 1)))
+             .format(r=axis_r, c=cuts, lo="${c}${r}".format(c=L(hc + 9), r=first + 1)))
     # The strip that marks quarters left out: a bar under the data, below zero
     # or below the lowest value if that is negative, 6% of the chart's height.
     asx.cell(first - 1, hc + 11, "Period left out")
     lo_c, top_c = "${c}${r}".format(c=L(hc + 9), r=first + 1), "${c}${r}".format(c=L(hc + 9), r=first)
     h_c = "${c}${r}".format(c=L(hc + 9), r=first + 2)
-    asx.cell(first + 1, hc + 9, "=MIN(0,MIN(%s),MIN(%s))" % (raw_r, cuts))
+    # A measure floored at zero keeps zero on the chart. One that is not (a
+    # credit score) starts 8% of its range below its lowest value or line:
+    # from zero, a score of 380-730 filled the top half and the bands were
+    # slivers (Excel 16, the walkthrough, 13 Oct 2026).
+    if floor_at_zero:
+        asx.cell(first + 1, hc + 9, "=MIN(0,MIN(%s),MIN(%s))" % (axis_r, cuts))
+    else:
+        mn, mx = "MIN(MIN(%s),MIN(%s))" % (axis_r, cuts), "MAX(MAX(%s),MAX(%s))" % (axis_r, cuts)
+        asx.cell(first + 1, hc + 9, "=%s-0.08*(%s-%s)" % (mn, mx, mn))
     asx.cell(first + 2, hc + 9, "=({t}-{lo})*0.06".format(t=top_c, lo=lo_c))
     for r in range(first, last + 1):
         gone_c = "{c}{r}".format(c=L(hc + 2), r=r)
-        asx.cell(r, hc + 11, '=IF(ISNUMBER({g}),{lo}-{h},0)'.format(g=gone_c, lo=lo_c, h=h_c))
+        # The strip stands on an invisible base just under the floor, and is
+        # its own height where a quarter is left out, 0 elsewhere. Drawn as
+        # one series from zero, its zeros pulled the axis down to zero.
+        asx.cell(r, hc + 13, '={lo}-{h}'.format(lo=lo_c, h=h_c))
+        asx.cell(r, hc + 11, '=IF(ISNUMBER({g}),{h},0)'.format(g=gone_c, h=h_c))
     area = AreaChart()
     area.grouping = "stacked"
     area.title = None
@@ -553,16 +613,36 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     # The strip is an area, not columns: Excel drew 163 stacked columns sharing
     # this axis as thin slivers whatever their gap width (Excel 16, 6 Oct 2026).
     strip = AreaChart()
-    strip.grouping = "standard"
+    strip.grouping = "stacked"
+    asx.cell(first - 1, hc + 13, " ")
+    strip.add_data(Reference(asx, min_col=hc + 13, max_col=hc + 13, min_row=first - 1, max_row=last),
+                   titles_from_data=True)
     strip.add_data(Reference(asx, min_col=hc + 11, max_col=hc + 11, min_row=first - 1, max_row=last),
                    titles_from_data=True)
-    cut = strip.series[0]
+    strip.series[0].graphicalProperties.noFill = True
+    strip.series[0].graphicalProperties.line.noFill = True
+    cut = strip.series[1]
     cut.graphicalProperties.solidFill = "57534B"
     cut.graphicalProperties.line.noFill = True
     # No labels on the strip's negative space, unless the measure itself can
     # go below zero: then those numbers are real and must be labelled.
     below_zero = not floor_at_zero or any(p.value < 0 for s in loaded for p in s["points"])
     line.y_axis.number_format = "0.0" if below_zero else "0.0;;0.0"
+    # Excel starts an automatic axis at zero unless the lowest value is within
+    # about a sixth of the highest, so a credit score of 380-730 still drew
+    # from zero (the walkthrough, 13 Oct 2026). No cell can drive an axis, so
+    # a measure not floored at zero gets a fixed minimum at build: just under
+    # the lowest value or starting line of any product, at a round number.
+    if not floor_at_zero:
+        y_min = _axis_floor(loaded, direction, moderate_halfwidth, low_step, high_z)
+        if y_min is not None:
+            line.y_axis.scaling.min = y_min
+            # No fixed axis can follow every leave-out (Codex on #432): leaving
+            # out a calm stretch can widen the spread and push a line below it.
+            # Say so, in the cell over the chart, rather than clip in silence.
+            asx.cell(14, 1, '=IF({f}-{h}<{m},"Part of a line or the left-out strip is below the axis of this chart '
+                            '(fixed at build at {m}): the numbers are right, the picture is cut off.","")'
+                     .format(f=lo_c, h=h_c, m=y_min)).font = Font(bold=True, color=K.CRIMSON)
     line.x_axis.tickLblPos = "low"                 # year labels below the strip, not on it
     line += area
     line += strip
@@ -575,7 +655,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         asx.cell(41 + k, 1, '=IF({a}="","",{a}&" to "&{b}&IF({c}="","",": "&{c}))'
                  .format(a=f(a_), b=f(b_), c=f(c_)))
     asx.cell(43, 1, '=IF(AND(A41="",A42=""),"Nothing left out: every quarter counts.","")')
-    for col in range(hc, hc + 12):
+    for col in range(hc, hc + 14):
         asx.column_dimensions[L(col)].hidden = True
 
     # ---- Evidence (values) ----
