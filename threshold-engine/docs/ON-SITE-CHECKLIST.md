@@ -179,7 +179,7 @@ py -m threshold_engine template write refreshed-score "%USERPROFILE%\refreshed-s
 
 ### 5.2 Fill it
 
-Follow the `.checklist.md`: answer every `[STATE: ...]` line at the top, then one line per quarter, `YYYY-MM-DD,value`, quarter-end dates, oldest first, at least nine quarters. Use Notepad, not Excel.
+Follow the `.checklist.md`: answer every `[STATE: ...]` line at the top, then one line per quarter, `YYYY-MM-DD,value`, quarter-end dates, oldest first, at least nine quarters (the template's minimum; 13 or more lets the build below run as written). Use Notepad, not Excel.
 
 ### 5.3 Check it
 
@@ -197,7 +197,7 @@ Every setting is yours; none has a default. For the refreshed score, lower is wo
 py -m threshold_engine workbook "%USERPROFILE%\refreshed-score.xlsx" --series "Refreshed score=%USERPROFILE%\refreshed-score.csv" --name "Refreshed credit score" --unit "score" --direction lower_is_worse --frequency quarterly --smoothing 1 --floor-at-zero no --moderate-halfwidth 0.5 --low-step 1.0 --high-z 2.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 9
 ```
 
-☐ It writes the workbook, or refuses with a reason. `--min-history` is the quarters the backtest needs before it scores one; with a short file, lower it, and if it refuses, the message says what it needs.
+☐ It writes the workbook, or refuses with a reason. The file needs at least `--min-history` + `--horizon` quarters: 9 + 4 = 13 as written. With fewer, set `--min-history` to the number of quarters less 4 (9 quarters: `--min-history 5`). That only thins the Backtest tab; the lines, scores and Assess do not use it.
 
 ☐ Opened in Excel, Thresholds' lines **fall** from 2 to 5 (lower is worse), and the Check column is blank or says why not.
 

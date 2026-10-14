@@ -53,8 +53,6 @@ def build_cover(ws: Worksheet, *, tax_year: int, contents: list[tuple[str, str]]
     X.merge_text(ws, 7, 2, 11, "Tax Workpapers & Client Data Mart", CellStyle(
         font=Font(name=S.TITLE_FONT, size=20, bold=True, color=C.NAVY),
         alignment=Alignment(horizontal="left", vertical="center")))
-    X.merge_text(ws, 8, 2, 11, '"Complex work, made clear."  —  Occam\'s razor: the simplest correct answer, never oversimplified.',
-                 S.SUBTITLE)
 
     row = 10
     meta = [

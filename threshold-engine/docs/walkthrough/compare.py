@@ -42,13 +42,24 @@ rows, fails = [], []
 by_id = {s["id"]: s for s in obs["steps"]}
 for s in exp["steps"]:
     got = by_id.get(s["id"])
-    if not got:
-        fails.append((s["id"], "not run", "", ""))
-        rows.append((s, None, 0))
+    if not got:                                   # every reading of a step not run is a cell not checked
+        for want in s["reads"]:
+            fails.append((s["id"], "%s!%s" % (want["sheet"], want["cell"]), show(want["expected"]), "step not run"))
+        rows.append((s, None, len(s["reads"])))
         continue
     bad = 0
+    # Every expected reading must have been read: a stale observed.json from
+    # before a step gained readings would otherwise pass them silently (Codex
+    # on #432).
+    for want in s["reads"][len(got["reads"]):]:
+        bad += 1
+        fails.append((s["id"], "%s!%s" % (want["sheet"], want["cell"]), show(want["expected"]), "not read"))
     for want, g in zip(s["reads"], got["reads"]):
-        assert (want["sheet"], want["cell"]) == (g["sheet"], g["cell"])
+        if (want["sheet"], want["cell"]) != (g["sheet"], g["cell"]):
+            bad += 1
+            fails.append((s["id"], "%s!%s" % (want["sheet"], want["cell"]), show(want["expected"]),
+                          "read %s!%s instead" % (g["sheet"], g["cell"])))
+            continue
         if not same(want["expected"], g):
             bad += 1
             fails.append((s["id"], "%s!%s" % (want["sheet"], want["cell"]), show(want["expected"]),

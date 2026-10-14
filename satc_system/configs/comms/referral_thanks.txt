@@ -8,6 +8,5 @@ We'll look after them the way we look after you.
 With thanks,
 {preparer_name}
 {firm_name}
-"{firm_tagline}"
 
 — DRAFT for preparer review. Not sent automatically. —

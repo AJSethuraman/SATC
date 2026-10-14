@@ -68,15 +68,28 @@ def _wrap(ws, row, height=34):
 
 
 def _axis_floor(loaded, direction, halfwidth, low_step, high_z):
-    """A round number under every product's lowest value and starting line,
-    and under the strip that marks quarters left out, or None if that is not
-    above zero (then the axis starts at zero anyway). Rounded down to a half
-    of the range's order of magnitude."""
+    """A round number under every product's lowest value and line, and under
+    the strip that marks quarters left out, or None if that is not above zero
+    (then the axis starts at zero anyway). Rounded down to a half of the
+    range's order of magnitude.
+
+    The axis cannot follow a cell, so its minimum has to hold for the
+    settings the bank may still type, not only the starting ones (Codex on
+    #432: raising Moderate-Low's step pushed score 2's line off the bottom).
+    It covers every value the dials offer as well as the starting values:
+    a width up to 1, a Moderate-Low step up to 2, a z from 2 to 3.5."""
+    s_ = 1.0 if direction == "higher_is_worse" else -1.0
     lows, highs = [], []
     for s in loaded:
         vals = [p.value for p in s["points"]]
         ref = _scale(vals, direction, halfwidth, low_step, high_z, False)
-        both = vals + list(ref["bounds"] or [])
+        med, move, spread = ref["median"], ref["typical_yearly_move"] or 0.0, ref["spread_of_levels"]
+        lines = []
+        for hw in {halfwidth, 0.25, 1.0}:
+            for ls in {low_step, 0.75, 2.0}:
+                for z in {high_z, 2.0, 3.5}:
+                    lines += [med - s_ * ls * move, med - s_ * hw * move, med + s_ * hw * move, med + s_ * z * spread]
+        both = vals + lines
         lows.append(min(both))
         highs.append(max(both))
     lo, hi = min(lows), max(highs)
@@ -649,6 +662,12 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         y_min = _axis_floor(loaded, direction, moderate_halfwidth, low_step, high_z)
         if y_min is not None:
             line.y_axis.scaling.min = y_min
+            # No fixed axis can follow every leave-out (Codex on #432): leaving
+            # out a calm stretch can widen the spread and push a line below it.
+            # Say so, in the cell over the chart, rather than clip in silence.
+            asx.cell(14, 1, '=IF({f}-{h}<{m},"Part of a line or the left-out strip is below the axis of this chart '
+                            '(fixed at build at {m}): the numbers are right, the picture is cut off.","")'
+                     .format(f=lo_c, h=h_c, m=y_min)).font = Font(bold=True, color=K.CRIMSON)
     line.x_axis.tickLblPos = "low"                 # year labels below the strip, not on it
     line += area
     line += strip

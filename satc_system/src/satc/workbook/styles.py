@@ -1,7 +1,6 @@
 """SATC visual identity for the workbook (re-skin of the CRR styling system).
 
 Firm: Sethuraman Accounting, Tax & Consulting (SATC).
-Tagline: "Complex work, made clear." — Occam's razor: the simplest correct answer.
 
 This module centralizes the palette, fonts, number formats, and reusable cell
 styling so every sheet shares one coherent look: a warm cream/paper canvas with
@@ -222,5 +221,5 @@ def paper_canvas(ws: Worksheet, max_col: int = 14, max_row: int = 200) -> None:
 
 def brand_footer_text() -> str:
     """The footer line stamped on PDF export."""
-    return ("Sethuraman Accounting, Tax & Consulting  ·  Complex work, made clear.  "
+    return ("Sethuraman Accounting, Tax & Consulting  "
             "·  Workpaper — preparer review required  ·  Drake is the system of record.")

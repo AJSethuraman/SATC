@@ -2,8 +2,12 @@ Dear {salutation},
 
 Your {tax_year} return is ready and waiting on one thing: your signature on Form 8879.
 
+It's in an email from Encyro, the service we use for signatures. Encyro texts a code to
+your phone to confirm it's you — enter it when asked. If you can't find the email, or the
+text never arrived, reply and we'll send it again.
+
 We cannot transmit the return to the IRS until we have it back — that's an IRS rule, not
-a preference of ours. Once it's signed, filing usually happens the same day.
+a preference of ours. Once it's signed and your invoice is paid, we file.
 
 If anything in the return looks wrong, tell us before you sign rather than after. It is
 far easier to correct now.

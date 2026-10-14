@@ -739,3 +739,44 @@ def test_a_refused_product_still_shows_where_its_lines_fall(built, tmp_path):
 def test_assess_shows_the_latest_quarter_and_its_score(built):
     _, _, vals = built
     assert vals["ASSESS!E4"] == "2026Q2: 3.978  ->  3 Moderate"
+def test_the_fixed_axis_holds_every_line_the_dials_offer(tmp_path):
+    """Codex on #432: a measure not floored at zero gets a fixed axis minimum
+    at build, which cannot follow later typing, so a larger Moderate-Low step
+    could push score 2's line off the bottom. The minimum now sits under every
+    line the dials try. A noisy series makes the point: at step 2 its line is
+    below every value it ever took."""
+    import random
+    rnd = random.Random(7)
+    src = tmp_path / "noisy.csv"
+    pts = load("cards_nco_ttm.csv")
+    src.write_text("date,value\n" + "".join("%s,%r\n" % (x.date, round(100 + 2 * rnd.random(), 3)) for x in pts),
+                   encoding="utf-8")
+    p = tmp_path / "noisy.xlsx"
+    build(p, [("Noisy", src)], name="N", unit="", direction="higher_is_worse", frequency="quarterly", smoothing=1,
+          floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse", half_lives=(),
+          percentiles=(50,), horizon=4, min_history=41)
+    vals = [float(l.split(",")[1]) for l in src.read_text().splitlines()[1:]]
+    ref = scale(vals, "higher_is_worse", 0.5, 2.0, 2.5, False)
+    low_line = ref["median"] - 2.0 * ref["typical_yearly_move"]
+    assert low_line < min(vals)                                   # the case that was clipped
+    y_min = load_workbook(p)["Assess"]._charts[0].y_axis.scaling.min
+    assert y_min is not None and y_min < low_line
+
+
+def test_a_line_below_the_fixed_axis_is_said_not_clipped_in_silence(tmp_path):
+    """Codex on #432: a fixed axis cannot follow every leave-out or setting.
+    When the floor or the left-out strip falls below it, the cell over the
+    chart says so; as built it says nothing."""
+    import random
+    rnd = random.Random(7)
+    src = tmp_path / "noisy.csv"
+    pts = load("cards_nco_ttm.csv")
+    src.write_text("date,value\n" + "".join("%s,%r\n" % (x.date, round(100 + 2 * rnd.random(), 3)) for x in pts),
+                   encoding="utf-8")
+    p = tmp_path / "noisy.xlsx"
+    build(p, [("Noisy", src)], name="N", unit="", direction="higher_is_worse", frequency="quarterly", smoothing=1,
+          floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse", half_lives=(),
+          percentiles=(50,), horizon=4, min_history=41)
+    assert recalc(p)["ASSESS!A14"] == ""
+    vals = with_settings(p, tmp_path, "far.xlsx", {"I6": 6})
+    assert "below the axis of this chart" in vals["ASSESS!A14"]

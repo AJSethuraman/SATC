@@ -329,27 +329,29 @@ def test_the_invoice_cover_email_arrives_finished():
                            firm_values=lib.firm_values())
     draft = render(lib.template("invoice_cover"), values, library=lib)
 
-    assert draft.is_complete, f"unfilled: {draft.unfilled}"
-    assert "2026-0004" in draft.subject
-    assert "Your federal individual tax return" in draft.body
-    assert "Household rate applied" in draft.body     # the discount is SHOWN
-    assert "640.00" in draft.body                     # full value
-    assert "480.00" in draft.body                     # what they pay
+    # THE EMAIL QUOTES WHAT THEY PAY; THE INVOICE CARRIES THE LINES. The firm,
+    # 13 Oct 2026, cut the breakdown from the email: "tell them they can pay the
+    # $525 there, see a breakdown in the invoice if they want to". So the
+    # amount comes from this invoice, and the discount line does not appear.
+    # No return results are on file in this test, so "what we calculated" is
+    # marked too; the link is the one fact a preparer always adds.
+    assert sorted(draft.unfilled) == ["jurisdiction_summary", "payment_link"], draft.unfilled
+    assert "$480" in draft.body                       # what they pay, from the invoice
+    assert "640.00" not in draft.body                 # the list lives on the invoice now
+    assert "Jordan's last name" in draft.body         # the primary taxpayer, from the record
 
 
-def test_without_an_invoice_the_number_stays_visibly_blank():
+def test_without_an_invoice_the_amount_stays_visibly_blank():
     """The guarantee that did not change: a fact nothing supplies is marked,
-    never guessed. An invoice number is not something a model may invent."""
+    never guessed. An amount owed is not something a model may invent."""
     from satc.comms import build_context, library, render
 
     lib = library()
     values = build_context(client_id="C", client_name="Jordan Rivera", tax_year=2025,
                            firm_values=lib.firm_values())
     draft = render(lib.template("invoice_cover"), values, library=lib)
-    assert "invoice_number" in draft.unfilled
-    # It lives in the SUBJECT now, since the breakdown carries the body.
-    assert "[[ Invoice number: fill in ]]" in draft.subject
-    assert "[[ Invoice breakdown: fill in ]]" in draft.body
+    assert "fee_amount_text" in draft.unfilled
+    assert "fill in ]]" in draft.body
 
 
 # --- a per-line price is a discount by another route --------------------------
