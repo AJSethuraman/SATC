@@ -296,3 +296,18 @@ def test_help_is_help():
     got = subprocess.run([sys.executable, str(CANON / "voice.py"), "--help"],
                          capture_output=True, text=True, cwd=CANON)
     assert got.returncode == 0 and "Run:" in got.stdout
+
+
+
+def test_bassy_fits_where_it_is_printed_whole():
+    """A session-start hook prints Bassy's skill before the first reply, and
+    Claude Code shows a hook's output in full only up to 10,000 characters.
+    Past that the session gets a 2,000-character preview and a file path. SATC
+    sessions got exactly that, because Bassy was printed with the whole record
+    behind it; it now has a part of its own, with a header of about 300
+    characters. This keeps the skill short enough to fit that part."""
+    size = len((CANON / "skills" / "bassy" / "SKILL.md").read_text(encoding="utf-8"))
+    assert size <= 9_600, (
+        f"Bassy's skill is {size:,} characters. Printed with its header at session "
+        f"start it would pass 10,000 and be cut to a preview. Shorten it, or move "
+        f"what grew into a file Bassy points at.")

@@ -1194,7 +1194,7 @@ firm believes, and the reading hasn't had their yes.
    exists differs by machine, and `cat` works in sh, Git Bash and PowerShell.
    It's 2,120 characters, well under the 10,000 Claude Code shows in full.
    SATC prints the same file from its own hook command,
-   `.claude/hooks/talking.sh`, because the session that installs canon may
+   `session-start.sh talking`, because the session that installs canon may
    not run canon's hooks. If both fire, the text appears twice, identical.
    Bassy's skill and the voice skill now point at `VOICE.md` instead of
    carrying their own copies of the list.
@@ -1221,10 +1221,20 @@ review"*). It found nothing blocking. What it did find, and what changed:
   and shows a 2,000-character preview. `session-start.sh` prints Bassy and the
   whole of `CONVICTIONS.md`, about 37,000 characters, so the talking rules
   first appended there could never be read. This session started exactly that
-  way. They now come from their own command, `.claude/hooks/talking.sh`, with
-  their own cap. **Bassy and the record are still cut to the preview**, and
-  that was true before this release; fixing it changes what every SATC session
-  loads, so it went to the firm as a question.
+  way, and so did the resumed one: the talking rules, printed by their own
+  command, came through whole while Bassy's part came through as a preview of
+  36.5KB. **Bassy and the record had been cut to that preview since before this
+  release.** Fixing it changes what every SATC session loads, so it went to the
+  firm as a question. Their answer: *"Ok fix it"*. `session-start.sh` now
+  prints one part per hook command, each with its own cap: `bassy` (9,081
+  characters), `record` (5,936), `role` (3,562 for the research desk, nothing
+  when no role is set) and `talking` (2,120). The record cannot fit whole at
+  28,000 characters, so its part prints every held conviction's own quote,
+  verbatim, with what brings it into play, and names the file for the rest. A
+  summary of the convictions would have been the paraphrase the hook's own
+  comment forbids. Any part that outgrows the cap now says so on its first
+  line, which is the line the preview keeps, and a canon test holds Bassy's
+  skill under the size that keeps its part whole.
 - **The British list missed derived forms:** "behaviourally" in Bassy's own
   skill, plus organiser, enrolment, practising, centred and others. The
   families now take their suffixes, and the list says it is closed.
@@ -1253,6 +1263,7 @@ review"*). It found nothing blocking. What it did find, and what changed:
 per-line search restored, curly quotes not normalized, an unreadable file
 crashing, an empty source counted, the British tell made case-sensitive (the
 review's one surviving mutant), and the open tell widened back to "are".
-**The whole release: 17 planted, 17 killed.**
+**The whole release: 18 planted, 18 killed**, the last being the Bassy size
+guard set below Bassy's own size.
 
-1.22.0 → **1.23.0**. 228 → 266 passing.
+1.22.0 → **1.23.0**. 228 → 267 passing.

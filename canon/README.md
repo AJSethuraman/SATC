@@ -160,7 +160,7 @@ a repository that predates canon can be adopted.
 | `skills/walk/` | walking the product in a browser: the procedure a person follows, and the defects only a screen shows |
 | `skills/tie-out/` | one figure traced to an independent authority, reproducible by a skeptic |
 
-`python -m pytest -q tests` — 266 tests, including one that copies the whole
+`python -m pytest -q tests` — 267 tests, including one that copies the whole
 tree into a fresh repository with no SATC above it and runs everything there.
 Every guard has been mutation-checked: break it on purpose, and a test must go
 red. **55 mutants planted, 55 killed**, after five survivors that were each the
