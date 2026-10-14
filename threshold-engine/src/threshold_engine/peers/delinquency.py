@@ -434,6 +434,32 @@ def industry_delinquency(data: Dict[str, list], product: str, measure: str) -> L
     return out
 
 
+#: What the comparability tie-out (14 Oct 2026) found about comparing a
+#: measure across banks. Each is stated in the notes of every series it
+#: touches, so the Sources tab carries it; none changes a number.
+POLICY = ("Across banks, read with care: whether a late consumer or 1-4 family loan stays accruing or "
+          "goes to nonaccrual is partly each bank's policy (the Call Report allows both; at 30 Jun 2026, "
+          "10 of the 16 roster banks filed zero card nonaccrual). Compare banks on 90+ incl. nonaccrual "
+          "or 30+ incl. nonaccrual.")
+GUARANTEED = ("Mortgage: past-due counts include government-guaranteed loans (rebooked GNMA, RC-N items 11 "
+              "to 11.b), at no loss to the bank. At some peers they are most of first-lien 90+ accruing (up "
+              "to 94-103%, an upper bound: the line is not split by loan type). Compare mortgage across "
+              "banks on nonaccrual and charge-offs.")
+
+
+def comparability(product: str, measure: str) -> List[str]:
+    """The note lines on comparing ``product``'s ``measure`` across banks;
+    empty when the tie-out found nothing to say."""
+    if measure not in MEASURES:
+        raise ValueError("measure must be one of %s, not %r" % (list(MEASURES), measure))
+    lines = []
+    if measure in ("90+ accruing", "nonaccrual"):
+        lines.append(POLICY)
+    if product == "Mortgage" and "p9" in MEASURES[measure]:
+        lines.append(GUARANTEED)
+    return lines
+
+
 def values(rows: Iterable[dict], basis: str) -> List[Tuple[str, Optional[float]]]:
     """``(q, value)`` pairs on ``basis`` from any of this module's row lists,
     the shape ``books.write_series`` takes."""

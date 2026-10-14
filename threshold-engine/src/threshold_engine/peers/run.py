@@ -380,9 +380,15 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                                                     acquired=acquired[p].get(b["cert"], []))
                       for b in roster}
             comp = D.composite_delinquency(banks_, certs, min_banks)
+            mid = {b_: D.band_delinquency(banks_, certs, b_, (50,), min_banks=min_banks) for b_ in D.BASES}
+            median = [{"q": a["q"], D.BASES["quarter-end"]: a["p50"],
+                       D.BASES["four-quarter average"]: f["p50"]}
+                      for a, f in zip(mid["quarter-end"], mid["four-quarter average"])]
             for who, words, ruled, rows in (
                     ("pack-composite", "pack composite (%s): kept banks' numerators summed over their "
                      "balances summed" % pack_words, comp_rule, comp),
+                    ("pack-median", "pack median (%s): the middle bank's rate, each bank counted once "
+                     "whatever its size, under each bank's own rules" % pack_words, rule, median),
                     (slug(me["short"]), "%s (certificate %s), its own book" % (me["short"], me["cert"]),
                      rule, banks_[me["cert"]]),
                     ("industry", "industry: " + every, None, D.industry_delinquency(data, p, m))):
@@ -395,6 +401,7 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                             "Amounts are $ thousands at quarter-end, as filed; a field not filed is "
                             "never read as 0.",
                             words[0].upper() + words[1:] + ".", source] + ([ruled] if ruled else [])
+                    note += D.comparability(p, m)
                     left_out = ({r["q"]: r["avg4_left_out"] for r in comp}
                                 if rows is comp and basis == "four-quarter average" else None)
                     made.append((out_dir / ("%s_%s_delinquency-%s_%s.csv" % (slug(p), who, slug(m), slug(basis))),
@@ -568,11 +575,21 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                                           exempt_min_book=exempt_self and b is me,
                                           acquired=acquired[p].get(b["cert"], [])) for b in roster_}
         comp = books.composite(bks, [b["cert"] for b in pack_], min_banks)
+        mids = {k: books.band(bks, [b["cert"] for b in pack_], k, (50,), min_banks=min_banks)
+                for k in ("gross", "net")}
+        median = [{"quarter": g["quarter"], "gross_rate": g["p50"], "net_rate": n["p50"]}
+                  for g, n in zip(mids["gross"], mids["net"])]
         made += [
             (p, slug(p), "pack-composite",
              "pack composite (%s): kept flows over kept average balances" % pack_words, True, comp),
+            (p, slug(p), "pack-median",
+             "pack median (%s): the middle bank's kept rate, each bank counted once whatever its "
+             "size" % pack_words, True, median),
             (p, slug(p), slug(me["short"]),
-             "%s (certificate %s), its own book" % (me["short"], me["cert"]), True, bks[me["cert"]]),
+             "%s (certificate %s), its own book. %s" % (me["short"], me["cert"],
+                                                       books.balance_path(bks[me["cert"]], 9) or
+                                                       "Book: fewer than nine quarters held, so its path "
+                                                       "is not stated"), True, bks[me["cert"]]),
             (p, slug(p), "industry", "industry: " + every, False, ind[p]),
         ]
     for names in combined_:

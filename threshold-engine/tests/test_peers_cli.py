@@ -88,9 +88,9 @@ def test_build_writes_the_workbook_and_six_series_per_product(built):
     wb = load_workbook(built["out"])
     assert wb.sheetnames[:2] == ["Pack", "Peers"] and "Run" in wb.sheetnames
     names = sorted(p.name for p in built["series"].glob("*.csv"))
-    assert len(names) == 4 * 6
+    assert len(names) == 4 * 8
     for slug in ("credit-card", "mortgage", "home-equity", "other-consumer"):
-        for who in ("pack-composite", "keybank", "industry"):
+        for who in ("pack-composite", "pack-median", "keybank", "industry"):
             for kind in ("gross", "net"):
                 assert "%s_%s_%s.csv" % (slug, who, kind) in names
 
@@ -685,10 +685,10 @@ def test_delinquency_yes_writes_every_product_measure_basis_and_series(dq_built)
     dq = {n for n in names if "_delinquency-" in n}
     want = {"%s_%s_delinquency-%s_%s.csv" % (p, who, m, b)
             for p in ("credit-card", "mortgage", "home-equity", "other-consumer", "auto")
-            for who in ("pack-composite", "keybank", "industry")
+            for who in ("pack-composite", "pack-median", "keybank", "industry")
             for m in DQ_MEASURES.values() for b in DQ_BASES.values()}
-    assert dq == want and len(dq) == 150
-    assert len(names - dq) == 5 * 3 * 2
+    assert dq == want and len(dq) == 200
+    assert len(names - dq) == 5 * 4 * 2
     wb = load_workbook(dq_built["out"])
     assert "Delinquency" in wb.sheetnames and "DelinquencyData" in wb.sheetnames
 
@@ -784,7 +784,7 @@ def test_the_workbook_is_given_the_stated_delinquency_rules(dq_cache, tmp_path, 
     assert dq["exempt_self"] is False
     assert (dq["measure"], dq["basis"]) == (next(iter(D.MEASURES)), next(iter(D.BASES)))
     assert all(f in dq["data"]["20260630"][0] for f in D.fields_for(["Auto", "Mortgage"]))
-    assert 0 < len(list(series.glob("*_delinquency-*.csv"))) <= 2 * 5 * 2 * 3
+    assert 0 < len(list(series.glob("*_delinquency-*.csv"))) <= 2 * 5 * 2 * 4
     assert not list(series.glob("credit-card_*"))
 
 
@@ -793,7 +793,7 @@ def test_delinquency_no_writes_none_and_the_tab_says_so(dq_cache, tmp_path, caps
     args = with_value(with_value(BUILD, "--first", "2017Q1"), "--products", "Credit card")
     rc, out, series = build_into(tmp_path, cache, args)
     assert rc == 0, capsys.readouterr().err
-    assert not list(series.glob("*_delinquency-*")) and len(list(series.glob("*.csv"))) == 6
+    assert not list(series.glob("*_delinquency-*")) and len(list(series.glob("*.csv"))) == 8
     cells = [str(c.value) for row in load_workbook(out)["Delinquency"].iter_rows() for c in row if c.value]
     assert any(peers_workbook.NOT_BUILT in c for c in cells)
 

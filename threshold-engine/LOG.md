@@ -873,3 +873,12 @@ The comparability tie-out's gap 5, built.
   whom); `peers build` requires `--absorptions` and `--acquisition-share`.
   A cache pulled before today has no RSSDHCR: build refuses, naming the
   banks, only where an absorption needs it. Pull again with refresh.
+- **Then, same day:** a **pack median** series beside the pack composite
+  (charge-offs and every delinquency measure and basis): the middle bank,
+  each counted once whatever its size, as the firm chose "both" over a total
+  alone. Every delinquency file now carries the tie-out's comparability
+  findings in its notes (nonaccrual is partly policy; mortgage past-due
+  includes rebooked GNMA), so the Sources tab says it. KeyBank's own series
+  state the book's path over nine quarters (balance at both ends, quarters
+  it fell): facts, no line drawn for "run-off". Full suite before these:
+  825 passed; the peers CLI and combination tests after: 142 passed.

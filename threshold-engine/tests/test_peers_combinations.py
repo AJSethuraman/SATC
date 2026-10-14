@@ -194,3 +194,22 @@ def test_delinquency_blanks_the_four_quarter_average_at_an_acquisition_never_a_r
     assert [r["avg4"] is None for r in bought] == [True, True, True, True, True, False, False, False]
     assert bought[4]["why_avg4"].startswith(D.WHY_ACQUIRED_PREFIX)
     assert plain[4]["avg4"] == 1.0
+
+
+def test_the_comparability_lines_follow_the_tie_out():
+    from threshold_engine.peers import delinquency as D
+    assert D.comparability("Credit card", "30+ incl. nonaccrual") == []
+    assert D.comparability("Credit card", "nonaccrual") == [D.POLICY]
+    assert D.comparability("Mortgage", "90+ accruing") == [D.POLICY, D.GUARANTEED]
+    assert D.comparability("Mortgage", "90+ incl. nonaccrual") == [D.GUARANTEED]
+    assert D.comparability("Mortgage", "30-89") == []
+    with pytest.raises(ValueError):
+        D.comparability("Mortgage", "60+")
+
+
+def test_the_books_path_is_stated_not_judged():
+    from threshold_engine.peers.books import balance_path
+    rows = [{"quarter": "2024Q%d" % (i % 4 + 1), "avg_balance": 100.0 - 5 * i} for i in range(9)]
+    line = balance_path(rows, 9)
+    assert "100 ($000)" in line and "60 at" in line and "(-40.0%)" in line and "fell in 8 of the 8" in line
+    assert balance_path(rows[:5], 9) is None

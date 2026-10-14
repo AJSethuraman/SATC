@@ -501,6 +501,26 @@ def industry(data: Dict[str, list], product: str,
     return out
 
 
+def balance_path(rows: Sequence[dict], quarters: int) -> Optional[str]:
+    """One note line on where a bank's book has gone over its last
+    ``quarters`` TTM quarters, from ``bank_book`` rows: the four-quarter
+    average balance at both ends, the change, and in how many of the
+    quarters it fell. None when fewer quarters are held. It states the path
+    and draws no line for what counts as a shrinking book: a rate rising
+    while the balance falls may be the balance, not the risk."""
+    _at_least("quarters", quarters, 2)
+    if len(rows) < quarters:
+        return None
+    last = rows[-quarters:]
+    a, b = last[0]["avg_balance"], last[-1]["avg_balance"]
+    fell = sum(1 for x, y in zip(last, last[1:]) if y["avg_balance"] < x["avg_balance"])
+    change = "%+.1f%%" % (100 * (b / a - 1)) if a > 0 else "from none"
+    return ("Book: four-quarter average balance %s ($000) at %s, %s at %s (%s); it fell in %d of the "
+            "%d quarters since. A rate rising while the balance falls can be the balance, not the risk"
+            % ("{:,.0f}".format(a), last[0]["quarter"], "{:,.0f}".format(b), last[-1]["quarter"], change,
+               fell, quarters - 1))
+
+
 def write_series(rows: Iterable[tuple], path, note) -> Path:
     """Write ``(quarter, value)`` pairs as the ``date,value`` CSV the workbook
     reads: quarter-end ISO dates, the note as ``#`` lines first. A quarter
