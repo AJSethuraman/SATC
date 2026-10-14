@@ -3555,6 +3555,11 @@ changed in the code.
     that RANR is below zero, *"lost money outright"* goes. All in `pocketbook/VOICE.md`.
   - **Proposal 3, the launcher's term lines** (asked for on 27 Sep, decision F): the firm, 14 Oct 2026, *"Drop the
     lines"*. They are removed, not reworded. **Still open:** the marks on the rest.
+- **Docket, 14 Oct 2026 (open items only):** https://claude.ai/artifact/FDbirziK1xDwiH6cfPMRAM, answers in its database
+  (collection `decisions`). Asks: 1, build the wording pass with every unmarked proposal as Use it; 2, the bank's loan
+  count against Start here's; 3, any Excel "repaired" message; 4, accept the eleven older "for the firm to confirm"
+  notes as built. **Next (silence approves):** build the wording pass on #440 once item 1 is answered; until then,
+  reproduce or retract the Summary vintage chart's "breaks past about 42 years".
 
 ## 7 · Standing rules for new items
 
