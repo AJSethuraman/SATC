@@ -1144,3 +1144,40 @@ Built on branch `threshold-engine-synthesis-tab` (from `e401c5be`), in
   the review), and peers without KeyBank's filed series are refused before
   anything is drawn, in `synthesize`'s words. Two tests hold each to
   `synthesize` on the same inputs.
+
+## 14 October 2026, the merges, and one workbook for the meeting
+
+**Merges.** Codex stayed over its usage limit. Asked whether the independent
+agent review was enough to merge #432, #434 and #438 (the PocketBook rule of
+3 Oct), the firm: *"Yes"*. Merged in the agreed order. Before #432 merged, its
+walkthrough page was fixed: the expected build line had a carriage return
+where `\r` was meant (`outehearsal.xlsx`), and the file had become CRLF.
+Merging #432 into #434 and #438 conflicted in LOG.md, the tests and the
+checklist PDF (kept both sides; PDF re-rendered); in #438 also in
+`workbook.py`, where Assess is now built by `assess_tab.py`. #432's warning
+when a line falls below the fixed axis moved to B7:L7, the row over the
+chart. Suites on the merged trees: #432's workbook, template and CLI tests
+186 passed; #434 785 passed; #438 1,012 passed.
+
+**The meeting workbook.** The firm: *"I have a meeting tomorrow send me a ran
+workbook to see if I want to use it"*, *"All data that we have so far"*, then
+*"i did not want a bunch of workbooks i wanted one workbook with a lot of
+good info"*. Sent one: `Consumer credit thresholds.xlsx`, 95 series (five
+products by seven measures: net and gross charge-offs, trailing twelve
+months; 30-89, 90+ accruing, nonaccrual, 30+ and 90+ including nonaccrual,
+quarter-end), each from the industry (every filer), the 15-peer pack
+composite and KeyBank; with the `peers build` tabs copied in as "Peers ...".
+Card's settings throughout (0.5 / 1.0 / 2.5, worse, 41 quarters), stated as
+card's, not a decision for the rest. 42 of 95 refused, card in none.
+KeyBank's charge-offs are not in it: 34 quarters since the First Niagara
+break, 45 needed. Calculated in Excel 16, 0 visible errors on 20 tabs; the
+60 series also built as separate workbooks match them exactly. The copied
+peers tabs left an external link to `peers.xlsx` that nothing used; broken,
+and all 698,135 cells compared equal before and after.
+
+- **Found while building it:** a workbook of 36 or more series failed (the
+  Chart tab's title ran into its helpers at column AN). Fixed; test added.
+- **Got wrong, corrected:** a first note said 28 of 60 refused in the
+  separate workbooks; it was 27 (KeyBank 14, not 15). An Excel process was
+  force-closed during the run; any workbook the firm had open in Excel then
+  closed unsaved.
