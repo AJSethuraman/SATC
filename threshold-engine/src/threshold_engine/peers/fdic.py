@@ -2,11 +2,11 @@
 
 Public data only: the FDIC BankFind API. Nothing from KeyBank's books.
 
-    financials  https://banks.data.fdic.gov/api/financials -- one request per
+    financials  https://api.fdic.gov/banks/financials -- one request per
                 quarter-end REPDTE (YYYYMMDD), every filer, 10,000 rows a page.
                 A row is a dict: CERT, REPDTE and the fields asked for. Amounts
                 are $ thousands; DR* and CR* are year-to-date, LN* quarter-end.
-    history     https://banks.data.fdic.gov/api/history -- structure changes.
+    history     https://api.fdic.gov/banks/history -- structure changes.
                 Which quarters a whole-bank acquisition makes uncomparable.
 
 The rules, as the earlier pull scripts applied them (pull_peers_2006.py and
@@ -40,8 +40,8 @@ import urllib.request
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-FINANCIALS_URL = "https://banks.data.fdic.gov/api/financials"
-HISTORY_URL = "https://banks.data.fdic.gov/api/history"
+FINANCIALS_URL = "https://api.fdic.gov/banks/financials"
+HISTORY_URL = "https://api.fdic.gov/banks/history"
 PAGE = 10000
 ATTEMPTS = 4
 BACKOFF_SECONDS = 5          # wait 5 x attempt number between attempts

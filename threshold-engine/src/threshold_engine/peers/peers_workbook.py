@@ -81,8 +81,8 @@ SELF_FILL = PatternFill("solid", fgColor=K.ALERT_FG)
 NOTE = Font(name="Arial", size=9, italic=True, color=K.SLATE)
 WORST, BEST = "Worst in pack", "Best in pack"
 PACKS = ("all", "regionals")
-SOURCES = ("FDIC BankFind financials: https://banks.data.fdic.gov/api/financials",
-           "FDIC BankFind structure changes: https://banks.data.fdic.gov/api/history")
+SOURCES = ("FDIC BankFind financials: https://api.fdic.gov/banks/financials",
+           "FDIC BankFind structure changes: https://api.fdic.gov/banks/history")
 
 # Pack tab layout.
 P_PRODUCT, P_A, P_B, P_KIND, P_LASTN, P_MINOBS, P_MINBANKS = (4, 5, 6, 7, 8, 9, 10)

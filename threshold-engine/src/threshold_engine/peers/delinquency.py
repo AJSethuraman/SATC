@@ -18,7 +18,7 @@ Auto            LNAUTO     P3AUTO       P9AUTO            NAAUTO
 =============== ========== ============ ================= ==========
 
 First quarter each field is filed. Probed against the live API
-(``https://banks.data.fdic.gov/api/financials``, filter ``FIELD:[* TO *]``,
+(``https://api.fdic.gov/banks/financials``, filter ``FIELD:[* TO *]``,
 sorted by REPDTE ascending, every filer) on **12 Oct 2026**. "Filed" means at
 least one filer has a value that quarter; 1984Q1 is the first quarter the API
 holds at all, so a field shown as 1984Q1 may have been filed earlier:
