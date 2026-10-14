@@ -3534,6 +3534,24 @@ changed in the code.
     skipped (the window tests). Planted bugs: 6 added to `tools/mutation_check.py`, 6 of 6 caught, each by a failed
     test, with DISPLAY unset; every entry's old string occurs once (707).
 
+- **The VOICE pass on the other tabs, proposed (14 Oct 2026).** The firm: *"spawn an agent whose sole job is to scan for
+  rewording opportunities. Do not change key terms though we are keeping them. Key terms are things like pocket, RANR,
+  GCO, better at, worse at"*. One agent scanned every tab but the audit workbook and the Glossary (134 proposals), a
+  second checked each against the code and the firm's decisions (38 corrected, none dropped), and a third read them
+  against the firm's new canon voice (PR #439; 7 revised, none worse than what is there now). The page the firm marks:
+  https://claude.ai/artifact/H1B5AikussADwR3az7Fphq (its database holds the marks). Nothing is built until marked.
+  - **Found on the way:** the Glossary's RANR line (*"Risk-adjusted net revenue … interest, fees and interchange, less
+    rewards and charge-offs"*) and its GCO line (*"before any recoveries"*) were written by a session on 2 Oct and
+    contradict or go beyond the firm's own definition (26 Sep: *"RANR is profit after losses — interest income + fees −
+    cost of funds − losses"*). Item G on the page.
+  - **Where canon's voice and PocketBook's disagree, the firm's answers (14 Oct 2026):** a "Note:" saying what a result
+    does not mean (proposal 114 cuts *"That is not proof there is none."*): *"keep this as we have it"*, so PocketBook's
+    no-self-protective-sentences rule holds. Acronyms spelled out on first use: *"Add this"*. Both are in
+    `pocketbook/VOICE.md`.
+  - **Still open:** S, American spelling in PocketBook (canon says American; `VOICE.md` says *grey*/*coloured* until
+    the firm says otherwise; 13 proposals and some tab names); G, what RANR stands for and whether GCOs are before or
+    after recoveries; 69, keep *"lost money outright"* or say only *"RANR below zero"*; and the marks.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
