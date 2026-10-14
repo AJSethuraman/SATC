@@ -572,10 +572,12 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     pack_words = "all %d peers" % len(pack_) if pack == "all" else "%d regionals" % len(pack_)
 
     made = []                   # (product words, file slug, who, words, rules apply?, rows)
+    peer_books = {}
     for p in products:
         bks = {b["cert"]: books.bank_book(data, b["cert"], p, jump, min_book,
                                           exempt_min_book=exempt_self and b is me,
                                           acquired=acquired[p].get(b["cert"], [])) for b in roster_}
+        peer_books[p] = bks
         comp = books.composite(bks, [b["cert"] for b in pack_], min_banks)
         mids = {k: books.band(bks, [b["cert"] for b in pack_], k, (50,), min_banks=min_banks)
                 for k in ("gross", "net")}
@@ -608,6 +610,18 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             note += [books.DEFINITIONS[n] for n in words_p.split(" plus ") if n in books.DEFINITIONS]
             series.append((out_dir / ("%s_%s_%s.csv" % (slug_, who, kind)), tail,
                            series_note(note, tail, before, after), before, after, None))
+    # Each peer's own book, for the synthesis's peer percentiles: banks/ keeps
+    # them apart from the pack, KeyBank and industry files beside it.
+    for p in products:
+        for b in R.peers(roster_):
+            rows = peer_books[p][b["cert"]]
+            for kind in ("gross", "net"):
+                tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
+                note = ["%s, %s charge-off rate, trailing four quarters, %%." % (p, kind),
+                        "%s (certificate %s), its own book, a peer." % (b["short"], b["cert"]),
+                        source, rule, repeat_note] + ([books.DEFINITIONS[p]] if p in books.DEFINITIONS else [])
+                series.append((out_dir / "banks" / ("%s_%s_%s.csv" % (slug(p), slug(b["short"]), kind)), tail,
+                               series_note(note, tail, before, after), before, after, ("banks", p)))
     dq_spec = None
     if delinquency:
         names = {b["cert"]: "%s (%s)" % (b["short"], b["cert"]) for b in roster_}
@@ -671,13 +685,17 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         if group is not None:
             written[group][0] += 1
             written[group][2] += bool(before)
-            if not after:
+            if not after or isinstance(group, tuple):
                 continue        # 150 files: counted below; what each leaves out is in its notes
         say("Wrote %s: %d quarters%s%s"
             % (path, len(tail), ", %d earlier left out at a break" % len(before) if before else "",
                ", ends %s: %d later quarter%s with no value"
                % (tail[-1][0], len(after), "" if len(after) == 1 else "s") if after else ""))
     for p, (n, of, broke) in written.items():
+        if isinstance(p, tuple):
+            say("Each peer's own book, %s: %d of %d series written to %s"
+                % (p[1], n, of, out_dir / "banks"))
+            continue
         say("Delinquency, %s: %d of %d series written to %s%s"
             % (p, n, of, out_dir, "; %d start after a break (a four-quarter average always does), "
                "the quarters left out named in each file's notes" % broke if broke else ""))

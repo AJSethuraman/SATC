@@ -213,3 +213,24 @@ def test_the_books_path_is_stated_not_judged():
     line = balance_path(rows, 9)
     assert "100 ($000)" in line and "60 at" in line and "(-40.0%)" in line and "fell in 8 of the 8" in line
     assert balance_path(rows[:5], 9) is None
+
+
+def test_a_year_to_date_restarted_under_a_new_parent_is_the_quarters_flow():
+    """National City under PNC, 2008Q4: its card year-to-date went from
+    94,608 to 0 as its parent changed. Differencing read -94.6m; the FDIC's
+    Quarterly Banking Profile counts the filed year-to-date (14 Oct 2026)."""
+    from threshold_engine.peers.books import flow, quarterly_flows, restarted
+    prev = {"CERT": 6557, "REPDTE": "20080930", "LNCRCD": 1.0, "DRCRCD": 94608, "CRCRCD": 6221, PARENT: "1069125"}
+    now = dict(prev, REPDTE="20081231", DRCRCD=0, CRCRCD=0, **{PARENT: "1069778"})
+    assert restarted(now, prev, "DRCRCD") and flow(now, prev, "DRCRCD") == 0
+    same = dict(now, **{PARENT: "1069125"})
+    assert not restarted(same, prev, "DRCRCD") and flow(same, prev, "DRCRCD") == -94608
+    rose = dict(now, DRCRCD=100000)
+    assert not restarted(rose, prev, "DRCRCD") and flow(rose, prev, "DRCRCD") == 100000 - 94608
+    for blank in ("", None, "0"):
+        assert not restarted(dict(now, **{PARENT: blank}), prev, "DRCRCD")
+    data = {"20080930": [prev], "20081231": [now]}
+    assert quarterly_flows(data, "6557", "Credit card")[1][1:3] == (0, 0)
+    assert [r for r in industry({"20080331": [dict(prev, REPDTE="20080331", DRCRCD=30000, CRCRCD=2000)],
+                                 "20080630": [dict(prev, REPDTE="20080630", DRCRCD=60000, CRCRCD=4000)],
+                                 **data}, "Credit card")][0]["gross"] == 30000 + 30000 + 34608 + 0

@@ -150,6 +150,30 @@ def _parser():
     wbp.add_argument("--half-lives", type=_number, nargs="+", default=[], metavar="YEARS")
     _peers_parser(sub)
     _template_parser(sub)
+    sy = sub.add_parser("synthesize", help="internal, industry and peers side by side, line by line; "
+                        "each line taken from the source you name")
+    g = sy.add_argument_group("the series, all required except the peers")
+    g.add_argument("--internal", required=True, metavar="FILE", help="KeyBank's own series (date,value)")
+    g.add_argument("--industry", required=True, metavar="FILE")
+    g.add_argument("--filed", metavar="FILE", help="KeyBank's filed series, to carry peers to the internal level")
+    g.add_argument("--peer", action="append", default=[], metavar="NAME=FILE",
+                   help="one peer's series; repeat for each (peers build writes them to SERIES-DIR/banks)")
+    j = sy.add_argument_group("the judgements, all required")
+    j.add_argument("--unit", required=True)
+    j.add_argument("--direction", required=True, choices=["higher_is_worse", "lower_is_worse"])
+    _scale_args(j)
+    j.add_argument("--floor-at-zero", required=True, type=_yes_no)
+    j.add_argument("--translation", required=True, choices=["median ratio", "none"],
+                   help="how industry lines are carried to the internal level")
+    j.add_argument("--peer-percentiles", nargs=4, type=_number, metavar="P",
+                   help="the percentile across peers for lines 2, 3, 4 and 5; required with --peer")
+    j.add_argument("--leads", required=True, nargs=4, choices=["internal", "industry", "peers"],
+                   metavar="SOURCE", help="where lines 2, 3, 4 and 5 come from: internal, industry or peers")
+    co = sub.add_parser("compare", help="two series of one measure side by side, by calendar quarter: "
+                        "the cross-check (facts only, no tolerance)")
+    co.add_argument("a", help="a date,value CSV")
+    co.add_argument("b", help="the series to compare it with")
+    co.add_argument("--every", action="store_true", help="one line per quarter as well")
     return top
 
 
@@ -325,6 +349,30 @@ def main(argv=None):
             return _peers_pull(a) if a.peers_command == "pull" else _peers_build(a)
         except (ValueError, OSError, RuntimeError) as exc:
             return _refused(exc)
+    if a.command == "synthesize":
+        try:
+            from .synthesis import report as synthesis_report, synthesize
+            peers = {}
+            for item in a.peer:
+                name, sep, path = item.partition("=")
+                if not sep or not name or not path:
+                    return _refused("--peer takes NAME=FILE, not %r" % item)
+                peers[name] = read_csv(path)
+            r = synthesize(read_csv(a.internal), read_csv(a.industry), read_csv(a.filed) if a.filed else None,
+                           peers, direction=a.direction, halfwidth=a.moderate_halfwidth, low_step=a.low_step,
+                           high_z=a.high_z, floor_at_zero=a.floor_at_zero, on_the_line=a.on_the_line,
+                           translation=a.translation, peer_percentiles=a.peer_percentiles, leads=a.leads)
+        except (SeriesError, ValueError, OSError) as exc:
+            return _refused(exc)
+        print(synthesis_report(r, a.unit))
+        return 0
+    if a.command == "compare":
+        try:
+            from .compare import files
+            print(files(a.a, a.b, a.every))
+        except (SeriesError, ValueError, OSError) as exc:
+            return _refused(exc)
+        return 0
     if a.command == "profile":
         try:
             pr = profile(_read(a.csv), a.name, a.unit, a.direction, a.frequency, a.smoothing)

@@ -104,6 +104,7 @@ kept (nothing could rate High); or Moderate-Low would begin at or below zero.
 | `profile` | `profile.py` | Facts only, no judgement settings: distribution, every spell above the median, how often each upper percentile was reached, percentiles without the largest spell, where the latest value ranks | Consistent with the workbook |
 | `evidence` | `evidence.py` | The statistics behind each judgement (robust z of each spell, return periods, deepest dips, temporary departures), then the lines under three scenarios and at stated half-lives | On the workbook's scale (`scale.py`) since 12 Oct |
 | `backtest` | `backtest.py` | Rebuilds a percentile scale each quarter from the history up to and including that quarter (never after), and reports how well scores predicted the level and the change a stated number of quarters ahead, with and without recency weighting | Uses a percentile scale, not the workbook's |
+| `compare` | `compare.py` | Two series of one measure matched by calendar quarter (a series dated at the quarter's first day meets one dated at its end): the quarters both hold, the mean and largest difference, and with `--every` one line per quarter. Facts only, no tolerance | The cross-check: FDIC industry series against the Federal Reserve's (the firm, 13 Oct: "FDIC for all", the Fed kept as a cross-check) |
 
 ## The window (`launcher.py`, `Thresholds.pyw`)
 
@@ -123,6 +124,26 @@ refused.
 window makes without a display; three open a real window, one of them
 pressing Run.
 
+## Synthesis (`synthesis.py`, command `synthesize`)
+
+The firm, 13 Oct 2026: an industry perspective, a competitive one and an
+internal one, synthesized into reasonable thresholds. For one product and
+one measure, each perspective proposes the four lines where ratings 2 to 5
+begin, and the firm names which perspective each line is taken from
+(`--leads`, four words, no default):
+
+| Perspective | Its lines |
+|---|---|
+| internal | the workbook's scale on KeyBank's own history. A calm history (2014 on, the pandemic its only stress) can place lines 2 to 4 and refuses line 5, saying so |
+| industry | the same scale on the industry's history, which holds 2008-10, carried to the internal level (`--translation "median ratio"`: times the median of internal / industry over the quarters both hold; or `none`) |
+| peers | each peer's median over the internal quarters, the stated percentiles of those (`--peer-percentiles`, four, rising), carried to the internal level by the median of internal / KeyBank filed |
+
+The chosen lines must still run in order; if not, it refuses and names the
+pair. Beside them it states the latest internal quarter's rating and how
+many peers KeyBank's filed median is worse than: facts, no alarm level.
+`peers build` writes each peer's own charge-off series to
+`SERIES-DIR/banks/` for `--peer NAME=FILE`.
+
 ## Peers (`peers/`, commands `peers pull` and `peers build`)
 
 Public FDIC Call Report data for KeyBank and a 16-bank roster
@@ -132,7 +153,7 @@ Public FDIC Call Report data for KeyBank and a 16-bank roster
 |---|---|
 | `peers pull` (`fdic.py`) | Fetches every filer's quarter into a cache folder, only quarters not already there. Refuses a quarter the FDIC has not published (0 filers), a page count that does not match the API's own total, or a row that arrives twice. With `--mergers`, the FDIC's acquisition record, classified; a change code nobody has classified stops the pull and is named |
 | `peers pull --delinquency yes` | Also the 30-89, 90+ accruing and nonaccrual fields per product. A cache pulled without them is refused by name for a delinquency build |
-| `peers build` (`books.py`, `analyses.py`, `delinquency.py`, `peers_workbook.py`, through `run.py`) | Reads the cache only. Per bank, product and quarter: TTM gross and net charge-off rates, with a window left out when the book moved more than the stated jump, when that quarter's recorded acquisitions brought in at least the stated acquisition share of the book, or when it was under the stated minimum. Where a bank absorbed another under the same parent, the absorbed bank's year-to-date, which the survivor's filing repeats, is taken off, so no dollar counts twice (the industry series included). Writes the peer workbook and, per product, `date,value` CSVs the main workbook reads: pack composite, KeyBank, industry |
+| `peers build` (`books.py`, `analyses.py`, `delinquency.py`, `peers_workbook.py`, through `run.py`) | Reads the cache only. Per bank, product and quarter: TTM gross and net charge-off rates, with a window left out when the book moved more than the stated jump, when that quarter's recorded acquisitions brought in at least the stated acquisition share of the book, or when it was under the stated minimum. Where a bank absorbed another under the same parent, the absorbed bank's year-to-date, which the survivor's filing repeats, is taken off, so no dollar counts twice (the industry series included). Writes the peer workbook and, per product, `date,value` CSVs the main workbook reads: pack composite, pack median, KeyBank, industry, and each peer's own book under `banks/`. A year-to-date that restarts mid-year under a new parent (push-down accounting) is read as that quarter's flow, not differenced. Other consumer's balance is RC-C 6.b + 6.d; card quarters before 2010 are labelled as excluding securitized cards |
 
 With `--delinquency yes` it also writes, per product, measure and basis,
 the delinquency CSVs for the pack composite, KeyBank and the industry: 150

@@ -12,6 +12,8 @@ The rule, as ``build_peers.py`` applied it (6 Oct 2026):
 
 - quarterly flow: Q1 is its year-to-date; a later quarter is its year-to-date
   less the previous quarter's, or missing if the bank is absent from either;
+  where the year-to-date fell and the bank's parent changed, it restarted
+  (``restarted``) and is the quarter's flow;
 - TTM: the four quarters i-3 to i; the average balance is the mean of their
   four quarter-end balances;
 - a bank-quarter is kept only if the average balance is at least the minimum
@@ -59,6 +61,11 @@ PRODUCTS = {
 #: What a product's series notes must say about its definition. Stated in
 #: every file built for the product, so the Sources tab carries it.
 DEFINITIONS = {
+    "Credit card": ("Securitized cards: before 2010, cards a bank had securitized were off its books, so "
+                    "quarters before 2010Q1, and four-quarter windows holding one (through 2010Q3), exclude "
+                    "them. From 1 Jan 2010 the accounting rules (FAS 166 and 167) brought them back on. The "
+                    "firm chose to label these quarters, not drop them (14 Oct 2026); the comparability "
+                    "tie-out measured the break in the industry rate at about +0.9 points."),
     "Other consumer": ("Other consumer's balance is RC-C 6.b, other revolving credit plans (LNCONRP), plus "
                        "6.d (LNCONOTH), matching its charge-offs (RI-B 5.c) and past-due lines (RC-N 5.c), "
                        "which both include those plans. The FDIC data has no 6.b before 2001Q1: before it "
@@ -177,11 +184,37 @@ def _by_cert(data: Dict[str, list]) -> Tuple[List[str], Dict[str, Dict[str, dict
     return qs, {q: {str(r["CERT"]): r for r in data[q]} for q in qs}
 
 
+def _parent(row: dict) -> str:
+    v = str(row.get(PARENT) or "").strip()
+    return "" if v == "0" else v
+
+
+def restarted(row: dict, prev: dict, field: str) -> bool:
+    """True when a bank's year-to-date ``field`` started again mid-year: it
+    fell below the quarter before's, and the bank's parent (``PARENT``)
+    changed between the two filings. A bank bought by a new holding company
+    can restart its year to date from the acquisition (push-down accounting),
+    so its filed year-to-date is the quarter's flow; differencing would read
+    a negative one. Found on 14 Oct 2026 against the FDIC's Quarterly Banking
+    Profile: National City under PNC, 2008Q4, -$94.6m of card charge-offs,
+    and four quarters like it. Both parents must be filed: an unknown parent
+    is never read as a change."""
+    a, b = _parent(row), _parent(prev)
+    return bool(a and b and a != b) and _num(row, field) < _num(prev, field)
+
+
+def flow(row: dict, prev: dict, field: str) -> float:
+    """A non-Q1 quarter's flow: year-to-date less the quarter before's, or
+    the year-to-date itself where it ``restarted``."""
+    return _num(row, field) if restarted(row, prev, field) else _num(row, field) - _num(prev, field)
+
+
 def quarterly_flows(data: Dict[str, list], cert, product: str) -> List[tuple]:
     """``(q, gross, recoveries, balance)`` per quarter-end ``q`` in the data.
 
     A Q1 flow is its year-to-date. A later quarter's flow is its year-to-date
-    less the previous quarter's, or None if the bank is missing from either
+    less the previous quarter's (``flow``: a restarted year-to-date is the
+    flow itself), or None if the bank is missing from either
     quarter (or the previous quarter-end is not in the data). The balance is
     the quarter-end figure, None when the bank did not file that quarter."""
     ln, dr, cr = _fields(product)
@@ -195,7 +228,7 @@ def quarterly_flows(data: Dict[str, list], cert, product: str) -> List[tuple]:
         if r and q[4:6] == "03":
             out.append((q, _num(r, dr), _num(r, cr), bal))
         elif r and p:
-            out.append((q, _num(r, dr) - _num(p, dr), _num(r, cr) - _num(p, cr), bal))
+            out.append((q, flow(r, p, dr), flow(r, p, cr), bal))
         else:
             out.append((q, None, None, bal))
     return out
@@ -500,6 +533,9 @@ def industry(data: Dict[str, list], product: str,
     def amount(row, which):
         return sum(_num(row, c[which]) for c in cols)
 
+    def moved(row, prev, which):
+        return sum(flow(row, prev, c[which]) for c in cols)
+
     flows, bals = [], []
     for i, q in enumerate(qs):
         cur = snap[q]
@@ -512,8 +548,8 @@ def industry(data: Dict[str, list], product: str,
         elif follows[i] and snap[qs[i - 1]]:
             prev = snap[qs[i - 1]]
             both = [c for c in cur if c in prev]
-            g = sum(amount(cur[c], 1) - amount(prev[c], 1) for c in both)
-            rc = sum(amount(cur[c], 2) - amount(prev[c], 2) for c in both)
+            g = sum(moved(cur[c], prev[c], 1) for c in both)
+            rc = sum(moved(cur[c], prev[c], 2) for c in both)
         else:
             g = rc = None
         flows.append((g, rc))
