@@ -1,7 +1,9 @@
 """Compute every figure in the comparability tie-out, and its verdict.
 
-    python collect.py --sources SRC --cache CACHE --series SERIES \
-        --roster ../../../../config/peers.json --engine ../../../../src --out ../figures.json
+    (from threshold-engine/)
+    python docs/tie-out/comparability-2026-10/scripts/collect.py --sources work/sources \
+        --cache work/fdic-cache --series work/peer-series --roster config/peers.json \
+        --engine src --out work/figures.json
 
 SRC     what fetch_sources.py downloaded (filings, API responses, 10-K, QBP)
 CACHE   the tool's own cache, written by `threshold-engine peers pull`

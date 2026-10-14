@@ -1,7 +1,8 @@
 """Photograph each independent source: cut the identity header and the rows
 out of the real page, enlarge them, and ring the figure in red.
 
-    python capture.py --sources SRC --out ../images [--chrome PATH]
+    (from threshold-engine/)
+    python docs/tie-out/comparability-2026-10/scripts/capture.py --sources work/sources --out work/images --chrome PATH
 
 PDF pages (Call Reports, instructions, QBP) are rendered with pdftoppm at
 200 dpi and located with pdfplumber's word positions, so a ring lands on the

@@ -19,18 +19,19 @@ one document with every picture embedded, checked and rendered by canon's
 | 4 · Industry total against peer median | Real, product-dependent | Card and other consumer about 0.15 pts apart on average (1.3 in 2009–11); auto industry typically 2× the median | Show both; anchor auto on the median; add p50 to the band |
 | 5 · Mergers | Real, two ways | 56 of 149 material acquisition cases slip the 25% rule; affiliate mergers double-count charge-offs in the industry series (card rate up to +0.71 pts) | Leave out windows around recorded acquisitions of 5%+; subtract the absorbed bank's year-to-date flows |
 | 6 · KeyCorp against KeyBank | Small, fully explained | Ties within $1m once education loans in discontinued operations and residential held-for-sale are added; KeyCorp "home equity" is ~$2.5bn wider than the Call Report's | Name both items as exclusions in the internal import; split or combine home equity |
-| 7 · Auto | 6.c ties at 62,212; the rest of direct auto COULD NOT be located publicly | KeyBank sold its indirect book in 2021Q3; leases matter only for U.S. Bank (56%) and Bank of America (16%) | Compare internal direct auto with 62,212 on site; set its thresholds on internal data |
+| 7 · Auto | 6.c ties at 62,212; the rest of direct auto COULD NOT be located publicly | KeyBank sold its indirect book in 2021Q3; leases matter only for U.S. Bank (56%) and Bank of America (16%) | Compare internal direct auto with 62,212 on site; if larger, map what the internal segment holds before assigning the difference to a filed line; set its thresholds on internal data |
 
 No code was changed. The tool's side of every figure is its own cache
 (`peers pull`) or series CSVs (`peers build`), run unchanged.
 
 ## Rebuilding it
 
-`scripts/` holds everything that produced the document:
+`scripts/` holds everything that produced the document. Run every command from
+`threshold-engine/`, with outputs under `work/`:
 
 | Script | What it does |
 |---|---|
-| `fetch_sources.py --sources DIR --user-agent "Firm name you@example.com"` | Downloads the 27 filed Call Reports (FFIEC CDR, PDF and XBRL), the FDIC API responses, KeyCorp's 10-K and 10-Q, the QBP, the Call Report instructions and the Fed's H.8; every URL to `DIR/urls.txt` |
+| `fetch_sources.py --sources work/sources --user-agent "Firm name you@example.com"` | Downloads the 27 filed Call Reports (FFIEC CDR, PDF and XBRL), the FDIC API responses, KeyCorp's 10-K and 10-Q, the QBP, the Call Report instructions and the Fed's H.8; every URL to `DIR/urls.txt` |
 | `collect.py` | Computes every figure and verdict into `figures.json` (and `qbp-card.json` for the chart) |
 | `capture.py` | Cuts each source photograph out of the real page and rings the figure in red, into `images/` |
 | `build_exhibit.py` | Assembles the document; canon checks and renders it |

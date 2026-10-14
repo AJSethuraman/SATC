@@ -1,6 +1,8 @@
 """Download every independent source this tie-out reads, into one folder.
 
-    python fetch_sources.py --sources DIR --user-agent "Firm name you@example.com"
+    (from threshold-engine/)
+    python docs/tie-out/comparability-2026-10/scripts/fetch_sources.py --sources work/sources \
+        --user-agent "Firm name you@example.com"
 
 Public data only. Nothing here touches KeyBank's internal books.
 

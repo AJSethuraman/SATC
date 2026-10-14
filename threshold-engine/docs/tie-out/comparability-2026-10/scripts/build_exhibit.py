@@ -1,7 +1,9 @@
 """Build TIE-OUT-comparability-2026-10.pdf: one document, every image embedded.
 
-    python build_exhibit.py --figures FIG.json --images ../images --canon CANON_DIR \
-        --chrome CHROME --out ../TIE-OUT-comparability-2026-10.pdf
+    (from threshold-engine/)
+    python docs/tie-out/comparability-2026-10/scripts/build_exhibit.py --figures work/figures.json \
+        --images work/images --series work/peer-series --qbp work/qbp-card.json \
+        --canon CANON_DIR --chrome CHROME --out work/TIE-OUT-comparability-2026-10.pdf
 
 FIG.json is what collect.py wrote; ../images is what capture.py wrote; CANON_DIR
 holds canon's check_tie_out.py (the installed plugin, e.g.
@@ -267,7 +269,7 @@ def main():
          "6.c holds every consumer car-purchase loan, direct or indirect. KeyBank sold its indirect book in 2021Q3 (6.c fell from $3.80bn to $0.15bn; it kept $2.82bn of the notes). Leases matter for two peers: U.S. Bank (leases %s of its consumer auto) and Bank of America (%s)." % (
              pct([x for x in g7["leases"] if x["bank"] == "U.S. Bank"][0]["leases"], [x for x in g7["leases"] if x["bank"] == "U.S. Bank"][0]["leases"] + [x for x in g7["leases"] if x["bank"] == "U.S. Bank"][0]["auto"]),
              pct([x for x in g7["leases"] if x["bank"] == "Bank of America"][0]["leases"], [x for x in g7["leases"] if x["bank"] == "Bank of America"][0]["leases"] + [x for x in g7["leases"] if x["bank"] == "Bank of America"][0]["auto"])),
-         "On site, compare internal direct auto at 30 Jun 2026 with 62,212. Anything above it is, by the instructions, boats, RVs, motorcycles or cash loans against a car already owned, filed in 6.d. Set direct auto's thresholds on internal data, with peers as context only."],
+         "On site, compare internal direct auto at 30 Jun 2026 with 62,212. If it is larger, map the internal segment's composition and entity before assigning the difference to any filed line: it may be loans the Call Report files in 6.d (boats, RVs, cash loans against a car already owned), or a difference of entity or internal definition. Set direct auto's thresholds on internal data, with peers as context only."],
     ], num_from=9))
 
     d.add("<h2>How the dots connect</h2>")
@@ -555,8 +557,10 @@ def main():
           "is direct auto filed, and do auto leases matter for the peers?</p>")
     d.add('<div class="answer"><b>RC-C 6.c ties at 62,212, and by the instructions it must hold every direct and indirect consumer loan to buy a car.</b> '
           'Where any larger direct-auto book sits <b>COULD NOT</b> be settled from public data: KeyCorp never states a direct auto balance. What the instructions '
-          'do settle is where the rest can be. Boats, RVs, motorcycles, cash loans against a car the borrower already owns, and loans not mainly for buying a car '
-          'all go in 6.d. That fits the firm\'s "some random other stuff". KeyCorp\'s 10-K says its consumer collateral includes "automobiles, boats, and RVs".</div>')
+          'do settle is what belongs where: boats, RVs, motorcycles, cash loans against a car the borrower already owns, and loans not mainly for buying a car '
+          'go in 6.d, not 6.c. That is one possible home for the firm\'s "some random other stuff" (KeyCorp\'s 10-K says its consumer collateral includes '
+          '"automobiles, boats, and RVs"), but it is not the only explanation for an internal figure above 62,212: the internal data is KeyCorp\'s and was not '
+          'examined here, so entity scope or an internal definition could account for a difference too.</div>')
     d.img("g7-instr-rcc-6c", "RC-C instructions item 6.c", ["FFIEC 031 and 041 instructions", "Schedule RC-C Part I, item 6.c", "page RC-C-13 (3-17)"])
     d.img("g7-keybank-rcc-6c-10a", "KeyBank RC-C 6.c and 10.a", ["KeyBank", "Report date 6/30/2026", "6.c RCFDK137 = 62,212", "10.a RCFDF162 = 0"])
     d.img("g7-10k-collateral", "KeyCorp 10-K collateral sentence", ["KeyCorp 10-K 2025", "Note 4: consumer loan collateral"], width="90%")
@@ -581,8 +585,9 @@ def main():
           "cannot carry it. Separately, KeyBank's filed auto is a $62m run-off book, while 12 of the 15 peers hold auto books of $1.3bn to $89bn (Regions, Zions and Citi hold little or none). Peer "
           "and industry auto rates describe a different business from KeyBank's direct auto, and KeyBank's own filed auto history is three different books "
           "in sequence.</p>")
-    d.add('<div class="fix"><b>Recommended fix.</b> On site, put internal direct auto at 30 Jun 2026 beside 62,212. Anything above it is, by the instructions, '
-          'in 6.d, and the internal segment then includes boats, RVs or similar that no public auto series contains. Set direct auto\'s thresholds on internal data, '
+    d.add('<div class="fix"><b>Recommended fix.</b> On site, put internal direct auto at 30 Jun 2026 beside 62,212. If it is larger, list what the internal segment holds '
+          '(car-purchase loans, boats and RVs, cash loans against owned cars, anything booked outside KeyBank, N.A.) before assigning the difference to a filed line; '
+          'only the car-purchase loans of KeyBank, N.A. belong in 6.c. Set direct auto\'s thresholds on internal data, '
           'with peers and industry as context only, and do not use KeyBank\'s filed auto history before 2021Q4. Note on the peer view that U.S. Bank\'s and Bank '
           'of America\'s auto figures exclude their lease books.</div>')
     d.add("<h3>Figures</h3>" + figtable(by_gap[7][:3] + by_gap[7][18:]))
@@ -590,29 +595,30 @@ def main():
 
     # ------------------------------------------------------------------ run it
     d.add('<h2 class="gap">How to run it yourself</h2>')
-    d.add("<p>Every step uses the real values. The scripts are in <code>threshold-engine/docs/tie-out/comparability-2026-10/scripts/</code>. "
-          "They need Python 3.11+, <code>openpyxl</code>, <code>pdfplumber</code>, <code>Pillow</code>, <code>playwright</code> and poppler's "
-          "<code>pdftoppm</code>. Steps 1–3 are enough to re-derive every figure; steps 4–5 rebuild this document.</p>")
+    d.add("<p>Every step uses the real values. <b>Run every command from the <code>threshold-engine/</code> folder</b>, with the package installed "
+          "(<code>pip install -e .</code>); every output goes under <code>work/</code>. The scripts need Python 3.11+, <code>openpyxl</code>, "
+          "<code>pdfplumber</code>, <code>Pillow</code>, <code>playwright</code> and poppler's <code>pdftoppm</code>. Steps 1, 2 and 4 re-derive every "
+          "figure; step 5 rebuilds this document; steps 3 and 6 are checks by hand.</p>")
     d.add("""<ol>
 <li>The tool's own data, with the commands the README gives (Auto added):
-<pre>threshold-engine peers pull --cache fdic-cache --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" Auto --mergers 2005-10-01 --delinquency yes
-threshold-engine peers build peers.xlsx --cache fdic-cache --roster config/peers.json --series-dir peer-series --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" Auto --mergers fdic-cache/mergers.json --extra-acquisitions 6672=2022Q2 --delinquency yes --industry-combined --jump 0.25 --min-book 1000000 --exempt-self yes --pack all --min-banks 5 --rank-by net --last-n 20 --min-obs 12 --base-quarter 2019Q4 --index-min-book 500000 --lagged-years 2019 2025 --lag-years 2 --normalisation-years 2019 2025 --mix-base-year 2019</pre></li>
+<pre>threshold-engine peers pull --cache work/fdic-cache --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" Auto --mergers 2005-10-01 --delinquency yes
+threshold-engine peers build work/peers.xlsx --cache work/fdic-cache --roster config/peers.json --series-dir work/peer-series --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" Auto --mergers work/fdic-cache/mergers.json --extra-acquisitions 6672=2022Q2 --delinquency yes --industry-combined --jump 0.25 --min-book 1000000 --exempt-self yes --pack all --min-banks 5 --rank-by net --last-n 20 --min-obs 12 --base-quarter 2019Q4 --index-min-book 500000 --lagged-years 2019 2025 --lag-years 2 --normalisation-years 2019 2025 --mix-base-year 2019</pre></li>
 <li>The independent sources (27 filed Call Reports from the FFIEC CDR, FDIC API responses, KeyCorp's 10-K and 10-Q, the QBP, the instructions, the H.8):
-<pre>python scripts/fetch_sources.py --sources sources --user-agent "Firm name you@example.com"</pre>
+<pre>python docs/tie-out/comparability-2026-10/scripts/fetch_sources.py --sources work/sources --user-agent "Firm name you@example.com"</pre>
 The SEC refuses an automated request that does not name a contact, so the runner supplies their own.
-Every URL is written to <code>sources/urls.txt</code>. One filing by hand: open
+Every URL is written to <code>work/sources/urls.txt</code>. One filing by hand: open
 <code>https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx?ds=call&amp;idType=fdiccert&amp;id=17534&amp;date=06302026</code>, press <i>Download PDF</i>,
 go to Schedule RC-N on report page 45, and read item 11.b column B: <b>69,414</b>.</li>
 <li>One API call by hand, the guaranteed-loan fields for KeyBank:
 <pre>curl -s "https://api.fdic.gov/banks/financials?filters=CERT:17534%20AND%20REPDTE:20260630&amp;fields=CERT,REPDTE,P9GTYPAR,P9GTY,P9GTYGNM,P9RERSFM&amp;format=json"</pre>
 It returns <code>P9GTYPAR 69414, P9GTY 0, P9GTYGNM 69414, P9RERSFM 15000</code>.</li>
 <li>Every figure and verdict:
-<pre>python scripts/collect.py --sources sources --cache fdic-cache --series peer-series --roster config/peers.json --engine src --out figures.json</pre>
+<pre>python docs/tie-out/comparability-2026-10/scripts/collect.py --sources work/sources --cache work/fdic-cache --series work/peer-series --roster config/peers.json --engine src --out work/figures.json</pre>
 It prints <code>figures: 147  {'TIED': 131, 'DIFFERS': 13, 'COULD NOT': 3}</code> and lists the 16 that are not TIED.</li>
 <li>The photographs, then this document (canon checks it on the way through and refuses an unmarked source picture):
-<pre>python scripts/capture.py --sources sources --out images --chrome "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-python scripts/build_exhibit.py --figures figures.json --images images --series peer-series --qbp qbp-card.json --canon %%USERPROFILE%%\\.claude\\plugins\\cache\\satc\\canon\\1.22.0 --chrome "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --out TIE-OUT-comparability-2026-10.pdf</pre>
-<code>qbp-card.json</code> is written by <code>collect.py</code> beside <code>figures.json</code>.</li>
+<pre>python docs/tie-out/comparability-2026-10/scripts/capture.py --sources work/sources --out work/images --chrome "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+python docs/tie-out/comparability-2026-10/scripts/build_exhibit.py --figures work/figures.json --images work/images --series work/peer-series --qbp work/qbp-card.json --canon %%USERPROFILE%%\\.claude\\plugins\\cache\\satc\\canon\\1.22.0 --chrome "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --out work/TIE-OUT-comparability-2026-10.pdf</pre>
+<code>work/qbp-card.json</code> is written by <code>collect.py</code> beside <code>work/figures.json</code>.</li>
 <li>Check one KeyCorp figure by hand: in the 10-K at <code>https://www.sec.gov/Archives/edgar/data/91576/000162828026010546/key-20251231.htm</code>, find
 "Figure 9. Composition of Loans": other consumer loans 4,644. Add footnote (c)'s $205 million: 4,849. KeyBank's 31 Dec 2025 Call Report, RC-C 6.b + 6.c + 6.d:
 288,376 + 65,960 + 4,493,814 = <b>4,848,150</b> ($000).</li>
