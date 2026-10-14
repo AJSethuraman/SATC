@@ -60,6 +60,10 @@ def reference(file, cuts=(), **over):
     return pts, kept, ref
 
 
+def top_of(vals, first):
+    return vals["ASSESS!U%d" % first]
+
+
 def with_settings(p, tmp_path, name, cells):
     wb = load_workbook(p)
     for ref, v in cells.items():
@@ -380,9 +384,50 @@ def test_a_lower_is_worse_workbook_shades_five_bands_of_positive_width(tmp_path)
     names = [ws.cell(first - 1, c).value for c in range(16, 21)]
     assert names == ["5 High", "4 Moderate-High", "3 Moderate", "2 Moderate-Low", "1 Low"]
     widths = [vals["ASSESS!%s%d" % (get_column_letter(c), first)] for c in range(16, 21)]
-    assert widths[0] == pytest.approx(lines[3])                         # up to where High begins
+    floor = vals["ASSESS!U%d" % (first + 1)]
+    mn = min(min(lines), min(800 - 40 * x.value for x in load("cards_nco_ttm.csv")))
+    assert 0 < floor < mn                     # not floored at zero: the axis starts just below the data
+    # Nothing the chart plots sits at zero, or Excel stretches the axis down to it (the walkthrough, 13 Oct
+    # 2026): the strip stands on an invisible base under the floor and is 0 high where nothing is left out.
+    h = vals["ASSESS!U%d" % (first + 2)]
+    rows = range(first, first + len(load("cards_nco_ttm.csv")))
+    assert all(vals["ASSESS!Y%d" % r] == pytest.approx(floor - h) for r in rows) and floor - h > 0
+    assert all(vals["ASSESS!W%d" % r] == 0 for r in rows)                   # nothing left out here
+    assert all(vals["ASSESS!V%d" % r] == pytest.approx(floor) for r in rows)
+    # and the axis itself starts at a round number just under that, not at Excel's automatic zero
+    y_min = load_workbook(p)["Assess"]._charts[0].y_axis.scaling.min
+    assert y_min is not None and 0 < y_min <= floor - h and floor - y_min < 0.2 * (top_of(vals, first) - floor)
+    assert floor + widths[0] == pytest.approx(lines[3])                 # up to where High begins
     assert widths[1:4] == pytest.approx([lines[2] - lines[3], lines[1] - lines[2], lines[0] - lines[1]])
     assert all(x >= 0 for x in widths)
+
+
+@pytest.mark.parametrize("rule", ["worse", "better"])
+def test_a_lower_is_worse_workbook_equals_the_reference_scale(tmp_path, rule):
+    """NEXT-GOAL section 2: a lower-is-worse measure (a credit score) was
+    tested in scale.py and never through the workbook's lines and score. A
+    mirrored cards series, built, recalculated, and held to scale() and
+    score() with the direction reversed, under each on-the-line rule."""
+    src = tmp_path / "score.csv"
+    pts = load("cards_nco_ttm.csv")
+    src.write_text("date,value\n" + "".join("%s,%r\n" % (x.date, 800 - 40 * x.value) for x in pts),
+                   encoding="utf-8")
+    p = tmp_path / ("low-%s.xlsx" % rule)
+    build(p, [("Score", src)], name="Score", unit="", direction="lower_is_worse", frequency="quarterly",
+          smoothing=1, floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5,
+          on_the_line=rule, half_lives=(), percentiles=(50, 75, 90, 95), horizon=4, min_history=41)
+    vals = recalc(p)
+    mirrored = [800 - 40 * x.value for x in pts]
+    ref = scale(mirrored, "lower_is_worse", 0.5, 1.0, 2.5, False)
+    got = row(vals, 5)
+    assert vals["THRESHOLDS!M5"] == "" and ref["refused"] is None
+    assert got[0] == pytest.approx(ref["median"]) and got[3:7] == pytest.approx(ref["bounds"])
+    assert ref["bounds"] == sorted(ref["bounds"], reverse=True)          # lower is worse: lines fall
+    assert vals["THRESHOLDS!J5"] == pytest.approx(mirrored[-1])
+    assert got[7] == score(mirrored[-1], ref["bounds"], "lower_is_worse", rule, False)
+    want = [sum(1 for x in mirrored if score(x, ref["bounds"], "lower_is_worse", rule, False) == k)
+            for k in range(1, 6)]
+    assert [vals["ASSESS!E%d" % r] for r in range(8, 13)] == want
 
 
 @pytest.mark.parametrize("cells, which", [
@@ -448,7 +493,8 @@ def test_the_assess_bands_stack_from_the_floor_when_values_go_below_zero(tmp_pat
     floor = vals["ASSESS!U%d" % (first + 1)]
     top = vals["ASSESS!U%d" % first]
     data = [v for v in (vals.get("ASSESS!O%d" % r) for r in range(first, ws.max_row + 1)) if isinstance(v, float)]
-    assert floor == pytest.approx(min(0, min(data), min(lines))) and top > max(max(data), max(lines))
+    mn, mx = min(min(data), min(lines)), max(max(data), max(lines))
+    assert floor == pytest.approx(mn - 0.08 * (mx - mn)) and top > mx        # not floored: 8% below the lowest
     assert vals["ASSESS!V%d" % first] == pytest.approx(floor)                  # the base
     widths = [vals["ASSESS!%s%d" % (get_column_letter(c), first)] for c in range(16, 21)]
     assert all(w >= 0 for w in widths)
@@ -467,6 +513,7 @@ def test_the_assess_axis_labels_negative_numbers_only_when_they_are_real(built, 
           smoothing=1, floor_at_zero=True, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5,
           on_the_line="worse", half_lives=(), percentiles=(50,), horizon=4, min_history=41)
     assert fmt(cards) == "0.0;;0.0"                        # nothing below zero: the strip is unlabelled
+    assert load_workbook(cards)["Assess"]._charts[0].y_axis.scaling.min is None      # floored: Excel's own
     src = tmp_path / "neg.csv"
     src.write_text("date,value\n" + "".join("%s,%r\n" % (p.date, p.value - 6) for p in load("cards_nco_ttm.csv")),
                    encoding="utf-8")
@@ -504,6 +551,37 @@ def test_text_in_a_setting_leaves_no_error_on_the_assess_dials(built, tmp_path, 
     assert any(v == "refused: a setting is not a number" for v in refused)
 
 
+@pytest.mark.parametrize("product", ["Mortgage", "Home equity", "Other consumer"])
+def test_assess_draws_every_band_for_a_product_that_starts_after_the_calendar(built, tmp_path, product):
+    """The walkthrough (13 Oct 2026), in Excel: for a product whose data starts
+    after the first quarter on the calendar, the chart's top and floor were
+    MAX and MIN over a column holding #N/A, so both were #N/A, and Low and
+    High vanished while the other bands were drawn from zero."""
+    p = built[0]
+    wb = load_workbook(p)
+    wb["Assess"]["B4"] = product
+    q = tmp_path / ("assess-%s.xlsx" % product.replace(" ", "-"))
+    wb.save(q)
+    vals = recalc(q)
+    ws = wb["Assess"]
+    first = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 12).value == "Quarter") + 1
+    top, floor = vals["ASSESS!U%d" % first], vals["ASSESS!U%d" % (first + 1)]
+    assert all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (top, floor)), (top, floor)
+    lines = [vals["ASSESS!C%d" % r] for r in (9, 10, 11, 12)]
+    data = [v for v in (vals.get("ASSESS!O%d" % r) for r in range(first, ws.max_row + 1)) if isinstance(v, float)]
+    assert floor == pytest.approx(min(0, min(data), min(lines))) and top > max(max(data), max(lines))
+    widths = [vals["ASSESS!%s%d" % (get_column_letter(c), first)] for c in range(16, 21)]
+    assert all(isinstance(w, (int, float)) and w >= 0 for w in widths), widths
+    assert floor + widths[0] == pytest.approx(lines[0]) and floor + sum(widths) == pytest.approx(top)
+
+
+def test_the_chart_tabs_legend_sits_below_the_plot(built):
+    """The walkthrough (13 Oct 2026): in Excel 16 the legend on the right was
+    drawn over the right-hand ends of the cutoff lines."""
+    lc = load_workbook(built[0])["Chart"]._charts[0]
+    assert lc.legend.position == "b" and not lc.legend.overlay
+
+
 def test_the_backtest_glossary_entry_says_one_thing_about_the_history_used():
     """The Codex review (13 Oct 2026, on #426 after merge): the meaning said
     the scored quarter is included and the calculation said 'before it'."""
@@ -537,3 +615,46 @@ def test_the_pickers_read_their_choices_from_cells_so_long_labels_survive(tmp_pa
 def test_the_backtest_tab_says_the_scored_quarter_is_in_its_own_history(built):
     banner = " ".join(str(c.value) for row in load_workbook(built[0])["Backtest"].iter_rows(max_row=3) for c in row if c.value)
     assert "up to and including it" in banner and "history before it" not in banner
+
+
+def test_the_fixed_axis_holds_every_line_the_dials_offer(tmp_path):
+    """Codex on #432: a measure not floored at zero gets a fixed axis minimum
+    at build, which cannot follow later typing, so a larger Moderate-Low step
+    could push score 2's line off the bottom. The minimum now sits under every
+    line the dials try. A noisy series makes the point: at step 2 its line is
+    below every value it ever took."""
+    import random
+    rnd = random.Random(7)
+    src = tmp_path / "noisy.csv"
+    pts = load("cards_nco_ttm.csv")
+    src.write_text("date,value\n" + "".join("%s,%r\n" % (x.date, round(100 + 2 * rnd.random(), 3)) for x in pts),
+                   encoding="utf-8")
+    p = tmp_path / "noisy.xlsx"
+    build(p, [("Noisy", src)], name="N", unit="", direction="higher_is_worse", frequency="quarterly", smoothing=1,
+          floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse", half_lives=(),
+          percentiles=(50,), horizon=4, min_history=41)
+    vals = [float(l.split(",")[1]) for l in src.read_text().splitlines()[1:]]
+    ref = scale(vals, "higher_is_worse", 0.5, 2.0, 2.5, False)
+    low_line = ref["median"] - 2.0 * ref["typical_yearly_move"]
+    assert low_line < min(vals)                                   # the case that was clipped
+    y_min = load_workbook(p)["Assess"]._charts[0].y_axis.scaling.min
+    assert y_min is not None and y_min < low_line
+
+
+def test_a_line_below_the_fixed_axis_is_said_not_clipped_in_silence(tmp_path):
+    """Codex on #432: a fixed axis cannot follow every leave-out or setting.
+    When the floor or the left-out strip falls below it, the cell over the
+    chart says so; as built it says nothing."""
+    import random
+    rnd = random.Random(7)
+    src = tmp_path / "noisy.csv"
+    pts = load("cards_nco_ttm.csv")
+    src.write_text("date,value\n" + "".join("%s,%r\n" % (x.date, round(100 + 2 * rnd.random(), 3)) for x in pts),
+                   encoding="utf-8")
+    p = tmp_path / "noisy.xlsx"
+    build(p, [("Noisy", src)], name="N", unit="", direction="higher_is_worse", frequency="quarterly", smoothing=1,
+          floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse", half_lives=(),
+          percentiles=(50,), horizon=4, min_history=41)
+    assert recalc(p)["ASSESS!A14"] == ""
+    vals = with_settings(p, tmp_path, "far.xlsx", {"I6": 6})
+    assert "below the axis of this chart" in vals["ASSESS!A14"]

@@ -1,0 +1,105 @@
+1. Roster: 163 quarters in the repository file
+   equal to the Board's four-quarter mean at 3 decimals:   83
+   a mean ending in 5 at the 4th decimal, rounded:         80
+      1986Q1  exact 2.7425  file 2.742  (down)
+      1986Q2  exact 2.9775  file 2.978  (up)
+      1986Q3  exact 3.1575  file 3.158  (up)
+      1986Q4  exact 3.2775  file 3.277  (down)
+      1987Q1  exact 3.3575  file 3.357  (down)
+      1987Q2  exact 3.3925  file 3.393  (up)
+      1988Q1  exact 3.2225  file 3.223  (up)
+      1988Q2  exact 3.1975  file 3.198  (up)
+      1988Q4  exact 3.1875  file 3.188  (up)
+      1989Q4  exact 3.1425  file 3.143  (up)
+      1990Q2  exact 3.1475  file 3.147  (down)
+      1990Q3  exact 3.2675  file 3.268  (up)
+      1990Q4  exact 3.4125  file 3.413  (up)
+      1991Q1  exact 3.6825  file 3.683  (up)
+      1992Q1  exact 4.7325  file 4.732  (down)
+      1992Q2  exact 4.7775  file 4.777  (down)
+      1993Q1  exact 4.4225  file 4.422  (down)
+      1993Q3  exact 4.0525  file 4.053  (up)
+      1994Q1  exact 3.5725  file 3.572  (down)
+      1995Q2  exact 3.0625  file 3.062  (down)
+      1995Q3  exact 3.2375  file 3.237  (down)
+      1996Q1  exact 3.7725  file 3.772  (down)
+      1996Q2  exact 4.0675  file 4.067  (down)
+      1997Q2  exact 4.8525  file 4.853  (up)
+      1997Q3  exact 5.1125  file 5.112  (down)
+      1999Q1  exact 5.1125  file 5.112  (down)
+      1999Q2  exact 4.8925  file 4.893  (up)
+      1999Q3  exact 4.6975  file 4.697  (down)
+      2000Q2  exact 4.3925  file 4.393  (up)
+      2001Q2  exact 4.6075  file 4.607  (down)
+      2001Q3  exact 4.9325  file 4.933  (up)
+      2001Q4  exact 5.4225  file 5.422  (down)
+      2002Q1  exact 6.1925  file 6.192  (down)
+      2002Q3  exact 6.6025  file 6.603  (up)
+      2003Q2  exact 5.8625  file 5.862  (down)
+      2003Q4  exact 5.8225  file 5.822  (down)
+      2004Q2  exact 5.5675  file 5.567  (down)
+      2004Q3  exact 5.2925  file 5.293  (up)
+      2005Q4  exact 4.8375  file 4.838  (up)
+      2006Q3  exact 4.1325  file 4.133  (up)
+      2007Q3  exact 3.8375  file 3.837  (down)
+      2007Q4  exact 3.9925  file 3.993  (up)
+      2008Q2  exact 4.5625  file 4.562  (down)
+      2008Q3  exact 5.0275  file 5.027  (down)
+      2009Q2  exact 7.3225  file 7.322  (down)
+      2009Q4  exact 9.4375  file 9.438  (up)
+      2010Q4  exact 9.4075  file 9.407  (down)
+      2011Q1  exact 8.5125  file 8.512  (down)
+      2011Q2  exact 7.2325  file 7.232  (down)
+      2012Q1  exact 5.0075  file 5.008  (up)
+      2012Q2  exact 4.6675  file 4.668  (up)
+      2012Q3  exact 4.1875  file 4.188  (up)
+      2013Q4  exact 3.4775  file 3.478  (up)
+      2014Q1  exact 3.3625  file 3.363  (up)
+      2014Q2  exact 3.3225  file 3.323  (up)
+      2014Q3  exact 3.2475  file 3.248  (up)
+      2014Q4  exact 3.1575  file 3.157  (down)
+      2015Q1  exact 3.0825  file 3.083  (up)
+      2015Q2  exact 2.9825  file 2.982  (down)
+      2015Q3  exact 2.9525  file 2.953  (up)
+      2016Q3  exact 3.0125  file 3.013  (up)
+      2017Q1  exact 3.2525  file 3.252  (down)
+      2017Q3  exact 3.5075  file 3.508  (up)
+      2018Q2  exact 3.6375  file 3.638  (up)
+      2018Q3  exact 3.6625  file 3.663  (up)
+      2019Q1  exact 3.6625  file 3.663  (up)
+      2019Q2  exact 3.6675  file 3.667  (down)
+      2019Q3  exact 3.6825  file 3.683  (up)
+      2020Q2  exact 3.7575  file 3.757  (down)
+      2021Q1  exact 3.2175  file 3.218  (up)
+      2021Q2  exact 2.8675  file 2.868  (up)
+      2021Q4  exact 2.1575  file 2.157  (down)
+      2022Q1  exact 1.8875  file 1.887  (down)
+      2022Q2  exact 1.7575  file 1.758  (up)
+      2023Q1  exact 2.3325  file 2.333  (up)
+      2023Q4  exact 3.5075  file 3.507  (down)
+      2024Q1  exact 3.8925  file 3.893  (up)
+      2024Q3  exact 4.4575  file 4.457  (down)
+      2025Q2  exact 4.4725  file 4.473  (up)
+      2026Q2  exact 3.9775  file 3.978  (up)
+   otherwise different:                                   0
+
+2. From the Board's rates, exact four-quarter means
+   quarters 163, kept 135 (left out 2007Q4 to 2012Q4 and 2021Q3 to 2023Q1)
+   median kept                         3.7575
+   four-quarter changes, both ends kept 123, their median -0.0450
+   typical yearly move = 1.4826 x median |change - -0.0450| = 0.58562700
+   3 Moderate from = median - 0.5 x move = 3.7575 - 0.5 x 0.58562700 = 3.464686500
+   all four lines: 3.171873 / 3.464687 / 4.050313 / 5.981400
+
+2. From the repository file (three decimals)
+   quarters 163, kept 135 (left out 2007Q4 to 2012Q4 and 2021Q3 to 2023Q1)
+   median kept                         3.757
+   four-quarter changes, both ends kept 123, their median -0.045
+   typical yearly move = 1.4826 x median |change - -0.045| = 0.5856270
+   3 Moderate from = median - 0.5 x move = 3.757 - 0.5 x 0.5856270 = 3.46418650
+   all four lines: 3.171373 / 3.464186 / 4.049813 / 5.980900
+
+3. Kept quarters per score, exact:  [25, 22, 29, 55, 4]
+   Kept quarters per score, file:   [25, 22, 29, 55, 4]
+   Quarters whose score differs:    none
+   Latest 2026Q2: exact 3.9775 scores 3; file 3.978 scores 3
