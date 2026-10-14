@@ -30,7 +30,8 @@ lines are RC-C 1.c.(1); closed-end home equity loans are filed with
 mortgages, first liens in 1.c.(2)(a) and second liens in 1.c.(2)(b). So the
 file gives `Home equity lines` and `Home equity loans` as separate segments.
 Lines check against 1.c.(1). Loans plus mortgage check against 1.c.(2)(a) +
-(b). Home equity loans were discontinued in 2026, so the book runs off from
+(b). Home equity loans were recently discontinued ("Loans were just
+discontinued", 14 Oct 2026), so the book runs off from
 here and the run-off flag applies.
 
 At 30 Jun 2026 (KeyCorp 10-Q against KeyBank's Call Report): lines about
