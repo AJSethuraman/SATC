@@ -1,7 +1,7 @@
-"""Run the engine on CSVs of dated values. Six commands: workbook (the
+"""Run the engine on CSVs of dated values. Seven commands: workbook (the
 deliverable: every product in one Excel file with live lines), profile,
-evidence, backtest, peers and template. docs/WHAT-IT-DOES.md says what each
-does.
+evidence, backtest, peers, template and internal. docs/WHAT-IT-DOES.md says
+what each does.
 
     python -m threshold_engine profile SERIES.csv --name ... --unit ...
         --direction ... --frequency ... --smoothing ...
@@ -43,6 +43,17 @@ calls too.
 lists the templates for internal measures, writes an empty one with its
 checklist, or checks a filled one: OK, or every problem at once and exit 2.
 A checked file is an ordinary series. docs/V1-ROUND2-SPEC.md, section B.
+
+    python -m threshold_engine internal template OUT.csv | check FILE
+        [--exclusions FILE] | series FILE --out-dir DIR | pull --cache DIR
+        --first YYYYQn --last YYYYQn | reconcile FILE --cache DIR --roster
+        FILE --exclusions FILE --tolerance X --out FILE.csv
+
+KeyBank's own figures, run on site only (docs/INTERNAL-IMPORT.md): write the
+empty file, check a filled one (every problem at once, exit 2), write its
+charge-off and past-due series, fetch the Call Report fields reconcile reads
+into a cache of their own, and reconcile the file with the filing from that
+cache, never the network.
 
 Every setting that is a judgement is required: the command will not run on a
 value nobody stated. The CSV has a ``date,value`` header; lines starting with
@@ -150,6 +161,7 @@ def _parser():
     wbp.add_argument("--half-lives", type=_number, nargs="+", default=[], metavar="YEARS")
     _peers_parser(sub)
     _template_parser(sub)
+    _internal_parser(sub)
     return top
 
 
@@ -308,6 +320,125 @@ def _template(a):
 _read = read_csv
 
 
+# ---------------------------------------------------------------- internal
+
+def _internal_parser(sub):
+    """``internal template|check|series|pull|reconcile``: docs/INTERNAL-IMPORT.md."""
+    it = sub.add_parser("internal", help="KeyBank's own figures, run on site only: check the file, "
+                        "write its series, reconcile it with the Call Report")
+    ins = it.add_subparsers(dest="internal_command", required=True)
+    te = ins.add_parser("template", help="write the empty internal file and its exclusions file")
+    te.add_argument("out", help="the .csv to write; OUT.exclusions.csv is written beside it")
+    ch = ins.add_parser("check", help="OK, or every problem at once (exit 2)")
+    ch.add_argument("file")
+    ch.add_argument("--exclusions", metavar="FILE", help="also check this exclusions file")
+    se = ins.add_parser("series", help="one date,value CSV per product, segment and measure")
+    se.add_argument("file")
+    se.add_argument("--out-dir", required=True, metavar="DIR")
+    pu = ins.add_parser("pull", help="fetch every Call Report field reconcile reads into a cache of its own")
+    pu.add_argument("--cache", required=True, metavar="DIR")
+    pu.add_argument("--first", required=True, metavar="YYYYQn")
+    pu.add_argument("--last", required=True, metavar="YYYYQn")
+    re_ = ins.add_parser("reconcile", help="filed, less named exclusions, against internal; from the "
+                         "cache only")
+    re_.add_argument("file")
+    r = re_.add_argument_group("all required")
+    r.add_argument("--cache", required=True, metavar="DIR")
+    r.add_argument("--roster", required=True, metavar="FILE",
+                   help="the peer roster; its 'self' bank is the Call Report filer compared")
+    r.add_argument("--exclusions", required=True, metavar="FILE",
+                   help="the named exclusions; a file with a header and no rows states there are none")
+    r.add_argument("--tolerance", required=True, type=_number,
+                   help="the share of the internal figure an unexplained remainder may be, e.g. 0.01")
+    r.add_argument("--out", required=True, metavar="FILE.csv")
+
+
+def _problems(path, problems, what):
+    print("REFUSED: %s does not pass as %s; %d problem%s:"
+          % (path, what, len(problems), "" if len(problems) == 1 else "s"), file=sys.stderr)
+    for p in problems:
+        print("  - %s" % p, file=sys.stderr)
+    return 2
+
+
+def _internal(a):
+    """Run an internal command; a refusal prints every problem and returns 2."""
+    from . import internal as I
+    cmd = a.internal_command
+    if cmd == "template":
+        out, ex = I.write_template(a.out)
+        print("Wrote %s and %s. Answer every [STATE: ...] line, add the rows, then run: "
+              "python -m threshold_engine internal check %s --exclusions %s" % (out, ex, out, ex))
+        return 0
+    if cmd == "pull":
+        data = I.pull(a.cache, a.first, a.last)
+        print("Cache %s: %d quarters, %s to %s, with %s" % (a.cache, len(data), a.first, a.last,
+                                                          ", ".join(I.FIELDS)))
+        return 0
+    # Both files are checked before either refusal is printed, so every
+    # problem is listed at once.
+    bad = [(a.file, I.check(a.file), "an internal file")]
+    if getattr(a, "exclusions", None):
+        bad.append((a.exclusions, I.check_exclusions(a.exclusions), "an exclusions file"))
+    bad = [b for b in bad if b[1]]
+    if bad:
+        for path, problems, what in bad:
+            _problems(path, problems, what)
+        return 2
+    internal = I.read(a.file)
+    ex = I.read_exclusions(a.exclusions) if getattr(a, "exclusions", None) else None
+    if cmd == "check":
+        qs = sorted({r.quarter for r in internal.rows}, key=I.qindex)
+        worked = {}
+        for r in internal.rows:
+            if r.worked_out:
+                worked[r.worked_out] = worked.get(r.worked_out, 0) + 1
+        print("OK: %s passes: %d rows, %s to %s; %s." % (
+            a.file, len(internal.rows), qs[0], qs[-1],
+            "; ".join("%s / %s %d quarters" % (p, s, len(internal.rows_for(p, s)))
+                      for p, s in internal.keys())))
+        if worked:
+            print("Worked out from the other two: %s." % ", ".join(
+                "%s on %d row%s" % (k, n, "" if n == 1 else "s") for k, n in worked.items()))
+        if internal.extra_columns:
+            print("Further columns carried through, never compared with public data: %s."
+                  % ", ".join(internal.extra_columns))
+        if ex is not None:
+            print("OK: %s passes: %d exclusion%s." % (a.exclusions, len(ex.rows),
+                                                       "" if len(ex.rows) == 1 else "s"))
+        return 0
+    if cmd == "series":
+        made = I.write_all_series(internal, a.out_dir)
+        written = [m for m in made if m["written"]]
+        print("Wrote %d of %d series to %s." % (len(written), len(made), a.out_dir))
+        for m in made:
+            if not m["written"]:
+                print("Not written: %s has no value." % m["path"].name)
+        return 0
+    from .peers import roster as R
+    bank = R.self_bank(R.load(a.roster))
+    try:
+        filed = I.read_filed(internal, a.cache)
+        rows = I.reconcile(internal, filed, ex, a.tolerance, bank=bank)
+    except I.Refused as exc:
+        return _problems(exc.path, exc.problems, "exclusions for this internal file")
+    notes = I.reconcile_notes(internal, ex, bank, a.tolerance,
+                              "Source: FDIC Call Report, from the cache %s, certificate %s." % (a.cache, bank["cert"]))
+    I.write_reconciliation(rows, notes, a.out)
+    count = {}
+    for r in rows:
+        count[r["within_tolerance"]] = count.get(r["within_tolerance"], 0) + 1
+    print("Wrote %s: %d rows; within tolerance %d, outside %d, not measured %d. Compared %s with %s "
+          "(certificate %s)." % (a.out, len(rows), count.get(I.YES, 0), count.get(I.NO, 0),
+                                 count.get(I.NOT_MEASURED, 0), internal.notes["entity"], bank["name"],
+                                 bank["cert"]))
+    for r in rows:
+        if r["within_tolerance"] == I.NO:
+            print("  outside: %s %s %s, remainder %s" % (r["quarter"], r["comparison"], r["measure"],
+                                                        I._cell(r["remainder"])))
+    return 0
+
+
 def _refused(exc):
     print("REFUSED: %s" % exc, file=sys.stderr)
     return 2
@@ -315,6 +446,11 @@ def _refused(exc):
 
 def main(argv=None):
     a = _parser().parse_args(argv)
+    if a.command == "internal":
+        try:
+            return _internal(a)
+        except (ValueError, OSError, RuntimeError) as exc:
+            return _refused(exc)
     if a.command == "template":
         try:
             return _template(a)
