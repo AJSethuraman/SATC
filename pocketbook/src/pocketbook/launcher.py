@@ -1032,6 +1032,8 @@ class Flow:
     def after_install(self, optional: bool) -> None:
         """What the page says once an install ends and nothing the cube needs is missing: an optional add-on that
         didn't install is the note for IT, in red; one that did is good news, never in the red of a refusal."""
+        # the window opened without the add-ons, so the workbook's limits could not be read then (Codex on #437)
+        self.limits_from_book(keep=self.chosen)
         if optional and self.gate.optional:
             self.message = [f"Couldn't install {_names(self.gate.optional)} from here.", deps.ask_it(self.gate.optional)]
             self.note = []

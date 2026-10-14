@@ -263,3 +263,18 @@ def test_the_window_shows_the_workbooks_limits_and_drops_the_line_on_a_change(tm
         assert json.loads((tmp_path / "launcher.json").read_text())["few"] == 24
     finally:
         root.destroy()
+
+
+def test_the_limits_load_once_the_add_ons_are_installed(tmp_path, monkeypatch):
+    """Codex on #437: the window opened with an add-on missing never read the workbook's limits, and the install
+    finishing only redrew it, so the dropdowns kept the launcher's own."""
+    from pocketbook import deps
+    x, b = _written(tmp_path)
+    _type_on_control(b, "few_values", choose="24 values")
+    monkeypatch.setattr(deps, "missing", lambda: ["openpyxl"])
+    f = launcher.Flow(gate=launcher.AddOns(), extract=str(x), few=6)
+    assert (f.few, f.limits_said) == (6, "")               # nothing can be read without the add-ons
+    monkeypatch.setattr(deps, "missing", lambda: [])
+    f.gate.missing = []
+    f.after_install(optional=False)
+    assert f.few == 24 and f.limits_said == launcher.LIMITS_FROM_BOOK

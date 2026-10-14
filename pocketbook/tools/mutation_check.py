@@ -1805,6 +1805,9 @@ muts = [
  ("a path being typed taking another extract's limits", LA,
   "        if self.gate.missing or not self.extract or not Path(self.extract).is_file():",
   "        if self.gate.missing or not self.extract:", "path_being_typed"),
+ ("the workbook's limits never read once the add-ons are installed", LA,
+  "        self.limits_from_book(keep=self.chosen)\n        if optional and self.gate.optional:",
+  "        if optional and self.gate.optional:", "once_the_add_ons_are_installed"),
  ("Control's limits read only from a full-width row", CO,
   "        row = tuple(row) + (None,) * (KEY_COL - len(row))", "        row = tuple(row)", "read_only_worksheet"),
 ]

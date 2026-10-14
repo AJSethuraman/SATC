@@ -3524,7 +3524,9 @@ changed in the code.
     could differ from those Set up read the extract with, so a column chosen as a band could become a category under
     the new limit; Next now refuses, names each change and returns to the first page: *"The column limits on Control
     changed after Set up read the extract (Number columns: 6 to 24 values). The columns have to be read again with
-    them: press Set up."* (`launcher.limits_moved`). 2 planted bugs added, 3 repointed; 8 of 8 caught.
+    them: press Set up."* (`launcher.limits_moved`). 2 planted bugs added, 3 repointed; 8 of 8 caught. Codex's re-review (P2): a window opened
+    with an add-on missing never read the workbook's limits, and the install finishing only redrew it; `after_install`
+    now reads them. 1 test, 1 planted bug, caught.
   - Tests: 13 in `tests/test_limits_from_workbook_2026_10_14.py`, written failing-first (the reproduction read
     `(6, 50)` for `(24, 50)`); one draws the window (needs a display), run under xvfb with Python 3.12 and 4 window
     bugs planted by hand, 4 caught. With `test_launcher`, `test_rehearsal_2026_09_29`, `test_control`,
