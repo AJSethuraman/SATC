@@ -215,7 +215,7 @@ def main():
     bank = {b["bank"]: b for b in g1["banks"]}
     kb1 = bank["KeyBank"]
     acq = g5["acquisitions"]
-    mat = [r for r in acq["rows"] if r["material"]]
+    mat = [r for r in acq["groups"] if r["material"]]
     miss = sorted([r for r in mat if not r["caught"]], key=lambda r: -(r["share"] or 0))
     hist4 = g4["qbp_hist"]
     ttm_off_card = hist4["credit-card"]["off"]
@@ -255,9 +255,9 @@ def main():
          "Show both, as decided. For auto, anchor on the peer median and say why. Build the median in the tool: the band has no p50 yet."],
         ["5 · Mergers and acquired loans",
          "<b>Real, two ways.</b> (a) The 25% jump rule misses smaller acquisitions. (b) The tool's industry series counts charge-offs twice when one bank absorbs an affiliate.",
-         "(a) %d of %d material acquisition-and-product cases since 2006 are not left out, up to %s of a book (PNC buying BBVA USA, auto). (b) Six card quarters overcounted by $74m to $4.8bn; the industry card rate is up to +%.2f pts high for four quarters after each." % (
+         "(a) %d of %d material acquisitions since 2006 (counted by acquirer, quarter and product) are not left out, up to %s of a book (PNC buying BBVA USA, auto). (b) Six card quarters overcounted by $74m to $4.8bn; the industry card rate is up to +%.2f pts high for four quarters after each." % (
              len(miss), len(mat), pct(miss[0]["share"], 1), worst_card[1][0] - worst_card[1][1]),
-         "(a) Leave out windows around every recorded acquisition whose acquired book is 5% or more of the product. (b) In the merger quarter, take the absorbed bank's last year-to-date figure off the survivor's flow; test against the QBP's quarterly totals."],
+         "(a) Leave out windows around every quarter whose recorded acquisitions, added together, are 5% or more of the product. (b) In the merger quarter, take the absorbed bank's last year-to-date figure off the survivor's flow; test against the QBP's quarterly totals."],
         ["6 · Entity: KeyCorp 10-K against KeyBank's Call Report",
          "<b>Small and fully explained</b>, with one definition gap.",
          "Balances and charge-offs tie within $1m at both dates once two named items are added: education loans in discontinued operations ($%dm, $%dm) and residential mortgages held for sale ($%dm, $%dm). KeyCorp's \"home equity\" is $%sbn larger than the Call Report's home equity lines." % (
@@ -469,15 +469,17 @@ def main():
           'quarter, so those quarters are counted twice.</div>')
     d.add("<h3>(a) Acquisitions the 25% rule does not catch</h3>")
     d.add("<p>%d acquisitions by roster banks since October 2005 (FDIC history, the tool's own list of acquisition codes); %d with no filing in the cache. "
-          "Measured product by product as the acquired bank's book at its last filing against the acquirer's book the quarter before: %d cases are material "
+          "Measured for each acquirer, quarter and product: the books of every bank it absorbed that quarter, each at its last filing, added together "
+          "against the acquirer's own book the quarter before. Of %d such cases, %d are material "
           "(5%% or more of a book over $1bn, or $1bn or more into a smaller one). %d are caught by the jump rule and <b>%d are not</b>. The largest misses:</p>"
-          % (acq["events"], len(acq["no_filing"]), len(mat), len(mat) - len(miss), len(miss)))
-    rows = [[r["acquirer"], r["quarter"][:4] + "Q%d" % ((int(r["quarter"][4:6]) - 1) // 3 + 1), r["product"], E(r["out_name"]), n0(r["acquired"]),
+          % (acq["events"], len(acq["no_filing"]), len(acq["groups"]), len(mat), len(mat) - len(miss), len(miss)))
+    rows = [[r["acquirer"], r["quarter"][:4] + "Q%d" % ((int(r["quarter"][4:6]) - 1) // 3 + 1), r["product"], E(r["banks"][0][0] if len(r["banks"]) == 1 else "%s and %d other%s" % (r["banks"][0][0], len(r["banks"]) - 1, "s" if len(r["banks"]) > 2 else "")), n0(r["acquired"]),
              n0(r["before"]), pct(r["share"], 1, 1), "%+.1f%%" % (100 * r["jump"])] for r in miss[:20]]
-    d.add(table(["Acquirer", "Quarter", "Product", "Acquired bank", "Acquired book ($000)", "Acquirer's book before", "Share", "Quarter's move"], rows))
+    d.add(table(["Acquirer", "Quarter", "Product", "Acquired bank(s), largest first", "Acquired book ($000)", "Acquirer's book before", "Share", "Quarter's move"], rows))
     d.add("<p>The quarter's move stays under 25% because the acquirer's own book shrank or the acquisition was under a quarter of the book. Some misses are a group "
           "merging its own charters: Citizens Bank of Pennsylvania into Citizens (2019Q1), Wachovia's card bank into Wells Fargo (2010Q2), Fifth Third's "
-          "Michigan charter (2009Q3). Before such a date the roster bank's history is only part of its group's book.</p>")
+          "Michigan charter (2009Q3). Before such a date the roster bank's history is only part of its group's book. PNC's eleven 2007Q3 mortgage "
+          "acquisitions are each under 5% of its book and 16.5% together, which is why the count is by quarter, not by charter.</p>")
     d.add("<h3>(b) The double count, measured against the QBP</h3>")
     off = hist4["credit-card"]["off"]
     tool_s = {q: v[0] for q, v in off.items()}
@@ -511,7 +513,7 @@ def main():
           "2010Q2 card book moved −2.2%%, so its windows stay in, carrying Wachovia Card Services' first-quarter charge-offs twice ($%sm net). "
           "Wells' own card rate, as the tool computes it, against the same rate without them: %s. These windows are in the pack composite.</p>"
           % (n1(g5["wcs_q1"] / 1000), "; ".join("%s %.2f%% against %.2f%%" % (w["q"], w["net"], w["without"]) for w in g5["wells"])))
-    d.add('<div class="fix"><b>Recommended fix.</b> (a) Leave out rate windows that touch any recorded acquisition whose acquired book is 5% or more of the '
+    d.add('<div class="fix"><b>Recommended fix.</b> (a) Leave out rate windows that touch any quarter whose recorded acquisitions, added together, are 5% or more of the '
           'acquirer\'s product book. Both banks are in the cache, so the share can be computed rather than guessed. (b) In a merger quarter under common control, '
           'take the absorbed bank\'s last year-to-date flows off the survivor\'s flow (same calendar year), in <code>quarterly_flows</code> and <code>industry</code> '
           'alike, and hold the industry series to the QBP\'s published quarterly totals as a test.</div>')
@@ -633,7 +635,7 @@ python docs/tie-out/comparability-2026-10/scripts/build_exhibit.py --figures wor
 quarters, $74m to $4.8bn each, and the industry card rate up to 0.71 pts high for four quarters after each. The same mechanism lifts
 Wells Fargo's own card rate by about 0.4 pts for four quarters of 2010–11, inside the pack composite. No test could catch it, because every input value is right. Only putting the series beside the
 FDIC's own totals showed it.</li>
-<li><b>The jump rule misses 56 material acquisitions</b>, up to 27% of a book. The merger record is pulled but used only for the Balances index.</li>
+<li><b>The jump rule misses 60 material acquisition quarters</b>, up to 27% of a book. The merger record is pulled but used only for the Balances index.</li>
 <li><b>Right value, wrong citation, twice.</b> The government-guaranteed lines are RC-N items 11 to 11.b, not 10 and 10.a. The FDIC's field names for them read
 the wrong way round (P9GTYPAR is item 11; P9GTY is 11.a).</li>
 <li><b>KeyCorp counts rebooked GNMA loans as current; the Call Report counts them as 90+ accruing.</b> Internal and filed 90+ differ by design, by about $5m
@@ -651,7 +653,10 @@ reported 49.9 ($m) where the sheet says 11,701.511. The composition table in the
 caught it. The parser now refuses a label that appears twice in one block.</li>
 <li><b>My first count of uncaught acquisitions was 57, and one was an artefact.</b> Capital One's 2007 card row: the acquired card book never reached the
 acquirer's card line, so nothing entered its rate. I also briefly narrowed the definition of "material" in the script, which dropped ten caught cases from the
-denominator; restored, the count is 149, with 93 caught.</li>
+denominator; restored, the count was 149, with 93 caught.</li>
+<li><b>I then tested each absorbed bank on its own, and the review caught it.</b> An acquirer that absorbs several banks in one quarter takes in their
+combined book: PNC's eleven 2007Q3 mortgage acquisitions are each under 5% and 16.5% together. Counted by acquirer, quarter and product, 130 cases are
+material and 60 slip the rule, against 149 and 56 counted bank by bank.</li>
 <li><b>My first guess at the 2019 card overcount's size was 0.13 pts. It is 0.09.</b> I reasoned from memory of Chase Bank USA's size before measuring;
 the measured number is what is reported.</li>
 <li><b>I first blocked on the network and nearly used the repository's saved FDIC data as a stand-in.</b> That would have tied the tool's copy against an

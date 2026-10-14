@@ -527,17 +527,30 @@ def acquisitions(src, snap, short):
                 continue
             jump = (az / ab - 1) if ab else None
             caught = (ab == 0 and az > 0) or (jump is not None and abs(jump) > 0.25)
-            material = (ab >= 1000000 and ob / ab >= 0.05) or (ab < 1000000 and ob >= 1000000)
-            out.append(dict(acquirer=short[acq], out_cert=oc, code=int(h["CHANGECODE"]), quarter=q, product=prod,
-                            acquired=ob, before=ab, after=az, share=(ob / ab if ab else None), jump=jump,
-                            caught=caught, material=material))
+            out.append(dict(acquirer=short[acq], acq_cert=acq, out_cert=oc, code=int(h["CHANGECODE"]), quarter=q, product=prod,
+                            acquired=ob, before=ab, after=az, jump=jump, caught=caught))
     names = {}
     for fn in sorted(Path(src).glob("fdic-institutions-acquired-*.json")):
         for x in json.loads(fn.read_text("utf-8"))["data"]:
             names[str(x["data"]["CERT"])] = x["data"]["NAME"]
     for r in out:
         r["out_name"] = names.get(r["out_cert"], r["out_cert"])
-    return dict(events=events, no_filing=nofile, rows=out)
+    # Materiality is judged on everything one acquirer absorbed in a quarter,
+    # product by product: that combined book is what enters its series. Eleven
+    # charters of under 5% each can still be 16.5% together (PNC, 2007Q3).
+    groups = {}
+    for r in out:
+        g = groups.setdefault((r["acq_cert"], r["quarter"], r["product"]), dict(
+            acquirer=r["acquirer"], quarter=r["quarter"], product=r["product"], before=r["before"], after=r["after"],
+            jump=r["jump"], caught=r["caught"], acquired=0, banks=[]))
+        g["acquired"] += r["acquired"]
+        g["banks"].append((r["out_name"], r["acquired"]))
+    for g in groups.values():
+        ob, ab = g["acquired"], g["before"]
+        g["banks"].sort(key=lambda b: -b[1])
+        g["share"] = ob / ab if ab else None
+        g["material"] = (ab >= 1000000 and ob / ab >= 0.05) or (ab < 1000000 and ob >= 1000000)
+    return dict(events=events, no_filing=nofile, rows=out, groups=list(groups.values()))
 
 
 if __name__ == "__main__":
