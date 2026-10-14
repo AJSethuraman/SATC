@@ -943,3 +943,53 @@ The firm, 14 Oct: "Build until you cannot." The approved items, in order.
   begin beyond the worst quarter kept": auto's own line starts in 2011, so
   its history holds no crisis). Each refusal says what would clear it; the
   settings per product are the firm's.
+
+## 14 October 2026, the internal import, built
+
+`docs/INTERNAL-IMPORT.md` was a draft with nothing built. It is now
+`internal.py` and the `internal` command: `template`, `check`, `series`,
+`pull` and `reconcile`. Made-up figures only in the repository; nothing has
+been run on KeyBank's data.
+
+- **The file** is as agreed: one row per quarter, product and segment, any
+  two of gross, net and recoveries (the third worked out; three that
+  disagree are refused, compared exactly as written, so no tolerance is
+  assumed), past due cumulative and not above the balance, one
+  `# segment-NAME:` description per segment the rows use. Auto is a
+  product of its own (the firm: "we have auto in the bank it's just
+  direct"). Every problem is listed at once, each with its line.
+- **Decided here, for the firm to overrule:**
+  - Exclusions are a separate file, not a section: different columns,
+    public sources, their own `--exclusions`.
+  - Each exclusion names its `segment` and its `measure` (balance, gross or
+    net charge-offs), two columns beyond the agreed four: home equity's
+    two segments meet different public lines, and a balance left out says
+    nothing about its charge-offs.
+  - Charge-offs are reconciled for every comparison, not only card and
+    other consumer: each RI-B line used covers the same loans as its RC-C
+    balance line (1.c.(1), 1.c.(2)(a) and (b), 5.a, 5.b, 5.c).
+  - The remainder's share is of the internal figure. An internal figure of
+    0 is within only when the remainder is 0.
+  - A blank filed field is "not filed", so that row is not measured, never
+    counted as 0. Before 2011Q1 auto (6.c) was not filed separately, so
+    other consumer and auto are not measured before then.
+  - Further columns hold numbers or nothing; a column named like an
+    identifier is refused. The file holds totals by segment.
+  - `reconcile` takes `--roster` (the filer is the roster's `self` bank),
+    and `internal pull` exists because a peers cache has no junior-lien
+    fields (LNRERSF2, DRRERSF2, CRRERSF2): reconcile reads a cache of its
+    own and says, row by row, when a field was not pulled.
+- **Checked against a real cache:** `internal pull` fetched 2026Q1-Q2 from
+  the live FDIC API with every field it names. A stand-in built from
+  KeyBank's own public figures (scratch only, never committed) reconciled
+  to a remainder of 0 on all 36 rows at tolerance 0. The 2026Q2 lines the
+  doc quotes hold: LNRELOC 2,929,570, LNRERSF2 276,020; other consumer
+  268,825 + 62,212 + 4,200,208 = 4,531,245.
+- **Not handled:** where KeyBank absorbed a bank under the same parent, its
+  filing can repeat that bank's year to date; reconcile flags such a
+  remainder and does not explain it (the notes say so). The FDIC record
+  has one in range: certificate 16004 merged into KeyBank effective 8 Oct
+  2016 (code 223). Whether 2016Q4's year to date repeats it was not
+  checked. No run-off note on the internal series yet.
+- `tests/test_internal.py`: 86 passed. Full suite: 914 passed, 0 failed
+  (49 minutes).

@@ -236,6 +236,26 @@ ordinary series for `workbook` and the window.
 checked and built through the workbook in a test; each refusal has a test
 with its exact words.
 
+## Internal data (`internal.py`, command `internal`)
+
+KeyBank's own figures by product and segment, one file, run on site only.
+The layout and every rule are in `docs/INTERNAL-IMPORT.md`.
+
+| Command | What it does |
+|---|---|
+| `internal template OUT.csv` | The empty file, every note `[STATE: ...]`, and an empty exclusions file beside it |
+| `internal check FILE` | Every problem at once, each naming its line, exit 2: a note or segment description not stated, a missing column, fewer than two of gross, net and recoveries (the third is worked out; three that disagree are refused), past due not cumulative or above the balance, a repeat, a gap, a column named like an identifier, text in a further column |
+| `internal series FILE --out-dir DIR` | Per product and segment, net and gross charge-off rates over four quarters, and 30+, 60+ and 90+ rates at quarter-end and as a four-quarter average, by the public series' method. Each file's notes copy the file's own as-of, source, entity and basis, for the Sources tab |
+| `internal pull` | The Call Report fields the reconciliation reads, into a cache of its own |
+| `internal reconcile` | Per quarter and comparison, the filed balance and charge-offs, less the named exclusions, against internal; the remainder within the stated tolerance or not. Reads the cache only. Delinquency is not reconciled (the buckets differ); the notes give the nearest public measure |
+
+**What proves it:** `tests/test_internal.py`, made-up figures only: each
+refusal pinned by its line; the four-quarter rate against a hand-worked
+example; the window rule; a written series built through the workbook; a
+reconciliation on a small synthetic Call Report cache where named exclusions
+explain one gap and another is flagged; refusal without a tolerance. Not yet
+run on KeyBank's data, nor against a real cache.
+
 ## What was run outside the tool
 
 All public data. These were first run as one-off scripts, kept with the
