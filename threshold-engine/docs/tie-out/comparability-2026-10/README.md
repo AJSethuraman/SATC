@@ -13,7 +13,7 @@ one document with every picture embedded, checked and rendered by canon's
 
 | Gap | Verdict | How big | What to do |
 |---|---|---|---|
-| 1 · Government-guaranteed loans in 90+ | Real, large for mortgage. The lines are RC-N 11, 11.a, 11.b, not 10 and 10.a | Rebooked GNMA 90+ is 80–103% of first-lien 90+ at eight peers, 63% industry-wide; about $5m of KeyBank's $15.0m | Compare mortgage on nonaccrual and charge-offs; show "90+ less rebooked GNMA" only as an approximation |
+| 1 · Government-guaranteed loans in 90+ | Real, large for mortgage. The lines are RC-N 11, 11.a, 11.b, not 10 and 10.a | Rebooked GNMA 90+ is 80–103% of first-lien 90+ at eight peers, 63% industry-wide; about $5m of KeyBank's $15.0m | Compare mortgage on nonaccrual and charge-offs; do not subtract rebooked GNMA from peers' 90+ (the line is not split by loan type); show the GNMA share beside it as an upper bound |
 | 2 · Card nonaccrual is policy | Real | 10 of 16 banks file zero card nonaccrual; Citizens files zero 90+ accruing in all 76 quarters | Compare cards on 90+ incl. nonaccrual and 30+ incl. nonaccrual |
 | 3 · 2010Q1 securitizations (FAS 166/167) | Real in the industry card series only | Industry card balances +69.1% in one quarter; about +0.9 pts on the rate from mix | Treat 2010Q1 as a break; use the industry card series from 2010Q4 or label the earlier part |
 | 4 · Industry total against peer median | Real, product-dependent | Card and other consumer about 0.15 pts apart on average (1.3 in 2009–11); auto industry typically 2× the median | Show both; anchor auto on the median; add p50 to the band |

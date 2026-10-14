@@ -237,7 +237,7 @@ def main():
          "Rebooked GNMA loans 90+ equal %s of first-lien 90+ accruing at U.S. Bank, %s at Citizens, %s at Wells Fargo; %s industry-wide. KeyBank: about $%dm of its $15.0m (one third), from KeyCorp's 10-Q." % (
              pct(bank["U.S. Bank"]["gnma_90"], bank["U.S. Bank"]["first_90"]), pct(bank["Citizens"]["gnma_90"], bank["Citizens"]["first_90"]),
              pct(bank["Wells Fargo"]["gnma_90"], bank["Wells Fargo"]["first_90"]), pct(g1["industry_gnma_90"], g1["industry_first_90"]), kq[1]),
-         "Compare mortgage across banks on nonaccrual and charge-offs, not 90+ accruing. Where a 90+ figure is wanted, show 90+ less rebooked GNMA (FDIC field P9GTYGNM) as an approximation and say so."],
+         "Compare mortgage across banks on nonaccrual and charge-offs, not 90+ accruing. Do not subtract rebooked GNMA from a peer's mortgage 90+: the line is not split by loan type and can hold commercial loans. Where a 90+ figure is shown, put the GNMA share beside it as an upper bound."],
         ["2 · Nonaccrual is partly policy (cards)",
          "<b>Real.</b> The Call Report lets a bank keep a late consumer loan accruing.",
          "At 30 Jun 2026, 10 of 16 banks file zero card nonaccrual; Citizens has filed zero card 90+ accruing in every one of its 76 quarters and puts it all in nonaccrual.",
@@ -340,8 +340,10 @@ def main():
           '<code>P9GTYGNM</code> is 11.b. The same holds for the 30–89 (<code>P3</code>) and nonaccrual (<code>NA</code>) twins. It was settled by '
           'reading the 16 filings, not the dictionary.</p>')
     d.add('<div class="fix"><b>Recommended fix.</b> For mortgage, compare banks on nonaccrual and charge-offs, where guaranteed loans barely '
-          'register. If a 90+ mortgage figure is shown, add "90+ less rebooked GNMA" (P9RERSFM − P9GTYGNM, not below zero) labelled as an approximation. '
-          'For KeyBank use the 10-Q\'s residential figure each quarter. When internal 90+ is compared with filed 90+, take the residential GNMA '
+          'register. Do not subtract rebooked GNMA (P9GTYGNM) from a peer\'s first-lien 90+ (P9RERSFM): item 11.b is not split by loan type, '
+          'so the subtraction can take out commercial loans. KeyBank shows it: 15,000 − 69,414 is below zero, while about $10m of its first-lien 90+ '
+          'is not government-insured. If a 90+ mortgage figure is shown, put "rebooked GNMA ÷ first-lien 90+" beside it, labelled as an upper bound '
+          'on the insured share. For KeyBank use the 10-Q\'s residential figure each quarter. When internal 90+ is compared with filed 90+, take the residential GNMA '
           'amount off the filed side, because KeyCorp counts those loans as current. Other consumer: KeyBank has none (11.a is 0); for peers, item 11.a '
           'mixes SBA, student and other guarantees and cannot be pinned to a product.</div>')
     d.add("<h3>Figures</h3>" + figtable(by_gap[1][:4] + by_gap[1][34:]))
