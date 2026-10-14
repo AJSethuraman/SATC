@@ -183,3 +183,40 @@ Asked: same engine or a separate tool; who reads it; which series first.
   what things similar to unemployment and home insurance prices you can find
   that would be used for this sort of analysis."* Research started; nothing is
   built.
+
+## 14 October 2026, indicator research
+
+Five research strands (labor and income; household costs and insurance;
+household balance sheets and housing; business and commercial; how regulators
+and banks use macro data), then one report:
+`reports/Macro risk indicators for lending.md` (about 12,000 words, 212
+sources). The first run died with a machine restart at about 21:14 UTC before
+any notes were written; it was relaunched with notes saved as it went.
+
+What it found, in short:
+
+- The core every bank and the Fed's stress test share: unemployment (level
+  and how fast it rises), real GDP, house prices, CRE prices, corporate
+  spreads; rates and inflation in support. All nine regional banks' FY2025
+  10-Ks name unemployment and GDP.
+- Home insurance: no free series of what owners pay. CPI "tenants' and
+  household insurance" prices renters' policies (+5% 2019–24 against +62% in
+  escrow data). Best free proxy: BLS PPI homeowner's insurance premiums, from
+  June 1998, rated on its change over a year.
+- Commercial side is limited by licences: FRED keeps 3 years of ICE BofA
+  spreads (internal use only); free substitutes are the Fed's GZ spread and
+  excess bond premium (from 1973) and the Z.1 CRE price index.
+- Published ways to flag a reading: percentile in its own history (the Fed's
+  FSR; a 2015 Fed staff heat map at the 65th/80th/85th percentiles), change
+  from a recent low (Sahm 0.50), fixed cut-offs on composites (CFNAI −0.70),
+  gaps from trend. The Fed's scenario guides (final rule, 2 Oct 2026) are the
+  only official sizes of a severe move. The Sahm rule, the yield-curve model
+  and the Conference Board index all fired in 2022–25 with no recession.
+- The report sorts about three dozen series as ready to rate, a group usable
+  with care, and a context-only group (licensed, stopped or stale).
+
+**Not found:** any study of how far an indicator leads C&I or CRE charge-offs;
+any test of the NY Fed survey's missed-payment probability against actual
+delinquency; licence terms for several sources (listed in the report).
+
+**Waiting on the firm:** which series the tool starts with. Nothing is built.
