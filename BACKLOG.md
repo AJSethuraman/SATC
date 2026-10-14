@@ -3558,11 +3558,18 @@ changed in the code.
     pass the ceiling, every tab is written again with the chart as one sentence, in Summary's note and where the
     chart would be: *"No vintage chart: its points would need N more rows on the hidden _views sheet, taking it past
     the 1,000,000 this workbook writes (Excel opens at most 1,048,576)."* If the other rows alone pass it, the Run
-    refuses and does not save, so the workbook keeps the last Run's results: *"Couldn't write the results: they need N
-    rows on the hidden _views sheet, and the most this workbook writes is 1,000,000 (Excel opens at most 1,048,576).
-    Nothing was written, so the workbook still has the last Run's results. Fewer filters, filter values, or band and
-    category columns need fewer rows."* Dropping only the chart was chosen as the least surprising: the analysis
-    still runs, and the chart is the one part that can be left off on its own.
+    refuses and does not save, so the workbook keeps the last Run's results: *"Couldn't write the results: even
+    without the vintage chart they need N rows on the hidden _views sheet, and the most this workbook writes is
+    1,000,000 (Excel opens at most 1,048,576). Nothing was written, so the workbook still has the last Run's results.
+    Use fewer filters, fewer filter values, or fewer band and category columns."* Dropping only the chart was chosen
+    as the least surprising: the analysis still runs, and the chart is the one part that can be left off on its own.
+  - **Second independent review (on `dd403481`): nothing blocking.** Its should-fix, a refused scouting Run leaving a
+    pre-spec beside the book, does not reproduce: a scouting Run is a new-variable Run, which writes no bleed tabs
+    (`engine.py`, `bleed = config.run_kind != "new_variable"`), so it never reaches the row refusal. Its wording nit
+    is fixed: the refusal now counts only the rows that would be written, and its last sentence is a full one. One
+    planted bug added for the count (the chart's rows counted again), caught. One retired: dropping the chart before
+    refusing (`if n:` for `if n and views.r <= MOST_VIEWS_ROWS:`) now ends in the same refusal, words and count, after
+    a wasted second pass, so no test can tell it apart; the guard it planted into is kept for that pass's cost.
   - **Same figures below the old limit:** a 10-year and a 41-year book, Summary calculated through LibreOffice
     before (main) and after, at five dropdown picks each (three measures, a CHANNEL filter, the CHANNEL column with
     Avg line). Every visible cell, every helper value and the chart's references are the same. The only differences

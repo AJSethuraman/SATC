@@ -102,10 +102,10 @@ AREA, KEYS = f"'{VIEWS}'!$B:$ZZ", f"'{VIEWS}'!$A:$A"
 #: repair the file). Past it Summary's vintage chart is left off, said in one sentence; if the rest alone would pass
 #: it, the Run refuses (14 Oct 2026, tests/test_vintage_years_2026_10_14.py)
 MOST_VIEWS_ROWS = 1_000_000
-SAY_TOO_MANY_ROWS = ("Couldn't write the results: they need {n:,} rows on the hidden _views sheet, and the most this "
-                     "workbook writes is {most:,} (Excel opens at most 1,048,576). Nothing was written, so the "
-                     "workbook still has the last Run's results. Fewer filters, filter values, or band and category "
-                     "columns need fewer rows.")
+SAY_TOO_MANY_ROWS = ("Couldn't write the results: even without the vintage chart they need {n:,} rows on the hidden "
+                     "_views sheet, and the most this workbook writes is {most:,} (Excel opens at most 1,048,576). "
+                     "Nothing was written, so the workbook still has the last Run's results. Use fewer filters, fewer "
+                     "filter values, or fewer band and category columns.")
 
 
 class TooManyRows(engine.DataRefused):
@@ -2674,4 +2674,4 @@ def write(wb, res, stamp: str) -> None:
         from . import summary_chart
         res.vintage = summary_chart.Vintage(said=summary_chart.SAY_TOO_MANY_ROWS.format(n=n, most=MOST_VIEWS_ROWS))
         return write(wb, res, stamp)
-    raise TooManyRows(SAY_TOO_MANY_ROWS.format(n=views.r + n, most=MOST_VIEWS_ROWS))
+    raise TooManyRows(SAY_TOO_MANY_ROWS.format(n=views.r, most=MOST_VIEWS_ROWS))   # the chart would be left off

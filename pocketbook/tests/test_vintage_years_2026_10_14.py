@@ -156,10 +156,10 @@ def test_views_past_its_most_rows_drops_the_vintage_chart_then_refuses(tmp_path,
     before = b.read_bytes()
     ran, b3 = _run_again(b, tmp_path / "refused.xlsx", tmp_path, monkeypatch, len(rest) - 1)
     assert not ran.ok
-    assert ran.lines == [f"Couldn't write the results: they need {len(keys):,} rows on the hidden _views sheet, and "
-                         f"the most this workbook writes is {len(rest) - 1:,} (Excel opens at most 1,048,576). "
-                         f"Nothing was written, so the workbook still has the last Run's results. Fewer filters, "
-                         f"filter values, or band and category columns need fewer rows."]
+    assert ran.lines == [f"Couldn't write the results: even without the vintage chart they need {len(rest):,} rows "
+                         f"on the hidden _views sheet, and the most this workbook writes is {len(rest) - 1:,} (Excel "
+                         f"opens at most 1,048,576). Nothing was written, so the workbook still has the last Run's "
+                         f"results. Use fewer filters, fewer filter values, or fewer band and category columns."]
     assert b3.read_bytes() == before
 
 
