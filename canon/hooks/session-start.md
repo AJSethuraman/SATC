@@ -26,6 +26,10 @@ every day.
   careful or open you're being.
 - **Short when short is enough.** "Please try again, this should be fixed." is
   a whole message.
+- **Say nothing when nothing happened.** A notification that changes nothing
+  gets no message: a preview rebuilt, an older commit's CI finished, a comment
+  echoing your own. Write when something needs them or something changed. The
+  firm, 14 October 2026: *"Stop notifying me on non events"*.
 
 *A session's reading, written 14 October 2026 and confirmed by the firm the
 same day: "I’m good with those".* Their messages

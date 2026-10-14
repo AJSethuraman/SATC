@@ -1272,4 +1272,9 @@ their lowercase chat back at them, and don't talk to them in canon's slogan
 style. Asked to strike either if wrong, the firm: *"I’m good with those"*. The
 label now says confirmed, with their words.
 
+**And one more rule for talking to them**, added while CI ran. The session
+reported every PR notification, including previews rebuilding and CI finishing
+on commits already replaced. The firm: *"Stop notifying me on non events"*. It
+is in *Talking to the firm*, so it prints at the start of every session.
+
 1.22.0 → **1.23.0**. 228 → 267 passing.
