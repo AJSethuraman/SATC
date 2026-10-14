@@ -159,6 +159,20 @@ def _parser():
     b.add_argument("--horizon", required=True, type=int)
     b.add_argument("--min-history", required=True, type=int)
     wbp.add_argument("--half-lives", type=_number, nargs="+", default=[], metavar="YEARS")
+    sw = wbp.add_argument_group(
+        "the synthesis (the Synthesis tab), optional; a series given --synthesis needs --translation and "
+        "--leads, and --peer-percentiles when it has peers, each stated for that series")
+    sw.add_argument("--synthesis", action="append", default=[],
+                    metavar="LABEL=industry:FILE;filed:FILE;peers:FOLDER",
+                    help="the industry series (required) and, optionally, KeyBank's filed series and the peers "
+                         "(a folder: every .csv in it; or a pattern such as banks/credit-card_*_net.csv) for the "
+                         "series LABEL, whose --series file is the internal one")
+    sw.add_argument("--translation", action="append", default=[], metavar="LABEL=median ratio|none",
+                    help="how that series' industry lines are carried to the internal level")
+    sw.add_argument("--peer-percentiles", action="append", default=[], metavar="LABEL=P2,P3,P4,P5",
+                    help="the percentile across peers for lines 2, 3, 4 and 5, rising")
+    sw.add_argument("--leads", action="append", default=[], metavar="LABEL=SOURCE,SOURCE,SOURCE,SOURCE",
+                    help="where lines 2, 3, 4 and 5 are taken from: internal, industry or peers")
     _peers_parser(sub)
     _template_parser(sub)
     _internal_parser(sub)
@@ -527,13 +541,17 @@ def main(argv=None):
                 return _refused("--series takes LABEL=FILE, not %r" % item)
             pairs.append((label, path))
         try:
+            from .synthesis_tab import from_flags
             from .workbook import build
+            syn = from_flags(a.synthesis, a.translation, a.peer_percentiles, a.leads, [lb for lb, _ in pairs])
             r = build(a.out, pairs, a.name, a.unit, a.direction, a.frequency, a.smoothing,
                       a.floor_at_zero, a.moderate_halfwidth, a.low_step, a.high_z, a.on_the_line,
-                      a.half_lives, a.percentiles, a.horizon, a.min_history)
+                      a.half_lives, a.percentiles, a.horizon, a.min_history, synthesis=syn)
         except (SeriesError, ValueError, OSError) as exc:
             return _refused(exc)
-        print("Wrote %s: %s, %d quarters" % (r["path"], ", ".join(r["products"]), r["quarters"]))
+        print("Wrote %s: %s, %d quarters%s" % (r["path"], ", ".join(r["products"]), r["quarters"],
+                                               "; synthesis for %s" % ", ".join(r["synthesis"])
+                                               if r["synthesis"] else ""))
         return 0
     if a.command == "backtest":
         try:
