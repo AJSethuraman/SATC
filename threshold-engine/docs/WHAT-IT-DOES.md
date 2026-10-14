@@ -4,9 +4,17 @@ Written so it can be checked against the code. Each part names its file, what
 goes in, what comes out, and what proves it. Where something was run only as a
 one-off analysis rather than built into the tool, the last section says so.
 
-**State of the code:** branch `threshold-engine`, draft pull request #426.
-772 tests pass (13 Oct 2026). Nothing has been run on KeyBank's internal data.
-Nothing internal is in the repository, by rule.
+**State of the code:** on `main` (pull requests #426 and #428), with the
+walkthrough's fixes on branch `threshold-engine-walkthrough`. 778 tests
+pass (13 Oct 2026). Nothing has been run on KeyBank's internal data. Nothing
+internal is in the repository, by rule.
+
+**Walked, tied and ready for site (13 Oct 2026):** the walkthrough ran 30
+steps in Excel 16 and read 407 cells, each against an answer written before
+the run: all as expected (`docs/walkthrough/`, one PDF). One card line was
+tied to the Federal Reserve's own table (`docs/tie-out/cards-moderate-line-2026-10-13/`).
+The bank-machine checklist and its kit are `docs/ON-SITE-CHECKLIST.md` and
+`tools/bank_kit.py`, dry-run on a clean Python with no add-ons.
 
 ## The job
 
@@ -42,7 +50,7 @@ bank changes a setting.
 | **Chart** | Any combination of products on one scale, switched on and off, with one product's lines drawn | Yes |
 | **Evidence** | Per product: each spell above the median with its robust z, how often history was that bad, its deepest dip, and the temporary departures (stretches that left their path and came back) | No, written at build |
 | **Backtest** | How predictive a percentile scale would have been, rebuilt each quarter from the history up to and including that quarter, never after | No |
-| **Glossary** | 33 terms: what each means and exactly how it is calculated | No |
+| **Glossary** | 35 terms: what each means and exactly how it is calculated | No |
 | **Data** | Every series on one quarterly calendar, the quarters kept, and the working columns behind the live formulas | Yes |
 | **Run** | Engine version, build time, every setting's starting value, each input file's SHA-256 fingerprint, and the leave-out decisions and reasons, live | Partly |
 
@@ -73,6 +81,11 @@ kept (nothing could rate High); or Moderate-Low would begin at or below zero.
 - The workbook has been opened in Excel 16 on this machine, the settings
   changed by hand, and the results captured. That is how the blank chart, the
   missing axis labels, the slivered strip and the clipped headers were found.
+- The walkthrough (13 Oct 2026) did every kind of Settings change and every
+  refusal in Excel 16 and read 407 cells back against answers written first.
+  It found the Assess chart drawing wrong bands for any product whose data
+  starts after the calendar's first quarter, and a credit score's chart
+  starting at zero; both fixed, each with a test.
 - Every heading on Thresholds and Settings must have a Glossary entry, or a
   test fails.
 - No formula may point at a row that doesn't exist, which Excel would report

@@ -612,3 +612,99 @@ P2, both real:
   one sentence on, "built from the quarters before it". Both now say up to
   and including the quarter scored.
 Suite: 772 passed (18 min).
+
+## 13 October 2026, the walkthrough, the card tie-out and the site kit
+
+The bank: *"come on finish this out - walk it, tie it, etc. i want this done
+until you need me."*
+
+**The walkthrough** (`docs/walkthrough/`, one PDF). The expected answer for
+every cell was written first by `expected.py` and committed (6f3505d) before
+Excel was opened. `walk.ps1` then built the workbooks with the command a
+person types, typed each step into Excel 16 through its automation
+interface, and read every cell back from Excel. 30 steps, 407 cells, all as
+expected in the final run. The card lines under the rehearsal settings equal
+the 7 Oct record, 3.171 / 3.464 / 4.050 / 5.981 and 25 / 22 / 29 / 55 / 4.
+The script first took the 6 Oct figures, which belong to the scale retired
+that evening; it stopped on the mismatch before anything ran.
+
+What it found, all fixed with a test each:
+- **Assess drew wrong bands for mortgage, home equity and other consumer.**
+  The chart's top and floor were MAX and MIN over a column holding #N/A for
+  quarters before a product's data begins, so both were #N/A: Low and High
+  vanished and the rest were drawn from zero. Every count was right. The
+  tests charted cards only, whose data covers the whole calendar.
+- **A credit score's chart started at zero**, the bands crowded into the top
+  half. Excel starts an automatic axis at zero unless the data sits within
+  about a sixth of its top; a measure not floored at zero now gets a fixed
+  round minimum at build, under the floor and the left-out strip, and the
+  strip stands on an invisible base so it no longer pulls the axis down.
+- **The Chart tab's legend covered the cutoff lines' right-hand ends**; it
+  sits below the plot.
+- **WHAT-IT-DOES.md said 33 Glossary terms; there are 35.** The script's
+  expected answer came from that document and Excel disagreed.
+Four readings failed on the first run because of the runner (a formula that
+returns a cell, and #N/A in a hidden column reading as blank text). Steps W3
+and W14 gained readings of the chart's floor and top after the first run,
+because every cell read was right while the pictures were wrong.
+
+**The tie-out** (`docs/tie-out/cards-moderate-line-2026-10-13/`). Credit card,
+3 Moderate from, rehearsal settings: 3.4641865 in Excel against 3.4646865
+recomputed by hand from the Federal Reserve Board's own table (Charge-Off
+Rates, All Banks, SA, last update 25 Aug 2026), with exact decimals and
+nothing from the tool. DIFFERS by 0.0005, cause found: the repository's
+`cards_nco_ttm.csv` holds each four-quarter mean to three decimals, and in 80
+of 163 quarters the exact mean ends in 5 (43 saved up, 37 down). 2020Q2,
+3.7575 saved as 3.757, is the median kept, so all four lines sit 0.0005 low.
+No kept quarter and not the latest changes score. The file is left as it is.
+FRED could not be reached from this machine for a second reading.
+
+**The site kit.** `docs/ON-SITE-CHECKLIST.md` (and `.pdf`) and
+`tools/bank_kit.py`: one zip with the code, the window, the public practice
+files and the two add-ons as wheels (openpyxl, et-xmlfile). Dry-run on a
+fresh Python with neither installed: unzipped with Windows' tar, installed
+offline from the kit, every command run as written in Command Prompt, the
+practice numbers and the rehearsal lines read in Excel, a made-up score file
+taken through `template write`, `check` and a build. Found: the template's
+message told the user to run `threshold-engine template check`, a command
+that exists only once the package is installed; it now says `python -m
+threshold_engine`.
+
+**Lower-is-worse through the workbook** (NEXT-GOAL section 2): a mirrored
+series is held to `scale()` and `score()` under each on-the-line rule, and
+walked in Excel as W14.
+
+**Handed back:** monthly series in the workbook. Recommended acceptable for
+v1: every source v1 reads is quarterly, and every template asks for
+quarter-end dates.
+
+Suite: 778 passed (23 min).
+
+## 13 October 2026, Codex on #432's fix
+
+Two P2, both real:
+- **The fixed axis minimum held only the starting settings.** A measure not
+  floored at zero gets a fixed minimum at build (Excel starts an automatic
+  axis at zero), and an axis cannot follow a cell, so raising Moderate-Low's
+  step later could push score 2's line off the bottom. The minimum now sits
+  under every line the dials offer (width to 1, step to 2, z from 2 to 3.5)
+  as well as the starting ones. A setting beyond the dials' range can still
+  run off it; the Check and the numbers are unaffected. Test: a noisy series
+  whose step-2 line falls below every value it took; it fails on the old code.
+- **compare.py zipped expected and observed readings**, so a stale
+  observed.json from before a step gained readings passed them silently. A
+  missing or misplaced reading is now a difference.
+
+## 13 October 2026, Codex on e703a86
+
+Three P2, all real:
+- **The axis floor could not follow leave-outs.** Leaving out a calm stretch
+  widens the spread and can push a line below the fixed minimum. No fixed
+  axis can follow every edit, and one loose enough to try would flatten the
+  chart, so the cell over the chart now says, in red, when a line or the
+  left-out strip falls below the axis ("the numbers are right, the picture is
+  cut off"). Checked in Excel 16 on a noisy series at step 6.
+- **compare.py counted a step that never ran as one failure**; it now counts
+  every reading in it, so the headline cannot overstate what Excel checked.
+- **The walkthrough's build command wrote the workbook where the runner does
+  not look**; it now writes to docs/walkthrough/out/.
