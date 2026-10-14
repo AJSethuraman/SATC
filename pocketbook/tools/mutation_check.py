@@ -1808,6 +1808,13 @@ muts = [
   "        if optional and self.gate.optional:", "once_the_add_ons_are_installed"),
  ("Control's limits read only from a full-width row", CO,
   "        row = tuple(row) + (None,) * (KEY_COL - len(row))", "        row = tuple(row)", "read_only_worksheet"),
+ # the wording pass of 14 Oct 2026: a workbook written before it carries the old words where a Run reads them back
+ ("an older workbook's few-values note written twice", B,
+  'r" ?Few values \\([^)]*\\): (?:Category may read better|the last Run gave each value its "',
+  'r" ?Few values \\([^)]*\\): (?:the last Run gave each value its "', "few_values_the_run_says_so"),
+ ("an older workbook's Grey rows under number lost", SCH,
+  'GREY_LABELS = (GREY_LABEL, "Grey rows under")', 'GREY_LABELS = (GREY_LABEL,)',
+  "old_words_still_sets_up or beside_either_label"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

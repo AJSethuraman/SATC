@@ -102,7 +102,7 @@ groups:
               The same calculation at 80%, which leaves more loans for scouting and fewer held back for
               confirmation.
 
-  - title: How columns are recognised
+  - title: How columns are recognized
     settings:
       - key: few_values
         asked_in: launcher
@@ -384,7 +384,7 @@ groups:
             label: "0.25 points either way"
             explains: >-
               A point is 1% of booked dollars. A gap of 0.25 points or more counts; a gap that is not
-              significant is labelled not significant.
+              significant is labeled not significant.
           - value: 0.5
             label: "0.5 points either way"
             explains: Only gaps of half a point of booked dollars or more count.

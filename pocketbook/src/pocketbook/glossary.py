@@ -271,10 +271,10 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     mu = f.get("min_units") if run else None
     out.append(("Fewest loans in a pocket",
                 "A pocket with fewer loans than this is tested with the exact test rather than the usual one. Its "
-                "cells on Grids are grey rather than coloured.",
-                f"At the last Run the minimum was {mu:,.0f}, so any pocket with fewer loans is grey on Grids."
+                "cells on Grids are gray rather than colored.",
+                f"At the last Run the minimum was {mu:,.0f}, so any pocket with fewer loans is gray on Grids."
                 if isinstance(mu, (int, float)) else
-                "With the minimum set at 30, a pocket of 20 loans is grey on Grids."))
+                "With the minimum set at 30, a pocket of 20 loans is gray on Grids."))
     w = f.get("worse_at") if run else None
     b = f.get("better_at") if run else None
     out.append(("Worse at / Better at",

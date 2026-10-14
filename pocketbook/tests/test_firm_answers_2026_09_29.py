@@ -741,9 +741,9 @@ def test_one_cell_reads_the_blocks_own_numbers_in_words_for_a_multiple_and_a_gap
         bound = max([abs(x) for blk in (bk, bd) for k, x in blk.items() if isinstance(x, (int, float))
                      and isinstance(loans.get(k), (int, float)) and loans[k] >= few] + [0.01])
         if n < few:
-            assert said["The colour"] == f"Grey: only {n:,} loans, fewer than the {few:,} set on Control, so not coloured."
+            assert said["The color"] == f"Gray: only {n:,} loans, fewer than the {few:,} set on Control, so not colored."
         else:
-            assert said["The colour"].startswith(f"vs the book is {_shade(v, kind, bound)} and vs rest of band is "
+            assert said["The color"].startswith(f"vs the book is {_shade(v, kind, bound)} and vs rest of band is "
                                                  f"{_shade(w, kind, bound)}.")
 
 
@@ -771,7 +771,7 @@ def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(
         assert said["vs the book"] == few                        # only one reason a comparison with the book is blank
     _, _, said = _grids(b, tmp_path / "few.xlsx", measure="GCOs ($)", row=thin[0], column=thin[1])
     assert said["vs the book"] == few and said["vs rest of band"] == few
-    assert "alone" not in said["The colour"] and said["The colour"].startswith("vs the book is blank and vs rest of band "
+    assert "alone" not in said["The color"] and said["The color"].startswith("vs the book is blank and vs rest of band "
                                                                                "is blank.")
     ws = load_workbook(b)[results.GRIDS]
     notes = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("A blank")]
@@ -1012,10 +1012,10 @@ def test_grids_grey_a_cell_under_the_fewest_loans_and_leave_it_out_of_the_scale(
         assert coloured and all(f.startswith(f"AND(NOT({grey})") for f in coloured)
     # what one cell says, and the note
     _, _, said = _grids(b, tmp_path / "k1.xlsx", measure="RANR", row=kiosk[0], column=KIOSK)
-    assert said["The colour"] == f"Grey: only 3 loans, fewer than the {few} set on Control, so not coloured."
+    assert said["The color"] == f"Gray: only 3 loans, fewer than the {few} set on Control, so not colored."
     note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 16)}
-    assert note["Colour"].endswith(f"Grey cells have fewer loans than the {few} set in Fewest loans in a pocket on "
-                                   f"Control; they are not coloured and are left out of the largest gap.")
+    assert note["Color"].endswith(f"Gray cells have fewer loans than the {few} set in Fewest loans in a pocket on "
+                                   f"Control; they are not colored and are left out of the largest gap.")
 
 
 def test_grids_fewest_loans_is_the_number_the_run_used_and_no_filter_by_offers_all_loans(tmp_path, monkeypatch):
@@ -1047,10 +1047,10 @@ def test_grids_fewest_loans_is_the_number_the_run_used_and_no_filter_by_offers_a
     thin = next(k for k, v in _pockets(blocks["Loans"]).items() if v < want)
     _, _, said = _grids(out.book, tmp_path / "f1.xlsx", row=thin[0], column=thin[1])
     n = blocks["Loans"][thin]
-    assert said["The colour"] == (f"Grey: only {n} loan{'' if n == 1 else 's'}, fewer than the {want} set on Control, "
-                                  f"so not coloured.")
-    assert f"Grey cells have fewer loans than the {want} set in Fewest loans" in \
-        next(ws.cell(row=r, column=3).value for r in range(3, 16) if ws.cell(row=r, column=2).value == "Colour")
+    assert said["The color"] == (f"Gray: only {n} loan{'' if n == 1 else 's'}, fewer than the {want} set on Control, "
+                                  f"so not colored.")
+    assert f"Gray cells have fewer loans than the {want} set in Fewest loans" in \
+        next(ws.cell(row=r, column=3).value for r in range(3, 16) if ws.cell(row=r, column=2).value == "Color")
 
 
 def test_grids_the_books_own_figure_heads_vs_the_book(grids_book, tmp_path):
@@ -1114,7 +1114,7 @@ def test_grids_only_loans_where_shows_one_values_grid_against_the_whole_book(gri
     kiosk = next(k for k in cells if k[1] == KIOSK and k[0] != "All")
     _, _, said = _grids(b, tmp_path / "y1.xlsx", measure="RANR", row=kiosk[0], column=KIOSK,
                         **{ONLY: "Y"})
-    assert said["The colour"].startswith("Grey: only 3 loans, ")
+    assert said["The color"].startswith("Gray: only 3 loans, ")
 
 
 def test_grids_loan_size_is_booked_per_loan_described_never_red_or_green(grids_book, tmp_path):
@@ -1144,7 +1144,7 @@ def test_grids_loan_size_is_booked_per_loan_described_never_red_or_green(grids_b
     avg, med = _size(got)
     assert said["Rate"] == f"These {len(got):,} loans averaged ${avg:,.0f} booked, median ${med:,.0f}."
     assert said["vs the book"] == f"{avg / book_avg:.2f}× the average loan of the whole book."
-    assert said["The colour"] == results.SAY_SIZE
+    assert said["The color"] == results.SAY_SIZE
     fills = {r.dxf.fill.fgColor.rgb[-6:] for r, *_ in _rules_at(ws, _coord(ws, "vs the book", k))
              if r.dxf.fill is not None and '="size"' in r.formula[0]}
     assert fills == {c for _, c in results.SIZE_STEPS}

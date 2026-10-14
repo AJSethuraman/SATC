@@ -61,7 +61,7 @@ BLOCK_NOW, BLOCK_RUN, BLOCK_LAUNCHER = "block|now", "block|run", "block|launcher
 NEEDS = "F7DEDE"          # ALERT_FG: the shade on a cell that still needs an answer
 METHOD = [
     ("Changes now", "The result tabs read these answers through formulas, so changing one updates every reading, "
-                    "dollar figure, colour and verdict immediately. The rows stay in the order the last Run left "
+                    "dollar figure, color and verdict immediately. The rows stay in the order the last Run left "
                     "them."),
     ("Needs a Run", "These decide which pockets exist and which test each one gets, so they take effect when you "
                     "press Run again. Status says when an answer differs from what the last Run used."),

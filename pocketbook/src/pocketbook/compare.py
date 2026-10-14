@@ -226,7 +226,7 @@ def write_compare(wb, res, choices: Choices, views: Views) -> None:
     each = "either" if len(fs) == 2 else "any"
     note = [
         ("What it is", "Pick what goes across the bottom and a measure. Each line is one value of the filter picked "
-                       "in Lines by. The dashed grey line is the whole book."),
+                       "in Lines by. The dashed gray line is the whole book."),
         ("Across", "A band column's bands" + (f", or {each} filter's values: Origination year there is the vintage "
                                               "view" if any(n == ORIG_YEAR_LABEL for _, n in xf) else
                                               f", or {each} filter's values" if xf else "") + "."),
@@ -236,7 +236,7 @@ def write_compare(wb, res, choices: Choices, views: Views) -> None:
                     "neither Lines by nor Panels by is All loans. Every panel uses the same scale.") if sf2 else
                    "Pick a second filter in the launcher (Filter 2) to draw one small chart for each of its values."),
         ("Thin points", (SAY_THIN.format(few=few) if few is not None else "Every point is drawn.")
-                        + " The table under the charts still shows it, in grey. A panel with nothing to show for "
+                        + " The table under the charts still shows it, in gray. A panel with nothing to show for "
                           "what is picked stays empty, on the same scale."),
         ("Reading it", "Nothing here is tested. " + SAY_ASOF),
     ]

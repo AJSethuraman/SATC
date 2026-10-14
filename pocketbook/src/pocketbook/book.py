@@ -80,7 +80,7 @@ CONFIRM_NOTE = "Run won't start until this is Yes."
 #: The columns not picked in the launcher: not asked about and not counted, and kept, so picking one later needs no
 #: new answers. Hidden rows from 29 Sep 2026; shown again, greyed, from 30 Sep 2026 (the firm: "in my testing it is
 #: hiding random rows from the columns tab which makes it hard to make sure it's right")
-UNUSED_NOTE = "Grey rows ({}) were not picked in the launcher. They are not used in this Run and need no answers."
+UNUSED_NOTE = "Gray rows ({}) were not picked in the launcher. They are not used in this Run and need no answers."
 NOT_USED = "Not used this Run."      # Check first on a grey row, before anything else it says
 # Columns tab (the redesign, phase 2: Columns, Odd values and Learned on one tab), one column per thing said about
 # an extract column, in the spec's order, then the answers the spec has no place for, then hidden keys
@@ -1125,7 +1125,7 @@ def _start_here(ws, wb, extract, rows: int, ncols: int, found=None) -> None:
          if _found_value(wb, "kind") != confirm_tab.FOUND_KIND else
          "Each group of the tested column, compared with the reference group on the holdout. Significant? updates "
          "with the confidence level on Control; the other figures are as of the last Run."),
-        ("The tabs", "Red tabs hold your answers, black tabs hold the results, and grey tabs hold the Glossary and Record."),
+        ("The tabs", "Red tabs hold your answers, black tabs hold the results, and gray tabs hold the Glossary and Record."),
     ])
     _heading(ws, r, "Where things stand")
     cols = wb["Columns"] if "Columns" in wb.sheetnames else None
@@ -3361,7 +3361,7 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
                 f"within {stats.BORDERLINE_SE:g} standard errors of the ", ('TEXT(significance_bar,"0%")',),
                 " threshold, on either side. The standard error is the square root of p (1 - p) / shuffles, "
                 "multiplied by the factor the allowance for many tests applied to the p-value. The tabs add "
-                "\"borderline (p 0.048)\" to the verdict; the verdict's colour, order and counts are unchanged. The "
+                "\"borderline (p 0.048)\" to the verdict; the verdict's color, order and counts are unchanged. The "
                 "z test and the exact test give the same p-value on every Run, so they are never borderline.")))
         rows.append(("Standard error", live.text("The typical distance between a rate calculated from this many "
                                                  "loans and its true value. A gap of ",

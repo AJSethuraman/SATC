@@ -1391,7 +1391,7 @@ def build(root) -> dict:
         else:
             how = tk.Frame(page, bg=C["WHITE"], highlightbackground=C["MIST"], highlightthickness=1)
             how.pack(fill="x", pady=(14, 0))
-            label(how, "▾ How Set up recognises columns", "bold", bg=C["CANVAS"]).pack(fill="x", ipady=4, ipadx=8)
+            label(how, "▾ How Set up recognizes columns", "bold", bg=C["CANVAS"]).pack(fill="x", ipady=4, ipadx=8)
             # the firm, 29 Sep 2026: side by side, 12 and 50 read like one scale; they are for different columns
             for text, key, opts in (("Number columns: a column with this many distinct values or fewer is a "
                                      "category; one with more is cut into bands", "few", FEW),

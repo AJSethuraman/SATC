@@ -518,7 +518,7 @@ def _pockets_note(res) -> list[tuple[str, str]]:
                               f"the confidence level the last Run used."),
         ("Order", POCKETS_NOTE_ORDER + " Pockets that lose more only against the other comparison come last, so "
                                        "they are already listed if Judged against is changed on Control. A change "
-                                       "on Control updates Worse?, Material?, the dollars and the colours "
+                                       "on Control updates Worse?, Material?, the dollars and the colors "
                                        "immediately, but not the order. The caption counts the rows the dropdowns "
                                        "select."),
     ]
@@ -526,7 +526,7 @@ def _pockets_note(res) -> list[tuple[str, str]]:
         items.append((f"Holds {pt[0]} fixed?", f"Applies to split pockets only. {sf} moves with {pt[0]} "
                                               f"(correlation {pt[1]:+.2f}), so in a grid that does not hold "
                                               f"{pt[0]} fixed, a split pocket's gap may reflect {pt[0]} rather "
-                                              f"than {sf}. Those rows come last, in grey, with no verdict colour."))
+                                              f"than {sf}. Those rows come last, in gray, with no verdict color."))
     return items
 
 
@@ -1327,7 +1327,7 @@ LABEL_FLOOR, LABEL_CAP = 12, 28
 #: a header line of Arial bold 9, in points
 HEAD_LINE = 12
 #: the labels What one cell says puts in the left label column
-ONE_CELL_LABELS = ("Rate", "vs the book", "vs rest of band", "Loans", "The colour")
+ONE_CELL_LABELS = ("Rate", "vs the book", "vs rest of band", "Loans", "The color")
 
 
 def _shown(v, fmt: str) -> str:
@@ -1518,9 +1518,9 @@ SAY_FEW = "Blank: fewer losses than the minimum ({min} losses), so not compared.
 SAY_NOT = "Blank: not compared."
 SAY_LOANS = "{loans}; {row} has {m} in all."
 SAY_COLOUR = ("vs the book is {book} and vs rest of band is {band}. Red is worse and green is better, deeper for a "
-              "larger gap. The colour shows the size of the gap, not a test result.")
+              "larger gap. The color shows the size of the gap, not a test result.")
 #: a cell under the fewest loans (the firm, 29 Sep 2026: "grey out cells with too few loans")
-SAY_GREY = "Grey: only {loans}, fewer than the {min} set on Control, so not coloured."
+SAY_GREY = "Gray: only {loans}, fewer than the {min} set on Control, so not colored."
 SAY_SIZE = ("No red or green, because loan size is descriptive. The shading is darker the larger the loans are "
             "relative to the book's.")
 #: nothing to filter by: Filter by, in the launcher, picks the column (the firm, 30 Sep 2026: "Wait only works on
@@ -1600,12 +1600,12 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
                            else "")),
         ("vs rest of band", "The pocket's rate as a multiple of the rate for every other loan in its band. The "
                             "heading shows no rate, because the rest of the band differs in every row."),
-        ("Colour", "Red is worse, green is better and pale is in line. The scale runs from 0.5× or below (deepest "
+        ("Color", "Red is worse, green is better and pale is in line. The scale runs from 0.5× or below (deepest "
                    "green) to 2× or above (deepest red); for a gap in points, the largest gap in the grid is the "
                    "deepest. A cell is blank when its pocket is the only one in its band, or has fewer losses than "
                    "fewest losses on Control; it is then not compared (a setting for the next Run)."
-                   + (f" Grey cells have fewer loans than the {few:,} set in Fewest loans in a pocket on Control; "
-                      f"they are not coloured and are left out of the largest gap." if few is not None else "")),
+                   + (f" Gray cells have fewer loans than the {few:,} set in Fewest loans in a pocket on Control; "
+                      f"they are not colored and are left out of the largest gap." if few is not None else "")),
         ("Loans", "The number of loans in each pocket, shaded darker for a larger share of the grid. It is a "
                   "count, not a test, so it has no red or green."),
     ]
@@ -1885,7 +1885,7 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
                                 f'IF({OTH}<1,{fill_in(SAY_ALONE, row=R)},IF({untested},{not_},{few}))')),
         ("Loans", f'IF(OR({none},NOT(ISNUMBER({LV}))),"",'
                   + fill_in(SAY_LOANS, loans=loans_, row=R, m=f'TEXT({MV},"#,##0")') + ")"),
-        ("The colour", f'IF(OR({none},NOT(ISNUMBER({LV}))),"",IF({KIND}="amt","No colour: this figure is not '
+        ("The color", f'IF(OR({none},NOT(ISNUMBER({LV}))),"",IF({KIND}="amt","No color: this figure is not '
                        f'compared.",IF({GR},' + fill_in(SAY_GREY, loans=loans_, min=f'TEXT({FEW},"#,##0")')
                        + f',IF({KIND}="size",{live.q(SAY_SIZE)},'
                        + fill_in(SAY_COLOUR, book=shade_of(BV, KIND, BOUND), band=shade_of(NV, KIND, BOUND)) + "))))"),
@@ -2202,9 +2202,9 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
                         f"; of {sf2} too, and it shows the loans with both" if sf2 else "")
                      + ". The shares are of those loans. × book is still against the whole book."
                      + (YEAR_SAID.format(res.config.origination_date) if sf == ORIG_YEAR else "")))
-    note.append(("Shading", "The All row is shaded light grey. A row with fewer loans than the number beside Grey "
-                            "rows under, at the top, is shown in light grey; typing another number there updates it "
-                            "immediately. No other cell uses that number, and nothing else is coloured. Everything "
+    note.append(("Shading", "The All row is shaded light gray. A row with fewer loans than the number beside Gray "
+                            "rows under, at the top, is shown in light gray; typing another number there updates it "
+                            "immediately. No other cell uses that number, and nothing else is colored. Everything "
                             "here is as of the last Run."))
     from . import summary_chart                     # the grey rows' number and the vintage chart (3 Oct 2026)
     note.append(("Vintage", summary_chart.note_words(res)))
