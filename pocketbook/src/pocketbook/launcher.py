@@ -859,7 +859,7 @@ class Flow:
         views = ch.views_of(*(n for _, n in picked))
         sum_ = " × ".join(str(n + 1) for _, n in picked) + " = " if len(picked) > 1 else ""
         return (f" Each grid is built for {sum_}{_s(views, 'view')}, including All loans, so {_s(grids, 'grid')} × "
-                f"{views:,} = {grids * views:,} grids are built.")
+                f"{views:,} = {grids * views:,} views are built.")
 
     def summary(self) -> tuple[bool, str]:
         """The "This will run:" box, and whether Next can be pressed."""

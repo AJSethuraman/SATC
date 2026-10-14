@@ -232,7 +232,7 @@ def test_l2_the_summary_says_what_will_run_in_both_modes(tmp_path):
     # Filter 1 starts on Origination year (the firm, 1 Oct 2026)
     assert ok and said == ("2 band columns × 2 segment columns = 4 grids, five measures each; split by REV_DEBT "
                            "adds 4 more. Grids can show only the loans of one ORIG_YEAR. Each grid is built for 7 "
-                           "views, including All loans, so 8 grids × 7 = 56 grids are built.")       # the cost (1 Oct 2026)
+                           "views, including All loans, so 8 grids × 7 = 56 views are built.")       # the cost (1 Oct 2026)
     f.set_mode("new")
     assert f.summary() == (False, "Tick at least one input to test.")
     for c in ("CHANNEL", "ORIG_BAL", "ASSET_CLASS", "REV_DEBT"):

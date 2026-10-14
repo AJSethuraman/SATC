@@ -361,7 +361,7 @@ groups:
             explains: The old workbook's value.
           - value: 0.67
             label: 0.67 times
-            explains: A rate at most two-thirds of the comparison's.
+            explains: About two-thirds of the comparison's rate or less.
           - value: 0.5
             label: 0.5 times
             explains: Half the comparison's rate or less.
