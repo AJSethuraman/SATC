@@ -830,6 +830,35 @@ answers:
   and the import's two named exclusions (education loans in discontinued
   operations; residential loans held for sale).
 
+## 13 October 2026, Codex on #432's fix
+
+Two P2, both real:
+- **The fixed axis minimum held only the starting settings.** A measure not
+  floored at zero gets a fixed minimum at build (Excel starts an automatic
+  axis at zero), and an axis cannot follow a cell, so raising Moderate-Low's
+  step later could push score 2's line off the bottom. The minimum now sits
+  under every line the dials offer (width to 1, step to 2, z from 2 to 3.5)
+  as well as the starting ones. A setting beyond the dials' range can still
+  run off it; the Check and the numbers are unaffected. Test: a noisy series
+  whose step-2 line falls below every value it took; it fails on the old code.
+- **compare.py zipped expected and observed readings**, so a stale
+  observed.json from before a step gained readings passed them silently. A
+  missing or misplaced reading is now a difference.
+
+## 13 October 2026, Codex on e703a86
+
+Three P2, all real:
+- **The axis floor could not follow leave-outs.** Leaving out a calm stretch
+  widens the spread and can push a line below the fixed minimum. No fixed
+  axis can follow every edit, and one loose enough to try would flatten the
+  chart, so the cell over the chart now says, in red, when a line or the
+  left-out strip falls below the axis ("the numbers are right, the picture is
+  cut off"). Checked in Excel 16 on a noisy series at step 6.
+- **compare.py counted a step that never ran as one failure**; it now counts
+  every reading in it, so the headline cannot overstate what Excel checked.
+- **The walkthrough's build command wrote the workbook where the runner does
+  not look**; it now writes to docs/walkthrough/out/.
+
 ## 14 October 2026, mergers: counted once, and the 5% rule
 
 The comparability tie-out's gap 5, built.

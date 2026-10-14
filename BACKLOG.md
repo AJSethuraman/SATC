@@ -3487,6 +3487,52 @@ changed in the code.
     characters deleted instead of shown), both caught with no display; every entry's old string occurs once (665).
     With `-k "book or columns or summary or compare or filter"`: 257 passed, 3 skipped. Full suite, no display:
     1,045 passed, 14 skipped, 0 failed.
+- **Built, 14 Oct 2026: the two column limits follow the extract's workbook** (branch
+  `claude/pocketbook-limits-from-workbook`; HANDOFF.md open item *"The launcher's Next overwrites a category limit
+  typed on Control"*). Confirmed against the code first: the launcher kept its own last choice of the two limits
+  (*Number columns* and *Text columns*, saved with the launcher), and Set up took the launcher's choice over Control's
+  answer (`book.set_up`, the limits loop), so a value picked or typed on Control was replaced at Next without a word.
+  Reopening an extract already restored its bands, segments, split and filters from the workbook, but not the limits.
+  - **The firm's call (14 Oct 2026), offered three ways** (the workbook's, shown in the launcher; Next refuses on a
+    mismatch; the launcher wins and says so): *the workbook's, shown in the launcher*. Picking an extract whose
+    workbook exists loads Control's two limits into the launcher's dropdowns (`Flow.limits_from_book`, also when the
+    window opens on the last extract), and Next writes back what the dropdowns show. A value typed on Control
+    survives, including a number of the analyst's own off the list (60); a change made in the launcher replaces it.
+    An extract with no workbook, a workbook that can't be read, or a blank limit leaves the launcher's own.
+  - **Said on the screen:** under the two dropdowns, while they are the workbook's: *"These are the limits on Control
+    in this extract's workbook. A change here replaces them when you press Next."* Gone once either is changed in the
+    launcher. The dropdowns update in place when the extract is picked (no redraw while the path is typed), and a
+    number off the list is offered beside the options.
+  - **Where:** `control.read_limits` (Control's two limits, read-only worksheet too; `read_choices` now uses it),
+    `book.limits_in` (the workbook beside an extract, Control alone, opened read-only), `launcher.Flow.limits_from_book`
+    and `Flow.choose_limit`.
+  - **The independent review's findings, all fixed** (an agent that had not seen the work, reading the branch only):
+    (1) the planted bug on `read_limits`' row padding could not be caught, since openpyxl pads a read-only sheet's
+    rows to its recorded size; its test now also reads a sheet with no size recorded, whose short rows the padding is
+    for. (2) Left open, the launcher still wrote its stale limits over Control: 24 picked on Control in Excel, then
+    Next wrote 6. Set up and Next now read Control again (`Flow.fresh_limits`) unless a limit was changed in the
+    launcher since the workbook was last read or written. (3) A path typed character by character passes through
+    names whose workbook is another extract's (`.../loans` on the way to `.../loans2.csv`) and kept its limits; only
+    a path that is a file is looked at now, and moving to an extract with no workbook goes back to the launcher's own
+    choice, which alone is kept in its preferences (`Flow.own`, `Flow.limit_prefs`). (4) HANDOFF.md's open item
+    updated. (5) One planted bug matched only part of its line, so the mutant was a syntax error that read as caught;
+    it now replaces the whole line. Left as is: a workbook that exists but can't be read is treated as no workbook
+    (Set up then reports the workbook itself).
+  - **Codex's two findings (P1, on `da2e6c6`), both fixed:** (1) one flag for both limits meant a launcher change to
+    Number columns stopped an edit to Text columns on Control being read; each limit is now tracked on its own
+    (`Flow.chosen`), and the one not changed in the launcher is still read from Control. (2) Limits read again at Next
+    could differ from those Set up read the extract with, so a column chosen as a band could become a category under
+    the new limit; Next now refuses, names each change and returns to the first page: *"The column limits on Control
+    changed after Set up read the extract (Number columns: 6 to 24 values). The columns have to be read again with
+    them: press Set up."* (`launcher.limits_moved`). 2 planted bugs added, 3 repointed; 8 of 8 caught. Codex's re-review (P2): a window opened
+    with an add-on missing never read the workbook's limits, and the install finishing only redrew it; `after_install`
+    now reads them. 1 test, 1 planted bug, caught.
+  - Tests: 13 in `tests/test_limits_from_workbook_2026_10_14.py`, written failing-first (the reproduction read
+    `(6, 50)` for `(24, 50)`); one draws the window (needs a display), run under xvfb with Python 3.12 and 4 window
+    bugs planted by hand, 4 caught. With `test_launcher`, `test_rehearsal_2026_09_29`, `test_control`,
+    `test_mutation_tool`, `test_errors_on_screen` and `test_columns_launcher_2026_09_30`, no display: 97 passed, 5
+    skipped (the window tests). Planted bugs: 6 added to `tools/mutation_check.py`, 6 of 6 caught, each by a failed
+    test, with DISPLAY unset; every entry's old string occurs once (707).
 
 ## 7 · Standing rules for new items
 

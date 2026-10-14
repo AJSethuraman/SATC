@@ -507,6 +507,15 @@ def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, uni
     line.x_axis.tickLblPos = "low"
     if y_min is not None:
         line.y_axis.scaling.min = y_min
+        # No fixed axis can follow every leave-out (Codex on #432): leaving
+        # out a calm stretch can widen the spread and push a line below it.
+        # Say so, in the row over the chart, rather than clip in silence.
+        asx.merge_cells("B7:L7")
+        warn = asx["B7"]
+        warn.value = ('=IF({f}-{h}<{m},"Part of a line or the left-out strip is below the axis of this chart '
+                      '(fixed at build at {m}): the numbers are right, the picture is cut off.","")'
+                      .format(f=base, h=h_c, m=y_min))
+        warn.font = Font(name="Arial", size=10, bold=True, color=K.CRIMSON)
     line.visible_cells_only = False
     line.height, line.width = 12.3, 29.1
     # No legend: the design deletes the bands' and helpers' entries, and
