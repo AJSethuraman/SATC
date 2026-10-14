@@ -173,6 +173,11 @@ def test_the_skills_say_the_plugin_directory_is_never_written_to():
         assert "Never write there" in flat, f"{name} does not forbid writing there"
         assert "claude plugin marketplace update satc" in flat, \
             f"{name} does not say how a change reaches other machines"
+        # REFRESHING THE LISTING INSTALLS NOTHING. A machine told only the
+        # first command was found on canon 1.12.0, nine releases behind, and
+        # Codex caught the same sentence in the voice skill on #439.
+        assert "claude plugin update canon@satc" in flat, \
+            f"{name} names the refresh but not the command that installs"
 
 
 def test_the_skill_that_reads_no_record_is_named_rather_than_forgotten():
@@ -462,6 +467,8 @@ def test_the_voice_skill_reads_the_plugin_copy_and_never_writes_there():
         assert "not from a copy you happened to find" in flat
         assert "Never write there" in flat
         assert "claude plugin marketplace update satc" in flat
+        assert "claude plugin update canon@satc" in flat, \
+            f"{name} names the refresh but not the command that installs"
         for line in text.splitlines():
             bare = line.strip()
             if bare.startswith("python ") and ".py" in bare:

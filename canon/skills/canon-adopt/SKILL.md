@@ -34,7 +34,9 @@ nothing on any machine without it.
 so anything recorded into it is thrown away the next time canon updates. To add,
 retire, or decline a conviction, change `CONVICTIONS.md` in the **canon
 repository** and open a pull request; other machines pick it up with
-`claude plugin marketplace update satc`. The plugin is how the record is read
+`claude plugin marketplace update satc` and then `claude plugin update
+canon@satc`. The first only refreshes the listing; the second is what installs
+the new version. The plugin is how the record is read
 everywhere. The repository is the only place it is written.
 
 ## Run the reading

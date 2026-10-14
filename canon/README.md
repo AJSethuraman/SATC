@@ -61,10 +61,16 @@ without the ref, a session went and looked at `main`, found neither, and
 reported — correctly for what it could see — that canon did not exist. Once the
 pull request merges, drop the `@…` and the plain form works.
 
-To pick up a change to the record on a machine that already has it:
+To pick up a change to the record on a machine that already has it, run both.
+The first only refreshes the listing; the second is what installs the new
+version, and a machine that ran only the first was found nine releases behind:
 
 ```powershell
 claude plugin marketplace update satc
+```
+
+```powershell
+claude plugin update canon@satc
 ```
 
 Inside a running session, the same two steps are `/plugin marketplace add …` and

@@ -23,7 +23,9 @@ one is whatever branch or half-finished edit is sitting on that working tree.
 **Never write there.** The plugin directory is replaced on every update. A new
 before-and-after goes into `VOICE.md` in the **canon repository**, through a
 pull request, and reaches other machines with
-`claude plugin marketplace update satc`.
+`claude plugin marketplace update satc` and then `claude plugin update
+canon@satc`. The first only refreshes the listing; the second is what installs
+the new version.
 
 ## Drafting something for the firm
 
