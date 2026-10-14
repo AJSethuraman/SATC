@@ -443,7 +443,8 @@ def _internal(a):
     bank = R.self_bank(R.load(a.roster))
     try:
         filed = I.read_filed(internal, a.cache)
-        rows = I.reconcile(internal, filed, ex, a.tolerance, bank=bank)
+        rows = I.reconcile(internal, filed, ex, a.tolerance, bank=bank,
+                           absorptions=I.read_absorptions(a.cache))
     except I.Refused as exc:
         return _problems(exc.path, exc.problems, "exclusions for this internal file")
     notes = I.reconcile_notes(internal, ex, bank, a.tolerance,

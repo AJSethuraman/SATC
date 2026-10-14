@@ -844,7 +844,11 @@ def _filed_amount(filed, present, cert, repdte, field):
 
 def _filed_flow(filed, present, cert, repdte, field):
     """The quarter's flow from year-to-date filings: Q1 is its own year to
-    date, a later quarter its year to date less the quarter before's."""
+    date, a later quarter its year to date less the quarter before's, or the
+    year to date itself where it restarted under a new parent
+    (``books.restarted``: push-down accounting, as the public series read it).
+    A repeated year to date after an absorption under common control has
+    already been taken off by ``reconcile``."""
     now, why = _filed_amount(filed, present, cert, repdte, field)
     if now is None or repdte[4:6] == "03":
         return now, why
@@ -855,6 +859,9 @@ def _filed_flow(filed, present, cert, repdte, field):
     prev, why = _filed_amount(filed, present, cert, before, field)
     if prev is None:
         return None, why
+    a, b = books._parent(filed[repdte][cert]), books._parent(filed[before][cert])
+    if a and b and a != b and now < prev:
+        return now, None
     return now - prev, None
 
 
@@ -882,7 +889,7 @@ def _check_exclusions_against(internal: Internal, exclusions: Exclusions) -> Non
 
 
 def reconcile(internal: Internal, filed: Dict[str, list], exclusions: Exclusions, tolerance, *,
-              bank: dict) -> List[dict]:
+              bank: dict, absorptions: Sequence[dict]) -> List[dict]:
     """Per comparison, quarter and measure (balance, gross and net
     charge-offs), the filed figure less the named exclusions against the
     internal one: ``{quarter, comparison, measure, public_fields, filed,
@@ -903,6 +910,12 @@ def reconcile(internal: Internal, filed: Dict[str, list], exclusions: Exclusions
     for q in filed:
         if not (isinstance(q, str) and len(q) == 8 and q.isdigit() and q[4:] in ("0331", "0630", "0930", "1231")):
             raise ValueError("filed must be keyed by YYYYMMDD quarter-ends, as fdic.pull returns it, not %r" % (q,))
+    # The filing's charge-offs as the public series count them: where the
+    # bank absorbed another under the same parent, the absorbed bank's year
+    # to date, which the survivor's filing repeats, is taken off
+    # (books.repeated_ytd; KeyBank and First Niagara, 2016Q4, is one).
+    ytd = [f for c in COMPARISONS for f in parts(c.gross) + parts(c.recoveries)]
+    filed = books.without_repeats(filed, books.repeated_ytd_fields(filed, absorptions, list(dict.fromkeys(ytd))))
     present = {q: {k for r in rows for k in r} for q, rows in filed.items()}
     snap = {q: {str(r.get("CERT")): r for r in rows} for q, rows in filed.items()}
     idx = {(r.quarter, r.product, r.segment): r for r in internal.rows}
@@ -979,8 +992,10 @@ def reconcile_notes(internal: Internal, exclusions: Exclusions, bank: dict, tole
         "tolerance stated on the command line (there is no default). Amounts in $ thousands."
         % format(tol, "f"),
         "Charge-offs: the Call Report files them year to date, so a quarter is its year to date less the "
-        "quarter before's (Q1 is its own). Where the bank absorbed another under the same parent, its "
-        "filing can repeat that bank's year to date: such a remainder is flagged here, not explained.",
+        "quarter before's (Q1 is its own), counted as the public series count them: where the bank "
+        "absorbed another under the same parent, the absorbed bank's year to date, which the filing "
+        "repeats, is taken off (from absorptions.json beside the cache); a year to date that restarted "
+        "under a new parent is the quarter's own.",
         source,
     ]
     for c in COMPARISONS:
@@ -1066,9 +1081,31 @@ def read_filed(internal: Internal, cache) -> Dict[str, list]:
 
 
 def pull(cache, first: str, last: str, fetch=None) -> Dict[str, list]:
-    """Fetch every field ``reconcile`` reads (``FIELDS``) for every filer,
-    ``first`` to ``last`` (``YYYYQn``), into ``cache``; quarters already there
-    are read, not fetched. Public data only. Use a cache folder of its own: a
-    peers cache was pulled with other fields and is refused by name."""
+    """Fetch every field ``reconcile`` reads (``FIELDS`` and each filer's
+    parent) for every filer, ``first`` to ``last`` (``YYYYQn``), into
+    ``cache``; quarters already there are read, not fetched. Then the FDIC's
+    record of who absorbed whom since the start of ``first``'s year, into
+    ``cache/absorptions.json``, which ``reconcile`` reads. Public data only.
+    Use a cache folder of its own: a peers cache was pulled with other fields
+    and is refused by name."""
+    import json
     from .peers import fdic
-    return fdic.pull(fdic.quarter_ends(first, last), FIELDS, cache, fetch=fetch)
+    data = fdic.pull(fdic.quarter_ends(first, last), FIELDS + [books.PARENT], cache, fetch=fetch)
+    rows = fdic.history("%s-01-01" % first[:4], fetch=fetch)
+    (Path(cache) / ABSORPTIONS).write_text(json.dumps(fdic.absorptions(rows), indent=1), encoding="utf-8")
+    return data
+
+
+#: Who absorbed whom, beside the cache 'internal pull' fills.
+ABSORPTIONS = "absorptions.json"
+
+
+def read_absorptions(cache) -> List[dict]:
+    """``cache/absorptions.json``, as 'internal pull' writes it; refused, by
+    name, when it is not there."""
+    from .peers.run import load_absorptions
+    path = Path(cache) / ABSORPTIONS
+    if not path.exists():
+        raise ValueError("%s is not there: reconcile needs the FDIC's record of who absorbed whom, so a "
+                         "repeated year to date is not counted twice. Run 'internal pull' again" % path)
+    return load_absorptions(path)

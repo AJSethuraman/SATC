@@ -314,6 +314,13 @@ def _links_by_quarter(links: Sequence[dict]) -> Dict[Tuple[str, str], List[str]]
 
 def repeated_ytd(data: Dict[str, list], links: Sequence[dict],
                  products: Sequence[str]) -> List[dict]:
+    """``repeated_ytd_fields`` for the charge-off and recovery fields of
+    ``products``."""
+    return repeated_ytd_fields(data, links, raw_fields(f for p in products for f in _fields(p)[1:]))
+
+
+def repeated_ytd_fields(data: Dict[str, list], links: Sequence[dict],
+                        fields: Sequence[str]) -> List[dict]:
     """The year-to-date amounts a survivor's filing repeats after absorbing a
     bank under common control, read from the filings:
     ``[{acquirer, absorbed, quarter, field, amount}]``, ``quarter`` YYYYMMDD.
@@ -332,8 +339,7 @@ def repeated_ytd(data: Dict[str, list], links: Sequence[dict],
     That parent is the filed fact that says common control. A row without the
     field was pulled without it: refused, never read as a different parent.
     Each repeated amount is the absorbed bank's year-to-date at its last
-    filing, for every charge-off and recovery field of ``products``."""
-    fields = [f for p in products for f in _fields(p)[1:]]
+    filing, for every year-to-date field in ``fields``."""
     qs, snap = _by_cert(data)
     out = []
     for (acq, q), absorbed in sorted(_links_by_quarter(links).items()):

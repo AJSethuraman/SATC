@@ -411,6 +411,7 @@ def cache(tmp_path, drop=(), quarters=(Q1, Q2)):
         other = {k: 7 for k in mine}
         rows = [dict(CERT=int(KEY), REPDTE=q, **mine), dict(CERT=628, REPDTE=q, **other)]
         (d / ("q%s.json" % q)).write_text(json.dumps(rows), encoding="utf-8")
+    (d / "absorptions.json").write_text("[]", encoding="utf-8")
     return d
 
 
@@ -425,7 +426,7 @@ def run(tmp_path, tolerance=0.01, drop=(), quarters=(Q1, Q2), ex_lines=EXCLUSION
     filed = I.read_filed(internal, cache(tmp_path, drop, quarters))
     ex = I.read_exclusions(exclusions_file(tmp_path, ex_lines))
     return {(r["quarter"], r["comparison"], r["measure"]): r
-            for r in I.reconcile(internal, filed, ex, tolerance, bank=BANK)}
+            for r in I.reconcile(internal, filed, ex, tolerance, bank=BANK, absorptions=[])}
 
 
 def test_reconcile_exclusions_explain_a_gap_and_an_unexplained_one_is_flagged(tmp_path):
@@ -484,7 +485,7 @@ def test_a_quarter_before_the_cache_is_not_measured_not_guessed(tmp_path):
     internal = I.read(internal_file(tmp_path, data))
     filed = I.read_filed(internal, cache(tmp_path, quarters=(Q2,)))
     ex = I.read_exclusions(exclusions_file(tmp_path, EXCLUSIONS[:2]))
-    rows = I.reconcile(internal, filed, ex, 0.01, bank=BANK)
+    rows = I.reconcile(internal, filed, ex, 0.01, bank=BANK, absorptions=[])
     card = next(r for r in rows if r["comparison"] == "Credit card" and r["measure"] == "gross_charge_offs")
     assert card["within_tolerance"] == "not measured"
     assert "the quarter before, 2025Q1, is not in the cache" in card["why"]
@@ -501,7 +502,7 @@ def test_a_missing_internal_half_is_stated(tmp_path):
     internal = I.read(internal_file(tmp_path, data))
     filed = I.read_filed(internal, cache(tmp_path))
     ex = I.read_exclusions(exclusions_file(tmp_path))
-    rows = I.reconcile(internal, filed, ex, 0.01, bank=BANK)
+    rows = I.reconcile(internal, filed, ex, 0.01, bank=BANK, absorptions=[])
     r = next(r for r in rows if r["quarter"] == "2025Q2" and r["comparison"] ==
              "Mortgage and home equity loans" and r["measure"] == "balance")
     assert r["within_tolerance"] == "not measured"
@@ -514,7 +515,7 @@ def test_an_internal_figure_of_zero_is_within_only_at_no_remainder(tmp_path):
     filed = I.read_filed(internal, cache(tmp_path))
     ex = I.read_exclusions(exclusions_file(tmp_path))
     rows = {(r["quarter"], r["comparison"], r["measure"]): r
-            for r in I.reconcile(internal, filed, ex, 0.01, bank=BANK)}
+            for r in I.reconcile(internal, filed, ex, 0.01, bank=BANK, absorptions=[])}
     r = rows[("2025Q1", "Auto", "gross_charge_offs")]
     assert (r["filed"], r["internal"], r["remainder"], r["remainder_share"]) == (1, 0, 1, None)
     assert r["within_tolerance"] == "no"
@@ -590,11 +591,50 @@ def test_pull_fetches_only_the_reconcile_fields(tmp_path):
 
     def fake(url):
         asked.append(url)
+        if "/history" in url:
+            return {"meta": {"total": 0}, "data": []}
         return {"meta": {"total": 1}, "data": [{"data": dict(CERT=int(KEY), REPDTE="20250331",
-                                                             **FILED[Q1])}]}
+                                                             RSSDHCR="1", **FILED[Q1])}]}
     got = I.pull(tmp_path / "c", "2025Q1", "2025Q1", fetch=fake)
     assert list(got) == [Q1]
-    assert "LNRERSF2" in asked[0] and "LNCONRP" in asked[0]
+    assert "LNRERSF2" in asked[0] and "LNCONRP" in asked[0] and "RSSDHCR" in asked[0]
+    assert any("/history" in u and "2025-01-01" in u for u in asked)
+    assert I.read_absorptions(tmp_path / "c") == []
+
+
+def test_reconcile_refuses_without_the_absorption_record(tmp_path):
+    d = cache(tmp_path)
+    (d / "absorptions.json").unlink()
+    with pytest.raises(ValueError, match="absorptions.json is not there.*internal pull"):
+        I.read_absorptions(d)
+
+
+def _card_gross_q2(tmp_path, filed, links):
+    data = [x for x in INTERNAL if x[1] == "Credit card"]
+    internal = I.read(internal_file(tmp_path, data))
+    ex = I.read_exclusions(exclusions_file(tmp_path, EXCLUSIONS[:2]))
+    rows = I.reconcile(internal, filed, ex, 0.01, bank=BANK, absorptions=links)
+    return next(r for r in rows if r["comparison"] == "Credit card" and r["quarter"] == "2025Q2"
+                and r["measure"] == "gross_charge_offs")
+
+
+def test_a_repeated_year_to_date_is_taken_off_the_filing_as_the_public_series_do(tmp_path):
+    """KeyBank absorbs bank 999 under the same parent in 2025Q2; 999 filed a
+    Q1 year to date of 4, which KeyBank's Q2 year to date repeats (25 + 4)."""
+    filed = {Q1: [dict(CERT=int(KEY), REPDTE=Q1, RSSDHCR="1", **FILED[Q1]),
+                  dict(CERT=999, REPDTE=Q1, RSSDHCR="1", **dict(FILED[Q1], DRCRCD=4))],
+             Q2: [dict(CERT=int(KEY), REPDTE=Q2, RSSDHCR="1", **dict(FILED[Q2], DRCRCD=29))]}
+    link = [{"acquirer": KEY, "absorbed": "999", "quarter": "2025-06-30"}]
+    assert float(_card_gross_q2(tmp_path, filed, [])["filed"]) == 19
+    assert float(_card_gross_q2(tmp_path, filed, link)["filed"]) == 15
+
+
+def test_a_year_to_date_restarted_under_a_new_parent_is_the_quarters(tmp_path):
+    filed = {Q1: [dict(CERT=int(KEY), REPDTE=Q1, RSSDHCR="1", **FILED[Q1])],
+             Q2: [dict(CERT=int(KEY), REPDTE=Q2, RSSDHCR="2", **dict(FILED[Q2], DRCRCD=8))]}
+    assert float(_card_gross_q2(tmp_path, filed, [])["filed"]) == 8
+    filed[Q2][0]["RSSDHCR"] = "1"
+    assert float(_card_gross_q2(tmp_path, filed, [])["filed"]) == -2
 
 
 # ---------------------------------------------------------------- the command line

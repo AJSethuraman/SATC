@@ -985,11 +985,13 @@ been run on KeyBank's data.
   to a remainder of 0 on all 36 rows at tolerance 0. The 2026Q2 lines the
   doc quotes hold: LNRELOC 2,929,570, LNRERSF2 276,020; other consumer
   268,825 + 62,212 + 4,200,208 = 4,531,245.
-- **Not handled:** where KeyBank absorbed a bank under the same parent, its
-  filing can repeat that bank's year to date; reconcile flags such a
-  remainder and does not explain it (the notes say so). The FDIC record
-  has one in range: certificate 16004 merged into KeyBank effective 8 Oct
-  2016 (code 223). Whether 2016Q4's year to date repeats it was not
-  checked. No run-off note on the internal series yet.
+- **Handled the same day, after the merge:** where KeyBank absorbed a bank
+  under the same parent, its filing repeats that bank's year to date.
+  Reconcile now takes it off as the public series do (`internal pull`
+  writes `absorptions.json`; `books.repeated_ytd_fields`), and reads a year
+  to date that restarted under a new parent as the quarter's own. The one in
+  range: First Niagara (16004) into KeyBank, 2016Q4, which the industry
+  build lists among the repeats it took off. No run-off note on the
+  internal series yet.
 - `tests/test_internal.py`: 86 passed. Full suite: 914 passed, 0 failed
   (49 minutes).
