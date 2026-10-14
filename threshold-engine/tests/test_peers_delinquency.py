@@ -52,7 +52,7 @@ def by_q(rows):
 
 
 def book(data, cert, measure="90+ accruing", jump=0.25, min_book=0, exempt=False):
-    return bank_delinquency(data, cert, CARD, measure, jump, min_book, exempt)
+    return bank_delinquency(data, cert, CARD, measure, jump, min_book, exempt, acquired=())
 
 
 # ------------------------------------------------------------------ the maps
@@ -98,7 +98,7 @@ def test_every_judgement_is_required():
     assert inspect.signature(band_delinquency).parameters["min_banks"].default \
         is inspect.Parameter.empty
     with pytest.raises(TypeError):
-        bank_delinquency(flat([1]), 1, CARD, "nonaccrual", 0.25, 0)
+        bank_delinquency(flat([1]), 1, CARD, "nonaccrual", 0.25, 0, acquired=())
 
 
 @pytest.mark.parametrize("kw, msg", [
@@ -116,7 +116,7 @@ def test_bad_settings_are_refused(kw, msg):
 
 def test_unknown_product_basis_and_min_banks_are_refused():
     with pytest.raises(ValueError, match="product must be one of"):
-        bank_delinquency(flat([1]), 1, "Cards", "nonaccrual", 0.25, 0, False)
+        bank_delinquency(flat([1]), 1, "Cards", "nonaccrual", 0.25, 0, False, acquired=())
     with pytest.raises(ValueError, match="product must be one of"):
         industry_delinquency(flat([1]), "Cards", "nonaccrual")
     with pytest.raises(ValueError, match="basis must be one of"):
@@ -138,7 +138,7 @@ def test_an_amount_that_is_not_a_finite_number_is_refused(field, value):
     data["20200331"][0][field] = value
     want = "CERT 1, REPDTE 20200331: %s is " % field
     with pytest.raises(ValueError, match=want):
-        bank_delinquency(data, 1, CARD, "90+ incl. nonaccrual", 0.25, 500, False)
+        bank_delinquency(data, 1, CARD, "90+ incl. nonaccrual", 0.25, 500, False, acquired=())
     with pytest.raises(ValueError, match=want):
         industry_delinquency(data, CARD, "90+ incl. nonaccrual")
 
@@ -481,12 +481,12 @@ def test_keybank_2026q2_against_the_filed_amounts(roster_data):
                 "90+ incl. nonaccrual": p9 + na, "30+ incl. nonaccrual": p3 + p9 + na}
         for measure, n in nums.items():
             got = by_q(bank_delinquency(roster_data, KEYBANK, product, measure,
-                                        0.25, 1_000_000, True))["2026Q2"]
+                                        0.25, 1_000_000, True, acquired=()))["2026Q2"]
             assert (got["numerator"], got["balance"]) == (n, bal), (product, measure)
             assert got["rate"] == 100 * n / bal, (product, measure)
     # without the exemption, KeyBank's $62m auto book is under a $1bn minimum
     auto = by_q(bank_delinquency(roster_data, KEYBANK, "Auto", "nonaccrual",
-                                 0.25, 1_000_000, False))["2026Q2"]
+                                 0.25, 1_000_000, False, acquired=()))["2026Q2"]
     assert auto["rate"] is None and auto["why"] == WHY_SMALL
 
 
@@ -494,7 +494,7 @@ def test_fixture_composite_band_and_industry_hold_together(roster_data):
     for product in FIELDS:
         for measure in MEASURES:
             books = {c: bank_delinquency(roster_data, c, product, measure, 0.25,
-                                         1_000_000, c == KEYBANK)
+                                         1_000_000, c == KEYBANK, acquired=())
                      for c in [b["cert"] for b in ROSTER]}
             comp = by_q(composite_delinquency(books, PEER_CERTS, 5))
             last = comp["2026Q2"]
@@ -519,7 +519,7 @@ def test_fixture_composite_leaves_jpmorgan_out_through_first_republic(roster_dat
     own four-quarter average is blanked by the jump, and the composite's
     average leaves it out: where it is the only bank left out, the average
     equals the composite of the pack without it."""
-    books = {c: bank_delinquency(roster_data, c, "Mortgage", "nonaccrual", 0.25, 1_000_000, False)
+    books = {c: bank_delinquency(roster_data, c, "Mortgage", "nonaccrual", 0.25, 1_000_000, False, acquired=())
              for c in PEER_CERTS}
     comp = by_q(composite_delinquency(books, PEER_CERTS, 5))
     rest = by_q(composite_delinquency(books, [c for c in PEER_CERTS if c != "628"], 5))

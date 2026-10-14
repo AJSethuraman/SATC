@@ -23,7 +23,8 @@ on the same scale as the workbook (threshold_engine.scale).
 fetches every FDIC filer's quarter into ``DIR/q{YYYYMMDD}.json`` (only the
 quarters not already there), with the products' delinquency and nonaccrual
 fields when ``--delinquency yes``, and, with ``--mergers``, the classified
-merger record into ``DIR/mergers.json``.
+merger record into ``DIR/mergers.json`` and who absorbed whom into
+``DIR/absorptions.json``.
 
     python -m threshold_engine peers build OUT.xlsx --cache DIR --roster
         config/peers.json --jump 0.25 --min-book 1000000 --pack all|regionals
@@ -187,6 +188,8 @@ def _peers_parser(sub):
     w.add_argument("--products", required=True, nargs="+", choices=_peer_products(), metavar="PRODUCT")
     w.add_argument("--mergers", required=True, metavar="FILE",
                    help="{cert: [quarter-end dates]}, as 'peers pull --mergers' writes it")
+    w.add_argument("--absorptions", required=True, metavar="FILE",
+                   help="who absorbed whom, as 'peers pull --mergers' writes it beside the merger record")
     w.add_argument("--extra-acquisitions", required=True, nargs="*", metavar="CERT=QUARTER",
                    help="acquisitions the FDIC record does not show, e.g. 6672=2022Q2; "
                         "give the flag with nothing after it to state there are none")
@@ -201,6 +204,9 @@ def _peers_parser(sub):
     r.add_argument("--jump", required=True, type=float,
                    help="a quarter-on-quarter balance move above this (0.25 = 25%%) is structural; "
                         "under --delinquency yes it blanks a four-quarter average, never a quarter-end rate")
+    r.add_argument("--acquisition-share", required=True, type=float,
+                   help="leave out a bank's windows around a quarter whose acquisitions, added "
+                        "together, brought in at least this share of its book (0.05 = 5%%)")
     r.add_argument("--min-book", required=True, type=float,
                    help="the smallest average balance ($000) whose rate is kept; for delinquency, "
                         "the quarter-end balance")
@@ -234,9 +240,9 @@ def _peers_build(a):
     """``peers build``: peers.run.build with the flags as stated."""
     from .peers import run
     run.build(a.out, cache=a.cache, roster=a.roster, series_dir=a.series_dir, first=a.first,
-              last=a.last, products=a.products, mergers=a.mergers,
+              last=a.last, products=a.products, mergers=a.mergers, absorptions=a.absorptions,
               extra_acquisitions=a.extra_acquisitions, industry_combined=a.industry_combined,
-              jump=a.jump, min_book=a.min_book, exempt_self=a.exempt_self, pack=a.pack,
+              jump=a.jump, acquisition_share=a.acquisition_share, min_book=a.min_book, exempt_self=a.exempt_self, pack=a.pack,
               min_banks=a.min_banks, rank_by=a.rank_by, last_n=a.last_n, min_obs=a.min_obs,
               base_quarter=a.base_quarter, index_min_book=a.index_min_book,
               lagged_years=a.lagged_years, lag_years=a.lag_years,

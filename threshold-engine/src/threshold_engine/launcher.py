@@ -460,9 +460,11 @@ class PeerForm:
     out: str = ""                  # the peer workbook, .xlsx
     series_dir: str = ""
     mergers_file: str = ""         # {cert: [quarter-end dates]}, as Pull writes it
+    absorptions_file: str = ""     # who absorbed whom, as Pull writes it
     extra_acquisitions: str = ""   # CERT=YYYYQn ..., or none
     industry_combined: str = ""    # PRODUCT+PRODUCT; ..., or none
     jump: str = ""
+    acquisition_share: str = ""
     min_book: str = ""
     exempt_self: str = ""          # yes | no
     pack: str = ""                 # all | regionals
@@ -580,7 +582,8 @@ def _combined_ok(item: str) -> bool:
 _PULL = ("cache_pull", "first", "last", "products", "delinquency", "mergers_pull", "mergers_since",
          "refresh")
 _BUILD = ("cache_build", "roster", "first", "last", "products", "delinquency", "out", "series_dir",
-          "mergers_file", "extra_acquisitions", "industry_combined", "jump", "min_book", "exempt_self",
+          "mergers_file", "absorptions_file", "extra_acquisitions", "industry_combined", "jump",
+          "acquisition_share", "min_book", "exempt_self",
           "pack", "min_banks", "rank_by", "last_n", "min_obs", "base_quarter", "index_min_book",
           "lagged_years", "lag_years", "normalisation_years", "mix_base_year")
 #: Every field in the order the page shows it.
@@ -656,6 +659,8 @@ def _peer_fields(pf: PeerForm) -> Dict[str, Tuple[object, List[str]]]:
     put("series_dir", lambda o: _peer_path(pf.series_dir, "the series folder (--series-dir)", o,
                                            "folder", False))
     put("mergers_file", lambda o: _peer_path(pf.mergers_file, "the merger file (--mergers)", o, "file", True))
+    put("absorptions_file", lambda o: _peer_path(pf.absorptions_file, "the absorptions file (--absorptions)",
+                                                 o, "file", True))
     put("extra_acquisitions", lambda o: _peer_list(
         pf.extra_acquisitions, "the extra acquisitions (--extra-acquisitions)", o,
         lambda t: t.replace(",", " ").replace(";", " ").split(), _EXTRA.fullmatch, "CERT=YYYYQn items"))
@@ -664,6 +669,7 @@ def _peer_fields(pf: PeerForm) -> Dict[str, Tuple[object, List[str]]]:
         lambda t: t.split(";"), _combined_ok,
         "two or more products joined by +, one series from the next by ;"))
     num("jump", "the jump (--jump)", least=0)
+    num("acquisition_share", "the acquisition share (--acquisition-share)", least=0)
     num("min_book", "the minimum book (--min-book)", least=0)
     yes_no("exempt_self", PEER_EXEMPT, "whether the bank itself is exempt from the minimum (--exempt-self)")
     yes_no("pack", PEER_PACK, "the pack (--pack)")
@@ -724,8 +730,9 @@ def peer_arguments(pf: PeerForm, action: str) -> dict:
                     refresh=yes("refresh"))
     return dict(out=v["out"], cache=v["cache_build"], roster=v["roster"], series_dir=v["series_dir"],
                 first=v["first"], last=v["last"], products=v["products"], mergers=v["mergers_file"],
+                absorptions=v["absorptions_file"],
                 extra_acquisitions=v["extra_acquisitions"], industry_combined=v["industry_combined"],
-                jump=v["jump"], min_book=v["min_book"], exempt_self=yes("exempt_self"), pack=v["pack"],
+                jump=v["jump"], acquisition_share=v["acquisition_share"], min_book=v["min_book"], exempt_self=yes("exempt_self"), pack=v["pack"],
                 min_banks=v["min_banks"], rank_by=v["rank_by"], last_n=v["last_n"], min_obs=v["min_obs"],
                 base_quarter=v["base_quarter"], index_min_book=v["index_min_book"],
                 lagged_years=v["lagged_years"], lag_years=v["lag_years"],
@@ -1169,6 +1176,8 @@ def window(root) -> dict:
                   "the Series step.", browse="folder")
         peer_text(body, "Merger file (--mergers)", "mergers_file", "{cert: [quarter-end dates]}, as Pull "
                   "writes it.", browse="file")
+        peer_text(body, "Absorptions file (--absorptions)", "absorptions_file", "Who absorbed whom, as "
+                  "Pull writes it beside the merger file (absorptions.json).", browse="file")
         peer_text(body, "Extra acquisitions (--extra-acquisitions)", "extra_acquisitions",
                   "Acquisitions the FDIC record does not show, as CERT=YYYYQn separated by spaces; "
                   "write none if there are none.")
@@ -1180,6 +1189,10 @@ def window(root) -> dict:
         peer_text(body, "Jump (--jump)", "jump", "A quarter-on-quarter balance move above this is "
                   "structural (0.25 is 25%). Under delinquency it blanks a four-quarter average, never "
                   "a quarter-end rate.")
+        peer_text(body, "Acquisition share (--acquisition-share)", "acquisition_share", "When a bank's "
+                  "acquisitions in a quarter, added together, bring in at least this share of its book "
+                  "(0.05 is 5%), its next four quarters are left out: the bought loans' losses are not "
+                  "its own.")
         peer_text(body, "Minimum book (--min-book)", "min_book", "The smallest average balance ($000) "
                   "whose rate is kept; for delinquency, the quarter-end balance.")
         peer_choice(body, "Is the bank itself exempt from the minimum? (--exempt-self)", "exempt_self",

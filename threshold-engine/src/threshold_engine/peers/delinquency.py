@@ -130,6 +130,11 @@ WHY_BLANK = "not filed this quarter: %s is blank"
 WHY_JUMP_PREFIX = "book moved more than the jump in this window"
 WHY_JUMP = WHY_JUMP_PREFIX + ": %s %+.1f%% against the quarter before"
 WHY_JUMP_FROM_ZERO = WHY_JUMP_PREFIX + ": %s from 0 to above 0"
+WHY_ACQUIRED_PREFIX = "an acquisition brought in at least the acquisition share in this window"
+WHY_ACQUIRED = WHY_ACQUIRED_PREFIX + ": %s"
+#: A bank whose own four-quarter average is blanked for one of these reasons
+#: is left out of the composite's four-quarter average for that quarter.
+LEFT_OUT = (WHY_JUMP_PREFIX, WHY_ACQUIRED_PREFIX)
 WHY_FEWER_THAN_FOUR = "fewer than four consecutive quarter-ends in the data"
 WHY_RATE_MISSING = "a quarter-end rate in the window is None: %s (%s)"
 
@@ -204,7 +209,8 @@ def _avg4(rates: Sequence[Optional[float]], follows: Sequence[bool], i: int) -> 
 
 
 def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
-                     jump: float, min_book: float, exempt_min_book: bool) -> List[dict]:
+                     jump: float, min_book: float, exempt_min_book: bool, *,
+                     acquired: Iterable[str]) -> List[dict]:
     """One row per quarter-end in ``data``: ``{q, numerator, balance, rate,
     avg4, kept, why, why_avg4}``, ``q`` labelled ``YYYYQn``.
 
@@ -220,8 +226,16 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
     ``jump`` (0.25 = 25%) and ``min_book`` ($ thousands) are judgements and
     are required; below 0 they are refused. ``exempt_min_book`` lifts the
     minimum for the bank drawn as itself and is required too, since whether a
-    bank is exempt is also a judgement."""
+    bank is exempt is also a judgement.
+
+    ``acquired`` is the bank's quarter-ends (``YYYYMMDD``) in which recorded
+    acquisitions brought in at least the acquisition share of its book
+    (``books.acquired_quarters``): one in i-2..i blanks the average like a
+    jump, never a quarter-end rate. Required; an empty list states none."""
     _at_least("jump", jump, 0)
+    if isinstance(acquired, str):
+        raise ValueError("acquired is a list of quarter-ends, not %r" % (acquired,))
+    bought = {label(q) for q in acquired}
     _at_least("min_book", min_book, 0)
     if not isinstance(exempt_min_book, bool):
         raise ValueError("exempt_min_book must be True or False, not %r" % (exempt_min_book,))
@@ -267,6 +281,10 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
             if a == 0 and b > 0:
                 jumped = WHY_JUMP_FROM_ZERO % rows[k]["q"]
                 break
+        if not jumped:
+            hit = next((rows[k]["q"] for k in range(i - 2, i + 1) if rows[k]["q"] in bought), None)
+            if hit:
+                jumped = WHY_ACQUIRED % hit
         if jumped:
             row["why_avg4"] = jumped
             continue
@@ -348,7 +366,7 @@ def composite_delinquency(books: Dict[str, List[dict]], certs: Sequence,
         for c in certs:
             own = idx[str(c)]
             mine = own.get(r["q"])
-            if (mine and (mine["why_avg4"] or "").startswith(WHY_JUMP_PREFIX)
+            if (mine and (mine["why_avg4"] or "").startswith(LEFT_OUT)
                     and any(w in own and own[w]["kept"] for w in win)):
                 r["avg4_left_out"].append(str(c))
         if i < 3 or not all(follows[k] for k in range(i - 2, i + 1)):

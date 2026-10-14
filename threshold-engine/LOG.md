@@ -829,3 +829,47 @@ answers:
   accruing, because of rebooked GNMA), a run-off flag for shrinking books,
   and the import's two named exclusions (education loans in discontinued
   operations; residential loans held for sale).
+
+## 14 October 2026, mergers: counted once, and the 5% rule
+
+The comparability tie-out's gap 5, built.
+
+- **The double count.** When a bank absorbs another under the same parent,
+  the Call Report has the survivor report the combined year to date, so
+  year-to-date differencing counted the absorbed bank's earlier quarters
+  twice. `books.repeated_ytd` reads, from the filings, the absorbed bank's
+  last year-to-date wherever both banks filed the quarter before with the
+  same parent (RSSDHCR, now pulled every quarter), and `without_repeats`
+  takes it off the survivor for the rest of that year. Every series reads
+  the corrected data: the banks, the pack, the industry.
+- **Checked against the FDIC's own totals** (the Quarterly Banking Profile
+  figures the tie-out quoted), industry card charge-offs, $m, on a fresh
+  pull of every filer 2006Q1 to 2026Q2:
+
+  | Quarter | Before | After | QBP | After less QBP |
+  |---|---|---|---|---|
+  | 2006Q4 | 6,622.1 | 3,664.0 | 3,664.0 | 0.0 |
+  | 2010Q2 | 20,508.3 | 20,434.1 | 20,434.1 | 0.0 |
+  | 2011Q3 | 15,584.4 | 10,738.1 | 10,738.1 | 0.0 |
+  | 2014Q4 | 9,133.8 | 6,478.8 | 6,479.6 | -0.8 |
+  | 2019Q2 | 11,458.7 | 10,603.1 | 10,603.1 | 0.0 |
+  | 2022Q4 | 10,380.3 | 7,679.6 | 7,688.2 | -8.6 |
+
+  "Before" reproduces the tie-out's figures exactly. The 2022Q4 gap is the
+  tie-out's own: Capital One (USA)'s last year-to-date was 2,700.6, the
+  survivor repeated 2,692.0. The fix also moved 35 other card quarters,
+  2007Q3 by 184.0 and 2009Q3-Q4 by 175.3 the largest; those were **not**
+  checked against the QBP, whose figures for them were not in hand.
+- **The acquisition share, 5% (the firm's).** A required setting,
+  `--acquisition-share`: a quarter whose recorded acquisitions, added
+  together, brought in at least that share of a product's book leaves out
+  the bank's four TTM windows holding it, and blanks delinquency's
+  four-quarter average as the jump does. On the roster, 2006-2026: 152
+  acquisition quarters at 5%, 84 of which the 25% jump also caught, 68 only
+  this rule (the tie-out counted 60 on a stricter test of material).
+- **Found while building:** FDIC history leaves CERT blank on a failure's
+  row; the absorbed bank is OUT_CERT on every row, so that is read.
+- `peers pull --mergers` now also writes `absorptions.json` (who took in
+  whom); `peers build` requires `--absorptions` and `--acquisition-share`.
+  A cache pulled before today has no RSSDHCR: build refuses, naming the
+  banks, only where an absorption needs it. Pull again with refresh.

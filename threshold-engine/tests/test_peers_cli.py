@@ -31,8 +31,9 @@ KEYBANK = "17534"
 #: The earlier build's settings (expected_books.json["rules"]).
 BUILD = ["--roster", str(ROOT / "config" / "peers.json"), "--first", "2006Q1", "--last", "2026Q2",
          "--products"] + FOUR + [
-    "--mergers", str(PEERS / "mergers_roster.json"), "--extra-acquisitions", "6672=2022Q2",
-    "--industry-combined", "--jump", "0.25", "--min-book", "1000000", "--exempt-self", "yes", "--pack", "all",
+    "--mergers", str(PEERS / "mergers_roster.json"),
+    "--absorptions", str(PEERS / "absorptions_none.json"), "--extra-acquisitions", "6672=2022Q2",
+    "--industry-combined", "--jump", "0.25", "--acquisition-share", "0.05", "--min-book", "1000000", "--exempt-self", "yes", "--pack", "all",
     "--min-banks", "5", "--rank-by", "net", "--last-n", "20", "--min-obs", "12",
     "--base-quarter", "2019Q4", "--index-min-book", "500000", "--lagged-years", "2019", "2025",
     "--lag-years", "2", "--normalisation-years", "2019", "2025", "--mix-base-year", "2019",
@@ -203,7 +204,8 @@ def test_a_badly_formed_declared_acquisition_is_refused(built, tmp_path, capsys)
 
 #: Every flag `peers build` takes. Each is a judgement or a location, and none has a default.
 BUILD_FLAGS = ["--cache", "--series-dir", "--roster", "--first", "--last", "--products", "--mergers",
-               "--extra-acquisitions", "--industry-combined", "--jump", "--min-book", "--exempt-self",
+               "--absorptions", "--extra-acquisitions", "--industry-combined", "--jump",
+               "--acquisition-share", "--min-book", "--exempt-self",
                "--pack", "--min-banks", "--rank-by", "--last-n", "--min-obs", "--base-quarter",
                "--index-min-book", "--lagged-years", "--lag-years", "--normalisation-years",
                "--mix-base-year", "--delinquency"]
@@ -270,7 +272,10 @@ class FakeFDIC:
         if url.startswith(fdic.HISTORY_URL):
             rows = self.history
         else:
-            rows = self.data[q["filters"][0].split(":")[1]]
+            # A field the API is asked for and does not hold comes back null,
+            # as RSSDHCR does here: the fixtures were pulled without it.
+            asked = q["fields"][0].split(",")
+            rows = [dict({f: None for f in asked}, **r) for r in self.data[q["filters"][0].split(":")[1]]]
         page = rows[offset:offset + limit]
         return {"data": [{"data": r} for r in page], "meta": {"total": len(rows)}}
 
@@ -284,7 +289,8 @@ def test_pull_fills_the_cache_then_fetches_only_what_is_missing(data, tmp_path, 
     assert len(fake.urls) == 4 and "fetched" in capsys.readouterr().out
     assert sorted(p.name for p in cache.glob("q*.json")) == [
         "q20250331.json", "q20250630.json", "q20250930.json", "q20251231.json"]
-    assert json.loads((cache / "q20251231.json").read_text()) == data["20251231"]
+    assert json.loads((cache / "q20251231.json").read_text()) == [dict(r, RSSDHCR=None) for r in data["20251231"]]
+    assert "RSSDHCR" in fake.urls[0]                      # the parent, for common control
     assert "LNCRCD" in fake.urls[0] and "DRRERSFM" in fake.urls[0]
 
     assert main(pull + ["--first", "2025Q1", "--last", "2026Q2"]) == 0
@@ -402,7 +408,7 @@ def test_the_regionals_pack_and_no_exemption(built, data, tmp_path, capsys):
     roster = R.load(ROOT / "config" / "peers.json")
     regionals = [b["cert"] for b in R.regionals(roster)]
     assert 0 < len(regionals) < len(R.peers(roster))
-    books = {b["cert"]: bank_book(data, b["cert"], "Credit card", 0.25, 1_000_000) for b in roster}
+    books = {b["cert"]: bank_book(data, b["cert"], "Credit card", 0.25, 1_000_000, acquired=()) for b in roster}
     want = {quarter_end(r["quarter"]): r["net_rate"] for r in composite(books, regionals, 5)}
     notes, rows = read_csv(series / "credit-card_pack-composite_net.csv")
     assert rows and all(v == pytest.approx(want[d], abs=1e-12) for d, v in rows)
@@ -696,7 +702,7 @@ def test_a_delinquency_csv_is_the_module_over_the_cache(dq_built):
     data, s = dq_built["data"], dq_built["series"]
     roster = R.load(ROOT / "config" / "peers.json")
     banks = {b["cert"]: D.bank_delinquency(data, b["cert"], "Credit card", "90+ accruing", 0.25,
-                                           1_000_000, b["cert"] == KEYBANK) for b in roster}
+                                           1_000_000, b["cert"] == KEYBANK, acquired=()) for b in roster}
     comp = D.composite_delinquency(banks, [b["cert"] for b in R.peers(roster)], 5)
     ind = D.industry_delinquency(data, "Credit card", "90+ accruing")
     for who, rows in (("keybank", banks[KEYBANK]), ("pack-composite", comp), ("industry", ind)):
@@ -890,6 +896,7 @@ def test_the_window_gets_the_same_refusals_as_the_flags(built, tmp_path, key, va
     from threshold_engine.peers import run
     stated = dict(cache=built["cache"], roster=ROOT / "config" / "peers.json", series_dir=tmp_path / "s",
                   first="2006Q1", last="2026Q2", products=FOUR, mergers=PEERS / "mergers_roster.json",
+                  absorptions=PEERS / "absorptions_none.json", acquisition_share=0.05,
                   extra_acquisitions=["6672=2022Q2"], industry_combined=[], jump=0.25, min_book=1e6,
                   exempt_self=True, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
@@ -943,7 +950,7 @@ def test_every_delinquency_csv_follows_the_stated_rules(dq_odd):
     compared = absent = 0
     for p in ("Home equity", "Auto"):
         for m, ms in DQ_MEASURES.items():
-            banks = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, 0.05, 5_000_000, False)
+            banks = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, 0.05, 5_000_000, False, acquired=())
                      for b in roster}
             comp = D.composite_delinquency(banks, regionals, 6)
             for who, rows in (("keybank", banks[KEYBANK]), ("pack-composite", comp),
@@ -1082,6 +1089,7 @@ def test_the_window_gets_the_whole_year_refusals(built, tmp_path, key, value, sa
     from threshold_engine.peers import run
     stated = dict(cache=built["cache"], roster=ROOT / "config" / "peers.json", series_dir=tmp_path / "s",
                   first="2006Q1", last="2026Q2", products=FOUR, mergers=PEERS / "mergers_roster.json",
+                  absorptions=PEERS / "absorptions_none.json", acquisition_share=0.05,
                   extra_acquisitions=[], industry_combined=[], jump=0.25, min_book=1e6,
                   exempt_self=True, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,

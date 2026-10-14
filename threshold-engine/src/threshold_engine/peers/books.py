@@ -51,6 +51,11 @@ PRODUCTS = {
 }
 
 WHY_JUMP = "book moved more than the jump in this window"
+WHY_ACQUIRED = "an acquisition brought in at least the acquisition share in this window"
+
+#: The FDIC field naming a filer's top holding company (its RSSD ID), filed
+#: each quarter. Two banks with the same one are under common control.
+PARENT = "RSSDHCR"
 WHY_SMALL = "book under the minimum"
 WHY_MISSING = "a quarter is missing"
 
@@ -164,7 +169,7 @@ def quarterly_flows(data: Dict[str, list], cert, product: str) -> List[tuple]:
 
 
 def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: float,
-              exempt_min_book: bool = False) -> List[dict]:
+              exempt_min_book: bool = False, *, acquired: Iterable[str]) -> List[dict]:
     """One row per TTM quarter, from the fifth quarter in the data, labelled
     ``YYYYQn``: ``{quarter, gross_rate, net_rate, gross, recoveries,
     avg_balance, kept, why}``.
@@ -175,17 +180,27 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     kept. Either below 0 is refused. ``exempt_min_book`` lifts the minimum for
     the bank drawn as itself. A quarter with no filing counts as a balance of
     0 in the jump and average tests, as the earlier build counted it. ``why``
-    names the first reason a quarter is not kept, in the order: jump, minimum,
-    missing. Ahead of all three, a window whose quarters i-4 to i are not
-    consecutive quarter-ends in the data is missing: neither the jump nor a
-    TTM can be measured across a quarter the data does not hold."""
+    names the first reason a quarter is not kept, in the order: jump,
+    acquisition, minimum, missing. Ahead of all of them, a window whose
+    quarters i-4 to i are not consecutive quarter-ends in the data is missing:
+    neither the jump nor a TTM can be measured across a quarter the data does
+    not hold.
+
+    ``acquired`` is this bank's quarter-ends (``YYYYMMDD``) in which recorded
+    acquisitions brought in at least the acquisition share of its book
+    (:func:`acquired_quarters`). A TTM window holding one is left out: its
+    flows mix two books. Required; an empty list states there are none."""
     _at_least("jump", jump, 0)
     _at_least("min_book", min_book, 0)
+    if isinstance(acquired, str):
+        raise ValueError("acquired is a list of quarter-ends, not %r" % (acquired,))
+    acquired = set(acquired)
     flows = quarterly_flows(data, cert, product)
     follows = _contiguous([q for q, _, _, _ in flows])
     bal = [0.0 if b is None else b for _, _, _, b in flows]
     moved = [False] + [bool(a > 0 and abs(b / a - 1) > jump) or (a == 0 and b > 0)
                        for a, b in zip(bal, bal[1:])]
+    bought = [q in acquired for q, _, _, _ in flows]
     out = []
     for i in range(4, len(flows)):
         win = range(i - 3, i + 1)
@@ -198,6 +213,8 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
             why = WHY_MISSING
         elif any(moved[k] for k in range(i - 4, i + 1)):
             why = WHY_JUMP
+        elif any(bought[k] for k in range(i - 3, i + 1)):
+            why = WHY_ACQUIRED
         elif not ((avg >= min_book or exempt_min_book) and avg > 0):
             why = WHY_SMALL
         elif not complete:
@@ -212,6 +229,130 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
             "gross": g, "recoveries": rc, "avg_balance": avg,
             "kept": kept, "why": why,
         })
+    return out
+
+
+def _yyyymmdd(quarter: str) -> str:
+    return quarter_end(quarter).replace("-", "")
+
+
+def _links_by_quarter(links: Sequence[dict]) -> Dict[Tuple[str, str], List[str]]:
+    """``{(acquirer, YYYYMMDD): [absorbed]}`` from ``fdic.absorptions`` rows."""
+    out: Dict[Tuple[str, str], List[str]] = {}
+    for ln in links:
+        key = (str(ln["acquirer"]), _yyyymmdd(ln["quarter"]))
+        if str(ln["absorbed"]) not in out.setdefault(key, []):
+            out[key].append(str(ln["absorbed"]))
+    return out
+
+
+def repeated_ytd(data: Dict[str, list], links: Sequence[dict],
+                 products: Sequence[str]) -> List[dict]:
+    """The year-to-date amounts a survivor's filing repeats after absorbing a
+    bank under common control, read from the filings:
+    ``[{acquirer, absorbed, quarter, field, amount}]``, ``quarter`` YYYYMMDD.
+
+    The Call Report instructions (Glossary, "Business Combinations",
+    transactions between entities under common control) have the survivor
+    report the combined year to date, so its year-to-date charge-offs and
+    recoveries already carry what the absorbed bank filed itself earlier in
+    the year. Year-to-date differencing would count that twice (the
+    comparability tie-out, 14 Oct 2026: six card quarters, $74m to $4.8bn).
+
+    A link counts when its quarter is in the data and is not a Q1 (a Q1
+    year-to-date starts afresh); the quarter before is in the data; both banks
+    filed that quarter and only the acquirer files the merger quarter; and
+    both carry the same, non-blank parent (``PARENT``) in the quarter before.
+    That parent is the filed fact that says common control. A row without the
+    field was pulled without it: refused, never read as a different parent.
+    Each repeated amount is the absorbed bank's year-to-date at its last
+    filing, for every charge-off and recovery field of ``products``."""
+    fields = [f for p in products for f in _fields(p)[1:]]
+    qs, snap = _by_cert(data)
+    out = []
+    for (acq, q), absorbed in sorted(_links_by_quarter(links).items()):
+        if q not in snap or q[4:6] == "03":
+            continue
+        i = qs.index(q)
+        if not i or not _follows(qs[i - 1], q):
+            continue
+        prev = snap[qs[i - 1]]
+        a_prev, a_now = prev.get(acq), snap[q].get(acq)
+        if a_prev is None or a_now is None:
+            continue
+        for b in absorbed:
+            b_prev = prev.get(b)
+            if b_prev is None or b in snap[q]:
+                continue
+            for who, row in ((acq, a_prev), (b, b_prev)):
+                if PARENT not in row:
+                    raise ValueError(
+                        "certificate %s, %s: no %s (holding company), so whether %s absorbed %s "
+                        "under common control cannot be read. Pull again with refresh"
+                        % (who, qs[i - 1], PARENT, acq, b))
+            pa, pb = str(a_prev[PARENT] or "").strip(), str(b_prev[PARENT] or "").strip()
+            if not pa or pa == "0" or pa != pb:
+                continue
+            for f in fields:
+                amt = _num(b_prev, f)
+                if amt:
+                    out.append({"acquirer": acq, "absorbed": b, "quarter": q, "field": f,
+                                "amount": amt})
+    return out
+
+
+def without_repeats(data: Dict[str, list], repeats: Sequence[dict]) -> Dict[str, list]:
+    """``data`` with each repeated amount taken off the survivor's
+    year-to-date, in the merger quarter and every later quarter of the same
+    calendar year, so every flow measured from it counts each dollar once.
+    The rows changed are copies; ``data`` itself is not touched."""
+    if not repeats:
+        return data
+    out = {q: list(rows) for q, rows in data.items()}
+    for rp in repeats:
+        for q in sorted(out):
+            if q[:4] != rp["quarter"][:4] or q < rp["quarter"]:
+                continue
+            for k, r in enumerate(out[q]):
+                if str(r["CERT"]) == rp["acquirer"]:
+                    r = dict(r)
+                    r[rp["field"]] = _num(r, rp["field"]) - rp["amount"]
+                    out[q][k] = r
+    return out
+
+
+def acquired_quarters(data: Dict[str, list], links: Sequence[dict], product: str,
+                      share: float) -> Dict[str, List[str]]:
+    """``{acquirer: [YYYYMMDD]}``: quarters whose recorded acquisitions,
+    added together, brought in at least ``share`` of the acquirer's book of
+    ``product`` (0.05 = 5%).
+
+    Each absorbed bank's balance is read at its last filing before the merger
+    quarter, and the acquirer's at the quarter before. Counted by acquirer
+    and quarter, not bank by bank: eleven absorptions each under 5% can be
+    16.5% together (PNC, 2007Q3, mortgage). An acquirer with no book the
+    quarter before takes any book in as a whole one. An absorbed bank with no
+    filing in the data cannot be measured and is skipped. ``share`` is the
+    firm's judgement, required, and refused below 0."""
+    _at_least("share", share, 0)
+    ln = _fields(product)[0]
+    qs, snap = _by_cert(data)
+    out: Dict[str, List[str]] = {}
+    for (acq, q), absorbed in sorted(_links_by_quarter(links).items()):
+        if q not in snap:
+            continue
+        before = qs[:qs.index(q)]
+        if not before:
+            continue
+        a_prev = snap[before[-1]].get(acq)
+        base = _num(a_prev, ln) if a_prev else 0.0
+        brought = 0.0
+        for b in absorbed:
+            last = next((snap[p][b] for p in reversed(before) if b in snap[p]), None)
+            if last is not None:
+                brought += _num(last, ln)
+        if brought > 0 and (base <= 0 or brought / base >= share):
+            out.setdefault(acq, []).append(q)
     return out
 
 
