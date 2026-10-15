@@ -26,7 +26,7 @@ balance at the same quarter-end. The composite is the product's ``All`` rows
 where the file has them, otherwise every segment summed
 (``internal.composite_rows``).
 
-A source's ratings are those of Decide: the four lines on Thresholds, the
+A source's ratings are its own: the four lines on Lines by source, the
 same On a line rule, and a value at or below zero rated 1 where Decide does
 so. Nothing internal is ever shipped: the table is empty unless the book
 names an internal file, which is read and checked by ``internal.read`` first.
@@ -184,9 +184,12 @@ def thresholds_refs(wb, labels: Sequence[str], parts: Dict[str, Tuple[str, str, 
     one place the book's layout is stated; each series' row is found by its
     label in the series column, and the On a line cell is the one its rating
     formula compares with "worse". Anything not found is refused by name,
-    never guessed."""
-    from .decide_tab import TH_BOOK as T
-    ws = wb["Thresholds"]
+    never guessed. The per-series table is titled Thresholds while the book
+    is built and Lines by source once Decide has renamed it."""
+    from .decide_tab import LINES_TAB, TH_BOOK as T, _sheet_ref
+    title = LINES_TAB if LINES_TAB in wb.sheetnames else "Thresholds"
+    ws = wb[title]
+    prefix = _sheet_ref(title)
     rows = {}
     for r in range(1, ws.max_row + 1):
         v = ws["%s%d" % (T["series"], r)].value
@@ -203,7 +206,7 @@ def thresholds_refs(wb, labels: Sequence[str], parts: Dict[str, Tuple[str, str, 
         if m is None:
             raise ValueError("the rating formula for %s on Thresholds %s%d does not say where its On a line "
                              "setting is" % (lab, T["rating"], r))
-        ref = lambda key: "Thresholds!$%s$%d" % (T[key], r)        # noqa: E731
+        ref = lambda key: "%s$%s$%d" % (prefix, T[key], r)        # noqa: E731
         out[lab] = {"lines": [ref(k) for k in ("l2", "l3", "l4", "l5")], "refused": ref("refusal"),
                     "otl": m.group(1), "row": r}
     return out
@@ -882,7 +885,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             ws.row_dimensions[r].height = 30
     V_ROW = REL_TOP + len(rel_rows)
     _verdict_formats(ws, "M%d:%s%d" % (V_ROW, L(12 + len(outside)), V_ROW), "M%d" % V_ROW)
-    ws.cell(V_ROW + 1, 12, '="Lines: each source\'s own, from Thresholds, for "&%s&" - "&IF(%s="","(not mapped)",%s)&"."'
+    ws.cell(V_ROW + 1, 12, '="Lines: each source\'s own, from Lines by source, for "&%s&" - "&IF(%s="","(not mapped)",%s)&"."'
             % (PB, WPK, WPK)).font = F_NOTE
 
     # ---- CRR grades (L24:Q30)
@@ -914,7 +917,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     r = CRR_TOP + 7
     c = ws.cell(r, 12, ('=IF(NOT({asc}),"The lowest grades must rise from rating 1 to rating 5.",'
                         'IF({ix}=0,"The workbook has no "&{f}&" series for this product and measure.",'
-                        'IF({rf}=1,"The "&{f}&" lines for this series are refused on Thresholds, so no quarter is '
+                        'IF({rf}=1,"The "&{f}&" lines for this series are refused on Lines by source, so no quarter is '
                         'rated.",IF({n}=0,"No quarter of the picked series has both a CRR grade and an internal '
                         'value.","Your CRR grades agree with the rating on the "&{f}&" lines in "&TEXT({a}/{n},"0%")'
                         '&" of "&{n}&" quarters."))))').format(asc=asc, n=crr_n, a=crr_a, f=PF, ix=SH_IDX, rf=SH_REF))
@@ -1307,7 +1310,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         "Past-due rates are the amount over the balance at the same quarter-end, times 100.",
         "A product with any row not used has no composite until the row is fixed; Why not used on Internal data "
         "names the problem.",
-        "Each source is rated on its own lines from Thresholds with the On a line rule set on Decide. The verdict "
+        "Each source is rated on its own lines from Lines by source with the On a line rule set on Decide. The verdict "
         "rules are on the Glossary tab.",
     ]
     for i, t in enumerate(notes):

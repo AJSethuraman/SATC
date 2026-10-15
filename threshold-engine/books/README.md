@@ -74,16 +74,21 @@ command runs from inside `threshold-engine`. Followed from nothing on 15 Oct
 ## Using it
 
 - **Summary**: every series' latest quarter and its rating, 1 Low to 5 High,
-  products down the side, industry, peers and KeyBank across.
-- **Decide**: click a product, a measure and a source. The one yellow row
-  under the buttons is that series' decision: Accept these lines or Reject,
-  its four settings, a period to leave out (first quarter, last quarter, why)
-  and a note. Everything under it follows as you type: where it stands, the
-  chart over its five rating zones, where each rating begins, whether the
-  settings fit (or why not, and the number that would fix it), and what the
-  history suggests. **Save the file (Ctrl+S) to keep your decisions.** The
-  count at the top says how many of the 105 are decided.
-- **Thresholds** and **Assess** follow Decide; nothing is typed there.
+  on its product and measure's one set of lines, products down the side,
+  industry, peers and KeyBank across.
+- **Decide**: click a product and a measure. The one yellow row under the
+  buttons is that row's decision: **Lines set from** (the source whose history
+  sets the lines; the book's `lines_from` says what it starts as, null for
+  blank), Accept these lines or Reject, its four settings, a period to leave
+  out of that source's history (first quarter, last quarter, why) and a note.
+  Everything under it follows as you type: every source rated on the lines,
+  every source on one chart over the five rating zones, where each rating
+  begins, what each source's own history would give, whether the settings fit
+  (or why not, and the number that would fix it), and what the history
+  suggests. **Save the file (Ctrl+S) to keep your decisions.** The count at
+  the top says how many of the 35 are decided.
+- **Thresholds** (one row per product and measure), **Lines by source** (each
+  series' own lines) and **Assess** follow Decide; nothing is typed there.
 - The **Peers** tabs: KeyBank against the 15 banks, as `peers build` writes
   them.
 
@@ -98,7 +103,8 @@ one more row in the series CSV, for example:
 Credit card,Net charge-offs,KeyBank internal,internal/credit-card_net.csv
 ```
 
-Its source becomes a fourth column on Summary and a fourth button on Decide.
+Its source becomes a fourth column on Summary and a fourth choice under
+Lines set from on Decide.
 Internal files stay on site; the book only names where they are.
 
 ## Your own book

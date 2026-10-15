@@ -53,13 +53,23 @@ try {
             $e = $null
             try { $e = $ws.UsedRange.SpecialCells(-4123, 16) } catch { $e = $null }
             if ($e -ne $null) {
-                foreach ($c in $e.Cells) {
-                    if ($ws.Visible -eq -1 -and -not ($c.EntireColumn.Hidden -or $c.EntireRow.Hidden)) {
+                # Visible is what Excel itself calls visible (SpecialCells
+                # xlCellTypeVisible), taken once per tab: asking each cell
+                # whether its column is hidden counted a hidden #N/A as seen
+                # on one run in two (15 Oct 2026, Decide!AZ65, then Internal!IU50).
+                $ve = $null
+                if ($ws.Visible -eq -1) {
+                    try { $ve = $xl.Intersect($e, $ws.UsedRange.SpecialCells(12)) } catch { $ve = $null }
+                }
+                if ($ve -ne $null) {
+                    foreach ($c in $ve.Cells) {
                         $n++; if ($where.Count -lt 5) { $where += "$($ws.Name)!$($c.Address(0,0))" }
-                    } else {
-                        $k = "$($ws.Name) $($c.Text)"; if (-not $c.Text) { $k = "$($ws.Name) " + $ERRORS[[int]$c.Value2] }
-                        $hidden[$k] = 1 + [int]$hidden[$k]
                     }
+                }
+                foreach ($c in $e.Cells) {
+                    if ($ve -ne $null -and $xl.Intersect($c, $ve) -ne $null) { continue }
+                    $k = "$($ws.Name) $($c.Text)"; if (-not $c.Text) { $k = "$($ws.Name) " + $ERRORS[[int]$c.Value2] }
+                    $hidden[$k] = 1 + [int]$hidden[$k]
                 }
             }
         }

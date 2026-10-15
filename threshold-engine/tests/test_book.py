@@ -25,6 +25,7 @@ def write_book(folder: Path, **over) -> Path:
     for name in ("cards_nco_ttm.csv", "home_equity_nco_ttm.csv", "mortgage_nco_ttm.csv"):
         shutil.copy(DATA / name, files / name)
     book = {"workbook": dict(WORKBOOK), "parts": ["Product", "Measure", "Source"],
+            "lines_from": {"part": "Source", "start": None},
             "series": [{"Product": "Card", "Measure": "Net", "Source": "Industry", "file": "files/cards_nco_ttm.csv"},
                        {"Product": "Card", "Measure": "Net", "Source": "Bank", "file": "files/home_equity_nco_ttm.csv"},
                        {"Product": "Mortgage", "Measure": "Net", "Source": "Industry",
@@ -43,6 +44,7 @@ def test_a_good_book_loads_with_paths_from_its_own_folder(tmp_path):
                                                 "Mortgage - Net - Industry"]
     assert bk["series"][0][1] == tmp_path.resolve() / "files" / "cards_nco_ttm.csv"
     assert bk["decide"]["compare"] == ("Bank", "Industry")
+    assert bk["decide"]["lines_from"] is None
     assert bk["decide"]["absent"] == [{"parts": {"Product": "Mortgage", "Measure": "Net", "Source": "Bank"},
                                        "why": "No file (a test)."}]
 
@@ -66,6 +68,31 @@ def test_a_missing_top_key_is_refused_not_defaulted(tmp_path):
     p.write_text(json.dumps(raw))
     with pytest.raises(BK.BookError, match="missing 'not_in_book'"):
         BK.load(p)
+
+
+@pytest.mark.parametrize("lines_from, said", [
+    ({"part": "Measure", "start": None}, "part must be 'Source'"),
+    ({"part": "Source", "start": "Nobody"}, "start must be null"),
+    ({"part": "Source"}, "lines_from is missing 'start'"),
+    (None, "lines_from must be an object"),
+])
+def test_lines_from_is_required_and_checked(tmp_path, lines_from, said):
+    """One set of lines per product and measure, set from the source each
+    row picks; the book says which part is the source and what each row
+    starts as (null: blank, for the bank to pick). Nothing is defaulted."""
+    p = write_book(tmp_path, lines_from=lines_from)
+    with pytest.raises(BK.BookError, match=said):
+        BK.load(p)
+    raw = json.loads(p.read_text())
+    del raw["lines_from"]
+    p.write_text(json.dumps(raw))
+    with pytest.raises(BK.BookError, match="missing 'lines_from'"):
+        BK.load(p)
+
+
+def test_a_starting_source_is_kept(tmp_path):
+    bk = BK.load(write_book(tmp_path, lines_from={"part": "Source", "start": "Industry"}))
+    assert bk["decide"]["lines_from"] == "Industry"
 
 
 def test_series_may_be_a_csv_beside_the_book(tmp_path):
@@ -110,5 +137,6 @@ def test_the_public_book_in_the_repository_loads():
     p = Path(__file__).resolve().parents[1] / "books" / "consumer-public.json"
     bk = BK.load(p)
     assert len(bk["series"]) == 105                    # KeyBank's charge-offs too: life to date
+    assert bk["decide"]["lines_from"] is None           # every row's source is the bank's to pick
     assert bk["decide"]["absent"] == []
     assert bk["peers"]["series_dir"] == p.parent / "out" / "series"

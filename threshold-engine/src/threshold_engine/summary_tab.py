@@ -1,5 +1,9 @@
 """The Summary tab: every series' latest quarter and rating on one page.
 
+Each product and measure has one set of lines (Thresholds), set from the
+history of the source picked on Decide; every source's latest quarter is
+rated on those lines.
+
 Claude Design's round 2 (docs/design/round-2/README.md, "Summary"): two
 panels side by side, each a row per first and second part (product, then
 measure) and a pair of columns (latest, rating) per value of the third part
@@ -15,8 +19,8 @@ the points between it and ``compare[1]`` (the peer group), then
 source the book uses leads and there is no points column. "Needs your
 attention" is about the leading source.
 
-Every number is a live reference to the series' own row on Thresholds, so it
-follows what is typed on Decide; nothing is computed here but the points
+Every number is a live reference to its product and measure's row on
+Thresholds (thresholds_tab.py), so it follows what is typed on Decide; nothing is computed here but the points
 between the compare pair and the attention block's ordering. The attention
 block uses INDEX/MATCH over hidden helper columns rather than FILTER/SORTBY:
 it looks the same, it needs no dynamic-array metadata in the file, and the
@@ -31,16 +35,17 @@ from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.utils import get_column_letter as L
 
 from . import keybank_style as K
-from .decide_tab import TH_BOOK
+from .thresholds_tab import NOT_PICKED
 
 TITLE = "Summary"
 GROUP, HEAD, FIRST = 4, 5, 6                 # group headers, column labels, first body row
 ATTENTION_ROWS = 5                           # the 4s and 5s listed by name; the rest are counted
 INK, SLATE = K.INK_TEXT, K.SLATE
-#: The Thresholds columns Summary reads, by meaning, from the book's own map
-#: (decide_tab.TH_BOOK): the latest quarter and value, the rating as a number
-#: and its name, and the refusal ("Refused: ...", blank when the lines stand).
-TH_READ = ("quarter", "value", "rating", "rating_name", "refusal")
+#: The Thresholds cells Summary reads for each series, by meaning
+#: (thresholds_tab.refs): the latest quarter and value, the rating as a number
+#: and in words, the row's refusal ("Refused: ...", blank when the lines
+#: stand) and the source its lines are set from (blank until one is picked).
+TH_READ = ("quarter", "value", "rating", "rating_text", "refusal", "lines_from")
 
 # Widths in Excel units, from the hand-off's pixels ((px - 5) / 7).
 W_PRODUCT, W_MEASURE = 17.0, 29.6
@@ -122,18 +127,18 @@ def layout(labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]],
 
 def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]],
           part_names: Sequence[str], absent: Sequence[dict], compare: Optional[Tuple[str, str]],
-          notes: Sequence[str], th_rows: Optional[Dict[str, int]] = None) -> dict:
+          notes: Sequence[str], refs: Dict[str, Dict[str, str]]) -> dict:
     """Add the Summary tab. ``absent`` and ``notes`` are the book's own words,
     printed as given; nothing is said about a missing series that the book
-    did not say. ``th_rows`` maps each label to its row on Thresholds (by
-    default the order of ``labels`` from row 5); the columns are read by
-    meaning from ``decide_tab.TH_BOOK``."""
+    did not say. ``refs`` gives each label's cells on Thresholds by meaning
+    (``thresholds_tab.refs``)."""
     ws = wb.create_sheet(TITLE)
-    th_rows = th_rows or {lab: 5 + i for i, lab in enumerate(labels)}
-    tc = {k: TH_BOOK[k] for k in TH_READ}
+    missing = [lab for lab in labels if any(k not in refs.get(lab, {}) for k in TH_READ)]
+    if missing:
+        raise ValueError("Summary needs the Thresholds cells of %s" % ", ".join(missing[:3]))
 
     def th(col, lab):
-        return "Thresholds!$%s$%d" % (tc[col], th_rows[lab])
+        return refs[lab][col]
 
     p0, p1, _ = part_names
     lay = layout(labels, parts, compare)
@@ -151,8 +156,9 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
     ws["B1"] = '="%s · where each series stands, "&%s' % (name.replace('"', '""'), th("quarter", first_lead))
     ws["B1"].font = Font(name="Arial", size=16, bold=True, color=K.INK)
     ws["B1"].alignment = Alignment(vertical="bottom")
-    ws["B2"] = ("Each rating compares the latest quarter with the series' own history, from 1 Low to 5 High. "
-                "The ratings follow every setting and decision on Decide.")
+    ws["B2"] = ("Each rating places the latest quarter on its %s and %s's one set of lines, from 1 Low to 5 High. "
+                "The lines are set on Decide from the history of the %s picked there."
+                % (p0.lower(), p1.lower(), part_names[2].lower()))
     ws["B2"].font = Font(name="Calibri", size=11, color=SLATE)
     for col in range(2, last_col + 1):
         ws.cell(2, col).border = Border(bottom=_side("medium", K.KEY_RED))
@@ -223,9 +229,7 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
                     val.number_format = "0.00"
                     val.font = f_val
                     val.alignment = Alignment(horizontal="right", vertical="center")
-                    rt = ws.cell(r, base + b, ('=IF({k}="",IF({m}<>"","Refused",""),{k}&" "&{n})'
-                                               .format(k=th("rating", lab), m=th("refusal", lab), n=th("rating_name", lab)))
-                                 if lab else "Not in this workbook")
+                    rt = ws.cell(r, base + b, '=%s&""' % th("rating_text", lab) if lab else "Not in this workbook")
                     rt.font = Font(name="Calibri", size=13 if big else 11, bold=big, color=INK if big else SLATE)
                     rt.alignment = Alignment(horizontal="left", vertical="center", indent=0, shrink_to_fit=True)
                 if compare:
@@ -261,7 +265,7 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
     # ---- Hidden helpers: one row per leading-source series, for the block ----
     hc = last_col + 3                               # past the right panel and a spare column
     hcols = {k: hc + i for i, k in enumerate(("name", "rating", "latest", "quarter", "refused", "order",
-                                                         "row"))}
+                                                         "row", "unpicked"))}
     hr0 = FIRST
     hr1 = hr0 + max(len(lead_rows), 1) - 1
     rng_h = lambda k: "$%s$%d:$%s$%d" % (L(hcols[k]), hr0, L(hcols[k]), hr1)    # noqa: E731
@@ -273,6 +277,7 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
         ws.cell(r, hcols["latest"], '=IF(ISNUMBER({v}),{v},0)'.format(v=th("value", lab)))
         ws.cell(r, hcols["quarter"], "=%s&\"\"" % th("quarter", lab))
         ws.cell(r, hcols["refused"], '=IF({m}<>"",1,0)'.format(m=th("refusal", lab)))
+        ws.cell(r, hcols["unpicked"], '=IF({d}="",1,0)'.format(d=th("lines_from", lab)))
         # Its place in the list: rated 4 or 5, the higher rating first, then
         # the higher latest value, then the order on this tab.
         ws.cell(r, hcols["order"], ('=IF({R}{r}>=4,COUNTIFS({RR},">"&{R}{r})+COUNTIFS({RR},{R}{r},{LL},">"&{V}{r})'
@@ -280,12 +285,14 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
                 .format(R=L(hcols["rating"]), V=L(hcols["latest"]), r=r, RR=rng_h("rating"), LL=rng_h("latest"),
                         OO=rng_h("row")))
         ws.cell(r, hcols["row"], r)
-    for k in range(7):
+    for k in range(len(hcols)):
         ws.column_dimensions[L(hc + k)].hidden = True
     hot = 'COUNTIF(%s,">=4")' % rng_h("rating")
     refused = "SUM(%s)" % rng_h("refused")
+    unpicked = "SUM(%s)" % rng_h("unpicked")
 
-    ws.cell(1, last_col, '="%s: "&%s&" rated 4 or 5 · "&%s&" refused"' % (lead.replace('"', '""'), hot, refused))
+    ws.cell(1, last_col, '="%s: "&%s&" rated 4 or 5 · "&%s&" refused · "&%s&" with no source picked"'
+            % (lead.replace('"', '""'), hot, refused, unpicked))
     ws.cell(1, last_col).font = Font(name="Arial", size=12, bold=True, color=K.INK)
     ws.cell(1, last_col).alignment = Alignment(horizontal="right", vertical="bottom")
 
@@ -335,7 +342,9 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
 
     # ---- The book's words, under both panels ----
     r = max(ends + [r]) + 2
-    told = ["Rating: where the latest quarter falls against the series' own history, under its settings on Decide."]
+    told = ["Rating: where the latest quarter falls on its %s and %s's lines, set on Decide from the history of "
+            "one %s." % (p0.lower(), p1.lower(), part_names[2].lower()),
+            "%s: no %s has been picked on Decide to set that row's lines yet." % (NOT_PICKED, part_names[2].lower())]
     if compare:
         told.append("Points: %s's latest value minus the latest value of %s, in the measure's units. A positive "
                     "value means %s is higher." % (compare[0], compare[1], compare[0]))
@@ -385,5 +394,6 @@ def _rating_rules(ws, rng, anchor):
                                                        fill=K.solid(K.RATING_FILL[k]), font=Font(color=K.INK)))
     ws.conditional_formatting.add(rng, FormulaRule(formula=['%s="Refused"' % anchor], fill=K.solid(K.CANVAS),
                                                    font=Font(bold=True, color=K.CRIMSON)))
-    ws.conditional_formatting.add(rng, FormulaRule(formula=['%s="Not in this workbook"' % anchor],
+    ws.conditional_formatting.add(rng, FormulaRule(formula=['OR(%s="Not in this workbook",%s="%s")'
+                                                            % (anchor, anchor, NOT_PICKED)],
                                                    font=Font(italic=True, color=SLATE)))

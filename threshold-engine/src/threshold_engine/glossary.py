@@ -56,14 +56,15 @@ TERMS = [
      "From the median minus the half-width times the typical yearly move, up to the median plus the same."),
     ("Width of Moderate (yearly moves)",
      "How wide Moderate is on each side of the median, counted in typical yearly moves (its half-width).",
-     "Typed in Your settings on Assess. 0.5 makes Moderate one typical yearly move wide in total."),
+     "Typed on Decide (in Your settings on Assess in a workbook without Decide). 0.5 makes Moderate one "
+     "typical yearly move wide in total."),
     ("Moderate-Low",
      "Better than normal by more than ordinary movement, but not by enough to be Low.",
      "From the Moderate-Low line up to where Moderate begins."),
     ("Moderate-Low begins (yearly moves)",
      "How far below the median Low ends, counted in typical yearly moves.",
-     "Median minus this number times the typical yearly move. Typed in Your settings on Assess. It must be "
-     "larger than the width of Moderate."),
+     "Median minus this number times the typical yearly move. Typed on Decide (in Your settings on Assess in "
+     "a workbook without Decide). It must be larger than the width of Moderate."),
     ("Low",
      "Clearly better than normal.",
      "Below the Moderate-Low line. A loss rate at or below zero is always Low."),
@@ -77,7 +78,8 @@ TERMS = [
     ("How rare High is (z)",
      "How many spreads of levels above the median High starts. The same number means the same rarity on "
      "every series.",
-     "Typed in Your settings on Assess. 3.5 is the usual line for an outlier (Iglewicz and Hoaglin, 1993). With a crisis left "
+     "Typed on Decide (in Your settings on Assess in a workbook without Decide). 3.5 is the usual line for an "
+     "outlier (Iglewicz and Hoaglin, 1993). With a crisis left "
      "out it can sit beyond everything kept, which the workbook refuses. The Dial on Assess shows 2.0 to 3.5 "
      "side by side."),
     ("Spread of levels",
@@ -110,7 +112,8 @@ TERMS = [
      "Median kept plus How rare High is (z) times the spread of levels. When lower is worse, the sign reverses."),
     ("On a line, rate it",
      "Which rating a value exactly on a line gets.",
-     "Picked in Your settings on Assess. 'worse' gives the worse of the two ratings, 'better' the better."),
+     "Picked on Decide (in Your settings on Assess in a workbook without Decide). 'worse' gives the worse of "
+     "the two ratings, 'better' the better."),
     ("Status",
      "Whether a row of Periods left out is in use, and if it is not whole, what is missing.",
      "'Left out: N quarters' when the row names a series, two quarters in order and a reason. Otherwise it "
@@ -136,8 +139,38 @@ TERMS = [
      "On Thresholds, the series' value in its latest quarter.",
      "Read from the source file, after any smoothing set for the workbook. It is not recalculated."),
     ("Decision",
-     "The decision recorded for the series: Not decided, Accept these lines or Reject.",
-     "Selected in the Decision column of the table on Decide. Thresholds reads it from there."),
+     "The decision recorded on Decide for a product and measure's lines: Not decided, Accept these lines or "
+     "Reject.",
+     "Selected in the Decision column of the table on Decide. Thresholds reads it from there; on Lines by "
+     "source it shows on the source the lines are set from."),
+    ("Lines set from",
+     "The source whose history sets a product and measure's one set of lines. Every source's latest quarter "
+     "is rated on those lines.",
+     "Picked from a list on Decide, one per product and measure. A row with none picked has no lines and no "
+     "ratings, and its Check says so. The lines are that source's own lines on Lines by source, computed with "
+     "the row's settings and its period left out."),
+    ("Lines by source",
+     "The tab of each source's own lines: what its history gives with its product and measure's settings on "
+     "Decide.",
+     "Each series' median kept, typical yearly move, spread of levels and four lines, as defined in this "
+     "glossary. Thresholds takes the lines of the source picked under Lines set from. A period left out on "
+     "Decide is left out of that source's history only."),
+    ("Thresholds",
+     "In a workbook with Decide, one set of lines per product and measure: the four lines the scoring file "
+     "uses, the source they are set from, and every source's latest quarter rated on them.",
+     "Each row reads its source's lines from Lines by source. Each source's rating is calculated as for Rating, "
+     "on those lines. A row's lines are blank until a source is picked, and while the Check refuses them."),
+    ("Rating on these lines",
+     "On Decide, each source's latest quarter rated on the lines picked for the product and measure.",
+     "As for Rating, with the four lines of the source picked under Lines set from and the row's On a line, "
+     "rate it. Blank when no source is picked or its lines are refused."),
+    ("What each source's own history would give",
+     "On Decide, the four lines each source's own history gives with the row's settings, and its worst quarter "
+     "kept, so a source can be picked knowing what each gives.",
+     "Read from Lines by source. Refused when the Check refuses that source's own lines."),
+    ("Pick a source",
+     "On Thresholds and Summary, a product and measure whose Lines set from is still blank on Decide.",
+     "Shown until a source is picked; the row has no lines and no ratings until then."),
     ("Points",
      "On Summary, the gap between the bank's latest value and its peer group's latest value.",
      "The bank's latest value minus the peer group's latest value for the same product and measure, in the "

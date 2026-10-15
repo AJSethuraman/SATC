@@ -21,7 +21,7 @@ python -m threshold_engine book books/consumer-public.json consumer-credit.xlsx
 The walkthrough ran the second command on a copy of the book whose only
 change is where the cache is (`prepare.py`): the cache pulled on 14 Oct 2026
 was used rather than pulled again. Expected: `Wrote consumer-credit.xlsx: 105
-series, 82 quarters; open it on Summary, decide on Decide`. It took 7 min 49 s
+series, 82 quarters; open it on Summary, decide on Decide`. It took 8 min 48 s
 on the last run (12 min 42 s on the first), almost all of it the peers build
 reading the cache.
 
@@ -30,18 +30,23 @@ reading the cache.
 The steps are cumulative, as a session is: what is typed in one step is still
 there in the next.
 
+One set of lines per product and measure (the firm, 15 Oct 2026: *"we don't
+need to set thresholds on all 3, we need to use all 3 to set appropriate
+thresholds"*): Decide has 35 rows, and each row's **Lines set from** picks the
+source whose history sets its lines.
+
 | Step | What you do | What it shows |
 |---|---|---|
-| B1 | Open the workbook | It opens on Summary; the tabs in order (Assess, Chart and Peers workings hidden); three slicers, one button each; Decide shows the first series; nothing decided; no links, no errors |
-| B2 | Read Summary | All 105 series' latest value and rating equal the reference |
-| B3 | On Decide, click Credit card, Nonaccrual, KeyBank | One row; the headline, the lines in words, the Check, and the same measure from the industry and peers |
-| B4 | Type 3.5 under How rare High is (z) | Only High's line moves; Thresholds and Summary follow |
-| B5 | Leave out 2012Q3 to 2013Q4, the period Decide suggests, with a reason | The lines move as the reference says; Assess lists the period, whole |
-| B6, B6b | Clear the reason; type it back | Refused, in words, on Decide; then the lines as in B5 |
-| B7 | Accept these lines, with a note | Decided: 1 of 105 |
-| B8 | Click Auto, Net charge-offs, KeyBank | Life to date: 15 quarters, its lines and its Check |
-| B9 | Click Mortgage, Net charge-offs, Industry | Refused, with the number that would fix it |
-| B10 | Save, close, open again | Every decision and setting still there, and the lines with them |
+| B1 | Open the workbook | It opens on Summary; the tabs in order (Assess, Chart and Peers workings hidden); two slicers, one button each; Decide shows the first product and measure, no source picked, nothing decided; no links, no errors |
+| B2 | Read Summary and Lines by source | All 105 series' latest value, Pick a source where each rating goes, and every series' own lines equal the reference |
+| B3 | On Decide, click Credit card and Nonaccrual, and pick KeyBank under Lines set from | One row; the lines are KeyBank's own; every source rated on them, beside what its own history would give; Thresholds holds the same |
+| B4 | Type 3.5 under How rare High is (z) | High's line moves for every source of the row; Thresholds and Summary follow |
+| B5 | Leave out 2012Q3 to 2013Q4, the period Decide suggests, with a reason | KeyBank's lines move as the reference says, the industry's own lines do not; Assess lists the period under KeyBank's series, whole |
+| B6, B6b | Clear the reason; type it back | Refused, in words, on Decide and Thresholds; then the lines as in B5 |
+| B7 | Accept these lines, with a note | Decided: 1 of 35; the decision on Thresholds, and on Lines by source beside KeyBank only |
+| B8 | Click Auto and Net charge-offs, and pick Industry (every bank) | KeyBank's life-to-date history rated on the lines the industry's longer history gives |
+| B9 | Click Mortgage and Net charge-offs, and pick Industry (every bank) | Refused, with the number that would fix it |
+| B10 | Save, close, open again | Every pick, decision and setting still there, and the lines with them |
 
 A step passes when every cell it reads says what `steps.json` says: a number
 within 1e-9, text exactly.
@@ -64,7 +69,7 @@ automation and reads each answer back. `compare.py` writes `RESULT.md`.
 And, separately, that the file opens without Excel repairing it:
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\check_slicers_in_excel.ps1 -Path docs\walkthrough-book\out\consumer-credit.xlsx -Sheet Decide -Table Decisions -Shapes 4 -Expect "Slicer_Product=Credit card|Slicer_Measure=Net charge-offs|Slicer_Source=Industry (every bank)" -SwitchCache Slicer_Source -SwitchTo KeyBank
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\check_slicers_in_excel.ps1 -Path docs\walkthrough-book\out\consumer-credit.xlsx -Sheet Decide -Table Decisions -Shapes 3 -Expect "Slicer_Product=Credit card|Slicer_Measure=Net charge-offs" -SwitchCache Slicer_Measure -SwitchTo "Gross charge-offs"
 ```
 
 "No errors" in B1 means none a reader can see: on the visible tabs, outside
@@ -78,6 +83,10 @@ Assess 169, Chart 8,470, Decide 249, Peers workings 1,556).
   not checked against a reference here; `tests/test_peers*.py` hold them.
 - One series is tied to the filing (`../tie-out/keybank-card-nonaccrual-2026-10-14/`);
   the other 104 rest on the same code and the reference, not on a filing each.
+- Three of the 35 rows have a source picked in the walk (Credit card
+  nonaccrual, Auto and Mortgage net charge-offs); the other 32 are read blank
+  (Pick a source) on Summary, and every source's own lines are read for all
+  105 on Lines by source.
 - Thresholds' latest value is written by the build, not a live formula on
   Data: pasting a corrected quarter into Data moves the lines but not the
   latest value (found by the tie-out).

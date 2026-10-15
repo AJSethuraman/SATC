@@ -205,9 +205,21 @@ try {
     $c = $null; $it = $null
     Report $wb 'switch' $after
 
-    $wb.Save(); $wb.Close($false); $wb = $null
+    # Excel recalculates after the click and rejects a call while it is busy
+    # (RPC_E_CALL_REJECTED, seen 15 Oct 2026 on the 35-row Decide): each call
+    # here is asked again for up to 30 s rather than failed on the timing.
+    function WhenReady([scriptblock]$call, [string]$what) {
+        for ($try = 1; $try -le 60; $try++) {
+            try { $r = & $call; if ($try -gt 1) { "[busy] $what went through on attempt $try" | Write-Host }; return $r }
+            catch { if ($_.Exception.Message -notmatch '0x80010001') { throw }; Start-Sleep -Milliseconds 500 }
+        }
+        throw "Excel was still busy after 30 s; $what was never made"
+    }
+    WhenReady { $wb.Save() } "the save"
+    WhenReady { $wb.Close($false) } "the close"
+    $wb = $null
     "[save] saved by Excel and closed"
-    $wb = $xl.Workbooks.Open($work, 0, $false)
+    $wb = WhenReady { $xl.Workbooks.Open($work, 0, $false) } "the reopen"
     Report $wb 'reopen' $after
     $wb.Close($false); $wb = $null
 }
