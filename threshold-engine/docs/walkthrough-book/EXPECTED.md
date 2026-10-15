@@ -18,7 +18,7 @@ Every series' latest value and rating, 105 series.
 
 One row shows, KeyBank's; the screen speaks for it and sets it beside the industry and peers.
 
-22 reads.
+26 reads.
 
 ## B4 · Type 3.5 under How rare High is (z), in the yellow row
 
@@ -48,19 +48,19 @@ The lines are back as in B5.
 
 The count at the top.
 
-1 reads.
+2 reads.
 
 ## B8 · Click Auto, Net charge-offs, KeyBank
 
 Life to date: 15 quarters, its lines shown and the Check in words; Summary agrees.
 
-11 reads.
+12 reads.
 
 ## B9 · Click Mortgage, Net charge-offs, Industry
 
 Refused, with what to type.
 
-8 reads.
+10 reads.
 
 ## B10 · Save (Ctrl+S), close Excel, open the file again
 
