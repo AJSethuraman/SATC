@@ -54,6 +54,6 @@ The first live pull, on 15 Oct 2026, read 85 of 85 series in 31 seconds.
   - the cut-offs for each rating;
   - the history window;
   - the change horizon;
-  - the direction of stress for the nine series the research leaves open.
+  - the direction of stress for the eight series the research leaves open.
 - **Slice 3, the workbook.** A summary of every rating, with what drove it,
   the history window and the data release, and one sheet per series.
