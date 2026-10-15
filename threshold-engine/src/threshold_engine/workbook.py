@@ -128,6 +128,66 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+# ---- The reference tabs' one template (Claude Design's round 2,
+# docs/design/round-2/README.md, "Reference tabs") ----
+REF_EDGE = 1.57                                       # column A, a 16 px margin
+REF_BODY = Font(name="Calibri", size=11, color=K.INK_TEXT)
+REF_LABEL = Font(name="Arial", size=9, bold=True, color=K.SLATE)
+
+
+def _lines(text, width):
+    """Lines a text takes when wrapped in a column ``width`` units wide."""
+    return max(1, -(-len(str(text or "")) // max(1, int(width))))
+
+
+def _ref_title(ws, title, purpose, last_col):
+    """Column A a margin; row 1 the title (Arial 14 bold), row 2 the purpose
+    (Calibri 11 SLATE) over a medium KEY_RED rule to ``last_col``."""
+    ws.sheet_view.showGridLines = False
+    ws.column_dimensions["A"].width = REF_EDGE
+    t = ws.cell(1, 2, title)
+    t.font = Font(name="Arial", size=14, bold=True, color=K.INK)
+    t.alignment = Alignment(vertical="bottom")
+    p = ws.cell(2, 2, purpose)
+    p.font = Font(name="Calibri", size=11, color=K.SLATE)
+    p.alignment = Alignment(vertical="center")
+    for col in range(2, last_col + 1):
+        ws.cell(2, col).border = Border(bottom=Side(style="medium", color=K.KEY_RED))
+    for r_, h in ((1, 25.5), (2, 15), (3, 9)):
+        ws.row_dimensions[r_].height = h
+
+
+def _ref_header(ws, row, names, first_col, numeric=(), height=27):
+    """A header row: MIST fill, Arial 9 bold INK, wrapped, a STONE rule;
+    the ``numeric`` positions right-aligned. Returns the next row."""
+    for i, nm in enumerate(names):
+        c = ws.cell(row, first_col + i, nm)
+        c.fill = K.solid(K.MIST)
+        c.font = Font(name="Arial", size=9, bold=True, color=K.INK)
+        c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="right" if i in numeric else "left")
+        c.border = Border(bottom=Side(style="thin", color=K.STONE))
+    ws.row_dimensions[row].height = height
+    return row + 1
+
+
+def _ref_block(ws, row, text, first_col, last_col):
+    """A series block's heading: Arial 11 bold over a thin INK rule."""
+    c = ws.cell(row, first_col, text)
+    c.font = Font(name="Arial", size=11, bold=True, color=K.INK)
+    c.alignment = Alignment(vertical="bottom")
+    for col in range(first_col, last_col + 1):
+        ws.cell(row, col).border = Border(bottom=Side(style="thin", color=K.INK))
+    ws.row_dimensions[row].height = 18
+    return row + 1
+
+
+def _ref_row(ws, row, first_col, last_col, lines=1):
+    """A body row: 15 pt a line, a MIST hairline under it."""
+    for col in range(first_col, last_col + 1):
+        ws.cell(row, col).border = Border(bottom=Side(style="thin", color=K.MIST))
+    ws.row_dimensions[row].height = 15 * lines
+
+
 def _thresholds_plain(th, name, n, loaded, floored):
     """Thresholds without Decide: the layout it has always had (TH_PLAIN)."""
     th.sheet_properties.tabColor = K.KEY_RED
@@ -679,103 +739,131 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                           quarter=quarter, assess_lay=lay)
         sd.sheet_properties.tabColor = K.STONE
 
-    # ---- The reference tabs: one quiet pattern (the hand-off). A title on
-    # paper over a stone rule, section names over an ink rule, canvas
-    # headers, hairline rows. Red is kept for the two live tabs. ----
-    for ws in (evs, bts, srcs, gl, da, run):
-        ws.sheet_properties.tabColor = K.STONE
-    DATA_F = Font(name="Calibri", size=11, color=K.INK_TEXT)
+    # ---- The reference tabs: one quiet template (Claude Design's round 2,
+    # docs/design/round-2/README.md, "Reference tabs"). Column A is a margin;
+    # row 1 the title, row 2 the purpose over a KEY_RED rule, the header in
+    # row 4 on MIST; Calibri 11 on 15 pt rows with MIST hairlines and no
+    # fills. Series blocks start with a heading over a thin INK rule. ----
+    for ws in (evs, bts, srcs, gl, run):
+        ws.sheet_properties.tabColor = K.TAB_REFERENCE
+    da.sheet_properties.tabColor = K.TAB_DATA
+    DATA_F = REF_BODY
+    # A series is named by its parts where the book gives them.
+    named = (lambda lbl: " · ".join(decide["parts"][lbl])) if decide else (lambda lbl: lbl)    # noqa: E731
 
-    # ---- Evidence: each product's spells and departures, side by side ----
-    K.light_title(evs, 1, 16, "Evidence for each judgement",
-                  "How unusual each stretch worse than the median was. Robust z: how far its peak sits from the rest "
-                  "of history; 3.5 or more is unusual. A distance, not a probability.", live=False)
+    # ---- Evidence: each series' spells and departures, side by side ----
+    sp_head = ["Spell from", "Peak quarter", "Peak", "Peak ÷ median", "Robust z", "Years per spell this bad",
+               "Deepest dip (sd of quarterly change)", "Note"]
+    dp_head = ["First quarter", "Last quarter", "Worse or better", "Average distance from trend", "Robust z",
+               "Rank among windows of its length", "Window (quarters)"]
+    SP, DP = 2, 11                                      # B..I, a gap in J, K..Q
+    ev_last = DP + len(dp_head) - 1
+    _ref_title(evs, "Evidence for each judgment",
+               "Spells worse than the median and temporary departures from trend, for each series. Robust z "
+               "measures how far a peak sits from the rest of the history; 3.5 or more is unusual.", ev_last)
     r = 4
     for s in loaded:
         ev = s["ev"]
-        K.quiet_section(evs, r, s["label"], 16)
-        K.canvas_header(evs, r + 1, ["Spell from", "Peak quarter", "Peak", "Peak ÷ median", "Robust z",
-                                     "Years per spell this bad", "Deepest dip (sd of quarterly change)", "Note"],
-                        right_from=2)
-        K.canvas_header(evs, r + 1, ["Temporary departure: first quarter", "Last quarter", "Worse or better",
-                                     "Average distance from trend", "Robust z", "Rank among windows of its length",
-                                     "Window (quarters)"], first_col=10, right_from=3)
-        evs.row_dimensions[r + 1].height = 34.5
-        for i, sp in enumerate(ev["spells"]):
-            rr = r + 2 + i
-            for col, v in enumerate([quarter(sp["start"]), quarter(sp["peak_date"]), sp["peak"],
-                                     sp["peak_over_median"], sp["robust_z"], sp["return_period_years"],
-                                     sp["dip"]["in_sd_of_change"] if sp["dip"] else None, sp["note"]], start=1):
-                evs.cell(rr, col, v).font = DATA_F
-            for col, fmt in ((3, NF), (4, "0.00"), (5, "+0.0;-0.0;0.0"), (6, "0.0"), (7, "0.0")):
-                evs.cell(rr, col).number_format = fmt
-            K.hairlines(evs, rr, 1, 8)
-        for i, d in enumerate(ev["departures"]):
-            rr = r + 2 + i
-            for col, v in enumerate([quarter(d["first"]), quarter(d["last"]), d["direction"], d["mean_departure"],
-                                     d["robust_z"], "1 of %d" % d["of"], d["length"]], start=10):
-                evs.cell(rr, col, v).font = DATA_F
-            evs.cell(rr, 13).number_format = NF
-            evs.cell(rr, 14).number_format = "+0.0;-0.0;0.0"
-            K.hairlines(evs, rr, 10, 16)
-        r += 2 + max(len(ev["spells"]), len(ev["departures"]), 1) + 1
-    for rng_ in ("E5:E%d" % r, "N5:N%d" % r):
-        evs.conditional_formatting.add(rng_, FormulaRule(formula=["AND(ISNUMBER(%s5),ABS(%s5)>=3.5)"
-                                                                  % (rng_[0], rng_[0])],
-                                                         fill=K.solid(K.BANDS[2]), font=Font(bold=True)))
-    for col, w in zip("ABCDEFGHIJKLMNOP", (12, 12, 10, 10, 10, 12, 14, 34, 2.71, 16, 12, 14, 11, 10, 14, 11)):
-        evs.column_dimensions[col].width = w
-    evs.freeze_panes = "A4"
+        r = _ref_block(evs, r, named(s["label"]), 2, ev_last)
+        evs.cell(r, SP, "Spells worse than the median").font = REF_LABEL
+        evs.cell(r, DP, "Temporary departures from trend").font = REF_LABEL
+        evs.row_dimensions[r].height = 15
+        r = _ref_header(evs, r + 1, sp_head, SP, numeric=range(2, 7), height=40.5)
+        _ref_header(evs, r - 1, dp_head, DP, numeric=(3, 4, 6), height=40.5)
+        for i in range(max(len(ev["spells"]), len(ev["departures"]), 1)):
+            rr = r + i
+            if i < len(ev["spells"]):
+                sp = ev["spells"][i]
+                for col, v in enumerate([quarter(sp["start"]), quarter(sp["peak_date"]), sp["peak"],
+                                         sp["peak_over_median"], sp["robust_z"], sp["return_period_years"],
+                                         sp["dip"]["in_sd_of_change"] if sp["dip"] else None, sp["note"]], start=SP):
+                    evs.cell(rr, col, v).font = DATA_F
+                for col, fmt in ((SP + 2, "0.00"), (SP + 3, "0.00"), (SP + 4, "+0.0;-0.0;0.0"), (SP + 5, "0.0"),
+                                 (SP + 6, "0.0")):
+                    evs.cell(rr, col).number_format = fmt
+                evs.cell(rr, SP + 7).alignment = Alignment(wrap_text=True, vertical="top")
+            if i < len(ev["departures"]):
+                d = ev["departures"][i]
+                for col, v in enumerate([quarter(d["first"]), quarter(d["last"]), d["direction"],
+                                         d["mean_departure"], d["robust_z"], "1 of %d" % d["of"], d["length"]],
+                                        start=DP):
+                    evs.cell(rr, col, v).font = DATA_F
+                evs.cell(rr, DP + 3).number_format = "0.00"
+                evs.cell(rr, DP + 4).number_format = "+0.0;-0.0;0.0"
+                evs.cell(rr, DP + 5).alignment = Alignment(horizontal="right")
+            note = ev["spells"][i]["note"] if i < len(ev["spells"]) else ""
+            _ref_row(evs, rr, SP, SP + len(sp_head) - 1, lines=_lines(note, 35))
+            _ref_row(evs, rr, DP, ev_last)
+        r += max(len(ev["spells"]), len(ev["departures"]), 1) + 1
+    for col in (SP + 4, DP + 4):
+        c_ = L(col)
+        evs.conditional_formatting.add("%s5:%s%d" % (c_, c_, max(r, 5)), FormulaRule(
+            formula=["AND(ISNUMBER(%s5),ABS(%s5)>=3.5)" % (c_, c_)], font=Font(bold=True, color=K.INK)))
+    for col, w in zip(range(1, ev_last + 1), (REF_EDGE, 10.14, 10.14, 8.43, 10.14, 8.43, 12.14, 16, 35, 3.57,
+                                               12.14, 10.14, 16.43, 15.0, 8.43, 16.43, 10.71)):
+        evs.column_dimensions[L(col)].width = w
+    evs.freeze_panes = "B4"
 
-    # ---- Backtest: one table, a row per product and weighting ----
+    # ---- Backtest: a row per series and weighting; the series' parts in
+    # their own columns where the book gives them ----
     n_scores = len(percentiles) + 1
-    width = 5 + n_scores
-    K.light_title(bts, 1, width, "How predictive would the scale have been?",
-                  "Each quarter is rated on lines at percentiles %s of the history up to and including it, then compared with "
-                  "the value %d quarters later. Spearman: 1 means a higher rating always came before a higher "
-                  "value, 0 means no link. Average change ahead: in the measure's own units. Neighbouring quarters "
-                  "overlap, so read this as a description, not proof."
-                  % ("/".join("%g" % p for p in percentiles), horizon), live=False)
-    bts.row_dimensions[2].height = 42
-    bts["A2"].alignment = Alignment(wrap_text=True, vertical="top")
-    for c1, c2, lbl in ((3, 4, "Spearman: rating against"), (5, 4 + n_scores, "Average change ahead, by rating")):
-        bts.cell(4, c1, lbl).font = Font(name="Arial", bold=True, size=9, color=K.INK)
+    id_head = list(decide["names"]) if decide else ["Series"]
+    ni = len(id_head)
+    WT = 2 + ni                                         # Weighting; the numbers follow it
+    bt_last = WT + 3 + n_scores
+    _ref_title(bts, "Backtest: how predictive the scale would have been",
+               "Each quarter is rated on lines at percentiles %s of the history up to and including it, then "
+               "compared with the value %d quarters later." % ("/".join("%g" % p for p in percentiles), horizon),
+               bt_last)
+    for c1, c2, lbl in ((WT + 1, WT + 2, "Spearman: rating against"),
+                        (WT + 3, WT + 2 + n_scores, "Average change ahead, by rating")):
+        bts.cell(3, c1, lbl).font = Font(name="Arial", bold=True, size=9, color=K.INK)
         for c_ in range(c1, c2 + 1):
-            bts.cell(4, c_).border = Border(bottom=Side(style="thin", color=K.INK))
-    K.canvas_header(bts, 5, ["Series", "Weighting", "Value ahead", "Change ahead"]
-                    + ["%d" % k for k in range(1, n_scores + 1)] + ["Quarters tested"], right_from=2)
-    r = 6
+            bts.cell(3, c_).border = Border(bottom=Side(style="thin", color=K.INK))
+    bts.row_dimensions[3].height = 15
+    _ref_header(bts, 4, id_head + ["Weighting", "Value ahead", "Change ahead"]
+                + ["%d" % k for k in range(1, n_scores + 1)] + ["Quarters tested"], 2,
+                numeric=range(ni + 1, ni + 4 + n_scores))
+    r = 5
     for s in loaded:
+        ids = list(decide["parts"][s["label"]]) if decide else [s["label"]]
         if s["bt"].get("not_tested"):
-            bts.cell(r, 1, s["label"]).font = DATA_F
-            bts.cell(r, 2, s["bt"]["not_tested"]).font = DATA_F
-            K.hairlines(bts, r, 1, width)
+            for col, v in enumerate(ids + [s["bt"]["not_tested"]], start=2):
+                bts.cell(r, col, v).font = DATA_F
+            _ref_row(bts, r, 2, bt_last)
             r += 1
         for run_ in s["bt"]["runs"]:
-            vals_ = [s["label"], "none" if run_["half_life_years"] is None else "%g-yr half-life"
-                     % run_["half_life_years"], run_["score_vs_level_ahead"], run_["score_vs_change_ahead"],
-                     *[b["mean_change_ahead"] for b in run_["by_score"]], run_["periods_tested"]]
-            for col, v in enumerate(vals_, start=1):
+            vals_ = ids + ["none" if run_["half_life_years"] is None else "%g-yr half-life"
+                           % run_["half_life_years"], run_["score_vs_level_ahead"], run_["score_vs_change_ahead"],
+                           *[b["mean_change_ahead"] for b in run_["by_score"]], run_["periods_tested"]]
+            for col, v in enumerate(vals_, start=2):
                 bts.cell(r, col, v).font = DATA_F
-            for col in range(3, 5 + n_scores):
+            for col in range(WT + 1, bt_last):
                 bts.cell(r, col).number_format = "0.00"
-            K.hairlines(bts, r, 1, width)
+            bts.cell(r, bt_last).number_format = "0"
+            _ref_row(bts, r, 2, bt_last)
             r += 1
-    bts.column_dimensions["A"].width = 18
-    bts.column_dimensions["B"].width = 15
-    for col in range(3, width + 1):
-        bts.column_dimensions[L(col)].width = 12
-    bts.freeze_panes = "C6"
+    for i, t in enumerate(("Spearman is the rank correlation between the rating and what followed: 1 means a "
+                           "higher rating always preceded a higher value, and 0 means no relationship.",
+                           "Average change ahead is in the measure's own units.",
+                           "Neighboring quarters overlap, so the quarters tested are not independent "
+                           "observations.")):
+        bts.cell(r + 1 + i, 2, t).font = Font(name="Calibri", size=10, color=K.SLATE)
+    bts.column_dimensions["A"].width = REF_EDGE
+    for i, w in enumerate((17.0, 31.5, 22.0)[:ni] if decide else (max(18, min(60, 2 + max(
+            len(s["label"]) for s in loaded))),)):
+        bts.column_dimensions[L(2 + i)].width = w
+    bts.column_dimensions[L(WT)].width = 15
+    for col in range(WT + 1, bt_last + 1):
+        bts.column_dimensions[L(col)].width = 11
+    bts.freeze_panes = bts.cell(5, WT + 1).coordinate
 
     # ---- Sources: what each file says about itself. Generic by construction:
     # the tab prints the file's own description lines ("# key: text", the
     # keys the internal templates ask for) and adds nothing; a key every file
     # should give and this one does not is marked, never filled in. ----
-    K.light_title(srcs, 1, 2, "Sources",
-                  "What each series' file says about itself, as written in the file. Nothing here is added.",
-                  live=False)
-    srcs.row_dimensions[2].height = 27
-    srcs["A2"].alignment = Alignment(wrap_text=True, vertical="top")
+    _ref_title(srcs, "Sources", "Each series file's description lines, as written in the file. A required line "
+                                "the file does not give is marked.", 3)
     shown = {"measure": "Measure", "population": "Who is in it", "call-report": "Call Report lines",
              "numerator": "Numerator", "denominator": "Denominator", "basis": "Basis",
              "as-of": "As of", "source": "Source", "checked": "Checked", "prepared-by": "Prepared by",
@@ -783,75 +871,74 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     r = 4
     # The synthesis' files (industry, KeyBank filed, each peer) follow the
     # series, each under its own name, by the same rule.
-    described = [dict(label=s["label"], path=s["path"], raw=s["raw"]) for s in loaded]
-    described += [dict(label=t_, path=p_, raw=raw_) for t_, p_, raw_ in (ST.files(syn_loaded) if synthesis else [])]
+    described = [dict(label=s["label"], title=named(s["label"]), path=s["path"], raw=s["raw"]) for s in loaded]
+    described += [dict(label=t_, title=t_, path=p_, raw=raw_)
+                  for t_, p_, raw_ in (ST.files(syn_loaded) if synthesis else [])]
     for s in described:
         notes = read_notes(s["path"])
-        r = K.quiet_section(srcs, r, s["label"], 2)
+        r = _ref_block(srcs, r, s["title"], 2, 3)
         rows_ = [("File", "%s (%d rows, %s to %s; its SHA-256 is on Run)"
                   % (s["path"].name, len(s["raw"]), s["raw"][0].date, s["raw"][-1].date))]
         rows_ += [(shown.get(k, k.replace("-", " ").capitalize()), v) for k, v in notes]
         given = {k for k, _ in notes}
         missing = [k for k in CORE_NOTES if k not in given]
-        for lbl, v in rows_:
-            srcs.cell(r, 1, lbl).font = Font(name="Arial", bold=True, size=9, color=K.SLATE)
-            c = srcs.cell(r, 2, v)
-            c.font = DATA_F
+        for i, (lbl, v) in enumerate(rows_):
+            srcs.cell(r, 2, lbl).font = REF_LABEL
+            srcs.cell(r, 2).alignment = Alignment(vertical="top")
+            c = srcs.cell(r, 3, v)
+            c.font = Font(name="Calibri", size=11, color=K.INK_TEXT, bold=i == 0)
             c.alignment = Alignment(wrap_text=True, vertical="top")
-            srcs.cell(r, 1).alignment = Alignment(vertical="top")
-            srcs.row_dimensions[r].height = 15 * max(1, -(-len(str(v)) // 140)) + 2
-            K.hairlines(srcs, r, 1, 2)
+            _ref_row(srcs, r, 2, 3, lines=_lines(v, 120))
             r += 1
         for k in missing:
-            srcs.cell(r, 1, shown.get(k, k)).font = Font(name="Arial", bold=True, size=9, color=K.CRIMSON)
-            srcs.cell(r, 2, "Not stated in the file").font = Font(name="Calibri", size=11, bold=True, color=K.CRIMSON)
-            srcs.cell(r, 2).fill = K.solid(K.ALERT_FG)
-            K.hairlines(srcs, r, 1, 2)
+            srcs.cell(r, 2, shown.get(k, k)).font = Font(name="Arial", bold=True, size=9, color=K.CRIMSON)
+            srcs.cell(r, 3, "Not stated in the file").font = Font(name="Calibri", size=11, bold=True, color=K.CRIMSON)
+            srcs.cell(r, 3).fill = K.solid(K.CANVAS)
+            _ref_row(srcs, r, 2, 3)
             r += 1
         r += 1
-    srcs.column_dimensions["A"].width = 22
-    srcs.column_dimensions["B"].width = 130
+    srcs.column_dimensions["A"].width = REF_EDGE
+    srcs.column_dimensions["B"].width = 22
+    srcs.column_dimensions["C"].width = 120
+    srcs.freeze_panes = "C4"
 
     # ---- Glossary: the one tab whose rows wrap ----
-    K.light_title(gl, 1, 3, "Glossary", "What each term means, and exactly how the workbook calculates it.",
-                  live=False)
-    K.canvas_header(gl, 4, ["Term", "What it means", "How it is calculated"])
-    widths_g = (30, 60, 80)
+    _ref_title(gl, "Glossary", "What each term means, and how the workbook calculates it.", 4)
+    _ref_header(gl, 4, ["Term", "What it means", "How it is calculated"], 2)
+    widths_g = (30.7, 90.7, 90.7)
     for i, (term, meaning, calc) in enumerate(TERMS):
         rr = 5 + i
-        for col, v in enumerate((term, meaning, calc), start=1):
+        for col, v in enumerate((term, meaning, calc), start=2):
             c = gl.cell(rr, col, v)
             c.alignment = Alignment(wrap_text=True, vertical="top")
-            c.font = Font(name="Calibri", size=11, color=K.INK_TEXT, bold=col == 1)
-        lines = max(-(-len(str(v)) // int(w * 1.1)) for v, w in zip((term, meaning, calc), widths_g))
-        gl.row_dimensions[rr].height = 15 * max(1, lines) + 3
-        K.hairlines(gl, rr, 1, 3)
-    for c_, w in zip("ABC", widths_g):
+            c.font = Font(name="Calibri", size=11, bold=col == 2, color=K.SLATE if col == 4 else K.INK_TEXT)
+        _ref_row(gl, rr, 2, 4, lines=max(_lines(v, w) for v, w in zip((term, meaning, calc), widths_g)))
+    gl.column_dimensions["A"].width = REF_EDGE
+    for c_, w in zip("BCD", widths_g):
         gl.column_dimensions[c_].width = w
     gl.freeze_panes = "B5"
 
-    # ---- Data: its header wraps; column groups alternate canvas and mist ----
+    # ---- Data: quarter in A, a series per column; the header wraps ----
     groups = 8                                       # raw, kept, change, distances x2, the same keeping every quarter
-    for g in range(groups):
-        for k in range(n):
-            col = 2 + g * n + k
-            c = da.cell(1, col)
-            c.fill = K.solid(K.CANVAS if g % 2 == 0 else K.MIST)
-            c.font = Font(name="Arial", bold=True, size=9, color=K.SLATE)
-            c.alignment = Alignment(wrap_text=True, vertical="center")
-            da.column_dimensions[L(col)].width = 12
-    da.cell(1, 1).fill = K.solid(K.CANVAS)
-    da.cell(1, 1).font = Font(name="Arial", bold=True, size=9, color=K.SLATE)
-    da.row_dimensions[1].height = 34.5
+    for col in range(1, 2 + groups * n):
+        c = da.cell(1, col)
+        c.fill = K.solid(K.MIST)
+        c.font = Font(name="Arial", bold=True, size=9, color=K.INK)
+        c.alignment = Alignment(wrap_text=True, vertical="center")
+        c.border = Border(bottom=Side(style="thin", color=K.STONE))
+        if col > 1:
+            da.column_dimensions[L(col)].width = 16
+    da.row_dimensions[1].height = 45
+    # Rates to four decimals; a measure in the hundreds (a score) keeps its own.
+    dnf = NF if biggest >= 100 else "0.0000"
     for r in range(first, last + 1):
         for col in range(2, 2 + groups * n):
-            da.cell(r, col).number_format = NF
+            da.cell(r, col).number_format = dnf
     da.freeze_panes = "B2"
 
     # ---- Run: four sections on fixed columns; the hash goes last ----
-    K.light_title(run, 1, 6, "Run", "What went in: the build, the files and their fingerprints, and the choices "
-                                    "made on Assess, live.", live=False)
-    r = K.quiet_section(run, 4, "This build", 6)
+    _ref_title(run, "Run", "The build, each input file with its SHA-256 fingerprint, and the settings in use.", 7)
+    r = K.quiet_section(run, 4, "This build", 6, first_col=2)
     build_rows = [("threshold-engine", VERSION), ("Built", dt.datetime.now().isoformat(timespec="seconds"))]
     if smoothing > 1:
         build_rows.append(("Smoothing", "The Data tab holds each file's values as a trailing mean over %d quarters, "
@@ -867,57 +954,64 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                    ("Backtest settings", "percentiles %s; horizon %d; min history %d"
                     % ("/".join("%g" % p for p in percentiles), horizon, min_history))]
     for lbl, v in build_rows:
-        run.cell(r, 1, lbl).font = Font(name="Arial", bold=True, size=9, color=K.SLATE)
-        run.cell(r, 2, v).font = DATA_F
+        run.cell(r, 2, lbl).font = REF_LABEL
+        run.cell(r, 3, v).font = DATA_F
+        _ref_row(run, r, 2, 7)
         r += 1
-    r = K.quiet_section(run, r + 1, "Files", 6)
-    files_head = r
-    r = K.canvas_header(run, r, ["Series", "File", "Rows", "First", "Last", "SHA-256"])
+    r = K.quiet_section(run, r + 1, "Files", 6, first_col=2)
+    r = _ref_header(run, r, ["Series", "File", "Rows", "First", "Last", "SHA-256"], 2, numeric=(2,))
     for s in described:
         for col, v in enumerate([s["label"], str(s["path"]), len(s["raw"]), s["raw"][0].date, s["raw"][-1].date,
-                                 _sha(Path(s["path"]))], start=1):
+                                 _sha(Path(s["path"]))], start=2):
             run.cell(r, col, v).font = DATA_F
-        run.cell(r, 6).font = Font(name="Consolas", size=9, color=K.SLATE)
-        K.hairlines(run, r, 1, 6)
+        run.cell(r, 7).font = Font(name="Consolas", size=9, color=K.SLATE)
+        _ref_row(run, r, 2, 7)
         r += 1
-    r = K.quiet_section(run, r + 1, "Periods left out, as on Assess (live)", 6)
-    lo_head_run = r
-    r = K.canvas_header(run, r, ["Series", "From", "To", "Reason", "Status", ""])
+    r = K.quiet_section(run, r + 1, "Periods left out (live)", 6, first_col=2)
+    r = _ref_header(run, r, ["Series", "From", "To", "Reason", "Status", ""], 2)
     for rr in range(LO_TOP, lo_end + 1):
-        for col, c_ in enumerate("NOPQ", start=1):
+        for col, c_ in enumerate("NOPQ", start=2):
             run.cell(r, col, '=IF(Assess!{c}{r}="","",Assess!{c}{r})'.format(c=c_, r=rr)).font = DATA_F
-        run.cell(r, 5, "=Assess!T%d" % rr).font = DATA_F
+        run.cell(r, 6, "=Assess!T%d" % rr).font = DATA_F
+        _ref_row(run, r, 2, 7)
         r += 1
-    r = K.quiet_section(run, r + 1, "Your settings, as on Assess (live)", 6)
-    r = K.canvas_header(run, r, ["Series", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)",
-                                 "On a line, rate it", ""])
+    r = K.quiet_section(run, r + 1, "Settings in use (live)", 6, first_col=2)
+    r = _ref_header(run, r, ["Series", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)",
+                             "On a line, rate it", ""], 2)
     for s in loaded:
-        run.cell(r, 1, s["label"]).font = DATA_F
-        for col, c_ in enumerate("OPQR", start=2):
+        run.cell(r, 2, s["label"]).font = DATA_F
+        for col, c_ in enumerate("OPQR", start=3):
             run.cell(r, col, "=Assess!%s%d" % (c_, srow[s["label"]])).font = DATA_F
+        _ref_row(run, r, 2, 7)
         r += 1
     if synthesis:
-        r = K.quiet_section(run, r + 1, "Synthesis choices, as on Synthesis (live)", 6)
-        r = K.canvas_header(run, r, ["Series", "Industry carried by", "Taken from: lines 2, 3, 4, 5",
-                                     "Peers at percentile: lines 2, 3, 4, 5", "Check", ""])
+        r = K.quiet_section(run, r + 1, "Synthesis choices, as on Synthesis (live)", 6, first_col=2)
+        r = _ref_header(run, r, ["Series", "Industry carried by", "Taken from: lines 2, 3, 4, 5",
+                                 "Peers at percentile: lines 2, 3, 4, 5", "Check", ""], 2)
         for lbl, at in syn_at.items():
             lr = at["lines"]
-            run.cell(r, 1, lbl).font = DATA_F
-            run.cell(r, 2, "=Synthesis!B%d&\"\"" % at["translation"]).font = DATA_F
-            run.cell(r, 3, "=" + '&", "&'.join("Synthesis!F%d" % x for x in lr)).font = DATA_F
-            run.cell(r, 4, ("=" + '&", "&'.join("Synthesis!D%d" % x for x in lr))
+            run.cell(r, 2, lbl).font = DATA_F
+            run.cell(r, 3, "=Synthesis!B%d&\"\"" % at["translation"]).font = DATA_F
+            run.cell(r, 4, "=" + '&", "&'.join("Synthesis!F%d" % x for x in lr)).font = DATA_F
+            run.cell(r, 5, ("=" + '&", "&'.join("Synthesis!D%d" % x for x in lr))
                      if synthesis[lbl].get("peers") else "no peers").font = DATA_F
-            run.cell(r, 5, "=Synthesis!B%d" % at["check"]).font = DATA_F
+            run.cell(r, 6, "=Synthesis!B%d" % at["check"]).font = DATA_F
+            _ref_row(run, r, 2, 7)
             r += 1
-    for c_, w in zip("ABCDEF", (24, 52, 12, 26, 30, 70)):
+    for c_, w in zip("ABCDEFG", (REF_EDGE, max(24, min(60, 2 + max(len(s["label"]) for s in described))), 52, 12,
+                                 26, 30, 70)):
         run.column_dimensions[c_].width = w
+    run.freeze_panes = "A4"
 
-    dec = None
+    dec = su = None
     if decide:
         labels = [s["label"] for s in loaded]
         settings = {lbl: (moderate_halfwidth, low_step, high_z, on_the_line) for lbl in labels}
-        SU.build(wb, name=name, unit=unit, labels=labels, parts=decide["parts"], part_names=decide["names"],
-                 absent=decide["absent"], compare=decide["compare"], notes=decide["notes"])
+        su = SU.build(wb, name=name, unit=unit, labels=labels, parts=decide["parts"], part_names=decide["names"],
+                 absent=decide["absent"], compare=decide["compare"], notes=decide["notes"],
+                 # Each series' row on Thresholds; its columns come from
+                 # decide_tab.TH_BOOK by meaning.
+                 th_rows={s["label"]: 5 + k for k, s in enumerate(loaded)})
         dec = DT.build(wb, labels=labels, parts=decide["parts"], part_names=decide["names"], settings=settings,
                        lay=lay, n_quarters=len(grid), absent=decide["absent"], compare=decide["compare"],
                        unit=unit, higher=higher, floor_at_zero=floor_at_zero)
@@ -948,4 +1042,5 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             for i, (nm, v, anchor, cols) in enumerate(zip(decide["names"], first_parts, DT.SLICER_ANCHORS,
                                                           DT.SLICER_COLUMNS))], hide_buttons=True)
     return {"path": out, "products": [s["label"] for s in loaded], "quarters": len(grid),
-            "evidence": {s["label"]: s["ev"] for s in loaded}, "synthesis": syn_at, "decide": dec}
+            "evidence": {s["label"]: s["ev"] for s in loaded}, "synthesis": syn_at, "decide": dec,
+            "summary": su}

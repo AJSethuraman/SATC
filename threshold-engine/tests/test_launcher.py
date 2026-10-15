@@ -390,7 +390,7 @@ def test_too_little_history_for_the_backtest_is_said_on_the_backtest_tab(tmp_pat
     assert out.ok, out.lines
     from openpyxl import load_workbook
     ws = load_workbook(out.path)["Backtest"]
-    said = [ws.cell(r, 2).value for r in range(1, ws.max_row + 1)]
+    said = [ws.cell(r, 3).value for r in range(1, ws.max_row + 1)]      # after the margin and the series
     assert any(isinstance(v, str) and v.startswith("Not tested:") and "min_history" in v for v in said)
 
 

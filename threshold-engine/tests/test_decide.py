@@ -353,19 +353,86 @@ def test_summary_reads_thresholds_and_marks_what_is_not_there(pair):
     d, w, p = pair
     v = recalc(w["path"])
     ws = load_workbook(w["path"])["Summary"]
-    head = {ws.cell(5, c).value: c for c in range(1, 12) if ws.cell(5, c).value}
-    assert ws.cell(7, 1).value == "Card" and ws.cell(7, 2).value == "Net"
-    ci, cb = head["Industry"], head["Bank"]
-    assert v["SUMMARY!%s%d" % (L(ci), 7)] == pytest.approx(th(v, "value", 5))
-    assert v["SUMMARY!%s%d" % (L(cb), 7)] == pytest.approx(th(v, "value", 6))
+    from openpyxl.utils import get_column_letter as L
+    s = w["summary"]
+    # The compare pair leads: the bank, its points, then the other source.
+    assert s["sources"] == ["Bank", "Industry"]
+    assert [ws.cell(5, c).value for c in range(2, 9)] == ["Product", "Measure", "Latest", "Rating", "Points",
+                                                          "Latest", "Rating"]
+    assert ws.cell(4, 4).value == "Bank" and ws.cell(4, 6).value == "vs Industry" and ws.cell(4, 7).value == "Industry"
+    (bl, br), (il, ir), pt = s["columns"]["Bank"], s["columns"]["Industry"], s["columns"]["points"]
+    r, base = s["placed"][("Card", "Net")]
+    assert base == 2 and ws.cell(r, 2).value == "Card" and ws.cell(r, 3).value == "Net"
+    assert v["SUMMARY!%s%d" % (L(il), r)] == pytest.approx(th(v, "value", 5))
+    assert v["SUMMARY!%s%d" % (L(bl), r)] == pytest.approx(th(v, "value", 6))
     k = th(v, "rating", 5)
-    assert v["SUMMARY!%s%d" % (L(ci + 1), 7)] == ("%d %s" % (k, th(v, "rating_name", 5)) if k != "" else "Refused")
-    mort = next(r for r in range(7, 12) if ws.cell(r, 1).value == "Mortgage")
-    assert ws.cell(mort, cb + 1).value == "Not in this workbook"
-    diff = head["Bank vs Industry"]
-    assert v["SUMMARY!%s7" % L(diff)] == pytest.approx(th(v, "value", 6) - th(v, "value", 5))
-    notes = [ws.cell(r, 1).value for r in range(12, ws.max_row + 1)]
+    assert v["SUMMARY!%s%d" % (L(ir), r)] == ("%d %s" % (k, th(v, "rating_name", 5)) if k != "" else "Refused")
+    assert v["SUMMARY!%s%d" % (L(pt), r)] == pytest.approx(th(v, "value", 6) - th(v, "value", 5))
+    # Card has two rows and goes left; Mortgage goes right, past the gutter.
+    assert s["placed"][("Card", "Gross")] == (r + 1, 2)
+    mr, mb = s["placed"][("Mortgage", "Net")]
+    assert mb == 2 + 7 + 1 and ws.cell(mr, mb).value == "Mortgage"
+    assert ws.cell(mr, mb + br - 2).value == "Not in this workbook"
+    notes = [ws.cell(r_, 2).value for r_ in range(s["notes"], ws.max_row + 1)]
     assert "Not in this workbook: " + ABSENT[0]["why"] in notes and "A note the book gave." in notes
+
+
+ATTN = [("A - Net - Bank", DATA / "other_consumer_as_filed_nco_ttm.csv"),
+        ("A - Net - Peer", DATA / "cards_nco_ttm.csv"),
+        ("B - Net - Bank", DATA / "other_consumer_with_auto_nco_ttm.csv"),
+        ("C - Net - Bank", DATA / "cards_nco_ttm.csv"),
+        ("D - Net - Bank", DATA / "home_equity_nco_ttm.csv")]
+
+
+@pytest.fixture(scope="module")
+def attention(tmp_path_factory):
+    d = tmp_path_factory.mktemp("attention")
+    spec = {"names": NAMES, "parts": {lbl: tuple(lbl.split(" - ")) for lbl, _ in ATTN}, "absent": [],
+            "compare": ("Bank", "Peer"), "notes": []}
+    info = build(d / "a.xlsx", ATTN, decide=spec, **SETTINGS)
+    return d, info
+
+
+def _attention_read(v, s):
+    from openpyxl.utils import get_column_letter as L
+    a, base = s["attention"], s["panels"][1]
+    rate = base + s["columns"]["Bank"][1] - 2
+    got = [(v["SUMMARY!%s%d" % (L(base), r)], v["SUMMARY!%s%d" % (L(rate), r)],
+            v["SUMMARY!%s%d" % (L(rate + 1), r)]) for r in a["rows"]]
+    return [g for g in got if g[0]], v["SUMMARY!%s%d" % (L(base), a["more"])],         (v["SUMMARY!%s%d" % (L(base), a["refused"])], v["SUMMARY!%s%d" % (L(rate), a["refused"])])
+
+
+def test_a_series_rated_4_or_5_is_listed_by_rating_then_value(attention):
+    d, info = attention
+    v = recalc(info["path"])
+    s = info["summary"]
+    rows = {lbl: 5 + i for i, (lbl, _) in enumerate(ATTN)}
+    bank = [lbl for lbl, _ in ATTN if lbl.endswith("Bank")]
+    want = sorted(((th(v, "rating", rows[l]), th(v, "value", rows[l]), l) for l in bank
+                   if th(v, "rating", rows[l]) not in ("", None) and th(v, "rating", rows[l]) >= 4),
+                  key=lambda t: (-t[0], -t[1]))
+    assert [l for _, _, l in want] == ["A - Net - Bank", "B - Net - Bank"]     # the data rate them 4
+    listed, more, refused = _attention_read(v, s)
+    assert listed == [("%s · Net" % l[0], "%d %s" % (k, th(v, "rating_name", rows[l])),
+                       "%.2f%% in %s" % (j, th(v, "quarter", rows[l]))) for k, j, l in want]
+    assert more == "" and refused == ("0 of 4 Bank series", "None refused")
+    sheet = load_workbook(info["path"])["Summary"]
+    assert sheet.cell(s["attention"]["head"], s["panels"][1]).value == "Needs your attention · Bank"
+    assert v["SUMMARY!" + s["count"]] == "Bank: 2 rated 4 or 5 · 0 refused"
+
+
+def test_a_refused_series_is_counted_and_not_listed(attention):
+    d, info = attention
+    s = info["summary"]
+    f, z = info["decide"]["first"], col(info, "How rare High is (z)")
+    labels = [lbl for lbl, _ in ATTN]
+    cells = {"Decide!%s%d" % (z, f + labels.index("A - Net - Bank")): 50,
+             "Decide!%s%d" % (z, f + labels.index("D - Net - Bank")): 50}
+    v = typed(info["path"], d / "refused.xlsx", cells)
+    assert th(v, "refusal", 5).startswith("Refused") and th(v, "refusal", 9).startswith("Refused")
+    listed, more, refused = _attention_read(v, s)
+    assert [x[0] for x in listed] == ["B · Net"]
+    assert refused == ("2 of 4 Bank series", "Refused")
 
 
 def test_more_leave_outs_than_rows_is_said(tmp_path):
@@ -401,3 +468,24 @@ def test_a_label_must_be_its_parts_joined(tmp_path):
     spec["parts"]["Card - Net - Bank"] = ("Card", "Net", "Bank B")
     with pytest.raises(ValueError, match="should be labelled"):
         build(tmp_path / "x.xlsx", SER, decide=spec, **SETTINGS)
+
+
+def test_every_summary_heading_is_defined_in_the_glossary(pair):
+    """Every column label and the attention block's heading has a Glossary
+    entry; the part names are the book's own and need none."""
+    from threshold_engine.glossary import TERMS
+    d, w, p = pair
+    ws = load_workbook(w["path"])["Summary"]
+    terms = {t for t, _, _ in TERMS}
+    heads = {ws.cell(5, c).value for c in range(1, ws.max_column + 1) if ws.cell(5, c).value} - set(NAMES)
+    heads.add(ws.cell(w["summary"]["attention"]["head"], w["summary"]["panels"][1]).value.split(" · ")[0])
+    assert heads == {"Latest", "Rating", "Points", "Needs your attention"} and heads <= terms
+
+
+def test_without_a_compare_pair_the_first_source_leads_and_there_are_no_points():
+    from threshold_engine import summary_tab as SU
+    parts = {lbl: tuple(lbl.split(" - ")) for lbl in LABELS}
+    lay = SU.layout(LABELS, parts, None)
+    assert lay["sources"] == ["Industry", "Bank"] and "points" not in lay["offsets"] and lay["width"] == 6
+    lay = SU.layout(LABELS, parts, ("Bank", "Industry"))
+    assert lay["sources"] == ["Bank", "Industry"] and lay["offsets"]["points"] == 4

@@ -9,6 +9,15 @@ definition.
 
 # (term, what it means, how it is calculated)
 TERMS = [
+    ("Product",
+     "The first of the three parts that name a series, such as Credit card.",
+     "Taken from the book's series list. A series' label is its product, measure and source joined by ' - '."),
+    ("Measure",
+     "The second of the three parts that name a series: the rate measured, such as Net charge-offs.",
+     "Taken from the book's series list, as for Product."),
+    ("Source",
+     "The third of the three parts that name a series: the filer or group whose figures it holds.",
+     "Taken from the book's series list, as for Product."),
     ("Quarter",
      "The period each value belongs to, written like 2010Q2.",
      "Read from the source's date: a date in April, May or June is Q2, whether the source dates the quarter "
@@ -27,9 +36,9 @@ TERMS = [
      "Picked on Assess: the series, the first and last quarter from lists of the quarters in the data, and a "
      "reason. As many periods as there are rows, for any series. A row with something missing says what in its "
      "Status and refuses its series until it is complete or cleared. Shown on the chart as a dark "
-     "strip and grey dots on the line, and recorded on Run."),
+     "strip and gray dots on the line, and recorded on Run."),
     ("Median kept",
-     "The middle of the quarters kept: half were higher, half lower. The centre of Moderate.",
+     "The middle of the quarters kept: half were higher, half lower. The center of Moderate.",
      "MEDIAN of the quarters kept."),
     ("Typical yearly move",
      "How much the rate ordinarily changes in a year. It is the unit the Moderate band and the Moderate-Low "
@@ -84,6 +93,21 @@ TERMS = [
     ("2 Moderate-Low from, 3 Moderate from, 4 Moderate-High from, 5 High from",
      "The four lines the scoring file uses. Each is where that rating begins.",
      "As defined under Moderate-Low, Moderate, Moderate-High and High above."),
+    ("2 Moderate-Low",
+     "On Thresholds, the value at which a rating of 2 Moderate-Low begins.",
+     "Median kept minus Moderate-Low begins (yearly moves) times the typical yearly move. When lower is worse, "
+     "the sign reverses."),
+    ("3 Moderate",
+     "On Thresholds, the value at which a rating of 3 Moderate begins.",
+     "Median kept minus the width of Moderate (yearly moves) times the typical yearly move. When lower is worse, "
+     "the sign reverses."),
+    ("4 Moderate-High",
+     "On Thresholds, the value at which a rating of 4 Moderate-High begins.",
+     "Median kept plus the width of Moderate (yearly moves) times the typical yearly move. When lower is worse, "
+     "the sign reverses."),
+    ("5 High",
+     "On Thresholds, the value at which a rating of 5 High begins.",
+     "Median kept plus How rare High is (z) times the spread of levels. When lower is worse, the sign reverses."),
     ("On a line, rate it",
      "Which rating a value exactly on a line gets.",
      "Picked in Your settings on Assess. 'worse' gives the worse of the two ratings, 'better' the better."),
@@ -108,13 +132,27 @@ TERMS = [
      "Refuses when too little history is kept for a typical yearly move, when the median is at or below zero, when Moderate-Low would not begin below Moderate, when High "
      "would not begin beyond Moderate-High, when High would begin beyond the worst quarter kept (nothing could "
      "rate High), or when Moderate-Low would begin at or below zero."),
+    ("Value",
+     "On Thresholds, the series' value in its latest quarter.",
+     "Read from the source file, after any smoothing set for the workbook. It is not recalculated."),
+    ("Decision",
+     "The decision recorded for the series: Not decided, Accept these lines or Reject.",
+     "Selected in the Decision column of the table on Decide. Thresholds reads it from there."),
+    ("Points",
+     "On Summary, the gap between the bank's latest value and its peer group's latest value.",
+     "The bank's latest value minus the peer group's latest value for the same product and measure, in the "
+     "measure's units (percentage points for a rate). Blank when either value is missing."),
+    ("Needs your attention",
+     "On Summary, the bank's series rated 4 Moderate-High or 5 High, and the count of its series refused.",
+     "Series rated 4 or 5 are listed by rating, highest first, then by latest value, highest first. The first "
+     "five are named and the rest are counted. Refused counts the bank's series whose Check is not OK."),
     ("Spell",
      "An unbroken stretch of quarters worse than the median.",
      "From the first quarter worse than the median to the last before it returns."),
     ("Robust z",
      "How far a level sits from the rest of history, in units that one extreme period cannot distort.",
      "(value - median) / (1.4826 x MAD), with the median and MAD taken over every quarter outside the spell "
-     "being measured. Not a probability: neighbouring quarters of a TTM rate are not independent."),
+     "being measured. Not a probability: neighboring quarters of a TTM rate are not independent."),
     ("Unusual",
      "A spell whose peak stands well apart from the rest of history.",
      "Robust z of 3.5 or more, the usual line (Iglewicz and Hoaglin, How to Detect and Handle Outliers, 1993). "
@@ -152,7 +190,7 @@ TERMS = [
      "A fingerprint of a source file. Any change to the file, however small, changes it.",
      "Computed over the file's bytes and recorded on the Run tab."),
     ("Synthesis",
-     "Where each colour starts, from three views side by side: KeyBank's own history, the industry's and the "
+     "Where each color starts, from three views side by side: KeyBank's own history, the industry's and the "
      "peers'. You choose which view each line is taken from. Only in a workbook built with synthesis inputs.",
      "On the Synthesis tab, one block per series; the series showing on Assess has its four lines and Check "
      "under What each setting does. Every number follows Your settings on Assess."),

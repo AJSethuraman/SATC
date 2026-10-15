@@ -393,14 +393,14 @@ def test_the_synthesis_tabs_sit_beside_thresholds_and_data(built):
 def test_sources_and_run_carry_every_synthesis_file(built):
     p, _, _, files = built
     wb = load_workbook(p)
-    src = {(wb["Sources"].cell(r, 1).value, wb["Sources"].cell(r, 2).value) for r in range(1, wb["Sources"].max_row + 1)}
-    titles = {wb["Sources"].cell(r, 1).value for r in range(1, wb["Sources"].max_row + 1)}
+    src = {(wb["Sources"].cell(r, 2).value, wb["Sources"].cell(r, 3).value) for r in range(1, wb["Sources"].max_row + 1)}
+    titles = {wb["Sources"].cell(r, 2).value for r in range(1, wb["Sources"].max_row + 1)}
     named = [("Credit card · industry", files["industry"]), ("Credit card · KeyBank filed", files["filed"])] + \
             [("Credit card · peer %s" % k, f) for k, f in files["peers"]]
     for title, path in named:
         assert title in titles
         assert ("Measure", dict(read_notes(path))["measure"]) in src
-    run = {r[0].value: r[5].value for r in wb["Run"].iter_rows(min_row=4) if len(str(r[5].value or "")) == 64}
+    run = {r[1].value: r[6].value for r in wb["Run"].iter_rows(min_row=4) if len(str(r[6].value or "")) == 64}
     for title, path in named:
         assert run[title] == hashlib.sha256(path.read_bytes()).hexdigest()
 

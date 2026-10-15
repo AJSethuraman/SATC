@@ -216,6 +216,6 @@ def test_ok_gives_the_quarters_and_what_the_workbook_needs_of_them(tmp_path, cap
     # 10: life to date (14 Oct 2026), the workbook still builds; the backtest says why it did not run.
     assert build(5, 4, 2) == 0
     ws = load_workbook(tmp_path / "w.xlsx")["Backtest"]
-    said = [ws.cell(r, 2).value for r in range(1, ws.max_row + 1)]
+    said = [ws.cell(r, 3).value for r in range(1, ws.max_row + 1)]      # after the margin and the series
     assert any(isinstance(v, str) and v.startswith("Not tested: 8 observations after smoothing; at least "
                                                     "min_history + horizon = 9") for v in said)

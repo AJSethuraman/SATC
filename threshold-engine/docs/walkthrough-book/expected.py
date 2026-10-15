@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 from threshold_engine import book as BK                              # noqa: E402
 from threshold_engine import decide_tab as DT                        # noqa: E402
+from threshold_engine import summary_tab as SU                       # noqa: E402
 from threshold_engine.scale import scale, score                      # noqa: E402
 from threshold_engine.series import check, read_csv                  # noqa: E402
 from threshold_engine.workbook import assess_layout, quarter         # noqa: E402
@@ -105,14 +106,10 @@ def decided(n_acc, n_rej):
 
 
 def summary_cell(lbl):
-    p, m, s = PARTS[lbl]
-    pairs = []
-    for x in LABELS:
-        if PARTS[x][:2] not in pairs:
-            pairs.append(PARTS[x][:2])
-    r = 7 + pairs.index((p, m))
-    c = 3 + 2 * THIRD.index(s)
-    return r, c
+    """The row and column of a series' latest value on Summary; its rating is
+    the next column (summary_tab.layout, the builder's own)."""
+    r, latest, _ = SU.layout(LABELS, PARTS, COMPARE)["cells"][lbl]
+    return r, latest
 
 
 def slicers(**picks):
@@ -143,7 +140,7 @@ steps.append({"id": "B1", "what": "Open the workbook as built",
                   {"special": "links", "expect": []},
                   {"special": "errors", "expect": 0}],
               "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b1-decide.png"},
-                          {"sheet": "Summary", "range": "A1:I45", "file": "b1-summary.png"}]})
+                          {"sheet": "Summary", "range": "A1:T34", "file": "b1-summary.png"}]})
 
 # ---- B2: every Summary cell against the reference ----
 reads = []
