@@ -387,3 +387,12 @@ wrong place.
 
 **Waiting on the firm:** unchanged. The seven answers in
 `settings-template.json`; "yes to all" takes every recommendation.
+
+**The whole threshold-engine suite**, which CI does not run, was run on this
+branch after merging current main. None of its 1,081 tests failed; 5 were
+skipped. It took two runs:
+
+- The full run hit its 30-minute limit after 1,026 tests: 1,021 passed, 5
+  skipped.
+- It had not reached the two main workbook test files, so those were run
+  whole: 115 passed, in 57 minutes.
