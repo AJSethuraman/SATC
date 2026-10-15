@@ -214,12 +214,4 @@ def build(book_path, out, say=print) -> dict:
         for ws in wb.worksheets:
             ws.sheet_view.tabSelected = ws.title == "Summary"
 
-    info = WB.build(out, bk["series"], decide=bk["decide"], into=host, before_save=tidy, **bk["workbook"])
-    from . import slicers
-    d = info["decide"]
-    p0, p1, p2 = bk["decide"]["names"]
-    first = bk["series"][0][0]
-    picks = dict(zip((p0, p1, p2), bk["decide"]["parts"][first]))
-    slicers.add_table_slicers(out, "Decide", d["table"], [
-        {"column": name, "caption": name, "selected": picks[name]} for name in (p0, p1, p2)])
-    return info
+    return WB.build(out, bk["series"], decide=bk["decide"], into=host, before_save=tidy, **bk["workbook"])

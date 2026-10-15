@@ -762,5 +762,13 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         before_save(wb)
     out = Path(out)
     wb.save(out)
+    if decide:
+        # The buttons over the Decisions table, written into the saved file
+        # (openpyxl cannot write slicers); it opens on the first series.
+        from . import slicers as SL
+        first_parts = decide["parts"][loaded[0]["label"]]
+        SL.add_table_slicers(out, DT.TITLE, dec["table"], [
+            {"column": nm, "caption": nm, "anchor": anchor, "selected": v, "name": "Pick" + str(i + 1)}
+            for i, (nm, v, anchor) in enumerate(zip(decide["names"], first_parts, DT.SLICER_ANCHORS))])
     return {"path": out, "products": [s["label"] for s in loaded], "quarters": len(grid),
             "evidence": {s["label"]: s["ev"] for s in loaded}, "synthesis": syn_at, "decide": dec}

@@ -138,7 +138,7 @@ def test_the_screen_follows_the_one_row_shown(pair):
     rows = info["compare_rows"]
     assert v["DECIDE!E%d" % rows["Bank"]] == pytest.approx(v["THRESHOLDS!J6"])
     assert v["DECIDE!E%d" % rows["Industry"]] == pytest.approx(v["THRESHOLDS!J5"])
-    assert "points" in v["DECIDE!B%d" % (rows["Industry"] + 1)]
+    assert "points" in v["DECIDE!B%d" % info["layout"]["compare_line"]]
     chk = v["DECIDE!B%d" % info["check_row"]]
     assert chk == "Check: OK, your settings fit this series." or chk.startswith("Refused:")
 
@@ -173,7 +173,7 @@ def test_summary_reads_thresholds_and_marks_what_is_not_there(pair):
     assert v["SUMMARY!%s%d" % (L(ci), 7)] == pytest.approx(v["THRESHOLDS!J5"])
     assert v["SUMMARY!%s%d" % (L(cb), 7)] == pytest.approx(v["THRESHOLDS!J6"])
     k = v["THRESHOLDS!K5"]
-    assert v["SUMMARY!%s%d" % (L(ci + 1), 7)] == ("%s %s" % (k, v["THRESHOLDS!L5"]) if k != "" else "Refused")
+    assert v["SUMMARY!%s%d" % (L(ci + 1), 7)] == ("%d %s" % (k, v["THRESHOLDS!L5"]) if k != "" else "Refused")
     mort = next(r for r in range(7, 12) if ws.cell(r, 1).value == "Mortgage")
     assert ws.cell(mort, cb + 1).value == "Not in this workbook"
     diff = head["Bank vs Industry"]

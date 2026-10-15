@@ -29,6 +29,9 @@ TITLE = "Decide"
 TABLE = "Decisions"
 HDR = 12                                  # the table's header row; the slicers sit in rows 3-11
 SLICER_ROWS = (3, 11)
+#: Where the three slicers sit, as (from_col, from_row, to_col, to_row), 0-based
+#: cells: over B-C, D-H and I-L, from row 3 to the table's header.
+SLICER_ANCHORS = ((1, 2, 3, 11), (3, 2, 8, 11), (8, 2, 12, 11))
 DECISIONS = ("Not decided", "Accept these lines", "Reject")
 FIXED = ["Decision", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)", "On a line, rate it",
          "Leave out from", "Leave out to", "Why left out", "Note", "Check", "Series", "Shown", "Left out no."]
@@ -60,6 +63,21 @@ def fill(hex_):
 def columns(part_names: Sequence[str]) -> Dict[str, int]:
     """Column number of every table column, from B."""
     return {name: 2 + i for i, name in enumerate(list(part_names) + FIXED)}
+
+
+def layout(n: int, n_third: int, compare: bool) -> dict:
+    """Where everything sits on Decide for n series and n_third values of the
+    third part: one place for the builder, the tests and the walkthrough."""
+    first, last = HDR + 1, HDR + n
+    top = last + 2
+    cmp_head = top + 5
+    last_cmp = cmp_head + n_third
+    ch = last_cmp + 3
+    nr = ch + 19
+    chk = nr + 5
+    return dict(first=first, last=last, message=top, too_many=top + 1, headline=top + 3, compare_head=cmp_head,
+                compare_first=cmp_head + 1, compare_line=last_cmp + 1 if compare else None, chart_band=ch,
+                chart_note=nr, lines=nr + 3, history=nr + 4, check=chk, evidence=chk + 4)
 
 
 def validate(part_names: Sequence[str]) -> None:
@@ -387,5 +405,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                          "To put it back, clear those three cells.", F_NOTE)
     for col in range(H, CH + 12):
         ws.column_dimensions[L(col)].hidden = True
+    lay_d = layout(n, len(third), bool(compare))
+    assert (lay_d["first"], lay_d["last"], lay_d["message"], lay_d["headline"], lay_d["compare_head"],
+            lay_d["chart_band"], lay_d["lines"], lay_d["check"]) == (FIRST, LAST, top, top + 3, cmp_r, ch_r, nr + 3,
+                                                                     chk_r)
     return {"sheet": TITLE, "table": TABLE, "header_row": HDR, "first": FIRST, "last": LAST, "columns": C,
-            "screen_top": top, "check_row": chk_r, "compare_rows": rows, "leave_out_rows": LO_N}
+            "screen_top": top, "check_row": chk_r, "compare_rows": rows, "leave_out_rows": LO_N, "layout": lay_d}
