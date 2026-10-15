@@ -23,6 +23,7 @@ That is 105 series. All figures are public FDIC Call Report data.
 | **Summary** | Every product and measure on one page: KeyBank, the peer group and the industry, latest quarter and rating, and KeyBank's difference from the peer group in percentage points. The KeyBank series rated 4 or 5, and the count refused, are listed under Needs your attention. |
 | **Peers** | KeyBank against the peer group. Filters at the top (product, net or gross, Peer A and B, the window, the delinquency measure) and a Yes/No for each bank; every view on the tab uses the banks set to Yes. |
 | **Thresholds** | Every series' lines, latest value, rating, decision and Check, one row each. |
+| **Internal**, **Internal data** | The bank's own figures, by segment, in the internal import layout (`docs/INTERNAL-IMPORT.md`): paste them into Internal data, or name the file in the book. Internal shows each product's composite and segments with balances, the composite against KeyBank's Call Report line, and how closely each outside source rates the same quarters. It ships empty. |
 | Evidence, Backtest, Sources, Glossary, Run, Data | Reference. Glossary defines every heading. |
 
 ## Recording a decision

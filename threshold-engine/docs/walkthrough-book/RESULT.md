@@ -1,21 +1,19 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**327 of 328 reads as expected.**
+**328 of 328 reads as expected.**
 
-Differences:
-
-- B1 sheets: expected ['Decide', 'Summary', 'Peers', 'Thresholds', 'Internal', 'Evidence', 'Backtest', 'Glossary', 'Sources', 'Run', 'Data', 'Peers data', 'Peers delinquency data', 'Internal data', 'Assess', 'Chart', 'Peers workings'], Excel said ['Decide', 'Summary', 'Peers', 'Thresholds', 'Evidence', 'Backtest', 'Glossary', 'Sources', 'Run', 'Data', 'Peers data', 'Peers delinquency data', 'Assess', 'Chart', 'Peers workings']
+No differences.
 
 
-## B1 · Open the workbook as built: 8 of 9
+## B1 · Open the workbook as built: 9 of 9
 
 It opens on Summary; the tabs in order; three slicers, each with one button picked; Decide shows the first series and nothing decided.
 
 | | Cell | Expected | Excel |
 |---|---|---|---|
 | ok | active | Summary | Summary |
-| **DIFFERS** | sheets | ['Decide', 'Summary', 'Peers', 'Thresholds', 'Internal', 'Evidence', 'Backtest', 'Glossary | ['Decide', 'Summary', 'Peers', 'Thresholds', 'Evidence', 'Backtest', 'Glossary', 'Sources' |
+| ok | sheets | ['Decide', 'Summary', 'Peers', 'Thresholds', 'Internal', 'Evidence', 'Backtest', 'Glossary | ['Decide', 'Summary', 'Peers', 'Thresholds', 'Internal', 'Evidence', 'Backtest', 'Glossary |
 | ok | slicers | {'Product': 'Credit card', 'Measure': 'Net charge-offs', 'Source': 'Industry (every bank)' | {'Product': 'Credit card', 'Measure': 'Net charge-offs', 'Source': 'Industry (every bank)' |
 | ok | visible_rows | [9] | [9] |
 | ok | Decide!L1 | Decided: 0 of 105 · accepted 0 · rejected 0 | Decided: 0 of 105 · accepted 0 · rejected 0 |
