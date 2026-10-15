@@ -1,10 +1,11 @@
 # The walkthrough: rehearsal on public data
 
 Every step is done the way the bank would do it: build the workbook from the
-command line, open it in Excel, type into Settings, and read the answer off
-the workbook. The expected answer for every cell was written down first, in
-[`EXPECTED.md`](EXPECTED.md), by [`expected.py`](expected.py), and committed
-before the walkthrough was run. The git history shows that order.
+command line, open it in Excel, type into Assess's inputs, and read the answer off
+the workbook. The expected answer for every cell is in
+[`EXPECTED.md`](EXPECTED.md), from [`expected.py`](expected.py). 355 of them
+were committed before the walkthrough was first run (6f3505d); the readings
+added after a run, and why, are listed in the result PDF and LOG.md.
 
 Where the expected answers come from:
 
@@ -39,7 +40,7 @@ without saving and reopen).
 
 | Step | What you do | What it shows |
 |---|---|---|
-| W1 | Open the workbook | Nine tabs, four products, 163 quarters, 35 Glossary terms |
+| W1 | Open the workbook | Nine tabs, four products, 163 quarters, 36 Glossary terms |
 | W2 | Read Thresholds | Every product's median, typical yearly move, worst, four lines, latest value, score and rating, and a blank Check |
 | W3.1–W3.4 | On Assess, pick each product in B4 | The quarters in each score, kept and in all, and the lines |
 | W4 | Leave out the financial crisis on Credit card | The lines and counts move as the reference says |

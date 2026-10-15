@@ -3563,6 +3563,85 @@ changed in the code.
   - **Answered the same day:** 1, *"Yes, build them all"*: every unmarked proposal is built as Use it. 2, *"Figure out
     after we are ready to ship"*: the loan-count check waits for the next kit that goes to the bank. 3 (Excel) not
     answered; it stays open. 4, *"Yes, they stand"*: the eleven older notes are accepted as built and come off the list.
+  - **Built (PR #440):** phase 1 (a73663ce) is the 134 rewordings plus the Glossary's GCO and RANR lines, with the launcher's
+    term lines removed. Phase 2 (2ba818d7) is American spelling, with Summary's old "Grey rows under" label still read.
+    Phase 3 (843b16d7) spells out GCO, RANR and AUC on each tab's first sentence that uses them. An independent review
+    found nothing that had to be fixed. Its two should-fix items, the launcher's "56 grids" (56 views) and the README's
+    removed term lines, plus the 0.67 option's "at most two-thirds", are fixed in 89dccd2c. Planted bugs: two added, two
+    repointed and one retired (F, whose code is gone); all caught.
+
+- **Fixed, 14 Oct 2026: Summary's vintage chart lost points past 41 origination years** (branch
+  `claude/pocketbook-vintage-years`, PR #441; HANDOFF.md open item *"The Summary vintage chart breaks past about 42
+  distinct origination years"*). Reproduced first on synthetic books: with a Charge-off date marked (17 Summary
+  measures) the chart broke at 42 years, without one (15 measures) at 47; at 100 years whole measures were gone.
+  - **Cause:** every `_views` lookup reads `results.AREA`, columns B to ZZ (701 numbers a row). The vintage block kept
+    each line (the row picked, the rest of the book, the whole book) as one row of every measure, measure after
+    measure, year after year: 17 x 42 = 714. The helper cell for a measure's later years read past ZZ, got `#REF!`,
+    the drawn point became `#N/A` and the table under the chart showed a blank. Nothing said so.
+  - **Fix:** a `_views` row per line and year, every Summary column across in the Vintage measure dropdown's order:
+    `V|<column><view>|book|y<year>`, `|<i>|y<year>` and `|<i>|rest|y<year>`. A row is as wide as Summary (17 at
+    most), so any number of years fits and there is no year limit. A line with nothing in a year gets no row; its
+    lookup reads blank, as an empty row did. Each year's helper cells find that year's row for each line (three new
+    hidden columns) and read the measure's column and the Loans column. The Vintage row dropdown's labels sit one to
+    a row under `V|<column>|rows`, so a long category list fits too.
+  - **First fix, reworked after the independent review (95ec524e):** a row per line and measure, as wide as the
+    years. The review found it multiplied the vintage rows by the number of measures: at the bank's 1 Oct shape (26
+    Summary columns, up to 150 filter views, about 7 rows, so 15 lines) that is 26 x 150 x 15 x 17, about 995,000
+    rows, against Excel's 1,048,576; main had about 58,500. Transposed, it is x the years with loans on each line:
+    about 410,000 at 7 vintages, fewer when a filter is Origination year (one year a view).
+  - **A ceiling on `_views`:** `results.MOST_VIEWS_ROWS`, 1,000,000 (openpyxl writes past Excel's last row, and Excel
+    then repairs the file). The vintage rows are put on `_views` last, once every other row is counted. If they would
+    pass the ceiling, every tab is written again with the chart as one sentence, in Summary's note and where the
+    chart would be: *"No vintage chart: its points would need N more rows on the hidden _views sheet, taking it past
+    the 1,000,000 this workbook writes (Excel opens at most 1,048,576)."* If the other rows alone pass it, the Run
+    refuses and does not save, so the workbook keeps the last Run's results: *"Couldn't write the results: even
+    without the vintage chart they need N rows on the hidden _views sheet, and the most this workbook writes is
+    1,000,000 (Excel opens at most 1,048,576). Nothing was written, so the workbook still has the last Run's results.
+    Use fewer filters, fewer filter values, or fewer band and category columns."* Dropping only the chart was chosen
+    as the least surprising: the analysis still runs, and the chart is the one part that can be left off on its own.
+  - **Second independent review (on `dd403481`): nothing blocking.** Its should-fix, a refused scouting Run leaving a
+    pre-spec beside the book, does not reproduce: a scouting Run is a new-variable Run, which writes no bleed tabs
+    (`engine.py`, `bleed = config.run_kind != "new_variable"`), so it never reaches the row refusal. Its wording nit
+    is fixed: the refusal now counts only the rows that would be written, and its last sentence is a full one. One
+    planted bug added for the count (the chart's rows counted again), caught. One retired: dropping the chart before
+    refusing (`if n:` for `if n and views.r <= MOST_VIEWS_ROWS:`) now ends in the same refusal, words and count, after
+    a wasted second pass, so no test can tell it apart; the guard it planted into is kept for that pass's cost.
+  - **Same figures below the old limit:** a 10-year and a 41-year book, Summary calculated through LibreOffice
+    before (main) and after, at five dropdown picks each (three measures, a CHANNEL filter, the CHANNEL column with
+    Avg line). Every visible cell, every helper value and the chart's references are the same. The only differences
+    are in hidden columns: W (the `_views` row numbers) and the three new row-finding columns, AL to AN. A 42- and a
+    100-year book show no error cell, and their median months to charge-off tie to the loan file every year.
+  - **`_views` measured** (synthetic book, 3,000 loans, a charge-off date, CHANNEL filter):
+
+    | | main | 95ec524e | now |
+    |---|---|---|---|
+    | rows, 10 years | 910 | 2,328 | 1,712 |
+    | rows, 41 years | 910 | 2,328 | 4,440 |
+    | vintage rows, 10 / 41 years | 90 / 90 | 1,508 / 1,508 | 892 / 3,620 |
+    | cells, 41 years | 57,778 | 59,196 | 61,308 |
+    | widest row, 41 years | 698 | 42 | 19 |
+    | workbook bytes, 10 / 41 years | 326,437 / 652,095 | 337,815 / 653,786 | 333,611 / 685,371 |
+
+    The synthetic book's 41 years are more than its 17 measures, so it has more rows than 95ec524e; a card book with a
+    handful of vintages has fewer.
+  - **Tests**, written failing first, in `tests/test_vintage_years_2026_10_14.py` (4, all red on main): no `_views` row wider than
+    AREA reads, and no key twice, on a 42-year book with a charge-off date (71 rows were 714 wide on main); the
+    vintage block alone, 120 years and 300 rows, a line and a year a row, as wide as Summary, none for an empty year;
+    the ceiling set low, first leaving room for all but the chart's rows (the sentence, every other row as it was)
+    and then one fewer (the refusal, the file unchanged); and through LibreOffice, Median months to charge-off (the
+    last measure) on the 42-year book: every year of all three lines ties to the loan file, no cell reads an error
+    but `#N/A`, and the chart reads the same points. `test_summary_vintage_2026_10_03` reads the new rows; its
+    figures are unchanged.
+  - **Planted bugs:** 10 added and 1 repointed in `tools/mutation_check.py`: every measure by every year on a row
+    again; the row labels back on the count's row; a row written for an empty year; a line's loans read as its value;
+    Loans read whatever the measure; the Vintage row list a row early; the chart's rows written past the ceiling; the
+    rest written past it; the refusal counting without the chart; the refused Run saving the workbook; and the
+    existing "each year's point from the year before", now the year in the row's key. 11 of 11 caught by a failed
+    test, with DISPLAY unset.
+  - **Not fixed, recorded in HANDOFF.md:** Grids, Compare and Split also put a row per column's values on
+    `_views`. None exceeds 701 at the default Text columns limit (50), or at 100 with a split. Control allows up to
+    1,000; above about 700 values, or about 100 with a split, those columns would show blank too. Found by reading,
+    not run.
 
 ## 7 · Standing rules for new items
 

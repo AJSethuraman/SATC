@@ -2240,7 +2240,11 @@ def _run(book: str | Path, extract: str | Path | None = None, memory_path: str |
     bands_only = {c for c, v in (cfg.columns or {}).items() if cat.get(v[0]) and cat[v[0]].cut == "band"}
     memory.remember_edges({c: typed.get(c) for c in bands_only if c not in dropped}, memory_path)
     progress("Writing the workbook")
-    _write_results(wb, book, res, memory_path, src, dropped, len(table.columns))
+    try:
+        _write_results(wb, book, res, memory_path, src, dropped, len(table.columns))
+    except results.TooManyRows as exc:
+        # not saved: the workbook on disk keeps the last Run's results, which this Run had already taken off
+        return Outcome(False, book, [str(exc)])
     from . import look                  # fix 3.8: the Look tab's scatters, only when the split or the bands moved
     timing.mark("Writing Look")
     split_col, band_cols = res.config.split and res.config.split[0], [b.field for b in res.config.bands]

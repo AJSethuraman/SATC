@@ -25,7 +25,7 @@ from threshold_engine.backtest import backtest                     # noqa: E402
 from threshold_engine.evidence import evidence                     # noqa: E402
 from threshold_engine.scale import scale, score                    # noqa: E402
 from threshold_engine.series import check, read_csv                # noqa: E402
-from threshold_engine.workbook import quarter                      # noqa: E402
+from threshold_engine.workbook import assess_layout, quarter       # noqa: E402
 
 HERE = Path(__file__).parent
 PRODUCTS = [("Credit card", "tests/data/cards_nco_ttm.csv"), ("Mortgage", "tests/data/mortgage_nco_ttm.csv"),
@@ -107,9 +107,35 @@ def reads_for(lbl, row_th, exp, counts, assess=True):
 
 
 STEPS = []
+LAY = assess_layout(len(PRODUCTS))
+
+
+def on_assess(actions):
+    """Since 13 Oct 2026 every input is on Assess. The steps still name the old
+    Settings cells (row 6 Credit card ... 9; B-D a first period left out, E-G a
+    second, H-K the three distances and the on-the-line rule), which read well;
+    this puts each where it now is. A period becomes a row of Periods left out
+    that names its product; a setting, a cell of Your settings."""
+    out = []
+    for sheet, ref, v in actions:
+        if sheet != "Settings":
+            out.append((sheet, ref, v))
+            continue
+        col, k = ref[0], int(ref[1:]) - 6
+        if col in "BCDEFG":
+            r = LAY["lo_top"] + 2 * k + (0 if col in "BCD" else 1)
+            if ("Assess", "A%d" % r, PRODUCTS[k][0]) not in out:
+                out.append(("Assess", "A%d" % r, PRODUCTS[k][0]))
+            out.append(("Assess", "%s%d" % ("BCD"["BCDEFG".index(col) % 3], r), v))
+        else:
+            out.append(("Assess", "%s%d" % ("BCDE"["HIJK".index(col)], LAY["set_top"] + k), v))
+    return out
 
 
 def step(sid, title, how, actions, reads, picture=None, product="Credit card", note=""):
+    actions = on_assess(actions)
+    if actions and not how.startswith("Type "):
+        how += " Typed on Assess: " + "; ".join("%s %s" % (c, v) for _, c, v in actions) + "."
     STEPS.append({"id": sid, "title": title, "how": how, "product": product, "note": note,
                   "actions": [{"sheet": s, "cell": c, "value": v} for s, c, v in actions],
                   "reads": [{"sheet": s, "cell": c, "expected": v} for s, c, v in reads],
@@ -121,11 +147,11 @@ step("W1", "Build the four-product workbook and open it",
      "Run the build command (section 1), then open the file in Excel.",
      [], [("=", "COUNTA(Data!A2:A1000)", len(CAL)), ("=", "Data!A2", CAL[0]),
           ("=", "INDEX(Data!A2:A1000,%d)" % len(CAL), CAL[-1]),
-          ("=", "COUNTA(Thresholds!A5:A8)", 4), ("=", "COUNTA(Glossary!A5:A200)", 35)]
+          ("=", "COUNTA(Thresholds!A5:A8)", 4), ("=", "COUNTA(Glossary!A5:A200)", 36)]
      + [("Thresholds", "A%d" % (5 + i), lbl) for i, (lbl, _) in enumerate(PRODUCTS)],
      picture=[{"sheet": "Thresholds", "range": "A1:M10", "file": "w1-thresholds.png"},
-              {"sheet": "Settings", "range": "A1:N11", "file": "w1-settings.png"}],
-     note="Sheets, in order: Thresholds, Settings, Assess, Chart, Evidence, Backtest, Glossary, Data, Run. "
+              {"sheet": "Assess", "range": "A40:K61", "file": "w1-assess-inputs.png"}],
+     note="Sheets, in order: Thresholds, Assess, Chart, Evidence, Backtest, Glossary, Data, Run. "
           "The Glossary count was 33 when first written, from WHAT-IT-DOES.md; the first run found 35, and "
           "the document was out of date (two terms added since 6 Oct). Corrected here and there.")
 
@@ -164,8 +190,14 @@ step("W5", "Add the second leave-out: the pandemic (the rehearsal settings)",
      "Also E6 2021Q3, F6 2023Q1, G6 'pandemic forbearance'. Expected to equal LOG.md, 7 Oct: "
      "3.171 / 3.464 / 4.050 / 5.981, and 25 / 22 / 29 / 55 / 4 quarters kept.",
      settings_actions(6, REH), reads_for("Credit card", 5, exp, cnt)
-     + [("Run", "B15", "2007Q4 to 2012Q4"), ("Run", "C15", "financial crisis"),
-        ("Run", "D15", "2021Q3 to 2023Q1"), ("Run", "E15", "pandemic forbearance")],
+     + [("Run", "B15", "Credit card"), ("Run", "C15", "2007Q4"), ("Run", "D15", "2012Q4"),
+        ("Run", "E15", "financial crisis"), ("Run", "F15", "Left out: 21 quarters"),
+        ("Run", "B16", "Credit card"), ("Run", "C16", "2021Q3"), ("Run", "D16", "2023Q1"),
+        ("Run", "E16", "pandemic forbearance"), ("Run", "F16", "Left out: 7 quarters"),
+        ("Assess", "H%d" % LAY["lo_top"], "Left out: 21 quarters")]
+     + [("Assess", "%s%d" % (c, LAY["scen_top"] + 2), v) for c, v in zip("BCDE", [exp[x] for x in "EFGH"])]
+     + [("Assess", "%s%d" % (c, LAY["scen_top"] + 3), v) for c, v in zip("BCDE", [thresholds("Credit card")[0][x]
+                                                                         for x in "EFGH"])],
      picture=[{"sheet": "Thresholds", "range": "A1:M10", "file": "w5-thresholds.png"},
               {"sheet": "Assess", "chart": 1, "file": "w5-assess-cards-rehearsal.png"},
               {"sheet": "Assess", "range": "A1:H13", "file": "w5-assess-counts.png"}])
@@ -174,7 +206,9 @@ assert all(abs(exp[c] - v) < 0.0005 for c, v in LOG_7OCT.items()), "scale.py no 
 assert cnt[0] == [25, 22, 29, 55, 4], "scale.py no longer gives the 7 Oct counts"
 
 # W6-W8 each distance, from the rehearsal settings; the dial's row must agree
-DIAL = {"hw": (59, [0.25, 0.5, 0.75, 1.0]), "ls": (67, [0.75, 1.0, 1.5, 2.0]), "z": (51, [2.0, 2.5, 3.0, 3.5])}
+DIAL = {"hw": (LAY["dials"]["halfwidth"], [0.25, 0.5, 0.75, 1.0]),
+        "ls": (LAY["dials"]["low_step"], [0.75, 1.0, 1.5, 2.0]),
+        "z": (LAY["dials"]["high_z"], [2.0, 2.5, 3.0, 3.5])}
 for sid, key, val, text in (("W6", "hw", 0.75, "Moderate's half-width 0.5 to 0.75 (H6)"),
                             ("W7", "ls", 1.5, "Moderate-Low step 1.0 to 1.5 (I6)"),
                             ("W8", "z", 3.0, "High's z 2.5 to 3.0 (J6)")):
@@ -197,23 +231,26 @@ for sid, rule in (("W9a", "worse"), ("W9b", "better")):
 assert thresholds("Credit card", REH, hw=0, rule="worse")[1] != thresholds("Credit card", REH, hw=0, rule="better")[1]
 
 # W10 a refusal of each kind, triggered on purpose, Check read off Thresholds and Assess
-LO = "Refused: the %s leave-out needs a first and a last quarter from the data, in order, and a reason"
+LO = "Refused: a period left out for this product is not whole; its Status on Assess says what is missing"
 
 
-def refuse(sid, title, acts, text, lbl="Credit card"):
+def refuse(sid, title, acts, text, lbl="Credit card", status=None):
     r = 5 + [p for p, _ in PRODUCTS].index(lbl)
-    full = acts + ([("Assess", "B4", lbl)] if lbl != "Credit card" else [])
+    full = on_assess(acts + ([("Assess", "B4", lbl)] if lbl != "Credit card" else []))
     typed = "; ".join("%s!%s %s" % (sh, c, v) for sh, c, v in full)
-    step(sid, "Refused: " + title, "Type %s; read the Check column and Assess." % typed,
-         acts + ([("Assess", "B4", lbl)] if lbl != "Credit card" else []),
-         [("Thresholds", "M%d" % r, text), ("Thresholds", "K%d" % r, ""), ("Assess", "B5", text)], product=lbl)
+    reads = [("Thresholds", "M%d" % r, text), ("Thresholds", "K%d" % r, ""), ("Assess", "B5", text)]
+    if status:
+        reads += [("Assess", "H%d" % row_, st_) for row_, st_ in status]
+    step(sid, "Refused: " + title, "Type %s; read the Check column and Assess." % typed, full, reads, product=lbl)
 
 
-refuse("W10.1", "a leave-out with a start and nothing else", [("Settings", "B6", "2008Q1")], LO % "first")
+refuse("W10.1", "a leave-out with a start and nothing else", [("Settings", "B6", "2008Q1")], LO,
+       status=[(LAY["lo_top"], "Pick a first and a last quarter from the list")])
 refuse("W10.2", "a second leave-out in reverse order",
-       [("Settings", "E6", "2021Q1"), ("Settings", "F6", "2020Q1"), ("Settings", "G6", "x")], LO % "second")
+       [("Settings", "E6", "2021Q1"), ("Settings", "F6", "2020Q1"), ("Settings", "G6", "x")], LO,
+       status=[(LAY["lo_top"] + 1, "The first quarter must come before the last")])
 refuse("W10.3", "a leave-out with no reason", [("Settings", "B6", "2008Q1"), ("Settings", "C6", "2012Q4")],
-       LO % "first")
+       LO, status=[(LAY["lo_top"], "Say why")])
 refuse("W10.4", "a half-width below 0", [("Settings", "H6", -0.1)], "Refused: Moderate's half-width must be 0 or more")
 refuse("W10.5", "a z of 0", [("Settings", "J6", 0)], "Refused: High's z must be above 0")
 refuse("W10.6", "a step typed as text", [("Settings", "I6", "one")], "Refused: Moderate-Low's step must be a number")
@@ -274,7 +311,7 @@ step("W11", "Run tab: each file's fingerprint and the decisions as typed",
      "Read Run C9:C12 and compare with the SHA-256 of each file (certutil -hashfile FILE SHA256).", [],
      [("Run", "C%d" % (9 + i), hashlib.sha256((ROOT / f).read_bytes()).hexdigest()) for i, (_, f) in enumerate(PRODUCTS)]
      + [("Run", "D%d" % (9 + i), len(PTS[lbl])) for i, (lbl, _) in enumerate(PRODUCTS)]
-     + [("Run", "B%d" % (15 + i), "none") for i in range(4)],
+     + [("Run", "F%d" % (15 + i), "") for i in range(12)],
      picture=[{"sheet": "Run", "range": "A1:F18", "file": "w11-run.png"}])
 
 # W12 the Chart tab's switches
@@ -323,7 +360,7 @@ for sid, rule in (("W14a", "worse"), ("W14b", "better")):
     LOW.append({"id": sid, "title": "A lower-is-worse score, on the line takes the %s score" % rule,
                 "how": "Build the score workbook (cards mirrored as 800 - 40 x rate), open it, K6 '%s'. Its lines "
                        "fall: worst is lowest." % rule, "product": "Score", "note": "",
-                "actions": [{"sheet": "Settings", "cell": "K6", "value": rule}],
+                "actions": [{"sheet": "Assess", "cell": "E%d" % LAY["set_top"], "value": rule}],
                 "reads": [{"sheet": a, "cell": b, "expected": c} for a, b, c in reads],
                 "picture": [{"sheet": "Thresholds", "range": "A1:M8", "file": "w14-thresholds.png"},
                             {"sheet": "Assess", "chart": 1, "file": "w14-assess.png"}] if rule == "worse" else []})

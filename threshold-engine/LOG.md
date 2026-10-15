@@ -680,6 +680,66 @@ quarter-end dates.
 
 Suite: 778 passed (23 min).
 
+## 13 October 2026, Assess becomes the one place to work
+
+The bank, on the workbook with card's settings: *"i want it way easier to
+fill out - i want to be able to "assess" something and easily select
+quarters to leave out"*, *"also needs to be easier to understand this
+stuff"*, and *"i dont want to flip back and forth - that makes no sense."*
+Asked how leave-outs should work, it chose a list on Assess over dropdowns
+on Settings or macro buttons (banks block macros).
+
+- **The Settings tab is gone; its inputs are on Assess, under the chart.**
+  *Periods left out* is a list of 12 rows: product, first and last quarter
+  from dropdowns of the quarters in the data, and a reason, for any product
+  and any number of periods. A Status says what a row is missing; a row in
+  use but not whole refuses its product, in words. *Your settings* is a
+  table, one row per product, the picked product's row highlighted: without
+  macros one input cell cannot follow the product picker and still keep a
+  value per product. Plain-English notes say what raising each setting does,
+  and the evidence box speaks for the picked product.
+- **The latest quarter's score sits beside the product picker**, so the
+  Thresholds tab is not needed while working. The workbook opens on Assess.
+- **A refused product keeps its colours.** The bank, of other consumer at z
+  2.5 with the crisis left out: *"what happened to the colors"*. A refused
+  product drew no bands and no counts, and the dials went blank too: the
+  picture vanished when it was most needed. Bands and counts now draw while
+  the four lines are numbers in order; only the Check says refused, and the
+  chart shows why (nothing kept reaches High).
+- **Scenarios, side by side.** The bank: *"a few different views in assess
+  for charts that show what changes as you remove quarters or adjust the
+  columns in settings."* A table and a chart of the lines as the bank has
+  them against keeping every quarter (the same settings, nothing left out),
+  and a stacked chart per setting of the quarters kept in each score at the
+  dial's values.
+- Every Assess row number comes from `assess_layout()`, used by the builder,
+  the tests and the walkthrough.
+
+**Found on the way, fixed:** the highlight drew white (a conditional
+format's fill is read from its background colour); merged Reason cells made
+Excel refuse to clear a row ("We can't do that to a merged cell"), so no
+input row is merged.
+
+**The walkthrough on the new layout:** 30 steps, 433 cells, all as expected
+in Excel 16. Its expected answers keep naming the old Settings cells and are
+moved to their Assess places, as the tests do.
+
+**Corrected, from the independent final check of 57f65ae** (an agent that
+had not seen the work; every number it checked held, against Excel, its own
+recomputation and the Federal Reserve page): this log, WHAT-IT-DOES and the
+walkthrough said every expected answer was written before the run. 355 of
+407 were (6f3505d); W14a/W14b and the W3 chart readings were added after the
+first run. Also wrong: the window has 61 tests, and three open a real
+window, not one; and the glossary-heading test exempts the plain headings,
+now Product, From, To, Reason. All three are corrected where they were made.
+Its own full test run overlapped this session's edits in the same checkout,
+so it proves nothing about 57f65ae; #432's CI does.
+
+**Codex on #432:** the checklist allowed nine quarters, but its build
+command needs min-history + horizon = 13. Checked both ways and fixed on
+#432: a nine-quarter file builds with `--min-history 5`.
+
+Suite: 783 passed (28 min).
 ## 13 October 2026, Codex on #432's fix
 
 Two P2, both real:
