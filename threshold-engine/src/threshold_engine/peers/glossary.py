@@ -11,12 +11,22 @@ check that every term here is on its Glossary tab.
 PEER_TERMS = [
     ("Pack",
      "The peers a comparison is made against. KeyBank is never in its own pack.",
-     "The peers whose Include cell on the Pack tab is TRUE. It starts as every peer or the regionals only, "
-     "as the build was told, and changes as Include cells are changed."),
-    ("Include",
-     "Whether a peer is in the pack.",
-     "A TRUE/FALSE cell on the Pack tab. The composite, the band and best and worst in pack all recalculate "
-     "when it changes."),
+     "The peers switched on (Yes) under In the pack on the Peers tab. It starts as every peer or the "
+     "regionals only, as the build was told, and changes as those cells are changed."),
+    ("In the pack",
+     "Whether a peer is in the pack: Yes or No, under its name at the top of the Peers tab.",
+     "Every view with a pack in it recalculates when one changes: the charge-off and delinquency composites "
+     "and bands, the book-size band and median, the lagged pack total, the normalised pack composite, best "
+     "and worst in pack, and the headline numbers."),
+    ("Chart shows",
+     "How much history the charts draw: every quarter, or the last 80, 48 or 20.",
+     "Only the picture. Each chart starts at the first quarter any of its lines has, within that many quarters "
+     "back from its last, and its axis fits what is drawn. No figure depends on it."),
+    ("Headline numbers",
+     "The strip over each chart: KeyBank, the pack composite and the industry in the latest quarter, and "
+     "KeyBank's rank.",
+     "The latest quarter's values of the lines drawn. KeyBank's rank counts the banks switched on with a rate "
+     "that quarter, plus KeyBank, from the lowest rate (1); a tie shares the better rank."),
     ("Regional",
      "A peer in the regionals-only pack.",
      "Read from the roster (config/peers.json): every peer except the largest national banks and the card "
@@ -84,12 +94,13 @@ PEER_TERMS = [
      "Why no four-quarter average (delinquency)."),
     ("Left out: not included",
      "A peer someone has taken out of the pack.",
-     "Include is FALSE on the Pack tab: left out of the composite, the band and best and worst in pack. It "
+     "Switched off (No) on the Peers tab: left out of every pack figure (composites, bands, the book-size "
+     "median, the lagged pack total) and of best and worst in pack. It "
      "can still be drawn as Peer A or Peer B."),
     ("Left out: too few banks",
      "A composite or band drawn from two or three banks is not the pack's.",
-     "A quarter with fewer kept banks than the Pack tab asks for is blank, never drawn from fewer. The table "
-     "under each chart counts the banks in."),
+     "A quarter with fewer kept banks than the Peers tab asks for is blank, never drawn from fewer. The headline "
+     "over each chart counts the banks in at the latest quarter; Workings counts them every quarter."),
     ("Left out: before a gap (series files)",
      "The thresholds workbook needs an unbroken run of quarters and never fills a gap.",
      "A series file is written from the first quarter after its last gap; its note names the quarters left "
@@ -109,12 +120,12 @@ PEER_TERMS = [
      "The count of included peers whose rate is kept that quarter."),
     ("Best in pack, Worst in pack",
      "The included peer with the lowest and the highest recent loss rate.",
-     "Each included peer's mean kept rate over the last quarters stated on the Pack tab, among peers with at "
+     "Each included peer's mean kept rate over the last quarters stated on the Peers tab, among peers with at "
      "least the stated number of kept quarters in that window. Lowest is best, highest is worst; a tie goes to "
      "the peer listed first."),
     ("Peer A, Peer B",
      "Two lines drawn beside KeyBank, each one named peer or whoever best or worst in pack resolves to.",
-     "Picked on the Pack tab. Drawn whether or not that peer is included in the pack, kept quarters only."),
+     "Picked on the Peers tab. Drawn whether or not that peer is included in the pack, kept quarters only."),
     ("Lagged rate",
      "A year's losses against the book that made them, lent some years earlier. Fast growth flatters a "
      "plain rate, because new loans have not had time to go bad.",
@@ -129,6 +140,16 @@ PEER_TERMS = [
      "A book's size against a base quarter, with purchased books taken out, so growth means lending.",
      "Base quarter = 100. Each quarter's growth from the one before is chained, except in an acquisition "
      "quarter, where the growth is set to 1. As reported is the plain balance / the base balance x 100."),
+    ("Book-size band and median",
+     "How the pack's books grew, each bank counting once whatever its size.",
+     "The 10th, 25th, 50th (the median, the black line), 75th and 90th percentiles of the book indexes, "
+     "without acquisitions, of the banks switched on and indexed, each quarter from the base. Blank when "
+     "fewer banks than the Peers tab asks for are indexed. A bank is indexed when its book at the base is at "
+     "least the smallest book indexed (a build setting, on the Run tab)."),
+    ("Pack total (lagged)",
+     "The pack's lagged rate as if its banks were one bank.",
+     "100 x the summed net charge-offs of the banks switched on / their summed balances in the earlier year. "
+     "Blank if any bank switched on lacks either year, rather than worked out over the banks that remain."),
     ("Acquisition quarter",
      "A quarter in which the bank took over another institution or a book of loans.",
      "The bank's mergers in the FDIC structure-change record (an allowlist of change codes: mergers, "
@@ -156,7 +177,7 @@ PEER_TERMS = [
      "that day."),
     ("Measure",
      "Which loans count as delinquent. All five are built; which one the bank reports is its choice, made "
-     "with the Measure picker on the Delinquency tab.",
+     "with the Delinquency measure picker on the Peers tab.",
      "30-89, 90+ accruing, nonaccrual, 90+ incl. nonaccrual or 30+ incl. nonaccrual, each defined below."),
     ("30-89",
      "Loans 30 to 89 days past due and still accruing interest.",
@@ -175,7 +196,7 @@ PEER_TERMS = [
      "Every loan 30 days or more past due, and every nonaccrual loan.",
      "30-89 + 90+ accruing + nonaccrual, from the same filing."),
     ("Basis",
-     "Whether a delinquency rate is one quarter-end's or smoothed over a year. Picked on the Delinquency tab.",
+     "Whether a delinquency rate is one quarter-end's or smoothed over a year. Picked on the Peers tab.",
      "Quarter-end or four-quarter average, each defined below."),
     ("Quarter-end rate",
      "A bank's delinquency rate on one filing.",
@@ -203,12 +224,12 @@ PEER_TERMS = [
      "balances. A bank not kept, or missing, is in neither sum, never counted as 0. Four-quarter average: the "
      "mean of the four composite quarter-end rates, each recomputed without the peers whose own four-quarter "
      "average the jump blanked at this quarter-end (see Left out, and why). Blank when fewer banks than the "
-     "Pack tab asks for are kept in any of the four."),
+     "Peers tab asks for are kept in any of the four."),
     ("Delinquency band",
      "How spread out the pack's delinquency rates were, each bank counting once whatever its size.",
      "The 10th, 25th, 75th and 90th percentiles (PERCENTILE, interpolating as PERCENTILE.INC) of the included "
      "peers' rates on the basis picked, leaving out a bank with no rate. Not drawn when fewer banks than the "
-     "Pack tab asks for have one."),
+     "Peers tab asks for have one."),
     ("Banks in the quarter-end composite",
      "How many of the pack's banks are in the delinquency composite at a quarter-end.",
      "The count of included peers kept that quarter-end. On the four-quarter average the composite is the mean "
@@ -218,5 +239,5 @@ PEER_TERMS = [
      "How many of the pack's banks the delinquency band is drawn from.",
      "The count of included peers with a rate on the basis picked. On the four-quarter average a bank needs "
      "four consecutive quarter-ends kept and no jump, so this can be fewer than the composite's count; the "
-     "band is blank while it is under what the Pack tab asks for."),
+     "band is blank while it is under what the Peers tab asks for."),
 ]

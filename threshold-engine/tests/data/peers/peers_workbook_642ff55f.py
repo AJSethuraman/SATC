@@ -46,11 +46,20 @@ appeared to reach 0% beside each gap (seen in Excel, 12 Oct 2026). An up-down
 bar is drawn only where both its ends have a value, and it spans negative
 rates as well as positive ones.
 
+The tabs can also be written into another workbook (``into``), under titles
+of the caller's choosing (``names``), so the thresholds workbook and the peer
+tabs are one file built by Python alone. Every formula names a tab through
+:class:`_Tabs`, never by a literal, and once the tabs are written every
+reference on them is checked to name one of them (:func:`foreign_refs`): a
+peer formula left saying ``Data!`` in a host with a Data tab of its own would
+otherwise read that tab, silently.
+
 Public data only. Every setting that is a judgement is a required argument.
 """
 from __future__ import annotations
 
 import datetime as dt
+import functools
 import hashlib
 import json
 import re
@@ -103,6 +112,142 @@ D_KEYS = ("data", "products", "jump", "min_book", "exempt_self", "acquired", "me
 NOT_BUILT = ("Delinquency was not built for this workbook: the build was told not to "
              "(delinquency=None, or --delinquency no).")
 
+#: Every tab the builder makes, in the order it makes them. ``names`` maps
+#: each of these to the title it is written under.
+TABS = ("Pack", "Peers", "Delinquency", "Balances", "Lagged", "Normalisation", "Mix", "Glossary", "Data",
+        "DelinquencyData", "Run")
+_BAD_TITLE = re.compile(r"[\[\]:*?/\\]")
+_STRING = re.compile(r'"(?:[^"]|"")*"')
+_SHEET_REF = re.compile(r"'((?:[^']|'')+)'!|(?<![\w.'])([A-Za-z_\\][\w.]*)!")
+
+
+def _quoted(title: str) -> str:
+    """A tab's title as a formula names it: bare when it is letters (and _ or .)
+    only, so the standalone workbook's formulas are as they always were, and
+    quoted otherwise -- a space, a digit (``A1`` would read as a cell), or a
+    name Excel could read as something else."""
+    if re.fullmatch(r"[A-Za-z_][A-Za-z_.]*", title) and title.upper() not in ("R", "C", "TRUE", "FALSE"):
+        return title
+    return "'%s'" % title.replace("'", "''")
+
+
+class _Tabs:
+    """The title each tab is written under, and how a formula or a line of
+    prose names it. ``ref("Data")`` is the prefix a formula reading the Data
+    tab uses (``Data!``, or ``'Peers data'!``); ``words`` re-points the prose
+    that names a tab ("the Pack tab", "DelinquencyData says why") and is the
+    identity when no tab is renamed."""
+
+    def __init__(self, names: Dict[str, str]):
+        self.names = names
+        moved = [t for t in TABS if names[t] != t]
+        self._prose = (re.compile(r"\b(%s)\b(?=(?: and [A-Z]\w*)? tabs?\b)|\b(DelinquencyData)\b"
+                                  % "|".join(sorted(moved, key=len, reverse=True)))
+                       if moved else None)
+
+    def title(self, tab: str) -> str:
+        return self.names[tab]
+
+    def ref(self, tab: str) -> str:
+        return _quoted(self.names[tab]) + "!"
+
+    def words(self, text: str) -> str:
+        if self._prose is None:
+            return text
+        return self._prose.sub(lambda m: self.names[m.group(1) or m.group(2)], text)
+
+
+def _check_names(names, into) -> Dict[str, str]:
+    """``names`` checked: None for every tab under its own title, or a title
+    for exactly every tab in :data:`TABS`, each a title Excel accepts, no two
+    the same (Excel ignores case), and none already in ``into`` -- openpyxl
+    would quietly call a second "Data" "Data1", and the formulas would still
+    say Data."""
+    if names is None:
+        names = {t: t for t in TABS}
+    elif not isinstance(names, dict):
+        raise ValueError("names must be None or {tab: title} for every tab of %s, not %r" % (", ".join(TABS), names))
+    else:
+        missing = [t for t in TABS if t not in names]
+        unknown = sorted(str(t) for t in names if t not in TABS)
+        if missing or unknown:
+            raise ValueError("names needs a title for exactly %s; %s" % (", ".join(TABS), "; ".join(
+                x for x in ("missing: " + ", ".join(missing) if missing else "",
+                            "not a tab: " + ", ".join(unknown) if unknown else "") if x)))
+        names = {t: names[t] for t in TABS}
+    for t, title in names.items():
+        if not isinstance(title, str) or not title.strip() or len(title) > 31 or _BAD_TITLE.search(title) \
+                or title.startswith("'") or title.endswith("'") or title.lower() == "history":
+            raise ValueError("the %s tab's title must be 1 to 31 characters, none of []:*?/\\, not starting "
+                             "or ending with ' and not History, not %r" % (t, title))
+    folded = [n.lower() for n in names.values()]
+    twice = sorted({n for n in names.values() if folded.count(n.lower()) > 1})
+    if twice:
+        raise ValueError("two tabs would have the same title (Excel ignores case): %s" % ", ".join(twice))
+    if into is not None:
+        if not isinstance(into, Workbook):
+            raise ValueError("into must be an openpyxl Workbook, not a %s" % type(into).__name__)
+        if into.write_only:
+            raise ValueError("into is a write-only workbook; the peer tabs need one they can write cells into")
+        wanted = {n.lower() for n in names.values()}
+        clash = [s for s in into.sheetnames if s.lower() in wanted]
+        if clash:
+            raise ValueError("the workbook already has a tab called %s; give the peer tabs other titles "
+                             "(names=...), or a formula would read the wrong one" % ", ".join(clash))
+    return names
+
+
+def _sheets_named(formula: str) -> List[str]:
+    """Every tab a formula names, as written (unquoted), its strings left out."""
+    text = _STRING.sub('""', formula)
+    return [(q.replace("''", "'") if q else bare) for q, bare in _SHEET_REF.findall(text)]
+
+
+def foreign_refs(wb, titles: Sequence[str]) -> List[str]:
+    """Every reference on the tabs ``titles`` to a tab that is not one of them:
+    cell formulas, data-validation and conditional-formatting formulas,
+    hyperlinks, sheet-level defined names and chart series (values,
+    categories and series names). Empty when every one stays among the peer
+    tabs. Excel ignores case in a tab's name, so this does too."""
+    own = {t.lower() for t in titles}
+    bad = []
+
+    def check(where, formula):
+        if not isinstance(formula, str):
+            return
+        for name in _sheets_named(formula):
+            if name.lower() not in own:
+                bad.append("%s names %s: %s" % (where, name, formula[:120]))
+
+    for title in titles:
+        ws = wb[title]
+        # The cells written, read in place: iter_rows would add an empty cell
+        # at every gap it walks over, and an empty row to the file with it.
+        for c in list(ws._cells.values()):
+            if c.data_type == "f" or (isinstance(c.value, str) and c.value.startswith("=")):
+                check("%s!%s" % (title, c.coordinate), c.value)
+            if c.hyperlink is not None and c.hyperlink.location:
+                check("%s!%s (hyperlink)" % (title, c.coordinate), c.hyperlink.location)
+        for dv in ws.data_validations.dataValidation:
+            for f in (dv.formula1, dv.formula2):
+                check("%s data validation %s" % (title, dv.sqref), f)
+        for cf in ws.conditional_formatting:
+            for rule in cf.rules:
+                for f in rule.formula or ():
+                    check("%s conditional format %s" % (title, cf.sqref), f)
+        for name, dn in getattr(ws, "defined_names", {}).items():
+            check("%s defined name %s" % (title, name), dn.attr_text)
+        for chart in ws._charts:
+            for part in chart._charts:
+                for s_ in part.series:
+                    for what, src in (("values", s_.val), ("categories", s_.cat)):
+                        for r_ in (getattr(src, "numRef", None), getattr(src, "strRef", None)):
+                            if r_ is not None:
+                                check("%s chart %s" % (title, what), r_.f)
+                    if s_.tx is not None and s_.tx.strRef is not None:
+                        check("%s chart series name" % title, s_.tx.strRef.f)
+    return bad
+
 
 def _wrap(ws, row, height=34):
     """Header labels wrap in their column instead of being cut off."""
@@ -119,13 +264,61 @@ def _fingerprint(data: Dict[str, list]) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
-def _na_as_gap(path: Path) -> None:
-    """Tell every chart in the file to show #N/A as a gap, not to join across it.
+_REL = "{http://schemas.openxmlformats.org/package/2006/relationships}Relationship"
+_MAIN = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+_R_ID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+
+
+def _charts_on(z: zipfile.ZipFile, sheets: Sequence[str]) -> set:
+    """The chart parts (``xl/charts/chartN.xml``) drawn on the tabs named,
+    followed from the workbook to each sheet, its drawing and its charts."""
+    import posixpath
+    import xml.etree.ElementTree as ET
+
+    def rels(part):
+        """{Id: target part} for a part, its targets resolved against its folder."""
+        folder, name = posixpath.split(part)
+        rel = posixpath.join(folder, "_rels", name + ".rels")
+        if rel not in z.namelist():
+            return {}
+        out = {}
+        for r in ET.fromstring(z.read(rel)).iter(_REL):
+            t = r.get("Target")
+            out[r.get("Id")] = t.lstrip("/") if t.startswith("/") else posixpath.normpath(posixpath.join(folder, t))
+        return out
+
+    book = rels("xl/workbook.xml")
+    by_name = {s.get("name"): book[s.get(_R_ID)]
+               for s in ET.fromstring(z.read("xl/workbook.xml")).iter(_MAIN + "sheet")}
+    missing = [s for s in sheets if s not in by_name]
+    if missing:
+        raise ValueError("the workbook has no tab called %s" % ", ".join(missing))
+    charts = set()
+    for s in sheets:
+        for drawing in rels(by_name[s]).values():
+            if re.match(r"xl/drawings/drawing\d+\.xml$", drawing):
+                charts.update(c for c in rels(drawing).values() if re.match(r"xl/charts/chart\d+\.xml$", c))
+    return charts
+
+
+def na_as_gap(path, sheets: Optional[Sequence[str]] = None) -> None:
+    """Tell the charts in the file to show #N/A as a gap, not to join across it:
+    every chart when ``sheets`` is None (the standalone peer workbook, which
+    is all peer tabs), else only those on the tabs named -- for a workbook the
+    peer tabs were written into, so its own charts are left as they were.
 
     openpyxl cannot write the option, so it is added to each chart's XML as
     Excel 2016+ writes it (``c16r3:dataDisplayOptions16/dispNaAsBlank`` in the
     extLst that closes ``<c:chart>``), with ``dispBlanksAs="gap"`` already set
     by openpyxl. Older Excel ignores it."""
+    _na_as_gap(Path(path), sheets)
+
+
+def _na_as_gap(path: Path, sheets: Optional[Sequence[str]] = None) -> None:
+    """:func:`na_as_gap`, as the standalone build has always called it."""
+    if sheets is not None:
+        with zipfile.ZipFile(path) as z:
+            only = _charts_on(z, list(sheets))
     ext = ('<extLst><ext uri="{56B9EC1D-385E-4148-901F-78D8002777C0}" '
            'xmlns:c16r3="http://schemas.microsoft.com/office/drawing/2017/03/chart">'
            '<c16r3:dataDisplayOptions16><c16r3:dispNaAsBlank val="1"/>'
@@ -135,7 +328,7 @@ def _na_as_gap(path: Path) -> None:
     with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
         for item in zin.infolist():
             body = zin.read(item.filename)
-            if re.match(r"xl/charts/chart\d+\.xml$", item.filename):
+            if re.match(r"xl/charts/chart\d+\.xml$", item.filename) and (sheets is None or item.filename in only):
                 text = body.decode("utf-8")
                 if "dispNaAsBlank" not in text:
                     # openpyxl writes the chart namespace as the default one;
@@ -273,7 +466,7 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
 
 
 def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: List[dict],
-                      first_peer: int, all_banks: str) -> dict:
+                      first_peer: int, all_banks: str, t: _Tabs) -> dict:
     """Write DelinquencyData (values) and the live Delinquency tab over it.
 
     DelinquencyData holds one row per product, measure (``delinquency.MEASURES``
@@ -351,6 +544,7 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
     rng = lambda name, r: "${a}{r}:${z}{r}".format(                                          # noqa: E731
         a=L(col[name]), z=L(col[name] + width_of.get(name, 1) - 1), r=r)
     ref = lambda name, r, j=0: "{c}{r}".format(c=L(col[name] + j), r=r)                    # noqa: E731
+    PK, DD = t.ref("Pack"), t.ref("DelinquencyData")
     lists = {name: "${c}${a}:${c}${z}".format(c=L(col[name]), a=first, z=first + len(items) - 1)
              for name, items in (("lp", products), ("lm", measures), ("lb", bases))}
     for name, items in (("lp", products), ("lm", measures), ("lb", bases)):
@@ -363,22 +557,22 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
             (4, "Product number", "=MATCH($B$%d,%s,0)" % (D_PRODUCT, lists["lp"])),
             (5, "Measure number", "=MATCH($B$%d,%s,0)" % (D_MEASURE, lists["lm"])),
             (6, "Basis number", "=MATCH($B$%d,%s,0)" % (D_BASIS, lists["lb"])),
-            (7, "Peer A, bank number", "=IFERROR(MATCH(Pack!$C$%d,Pack!%s,0),NA())" % (P_A, all_banks)),
-            (8, "Peer B, bank number", "=IFERROR(MATCH(Pack!$C$%d,Pack!%s,0),NA())" % (P_B, all_banks)),
+            (7, "Peer A, bank number", "=IFERROR(MATCH(%s$C$%d,%s%s,0),NA())" % (PK, P_A, PK, all_banks)),
+            (8, "Peer B, bank number", "=IFERROR(MATCH(%s$C$%d,%s%s,0),NA())" % (PK, P_B, PK, all_banks)),
             (9, "Product and measure", "=(%s-1)*%d+%s" % (prod_at, NM, meas_at))):
         de.cell(r, H0, text)
         de.cell(r, H0 + 1, f)
-    mb = "Pack!$B$%d" % P_MINBANKS
+    mb = "%s$B$%d" % (PK, P_MINBANKS)
 
     def pick(letter, bi, k):
         """The DelinquencyData cell in this column for the picked product and measure."""
-        cells = ",".join("DelinquencyData!$%s$%d" % (letter, at(pi, mi, bi, k))
+        cells = ",".join("%s$%s$%d" % (DD, letter, at(pi, mi, bi, k))
                          for pi in range(len(products)) for mi in range(NM))
         return "CHOOSE(%s,%s)" % (sel, cells)
 
     def pick_balance(bi, k):
         """The balance for the picked product: the same for every measure, so the first's."""
-        cells = ",".join("DelinquencyData!$G$%d" % at(pi, 0, bi, k) for pi in range(len(products)))
+        cells = ",".join("%s$G$%d" % (DD, at(pi, 0, bi, k)) for pi in range(len(products)))
         return "CHOOSE(%s,%s)" % (prod_at, cells)
 
     de.cell(H_HEAD, H0, "Quarter-end")
@@ -391,8 +585,8 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
                     ("c", "Pack composite"), ("bandn", "Banks in the band"), ("p10", "10th"), ("p25", "25th"),
                     ("p75", "75th"), ("p90", "90th"), ("k", me["short"])):
         de.cell(H_HEAD, col[name], h)
-    de.cell(H_HEAD, col["a"], '="Peer A: "&Pack!$C$%d' % P_A)
-    de.cell(H_HEAD, col["bb"], '="Peer B: "&Pack!$C$%d' % P_B)
+    de.cell(H_HEAD, col["a"], '="Peer A: "&%s$C$%d' % (PK, P_A))
+    de.cell(H_HEAD, col["bb"], '="Peer B: "&%s$C$%d' % (PK, P_B))
     follows = D._consecutive(grid)
     me_i = bidx[me["cert"]]
     for k, q in enumerate(grid):
@@ -407,7 +601,7 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
                 b=basis_at, uk=uk, rate=pick("H", j, k), k4=pick("L", j, k), avg=pick("K", j, k)))
         for j, b in enumerate(peers):
             i = bidx[b["cert"]]
-            inc = "Pack!$D$%d" % (first_peer + j)
+            inc = "%s$D$%d" % (PK, first_peer + j)
             ok = ref("ok", r, j)
             uv = ref("uv", r, i)
             de.cell(r, col["ok"] + j, "=AND(%s,%s)" % (inc, ref("uk", r, i)))
@@ -445,7 +639,7 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
 
     # ---- Delinquency: what the bank sees ----
     K.brand_banner(de, 1, 15, "Delinquency and nonaccrual: KeyBank against the pack",
-                   "Live from the yellow cells here and the Pack tab's Include cells, Peer A and Peer B.")
+                   t.words("Live from the yellow cells here and the Pack tab's Include cells, Peer A and Peer B."))
     for r, text, val, items in ((D_PRODUCT, "Product", dq["products"][0], "lp"),
                                 (D_MEASURE, "Measure", dq["measure"], "lm"),
                                 (D_BASIS, "Basis", dq["basis"], "lb")):
@@ -456,19 +650,19 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
         de.add_data_validation(dv)
         dv.add(c.coordinate)
     de.cell(7, 1, "Peer A").font = Font(bold=True)
-    de.cell(7, 2, '=Pack!$C$%d&IF(Pack!$B$%d=Pack!$C$%d,""," ("&Pack!$B$%d&")")' % (P_A, P_A, P_A, P_A))
+    de.cell(7, 2, '={p}$C${r}&IF({p}$B${r}={p}$C${r},""," ("&{p}$B${r}&")")'.format(p=PK, r=P_A))
     de.cell(8, 1, "Peer B").font = Font(bold=True)
-    de.cell(8, 2, '=Pack!$C$%d&IF(Pack!$B$%d=Pack!$C$%d,""," ("&Pack!$B$%d&")")' % (P_B, P_B, P_B, P_B))
+    de.cell(8, 2, '={p}$C${r}&IF({p}$B${r}={p}$C${r},""," ("&{p}$B${r}&")")'.format(p=PK, r=P_B))
     # Best and worst are ranked on the Pack tab's charge-off product, which
     # need not be the product picked here: the note names it, live.
-    de.cell(7, 3, '="Picked on the Pack tab. Best and worst in pack are ranked there on "&LOWER(Pack!$B$%d)'
-                  '&" charge-offs, not on delinquency."' % P_PRODUCT).font = NOTE
-    de.cell(9, 1, "Light band: 10th to 90th percentile of the included peers' rates on the basis picked; dark "
-                  "band: 25th to 75th. Each is blank when fewer banks than the Pack tab asks for are in it: "
-                  "the table counts both.").font = NOTE
-    de.cell(10, 1, "A gap in a line: no rate that quarter-end (DelinquencyData says why). On the four-quarter "
-                   "average the composite leaves out a bank mid-acquisition, as the band does. Every term, and "
-                   "everything left out and why, is on the Glossary tab.").font = NOTE
+    de.cell(7, 3, t.words('="Picked on the Pack tab. Best and worst in pack are ranked there on "&LOWER(%s$B$%d)'
+                          '&" charge-offs, not on delinquency."' % (PK, P_PRODUCT))).font = NOTE
+    de.cell(9, 1, t.words("Light band: 10th to 90th percentile of the included peers' rates on the basis picked; "
+                          "dark band: 25th to 75th. Each is blank when fewer banks than the Pack tab asks for are "
+                          "in it: the table counts both.")).font = NOTE
+    de.cell(10, 1, t.words("A gap in a line: no rate that quarter-end (DelinquencyData says why). On the "
+                           "four-quarter average the composite leaves out a bank mid-acquisition, as the band does. "
+                           "Every term, and everything left out and why, is on the Glossary tab.")).font = NOTE
     de.column_dimensions["A"].width = 14            # "Quarter-end" heads the table under the chart
     de.column_dimensions["B"].width = 30
     lc = _band(de, col["p10"], col["p90"], first, last, K.MIST, (" ", "10th to 90th (light band)"))
@@ -518,6 +712,24 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
             "first_row": first, "data_rows": nrow - 1}
 
 
+def _rolled_back(build):
+    """``build``, which on any failure takes back out of ``into`` every tab it
+    added, so a refused or failed build leaves the caller's workbook as it was."""
+    @functools.wraps(build)
+    def wrapper(*args, **kwargs):
+        into = kwargs.get("into")
+        had = list(into.sheetnames) if isinstance(into, Workbook) else None
+        try:
+            return build(*args, **kwargs)
+        except BaseException:
+            if had is not None:
+                for title in [t for t in into.sheetnames if t not in had]:
+                    into.remove(into[title])
+            raise
+    return wrapper
+
+
+@_rolled_back
 def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], products: Sequence[str],
                          jump: float, min_book: float, pack: str,
                          mergers: Dict[str, Sequence[str]], extra_acquisitions: Dict[str, Sequence[str]],
@@ -530,7 +742,9 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                          acquired: Dict[str, Dict[str, Sequence[str]]],
                          sources: Iterable[str] = (), cache_dir=None, mergers_file=None,
                          peer_a: str = WORST, peer_b: str = BEST,
-                         product: Optional[str] = None) -> dict:
+                         product: Optional[str] = None,
+                         into: Optional[Workbook] = None,
+                         names: Optional[Dict[str, str]] = None) -> dict:
     """Write the peer workbook to ``out`` and return what went in.
 
     ``data`` is ``{REPDTE: [rows]}`` as ``fdic.pull`` returns it; ``roster`` the
@@ -576,11 +790,37 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     acquisitions file ``mergers`` came from, named with its date and SHA-256).
     The ``mergers`` given are fingerprinted whatever their source.
 
+    Where the tabs go: by default a workbook of their own, saved to ``out``.
+    ``into`` (an openpyxl Workbook) writes them into that workbook instead,
+    after its own tabs, and saves nothing (``out`` must then be None); the
+    caller saves it and then runs :func:`na_as_gap` on the file, over the tabs
+    returned under ``sheets``, as the standalone build does to its own. In
+    that mode the workbook's own settings are left as they are: which tab is
+    active, its calculation and document properties (the standalone build
+    sets none of these beyond a new Workbook's own). ``names`` (``{tab:
+    title}`` for exactly every tab in :data:`TABS`) writes each tab under the
+    title given; every formula, and every line that names a tab, names it by
+    that title. A title the workbook already has is refused, as is the same
+    title twice: the peer tabs' Data, Glossary and Run beside a host's own
+    would otherwise be read by the wrong formulas. If the build fails after
+    it has begun adding tabs, it takes them out again before the error
+    reaches the caller. Before returning, it checks every reference on the
+    peer tabs names a peer tab (:func:`foreign_refs`), and raises
+    RuntimeError, saving nothing, if one does not.
+
     Refused (ValueError), each with its reason: a setting outside its range, a
     base quarter that is not in the data, a product whose fields the data does
     not carry, a roster with no peers, a regionals pack with no regionals, and
-    banks or products that do not share one quarter calendar.
+    banks or products that do not share one quarter calendar; and for where
+    the tabs go, an ``into`` that is not a Workbook (or is write-only), an
+    ``out`` given with it or missing without it, and ``names`` as above.
     """
+    if into is None and out is None:
+        raise ValueError("out is needed: the peer workbook is written there unless into names a workbook")
+    if into is not None and out is not None:
+        raise ValueError("into writes the peer tabs into that workbook and saves nothing, so out must be None, "
+                         "not %r; save the workbook yourself" % (out,))
+    t = _Tabs(_check_names(names, into))
     if pack not in PACKS:
         raise ValueError("pack must be 'all' or 'regionals', not %r" % (pack,))
     if rank_by not in ("gross", "net"):
@@ -635,12 +875,15 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         raise ValueError("the data has no TTM quarter: it needs at least five quarter-ends")
     bidx = {b["cert"]: i for i, b in enumerate(roster)}
 
-    wb = Workbook()
-    pk = wb.active
-    pk.title = "Pack"
-    pe, de, ba, lg, nm, mx, gl, da, dd, run = (wb.create_sheet(t) for t in (
-        "Peers", "Delinquency", "Balances", "Lagged", "Normalisation", "Mix", "Glossary", "Data",
-        "DelinquencyData", "Run"))
+    if into is None:
+        wb = Workbook()
+        pk = wb.active
+        pk.title = t.title("Pack")
+    else:
+        wb = into
+        pk = wb.create_sheet(t.title("Pack"))
+    pe, de, ba, lg, nm, mx, gl, da, dd, run = (wb.create_sheet(t.title(x)) for x in TABS[1:])
+    PK, PE, DA = t.ref("Pack"), t.ref("Peers"), t.ref("Data")
     pk.sheet_properties.tabColor = K.KEY_RED
     for ws in (pk, pe, de, ba, lg, nm, mx, gl, run):
         K.hide_gridlines(ws)
@@ -667,7 +910,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
 
     # ---- Pack (red): the bank's choices ----
     K.brand_banner(pk, 1, 7, "Pack: who KeyBank is compared with",
-                   "Yellow cells are yours. The Peers and Delinquency tabs recalculate as you change them.")
+                   t.words("Yellow cells are yours. The Peers and Delinquency tabs recalculate as you change "
+                           "them."))
     first_peer, last_peer = P_HEAD + 1, P_HEAD + NP
     hl = {"all": L(P_HELP), "opts": L(P_HELP + 1), "prod": L(P_HELP + 2)}     # hidden lists J, K, L
     for i, b in enumerate(roster):
@@ -730,10 +974,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         c = pk.cell(r, 4, b["cert"] in in_pack)
         c.fill = INPUT
         inc.add(c.coordinate)
-    pk.cell(last_peer + 2, 1, "The pack started as %s. Best and worst count only included peers; Peer A and Peer B "
-                              "are drawn whether or not they are included. KeyBank (certificate %s) is never in "
-                              "its own pack. Every term is on the Glossary tab."
-            % ("every peer" if pack == "all" else "the regionals only", me["cert"])).font = NOTE
+    pk.cell(last_peer + 2, 1, t.words(
+        "The pack started as %s. Best and worst count only included peers; Peer A and Peer B are drawn whether "
+        "or not they are included. KeyBank (certificate %s) is never in its own pack. Every term is on the "
+        "Glossary tab." % ("every peer" if pack == "all" else "the regionals only", me["cert"]))).font = NOTE
     for col, w in zip("ABCDEF", (34, 16, 10, 10, 14, 14)):
         pk.column_dimensions[col].width = w
     for col in range(P_HELP, P_HELP + 3):
@@ -750,10 +994,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     first, last = H_HEAD + 1, H_HEAD + Q
     p_at, a_at, b_at = ("$%s$%d" % (L(H0 + 1), r) for r in (5, 6, 7))
     pe.cell(5, H0, "Product number")
-    pe.cell(5, H0 + 1, "=MATCH(Pack!$B${r},Pack!{l},0)".format(r=P_PRODUCT, l=lst("prod", len(products))))
+    pe.cell(5, H0 + 1, "=MATCH({p}$B${r},{p}{l},0)".format(p=PK, r=P_PRODUCT, l=lst("prod", len(products))))
     for r, prow in ((6, P_A), (7, P_B)):
         pe.cell(r, H0, "Peer %s, bank number" % ("A" if r == 6 else "B"))
-        pe.cell(r, H0 + 1, "=IFERROR(MATCH(Pack!$C${r},Pack!{l},0),NA())".format(r=prow, l=lst("all", NB)))
+        pe.cell(r, H0 + 1, "=IFERROR(MATCH({p}$C${r},{p}{l},0),NA())".format(p=PK, r=prow, l=lst("all", NB)))
     col, at = {}, H0 + 2
     for name, width in (("uk", NB), ("ug", NB), ("un", NB), ("ok", NP), ("g", NP), ("rc", NP), ("bal", NP),
                         ("gr", NP), ("nr", NP), ("win", NP), ("banks", 1), ("cg", 1), ("cn", 1),
@@ -780,19 +1024,19 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     for name, h in heads.items():
         pe.cell(H_HEAD, col[name], h)
     for name, which in (("ag", "A"), ("an", "A"), ("bg", "B"), ("bn", "B")):
-        pe.cell(H_HEAD, col[name], '="Peer %s: "&Pack!$C$%d' % (which, P_A if which == "A" else P_B))
-    mb = "Pack!$B$%d" % P_MINBANKS
+        pe.cell(H_HEAD, col[name], '="Peer %s: "&%s$C$%d' % (which, PK, P_A if which == "A" else P_B))
+    mb = "%s$B$%d" % (PK, P_MINBANKS)
     dcol = {"gross": "E", "rec": "F", "bal": "G", "grate": "H", "nrate": "I", "kept": "J"}
 
     def pick(key, b, k):
         """The Data cell for this measure, bank (roster position) and quarter, in the picked product."""
-        cells = ",".join("Data!$%s$%d" % (dcol[key], 2 + i * NB * Q + b * Q + k) for i in range(len(products)))
+        cells = ",".join("%s$%s$%d" % (DA, dcol[key], 2 + i * NB * Q + b * Q + k) for i in range(len(products)))
         return "CHOOSE(%s,%s)" % (p_at, cells)
 
     for k, q in enumerate(grid):
         r = first + k
         pe.cell(r, H0, q)
-        pe.cell(r, H0 + 1, "={k}>={q}-Pack!$B${n}".format(k=k, q=Q, n=P_LASTN))
+        pe.cell(r, H0 + 1, "={k}>={q}-{p}$B${n}".format(k=k, q=Q, p=PK, n=P_LASTN))
         for j, b in enumerate(roster):
             pe.cell(r, col["uk"] + j, "=" + pick("kept", j, k))
             pe.cell(r, col["ug"] + j, "=IF({ok},{v},NA())".format(ok=ref("uk", r, j), v=pick("grate", j, k)))
@@ -800,13 +1044,13 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         for j, b in enumerate(peers):
             i = bidx[b["cert"]]
             ok = ref("ok", r, j)
-            pe.cell(r, col["ok"] + j, "=AND(Pack!$D${pr},{uk})".format(pr=first_peer + j, uk=ref("uk", r, i)))
+            pe.cell(r, col["ok"] + j, "=AND({p}$D${pr},{uk})".format(p=PK, pr=first_peer + j, uk=ref("uk", r, i)))
             for name, key in (("g", "gross"), ("rc", "rec"), ("bal", "bal")):
                 pe.cell(r, col[name] + j, '=IF({ok},{v},"")'.format(ok=ok, v=pick(key, i, k)))
             for name, u in (("gr", "ug"), ("nr", "un")):
                 pe.cell(r, col[name] + j, '=IF({ok},{v},"")'.format(ok=ok, v=ref(u, r, i)))
-            pe.cell(r, col["win"] + j, '=IF(${w}{r},IF(Pack!$B${kd}="gross",{g},{n}),"")'
-                    .format(w=L(H0 + 1), r=r, kd=P_KIND, g=ref("gr", r, j), n=ref("nr", r, j)))
+            pe.cell(r, col["win"] + j, '=IF(${w}{r},IF({p}$B${kd}="gross",{g},{n}),"")'
+                    .format(w=L(H0 + 1), r=r, p=PK, kd=P_KIND, g=ref("gr", r, j), n=ref("nr", r, j)))
         banks = ref("banks", r)
         pe.cell(r, col["banks"], "=COUNT(%s)" % rng("nr", r))
         pe.cell(r, col["cg"], "=IF({n}>={mb},100*SUM({g})/SUM({b}),NA())"
@@ -826,24 +1070,25 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     for j in range(NP):
         w = "{c}${a}:{c}${z}".format(c=L(col["win"] + j), a=first, z=last)
         pr = first_peer + j
-        pk.cell(pr, 6, "=COUNT(Peers!%s)" % w)
-        pk.cell(pr, 5, '=IF(F{r}>=$B${m},AVERAGE(Peers!{w}),"")'.format(r=pr, m=P_MINOBS, w=w))
+        pk.cell(pr, 6, "=COUNT(%s%s)" % (PE, w))
+        pk.cell(pr, 5, '=IF(F{r}>=$B${m},AVERAGE({pe}{w}),"")'.format(r=pr, m=P_MINOBS, pe=PE, w=w))
         pk.cell(pr, 5).number_format = "0.00"
 
     K.brand_banner(pe, 1, 15, "KeyBank against the pack",
-                   "Live from the Pack tab: the band and composite are the included peers, kept quarters only.")
+                   t.words("Live from the Pack tab: the band and composite are the included peers, kept quarters "
+                           "only."))
     pe.cell(4, 1, "Product").font = Font(bold=True)
-    pe.cell(4, 2, "=Pack!$B$%d" % P_PRODUCT)
+    pe.cell(4, 2, "=%s$B$%d" % (PK, P_PRODUCT))
     pe.cell(5, 1, "Peer A").font = Font(bold=True)
-    pe.cell(5, 2, '=Pack!$C$%d&IF(Pack!$B$%d=Pack!$C$%d,""," ("&Pack!$B$%d&")")' % (P_A, P_A, P_A, P_A))
+    pe.cell(5, 2, '={p}$C${r}&IF({p}$B${r}={p}$C${r},""," ("&{p}$B${r}&")")'.format(p=PK, r=P_A))
     pe.cell(6, 1, "Peer B").font = Font(bold=True)
-    pe.cell(6, 2, '=Pack!$C$%d&IF(Pack!$B$%d=Pack!$C$%d,""," ("&Pack!$B$%d&")")' % (P_B, P_B, P_B, P_B))
-    pe.cell(7, 1, ('="Best in pack resolved to "&Pack!$B${b}&"; worst to "&Pack!$B${w}&", on the mean "'
-                   '&Pack!$B${k}&" rate over the last "&Pack!$B${n}&" quarters, among peers kept in at least "'
-                   '&Pack!$B${o}&" of them."').format(b=P_BEST, w=P_WORST, k=P_KIND, n=P_LASTN, o=P_MINOBS))
-    pe.cell(8, 1, "Light band: 10th to 90th percentile of the pack's kept rates; dark band: 25th to 75th. "
-                  "No band: fewer pack banks kept than needed. A gap in a line: a quarter not kept "
-                  "(Data tab says why).").font = NOTE
+    pe.cell(6, 2, '={p}$C${r}&IF({p}$B${r}={p}$C${r},""," ("&{p}$B${r}&")")'.format(p=PK, r=P_B))
+    pe.cell(7, 1, ('="Best in pack resolved to "&{p}$B${b}&"; worst to "&{p}$B${w}&", on the mean "'
+                   '&{p}$B${k}&" rate over the last "&{p}$B${n}&" quarters, among peers kept in at least "'
+                   '&{p}$B${o}&" of them."').format(p=PK, b=P_BEST, w=P_WORST, k=P_KIND, n=P_LASTN, o=P_MINOBS))
+    pe.cell(8, 1, t.words("Light band: 10th to 90th percentile of the pack's kept rates; dark band: 25th to 75th. "
+                          "No band: fewer pack banks kept than needed. A gap in a line: a quarter not kept "
+                          "(Data tab says why).")).font = NOTE
     pe.column_dimensions["A"].width = 10
     pe.column_dimensions["B"].width = 30
     tick = max(1, min(8, Q // 6))
@@ -894,7 +1139,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         pe.column_dimensions[L(c_)].hidden = True
 
     # ---- Delinquency and DelinquencyData: live over the same Pack ----
-    d_info = _delinquency_tabs(de, dd, dq, roster, me, peers, first_peer, lst("all", NB)) if dq else None
+    d_info = _delinquency_tabs(de, dd, dq, roster, me, peers, first_peer, lst("all", NB), t) if dq else None
     if not dq:
         for ws in (de, dd):
             ws.cell(1, 1, NOT_BUILT).font = Font(bold=True)
@@ -1039,9 +1284,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             if mine:
                 nm.cell(nm.max_row, 1).font = Font(bold=True, color=K.CRIMSON)
         r = nm.max_row
-    nm.cell(r + 2, 1, "Composites need %d kept banks a quarter, as the Pack tab started. A year is blank when a "
-                      "quarter of it was not kept. The ratio is also blank when the earlier year is 0 or below "
-                      "(net recoveries): a ratio to it would read the wrong way." % min_banks).font = NOTE
+    nm.cell(r + 2, 1, t.words("Composites need %d kept banks a quarter, as the Pack tab started. A year is blank "
+                              "when a quarter of it was not kept. The ratio is also blank when the earlier year is "
+                              "0 or below (net recoveries): a ratio to it would read the wrong way."
+                              % min_banks)).font = NOTE
     nm.column_dimensions["A"].width = 22
     for c_ in "BCD":
         nm.column_dimensions[c_].width = 12
@@ -1103,7 +1349,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     K.brand_banner(gl, 1, 3, "Glossary", "What each term means, and exactly how the workbook calculates it.")
     K.header_row(gl, 4, ["Term", "What it means", "How it is calculated"])
     for term, meaning, calc in PEER_TERMS:
-        gl.append([term, meaning, calc])
+        gl.append([term, t.words(meaning), t.words(calc)])
         for c_ in range(1, 4):
             gl.cell(gl.max_row, c_).alignment = Alignment(wrap_text=True, vertical="top")
         gl.cell(gl.max_row, 1).font = Font(bold=True)
@@ -1174,10 +1420,17 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     run.column_dimensions["B"].width = 60
     run.column_dimensions["C"].width = 66
 
-    out = Path(out)
-    wb.save(out)
-    _na_as_gap(out)
-    return {"path": out, "products": products, "quarters": grid,
+    sheets = [t.title(x) for x in TABS]
+    stray = foreign_refs(wb, sheets)
+    if stray:
+        raise RuntimeError("a peer tab refers outside the peer tabs, so it would read the wrong one; nothing "
+                           "is saved: %s%s" % ("; ".join(stray[:5]), " (and %d more)" % (len(stray) - 5)
+                                               if len(stray) > 5 else ""))
+    if into is None:
+        out = Path(out)
+        wb.save(out)
+        _na_as_gap(out)
+    return {"path": out, "sheets": sheets, "products": products, "quarters": grid,
             "pack": [b["cert"] for b in peers if b["cert"] in in_pack],
             "data_rows": nrow - 1,
             # Where the live lines are on Peers: first column of each helper

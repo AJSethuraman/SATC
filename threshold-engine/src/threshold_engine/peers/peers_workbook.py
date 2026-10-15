@@ -2,57 +2,71 @@
 
 docs/PEERS-SPEC.md, "peers_workbook.py", is the contract. Python works out
 every bank's books once (``books.bank_book``) and writes them to the Data tab
-as values. The comparisons are Excel formulas over that tab, driven by the red
-Pack tab, so the bank's choices are made in the workbook and the lines move as
-they are made:
+as values. Everything the bank looks at is on one tab, Peers, a dashboard: the
+filters at the top, then a strip of headline numbers, then each view as a
+compact chart or a short table, every one of them Excel formulas over the
+data tabs, so the lines move as the filters are changed. The firm, 14 Oct
+2026: *"it is annoying to flip between stuff for peer analysis - can't they
+all exist on one tab with filters like a dashboard at the top?"*
 
-    Pack (red)      which peers are in the pack (Include), the product drawn,
-                    Peer A and Peer B (any peer, best or worst in pack), how
-                    best and worst are ranked, and how many banks a composite
-                    or band needs
-    Peers           gross and net charts for the product picked: the pack band
-                    (10th-90th, 25th-75th), the pack composite, KeyBank, Peer
-                    A and Peer B, and who best and worst resolved to -- live
-    Delinquency     the same chart for delinquency and nonaccrual, with its
-                    own product, measure and basis pickers, over the same
-                    Include cells, Peer A and Peer B -- live (or a line saying
-                    it was not built)
-    Balances       each bank's book as an index, as reported and without
-                    acquisitions, and its acquisition quarters (values)
-    Lagged          a year's losses over the book lent earlier (values)
-    Normalisation   how far each rate moved between two years (values)
-    Mix             KeyBank's move against the industry's (values)
+    Peers           (red) the dashboard. Yellow cells: product, charge-off
+                    rate (net or gross), Peer A and Peer B (any peer, best or
+                    worst in pack), what the charts show (all quarters or the
+                    last 80, 48 or 20), the delinquency measure and basis,
+                    a Yes/No per peer for whether it is in the pack, and how
+                    best and worst are ranked and how many banks a composite
+                    or band needs. Under them: the headline numbers, the
+                    charge-off chart (band, pack composite, KeyBank, Peer A
+                    and B, industry), the delinquency chart, the book-size
+                    chart (each bank's book indexed, the pack's band and
+                    median), lagged rates, how far each rate moved, the mix
+                    against the industry, and every bank's row.
+    Workings        (hidden) the live helpers every view reads, one block per
+                    view, and the per-year values the lagged and mix views
+                    pick from by product. Headers in row 1.
     Glossary        every term, and how it is calculated
     Data            per bank, product and quarter: the TTM flows, average
-                    balance, rates, kept and why
+                    balance, rates, kept and why, and the book index from the
+                    base quarter (as reported and without acquisitions)
     DelinquencyData per product, measure, bank and quarter-end: numerator,
                     balance, quarter-end rate, four-quarter average, kept and
                     why (``peers.delinquency``, docs/V1-ROUND2-SPEC.md, A)
-    Run            sources, when each cache file was pulled, fingerprints,
+    Run             sources, when each cache file was pulled, fingerprints,
                     the acquisitions record, roster and the rules as stated
 
-Lessons from ``workbook.py`` kept here: a chart combining lines and areas has
-the LineChart as its base (with an AreaChart base Excel 16 drew no tick
-labels); helper columns sit apart from anything visible, are hidden, and the
-charts plot them anyway (``visible_cells_only = False``); no formula refers to
-a row above row 1. Excel joins a line straight across #N/A, which would draw a
-false bridge over quarters not kept, so every chart here is also told to show
-#N/A as a gap (Excel 2016+'s ``dispNaAsBlank``; see :func:`_na_as_gap`).
+Every view with a pack in it follows the Yes/No cells: the charge-off and
+delinquency composites and bands, the book-size band and median, the lagged
+pack total and the normalised pack composite, and the headline numbers. The
+old tabs drew Balances, Lagged and Normalisation as values worked out once
+for every peer (or the regionals), so switching a bank off moved none of them
+(the firm, 14 Oct 2026: *"peers balances do not follow peer pack stuff so i
+cant turn off like JPM"*). Mix compares KeyBank with the industry, which has
+no pack in it, and follows the product and Peer A and B.
 
-The band is drawn as up-down bars between two invisible lines (10th to 90th,
-then 25th to 75th), not as a stacked area: an area cannot leave a gap, so
-Excel drew it falling to 0 at every quarter without a band and the band
-appeared to reach 0% beside each gap (seen in Excel, 12 Oct 2026). An up-down
-bar is drawn only where both its ends have a value, and it spans negative
-rates as well as positive ones.
+The charts read named ranges (OFFSET over the Workings columns), as the
+Decide tab's does: an axis cannot follow a cell, but a named range can, so a
+chart draws only the quarters "Chart shows" picks, from the first quarter any
+of its lines has, and its axis fits what is drawn. Only the picture: no line
+depends on the window.
+
+Lessons from ``workbook.py`` kept here: a chart combining lines and bands
+has a LineChart as its base (with an AreaChart base Excel 16 drew no tick
+labels); helper cells are on a tab of their own and the charts plot them
+anyway (``visible_cells_only = False``); no formula refers to a row above row
+1. Excel joins a line straight across #N/A, which would draw a false bridge
+over quarters not kept, so every chart here is also told to show #N/A as a
+gap (Excel 2016+'s ``dispNaAsBlank``; see :func:`_na_as_gap`). The band is
+drawn as up-down bars between two invisible lines (10th to 90th, then 25th to
+75th), not as a stacked area: an area cannot leave a gap, so Excel drew it
+falling to 0 at every quarter without a band (seen in Excel, 12 Oct 2026).
 
 The tabs can also be written into another workbook (``into``), under titles
 of the caller's choosing (``names``), so the thresholds workbook and the peer
-tabs are one file built by Python alone. Every formula names a tab through
-:class:`_Tabs`, never by a literal, and once the tabs are written every
-reference on them is checked to name one of them (:func:`foreign_refs`): a
-peer formula left saying ``Data!`` in a host with a Data tab of its own would
-otherwise read that tab, silently.
+tabs are one file built by Python alone. Every formula and every defined name
+names a tab through :class:`_Tabs`, never by a literal, and once the tabs are
+written every reference on them is checked to name one of them
+(:func:`foreign_refs`): a peer formula left saying ``Data!`` in a host with a
+Data tab of its own would otherwise read that tab, silently.
 
 Public data only. Every setting that is a judgement is a required argument.
 """
@@ -62,51 +76,54 @@ import datetime as dt
 import functools
 import hashlib
 import json
+import math
 import re
 import zipfile
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
 
 from openpyxl import Workbook
-from openpyxl.chart import LineChart, Reference
+from openpyxl.chart import LineChart
 from openpyxl.chart.axis import ChartLines
-from openpyxl.chart.series import SeriesLabel
+from openpyxl.chart.data_source import AxDataSource, NumDataSource, NumRef, StrRef
+from openpyxl.chart.legend import LegendEntry
+from openpyxl.chart.marker import Marker
+from openpyxl.chart.series import Series, SeriesLabel
 from openpyxl.chart.shapes import GraphicalProperties
+from openpyxl.chart.text import RichText
 from openpyxl.chart.updown_bars import UpDownBars
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.drawing.line import LineProperties
+from openpyxl.drawing.text import CharacterProperties, Paragraph, ParagraphProperties, RichTextProperties
+from openpyxl.formatting.rule import FormulaRule
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter as L
+from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from .. import VERSION
 from .. import keybank_style as K
 from . import roster as R
-from .analyses import calendar_year, lagged_rate, normalisation, organic_index, mix_factor
+from .analyses import calendar_year, lagged_rate, mix_factor, organic_index
 from . import delinquency as D
-from .books import PRODUCTS, _fields, bank_book, composite, label, quarter_end, raw_fields
+from .books import PRODUCTS, _fields, bank_book, label, quarter_end, raw_fields
 from .glossary import PEER_TERMS
 
-INPUT = PatternFill("solid", fgColor="FFF2CC")
-SELF_FILL = PatternFill("solid", fgColor=K.ALERT_FG)
-NOTE = Font(name="Arial", size=9, italic=True, color=K.SLATE)
+INPUT = PatternFill("solid", fgColor=K.INPUT, bgColor=K.INPUT)
+SELF_FILL = PatternFill("solid", fgColor=K.ALERT_FG, bgColor=K.ALERT_FG)
+NOTE = Font(name="Calibri", size=9, color=K.SLATE)
 WORST, BEST = "Worst in pack", "Best in pack"
 PACKS = ("all", "regionals")
 SOURCES = ("FDIC BankFind financials: https://api.fdic.gov/banks/financials",
            "FDIC BankFind structure changes: https://api.fdic.gov/banks/history")
+YES, NO = "Yes", "No"
+#: The charge-off rate picker. Lagged and Mix are net by definition and say so.
+RATES = ("Net", "Gross")
+#: What the charts show; no line depends on it (Decide's choices, the same words).
+WINDOWS = ("All quarters", "Last 80 quarters", "Last 48 quarters", "Last 20 quarters")
+#: The firm, 14 Oct 2026: "it can focus - like maybe the last 48 quarters".
+START_WINDOW = WINDOWS[2]
+_SPANS = (100000, 80, 48, 20)
 
-# Pack tab layout.
-P_PRODUCT, P_A, P_B, P_KIND, P_LASTN, P_MINOBS, P_MINBANKS = (4, 5, 6, 7, 8, 9, 10)
-P_BEST, P_WORST = 11, 12
-P_HEAD = 14                       # the peers' header row; peers from the row below
-P_HELP = 10                       # hidden list columns start at J
-
-# Peers tab layout: helpers from column T, hidden, apart from the charts.
-H0 = 20
-H_HEAD = 10                       # helper header row; quarters from the row below
-
-# Delinquency tab layout: the pickers in column B, the helpers as on Peers.
-D_PRODUCT, D_MEASURE, D_BASIS = 4, 5, 6
-D_CHART = 11                      # the chart's top row
-D_TABLE = 38                      # the visible table's header row, under the chart
 #: What ``delinquency`` must name when the tabs are built; nothing is defaulted.
 D_KEYS = ("data", "products", "jump", "min_book", "exempt_self", "acquired", "measure", "basis")
 NOT_BUILT = ("Delinquency was not built for this workbook: the build was told not to "
@@ -114,8 +131,35 @@ NOT_BUILT = ("Delinquency was not built for this workbook: the build was told no
 
 #: Every tab the builder makes, in the order it makes them. ``names`` maps
 #: each of these to the title it is written under.
-TABS = ("Pack", "Peers", "Delinquency", "Balances", "Lagged", "Normalisation", "Mix", "Glossary", "Data",
-        "DelinquencyData", "Run")
+TABS = ("Peers", "Workings", "Glossary", "Data", "DelinquencyData", "Run")
+
+# ---- the dashboard's grid (the Peers tab) ----
+#: Columns B to Q; the left views over B:I, the right over J:Q.
+FIRST_COL, LAST_COL = 2, 17
+LEFT, RIGHT = (2, 9), (10, 17)
+COL_WIDTH = 9.7
+#: Each picker: (first column, last column) of its merged yellow cell, on R_PICK.
+PICKERS = (("product", "Product", 2, 4), ("rate", "Charge-off rate", 5, 6), ("peer_a", "Peer A", 7, 8),
+           ("peer_b", "Peer B", 9, 10), ("window", "Chart shows", 11, 12),
+           ("dq_measure", "Delinquency measure", 13, 15), ("dq_basis", "Delinquency basis", 16, 17))
+R_LABEL, R_PICK, R_RESOLVED = 4, 5, 6
+R_BANKS = 8                       # bank names; their Yes/No on the row below; 15 banks a pair of rows
+PER_ROW = 15                      # banks across C:Q
+#: The ranking settings' yellow cells, on the row after the banks: (label span, cell column).
+SETTINGS = (("rank_by", "Best and worst: ranked on the", (2, 4), 5),
+            ("last_n", "rate's mean over the last", (6, 8), 9),
+            ("min_obs", "quarters, if kept in at least", (10, 12), 13),
+            ("min_banks", "Banks a composite or band needs", (14, 16), 17))
+CHART_ROWS = 15                   # rows each top chart covers
+BOOK_ROWS = 13                    # rows the book-size chart covers
+
+
+def _width_cm(cols: int, width: float = COL_WIDTH) -> float:
+    """``cols`` columns of ``width`` characters in cm, as Excel draws them at 100%
+    (Calibri 11, a 7-pixel digit), less a margin so a chart stays inside them."""
+    px = cols * math.floor((256 * width + math.floor(128 / 7)) / 256 * 7)
+    return round(px / 96 * 2.54 - 0.25, 2)
+
 _BAD_TITLE = re.compile(r"[\[\]:*?/\\]")
 _STRING = re.compile(r'"(?:[^"]|"")*"')
 _SHEET_REF = re.compile(r"'((?:[^']|'')+)'!|(?<![\w.'])([A-Za-z_\\][\w.]*)!")
@@ -341,42 +385,6 @@ def _na_as_gap(path: Path, sheets: Optional[Sequence[str]] = None) -> None:
     tmp.replace(path)
 
 
-def _line_chart(title: str, height=12, width=26) -> LineChart:
-    lc = LineChart()
-    lc.title = title
-    lc.height, lc.width = height, width
-    lc.x_axis.delete = False
-    lc.y_axis.delete = False
-    lc.y_axis.number_format = "0.0"
-    lc.legend.position = "t"
-    lc.legend.overlay = False              # without it Excel draws the legend over the plot
-    lc.display_blanks = "gap"
-    lc.visible_cells_only = False          # its helper columns are hidden; plot them anyway
-    return lc
-
-
-def _band(ws, lo_col: int, hi_col: int, first_row: int, last_row: int, fill: str, names) -> LineChart:
-    """One band as up-down bars between two invisible lines, lo and hi.
-
-    Excel draws an up-down bar from a chart group's first series to its last,
-    and only where both have a value, so a quarter without a band is a gap
-    rather than a wedge down to 0. ``names`` labels the two lines in the
-    legend (the low one blank, so the band is named once)."""
-    lc = LineChart()
-    for c, name in zip((lo_col, hi_col), names):
-        lc.add_data(Reference(ws, min_col=c, min_row=first_row, max_row=last_row), titles_from_data=False)
-        s_ = lc.series[-1]
-        s_.tx = SeriesLabel(v=name)
-        s_.smooth = False
-        s_.graphicalProperties.line.noFill = True
-        s_.marker.symbol = "none"
-    lc.upDownBars = UpDownBars(gapWidth=0)
-    for which in ("upBars", "downBars"):
-        gp = GraphicalProperties(solidFill=fill)
-        gp.line.noFill = True
-        setattr(lc.upDownBars, which, ChartLines(spPr=gp))
-    return lc
-
 
 def _written(path: Path) -> str:
     """When a cache file was last written, i.e. pulled: its modification time, local, to the second."""
@@ -465,45 +473,272 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
     return dict(spec, products=products, books=books, grid=grid)
 
 
-def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: List[dict],
-                      first_peer: int, all_banks: str, t: _Tabs) -> dict:
-    """Write DelinquencyData (values) and the live Delinquency tab over it.
 
-    DelinquencyData holds one row per product, measure (``delinquency.MEASURES``
+
+
+#: Rows each note keeps: a note is one line per row, never a wrapped cell, so
+#: no note on one half of the tab makes a row of the other half taller.
+NOTE_ROWS = dict(note1=3, book_note=5, lagged_note=3, norm_note=3, mix_note=4, banks_note=4)
+NOTE_CHARS = 88                   # characters a line of a note holds across eight columns
+
+
+def layout(n_peers: int, n_banks: int, n_years: int) -> dict:
+    """Where everything sits on the Peers tab for ``n_peers`` peers,
+    ``n_banks`` banks on the roster and ``n_years`` mix years: one place for
+    the builder, the tests and anyone photographing it."""
+    chunks = max(1, math.ceil(n_peers / PER_ROW))
+    r_set = R_BANKS + 2 * chunks
+    v1 = r_set + 3
+    note1 = v1 + 4 + CHART_ROWS
+    v2 = note1 + NOTE_ROWS["note1"] + 1
+    book_table = v2 + 1 + BOOK_ROWS
+    book_note = book_table + 5
+    norm = v2 + 2 + 4 + NOTE_ROWS["lagged_note"] + 1
+    norm_note = norm + 6
+    end2 = max(book_note + NOTE_ROWS["book_note"], norm_note + NOTE_ROWS["norm_note"])
+    v3 = end2 + 1
+    return dict(chunks=chunks, settings=r_set, best_worst=r_set + 1,
+                v1=v1, tiles=v1 + 1, chart1=v1 + 4, note1=note1,
+                v2=v2, chart2=v2 + 1, book_table=book_table, book_note=book_note,
+                lagged=v2 + 1, lagged_note=v2 + 6, norm=norm, norm_table=norm + 1, norm_note=norm_note,
+                v3=v3, mix=v3 + 1, mix_peers=v3 + 2 + n_years, mix_note=v3 + 3 + n_years,
+                banks=v3 + 1, banks_note=v3 + 2 + n_banks,
+                end=max(v3 + 3 + n_years + NOTE_ROWS["mix_note"], v3 + 2 + n_banks + NOTE_ROWS["banks_note"]) - 1)
+
+
+def include_cell(j: int) -> str:
+    """The Yes/No cell of the j-th peer (roster order, peers only) on Peers."""
+    chunk, at = divmod(j, PER_ROW)
+    return "%s%d" % (L(3 + at), R_BANKS + 2 * chunk + 1)
+
+
+def picker_cell(name: str) -> str:
+    """A picker's yellow cell on Peers (the top-left of its merged range)."""
+    col = next(first for key, _, first, _ in PICKERS if key == name)
+    return "%s%d" % (L(col), R_PICK)
+
+
+def setting_cell(name: str, n_peers: int) -> str:
+    col = next(c for key, _, _, c in SETTINGS if key == name)
+    return "%s%d" % (L(col), layout(n_peers, 1, 0)["settings"])
+
+
+class _Block:
+    """Columns on Workings, allocated left to right: a header in row 1, the
+    values from row 2."""
+
+    def __init__(self, ws, start: int):
+        self.ws, self.next, self.col, self.width = ws, start, {}, {}
+
+    def add(self, name: str, width: int = 1, heads: Optional[Sequence[str]] = None) -> int:
+        self.col[name], self.width[name] = self.next, width
+        for j, h in enumerate(heads if heads is not None else [name]):
+            self.ws.cell(1, self.next + j, h)
+        self.next += width
+        return self.col[name]
+
+    def at(self, name: str, r: int, j: int = 0) -> str:
+        return "%s%d" % (L(self.col[name] + j), r)
+
+    def fixed(self, name: str, r: int, j: int = 0) -> str:
+        return "$%s$%d" % (L(self.col[name] + j), r)
+
+    def across(self, name: str, r: int) -> str:
+        """The block's cells on row r: one per bank or peer."""
+        return "$%s%d:$%s%d" % (L(self.col[name]), r, L(self.col[name] + self.width[name] - 1), r)
+
+    def down(self, name: str, r1: int, r2: int, j: int = 0) -> str:
+        c = L(self.col[name] + j)
+        return "$%s$%d:$%s$%d" % (c, r1, c, r2)
+
+
+def _small_text(size=800, bold=False):
+    """Chart text at ``size`` hundredths of a point."""
+    cp = CharacterProperties(sz=size, b=bold, solidFill=K.SLATE)
+    return RichText(bodyPr=RichTextProperties(), p=[Paragraph(pPr=ParagraphProperties(defRPr=cp),
+                                                             endParaRPr=cp)])
+
+
+class _Chart:
+    """A chart over named ranges (OFFSET over Workings), the band as up-down
+    bars between invisible lines, then the lines. ``name(col)`` defines a
+    name on the Peers tab for a Workings column and returns how a series
+    refers to it."""
+
+    def __init__(self, cats: str):
+        self.cats, self.idx, self.groups, self.hide = cats, 0, [], []
+
+    def _series(self, f: str, label) -> Series:
+        s_ = Series(val=NumDataSource(numRef=NumRef(f=f)), tx=label)
+        s_.cat = AxDataSource(strRef=StrRef(f=self.cats))
+        s_.idx = s_.order = self.idx
+        self.idx += 1
+        s_.smooth = False
+        s_.marker = Marker(symbol="none")
+        return s_
+
+    def band(self, lo: str, hi: str, fill: str):
+        lc = LineChart()
+        for f in (lo, hi):
+            s_ = self._series(f, SeriesLabel(v=" "))
+            s_.graphicalProperties.line.noFill = True
+            self.hide.append(s_.idx)
+            lc.series.append(s_)
+        lc.upDownBars = UpDownBars(gapWidth=0)
+        for which in ("upBars", "downBars"):
+            gp = GraphicalProperties(solidFill=fill)
+            gp.line.noFill = True
+            setattr(lc.upDownBars, which, ChartLines(spPr=gp))
+        self.groups.append(lc)
+
+    def lines(self, specs):
+        """``specs``: (f, label, colour, width EMU, dash or None)."""
+        lc = LineChart()
+        for f, lbl, colour, width, dash in specs:
+            s_ = self._series(f, lbl)
+            s_.graphicalProperties.line.solidFill = colour
+            s_.graphicalProperties.line.width = width
+            if dash:
+                s_.graphicalProperties.line.dashStyle = dash
+            lc.series.append(s_)
+        self.groups.append(lc)
+
+    def finish(self, number_format: str, skip: int, height: float, width: float) -> LineChart:
+        base = self.groups[0]
+        for g in self.groups[1:]:
+            base += g
+        base.height, base.width = height, width
+        base.x_axis.delete = False
+        base.y_axis.delete = False
+        base.y_axis.number_format = number_format
+        base.y_axis.majorGridlines = ChartLines(spPr=GraphicalProperties(ln=LineProperties(solidFill="E7E2D8")))
+        base.x_axis.tickLblSkip = skip
+        base.x_axis.tickMarkSkip = skip
+        base.x_axis.tickLblPos = "low"
+        base.x_axis.txPr = _small_text()
+        base.y_axis.txPr = _small_text()
+        base.legend.position = "b"
+        base.legend.overlay = False
+        base.legend.txPr = _small_text()
+        # The band's invisible ends would be blank keys: the note names the shading.
+        base.legend.legendEntry = [LegendEntry(idx=i, delete=True) for i in self.hide]
+        base.display_blanks = "gap"
+        base.visible_cells_only = False          # its data is on the hidden Workings tab
+        return base
+
+
+#: Line styles: pack (ink), KeyBank (red), Peer A (slate dash), Peer B (blue dot), industry (green).
+STYLE = {"pack": (K.INK, 28575, None), "self": (K.KEY_RED, 28575, None), "a": (K.SLATE, 15875, "dash"),
+         "b": ("1F5F8B", 15875, "sysDot"), "industry": ("2E7D4F", 19050, None)}
+BAND_LIGHT, BAND_DARK = K.MIST, "CFC6B6"
+
+F_TITLE = Font(name="Arial", size=16, bold=True, color=K.INK)
+F_SUB = Font(name="Calibri", size=10, color=K.SLATE)
+F_LAB = Font(name="Arial", size=9, bold=True, color=K.SLATE)
+F_BODY = Font(name="Calibri", size=10, color=K.INK_TEXT)
+F_BOLD = Font(name="Calibri", size=10, bold=True, color=K.INK_TEXT)
+F_SELF = Font(name="Calibri", size=10, bold=True, color=K.CRIMSON)
+F_TILE = Font(name="Arial", size=16, bold=True, color=K.INK)
+F_PICK = Font(name="Calibri", size=11, bold=True, color=K.INK_TEXT)
+EDGE = Side(style="thin", color=K.INPUT_EDGE)
+BOX = Border(EDGE, EDGE, EDGE, EDGE)
+HAIR = Border(bottom=Side(style="thin", color="E7E2D8"))
+
+
+def _yellow(c, merge_to=None):
+    c.fill = INPUT
+    c.font = F_PICK
+    c.border = BOX
+    c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    if merge_to is not None:
+        ws = c.parent
+        for col in range(c.column + 1, merge_to + 1):
+            ws.cell(c.row, col).border = BOX
+            ws.cell(c.row, col).fill = INPUT
+        ws.merge_cells(start_row=c.row, start_column=c.column, end_row=c.row, end_column=merge_to)
+
+
+def _merged(ws, row, first, last, value, font=F_BODY, height=None, wrap=True, align="left"):
+    if last > first:
+        ws.merge_cells(start_row=row, start_column=first, end_row=row, end_column=last)
+    c = ws.cell(row, first, value)
+    c.font = font
+    c.alignment = Alignment(wrap_text=wrap, vertical="top" if wrap else "center", horizontal=align)
+    if height:
+        ws.row_dimensions[row].height = height
+    return c
+
+
+def _note(ws, row, span, room, text, cond=None, alt=None, words=None):
+    """A note as lines, one per row from ``row``, none wrapped: ``room`` rows
+    at most (more is a RuntimeError, so a longer note cannot quietly run into
+    what is under it). With ``cond`` (a formula), each line shows ``alt``'s
+    line when it is TRUE. ``words`` (``_Tabs.words``) renames the tabs a line
+    names after the lines are cut, so a note breaks in the same places
+    whatever its tabs are called, and the cells are the same in both."""
+    import textwrap
+    main = [(words or str)(x) for x in textwrap.wrap(text, NOTE_CHARS)]
+    other = textwrap.wrap(alt, NOTE_CHARS) if alt else []
+    if max(len(main), len(other)) > room:
+        raise RuntimeError("a note needs %d lines and %d are kept for it: %s" % (max(len(main), len(other)), room,
+                                                                               text[:60]))
+    for i in range(room):
+        a = main[i] if i < len(main) else ""
+        if cond:
+            b = other[i] if i < len(other) else ""
+            v = '=IF(%s,"%s","%s")' % (cond, b.replace('"', '""'), a.replace('"', '""')) if (a or b) else None
+        else:
+            v = a or None
+        _merged(ws, row + i, span[0], span[1], v, NOTE, wrap=False)
+
+
+def _section(ws, row, first, last, value):
+    """A view's title: bold, over a medium ink rule (keybank_style.quiet_section)."""
+    ws.merge_cells(start_row=row, start_column=first, end_row=row, end_column=last)
+    c = ws.cell(row, first, value)
+    c.font = Font(name="Arial", size=11, bold=True, color=K.INK)
+    c.alignment = Alignment(vertical="bottom")
+    for col in range(first, last + 1):
+        ws.cell(row, col).border = Border(bottom=Side(style="medium", color=K.INK))
+    ws.row_dimensions[row].height = 18
+
+
+def _table_head(ws, row, first, heads, right_from=1, height=26):
+    """canvas column headers (keybank_style.canvas_header), wrapped."""
+    for i, h in enumerate(heads):
+        c = ws.cell(row, first + i, h)
+        c.fill = K.solid(K.CANVAS)
+        c.font = Font(name="Arial", bold=True, size=8, color=K.SLATE)
+        c.alignment = Alignment(wrap_text=True, vertical="center",
+                                horizontal="right" if i >= right_from else "left")
+        c.border = Border(bottom=Side(style="thin", color=K.STONE))
+    ws.row_dimensions[row].height = height
+
+
+def _tile(ws, row, first, label_, value, caption, fmt):
+    """A headline number: label, number, caption, on canvas under a red rule."""
+    last = first + 1
+    for r, v, font in ((row, label_, F_LAB), (row + 1, value, F_TILE), (row + 2, caption, NOTE)):
+        ws.merge_cells(start_row=r, start_column=first, end_row=r, end_column=last)
+        c = ws.cell(r, first, v)
+        c.font = font
+        c.fill = K.solid(K.CANVAS)
+        c.alignment = Alignment(horizontal="left", vertical="center", indent=1, wrap_text=r == row + 2)
+        ws.cell(r, last).fill = K.solid(K.CANVAS)
+    ws.cell(row + 1, first).number_format = fmt
+    for col in (first, last):
+        ws.cell(row, col).border = Border(top=Side(style="medium", color=K.KEY_RED))
+
+
+
+def _delinquency_data(dd, dq: dict, roster: List[dict]) -> int:
+    """DelinquencyData: one row per product, measure (``delinquency.MEASURES``
     order), bank (roster order) and quarter-end, in that order: the live
     formulas find a row by position, so the order is load-bearing. Each row is
     ``bank_delinquency``'s, plus whether the four-quarter average was kept and
     whether the jump blanked it, so no formula has to read a blank cell (Excel
-    reads one as 0).
-
-    On Delinquency, three yellow pickers (product, measure, basis) and the
-    Pack tab's Include cells, Peer A and Peer B and banks needed drive hidden
-    helpers from column T, one row per quarter-end:
-
-    - per bank: kept on the quarter-end basis, and its value on the basis
-      picked (#N/A when there is none);
-    - per peer, filtered by Include: the numerator and balance when kept
-      (for the composite) and the value on the basis (for the band);
-    - the composite: summed numerators / summed balances of the included
-      peers kept, #N/A below the banks needed; its four-quarter average at i
-      is the mean of the four composite quarter-end rates i-3..i, each
-      recomputed without the peers whose own four-quarter average at i the
-      jump blanked, only when all four exist on consecutive quarter-ends and
-      each has the banks needed (``composite_delinquency``);
-    - the band: PERCENTILE of the included peers' values on the basis, #N/A
-      below the banks needed (``band_delinquency``);
-    - KeyBank, Peer A and Peer B: their values on the basis.
-
-    The chart is drawn as the Peers tab's: the two bands as up-down bars
-    between invisible lines on a LineChart base, then the four lines; #N/A is
-    a gap. Returns where the helpers are, for tests and the caller."""
-    products, grid, books = dq["products"], dq["grid"], dq["books"]
-    measures = list(D.MEASURES)
-    bases = list(D.BASES)
-    NB, NP, DQ, NM = len(roster), len(peers), len(grid), len(measures)
-    bidx = {b["cert"]: i for i, b in enumerate(roster)}
-
-    # ---- DelinquencyData ----
+    reads one as 0). Returns the number of rows."""
+    products, books = dq["products"], dq["books"]
     K.header_row(dd, 1, ["Product", "Measure", "Bank", "Certificate", "Quarter-end", "Numerator ($000)",
                          "Balance ($000)", "Quarter-end rate (%)", "Kept", "Why not kept",
                          "Four-quarter average (%)", "Four-quarter average kept", "Why no four-quarter average",
@@ -511,14 +746,14 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
                  right_from=5)
     _wrap(dd, 1, 46)
     for p in products:
-        for m in measures:
+        for m in D.MEASURES:
             for b in roster:
                 for r in books[p][m][b["cert"]]:
                     dd.append([p, m, b["short"], b["cert"], r["q"], r["numerator"], r["balance"], r["rate"],
                                r["kept"], r["why"], r["avg4"], r["avg4"] is not None, r["why_avg4"],
                                (r["why_avg4"] or "").startswith(D.LEFT_OUT)])
-    nrow = 1 + len(products) * NM * NB * DQ
-    for row in dd.iter_rows(min_row=2, max_row=nrow, min_col=6, max_col=11):
+    n = len(products) * len(D.MEASURES) * len(roster) * len(dq["grid"])
+    for row in dd.iter_rows(min_row=2, max_row=n + 1, min_col=6, max_col=11):
         for c in row:
             if c.column in (6, 7):
                 c.number_format = "#,##0"
@@ -527,189 +762,112 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
     for c_, w in zip("ABCDEFGHIJKLMN", (14, 20, 16, 13, 12, 14, 16, 14, 8, 40, 16, 16, 60, 18)):
         dd.column_dimensions[c_].width = w
     K.freeze_below(dd, 1)
+    return n
+
+
+def _delinquency_block(wk, dq: dict, roster: List[dict], me: dict, peers: List[dict], start: int, x: dict):
+    """The delinquency view's live helpers on Workings, one row per quarter-end
+    from row 2, driven by the Peers tab's product, delinquency measure and
+    basis, Yes/No cells, Peer A and B and banks needed (``x`` holds those
+    references):
+
+    - per bank: kept on the quarter-end basis, and its value on the basis
+      picked (#N/A when there is none, or the product was not built for
+      delinquency);
+    - per peer switched on: the numerator and balance when kept (for the
+      composite) and the value on the basis (for the band);
+    - the composite: summed numerators / summed balances of the peers switched
+      on and kept, #N/A below the banks needed; its four-quarter average at i
+      is the mean of the four composite quarter-end rates i-3..i, each
+      recomputed without the peers whose own four-quarter average at i the
+      jump blanked, only when all four exist on consecutive quarter-ends and
+      each has the banks needed (``composite_delinquency``);
+    - the band: PERCENTILE of the values of the peers switched on, #N/A below
+      the banks needed (``band_delinquency``);
+    - KeyBank, Peer A and Peer B: their values on the basis."""
+    products, grid = dq["products"], dq["grid"]
+    NB, NP, DQ, NM = len(roster), len(peers), len(grid), len(D.MEASURES)
+    bidx = {b["cert"]: i for i, b in enumerate(roster)}
+    DD = x["DD"]
+    sel, prod, basis = x["dq_sel"], x["dq_p"], x["dq_b"]
 
     def at(pi, mi, bi, k):
         return 2 + ((pi * NM + mi) * NB + bi) * DQ + k
 
-    # ---- Delinquency: hidden helpers ----
-    first, last = H_HEAD + 1, H_HEAD + DQ
-    col, x = {}, H0 + 2
-    for name, width in (("uk", NB), ("uv", NB), ("ok", NP), ("n", NP), ("b", NP), ("v", NP), ("s", NP),
-                        ("banks", 1), ("cq", 1), ("ca", 1), ("c", 1), ("bandn", 1),
-                        ("p10", 1), ("p25", 1), ("p75", 1), ("p90", 1), ("k", 1), ("a", 1), ("bb", 1),
-                        ("lp", 1), ("lm", 1), ("lb", 1)):
-        col[name] = x
-        x += width
-    width_of = {"uk": NB, "uv": NB, "ok": NP, "n": NP, "b": NP, "v": NP, "s": NP}
-    rng = lambda name, r: "${a}{r}:${z}{r}".format(                                          # noqa: E731
-        a=L(col[name]), z=L(col[name] + width_of.get(name, 1) - 1), r=r)
-    ref = lambda name, r, j=0: "{c}{r}".format(c=L(col[name] + j), r=r)                    # noqa: E731
-    PK, DD = t.ref("Pack"), t.ref("DelinquencyData")
-    lists = {name: "${c}${a}:${c}${z}".format(c=L(col[name]), a=first, z=first + len(items) - 1)
-             for name, items in (("lp", products), ("lm", measures), ("lb", bases))}
-    for name, items in (("lp", products), ("lm", measures), ("lb", bases)):
-        de.cell(H_HEAD, col[name], {"lp": "Products", "lm": "Measures", "lb": "Bases"}[name])
-        for i, v in enumerate(items):
-            de.cell(first + i, col[name], v)
-    u = L(H0 + 1)
-    prod_at, meas_at, basis_at, a_at, b_at, sel = ("$%s$%d" % (u, r) for r in (4, 5, 6, 7, 8, 9))
-    for r, text, f in (
-            (4, "Product number", "=MATCH($B$%d,%s,0)" % (D_PRODUCT, lists["lp"])),
-            (5, "Measure number", "=MATCH($B$%d,%s,0)" % (D_MEASURE, lists["lm"])),
-            (6, "Basis number", "=MATCH($B$%d,%s,0)" % (D_BASIS, lists["lb"])),
-            (7, "Peer A, bank number", "=IFERROR(MATCH(%s$C$%d,%s%s,0),NA())" % (PK, P_A, PK, all_banks)),
-            (8, "Peer B, bank number", "=IFERROR(MATCH(%s$C$%d,%s%s,0),NA())" % (PK, P_B, PK, all_banks)),
-            (9, "Product and measure", "=(%s-1)*%d+%s" % (prod_at, NM, meas_at))):
-        de.cell(r, H0, text)
-        de.cell(r, H0 + 1, f)
-    mb = "%s$B$%d" % (PK, P_MINBANKS)
-
     def pick(letter, bi, k):
         """The DelinquencyData cell in this column for the picked product and measure."""
-        cells = ",".join("%s$%s$%d" % (DD, letter, at(pi, mi, bi, k))
-                         for pi in range(len(products)) for mi in range(NM))
+        cells = ",".join("%s$%s$%d" % (DD, letter, at(pi, mi, bi, k)) for pi in range(len(products))
+                         for mi in range(NM))
         return "CHOOSE(%s,%s)" % (sel, cells)
 
     def pick_balance(bi, k):
         """The balance for the picked product: the same for every measure, so the first's."""
         cells = ",".join("%s$G$%d" % (DD, at(pi, 0, bi, k)) for pi in range(len(products)))
-        return "CHOOSE(%s,%s)" % (prod_at, cells)
+        return "CHOOSE(%s,%s)" % (prod, cells)
 
-    de.cell(H_HEAD, H0, "Quarter-end")
-    de.cell(H_HEAD, H0 + 1, "Four consecutive quarter-ends")
+    bl = _Block(wk, start)
+    bl.add("q", heads=["Quarter-end (delinquency)"])
+    bl.add("four", heads=["Four consecutive quarter-ends"])
     for name, banks in (("uk", roster), ("uv", roster), ("ok", peers), ("n", peers), ("b", peers), ("v", peers),
                         ("s", peers)):
-        for j, b in enumerate(banks):
-            de.cell(H_HEAD, col[name] + j, "%s %s" % (b["short"], name))
-    for name, h in (("banks", "Banks in the quarter-end composite"), ("cq", "Composite, quarter-end"), ("ca", "Composite, four-quarter average"),
-                    ("c", "Pack composite"), ("bandn", "Banks in the band"), ("p10", "10th"), ("p25", "25th"),
-                    ("p75", "75th"), ("p90", "90th"), ("k", me["short"])):
-        de.cell(H_HEAD, col[name], h)
-    de.cell(H_HEAD, col["a"], '="Peer A: "&%s$C$%d' % (PK, P_A))
-    de.cell(H_HEAD, col["bb"], '="Peer B: "&%s$C$%d' % (PK, P_B))
+        bl.add(name, len(banks), ["%s %s" % (b["short"], name) for b in banks])
+    for name, h in (("banks", "Banks in the quarter-end composite"), ("cq", "Composite, quarter-end"),
+                    ("ca", "Composite, four-quarter average"), ("c", "Pack composite"),
+                    ("bandn", "Banks in the band"), ("p10", "10th"), ("p25", "25th"), ("p75", "75th"),
+                    ("p90", "90th"), ("k", me["short"])):
+        bl.add(name, heads=[h])
+    bl.add("a", heads=['="Peer A: "&%s' % x["a_name"]])
+    bl.add("bb", heads=['="Peer B: "&%s' % x["b_name"]])
+    bl.add("drawn", heads=["Row drawn"])
+    mb = x["mb"]
     follows = D._consecutive(grid)
     me_i = bidx[me["cert"]]
     for k, q in enumerate(grid):
-        r = first + k
+        r = 2 + k
         four = k >= 3 and all(follows[i] for i in range(k - 2, k + 1))
-        de.cell(r, H0, q)
-        de.cell(r, H0 + 1, four)
+        wk.cell(r, bl.col["q"], q)
+        wk.cell(r, bl.col["four"], four)
         for j in range(NB):
-            uk = ref("uk", r, j)
-            de.cell(r, col["uk"] + j, "=" + pick("I", j, k))
-            de.cell(r, col["uv"] + j, "=IF({b}=1,IF({uk},{rate},NA()),IF({k4},{avg},NA()))".format(
-                b=basis_at, uk=uk, rate=pick("H", j, k), k4=pick("L", j, k), avg=pick("K", j, k)))
+            uk = bl.at("uk", r, j)
+            wk.cell(r, bl.col["uk"] + j, "=IF(%s>0,%s,FALSE)" % (prod, pick("I", j, k)))
+            wk.cell(r, bl.col["uv"] + j, "=IF({p}=0,NA(),IF({b}=1,IF({uk},{rate},NA()),IF({k4},{avg},NA())))"
+                    .format(p=prod, b=basis, uk=uk, rate=pick("H", j, k), k4=pick("L", j, k), avg=pick("K", j, k)))
         for j, b in enumerate(peers):
             i = bidx[b["cert"]]
-            inc = "%s$D$%d" % (PK, first_peer + j)
-            ok = ref("ok", r, j)
-            uv = ref("uv", r, i)
-            de.cell(r, col["ok"] + j, "=AND(%s,%s)" % (inc, ref("uk", r, i)))
-            de.cell(r, col["n"] + j, '=IF(%s,%s,"")' % (ok, pick("F", i, k)))
-            de.cell(r, col["b"] + j, '=IF(%s,%s,"")' % (ok, pick_balance(i, k)))
-            de.cell(r, col["v"] + j, '=IF(AND(%s,ISNUMBER(%s)),%s,"")' % (inc, uv, uv))
+            inc = x["inc"][j]
+            ok = bl.at("ok", r, j)
+            uv = bl.at("uv", r, i)
+            wk.cell(r, bl.col["ok"] + j, '=AND(%s="%s",%s)' % (inc, YES, bl.at("uk", r, i)))
+            wk.cell(r, bl.col["n"] + j, '=IF(%s,%s,"")' % (ok, pick("F", i, k)))
+            wk.cell(r, bl.col["b"] + j, '=IF(%s,%s,"")' % (ok, pick_balance(i, k)))
+            wk.cell(r, bl.col["v"] + j, '=IF(AND(%s="%s",ISNUMBER(%s)),%s,"")' % (inc, YES, uv, uv))
             # 1 when this peer stays in the composite's four-quarter average
             # at this quarter-end, 0 when the jump blanked its own.
-            de.cell(r, col["s"] + j, "=IF(%s,0,1)" % pick("N", i, k))
-        banks, bandn = ref("banks", r), ref("bandn", r)
-        de.cell(r, col["banks"], "=COUNT(%s)" % rng("n", r))
-        de.cell(r, col["cq"], "=IF({n}>={mb},100*SUM({x})/SUM({b}),NA())"
-                .format(n=banks, mb=mb, x=rng("n", r), b=rng("b", r)))
+            wk.cell(r, bl.col["s"] + j, "=IF(%s=0,1,IF(%s,0,1))" % (prod, pick("N", i, k)))
+        banks, bandn = bl.at("banks", r), bl.at("bandn", r)
+        wk.cell(r, bl.col["banks"], "=COUNT(%s)" % bl.across("n", r))
+        wk.cell(r, bl.col["cq"], "=IF({n}>={mb},100*SUM({x})/SUM({b}),NA())"
+                .format(n=banks, mb=mb, x=bl.across("n", r), b=bl.across("b", r)))
         if four:
-            # Each of the four quarter-ends recomputed over the peers kept
-            # there that stay at this one (``s`` on this row).
-            stay = rng("s", r)
-            cnt = ["COUNTIFS(%s,1,%s,TRUE)" % (stay, rng("ok", w)) for w in range(r - 3, r + 1)]
-            rate = ["100*SUMIFS(%s,%s,1)/SUMIFS(%s,%s,1)" % (rng("n", w), stay, rng("b", w), stay)
+            stay = bl.across("s", r)
+            cnt = ["COUNTIFS(%s,1,%s,TRUE)" % (stay, bl.across("ok", w)) for w in range(r - 3, r + 1)]
+            rate = ["100*SUMIFS(%s,%s,1)/SUMIFS(%s,%s,1)" % (bl.across("n", w), stay, bl.across("b", w), stay)
                     for w in range(r - 3, r + 1)]
-            de.cell(r, col["ca"], "=IF(AND(%s),AVERAGE(%s),NA())"
+            wk.cell(r, bl.col["ca"], "=IF(AND(%s),AVERAGE(%s),NA())"
                     % (",".join("%s>=%s" % (c, mb) for c in cnt), ",".join(rate)))
         else:
-            de.cell(r, col["ca"], "=NA()")
-        de.cell(r, col["c"], "=IF(%s=1,%s,%s)" % (basis_at, ref("cq", r), ref("ca", r)))
-        de.cell(r, col["bandn"], "=COUNT(%s)" % rng("v", r))
+            wk.cell(r, bl.col["ca"], "=NA()")
+        wk.cell(r, bl.col["c"], "=IF(%s=1,%s,%s)" % (basis, bl.at("cq", r), bl.at("ca", r)))
+        wk.cell(r, bl.col["bandn"], "=COUNT(%s)" % bl.across("v", r))
         for p in (10, 25, 75, 90):
-            de.cell(r, col["p%d" % p], "=IF({n}>={mb},PERCENTILE({v},{p}),NA())"
-                    .format(n=bandn, mb=mb, v=rng("v", r), p=p / 100))
-        de.cell(r, col["k"], "=" + ref("uv", r, me_i))
-        for name, num in (("a", a_at), ("bb", b_at)):
-            de.cell(r, col[name], "=IFERROR(INDEX({row},{n}),NA())".format(row=rng("uv", r), n=num))
-    for c_ in range(H0, col["lb"] + 1):
-        de.column_dimensions[L(c_)].hidden = True
-
-    # ---- Delinquency: what the bank sees ----
-    K.brand_banner(de, 1, 15, "Delinquency and nonaccrual: KeyBank against the pack",
-                   t.words("Live from the yellow cells here and the Pack tab's Include cells, Peer A and Peer B."))
-    for r, text, val, items in ((D_PRODUCT, "Product", dq["products"][0], "lp"),
-                                (D_MEASURE, "Measure", dq["measure"], "lm"),
-                                (D_BASIS, "Basis", dq["basis"], "lb")):
-        de.cell(r, 1, text).font = Font(bold=True)
-        c = de.cell(r, 2, val)
-        c.fill = INPUT
-        dv = DataValidation(type="list", formula1="=" + lists[items], allow_blank=False)
-        de.add_data_validation(dv)
-        dv.add(c.coordinate)
-    de.cell(7, 1, "Peer A").font = Font(bold=True)
-    de.cell(7, 2, '={p}$C${r}&IF({p}$B${r}={p}$C${r},""," ("&{p}$B${r}&")")'.format(p=PK, r=P_A))
-    de.cell(8, 1, "Peer B").font = Font(bold=True)
-    de.cell(8, 2, '={p}$C${r}&IF({p}$B${r}={p}$C${r},""," ("&{p}$B${r}&")")'.format(p=PK, r=P_B))
-    # Best and worst are ranked on the Pack tab's charge-off product, which
-    # need not be the product picked here: the note names it, live.
-    de.cell(7, 3, t.words('="Picked on the Pack tab. Best and worst in pack are ranked there on "&LOWER(%s$B$%d)'
-                          '&" charge-offs, not on delinquency."' % (PK, P_PRODUCT))).font = NOTE
-    de.cell(9, 1, t.words("Light band: 10th to 90th percentile of the included peers' rates on the basis picked; "
-                          "dark band: 25th to 75th. Each is blank when fewer banks than the Pack tab asks for are "
-                          "in it: the table counts both.")).font = NOTE
-    de.cell(10, 1, t.words("A gap in a line: no rate that quarter-end (DelinquencyData says why). On the "
-                           "four-quarter average the composite leaves out a bank mid-acquisition, as the band does. "
-                           "Every term, and everything left out and why, is on the Glossary tab.")).font = NOTE
-    de.column_dimensions["A"].width = 14            # "Quarter-end" heads the table under the chart
-    de.column_dimensions["B"].width = 30
-    lc = _band(de, col["p10"], col["p90"], first, last, K.MIST, (" ", "10th to 90th (light band)"))
-    lc.title = "Delinquency rate (%): product, measure and basis as picked above"
-    lc.height, lc.width = 12, 26
-    lc.x_axis.delete = False
-    lc.y_axis.delete = False
-    lc.y_axis.number_format = "0.00"
-    lc.legend.position = "b"
-    lc.legend.overlay = False
-    lc.display_blanks = "gap"
-    lc.visible_cells_only = False
-    lc.set_categories(Reference(de, min_col=H0, min_row=first, max_row=last))
-    lc.x_axis.tickLblSkip = max(1, min(8, DQ // 6))
-    lc.x_axis.tickLblPos = "low"
-    lc += _band(de, col["p25"], col["p75"], first, last, "CFC6B6", (" ", "25th to 75th (dark band)"))
-    lines = LineChart()
-    for name in ("c", "k", "a", "bb"):
-        lines.add_data(Reference(de, min_col=col[name], min_row=H_HEAD, max_row=last), titles_from_data=True)
-    styles = ((K.INK, 28575, None), (K.KEY_RED, 28575, None), (K.SLATE, 15875, "dash"), ("1F5F8B", 15875, "sysDot"))
-    for s_, (colour, width, dash) in zip(lines.series, styles):
-        s_.smooth = False
-        s_.graphicalProperties.line.solidFill = colour
-        s_.graphicalProperties.line.width = width
-        if dash:
-            s_.graphicalProperties.line.dashStyle = dash
-    lc += lines
-    de.add_chart(lc, "A%d" % D_CHART)
-    # The composite and the band count different banks on the four-quarter
-    # average (the composite's are those kept at the quarter-end; the band's,
-    # those with a four-quarter average), so the table gives each its own
-    # count rather than one "Banks in" that is the band's only on quarter-end.
-    K.header_row(de, D_TABLE, ["Quarter-end", "Banks in the quarter-end composite", "Pack composite", "KeyBank",
-                               "Peer A", "Peer B", "Banks in the band", "10th", "90th"], right_from=1)
-    _wrap(de, D_TABLE, 48)
-    for c_, w in zip("CDEFGHI", (13, 11, 11, 11, 11, 9, 9)):     # A and B are set above
-        de.column_dimensions[c_].width = w
-    for k in range(DQ):
-        r, hr = D_TABLE + 1 + k, first + k
-        de.cell(r, 1, "=%s%d" % (L(H0), hr))
-        de.cell(r, 2, "=%s" % ref("banks", hr))
-        de.cell(r, 7, "=%s" % ref("bandn", hr))
-        for c_, name in zip((3, 4, 5, 6, 8, 9), ("c", "k", "a", "bb", "p10", "p90")):
-            de.cell(r, c_, '=IFERROR(%s+0,"")' % ref(name, hr))
-            de.cell(r, c_).number_format = "0.00"
-    return {"quarters": grid, "products": products, "helpers": {name: L(c) for name, c in col.items()},
-            "first_row": first, "data_rows": nrow - 1}
+            wk.cell(r, bl.col["p%d" % p], "=IF({n}>={mb},PERCENTILE({v},{p}),NA())"
+                    .format(n=bandn, mb=mb, v=bl.across("v", r), p=p / 100))
+        wk.cell(r, bl.col["k"], "=" + bl.at("uv", r, me_i))
+        for name, num in (("a", x["a_no"]), ("bb", x["b_no"])):
+            wk.cell(r, bl.col[name], "=IFERROR(INDEX({row},{n}),NA())".format(row=bl.across("uv", r), n=num))
+        wk.cell(r, bl.col["drawn"], '=IF(OR(%s),%d,"")' % (",".join(
+            "ISNUMBER(%s)" % bl.at(n_, r) for n_ in ("c", "k", "a", "bb", "p10")), r))
+    return bl
 
 
 def _rolled_back(build):
@@ -727,6 +885,7 @@ def _rolled_back(build):
                     into.remove(into[title])
             raise
     return wrapper
+
 
 
 @_rolled_back
@@ -756,33 +915,38 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
       recorded acquisitions brought in at least the acquisition share
       (``books.acquired_quarters``), for every product built; the delinquency
       spec carries the same under its ``acquired`` key;
-    - ``pack``: 'all' or 'regionals', the peers Include starts TRUE for;
+    - ``pack``: 'all' or 'regionals', the peers whose Yes/No starts Yes;
     - ``min_banks``: how many kept banks a composite or band needs (a live
-      cell on Pack, starting here);
+      cell on Peers, starting here);
     - ``rank_by`` ('gross' or 'net'), ``last_n``, ``min_obs``: how best and
-      worst in pack are found (``books.best_worst``), live cells on Pack;
+      worst in pack are found (``books.best_worst``), live cells on Peers;
+      the charge-off rate picker starts on ``rank_by``'s rate;
     - ``mergers`` (``{cert: [quarter-end dates]}``, as ``fdic.classify``
       returns) and ``extra_acquisitions`` (declared purchases the FDIC record
       does not show), ``base_quarter`` and ``index_min_book`` ($000, the
-      smallest book at the base that is indexed): the Balances tab;
-    - ``lagged_years`` and ``lag_years``: the Lagged tab;
-    - ``normalisation_years``: (base year, end year) for the Normalisation tab;
+      smallest book at the base that is indexed): the book-size view. The
+      base must be one of the TTM quarters, as the view is drawn on them;
+    - ``lagged_years`` and ``lag_years``: the lagged view;
+    - ``normalisation_years``: (base year, end year) for how far each rate moved;
     - ``mix_base_year`` and ``industry`` (``{product: books.industry(...)}``
-      over every filer, or None, in which case the Mix tab says it was not
-      supplied rather than standing the roster in for the industry);
-    - ``delinquency``: None, and the Delinquency and DelinquencyData tabs say
+      over every filer, or None, in which case the industry line and the mix
+      say it was not supplied rather than standing the roster in for the
+      industry);
+    - ``delinquency``: None, and the delinquency view and DelinquencyData say
       it was not built; or a dict of exactly these keys, none defaulted (see
       :func:`_check_delinquency`): ``data`` (``{REPDTE: [rows]}`` carrying
       ``delinquency.FIELDS`` for its products, usually the same pull as
       ``data``), ``products`` (names from ``delinquency.FIELDS``), ``jump``,
       ``min_book`` ($000) and ``exempt_self`` (the rules of
       ``delinquency.bank_delinquency``, stated for delinquency rather than
-      borrowed from the charge-off ones), and ``measure`` and ``basis``, the
-      measure and basis pickers' starting positions. The composite and band
-      need the Pack tab's live number of banks, as the charge-off ones do.
+      borrowed from the charge-off ones), ``acquired``, and ``measure`` and
+      ``basis``, the delinquency pickers' starting positions.
 
-    ``peer_a``, ``peer_b`` and ``product`` are only the pickers' starting
-    positions; nothing is computed from them that the bank cannot change.
+    The product picker lists the charge-off products, then any delinquency
+    product not among them; a view whose product was not built says so in
+    words. ``peer_a``, ``peer_b`` and ``product`` are only the pickers'
+    starting positions, as "Chart shows" starts at the last 48 quarters (the
+    firm's own); nothing is computed from them that the bank cannot change.
 
     Provenance for the Run tab: ``sources`` (lines of text), ``cache_dir``
     (the folder ``fdic.pull`` read; each file's name, when it was written,
@@ -796,24 +960,23 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     caller saves it and then runs :func:`na_as_gap` on the file, over the tabs
     returned under ``sheets``, as the standalone build does to its own. In
     that mode the workbook's own settings are left as they are: which tab is
-    active, its calculation and document properties (the standalone build
-    sets none of these beyond a new Workbook's own). ``names`` (``{tab:
+    active, its calculation and document properties. ``names`` (``{tab:
     title}`` for exactly every tab in :data:`TABS`) writes each tab under the
-    title given; every formula, and every line that names a tab, names it by
-    that title. A title the workbook already has is refused, as is the same
-    title twice: the peer tabs' Data, Glossary and Run beside a host's own
-    would otherwise be read by the wrong formulas. If the build fails after
-    it has begun adding tabs, it takes them out again before the error
-    reaches the caller. Before returning, it checks every reference on the
-    peer tabs names a peer tab (:func:`foreign_refs`), and raises
-    RuntimeError, saving nothing, if one does not.
+    title given; every formula, defined name and line that names a tab names
+    it by that title. A title the workbook already has is refused, as is the
+    same title twice. If the build fails after it has begun adding tabs, it
+    takes them out again before the error reaches the caller. Before
+    returning, it checks every reference on the peer tabs names a peer tab
+    (:func:`foreign_refs`), and raises RuntimeError, saving nothing, if one
+    does not.
 
     Refused (ValueError), each with its reason: a setting outside its range, a
-    base quarter that is not in the data, a product whose fields the data does
-    not carry, a roster with no peers, a regionals pack with no regionals, and
-    banks or products that do not share one quarter calendar; and for where
-    the tabs go, an ``into`` that is not a Workbook (or is write-only), an
-    ``out`` given with it or missing without it, and ``names`` as above.
+    base quarter that is not in the data or is not a TTM quarter, a product
+    whose fields the data does not carry, a roster with no peers, a regionals
+    pack with no regionals, and banks or products that do not share one
+    quarter calendar; and for where the tabs go, an ``into`` that is not a
+    Workbook (or is write-only), an ``out`` given with it or missing without
+    it, and ``names`` as above.
     """
     if into is None and out is None:
         raise ValueError("out is needed: the peer workbook is written there unless into names a workbook")
@@ -873,477 +1036,763 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     NB, NP, Q = len(roster), len(peers), len(grid)
     if Q < 1:
         raise ValueError("the data has no TTM quarter: it needs at least five quarter-ends")
+    base_lbl = label(base_repdte)
+    if base_lbl not in grid:
+        raise ValueError("the base quarter %s is not one of the TTM quarters (%s to %s): the book index is drawn "
+                         "on the quarters the rates are, so the base must be one of them"
+                         % (base_lbl, grid[0], grid[-1]))
+    base_k = grid.index(base_lbl)
     bidx = {b["cert"]: i for i, b in enumerate(roster)}
+    me_i = bidx[me["cert"]]
+    peer_i = [bidx[b["cert"]] for b in peers]
+    all_products = products + [p for p in (dq["products"] if dq else []) if p not in products]
+    y0, y1 = normalisation_years
+    years = sorted({int(q[:4]) for q in data if all("%s%s" % (q[:4], md) in data
+                                                    for md in ("0331", "0630", "0930", "1231"))})
+    years = [y for y in years if y >= mix_base_year]
+    NY = len(years)
+    lay = layout(NP, NB, NY)
 
     if into is None:
         wb = Workbook()
-        pk = wb.active
-        pk.title = t.title("Pack")
+        pe = wb.active
+        pe.title = t.title("Peers")
     else:
         wb = into
-        pk = wb.create_sheet(t.title("Pack"))
-    pe, de, ba, lg, nm, mx, gl, da, dd, run = (wb.create_sheet(t.title(x)) for x in TABS[1:])
-    PK, PE, DA = t.ref("Pack"), t.ref("Peers"), t.ref("Data")
-    pk.sheet_properties.tabColor = K.KEY_RED
-    for ws in (pk, pe, de, ba, lg, nm, mx, gl, run):
+        pe = wb.create_sheet(t.title("Peers"))
+    wk, gl, da, dd, run = (wb.create_sheet(t.title(x)) for x in TABS[1:])
+    wk.sheet_state = "hidden"
+    PE, WK, DA, DD = t.ref("Peers"), t.ref("Workings"), t.ref("Data"), t.ref("DelinquencyData")
+    pe.sheet_properties.tabColor = K.KEY_RED
+    for ws in (pe, gl, run):
         K.hide_gridlines(ws)
 
-    # ---- Data: one row per product, bank (roster order) and quarter ----
-    # The live formulas find a row by position: product block, then bank
-    # block, then quarter, so the order here is load-bearing.
-    K.header_row(da, 1, ["Product", "Bank", "Certificate", "Quarter", "Gross charge-offs, TTM ($000)",
-                         "Recoveries, TTM ($000)", "Average balance ($000)", "Gross rate (%)",
-                         "Net rate (%)", "Kept", "Why not kept"], right_from=4)
-    _wrap(da, 1, 46)
+    # ---- the book index: per product and bank, from the base on ----
+    acq_of = {b["cert"]: _acquisitions(mergers, extra_acquisitions, b["cert"]) for b in roster}
+    indexed, index_note = {}, {}
     for p in products:
         for b in roster:
-            for r in books[p][b["cert"]]:
-                da.append([p, b["short"], b["cert"], r["quarter"], r["gross"], r["recoveries"],
-                           r["avg_balance"], r["gross_rate"], r["net_rate"], r["kept"], r["why"]])
-    nrow = 1 + len(products) * NB * Q
-    for row in da.iter_rows(min_row=2, max_row=nrow, min_col=5, max_col=9):
-        for c in row:
-            c.number_format = "#,##0" if c.column <= 7 else "0.0000"
-    for col, w in zip("ABCDEFGHIJK", (16, 16, 11, 9, 14, 14, 16, 10, 10, 8, 44)):
-        da.column_dimensions[col].width = w
-    K.freeze_below(da, 1)
-
-    # ---- Pack (red): the bank's choices ----
-    K.brand_banner(pk, 1, 7, "Pack: who KeyBank is compared with",
-                   t.words("Yellow cells are yours. The Peers and Delinquency tabs recalculate as you change "
-                           "them."))
-    first_peer, last_peer = P_HEAD + 1, P_HEAD + NP
-    hl = {"all": L(P_HELP), "opts": L(P_HELP + 1), "prod": L(P_HELP + 2)}     # hidden lists J, K, L
-    for i, b in enumerate(roster):
-        pk.cell(P_HEAD + 1 + i, P_HELP, b["short"])
-    for i, o in enumerate(shorts + [WORST, BEST]):
-        pk.cell(P_HEAD + 1 + i, P_HELP + 1, o)
-    for i, p in enumerate(products):
-        pk.cell(P_HEAD + 1 + i, P_HELP + 2, p)
-    pk.cell(P_HEAD, P_HELP, "All banks")
-    pk.cell(P_HEAD, P_HELP + 1, "Peer picks")
-    pk.cell(P_HEAD, P_HELP + 2, "Products")
-    lst = lambda key, n: "$%s$%d:$%s$%d" % (hl[key], P_HEAD + 1, hl[key], P_HEAD + n)    # noqa: E731
-    settings = [
-        (P_PRODUCT, "Product", product, "=" + lst("prod", len(products))),
-        (P_A, "Peer A", peer_a, "=" + lst("opts", NP + 2)),
-        (P_B, "Peer B", peer_b, "=" + lst("opts", NP + 2)),
-        (P_KIND, "Best and worst are ranked by the", rank_by, '"gross,net"'),
-        (P_LASTN, "rate's mean over the last (quarters)", last_n, None),
-        (P_MINOBS, "among peers kept in at least (quarters of them)", min_obs, None),
-        (P_MINBANKS, "Banks needed for a composite or band", min_banks, None),
-    ]
-    for r, text, val, choices in settings:
-        pk.cell(r, 1, text).font = Font(bold=True)
-        c = pk.cell(r, 2, val)
-        c.fill = INPUT
-        if choices:
-            dv = DataValidation(type="list", formula1=choices, allow_blank=False)
-            pk.add_data_validation(dv)
-            dv.add(c.coordinate)
-    # The counts refuse anything but a whole number of at least 1, as the
-    # build does: a 0 for the kept quarters needed turned best, worst, Peer A
-    # and B and the caption into #DIV/0! (an excluded peer's AVERAGE of nothing).
-    counts = DataValidation(type="whole", operator="greaterThanOrEqual", formula1="1", allow_blank=False,
-                            showErrorMessage=True, errorTitle="A whole number of at least 1",
-                            error="Type a whole number of 1 or more.")
-    pk.add_data_validation(counts)
-    for r in (P_LASTN, P_MINOBS, P_MINBANKS):
-        counts.add("B%d" % r)
-    pk.cell(P_A, 3, '=IF(B{r}="{w}",$B${wr},IF(B{r}="{b}",$B${br},B{r}))'
-            .format(r=P_A, w=WORST, b=BEST, wr=P_WORST, br=P_BEST))
-    pk.cell(P_B, 3, '=IF(B{r}="{w}",$B${wr},IF(B{r}="{b}",$B${br},B{r}))'
-            .format(r=P_B, w=WORST, b=BEST, wr=P_WORST, br=P_BEST))
-    means = "$E${a}:$E${z}".format(a=first_peer, z=last_peer)
-    names = "$A${a}:$A${z}".format(a=first_peer, z=last_peer)
-    for r, text, fn in ((P_BEST, "Best in pack is", "MIN"), (P_WORST, "Worst in pack is", "MAX")):
-        pk.cell(r, 1, text).font = Font(bold=True)
-        pk.cell(r, 2, '=IF(COUNT({m})=0,"(none qualifies)",INDEX({n},MATCH({f}({m}),{m},0)))'
-                .format(m=means, n=names, f=fn))
-    pk.cell(P_A, 4, "<- draws this peer").font = NOTE
-    K.header_row(pk, P_HEAD, ["Peer", "Certificate", "Regional", "Include",
-                              "Mean rate, last quarters (live)", "Kept quarters in that window"], right_from=4)
-    _wrap(pk, P_HEAD, 46)
-    inc = DataValidation(type="list", formula1='"TRUE,FALSE"', allow_blank=False)
-    pk.add_data_validation(inc)
-    for i, b in enumerate(peers):
-        r = first_peer + i
-        pk.cell(r, 1, b["short"])
-        pk.cell(r, 2, b["cert"])
-        pk.cell(r, 3, "yes" if b["regional"] else "no")
-        c = pk.cell(r, 4, b["cert"] in in_pack)
-        c.fill = INPUT
-        inc.add(c.coordinate)
-    pk.cell(last_peer + 2, 1, t.words(
-        "The pack started as %s. Best and worst count only included peers; Peer A and Peer B are drawn whether "
-        "or not they are included. KeyBank (certificate %s) is never in its own pack. Every term is on the "
-        "Glossary tab." % ("every peer" if pack == "all" else "the regionals only", me["cert"]))).font = NOTE
-    for col, w in zip("ABCDEF", (34, 16, 10, 10, 14, 14)):
-        pk.column_dimensions[col].width = w
-    for col in range(P_HELP, P_HELP + 3):
-        pk.column_dimensions[L(col)].hidden = True
-
-    # ---- Peers: live helpers (hidden), then the charts over them ----
-    # Columns from H0: the quarter, the in-window flag, then one block per
-    # measure -- every bank's kept flag and rates (unfiltered, for KeyBank and
-    # Peer A and B), then each peer's figures filtered by Include -- so each
-    # measure is one contiguous range. A helper reads Data by direct reference,
-    # CHOOSE picking the product's block: an INDEX over the whole Data column
-    # works too, but costs the recalculation engine the tests use ~100 times
-    # as much per cell.
-    first, last = H_HEAD + 1, H_HEAD + Q
-    p_at, a_at, b_at = ("$%s$%d" % (L(H0 + 1), r) for r in (5, 6, 7))
-    pe.cell(5, H0, "Product number")
-    pe.cell(5, H0 + 1, "=MATCH({p}$B${r},{p}{l},0)".format(p=PK, r=P_PRODUCT, l=lst("prod", len(products))))
-    for r, prow in ((6, P_A), (7, P_B)):
-        pe.cell(r, H0, "Peer %s, bank number" % ("A" if r == 6 else "B"))
-        pe.cell(r, H0 + 1, "=IFERROR(MATCH({p}$C${r},{p}{l},0),NA())".format(p=PK, r=prow, l=lst("all", NB)))
-    col, at = {}, H0 + 2
-    for name, width in (("uk", NB), ("ug", NB), ("un", NB), ("ok", NP), ("g", NP), ("rc", NP), ("bal", NP),
-                        ("gr", NP), ("nr", NP), ("win", NP), ("banks", 1), ("cg", 1), ("cn", 1),
-                        ("g10", 1), ("g25", 1), ("g75", 1), ("g90", 1), ("n10", 1), ("n25", 1), ("n75", 1),
-                        ("n90", 1), ("kg", 1), ("kn", 1), ("ag", 1), ("an", 1), ("bg", 1), ("bn", 1)):
-        col[name] = at
-        at += width
-    width_of = {"uk": NB, "ug": NB, "un": NB}
-    rng = lambda name, r: "${a}{r}:${z}{r}".format(                                          # noqa: E731
-        a=L(col[name]), z=L(col[name] + width_of.get(name, NP) - 1), r=r)
-    ref = lambda name, r, j=0: "{c}{r}".format(c=L(col[name] + j), r=r)                    # noqa: E731
-    heads = {"banks": "Banks in", "cg": "Pack composite", "cn": "Pack composite",
-             "g10": "10th", "g25": "25th", "g75": "75th", "g90": "90th",
-             "n10": "10th", "n25": "25th", "n75": "75th", "n90": "90th",
-             "kg": me["short"], "kn": me["short"]}
-    pe.cell(H_HEAD, H0, "Quarter")
-    pe.cell(H_HEAD, H0 + 1, "In the best/worst window")
-    for name in ("uk", "ug", "un"):
-        for j, b in enumerate(roster):
-            pe.cell(H_HEAD, col[name] + j, "%s %s" % (b["short"], name))
-    for name in ("ok", "g", "rc", "bal", "gr", "nr", "win"):
-        for j, b in enumerate(peers):
-            pe.cell(H_HEAD, col[name] + j, "%s %s" % (b["short"], name))
-    for name, h in heads.items():
-        pe.cell(H_HEAD, col[name], h)
-    for name, which in (("ag", "A"), ("an", "A"), ("bg", "B"), ("bn", "B")):
-        pe.cell(H_HEAD, col[name], '="Peer %s: "&%s$C$%d' % (which, PK, P_A if which == "A" else P_B))
-    mb = "%s$B$%d" % (PK, P_MINBANKS)
-    dcol = {"gross": "E", "rec": "F", "bal": "G", "grate": "H", "nrate": "I", "kept": "J"}
-
-    def pick(key, b, k):
-        """The Data cell for this measure, bank (roster position) and quarter, in the picked product."""
-        cells = ",".join("%s$%s$%d" % (DA, dcol[key], 2 + i * NB * Q + b * Q + k) for i in range(len(products)))
-        return "CHOOSE(%s,%s)" % (p_at, cells)
-
-    for k, q in enumerate(grid):
-        r = first + k
-        pe.cell(r, H0, q)
-        pe.cell(r, H0 + 1, "={k}>={q}-{p}$B${n}".format(k=k, q=Q, p=PK, n=P_LASTN))
-        for j, b in enumerate(roster):
-            pe.cell(r, col["uk"] + j, "=" + pick("kept", j, k))
-            pe.cell(r, col["ug"] + j, "=IF({ok},{v},NA())".format(ok=ref("uk", r, j), v=pick("grate", j, k)))
-            pe.cell(r, col["un"] + j, "=IF({ok},{v},NA())".format(ok=ref("uk", r, j), v=pick("nrate", j, k)))
-        for j, b in enumerate(peers):
-            i = bidx[b["cert"]]
-            ok = ref("ok", r, j)
-            pe.cell(r, col["ok"] + j, "=AND({p}$D${pr},{uk})".format(p=PK, pr=first_peer + j, uk=ref("uk", r, i)))
-            for name, key in (("g", "gross"), ("rc", "rec"), ("bal", "bal")):
-                pe.cell(r, col[name] + j, '=IF({ok},{v},"")'.format(ok=ok, v=pick(key, i, k)))
-            for name, u in (("gr", "ug"), ("nr", "un")):
-                pe.cell(r, col[name] + j, '=IF({ok},{v},"")'.format(ok=ok, v=ref(u, r, i)))
-            pe.cell(r, col["win"] + j, '=IF(${w}{r},IF({p}$B${kd}="gross",{g},{n}),"")'
-                    .format(w=L(H0 + 1), r=r, p=PK, kd=P_KIND, g=ref("gr", r, j), n=ref("nr", r, j)))
-        banks = ref("banks", r)
-        pe.cell(r, col["banks"], "=COUNT(%s)" % rng("nr", r))
-        pe.cell(r, col["cg"], "=IF({n}>={mb},100*SUM({g})/SUM({b}),NA())"
-                .format(n=banks, mb=mb, g=rng("g", r), b=rng("bal", r)))
-        pe.cell(r, col["cn"], "=IF({n}>={mb},100*(SUM({g})-SUM({rc}))/SUM({b}),NA())"
-                .format(n=banks, mb=mb, g=rng("g", r), rc=rng("rc", r), b=rng("bal", r)))
-        for kind, rates in (("g", "gr"), ("n", "nr")):
-            for p in (10, 25, 75, 90):
-                pe.cell(r, col["%s%d" % (kind, p)], "=IF({n}>={mb},PERCENTILE({v},{p}),NA())"
-                        .format(n=banks, mb=mb, v=rng(rates, r), p=p / 100))
-        me_i = bidx[me["cert"]]
-        pe.cell(r, col["kg"], "=" + ref("ug", r, me_i))
-        pe.cell(r, col["kn"], "=" + ref("un", r, me_i))
-        for name, u, num in (("ag", "ug", a_at), ("an", "un", a_at), ("bg", "ug", b_at), ("bn", "un", b_at)):
-            pe.cell(r, col[name], "=IFERROR(INDEX({row},{n}),NA())".format(row=rng(u, r), n=num))
-    # Pack's live means for best and worst, from the window helpers.
-    for j in range(NP):
-        w = "{c}${a}:{c}${z}".format(c=L(col["win"] + j), a=first, z=last)
-        pr = first_peer + j
-        pk.cell(pr, 6, "=COUNT(%s%s)" % (PE, w))
-        pk.cell(pr, 5, '=IF(F{r}>=$B${m},AVERAGE({pe}{w}),"")'.format(r=pr, m=P_MINOBS, pe=PE, w=w))
-        pk.cell(pr, 5).number_format = "0.00"
-
-    K.brand_banner(pe, 1, 15, "KeyBank against the pack",
-                   t.words("Live from the Pack tab: the band and composite are the included peers, kept quarters "
-                           "only."))
-    pe.cell(4, 1, "Product").font = Font(bold=True)
-    pe.cell(4, 2, "=%s$B$%d" % (PK, P_PRODUCT))
-    pe.cell(5, 1, "Peer A").font = Font(bold=True)
-    pe.cell(5, 2, '={p}$C${r}&IF({p}$B${r}={p}$C${r},""," ("&{p}$B${r}&")")'.format(p=PK, r=P_A))
-    pe.cell(6, 1, "Peer B").font = Font(bold=True)
-    pe.cell(6, 2, '={p}$C${r}&IF({p}$B${r}={p}$C${r},""," ("&{p}$B${r}&")")'.format(p=PK, r=P_B))
-    pe.cell(7, 1, ('="Best in pack resolved to "&{p}$B${b}&"; worst to "&{p}$B${w}&", on the mean "'
-                   '&{p}$B${k}&" rate over the last "&{p}$B${n}&" quarters, among peers kept in at least "'
-                   '&{p}$B${o}&" of them."').format(p=PK, b=P_BEST, w=P_WORST, k=P_KIND, n=P_LASTN, o=P_MINOBS))
-    pe.cell(8, 1, t.words("Light band: 10th to 90th percentile of the pack's kept rates; dark band: 25th to 75th. "
-                          "No band: fewer pack banks kept than needed. A gap in a line: a quarter not kept "
-                          "(Data tab says why).")).font = NOTE
-    pe.column_dimensions["A"].width = 10
-    pe.column_dimensions["B"].width = 30
-    tick = max(1, min(8, Q // 6))
-    styles = ((K.INK, 28575, None), (K.KEY_RED, 28575, None), (K.SLATE, 15875, "dash"), ("1F5F8B", 15875, "sysDot"))
-    for i, kind in enumerate(("gross", "net")):
-        k = kind[0]
-        # The bands are the first chart groups, so the lines are drawn over
-        # them. The base is a line chart: with an area chart as the base,
-        # Excel 16 drew no tick labels at all (6 Oct 2026).
-        lc = _band(pe, col[k + "10"], col[k + "90"], first, last, K.MIST, (" ", "10th to 90th (light band)"))
-        lc.title = "%s charge-off rate, TTM (%%)" % kind.capitalize()
-        lc.height, lc.width = 12, 26
-        lc.x_axis.delete = False
-        lc.y_axis.delete = False
-        lc.y_axis.number_format = "0.0"
-        lc.legend.position = "b"
-        lc.legend.overlay = False
-        lc.display_blanks = "gap"
-        lc.visible_cells_only = False
-        lc.set_categories(Reference(pe, min_col=H0, min_row=first, max_row=last))
-        lc.x_axis.tickLblSkip = tick
-        lc.x_axis.tickLblPos = "low"
-        lc += _band(pe, col[k + "25"], col[k + "75"], first, last, "CFC6B6", (" ", "25th to 75th (dark band)"))
-        lines = LineChart()
-        for name in ("c" + k, "k" + k, "a" + k, "b" + k):
-            lines.add_data(Reference(pe, min_col=col[name], min_row=H_HEAD, max_row=last), titles_from_data=True)
-        for s_, (colour, width, dash) in zip(lines.series, styles):
-            s_.smooth = False
-            s_.graphicalProperties.line.solidFill = colour
-            s_.graphicalProperties.line.width = width
-            if dash:
-                s_.graphicalProperties.line.dashStyle = dash
-        lc += lines
-        pe.add_chart(lc, "A%d" % (10 + 26 * i))
-    # A table of the live lines under the charts, for reading values off.
-    t0 = 64
-    K.header_row(pe, t0, ["Quarter", "Banks in", "Composite gross", "Composite net", "KeyBank gross",
-                          "KeyBank net", "Peer A net", "Peer B net"], right_from=1)
-    _wrap(pe, t0, 34)
-    for k in range(Q):
-        r, hr = t0 + 1 + k, first + k
-        pe.cell(r, 1, "=%s%d" % (L(H0), hr))
-        pe.cell(r, 2, "=%s" % ref("banks", hr))
-        for c_, name in zip(range(3, 9), ("cg", "cn", "kg", "kn", "an", "bn")):
-            pe.cell(r, c_, '=IFERROR(%s+0,"")' % ref(name, hr))
-            pe.cell(r, c_).number_format = "0.00"
-    for c_ in range(H0, col["bn"] + 1):
-        pe.column_dimensions[L(c_)].hidden = True
-
-    # ---- Delinquency and DelinquencyData: live over the same Pack ----
-    d_info = _delinquency_tabs(de, dd, dq, roster, me, peers, first_peer, lst("all", NB), t) if dq else None
-    if not dq:
-        for ws in (de, dd):
-            ws.cell(1, 1, NOT_BUILT).font = Font(bold=True)
-            ws.column_dimensions["A"].width = 100
-
-    # ---- Balances (values) ----
-    r = K.brand_banner(ba, 1, 6, "Balances: growth as reported and without acquisitions",
-                       "Index, %s = 100. Without acquisitions, growth in an acquisition quarter counts as none."
-                       % label(quarter_end(base_quarter).replace("-", "")))
-    base_lbl = label(quarter_end(base_quarter).replace("-", ""))
-    for p in products:
-        r = K.section_band(ba, r + 1, "%s: book index, %s = 100" % (p, base_lbl), 6)
-        r = K.header_row(ba, r, ["Bank", "Book at the base ($m)", "As reported, %s" % grid[-1],
-                                 "Without acquisitions, %s" % grid[-1], "Acquisition quarters", "Note"],
-                         right_from=1)
-        _wrap(ba, r - 1, 34)
-        series = {}
-        for b in roster:
-            acq = _acquisitions(mergers, extra_acquisitions, b["cert"])
-            listed = ", ".join(q + (" (declared)" if d else "") for q, d in acq) or "none"
             try:
-                idx = organic_index(data, b["cert"], p, base_quarter, [q for q, _ in acq])
+                idx = organic_index(data, b["cert"], p, base_quarter, [q for q, _ in acq_of[b["cert"]]])
             except ValueError:
                 # The base quarter is in the data (checked above), so this is
                 # the bank having no filing or a zero book there.
                 idx = None
             at_base = next((x["balance"] for x in idx if x["date"] == quarter_end(base_quarter)), None) \
                 if idx else None
-            note = None
             if idx is None:
-                note = "no book at the base"
+                index_note[p, b["cert"]] = "no book"
             elif at_base < index_min_book:
-                note = "under the minimum at the base: not indexed"
+                index_note[p, b["cert"]] = "too small"
             else:
-                series[b["cert"]] = [x for x in idx if x["date"] >= quarter_end(base_quarter)]
-            latest = series[b["cert"]][-1] if b["cert"] in series else None
-            ba.append([b["short"], None if at_base is None else at_base / 1000,
-                       latest["reported"] if latest else None, latest["organic"] if latest else None,
-                       listed, note])
-            row = ba.max_row
-            ba.cell(row, 2).number_format = "#,##0"
-            for c_ in (3, 4):
-                ba.cell(row, c_).number_format = "0"
-            ba.cell(row, 5).alignment = Alignment(wrap_text=True, vertical="top")
-            if b is me:
-                for c_ in range(1, 7):
-                    ba.cell(row, c_).fill = SELF_FILL
-                ba.cell(row, 1).font = Font(bold=True, color=K.CRIMSON)
-        # Quarterly table for the chart: without acquisitions, banks indexed.
-        r = ba.max_row + 25                       # below the chart, which is ~20 rows tall
-        chart_at = ba.max_row + 2
-        indexed = [b for b in roster if b["cert"] in series]
-        if indexed:
-            ba.cell(r - 1, 2, "Without acquisitions").font = Font(bold=True)
-            ba.cell(r - 1, 3 + len(indexed), "As reported").font = Font(bold=True)
-            ba.cell(r, 1, "Quarter").font = Font(bold=True)
-            for j, b in enumerate(indexed):
-                ba.cell(r, 2 + j, b["short"]).font = Font(bold=True)
-                ba.cell(r, 3 + len(indexed) + j, b["short"]).font = Font(bold=True)
-            _wrap(ba, r, 30)
-            quarters = [x["quarter"] for x in series[indexed[0]["cert"]]]
-            for k, q in enumerate(quarters):
-                ba.cell(r + 1 + k, 1, q)
-                for j, b in enumerate(indexed):
-                    x = series[b["cert"]][k]
-                    for c_, v in ((2 + j, x["organic"]), (3 + len(indexed) + j, x["reported"])):
-                        if v is not None:
-                            ba.cell(r + 1 + k, c_, v).number_format = "0.0"
-            lc = _line_chart("%s: book without acquisitions, %s = 100" % (p, base_lbl), height=10, width=24)
-            lc.add_data(Reference(ba, min_col=2, max_col=1 + len(indexed), min_row=r, max_row=r + len(quarters)),
-                        titles_from_data=True)
-            lc.set_categories(Reference(ba, min_col=1, min_row=r + 1, max_row=r + len(quarters)))
-            for s_, b in zip(lc.series, indexed):
-                s_.smooth = False
-                s_.graphicalProperties.line.width = 28575 if b is me else 9525
-                if b is me:
-                    s_.graphicalProperties.line.solidFill = K.KEY_RED
-            lc.x_axis.tickLblSkip = 4
-            lc.legend.position = "r"
-            ba.add_chart(lc, "A%d" % chart_at)
-            r = r + len(quarters) + 1
-        else:
-            r = ba.max_row + 1
-    ba.column_dimensions["A"].width = 18
-    for c_, w in zip("BCDEF", (14, 14, 14, 60, 34)):
-        ba.column_dimensions[c_].width = w
+                index_note[p, b["cert"]] = "indexed"
+                indexed[p, b["cert"]] = {x["quarter"]: x for x in idx if x["date"] >= quarter_end(base_quarter)}
 
-    # ---- Lagged (values) ----
-    r = K.brand_banner(lg, 1, 2 + len(lagged_years), "Lagged rates: a year's losses over the book lent earlier",
-                       "100 x calendar-year net charge-offs (Q4 year-to-date, as filed) / the mean balance %d "
-                       "year%s earlier. Totals sum the dollars." % (lag_years, "" if lag_years == 1 else "s"))
-    all_certs = [b["cert"] for b in R.peers(roster)]
-    reg_certs = [b["cert"] for b in R.regionals(roster)]
-    # A total is named with its count: the regionals are every peer the roster
-    # marks regional, which is not the same set as a handful named elsewhere.
-    totals = [("All peers, total (%d banks)" % len(all_certs), all_certs)]
-    if reg_certs:
-        totals.append(("Regionals, total (%d banks)" % len(reg_certs), reg_certs))
-    reg_names = ", ".join(b["short"] for b in R.regionals(roster)) or "none on the roster"
+    # ---- Data: one row per product, bank (roster order) and quarter ----
+    # The live formulas find a row by position: product block, then bank
+    # block, then quarter, so the order here is load-bearing.
+    K.header_row(da, 1, ["Product", "Bank", "Certificate", "Quarter", "Gross charge-offs, TTM ($000)",
+                         "Recoveries, TTM ($000)", "Average balance ($000)", "Gross rate (%)",
+                         "Net rate (%)", "Kept", "Why not kept", "Book index, as reported (base = 100)",
+                         "Book index, without acquisitions (base = 100)"], right_from=4)
+    _wrap(da, 1, 46)
     for p in products:
-        r = K.section_band(lg, r + 1, p, 1 + len(lagged_years))
-        r = K.header_row(lg, r, ["Bank"] + ["%d net over %d book (%%)" % (y, y - lag_years) for y in lagged_years],
-                         right_from=1)
-        _wrap(lg, r - 1, 34)
-        rows = [(b["short"], b["cert"], b is me) for b in roster]
-        rows += [(name, certs, False) for name, certs in totals]
-        for name, certs, mine in rows:
-            vals = [lagged_rate(data, certs, p, y, lag_years)["rate"] for y in lagged_years]
-            lg.append([name] + vals)
-            for c_ in range(2, 2 + len(vals)):
-                lg.cell(lg.max_row, c_).number_format = "0.00"
-            if mine:
-                lg.cell(lg.max_row, 1).font = Font(bold=True, color=K.CRIMSON)
-        r = lg.max_row
-    lg.cell(r + 2, 1, "Blank: a bank did not file every quarter of a year needed. A total is blank if any of its "
-                      "banks is, rather than worked out over the banks that remain.").font = NOTE
-    lg.cell(r + 3, 1, "The regionals are the peers the roster marks regional: %s." % reg_names).font = NOTE
-    lg.column_dimensions["A"].width = 22
-    for c_ in range(2, 2 + len(lagged_years)):
-        lg.column_dimensions[L(c_)].width = 16
-
-    # ---- Normalisation (values) ----
-    y0, y1 = normalisation_years
-    r = K.brand_banner(nm, 1, 4, "Normalisation: how far each net rate moved, %d to %d" % (y0, y1),
-                       "Each year is the mean of its four quarterly TTM net rates, kept quarters only.")
-    for p in products:
-        r = K.section_band(nm, r + 1, p, 4)
-        r = K.header_row(nm, r, ["Bank", "%d (%%)" % y0, "%d (%%)" % y1, "%d / %d" % (y1, y0)], right_from=1)
-        rows = [(b["short"], [(x["quarter"], x["net_rate"]) for x in books[p][b["cert"]]], b is me)
-                for b in roster]
-        for name, certs in (("All-peer composite (%d banks)" % len(all_certs), all_certs),
-                            ("Regional composite (%d banks)" % len(reg_certs), reg_certs)):
-            if not certs:
+        for b in roster:
+            ix = indexed.get((p, b["cert"]), {})
+            for r in books[p][b["cert"]]:
+                x = ix.get(r["quarter"])
+                da.append([p, b["short"], b["cert"], r["quarter"], r["gross"], r["recoveries"],
+                           r["avg_balance"], r["gross_rate"], r["net_rate"], r["kept"], r["why"],
+                           x["reported"] if x else None, x["organic"] if x else None])
+    nrow = 1 + len(products) * NB * Q
+    for row in da.iter_rows(min_row=2, max_row=nrow, min_col=5, max_col=13):
+        for c in row:
+            if c.column in (10, 11):
                 continue
-            comp = composite(books[p], certs, min_banks=min_banks)
-            rows.append((name, [(x["quarter"], x["net_rate"]) for x in comp], False))
-        for name, ser, mine in rows:
-            n_ = normalisation(ser, y0, y1)
-            nm.append([name, n_["base"], n_["end"], n_["ratio"]])
-            for c_ in (2, 3, 4):
-                nm.cell(nm.max_row, c_).number_format = "0.00"
-            if mine:
-                nm.cell(nm.max_row, 1).font = Font(bold=True, color=K.CRIMSON)
-        r = nm.max_row
-    nm.cell(r + 2, 1, t.words("Composites need %d kept banks a quarter, as the Pack tab started. A year is blank "
-                              "when a quarter of it was not kept. The ratio is also blank when the earlier year is "
-                              "0 or below (net recoveries): a ratio to it would read the wrong way."
-                              % min_banks)).font = NOTE
-    nm.column_dimensions["A"].width = 22
-    for c_ in "BCD":
-        nm.column_dimensions[c_].width = 12
+            c.number_format = "#,##0" if c.column <= 7 else "0.0000" if c.column <= 9 else "0.0"
+    for col, w in zip("ABCDEFGHIJKLM", (16, 16, 11, 9, 14, 14, 16, 10, 10, 8, 44, 14, 14)):
+        da.column_dimensions[col].width = w
+    K.freeze_below(da, 1)
 
-    # ---- Mix (values) ----
-    r = K.brand_banner(mx, 1, 7, "Mix: KeyBank's move against the industry's, base %d" % mix_base_year,
-                       "Own factor above 1: KeyBank worsened more than the industry since the base year.")
-    years = sorted({int(q[:4]) for q in data if all("%s%s" % (q[:4], md) in data
-                                                    for md in ("0331", "0630", "0930", "1231"))})
-    years = [y for y in years if y >= mix_base_year]
-    for p in products:
-        r = K.section_band(mx, r + 1, p, 7)
+    def drow(pi, bi, k):
+        return 2 + pi * NB * Q + bi * Q + k
+
+    # ---- Workings: lists, then the settings every block reads ----
+    lists, lists_pe = {}, {}
+    for col, key, head, items in (
+            (3, "banks", "All banks", [b["short"] for b in roster]),
+            (4, "picks", "Peer picks", shorts + [WORST, BEST]),
+            (5, "products", "Products", all_products),
+            (6, "co_products", "Charge-off products", products),
+            (7, "dq_products", "Delinquency products", dq["products"] if dq else []),
+            (8, "windows", "Chart shows", list(WINDOWS)),
+            (9, "dq_measures", "Delinquency measures", list(D.MEASURES) if dq else []),
+            (10, "bases", "Delinquency bases", list(D.BASES) if dq else [])):
+        wk.cell(1, col, head)
+        for i, v in enumerate(items):
+            wk.cell(2 + i, col, v)
+        n_ = max(1, len(items))
+        lists[key] = "$%s$2:$%s$%d" % (L(col), L(col), 1 + n_)
+        lists_pe[key] = WK + lists[key]
+
+    def pe_abs(cell):
+        m = re.fullmatch(r"([A-Z]+)(\d+)", cell)
+        return "%s$%s$%s" % (PE, m.group(1), m.group(2))
+
+    PICK = {key: pe_abs(picker_cell(key)) for key, _, _, _ in PICKERS}
+    SET = {key: pe_abs(setting_cell(key, NP)) for key, _, _, _ in SETTINGS}
+    INC = [pe_abs(include_cell(j)) for j in range(NP)]
+    mb = SET["min_banks"]
+
+    S, S_PE = {}, {}
+
+    def scalar(key, text, formula):
+        r = len(S) + 1
+        wk.cell(r, 1, text)
+        wk.cell(r, 2, formula)
+        S[key] = "$B$%d" % r
+        S_PE[key] = WK + S[key]
+        return S[key]
+
+    scalar("co_p", "Charge-off product number (0: not built)",
+           "=IFERROR(MATCH(%s,%s,0),0)" % (PICK["product"], lists["co_products"]))
+    scalar("net", "Net picked", '=%s="Net"' % PICK["rate"])
+    # Best and worst, from the ranking block below (its columns are fixed here).
+    RK = 12                                     # ranking block: L (peer), M (on), N (kept), O (mean)
+    means, rnames = "$O$2:$O$%d" % (1 + NP), "$L$2:$L$%d" % (1 + NP)
+    scalar("best", "Best in pack", '=IF(COUNT({m})=0,"(none qualifies)",INDEX({n},MATCH(MIN({m}),{m},0)))'
+           .format(m=means, n=rnames))
+    scalar("worst", "Worst in pack", '=IF(COUNT({m})=0,"(none qualifies)",INDEX({n},MATCH(MAX({m}),{m},0)))'
+           .format(m=means, n=rnames))
+    for who in ("a", "b"):
+        p_ = PICK["peer_" + who]
+        scalar(who + "_name", "Peer %s is" % who.upper(), '=IF({p}="{w}",{wr},IF({p}="{b}",{br},{p}))'
+               .format(p=p_, w=WORST, b=BEST, wr=S["worst"], br=S["best"]))
+        scalar(who + "_no", "Peer %s, bank number" % who.upper(),
+               "=IFERROR(MATCH(%s,%s,0),NA())" % (S[who + "_name"], lists["banks"]))
+    scalar("span", "Quarters the charts show at most",
+           "=CHOOSE(MATCH(%s,%s,0),%s)" % (PICK["window"], lists["windows"], ",".join(str(s) for s in _SPANS)))
+    if dq:
+        NM = len(D.MEASURES)
+        scalar("dq_p", "Delinquency product number (0: not built)",
+               "=IFERROR(MATCH(%s,%s,0),0)" % (PICK["product"], lists["dq_products"]))
+        scalar("dq_m", "Delinquency measure number", "=MATCH(%s,%s,0)" % (PICK["dq_measure"], lists["dq_measures"]))
+        scalar("dq_b", "Delinquency basis number", "=MATCH(%s,%s,0)" % (PICK["dq_basis"], lists["bases"]))
+        scalar("dq_sel", "Delinquency product and measure", "=(%s-1)*%d+%s" % (S["dq_p"], NM, S["dq_m"]))
+    co_p, net = S["co_p"], S["net"]
+
+    def pick(dcol, bi, k):
+        """The Data cell in this column for the picked product, bank (roster position) and quarter."""
+        return "CHOOSE(%s,%s)" % (co_p, ",".join("%s$%s$%d" % (DA, dcol, drow(pi, bi, k))
+                                                for pi in range(len(products))))
+
+    def pick_number(cells, missing='""'):
+        """One of ``cells`` (one per charge-off product) for the picked product,
+        or ``missing`` when it is blank or the product was not built: a blank
+        read through a formula would be 0."""
+        return "IF({p}=0,{m},IF(CHOOSE({p},{isn}),CHOOSE({p},{c}),{m}))".format(
+            p=co_p, m=missing, isn=",".join("ISNUMBER(%s)" % c for c in cells), c=",".join(cells))
+
+    # ---- Workings: the ranking block (L:O, one row per peer) ----
+    for c_, h in zip(range(RK, RK + 4), ("Peer", "Switched on", "Kept quarters in the window",
+                                         "Mean rate in the window")):
+        wk.cell(1, c_, h)
+
+    # ---- Workings: the industry's rates, as values, per product ----
+    blk = _Block(wk, 18)
+    ind_cols = {}
+    for pi, p in enumerate(products):
+        rows_ = {x["quarter"]: x for x in ((industry or {}).get(p) or [])}
+        for kind in ("gross", "net"):
+            c_ = blk.add("ind_%s_%d" % (kind, pi), heads=["Industry %s, %s" % (kind, p)])
+            ind_cols[kind, pi] = c_
+            for k, q in enumerate(grid):
+                v = rows_.get(q, {}).get(kind + "_rate")
+                wk.cell(2 + k, c_, v if v is not None else "=NA()")
+
+    # ---- Workings: the charge-off view, one row per TTM quarter ----
+    co = blk
+    co.add("q", heads=["Quarter"])
+    co.add("inwin", heads=["In the ranking window"])
+    co.add("uk", NB, ["%s kept" % b["short"] for b in roster])
+    co.add("ur", NB, ["%s rate" % b["short"] for b in roster])
+    for name, what in (("ok", "in"), ("x", "charge-offs"), ("bal", "balance"), ("r", "rate"),
+                       ("win", "ranking rate")):
+        co.add(name, NP, ["%s %s" % (b["short"], what) for b in peers])
+    for name, h in (("banks", "Banks in"), ("c", "Pack composite"), ("p10", "10th"), ("p25", "25th"),
+                    ("p75", "75th"), ("p90", "90th"), ("k", me["short"])):
+        co.add(name, heads=[h])
+    co.add("a", heads=['="Peer A: "&%s' % S["a_name"]])
+    co.add("b", heads=['="Peer B: "&%s' % S["b_name"]])
+    co.add("ind", heads=["Industry"])
+    co.add("drawn", heads=["Row drawn"])
+    for k, q in enumerate(grid):
+        r = 2 + k
+        wk.cell(r, co.col["q"], q)
+        wk.cell(r, co.col["inwin"], "=%d>=%d-%s" % (k, Q, SET["last_n"]))
+        for j in range(NB):
+            wk.cell(r, co.col["uk"] + j, "=IF(%s>0,%s,FALSE)" % (co_p, pick("J", j, k)))
+            wk.cell(r, co.col["ur"] + j, "=IF({uk},IF({n},{nr},{gr}),NA())".format(
+                uk=co.at("uk", r, j), n=net, nr=pick("I", j, k), gr=pick("H", j, k)))
+        for j in range(NP):
+            i = peer_i[j]
+            ok = co.at("ok", r, j)
+            wk.cell(r, co.col["ok"] + j, '=AND(%s="%s",%s)' % (INC[j], YES, co.at("uk", r, i)))
+            wk.cell(r, co.col["x"] + j, '=IF({ok},{g}-IF({n},{rc},0),"")'.format(
+                ok=ok, g=pick("E", i, k), n=net, rc=pick("F", i, k)))
+            wk.cell(r, co.col["bal"] + j, '=IF(%s,%s,"")' % (ok, pick("G", i, k)))
+            wk.cell(r, co.col["r"] + j, '=IF(%s,%s,"")' % (ok, co.at("ur", r, i)))
+            wk.cell(r, co.col["win"] + j, '=IF(AND({w},{ok}),IF({rk}="gross",{g},{n}),"")'.format(
+                w=co.at("inwin", r), ok=ok, rk=SET["rank_by"], g=pick("H", i, k), n=pick("I", i, k)))
+        banks = co.at("banks", r)
+        wk.cell(r, co.col["banks"], "=COUNT(%s)" % co.across("r", r))
+        wk.cell(r, co.col["c"], "=IF({n}>={mb},100*SUM({x})/SUM({b}),NA())".format(
+            n=banks, mb=mb, x=co.across("x", r), b=co.across("bal", r)))
+        for p in (10, 25, 75, 90):
+            wk.cell(r, co.col["p%d" % p], "=IF({n}>={mb},PERCENTILE({v},{p}),NA())".format(
+                n=banks, mb=mb, v=co.across("r", r), p=p / 100))
+        wk.cell(r, co.col["k"], "=" + co.at("ur", r, me_i))
+        for name, num in (("a", S["a_no"]), ("b", S["b_no"])):
+            wk.cell(r, co.col[name], "=IFERROR(INDEX(%s,%s),NA())" % (co.across("ur", r), num))
+        wk.cell(r, co.col["ind"], "=IF({p}>0,IF({n},CHOOSE({p},{nc}),CHOOSE({p},{gc})),NA())".format(
+            p=co_p, n=net, nc=",".join("%s%d" % (L(ind_cols["net", pi]), r) for pi in range(len(products))),
+            gc=",".join("%s%d" % (L(ind_cols["gross", pi]), r) for pi in range(len(products)))))
+        wk.cell(r, co.col["drawn"], '=IF(OR(%s),%d,"")' % (",".join(
+            "ISNUMBER(%s)" % co.at(n_, r) for n_ in ("c", "k", "a", "b", "ind", "p10")), r))
+    LR = Q + 1                                   # the latest quarter's row
+
+    # The ranking block, now the window columns are placed.
+    for j, b in enumerate(peers):
+        r = 2 + j
+        w = co.down("win", 2, LR, j)
+        wk.cell(r, RK, b["short"])
+        wk.cell(r, RK + 1, '=%s="%s"' % (INC[j], YES))
+        wk.cell(r, RK + 2, "=COUNT(%s)" % w)
+        wk.cell(r, RK + 3, '=IF(%s>=%s,AVERAGE(%s),"")' % ("$N$%d" % r, SET["min_obs"], w))
+
+    # ---- Workings: the book-size view, one row per TTM quarter from the base ----
+    bk = _Block(wk, co.next + 1)
+    bk.add("q", heads=["Quarter (book index)"])
+    bk.add("bo", NB, ["%s without acquisitions" % b["short"] for b in roster])
+    bk.add("br", NB, ["%s as reported" % b["short"] for b in roster])
+    bk.add("v", NP, ["%s in, without acquisitions" % b["short"] for b in peers])
+    bk.add("vr", NP, ["%s in, as reported" % b["short"] for b in peers])
+    for name, h in (("n", "Banks in"), ("p10", "10th"), ("p25", "25th"), ("p50", "Pack median"), ("p75", "75th"),
+                    ("p90", "90th"), ("k", me["short"])):
+        bk.add(name, heads=[h])
+    bk.add("a", heads=['="Peer A: "&%s' % S["a_name"]])
+    bk.add("b", heads=['="Peer B: "&%s' % S["b_name"]])
+    bk.add("rn", heads=["Banks in, as reported"])
+    bk.add("rmed", heads=["Pack median, as reported"])
+    bk.add("drawn", heads=["Row drawn"])
+    BQ = Q - base_k
+    for j_, k in enumerate(range(base_k, Q)):
+        r = 2 + j_
+        wk.cell(r, bk.col["q"], grid[k])
+        for i in range(NB):
+            for name, dcol in (("bo", "M"), ("br", "L")):
+                cells = ["%s$%s$%d" % (DA, dcol, drow(pi, i, k)) for pi in range(len(products))]
+                wk.cell(r, bk.col[name] + i, "=" + pick_number(cells, "NA()"))
+        for j, i in enumerate(peer_i):
+            for name, src in (("v", "bo"), ("vr", "br")):
+                u = bk.at(src, r, i)
+                wk.cell(r, bk.col[name] + j, '=IF(AND(%s="%s",ISNUMBER(%s)),%s,"")' % (INC[j], YES, u, u))
+        n_ = bk.at("n", r)
+        wk.cell(r, bk.col["n"], "=COUNT(%s)" % bk.across("v", r))
+        for p in (10, 25, 50, 75, 90):
+            wk.cell(r, bk.col["p%d" % p], "=IF({n}>={mb},PERCENTILE({v},{p}),NA())".format(
+                n=n_, mb=mb, v=bk.across("v", r), p=p / 100))
+        wk.cell(r, bk.col["k"], "=" + bk.at("bo", r, me_i))
+        for name, num in (("a", S["a_no"]), ("b", S["b_no"])):
+            wk.cell(r, bk.col[name], "=IFERROR(INDEX(%s,%s),NA())" % (bk.across("bo", r), num))
+        wk.cell(r, bk.col["rn"], "=COUNT(%s)" % bk.across("vr", r))
+        wk.cell(r, bk.col["rmed"], "=IF({n}>={mb},PERCENTILE({v},0.5),NA())".format(
+            n=bk.at("rn", r), mb=mb, v=bk.across("vr", r)))
+        wk.cell(r, bk.col["drawn"], '=IF(OR(%s),%d,"")' % (",".join(
+            "ISNUMBER(%s)" % bk.at(n_, r) for n_ in ("p50", "k", "a", "b", "p10")), r))
+    BR = BQ + 1                                  # the book index's latest row
+
+    # ---- Workings: lagged rates, per bank (roster order) ----
+    lg = _Block(wk, bk.next + 1)
+    lg.add("bank", heads=["Bank (lagged)"])
+    for pi, p in enumerate(products):
+        for y in lagged_years:
+            lg.add("v_%d_%d" % (pi, y), 3, ["%s %d rate" % (p, y), "%s %d net ($000)" % (p, y),
+                                             "%s %d-year-earlier balance ($000)" % (p, y)])
+    lg.add("on", heads=["In the pack"])
+    for y in lagged_years:
+        lg.add("s_%d" % y, 4, ["%d rate" % y, "%d net" % y, "%d balance" % y, "%d missing" % y])
+    for i, b in enumerate(roster):
+        r = 2 + i
+        wk.cell(r, lg.col["bank"], b["short"])
+        for pi, p in enumerate(products):
+            for y in lagged_years:
+                lr = lagged_rate(data, b["cert"], p, y, lag_years)
+                for j, v in enumerate((lr["rate"], lr["net"], lr["balance"])):
+                    wk.cell(r, lg.col["v_%d_%d" % (pi, y)] + j, v)
+        wk.cell(r, lg.col["on"], 0 if b is me else '=IF(%s="%s",1,0)' % (INC[peer_i.index(i)], YES))
+        for y in lagged_years:
+            for j in range(3):
+                cells = [lg.at("v_%d_%d" % (pi, y), r, j) for pi in range(len(products))]
+                wk.cell(r, lg.col["s_%d" % y] + j, "=" + pick_number(cells))
+            wk.cell(r, lg.col["s_%d" % y] + 3, "=IF(AND({on}=1,OR(NOT(ISNUMBER({n})),NOT(ISNUMBER({b})))),1,0)"
+                    .format(on=lg.at("on", r), n=lg.at("s_%d" % y, r, 1), b=lg.at("s_%d" % y, r, 2)))
+
+    # ---- Workings: the mix, per year, per product, as values ----
+    mx = _Block(wk, lg.next + 1)
+    mx.add("year", heads=["Year (mix)"])
+    MIX_KEYS = ("bank_rate", "industry_rate", "bank_ratio", "industry_ratio", "own_factor", "balance_factor")
+    status = {}
+    for pi, p in enumerate(products):
+        mx.add("m_%d" % pi, len(MIX_KEYS), ["%s %s" % (p, k_) for k_ in MIX_KEYS])
+        mx.add("own_%d" % pi, NB, ["%s own factor, %s" % (p, b["short"]) for b in roster])
         ind = (industry or {}).get(p)
         if not ind:
-            mx.cell(r, 1, "No industry series was supplied for %s, so no mix factor is worked out. The roster "
-                          "banks are not the industry and do not stand in for it." % p).font = NOTE
+            status[p] = ("No industry series was supplied for %s, so no mix factor is worked out. The roster "
+                         "banks are not the industry and do not stand in for it." % p)
             continue
         ind_rate = {int(x["quarter"][:4]): x["net_rate"] for x in ind if x["quarter"].endswith("Q4")}
         if mix_base_year not in ind_rate:
-            mx.cell(r, 1, "The industry series has no %d to measure from." % mix_base_year).font = NOTE
+            status[p] = "The industry series for %s has no %d to measure from." % (p, mix_base_year)
             continue
         if mix_base_year not in years:
-            mx.cell(r, 1, "The data does not hold all four quarters of %d, so the banks have no %d to measure "
-                          "from." % (mix_base_year, mix_base_year)).font = NOTE
+            status[p] = ("The data does not hold all four quarters of %d, so the banks have no %d to measure "
+                         "from." % (mix_base_year, mix_base_year))
             continue
-        r = K.header_row(mx, r, ["Year", "KeyBank net rate (%)", "Industry net rate (%)", "KeyBank / base year",
-                                 "Industry / base year", "Own factor", "Balance factor"], right_from=1)
-        _wrap(mx, r - 1, 34)
-        own = {}
-        for b in roster:
+        status[p] = "OK"
+        for i, b in enumerate(roster):
             cy = {y: calendar_year(data, b["cert"], p, y) for y in years}
             rate = {y: lagged_rate(data, b["cert"], p, y, 0)["rate"] for y in years}
-            bal = {y: cy[y]["balance"] for y in years}
-            rows = mix_factor(rate, {y: ind_rate.get(y) for y in years}, bal, mix_base_year)
-            own[b["cert"]] = {x["year"]: x["own_factor"] for x in rows}
-            if b is me:
-                for x in rows:
-                    mx.append([x["year"], rate[x["year"]], ind_rate.get(x["year"]), x["bank_ratio"],
-                               x["industry_ratio"], x["own_factor"], x["balance_factor"]])
-                    for c_ in range(2, 8):
-                        mx.cell(mx.max_row, c_).number_format = "0.00"
-        r = mx.max_row + 2
-        mx.cell(r, 1, "Own factor, every bank").font = Font(bold=True)
-        r = K.header_row(mx, r + 1, ["Bank"] + [str(y) for y in years], right_from=1)
-        for b in roster:
-            mx.append([b["short"]] + [own[b["cert"]].get(y) for y in years])
-            for c_ in range(2, 2 + len(years)):
-                mx.cell(mx.max_row, c_).number_format = "0.00"
-            if b is me:
-                mx.cell(mx.max_row, 1).font = Font(bold=True, color=K.CRIMSON)
-        r = mx.max_row
-    mx.cell(r + 2, 1, "Calendar-year net rate: Q4 year-to-date net charge-offs as filed / the mean of the year's "
-                      "four quarter-end balances. The industry's is its TTM net rate at Q4.").font = NOTE
-    mx.column_dimensions["A"].width = 16
-    for c_ in range(2, 2 + max(7, len(years))):
-        mx.column_dimensions[L(c_)].width = 11
+            rows_ = mix_factor(rate, {y: ind_rate.get(y) for y in years}, {y: cy[y]["balance"] for y in years},
+                               mix_base_year)
+            for x_ in rows_:
+                r = 2 + years.index(x_["year"])
+                wk.cell(r, mx.col["own_%d" % pi] + i, x_["own_factor"])
+                if b is me:
+                    vals = (rate[x_["year"]], ind_rate.get(x_["year"]), x_["bank_ratio"], x_["industry_ratio"],
+                            x_["own_factor"], x_["balance_factor"])
+                    for j, v in enumerate(vals):
+                        wk.cell(r, mx.col["m_%d" % pi] + j, v)
+    for y in years:
+        wk.cell(2 + years.index(y), mx.col["year"], y)
+    mx.add("status", heads=["Mix, per product"])
+    for pi, p in enumerate(products):
+        wk.cell(2 + pi, mx.col["status"], status[p])
+    mix_status = scalar("mix", "Mix for the product picked",
+                        '=IF({p}=0,"No charge-offs were built for "&{pp}&", so there is no mix.",CHOOSE({p},{s}))'
+                        .format(p=co_p, pp=PICK["product"], s=",".join(mx.fixed("status", 2 + pi)
+                                                                       for pi in range(len(products)))))
+    mx.add("sel", len(MIX_KEYS), ["Picked: %s" % k_ for k_ in MIX_KEYS])
+    for y in years:
+        r = 2 + years.index(y)
+        for j in range(len(MIX_KEYS)):
+            cells = [mx.at("m_%d" % pi, r, j) for pi in range(len(products))]
+            wk.cell(r, mx.col["sel"] + j, "=" + pick_number(cells))
+
+    # ---- Workings: each bank's own row for the bank table (roster order) ----
+    pb = _Block(wk, mx.next + 1)
+    pb.add("bank", heads=["Bank (table)"])
+    pb.add("latest", heads=["Latest rate"])
+    pb.add("index", heads=["Book index, latest"])
+    pb.add("notes", len(products), ["Book index note, %s" % p for p in products])
+    pb.add("own", heads=["Own factor, latest year"])
+    for i, b in enumerate(roster):
+        r = 2 + i
+        wk.cell(r, pb.col["bank"], b["short"])
+        wk.cell(r, pb.col["latest"], "=" + co.at("ur", LR, i))
+        wk.cell(r, pb.col["index"], "=" + bk.at("bo", BR, i))
+        for pi, p in enumerate(products):
+            wk.cell(r, pb.col["notes"] + pi, index_note[p, b["cert"]])
+        if NY:
+            cells = [mx.at("own_%d" % pi, 1 + NY, i) for pi in range(len(products))]
+            wk.cell(r, pb.col["own"], "=" + pick_number(cells, "NA()"))
+        else:
+            wk.cell(r, pb.col["own"], "=NA()")
+
+    # ---- Workings: the delinquency view ----
+    if dq:
+        dl = _delinquency_block(wk, dq, roster, me, peers, pb.next + 1, dict(
+            DD=DD, dq_sel=S["dq_sel"], dq_p=S["dq_p"], dq_b=S["dq_b"], inc=INC, a_name=S["a_name"],
+            b_name=S["b_name"], a_no=S["a_no"], b_no=S["b_no"], mb=mb))
+        DLR = len(dq["grid"]) + 1
+        d_rows = _delinquency_data(dd, dq, roster)
+    else:
+        dl = None
+        for ws in (dd,):
+            ws.cell(1, 1, NOT_BUILT).font = Font(bold=True)
+            ws.column_dimensions["A"].width = 100
+
+    # Where each chart starts and how many rows it draws: from the first
+    # quarter any of its lines has, at most "Chart shows" quarters back from
+    # the last. An axis cannot follow a cell; a named range can.
+    def fit(key, block, n_rows):
+        drawn = block.down("drawn", 2, 1 + n_rows)
+        first = scalar(key + "_first", "First row drawn (%s)" % key,
+                       "=IF(COUNT({a})=0,2,MAX(MIN({a}),MAX({a})-{s}+1))".format(a=drawn, s=S["span"]))
+        scalar(key + "_count", "Rows drawn (%s)" % key,
+               "=IF(COUNT({a})=0,{n},MAX({a})-{f}+1)".format(a=drawn, n=n_rows, f=first))
+
+    fit("co", co, Q)
+    fit("bk", bk, BQ)
+    if dl is not None:
+        fit("dl", dl, len(dq["grid"]))
+    wk.column_dimensions["A"].width = 40
+    wk.column_dimensions["B"].width = 16
+
+    def named(key, block, name, j=0, nm=None):
+        """A name on the Peers tab for one Workings column, as drawn."""
+        nm = nm or "%s_%s" % (key, name)
+        pe.defined_names[nm] = DefinedName(nm, attr_text="OFFSET(%s$%s$1,%s-1,0,%s,1)" % (
+            WK, L(block.col[name] + j), S_PE[key + "_first"], S_PE[key + "_count"]))
+        return PE + nm
+
+    def label_ref(block, name):
+        return SeriesLabel(strRef=StrRef(f="%s$%s$1" % (WK, L(block.col[name]))))
+
+    # ======================= the Peers tab: the dashboard =======================
+    pe.column_dimensions["A"].width = 1.7
+    for c_ in range(FIRST_COL, LAST_COL + 1):
+        pe.column_dimensions[L(c_)].width = COL_WIDTH
+    K.light_title(pe, 1, LAST_COL - 1, "Peers: KeyBank against its pack",
+                  t.words("Pick in the yellow cells; every number and chart on this tab follows them. From "
+                          "public FDIC Call Reports; the Glossary tab says how each figure is worked out."),
+                  live=True, first_col=FIRST_COL)
+    pe.row_dimensions[3].height = 6
+    starts = {"product": product, "rate": rank_by.capitalize(), "peer_a": peer_a, "peer_b": peer_b,
+              "window": START_WINDOW, "dq_measure": dq["measure"] if dq else "not built",
+              "dq_basis": dq["basis"] if dq else "not built"}
+    choices = {"product": "=" + lists_pe["products"], "rate": '"%s"' % ",".join(RATES),
+               "peer_a": "=" + lists_pe["picks"], "peer_b": "=" + lists_pe["picks"],
+               "window": "=" + lists_pe["windows"],
+               "dq_measure": "=" + lists_pe["dq_measures"] if dq else None,
+               "dq_basis": "=" + lists_pe["bases"] if dq else None}
+    for key, text, first, last in PICKERS:
+        pe.cell(R_LABEL, first, text).font = F_LAB
+        c = pe.cell(R_PICK, first, starts[key])
+        _yellow(c, last)
+        if choices[key]:
+            dv = DataValidation(type="list", formula1=choices[key], allow_blank=False, showErrorMessage=True,
+                                errorTitle=text, error="Pick one from the list.")
+            pe.add_data_validation(dv)
+            dv.add(c.coordinate)
+        else:
+            c.fill = K.solid(K.CANVAS)
+            c.font = Font(name="Calibri", size=11, color=K.SLATE)
+    pe.row_dimensions[R_PICK].height = 20
+    for who in ("a", "b"):
+        first = next(f for key, _, f, _ in PICKERS if key == "peer_" + who)
+        _merged(pe, R_RESOLVED, first, first + 1, '="Drawn: "&%s' % S_PE[who + "_name"], NOTE, wrap=False)
+    dq_p = S_PE.get("dq_p")
+    _merged(pe, R_RESOLVED, 2, 6, '=IF({co}=0,"No charge-offs built for this product.",{dq})'.format(
+        co=S_PE["co_p"], dq='IF(%s=0,"No delinquency built for this product.","")' % dq_p if dq
+        else '"Delinquency was not built for this workbook."'), Font(name="Calibri", size=9, bold=True,
+                                                                     color=K.CRIMSON), wrap=False)
+    pe.row_dimensions[7].height = 8
+
+    # Which banks are in the pack: a Yes/No under each peer's name.
+    yes_no = DataValidation(type="list", formula1='"%s,%s"' % (YES, NO), allow_blank=False, showErrorMessage=True,
+                            errorTitle="In the pack", error="Yes or No.")
+    pe.add_data_validation(yes_no)
+    for ch in range(lay["chunks"]):
+        r = R_BANKS + 2 * ch
+        pe.cell(r, 2, "Bank").font = F_LAB
+        pe.cell(r + 1, 2, "In the pack").font = F_LAB
+        pe.row_dimensions[r].height = 26
+        pe.row_dimensions[r + 1].height = 18
+    for j, b in enumerate(peers):
+        cell = include_cell(j)
+        m = re.fullmatch(r"([A-Z]+)(\d+)", cell)
+        c = pe[cell]
+        name = pe.cell(int(m.group(2)) - 1, c.column, b["short"])
+        name.font = Font(name="Calibri", size=9, bold=True, color=K.INK_TEXT)
+        name.alignment = Alignment(wrap_text=True, horizontal="center", vertical="bottom")
+        c.value = YES if b["cert"] in in_pack else NO
+        c.fill = INPUT
+        c.border = BOX
+        c.font = Font(name="Calibri", size=10, bold=True, color=K.INK_TEXT)
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        yes_no.add(cell)
+        # A bank switched off is greyed, so who is out reads at a glance.
+        pe.conditional_formatting.add(cell, FormulaRule(formula=['%s="%s"' % (cell, NO)],
+                                                        fill=K.solid(K.MIST), font=Font(color=K.SLATE)))
+    rs = lay["settings"]
+    counts = DataValidation(type="whole", operator="greaterThanOrEqual", formula1="1", allow_blank=False,
+                            showErrorMessage=True, errorTitle="A whole number of at least 1",
+                            error="Type a whole number of 1 or more.")
+    pe.add_data_validation(counts)
+    kinds = DataValidation(type="list", formula1='"gross,net"', allow_blank=False, showErrorMessage=True,
+                           errorTitle="Ranked by", error="gross or net.")
+    pe.add_data_validation(kinds)
+    for key, text, (a_, z_), col in SETTINGS:
+        _merged(pe, rs, a_, z_, text, F_LAB, wrap=False, align="right")
+        c = pe.cell(rs, col, {"rank_by": rank_by, "last_n": last_n, "min_obs": min_obs,
+                              "min_banks": min_banks}[key])
+        _yellow(c)
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        (kinds if key == "rank_by" else counts).add(c.coordinate)
+    pe.row_dimensions[rs].height = 20
+    _merged(pe, lay["best_worst"], 2, LAST_COL, (
+        '="Best in pack: "&{b}&". Worst in pack: "&{w}&". Only banks switched on are ranked; Peer A and B are '
+        'drawn either way. The pack started as {start}."').format(
+            b=S_PE["best"], w=S_PE["worst"], start="every peer" if pack == "all" else "the regionals only"),
+        NOTE, wrap=False)
+
+    charts = []                                  # (chart, format, label skip, columns, first row, rows)
+    # ---- row 1 of views: charge-offs (left), delinquency (right) ----
+    v1, tl = lay["v1"], lay["tiles"]
+    _section(pe, v1, *LEFT, '="Charge-offs: "&{p}&", "&LOWER({r})&" rate, trailing four quarters (%)"'
+             .format(p=PICK["product"], r=PICK["rate"]))
+    last_q = grid[-1]
+
+    def w_(block, name, r, j=0):
+        return WK + block.fixed(name, r, j)
+
+    k_, c_l, ind_l = w_(co, "k", LR), w_(co, "c", LR), w_(co, "ind", LR)
+    r_row = WK + co.across("r", LR)
+    _tile(pe, tl, 2, me["short"].upper(), '=IF(ISNUMBER({x}),{x},"none")'.format(x=k_),
+          '=IF(ISNUMBER({x}),"in {q}","not kept in {q}")'.format(x=k_, q=last_q), "0.00")
+    _tile(pe, tl, 4, "PACK COMPOSITE", '=IF(ISNUMBER({x}),{x},"none")'.format(x=c_l),
+          '=IF(ISNUMBER({x}),{n}&" banks in, {q}","under "&{mb}&" banks kept")'
+          .format(x=c_l, n=w_(co, "banks", LR), mb=mb, q=last_q), "0.00")
+    _tile(pe, tl, 6, "%s'S RANK" % me["short"].upper(),
+          '=IF(ISNUMBER({k}),(COUNTIF({r},"<"&{k})+1)&" of "&(COUNT({r})+1),"none")'.format(k=k_, r=r_row),
+          "1 = the lowest rate", "General")
+    _tile(pe, tl, 8, "INDUSTRY", '=IF(ISNUMBER({x}),{x},"none")'.format(x=ind_l),
+          '=IF(ISNUMBER({x}),"every filer, {q}","not supplied")'.format(x=ind_l, q=last_q),
+          "0.00")
+    ch = _Chart(named("co", co, "q"))
+    ch.band(named("co", co, "p10"), named("co", co, "p90"), BAND_LIGHT)
+    ch.band(named("co", co, "p25"), named("co", co, "p75"), BAND_DARK)
+    ch.lines([(named("co", co, "c"), label_ref(co, "c")) + STYLE["pack"],
+              (named("co", co, "k"), label_ref(co, "k")) + STYLE["self"],
+              (named("co", co, "a"), label_ref(co, "a")) + STYLE["a"],
+              (named("co", co, "b"), label_ref(co, "b")) + STYLE["b"],
+              (named("co", co, "ind"), label_ref(co, "ind")) + STYLE["industry"]])
+    charts.append((ch, "0.0", 8, LEFT, lay["chart1"], CHART_ROWS))
+    _note(pe, lay["note1"], LEFT, NOTE_ROWS["note1"], words=t.words, text=(
+        "Shaded: the middle 80% (light) and middle 50% (dark) of the banks switched on and kept; none where "
+        "fewer than the banks needed are kept. A gap: a quarter not kept (the Data tab says why)."),
+        cond="%s=0" % S_PE["co_p"], alt="No charge-offs were built for this product. The products built are: %s."
+        % ", ".join(products))
+
+    if dl is not None:
+        _section(pe, v1, *RIGHT, '="Delinquency: "&{p}&", "&{m}&", "&{b}&" (%)"'.format(
+            p=PICK["product"], m=PICK["dq_measure"], b=PICK["dq_basis"]))
+        dlast = dq["grid"][-1]
+        dk, dc = w_(dl, "k", DLR), w_(dl, "c", DLR)
+        v_row = WK + dl.across("v", DLR)
+        _tile(pe, tl, 10, me["short"].upper(), '=IF(ISNUMBER({x}),{x},"none")'.format(x=dk),
+              '=IF(ISNUMBER({x}),"at {q}","no rate at {q}")'.format(x=dk, q=dlast), "0.00")
+        _tile(pe, tl, 12, "PACK COMPOSITE", '=IF(ISNUMBER({x}),{x},"none")'.format(x=dc),
+              '=IF(ISNUMBER({x}),{n}&" banks in, {q}","under "&{mb}&" banks kept")'
+              .format(x=dc, n=w_(dl, "banks", DLR), q=dlast, mb=mb), "0.00")
+        _tile(pe, tl, 14, "%s'S RANK" % me["short"].upper(),
+              '=IF(ISNUMBER({k}),(COUNTIF({r},"<"&{k})+1)&" of "&(COUNT({r})+1),"none")'.format(k=dk, r=v_row),
+              "1 = the lowest rate", "General")
+        _tile(pe, tl, 16, "BANKS WITH A RATE", "=" + w_(dl, "bandn", DLR),
+              "switched on, %s" % dlast, "0")
+        ch = _Chart(named("dl", dl, "q"))
+        ch.band(named("dl", dl, "p10"), named("dl", dl, "p90"), BAND_LIGHT)
+        ch.band(named("dl", dl, "p25"), named("dl", dl, "p75"), BAND_DARK)
+        ch.lines([(named("dl", dl, "c"), label_ref(dl, "c")) + STYLE["pack"],
+                  (named("dl", dl, "k"), label_ref(dl, "k")) + STYLE["self"],
+                  (named("dl", dl, "a"), label_ref(dl, "a")) + STYLE["a"],
+                  (named("dl", dl, "bb"), label_ref(dl, "bb")) + STYLE["b"]])
+        charts.append((ch, "0.00", 8, RIGHT, lay["chart1"], CHART_ROWS))
+        _note(pe, lay["note1"], RIGHT, NOTE_ROWS["note1"], words=t.words, text=(
+            "Shaded as on the left. On the four-quarter average a bank mid-acquisition is left out of the "
+            "composite, as of the band. A gap: no rate that quarter-end (DelinquencyData says why)."),
+            cond="%s=0" % S_PE["dq_p"], alt="No delinquency was built for this product. The products built are: "
+            "%s." % ", ".join(dq["products"]))
+    else:
+        _section(pe, v1, *RIGHT, "Delinquency")
+        _merged(pe, tl, *RIGHT, NOT_BUILT, F_BOLD, 30)
+
+    # ---- row 2: book size (left); lagged and how far rates moved (right) ----
+    v2 = lay["v2"]
+    _section(pe, v2, *LEFT, '="Book size: each bank\'s "&LOWER({p})&" loans, {b} = 100, without acquisitions"'
+             .format(p=PICK["product"], b=base_lbl))
+    ch = _Chart(named("bk", bk, "q"))
+    ch.band(named("bk", bk, "p10"), named("bk", bk, "p90"), BAND_LIGHT)
+    ch.band(named("bk", bk, "p25"), named("bk", bk, "p75"), BAND_DARK)
+    ch.lines([(named("bk", bk, "p50"), label_ref(bk, "p50")) + STYLE["pack"],
+              (named("bk", bk, "k"), label_ref(bk, "k")) + STYLE["self"],
+              (named("bk", bk, "a"), label_ref(bk, "a")) + STYLE["a"],
+              (named("bk", bk, "b"), label_ref(bk, "b")) + STYLE["b"]])
+    charts.append((ch, "0", 4, LEFT, lay["chart2"], BOOK_ROWS))
+    bt = lay["book_table"]
+    _table_head(pe, bt, 2, ["Latest, %s (%s = 100)" % (last_q, base_lbl), "", "", "As reported", "",
+                            "Without acquisitions", ""], height=18)
+    for a_, z_ in ((2, 4), (5, 6), (7, 8)):
+        pe.merge_cells(start_row=bt, start_column=a_, end_row=bt, end_column=z_)
+    book_rows = (
+        (me["short"], w_(bk, "br", BR, me_i), w_(bk, "bo", BR, me_i), True),
+        ('="Peer A: "&%s' % S_PE["a_name"], "INDEX(%s,%s)" % (WK + bk.across("br", BR), S_PE["a_no"]),
+         "INDEX(%s,%s)" % (WK + bk.across("bo", BR), S_PE["a_no"]), False),
+        ('="Peer B: "&%s' % S_PE["b_name"], "INDEX(%s,%s)" % (WK + bk.across("br", BR), S_PE["b_no"]),
+         "INDEX(%s,%s)" % (WK + bk.across("bo", BR), S_PE["b_no"]), False),
+        ('="Pack median ("&%s&" banks)"' % w_(bk, "n", BR), w_(bk, "rmed", BR),
+         w_(bk, "p50", BR), False))
+    for i, (who, rep, org, mine) in enumerate(book_rows):
+        r = bt + 1 + i
+        _merged(pe, r, 2, 4, who, F_SELF if mine else F_BODY, wrap=False)
+        for c_, f in ((5, rep), (7, org)):
+            pe.merge_cells(start_row=r, start_column=c_, end_row=r, end_column=c_ + 1)
+            cell = pe.cell(r, c_, '=IFERROR(%s+0,"")' % f)
+            cell.number_format = "0"
+            cell.font = F_BODY
+            cell.alignment = Alignment(horizontal="right")
+        for c_ in range(2, 9):
+            pe.cell(r, c_).border = HAIR
+    _note(pe, lay["book_note"], LEFT, NOTE_ROWS["book_note"], words=t.words, text=(
+        "Each bank's book at a quarter-end / its book at %s x 100. Without acquisitions, growth in a quarter "
+        "the bank bought a book counts as none (its acquisition quarters are on the Run tab). Shaded: the middle "
+        "80%% and 50%% of the banks switched on and indexed; the black line is their median. A bank with less "
+        "than $%sm at the base is not indexed." % (base_lbl, "{:,.0f}".format(index_min_book / 1000))))
+
+    _section(pe, v2, *RIGHT, '="Lagged rate: "&LOWER({p})&" net losses over the book {n} year{s} '
+             'before (%)"'.format(p=PICK["product"], n=lag_years, s="" if lag_years == 1 else "s"))
+    lr0 = lay["lagged"]
+    _table_head(pe, lr0, 10, ["", "", ""] + ["%d over %d" % (y, y - lag_years) for y in lagged_years])
+    pe.merge_cells(start_row=lr0, start_column=10, end_row=lr0, end_column=12)
+    on_rng = WK + lg.down("on", 2, 1 + NB)
+    lag_rows = [(me["short"], lambda y: w_(lg, "s_%d" % y, 2 + me_i), True),
+                ('="Peer A: "&%s' % S_PE["a_name"],
+                 lambda y: "INDEX(%s,%s)" % (WK + lg.down("s_%d" % y, 2, 1 + NB), S_PE["a_no"]), False),
+                ('="Peer B: "&%s' % S_PE["b_name"],
+                 lambda y: "INDEX(%s,%s)" % (WK + lg.down("s_%d" % y, 2, 1 + NB), S_PE["b_no"]), False)]
+    for i, (who, ref, mine) in enumerate(lag_rows):
+        r = lr0 + 1 + i
+        _merged(pe, r, 10, 12, who, F_SELF if mine else F_BODY, wrap=False)
+        for j, y in enumerate(lagged_years):
+            cell = pe.cell(r, 13 + j, '=IFERROR(%s+0,"")' % ref(y))
+            cell.number_format = "0.00"
+            cell.font = F_BODY
+    r = lr0 + 4
+    _merged(pe, r, 10, 12, '="Pack total ("&SUM(%s)&" banks switched on)"' % on_rng, F_BOLD, wrap=False)
+    for j, y in enumerate(lagged_years):
+        n_, b_, miss = (WK + lg.down("s_%d" % y, 2, 1 + NB, x_) for x_ in (1, 2, 3))
+        cell = pe.cell(r, 13 + j, '=IF(OR(SUM({on})=0,SUM({m})>0),"",IF(SUMIF({on},1,{b})>0,100*SUMIF({on},1,{n})'
+                                  '/SUMIF({on},1,{b}),""))'.format(on=on_rng, m=miss, b=b_, n=n_))
+        cell.number_format = "0.00"
+        cell.font = F_BOLD
+    for rr in range(lr0 + 1, lr0 + 5):
+        for c_ in range(10, 13 + len(lagged_years)):
+            pe.cell(rr, c_).border = HAIR
+    _note(pe, lay["lagged_note"], RIGHT, NOTE_ROWS["lagged_note"],
+          "100 x the year's net charge-offs (Q4 year-to-date, as filed) / the mean balance %d year%s earlier. "
+          "Blank: a bank did not file every quarter of a year needed. The pack total sums the dollars, and is "
+          "blank if any bank switched on is." % (lag_years, "" if lag_years == 1 else "s"))
+
+    _section(pe, lay["norm"], *RIGHT, '="How far each "&LOWER({r})&" rate moved, {a} to {b}"'.format(
+        r=PICK["rate"], a=y0, b=y1))
+    nt = lay["norm_table"]
+    _table_head(pe, nt, 10, ["", "", "", "%d (%%)" % y0, "%d (%%)" % y1, "%d / %d" % (y1, y0)])
+    pe.merge_cells(start_row=nt, start_column=10, end_row=nt, end_column=12)
+
+    def year_rows(y):
+        ks = [grid.index("%dQ%d" % (y, n_)) for n_ in range(1, 5) if "%dQ%d" % (y, n_) in grid]
+        return (2 + ks[0], 2 + ks[-1]) if len(ks) == 4 and ks[-1] - ks[0] == 3 else None
+
+    yr = {y: year_rows(y) for y in (y0, y1)}
+    norm_rows = ((me["short"], ("ur", me_i), True), ('="Peer A: "&%s' % S_PE["a_name"], ("a", 0), False),
+                 ('="Peer B: "&%s' % S_PE["b_name"], ("b", 0), False),
+                 ("Pack composite", ("c", 0), False))
+    for i, (who, (name, j), mine) in enumerate(norm_rows):
+        r = nt + 1 + i
+        _merged(pe, r, 10, 12, who, F_SELF if mine else (F_BOLD if name == "c" else F_BODY), wrap=False)
+        for c_, y in ((13, y0), (14, y1)):
+            if yr[y] is None:
+                f = '=""'
+            else:
+                rng = WK + co.down(name, yr[y][0], yr[y][1], j)
+                f = '=IF(COUNT({r})=4,AVERAGE({r}),"")'.format(r=rng)
+            pe.cell(r, c_, f).number_format = "0.00"
+        pe.cell(r, 15, '=IF(AND(ISNUMBER(M{r}),ISNUMBER(N{r})),IF(M{r}>0,N{r}/M{r},""),"")'.format(r=r)
+                ).number_format = "0.00"
+        for c_ in range(10, 16):
+            pe.cell(r, c_).border = HAIR
+            if c_ >= 13:
+                pe.cell(r, c_).font = F_BOLD if name == "c" else F_BODY
+    _note(pe, lay["norm_note"], RIGHT, NOTE_ROWS["norm_note"],
+          "Each year: the mean of its four quarterly trailing-four-quarter rates, blank unless all four were "
+          "kept. The ratio is blank when the earlier year is 0 or below (net recoveries): a ratio to it would "
+          "read the wrong way.")
+
+    # ---- row 3: against the industry (left); every bank (right) ----
+    v3 = lay["v3"]
+    _section(pe, v3, *LEFT, '="Against the industry: "&{me}&"\'s "&LOWER({p})&" net rate since {y}"'.format(
+        me='"%s"' % me["short"], p=PICK["product"], y=mix_base_year))
+    mt = lay["mix"]
+    _table_head(pe, mt, 2, ["Year", "%s net rate (%%)" % me["short"], "Industry net rate (%)",
+                            "%s / %d" % (me["short"], mix_base_year), "Industry / %d" % mix_base_year,
+                            "Own factor", "Balance factor"])
+    for y in years:
+        r = mt + 1 + years.index(y)
+        pe.cell(r, 2, y).font = F_BODY
+        pe.cell(r, 2).alignment = Alignment(horizontal="left")
+        for j in range(len(MIX_KEYS)):
+            cell = pe.cell(r, 3 + j, '=IF({s}<>"OK","",{v})'.format(
+                s=S_PE["mix"], v=WK + mx.fixed("sel", 2 + years.index(y), j)))
+            cell.number_format = "0.00"
+            cell.font = F_BOLD if MIX_KEYS[j] == "own_factor" else F_BODY
+        for c_ in range(2, 9):
+            pe.cell(r, c_).border = HAIR
+    own = WK + pb.down("own", 2, 1 + NB)
+    last_year = years[-1] if years else mix_base_year
+    _merged(pe, lay["mix_peers"], *LEFT, (
+        '=IF({s}<>"OK",{s},"Own factor in {y}: Peer A ("&{a}&") "&IFERROR(TEXT(INDEX({o},{an}),"0.00"),"none")'
+        '&"; Peer B ("&{b}&") "&IFERROR(TEXT(INDEX({o},{bn}),"0.00"),"none")&".")').format(
+            s=S_PE["mix"], y=last_year, a=S_PE["a_name"], b=S_PE["b_name"], o=own, an=S_PE["a_no"],
+            bn=S_PE["b_no"]), F_BOLD, wrap=False)
+    _note(pe, lay["mix_note"], LEFT, NOTE_ROWS["mix_note"],
+          "Calendar-year net rate: Q4 year-to-date net charge-offs as filed / the mean of the year's four "
+          "quarter-end balances; the industry's is its trailing-four-quarter net rate at Q4. Own factor above "
+          "1: %s worsened more than the industry since %d. Balance factor: the %d book / this year's."
+          % (me["short"], mix_base_year, mix_base_year))
+
+    _section(pe, v3, *RIGHT, '="Every bank: "&{p}&", "&LOWER({r})&" rate"'.format(
+        p=PICK["product"], r=PICK["rate"]))
+    bt3 = lay["banks"]
+    _table_head(pe, bt3, 10, ["Bank", "", "In the pack", "Latest, %s" % last_q, "Ranking mean",
+                              "Kept in the window", "Book index, %s" % last_q, "Own factor, %d" % last_year],
+                right_from=3, height=36)
+    pe.merge_cells(start_row=bt3, start_column=10, end_row=bt3, end_column=11)
+    for i, b in enumerate(roster):
+        r = bt3 + 1 + i
+        mine = b is me
+        _merged(pe, r, 10, 11, b["short"], F_SELF if mine else F_BODY, wrap=False)
+        if mine:
+            pe.cell(r, 12, "itself")
+        else:
+            j = peer_i.index(i)
+            pe.cell(r, 12, "=" + INC[j])
+            pe.cell(r, 14, '=%s%s' % (WK, "$O$%d" % (2 + j))).number_format = "0.00"
+            pe.cell(r, 15, '=%s%s' % (WK, "$N$%d" % (2 + j))).number_format = "0"
+        pe.cell(r, 13, '=IFERROR(%s+0,"")' % w_(pb, "latest", 2 + i)).number_format = "0.00"
+        pe.cell(r, 16, '=IF(ISNUMBER({x}),{x},IF({p}=0,"",CHOOSE({p},{n})))'.format(
+            x=w_(pb, "index", 2 + i), p=S_PE["co_p"],
+            n=",".join(w_(pb, "notes", 2 + i, pi) for pi in range(len(products))))).number_format = "0"
+        pe.cell(r, 17, '=IFERROR(%s+0,"")' % w_(pb, "own", 2 + i)).number_format = "0.00"
+        for c_ in range(10, 18):
+            cell = pe.cell(r, c_)
+            cell.border = HAIR
+            if c_ >= 12:
+                cell.alignment = Alignment(horizontal="center" if c_ == 12 else "right", vertical="center")
+                cell.font = F_SELF if mine else F_BODY
+            if mine:
+                cell.fill = SELF_FILL
+    _note(pe, lay["banks_note"], RIGHT, NOTE_ROWS["banks_note"], words=t.words, text=(
+        "Ranking mean: the rate's mean over the window set above, for banks switched on and kept in enough of "
+        "it; best and worst in pack are the lowest and highest. Book index: too small, under the minimum at the "
+        "base; no book, none there. Every term is on the Glossary tab."))
+    # Each chart is as tall as the rows it covers, whatever height a note on
+    # the other half gave them, so nothing under it is pushed down or covered.
+    for ch, fmt, skip, (a_, z_), r0, n_ in charts:
+        tall = sum(pe.row_dimensions[r].height or 15 for r in range(r0, r0 + n_)) * 2.54 / 72
+        pe.add_chart(ch.finish(fmt, skip, round(tall - 0.1, 2), _width_cm(z_ - a_ + 1)), "%s%d" % (L(a_), r0))
+    pe.freeze_panes = "A%d" % (R_RESOLVED + 1)
+    pe.sheet_view.zoomScale = 100
 
     # ---- Glossary ----
     K.brand_banner(gl, 1, 3, "Glossary", "What each term means, and exactly how the workbook calculates it.")
@@ -1400,6 +1849,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     run.append(["Lagged", "years %s" % ", ".join(str(y) for y in lagged_years), "lag %d" % lag_years])
     run.append(["Normalisation", "%d to %d" % (y0, y1)])
     run.append(["Mix base year", mix_base_year, "industry supplied" if industry else "no industry supplied"])
+    run.append(["Charts show (starting)", START_WINDOW, "only the picture: no figure depends on it"])
     if dq:
         dqs = sorted(dq["data"])
         run.append(["Delinquency", ", ".join(dq["products"]),
@@ -1411,6 +1861,13 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         run.append(["Delinquency pickers (starting)", "%s, %s" % (dq["measure"], dq["basis"])])
     else:
         run.append(["Delinquency", "not built"])
+    run.append([])
+    run.append(["Acquisition quarters, per bank", "taken out of the book index without acquisitions (declared: "
+                "named at the build, not in the FDIC record)"])
+    for b in roster:
+        run.append([b["short"], ", ".join(q + (" (declared)" if d else "") for q, d in acq_of[b["cert"]])
+                    or "none"])
+        run.cell(run.max_row, 2).alignment = Alignment(wrap_text=True, vertical="top")
     run.append([])
     run.append(["Roster"])
     run.append(["Certificate", "Name", "Short", "Group", "Regional"])
@@ -1430,11 +1887,25 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         out = Path(out)
         wb.save(out)
         _na_as_gap(out)
+
+    def cols(block):
+        return {name: L(c) for name, c in block.col.items()}
+
     return {"path": out, "sheets": sheets, "products": products, "quarters": grid,
             "pack": [b["cert"] for b in peers if b["cert"] in in_pack],
             "data_rows": nrow - 1,
-            # Where the live lines are on Peers: first column of each helper
-            # block, and the row of the first quarter.
-            "peers_helpers": {name: L(c) for name, c in col.items()}, "peers_first_row": first,
+            # Where things are: the dashboard's rows and cells, and each
+            # view's helper columns on Workings (values from row 2).
+            "layout": dict(lay, pickers={key: picker_cell(key) for key, _, _, _ in PICKERS},
+                           settings_cells={key: setting_cell(key, NP) for key, _, _, _ in SETTINGS},
+                           include={b["short"]: include_cell(j) for j, b in enumerate(peers)}),
+            "scalars": dict(S),
+            "charge_offs": {"helpers": cols(co), "first_row": 2, "quarters": grid},
+            "book": {"helpers": cols(bk), "first_row": 2, "quarters": grid[base_k:]},
+            "lagged": {"helpers": cols(lg), "first_row": 2},
+            "mix": {"helpers": cols(mx), "first_row": 2, "years": years},
+            "banks": {"helpers": cols(pb), "first_row": 2},
+            "ranking": {"first_row": 2, "columns": dict(peer="L", on="M", kept="N", mean="O")},
             # None when not built; else its quarters, helper columns and first row.
-            "delinquency": d_info}
+            "delinquency": None if dl is None else {"quarters": dq["grid"], "products": dq["products"],
+                                                    "helpers": cols(dl), "first_row": 2, "data_rows": d_rows}}

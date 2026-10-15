@@ -45,10 +45,9 @@ PEERS_KEYS = ("cache", "roster", "series_dir", "first", "last", "products", "mer
               "lagged_years", "lag_years", "normalisation_years", "mix_base_year", "delinquency")
 PEERS_PATHS = ("cache", "roster", "series_dir", "mergers", "absorptions")
 #: The peer tabs' titles inside the book's workbook, which has its own Data, Glossary and Run.
-PEER_TAB_NAMES = {"Pack": "Peers pack", "Peers": "Peers", "Delinquency": "Peers delinquency",
-                  "Balances": "Peers balances", "Lagged": "Peers lagged", "Normalisation": "Peers normalisation",
-                  "Mix": "Peers mix", "Glossary": "Peers glossary", "Data": "Peers data",
-                  "DelinquencyData": "Peers delinquency data", "Run": "Peers run"}
+#: One dashboard (Peers) and its hidden Workings since 14 Oct 2026; before, one tab per view.
+PEER_TAB_NAMES = {"Peers": "Peers", "Workings": "Peers workings", "Glossary": "Peers glossary",
+                  "Data": "Peers data", "DelinquencyData": "Peers delinquency data", "Run": "Peers run"}
 
 
 class BookError(ValueError):
@@ -205,10 +204,9 @@ def build(book_path, out, say=print) -> dict:
     def tidy(wb):
         if blank.title in wb.sheetnames and blank.max_row == 1 and blank["A1"].value is None:
             wb.remove(blank)
-        order = ["Summary", "Decide", "Thresholds", "Assess", "Peers", "Peers delinquency", "Peers balances",
-                 "Peers pack", "Peers lagged", "Peers normalisation", "Peers mix", "Synthesis", "Chart",
+        order = ["Summary", "Decide", "Thresholds", "Assess", "Peers", "Synthesis", "Chart",
                  "Evidence", "Backtest", "Sources", "Glossary", "Peers glossary", "Run", "Peers run", "Data",
-                 "Peers data", "Peers delinquency data"]
+                 "Peers data", "Peers delinquency data", "Peers workings"]
         known = [wb[t] for t in order if t in wb.sheetnames]
         wb._sheets = known + [ws for ws in wb._sheets if ws not in known]
         wb.active = wb.sheetnames.index("Summary")

@@ -680,7 +680,7 @@ def test_a_real_build_through_run_writes_the_peer_workbook_and_opens_it(tmp_path
     assert out.path == tmp_path / "peers.xlsx" and opened == [out.path]
     assert out.lines[0].startswith("Wrote %s: Credit card" % out.path)
     wb = load_workbook(out.path)
-    assert wb.sheetnames[:2] == ["Pack", "Peers"]
+    assert wb.sheetnames[:2] == ["Peers", "Workings"]
     assert sorted(p.name for p in (tmp_path / "series").glob("*.csv")) == sorted(
         "credit-card_%s_%s.csv" % (who, kind) for who in ("pack-composite", "pack-median", "keybank", "industry")
         for kind in ("gross", "net"))
@@ -704,7 +704,8 @@ def test_build_with_delinquency_yes_writes_the_delinquency_series(tmp_path, monk
     for m in ("30-89", "90-plus-accruing", "nonaccrual", "90-plus-incl-nonaccrual", "30-plus-incl-nonaccrual"):
         assert "credit-card_industry_delinquency-%s_quarter-end.csv" % m in names, m
     assert any(x.startswith("Delinquency, Credit card:") for x in out.lines)
-    assert "Delinquency" in load_workbook(out.path).sheetnames
+    wb = load_workbook(out.path)
+    assert wb["DelinquencyData"]["A1"].value == "Product" and "dl_c" in wb["Peers"].defined_names
     assert opened == []                                      # open_after=False
 
 

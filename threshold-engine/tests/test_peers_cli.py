@@ -86,7 +86,7 @@ def built(tmp_path_factory, data):
 def test_build_writes_the_workbook_and_six_series_per_product(built):
     assert built["rc"] == 0
     wb = load_workbook(built["out"])
-    assert wb.sheetnames[:2] == ["Pack", "Peers"] and "Run" in wb.sheetnames
+    assert wb.sheetnames == list(peers_workbook.TABS) and wb["Workings"].sheet_state == "hidden"
     names = sorted(p.name for p in built["series"].glob("*.csv"))
     assert len(names) == 4 * 8
     for slug in ("credit-card", "mortgage", "home-equity", "other-consumer"):
@@ -438,11 +438,11 @@ def test_every_stated_setting_reaches_the_workbook(built, tmp_path, monkeypatch,
     assert out.exists() and not (tmp_path / "p.part.xlsx").exists()
 
 
-def test_a_declared_acquisition_reaches_the_balances_tab(built):
-    """Fifth Third's Dividend Finance (2022Q2) is listed as declared."""
-    ba = load_workbook(built["out"])["Balances"]
-    cells = [str(c.value) for row in ba.iter_rows() for c in row if c.value is not None]
-    assert any("2022Q2 (declared)" in c for c in cells)
+def test_a_declared_acquisition_reaches_the_run_tab(built):
+    """Fifth Third's Dividend Finance (2022Q2) is listed as declared among its
+    acquisition quarters, which the book index takes out."""
+    rows = {r[0]: r for r in load_workbook(built["out"])["Run"].iter_rows(values_only=True) if r and r[0]}
+    assert "2022Q2 (declared)" in rows["Fifth Third"][1]
 
 
 def test_the_regionals_pack_and_no_exemption(built, data, tmp_path, capsys):
@@ -467,9 +467,10 @@ def test_the_regionals_pack_and_no_exemption(built, data, tmp_path, capsys):
     assert [d for d, _ in rows] == [d for d, v in kept if v is not None][-len(rows):]
     assert len(rows) < 30                     # exempt, the card series runs 2018Q1 to 2026Q2 (34)
     assert not any("exempt" in n for n in notes)
-    pk = load_workbook(out)["Pack"]
-    include = {str(r[1].value): r[3].value for r in pk.iter_rows(min_row=1) if str(r[1].value).isdigit()}
-    assert {c for c, v in include.items() if v is True} == set(regionals)
+    pe = load_workbook(out)["Peers"]
+    names = {b["short"]: b["cert"] for b in roster}
+    on = {names[pe.cell(8, c).value] for c in range(3, 18) if pe.cell(9, c).value == "Yes"}
+    assert on == set(regionals) and pe.cell(9, 3).value == "No"             # JPMorgan starts switched off
 
 
 def test_a_series_that_ends_early_says_so(built, data, tmp_path, capsys):
@@ -736,7 +737,8 @@ def test_delinquency_yes_writes_every_product_measure_basis_and_series(dq_built)
     assert dq == want and len(dq) == 200
     assert len(names - dq) == 5 * 4 * 2
     wb = load_workbook(dq_built["out"])
-    assert "Delinquency" in wb.sheetnames and "DelinquencyData" in wb.sheetnames
+    assert wb["DelinquencyData"]["A1"].value == "Product"                 # built, not the not-built line
+    assert "dl_c" in wb["Peers"].defined_names
 
 
 def test_a_delinquency_csv_is_the_module_over_the_cache(dq_built):
@@ -840,8 +842,10 @@ def test_delinquency_no_writes_none_and_the_tab_says_so(dq_cache, tmp_path, caps
     rc, out, series = build_into(tmp_path, cache, args)
     assert rc == 0, capsys.readouterr().err
     assert not list(series.glob("*_delinquency-*")) and len(list(series.glob("*.csv"))) == 8
-    cells = [str(c.value) for row in load_workbook(out)["Delinquency"].iter_rows() for c in row if c.value]
-    assert any(peers_workbook.NOT_BUILT in c for c in cells)
+    wb = load_workbook(out)
+    for tab in ("Peers", "DelinquencyData"):
+        cells = [str(c.value) for row in wb[tab].iter_rows() for c in row if c.value]
+        assert any(peers_workbook.NOT_BUILT in c for c in cells), tab
 
 
 def test_delinquency_yes_over_a_cache_pulled_without_it_is_refused(built, tmp_path, capsys):

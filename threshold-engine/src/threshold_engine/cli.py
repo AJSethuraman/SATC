@@ -249,7 +249,8 @@ def _peers_parser(sub):
                    help="acquisitions the FDIC record does not show, e.g. 6672=2022Q2; "
                         "give the flag with nothing after it to state there are none")
     w.add_argument("--delinquency", required=True, type=_yes_no, metavar="yes|no",
-                   help="yes: also the Delinquency tabs and, per product, measure and basis, the "
+                   help="yes: also the delinquency view on the Peers tab, DelinquencyData and, per product, measure "
+                        "and basis, the "
                         "delinquency CSVs, under the rules below (the cache must hold the fields)")
     w.add_argument("--industry-combined", required=True, nargs="*", metavar="PRODUCT+PRODUCT",
                    help="industry series for products summed together, e.g. \"Other consumer+Auto\"; "

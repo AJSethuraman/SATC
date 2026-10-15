@@ -46,39 +46,17 @@ One command reads every product and writes one Excel file. Python works out
 the statistics once. The lines are live Excel formulas, so they move when the
 bank changes a setting.
 
+One dashboard tab, **Peers** (red), and the tabs it reads. Since 14 Oct 2026
+(the firm: *"it is annoying to flip between stuff for peer analysis - can't they
+all exist on one tab with filters like a dashboard at the top?"*); before, each
+view was a tab of its own.
+
 | Tab | What it holds | Live? |
 |---|---|---|
-| **Thresholds** | Per product: median kept, typical yearly move, worst kept, the four lines where scores 2–5 begin, the latest value, its score and rating, and a Check column that says why it refuses when it does | Yes |
-| **Assess** (red; first, and it opens here) | Where the bank works, on one screen (Claude Design's layout, 13 Oct 2026). Top: the product picker, the latest quarter, value and score, and the Check, which says why it refuses and what to type to fix it. Left: the chart, five score bands behind every quarter, the latest quarter marked, left-out quarters as grey dots over a dark strip; under it, what the evidence says. Right: **Scores for** the product (lines and quarters in each score), **Your settings** (one row per product, the picked one highlighted, each row's own Check) and **Periods left out** (up to 12 rows from dropdowns of real quarters, a Status that says what is missing). Every input cell explains itself when selected. Below: **What happens if** (your lines against keeping every quarter, table and chart), what the lines rest on, what each setting does, and a **dial** per setting with its chart beside it | Inputs, and live |
-| **Chart** | Any combination of products on one scale, switched on and off, with one product's lines drawn | Yes |
-| **Evidence** | Per product: each spell above the median with its robust z, how often history was that bad, its deepest dip, and the temporary departures (stretches that left their path and came back) | No, written at build |
-| **Backtest** | How predictive a percentile scale would have been, rebuilt each quarter from the history up to and including that quarter, never after | No |
-| **Sources** | What each series' file says about itself, printed as written: what is measured, who is in it, the Call Report lines where they apply, numerator, denominator, basis, period and source. A key every file should give (measure, as of, basis, source) and this one does not is marked *Not stated in the file*, never filled in. The same for public files and the bank's template files | No |
-| **Synthesis** (red; only when built with `--synthesis`) | Per series given synthesis inputs: where each colour starts according to internal, industry and peers, side by side; which one each line is taken from (yours); the chosen lines; the latest quarter rated on them; the competitive check; and a Check that refuses in `synthesis.py`'s words. Section "Synthesis" below | Inputs, and live |
-| **Glossary** | 45 terms: what each means and exactly how it is calculated | No |
-| **Data** | Every series on one quarterly calendar, the quarters kept, and the working columns behind the live formulas | Yes |
-| **SynthesisData** (only with `--synthesis`) | The industry, KeyBank filed and peer series on one unbroken quarterly calendar, with the working columns the Synthesis formulas read | Yes |
-| **Run** | Engine version, build time, every setting's starting value, each input file's SHA-256 fingerprint, and the leave-out decisions and reasons, live (and the synthesis choices, when built with them) | Partly |
-
-**The scale** (`scale.py` is the Python reference the formulas are tested
-against):
-
-| Score begins | Calculation |
-|---|---|
-| 2 Moderate-Low | median − step × typical yearly move |
-| 3 Moderate | median − half-width × typical yearly move |
-| 4 Moderate-High | median + half-width × typical yearly move |
-| 5 High | median + z × spread of levels |
-
-The median, the typical yearly move (1.4826 × the median absolute deviation of
-every four-quarter change with both ends kept) and the spread of levels (1.4826
-× the median absolute deviation of the quarters kept) are taken over the
-quarters kept. For a measure where lower is worse, the signs swap.
-
-**It refuses, in the Check column, when:** the median is at or below zero (for
-a measure floored at zero); Moderate-Low would not begin below Moderate; High
-would not begin beyond Moderate-High; High would begin beyond the worst quarter
-kept (nothing could rate High); or Moderate-Low would begin at or below zero.
+| **Peers** (red) | At the top, yellow cells: product, charge-off rate (net or gross), Peer A and Peer B (any peer, or best/worst in pack), what the charts show (all quarters, or the last 80, 48 or 20), the delinquency measure and basis, a Yes/No under every peer for whether it is in the pack, and how best and worst are ranked and how many banks a composite needs. Under them: the headline numbers (KeyBank, the pack, KeyBank's rank, the industry), the charge-off chart (pack band, composite, KeyBank, Peer A, Peer B, industry), the delinquency chart, the book-size chart (each bank's book indexed, the pack's band and median), lagged rates with the pack total, how far each rate moved, the mix against the industry, and every bank's row. Switching a bank off moves every view with a pack in it. | Yes |
+| **Workings** (hidden) | The live helpers every view reads, and the per-year values the lagged and mix views pick from | Yes |
+| **DelinquencyData** | Every bank, product, measure and quarter: numerator, balance, rate, four-quarter average, why a value is missing, and whether the composite's average left the bank out | No |
+| **Glossary**, **Data**, **Run** | Terms, including **Left out, and why**: one row per reason a number is kept out, saying why and where each is recorded; every bank's flows, rates and book index with why a quarter was left out; sources, pull dates, fingerprints, rules and each bank's acquisition quarters | — |
 
 **What proves it:**
 - The formulas are recalculated in the tests with the `formulas` engine, and
@@ -326,9 +304,9 @@ is now built in and tested. The last two rows are still one-offs.
 |---|---|---|
 | FDIC pulls 2006–2026 and 1992–2026; merger history | Now `peers pull`. The evidence-pack scripts remain as the earlier record | Yes, in the tool |
 | Peer gross and net rates, composite, best and worst | Now `peers build`, Peers tab | Yes, in the tool |
-| Balance trends, growth without acquisitions | Now the Balances tab | Yes, in the tool |
-| KeyBank other consumer mix (Laurel Road) | Now the Mix tab | Yes, in the tool |
-| Card post-Covid normalisation, lagged rates | Now the Normalisation and Lagged tabs | Yes, in the tool |
+| Balance trends, growth without acquisitions | Now the book-size view on the Peers tab | Yes, in the tool |
+| KeyBank other consumer mix (Laurel Road) | Now the mix view on the Peers tab | Yes, in the tool |
+| Card post-Covid normalisation, lagged rates | Now the lagged and how-far-it-moved views on the Peers tab | Yes, in the tool |
 | Industry series (other consumer as filed and with auto) | Now `peers build --industry-combined` | Yes, in the tool |
 | Federal Reserve "other consumer" series, read from the charge-off release | `fedco/`. Parsed inline, with no script kept | Partly |
 | Seven-option comparison of card scales, High before and after | Inline only, `make_high.py` for the page | Partly |

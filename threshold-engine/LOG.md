@@ -1282,3 +1282,91 @@ all night basically"*.
   picture and fixed; the peer-tabs agent's tests were written against main's
   older peers code and failed on this branch (16 and 5 errors), handed to the
   dashboard work to fix.
+## 14 October 2026, the peers on one tab: a dashboard
+
+The firm, looking at the peer tabs in the built workbook: *"it is annoying to
+flip between stuff for peer analysis - can't they all exist on one tab with
+filters like a dashboard at the top?"*, *"peers balances do not follow peer
+pack stuff so i cant turn off like JPM"*, *"same with peers lagged and
+normalized"*, and *"these views look crazy bad formatting-wise, does this have
+to go to design again"*. Redesigned, not patched.
+
+**What the bank now sees.** One red tab, **Peers**. At the top, yellow cells:
+product, charge-off rate (net or gross), Peer A and Peer B, Chart shows (all,
+last 80, 48 (the start, the firm's own) or 20 quarters), the delinquency
+measure and basis, a Yes/No under each of the fifteen peers, and the ranking
+settings. Under them: headline numbers (KeyBank latest, pack latest, KeyBank's
+rank among the banks switched on, industry latest; the same for delinquency),
+then the views in a two-column grid: charge-offs (band, composite, KeyBank,
+Peer A and B, and now the industry), delinquency, book size, lagged rates,
+how far each rate moved, against the industry, and every bank's row. 16
+columns, 1,100 pixels wide at 100%. The old Pack, Peers, Delinquency,
+Balances, Lagged, Normalisation and Mix tabs are gone; **Workings** (hidden)
+holds the live helpers; Glossary, Data, DelinquencyData and Run stay.
+
+**Why Balances, Lagged and Normalisation ignored JPMorgan switched off.** They
+were values written once by Python: Balances listed every bank, Lagged's
+"All peers, total" and Normalisation's "All-peer composite" were over every
+peer whatever Include said, and none had a formula reading Include. Now:
+the book-size view draws the band and median of the indexes of the banks
+switched on; the lagged pack total is SUMIF over the banks switched on
+(blank if any of them lacks a year, as before); the normalised pack
+composite is worked from the live composite. Mix has no pack in it (KeyBank
+against the industry); it follows the product and Peer A and B.
+
+**Decisions taken here, each the firm's to overturn.**
+- One product picker for every view. A delinquency product the charge-offs
+  were not built for is listed too; the charge-off views then say so in
+  words. Best and worst are ranked on that product's charge-offs.
+- The book-size view's "pack" is the median of the indexes of the banks
+  switched on (each bank once), with the 10th-90th and 25th-75th band: a
+  percentile, as the rate band is, not a new aggregate.
+- Normalisation follows the rate picker (net or gross); Lagged and Mix are
+  net by definition and say so.
+- A base quarter before the first TTM quarter is now refused, in words: the
+  book index is drawn on the TTM quarters.
+- Each bank's acquisition quarters moved to the Run tab (the bank table had
+  First Citizens' nineteen wrapping the rows).
+
+**Proof.**
+- tests/test_peers_workbook.py (rewritten for the dashboard), recalculated
+  with `formulas`: switching JPMorgan off moves the composite, band, best and
+  worst, book-size band and median, lagged pack total, normalised pack
+  composite and the headline numbers, each equal to the module over the
+  other fourteen. 62 passed.
+- tests/test_peers_dashboard.py (new): every view against the builder it
+  replaced (tests/data/peers/peers_workbook_642ff55f.py, copied unchanged),
+  with every bank on: net and gross charge-offs, best/worst and the ranking
+  window, delinquency, the book index, lagged rates and the pack total,
+  normalisation, the mix. And "Chart shows" at 20 changes only the window
+  cells the named ranges read. 9 passed.
+- tests/test_peers_into.py: **the standalone pin is retired** (it compared
+  the .xlsx part for part with d1e353a1's; this change alters the standalone
+  output on purpose, and the pin said to retire it then). It was also failing
+  on this branch before this work (16 failed, 5 errors: written against
+  older signatures). Now: the series CSVs `peers build` writes are byte for
+  byte the old builder's run's (over 100 files, banks/ included); into a host
+  with its own Data, Glossary and Run every peer cell recalculates to the
+  standalone value; refusals and foreign_refs as before. 28 passed.
+- Excel 16 over COM, the real cache with books/consumer-public.json's
+  settings: 0 visible error cells before and after.
+  Headline strip, card net, before -> after JPMorgan is switched off: KeyBank
+  3.76 -> 3.76; pack 3.54 -> 3.81; KeyBank's rank 6 of 11 -> 5 of 10;
+  industry 4.01 -> 4.01; delinquency (card, 30-89, quarter-end) KeyBank 0.92
+  -> 0.92, pack 1.33 -> 1.48, rank 4 of 13 -> 3 of 12, banks with a rate 12
+  -> 11. One value per view: lagged pack total 2025 4.97 -> 5.42; normalised
+  pack ratio 1.14 -> 1.25; book-size pack median 104 -> 101; mix own factor
+  2025 1.09 -> 1.09 (no pack in it); best in pack JPMorgan -> Bank of America.
+  The charge-off chart draws 2014Q3 to 2026Q2, 48 quarters.
+- `book`: the dashboard inside the thresholds workbook (PEER_TAB_NAMES now
+  Peers, Peers workings, Peers glossary, Peers data, Peers delinquency data,
+  Peers run): 17 tabs, Peers fifth, Peers workings hidden at the
+  end; 0 visible error cells on 14 visible tabs before and after; the same
+  reads as standalone, before and after; the notes name "the Peers data tab".
+
+**Not done.** The full suite was not run (an hour); the peers, book and
+launcher tests were. tests/test_launcher.py::test_too_little_history_for_the_
+backtest_comes_back_from_the_real_build fails, and is not about the peers:
+642ff55f ("life to date") made a short series keep its lines instead of
+refusing, and the test still expects the refusal (it fails the same at
+642ff55f, checked in a clean worktree).

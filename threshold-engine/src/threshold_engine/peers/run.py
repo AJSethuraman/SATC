@@ -520,7 +520,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     is ``CERT=YYYYQn`` items and ``industry_combined`` ``PRODUCT+PRODUCT``
     items, each an empty list to state there are none. ``delinquency`` True
     pulls the delinquency fields out of the cache too (refused, by field, if
-    the cache was pulled without them), draws the Delinquency tabs, and writes
+    the cache was pulled without them), draws the delinquency view, and writes
     per product, measure and basis the pack composite, the bank and the
     industry; False draws tabs that say it was not built and writes none.
 

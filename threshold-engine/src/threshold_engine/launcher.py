@@ -14,8 +14,9 @@ imported, so this project lifts out whole):
     5. Peers      optional: the cache folder, the roster, the quarters, the
                   products, whether delinquency and nonaccrual are included,
                   and every rule `peers build` requires. Pull fills the cache
-                  from the FDIC; Build writes the peer workbook and its series
-                  CSVs. Both call ``peers/run.py``, the same two functions
+                  from the FDIC; Build writes the peer workbook (one Peers
+                  dashboard: filters at the top, every view under them) and
+                  its series CSVs. Both call ``peers/run.py``, the same two functions
                   `peers pull` and `peers build` call, so the window and the
                   command line cannot drift (docs/V1-ROUND2-SPEC.md, section C)
 
@@ -1115,7 +1116,7 @@ def window(root) -> dict:
                     label(box, "  " + p, size=12, fg=CRIMSON).pack(anchor="w")
         if not any(wants.values()):
             label(box, "Everything is stated. Pull fills the cache; Build writes the peer workbook "
-                       "and opens it.", fg=SLATE).pack(anchor="w")
+                       "(one Peers tab: pick at the top, every chart and table follows) and opens it.", fg=SLATE).pack(anchor="w")
 
     def draw_peers():
         heading("Peers", "Optional. The bank against its peers, from public FDIC Call Reports. Pull "
@@ -1171,7 +1172,9 @@ def window(root) -> dict:
         peer_choice(body, "Quarters already in the cache (--refresh)", "refresh", PEER_REFRESH)
 
         section(body, "Build")
-        peer_text(body, "Peer workbook", "out", "The .xlsx Build writes.", browse="save")
+        peer_text(body, "Peer workbook", "out", "The .xlsx Build writes: one Peers tab, a dashboard. Its "
+                  "yellow cells (product, rate, Peer A and B, how many quarters the charts show, which banks are "
+                  "in the pack) start from the settings below and can be changed there.", browse="save")
         peer_text(body, "Series folder (--series-dir)", "series_dir", "Where the date,value CSVs go, for "
                   "the Series step.", browse="folder")
         peer_text(body, "Merger file (--mergers)", "mergers_file", "{cert: [quarter-end dates]}, as Pull "
@@ -1197,7 +1200,7 @@ def window(root) -> dict:
                   "whose rate is kept; for delinquency, the quarter-end balance.")
         peer_choice(body, "Is the bank itself exempt from the minimum? (--exempt-self)", "exempt_self",
                     PEER_EXEMPT)
-        peer_choice(body, "Pack (--pack)", "pack", PEER_PACK)
+        peer_choice(body, "Pack to start with (--pack): the banks whose Yes/No starts Yes", "pack", PEER_PACK)
         peer_text(body, "Banks a composite needs (--min-banks)", "min_banks", "Kept banks a composite or "
                   "band needs; a whole number.")
         peer_choice(body, "Best and worst are ranked by (--rank-by)", "rank_by", PEER_RANK_BY)
@@ -1205,7 +1208,7 @@ def window(root) -> dict:
         peer_text(body, "Quarters to be ranked (--min-obs)", "min_obs", "Kept quarters a bank needs to "
                   "be ranked.")
 
-        section(body, "The side analyses")
+        section(body, "The other views on the Peers tab")
         peer_text(body, "Balance index base (--base-quarter)", "base_quarter", "Written like 2019Q4.")
         peer_text(body, "Smallest book indexed (--index-min-book)", "index_min_book", "In $000, at the base.")
         peer_text(body, "Lagged years (--lagged-years)", "lagged_years", "Whole years separated by spaces.")

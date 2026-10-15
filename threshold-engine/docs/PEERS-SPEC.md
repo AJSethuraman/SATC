@@ -171,21 +171,29 @@ Definitions, each a pure function over `books` and `data` output.
 ### `peers_workbook.py`: the peer workbook (Excel, PocketBook conventions)
 Written with openpyxl and `keybank_style` like `workbook.py`. The choices are
 live cells and the results are formulas wherever practical.
-- **Pack** (red tab): every roster peer with an Include cell (TRUE/FALSE,
-  starting from a required argument: all peers or regionals), its regional
-  flag, a product picker, and two picker cells (Peer A and Peer B), each taking
-  any peer, "Worst in pack" or "Best in pack".
-- **Peers:** for the picked product, gross and net charts. The pack band
-  (10th–90th and 25th–75th, live from the included peers through helper cells
-  holding the value or blank), the live pack composite (included flows over
-  included balances), KeyBank, Peer A and Peer B, and a caption naming who
-  best and worst resolved to.
-- **Balances:** balance index as reported and without acquisitions for every
-  bank (values from `analyses`), KeyBank highlighted, and the acquisition
-  quarters listed.
-- **Lagged, Normalisation, Mix:** tables of values from `analyses`.
+- **Peers** (red tab), a dashboard, since 14 Oct 2026 (it replaced the Pack,
+  Peers, Delinquency, Balances, Lagged, Normalisation and Mix tabs). Filters at
+  the top in yellow cells: the product, the charge-off rate (net or gross),
+  Peer A and Peer B (any peer, "Worst in pack" or "Best in pack"), what the
+  charts show (all quarters or the last 80, 48 or 20; only the picture), the
+  delinquency measure and basis, a Yes/No under every peer (starting from a
+  required argument: all peers or regionals), how best and worst are ranked
+  and how many banks a composite or band needs. Under them, every view
+  follows the same filters: the headline numbers; the charge-off chart (the
+  pack band, 10th-90th and 25th-75th, the live pack composite, KeyBank, Peer
+  A, Peer B and the industry); the delinquency chart; the book-size chart
+  (each bank's book indexed, without acquisitions; the band and median of
+  the banks switched on); lagged rates for KeyBank, Peer A, Peer B and the
+  pack total of the banks switched on; how far each rate moved for the same
+  four (the pack's from the live composite); the mix (KeyBank against the
+  industry, and Peer A's and B's own factor); and every bank's row. The
+  charts read OFFSET names, so each draws only the quarters picked and its
+  axis fits them.
+- **Workings** (hidden): the live helpers, and the per-year values the
+  lagged and mix views pick from by product.
 - **Data:** per bank, product and quarter: gross, recoveries, average balance,
-  rates, kept, why.
+  rates, kept, why, and the book index from the base (as reported and without
+  acquisitions).
 - **Run:** sources, pull dates, the cache fingerprints, roster, and the rules
   (jump, minimum book) as stated.
 - **Glossary:** this workbook's terms (structural move, pack, composite, band,
@@ -193,8 +201,9 @@ live cells and the results are formulas wherever practical.
   `peers/glossary.py`. **Do not edit `glossary.py`.**
 - **Tests:** recalculated with `formulas` (as `tests/test_workbook.py` does).
   The live composite equals `books.composite` for the all-peers and regionals
-  packs; flipping one Include changes it to `books.composite` without that
-  bank; the band equals `books.band`.
+  packs; switching one bank off changes every pack figure to the module's
+  without that bank; the band equals `books.band`. `tests/test_peers_dashboard.py`
+  holds every view against the one-tab-per-view builder it replaced.
 - **Into another workbook** (added 14 Oct 2026, so the thresholds workbook and
   the peers are one file built by Python alone, with no Excel at build time):
   `build_peers_workbook(None, ..., into=wb, names={tab: title})`, and the same
@@ -204,10 +213,11 @@ live cells and the results are formulas wherever practical.
   the host already has is refused (its Data, Glossary and Run would otherwise
   be read by the peers' formulas). Formulas name tabs only through `_Tabs`,
   and `foreign_refs` stops the build if any reference on a peer tab names
-  another tab. Proved by `tests/test_peers_into.py`: the standalone file is
-  part-for-part what the builder at d1e353a1 wrote, and into a host with its
-  own Data, Glossary and Run every peer cell recalculates to its standalone
-  value.
+  another tab. Proved by `tests/test_peers_into.py`: into a host with its own
+  Data, Glossary and Run every peer cell recalculates to its standalone value,
+  and the series CSVs `peers build` writes are byte for byte the ones the
+  one-tab-per-view builder's run wrote. (Its earlier pin, the standalone file
+  part for part as at d1e353a1, was retired with the dashboard, 14 Oct 2026.)
 
 ### `cli.py` additions (the integration step, after the modules)
 - `threshold-engine peers pull --cache DIR --first 2006Q1 --last 2026Q2`
