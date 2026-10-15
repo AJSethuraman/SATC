@@ -147,7 +147,7 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
             ws.merge_cells(start_row=r + i, start_column=1, end_row=r + i, end_column=last_col)
             c.alignment = Alignment(wrap_text=True, vertical="top")
             ws.row_dimensions[r + i].height = 28
-    widths = [16, 34] + [10, 17] * len(cols) + ([17] if compare else [])
+    widths = [16, 34] + [10, 21] * len(cols) + ([17] if compare else [])        # "Not in this workbook" fits
     for i, w in enumerate(widths):
         ws.column_dimensions[L(i + 1)].width = w
     ws.freeze_panes = "C7"

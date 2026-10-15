@@ -187,8 +187,16 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     for label, path in series:
         pts = read_series(Path(path))
         ev = evidence(pts, label, unit, direction, frequency, smoothing, None, floor_at_zero)
-        bt = backtest(pts, label, unit, direction, frequency, smoothing, percentiles,
-                      horizon, min_history, floor_at_zero, half_lives)
+        # Life to date (the firm, 14 Oct 2026): a series shorter than the
+        # backtest needs keeps its lines; only its backtest says it was not run.
+        try:
+            bt = backtest(pts, label, unit, direction, frequency, smoothing, percentiles,
+                          horizon, min_history, floor_at_zero, half_lives)
+        except ValueError as exc:
+            if "at least min_history" not in str(exc):
+                raise
+            bt = {"not_tested": "Not tested: %s, so there is no quarter with %d before it and %d after it"
+                                % (exc, min_history, horizon), "runs": []}
         # Smoothing comes before anything else, as the window says: the live
         # lines, the latest value and the score are built from the series the
         # evidence and backtest use, never from the raw file beside it.
@@ -377,6 +385,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         th.column_dimensions[c_].hidden = True
     for c_, w in zip("ABCDEFGHIJKLM", (15, 11, 11, 11, 11, 11, 11, 11, 10, 10, 8, 15, 70)):
         th.column_dimensions[c_].width = w
+    # A label must be read whole: "Credit card - Nonaccrual - KeyBank" and its
+    # industry and peer twins differ only at the end (the tie-out, 14 Oct 2026).
+    th.column_dimensions["A"].width = max(th.column_dimensions["A"].width or 0,
+                                          min(60, 2 + max(len(s["label"]) for s in loaded)))
     for r in range(5, 5 + n):
         th.row_dimensions[r].height = 15
         K.hairlines(th, r, 1, 13)
@@ -582,6 +594,11 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                     + ["%d" % k for k in range(1, n_scores + 1)] + ["Quarters tested"], right_from=2)
     r = 6
     for s in loaded:
+        if s["bt"].get("not_tested"):
+            bts.cell(r, 1, s["label"]).font = DATA_F
+            bts.cell(r, 2, s["bt"]["not_tested"]).font = DATA_F
+            K.hairlines(bts, r, 1, width)
+            r += 1
         for run_ in s["bt"]["runs"]:
             vals_ = [s["label"], "none" if run_["half_life_years"] is None else "%g-yr half-life"
                      % run_["half_life_years"], run_["score_vs_level_ahead"], run_["score_vs_change_ahead"],
@@ -752,6 +769,12 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         dec = DT.build(wb, labels=labels, parts=decide["parts"], part_names=decide["names"], settings=settings,
                        lay=lay, n_quarters=len(grid), absent=decide["absent"], compare=decide["compare"],
                        unit=unit)
+        # Decide is where the bank types and looks, so Assess (whose cells
+        # Decide feeds) and Chart (every series on one scale, 95 switches)
+        # are kept for their workings but hidden (the firm, 14 Oct 2026: "doesnt
+        # this just look ridiculous"). Unhide them from any tab's right-click menu.
+        wb["Assess"].sheet_state = "hidden"
+        wb["Chart"].sheet_state = "hidden"
         order = ["Summary", "Decide", "Thresholds", "Assess", "Synthesis"]
         rest = [ws for ws in wb._sheets if ws.title not in order]
         wb._sheets = [wb[t] for t in order if t in wb.sheetnames] + rest

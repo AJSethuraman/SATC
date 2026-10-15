@@ -26,26 +26,14 @@
     "Source"
   ],
   "series": "consumer-public-series.csv",
-  "not_in_book": [
-    {
-      "Product": "*",
-      "Measure": "Net charge-offs",
-      "Source": "KeyBank",
-      "why": "KeyBank's own charge-off history restarts in 2018Q1, after the First Niagara acquisition (2016Q4) breaks it: 34 quarters to 2026Q2, and the workbook needs at least 45."
-    },
-    {
-      "Product": "*",
-      "Measure": "Gross charge-offs",
-      "Source": "KeyBank",
-      "why": "KeyBank's own charge-off history restarts in 2018Q1, after the First Niagara acquisition (2016Q4) breaks it: 34 quarters to 2026Q2, and the workbook needs at least 45."
-    }
-  ],
+  "not_in_book": [],
   "compare": [
     "KeyBank",
     "Peer group (15 banks)"
   ],
   "notes": [
     "Industry: every bank filing a Call Report, added together. Peer group: the 15 banks on the Peers tab, added together. Charge-offs are trailing twelve months; delinquency is at quarter-end.",
+    "KeyBank's charge-offs start in 2018Q1, after the First Niagara acquisition (2016Q4) breaks its history; its charge-off lines rest on those quarters alone (life to date), and its Backtest says where there were too few to test.",
     "Settings: the ones agreed for credit card, applied to every series as a starting point; change them on Decide.",
     "Credit card before 2010: cards a bank had securitized were off its books, so those quarters are labelled, not dropped."
   ],

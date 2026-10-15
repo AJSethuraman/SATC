@@ -355,8 +355,9 @@ def _template(a):
     # rather than promising a build the check cannot know about.
     n = len(_read(a.file))
     print("OK: %s passes template %s (%s): %d quarters. It is an ordinary series for the workbook "
-          "command's --series, which builds from it only when --min-history + --horizon + "
-          "--smoothing - 1 is %d or less." % (a.file, a.key, T.TEMPLATES[a.key].title, n, n))
+          "command's --series; its backtest runs only when --min-history + --horizon + "
+          "--smoothing - 1 is %d or less, and otherwise says it was not tested." % (a.file, a.key,
+                                                                                     T.TEMPLATES[a.key].title, n, n))
     return 0
 
 

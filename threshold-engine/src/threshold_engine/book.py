@@ -193,9 +193,10 @@ def build(book_path, out, say=print) -> dict:
     out = Path(out)
     host = Workbook()
     blank = host.active
+    peer_tabs = None
     if bk["peers"] is not None:
         from .peers import run as peers_run
-        peers_run.build(None, into=host, names=PEER_TAB_NAMES, say=say, **bk["peers"])
+        peer_tabs = peers_run.build(None, into=host, names=PEER_TAB_NAMES, say=say, **bk["peers"])["info"]["sheets"]
         missing = [(lbl, p) for lbl, p in bk["series"] if not p.exists()]
         if missing:
             raise BookError("\n".join("the file for %r was not written by the peers build either: %s" % m
@@ -214,4 +215,9 @@ def build(book_path, out, say=print) -> dict:
         for ws in wb.worksheets:
             ws.sheet_view.tabSelected = ws.title == "Summary"
 
-    return WB.build(out, bk["series"], decide=bk["decide"], into=host, before_save=tidy, **bk["workbook"])
+    info = WB.build(out, bk["series"], decide=bk["decide"], into=host, before_save=tidy, **bk["workbook"])
+    if peer_tabs:
+        # The peer charts draw a missing quarter as a gap, which is set on the saved file.
+        from .peers.peers_workbook import na_as_gap
+        na_as_gap(out, peer_tabs)
+    return info

@@ -16,11 +16,14 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from openpyxl.chart import AreaChart, LineChart, Reference
+from openpyxl.chart import AreaChart, LineChart
+from openpyxl.chart.data_source import AxDataSource, NumDataSource, NumRef, StrRef
+from openpyxl.chart.series import Series, SeriesLabel
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter as L
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from . import keybank_style as K
@@ -29,6 +32,8 @@ TITLE = "Decide"
 TABLE = "Decisions"
 HDR = 12                                  # the table's header row; the slicers sit in rows 3-11
 SLICER_ROWS = (3, 11)
+#: What the chart can show; the lines never depend on it.
+WINDOWS = ("All quarters", "Last 80 quarters", "Last 48 quarters", "Last 20 quarters")
 #: Where the three slicers sit, as (from_col, from_row, to_col, to_row), 0-based
 #: cells: over B-C, D-H and I-L, from row 3 to the table's header.
 SLICER_ANCHORS = ((1, 2, 3, 11), (3, 2, 8, 11), (8, 2, 12, 11))
@@ -44,6 +49,8 @@ SETTING_COLS = (("Width of Moderate", "O"), ("Moderate-Low begins", "P"), ("How 
 #: Assess's evidence text per series (assess_tab: hc + 18..20 with hc at Z).
 EVIDENCE_COLS = (("Suggested", "AR"), ("Unusual stretches", "AS"), ("Why", "AT"))
 SCALE = ("D9EAD3", "EEF2C6", "FCE8B2", "F6C9A4", "E6A0A0")
+#: The lines laid over the chart, one per source, in the colour of its name in the table.
+OVERLAY = ("1F5F99", "2E7D4F", "8A5A00", "6B3FA0", "007C80")
 H = 27                                    # hidden helpers from column AA
 CH = 32                                   # chart helpers from column AF
 INK, SLATE = K.INK_TEXT, K.SLATE
@@ -54,6 +61,11 @@ F_BIG = Font(name="Calibri", size=14, bold=True, color=INK)
 F_LAB = Font(name="Arial", size=9, bold=True, color=SLATE)
 F_ALERT = Font(name="Calibri", size=12, bold=True, color=K.CRIMSON)
 YELLOW_EDGE = Side(style="thin", color="D6B656")
+
+
+#: Thresholds' refusal for a half-typed period says to look on Assess; on Decide the cells are here.
+HERE = ('SUBSTITUTE(SUBSTITUTE({m},"its Status on Assess says what is missing","fill in Leave out from, Leave out to '
+        'and Why left out in its row on Decide"),"Finish that row under Periods left out","Finish its row on Decide")')
 
 
 def fill(hex_):
@@ -142,8 +154,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ws.cell(r, C["Decision"], DECISIONS[0])
         for (name, _), v in zip(SETTING_COLS, settings[lab]):
             ws.cell(r, C[name], v)
-        ws.cell(r, C["Check"], '=IF(Thresholds!$M${t}="","OK",Thresholds!$M${t}&". To fix: "&Thresholds!$U${t})'
-                .format(t=5 + i))
+        ws.cell(r, C["Check"], '=IF(Thresholds!$M${t}="","OK",{m}&". To fix: "&{u})'
+                .format(t=5 + i, m=HERE.format(m="Thresholds!$M$%d" % (5 + i)),
+                        u=HERE.format(m="Thresholds!$U$%d" % (5 + i))))
         ws.cell(r, C["Series"], lab)
         ws.cell(r, C["Shown"], "=SUBTOTAL(103,%s%d)" % (L(C["Series"]), r))
         # 1, 2, 3 down the rows with anything typed under Leave out: Assess's
@@ -184,8 +197,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                                   FormulaRule(formula=['%s="%s"' % (dec, DECISIONS[1])], fill=fill(SCALE[0])))
     ws.conditional_formatting.add(rng("Decision").replace("$", ""),
                                   FormulaRule(formula=['%s="%s"' % (dec, DECISIONS[2])], fill=fill("F8D7D7")))
-    widths = {p0: 13, p1: 17, p2: 13, "Decision": 15, "Width of Moderate": 9, "Moderate-Low begins": 9,
-              "How rare High is (z)": 9, "On a line, rate it": 8, "Leave out from": 9, "Leave out to": 9,
+    # Wide enough that a header still reads beside its filter arrow.
+    widths = {p0: 13, p1: 17, p2: 13, "Decision": 15, "Width of Moderate": 12, "Moderate-Low begins": 13,
+              "How rare High is (z)": 12, "On a line, rate it": 11, "Leave out from": 11, "Leave out to": 11,
               "Why left out": 18, "Note": 24, "Check": 30, "Series": 4, "Shown": 4, "Left out no.": 4}
     for name, w in widths.items():
         ws.column_dimensions[L(C[name])].width = w
@@ -278,6 +292,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     ws.cell(cmp_r, 5, "Latest").font = F_LAB
     ws.cell(cmp_r, 6, "Rating").font = F_LAB
     ws.cell(cmp_r, 8, "Decision").font = F_LAB
+    ws.cell(cmp_r, 10, "On chart").font = F_LAB
     third = []
     for lab in labels:
         v = parts[lab][2]
@@ -301,9 +316,19 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ws.cell(r, 8, '=IF({c}<>1,"",IFERROR(INDEX({d},MATCH({l},{s},0)),""))'.format(c=COUNT, d=D, l=lab,
                                                                                        s=SER)).font = F_BODY
         ws.merge_cells(start_row=r, start_column=8, end_row=r, end_column=9)
+        on = ws.cell(r, 10, "No")
+        on.fill = fill("FFF2CC")
+        on.border = Border(YELLOW_EDGE, YELLOW_EDGE, YELLOW_EDGE, YELLOW_EDGE)
+        on.font = F_BOLD
+        on.alignment = Alignment(horizontal="center")
+        ws.cell(r, 2).font = Font(name="Calibri", size=11, bold=True, color=OVERLAY[i % len(OVERLAY)])
         for cc in range(2, 10):
             ws.cell(r, cc).border = Border(bottom=Side(style="thin", color="D9D4CB"))
     last_cmp = cmp_r + len(third)
+    dv_on = DataValidation(type="list", formula1='"Yes,No"', showErrorMessage=True, errorTitle="On chart",
+                           error="Yes or No.")
+    ws.add_data_validation(dv_on)
+    dv_on.add("J%d:J%d" % (cmp_r + 1, last_cmp))
     for k in range(5):
         ws.conditional_formatting.add("F%d:G%d" % (cmp_r + 1, last_cmp),
                                       FormulaRule(formula=['LEFT($F%d,1)="%d"' % (cmp_r + 1, k + 1)],
@@ -314,11 +339,27 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                                  '&" points "&IF(E{x}>E{y},"higher than","lower than")&" {b}.","")'
                 .format(x=rows[a], y=rows[b], a=a, b=b)).font = F_BOLD
 
-    # ---- the chart: this series over its five rating zones ----
+    # ---- the chart: this series over its five rating zones, with any other source laid over ----
     ch_r = last_cmp + 3
     band(ch_r, "The history, over the five rating zones")
-    for j, t in enumerate(["Quarter", "History", "base", "1 Low", "2 Moderate-Low", "3 Moderate",
-                           "4 Moderate-High", "5 High"]):
+    # How much of it to draw (the firm, 14 Oct 2026: "it can focus - like maybe
+    # the last 48 quarters"). Only the picture: the lines use every quarter kept.
+    win_r = ch_r - 1
+    ws.cell(win_r, 2, "Chart shows").font = F_LAB
+    ws.cell(win_r, 2).alignment = Alignment(vertical="center")
+    win = ws.cell(win_r, 4, WINDOWS[2])
+    win.fill = fill("FFF2CC")
+    win.border = Border(YELLOW_EDGE, YELLOW_EDGE, YELLOW_EDGE, YELLOW_EDGE)
+    win.font = F_BOLD
+    ws.merge_cells(start_row=win_r, start_column=4, end_row=win_r, end_column=5)
+    dv_w = DataValidation(type="list", formula1='"%s"' % ",".join(WINDOWS), showErrorMessage=True,
+                          errorTitle="Chart shows", error="Pick one from the list.")
+    ws.add_data_validation(dv_w)
+    dv_w.add("D%d" % win_r)
+    ws.cell(win_r, 7, "Only the picture: the lines are set from every quarter kept.").font = F_NOTE
+    WIN = '$D$%d' % win_r
+    hdrs = ["Quarter", "History", "base", "1 Low", "2 Moderate-Low", "3 Moderate", "4 Moderate-High", "5 High"]
+    for j, t in enumerate(hdrs):
         ws.cell(1, CH + j, t)
     col_of = 'MATCH(%s,Data!$B$1:$%s$1,0)' % (LBL, d_last)
     lines = [th_(c_) for c_ in "EFGH"]
@@ -330,47 +371,108 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     num = "$%s$2:$%s$%d" % (L(CH + 11), L(CH + 11), q_last)
     ws.cell(1, CH + 9, "floor")
     ws.cell(1, CH + 10, "top")
-    ws.cell(1, CH + 11, "history, numbers only")
-    ws.cell(2, CH + 9, "=MIN(0,MIN(%s))" % num)
-    ws.cell(2, CH + 10, "=IF(MAX(MAX(%s),IF(%s,%s,0))>0,MAX(MAX(%s),IF(%s,%s,0))*1.08,1)"
-            % (num, okl, lines[3], num, okl, lines[3]))
+    ws.cell(1, CH + 11, "drawn and shown, numbers only")
+    # The axis fits what is drawn inside the window (the firm: "the axis
+    # should adjust to fit"): the zones are cut at the floor and the top.
+    lows = "$%s$2:$%s$%d" % (L(CH + 14 + len(third)), L(CH + 14 + len(third)), q_last)
+    ws.cell(2, CH + 9, "=MIN(0,MIN(%s))" % lows)
+    ws.cell(2, CH + 10, "=IF(MAX(%s)>0,MAX(%s)*1.08,1)" % (num, num))
+    OV = CH + 12                                         # one column per source switched on above
+    ANY = OV + len(third)                                # the row's number when anything is drawn there
+    FIT = ANY + 1                                        # the first row drawn, and how many: the chart's range
+    for k, v in enumerate(third):
+        ws.cell(1, OV + k, v)
+    ws.cell(1, ANY, "drawn")
+    ws.cell(1, FIT, "first, count")
+    ws.cell(1, FIT + 1, "drawn and shown, lowest")
     for r in range(2, q_last + 1):
         ws.cell(r, CH, "=Data!$A%d" % r)
         ws.cell(r, CH + 1, '=IF({c}<>1,NA(),IFERROR(IF(ISNUMBER(INDEX({v},{i},{o})),INDEX({v},{i},{o}),NA()),NA()))'
                 .format(c=COUNT, v=vals, i=r - 1, o=col_of))
         ws.cell(r, CH + 2, "=%s" % FLOOR)
-        ws.cell(r, CH + 11, '=IF(ISNUMBER({h}{r}),{h}{r},"")'.format(h=L(CH + 1), r=r))
-        edges = [FLOOR] + lines + [TOPV]
+        cols_ = [L(CH + 1)] + [L(OV + k) for k in range(len(third))]
+        inwin = "AND({r}>=${f}$2,{r}<${f}$2+${f}$3)".format(r=r, f=L(FIT))
+        # A line not drawn holds #N/A here, which MAX and MIN would return: skip it.
+        refs = ["%s%d" % (c_, r) for c_ in cols_]
+        ws.cell(r, CH + 11, '=IF(AND({w},COUNT({c})>0),MAX({m}),"")'.format(
+            w=inwin, c=",".join(refs), m=",".join("IF(ISNUMBER(%s),%s,-1E+300)" % (x, x) for x in refs)))
+        ws.cell(r, CH + 12 + len(third) + 2, '=IF(AND({w},COUNT({c})>0),MIN({m}),"")'.format(
+            w=inwin, c=",".join(refs), m=",".join("IF(ISNUMBER(%s),%s,1E+300)" % (x, x) for x in refs)))
+        clip = lambda e: "MIN(MAX(%s,%s),%s)" % (e, FLOOR, TOPV)            # noqa: E731
+        edges = [FLOOR] + [clip(x) for x in lines] + [TOPV]
         for k in range(5):
             ws.cell(r, CH + 3 + k, "=IF(%s,MAX(%s-%s,0),NA())" % (okl, edges[k + 1], edges[k]))
+        for k, v in enumerate(third):
+            lab = '{a}&" - "&{b}&" - {v}"'.format(a=shown(p0), b=shown(p1), v=v)
+            oc = 'MATCH(%s,Data!$B$1:$%s$1,0)' % (lab, d_last)
+            # Not the source picked: that one is the black line already.
+            ws.cell(r, OV + k, '=IF(AND({c}=1,$J${t}="Yes",{s}<>"{v}"),IFERROR(IF(ISNUMBER(INDEX({vv},{i},{o})),'
+                               'INDEX({vv},{i},{o}),NA()),NA()),NA())'.format(c=COUNT, t=rows[v], s=shown(p2), v=v,
+                                                                              vv=vals, i=r - 1, o=oc))
+        drawn = ",".join("ISNUMBER(%s%d)" % (L(c_), r) for c_ in [CH + 1] + [OV + k for k in range(len(third))])
+        ws.cell(r, ANY, '=IF(OR(%s),%d,"")' % (drawn, r))
+    anyr = "$%s$2:$%s$%d" % (L(ANY), L(ANY), q_last)
+    # The chart draws from the first quarter any line has to the last. An
+    # axis cannot follow a cell, but a named range can (the firm, 14 Oct 2026:
+    # "the axis should adjust to fit").
+    span = 'IF({w}="{a}",{q},VALUE(MID({w},6,3)))'.format(w=WIN, a=WINDOWS[0], q=q_last)
+    ws.cell(2, FIT, "=IF(COUNT({a})=0,2,MAX(MIN({a}),MAX({a})-{s}+1))".format(a=anyr, s=span))
+    ws.cell(3, FIT, "=IF(COUNT({a})=0,{n},MAX({a})-{f}+1)".format(a=anyr, n=q_last - 1, f=L(FIT) + "2"))
+
+    def name_for(col, nm):
+        ws.defined_names[nm] = DefinedName(nm, attr_text="OFFSET(%s!$%s$1,%s!$%s$2-1,0,%s!$%s$3,1)" % (
+            TITLE, L(col), TITLE, L(FIT), TITLE, L(FIT)))
+        return "%s!%s" % (TITLE, nm)
+
+    cats = name_for(CH, "dq_quarter")
+
+    def series(col, nm, title):
+        s_ = Series(val=NumDataSource(numRef=NumRef(f=name_for(col, nm))), tx=SeriesLabel(v=title))
+        s_.cat = AxDataSource(strRef=StrRef(f=cats))
+        return s_
+
     area = AreaChart()
     area.grouping = "stacked"
-    area.add_data(Reference(ws, min_col=CH + 2, max_col=CH + 7, min_row=1, max_row=q_last), titles_from_data=True)
-    area.series[0].graphicalProperties.noFill = True
-    area.series[0].graphicalProperties.line.noFill = True
-    for k in range(5):
-        area.series[1 + k].graphicalProperties.solidFill = SCALE[k]
-        area.series[1 + k].graphicalProperties.line.noFill = True
+    for k, nm in enumerate(["base"] + ["zone%d" % i for i in range(1, 6)]):
+        s_ = series(CH + 2 + k, "dq_" + nm, hdrs[2 + k])
+        s_.idx = s_.order = 1 + len(third) + k
+        if k == 0:
+            s_.graphicalProperties.noFill = True
+        else:
+            s_.graphicalProperties.solidFill = SCALE[k - 1]
+        s_.graphicalProperties.line.noFill = True
+        area.series.append(s_)
     line = LineChart()
-    line.add_data(Reference(ws, min_col=CH + 1, max_col=CH + 1, min_row=1, max_row=q_last), titles_from_data=True)
-    line.set_categories(Reference(ws, min_col=CH, min_row=2, max_row=q_last))
-    line.series[0].smooth = False
-    line.series[0].graphicalProperties.line.solidFill = INK
-    line.series[0].graphicalProperties.line.width = 28000
+    main = series(CH + 1, "dq_history", "History")
+    main.idx = main.order = 0
+    main.smooth = False
+    main.graphicalProperties.line.solidFill = INK
+    main.graphicalProperties.line.width = 28000
+    line.series.append(main)
+    for k, v in enumerate(third):
+        s_ = series(OV + k, "dq_over%d" % (k + 1), v)
+        s_.idx = s_.order = 1 + k
+        s_.smooth = False
+        s_.graphicalProperties.line.solidFill = OVERLAY[k % len(OVERLAY)]
+        s_.graphicalProperties.line.width = 19050
+        s_.graphicalProperties.line.prstDash = "dash"
+        line.series.append(s_)
     line.y_axis.majorGridlines = None
-    line.x_axis.tickLblSkip = 8
+    line.x_axis.tickLblSkip = 4
     line.x_axis.tickLblPos = "low"
     line.x_axis.delete = False
     line.y_axis.delete = False
-    line.legend = None                                  # the key is in the note under the chart
+    line.legend = None                                  # the key is the table above and the note below
     line += area
     line.visible_cells_only = False                     # its data sits in hidden columns
     line.height, line.width = 9, 26
     ws.add_chart(line, "B%d" % (ch_r + 1))
     nr = ch_r + 19
-    line_text(nr, "Black line: the series. Shading, from the bottom: green 1 Low, pale green 2 Moderate-Low, yellow 3 "
-                  "Moderate, orange 4 Moderate-High, red 5 High. A period you leave out still shows; it is not "
-                  "used to set the lines.", F_NOTE, 30)
+    line_text(nr, "Black line: the series picked. Dashed lines: any other source switched on under On chart above, "
+                  "in the colour of its name. Shading, from the bottom: green 1 Low, pale green 2 Moderate-Low, "
+                  "yellow 3 Moderate, orange 4 Moderate-High, red 5 High. The chart starts at the first quarter any "
+                  "line has, within what Chart shows. A period you leave out still shows; it is not used to set the "
+                  "lines.", F_NOTE, 44)
 
     band(nr + 2, "Where each rating begins, and whether your settings fit")
     line_text(nr + 3, '=IF(NOT({h}),"","Rating 2 begins at "&TEXT({a},"0.00")&", 3 at "&TEXT({b},"0.00")&", 4 at "'
@@ -380,8 +482,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                       '&", a typical yearly move is "&TEXT({c},"0.00")&", the worst quarter kept was "'
                       '&TEXT({d},"0.00")&".")'.format(h=HAS, b=th_("B"), c=th_("C"), d=th_("D")))
     chk_r = nr + 5
-    line_text(chk_r, '=IF(NOT({h}),"",IF({m}="","Check: OK, your settings fit this series.",{m}&". To fix: "&{u}))'
-              .format(h=HAS, m=th_("M"), u=th_("U")), F_BOLD, 32)
+    line_text(chk_r, '=IF(NOT({h}),"",IF({m}="","Check: OK, your settings fit this series.",{mm}&". To fix: "&{u}))'
+              .format(h=HAS, m=th_("M"), mm=HERE.format(m=th_("M")), u=HERE.format(m=th_("U"))), F_BOLD, 32)
     ws.conditional_formatting.add("B%d:N%d" % (chk_r, chk_r),
                                   FormulaRule(formula=['LEFT($B$%d,8)="Refused:"' % chk_r], fill=fill("F8D7D7"),
                                               font=Font(bold=True, color=K.CRIMSON)))
@@ -395,6 +497,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     for i, (t, col) in enumerate(EVIDENCE_COLS):
         r = chk_r + 4 + i
         ws.cell(r, 2, t).font = F_LAB
+        ws.cell(r, 2).alignment = Alignment(vertical="top")
         c_ = ws.cell(r, 4, '=IF(NOT(%s),"",IFERROR(INDEX(Assess!$%s$%d:$%s$%d,%s),""))'
                      % (HAS, col, SET_TOP, col, SET_TOP + n - 1, srow))
         c_.font = F_BOLD if i == 0 else F_BODY
@@ -403,7 +506,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ws.row_dimensions[r].height = 18 if i == 0 else 30
     line_text(chk_r + 7, "To leave a period out, type its first and last quarter and why in the yellow row above. "
                          "To put it back, clear those three cells.", F_NOTE)
-    for col in range(H, CH + 12):
+    for col in range(H, CH + 16 + len(third)):
         ws.column_dimensions[L(col)].hidden = True
     lay_d = layout(n, len(third), bool(compare))
     assert (lay_d["first"], lay_d["last"], lay_d["message"], lay_d["headline"], lay_d["compare_head"],
