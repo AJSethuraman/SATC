@@ -21,8 +21,9 @@ python -m threshold_engine book books/consumer-public.json consumer-credit.xlsx
 The walkthrough ran the second command on a copy of the book whose only
 change is where the cache is (`prepare.py`): the cache pulled on 14 Oct 2026
 was used rather than pulled again. Expected: `Wrote consumer-credit.xlsx: 105
-series, 82 quarters; open it on Summary, decide on Decide`. It took 12 min 42 s,
-almost all of it the peers build reading the cache.
+series, 82 quarters; open it on Summary, decide on Decide`. It took 7 min 49 s
+on the last run (12 min 42 s on the first), almost all of it the peers build
+reading the cache.
 
 ## 2. The steps
 
@@ -31,7 +32,7 @@ there in the next.
 
 | Step | What you do | What it shows |
 |---|---|---|
-| B1 | Open the workbook | It opens on Summary; the tabs in order (Assess and Chart hidden); three slicers, one button each; Decide shows the first series; nothing decided; no links, no errors |
+| B1 | Open the workbook | It opens on Summary; the tabs in order (Assess, Chart and Peers workings hidden); three slicers, one button each; Decide shows the first series; nothing decided; no links, no errors |
 | B2 | Read Summary | All 105 series' latest value and rating equal the reference |
 | B3 | On Decide, click Credit card, Nonaccrual, KeyBank | One row; the headline, the lines in words, the Check, and the same measure from the industry and peers |
 | B4 | Type 3.5 under How rare High is (z) | Only High's line moves; Thresholds and Summary follow |
@@ -65,6 +66,11 @@ And, separately, that the file opens without Excel repairing it:
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\check_slicers_in_excel.ps1 -Path docs\walkthrough-book\out\consumer-credit.xlsx -Sheet Decide -Table Decisions -Shapes 4 -Expect "Slicer_Product=Credit card|Slicer_Measure=Net charge-offs|Slicer_Source=Industry (every bank)" -SwitchCache Slicer_Source -SwitchTo KeyBank
 ```
+
+"No errors" in B1 means none a reader can see: on the visible tabs, outside
+hidden rows and columns. The rest are counted by kind and are all #N/A, the
+gap a chart leaves where a quarter has no value (on the run of 15 Oct 2026:
+Assess 169, Chart 8,470, Decide 249, Peers workings 1,556).
 
 ## 4. What it does not prove
 

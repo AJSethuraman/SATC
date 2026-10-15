@@ -30,8 +30,9 @@ python -m threshold_engine book books/consumer-public.json consumer-credit.xlsx
 <p>The walkthrough ran the second command on a copy of the book whose only
 change is where the cache is (<code>prepare.py</code>): the cache pulled on 14 Oct 2026
 was used rather than pulled again. Expected: <code>Wrote consumer-credit.xlsx: 105
-series, 82 quarters; open it on Summary, decide on Decide</code>. It took 12 min 42 s,
-almost all of it the peers build reading the cache.</p>
+series, 82 quarters; open it on Summary, decide on Decide</code>. It took 7 min 49 s
+on the last run (12 min 42 s on the first), almost all of it the peers build
+reading the cache.</p>
 <h2>2. The steps</h2>
 <p>The steps are cumulative, as a session is: what is typed in one step is still
 there in the next.</p>
@@ -47,7 +48,7 @@ there in the next.</p>
 <tr>
 <td>B1</td>
 <td>Open the workbook</td>
-<td>It opens on Summary; the tabs in order (Assess and Chart hidden); three slicers, one button each; Decide shows the first series; nothing decided; no links, no errors</td>
+<td>It opens on Summary; the tabs in order (Assess, Chart and Peers workings hidden); three slicers, one button each; Decide shows the first series; nothing decided; no links, no errors</td>
 </tr>
 <tr>
 <td>B2</td>
@@ -112,6 +113,10 @@ automation and reads each answer back. <code>compare.py</code> writes <code>RESU
 <p>And, separately, that the file opens without Excel repairing it:</p>
 <pre><code>powershell -NoProfile -ExecutionPolicy Bypass -File tools\check_slicers_in_excel.ps1 -Path docs\walkthrough-book\out\consumer-credit.xlsx -Sheet Decide -Table Decisions -Shapes 4 -Expect &quot;Slicer_Product=Credit card|Slicer_Measure=Net charge-offs|Slicer_Source=Industry (every bank)&quot; -SwitchCache Slicer_Source -SwitchTo KeyBank
 </code></pre>
+<p>"No errors" in B1 means none a reader can see: on the visible tabs, outside
+hidden rows and columns. The rest are counted by kind and are all #N/A, the
+gap a chart leaves where a quarter has no value (on the run of 15 Oct 2026:
+Assess 169, Chart 8,470, Decide 249, Peers workings 1,556).</p>
 <h2>4. What it does not prove</h2>
 <ul>
 <li>The peer tabs are counted for errors and links (B1) but their numbers are

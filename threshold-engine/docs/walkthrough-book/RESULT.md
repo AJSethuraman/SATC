@@ -13,7 +13,7 @@ It opens on Summary; the tabs in order; three slicers, each with one button pick
 | | Cell | Expected | Excel |
 |---|---|---|---|
 | ok | active | Summary | Summary |
-| ok | sheets | ['Summary', 'Decide', 'Thresholds', 'Assess', 'Peers', 'Peers delinquency', 'Peers balance | ['Summary', 'Decide', 'Thresholds', 'Assess', 'Peers', 'Peers delinquency', 'Peers balance |
+| ok | sheets | ['Summary', 'Decide', 'Thresholds', 'Assess', 'Peers', 'Chart', 'Evidence', 'Backtest', 'S | ['Summary', 'Decide', 'Thresholds', 'Assess', 'Peers', 'Chart', 'Evidence', 'Backtest', 'S |
 | ok | slicers | {'Product': 'Credit card', 'Measure': 'Net charge-offs', 'Source': 'Industry (every bank)' | {'Product': 'Credit card', 'Measure': 'Net charge-offs', 'Source': 'Industry (every bank)' |
 | ok | visible_rows | [13] | [13] |
 | ok | Decide!B119 |  |  |

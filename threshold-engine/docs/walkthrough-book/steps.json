@@ -20,12 +20,6 @@
       "Thresholds",
       "Assess",
       "Peers",
-      "Peers delinquency",
-      "Peers balances",
-      "Peers pack",
-      "Peers lagged",
-      "Peers normalisation",
-      "Peers mix",
       "Chart",
       "Evidence",
       "Backtest",
@@ -36,7 +30,8 @@
       "Peers run",
       "Data",
       "Peers data",
-      "Peers delinquency data"
+      "Peers delinquency data",
+      "Peers workings"
      ]
     },
     {

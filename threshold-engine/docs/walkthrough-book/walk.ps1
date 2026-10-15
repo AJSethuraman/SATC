@@ -43,18 +43,28 @@ try {
         foreach ($r in $lo.DataBodyRange.Rows) { if (-not $r.EntireRow.Hidden) { $rows += $r.Row } }
         return ,$rows
     }
+    # Errors a reader can see: on visible tabs, outside hidden rows and columns.
+    # The rest (hidden helper columns, the hidden Peers workings tab) are
+    # counted by kind, so "they are all #N/A, the gaps a chart leaves" is
+    # shown rather than assumed.
     function Errors() {
-        $n = 0; $where = @()
+        $n = 0; $where = @(); $hidden = @{}
         foreach ($ws in $wb.Worksheets) {
             $e = $null
             try { $e = $ws.UsedRange.SpecialCells(-4123, 16) } catch { $e = $null }
             if ($e -ne $null) {
                 foreach ($c in $e.Cells) {
-                    if (-not ($c.EntireColumn.Hidden -or $c.EntireRow.Hidden)) { $n++; if ($where.Count -lt 5) { $where += "$($ws.Name)!$($c.Address(0,0))" } }
+                    if ($ws.Visible -eq -1 -and -not ($c.EntireColumn.Hidden -or $c.EntireRow.Hidden)) {
+                        $n++; if ($where.Count -lt 5) { $where += "$($ws.Name)!$($c.Address(0,0))" }
+                    } else {
+                        $k = "$($ws.Name) $($c.Text)"; if (-not $c.Text) { $k = "$($ws.Name) " + $ERRORS[[int]$c.Value2] }
+                        $hidden[$k] = 1 + [int]$hidden[$k]
+                    }
                 }
             }
         }
-        return @{ count = $n; where = $where }
+        $h = ($hidden.GetEnumerator() | Sort-Object Name | ForEach-Object { "$($_.Name): $($_.Value)" }) -join "; "
+        return @{ count = $n; where = (@($where) + @("hidden: " + $h)) }
     }
     function Picture($p) {
         $file = Join-Path $pics $p.file
