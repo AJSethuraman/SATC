@@ -12,7 +12,7 @@ Run the build command (section 1), then open the file in Excel.
 | Data!A2 | `1985Q4` |
 | INDEX(Data!A2:A1000,163) | `2026Q2` |
 | COUNTA(Thresholds!A5:A8) | `4` |
-| COUNTA(Glossary!A5:A200) | `35` |
+| COUNTA(Glossary!A5:A200) | `36` |
 | Thresholds!A5 | `Credit card` |
 | Thresholds!A6 | `Mortgage` |
 | Thresholds!A7 | `Home equity` |
@@ -75,7 +75,7 @@ Read the Thresholds tab. Nothing typed yet.
 
 ## W3.1. Assess: pick Credit card
 
-On Assess, pick Credit card in B4.
+On Assess, pick Credit card in B4. Typed on Assess: B4 Credit card.
 
 Type: Assess!B4 = Credit card
 
@@ -101,7 +101,7 @@ Type: Assess!B4 = Credit card
 
 ## W3.2. Assess: pick Mortgage
 
-On Assess, pick Mortgage in B4.
+On Assess, pick Mortgage in B4. Typed on Assess: B4 Mortgage.
 
 Type: Assess!B4 = Mortgage
 
@@ -127,7 +127,7 @@ Type: Assess!B4 = Mortgage
 
 ## W3.3. Assess: pick Home equity
 
-On Assess, pick Home equity in B4.
+On Assess, pick Home equity in B4. Typed on Assess: B4 Home equity.
 
 Type: Assess!B4 = Home equity
 
@@ -153,7 +153,7 @@ Type: Assess!B4 = Home equity
 
 ## W3.4. Assess: pick Other consumer
 
-On Assess, pick Other consumer in B4.
+On Assess, pick Other consumer in B4. Typed on Assess: B4 Other consumer.
 
 Type: Assess!B4 = Other consumer
 
@@ -179,9 +179,9 @@ Type: Assess!B4 = Other consumer
 
 ## W4. Leave out the financial crisis on Credit card
 
-Settings row 6: B6 2007Q4, C6 2012Q4, D6 'financial crisis'.
+Settings row 6: B6 2007Q4, C6 2012Q4, D6 'financial crisis'. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis.
 
-Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis
+Type: Assess!A42 = Credit card; Assess!B42 = 2007Q4; Assess!C42 = 2012Q4; Assess!D42 = financial crisis
 
 | Read | Expected |
 |---|---|
@@ -210,9 +210,9 @@ Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis
 
 ## W5. Add the second leave-out: the pandemic (the rehearsal settings)
 
-Also E6 2021Q3, F6 2023Q1, G6 'pandemic forbearance'. Expected to equal LOG.md, 7 Oct: 3.171 / 3.464 / 4.050 / 5.981, and 25 / 22 / 29 / 55 / 4 quarters kept.
+Also E6 2021Q3, F6 2023Q1, G6 'pandemic forbearance'. Expected to equal LOG.md, 7 Oct: 3.171 / 3.464 / 4.050 / 5.981, and 25 / 22 / 29 / 55 / 4 quarters kept. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance.
 
-Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis; Settings!E6 = 2021Q3; Settings!F6 = 2023Q1; Settings!G6 = pandemic forbearance
+Type: Assess!A42 = Credit card; Assess!B42 = 2007Q4; Assess!C42 = 2012Q4; Assess!D42 = financial crisis; Assess!A43 = Credit card; Assess!B43 = 2021Q3; Assess!C43 = 2023Q1; Assess!D43 = pandemic forbearance
 
 | Read | Expected |
 |---|---|
@@ -238,16 +238,31 @@ Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis
 | Assess!G10 | `31` |
 | Assess!G11 | `63` |
 | Assess!G12 | `15` |
-| Run!B15 | `2007Q4 to 2012Q4` |
-| Run!C15 | `financial crisis` |
-| Run!D15 | `2021Q3 to 2023Q1` |
-| Run!E15 | `pandemic forbearance` |
+| Run!B15 | `Credit card` |
+| Run!C15 | `2007Q4` |
+| Run!D15 | `2012Q4` |
+| Run!E15 | `financial crisis` |
+| Run!F15 | `Left out: 21 quarters` |
+| Run!B16 | `Credit card` |
+| Run!C16 | `2021Q3` |
+| Run!D16 | `2023Q1` |
+| Run!E16 | `pandemic forbearance` |
+| Run!F16 | `Left out: 7 quarters` |
+| Assess!H42 | `Left out: 21 quarters` |
+| Assess!B78 | 3.1714 |
+| Assess!C78 | 3.4642 |
+| Assess!D78 | 4.0498 |
+| Assess!E78 | 5.9809 |
+| Assess!B79 | 3.2115 |
+| Assess!C79 | 3.5947 |
+| Assess!D79 | 4.3613 |
+| Assess!E79 | 6.6837 |
 
 ## W6. Moderate's half-width 0.5 to 0.75 (H6)
 
-From the rehearsal settings, change Moderate's half-width 0.5 to 0.75. The dial row for 0.75 on Assess must say the same.
+From the rehearsal settings, change Moderate's half-width 0.5 to 0.75. The dial row for 0.75 on Assess must say the same. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance; B58 0.75; C58 1.0; D58 2.5.
 
-Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis; Settings!E6 = 2021Q3; Settings!F6 = 2023Q1; Settings!G6 = pandemic forbearance; Settings!H6 = 0.75; Settings!I6 = 1.0; Settings!J6 = 2.5
+Type: Assess!A42 = Credit card; Assess!B42 = 2007Q4; Assess!C42 = 2012Q4; Assess!D42 = financial crisis; Assess!A43 = Credit card; Assess!B43 = 2021Q3; Assess!C43 = 2023Q1; Assess!D43 = pandemic forbearance; Assess!B58 = 0.75; Assess!C58 = 1.0; Assess!D58 = 2.5
 
 | Read | Expected |
 |---|---|
@@ -273,21 +288,21 @@ Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis
 | Assess!G10 | `47` |
 | Assess!G11 | `57` |
 | Assess!G12 | `15` |
-| Assess!B61 | 3.1714 |
-| Assess!C61 | 3.3178 |
-| Assess!D61 | 4.1962 |
-| Assess!E61 | 5.9809 |
-| Assess!F61 | `25` |
-| Assess!G61 | `12` |
-| Assess!H61 | `43` |
-| Assess!I61 | `51` |
-| Assess!J61 | `4` |
+| Assess!B135 | 3.1714 |
+| Assess!C135 | 3.3178 |
+| Assess!D135 | 4.1962 |
+| Assess!E135 | 5.9809 |
+| Assess!F135 | `25` |
+| Assess!G135 | `12` |
+| Assess!H135 | `43` |
+| Assess!I135 | `51` |
+| Assess!J135 | `4` |
 
 ## W7. Moderate-Low step 1.0 to 1.5 (I6)
 
-From the rehearsal settings, change Moderate-Low step 1.0 to 1.5. The dial row for 1.5 on Assess must say the same.
+From the rehearsal settings, change Moderate-Low step 1.0 to 1.5. The dial row for 1.5 on Assess must say the same. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance; B58 0.5; C58 1.5; D58 2.5.
 
-Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis; Settings!E6 = 2021Q3; Settings!F6 = 2023Q1; Settings!G6 = pandemic forbearance; Settings!H6 = 0.5; Settings!I6 = 1.5; Settings!J6 = 2.5
+Type: Assess!A42 = Credit card; Assess!B42 = 2007Q4; Assess!C42 = 2012Q4; Assess!D42 = financial crisis; Assess!A43 = Credit card; Assess!B43 = 2021Q3; Assess!C43 = 2023Q1; Assess!D43 = pandemic forbearance; Assess!B58 = 0.5; Assess!C58 = 1.5; Assess!D58 = 2.5
 
 | Read | Expected |
 |---|---|
@@ -313,21 +328,21 @@ Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis
 | Assess!G10 | `31` |
 | Assess!G11 | `63` |
 | Assess!G12 | `15` |
-| Assess!B69 | 2.8786 |
-| Assess!C69 | 3.4642 |
-| Assess!D69 | 4.0498 |
-| Assess!E69 | 5.9809 |
-| Assess!F69 | `4` |
-| Assess!G69 | `43` |
-| Assess!H69 | `29` |
-| Assess!I69 | `55` |
-| Assess!J69 | `4` |
+| Assess!B143 | 2.8786 |
+| Assess!C143 | 3.4642 |
+| Assess!D143 | 4.0498 |
+| Assess!E143 | 5.9809 |
+| Assess!F143 | `4` |
+| Assess!G143 | `43` |
+| Assess!H143 | `29` |
+| Assess!I143 | `55` |
+| Assess!J143 | `4` |
 
 ## W8. High's z 2.5 to 3.0 (J6)
 
-From the rehearsal settings, change High's z 2.5 to 3.0. The dial row for 3 on Assess must say the same.
+From the rehearsal settings, change High's z 2.5 to 3.0. The dial row for 3 on Assess must say the same. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance; B58 0.5; C58 1.0; D58 3.0.
 
-Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis; Settings!E6 = 2021Q3; Settings!F6 = 2023Q1; Settings!G6 = pandemic forbearance; Settings!H6 = 0.5; Settings!I6 = 1.0; Settings!J6 = 3.0
+Type: Assess!A42 = Credit card; Assess!B42 = 2007Q4; Assess!C42 = 2012Q4; Assess!D42 = financial crisis; Assess!A43 = Credit card; Assess!B43 = 2021Q3; Assess!C43 = 2023Q1; Assess!D43 = pandemic forbearance; Assess!B58 = 0.5; Assess!C58 = 1.0; Assess!D58 = 3.0
 
 | Read | Expected |
 |---|---|
@@ -353,21 +368,21 @@ Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis
 | Assess!G10 | `31` |
 | Assess!G11 | `66` |
 | Assess!G12 | `12` |
-| Assess!B53 | 3.1714 |
-| Assess!C53 | 3.4642 |
-| Assess!D53 | 4.0498 |
-| Assess!E53 | 6.4257 |
-| Assess!F53 | `25` |
-| Assess!G53 | `22` |
-| Assess!H53 | `29` |
-| Assess!I53 | `57` |
-| Assess!J53 | `2` |
+| Assess!B127 | 3.1714 |
+| Assess!C127 | 3.4642 |
+| Assess!D127 | 4.0498 |
+| Assess!E127 | 6.4257 |
+| Assess!F127 | `25` |
+| Assess!G127 | `22` |
+| Assess!H127 | `29` |
+| Assess!I127 | `57` |
+| Assess!J127 | `2` |
 
 ## W9a. On the line takes the worse score (half-width 0)
 
-From the rehearsal settings, H6 0 and K6 'worse'. The median kept (3.757) is a quarter cards actually had, so it sits on two lines and the rule decides its score.
+From the rehearsal settings, H6 0 and K6 'worse'. The median kept (3.757) is a quarter cards actually had, so it sits on two lines and the rule decides its score. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance; B58 0; E58 worse.
 
-Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis; Settings!E6 = 2021Q3; Settings!F6 = 2023Q1; Settings!G6 = pandemic forbearance; Settings!H6 = 0; Settings!K6 = worse
+Type: Assess!A42 = Credit card; Assess!B42 = 2007Q4; Assess!C42 = 2012Q4; Assess!D42 = financial crisis; Assess!A43 = Credit card; Assess!B43 = 2021Q3; Assess!C43 = 2023Q1; Assess!D43 = pandemic forbearance; Assess!B58 = 0; Assess!E58 = worse
 
 | Read | Expected |
 |---|---|
@@ -396,9 +411,9 @@ Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis
 
 ## W9b. On the line takes the better score (half-width 0)
 
-From the rehearsal settings, H6 0 and K6 'better'. The median kept (3.757) is a quarter cards actually had, so it sits on two lines and the rule decides its score.
+From the rehearsal settings, H6 0 and K6 'better'. The median kept (3.757) is a quarter cards actually had, so it sits on two lines and the rule decides its score. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance; B58 0; E58 better.
 
-Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis; Settings!E6 = 2021Q3; Settings!F6 = 2023Q1; Settings!G6 = pandemic forbearance; Settings!H6 = 0; Settings!K6 = better
+Type: Assess!A42 = Credit card; Assess!B42 = 2007Q4; Assess!C42 = 2012Q4; Assess!D42 = financial crisis; Assess!A43 = Credit card; Assess!B43 = 2021Q3; Assess!C43 = 2023Q1; Assess!D43 = pandemic forbearance; Assess!B58 = 0; Assess!E58 = better
 
 | Read | Expected |
 |---|---|
@@ -427,45 +442,48 @@ Type: Settings!B6 = 2007Q4; Settings!C6 = 2012Q4; Settings!D6 = financial crisis
 
 ## W10.1. Refused: a leave-out with a start and nothing else
 
-Type Settings!B6 2008Q1; read the Check column and Assess.
+Type Assess!A42 Credit card; Assess!B42 2008Q1; read the Check column and Assess.
 
-Type: Settings!B6 = 2008Q1
+Type: Assess!A42 = Credit card; Assess!B42 = 2008Q1
 
 | Read | Expected |
 |---|---|
-| Thresholds!M5 | `Refused: the first leave-out needs a first and a last quarter from the data, in order, and a reason` |
+| Thresholds!M5 | `Refused: a period left out for this product is not whole; its Status on Assess says what is missing` |
 | Thresholds!K5 | (blank) |
-| Assess!B5 | `Refused: the first leave-out needs a first and a last quarter from the data, in order, and a reason` |
+| Assess!B5 | `Refused: a period left out for this product is not whole; its Status on Assess says what is missing` |
+| Assess!H42 | `Pick a first and a last quarter from the list` |
 
 ## W10.2. Refused: a second leave-out in reverse order
 
-Type Settings!E6 2021Q1; Settings!F6 2020Q1; Settings!G6 x; read the Check column and Assess.
+Type Assess!A43 Credit card; Assess!B43 2021Q1; Assess!C43 2020Q1; Assess!D43 x; read the Check column and Assess.
 
-Type: Settings!E6 = 2021Q1; Settings!F6 = 2020Q1; Settings!G6 = x
+Type: Assess!A43 = Credit card; Assess!B43 = 2021Q1; Assess!C43 = 2020Q1; Assess!D43 = x
 
 | Read | Expected |
 |---|---|
-| Thresholds!M5 | `Refused: the second leave-out needs a first and a last quarter from the data, in order, and a reason` |
+| Thresholds!M5 | `Refused: a period left out for this product is not whole; its Status on Assess says what is missing` |
 | Thresholds!K5 | (blank) |
-| Assess!B5 | `Refused: the second leave-out needs a first and a last quarter from the data, in order, and a reason` |
+| Assess!B5 | `Refused: a period left out for this product is not whole; its Status on Assess says what is missing` |
+| Assess!H43 | `The first quarter must come before the last` |
 
 ## W10.3. Refused: a leave-out with no reason
 
-Type Settings!B6 2008Q1; Settings!C6 2012Q4; read the Check column and Assess.
+Type Assess!A42 Credit card; Assess!B42 2008Q1; Assess!C42 2012Q4; read the Check column and Assess.
 
-Type: Settings!B6 = 2008Q1; Settings!C6 = 2012Q4
+Type: Assess!A42 = Credit card; Assess!B42 = 2008Q1; Assess!C42 = 2012Q4
 
 | Read | Expected |
 |---|---|
-| Thresholds!M5 | `Refused: the first leave-out needs a first and a last quarter from the data, in order, and a reason` |
+| Thresholds!M5 | `Refused: a period left out for this product is not whole; its Status on Assess says what is missing` |
 | Thresholds!K5 | (blank) |
-| Assess!B5 | `Refused: the first leave-out needs a first and a last quarter from the data, in order, and a reason` |
+| Assess!B5 | `Refused: a period left out for this product is not whole; its Status on Assess says what is missing` |
+| Assess!H42 | `Say why` |
 
 ## W10.4. Refused: a half-width below 0
 
-Type Settings!H6 -0.1; read the Check column and Assess.
+Type Assess!B58 -0.1; read the Check column and Assess.
 
-Type: Settings!H6 = -0.1
+Type: Assess!B58 = -0.1
 
 | Read | Expected |
 |---|---|
@@ -475,9 +493,9 @@ Type: Settings!H6 = -0.1
 
 ## W10.5. Refused: a z of 0
 
-Type Settings!J6 0; read the Check column and Assess.
+Type Assess!D58 0; read the Check column and Assess.
 
-Type: Settings!J6 = 0
+Type: Assess!D58 = 0
 
 | Read | Expected |
 |---|---|
@@ -487,9 +505,9 @@ Type: Settings!J6 = 0
 
 ## W10.6. Refused: a step typed as text
 
-Type Settings!I6 one; read the Check column and Assess.
+Type Assess!C58 one; read the Check column and Assess.
 
-Type: Settings!I6 = one
+Type: Assess!C58 = one
 
 | Read | Expected |
 |---|---|
@@ -499,9 +517,9 @@ Type: Settings!I6 = one
 
 ## W10.7. Refused: too little history kept
 
-Type Settings!B6 1985Q4; Settings!C6 2025Q2; Settings!D6 test; read the Check column and Assess.
+Type Assess!A42 Credit card; Assess!B42 1985Q4; Assess!C42 2025Q2; Assess!D42 test; read the Check column and Assess.
 
-Type: Settings!B6 = 1985Q4; Settings!C6 = 2025Q2; Settings!D6 = test
+Type: Assess!A42 = Credit card; Assess!B42 = 1985Q4; Assess!C42 = 2025Q2; Assess!D42 = test
 
 | Read | Expected |
 |---|---|
@@ -511,9 +529,9 @@ Type: Settings!B6 = 1985Q4; Settings!C6 = 2025Q2; Settings!D6 = test
 
 ## W10.8. Refused: the median at or below zero (Mortgage, keeping 2011Q4 to 2026Q2)
 
-Type Settings!B7 1985Q4; Settings!C7 2011Q3; Settings!D7 test; Assess!B4 Mortgage; read the Check column and Assess.
+Type Assess!A44 Mortgage; Assess!B44 1985Q4; Assess!C44 2011Q3; Assess!D44 test; Assess!B4 Mortgage; read the Check column and Assess.
 
-Type: Settings!B7 = 1985Q4; Settings!C7 = 2011Q3; Settings!D7 = test; Assess!B4 = Mortgage
+Type: Assess!A44 = Mortgage; Assess!B44 = 1985Q4; Assess!C44 = 2011Q3; Assess!D44 = test; Assess!B4 = Mortgage
 
 | Read | Expected |
 |---|---|
@@ -523,9 +541,9 @@ Type: Settings!B7 = 1985Q4; Settings!C7 = 2011Q3; Settings!D7 = test; Assess!B4 
 
 ## W10.9. Refused: Moderate-Low inside Moderate
 
-Type Settings!I6 0.4; read the Check column and Assess.
+Type Assess!C58 0.4; read the Check column and Assess.
 
-Type: Settings!I6 = 0.4
+Type: Assess!C58 = 0.4
 
 | Read | Expected |
 |---|---|
@@ -535,9 +553,9 @@ Type: Settings!I6 = 0.4
 
 ## W10.10. Refused: High inside Moderate-High (z 0.3)
 
-Type Settings!J6 0.3; read the Check column and Assess.
+Type Assess!D58 0.3; read the Check column and Assess.
 
-Type: Settings!J6 = 0.3
+Type: Assess!D58 = 0.3
 
 | Read | Expected |
 |---|---|
@@ -547,9 +565,9 @@ Type: Settings!J6 = 0.3
 
 ## W10.11. Refused: High beyond the worst quarter kept (z 8)
 
-Type Settings!J6 8; read the Check column and Assess.
+Type Assess!D58 8; read the Check column and Assess.
 
-Type: Settings!J6 = 8
+Type: Assess!D58 = 8
 
 | Read | Expected |
 |---|---|
@@ -559,9 +577,9 @@ Type: Settings!J6 = 8
 
 ## W10.12. Refused: Moderate-Low at or below zero (step 6)
 
-Type Settings!I6 6; read the Check column and Assess.
+Type Assess!C58 6; read the Check column and Assess.
 
-Type: Settings!I6 = 6
+Type: Assess!C58 = 6
 
 | Read | Expected |
 |---|---|
@@ -583,14 +601,22 @@ Read Run C9:C12 and compare with the SHA-256 of each file (certutil -hashfile FI
 | Run!D10 | `139` |
 | Run!D11 | `135` |
 | Run!D12 | `135` |
-| Run!B15 | `none` |
-| Run!B16 | `none` |
-| Run!B17 | `none` |
-| Run!B18 | `none` |
+| Run!F15 | (blank) |
+| Run!F16 | (blank) |
+| Run!F17 | (blank) |
+| Run!F18 | (blank) |
+| Run!F19 | (blank) |
+| Run!F20 | (blank) |
+| Run!F21 | (blank) |
+| Run!F22 | (blank) |
+| Run!F23 | (blank) |
+| Run!F24 | (blank) |
+| Run!F25 | (blank) |
+| Run!F26 | (blank) |
 
 ## W12. Chart: switch Mortgage off
 
-Chart B3: FALSE. Mortgage's column is #N/A (nothing drawn).
+Chart B3: FALSE. Mortgage's column is #N/A (nothing drawn). Typed on Assess: B3 False.
 
 Type: Chart!B3 = False
 
@@ -621,7 +647,7 @@ Read Evidence rows 6-9 (spells) and Backtest row 6.
 
 Build the score workbook (cards mirrored as 800 - 40 x rate), open it, K6 'worse'. Its lines fall: worst is lowest.
 
-Type: Settings!K6 = worse
+Type: Assess!E58 = worse
 
 | Read | Expected |
 |---|---|
@@ -648,7 +674,7 @@ Type: Settings!K6 = worse
 
 Build the score workbook (cards mirrored as 800 - 40 x rate), open it, K6 'better'. Its lines fall: worst is lowest.
 
-Type: Settings!K6 = better
+Type: Assess!E58 = better
 
 | Read | Expected |
 |---|---|

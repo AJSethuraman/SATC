@@ -5,13 +5,15 @@ goes in, what comes out, and what proves it. Where something was run only as a
 one-off analysis rather than built into the tool, the last section says so.
 
 **State of the code:** on `main` (pull requests #426 and #428), with the
-walkthrough's fixes on branch `threshold-engine-walkthrough`. 778 tests
+walkthrough and the Assess redesign on their branches. 783 tests
 pass (13 Oct 2026). Nothing has been run on KeyBank's internal data. Nothing
 internal is in the repository, by rule.
 
-**Walked, tied and ready for site (13 Oct 2026):** the walkthrough ran 30
-steps in Excel 16 and read 407 cells, each against an answer written before
-the run: all as expected (`docs/walkthrough/`, one PDF). One card line was
+**Walked, tied and ready for site (13 Oct 2026):** the walkthrough runs 30
+steps in Excel 16 and reads 433 cells against expected answers, all as
+expected (`docs/walkthrough/`, one PDF). 355 of those answers were written
+and committed before Excel was first opened (6f3505d); the rest were added
+after a run, each with its reason in LOG.md. One card line was
 tied to the Federal Reserve's own table (`docs/tie-out/cards-moderate-line-2026-10-13/`).
 The bank-machine checklist and its kit are `docs/ON-SITE-CHECKLIST.md` and
 `tools/bank_kit.py`, dry-run on a clean Python with no add-ons.
@@ -45,12 +47,11 @@ bank changes a setting.
 | Tab | What it holds | Live? |
 |---|---|---|
 | **Thresholds** | Per product: median kept, typical yearly move, worst kept, the four lines where scores 2–5 begin, the latest value, its score and rating, and a Check column that says why it refuses when it does | Yes |
-| **Settings** (red) | The bank's judgements per product: two leave-out periods, each with a reason; Moderate's half-width; the Moderate-Low step; High's z; which score a value exactly on a line takes. Beside them, what the evidence suggests and why, and the temporary departures the data found | Inputs |
-| **Assess** | For one product picked from a list: the five score bands shaded behind every quarter, left-out periods as a dark strip under the chart, a count of quarters in each score, and a **dial** for each setting showing the lines and counts at other values | Yes |
+| **Assess** (red; it opens here) | Where the bank works, on one tab. Pick a product: its latest score, the Check, the five score bands behind every quarter and a count of quarters in each score. Under the chart, the inputs: **Periods left out** (any product, up to 12 periods, each picked from lists of the quarters in the data, with a reason and a Status that says what is missing) and **Your settings** (one row per product: width of Moderate, where Moderate-Low begins, how rare High is, the on-the-line rule; the picked product's row highlighted), what each setting does in words, and what the evidence says. Then **Scenarios**: your lines beside keeping every quarter, as a table and a chart, and for each setting a chart of how many quarters fall in each score at other values. Then a **dial** table for each setting | Inputs, and live |
 | **Chart** | Any combination of products on one scale, switched on and off, with one product's lines drawn | Yes |
 | **Evidence** | Per product: each spell above the median with its robust z, how often history was that bad, its deepest dip, and the temporary departures (stretches that left their path and came back) | No, written at build |
 | **Backtest** | How predictive a percentile scale would have been, rebuilt each quarter from the history up to and including that quarter, never after | No |
-| **Glossary** | 35 terms: what each means and exactly how it is calculated | No |
+| **Glossary** | 36 terms: what each means and exactly how it is calculated | No |
 | **Data** | Every series on one quarterly calendar, the quarters kept, and the working columns behind the live formulas | Yes |
 | **Run** | Engine version, build time, every setting's starting value, each input file's SHA-256 fingerprint, and the leave-out decisions and reasons, live | Partly |
 
@@ -77,17 +78,19 @@ kept (nothing could rate High); or Moderate-Low would begin at or below zero.
 **What proves it:**
 - The formulas are recalculated in the tests with the `formulas` engine, and
   must equal `scale.py` for every product: as built, after each kind of
-  Settings change, and on every row of every dial.
+  change on Assess, and on every row of every dial.
 - The workbook has been opened in Excel 16 on this machine, the settings
   changed by hand, and the results captured. That is how the blank chart, the
   missing axis labels, the slivered strip and the clipped headers were found.
-- The walkthrough (13 Oct 2026) did every kind of Settings change and every
-  refusal in Excel 16 and read 407 cells back against answers written first.
+- The walkthrough (13 Oct 2026) did every kind of change on Assess and every
+  refusal in Excel 16 and reads 433 cells back against expected answers (355
+  of them committed before the first run).
   It found the Assess chart drawing wrong bands for any product whose data
   starts after the calendar's first quarter, and a credit score's chart
   starting at zero; both fixed, each with a test.
-- Every heading on Thresholds and Settings must have a Glossary entry, or a
-  test fails.
+- Every heading on Thresholds and Assess's inputs must have a Glossary entry,
+  or a test fails, except four plain ones the test lists by name: Product,
+  From, To, Reason.
 - No formula may point at a row that doesn't exist, which Excel would report
   as a damaged file.
 - Hand-made faults in each guard turn a test red. The log records each round
@@ -115,8 +118,9 @@ build` call, so the two cannot drift. Every rule starts empty. Pull and Build
 run on a worker thread with a status line; a second press while one runs is
 refused.
 
-**What proves it:** 60 tests drive every decision the window makes without a
-display; one opens the real window and presses Run.
+**What proves it:** 61 tests (113 with their cases) drive every decision the
+window makes without a display; three open a real window, one of them
+pressing Run.
 
 ## Peers (`peers/`, commands `peers pull` and `peers build`)
 

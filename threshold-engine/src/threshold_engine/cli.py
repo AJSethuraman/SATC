@@ -141,7 +141,7 @@ def _parser():
     m.add_argument("--frequency", required=True, choices=["quarterly"])
     m.add_argument("--smoothing", required=True, type=int)
     m.add_argument("--floor-at-zero", required=True, type=_yes_no)
-    _scale_args(wbp.add_argument_group("starting values for the Settings tab, all required"))
+    _scale_args(wbp.add_argument_group("starting values for Your settings on the Assess tab, all required"))
     b = wbp.add_argument_group("the backtest, all required")
     b.add_argument("--percentiles", required=True, type=_number, nargs="+", metavar="P")
     b.add_argument("--horizon", required=True, type=int)
