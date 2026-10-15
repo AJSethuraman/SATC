@@ -1,16 +1,19 @@
-# Economic data (research stage)
+# Economic data
 
-Nothing in the tool reads this folder yet. On 14 Oct 2026 the firm redirected
-the work: economic data is its own subject, rated by a separate tool built on
-the same idea, not a helper to KeyBank's loss thresholds (see `LOG.md`). The
-indicator research for that tool is in `reports/` and `research_notes/`. The
-earlier proposal, and the scripts and data behind it, are kept below for the
-record. Public data only.
+On 14 Oct 2026 the firm redirected the work: economic data is its own
+subject, rated by a separate tool built on the same idea, not a helper to
+KeyBank's loss thresholds (see `LOG.md`). That tool is
+`src/threshold_engine/macro/`; what it does and how to run it is in
+`TOOL.md`. Its tests read two files here: the report (every series must cite
+a section it has) and the settings template. The earlier proposal, and the
+scripts and data behind it, are kept below for the record. Public data only.
 
 | File | What it is |
 |---|---|
-| `PROPOSAL.md` | The proposal, copied from the Claude Doc the firm reads |
+| `TOOL.md` | The economic conditions tool: what works, how each series is read, what was checked, what waits on the firm |
+| `settings-template.json` | The tool's settings, every answer empty, with a recommendation beside each |
 | `LOG.md` | This work's log (kept apart from the main LOG.md) |
+| `PROPOSAL.md` | The earlier proposal, copied from the Claude Doc the firm reads |
 | `reports/Macro risk indicators for lending.md` | Which public economic series banks and regulators use for a macro risk narrative, how to get each, and how to flag an unusual reading (14 Oct 2026) |
 | `research_notes/Macro risk indicators for lending/` | The five research strands behind that report, every claim linked |
 | `data/card_losses_and_unemployment_change.csv` | Chart 1: Fed card charge-off rate (four-quarter mean) and the four-quarter change in unemployment, 1986Q1–2026Q2 |

@@ -9,14 +9,16 @@ The series are the "ready to rate" group in
 [`reports/Macro risk indicators for lending.md`](reports/Macro%20risk%20indicators%20for%20lending.md),
 chosen by the firm on 15 Oct 2026.
 
-## What works now (slice 1 of 3)
+## What works now (slices 1 and 2 of 3)
 
-- **The catalog: 85 series, 83 of them rated.** Two more are inputs to
-  derived readings (income per person, the 10-year Treasury). The catalog
-  lives in `src/threshold_engine/macro/catalog.py`. Each entry gives the
-  publisher, id, frequency, first observation, licence and known breaks, and
-  the report section that put it on the list. Every id was checked on FRED or
-  at the publisher on 15 Oct 2026.
+- **The catalog: 85 series, 83 of them rated, and 2 readings made from
+  them.** Two series are only inputs (income per person, the 10-year
+  Treasury). They feed the two readings the report builds from two series:
+  house prices against income, and the 30-year mortgage rate over the 10-year
+  Treasury. The catalog lives in `src/threshold_engine/macro/catalog.py`.
+  Each entry gives the publisher, id, frequency, first observation, licence,
+  known breaks, and the report section that put it on the list. Every id was
+  checked on FRED or at the publisher on 15 Oct 2026.
 - **The pull: no API key.** It downloads every series into a folder named
   for the day and never overwrites an earlier one, so every rating can name
   the release it used. A shared file is fetched once. A failure is recorded
@@ -25,6 +27,21 @@ chosen by the firm on 15 Oct 2026.
   missing, never as zero. October 2025 is missing in every BLS household
   series and in CPI. November 2025 is also missing for motor vehicle
   insurance.
+- **The ratings, 1 Low to 5 High.** They refuse to run until the firm has
+  answered every setting.
+  - Each series is rated on its **position**: the latest value against every
+    value in its history.
+  - It is also rated on its **change** over the firm's horizon, against every
+    such change in its history.
+  - A percentile is the share of that history the latest reading is at or
+    above. Where lower is worse, it is the share it is at or below. The
+    firm's four cut-offs turn the percentile into a rating.
+  - Every rating says what drove it:
+    - the value and its date;
+    - the percentile, and how many readings it is measured against;
+    - where that history starts;
+    - which pull the data came from;
+    - how long the series has held that rating.
 
 Run from `threshold-engine/`:
 
@@ -32,9 +49,87 @@ Run from `threshold-engine/`:
 python -m threshold_engine.macro list
 python -m threshold_engine.macro pull --cache work/macro-cache
 python -m threshold_engine.macro show --cache work/macro-cache unemployment
+python -m threshold_engine.macro settings-template work/macro-settings.json
+python -m threshold_engine.macro rate --cache work/macro-cache --settings work/macro-settings.json
 ```
 
-The first live pull, on 15 Oct 2026, read 85 of 85 series in 31 seconds.
+`rate` prints every rating, highest first; `--json` gives the full record, and
+`--vintage 2026-10-15` rates an earlier pull. Until every answer is filled in,
+it prints `REFUSED:` with each missing answer named, and exits 2.
+
+## How each series is read
+
+These follow the report's rules by type of series. Each is a call the firm can
+reverse for any series.
+
+- **Twelve series are rated on their change only.** They are payrolls, CPI
+  and core CPI, gasoline, motor and home insurance prices, used cars, house
+  prices, revolving credit, real GDP, industrial production and CRE prices.
+  Each is a level that climbs over the decades with prices and the economy,
+  so it sits near the top of its own history in almost every year. Its place
+  there says nothing. The report rates these on their change: "PPI
+  homeowner's insurance (1998, change over the year)", "G.19 revolving credit
+  growth".
+- **A change is counted in points or in percent.** Points are used for a
+  rate, a spread or an index around zero. Percent of the earlier reading is
+  used for a level that grows, and for jobless claims.
+- **Valuation is read only for house prices.** It is house prices against
+  income per person: the FHFA index divided by the quarter's average
+  disposable income per person. The tool reads no measure of what commercial
+  property is worth against rents or income.
+- **The mortgage spread: wider is worse.** The Fed's scenario guide sizes a
+  severe move as a spread up 0.70 to 1.60 points, or at 3 points or more,
+  whichever is higher.
+- **Changes are counted as FRED counts them.** Monthly and quarterly series
+  compare the same month a year (or horizon) earlier. Weekly and daily series
+  count whole weeks, so 12 months is 52 weeks. A daily reading is compared
+  with the same weekday. A day with no reading that many weeks before has no
+  change, and nothing is filled in.
+- **The Sahm reading is shown beside the national unemployment rate, never
+  rated.** It is the 3-month average minus its lowest 3-month average in the
+  12 months before. Where a month has no value (October 2025), the average is
+  taken from the two months that do.
+
+## Checked against the publishers' own figures (15 Oct 2026)
+
+- **The Sahm reading:** all 931 months agree with FRED's `SAHMCURRENT`,
+  including October and November 2025.
+- **The change over 12 months:** FRED computes its own change from a year
+  ago. The tool agrees with it on every date for 13 series:
+  - unemployment, payrolls, CPI, real GDP, house prices, revolving credit;
+  - initial and continuing claims, the mortgage rate, gasoline, NFCI;
+  - the 10-year minus 3-month spread, and the 10-year yield.
+
+  The one exception is a rounding tie. For gasoline in the week of 4 Mar
+  2019, the exact change is −5.390625%: FRED rounds it to −5.39063, the tool
+  to −5.39062.
+- **The first version disagreed, and was changed.** It counted calendar
+  dates for weekly and daily series. It differed from FRED in 2 holiday weeks
+  of the mortgage rate, and on most days of the yield curve. FRED counts
+  whole weeks, and so does the tool now.
+
+## Waiting on the firm: the settings
+
+Every setting is required and none has a default. The questions, with a
+recommendation and its reason beside each blank, are in
+[`settings-template.json`](settings-template.json):
+
+1. the cut-offs for ratings 2 to 5 (recommended: the 50th, 75th, 90th and
+   95th percentiles);
+2. a reading exactly on a cut-off takes the worse or the better rating
+   (recommended: worse);
+3. the history window (recommended: full history, with its start shown);
+4. the change horizon (recommended: 12 months), and whether the Sahm reading
+   is shown (recommended: yes);
+5. which series also get a change rating (recommended: all);
+6. the direction of stress for the nine series the research leaves open:
+   - the eight from before;
+   - house prices against income, which is new with the readings built from
+     two series.
+
+The tool reads only the answers, never the recommendations. A run with the
+recommendations filled in was made only to test it, and is not the firm's
+settings (`LOG.md`).
 
 ## Not read yet, and why
 
@@ -47,13 +142,6 @@ The first live pull, on 15 Oct 2026, read 85 of 85 series in 31 seconds.
 
 ## Still to build
 
-- **Slice 2, the ratings.** Each series gets a rating from 1 to 5 for where
-  it sits in its own history. Labour series and others that matter by how
-  fast they worsen also get a rating for their change. Every setting is
-  required, and the tool refuses without it:
-  - the cut-offs for each rating;
-  - the history window;
-  - the change horizon;
-  - the direction of stress for the eight series the research leaves open.
-- **Slice 3, the workbook.** A summary of every rating, with what drove it,
-  the history window and the data release, and one sheet per series.
+- **Slice 3, the workbook.** It will have a summary of every rating, with
+  what drove it, the history window and the data release, and one sheet per
+  series.

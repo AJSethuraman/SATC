@@ -250,3 +250,92 @@ tests fail. Run it and what is missing: `TOOL.md`.
 **Waiting on the firm (for slice 2):** the cut-offs for each rating, the
 history window, the change horizon, and the direction of stress for the eight
 series the research leaves open. Nothing in slice 2 has a default.
+
+## 15 October 2026 (later), slice 2 built; nothing rated until the firm answers
+
+The firm: *"Continue"*. That does not answer the settings, so none was
+chosen for them. What could be built without them was: the ratings engine,
+which refuses until every answer is in, and the settings file to answer in.
+
+**Built, in `src/threshold_engine/macro/`:**
+
+- `settings.py`: seven questions, each with a recommendation and its reason
+  beside an empty answer.
+  - The tool reads only the answers.
+  - A file with empty answers is refused, with every gap named in one
+    message.
+  - A direction the research already states cannot be overridden there.
+  - The template is never written over an existing file.
+  - A copy is in `settings-template.json`, and a test keeps it equal to what
+    the tool writes.
+- `rate.py`: position and change ratings; the Sahm reading shown beside
+  unemployment; the two readings built from two series.
+- `python -m threshold_engine.macro settings-template OUT` and
+  `rate --cache DIR --settings FILE`.
+
+**Calls made that the firm can reverse.** These are method, not settings, and
+each is written out in `TOOL.md`:
+
+1. Twelve series that climb over the decades (prices, payrolls, GDP,
+   industrial production, revolving credit, house and CRE prices) are rated
+   on their change only. Their place in their own history says nothing; the
+   report rates these on their change.
+2. A change is counted in points for rates, spreads and indexes around zero,
+   and in percent for levels that grow and for claims.
+3. The report's two readings built from two series are added.
+   - House prices against income: its direction is left to the firm. That
+     makes nine open series, not eight.
+   - The mortgage spread: wider is worse, from the Fed's scenario guide.
+4. A percentile is the share of the window the latest reading is at or
+   beyond, in the direction of stress. The latest reading counts in its own
+   window, so a record is 100%.
+5. "How long it has held" rates each earlier reading against the same window.
+6. A seventh question was added: does a reading exactly on a cut-off take
+   the worse rating or the better one? The loss thresholds ask it too.
+
+**Checked against the publishers' own figures:**
+
+- **The Sahm reading:** all 931 months agree with FRED's `SAHMCURRENT`. That
+  includes October 2025, where FRED averages the two months it has.
+  - Files: `SAHMCURRENT` sha256 `49749abb…a192` and `UNRATE` sha256
+    `621ff6fa…a06c`, fetched 15 Oct 2026.
+- **The change over 12 months:** every date agrees with FRED's own change
+  from a year ago, for 13 series.
+  - The one exception is a rounding tie: gasoline, 4 Mar 2019, where the
+    exact change is −5.390625%.
+- **The first version disagreed.** It counted calendar dates for weekly and
+  daily series, and differed in 2 holiday weeks of the mortgage rate and on
+  most days of the yield curve.
+  - FRED counts whole weeks, and compares a daily reading with the same
+    weekday 52 weeks earlier, with no change when that day has no reading.
+  - The tool now does the same, and all 10,720 yield-curve and 15,563
+    10-year values agree.
+
+**A trial run, not the firm's settings.** The recommendations were copied
+into a scratch settings file to open the output; nothing from it is
+committed.
+
+- On the pull of 15 Oct 2026, 158 readings were rated and none was skipped.
+- Ratings 1 to 5 came out 94, 44, 18, 2 and 0.
+- The two 4s:
+  - gasoline's change over a year: +41.5%, at or above 94.6% of 1,829 such
+    changes since Aug 1991;
+  - government-backed mortgages 90+ days late: +0.9 points over a year, at
+    or above 93.6% of 94 changes since 2003.
+- The Sahm reading for September 2026 is 0.00.
+
+**Tests:**
+
+- 59 macro tests, 41 of them new, all offline.
+- Sixteen deliberate breaks of the engine; 14 made tests fail. The other two
+  can never take effect, because the settings check already blocks them:
+  - letting the firm's direction override the research's (the check refuses
+    such a direction before the engine sees it);
+  - reading the recommendation on a line reached only after an empty answer
+    has been refused.
+
+  A second, reachable way of reading the recommendation was caught.
+
+**Waiting on the firm:** the seven answers in `settings-template.json`.
+"Yes to all" takes every recommendation. Their words go here, and the answers
+go in `settings.json` beside the template.
