@@ -27,7 +27,7 @@ import json
 import pathlib
 
 from . import pull as P
-from .catalog import DERIVED_BY_KEY, HIGHER, RATED
+from .catalog import BY_KEY, DERIVED_BY_KEY, HIGHER, RATED
 from .settings import NOT_RATED, Refused, readings_of
 
 #: Sahm, Hamilton Project 2019 (report, "Published flags"): the 3-month average
@@ -200,6 +200,12 @@ def rate_reading(item, reading, points, settings, direction):
     date, value = window[-1]
     pct = percentile(value, ordered, direction)
     r = rated(value)
+    # Where each rating starts, in the reading's own units: the least extreme
+    # value in this history that took it. None if no value in it reached it.
+    lines = {}
+    for want in range(2, 6):
+        scan = ordered if direction == HIGHER else reversed(ordered)
+        lines[str(want)] = next((v for v in scan if rated(v) >= want), None)
     held, since = 0, date
     for d, v in reversed(window):
         if rated(v) != r:
@@ -225,37 +231,49 @@ def rate_reading(item, reading, points, settings, direction):
         "unit": item.unit if reading == "position" else ("percent" if item.change_in == "percent" else "points"),
         "frequency": item.frequency, "date": date, "value": value, "percentile": pct, "rating": r,
         "readings": len(window), "history_from": window[0][0], "since": since, "held": held,
-        "sentence": sentence, "breaks": [list(b) for b in item.breaks],
+        "lines": lines, "sentence": sentence, "breaks": [list(b) for b in item.breaks],
     }, None
 
 
-def rate_all(cache, settings, vintage=None):
-    """Every rating the settings call for, from one pull of CACHE."""
-    folder = pathlib.Path(cache) / vintage if vintage else P.latest(cache)
-    if folder is None or not (folder / "manifest.json").exists():
-        raise Refused("no pull %sunder %s: run python -m threshold_engine.macro pull --cache %s"
-                      % ("named %s " % vintage if vintage else "", cache, cache))
-    manifest = json.loads((folder / "manifest.json").read_text("utf-8"))
-    loaded = {}
+class Pull:
+    """One pull folder: its manifest, and each series' points read once.
 
-    def get(key):
-        if key not in loaded:
+    ``points`` gives a list of (date, value), or a string saying why there is
+    none (the series failed or is not in this pull)."""
+
+    def __init__(self, cache, vintage=None):
+        folder = pathlib.Path(cache) / vintage if vintage else P.latest(cache)
+        if folder is None or not (folder / "manifest.json").exists():
+            raise Refused("no pull %sunder %s: run python -m threshold_engine.macro pull --cache %s"
+                          % ("named %s " % vintage if vintage else "", cache, cache))
+        self.cache, self.folder, self.vintage = cache, folder, folder.name
+        self.manifest = json.loads((folder / "manifest.json").read_text("utf-8"))
+        self._loaded = {}
+
+    def _get(self, key):
+        if key not in self._loaded:
             try:
-                loaded[key] = P.load(cache, key, folder.name)[0]
+                self._loaded[key] = P.load(self.cache, key, self.vintage)[0]
             except (SystemExit, ValueError, OSError) as e:
-                why = manifest.get("series", {}).get(key, {}).get("error") or str(e)
-                loaded[key] = "not in the pull of %s (%s)" % (folder.name, why)
-        return loaded[key]
+                why = self.manifest.get("series", {}).get(key, {}).get("error") or str(e)
+                self._loaded[key] = "not in the pull of %s (%s)" % (self.vintage, why)
+        return self._loaded[key]
 
+    def points(self, item):
+        if item.key in DERIVED_BY_KEY:
+            got = {k: self._get(k) for k in item.inputs}
+            bad = [v for v in got.values() if isinstance(v, str)]
+            return bad[0] if bad else derive(item, got)
+        return self._get(item.key)
+
+
+def rate_all(cache, settings, vintage=None, pull=None):
+    """Every rating the settings call for, from one pull of CACHE."""
+    pull = pull or Pull(cache, vintage)
     ratings, not_rated, alongside = [], [], []
     for item in RATED:
         wanted = readings_of(item, settings["change_for"])
-        if item.key in DERIVED_BY_KEY:
-            got = {k: get(k) for k in item.inputs}
-            bad = [v for v in got.values() if isinstance(v, str)]
-            points = bad[0] if bad else derive(item, got)
-        else:
-            points = get(item.key)
+        points = pull.points(item)
         for reading in wanted:
             if isinstance(points, str):
                 not_rated.append({"key": item.key, "reading": reading, "why": points})
@@ -270,7 +288,7 @@ def rate_all(cache, settings, vintage=None):
             else:
                 ratings.append(out)
     if settings["show_sahm"]:
-        u = get("unemployment")
+        u = pull.points(BY_KEY["unemployment"])
         s = sahm(u) if not isinstance(u, str) else []
         if s:
             d, v = s[-1]
@@ -280,5 +298,5 @@ def rate_all(cache, settings, vintage=None):
                             "the 12 months before; Sahm's published trigger is 0.50). Shown, not rated."
                             % (_when(d, "monthly"), v)})
     shown = dict(settings, directions=[[k, r, v] for (k, r), v in sorted(settings["directions"].items())])
-    return {"vintage": folder.name, "settings": shown, "ratings": ratings, "not_rated": not_rated,
+    return {"vintage": pull.vintage, "settings": shown, "ratings": ratings, "not_rated": not_rated,
             "alongside": alongside}

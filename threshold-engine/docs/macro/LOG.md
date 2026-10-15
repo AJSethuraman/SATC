@@ -339,3 +339,51 @@ committed.
 **Waiting on the firm:** the seven answers in `settings-template.json`.
 "Yes to all" takes every recommendation. Their words go here, and the answers
 go in `settings.json` beside the template.
+
+## 15 October 2026 (later still), slice 3: the workbook
+
+Built the same way as the ratings: `rate --workbook OUT.xlsx` writes it from a
+finished run, so it cannot exist without the firm's settings.
+- `src/threshold_engine/macro/workbook.py` uses the repository's house style
+  (`keybank_style.py`).
+- Every number in it is a value, not a formula.
+- The sheets are Ratings, States, one sheet per national series, State data,
+  Not rated (only when needed), Settings and Sources. `TOOL.md` lists what
+  each holds.
+- Each rating now also says where each rating starts, in the series' own
+  units. For example, from the trial's full history: unemployment rates 2
+  from 5.4 percent, 3 from 6.7, 4 from 7.8 and 5 from 9.0.
+
+**Opened, not assumed.** The trial workbook (the recommendations as
+settings, scratch only, not committed) was rendered to PDF in LibreOffice
+and read page by page. That found five faults, all fixed:
+
+1. **The unemployment chart dropped to zero in October 2025.** The cell held
+   the word "missing", and the chart drew text as zero, the very error the
+   tool exists to prevent.
+   - A gap is now an empty cell, with "no value published" beside it.
+   - Every chart is set to leave gaps.
+   - Two tests pin both.
+2. **Numeric headers sat left over right-aligned numbers.** Each value read as
+   if under the next column.
+3. **The derived series printed ten decimal places.**
+4. **On the activity index, the axis labels crossed the line at zero.** They
+   now sit below the plot.
+5. **The settings showed code names** ("cutoffs", "True"). They now read as
+   words.
+
+**The tests found one fault the trial could not.** A state missing from the
+pull crashed the States sheet, because a formatting loop had been put in the
+wrong place.
+
+**Tests:**
+
+- 68 macro tests, all offline.
+- Five deliberate breaks of the workbook: all caught, after two test gaps
+  were closed. The fixture pull had held no state series, and had always
+  shown the Sahm reading. One state was added to it, and both Sahm answers
+  are now tested.
+- Two breaks of where each rating starts: both caught.
+
+**Waiting on the firm:** unchanged. The seven answers in
+`settings-template.json`; "yes to all" takes every recommendation.

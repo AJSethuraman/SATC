@@ -9,7 +9,7 @@ The series are the "ready to rate" group in
 [`reports/Macro risk indicators for lending.md`](reports/Macro%20risk%20indicators%20for%20lending.md),
 chosen by the firm on 15 Oct 2026.
 
-## What works now (slices 1 and 2 of 3)
+## What works now (all three slices)
 
 - **The catalog: 85 series, 83 of them rated, and 2 readings made from
   them.** Two series are only inputs (income per person, the 10-year
@@ -41,7 +41,19 @@ chosen by the firm on 15 Oct 2026.
     - the percentile, and how many readings it is measured against;
     - where that history starts;
     - which pull the data came from;
-    - how long the series has held that rating.
+    - how long the series has held that rating;
+    - where each rating starts, in the series' own units.
+- **The workbook the teams read.** `rate --workbook OUT.xlsx` writes it from
+  the same run, so it cannot exist without the firm's settings. Every number
+  in it is a value, not a formula. It has these sheets:
+  - **Ratings:** every national reading, highest rating first, with what
+    drove it.
+  - **States:** unemployment by state, level and change.
+  - **One sheet per series:** what it is, where it comes from, how it is
+    read, its ratings and where each starts, its whole history, and a chart.
+  - **State data, Settings and Sources.** Sources lists every file the pull
+    fetched, with its address, licence, fetch time and SHA-256.
+  - **Not rated:** only when something could not be rated, with the reason.
 
 Run from `threshold-engine/`:
 
@@ -50,7 +62,7 @@ python -m threshold_engine.macro list
 python -m threshold_engine.macro pull --cache work/macro-cache
 python -m threshold_engine.macro show --cache work/macro-cache unemployment
 python -m threshold_engine.macro settings-template work/macro-settings.json
-python -m threshold_engine.macro rate --cache work/macro-cache --settings work/macro-settings.json
+python -m threshold_engine.macro rate --cache work/macro-cache --settings work/macro-settings.json --workbook work/economic-conditions.xlsx
 ```
 
 `rate` prints every rating, highest first; `--json` gives the full record, and
@@ -140,8 +152,11 @@ settings (`LOG.md`).
 - **FHFA mortgage delinquency by state.** Not wired in yet; the national and
   loan-type figures are.
 
-## Still to build
+## Gaps in the workbook
 
-- **Slice 3, the workbook.** It will have a summary of every rating, with
-  what drove it, the history window and the data release, and one sheet per
-  series.
+A month with no value published is an empty cell, with "no value published"
+beside it, and every chart leaves a gap there. The first version wrote the
+word "missing" in the cell instead. Opened in LibreOffice, the unemployment
+chart then dropped to zero in October 2025, the error the tool exists to
+prevent. A test now fails if a gap is written as anything but an empty cell,
+or if a chart draws one.

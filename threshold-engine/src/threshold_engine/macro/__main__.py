@@ -4,7 +4,7 @@
     pull --cache DIR [KEY ...]   download into DIR/<today>/, keeping every earlier pull
     show --cache DIR KEY         one series as read from the newest pull (or --vintage)
     settings-template OUT.json   the firm's settings, every answer empty, to fill in
-    rate --cache DIR --settings FILE
+    rate --cache DIR --settings FILE [--workbook OUT.xlsx]
                                  every rating from the newest pull (or --vintage);
                                  refuses, naming each gap, until every answer is in
 """
@@ -14,7 +14,7 @@ import sys
 
 from .catalog import BY_KEY, DERIVED, NOT_YET, SERIES
 from .pull import load, pull
-from .rate import rate_all
+from .rate import Pull, rate_all
 from .settings import Refused, load as load_settings, write_template
 
 
@@ -63,7 +63,12 @@ def cmd_settings_template(a):
 
 
 def cmd_rate(a):
-    result = rate_all(a.cache, load_settings(a.settings), a.vintage)
+    settings = load_settings(a.settings)
+    p = Pull(a.cache, a.vintage)
+    result = rate_all(a.cache, settings, pull=p)
+    if a.workbook:
+        from .workbook import build
+        print("wrote %s" % build(a.workbook, result, p), file=sys.stderr)
     if a.json:
         print(json.dumps(result, indent=1))
         return 0
@@ -103,6 +108,7 @@ def main(argv=None):
     pr.add_argument("--settings", required=True)
     pr.add_argument("--vintage")
     pr.add_argument("--json", action="store_true")
+    pr.add_argument("--workbook", metavar="OUT.xlsx", help="also write the workbook the teams read")
     a = p.parse_args(argv)
     commands = {"list": cmd_list, "pull": cmd_pull, "show": cmd_show,
                 "settings-template": cmd_settings_template, "rate": cmd_rate}

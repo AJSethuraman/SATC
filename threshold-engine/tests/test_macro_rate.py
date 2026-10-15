@@ -138,6 +138,7 @@ def _fetcher():
         "CPIAUCSL": ("monthly", start, lambda i, d: round(170 * 1.002 ** i, 3)),
         "MORTGAGE30US": ("weekly", datetime.date(2000, 1, 6), lambda i, d: 6 + (i % 7) / 10),
         "DGS10": ("daily", start, lambda i, d: 4 + (i % 11) / 20),
+        "CAUR": ("monthly", start, lambda i, d: None if d.isoformat() == "2025-10-01" else 5 + (i % 7) / 10),
     }
 
     def fetch(url):
@@ -149,8 +150,8 @@ def _fetcher():
 
 @pytest.fixture
 def cache(tmp_path):
-    P.pull(tmp_path, keys=["unemployment", "cpi", "mortgage_rate", "treasury_10y"], today="2026-10-15",
-           fetcher=_fetcher())
+    P.pull(tmp_path, keys=["unemployment", "cpi", "mortgage_rate", "treasury_10y", "unemployment_ca"],
+           today="2026-10-15", fetcher=_fetcher())
     return tmp_path
 
 
@@ -171,6 +172,8 @@ def test_a_record_is_rated_5_and_says_how_long_it_has_held(cache):
     assert u["readings"] == 320                         # 321 months, less October 2025: not a zero
     assert u["direction_from"] == "research" and u["history_from"] == "2000-01-01"
     assert "Sep 2026: 9 percent" in u["sentence"] and "Rated 5 since Jul 2026 (3 readings)" in u["sentence"]
+    # where each rating starts, in percent: the least extreme value in this history that took it
+    assert u["lines"] == {"2": 4.2, "3": 4.3, "4": 4.4, "5": 9.0}
 
 
 def test_the_firms_direction_is_used_and_said(cache):
