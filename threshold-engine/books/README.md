@@ -15,7 +15,26 @@ row says it was not tested.
 `consumer-public-series.csv` is its series list; open it in Excel to see or
 change what goes in.
 
-## Build it at work
+## Build it at work: the one file
+
+`Consumer credit thresholds.pyzw` is the whole tool in one file
+(`python tools/make_app.py OUT_FOLDER` writes it). The work machine needs
+Python 3.9 or later from python.org, installed for the user, and nothing else.
+
+1. Double-click `Consumer credit thresholds.pyzw`. A window opens.
+2. **Folder**: where the FDIC data, the book's files and the workbook go
+   (it starts as Documents\Consumer credit thresholds).
+3. **Latest quarter**: the last quarter filed, for example `2026Q2`.
+4. **Internal file**: optional; the bank's file in the internal import layout
+   (`docs/INTERNAL-IMPORT.md`).
+5. Click **1. Get the FDIC data** (only quarters the folder does not hold are
+   fetched), then **2. Build the workbook** (about nine minutes). Excel opens
+   it.
+
+Followed on 15 Oct 2026 with Python's site-packages switched off, so only what
+is inside the file was used: the workbook was built in 530 seconds.
+
+## Build it at work: from the folder
 
 You need Python 3.9 or later and the `threshold-engine` folder. Every
 command runs from inside `threshold-engine`. Followed from nothing on 15 Oct
