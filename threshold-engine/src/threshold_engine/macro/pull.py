@@ -1,0 +1,111 @@
+"""Download every catalog series into a dated folder, and keep every download.
+
+    CACHE/2026-10-15/fred-UNRATE.csv
+    CACHE/2026-10-15/manifest.json
+
+Each pull is its own folder, named for the day it ran, so a rating can always
+say which release of the data it was made from; nothing earlier is
+overwritten. The manifest records, per file, the address, when it was fetched,
+its size and SHA-256, and, per series, how many observations it holds, the
+first and last, and every missing one.
+
+A file the catalog shares (the Fed's spread file, FHFA's mortgage file) is
+downloaded once. A series that fails is recorded with the reason; the pull
+does not stop, and it exits non-zero if anything failed.
+"""
+import datetime
+import hashlib
+import json
+import pathlib
+import urllib.parse
+import urllib.request
+
+from . import sources
+from .catalog import SERIES
+
+USER_AGENT = "Mozilla/5.0 (compatible; threshold-engine macro pull; public data)"
+
+
+def fetch(url, timeout=60):
+    """One download. The User-Agent differs by host, because the hosts differ:
+    FRED stops answering any request that names a browser (seen 15 Oct 2026:
+    20-second timeouts with one, under a second without), while the Federal
+    Reserve Board refuses (403) a request that does not."""
+    host = urllib.parse.urlparse(url).netloc
+    headers = {} if host == "fred.stlouisfed.org" else {"User-Agent": USER_AGENT}
+    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=timeout) as r:
+        return r.read()
+
+
+def file_name(series):
+    if series.source in ("fed_ebp", "fhfa_nmdb"):
+        return series.source + (".csv" if series.source == "fed_ebp" else ".zip")
+    ext = ".csv" if series.source == "fred" else ".html"
+    return "%s-%s%s" % (series.source, series.source_id, ext)
+
+
+def summarise(points):
+    values = [(d, v) for d, v in points]
+    present = [(d, v) for d, v in values if v is not None]
+    if not present:
+        return {"observations": len(values), "present": 0}
+    first = present[0][0]
+    missing = [d for d, v in values if v is None and d >= first]
+    return {"observations": len(values), "present": len(present), "first": first,
+            "last": present[-1][0], "last_value": present[-1][1], "missing_after_first": missing}
+
+
+def pull(cache, keys=None, today=None, fetcher=fetch):
+    """Fetch the catalog (or ``keys``) into CACHE/<today>/; return the manifest."""
+    today = today or datetime.date.today().isoformat()
+    folder = pathlib.Path(cache) / today
+    folder.mkdir(parents=True, exist_ok=True)
+    wanted = [s for s in SERIES if keys is None or s.key in keys]
+    if keys:
+        unknown = sorted(set(keys) - {s.key for s in SERIES})
+        if unknown:
+            raise SystemExit("not in the catalog: %s (list them with: python -m threshold_engine.macro list)"
+                             % ", ".join(unknown))
+    files, series_out = {}, {}
+    for s in wanted:
+        name = file_name(s)
+        if name not in files:
+            url = sources.url_for(s, today[:4])
+            try:
+                raw = fetcher(url)
+            except Exception as e:  # recorded, not raised: one bad series must not hide the rest
+                files[name] = {"url": url, "error": "%s: %s" % (type(e).__name__, e)}
+            else:
+                (folder / name).write_bytes(raw)
+                files[name] = {"url": url, "fetched_at": datetime.datetime.now(datetime.timezone.utc).isoformat(
+                    timespec="seconds"), "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}
+        if "error" in files[name]:
+            series_out[s.key] = {"file": name, "error": files[name]["error"]}
+            continue
+        try:
+            points = sources.read(s, (folder / name).read_bytes())
+        except Exception as e:
+            series_out[s.key] = {"file": name, "error": "could not read: %s" % e}
+            continue
+        series_out[s.key] = dict(file=name, **summarise(points))
+    manifest = {"pulled": today, "files": files, "series": series_out,
+                "failed": sorted(k for k, v in series_out.items() if "error" in v)}
+    (folder / "manifest.json").write_text(json.dumps(manifest, indent=1), "utf-8")
+    return manifest
+
+
+def latest(cache):
+    """The newest pull folder under CACHE, or None."""
+    folders = sorted(p for p in pathlib.Path(cache).glob("????-??-??") if (p / "manifest.json").exists())
+    return folders[-1] if folders else None
+
+
+def load(cache, key, vintage=None):
+    """One series' points from a pull: the newest, or the folder named ``vintage``."""
+    from .catalog import BY_KEY
+    s = BY_KEY[key]
+    folder = pathlib.Path(cache) / vintage if vintage else latest(cache)
+    if folder is None or not (folder / file_name(s)).exists():
+        raise SystemExit("no pull of %s under %s: run python -m threshold_engine.macro pull --cache %s"
+                         % (key, cache, cache))
+    return sources.read(s, (folder / file_name(s)).read_bytes()), folder.name

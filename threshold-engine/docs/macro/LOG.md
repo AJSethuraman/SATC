@@ -220,3 +220,33 @@ any test of the NY Fed survey's missed-payment probability against actual
 delinquency; licence terms for several sources (listed in the report).
 
 **Waiting on the firm:** which series the tool starts with. Nothing is built.
+
+## 15 October 2026, the firm chose the series; slice 1 built
+
+The firm: *"let's go for ready to rate"*: the report's "ready to rate" group.
+
+**Built (slice 1 of 3), in `src/threshold_engine/macro/`:** the catalog (85
+series; 83 rated, 2 inputs), a keyless pull into dated folders with a
+manifest, and readers that keep every gap as missing. Live pull, 15 Oct 2026:
+85 of 85 series in 31 seconds. Tests: `tests/test_macro_*.py`, 18, offline;
+two deliberate breaks (gaps read as zero; blank months dropped) each made
+tests fail. Run it and what is missing: `TOOL.md`.
+
+**Found on the way:**
+
+- FRED's keyless CSV stalls (20-second timeouts) on any request that names a
+  browser, and answers in under a second without one; the Federal Reserve
+  Board refuses (403) a request that does not name one. The pull sets the
+  User-Agent by host, and a test pins it.
+- FRED does not carry the CPI for motor vehicle insurance (CUSR0000SETE
+  returns 404); it is read from the BLS page instead.
+- BLS left November 2025 blank (no dash) for motor vehicle insurance; the
+  first reader dropped it as "not published yet". Fixed: a blank between two
+  numbers is missing; only blanks after the last number are unpublished.
+- Licence tags as FRED shows them: Freddie Mac's mortgage rate, the Chicago,
+  St. Louis and Kansas City Fed indexes and T10Y3M are "Copyrighted: Citation
+  Required"; the rest are public domain.
+
+**Waiting on the firm (for slice 2):** the cut-offs for each rating, the
+history window, the change horizon, and the direction of stress for the nine
+series the research leaves open. Nothing in slice 2 has a default.
