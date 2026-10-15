@@ -383,9 +383,15 @@ def test_a_workbook_open_in_excel_is_said_so(tmp_path):
     assert not out.ok and "open in Excel" in out.lines[0]
 
 
-def test_too_little_history_for_the_backtest_comes_back_from_the_real_build(tmp_path):
-    out = launcher.run(filled(tmp_path, min_history="400"))
-    assert not out.ok and out.lines[0].startswith("The build refused:") and "min_history" in out.lines[0]
+def test_too_little_history_for_the_backtest_is_said_on_the_backtest_tab(tmp_path):
+    """Life to date (the firm, 14 Oct 2026): a series shorter than the backtest
+    needs is built; its Backtest row says it was not tested, and why."""
+    out = launcher.run(filled(tmp_path, min_history="400"), open_after=False)
+    assert out.ok, out.lines
+    from openpyxl import load_workbook
+    ws = load_workbook(out.path)["Backtest"]
+    said = [ws.cell(r, 2).value for r in range(1, ws.max_row + 1)]
+    assert any(isinstance(v, str) and v.startswith("Not tested:") and "min_history" in v for v in said)
 
 
 def test_a_workbook_that_cannot_be_opened_from_here_says_where_it_is(tmp_path, monkeypatch):
