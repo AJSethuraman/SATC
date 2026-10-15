@@ -195,6 +195,19 @@ live cells and the results are formulas wherever practical.
   The live composite equals `books.composite` for the all-peers and regionals
   packs; flipping one Include changes it to `books.composite` without that
   bank; the band equals `books.band`.
+- **Into another workbook** (added 14 Oct 2026, so the thresholds workbook and
+  the peers are one file built by Python alone, with no Excel at build time):
+  `build_peers_workbook(None, ..., into=wb, names={tab: title})`, and the same
+  two options on `peers.run.build`. The tabs go after `wb`'s own and nothing
+  is saved; the caller saves and runs `na_as_gap(path, info["sheets"])`, which
+  leaves the host's charts alone. `names` titles every tab in `TABS`; a title
+  the host already has is refused (its Data, Glossary and Run would otherwise
+  be read by the peers' formulas). Formulas name tabs only through `_Tabs`,
+  and `foreign_refs` stops the build if any reference on a peer tab names
+  another tab. Proved by `tests/test_peers_into.py`: the standalone file is
+  part-for-part what the builder at d1e353a1 wrote, and into a host with its
+  own Data, Glossary and Run every peer cell recalculates to its standalone
+  value.
 
 ### `cli.py` additions (the integration step, after the modules)
 - `threshold-engine peers pull --cache DIR --first 2006Q1 --last 2026Q2`

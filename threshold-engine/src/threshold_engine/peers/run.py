@@ -46,7 +46,7 @@ import math
 import os
 import re
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence
+from typing import Callable, Dict, List, Optional, Sequence
 
 from . import books, fdic, peers_workbook
 from . import delinquency as D
@@ -506,7 +506,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
           jump: float, acquisition_share: float, min_book: float, exempt_self: bool, pack: str, min_banks: int, rank_by: str,
           last_n: int, min_obs: int, base_quarter: str, index_min_book: float,
           lagged_years: Sequence[int], lag_years: int, normalisation_years: Sequence[int],
-          mix_base_year: int, delinquency: bool, say: Callable[[str], None] = print) -> dict:
+          mix_base_year: int, delinquency: bool, say: Callable[[str], None] = print,
+          into=None, names: Optional[Dict[str, str]] = None) -> dict:
     """Read the cache, write the peer workbook and the series CSVs.
 
     ``mergers`` and ``absorptions`` are the files 'peers pull --mergers'
@@ -534,12 +535,24 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     with no value this run has its CSV from an earlier run removed in the
     same step, since that file was built under other rules.
 
-    Returns ``{out, info, series}``: the workbook written, what
-    ``build_peers_workbook`` returned, and per series ``(path, quarters
-    written, left out before, left out after)`` (0 quarters: not written)."""
+    ``into`` and ``names`` go to ``build_peers_workbook`` as they are: with
+    ``into`` (an openpyxl Workbook; ``out`` must then be None) the peer tabs
+    are written into that workbook, under the titles ``names`` gives, and no
+    peer workbook is saved -- the caller saves it, and then runs
+    ``peers_workbook.na_as_gap`` over the tabs ``info["sheets"]`` names. The
+    series CSVs are written and put in place as ever.
+
+    Returns ``{out, info, series}``: the workbook written (None with
+    ``into``), what ``build_peers_workbook`` returned, and per series
+    ``(path, quarters written, left out before, left out after)`` (0
+    quarters: not written)."""
     s = dict(locals())
     products = _check_build(s)
-    _check_out(out, roster=roster, mergers=mergers, absorptions=absorptions)
+    if into is None:
+        _check_out(out, roster=roster, mergers=mergers, absorptions=absorptions)
+    elif out is not None:
+        raise ValueError("into writes the peer tabs into that workbook and saves no peer workbook, so out must "
+                         "be None, not %r" % (out,))
     quarters = fdic.quarter_ends(first, last)
     roster_ = R.load(roster)
     me = R.self_bank(roster_)
@@ -617,10 +630,10 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                                                        "is not stated"), True, bks[me["cert"]]),
             (p, slug(p), "industry", "industry: " + every, False, ind[p]),
         ]
-    for names in combined_:
-        made.append((" plus ".join(names), slug(" ".join(names)), "industry",
-                     "industry, %s summed: %s" % (" and ".join(names), every), False,
-                     books.industry(data, names[0], names[1:])))
+    for summed in combined_:
+        made.append((" plus ".join(summed), slug(" ".join(summed)), "industry",
+                     "industry, %s summed: %s" % (" and ".join(summed), every), False,
+                     books.industry(data, summed[0], summed[1:])))
 
     series = []                 # (path, tail, note lines, left out before, left out after, group)
     for words_p, slug_, who, words, ruled, rows in made:
@@ -645,13 +658,13 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                                series_note(note, tail, before, after), before, after, ("banks", p)))
     dq_spec = None
     if delinquency:
-        names = {b["cert"]: "%s (%s)" % (b["short"], b["cert"]) for b in roster_}
+        labels = {b["cert"]: "%s (%s)" % (b["short"], b["cert"]) for b in roster_}
         for path, rows, note, p, left_out in _delinquency_series(
                 data, roster_, me, pack_, pack_words, products, jump, min_book, exempt_self,
                 min_banks, source, every, out_dir, acquired, acquisition_share):
             tail, before, after = unbroken_tail(rows)
             if left_out is not None and tail:
-                note = note + [left_out_note(left_out, tail, names)]
+                note = note + [left_out_note(left_out, tail, labels)]
             series.append((path, tail, series_note(note, tail, before, after), before, after, p))
         dq_spec = dict(data=data, products=list(products), jump=jump, min_book=min_book,
                        exempt_self=exempt_self, acquired=acquired, measure=START_MEASURE,
@@ -663,8 +676,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         raise ValueError("two series would be written to the same file, %s; nothing is written"
                          % ", ".join(twice))
 
-    out = Path(out)
-    part_out = out.with_name(out.stem + ".part" + out.suffix)
+    out = Path(out) if into is None else None
+    part_out = out.with_name(out.stem + ".part" + out.suffix) if out is not None else None
     parts = []
     try:
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -677,8 +690,9 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             industry=ind, delinquency=dq_spec, acquired=acquired, cache_dir=cache, mergers_file=mergers,
             sources=["Read from the cache %s, %d quarter files %s to %s, built %s"
                      % (cache, len(quarters), quarters[0], quarters[-1],
-                        dt.date.today().isoformat())])
-        moves = [(part_out, out)]
+                        dt.date.today().isoformat())],
+            into=into, names=names)
+        moves = [(part_out, out)] if out is not None else []
         for path, tail, lines, _, _, _ in series:
             if tail:
                 part = path.with_name(path.name + ".part")
@@ -694,12 +708,13 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         gone = _commit(moves, [path for path, tail, *_ in series if not tail] + stale, say)
         parts = []
     finally:
-        for f in parts + [part_out]:
+        for f in parts + ([part_out] if part_out is not None else []):
             if f.exists():
                 f.unlink()
 
     say("Wrote %s: %s, %d TTM quarters, pack of %d"
-        % (out, ", ".join(info["products"]), len(info["quarters"]), len(info["pack"])))
+        % (out if out is not None else "the peer tabs into the workbook given (%s)" % ", ".join(info["sheets"]),
+           ", ".join(info["products"]), len(info["quarters"]), len(info["pack"])))
     written = {}                # delinquency: product -> [written, of, starting after a break]
     for path, tail, _, before, after, group in series:
         if group is not None:

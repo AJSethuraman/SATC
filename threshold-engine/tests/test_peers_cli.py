@@ -909,20 +909,25 @@ def test_build_and_pull_are_peers_run(monkeypatch):
     assert a == ("o.xlsx",)
     assert k["delinquency"] is False and k["exempt_self"] is True and k["jump"] == 0.25
     assert k["extra_acquisitions"] == ["6672=2022Q2"] and k["industry_combined"] == []
-    assert set(k) == params - {"out", "say"}
+    # into and names say where the tabs go (another workbook, under other
+    # titles), as say does for lines: not settings, and not on the command line.
+    assert set(k) == params - {"out", "say", "into", "names"}
     assert kp == dict(cache="c", first="2026Q1", last="2026Q2", products=["Auto"], delinquency=True,
                       mergers_since="2005-10-01", refresh=False)
 
 
 def test_the_shared_body_defaults_nothing_but_where_lines_go():
     """Every setting of run.build and run.pull is required: the window cannot
-    fall back on a value nobody stated."""
+    fall back on a value nobody stated. What is defaulted says only where the
+    output goes: say, where lines go, and on build into and names, where the
+    peer tabs go (their own file unless a workbook is given), each None."""
     import inspect
     from threshold_engine.peers import run
-    for fn in (run.build, run.pull):
-        defaulted = [n for n, p in inspect.signature(fn).parameters.items()
-                     if p.default is not inspect.Parameter.empty]
-        assert defaulted == ["say"], fn.__name__
+    for fn, where in ((run.build, ["say", "into", "names"]), (run.pull, ["say"])):
+        params = inspect.signature(fn).parameters
+        defaulted = [n for n, p in params.items() if p.default is not inspect.Parameter.empty]
+        assert defaulted == where, fn.__name__
+        assert all(params[n].default is None for n in where if n != "say"), fn.__name__
 
 
 @pytest.mark.parametrize("key,value,says", [

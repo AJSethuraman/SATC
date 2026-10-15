@@ -483,11 +483,13 @@ def test_a_complete_peer_form_becomes_runs_arguments_exactly(tmp_path):
 
 def test_the_arguments_are_exactly_what_run_takes_so_the_window_cannot_drift(tmp_path):
     """Every keyword run.pull and run.build take, say aside, and no other:
-    the same two functions `peers pull` and `peers build` call."""
+    the same two functions `peers pull` and `peers build` call. Also aside,
+    build's into and names: where the peer tabs go when another workbook
+    takes them, which the window's own peer workbook never asks for."""
     import inspect
     f = peers_filled(tmp_path)
     for action, fn in (("pull", peers_run.pull), ("build", peers_run.build)):
-        params = set(inspect.signature(fn).parameters) - {"say"}
+        params = set(inspect.signature(fn).parameters) - {"say", "into", "names"}
         assert set(launcher.peer_arguments(f, action)) == params, action
 
 
