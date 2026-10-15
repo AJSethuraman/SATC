@@ -540,7 +540,9 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     are written into that workbook, under the titles ``names`` gives, and no
     peer workbook is saved -- the caller saves it, and then runs
     ``peers_workbook.na_as_gap`` over the tabs ``info["sheets"]`` names. The
-    series CSVs are written and put in place as ever.
+    peer glossary and run record go into that workbook's own Glossary and Run
+    tabs as second sections (``info["folded"]``). The series CSVs are written
+    and put in place as ever.
 
     Returns ``{out, info, series}``: the workbook written (None with
     ``into``), what ``build_peers_workbook`` returned, and per series

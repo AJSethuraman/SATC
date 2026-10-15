@@ -1,27 +1,30 @@
 """The peer tabs written into another workbook (``into``, ``names``), so the
 thresholds workbook and the peers are one file built by Python alone.
 
-Four things are proved here:
+Five things are proved here:
 
 1. The series CSVs ``peers build`` writes (they feed the thresholds workbook)
-   are byte for byte what they were before the dashboard: run.build is run
-   twice over the same cache, once with today's builder and once with the
-   one-tab-per-view builder it replaced (tests/data/peers/
-   peers_workbook_642ff55f.py, copied unchanged from commit 642ff55f).
-   The earlier pin here, that the standalone .xlsx was part for part the one
-   the builder at d1e353a1 wrote, is retired: the standalone output was
-   changed on purpose (14 Oct 2026, one dashboard tab), and that pin said it
-   would be retired, not edited, when that happened.
+   are byte for byte what they were before the round 2 layout: run.build is
+   run twice over the same cache, once with today's builder and once with the
+   dashboard builder it replaced (tests/data/peers/peers_workbook_96ee5f2f.py,
+   copied unchanged from commit 96ee5f2f). The pin here before, against the
+   one-tab-per-view builder (peers_workbook_642ff55f.py), is retired: the
+   standalone output was changed on purpose (15 Oct 2026, Claude Design's
+   round 2), and the builder each change replaces is the one frozen.
 2. Written into a workbook that already has its own Data, Glossary and Run
    tabs, each holding a value no peer cell could produce, every peer tab
    recalculates (the ``formulas`` engine) to exactly the standalone build's
    values, cell for cell, under the titles the book gives them
-   (book.PEER_TAB_NAMES); and no formula, validation, conditional format,
-   hyperlink, defined name or chart series on a peer tab names a tab that is
-   not a peer tab.
-3. ``foreign_refs``, the check the builder runs before it returns, finds a
+   (book.PEER_TAB_NAMES); the peer glossary and run record are second
+   sections of the host's own Glossary and Run, after what they held, with
+   the standalone tabs' content; and no formula, validation, conditional
+   format, hyperlink, defined name or chart series on a peer tab names a tab
+   that is not a peer tab.
+3. In the book's order (the peers first, the host's Glossary and Run after,
+   then the save) the sections land after the host's own content, once.
+4. ``foreign_refs``, the check the builder runs before it returns, finds a
    stray reference of each of those kinds when one is planted.
-4. Bad titles, and ``out`` with ``into``, are refused in words.
+5. Bad titles, and ``out`` with ``into``, are refused in words.
 """
 import datetime as dt
 import importlib.util
@@ -47,6 +50,7 @@ PEERS = DATA / "peers"
 TWO = ("Credit card", "Mortgage")
 JUMP, MIN_BOOK = 0.25, 1_000_000
 NAMES = dict(PEER_TAB_NAMES)
+OWN = [t for t in PW.TABS if t not in PW.FOLDED]
 NONE_ACQUIRED = {p: {} for p in ("Credit card", "Mortgage", "Home equity", "Other consumer", "Auto")}
 #: What the host's own Data, Glossary and Run hold: a peer formula pointed at
 #: one of them would read one of these.
@@ -64,10 +68,10 @@ FROZEN = types.SimpleNamespace(datetime=_Frozen, date=dt.date)
 
 
 def _old():
-    """The one-tab-per-view builder (642ff55f), loaded inside the package so its
-    relative imports find today's books, roster and glossary."""
-    spec = importlib.util.spec_from_file_location("threshold_engine.peers._peers_workbook_642ff55f",
-                                                  PEERS / "peers_workbook_642ff55f.py")
+    """The dashboard builder this layout replaced (96ee5f2f), loaded inside the
+    package so its relative imports find today's books, roster and glossary."""
+    spec = importlib.util.spec_from_file_location("threshold_engine.peers._peers_workbook_96ee5f2f",
+                                                  PEERS / "peers_workbook_96ee5f2f.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -154,18 +158,19 @@ def tree(folder):
     return {str(p.relative_to(folder)): p.read_bytes() for p in sorted(folder.rglob("*")) if p.is_file()}
 
 
-def test_peers_build_writes_the_same_series_as_before_the_dashboard(tmp_path, dl_data, monkeypatch):
+def test_peers_build_writes_the_same_series_as_before_the_round_2_layout(tmp_path, dl_data, monkeypatch):
     """Through peers.run.build (a cache folder, a mergers file, the industry,
     delinquency, each peer's own book): every series CSV, byte for byte, as
-    the one-tab-per-view builder's run wrote it. The workbooks differ, on
-    purpose; the files the thresholds workbook reads do not."""
+    the builder it replaced wrote it. The workbooks differ, on purpose; the
+    files the thresholds workbook reads do not."""
     cache = dq_cache(tmp_path, dl_data)
     new = run_build(tmp_path / "after.xlsx", cache, tmp_path / "after")
     assert load_workbook(new["out"]).sheetnames == list(PW.TABS)
     monkeypatch.setattr(PW, "build_peers_workbook",
                         lambda *a, into=None, names=None, **kw: OLD.build_peers_workbook(*a, **kw))
     old = run_build(tmp_path / "before.xlsx", cache, tmp_path / "before")
-    assert load_workbook(old["out"]).sheetnames[:2] == ["Pack", "Peers"]
+    assert load_workbook(old["out"]).sheetnames == ["Peers", "Workings", "Glossary", "Data", "DelinquencyData",
+                                                    "Run"]
     before, after = tree(tmp_path / "before"), tree(tmp_path / "after")
     assert len(after) > 100 and any(k.startswith("banks") for k in after)
     assert sorted(before) == sorted(after)
@@ -227,19 +232,59 @@ def into_and_alone(tmp_path_factory, recent, dl_data, roster):
     return dict(alone=alone, info=info, wb=wb, path=path)
 
 
+def section_rows(ws, first_row, first_col, n_cols):
+    """The values of a block of rows from ``first_row``, ``n_cols`` wide from ``first_col``, blank rows left out."""
+    out = []
+    for r in range(first_row, ws.max_row + 1):
+        vals = tuple(ws.cell(r, c).value for c in range(first_col, first_col + n_cols))
+        if any(v is not None for v in vals):
+            out.append(vals)
+    return out
+
+
 def test_into_writes_the_peer_tabs_after_the_hosts_and_saves_nothing(into_and_alone):
     info, wb = into_and_alone["info"], into_and_alone["wb"]
     assert info["path"] is None
-    assert info["sheets"] == [NAMES[t] for t in PW.TABS]
+    assert info["sheets"] == [NAMES[t] for t in OWN]
+    assert info["folded"] == {"Glossary": "Glossary", "Run": "Run"} == {t: NAMES[t] for t in PW.FOLDED}
     assert wb.sheetnames == ["Data", "Glossary", "Run"] + info["sheets"]
     assert wb.active.title == "Data"                       # the host's active tab is left as it was
     assert wb[NAMES["Workings"]].sheet_state == "hidden"
-    for title, (a1, b2) in HOST.items():
+    ws = wb["Data"]
+    assert (ws["A1"].value, ws["B2"].value, ws.max_row, ws.max_column) == HOST["Data"] + (2, 2)
+    for title in PW.FOLDED:                                # the host's own content is where it was
         ws = wb[title]
-        assert (ws["A1"].value, ws["B2"].value, ws.max_row, ws.max_column) == (a1, b2, 2, 2)
+        assert (ws["A1"].value, ws["B2"].value) == HOST[title]
+        assert [ws.cell(3, c).value for c in range(1, 5)] == [None] * 4
     alone = into_and_alone["alone"]
-    assert {k: v for k, v in info.items() if k not in ("path", "sheets")} == \
-        {k: v for k, v in alone.items() if k not in ("path", "sheets")}
+    assert {k: v for k, v in info.items() if k not in ("path", "sheets", "folded")} == \
+        {k: v for k, v in alone.items() if k not in ("path", "sheets", "folded")}
+
+
+def test_the_glossary_and_run_are_second_sections_of_the_hosts(into_and_alone):
+    """The host's Glossary carries "Peers terms" after its own content: the
+    standalone Glossary's rows, word for word (each naming the renamed tabs);
+    its Run carries the standalone Run's rows under "Peers: " headings."""
+    wb, alone = into_and_alone["wb"], load_workbook(into_and_alone["alone"]["path"])
+    words = PW._Tabs(NAMES).words
+    g = wb["Glossary"]
+    assert g["A4"].value == "Peers terms" and [g.cell(5, c).value for c in (1, 2, 3)] == \
+        ["Term", "What it means", "How it is calculated"]
+    mine = section_rows(alone["Glossary"], 5, 2, 3)
+    theirs = section_rows(g, 6, 1, 3)
+    assert len(mine) == len(PW.PEER_TERMS) == len(theirs)
+    assert theirs == [tuple(words(v) for v in r) for r in mine]
+    assert any("Peers data tab" in v for r in theirs for v in r)
+    r_ = wb["Run"]
+    assert r_["A4"].value == "Peers: this build"
+    heads = [r_.cell(r, 1).value for r in range(4, r_.max_row + 1) if r_.cell(r, 1).font.b and
+             r_.cell(r, 1).font.sz == 11]
+    assert heads == ["Peers: this build", "Peers: rules, as stated", "Peers: acquisition quarters, per bank",
+                     "Peers: roster"]
+    body = [r for r in section_rows(r_, 4, 1, 5) if r[0] not in heads]
+    want = [r for r in section_rows(alone["Run"], 4, 2, 5)
+            if r[0] not in ("This build", "Rules, as stated", "Acquisition quarters, per bank", "Roster")]
+    assert body == want and any(r[0] == "Jump" for r in body)
 
 
 @pytest.fixture(scope="module")
@@ -248,16 +293,16 @@ def recalculated(into_and_alone):
 
 
 def test_every_peer_cell_recalculates_to_the_standalone_value(into_and_alone, recalculated):
-    """Cell for cell, every value equal. The one difference allowed is the
-    prose naming a tab, which names the renamed tab (the 'Glossary tab' is
-    the 'Peers glossary tab'): the standalone text, renamed, must equal it,
-    and those cells are counted so the allowance cannot grow unseen."""
+    """Cell for cell, every value on the peer tabs equal. The one difference
+    allowed is the prose naming a tab, which names the renamed tab (the 'Data
+    tab' is the 'Peers data tab'): the standalone text, renamed, must equal
+    it, and those cells are counted so the allowance cannot grow unseen."""
     alone, into = recalculated
     words = PW._Tabs(NAMES).words
     host_values = {same_value(v) for a1, b2 in HOST.values() for v in (a1, b2)}
     compared, renamed, live = 0, 0, 0
     wb = load_workbook(into_and_alone["alone"]["path"])
-    for tab in PW.TABS:
+    for tab in OWN:
         mine = {k.split("!", 1)[1]: v for k, v in alone.items() if k.split("!", 1)[0] == tab.upper()}
         theirs = {k.split("!", 1)[1]: v for k, v in into.items() if k.split("!", 1)[0] == NAMES[tab].upper()}
         assert mine, tab
@@ -275,10 +320,8 @@ def test_every_peer_cell_recalculates_to_the_standalone_value(into_and_alone, re
         live += sum(1 for row in wb[tab].iter_rows() for c in row if c.data_type == "f")
         assert not host_values & {same_value(v) for v in theirs.values()}, tab
     assert compared > 10_000 and live > 5_000
-    # The dashboard's subtitle and its notes that name a tab, and the
-    # glossary rows that do.
-    glossary = sum(1 for _, m, c in PW.PEER_TERMS for x in (m, c) if words(x) != x)
-    assert 1 <= renamed - glossary <= 8, (renamed, glossary)
+    # The notes on the dashboard that name the Data or DelinquencyData tab.
+    assert 1 <= renamed <= 4, renamed
 
 
 def test_the_recalculated_dashboard_is_live_not_blank(into_and_alone, recalculated):
@@ -306,26 +349,53 @@ def test_no_peer_tab_refers_outside_the_peer_tabs(into_and_alone):
     with zipfile.ZipFile(into_and_alone["path"]) as z:
         charts = [z.read(n).decode() for n in z.namelist() if n.startswith("xl/charts/chart")]
     refs = [f for c in charts for f in re.findall(r"<f>([^<]*)</f>", c)]
-    assert len(charts) == 3 and refs
+    assert len(charts) == 5 and refs                     # two panels, book size, the ratio, the mix
     assert all(f.startswith(("Peers!", "'Peers workings'!")) for f in refs), refs[:5]
     assert all("dispNaAsBlank" in c for c in charts)
 
 
 def test_the_prose_names_the_renamed_tabs(into_and_alone):
-    """A line telling the reader to look at 'the Glossary tab' would send them
-    to the host's: every such line names the peer tab's title."""
+    """A line telling the reader to look at 'the Data tab' would send them to
+    the host's: every such line names the peer tab's title. The Glossary and
+    Run are the host's own, which now hold the peer sections."""
     wb = into_and_alone["wb"]
     moved = [t for t in PW.TABS if NAMES[t] != t]
+    assert moved == ["Data", "DelinquencyData", "Workings"]
     stale = re.compile(r"\b(%s)\b(?=(?: and [A-Z]\w*)? tabs?\b)|\bDelinquencyData\b" % "|".join(moved))
     seen = []
-    for title in into_and_alone["info"]["sheets"]:
+    for title in into_and_alone["info"]["sheets"] + list(PW.FOLDED):
         for row in wb[title].iter_rows():
             for c in row:
                 if isinstance(c.value, str) and " tab" in c.value:
                     seen.append(c.value)
                     assert not stale.search(c.value), (title, c.coordinate, c.value)
-    assert any("Peers glossary tab" in v for v in seen) and any("Peers data tab" in v for v in seen)
-    assert any("Peers run tab" in v for v in seen)
+    assert any("Peers data tab" in v for v in seen) and any("Peers delinquency data tab" in v for v in seen)
+    assert any("the Glossary tab" in v for v in seen) and any("the Run tab" in v for v in seen)
+
+
+# ---- 3. in the book's order: the peers first, the host's tabs after ----
+
+def test_the_sections_go_after_the_hosts_content_when_its_tabs_come_later(tmp_path, recent, roster):
+    """book.build writes the peers into an empty workbook, then its own
+    Glossary and Run, then saves: the save writes each peer section after the
+    host's own rows, in the column its title starts in, and a second save
+    writes nothing more. A host that never makes the tab gets one."""
+    wb = Workbook()
+    info = build(PW, None, recent, roster, ("Credit card",), into=wb, names=NAMES)
+    assert info["sheets"] == [NAMES[t] for t in OWN] and "Glossary" not in wb.sheetnames
+    g = wb.create_sheet("Glossary")
+    g["B1"], g["B4"], g["B12"] = "Glossary", "Term", "The host's last term"
+    path = tmp_path / "book.xlsx"
+    wb.save(path)
+    wb.save(path)
+    saved = load_workbook(path)
+    g = saved["Glossary"]
+    assert g["B14"].value == "Peers terms" and g["B15"].value == "Term" and g["B16"].value == "Pack"
+    assert [r for r in range(1, g.max_row + 1) if g.cell(r, 2).value == "Peers terms"] == [14]
+    assert g.max_row == 15 + len(PW.PEER_TERMS)
+    r_ = saved["Run"]                                      # nothing made a Run: the save did
+    assert r_["A1"].value == "Peers: this build" and saved.sheetnames[-1] == "Run"
+    assert "save" not in wb.__dict__                       # the workbook saves as any other from here
 
 
 def test_na_as_gap_over_the_peer_tabs_leaves_the_hosts_charts_alone(tmp_path, recent, roster):
@@ -351,7 +421,7 @@ def test_peers_build_into_a_workbook_writes_the_series_and_no_peer_file(tmp_path
     cache = dq_cache(tmp_path, dl_data)
     wb = host()
     got = run_build(None, cache, tmp_path / "series", into=wb, names=NAMES)
-    assert got["out"] is None and got["info"]["sheets"] == [NAMES[t] for t in PW.TABS]
+    assert got["out"] is None and got["info"]["sheets"] == [NAMES[t] for t in OWN]
     assert wb.sheetnames[3:] == got["info"]["sheets"]
     written = [p for p, n, *_ in got["series"] if n]
     assert len(written) > 12 and all(p.exists() for p in written)
@@ -360,7 +430,7 @@ def test_peers_build_into_a_workbook_writes_the_series_and_no_peer_file(tmp_path
         run_build(tmp_path / "x.xlsx", cache, tmp_path / "s2", into=host(), names=NAMES)
 
 
-# ---- 4. refusals ----
+# ---- 5. refusals ----
 
 @pytest.mark.parametrize("names, why", [
     ({k: v for k, v in NAMES.items() if k != "Run"}, "missing: Run"),
@@ -379,7 +449,7 @@ def test_bad_names_are_refused(names, why, recent, roster):
 
 def test_a_title_the_host_already_has_is_refused(recent, roster):
     wb = host()
-    with pytest.raises(ValueError, match="already has a tab called Data, Glossary, Run"):
+    with pytest.raises(ValueError, match="already has a tab called Data;"):
         build(PW, None, recent, roster, ("Credit card",), into=wb)
     wb2 = host()
     wb2.create_sheet("PEERS WORKINGS")
@@ -406,7 +476,7 @@ def test_a_title_that_needs_quoting_is_quoted():
     assert PW._quoted("Q4data") == "'Q4data'"
 
 
-# ---- 3. the check can fail ----
+# ---- 4. the check can fail ----
 
 def planted():
     """A peer tab beside a host Data tab, and one reference of each kind on

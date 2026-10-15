@@ -9,6 +9,8 @@ charge-off composite, band, KeyBank, Peer A and B (net, and gross once the
 rate picker says so), best and worst and the ranking window, delinquency, the
 book index, the lagged rates and the pack total, how far each rate moved, and
 the mix. Then "Chart shows" is changed, and nothing but what is drawn may move.
+Since the round 2 layout (15 Oct 2026) the cells sit elsewhere on Peers; the
+values compared are the same.
 
 Both workbooks are recalculated with the `formulas` engine.
 """
@@ -115,7 +117,7 @@ def test_the_net_charge_off_view_equals_the_old_peers_tab(both):
 
 def test_the_gross_rate_equals_the_old_gross_chart(both):
     old, new, ov = both["old"], both["new"], both["oldv"]
-    gv = typed(new["path"], both["base"] / "gross.xlsx", {"E5": "Gross"})
+    gv = typed(new["path"], both["base"] / "gross.xlsx", {"C5": "Gross"})
     n = len(old["quarters"])
     seen = 0
     for mine, theirs in charge_off_pairs("gross"):
@@ -192,7 +194,7 @@ def test_the_book_index_equals_the_old_balances_tab(both, roster):
     a, b = nv["WORKINGS!" + new["scalars"]["a_name"].replace("$", "")], \
         nv["WORKINGS!" + new["scalars"]["b_name"].replace("$", "")]
     for r, who in ((bt + 1, "KeyBank"), (bt + 2, a), (bt + 3, b)):
-        assert_equal([nv["PEERS!E%d" % r], nv["PEERS!G%d" % r]], [latest[who][2], latest[who][3]], who)
+        assert_equal([nv["PEERS!M%d" % r], nv["PEERS!O%d" % r]], [latest[who][2], latest[who][3]], who)
 
 
 def test_lagged_rates_and_the_pack_total_equal_the_old_lagged_tab(both, roster):
@@ -202,7 +204,7 @@ def test_lagged_rates_and_the_pack_total_equal_the_old_lagged_tab(both, roster):
         c = get_column_letter(column_index_from_string(new["lagged"]["helpers"]["s_%d" % y]))
         got = [nv["WORKINGS!%s%d" % (c, 2 + i)] for i in range(len(roster))]
         assert_equal(got, [rows[b["short"]][1 + j] for b in roster], "lagged %d" % y)
-        cell = "PEERS!%s%d" % ("MN"[j], new["layout"]["lagged"] + 4)
+        cell = "PEERS!%s%d" % ("DE"[j], new["layout"]["lagged"] + 4)
         assert num(nv[cell]) == pytest.approx(rows["All peers, total (15 banks)"][1 + j], abs=1e-12)
 
 
@@ -213,7 +215,7 @@ def test_how_far_each_rate_moved_equals_the_old_normalisation_tab(both):
     b = nv["WORKINGS!" + new["scalars"]["b_name"].replace("$", "")]
     r = new["layout"]["norm_table"] + 1
     for i, who in enumerate(("KeyBank", a, b, "All-peer composite (15 banks)")):
-        assert_equal([nv["PEERS!%s%d" % (c, r + i)] for c in "MNO"], rows[who][1:4], who)
+        assert_equal([nv["PEERS!%s%d" % (c, r + i)] for c in "LMN"], rows[who][1:4], who)
 
 
 def test_the_mix_equals_the_old_mix_tab(both, roster):
@@ -238,16 +240,16 @@ def test_chart_shows_changes_only_what_is_drawn(both):
     starting 48, but the window picker itself, how many quarters it allows
     and each chart's first row and row count, the cells the named ranges read."""
     new, nv = both["new"], both["newv"]
-    wv = typed(new["path"], both["base"] / "window.xlsx", {"K5": "Last 20 quarters"})
+    wv = typed(new["path"], both["base"] / "window.xlsx", {"F5": "Last 20 quarters"})
     s = new["scalars"]
     drawn = {"WORKINGS!" + s[k].replace("$", "") for k in s if k.endswith(("_first", "_count")) or k == "span"}
-    assert len(drawn) == 7
+    assert len(drawn) == 5
     differ = {k for k in nv if k.split("!")[0] in ("PEERS", "WORKINGS") and
               str(nv[k]) != str(wv.get(k)) and not (num(nv[k]) is not None and num(wv.get(k)) is not None
                                                      and abs(num(nv[k]) - num(wv[k])) < 1e-12)}
-    assert differ <= drawn | {"PEERS!K5"}, sorted(differ - drawn)[:10]
-    assert "PEERS!K5" in differ and drawn & differ
-    for key, view in (("co", "charge_offs"), ("bk", "book"), ("dl", "delinquency")):
+    assert differ <= drawn | {"PEERS!F5"}, sorted(differ - drawn)[:10]
+    assert "PEERS!F5" in differ and drawn & differ
+    for key, view in (("co", "charge_offs"), ("dl", "delinquency")):
         n = len(new[view]["quarters"])
         first, count = (num(wv["WORKINGS!" + s[key + x].replace("$", "")]) for x in ("_first", "_count"))
         assert count == min(20, n) and first + count - 1 == n + 1, key       # the last 20, ending at the last

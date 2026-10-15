@@ -43,7 +43,7 @@ EXTRAS = {FIFTH_THIRD: ["2022Q2"]}
 NONE_ACQUIRED = {p: {} for p in ("Credit card", "Mortgage", "Home equity", "Other consumer", "Auto")}
 DQ_RULES = dict(jump=0.25, min_book=1_000_000, exempt_self=True, acquired=NONE_ACQUIRED)
 #: The pickers and settings on Peers (fixed by peers_workbook.PICKERS and SETTINGS).
-PRODUCT, RATE, PEER_A, PEER_B, WINDOW, DQ_MEASURE, DQ_BASIS = "B5", "E5", "G5", "I5", "K5", "M5", "P5"
+PRODUCT, RATE, PEER_A, PEER_B, WINDOW, DQ_MEASURE, DQ_BASIS = "B5", "C5", "D5", "E5", "F5", "J5", "K5"
 
 
 def recalc(path):
@@ -168,6 +168,40 @@ def peers_cell(vals, ref):
     return vals.get("PEERS!" + ref)
 
 
+def run_rows(wb):
+    """The standalone Run tab's rows from column B, where its sections start."""
+    return [r[1:] for r in wb["Run"].iter_rows(values_only=True)]
+
+
+def glossary_rows(wb):
+    """The standalone Glossary tab's (term, meaning, calculation) rows, from column B."""
+    return [r[1:4] for r in wb["Glossary"].iter_rows(values_only=True)]
+
+
+def assert_rank_table(vals, info, books_p, certs, roster, kind="net"):
+    """Where each bank stands on charge-offs: the banks in ``certs`` kept in the
+    latest quarter, and KeyBank, by rate, a peer level with KeyBank after it;
+    each row's rate, its distance from the composite and the In pack mark."""
+    order = [b["cert"] for b in roster]
+    short = {b["cert"]: b["short"] for b in roster}
+    last = {c: (books_p[c][-1][kind + "_rate"] if books_p[c][-1]["kept"] else None) for c in order}
+    ranked = sorted((c for c in order if (c in certs or c == KEYBANK) and last[c] is not None),
+                    key=lambda c: (last[c], c != KEYBANK, order.index(c)))
+    comp = composite(books_p, certs, MIN_BANKS)[-1][kind + "_rate"]
+    head = info["layout"]["rank_head"]
+    for k, c in enumerate(ranked):
+        r = head + 1 + k
+        assert num(peers_cell(vals, "B%d" % r)) == k + 1 and peers_cell(vals, "C%d" % r) == short[c], (k, c)
+        assert num(peers_cell(vals, "D%d" % r)) == pytest.approx(last[c], abs=1e-12)
+        assert num(peers_cell(vals, "E%d" % r)) == pytest.approx(last[c] - comp, abs=1e-9)
+        assert (peers_cell(vals, "H%d" % r) == "—") if c == KEYBANK else \
+            peers_cell(vals, "H%d" % r).startswith("Yes")
+    assert all(peers_cell(vals, "%s%d" % (c_, head + 1 + k)) in ("", None)
+               for k in range(len(ranked), len(roster)) for c_ in "BCD")
+    me = ranked.index(KEYBANK) + 1
+    assert peers_cell(vals, "F%d" % (info["layout"]["tiles"] + 1)) == "%d of %d" % (me, len(ranked))
+
+
 # --- the charge-off view --------------------------------------------------------
 
 def test_all_peers_composite_and_band_equal_books(all_peers, books, roster):
@@ -273,24 +307,26 @@ def test_switching_jpmorgan_off_moves_every_pack_view(all_peers, jpm_off, books,
     # The lagged pack total, and the normalised pack composite.
     lay = info["layout"]
     for j, y in enumerate((2019, 2025)):
-        cell = "%s%d" % ("MN"[j], lay["lagged"] + 4)
+        cell = "%s%d" % ("DE"[j], lay["lagged"] + 4)
         for certs, vals in (([b["cert"] for b in peers], before), (without, after)):
             assert num(peers_cell(vals, cell)) == pytest.approx(
                 lagged_rate(data, certs, "Credit card", y, 2)["rate"], abs=1e-9), (y, cell)
         assert num(peers_cell(before, cell)) != pytest.approx(num(peers_cell(after, cell)), abs=1e-6)
-    assert peers_cell(after, "J%d" % (lay["lagged"] + 4)) == "Pack total (14 banks switched on)"
+    assert peers_cell(after, "B%d" % (lay["lagged"] + 4)) == "Pack total (14 banks switched on)"
     r = lay["norm_table"] + 4
     for certs, vals in (([b["cert"] for b in peers], before), (without, after)):
         comp = composite(card, certs, MIN_BANKS)
         want = normalisation([(x["quarter"], x["net_rate"]) for x in comp], 2019, 2025)
-        for c, key in (("M", "base"), ("N", "end"), ("O", "ratio")):
+        for c, key in (("L", "base"), ("M", "end"), ("N", "ratio")):
             assert num(peers_cell(vals, "%s%d" % (c, r))) == pytest.approx(want[key], abs=1e-9), key
-    assert num(peers_cell(before, "O%d" % r)) != pytest.approx(num(peers_cell(after, "O%d" % r)), abs=1e-6)
+    assert num(peers_cell(before, "N%d" % r)) != pytest.approx(num(peers_cell(after, "N%d" % r)), abs=1e-6)
     # The headline pack number moves; KeyBank's own does not.
     t = lay["tiles"] + 1
     assert num(peers_cell(before, "D%d" % t)) != pytest.approx(num(peers_cell(after, "D%d" % t)), abs=1e-6)
     assert num(peers_cell(before, "B%d" % t)) == num(peers_cell(after, "B%d" % t))
-    assert peers_cell(after, "L%d" % (lay["banks"] + 1)) == "No"          # the bank table says so too
+    # The rank table leaves JPMorgan out, and is the module's order over the other fourteen and KeyBank.
+    assert_rank_table(after, info, card, without, roster)
+    assert_rank_table(before, info, card, [b["cert"] for b in peers], roster)
 
 
 # --- another product, the gross rate, the regionals --------------------------------
@@ -320,7 +356,7 @@ def test_the_product_rate_and_yes_no_cells_move_the_lines(all_peers, regionals_g
         assert_series(wcol(vals, info, "charge_offs", name),
                       [r["gross_rate"] for r in books["Other consumer"][cert]], name)
     assert peers_cell(vals, "B%d" % info["layout"]["v1"]) == \
-        "Charge-offs: Other consumer, gross rate, trailing four quarters (%)"
+        "Charge-offs: other consumer, gross rate, trailing four quarters (%)"
 
 
 def test_a_named_peer_is_drawn_switched_off_and_min_obs_is_met_at_exactly(all_peers, books, roster, tmp_path):
@@ -369,8 +405,8 @@ def test_lagged_values_carry_the_acceptance_numbers_and_equal_analyses(all_peers
                 want = lagged_rate(data, b["cert"], product, y, 2)["rate"]
                 assert (got[b["short"]] is None) if want is None else got[b["short"]] == pytest.approx(want)
     r = info["layout"]["lagged"] + 1
-    assert peers_cell(vals, "J%d" % r) == "KeyBank" and round(num(peers_cell(vals, "M%d" % r)), 2) == 3.52
-    assert peers_cell(vals, "J%d" % (r + 3)) == "Pack total (15 banks switched on)"
+    assert peers_cell(vals, "B%d" % r) == "KeyBank" and round(num(peers_cell(vals, "D%d" % r)), 2) == 3.52
+    assert peers_cell(vals, "B%d" % (r + 3)) == "Pack total (15 banks switched on)"
 
 
 def test_the_book_index_is_on_the_data_tab_and_carries_the_acceptance_numbers(all_peers, data, roster):
@@ -405,10 +441,15 @@ def test_the_book_index_is_on_the_data_tab_and_carries_the_acceptance_numbers(al
                 else:
                     for got, w in ((r[11], x["reported"]), (r[12], x["organic"])):
                         assert (got is None) if w is None else got == pytest.approx(w), (product, b["short"], r[3])
-    bank_rows = {peers_cell(vals, "J%d" % (info["layout"]["banks"] + 1 + i)): info["layout"]["banks"] + 1 + i
-                 for i in range(len(roster))}
-    assert peers_cell(vals, "P%d" % bank_rows["Zions"]) == "too small"
-    run = [r for r in load_workbook(p)["Run"].iter_rows(values_only=True)]
+    # Zions' card book is under the smallest indexed at the base: the book index says so for it.
+    wk = load_workbook(p)["Workings"]
+    notes = column_index_from_string(info["banks"]["helpers"]["notes"])
+    zions = [b["short"] for b in roster].index("Zions")
+    assert wk.cell(2 + zions, notes).value == "too small"
+    bt = info["layout"]["book_table"]
+    assert peers_cell(vals, "J%d" % (bt + 1)) == "KeyBank"
+    assert num(peers_cell(vals, "M%d" % (bt + 1))) == pytest.approx(82, abs=0.5)     # as reported, as on Data
+    run = run_rows(load_workbook(p))
     assert any(r[0] == "Fifth Third" and "2022Q2 (declared)" in str(r[1]) for r in run)
 
 
@@ -421,10 +462,10 @@ def test_normalisation_rows_equal_analyses(all_peers, books, roster):
     best, worst = best_worst(card, certs, "net", 20, 12)
     for i, cert in enumerate((KEYBANK, worst, best)):
         want = normalisation([(x["quarter"], x["net_rate"]) for x in card[cert]], 2019, 2025)
-        for c, key in (("M", "base"), ("N", "end"), ("O", "ratio")):
+        for c, key in (("L", "base"), ("M", "end"), ("N", "ratio")):
             got = peers_cell(vals, "%s%d" % (c, r + i))
             assert (num(got) is None) if want[key] is None else num(got) == pytest.approx(want[key]), (cert, key)
-    assert round(num(peers_cell(vals, "M%d" % r)), 2) == 3.29 and round(num(peers_cell(vals, "N%d" % r)), 2) == 4.30
+    assert round(num(peers_cell(vals, "L%d" % r)), 2) == 3.29 and round(num(peers_cell(vals, "M%d" % r)), 2) == 4.30
     del who
 
 
@@ -472,11 +513,12 @@ def test_mix_values_with_an_industry(tmp_path, recent, roster):
 
 def test_every_glossary_term_is_on_the_glossary_tab(all_peers):
     p, _, _ = all_peers
-    on_tab = {r[0] for r in load_workbook(p)["Glossary"].iter_rows(values_only=True)}
+    on_tab = {r[0] for r in glossary_rows(load_workbook(p))}
     terms = [t for t, _, _ in PEER_TERMS]
     assert set(terms) <= on_tab
     for must in ("Structural move", "Pack", "In the pack", "Chart shows", "Composite", "Band", "Lagged rate",
-                 "Organic index", "Own factor", "Book-size band and median", "Pack total (lagged)"):
+                 "Organic index", "Own factor", "Book index pack median", "Pack total (lagged)", "Normalization",
+                 "Rank tables", "Book size", "Charge-off rate \u00f7 pack composite", "Consumer book by product"):
         assert must in terms
     assert all(m and c for _, m, c in PEER_TERMS)
     assert not any("Pack tab" in m + c or "Include" in m + c for _, m, c in PEER_TERMS)
@@ -493,38 +535,68 @@ def test_data_tab_holds_every_bank_product_and_quarter(all_peers, books, roster)
 
 
 def test_one_dashboard_a_hidden_workings_and_charts_over_named_ranges(all_peers):
-    """Peers is the one tab the bank looks at; Workings is hidden. Each chart
-    reads names on Peers (OFFSET over Workings, from the first row drawn, as
-    many rows as are drawn), the band as up-down bars between invisible lines
-    first, then the lines; #N/A is a gap; the hidden tab is plotted."""
+    """Peers is the one tab the bank looks at; Workings is hidden; the tabs
+    carry the design's colours and Peers its column widths. Each chart reads
+    names on Peers (OFFSET over Workings, from the first row drawn, as many
+    rows as are drawn); the main chart's band is up-down bars between
+    invisible lines, then the lines in the design's colours and widths, with
+    KeyBank last and a 6 pt circle on its last point; the legend is at the
+    top with the helper series' keys deleted; #N/A is a gap; the hidden tab
+    is plotted."""
     p, info, _ = all_peers
     wb = load_workbook(p)
     assert wb.sheetnames == list(PW.TABS)
     assert wb["Workings"].sheet_state == "hidden" and wb["Peers"].sheet_state == "visible"
     assert wb.active.title == "Peers"
-    names = wb["Peers"].defined_names
-    for key in ("co", "bk"):
-        f = names["%s_c" % key if key == "co" else "bk_p50"].attr_text
-        assert f.startswith("OFFSET(Workings!$") and "Workings!%s-1" % info["scalars"][key + "_first"] in f
-        assert f.endswith(",Workings!%s,1)" % info["scalars"][key + "_count"])
+    colours = {t: wb[t].sheet_properties.tabColor.rgb[-6:] for t in PW.TABS if t != "Workings"}
+    assert colours == {"Peers": "0A0908", "Glossary": "B9B4AC", "Run": "B9B4AC", "Data": "E4DFD5",
+                       "DelinquencyData": "E4DFD5"}
+    pe = wb["Peers"]
+    px = {c: round(pe.column_dimensions[c].width * 7) for c in "ABCDEFGHIJKLMNOPQ"}
+    assert px == dict({c: 130 for c in "BCDEFGHJKLMNOP"}, A=16, I=24, Q=8)
+    names = pe.defined_names
+    f = names["co_c"].attr_text
+    assert f.startswith("OFFSET(Workings!$") and "Workings!%s-1" % info["scalars"]["co_first"] in f
+    assert f.endswith(",Workings!%s,1)" % info["scalars"]["co_count"])
     with zipfile.ZipFile(p) as z:
         charts = [z.read(n).decode("utf-8") for n in sorted(z.namelist())
                   if re.match(r"xl/charts/chart\d+\.xml$", n)]
-    assert len(charts) == 2                        # charge-offs and book size; delinquency was not built
+    # Charge-offs, book size, the rate over the composite, the mix; delinquency was not built.
+    assert len(charts) == 4
     for xml in charts:
         assert 'dispNaAsBlank val="1"' in xml and '<dispBlanksAs val="gap"' in xml and '<plotVisOnly val="0"' in xml
-        assert "<areaChart>" not in xml and "<barChart>" not in xml
-        groups = re.findall(r"<lineChart>.*?</lineChart>", xml)
-        assert len(groups) == 3
-        for g, (lo, hi) in zip(groups[:2], ((10, 90), (25, 75))):
-            assert "<upDownBars>" in g
-            assert re.findall(r"<val><numRef><f>Peers!([a-z]+)_p(\d+)</f>", g) in (
-                [("co", str(lo)), ("co", str(hi))], [("bk", str(lo)), ("bk", str(hi))])
-            assert all("<a:ln><a:noFill" in x for x in re.findall(r"<ser>.*?</ser>", g))
-        assert "<upDownBars>" not in groups[2]
-        lines = re.findall(r"<val><numRef><f>Peers!([a-z]+_[a-z0-9]+)</f>", groups[2])
-        assert lines in (["co_c", "co_k", "co_a", "co_b", "co_ind"], ["bk_p50", "bk_k", "bk_a", "bk_b"])
-        assert all(c == "Peers!%s_q" % lines[0][:2] for c in re.findall(r"<cat><strRef><f>([^<]*)</f>", xml))
+        assert '<legendPos val="t"' in xml and "<barChart>" not in xml
+        assert all(c == "Peers!co_q" for c in re.findall(r"<cat><strRef><f>([^<]*)</f>", xml))
+        # Every series carries a value cache, or Excel drops the legend deletions.
+        assert xml.count("<numRef>") == xml.count("<numCache>") > 0
+    main = next(x for x in charts if "Peers!co_p10" in x)
+    groups = re.findall(r"<lineChart>.*?</lineChart>", main)
+    assert len(groups) == 3 and "<areaChart>" not in main
+    for g, (lo, hi), fill in zip(groups[:2], ((10, 90), (25, 75)), ("E4DFD5", "CFC8BC")):
+        assert "<upDownBars>" in g and fill in g
+        assert re.findall(r"<val><numRef><f>Peers!([a-z]+)_p(\d+)</f>", g) == [("co", str(lo)), ("co", str(hi))]
+        assert all("<a:ln><a:noFill" in x for x in re.findall(r"<ser>.*?</ser>", g))
+    assert "<upDownBars>" not in groups[2]
+    sers = re.findall(r"<ser>.*?</ser>", groups[2])
+    lines = [re.search(r"<val><numRef><f>Peers!([a-z_0-9]+)</f>", s_).group(1) for s_ in sers]
+    assert lines == ["co_c", "co_ind", "co_a", "co_b", "co_k", "co_mark"]
+    style = {n: (re.search(r'<a:ln w="(\d+)"', s_), re.search(r'<a:srgbClr val="([0-9A-F]{6})"', s_),
+                 re.search(r'<a:prstDash val="(\w+)"', s_)) for n, s_ in zip(lines, sers)}
+    got = {n: (int(w.group(1)) if w else None, c.group(1) if c else None, d.group(1) if d else None)
+           for n, (w, c, d) in style.items()}
+    assert got["co_c"] == (25400, "0A0908", "solid") and got["co_k"] == (31750, "CC0000", "solid")
+    assert got["co_ind"] == (19050, "8C877E", "solid")
+    assert got["co_a"] == (19050, "57534B", "dash") and got["co_b"] == (19050, "57534B", "sysDot")
+    assert '<symbol val="circle" /><size val="6" />' in sers[5]
+    assert re.findall(r'<legendEntry><idx val="(\d+)" /><delete val="1" />', main) == ["0", "1", "2", "3", "9"]
+    assert '<a:ln w="6350"><a:solidFill><a:srgbClr val="E4DFD5"' in main          # Y gridlines, MIST 0.5 pt
+    small = {tuple(re.findall(r"<val><numRef><f>Peers!([a-z_0-9]+)</f>", x)): x for x in charts if x is not main}
+    assert set(small) == {("co_bk_k", "co_bk_a", "co_bk_b"), ("co_rk", "co_ra", "co_rb", "co_one"),
+                          tuple("co_mix%d" % j for j in range(1, len(FOUR) + 1))}
+    ratio = small["co_rk", "co_ra", "co_rb", "co_one"]
+    assert re.findall(r'<legendEntry><idx val="(\d+)" /><delete val="1" />', ratio) == ["3"]
+    mix = small[tuple("co_mix%d" % j for j in range(1, len(FOUR) + 1))]
+    assert '<areaChart><grouping val="percentStacked" />' in mix and "CC0000" in mix
 
 
 def formulas_reaching_above_row_1(wb):
@@ -588,7 +660,7 @@ def test_the_yellow_cells_refuse_what_the_build_would(all_peers):
 
 def test_run_tab_states_the_rules_as_built(all_peers):
     p, _, _ = all_peers
-    rows = {r[0]: r for r in load_workbook(p)["Run"].iter_rows(values_only=True) if r and r[0]}
+    rows = {r[0]: r for r in run_rows(load_workbook(p)) if r and r[0]}
     assert rows["Jump"][1] == JUMP
     assert rows["Minimum book ($000)"][1] == MIN_BOOK and rows["Minimum book ($000)"][2] == "KeyBank exempt"
     assert rows["Banks needed for a composite or band (starting)"][1] == MIN_BANKS
@@ -618,7 +690,7 @@ def test_run_tab_records_when_each_quarter_and_the_mergers_were_pulled(tmp_path,
     os.utime(mfile, (stamp, stamp))
     p = tmp_path / "run.xlsx"
     make(p, recent, roster, "all", products=("Credit card",), cache_dir=cache, mergers_file=mfile)
-    rows = list(load_workbook(p)["Run"].iter_rows(values_only=True))
+    rows = run_rows(load_workbook(p))
     by = {r[0]: r for r in rows if r and r[0]}
     assert by["Pulled (cache files written)"][1] == "2026-10-01T09:30:00 to 2026-10-02T08:00:00"
     files = {r[0]: r for r in rows if r and isinstance(r[0], str) and r[0].startswith("q")}
@@ -788,7 +860,7 @@ def test_delinquency_pickers_move_product_measure_and_basis(dlq, dl_data, roster
     # Best and worst are ranked on the product's charge-offs, which mortgage
     # does not have here: Peer A and B resolve to no one, and say so.
     assert scalar(vals, info, "a_name") == scalar(vals, info, "b_name") == "(none qualifies)"
-    assert peers_cell(vals, "G6") == "Drawn: (none qualifies)"
+    assert peers_cell(vals, "D6") == "Drawn: (none qualifies)"
     assert all(num(v) is None for n_ in ("a", "bb") for v in wcol(vals, info, "delinquency", n_))
     assert_series(wcol(vals, info, "delinquency", "k"), [r["avg4"] for r in books[KEYBANK]], "k")
     differ = sum(num(a) != num(b) for a, b in zip(wcol(vals, info, "delinquency", "banks"),
@@ -802,7 +874,7 @@ def test_delinquency_pickers_move_product_measure_and_basis(dlq, dl_data, roster
     assert peers_cell(vals, "B%d" % (lay["tiles"] + 1)) == "none"
     assert peers_cell(vals, "B%d" % lay["mix_peers"]).startswith("No charge-offs were built for Mortgage")
     assert peers_cell(vals, "B%d" % 6) == "No charge-offs built for this product."
-    assert peers_cell(vals, "J%d" % lay["v1"]) == "Delinquency: Mortgage, 30+ incl. nonaccrual, four-quarter average (%)"
+    assert peers_cell(vals, "J%d" % lay["v1"]) == "Delinquency: mortgage, 30+ incl. nonaccrual, four-quarter average (%)"
 
 
 def test_delinquency_banks_needed_is_met_at_exactly_that_many(dlq, dl_data, roster, tmp_path):
@@ -865,7 +937,8 @@ def test_the_delinquency_chart_and_pickers(dlq):
     xml = charts[0]
     groups = re.findall(r"<lineChart>.*?</lineChart>", xml)
     assert len(groups) == 3 and all("<upDownBars>" in g for g in groups[:2])
-    assert re.findall(r"<val><numRef><f>Peers!(dl_[a-z0-9]+)</f>", groups[2]) == ["dl_c", "dl_k", "dl_a", "dl_bb"]
+    assert re.findall(r"<val><numRef><f>Peers!(dl_[a-z0-9]+)</f>", groups[2]) == ["dl_c", "dl_a", "dl_bb", "dl_k",
+                                                                                  "dl_mark"]
     ws = load_workbook(p)["Peers"]
     lists = {str(r) for dv in ws.data_validations.dataValidation if dv.type == "list" for r in dv.sqref.ranges}
     assert {DQ_MEASURE, DQ_BASIS, PRODUCT} <= lists
@@ -879,7 +952,7 @@ def test_not_built_the_dashboard_and_the_tab_say_so(all_peers):
     assert info["delinquency"] is None
     assert "Delinquency was not built" in wb["DelinquencyData"]["A1"].value
     assert peers_cell(vals, "J%d" % info["layout"]["tiles"]) == PW.NOT_BUILT
-    run = {r[0]: r for r in wb["Run"].iter_rows(values_only=True) if r and r[0]}
+    run = {r[0]: r for r in run_rows(wb) if r and r[0]}
     assert run["Delinquency"][1] == "not built"
 
 
@@ -895,7 +968,7 @@ def test_delinquency_is_a_required_argument(tmp_path, recent, roster):
 def test_delinquency_run_tab_and_glossary(dlq):
     p, _, _ = dlq
     wb = load_workbook(p)
-    run = {r[0]: r for r in wb["Run"].iter_rows(values_only=True) if r and r[0]}
+    run = {r[0]: r for r in run_rows(wb) if r and r[0]}
     assert list(run["Delinquency"][1:3]) == ["Credit card, Mortgage", "quarter-ends 2017Q1 to 2026Q2"]
     assert run["Delinquency jump"][1] == 0.25
     assert list(run["Delinquency minimum book ($000)"][1:3]) == [1_000_000, "KeyBank exempt"]
@@ -904,12 +977,12 @@ def test_delinquency_run_tab_and_glossary(dlq):
                  "Not filed", "Delinquency composite", "Delinquency band", "Banks in the quarter-end composite",
                  "Banks in the band"] + list(D.MEASURES):
         assert must.lower() in [t.lower() for t in terms], must
-    assert set(terms) <= {r[0] for r in wb["Glossary"].iter_rows(values_only=True)}
+    assert set(terms) <= {r[0] for r in glossary_rows(wb)}
 
 
 def test_glossary_lists_everything_left_out_and_why(dlq):
     p, _, _ = dlq
-    rows = [r for r in load_workbook(p)["Glossary"].iter_rows(values_only=True) if r and r[0]]
+    rows = [r for r in glossary_rows(load_workbook(p)) if r and r[0]]
     left = {r[0]: r for r in rows if r[0].startswith("Left out:")}
     assert sorted(left) == sorted([
         "Left out: an acquisition (the jump)", "Left out: a small book (the minimum book)",

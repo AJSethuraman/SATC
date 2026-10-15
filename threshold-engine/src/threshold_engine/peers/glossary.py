@@ -16,21 +16,21 @@ PEER_TERMS = [
     ("In the pack",
      "Whether a peer is in the pack: Yes or No, under its name at the top of the Peers tab.",
      "Every view with a pack in it recalculates when one changes: the charge-off and delinquency composites "
-     "and bands, the book-size band and median, the lagged pack total, the normalised pack composite, best "
-     "and worst in pack, and the headline numbers."),
+     "and bands, the rank tables, the charge-off rate over the pack composite, the book index pack median, the "
+     "lagged pack total, the normalization pack composite, best and worst in pack, and the headline numbers."),
     ("Chart shows",
-     "How much history the charts draw: every quarter, or the last 80, 48 or 20.",
+     "How much history the charts draw: every quarter, or the last 48 or 20.",
      "Only the picture. Each chart starts at the first quarter any of its lines has, within that many quarters "
      "back from its last, and its axis fits what is drawn. No figure depends on it."),
     ("Headline numbers",
-     "The strip over each chart: KeyBank, the pack composite and the industry in the latest quarter, and "
-     "KeyBank's rank.",
+     "The strip of four numbers over each chart: KeyBank, the pack composite and the industry (on "
+     "delinquency, the banks with a rate) in the latest quarter, and KeyBank's rank.",
      "The latest quarter's values of the lines drawn. KeyBank's rank counts the banks switched on with a rate "
      "that quarter, plus KeyBank, from the lowest rate (1); a tie shares the better rank."),
     ("Regional",
      "A peer in the regionals-only pack.",
      "Read from the roster (config/peers.json): every peer except the largest national banks and the card "
-     "specialist. A working grouping, not a definition."),
+     "specialist."),
     ("TTM gross charge-off rate",
      "What a bank wrote off over the last four quarters, as a share of the book.",
      "100 x the four quarters' gross charge-offs / the mean of the four quarter-end balances. A quarter's "
@@ -43,8 +43,8 @@ PEER_TERMS = [
      "The size of the book over the four quarters a rate covers.",
      "The mean of the four quarter-end balances, in $ thousands as filed."),
     ("Structural move",
-     "A change in a book's size too large to be lending: a merger, a purchase, a sale or a reclassification. "
-     "Charge-offs over it describe a different book, so its rates are not used.",
+     "A change in a book's size larger than lending accounts for: a merger, a purchase, a sale or a "
+     "reclassification. Rates whose window includes it are not used.",
      "A quarter whose balance moved by more than the jump from the quarter before (|this / last - 1| > jump), "
      "or rose from zero. A rate is not kept if any quarter from the one before its window to its last quarter "
      "moved structurally."),
@@ -53,7 +53,7 @@ PEER_TERMS = [
      "move.",
      "A build setting, shown on the Run tab. 0.25 means a 25% move in one quarter."),
     ("Minimum book",
-     "The smallest book whose rate is used. A few charge-offs on a tiny book make a rate that means nothing.",
+     "The smallest book whose rate is used.",
      "A build setting, in $ thousands, shown on the Run tab. A rate is not kept when the average balance is "
      "below it. KeyBank can be exempt, so its own line is never blank for size."),
     ("Kept",
@@ -69,8 +69,7 @@ PEER_TERMS = [
      "Each row says why the number is left out, the rule, and where each one is recorded, so every omission "
      "can be found by bank and quarter."),
     ("Left out: an acquisition (the jump)",
-     "When a bank buys, merges with or sells a book, its numbers over the next few quarters describe two "
-     "different books, so they say nothing about how its loans performed.",
+     "A quarter in which a bank bought, merged with or sold a book, and the quarters whose figures span it.",
      "A quarter whose balance moved by more than the jump from the one before, or rose from zero. "
      "Charge-offs: the rate is not kept if this happened in its window or the quarter before (the Data tab, "
      "Why not kept). Delinquency: the bank's four-quarter average is blank if it happened in the last three "
@@ -80,7 +79,7 @@ PEER_TERMS = [
      "2026): DelinquencyData's last column marks it, and the composite's series file names each bank and "
      "quarter."),
     ("Left out: a small book (the minimum book)",
-     "A few bad loans on a tiny book make a rate that swings wildly and means nothing.",
+     "A book below the minimum book.",
      "Charge-offs: the average balance is under the minimum book. Delinquency: the quarter-end balance is "
      "under it. KeyBank can be exempt, so its own line is never blank for size. Recorded in Why not kept "
      "(the Data tab, DelinquencyData)."),
@@ -94,11 +93,11 @@ PEER_TERMS = [
      "Why no four-quarter average (delinquency)."),
     ("Left out: not included",
      "A peer someone has taken out of the pack.",
-     "Switched off (No) on the Peers tab: left out of every pack figure (composites, bands, the book-size "
-     "median, the lagged pack total) and of best and worst in pack. It "
+     "Switched off (No) on the Peers tab: left out of every pack figure (composites, bands, the rank tables, "
+     "the book index pack median, the lagged pack total) and of best and worst in pack. It "
      "can still be drawn as Peer A or Peer B."),
     ("Left out: too few banks",
-     "A composite or band drawn from two or three banks is not the pack's.",
+     "A quarter in which fewer banks are kept than a composite or band needs.",
      "A quarter with fewer kept banks than the Peers tab asks for is blank, never drawn from fewer. The headline "
      "over each chart counts the banks in at the latest quarter; Workings counts them every quarter."),
     ("Left out: before a gap (series files)",
@@ -127,11 +126,10 @@ PEER_TERMS = [
      "Two lines drawn beside KeyBank, each one named peer or whoever best or worst in pack resolves to.",
      "Picked on the Peers tab. Drawn whether or not that peer is included in the pack, kept quarters only."),
     ("Lagged rate",
-     "A year's losses against the book that made them, lent some years earlier. Fast growth flatters a "
-     "plain rate, because new loans have not had time to go bad.",
+     "A year's net charge-offs as a share of the book some years earlier.",
      "100 x the year's net charge-offs (the Q4 year-to-date charge-offs less recoveries, as filed) / the mean "
      "of the four quarter-end balances of the earlier year. A pack total sums the dollars before dividing."),
-    ("Normalisation",
+    ("Normalization",
      "How far a rate has moved between two years.",
      "Each year's figure is the mean of its four quarterly TTM net rates (blank unless all four were kept); "
      "the ratio is the later year's / the earlier year's, blank when the earlier year is 0 or below (net "
@@ -140,12 +138,31 @@ PEER_TERMS = [
      "A book's size against a base quarter, with purchased books taken out, so growth means lending.",
      "Base quarter = 100. Each quarter's growth from the one before is chained, except in an acquisition "
      "quarter, where the growth is set to 1. As reported is the plain balance / the base balance x 100."),
-    ("Book-size band and median",
+    ("Book index pack median",
      "How the pack's books grew, each bank counting once whatever its size.",
-     "The 10th, 25th, 50th (the median, the black line), 75th and 90th percentiles of the book indexes, "
-     "without acquisitions, of the banks switched on and indexed, each quarter from the base. Blank when "
-     "fewer banks than the Peers tab asks for are indexed. A bank is indexed when its book at the base is at "
-     "least the smallest book indexed (a build setting, on the Run tab)."),
+     "The median of the book indexes of the banks switched on and indexed, at the latest quarter: without "
+     "acquisitions, and as reported. Blank when fewer banks than the Peers tab asks for are indexed. A bank "
+     "is indexed when its book at the base is at least the smallest book indexed (a build setting, on the Run "
+     "tab); otherwise the book index table says too small, or no book when it had none."),
+    ("Rank tables",
+     "Each bank switched on with a rate in the latest quarter, and KeyBank, in order of that rate, under "
+     "Where each bank stands.",
+     "Rank 1 is the lowest rate; a peer level with KeyBank ranks after it. vs composite is the bank's rate "
+     "minus the pack composite, in percentage points. 4-quarter change is the bank's rate minus its own rate "
+     "four quarters earlier, in percentage points, blank when either is missing. Balance ($bn) is the average "
+     "balance on charge-offs and the quarter-end balance on delinquency. In pack marks Peer A and Peer B."),
+    ("Book size",
+     "The average balance of KeyBank's, Peer A's and Peer B's books in the product picked, in $ billions.",
+     "The mean of the four quarter-end balances, as on the Data tab, / 1,000,000; a quarter the bank did not "
+     "file is a gap. It has no pack in it."),
+    ("Charge-off rate ÷ pack composite",
+     "KeyBank's, Peer A's and Peer B's charge-off rate as a multiple of the pack composite; 1 is the composite.",
+     "The bank's rate / the pack composite in the same quarter, on the rate picked. Blank when either is "
+     "missing or the composite is 0."),
+    ("Consumer book by product",
+     "The share of KeyBank's consumer book in each product built, the product picked drawn first in red.",
+     "Each product's average balance / the sum over the products built, each quarter; a product not filed "
+     "counts as no balance."),
     ("Pack total (lagged)",
      "The pack's lagged rate as if its banks were one bank.",
      "100 x the summed net charge-offs of the banks switched on / their summed balances in the earlier year. "
@@ -166,7 +183,7 @@ PEER_TERMS = [
      "(The bank's calendar-year net rate / its base-year rate) / (the industry's net rate / its base-year "
      "rate)."),
     ("Balance factor",
-     "The pull of a growing or shrinking book on its rate.",
+     "The base year's book as a multiple of this year's.",
      "The base year's mean balance / this year's: below 1 the book has grown since the base year."),
     # Delinquency and nonaccrual (docs/V1-ROUND2-SPEC.md, section A; peers/delinquency.py).
     ("Delinquency rate",

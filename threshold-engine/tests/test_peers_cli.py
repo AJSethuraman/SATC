@@ -441,7 +441,7 @@ def test_every_stated_setting_reaches_the_workbook(built, tmp_path, monkeypatch,
 def test_a_declared_acquisition_reaches_the_run_tab(built):
     """Fifth Third's Dividend Finance (2022Q2) is listed as declared among its
     acquisition quarters, which the book index takes out."""
-    rows = {r[0]: r for r in load_workbook(built["out"])["Run"].iter_rows(values_only=True) if r and r[0]}
+    rows = {r[1]: r[1:] for r in load_workbook(built["out"])["Run"].iter_rows(values_only=True) if r and r[1]}
     assert "2022Q2 (declared)" in rows["Fifth Third"][1]
 
 
@@ -468,9 +468,11 @@ def test_the_regionals_pack_and_no_exemption(built, data, tmp_path, capsys):
     assert len(rows) < 30                     # exempt, the card series runs 2018Q1 to 2026Q2 (34)
     assert not any("exempt" in n for n in notes)
     pe = load_workbook(out)["Peers"]
-    names = {b["short"]: b["cert"] for b in roster}
-    on = {names[pe.cell(8, c).value] for c in range(3, 18) if pe.cell(9, c).value == "Yes"}
-    assert on == set(regionals) and pe.cell(9, 3).value == "No"             # JPMorgan starts switched off
+    peers_ = R.peers(roster)
+    assert [pe.cell(pe[peers_workbook.include_cell(j)].row - 1, pe[peers_workbook.include_cell(j)].column).value
+            for j in range(len(peers_))] == [b["short"] for b in peers_]
+    on = {b["cert"] for j, b in enumerate(peers_) if pe[peers_workbook.include_cell(j)].value == "Yes"}
+    assert on == set(regionals) and pe[peers_workbook.include_cell(0)].value == "No"   # JPMorgan starts off
 
 
 def test_a_series_that_ends_early_says_so(built, data, tmp_path, capsys):
