@@ -15,7 +15,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-cache = Path(sys.argv[1]).resolve()
+cache = Path(sys.argv[1]).resolve()             # argv[2]: the SEC filings' cache
 out = HERE / "out"
 out.mkdir(exist_ok=True)
 book = json.loads((ROOT / "books" / "consumer-public.json").read_text(encoding="utf-8"))
@@ -30,5 +30,8 @@ with (out / "series.csv").open("w", newline="", encoding="utf-8") as fh:
 book["series"] = "series.csv"
 book["peers"].update(cache=str(cache), mergers=str(cache / "mergers.json"), absorptions=str(cache / "absorptions.json"),
                      roster=str(ROOT / "config" / "peers.json"), series_dir="series")
+# The SEC filings for the Peer loan classes tab: the cache 'peers classes-pull' filled.
+book["loan_classes"] = {"file": str(ROOT / "config" / "peer-loan-classes.json"),
+                        "cache": str(Path(sys.argv[2]).resolve())}
 (out / "book.json").write_text(json.dumps(book, indent=2) + "\n", encoding="utf-8")
 print("wrote %s: %d series, cache %s" % (out / "book.json", len(rows), cache))

@@ -232,6 +232,16 @@ def _peers_parser(sub):
                     help="yes: also pull the products' delinquency and nonaccrual fields")
     pu.add_argument("--refresh", action="store_true", help="fetch every quarter again, even if cached")
 
+    cp = ps.add_parser("classes-pull", help="each peer's 10-Q (or 10-K) for one quarter from SEC EDGAR into a "
+                                            "cache folder: what its consumer loan classes hold")
+    cp.add_argument("--cache", required=True, metavar="DIR")
+    cp.add_argument("--classes", required=True, metavar="FILE",
+                    help="the loan classes file (config/peer-loan-classes.json): whose filings to fetch")
+    cp.add_argument("--quarter", required=True, metavar="YYYYQn")
+    cp.add_argument("--user-agent", required=True, metavar="\"NAME EMAIL\"",
+                    help="who is asking, with a contact email: SEC's fair-access policy requires it; not stored")
+    cp.add_argument("--refresh", action="store_true", help="fetch again, even if held")
+
     bu = ps.add_parser("build", help="the peer workbook and the series CSVs, from the cache only")
     bu.add_argument("out", help="the .xlsx to write")
     bu.add_argument("--cache", required=True, metavar="DIR")
@@ -293,6 +303,14 @@ def _peers_pull(a):
     from .peers import run
     run.pull(cache=a.cache, first=a.first, last=a.last, products=a.products,
              delinquency=a.delinquency, mergers_since=a.mergers, refresh=a.refresh)
+    return 0
+
+
+def _peers_classes_pull(a):
+    """``peers classes-pull``: peers.classes.pull for the banks the loan classes file names."""
+    from .peers import classes, loan_classes_tab
+    spec = loan_classes_tab.load(a.classes)
+    classes.pull(a.cache, spec["banks"], a.quarter, a.user_agent, refresh=a.refresh)
     return 0
 
 
@@ -508,7 +526,7 @@ def main(argv=None):
             return _refused(exc)
     if a.command == "peers":
         try:
-            return _peers_pull(a) if a.peers_command == "pull" else _peers_build(a)
+            return {"pull": _peers_pull, "classes-pull": _peers_classes_pull}.get(a.peers_command, _peers_build)(a)
         except (ValueError, OSError, RuntimeError) as exc:
             return _refused(exc)
     if a.command == "book":

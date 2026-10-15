@@ -189,7 +189,7 @@ steps.append({"id": "B1", "what": "Open the workbook as built",
                        "shows the first product and measure, no source picked and nothing decided",
               "actions": [], "reads": [
                   {"special": "active", "expect": "Summary"},
-                  {"special": "sheets", "expect": ["Decide", "Summary", "Peers", "Thresholds", LBS, "Internal",
+                  {"special": "sheets", "expect": ["Decide", "Summary", "Peers", "Peer loan classes", "Thresholds", LBS, "Internal",
                                                    "Evidence", "Backtest", "Glossary", "Sources", "Run", "Data",
                                                    "Peers data", "Peers delinquency data", "Internal data", "Assess",
                                                    "Chart", "Peers workings"]},

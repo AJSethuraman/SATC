@@ -86,5 +86,9 @@
     "mix_base_year": 2019,
     "delinquency": true
   },
-  "internal": null
+  "internal": null,
+  "loan_classes": {
+    "file": "../config/peer-loan-classes.json",
+    "cache": "sec_cache"
+  }
 }

@@ -36,12 +36,13 @@ ROOT = Path(__file__).resolve().parents[2]
 #: The book's files, as shipped: (name in the bundle, file in the repository).
 BUNDLE = (("consumer-public.json", ROOT / "books" / "consumer-public.json"),
           ("consumer-public-series.csv", ROOT / "books" / "consumer-public-series.csv"),
-          ("peers.json", ROOT / "config" / "peers.json"))
+          ("peers.json", ROOT / "config" / "peers.json"),
+          ("peer-loan-classes.json", ROOT / "config" / "peer-loan-classes.json"))
 QUARTER = re.compile(r"^(19|20)\d\dQ[1-4]$")
 MERGERS_SINCE = "2005-01-01"
 INTERNAL_SOURCE = "KeyBank internal"
 INTERNAL_MEASURES = {"net-charge-off-rate": "Net charge-offs", "gross-charge-off-rate": "Gross charge-offs"}
-CACHE, BOOK = "FDIC data", "Book"
+CACHE, BOOK, SEC = "FDIC data", "Book", "SEC filings"
 
 
 def bundled(name: str) -> bytes:
@@ -55,9 +56,13 @@ def bundled(name: str) -> bytes:
     return data
 
 
-def problems(folder: str, quarter: str, internal: str) -> List[str]:
-    """What stops a step, in words; empty when nothing does."""
+def problems(folder: str, quarter: str, internal: str, contact: Optional[str] = None) -> List[str]:
+    """What stops a step, in words; empty when nothing does. ``contact`` is
+    checked only for the step that asks SEC (None: not that step)."""
     out = []
+    if contact is not None and not re.search(r"[^@\s]+@[^@\s]+\.[A-Za-z]{2,}", contact):
+        out.append("Type a name and a contact email for SEC, for example \"Your Name you@yourbank.com\": SEC "
+                   "refuses requests without one. It is not stored.")
     if not folder.strip():
         out.append("Choose a folder for the data and the workbook.")
     if not QUARTER.match(quarter.strip()):
@@ -80,6 +85,8 @@ def prepare(folder, quarter: str, internal: Optional[str], segments: bool) -> Pa
     cache = folder / CACHE
     raw["peers"].update(cache=str(cache), mergers=str(cache / "mergers.json"),
                         absorptions=str(cache / "absorptions.json"), roster="peers.json", last=quarter)
+    if raw.get("loan_classes") is not None:
+        raw["loan_classes"] = {"file": "peer-loan-classes.json", "cache": str(folder / SEC)}
     raw["internal"] = None if not internal else {
         "file": str(Path(internal).resolve()), "source": INTERNAL_SOURCE, "segments": bool(segments),
         "measures": dict(INTERNAL_MEASURES), "call_report_source": "KeyBank"}
@@ -88,12 +95,23 @@ def prepare(folder, quarter: str, internal: Optional[str], segments: bool) -> Pa
     return path
 
 
-def pull(folder, quarter: str, say: Callable[[str], None] = print) -> None:
-    """Fetch the FDIC quarters the folder does not hold yet."""
+def pull(folder, quarter: str, say: Callable[[str], None] = print, contact: Optional[str] = None) -> None:
+    """Fetch the FDIC quarters the folder does not hold yet, and, when the
+    book has a Peer loan classes tab, each peer's filing for the quarter the
+    classes file states (its judgements are about those filings)."""
     from .peers import run as peers_run
-    raw = json.loads(bundled("consumer-public.json").decode("utf-8"))["peers"]
+    book = json.loads(bundled("consumer-public.json").decode("utf-8"))
+    raw = book["peers"]
     peers_run.pull(cache=str(Path(folder) / CACHE), first=raw["first"], last=quarter, products=raw["products"],
                    delinquency=bool(raw["delinquency"]), mergers_since=MERGERS_SINCE, refresh=False, say=say)
+    if book.get("loan_classes") is not None:
+        from .peers import classes, loan_classes_tab
+        tmp = Path(folder) / BOOK
+        tmp.mkdir(parents=True, exist_ok=True)
+        (tmp / "peer-loan-classes.json").write_bytes(bundled("peer-loan-classes.json"))
+        spec = loan_classes_tab.load(tmp / "peer-loan-classes.json")
+        say("SEC filings for %s, as the loan classes file states:" % spec["quarter"])
+        classes.pull(Path(folder) / SEC, spec["banks"], spec["quarter"], contact or "", say=say)
 
 
 def build(folder, quarter: str, internal: Optional[str], segments: bool,
@@ -125,12 +143,14 @@ def main() -> None:                                              # pragma: no co
     quarter = tk.StringVar(value=json.loads(bundled("consumer-public.json").decode("utf-8"))["peers"]["last"])
     internal = tk.StringVar(value="")
     segments = tk.BooleanVar(value=False)
+    contact = tk.StringVar(value="")
 
     tk.Label(root, text="Consumer credit thresholds", font=("Arial", 16, "bold")).grid(
         row=0, column=0, columnspan=3, sticky="w", **pad)
     tk.Label(root, justify="left", fg="#57534B", wraplength=820, text=(
         "Builds the workbook from the FDIC's public Call Report data, and the bank's internal file if you "
-        "choose one. Step 1 downloads only the quarters the folder does not hold yet. Step 2 takes about "
+        "choose one, and each peer's own SEC filing for the Peer loan classes tab. Step 1 downloads only "
+        "what the folder does not hold yet. Step 2 takes about "
         "eight minutes, then Excel opens the workbook.")).grid(row=1, column=0, columnspan=3, sticky="w", **pad)
 
     def row(r, label, var, choose):
@@ -141,23 +161,25 @@ def main() -> None:                                              # pragma: no co
 
     row(2, "Folder", folder, lambda: folder.set(filedialog.askdirectory(initialdir=folder.get()) or folder.get()))
     row(3, "Latest quarter", quarter, None)
-    row(4, "Internal file", internal, lambda: internal.set(filedialog.askopenfilename(
+    row(4, "SEC contact", contact, None)
+    row(5, "Internal file", internal, lambda: internal.set(filedialog.askopenfilename(
         filetypes=[("CSV", "*.csv"), ("All files", "*.*")]) or internal.get()))
     tk.Checkbutton(root, variable=segments, text="Also add each internal segment as its own series").grid(
-        row=5, column=1, sticky="w", **pad)
+        row=6, column=1, sticky="w", **pad)
     tk.Label(root, justify="left", fg="#57534B", wraplength=820, text=(
         "Optional: the bank's file in the internal import layout (docs/INTERNAL-IMPORT.md). Its net and gross "
         "charge-off rates join the workbook as \"KeyBank internal\"; its past-due measures show on the "
-        "Internal tab only. Leave it blank for public data only.")).grid(row=6, column=0, columnspan=3,
+        "Internal tab only. Leave it blank for public data only. SEC contact: a name and an email; SEC "
+        "refuses requests without one. It is sent to SEC only and not stored.")).grid(row=7, column=0, columnspan=3,
                                                                           sticky="w", **pad)
     buttons = tk.Frame(root)
-    buttons.grid(row=7, column=0, columnspan=3, sticky="w", **pad)
+    buttons.grid(row=8, column=0, columnspan=3, sticky="w", **pad)
     log = tk.Text(root, height=18, wrap="word", font=("Consolas", 9))
-    log.grid(row=8, column=0, columnspan=3, sticky="nsew", **pad)
-    root.grid_rowconfigure(8, weight=1)
+    log.grid(row=9, column=0, columnspan=3, sticky="nsew", **pad)
+    root.grid_rowconfigure(9, weight=1)
     root.grid_columnconfigure(1, weight=1)
     bar = ttk.Progressbar(root, mode="indeterminate")
-    bar.grid(row=9, column=0, columnspan=3, sticky="we", **pad)
+    bar.grid(row=10, column=0, columnspan=3, sticky="we", **pad)
 
     def say(text):
         lines.put(str(text))
@@ -168,11 +190,11 @@ def main() -> None:                                              # pragma: no co
             log.see("end")
         root.after(200, drain)
 
-    def run(name, fn):
+    def run(name, fn, asks_sec=False):
         if busy["on"]:
             say("Wait: a step is still running.")
             return
-        stop = problems(folder.get(), quarter.get(), internal.get())
+        stop = problems(folder.get(), quarter.get(), internal.get(), contact.get() if asks_sec else None)
         if stop:
             for p in stop:
                 say(p)
@@ -193,8 +215,9 @@ def main() -> None:                                              # pragma: no co
         threading.Thread(target=work, daemon=True).start()
 
     def do_pull():
-        pull(folder.get().strip(), quarter.get().strip(), say=say)
-        say("Done: the FDIC data is in %s" % (Path(folder.get().strip()) / CACHE))
+        pull(folder.get().strip(), quarter.get().strip(), say=say, contact=contact.get().strip())
+        say("Done: the FDIC data is in %s and the SEC filings in %s"
+            % (Path(folder.get().strip()) / CACHE, Path(folder.get().strip()) / SEC))
 
     def do_build():
         out = build(folder.get().strip(), quarter.get().strip(), internal.get().strip() or None, segments.get(),
@@ -206,7 +229,7 @@ def main() -> None:                                              # pragma: no co
         Path(folder.get()).mkdir(parents=True, exist_ok=True)
         os.startfile(folder.get())
 
-    tk.Button(buttons, text="1. Get the FDIC data", width=22, command=lambda: run("Getting the FDIC data", do_pull)
+    tk.Button(buttons, text="1. Get the data", width=22, command=lambda: run("Getting the data", do_pull, asks_sec=True)
               ).pack(side="left", padx=(0, 8))
     tk.Button(buttons, text="2. Build the workbook", width=22,
               command=lambda: run("Building the workbook", do_build)).pack(side="left", padx=(0, 8))

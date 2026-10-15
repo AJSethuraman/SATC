@@ -1434,3 +1434,47 @@ and each source rated on the lines picked.
 changed on another branch (pro forma acquisitions); this branch was walked on
 the peers code as it stood at d0aa99a0. The 32 rows not given a source in
 the walk are read only as Pick a source.
+
+## 15 October 2026, afternoon: what each peer's consumer book holds, tied out
+
+The analyst, asking whether peers' other consumer rates say anything about
+unsecured lending: *"I don't know how to prove out that these guys don't have
+much student and stuff. Is there a way to do that"*, then *"Build it in and
+tie it out"*.
+
+- **Peer loan classes**, a new tab in the book (`peers/classes.py`,
+  `peers/loan_classes_tab.py`, the book's required key `loan_classes`): for
+  the 15 peers, KeyCorp and SoFi, each holding company's 10-Q for the quarter
+  ended 30 June 2026: who holds student loans, unsecured or personal loans and
+  lines, and secured non-auto lending; each consumer class as filed; and the
+  filing's words behind every finding. `peers classes-pull` fetches the
+  filings from SEC EDGAR into a cache (SEC requires a contact email in the
+  User-Agent header: a required flag, never stored; the window asks for it).
+- Amounts are never typed in `config/peer-loan-classes.json`: a class the
+  filing tags names its XBRL members and the build reads the amount (18
+  classes); a class printed but not tagged by class gives the figure as
+  printed and where (15). What each class counts as is a judgment, stated per
+  class with the filing's words. The file is written by
+  `docs/tie-out/peer-loan-classes-2026q2/record/make_config.py` from three
+  readers' records of the filings.
+- **Tie-out** (`docs/tie-out/peer-loan-classes-2026q2/`): every class amount
+  read out of the workbook in Excel against the 10-Q as filed, through a
+  different file (the inline-XBRL document, fetched fresh) and a different
+  parser: **33 of 33 TIED**. One figure traced end to end with the filed table
+  photographed: Citizens' Education, $8,044m. Every quote checked against the
+  filed text: 24 found word for word, 27 findings "not stated" (searches).
+- What it found: student loans are a class at Citizens ($8.0bn) and SoFi
+  ($16.9bn, fair value), inside PNC's other consumer since 1 Jan 2026, $182m
+  in KeyCorp's discontinued operations; Capital One's 10-Q says Discover sold
+  its student portfolio before the merger; "student" appears in none of the
+  other twelve. Clean comparisons for unsecured lending: Capital One (personal
+  loans $8.6bn) and Fifth Third (unsecured $626m, split out in its Table 44).
+- What I got wrong: the readers recorded "not stated" for KeyCorp's secured
+  non-auto lending and Capital One's student loans; the tie-out's own search
+  found both sentences, and the file was corrected. The comparison script
+  first misread "$2.8 billion" (3 false DIFFERS; the workbook was right).
+- The peers' minimum book is now 0 (the analyst: *"for peers we should not
+  worry about a $1b minimum if keybank is not held to that standard"*).
+- The whole tool also ships as one file with a window
+  (`tools/make_app.py`, `app.py`), and the complete suite was run once:
+  1,138 passed before this tab was added.

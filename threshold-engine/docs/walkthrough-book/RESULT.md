@@ -13,7 +13,7 @@ It opens on Summary; the tabs in order; two slicers, each with one button picked
 | | Cell | Expected | Excel |
 |---|---|---|---|
 | ok | active | Summary | Summary |
-| ok | sheets | ['Decide', 'Summary', 'Peers', 'Thresholds', 'Lines by source', 'Internal', 'Evidence', 'B | ['Decide', 'Summary', 'Peers', 'Thresholds', 'Lines by source', 'Internal', 'Evidence', 'B |
+| ok | sheets | ['Decide', 'Summary', 'Peers', 'Peer loan classes', 'Thresholds', 'Lines by source', 'Inte | ['Decide', 'Summary', 'Peers', 'Peer loan classes', 'Thresholds', 'Lines by source', 'Inte |
 | ok | slicers | {'Product': 'Credit card', 'Measure': 'Net charge-offs'} | {'Product': 'Credit card', 'Measure': 'Net charge-offs'} |
 | ok | visible_rows | [9] | [9] |
 | ok | Decide!L1 | Decided: 0 of 35 · accepted 0 · rejected 0 | Decided: 0 of 35 · accepted 0 · rejected 0 |

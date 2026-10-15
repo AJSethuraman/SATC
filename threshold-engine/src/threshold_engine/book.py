@@ -27,7 +27,9 @@ own folder, so a book and its files can be copied to another machine whole.
                            "source": the source its series go under, e.g. "KeyBank internal",
                            "segments": true to add each segment as a series as well,
                            "measures": {internal measure: the book's measure it is},
-                           "call_report_source": the source holding the bank's Call Report series}
+                           "call_report_source": the source holding the bank's Call Report series},
+      "loan_classes": null or {"file": the loan classes file (config/peer-loan-classes.json),
+                               "cache": the folder 'peers classes-pull' fetched the filings into}
     }
 
 With an internal section, run on site only: the file is checked as the
@@ -58,7 +60,10 @@ from .series import LABEL_RULE, label_ok
 
 WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_at_zero", "moderate_halfwidth",
                  "low_step", "high_z", "on_the_line", "half_lives", "percentiles", "horizon", "min_history")
-TOP_KEYS = ("workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal")
+TOP_KEYS = ("workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
+            "loan_classes")
+#: The Peer loan classes tab: the stated classes file and the SEC filings' cache.
+LOAN_CLASSES_KEYS = ("file", "cache")
 LINES_FROM_KEYS = ("part", "start")
 #: The internal section: the file (docs/INTERNAL-IMPORT.md) and the judgments made about it.
 INTERNAL_KEYS = ("file", "source", "segments", "measures", "call_report_source")
@@ -196,6 +201,13 @@ def load(path) -> dict:
             if not p.exists():
                 problems.append("the file for %r does not exist: %s" % (label, p))
     internal = _internal(raw["internal"], resolve, decide_parts, problems)
+    loan_classes = raw["loan_classes"]
+    if loan_classes is not None:
+        _keys("loan_classes", loan_classes, LOAN_CLASSES_KEYS, problems)
+        if isinstance(loan_classes, dict) and all(k in loan_classes for k in LOAN_CLASSES_KEYS):
+            loan_classes = {k: resolve(loan_classes[k]) for k in LOAN_CLASSES_KEYS}
+            if not loan_classes["file"].exists():
+                problems.append("loan_classes: the file %s does not exist" % loan_classes["file"])
     lines_from = _lines_from(raw["lines_from"], parts, third, internal, problems)
     if problems:
         raise BookError("\n".join(problems))
@@ -203,6 +215,7 @@ def load(path) -> dict:
     wbk["half_lives"] = tuple(wbk["half_lives"])
     wbk["percentiles"] = tuple(wbk["percentiles"])
     return {"workbook": wbk, "series": series, "peers": peers, "folder": folder, "internal": internal,
+            "loan_classes": loan_classes,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
                        "notes": notes, "lines_from": lines_from}}
 
@@ -356,7 +369,7 @@ def build(book_path, out, say=print) -> dict:
     def tidy(wb):
         if blank.title in wb.sheetnames and blank.max_row == 1 and blank["A1"].value is None:
             wb.remove(blank)
-        order = ["Decide", "Summary", "Peers", "Thresholds", "Lines by source", "Internal", "Synthesis", "Evidence",
+        order = ["Decide", "Summary", "Peers", "Peer loan classes", "Thresholds", "Lines by source", "Internal", "Synthesis", "Evidence",
                  "Backtest",
                  "Glossary", "Sources", "Run", "Data", "Peers data", "Peers delinquency data", "Internal data",
                  "SynthesisData", "Assess", "Chart", "Peers workings"]
@@ -388,6 +401,14 @@ def build(book_path, out, say=print) -> dict:
             "peers_self": R.self_bank(R.load(bk["peers"]["roster"]))["short"] if bk["peers"] else None}
         say("internal: %d rows from %s; %d series added under %s"
             % (len(spec["data"].rows), Path(spec["data"].path).name, len(made), spec["source"]))
+
+    if bk["loan_classes"] is not None:
+        from .peers import loan_classes_tab as LC
+        spec = LC.load(bk["loan_classes"]["file"])
+        ws = host.create_sheet(LC.TITLE)
+        ws.sheet_properties.tabColor = "0A0908"
+        LC.write(ws, spec, bk["loan_classes"]["cache"])
+        say("loan classes: %d banks, from their %s filings" % (len(spec["banks"]), spec["quarter"]))
 
     info = WB.build(out, series, decide=decide, into=host, before_save=tidy, **bk["workbook"])
     if peer_tabs:

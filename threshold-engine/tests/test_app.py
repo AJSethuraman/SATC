@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_problems_name_what_stops_a_step(tmp_path):
     assert app.problems(str(tmp_path), "2026Q2", "") == []
+    assert app.problems(str(tmp_path), "2026Q2", "", "A Name a@b.com") == []
+    assert app.problems(str(tmp_path), "2026Q2", "", "no email here")[0].startswith("Type a name and a contact email")
     got = app.problems("", "2026-06", str(tmp_path / "missing.csv"))
     assert got == ["Choose a folder for the data and the workbook.",
                    "Type the latest quarter as YYYYQn, for example 2026Q2.",
@@ -33,9 +35,10 @@ def test_prepare_writes_the_book_with_the_folders_own_paths(tmp_path):
     assert raw["peers"]["mergers"] == str(cache / "mergers.json")
     assert raw["peers"]["absorptions"] == str(cache / "absorptions.json")
     assert raw["peers"]["roster"] == "peers.json" and raw["internal"] is None
+    assert raw["loan_classes"] == {"file": "peer-loan-classes.json", "cache": str(tmp_path / "SEC filings")}
     # Every other setting is the book's own, unchanged.
     for k in shipped:
-        if k not in ("peers", "internal"):
+        if k not in ("peers", "internal", "loan_classes"):
             assert raw[k] == shipped[k], k
     for k in shipped["peers"]:
         if k not in ("cache", "mergers", "absorptions", "roster", "last"):

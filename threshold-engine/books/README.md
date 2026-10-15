@@ -25,11 +25,13 @@ Python 3.9 or later from python.org, installed for the user, and nothing else.
 2. **Folder**: where the FDIC data, the book's files and the workbook go
    (it starts as Documents\Consumer credit thresholds).
 3. **Latest quarter**: the last quarter filed, for example `2026Q2`.
-4. **Internal file**: optional; the bank's file in the internal import layout
+4. **SEC contact**: a name and an email. SEC refuses requests without one;
+   it is sent to SEC only and never stored.
+5. **Internal file**: optional; the bank's file in the internal import layout
    (`docs/INTERNAL-IMPORT.md`).
-5. Click **1. Get the FDIC data** (only quarters the folder does not hold are
-   fetched), then **2. Build the workbook** (about nine minutes). Excel opens
-   it.
+6. Click **1. Get the data** (the FDIC quarters the folder does not hold, and
+   each peer's SEC filing for the Peer loan classes tab), then **2. Build the
+   workbook** (about nine minutes). Excel opens it.
 
 Followed on 15 Oct 2026 with Python's site-packages switched off, so only what
 is inside the file was used: the workbook was built in 530 seconds.
