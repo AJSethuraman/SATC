@@ -52,7 +52,8 @@ def build(module, out, recent, dl, roster):
         industry={p: industry(recent, p) for p in TWO},
         delinquency=dict(data=dl, products=TWO, jump=0.25, min_book=1_000_000, exempt_self=True,
                          acquired=NONE_ACQUIRED, measure="90+ accruing", basis="quarter-end"),
-        acquired=NONE_ACQUIRED, rank_by="net", last_n=20, min_obs=12)
+        acquired=NONE_ACQUIRED, rank_by="net", last_n=20, min_obs=12,
+        **({} if module is OLD else {"combined": {}}))
 
 
 @pytest.fixture(scope="module")

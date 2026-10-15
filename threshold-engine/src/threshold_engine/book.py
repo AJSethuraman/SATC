@@ -55,7 +55,7 @@ INTERNAL_KEYS = ("file", "source", "segments", "measures", "call_report_source")
 #: 'peers build' settings, by the keyword ``peers.run.build`` takes; paths among them.
 PEERS_KEYS = ("cache", "roster", "series_dir", "first", "last", "products", "mergers", "absorptions",
               "extra_acquisitions", "industry_combined", "jump", "acquisition_share", "min_book", "exempt_self",
-              "pack", "min_banks", "rank_by", "last_n", "min_obs", "base_quarter", "index_min_book",
+              "pro_forma", "pack", "min_banks", "rank_by", "last_n", "min_obs", "base_quarter", "index_min_book",
               "lagged_years", "lag_years", "normalisation_years", "mix_base_year", "delinquency")
 PEERS_PATHS = ("cache", "roster", "series_dir", "mergers", "absorptions")
 #: The peer tabs' titles inside the book's workbook, which has its own Data, Glossary and Run.

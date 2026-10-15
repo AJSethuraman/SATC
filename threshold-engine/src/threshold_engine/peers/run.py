@@ -283,6 +283,30 @@ def pull(*, cache, first: str, last: str, products: Sequence[str], delinquency: 
 
 # ---------------------------------------------------------------- build
 
+def pro_forma_lines(pro_forma: bool, combo: Dict[str, dict], names: Dict[str, str]) -> List[str]:
+    """The Run tab's lines on pro forma: whether it is on, each roster bank's
+    banks added in (certificate and the quarter it was absorbed), and each
+    absorption that could not be added because the absorbed bank never filed
+    in these quarters."""
+    if not pro_forma:
+        return ["Pro forma: no. Each bank's charge-offs and balances are its own filings alone; a quarter "
+                "whose four-quarter window holds an acquisition of at least the acquisition share is left out."]
+    lines = ["Pro forma: yes. Each bank's charge-offs and balances include those of every bank it absorbed, "
+             "in the quarters before the absorption, from that bank's own filings. Delinquency is each bank "
+             "as filed."]
+    for cert, v in combo.items():
+        who = names.get(cert, cert)
+        if v["members"]:
+            lines.append("Pro forma, %s: %d bank%s added in: %s." % (
+                who, len(v["members"]), "" if len(v["members"]) == 1 else "s",
+                ", ".join("certificate %s to %s" % (b, books.label(u)) for b, u in v["members"])))
+        if v["uncombined"]:
+            lines.append("Pro forma, %s: not added, no filing in these quarters: %s. Their acquisitions are "
+                         "treated as without pro forma." % (
+                             who, ", ".join("certificate %s (%s)" % (b, books.label(q)) for b, q in v["uncombined"])))
+    return lines
+
+
 def _check_build(s):
     """Refuse a stated setting outside its range, before anything is read."""
     for flag, key, low in (("--jump", "jump", 0), ("--min-book", "min_book", 0),
@@ -293,6 +317,7 @@ def _check_build(s):
                            ("--min-obs", "min_obs", 1), ("--lag-years", "lag_years", 0)):
         _whole(flag, s[key], low)
     _yes_no("--exempt-self", s["exempt_self"])
+    _yes_no("--pro-forma", s["pro_forma"])
     _yes_no("--delinquency", s["delinquency"])
     if s["pack"] not in ("all", "regionals"):
         raise ValueError("--pack must be all or regionals, not %r" % (s["pack"],))
@@ -503,7 +528,8 @@ def _check_out(out, *, roster, mergers, absorptions=None) -> None:
 
 def build(out, *, cache, roster, series_dir, first: str, last: str, products: Sequence[str],
           mergers, absorptions, extra_acquisitions: Sequence[str], industry_combined: Sequence[str],
-          jump: float, acquisition_share: float, min_book: float, exempt_self: bool, pack: str, min_banks: int, rank_by: str,
+          jump: float, acquisition_share: float, min_book: float, exempt_self: bool, pro_forma: bool,
+          pack: str, min_banks: int, rank_by: str,
           last_n: int, min_obs: int, base_quarter: str, index_min_book: float,
           lagged_years: Sequence[int], lag_years: int, normalisation_years: Sequence[int],
           mix_base_year: int, delinquency: bool, say: Callable[[str], None] = print,
@@ -516,7 +542,13 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     be left out (``books.acquired_quarters``), the firm's judgement. In a
     survivor's merger quarter under common control, the absorbed bank's
     year-to-date is taken off the survivor's (``books.repeated_ytd``), for
-    every series, the industry's included. ``extra_acquisitions``
+    every series, the industry's included. ``pro_forma`` True adds to each
+    roster bank's charge-offs and balances those of every bank it absorbed
+    (``books.combination``), quarter by quarter before the absorption, so an
+    acquisition neither breaks its history nor leaves it out; the acquisition
+    share then applies only to an absorbed bank with no filing to add. The
+    jump still applies. Delinquency is each bank as filed either way.
+    ``extra_acquisitions``
     is ``CERT=YYYYQn`` items and ``industry_combined`` ``PRODUCT+PRODUCT``
     items, each an empty list to state there are none. ``delinquency`` True
     pulls the delinquency fields out of the cache too (refused, by field, if
@@ -585,6 +617,17 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     repeats = books.repeated_ytd(data, links_, flow_products)
     data = books.without_repeats(data, repeats)
     acquired = {p: books.acquired_quarters(data, links_, p, acquisition_share) for p in products}
+    # Pro forma: each roster bank's own figures plus those of every bank it
+    # absorbed. An absorption that is added in is no longer a reason to leave
+    # a quarter out; one that cannot be added (no filing) is, as before.
+    combo = books.combination(data, links_, [b["cert"] for b in roster_]) if pro_forma else {}
+    members = {c: v["members"] for c, v in combo.items()}
+    if pro_forma:
+        added = {(c, b) for c, v in combo.items() for b, _ in v["members"]}
+        rest = [ln for ln in links_ if (str(ln["acquirer"]), str(ln["absorbed"])) not in added]
+        acquired_co = {p: books.acquired_quarters(data, rest, p, acquisition_share) for p in products}
+    else:
+        acquired_co = acquired
     merged = sorted({(r["acquirer"], r["quarter"]) for r in repeats})
     names_ = {b["cert"]: b["short"] for b in roster_}
     on_roster = [(c, q) for c, q in merged if c in names_]
@@ -600,8 +643,10 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     filers = len(data[quarters[-1]])
     ind = {p: books.industry(data, p) for p in products}
     rule = ("Rules: jump %g, acquisition share %g, minimum book %s ($000)%s, at least %d banks in a "
-            "composite." % (jump, acquisition_share, "{:,.0f}".format(min_book),
-                            ", %s exempt" % me["short"] if exempt_self else "", min_banks))
+            "composite, %s." % (jump, acquisition_share, "{:,.0f}".format(min_book),
+                                ", %s exempt" % me["short"] if exempt_self else "", min_banks,
+                                "pro forma (each bank with the banks it absorbed)" if pro_forma
+                                else "each bank as filed"))
     source = "Source: FDIC BankFind financials, %s to %s, from the cache %s." % (first, last, cache)
     every = "every filer in the cache (%d in %s), no jump or minimum rule" % (filers, last)
     out_dir = Path(series_dir)
@@ -612,7 +657,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     for p in products:
         bks = {b["cert"]: books.bank_book(data, b["cert"], p, jump, min_book,
                                           exempt_min_book=exempt_self and b is me,
-                                          acquired=acquired[p].get(b["cert"], [])) for b in roster_}
+                                          acquired=acquired_co[p].get(b["cert"], []),
+                                          members=members.get(b["cert"], ())) for b in roster_}
         peer_books[p] = bks
         comp = books.composite(bks, [b["cert"] for b in pack_], min_banks)
         mids = {k: books.band(bks, [b["cert"] for b in pack_], k, (50,), min_banks=min_banks)
@@ -689,10 +735,11 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             last_n=last_n, min_obs=min_obs, index_min_book=index_min_book,
             lagged_years=lagged_years, lag_years=lag_years,
             normalisation_years=normalisation_years, mix_base_year=mix_base_year,
-            industry=ind, delinquency=dq_spec, acquired=acquired, cache_dir=cache, mergers_file=mergers,
+            industry=ind, delinquency=dq_spec, acquired=acquired_co, cache_dir=cache, mergers_file=mergers,
+            combined=members,
             sources=["Read from the cache %s, %d quarter files %s to %s, built %s"
                      % (cache, len(quarters), quarters[0], quarters[-1],
-                        dt.date.today().isoformat())],
+                        dt.date.today().isoformat())] + pro_forma_lines(pro_forma, combo, names_),
             into=into, names=names)
         moves = [(part_out, out)] if out is not None else []
         for path, tail, lines, _, _, _ in series:

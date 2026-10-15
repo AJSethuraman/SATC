@@ -85,7 +85,7 @@ import math
 import re
 import zipfile
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from openpyxl import Workbook
 from openpyxl.chart import AreaChart, LineChart
@@ -111,7 +111,7 @@ from .. import keybank_style as K
 from . import roster as R
 from .analyses import calendar_year, lagged_rate, mix_factor, organic_index
 from . import delinquency as D
-from .books import PRODUCTS, _fields, bank_book, label, quarter_end, quarterly_flows, raw_fields
+from .books import PRODUCTS, _fields, bank_book, combined_flows, label, members_by_quarter, quarter_end, raw_fields
 from .glossary import PEER_TERMS
 
 INPUT = PatternFill("solid", fgColor=K.INPUT, bgColor=K.INPUT)
@@ -993,6 +993,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                          industry: Optional[Dict[str, List[dict]]],
                          delinquency: Optional[dict],
                          acquired: Dict[str, Dict[str, Sequence[str]]],
+                         combined: Dict[str, Sequence[Tuple[str, str]]],
                          sources: Iterable[str] = (), cache_dir=None, mergers_file=None,
                          peer_a: str = WORST, peer_b: str = BEST,
                          product: Optional[str] = None,
@@ -1009,6 +1010,9 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
       recorded acquisitions brought in at least the acquisition share
       (``books.acquired_quarters``), for every product built; the delinquency
       spec carries the same under its ``acquired`` key;
+    - ``combined``: ``{cert: [(absorbed, until)]}``, pro forma
+      (``books.combination``): the banks whose charge-offs and balances are
+      added to each bank's own. ``{}`` states none: every bank as filed;
     - ``pack``: 'all' or 'regionals', the peers whose Yes/No starts Yes;
     - ``min_banks``: how many kept banks a composite or band needs (a live
       cell on Peers, starting here);
@@ -1122,9 +1126,12 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     in_pack = {b["cert"] for b in (R.peers(roster) if pack == "all" else R.regionals(roster))}
     dq = _check_delinquency(delinquency, roster, me)
 
+    if not isinstance(combined, dict):
+        raise ValueError("combined must be {cert: [(absorbed, until)]}, {} for none, not %r" % (combined,))
     books = {p: {b["cert"]: bank_book(data, b["cert"], p, jump, min_book,
                                       exempt_min_book=exempt_self and b is me,
-                                      acquired=acquired[p].get(b["cert"], []))
+                                      acquired=acquired[p].get(b["cert"], []),
+                                      members=combined.get(b["cert"], ()))
                  for b in roster} for p in products}
     grid = [r["quarter"] for r in books[products[0]][me["cert"]]]
     for p in products:
@@ -1203,26 +1210,34 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     _ref_header(da, 1, ["Product", "Bank", "Certificate", "Quarter", "Gross charge-offs, TTM ($000)",
                         "Recoveries, TTM ($000)", "Average balance ($000)", "Gross rate (%)",
                         "Net rate (%)", "Kept", "Why not kept", "Book index, as reported (base = 100)",
-                        "Book index, without acquisitions (base = 100)", "Quarter-end balance ($000)"],
-                right_from=4)
+                        "Book index, without acquisitions (base = 100)", "Quarter-end balance ($000)",
+                        "Combined with"], right_from=4)
+    inside_by = {b["cert"]: members_by_quarter(data, combined[b["cert"]]) for b in roster
+                 if combined.get(b["cert"])}
     for p in products:
         for b in roster:
             ix = indexed.get((p, b["cert"]), {})
             # The balance as filed at the quarter-end; the average is the mean
             # of four of these. Blank when the bank did not file it.
-            at_end = {label(q): bal for q, _, _, bal in quarterly_flows(data, b["cert"], p)}
+            # Pro forma, both are the bank's own with the banks it absorbed
+            # (combined); "Combined with" names those in the row's window.
+            mem = combined.get(b["cert"], ())
+            at_end = {label(q): bal for q, _, _, bal in combined_flows(data, b["cert"], p, mem)}
             for r in books[p][b["cert"]]:
                 x = ix.get(r["quarter"])
+                inside = inside_by.get(b["cert"], {}).get(r["quarter"], [])
                 da.append([p, b["short"], b["cert"], r["quarter"], r["gross"], r["recoveries"],
                            r["avg_balance"], r["gross_rate"], r["net_rate"], r["kept"], r["why"],
-                           x["reported"] if x else None, x["organic"] if x else None, at_end.get(r["quarter"])])
+                           x["reported"] if x else None, x["organic"] if x else None, at_end.get(r["quarter"]),
+                           "; ".join("certificate %s, absorbed %s" % (c_, label(u)) for c_, u in inside)
+                           or None])
     nrow = 1 + len(products) * NB * Q
     for row in da.iter_rows(min_row=2, max_row=nrow, min_col=5, max_col=14):
         for c in row:
             if c.column in (10, 11):
                 continue
             c.number_format = "#,##0" if c.column <= 7 or c.column == 14 else "0.00" if c.column <= 9 else "0.0"
-    for col, w in zip("ABCDEFGHIJKLMN", (16, 16, 11, 9, 14, 14, 16, 10, 10, 8, 44, 14, 14, 16)):
+    for col, w in zip("ABCDEFGHIJKLMNO", (16, 16, 11, 9, 14, 14, 16, 10, 10, 8, 44, 14, 14, 16, 60)):
         da.column_dimensions[col].width = w
     K.freeze_below(da, 1)
 

@@ -93,7 +93,7 @@ def MERGERS():
 def make(path, data, roster, pack, products=FOUR, base="2019Q4", **over):
     kw = dict(exempt_self=True, min_banks=MIN_BANKS, index_min_book=500_000, lagged_years=(2019, 2025),
               lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None,
-              delinquency=None, acquired=NONE_ACQUIRED, **RANK)
+              delinquency=None, acquired=NONE_ACQUIRED, combined={}, **RANK)
     kw.update(over)
     return build_peers_workbook(path, data, roster, products, JUMP, MIN_BOOK, pack, MERGERS(), EXTRAS, base, **kw)
 
@@ -1006,7 +1006,7 @@ def test_not_built_the_dashboard_and_the_tab_say_so(all_peers):
 def test_delinquency_is_a_required_argument(tmp_path, recent, roster):
     kw = dict(exempt_self=True, min_banks=MIN_BANKS, index_min_book=500_000, lagged_years=(2019, 2025),
               lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None,
-              acquired=NONE_ACQUIRED, **RANK)
+              acquired=NONE_ACQUIRED, combined={}, **RANK)
     with pytest.raises(TypeError, match="delinquency"):
         build_peers_workbook(tmp_path / "x.xlsx", recent, roster, ("Credit card",), JUMP, MIN_BOOK, "all",
                              MERGERS(), EXTRAS, "2019Q4", **kw)
