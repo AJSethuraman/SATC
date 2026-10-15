@@ -1236,3 +1236,49 @@ read off the page and the XBRL.
   series is a parameter), so the firm's own `book books/consumer-public.json`
   can be tied out next; that build was not run here.
 - No code changed.
+
+## 14-15 October 2026, the book: one command builds the workbook
+
+The firm, on the meeting workbook assembled by hand that evening: *"assess one
+thing at a time, save decisions, not a guide"*, *"it cannot be a huge list"*,
+then *"i want you to make it work so i can generate this workbook at work with
+the script, it should be debugged and walked through and tied out. you have
+all night basically"*.
+
+- **`book BOOK.json OUT.xlsx`** (book.py): one file says everything the
+  workbook is built from; every key required; with a `peers` section the
+  peers build runs into the same workbook. `books/consumer-public.json`: 105
+  series. `books/README.md`: the steps at work.
+- **Decide** (decide_tab.py): three slicers pick one series; its yellow row is
+  the decision (Accept these lines / Reject, the four settings, a period left
+  out, a note), kept in the file by saving. Assess's typed cells read it;
+  Assess and Chart are hidden in a book. **Summary** (summary_tab.py).
+  Slicers are written into the file (slicers.py, an agent; no Excel needed).
+  Peer tabs inside the same file (into/names, an agent).
+- Asked for while it was built, and done: **life to date** ("we need to allow
+  life to date": a series shorter than the backtest needs keeps its lines;
+  KeyBank's charge-offs are back, 34 and 35 quarters, auto 15); **the axis
+  fits** (named ranges from the first quarter drawn; "Chart shows" last 48 by
+  default, after "maybe the last 48 quarters"); **overlays** ("how do we
+  overlay": On chart per source).
+- **Proof.** Walkthrough in Excel 16 on the full build (peers build inside it,
+  12 min 42 s from the cache): 320 of 320 reads as expected, including save,
+  close and reopen (`docs/walkthrough-book/`, PDF). No repair as a user opens
+  it (tools/check_slicers_in_excel.ps1, RESULT: PASS). Tie-out of KeyBank
+  card nonaccrual 2026Q2, 0.6908%: TIED to the filed Call Report, page and
+  XBRL, difference 0 (`docs/tie-out/keybank-card-nonaccrual-2026-10-14/`).
+- **Answered:** KeyBank's auto series is RC-C 6.c, which by its instructions
+  includes direct and indirect; KeyBank sold its indirect book in 2021Q3 and
+  6.c is $62.2m at 30 Jun 2026.
+- **Open:** the peer analysis as one dashboard tab with filters ("it is
+  annoying to flip between stuff", "peers balances do not follow peer pack
+  stuff", "does this have to go to design again") is being built.
+  Thresholds' latest value is written by the build, not live on Data (the
+  tie-out). 10 of the 16 roster banks file zero card nonaccrual, so KeyBank
+  against the peer group on that measure says little (the tie-out).
+- **Got wrong, corrected:** test mistakes (a rating read as 3.0, a row
+  misplaced); the chart's range ignored the window at first, then its zones
+  vanished when an overlay was off (#N/A in MAX), both seen in Excel's
+  picture and fixed; the peer-tabs agent's tests were written against main's
+  older peers code and failed on this branch (16 and 5 errors), handed to the
+  dashboard work to fix.
