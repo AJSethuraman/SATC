@@ -1395,3 +1395,42 @@ installed): the analyst register, American spelling.
   repair as a user opens it.
 - Not run: the complete suite in one run. Not done: right-edge line labels on
   the Internal chart; slicer buttons sort A-Z (Excel offers no data order).
+
+## 15 October 2026, one set of lines per product and measure
+
+The firm, on Decide: *"we don't need to set thresholds on all 3, we need to
+use all 3 to set appropriate thresholds. industry, competitor, and key
+reported"*. Asked how, they picked "Pick per row": a yellow cell on each
+product and measure naming the source whose history sets its lines, with what
+each source's own history would give side by side, all three on one chart,
+and each source rated on the lines picked.
+
+- Decide: 35 rows (product × measure), two slicers, a required **Lines set
+  from** in the column the source had. A row's settings apply to every
+  source's own lines; its period left out to the source picked. The consumer
+  book starts every row blank (`lines_from: {"part": "Source", "start":
+  null}`): until a source is picked the row has no lines and no ratings, and
+  its Check, Thresholds and Summary say Pick a source.
+- Thresholds is one row per product and measure (`thresholds_tab.py`): the
+  source, what the lines rest on, the four lines (blank while refused), every
+  source's latest value and rating on them, the decision and the Check. The
+  per-series table it reads is the old Thresholds, renamed **Lines by
+  source**; `decide_tab.rename_tab` rewrites every reference to it.
+- Proof: test_decide 31 of 31, test_book 16, test_internal_tab 19,
+  test_slicers 19, test_workbook 71, each run alone. Walkthrough rewritten
+  (`expected.py`) and run in Excel 16: **1,463 of 1,463** reads as expected
+  (B1 to B10; three rows given a source; every series' own lines read on
+  Lines by source); the build took 8 min 48 s. Slicer check: PASS, 0 dialogs
+  opened as a user, 1 of 35 rows shown after a click, kept after save.
+- Two harness fixes found on the way, both timing in Excel's automation, not
+  the workbook: `check_slicers_in_excel.ps1` asks again while Excel is busy
+  recalculating after a click (RPC_E_CALL_REJECTED on save, close, reopen);
+  `walk.ps1` counts visible errors with Excel's own visible-cells set, since
+  asking each cell whether its column is hidden counted a hidden #N/A as
+  visible on one run in two (Decide!AZ65, then Internal!IU50; both in hidden
+  helper columns, checked in Excel).
+
+**Not done.** The complete suite in one run. The peers histories are being
+changed on another branch (pro forma acquisitions); this branch was walked on
+the peers code as it stood at d0aa99a0. The 32 rows not given a source in
+the walk are read only as Pick a source.

@@ -98,7 +98,7 @@ def build(wb, *, pairs: Sequence[Tuple[str, str]], by_pair: Dict[Tuple[str, str]
     n_last = CI(last_col)
     for c_ in range(2, n_last + 1):
         ws.cell(2, c_).border = Border(bottom=Side(style="medium", color=K.KEY_RED))
-    for r, h in ((1, 25.5), (2, 15), (3, 16.5), (4, 25.5)):
+    for r, h in ((1, 25.5), (2, 15), (3, 16.5), (4, 39)):
         ws.row_dimensions[r].height = h
     first_src, last_src = per[sources[0]]["latest"], per[sources[-1]]["rating"]
     groups = [("B", "D", "%s and %s" % (p0, p1.lower()), None), ("E", "G", "What the lines rest on", K.SLATE),
@@ -136,7 +136,7 @@ def build(wb, *, pairs: Sequence[Tuple[str, str]], by_pair: Dict[Tuple[str, str]
     for s in sources:
         ws["%s4" % per[s]["number"]].value = "%s rating number" % s
         ws["%s4" % per[s]["quarter"]].value = "%s quarter" % s
-    widths = dict(A=1.57, B=16.43, C=27.86, D=19.29, E=9.86, F=9.86, G=9.86, H=10.71, I=10.71, J=10.71, K=10.71)
+    widths = dict(A=1.57, B=16.43, C=33.57, D=19.29, E=9.86, F=9.86, G=9.86, H=10.71, I=10.71, J=10.71, K=10.71)
     for c_, w in widths.items():
         ws.column_dimensions[c_].width = w
     for s in sources:
