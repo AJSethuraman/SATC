@@ -176,6 +176,11 @@ def _parser():
     _peers_parser(sub)
     _template_parser(sub)
     _internal_parser(sub)
+    bk = sub.add_parser("book", help="one workbook from one book file: Summary, Decide (one series at a time, "
+                                     "decisions kept in the file), Thresholds, Assess and, if the book says so, "
+                                     "the peer tabs. Every setting is in the book; none has a default")
+    bk.add_argument("book", help="the book (.json); its relative paths are read from its own folder")
+    bk.add_argument("out", help="the .xlsx to write")
     sy = sub.add_parser("synthesize", help="internal, industry and peers side by side, line by line; "
                         "each line taken from the source you name")
     g = sy.add_argument_group("the series, all required except the peers")
@@ -500,6 +505,15 @@ def main(argv=None):
             return _peers_pull(a) if a.peers_command == "pull" else _peers_build(a)
         except (ValueError, OSError, RuntimeError) as exc:
             return _refused(exc)
+    if a.command == "book":
+        try:
+            from .book import build as build_book
+            r = build_book(a.book, a.out)
+        except (SeriesError, ValueError, OSError, RuntimeError) as exc:
+            return _refused(exc)
+        print("Wrote %s: %d series, %d quarters; open it on Summary, decide on Decide"
+              % (r["path"], len(r["products"]), r["quarters"]))
+        return 0
     if a.command == "synthesize":
         try:
             from .synthesis import report as synthesis_report, synthesize

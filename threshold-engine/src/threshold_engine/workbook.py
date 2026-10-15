@@ -41,6 +41,8 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from . import assess_tab as AT
 from . import keybank_style as K
+from . import decide_tab as DT
+from . import summary_tab as SU
 from . import synthesis_tab as ST
 from .backtest import backtest
 from . import VERSION
@@ -131,8 +133,17 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
           moderate_halfwidth: float, low_step: float, high_z: float, on_the_line: str,
           half_lives: Sequence[float],
           percentiles: Sequence[float], horizon: int, min_history: int,
-          synthesis: Optional[Dict[str, dict]] = None) -> dict:
-    """``synthesis``, when given, adds the Synthesis tab (synthesis_tab.py):
+          synthesis: Optional[Dict[str, dict]] = None, decide: Optional[dict] = None,
+          into: Optional[Workbook] = None, before_save=None) -> dict:
+    """``decide``, when given, adds the Summary and Decide tabs and makes Decide
+    where the settings, periods left out and decisions are typed (decide_tab.py,
+    summary_tab.py): ``{"names": [three part names], "parts": {label: (three
+    values)}, "absent": [{"parts": {...}, "why": text}], "compare": (a, b) or
+    None, "notes": [text]}``, every key stated. ``into`` builds into an
+    existing workbook (the book command puts the peer tabs there first);
+    ``before_save(wb)`` runs last, before saving.
+
+    ``synthesis``, when given, adds the Synthesis tab (synthesis_tab.py):
     ``{label: {industry: PATH, filed: PATH or None, peers: [(NAME, PATH)],
     translation, peer_percentiles (four, or None without peers), leads
     (four)}}``, every choice stated; ``synthesis_tab.from_flags`` reads the
@@ -194,9 +205,22 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     NF = "0.0" if biggest >= 100 else "0.00" if biggest >= 10 else "0.000"
     n, first, last = len(loaded), 2, len(grid) + 1
 
-    wb = Workbook()
-    asx = wb.active
-    asx.title = "Assess"                 # first, and where it opens: where the bank works
+    if decide:
+        DT.validate(decide["names"])
+        missing = [lbl for lbl, _ in series if lbl not in decide["parts"]]
+        if missing:
+            raise ValueError("no parts given for %s" % ", ".join(missing))
+        for lbl, _ in series:
+            if lbl != " - ".join(decide["parts"][lbl]):
+                raise ValueError("the series %r should be labelled %r, its parts joined by ' - '"
+                                 % (lbl, " - ".join(decide["parts"][lbl])))
+    if into is not None:
+        wb = into
+        asx = wb.create_sheet("Assess", 0)
+    else:
+        wb = Workbook()
+        asx = wb.active
+        asx.title = "Assess"                 # first, and where it opens: where the bank works
     th, ch, evs, bts, srcs, gl, da, run = (wb.create_sheet(t) for t in
                                            ("Thresholds", "Chart", "Evidence", "Backtest", "Sources", "Glossary",
                                             "Data", "Run"))
@@ -719,7 +743,24 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     for c_, w in zip("ABCDEF", (24, 52, 12, 26, 30, 70)):
         run.column_dimensions[c_].width = w
 
+    dec = None
+    if decide:
+        labels = [s["label"] for s in loaded]
+        settings = {lbl: (moderate_halfwidth, low_step, high_z, on_the_line) for lbl in labels}
+        SU.build(wb, name=name, unit=unit, labels=labels, parts=decide["parts"], part_names=decide["names"],
+                 absent=decide["absent"], compare=decide["compare"], notes=decide["notes"])
+        dec = DT.build(wb, labels=labels, parts=decide["parts"], part_names=decide["names"], settings=settings,
+                       lay=lay, n_quarters=len(grid), absent=decide["absent"], compare=decide["compare"],
+                       unit=unit)
+        order = ["Summary", "Decide", "Thresholds", "Assess", "Synthesis"]
+        rest = [ws for ws in wb._sheets if ws.title not in order]
+        wb._sheets = [wb[t] for t in order if t in wb.sheetnames] + rest
+        wb.active = 0
+        for ws in wb.worksheets:
+            ws.sheet_view.tabSelected = ws.title == "Summary"
+    if before_save is not None:
+        before_save(wb)
     out = Path(out)
     wb.save(out)
     return {"path": out, "products": [s["label"] for s in loaded], "quarters": len(grid),
-            "evidence": {s["label"]: s["ev"] for s in loaded}, "synthesis": syn_at}
+            "evidence": {s["label"]: s["ev"] for s in loaded}, "synthesis": syn_at, "decide": dec}

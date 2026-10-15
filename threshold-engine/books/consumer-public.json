@@ -1,0 +1,96 @@
+{
+  "workbook": {
+    "name": "Consumer credit: charge-offs (trailing twelve months) and delinquency (quarter-end)",
+    "unit": "%",
+    "direction": "higher_is_worse",
+    "frequency": "quarterly",
+    "smoothing": 1,
+    "floor_at_zero": true,
+    "moderate_halfwidth": 0.5,
+    "low_step": 1.0,
+    "high_z": 2.5,
+    "on_the_line": "worse",
+    "half_lives": [],
+    "percentiles": [
+      50,
+      75,
+      90,
+      95
+    ],
+    "horizon": 4,
+    "min_history": 41
+  },
+  "parts": [
+    "Product",
+    "Measure",
+    "Source"
+  ],
+  "series": "consumer-public-series.csv",
+  "not_in_book": [
+    {
+      "Product": "*",
+      "Measure": "Net charge-offs",
+      "Source": "KeyBank",
+      "why": "KeyBank's own charge-off history restarts in 2018Q1, after the First Niagara acquisition (2016Q4) breaks it: 34 quarters to 2026Q2, and the workbook needs at least 45."
+    },
+    {
+      "Product": "*",
+      "Measure": "Gross charge-offs",
+      "Source": "KeyBank",
+      "why": "KeyBank's own charge-off history restarts in 2018Q1, after the First Niagara acquisition (2016Q4) breaks it: 34 quarters to 2026Q2, and the workbook needs at least 45."
+    }
+  ],
+  "compare": [
+    "KeyBank",
+    "Peer group (15 banks)"
+  ],
+  "notes": [
+    "Industry: every bank filing a Call Report, added together. Peer group: the 15 banks on the Peers tab, added together. Charge-offs are trailing twelve months; delinquency is at quarter-end.",
+    "Settings: the ones agreed for credit card, applied to every series as a starting point; change them on Decide.",
+    "Credit card before 2010: cards a bank had securitized were off its books, so those quarters are labelled, not dropped."
+  ],
+  "peers": {
+    "cache": "ind_cache",
+    "roster": "../config/peers.json",
+    "series_dir": "out/series",
+    "first": "2006Q1",
+    "last": "2026Q2",
+    "products": [
+      "Credit card",
+      "Mortgage",
+      "Home equity",
+      "Other consumer",
+      "Auto"
+    ],
+    "mergers": "ind_cache/mergers.json",
+    "absorptions": "ind_cache/absorptions.json",
+    "extra_acquisitions": [
+      "6672=2022Q2"
+    ],
+    "industry_combined": [
+      "Other consumer+Auto"
+    ],
+    "jump": 0.25,
+    "acquisition_share": 0.05,
+    "min_book": 1000000,
+    "exempt_self": true,
+    "pack": "all",
+    "min_banks": 5,
+    "rank_by": "net",
+    "last_n": 8,
+    "min_obs": 6,
+    "base_quarter": "2019Q4",
+    "index_min_book": 1000000,
+    "lagged_years": [
+      2019,
+      2025
+    ],
+    "lag_years": 2,
+    "normalisation_years": [
+      2019,
+      2025
+    ],
+    "mix_base_year": 2019,
+    "delinquency": true
+  }
+}
