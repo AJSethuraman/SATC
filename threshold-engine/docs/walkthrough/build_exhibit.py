@@ -51,9 +51,10 @@ BODY = f"""
 <span class="verdict">{H.escape(headline)}</span></p>
 
 <h2>What was done</h2>
-<p>The expected answer for every cell was written first, by <code>expected.py</code>, from the source files and
-<code>scale.py</code>, and committed before Excel was opened (commit <code>6f3505d</code>). <code>walk.ps1</code> then built the
-workbooks with the same command a person types, opened them in Excel, typed each step's values into Settings or Assess,
+<p>The expected answers come from <code>expected.py</code>, from the source files and <code>scale.py</code>. 355 of
+them were written and committed before Excel was first opened (commit <code>6f3505d</code>); the rest were added after a
+run, each listed below under What I got wrong. <code>walk.ps1</code> then built the
+workbooks with the same command a person types, opened them in Excel, typed each step's values into Assess's inputs,
 let Excel recalculate, and read every cell back from Excel. Nothing was read from Python. <code>compare.py</code> put each
 reading beside its expected answer: a number must agree to within 1e-9, text exactly. After every step the typed cells
 were put back, and the Check column read blank again.</p>
@@ -67,6 +68,7 @@ in each score. One card line is tied out separately to the Federal Reserve's own
 
 <h2>What it looked like</h2>
 {fig("w1-thresholds.png", "W1–W2. Thresholds as built: every product, Check blank.")}
+{fig("w1-assess-inputs.png", "W1. Assess's inputs as built, under its chart: Periods left out and Your settings.")}
 {fig("w5-thresholds.png", "W5. The rehearsal settings for cards: 3.171 / 3.464 / 4.050 / 5.981, as recorded on 7 Oct.")}
 {fig("w5-assess-cards-rehearsal.png", "W5. Assess, cards: five bands, the two periods left out as grey dots and dark strips.")}
 {fig("w5-assess-counts.png", "W5. Assess, the quarters in each score: 25 / 22 / 29 / 55 / 4.")}
@@ -99,14 +101,19 @@ Federal Reserve's own figures and changes no score: see the tie-out.</li>
 record is the one for this scale; the script stopped on the mismatch before anything was run.</li>
 <li>Four readings failed on the first run because of the runner, not the workbook: a formula that returns a cell came back
 as a cell object, and <code>#N/A</code> in a hidden column reads as blank text. Both are read correctly now.</li>
-<li>Steps W3 and W14 gained readings of the chart's floor and top after the first run, because that run showed the
-pictures wrong while every cell the script read was right. They were added after, not before.</li>
+<li><b>Not every answer was written before the first run.</b> Committed first (6f3505d): 28 steps, 355 cells. Added
+after: steps W14a and W14b whole (the lower-is-worse workbook, 36 cells, then more for its chart's floor and top), and
+readings of the chart's floor and top in W3.1–W3.4, because the first run showed the pictures wrong while every cell
+read was right. The Glossary count was changed from 33 to 35 when Excel disagreed (the document it came from was
+wrong), and to 36 when the Status term was added. The run on the Assess redesign added the Periods left out, Status
+and Scenarios readings. An independent check found this paragraph missing from an earlier version of this document,
+which said every answer was written first.</li>
 </ul>
 
 <h2>What this does not prove</h2>
 <ul>
 <li><b>A person's hands.</b> Excel did the arithmetic and drew the charts, but the typing was done through its automation
-interface. The window (<code>Thresholds.pyw</code>) was not walked here; its tests drive it, and one opens the real window.</li>
+interface. The window (<code>Thresholds.pyw</code>) was not walked here; its tests drive it, and three open a real window.</li>
 <li><b>Every dial row.</b> Three dial rows were read against Thresholds (W6–W8); the tests hold every row to <code>scale.py</code>.</li>
 <li><b>Evidence and Backtest</b> are written at build by the same Python the expected answers came from: W13 shows they
 reach Excel intact, not that they are right. The tests and the 12 Oct tie-out cover them.</li>

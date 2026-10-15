@@ -9,8 +9,8 @@
    "note": "",
    "actions": [
     {
-     "sheet": "Settings",
-     "cell": "K6",
+     "sheet": "Assess",
+     "cell": "E58",
      "value": "worse"
     }
    ],
@@ -127,8 +127,8 @@
    "note": "",
    "actions": [
     {
-     "sheet": "Settings",
-     "cell": "K6",
+     "sheet": "Assess",
+     "cell": "E58",
      "value": "better"
     }
    ],
