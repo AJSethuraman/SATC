@@ -984,8 +984,8 @@ def window(root) -> dict:
             anchor="w", pady=(10, 0))
 
     def draw_settings():
-        heading("Settings", "The starting values for the workbook's red Settings tab. You can change them "
-                            "there afterwards and the lines move.")
+        heading("Settings", "The starting values for Your settings on the workbook's red Assess tab. You can "
+                            "change them there afterwards and the lines move.")
         cols = tk.Frame(page, bg=PAPER)
         cols.pack(anchor="w", fill="x")
         left, right = tk.Frame(cols, bg=PAPER), tk.Frame(cols, bg=PAPER)

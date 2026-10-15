@@ -11,7 +11,7 @@ from openpyxl.utils import get_column_letter
 from conftest import DATA, load
 from threshold_engine.glossary import TERMS
 from threshold_engine.scale import scale, score
-from threshold_engine.workbook import build, quarter
+from threshold_engine.workbook import LO_ROWS, LO_TOP, SET_TOP, build, quarter
 
 formulas = pytest.importorskip("formulas", reason="the formulas engine recalculates the workbook")
 
@@ -60,13 +60,54 @@ def reference(file, cuts=(), **over):
     return pts, kept, ref
 
 
+def top_of(vals, first):
+    return vals["ASSESS!U%d" % first]
+
+
+# The tests below still say what they change in the Settings tab's old cells
+# (row 6 Credit card ... row 9; B-D the first leave-out, E-G the second, H-K
+# the three distances and the on-the-line rule), which reads well. Since 13 Oct
+# 2026 the inputs live on Assess, and this puts each one where it now is: a
+# leave-out becomes a row of Periods left out naming the product, a setting a
+# cell of Your settings.
+def assess_cells(cells):
+    out = {}
+    for ref, v in cells.items():
+        col, row = ref[0], int(ref[1:])
+        k = row - 6
+        if col in "BCDEFG":
+            slot = 2 * k + (0 if col in "BCD" else 1)
+            r = LO_TOP + slot
+            out["A%d" % r] = SERIES[k][0]
+            out["%s%d" % ("BCD"["BCDEFG".index(col) % 3], r)] = v
+        else:
+            out["%s%d" % ("BCDE"["HIJK".index(col)], SET_TOP + k)] = v
+    return out
+
+
 def with_settings(p, tmp_path, name, cells):
     wb = load_workbook(p)
-    for ref, v in cells.items():
-        wb["Settings"][ref] = v
+    for ref, v in assess_cells(cells).items():
+        wb["Assess"][ref] = v
     q = tmp_path / name
     wb.save(q)
     return recalc(q)
+
+
+def with_assess(p, tmp_path, name, cells):
+    """Type straight into Assess, by its own cell names."""
+    wb = load_workbook(p)
+    for ref, v in cells.items():
+        wb["Assess"][ref] = v
+    q = tmp_path / name
+    wb.save(q)
+    return recalc(q)
+
+
+def dial_top(p):
+    """The first dial's band row on Assess."""
+    ws = load_workbook(p)["Assess"]
+    return next(r for r in range(1, ws.max_row + 1) if str(ws.cell(r, 1).value or "").startswith("Dial:"))
 
 
 @pytest.fixture(scope="module")
@@ -164,15 +205,21 @@ def test_two_leave_out_windows_carry_their_reasons_to_the_run_tab(built, tmp_pat
     vals = with_settings(p, tmp_path, "two.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "D6": "Financial crisis",
                                                    "E6": "2021Q3", "F6": "2023Q1", "G6": "Pandemic forbearance"})
     run = {v for k, v in vals.items() if k.startswith("RUN!")}
-    assert {"2007Q4 to 2012Q4", "Financial crisis", "2021Q3 to 2023Q1", "Pandemic forbearance"} <= run
+    assert {"2007Q4", "2012Q4", "Financial crisis", "2021Q3", "2023Q1", "Pandemic forbearance",
+            "Left out: 21 quarters", "Left out: 7 quarters"} <= run
 
 
-def test_settings_says_what_the_evidence_found(built):
-    p, _, _ = built
-    st = load_workbook(p)["Settings"]
-    assert st["L6"].value == "Leave out 2007Q4 to 2012Q4"
-    assert "2021Q3 to 2023Q1 below the path" in st["M6"].value
-    assert "2008" not in (st["N6"].value or "")
+def test_assess_says_what_the_evidence_found_for_the_product_picked(built):
+    p, _, vals = built
+    ws = load_workbook(p)["Assess"]
+    top = next(r for r in range(1, ws.max_row + 1) if str(ws.cell(r, 1).value or "").startswith(
+        '="What the evidence says about "'))
+    assert [ws.cell(top + i, 1).value for i in (1, 2, 3)] == ["Suggested", "Temporary departures", "Why"]
+    said, deps, why = (vals["ASSESS!B%d" % (top + i)] for i in (1, 2, 3))
+    assert vals["ASSESS!A%d" % top] == "What the evidence says about Credit card"
+    assert said == "Leave out 2007Q4 to 2012Q4"
+    assert "2021Q3 to 2023Q1 below the path" in deps
+    assert "2008" not in (why or "")
 
 
 def test_assess_counts_the_quarters_in_each_score(built, tmp_path):
@@ -208,20 +255,19 @@ def test_the_strip_marks_exactly_the_quarters_left_out_and_the_caption_says_why(
     qs = [vals["ASSESS!%s%d" % (qcol, r)] for r in range(2, info["quarters"] + 2)]
     marked = [q for r, q in zip(range(2, info["quarters"] + 2), qs) if vals["ASSESS!%s%d" % (scol, r)] != 0]
     assert marked == [q for q in qs if any(a <= q <= b for a, b in CARD_CUTS)] and len(marked) == 28
-    assert vals["ASSESS!A41"] == "2007Q4 to 2012Q4: Financial crisis"
-    assert vals["ASSESS!A42"] == "2021Q3 to 2023Q1: Pandemic forbearance"
+    assert vals["ASSESS!H%d" % LO_TOP] == "Left out: 21 quarters"
+    assert vals["ASSESS!H%d" % (LO_TOP + 1)] == "Left out: 7 quarters"
 
 
-def test_with_nothing_left_out_the_caption_says_so(built):
+def test_with_nothing_left_out_every_status_is_blank(built):
     _, _, vals = built
-    assert vals["ASSESS!A41"] == "" and vals["ASSESS!A43"] == "Nothing left out: every quarter counts."
+    assert all(vals["ASSESS!H%d" % r] == "" for r in range(LO_TOP, LO_TOP + LO_ROWS))
 
 
-# Every heading a reader meets on Thresholds and Settings, and the glossary
+# Every heading a reader meets on Thresholds and Assess's inputs, and the glossary
 # entry that explains it. Headings that need no definition are listed as such,
 # so a new heading fails here until someone decides which it is.
-PLAIN = {"Product", "Reason", "to", "Why", "Leave out from", "Leave out to", "Second leave-out from",
-         "Largest spell: what the evidence says", "Temporary departures the data found"}
+PLAIN = {"Product", "Reason", "From", "To"}
 DEFINED_BY = {
     "Median kept": "Median kept", "Typical yearly move": "Typical yearly move", "Worst kept": "Worst kept",
     "2 Moderate-Low from": "2 Moderate-Low from, 3 Moderate from, 4 Moderate-High from, 5 High from",
@@ -229,10 +275,9 @@ DEFINED_BY = {
     "4 Moderate-High from": "2 Moderate-Low from, 3 Moderate from, 4 Moderate-High from, 5 High from",
     "5 High from": "2 Moderate-Low from, 3 Moderate from, 4 Moderate-High from, 5 High from",
     "Latest quarter": "Latest", "Latest (%)": "Latest", "Score": "Score", "Rating": "Rating", "Check": "Check",
-    "Moderate: half-width, in typical yearly moves": "Moderate: half-width",
-    "Moderate-Low begins this many typical yearly moves below the median": "Moderate-Low begins",
-    "High begins at this z: median + z x spread of levels": "High begins at this z",
-    "A value on a line takes the": "A value on a line takes the",
+    "Width of Moderate": "Width of Moderate", "Moderate-Low begins": "Moderate-Low begins",
+    "How rare High is (z)": "How rare High is (z)", "A value on a line takes the": "A value on a line takes the",
+    "Status": "Status",
 }
 
 
@@ -240,7 +285,9 @@ def test_every_heading_is_defined_in_the_glossary(built):
     p, _, _ = built
     wb = load_workbook(p)
     terms = {t for t, _, _ in TERMS}
-    headings = [c.value for c in wb["Thresholds"][4] if c.value] + [c.value for c in wb["Settings"][5] if c.value]
+    headings = ([c.value for c in wb["Thresholds"][4] if c.value]
+                + [c.value for c in wb["Assess"][LO_TOP - 1][:11] if c.value]       # A-K: the helpers beyond
+                + [c.value for c in wb["Assess"][SET_TOP - 1][:11] if c.value])     # are hidden, not read
     for h in headings:
         assert h in PLAIN or DEFINED_BY.get(h) in terms, "no glossary entry for %r" % h
 
@@ -289,7 +336,7 @@ def test_every_dial_row_equals_the_reference_scale(built, tmp_path):
         "E6": "2021Q3", "F6": "2023Q1", "G6": "Pandemic forbearance"})
     pts, kept, _ = reference("cards_nco_ttm.csv", CARD_CUTS)
     rows = {}
-    r = 51
+    r = dial_top(p) + 2
     for name, values in (("high_z", (2.0, 2.5, 3.0, 3.5)), ("halfwidth", (0.25, 0.5, 0.75, 1.0)),
                          ("low_step", (0.75, 1.0, 1.5, 2.0))):
         for v in list(values) + [None]:
@@ -319,7 +366,8 @@ def test_the_dials_current_row_counts_exactly_as_the_main_table(built, tmp_path,
     p, _, _ = built
     vals = with_settings(p, tmp_path, "dl-%s.xlsx" % rule, {"H6": 0, "K6": rule})
     main = [vals["ASSESS!E%d" % r] for r in range(8, 13)]
-    for now_row in (55, 63, 71):
+    top = dial_top(p)
+    for now_row in (top + 6, top + 14, top + 22):
         assert [vals["ASSESS!%s%d" % (c, now_row)] for c in "FGHIJ"] == main
         assert vals["ASSESS!K%d" % now_row] == "<- now"
 
@@ -380,24 +428,100 @@ def test_a_lower_is_worse_workbook_shades_five_bands_of_positive_width(tmp_path)
     names = [ws.cell(first - 1, c).value for c in range(16, 21)]
     assert names == ["5 High", "4 Moderate-High", "3 Moderate", "2 Moderate-Low", "1 Low"]
     widths = [vals["ASSESS!%s%d" % (get_column_letter(c), first)] for c in range(16, 21)]
-    assert widths[0] == pytest.approx(lines[3])                         # up to where High begins
+    floor = vals["ASSESS!U%d" % (first + 1)]
+    mn = min(min(lines), min(800 - 40 * x.value for x in load("cards_nco_ttm.csv")))
+    assert 0 < floor < mn                     # not floored at zero: the axis starts just below the data
+    # Nothing the chart plots sits at zero, or Excel stretches the axis down to it (the walkthrough, 13 Oct
+    # 2026): the strip stands on an invisible base under the floor and is 0 high where nothing is left out.
+    h = vals["ASSESS!U%d" % (first + 2)]
+    rows = range(first, first + len(load("cards_nco_ttm.csv")))
+    assert all(vals["ASSESS!Y%d" % r] == pytest.approx(floor - h) for r in rows) and floor - h > 0
+    assert all(vals["ASSESS!W%d" % r] == 0 for r in rows)                   # nothing left out here
+    assert all(vals["ASSESS!V%d" % r] == pytest.approx(floor) for r in rows)
+    # and the axis itself starts at a round number just under that, not at Excel's automatic zero
+    y_min = load_workbook(p)["Assess"]._charts[0].y_axis.scaling.min
+    assert y_min is not None and 0 < y_min <= floor - h and floor - y_min < 0.2 * (top_of(vals, first) - floor)
+    assert floor + widths[0] == pytest.approx(lines[3])                 # up to where High begins
     assert widths[1:4] == pytest.approx([lines[2] - lines[3], lines[1] - lines[2], lines[0] - lines[1]])
     assert all(x >= 0 for x in widths)
 
 
-@pytest.mark.parametrize("cells, which", [
-    ({"B6": "2008Q1"}, "first"),                                        # a start and nothing else
-    ({"B6": "2012Q4", "C6": "2008Q1", "D6": "x"}, "first"),              # reversed
-    ({"B6": "2008Q1", "C6": "2012Q4"}, "first"),                         # no reason
-    ({"B6": "2008-Q1", "C6": "2012Q4", "D6": "x"}, "first"),             # not a quarter on the calendar
-    ({"E6": "2020Q1", "F6": "2021Q1"}, "second"),
+@pytest.mark.parametrize("rule", ["worse", "better"])
+def test_a_lower_is_worse_workbook_equals_the_reference_scale(tmp_path, rule):
+    """NEXT-GOAL section 2: a lower-is-worse measure (a credit score) was
+    tested in scale.py and never through the workbook's lines and score. A
+    mirrored cards series, built, recalculated, and held to scale() and
+    score() with the direction reversed, under each on-the-line rule."""
+    src = tmp_path / "score.csv"
+    pts = load("cards_nco_ttm.csv")
+    src.write_text("date,value\n" + "".join("%s,%r\n" % (x.date, 800 - 40 * x.value) for x in pts),
+                   encoding="utf-8")
+    p = tmp_path / ("low-%s.xlsx" % rule)
+    build(p, [("Score", src)], name="Score", unit="", direction="lower_is_worse", frequency="quarterly",
+          smoothing=1, floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5,
+          on_the_line=rule, half_lives=(), percentiles=(50, 75, 90, 95), horizon=4, min_history=41)
+    vals = recalc(p)
+    mirrored = [800 - 40 * x.value for x in pts]
+    ref = scale(mirrored, "lower_is_worse", 0.5, 1.0, 2.5, False)
+    got = row(vals, 5)
+    assert vals["THRESHOLDS!M5"] == "" and ref["refused"] is None
+    assert got[0] == pytest.approx(ref["median"]) and got[3:7] == pytest.approx(ref["bounds"])
+    assert ref["bounds"] == sorted(ref["bounds"], reverse=True)          # lower is worse: lines fall
+    assert vals["THRESHOLDS!J5"] == pytest.approx(mirrored[-1])
+    assert got[7] == score(mirrored[-1], ref["bounds"], "lower_is_worse", rule, False)
+    want = [sum(1 for x in mirrored if score(x, ref["bounds"], "lower_is_worse", rule, False) == k)
+            for k in range(1, 6)]
+    assert [vals["ASSESS!E%d" % r] for r in range(8, 13)] == want
+
+
+LO_REFUSED = ("Refused: a period left out for this product is not whole; its Status on Assess says what is "
+              "missing")
+
+
+@pytest.mark.parametrize("cells, status", [
+    ({"B6": "2008Q1"}, "Pick a first and a last quarter from the list"),          # a start and nothing else
+    ({"B6": "2012Q4", "C6": "2008Q1", "D6": "x"}, "The first quarter must come before the last"),
+    ({"B6": "2008Q1", "C6": "2012Q4"}, "Say why"),                                 # no reason
+    ({"B6": "2008-Q1", "C6": "2012Q4", "D6": "x"}, "Pick a first and a last quarter from the list"),
+    ({"E6": "2020Q1", "F6": "2021Q1"}, "Say why"),                                 # the second row
 ])
-def test_a_leave_out_that_is_not_whole_is_refused_live(built, tmp_path, cells, which):
+def test_a_leave_out_that_is_not_whole_is_refused_live(built, tmp_path, cells, status):
     p, _, _ = built
     vals = with_settings(p, tmp_path, "lo.xlsx", cells)
-    assert vals["THRESHOLDS!M5"] == ("Refused: the %s leave-out needs a first and a last quarter from the data, "
-                                     "in order, and a reason" % which)
+    assert vals["THRESHOLDS!M5"] == LO_REFUSED
     assert vals["THRESHOLDS!K5"] == ""
+    row = LO_TOP + (1 if "E6" in cells else 0)
+    assert vals["ASSESS!H%d" % row] == status
+    assert vals["THRESHOLDS!M6"] == "" and vals["THRESHOLDS!K6"] != ""          # no other product is touched
+
+
+def test_a_row_without_a_product_asks_for_one_and_refuses_nothing(built, tmp_path):
+    p, _, _ = built
+    vals = with_assess(p, tmp_path, "noprod.xlsx", {"B%d" % LO_TOP: "2008Q1", "C%d" % LO_TOP: "2012Q4",
+                                                    "D%d" % LO_TOP: "x"})
+    assert vals["ASSESS!H%d" % LO_TOP] == "Pick a product"
+    assert all(vals["THRESHOLDS!M%d" % r] == "" for r in range(5, 9))
+
+
+def test_any_number_of_periods_for_a_product_each_in_its_own_row(built, tmp_path):
+    """The bank, 13 Oct 2026: leave-outs picked on Assess from lists, not two
+    fixed pairs per product. Three periods for cards, in rows apart, with a
+    period for mortgage between: each leaves out its own product's quarters."""
+    p, _, _ = built
+    rows = [("Credit card", "1994Q1", "1995Q4", "a"), ("Mortgage", "2008Q1", "2012Q4", "b"),
+            ("Credit card", "2007Q4", "2012Q4", "c"), ("Credit card", "2021Q3", "2023Q1", "d")]
+    cells = {}
+    for i, (prod, a, b, why) in enumerate(rows):
+        r = LO_TOP + 2 * i
+        cells.update({"A%d" % r: prod, "B%d" % r: a, "C%d" % r: b, "D%d" % r: why})
+    vals = with_assess(p, tmp_path, "many.xlsx", cells)
+    cuts = (("1994Q1", "1995Q4"), ("2007Q4", "2012Q4"), ("2021Q3", "2023Q1"))
+    _, kept, ref = reference("cards_nco_ttm.csv", cuts)
+    assert ref["refused"] is None and vals["THRESHOLDS!M5"] == ""
+    assert row(vals, 5)[3:7] == pytest.approx(ref["bounds"])
+    _, _, mref = reference("mortgage_nco_ttm.csv", (("2008Q1", "2012Q4"),))
+    assert vals["THRESHOLDS!B6"] == pytest.approx(mref["median"])
+    assert vals["THRESHOLDS!B7"] == pytest.approx(reference("home_equity_nco_ttm.csv")[2]["median"])
 
 
 def test_a_whole_leave_out_is_not_refused(built, tmp_path):
@@ -448,7 +572,8 @@ def test_the_assess_bands_stack_from_the_floor_when_values_go_below_zero(tmp_pat
     floor = vals["ASSESS!U%d" % (first + 1)]
     top = vals["ASSESS!U%d" % first]
     data = [v for v in (vals.get("ASSESS!O%d" % r) for r in range(first, ws.max_row + 1)) if isinstance(v, float)]
-    assert floor == pytest.approx(min(0, min(data), min(lines))) and top > max(max(data), max(lines))
+    mn, mx = min(min(data), min(lines)), max(max(data), max(lines))
+    assert floor == pytest.approx(mn - 0.08 * (mx - mn)) and top > mx        # not floored: 8% below the lowest
     assert vals["ASSESS!V%d" % first] == pytest.approx(floor)                  # the base
     widths = [vals["ASSESS!%s%d" % (get_column_letter(c), first)] for c in range(16, 21)]
     assert all(w >= 0 for w in widths)
@@ -467,6 +592,7 @@ def test_the_assess_axis_labels_negative_numbers_only_when_they_are_real(built, 
           smoothing=1, floor_at_zero=True, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5,
           on_the_line="worse", half_lives=(), percentiles=(50,), horizon=4, min_history=41)
     assert fmt(cards) == "0.0;;0.0"                        # nothing below zero: the strip is unlabelled
+    assert load_workbook(cards)["Assess"]._charts[0].y_axis.scaling.min is None      # floored: Excel's own
     src = tmp_path / "neg.csv"
     src.write_text("date,value\n" + "".join("%s,%r\n" % (p.date, p.value - 6) for p in load("cards_nco_ttm.csv")),
                    encoding="utf-8")
@@ -493,7 +619,7 @@ def test_text_in_a_setting_leaves_no_error_on_the_assess_dials(built, tmp_path, 
     p, _, _ = built
     vals = with_settings(p, tmp_path, "t%s.xlsx" % cell, {cell: "one"})
     ws = load_workbook(p)["Assess"]
-    rows = [r for r in range(49, ws.max_row + 1) if isinstance(ws.cell(r, 2).value, str)
+    rows = [r for r in range(dial_top(p), ws.max_row + 1) if isinstance(ws.cell(r, 2).value, str)
             and ws.cell(r, 2).value.startswith("=") and ws.cell(r, 11).value]
     assert rows
     for r in rows:
@@ -502,6 +628,37 @@ def test_text_in_a_setting_leaves_no_error_on_the_assess_dials(built, tmp_path, 
             assert not (isinstance(v, str) and v.startswith("#")), (c, r, v)
     refused = [vals["ASSESS!K%d" % r] for r in rows]
     assert any(v == "refused: a setting is not a number" for v in refused)
+
+
+@pytest.mark.parametrize("product", ["Mortgage", "Home equity", "Other consumer"])
+def test_assess_draws_every_band_for_a_product_that_starts_after_the_calendar(built, tmp_path, product):
+    """The walkthrough (13 Oct 2026), in Excel: for a product whose data starts
+    after the first quarter on the calendar, the chart's top and floor were
+    MAX and MIN over a column holding #N/A, so both were #N/A, and Low and
+    High vanished while the other bands were drawn from zero."""
+    p = built[0]
+    wb = load_workbook(p)
+    wb["Assess"]["B4"] = product
+    q = tmp_path / ("assess-%s.xlsx" % product.replace(" ", "-"))
+    wb.save(q)
+    vals = recalc(q)
+    ws = wb["Assess"]
+    first = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 12).value == "Quarter") + 1
+    top, floor = vals["ASSESS!U%d" % first], vals["ASSESS!U%d" % (first + 1)]
+    assert all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (top, floor)), (top, floor)
+    lines = [vals["ASSESS!C%d" % r] for r in (9, 10, 11, 12)]
+    data = [v for v in (vals.get("ASSESS!O%d" % r) for r in range(first, ws.max_row + 1)) if isinstance(v, float)]
+    assert floor == pytest.approx(min(0, min(data), min(lines))) and top > max(max(data), max(lines))
+    widths = [vals["ASSESS!%s%d" % (get_column_letter(c), first)] for c in range(16, 21)]
+    assert all(isinstance(w, (int, float)) and w >= 0 for w in widths), widths
+    assert floor + widths[0] == pytest.approx(lines[0]) and floor + sum(widths) == pytest.approx(top)
+
+
+def test_the_chart_tabs_legend_sits_below_the_plot(built):
+    """The walkthrough (13 Oct 2026): in Excel 16 the legend on the right was
+    drawn over the right-hand ends of the cutoff lines."""
+    lc = load_workbook(built[0])["Chart"]._charts[0]
+    assert lc.legend.position == "b" and not lc.legend.overlay
 
 
 def test_the_backtest_glossary_entry_says_one_thing_about_the_history_used():
@@ -537,3 +694,89 @@ def test_the_pickers_read_their_choices_from_cells_so_long_labels_survive(tmp_pa
 def test_the_backtest_tab_says_the_scored_quarter_is_in_its_own_history(built):
     banner = " ".join(str(c.value) for row in load_workbook(built[0])["Backtest"].iter_rows(max_row=3) for c in row if c.value)
     assert "up to and including it" in banner and "history before it" not in banner
+
+
+def _scen_rows(p):
+    ws = load_workbook(p)["Assess"]
+    top = next(r for r in range(1, ws.max_row + 1) if str(ws.cell(r, 1).value or "").startswith("Scenarios:"))
+    return top + 2, top + 3
+
+
+def test_the_scenarios_set_your_lines_beside_keeping_every_quarter(built, tmp_path):
+    """The bank, 13 Oct 2026: views on Assess that show what changes as
+    quarters are left out. The every-quarter row equals the reference scale on
+    the whole series, under the same settings; the other row is the table above."""
+    p, _, _ = built
+    vals = with_settings(p, tmp_path, "scen.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "D6": "Financial crisis",
+                                                    "E6": "2021Q3", "F6": "2023Q1", "G6": "Pandemic forbearance"})
+    ra, rb = _scen_rows(p)
+    _, kept, ref = reference("cards_nco_ttm.csv", CARD_CUTS)
+    pts, _, full = reference("cards_nco_ttm.csv")
+    assert [vals["ASSESS!%s%d" % (c, ra)] for c in "BCDE"] == pytest.approx(ref["bounds"])
+    assert [vals["ASSESS!%s%d" % (c, rb)] for c in "BCDE"] == pytest.approx(full["bounds"])
+    sc = lambda v: score(v, full["bounds"], "higher_is_worse", "worse", True)      # noqa: E731
+    assert [vals["ASSESS!%s%d" % (c, rb)] for c in "FGHIJ"] == [sum(1 for x in pts if sc(x.value) == k)
+                                                                for k in range(1, 6)]
+    assert [vals["ASSESS!%s%d" % (c, ra)] for c in "FGHIJ"] == [vals["ASSESS!E%d" % r] for r in range(8, 13)]
+    charts = load_workbook(p)["Assess"]._charts
+    assert len(charts) == 5                      # the main chart, the comparison, a bar chart per setting
+
+
+def test_a_refused_product_still_shows_where_its_lines_fall(built, tmp_path):
+    """The bank, 13 Oct 2026, of other consumer refused at z 2.5 with the
+    crisis left out: "what happened to the colors". The bands and counts stay
+    while the lines are numbers in order; only the Check says refused."""
+    p, _, _ = built
+    vals = with_settings(p, tmp_path, "ref.xlsx", {"B6": "2007Q4", "C6": "2012Q4", "D6": "x", "J6": 3.5})
+    assert vals["THRESHOLDS!M5"] == "Refused: High would begin beyond the worst quarter kept"
+    assert vals["ASSESS!U5"] == 1
+    assert all(isinstance(vals["ASSESS!E%d" % r], (int, float)) for r in range(8, 13))
+    assert vals["ASSESS!E12"] == 0                                  # nothing kept reaches High: the reason
+    first = 2
+    assert all(isinstance(vals["ASSESS!%s%d" % (get_column_letter(c), first)], (int, float)) for c in range(16, 21))
+
+
+def test_assess_shows_the_latest_quarter_and_its_score(built):
+    _, _, vals = built
+    assert vals["ASSESS!E4"] == "2026Q2: 3.978  ->  3 Moderate"
+def test_the_fixed_axis_holds_every_line_the_dials_offer(tmp_path):
+    """Codex on #432: a measure not floored at zero gets a fixed axis minimum
+    at build, which cannot follow later typing, so a larger Moderate-Low step
+    could push score 2's line off the bottom. The minimum now sits under every
+    line the dials try. A noisy series makes the point: at step 2 its line is
+    below every value it ever took."""
+    import random
+    rnd = random.Random(7)
+    src = tmp_path / "noisy.csv"
+    pts = load("cards_nco_ttm.csv")
+    src.write_text("date,value\n" + "".join("%s,%r\n" % (x.date, round(100 + 2 * rnd.random(), 3)) for x in pts),
+                   encoding="utf-8")
+    p = tmp_path / "noisy.xlsx"
+    build(p, [("Noisy", src)], name="N", unit="", direction="higher_is_worse", frequency="quarterly", smoothing=1,
+          floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse", half_lives=(),
+          percentiles=(50,), horizon=4, min_history=41)
+    vals = [float(l.split(",")[1]) for l in src.read_text().splitlines()[1:]]
+    ref = scale(vals, "higher_is_worse", 0.5, 2.0, 2.5, False)
+    low_line = ref["median"] - 2.0 * ref["typical_yearly_move"]
+    assert low_line < min(vals)                                   # the case that was clipped
+    y_min = load_workbook(p)["Assess"]._charts[0].y_axis.scaling.min
+    assert y_min is not None and y_min < low_line
+
+
+def test_a_line_below_the_fixed_axis_is_said_not_clipped_in_silence(tmp_path):
+    """Codex on #432: a fixed axis cannot follow every leave-out or setting.
+    When the floor or the left-out strip falls below it, the cell over the
+    chart says so; as built it says nothing."""
+    import random
+    rnd = random.Random(7)
+    src = tmp_path / "noisy.csv"
+    pts = load("cards_nco_ttm.csv")
+    src.write_text("date,value\n" + "".join("%s,%r\n" % (x.date, round(100 + 2 * rnd.random(), 3)) for x in pts),
+                   encoding="utf-8")
+    p = tmp_path / "noisy.xlsx"
+    build(p, [("Noisy", src)], name="N", unit="", direction="higher_is_worse", frequency="quarterly", smoothing=1,
+          floor_at_zero=False, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse", half_lives=(),
+          percentiles=(50,), horizon=4, min_history=41)
+    assert recalc(p)["ASSESS!A14"] == ""
+    vals = with_settings(p, tmp_path, "far.xlsx", {"I6": 6})
+    assert "below the axis of this chart" in vals["ASSESS!A14"]
