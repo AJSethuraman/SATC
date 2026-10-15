@@ -1693,7 +1693,7 @@ muts = [
  ("Summary's grey rows starting at another number than 50", SCH, "GREY_DEFAULT = 50", "GREY_DEFAULT = 30",
   "grey_rows_read_their_own_number"),
  ("Summary's vintage chart drawing each year's point from the year before", SCH,
-  "value=f\"={pick(row, f'({MI}-1)*{Y}+{y + 1}')}\")", "value=f\"={pick(row, f'({MI}-1)*{Y}+{y}')}\")",
+  """match(f'"V|"&{VW}&{line}&"|y"&{col(YC)}{r}')""", """match(f'"V|"&{VW}&{line}&"|y"&({col(YC)}{r}-1)')""",
   "chart_redraws_with_the_dropdowns"),
  # the firm, 2 Oct 2026: the grey number "separately adjustable" -- what was typed survives the next Run
  ("Summary's Grey rows under back to 50 at every Run", B,
@@ -1810,6 +1810,39 @@ muts = [
   "        if optional and self.gate.optional:", "once_the_add_ons_are_installed"),
  ("Control's limits read only from a full-width row", CO,
   "        row = tuple(row) + (None,) * (KEY_COL - len(row))", "        row = tuple(row)", "read_only_worksheet"),
+ # 14 Oct 2026: the vintage chart lost its last years from 42 origination years, each line one _views row of every
+ # measure by every year, wider than the B:ZZ every lookup reads; now a row per line and year, and _views kept under
+ # Excel's last row (tests/test_vintage_years_2026_10_14.py); the third LibreOffice headless, none needs a display
+ ("Summary's vintage rows holding every measure by every year again", SCH,
+  "                vals = [flat[k * Y + y] for k in range(K)]", "                vals = flat[y:]",
+  "no_views_row_is_wider or vintage_rows_are_a_line_and_year"),
+ ("Summary's vintage rows' labels back on the one row with their count", SCH,
+  '        yield f"V|{opt}|rows", [len(labels)]', '        yield f"V|{opt}|rows", [len(labels)] + labels',
+  "vintage_rows_are_a_line_and_year"),
+ ("Summary's vintage rows written for a year with nothing on the line", SCH,
+  "                if any(x is not None for x in vals):", "                if True:",
+  "vintage_rows_are_a_line_and_year"),
+ ("Summary's vintage chart reading every line's loans as its value", SCH,
+  'value=f"={pick(row, nloans)}")', 'value=f"={pick(row, MI)}")',
+  "chart_redraws_with_the_dropdowns or every_year_of_the_last_measure"),
+ ("Summary's vintage chart reading Loans whatever the Vintage measure", SCH,
+  'value=f"={pick(row, MI)}")', 'value=f"={pick(row, nloans)}")',
+  "chart_redraws_with_the_dropdowns or every_year_of_the_last_measure"),
+ ("Summary's Vintage row list starting a row early", SCH,
+  """value=f'=IF({i}>{RN},"",{pick(f"{RK}+{i}", 1)})')""", """value=f'=IF({i}>{RN},"",{pick(f"{RK}+{i - 1}", 1)})')""",
+  "rows_dropdown_follows_the_column or chart_redraws_with_the_dropdowns"),
+ ("_views written past its most rows with the vintage chart's", RS,
+  "    if views.r + n <= MOST_VIEWS_ROWS:", "    if True:", "past_its_most_rows"),
+ ("_views rows past its most written to the sheet", RS,
+  "        if self.r > MOST_VIEWS_ROWS:", "        if False:", "counted_not_written"),
+ ("_views written past its most rows when the rest alone passes it", RS,
+  "    raise TooManyRows(SAY_TOO_MANY_ROWS", "    return TooManyRows(SAY_TOO_MANY_ROWS", "past_its_most_rows"),
+ ("the refusal counting the vintage chart's rows it would have left off", RS,
+  "SAY_TOO_MANY_ROWS.format(n=views.r, most=", "SAY_TOO_MANY_ROWS.format(n=views.r + n, most=", "past_its_most_rows"),
+ ("a Run refused for _views' rows saving the workbook, its last results gone", B,
+  "        return Outcome(False, book, [str(exc)])",
+  "        return _refused(wb, book, [str(exc)], Outcome(False, book, [str(exc)]))",
+  "past_its_most_rows"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 
