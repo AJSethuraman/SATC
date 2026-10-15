@@ -188,10 +188,10 @@ py -m threshold_engine --help
 </tbody>
 </table>
 <h3>3.3 One judgement, by hand</h3>
-<p>On the <strong>Settings</strong> tab, row 6 (Credit card), type: B6 <code>2007Q4</code>, C6 <code>2012Q4</code>, D6 <code>financial crisis</code>, E6 <code>2021Q3</code>, F6 <code>2023Q1</code>, G6 <code>pandemic forbearance</code>.</p>
+<p>The workbook opens on the <strong>Assess</strong> tab (red). Under the chart, in <strong>Periods left out</strong>, fill the first two rows from the lists: Product <code>Credit card</code>, From <code>2007Q4</code>, To <code>2012Q4</code>, Reason <code>financial crisis</code>; then Product <code>Credit card</code>, From <code>2021Q3</code>, To <code>2023Q1</code>, Reason <code>pandemic forbearance</code>. Each Status reads <code>Left out: 21 quarters</code> and <code>Left out: 7 quarters</code>.</p>
 <p>☐ Thresholds, Credit card now reads: median 3.757, move 0.586, worst 6.603, lines <strong>3.171 / 3.464 / 4.050 / 5.981</strong>, latest 3.978, <strong>3 Moderate</strong>. These are the card rehearsal settings the bank accepted; the lines were first recorded on 7 Oct 2026.</p>
-<p>☐ On <strong>Assess</strong> (Credit card picked in B4), the quarters kept in each score read 25 / 22 / 29 / 55 / 4, and the chart shades five bands with two dark strips under the periods left out.</p>
-<p>☐ Type <code>0</code> in J6 (High's z). The Check column reads <code>Refused: High's z must be above 0</code> and the score goes blank. Type <code>2.5</code> back.</p>
+<p>☐ At the top of Assess (Credit card picked in B4), Latest reads <code>2026Q2: 3.978  -&gt;  3 Moderate</code>; the quarters kept in each score read 25 / 22 / 29 / 55 / 4; and the chart shades five bands with two dark strips under the periods left out.</p>
+<p>☐ In <strong>Your settings</strong>, type <code>0</code> as Credit card's How rare High is (z). Check reads <code>Refused: High's z must be above 0</code> and Latest says there is no score. Type <code>2.5</code> back.</p>
 <h3>3.4 The window</h3>
 <p>Double-click <code>Thresholds.pyw</code> in the <code>ThresholdEngine</code> folder.</p>
 <p>☐ The <strong>Thresholds</strong> window opens with its steps down the left. Every field starts empty and <strong>Run</strong> names what is missing.</p>
@@ -214,7 +214,7 @@ py -m threshold_engine template write refreshed-score &quot;%USERPROFILE%\refres
 </code></pre>
 <p>☐ It says the file is OK, or lists every problem at once. Fix and run it again until it is OK.</p>
 <h3>5.4 Build the workbook</h3>
-<p>Every setting is yours; none has a default. For the refreshed score, lower is worse and it is not floored at zero. The starting values below are the card rehearsal's; change them on the Settings tab after the build.</p>
+<p>Every setting is yours; none has a default. For the refreshed score, lower is worse and it is not floored at zero. The starting values below are the card rehearsal's; change them in Your settings on the Assess tab after the build.</p>
 <pre><code>py -m threshold_engine workbook &quot;%USERPROFILE%\refreshed-score.xlsx&quot; --series &quot;Refreshed score=%USERPROFILE%\refreshed-score.csv&quot; --name &quot;Refreshed credit score&quot; --unit &quot;score&quot; --direction lower_is_worse --frequency quarterly --smoothing 1 --floor-at-zero no --moderate-halfwidth 0.5 --low-step 1.0 --high-z 2.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 9
 </code></pre>
 <p>☐ It writes the workbook, or refuses with a reason. The file needs at least <code>--min-history</code> + <code>--horizon</code> quarters: 9 + 4 = 13 as written. With fewer, set <code>--min-history</code> to the number of quarters less 4 (9 quarters: <code>--min-history 5</code>). That only thins the Backtest tab; the lines, scores and Assess do not use it.</p>

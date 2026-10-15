@@ -3,7 +3,7 @@
 Written for the person reading the workbook, not the person who built it.
 Each calculation is the one the code performs, so a reviewer can redo it by
 hand. The workbook's tests check that every column heading on Thresholds and
-Settings has an entry here, so a new heading cannot ship without its
+on Assess's inputs has an entry here, so a new heading cannot ship without its
 definition.
 """
 
@@ -19,12 +19,15 @@ TERMS = [
      "quarter-end balances. For Federal Reserve data: the average of the four quarterly rates. The engine can "
      "also do this itself from quarterly values (smoothing 4: the mean of each quarter and the three before it)."),
     ("Quarters kept",
-     "The quarters the thresholds are built from: every quarter, except any periods left out on Settings.",
-     "A quarter is left out if it falls between a Leave out from and to on Settings, inclusive."),
+     "The quarters the thresholds are built from: every quarter, except any periods left out on Assess.",
+     "A quarter is left out if a whole row of Periods left out on Assess names its product and the quarter "
+     "falls between that row's From and To, inclusive."),
     ("Left out",
      "A period set aside because it does not represent the risk being rated, with the reason recorded.",
-     "Typed on Settings as first and last quarter plus a reason. Up to two periods per product. Shown on "
-     "Assess as a dark strip under the chart and grey dots on the line, and recorded on Run."),
+     "Picked on Assess, under the chart: the product, the first and last quarter from lists of the quarters "
+     "in the data, and a reason. As many periods as there are rows, for any product. A row with something "
+     "missing says what in its Status and refuses its product until it is whole. Shown on the chart as a dark "
+     "strip and grey dots on the line, and recorded on Run."),
     ("Median kept",
      "The middle of the quarters kept: half were higher, half lower. The centre of Moderate.",
      "MEDIAN of the quarters kept."),
@@ -42,16 +45,16 @@ TERMS = [
      "Normal risk. A band around the median wide enough that anything inside it is within the measure's "
      "ordinary year-to-year movement of normal.",
      "From the median minus the half-width times the typical yearly move, up to the median plus the same."),
-    ("Moderate: half-width",
-     "How wide Moderate is on each side of the median, counted in typical yearly moves.",
-     "A Settings cell. 0.5 makes Moderate one typical yearly move wide in total."),
+    ("Width of Moderate",
+     "How wide Moderate is on each side of the median, counted in typical yearly moves (its half-width).",
+     "Typed in Your settings on Assess. 0.5 makes Moderate one typical yearly move wide in total."),
     ("Moderate-Low",
      "Better than normal by more than ordinary movement, but not by enough to be Low.",
      "From the Moderate-Low line up to where Moderate begins."),
     ("Moderate-Low begins",
      "How far below the median Low ends, counted in typical yearly moves.",
-     "Median minus this number times the typical yearly move. A Settings cell. It must be larger than the "
-     "Moderate half-width."),
+     "Median minus this number times the typical yearly move. Typed in Your settings on Assess. It must be "
+     "larger than the width of Moderate."),
     ("Low",
      "Clearly better than normal.",
      "Below the Moderate-Low line. A loss rate at or below zero is always Low."),
@@ -62,10 +65,10 @@ TERMS = [
      "Stress: a level far enough above normal to count as unusual for this product.",
      "From the median plus the High z times the spread of levels. It is the same robust z the evidence uses to "
      "call a level unusual, so High and stress mean one thing."),
-    ("High begins at this z",
+    ("How rare High is (z)",
      "How many spreads of levels above the median High starts. The same number means the same rarity on "
      "every product.",
-     "A Settings cell. 3.5 is the usual line for an outlier (Iglewicz and Hoaglin, 1993). With a crisis left "
+     "Typed in Your settings on Assess. 3.5 is the usual line for an outlier (Iglewicz and Hoaglin, 1993). With a crisis left "
      "out it can sit beyond everything kept, which the workbook refuses. The Dial on Assess shows 2.0 to 3.5 "
      "side by side."),
     ("Spread of levels",
@@ -75,14 +78,19 @@ TERMS = [
      "deviation, MAD)."),
     ("Dial",
      "A table on Assess showing what one setting would do at other values, before you change it.",
-     "For each value: the four lines with that setting changed and the others as on Settings, and how many "
+     "For each value: the four lines with that setting changed and the others as in Your settings, and how "
+     "many "
      "quarters kept fall in each score. The highlighted row is the current setting."),
     ("2 Moderate-Low from, 3 Moderate from, 4 Moderate-High from, 5 High from",
      "The four lines the scoring file uses. Each is where that score begins.",
      "As defined under Moderate-Low, Moderate, Moderate-High and High above."),
     ("A value on a line takes the",
      "Which score a value exactly on a line gets.",
-     "A Settings cell. 'worse' gives the higher score, 'better' the lower."),
+     "Picked in Your settings on Assess. 'worse' gives the higher score, 'better' the lower."),
+    ("Status",
+     "Whether a row of Periods left out is in use, and if it is not whole, what is missing.",
+     "'Left out: N quarters' when the row names a product, two quarters in order and a reason; otherwise the "
+     "first thing missing: a product, a quarter from the list, the order, or the reason."),
     ("Score",
      "1 to 5: Low, Moderate-Low, Moderate, Moderate-High, High.",
      "1 plus the number of lines the value is at or past (past only, if a value on a line takes the better score)."),
