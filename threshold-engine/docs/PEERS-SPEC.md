@@ -23,7 +23,7 @@ are **$ thousands**; charge-off (`DR*`) and recovery (`CR*`) fields are
 | Credit card | LNCRCD | DRCRCD | CRCRCD | 2001 |
 | Mortgage (1–4 family first liens) | LNRERSFM | DRRERSFM | CRRERSFM | balance 1992, flows 2003Q2 |
 | Home equity | LNRELOC | DRRELOC | CRRELOC | 1992 |
-| Other consumer (as filed; auto split out from 2011) | LNCONOTH | DRCONOTH | CRCONOTH | 1992 |
+| Other consumer (6.b + 6.d; auto split out from 2011; 6.b from 2001) | LNCONOTH + LNCONRP | DRCONOTH | CRCONOTH | 1992 |
 | Auto | LNAUTO | DRAUTO | CRAUTO | 2011 |
 
 Structure changes come from `https://banks.data.fdic.gov/api/history`, as

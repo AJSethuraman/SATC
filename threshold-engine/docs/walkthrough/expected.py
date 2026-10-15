@@ -99,10 +99,10 @@ def reads_for(lbl, row_th, exp, counts, assess=True):
     r = 5 + [p for p, _ in PRODUCTS].index(lbl)
     reads = [("Thresholds", "%s%d" % (c, r), v) for c, v in sorted(exp.items())]
     if assess and counts:
-        reads += [("Assess", "E%d" % (8 + i), n) for i, n in enumerate(counts[0])]
-        reads += [("Assess", "G%d" % (8 + i), n) for i, n in enumerate(counts[1])]
+        reads += [("Assess", "Q%d" % (10 + i), n) for i, n in enumerate(counts[0])]
+        reads += [("Assess", "S%d" % (10 + i), n) for i, n in enumerate(counts[1])]
     if assess and not counts:
-        reads.append(("Assess", "B5", exp["M"]))
+        reads.append(("Assess", "B6", {"startswith": exp["M"] + ". To fix: "}))
     return reads
 
 
@@ -124,11 +124,11 @@ def on_assess(actions):
         col, k = ref[0], int(ref[1:]) - 6
         if col in "BCDEFG":
             r = LAY["lo_top"] + 2 * k + (0 if col in "BCD" else 1)
-            if ("Assess", "A%d" % r, PRODUCTS[k][0]) not in out:
-                out.append(("Assess", "A%d" % r, PRODUCTS[k][0]))
-            out.append(("Assess", "%s%d" % ("BCD"["BCDEFG".index(col) % 3], r), v))
+            if ("Assess", "N%d" % r, PRODUCTS[k][0]) not in out:
+                out.append(("Assess", "N%d" % r, PRODUCTS[k][0]))
+            out.append(("Assess", "%s%d" % ("OPQ"["BCDEFG".index(col) % 3], r), v))
         else:
-            out.append(("Assess", "%s%d" % ("BCDE"["HIJK".index(col)], LAY["set_top"] + k), v))
+            out.append(("Assess", "%s%d" % ("OPQR"["HIJK".index(col)], LAY["set_top"] + k), v))
     return out
 
 
@@ -150,8 +150,8 @@ step("W1", "Build the four-product workbook and open it",
           ("=", "COUNTA(Thresholds!A5:A8)", 4), ("=", "COUNTA(Glossary!A5:A200)", 36)]
      + [("Thresholds", "A%d" % (5 + i), lbl) for i, (lbl, _) in enumerate(PRODUCTS)],
      picture=[{"sheet": "Thresholds", "range": "A1:M10", "file": "w1-thresholds.png"},
-              {"sheet": "Assess", "range": "A40:K61", "file": "w1-assess-inputs.png"}],
-     note="Sheets, in order: Thresholds, Assess, Chart, Evidence, Backtest, Glossary, Data, Run. "
+              {"sheet": "Assess", "range": "M16:U38", "file": "w1-assess-inputs.png"}],
+     note="Sheets, in order: Assess, Thresholds, Chart, Evidence, Backtest, Sources, Glossary, Data, Run. "
           "The Glossary count was 33 when first written, from WHAT-IT-DOES.md; the first run found 35, and "
           "the document was out of date (two terms added since 6 Oct). Corrected here and there.")
 
@@ -166,17 +166,18 @@ step("W2", "Thresholds as built: every product, nothing left out",
 # W3 Assess, each product picked from the list
 for i, (lbl, _) in enumerate(PRODUCTS):
     exp, cnt = thresholds(lbl)
-    rr = [("Assess", "B5", "")] + [("Assess", "E%d" % (8 + j), n) for j, n in enumerate(cnt[0])] \
-        + [("Assess", "G%d" % (8 + j), n) for j, n in enumerate(cnt[1])] \
-        + [("Assess", "C9", exp["E"]), ("Assess", "C12", exp["H"])]
+    rr = [("Assess", "B6", "Check: OK. Every setting is valid and every period left out is complete.")] \
+        + [("Assess", "Q%d" % (10 + j), n) for j, n in enumerate(cnt[0])] \
+        + [("Assess", "S%d" % (10 + j), n) for j, n in enumerate(cnt[1])] \
+        + [("Assess", "O11", exp["E"]), ("Assess", "O14", exp["H"])]
     # The chart's floor and top (added after the first run, which found them #N/A in Excel for every product
     # whose data starts after the calendar): floor = MIN(0, data, lines); top 8% of the range above the highest.
     vals = [p.value for p in PTS[lbl]] + [exp[c] for c in "EFGH"]
     lo = min(0, min(vals))
-    rr += [("Assess", "U3", lo), ("Assess", "U2", max(vals) + 0.08 * (max(vals) - lo)),
-           ("Assess", "V2", lo), ("Assess", "P2", exp["E"] - lo)]
+    rr += [("Assess", "AI3", lo), ("Assess", "AI2", max(vals) + 0.08 * (max(vals) - lo)),
+           ("Assess", "AJ2", lo), ("Assess", "AD2", exp["E"] - lo)]
     step("W3.%d" % (i + 1), "Assess: pick %s" % lbl, "On Assess, pick %s in B4." % lbl,
-         [("Assess", "B4", lbl)], rr, product=lbl,
+         [("Assess", "B5", lbl)], rr, product=lbl,
          picture=[{"sheet": "Assess", "chart": 1, "file": "w3-assess-%d.png" % (i + 1)}] if i in (0, 2) else [])
 
 # W4, W5 the card leave-outs
@@ -190,17 +191,17 @@ step("W5", "Add the second leave-out: the pandemic (the rehearsal settings)",
      "Also E6 2021Q3, F6 2023Q1, G6 'pandemic forbearance'. Expected to equal LOG.md, 7 Oct: "
      "3.171 / 3.464 / 4.050 / 5.981, and 25 / 22 / 29 / 55 / 4 quarters kept.",
      settings_actions(6, REH), reads_for("Credit card", 5, exp, cnt)
-     + [("Run", "B15", "Credit card"), ("Run", "C15", "2007Q4"), ("Run", "D15", "2012Q4"),
-        ("Run", "E15", "financial crisis"), ("Run", "F15", "Left out: 21 quarters"),
-        ("Run", "B16", "Credit card"), ("Run", "C16", "2021Q3"), ("Run", "D16", "2023Q1"),
-        ("Run", "E16", "pandemic forbearance"), ("Run", "F16", "Left out: 7 quarters"),
-        ("Assess", "H%d" % LAY["lo_top"], "Left out: 21 quarters")]
-     + [("Assess", "%s%d" % (c, LAY["scen_top"] + 2), v) for c, v in zip("BCDE", [exp[x] for x in "EFGH"])]
-     + [("Assess", "%s%d" % (c, LAY["scen_top"] + 3), v) for c, v in zip("BCDE", [thresholds("Credit card")[0][x]
+     + [("Run", "A21", "Credit card"), ("Run", "B21", "2007Q4"), ("Run", "C21", "2012Q4"),
+        ("Run", "D21", "financial crisis"), ("Run", "E21", "Left out: 21 quarters"),
+        ("Run", "A22", "Credit card"), ("Run", "B22", "2021Q3"), ("Run", "C22", "2023Q1"),
+        ("Run", "D22", "pandemic forbearance"), ("Run", "E22", "Left out: 7 quarters"),
+        ("Assess", "T%d" % LAY["lo_top"], "Left out: 21 quarters")]
+     + [("Assess", "%s%d" % (c, LAY["scen_yours"]), v) for c, v in zip("CDEF", [exp[x] for x in "EFGH"])]
+     + [("Assess", "%s%d" % (c, LAY["scen_all"]), v) for c, v in zip("CDEF", [thresholds("Credit card")[0][x]
                                                                          for x in "EFGH"])],
      picture=[{"sheet": "Thresholds", "range": "A1:M10", "file": "w5-thresholds.png"},
               {"sheet": "Assess", "chart": 1, "file": "w5-assess-cards-rehearsal.png"},
-              {"sheet": "Assess", "range": "A1:H13", "file": "w5-assess-counts.png"}])
+              {"sheet": "Assess", "range": "M8:U15", "file": "w5-assess-counts.png"}])
 LOG_7OCT = {"E": 3.171, "F": 3.464, "G": 4.050, "H": 5.981}
 assert all(abs(exp[c] - v) < 0.0005 for c, v in LOG_7OCT.items()), "scale.py no longer gives the 7 Oct lines"
 assert cnt[0] == [25, 22, 29, 55, 4], "scale.py no longer gives the 7 Oct counts"
@@ -216,8 +217,8 @@ for sid, key, val, text in (("W6", "hw", 0.75, "Moderate's half-width 0.5 to 0.7
     exp, cnt = thresholds("Credit card", REH, **kw)
     dial_row = DIAL[key][0] + DIAL[key][1].index(val)
     rr = reads_for("Credit card", 5, exp, cnt) + [("Assess", "%s%d" % (c, dial_row), exp[t])
-                                                   for c, t in zip("BCDE", "EFGH")]
-    rr += [("Assess", "%s%d" % (c, dial_row), n) for c, n in zip("FGHIJ", cnt[0])]
+                                                   for c, t in zip("CDEF", "EFGH")]
+    rr += [("Assess", "%s%d" % (c, dial_row), n) for c, n in zip("GHIJK", cnt[0])]
     step(sid, text, "From the rehearsal settings, change %s. The dial row for %g on Assess must say the same."
          % (text.split(" (")[0], val), settings_actions(6, REH, **kw), rr)
 
@@ -236,21 +237,22 @@ LO = "Refused: a period left out for this product is not whole; its Status on As
 
 def refuse(sid, title, acts, text, lbl="Credit card", status=None):
     r = 5 + [p for p, _ in PRODUCTS].index(lbl)
-    full = on_assess(acts + ([("Assess", "B4", lbl)] if lbl != "Credit card" else []))
+    full = on_assess(acts + ([("Assess", "B5", lbl)] if lbl != "Credit card" else []))
     typed = "; ".join("%s!%s %s" % (sh, c, v) for sh, c, v in full)
-    reads = [("Thresholds", "M%d" % r, text), ("Thresholds", "K%d" % r, ""), ("Assess", "B5", text)]
+    reads = [("Thresholds", "M%d" % r, text), ("Thresholds", "K%d" % r, ""),
+             ("Assess", "B6", {"startswith": text + ". To fix: "})]
     if status:
-        reads += [("Assess", "H%d" % row_, st_) for row_, st_ in status]
+        reads += [("Assess", "T%d" % row_, st_) for row_, st_ in status]
     step(sid, "Refused: " + title, "Type %s; read the Check column and Assess." % typed, full, reads, product=lbl)
 
 
 refuse("W10.1", "a leave-out with a start and nothing else", [("Settings", "B6", "2008Q1")], LO,
-       status=[(LAY["lo_top"], "Pick a first and a last quarter from the list")])
+       status=[(LAY["lo_top"], "Missing: To, reason (Credit card refused)")])
 refuse("W10.2", "a second leave-out in reverse order",
        [("Settings", "E6", "2021Q1"), ("Settings", "F6", "2020Q1"), ("Settings", "G6", "x")], LO,
-       status=[(LAY["lo_top"] + 1, "The first quarter must come before the last")])
+       status=[(LAY["lo_top"] + 1, "From is after To (Credit card refused)")])
 refuse("W10.3", "a leave-out with no reason", [("Settings", "B6", "2008Q1"), ("Settings", "C6", "2012Q4")],
-       LO, status=[(LAY["lo_top"], "Say why")])
+       LO, status=[(LAY["lo_top"], "Missing: reason (Credit card refused)")])
 refuse("W10.4", "a half-width below 0", [("Settings", "H6", -0.1)], "Refused: Moderate's half-width must be 0 or more")
 refuse("W10.5", "a z of 0", [("Settings", "J6", 0)], "Refused: High's z must be above 0")
 refuse("W10.6", "a step typed as text", [("Settings", "I6", "one")], "Refused: Moderate-Low's step must be a number")
@@ -309,14 +311,14 @@ refuse("W10.12", "Moderate-Low at or below zero (step %g)" % ls, [("Settings", "
 # W11 the Run tab: fingerprints of the files themselves
 step("W11", "Run tab: each file's fingerprint and the decisions as typed",
      "Read Run C9:C12 and compare with the SHA-256 of each file (certutil -hashfile FILE SHA256).", [],
-     [("Run", "C%d" % (9 + i), hashlib.sha256((ROOT / f).read_bytes()).hexdigest()) for i, (_, f) in enumerate(PRODUCTS)]
-     + [("Run", "D%d" % (9 + i), len(PTS[lbl])) for i, (lbl, _) in enumerate(PRODUCTS)]
-     + [("Run", "F%d" % (15 + i), "") for i in range(12)],
-     picture=[{"sheet": "Run", "range": "A1:F18", "file": "w11-run.png"}])
+     [("Run", "F%d" % (14 + i), hashlib.sha256((ROOT / f).read_bytes()).hexdigest()) for i, (_, f) in enumerate(PRODUCTS)]
+     + [("Run", "C%d" % (14 + i), len(PTS[lbl])) for i, (lbl, _) in enumerate(PRODUCTS)]
+     + [("Run", "E%d" % (21 + i), "") for i in range(12)],
+     picture=[{"sheet": "Run", "range": "A1:F40", "file": "w11-run.png"}])
 
 # W12 the Chart tab's switches
 step("W12", "Chart: switch Mortgage off", "Chart B3: FALSE. Mortgage's column is #N/A (nothing drawn).",
-     [("Chart", "B3", False)], [("Chart", "F2", "#N/A"), ("=", "ISNUMBER(Chart!E2)", True)],
+     [("Chart", "C5", False)], [("Chart", "AP2", "#N/A"), ("=", "ISNUMBER(Chart!AO2)", True)],
      picture=[{"sheet": "Chart", "chart": 1, "file": "w12-chart.png"}])
 
 # W13 Evidence and Backtest, written at build: the same as the evidence and backtest commands
@@ -329,8 +331,8 @@ step("W13", "Evidence and Backtest for Credit card",
      "Read Evidence rows 6-9 (spells) and Backtest row 6.", [],
      [("Evidence", "E%d" % (6 + j), s["robust_z"]) for j, s in enumerate(sp)]
      + [("Evidence", "B%d" % (6 + j), quarter(s["peak_date"])) for j, s in enumerate(sp)]
-     + [("Backtest", "B6", res["score_vs_level_ahead"]), ("Backtest", "C6", res["score_vs_change_ahead"]),
-        ("Backtest", "I6", res["periods_tested"])])
+     + [("Backtest", "C6", res["score_vs_level_ahead"]), ("Backtest", "D6", res["score_vs_change_ahead"]),
+        ("Backtest", "J6", res["periods_tested"])])
 
 json.dump({"build": BUILD, "products": PRODUCTS, "steps": STEPS}, open(HERE / "steps.json", "w"), indent=1)
 
@@ -352,15 +354,15 @@ for sid, rule in (("W14a", "worse"), ("W14b", "better")):
     cnt = [sum(1 for x in mir if score(x, ref["bounds"], "lower_is_worse", rule, False) == k) for k in range(1, 6)]
     reads = [("Thresholds", "B5", ref["median"]), ("Thresholds", "C5", ref["typical_yearly_move"]),
              ("Thresholds", "D5", min(mir))] + [("Thresholds", c + "5", b) for c, b in zip("EFGH", ref["bounds"])]         + [("Thresholds", "J5", mir[-1]), ("Thresholds", "K5", sc), ("Thresholds", "L5", RATINGS[sc - 1]),
-           ("Thresholds", "M5", "")] + [("Assess", "E%d" % (8 + i), n) for i, n in enumerate(cnt)]
+           ("Thresholds", "M5", "")] + [("Assess", "Q%d" % (10 + i), n) for i, n in enumerate(cnt)]
     # The chart's floor: not floored at zero, so 8% of the range below the lowest value or line (added after
     # the first run, which showed the score squeezed into the top of a chart that started at zero).
     mn, mx = min(mir + ref["bounds"]), max(mir + ref["bounds"])
-    reads += [("Assess", "U3", mn - 0.08 * (mx - mn)), ("Assess", "U2", mx + 0.08 * (mx - (mn - 0.08 * (mx - mn))))]
+    reads += [("Assess", "AI3", mn - 0.08 * (mx - mn)), ("Assess", "AI2", mx + 0.08 * (mx - (mn - 0.08 * (mx - mn))))]
     LOW.append({"id": sid, "title": "A lower-is-worse score, on the line takes the %s score" % rule,
                 "how": "Build the score workbook (cards mirrored as 800 - 40 x rate), open it, K6 '%s'. Its lines "
                        "fall: worst is lowest." % rule, "product": "Score", "note": "",
-                "actions": [{"sheet": "Assess", "cell": "E%d" % LAY["set_top"], "value": rule}],
+                "actions": [{"sheet": "Assess", "cell": "R%d" % LAY["set_top"], "value": rule}],
                 "reads": [{"sheet": a, "cell": b, "expected": c} for a, b, c in reads],
                 "picture": [{"sheet": "Thresholds", "range": "A1:M8", "file": "w14-thresholds.png"},
                             {"sheet": "Assess", "chart": 1, "file": "w14-assess.png"}] if rule == "worse" else []})

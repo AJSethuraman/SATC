@@ -1,5 +1,11 @@
-# Federal Reserve CORSFRMACBS, all commercial banks, 1-4 family residential; 4-quarter mean
-# trailing-twelve-month net charge-off rate, percent; already smoothed
+# measure: Net charge-off rate on residential real estate loans booked in domestic offices, all banks (Federal Reserve series CORSFRMACBS)
+# population: All banks: "Banks are insured U.S.-chartered commercial banks" (the release's notes)
+# call-report: "Residential real estate loans include loans secured by one- to four-family properties, including home equity lines of credit" (the release, footnote 1). In the Call Report: RC-C Part I line 1.c, its 1.c.(1) revolving lines and 1.c.(2) closed-end first and junior liens. Because it includes home equity lines, it overlaps the Home equity series
+# numerator: Net charge-offs: "gross charge-offs minus recoveries" during the quarter (the release)
+# denominator: "the average level of its loans outstanding over that quarter"; each quarter's rate is multiplied by 400 to be an annual percentage rate (the release)
+# basis: Trailing twelve months: the mean of the four latest quarterly rates, saved to 3 decimals. Seasonally adjusted. Dated at the first day of the quarter
+# as-of: Each quarter, 1991Q4 to 2026Q2
+# source: Board of Governors of the Federal Reserve System, Charge-Off and Delinquency Rates on Loans and Leases at Commercial Banks, Charge-Off Rates, All Banks, SA: https://www.federalreserve.gov/releases/chargeoff/chgallsa.htm (also FRED, series CORSFRMACBS). Compiled from the FFIEC Consolidated Reports of Condition and Income (Call Reports)
 date,value
 1991-10-01,0.193
 1992-01-01,0.193

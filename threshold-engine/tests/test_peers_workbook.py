@@ -13,7 +13,7 @@ import zipfile
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from conftest import DATA, ROOT
+from conftest import DATA, as_earlier_build, ROOT
 from threshold_engine.peers import roster as R
 from threshold_engine.peers.analyses import calendar_year, lagged_rate, mix_factor, normalisation, organic_index
 from threshold_engine.peers.books import band, bank_book, best_worst, composite, industry
@@ -57,7 +57,7 @@ def num(v):
 
 @pytest.fixture(scope="module")
 def data():
-    return json.loads((PEERS / "roster_2006.json").read_text())
+    return as_earlier_build(json.loads((PEERS / "roster_2006.json").read_text()))
 
 
 @pytest.fixture(scope="module")
@@ -68,14 +68,14 @@ def roster():
 @pytest.fixture(scope="module")
 def books(data, roster):
     return {p: {b["cert"]: bank_book(data, b["cert"], p, JUMP, MIN_BOOK,
-                                     exempt_min_book=b["cert"] == KEYBANK)
+                                     exempt_min_book=b["cert"] == KEYBANK, acquired=())
                 for b in roster} for p in FOUR}
 
 
 def make(path, data, roster, pack, products=FOUR, base="2019Q4", **over):
     kw = dict(exempt_self=True, min_banks=MIN_BANKS, index_min_book=500_000, lagged_years=(2019, 2025),
               lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None,
-              delinquency=None, **RANK)
+              delinquency=None, acquired=NONE_ACQUIRED, **RANK)
     kw.update(over)
     return build_peers_workbook(path, data, roster, products, JUMP, MIN_BOOK, pack, MERGERS(), EXTRAS, base, **kw)
 
@@ -723,7 +723,9 @@ from openpyxl.utils import column_index_from_string, get_column_letter  # noqa: 
 from threshold_engine.peers import delinquency as D                     # noqa: E402
 
 TWO = ("Credit card", "Mortgage")
-DQ_RULES = dict(jump=0.25, min_book=1_000_000, exempt_self=True)
+DQ_RULES = dict(jump=0.25, min_book=1_000_000, exempt_self=True, acquired={p: {} for p in ("Credit card", "Mortgage", "Home equity", "Other consumer", "Auto")})
+#: No acquisition brought in the share in these tests: every product, none.
+NONE_ACQUIRED = {p: {} for p in ("Credit card", "Mortgage", "Home equity", "Other consumer", "Auto")}
 
 
 @pytest.fixture(scope="module")
@@ -739,7 +741,7 @@ def dq_spec(dl_data, **over):
 
 def dl_books(dl_data, roster, product, measure):
     return {b["cert"]: D.bank_delinquency(dl_data, b["cert"], product, measure, DQ_RULES["jump"],
-                                          DQ_RULES["min_book"], DQ_RULES["exempt_self"] and b["cert"] == KEYBANK)
+                                          DQ_RULES["min_book"], DQ_RULES["exempt_self"] and b["cert"] == KEYBANK, acquired=())
             for b in roster}
 
 
@@ -978,7 +980,8 @@ def test_not_built_the_tabs_say_so(all_peers):
 
 def test_delinquency_is_a_required_argument(tmp_path, recent, roster):
     kw = dict(exempt_self=True, min_banks=MIN_BANKS, index_min_book=500_000, lagged_years=(2019, 2025),
-              lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None, **RANK)
+              lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None,
+              acquired=NONE_ACQUIRED, **RANK)
     with pytest.raises(TypeError, match="delinquency"):
         build_peers_workbook(tmp_path / "x.xlsx", recent, roster, ("Credit card",), JUMP, MIN_BOOK, "all",
                              MERGERS(), EXTRAS, "2019Q4", **kw)

@@ -17,7 +17,7 @@ from openpyxl import load_workbook
 
 from threshold_engine.workbook import SET_TOP
 
-from conftest import DATA, ROOT
+from conftest import DATA, as_earlier_build, ROOT
 from threshold_engine import keybank_style as K
 from threshold_engine import launcher
 from threshold_engine.launcher import Form, PeerForm
@@ -28,6 +28,7 @@ CARDS, MORTGAGE = DATA / "cards_nco_ttm.csv", DATA / "mortgage_nco_ttm.csv"
 PEERS = DATA / "peers"
 ROSTER = ROOT / "config" / "peers.json"
 MERGERS = PEERS / "mergers_roster.json"
+ABSORPTIONS = PEERS / "absorptions_none.json"
 
 
 @pytest.fixture(autouse=True)
@@ -63,8 +64,8 @@ def peers_filled(tmp_path, **over) -> PeerForm:
     vals = dict(cache=str(tmp_path / "cache"), roster=str(ROSTER), first="2006Q1", last="2026Q2",
                 products=["Credit card"], delinquency="no", mergers_pull="no", mergers_since="", refresh="no",
                 out=str(tmp_path / "peers.xlsx"), series_dir=str(tmp_path / "series"),
-                mergers_file=str(MERGERS), extra_acquisitions="6672=2022Q2", industry_combined="none",
-                jump="0.25", min_book="1000000", exempt_self="yes", pack="all", min_banks="5", rank_by="net",
+                mergers_file=str(MERGERS), absorptions_file=str(ABSORPTIONS), extra_acquisitions="6672=2022Q2", industry_combined="none",
+                jump="0.25", acquisition_share="0.05", min_book="1000000", exempt_self="yes", pack="all", min_banks="5", rank_by="net",
                 last_n="20", min_obs="12", base_quarter="2019Q4", index_min_book="500000",
                 lagged_years="2019 2025", lag_years="2", normalisation_years="2019 2025", mix_base_year="2019")
     vals.update(over)
@@ -91,7 +92,7 @@ class FakeFDIC:
 
 @pytest.fixture(scope="module")
 def roster_2006():
-    return json.loads((PEERS / "roster_2006.json").read_text())
+    return as_earlier_build(json.loads((PEERS / "roster_2006.json").read_text()))
 
 
 def lay_out_cache(folder, data):
@@ -267,7 +268,7 @@ def test_a_label_may_hold_other_punctuation(tmp_path, opened):
     assert launcher.problems(f) == []
     out = launcher.run(f)
     assert out.ok, out.lines
-    assert load_workbook(out.path)["Assess"].cell(SET_TOP + 1, 1).value == "Mortgage (1st lien) - US & PR"
+    assert load_workbook(out.path)["Assess"].cell(SET_TOP + 1, 14).value == "Mortgage (1st lien) - US & PR"
 
 
 def test_a_csv_without_the_date_value_header_is_refused_before_run(tmp_path):
@@ -332,7 +333,7 @@ def test_the_rail_counts_what_each_step_still_wants_peers_included(tmp_path):
     s = launcher.steps(Form(), PeerForm())
     assert [x.name for x in s] == ["Series", "Measure", "Settings", "Build", "Peers"]
     assert [x.mark for x in s] == ["todo"] * 5
-    assert [x.sub for x in s] == ["1 to fill in", "5 to fill in", "7 to fill in", "1 to fill in", "27 to fill in"]
+    assert [x.sub for x in s] == ["1 to fill in", "5 to fill in", "7 to fill in", "1 to fill in", "29 to fill in"]
     s = launcher.steps(filled(tmp_path), peers_filled(tmp_path))
     assert [x.mark for x in s] == ["done"] * 5 and s[4].sub == "Complete"
     s = launcher.steps(filled(tmp_path), peers_filled(tmp_path, jump=""))
@@ -350,10 +351,10 @@ def test_run_writes_the_workbook_with_workbook_build_and_opens_it(tmp_path, open
                         out.lines[0]) and len(out.lines) == 1
     assert opened == [out.path]
     wb = load_workbook(out.path)
-    assert wb.sheetnames[:2] == ["Thresholds", "Assess"]
+    assert wb.sheetnames[:2] == ["Assess", "Thresholds"]
     st = wb["Assess"]
-    assert [st.cell(SET_TOP, 1).value, st.cell(SET_TOP + 1, 1).value] == ["Credit card", "Mortgage"]
-    assert [st.cell(SET_TOP, c).value for c in (2, 3, 4, 5)] == [0.5, 1.0, 2.5, "worse"]
+    assert [st.cell(SET_TOP, 14).value, st.cell(SET_TOP + 1, 14).value] == ["Credit card", "Mortgage"]
+    assert [st.cell(SET_TOP, c).value for c in (15, 16, 17, 18)] == [0.5, 1.0, 2.5, "worse"]
 
 
 def test_run_hands_the_build_exactly_the_forms_arguments(tmp_path, opened):
@@ -446,10 +447,11 @@ def test_every_peer_field_starts_empty():
 def test_an_empty_peer_form_names_every_field_and_pull_and_build_are_refused():
     f = PeerForm()
     pull, build = launcher.peer_problems(f, "pull"), launcher.peer_problems(f, "build")
-    assert len(pull) == 7 and len(build) == 25 and len(launcher.peer_problems(f, "both")) == 27
+    assert len(pull) == 7 and len(build) == 27 and len(launcher.peer_problems(f, "both")) == 29
     said = "\n".join(build)
     for flag in ("--cache", "--roster", "--first", "--last", "--products", "--delinquency", "--series-dir",
-                 "--mergers", "--extra-acquisitions", "--industry-combined", "--jump", "--min-book",
+                 "--mergers", "--absorptions", "--extra-acquisitions", "--industry-combined", "--jump",
+                 "--acquisition-share", "--min-book",
                  "--exempt-self", "--pack", "--min-banks", "--rank-by", "--last-n", "--min-obs",
                  "--base-quarter", "--index-min-book", "--lagged-years", "--lag-years",
                  "--normalisation-years", "--mix-base-year"):
@@ -472,7 +474,7 @@ def test_a_complete_peer_form_becomes_runs_arguments_exactly(tmp_path):
         mergers_since=None, refresh=False)
     assert launcher.peer_arguments(f, "build") == dict(
         out=tmp_path / "peers.xlsx", cache=tmp_path / "cache", roster=ROSTER, series_dir=tmp_path / "series",
-        first="2006Q1", last="2026Q2", products=["Credit card"], mergers=MERGERS,
+        first="2006Q1", last="2026Q2", products=["Credit card"], mergers=MERGERS, absorptions=ABSORPTIONS, acquisition_share=0.05,
         extra_acquisitions=["6672=2022Q2"], industry_combined=[], jump=0.25, min_book=1000000.0,
         exempt_self=True, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12, base_quarter="2019Q4",
         index_min_book=500000.0, lagged_years=[2019, 2025], lag_years=2, normalisation_years=[2019, 2025],
@@ -678,13 +680,13 @@ def test_a_real_build_through_run_writes_the_peer_workbook_and_opens_it(tmp_path
     wb = load_workbook(out.path)
     assert wb.sheetnames[:2] == ["Pack", "Peers"]
     assert sorted(p.name for p in (tmp_path / "series").glob("*.csv")) == sorted(
-        "credit-card_%s_%s.csv" % (who, kind) for who in ("pack-composite", "keybank", "industry")
+        "credit-card_%s_%s.csv" % (who, kind) for who in ("pack-composite", "pack-median", "keybank", "industry")
         for kind in ("gross", "net"))
 
 
 def test_build_with_delinquency_yes_writes_the_delinquency_series(tmp_path, monkeypatch, opened, roster_2006):
     """The window's yes reaches run.build: per measure and basis, the pack
-    composite, the bank and the industry. The cache joins the two public
+    composite, the pack median, the bank and the industry. The cache joins the two public
     fixtures, 2017Q1 to 2026Q2, card only."""
     monkeypatch.setattr(fdic, "urllib_fetch", no_network)
     dq = json.loads((PEERS / "delinquency_roster.json").read_text())
@@ -696,7 +698,7 @@ def test_build_with_delinquency_yes_writes_the_delinquency_series(tmp_path, monk
     out = launcher.peer_build(peers_filled(tmp_path, first="2017Q1", delinquency="yes"), open_after=False)
     assert out.ok, out.lines
     names = {p.name for p in (tmp_path / "series").glob("credit-card_*_delinquency-*.csv")}
-    assert names and all(n.split("_")[1] in ("pack-composite", "keybank", "industry") for n in names)
+    assert names and all(n.split("_")[1] in ("pack-composite", "pack-median", "keybank", "industry") for n in names)
     for m in ("30-89", "90-plus-accruing", "nonaccrual", "90-plus-incl-nonaccrual", "30-plus-incl-nonaccrual"):
         assert "credit-card_industry_delinquency-%s_quarter-end.csv" % m in names, m
     assert any(x.startswith("Delinquency, Credit card:") for x in out.lines)
@@ -925,8 +927,8 @@ def test_the_window_presses_through_the_peers_step_with_a_fake_pull(tmp_path, op
         assert w["peer_status"].cget("text") == "Pull finished."
         assert "82 fetched" in w["peer_result"].cget("text")
 
-        for k in ("roster", "out", "series_dir", "mergers_file", "extra_acquisitions", "industry_combined",
-                  "jump", "min_book", "min_banks", "last_n", "min_obs", "base_quarter", "index_min_book",
+        for k in ("roster", "out", "series_dir", "mergers_file", "absorptions_file", "extra_acquisitions",
+                  "industry_combined", "jump", "acquisition_share", "min_book", "min_banks", "last_n", "min_obs", "base_quarter", "index_min_book",
                   "lagged_years", "lag_years", "normalisation_years", "mix_base_year"):
             w["peer_var_" + k].set(getattr(f, k))
         for k in ("exempt_self", "pack", "rank_by"):
@@ -940,7 +942,7 @@ def test_the_window_presses_through_the_peers_step_with_a_fake_pull(tmp_path, op
         settle(w)
         assert w["peer_outcome"].ok, w["peer_outcome"].lines
         assert (tmp_path / "peers.xlsx").is_file() and opened == [tmp_path / "peers.xlsx"]
-        assert len(list((tmp_path / "series").glob("*.csv"))) == 6
+        assert len(list((tmp_path / "series").glob("*.csv"))) == 8         # composite, median, KeyBank, industry; gross and net
         assert w["peer_status"].cget("text") == "Build finished."
         assert w["peer_result"].cget("text").startswith("Wrote %s" % (tmp_path / "peers.xlsx"))
     finally:
@@ -964,7 +966,7 @@ def test_the_peers_window_is_never_left_jammed_and_its_status_line_moves(tmp_pat
         w = launcher.window(root)
         w["show"]("Peers")
         f = peers_filled(tmp_path)
-        for k in ("cache", "first", "last", "roster", "out", "series_dir", "mergers_file", "extra_acquisitions",
+        for k in ("cache", "first", "last", "roster", "out", "series_dir", "mergers_file", "absorptions_file", "extra_acquisitions", "acquisition_share",
                   "industry_combined", "jump", "min_book", "min_banks", "last_n", "min_obs", "base_quarter",
                   "index_min_book", "lagged_years", "lag_years", "normalisation_years", "mix_base_year",
                   "delinquency", "mergers_pull", "refresh", "exempt_self", "pack", "rank_by"):
