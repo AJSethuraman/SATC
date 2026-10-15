@@ -1,12 +1,14 @@
 # Consumer credit thresholds workbook: a note for a teammate
 
-The workbook proposes where each consumer credit measure moves from rating 1
-Low to 5 High, from that series' own history, and records the decision on
-each one. It covers five products (credit card, mortgage, home equity, other
+The workbook sets one set of lines for each consumer credit product and
+measure, where it moves from rating 1 Low to 5 High, and records the decision
+on each. It covers five products (credit card, mortgage, home equity, other
 consumer, auto) and seven measures (net and gross charge-offs, and five
-delinquency measures), each from three sources: the industry (every bank that
-files a Call Report), a 15-bank peer group, and KeyBank's own Call Report.
-That is 105 series. All figures are public FDIC Call Report data.
+delinquency measures): 35 sets of lines. Each is set from the history of one
+of three sources, picked for that product and measure: the industry (every
+bank that files a Call Report), a 15-bank peer group, or KeyBank's own Call
+Report. All three are rated on the lines picked. That is 105 series, all public
+FDIC Call Report data.
 
 ## Opening it
 
@@ -19,24 +21,27 @@ That is 105 series. All figures are public FDIC Call Report data.
 
 | Tab | What it is for |
 |---|---|
-| **Decide** | One series at a time. Pick a product, a measure and a source with the buttons. The yellow row under them is that series' decision: Accept these lines or Reject, the four settings, a period to leave out (first quarter, last quarter and the reason) and a note. Everything below follows that row: the latest quarter and its rating, the Check (OK, or why the settings do not fit and the value that would), the chart over the five rating zones, where each rating begins, and the same measure from the other two sources. |
+| **Decide** | One product and measure at a time. Pick a product and a measure with the buttons. The yellow row under them is that row's decision: **Lines set from** (the source whose history sets the lines), Accept these lines or Reject, the four settings, a period to leave out of that source's history (first quarter, last quarter and the reason) and a note. Everything below follows that row: each source's latest quarter rated on the lines, the Check (OK, or why the settings do not fit and the value that would), every source over the five rating zones on one chart, where each rating begins, and what each source's own history would give. |
 | **Summary** | Every product and measure on one page: KeyBank, the peer group and the industry, latest quarter and rating, and KeyBank's difference from the peer group in percentage points. The KeyBank series rated 4 or 5, and the count refused, are listed under Needs your attention. |
 | **Peers** | KeyBank against the peer group. Filters at the top (product, net or gross, Peer A and B, the window, the delinquency measure) and a Yes/No for each bank; every view on the tab uses the banks set to Yes. |
-| **Thresholds** | Every series' lines, latest value, rating, decision and Check, one row each. |
+| **Thresholds** | One row per product and measure: the source the lines are set from, the four lines, each source's latest value and rating on them, the decision and the Check. |
+| **Lines by source** | Each of the 105 series' own lines, with its product and measure's settings: what Decide compares when you pick a source. |
 | **Internal**, **Internal data** | The bank's own figures, by segment, in the internal import layout (`docs/INTERNAL-IMPORT.md`): paste them into Internal data, or name the file in the book. Internal shows each product's composite and segments with balances, the composite against KeyBank's Call Report line, and how closely each outside source rates the same quarters. It ships empty. |
 | Evidence, Backtest, Sources, Glossary, Run, Data | Reference. Glossary defines every heading. |
 
 ## Recording a decision
 
-1. On **Decide**, click the product, measure and source.
-2. In the yellow row, choose **Accept these lines** or **Reject**, change any
-   setting, and type a note.
-3. Save the file (Ctrl+S). The decision is stored in the file; the count at
-   the top of Decide shows how many of the 105 are decided.
+1. On **Decide**, click the product and the measure.
+2. In the yellow row, pick the source under **Lines set from**. Until one is
+   picked the row has no lines and no ratings, and Summary says Pick a source.
+3. Choose **Accept these lines** or **Reject**, change any setting, and type a
+   note.
+4. Save the file (Ctrl+S). The decision is stored in the file; the count at
+   the top of Decide shows how many of the 35 are decided.
 
-A series showing **Refused** has settings that do not fit its history (for
-example, Moderate-Low would begin at or below zero). The Check states the
-reason and the value of the setting that would fix it.
+A row showing **Refused** has settings that do not fit the history its lines
+are set from (for example, Moderate-Low would begin at or below zero). The
+Check states the reason and the value of the setting that would fix it.
 
 ## Rebuilding it from the data
 

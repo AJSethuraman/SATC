@@ -236,25 +236,30 @@ TH_BOOK_WIDTHS = dict(A=1.57, B=16.43, C=27.86, D=19.29, E=11.29, F=11.29, G=11.
 
 
 def _thresholds_book(th, name, n, labels, decide, floored):
-    """Thresholds with Decide: Claude Design's round 2 (README, "Thresholds").
-    Product, Measure and Source in B:D, frozen with the header; repeated
-    names hidden by formatting, so the header filters still work."""
+    """The per-series table with Decide: Claude Design's round 2 (README,
+    "Thresholds"), retitled Lines by source once Decide is built
+    (decide_tab.rename_tab): every source's own lines, with its product and
+    measure's settings. Product, Measure and Source in B:D, frozen with the
+    header; repeated names hidden by formatting, so the header filters still
+    work."""
     T = DT.TH_BOOK
     last = 4 + n
-    th.sheet_properties.tabColor = K.TAB_WORK
-    th["B1"] = "Thresholds · every series' lines, latest value and decision"
+    th.sheet_properties.tabColor = K.TAB_REFERENCE
+    th["B1"] = "Lines by source · what each %s's own history gives" % decide["names"][2].lower()
     th["B1"].font = Font(name="Arial", bold=True, size=16, color=K.INK)
     th["B1"].alignment = Alignment(vertical="bottom")
-    th["B2"] = ("Every figure follows the settings and decisions on Decide. The header arrows filter by %s, %s or %s."
-                % tuple(p.lower() for p in decide["names"]))
+    th["B2"] = ("Each %s's own lines, with its %s and %s's settings on Decide; Thresholds uses one of them per row. "
+                "The header arrows filter by %s, %s or %s."
+                % ((decide["names"][2].lower(), decide["names"][0].lower(), decide["names"][1].lower())
+                   + tuple(p.lower() for p in decide["names"])))
     th["B2"].font = Font(name="Calibri", size=11, color=K.SLATE)
     for c_ in range(2, 17):
         th.cell(2, c_).border = Border(bottom=Side(style="medium", color=K.KEY_RED))
     for r, h in ((1, 25.5), (2, 15), (3, 16.5), (4, 25.5)):
         th.row_dimensions[r].height = h
     groups = (("B", "D", "Series", None), ("E", "G", "What the lines rest on", K.SLATE),
-              ("H", "K", "Each rating begins at", K.SLATE), ("L", "N", "Latest quarter", K.KEY_RED),
-              ("O", "P", "Your decision", K.SLATE))
+              ("H", "K", "Each rating begins at", K.SLATE), ("L", "N", "Latest quarter, on its own lines", K.KEY_RED),
+              ("O", "P", "Your decision, where its lines are used", K.SLATE))
     from openpyxl.utils import column_index_from_string as CI
     for a, b, lbl, rule in groups:
         cell = th["%s3" % a]
@@ -439,6 +444,9 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
 
     if decide:
         DT.validate(decide["names"])
+        if "lines_from" not in decide:
+            raise ValueError("decide needs lines_from: the source every row's Lines set from starts as, or None "
+                             "to start blank (none has a default)")
         missing = [lbl for lbl, _ in series if lbl not in decide["parts"]]
         if missing:
             raise ValueError("no parts given for %s" % ", ".join(missing))
@@ -523,6 +531,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     # the lines, the latest quarter, the decision and the Check in A..P, the
     # series label kept in A for every lookup, and the workings hidden. ----
     c = TC
+    if decide:
+        d_pairs, _ = DT.pairs_of([s["label"] for s in loaded], decide["parts"])
     sg = 1 if higher else -1
     fz = "TRUE" if floor_at_zero and higher else "FALSE"
     for k, s in enumerate(loaded):
@@ -610,8 +620,11 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                 put(key, v)
             put("rating_shown", '=IF({m}<>"","Refused",{k}&" "&{l})'.format(m=at("refusal"), k=at("rating"),
                                                                              l=at("rating_name")))
-            dcol = L(DT.columns(decide["names"])["Decision"])
-            put("decision", '=IF(Decide!{d}{r}="","",Decide!{d}{r})'.format(d=dcol, r=DT.HDR + 1 + k))
+            # The decision shows on the source whose lines its row uses.
+            dc = DT.columns(decide["names"])
+            dr = DT.HDR + 1 + d_pairs.index(tuple(p_[:2]))
+            put("decision", '=IF(Decide!{f}{r}="{s}",Decide!{d}{r},"")'.format(
+                f=L(dc[DT.LINES_FROM]), d=L(dc["Decision"]), r=dr, s=p_[2].replace('"', '""')))
             put("check", '=IF({m}="","OK","To fix: "&{f})'.format(m=at("refusal"), f=DT.HERE.format(m=at("fix"))))
     if decide:
         _thresholds_book(th, name, n, [s["label"] for s in loaded], decide, floor_at_zero and higher)
@@ -1003,30 +1016,19 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         run.column_dimensions[c_].width = w
     run.freeze_panes = "A4"
 
-    dec = su = None
+    dec = su = tt = None
     if decide:
         labels = [s["label"] for s in loaded]
         settings = {lbl: (moderate_halfwidth, low_step, high_z, on_the_line) for lbl in labels}
-        su = SU.build(wb, name=name, unit=unit, labels=labels, parts=decide["parts"], part_names=decide["names"],
-                 absent=decide["absent"], compare=decide["compare"], notes=decide["notes"],
-                 # Each series' row on Thresholds; its columns come from
-                 # decide_tab.TH_BOOK by meaning.
-                 th_rows={s["label"]: 5 + k for k, s in enumerate(loaded)})
         dec = DT.build(wb, labels=labels, parts=decide["parts"], part_names=decide["names"], settings=settings,
                        lay=lay, n_quarters=len(grid), absent=decide["absent"], compare=decide["compare"],
-                       unit=unit, higher=higher, floor_at_zero=floor_at_zero)
+                       lines_from=decide["lines_from"], unit=unit, higher=higher, floor_at_zero=floor_at_zero)
         # Decide is where the bank types and looks, so Assess (whose cells
         # Decide feeds) and Chart (every series on one scale, 95 switches)
         # are kept for their workings but hidden (the firm, 14 Oct 2026: "doesnt
         # this just look ridiculous"). Unhide them from any tab's right-click menu.
         wb["Assess"].sheet_state = "hidden"
         wb["Chart"].sheet_state = "hidden"
-        order = ["Summary", "Decide", "Thresholds", "Assess", "Synthesis"]
-        rest = [ws for ws in wb._sheets if ws.title not in order]
-        wb._sheets = [wb[t] for t in order if t in wb.sheetnames] + rest
-        wb.active = 0
-        for ws in wb.worksheets:
-            ws.sheet_view.tabSelected = ws.title == "Summary"
 
         # ---- Internal and Internal data (internal_tab.py): the bank's own
         # figures beside the outside series. Empty unless the book names an
@@ -1034,6 +1036,27 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         from . import internal_tab as IT
         dec["internal"] = IT.build(wb, labels=labels, parts=decide["parts"], part_names=decide["names"], grid=grid,
                                    higher=higher, floor_at_zero=floor_at_zero, internal=decide.get("internal"))
+
+        # ---- One set of lines per product and measure (the firm, 15 Oct
+        # 2026: "we need to use all 3 to set appropriate thresholds"): the
+        # per-series table becomes Lines by source, and Thresholds holds the
+        # lines of the source each row picks, with every source rated on them.
+        DT.rename_tab(wb, "Thresholds", DT.LINES_TAB)
+        from . import thresholds_tab as TT
+        srcs = SU.layout(labels, decide["parts"], decide["compare"])["sources"]
+        tt = TT.build(wb, pairs=dec["pairs"], by_pair=dec["by_pair"], sources=srcs, part_names=decide["names"],
+                      decide=dec, n_series=n, name=name, higher=higher, floor_at_zero=floor_at_zero,
+                      number_format=NF)
+        su = SU.build(wb, name=name, unit=unit, labels=labels, parts=decide["parts"], part_names=decide["names"],
+                      absent=decide["absent"], compare=decide["compare"], notes=decide["notes"],
+                      refs=TT.refs(tt, dec["by_pair"]))
+        dec["thresholds"] = tt
+        order = ["Summary", "Decide", "Thresholds", DT.LINES_TAB, "Assess", "Synthesis"]
+        rest = [ws for ws in wb._sheets if ws.title not in order]
+        wb._sheets = [wb[t] for t in order if t in wb.sheetnames] + rest
+        wb.active = 0
+        for ws in wb.worksheets:
+            ws.sheet_view.tabSelected = ws.title == "Summary"
     if before_save is not None:
         before_save(wb)
     out = Path(out)
@@ -1046,8 +1069,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         SL.add_table_slicers(out, DT.TITLE, dec["table"], [
             {"column": nm, "caption": nm, "anchor": anchor, "selected": v, "name": "Pick" + str(i + 1),
              "columns": cols, "style": DT.SLICER_STYLE, "button_height": DT.SLICER_BUTTON_IN}
-            for i, (nm, v, anchor, cols) in enumerate(zip(decide["names"], first_parts, DT.SLICER_ANCHORS,
+            for i, (nm, v, anchor, cols) in enumerate(zip(decide["names"][:2], first_parts, DT.SLICER_ANCHORS,
                                                           DT.SLICER_COLUMNS))], hide_buttons=True)
     return {"path": out, "products": [s["label"] for s in loaded], "quarters": len(grid),
             "evidence": {s["label"]: s["ev"] for s in loaded}, "synthesis": syn_at, "decide": dec,
-            "summary": su}
+            "summary": su, "thresholds": tt}

@@ -92,7 +92,7 @@ def book(tmp_path_factory):
            ("Credit card - %s - Refused" % NET, write_series(d / "e.csv", refused)),
            ("Auto - %s - Agrees" % NET, write_series(d / "f.csv", auto_s))]
     dec = {"names": NAMES, "parts": {lbl: tuple(lbl.split(" - ")) for lbl, _ in ser}, "absent": [],
-           "compare": None, "notes": [], "internal": {"capacity": 160}}
+           "compare": None, "notes": [], "internal": {"capacity": 160}, "lines_from": None}
     info = build(d / "book.xlsx", ser, decide=dec, **SETTINGS)
     return d, info, ser
 
@@ -204,8 +204,8 @@ def reference(internal_by_q, source_by_q, lines, worse, refused, mins=(12, 0.7, 
 
 def lines_of(vals, info, label):
     r = IT.thresholds_refs(load_workbook(info["path"]), [label], {label: tuple(label.split(" - "))})[label]
-    ls = [v(vals, x.replace("$", "")) for x in r["lines"]]
-    check = v(vals, r["refused"].replace("$", ""))
+    ls = [v(vals, x.replace("$", "").replace("'", "")) for x in r["lines"]]
+    check = v(vals, r["refused"].replace("$", "").replace("'", ""))
     otl = v(vals, r["otl"].replace("$", "").replace("'", ""))
     return ls, otl == "worse", bool(check)
 
@@ -446,7 +446,8 @@ def write_internal_csv(path):
 def write_book(folder, ser, internal):
     import json
     book = {"workbook": {k: (list(x) if isinstance(x, tuple) else x) for k, x in SETTINGS.items()},
-            "parts": NAMES, "series": [dict(zip(NAMES, lbl.split(" - ")), file=str(p)) for lbl, p in ser],
+            "parts": NAMES, "lines_from": {"part": NAMES[2], "start": None},
+            "series": [dict(zip(NAMES, lbl.split(" - ")), file=str(p)) for lbl, p in ser],
             "not_in_book": [], "compare": None, "notes": [], "peers": None, "internal": internal}
     p = folder / "book.json"
     p.write_text(json.dumps(book), encoding="utf-8")
@@ -486,7 +487,7 @@ def test_a_book_with_an_internal_file_adds_its_series_and_fills_the_slot(book, t
     ws = wb[IT.TITLE]
     assert [ws.cell(r, 6).value for r in range(5, 10)] == [NET] + [IT.NOT_MAPPED] * 4
     assert ws["J11"].value == "Agrees"
-    assert "Credit card - %s - Bank internal" % NET in [c.value for c in wb["Thresholds"]["A"]]
+    assert "Credit card - %s - Bank internal" % NET in [c.value for c in wb["Lines by source"]["A"]]
 
 
 @pytest.mark.parametrize("change, said", [

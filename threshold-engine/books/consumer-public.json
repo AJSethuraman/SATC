@@ -25,6 +25,10 @@
     "Measure",
     "Source"
   ],
+  "lines_from": {
+    "part": "Source",
+    "start": null
+  },
   "series": "consumer-public-series.csv",
   "not_in_book": [],
   "compare": [

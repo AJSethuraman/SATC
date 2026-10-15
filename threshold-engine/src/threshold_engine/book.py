@@ -16,6 +16,7 @@ own folder, so a book and its files can be copied to another machine whole.
                    "on_the_line", "half_lives", "percentiles", "horizon",
                    "min_history"},
       "parts": ["Product", "Measure", "Source"],
+      "lines_from": {"part": "Source", "start": null or one of its values},
       "series": [{"Product": ..., "Measure": ..., "Source": ..., "file": ...}]
                 or "a CSV with those columns",
       "not_in_book": [{"Product": ..., "Measure": ..., "Source": ..., "why": ...}],
@@ -37,6 +38,14 @@ measure the book does not map stays on the Internal tab: whether an internal
 30+ includes nonaccrual loans is the book's to say, and is never assumed.
 
 A part value of ``*`` in ``not_in_book`` stands for every value of that part.
+
+``lines_from`` says which part is the source and what each row's Lines set
+from starts as. Decide and Thresholds have one row per value of the other two
+parts (a product and a measure), and its lines are set from the history of
+the source picked there (the firm, 15 Oct 2026: "we don't need to set
+thresholds on all 3, we need to use all 3 to set appropriate thresholds").
+``start`` null leaves every row's pick blank, which is the bank's to make.
+The source part is the third of ``parts``.
 """
 from __future__ import annotations
 
@@ -49,7 +58,8 @@ from .series import LABEL_RULE, label_ok
 
 WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_at_zero", "moderate_halfwidth",
                  "low_step", "high_z", "on_the_line", "half_lives", "percentiles", "horizon", "min_history")
-TOP_KEYS = ("workbook", "parts", "series", "not_in_book", "compare", "notes", "peers", "internal")
+TOP_KEYS = ("workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal")
+LINES_FROM_KEYS = ("part", "start")
 #: The internal section: the file (docs/INTERNAL-IMPORT.md) and the judgments made about it.
 INTERNAL_KEYS = ("file", "source", "segments", "measures", "call_report_source")
 #: 'peers build' settings, by the keyword ``peers.run.build`` takes; paths among them.
@@ -186,6 +196,7 @@ def load(path) -> dict:
             if not p.exists():
                 problems.append("the file for %r does not exist: %s" % (label, p))
     internal = _internal(raw["internal"], resolve, decide_parts, problems)
+    lines_from = _lines_from(raw["lines_from"], parts, third, internal, problems)
     if problems:
         raise BookError("\n".join(problems))
     wbk = dict(raw["workbook"])
@@ -193,7 +204,25 @@ def load(path) -> dict:
     wbk["percentiles"] = tuple(wbk["percentiles"])
     return {"workbook": wbk, "series": series, "peers": peers, "folder": folder, "internal": internal,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
-                       "notes": notes}}
+                       "notes": notes, "lines_from": lines_from}}
+
+
+def _lines_from(spec, parts, sources, internal, problems) -> Optional[str]:
+    """The book's lines_from, checked: which part is the source (the third),
+    and the source every row starts as, or None for blank."""
+    _keys("lines_from", spec, LINES_FROM_KEYS, problems)
+    if not isinstance(spec, dict) or any(k not in spec for k in LINES_FROM_KEYS):
+        return None
+    if spec["part"] != parts[2]:
+        problems.append("lines_from: part must be %r, the third of parts: the source is the part each row picks "
+                        "its lines from, and it is listed third" % parts[2])
+    start = spec["start"]
+    allowed = set(sources) | ({internal["source"]} if internal else set())
+    if start is not None and start not in allowed:
+        problems.append("lines_from: start must be null (every row blank, for the bank to pick) or one of %s, "
+                        "not %r" % (", ".join(sorted(allowed)), start))
+        return None
+    return start
 
 
 def _internal(spec, resolve, decide_parts, problems) -> Optional[dict]:
@@ -327,7 +356,8 @@ def build(book_path, out, say=print) -> dict:
     def tidy(wb):
         if blank.title in wb.sheetnames and blank.max_row == 1 and blank["A1"].value is None:
             wb.remove(blank)
-        order = ["Decide", "Summary", "Peers", "Thresholds", "Internal", "Synthesis", "Evidence", "Backtest",
+        order = ["Decide", "Summary", "Peers", "Thresholds", "Lines by source", "Internal", "Synthesis", "Evidence",
+                 "Backtest",
                  "Glossary", "Sources", "Run", "Data", "Peers data", "Peers delinquency data", "Internal data",
                  "SynthesisData", "Assess", "Chart", "Peers workings"]
         known = [wb[t] for t in order if t in wb.sheetnames]

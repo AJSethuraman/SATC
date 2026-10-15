@@ -7,8 +7,15 @@ say) and EXPECTED.md (the same, for a person). Every number comes from the
 series CSVs the build read and scale.py, the reference the workbook's formulas
 are held to; walk.ps1 does each step in Excel 16 and reads the answer back.
 
+One set of lines per product and measure (the firm, 15 Oct 2026: "we don't
+need to set thresholds on all 3, we need to use all 3 to set appropriate
+thresholds"): Decide's row picks the source whose history sets the lines, its
+settings apply to every source's own lines (Lines by source), its period left
+out to the source picked, and every source's latest quarter is rated on the
+lines picked (Thresholds, Summary).
+
 The steps are cumulative, as a person's session is: what step 3 types is
-still there in step 4, and step 9 saves, closes and reopens the file to show
+still there in step 4, and step 10 saves, closes and reopens the file to show
 the decisions were kept.
 """
 import json
@@ -20,13 +27,16 @@ sys.path.insert(0, str(ROOT / "src"))
 from threshold_engine import book as BK                              # noqa: E402
 from threshold_engine import decide_tab as DT                        # noqa: E402
 from threshold_engine import summary_tab as SU                       # noqa: E402
+from threshold_engine import thresholds_tab as TT                    # noqa: E402
 from threshold_engine.scale import scale, score                      # noqa: E402
 from threshold_engine.series import check, read_csv                  # noqa: E402
 from threshold_engine.workbook import assess_layout, quarter         # noqa: E402
+from openpyxl.utils import get_column_letter as L                    # noqa: E402
 
 HERE = Path(__file__).parent
 BOOK = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "books" / "consumer-public.json"
 RATINGS = ["Low", "Moderate-Low", "Moderate", "Moderate-High", "High"]
+LBS = DT.LINES_TAB
 
 bk = BK.load(BOOK)
 W = bk["workbook"]
@@ -36,19 +46,18 @@ N = len(SER)
 PARTS = bk["decide"]["parts"]
 NAMES = bk["decide"]["names"]
 COMPARE = bk["decide"]["compare"]
-THIRD = []
-for lbl in LABELS:
-    if PARTS[lbl][2] not in THIRD:
-        THIRD.append(PARTS[lbl][2])
+PAIRS, BY = DT.pairs_of(LABELS, PARTS)
+THIRD = DT.sources_of(LABELS, PARTS)
+LEAD = COMPARE[0] if COMPARE else THIRD[0]
 COLS = DT.columns(NAMES)
-DL = DT.layout(N, len(THIRD), COMPARE is not None)
+DL = DT.layout(len(PAIRS), len(THIRD), COMPARE is not None)
 AL = assess_layout(N)
+TL = TT.layout(SU.layout(LABELS, PARTS, COMPARE)["sources"])
 PTS = {lbl: check(read_csv(p), "quarterly") for lbl, p in SER}
-from openpyxl.utils import get_column_letter as L                    # noqa: E402
 
 
-def dcell(name, lbl):
-    return "%s%d" % (L(COLS[name]), DL["first"] + LABELS.index(lbl))
+def dcell(name, pr):
+    return "%s%d" % (L(COLS[name]), DL["first"] + PAIRS.index(pr))
 
 
 def refusal_text(msg):
@@ -59,7 +68,9 @@ def refusal_text(msg):
     return "Refused: " + msg
 
 
-def thresholds(lbl, window=None, hw=None, ls=None, z=None, rule=None):
+def own(lbl, window=None, hw=None, ls=None, z=None, rule=None):
+    """A series' own lines, as Lines by source holds them, keyed by the plain
+    layout's letters, plus "bounds" (None when refused)."""
     hw = W["moderate_halfwidth"] if hw is None else hw
     ls = W["low_step"] if ls is None else ls
     z = W["high_z"] if z is None else z
@@ -68,41 +79,85 @@ def thresholds(lbl, window=None, hw=None, ls=None, z=None, rule=None):
     ref = scale(kept, W["direction"], hw, ls, z, W["floor_at_zero"])
     latest = PTS[lbl][-1]
     row = {"B": ref["median"], "C": ref["typical_yearly_move"], "D": max(v for v in kept if v is not None),
-           "I": quarter(latest.date), "J": latest.value}
+           "I": quarter(latest.date), "J": latest.value, "bounds": None, "rule": rule}
     if ref["refused"]:
         row.update({"K": "", "M": refusal_text(ref["refused"])})
         return row
     row.update(zip("EFGH", ref["bounds"]))
+    row["bounds"] = ref["bounds"]
     sc = score(latest.value, ref["bounds"], W["direction"], rule, W["floor_at_zero"])
     row.update({"K": sc, "L": RATINGS[sc - 1], "M": ""})
     return row
 
 
-#: thresholds() keys its answers by the plain layout's letters; the book lays
-#: Thresholds out differently (decide_tab.TH_BOOK), so each is read by meaning.
+#: own() keys its answers by the plain layout's letters; Lines by source lays
+#: the table out as decide_tab.TH_BOOK, so each is read by meaning.
 PLAIN_TO_BOOK = {DT.TH_PLAIN[k]: DT.TH_BOOK[k] for k in DT.TH_PLAIN}
 
 
-def th_reads(lbl, row):
+def lbs_reads(lbl, row):
     r = 5 + LABELS.index(lbl)
-    return [{"sheet": "Thresholds", "cell": "%s%d" % (PLAIN_TO_BOOK[c], r), "expect": v} for c, v in row.items()]
+    return [{"sheet": LBS, "cell": "%s%d" % (PLAIN_TO_BOOK[c], r), "expect": v}
+            for c, v in row.items() if c in PLAIN_TO_BOOK]
 
 
-def rating_text(row):
-    return "Refused" if row["K"] == "" else "%d %s" % (row["K"], row["L"])
+def on_lines(lbl, lines):
+    """A source's latest value rated on the lines picked: (number, text)."""
+    if lines["bounds"] is None:
+        return "", "Refused"
+    sc = score(PTS[lbl][-1].value, lines["bounds"], W["direction"], lines["rule"], W["floor_at_zero"])
+    return sc, "%d %s" % (sc, RATINGS[sc - 1])
 
 
-def headline(lbl, row):
-    p, m, s = PARTS[lbl]
-    return "%s, %s, %s: %.2f%s in %s" % (s, m.lower(), p.lower(), row["J"], W["unit"], row["I"])
+def row_reads(pr, src, lines):
+    """Thresholds' row for a product and measure, and Decide's two tables,
+    with the lines set from ``src`` (``lines``, from own())."""
+    r = 5 + PAIRS.index(pr)
+    c, per = TL["cols"], TL["per"]
+    out = [{"sheet": "Thresholds", "cell": "%s%d" % (c["lines_from"], r), "expect": src}]
+    for k, v in zip(("l2", "l3", "l4", "l5"), "EFGH"):
+        out.append({"sheet": "Thresholds", "cell": "%s%d" % (c[k], r), "expect": lines[v] if lines["bounds"] else ""})
+    for s, lbl in BY[pr].items():
+        _, text = on_lines(lbl, lines)
+        out.append({"sheet": "Thresholds", "cell": "%s%d" % (per[s]["rating"], r), "expect": text})
+        out.append({"sheet": "Thresholds", "cell": "%s%d" % (per[s]["latest"], r), "expect": PTS[lbl][-1].value})
+    return out
 
 
-def chip(row):
-    return "No rating: see the Check" if row["K"] == "" else "%d %s" % (row["K"], row["L"])
+def decide_reads(pr, lines, others):
+    """Decide's screen for the row shown: every source on the lines picked,
+    and what each source's own history gives (``others``: source -> own())."""
+    out = []
+    for i, s in enumerate(THIRD):
+        lbl = BY[pr].get(s)
+        if lbl is None:
+            continue
+        k, text = on_lines(lbl, lines)
+        out += [{"sheet": "Decide", "cell": "M%d" % (DL["compare_first"] + i),
+                 "expect": text if lines["bounds"] else "No rating"},
+                {"sheet": "Decide", "cell": "N%d" % (DL["compare_first"] + i), "expect": PTS[lbl][-1].value}]
+        o = others[s]
+        g = DL["gives_first"] + i
+        if o["bounds"]:
+            out += [{"sheet": "Decide", "cell": "%s%d" % (c, g), "expect": o[v]} for c, v in zip("MNOP", "EFGH")]
+        else:
+            out.append({"sheet": "Decide", "cell": "M%d" % g, "expect": "Refused"})
+        out.append({"sheet": "Decide", "cell": "Q%d" % g, "expect": o["D"]})
+    return out
+
+
+def chip(pr, lines):
+    k, text = on_lines(BY[pr][LEAD], lines)
+    return "No rating: see the Check" if k == "" else "%s: %s" % (LEAD, text)
+
+
+def headline(pr, src):
+    tail = ": lines set from %s" % src if src else ": no %s picked to set the lines yet" % NAMES[2].lower()
+    return "%s, %s%s" % (pr[0], pr[1].lower(), tail)
 
 
 def decided(n_acc, n_rej):
-    return "Decided: %d of %d · accepted %d · rejected %d" % (n_acc + n_rej, N, n_acc, n_rej)
+    return "Decided: %d of %d · accepted %d · rejected %d" % (n_acc + n_rej, len(PAIRS), n_acc, n_rej)
 
 
 def summary_cell(lbl):
@@ -116,147 +171,180 @@ def slicers(**picks):
     return [{"type": "slicer", "caption": k, "value": v} for k, v in picks.items()]
 
 
-def typed(lbl, name, value):
-    return {"type": "cell", "sheet": "Decide", "cell": dcell(name, lbl), "value": value}
+def typed(pr, name, value):
+    return {"type": "cell", "sheet": "Decide", "cell": dcell(name, pr), "value": value}
 
 
+def every_own(pr, **kw):
+    return {s: own(lbl, **kw) for s, lbl in BY[pr].items()}
+
+
+IND, PEER = [s for s in THIRD if s != LEAD][:2] if len(THIRD) >= 3 else (THIRD[0], THIRD[-1])
+OK = "Check: OK, your settings fit the history the lines are set from."
 steps = []
 # ---- B1: open ----
-first = LABELS[0]
+first = PAIRS[0]
 steps.append({"id": "B1", "what": "Open the workbook as built",
-              "shows": "It opens on Summary; the tabs in order; three slicers, each with one button picked; "
-                       "Decide shows the first series and nothing decided",
+              "shows": "It opens on Summary; the tabs in order; two slicers, each with one button picked; Decide "
+                       "shows the first product and measure, no source picked and nothing decided",
               "actions": [], "reads": [
                   {"special": "active", "expect": "Summary"},
-                  {"special": "sheets", "expect": ["Decide", "Summary", "Peers", "Thresholds", "Internal", "Evidence",
-                                                   "Backtest", "Glossary", "Sources", "Run", "Data", "Peers data",
-                                                   "Peers delinquency data", "Internal data", "Assess", "Chart",
-                                                   "Peers workings"]},
-                  {"special": "slicers", "expect": {n: v for n, v in zip(NAMES, PARTS[first])}},
+                  {"special": "sheets", "expect": ["Decide", "Summary", "Peers", "Thresholds", LBS, "Internal",
+                                                   "Evidence", "Backtest", "Glossary", "Sources", "Run", "Data",
+                                                   "Peers data", "Peers delinquency data", "Internal data", "Assess",
+                                                   "Chart", "Peers workings"]},
+                  {"special": "slicers", "expect": {NAMES[0]: first[0], NAMES[1]: first[1]}},
                   {"special": "visible_rows", "sheet": "Decide", "expect": [DL["first"]]},
                   {"sheet": "Decide", "cell": "L1", "expect": decided(0, 0)},
-                  {"sheet": "Decide", "cell": "B%d" % DL["headline"], "expect": headline(first, thresholds(first))},
-                  {"sheet": "Decide", "cell": "I%d" % DL["chip"], "expect": chip(thresholds(first))},
+                  {"sheet": "Decide", "cell": "B%d" % DL["headline"], "expect": headline(first, None)},
+                  {"sheet": "Decide", "cell": "I%d" % DL["chip"], "expect": "No rating: see the Check"},
+                  {"sheet": "Decide", "cell": "B%d" % DL["check"],
+                   "expect": "Check: pick the %s whose history sets the lines, under %s."
+                             % (NAMES[2].lower(), DT.LINES_FROM)},
                   {"special": "links", "expect": []},
                   {"special": "errors", "expect": 0}],
               "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b1-decide.png"},
                           {"sheet": "Summary", "range": "A1:T34", "file": "b1-summary.png"}]})
 
-# ---- B2: every Summary cell against the reference ----
+# ---- B2: every Summary cell, before a source is picked ----
 reads = []
 for lbl in LABELS:
-    row = thresholds(lbl)
     r, c = summary_cell(lbl)
-    reads.append({"sheet": "Summary", "cell": "%s%d" % (L(c), r), "expect": row["J"]})
-    reads.append({"sheet": "Summary", "cell": "%s%d" % (L(c + 1), r), "expect": rating_text(row)})
-steps.append({"id": "B2", "what": "Read Summary", "shows": "Every series' latest value and rating, %d series" % N,
+    reads.append({"sheet": "Summary", "cell": "%s%d" % (L(c), r), "expect": PTS[lbl][-1].value})
+    reads.append({"sheet": "Summary", "cell": "%s%d" % (L(c + 1), r), "expect": TT.NOT_PICKED})
+reads += [own_read for lbl in LABELS for own_read in lbs_reads(lbl, own(lbl))]
+steps.append({"id": "B2", "what": "Read Summary, and every source's own lines on Lines by source",
+              "shows": "Every series' latest value, and Pick a source where its rating goes: %d series, each with "
+                       "its own lines on Lines by source" % N,
               "actions": [], "reads": reads, "picture": []})
 
-# ---- B3: click KeyBank, credit card, nonaccrual ----
-kb = "Credit card - Nonaccrual - KeyBank"
-row = thresholds(kb)
-cmp_reads = []
-for i, src in enumerate(THIRD):
-    lab = "%s - %s - %s" % ("Credit card", "Nonaccrual", src)
-    rr = thresholds(lab)
-    cmp_reads += [{"sheet": "Decide", "cell": "N%d" % (DL["compare_first"] + i), "expect": rr["J"]},
-                  {"sheet": "Decide", "cell": "M%d" % (DL["compare_first"] + i), "expect": rating_text(rr)}]
-steps.append({"id": "B3", "what": "On Decide, click Credit card, Nonaccrual, KeyBank",
-              "shows": "One row shows, KeyBank's; the screen speaks for it and sets it beside the industry and peers",
-              "actions": slicers(Product="Credit card", Measure="Nonaccrual", Source="KeyBank"),
-              "reads": [{"special": "visible_rows", "sheet": "Decide", "expect": [DL["first"] + LABELS.index(kb)]},
-                        {"sheet": "Decide", "cell": "B%d" % DL["headline"], "expect": headline(kb, row)},
-                        {"sheet": "Decide", "cell": "I%d" % DL["chip"], "expect": chip(row)},
-                        {"sheet": "Decide", "cell": "B%d" % DL["check"],
-                         "expect": "Check: OK, your settings fit this series."}]
-                       + [{"sheet": "Decide", "cell": "M%d" % (DL["ratings_first"] + 1 + j), "expect": row[c]}
-                          for j, c in enumerate("EFGH")] + cmp_reads + th_reads(kb, row),
-              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b3-decide.png"}]})
+# ---- B3: click Credit card, Nonaccrual; set the lines from KeyBank ----
+CN = ("Credit card", "Nonaccrual")
+kb = BY[CN][LEAD]
+lines3 = own(kb)
+others3 = every_own(CN)
+steps.append({"id": "B3", "what": "On Decide, click Credit card and Nonaccrual, and pick %s under %s"
+                                  % (LEAD, DT.LINES_FROM),
+              "shows": "One row shows; the lines are %s's own; every source is rated on them, beside what its own "
+                       "history would give" % LEAD,
+              "actions": slicers(**{NAMES[0]: CN[0], NAMES[1]: CN[1]}) + [typed(CN, DT.LINES_FROM, LEAD)],
+              "reads": [{"special": "visible_rows", "sheet": "Decide", "expect": [DL["first"] + PAIRS.index(CN)]},
+                        {"sheet": "Decide", "cell": "B%d" % DL["headline"], "expect": headline(CN, LEAD)},
+                        {"sheet": "Decide", "cell": "I%d" % DL["chip"], "expect": chip(CN, lines3)},
+                        {"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": OK}]
+                       + [{"sheet": "Decide", "cell": "M%d" % (DL["ratings_first"] + 1 + j), "expect": lines3[c]}
+                          for j, c in enumerate("EFGH")]
+                       + decide_reads(CN, lines3, others3) + row_reads(CN, LEAD, lines3) + lbs_reads(kb, lines3),
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b3-decide.png"},
+                          {"sheet": "Thresholds", "range": "A1:%s%d" % (TL["cols"]["check"], 5 + len(PAIRS)),
+                           "file": "b3-thresholds.png"}]})
 
-# ---- B4: raise How rare High is to 3.5 on that row ----
-row4 = thresholds(kb, z=3.5)
+# ---- B4: raise How rare High is to 3.5 on that row: every source's own lines move ----
+lines4 = own(kb, z=3.5)
 r, c = summary_cell(kb)
 steps.append({"id": "B4", "what": "Type 3.5 under How rare High is (z), in the yellow row",
-              "shows": "Only High's line moves; Thresholds and Summary follow",
-              "actions": [typed(kb, "How rare High is (z)", 3.5)],
-              "reads": th_reads(kb, row4) + [{"sheet": "Summary", "cell": "%s%d" % (L(c + 1), r),
-                                              "expect": rating_text(row4)}], "picture": []})
+              "shows": "High's line moves for every source of the row; Thresholds and Summary follow",
+              "actions": [typed(CN, "How rare High is (z)", 3.5)],
+              "reads": row_reads(CN, LEAD, lines4) + [lr for s, lbl in BY[CN].items()
+                                                     for lr in lbs_reads(lbl, own(lbl, z=3.5))]
+                       + [{"sheet": "Summary", "cell": "%s%d" % (L(c + 1), r), "expect": on_lines(kb, lines4)[1]}],
+              "picture": []})
 
-# ---- B5: leave out what the evidence suggests ----
-WINDOW = ("2012Q3", "2013Q4")                  # Decide's Suggested for this series in the build of 14 Oct 2026
-row5 = thresholds(kb, window=WINDOW, z=3.5)
+# ---- B5: leave out what the evidence suggests, from the history picked ----
+WINDOW = ("2012Q3", "2013Q4")                  # Decide's Suggested for KeyBank's series in the build of 14 Oct 2026
+lines5 = own(kb, window=WINDOW, z=3.5)
+ind5 = BY[CN][IND]
 steps.append({"id": "B5", "what": "Leave out %s to %s, the period Decide suggests, with a reason" % WINDOW,
-              "shows": "The lines move as the reference says; Assess lists the period, its Status whole",
-              "actions": [typed(kb, "Leave out from", WINDOW[0]), typed(kb, "Leave out to", WINDOW[1]),
-                          typed(kb, "Why left out", "Suggested by the evidence: unusual stretch")],
+              "shows": "%s's lines move as the reference says; the other sources' own lines do not; Assess lists "
+                       "the period under %s's series, its Status whole" % (LEAD, LEAD),
+              "actions": [typed(CN, "Leave out from", WINDOW[0]), typed(CN, "Leave out to", WINDOW[1]),
+                          typed(CN, "Why left out", "Suggested by the evidence: unusual stretch")],
               "reads": [{"sheet": "Decide", "cell": "D%d" % DL["evidence"], "expect": "Leave out %s to %s" % WINDOW},
                         {"sheet": "Assess", "cell": "N%d" % AL["lo_top"], "expect": kb},
                         {"sheet": "Assess", "cell": "T%d" % AL["lo_top"], "expect": "Left out: 6 quarters"}]
-                       + th_reads(kb, row5), "picture": []})
+                       + lbs_reads(kb, lines5) + lbs_reads(ind5, own(ind5, z=3.5)) + row_reads(CN, LEAD, lines5),
+              "picture": []})
 
 # ---- B6: half a period refuses, in words; then put it back ----
-steps.append({"id": "B6", "what": "Clear the reason", "shows": "The series is refused, saying why",
-              "actions": [typed(kb, "Why left out", "")],
-              "reads": [{"sheet": "Thresholds", "cell": "%s%d" % (DT.TH_BOOK["refusal"], 5 + LABELS.index(kb)),
+steps.append({"id": "B6", "what": "Clear the reason", "shows": "The lines are refused, saying why and what to do",
+              "actions": [typed(CN, "Why left out", "")],
+              "reads": [{"sheet": LBS, "cell": "%s%d" % (DT.TH_BOOK["refusal"], 5 + LABELS.index(kb)),
                          "expect": "Refused: a period left out for this product is not whole; its Status on Assess "
-                                   "says what is missing"}], "picture": []})
+                                   "says what is missing"},
+                        {"sheet": "Thresholds", "cell": "%s%d" % (TL["cols"]["check"], 5 + PAIRS.index(CN)),
+                         "startswith": "To fix: Finish its row on Decide"},
+                        {"sheet": "Decide", "cell": dcell("Check", CN), "expect": "Refused: see the fix below"}],
+              "picture": []})
 steps.append({"id": "B6b", "what": "Type the reason back", "shows": "The lines are back as in B5",
-              "actions": [typed(kb, "Why left out", "Suggested by the evidence: unusual stretch")],
-              "reads": th_reads(kb, row5), "picture": []})
+              "actions": [typed(CN, "Why left out", "Suggested by the evidence: unusual stretch")],
+              "reads": lbs_reads(kb, lines5) + row_reads(CN, LEAD, lines5), "picture": []})
 
 # ---- B7: the decision ----
 steps.append({"id": "B7", "what": "Pick Accept these lines and write a note",
-              "shows": "The count at the top", "actions": [typed(kb, "Decision", "Accept these lines"),
-                                                           typed(kb, "Note", "Walkthrough: accepted with z 3.5")],
+              "shows": "The count at the top; the decision on Thresholds, and on Lines by source beside the source "
+                       "the lines are set from",
+              "actions": [typed(CN, "Decision", "Accept these lines"),
+                          typed(CN, "Note", "Walkthrough: accepted with z 3.5")],
               "reads": [{"sheet": "Decide", "cell": "L1", "expect": decided(1, 0)},
-                        {"sheet": "Thresholds", "cell": "%s%d" % (DT.TH_BOOK["decision"], 5 + LABELS.index(kb)),
-                         "expect": "Accept these lines"}], "picture": []})
+                        {"sheet": "Thresholds", "cell": "%s%d" % (TL["cols"]["decision"], 5 + PAIRS.index(CN)),
+                         "expect": "Accept these lines"},
+                        {"sheet": LBS, "cell": "%s%d" % (DT.TH_BOOK["decision"], 5 + LABELS.index(kb)),
+                         "expect": "Accept these lines"},
+                        {"sheet": LBS, "cell": "%s%d" % (DT.TH_BOOK["decision"], 5 + LABELS.index(ind5)),
+                         "expect": ""}], "picture": []})
 
-# ---- B8: life to date ----
-au = "Auto - Net charge-offs - KeyBank"
-row8 = thresholds(au)
+# ---- B8: KeyBank's short history rated on the industry's lines ----
+AN = ("Auto", "Net charge-offs")
+au, aui = BY[AN][LEAD], BY[AN][IND]
+lines8 = own(aui)
 r8, c8 = summary_cell(au)
-steps.append({"id": "B8", "what": "Click Auto, Net charge-offs, KeyBank",
-              "shows": "Life to date: %d quarters, its lines shown and the Check in words; Summary agrees"
-                       % len(PTS[au]),
-              "actions": slicers(Product="Auto", Measure="Net charge-offs", Source="KeyBank"),
-              "reads": [{"special": "visible_rows", "sheet": "Decide", "expect": [DL["first"] + LABELS.index(au)]},
-                        {"sheet": "Decide", "cell": "B%d" % DL["headline"], "expect": headline(au, row8)},
-                        {"sheet": "Summary", "cell": "%s%d" % (L(c8 + 1), r8), "expect": rating_text(row8)}]
-                       + ([{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": row8["M"]},
-                           {"sheet": "Decide", "cell": "I%d" % DL["check"], "startswith": "To fix: "}]
-                          if row8["M"] else []) + th_reads(au, row8),
+steps.append({"id": "B8", "what": "Click Auto and Net charge-offs, and pick %s under %s" % (IND, DT.LINES_FROM),
+              "shows": "%s's life-to-date history (%d quarters) rated on the lines the industry's longer history "
+                       "gives; Summary agrees" % (LEAD, len(PTS[au])),
+              "actions": slicers(**{NAMES[0]: AN[0], NAMES[1]: AN[1]}) + [typed(AN, DT.LINES_FROM, IND)],
+              "reads": [{"special": "visible_rows", "sheet": "Decide", "expect": [DL["first"] + PAIRS.index(AN)]},
+                        {"sheet": "Decide", "cell": "B%d" % DL["headline"], "expect": headline(AN, IND)},
+                        {"sheet": "Decide", "cell": "I%d" % DL["chip"], "expect": chip(AN, lines8)},
+                        {"sheet": "Summary", "cell": "%s%d" % (L(c8 + 1), r8), "expect": on_lines(au, lines8)[1]}]
+                       + ([{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": OK}] if lines8["bounds"] else
+                          [{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": lines8["M"]}])
+                       + decide_reads(AN, lines8, every_own(AN)) + row_reads(AN, IND, lines8),
               "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b8-life-to-date.png"}]})
 
-# ---- B9: a refused series, and its To fix followed ----
-mg = "Mortgage - Net charge-offs - Industry (every bank)"
-row9 = thresholds(mg)
-steps.append({"id": "B9", "what": "Click Mortgage, Net charge-offs, Industry",
-              "shows": "Refused, with what to type", "actions": slicers(Product="Mortgage", Measure="Net charge-offs",
-                                                                         Source="Industry (every bank)"),
-              "reads": [{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": row9["M"]},
-                        {"sheet": "Decide", "cell": "I%d" % DL["check"], "startswith": "To fix: "},
-                        {"sheet": "Decide", "cell": "I%d" % DL["chip"], "expect": "No rating: see the Check"}]
-                       + th_reads(mg, row9), "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1),
-                                                          "file": "b9-refused.png"}]})
+# ---- B9: lines that are refused, and the To fix ----
+MN = ("Mortgage", "Net charge-offs")
+mg = BY[MN][IND]
+lines9 = own(mg)
+steps.append({"id": "B9", "what": "Click Mortgage and Net charge-offs, and pick %s" % IND,
+              "shows": "Refused, with what to type" if lines9["M"] else "The lines stand",
+              "actions": slicers(**{NAMES[0]: MN[0], NAMES[1]: MN[1]}) + [typed(MN, DT.LINES_FROM, IND)],
+              "reads": ([{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": lines9["M"]},
+                         {"sheet": "Decide", "cell": "I%d" % DL["check"], "startswith": "To fix: "},
+                         {"sheet": "Decide", "cell": "I%d" % DL["chip"], "expect": "No rating: see the Check"},
+                         {"sheet": "Thresholds", "cell": "%s%d" % (TL["cols"]["check"], 5 + PAIRS.index(MN)),
+                          "startswith": "To fix: "}] if lines9["M"] else
+                        [{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": OK}])
+                       + row_reads(MN, IND, lines9) + lbs_reads(mg, lines9),
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b9-refused.png"}]})
 
 # ---- B10: save, close, reopen ----
 steps.append({"id": "B10", "what": "Save (Ctrl+S), close Excel, open the file again",
-              "shows": "Every decision and setting typed is still there, and the lines with them",
+              "shows": "Every decision, pick and setting typed is still there, and the lines with them",
               "actions": [{"type": "reopen"}],
-              "reads": [{"sheet": "Decide", "cell": dcell("How rare High is (z)", kb), "expect": 3.5},
-                        {"sheet": "Decide", "cell": dcell("Leave out from", kb), "expect": WINDOW[0]},
-                        {"sheet": "Decide", "cell": dcell("Decision", kb), "expect": "Accept these lines"},
-                        {"sheet": "Decide", "cell": dcell("Note", kb), "expect": "Walkthrough: accepted with z 3.5"},
+              "reads": [{"sheet": "Decide", "cell": dcell(DT.LINES_FROM, CN), "expect": LEAD},
+                        {"sheet": "Decide", "cell": dcell("How rare High is (z)", CN), "expect": 3.5},
+                        {"sheet": "Decide", "cell": dcell("Leave out from", CN), "expect": WINDOW[0]},
+                        {"sheet": "Decide", "cell": dcell("Decision", CN), "expect": "Accept these lines"},
+                        {"sheet": "Decide", "cell": dcell("Note", CN), "expect": "Walkthrough: accepted with z 3.5"},
                         {"sheet": "Decide", "cell": "L1", "expect": decided(1, 0)},
-                        {"special": "slicers", "expect": {"Product": "Mortgage", "Measure": "Net charge-offs",
-                                                          "Source": "Industry (every bank)"}}] + th_reads(kb, row5),
-              "picture": []})
+                        {"special": "slicers", "expect": {NAMES[0]: MN[0], NAMES[1]: MN[1]}}]
+                       + lbs_reads(kb, lines5) + row_reads(CN, LEAD, lines5), "picture": []})
 
-(HERE / "steps.json").write_text(json.dumps({"book": str(BOOK), "series": N, "steps": steps},
+(HERE / "steps.json").write_text(json.dumps({"book": str(BOOK), "series": N, "rows": len(PAIRS), "steps": steps},
                                             indent=1, default=str), encoding="utf-8")
 lines = ["# Expected answers: the book walkthrough", "",
-         "From `%s` and the series files the build wrote, through `scale.py`. %d series." % (BOOK.name, N), ""]
+         "From `%s` and the series files the build wrote, through `scale.py`. %d series, %d products and measures."
+         % (BOOK.name, N, len(PAIRS)), ""]
 for s in steps:
     lines += ["## %s · %s" % (s["id"], s["what"]), "", s["shows"] + ".", "",
               "%d reads." % len(s["reads"]), ""]
