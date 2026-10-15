@@ -9,24 +9,30 @@ default: a missing setting is refused, by name.
 
 `consumer-public.json` is the consumer credit workbook on public FDIC data:
 5 products × 7 measures (net and gross charge-offs, five delinquency
-measures) from the industry, the 15-bank peer group and KeyBank: 95 series.
-KeyBank's own charge-offs are not in it, and the book says why.
+measures) from the industry, the 15-bank peer group and KeyBank: 105 series.
+A KeyBank series shorter than the others keeps its lines; only its Backtest
+row says it was not tested.
 `consumer-public-series.csv` is its series list; open it in Excel to see or
 change what goes in.
 
 ## Build it at work
 
-You need Python 3.9 or later and `openpyxl`, and the `threshold-engine`
-folder. Every command runs from inside `threshold-engine`.
+You need Python 3.9 or later and the `threshold-engine` folder. Every
+command runs from inside `threshold-engine`. Followed from nothing on 15 Oct
+2026 (a fresh copy of the folder, a new Python environment): the build took
+8 minutes 17 seconds and wrote 105 series.
 
-1. Install the one dependency (once):
+1. Install the tool and its one dependency, `openpyxl` (once, and again after
+   the folder is updated):
 
    ```
-   python -m pip install openpyxl
+   python -m pip install .
    ```
 
 2. Pull the FDIC data into `books/ind_cache` (public data; this is the slow
-   step, and only the quarters not already in the cache are fetched next time):
+   step, and only the quarters not already in the cache are fetched next time).
+   If the folder came with `books/ind_cache` already in it, skip to step 3
+   until a new quarter is filed:
 
    ```
    python -m threshold_engine peers pull --cache books/ind_cache --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" Auto --delinquency yes --mergers 2005-01-01
@@ -38,7 +44,7 @@ folder. Every command runs from inside `threshold-engine`.
    python -m threshold_engine book books/consumer-public.json consumer-credit.xlsx
    ```
 
-   It prints `Wrote consumer-credit.xlsx: 95 series, 82 quarters; open it on
+   It prints `Wrote consumer-credit.xlsx: 105 series, 82 quarters; open it on
    Summary, decide on Decide`. The peers build inside it also writes every
    series file to `books/out/series` and its own notes.
 
@@ -57,7 +63,7 @@ folder. Every command runs from inside `threshold-engine`.
   chart over its five rating zones, where each rating begins, whether the
   settings fit (or why not, and the number that would fix it), and what the
   history suggests. **Save the file (Ctrl+S) to keep your decisions.** The
-  count at the top says how many of the 95 are decided.
+  count at the top says how many of the 105 are decided.
 - **Thresholds** and **Assess** follow Decide; nothing is typed there.
 - The **Peers** tabs: KeyBank against the 15 banks, as `peers build` writes
   them.

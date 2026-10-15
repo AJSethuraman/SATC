@@ -41,15 +41,16 @@ reason and the value of the setting that would fix it.
 ## Rebuilding it from the data
 
 The workbook is never edited by hand; it is built by a script from the source
-files. From the `threshold-engine` folder, with Python and `openpyxl`:
+files. From the `threshold-engine` folder, with Python 3.9 or later:
 
 ```
+python -m pip install .
 python -m threshold_engine peers pull --cache books/ind_cache --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" Auto --delinquency yes --mergers 2005-01-01
 python -m threshold_engine book books/consumer-public.json consumer-credit.xlsx
 ```
 
-The first command downloads the FDIC Call Report data (only quarters not
-already held). The second builds the workbook in about eight minutes.
+The first command installs the tool and `openpyxl` (once). The second downloads the FDIC Call Report data (only quarters not
+already held). The third builds the workbook in about eight minutes.
 `books/consumer-public.json` lists every setting and series;
 `books/consumer-public-series.csv` lists the 105 series and can be edited in
 Excel. A new quarter, another series or the bank's internal file is a change
