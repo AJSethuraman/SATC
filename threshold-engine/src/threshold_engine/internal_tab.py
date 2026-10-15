@@ -269,7 +269,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     and the starting values are the guesses the README states."""
     internal = internal or {}
     rows_in = list(internal.get("rows") or [])
-    cap = capacity or internal.get("capacity") or max(CAPACITY, len(rows_in) + 500)
+    # Room for the rows given and 500 more; with none, the standing size.
+    cap = capacity or internal.get("capacity") or (max(CAPACITY, len(rows_in) + 500) if rows_in else CAPACITY)
     last_slot = FIRST + cap - 1
     n = len(labels)
     products = list(dict.fromkeys(parts[lab][0] for lab in labels))

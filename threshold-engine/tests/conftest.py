@@ -6,6 +6,14 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from threshold_engine import Point  # noqa: E402
+from threshold_engine import internal_tab as _internal_tab  # noqa: E402
+
+# Every workbook with a Decide tab carries the Internal data slot, 2,000 rows
+# of helper formulas whose COUNTIFS run row against row. Excel calculates them
+# in a fraction of a second; the test engine (formulas) takes many minutes per
+# workbook. No test outside test_internal_tab.py reads the slot, and that file
+# sets its own size, so the tests build a 40-row slot.
+_internal_tab.CAPACITY = 40
 
 DATA = ROOT / "tests" / "data"
 
