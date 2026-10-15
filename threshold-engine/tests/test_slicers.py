@@ -244,6 +244,55 @@ def test_a_refusal_leaves_the_file_as_it_was(book):
     assert parts(book) == before
 
 
+def test_button_columns_style_and_height_are_written_as_excel_writes_them(book):
+    """Excel 16, asked for 3 columns, SlicerStyleOther2 and 0.25 in buttons
+    (Slicer.NumberOfColumns, .Style, .RowHeight = 18 pt), saved:
+    <slicer name=.. cache=.. caption=.. columnCount="3" style="SlicerStyleOther2" rowHeight="228600"/>."""
+    s = spec()
+    for x, n in zip(s, (3, 4, 1)):
+        x.update(columns=n, style="SlicerStyleOther2", button_height=0.25)
+    add_table_slicers(book, "Pick", "Picks", s)
+    sl = list(xml(book, "xl/slicers/slicer1.xml"))
+    assert [(x.get("columnCount"), x.get("style"), x.get("rowHeight")) for x in sl] == [
+        ("3", "SlicerStyleOther2", "228600"), ("4", "SlicerStyleOther2", "228600"),
+        (None, "SlicerStyleOther2", "228600")]                # one column is Excel's default, not written
+    raw = parts(book)["xl/slicers/slicer1.xml"].decode()
+    assert re.search(r'caption="Product" columnCount="3" style="SlicerStyleOther2" rowHeight="228600"', raw)
+
+
+def test_without_the_options_the_slicer_is_as_before(book):
+    add_table_slicers(book, "Pick", "Picks", spec())
+    sl = list(xml(book, "xl/slicers/slicer1.xml"))
+    assert {(x.get("columnCount"), x.get("style"), x.get("rowHeight")) for x in sl} == {
+        (None, S.DEFAULT_STYLE, str(S.ROW_HEIGHT_EMU))}
+    assert 'hiddenButton' not in parts(book)["xl/tables/table1.xml"].decode()
+
+
+def test_hidden_filter_buttons_cover_every_column_and_keep_the_selection(book):
+    """Excel 16 with ListObject.ShowAutoFilterDropDown = False wrote a
+    filterColumn with hiddenButton="1" for every column, an empty one for a
+    column nothing filters."""
+    add_table_slicers(book, "Pick", "Picks", spec(), hide_buttons=True)
+    af = xml(book, "xl/tables/table1.xml").find(M + "autoFilter")
+    fcs = af.findall(M + "filterColumn")
+    assert [(fc.get("colId"), fc.get("hiddenButton")) for fc in fcs] == [(str(i), "1") for i in range(4)]
+    got = {fc.get("colId"): [f.get("val") for f in fc.iter(M + "filter")] for fc in fcs}
+    assert got == {"0": ["Credit card"], "1": ["Net charge-offs"], "2": ["Industry"], "3": []}
+    assert hidden_rows(book) == {6, 7, 8, 9, 10, 11}
+
+
+@pytest.mark.parametrize("key, value, said", [("columns", 0, "columns must be"), ("columns", 2.5, "columns must be"),
+                                              ("button_height", -1, "button_height"),
+                                              ("button_height", "0.25", "button_height")])
+def test_bad_layout_options_are_refused(book, key, value, said):
+    s = spec()
+    s[0][key] = value
+    before = parts(book)
+    with pytest.raises(ValueError, match=said):
+        add_table_slicers(book, "Pick", "Picks", s)
+    assert parts(book) == before
+
+
 def test_cache_names_are_valid_defined_names_and_unique(tmp_path):
     taken = {"slicer_product"}
     assert S._defined_name("Product", taken) == "Slicer_Product1"

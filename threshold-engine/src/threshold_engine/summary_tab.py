@@ -14,7 +14,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter as L
 
 from . import keybank_style as K
-from .decide_tab import SCALE, fill
+from .decide_tab import SCALE, TH_BOOK as TH, fill
 
 TITLE = "Summary"
 HDR = 5
@@ -38,7 +38,8 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
     ws = wb.create_sheet(TITLE)
     n = len(labels)
     end_th = 4 + n
-    A, J, K_, L_, M = ("Thresholds!$%s$5:$%s$%d" % (c, c, end_th) for c in "AJKLM")
+    A, J, K_, L_, M = ("Thresholds!$%s$5:$%s$%d" % (c, c, end_th)
+                       for c in (TH[k] for k in ("series", "value", "rating", "rating_name", "refusal")))
     p0, p1, p2 = part_names
     rows = _order((parts[lab][0], parts[lab][1]) for lab in labels)
     cols = _order(parts[lab][2] for lab in labels)
@@ -48,8 +49,8 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
     ws.sheet_view.showGridLines = False
     ws["A1"] = "%s: where each series stands in the latest quarter" % name
     ws["A1"].font = Font(name="Arial", size=16, bold=True, color=INK)
-    ws["A2"] = ('="Latest quarter: "&INDEX(Thresholds!$I$5:$I$%d,1)&". Each rating compares that quarter with the '
-                'series\' own history: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High."' % end_th)
+    ws["A2"] = ('="Latest quarter: "&INDEX(Thresholds!$%s$5:$%s$%d,1)&". Each rating compares that quarter with the '
+                'series\' own history: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High."' % (TH["quarter"], TH["quarter"], end_th))
     ws["A2"].font = Font(name="Calibri", size=10, color=SLATE)
     ws["A3"] = ("Live: the ratings follow what is typed on the Decide tab. Click a series there to see its chart, "
                 "its lines, and to record a decision.")

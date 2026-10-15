@@ -77,6 +77,7 @@ URI_TABLE_SLICER_CACHE = "{2F2917AC-EB37-4324-AD4E-5DD8C200BD13}"
 
 DEFAULT_STYLE = "SlicerStyleLight2"
 ROW_HEIGHT_EMU = 241300            # what Excel wrote: one button row, 19pt
+EMU_PER_INCH = 914400              # a 0.25 in button is rowHeight="228600", as Excel wrote it
 
 # CT_Worksheet children after <drawing>: a new <drawing> goes before the first.
 _AFTER_DRAWING = ("legacyDrawing", "legacyDrawingHF", "drawingHF", "picture",
@@ -451,7 +452,8 @@ def _set_row_hidden(sheet: str, first: int, last: int, hidden: set) -> str:
     return sheet
 
 
-def add_table_slicers(path, sheet_title: str, table_name: str, slicers: list) -> None:
+def add_table_slicers(path, sheet_title: str, table_name: str, slicers: list,
+                      hide_buttons: bool = False) -> None:
     """Add one slicer per entry, over table ``table_name`` on ``sheet_title``.
 
     ``slicers``: a list of dicts, laid out by the caller's anchors:
@@ -462,11 +464,16 @@ def add_table_slicers(path, sheet_title: str, table_name: str, slicers: list) ->
                                             # 0-based cells; the slicer floats
          "selected": "Credit card",         # the one button pressed at open
          "name":     "PickProduct",         # optional; default the column name
-         "style":    "SlicerStyleLight2"}   # optional
+         "style":    "SlicerStyleLight2",   # optional
+         "columns":  3,                     # optional; buttons side by side, default 1
+         "button_height": 0.25}             # optional, inches; default Excel's 19 pt
 
-    The buttons are every distinct value in the column, one column of them.
+    The buttons are every distinct value in the column, ``columns`` to a row.
     The table's autoFilter is written to the selection, and the rows it hides
     are written hidden, so the file opens showing what the slicers say.
+    ``hide_buttons`` turns the table's filter arrows off (Table Design, Filter
+    Button) as Excel 16 writes it: ``hiddenButton="1"`` on a filterColumn for
+    every column of the table, filtered or not. The slicers still filter.
     Rewrites ``path`` in place. Refuses (ValueError) rather than guesses: an
     unknown sheet, table or column, a selection that is not in the column, a
     column that is not text, a sheet that already has slicers, or a table
@@ -525,8 +532,18 @@ def add_table_slicers(path, sheet_title: str, table_name: str, slicers: list) ->
         if name.casefold() in slicer_names:
             raise ValueError("two slicers named %r" % name)
         slicer_names.add(name.casefold())
+        n_cols = spec.get("columns", 1)
+        if not (isinstance(n_cols, int) and not isinstance(n_cols, bool) and 1 <= n_cols <= 20000):
+            raise ValueError("slicer on %r: columns must be a whole number from 1, not %r" % (col, n_cols))
+        height = spec.get("button_height")
+        if height is None:
+            row_emu = ROW_HEIGHT_EMU
+        elif isinstance(height, (int, float)) and not isinstance(height, bool) and 0 < height <= 10:
+            row_emu = int(round(height * EMU_PER_INCH))
+        else:
+            raise ValueError("slicer on %r: button_height is in inches, above 0; got %r" % (col, height))
         plan.append({
-            "col_index": i, "column_id": columns[i][0], "column": col,
+            "col_index": i, "column_id": columns[i][0], "column": col, "n_cols": n_cols, "row_emu": row_emu,
             "caption": spec.get("caption", col), "anchor": _anchor(spec["anchor"]),
             "selected": match[0], "name": name, "values": values,
             "style": spec.get("style", DEFAULT_STYLE),
@@ -534,10 +551,12 @@ def add_table_slicers(path, sheet_title: str, table_name: str, slicers: list) ->
         })
 
     # ---- the selection: the table's autoFilter, and the rows it hides
+    picked = {p["col_index"]: p for p in plan}
+    hb = ' hiddenButton="1"' if hide_buttons else ""
     filters = "".join(
-        '<filterColumn colId="%d"><filters><filter val="%s"/></filters></filterColumn>'
-        % (p["col_index"], _attr(p["selected"]))
-        for p in sorted(plan, key=lambda p: p["col_index"]))
+        ('<filterColumn colId="%d"%s><filters><filter val="%s"/></filters></filterColumn>'
+         % (i, hb, _attr(picked[i]["selected"])) if i in picked else '<filterColumn colId="%d"%s/>' % (i, hb))
+        for i in range(len(columns)) if i in picked or hide_buttons)
     span = _child(table, "autoFilter")
     if span:
         table = _append_into(table, span, "autoFilter", filters)
@@ -585,9 +604,10 @@ def add_table_slicers(path, sheet_title: str, table_name: str, slicers: list) ->
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         '<slicers xmlns="%s" xmlns:mc="%s" mc:Ignorable="x" xmlns:x="%s">%s</slicers>'
     ) % (X14, MC, MAIN, "".join(
-        '<slicer name="%s" cache="%s" caption="%s" style="%s" rowHeight="%d"/>'
-        % (_attr(p["name"]), _attr(p["cache"]), _attr(p["caption"]), _attr(p["style"]),
-           ROW_HEIGHT_EMU) for p in plan)))
+        '<slicer name="%s" cache="%s" caption="%s"%s style="%s" rowHeight="%d"/>'
+        % (_attr(p["name"]), _attr(p["cache"]), _attr(p["caption"]),
+           ' columnCount="%d"' % p["n_cols"] if p["n_cols"] != 1 else "", _attr(p["style"]),
+           p["row_emu"]) for p in plan)))
     _add_override(pkg, slicer_part, CT_SLICER)
     slicer_rid = _add_rel(pkg, sheet_part, R_SLICER, slicer_part)
 

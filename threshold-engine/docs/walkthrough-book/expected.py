@@ -77,9 +77,14 @@ def thresholds(lbl, window=None, hw=None, ls=None, z=None, rule=None):
     return row
 
 
+#: thresholds() keys its answers by the plain layout's letters; the book lays
+#: Thresholds out differently (decide_tab.TH_BOOK), so each is read by meaning.
+PLAIN_TO_BOOK = {DT.TH_PLAIN[k]: DT.TH_BOOK[k] for k in DT.TH_PLAIN}
+
+
 def th_reads(lbl, row):
     r = 5 + LABELS.index(lbl)
-    return [{"sheet": "Thresholds", "cell": "%s%d" % (c, r), "expect": v} for c, v in row.items()]
+    return [{"sheet": "Thresholds", "cell": "%s%d" % (PLAIN_TO_BOOK[c], r), "expect": v} for c, v in row.items()]
 
 
 def rating_text(row):
@@ -88,8 +93,15 @@ def rating_text(row):
 
 def headline(lbl, row):
     p, m, s = PARTS[lbl]
-    rating = "no rating: see the Check" if row["K"] == "" else "rating %d %s" % (row["K"], row["L"])
-    return "%s, %s, %s: %.2f%s in %s  ·  %s" % (s, m.lower(), p.lower(), row["J"], W["unit"], row["I"], rating)
+    return "%s, %s, %s: %.2f%s in %s" % (s, m.lower(), p.lower(), row["J"], W["unit"], row["I"])
+
+
+def chip(row):
+    return "No rating: see the Check" if row["K"] == "" else "%d %s" % (row["K"], row["L"])
+
+
+def decided(n_acc, n_rej):
+    return "Decided: %d of %d · accepted %d · rejected %d" % (n_acc + n_rej, N, n_acc, n_rej)
 
 
 def summary_cell(lbl):
@@ -125,12 +137,12 @@ steps.append({"id": "B1", "what": "Open the workbook as built",
                                                    "Peers delinquency data", "Peers workings"]},
                   {"special": "slicers", "expect": {n: v for n, v in zip(NAMES, PARTS[first])}},
                   {"special": "visible_rows", "sheet": "Decide", "expect": [DL["first"]]},
-                  {"sheet": "Decide", "cell": "B%d" % DL["message"], "expect": ""},
-                  {"sheet": "Decide", "cell": "L1", "expect": "Decided: 0 of %d  ·  accepted 0, rejected 0" % N},
+                  {"sheet": "Decide", "cell": "L1", "expect": decided(0, 0)},
                   {"sheet": "Decide", "cell": "B%d" % DL["headline"], "expect": headline(first, thresholds(first))},
+                  {"sheet": "Decide", "cell": "I%d" % DL["chip"], "expect": chip(thresholds(first))},
                   {"special": "links", "expect": []},
                   {"special": "errors", "expect": 0}],
-              "picture": [{"sheet": "Decide", "range": "A1:N%d" % (DL["evidence"] + 3), "file": "b1-decide.png"},
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b1-decide.png"},
                           {"sheet": "Summary", "range": "A1:I45", "file": "b1-summary.png"}]})
 
 # ---- B2: every Summary cell against the reference ----
@@ -150,19 +162,19 @@ cmp_reads = []
 for i, src in enumerate(THIRD):
     lab = "%s - %s - %s" % ("Credit card", "Nonaccrual", src)
     rr = thresholds(lab)
-    cmp_reads += [{"sheet": "Decide", "cell": "E%d" % (DL["compare_first"] + i), "expect": rr["J"]},
-                  {"sheet": "Decide", "cell": "F%d" % (DL["compare_first"] + i), "expect": rating_text(rr)}]
+    cmp_reads += [{"sheet": "Decide", "cell": "N%d" % (DL["compare_first"] + i), "expect": rr["J"]},
+                  {"sheet": "Decide", "cell": "M%d" % (DL["compare_first"] + i), "expect": rating_text(rr)}]
 steps.append({"id": "B3", "what": "On Decide, click Credit card, Nonaccrual, KeyBank",
               "shows": "One row shows, KeyBank's; the screen speaks for it and sets it beside the industry and peers",
               "actions": slicers(Product="Credit card", Measure="Nonaccrual", Source="KeyBank"),
               "reads": [{"special": "visible_rows", "sheet": "Decide", "expect": [DL["first"] + LABELS.index(kb)]},
                         {"sheet": "Decide", "cell": "B%d" % DL["headline"], "expect": headline(kb, row)},
-                        {"sheet": "Decide", "cell": "B%d" % DL["lines"],
-                         "expect": "Rating 2 begins at %.2f, 3 at %.2f, 4 at %.2f, 5 at %.2f."
-                                   % (row["E"], row["F"], row["G"], row["H"])},
+                        {"sheet": "Decide", "cell": "I%d" % DL["chip"], "expect": chip(row)},
                         {"sheet": "Decide", "cell": "B%d" % DL["check"],
-                         "expect": "Check: OK, your settings fit this series."}] + cmp_reads + th_reads(kb, row),
-              "picture": [{"sheet": "Decide", "range": "A1:N%d" % (DL["evidence"] + 3), "file": "b3-decide.png"}]})
+                         "expect": "Check: OK, your settings fit this series."}]
+                       + [{"sheet": "Decide", "cell": "M%d" % (DL["ratings_first"] + 1 + j), "expect": row[c]}
+                          for j, c in enumerate("EFGH")] + cmp_reads + th_reads(kb, row),
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b3-decide.png"}]})
 
 # ---- B4: raise How rare High is to 3.5 on that row ----
 row4 = thresholds(kb, z=3.5)
@@ -188,7 +200,7 @@ steps.append({"id": "B5", "what": "Leave out %s to %s, the period Decide suggest
 # ---- B6: half a period refuses, in words; then put it back ----
 steps.append({"id": "B6", "what": "Clear the reason", "shows": "The series is refused, saying why",
               "actions": [typed(kb, "Why left out", "")],
-              "reads": [{"sheet": "Thresholds", "cell": "M%d" % (5 + LABELS.index(kb)),
+              "reads": [{"sheet": "Thresholds", "cell": "%s%d" % (DT.TH_BOOK["refusal"], 5 + LABELS.index(kb)),
                          "expect": "Refused: a period left out for this product is not whole; its Status on Assess "
                                    "says what is missing"}], "picture": []})
 steps.append({"id": "B6b", "what": "Type the reason back", "shows": "The lines are back as in B5",
@@ -199,8 +211,9 @@ steps.append({"id": "B6b", "what": "Type the reason back", "shows": "The lines a
 steps.append({"id": "B7", "what": "Pick Accept these lines and write a note",
               "shows": "The count at the top", "actions": [typed(kb, "Decision", "Accept these lines"),
                                                            typed(kb, "Note", "Walkthrough: accepted with z 3.5")],
-              "reads": [{"sheet": "Decide", "cell": "L1",
-                         "expect": "Decided: 1 of %d  ·  accepted 1, rejected 0" % N}], "picture": []})
+              "reads": [{"sheet": "Decide", "cell": "L1", "expect": decided(1, 0)},
+                        {"sheet": "Thresholds", "cell": "%s%d" % (DT.TH_BOOK["decision"], 5 + LABELS.index(kb)),
+                         "expect": "Accept these lines"}], "picture": []})
 
 # ---- B8: life to date ----
 au = "Auto - Net charge-offs - KeyBank"
@@ -213,9 +226,10 @@ steps.append({"id": "B8", "what": "Click Auto, Net charge-offs, KeyBank",
               "reads": [{"special": "visible_rows", "sheet": "Decide", "expect": [DL["first"] + LABELS.index(au)]},
                         {"sheet": "Decide", "cell": "B%d" % DL["headline"], "expect": headline(au, row8)},
                         {"sheet": "Summary", "cell": "%s%d" % (L(c8 + 1), r8), "expect": rating_text(row8)}]
-                       + ([{"sheet": "Decide", "cell": "B%d" % DL["check"], "startswith": row8["M"] + ". To fix: "}]
+                       + ([{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": row8["M"]},
+                           {"sheet": "Decide", "cell": "I%d" % DL["check"], "startswith": "To fix: "}]
                           if row8["M"] else []) + th_reads(au, row8),
-              "picture": [{"sheet": "Decide", "range": "A1:N%d" % (DL["evidence"] + 3), "file": "b8-life-to-date.png"}]})
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b8-life-to-date.png"}]})
 
 # ---- B9: a refused series, and its To fix followed ----
 mg = "Mortgage - Net charge-offs - Industry (every bank)"
@@ -223,8 +237,10 @@ row9 = thresholds(mg)
 steps.append({"id": "B9", "what": "Click Mortgage, Net charge-offs, Industry",
               "shows": "Refused, with what to type", "actions": slicers(Product="Mortgage", Measure="Net charge-offs",
                                                                          Source="Industry (every bank)"),
-              "reads": [{"sheet": "Decide", "cell": "B%d" % DL["check"], "startswith": row9["M"] + ". To fix: "}]
-                       + th_reads(mg, row9), "picture": [{"sheet": "Decide", "range": "A1:N%d" % (DL["evidence"] + 3),
+              "reads": [{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": row9["M"]},
+                        {"sheet": "Decide", "cell": "I%d" % DL["check"], "startswith": "To fix: "},
+                        {"sheet": "Decide", "cell": "I%d" % DL["chip"], "expect": "No rating: see the Check"}]
+                       + th_reads(mg, row9), "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1),
                                                           "file": "b9-refused.png"}]})
 
 # ---- B10: save, close, reopen ----
@@ -235,7 +251,7 @@ steps.append({"id": "B10", "what": "Save (Ctrl+S), close Excel, open the file ag
                         {"sheet": "Decide", "cell": dcell("Leave out from", kb), "expect": WINDOW[0]},
                         {"sheet": "Decide", "cell": dcell("Decision", kb), "expect": "Accept these lines"},
                         {"sheet": "Decide", "cell": dcell("Note", kb), "expect": "Walkthrough: accepted with z 3.5"},
-                        {"sheet": "Decide", "cell": "L1", "expect": "Decided: 1 of %d  ·  accepted 1, rejected 0" % N},
+                        {"sheet": "Decide", "cell": "L1", "expect": decided(1, 0)},
                         {"special": "slicers", "expect": {"Product": "Mortgage", "Measure": "Net charge-offs",
                                                           "Source": "Industry (every bank)"}}] + th_reads(kb, row5),
               "picture": []})
