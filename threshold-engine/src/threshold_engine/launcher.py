@@ -431,6 +431,8 @@ PEER_REFRESH = (("yes", "Yes: fetch every quarter again, even those in the cache
                 ("no", "No: fetch only the quarters not in the cache"))
 PEER_EXEMPT = (("yes", "Yes: the bank itself is drawn whatever its size"),
                ("no", "No: the bank itself meets the minimum like any other"))
+PEER_PRO_FORMA = (("yes", "Yes: each bank with the banks it absorbed, before each absorption"),
+                  ("no", "No: each bank as filed; a quarter after an acquisition is left out"))
 PEER_PACK = (("all", "All peers"), ("regionals", "Regionals only"))
 PEER_RANK_BY = (("gross", "Gross charge-offs"), ("net", "Net charge-offs"))
 #: What each press is called, and what it is doing while it runs.
@@ -468,6 +470,7 @@ class PeerForm:
     acquisition_share: str = ""
     min_book: str = ""
     exempt_self: str = ""          # yes | no
+    pro_forma: str = ""            # yes | no
     pack: str = ""                 # all | regionals
     min_banks: str = ""
     rank_by: str = ""              # gross | net
@@ -584,7 +587,7 @@ _PULL = ("cache_pull", "first", "last", "products", "delinquency", "mergers_pull
          "refresh")
 _BUILD = ("cache_build", "roster", "first", "last", "products", "delinquency", "out", "series_dir",
           "mergers_file", "absorptions_file", "extra_acquisitions", "industry_combined", "jump",
-          "acquisition_share", "min_book", "exempt_self",
+          "acquisition_share", "min_book", "exempt_self", "pro_forma",
           "pack", "min_banks", "rank_by", "last_n", "min_obs", "base_quarter", "index_min_book",
           "lagged_years", "lag_years", "normalisation_years", "mix_base_year")
 #: Every field in the order the page shows it.
@@ -673,6 +676,7 @@ def _peer_fields(pf: PeerForm) -> Dict[str, Tuple[object, List[str]]]:
     num("acquisition_share", "the acquisition share (--acquisition-share)", least=0)
     num("min_book", "the minimum book (--min-book)", least=0)
     yes_no("exempt_self", PEER_EXEMPT, "whether the bank itself is exempt from the minimum (--exempt-self)")
+    yes_no("pro_forma", PEER_PRO_FORMA, "whether each bank includes the banks it absorbed (--pro-forma)")
     yes_no("pack", PEER_PACK, "the pack (--pack)")
     num("min_banks", "the number of banks a composite needs (--min-banks)", whole=True, least=1)
     yes_no("rank_by", PEER_RANK_BY, "what best and worst are ranked by (--rank-by)")
@@ -733,7 +737,7 @@ def peer_arguments(pf: PeerForm, action: str) -> dict:
                 first=v["first"], last=v["last"], products=v["products"], mergers=v["mergers_file"],
                 absorptions=v["absorptions_file"],
                 extra_acquisitions=v["extra_acquisitions"], industry_combined=v["industry_combined"],
-                jump=v["jump"], acquisition_share=v["acquisition_share"], min_book=v["min_book"], exempt_self=yes("exempt_self"), pack=v["pack"],
+                jump=v["jump"], acquisition_share=v["acquisition_share"], min_book=v["min_book"], exempt_self=yes("exempt_self"), pro_forma=yes("pro_forma"), pack=v["pack"],
                 min_banks=v["min_banks"], rank_by=v["rank_by"], last_n=v["last_n"], min_obs=v["min_obs"],
                 base_quarter=v["base_quarter"], index_min_book=v["index_min_book"],
                 lagged_years=v["lagged_years"], lag_years=v["lag_years"],
@@ -1200,6 +1204,7 @@ def window(root) -> dict:
                   "whose rate is kept; for delinquency, the quarter-end balance.")
         peer_choice(body, "Is the bank itself exempt from the minimum? (--exempt-self)", "exempt_self",
                     PEER_EXEMPT)
+        peer_choice(body, "Each bank with the banks it absorbed? (--pro-forma)", "pro_forma", PEER_PRO_FORMA)
         peer_choice(body, "Pack to start with (--pack): the banks whose Yes/No starts Yes", "pack", PEER_PACK)
         peer_text(body, "Banks a composite needs (--min-banks)", "min_banks", "Kept banks a composite or "
                   "band needs; a whole number.")

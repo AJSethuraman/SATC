@@ -111,7 +111,8 @@ def build(module, out, data, roster, products, pack="all", **over):
     try:
         return module.build_peers_workbook(out, data, roster, products, JUMP, MIN_BOOK, pack,
                                            json.loads((PEERS / "mergers_roster.json").read_text()),
-                                           {"6672": ["2022Q2"]}, "2019Q4", **settings(**over))
+                                           {"6672": ["2022Q2"]}, "2019Q4", **settings(**over),
+                                           **({} if module is OLD else {"combined": {}}))
     finally:
         mp.undo()
 
@@ -147,7 +148,7 @@ def run_build(out, cache, series, **over):
               last="2026Q2", products=list(TWO), mergers=PEERS / "mergers_roster.json",
               absorptions=PEERS / "absorptions_none.json", extra_acquisitions=["6672=2022Q2"],
               industry_combined=[], jump=0.25, acquisition_share=0.05, min_book=1_000_000.0, exempt_self=True,
-              pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12, base_quarter="2019Q4",
+              pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12, base_quarter="2019Q4",
               index_min_book=500_000.0, lagged_years=[2019, 2025], lag_years=2, normalisation_years=[2019, 2025],
               mix_base_year=2019, delinquency=True, say=lambda s: None)
     kw.update(over)
@@ -167,7 +168,7 @@ def test_peers_build_writes_the_same_series_as_before_the_round_2_layout(tmp_pat
     new = run_build(tmp_path / "after.xlsx", cache, tmp_path / "after")
     assert load_workbook(new["out"]).sheetnames == list(PW.TABS)
     monkeypatch.setattr(PW, "build_peers_workbook",
-                        lambda *a, into=None, names=None, **kw: OLD.build_peers_workbook(*a, **kw))
+                        lambda *a, into=None, names=None, combined=None, **kw: OLD.build_peers_workbook(*a, **kw))
     old = run_build(tmp_path / "before.xlsx", cache, tmp_path / "before")
     assert load_workbook(old["out"]).sheetnames == ["Peers", "Workings", "Glossary", "Data", "DelinquencyData",
                                                     "Run"]

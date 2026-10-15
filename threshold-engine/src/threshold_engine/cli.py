@@ -268,6 +268,10 @@ def _peers_parser(sub):
                         "the quarter-end balance")
     r.add_argument("--exempt-self", required=True, type=_yes_no,
                    help="yes: the bank itself is drawn whatever its size")
+    r.add_argument("--pro-forma", required=True, type=_yes_no,
+                   help="yes: each bank's charge-offs and balances include those of every bank it "
+                        "absorbed, before the absorption (an acquisition no longer breaks its history); "
+                        "no: each bank as filed")
     r.add_argument("--pack", required=True, choices=["all", "regionals"])
     r.add_argument("--min-banks", required=True, type=int,
                    help="kept banks a composite or band needs")
@@ -298,7 +302,7 @@ def _peers_build(a):
     run.build(a.out, cache=a.cache, roster=a.roster, series_dir=a.series_dir, first=a.first,
               last=a.last, products=a.products, mergers=a.mergers, absorptions=a.absorptions,
               extra_acquisitions=a.extra_acquisitions, industry_combined=a.industry_combined,
-              jump=a.jump, acquisition_share=a.acquisition_share, min_book=a.min_book, exempt_self=a.exempt_self, pack=a.pack,
+              jump=a.jump, acquisition_share=a.acquisition_share, min_book=a.min_book, exempt_self=a.exempt_self, pro_forma=a.pro_forma, pack=a.pack,
               min_banks=a.min_banks, rank_by=a.rank_by, last_n=a.last_n, min_obs=a.min_obs,
               base_quarter=a.base_quarter, index_min_book=a.index_min_book,
               lagged_years=a.lagged_years, lag_years=a.lag_years,

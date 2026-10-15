@@ -33,7 +33,7 @@ BUILD = ["--roster", str(ROOT / "config" / "peers.json"), "--first", "2006Q1", "
          "--products"] + FOUR + [
     "--mergers", str(PEERS / "mergers_roster.json"),
     "--absorptions", str(PEERS / "absorptions_none.json"), "--extra-acquisitions", "6672=2022Q2",
-    "--industry-combined", "--jump", "0.25", "--acquisition-share", "0.05", "--min-book", "1000000", "--exempt-self", "yes", "--pack", "all",
+    "--industry-combined", "--jump", "0.25", "--acquisition-share", "0.05", "--min-book", "1000000", "--exempt-self", "yes", "--pro-forma", "no", "--pack", "all",
     "--min-banks", "5", "--rank-by", "net", "--last-n", "20", "--min-obs", "12",
     "--base-quarter", "2019Q4", "--index-min-book", "500000", "--lagged-years", "2019", "2025",
     "--lag-years", "2", "--normalisation-years", "2019", "2025", "--mix-base-year", "2019",
@@ -251,7 +251,7 @@ def test_a_badly_formed_declared_acquisition_is_refused(built, tmp_path, capsys)
 #: Every flag `peers build` takes. Each is a judgement or a location, and none has a default.
 BUILD_FLAGS = ["--cache", "--series-dir", "--roster", "--first", "--last", "--products", "--mergers",
                "--absorptions", "--extra-acquisitions", "--industry-combined", "--jump",
-               "--acquisition-share", "--min-book", "--exempt-self",
+               "--acquisition-share", "--min-book", "--exempt-self", "--pro-forma",
                "--pack", "--min-banks", "--rank-by", "--last-n", "--min-obs", "--base-quarter",
                "--index-min-book", "--lagged-years", "--lag-years", "--normalisation-years",
                "--mix-base-year", "--delinquency"]
@@ -941,6 +941,7 @@ def test_the_shared_body_defaults_nothing_but_where_lines_go():
     ("rank_by", "both", "--rank-by must be gross or net"),
     ("delinquency", "yes", "--delinquency must be stated, yes or no"),
     ("exempt_self", None, "--exempt-self must be stated"),
+    ("pro_forma", None, "--pro-forma must be stated"),
     ("min_banks", 2.5, "--min-banks must be a whole number"),
     ("jump", "0.25", "--jump must be a number"),
     ("products", ["Card"], "--products takes"),
@@ -955,7 +956,7 @@ def test_the_window_gets_the_same_refusals_as_the_flags(built, tmp_path, key, va
                   first="2006Q1", last="2026Q2", products=FOUR, mergers=PEERS / "mergers_roster.json",
                   absorptions=PEERS / "absorptions_none.json", acquisition_share=0.05,
                   extra_acquisitions=["6672=2022Q2"], industry_combined=[], jump=0.25, min_book=1e6,
-                  exempt_self=True, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
+                  exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
                   normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False)
     stated[key] = value
@@ -1161,7 +1162,7 @@ def test_the_window_gets_the_whole_year_refusals(built, tmp_path, key, value, sa
                   first="2006Q1", last="2026Q2", products=FOUR, mergers=PEERS / "mergers_roster.json",
                   absorptions=PEERS / "absorptions_none.json", acquisition_share=0.05,
                   extra_acquisitions=[], industry_combined=[], jump=0.25, min_book=1e6,
-                  exempt_self=True, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
+                  exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
                   normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False)
     stated[key] = value
@@ -1359,7 +1360,15 @@ MERGER_BUILD = [("--roster", None), ("--first", ["2018Q1"]), ("--last", ["2021Q4
 
 @pytest.fixture(scope="module")
 def merger_built(tmp_path_factory):
-    base = tmp_path_factory.mktemp("merger_build")
+    return merger_build(tmp_path_factory.mktemp("merger_build"), "no")
+
+
+@pytest.fixture(scope="module")
+def merger_built_pro_forma(tmp_path_factory):
+    return merger_build(tmp_path_factory.mktemp("merger_build_pro_forma"), "yes")
+
+
+def merger_build(base, pro_forma):
     cache = base / "cache"
     cache.mkdir()
     for q, rows in merger_cache().items():
@@ -1371,7 +1380,7 @@ def merger_built(tmp_path_factory):
                                 {"acquirer": "1", "absorbed": "300", "quarter": "2020-06-30"}])}
     for path, doc in files.values():
         path.write_text(json.dumps(doc), encoding="utf-8")
-    args = BUILD
+    args = with_value(BUILD, "--pro-forma", pro_forma)
     for flag, values in MERGER_BUILD:
         args = with_value(args, flag, *(values if values is not None else [str(files[flag][0])]))
     mp = pytest.MonkeyPatch()
@@ -1403,6 +1412,39 @@ def test_a_merger_quarter_counts_the_affiliates_year_to_date_once(merger_built):
     line = next(n for n in notes if n.startswith("Absorptions under common control"))
     assert "1 survivor-quarter" in line and "absorptions.json" in line
     assert "on the roster: KeyBank in 2019Q3." in line
+
+
+def test_pro_forma_adds_the_absorbed_banks_and_leaves_nothing_out(merger_built_pro_forma):
+    """--pro-forma yes, the firm's choice (15 Oct 2026: "Pro forma (Recommended)").
+    P1 with its target: 5,000 + 500 every quarter, 50 + 10 charged off and
+    5 + 1 recovered, the target's from its own filings until P1's own filing
+    holds both. The book never moves, so no window is left out, and every
+    rate is 100 x 240 / 5,500 gross and 100 x 216 / 5,500 net. KeyBank with
+    its affiliate: 10,300, 106 and 11 every quarter, the affiliate's first
+    half counted once. The Data tab names who is added in each row."""
+    from threshold_engine.peers.books import WHY_ACQUIRED
+    built = merger_built_pro_forma
+    assert built["rc"] == 0
+    s = built["series"]
+    for who, g, r, bal in (("p1", 240, 24, 5500), ("keybank", 424, 44, 10300)):
+        for kind, num in (("gross", g), ("net", g - r)):
+            path = s / (("banks/credit-card_%s_%s.csv" if who == "p1" else "credit-card_%s_%s.csv") % (who, kind))
+            notes, rows = read_csv(path)
+            assert rows[0][0] == "2019-03-31" and len(rows) == 12, (who, kind)   # every TTM quarter
+            assert all(v == pytest.approx(100 * num / bal, abs=1e-12) for _, v in rows), (who, kind)
+            assert any("pro forma (each bank with the banks it absorbed)" in n for n in notes)
+    wb = load_workbook(built["out"])
+    da = wb["Data"]
+    head = [c.value for c in da[1]]
+    assert head[13:] == ["Quarter-end balance ($000)", "Combined with"]
+    got = {(r[1], r[3]): (r[9], r[10], r[13], r[14]) for r in da.iter_rows(min_row=2, values_only=True)}
+    assert all(w != WHY_ACQUIRED for _, w, _, _ in got.values())
+    assert got["P1", "2020Q1"] == (True, None, 5500, "certificate 300, absorbed 2020Q2")
+    assert got["P1", "2021Q1"] == (True, None, 5500, None)                 # the target last filed 2020Q1
+    assert got["KeyBank", "2019Q4"][3] == "certificate 200, absorbed 2019Q3"
+    run = [str(c) for r in wb["Run"].iter_rows(values_only=True) for c in r if c]
+    assert any(x.startswith("Pro forma: yes.") for x in run)
+    assert any(x.startswith("Pro forma, P1: 1 bank added in: certificate 300 to 2020Q2") for x in run)
 
 
 def test_an_acquisition_at_the_share_leaves_its_windows_out(merger_built):

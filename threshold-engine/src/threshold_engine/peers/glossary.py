@@ -45,10 +45,25 @@ PEER_TERMS = [
     ("Quarter-end balance",
      "The book as filed on the last day of the quarter.",
      "RC-C, in $ thousands as filed; blank when the bank did not file that quarter. The average balance "
-     "is the mean of four of these."),
+     "is the mean of four of these. With pro forma, the sum over the bank and the banks it absorbed."),
+    ("Pro forma",
+     "Each bank's figures with those of every bank it absorbed, before each absorption, so an acquisition "
+     "neither breaks its history nor leaves its rate out. A build setting, shown on the Run tab.",
+     "Before the quarter a bank was absorbed, its charge-offs, recoveries and balances, each from its own "
+     "filings, are added to the absorber's, through every bank in the chain. A bank absorbed without a "
+     "filing in these quarters cannot be added: the Run tab names it, and its acquisition is treated as "
+     "without pro forma. Two limits: in the quarter of the deal the absorbed bank files nothing, so its "
+     "charge-offs count only from the close, in the absorber's filing; and the absorber books the loans it "
+     "buys at fair value, so their charge-offs in the first quarters after a deal are not exactly what the "
+     "absorbed bank would have reported. Charge-offs only: delinquency is each bank as filed."),
+    ("Combined with",
+     "On the Data tab, the banks whose figures are added into that row (pro forma).",
+     "Each absorbed bank that filed in one of the row's four quarters, by certificate, with the quarter it "
+     "was absorbed. Blank when the row is the bank's own filings alone."),
     ("Structural move",
      "A change in a book's size larger than lending accounts for: a merger, a purchase, a sale or a "
-     "reclassification. Rates whose window includes it are not used.",
+     "reclassification. Rates whose window includes it are not used. With pro forma, an absorption "
+     "added in is not one: the combined book does not move.",
      "A quarter whose balance moved by more than the jump from the quarter before (|this / last - 1| > jump), "
      "or rose from zero. A rate is not kept if any quarter from the one before its window to its last quarter "
      "moved structurally."),
@@ -64,7 +79,8 @@ PEER_TERMS = [
      "Whether a bank's rate for a quarter is used.",
      "TRUE when the average balance is at least the minimum book and above zero, all four quarters' flows "
      "were filed, no quarter-on-quarter move from the quarter before the four through the last was larger "
-     "than the jump, and no recorded acquisition brought in at least the acquisition share. Why says the "
+     "than the jump, and no recorded acquisition brought in at least the acquisition share (with pro forma, "
+     "only an absorption that could not be added counts). Why says the "
      "first reason it is not, in that order: a quarter missing from the data, the jump, an acquisition, "
      "the minimum, a flow not filed."),
     # What is left out, and why: one row per reason, as the bank asked

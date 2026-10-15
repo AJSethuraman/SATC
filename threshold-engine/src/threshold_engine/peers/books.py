@@ -233,9 +233,14 @@ def quarterly_flows(data: Dict[str, list], cert, product: str) -> List[tuple]:
     flow itself), or None if the bank is missing from either
     quarter (or the previous quarter-end is not in the data). The balance is
     the quarter-end figure, None when the bank did not file that quarter."""
+    qs, snap = _by_cert(data)
+    return _flows(qs, snap, cert, product)
+
+
+def _flows(qs, snap, cert, product: str) -> List[tuple]:
+    """``quarterly_flows`` over data already keyed by ``_by_cert``."""
     ln, dr, cr = _fields(product)
     cert = str(cert)
-    qs, snap = _by_cert(data)
     out = []
     for i, q in enumerate(qs):
         r = snap[q].get(cert)
@@ -250,8 +255,111 @@ def quarterly_flows(data: Dict[str, list], cert, product: str) -> List[tuple]:
     return out
 
 
+def combination(data: Dict[str, list], links: Sequence[dict], certs: Iterable) -> Dict[str, dict]:
+    """Pro forma: per certificate in ``certs``, the banks whose figures are
+    added to its own, ``{"members": [(absorbed, until)], "uncombined":
+    [(absorbed, YYYYMMDD)]}``.
+
+    ``links`` are ``fdic.absorptions`` rows. A bank's members are every bank
+    it absorbed, and every bank those absorbed before them, through the whole
+    chain. ``until`` is the quarter-end (``YYYYMMDD``) of the absorption that
+    brought the member in, the earliest along the chain: the member counts in
+    every quarter up to and including it in which it filed itself. After it,
+    its book is in the absorber's own filing. A bank absorbed inside the
+    data's quarters that never filed in them up to then cannot be added: it
+    is listed under ``uncombined``, and its acquisition is treated as it is
+    without pro forma (``acquired_quarters``)."""
+    qs, snap = _by_cert(data)
+    filed: Dict[str, List[str]] = {}
+    for q in qs:
+        for c in snap[q]:
+            filed.setdefault(c, []).append(q)
+    by_acq: Dict[str, List[Tuple[str, str]]] = {}
+    for ln in links:
+        by_acq.setdefault(str(ln["acquirer"]), []).append((str(ln["absorbed"]), _yyyymmdd(ln["quarter"])))
+    out: Dict[str, dict] = {}
+    for cert in certs:
+        cert = str(cert)
+        members: List[Tuple[str, str]] = []
+        uncombined: List[Tuple[str, str]] = []
+        seen = {cert}
+
+        def walk(acq: str, until: Optional[str]) -> None:
+            for b, q in sorted(by_acq.get(acq, [])):
+                if b in seen:
+                    continue
+                seen.add(b)
+                u = q if until is None else min(q, until)
+                if any(x <= u for x in filed.get(b, ())):
+                    members.append((b, u))
+                elif qs and qs[0] <= q <= qs[-1]:
+                    uncombined.append((b, q))
+                walk(b, u)
+
+        walk(cert, None)
+        out[cert] = {"members": members, "uncombined": uncombined}
+    return out
+
+
+def combined_flows(data: Dict[str, list], cert, product: str,
+                   members: Sequence[Tuple[str, str]] = ()) -> List[tuple]:
+    """``quarterly_flows`` for a bank with its ``members`` (``combination``)
+    added: per quarter-end, the balance is the sum of the quarter-end balances
+    of every one of them that filed that quarter, and each flow the sum of
+    each one's own flow, measured within its own filings, so a merger never
+    reads as a fall or a rise in a year to date. A member counts only up to
+    its ``until``. A quarter in which none of them filed has no balance; a
+    quarter in which one of them filed but has no flow (it did not file the
+    quarter before) has no flow.
+
+    The quarter of the absorption itself holds the absorbed bank's book in
+    the balance but its charge-offs only from the day the deal closed: the
+    absorbed bank files nothing for that quarter, and the absorber's filing
+    covers the acquired loans from the close. The absorber also books the
+    loans it buys at fair value, so their charge-offs in the first quarters
+    after a deal are not exactly what the absorbed bank would have reported."""
+    qs, snap = _by_cert(data)
+    own = _flows(qs, snap, cert, product)
+    if not members:
+        return own
+    parts_ = [(own, None)] + [(_flows(qs, snap, b, product), until) for b, until in members]
+    out = []
+    for i, (q, _, _, _) in enumerate(own):
+        g = rc = bal = 0.0
+        filed = broken = False
+        for rows, until in parts_:
+            if until is not None and q > until:
+                continue
+            _, gi, ri, bi = rows[i]
+            if bi is None:
+                continue
+            filed = True
+            bal += bi
+            if gi is None:
+                broken = True
+            else:
+                g += gi
+                rc += ri
+        flows_ok = filed and not broken
+        out.append((q, g if flows_ok else None, rc if flows_ok else None, bal if filed else None))
+    return out
+
+
+def members_by_quarter(data: Dict[str, list], members: Sequence[Tuple[str, str]]) -> Dict[str, List[Tuple[str, str]]]:
+    """Per TTM quarter ('YYYYQn'), the ``members`` whose own filings are in
+    it: each that filed in one of its four quarter-ends, up to its
+    ``until``."""
+    qs, snap = _by_cert(data)
+    out = {}
+    for k, q in enumerate(qs):
+        win = qs[max(0, k - 3):k + 1]
+        out[label(q)] = [(b, u) for b, u in members if any(w <= u and b in snap[w] for w in win)]
+    return out
+
+
 def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: float,
-              exempt_min_book: bool = False, *, acquired: Iterable[str]) -> List[dict]:
+              exempt_min_book: bool = False, *, acquired: Iterable[str],
+              members: Sequence[Tuple[str, str]] = ()) -> List[dict]:
     """One row per TTM quarter, from the fifth quarter in the data, labelled
     ``YYYYQn``: ``{quarter, gross_rate, net_rate, gross, recoveries,
     avg_balance, kept, why}``.
@@ -271,13 +379,17 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     ``acquired`` is this bank's quarter-ends (``YYYYMMDD``) in which recorded
     acquisitions brought in at least the acquisition share of its book
     (:func:`acquired_quarters`). A TTM window holding one is left out: its
-    flows mix two books. Required; an empty list states there are none."""
+    flows mix two books. Required; an empty list states there are none.
+
+    ``members`` (``combination``) are the banks it absorbed, added to its own
+    figures quarter by quarter (``combined_flows``): pro forma. With none,
+    the book is the bank's own filings alone."""
     _at_least("jump", jump, 0)
     _at_least("min_book", min_book, 0)
     if isinstance(acquired, str):
         raise ValueError("acquired is a list of quarter-ends, not %r" % (acquired,))
     acquired = set(acquired)
-    flows = quarterly_flows(data, cert, product)
+    flows = combined_flows(data, cert, product, members)
     follows = _contiguous([q for q, _, _, _ in flows])
     bal = [0.0 if b is None else b for _, _, _, b in flows]
     moved = [False] + [bool(a > 0 and abs(b / a - 1) > jump) or (a == 0 and b > 0)

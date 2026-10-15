@@ -33,7 +33,7 @@
   ],
   "notes": [
     "Industry: every bank filing a Call Report, added together. Peer group: the 15 banks on the Peers tab, added together. Charge-offs are trailing twelve months; delinquency is at quarter-end.",
-    "KeyBank's charge-offs start in 2018Q1, after the First Niagara acquisition (2016Q4) breaks its history; its charge-off lines rest on those quarters alone (life to date), and its Backtest says where there were too few to test.",
+    "Pro forma: each bank's charge-offs include those of the banks it absorbed, before each absorption (KeyBank's include First Niagara's before 2016Q4). KeyBank's charge-offs run from 2007Q1 for mortgage and home equity, 2013Q4 for credit card, 2015Q4 for other consumer and 2022Q4 for auto; each quarter before is left out with its reason on Peers data. Each series' lines rest on its own quarters (life to date), and its Backtest says where there were too few to test.",
     "Settings: the ones agreed for credit card, applied to every series as a starting point; change them on Decide.",
     "Credit card before 2010: cards a bank had securitized were off its books, so those quarters are labeled, not dropped."
   ],
@@ -62,6 +62,7 @@
     "acquisition_share": 0.05,
     "min_book": 0,
     "exempt_self": true,
+    "pro_forma": true,
     "pack": "all",
     "min_banks": 5,
     "rank_by": "net",
