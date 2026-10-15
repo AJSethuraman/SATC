@@ -1,5 +1,5 @@
 {
- "book": "C:\\Users\\ajish\\SATC\\.claude\\worktrees\\agent-a9d7058fd908dcdc1\\threshold-engine\\docs\\walkthrough-book\\out\\book.json",
+ "book": "C:\\Users\\ajish\\SATC\\threshold-engine\\docs\\walkthrough-book\\out\\book.json",
  "series": 105,
  "rows": 35,
  "steps": [
@@ -111,7 +111,7 @@
     {
      "sheet": "Summary",
      "cell": "G6",
-     "expect": 3.5459404700450445
+     "expect": 3.9545852353018254
     },
     {
      "sheet": "Summary",
@@ -141,7 +141,7 @@
     {
      "sheet": "Summary",
      "cell": "G7",
-     "expect": 4.460669350809752
+     "expect": 5.1312227443145
     },
     {
      "sheet": "Summary",
@@ -321,7 +321,7 @@
     {
      "sheet": "Summary",
      "cell": "G13",
-     "expect": -0.0025743833456980635
+     "expect": -0.0024265883136588345
     },
     {
      "sheet": "Summary",
@@ -351,7 +351,7 @@
     {
      "sheet": "Summary",
      "cell": "G14",
-     "expect": 0.014503470405333936
+     "expect": 0.014506762667246017
     },
     {
      "sheet": "Summary",
@@ -531,7 +531,7 @@
     {
      "sheet": "Summary",
      "cell": "G20",
-     "expect": -0.07696163071528715
+     "expect": -0.06631193529668558
     },
     {
      "sheet": "Summary",
@@ -561,7 +561,7 @@
     {
      "sheet": "Summary",
      "cell": "G21",
-     "expect": 0.10526224891070414
+     "expect": 0.10262904527785062
     },
     {
      "sheet": "Summary",
@@ -741,7 +741,7 @@
     {
      "sheet": "Summary",
      "cell": "Q6",
-     "expect": 1.3345872838686663
+     "expect": 1.550392085338516
     },
     {
      "sheet": "Summary",
@@ -771,7 +771,7 @@
     {
      "sheet": "Summary",
      "cell": "Q7",
-     "expect": 1.7136008842788726
+     "expect": 2.0194451522005985
     },
     {
      "sheet": "Summary",
@@ -951,7 +951,7 @@
     {
      "sheet": "Summary",
      "cell": "Q13",
-     "expect": 0.8774338721360744
+     "expect": 0.8774784779654787
     },
     {
      "sheet": "Summary",
@@ -981,7 +981,7 @@
     {
      "sheet": "Summary",
      "cell": "Q14",
-     "expect": 1.5906162750803294
+     "expect": 1.5906160217009966
     },
     {
      "sheet": "Summary",
@@ -1211,17 +1211,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E6",
-     "expect": 3.4579748471556
+     "expect": 3.6309091634405473
     },
     {
      "sheet": "Lines by source",
      "cell": "F6",
-     "expect": 0.6088503413687439
+     "expect": 1.0331756339975655
     },
     {
      "sheet": "Lines by source",
      "cell": "G6",
-     "expect": 6.667423710216902
+     "expect": 10.346442383612649
     },
     {
      "sheet": "Lines by source",
@@ -1231,27 +1231,27 @@
     {
      "sheet": "Lines by source",
      "cell": "M6",
-     "expect": 3.5459404700450445
+     "expect": 3.9545852353018254
     },
     {
      "sheet": "Lines by source",
      "cell": "H6",
-     "expect": 2.849124505786856
+     "expect": 2.5977335294429817
     },
     {
      "sheet": "Lines by source",
      "cell": "I6",
-     "expect": 3.153549676471228
+     "expect": 3.1143213464417645
     },
     {
      "sheet": "Lines by source",
      "cell": "J6",
-     "expect": 3.762400017839972
+     "expect": 4.14749698043933
     },
     {
      "sheet": "Lines by source",
      "cell": "K6",
-     "expect": 5.20098049939395
+     "expect": 6.033257977157906
     },
     {
      "sheet": "Lines by source",
@@ -1271,12 +1271,12 @@
     {
      "sheet": "Lines by source",
      "cell": "E7",
-     "expect": 3.375555991599542
+     "expect": 3.4107661467352233
     },
     {
      "sheet": "Lines by source",
      "cell": "F7",
-     "expect": 0.7184950099469237
+     "expect": 0.5615126969292105
     },
     {
      "sheet": "Lines by source",
@@ -1366,17 +1366,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E9",
-     "expect": 4.149872440749582
+     "expect": 4.41930755656581
     },
     {
      "sheet": "Lines by source",
      "cell": "F9",
-     "expect": 0.6281054143420859
+     "expect": 1.0050934045734172
     },
     {
      "sheet": "Lines by source",
      "cell": "G9",
-     "expect": 7.693778618607747
+     "expect": 11.08204255884491
     },
     {
      "sheet": "Lines by source",
@@ -1386,37 +1386,37 @@
     {
      "sheet": "Lines by source",
      "cell": "M9",
-     "expect": 4.460669350809752
+     "expect": 5.1312227443145
     },
     {
      "sheet": "Lines by source",
      "cell": "H9",
-     "expect": 3.5217670264074963
+     "expect": 3.414214151992393
     },
     {
      "sheet": "Lines by source",
      "cell": "I9",
-     "expect": 3.835819733578539
+     "expect": 3.9167608542791017
     },
     {
      "sheet": "Lines by source",
      "cell": "J9",
-     "expect": 4.463925147920625
+     "expect": 4.921854258852519
     },
     {
      "sheet": "Lines by source",
      "cell": "K9",
-     "expect": 6.264937338036004
+     "expect": 7.161789747985985
     },
     {
      "sheet": "Lines by source",
      "cell": "Q9",
-     "expect": 3
+     "expect": 4
     },
     {
      "sheet": "Lines by source",
      "cell": "R9",
-     "expect": "Moderate"
+     "expect": "Moderate-High"
     },
     {
      "sheet": "Lines by source",
@@ -1426,12 +1426,12 @@
     {
      "sheet": "Lines by source",
      "cell": "E10",
-     "expect": 4.020140284190228
+     "expect": 4.008313217289569
     },
     {
      "sheet": "Lines by source",
      "cell": "F10",
-     "expect": 0.6936648124303291
+     "expect": 0.44751121698069046
     },
     {
      "sheet": "Lines by source",
@@ -1450,13 +1450,38 @@
     },
     {
      "sheet": "Lines by source",
+     "cell": "H10",
+     "expect": 3.5608020003088785
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I10",
+     "expect": 3.7845576087992234
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J10",
+     "expect": 4.232068825779914
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K10",
+     "expect": 4.897131237906283
+    },
+    {
+     "sheet": "Lines by source",
      "cell": "Q10",
-     "expect": ""
+     "expect": 4
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R10",
+     "expect": "Moderate-High"
     },
     {
      "sheet": "Lines by source",
      "cell": "S10",
-     "expect": "Refused: High would begin beyond the worst quarter kept"
+     "expect": ""
     },
     {
      "sheet": "Lines by source",
@@ -2396,17 +2421,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E27",
-     "expect": 0.05451464445560959
+     "expect": 0.05769147832318315
     },
     {
      "sheet": "Lines by source",
      "cell": "F27",
-     "expect": 0.05050269936372256
+     "expect": 0.05080303494815244
     },
     {
      "sheet": "Lines by source",
      "cell": "G27",
-     "expect": 2.688315214915152
+     "expect": 1.8226688527762305
     },
     {
      "sheet": "Lines by source",
@@ -2416,27 +2441,27 @@
     {
      "sheet": "Lines by source",
      "cell": "M27",
-     "expect": -0.0025743833456980635
+     "expect": -0.0024265883136588345
     },
     {
      "sheet": "Lines by source",
      "cell": "H27",
-     "expect": 0.004011945091887036
+     "expect": 0.006888443375030709
     },
     {
      "sheet": "Lines by source",
      "cell": "I27",
-     "expect": 0.029263294773748314
+     "expect": 0.03228996084910693
     },
     {
      "sheet": "Lines by source",
      "cell": "J27",
-     "expect": 0.07976599413747087
+     "expect": 0.08309299579725937
     },
     {
      "sheet": "Lines by source",
      "cell": "K27",
-     "expect": 0.3173436703977054
+     "expect": 0.31440084395176326
     },
     {
      "sheet": "Lines by source",
@@ -2456,17 +2481,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E28",
-     "expect": -0.003313699203258887
+     "expect": 0.053909503953416066
     },
     {
      "sheet": "Lines by source",
      "cell": "F28",
-     "expect": 0.013931373866410385
+     "expect": 0.05177328770531841
     },
     {
      "sheet": "Lines by source",
      "cell": "G28",
-     "expect": 0.0652838825786549
+     "expect": 0.6450995313468453
     },
     {
      "sheet": "Lines by source",
@@ -2480,13 +2505,38 @@
     },
     {
      "sheet": "Lines by source",
+     "cell": "H28",
+     "expect": 0.002136216248097657
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I28",
+     "expect": 0.02802286010075686
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J28",
+     "expect": 0.07979614780607527
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K28",
+     "expect": 0.3032492413573249
+    },
+    {
+     "sheet": "Lines by source",
      "cell": "Q28",
-     "expect": ""
+     "expect": 1
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R28",
+     "expect": "Low"
     },
     {
      "sheet": "Lines by source",
      "cell": "S28",
-     "expect": "Refused: the median is at or below zero"
+     "expect": ""
     },
     {
      "sheet": "Lines by source",
@@ -2551,17 +2601,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E30",
-     "expect": 0.10034535883042595
+     "expect": 0.10067437602246657
     },
     {
      "sheet": "Lines by source",
      "cell": "F30",
-     "expect": 0.0681566819469756
+     "expect": 0.07408555923561358
     },
     {
      "sheet": "Lines by source",
      "cell": "G30",
-     "expect": 2.704549055548677
+     "expect": 1.8627989100886482
     },
     {
      "sheet": "Lines by source",
@@ -2571,27 +2621,27 @@
     {
      "sheet": "Lines by source",
      "cell": "M30",
-     "expect": 0.014503470405333936
+     "expect": 0.014506762667246017
     },
     {
      "sheet": "Lines by source",
      "cell": "H30",
-     "expect": 0.03218867688345034
+     "expect": 0.026588816786852987
     },
     {
      "sheet": "Lines by source",
      "cell": "I30",
-     "expect": 0.06626701785693814
+     "expect": 0.06363159640465978
     },
     {
      "sheet": "Lines by source",
      "cell": "J30",
-     "expect": 0.13442369980391375
+     "expect": 0.13771715564027337
     },
     {
      "sheet": "Lines by source",
      "cell": "K30",
-     "expect": 0.4097948991321357
+     "expect": 0.401637147442684
     },
     {
      "sheet": "Lines by source",
@@ -2611,17 +2661,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E31",
-     "expect": 0.013171251385925372
+     "expect": 0.10718270085000456
     },
     {
      "sheet": "Lines by source",
      "cell": "F31",
-     "expect": 0.013190394871424727
+     "expect": 0.0538142876148655
     },
     {
      "sheet": "Lines by source",
      "cell": "G31",
-     "expect": 0.11224930258300066
+     "expect": 0.6902077466281831
     },
     {
      "sheet": "Lines by source",
@@ -2635,13 +2685,38 @@
     },
     {
      "sheet": "Lines by source",
+     "cell": "H31",
+     "expect": 0.05336841323513906
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I31",
+     "expect": 0.0802755570425718
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J31",
+     "expect": 0.1340898446574373
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K31",
+     "expect": 0.4629278199955724
+    },
+    {
+     "sheet": "Lines by source",
      "cell": "Q31",
-     "expect": ""
+     "expect": 1
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R31",
+     "expect": "Low"
     },
     {
      "sheet": "Lines by source",
      "cell": "S31",
-     "expect": "Refused: Moderate-Low would begin at or below zero"
+     "expect": ""
     },
     {
      "sheet": "Lines by source",
@@ -3506,17 +3581,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E48",
-     "expect": 0.263886079995328
+     "expect": 0.2745045861276751
     },
     {
      "sheet": "Lines by source",
      "cell": "F48",
-     "expect": 0.206667897801204
+     "expect": 0.1866739163257934
     },
     {
      "sheet": "Lines by source",
      "cell": "G48",
-     "expect": 3.7320994787000124
+     "expect": 3.4581925317375726
     },
     {
      "sheet": "Lines by source",
@@ -3526,27 +3601,27 @@
     {
      "sheet": "Lines by source",
      "cell": "M48",
-     "expect": -0.07696163071528715
+     "expect": -0.06631193529668558
     },
     {
      "sheet": "Lines by source",
      "cell": "H48",
-     "expect": 0.05721818219412397
+     "expect": 0.0878306698018817
     },
     {
      "sheet": "Lines by source",
      "cell": "I48",
-     "expect": 0.160552131094726
+     "expect": 0.1811676279647784
     },
     {
      "sheet": "Lines by source",
      "cell": "J48",
-     "expect": 0.36722002889593
+     "expect": 0.3678415442905718
     },
     {
      "sheet": "Lines by source",
      "cell": "K48",
-     "expect": 1.7129348585054847
+     "expect": 1.7227177132768419
     },
     {
      "sheet": "Lines by source",
@@ -3566,17 +3641,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E49",
-     "expect": 0.05484372246560282
+     "expect": 0.17517119680748014
     },
     {
      "sheet": "Lines by source",
      "cell": "F49",
-     "expect": 0.04345832152351619
+     "expect": 0.0999264932895555
     },
     {
      "sheet": "Lines by source",
      "cell": "G49",
-     "expect": 0.21336278046205925
+     "expect": 0.9557110525379066
     },
     {
      "sheet": "Lines by source",
@@ -3590,13 +3665,38 @@
     },
     {
      "sheet": "Lines by source",
+     "cell": "H49",
+     "expect": 0.07524470351792464
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I49",
+     "expect": 0.1252079501627024
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J49",
+     "expect": 0.2251344434522579
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K49",
+     "expect": 0.7442323116588719
+    },
+    {
+     "sheet": "Lines by source",
      "cell": "Q49",
-     "expect": ""
+     "expect": 1
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R49",
+     "expect": "Low"
     },
     {
      "sheet": "Lines by source",
      "cell": "S49",
-     "expect": "Refused: High would begin beyond the worst quarter kept"
+     "expect": ""
     },
     {
      "sheet": "Lines by source",
@@ -3661,17 +3761,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E51",
-     "expect": 0.5648800496386712
+     "expect": 0.541311420007059
     },
     {
      "sheet": "Lines by source",
      "cell": "F51",
-     "expect": 0.13429046241559983
+     "expect": 0.11057098555547462
     },
     {
      "sheet": "Lines by source",
      "cell": "G51",
-     "expect": 3.833376507059086
+     "expect": 3.5621147284413457
     },
     {
      "sheet": "Lines by source",
@@ -3681,27 +3781,27 @@
     {
      "sheet": "Lines by source",
      "cell": "M51",
-     "expect": 0.10526224891070414
+     "expect": 0.10262904527785062
     },
     {
      "sheet": "Lines by source",
      "cell": "H51",
-     "expect": 0.4305895872230714
+     "expect": 0.4307404344515844
     },
     {
      "sheet": "Lines by source",
      "cell": "I51",
-     "expect": 0.4977348184308713
+     "expect": 0.4860259272293217
     },
     {
      "sheet": "Lines by source",
      "cell": "J51",
-     "expect": 0.6320252808464711
+     "expect": 0.5965969127847963
     },
     {
      "sheet": "Lines by source",
      "cell": "K51",
-     "expect": 2.111172301094686
+     "expect": 2.0261761062212233
     },
     {
      "sheet": "Lines by source",
@@ -3721,17 +3821,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E52",
-     "expect": 0.13007991851866166
+     "expect": 0.2574813358086204
     },
     {
      "sheet": "Lines by source",
      "cell": "F52",
-     "expect": 0.0324628617675538
+     "expect": 0.11199358754628705
     },
     {
      "sheet": "Lines by source",
      "cell": "G52",
-     "expect": 0.2723286505810294
+     "expect": 1.0082309589244485
     },
     {
      "sheet": "Lines by source",
@@ -3745,13 +3845,38 @@
     },
     {
      "sheet": "Lines by source",
+     "cell": "H52",
+     "expect": 0.14548774826233338
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I52",
+     "expect": 0.2014845420354769
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J52",
+     "expect": 0.31347812958176396
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K52",
+     "expect": 0.8699582080262569
+    },
+    {
+     "sheet": "Lines by source",
      "cell": "Q52",
-     "expect": ""
+     "expect": 1
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R52",
+     "expect": "Low"
     },
     {
      "sheet": "Lines by source",
      "cell": "S52",
-     "expect": "Refused: High would begin beyond the worst quarter kept"
+     "expect": ""
     },
     {
      "sheet": "Lines by source",
@@ -4391,17 +4516,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E69",
-     "expect": 1.070080081108287
+     "expect": 1.0903375330450853
     },
     {
      "sheet": "Lines by source",
      "cell": "F69",
-     "expect": 0.2298281694330603
+     "expect": 0.26535646656268286
     },
     {
      "sheet": "Lines by source",
      "cell": "G69",
-     "expect": 2.040363212053108
+     "expect": 2.1096039782489724
     },
     {
      "sheet": "Lines by source",
@@ -4411,32 +4536,57 @@
     {
      "sheet": "Lines by source",
      "cell": "M69",
-     "expect": 1.3345872838686663
+     "expect": 1.550392085338516
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "H69",
+     "expect": 0.8249810664824024
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I69",
+     "expect": 0.9576592997637439
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J69",
+     "expect": 1.2230157663264267
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K69",
+     "expect": 1.829281853856854
     },
     {
      "sheet": "Lines by source",
      "cell": "Q69",
-     "expect": ""
+     "expect": 4
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R69",
+     "expect": "Moderate-High"
     },
     {
      "sheet": "Lines by source",
      "cell": "S69",
-     "expect": "Refused: High would begin beyond the worst quarter kept"
+     "expect": ""
     },
     {
      "sheet": "Lines by source",
      "cell": "E70",
-     "expect": 0.9818138781326688
+     "expect": 1.0190485551954143
     },
     {
      "sheet": "Lines by source",
      "cell": "F70",
-     "expect": 0.22167004816346467
+     "expect": 0.24368906679390187
     },
     {
      "sheet": "Lines by source",
      "cell": "G70",
-     "expect": 1.4579426220936313
+     "expect": 1.5504635338255814
     },
     {
      "sheet": "Lines by source",
@@ -4521,17 +4671,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E72",
-     "expect": 1.4294352787201656
+     "expect": 1.408595073366724
     },
     {
      "sheet": "Lines by source",
      "cell": "F72",
-     "expect": 0.22574850954008374
+     "expect": 0.38283663497286924
     },
     {
      "sheet": "Lines by source",
      "cell": "G72",
-     "expect": 2.6558573602123747
+     "expect": 2.729182420135111
     },
     {
      "sheet": "Lines by source",
@@ -4541,27 +4691,27 @@
     {
      "sheet": "Lines by source",
      "cell": "M72",
-     "expect": 1.7136008842788726
+     "expect": 2.0194451522005985
     },
     {
      "sheet": "Lines by source",
      "cell": "H72",
-     "expect": 1.2036867691800819
+     "expect": 1.0257584383938547
     },
     {
      "sheet": "Lines by source",
      "cell": "I72",
-     "expect": 1.3165610239501238
+     "expect": 1.2171767558802895
     },
     {
      "sheet": "Lines by source",
      "cell": "J72",
-     "expect": 1.5423095334902075
+     "expect": 1.6000133908531586
     },
     {
      "sheet": "Lines by source",
      "cell": "K72",
-     "expect": 2.5696002770252404
+     "expect": 2.4232587134610246
     },
     {
      "sheet": "Lines by source",
@@ -4581,17 +4731,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E73",
-     "expect": 1.1557880477241036
+     "expect": 1.181272946395066
     },
     {
      "sheet": "Lines by source",
      "cell": "F73",
-     "expect": 0.2606330364221347
+     "expect": 0.1974776968264934
     },
     {
      "sheet": "Lines by source",
      "cell": "G73",
-     "expect": 1.954364071016947
+     "expect": 2.0617647069338627
     },
     {
      "sheet": "Lines by source",
@@ -5301,17 +5451,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E90",
-     "expect": 0.7070995480683213
+     "expect": 0.707080533527564
     },
     {
      "sheet": "Lines by source",
      "cell": "F90",
-     "expect": 0.1874684711547294
+     "expect": 0.1930127531951151
     },
     {
      "sheet": "Lines by source",
      "cell": "G90",
-     "expect": 1.047260624520563
+     "expect": 1.0470816731822656
     },
     {
      "sheet": "Lines by source",
@@ -5321,7 +5471,7 @@
     {
      "sheet": "Lines by source",
      "cell": "M90",
-     "expect": 0.8774338721360744
+     "expect": 0.8774784779654787
     },
     {
      "sheet": "Lines by source",
@@ -5406,17 +5556,17 @@
     {
      "sheet": "Lines by source",
      "cell": "E93",
-     "expect": 1.2107001997224138
+     "expect": 1.211344101661908
     },
     {
      "sheet": "Lines by source",
      "cell": "F93",
-     "expect": 0.16388790328916816
+     "expect": 0.1623845657969841
     },
     {
      "sheet": "Lines by source",
      "cell": "G93",
-     "expect": 1.7584780088141188
+     "expect": 1.7582619631903902
     },
     {
      "sheet": "Lines by source",
@@ -5426,7 +5576,7 @@
     {
      "sheet": "Lines by source",
      "cell": "M93",
-     "expect": 1.5906162750803294
+     "expect": 1.5906160217009966
     },
     {
      "sheet": "Lines by source",
@@ -7181,7 +7331,7 @@
     {
      "sheet": "Decide",
      "cell": "N59",
-     "expect": 0.8774338721360744
+     "expect": 0.8774784779654787
     },
     {
      "sheet": "Decide",
@@ -7191,7 +7341,7 @@
     {
      "sheet": "Decide",
      "cell": "Q71",
-     "expect": 1.047260624520563
+     "expect": 1.0470816731822656
     },
     {
      "sheet": "Decide",
@@ -7256,7 +7406,7 @@
     {
      "sheet": "Thresholds",
      "cell": "N33",
-     "expect": 0.8774338721360744
+     "expect": 0.8774784779654787
     },
     {
      "sheet": "Thresholds",
@@ -7363,7 +7513,7 @@
     {
      "sheet": "Thresholds",
      "cell": "N12",
-     "expect": -0.0025743833456980635
+     "expect": -0.0024265883136588345
     },
     {
      "sheet": "Thresholds",

@@ -12,7 +12,7 @@ It opens on Summary; the tabs in order; two slicers, each with one button picked
 
 Every series' latest value, and Pick a source where its rating goes: 105 series, each with its own lines on Lines by source.
 
-1205 reads.
+1235 reads.
 
 ## B3 · On Decide, click Credit card and Nonaccrual, and pick KeyBank under Lines set from
 
