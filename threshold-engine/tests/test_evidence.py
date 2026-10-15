@@ -185,7 +185,7 @@ def test_a_planted_dip_and_a_larger_planted_spike_are_found_largest_first():
     for i, x in enumerate([2, 3, 4, 3, 2]):                        # spike, quarters 15-19
         v[15 + i] += x
     d = departures(quarters(v), lengths=(8,), rounds=2)
-    assert d[0]["direction"] == "above the path" and d[1]["direction"] == "below the path"
+    assert d[0]["direction"] == "worse than trend" and d[1]["direction"] == "better than trend"
     q = quarters(v)
     assert q[15].date <= d[0]["first"] <= d[0]["last"] <= q[19].date or         d[0]["first"] <= q[17].date <= d[0]["last"]
     assert d[1]["first"] <= q[53].date <= d[1]["last"]
@@ -214,19 +214,19 @@ def test_after_the_largest_its_reach_is_set_aside():
 def test_cards_departures_from_public_history():
     e = ev(load("cards_nco_ttm.csv"))
     got = [(d["first"][:4], d["direction"]) for d in e["departures"]]
-    assert got == [("2009", "above the path"), ("2001", "above the path"), ("2021", "below the path")]
+    assert got == [("2009", "worse than trend"), ("2001", "worse than trend"), ("2021", "better than trend")]
 
 
 def test_other_consumer_finds_the_pandemic_dip_second():
     e = ev(load("other_consumer_as_filed_nco_ttm.csv"))
     d = e["departures"][1]
-    assert d["direction"] == "below the path" and d["first"].startswith("2021")
+    assert d["direction"] == "better than trend" and d["first"].startswith("2021")
 
 
 
 def test_a_lower_is_worse_measure_reports_departures_in_its_own_units():
     # A credit score falling below its path is the worse direction: reported as
-    # worse ("above the path" in the engine's worse-is-higher terms) with a
+    # worse ("worse than trend" in the engine's worse-is-higher terms) with a
     # negative change in score points.
     cards = ev(load("cards_nco_ttm.csv"))["departures"][0]
     from threshold_engine.series import Point

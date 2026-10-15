@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Carlito:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #F4F1EC; }
+a { color: #CC0000; text-decoration: none; }
+a:hover { color: #960019; text-decoration: underline; }
+select, input { font: inherit; color: inherit; }
+</style>
+</helmet>
+
+<div style="background:#F4F1EC;font-family:'Hanken Grotesk',sans-serif;color:#16130F;padding:56px 64px 120px;width:2100px;">
+
+<div style="display:flex;align-items:flex-end;gap:48px;border-bottom:1px solid #DAD4CA;padding-bottom:28px;">
+  <div style="flex:1;">
+    <div style="font:700 13px Archivo;letter-spacing:.08em;text-transform:uppercase;color:#CC0000;">Threshold engine · workbook redesign</div>
+    <div style="font:800 46px/1.05 Archivo;margin-top:10px;">Set thresholds on one screen</div>
+    <div style="font-size:18px;line-height:1.5;color:#57534B;margin-top:12px;max-width:1100px;text-wrap:pretty;">Assess drawn at 100% zoom on a 1920-wide screen, cell for cell. It runs on the real Federal Reserve series: type in any yellow cell and every line, count, band and chart moves, as it will in Excel. Numbered dots are design notes, not part of the workbook.</div>
+  </div>
+  <div style="display:flex;gap:18px;font:600 15px 'Hanken Grotesk';">
+    <a href="#assess">Assess</a><a href="#thresholds">Thresholds</a><a href="#charttab">Chart</a><a href="#reference">Reference tabs</a><a href="#tokens">Tokens</a><a href="#reasons">Reasons</a>
+  </div>
+</div>
+
+<section id="assess" style="padding-top:40px;">
+<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;">
+  <div style="font:800 26px Archivo;">Assess</div>
+  <div style="font-size:15px;color:#57534B;">Opens here. Everything above the dashed line is on screen without scrolling.</div>
+</div>
+
+<div style="width:1920px;background:#fff;border:1px solid #B9B4AC;border-radius:8px;overflow:hidden;box-shadow:0 30px 80px -40px rgba(0,0,0,.4);">
+  <div style="height:32px;background:#E4DFD5;display:flex;align-items:center;justify-content:center;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;">Thresholds.xlsx · Excel</div>
+  <div style="height:64px;background:#F4F1EC;border-bottom:1px solid #E4DFD5;display:flex;align-items:flex-start;gap:22px;padding:8px 16px;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;">
+    <span>File</span><span style="color:#16130F;border-bottom:2px solid #57534B;">Home</span><span>Insert</span><span>Page Layout</span><span>Formulas</span><span>Data</span><span>Review</span><span>View</span>
+  </div>
+  <div style="height:28px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;font:13px 'Segoe UI',Arial,sans-serif;">
+    <div style="width:90px;height:100%;display:flex;align-items:center;padding:0 8px;border-right:1px solid #E4DFD5;color:#16130F;">{{ nameBox }}</div>
+    <div style="padding:0 12px;color:#9A958C;font-style:italic;border-right:1px solid #E4DFD5;">fx</div>
+    <div style="padding:0 12px;color:#16130F;font-family:Consolas,monospace;font-size:12.5px;white-space:nowrap;overflow:hidden;">{{ fxText }}</div>
+  </div>
+
+  <div style="display:flex;">
+  <div style="display:grid;grid-template-columns:36px 1811px;position:relative;">
+    <div style="height:20px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #D4D4D4;"></div>
+    <div style="height:20px;display:grid;grid-template-columns:24px 110px repeat(9,68px) 378px 24px 110px repeat(6,75px) 103px;background:#F3F2F1;border-bottom:1px solid #D4D4D4;font:12px 'Segoe UI',Arial,sans-serif;color:#57534B;">
+      <sc-for list="{{ colLetters }}" as="c" hint-placeholder-count="21"><div style="display:flex;align-items:center;justify-content:center;border-right:1px solid #E1E1E1;">{{ c }}</div></sc-for>
+    </div>
+    <div style="display:grid;grid-template-rows:30px 18px 6px 16px 30px 34px 10px 22px 30px repeat(5,20px) 18px 10px 22px 30px repeat(4,20px) 10px 22px 20px repeat(12,20px) 18px 14px 22px 30px repeat(20,20px) 16px 22px 20px 30px repeat(5,20px) 30px 20px 30px repeat(5,20px) 30px 20px 30px repeat(5,20px) 30px 18px;background:#F3F2F1;border-right:1px solid #D4D4D4;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;">
+      <sc-for list="{{ rowNums }}" as="n" hint-placeholder-count="88"><div style="display:flex;align-items:center;justify-content:center;border-bottom:1px solid #E1E1E1;overflow:hidden;">{{ n }}</div></sc-for>
+    </div>
+
+    <div ref="{{ sheetRef }}" style="position:relative;display:grid;grid-template-columns:24px 110px repeat(9,68px) 378px 24px 110px repeat(6,75px) 103px;grid-template-rows:30px 18px 6px 16px 30px 34px 10px 22px 30px repeat(5,20px) 18px 10px 22px 30px repeat(4,20px) 10px 22px 20px repeat(12,20px) 18px 14px 22px 30px repeat(20,20px) 16px 22px 20px 30px repeat(5,20px) 30px 20px 30px repeat(5,20px) 30px 20px 30px repeat(5,20px) 30px 18px;font:14.67px Calibri,Carlito,sans-serif;color:#16130F;">
+
+      <div style="grid-column:2/22;grid-row:1/2;display:flex;align-items:flex-end;font:700 21.33px Arial,sans-serif;color:#0A0908;padding-left:2px;">Assess · set one product's thresholds</div>
+      <div style="grid-column:2/22;grid-row:2/3;display:flex;align-items:center;font:14.67px Calibri,Carlito,sans-serif;color:#57534B;padding-left:2px;border-bottom:2px solid #CC0000;white-space:nowrap;">Pick a product, leave out periods that do not represent the risk, and set four things. Yellow cells are the only cells you type in; everything else follows as you type.</div>
+
+      <div style="grid-column:2/3;grid-row:4/5;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;padding:0 5px;">Product</div>
+      <div style="grid-column:4/6;grid-row:4/5;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;padding:0 5px;">Latest quarter</div>
+      <div style="grid-column:6/8;grid-row:4/5;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 5px;">Latest ({{ unit }})</div>
+      <div style="grid-column:8/11;grid-row:4/5;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;padding:0 5px;">Latest score</div>
+      <div style="grid-column:12/13;grid-row:4/5;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;padding:0 5px;">Measure</div>
+
+      <div data-cell="B5" style="grid-column:2/3;grid-row:5/6;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;">
+        <select value="{{ product }}" onChange="{{ onProduct }}" onFocus="{{ focProduct }}" onBlur="{{ blur }}" style="width:100%;height:100%;border:0;background:transparent;font:700 16px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;" style-focus="box-shadow:inset 0 0 0 2px #217346;">
+          <sc-for list="{{ names }}" as="o" hint-placeholder-count="4"><option value="{{ o }}">{{ o }}</option></sc-for>
+        </select>
+      </div>
+      <div style="grid-column:4/6;grid-row:5/6;display:flex;align-items:center;padding:0 5px;font:700 18.67px Calibri,Carlito,sans-serif;">{{ lastQ }}</div>
+      <div style="grid-column:6/8;grid-row:5/6;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;font:700 18.67px Calibri,Carlito,sans-serif;font-variant-numeric:tabular-nums;">{{ lastV }}</div>
+      <div style="grid-column:8/11;grid-row:5/6;display:flex;align-items:center;padding:0 8px;font:700 14.67px Arial,sans-serif;background:{{ chipBg }};color:{{ chipColor }};">{{ chipText }}</div>
+      <div style="grid-column:12/13;grid-row:5/6;display:flex;align-items:center;padding:0 5px;color:#57534B;white-space:nowrap;">{{ measure }}</div>
+
+      <div style="grid-column:2/22;grid-row:6/7;display:flex;align-items:center;gap:14px;padding:0 10px;background:{{ checkBg }};box-shadow:inset 0 0 0 1px {{ checkEdge }};white-space:nowrap;overflow:hidden;">
+        <span style="font:700 16px Arial,sans-serif;color:{{ checkColor }};">{{ checkText }}</span>
+        <span style="font:14.67px Calibri,Carlito,sans-serif;color:{{ checkColor }};">{{ checkFix }}</span>
+      </div>
+
+      <div style="grid-column:2/13;grid-row:8/9;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;white-space:nowrap;">{{ chartTitle }}</div>
+      <div style="grid-column:2/13;grid-row:9/32;background:#fff;">{{ mainChart }}</div>
+
+      <div style="grid-column:2/13;grid-row:33/34;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">What the evidence says about {{ product }}</div>
+      <div style="grid-column:2/13;grid-row:34/37;display:flex;flex-direction:column;">
+        <div style="height:20px;display:grid;grid-template-columns:110px 1fr;align-items:center;border-bottom:1px solid #E7E2D8;"><div style="padding:0 5px;font:700 12px Arial,sans-serif;color:#57534B;">Suggested</div><div style="padding:0 5px;white-space:nowrap;overflow:hidden;">{{ ev.s }}</div></div>
+        <div style="height:20px;display:grid;grid-template-columns:110px 1fr;align-items:center;border-bottom:1px solid #E7E2D8;"><div style="padding:0 5px;font:700 12px Arial,sans-serif;color:#57534B;">Departures</div><div style="padding:0 5px;white-space:nowrap;overflow:hidden;">{{ ev.t }}</div></div>
+        <div style="height:20px;display:grid;grid-template-columns:110px 1fr;align-items:center;border-bottom:1px solid #E7E2D8;"><div style="padding:0 5px;font:700 12px Arial,sans-serif;color:#57534B;">Why</div><div style="padding:0 5px;white-space:nowrap;overflow:hidden;">{{ ev.w }}</div></div>
+      </div>
+
+      <div style="grid-column:14/22;grid-row:8/39;display:flex;flex-direction:column;">
+        <div style="height:22px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">Scores for {{ product }}</div>
+        <div style="height:30px;display:grid;grid-template-columns:110px repeat(6,75px) 103px;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;">
+          <div style="padding:0 5px;">Score</div><div style="padding:0 5px;text-align:right;">From</div><div style="padding:0 5px;text-align:right;">To</div><div style="padding:0 5px;text-align:right;">Quarters kept</div><div style="padding:0 5px;text-align:right;">Share kept</div><div style="padding:0 5px;text-align:right;">Every quarter</div><div style="padding:0 5px;text-align:right;">Share of every</div><div style="padding:0 5px;">Latest</div>
+        </div>
+        <div style="height:20px;display:grid;grid-template-columns:110px repeat(6,75px) 103px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+          <div style="height:100%;display:flex;align-items:center;padding:0 5px;white-space:nowrap;background:#F4F1EC;box-shadow:inset 0 0 0 1px #B9B4AC;font:700 12px Arial,sans-serif;">1 Low</div><div style="padding:0 5px;text-align:right;">{{ s1.from }}</div><div style="padding:0 5px;text-align:right;">{{ s1.to }}</div><div style="padding:0 5px;text-align:right;">{{ s1.kept }}</div><div style="padding:0 5px;text-align:right;">{{ s1.share }}</div><div style="padding:0 5px;text-align:right;">{{ s1.every }}</div><div style="padding:0 5px;text-align:right;">{{ s1.eshare }}</div><div style="padding:0 5px;font-weight:700;">{{ s1.mark }}</div>
+        </div>
+        <div style="height:20px;display:grid;grid-template-columns:110px repeat(6,75px) 103px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+          <div style="height:100%;display:flex;align-items:center;padding:0 5px;white-space:nowrap;background:#E4DFD5;font:700 12px Arial,sans-serif;">2 Moderate-Low</div><div style="padding:0 5px;text-align:right;">{{ s2.from }}</div><div style="padding:0 5px;text-align:right;">{{ s2.to }}</div><div style="padding:0 5px;text-align:right;">{{ s2.kept }}</div><div style="padding:0 5px;text-align:right;">{{ s2.share }}</div><div style="padding:0 5px;text-align:right;">{{ s2.every }}</div><div style="padding:0 5px;text-align:right;">{{ s2.eshare }}</div><div style="padding:0 5px;font-weight:700;">{{ s2.mark }}</div>
+        </div>
+        <div style="height:20px;display:grid;grid-template-columns:110px repeat(6,75px) 103px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+          <div style="height:100%;display:flex;align-items:center;padding:0 5px;white-space:nowrap;background:#EFD7CF;font:700 12px Arial,sans-serif;">3 Moderate</div><div style="padding:0 5px;text-align:right;">{{ s3.from }}</div><div style="padding:0 5px;text-align:right;">{{ s3.to }}</div><div style="padding:0 5px;text-align:right;">{{ s3.kept }}</div><div style="padding:0 5px;text-align:right;">{{ s3.share }}</div><div style="padding:0 5px;text-align:right;">{{ s3.every }}</div><div style="padding:0 5px;text-align:right;">{{ s3.eshare }}</div><div style="padding:0 5px;font-weight:700;">{{ s3.mark }}</div>
+        </div>
+        <div style="height:20px;display:grid;grid-template-columns:110px repeat(6,75px) 103px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+          <div style="height:100%;display:flex;align-items:center;padding:0 5px;white-space:nowrap;background:#E0A6A6;font:700 12px Arial,sans-serif;">4 Moderate-High</div><div style="padding:0 5px;text-align:right;">{{ s4.from }}</div><div style="padding:0 5px;text-align:right;">{{ s4.to }}</div><div style="padding:0 5px;text-align:right;">{{ s4.kept }}</div><div style="padding:0 5px;text-align:right;">{{ s4.share }}</div><div style="padding:0 5px;text-align:right;">{{ s4.every }}</div><div style="padding:0 5px;text-align:right;">{{ s4.eshare }}</div><div style="padding:0 5px;font-weight:700;">{{ s4.mark }}</div>
+        </div>
+        <div style="height:20px;display:grid;grid-template-columns:110px repeat(6,75px) 103px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+          <div style="height:100%;display:flex;align-items:center;padding:0 5px;white-space:nowrap;background:#CC8080;font:700 12px Arial,sans-serif;">5 High</div><div style="padding:0 5px;text-align:right;">{{ s5.from }}</div><div style="padding:0 5px;text-align:right;">{{ s5.to }}</div><div style="padding:0 5px;text-align:right;">{{ s5.kept }}</div><div style="padding:0 5px;text-align:right;">{{ s5.share }}</div><div style="padding:0 5px;text-align:right;">{{ s5.every }}</div><div style="padding:0 5px;text-align:right;">{{ s5.eshare }}</div><div style="padding:0 5px;font-weight:700;">{{ s5.mark }}</div>
+        </div>
+        <div style="height:18px;display:flex;align-items:center;padding:0 2px;font:13.33px Calibri,Carlito,sans-serif;color:#57534B;white-space:nowrap;">{{ scoreNote }}</div>
+        <div style="height:10px;"></div>
+
+        <div style="height:22px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">Your settings · one row per product, the picked one highlighted</div>
+        <div style="height:30px;display:grid;grid-template-columns:110px repeat(4,75px) 253px;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;">
+          <div style="padding:0 5px;">Product</div><div style="padding:0 5px;text-align:right;">Width of Moderate</div><div style="padding:0 5px;text-align:right;">Moderate-Low begins</div><div style="padding:0 5px;text-align:right;">How rare High is (z)</div><div style="padding:0 5px;">A value on a line takes the</div><div style="padding:0 5px 0 12px;">Check</div>
+        </div>
+        <sc-for list="{{ setRows }}" as="s" hint-placeholder-count="4">
+          <div style="height:20px;display:grid;grid-template-columns:110px repeat(4,75px) 253px;align-items:center;border-bottom:1px solid #E7E2D8;">
+            <div style="height:100%;display:flex;align-items:center;padding:0 5px;background:{{ s.nameBg }};font-weight:{{ s.nameW }};">{{ s.name }}</div>
+            <div data-cell="1" style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ s.hw }}" onChange="{{ s.onHw }}" onFocus="{{ s.fHw }}" onBlur="{{ blur }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 5px;text-align:right;outline:none;" style-focus="box-shadow:inset 0 0 0 2px #217346;"></div>
+            <div data-cell="1" style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ s.ls }}" onChange="{{ s.onLs }}" onFocus="{{ s.fLs }}" onBlur="{{ blur }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 5px;text-align:right;outline:none;" style-focus="box-shadow:inset 0 0 0 2px #217346;"></div>
+            <div data-cell="1" style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ s.hz }}" onChange="{{ s.onHz }}" onFocus="{{ s.fHz }}" onBlur="{{ blur }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 5px;text-align:right;outline:none;" style-focus="box-shadow:inset 0 0 0 2px #217346;"></div>
+            <div data-cell="1" style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select value="{{ s.rule }}" onChange="{{ s.onRule }}" onFocus="{{ s.fRule }}" onBlur="{{ blur }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 2px;outline:none;cursor:pointer;" style-focus="box-shadow:inset 0 0 0 2px #217346;"><option value="worse">worse</option><option value="better">better</option></select></div>
+            <div style="padding:0 5px 0 12px;white-space:nowrap;overflow:hidden;color:{{ s.chkColor }};font-weight:{{ s.chkW }};">{{ s.chk }}</div>
+          </div>
+        </sc-for>
+        <div style="height:10px;"></div>
+
+        <div style="height:22px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">Periods left out · the product, first and last quarter, and why</div>
+        <div style="height:20px;display:grid;grid-template-columns:110px 75px 75px 225px 178px;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px Arial,sans-serif;color:#57534B;">
+          <div style="padding:0 5px;">Product</div><div style="padding:0 5px;">From</div><div style="padding:0 5px;">To</div><div style="padding:0 5px;">Reason</div><div style="padding:0 5px 0 12px;">Status</div>
+        </div>
+        <sc-for list="{{ loRows }}" as="r" hint-placeholder-count="12">
+          <div style="height:20px;display:grid;grid-template-columns:110px 75px 75px 225px 178px;align-items:center;">
+            <div data-cell="1" style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select value="{{ r.p }}" onChange="{{ r.onP }}" onFocus="{{ r.fP }}" onBlur="{{ blur }}" style="width:100%;height:100%;border:0;background:transparent;font:14.67px Calibri,Carlito,sans-serif;padding:0 2px;outline:none;cursor:pointer;" style-focus="box-shadow:inset 0 0 0 2px #217346;"><option value=""></option><sc-for list="{{ names }}" as="o" hint-placeholder-count="4"><option value="{{ o }}">{{ o }}</option></sc-for></select></div>
+            <div data-cell="1" style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select value="{{ r.from }}" onChange="{{ r.onF }}" onFocus="{{ r.fF }}" onBlur="{{ blur }}" style="width:100%;height:100%;border:0;background:transparent;font:14.67px Calibri,Carlito,sans-serif;padding:0 2px;outline:none;cursor:pointer;" style-focus="box-shadow:inset 0 0 0 2px #217346;"><option value=""></option><sc-for list="{{ grid }}" as="q" hint-placeholder-count="2"><option value="{{ q }}">{{ q }}</option></sc-for></select></div>
+            <div data-cell="1" style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select value="{{ r.to }}" onChange="{{ r.onT }}" onFocus="{{ r.fT }}" onBlur="{{ blur }}" style="width:100%;height:100%;border:0;background:transparent;font:14.67px Calibri,Carlito,sans-serif;padding:0 2px;outline:none;cursor:pointer;" style-focus="box-shadow:inset 0 0 0 2px #217346;"><option value=""></option><sc-for list="{{ grid }}" as="q" hint-placeholder-count="2"><option value="{{ q }}">{{ q }}</option></sc-for></select></div>
+            <div data-cell="1" style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ r.r }}" onChange="{{ r.onR }}" onFocus="{{ r.fR }}" onBlur="{{ blur }}" style="width:100%;height:100%;border:0;background:transparent;font:14.67px Calibri,Carlito,sans-serif;padding:0 5px;outline:none;" style-focus="box-shadow:inset 0 0 0 2px #217346;"></div>
+            <div style="height:100%;display:flex;align-items:center;padding:0 5px 0 12px;white-space:nowrap;overflow:hidden;background:{{ r.stBg }};color:{{ r.stColor }};font-weight:{{ r.stW }};">{{ r.st }}</div>
+          </div>
+        </sc-for>
+        <div style="height:18px;display:flex;align-items:center;padding:0 2px;font:13.33px Calibri,Carlito,sans-serif;color:#57534B;white-space:nowrap;">Left-out quarters stay on the chart as grey dots over a dark strip. Select a row's yellow cells and press Delete to put them back.</div>
+      </div>
+
+      <div style="grid-column:2/13;grid-row:40/41;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">What happens if · your lines against keeping every quarter</div>
+      <div style="grid-column:2/13;grid-row:41/45;display:flex;flex-direction:column;">
+        <div style="height:30px;display:grid;grid-template-columns:110px repeat(9,68px) 378px;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;">
+          <div></div><div style="padding:0 5px;text-align:right;">2 from</div><div style="padding:0 5px;text-align:right;">3 from</div><div style="padding:0 5px;text-align:right;">4 from</div><div style="padding:0 5px;text-align:right;">5 from</div>
+          <div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#F4F1EC;box-shadow:inset 0 0 0 1px #B9B4AC;color:#16130F;">1 Low</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#E4DFD5;color:#16130F;">2 Mod-Low</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#EFD7CF;color:#16130F;">3 Moderate</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#E0A6A6;color:#16130F;">4 Mod-High</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#CC8080;color:#16130F;">5 High</div><div style="padding:0 5px 0 14px;">On the chart below</div>
+        </div>
+        <div style="height:20px;display:grid;grid-template-columns:110px repeat(9,68px) 378px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+          <div style="padding:0 5px;font-weight:700;white-space:nowrap;">As you have it</div><div style="padding:0 5px;text-align:right;">{{ sc1.l2 }}</div><div style="padding:0 5px;text-align:right;">{{ sc1.l3 }}</div><div style="padding:0 5px;text-align:right;">{{ sc1.l4 }}</div><div style="padding:0 5px;text-align:right;">{{ sc1.l5 }}</div><div style="padding:0 5px;text-align:right;">{{ sc1.c1 }}</div><div style="padding:0 5px;text-align:right;">{{ sc1.c2 }}</div><div style="padding:0 5px;text-align:right;">{{ sc1.c3 }}</div><div style="padding:0 5px;text-align:right;">{{ sc1.c4 }}</div><div style="padding:0 5px;text-align:right;">{{ sc1.c5 }}</div><div style="padding:0 5px 0 14px;color:#57534B;">solid lines; counts are quarters kept</div>
+        </div>
+        <div style="height:20px;display:grid;grid-template-columns:110px repeat(9,68px) 378px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+          <div style="padding:0 5px;font-weight:700;white-space:nowrap;">Every quarter</div><div style="padding:0 5px;text-align:right;">{{ sc2.l2 }}</div><div style="padding:0 5px;text-align:right;">{{ sc2.l3 }}</div><div style="padding:0 5px;text-align:right;">{{ sc2.l4 }}</div><div style="padding:0 5px;text-align:right;">{{ sc2.l5 }}</div><div style="padding:0 5px;text-align:right;">{{ sc2.c1 }}</div><div style="padding:0 5px;text-align:right;">{{ sc2.c2 }}</div><div style="padding:0 5px;text-align:right;">{{ sc2.c3 }}</div><div style="padding:0 5px;text-align:right;">{{ sc2.c4 }}</div><div style="padding:0 5px;text-align:right;">{{ sc2.c5 }}</div><div style="padding:0 5px 0 14px;color:#57534B;">dashed lines; same settings, nothing left out</div>
+        </div>
+      </div>
+      <div style="grid-column:2/13;grid-row:45/62;background:#fff;">{{ scenChart }}</div>
+
+      <div style="grid-column:14/22;grid-row:40/41;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">What the lines rest on</div>
+      <div style="grid-column:14/22;grid-row:41/46;display:flex;flex-direction:column;">
+        <div style="height:30px;display:grid;grid-template-columns:260px 150px 150px 103px;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px Arial,sans-serif;color:#57534B;">
+          <div></div><div style="padding:0 5px;text-align:right;">Quarters kept</div><div style="padding:0 5px;text-align:right;">Every quarter</div><div></div>
+        </div>
+        <sc-for list="{{ rests }}" as="x" hint-placeholder-count="4">
+          <div style="height:20px;display:grid;grid-template-columns:260px 150px 150px 103px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+            <div style="padding:0 5px;">{{ x.label }}</div><div style="padding:0 5px;text-align:right;font-weight:700;">{{ x.k }}</div><div style="padding:0 5px;text-align:right;color:#57534B;">{{ x.a }}</div><div></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="grid-column:14/22;grid-row:47/48;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">What each setting does</div>
+      <div style="grid-column:14/22;grid-row:48/54;display:flex;flex-direction:column;">
+        <div style="height:20px;display:grid;grid-template-columns:185px 1fr;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px Arial,sans-serif;color:#57534B;"><div style="padding:0 5px;">Setting</div><div style="padding:0 5px;">Raise it and</div></div>
+        <sc-for list="{{ does }}" as="x" hint-placeholder-count="5">
+          <div style="height:20px;display:grid;grid-template-columns:185px 1fr;align-items:center;border-bottom:1px solid #E7E2D8;">
+            <div style="padding:0 5px;font-weight:700;white-space:nowrap;">{{ x.s }}</div><div style="padding:0 5px;white-space:nowrap;overflow:hidden;">{{ x.t }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="grid-column:14/22;grid-row:55/57;display:flex;align-items:flex-start;padding:4px 2px;font:13.33px Calibri,Carlito,sans-serif;color:#57534B;">Select any yellow cell for its full definition. Every term is on the Glossary tab.</div>
+
+      <div style="grid-column:2/22;grid-row:63/64;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">Dials · one setting at other values, the others as in Your settings; the shaded row is now</div>
+
+      <div style="grid-column:2/13;grid-row:64/72;display:flex;flex-direction:column;">
+        <div style="height:20px;display:flex;align-items:flex-end;padding:0 5px 2px;font:700 13.33px Arial,sans-serif;">{{ d1.title }}</div>
+        <div style="height:30px;display:grid;grid-template-columns:110px repeat(9,68px) 378px;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;">
+          <div style="padding:0 5px;text-align:right;">Value</div><div style="padding:0 5px;text-align:right;">2 from</div><div style="padding:0 5px;text-align:right;">3 from</div><div style="padding:0 5px;text-align:right;">4 from</div><div style="padding:0 5px;text-align:right;">5 from</div>
+          <div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#F4F1EC;box-shadow:inset 0 0 0 1px #B9B4AC;color:#16130F;">1 Low</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#E4DFD5;color:#16130F;">2 Mod-Low</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#EFD7CF;color:#16130F;">3 Moderate</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#E0A6A6;color:#16130F;">4 Mod-High</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#CC8080;color:#16130F;">5 High</div><div style="padding:0 5px 0 14px;">Note</div>
+        </div>
+        <sc-for list="{{ d1.rows }}" as="r" hint-placeholder-count="5">
+          <div style="height:20px;display:grid;grid-template-columns:110px repeat(9,68px) 378px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;background:{{ r.bg }};font-weight:{{ r.w }};">
+            <div style="padding:0 5px;text-align:right;">{{ r.v }}</div><div style="padding:0 5px;text-align:right;">{{ r.l2 }}</div><div style="padding:0 5px;text-align:right;">{{ r.l3 }}</div><div style="padding:0 5px;text-align:right;">{{ r.l4 }}</div><div style="padding:0 5px;text-align:right;">{{ r.l5 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c1 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c2 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c3 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c4 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c5 }}</div><div style="padding:0 5px 0 14px;color:{{ r.nc }};white-space:nowrap;">{{ r.note }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="grid-column:14/22;grid-row:64/72;display:flex;flex-direction:column;padding:0 6px 6px 40px;">
+        <div style="height:20px;font:700 13.33px Calibri,Carlito,sans-serif;display:flex;align-items:flex-end;">{{ d1.ctitle }}</div>
+        <div style="flex:1;display:flex;align-items:flex-end;gap:26px;border-bottom:1px solid #B9B4AC;padding:6px 18px 0;position:relative;">
+          <div style="position:absolute;left:-30px;top:4px;font:12px Calibri,Carlito,sans-serif;color:#57534B;">{{ d1.max }}</div><div style="position:absolute;left:-14px;bottom:-7px;font:12px Calibri,Carlito,sans-serif;color:#57534B;">0</div>
+          <sc-for list="{{ d1.bars }}" as="b" hint-placeholder-count="5"><div style="flex:1;display:flex;flex-direction:column-reverse;"><sc-for list="{{ b.segs }}" as="g" hint-placeholder-count="5"><div style="height:{{ g.h }}px;background:{{ g.c }};box-shadow:inset 0 0 0 .5px #B9B4AC;"></div></sc-for></div></sc-for>
+        </div>
+        <div style="height:18px;display:flex;gap:26px;padding:2px 18px 0;font:12px Calibri,Carlito,sans-serif;color:#57534B;"><sc-for list="{{ d1.bars }}" as="b" hint-placeholder-count="5"><div style="flex:1;text-align:center;font-weight:{{ b.w }};">{{ b.label }}</div></sc-for></div>
+      </div>
+
+      <div style="grid-column:2/13;grid-row:72/80;display:flex;flex-direction:column;">
+        <div style="height:20px;display:flex;align-items:flex-end;padding:0 5px 2px;font:700 13.33px Arial,sans-serif;">{{ d2.title }}</div>
+        <div style="height:30px;display:grid;grid-template-columns:110px repeat(9,68px) 378px;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;">
+          <div style="padding:0 5px;text-align:right;">Value</div><div style="padding:0 5px;text-align:right;">2 from</div><div style="padding:0 5px;text-align:right;">3 from</div><div style="padding:0 5px;text-align:right;">4 from</div><div style="padding:0 5px;text-align:right;">5 from</div>
+          <div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#F4F1EC;box-shadow:inset 0 0 0 1px #B9B4AC;color:#16130F;">1 Low</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#E4DFD5;color:#16130F;">2 Mod-Low</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#EFD7CF;color:#16130F;">3 Moderate</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#E0A6A6;color:#16130F;">4 Mod-High</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#CC8080;color:#16130F;">5 High</div><div style="padding:0 5px 0 14px;">Note</div>
+        </div>
+        <sc-for list="{{ d2.rows }}" as="r" hint-placeholder-count="5">
+          <div style="height:20px;display:grid;grid-template-columns:110px repeat(9,68px) 378px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;background:{{ r.bg }};font-weight:{{ r.w }};">
+            <div style="padding:0 5px;text-align:right;">{{ r.v }}</div><div style="padding:0 5px;text-align:right;">{{ r.l2 }}</div><div style="padding:0 5px;text-align:right;">{{ r.l3 }}</div><div style="padding:0 5px;text-align:right;">{{ r.l4 }}</div><div style="padding:0 5px;text-align:right;">{{ r.l5 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c1 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c2 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c3 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c4 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c5 }}</div><div style="padding:0 5px 0 14px;color:{{ r.nc }};white-space:nowrap;">{{ r.note }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="grid-column:14/22;grid-row:72/80;display:flex;flex-direction:column;padding:0 6px 6px 40px;">
+        <div style="height:20px;font:700 13.33px Calibri,Carlito,sans-serif;display:flex;align-items:flex-end;">{{ d2.ctitle }}</div>
+        <div style="flex:1;display:flex;align-items:flex-end;gap:26px;border-bottom:1px solid #B9B4AC;padding:6px 18px 0;position:relative;">
+          <div style="position:absolute;left:-30px;top:4px;font:12px Calibri,Carlito,sans-serif;color:#57534B;">{{ d2.max }}</div><div style="position:absolute;left:-14px;bottom:-7px;font:12px Calibri,Carlito,sans-serif;color:#57534B;">0</div>
+          <sc-for list="{{ d2.bars }}" as="b" hint-placeholder-count="5"><div style="flex:1;display:flex;flex-direction:column-reverse;"><sc-for list="{{ b.segs }}" as="g" hint-placeholder-count="5"><div style="height:{{ g.h }}px;background:{{ g.c }};box-shadow:inset 0 0 0 .5px #B9B4AC;"></div></sc-for></div></sc-for>
+        </div>
+        <div style="height:18px;display:flex;gap:26px;padding:2px 18px 0;font:12px Calibri,Carlito,sans-serif;color:#57534B;"><sc-for list="{{ d2.bars }}" as="b" hint-placeholder-count="5"><div style="flex:1;text-align:center;font-weight:{{ b.w }};">{{ b.label }}</div></sc-for></div>
+      </div>
+
+      <div style="grid-column:2/13;grid-row:80/88;display:flex;flex-direction:column;">
+        <div style="height:20px;display:flex;align-items:flex-end;padding:0 5px 2px;font:700 13.33px Arial,sans-serif;">{{ d3.title }}</div>
+        <div style="height:30px;display:grid;grid-template-columns:110px repeat(9,68px) 378px;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;">
+          <div style="padding:0 5px;text-align:right;">Value</div><div style="padding:0 5px;text-align:right;">2 from</div><div style="padding:0 5px;text-align:right;">3 from</div><div style="padding:0 5px;text-align:right;">4 from</div><div style="padding:0 5px;text-align:right;">5 from</div>
+          <div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#F4F1EC;box-shadow:inset 0 0 0 1px #B9B4AC;color:#16130F;">1 Low</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#E4DFD5;color:#16130F;">2 Mod-Low</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#EFD7CF;color:#16130F;">3 Moderate</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#E0A6A6;color:#16130F;">4 Mod-High</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 5px;background:#CC8080;color:#16130F;">5 High</div><div style="padding:0 5px 0 14px;">Note</div>
+        </div>
+        <sc-for list="{{ d3.rows }}" as="r" hint-placeholder-count="5">
+          <div style="height:20px;display:grid;grid-template-columns:110px repeat(9,68px) 378px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;background:{{ r.bg }};font-weight:{{ r.w }};">
+            <div style="padding:0 5px;text-align:right;">{{ r.v }}</div><div style="padding:0 5px;text-align:right;">{{ r.l2 }}</div><div style="padding:0 5px;text-align:right;">{{ r.l3 }}</div><div style="padding:0 5px;text-align:right;">{{ r.l4 }}</div><div style="padding:0 5px;text-align:right;">{{ r.l5 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c1 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c2 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c3 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c4 }}</div><div style="padding:0 5px;text-align:right;">{{ r.c5 }}</div><div style="padding:0 5px 0 14px;color:{{ r.nc }};white-space:nowrap;">{{ r.note }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="grid-column:14/22;grid-row:80/88;display:flex;flex-direction:column;padding:0 6px 6px 40px;">
+        <div style="height:20px;font:700 13.33px Calibri,Carlito,sans-serif;display:flex;align-items:flex-end;">{{ d3.ctitle }}</div>
+        <div style="flex:1;display:flex;align-items:flex-end;gap:26px;border-bottom:1px solid #B9B4AC;padding:6px 18px 0;position:relative;">
+          <div style="position:absolute;left:-30px;top:4px;font:12px Calibri,Carlito,sans-serif;color:#57534B;">{{ d3.max }}</div><div style="position:absolute;left:-14px;bottom:-7px;font:12px Calibri,Carlito,sans-serif;color:#57534B;">0</div>
+          <sc-for list="{{ d3.bars }}" as="b" hint-placeholder-count="5"><div style="flex:1;display:flex;flex-direction:column-reverse;"><sc-for list="{{ b.segs }}" as="g" hint-placeholder-count="5"><div style="height:{{ g.h }}px;background:{{ g.c }};box-shadow:inset 0 0 0 .5px #B9B4AC;"></div></sc-for></div></sc-for>
+        </div>
+        <div style="height:18px;display:flex;gap:26px;padding:2px 18px 0;font:12px Calibri,Carlito,sans-serif;color:#57534B;"><sc-for list="{{ d3.bars }}" as="b" hint-placeholder-count="5"><div style="flex:1;text-align:center;font-weight:{{ b.w }};">{{ b.label }}</div></sc-for></div>
+      </div>
+      <div style="grid-column:2/22;grid-row:88/89;display:flex;align-items:center;padding:0 2px;font:13.33px Calibri,Carlito,sans-serif;color:#57534B;">Each dial changes one setting and holds the others as they are in Your settings. A refused value still shows where its lines fall, so you can see why.</div>
+
+      <sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}">
+        <div style="grid-column:1/2;grid-row:1/2;display:flex;align-items:center;justify-content:center;"><div style="width:19px;height:19px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Archivo;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #B9B4AC;">1</div></div>
+        <div style="grid-column:1/2;grid-row:5/6;display:flex;align-items:center;justify-content:center;"><div style="width:19px;height:19px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Archivo;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #B9B4AC;">2</div></div>
+        <div style="grid-column:1/2;grid-row:6/7;display:flex;align-items:center;justify-content:center;"><div style="width:19px;height:19px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Archivo;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #B9B4AC;">3</div></div>
+        <div style="grid-column:1/2;grid-row:8/9;display:flex;align-items:center;justify-content:center;"><div style="width:19px;height:19px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Archivo;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #B9B4AC;">4</div></div>
+        <div style="grid-column:13/14;grid-row:8/9;display:flex;align-items:center;justify-content:center;"><div style="width:19px;height:19px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Archivo;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #B9B4AC;">5</div></div>
+        <div style="grid-column:13/14;grid-row:17/18;display:flex;align-items:center;justify-content:center;"><div style="width:19px;height:19px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Archivo;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #B9B4AC;">6</div></div>
+        <div style="grid-column:13/14;grid-row:24/25;display:flex;align-items:center;justify-content:center;"><div style="width:19px;height:19px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Archivo;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #B9B4AC;">7</div></div>
+        <div style="grid-column:1/2;grid-row:33/34;display:flex;align-items:center;justify-content:center;"><div style="width:19px;height:19px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Archivo;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #B9B4AC;">8</div></div>
+        <div style="grid-column:1/2;grid-row:40/41;display:flex;align-items:center;justify-content:center;"><div style="width:19px;height:19px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Archivo;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #B9B4AC;">9</div></div>
+        <div style="grid-column:13/14;grid-row:47/48;display:flex;align-items:center;justify-content:center;"><div style="width:19px;height:19px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Archivo;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #B9B4AC;">10</div></div>
+        <div style="grid-column:1/2;grid-row:63/64;display:flex;align-items:center;justify-content:center;"><div style="width:19px;height:19px;border-radius:50%;background:#0A0908;color:#fff;font:700 11px Archivo;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #B9B4AC;">11</div></div>
+      </sc-if>
+
+      <sc-if value="{{ showFold }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;left:0;right:0;top:780px;border-top:2px dashed #CC0000;pointer-events:none;"><span style="position:absolute;right:8px;top:-22px;background:#CC0000;color:#fff;font:700 11px Archivo;padding:3px 8px;border-radius:3px;letter-spacing:.04em;">BOTTOM OF THE SCREEN · 1920×1080 · 100%</span></div>
+      </sc-if>
+
+      <sc-if value="{{ hasFocus }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:{{ fx }}px;top:{{ fy }}px;width:300px;background:#FFFFE1;border:1px solid #767676;box-shadow:2px 2px 4px rgba(0,0,0,.2);padding:6px 8px;font:12px 'Segoe UI',Arial,sans-serif;color:#16130F;z-index:5;pointer-events:none;">
+          <div style="font-weight:700;margin-bottom:2px;">{{ fTitle }}</div><div style="line-height:1.35;">{{ fText }}</div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+  <div style="flex:1;background:#F3F2F1;border-left:1px solid #D4D4D4;"></div>
+  </div>
+
+  <div style="height:30px;background:#F3F2F1;border-top:1px solid #D4D4D4;display:flex;align-items:stretch;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;padding-left:60px;">
+    <div style="padding:0 18px;display:flex;align-items:center;background:#fff;color:#16130F;font-weight:700;border-bottom:3px solid #CC0000;">Assess</div>
+    <div style="padding:0 18px;display:flex;align-items:center;border-bottom:3px solid #CC0000;">Thresholds</div>
+    <div style="padding:0 18px;display:flex;align-items:center;border-bottom:3px solid #0A0908;">Chart</div>
+    <div style="padding:0 18px;display:flex;align-items:center;border-bottom:3px solid #B9B4AC;">Evidence</div>
+    <div style="padding:0 18px;display:flex;align-items:center;border-bottom:3px solid #B9B4AC;">Backtest</div>
+    <div style="padding:0 18px;display:flex;align-items:center;border-bottom:3px solid #B9B4AC;">Glossary</div>
+    <div style="padding:0 18px;display:flex;align-items:center;border-bottom:3px solid #B9B4AC;">Data</div>
+    <div style="padding:0 18px;display:flex;align-items:center;border-bottom:3px solid #B9B4AC;">Run</div>
+  </div>
+</div>
+</section>
+
+<section id="thresholds" style="padding-top:64px;">
+<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;">
+  <div style="font:800 26px Archivo;">Thresholds</div>
+  <div style="font-size:15px;color:#57534B;">The result. Rows 4 and 5 down stay where they are, so every reference to Thresholds!$A$5 still holds; row 3 gains group headings.</div>
+</div>
+<div style="width:1560px;background:#fff;border:1px solid #B9B4AC;border-radius:8px;overflow:hidden;box-shadow:0 30px 80px -40px rgba(0,0,0,.4);padding:14px 30px 18px;">
+  <div style="width:1500px;font:14.67px Calibri,Carlito,sans-serif;color:#16130F;">
+    <div style="height:30px;display:flex;align-items:flex-end;font:700 21.33px Arial,sans-serif;color:#0A0908;">{{ thTitle }}</div>
+    <div style="height:18px;display:flex;align-items:center;color:#57534B;border-bottom:2px solid #CC0000;">Live: follows every choice on Assess. Candidates for the bank to accept, adjust or reject.</div>
+    <div style="height:14px;"></div>
+    <div style="height:20px;display:grid;grid-template-columns:110px 246px 328px 321px 495px;align-items:end;font:700 12px Arial,sans-serif;color:#0A0908;">
+      <div></div><div style="padding:0 5px 3px;border-bottom:1px solid #0A0908;margin-right:10px;">What the lines rest on</div><div style="padding:0 5px 3px;border-bottom:1px solid #0A0908;margin-right:10px;">Each score begins at</div><div style="padding:0 5px 3px;border-bottom:1px solid #0A0908;margin-right:10px;">Latest quarter</div><div style="padding:0 5px 3px 12px;border-bottom:1px solid #0A0908;">Check</div>
+    </div>
+    <div style="height:34px;display:grid;grid-template-columns:110px 82px 82px 82px 82px 82px 82px 82px 75px 75px 61px 110px 495px;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;">
+      <div style="padding:0 5px;">Product</div><div style="padding:0 5px;text-align:right;">Median kept</div><div style="padding:0 5px;text-align:right;">Typical yearly move</div><div style="padding:0 5px;text-align:right;">Worst kept</div>
+      <div style="height:100%;display:flex;align-items:center;justify-content:flex-end;text-align:right;padding:0 5px;background:#E4DFD5;color:#16130F;">2 Moderate-Low from</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;text-align:right;padding:0 5px;background:#EFD7CF;color:#16130F;">3 Moderate from</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;text-align:right;padding:0 5px;background:#E0A6A6;color:#16130F;">4 Moderate-High from</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;text-align:right;padding:0 5px;background:#CC8080;color:#16130F;">5 High from</div>
+      <div style="padding:0 5px;">Latest quarter</div><div style="padding:0 5px;text-align:right;">Latest ({{ unit }})</div><div style="padding:0 5px;text-align:center;">Score</div><div style="padding:0 5px;">Rating</div><div style="padding:0 5px 0 12px;">Check</div>
+    </div>
+    <sc-for list="{{ thRows }}" as="t" hint-placeholder-count="4">
+      <div style="height:20px;display:grid;grid-template-columns:110px 82px 82px 82px 82px 82px 82px 82px 75px 75px 61px 110px 495px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+        <div style="padding:0 5px;font-weight:700;">{{ t.n }}</div><div style="padding:0 5px;text-align:right;">{{ t.m }}</div><div style="padding:0 5px;text-align:right;">{{ t.mv }}</div><div style="padding:0 5px;text-align:right;">{{ t.w }}</div><div style="padding:0 5px;text-align:right;">{{ t.l2 }}</div><div style="padding:0 5px;text-align:right;">{{ t.l3 }}</div><div style="padding:0 5px;text-align:right;">{{ t.l4 }}</div><div style="padding:0 5px;text-align:right;">{{ t.l5 }}</div><div style="padding:0 5px;">{{ t.q }}</div><div style="padding:0 5px;text-align:right;">{{ t.v }}</div>
+        <div style="height:100%;display:flex;align-items:center;justify-content:center;font:700 13.33px Arial,sans-serif;background:{{ t.sBg }};">{{ t.s }}</div><div style="padding:0 5px;">{{ t.r }}</div>
+        <div style="height:100%;display:flex;align-items:center;padding:0 5px 0 12px;white-space:nowrap;overflow:hidden;background:{{ t.cBg }};color:{{ t.cC }};font-weight:{{ t.cW }};">{{ t.c }}</div>
+      </div>
+    </sc-for>
+    <div style="height:10px;"></div>
+    <div style="height:18px;display:flex;align-items:center;font:13.33px Calibri,Carlito,sans-serif;color:#57534B;">Scores: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High. A loss at or below zero is always Low. Every term is defined on the Glossary tab.</div>
+  </div>
+</div>
+</section>
+
+<section id="charttab" style="padding-top:64px;">
+<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;">
+  <div style="font:800 26px Archivo;">Chart</div>
+  <div style="font-size:15px;color:#57534B;">Products side by side on one scale. The switches move from a narrow column into one row, so the chart gets the full width.</div>
+</div>
+<div style="width:1560px;background:#fff;border:1px solid #B9B4AC;border-radius:8px;overflow:hidden;box-shadow:0 30px 80px -40px rgba(0,0,0,.4);padding:14px 30px 18px;">
+  <div style="width:1500px;font:14.67px Calibri,Carlito,sans-serif;color:#16130F;">
+    <div style="height:30px;display:flex;align-items:flex-end;font:700 21.33px Arial,sans-serif;color:#0A0908;">Products on one scale</div>
+    <div style="height:18px;display:flex;align-items:center;color:#57534B;border-bottom:1px solid #B9B4AC;">Show any products together; the bands are one product's scores. Switches are the yellow cells.</div>
+    <div style="height:14px;"></div>
+    <div style="height:20px;display:grid;grid-template-columns:110px 110px 110px 110px 40px 130px 130px;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px Arial,sans-serif;color:#57534B;">
+      <sc-for list="{{ chartShow }}" as="c" hint-placeholder-count="4"><div style="padding:0 5px;display:flex;align-items:center;gap:6px;white-space:nowrap;"><span style="width:14px;height:3px;background:{{ c.col }};"></span>{{ c.n }}</div></sc-for>
+      <div></div><div style="padding:0 5px;">Bands for</div><div></div>
+    </div>
+    <div style="height:20px;display:grid;grid-template-columns:110px 110px 110px 110px 40px 130px 130px;align-items:center;">
+      <sc-for list="{{ chartShow }}" as="c" hint-placeholder-count="4"><div style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select value="{{ c.v }}" onChange="{{ c.on }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 2px;outline:none;cursor:pointer;"><option value="TRUE">TRUE</option><option value="FALSE">FALSE</option></select></div></sc-for>
+      <div></div>
+      <div style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select value="{{ cut }}" onChange="{{ onCut }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 2px;outline:none;cursor:pointer;"><sc-for list="{{ names }}" as="o" hint-placeholder-count="4"><option value="{{ o }}">{{ o }}</option></sc-for></select></div>
+      <div></div>
+    </div>
+    <div style="height:14px;"></div>
+    <div>{{ tabChart }}</div>
+  </div>
+</div>
+</section>
+
+<section id="reference" style="padding-top:64px;">
+<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;">
+  <div style="font:800 26px Archivo;">Reference tabs</div>
+  <div style="font-size:15px;color:#57534B;max-width:1300px;">One quiet pattern for all five: a title on paper with a thin stone rule (red is kept for the two live tabs), section names as text over a black line, light column headers, 20 px rows.</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,980px);gap:28px;">
+
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    <div style="font:700 13px Archivo;color:#57534B;">Evidence · the two tables per product sit side by side, so neither inherits the other's column widths</div>
+    <div style="background:#fff;border:1px solid #B9B4AC;border-radius:8px;padding:12px 18px 16px;font:14.67px Calibri,Carlito,sans-serif;">
+      <div style="height:26px;display:flex;align-items:flex-end;font:700 18.67px Arial,sans-serif;">Evidence for each judgement</div>
+      <div style="height:18px;display:flex;align-items:center;color:#57534B;border-bottom:1px solid #B9B4AC;white-space:nowrap;overflow:hidden;">Robust z of each spell against every period outside it (3.5 = unusual; Iglewicz and Hoaglin, 1993). Distances, not probabilities.</div>
+      <div style="height:12px;"></div>
+      <div style="height:22px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;border-bottom:2px solid #0A0908;">Credit card</div>
+      <div style="display:grid;grid-template-columns:520px 380px;gap:24px;margin-top:6px;">
+        <div>
+          <div style="height:30px;display:grid;grid-template-columns:66px 66px 64px 64px 64px 80px 1fr;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;">
+            <div style="padding:0 4px;">Spell from</div><div style="padding:0 4px;">Peak quarter</div><div style="padding:0 4px;text-align:right;">Peak</div><div style="padding:0 4px;text-align:right;">Peak ÷ median</div><div style="padding:0 4px;text-align:right;">Robust z</div><div style="padding:0 4px;text-align:right;">Years per spell</div><div style="padding:0 4px;text-align:right;">Deepest dip</div>
+          </div>
+          <sc-for list="{{ evSpells }}" as="e" hint-placeholder-count="4">
+            <div style="height:20px;display:grid;grid-template-columns:66px 66px 64px 64px 64px 80px 1fr;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+              <div style="padding:0 4px;">{{ e.a }}</div><div style="padding:0 4px;">{{ e.b }}</div><div style="padding:0 4px;text-align:right;">{{ e.c }}</div><div style="padding:0 4px;text-align:right;">{{ e.d }}</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 4px;background:{{ e.zb }};font-weight:{{ e.zw }};">{{ e.z }}</div><div style="padding:0 4px;text-align:right;">{{ e.f }}</div><div style="padding:0 4px;text-align:right;">{{ e.g }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div>
+          <div style="height:30px;display:grid;grid-template-columns:66px 66px 70px 60px 58px 1fr;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;">
+            <div style="padding:0 4px;">Departure from</div><div style="padding:0 4px;">To</div><div style="padding:0 4px;">Direction</div><div style="padding:0 4px;text-align:right;">Mean off path</div><div style="padding:0 4px;text-align:right;">Robust z</div><div style="padding:0 4px;text-align:right;">Rank</div>
+          </div>
+          <sc-for list="{{ evDeps }}" as="e" hint-placeholder-count="3">
+            <div style="height:20px;display:grid;grid-template-columns:66px 66px 70px 60px 58px 1fr;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+              <div style="padding:0 4px;">{{ e.a }}</div><div style="padding:0 4px;">{{ e.b }}</div><div style="padding:0 4px;">{{ e.c }}</div><div style="padding:0 4px;text-align:right;">{{ e.d }}</div><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;padding:0 4px;background:{{ e.zb }};font-weight:{{ e.zw }};">{{ e.z }}</div><div style="padding:0 4px;text-align:right;">{{ e.f }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="height:18px;display:flex;align-items:center;margin-top:6px;font:13.33px Calibri,Carlito,sans-serif;color:#57534B;">Robust z of 3.5 or more is shaded. Mortgage, Home equity and Other consumer follow, each under its own name.</div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    <div style="font:700 13px Archivo;color:#57534B;">Backtest · four identical header bands become one table, a row per product</div>
+    <div style="background:#fff;border:1px solid #B9B4AC;border-radius:8px;padding:12px 18px 16px;font:14.67px Calibri,Carlito,sans-serif;">
+      <div style="height:26px;display:flex;align-items:flex-end;font:700 18.67px Arial,sans-serif;">How predictive would the scale have been?</div>
+      <div style="height:18px;display:flex;align-items:center;color:#57534B;border-bottom:1px solid #B9B4AC;white-space:nowrap;overflow:hidden;">Each quarter scored on percentiles 50/75/90/95 of the history up to it, then compared with later quarters.</div>
+      <div style="height:12px;"></div>
+      <div style="height:20px;display:grid;grid-template-columns:120px 80px 190px 470px 80px;align-items:end;font:700 12px Arial,sans-serif;">
+        <div></div><div></div><div style="padding:0 4px 3px;border-bottom:1px solid #0A0908;margin-right:8px;">Spearman: score against</div><div style="padding:0 4px 3px;border-bottom:1px solid #0A0908;margin-right:8px;">Change after, quarters</div><div></div>
+      </div>
+      <div style="height:30px;display:grid;grid-template-columns:120px 80px 95px 95px repeat(5,94px) 80px;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;">
+        <div style="padding:0 4px;">Product</div><div style="padding:0 4px;">Weighting</div><div style="padding:0 4px;text-align:right;">Level ahead</div><div style="padding:0 4px;text-align:right;">Change ahead</div><div style="padding:0 4px;text-align:right;">1</div><div style="padding:0 4px;text-align:right;">2</div><div style="padding:0 4px;text-align:right;">3</div><div style="padding:0 4px;text-align:right;">4</div><div style="padding:0 4px;text-align:right;">5</div><div style="padding:0 4px;text-align:right;">Quarters tested</div>
+      </div>
+      <sc-for list="{{ btRows }}" as="b" hint-placeholder-count="4">
+        <div style="height:20px;display:grid;grid-template-columns:120px 80px 95px 95px repeat(5,94px) 80px;align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+          <div style="padding:0 4px;font-weight:700;">{{ b.p }}</div><div style="padding:0 4px;">none</div><div style="padding:0 4px;text-align:right;">{{ b.a }}</div><div style="padding:0 4px;text-align:right;">{{ b.b }}</div><div style="padding:0 4px;text-align:right;">{{ b.c1 }}</div><div style="padding:0 4px;text-align:right;">{{ b.c2 }}</div><div style="padding:0 4px;text-align:right;">{{ b.c3 }}</div><div style="padding:0 4px;text-align:right;">{{ b.c4 }}</div><div style="padding:0 4px;text-align:right;">{{ b.c5 }}</div><div style="padding:0 4px;text-align:right;">{{ b.n }}</div>
+        </div>
+      </sc-for>
+      <div style="height:18px;display:flex;align-items:center;margin-top:6px;font:13.33px Calibri,Carlito,sans-serif;color:#57534B;">Format 0.00. Each extra weighting is one more row under its product.</div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    <div style="font:700 13px Archivo;color:#57534B;">Glossary · the one tab whose rows wrap; the term column is bold and frozen</div>
+    <div style="background:#fff;border:1px solid #B9B4AC;border-radius:8px;padding:12px 18px 16px;font:14.67px Calibri,Carlito,sans-serif;">
+      <div style="height:26px;display:flex;align-items:flex-end;font:700 18.67px Arial,sans-serif;">Glossary</div>
+      <div style="height:18px;display:flex;align-items:center;color:#57534B;border-bottom:1px solid #B9B4AC;">What each term means, and exactly how the workbook calculates it.</div>
+      <div style="height:12px;"></div>
+      <div style="height:20px;display:grid;grid-template-columns:190px 330px 1fr;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px Arial,sans-serif;color:#57534B;">
+        <div style="padding:0 5px;">Term</div><div style="padding:0 5px;">What it means</div><div style="padding:0 5px;">How it is calculated</div>
+      </div>
+      <sc-for list="{{ gloss }}" as="g" hint-placeholder-count="4">
+        <div style="display:grid;grid-template-columns:190px 330px 1fr;border-bottom:1px solid #E7E2D8;padding:3px 0;line-height:20px;">
+          <div style="padding:0 5px;font-weight:700;">{{ g.t }}</div><div style="padding:0 5px;text-wrap:pretty;">{{ g.m }}</div><div style="padding:0 5px;color:#57534B;text-wrap:pretty;">{{ g.h }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    <div style="font:700 13px Archivo;color:#57534B;">Data · column groups told apart by header shade; header wraps to three lines so names are never cut</div>
+    <div style="background:#fff;border:1px solid #B9B4AC;border-radius:8px;padding:12px 18px 16px;font:14.67px Calibri,Carlito,sans-serif;overflow:hidden;">
+      <div style="height:46px;display:grid;grid-template-columns:70px repeat(12,72px);align-items:center;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;">
+        <div style="height:100%;display:flex;align-items:center;padding:0 4px;background:#F4F1EC;">Quarter</div>
+        <sc-for list="{{ dataHdr }}" as="h" hint-placeholder-count="12"><div style="height:100%;display:flex;align-items:center;justify-content:flex-end;text-align:right;padding:0 4px;background:{{ h.bg }};">{{ h.t }}</div></sc-for>
+      </div>
+      <sc-for list="{{ dataRows }}" as="r" hint-placeholder-count="10">
+        <div style="height:20px;display:grid;grid-template-columns:70px repeat(12,72px);align-items:center;border-bottom:1px solid #E7E2D8;font-variant-numeric:tabular-nums;">
+          <div style="padding:0 4px;">{{ r.q }}</div>
+          <sc-for list="{{ r.c }}" as="x" hint-placeholder-count="12"><div style="padding:0 4px;text-align:right;">{{ x }}</div></sc-for>
+        </div>
+      </sc-for>
+      <div style="height:18px;display:flex;align-items:center;margin-top:6px;font:13.33px Calibri,Carlito,sans-serif;color:#57534B;">Frozen at B2. Format 0.000. Blank where a product has no value that quarter or the quarter is left out.</div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:8px;grid-column:1/3;">
+    <div style="font:700 13px Archivo;color:#57534B;">Run · four labelled sections on fixed columns; the fingerprint goes last, in Consolas, so it never pushes Rows and dates off screen</div>
+    <div style="background:#fff;border:1px solid #B9B4AC;border-radius:8px;padding:12px 18px 16px;font:14.67px Calibri,Carlito,sans-serif;width:1988px;">
+      <div style="height:26px;display:flex;align-items:flex-end;font:700 18.67px Arial,sans-serif;">Run · what went in</div>
+      <div style="height:18px;display:flex;align-items:center;color:#57534B;border-bottom:1px solid #B9B4AC;">threshold-engine 0.11.0, built 2026-10-13 17:33:40. The last two sections are live copies of Assess.</div>
+      <div style="height:12px;"></div>
+      <div style="display:grid;grid-template-columns:900px 1fr;gap:40px;">
+        <div>
+          <div style="height:22px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;border-bottom:2px solid #0A0908;">This build</div>
+          <sc-for list="{{ runBuild }}" as="k" hint-placeholder-count="5">
+            <div style="height:20px;display:grid;grid-template-columns:200px 1fr;align-items:center;border-bottom:1px solid #E7E2D8;"><div style="padding:0 5px;color:#57534B;">{{ k.k }}</div><div style="padding:0 5px;">{{ k.v }}</div></div>
+          </sc-for>
+          <div style="height:14px;"></div>
+          <div style="height:22px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;border-bottom:2px solid #0A0908;">Files</div>
+          <div style="height:20px;display:grid;grid-template-columns:120px 300px 60px 95px 95px 1fr;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px Arial,sans-serif;color:#57534B;"><div style="padding:0 5px;">Product</div><div style="padding:0 5px;">File</div><div style="padding:0 5px;text-align:right;">Rows</div><div style="padding:0 5px;">First</div><div style="padding:0 5px;">Last</div><div style="padding:0 5px;">SHA-256</div></div>
+          <sc-for list="{{ runFiles }}" as="k" hint-placeholder-count="4">
+            <div style="height:20px;display:grid;grid-template-columns:120px 300px 60px 95px 95px 1fr;align-items:center;border-bottom:1px solid #E7E2D8;"><div style="padding:0 5px;font-weight:700;">{{ k.p }}</div><div style="padding:0 5px;">{{ k.f }}</div><div style="padding:0 5px;text-align:right;">{{ k.r }}</div><div style="padding:0 5px;">{{ k.a }}</div><div style="padding:0 5px;">{{ k.b }}</div><div style="padding:0 5px;font:12px Consolas,monospace;color:#57534B;white-space:nowrap;overflow:hidden;">{{ k.h }}</div></div>
+          </sc-for>
+        </div>
+        <div>
+          <div style="height:22px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;border-bottom:2px solid #0A0908;">Periods left out, as on Assess (live)</div>
+          <div style="height:20px;display:grid;grid-template-columns:120px 80px 80px 220px 1fr;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px Arial,sans-serif;color:#57534B;"><div style="padding:0 5px;">Product</div><div style="padding:0 5px;">From</div><div style="padding:0 5px;">To</div><div style="padding:0 5px;">Reason</div><div style="padding:0 5px;">Status</div></div>
+          <sc-for list="{{ runLo }}" as="k" hint-placeholder-count="2">
+            <div style="height:20px;display:grid;grid-template-columns:120px 80px 80px 220px 1fr;align-items:center;border-bottom:1px solid #E7E2D8;"><div style="padding:0 5px;">{{ k.p }}</div><div style="padding:0 5px;">{{ k.from }}</div><div style="padding:0 5px;">{{ k.to }}</div><div style="padding:0 5px;">{{ k.r }}</div><div style="padding:0 5px;color:#57534B;">{{ k.st }}</div></div>
+          </sc-for>
+          <div style="height:14px;"></div>
+          <div style="height:22px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;border-bottom:2px solid #0A0908;">Your settings, as on Assess (live)</div>
+          <div style="height:30px;display:grid;grid-template-columns:120px 100px 100px 100px 1fr;align-items:center;background:#F4F1EC;border-bottom:1px solid #B9B4AC;font:700 12px/1.15 Arial,sans-serif;color:#57534B;"><div style="padding:0 5px;">Product</div><div style="padding:0 5px;text-align:right;">Width of Moderate</div><div style="padding:0 5px;text-align:right;">Moderate-Low begins</div><div style="padding:0 5px;text-align:right;">How rare High is (z)</div><div style="padding:0 5px 0 12px;">A value on a line takes the</div></div>
+          <sc-for list="{{ setRows }}" as="s" hint-placeholder-count="4">
+            <div style="height:20px;display:grid;grid-template-columns:120px 100px 100px 100px 1fr;align-items:center;border-bottom:1px solid #E7E2D8;"><div style="padding:0 5px;">{{ s.name }}</div><div style="padding:0 5px;text-align:right;">{{ s.hw }}</div><div style="padding:0 5px;text-align:right;">{{ s.ls }}</div><div style="padding:0 5px;text-align:right;">{{ s.hz }}</div><div style="padding:0 5px 0 12px;">{{ s.rule }}</div></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<section id="tokens" style="padding-top:72px;">
+<div style="font:800 26px Archivo;margin-bottom:6px;">Token sheet</div>
+<div style="font-size:15px;color:#57534B;margin-bottom:22px;max-width:1300px;">Hex without #, as openpyxl takes it. Sizes in Excel's own units: column width in characters (pixels = 7 × width + 5 at Calibri 11), row height in points (pixels × 0.75). New tokens are marked; everything else already lives in keybank_style.py.</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;align-items:start;">
+
+  <div style="background:#fff;border:1px solid #DAD4CA;border-radius:8px;padding:20px 22px;">
+    <div style="font:800 17px Archivo;margin-bottom:12px;">Colour</div>
+    <sc-for list="{{ tokColors }}" as="c" hint-placeholder-count="20">
+      <div style="display:grid;grid-template-columns:30px 110px 74px minmax(0,1fr);gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #EFEBE4;font-size:13.5px;">
+        <div style="width:30px;height:20px;border-radius:3px;background:{{ c.hex }};box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);"></div>
+        <div style="font-weight:700;font-family:Consolas,monospace;font-size:12.5px;">{{ c.n }}</div>
+        <div style="font-family:Consolas,monospace;font-size:12.5px;color:#57534B;">{{ c.h }}</div>
+        <div style="color:#16130F;line-height:1.35;">{{ c.u }} <span style="color:#CC0000;font-weight:700;">{{ c.isNew }}</span></div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:28px;">
+    <div style="background:#fff;border:1px solid #DAD4CA;border-radius:8px;padding:20px 22px;">
+      <div style="font:800 17px Archivo;margin-bottom:12px;">Type</div>
+      <sc-for list="{{ tokFonts }}" as="f" hint-placeholder-count="14">
+        <div style="display:grid;grid-template-columns:150px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid #EFEBE4;font-size:13.5px;">
+          <div style="font-weight:700;">{{ f.u }}</div><div style="font-family:Consolas,monospace;font-size:12.5px;color:#16130F;">{{ f.s }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="background:#fff;border:1px solid #DAD4CA;border-radius:8px;padding:20px 22px;">
+      <div style="font:800 17px Archivo;margin-bottom:12px;">Fills, borders, conditional formats</div>
+      <sc-for list="{{ tokFills }}" as="f" hint-placeholder-count="12">
+        <div style="display:grid;grid-template-columns:150px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid #EFEBE4;font-size:13.5px;line-height:1.4;">
+          <div style="font-weight:700;">{{ f.u }}</div><div>{{ f.s }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="background:#fff;border:1px solid #DAD4CA;border-radius:8px;padding:20px 22px;">
+      <div style="font:800 17px Archivo;margin-bottom:12px;">Number formats</div>
+      <sc-for list="{{ tokFmts }}" as="f" hint-placeholder-count="8">
+        <div style="display:grid;grid-template-columns:1fr 150px;gap:10px;padding:6px 0;border-bottom:1px solid #EFEBE4;font-size:13.5px;">
+          <div>{{ f.u }}</div><div style="font-family:Consolas,monospace;font-size:12.5px;">{{ f.s }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:28px;">
+    <div style="background:#fff;border:1px solid #DAD4CA;border-radius:8px;padding:20px 22px;">
+      <div style="font:800 17px Archivo;margin-bottom:4px;">Assess grid</div>
+      <div style="font-size:13px;color:#57534B;margin-bottom:12px;">assess_layout() becomes: SET_TOP 19, LO_TOP 26 (12 rows), picker B5, Check B6.</div>
+      <div style="font:700 12px 'Hanken Grotesk';color:#57534B;text-transform:uppercase;letter-spacing:.06em;margin:4px 0 6px;">Column widths</div>
+      <sc-for list="{{ tokCols }}" as="f" hint-placeholder-count="8">
+        <div style="display:grid;grid-template-columns:70px 70px 1fr;gap:10px;padding:5px 0;border-bottom:1px solid #EFEBE4;font-size:13.5px;"><div style="font-weight:700;font-family:Consolas,monospace;">{{ f.c }}</div><div style="font-family:Consolas,monospace;">{{ f.w }}</div><div style="color:#57534B;">{{ f.u }}</div></div>
+      </sc-for>
+      <div style="font:700 12px 'Hanken Grotesk';color:#57534B;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 6px;">Row heights (pt)</div>
+      <sc-for list="{{ tokRows }}" as="f" hint-placeholder-count="10">
+        <div style="display:grid;grid-template-columns:70px 70px 1fr;gap:10px;padding:5px 0;border-bottom:1px solid #EFEBE4;font-size:13.5px;"><div style="font-weight:700;font-family:Consolas,monospace;">{{ f.c }}</div><div style="font-family:Consolas,monospace;">{{ f.w }}</div><div style="color:#57534B;">{{ f.u }}</div></div>
+      </sc-for>
+      <div style="font:700 12px 'Hanken Grotesk';color:#57534B;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 6px;">Thresholds columns</div>
+      <div style="font-size:13.5px;font-family:Consolas,monospace;line-height:1.6;">A 15 · B–H 11 · I–J 10 · K 8 · L 15 · M 70<br>rows 1 22.5 · 2 13.5 · 3 15 · 4 25.5 · 5+ 15</div>
+    </div>
+    <div style="background:#fff;border:1px solid #DAD4CA;border-radius:8px;padding:20px 22px;">
+      <div style="font:800 17px Archivo;margin-bottom:12px;">Charts</div>
+      <sc-for list="{{ tokCharts }}" as="f" hint-placeholder-count="10">
+        <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid #EFEBE4;font-size:13.5px;line-height:1.4;">
+          <div style="font-weight:700;">{{ f.u }}</div><div>{{ f.s }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</section>
+
+<section id="reasons" style="padding-top:72px;">
+<div style="font:800 26px Archivo;margin-bottom:6px;">What each change is for</div>
+<div style="font-size:15px;color:#57534B;margin-bottom:22px;">Numbers match the dots on Assess. For each: what a reader could not do before, and can now.</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 40px;">
+  <sc-for list="{{ reasons }}" as="r" hint-placeholder-count="16">
+    <div style="display:grid;grid-template-columns:34px 1fr;gap:14px;padding:16px 0;border-top:1px solid #DAD4CA;">
+      <div style="width:26px;height:26px;border-radius:50%;background:#0A0908;color:#fff;font:700 12px Archivo;display:flex;align-items:center;justify-content:center;">{{ r.n }}</div>
+      <div>
+        <div style="font:700 17px 'Hanken Grotesk';margin-bottom:6px;">{{ r.t }}</div>
+        <div style="display:grid;grid-template-columns:64px 1fr;gap:4px 10px;font-size:14.5px;line-height:1.45;text-wrap:pretty;">
+          <div style="font:700 12px 'Hanken Grotesk';color:#57534B;text-transform:uppercase;letter-spacing:.05em;padding-top:2px;">Before</div><div style="color:#57534B;">{{ r.b }}</div>
+          <div style="font:700 12px 'Hanken Grotesk';color:#CC0000;text-transform:uppercase;letter-spacing:.05em;padding-top:2px;">Now</div><div>{{ r.a }}</div>
+        </div>
+      </div>
+    </div>
+  </sc-for>
+</div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;lowerIsWorse&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Behaviour&quot;},&quot;showFold&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Overlay&quot;},&quot;showNotes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Overlay&quot;}}">
+const NAMES=['Credit card','Mortgage','Home equity','Other consumer'];
+const FILES={'Credit card':'cards_nco_ttm.csv','Mortgage':'mortgage_nco_ttm.csv','Home equity':'home_equity_nco_ttm.csv','Other consumer':'other_consumer_as_filed_nco_ttm.csv'};
+const BASE='uploads/threshold-engine-design-pack/code/tests/data/';
+const CARDS=[2.435,2.742,2.978,3.158,3.277,3.357,3.393,3.335,3.29,3.223,3.198,3.21,3.188,3.175,3.155,3.12,3.143,3.135,3.147,3.268,3.413,3.683,4.03,4.35,4.55,4.732,4.777,4.655,4.625,4.422,4.215,4.053,3.77,3.572,3.34,3.16,3.095,3.0,3.062,3.237,3.45,3.772,4.067,4.265,4.445,4.62,4.853,5.112,5.3,5.38,5.335,5.28,5.2,5.112,4.893,4.697,4.55,4.45,4.393,4.33,4.305,4.325,4.607,4.933,5.422,6.192,6.435,6.603,6.4,5.92,5.862,5.705,5.822,5.74,5.567,5.293,4.96,4.775,4.52,4.485,4.838,4.465,4.26,4.133,3.535,3.745,3.82,3.837,3.993,4.18,4.562,5.027,5.58,6.31,7.322,8.435,9.438,10.145,10.425,10.065,9.407,8.512,7.232,6.5,5.68,5.008,4.668,4.188,3.99,3.855,3.735,3.595,3.478,3.363,3.323,3.248,3.157,3.083,2.982,2.953,2.935,2.96,2.985,3.013,3.15,3.252,3.375,3.508,3.56,3.61,3.638,3.663,3.655,3.663,3.667,3.683,3.71,3.72,3.757,3.72,3.445,3.218,2.868,2.42,2.157,1.887,1.758,1.83,2.05,2.333,2.675,3.09,3.507,3.893,4.225,4.457,4.555,4.565,4.473,4.345,4.225,4.07,3.978];
+const BAND=['#F4F1EC','#E4DFD5','#EFD7CF','#E0A6A6','#CC8080'];
+const LINEC=['#8E877B','#B98577','#B35A5A','#960019'];
+const SER=['#0A0908','#CC0000','#57534B','#9C7A4A'];
+const RAT=['Low','Moderate-Low','Moderate','Moderate-High','High'];
+const FF='Calibri, Carlito, sans-serif';
+const med=a=>{const s=[...a].sort((x,y)=>x-y),n=s.length;if(!n)return NaN;return n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2;};
+const qOf=d=>{const m=+d.slice(5,7);return d.slice(0,4)+'Q'+(Math.floor((m-1)/3)+1);};
+const qNext=q=>{let y=+q.slice(0,4),k=+q[5]+1;if(k>4){k=1;y++;}return y+'Q'+k;};
+function cardsSeries(){const q=[],v=[];let c='1985Q4';CARDS.forEach(x=>{q.push(c);v.push(x);c=qNext(c);});return {q,v};}
+const EVID={'Credit card':{s:'Leave out 2007Q4 to 2012Q4',t:'2009Q3 to 2011Q1 above the path (z +6.6); 2001Q4 to 2003Q2 above the path (z +2.4); 2021Q3 to 2023Q1 below the path (z −2.0)',w:'Another spell is also unusual (1996Q2, z 4.4), so the largest is not the only stress on record'}};
+
+class Component extends DCLogic {
+  sheetRef = React.createRef();
+  state = {
+    product:'Credit card', data:{'Credit card':cardsSeries()},
+    settings:Object.fromEntries(NAMES.map(n=>[n,{hw:'0.5',ls:'1',hz:'2.5',rule:'worse'}])),
+    lo:[{p:'Credit card',from:'2007Q4',to:'2012Q4',r:'financial crisis'},{p:'Credit card',from:'2021Q3',to:'2023Q1',r:'pandemic forbearance'}].concat(Array.from({length:10},()=>({p:'',from:'',to:'',r:''}))),
+    focus:null, show:{'Credit card':'TRUE','Mortgage':'TRUE','Home equity':'FALSE','Other consumer':'FALSE'}, cut:'Credit card'
+  };
+  componentDidMount(){
+    NAMES.forEach(n=>{
+      fetch(BASE+FILES[n]).then(r=>r.ok?r.text():Promise.reject()).then(t=>{
+        const q=[],v=[];
+        t.split(/\r?\n/).forEach(l=>{if(!l||l[0]==='#'||l.startsWith('date'))return;const [d,x]=l.split(',');if(!d||x===undefined||x.trim()==='')return;q.push(qOf(d));v.push(+x);});
+        if(q.length)this.setState(s=>({data:{...s.data,[n]:{q,v}}}));
+      }).catch(()=>{});
+    });
+  }
+  low(){return !!this.props.lowerIsWorse;}
+  series(n){const d=this.state.data[n];if(!d)return null;if(this.low())return {q:d.q,v:d.v.map(x=>Math.round((800-20*x)*10)/10)};return d;}
+  grid(){const s=new Set();NAMES.forEach(n=>{const d=this.state.data[n];if(d)d.q.forEach(q=>s.add(q));});return [...s].sort();}
+  loInfo(){
+    return this.state.lo.map((r,i)=>{
+      const used=!!(r.p||r.from||r.to||r.r.trim());const miss=[];
+      if(!r.p)miss.push('product');if(!r.from)miss.push('From');if(!r.to)miss.push('To');if(!r.r.trim())miss.push('a reason');
+      let ok=used&&!miss.length,st='';
+      if(!used)st='';
+      else if(miss.length)st='Needs '+miss.join(', ')+': '+(r.p||'its product')+' refused';
+      else if(r.from>r.to){ok=false;st='From is after To: '+r.p+' refused';}
+      else{const d=this.series(r.p);const k=d?d.q.filter(q=>q>=r.from&&q<=r.to).length:0;st='Left out: '+k+' quarter'+(k===1?'':'s');}
+      return {...r,i,used,ok,st};
+    });
+  }
+  stats(v,mask,sg){
+    const kept=v.filter((x,i)=>mask[i]);const m=med(kept);const ch=[];
+    for(let i=4;i<v.length;i++)if(mask[i]&&mask[i-4])ch.push(v[i]-v[i-4]);
+    const mc=med(ch);const move=1.4826*med(ch.map(c=>Math.abs(c-mc)));
+    const spread=1.4826*med(kept.map(x=>Math.abs(x-m)));
+    const worst=kept.length?(sg>0?Math.max(...kept):Math.min(...kept)):NaN;
+    return {m,move,spread,worst,n:kept.length,nch:ch.length};
+  }
+  lines(S,hw,ls,hz,sg){return [S.m-sg*ls*S.move,S.m-sg*hw*S.move,S.m+sg*hw*S.move,S.m+sg*hz*S.spread];}
+  ordered(L,sg){return L.every(x=>isFinite(x))&&sg*(L[1]-L[0])>=0&&sg*(L[2]-L[1])>=0&&sg*(L[3]-L[2])>0;}
+  score(x,L,sg,rule,floor){if(floor&&x<=0)return 1;let s=1;for(const l of L){const t=sg*x,tl=sg*l;if(rule==='worse'?t>=tl:t>tl)s++;}return s;}
+  model(n,over,lo){
+    const d=this.series(n);if(!d)return null;
+    const low=this.low(),sg=low?-1:1,floor=!low;
+    const st=this.state.settings[n];const num=x=>(String(x).trim()!==''&&isFinite(Number(x)))?Number(x):NaN;
+    let hw=num(st.hw),ls=num(st.ls),hz=num(st.hz);
+    if(over){if('hw' in over)hw=over.hw;if('ls' in over)ls=over.ls;if('hz' in over)hz=over.hz;}
+    const rows=(lo||this.loInfo()).filter(r=>r.p===n);const bad=rows.some(r=>r.used&&!r.ok);const whole=rows.filter(r=>r.ok);
+    const mask=d.q.map(q=>!whole.some(r=>q>=r.from&&q<=r.to));
+    const S=this.stats(d.v,mask,sg),A=this.stats(d.v,d.v.map(()=>true),sg);
+    const L=this.lines(S,hw,ls,hz,sg),LA=this.lines(A,hw,ls,hz,sg);
+    const rule=st.rule==='better'?'better':'worse';
+    const ord=this.ordered(L,sg),ordA=this.ordered(LA,sg);
+    const cK=[0,0,0,0,0],cE=[0,0,0,0,0],cA=[0,0,0,0,0];
+    if(ord){d.v.forEach((x,i)=>{const s=this.score(x,L,sg,rule,floor);cE[s-1]++;if(mask[i])cK[s-1]++;});}
+    if(ordA)d.v.forEach(x=>cA[this.score(x,LA,sg,rule,floor)-1]++);
+    const r2=x=>Math.round(x*100)/100,fl2=x=>Math.floor(x*100)/100,ce2=x=>Math.ceil(x*100)/100;
+    const dir=sg>0?'higher':'lower';
+    let t='',f='';
+    if(bad){t='Refused: a period left out for this product is not whole; its Status says what is missing';f='Finish that row under Periods left out (product, From, To and a reason), or clear all four of its cells.';}
+    else if(!(hw>=0)){t="Refused: Moderate's half-width must be 0 or more";f='Type 0 or more in Width of Moderate.';}
+    else if(!(hz>0)){t="Refused: High's z must be above 0";f='Type a number above 0 in How rare High is.';}
+    else if(isNaN(ls)){t="Refused: Moderate-Low's step must be a number";f='Type a number in Moderate-Low begins.';}
+    else if(S.nch<2||!isFinite(S.move)){t='Refused: too little history kept for a typical yearly move';f='Put back a period, so that more than a year of quarters is kept.';}
+    else if(floor&&S.m<=0){t='Refused: the median is at or below zero';f='Put back periods so the quarters kept centre above zero.';}
+    else if(ls<=hw){t='Refused: Moderate-Low must begin further from the median than Moderate';f='Raise Moderate-Low begins above '+hw+', or lower Width of Moderate below '+ls+'.';}
+    else if(sg*(L[3]-L[2])<=0){t="Refused: High must begin beyond Moderate-High's line";f='Raise How rare High is above '+ce2(hw*S.move/S.spread)+'.';}
+    else if(sg*(S.worst-L[3])<0){t='Refused: High would begin beyond the worst quarter kept';f='Lower How rare High is to '+fl2(sg*(S.worst-S.m)/S.spread)+' or less, or put back a period that went '+dir+'.';}
+    else if(floor&&L[0]<=0){t='Refused: Moderate-Low would begin at or below zero';f='Lower Moderate-Low begins to '+fl2(S.m/S.move)+' or less.';}
+    const lastV=d.v[d.v.length-1],lastQ=d.q[d.q.length-1];
+    let note='';
+    if(isNaN(hw)||isNaN(ls)||isNaN(hz))note='refused: a setting is not a number';
+    else if(ls<=hw)note='refused: Moderate-Low inside Moderate';
+    else if(sg*(L[3]-L[2])<=0)note='refused: High inside Moderate-High';
+    else if(sg*(S.worst-L[3])<0)note='refused: High beyond the worst kept';
+    return {n,d,sg,floor,hw,ls,hz,rule,S,A,L,LA,mask,ord,ordA,cK,cE,cA,ok:!t,text:t,fix:f,lastQ,lastV,score:(!t&&ord)?this.score(lastV,L,sg,rule,floor):null,nKept:S.n,note};
+  }
+  setSet(n,k,v){this.setState(s=>({settings:{...s.settings,[n]:{...s.settings[n],[k]:v}}}));}
+  setLo(i,k,v){this.setState(s=>{const lo=s.lo.slice();lo[i]={...lo[i],[k]:v};return {lo};});}
+  focusCell(e,ref,title,text){
+    const root=this.sheetRef.current;let el=e.target.closest('[data-cell]')||e.target;const h=el.offsetHeight;let x=0,y=0,nd=el;
+    while(nd&&nd!==root){x+=nd.offsetLeft;y+=nd.offsetTop;nd=nd.offsetParent;}
+    if(x>1450)x=1450;
+    this.setState({focus:{x,y:y+h+3,title,text,ref,val:e.target.value}});
+  }
+  nice(x){const p=Math.pow(10,Math.floor(Math.log10(x))),r=x/p;return (r<=1?1:r<=2?2:r<=2.5?2.5:r<=5?5:10)*p;}
+  chart(o){
+    const h=React.createElement,W=o.W,H=o.H,ml=50,mr=18,mt=12,mb=o.legend?56:28,pw=W-ml-mr,ph=H-mt-mb,n=o.q.length;
+    const vals=[];o.series.forEach(s=>s.v.forEach(x=>{if(x!=null&&isFinite(x))vals.push(x);}));(o.extra||[]).forEach(x=>{if(isFinite(x))vals.push(x);});
+    if(!vals.length||n<2)return null;
+    let lo=Math.min(...vals),hi=Math.max(...vals);if(hi===lo){hi+=1;lo-=1;}
+    const fl=lo-0.08*(hi-lo),tp=hi+0.08*(hi-fl),stripV=o.strip?0.07*(tp-fl):0;
+    const st=this.nice((tp-fl+stripV)/6),y0=Math.floor((fl-stripV)/st)*st,y1=Math.ceil(tp/st)*st;
+    const X=i=>ml+i*pw/(n-1),Y=v=>mt+(y1-v)/(y1-y0)*ph,dx=pw/(n-1);
+    const K=[];let key=0;const add=(t,a,c)=>K.push(h(t,Object.assign({key:key++},a),c));
+    const bandBot=o.strip?y0+stripV:y0;
+    if(o.bands){const L=o.bands.L,sg=o.bands.sg;for(let k=1;k<=5;k++){let a,b;if(sg>0){a=k===1?bandBot:L[k-2];b=k===5?y1:L[k-1];}else{a=k===5?bandBot:L[k-1];b=k===1?y1:L[k-2];}a=Math.max(a,bandBot);b=Math.min(b,y1);if(b>a)add('rect',{x:ml,y:Y(b),width:pw,height:Y(a)-Y(b),fill:BAND[k-1]});}}
+    const dec=st<1?1:(Math.abs(y1)>=100?0:1);
+    for(let v=y0;v<=y1+1e-9;v+=st){if(o.strip&&v<bandBot-1e-9)continue;add('text',{x:ml-7,y:Y(v)+4,textAnchor:'end',fontSize:12,fill:'#57534B',fontFamily:FF},v.toFixed(dec));}
+    add('line',{x1:ml,x2:ml+pw,y1:Y(y0),y2:Y(y0),stroke:'#B9B4AC',strokeWidth:1});
+    if(o.mask){let i=0;while(i<n){if(!o.mask[i]){let j=i;while(j+1<n&&!o.mask[j+1])j++;add('rect',{x:X(i)-dx/2,y:Y(bandBot),width:X(j)-X(i)+dx,height:Y(y0)-Y(bandBot),fill:'#57534B'});i=j+1;}else i++;}}
+    o.q.forEach((q,i)=>{if(q.endsWith('Q4')&&(+q.slice(0,4))%5===0){add('line',{x1:X(i),x2:X(i),y1:Y(y0),y2:Y(y0)+4,stroke:'#B9B4AC'});add('text',{x:X(i),y:Y(y0)+17,textAnchor:'middle',fontSize:12,fill:'#57534B',fontFamily:FF},q);}});
+    (o.hl||[]).forEach(l=>{if(isFinite(l.v)&&l.v>=y0&&l.v<=y1)add('line',{x1:ml,x2:ml+pw,y1:Y(l.v),y2:Y(l.v),stroke:l.c,strokeWidth:l.w||2,strokeDasharray:l.dash?'7 5':undefined});});
+    o.series.forEach(s=>{let d='',pen=false;s.v.forEach((x,i)=>{if(x==null||!isFinite(x)){pen=false;return;}d+=(pen?'L':'M')+X(i).toFixed(1)+' '+Y(x).toFixed(1);pen=true;});add('path',{d,fill:'none',stroke:s.c,strokeWidth:s.w||2.5,strokeLinejoin:'round'});});
+    if(o.mask){const s=o.series[0];s.v.forEach((x,i)=>{if(!o.mask[i])add('circle',{cx:X(i),cy:Y(x),r:3.3,fill:'#B9B4AC',stroke:'#57534B',strokeWidth:0.8});});}
+    if(o.latest){const s=o.series[0],i=s.v.length-1,x=s.v[i];add('circle',{cx:X(i),cy:Y(x),r:5,fill:'#fff',stroke:'#0A0908',strokeWidth:2});add('text',{x:X(i)-9,y:Y(x)-10,textAnchor:'end',fontSize:12,fontWeight:700,fill:'#0A0908',fontFamily:FF},o.latest);}
+    if(o.legend){const wOf=e=>28+e.t.length*6.3+20;let x=ml+pw/2-o.legend.reduce((a,e)=>a+wOf(e),0)/2;const y=H-12;
+      o.legend.forEach(e=>{if(e.k==='line'||e.k==='dash')add('line',{x1:x,x2:x+22,y1:y-4,y2:y-4,stroke:e.c,strokeWidth:e.w||2.5,strokeDasharray:e.k==='dash'?'6 4':undefined});else if(e.k==='dot')add('circle',{cx:x+11,cy:y-4,r:3.3,fill:'#B9B4AC',stroke:'#57534B',strokeWidth:0.8});else if(e.k==='ring')add('circle',{cx:x+11,cy:y-4,r:4.5,fill:'#fff',stroke:'#0A0908',strokeWidth:2});else add('rect',{x:x+2,y:y-9,width:18,height:10,fill:e.c,stroke:e.s||'none',strokeWidth:0.75});add('text',{x:x+28,y:y,fontSize:12,fill:'#16130F',fontFamily:FF},e.t);x+=wOf(e);});}
+    return h('svg',{width:W,height:H,viewBox:'0 0 '+W+' '+H,style:{display:'block'}},K);
+  }
+  renderVals(){
+    const P=this.props,low=this.low(),sg=low?-1:1;
+    const lo=this.loInfo();const name=this.state.product;
+    const models={};NAMES.forEach(n=>{models[n]=this.model(n,null,lo);});
+    const M=models[name];
+    const f=x=>(x===null||x===undefined||!isFinite(x))?'':(low?x.toFixed(1):x.toFixed(3));
+    const pct=(a,b)=>b?Math.round(100*a/b)+'%':'';
+    const unit=low?'points':'%';
+    const good=low?'above':'below',bad=low?'below':'above';
+    const PR={
+      hw:'How wide Moderate is each side of the median, in typical yearly moves. 0.5 is half a year\'s movement each way. Raise it and more quarters rate Moderate.',
+      ls:'How far '+good+' the median score 2 starts, in typical yearly moves. Must be more than Width of Moderate. Raise it and fewer quarters rate Low.',
+      hz:'High begins this many spreads '+bad+' the median (a robust z). 2.5 is rare; 3.5 is the usual line for an outlier. Raise it and fewer quarters rate High.',
+      rule:'worse or better: which score a quarter exactly on a line takes.',
+      p:'Pick the product this period is left out of.',q:'Pick a quarter from the list of quarters in the data.',
+      r:'Say why this period does not represent the risk. It is recorded on Run.',prod:'Pick a product. Everything on this tab follows it.'
+    };
+    const blur=()=>this.setState({focus:null});
+    const sr={};
+    for(let k=1;k<=5;k++){let from='',to='';if(M&&M.ord){if(k>1)from=f(M.L[k-2]);if(k<5)to=f(M.L[k-1]);}
+      sr['s'+k]={from,to,kept:M&&M.ord?M.cK[k-1]:'',share:M&&M.ord?pct(M.cK[k-1],M.nKept):'',every:M&&M.ord?M.cE[k-1]:'',eshare:M&&M.ord?pct(M.cE[k-1],M.d.v.length):'',mark:M&&M.score===k?'◀ '+M.lastQ:''};}
+    const ok=M?M.ok:false;
+    const setRows=NAMES.map((n,i)=>{const s=this.state.settings[n],m=models[n];return {name:n,nameBg:n===name?'#F6D9A8':'transparent',nameW:n===name?700:400,hw:s.hw,ls:s.ls,hz:s.hz,rule:s.rule,
+      onHw:e=>this.setSet(n,'hw',e.target.value),onLs:e=>this.setSet(n,'ls',e.target.value),onHz:e=>this.setSet(n,'hz',e.target.value),onRule:e=>this.setSet(n,'rule',e.target.value),
+      fHw:e=>this.focusCell(e,'O'+(19+i),'Width of Moderate',PR.hw),fLs:e=>this.focusCell(e,'P'+(19+i),'Moderate-Low begins',PR.ls),fHz:e=>this.focusCell(e,'Q'+(19+i),'How rare High is (z)',PR.hz),fRule:e=>this.focusCell(e,'R'+(19+i),'A value on a line takes the',PR.rule),
+      chk:!m?'Loading…':m.ok?'Lines stand':m.text.replace('Refused: ','Refused: '),chkColor:m&&!m.ok?'#960019':'#57534B',chkW:m&&!m.ok?700:400};});
+    const loRows=lo.map((r,i)=>({p:r.p,from:r.from,to:r.to,r:r.r,st:r.st,
+      onP:e=>this.setLo(i,'p',e.target.value),onF:e=>this.setLo(i,'from',e.target.value),onT:e=>this.setLo(i,'to',e.target.value),onR:e=>this.setLo(i,'r',e.target.value),
+      fP:e=>this.focusCell(e,'N'+(26+i),'Product',PR.p),fF:e=>this.focusCell(e,'O'+(26+i),'From',PR.q),fT:e=>this.focusCell(e,'P'+(26+i),'To',PR.q),fR:e=>this.focusCell(e,'Q'+(26+i),'Reason',PR.r),
+      stColor:r.used&&!r.ok?'#960019':'#57534B',stW:r.used&&!r.ok?700:400,stBg:r.used&&!r.ok?'#F7DEDE':'transparent'}));
+    const ev=EVID[name]||{s:'Written by the engine for '+name+' when the workbook is built',t:'(this mock carries Credit card\'s evidence only)',w:''};
+    const mainChart=M?this.chart({W:1100,H:464,q:M.d.q,series:[{v:M.d.v,c:'#0A0908',w:3}],bands:M.ord?{L:M.L,sg}:null,strip:true,mask:M.mask,extra:M.ord?M.L:[],latest:M.lastQ+'  '+f(M.lastV),
+      legend:[{k:'line',c:'#0A0908',t:'Every quarter',w:3},{k:'dot',t:'Quarter left out'},{k:'rect',c:'#57534B',t:'Period left out'},{k:'ring',t:'Latest quarter'}]}):null;
+    const scl=(L,c)=>({l2:f(L[0]),l3:f(L[1]),l4:f(L[2]),l5:f(L[3]),c1:c[0],c2:c[1],c3:c[2],c4:c[3],c5:c[4]});
+    const sc1=M?scl(M.L,M.ord?M.cK:['','','','','']):{},sc2=M?scl(M.LA,M.ordA?M.cA:['','','','','']):{};
+    let scenChart=null;
+    if(M){const hl=[];M.L.forEach((v,k)=>hl.push({v,c:LINEC[k],w:2}));M.LA.forEach((v,k)=>hl.push({v,c:LINEC[k],w:2,dash:true}));
+      scenChart=this.chart({W:1100,H:340,q:M.d.q,series:[{v:M.d.v,c:'#0A0908',w:2.2}],hl,extra:[...M.L,...M.LA],legend:[{k:'line',c:'#0A0908',t:'Every quarter',w:2.2},{k:'line',c:LINEC[0],t:'2 from',w:2},{k:'line',c:LINEC[1],t:'3 from',w:2},{k:'line',c:LINEC[2],t:'4 from',w:2},{k:'line',c:LINEC[3],t:'5 from',w:2}]});}
+    const rests=M?[{label:'Median',k:f(M.S.m),a:f(M.A.m)},{label:'Typical yearly move',k:f(M.S.move),a:f(M.A.move)},{label:'Spread of levels',k:f(M.S.spread),a:f(M.A.spread)},{label:'Worst',k:f(M.S.worst),a:f(M.A.worst)}]:[];
+    const does=[{s:'Width of Moderate',t:'more quarters rate Moderate.'},{s:'Moderate-Low begins',t:'fewer quarters rate Low. Keep it above Width of Moderate.'},{s:'How rare High is (z)',t:'fewer quarters rate High. 2.5 is rare; 3.5 is the usual outlier line.'},{s:'A value on a line takes the',t:'worse: a quarter on a line takes the higher score; better, the lower.'},{s:'Leaving a period out',t:'takes it out of the median, the move and the spread.'}];
+    const dial=(key,vals,title,ct)=>{
+      if(!M)return {title,ctitle:ct,rows:[],bars:[],max:''};
+      const cur=M[key];const list=vals.map(v=>({v,now:false})).concat([{v:cur,now:true}]);
+      const tot=M.nKept||1;
+      const rows=[],bars=[];
+      list.forEach(it=>{const m=this.model(name,{[key]:it.v},lo);const c=m.ord?m.cK:[0,0,0,0,0];const refused=!!m.note;
+        rows.push({v:isFinite(it.v)?String(it.v):this.state.settings[name][key],l2:f(m.L[0]),l3:f(m.L[1]),l4:f(m.L[2]),l5:f(m.L[3]),c1:m.ord?c[0]:'',c2:m.ord?c[1]:'',c3:m.ord?c[2]:'',c4:m.ord?c[3]:'',c5:m.ord?c[4]:'',
+          note:refused?m.note:(it.now?'◀ now':''),nc:refused?'#960019':'#16130F',bg:it.now?'#E4DFD5':'transparent',w:it.now?700:400});
+        bars.push({label:it.now?'now':String(it.v),w:it.now?700:400,segs:c.map((x,k)=>({h:Math.round(x/tot*108*10)/10,c:BAND[k]}))});});
+      return {title,ctitle:ct,rows,bars,max:tot};
+    };
+    const d1=dial('hz',[2,2.5,3,3.5],"How rare High is (z)",'Quarters kept in each score, by High\'s z');
+    const d2=dial('hw',[0.25,0.5,0.75,1],'Width of Moderate','Quarters kept in each score, by Width of Moderate');
+    const d3=dial('ls',[0.75,1,1.5,2],'Moderate-Low begins','Quarters kept in each score, by where Moderate-Low begins');
+    const thRows=NAMES.map(n=>{const m=models[n];if(!m)return {n,c:'Loading…',cBg:'transparent',cC:'#57534B',cW:400,sBg:'transparent'};
+      const s=m.score;return {n,m:f(m.S.m),mv:f(m.S.move),w:f(m.S.worst),l2:f(m.L[0]),l3:f(m.L[1]),l4:f(m.L[2]),l5:f(m.L[3]),q:m.lastQ,v:f(m.lastV),s:s||'',r:s?RAT[s-1]:'',sBg:s?BAND[s-1]:'transparent',
+        c:m.ok?'Lines stand':m.text,cBg:m.ok?'transparent':'#F7DEDE',cC:m.ok?'#57534B':'#960019',cW:m.ok?400:700};});
+    const grid=this.grid();
+    const chartShow=NAMES.map((n,i)=>({n,col:SER[i],v:this.state.show[n],on:e=>{const v=e.target.value;this.setState(s=>({show:{...s.show,[n]:v}}));}}));
+    let tabChart=null;
+    {const ser=[];NAMES.forEach((n,i)=>{const d=this.series(n);if(!d||this.state.show[n]!=='TRUE')return;const mp={};d.q.forEach((q,j)=>mp[q]=d.v[j]);ser.push({v:grid.map(q=>q in mp?mp[q]:null),c:SER[i],w:2.6});});
+      const cm=models[this.state.cut];
+      if(ser.length)tabChart=this.chart({W:1500,H:520,q:grid,series:ser,bands:cm&&cm.ord?{L:cm.L,sg}:null,extra:cm&&cm.ord?cm.L:[],
+        legend:NAMES.map((n,i)=>this.state.show[n]==='TRUE'?{k:'line',c:SER[i],t:n,w:2.6}:null).filter(Boolean).concat([{k:'rect',c:'#E0A6A6',t:'Bands: '+this.state.cut+"'s scores"}])});}
+    const zb=z=>Math.abs(z)>=3.5?'#EFD7CF':'transparent',zw=z=>Math.abs(z)>=3.5?700:400;
+    const evSpells=[['1991Q2','1992Q2','4.777','1.20',1.0,'13.6',''],['1996Q2','2002Q3','6.603','1.66',4.4,'20.4','3.4'],['2007Q4','2010Q2','10.425','2.62',7.4,'40.8',''],['2024Q2','2025Q1','4.565','1.15',0.7,'10.2','']].map(r=>({a:r[0],b:r[1],c:r[2],d:r[3],z:r[4].toFixed(1),zb:zb(r[4]),zw:zw(r[4]),f:r[5],g:r[6]}));
+    const evDeps=[['2009Q3','2011Q1','above','2.213',6.6,'1 of 155'],['2001Q4','2003Q2','above','0.800',2.4,'1 of 122'],['2021Q3','2023Q1','below','−0.709',-2.0,'1 of 91']].map(r=>({a:r[0],b:r[1],c:r[2],d:r[3],z:(r[4]>0?'+':'')+r[4].toFixed(1),zb:zb(r[4]),zw:zw(r[4]),f:r[5]}));
+    const btRows=[['Credit card','0.80','−0.18','0.13','0.08','0.44','−0.41','−0.45','119'],['Mortgage','0.85','−0.30','0.00','0.01','−0.43','−0.49','0.32','95'],['Home equity','0.87','−0.20','0.01','−0.20','−0.37','−0.47','0.52','91'],['Other consumer','0.76','−0.12','0.06','0.00','−0.04','−0.46','0.11','91']].map(r=>({p:r[0],a:r[1],b:r[2],c1:r[3],c2:r[4],c3:r[5],c4:r[6],c5:r[7],n:r[8]}));
+    const gloss=[{t:'Quarters kept',m:'The quarters the thresholds are built from: every quarter, except any periods left out on Assess.',h:'A quarter is left out if a whole row of Periods left out names its product and the quarter falls between that row\'s From and To, inclusive.'},
+      {t:'Median kept',m:'The middle of the quarters kept: half were higher, half lower. The centre of Moderate.',h:'MEDIAN of the quarters kept.'},
+      {t:'Typical yearly move',m:'How much the rate ordinarily changes in a year. The unit Moderate and the Moderate-Low line are measured in.',h:'Median absolute deviation of every four-quarter change whose start and end are both kept, times 1.4826.'},
+      {t:'Width of Moderate',m:'How wide Moderate is on each side of the median, counted in typical yearly moves.',h:'Typed in Your settings on Assess. 0.5 makes Moderate one typical yearly move wide in total.'}];
+    const dataHdr=['Credit card','Mortgage','Home equity','Other consumer','Credit card, kept','Mortgage, kept','Home equity, kept','Other consumer, kept','Credit card, 4-quarter change kept','Mortgage, 4-quarter change kept','Home equity, 4-quarter change kept','Other consumer, 4-quarter change kept'].map((t,i)=>({t,bg:i<4?'#F4F1EC':i<8?'#E4DFD5':'#F4F1EC'}));
+    const dataRows=[];
+    {const ser=NAMES.map(n=>{const d=this.series(n);const mp={};if(d)d.q.forEach((q,j)=>mp[q]=d.v[j]);return mp;});
+      const km=NAMES.map(n=>{const m=models[n];const mp={};if(m)m.d.q.forEach((q,j)=>{if(m.mask[j])mp[q]=m.d.v[j];});return mp;});
+      const gi=grid.indexOf('2007Q2');const start=gi>=0?gi:0;
+      for(let r=start;r<Math.min(grid.length,start+10);r++){const q=grid[r],pq=grid[r-4];const c=[];
+        ser.forEach(mp=>c.push(q in mp?f(mp[q]):''));km.forEach(mp=>c.push(q in mp?f(mp[q]):''));km.forEach(mp=>c.push((q in mp)&&(pq in mp)?f(mp[q]-mp[pq]):''));dataRows.push({q,c});}}
+    const runBuild=[{k:'Measure',v:(low?'Credit score (illustrative)':'Net charge-off rate (TTM)')+', '+unit+', '+(low?'lower_is_worse':'higher_is_worse')+', smoothing 1, floor at zero'},{k:'Scale, starting values',v:'Moderate half-width 0.5 · Moderate-Low step 1 · High z 2.5 · on the line: worse'},{k:'Backtest settings',v:'percentiles 50/75/90/95 · horizon 4 · min history 41'},{k:'Backtest half-lives',v:'none'}];
+    const runFiles=[['Credit card','tests\\data\\cards_nco_ttm.csv','163','1985-10-01','2026-04-01','8291d7d2b4ef971230fcf7271d2e49ed4b16a52f65612b1512d094cb3c69b1d0'],['Mortgage','tests\\data\\mortgage_nco_ttm.csv','139','1991-10-01','2026-04-01','fc768d8777b5e4c553c080fe590559c058a6de1cb6e127d90d56172b9bfedbb9'],['Home equity','tests\\data\\home_equity_nco_ttm.csv','135','1992-12-31','2026-06-30','393d5193027113ebb2383ea7e9be86cb8426ef69625acffd6012bef6a9557e09'],['Other consumer','tests\\data\\other_consumer_as_filed_nco_ttm.csv','135','1992-12-31','2026-06-30','0a46094231be4b0829b260adcf354cc89d8e7a37cf7e505fb2e75e9b7b52e6ae']].map(r=>({p:r[0],f:r[1],r:r[2],a:r[3],b:r[4],h:r[5]}));
+    const runLo=lo.filter(r=>r.used).map(r=>({p:r.p,from:r.from,to:r.to,r:r.r,st:r.st}));
+    const tokColors=[
+      {n:'INK',h:'0A0908',u:'Titles, section rules, history line, Chart series 1'},{n:'KEY_RED',h:'CC0000',u:'Rule under the two live tabs\' titles; refused Check edge; Chart series 2'},{n:'CRIMSON',h:'960019',u:'Refusal text; the 5 High line'},
+      {n:'PAPER',h:'FFFFFF',u:'Sheet and chart areas'},{n:'CANVAS',h:'F4F1EC',u:'Column headers; Check when lines stand'},{n:'MIST',h:'E4DFD5',u:'Dial row for the current value'},{n:'STONE',h:'B9B4AC',u:'Header underline, axis lines, reference title rule, left-out dots'},
+      {n:'SLATE',h:'57534B',u:'Labels, notes, left-out strip, Chart series 3'},{n:'INK_TEXT',h:'16130F',u:'Data'},{n:'ALERT_FG',h:'F7DEDE',u:'Refused Check, refused Status, refused rows'},{n:'HAIRLINE',h:'E7E2D8',u:'Row separators (exists as _thin)'},
+      {n:'INPUT',h:'FFF2CC',u:'Every input cell, and nothing else'},{n:'INPUT_EDGE',h:'D6B656',u:'Thin border on every input cell',isNew:'new'},{n:'PICKED',h:'F6D9A8',u:'Product name of the picked row only'},
+      {n:'BAND_1',h:'F4F1EC',u:'1 Low (+ STONE outline in tables)'},{n:'BAND_2',h:'E4DFD5',u:'2 Moderate-Low'},{n:'BAND_3',h:'EFD7CF',u:'3 Moderate'},{n:'BAND_4',h:'E0A6A6',u:'4 Moderate-High'},{n:'BAND_5',h:'CC8080',u:'5 High'},
+      {n:'LINE_2',h:'8E877B',u:'2 from, drawn as a line',isNew:'new'},{n:'LINE_3',h:'B98577',u:'3 from',isNew:'new'},{n:'LINE_4',h:'B35A5A',u:'4 from',isNew:'new'},{n:'LINE_5',h:'960019',u:'5 from (= CRIMSON)'},{n:'SERIES_4',h:'9C7A4A',u:'Chart series 4',isNew:'new'},{n:'PROMPT',h:'FFFFE1',u:'Excel draws input messages itself; listed for reference only'}
+    ].map(c=>({...c,hex:'#'+c.h,isNew:c.isNew||''}));
+    const tokFonts=[{u:'Title, live tabs',s:'Arial 16 bold INK'},{u:'Title, reference',s:'Arial 14 bold INK'},{u:'Subtitle',s:'Calibri 11 SLATE'},{u:'Section title',s:'Arial 11 bold INK'},{u:'Column header',s:'Arial 9 bold SLATE, wrap, middle'},{u:'Field label (row 4)',s:'Arial 9 bold SLATE'},
+      {u:'Data',s:'Calibri 11 INK_TEXT'},{u:'Input',s:'Calibri 11 bold INK_TEXT'},{u:'Picker',s:'Calibri 12 bold INK_TEXT'},{u:'Latest quarter, value',s:'Calibri 14 bold INK_TEXT'},{u:'Score chip, score cells',s:'Arial 11 / 10 bold INK_TEXT'},
+      {u:'Check, lines stand',s:'Arial 12 bold INK_TEXT'},{u:'Check, refused',s:'Arial 12 bold CRIMSON + Calibri 11 CRIMSON (To fix)'},{u:'Notes',s:'Calibri 10 SLATE, upright (no italics)'},{u:'Hashes, paths',s:'Consolas 9 SLATE'},{u:'Chart text',s:'Calibri 9 SLATE; legend INK_TEXT; title 10 bold'}];
+    const tokFills=[{u:'Input cell',s:'Solid INPUT; thin INPUT_EDGE on all four sides; selected by Data validation with an input message (title + ≤255 chars).'},
+      {u:'Section title',s:'No fill. Medium INK bottom border across its columns.'},{u:'Column header',s:'Solid CANVAS; thin STONE bottom. Height 22.5 pt when it wraps to two lines.'},{u:'Data row',s:'Thin HAIRLINE bottom. No fill. Gridlines hidden.'},
+      {u:'Live tab title',s:'Medium KEY_RED bottom border on row 2, B:U. Reference tabs: thin STONE.'},{u:'Check (B6:U6, merged)',s:'CF: LEFT($B$6,8)="Refused:" → ALERT_FG fill, CRIMSON bold, thin KEY_RED box (CF allows thin only). Else CANVAS fill, thin MIST box.'},
+      {u:'Latest score (H5:J5)',s:'CF, five rules: =$H$5 score = k → BAND_k fill. Refused → ALERT_FG, CRIMSON.'},{u:'Score names (N10:N14)',s:'Static BAND_k fills; N10 adds a thin STONE box so Low shows on white.'},
+      {u:'Count headers',s:'Static BAND_k fills on every "1 Low … 5 High" header (scenarios, dials, Thresholds E4:H4).'},{u:'Picked row',s:'CF on N19:N22: =$N19=$B$5 → PICKED fill, bold. Inputs in the row keep INPUT.'},
+      {u:'Status, settings Check',s:'CF: ISNUMBER(SEARCH("refused",T26)) → ALERT_FG fill, CRIMSON bold.'},{u:'Dial now row',s:'CF: =ISNUMBER(SEARCH("now",$L66)) → MIST fill, bold (was INPUT yellow).'},{u:'Evidence robust z',s:'CF: ABS(z)>=3.5 → BAND_3 fill, bold.'},
+      {u:'Merges',s:'Title rows, B6:U6, D5:E5, F5:G5, H5:J5 only. Never on rows 19–22 or 26–37.'},{u:'Freeze',s:'Assess: none (both halves must scroll). Thresholds B5. Data B2. Glossary B2.'}];
+    const tokFmts=[{u:'Lines, latest, median, move, spread, worst',s:low?'0.0':'0.000'},{u:'Shares',s:'0%'},{u:'Counts',s:'0'},{u:'Inputs (typed settings)',s:'General'},{u:'Robust z',s:'+0.0;−0.0;0.0'},{u:'Spearman, backtest change',s:'0.00'},{u:'Run dates',s:'yyyy-mm-dd'},{u:'Chart y axis (floor at zero)',s:'0.0;;0.0'}];
+    const tokCols=[{c:'A',w:'2.71',u:'gutter, 24 px'},{c:'B',w:'15.00',u:'labels, picker, dial Value'},{c:'C–K',w:'9.00',u:'lines and counts, 68 px'},{c:'L',w:'53.29',u:'notes; chart B:L = 1100 px'},{c:'M',w:'2.71',u:'gutter'},{c:'N',w:'15.00',u:'Score, Product'},{c:'O–T',w:'10.00',u:'inputs and numbers, 75 px'},{c:'U',w:'14.00',u:'Latest marker, Status'},{c:'Z–AC+',w:'hidden',u:'helpers, unchanged'}];
+    const tokRows=[{c:'1',w:'22.5',u:'title'},{c:'2',w:'13.5',u:'subtitle + red rule'},{c:'4',w:'12',u:'field labels'},{c:'5',w:'22.5',u:'picker, latest, chip'},{c:'6',w:'25.5',u:'Check'},{c:'8, 17, 24, 40',w:'16.5',u:'section titles'},{c:'9, 18, 41',w:'22.5',u:'two-line headers'},{c:'data',w:'15',u:'every data and input row'},{c:'notes',w:'13.5',u:'one-line notes'},{c:'spacers',w:'7.5',u:'rows 7, 16, 23'}];
+    const tokCharts=[{u:'Main (B9:L31)',s:'29.1 × 12.3 cm. Stacked area bands BAND_1–5, no outline, gap 0. History: INK 2.25 pt, no markers. Left out: markers only, circle 5, fill STONE, line SLATE 0.75 pt. Strip: area SLATE. Latest: one-point series, circle 7, fill PAPER, line INK 1.5 pt, label left: category + value.'},
+      {u:'Main axes',s:'No gridlines. Y Calibri 9 SLATE, 0.0;;0.0. X tickLblSkip 20, tickMarkSkip 20. Axis lines STONE 0.75 pt. Chart area: no border, no rounded corners.'},
+      {u:'Main legend',s:'Bottom. Band and strip-helper entries deleted (legendEntry delete); the score table is the band key.'},
+      {u:'Scenarios (B45:L61)',s:'29.1 × 9.0 cm. History INK 1.75 pt. Your lines: LINE_2–5 solid 1.5 pt. Every quarter: same colours, sysDash. Legend bottom; dashed entries deleted, the table names them.'},
+      {u:'Dials (N:U, 8 rows each)',s:'Stacked column, overlap 100, gap 60. Fills BAND_1–5, outline STONE 0.5 pt. No legend: the band-coloured headers beside it are the key. Title Calibri 10 bold; y axis 0, max only.'},
+      {u:'Chart tab',s:'39.7 × 13.8 cm, A7. Series SERIES_1–4, 2 pt. Bands of the "Bands for" product. Legend bottom.'},
+      {u:'Lower is worse',s:'Same series; bands stack the other way (5 High at the bottom) because the area series are written in reverse order. Nothing else changes.'}];
+    const reasons=[
+      {n:1,t:'A light title, not a black band',b:'The heaviest thing on the tab was its title, so the eye landed on instructions, not on the product or the Check.',a:'The title sits on paper over the red rule. The loudest things left are the Check and the yellow cells.'},
+      {n:2,t:'Latest score as a coloured chip',b:'"2026Q2: 3.978 -> 3 Moderate" was one string of text; the score had no tie to the chart.',a:'Quarter, value and score sit in their own cells; the score cell takes its band\'s colour, the same as on the chart and in the score table.'},
+      {n:3,t:'Check on its own row, and it says what to do',b:'"Check" plus an empty-looking cell; a refusal was easy to miss and said only why.',a:'A full-width row. Refused: pink fill, red edge, crimson text, then the fix with the number to type ("Lower How rare High is to 3.13 or less"). Try High z 3.5.'},
+      {n:4,t:'Chart left, inputs right, all above the fold',b:'Periods left out and Your settings sat under the chart, so a change and its effect were never on screen together.',a:'Chart in B:L, everything you type in N:U, all within 780 px. Type and watch the bands move.'},
+      {n:5,t:'Score rows wear their band colour',b:'Five scores in plain text; nothing tied a row to its band.',a:'Each Score cell is filled with its band, and a marker shows which row the latest quarter falls in. The chart legend no longer needs band entries.'},
+      {n:6,t:'Inputs look like inputs, and nothing else does',b:'Yellow cells without edges; the dials\' "now" rows were the same yellow, so outputs looked typeable.',a:'Every input is yellow with a gold edge and bold value. Now rows turn mist. Headers sit on two fixed lines instead of wrapping into three.'},
+      {n:7,t:'Periods left out beside the chart, with a loud Status',b:'Twelve rows under the chart; a half-filled row refused its product silently, far from the Check.',a:'The list sits next to the chart. A row that is not whole turns its Status pink and says what it needs and which product it refuses.'},
+      {n:8,t:'The evidence under the chart, next to the periods',b:'"What the evidence says" was 60 rows down and easy to skip.',a:'Its three lines sit directly under the chart, level with the periods list it argues for.'},
+      {n:9,t:'What happens if, directly under the chart',b:'Scenarios were 80 rows down; their columns did not line up with the dials.',a:'Scenarios open the second screen. Lines and counts use the same columns as every dial, and count headers carry band colours.'},
+      {n:10,t:'Definitions in the cell, not a wall of italics',b:'Five paragraphs of grey italic text under the settings.',a:'Select a yellow cell and Excel shows its definition as an input message. Below the fold, one line per setting says what raising it does.'},
+      {n:11,t:'Each dial with its chart beside it',b:'Three bar charts in one row and three black-banded tables below them: read a bar, hunt for its row.',a:'Each dial is one row block: table left, its bars right, the current value shaded in both.'},
+      {n:12,t:'Thresholds reads as three questions',b:'Thirteen black headers in a row; lines and results ran together.',a:'Group headings over the columns: what the lines rest on, where each score begins (band-coloured), the latest quarter. Check last, pink when refused.'},
+      {n:13,t:'Chart switches in one row',b:'TRUE/FALSE switches stacked in a column squeezed the chart into a narrow strip.',a:'Switches in a row above a full-width chart, with the bands of one product behind the lines.'},
+      {n:14,t:'Reference tabs share one quiet pattern',b:'Black bands everywhere; Backtest repeated one header four times; Evidence\'s two tables fought over column widths; Run let a hash push data off screen.',a:'Paper titles with a stone rule, one header per table, tables side by side where they differ, and fixed columns with the hash last.'},
+      {n:15,t:'Reads correctly when lower is worse',b:'Untested in the layout.',a:'Switch the "Lower is worse" tweak: the bands flip, From and To run downward, the prompts say above or below. The tables keep 1 Low to 5 High.'},
+      {n:16,t:'Tabs open in working order',b:'Thresholds came first, Assess second.',a:'Assess first (red tab), then Thresholds (red), Chart (ink), then the five reference tabs (stone). One change to the create_sheet order.'}];
+    const fo=this.state.focus;
+    return {
+      names:NAMES,product:name,onProduct:e=>this.setState({product:e.target.value}),focProduct:e=>this.focusCell(e,'B5','Product',PR.prod),blur,
+      colLetters:'ABCDEFGHIJKLMNOPQRSTU'.split(''),rowNums:Array.from({length:88},(_,i)=>i+1),sheetRef:this.sheetRef,
+      unit,measure:low?'Credit score (illustrative), lower is worse':'Net charge-off rate (TTM), higher is worse',
+      lastQ:M?M.lastQ:'',lastV:M?f(M.lastV):'',
+      chipText:M&&M.score?M.score+' '+RAT[M.score-1]:'No score: see Check',chipBg:M&&M.score?BAND[M.score-1]:'#F7DEDE',chipColor:M&&M.score?'#16130F':'#960019',
+      checkText:M?(ok?'Check: lines stand.':M.text+'.'):'Loading…',checkFix:M?(ok?'Every setting is in order and every period left out is whole.':'To fix: '+M.fix):'',
+      checkBg:ok?'#F4F1EC':'#F7DEDE',checkColor:ok?'#16130F':'#960019',checkEdge:ok?'#E4DFD5':'#CC0000',
+      chartTitle:name+', '+(low?'credit score':'net charge-off rate (TTM, %)')+', '+(M?M.d.q[0]+' to '+M.lastQ:'')+', against its five scores',
+      mainChart,...sr,scoreNote:'A value on a line takes the '+(M?M.rule:'worse')+' score, as Your settings says.'+(low?'':' A loss at or below zero is always 1 Low.'),
+      setRows,loRows,grid,ev,sc1,sc2,scenChart,rests,does,d1,d2,d3,
+      showNotes:P.showNotes!==false,showFold:P.showFold!==false,
+      hasFocus:!!fo,fx:fo?fo.x:0,fy:fo?fo.y:0,fTitle:fo?fo.title:'',fText:fo?fo.text:'',
+      nameBox:fo?fo.ref:'B6',fxText:fo?(fo.val||''):'=IF(INDEX(Thresholds!$M$5:$M$8,MATCH($B$5,Thresholds!$A$5:$A$8,0))="","Check: lines stand.",…)',
+      thTitle:(low?'Credit score':'Net charge-off rate (TTM)')+' · candidate thresholds',thRows,
+      chartShow,cut:this.state.cut,onCut:e=>this.setState({cut:e.target.value}),tabChart,
+      evSpells,evDeps,btRows,gloss,dataHdr,dataRows,runBuild,runFiles,runLo,
+      tokColors,tokFonts,tokFills,tokFmts,tokCols,tokRows,tokCharts,reasons
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -34,9 +34,11 @@ CSV goes a short description that has no defaults: name, unit, direction
 (higher or lower is worse), smoothing, and whether a value at or below zero is
 always Low.
 
-The repository holds five public series to test and rehearse with: Federal
-Reserve card and mortgage rates, and FDIC home equity and other consumer
-rates, as filed and with auto added back (`tests/data/`).
+The industry series are the FDIC's, every filer summed, for all five
+products, charge-offs and delinquency (`data/industry/`, built 14 Oct 2026;
+the firm: "FDIC for all", the Fed kept as a cross-check). The tests rehearse
+with five older public series (`tests/data/`): Federal Reserve card and
+mortgage rates, and FDIC home equity and other consumer rates.
 
 ## The workbook: the deliverable (`workbook.py`, command `workbook`)
 
@@ -47,13 +49,16 @@ bank changes a setting.
 | Tab | What it holds | Live? |
 |---|---|---|
 | **Thresholds** | Per product: median kept, typical yearly move, worst kept, the four lines where scores 2–5 begin, the latest value, its score and rating, and a Check column that says why it refuses when it does | Yes |
-| **Assess** (red; it opens here) | Where the bank works, on one tab. Pick a product: its latest score, the Check, the five score bands behind every quarter and a count of quarters in each score. Under the chart, the inputs: **Periods left out** (any product, up to 12 periods, each picked from lists of the quarters in the data, with a reason and a Status that says what is missing) and **Your settings** (one row per product: width of Moderate, where Moderate-Low begins, how rare High is, the on-the-line rule; the picked product's row highlighted), what each setting does in words, and what the evidence says. Then **Scenarios**: your lines beside keeping every quarter, as a table and a chart, and for each setting a chart of how many quarters fall in each score at other values. Then a **dial** table for each setting | Inputs, and live |
+| **Assess** (red; first, and it opens here) | Where the bank works, on one screen (Claude Design's layout, 13 Oct 2026). Top: the product picker, the latest quarter, value and score, and the Check, which says why it refuses and what to type to fix it. Left: the chart, five score bands behind every quarter, the latest quarter marked, left-out quarters as grey dots over a dark strip; under it, what the evidence says. Right: **Scores for** the product (lines and quarters in each score), **Your settings** (one row per product, the picked one highlighted, each row's own Check) and **Periods left out** (up to 12 rows from dropdowns of real quarters, a Status that says what is missing). Every input cell explains itself when selected. Below: **What happens if** (your lines against keeping every quarter, table and chart), what the lines rest on, what each setting does, and a **dial** per setting with its chart beside it | Inputs, and live |
 | **Chart** | Any combination of products on one scale, switched on and off, with one product's lines drawn | Yes |
 | **Evidence** | Per product: each spell above the median with its robust z, how often history was that bad, its deepest dip, and the temporary departures (stretches that left their path and came back) | No, written at build |
 | **Backtest** | How predictive a percentile scale would have been, rebuilt each quarter from the history up to and including that quarter, never after | No |
-| **Glossary** | 36 terms: what each means and exactly how it is calculated | No |
+| **Sources** | What each series' file says about itself, printed as written: what is measured, who is in it, the Call Report lines where they apply, numerator, denominator, basis, period and source. A key every file should give (measure, as of, basis, source) and this one does not is marked *Not stated in the file*, never filled in. The same for public files and the bank's template files | No |
+| **Synthesis** (red; only when built with `--synthesis`) | Per series given synthesis inputs: where each colour starts according to internal, industry and peers, side by side; which one each line is taken from (yours); the chosen lines; the latest quarter rated on them; the competitive check; and a Check that refuses in `synthesis.py`'s words. Section "Synthesis" below | Inputs, and live |
+| **Glossary** | 45 terms: what each means and exactly how it is calculated | No |
 | **Data** | Every series on one quarterly calendar, the quarters kept, and the working columns behind the live formulas | Yes |
-| **Run** | Engine version, build time, every setting's starting value, each input file's SHA-256 fingerprint, and the leave-out decisions and reasons, live | Partly |
+| **SynthesisData** (only with `--synthesis`) | The industry, KeyBank filed and peer series on one unbroken quarterly calendar, with the working columns the Synthesis formulas read | Yes |
+| **Run** | Engine version, build time, every setting's starting value, each input file's SHA-256 fingerprint, and the leave-out decisions and reasons, live (and the synthesis choices, when built with them) | Partly |
 
 **The scale** (`scale.py` is the Python reference the formulas are tested
 against):
@@ -103,6 +108,7 @@ kept (nothing could rate High); or Moderate-Low would begin at or below zero.
 | `profile` | `profile.py` | Facts only, no judgement settings: distribution, every spell above the median, how often each upper percentile was reached, percentiles without the largest spell, where the latest value ranks | Consistent with the workbook |
 | `evidence` | `evidence.py` | The statistics behind each judgement (robust z of each spell, return periods, deepest dips, temporary departures), then the lines under three scenarios and at stated half-lives | On the workbook's scale (`scale.py`) since 12 Oct |
 | `backtest` | `backtest.py` | Rebuilds a percentile scale each quarter from the history up to and including that quarter (never after), and reports how well scores predicted the level and the change a stated number of quarters ahead, with and without recency weighting | Uses a percentile scale, not the workbook's |
+| `compare` | `compare.py` | Two series of one measure matched by calendar quarter (a series dated at the quarter's first day meets one dated at its end): the quarters both hold, the mean and largest difference, and with `--every` one line per quarter. Facts only, no tolerance | The cross-check: FDIC industry series against the Federal Reserve's (the firm, 13 Oct: "FDIC for all", the Fed kept as a cross-check) |
 
 ## The window (`launcher.py`, `Thresholds.pyw`)
 
@@ -122,6 +128,83 @@ refused.
 window makes without a display; three open a real window, one of them
 pressing Run.
 
+## Synthesis (`synthesis.py`, command `synthesize`)
+
+The firm, 13 Oct 2026: an industry perspective, a competitive one and an
+internal one, synthesized into reasonable thresholds. For one product and
+one measure, each perspective proposes the four lines where ratings 2 to 5
+begin, and the firm names which perspective each line is taken from
+(`--leads`, four words, no default):
+
+| Perspective | Its lines |
+|---|---|
+| internal | the workbook's scale on KeyBank's own history. A calm history (2014 on, the pandemic its only stress) can place lines 2 to 4 and refuses line 5, saying so |
+| industry | the same scale on the industry's history, which holds 2008-10, carried to the internal level (`--translation "median ratio"`: times the median of internal / industry over the quarters both hold; or `none`) |
+| peers | each peer's median over the internal quarters, the stated percentiles of those (`--peer-percentiles`, four, rising), carried to the internal level by the median of internal / KeyBank filed |
+
+The chosen lines must still run in order; if not, it refuses and names the
+pair. Beside them it states the latest internal quarter's rating and how
+many peers KeyBank's filed median is worse than: facts, no alarm level.
+`peers build` writes each peer's own charge-off series to
+`SERIES-DIR/banks/` for `--peer NAME=FILE`.
+
+**In the workbook (14 Oct 2026, `synthesis_tab.py`).** The firm agreed the
+synthesis belongs on Assess, *where each colour starts*. The `workbook`
+command takes, per series, the same inputs, and the series' own `--series`
+file is the internal one:
+
+    --synthesis "Credit card=industry:FILE;filed:FILE;peers:FOLDER-OR-PATTERN"
+    --translation "Credit card=median ratio"
+    --peer-percentiles "Credit card=20,40,75,95"
+    --leads "Credit card=internal,internal,internal,industry"
+
+`industry` is required, `filed` and `peers` are optional (`peers`: a folder
+means every `.csv` in it; a pattern such as `banks/credit-card_*_net.csv`
+the files it matches; each peer is named by its file). A series given
+`--synthesis` needs `--translation` and `--leads`, and `--peer-percentiles`
+when it has peers; each is stated for that series, and there is no set that
+applies to every series, because a lead that is right for cards (whose
+industry history holds 2008) was not chosen for a series whose does not. Any
+of them missing, or given for a series without `--synthesis`, is refused by
+name. Without any synthesis flag the command and the workbook are as before.
+
+The **Synthesis** tab (red, beside Thresholds) has a block per series: the
+four lines from internal, industry and peers side by side, **Taken from
+(yours)** per line, **Peers at percentile (yours)** per line, **Industry
+carried by (yours)**, each a yellow cell starting from what the command said;
+the **chosen line**; the latest quarter rated on the chosen lines; the
+**competitive check** as a sentence; and a **Check** that says OK or why it
+refuses, in `synthesis.py`'s words: a line taken from a view that does not
+have it (naming the line, the view and why), lines out of order (naming the
+pair and their values), peers without KeyBank's filed series, percentiles
+that are not four numbers from 0 to 100 or do not rise, a lead or translation
+typed outside its list. Below that, what each view rests on (quarters held,
+the ratios and over how many quarters) and each peer's median.
+
+Every number is a formula and follows **Your settings on Assess**. The
+internal lines **are** Thresholds' lines, so periods left out on Assess move
+them; the translations and the peer window use every quarter the internal
+series holds, as `synthesis.py` does. The industry, filed and peer series are
+smoothed as the measure says, like the internal ones. Their `#` notes are
+printed on Sources and their SHA-256 on Run, each under its own name
+(*Credit card · industry*, *· KeyBank filed*, *· peer NAME*), and Run shows
+the choices live.
+
+On **Assess**, under What each setting does, *Where each colour starts* shows
+the series in B5: the three views and the chosen line for each of the four
+lines, the latest rating on them and the Synthesis Check, with a link to the
+tab. A series built without a synthesis says so there.
+
+**What proves it** (`tests/test_workbook_synthesis.py`): the workbook is
+recalculated with the `formulas` engine and every candidate, chosen line,
+rating and Check must equal `synthesis.synthesize` on the same inputs: all
+internal but High from the industry; a line led by peers; translation none;
+percentiles changed on the tab; Your settings changed on Assess; a period
+left out (internal moves, the others do not); lower is worse; smoothing; a
+latest value exactly on a chosen line under worse and better; and each
+refusal. Nine hand-made faults in the tab's formulas each turn a test red. The command's refusals when a flag is missing. Opened in Excel
+16 on the public card files (LOG.md, 14 Oct 2026).
+
 ## Peers (`peers/`, commands `peers pull` and `peers build`)
 
 Public FDIC Call Report data for KeyBank and a 16-bank roster
@@ -131,7 +214,7 @@ Public FDIC Call Report data for KeyBank and a 16-bank roster
 |---|---|
 | `peers pull` (`fdic.py`) | Fetches every filer's quarter into a cache folder, only quarters not already there. Refuses a quarter the FDIC has not published (0 filers), a page count that does not match the API's own total, or a row that arrives twice. With `--mergers`, the FDIC's acquisition record, classified; a change code nobody has classified stops the pull and is named |
 | `peers pull --delinquency yes` | Also the 30-89, 90+ accruing and nonaccrual fields per product. A cache pulled without them is refused by name for a delinquency build |
-| `peers build` (`books.py`, `analyses.py`, `delinquency.py`, `peers_workbook.py`, through `run.py`) | Reads the cache only. Per bank, product and quarter: TTM gross and net charge-off rates, with a window left out when the book moved more than the stated jump (an acquisition) or was under the stated minimum. Writes the peer workbook and, per product, `date,value` CSVs the main workbook reads: pack composite, KeyBank, industry |
+| `peers build` (`books.py`, `analyses.py`, `delinquency.py`, `peers_workbook.py`, through `run.py`) | Reads the cache only. Per bank, product and quarter: TTM gross and net charge-off rates, with a window left out when the book moved more than the stated jump, when that quarter's recorded acquisitions brought in at least the stated acquisition share of the book, or when it was under the stated minimum. Where a bank absorbed another under the same parent, the absorbed bank's year-to-date, which the survivor's filing repeats, is taken off, so no dollar counts twice (the industry series included). Writes the peer workbook and, per product, `date,value` CSVs the main workbook reads: pack composite, pack median, KeyBank, industry, and each peer's own book under `banks/`. A year-to-date that restarts mid-year under a new parent (push-down accounting) is read as that quarter's flow, not differenced. Other consumer's balance is RC-C 6.b + 6.d; card quarters before 2010 are labelled as excluding securitized cards |
 
 With `--delinquency yes` it also writes, per product, measure and basis,
 the delinquency CSVs for the pack composite, KeyBank and the industry: 150
@@ -211,6 +294,26 @@ ordinary series for `workbook` and the window.
 **What proves it:** each template is written, filled with synthetic values,
 checked and built through the workbook in a test; each refusal has a test
 with its exact words.
+
+## Internal data (`internal.py`, command `internal`)
+
+KeyBank's own figures by product and segment, one file, run on site only.
+The layout and every rule are in `docs/INTERNAL-IMPORT.md`.
+
+| Command | What it does |
+|---|---|
+| `internal template OUT.csv` | The empty file, every note `[STATE: ...]`, and an empty exclusions file beside it |
+| `internal check FILE` | Every problem at once, each naming its line, exit 2: a note or segment description not stated, a missing column, fewer than two of gross, net and recoveries (the third is worked out; three that disagree are refused), past due not cumulative or above the balance, a repeat, a gap, a column named like an identifier, text in a further column |
+| `internal series FILE --out-dir DIR` | Per product and segment, net and gross charge-off rates over four quarters, and 30+, 60+ and 90+ rates at quarter-end and as a four-quarter average, by the public series' method. Each file's notes copy the file's own as-of, source, entity and basis, for the Sources tab |
+| `internal pull` | The Call Report fields the reconciliation reads, into a cache of its own |
+| `internal reconcile` | Per quarter and comparison, the filed balance and charge-offs, less the named exclusions, against internal; the remainder within the stated tolerance or not. Reads the cache only. Delinquency is not reconciled (the buckets differ); the notes give the nearest public measure |
+
+**What proves it:** `tests/test_internal.py`, made-up figures only: each
+refusal pinned by its line; the four-quarter rate against a hand-worked
+example; the window rule; a written series built through the workbook; a
+reconciliation on a small synthetic Call Report cache where named exclusions
+explain one gap and another is flagged; refusal without a tolerance. Not yet
+run on KeyBank's data, nor against a real cache.
 
 ## What was run outside the tool
 
