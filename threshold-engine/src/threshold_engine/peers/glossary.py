@@ -184,8 +184,9 @@ PEER_TERMS = [
      "What a class is counted as on Peer loan classes: student, unsecured or personal, secured non-auto, mixed "
      "other consumer, or other.",
      "A judgment stated per class in config/peer-loan-classes.json, with the filing's words quoted. "
-     "Unsecured or personal holds classes the filing calls unsecured or personal loans; a filing that says "
-     "personal without saying unsecured is said so."),
+     "Unsecured or personal holds classes the filing calls unsecured or personal loans, and solar energy "
+     "installation loans, which the bank's analyst ruled count as unsecured (15 Oct 2026: the panels are "
+     "little to recover). A filing that says personal without saying unsecured is said so."),
     ("For an unsecured comparison",
      "Whether a bank's other consumer rate on the Call Report can stand for its unsecured lending.",
      "Clean: the filing shows the unsecured or personal slice on its own and no student loans. Mixed: other "

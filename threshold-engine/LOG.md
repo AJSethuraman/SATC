@@ -1467,8 +1467,14 @@ tie it out"*.
   ($16.9bn, fair value), inside PNC's other consumer since 1 Jan 2026, $182m
   in KeyCorp's discontinued operations; Capital One's 10-Q says Discover sold
   its student portfolio before the merger; "student" appears in none of the
-  other twelve. Clean comparisons for unsecured lending: Capital One (personal
-  loans $8.6bn) and Fifth Third (unsecured $626m, split out in its Table 44).
+  other twelve. The one clean comparison for unsecured lending: Capital One
+  (personal loans $8.6bn; its Call Report other consumer is these loans).
+  Fifth Third splits out $626m unsecured, but its Call Report other consumer
+  is $10.2bn, mostly solar, RV and marine: first marked Clean, corrected to
+  Mixed the same evening. Solar is counted as unsecured by the analyst's
+  ruling (*"solar might as well be considered unsecured"*, 15 Oct 2026):
+  Fifth Third's unsecured is then $4.9bn, about half its other consumer, and
+  it stays Mixed.
 - What I got wrong: the readers recorded "not stated" for KeyCorp's secured
   non-auto lending and Capital One's student loans; the tie-out's own search
   found both sentences, and the file was corrected. The comparison script

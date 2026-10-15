@@ -72,11 +72,16 @@ banks = [
                 "where": "MD&A, Table 44, June 30, 2026"},
                {"name": "Indirect RV and marine, primarily (in Indirect secured consumer loans)", "amount_musd": 2800, "is": "Secured non-auto",
                 "where": "MD&A, Consumer Portfolio, Indirect secured consumer portfolio: \"$2.8 billion primarily comprised of indirect recreational vehicle and marine loans\""},
-               {"members": [CS, "fitb:SolarEnergyInstallationLoansMember"], "name": "Solar energy installation loans", "is": "Other"}],
+               # The analyst's ruling, 15 Oct 2026: "solar might as well be considered unsecured" (the
+               # panels are nominal collateral with little to recover). A judgment, not the filing's word.
+               {"members": [CS, "fitb:SolarEnergyInstallationLoansMember"], "name": "Solar energy installation loans",
+                "is": "Unsecured or personal"}],
       findings=dict(student=q("FITB", "student", NOT),
-                    unsecured=q("FITB", "unsecured", "Yes: $626 million, split out in Table 44", "Own line"),
+                    unsecured=q("FITB", "unsecured", "Yes: $626 million of unsecured loans, split out in Table 44; and solar energy installation loans, $4,314 million, counted as unsecured by the analyst's ruling of 15 Oct 2026 (\"solar might as well be considered unsecured\"), not by the filing", "Own lines"),
                     secured_non_auto=q("FITB", "secured_non_auto", "Yes: other secured $1,299 million, and about $2.8 billion of RV and marine", "Own lines")),
-      comparison={"answer": "Clean", "why": "The only peer bank to split other consumer by product: $626m unsecured, the rest secured or point-of-sale, so its unsecured slice is known exactly. No student loans are stated."}),
+      # Corrected 15 Oct 2026: "Clean" held for the balance split, not for the rate. Its Call Report other
+      # consumer averaged $10.2bn in 2026Q2 (Peers data), of which $626m is unsecured.
+      comparison={"answer": "Mixed", "why": "Unsecured ($626m) and solar ($4.3bn, counted as unsecured) are about half its Call Report other consumer ($10.2bn average, 2026Q2); the rest is RV and marine ($2.8bn), other secured and point-of-sale, so its rate is not an unsecured rate."}),
  dict(short="Huntington", t="HBAN", holding_company="Huntington Bancshares Incorporated",
       classes=[{"members": [CS, "hban:RVandMarineFinanceLoanMember"], "name": "RV and marine", "is": "Secured non-auto"},
                {"members": [CS, "hban:OtherConsumerLoanMember"], "name": "Other consumer", "is": "Mixed other consumer"}],

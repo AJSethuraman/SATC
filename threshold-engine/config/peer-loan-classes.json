@@ -213,7 +213,7 @@
       "fitb:SolarEnergyInstallationLoansMember"
      ],
      "name": "Solar energy installation loans",
-     "is": "Other"
+     "is": "Unsecured or personal"
     }
    ],
    "findings": {
@@ -224,8 +224,8 @@
      "where": "Whole 10-Q searched for 'student' and 'education': no hits."
     },
     "unsecured": {
-     "answer": "Yes: $626 million, split out in Table 44",
-     "short": "Own line",
+     "answer": "Yes: $626 million of unsecured loans, split out in Table 44; and solar energy installation loans, $4,314 million, counted as unsecured by the analyst's ruling of 15 Oct 2026 (\"solar might as well be considered unsecured\"), not by the filing",
+     "short": "Own lines",
      "quote": "Unsecured | 626 | | 22 |",
      "where": "MD&A > Credit Risk Management > Consumer Portfolio > Other consumer loans portfolio > 'TABLE 44: Other Consumer Portfolio Loans Outstanding by Product Type', June 30, 2026"
     },
@@ -237,8 +237,8 @@
     }
    },
    "comparison": {
-    "answer": "Clean",
-    "why": "The only peer bank to split other consumer by product: $626m unsecured, the rest secured or point-of-sale, so its unsecured slice is known exactly. No student loans are stated."
+    "answer": "Mixed",
+    "why": "Unsecured ($626m) and solar ($4.3bn, counted as unsecured) are about half its Call Report other consumer ($10.2bn average, 2026Q2); the rest is RV and marine ($2.8bn), other secured and point-of-sale, so its rate is not an unsecured rate."
    }
   },
   {
