@@ -1370,3 +1370,28 @@ backtest_comes_back_from_the_real_build fails, and is not about the peers:
 642ff55f ("life to date") made a short series keep its lines instead of
 refusing, and the test still expects the refusal (it fails the same at
 642ff55f, checked in a clean worktree).
+
+## 15 October 2026, Claude Design's round 2, built by the tool
+
+The firm sent Claude Design's hand-off (`docs/design/round-2/`) and answered
+its questions: the internal extract is quarterly by product and measure, then,
+before it was built, *"i will have more granular data ... sometimes we may also
+want to see its components like other consumer is 4 different things ... balances
+and stuff are definitely important too"*: the Internal tabs take the internal
+import layout (segments, $ thousands) instead. Keep the lagged peer view; Excel
+at work is Microsoft 365. Wording to canon's voice (1.23.0, PR #439, not yet
+installed): the analyst register, American spelling.
+
+- Built in four parts, each in its own worktree, then combined: Decide and
+  Thresholds (Thresholds read by meaning through `decide_tab.TH_BOOK`);
+  Summary and the reference tabs; Peers (peer glossary and run folded into
+  Glossary and Run); Internal and Internal data (`internal_tab.py`, a book's
+  required `internal` key).
+- Voice pass over every visible string (1,557, 21,333 words): one tell,
+  fixed; American spelling also in text a book hides.
+- Proof: tests per part (Decide 23, slicers 19, book 11, peers 460, Summary
+  and reference 250 + 115, Internal 19 + 103) and combined (87, then 30);
+  `book` with the peers build inside, 7 min 57 s; walkthrough 328 of 328; no
+  repair as a user opens it.
+- Not run: the complete suite in one run. Not done: right-edge line labels on
+  the Internal chart; slicer buttons sort A-Z (Excel offers no data order).
