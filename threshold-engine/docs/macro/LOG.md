@@ -248,5 +248,5 @@ tests fail. Run it and what is missing: `TOOL.md`.
   Required"; the rest are public domain.
 
 **Waiting on the firm (for slice 2):** the cut-offs for each rating, the
-history window, the change horizon, and the direction of stress for the nine
+history window, the change horizon, and the direction of stress for the eight
 series the research leaves open. Nothing in slice 2 has a default.
