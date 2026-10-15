@@ -1181,3 +1181,32 @@ and all 698,135 cells compared equal before and after.
   separate workbooks; it was 27 (KeyBank 14, not 15). An Excel process was
   force-closed during the run; any workbook the firm had open in Excel then
   closed unsaved.
+## 14 October 2026, table slicers without Excel
+
+The bank blocks macros, so a row of a table is picked with slicer buttons,
+and openpyxl cannot write slicers. `slicers.add_table_slicers(path, sheet,
+table, slicers)` adds them to the finished .xlsx by editing the package, in
+the parts and places Excel 16 itself used when it added the same three
+slicers to the Decide table over COM. Not yet wired into the build.
+
+- A table slicer stores no selection. Excel reads it from the table's
+  autoFilter on open and does not re-filter, so the autoFilter is written to
+  the selection and the rows it hides are written hidden, as Excel wrote them.
+- It refuses rather than guess: a value not in the column, a column that is
+  not text (a button shows displayed text, unknowable here for a number), a
+  table already filtered, a sheet that already has slicers.
+- `tools/check_slicers_in_excel.ps1` opens the result as a user would
+  (excel.exe /x, watching for any dialog), then over COM counts every cache,
+  slicer, shape and selection, clicks a different button, checks the rows
+  shown against the cells, saves, and reopens. Passed on a sample with `&`,
+  `<`, quotes and `+` in the names (`tools/slicer_sample.py`), and on
+  core-decide.xlsx.
+- Found on the negative controls: Excel repairs in two ways. A malformed part
+  prompts ("We found a problem...") interactively, and over COM only makes
+  Open fail. A well-formed but wrong part (a cache naming a column that is not
+  there) is dropped silently, with no prompt, no repair log and no
+  "[Repaired]", interactively and over COM. Only counting what survived
+  catches the second.
+- On Decide, the Measure slicer has seven buttons and rows 3-11 at their
+  current height show five, so the selected one can be below the fold.
+  Excel's own run set those rows to 25pt first.
