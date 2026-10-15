@@ -21,8 +21,20 @@ own folder, so a book and its files can be copied to another machine whole.
       "not_in_book": [{"Product": ..., "Measure": ..., "Source": ..., "why": ...}],
       "compare": ["KeyBank", "Peer group"] or null,
       "notes": ["..."],
-      "peers": null or {every setting 'peers build' takes, by its keyword name}
+      "peers": null or {every setting 'peers build' takes, by its keyword name},
+      "internal": null or {"file": the bank's internal file (docs/INTERNAL-IMPORT.md),
+                           "source": the source its series go under, e.g. "KeyBank internal",
+                           "segments": true to add each segment as a series as well,
+                           "measures": {internal measure: the book's measure it is},
+                           "call_report_source": the source holding the bank's Call Report series}
     }
+
+With an internal section, run on site only: the file is checked as the
+``internal check`` command checks it; each product's composite (and, when
+asked, each segment) is written beside the workbook as a series for every
+measure the book maps; and the file's rows fill the Internal data tab. A
+measure the book does not map stays on the Internal tab: whether an internal
+30+ includes nonaccrual loans is the book's to say, and is never assumed.
 
 A part value of ``*`` in ``not_in_book`` stands for every value of that part.
 """
@@ -31,13 +43,15 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .series import LABEL_RULE, label_ok
 
 WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_at_zero", "moderate_halfwidth",
                  "low_step", "high_z", "on_the_line", "half_lives", "percentiles", "horizon", "min_history")
-TOP_KEYS = ("workbook", "parts", "series", "not_in_book", "compare", "notes", "peers")
+TOP_KEYS = ("workbook", "parts", "series", "not_in_book", "compare", "notes", "peers", "internal")
+#: The internal section: the file (docs/INTERNAL-IMPORT.md) and the judgments made about it.
+INTERNAL_KEYS = ("file", "source", "segments", "measures", "call_report_source")
 #: 'peers build' settings, by the keyword ``peers.run.build`` takes; paths among them.
 PEERS_KEYS = ("cache", "roster", "series_dir", "first", "last", "products", "mergers", "absorptions",
               "extra_acquisitions", "industry_combined", "jump", "acquisition_share", "min_book", "exempt_self",
@@ -171,14 +185,122 @@ def load(path) -> dict:
         for label, p in series:
             if not p.exists():
                 problems.append("the file for %r does not exist: %s" % (label, p))
+    internal = _internal(raw["internal"], resolve, decide_parts, problems)
     if problems:
         raise BookError("\n".join(problems))
     wbk = dict(raw["workbook"])
     wbk["half_lives"] = tuple(wbk["half_lives"])
     wbk["percentiles"] = tuple(wbk["percentiles"])
-    return {"workbook": wbk, "series": series, "peers": peers, "folder": folder,
+    return {"workbook": wbk, "series": series, "peers": peers, "folder": folder, "internal": internal,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
                        "notes": notes}}
+
+
+def _internal(spec, resolve, decide_parts, problems) -> Optional[dict]:
+    """The book's internal section, checked: None, or the file read by
+    ``internal.read`` (every one of its problems listed here) and the
+    choices, each stated. Which workbook measure an internal measure is, is a
+    judgment the book states; one it does not state stays on the Internal
+    tab only."""
+    if spec is None:
+        return None
+    _keys("internal", spec, INTERNAL_KEYS, problems)
+    if not isinstance(spec, dict) or any(k not in spec for k in INTERNAL_KEYS):
+        return None
+    from . import internal as I
+    products = {v[0] for v in decide_parts.values()}
+    measures = {v[1] for v in decide_parts.values()}
+    sources = {v[2] for v in decide_parts.values()}
+    out = {"file": resolve(spec["file"]), "source": spec["source"], "segments": spec["segments"],
+           "measures": spec["measures"], "call_report_source": spec["call_report_source"], "data": None}
+    src = spec["source"]
+    if not (isinstance(src, str) and src.strip() and label_ok(src) and " - " not in src):
+        problems.append("internal: source must name the internal series' source, for example \"KeyBank "
+                        "internal\" (%s, and no ' - ')" % LABEL_RULE)
+    elif src in sources:
+        problems.append("internal: source %r is already a source of the book's series; name the internal one "
+                        "differently" % src)
+    if not isinstance(spec["segments"], bool):
+        problems.append("internal: segments must be true (each segment also becomes a series) or false")
+    ms = spec["measures"]
+    if not isinstance(ms, dict):
+        problems.append("internal: measures must be an object from an internal measure (%s) to the workbook "
+                        "measure it is; {} puts none on the views" % ", ".join(I.MEASURES))
+    else:
+        for k, v in ms.items():
+            if k not in I.MEASURES:
+                problems.append("internal: measures has %r, which is not an internal measure (%s)"
+                                % (k, ", ".join(I.MEASURES)))
+            elif v not in measures:
+                problems.append("internal: measures maps %s to %r, which is not a measure of the book's series "
+                                "(%s)" % (k, v, ", ".join(sorted(measures))))
+        if len(set(ms.values())) != len(ms):
+            problems.append("internal: measures maps two internal measures to one workbook measure")
+    if spec["call_report_source"] not in sources:
+        problems.append("internal: call_report_source must be the source holding the bank's Call Report series, "
+                        "one of %s" % ", ".join(sorted(sources)))
+    if not out["file"].exists():
+        problems.append("internal: the file %s does not exist" % out["file"])
+        return out
+    try:
+        out["data"] = I.read(out["file"])
+    except I.Refused as e:
+        problems.extend("internal file: " + p for p in e.problems)
+        return out
+    if spec["segments"] is True:
+        for p, seg in out["data"].keys():
+            if seg != I.ALL and not (label_ok(seg) and " - " not in seg):
+                problems.append("internal: segment %r of %s can't name a source (%s, and no ' - ')"
+                                % (seg, p, LABEL_RULE))
+    if not any(p in products for p, _ in out["data"].keys()):
+        problems.append("internal: the file's products (%s) are none of the book's (%s)"
+                        % (", ".join(sorted({p for p, _ in out["data"].keys()})), ", ".join(sorted(products))))
+    return out
+
+
+def internal_series(bk: dict, out_dir: Path) -> List[Tuple[str, Path, Tuple[str, str, str]]]:
+    """Write the book's internal series to ``out_dir`` and return ``[(label,
+    path, parts)]``: the composite of every product the book has, for every
+    measure the book maps, under the internal source; and each segment too,
+    under "SOURCE: SEGMENT", when the book says so. By the public method
+    (``internal.composite_series`` and ``internal.series``), each from its
+    latest unbroken run, with notes saying what it is."""
+    from . import internal as I
+    from .peers.books import write_series
+    from .peers.run import series_note, slug, unbroken_tail
+    spec = bk["internal"]
+    data = spec["data"]
+    products = {v[0] for v in bk["decide"]["parts"].values()}
+    out_dir.mkdir(parents=True, exist_ok=True)
+    made = []
+    for p in dict.fromkeys(pr for pr, _ in data.keys()):
+        if p not in products:
+            continue
+        segs = [s for pr, s in data.keys() if pr == p and s != I.ALL] if spec["segments"] else []
+        for key, measure in spec["measures"].items():
+            m = I.MEASURES[key]
+            for seg in [None] + segs:
+                if seg is None:
+                    pairs = I.composite_series(data, p, key)
+                    src, what = spec["source"], ("the composite: %s" % (
+                        "the All rows" if I.composite_segment(data, p) == I.ALL else "every segment summed"))
+                else:
+                    pairs = I.series(data, p, seg, key)
+                    src, what = "%s: %s" % (spec["source"], seg), "segment %s: %s" % (seg, data.segments[seg])
+                tail, before, after = unbroken_tail(pairs)
+                if not tail:
+                    continue
+                path = out_dir / ("internal_%s_%s_%s.csv" % (slug(p), slug(seg or "composite"), key))
+                note = ["measure: %s. %s, %s, internal" % (m.title, p, what), "numerator: %s" % m.numerator,
+                        "denominator: %s" % m.denominator,
+                        "basis: %s. The file's own basis: %s" % (m.basis, data.notes["basis"]),
+                        "as-of: %s" % data.notes["as-of"], "source: %s" % data.notes["source"],
+                        "entity: %s" % data.notes["entity"],
+                        "Written by 'book' from %s. Internal data: run on site, never committed."
+                        % Path(data.path).name]
+                write_series(tail, path, series_note(note, tail, before, after))
+                made.append(("%s - %s - %s" % (p, measure, src), path, (p, measure, src)))
+    return made
 
 
 def build(book_path, out, say=print) -> dict:
@@ -214,7 +336,30 @@ def build(book_path, out, say=print) -> dict:
         for ws in wb.worksheets:
             ws.sheet_view.tabSelected = ws.title == "Summary"
 
-    info = WB.build(out, bk["series"], decide=bk["decide"], into=host, before_save=tidy, **bk["workbook"])
+    series, decide = list(bk["series"]), dict(bk["decide"])
+    if bk["internal"] is not None:
+        # The bank's own figures, on site: their series sit beside the
+        # workbook, never in the repository, and the rows fill Internal data.
+        from .peers import roster as R
+        spec = bk["internal"]
+        made = internal_series(bk, out.parent / (out.stem + " internal series"))
+        taken = {lbl.casefold() for lbl, _ in series}
+        for lbl, path, parts_ in made:
+            if lbl.casefold() in taken:
+                raise BookError("internal: the series %r is already in the book" % lbl)
+            series.append((lbl, path))
+        decide["parts"] = dict(decide["parts"], **{lbl: parts_ for lbl, _, parts_ in made})
+        tab_keys = ("net-charge-off-rate", "gross-charge-off-rate", "dpd-30-plus-quarter-end",
+                    "dpd-60-plus-quarter-end", "dpd-90-plus-quarter-end")
+        decide["internal"] = {
+            "rows": list(spec["data"].rows), "source": spec["source"],
+            "measures": {k: spec["measures"][k] for k in tab_keys if k in spec["measures"]},
+            "call_report": spec["call_report_source"],
+            "peers_self": R.self_bank(R.load(bk["peers"]["roster"]))["short"] if bk["peers"] else None}
+        say("internal: %d rows from %s; %d series added under %s"
+            % (len(spec["data"].rows), Path(spec["data"].path).name, len(made), spec["source"]))
+
+    info = WB.build(out, series, decide=decide, into=host, before_save=tidy, **bk["workbook"])
     if peer_tabs:
         # The peer charts draw a missing quarter as a gap, which is set on the saved file.
         from .peers.peers_workbook import na_as_gap

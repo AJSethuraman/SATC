@@ -735,6 +735,53 @@ def book_path(internal: Internal, product: str, segment: str) -> str:
                                               "is not stated")
 
 
+#: The segment name the composite of summed segments is written under.
+COMPOSITE = "All segments"
+
+
+def composite_rows(internal: Internal, product: str) -> List[Row]:
+    """The product's composite, quarter by quarter: its ``All`` rows where
+    the file gives them, and otherwise every segment summed (gross, net,
+    recoveries, balance and past due alike). A quarter is in the composite
+    when any segment has a row for it; a segment that starts later or stops
+    earlier adds nothing to the quarters it does not hold. The workbook's
+    Internal tab applies the same rule in formulas (``internal_tab``)."""
+    rows = [r for r in internal.rows if r.product == product]
+    if not rows:
+        raise ValueError("the file has no rows for %s; it holds %s"
+                         % (product, ", ".join(sorted({r.product for r in internal.rows}))))
+    alls = [r for r in rows if r.segment == ALL]
+    if alls:
+        return alls
+    by_q: Dict[str, List[Row]] = {}
+    for r in rows:
+        by_q.setdefault(r.quarter, []).append(r)
+    out = []
+    for q in sorted(by_q, key=qindex):
+        rs = by_q[q]
+
+        def tot(attr):
+            return sum((getattr(r, attr) for r in rs), Decimal(0))
+        out.append(Row(rs[0].line, q, product, COMPOSITE, tot("balance"), tot("gross_charge_offs"),
+                       tot("net_charge_offs"), tot("recoveries"), None, tot("dpd_30_plus"), tot("dpd_60_plus"),
+                       tot("dpd_90_plus"), ()))
+    return out
+
+
+def composite_segment(internal: Internal, product: str) -> str:
+    """``All`` when the file gives the product's total, else ``COMPOSITE``."""
+    return ALL if any(r.product == product and r.segment == ALL for r in internal.rows) else COMPOSITE
+
+
+def composite_series(internal: Internal, product: str, measure: str) -> List[Tuple[str, Optional[float]]]:
+    """``series`` for the product's composite (``composite_rows``), by the
+    same public method."""
+    rows = tuple(composite_rows(internal, product))
+    seg = rows[0].segment
+    one = Internal(internal.path, internal.notes, {seg: "every segment of %s" % product}, (), rows)
+    return series(one, product, seg, measure)
+
+
 def write_all_series(internal: Internal, out_dir) -> List[dict]:
     """Every product, segment and measure as a ``date,value`` CSV in
     ``out_dir``. A series is written from its latest unbroken run (the

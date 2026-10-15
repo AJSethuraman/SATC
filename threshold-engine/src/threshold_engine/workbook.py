@@ -1027,6 +1027,13 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         wb.active = 0
         for ws in wb.worksheets:
             ws.sheet_view.tabSelected = ws.title == "Summary"
+
+        # ---- Internal and Internal data (internal_tab.py): the bank's own
+        # figures beside the outside series. Empty unless the book names an
+        # internal file (decide["internal"]). ----
+        from . import internal_tab as IT
+        dec["internal"] = IT.build(wb, labels=labels, parts=decide["parts"], part_names=decide["names"], grid=grid,
+                                   higher=higher, floor_at_zero=floor_at_zero, internal=decide.get("internal"))
     if before_save is not None:
         before_save(wb)
     out = Path(out)

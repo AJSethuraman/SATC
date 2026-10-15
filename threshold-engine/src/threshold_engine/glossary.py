@@ -222,6 +222,94 @@ TERMS = [
     ("Chosen line",
      "Where the rating begins once each line is taken from the view you chose.",
      "The internal, industry or peers value on the same row, as Taken from says."),
+    ("Internal data",
+     "The bank's own figures, pasted into the InternalData table on the Internal data tab: one row per quarter, "
+     "product and segment, with amounts in $ thousands.",
+     "Columns are found by their header names (quarter, product, segment, balance, gross_charge_offs, "
+     "net_charge_offs, recoveries, dpd_30_plus, dpd_60_plus, dpd_90_plus, and an optional crr_grade), in any "
+     "order. A quarter is written YYYYQn or as a date. Of gross charge-offs, net charge-offs and recoveries, two "
+     "are required and the third is worked out (gross less recoveries is net). The rules are those of the "
+     "internal import (docs/INTERNAL-IMPORT.md)."),
+    ("Mapped",
+     "The workbook's name for a product or measure in the internal file, set once under Your products are and "
+     "Your measures are on the Internal tab.",
+     "A product name is matched to a workbook product by its exact name, then by the starting rules (card, "
+     "mtg or mortgage, heloc or home eq, auto, oth or other). Net and gross charge-off rates start mapped to "
+     "the workbook's charge-off measures, because they are calculated the same way. The past-due measures start "
+     "as Internal tab only: whether an internal 30+ includes nonaccrual loans is not stated in the file."),
+    ("Composite",
+     "A product's figure across all its segments.",
+     "The product's All rows where the file has them. Otherwise, every segment's amounts are summed quarter by "
+     "quarter before any rate is calculated. A product with any row not used has no composite."),
+    ("Segment",
+     "The bank's own split of a product, such as unsecured lines of credit within other consumer.",
+     "Read from the segment column as written. All is the product total."),
+    ("Share of the product",
+     "A segment's balance as a share of the product's composite balance at the latest quarter.",
+     "Segment balance divided by composite balance."),
+    ("Balance by segment ($ millions)",
+     "Each segment's quarter-end balance over the last 48 quarters, stacked, with the composite as a line.",
+     "The balance column summed by quarter, product and segment, divided by 1,000."),
+    ("Rows not used",
+     "Rows on Internal data that are left out of every figure, with the reason in Why not used.",
+     "Rows with any entry, less the rows used, plus any rows below the table's last row."),
+    ("Why not used",
+     "The first problem found in a row of Internal data, or blank when the row is used.",
+     "Checked in this order: the quarter, the product mapping, the segment, the balance and past-due amounts, "
+     "a non-numeric charge-off or grade, fewer than two charge-off amounts, gross less recoveries not equal to "
+     "net, an amount other than net charge-offs below zero, past-due amounts that are not cumulative, a "
+     "repeated quarter, product and segment, and a missing quarter before the row's."),
+    ("Call Report source",
+     "The source in this workbook that holds the bank's own Call Report series.",
+     "Picked on the Internal tab. Like for like reads its series, and the chart draws it in red."),
+    ("Like for like",
+     "The internal composite set against the Call Report lines that hold the same loans.",
+     "The pairs are those of the internal reconcile command. The balance is the mean of four quarter-end "
+     "balances. The net charge-off rate is four quarters' net charge-offs over that mean, times 100. The "
+     "Call Report side is read from Peers data where the workbook holds it, and otherwise from the Call Report "
+     "source's series. Named exclusions are not taken off."),
+    ("What counts as reliable",
+     "The three thresholds a source must meet for each verdict.",
+     "Quarters both have, ratings that agree, and change correlation, typed on the Internal tab. The values "
+     "given are starting values."),
+    ("Quarters both have",
+     "The quarters in which both the internal series and the outside source have a value.",
+     "A count over the Data tab's quarters."),
+    ("Level correlation",
+     "How closely the two series move together in level.",
+     "Pearson's correlation of the internal and source values over the quarters both have."),
+    ("Change correlation",
+     "How closely the two series' changes over four quarters move together.",
+     "Pearson's correlation of each series' change from four quarters earlier, over the quarters in which both "
+     "series have the value and the value four quarters earlier."),
+    ("Average gap",
+     "How far the internal series sits above the source on average, in the measure's units: internal less "
+     "source.",
+     "The mean of internal less source over the quarters both have."),
+    ("Ratings that agree",
+     "The share of quarters in which the internal value and the source's value get the same rating.",
+     "Both values are rated on the source's own four lines from Thresholds, with the On a line rule set on "
+     "Decide; a value at or below zero is rated 1 where Decide rates it so. Matches divided by quarters both "
+     "have."),
+    ("Within one rating",
+     "The share of quarters in which the two ratings differ by one or less.",
+     "As Ratings that agree, counting quarters where the two ratings are at most one apart."),
+    ("Verdict",
+     "Whether a source's lines can be used to set lines for the internal series.",
+     "Checked in order: fewer quarters both have than the minimum gives Too few quarters; a source whose lines "
+     "are refused on Thresholds gives Its lines are refused; ratings that agree and change correlation both at "
+     "or above their minimums give Reliable for setting lines; ratings that agree at or above 75% of the "
+     "minimum give Use with care; anything else is Not reliable. No outside series means the workbook holds no "
+     "series for that product, measure and source."),
+    ("CRR grade",
+     "The bank's credit risk rating for the product or segment in a quarter, given in the optional crr_grade "
+     "column.",
+     "Read from a single row: a segment's own row, or a product's All row. Summed segments carry no grade."),
+    ("Lowest CRR grade",
+     "The lowest CRR grade that falls in each rating.",
+     "A grade's rating is the highest rating whose lowest grade is at or below it. The starting values are 1, "
+     "3, 5, 7 and 9. The agreement figure counts quarters where that rating equals the internal value's rating "
+     "on the lines of the source picked under Shade with lines from."),
     ("Competitive check",
      "How KeyBank's filed figures compare with each peer's, as a count. It does not say how bad is bad enough.",
      "KeyBank's filed median over the quarters the internal series holds, and how many peers' medians over "

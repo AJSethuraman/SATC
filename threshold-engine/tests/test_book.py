@@ -30,7 +30,7 @@ def write_book(folder: Path, **over) -> Path:
                        {"Product": "Mortgage", "Measure": "Net", "Source": "Industry",
                         "file": "files/mortgage_nco_ttm.csv"}],
             "not_in_book": [{"Product": "Mortgage", "Measure": "Net", "Source": "Bank", "why": "No file (a test)."}],
-            "compare": ["Bank", "Industry"], "notes": ["A note."], "peers": None}
+            "compare": ["Bank", "Industry"], "notes": ["A note."], "peers": None, "internal": None}
     book.update(over)
     p = folder / "book.json"
     p.write_text(json.dumps(book), encoding="utf-8")

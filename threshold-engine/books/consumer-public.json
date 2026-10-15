@@ -80,5 +80,6 @@
     ],
     "mix_base_year": 2019,
     "delinquency": true
-  }
+  },
+  "internal": null
 }
