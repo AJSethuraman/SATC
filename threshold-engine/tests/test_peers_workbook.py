@@ -202,6 +202,52 @@ def assert_rank_table(vals, info, books_p, certs, roster, kind="net"):
     assert peers_cell(vals, "F%d" % (info["layout"]["tiles"] + 1)) == "%d of %d" % (me, len(ranked))
 
 
+# --- the book-size view ---------------------------------------------------------
+
+def test_book_size_is_a_full_view_of_every_bank_switched_on(all_peers, books, roster):
+    """Book size reads like charge-offs: the pack's percentiles of the balances
+    above zero as bands and a median, KeyBank, Peer A and B as lines on a
+    logarithmic axis (nothing at or below zero is drawn, or Excel warns in a
+    dialog), the strip, and every bank switched on, and KeyBank, ranked by
+    balance beside it, largest first."""
+    p, info, vals = all_peers
+    grid = info["quarters"]
+    bal = {c: {r["quarter"]: r["avg_balance"] for r in rows} for c, rows in books["Credit card"].items()}
+    peers = [b["cert"] for b in R.peers(roster)]
+    for pct in (10, 25, 50, 75, 90):
+        want = []
+        for q in grid:
+            v = [bal[c][q] / 1e6 for c in peers if bal[c].get(q)]
+            want.append(percentile(v, pct) if len(v) >= MIN_BANKS else None)
+        assert_series(wcol(vals, info, "charge_offs", "s%d" % pct), want, "size p%d" % pct)
+    assert_series(wcol(vals, info, "charge_offs", "bk_k"),
+                  [bal[KEYBANK][q] / 1e6 if bal[KEYBANK].get(q) else None for q in grid], "KeyBank balance")
+    for name in ("s10", "s50", "s90", "bk_k", "bk_a", "bk_b", "smark"):
+        assert all(num(v) is None or num(v) > 0 for v in wcol(vals, info, "charge_offs", name)), name
+
+    order = [b["cert"] for b in roster]
+    last, before = grid[-1], grid[-5]
+    ranked = sorted((c for c in order if bal[c].get(last) is not None),
+                    key=lambda c: (-bal[c][last], c != KEYBANK, order.index(c)))
+    total = sum(bal[c][last] for c in ranked)
+    lay = info["layout"]
+    for k, c in enumerate(ranked):
+        r = lay["size_head"] + 1 + k
+        assert num(peers_cell(vals, "J%d" % r)) == k + 1 and peers_cell(vals, "K%d" % r) == short_of(roster, c)
+        assert num(peers_cell(vals, "L%d" % r)) == pytest.approx(bal[c][last] / 1e6)
+        assert num(peers_cell(vals, "M%d" % r)) == pytest.approx(bal[c][last] / total)
+        if bal[c].get(before):
+            assert num(peers_cell(vals, "N%d" % r)) == pytest.approx(bal[c][last] / bal[c][before] - 1)
+    me = ranked.index(KEYBANK) + 1
+    assert peers_cell(vals, "F%d" % (lay["size_tiles"] + 1)) == "%d of %d" % (me, len(ranked))
+    assert num(peers_cell(vals, "B%d" % (lay["size_tiles"] + 1))) == pytest.approx(bal[KEYBANK][last] / 1e6)
+    with zipfile.ZipFile(p) as z:
+        xml = next(x for x in (z.read(n).decode("utf-8") for n in z.namelist()
+                               if re.match(r"xl/charts/chart\d+\.xml$", n)) if "Peers!co_s10" in x)
+    assert '<logBase val="10"' in xml
+    assert re.findall(r'<legendEntry><idx val="(\d+)" /><delete val="1" />', xml) == ["0", "1", "2", "3", "8"]
+
+
 # --- the charge-off view --------------------------------------------------------
 
 def test_all_peers_composite_and_band_equal_books(all_peers, books, roster):
@@ -591,7 +637,8 @@ def test_one_dashboard_a_hidden_workings_and_charts_over_named_ranges(all_peers)
     assert re.findall(r'<legendEntry><idx val="(\d+)" /><delete val="1" />', main) == ["0", "1", "2", "3", "9"]
     assert '<a:ln w="6350"><a:solidFill><a:srgbClr val="E4DFD5"' in main          # Y gridlines, MIST 0.5 pt
     small = {tuple(re.findall(r"<val><numRef><f>Peers!([a-z_0-9]+)</f>", x)): x for x in charts if x is not main}
-    assert set(small) == {("co_bk_k", "co_bk_a", "co_bk_b"), ("co_rk", "co_ra", "co_rb", "co_one"),
+    size = ("co_s10", "co_s90", "co_s25", "co_s75", "co_s50", "co_bk_a", "co_bk_b", "co_bk_k", "co_smark")
+    assert set(small) == {size, ("co_rk", "co_ra", "co_rb", "co_one"),
                           tuple("co_mix%d" % j for j in range(1, len(FOUR) + 1))}
     ratio = small["co_rk", "co_ra", "co_rb", "co_one"]
     assert re.findall(r'<legendEntry><idx val="(\d+)" /><delete val="1" />', ratio) == ["3"]

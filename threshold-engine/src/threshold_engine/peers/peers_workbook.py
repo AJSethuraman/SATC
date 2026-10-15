@@ -111,7 +111,7 @@ from .. import keybank_style as K
 from . import roster as R
 from .analyses import calendar_year, lagged_rate, mix_factor, organic_index
 from . import delinquency as D
-from .books import PRODUCTS, _fields, bank_book, label, quarter_end, raw_fields
+from .books import PRODUCTS, _fields, bank_book, label, quarter_end, quarterly_flows, raw_fields
 from .glossary import PEER_TERMS
 
 INPUT = PatternFill("solid", fgColor=K.INPUT, bgColor=K.INPUT)
@@ -517,7 +517,7 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
 
 #: Rows each note keeps: a note is one line per row, never a wrapped cell, so
 #: no note on one half of the tab makes a row of the other half taller.
-NOTE_ROWS = dict(note1=1, lagged_note=2, norm_note=2, mix_note=3, book_note=3)
+NOTE_ROWS = dict(note1=1, size_note=2, size_right=2, lagged_note=2, norm_note=2, mix_note=3, book_note=3)
 NOTE_CHARS = 140                  # characters a line of a note holds across a panel (910 px)
 #: Row heights in points (docs/design/round-2/README.md, Peers).
 HEIGHTS = {"title": 25.5, "sub": 15, "spacer": 6, "label": 13.5, "pick": 19.5, "resolved": 12,
@@ -538,11 +538,14 @@ def layout(n_peers: int, n_banks: int, n_years: int) -> dict:
     chunks = max(1, math.ceil(n_peers / PER_ROW))
     off = 2 * (chunks - 1)
     rank_head = 36 + off
-    small = rank_head + n_banks + 2
+    size = rank_head + n_banks + 2
+    size_note = size + 4 + max(CHART_ROWS, n_banks)
+    small = size_note + NOTE_ROWS["size_note"] + 1
     v2 = small + SMALL_ROWS + 4
     v3 = v2 + 2 + 4 + NOTE_ROWS["lagged_note"] + 1
     return dict(chunks=chunks, settings=10 + off, best_worst=11 + off, v1=13 + off, tiles=14 + off,
                 chart1=17 + off, note1=17 + off + CHART_ROWS, ranks=35 + off, rank_head=rank_head,
+                size=size, size_tiles=size + 1, size_chart=size + 4, size_head=size + 3, size_note=size_note,
                 small=small, small_chart=small + 1, more_note=small + SMALL_ROWS + 2,
                 v2=v2, lagged=v2 + 1, lagged_note=v2 + 6, norm=v2, norm_table=v2 + 1, norm_note=v2 + 6,
                 v3=v3, mix=v3 + 1, mix_peers=v3 + 2 + n_years, mix_note=v3 + 3 + n_years,
@@ -1200,22 +1203,26 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     _ref_header(da, 1, ["Product", "Bank", "Certificate", "Quarter", "Gross charge-offs, TTM ($000)",
                         "Recoveries, TTM ($000)", "Average balance ($000)", "Gross rate (%)",
                         "Net rate (%)", "Kept", "Why not kept", "Book index, as reported (base = 100)",
-                        "Book index, without acquisitions (base = 100)"], right_from=4)
+                        "Book index, without acquisitions (base = 100)", "Quarter-end balance ($000)"],
+                right_from=4)
     for p in products:
         for b in roster:
             ix = indexed.get((p, b["cert"]), {})
+            # The balance as filed at the quarter-end; the average is the mean
+            # of four of these. Blank when the bank did not file it.
+            at_end = {label(q): bal for q, _, _, bal in quarterly_flows(data, b["cert"], p)}
             for r in books[p][b["cert"]]:
                 x = ix.get(r["quarter"])
                 da.append([p, b["short"], b["cert"], r["quarter"], r["gross"], r["recoveries"],
                            r["avg_balance"], r["gross_rate"], r["net_rate"], r["kept"], r["why"],
-                           x["reported"] if x else None, x["organic"] if x else None])
+                           x["reported"] if x else None, x["organic"] if x else None, at_end.get(r["quarter"])])
     nrow = 1 + len(products) * NB * Q
-    for row in da.iter_rows(min_row=2, max_row=nrow, min_col=5, max_col=13):
+    for row in da.iter_rows(min_row=2, max_row=nrow, min_col=5, max_col=14):
         for c in row:
             if c.column in (10, 11):
                 continue
-            c.number_format = "#,##0" if c.column <= 7 else "0.00" if c.column <= 9 else "0.0"
-    for col, w in zip("ABCDEFGHIJKLM", (16, 16, 11, 9, 14, 14, 16, 10, 10, 8, 44, 14, 14)):
+            c.number_format = "#,##0" if c.column <= 7 or c.column == 14 else "0.00" if c.column <= 9 else "0.0"
+    for col, w in zip("ABCDEFGHIJKLMN", (16, 16, 11, 9, 14, 14, 16, 10, 10, 8, 44, 14, 14, 16)):
         da.column_dimensions[col].width = w
     K.freeze_below(da, 1)
 
@@ -1345,6 +1352,14 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     co.add("rb", heads=['="Peer B: "&%s' % S["b_name"]])
     co.add("one", heads=["The pack composite"])
     co.add("mark", heads=["%s, last point drawn" % me["short"]])
+    # The book-size view: each peer switched on with a balance above zero
+    # (the axis is logarithmic, and Excel warns in a dialog at a value of 0),
+    # the pack's percentiles of those, and KeyBank's last point drawn.
+    co.add("sv", NP, ["%s balance in ($bn)" % b["short"] for b in peers])
+    for name, h in (("sn", "Banks in (book size)"), ("s10", "10th ($bn)"), ("s25", "25th ($bn)"),
+                    ("s50", "Pack median"), ("s75", "75th ($bn)"), ("s90", "90th ($bn)")):
+        co.add(name, heads=[h])
+    co.add("smark", heads=["%s, last balance drawn" % me["short"]])
     NPROD = len(products)
     mix_idx = ["%s" % S["mix_pick"]] + ["(%d+(%d>=%s))" % (j, j, S["mix_pick"]) for j in range(1, NPROD)]
     co.add("mix", NPROD, ["=INDEX(%s,%s)" % (lists["co_products"], x_) for x_ in mix_idx])
@@ -1387,9 +1402,18 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             gc=",".join("%s%d" % (L(ind_cols["gross", pi]), r) for pi in range(len(products)))))
         wk.cell(r, co.col["drawn"], '=IF(OR(%s),%d,"")' % (",".join(
             "ISNUMBER(%s)" % co.at(n_, r) for n_ in ("c", "k", "a", "b", "ind", "p10")), r))
-        wk.cell(r, co.col["bk_k"], "=" + co.at("ub", r, me_i))
+        above_0 = "=IFERROR(IF({x}>0,{x},NA()),NA())"
+        wk.cell(r, co.col["bk_k"], above_0.format(x=co.at("ub", r, me_i)))
         for name, num in (("bk_a", S["a_no"]), ("bk_b", S["b_no"])):
-            wk.cell(r, co.col[name], "=IFERROR(INDEX(%s,%s),NA())" % (co.across("ub", r), num))
+            wk.cell(r, co.col[name], above_0.format(x="INDEX(%s,%s)" % (co.across("ub", r), num)))
+        for j in range(NP):
+            u = co.at("ub", r, peer_i[j])
+            wk.cell(r, co.col["sv"] + j, '=IF(AND({on}="{y}",ISNUMBER({u})),IF({u}>0,{u},""),"")'.format(
+                on=INC[j], y=YES, u=u))
+        wk.cell(r, co.col["sn"], "=COUNT(%s)" % co.across("sv", r))
+        for p in (10, 25, 50, 75, 90):
+            wk.cell(r, co.col["s%d" % p], "=IF({n}>={mb},PERCENTILE({v},{p}),NA())".format(
+                n=co.at("sn", r), mb=mb, v=co.across("sv", r), p=p / 100))
         c_ = co.at("c", r)
         for name, line in (("rk", "k"), ("ra", "a"), ("rb", "b")):
             x_ = co.at(line, r)
@@ -1575,6 +1599,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                 r=r, f=first, c=count, k=block.at("k", r)))
 
     fit("co", co, Q)
+    for k in range(Q):
+        r = 2 + k
+        wk.cell(r, co.col["smark"], "=IF(AND({r}={f}+{c}-1,ISNUMBER({k})),{k},NA())".format(
+            r=r, f=S["co_first"], c=S["co_count"], k=co.at("bk_k", r)))
     if dl is not None:
         fit("dl", dl, len(dq["grid"]))
 
@@ -1613,6 +1641,28 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         rk_dl = rank_block(rk_co.next + 1, "delinquency", lambda i: dl.at("uv", DLR, i),
                            lambda i: dl.at("uv", DLR - 4, i) if DLR - 4 >= 2 else "NA()",
                            lambda i: dl.at("ub", DLR, i))
+    # The book-size ranking: as above, on the average balance, largest first
+    # (the key is minus the balance), with each bank's share of the balances
+    # ranked, its balance four quarters earlier and its charge-off rate.
+    sz = _Block(wk, (rk_dl or rk_co).next + 1)
+    for name, h in (("name", "Bank (book size rank)"), ("label", "In pack, as listed"),
+                    ("bal", "Balance ($bn)"), ("bal4", "Four quarters earlier ($bn)"),
+                    ("rate", "Charge-off rate (%)"), ("key", "Rank key (minus the balance)"),
+                    ("inbal", "Balance, if ranked"), ("idx", "Bank in rank order")):
+        sz.add(name, heads=[h])
+    keys = sz.down("key", 2, 1 + NB)
+    for i, b in enumerate(roster):
+        r = 2 + i
+        wk.cell(r, sz.col["name"], b["short"])
+        wk.cell(r, sz.col["label"], "=" + rk_co.at("label", r))
+        on = "TRUE" if b is me else '%s="%s"' % (INC[peer_i.index(i)], YES)
+        eps = "" if b is me else "+%d*1E-9" % (peer_i.index(i) + 1)
+        wk.cell(r, sz.col["bal"], "=" + co.at("ub", LR, i))
+        wk.cell(r, sz.col["bal4"], "=" + (co.at("ub", LR - 4, i) if LR - 4 >= 2 else "NA()"))
+        wk.cell(r, sz.col["rate"], "=" + co.at("ur", LR, i))
+        wk.cell(r, sz.col["key"], '=IF(AND({on},ISNUMBER({x})),-{x}{e},"")'.format(on=on, x=sz.at("bal", r), e=eps))
+        wk.cell(r, sz.col["inbal"], '=IF(ISNUMBER({k}),{x},"")'.format(k=sz.at("key", r), x=sz.at("bal", r)))
+        wk.cell(r, sz.col["idx"], '=IFERROR(MATCH(SMALL({k},{n}),{k},0),"")'.format(k=keys, n=i + 1))
     wk.column_dimensions["A"].width = 40
     wk.column_dimensions["B"].width = 16
 
@@ -1849,25 +1899,94 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     pe.row_dimensions[lay["ranks"] - 1].height = HEIGHTS["gap"]
     pe.row_dimensions[lay["small"] - 1].height = HEIGHTS["gap"]
 
-    # ---- book size, the rate against the composite, KeyBank's mix ----
+    # ---- book size: KeyBank, Peer A and B against the pack's balances ----
+    sv = lay["size"]
+    _section(pe, sv, *LEFT, '="Book size: "&LOWER({p})&" loans, average balance ($bn)"'.format(p=PICK["product"]))
+    _section(pe, sv, *RIGHT, "Where each bank stands on book size, %s (1 = the largest)" % last_q)
+    bk_l, s50_l = w_(co, "bk_k", LR), w_(co, "s50", LR)
+    b4_l = w_(co, "bk_k", LR - 4) if LR - 4 >= 2 else "NA()"
+    s50_4 = w_(co, "s50", LR - 4) if LR - 4 >= 2 else "NA()"
+    my_key = w_(sz, "key", 2 + me_i)
+    keys_pe = WK + sz.down("key", 2, 1 + NB)
+    GROWTH = "+0.0%;-0.0%;0.0%"
+    _strip(pe, lay["size_tiles"], [
+        (2, 3, me["short"], '=IF(ISNUMBER({x}),{x},"none")'.format(x=bk_l),
+         '=IF(ISNUMBER({x}),"average balance, {q}","no balance in {q}")'.format(x=bk_l, q=last_q), "#,##0.0"),
+        (4, 5, "Pack median", '=IF(ISNUMBER({x}),{x},"none")'.format(x=s50_l),
+         '=IF(ISNUMBER({x}),{n}&" banks in, {q}","under "&{mb}&" banks with a balance")'
+         .format(x=s50_l, n=w_(co, "sn", LR), mb=mb, q=last_q), "#,##0.0"),
+        (6, 7, "%s's size rank" % me["short"],
+         '=IF(ISNUMBER({k}),(COUNTIF({r},"<"&{k})+1)&" of "&COUNT({r}),"none")'.format(k=my_key, r=keys_pe),
+         "1 = the largest", "General"),
+        (8, 8, "4-quarter change", '=IFERROR({a}/{b}-1,"none")'.format(a=bk_l, b=b4_l),
+         '=IFERROR("pack median "&TEXT({a}/{b}-1,"{g}"),"pack median: none")'.format(a=s50_l, b=s50_4, g=GROWTH),
+         GROWTH)])
+    ch = _Chart(named("co", co, "q"))
+    ch.band(named("co", co, "s10"), named("co", co, "s90"), BAND_LIGHT)
+    ch.band(named("co", co, "s25"), named("co", co, "s75"), BAND_DARK)
+    ch.lines([(named("co", co, "s50"), label_ref(co, "s50")) + STYLE["pack"],
+              (named("co", co, "bk_a"), label_ref(co, "bk_a")) + STYLE["a"],
+              (named("co", co, "bk_b"), label_ref(co, "bk_b")) + STYLE["b"],
+              (named("co", co, "bk_k"), label_ref(co, "bk_k")) + STYLE["self"]],
+             last=(named("co", co, "smark"), K.KEY_RED))
+    size_chart = ch.finish("General", 8, COL_PX * 7, CHART_ROWS * HEIGHTS["chart"] / 0.75)
+    size_chart.y_axis.scaling.logBase = 10
+    charts.append((size_chart, "%s%d" % (L(LEFT[0]), lay["size_chart"])))
+    _note(pe, lay["size_note"], LEFT, NOTE_ROWS["size_note"], words=t.words, text=(
+        "Shaded: the middle 80% (light) and middle 50% (dark) of the banks switched on with a balance. The scale "
+        "is logarithmic: each gridline is ten times the one below, so a $1bn book and a $200bn book both show."),
+        cond="%s=0" % S_PE["co_p"], alt="No charge-offs were built for this product. The products built are: %s."
+        % ", ".join(products))
+    _note(pe, lay["size_tiles"], RIGHT, NOTE_ROWS["size_right"], words=t.words, text=(
+        "Each bank switched on with a balance, and %s. Share is of the balances listed. 4-quarter change is "
+        "against the bank's own balance four quarters earlier." % me["short"]))
+    head = lay["size_head"]
+    first = RIGHT[0]
+    _table_head(pe, head, first, ["Rank", "Bank", "Balance ($bn)", "Share", "4-quarter change",
+                                  "Charge-off rate (%)", "In pack"], right_from=2)
+    pe.cell(head, first).alignment = Alignment(horizontal="right", vertical="bottom")
+    pe.cell(head, first + 6).alignment = Alignment(horizontal="left", vertical="bottom", indent=1)
+    col = lambda name: WK + sz.down(name, 2, 1 + NB)                            # noqa: E731
+    for k in range(NB):
+        r, i_ = head + 1 + k, w_(sz, "idx", 2 + k)
+        at = lambda name: "INDEX(%s,%s)" % (col(name), i_)                      # noqa: E731
+        vals = [
+            ('=IF(ISNUMBER({i}),{n},"")'.format(i=i_, n=k + 1), "0", "right"),
+            ('=IF(ISNUMBER({i}),{x},"")'.format(i=i_, x=at("name")), "General", "left"),
+            ('=IF(ISNUMBER({i}),{x},"")'.format(i=i_, x=at("bal")), "#,##0.0", "right"),
+            ('=IF(ISNUMBER({i}),{x}/SUM({t}),"")'.format(i=i_, x=at("bal"), t=col("inbal")), "0.0%", "right"),
+            ('=IF(ISNUMBER({i}),IFERROR({x}/{y}-1,""),"")'.format(i=i_, x=at("bal"), y=at("bal4")), GROWTH,
+             "right"),
+            ('=IF(ISNUMBER({i}),IFERROR({x}+0,""),"")'.format(i=i_, x=at("rate")), "0.00", "right"),
+            ('=IF(ISNUMBER({i}),{x},"")'.format(i=i_, x=at("label")), "General", "left")]
+        for j, (f, fmt, align) in enumerate(vals):
+            c = pe.cell(r, first + j, f)
+            c.number_format = fmt
+            c.font = F_BODY
+            c.border = HAIR
+            c.alignment = Alignment(horizontal=align, vertical="center", indent=1 if j == 6 else 0)
+    rng = "%s%d:%s%d" % (L(first), head + 1, L(first + 6), head + NB)
+    pe.conditional_formatting.add(rng, FormulaRule(
+        formula=['$%s%d="%s"' % (L(first + 1), head + 1, me["short"])], fill=K.solid(K.CANVAS),
+        font=Font(bold=True, color=K.KEY_RED)))
+    for r in range(lay["size_chart"], lay["size_note"]):
+        pe.row_dimensions[r].height = HEIGHTS["chart"]
+    pe.row_dimensions[head].height = HEIGHTS["table"]
+    pe.row_dimensions[sv - 1].height = HEIGHTS["gap"]
+
+    # ---- the rate against the composite, KeyBank's mix ----
     sm, sc = lay["small"], lay["small_chart"]
-    _section(pe, sm, 2, 4, "Book size: average balance ($bn)")
-    _section(pe, sm, 5, 8, "Charge-off rate ÷ pack composite (1 = the composite)")
+    _section(pe, sm, *LEFT, "Charge-off rate ÷ pack composite (1 = the composite)")
     _section(pe, sm, *RIGHT, '="{me}\'s consumer book: share by product ("&{p}&" in red)"'.format(
         me=me["short"], p="INDEX(%s,%s)" % (lists_pe["co_products"], S_PE["mix_pick"])))
-    ch = _Chart(named("co", co, "q"))
-    ch.lines([(named("co", co, "bk_k"), label_ref(co, "bk_k")) + STYLE["small_self"],
-              (named("co", co, "bk_a"), label_ref(co, "bk_a")) + STYLE["small_a"],
-              (named("co", co, "bk_b"), label_ref(co, "bk_b")) + STYLE["small_b"]])
     small_h = SMALL_ROWS * HEIGHTS["small"] / 0.75
-    charts.append((ch.finish("#,##0", 16, COL_PX * 3, small_h), "B%d" % sc))
     ch = _Chart(named("co", co, "q"))
     ch.lines([(named("co", co, "rk"), label_ref(co, "rk")) + STYLE["small_self"],
               (named("co", co, "ra"), label_ref(co, "ra")) + STYLE["small_a"],
               (named("co", co, "rb"), label_ref(co, "rb")) + STYLE["small_b"],
               (named("co", co, "one"), label_ref(co, "one")) + STYLE["one"]])
     ch.hide.append(ch.idx - 1)                   # the reference line needs no key
-    charts.append((ch.finish("0.0", 16, COL_PX * 4, small_h), "E%d" % sc))
+    charts.append((ch.finish("0.0", 16, COL_PX * 7, small_h), "B%d" % sc))
     area = AreaChart(grouping="percentStacked")
     cats = named("co", co, "q")
     for j in range(len(products)):

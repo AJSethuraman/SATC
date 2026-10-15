@@ -42,6 +42,10 @@ PEER_TERMS = [
     ("Average balance",
      "The size of the book over the four quarters a rate covers.",
      "The mean of the four quarter-end balances, in $ thousands as filed."),
+    ("Quarter-end balance",
+     "The book as filed on the last day of the quarter.",
+     "RC-C, in $ thousands as filed; blank when the bank did not file that quarter. The average balance "
+     "is the mean of four of these."),
     ("Structural move",
      "A change in a book's size larger than lending accounts for: a merger, a purchase, a sale or a "
      "reclassification. Rates whose window includes it are not used.",
@@ -59,8 +63,10 @@ PEER_TERMS = [
     ("Kept",
      "Whether a bank's rate for a quarter is used.",
      "TRUE when the average balance is at least the minimum book and above zero, all four quarters' flows "
-     "were filed, and there was no structural move. Why says the first reason it is not, in that order: "
-     "the jump, the minimum, a missing quarter."),
+     "were filed, no quarter-on-quarter move from the quarter before the four through the last was larger "
+     "than the jump, and no recorded acquisition brought in at least the acquisition share. Why says the "
+     "first reason it is not, in that order: a quarter missing from the data, the jump, an acquisition, "
+     "the minimum, a flow not filed."),
     # What is left out, and why: one row per reason, as the bank asked
     # (12 Oct 2026): "it should list what we are omitting and why".
     ("Left out, and why",
@@ -152,9 +158,20 @@ PEER_TERMS = [
      "four quarters earlier, in percentage points, blank when either is missing. Balance ($bn) is the average "
      "balance on charge-offs and the quarter-end balance on delinquency. In pack marks Peer A and Peer B."),
     ("Book size",
-     "The average balance of KeyBank's, Peer A's and Peer B's books in the product picked, in $ billions.",
+     "The average balance of each bank's book in the product picked, in $ billions: KeyBank, Peer A and "
+     "Peer B as lines, the pack as its median and shaded bands, and every bank ranked by size beside it.",
      "The mean of the four quarter-end balances, as on the Data tab, / 1,000,000; a quarter the bank did not "
-     "file is a gap. It has no pack in it."),
+     "file is a gap. The pack median and bands are the 10th, 25th, 50th, 75th and 90th percentiles of the "
+     "banks switched on with a balance above zero, in quarters with at least the banks needed. The scale is "
+     "logarithmic, so a balance of zero is not drawn."),
+    ("Size rank",
+     "Where a bank's book stands among the banks switched on with a balance, and KeyBank, in the latest "
+     "quarter. 1 is the largest.",
+     "Ordered by average balance, largest first; a peer level with KeyBank ranks after it. Share is the "
+     "bank's balance / the total of the balances listed. 4-quarter change is the bank's balance / its own "
+     "balance four quarters earlier, minus 1; on the strip, the pack median's is the pack median / the pack "
+     "median four quarters earlier, minus 1. Charge-off rate is the bank's rate on the rate picked, blank "
+     "when not kept."),
     ("Charge-off rate ÷ pack composite",
      "KeyBank's, Peer A's and Peer B's charge-off rate as a multiple of the pack composite; 1 is the composite.",
      "The bank's rate / the pack composite in the same quarter, on the rate picked. Blank when either is "
