@@ -1213,7 +1213,7 @@ def window(root) -> dict:
         peer_text(body, "Smallest book indexed (--index-min-book)", "index_min_book", "In $000, at the base.")
         peer_text(body, "Lagged years (--lagged-years)", "lagged_years", "Whole years separated by spaces.")
         peer_text(body, "Lag (--lag-years)", "lag_years", "In whole years.")
-        peer_text(body, "Normalisation years (--normalisation-years)", "normalisation_years",
+        peer_text(body, "Normalization years (--normalisation-years)", "normalisation_years",
                   "Two years: the base, then the end.")
         peer_text(body, "Mix base year (--mix-base-year)", "mix_base_year", "A whole year.")
 

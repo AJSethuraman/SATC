@@ -376,7 +376,7 @@ def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, uni
     asx.conditional_formatting.add("T{a}:U{b}".format(a=lay["lo_top"], b=lay["lo_end"]),
                                    FormulaRule(formula=['ISNUMBER(SEARCH("refused",$T{a}))'.format(a=lay["lo_top"])],
                                                fill=fill(K.ALERT_FG), font=Font(bold=True, color=K.CRIMSON)))
-    asx.cell(lay["lo_note"], 14, "Left-out quarters show as grey dots over a dark strip. To put a period back, "
+    asx.cell(lay["lo_note"], 14, "Left-out quarters show as gray dots over a dark strip. To put a period back, "
                                  "clear its yellow cells.").font = F_NOTE
 
     # ---- left: the evidence, level with the periods it argues for ----

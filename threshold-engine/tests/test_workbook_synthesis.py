@@ -347,7 +347,7 @@ def test_assess_shows_the_synthesis_for_the_series_showing(built):
     ws = load_workbook(p)["Assess"]
     assert ws.cell(top, 21).hyperlink.location == "Synthesis!A1" or "#Synthesis!A1" in str(ws.cell(top, 21).hyperlink.target)
     assert top + 7 < lay["dial_title"]
-    assert vals["ASSESS!N%d" % top] == "Where each colour starts · Credit card"
+    assert vals["ASSESS!N%d" % top] == "Where each color starts · Credit card"
     for k in range(4):
         row = top + 2 + k
         got = [vals["ASSESS!%s%d" % (c, row)] for c in "OPQRS"]
