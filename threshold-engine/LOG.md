@@ -1210,3 +1210,29 @@ slicers to the Decide table over COM. Not yet wired into the build.
 - On Decide, the Measure slicer has seven buttons and rows 3-11 at their
   current height show five, so the selected one can be below the fold.
   Excel's own run set those rows to 25pt first.
+
+## 14 October 2026, tie-out: KeyBank card nonaccrual, 2026Q2, in the book workbook
+
+`docs/tie-out/keybank-card-nonaccrual-2026-10-14/`, the deliverable
+`TIE-OUT-keybank-card-nonaccrual-2026-10-14.pdf` (checked and rendered by
+canon). The 0.69% on Summary (G11) and in Decide's headline, read in Excel 16
+from a `book` build of d1e353a1, against KeyBank, N.A.'s filed Call Report for
+30 June 2026, fetched again tonight. **TIED**: Excel holds 0.6908132947833397,
+exactly 100 x RC-N 5.a column C (6,401) / RC-C Part I 6.a column A (926,589),
+read off the page and the XBRL.
+
+- **Found:** the FDIC's dictionary names no Call Report line for NACRCD or
+  LNCRCD. Against the FFIEC bulk file for 2026Q2 they equal B577 and B538 for
+  all 4,295 banks in both, 0 differ; neither is a sum.
+- **Found:** Thresholds!J (Latest value) is a value Python writes, not a
+  formula on the Data tab, so a corrected quarter pasted into Data would move
+  the lines but not Latest, the rating, Summary or Decide.
+- **Found:** Thresholds column A is clipped in Excel ("Credit card - Non" on
+  every source of a measure), and Summary H7:H8 read "Not in this workbool".
+- **Found:** Decide's "KeyBank is 0.68 points higher than Peer group" sits
+  beside a measure on which 10 of 16 roster banks file zero card nonaccrual;
+  the warning is only on the Sources tab.
+- `scripts/read_workbook.ps1 -Workbook X` reads any build the same way (the
+  series is a parameter), so the firm's own `book books/consumer-public.json`
+  can be tied out next; that build was not run here.
+- No code changed.
