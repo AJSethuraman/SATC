@@ -380,8 +380,9 @@ TERMS = [
      "As the registry states it: the December 2024 revision runs 2024Q4 to 2025Q2 because banks could report "
      "it on a best-efforts basis until 30 June 2025."),
     ("Products touched",
-     "On Reporting changes: the consumer products whose series the change moves.",
-     "As the registry states it. None of the consumer products means it touches only commercial lines."),
+     "On Reporting changes: the products whose series the change moves, consumer and commercial.",
+     "As the registry states it. None of the products means it touches only lines no product is built from, "
+     "such as other loans or the memoranda."),
     ("Measures touched",
      "On Reporting changes: which charge-off and delinquency measures of those products it moves.",
      "As the registry states it: net or gross charge-offs, or a delinquency measure (30-89, 90+ accruing, "

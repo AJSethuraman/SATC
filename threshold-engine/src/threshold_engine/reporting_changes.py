@@ -296,7 +296,7 @@ def write_tab(ws, changes: Sequence[dict], about: str, source_name: str) -> int:
     ws.row_dimensions[4].height = 15 * _lines(about, sum(widths[1:]))
     r = _ref_header(ws, 6, list(HEADINGS), 2)
     for ch in changes:
-        vals = (ch["name"], when(ch), ", ".join(ch["products"]) or "None of the consumer products",
+        vals = (ch["name"], when(ch), ", ".join(ch["products"]) or "None of the products",
                 ", ".join(ch["measures"]) or "None", "; ".join(ch["call_report_items"]) or "None stated",
                 ch["what_changed"], "\n".join("%s, %s" % (s["citation"], s["url"]) for s in ch["sources"]))
         for col, v in enumerate(vals, start=2):

@@ -39,19 +39,33 @@ def by_name(name):
 
 def test_the_registry_in_the_repository_loads_and_holds_the_consumer_changes():
     """Twelve changes, each from research-breaks.md or research-fdic.md
-    (16 Oct 2026) and marked verified there. The ones touching the five
-    consumer products are named here, so a change dropped or moved shows."""
+    (16 Oct 2026) and marked verified there. The ones touching each product
+    are named here, consumer and commercial, so a change dropped or moved
+    shows."""
     assert len(CHANGES) == 12
     touching = {c["name"]: (RC.when(c), c["products"]) for c in CHANGES if c["products"]}
     five = ["Credit card", "Mortgage", "Home equity", "Other consumer", "Auto"]
+    six = list(PB.COMMERCIAL)
+    real_estate = six[1:]
+    splits = ["Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential"]
     assert touching == {
-        "Loans classified as trading": ("2008Q1", five),
+        "Construction, nonfarm and lease splits": ("2007Q1", splits),
+        "Loans classified as trading": ("2008Q1", five + six),
+        "Secured by real estate, clarified": ("2009Q1", six),
         "Securitizations back on the books (FAS 166 and 167)": ("2010Q1", ["Credit card", "Other consumer"]),
+        "Construction loans after completion": ("2011Q1", real_estate),
         "Auto loans get their own line": ("2011Q1", ["Other consumer", "Auto"]),
-        "CECL: purchased credit-deteriorated loans": ("2020Q1", five),
-        "COVID-19 deferrals not reported as past due": ("2020Q2", five),
-        "NDFI and margin-loan revision": ("2024Q4 to 2025Q2", ["Other consumer"]),
+        "Real estate breakdown for the whole bank": ("2013Q2", real_estate),
+        "CECL: purchased credit-deteriorated loans": ("2020Q1", five + six),
+        "COVID-19 deferrals not reported as past due": ("2020Q2", five + six),
+        "NDFI and margin-loan revision": ("2024Q4 to 2025Q2", ["Other consumer", "C&I"]),
     }
+    # Its own source says the 2010 NDFI line came out of other loans, not C&I.
+    assert by_name("NDFI loans split out of other loans")["products"] == []
+    # The nonfarm splits begin with the 2007 change, which their own note says.
+    for p in splits:
+        assert by_name("Construction, nonfarm and lease splits")["already_labelled"][p] == "first filed 2007Q1"
+        assert "first filed 2007Q1" in PB.DEFINITIONS[p]
     ndfi = by_name("NDFI and margin-loan revision")
     assert "RC-C 6.d: other consumer loans" in ndfi["call_report_items"] and "RC-C 4: C&I" in ndfi["call_report_items"]
     assert ndfi["measures"] == ALL_MEASURES
@@ -411,13 +425,16 @@ def test_the_book_writes_the_reporting_changes_tab(tmp_path):
     rows = [[ws.cell(r, c).value for c in range(2, 2 + len(RC.HEADINGS))] for r in range(7, 7 + len(CHANGES))]
     assert [r[0] for r in rows] == [c["name"] for c in CHANGES] and ws.cell(7 + len(CHANGES), 2).value is None
     ndfi = rows[[c["name"] for c in CHANGES].index("NDFI and margin-loan revision")]
-    assert ndfi[1:4] == ["2024Q4 to 2025Q2", "Other consumer", ", ".join(ALL_MEASURES)]
+    assert ndfi[1:4] == ["2024Q4 to 2025Q2", "Other consumer, C&I", ", ".join(ALL_MEASURES)]
     assert "RC-C 6.d: other consumer loans" in ndfi[4] and ndfi[5] == by_name("NDFI and margin-loan revision")[
         "what_changed"]
     assert ndfi[6].splitlines()[1].endswith("https://www.fdic.gov/analysis/"
                                             "bank-lending-nondepository-financial-institutions.pdf")
     first = rows[0]
-    assert first[2:4] == ["None of the consumer products", "None"]
+    assert first[2:4] == ["Owner-occupied nonfarm nonresidential, Other nonfarm nonresidential",
+                         ", ".join(ALL_MEASURES)]
+    tdr = rows[[c["name"] for c in CHANGES].index("Troubled debt restructuring captions replaced")]
+    assert tdr[2:4] == ["None of the products", "None"]
 
 
 def test_a_book_without_a_registry_has_no_tab(tmp_path):

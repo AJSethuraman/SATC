@@ -1,12 +1,13 @@
 {
-  "_what": "Changes to the Call Report's definitions and forms, each labelled on every series it touches in the quarter it took effect (the firm, 16 Oct 2026: \"Definitely mark reporting changes.\"). Written 16 Oct 2026 from docs/commercial-2026-10/research-breaks.md and research-fdic.md (on main), keeping only changes those files mark verified in a primary source; each entry cites that source. Left out: the proposed 2025 change to modification reporting (its final notice was not found); FAS 141(R) in 2009 (an accounting change the agencies chose not to add to the report); the 2018 rule that banks of $100bn or more file the FFIEC 031 (it names no loan category, and which roster banks switched was not checked); ASC 842 leases in 2019 (no loan item changed); and the 2020 revolving-line drawdowns and PPP loans, which are not reporting changes (the proposal's question 15, still open).",
+  "_what": "Changes to the Call Report's definitions and forms, each labelled on every series it touches in the quarter it took effect (the firm, 16 Oct 2026: \"Definitely mark reporting changes.\"). Written 16 Oct 2026 from docs/commercial-2026-10/research-breaks.md and research-fdic.md (on main), keeping only changes those files mark verified in a primary source; each entry cites that source. Left out: the proposed 2025 change to modification reporting (its final notice was not found); FAS 141(R) in 2009 (an accounting change the agencies chose not to add to the report); the 2018 rule that banks of $100bn or more file the FFIEC 031 (it names no loan category, and which roster banks switched was not checked); ASC 842 leases in 2019 (no loan item changed); and the 2020 revolving-line drawdowns and PPP loans, which are not reporting changes (the proposal's question 15, still open). The commercial products were added to the entries later on 16 Oct 2026, each from the entry's own Call Report items: every loan category, every real estate category or C&I where the entry names them; the nonfarm splits, which begin in 2007Q1, under that change; C&I under the December 2024 revision; none under the 2010 NDFI change, which its source says came out of other loans and not out of C&I.",
   "changes": [
     {
       "name": "Construction, nonfarm and lease splits",
       "first": "2007Q1",
       "last": "2007Q1",
-      "products": [],
-      "measures": [],
+      "products": ["Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": [
         "RC-C 1.a(1) and 1.a(2): construction, 1-4 family and other",
         "RC-C 1.e(1) and 1.e(2): nonfarm nonresidential, owner-occupied and other",
@@ -21,13 +22,18 @@
           "url": "https://www.govinfo.gov/content/pkg/FR-2006-02-17/html/06-1495.htm"
         }
       ],
-      "already_labelled": {}
+      "already_labelled": {
+        "Owner-occupied nonfarm nonresidential": "first filed 2007Q1",
+        "Other nonfarm nonresidential": "first filed 2007Q1"
+      }
     },
     {
       "name": "Loans classified as trading",
       "first": "2008Q1",
       "last": "2008Q1",
-      "products": ["Credit card", "Mortgage", "Home equity", "Other consumer", "Auto"],
+      "products": ["Credit card", "Mortgage", "Home equity", "Other consumer", "Auto", "C&I", "Construction",
+                   "Multifamily", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
+                   "Other nonfarm nonresidential"],
       "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
                    "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": [
@@ -46,8 +52,10 @@
       "name": "Secured by real estate, clarified",
       "first": "2009Q1",
       "last": "2009Q1",
-      "products": [],
-      "measures": [],
+      "products": ["C&I", "Construction", "Multifamily", "Nonfarm nonresidential",
+                   "Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": [
         "Real estate categories: construction, multifamily, nonfarm nonresidential, farmland",
         "C&I, agricultural and other loans"
@@ -103,8 +111,10 @@
       "name": "Construction loans after completion",
       "first": "2011Q1",
       "last": "2011Q1",
-      "products": [],
-      "measures": [],
+      "products": ["Construction", "Multifamily", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
+                   "Other nonfarm nonresidential"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": [
         "RC-C 1.a: construction",
         "Multifamily and nonfarm nonresidential, the permanent real estate categories",
@@ -143,8 +153,10 @@
       "name": "Real estate breakdown for the whole bank",
       "first": "2013Q2",
       "last": "2013Q2",
-      "products": [],
-      "measures": [],
+      "products": ["Construction", "Multifamily", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
+                   "Other nonfarm nonresidential"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": [
         "RC-C 1, FFIEC 031: the real estate breakdown for the consolidated bank (construction, multifamily, nonfarm nonresidential, farmland)"
       ],
@@ -161,7 +173,9 @@
       "name": "CECL: purchased credit-deteriorated loans",
       "first": "2020Q1",
       "last": "2020Q1",
-      "products": ["Credit card", "Mortgage", "Home equity", "Other consumer", "Auto"],
+      "products": ["Credit card", "Mortgage", "Home equity", "Other consumer", "Auto", "C&I", "Construction",
+                   "Multifamily", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
+                   "Other nonfarm nonresidential"],
       "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
                    "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": [
@@ -185,7 +199,9 @@
       "name": "COVID-19 deferrals not reported as past due",
       "first": "2020Q2",
       "last": "2020Q2",
-      "products": ["Credit card", "Mortgage", "Home equity", "Other consumer", "Auto"],
+      "products": ["Credit card", "Mortgage", "Home equity", "Other consumer", "Auto", "C&I", "Construction",
+                   "Multifamily", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
+                   "Other nonfarm nonresidential"],
       "measures": ["30-89", "90+ accruing", "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": [
         "RC-N: past due, every category",
@@ -227,7 +243,7 @@
       "name": "NDFI and margin-loan revision",
       "first": "2024Q4",
       "last": "2025Q2",
-      "products": ["Other consumer"],
+      "products": ["Other consumer", "C&I"],
       "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
                    "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": [

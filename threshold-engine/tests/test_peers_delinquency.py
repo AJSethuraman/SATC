@@ -16,7 +16,7 @@ import json
 import pytest
 
 from conftest import DATA
-from threshold_engine.peers.books import write_series
+from threshold_engine.peers.books import CONSUMER as CONSUMER_PRODUCTS, write_series
 from threshold_engine.peers.delinquency import (
     BASES, FIELDS, MEASURES, WHY_ABSENT, WHY_FEWER_THAN_FOUR, WHY_JUMP_PREFIX, WHY_NO_BOOK,
     WHY_SMALL,
@@ -30,6 +30,9 @@ ROSTER = json.loads((PEERS.parents[2] / "config" / "peers.json").read_text())["b
 KEYBANK = "17534"
 PEER_CERTS = [b["cert"] for b in ROSTER if b["group"] == "peer"]
 CARD = "Credit card"
+#: The fixture was pulled for the consumer products (12 Oct 2026); the
+#: commercial ones have their own (commercial_2007.json).
+CONSUMER = [p for p in FIELDS if p in CONSUMER_PRODUCTS]
 
 
 # ------------------------------------------------------------------ helpers
@@ -64,6 +67,13 @@ def test_fields_are_the_spec_table():
         "Home equity": ("LNRELOC", "P3RELOC", "P9RELOC", "NARELOC"),
         "Other consumer": ("LNCONOTH+LNCONRP", "P3CONOTH", "P9CONOTH", "NACONOTH"),
         "Auto": ("LNAUTO", "P3AUTO", "P9AUTO", "NAAUTO"),
+        # The commercial products, 16 Oct 2026: research-fdic.md's field table.
+        "C&I": ("LNCI", "P3CI", "P9CI", "NACI"),
+        "Construction": ("LNRECONS", "P3RECONS", "P9RECONS", "NARECONS"),
+        "Multifamily": ("LNREMULT", "P3REMULT", "P9REMULT", "NAREMULT"),
+        "Nonfarm nonresidential": ("LNRENRES", "P3RENRES", "P9RENRES", "NARENRES"),
+        "Owner-occupied nonfarm nonresidential": ("LNRENROW", "P3RENROW", "P9RENROW", "NARENROW"),
+        "Other nonfarm nonresidential": ("LNRENROT", "P3RENROT", "P9RENROT", "NARENROT"),
     }
     assert list(MEASURES) == ["30-89", "90+ accruing", "nonaccrual",
                               "90+ incl. nonaccrual", "30+ incl. nonaccrual"]
@@ -457,7 +467,7 @@ def roster_data():
 def test_fixture_holds_every_roster_bank_every_quarter_and_field(roster_data):
     assert len(roster_data) == 38
     assert min(roster_data) == "20170331" and max(roster_data) == "20260630"
-    want = {"CERT", "REPDTE"} | set(fields_for(FIELDS))
+    want = {"CERT", "REPDTE"} | set(fields_for(CONSUMER))
     for q, rows in roster_data.items():
         assert sorted(str(r["CERT"]) for r in rows) == sorted(b["cert"] for b in ROSTER), q
         for r in rows:
@@ -495,7 +505,7 @@ def test_keybank_2026q2_against_the_filed_amounts(roster_data):
 
 
 def test_fixture_composite_band_and_industry_hold_together(roster_data):
-    for product in FIELDS:
+    for product in CONSUMER:
         for measure in MEASURES:
             books = {c: bank_delinquency(roster_data, c, product, measure, 0.25,
                                          1_000_000, c == KEYBANK, acquired=())

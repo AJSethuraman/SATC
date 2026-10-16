@@ -52,7 +52,10 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 # books.py is plain Python (no openpyxl), so the product names come from the
 # one place the peer build reads them, and the window still opens without
 # openpyxl. peers/run.py does import openpyxl, so it is loaded only on a press.
-from .peers.books import PRODUCTS as _PEER_PRODUCTS
+# The window offers the consumer products only (CONSUMER): the commercial ones
+# (16 Oct 2026) are on the command line, and the window gets them once its
+# Peers step has been opened with them on screen.
+from .peers.books import CONSUMER as _PEER_PRODUCTS
 from .series import LABEL_RULE, label_ok
 
 TITLE = "Thresholds"
@@ -421,7 +424,7 @@ def open_workbook(path: Path) -> str:
 # setting again before it reads anything, and what it refuses comes back here
 # as words too.
 
-#: The products the peer build knows, in its order (peers/books.py).
+#: The consumer products the peer build knows, in its order (peers/books.py).
 PEER_PRODUCTS = tuple(_PEER_PRODUCTS)
 PEER_DELINQUENCY = (("yes", "Yes: also delinquency and nonaccrual, by product"),
                     ("no", "No: charge-offs only"))

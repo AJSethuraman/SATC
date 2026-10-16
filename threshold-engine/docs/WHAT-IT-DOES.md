@@ -194,6 +194,18 @@ Public FDIC Call Report data for KeyBank and a 16-bank roster
 | `peers pull --delinquency yes` | Also the 30-89, 90+ accruing and nonaccrual fields per product. A cache pulled without them is refused by name for a delinquency build |
 | `peers build` (`books.py`, `analyses.py`, `delinquency.py`, `peers_workbook.py`, through `run.py`) | Reads the cache only. Per bank, product and quarter: TTM gross and net charge-off rates, with a window left out when the book moved more than the stated jump, when that quarter's recorded acquisitions brought in at least the stated acquisition share of the book, or when it was under the stated minimum. Where a bank absorbed another under the same parent, the absorbed bank's year-to-date, which the survivor's filing repeats, is taken off, so no dollar counts twice (the industry series included). Writes the peer workbook and, per product, `date,value` CSVs the main workbook reads: pack composite, pack median, KeyBank, industry, and each peer's own book under `banks/`. A year-to-date that restarts mid-year under a new parent (push-down accounting) is read as that quarter's flow, not differenced. Other consumer's balance is RC-C 6.b + 6.d; card quarters before 2010 are labelled as excluding securitized cards |
 
+**Products.** The consumer five (credit card, mortgage, home equity, other
+consumer, auto) and, from 16 Oct 2026, six commercial ones on the command
+line: C&I, construction, multifamily, nonfarm nonresidential, and its
+owner-occupied and other splits (`books.COMMERCIAL`, every field from
+`docs/commercial-2026-10/research-fdic.md`). They are built by the same
+rules, with one difference: a blank commercial field is not filed, never
+0, so a bank-quarter with one is left out of the bank's book (`a field of
+the product is not filed`) and of the industry, and the splits begin in
+2007Q1 rather than as years of zeros. Each commercial series' notes say what
+the product is and what the industry leaves out. The window still offers
+the consumer five only.
+
 With `--delinquency yes` it also writes, per product, measure and basis,
 the delinquency CSVs for the pack composite, KeyBank and the industry: 150
 for five products. Every rule is a required flag (`peers build --help`

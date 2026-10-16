@@ -616,7 +616,11 @@ def test_ticking_keeps_the_builds_product_order_and_refuses_an_unknown_product()
     assert f.products == ["Credit card"]
     with pytest.raises(ValueError):
         launcher.tick(f, "Boats", True)
-    assert launcher.PEER_PRODUCTS == tuple(peers_run.books.PRODUCTS)
+    # The window offers the consumer products, in the build's order; the
+    # commercial ones (16 Oct 2026) are on the command line only for now.
+    assert launcher.PEER_PRODUCTS == tuple(peers_run.books.CONSUMER)
+    with pytest.raises(ValueError):
+        launcher.tick(f, "C&I", True)
 
 
 # ---- Peers: Pull and Build call peers/run.py, and say what came back

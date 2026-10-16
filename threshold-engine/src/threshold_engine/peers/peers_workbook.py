@@ -773,6 +773,17 @@ def _merged(ws, row, first, last, value, font=F_BODY, height=None, wrap=True, al
     return c
 
 
+def _not_built(what: str, products) -> str:
+    """The line shown when the product picked has no ``what``: the products
+    built, by name when they fit on one line of a note, else counted (the
+    product picker lists them). Eleven products' names do not fit."""
+    named = "No %s built for this product. The products built are: %s." % (what, ", ".join(products))
+    if len(named) <= NOTE_CHARS:
+        return named
+    return "No %s built for this product. %d products were built; the product picker lists them." % (
+        what, len(products))
+
+
 def _note(ws, row, span, room, text, cond=None, alt=None, words=None):
     """A note as lines, one per row from ``row``, none wrapped: ``room`` rows
     at most (more is a RuntimeError, so a longer note cannot quietly run into
@@ -1905,8 +1916,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     _note(pe, lay["note1"], LEFT, NOTE_ROWS["note1"], words=t.words, text=(
         "Shaded: the middle 80% (light) and middle 50% (dark) of the banks switched on and kept, in quarters "
         "with at least the banks needed."),
-        cond="%s=0" % S_PE["co_p"], alt="No charge-offs were built for this product. The products built are: %s."
-        % ", ".join(products))
+        cond="%s=0" % S_PE["co_p"], alt=_not_built("charge-offs were", products))
 
     if dl is not None:
         _section(pe, v1, *RIGHT, '="Delinquency: "&LOWER({p})&", "&{m}&", "&{b}&" (%)"'.format(
@@ -1938,8 +1948,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         _note(pe, lay["note1"], RIGHT, NOTE_ROWS["note1"], words=t.words, text=(
             "Shaded as on the left. A gap is a quarter-end with no rate; the DelinquencyData tab gives the "
             "reason."),
-            cond="%s=0" % S_PE["dq_p"], alt="No delinquency was built for this product. The products built are: "
-            "%s." % ", ".join(dq["products"]))
+            cond="%s=0" % S_PE["dq_p"], alt=_not_built("delinquency was", dq["products"]))
     else:
         _section(pe, v1, *RIGHT, "Delinquency")
         _merged(pe, tl, *RIGHT, NOT_BUILT, F_BOLD, wrap=False)
@@ -2026,8 +2035,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     _note(pe, lay["size_note"], LEFT, NOTE_ROWS["size_note"], words=t.words, text=(
         "Shaded: the middle 80% (light) and middle 50% (dark) of the banks switched on with a balance. The scale "
         "is logarithmic: each gridline is ten times the one below, so a $1bn book and a $200bn book both show."),
-        cond="%s=0" % S_PE["co_p"], alt="No charge-offs were built for this product. The products built are: %s."
-        % ", ".join(products))
+        cond="%s=0" % S_PE["co_p"], alt=_not_built("charge-offs were", products))
     _note(pe, lay["size_tiles"], RIGHT, NOTE_ROWS["size_right"], words=t.words, text=(
         "Each bank switched on with a balance, and %s. Share is of the balances listed. 4-quarter change is "
         "against the bank's own balance four quarters earlier." % me["short"]))
