@@ -206,6 +206,9 @@ def rate_reading(item, reading, points, settings, direction):
     for want in range(2, 6):
         scan = ordered if direction == HIGHER else reversed(ordered)
         lines[str(want)] = next((v for v in scan if rated(v) >= want), None)
+    counts = {str(k): 0 for k in range(1, 6)}       # how many readings in this history took each rating
+    for v in ordered:
+        counts[str(rated(v))] += 1
     held, since = 0, date
     for d, v in reversed(window):
         if rated(v) != r:
@@ -231,7 +234,8 @@ def rate_reading(item, reading, points, settings, direction):
         "unit": item.unit if reading == "position" else ("percent" if item.change_in == "percent" else "points"),
         "frequency": item.frequency, "date": date, "value": value, "percentile": pct, "rating": r,
         "readings": len(window), "history_from": window[0][0], "since": since, "held": held,
-        "lines": lines, "sentence": sentence, "breaks": [list(b) for b in item.breaks],
+        "lines": lines, "counts": counts, "low": ordered[0], "high": ordered[-1],
+        "sentence": sentence, "breaks": [list(b) for b in item.breaks],
     }, None
 
 

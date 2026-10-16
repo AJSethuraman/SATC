@@ -45,14 +45,26 @@ chosen by the firm on 15 Oct 2026.
     - where each rating starts, in the series' own units.
 - **The workbook the teams read.** `rate --workbook OUT.xlsx` writes it from
   the same run, so it cannot exist without the firm's settings. Every number
-  in it is a value, not a formula. It has these sheets:
-  - **Ratings:** every national reading, highest rating first, with what
-    drove it.
-  - **States:** unemployment by state, level and change.
-  - **One sheet per series:** what it is, where it comes from, how it is
-    read, its ratings and where each starts, its whole history, and a chart.
-  - **State data, Settings and Sources.** Sources lists every file the pull
-    fetched, with its address, licence, fetch time and SHA-256.
+  in it is a value, not a formula. It follows the threshold workbook's design
+  (Claude Design's hand-off, in `keybank_style.py`): titles on paper, canvas
+  headers, and the same five rating colours, as chips in the tables and as
+  shaded bands behind every chart. Its tabs:
+  - **Ratings:** every national series under five topics (jobs; prices and
+    insurance; housing and household credit; business and the economy;
+    markets and financial conditions). Each row gives the series' level and
+    change, each rated, and the sentence behind the higher rating. A series'
+    name opens its tab.
+  - **States:** unemployment by state, level and change, worst first.
+  - **One tab per series:** both ratings with what drove them; where each
+    rating starts and how many readings in its history took it; its history
+    drawn over the five bands, level and change; what it is, where it comes
+    from and its breaks; and every reading, with "no value published" where
+    the publisher left a gap. The unemployment tab also draws the Sahm
+    reading against its 0.50 trigger.
+  - **State data, Glossary, Run and Sources.** The glossary explains every
+    term from the settings the run used. Run says when the workbook was
+    built, from which pull, with which answers. Sources lists every file the
+    pull fetched, with its address, licence, fetch time and SHA-256.
   - **Not rated:** only when something could not be rated, with the reason.
 
 Run from `threshold-engine/`:

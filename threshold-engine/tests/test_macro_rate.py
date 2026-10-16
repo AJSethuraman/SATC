@@ -174,6 +174,9 @@ def test_a_record_is_rated_5_and_says_how_long_it_has_held(cache):
     assert "Sep 2026: 9 percent" in u["sentence"] and "Rated 5 since Jul 2026 (3 readings)" in u["sentence"]
     # where each rating starts, in percent: the least extreme value in this history that took it
     assert u["lines"] == {"2": 4.2, "3": 4.3, "4": 4.4, "5": 9.0}
+    # and how many readings in that history took each rating: every one counted once
+    assert sum(u["counts"].values()) == u["readings"] and u["counts"]["5"] == 3
+    assert (u["low"], u["high"]) == (4.0, 9.0)
 
 
 def test_the_firms_direction_is_used_and_said(cache):
