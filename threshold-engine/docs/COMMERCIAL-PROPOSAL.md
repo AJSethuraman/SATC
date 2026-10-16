@@ -488,13 +488,19 @@ segments, every column stated, refused when not whole, no identifiers):
 Each question can be answered in one line. Each recommendation is mine.
 
 **Answered so far.** Question 13, by the firm on 16 Oct 2026: *"Definitely
-mark reporting changes."* This came after a discussion of why banks' C&I differs
-even on the Call Report: one definition, but classified by collateral and
-borrower, with judgement at the edges. Every reporting change in §3 Q4 is
-therefore labeled on the series it touches, not just the C&I ones, in the
-quarter it took effect. That includes changes spread over several quarters,
-such as the 2024Q4–2025Q2 revision. The consumer book's other consumer step
-in 2024Q4–2025Q2 falls under the same answer.
+mark reporting changes."* This came after a discussion of why banks' C&I
+differs even on the Call Report: there is one definition, but loans are
+classified by collateral and borrower, with judgement at the edges.
+
+- **What it covers.** Every reporting change in §3 Q4 is labeled on every
+  series it touches, not just the C&I ones, in the quarter it took effect.
+  That includes changes spread over several quarters, such as the
+  2024Q4–2025Q2 revision.
+- **The consumer book.** Its other consumer step in 2024Q4–2025Q2 falls under
+  the same answer.
+- **What it does not cover.** The 2020 drawdowns and PPP are not reporting
+  changes. They stay open as question 15, together with leaving out the
+  windows the 25% rule catches.
 
 | # | Question | If yes | If no | Recommend |
 |---|---|---|---|---|
@@ -510,8 +516,9 @@ in 2024Q4–2025Q2 falls under the same answer.
 | 10 | Rate SLOOS standards? | A leading measure on Decide | Shown as context only | **No (context only)** |
 | 11 | Build commercial as its own book file, not more rows in the consumer book? | Two workbooks, one command | One larger workbook | **Own book** |
 | 12 | What minimum book size, per segment, keeps a bank-quarter in? | Your figure | 0, as for consumer peers | **Your number; I have no basis to propose one** |
-| 13 | Label C&I across 2020Q1–2021Q4 (drawdowns, PPP) and 2024Q4–2025Q2 (the NDFI and margin-loan revision), leaving out the windows the 25% rule catches? | Labeled; windows left out where the rule fires | Restated, which is impossible: the moved loans have no history of their own | **Answered, 16 Oct 2026: yes** |
+| 13 | Label every reporting change (§3 Q4: the definition and form changes, among them the NDFI and margin-loan revision of 2024Q4–2025Q2) on the series it touches? | Labeled in the quarter it took effect | Unlabeled | **Answered, 16 Oct 2026: yes** |
 | 14 | Add a stated list of acquisitions the FDIC record cannot see (JPMorgan/WaMu, M&T/Wilmington Trust, and asset purchases such as Wells/GE Capital), each with its 8-K, read by the build like the FDIC record? | Those windows are left out with a reason | They stay in, with two books mixed | **Yes** |
+| 15 | Also label 2020Q1–2021Q4 on C&I (revolver drawdowns and PPP: not definition changes, but they move the book), and leave out the windows the 25% rule catches across both periods? | Labeled; windows left out where the rule fires | Unlabeled; the rule alone decides what is left out | **Yes** |
 
 ---
 
