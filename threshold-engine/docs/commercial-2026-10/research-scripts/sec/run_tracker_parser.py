@@ -1,6 +1,7 @@
 import sys, os, glob, json, importlib.util
 from collections import defaultdict
-TR="/home/user/SATC/edgar-crit-class-tracker"
+# The tracker, resolved from this file: research-scripts/sec/ is five levels below the repository root.
+TR=os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), *[".."]*5, "edgar-crit-class-tracker"))
 spec=importlib.util.spec_from_file_location("runner", TR+"/runner.py"); R=importlib.util.module_from_spec(spec); sys.modules["runner"]=R; spec.loader.exec_module(R)
 sys.path.insert(0,TR); import member_seed as MS; sys.path.pop(0)
 D=sys.argv[1]; subs=json.load(open(os.path.join(D,"subs.json")))
