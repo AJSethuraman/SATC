@@ -463,3 +463,10 @@ tab) to EIA, the publisher.
 - **Result:** 4 of 4 tied, rendered through canon's checker.
 - **What it found:** EIA prints 3.061 in three different weeks. My own first picture ringed the one in
   December 2007, which would have passed the red-ink check; I caught it reading the crop.
+
+**One scare, recorded.** After the tie-out, one macro test failed locally: `list` printed the old "firm
+sets direction". The source was right. The deliberate-break script had restored `__main__.py` within the
+same second, at the same size: "firm sets direction" and "the firm's settings" are both 19 characters.
+Python judged its cached bytecode of the broken version still current. With the caches cleared, all 78
+pass. A deliberate-break run should not write bytecode at all (`PYTHONDONTWRITEBYTECODE=1`), or should
+clear it when it puts the file back.
