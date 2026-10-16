@@ -120,28 +120,28 @@ reverse for any series.
   of the mortgage rate, and on most days of the yield curve. FRED counts
   whole weeks, and so does the tool now.
 
-## Waiting on the firm: the settings
+## The firm's settings (16 Oct 2026)
 
-Every setting is required and none has a default. The questions, with a
-recommendation and its reason beside each blank, are in
-[`settings-template.json`](settings-template.json):
+The firm: *"Good with those recommendations"*. The answers are in
+[`settings.json`](settings.json); the blank form is
+[`settings-template.json`](settings-template.json). Every setting is
+required and none has a default; change an answer in `settings.json` and
+every rating follows.
 
-1. the cut-offs for ratings 2 to 5 (recommended: the 50th, 75th, 90th and
-   95th percentiles);
-2. a reading exactly on a cut-off takes the worse or the better rating
-   (recommended: worse);
-3. the history window (recommended: full history, with its start shown);
-4. the change horizon (recommended: 12 months), and whether the Sahm reading
-   is shown (recommended: yes);
-5. which series also get a change rating (recommended: all);
-6. the direction of stress for the nine series the research leaves open:
-   - the eight from before;
-   - house prices against income, which is new with the readings built from
-     two series.
-
-The tool reads only the answers, never the recommendations. A run with the
-recommendations filled in was made only to test it, and is not the firm's
-settings (`LOG.md`).
+1. Ratings 2, 3, 4 and 5 start at the 50th, 75th, 90th and 95th percentiles.
+2. A reading exactly on a cut-off takes the worse rating.
+3. Each reading is measured against the full history the publisher has, and
+   its start is shown.
+4. A change is counted over 12 months, and the Sahm reading is shown.
+5. Every series is also rated on its change.
+6. The nine directions the research leaves open:
+   - prices (all items, core, used cars): a faster rise is worse;
+   - house prices: a fall is worse; against income, a high level is worse
+     and a fall is worse;
+   - the mortgage rate: higher is worse, and a rise is worse;
+   - revolving credit: faster growth is worse;
+   - CRE prices: a fall is worse;
+   - business loan demand: weaker is worse, and a fall is worse.
 
 ## Not read yet, and why
 

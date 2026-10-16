@@ -396,3 +396,38 @@ skipped. It took two runs:
   skipped.
 - It had not reached the two main workbook test files, so those were run
   whole: 115 passed, in 57 minutes.
+
+## 16 October 2026, the firm answered the settings
+
+The firm: *"Good with those recommendations"*. Every answer in
+`settings.json` is the recommendation the firm was shown beside it, and a
+test holds that, as it holds the file usable. Changing one answer in the
+file makes the test fail (checked).
+
+**The first real run**, on a fresh pull of 16 Oct 2026, rated 158 readings
+and skipped none.
+
+- Ratings 1 to 5 came out 96, 43, 17, 2 and 0.
+- The two 4s:
+  - gasoline's change over a year: +41.49%, from $3.061 a gallon (week of
+    13 Oct 2025) to $4.331 (week of 12 Oct 2026);
+  - government-backed mortgages 90+ days late: 1.9% to 2.8% of mortgages
+    over the year to 2026 Q2.
+- The Sahm reading for September 2026 is 0.00.
+
+**What a day changed.** Homeowner's insurance fell from a 3 (yesterday's
+pull) to a 1. This is not an error, and it shows why every pull is kept:
+
+- September 2026 was published, and August was revised (279.164 to 279.364;
+  BLS marks the latest four months preliminary).
+- The year to September 2026 now measures one September against the next.
+  The 2025 step was +4.5% in one month (265.926 to 277.777); the 2026 step
+  was +0.05%. So the 12-month change is +0.62%, at or above only 4.6% of
+  its history.
+
+**Checked:** the gasoline figure against EIA's own weekly table: 3.061 and
+4.331, the same as the tool. The FHFA figures are read from FHFA's own file.
+
+The firm also asked: *"Make it nice walk out and tie it out. Look at the
+original repo you were given for inspiration - the threshold engine"*, and
+*"do not notify me of non events"*.

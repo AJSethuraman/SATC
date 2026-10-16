@@ -128,3 +128,15 @@ def test_every_open_direction_has_a_recommendation_and_every_recommendation_is_u
     rec = S.template()["directions"]["recommended"]
     assert sorted((k, r) for k, v in rec.items() for r in v) == sorted(S.open_readings("all"))
     assert all(v in (HIGHER, LOWER) for d in rec.values() for v in d.values())
+
+
+SETTINGS = TEMPLATE.with_name("settings.json")
+
+
+def test_the_firms_settings_are_complete_and_are_what_they_approved():
+    # The firm, 16 Oct 2026: "Good with those recommendations". Each answer is
+    # the recommendation the firm was shown beside it, in the same file.
+    raw = json.loads(SETTINGS.read_text("utf-8"))
+    S.check(raw)
+    for name, *_ in S.QUESTIONS:
+        assert raw[name]["answer"] == raw[name]["recommended"], name
