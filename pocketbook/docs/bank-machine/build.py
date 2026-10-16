@@ -36,13 +36,13 @@ ROUTE = f"""<figure class="route"><svg viewBox="0 0 1000 300" xmlns="http://www.
 {box(10, 20, 170, 100, *HOME, "1 · Before you go", ["your own computer:", "make the kit,", "check the Python"])}
 {box(215, 20, 170, 100, *BANK, "2 · Install", ["unzip, open the window,", "Install now, or the", "add-ons folder"])}
 {box(420, 20, 170, 100, *BANK, "3 · Dry run", ["the practice book:", "compare every number", "with the table"])}
-{box(625, 20, 170, 100, *BANK, "4 · Excel", ["the live parts:", "dropdowns, verdicts,", "colours, Look's lines"])}
+{box(625, 20, 170, 100, *BANK, "4 · Excel", ["the live parts:", "dropdowns, verdicts,", "colors, Look's lines"])}
 {box(830, 20, 160, 100, *BANK, "5 · Speed", ["the bigger book,", "Task Manager:", "one Python per core"])}
 {arrow(180, 70, 213, 70)}{arrow(385, 70, 418, 70)}{arrow(590, 70, 623, 70)}{arrow(795, 70, 828, 70)}
 {box(420, 170, 250, 90, *REAL, "6 · A real extract", ["the columns it needs; Look and", "Columns first; nothing leaves"])}
 {box(720, 170, 270, 90, *HOME, "7 · Send back", ["from the practice book only:", "the ticks, screenshots, versions"])}
 {arrow(910, 120, 670, 200)}{arrow(670, 215, 718, 215)}
-<text x="10" y="200" font-size="11" fill="#666">Grey: your own computer, or what comes back to it.</text>
+<text x="10" y="200" font-size="11" fill="#666">Gray: your own computer, or what comes back to it.</text>
 <text x="10" y="218" font-size="11" fill="#666">Peach: at the bank, on the practice book (made up; safe to send).</text>
 <text x="10" y="236" font-size="11" fill="#666">Green: at the bank, on real data. It stays there.</text>
 </g></svg><figcaption>The route. Parts 2 to 5 use only the made-up practice book.</figcaption></figure>"""

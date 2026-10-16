@@ -112,7 +112,7 @@ def test_nothing_is_picked_as_the_outcome_and_a_pick_is_asked_about_in_counts(tm
     f.click("CHANNEL", "b")
     f.pick_outcome("EVER GCO")
     c = next(c for c in f.outcome_choices() if c.name == "EVER GCO")
-    assert f"{c.yes:,} loans" in f.outcome_question() and f"{c.no:,}." in f.outcome_question()
+    assert f"{c.yes:,} loans" in f.outcome_question() and f"({c.no:,} loans)" in f.outcome_question()
     f.answer_outcome(True)
     assert f.outcome == "EVER GCO"
     rows = {r["name"]: r for r in f.rows()}
@@ -741,9 +741,9 @@ def test_one_cell_reads_the_blocks_own_numbers_in_words_for_a_multiple_and_a_gap
         bound = max([abs(x) for blk in (bk, bd) for k, x in blk.items() if isinstance(x, (int, float))
                      and isinstance(loans.get(k), (int, float)) and loans[k] >= few] + [0.01])
         if n < few:
-            assert said["The colour"] == f"Grey: only {n:,} loans, fewer than the {few:,} set on Control, so not coloured."
+            assert said["The color"] == f"Gray: only {n:,} loans, fewer than the {few:,} set on Control, so not colored."
         else:
-            assert said["The colour"].startswith(f"vs the book is {_shade(v, kind, bound)}, vs rest of band "
+            assert said["The color"].startswith(f"vs the book is {_shade(v, kind, bound)} and vs rest of band is "
                                                  f"{_shade(w, kind, bound)}.")
 
 
@@ -760,7 +760,8 @@ def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(
     assert bd[alone] is None
     for measure in ("GCOs ($)", "RANR"):
         _, _, said = _grids(b, tmp_path / f"alone-{measure[0]}.xlsx", measure=measure, row=alone[0], column=alone[1])
-        assert said["vs rest of band"] == f"Blank: alone in its band. Nothing else in {alone[0]} to compare with."
+        assert said["vs rest of band"] == (f"Blank: this is the only pocket in its band, so there is nothing else in "
+                                           f"{alone[0]} to compare with.")
     _, _, said = _grids(b, tmp_path / "alone.xlsx", measure="GCOs ($)", row=alone[0], column=alone[1])
     if loans[alone] == 1:                                         # one loan reads as one, not "1 loans"
         assert said["Rate"].startswith("This one loan: GCOs were ") and said["Rate"].endswith(" of its booked "
@@ -770,8 +771,8 @@ def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(
         assert said["vs the book"] == few                        # only one reason a comparison with the book is blank
     _, _, said = _grids(b, tmp_path / "few.xlsx", measure="GCOs ($)", row=thin[0], column=thin[1])
     assert said["vs the book"] == few and said["vs rest of band"] == few
-    assert "alone" not in said["The colour"] and said["The colour"].startswith("vs the book is blank, vs rest of band "
-                                                                               "blank.")
+    assert "alone" not in said["The color"] and said["The color"].startswith("vs the book is blank and vs rest of band "
+                                                                               "is blank.")
     ws = load_workbook(b)[results.GRIDS]
     notes = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("A blank")]
     assert notes == ["A blank: alone in its band, or fewer losses than the minimum, so not compared."]
@@ -1011,10 +1012,10 @@ def test_grids_grey_a_cell_under_the_fewest_loans_and_leave_it_out_of_the_scale(
         assert coloured and all(f.startswith(f"AND(NOT({grey})") for f in coloured)
     # what one cell says, and the note
     _, _, said = _grids(b, tmp_path / "k1.xlsx", measure="RANR", row=kiosk[0], column=KIOSK)
-    assert said["The colour"] == f"Grey: only 3 loans, fewer than the {few} set on Control, so not coloured."
+    assert said["The color"] == f"Gray: only 3 loans, fewer than the {few} set on Control, so not colored."
     note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 16)}
-    assert note["Colour"].endswith(f"Grey: fewer loans than the {few} in Fewest loans in a pocket on Control, so "
-                                   f"not coloured, and left out of the largest gap.")
+    assert note["Color"].endswith(f"Gray cells have fewer loans than the {few} set in Fewest loans in a pocket on "
+                                   f"Control; they are not colored and are left out of the largest gap.")
 
 
 def test_grids_fewest_loans_is_the_number_the_run_used_and_no_filter_by_offers_all_loans(tmp_path, monkeypatch):
@@ -1046,10 +1047,10 @@ def test_grids_fewest_loans_is_the_number_the_run_used_and_no_filter_by_offers_a
     thin = next(k for k, v in _pockets(blocks["Loans"]).items() if v < want)
     _, _, said = _grids(out.book, tmp_path / "f1.xlsx", row=thin[0], column=thin[1])
     n = blocks["Loans"][thin]
-    assert said["The colour"] == (f"Grey: only {n} loan{'' if n == 1 else 's'}, fewer than the {want} set on Control, "
-                                  f"so not coloured.")
-    assert f"Grey: fewer loans than the {want} in Fewest loans" in \
-        next(ws.cell(row=r, column=3).value for r in range(3, 16) if ws.cell(row=r, column=2).value == "Colour")
+    assert said["The color"] == (f"Gray: only {n} loan{'' if n == 1 else 's'}, fewer than the {want} set on Control, "
+                                  f"so not colored.")
+    assert f"Gray cells have fewer loans than the {want} set in Fewest loans" in \
+        next(ws.cell(row=r, column=3).value for r in range(3, 16) if ws.cell(row=r, column=2).value == "Color")
 
 
 def test_grids_the_books_own_figure_heads_vs_the_book(grids_book, tmp_path):
@@ -1113,7 +1114,7 @@ def test_grids_only_loans_where_shows_one_values_grid_against_the_whole_book(gri
     kiosk = next(k for k in cells if k[1] == KIOSK and k[0] != "All")
     _, _, said = _grids(b, tmp_path / "y1.xlsx", measure="RANR", row=kiosk[0], column=KIOSK,
                         **{ONLY: "Y"})
-    assert said["The colour"].startswith("Grey: only 3 loans, ")
+    assert said["The color"].startswith("Gray: only 3 loans, ")
 
 
 def test_grids_loan_size_is_booked_per_loan_described_never_red_or_green(grids_book, tmp_path):
@@ -1143,7 +1144,7 @@ def test_grids_loan_size_is_booked_per_loan_described_never_red_or_green(grids_b
     avg, med = _size(got)
     assert said["Rate"] == f"These {len(got):,} loans averaged ${avg:,.0f} booked, median ${med:,.0f}."
     assert said["vs the book"] == f"{avg / book_avg:.2f}× the average loan of the whole book."
-    assert said["The colour"] == results.SAY_SIZE
+    assert said["The color"] == results.SAY_SIZE
     fills = {r.dxf.fill.fgColor.rgb[-6:] for r, *_ in _rules_at(ws, _coord(ws, "vs the book", k))
              if r.dxf.fill is not None and '="size"' in r.formula[0]}
     assert fills == {c for _, c in results.SIZE_STEPS}
@@ -1185,8 +1186,8 @@ def test_grids_loan_size_is_not_offered_without_a_booked_amount(tmp_path):
 # exact test's p-value is the same on every run, so it is never borderline.
 
 UNDER, OVER, FAR, NEAR_Z, TINY = 0.048, 0.052, 0.3, 0.049, 0.001
-BORDER_SAID = ("Borderline: the test's p-value is within the shuffle's own margin of the 5% bar, so another run "
-               "could read it the other way.")
+BORDER_SAID = ("Borderline: the shuffle test's p-value is within 2 standard errors of the 5% threshold, on either "
+               "side.")
 
 
 def test_borderline_is_two_of_the_shuffles_own_standard_errors_either_side_of_the_bar():
@@ -1396,8 +1397,8 @@ def test_borderline_pockets_says_too_close_to_call_and_worse_keeps_the_words_col
     # the method note says what it means, in the firm's plain words and under 25, at the end of its p-value item
     # so that no row of the tab moves
     note = _note(calc[results.POCKETS])
-    assert "Too close to call (the shuffled p-value is within the shuffle's own margin of the bar" in \
-        note[results.CHANCE_HEAD]
+    assert "Too close to call (the shuffled p-value is within 2 standard errors of the threshold, on either side)" \
+        in note[results.CHANCE_HEAD]
 
 
 def test_borderline_paid_cost_kept_together_says_it_and_its_colour_and_chart_stay_the_words(border_book, tmp_path):
@@ -1426,7 +1427,7 @@ def test_borderline_paid_cost_kept_together_says_it_and_its_colour_and_chart_sta
     named = [f for f in tog if "Net drain" in f or "Strong" in f]
     assert named and all(results.col(results.C_H_TOG) in f for f in named)
     note = _note(ws)
-    assert note["Together"].endswith(f" {BORDER_SAID} Together gives the p-value of each side that is, GCOs "
+    assert note["Together"].endswith(f" {BORDER_SAID} Where a side is borderline, Together gives its p-value, GCOs "
                                      f"first.")
 
 
@@ -1491,7 +1492,7 @@ def test_borderline_start_here_record_and_the_launcher_count_and_name_them(borde
         assert seg == live.flagged(tabs.word(seg), want[(band, tabs.word(seg))]), (band, seg)
     # Record: the rule, and the count now; the Run's line names the worst with its flag
     rec = tabs.record(calc)
-    assert "within 2 of its own standard errors of the 5% bar" in rec["Borderline"]
+    assert "within 2 standard errors of the 5% threshold, on either side" in rec["Borderline"]
     assert "never borderline" in rec["Borderline"]
     n = len(gco)
     assert rec["Borderline now: GCOs ($)"] == (f"{sum(1 for x in gco if x[3].borderline)} of {n:,} pockets on "
@@ -2124,15 +2125,15 @@ def test_pck_gross_a_pocket_that_lost_money_outright_is_red_and_counted_above_th
         s = tabs.dropdown(ws, "Grid").row
         n = len(neg)
         assert ws.cell(row=s, column=results.C_LOANS).value == (
-            f"{n} pocket{'s' if n != 1 else ''} lost money outright, totalling ${lost:,.0f}: RANR below zero, in red."
-            if n else "No pocket listed lost money outright: every one's RANR is zero or more.")
+            f"{n} pocket{'s' if n != 1 else ''} listed {'have' if n != 1 else 'has'} RANR below zero, with combined "
+            f"RANR of -${lost:,.0f}, shown in red." if n else "No pocket listed has RANR below zero.")
         rules = [r for rng in ws.formulas.conditional_formatting
                  if str(rng.sqref) == f"{results.col(results.C_LOANS)}{s}" for r in rng.rules]
         assert rules and rules[0].dxf.font.color.rgb[-6:] == house.CRIMSON
         assert ws.cell(row=s, column=results.C_H_UN).value == n                # the rule's cell: red above 0
     assert kiosks >= 5                          # the planted Kiosk pockets, one in each score band
     note = _note(gross_book["calc"]["FICO x CHANNEL"])
-    assert "Negative RANR: the pocket lost money outright, before comparing it with anyone." in note["RANR"]
+    assert "Negative RANR: a pocket with RANR below zero shows its RANR and RANR ÷ Booked in red." in note["RANR"]
 
 
 def test_pck_gross_a_pocket_not_listed_gets_its_own_total_and_the_three_still_add_up():
@@ -2160,10 +2161,11 @@ def test_pck_gross_a_pocket_not_listed_gets_its_own_total_and_the_three_still_ad
 
 def test_pck_gross_no_negative_pocket_says_so_and_one_says_it_in_the_singular():
     from pocketbook import results
-    assert results.negative_line([{"ranr": 5.0}, {"ranr": 0.0}]) == (
-        "No pocket listed lost money outright: every one's RANR is zero or more.")
+    assert results.negative_line([{"ranr": 5.0}, {"ranr": 0.0}]) == "No pocket listed has RANR below zero."
     assert results.negative_line([{"ranr": -1234.4}, {"ranr": 3.0}]) == (
-        "1 pocket lost money outright, totalling $1,234: RANR below zero, in red.")
+        "1 pocket listed has RANR below zero, with combined RANR of -$1,234, shown in red.")
+    assert results.negative_line([{"ranr": -1000.0}, {"ranr": -234.4}]) == (
+        "2 pockets listed have RANR below zero, with combined RANR of -$1,234, shown in red.")
 
 
 def test_pck_gross_dollars_fit_their_columns_and_turn_to_thousands_past_the_cap(gross_book):
@@ -2504,7 +2506,11 @@ def test_few_values_the_run_says_so_and_columns_suggests_category_while_the_answ
     assert said[:-1] in warn                                              # and Record
     wb = load_workbook(b)
     why = wb["Columns"][at(wb, DEROGS, book.C_WHY)].value
-    assert why.endswith(" Few values (0 to 8): Category may read better.") and why.count("Few values") == 1
+    assert why.endswith(" Few values (0 to 8): the last Run gave each value its own band.")
+    assert why.count("Few values") == 1
+    # a workbook written before 14 Oct 2026 carries the earlier wording; the next Run replaces it, never adds to it
+    assert book._FEW_VALUES_RE.sub("", "From its name. Few values (0 to 8): Category may read better.") == \
+        "From its name."
     assert wb["Columns"][at(wb, DEROGS, book.C_MEANS)].value == "Amount or number"   # a suggestion, never a change
     assert "Few values" not in str(wb["Columns"][at(wb, "FICO", book.C_WHY)].value)
     # the setting the launcher chose rides with the band: Control's 12

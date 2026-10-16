@@ -1083,25 +1083,25 @@ def _drop_outcome_cuts(config: Config, measures, warnings: list[str]) -> Config:
         if hit is not None:
             made_from[d.name] = made_from.get(hit, hit)
     if config.split and config.split[0] in made_from:
-        raise DataRefused(f"`{config.split[0]}` is made from `{made_from[config.split[0]]}`, the top of a rate, so "
-                          f"splitting by it would split the book by its own outcome. Split by another column")
+        raise DataRefused(f"`{config.split[0]}` is made from `{made_from[config.split[0]]}`, the numerator of a rate, "
+                          f"so splitting by it would split the book by its own outcome. Split by another column")
     marked = dict(config.not_cut)              # meanings never cut by: servicing data, dates, the key ...
     drop = tops | set(marked) | set(made_from)
     keep_b = tuple(b for b in config.bands if b.field not in drop)
     keep_d = tuple(d for d in config.dimensions if d.field not in drop)
     for x in [b for b in config.bands if b.field in drop] + [d for d in config.dimensions if d.field in drop]:
         if x.field in made_from:
-            warnings.append(f"`{x.field}` is not cut by: it is made from `{made_from[x.field]}`, the top of a rate, "
-                            f"so cutting by it would cut the book by its own outcome")
+            warnings.append(f"`{x.field}` is not cut by: it is made from `{made_from[x.field]}`, the numerator of a "
+                            f"rate, so cutting by it would cut the book by its own outcome")
         elif x.field in tops:
-            warnings.append(f"`{x.field}` is not cut by: it is the top of a rate, so cutting by it would cut the "
-                            f"book by its own outcome")
+            warnings.append(f"`{x.field}` is not cut by: it is the numerator of a rate, so cutting by it would cut "
+                            f"the book by its own outcome")
         else:
             warnings.append(f"`{x.field}` is not cut by: `columns:` says it means {marked[x.field]}")
     # a test of a new variable cuts only the columns held fixed, a number, a category, both or neither (OC-42)
     if (not keep_b or not keep_d) and config.run_kind != "new_variable":
         which = "band" if not keep_b else "dimension"
-        raise NothingToCut(f"no {which} is left to cut by: every one listed is either the top of a rate or a "
+        raise NothingToCut(f"no {which} is left to cut by: every one listed is either the numerator of a rate or a "
                            f"column `columns:` says is not cut by ({', '.join(sorted(drop))}). Add a {which}, "
                            f"or change a column's meaning")
     return replace(config, bands=keep_b, dimensions=keep_d)

@@ -721,7 +721,8 @@ def test_the_out_of_time_check_is_recorded_as_a_touch_of_the_holdout(wide):
 def test_the_one_line_reads_built_then_unseen(wide):
     sc = wide["sc"]
     said = scout.auc_words(sc)
-    assert said == (f"Built on loans made {sc.development.text()}: AUC {sc.auc:.2f}. On loans made "
+    assert said == (f"Built on loans made {sc.development.text()}: area under the curve (AUC) {sc.auc:.2f}. On "
+                    f"loans made "
                     f"{sc.holdout.text()}, unseen: {sc.oot.auc:.2f}. With FICO and CHANNEL in the forest too: "
                     f"{sc.auc_held:.2f} built, {sc.oot.auc_held:.2f} unseen.")
 
@@ -741,7 +742,7 @@ def test_new_variables_leads_with_the_tree_then_all_together_then_each_on_its_ow
     assert where["The tree on loans it never saw"] < where[together] < heads[0] < where["Each candidate on its own"] \
         < heads[1]
     assert ws.cell(row=where["The tree on loans it never saw"] + 1, column=confirm_tab.FIRST + 1).value == \
-        scout.auc_words(sc)
+        scout.auc_words(sc, spell=False)                      # AUC is spelled out once, in the method note
     # the joint table: a row per group against its reference, the odds ratio together, and per candidate what it adds
     calc = recalc(wide["b"], tmp_path_factory.mktemp("wide_calc"))[confirm_tab.SHEET]
     seen = {}

@@ -275,7 +275,7 @@ def test_no_origination_date_says_why_in_one_sentence(made):
     assert ws._charts == []
     assert not any(c.value in ("VINTAGE MEASURE", "VINTAGE ROW") for row in ws.iter_rows() for c in row)
     assert not any(isinstance(k, str) and k.startswith("V|") for k in _views(b))
-    assert ws["B2"].value == "Grey rows under" and ws["C2"].value == 50      # the grey rows don't need a date
+    assert ws["B2"].value == "Gray rows under" and ws["C2"].value == 50      # the grey rows don't need a date
 
 
 def test_grey_rows_read_their_own_number_and_nothing_else(made):
@@ -285,7 +285,7 @@ def test_grey_rows_read_their_own_number_and_nothing_else(made):
     b, _, _ = made
     wb = load_workbook(b)
     ws = wb[results.SUMMARY]
-    assert (ws["B2"].value, ws["C2"].value, ws["D2"].value) == ("Grey rows under", 50, "loans")
+    assert (ws["B2"].value, ws["C2"].value, ws["D2"].value) == ("Gray rows under", 50, "loans")
     assert ws["C2"].data_type == "n"
     h = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=3).value == "Loans")
     grey = []
@@ -324,5 +324,5 @@ def test_the_grey_number_typed_survives_the_next_run(made, tmp_path):
         mp.setattr(perm, "SHUFFLES", 100)
         assert book.run(b).ok
     ws = load_workbook(b)[results.SUMMARY]
-    assert (ws["B2"].value, ws["C2"].value) == ("Grey rows under", 75)
+    assert (ws["B2"].value, ws["C2"].value) == ("Gray rows under", 75)
     assert summary_chart.typed_grey(load_workbook(made[0])) == 50

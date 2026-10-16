@@ -355,7 +355,7 @@ def test_a_dollar_materiality_line_is_gco_and_profit_is_held_to_it(tmp_path):
     check = tabs.record(_tab(b, "Record"))
     assert check["Materiality line: GCOs ($)"] == "100,000 GCO_AMT dollars"
     assert check["Materiality line: RANR"] == (
-        "a shortfall of 100,000 RANR_AMT dollars: the same dollar line as GCO (Control's materiality answer)")
+        "a shortfall of 100,000 RANR_AMT dollars, the same dollar line as GCO (the materiality answer on Control)")
     assert "GCO amount" in check["Materiality line: Bad loans"]
     assert check["Smallest excess loss worth reporting"] == "$100,000 of GCO"
 
