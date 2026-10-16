@@ -446,3 +446,20 @@ caught none. Eleven are fixed, each with a test that a deliberate break makes fa
 W1, `work/` is not ignored by git (a line in `threshold-engine/.gitignore`, outside the paths this work
 may write); W12, no side-by-side what-if (a proposal). The procedure is one 20-page PDF with the
 screenshots in it, from the second walk, after the fixes: `walkthrough/refresh-2026-10-16/`.
+
+**Tied out** (`tie-out/gasoline-change-2026-10-16/`): the Ratings tab's top reading, gasoline's change over a
+year, +41.49%, rated 4. It is traced from the workbook's cells (H19, I19, J19; the prices on the series' own
+tab) to EIA, the publisher.
+
+- **EIA's own weekly table, photographed and ringed:** 3.061 for the week of 13 Oct 2025, 4.331 for the week
+  of 12 Oct 2026.
+- **EIA's own history file:** all 1,881 priced weeks are identical to the FRED file the workbook read. The
+  change, 41.4897%, and the percentile, 1,730 of 1,829, were worked again by code that does not import the
+  tool, and by spreadsheet formulas run in LibreOffice.
+- **Three more figures**, each against its publisher's own page or file:
+  - the unemployment rate, 4.2, against BLS;
+  - the Sahm reading, 0.00, against FRED's SAHMCURRENT;
+  - government-backed mortgages 90+ days late, +0.9, against FHFA's file.
+- **Result:** 4 of 4 tied, rendered through canon's checker.
+- **What it found:** EIA prints 3.061 in three different weeks. My own first picture ringed the one in
+  December 2007, which would have passed the red-ink check; I caught it reading the crop.

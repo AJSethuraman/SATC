@@ -132,6 +132,16 @@ reverse for any series.
   of the mortgage rate, and on most days of the yield curve. FRED counts
   whole weeks, and so does the tool now.
 
+## Walked and tied out (16 Oct 2026)
+
+- **Walked:** `walkthrough/refresh-2026-10-16/PROCEDURE-refresh-2026-10-16.pdf` is the monthly refresh,
+  step by step with screenshots. `walkthrough/WALKTHROUGH-DEFECTS.md` lists what the walk found (13, against
+  73 passing tests that caught none; 11 fixed, 2 open).
+- **Tied out:** `tie-out/gasoline-change-2026-10-16/TIE-OUT-gasoline-change-2026-10-16.pdf` traces the Ratings
+  tab's top reading, gasoline's change over a year, +41.49%, rated 4, from the cell to EIA's own table and
+  history file, worked again by hand and by spreadsheet formula. It ties three more of the tab's figures to
+  BLS, FRED and FHFA. All 4 of 4 tied.
+
 ## The firm's settings (16 Oct 2026)
 
 The firm: *"Good with those recommendations"*. The answers are in
